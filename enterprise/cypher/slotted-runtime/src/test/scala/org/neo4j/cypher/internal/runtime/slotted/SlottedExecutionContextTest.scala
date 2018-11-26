@@ -146,11 +146,4 @@ class SlottedExecutionContextTest extends CypherFunSuite {
   }
 
   private def offsetFor(key: CachedNodeProperty, slots: SlotConfiguration) = slots.getCachedNodePropertyOffsetFor(key)
-
-  test("can merge nullable RefSlots which are null") {
-    val leftSlots = slots(0, 0).newReference("a", nullable = true, CTAny)
-    SlottedPipeBuilder.generateSlotAccessorFunctions(leftSlots)
-    val rightSlots = slots(0, 0).newReference("a", nullable = true, CTAny)
-    SlottedExecutionContext(leftSlots).mergeWith(SlottedExecutionContext(rightSlots)) // should not fail
-  }
 }
