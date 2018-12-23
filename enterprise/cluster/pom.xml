@@ -7,7 +7,7 @@
     <relativePath>../..</relativePath>
   </parent>
   <artifactId>neo4j-cluster</artifactId>
-  <version>3.5.0-SNAPSHOT</version>
+  <version>3.5.1-SNAPSHOT</version>
 
   <name>Neo4j - Clustering Infrastructure</name>
   <description>Library implementing Paxos and Heartbeat components required for High Availability Neo4j</description>
