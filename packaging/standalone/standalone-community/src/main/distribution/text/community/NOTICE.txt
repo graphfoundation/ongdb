@@ -80,18 +80,11 @@ Apache Software License, Version 2.0
   Lucene codecs
   Lucene Common Analyzers
   Lucene Core
-  Lucene Memory
   Lucene QueryParsers
   neo4j-driver
   Netty/All-in-One
   oauth-sign
   opencsv
-  openCypher AST for the Cypher Query Language
-  openCypher Expressions
-  openCypher Front End
-  openCypher Parser
-  openCypher Rewriting
-  openCypher Utils
   parboiled-core
   parboiled-scala
   protobufjs

@@ -21,7 +21,7 @@ package org.neo4j.cypher.internal.compiler.v3_5.planner.logical.idp
 
 import org.mockito.Mockito.{spy, verify, verifyNoMoreInteractions}
 import org.neo4j.cypher.internal.compiler.v3_5.planner.logical.ProjectingSelector
-import org.opencypher.v9_0.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
 
 import scala.collection.immutable.BitSet
 
@@ -96,12 +96,9 @@ class IDPSolverTest extends CypherFunSuite {
     verify(monitor).endIteration(5, 2, 8)
     verify(table).removeAllTracesOf(BitSet(5, 11))
     verify(monitor).startIteration(6)
-    verify(monitor).endIteration(6, 2, 6)
-    verify(table).removeAllTracesOf(BitSet(6, 12))
-    verify(monitor).startIteration(7)
-    verify(monitor).endIteration(7, 2, 3)
-    verify(table).removeAllTracesOf(BitSet(7, 13))
-    verify(monitor).foundPlanAfter(7)
+    verify(monitor).endIteration(6, 3, 6)
+    verify(table).removeAllTracesOf(BitSet(6, 7, 12))
+    verify(monitor).foundPlanAfter(6)
     verifyNoMoreInteractions(monitor)
   }
 

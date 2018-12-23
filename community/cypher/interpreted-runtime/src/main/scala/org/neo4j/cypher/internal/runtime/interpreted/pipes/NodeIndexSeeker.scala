@@ -25,8 +25,8 @@ import org.neo4j.cypher.internal.v3_5.logical.plans._
 import org.neo4j.internal.kernel.api.{IndexQuery, IndexReference, NodeValueIndexCursor}
 import org.neo4j.values.AnyValue
 import org.neo4j.values.storable._
-import org.opencypher.v9_0.frontend.helpers.SeqCombiner.combine
-import org.opencypher.v9_0.util.{CypherTypeException, InternalException}
+import org.neo4j.cypher.internal.v3_5.frontend.helpers.SeqCombiner.combine
+import org.neo4j.cypher.internal.v3_5.util.{CypherTypeException, InternalException}
 
 import scala.collection.JavaConverters._
 
@@ -76,7 +76,7 @@ trait NodeIndexSeeker {
             val expr = range.prefix
             expr(row, state) match {
               case text: TextValue =>
-                Array(Seq(IndexQuery.stringPrefix(propertyIds.head, text.stringValue())))
+                Array(Seq(IndexQuery.stringPrefix(propertyIds.head, text)))
               case Values.NO_VALUE =>
                 Nil
               case other =>

@@ -3,14 +3,14 @@
   <parent>
     <groupId>org.neo4j</groupId>
     <artifactId>cypher-parent</artifactId>
-    <version>3.5.0-SNAPSHOT</version>
+    <version>3.5.1-SNAPSHOT</version>
     <relativePath>../</relativePath>
   </parent>
 
   <modelVersion>4.0.0</modelVersion>
   <artifactId>neo4j-cypher</artifactId>
   <packaging>jar</packaging>
-  <version>3.5.0-SNAPSHOT</version>
+  <version>3.5.1-SNAPSHOT</version>
   <name>Neo4j - Cypher</name>
   <description>Neo4j query language</description>
   <url>http://components.neo4j.org/${project.artifactId}/${project.version}</url>
@@ -51,10 +51,7 @@
         <groupId>org.scalastyle</groupId>
         <artifactId>scalastyle-maven-plugin</artifactId>
       </plugin>
-      <!-- This module contains public API, run javadoc and revapi -->
-      <plugin>
-        <artifactId>maven-javadoc-plugin</artifactId>
-      </plugin>
+      <!-- This module contains public API, run revapi -->
       <plugin>
         <groupId>org.revapi</groupId>
         <artifactId>revapi-maven-plugin</artifactId>
@@ -261,9 +258,9 @@
     </dependency>
 
       <dependency>
-          <groupId>org.opencypher</groupId>
-          <artifactId>util-9.0</artifactId>
-          <version>${openCypher.frontend.version}</version>
+          <groupId>org.neo4j</groupId>
+          <artifactId>neo4j-util-3.5</artifactId>
+          <version>${project.version}</version>
       </dependency>
 
     <dependency>
@@ -317,25 +314,25 @@
     </dependency>
 
     <dependency>
-      <groupId>org.opencypher</groupId>
-      <artifactId>util-9.0</artifactId>
-      <version>${openCypher.frontend.version}</version>
+      <groupId>org.neo4j</groupId>
+      <artifactId>neo4j-util-3.5</artifactId>
+      <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>
 
     <dependency>
-      <groupId>org.opencypher</groupId>
-      <artifactId>ast-9.0</artifactId>
-      <version>${openCypher.frontend.version}</version>
+      <groupId>org.neo4j</groupId>
+      <artifactId>neo4j-ast-3.5</artifactId>
+      <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>
 
     <dependency>
-      <groupId>org.opencypher</groupId>
-      <artifactId>parser-9.0</artifactId>
-      <version>${openCypher.frontend.version}</version>
+      <groupId>org.neo4j</groupId>
+      <artifactId>neo4j-parser-3.5</artifactId>
+      <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>

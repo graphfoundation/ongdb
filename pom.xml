@@ -5,7 +5,7 @@
 
   <groupId>org.neo4j</groupId>
   <artifactId>parent</artifactId>
-  <version>3.5.0-SNAPSHOT</version>
+  <version>3.5.1-SNAPSHOT</version>
   <packaging>pom</packaging>
   <name>Neo4j</name>
   <description>Neo4j Graph Database</description>
@@ -87,7 +87,6 @@
 
     <license-text.header>headers/AGPL-3-header.txt</license-text.header>
 
-    <openCypher.frontend.version>9.0.20181030</openCypher.frontend.version>
     <scala-maven-plugin.version>3.4.2</scala-maven-plugin.version>
     <scala.version>2.11.12</scala.version>
     <scala.binary.version>2.11</scala.binary.version>
@@ -101,7 +100,7 @@
     <currentYear>2018</currentYear>
     <cypher.compatibility.23>2.3.12</cypher.compatibility.23>
     <cypher.compatibility.31>3.1.9</cypher.compatibility.31>
-    <cypher.compatibility.34>3.4.9</cypher.compatibility.34>
+    <cypher.compatibility.34>3.4.10</cypher.compatibility.34>
     <opencypher.version>1.0.0-M12</opencypher.version>
     <caffeine.version>2.6.2</caffeine.version>
     <required.maven.version>3.5.2</required.maven.version>
@@ -280,21 +279,21 @@
                   <packages>
                     <regex>true</regex>
                     <include>
-                      <item>org\.neo4j\.graphalgo(\\..+)?</item>
-                      <item>org\.neo4j\.cypher\.export(\\..+)?</item>
-                      <item>org\.neo4j\.cypher\.javacompat(\\..+)?</item>
-                      <item>org\.neo4j\.graphdb(\\..+)?</item>
-                      <item>org\.neo4j\.helpers(\\..+)?</item>
-                      <item>org\.neo4j\.index(\\..+)?</item>
-                      <item>org\.neo4j\.jmx(\\..+)?</item>
-                      <item>org\.neo4j\.management(\\..+)?</item>
-                      <item>org\.neo4j\.server\.helpers(\\..+)?</item>
-                      <item>org\.neo4j\.server\.plugins(\\..+)?</item>
-                      <item>org\.neo4j\.server\.rest\.repr(\\..+)?</item>
-                      <item>org\.neo4j\.server\.rest\.web(\\..+)?</item>
-                      <item>org\.neo4j\.unsafe\.batchinsert(\\..+)?</item>
-                      <item>org\.neo4j\.logging(\\..+)?</item>
-                      <item>org\.neo4j\.procedure(\\..+)?</item>
+                      <item>org\.neo4j\.graphalgo(\..+)?</item>
+                      <item>org\.neo4j\.cypher\.export(\..+)?</item>
+                      <item>org\.neo4j\.cypher\.javacompat(\..+)?</item>
+                      <item>org\.neo4j\.graphdb(\..+)?</item>
+                      <item>org\.neo4j\.helpers(\..+)?</item>
+                      <item>org\.neo4j\.index(\..+)?</item>
+                      <item>org\.neo4j\.jmx(\..+)?</item>
+                      <item>org\.neo4j\.management(\..+)?</item>
+                      <item>org\.neo4j\.server\.helpers(\..+)?</item>
+                      <item>org\.neo4j\.server\.plugins(\..+)?</item>
+                      <item>org\.neo4j\.server\.rest\.repr(\..+)?</item>
+                      <item>org\.neo4j\.server\.rest\.web(\..+)?</item>
+                      <item>org\.neo4j\.unsafe\.batchinsert(\..+)?</item>
+                      <item>org\.neo4j\.logging(\..+)?</item>
+                      <item>org\.neo4j\.procedure(\..+)?</item>
                     </include>
                     <exclude>
                       <item>.*\.impl(\..+)?</item>
@@ -317,48 +316,44 @@
                 </item>
               </revapi.reclassify>
               <revapi.ignore>
-                <item>
-                  <!-- Ignore for now since some are already published, should be removed in 4.0 -->
-                  <code>java.class.nonPublicPartOfAPI</code>
-                </item>
-                <item>
-                  <code>java.class.noLongerImplementsInterface</code>
-                  <class>org.neo4j.graphalgo.WeightedPath</class>
-                  <justification>Cleanup accidental Path exposure as a Resource.</justification>
-                </item>
-                <item>
-                  <code>java.class.removed</code>
-                  <old>interface org.neo4j.management.Cache</old>
-                  <classSimpleName>Cache</classSimpleName>
-                  <package>org.neo4j.management</package>
-                  <elementKind>interface</elementKind>
-                  <justification>The implemented class was removed in 3.0, but this interface lingered on.</justification>
-                </item>
-                <item>
-                  <code>java.method.removed</code>
-                  <classSimpleName>Neo4jManager</classSimpleName>
-                  <methodName>getCacheBeans</methodName>
-                  <package>org.neo4j.management</package>
-                  <elementKind>method</elementKind>
-                  <justification>The implemented class was removed in 3.0, but this interface lingered on.</justification>
-                </item>
-                <item>
-                  <code>java.class.removed</code>
-                  <class>org.neo4j.helpers.FailableConcurrentTransfer</class>
-                  <justification>Class is never used</justification>
-                </item>
-                <item>
-                  <code>java.field.nowFinal</code>
-                  <old>field org.neo4j.graphdb.InputPosition.empty</old>
-                  <justification>Changes to this field should not be allowed</justification>
-                </item>
-                <item>
-                  <code>java.class.externalClassExposedInAPI</code>
-                  <new>class org.neo4j.helpers.HostnamePort</new>
-                  <package>org.neo4j.helpers</package>
-                  <classQualifiedName>org.neo4j.helpers.HostnamePort</classQualifiedName>
-                  <justification>This is meant to be exposed</justification>
-                </item>
+                  <item>
+                      <!-- Ignore for now since some are already published, should be removed in 4.0 -->
+                      <code>java.class.nonPublicPartOfAPI</code>
+                  </item>
+                  <item>
+                      <code>java.class.added</code>
+                      <classQualifiedName>org.neo4j.helpers.collection.MultiSet</classQualifiedName>
+                      <justification>This class was accidentally removed in 3.5.0 and recovered after release.</justification>
+                  </item>
+                  <item>
+                      <code>java.class.added</code>
+                      <classQualifiedName>org.neo4j.helpers.collection.CachingIterator</classQualifiedName>
+                      <justification>This class was accidentally removed in 3.5.0 and recovered after release.</justification>
+                  </item>
+                  <item>
+                      <code>java.class.added</code>
+                      <classQualifiedName>org.neo4j.helpers.collection.RangeIterator</classQualifiedName>
+                      <justification>This class was accidentally removed in 3.5.0 and recovered after release.</justification>
+                  </item>
+                  <item>
+                      <code>java.class.added</code>
+                      <classQualifiedName>org.neo4j.helpers.collection.PagingIterator</classQualifiedName>
+                      <justification>This class was accidentally removed in 3.5.0 and recovered after release.</justification>
+                  </item>
+                  <item>
+                      <code>java.method.parameterTypeChanged</code>
+                      <classQualifiedName>org.neo4j.graphdb.factory.GraphDatabaseFactory</classQualifiedName>
+                      <newType>org.neo4j.graphdb.facade.GraphDatabaseFacadeFactory.Dependencies</newType>
+                      <oldType>org.neo4j.kernel.impl.factory.GraphDatabaseFacadeFactory.Dependencies</oldType>
+                      <justification>This class was moved during edition/platform separation from the kernel</justification>
+                  </item>
+                  <item>
+                      <code>java.method.returnTypeChanged</code>
+                      <classQualifiedName>org.neo4j.graphdb.factory.GraphDatabaseFactoryState</classQualifiedName>
+                      <newType>org.neo4j.graphdb.facade.GraphDatabaseFacadeFactory.Dependencies</newType>
+                      <oldType>org.neo4j.kernel.impl.factory.GraphDatabaseFacadeFactory.Dependencies</oldType>
+                      <justification>This class was moved during edition/platform separation from the kernel</justification>
+                  </item>
               </revapi.ignore>
               <revapi.semver.ignore>
                 <enabled>true</enabled>
@@ -661,6 +656,11 @@
                   <file>${project.build.testSourceDirectory}/com</file>
                 </files>
               </requireFilesDontExist>
+              <requireFilesDontExist>
+                <files>
+                  <file>enterprise</file>
+                </files>
+              </requireFilesDontExist>
               <requireMavenVersion>
                 <version>${required.maven.version}</version>
               </requireMavenVersion>
@@ -754,6 +754,30 @@
             <execution>
               <goals>
                 <goal>aggregate</goal>
+              </goals>
+            </execution>
+          </executions>
+        </plugin>
+
+        <plugin>
+          <groupId>org.scalastyle</groupId>
+          <artifactId>scalastyle-maven-plugin</artifactId>
+          <version>1.0.0</version>
+          <configuration>
+            <verbose>false</verbose>
+            <failOnViolation>true</failOnViolation>
+            <includeTestSourceDirectory>true</includeTestSourceDirectory>
+            <failOnWarning>false</failOnWarning>
+            <inputEncoding>UTF-8</inputEncoding>
+            <sourceDirectory>${basedir}/src/main/scala</sourceDirectory>
+            <testSourceDirectory>${basedir}/src/test/scala</testSourceDirectory>
+            <outputFile>${basedir}/target/scalastyle-output.xml</outputFile>
+            <outputEncoding>UTF-8</outputEncoding>
+          </configuration>
+          <executions>
+            <execution>
+              <goals>
+                <goal>check</goal>
               </goals>
             </execution>
           </executions>

@@ -3,14 +3,14 @@
   <parent>
     <groupId>org.neo4j</groupId>
     <artifactId>cypher-parent</artifactId>
-    <version>3.5.0-SNAPSHOT</version>
+    <version>3.5.1-SNAPSHOT</version>
     <relativePath>../</relativePath>
   </parent>
 
   <modelVersion>4.0.0</modelVersion>
   <artifactId>neo4j-cypher-logical-plans-3.5</artifactId>
   <packaging>jar</packaging>
-  <version>3.5.0-SNAPSHOT</version>
+  <version>3.5.1-SNAPSHOT</version>
   <name>Neo4j - Cypher Logical Plans</name>
 
   <description>Cypher logical plans</description>
@@ -77,9 +77,9 @@
     <!-- neo4j testing -->
 
     <dependency>
-      <groupId>org.opencypher</groupId>
-      <artifactId>util-9.0</artifactId>
-      <version>1.0.0</version>
+      <groupId>org.neo4j</groupId>
+      <artifactId>neo4j-util-3.5</artifactId>
+      <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>

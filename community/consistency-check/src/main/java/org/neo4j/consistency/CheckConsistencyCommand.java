@@ -23,8 +23,6 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.time.ZoneId;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Optional;
 
 import org.neo4j.commandline.admin.AdminCommand;
@@ -36,7 +34,6 @@ import org.neo4j.commandline.arguments.common.OptionalCanonicalPath;
 import org.neo4j.consistency.checking.full.ConsistencyCheckIncompleteException;
 import org.neo4j.consistency.checking.full.ConsistencyFlags;
 import org.neo4j.graphdb.factory.GraphDatabaseSettings;
-import org.neo4j.helpers.Strings;
 import org.neo4j.helpers.collection.MapUtil;
 import org.neo4j.helpers.progress.ProgressMonitorFactory;
 import org.neo4j.io.fs.DefaultFileSystemAbstraction;
@@ -45,7 +42,7 @@ import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.impl.pagecache.ConfigurableStandalonePageCacheFactory;
-import org.neo4j.kernel.impl.recovery.RecoveryRequiredChecker;
+import org.neo4j.kernel.impl.recovery.RecoveryRequiredException;
 import org.neo4j.kernel.monitoring.Monitors;
 import org.neo4j.logging.FormattedLogProvider;
 import org.neo4j.scheduler.JobScheduler;
@@ -53,6 +50,7 @@ import org.neo4j.scheduler.JobScheduler;
 import static java.lang.String.format;
 import static org.neo4j.commandline.arguments.common.Database.ARG_DATABASE;
 import static org.neo4j.graphdb.factory.GraphDatabaseSettings.database_path;
+import static org.neo4j.kernel.impl.recovery.RecoveryRequiredChecker.assertRecoveryIsNotRequired;
 import static org.neo4j.kernel.impl.scheduler.JobSchedulerFactory.createInitialisedScheduler;
 
 public class CheckConsistencyCommand implements AdminCommand
@@ -209,22 +207,22 @@ public class CheckConsistencyCommand implements AdminCommand
         }
     }
 
-    private static Map<String,String> loadAdditionalConfig( Optional<Path> additionalConfigFile )
+    private static Config loadAdditionalConfig( Optional<Path> additionalConfigFile )
     {
         if ( additionalConfigFile.isPresent() )
         {
             try
             {
-                return MapUtil.load( additionalConfigFile.get().toFile() );
+                return Config.fromFile( additionalConfigFile.get() ).build();
             }
-            catch ( IOException e )
+            catch ( Exception e )
             {
                 throw new IllegalArgumentException(
                         String.format( "Could not read configuration file [%s]", additionalConfigFile ), e );
             }
         }
 
-        return new HashMap<>();
+        return Config.defaults();
     }
 
     private static void checkDbState( DatabaseLayout databaseLayout, Config additionalConfiguration ) throws CommandFailed
@@ -234,19 +232,11 @@ public class CheckConsistencyCommand implements AdminCommand
               PageCache pageCache = ConfigurableStandalonePageCacheFactory
                       .createPageCache( fileSystem, additionalConfiguration, jobScheduler ) )
         {
-            RecoveryRequiredChecker requiredChecker =
-                    new RecoveryRequiredChecker( fileSystem, pageCache, additionalConfiguration, new Monitors() );
-            if ( requiredChecker.isRecoveryRequiredAt( databaseLayout ) )
-            {
-                throw new CommandFailed(
-                        Strings.joinAsLines( "Active logical log detected, this might be a source of inconsistencies.",
-                                "Please recover database before running the consistency check.",
-                                "To perform recovery please start database and perform clean shutdown." ) );
-            }
+            assertRecoveryIsNotRequired( fileSystem, pageCache, additionalConfiguration, databaseLayout, new Monitors() );
         }
-        catch ( CommandFailed cf )
+        catch ( RecoveryRequiredException rre )
         {
-            throw cf;
+            throw new CommandFailed( rre.getMessage() );
         }
         catch ( Exception e )
         {
@@ -254,13 +244,16 @@ public class CheckConsistencyCommand implements AdminCommand
         }
     }
 
-    private static Config loadNeo4jConfig( Path homeDir, Path configDir, String databaseName,
-            Map<String,String> additionalConfig )
+    private static Config loadNeo4jConfig( Path homeDir, Path configDir, String databaseName, Config additionalConfig )
     {
-        additionalConfig.put( GraphDatabaseSettings.active_database.name(), databaseName );
-
-        return Config.fromFile( configDir.resolve( Config.DEFAULT_CONFIG_FILE_NAME ) ).withHome( homeDir ).withConnectorsDisabled()
-                .withSettings( additionalConfig ).build();
+        Config config = Config.fromFile( configDir.resolve( Config.DEFAULT_CONFIG_FILE_NAME ) )
+                .withHome( homeDir )
+                .withConnectorsDisabled()
+                .withNoThrowOnFileLoadFailure()
+                .build();
+        config.augment( additionalConfig );
+        config.augment( GraphDatabaseSettings.active_database, databaseName );
+        return config;
     }
 
     public static Arguments arguments()

@@ -28,10 +28,11 @@ import org.neo4j.cypher.internal.runtime.interpreted.ImplicitDummyPos
 import org.neo4j.cypher.internal.runtime.{NodeValueHit, QueryContext}
 import org.neo4j.cypher.internal.v3_5.logical.plans.CachedNodeProperty
 import org.neo4j.internal.kernel.api.{IndexQuery, NodeCursor, NodeValueIndexCursor}
+import org.neo4j.values.storable.Values.stringValue
 import org.neo4j.values.storable.{Value, Values}
 import org.neo4j.values.virtual.{NodeValue, VirtualNodeValue, VirtualValues}
-import org.opencypher.v9_0.expressions.{PropertyKeyName, PropertyKeyToken}
-import org.opencypher.v9_0.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.v3_5.expressions.{PropertyKeyName, PropertyKeyToken}
+import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
 
 trait IndexMockingHelp extends CypherFunSuite with ImplicitDummyPos {
 
@@ -58,8 +59,8 @@ trait IndexMockingHelp extends CypherFunSuite with ImplicitDummyPos {
     when(query.lockingUniqueIndexSeek(any(), any())).thenReturn(PredefinedCursor())
     values.foreach {
       case (searchTerm, resultIterable) =>
-        when(query.indexSeekByContains(any(), any(), any(), ArgumentMatchers.eq(searchTerm))).thenReturn(PredefinedCursor(resultIterable))
-        when(query.indexSeekByEndsWith(any(), any(), any(), ArgumentMatchers.eq(searchTerm))).thenReturn(PredefinedCursor(resultIterable))
+        when(query.indexSeekByContains(any(), any(), any(), ArgumentMatchers.eq(stringValue(searchTerm)))).thenReturn(PredefinedCursor(resultIterable))
+        when(query.indexSeekByEndsWith(any(), any(), any(), ArgumentMatchers.eq(stringValue(searchTerm)))).thenReturn(PredefinedCursor(resultIterable))
     }
 
     query
