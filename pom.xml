@@ -656,11 +656,6 @@
                   <file>${project.build.testSourceDirectory}/com</file>
                 </files>
               </requireFilesDontExist>
-              <requireFilesDontExist>
-                <files>
-                  <file>enterprise</file>
-                </files>
-              </requireFilesDontExist>
               <requireMavenVersion>
                 <version>${required.maven.version}</version>
               </requireMavenVersion>
