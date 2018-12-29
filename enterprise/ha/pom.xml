@@ -3,7 +3,7 @@
   <parent>
     <groupId>org.neo4j</groupId>
     <artifactId>parent</artifactId>
-    <version>3.5.0-SNAPSHOT</version>
+    <version>3.5.1-SNAPSHOT</version>
     <relativePath>../..</relativePath>
   </parent>
   <modelVersion>4.0.0</modelVersion>
@@ -98,10 +98,10 @@
       <plugin>
         <artifactId>maven-javadoc-plugin</artifactId>
       </plugin>
-      <plugin>
+      <!--<plugin>
         <groupId>org.revapi</groupId>
         <artifactId>revapi-maven-plugin</artifactId>
-      </plugin>
+      </plugin>-->
     </plugins>
   </build>
 

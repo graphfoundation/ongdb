@@ -51,7 +51,7 @@
     <system>GitHub</system>
     <url>https://github.com/neo4j/neo4j/issues</url>
   </issueManagement>
-  
+
   <distributionManagement>
     <repository>
       <id>sonatype-nexus-staging</id>
@@ -86,7 +86,7 @@
     <maven.build.timestamp.format>yyMMddHHmmssSSS</maven.build.timestamp.format>
 
     <license-text.header>headers/AGPL-3-header.txt</license-text.header>
-
+    
     <scala-maven-plugin.version>3.4.2</scala-maven-plugin.version>
     <scala.version>2.11.12</scala.version>
     <scala.binary.version>2.11</scala.binary.version>
