@@ -42,10 +42,10 @@ import org.neo4j.cypher.internal.runtime.{ExecutionMode, QueryContext, compiled}
 import org.neo4j.cypher.internal.v3_5.logical.plans.{LogicalPlan, ProduceResult}
 import org.neo4j.cypher.result.{QueryProfile, RuntimeResult}
 import org.neo4j.values.virtual.MapValue
-import org.opencypher.v9_0.ast.semantics.SemanticTable
-import org.opencypher.v9_0.frontend.PlannerName
-import org.opencypher.v9_0.util.Eagerly
-import org.opencypher.v9_0.util.attribution.Id
+import org.neo4j.cypher.internal.v3_5.ast.semantics.SemanticTable
+import org.neo4j.cypher.internal.v3_5.frontend.PlannerName
+import org.neo4j.cypher.internal.v3_5.util.Eagerly
+import org.neo4j.cypher.internal.v3_5.util.attribution.Id
 
 class CodeGenerator(val structure: CodeStructure[GeneratedQuery],
                     clock: Clock,

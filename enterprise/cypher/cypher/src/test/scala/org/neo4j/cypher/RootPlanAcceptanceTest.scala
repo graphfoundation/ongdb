@@ -25,7 +25,7 @@ package org.neo4j.cypher
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.{CompiledRuntimeName, InterpretedRuntimeName, RuntimeName, SlottedRuntimeName}
 import org.neo4j.cypher.internal.planner.v3_5.spi.{CostBasedPlannerName, DPPlannerName, IDPPlannerName}
 import org.neo4j.graphdb.ExecutionPlanDescription
-import org.opencypher.v9_0.frontend.PlannerName
+import org.neo4j.cypher.internal.v3_5.frontend.PlannerName
 
 class RootPlanAcceptanceTest extends ExecutionEngineFunSuite {
 

@@ -34,8 +34,8 @@ import org.neo4j.cypher.internal.runtime.compiled.codegen.ir.expressions._
 import org.neo4j.cypher.internal.runtime.compiled.codegen.spi._
 import org.neo4j.values.AnyValue
 import org.neo4j.values.storable.Value
-import org.opencypher.v9_0.frontend.helpers._
-import org.opencypher.v9_0.util.symbols
+import org.neo4j.cypher.internal.v3_5.frontend.helpers._
+import org.neo4j.cypher.internal.v3_5.util.symbols
 
 import scala.collection.mutable
 

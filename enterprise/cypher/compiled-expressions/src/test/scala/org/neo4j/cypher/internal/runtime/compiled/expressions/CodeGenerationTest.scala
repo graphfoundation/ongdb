@@ -44,12 +44,12 @@ import org.neo4j.values.storable._
 import org.neo4j.values.virtual.VirtualValues._
 import org.neo4j.values.virtual.{MapValue, NodeValue, RelationshipValue, VirtualValues}
 import org.neo4j.values.{AnyValue, AnyValues}
-import org.opencypher.v9_0.ast.AstConstructionTestSupport
-import org.opencypher.v9_0.expressions
-import org.opencypher.v9_0.expressions._
-import org.opencypher.v9_0.util._
-import org.opencypher.v9_0.util.symbols.{CypherType, ListType}
-import org.opencypher.v9_0.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.v3_5.ast.AstConstructionTestSupport
+import org.neo4j.cypher.internal.v3_5.expressions
+import org.neo4j.cypher.internal.v3_5.expressions._
+import org.neo4j.cypher.internal.v3_5.util._
+import org.neo4j.cypher.internal.v3_5.util.symbols.{CypherType, ListType}
+import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
 import org.scalatest.matchers.{MatchResult, Matcher}
 
 import scala.collection.mutable
@@ -2344,7 +2344,7 @@ class CodeGenerationTest extends CypherFunSuite with AstConstructionTestSupport 
     CodeGeneration.compileProjection(compiler.compileProjection(compiled))
   }
 
-  private def function(name: String, es: Expression*) =
+  override def function(name: String, es: Expression*) =
     FunctionInvocation(FunctionName(name)(pos), distinct = false, es.toIndexedSeq)(pos)
 
   private def function(name: String) =

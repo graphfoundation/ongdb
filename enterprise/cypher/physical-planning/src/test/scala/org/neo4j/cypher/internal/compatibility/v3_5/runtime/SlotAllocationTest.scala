@@ -23,12 +23,12 @@ import org.neo4j.cypher.internal.compiler.v3_5.planner.LogicalPlanningTestSuppor
 import org.neo4j.cypher.internal.ir.v3_5.{CreateNode, VarPatternLength}
 import org.neo4j.cypher.internal.v3_5.logical.plans.{Ascending, _}
 import org.neo4j.cypher.internal.v3_5.logical.{plans => logicalPlans}
-import org.opencypher.v9_0.ast.ASTAnnotationMap
-import org.opencypher.v9_0.ast.semantics.{ExpressionTypeInfo, SemanticTable}
-import org.opencypher.v9_0.expressions._
-import org.opencypher.v9_0.util.LabelId
-import org.opencypher.v9_0.util.symbols._
-import org.opencypher.v9_0.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.v3_5.ast.ASTAnnotationMap
+import org.neo4j.cypher.internal.v3_5.ast.semantics.{ExpressionTypeInfo, SemanticTable}
+import org.neo4j.cypher.internal.v3_5.expressions._
+import org.neo4j.cypher.internal.v3_5.util.LabelId
+import org.neo4j.cypher.internal.v3_5.util.symbols._
+import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
 
 //noinspection NameBooleanParameters
 class SlotAllocationTest extends CypherFunSuite with LogicalPlanningTestSupport2 {

@@ -35,13 +35,13 @@ import org.neo4j.cypher.internal.runtime.slotted.pipes._
 import org.neo4j.cypher.internal.runtime.slotted.{expressions => slottedExpressions}
 import org.neo4j.cypher.internal.v3_5.logical.plans
 import org.neo4j.cypher.internal.v3_5.logical.plans._
-import org.opencypher.v9_0.ast.semantics.SemanticTable
-import org.opencypher.v9_0.expressions.{Equals, SignedDecimalIntegerLiteral}
-import org.opencypher.v9_0.util.AssertionUtils._
-import org.opencypher.v9_0.util.InternalException
-import org.opencypher.v9_0.util.attribution.Id
-import org.opencypher.v9_0.util.symbols._
-import org.opencypher.v9_0.{expressions => frontEndAst}
+import org.neo4j.cypher.internal.v3_5.ast.semantics.SemanticTable
+import org.neo4j.cypher.internal.v3_5.expressions.{Equals, SignedDecimalIntegerLiteral}
+import org.neo4j.cypher.internal.v3_5.util.AssertionUtils._
+import org.neo4j.cypher.internal.v3_5.util.InternalException
+import org.neo4j.cypher.internal.v3_5.util.attribution.Id
+import org.neo4j.cypher.internal.v3_5.util.symbols._
+import org.neo4j.cypher.internal.v3_5.{expressions => frontEndAst}
 
 class SlottedPipeBuilder(fallback: PipeBuilder,
                          expressionConverters: ExpressionConverters,

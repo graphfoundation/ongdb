@@ -27,8 +27,8 @@ import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.Litera
 import org.neo4j.cypher.internal.runtime.slotted.pipes.Ascending
 import org.neo4j.cypher.internal.runtime.vectorized._
 import org.neo4j.values.AnyValue
-import org.opencypher.v9_0.util.symbols.CTNode
-import org.opencypher.v9_0.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.v3_5.util.symbols.CTNode
+import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
 
 class MergeSortOperatorTest extends CypherFunSuite {
 

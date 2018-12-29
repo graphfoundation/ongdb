@@ -23,7 +23,7 @@ import org.neo4j.cypher.internal.compatibility.v3_5.runtime.SlotConfiguration
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.SlotConfiguration.Size
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.{Pipe, QueryState}
 import org.neo4j.cypher.internal.runtime.slotted.SlottedExecutionContext
-import org.opencypher.v9_0.util.attribution.Id
+import org.neo4j.cypher.internal.v3_5.util.attribution.Id
 
 case class ArgumentSlottedPipe(slots: SlotConfiguration,
                                argumentSize:Size)

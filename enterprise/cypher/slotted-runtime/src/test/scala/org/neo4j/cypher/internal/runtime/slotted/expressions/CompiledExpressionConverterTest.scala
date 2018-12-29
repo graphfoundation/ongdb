@@ -24,10 +24,10 @@ import org.neo4j.cypher.internal.compatibility.v3_5.runtime.SlotAllocation.Physi
 import org.neo4j.cypher.internal.planner.v3_5.spi.TokenContext
 import org.neo4j.cypher.internal.runtime.interpreted.commands.convert.ExpressionConverters
 import org.neo4j.logging.BufferingLog
-import org.opencypher.v9_0.ast.AstConstructionTestSupport
-import org.opencypher.v9_0.expressions.{Add, StringLiteral}
-import org.opencypher.v9_0.util.attribution.Id
-import org.opencypher.v9_0.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.v3_5.ast.AstConstructionTestSupport
+import org.neo4j.cypher.internal.v3_5.expressions.{Add, StringLiteral}
+import org.neo4j.cypher.internal.v3_5.util.attribution.Id
+import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
 
 class CompiledExpressionConverterTest extends CypherFunSuite with AstConstructionTestSupport {
 

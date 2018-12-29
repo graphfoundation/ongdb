@@ -22,7 +22,7 @@
  */
 package org.neo4j.internal.cypher.acceptance
 
-import org.opencypher.v9_0.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
 import org.scalacheck._
 
 class Neo4jValueComparisonTest extends CypherFunSuite {

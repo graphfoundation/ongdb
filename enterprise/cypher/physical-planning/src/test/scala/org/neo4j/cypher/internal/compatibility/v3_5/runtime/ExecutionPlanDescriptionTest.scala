@@ -22,8 +22,8 @@ package org.neo4j.cypher.internal.compatibility.v3_5.runtime
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast.ReferenceFromSlot
 import org.neo4j.cypher.internal.runtime.planDescription.InternalPlanDescription.Arguments._
 import org.neo4j.cypher.internal.runtime.planDescription.{NoChildren, PlanDescriptionImpl, renderAsTreeTable}
-import org.opencypher.v9_0.util.attribution.Id
-import org.opencypher.v9_0.util.test_helpers.{CypherFunSuite, WindowsStringSafe}
+import org.neo4j.cypher.internal.v3_5.util.attribution.Id
+import org.neo4j.cypher.internal.v3_5.util.test_helpers.{CypherFunSuite, WindowsStringSafe}
 
 class ExecutionPlanDescriptionTest extends CypherFunSuite {
   implicit val windowsSafe = WindowsStringSafe

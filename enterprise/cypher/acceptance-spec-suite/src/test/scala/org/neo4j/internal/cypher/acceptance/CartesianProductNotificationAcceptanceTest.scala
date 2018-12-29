@@ -38,11 +38,11 @@ import org.neo4j.cypher.internal.runtime.QueryContext
 import org.neo4j.cypher.internal.runtime.interpreted.{CSVResources, TransactionBoundPlanContext, TransactionalContextWrapper}
 import org.neo4j.kernel.api.{KernelTransaction, Statement}
 import org.neo4j.kernel.impl.core.ThreadToStatementContextBridge
-import org.opencypher.v9_0.frontend.phases.{CompilationPhaseTracer, InternalNotificationLogger, devNullLogger}
-import org.opencypher.v9_0.rewriting.RewriterStepSequencer
-import org.opencypher.v9_0.util.attribution.SequentialIdGen
-import org.opencypher.v9_0.util.test_helpers.CypherFunSuite
-import org.opencypher.v9_0.util.{CartesianProductNotification, InputPosition}
+import org.neo4j.cypher.internal.v3_5.frontend.phases.{CompilationPhaseTracer, InternalNotificationLogger, devNullLogger}
+import org.neo4j.cypher.internal.v3_5.rewriting.RewriterStepSequencer
+import org.neo4j.cypher.internal.v3_5.util.attribution.SequentialIdGen
+import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.v3_5.util.{CartesianProductNotification, InputPosition}
 
 class CartesianProductNotificationAcceptanceTest extends CypherFunSuite with GraphDatabaseTestSupport {
   var logger: InternalNotificationLogger = _

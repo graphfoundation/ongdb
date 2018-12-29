@@ -25,8 +25,8 @@ import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.{Count
 import org.neo4j.cypher.internal.runtime.slotted.expressions.ReferenceFromSlot
 import org.neo4j.values.AnyValue
 import org.neo4j.values.storable.Values.{intValue, longValue}
-import org.opencypher.v9_0.util.symbols._
-import org.opencypher.v9_0.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.v3_5.util.symbols._
+import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
 
 class EagerAggregationSlottedPipeTest extends CypherFunSuite with SlottedPipeTestHelper {
   test("should aggregate count(*) on two grouping columns") {

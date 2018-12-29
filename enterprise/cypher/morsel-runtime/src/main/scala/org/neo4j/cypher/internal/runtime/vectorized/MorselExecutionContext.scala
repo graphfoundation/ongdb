@@ -27,7 +27,7 @@ import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
 import org.neo4j.cypher.internal.v3_5.logical.plans.CachedNodeProperty
 import org.neo4j.values.AnyValue
 import org.neo4j.values.storable.Value
-import org.opencypher.v9_0.util.InternalException
+import org.neo4j.cypher.internal.v3_5.util.InternalException
 
 object MorselExecutionContext {
   def apply(morsel: Morsel, pipeline: Pipeline) = new MorselExecutionContext(morsel,
@@ -90,6 +90,8 @@ class MorselExecutionContext(private val morsel: Morsel, private val longsPerRow
       }
     case _ => fail()
   }
+  
+  override def copyCachedFrom(input: ExecutionContext): Unit = fail()
 
   override def toString(): String = {
     s"MorselExecutionContext(morsel=$morsel, longsPerRow=$longsPerRow, refsPerRow=$refsPerRow, currentRow=$currentRow)"

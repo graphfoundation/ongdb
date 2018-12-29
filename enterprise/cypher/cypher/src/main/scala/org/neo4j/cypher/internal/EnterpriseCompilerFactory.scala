@@ -40,7 +40,7 @@ import org.neo4j.kernel.GraphDatabaseQueryService
 import org.neo4j.kernel.monitoring.{Monitors => KernelMonitors}
 import org.neo4j.logging.{Log, LogProvider}
 import org.neo4j.scheduler.{Group, JobScheduler}
-import org.opencypher.v9_0.frontend.phases.InternalNotificationLogger
+import org.neo4j.cypher.internal.v3_5.frontend.phases.InternalNotificationLogger
 
 class EnterpriseCompilerFactory(community: CommunityCompilerFactory,
                                 graph: GraphDatabaseQueryService,

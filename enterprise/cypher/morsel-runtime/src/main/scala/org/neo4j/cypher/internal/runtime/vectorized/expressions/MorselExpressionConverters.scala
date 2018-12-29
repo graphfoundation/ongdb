@@ -27,10 +27,10 @@ import org.neo4j.cypher.internal.runtime.interpreted.CommandProjection
 import org.neo4j.cypher.internal.runtime.interpreted.commands.convert.{ExpressionConverter, ExpressionConverters}
 import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.Expression
 import org.neo4j.cypher.internal.v3_5.logical.plans.NestedPlanExpression
-import org.opencypher.v9_0.expressions.functions.AggregatingFunction
-import org.opencypher.v9_0.expressions.{functions, _}
-import org.opencypher.v9_0.util.attribution.Id
-import org.opencypher.v9_0.{expressions => ast}
+import org.neo4j.cypher.internal.v3_5.expressions.functions.AggregatingFunction
+import org.neo4j.cypher.internal.v3_5.expressions.{functions, _}
+import org.neo4j.cypher.internal.v3_5.util.attribution.Id
+import org.neo4j.cypher.internal.v3_5.{expressions => ast}
 
 object MorselExpressionConverters extends ExpressionConverter {
 

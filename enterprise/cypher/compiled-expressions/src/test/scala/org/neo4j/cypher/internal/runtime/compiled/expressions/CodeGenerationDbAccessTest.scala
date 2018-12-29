@@ -31,9 +31,9 @@ import org.neo4j.values.storable.Values
 import org.neo4j.values.storable.Values.{NO_VALUE, stringValue}
 import org.neo4j.values.virtual.VirtualValues.EMPTY_MAP
 import org.neo4j.values.virtual.{NodeValue, RelationshipValue}
-import org.opencypher.v9_0.ast.AstConstructionTestSupport
-import org.opencypher.v9_0.expressions.{Expression, HasLabels, LabelName, SemanticDirection}
-import org.opencypher.v9_0.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.v3_5.ast.AstConstructionTestSupport
+import org.neo4j.cypher.internal.v3_5.expressions.{Expression, HasLabels, LabelName, SemanticDirection}
+import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
 
 class CodeGenerationDbAccessTest extends CypherFunSuite with AstConstructionTestSupport {
 

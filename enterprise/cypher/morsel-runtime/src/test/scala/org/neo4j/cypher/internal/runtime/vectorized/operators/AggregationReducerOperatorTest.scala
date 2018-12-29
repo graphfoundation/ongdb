@@ -27,8 +27,8 @@ import org.neo4j.cypher.internal.runtime.vectorized.{Morsel, QueryState, _}
 import org.neo4j.values.AnyValue
 import org.neo4j.values.storable.Values
 import org.neo4j.values.storable.Values.stringValue
-import org.opencypher.v9_0.util.symbols.CTAny
-import org.opencypher.v9_0.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.v3_5.util.symbols.CTAny
+import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
 
 class AggregationReducerOperatorTest extends CypherFunSuite {
 

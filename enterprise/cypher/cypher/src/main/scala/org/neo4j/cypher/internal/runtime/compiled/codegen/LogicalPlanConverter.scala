@@ -32,16 +32,16 @@ import org.neo4j.cypher.internal.runtime.compiled.codegen.ir.expressions._
 import org.neo4j.cypher.internal.runtime.compiled.codegen.spi.SortItem
 import org.neo4j.cypher.internal.v3_5.logical.plans
 import org.neo4j.cypher.internal.v3_5.logical.plans.ColumnOrder
-import org.opencypher.v9_0.expressions.Expression
-import org.opencypher.v9_0.expressions.FunctionInvocation
-import org.opencypher.v9_0.expressions.{functions => ast_functions}
-import org.opencypher.v9_0.util.Eagerly.immutableMapValues
-import org.opencypher.v9_0.util.Foldable._
-import org.opencypher.v9_0.util.InternalException
-import org.opencypher.v9_0.util.One
-import org.opencypher.v9_0.util.ZeroOneOrMany
-import org.opencypher.v9_0.util.symbols
-import org.opencypher.v9_0.{expressions => ast}
+import org.neo4j.cypher.internal.v3_5.expressions.Expression
+import org.neo4j.cypher.internal.v3_5.expressions.FunctionInvocation
+import org.neo4j.cypher.internal.v3_5.expressions.{functions => ast_functions}
+import org.neo4j.cypher.internal.v3_5.util.Eagerly.immutableMapValues
+import org.neo4j.cypher.internal.v3_5.util.Foldable._
+import org.neo4j.cypher.internal.v3_5.util.InternalException
+import org.neo4j.cypher.internal.v3_5.util.One
+import org.neo4j.cypher.internal.v3_5.util.ZeroOneOrMany
+import org.neo4j.cypher.internal.v3_5.util.symbols
+import org.neo4j.cypher.internal.v3_5.{expressions => ast}
 
 object LogicalPlanConverter {
 

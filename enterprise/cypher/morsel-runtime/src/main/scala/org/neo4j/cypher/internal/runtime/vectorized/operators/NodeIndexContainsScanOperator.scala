@@ -29,7 +29,7 @@ import org.neo4j.cypher.internal.runtime.interpreted.pipes.{QueryState => OldQue
 import org.neo4j.cypher.internal.runtime.vectorized._
 import org.neo4j.internal.kernel.api._
 import org.neo4j.values.storable.{TextValue, Values}
-import org.opencypher.v9_0.util.CypherTypeException
+import org.neo4j.cypher.internal.v3_5.util.CypherTypeException
 
 class NodeIndexContainsScanOperator(nodeOffset: Int,
                                     label: Int,
@@ -67,7 +67,7 @@ class NodeIndexContainsScanOperator(nodeOffset: Int,
                                valueIndexCursor,
                                IndexOrder.NONE,
                                property.maybeCachedNodePropertySlot.isDefined,
-                               IndexQuery.stringContains(index.properties()(0), value.stringValue()))
+                               IndexQuery.stringContains(index.properties()(0), value))
 
           case Values.NO_VALUE =>
             // CONTAINS null does not produce any rows

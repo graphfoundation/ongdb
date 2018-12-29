@@ -27,8 +27,8 @@ import org.neo4j.cypher.internal.runtime.interpreted.pipes._
 import org.neo4j.cypher.internal.runtime.slotted.SlottedExecutionContext
 import org.neo4j.cypher.internal.v3_5.logical.plans.{IndexOrder, QueryExpression}
 import org.neo4j.internal.kernel.api.IndexReference
-import org.opencypher.v9_0.expressions.LabelToken
-import org.opencypher.v9_0.util.attribution.Id
+import org.neo4j.cypher.internal.v3_5.expressions.LabelToken
+import org.neo4j.cypher.internal.v3_5.util.attribution.Id
 
 case class NodeIndexSeekSlottedPipe(ident: String,
                                     label: LabelToken,

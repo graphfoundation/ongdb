@@ -23,8 +23,8 @@
 package org.neo4j.cypher.internal.queryReduction
 
 import org.neo4j.cypher.internal.RewindableExecutionResult
-import org.opencypher.v9_0.util.test_helpers.CypherFunSuite
-import org.opencypher.v9_0.util.ArithmeticException
+import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.v3_5.util.ArithmeticException
 
 import scala.util.{Failure, Success, Try}
 

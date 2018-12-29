@@ -28,8 +28,8 @@ import org.neo4j.cypher.internal.runtime.slotted.pipes.TopSlottedPipeTestSupport
 import org.neo4j.cypher.internal.runtime.slotted.{ExecutionContextOrdering, SlottedExecutionContext}
 import org.neo4j.kernel.impl.util.ValueUtils
 import org.neo4j.values.AnyValue
-import org.opencypher.v9_0.util.symbols._
-import org.opencypher.v9_0.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.v3_5.util.symbols._
+import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
 
 import scala.util.Random
 

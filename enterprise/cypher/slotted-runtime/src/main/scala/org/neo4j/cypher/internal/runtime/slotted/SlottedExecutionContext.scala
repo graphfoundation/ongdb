@@ -23,9 +23,9 @@ import org.neo4j.cypher.internal.compatibility.v3_5.runtime.{LongSlot, RefSlot, 
 import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
 import org.neo4j.cypher.internal.runtime.slotted.helpers.NullChecker.entityIsNull
 import org.neo4j.cypher.internal.v3_5.logical.plans.CachedNodeProperty
-import org.opencypher.v9_0.util.AssertionUtils._
-import org.opencypher.v9_0.util.InternalException
-import org.opencypher.v9_0.util.symbols.{CTNode, CTRelationship}
+import org.neo4j.cypher.internal.v3_5.util.AssertionUtils._
+import org.neo4j.cypher.internal.v3_5.util.InternalException
+import org.neo4j.cypher.internal.v3_5.util.symbols.{CTNode, CTRelationship}
 import org.neo4j.values.AnyValue
 import org.neo4j.values.storable.{Value, Values}
 import org.neo4j.values.virtual._
@@ -85,6 +85,11 @@ case class SlottedExecutionContext(slots: SlotConfiguration) extends ExecutionCo
       }
     case _ => fail()
   }
+
+ // See: https://github.com/neo4j/neo4j/blob/3.5.1/community/cypher/interpreted-runtime/src/main/scala/org/neo4j/cypher/internal/runtime/interpreted/ExecutionContext.scala
+  // We are just overriding it right now.
+  override def copyCachedFrom(input: ExecutionContext): Unit = fail()
+
 
   override def setLongAt(offset: Int, value: Long): Unit =
     longs(offset) = value

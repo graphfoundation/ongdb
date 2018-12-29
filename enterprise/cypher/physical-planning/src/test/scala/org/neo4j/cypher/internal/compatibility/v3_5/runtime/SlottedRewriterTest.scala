@@ -24,12 +24,12 @@ import org.neo4j.cypher.internal.compatibility.v3_5.runtime.PhysicalPlanningAttr
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast._
 import org.neo4j.cypher.internal.planner.v3_5.spi.TokenContext
 import org.neo4j.cypher.internal.v3_5.logical.plans.{AllNodesScan, ProduceResult, Selection, _}
-import org.opencypher.v9_0.ast._
-import org.opencypher.v9_0.expressions._
-import org.opencypher.v9_0.util.NonEmptyList
-import org.opencypher.v9_0.util.attribution.SequentialIdGen
-import org.opencypher.v9_0.util.symbols._
-import org.opencypher.v9_0.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.v3_5.ast._
+import org.neo4j.cypher.internal.v3_5.expressions._
+import org.neo4j.cypher.internal.v3_5.util.NonEmptyList
+import org.neo4j.cypher.internal.v3_5.util.attribution.SequentialIdGen
+import org.neo4j.cypher.internal.v3_5.util.symbols._
+import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
 
 class SlottedRewriterTest extends CypherFunSuite with AstConstructionTestSupport {
   implicit val idGen = new SequentialIdGen()

@@ -23,7 +23,7 @@
 package org.neo4j.cypher.internal.queryReduction
 
 import org.neo4j.cypher.internal.queryReduction.DDmin.Oracle
-import org.opencypher.v9_0.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
 
 trait TestExhausted {
   def assertExhausted(): Unit

@@ -29,10 +29,10 @@ import org.neo4j.cypher.internal.runtime.interpreted.{CommandProjection, Executi
 import org.neo4j.cypher.internal.runtime.slotted.expressions.CompiledExpressionConverter.COMPILE_LIMIT
 import org.neo4j.logging.Log
 import org.neo4j.values.AnyValue
-import org.opencypher.v9_0.expressions.FunctionInvocation
-import org.opencypher.v9_0.expressions.functions.AggregatingFunction
-import org.opencypher.v9_0.util.attribution.Id
-import org.opencypher.v9_0.{expressions => ast}
+import org.neo4j.cypher.internal.v3_5.expressions.FunctionInvocation
+import org.neo4j.cypher.internal.v3_5.expressions.functions.AggregatingFunction
+import org.neo4j.cypher.internal.v3_5.util.attribution.Id
+import org.neo4j.cypher.internal.v3_5.{expressions => ast}
 
 class CompiledExpressionConverter(log: Log, physicalPlan: PhysicalPlan, tokenContext: TokenContext) extends ExpressionConverter {
 
@@ -64,7 +64,7 @@ class CompiledExpressionConverter(log: Log, physicalPlan: PhysicalPlan, tokenCon
     case _ => None
   }
 
-  import org.opencypher.v9_0.util.Foldable._
+  import org.neo4j.cypher.internal.v3_5.util.Foldable._
 
   private def sizeOf(expression: ast.Expression)= expression.treeCount {
     case _: ast.Expression => true

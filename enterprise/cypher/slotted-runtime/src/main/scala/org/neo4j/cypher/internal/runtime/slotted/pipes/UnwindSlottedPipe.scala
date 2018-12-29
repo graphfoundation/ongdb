@@ -24,7 +24,7 @@ import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.Expres
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.{Pipe, PipeWithSource, QueryState}
 import org.neo4j.cypher.internal.runtime.interpreted.{ExecutionContext, ListSupport}
 import org.neo4j.cypher.internal.runtime.slotted.SlottedExecutionContext
-import org.opencypher.v9_0.util.attribution.Id
+import org.neo4j.cypher.internal.v3_5.util.attribution.Id
 import org.neo4j.values.AnyValue
 
 import scala.annotation.tailrec

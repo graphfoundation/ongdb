@@ -32,8 +32,8 @@ import org.neo4j.cypher.internal.runtime.vectorized.expressions.AggregationExpre
 import org.neo4j.cypher.internal.runtime.vectorized.operators._
 import org.neo4j.cypher.internal.v3_5.logical.plans
 import org.neo4j.cypher.internal.v3_5.logical.plans._
-import org.opencypher.v9_0.ast.semantics.SemanticTable
-import org.opencypher.v9_0.util.InternalException
+import org.neo4j.cypher.internal.v3_5.ast.semantics.SemanticTable
+import org.neo4j.cypher.internal.v3_5.util.InternalException
 
 class PipelineBuilder(physicalPlan: PhysicalPlan, converters: ExpressionConverters, readOnly: Boolean)
   extends TreeBuilder[Pipeline] {

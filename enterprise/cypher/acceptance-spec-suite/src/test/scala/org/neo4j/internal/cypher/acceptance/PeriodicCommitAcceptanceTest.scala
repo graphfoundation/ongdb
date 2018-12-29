@@ -25,7 +25,7 @@ package org.neo4j.internal.cypher.acceptance
 import java.io.PrintWriter
 
 import org.neo4j.cypher._
-import org.opencypher.v9_0.util.helpers.StringHelper.RichString
+import org.neo4j.cypher.internal.v3_5.util.helpers.StringHelper.RichString
 import org.neo4j.cypher.internal.runtime.CreateTempFileTestSupport
 import org.neo4j.cypher.internal.runtime.planDescription.InternalPlanDescription.Arguments.{PageCacheHits, PageCacheMisses, PlannerImpl}
 import org.neo4j.graphdb.Node

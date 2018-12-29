@@ -42,8 +42,8 @@ import org.neo4j.cypher.result.RuntimeResult.ConsumptionState
 import org.neo4j.cypher.result.{QueryProfile, RuntimeResult}
 import org.neo4j.graphdb.ResourceIterator
 import org.neo4j.values.virtual.MapValue
-import org.opencypher.v9_0.ast.semantics.SemanticTable
-import org.opencypher.v9_0.util.InternalNotification
+import org.neo4j.cypher.internal.v3_5.ast.semantics.SemanticTable
+import org.neo4j.cypher.internal.v3_5.util.InternalNotification
 
 object MorselRuntime extends CypherRuntime[EnterpriseRuntimeContext] {
 

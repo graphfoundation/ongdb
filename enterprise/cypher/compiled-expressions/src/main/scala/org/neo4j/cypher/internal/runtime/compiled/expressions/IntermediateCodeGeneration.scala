@@ -38,10 +38,10 @@ import org.neo4j.internal.kernel.api.procs.Neo4jTypes.AnyType
 import org.neo4j.values.AnyValue
 import org.neo4j.values.storable._
 import org.neo4j.values.virtual._
-import org.opencypher.v9_0.expressions
-import org.opencypher.v9_0.expressions._
-import org.opencypher.v9_0.util.symbols.{CTAny, CTBoolean, CTDate, CTDateTime, CTDuration, CTFloat, CTGeometry, CTInteger, CTLocalDateTime, CTLocalTime, CTMap, CTNode, CTNumber, CTPath, CTPoint, CTRelationship, CTString, CTTime, CypherType, ListType}
-import org.opencypher.v9_0.util.{CypherTypeException, InternalException}
+import org.neo4j.cypher.internal.v3_5.expressions
+import org.neo4j.cypher.internal.v3_5.expressions._
+import org.neo4j.cypher.internal.v3_5.util.symbols.{CTAny, CTBoolean, CTDate, CTDateTime, CTDuration, CTFloat, CTGeometry, CTInteger, CTLocalDateTime, CTLocalTime, CTMap, CTNode, CTNumber, CTPath, CTPoint, CTRelationship, CTString, CTTime, CypherType, ListType}
+import org.neo4j.cypher.internal.v3_5.util.{CypherTypeException, InternalException}
 
 import scala.collection.mutable
 

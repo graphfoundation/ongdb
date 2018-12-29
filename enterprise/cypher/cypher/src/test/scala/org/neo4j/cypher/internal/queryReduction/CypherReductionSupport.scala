@@ -46,14 +46,14 @@ import org.neo4j.kernel.monitoring.Monitors
 import org.neo4j.logging.NullLog
 import org.neo4j.test.TestGraphDatabaseFactory
 import org.neo4j.values.virtual.VirtualValues.EMPTY_MAP
-import org.opencypher.v9_0.ast._
-import org.opencypher.v9_0.ast.prettifier.{ExpressionStringifier, Prettifier}
-import org.opencypher.v9_0.ast.semantics.SemanticState
-import org.opencypher.v9_0.frontend.phases.CompilationPhaseTracer.NO_TRACING
-import org.opencypher.v9_0.frontend.phases._
-import org.opencypher.v9_0.rewriting.{Deprecations, RewriterStepSequencer}
-import org.opencypher.v9_0.util.attribution.SequentialIdGen
-import org.opencypher.v9_0.util.test_helpers.{CypherFunSuite, CypherTestSupport}
+import org.neo4j.cypher.internal.v3_5.ast._
+import org.neo4j.cypher.internal.v3_5.ast.prettifier.{ExpressionStringifier, Prettifier}
+import org.neo4j.cypher.internal.v3_5.ast.semantics.SemanticState
+import org.neo4j.cypher.internal.v3_5.frontend.phases.CompilationPhaseTracer.NO_TRACING
+import org.neo4j.cypher.internal.v3_5.frontend.phases._
+import org.neo4j.cypher.internal.v3_5.rewriting.{Deprecations, RewriterStepSequencer}
+import org.neo4j.cypher.internal.v3_5.util.attribution.SequentialIdGen
+import org.neo4j.cypher.internal.v3_5.util.test_helpers.{CypherFunSuite, CypherTestSupport}
 
 import scala.util.Try
 

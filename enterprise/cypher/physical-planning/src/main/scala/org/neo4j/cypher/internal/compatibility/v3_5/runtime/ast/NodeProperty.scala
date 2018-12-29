@@ -20,7 +20,7 @@
 package org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast
 
 import org.neo4j.cypher.internal.v3_5.logical.plans.ASTCachedNodeProperty
-import org.opencypher.v9_0.expressions.Property
+import org.neo4j.cypher.internal.v3_5.expressions.Property
 
 case class NodeProperty(offset: Int, propToken: Int, name: String)(prop: Property) extends RuntimeProperty(prop) {
   override def asCanonicalStringVal: String = name

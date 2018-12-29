@@ -29,7 +29,7 @@ import org.junit.jupiter.api.Assertions.fail
 import org.junit.jupiter.api.{Disabled, DynamicTest, TestFactory}
 import org.neo4j.test.TestEnterpriseGraphDatabaseFactory
 
-class CostCompiledAcceptanceTests extends EnterpriseBaseAcceptanceTest {
+class CostCompiledAcceptanceTests extends BaseAcceptanceTest {
 
   // If you want to only run a specific feature or scenario, go to the BaseAcceptanceTest
 

@@ -23,7 +23,7 @@ import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
 import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.Expression
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.QueryState
 import org.neo4j.cypher.internal.v3_5.logical.plans.CachedNodeProperty
-import org.opencypher.v9_0.util.InternalException
+import org.neo4j.cypher.internal.v3_5.util.InternalException
 import org.neo4j.cypher.result.QueryResult
 import org.neo4j.values.AnyValue
 import org.neo4j.values.storable.Value
@@ -106,6 +106,10 @@ case class ArrayResultExecutionContext(resultArray: Array[AnyValue],
   override def fields(): Array[AnyValue] = {
     resultArray
   }
+  
+  // See: https://github.com/neo4j/neo4j/blob/3.5.1/community/cypher/interpreted-runtime/src/main/scala/org/neo4j/cypher/internal/runtime/interpreted/ExecutionContext.scala
+   // We are just overriding it right now.
+  override def copyCachedFrom(input: ExecutionContext): Unit = fail()
 
   override def size: Int = resultArray.size
 

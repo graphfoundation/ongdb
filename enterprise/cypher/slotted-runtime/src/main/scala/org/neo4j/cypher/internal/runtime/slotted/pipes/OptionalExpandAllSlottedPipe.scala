@@ -29,9 +29,9 @@ import org.neo4j.cypher.internal.runtime.slotted.helpers.NullChecker
 import org.neo4j.cypher.internal.runtime.slotted.helpers.SlottedPipeBuilderUtils.makeGetPrimitiveNodeFromSlotFunctionFor
 import org.neo4j.kernel.impl.api.store.RelationshipIterator
 import org.neo4j.storageengine.api.RelationshipVisitor
-import org.opencypher.v9_0.expressions.SemanticDirection
-import org.opencypher.v9_0.util.InternalException
-import org.opencypher.v9_0.util.attribution.Id
+import org.neo4j.cypher.internal.v3_5.expressions.SemanticDirection
+import org.neo4j.cypher.internal.v3_5.util.InternalException
+import org.neo4j.cypher.internal.v3_5.util.attribution.Id
 
 case class OptionalExpandAllSlottedPipe(source: Pipe,
                                         fromSlot: Slot,

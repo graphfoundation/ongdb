@@ -40,7 +40,7 @@ import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
 import org.neo4j.values.AnyValue
 import org.neo4j.values.storable._
 import org.neo4j.values.virtual.MapValue
-import org.opencypher.v9_0.frontend.helpers.using
+import org.neo4j.cypher.internal.v3_5.frontend.helpers.using
 
 /**
   * Produces runnable code from an IntermediateRepresentation

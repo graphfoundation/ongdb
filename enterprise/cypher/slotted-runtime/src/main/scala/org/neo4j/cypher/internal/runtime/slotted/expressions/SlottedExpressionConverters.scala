@@ -26,9 +26,9 @@ import org.neo4j.cypher.internal.runtime.interpreted.commands.convert.{Expressio
 import org.neo4j.cypher.internal.runtime.interpreted.commands.{expressions => commands}
 import org.neo4j.cypher.internal.runtime.slotted.expressions.SlottedProjectedPath._
 import org.neo4j.cypher.internal.runtime.slotted.{expressions => runtimeExpression}
-import org.opencypher.v9_0.expressions._
-import org.opencypher.v9_0.util.attribution.Id
-import org.opencypher.v9_0.{expressions => ast}
+import org.neo4j.cypher.internal.v3_5.expressions._
+import org.neo4j.cypher.internal.v3_5.util.attribution.Id
+import org.neo4j.cypher.internal.v3_5.{expressions => ast}
 
 case class SlottedExpressionConverters(physicalPlan: PhysicalPlan) extends ExpressionConverter {
 

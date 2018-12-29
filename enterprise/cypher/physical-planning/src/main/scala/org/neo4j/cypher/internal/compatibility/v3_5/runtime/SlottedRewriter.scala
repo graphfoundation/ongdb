@@ -25,13 +25,13 @@ import org.neo4j.cypher.internal.compiler.v3_5.planner.CantCompileQueryException
 import org.neo4j.cypher.internal.planner.v3_5.spi.TokenContext
 import org.neo4j.cypher.internal.v3_5.logical.plans
 import org.neo4j.cypher.internal.v3_5.logical.plans.{LogicalPlan, NestedPlanExpression, Projection, VarExpand, _}
-import org.opencypher.v9_0.expressions
-import org.opencypher.v9_0.expressions.{FunctionInvocation, functions => frontendFunctions, _}
-import org.opencypher.v9_0.util.AssertionUtils.ifAssertionsEnabled
-import org.opencypher.v9_0.util.Foldable._
-import org.opencypher.v9_0.util.attribution.SameId
-import org.opencypher.v9_0.util.symbols._
-import org.opencypher.v9_0.util.{InternalException, Rewriter, topDown}
+import org.neo4j.cypher.internal.v3_5.expressions
+import org.neo4j.cypher.internal.v3_5.expressions.{FunctionInvocation, functions => frontendFunctions, _}
+import org.neo4j.cypher.internal.v3_5.util.AssertionUtils.ifAssertionsEnabled
+import org.neo4j.cypher.internal.v3_5.util.Foldable._
+import org.neo4j.cypher.internal.v3_5.util.attribution.SameId
+import org.neo4j.cypher.internal.v3_5.util.symbols._
+import org.neo4j.cypher.internal.v3_5.util.{InternalException, Rewriter, topDown}
 
 /**
   * This class rewrites logical plans so they use slotted variable access instead of using key-based. It will also

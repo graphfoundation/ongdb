@@ -28,8 +28,8 @@ import org.neo4j.cypher.internal.runtime.slotted.pipes.Ascending
 import org.neo4j.cypher.internal.runtime.vectorized.{Morsel, MorselExecutionContext, QueryState}
 import org.neo4j.values.AnyValue
 import org.neo4j.values.storable.Values.intValue
-import org.opencypher.v9_0.util.symbols._
-import org.opencypher.v9_0.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.v3_5.util.symbols._
+import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
 
 class PreSortOperatorTest extends CypherFunSuite {
 

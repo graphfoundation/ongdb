@@ -25,8 +25,8 @@ package org.neo4j.cypher.internal.runtime.compiled.codegen.ir.functions
 import org.neo4j.cypher.internal.runtime.compiled.codegen.CodeGenContext
 import org.neo4j.cypher.internal.runtime.compiled.codegen.ir.expressions._
 import org.neo4j.cypher.internal.compiler.v3_5.planner.CantCompileQueryException
-import org.opencypher.v9_0.{expressions => ast}
-import org.opencypher.v9_0.expressions.{functions => astFunctions}
+import org.neo4j.cypher.internal.v3_5.{expressions => ast}
+import org.neo4j.cypher.internal.v3_5.expressions.{functions => astFunctions}
 
 object functionConverter {
 

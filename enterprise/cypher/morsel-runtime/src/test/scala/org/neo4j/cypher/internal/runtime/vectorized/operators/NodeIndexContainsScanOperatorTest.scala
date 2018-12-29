@@ -33,10 +33,10 @@ import org.neo4j.internal.kernel.api.helpers.StubNodeValueIndexCursor
 import org.neo4j.values.AnyValue
 import org.neo4j.values.storable.Values
 import org.neo4j.values.virtual.NodeValue
-import org.opencypher.v9_0.expressions._
-import org.opencypher.v9_0.util.symbols.{CTAny, CTNode}
-import org.opencypher.v9_0.util.test_helpers.CypherFunSuite
-import org.opencypher.v9_0.util.{LabelId, PropertyKeyId}
+import org.neo4j.cypher.internal.v3_5.expressions._
+import org.neo4j.cypher.internal.v3_5.util.symbols.{CTAny, CTNode}
+import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.v3_5.util.{LabelId, PropertyKeyId}
 
 class NodeIndexContainsScanOperatorTest extends CypherFunSuite with ImplicitDummyPos with IndexMockingHelp {
 

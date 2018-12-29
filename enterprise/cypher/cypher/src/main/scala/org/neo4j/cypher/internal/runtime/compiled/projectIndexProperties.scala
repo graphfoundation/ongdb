@@ -23,10 +23,10 @@
 package org.neo4j.cypher.internal.runtime.compiled
 
 import org.neo4j.cypher.internal.v3_5.logical.plans._
-import org.opencypher.v9_0.ast.semantics.{ExpressionTypeInfo, SemanticTable}
-import org.opencypher.v9_0.util.attribution.SameId
-import org.opencypher.v9_0.util.symbols.CTNode
-import org.opencypher.v9_0.util.{Rewriter, topDown}
+import org.neo4j.cypher.internal.v3_5.ast.semantics.{ExpressionTypeInfo, SemanticTable}
+import org.neo4j.cypher.internal.v3_5.util.attribution.SameId
+import org.neo4j.cypher.internal.v3_5.util.symbols.CTNode
+import org.neo4j.cypher.internal.v3_5.util.{Rewriter, topDown}
 
 /**
   * Replace index plans that have indexed properties with `GetValue` by plans
