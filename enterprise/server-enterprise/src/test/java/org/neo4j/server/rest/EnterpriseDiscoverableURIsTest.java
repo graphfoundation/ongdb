@@ -83,8 +83,8 @@ public class EnterpriseDiscoverableURIsTest
     private Map<String,Object> toMap( DiscoverableURIs uris )
     {
         Map<String,Object> out = new HashMap<>();
-        uris.forEachAbsoluteUri( ( k, v ) -> out.put( k, v.toASCIIString() ) );
-        uris.forEachRelativeUri( out::put );
+        uris.forEach( ( k, v ) -> out.put( k, v.toASCIIString() ) );
+        //uris.forEach( out::put );
         return out;
     }
 }

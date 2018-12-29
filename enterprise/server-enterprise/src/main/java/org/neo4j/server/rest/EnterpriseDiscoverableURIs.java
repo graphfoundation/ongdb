@@ -27,6 +27,8 @@ import org.neo4j.kernel.configuration.ConnectorPortRegister;
 import org.neo4j.kernel.impl.enterprise.configuration.EnterpriseEditionSettings;
 import org.neo4j.server.enterprise.EnterpriseServerSettings;
 import org.neo4j.server.rest.discovery.DiscoverableURIs;
+import org.neo4j.server.rest.discovery.CommunityDiscoverableURIs;
+import org.neo4j.server.rest.discovery.DiscoverableURIs.Builder;
 
 import static org.neo4j.server.rest.discovery.CommunityDiscoverableURIs.communityDiscoverableURIs;
 
@@ -37,10 +39,12 @@ public class EnterpriseDiscoverableURIs
         DiscoverableURIs uris = communityDiscoverableURIs( config, ports );
         if ( config.get( EnterpriseEditionSettings.mode ) == EnterpriseEditionSettings.Mode.CORE )
         {
-            DiscoverableURIs
-                    .discoverableBoltUri( "bolt+routing", config,
-                            EnterpriseServerSettings.bolt_routing_discoverable_address, ports )
-                    .ifPresent( uri -> uris.addAbsolute( "bolt_routing", uri ) );
+            // DiscoverableURIs
+            //       .discoverableBoltUri( "bolt+routing", config,
+            //              EnterpriseServerSettings.bolt_routing_discoverable_address, ports )
+            //     .ifPresent( uri -> uris.addAbsolute( "bolt_routing", uri ) );
+            return (new Builder( CommunityDiscoverableURIs.communityDiscoverableURIs( config, ports ) )).addBoltConnectorFromConfig( "bolt_routing",
+                    "bolt+routing", config, EnterpriseServerSettings.bolt_routing_discoverable_address, ports ).build();
         }
         return uris;
     }
