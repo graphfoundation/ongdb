@@ -22,7 +22,7 @@
  */
 package org.neo4j.cypher.internal.codegen.profiling;
 
-import org.opencypher.v9_0.util.attribution.Id;
+import org.neo4j.cypher.internal.v3_5.util.attribution.Id;
 
 import java.util.HashMap;
 import java.util.Map;

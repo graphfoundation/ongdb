@@ -22,7 +22,7 @@
  */
 package org.neo4j.cypher.internal.runtime.compiled.expressions;
 
-import org.opencypher.v9_0.util.CypherTypeException;
+import org.neo4j.cypher.internal.v3_5.util.CypherTypeException;
 
 import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext;
 import org.neo4j.graphdb.NotFoundException;
