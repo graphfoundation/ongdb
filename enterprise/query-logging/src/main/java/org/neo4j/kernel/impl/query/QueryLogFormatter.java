@@ -25,6 +25,7 @@ package org.neo4j.kernel.impl.query;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 import org.neo4j.helpers.Strings;
 import org.neo4j.kernel.api.query.QuerySnapshot;
@@ -55,13 +56,13 @@ class QueryLogFormatter
 
     static void formatDetailedTime( StringBuilder result, QuerySnapshot query )
     {
-        result.append( "(planning: " ).append( query.compilationTimeMillis() );
-        Long cpuTime = query.cpuTimeMillis();
+        result.append( "(planning: " ).append( TimeUnit.MICROSECONDS.toMillis( query.compilationTimeMicros() ) );
+        Long cpuTime = TimeUnit.MICROSECONDS.toMillis( query.cpuTimeMicros() );
         if ( cpuTime != null )
         {
             result.append( ", cpu: " ).append( cpuTime );
         }
-        result.append( ", waiting: " ).append( query.waitTimeMillis() );
+        result.append( ", waiting: " ).append( TimeUnit.MICROSECONDS.toMillis( query.waitTimeMicros() ) );
         result.append( ") - " );
     }
 
@@ -71,11 +72,9 @@ class QueryLogFormatter
         if ( params != null )
         {
             final String[] sep = new String[]{""};
-            params.foreach( ( key, value ) -> {
-                result
-                        .append( sep[0] )
-                        .append( key )
-                        .append( ": " );
+            params.foreach( ( key, value ) ->
+            {
+                result.append( sep[0] ).append( key ).append( ": " );
 
                 if ( obfuscate.contains( key ) )
                 {
@@ -103,7 +102,7 @@ class QueryLogFormatter
         formatMap( result, params, Collections.emptySet() );
     }
 
-    static void formatMap( StringBuilder result, Map<String, Object> params, Collection<String> obfuscate )
+    static void formatMap( StringBuilder result, Map<String,Object> params, Collection<String> obfuscate )
     {
         result.append( '{' );
         if ( params != null )
@@ -111,10 +110,7 @@ class QueryLogFormatter
             String sep = "";
             for ( Map.Entry<String,Object> entry : params.entrySet() )
             {
-                result
-                        .append( sep )
-                        .append( entry.getKey() )
-                        .append( ": " );
+                result.append( sep ).append( entry.getKey() ).append( ": " );
 
                 if ( obfuscate.contains( entry.getKey() ) )
                 {
@@ -134,7 +130,7 @@ class QueryLogFormatter
     {
         if ( value instanceof Map<?,?> )
         {
-            formatMap( result, (Map<String, Object>) value, Collections.emptySet() );
+            formatMap( result, (Map<String,Object>) value, Collections.emptySet() );
         }
         else if ( value instanceof String )
         {

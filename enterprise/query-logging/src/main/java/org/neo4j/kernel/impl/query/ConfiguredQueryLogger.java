@@ -24,6 +24,7 @@ package org.neo4j.kernel.impl.query;
 
 import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -48,10 +49,10 @@ class ConfiguredQueryLogger implements QueryLogger
     private static final Pattern PASSWORD_PATTERN = Pattern.compile(
             // call signature
             "(?:(?i)call)\\s+dbms(?:\\.security)?\\.change(?:User)?Password\\(" +
-            // optional username parameter, in single, double quotes, or parametrized
-            "(?:\\s*(?:'(?:(?<=\\\\)'|[^'])*'|\"(?:(?<=\\\\)\"|[^\"])*\"|[^,]*)\\s*,)?" +
-            // password parameter, in single, double quotes, or parametrized
-            "\\s*('(?:(?<=\\\\)'|[^'])*'|\"(?:(?<=\\\\)\"|[^\"])*\"|\\$\\w*|\\{\\w*})\\s*\\)" );
+                    // optional username parameter, in single, double quotes, or parametrized
+                    "(?:\\s*(?:'(?:(?<=\\\\)'|[^'])*'|\"(?:(?<=\\\\)\"|[^\"])*\"|[^,]*)\\s*,)?" +
+                    // password parameter, in single, double quotes, or parametrized
+                    "\\s*('(?:(?<=\\\\)'|[^'])*'|\"(?:(?<=\\\\)\"|[^\"])*\"|\\$\\w*|\\{\\w*})\\s*\\)" );
 
     ConfiguredQueryLogger( Log log, Config config )
     {
@@ -106,7 +107,7 @@ class ConfiguredQueryLogger implements QueryLogger
         }
 
         StringBuilder result = new StringBuilder();
-        result.append( query.elapsedTimeMillis() ).append( " ms: " );
+        result.append( TimeUnit.MICROSECONDS.toMillis( query.elapsedTimeMicros() ) ).append( " ms: " );
         if ( logDetailedTime )
         {
             QueryLogFormatter.formatDetailedTime( result, query );
@@ -122,13 +123,13 @@ class ConfiguredQueryLogger implements QueryLogger
         result.append( sourceString ).append( " - " ).append( queryText );
         if ( logQueryParameters )
         {
-            QueryLogFormatter.formatMapValue( result.append(" - "), query.queryParameters(), passwordParams );
+            QueryLogFormatter.formatMapValue( result.append( " - " ), query.queryParameters(), passwordParams );
         }
         if ( logRuntime )
         {
             result.append( " - runtime=" ).append( query.runtime() );
         }
-        QueryLogFormatter.formatMap( result.append(" - "), query.transactionAnnotationData() );
+        QueryLogFormatter.formatMap( result.append( " - " ), query.transactionAnnotationData() );
         return result.toString();
     }
 }

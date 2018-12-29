@@ -24,7 +24,7 @@ package org.neo4j.kernel.impl.query;
 
 import org.junit.Rule;
 import org.junit.Test;
-
+import java.util.function.Supplier;
 import java.net.SocketAddress;
 import java.util.Arrays;
 import java.util.Collections;
@@ -493,7 +493,7 @@ public class ConfiguredQueryLoggerTest
 
         // when
         clock.forward( 11, TimeUnit.MILLISECONDS );
-        query.compilationCompleted( new CompilerInfo( "magic", "quantum", Collections.emptyList() ) );
+        query.compilationCompleted( new CompilerInfo( "magic", "quantum", Collections.emptyList() ), null );
         queryLogger.success( query );
 
         // then
