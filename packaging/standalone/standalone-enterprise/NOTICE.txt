@@ -20,6 +20,24 @@ Third-party licenses
 --------------------
 
 Apache Software License, Version 2.0
+  @firebase/app
+  @firebase/app-types
+  @firebase/auth
+  @firebase/auth-types
+  @firebase/database
+  @firebase/database-types
+  @firebase/firestore
+  @firebase/firestore-types
+  @firebase/functions
+  @firebase/functions-types
+  @firebase/logger
+  @firebase/messaging
+  @firebase/messaging-types
+  @firebase/polyfill
+  @firebase/storage
+  @firebase/storage-types
+  @firebase/util
+  @firebase/webchannel-wrapper
   Apache Commons BeanUtils
   Apache Commons Collections
   Apache Commons Compress
@@ -36,13 +54,22 @@ Apache Software License, Version 2.0
   Apache Shiro :: Cryptography :: Hashing
   Apache Shiro :: Event
   Apache Shiro :: Lang
+  ascli
+  aws-sign2
+  bytebuffer
   Caffeine cache
+  caseless
   Commons Lang
   Commons Logging
   ConcurrentLinkedHashMap
   Data Mapper for Jackson
+  detect-libc
+  disposables
   fastinfoset
+  firebase
+  forever-agent
   Graphite Integration for Metrics
+  grpc
   hazelcast-all
   Jackson
   JAX-RS provider for JSON content type
@@ -57,14 +84,17 @@ Apache Software License, Version 2.0
   Jetty :: XML utilities
   jPowerShell
   jProcesses
+  long
   Lucene codecs
   Lucene Common Analyzers
   Lucene Core
   Lucene QueryParsers
   LZ4 and xxHash
   Metrics Core
+  neo4j-driver
   Netty
   Netty/All-in-One
+  oauth-sign
   opencsv
   parboiled-core
   parboiled-scala
@@ -72,18 +102,44 @@ Apache Software License, Version 2.0
   Prometheus Java Simpleclient Common
   Prometheus Java Simpleclient Dropwizard
   Prometheus Java Simpleclient Httpserver
+  protobufjs
+  request
+  rxjs
+  tslib
+  tunnel-agent
   WMI4Java
 
 BSD - Scala License
   Scala Library
 
 BSD License
+  antlr4
   asm
   asm-analysis
   asm-tree
   asm-util
+  bcrypt-pbkdf
+  boom
+  cryptiles
+  D3.js
+  dnd-core
+  hawk
+  hoek
+  hoist-non-react-statics
+  ieee754
   JLine
+  json-schema
+  node-pre-gyp
+  qs
+  react-dnd
+  react-dnd-html5-backend
   Scala Compiler
+  sntp
+  tough-cookie
+
+BSD License 2-clause
+  tar-pack
+  uri-js
 
 Bouncy Castle License
   Bouncy Castle PKIX, CMS, EAC, TSP, PKCS, OCSP, CMP, and CRMF APIs
@@ -119,13 +175,202 @@ GNU General Public License, version 2 with the Classpath Exception
   Extended StAX API
   Java Servlet API
 
+ISC
+  abbrev
+  aproba
+  are-we-there-yet
+  block-stream
+  cliui
+  console-control-strings
+  css-color-keywords
+  fs.realpath
+  fstream
+  fstream-ignore
+  gauge
+  glob
+  graceful-fs
+  har-schema
+  har-validator
+  has-unicode
+  inflight
+  inherits
+  ini
+  json-stringify-safe
+  minimatch
+  nopt
+  npmlog
+  once
+  osenv
+  rimraf
+  semver
+  set-blocking
+  signal-exit
+  tar
+  uid-number
+  wide-align
+  wrappy
+  y18n
+
 MIT License
+  ajv
+  ansi-regex
+  asap
+  ascii-data-table
+  asn1
+  assert-plus
+  assertion-error
+  asynckit
+  attr-accept
+  aws4
+  babel-runtime
+  balanced-match
+  base64-js
+  bootstrap
+  brace-expansion
+  buffer
+  camelcase
+  canvg
+  chai
+  check-error
+  classnames
+  co
+  code-point-at
+  codemirror
+  colour
+  combined-stream
+  concat-map
+  core-js
+  core-util-is
+  css-to-react-native
+  dashdash
+  debug
+  decamelize
+  deep-eql
+  deep-extend
+  delayed-stream
+  delegates
+  dom-storage
+  ecc-jsbn
+  encoding
+  extend
+  extsprintf
+  fast-deep-equal
+  fast-json-stable-stringify
+  faye-websocket
+  fbjs
+  file-saver
+  Font Awesome CSS
+  form-data
+  fuzzaldrin
+  get-func-name
+  getpass
+  has-flag
+  http-parser-js
+  http-signature
+  iconv-lite
+  invariant
+  invert-kv
+  is-fullwidth-code-point
+  is-plain-object
+  is-stream
+  is-typedarray
+  isarray
+  isobject
+  isomorphic-fetch
+  isstream
+  js-tokens
+  jsbn
+  json-schema-traverse
+  jsonic
+  jsprim
+  lcid
+  lodash
+  lodash-es
+  lodash.debounce
+  loose-envify
+  mime-db
+  mime-types
+  minimist
+  mkdirp
+  ms
+  nan
+  node-fetch
+  number-is-nan
+  object-assign
+  optjs
+  os-homedir
+  os-locale
+  os-tmpdir
+  path-is-absolute
+  pathval
+  performance-now
+  postcss-value-parser
+  process-nextick-args
+  promise
+  promise-polyfill
+  prop-types
+  punycode
+  querystringify
+  rc
+  react
+  react-addons-pure-render-mixin
+  react-dom
+  react-dropzone
+  react-icon-base
+  react-icons
+  react-is
+  react-redux
+  react-suber
+  react-timeago
+  readable-stream
+  redux
+  redux-observable
+  regenerator-runtime
+  requires-port
+  safe-buffer
+  safer-buffer
+  save-as
   scallop
+  setimmediate
   SLF4J API Module
   SLF4J NOP Binding
+  sshpk
+  string-width
+  string_decoder
+  stringstream
+  strip-ansi
+  strip-json-comments
+  styled-components
+  stylis
+  stylis-rule-sheet
+  suber
+  supports-color
+  swipe-js-iso
+  symbol-observable
+  type-detect
+  ua-parser-js
+  url-parse
+  util-deprecate
+  uuid
+  verror
+  websocket-driver
+  websocket-extensions
+  whatwg-fetch
+  window-size
+  wrap-ansi
+  xmlhttprequest
+  yargs
 
 Mozilla Public License, Version 2.0
   kiama
+
+SIL OFL 1.1
+  Font Awesome
+  Inconsolata Font
+  Open Sans Font
+
+Unlicense
+  tweetnacl
 
 Dependencies with multiple licenses
 -----------------------------------

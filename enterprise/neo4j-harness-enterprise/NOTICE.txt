@@ -60,19 +60,12 @@ Apache Software License, Version 2.0
   Lucene codecs
   Lucene Common Analyzers
   Lucene Core
-  Lucene Memory
   Lucene QueryParsers
   LZ4 and xxHash
   Metrics Core
   Netty
   Netty/All-in-One
   opencsv
-  openCypher AST for the Cypher Query Language
-  openCypher Expressions
-  openCypher Front End
-  openCypher Parser
-  openCypher Rewriting
-  openCypher Utils
   parboiled-core
   parboiled-scala
   Prometheus Java Simpleclient
