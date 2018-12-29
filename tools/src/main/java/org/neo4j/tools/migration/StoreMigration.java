@@ -63,10 +63,10 @@ import org.neo4j.logging.Log;
 import org.neo4j.logging.LogProvider;
 import org.neo4j.logging.internal.StoreLogService;
 import org.neo4j.scheduler.JobScheduler;
-
+import org.neo4j.kernel.extension.KernelExtensionFailureStrategies;
 import static java.lang.String.format;
 import static org.neo4j.graphdb.factory.GraphDatabaseSettings.store_internal_log_path;
-import static org.neo4j.kernel.extension.UnsatisfiedDependencyStrategies.ignore;
+import static org.neo4j.kernel.extension.KernelExtensionFailureStrategies.ignore;
 import static org.neo4j.kernel.impl.pagecache.ConfigurableStandalonePageCacheFactory.createPageCache;
 
 /**
