@@ -1,0 +1,12 @@
+= ONgDB CodeStyle =
+
+If you are using Intellij IDEA for developing ONgDB, you can import the ongdb-intellij.xml styleguide from
+this directory.
+
+We have simply taken the neo4j-intellij.xml file, renamed it to ongdb-intellij.xml and added a few package rules to allow 
+org.graphfoundation.* package names.
+
+See:
+
+https://github.com/neo4j/neo4j/issues/7473
+http://neo4j.github.io/code-style/neo4j-intellij.xml
