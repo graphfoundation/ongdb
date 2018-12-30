@@ -76,7 +76,7 @@ terms of the relevant Commercial Agreement.
         <artifactId>maven-assembly-plugin</artifactId>
         <configuration>
           <attach>false</attach>
-          <finalName>${product.shortname}-enterprise-${project.version}</finalName>
+          <finalName>ongdb-enterprise-${project.version}</finalName>
           <appendAssemblyId>true</appendAssemblyId>
           <outputDirectory>${project.parent.build.directory}</outputDirectory>
           <delimiters>
@@ -164,6 +164,11 @@ terms of the relevant Commercial Agreement.
   <dependencies>
     <dependency>
       <groupId>org.neo4j</groupId>
+      <artifactId>neo4j</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.neo4j</groupId>
       <artifactId>neo4j-enterprise</artifactId>
       <version>${project.version}</version>
     </dependency>
@@ -173,33 +178,6 @@ terms of the relevant Commercial Agreement.
       <version>${project.version}</version>
     </dependency>
     
-    <!-- Include the neo4j-oe (Open Enterprise) libraries  -->
-    <!-- Temporary remove to package standalone.
-    <dependency>
-      <groupId>org.neo4j.oe</groupId>
-      <artifactId>neo4j-causal-clustering-oe</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>org.neo4j.oe</groupId>
-      <artifactId>neo4j-server-oe</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-      -->
-      
-      
-    <!--
-    <dependency>
-      <groupId>org.neo4j.oe</groupId>
-      <artifactId>neo4j-kernel-oe</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>org.neo4j.oe</groupId>
-      <artifactId>neo4j-security-oe</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-      -->
   </dependencies>
 
 </project>

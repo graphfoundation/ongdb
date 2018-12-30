@@ -1,3 +1,6 @@
+/**
+ * See: https://raw.githubusercontent.com/neo4j/neo4j/3.4/enterprise/server-enterprise/src/test/java/org/neo4j/server/enterprise/ServerClassNameTest.java
+ */
 /*
  * Copyright (c) 2002-2018 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
@@ -20,6 +23,7 @@
  * More information is also available at:
  * https://neo4j.com/licensing/
  */
+
 package org.neo4j.server.enterprise;
 
 import org.junit.Test;
@@ -47,15 +51,13 @@ public class ServerClassNameTest
     @Test
     public void shouldMaintainNamingOfCommunityNeoServerSoThatTheNeo4jEditionIsCorrectlyShownToRESTAPICallers()
     {
-        assertEquals( getErrorMessage( CommunityNeoServer.class ), "communityneoserver",
-                CommunityNeoServer.class.getSimpleName().toLowerCase() );
+        assertEquals( getErrorMessage( CommunityNeoServer.class ), "communityneoserver", CommunityNeoServer.class.getSimpleName().toLowerCase() );
     }
 
     @Test
     public void shouldMaintainNamingOfEnterpriseNeoServerSoThatTheNeo4jEditionIsCorrectlyShownToRESTAPICallers()
     {
-        assertEquals( getErrorMessage( OpenEnterpriseNeoServer.class ), "openenterpriseneoserver",
-                OpenEnterpriseNeoServer.class.getSimpleName().toLowerCase() );
+        assertEquals( getErrorMessage( EnterpriseNeoServer.class ), "enterpriseneoserver", EnterpriseNeoServer.class.getSimpleName().toLowerCase() );
     }
 
     private String getErrorMessage( Class<? extends AbstractNeoServer> neoServerClass )
