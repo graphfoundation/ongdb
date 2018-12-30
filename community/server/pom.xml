@@ -148,13 +148,16 @@
             <artifactId>neo4j-bolt</artifactId>
             <version>${project.version}</version>
         </dependency>
-
-        <dependency>
+        <!--<dependency>
             <groupId>org.neo4j.client</groupId>
             <artifactId>neo4j-browser</artifactId>
             <version>${neo4j-browser.version}</version>
+        </dependency>-->
+        <dependency>
+            <groupId>org.graphfoundation.ongdb.client</groupId>
+            <artifactId>ongdb-browser</artifactId>
+            <version>${neo4j-browser.version}</version>
         </dependency>
-
         <dependency>
             <groupId>com.google.code.findbugs</groupId>
             <artifactId>annotations</artifactId>
