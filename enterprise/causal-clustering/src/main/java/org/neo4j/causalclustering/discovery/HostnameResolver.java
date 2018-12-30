@@ -23,9 +23,24 @@
 package org.neo4j.causalclustering.discovery;
 
 import java.util.Collection;
+
 import org.neo4j.helpers.AdvertisedSocketAddress;
 
 public interface HostnameResolver
 {
+    /**
+     *
+     * @param advertisedSocketAddresses
+     * @return
+     */
     Collection<AdvertisedSocketAddress> resolve( AdvertisedSocketAddress advertisedSocketAddresses );
+
+    /**
+     * By default we return false.
+     * @return
+     */
+    default boolean useOverrides()
+    {
+        return false;
+    }
 }

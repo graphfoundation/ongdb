@@ -233,7 +233,7 @@ public class HazelcastCoreTopologyService extends AbstractCoreTopologyService
         TcpIpConfig tcpIpConfig = joinConfig.getTcpIpConfig();
         tcpIpConfig.setEnabled( true );
 
-        Collection<String> initialMembers = remoteMembersResolver.resolve( AdvertisedSocketAddress::toString );
+        Collection<String> initialMembers = remoteMembersResolver.resolve( SocketAddress::toString );
 
         initialMembers.forEach( tcpIpConfig::addMember );
 

@@ -36,9 +36,9 @@ import org.neo4j.scheduler.JobScheduler;
 public class HazelcastDiscoveryServiceFactory implements DiscoveryServiceFactory
 {
     @Override
-    public CoreTopologyService coreTopologyService( Config config, MemberId myself, JobScheduler jobScheduler,
-            LogProvider logProvider, LogProvider userLogProvider, RemoteMembersResolver remoteMembersResolver,
-            TopologyServiceRetryStrategy topologyServiceRetryStrategy, Monitors monitors )
+    public CoreTopologyService coreTopologyService( Config config, MemberId myself, JobScheduler jobScheduler, LogProvider logProvider,
+            LogProvider userLogProvider, RemoteMembersResolver remoteMembersResolver, TopologyServiceRetryStrategy topologyServiceRetryStrategy,
+            Monitors monitors )
     {
         configureHazelcast( config, logProvider );
         return new HazelcastCoreTopologyService( config, myself, jobScheduler, logProvider, userLogProvider, remoteMembersResolver,
@@ -46,13 +46,11 @@ public class HazelcastDiscoveryServiceFactory implements DiscoveryServiceFactory
     }
 
     @Override
-    public TopologyService readReplicaTopologyService( Config config, LogProvider logProvider,
-                                            JobScheduler jobScheduler, MemberId myself, RemoteMembersResolver remoteMembersResolver,
-                                            TopologyServiceRetryStrategy topologyServiceRetryStrategy )
+    public TopologyService readReplicaTopologyService( Config config, LogProvider logProvider, JobScheduler jobScheduler, MemberId myself,
+            RemoteMembersResolver remoteMembersResolver, TopologyServiceRetryStrategy topologyServiceRetryStrategy )
     {
         configureHazelcast( config, logProvider );
-        return new HazelcastClient( new HazelcastClientConnector( config, logProvider, remoteMembersResolver ), jobScheduler,
-                logProvider, config, myself );
+        return new HazelcastClient( new HazelcastClientConnector( config, logProvider, remoteMembersResolver ), jobScheduler, logProvider, config, myself );
     }
 
     protected static void configureHazelcast( Config config, LogProvider logProvider )

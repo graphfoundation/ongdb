@@ -19,36 +19,67 @@
  *
  * More information is also available at:
  * https://neo4j.com/licensing/
+ *
+ * See: https://github.com/neo4j/neo4j/blob/3.5.0-beta03/enterprise/causal-clustering/src/main/java/org/neo4j/causalclustering/discovery/InitialDiscoveryMembersResolver.java
  */
 package org.neo4j.causalclustering.discovery;
 
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.List;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import org.neo4j.causalclustering.core.CausalClusteringSettings;
 import org.neo4j.helpers.AdvertisedSocketAddress;
+import org.neo4j.helpers.SocketAddress;
 import org.neo4j.kernel.configuration.Config;
 
 public class InitialDiscoveryMembersResolver implements RemoteMembersResolver
 {
-    private final HostnameResolver hostnameResolver;
-    private final List<AdvertisedSocketAddress> advertisedSocketAddresses;
 
+    private final HostnameResolver hostnameResolver;
+    private final Collection<AdvertisedSocketAddress> advertisedSocketAddresses;
+    private static final Comparator advertisedSockedAddressComparator =
+            Comparator.comparing( SocketAddress::getHostname ).thenComparingInt( SocketAddress::getPort );
+
+    /**
+     * @param hostnameResolver
+     * @param config
+     */
     public InitialDiscoveryMembersResolver( HostnameResolver hostnameResolver, Config config )
     {
         this.hostnameResolver = hostnameResolver;
-        advertisedSocketAddresses = config.get( CausalClusteringSettings.initial_discovery_members );
+        this.advertisedSocketAddresses = (List) config.get( CausalClusteringSettings.initial_discovery_members );
     }
 
+    /**
+     *
+     * @param transform
+     * @param <T>
+     * @return
+     */
     @Override
     public <T> Collection<T> resolve( Function<AdvertisedSocketAddress,T> transform )
     {
-        return advertisedSocketAddresses
-                .stream()
-                .flatMap( raw -> hostnameResolver.resolve( raw ).stream() )
-                .map( transform )
-                .collect( Collectors.toSet() );
+        return advertisedSocketAddresses.stream().flatMap( raw -> hostnameResolver.resolve( raw ).stream() ).map( transform ).collect( Collectors.toSet() );
+    }
+
+    /**
+     * @return
+     */
+    public static Comparator advertisedSocketAddressComparator()
+    {
+        return advertisedSockedAddressComparator;
+    }
+
+    /**
+     * Override the default that is provided in the HostnameResolver.java interface.
+     *
+     * @return
+     */
+    public boolean useOverrides()
+    {
+        return this.hostnameResolver.useOverrides();
     }
 }
