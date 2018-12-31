@@ -397,6 +397,12 @@ public class ProcedureResourcesIT
         case "db.index.fulltext.drop":
             proc.withParam( ftsRelsIndex );
             break;
+        case "db.stats.retrieveAllAnonymized":
+            proc.withParam( "'myToken'" );
+            break;
+        case "db.stats.retrieve":
+            proc.withParam( "'GRAPH COUNTS'" );
+            break;
         case "db.index.fulltext.createRelationshipIndex":
             // Grabs schema lock an so can not execute concurrently with node creation
             proc.skip = true;

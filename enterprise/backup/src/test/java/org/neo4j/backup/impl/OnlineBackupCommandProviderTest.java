@@ -25,28 +25,55 @@ package org.neo4j.backup.impl;
 import org.junit.Test;
 
 import org.neo4j.causalclustering.handlers.PipelineWrapper;
-import org.neo4j.causalclustering.handlers.VoidPipelineWrapperFactory;
-import org.neo4j.commandline.admin.OutsideWorld;
+import org.neo4j.causalclustering.handlers.SecureClientPipelineWrapper;
+import org.neo4j.commandline.admin.RealOutsideWorld;
+import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.kernel.configuration.Config;
+import org.neo4j.kernel.monitoring.Monitors;
+import org.neo4j.logging.AssertableLogProvider;
 
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 import static org.neo4j.backup.impl.BackupSupportingClassesFactoryProvider.getProvidersByPriority;
-
 public class OnlineBackupCommandProviderTest
 {
     @Test
     public void communityBackupSupportingFactory()
     {
-        BackupModule backupModule = mock( BackupModule.class );
-        OutsideWorld outsideWorld = mock( OutsideWorld.class );
-        when( backupModule.getOutsideWorld() ).thenReturn( outsideWorld );
+        AssertableLogProvider logProvider = new AssertableLogProvider();
+
+        //OutsideWorld outsideWorld = mock( OutsideWorld.class );
+
+        RealOutsideWorld outsideWorld = new RealOutsideWorld();
+        FileSystemAbstraction fileSystemMock = mock( FileSystemAbstraction.class );
+
+        //outsideWorld.fileSystemAbstraction = fileSystemMock;
+        Monitors monitors = mock( Monitors.class );
+
+        BackupModule backupModule = new BackupModule( outsideWorld, logProvider, monitors );
+
+        // when( backupModule.getOutsideWorld() ).thenReturn( outsideWorld );
 
         BackupSupportingClassesFactoryProvider provider = getProvidersByPriority().findFirst().get();
+
         BackupSupportingClassesFactory factory = provider.getFactory( backupModule );
-        assertEquals( VoidPipelineWrapperFactory.VOID_WRAPPER,
+
+        /*
+        SecurePipelineWrapperFactory pipelineWrapperFactory = new SecurePipelineWrapperFactory();
+        SslPolicyLoader sslPolicyLoader;
+        // and
+        Config config = Config.defaults();
+        config.augment( CausalClusteringSettings.ssl_policy, "default" );
+
+        // We want to create dependencies the same way factory.createPipelineWrapper does so.s
+        Dependencies dependencies = new Dependencies(  );
+        dependencies.satisfyDependencies(new Object[]{SslPolicyLoader.create(config, logProvider)});
+
+        assertEquals( pipelineWrapperFactory.forClient(config, dependencies, logProvider, CausalClusteringSettings.ssl_policy),
                 factory.createPipelineWrapper( Config.defaults() ) );
+        */
+
+        assertEquals( SecureClientPipelineWrapper.class, factory.createPipelineWrapper( Config.defaults() ).getClass() );
     }
 
     /**

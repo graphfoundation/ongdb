@@ -37,11 +37,12 @@ public class OpenEnterpriseBackupSupportingClassesFactoryProvider extends Backup
     }
 
     /**
+     * Make this a higher priority than the one we are extending
      * @return
      */
     protected int getPriority()
     {
-        return super.getPriority() + 100;
+        return super.getPriority() + 101;
     }
 }
 

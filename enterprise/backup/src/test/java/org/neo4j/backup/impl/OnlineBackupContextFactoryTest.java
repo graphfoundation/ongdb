@@ -202,7 +202,7 @@ public class OnlineBackupContextFactoryTest
 
         // and
         expected.expect( CommandFailed.class );
-        expected.expectCause( hasCause( any( NoSuchFileException.class ) ) );
+        expected.expectCause( hasCause( any( IOException.class ) ) );
 
         // expect
         OnlineBackupContextFactory handler = new OnlineBackupContextFactory( homeDir, configDir );

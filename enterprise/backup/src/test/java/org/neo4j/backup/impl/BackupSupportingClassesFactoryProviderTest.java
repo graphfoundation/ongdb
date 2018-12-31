@@ -36,15 +36,20 @@ public class BackupSupportingClassesFactoryProviderTest
     @Test
     public void canLoadDefaultSupportingClassesFactory()
     {
+
         assertEquals( 1, findInstancesOf( BackupSupportingClassesFactoryProvider.class,
                 allAvailableSupportingClassesFactories() ).size() );
-        assertEquals( 2, allAvailableSupportingClassesFactories().size() );
+
+        assertEquals( 1, findInstancesOf( OpenEnterpriseBackupSupportingClassesFactoryProvider.class, allAvailableSupportingClassesFactories() ).size() );
+
+        // Note that the allAvailableSupportingClassesFactories() also loads the org.neo4j.helpers.Service[].
+        assertEquals( 3, allAvailableSupportingClassesFactories().size() );
     }
 
     @Test
     public void testDefaultModuleIsPrioritisedOverDummyModule()
     {
-        assertEquals( BackupSupportingClassesFactoryProvider.class,
+        assertEquals( OpenEnterpriseBackupSupportingClassesFactoryProvider.class,
                 getProvidersByPriority().findFirst().get().getClass() );
     }
 
@@ -53,18 +58,27 @@ public class BackupSupportingClassesFactoryProviderTest
         return getProvidersByPriority().collect( toList() );
     }
 
-    public static <DESIRED extends BackupSupportingClassesFactoryProvider> Collection<DESIRED> findInstancesOf(
-            Class<DESIRED> desiredClass, Collection<? extends BackupSupportingClassesFactoryProvider> collection )
+    /**
+     * T
+     *
+     * @param desiredClass
+     * @param collection
+     * @param <DESIRED>
+     * @return
+     */
+    public static <DESIRED extends BackupSupportingClassesFactoryProvider> Collection<DESIRED> findInstancesOf( Class<DESIRED> desiredClass,
+            Collection<? extends BackupSupportingClassesFactoryProvider> collection )
     {
-        return collection
-                .stream()
-                .filter( isOfClass( desiredClass ) )
-                .map( i -> (DESIRED) i )
-                .collect( toList() );
+        return collection.stream().filter( isOfClass( desiredClass ) ).map( i -> (DESIRED) i ).collect( toList() );
     }
 
-    private static Predicate<BackupSupportingClassesFactoryProvider> isOfClass(
-            Class<? extends BackupSupportingClassesFactoryProvider> desiredClass )
+    /**
+     * Note: The method name here may be confusing.  It does not check if a class extended another class - only if the class name is an exact match.
+     *
+     * @param desiredClass
+     * @return
+     */
+    private static Predicate<BackupSupportingClassesFactoryProvider> isOfClass( Class<? extends BackupSupportingClassesFactoryProvider> desiredClass )
     {
         return factory -> desiredClass.equals( factory.getClass() );
     }

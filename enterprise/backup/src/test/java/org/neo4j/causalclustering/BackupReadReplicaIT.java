@@ -36,6 +36,7 @@ import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.kernel.configuration.Settings;
 import org.neo4j.kernel.impl.enterprise.configuration.OnlineBackupSettings;
 import org.neo4j.kernel.impl.transaction.log.TransactionIdStore;
+import org.neo4j.server.configuration.ConfigFileBuilder;
 import org.neo4j.test.DbRepresentation;
 import org.neo4j.test.causalclustering.ClusterRule;
 import org.neo4j.test.rule.SuppressOutput;
@@ -46,6 +47,7 @@ import static org.neo4j.causalclustering.BackupCoreIT.backupArguments;
 import static org.neo4j.causalclustering.BackupCoreIT.createSomeData;
 import static org.neo4j.causalclustering.BackupCoreIT.getConfig;
 import static org.neo4j.causalclustering.helpers.CausalClusteringTestHelpers.transactionAddress;
+import static org.neo4j.commandline.admin.AdminTool.STATUS_SUCCESS;
 import static org.neo4j.function.Predicates.awaitEx;
 import static org.neo4j.util.TestHelpers.runBackupToolFromOtherJvmToGetExitCode;
 
@@ -85,7 +87,9 @@ public class BackupReadReplicaIT
         String backupAddress = transactionAddress( readReplica );
 
         String[] args = backupArguments( backupAddress, backupPath, "readreplica" );
-        assertEquals( 0, runBackupToolFromOtherJvmToGetExitCode( clusterRule.clusterDirectory(), args ) );
+
+        File configFile = ConfigFileBuilder.builder( clusterRule.clusterDirectory() ).build();
+        assertEquals( STATUS_SUCCESS, runBackupToolFromOtherJvmToGetExitCode( clusterRule.clusterDirectory(), args ) );
 
         // Add some new data
         DbRepresentation afterChange = DbRepresentation.of( createSomeData( cluster ) );

@@ -71,4 +71,3 @@ public class SecurePipelineWrapperFactory implements DuplexPipelineWrapperFactor
         return sslPolicyLoader.getPolicy( policyName );
     }
 }
-
