@@ -191,7 +191,8 @@ public class EnterpriseBootstrapperTestIT extends BaseBootstrapperIT
 
         protected NeoServer createNeoServer( GraphFactory graphFactory, Config config, GraphDatabaseDependencies dependencies )
         {
-            this.userLogProvider = userLogProvider;
+            this.userLogProvider = dependencies.userLogProvider();
+
             return super.createNeoServer( graphFactory, config, dependencies );
         }
 
