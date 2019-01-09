@@ -86,7 +86,7 @@
     <maven.build.timestamp.format>yyMMddHHmmssSSS</maven.build.timestamp.format>
 
     <license-text.header>headers/AGPL-3-header.txt</license-text.header>
-    
+
     <scala-maven-plugin.version>3.4.2</scala-maven-plugin.version>
     <scala.version>2.11.12</scala.version>
     <scala.binary.version>2.11</scala.binary.version>
@@ -1300,7 +1300,7 @@
       <dependency>
         <groupId>org.apache.commons</groupId>
         <artifactId>commons-lang3</artifactId>
-        <version>3.8</version>
+        <version>3.8.1</version>
       </dependency>
       <dependency>
         <groupId>org.apache.commons</groupId>
