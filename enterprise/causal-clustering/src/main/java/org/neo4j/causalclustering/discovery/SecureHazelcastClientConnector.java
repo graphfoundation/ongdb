@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2018 "GraphFoundation" <https://graphfoundation.org>
+ * Copyright (c) 2019 "GraphFoundation" <https://graphfoundation.org>
  * <p>
  * Neo4j is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as

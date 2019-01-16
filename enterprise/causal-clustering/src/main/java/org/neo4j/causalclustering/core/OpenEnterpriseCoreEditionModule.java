@@ -1,5 +1,8 @@
 /*
- * Copyright (c) 2018 "GraphFoundation" [https://graphfoundation.org]
+ * Copyright (c) 2002-2018 "Neo Technology,"
+ * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ *
+ * Modifications Copyright (c) 2018-2019 "GraphFoundation" [https://graphfoundation.org]
  *
  * The included source code can be redistributed and/or modified under the terms of the
  * GNU AFFERO GENERAL PUBLIC LICENSE Version 3
@@ -28,13 +31,7 @@ import org.neo4j.kernel.impl.proc.Procedures;
 import org.neo4j.kernel.impl.util.Dependencies;
 import org.neo4j.ssl.SslPolicy;
 
-//import org.neo4j.kernel.api.bolt.BoltConnectionTracker;
-//import org.neo4j.kernel.impl.enterprise.StandardBoltConnectionTracker;
-//import org.neo4j.kernel.impl.factory.PlatformModule;
 
-/**
- *
- */
 public class OpenEnterpriseCoreEditionModule extends EnterpriseCoreEditionModule
 {
     /**

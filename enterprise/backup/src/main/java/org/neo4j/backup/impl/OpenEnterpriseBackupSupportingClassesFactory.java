@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018 "GraphFoundation" [https://graphfoundation.org]
+ * Copyright (c) 2019 "GraphFoundation" [https://graphfoundation.org]
  *
  * The included source code can be redistributed and/or modified under the terms of the
  * GNU AFFERO GENERAL PUBLIC LICENSE Version 3

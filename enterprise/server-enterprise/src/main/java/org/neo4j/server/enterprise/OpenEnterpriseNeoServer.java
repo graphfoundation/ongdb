@@ -2,6 +2,8 @@
  * Copyright (c) 2002-2018 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
+ * Modifications Copyright (c) 2018-2019 "GraphFoundation" [https://graphfoundation.org]
+ *
  * This file is part of Neo4j Enterprise Edition. The included source
  * code can be redistributed and/or modified under the terms of the
  * GNU AFFERO GENERAL PUBLIC LICENSE Version 3

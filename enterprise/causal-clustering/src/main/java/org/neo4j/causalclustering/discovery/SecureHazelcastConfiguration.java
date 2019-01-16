@@ -2,7 +2,7 @@
  * Copyright (c) 2002-2018 "Neo Technology,"
  * Network Engine for Objects in Lund AB [http://neotechnology.com]
  *
- * Modifications Copyright (c) 2018 "GraphFoundation" [https://graphfoundation.org]
+ * Modifications Copyright (c) 2019 "GraphFoundation" [https://graphfoundation.org]
  *
  * You can redistribute this software and/or modify
  * it under the terms of the GNU Affero General Public License as

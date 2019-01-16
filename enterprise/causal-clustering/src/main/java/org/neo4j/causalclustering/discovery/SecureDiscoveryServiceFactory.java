@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018 "GraphFoundation" [https://graphfoundation.org]
+ * Copyright (c) 2019 "GraphFoundation" [https://graphfoundation.org]
  *
  * The included source code can be redistributed and/or modified under the terms of the
  * GNU AFFERO GENERAL PUBLIC LICENSE Version 3
@@ -16,7 +16,7 @@ package org.neo4j.causalclustering.discovery;
 import org.neo4j.ssl.SslPolicy;
 
 /**
- * Implement an interface to allow for future expansion from just Hazelcast for clustering.
+ * Implement an interface to allow for future expansion from just Hazelcast for clustering. I.E. AKKA, etc.
  */
 public interface SecureDiscoveryServiceFactory extends DiscoveryServiceFactory
 {
