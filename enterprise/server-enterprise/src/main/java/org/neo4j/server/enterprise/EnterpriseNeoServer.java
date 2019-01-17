@@ -21,17 +21,14 @@ import org.neo4j.graphdb.facade.GraphDatabaseFacadeFactory.Dependencies;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.server.database.GraphFactory;
 
-
 /**
- * See 
+ * See
  * https://github.com/neo4j/neo4j/blob/3.2/enterprise/server-enterprise/src/main/java/org/neo4j/server/enterprise/EnterpriseNeoServer.java
  * https://github.com/neo4j/neo4j/blob/625e26f3f0a46a52085b5d65600c5521ca80a34d/community/server/src/main/java/org/neo4j/server/rest/management/VersionAndEditionService.java
- * 
  */
 public class EnterpriseNeoServer extends OpenEnterpriseNeoServer
 {
     /**
-     *
      * @param config
      * @param dependencies
      */
@@ -41,7 +38,6 @@ public class EnterpriseNeoServer extends OpenEnterpriseNeoServer
     }
 
     /**
-     *
      * @param config
      * @param graphFactory
      * @param dependencies

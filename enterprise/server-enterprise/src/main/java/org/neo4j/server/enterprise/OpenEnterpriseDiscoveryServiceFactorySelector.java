@@ -29,7 +29,7 @@ public class OpenEnterpriseDiscoveryServiceFactorySelector extends DiscoveryServ
         {
         case HAZELCAST:
             return new SecureHazelcastDiscoveryServiceFactory();
-        // Add others in the future. 
+        // Add others in the future.
         default:
             throw new IllegalArgumentException(
                     "SecureDiscoveryServiceFactory middleware: " + middleware + " did not match any available options.  Should have been HAZELCAST" );

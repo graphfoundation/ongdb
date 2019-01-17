@@ -55,8 +55,7 @@ class OnlineBackupContextFactory
     static final String ARG_DESC_BACKUP_DIRECTORY = "Directory to place backup in.";
 
     static final String ARG_NAME_BACKUP_NAME = "name";
-    static final String ARG_DESC_BACKUP_NAME =
-            "Name of backup. If a backup with this name already exists an incremental backup will be attempted.";
+    static final String ARG_DESC_BACKUP_NAME = "Name of backup. If a backup with this name already exists an incremental backup will be attempted.";
 
     static final String ARG_NAME_BACKUP_SOURCE = "from";
     static final String ARG_DESC_BACKUP_SOURCE = "Host and port of Neo4j.";
@@ -67,8 +66,7 @@ class OnlineBackupContextFactory
     static final String ARG_DFLT_PROTO_OVERRIDE = "any";
 
     static final String ARG_NAME_TIMEOUT = "timeout";
-    static final String ARG_DESC_TIMEOUT =
-            "Timeout in the form <time>[ms|s|m|h], where the default unit is seconds.";
+    static final String ARG_DESC_TIMEOUT = "Timeout in the form <time>[ms|s|m|h], where the default unit is seconds.";
     static final String ARG_DFLT_TIMEOUT = "20m";
 
     static final String ARG_NAME_PAGECACHE = "pagecache";
@@ -79,8 +77,7 @@ class OnlineBackupContextFactory
     static final String ARG_DESC_REPORT_DIRECTORY = "Directory where consistency report will be written.";
 
     static final String ARG_NAME_ADDITIONAL_CONFIG_DIR = "additional-config";
-    static final String ARG_DESC_ADDITIONAL_CONFIG_DIR =
-            "Configuration file to supply additional configuration in. This argument is DEPRECATED.";
+    static final String ARG_DESC_ADDITIONAL_CONFIG_DIR = "Configuration file to supply additional configuration in. This argument is DEPRECATED.";
 
     static final String ARG_NAME_FALLBACK_FULL = "fallback-to-full";
     static final String ARG_DESC_FALLBACK_FULL =
@@ -90,8 +87,7 @@ class OnlineBackupContextFactory
     static final String ARG_DESC_CHECK_CONSISTENCY = "If a consistency check should be made.";
 
     static final String ARG_NAME_CHECK_GRAPH = "cc-graph";
-    static final String ARG_DESC_CHECK_GRAPH =
-            "Perform consistency checks between nodes, relationships, properties, types and tokens.";
+    static final String ARG_DESC_CHECK_GRAPH = "Perform consistency checks between nodes, relationships, properties, types and tokens.";
 
     static final String ARG_NAME_CHECK_INDEXES = "cc-indexes";
     static final String ARG_DESC_CHECK_INDEXES = "Perform consistency checks on indexes.";
@@ -117,37 +113,20 @@ class OnlineBackupContextFactory
         String argExampleProtoOverride =
                 (String) Stream.of( SelectedBackupProtocol.values() ).map( SelectedBackupProtocol::getName ).sorted().collect( Collectors.joining( "|" ) );
 
-
-
-        return new Arguments()
-                .withArgument( new MandatoryCanonicalPath(
-                        ARG_NAME_BACKUP_DIRECTORY, "backup-path", ARG_DESC_BACKUP_DIRECTORY ) )
-                .withArgument( new MandatoryNamedArg(
-                        ARG_NAME_BACKUP_NAME, "graph.db-backup", ARG_DESC_BACKUP_NAME ) )
-                .withArgument( new OptionalNamedArg(
-                        ARG_NAME_BACKUP_SOURCE, "address", ARG_DFLT_BACKUP_SOURCE, ARG_DESC_BACKUP_SOURCE ) )
-                .withArgument( new OptionalNamedArg( ARG_NAME_PROTO_OVERRIDE, argExampleProtoOverride,
-                        ARG_DFLT_PROTO_OVERRIDE, ARG_DESC_PROTO_OVERRIDE ) )
-                .withArgument( new OptionalBooleanArg(
-                        ARG_NAME_FALLBACK_FULL, true, ARG_DESC_FALLBACK_FULL ) )
-                .withArgument( new OptionalNamedArg(
-                        ARG_NAME_TIMEOUT, "timeout", ARG_DFLT_TIMEOUT, ARG_DESC_TIMEOUT ) )
-                .withArgument( new OptionalNamedArg(
-                        ARG_NAME_PAGECACHE, "8m", ARG_DFLT_PAGECACHE, ARG_DESC_PAGECACHE ) )
-                .withArgument( new OptionalBooleanArg(
-                        ARG_NAME_CHECK_CONSISTENCY, true, ARG_DESC_CHECK_CONSISTENCY ) )
-                .withArgument( new OptionalCanonicalPath(
-                        ARG_NAME_REPORT_DIRECTORY, "directory", ".", ARG_DESC_REPORT_DIRECTORY ) )
-                .withArgument( new OptionalCanonicalPath(
-                        ARG_NAME_ADDITIONAL_CONFIG_DIR, "config-file-path", "", ARG_DESC_ADDITIONAL_CONFIG_DIR ) )
-                .withArgument( new OptionalBooleanArg(
-                        ARG_NAME_CHECK_GRAPH, true, ARG_DESC_CHECK_GRAPH ) )
-                .withArgument( new OptionalBooleanArg(
-                        ARG_NAME_CHECK_INDEXES, true, ARG_DESC_CHECK_INDEXES ) )
-                .withArgument( new OptionalBooleanArg(
-                        ARG_NAME_CHECK_LABELS, true, ARG_DESC_CHECK_LABELS ) )
-                .withArgument( new OptionalBooleanArg(
-                        ARG_NAME_CHECK_OWNERS, false, ARG_DESC_CHECK_OWNERS ) );
+        return new Arguments().withArgument( new MandatoryCanonicalPath( ARG_NAME_BACKUP_DIRECTORY, "backup-path", ARG_DESC_BACKUP_DIRECTORY ) ).withArgument(
+                new MandatoryNamedArg( ARG_NAME_BACKUP_NAME, "graph.db-backup", ARG_DESC_BACKUP_NAME ) ).withArgument(
+                new OptionalNamedArg( ARG_NAME_BACKUP_SOURCE, "address", ARG_DFLT_BACKUP_SOURCE, ARG_DESC_BACKUP_SOURCE ) ).withArgument(
+                new OptionalNamedArg( ARG_NAME_PROTO_OVERRIDE, argExampleProtoOverride, ARG_DFLT_PROTO_OVERRIDE, ARG_DESC_PROTO_OVERRIDE ) ).withArgument(
+                new OptionalBooleanArg( ARG_NAME_FALLBACK_FULL, true, ARG_DESC_FALLBACK_FULL ) ).withArgument(
+                new OptionalNamedArg( ARG_NAME_TIMEOUT, "timeout", ARG_DFLT_TIMEOUT, ARG_DESC_TIMEOUT ) ).withArgument(
+                new OptionalNamedArg( ARG_NAME_PAGECACHE, "8m", ARG_DFLT_PAGECACHE, ARG_DESC_PAGECACHE ) ).withArgument(
+                new OptionalBooleanArg( ARG_NAME_CHECK_CONSISTENCY, true, ARG_DESC_CHECK_CONSISTENCY ) ).withArgument(
+                new OptionalCanonicalPath( ARG_NAME_REPORT_DIRECTORY, "directory", ".", ARG_DESC_REPORT_DIRECTORY ) ).withArgument(
+                new OptionalCanonicalPath( ARG_NAME_ADDITIONAL_CONFIG_DIR, "config-file-path", "", ARG_DESC_ADDITIONAL_CONFIG_DIR ) ).withArgument(
+                new OptionalBooleanArg( ARG_NAME_CHECK_GRAPH, true, ARG_DESC_CHECK_GRAPH ) ).withArgument(
+                new OptionalBooleanArg( ARG_NAME_CHECK_INDEXES, true, ARG_DESC_CHECK_INDEXES ) ).withArgument(
+                new OptionalBooleanArg( ARG_NAME_CHECK_LABELS, true, ARG_DESC_CHECK_LABELS ) ).withArgument(
+                new OptionalBooleanArg( ARG_NAME_CHECK_OWNERS, false, ARG_DESC_CHECK_OWNERS ) );
     }
 
     public OnlineBackupContext createContext( String... args ) throws IncorrectUsage, CommandFailed
@@ -173,7 +152,6 @@ class OnlineBackupContextFactory
             OnlineBackupRequiredArguments requiredArguments =
                     new OnlineBackupRequiredArguments( address, folder, name, selectedBackupProtocol, fallbackToFull, doConsistencyCheck, timeout, reportDir );
 
-
             Path configFile = configDir.resolve( Config.DEFAULT_CONFIG_FILE_NAME );
             Config.Builder builder = Config.fromFile( configFile );
             Path logPath = requiredArguments.getResolvedLocationFromName();
@@ -192,8 +170,7 @@ class OnlineBackupContextFactory
 
             // Build consistency-checker configuration.
             // Note: We can remove the loading from config file in 4.0.
-            BiFunction<String,Setting<Boolean>,Boolean> oneOf =
-                    ( a, s ) -> arguments.has( a ) ? arguments.getBoolean( a ) : config.get( s );
+            BiFunction<String,Setting<Boolean>,Boolean> oneOf = ( a, s ) -> arguments.has( a ) ? arguments.getBoolean( a ) : config.get( s );
 
             ConsistencyFlags consistencyFlags = new ConsistencyFlags( oneOf.apply( ARG_NAME_CHECK_GRAPH, ConsistencyCheckSettings.consistency_check_graph ),
                     oneOf.apply( ARG_NAME_CHECK_INDEXES, ConsistencyCheckSettings.consistency_check_indexes ),

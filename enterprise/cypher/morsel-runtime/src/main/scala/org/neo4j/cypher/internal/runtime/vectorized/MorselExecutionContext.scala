@@ -90,7 +90,6 @@ class MorselExecutionContext(private val morsel: Morsel, private val longsPerRow
       }
     case _ => fail()
   }
-  
   override def copyCachedFrom(input: ExecutionContext): Unit = fail()
 
   override def toString(): String = {

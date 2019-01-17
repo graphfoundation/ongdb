@@ -8,35 +8,35 @@
   <version>3.5.1-SNAPSHOT</version>
   <packaging>pom</packaging>
   <name>Neo4j</name>
-  <description>Neo4j Graph Database</description>
+  <description>ONgDB Graph Database</description>
   <inceptionYear>2002</inceptionYear>
-  <url>http://neo4j.com/</url>
+  <url>https://graphfoundation.org/</url>
 
   <organization>
-    <name>The Neo4j Graph Database Project</name>
-    <url>https://neo4j.com/</url>
+    <name>The ONgDB Neo4j Enterprise Fork Graph Database Project</name>
+    <url>https://graphfoundation.org/</url>
   </organization>
 
   <scm>
-    <connection>scm:git:git://github.com/neo4j/neo4j.git</connection>
-    <developerConnection>scm:git:git@github.com:neo4j/neo4j.git</developerConnection>
-    <url>https://github.com/neo4j/neo4j</url>
+    <connection>scm:git:git://github.com/graphfoundation/ongdb.git</connection>
+    <developerConnection>scm:git:git@github.com:graphfoundation/ongdb.git</developerConnection>
+    <url>https://github.com/graphfoundation/ongdb.git</url>
   </scm>
 
   <licenses>
     <license>
-      <name>GNU Affero General Public License, Version 3 with the Commons Clause</name>
+      <name>GNU Affero General Public License, Version 3</name>
       <url>http://www.gnu.org/licenses/agpl-3.0-standalone.html</url>
     </license>
   </licenses>
 
   <developers>
     <developer>
-      <id>neo4j</id>
-      <name>The Neo4j Team</name>
-      <url>https://neo4j.com/</url>
-      <organization>Neo4j Inc.</organization>
-      <organizationUrl>https://neo4j.com/</organizationUrl>
+      <id>ongdb</id>
+      <name>The ONgDB Team</name>
+      <url>https://graphfoundation.org/</url>
+      <organization>Graph Foundation</organization>
+      <organizationUrl>https://graphfoundation.org/</organizationUrl>
     </developer>
   </developers>
 
@@ -49,7 +49,7 @@
 
   <issueManagement>
     <system>GitHub</system>
-    <url>https://github.com/neo4j/neo4j/issues</url>
+    <url>https://github.com/graphfoundation/ongdb/issues</url>
   </issueManagement>
 
   <distributionManagement>
