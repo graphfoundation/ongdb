@@ -8,6 +8,7 @@
         <relativePath>../..</relativePath>
     </parent>
 
+   <groupId>org.graphfoundation.ongdb</groupId>
     <artifactId>neo4j-procedure-compiler-enterprise-tests</artifactId>
     <packaging>jar</packaging>
 
@@ -47,7 +48,7 @@
 
     <dependencies>
         <dependency>
-            <groupId>${project.groupId}</groupId>
+            <groupId>org.neo4j</groupId>
             <artifactId>procedure-compiler</artifactId>
             <version>${project.version}</version>
             <scope>compile</scope>
@@ -70,13 +71,13 @@
             <artifactId>compile-testing</artifactId>
         </dependency>
         <dependency>
-            <groupId>${project.groupId}</groupId>
+            <groupId>org.graphfoundation.ongdb</groupId>
             <artifactId>neo4j-security-enterprise</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>${project.groupId}</groupId>
+            <groupId>org.graphfoundation.ongdb</groupId>
             <artifactId>neo4j-enterprise-kernel</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>

@@ -6,6 +6,7 @@
     <version>3.5.1-SNAPSHOT</version>
     <relativePath>../..</relativePath>
   </parent>
+  <groupId>org.graphfoundation.ongdb</groupId>
   <artifactId>neo4j-enterprise-kernel</artifactId>
   <version>3.5.1-SNAPSHOT</version>
 

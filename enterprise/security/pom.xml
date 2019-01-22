@@ -7,6 +7,7 @@
     <relativePath>../..</relativePath>
   </parent>
 
+  <groupId>org.graphfoundation.ongdb</groupId>
   <artifactId>neo4j-security-enterprise</artifactId>
   <version>3.5.1-SNAPSHOT</version>
 
@@ -63,7 +64,7 @@
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.neo4j</groupId>
+            <groupId>org.graphfoundation.ongdb</groupId>
             <artifactId>neo4j-enterprise-kernel</artifactId>
             <version>${project.version}</version>
         </dependency>
@@ -124,7 +125,7 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.neo4j</groupId>
+            <groupId>org.graphfoundation.ongdb</groupId>
             <artifactId>neo4j-enterprise-kernel</artifactId>
             <version>${project.version}</version>
             <type>test-jar</type>

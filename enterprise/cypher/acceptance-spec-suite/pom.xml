@@ -4,7 +4,7 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <parent>
-    <groupId>org.neo4j</groupId>
+    <groupId>org.graphfoundation.ongdb</groupId>
     <artifactId>cypher-enterprise-parent</artifactId>
     <version>3.5.1-SNAPSHOT</version>
     <relativePath>../</relativePath>
@@ -101,8 +101,8 @@
       <version>${project.version}</version>
     </dependency>
     <dependency>
-      <groupId>org.neo4j</groupId>
-      <artifactId>neo4j-enterprise-kernel</artifactId>
+            <groupId>org.graphfoundation.ongdb</groupId>
+            <artifactId>neo4j-enterprise-kernel</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
@@ -111,7 +111,7 @@
       <version>${project.version}</version>
     </dependency>
     <dependency>
-      <groupId>org.neo4j</groupId>
+      <groupId>org.graphfoundation.ongdb</groupId>
       <artifactId>neo4j-enterprise-cypher</artifactId>
       <version>${project.version}</version>
     </dependency>
@@ -139,12 +139,12 @@
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>org.neo4j</groupId>
-      <artifactId>neo4j-enterprise-kernel</artifactId>
-      <version>${project.version}</version>
-      <type>test-jar</type>
-      <scope>test</scope>
-    </dependency>
+            <groupId>org.graphfoundation.ongdb</groupId>
+            <artifactId>neo4j-enterprise-kernel</artifactId>
+            <version>${project.version}</version>
+            <type>test-jar</type>
+            <scope>test</scope>
+        </dependency>
 
     <dependency>
       <groupId>org.neo4j</groupId>
@@ -169,7 +169,7 @@
     </dependency>
 
     <dependency>
-      <groupId>org.neo4j</groupId>
+      <groupId>org.graphfoundation.ongdb</groupId>
       <artifactId>neo4j-enterprise-cypher</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>

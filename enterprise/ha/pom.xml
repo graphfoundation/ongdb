@@ -107,12 +107,12 @@
 
     <dependencies>
         <dependency>
-            <groupId>org.neo4j</groupId>
+            <groupId>org.graphfoundation.ongdb</groupId>
             <artifactId>neo4j-enterprise-kernel</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.neo4j</groupId>
+            <groupId>org.graphfoundation.ongdb</groupId>
             <artifactId>neo4j-enterprise-kernel</artifactId>
             <version>${project.version}</version>
             <type>test-jar</type>
@@ -141,12 +141,12 @@
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.neo4j</groupId>
+            <groupId>org.graphfoundation.ongdb</groupId>
             <artifactId>neo4j-com</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.neo4j</groupId>
+            <groupId>org.graphfoundation.ongdb</groupId>
             <artifactId>neo4j-cluster</artifactId>
             <version>${project.version}</version>
         </dependency>
@@ -157,7 +157,7 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.neo4j</groupId>
+            <groupId>org.graphfoundation.ongdb</groupId>
             <artifactId>neo4j-security-enterprise</artifactId>
             <version>${project.version}</version>
         </dependency>
@@ -211,7 +211,7 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.neo4j</groupId>
+            <groupId>org.graphfoundation.ongdb</groupId>
             <artifactId>neo4j-com</artifactId>
             <version>${project.version}</version>
             <type>test-jar</type>
@@ -225,7 +225,7 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.neo4j</groupId>
+            <groupId>org.graphfoundation.ongdb</groupId>
             <artifactId>neo4j-cluster</artifactId>
             <version>${project.version}</version>
             <type>test-jar</type>

@@ -8,7 +8,7 @@
   </parent>
 
   <modelVersion>4.0.0</modelVersion>
-  <groupId>org.neo4j.build</groupId>
+  <groupId>org.graphfoundation.ongdb.build</groupId>
   <artifactId>enterprise-build</artifactId>
   <version>3.5.1-SNAPSHOT</version>
 

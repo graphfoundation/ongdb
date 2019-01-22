@@ -8,6 +8,7 @@
     <relativePath>..</relativePath>
   </parent>
 
+  <groupId>org.graphfoundation.ongdb</groupId>
   <artifactId>neo4j-stresstests</artifactId>
   <version>3.5.1-SNAPSHOT</version>
 
@@ -17,7 +18,7 @@
 
   <properties>
     <license-text.header>headers/AGPL-3-header.txt</license-text.header>
-    <moduleName>org.neo4j.stresstests</moduleName>
+    <moduleName>org.graphfoundation.ongdb.stresstests</moduleName>
   </properties>
 
   <scm>
@@ -144,14 +145,14 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.neo4j</groupId>
-            <artifactId>neo4j-causal-clustering</artifactId>
+             <groupId>org.graphfoundation.ongdb</groupId>
+             <artifactId>neo4j-causal-clustering</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.neo4j</groupId>
-            <artifactId>neo4j-causal-clustering</artifactId>
+             <groupId>org.graphfoundation.ongdb</groupId>
+             <artifactId>neo4j-causal-clustering</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
             <type>test-jar</type>
@@ -161,7 +162,7 @@
             <artifactId>commons-codec</artifactId>
         </dependency>
         <dependency>
-            <groupId>org.neo4j</groupId>
+            <groupId>org.graphfoundation.ongdb</groupId>
             <artifactId>neo4j-com</artifactId>
             <version>${project.version}</version>
             <type>test-jar</type>

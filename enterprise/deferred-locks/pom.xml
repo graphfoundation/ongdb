@@ -10,6 +10,7 @@
     <relativePath>../..</relativePath>
   </parent>
 
+  <groupId>org.graphfoundation.ongdb</groupId>
   <artifactId>neo4j-deferred-locks</artifactId>
   <version>3.5.1-SNAPSHOT</version>
 
@@ -60,13 +61,13 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.neo4j</groupId>
+            <groupId>org.graphfoundation.ongdb</groupId>
             <artifactId>neo4j-enterprise-kernel</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.neo4j</groupId>
+            <groupId>org.graphfoundation.ongdb</groupId>
             <artifactId>neo4j-enterprise-kernel</artifactId>
             <version>${project.version}</version>
             <type>test-jar</type>

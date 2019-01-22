@@ -24,15 +24,15 @@
 
     <dependencies>
         <dependency>
-            <groupId>org.neo4j</groupId>
+            <groupId>org.graphfoundation.ongdb</groupId>
             <artifactId>neo4j-ha</artifactId>
             <version>${project.version}</version>
             <scope>provided</scope>
         </dependency>
 
         <dependency>
-            <groupId>org.neo4j</groupId>
-            <artifactId>neo4j-causal-clustering</artifactId>
+             <groupId>org.graphfoundation.ongdb</groupId>
+             <artifactId>neo4j-causal-clustering</artifactId>
             <version>${project.version}</version>
             <scope>provided</scope>
         </dependency>
@@ -52,13 +52,13 @@
         </dependency>
 
         <dependency>
-            <groupId>org.neo4j</groupId>
+            <groupId>org.graphfoundation.ongdb</groupId>
             <artifactId>neo4j-com</artifactId>
             <version>${project.version}</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
-            <groupId>org.neo4j</groupId>
+            <groupId>org.graphfoundation.ongdb</groupId>
             <artifactId>neo4j-cluster</artifactId>
             <version>${project.version}</version>
             <scope>provided</scope>
@@ -104,14 +104,14 @@
             <type>test-jar</type>
         </dependency>
         <dependency>
-            <groupId>org.neo4j</groupId>
+            <groupId>org.graphfoundation.ongdb</groupId>
             <artifactId>neo4j-ha</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
             <type>test-jar</type>
         </dependency>
         <dependency>
-            <groupId>org.neo4j</groupId>
+            <groupId>org.graphfoundation.ongdb</groupId>
             <artifactId>neo4j-cluster</artifactId>
             <version>${project.version}</version>
             <type>test-jar</type>
@@ -125,8 +125,8 @@
             <type>test-jar</type>
         </dependency>
         <dependency>
-            <groupId>org.neo4j</groupId>
-            <artifactId>neo4j-causal-clustering</artifactId>
+             <groupId>org.graphfoundation.ongdb</groupId>
+             <artifactId>neo4j-causal-clustering</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
             <type>test-jar</type>
@@ -196,7 +196,7 @@
             <artifactId>mockito-core</artifactId>
         </dependency>
         <dependency>
-            <groupId>org.neo4j</groupId>
+            <groupId>org.graphfoundation.ongdb</groupId>
             <artifactId>neo4j-com</artifactId>
             <version>${project.version}</version>
             <type>test-jar</type>

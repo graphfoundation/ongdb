@@ -11,6 +11,7 @@
         <relativePath>..</relativePath>
     </parent>
 
+    <groupId>org.graphfoundation.ongdb</groupId>
     <artifactId>neo4j-tools</artifactId>
     <version>3.5.1-SNAPSHOT</version>
 
@@ -72,7 +73,7 @@
             <type>test-jar</type>
         </dependency>
         <dependency>
-            <groupId>org.neo4j</groupId>
+            <groupId>org.graphfoundation.ongdb</groupId>
             <artifactId>neo4j-com</artifactId>
             <version>${project.version}</version>
         </dependency>

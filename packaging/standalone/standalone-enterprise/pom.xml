@@ -8,7 +8,7 @@
     <relativePath>..</relativePath>
   </parent>
 
-  <groupId>org.neo4j.assembly</groupId>
+  <groupId>org.graphfoundation.ongdb.assembly</groupId>
   <artifactId>neo4j-enterprise-standalone</artifactId>
   <packaging>pom</packaging>
 
@@ -169,13 +169,13 @@ terms of the relevant Commercial Agreement.
       <version>${project.version}</version>
     </dependency>
     <dependency>
-      <groupId>org.neo4j</groupId>
-      <artifactId>neo4j-enterprise</artifactId>
+            <groupId>org.graphfoundation.ongdb</groupId>
+            <artifactId>neo4j-enterprise</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
-      <groupId>org.neo4j.app</groupId>
-      <artifactId>neo4j-server-enterprise</artifactId>
+            <groupId>org.graphfoundation.ongdb.app</groupId>
+            <artifactId>neo4j-server-enterprise</artifactId>
       <version>${project.version}</version>
     </dependency>
     
