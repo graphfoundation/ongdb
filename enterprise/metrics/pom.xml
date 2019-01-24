@@ -10,6 +10,7 @@
     <relativePath>../..</relativePath>
   </parent>
 
+  <groupId>org.graphfoundation.ongdb</groupId>
   <artifactId>neo4j-metrics</artifactId>
   <version>3.5.1-SNAPSHOT</version>
 

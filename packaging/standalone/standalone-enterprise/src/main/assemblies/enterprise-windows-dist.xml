@@ -98,6 +98,7 @@
       <useStrictFiltering>true</useStrictFiltering>
       <includes>
         <include>org.neo4j:*</include>
+		<include>org.graphfoundation.ongdb:*</include>
         <include>jline:jline</include>
         <include>org.apache.lucene:lucene-core</include>
         <include>org.apache.lucene:lucene-analyzers-common</include>
@@ -114,7 +115,7 @@
       </includes>
       <excludes>
         <exclude>*:pom:*</exclude>
-        <exclude>org.neo4j:neo4j-enterprise:jar</exclude>
+        <exclude>org.graphfoundation.ongdb:neo4j-enterprise:jar</exclude>
         <!--<exclude>org.neo4j:neo4j</exclude>-->
       </excludes>
     </dependencySet>
@@ -125,6 +126,7 @@
       <useStrictFiltering>true</useStrictFiltering>
       <excludes>
         <exclude>org.neo4j:*</exclude>
+		<exclude>org.graphfoundation.ongdb:*</exclude>
         <exclude>jline:jline</exclude>
         <exclude>org.apache.lucene:*</exclude>
         <exclude>io.netty:netty</exclude>

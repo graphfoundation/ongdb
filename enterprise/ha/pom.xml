@@ -8,6 +8,7 @@
   </parent>
   <modelVersion>4.0.0</modelVersion>
 
+  <groupId>org.graphfoundation.ongdb</groupId>
   <artifactId>neo4j-ha</artifactId>
   <name>Neo4j - High Availability</name>
   <version>3.5.1-SNAPSHOT</version>
