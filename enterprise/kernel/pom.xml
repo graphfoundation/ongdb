@@ -20,9 +20,9 @@
   </properties>
 
   <scm>
-    <connection>scm:git:git://github.com/neo4j/neo4j.git</connection>
-    <developerConnection>scm:git:git@github.com:neo4j/neo4j.git</developerConnection>
-    <url>https://github.com/neo4j/neo4j</url>
+    <connection>scm:git:git://github.com/graphfoundation/ongdb.git</connection>
+    <developerConnection>scm:git:git@github.com:graphfoundation/ongdb.git</developerConnection>
+    <url>https://github.com/graphfoundation/ongdb</url>
   </scm>
 
   <licenses>
@@ -30,7 +30,7 @@
       <name>GNU Affero General Public License, Version 3 with the Commons Clause</name>
       <url>http://www.gnu.org/licenses/agpl-3.0-standalone.html</url>
       <comments>The software ("Software") developed and owned by Neo4j Sweden AB (referred to in this notice as "Neo4j") is
-        licensed under the GNU AFFERO GENERAL PUBLIC LICENSE Version 3 with the Commons Clause to all
+        licensed under the GNU AFFERO GENERAL PUBLIC LICENSE Version 3 to all
         third parties and that license is included below.
 
         However, if you have executed an End User Software License and Services
