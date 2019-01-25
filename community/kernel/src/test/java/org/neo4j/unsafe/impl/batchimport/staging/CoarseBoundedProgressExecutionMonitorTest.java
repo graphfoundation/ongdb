@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002-2018 "Neo4j,"
+ * Copyright (c) 2002-2019 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -72,7 +72,7 @@ public class CoarseBoundedProgressExecutionMonitorTest
             progressExecutionMonitor.start( execution( 0, config ) );
             progressExecutionMonitor.check( execution( total / 4, config ) );
         }
-        progressExecutionMonitor.done( 0, "Completed" );
+        progressExecutionMonitor.done( true, 0, "Completed" );
 
         assertEquals( "Each item should be completed", total, progressExecutionMonitor.getProgress());
     }
@@ -87,7 +87,7 @@ public class CoarseBoundedProgressExecutionMonitorTest
             progressExecutionMonitor.check( execution( part * (i + 1), config ) );
             assertTrue( progressExecutionMonitor.getProgress() < total );
         }
-        progressExecutionMonitor.done( 0, "Test" );
+        progressExecutionMonitor.done( true, 0, "Test" );
         return total;
     }
 

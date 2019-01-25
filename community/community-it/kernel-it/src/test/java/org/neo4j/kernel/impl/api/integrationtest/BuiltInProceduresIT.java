@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002-2018 "Neo4j,"
+ * Copyright (c) 2002-2019 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -227,23 +227,34 @@ public class BuiltInProceduresIT extends KernelIntegrationTest
                                 "YIELD index, providerName, status", "SCHEMA" ),
                 proc( "db.index.fulltext.awaitEventuallyConsistentIndexRefresh", "() :: VOID",
                         "Wait for the updates from recently committed transactions to be applied to any eventually-consistent fulltext indexes.", "READ" ),
+                proc( "db.index.fulltext.awaitIndex", "(index :: STRING?, timeOutSeconds = 300 :: INTEGER?) :: VOID",
+                        "Similar to db.awaitIndex(index, timeout), except instead of an index pattern, the index is specified by name. " +
+                                "The name can be quoted by backticks, if necessary.", "READ" ),
                 proc( "db.index.fulltext.createNodeIndex", "(indexName :: STRING?, labels :: LIST? OF STRING?, propertyNames :: LIST? OF STRING?, " +
                         "config = {} :: MAP?) :: VOID", startsWith( "Create a node fulltext index for the given labels and properties." ), "SCHEMA" ),
                 proc( "db.index.fulltext.createRelationshipIndex",
                         "(indexName :: STRING?, relationshipTypes :: LIST? OF STRING?, propertyNames :: LIST? OF STRING?, config = {} :: MAP?) :: VOID",
                         startsWith( "Create a relationship fulltext index for the given relationship types and properties." ), "SCHEMA" ),
                 proc( "db.index.fulltext.drop", "(indexName :: STRING?) :: VOID", "Drop the specified index.", "SCHEMA" ),
-                proc( "db.index.fulltext.listAvailableAnalyzers", "() :: (analyzer :: STRING?)",
+                proc( "db.index.fulltext.listAvailableAnalyzers", "() :: (analyzer :: STRING?, description :: STRING?)",
                         "List the available analyzers that the fulltext indexes can be configured with.", "READ" ),
                 proc( "db.index.fulltext.queryNodes", "(indexName :: STRING?, queryString :: STRING?) :: (node :: NODE?, score :: FLOAT?)",
                         "Query the given fulltext index. Returns the matching nodes and their lucene query score, ordered by score.", "READ"),
                 proc( "db.index.fulltext.queryRelationships", "(indexName :: STRING?, queryString :: STRING?) :: (relationship :: RELATIONSHIP?, " +
                         "score :: FLOAT?)", "Query the given fulltext index. Returns the matching relationships and their lucene query score, ordered by " +
                         "score.", "READ" ),
-                proc( "db.stats.retrieve", "(section :: STRING?) :: (section :: STRING?, data :: MAP?)",
-                      "Retrieve statistical data about the current database.", "READ" ),
-                proc( "db.stats.retrieveAllAnonymized", "(graphToken :: STRING?) :: (section :: STRING?, data :: MAP?)",
-                      "Retrieve all available statistical data about the current database, in an anonymized form.", "READ" )
+                proc( "db.stats.retrieve", "(section :: STRING?, config = {} :: MAP?) :: (section :: STRING?, data :: MAP?)",
+                      "Retrieve statistical data about the current database. Valid sections are 'GRAPH COUNTS', 'TOKENS', 'QUERIES'", "READ" ),
+                proc( "db.stats.retrieveAllAnonymized", "(graphToken :: STRING?, config = {} :: MAP?) :: (section :: STRING?, data :: MAP?)",
+                      "Retrieve all available statistical data about the current database, in an anonymized form.", "READ" ),
+                proc( "db.stats.status", "() :: (section :: STRING?, status :: STRING?, data :: MAP?)",
+                      "Retrieve the status of all available collector daemons, for this database.", "READ" ),
+                proc( "db.stats.collect", "(section :: STRING?, config = {} :: MAP?) :: (section :: STRING?, success :: BOOLEAN?, message :: STRING?)",
+                      "Start data collection of a given data section. Valid sections are 'QUERIES'", "READ" ),
+                proc( "db.stats.stop", "(section :: STRING?) :: (section :: STRING?, success :: BOOLEAN?, message :: STRING?)",
+                      "Stop data collection of a given data section. Valid sections are 'QUERIES'", "READ" ),
+                proc( "db.stats.clear", "(section :: STRING?) :: (section :: STRING?, success :: BOOLEAN?, message :: STRING?)",
+                      "Clear collected data of a given data section. Valid sections are 'QUERIES'", "READ" )
         ) );
         commit();
     }

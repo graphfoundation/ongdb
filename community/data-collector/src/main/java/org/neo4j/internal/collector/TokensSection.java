@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002-2018 "Neo4j,"
+ * Copyright (c) 2002-2019 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -31,15 +31,17 @@ import org.neo4j.internal.kernel.api.Transaction;
 import org.neo4j.internal.kernel.api.exceptions.TransactionFailureException;
 import org.neo4j.internal.kernel.api.security.LoginContext;
 
+/**
+ * Data collector section that simply return all tokens (propertyKeys, labels and relationship types) that
+ * are known to the database.
+ */
 final class TokensSection
 {
-    static final String NAME = "TOKENS";
-
     private TokensSection()
     { // only static methods
     }
 
-    static Stream<RetrieveResult> collect( Kernel kernel ) throws TransactionFailureException
+    static Stream<RetrieveResult> retrieve( Kernel kernel ) throws TransactionFailureException
     {
         try ( Transaction tx = kernel.beginTransaction( Transaction.Type.explicit, LoginContext.AUTH_DISABLED ) )
         {
@@ -58,7 +60,7 @@ final class TokensSection
             data.put( "labels", labels );
             data.put( "relationshipTypes", relationshipTypes );
             data.put( "propertyKeys", propertyKeys );
-            return Stream.of( new RetrieveResult( NAME, data ) );
+            return Stream.of( new RetrieveResult( Sections.TOKENS, data ) );
         }
     }
 

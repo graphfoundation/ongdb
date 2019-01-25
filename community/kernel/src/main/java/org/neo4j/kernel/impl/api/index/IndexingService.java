@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002-2018 "Neo4j,"
+ * Copyright (c) 2002-2019 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -51,6 +51,7 @@ import org.neo4j.helpers.collection.Iterators;
 import org.neo4j.internal.kernel.api.InternalIndexState;
 import org.neo4j.internal.kernel.api.TokenNameLookup;
 import org.neo4j.internal.kernel.api.exceptions.schema.IndexNotFoundKernelException;
+import org.neo4j.internal.kernel.api.exceptions.schema.MisconfiguredIndexException;
 import org.neo4j.internal.kernel.api.schema.IndexProviderDescriptor;
 import org.neo4j.internal.kernel.api.schema.SchemaDescriptor;
 import org.neo4j.io.pagecache.IOLimiter;
@@ -481,6 +482,13 @@ public class IndexingService extends LifecycleAdapter implements IndexingUpdateS
     public void validateBeforeCommit( SchemaDescriptor index, Value[] tuple )
     {
         indexMapRef.validateBeforeCommit( index, tuple );
+    }
+
+    @Override
+    public IndexDescriptor getBlessedDescriptorFromProvider( IndexDescriptor index ) throws MisconfiguredIndexException
+    {
+        IndexProvider provider = providerMap.lookup( index.providerDescriptor() );
+        return provider.bless( index );
     }
 
     @Override

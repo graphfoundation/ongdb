@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002-2018 "Neo4j,"
+ * Copyright (c) 2002-2019 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -19,13 +19,14 @@
  */
 package org.neo4j.storageengine.api;
 
+import java.io.Closeable;
 import java.io.IOException;
 
 /**
  * Represents a channel from where primitive values can be read. Mirrors {@link WritableChannel} in
  * data types that can be read.
  */
-public interface ReadableChannel
+public interface ReadableChannel extends Closeable
 {
     /**
      * @return the next {@code byte} in this channel.

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002-2018 "Neo4j,"
+ * Copyright (c) 2002-2019 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -20,11 +20,11 @@
 package org.neo4j.jmx;
 
 import java.util.Date;
-
 import javax.management.ObjectName;
 
 @ManagementInterface( name = Kernel.NAME )
 @Description( "Information about the Neo4j kernel" )
+@Deprecated
 public interface Kernel
 {
     String NAME = "Kernel";

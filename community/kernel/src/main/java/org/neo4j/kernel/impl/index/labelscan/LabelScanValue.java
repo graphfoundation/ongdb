@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002-2018 "Neo4j,"
+ * Copyright (c) 2002-2019 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -37,10 +37,11 @@ class LabelScanValue
      *
      * @param index index into the bit set of the bit to set.
      */
-    void set( int index )
+    LabelScanValue set( int index )
     {
         long mask = 1L << index;
         bits |= mask;
+        return this;
     }
 
     /**

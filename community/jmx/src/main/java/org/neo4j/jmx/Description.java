@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002-2018 "Neo4j,"
+ * Copyright (c) 2002-2019 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -23,7 +23,6 @@ import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
-
 import javax.management.MBeanOperationInfo;
 
 /**
@@ -33,6 +32,7 @@ import javax.management.MBeanOperationInfo;
  */
 @Target( { ElementType.METHOD, ElementType.TYPE, ElementType.FIELD } )
 @Retention( RetentionPolicy.RUNTIME )
+@Deprecated
 public @interface Description
 {
     // TODO: refactor for localization

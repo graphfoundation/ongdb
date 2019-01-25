@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002-2018 "Neo4j,"
+ * Copyright (c) 2002-2019 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -19,6 +19,7 @@
  */
 package org.neo4j.dbms.database;
 
+import java.util.List;
 import java.util.Optional;
 
 import org.neo4j.kernel.impl.factory.GraphDatabaseFacade;
@@ -36,4 +37,10 @@ public interface DatabaseManager extends Lifecycle
      * @param name database name to shutdown
      */
     void shutdownDatabase( String name );
+
+    /**
+     * Return sorted list of known database names
+     * @return sorted list of known database names
+     */
+    List<String> listDatabases();
 }

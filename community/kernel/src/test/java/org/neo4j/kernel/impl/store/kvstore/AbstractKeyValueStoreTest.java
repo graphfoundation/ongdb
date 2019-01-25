@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002-2018 "Neo4j,"
+ * Copyright (c) 2002-2019 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -479,11 +479,6 @@ public class AbstractKeyValueStoreTest
         }
     }
 
-    private static ValueUpdate longValue( long value )
-    {
-        return target -> target.putLong( 0, value );
-    }
-
     private Store createTestStore()
     {
         return createTestStore( TimeUnit.SECONDS.toMillis( 100 ) );
@@ -606,7 +601,7 @@ public class AbstractKeyValueStoreTest
 
         private Store( long rotationTimeout, HeaderField<?>... headerFields )
         {
-            super( resourceManager.fileSystem(), resourceManager.pageCache(), resourceManager.testDirectory().databaseLayout(), null,
+            super( resourceManager.fileSystem(), resourceManager.pageCache(), resourceManager.testDirectory().databaseLayout(), null, null,
                     new RotationTimerFactory( Clocks.nanoClock(), rotationTimeout ),
                     EmptyVersionContextSupplier.EMPTY, 16, 16, headerFields );
             this.headerFields = headerFields;

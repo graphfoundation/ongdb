@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002-2018 "Neo4j,"
+ * Copyright (c) 2002-2019 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -153,6 +153,12 @@ public class SslPolicyConfigValidator implements SettingGroup<Object>
 
     @Override
     public boolean internal()
+    {
+        return false;
+    }
+
+    @Override
+    public boolean secret()
     {
         return false;
     }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002-2018 "Neo4j,"
+ * Copyright (c) 2002-2019 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -58,7 +58,6 @@ final class DefaultNodeValueIndexCursor extends IndexCursor<IndexProgressor>
         implements NodeValueIndexCursor, NodeValueClient, SortedMergeJoin.Sink
 {
     private Read read;
-    private Resource resource;
     private long node;
     private IndexQuery[] query;
     private Value[] values;
@@ -232,10 +231,9 @@ final class DefaultNodeValueIndexCursor extends IndexCursor<IndexProgressor>
         this.values = values;
     }
 
-    public void setRead( Read read, Resource resource )
+    public void setRead( Read read )
     {
         this.read = read;
-        this.resource = resource;
     }
 
     @Override
@@ -288,18 +286,7 @@ final class DefaultNodeValueIndexCursor extends IndexCursor<IndexProgressor>
             this.addedWithValues = Collections.emptyIterator();
             this.removed = LongSets.immutable.empty();
 
-            try
-            {
-                if ( resource != null )
-                {
-                    resource.close();
-                    resource = null;
-                }
-            }
-            finally
-            {
-                pool.accept( this );
-            }
+            pool.accept( this );
         }
     }
 

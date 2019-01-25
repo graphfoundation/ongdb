@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002-2018 "Neo4j,"
+ * Copyright (c) 2002-2019 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -24,6 +24,7 @@ import java.io.IOException;
 
 import org.neo4j.internal.kernel.api.IndexCapability;
 import org.neo4j.internal.kernel.api.InternalIndexState;
+import org.neo4j.internal.kernel.api.exceptions.schema.MisconfiguredIndexException;
 import org.neo4j.internal.kernel.api.schema.IndexProviderDescriptor;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.pagecache.PageCache;
@@ -205,6 +206,22 @@ public abstract class IndexProvider extends LifecycleAdapter
         assert descriptor != null;
         this.providerDescriptor = descriptor;
         this.directoryStructure = directoryStructureFactory.forProvider( descriptor );
+    }
+
+    /**
+     * Before an index is created, the chosen index provider will be asked to bless the index descriptor by calling this method, giving the index descriptor
+     * as an argument. The returned index descriptor is then blessed, and will be used for creating the index. This gives the provider an opportunity to check
+     * the index configuration, and make sure that it is sensible and support by this provider.
+     *
+     * @param index The index descriptor to bless.
+     * @return The blessed index descriptor that will be used for creating the index.
+     * @throws MisconfiguredIndexException if the index descriptor cannot be blessed by this provider for some reason.
+     */
+    public IndexDescriptor bless( IndexDescriptor index ) throws MisconfiguredIndexException
+    {
+        // Normal schema indexes accept all configurations by default. More specialised or custom providers, such as the fulltext index provider,
+        // can override this method to do whatever checking suits their needs.
+        return index;
     }
 
     /**

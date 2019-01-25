@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002-2018 "Neo4j,"
+ * Copyright (c) 2002-2019 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -39,5 +39,12 @@ public class Standard extends AnalyzerProvider
     public Analyzer createAnalyzer()
     {
         return new StandardAnalyzer();
+    }
+
+    @Override
+    public String description()
+    {
+        return "The default, standard analyzer. Tokenizes on non-letter and filters out English stop words and punctuation. " +
+                "Does no stemming, but takes care to keep likely product names, URLs and email addresses as single terms.";
     }
 }

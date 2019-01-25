@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002-2018 "Neo4j,"
+ * Copyright (c) 2002-2019 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -37,5 +37,13 @@ public class Persian extends AnalyzerProvider
     public Analyzer createAnalyzer()
     {
         return new PersianAnalyzer();
+    }
+
+    @Override
+    public String description()
+    {
+        return "Persian analyzer. Tokenizes with zero-width non-joiner characters in addition to whitespace. " +
+                "Persian-specific variants, such as the farsi 'yeh' and 'keheh', are standardized. " +
+                "Simple stemming is accomplished via stop words.";
     }
 }

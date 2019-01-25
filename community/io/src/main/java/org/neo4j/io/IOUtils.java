@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002-2018 "Neo4j,"
+ * Copyright (c) 2002-2019 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -44,6 +44,18 @@ public final class IOUtils
     public static <T extends AutoCloseable> void closeAll( Collection<T> closeables ) throws IOException
     {
         close( IOException::new, closeables.toArray( new AutoCloseable[0] ) );
+    }
+
+    /**
+     * Close all the provided {@link AutoCloseable closeables}, chaining exceptions, if any, into a single {@link UncheckedIOException}.
+     *
+     * @param closeables to call close on.
+     * @param <T> the type of closeable.
+     * @throws UncheckedIOException if any exception is thrown from any of the {@code closeables}.
+     */
+    public static <T extends AutoCloseable> void closeAllUnchecked( Collection<T> closeables ) throws UncheckedIOException
+    {
+        closeAllUnchecked( closeables.toArray( new AutoCloseable[0] ) );
     }
 
     /**

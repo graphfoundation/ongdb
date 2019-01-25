@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002-2018 "Neo4j,"
+ * Copyright (c) 2002-2019 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -37,5 +37,11 @@ public class CJK extends AnalyzerProvider
     public Analyzer createAnalyzer()
     {
         return new CJKAnalyzer();
+    }
+
+    @Override
+    public String description()
+    {
+        return "CJK - Chinese/Japanese/Korean - analyzer. Terms are normalised and case-folded. Produces bi-grams, and filters out stop words.";
     }
 }

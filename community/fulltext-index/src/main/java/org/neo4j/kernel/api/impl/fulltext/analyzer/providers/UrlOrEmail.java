@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002-2018 "Neo4j,"
+ * Copyright (c) 2002-2019 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -37,5 +37,13 @@ public class UrlOrEmail extends AnalyzerProvider
     public Analyzer createAnalyzer()
     {
         return new UAX29URLEmailAnalyzer();
+    }
+
+    @Override
+    public String description()
+    {
+        return "Tokenizes into sequences of alpha-numeric, numeric, URL, email, southeast asian terms, " +
+                "and into terms of individual ideographic and hiragana characters. " +
+                "English stop words are filtered out.";
     }
 }

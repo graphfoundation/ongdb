@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002-2018 "Neo4j,"
+ * Copyright (c) 2002-2019 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -55,14 +55,14 @@ public class LockingNodeUniqueIndexSeekTest
     private final long resourceId = indexEntryResourceId( labelId, predicate );
     private UniqueNodeIndexSeeker<NodeValueIndexCursor> uniqueNodeIndexSeeker = mock( UniqueNodeIndexSeeker.class );
 
-    private Locks.Client locks;
+    private final Locks.Client locks = mock( Locks.Client.class );
+    private final Read read = mock( Read.class );
     private InOrder order;
 
     @Before
     public void setup()
     {
-         locks = mock( Locks.Client.class );
-         order = inOrder( locks );
+        order = inOrder( locks );
     }
 
     @Test
@@ -78,6 +78,7 @@ public class LockingNodeUniqueIndexSeekTest
                                                         LockTracer.NONE,
                                                         () -> cursor,
                                                         uniqueNodeIndexSeeker,
+                                                        read,
                                                         index,
                                                         predicate );
 
@@ -102,6 +103,7 @@ public class LockingNodeUniqueIndexSeekTest
                                                         LockTracer.NONE,
                                                         () -> cursor,
                                                         uniqueNodeIndexSeeker,
+                                                        read,
                                                         index,
                                                         predicate );
 
@@ -130,6 +132,7 @@ public class LockingNodeUniqueIndexSeekTest
                                                         LockTracer.NONE,
                                                         () -> cursor,
                                                         uniqueNodeIndexSeeker,
+                                                        read,
                                                         index,
                                                         predicate );
 

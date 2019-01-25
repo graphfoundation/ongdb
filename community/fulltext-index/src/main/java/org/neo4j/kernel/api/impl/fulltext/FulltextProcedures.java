@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002-2018 "Neo4j,"
+ * Copyright (c) 2002-2019 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -28,22 +28,29 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.Spliterator;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
+import org.neo4j.graphdb.DependencyResolver;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.NotFoundException;
 import org.neo4j.graphdb.Relationship;
+import org.neo4j.graphdb.index.fulltext.AnalyzerProvider;
 import org.neo4j.graphdb.schema.IndexDefinition;
 import org.neo4j.graphdb.schema.Schema;
 import org.neo4j.internal.kernel.api.IndexReference;
 import org.neo4j.internal.kernel.api.exceptions.InvalidTransactionTypeKernelException;
+import org.neo4j.internal.kernel.api.exceptions.ProcedureException;
 import org.neo4j.internal.kernel.api.exceptions.schema.IndexNotFoundKernelException;
 import org.neo4j.internal.kernel.api.exceptions.schema.SchemaKernelException;
 import org.neo4j.internal.kernel.api.schema.SchemaDescriptor;
 import org.neo4j.kernel.api.KernelTransaction;
+import org.neo4j.kernel.builtinprocs.IndexProcedures;
 import org.neo4j.kernel.impl.api.KernelTransactionImplementation;
+import org.neo4j.kernel.impl.api.index.IndexingService;
 import org.neo4j.procedure.Context;
 import org.neo4j.procedure.Description;
 import org.neo4j.procedure.Name;
@@ -74,13 +81,22 @@ public class FulltextProcedures
     public GraphDatabaseService db;
 
     @Context
+    public DependencyResolver resolver;
+
+    @Context
     public FulltextAdapter accessor;
 
     @Description( "List the available analyzers that the fulltext indexes can be configured with." )
     @Procedure( name = "db.index.fulltext.listAvailableAnalyzers", mode = READ )
     public Stream<AvailableAnalyzer> listAvailableAnalyzers()
     {
-        return accessor.listAvailableAnalyzers().map( AvailableAnalyzer::new );
+        Stream<AnalyzerProvider> stream = accessor.listAvailableAnalyzers();
+        return stream.flatMap( provider ->
+        {
+            String description = provider.description();
+            Spliterator<String> spliterator = provider.getKeys().spliterator();
+            return StreamSupport.stream( spliterator, false ).map( name -> new AvailableAnalyzer( name, description ) );
+        } );
     }
 
     @Description( "Wait for the updates from recently committed transactions to be applied to any eventually-consistent fulltext indexes." )
@@ -88,6 +104,22 @@ public class FulltextProcedures
     public void awaitRefresh()
     {
         accessor.awaitRefresh();
+    }
+
+    @Description( "Similar to db.awaitIndex(index, timeout), except instead of an index pattern, the index is specified by name. " +
+            "The name can be quoted by backticks, if necessary." )
+    @Procedure( name = "db.index.fulltext.awaitIndex", mode = READ )
+    public void awaitIndex( @Name( "index" ) String index, @Name( value = "timeOutSeconds", defaultValue = "300" ) long timeout ) throws ProcedureException
+    {
+        try ( IndexProcedures indexProcedures = indexProcedures() )
+        {
+            indexProcedures.awaitIndexByName( index, timeout, TimeUnit.SECONDS );
+        }
+    }
+
+    private IndexProcedures indexProcedures()
+    {
+        return new IndexProcedures( tx, resolver.resolveDependency( IndexingService.class ) );
     }
 
     @Description( "Create a node fulltext index for the given labels and properties. " +
@@ -262,10 +294,12 @@ public class FulltextProcedures
     public static final class AvailableAnalyzer
     {
         public final String analyzer;
+        public final String description;
 
-        AvailableAnalyzer( String analyzer )
+        AvailableAnalyzer( String name, String description )
         {
-            this.analyzer = analyzer;
+            this.analyzer = name;
+            this.description = description;
         }
     }
 }

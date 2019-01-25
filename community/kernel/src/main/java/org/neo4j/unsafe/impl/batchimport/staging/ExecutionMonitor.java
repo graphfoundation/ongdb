@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002-2018 "Neo4j,"
+ * Copyright (c) 2002-2019 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -53,7 +53,7 @@ public interface ExecutionMonitor
     /**
      * Called after all {@link StageExecution stage executions} have run.
      */
-    void done( long totalTimeMillis, String additionalInformation );
+    void done( boolean successful, long totalTimeMillis, String additionalInformation );
 
     /**
      * @return next time stamp when this monitor would like to check that status of current execution.
@@ -101,7 +101,7 @@ public interface ExecutionMonitor
         }
 
         @Override
-        public void done( long totalTimeMillis, String additionalInformation )
+        public void done( boolean successful, long totalTimeMillis, String additionalInformation )
         {   // Do nothing by default
         }
     }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002-2018 "Neo4j,"
+ * Copyright (c) 2002-2019 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -94,7 +94,7 @@ abstract class Read implements TxStateHolder,
 
         DefaultNodeValueIndexCursor cursorImpl = (DefaultNodeValueIndexCursor) cursor;
         IndexReader reader = indexReader( index, false );
-        cursorImpl.setRead( this, null );
+        cursorImpl.setRead( this );
         IndexProgressor.NodeValueClient withFullPrecision = injectFullValuePrecision( cursorImpl, query, reader );
         reader.query( withFullPrecision, indexOrder, needsValues, query );
     }
@@ -156,20 +156,19 @@ abstract class Read implements TxStateHolder,
         Locks.Client locks = ktx.statementLocks().optimistic();
         LockTracer lockTracer = ktx.lockTracer();
 
-        return LockingNodeUniqueIndexSeek.apply( locks, lockTracer, cursors::allocateNodeValueIndexCursor, this, index, predicates );
+        return LockingNodeUniqueIndexSeek.apply( locks, lockTracer, cursors::allocateNodeValueIndexCursor, this, this, index, predicates );
     }
 
     @Override // UniqueNodeIndexSeeker
     public void nodeIndexSeekWithFreshIndexReader(
-            IndexReference index,
             DefaultNodeValueIndexCursor cursor,
-            IndexQuery.ExactPredicate... query ) throws IndexNotFoundKernelException, IndexNotApplicableKernelException
+            IndexReader indexReader,
+            IndexQuery.ExactPredicate... query ) throws IndexNotApplicableKernelException
     {
-        IndexReader reader = indexReader( index, true );
-        cursor.setRead( this, reader );
-        IndexProgressor.NodeValueClient target = injectFullValuePrecision( cursor, query, reader );
+        cursor.setRead( this );
+        IndexProgressor.NodeValueClient target = injectFullValuePrecision( cursor, query, indexReader );
         // we never need values for exact predicates
-        reader.query( target, IndexOrder.NONE, false, query );
+        indexReader.query( target, IndexOrder.NONE, false, query );
     }
 
     @Override
@@ -189,7 +188,7 @@ abstract class Read implements TxStateHolder,
         int firstProperty = index.properties()[0];
 
         DefaultNodeValueIndexCursor cursorImpl = (DefaultNodeValueIndexCursor) cursor;
-        cursorImpl.setRead( this, null );
+        cursorImpl.setRead( this );
         indexReader( index, false ).query( cursorImpl, indexOrder, needsValues, IndexQuery.exists( firstProperty ) );
     }
 

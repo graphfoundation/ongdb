@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002-2018 "Neo4j,"
+ * Copyright (c) 2002-2019 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -28,6 +28,7 @@ import org.neo4j.kernel.lifecycle.Lifecycle;
 import org.neo4j.logging.internal.LogService;
 
 @Service.Implementation( KernelExtensionFactory.class )
+@Deprecated
 public final class JmxExtensionFactory extends KernelExtensionFactory<JmxExtensionFactory.Dependencies>
 {
     public interface Dependencies

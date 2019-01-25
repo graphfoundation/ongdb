@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002-2018 "Neo4j,"
+ * Copyright (c) 2002-2019 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -29,10 +29,6 @@ case object DefaultTestConfig extends TestConfig(Some("default.txt"),"")
 case object CostSlottedTestConfig extends TestConfig(Some("cost-slotted.txt"),"CYPHER planner=cost runtime=slotted")
 
 case object CostSlottedWithCompiledExpressionsTestConfig extends TestConfig(Some("cost-slotted.txt"),"CYPHER planner=cost runtime=slotted expressionEngine=COMPILED")
-
-case object CostMorselTestConfigSingleThreaded extends TestConfig(Some("cost-morsel.txt"),"CYPHER planner=cost runtime=morsel debug=singlethreaded")
-
-case object CostMorselTestConfig extends TestConfig(Some("cost-morsel.txt"),"CYPHER planner=cost runtime=morsel")
 
 case object CostCompiledTestConfig extends TestConfig(Some("cost-compiled.txt"),
   "CYPHER planner=cost runtime=compiled debug=generate_java_source")

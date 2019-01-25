@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002-2018 "Neo4j,"
+ * Copyright (c) 2002-2019 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -93,7 +93,7 @@ public class CountsTracker extends AbstractKeyValueStore<CountsKey>
     public CountsTracker( final LogProvider logProvider, FileSystemAbstraction fs, PageCache pages, Config config,
                           DatabaseLayout databaseLayout, SystemNanoClock clock, VersionContextSupplier versionContextSupplier )
     {
-        super( fs, pages, databaseLayout, new CountsTrackerRotationMonitor( logProvider ),
+        super( fs, pages, databaseLayout, new CountsTrackerRotationMonitor( logProvider ), logProvider.getLog( CountsTracker.class ).infoLogger(),
                 new RotationTimerFactory( clock, config.get( counts_store_rotation_timeout ).toMillis() ),
                 versionContextSupplier, 16, 16, HEADER_FIELDS );
     }

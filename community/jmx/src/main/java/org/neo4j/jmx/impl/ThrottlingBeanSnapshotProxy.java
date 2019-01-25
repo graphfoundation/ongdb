@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002-2018 "Neo4j,"
+ * Copyright (c) 2002-2019 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -37,6 +37,7 @@ import static org.neo4j.util.Preconditions.requirePositive;
  * The purpose of this proxy is to take a snapshot of all MBean attributes and return those cached values to prevent excessive resource consumption
  * in case of frequent calls and expensive attribute calculations. Snapshot is updated no earlier than {@link #updateInterval} ms after previous update.
  */
+@Deprecated
 class ThrottlingBeanSnapshotProxy implements InvocationHandler
 {
     private final Set<Method> getters;

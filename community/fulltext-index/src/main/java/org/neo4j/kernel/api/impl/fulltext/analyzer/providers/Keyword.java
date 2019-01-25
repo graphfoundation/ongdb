@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002-2018 "Neo4j,"
+ * Copyright (c) 2002-2019 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -37,5 +37,12 @@ public class Keyword extends AnalyzerProvider
     public Analyzer createAnalyzer()
     {
         return new KeywordAnalyzer();
+    }
+
+    @Override
+    public String description()
+    {
+        return "Keyword analyzer \"tokenizes\" the text as a single term. Useful for zip-codes, ids, etc. " +
+                "Situations where complete and exact matches are desired.";
     }
 }

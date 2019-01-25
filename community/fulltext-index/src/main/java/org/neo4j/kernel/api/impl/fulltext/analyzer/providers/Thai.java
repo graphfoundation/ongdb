@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002-2018 "Neo4j,"
+ * Copyright (c) 2002-2019 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -37,5 +37,12 @@ public class Thai extends AnalyzerProvider
     public Analyzer createAnalyzer()
     {
         return new ThaiAnalyzer();
+    }
+
+    @Override
+    public String description()
+    {
+        return "Thai analyzer with stop word filtering. It relies on the Java built-in localization support for the Thai locale in order to break apart " +
+                "and tokenize words, which might not be available depending on Java version and JRE vendor.";
     }
 }

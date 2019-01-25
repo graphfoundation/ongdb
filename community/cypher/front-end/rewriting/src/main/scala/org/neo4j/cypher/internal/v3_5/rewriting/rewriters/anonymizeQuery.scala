@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002-2018 "Neo4j,"
+ * Copyright (c) 2002-2019 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -36,6 +36,7 @@ trait Anonymizer {
   def relationshipType(name: String): String
   def propertyKey(name: String): String
   def parameter(name: String): String
+  def literal(value: String): String
 }
 
 case class anonymizeQuery(anonymizer: Anonymizer) extends Rewriter {
@@ -49,5 +50,6 @@ case class anonymizeQuery(anonymizer: Anonymizer) extends Rewriter {
     case x: RelTypeName => RelTypeName(anonymizer.relationshipType(x.name))(x.position)
     case x: PropertyKeyName => PropertyKeyName(anonymizer.propertyKey(x.name))(x.position)
     case x: Parameter => Parameter(anonymizer.parameter(x.name), x.parameterType)(x.position)
+    case x: StringLiteral => StringLiteral(anonymizer.literal(x.value))(x.position)
   })
 }

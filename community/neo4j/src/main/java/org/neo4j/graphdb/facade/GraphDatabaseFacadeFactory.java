@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002-2018 "Neo4j,"
+ * Copyright (c) 2002-2019 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -177,7 +177,11 @@ public class GraphDatabaseFacadeFactory
         platform.life.add( databaseManager );
         platform.dependencies.satisfyDependency( databaseManager );
 
-        DataCollectorManager dataCollectorManager = new DataCollectorManager( platform.dataSourceManager, platform.jobScheduler, procedures );
+        DataCollectorManager dataCollectorManager =
+                new DataCollectorManager( platform.dataSourceManager,
+                                          platform.jobScheduler,
+                                          procedures,
+                                          platform.monitors );
         platform.life.add( dataCollectorManager );
 
         edition.createSecurityModule( platform, procedures );

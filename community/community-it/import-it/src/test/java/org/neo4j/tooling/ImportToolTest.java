@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002-2018 "Neo4j,"
+ * Copyright (c) 2002-2019 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -143,6 +143,7 @@ public class ImportToolTest
                 "--relationships", relationshipData( true, config, nodeIds, TRUE, true ).getAbsolutePath() );
 
         // THEN
+        assertTrue( suppressOutput.getOutputVoice().containsMessage( "IMPORT DONE" ) );
         verifyData();
     }
 
@@ -572,6 +573,7 @@ public class ImportToolTest
         catch ( InputException e )
         {
             // THEN
+            assertTrue( suppressOutput.getOutputVoice().containsMessage( "IMPORT FAILED" ) );
             assertFalse( suppressOutput.getErrorVoice().containsMessage( e.getClass().getName() ) );
             assertTrue( e.getMessage().contains( "Extra column not present in header on line" ) );
         }

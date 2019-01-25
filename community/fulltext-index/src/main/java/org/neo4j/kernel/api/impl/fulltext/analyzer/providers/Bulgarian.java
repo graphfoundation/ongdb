@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002-2018 "Neo4j,"
+ * Copyright (c) 2002-2019 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -37,5 +37,11 @@ public class Bulgarian extends AnalyzerProvider
     public Analyzer createAnalyzer()
     {
         return new BulgarianAnalyzer();
+    }
+
+    @Override
+    public String description()
+    {
+        return "Bulgarian analyzer with light stemming, as specified by \"Searching Strategies for the Bulgarian Language\", and stop word filtering.";
     }
 }

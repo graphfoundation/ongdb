@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002-2018 "Neo4j,"
+ * Copyright (c) 2002-2019 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -884,6 +884,7 @@ public class BatchInsertTest
         when( provider.getPopulator( any( StoreIndexDescriptor.class ), any( IndexSamplingConfig.class ) ) ).thenReturn( populator );
         when( populator.sampleResult() ).thenReturn( new IndexSample() );
         when( provider.getOnlineAccessor( any( StoreIndexDescriptor.class ), any( IndexSamplingConfig.class ) ) ).thenReturn( accessor );
+        when( provider.bless( any( IndexDescriptor.class ) ) ).thenCallRealMethod();
 
         BatchInserter inserter = newBatchInserterWithIndexProvider(
                 singleInstanceIndexProviderFactory( KEY, provider ), provider.getProviderDescriptor() );
@@ -919,6 +920,7 @@ public class BatchInsertTest
         when( provider.getPopulator( any( StoreIndexDescriptor.class ), any( IndexSamplingConfig.class ) ) ).thenReturn( populator );
         when( populator.sampleResult() ).thenReturn( new IndexSample() );
         when( provider.getOnlineAccessor( any( StoreIndexDescriptor.class ), any( IndexSamplingConfig.class ) ) ).thenReturn( accessor );
+        when( provider.bless( any( IndexDescriptor.class ) ) ).thenCallRealMethod();
 
         BatchInserter inserter = newBatchInserterWithIndexProvider(
                 singleInstanceIndexProviderFactory( KEY, provider ), provider.getProviderDescriptor() );
@@ -1465,6 +1467,7 @@ public class BatchInsertTest
         when( provider.getProviderDescriptor() ).thenReturn( DESCRIPTOR );
         when( provider.getPopulator( any( StoreIndexDescriptor.class ), any( IndexSamplingConfig.class ) ) )
                 .thenReturn( populator );
+        when( provider.bless( any( IndexDescriptor.class ) ) ).thenCallRealMethod();
 
         BatchInserter inserter = newBatchInserterWithIndexProvider(
                 singleInstanceIndexProviderFactory( KEY, provider ), provider.getProviderDescriptor() );

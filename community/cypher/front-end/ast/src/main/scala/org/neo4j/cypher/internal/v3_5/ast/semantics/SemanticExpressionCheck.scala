@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002-2018 "Neo4j,"
+ * Copyright (c) 2002-2019 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -122,7 +122,7 @@ object SemanticExpressionCheck extends SemanticAnalysisTooling {
         check(ctx, x.exprs)
 
       case x:Ors =>
-        SemanticCheckResult.success
+        check(ctx, x.exprs)
 
       case x:In =>
         check(ctx, x.lhs) chain

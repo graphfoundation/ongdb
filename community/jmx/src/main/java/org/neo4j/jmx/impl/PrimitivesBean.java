@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002-2018 "Neo4j,"
+ * Copyright (c) 2002-2019 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -27,6 +27,7 @@ import org.neo4j.kernel.impl.store.id.IdGeneratorFactory;
 import org.neo4j.kernel.impl.store.id.IdType;
 
 @Service.Implementation( ManagementBeanProvider.class )
+@Deprecated
 public final class PrimitivesBean extends ManagementBeanProvider
 {
     @SuppressWarnings( "WeakerAccess" ) // Bean needs public constructor

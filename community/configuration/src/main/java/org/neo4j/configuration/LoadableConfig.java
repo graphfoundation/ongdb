@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002-2018 "Neo4j,"
+ * Copyright (c) 2002-2019 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -76,6 +76,9 @@ public interface LoadableConfig
 
                     final Internal internalAnnotation = f.getAnnotation( Internal.class );
                     setting.setInternal( internalAnnotation != null );
+
+                    final Secret secretAnnotation = f.getAnnotation( Secret.class );
+                    setting.setSecret( secretAnnotation != null );
 
                     final Dynamic dynamicAnnotation = f.getAnnotation( Dynamic.class );
                     setting.setDynamic( dynamicAnnotation != null );

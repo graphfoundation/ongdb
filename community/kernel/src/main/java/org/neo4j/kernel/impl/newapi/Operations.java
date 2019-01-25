@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002-2018 "Neo4j,"
+ * Copyright (c) 2002-2019 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -454,9 +454,11 @@ public class Operations implements Write, ExplicitIndexWrite, SchemaWrite
             IndexQuery.ExactPredicate[] propertyValues, long modifiedNode
     ) throws UniquePropertyValueValidationException, UnableToValidateConstraintException
     {
-        try ( DefaultNodeValueIndexCursor valueCursor = cursors.allocateNodeValueIndexCursor() )
+        IndexDescriptor schemaIndexDescriptor = constraint.ownedIndexDescriptor();
+        IndexReference indexReference = allStoreHolder.indexGetCapability( schemaIndexDescriptor );
+        try ( DefaultNodeValueIndexCursor valueCursor = cursors.allocateNodeValueIndexCursor();
+              IndexReaders indexReaders = new IndexReaders( indexReference, allStoreHolder ) )
         {
-            IndexDescriptor schemaIndexDescriptor = constraint.ownedIndexDescriptor();
             assertIndexOnline( schemaIndexDescriptor );
             int labelId = schemaIndexDescriptor.schema().keyId();
 
@@ -466,8 +468,7 @@ public class Operations implements Write, ExplicitIndexWrite, SchemaWrite
                     indexEntryResourceId( labelId, propertyValues )
             );
 
-            allStoreHolder.nodeIndexSeekWithFreshIndexReader(
-                    allStoreHolder.indexGetCapability( schemaIndexDescriptor ), valueCursor, propertyValues );
+            allStoreHolder.nodeIndexSeekWithFreshIndexReader( valueCursor, indexReaders.createReader(), propertyValues );
             if ( valueCursor.next() && valueCursor.nodeReference() != modifiedNode )
             {
                 throw new UniquePropertyValueValidationException( constraint, VALIDATION,
@@ -522,8 +523,7 @@ public class Operations implements Write, ExplicitIndexWrite, SchemaWrite
 
         singleNode( node );
         acquireSharedNodeLabelLocks();
-        Iterator<ConstraintDescriptor> constraints = Iterators.filter( hasProperty( propertyKey ),
-                allStoreHolder.constraintsGetAll() );
+        Iterator<ConstraintDescriptor> constraints = allStoreHolder.constraintsGetForProperty( propertyKey );
         Iterator<IndexBackedConstraintDescriptor> uniquenessConstraints =
                 new CastingIterator<>( constraints, IndexBackedConstraintDescriptor.class );
 
@@ -937,18 +937,20 @@ public class Operations implements Write, ExplicitIndexWrite, SchemaWrite
 
         IndexProviderDescriptor providerDescriptor = indexProviders.indexProviderByName( provider );
         IndexDescriptor index = IndexDescriptorFactory.forSchema( descriptor, name, providerDescriptor );
+        index = indexProviders.getBlessedDescriptorFromProvider( index );
         ktx.txState().indexDoAdd( index );
         return index;
     }
 
     // Note: this will be sneakily executed by an internal transaction, so no additional locking is required.
-    public IndexDescriptor indexUniqueCreate( SchemaDescriptor schema, String provider )
+    public IndexDescriptor indexUniqueCreate( SchemaDescriptor schema, String provider ) throws SchemaKernelException
     {
         IndexProviderDescriptor providerDescriptor = indexProviders.indexProviderByName( provider );
         IndexDescriptor index =
                 IndexDescriptorFactory.uniqueForSchema( schema,
                         Optional.empty(),
                         providerDescriptor );
+        index = indexProviders.getBlessedDescriptorFromProvider( index );
         ktx.txState().indexDoAdd( index );
         return index;
     }

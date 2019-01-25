@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002-2018 "Neo4j,"
+ * Copyright (c) 2002-2019 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -21,6 +21,7 @@ package org.neo4j.jmx;
 
 @ManagementInterface( name = StoreSize.NAME )
 @Description( "Information about the disk space used by different parts of the Neo4j graph store" )
+@Deprecated
 public interface StoreSize
 {
     String NAME = "Store sizes";

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002-2018 "Neo4j,"
+ * Copyright (c) 2002-2019 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -80,7 +80,6 @@ public class DefaultIndexProviderMap extends LifecycleAdapter implements IndexPr
         assertInit();
         IndexProvider provider = indexProvidersByDescriptor.get( providerDescriptor );
         assertProviderFound( provider, providerDescriptor.name() );
-
         return provider;
     }
 
@@ -90,7 +89,6 @@ public class DefaultIndexProviderMap extends LifecycleAdapter implements IndexPr
         assertInit();
         IndexProvider provider = indexProvidersByName.get( providerDescriptorName );
         assertProviderFound( provider, providerDescriptorName );
-
         return provider;
     }
 

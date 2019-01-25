@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002-2018 "Neo4j,"
+ * Copyright (c) 2002-2019 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -61,6 +61,14 @@ public interface SettingGroup<T> extends SettingValidator
      * @return {@code true} if internal setting, false otherwise.
      */
     boolean internal();
+
+    /**
+     * @return {@code true} if secret setting (should be hidden), false otherwise.
+     */
+    default boolean secret()
+    {
+        return false;
+    }
 
     /**
      * @return the documented default value if it needs special documentation, empty if default value is good as is.

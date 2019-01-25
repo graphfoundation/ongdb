@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002-2018 "Neo4j,"
+ * Copyright (c) 2002-2019 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -76,4 +76,12 @@ public abstract class AnalyzerProvider extends Service
      * @return A newly constructed {@code Analyzer} instance.
      */
     public abstract Analyzer createAnalyzer();
+
+    /**
+     * @return A description of this analyzer.
+     */
+    public String description()
+    {
+        return "";
+    }
 }

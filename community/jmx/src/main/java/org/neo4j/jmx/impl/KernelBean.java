@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002-2018 "Neo4j,"
+ * Copyright (c) 2002-2019 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -30,6 +30,7 @@ import org.neo4j.kernel.impl.transaction.state.DataSourceManager;
 import org.neo4j.kernel.internal.KernelData;
 import org.neo4j.storageengine.api.StoreId;
 
+@Deprecated
 public class KernelBean extends Neo4jMBean implements Kernel
 {
     private final long kernelStartTime;

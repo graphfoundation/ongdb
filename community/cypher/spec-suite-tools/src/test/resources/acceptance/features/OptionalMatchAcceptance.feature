@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2002-2018 "Neo4j,"
+# Copyright (c) 2002-2019 "Neo4j,"
 # Neo4j Sweden AB [http://neo4j.com]
 #
 # This file is part of Neo4j.
@@ -80,4 +80,26 @@ Feature: OptionalMatchAcceptance
     Then the result should be:
       | labels(b) |
       | ['B']     |
+    And no side effects
+
+  Scenario: optional match with OR where clause
+    Given an empty graph
+    And having executed:
+    # Setup: (a)<->(b)->(c)
+    """
+    CREATE (b {prop: 'b'})-[:REL]->({prop: 'c'})
+    CREATE (b)-[:REL]->({prop: 'a'})-[:REL]->(b)
+    """
+    When executing query:
+    """
+    MATCH (n1)-->(n2)
+    OPTIONAL MATCH (n2)-->(n3)
+    WHERE n3 IS NULL OR n3 <> n1
+    RETURN n1.prop, n2.prop, n3.prop
+    """
+    Then the result should be:
+      | n1.prop | n2.prop | n3.prop |
+      | 'a'     | 'b'     | 'c'     |
+      | 'b'     | 'c'     | null    |
+      | 'b'     | 'a'     | null    |
     And no side effects

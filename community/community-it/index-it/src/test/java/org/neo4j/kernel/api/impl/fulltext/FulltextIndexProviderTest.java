@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002-2018 "Neo4j,"
+ * Copyright (c) 2002-2019 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -26,6 +26,7 @@ import org.junit.Test;
 import org.junit.rules.Timeout;
 
 import java.util.Optional;
+import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 
 import org.neo4j.collection.primitive.Primitive;
@@ -132,8 +133,9 @@ public class FulltextIndexProviderTest
         IndexReference indexReference;
         try ( KernelTransactionImplementation transaction = getKernelTransaction() )
         {
-            MultiTokenSchemaDescriptor schemaDescriptor = multiToken( new int[]{0, 1, 2}, EntityType.RELATIONSHIP, 0, 1, 2, 3 );
-            indexReference = transaction.schemaWrite().indexCreate( schemaDescriptor, DESCRIPTOR.name(), Optional.of( "fulltext" ) );
+            MultiTokenSchemaDescriptor multiTokenSchemaDescriptor = multiToken( new int[]{0, 1, 2}, EntityType.RELATIONSHIP, 0, 1, 2, 3 );
+            FulltextSchemaDescriptor schema = new FulltextSchemaDescriptor( multiTokenSchemaDescriptor, new Properties() );
+            indexReference = transaction.schemaWrite().indexCreate( schema, DESCRIPTOR.name(), Optional.of( "fulltext" ) );
             transaction.success();
         }
         await( indexReference );
@@ -164,8 +166,9 @@ public class FulltextIndexProviderTest
         IndexReference indexReference;
         try ( KernelTransactionImplementation transaction = getKernelTransaction() )
         {
-            MultiTokenSchemaDescriptor schemaDescriptor = multiToken( new int[]{0, 1, 2}, EntityType.RELATIONSHIP, 0, 1, 2, 3 );
-            indexReference = transaction.schemaWrite().indexCreate( schemaDescriptor, DESCRIPTOR.name(), Optional.of( "fulltext" ) );
+            MultiTokenSchemaDescriptor multiTokenSchemaDescriptor = multiToken( new int[]{0, 1, 2}, EntityType.RELATIONSHIP, 0, 1, 2, 3 );
+            FulltextSchemaDescriptor schema = new FulltextSchemaDescriptor( multiTokenSchemaDescriptor, new Properties() );
+            indexReference = transaction.schemaWrite().indexCreate( schema, DESCRIPTOR.name(), Optional.of( "fulltext" ) );
             transaction.success();
         }
         await( indexReference );
@@ -367,8 +370,9 @@ public class FulltextIndexProviderTest
         IndexReference fulltext;
         try ( KernelTransactionImplementation transaction = getKernelTransaction() )
         {
-            MultiTokenSchemaDescriptor schemaDescriptor = multiToken( entityTokens, EntityType.NODE, propertyIds );
-            fulltext = transaction.schemaWrite().indexCreate( schemaDescriptor, DESCRIPTOR.name(), Optional.of( NAME ) );
+            MultiTokenSchemaDescriptor multiTokenSchemaDescriptor = multiToken( entityTokens, EntityType.NODE, propertyIds );
+            FulltextSchemaDescriptor schema = new FulltextSchemaDescriptor( multiTokenSchemaDescriptor, new Properties() );
+            fulltext = transaction.schemaWrite().indexCreate( schema, DESCRIPTOR.name(), Optional.of( NAME ) );
             transaction.success();
         }
         return fulltext;

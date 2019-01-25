@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002-2018 "Neo4j,"
+ * Copyright (c) 2002-2019 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
@@ -31,6 +31,7 @@ public abstract class BaseSetting<T> implements Setting<T>
     private boolean deprecated;
     private String replacement;
     private boolean internal;
+    private boolean secret;
     private boolean dynamic;
     private String documentedDefaultValue;
     private String description;
@@ -66,6 +67,17 @@ public abstract class BaseSetting<T> implements Setting<T>
     public void setInternal( final boolean val )
     {
         this.internal = val;
+    }
+
+    @Override
+    public boolean secret()
+    {
+        return this.secret;
+    }
+
+    public void setSecret( final boolean val )
+    {
+        this.secret = val;
     }
 
     @Override
