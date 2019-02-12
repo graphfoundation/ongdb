@@ -1,6 +1,7 @@
+<!-- See main ONgDB README.asciidoc for instructions on building the cypher-shell -->
 <project default="extract-shell-zip">
   <property name="shell.dir" location="../../../cypher-shell"/>
-  <property name="shell.zip" location="${shell.dir}/cypher-shell.zip"/>
+  <property name="shell.zip" location="${shell.dir}/out/cypher-shell.zip"/>
   <!-- Extract zip file -->
 
   <target name="find-shell-zip" description="See if shell zip file exists">
