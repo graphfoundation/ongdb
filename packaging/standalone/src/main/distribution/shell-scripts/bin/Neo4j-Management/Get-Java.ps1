@@ -150,7 +150,7 @@ function Get-Java
     $ShellArgs = @()
     if ($PsCmdlet.ParameterSetName -eq 'ServerInvoke')
     {
-      $serverMainClass = ''
+      $serverMainClass = 'org.neo4j.server.enterprise.EnterpriseEntryPoint'
       if ($Neo4jServer.ServerType -eq 'Community') { $serverMainClass = 'org.neo4j.server.CommunityEntryPoint' }
       if ($Neo4jServer.DatabaseMode.ToUpper() -eq 'ARBITER') { $serverMainClass = 'org.neo4j.server.enterprise.ArbiterEntryPoint' }
 
