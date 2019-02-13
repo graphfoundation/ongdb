@@ -319,4 +319,10 @@ case class SlottedExecutionContext(slots: SlotConfiguration) extends ExecutionCo
       case _ =>
         false
     }
+
+  /**
+    *
+    * @param node
+    */
+  override def invalidateCachedProperties(node: Long): Unit = fail()
 }

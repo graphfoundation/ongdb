@@ -38,7 +38,7 @@ case class ArrayResultExecutionContextFactory(columns: Seq[(String, Expression)]
     var index = 0
     columns.foreach {
       case (name, exp) => m.put(name, index)
-      index += 1
+        index += 1
     }
     m
   }
@@ -79,6 +79,7 @@ case class ArrayResultExecutionContextFactory(columns: Seq[(String, Expression)]
     val resultArray = new Array[AnyValue](columnArraySize)
     ArrayResultExecutionContext(resultArray, columnIndexMap, this)
   }
+
   //---------------------------------------------------------------------------
 }
 
@@ -92,7 +93,7 @@ case class ArrayResultExecutionContext(resultArray: Array[AnyValue],
   override def get(key: String): Option[AnyValue] = {
     columnIndexMap.get(key) match {
       case Some(index) => Some(resultArray(index))
-      case _=> None
+      case _ => None
     }
   }
 
@@ -106,6 +107,7 @@ case class ArrayResultExecutionContext(resultArray: Array[AnyValue],
   override def fields(): Array[AnyValue] = {
     resultArray
   }
+
   // See: https://github.com/neo4j/neo4j/blob/3.5.1/community/cypher/interpreted-runtime/src/main/scala/org/neo4j/cypher/internal/runtime/interpreted/ExecutionContext.scala
   // We are just overriding it right now.
   override def copyCachedFrom(input: ExecutionContext): Unit = fail()
@@ -164,4 +166,6 @@ case class ArrayResultExecutionContext(resultArray: Array[AnyValue],
   override def getCachedProperty(key: CachedNodeProperty): Value = fail()
 
   override def getCachedPropertyAt(offset: Int): Value = fail()
+
+  override def invalidateCachedProperties(node: Long): Unit = fail()
 }

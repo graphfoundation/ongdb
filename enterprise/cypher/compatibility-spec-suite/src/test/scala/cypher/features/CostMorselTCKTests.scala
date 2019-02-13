@@ -32,6 +32,10 @@ import org.neo4j.test.TestEnterpriseGraphDatabaseFactory
 class CostMorselTCKTests extends EnterpriseBaseTCKTests {
 
   // If you want to only run a specific feature or scenario, go to the BaseTCKTests
+  // Note: The 2 test configs were removed from TestConfig.scala in 3.5.2  See: community/cypher/spec-suite-tools/src/test/scala/cypher/features/TestConfig.scala
+  case object CostMorselTestConfigSingleThreaded extends TestConfig(Some("cost-morsel.txt"), "CYPHER planner=cost runtime=morsel debug=singlethreaded")
+
+  case object CostMorselTestConfig extends TestConfig(Some("cost-morsel.txt"), "CYPHER planner=cost runtime=morsel")
 
   @TestFactory
   def runCostMorselSingleThreaded(): util.Collection[DynamicTest] = {

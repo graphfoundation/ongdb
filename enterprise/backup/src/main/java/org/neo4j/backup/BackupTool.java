@@ -75,24 +75,23 @@ public class BackupTool
     private static final String TIMEOUT = "timeout";
     private static final String FORENSICS = "gather-forensics";
     public static final String DEFAULT_SCHEME = "single";
-    static final String MISMATCHED_STORE_ID = "You tried to perform a backup from database %s, " +
-            "but the target directory contained a backup from database %s. ";
+    static final String MISMATCHED_STORE_ID =
+            "You tried to perform a backup from database %s, " + "but the target directory contained a backup from database %s. ";
 
-    static final String WRONG_FROM_ADDRESS_SYNTAX = "Please properly specify a location to backup in the" +
-            " form " + dash( HOST ) + " <host> " + dash( PORT ) + " <port>";
+    static final String WRONG_FROM_ADDRESS_SYNTAX =
+            "Please properly specify a location to backup in the" + " form " + dash( HOST ) + " <host> " + dash( PORT ) + " <port>";
 
-    static final String UNKNOWN_SCHEMA_MESSAGE_PATTERN = "%s was specified as a backup module but it was not found. " +
-            "Please make sure that the implementing service is on the classpath.";
+    static final String UNKNOWN_SCHEMA_MESSAGE_PATTERN =
+            "%s was specified as a backup module but it was not found. " + "Please make sure that the implementing service is on the classpath.";
 
-    static final String NO_SOURCE_SPECIFIED = "Please specify " + dash( HOST ) + " and optionally " + dash( PORT ) +
-            ", examples:\n" +
-            "  " + dash( HOST ) + " 192.168.1.34\n" +
-            "  " + dash( HOST ) + " 192.168.1.34 " + dash( PORT ) + " 1234";
+    static final String NO_SOURCE_SPECIFIED =
+            "Please specify " + dash( HOST ) + " and optionally " + dash( PORT ) + ", examples:\n" + "  " + dash( HOST ) + " 192.168.1.34\n" + "  " +
+                    dash( HOST ) + " 192.168.1.34 " + dash( PORT ) + " 1234";
 
     public static void main( String[] args )
     {
-        System.err.println("WARNING: neo4j-backup is deprecated and support for it will be removed in a future\n" +
-                "version of Neo4j; please use neo4j-admin backup instead.\n");
+        System.err.println( "WARNING: neo4j-backup is deprecated and support for it will be removed in a future\n" +
+                "version of Neo4j; please use neo4j-admin backup instead.\n" );
         try ( BackupProtocolService backupProtocolService = backupProtocolService() )
         {
             BackupTool tool = new BackupTool( backupProtocolService, System.out );
@@ -164,8 +163,7 @@ public class BackupTool
         boolean verify = args.getBoolean( VERIFY, true, true );
         if ( verify )
         {
-            String consistencyCheckerName = args.get( CONSISTENCY_CHECKER, ConsistencyCheck.FULL.name(),
-                    ConsistencyCheck.FULL.name() );
+            String consistencyCheckerName = args.get( CONSISTENCY_CHECKER, ConsistencyCheck.FULL.name(), ConsistencyCheck.FULL.name() );
             return ConsistencyCheck.fromString( consistencyCheckerName );
         }
         return ConsistencyCheck.NONE;
@@ -201,8 +199,8 @@ public class BackupTool
         return executeBackup( hostnamePort, to, consistencyCheck, tuningConfiguration, timeout, forensics );
     }
 
-    BackupOutcome executeBackup( HostnamePort hostnamePort, Path to, ConsistencyCheck consistencyCheck,
-                                 Config config, long timeout, boolean forensics ) throws ToolFailureException
+    BackupOutcome executeBackup( HostnamePort hostnamePort, Path to, ConsistencyCheck consistencyCheck, Config config, long timeout, boolean forensics )
+            throws ToolFailureException
     {
         try
         {
@@ -210,8 +208,9 @@ public class BackupTool
             String host = hostnamePort.getHost();
             int port = hostnamePort.getPort();
 
-            BackupOutcome outcome = backupProtocolService.doIncrementalBackupOrFallbackToFull( host, port, DatabaseLayout.of( to.toFile() ),
-                    consistencyCheck, config, timeout, forensics );
+            BackupOutcome outcome =
+                    backupProtocolService.doIncrementalBackupOrFallbackToFull( host, port, DatabaseLayout.of( to.toFile() ), consistencyCheck, config, timeout,
+                            forensics );
             systemOut.println( "Done" );
             return outcome;
         }
@@ -231,7 +230,6 @@ public class BackupTool
 
     private static Config readConfiguration( Args arguments ) throws ToolFailureException
     {
-        Map<String, String> specifiedConfig = stringMap();
 
         String configFilePath = arguments.get( CONFIG, null );
         if ( configFilePath != null )
@@ -239,15 +237,14 @@ public class BackupTool
             File configFile = new File( configFilePath );
             try
             {
-                specifiedConfig = MapUtil.load( configFile );
+                return Config.fromFile( configFile ).build();
             }
-            catch ( IOException e )
+            catch ( Exception e )
             {
-                throw new ToolFailureException( String.format( "Could not read configuration file [%s]",
-                        configFilePath ), e );
+                throw new ToolFailureException( String.format( "Could not read configuration file [%s]", configFilePath ), e );
             }
         }
-        return Config.defaults( specifiedConfig );
+        return Config.defaults();
     }
 
     private static URI resolveBackupUri( String from, Args arguments, Config config ) throws ToolFailureException
@@ -290,8 +287,7 @@ public class BackupTool
         }
     }
 
-    private static URI resolveUriWithProvider( String providerName, Config config, String from, Args args )
-            throws ToolFailureException
+    private static URI resolveUriWithProvider( String providerName, Config config, String from, Args args ) throws ToolFailureException
     {
         BackupExtensionService service;
         try

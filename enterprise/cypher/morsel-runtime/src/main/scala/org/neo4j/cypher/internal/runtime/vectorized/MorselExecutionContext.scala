@@ -32,8 +32,10 @@ import org.neo4j.cypher.internal.v3_5.util.InternalException
 object MorselExecutionContext {
   def apply(morsel: Morsel, pipeline: Pipeline) = new MorselExecutionContext(morsel,
     pipeline.slots.numberOfLongs, pipeline.slots.numberOfReferences, 0)
+
   def apply(morsel: Morsel, numberOfLongs: Int, numberOfRows: Int) = new MorselExecutionContext(morsel,
     numberOfLongs, numberOfRows, 0)
+
   val EMPTY = new MorselExecutionContext(Morsel.create(SlotConfiguration.empty, 1), 0, 0, 0)
 }
 
@@ -72,7 +74,7 @@ class MorselExecutionContext(private val morsel: Morsel, private val longsPerRow
   def finishedWriting(): Unit = morsel.validRows = currentRow
 
   def copyAllRowsFrom(input: ExecutionContext): Unit = input match {
-    case other:MorselExecutionContext =>
+    case other: MorselExecutionContext =>
       System.arraycopy(other.morsel.longs, 0, morsel.longs, 0, other.morsel.longs.length)
       System.arraycopy(other.morsel.refs, 0, morsel.refs, 0, other.morsel.refs.length)
     case _ => fail()
@@ -81,7 +83,7 @@ class MorselExecutionContext(private val morsel: Morsel, private val longsPerRow
   override def copyTo(target: ExecutionContext, fromLongOffset: Int = 0, fromRefOffset: Int = 0, toLongOffset: Int = 0, toRefOffset: Int = 0): Unit = ???
 
   override def copyFrom(input: ExecutionContext, nLongs: Int, nRefs: Int): Unit = input match {
-    case other:MorselExecutionContext =>
+    case other: MorselExecutionContext =>
       if (nLongs > longsPerRow || nRefs > refsPerRow)
         throw new InternalException("Tried to copy too much data.")
       else {
@@ -90,6 +92,7 @@ class MorselExecutionContext(private val morsel: Morsel, private val longsPerRow
       }
     case _ => fail()
   }
+
   override def copyCachedFrom(input: ExecutionContext): Unit = fail()
 
   override def toString(): String = {
@@ -98,6 +101,7 @@ class MorselExecutionContext(private val morsel: Morsel, private val longsPerRow
 
   /**
     * Copies the whole row from input to this.
+    *
     * @param input
     */
   def copyFrom(input: MorselExecutionContext): Unit = copyFrom(input, input.longsPerRow, input.refsPerRow)
@@ -149,6 +153,8 @@ class MorselExecutionContext(private val morsel: Morsel, private val longsPerRow
   override def getCachedProperty(key: CachedNodeProperty): Value = fail()
 
   override def getCachedPropertyAt(offset: Int): Value = getRefAt(offset).asInstanceOf[Value]
+
+  override def invalidateCachedProperties(node: Long): Unit = fail()
 
   private def longsAtCurrentRow: Int = currentRow * longsPerRow
 
