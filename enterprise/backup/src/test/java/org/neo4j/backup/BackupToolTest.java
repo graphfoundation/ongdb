@@ -43,6 +43,7 @@ import org.neo4j.consistency.ConsistencyCheckSettings;
 import org.neo4j.helpers.HostnamePort;
 import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.kernel.configuration.Config;
+import org.neo4j.kernel.configuration.ConfigLoadIOException;
 import org.neo4j.test.rule.SuppressOutput;
 import org.neo4j.test.rule.TestDirectory;
 import org.neo4j.test.rule.system.SystemExitRule;
@@ -228,7 +229,7 @@ public class BackupToolTest
         {
             // then
             assertThat( e.getMessage(), containsString( "Could not read configuration file" ) );
-            assertThat( e.getCause(), instanceOf( IOException.class ) );
+            assertThat( e.getCause(), instanceOf( ConfigLoadIOException.class ) );
         }
 
         verifyZeroInteractions( service );
