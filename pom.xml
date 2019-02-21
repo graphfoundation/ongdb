@@ -537,6 +537,7 @@
             </execution>
           </executions>
           <configuration>
+            <failIfMissing>false</failIfMissing>
             <strictCheck>true</strictCheck>
             <header>${license-text.header}</header>
             <includes>
