@@ -10,7 +10,7 @@ available at:https://neo4j.com/licensing/
 
 The software ("Software") is developed and owned by Neo4j Sweden AB
 (referred to in this notice as “Neo4j”) and is subject to the terms
-of the GNU AFFERO GENERAL PUBLIC LICENSE Version 3, with the Commons Clause as follows:
+of the GNU AFFERO GENERAL PUBLIC LICENSE Version 3 as follows:
 
 
 
