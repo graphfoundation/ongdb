@@ -86,9 +86,7 @@ case class SlottedExecutionContext(slots: SlotConfiguration) extends ExecutionCo
     case _ => fail()
   }
 
- // See: https://github.com/neo4j/neo4j/blob/3.5.1/community/cypher/interpreted-runtime/src/main/scala/org/neo4j/cypher/internal/runtime/interpreted/ExecutionContext.scala
-  // We are just overriding it right now.
-  override def copyCachedFrom(input: ExecutionContext): Unit = fail()
+
 
 
   override def setLongAt(offset: Int, value: Long): Unit =
@@ -242,7 +240,7 @@ case class SlottedExecutionContext(slots: SlotConfiguration) extends ExecutionCo
           )
           thisSlotSetter.apply(this, other.getLongAt(offset))
 
-        case (key, otherSlot @ RefSlot(offset, _, _)) if slottedOther.isRefInitialized(offset) =>
+        case (key, otherSlot @ RefSlot(offset, _, _)) if slottedOther.isRefInitialized(offset) || otherSlot.nullable  =>
           val thisSlotSetter = slots.maybeSetter(key).getOrElse(
             throw new InternalException(s"Tried to merge slot $otherSlot from $other but it is missing from $this." +
               "Looks like something needs to be fixed in slot allocation.")
@@ -257,6 +255,11 @@ case class SlottedExecutionContext(slots: SlotConfiguration) extends ExecutionCo
 
           val otherValue = slottedOther.getRefAtWithoutCheckingInitialized(offset)
           thisSlotSetter.apply(this, otherValue)
+
+
+        case (key, otherSlot @ RefSlot(offset, _, _)) =>
+          val thisSlot = slots.get(key).get
+          throw new InternalException(s"Tried to merge slot $otherSlot from $other into $thisSlot from $this, but ref is not initialized.")
       }, {
         case (cachedNodeProperty, refSlot) =>
           setCachedProperty(cachedNodeProperty, other.getCachedPropertyAt(refSlot.offset))
@@ -320,9 +323,33 @@ case class SlottedExecutionContext(slots: SlotConfiguration) extends ExecutionCo
         false
     }
 
+
+
+  // Overriding the 2 methods below.
+  // See: https://github.com/neo4j/neo4j/blob/3.5.1/community/cypher/interpreted-runtime/src/main/scala/org/neo4j/cypher/internal/runtime/interpreted/ExecutionContext.scala
+  /**
+    *
+    * @param input
+    */
+  def copyCachedFrom(input: ExecutionContext): Unit = {
+    if (input.isInstanceOf[SlottedExecutionContext]) {
+      val slottedExecutionContext = input.asInstanceOf[SlottedExecutionContext]
+      slots.foreachSlotCached({
+        case (cachedNodeProperty, refSlot) =>
+          setCachedProperty(cachedNodeProperty, slottedExecutionContext.getCachedPropertyAt(refSlot.offset))
+      })
+    }
+    else fail()
+  }
+
   /**
     *
     * @param node
     */
-  override def invalidateCachedProperties(node: Long): Unit = fail()
+  override def invalidateCachedProperties(node: Long): Unit = {
+    slots.foreachSlotCached({
+      case (cachedNodeProperty, refSlot) =>
+        setCachedPropertyAt(refSlot.offset, null)
+    })
+  }
 }

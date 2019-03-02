@@ -371,6 +371,19 @@ class SlotConfiguration(private val slots: mutable.Map[String, Slot],
     }
   }
 
+
+  // NOTE: We need to implement caching. Use naming convention of the method above (i.e. foreachSlotXXXX)
+  // We need to now call this method in the SlottedExecutionContext.
+  def foreachSlotCached(onCachedNodeProperty: ((CachedNodeProperty, RefSlot)) => Unit): Unit = {
+    cachedProperties.foreach(onCachedNodeProperty)
+  }
+
+
+
+
+
+
+
   // NOTE: This will give duplicate slots when we have aliases
   def mapSlot[U](f: ((String,Slot)) => U): Iterable[U] = slots.map(f)
 

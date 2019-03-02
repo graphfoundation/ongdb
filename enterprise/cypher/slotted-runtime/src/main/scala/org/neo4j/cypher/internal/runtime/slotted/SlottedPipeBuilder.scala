@@ -91,7 +91,7 @@ class SlottedPipeBuilder(fallback: PipeBuilder,
     pipe
   }
 
-  private def generateSlotAccessorFunctions(slots: SlotConfiguration): Unit = {
+  private[slotted] def generateSlotAccessorFunctions(slots: SlotConfiguration): Unit = {
     slots.foreachSlot({
       case (key, slot) =>
         val getter = SlottedPipeBuilderUtils.makeGetValueFromSlotFunctionFor(slot)

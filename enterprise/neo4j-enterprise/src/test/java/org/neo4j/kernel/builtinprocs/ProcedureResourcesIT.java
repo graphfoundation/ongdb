@@ -386,6 +386,12 @@ public class ProcedureResourcesIT
             // Grabs schema lock an so can not execute concurrently with node creation
             proc.skip = true;
             break;
+
+        case "db.index.fulltext.awaitIndex":
+            proc.withParam( ftsNodesIndex );
+            proc.withParam( 100 );
+            break;
+
         case "db.index.fulltext.queryNodes":
             proc.withParam( ftsNodesIndex );
             proc.withParam( "'value'" );
@@ -403,6 +409,19 @@ public class ProcedureResourcesIT
         case "db.stats.retrieve":
             proc.withParam( "'GRAPH COUNTS'" );
             break;
+
+        case "db.stats.stop":
+            proc.withParam( "'QUERIES'" );
+            break;
+
+        case "db.stats.clear":
+            proc.withParam( "'QUERIES'" );
+            break;
+
+        case "db.stats.collect":
+            proc.withParam( "'QUERIES'" );
+            break;
+
         case "db.index.fulltext.createRelationshipIndex":
             // Grabs schema lock an so can not execute concurrently with node creation
             proc.skip = true;

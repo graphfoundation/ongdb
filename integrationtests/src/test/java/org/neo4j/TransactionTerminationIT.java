@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002-2018 "Neo4j,"
+ * Copyright (c) 2002-2019 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j Enterprise Edition. The included source
@@ -54,9 +54,11 @@ import org.neo4j.kernel.ha.HaSettings;
 import org.neo4j.kernel.ha.HighlyAvailableGraphDatabase;
 import org.neo4j.kernel.impl.api.KernelTransactions;
 import org.neo4j.kernel.impl.enterprise.configuration.OnlineBackupSettings;
+import org.neo4j.graphdb.facade.GraphDatabaseFacadeFactory;
 import org.neo4j.kernel.impl.ha.ClusterManager;
 import org.neo4j.kernel.impl.locking.LockClientStoppedException;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
+import org.neo4j.server.configuration.ServerSettings;
 import org.neo4j.server.rest.domain.JsonParseException;
 import org.neo4j.test.ha.ClusterRule;
 import org.neo4j.test.rule.CleanupRule;
@@ -94,9 +96,7 @@ public class TransactionTerminationIT
 
     private final CleanupRule cleanupRule = new CleanupRule();
     private final ClusterRule clusterRule = new ClusterRule()
-            .withCluster( clusterOfSize( 3 ) )
-            .withSharedSetting( HaSettings.tx_push_factor, "2" )
-            .withSharedSetting( HaSettings.lock_read_timeout, "1m" );
+            .withCluster( clusterOfSize( 3 ) );
 
     @Rule
     public final RuleChain ruleChain = RuleChain.outerRule( SuppressOutput.suppressAll() )
@@ -104,9 +104,9 @@ public class TransactionTerminationIT
             .around( clusterRule );
 
     @Parameters( name = "lockManager = {0}" )
-    public static Iterable<String> lockManagerNames()
+    public static Iterable<Object[]> lockManagerNames()
     {
-        return Arrays.asList( "forseti", "community" );
+        return Arrays.asList( new Object[]{"forseti"}, new Object[]{"community"} );
     }
 
     @Test
@@ -114,6 +114,7 @@ public class TransactionTerminationIT
     {
         ServerControls server = cleanupRule.add( TestServerBuilders.newInProcessBuilder()
                 .withConfig( GraphDatabaseSettings.auth_enabled, Settings.FALSE )
+                //.withConfig( GraphDatabaseSettings.cypher_runtime, "SLOTTED")
                 .withConfig( GraphDatabaseSettings.lock_manager, lockManagerName )
                 .withConfig( OnlineBackupSettings.online_backup_enabled, Settings.FALSE )
                 .newServer() );
@@ -157,6 +158,7 @@ public class TransactionTerminationIT
         assertNodeExists( db, value1 );
     }
 
+    /** HA has been deprecated.
     @Test
     public void terminateSlaveTransactionThatWaitsForLockOnMaster() throws Exception
     {
@@ -193,6 +195,7 @@ public class TransactionTerminationIT
         assertNodeExists( cluster, masterValue );
     }
 
+
     @Test
     public void terminateMasterTransactionThatWaitsForLockAcquiredBySlave() throws Exception
     {
@@ -228,6 +231,7 @@ public class TransactionTerminationIT
         assertNull( slaveTx.get() );
         assertNodeExists( cluster, slaveValue );
     }
+    */
 
     private static void createNode( GraphDatabaseService db )
     {
