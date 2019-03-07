@@ -2052,14 +2052,13 @@ class EagerizationAcceptanceTest
     assertStats(result, propertiesWritten = 2)
   }
 
-  test("matching on relationship property existence, writing same property should not be eager") {
+  test("matching on relationship property existence, writing same property doesn't have to be eager but still is") {
     relate(createNode(), createNode(), "prop" -> 42)
     relate(createNode(), createNode())
 
     val query = "MATCH ()-[r]-() WHERE exists(r.prop) SET r.prop = 'foo' RETURN count(*)"
 
-    val result = executeWith(Configs.UpdateConf, query,
-      planComparisonStrategy = testEagerPlanComparisonStrategy(0, Configs.Rule2_3))
+    val result = executeWith(Configs.UpdateConf, query)
 
     result.columnAs[Long]("count(*)").next shouldBe 2
     assertStats(result, propertiesWritten = 2)
