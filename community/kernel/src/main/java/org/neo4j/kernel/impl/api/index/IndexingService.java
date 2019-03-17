@@ -41,6 +41,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.StringJoiner;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -63,7 +64,6 @@ import org.neo4j.kernel.api.index.IndexEntryUpdate;
 import org.neo4j.kernel.api.index.IndexPopulator;
 import org.neo4j.kernel.api.index.IndexProvider;
 import org.neo4j.kernel.api.index.IndexUpdater;
-import org.neo4j.storageengine.api.NodePropertyAccessor;
 import org.neo4j.kernel.impl.api.SchemaState;
 import org.neo4j.kernel.impl.api.index.sampling.IndexSamplingController;
 import org.neo4j.kernel.impl.api.index.sampling.IndexSamplingMode;
@@ -76,6 +76,7 @@ import org.neo4j.register.Register.DoubleLongRegister;
 import org.neo4j.register.Registers;
 import org.neo4j.scheduler.JobScheduler;
 import org.neo4j.storageengine.api.EntityType;
+import org.neo4j.storageengine.api.NodePropertyAccessor;
 import org.neo4j.storageengine.api.schema.IndexDescriptor;
 import org.neo4j.storageengine.api.schema.StoreIndexDescriptor;
 import org.neo4j.values.storable.Value;
@@ -422,7 +423,8 @@ public class IndexingService extends LifecycleAdapter implements IndexingUpdateS
                 return;
             case FAILED:
                 IndexPopulationFailure populationFailure = proxy.getPopulationFailure();
-                String message = String.format( "Index entered %s state while recovery waited for it to be fully populated.", FAILED );
+                String message =
+                        String.format( "Index %s entered %s state while recovery waited for it to be fully populated.", proxy.getDescriptor(), FAILED );
                 String causeOfFailure = populationFailure.asString();
                 throw new IllegalStateException( IndexPopulationFailure.appendCauseOfFailure( message, causeOfFailure ) );
             case POPULATING:
@@ -649,7 +651,7 @@ public class IndexingService extends LifecycleAdapter implements IndexingUpdateS
             if ( state == State.RUNNING ) // don't do this during recovery.
             {
                 IndexProxy index = getIndexProxy( indexId );
-                index.awaitStoreScanCompleted();
+                index.awaitStoreScanCompleted( 0, TimeUnit.MILLISECONDS );
                 index.activate();
                 internalLog.info( "Constraint %s is %s.", index.getDescriptor(), ONLINE.name() );
             }

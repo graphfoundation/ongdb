@@ -203,7 +203,8 @@ public class SchemaImpl implements Schema
                 return;
             case FAILED:
                 String cause = getIndexFailure( index );
-                String message = IndexPopulationFailure.appendCauseOfFailure( "Index entered a FAILED state. Please see database logs.", cause );
+                String message = IndexPopulationFailure
+                        .appendCauseOfFailure( String.format( "Index %s entered a %s state. Please see database logs.", index, state ), cause );
                 throw new IllegalStateException( message );
             default:
                 try
@@ -314,7 +315,7 @@ public class SchemaImpl implements Schema
             SchemaRead schemaRead = transaction.schemaRead();
             IndexReference descriptor = getIndexReference( schemaRead, transaction.tokenRead(), (IndexDefinitionImpl) index );
             PopulationProgress progress = schemaRead.indexGetPopulationProgress( descriptor );
-            return new IndexPopulationProgress( progress.getCompleted(), progress.getTotal() );
+            return progress.toIndexPopulationProgress();
         }
         catch ( SchemaRuleNotFoundException | IndexNotFoundKernelException e )
         {

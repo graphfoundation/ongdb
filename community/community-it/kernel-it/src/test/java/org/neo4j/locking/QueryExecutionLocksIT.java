@@ -800,9 +800,21 @@ public class QueryExecutionLocksIT
         }
 
         @Override
+        public Map<String,Object> getMetaData()
+        {
+            return internal.getMetaData();
+        }
+
+        @Override
         public void assertOpen()
         {
             internal.assertOpen();
+        }
+
+        @Override
+        public boolean isSchemaTransaction()
+        {
+            return internal.isSchemaTransaction();
         }
     }
 }

@@ -46,6 +46,7 @@ import org.neo4j.kernel.api.index.IndexUpdater;
 import org.neo4j.storageengine.api.NodePropertyAccessor;
 import org.neo4j.storageengine.api.schema.IndexDescriptor;
 import org.neo4j.storageengine.api.schema.IndexSample;
+import org.neo4j.values.storable.Value;
 import org.neo4j.values.storable.Values;
 
 import static java.util.Arrays.asList;
@@ -57,6 +58,7 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.neo4j.index.internal.gbptree.GBPTree.NO_HEADER_READER;
 import static org.neo4j.index.internal.gbptree.GBPTree.NO_HEADER_WRITER;
+import static org.neo4j.kernel.impl.api.index.PhaseTracker.nullInstance;
 import static org.neo4j.kernel.impl.index.schema.NativeIndexPopulator.BYTE_FAILED;
 import static org.neo4j.kernel.impl.index.schema.NativeIndexPopulator.BYTE_ONLINE;
 import static org.neo4j.kernel.impl.index.schema.ValueCreatorUtil.countUniqueValues;
@@ -149,6 +151,7 @@ public abstract class NativeIndexPopulatorTests<KEY extends NativeIndexKey<KEY>,
 
         // when
         populator.add( updates );
+        populator.scanCompleted( nullInstance );
 
         // then
         populator.close( true );
@@ -164,6 +167,7 @@ public abstract class NativeIndexPopulatorTests<KEY extends NativeIndexKey<KEY>,
 
         // when
         populator.add( Arrays.asList( updates ) );
+        populator.scanCompleted( nullInstance );
 
         // then
         populator.close( true );
@@ -186,6 +190,7 @@ public abstract class NativeIndexPopulatorTests<KEY extends NativeIndexKey<KEY>,
         }
 
         // then
+        populator.scanCompleted( nullInstance );
         populator.close( true );
         verifyUpdates( updates );
     }
@@ -225,6 +230,7 @@ public abstract class NativeIndexPopulatorTests<KEY extends NativeIndexKey<KEY>,
         applyInterleaved( updates, populator );
 
         // then
+        populator.scanCompleted( nullInstance );
         populator.close( true );
         verifyUpdates( updates );
     }
@@ -356,9 +362,10 @@ public abstract class NativeIndexPopulatorTests<KEY extends NativeIndexKey<KEY>,
             populator.close( true );
             fail( "Expected successful close to fail after markedAsFailed" );
         }
-        catch ( IllegalStateException e )
+        catch ( RuntimeException e )
         {
-            // good
+            // then good
+            assertTrue( "Expected cause to contain " + IllegalStateException.class, Exceptions.contains( e, IllegalStateException.class ) );
         }
         populator.close( false );
     }
@@ -376,6 +383,7 @@ public abstract class NativeIndexPopulatorTests<KEY extends NativeIndexKey<KEY>,
         int count = interleaveLargeAmountOfUpdates( updaterRandom, updates );
 
         // then
+        populator.scanCompleted( nullInstance );
         populator.close( true );
         random.reset();
         verifyUpdates( valueCreatorUtil.randomUpdateGenerator( random ), count );
@@ -421,9 +429,10 @@ public abstract class NativeIndexPopulatorTests<KEY extends NativeIndexKey<KEY>,
             populator.close( true );
             fail( "Should have failed" );
         }
-        catch ( IllegalStateException e )
+        catch ( RuntimeException e )
         {
             // then good
+            assertTrue( "Expected cause to contain " + IllegalStateException.class, Exceptions.contains( e, IllegalStateException.class ) );
         }
     }
 
@@ -457,9 +466,10 @@ public abstract class NativeIndexPopulatorTests<KEY extends NativeIndexKey<KEY>,
             populator.close( true );
             fail( "Should have failed" );
         }
-        catch ( IllegalStateException e )
+        catch ( RuntimeException e )
         {
             // then good
+            assertTrue( "Expected cause to contain " + IllegalStateException.class, Exceptions.contains( e, IllegalStateException.class ) );
         }
     }
 
@@ -478,9 +488,10 @@ public abstract class NativeIndexPopulatorTests<KEY extends NativeIndexKey<KEY>,
             populator.close( false );
             fail( "Should have failed" );
         }
-        catch ( IllegalStateException e )
+        catch ( RuntimeException e )
         {
             // then good
+            assertTrue( "Expected cause to contain " + IllegalStateException.class, Exceptions.contains( e, IllegalStateException.class ) );
         }
     }
 
@@ -497,6 +508,7 @@ public abstract class NativeIndexPopulatorTests<KEY extends NativeIndexKey<KEY>,
             try
             {
                 populator.add( Arrays.asList( updates ) );
+                populator.scanCompleted( nullInstance );
                 fail( "Updates should have conflicted" );
             }
             catch ( IndexEntryConflictException e )
@@ -525,6 +537,7 @@ public abstract class NativeIndexPopulatorTests<KEY extends NativeIndexKey<KEY>,
             try
             {
                 updater.close();
+                populator.scanCompleted( nullInstance );
                 fail( "Updates should have conflicted" );
             }
             catch ( Exception e )
@@ -551,6 +564,7 @@ public abstract class NativeIndexPopulatorTests<KEY extends NativeIndexKey<KEY>,
             {
                 populator.includeSample( update );
             }
+            populator.scanCompleted( nullInstance );
             IndexSample sample = populator.sampleResult();
 
             // THEN
@@ -574,6 +588,7 @@ public abstract class NativeIndexPopulatorTests<KEY extends NativeIndexKey<KEY>,
             populator.add( Arrays.asList( updates ) );
 
             // then
+            populator.scanCompleted( nullInstance );
             populator.close( true );
             verifyUpdates( updates );
         }
@@ -594,6 +609,7 @@ public abstract class NativeIndexPopulatorTests<KEY extends NativeIndexKey<KEY>,
             }
 
             // then
+            populator.scanCompleted( nullInstance );
             populator.close( true );
             verifyUpdates( updates );
         }
@@ -602,44 +618,51 @@ public abstract class NativeIndexPopulatorTests<KEY extends NativeIndexKey<KEY>,
         public void shouldSampleUpdatesIfConfiguredForOnlineSampling() throws Exception
         {
             // GIVEN
-            populator.create();
-            IndexEntryUpdate<IndexDescriptor>[] scanUpdates = valueCreatorUtil.someUpdates( random );
-            populator.add( Arrays.asList( scanUpdates ) );
-            Iterator<IndexEntryUpdate<IndexDescriptor>> generator = valueCreatorUtil.randomUpdateGenerator( random );
-            Object[] updates = new Object[5];
-            updates[0] = generator.next().values()[0].asObject();
-            updates[1] = generator.next().values()[0].asObject();
-            updates[2] = updates[1];
-            updates[3] = generator.next().values()[0].asObject();
-            updates[4] = updates[3];
-            try ( IndexUpdater updater = populator.newPopulatingUpdater( null_property_accessor ) )
+            try
             {
-                long nodeId = 1000;
-                for ( Object value : updates )
+                populator.create();
+                IndexEntryUpdate<IndexDescriptor>[] scanUpdates = valueCreatorUtil.someUpdates( random );
+                populator.add( Arrays.asList( scanUpdates ) );
+                Iterator<IndexEntryUpdate<IndexDescriptor>> generator = valueCreatorUtil.randomUpdateGenerator( random );
+                Value[] updates = new Value[5];
+                updates[0] = generator.next().values()[0];
+                updates[1] = generator.next().values()[0];
+                updates[2] = updates[1];
+                updates[3] = generator.next().values()[0];
+                updates[4] = updates[3];
+                try ( IndexUpdater updater = populator.newPopulatingUpdater( null_property_accessor ) )
                 {
-                    IndexEntryUpdate<IndexDescriptor> update = valueCreatorUtil.add( nodeId++, Values.of( value ) );
-                    updater.process( update );
+                    long nodeId = 1000;
+                    for ( Value value : updates )
+                    {
+                        IndexEntryUpdate<IndexDescriptor> update = valueCreatorUtil.add( nodeId++, value );
+                        updater.process( update );
+                    }
                 }
+
+                // WHEN
+                populator.scanCompleted( nullInstance );
+                IndexSample sample = populator.sampleResult();
+
+                // THEN
+                Value[] allValues = Arrays.copyOf( updates, updates.length + scanUpdates.length );
+                System.arraycopy( asValues( scanUpdates ), 0, allValues, updates.length, scanUpdates.length );
+                assertEquals( updates.length + scanUpdates.length, sample.sampleSize() );
+                assertEquals( countUniqueValues( allValues ), sample.uniqueValues() );
+                assertEquals( updates.length + scanUpdates.length, sample.indexSize() );
             }
-
-            // WHEN
-            IndexSample sample = populator.sampleResult();
-
-            // THEN
-            Object[] allValues = Arrays.copyOf( updates, updates.length + scanUpdates.length );
-            System.arraycopy( asValues( scanUpdates ), 0, allValues, updates.length, scanUpdates.length );
-            assertEquals( updates.length + scanUpdates.length, sample.sampleSize() );
-            assertEquals( countUniqueValues( allValues ), sample.uniqueValues() );
-            assertEquals( updates.length + scanUpdates.length, sample.indexSize() );
-            populator.close( true );
+            finally
+            {
+                populator.close( true );
+            }
         }
 
-        private Object[] asValues( IndexEntryUpdate<IndexDescriptor>[] updates )
+        private Value[] asValues( IndexEntryUpdate<IndexDescriptor>[] updates )
         {
-            Object[] values = new Object[updates.length];
+            Value[] values = new Value[updates.length];
             for ( int i = 0; i < updates.length; i++ )
             {
-                values[i] = updates[i].values()[0].asObject();
+                values[i] = updates[i].values()[0];
             }
             return values;
         }

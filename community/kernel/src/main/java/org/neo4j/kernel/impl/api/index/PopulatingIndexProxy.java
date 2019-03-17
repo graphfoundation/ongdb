@@ -20,6 +20,7 @@
 package org.neo4j.kernel.impl.api.index;
 
 import java.io.File;
+import java.util.concurrent.TimeUnit;
 
 import org.neo4j.graphdb.ResourceIterator;
 import org.neo4j.internal.kernel.api.InternalIndexState;
@@ -82,7 +83,7 @@ public class PopulatingIndexProxy implements IndexProxy
     @Override
     public void drop()
     {
-        job.cancelPopulation( indexPopulation );
+        job.dropPopulation( indexPopulation );
     }
 
     @Override
@@ -122,10 +123,9 @@ public class PopulatingIndexProxy implements IndexProxy
     }
 
     @Override
-    public boolean awaitStoreScanCompleted() throws InterruptedException
+    public boolean awaitStoreScanCompleted( long time, TimeUnit unit ) throws InterruptedException
     {
-        job.awaitCompletion();
-        return true;
+        return job.awaitCompletion( time, unit );
     }
 
     @Override
@@ -161,7 +161,7 @@ public class PopulatingIndexProxy implements IndexProxy
     @Override
     public PopulationProgress getIndexPopulationProgress()
     {
-        return job.getPopulationProgress();
+        return job.getPopulationProgress( indexPopulation );
     }
 
     @Override

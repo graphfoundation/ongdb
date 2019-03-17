@@ -24,10 +24,12 @@ import java.util.Collection;
 
 import org.neo4j.internal.kernel.api.InternalIndexState;
 import org.neo4j.kernel.api.exceptions.index.IndexEntryConflictException;
+import org.neo4j.kernel.impl.api.index.PhaseTracker;
 import org.neo4j.kernel.impl.api.index.UpdateMode;
 import org.neo4j.kernel.impl.api.index.updater.SwallowingIndexUpdater;
 import org.neo4j.storageengine.api.NodePropertyAccessor;
 import org.neo4j.storageengine.api.schema.IndexSample;
+import org.neo4j.storageengine.api.schema.PopulationProgress;
 import org.neo4j.storageengine.api.schema.StoreIndexDescriptor;
 
 /**
@@ -139,7 +141,22 @@ public interface IndexPopulator
      */
     IndexSample sampleResult();
 
+    /**
+     * Returns actual population progress, given the progress of the scan. This is for when a populator needs to do
+     * significant work after scan has completed where the scan progress can be seen as only a part of the whole progress.
+     * @param scanProgress progress of the scan.
+     * @return progress of the population of this index as a whole.
+     */
+    default PopulationProgress progress( PopulationProgress scanProgress )
+    {
+        return scanProgress;
+    }
+
     IndexPopulator EMPTY = new Adapter();
+
+    default void scanCompleted( PhaseTracker phaseTracker ) throws IndexEntryConflictException
+    {   // no-op by default
+    }
 
     class Adapter implements IndexPopulator
     {
@@ -162,6 +179,11 @@ public interface IndexPopulator
         public IndexUpdater newPopulatingUpdater( NodePropertyAccessor accessor )
         {
             return SwallowingIndexUpdater.INSTANCE;
+        }
+
+        @Override
+        public void scanCompleted( PhaseTracker phaseTracker )
+        {
         }
 
         @Override

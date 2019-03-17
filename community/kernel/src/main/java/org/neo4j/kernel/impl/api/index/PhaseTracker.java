@@ -29,9 +29,14 @@ public interface PhaseTracker
 
     enum Phase
     {
+        // The order in which the phases are declared defines the order in which they will be printed in the log.
+        // Keep them arranged in the order in which they naturally are seen during index population.
         SCAN,
         WRITE,
-        FLIP
+        MERGE,
+        BUILD,
+        APPLY_EXTERNAL,
+        FLIP;
     }
 
     class NullPhaseTracker implements PhaseTracker

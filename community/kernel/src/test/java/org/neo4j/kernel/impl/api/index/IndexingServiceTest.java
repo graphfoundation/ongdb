@@ -321,7 +321,9 @@ public class IndexingServiceTest
         InOrder order = inOrder( populator, accessor, updater);
         order.verify( populator ).create();
         order.verify( populator ).includeSample( add( 1, "value1" ) );
-        order.verify( populator, times( 3 ) ).add( any( Collection.class ) );
+        order.verify( populator, times( 1 ) ).add( any( Collection.class ) );
+        order.verify( populator ).scanCompleted( any( PhaseTracker.class ) );
+        order.verify( populator, times( 2 ) ).add( any( Collection.class ) );
         order.verify( populator ).newPopulatingUpdater( storeView );
         order.verify( updater ).close();
         order.verify( populator ).sampleResult();
@@ -1078,7 +1080,7 @@ public class IndexingServiceTest
     {
         // given
         long indexId = 1;
-        StoreIndexDescriptor indexRule = uniqueIndex.withId( indexId );
+        CapableIndexDescriptor indexRule = uniqueIndex.withId( indexId ).withoutCapabilities();
         Barrier.Control barrier = new Barrier.Control();
         CountDownLatch exceptionBarrier = new CountDownLatch( 1 );
         IndexingService indexing = newIndexingServiceWithMockedDependencies( populator, accessor, withData(), new IndexingService.MonitorAdapter()
@@ -1110,7 +1112,9 @@ public class IndexingServiceTest
 
             // Thread is just about to start checking index status. We flip to failed proxy to indicate population failure during recovery.
             barrier.await();
-
+            // Wait for the index to come online, otherwise we'll race the failed flip below with its flip and sometimes the POPULATING -> ONLINE
+            // flip will win and make the index NOT fail and therefor hanging this test awaiting on the exceptionBarrier below
+            waitForIndexesToComeOnline( indexing, indexId );
             IndexProxy indexProxy = indexing.getIndexProxy( indexRule.schema() );
             assertThat( indexProxy, instanceOf( ContractCheckingIndexProxy.class ) );
             ContractCheckingIndexProxy contractCheckingIndexProxy = (ContractCheckingIndexProxy) indexProxy;
@@ -1119,12 +1123,13 @@ public class IndexingServiceTest
             FlippableIndexProxy flippableIndexProxy = (FlippableIndexProxy) delegate;
             Exception expectedCause = new Exception( "index was failed on purpose" );
             IndexPopulationFailure indexFailure = IndexPopulationFailure.failure( expectedCause );
-            flippableIndexProxy.flipTo( new FailedIndexProxy( mock( CapableIndexDescriptor.class ), "string", mock( IndexPopulator.class ),
+            flippableIndexProxy.flipTo( new FailedIndexProxy( indexRule, "string", mock( IndexPopulator.class ),
                     indexFailure, mock( IndexCountsRemover.class ), internalLogProvider ) );
             barrier.release();
             exceptionBarrier.await();
             Throwable actual = startException.get();
 
+            assertThat( actual.getMessage(), Matchers.containsString( indexRule.toString() ) );
             assertThat( actual.getCause(), instanceOf( IllegalStateException.class ) );
             assertThat( Exceptions.stringify( actual.getCause() ), Matchers.containsString( Exceptions.stringify( expectedCause ) ) );
         }
@@ -1541,7 +1546,7 @@ public class IndexingServiceTest
                 @Override
                 public PopulationProgress getProgress()
                 {
-                    return new PopulationProgress( 42, 100 );
+                    return PopulationProgress.single( 42, 100 );
                 }
             };
         }

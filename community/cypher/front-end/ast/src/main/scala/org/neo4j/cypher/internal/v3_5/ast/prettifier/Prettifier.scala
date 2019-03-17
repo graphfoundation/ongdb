@@ -20,10 +20,82 @@ import org.neo4j.cypher.internal.v3_5.ast.{Skip, Statement, _}
 import org.neo4j.cypher.internal.v3_5.expressions.{NodePattern, PatternElement, PatternPart, RelationshipChain, _}
 
 case class Prettifier(mkStringOf: ExpressionStringifier) {
+
   def asString(statement: Statement): String = statement match {
-    case Query(_, SingleQuery(clauses)) =>
-      clauses.map(dispatch).mkString(NL)
+    case Query(maybePeriodicCommit, part) =>
+      maybePeriodicCommit match {
+        case None => queryPart(part)
+        case Some(periodicCommit) =>
+          val sb = new StringBuilder
+          sb ++= "USING PERIODIC COMMIT"
+          for (x <- periodicCommit.size) {
+            sb += ' '
+            sb ++= x.value.toString
+          }
+          sb ++= NL
+          sb ++= queryPart(part)
+          sb.result()
+      }
+
+    case CreateIndex(LabelName(label), properties) =>
+      s"CREATE INDEX ON :$label${properties.map(_.name).mkString("(", ", ", ")")}"
+
+    case DropIndex(LabelName(label), properties) =>
+      s"DROP INDEX ON :$label${properties.map(_.name).mkString("(", ", ", ")")}"
+
+    case CreateNodeKeyConstraint(Variable(variable), LabelName(label), properties) =>
+      s"CREATE CONSTRAINT ON ($variable:$label) ASSERT ${asString(properties)} IS NODE KEY"
+
+    case DropNodeKeyConstraint(Variable(variable), LabelName(label), properties) =>
+      s"DROP CONSTRAINT ON ($variable:$label) ASSERT ${properties.map(_.asCanonicalStringVal).mkString("(", ", ", ")")} IS NODE KEY"
+
+    case CreateUniquePropertyConstraint(Variable(variable), LabelName(label), properties) =>
+      s"CREATE CONSTRAINT ON ($variable:$label) ASSERT ${properties.map(_.asCanonicalStringVal).mkString("(", ", ", ")")} IS UNIQUE"
+
+    case DropUniquePropertyConstraint(Variable(variable), LabelName(label), properties) =>
+      s"DROP CONSTRAINT ON ($variable:$label) ASSERT ${properties.map(_.asCanonicalStringVal).mkString("(", ", ", ")")} IS UNIQUE"
+
+    case CreateNodePropertyExistenceConstraint(Variable(variable), LabelName(label), property) =>
+      s"CREATE CONSTRAINT ON ($variable:$label) ASSERT exists(${property.asCanonicalStringVal})"
+
+    case DropNodePropertyExistenceConstraint(Variable(variable), LabelName(label), property) =>
+      s"DROP CONSTRAINT ON ($variable:$label) ASSERT exists(${property.asCanonicalStringVal})"
+
+    case CreateRelationshipPropertyExistenceConstraint(Variable(variable), RelTypeName(relType), property) =>
+      s"CREATE CONSTRAINT ON ()-[$variable:$relType]-() ASSERT exists(${property.asCanonicalStringVal})"
+
+    case DropRelationshipPropertyExistenceConstraint(Variable(variable), RelTypeName(relType), property) =>
+      s"DROP CONSTRAINT ON ()-[$variable:$relType]-() ASSERT exists(${property.asCanonicalStringVal})"
+
+    case x @ CreateGraph(catalogName, query) =>
+      val graphName = catalogName.parts.mkString(".")
+      s"${x.name} $graphName {$NL${queryPart(query)}$NL}"
+
+    case x @ DropGraph(catalogName) =>
+      val graphName = catalogName.parts.mkString(".")
+      s"${x.name} $graphName"
+
+    case x @ CreateView(catalogName, params, query, innerQuery) =>
+      val graphName = catalogName.parts.mkString(".")
+      val paramString = params.map(p => "$" + p.name).mkString("(", ", ", ")")
+      s"CATALOG CREATE VIEW $graphName$paramString {$NL${queryPart(query)}$NL}"
+
+    case x @ DropView(catalogName) =>
+      val graphName = catalogName.parts.mkString(".")
+      s"CATALOG DROP VIEW $graphName"
   }
+
+  private def queryPart(part: QueryPart): String =
+    part match {
+      case SingleQuery(clauses) =>
+        clauses.map(dispatch).mkString(NL)
+
+      case UnionAll(partA, partB) =>
+        s"${queryPart(partA)}${NL}UNION ALL$NL${queryPart(partB)}"
+
+      case UnionDistinct(partA, partB) =>
+        s"${queryPart(partA)}${NL}UNION$NL${queryPart(partB)}"
+    }
 
   private def dispatch(clause: Clause) = clause match {
     case e: Return => asString(e)
@@ -35,6 +107,10 @@ case class Prettifier(mkStringOf: ExpressionStringifier) {
     case s: SetClause => asString(s)
     case d: Delete => asString(d)
     case m: Merge => asString(m)
+    case l: LoadCSV => asString(l)
+    case f: Foreach => asString(f)
+    case s: Start => asString(s)
+    case c: CreateUnique => asString(c)
     case _ => clause.asCanonicalStringVal // TODO
   }
 
@@ -126,7 +202,51 @@ case class Prettifier(mkStringOf: ExpressionStringifier) {
     s"SET ${items.mkString(", ")}"
   }
 
+  private def asString(v: LoadCSV): String = {
+    val withHeaders = if (v.withHeaders) " WITH HEADERS" else ""
+    val url = mkStringOf(v.urlString)
+    val varName = v.variable.name
+    val fieldTerminator = v.fieldTerminator.map(x => " FIELDTERMINATOR "+mkStringOf(x)).getOrElse("")
+    s"LOAD CSV$withHeaders FROM $url AS $varName$fieldTerminator"
+  }
+
   private def asString(delete: Delete): String = {
     s"DELETE ${delete.expressions.map(mkStringOf(_)).mkString(", ")}"
   }
+
+  private def asString(foreach: Foreach): String = {
+    val varName = foreach.variable.name
+    val list = mkStringOf(foreach.expression)
+    val updates = foreach.updates.map(dispatch).mkString(s"$NL  ", s"$NL  ", NL)
+    s"FOREACH ( $varName IN $list |$updates)"
+  }
+
+  private def asString(start: Start): String = {
+
+
+    val startItems =
+      start.items.map {
+        case AllNodes(v) => s"${v.name} = NODE( * )"
+        case NodeByIds(v, ids) => s"${v.name} = NODE( ${ids.map(_.value.toString).mkString(", ")} )"
+        case NodeByParameter(v, param) => s"${v.name} = NODE( $$${param.name} )"
+        case NodeByIdentifiedIndex(v, index, key, value) => s"${v.name} = NODE:$index( $key = ${mkStringOf(value)} )"
+        case NodeByIndexQuery(v, index, query) => s"${v.name} = NODE:$index( ${mkStringOf(query)} )"
+        case AllRelationships(v) => s"${v.name} = RELATIONSHIP( * )"
+        case RelationshipByIds(v, ids) => s"${v.name} = RELATIONSHIP( ${ids.map(_.value.toString).mkString(", ")} )"
+        case RelationshipByParameter(v, param) => s"${v.name} = RELATIONSHIP( $$${param.name} )"
+        case RelationshipByIdentifiedIndex(v, index, key, value) => s"${v.name} = RELATIONSHIP:$index( $key = ${mkStringOf(value)} )"
+        case RelationshipByIndexQuery(v, index, query) => s"${v.name} = RELATIONSHIP:$index( ${mkStringOf(query)} )"
+      }
+
+    val where = start.where.map(w => NL + "  WHERE " + mkStringOf(w.expression)).getOrElse("")
+    s"START ${startItems.mkString(s",$NL      ")}$where"
+  }
+
+  private def asString(c: CreateUnique): String = {
+    val p = c.pattern.patternParts.map(p => asString(p)).mkString(", ")
+    s"CREATE UNIQUE $p"
+  }
+
+  private def asString(properties: Seq[Property]): String =
+    properties.map(_.asCanonicalStringVal).mkString("(", ", ", ")")
 }

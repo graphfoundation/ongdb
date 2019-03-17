@@ -19,8 +19,12 @@
  */
 package org.neo4j.internal.collector
 
+import java.nio.file.Files
+
 import org.neo4j.cypher._
 import org.scalatest.matchers.{MatchResult, Matcher}
+
+import scala.collection.mutable.ArrayBuffer
 
 class DataCollectorQueriesAcceptanceTest extends ExecutionEngineFunSuite {
 
@@ -197,22 +201,10 @@ class DataCollectorQueriesAcceptanceTest extends ExecutionEngineFunSuite {
         "section" -> "QUERIES",
         "data" -> beMapContaining(
           "query" -> "MATCH (n {p: $param}) RETURN count(n)",
-          "invocations" -> beListInOrder(
-            beMapContaining(
-              "params" -> Map("param" -> "BrassLeg"),
-              "elapsedExecutionTimeInUs" -> ofType[Long],
-              "elapsedCompileTimeInUs" -> ofType[Long]
-            ),
-            beMapContaining(
-              "params" -> Map("param" -> 2),
-              "elapsedExecutionTimeInUs" -> ofType[Long],
-              "elapsedCompileTimeInUs" -> ofType[Long]
-            ),
-            beMapContaining(
-              "params" -> Map("param" -> List(3.1, 3.2)),
-              "elapsedExecutionTimeInUs" -> ofType[Long],
-              "elapsedCompileTimeInUs" -> ofType[Long]
-            )
+          "invocations" -> beInvocationsInOrder(
+            Map("param" -> "BrassLeg"),
+            Map("param" -> Long.box(2)),
+            Map("param" -> List(3.1, 3.2))
           )
         )
       ),
@@ -220,16 +212,7 @@ class DataCollectorQueriesAcceptanceTest extends ExecutionEngineFunSuite {
         "section" -> "QUERIES",
         "data" -> beMapContaining(
           "query" -> "WITH 42 AS x RETURN x",
-          "invocations" -> beListInOrder(
-            beMapContaining(
-              "elapsedExecutionTimeInUs" -> ofType[Long],
-              "elapsedCompileTimeInUs" -> ofType[Long]
-            ),
-            beMapContaining(
-              "elapsedExecutionTimeInUs" -> ofType[Long],
-              "elapsedCompileTimeInUs" -> ofType[Long]
-            )
-          )
+          "invocations" -> beInvocationCount(2)
         )
       )
     )
@@ -282,13 +265,9 @@ class DataCollectorQueriesAcceptanceTest extends ExecutionEngineFunSuite {
         "section" -> "QUERIES",
         "data" -> beMapContaining(
           "query" -> "MATCH (n {p: $param}) RETURN count(n)",
-          "invocations" -> beListInOrder(
-            beMapContaining(
-              "params" -> Map("param" -> "BrassLeg")
-            ),
-            beMapContaining(
-              "params" -> Map("param" -> 2)
-            )
+          "invocations" -> beInvocationsInOrder(
+            Map("param" -> "BrassLeg"),
+            Map("param" -> 2)
           )
         )
       ),
@@ -296,10 +275,7 @@ class DataCollectorQueriesAcceptanceTest extends ExecutionEngineFunSuite {
         "section" -> "QUERIES",
         "data" -> beMapContaining(
           "query" -> "WITH 42 AS x RETURN x",
-          "invocations" -> beListInOrder(
-            beMapContaining(),
-            beMapContaining()
-          )
+          "invocations" -> beInvocationCount(2)
         )
       )
     )
@@ -327,6 +303,44 @@ class DataCollectorQueriesAcceptanceTest extends ExecutionEngineFunSuite {
     res.toList should beListWithoutOrder(
       querySection("MATCH (:L0)-[:R0]->(:L1)-[:R1]->(:L2) RETURN 1"),
       querySection("MATCH ({p1: 42}), ({p0: 43}) RETURN 1")
+    )
+  }
+
+  test("[retrieveAllAnonymized] should handle pre-parser options") {
+    // given
+    execute("CREATE (:User {age: 99})-[:KNOWS]->(:Buddy {p: 42})-[:WANTS]->(:Raccoon)") // create tokens
+    execute("CALL db.stats.collect('QUERIES')").single
+    execute("EXPLAIN MATCH (:User)-[:KNOWS]->(:Buddy)-[:WANTS]->(:Raccoon) RETURN 1")
+    execute("CYPHER 3.4 runtime=interpreted PROFILE CREATE ()")
+    execute("CALL db.stats.stop('QUERIES')").single
+
+    // when
+    val res = execute("CALL db.stats.retrieveAllAnonymized('myToken')")
+
+    // then
+    res.toList should beListWithoutOrder(
+      querySection("EXPLAIN MATCH (:L0)-[:R0]->(:L1)-[:R1]->(:L2) RETURN 1"),
+      querySection("CYPHER 3.4 runtime=interpreted PROFILE CREATE ()")
+    )
+  }
+
+  test("[retrieveAllAnonymized] should handle load csv") {
+    // given
+    val path = Files.createTempFile("data", ".csv")
+    val url = s"file://$path"
+    execute("CALL db.stats.collect('QUERIES')").single
+    execute(s"LOAD CSV FROM '$url' AS row CREATE ({key: row[0]})")
+    execute(s"USING PERIODIC COMMIT 30 LOAD CSV FROM '$url' AS row CREATE ({key: row[0]})")
+    execute("CALL db.stats.stop('QUERIES')").single
+
+    // when
+    val res = execute("CALL db.stats.retrieveAllAnonymized('myToken')")
+
+    // then
+    val urlLength = url.length
+    res.toList should beListWithoutOrder(
+      querySection(s"LOAD CSV FROM 'string[$urlLength]' AS var0 CREATE ({UNKNOWN0: var0[0]})"),
+      querySection(s"USING PERIODIC COMMIT 30 LOAD CSV FROM 'string[$urlLength]' AS var0 CREATE ({UNKNOWN0: var0[0]})")
     )
   }
 
@@ -399,18 +413,10 @@ class DataCollectorQueriesAcceptanceTest extends ExecutionEngineFunSuite {
         "section" -> "QUERIES",
         "data" -> beMapContaining(
           "query" -> "RETURN 42 = $param0, $param1",
-          "invocations" -> beListInOrder(
-            beMapContaining(
-              "params" -> "4ac156c0", // Map("user" -> "BrassLeg", "name" -> "George")
-              "elapsedExecutionTimeInUs" -> ofType[Long],
-              "elapsedCompileTimeInUs" -> ofType[Long]
-            ),
-            beMapContaining(
-              "params" -> "b439d06c" // Map("user" -> 2, "name" -> "Glinda")
-            ),
-            beMapContaining(
-              "params" -> "e5adc9ad" // Map("user" -> List(3.1, 3.2), "name" -> "Kim")
-            )
+          "invocations" -> beInvocationsInOrder(
+            "4ac156c0", // Map("user" -> "BrassLeg", "name" -> "George")
+            "b439d06c", // Map("user" -> 2, "name" -> "Glinda")
+            "e5adc9ad"  // Map("user" -> List(3.1, 3.2), "name" -> "Kim")
           )
         )
       ),
@@ -418,10 +424,8 @@ class DataCollectorQueriesAcceptanceTest extends ExecutionEngineFunSuite {
         "section" -> "QUERIES",
         "data" -> beMapContaining(
           "query" -> "RETURN $param0, $param1, $param0 + $param1",
-          "invocations" -> beListInOrder(
-            beMapContaining(
-              "params" -> "e5adc9ad" // Map("user" -> List(3.1, 3.2), "name" -> "Kim")
-            )
+          "invocations" -> beInvocationsInOrder(
+            "e5adc9ad" // Map("user" -> List(3.1, 3.2), "name" -> "Kim")
           )
         )
       )
@@ -475,5 +479,60 @@ class DataCollectorQueriesAcceptanceTest extends ExecutionEngineFunSuite {
           MatchResult(matches = false, s"Expected map, got $left", "")
       }
     }
+  }
+
+  def beInvocationCount(count: Int) = InvocationsMatcher((0 until count).map(_ => null))
+
+  def beInvocationsInOrder(expectedParams: AnyRef*) = InvocationsMatcher(expectedParams)
+
+  case class InvocationsMatcher(expectedParams: Seq[AnyRef]) extends Matcher[AnyRef] {
+
+    override def apply(left: AnyRef): MatchResult = {
+      val errors = new ArrayBuffer[String]
+      left match {
+        case values: Seq[AnyRef] =>
+
+          var previousInvocationTime = 0L
+
+          for (i <- expectedParams.indices) {
+            val expectedParam = expectedParams(i)
+
+            if (i < values.size) {
+              values(i) match {
+                case map: Map[String, AnyRef] =>
+                  if (expectedParam != null) {
+                    val params = map.getOrElse("params", null)
+                    if (params != expectedParam)
+                      errors += s"Expected invocation with params '$expectedParam' at position $i, but has params '$params'"
+                  }
+
+                  map("elapsedExecutionTimeInUs").asInstanceOf[Long] should be > 0L
+                  map("elapsedCompileTimeInUs").asInstanceOf[Long] should be > 0L
+                  map("startTimestampMillis").asInstanceOf[Long] should be > 0L
+                  val invocationTime = map("startTimestampMillis").asInstanceOf[Long]
+                  if (invocationTime < previousInvocationTime)
+                    errors += s"Expected invocations to be ordered by start timestamp, but got invocation with timestamp $invocationTime ordered after invocation with timestamp $previousInvocationTime"
+                  previousInvocationTime = invocationTime
+
+                case x => errors += s"Expected all invocations to be maps, but got $x"
+              }
+
+            } else
+              errors += s"Expected invocation with param '$expectedParam' at position $i, but list was too small"
+          }
+          if (values.size > expectedParams.size)
+            errors += s"Expected ${expectedParams.size} invocations, but got additional invocations ${values.slice(expectedParams.size, values.size)}"
+
+        case x =>
+          errors += s"Expected invocation list but got '$x'"
+      }
+      MatchResult(
+        matches = errors.isEmpty,
+        rawFailureMessage = "Encountered a bunch of errors: " + errors.map("  "+_).mkString("\n", "\n", "\n"),
+        rawNegatedFailureMessage = "BAH"
+      )
+    }
+
+    override def toString(): String = s"invocations with params (${expectedParams.mkString(", ")})"
   }
 }

@@ -177,6 +177,18 @@ public interface KernelTransaction extends Transaction, AssertOpen
      */
     void setMetaData( Map<String, Object> metaData );
 
+    /**
+     * Get a map of data that is attached to this transaction.
+     * In cases when no metadata was set before, an empty map is returned.
+     */
+    Map<String, Object> getMetaData();
+
+    /**
+     * @return whether or not this transaction is a schema transaction. Type of transaction is decided
+     * on first write operation, be it data or schema operation.
+     */
+    boolean isSchemaTransaction();
+
     @FunctionalInterface
     interface Revertable extends AutoCloseable
     {

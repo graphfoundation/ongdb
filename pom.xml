@@ -164,8 +164,6 @@
         </includes>
       </testResource>
     </testResources>
-
-    <!-- Plugin definitions -->
     <pluginManagement>
       <plugins>
 
@@ -1230,6 +1228,12 @@
         <groupId>org.scalacheck</groupId>
         <artifactId>scalacheck_2.11</artifactId>
         <version>1.12.5</version>
+        <scope>test</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.json4s</groupId>
+        <artifactId>json4s-native_2.11</artifactId>
+        <version>3.6.1</version>
         <scope>test</scope>
       </dependency>
       <dependency>
