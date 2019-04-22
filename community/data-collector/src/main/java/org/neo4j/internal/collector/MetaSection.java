@@ -26,7 +26,9 @@ import java.lang.management.RuntimeMXBean;
 import java.nio.ByteOrder;
 import java.time.ZonedDateTime;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
+import java.util.TimeZone;
 import java.util.stream.Stream;
 
 import org.neo4j.internal.kernel.api.Kernel;
@@ -43,7 +45,9 @@ final class MetaSection
     { // only static methods
     }
 
-    static Stream<RetrieveResult> retrieve( String graphToken, Kernel kernel ) throws TransactionFailureException
+    static Stream<RetrieveResult> retrieve( String graphToken,
+                                            Kernel kernel,
+                                            long numSilentQueryDrops ) throws TransactionFailureException
     {
         Map<String, Object> systemData = new HashMap<>();
         systemData.put( "jvmMemoryFree", Runtime.getRuntime().freeMemory() );
@@ -69,15 +73,20 @@ final class MetaSection
         CompilationMXBean compiler = ManagementFactory.getCompilationMXBean();
         systemData.put( "jvmJITCompiler", compiler == null ? "unknown" : compiler.getName() );
 
-        systemData.put( "userLanguage", System.getProperty( "user.language" ) );
-        systemData.put( "userCountry", System.getProperty( "user.country" ) );
-        systemData.put( "userTimezone", System.getProperty( "user.timezone" ) );
+        systemData.put( "userLanguage", Locale.getDefault().getLanguage() );
+        systemData.put( "userCountry", Locale.getDefault().getCountry() );
+        systemData.put( "userTimezone", TimeZone.getDefault().getID() );
         systemData.put( "fileEncoding",  System.getProperty( "file.encoding" ) );
+
+        Map<String, Object> internalData = new HashMap<>();
+        internalData.put( "numSilentQueryCollectionMisses", numSilentQueryDrops );
 
         Map<String, Object> metaData = new HashMap<>();
         metaData.put( "graphToken", graphToken );
         metaData.put( "retrieveTime", ZonedDateTime.now() );
         metaData.put( "system", systemData );
+        metaData.put( "internal", internalData );
+
         TokensSection.putTokenCounts( metaData, kernel );
 
         return Stream.of( new RetrieveResult( Sections.META, metaData ) );
