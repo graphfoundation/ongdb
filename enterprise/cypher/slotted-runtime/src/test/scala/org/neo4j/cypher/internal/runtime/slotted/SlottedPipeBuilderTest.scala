@@ -25,7 +25,7 @@ import org.neo4j.cypher.internal.compatibility.v3_5.runtime.SlotConfiguration.Si
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime._
 import org.neo4j.cypher.internal.compiler.v3_5.planner.{HardcodedGraphStatistics, LogicalPlanningTestSupport2}
 import org.neo4j.cypher.internal.ir.v3_5.{CreateNode, VarPatternLength}
-import org.neo4j.cypher.internal.planner.v3_5.spi.{PlanContext, TokenContext}
+import org.neo4j.cypher.internal.planner.v3_5.spi.{PlanContext, TokenContext, GraphStatistics, InstrumentedGraphStatistics}
 import org.neo4j.cypher.internal.runtime.interpreted.commands
 import org.neo4j.cypher.internal.runtime.interpreted.commands.convert.{CommunityExpressionConverter, ExpressionConverters}
 import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.{Literal, Property, Variable}
@@ -47,10 +47,10 @@ import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
 class SlottedPipeBuilderTest extends CypherFunSuite with LogicalPlanningTestSupport2 {
 
   implicit private val table = SemanticTable()
-
+  private val statistics = mock[InstrumentedGraphStatistics]
   private def build(beforeRewrite: LogicalPlan): Pipe = {
     val planContext = mock[PlanContext]
-    when(planContext.statistics).thenReturn(HardcodedGraphStatistics)
+    when(planContext.statistics).thenReturn(statistics)
     when(planContext.getOptPropertyKeyId("propertyKey")).thenReturn(Some(0))
     val physicalPlan: PhysicalPlan = SlotAllocation.allocateSlots(beforeRewrite, table)
     val slottedRewriter = new SlottedRewriter(planContext)
