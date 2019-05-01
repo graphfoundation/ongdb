@@ -31,7 +31,8 @@ import org.neo4j.cypher.internal.codegen.profiling.ProfilingTracer
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.executionplan.Provider
 import org.neo4j.cypher.internal.compiler.v3_5.planner.LogicalPlanConstructionTestSupport
 import org.neo4j.cypher.internal.executionplan.{GeneratedQuery, GeneratedQueryExecution}
-import org.neo4j.cypher.internal.planner.v3_5.spi.{CostBasedPlannerName, GraphStatistics, PlanContext}
+import org.neo4j.cypher.internal.planner.v3_5.spi.{CostBasedPlannerName, GraphStatistics, PlanContext, InstrumentedGraphStatistics}
+
 import org.neo4j.cypher.internal.runtime._
 import org.neo4j.cypher.internal.runtime.compiled.codegen._
 import org.neo4j.cypher.internal.runtime.compiled.codegen.ir.Instruction
@@ -63,7 +64,8 @@ trait CodeGenSugar extends MockitoSugar with LogicalPlanConstructionTestSupport 
   private val semanticTable = mock[SemanticTable]
 
   def compile(plan: LogicalPlan): CompiledPlan = {
-    val statistics: GraphStatistics = mock[GraphStatistics]
+    //val statistics: GraphStatistics = mock[GraphStatistics]
+    val statistics = mock[InstrumentedGraphStatistics]
     val context = mock[PlanContext]
     doReturn(statistics, Nil: _*).when(context).statistics
     new CodeGenerator(GeneratedQueryStructure, Clocks.systemClock())
