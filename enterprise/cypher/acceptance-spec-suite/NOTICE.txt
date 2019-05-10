@@ -50,6 +50,10 @@ BSD License
   scala-parser-combinators
   scala-xml
   Scalap
+  Zstandard
+
+BSD License 2-clause
+  zstd-jni
 
 Bouncy Castle License
   Bouncy Castle PKIX, CMS, EAC, TSP, PKCS, OCSP, CMP, and CRMF APIs
