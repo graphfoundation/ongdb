@@ -59,6 +59,7 @@ import org.neo4j.kernel.impl.api.KernelTransactionImplementation;
 import org.neo4j.kernel.impl.api.index.sampling.IndexSamplingConfig;
 import org.neo4j.kernel.impl.core.TokenHolders;
 import org.neo4j.kernel.impl.factory.OperationalMode;
+import org.neo4j.kernel.impl.index.schema.ByteBufferFactory;
 import org.neo4j.kernel.impl.newapi.AllStoreHolder;
 import org.neo4j.kernel.impl.storemigration.StoreMigrationParticipant;
 import org.neo4j.kernel.impl.storemigration.participant.SchemaIndexMigrator;
@@ -175,7 +176,8 @@ class FulltextIndexProvider extends IndexProvider implements FulltextAdapter, Au
         // All of the above has failed, so we need to load the settings in from the storage directory of the index.
         // This situation happens during recovery.
         PartitionedIndexStorage indexStorage = getIndexStorage( descriptor.getId() );
-        fulltextIndexDescriptor = readOrInitialiseDescriptor( descriptor, defaultAnalyzerName, tokenHolders.propertyKeyTokens(), indexStorage, fileSystem );
+        fulltextIndexDescriptor =
+                readOrInitialiseDescriptor( descriptor, defaultAnalyzerName, tokenHolders.propertyKeyTokens(), indexStorage.getIndexFolder(), fileSystem );
         return new FulltextIndexCapability( fulltextIndexDescriptor.isEventuallyConsistent() );
     }
 
@@ -222,11 +224,11 @@ class FulltextIndexProvider extends IndexProvider implements FulltextAdapter, Au
     }
 
     @Override
-    public IndexPopulator getPopulator( StoreIndexDescriptor descriptor, IndexSamplingConfig samplingConfig )
+    public IndexPopulator getPopulator( StoreIndexDescriptor descriptor, IndexSamplingConfig samplingConfig, ByteBufferFactory bufferFactory )
     {
         PartitionedIndexStorage indexStorage = getIndexStorage( descriptor.getId() );
         FulltextIndexDescriptor fulltextIndexDescriptor = readOrInitialiseDescriptor(
-                descriptor, defaultAnalyzerName, tokenHolders.propertyKeyTokens(), indexStorage, fileSystem );
+                descriptor, defaultAnalyzerName, tokenHolders.propertyKeyTokens(), indexStorage.getIndexFolder(), fileSystem );
         DatabaseIndex<FulltextIndexReader> fulltextIndex = FulltextIndexBuilder
                 .create( fulltextIndexDescriptor, config, tokenHolders.propertyKeyTokens() )
                 .withFileSystem( fileSystem )
@@ -240,7 +242,7 @@ class FulltextIndexProvider extends IndexProvider implements FulltextAdapter, Au
         }
         log.debug( "Creating populator for fulltext schema index: %s", descriptor );
         return new FulltextIndexPopulator( fulltextIndexDescriptor, fulltextIndex,
-                () -> FulltextIndexSettings.saveFulltextIndexSettings( fulltextIndexDescriptor, indexStorage, fileSystem ) );
+                () -> FulltextIndexSettings.saveFulltextIndexSettings( fulltextIndexDescriptor, indexStorage.getIndexFolder(), fileSystem ) );
     }
 
     @Override
@@ -249,7 +251,7 @@ class FulltextIndexProvider extends IndexProvider implements FulltextAdapter, Au
         PartitionedIndexStorage indexStorage = getIndexStorage( descriptor.getId() );
 
         FulltextIndexDescriptor fulltextIndexDescriptor = readOrInitialiseDescriptor(
-                descriptor, defaultAnalyzerName, tokenHolders.propertyKeyTokens(), indexStorage, fileSystem );
+                descriptor, defaultAnalyzerName, tokenHolders.propertyKeyTokens(), indexStorage.getIndexFolder(), fileSystem );
         FulltextIndexBuilder fulltextIndexBuilder = FulltextIndexBuilder
                 .create( fulltextIndexDescriptor, config, tokenHolders.propertyKeyTokens() )
                 .withFileSystem( fileSystem )

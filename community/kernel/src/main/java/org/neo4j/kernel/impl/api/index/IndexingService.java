@@ -144,6 +144,10 @@ public class IndexingService extends LifecycleAdapter implements IndexingUpdateS
         void indexPopulationScanComplete();
 
         void awaitingPopulationOfRecoveredIndex( StoreIndexDescriptor descriptor );
+
+        void populationCancelled();
+
+        void populationJobCompleted( long peakDirectMemoryUsage );
     }
 
     public static class MonitorAdapter implements Monitor
@@ -170,6 +174,15 @@ public class IndexingService extends LifecycleAdapter implements IndexingUpdateS
 
         @Override
         public void awaitingPopulationOfRecoveredIndex( StoreIndexDescriptor descriptor )
+        {   // Do nothing
+        }
+
+        @Override
+        public void populationCancelled()
+        {   // Do nothing
+        }
+
+        public void populationJobCompleted( long peakDirectMemoryUsage )
         {   // Do nothing
         }
     }

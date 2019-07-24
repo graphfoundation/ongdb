@@ -107,11 +107,13 @@
     <currentYear>2019</currentYear>
     <cypher.compatibility.23>2.3.12</cypher.compatibility.23>
     <cypher.compatibility.31>3.1.9</cypher.compatibility.31>
-    <cypher.compatibility.34>3.4.13</cypher.compatibility.34>
+    <cypher.compatibility.34>3.4.14</cypher.compatibility.34>
     <opencypher.version>1.0.0-M12</opencypher.version>
     <caffeine.version>2.6.2</caffeine.version>
     <required.maven.version>3.5.2</required.maven.version>
     <jackson.version>1.9.13</jackson.version>
+	  <amazon-sdk.version>1.11.524</amazon-sdk.version>
+	  <guava.version>26.0-jre</guava.version>
   </properties>
 
   <modules>
@@ -325,26 +327,6 @@
                       <!-- Ignore for now since some are already published, should be removed in 4.0 -->
                       <code>java.class.nonPublicPartOfAPI</code>
                   </item>
-                <item>
-                  <code>java.field.addedStaticField</code>
-                  <new>field org.neo4j.graphdb.factory.GraphDatabaseSettings.data_collector_max_query_text_size</new>
-                  <justification>
-                    Adding a static field is generally not permitted because it could clash someone extending
-                    the class and adding a field with the same name. The risk that someone does that for our setting
-                    with the specific setting that we've added is so small the we think violation of the rule is the right
-                    thing to do.
-                  </justification>
-                </item>
-                <item>
-                  <code>java.field.addedStaticField</code>
-                  <new>field org.neo4j.graphdb.factory.GraphDatabaseSettings.data_collector_max_recent_query_count</new>
-                  <justification>
-                    Adding a static field is generally not permitted because it could clash someone extending
-                    the class and adding a field with the same name. The risk that someone does that for our setting
-                    with the specific setting that we've added is so small the we think violation of the rule is the right
-                    thing to do.
-                  </justification>
-                </item>
               </revapi.ignore>
               <revapi.semver.ignore>
                 <enabled>true</enabled>
@@ -1108,10 +1090,14 @@
       <dependency>
         <groupId>com.google.guava</groupId>
         <artifactId>guava-testlib</artifactId>
-        <version>26.0-jre</version>
+        <version>${guava.version}</version>
         <scope>test</scope>
       </dependency>
-
+	  <dependency>
+        <groupId>com.google.guava</groupId>
+        <artifactId>guava</artifactId>
+        <version>${guava.version}</version>
+      </dependency>
       <dependency>
         <groupId>org.apache.httpcomponents</groupId>
         <artifactId>httpclient</artifactId>
@@ -1500,7 +1486,6 @@
         <version>0.15</version>
         <scope>test</scope>
       </dependency>
-
       <dependency>
         <groupId>org.glassfish.jaxb</groupId>
         <artifactId>jaxb-runtime</artifactId>
@@ -1522,6 +1507,17 @@
         <version>1.1.1</version>
       </dependency>
 
+      <!-- used by benchmark-infra module -->
+      <dependency>
+      	<groupId>com.amazonaws</groupId>
+      	<artifactId>aws-java-sdk-batch</artifactId>
+      	<version>${amazon-sdk.version}</version>
+      </dependency>
+      <dependency>
+      	<groupId>com.amazonaws</groupId>
+      	<artifactId>aws-java-sdk-s3</artifactId>
+      	<version>${amazon-sdk.version}</version>
+      </dependency>
     </dependencies>
   </dependencyManagement>
 </project>

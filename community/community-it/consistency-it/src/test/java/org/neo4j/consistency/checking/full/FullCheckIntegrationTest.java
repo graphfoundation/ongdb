@@ -27,8 +27,12 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.RuleChain;
 
+import java.io.File;
 import java.io.IOException;
+import java.io.RandomAccessFile;
 import java.lang.reflect.Method;
+import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -49,6 +53,7 @@ import org.neo4j.consistency.checking.GraphStoreFixture.IdGenerator;
 import org.neo4j.consistency.checking.GraphStoreFixture.TransactionDataBuilder;
 import org.neo4j.consistency.report.ConsistencyReport;
 import org.neo4j.consistency.report.ConsistencySummaryStatistics;
+import org.neo4j.function.ThrowingFunction;
 import org.neo4j.graphdb.DependencyResolver;
 import org.neo4j.graphdb.Direction;
 import org.neo4j.graphdb.GraphDatabaseService;
@@ -136,6 +141,7 @@ import static org.neo4j.kernel.api.StatementConstants.ANY_LABEL;
 import static org.neo4j.kernel.api.StatementConstants.ANY_RELATIONSHIP_TYPE;
 import static org.neo4j.kernel.api.labelscan.NodeLabelUpdate.labelChanges;
 import static org.neo4j.kernel.api.schema.SchemaDescriptorFactory.forLabel;
+import static org.neo4j.kernel.impl.index.schema.ByteBufferFactory.heapBufferFactory;
 import static org.neo4j.kernel.impl.store.AbstractDynamicStore.readFullByteArrayFromHeavyRecords;
 import static org.neo4j.kernel.impl.store.DynamicArrayStore.allocateFromNumbers;
 import static org.neo4j.kernel.impl.store.DynamicArrayStore.getRightArray;
@@ -456,10 +462,9 @@ public class FullCheckIntegrationTest
             StoreIndexDescriptor rule = rules.next();
             IndexSamplingConfig samplingConfig = new IndexSamplingConfig( Config.defaults() );
             IndexPopulator populator = storeAccess.indexes().lookup( rule.providerDescriptor() )
-                .getPopulator( rule, samplingConfig );
+                .getPopulator( rule, samplingConfig, heapBufferFactory( 1024 ) );
             populator.markAsFailed( "Oh noes! I was a shiny index and then I was failed" );
             populator.close( false );
-
         }
 
         for ( Long indexedNodeId : indexedNodes )
@@ -2119,6 +2124,52 @@ public class FullCheckIntegrationTest
         } );
     }
 
+    @Test
+    public void shouldReportMissingCountsStore() throws Exception
+    {
+        shouldReportBadCountsStore( this::corruptFileIfExists );
+    }
+
+    @Test
+    public void shouldReportBrokenCountsStore() throws Exception
+    {
+        shouldReportBadCountsStore( File::delete );
+    }
+
+    private void shouldReportBadCountsStore( ThrowingFunction<File,Boolean,IOException> fileAction ) throws Exception
+    {
+        // given
+        boolean aCorrupted = fileAction.apply( fixture.databaseLayout().countStoreA() );
+        boolean bCorrupted = fileAction.apply( fixture.databaseLayout().countStoreB() );
+        assertTrue( aCorrupted || bCorrupted );
+
+        // When
+        ConsistencySummaryStatistics stats = check();
+
+        // Then report will be filed on Node inconsistent with the Property completing the circle
+        on( stats ).verify( RecordType.COUNTS, 1 );
+    }
+
+    private boolean corruptFileIfExists( File file ) throws IOException
+    {
+        if ( file.exists() )
+        {
+            try ( RandomAccessFile accessFile = new RandomAccessFile( file, "rw" ) )
+            {
+                FileChannel channel = accessFile.getChannel();
+                ByteBuffer buffer = ByteBuffer.allocate( 30 );
+                while ( buffer.hasRemaining() )
+                {
+                    buffer.put( (byte) 9 );
+                }
+                buffer.flip();
+                channel.write( buffer );
+            }
+            return true;
+        }
+        return false;
+    }
+
     private void shouldReportCircularPropertyRecordChain( RecordType expectedInconsistentRecordType, EntityCreator entityCreator ) throws Exception
     {
         // Given
@@ -2165,14 +2216,14 @@ public class FullCheckIntegrationTest
 
     private ConsistencySummaryStatistics check() throws ConsistencyCheckIncompleteException
     {
-        return check( fixture.directStoreAccess() );
+        return check( fixture.readOnlyDirectStoreAccess() );
     }
 
     private ConsistencySummaryStatistics check( DirectStoreAccess stores ) throws ConsistencyCheckIncompleteException
     {
         Config config = config();
         FullCheck checker = new FullCheck( config, ProgressMonitorFactory.NONE, fixture.getAccessStatistics(),
-                defaultConsistencyCheckThreadsNumber() );
+                defaultConsistencyCheckThreadsNumber(), true );
         return checker.execute( stores, FormattedLog.toOutputStream( System.out ),
                 ( report, method, message ) ->
                 {

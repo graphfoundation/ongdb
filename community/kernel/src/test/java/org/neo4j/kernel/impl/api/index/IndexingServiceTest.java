@@ -505,9 +505,10 @@ public class IndexingServiceTest
         indexingService.init();
 
         // then
-        onBothLogProviders( logProvider -> logProvider.assertNoMessagesContaining( "IndexingService.init: Deprecated index providers in use:" ) );
-        onBothLogProviders( logProvider -> internalLogProvider.assertNoMessagesContaining( nativeBtree10Descriptor.name() ) );
-        onBothLogProviders( logProvider -> internalLogProvider.assertNoMessagesContaining( fulltextDescriptor.name() ) );
+        onBothLogProviders(
+                logProvider -> logProvider.rawMessageMatcher().assertNotContains( "IndexingService.init: Deprecated index providers in use:" ) );
+        onBothLogProviders( logProvider -> internalLogProvider.rawMessageMatcher().assertNotContains( nativeBtree10Descriptor.name() ) );
+        onBothLogProviders( logProvider -> internalLogProvider.rawMessageMatcher().assertNotContains( fulltextDescriptor.name() ) );
     }
 
     @Test
@@ -544,9 +545,10 @@ public class IndexingServiceTest
         indexingService.start();
 
         // then
-        onBothLogProviders( logProvider -> internalLogProvider.assertNoMessagesContaining( "IndexingService.start: Deprecated index providers in use:" ) );
-        onBothLogProviders( logProvider -> internalLogProvider.assertNoMessagesContaining( nativeBtree10Descriptor.name() ) );
-        onBothLogProviders( logProvider -> internalLogProvider.assertNoMessagesContaining( fulltextDescriptor.name() ) );
+        AssertableLogProvider.MessageMatcher messageMatcher = internalLogProvider.rawMessageMatcher();
+        onBothLogProviders( logProvider -> messageMatcher.assertNotContains( "IndexingService.start: Deprecated index providers in use:" ) );
+        onBothLogProviders( logProvider -> messageMatcher.assertNotContains( nativeBtree10Descriptor.name() ) );
+        onBothLogProviders( logProvider -> messageMatcher.assertNotContains( fulltextDescriptor.name() ) );
     }
 
     @Test
@@ -590,7 +592,7 @@ public class IndexingServiceTest
         indexingService.start();
 
         // then
-        userLogProvider.assertContainsExactlyOneMessageMatching(
+        userLogProvider.rawMessageMatcher().assertContainsSingle(
                 Matchers.allOf(
                         Matchers.containsString( "Deprecated index providers in use:" ),
                         Matchers.containsString( lucene10Descriptor.name() + " (1 index)" ),
@@ -599,8 +601,8 @@ public class IndexingServiceTest
                         Matchers.containsString( "Use procedure 'db.indexes()' to see what indexes use which index provider." )
                 )
         );
-        onBothLogProviders( logProvider -> internalLogProvider.assertNoMessagesContaining( nativeBtree10Descriptor.name() ) );
-        onBothLogProviders( logProvider -> internalLogProvider.assertNoMessagesContaining( fulltextDescriptor.name() ) );
+        onBothLogProviders( logProvider -> internalLogProvider.rawMessageMatcher().assertNotContains( nativeBtree10Descriptor.name() ) );
+        onBothLogProviders( logProvider -> internalLogProvider.rawMessageMatcher().assertNotContains( fulltextDescriptor.name() ) );
         userLogProvider.print( System.out );
     }
 
@@ -995,11 +997,11 @@ public class IndexingServiceTest
 
         // THEN
         verify( indexProvider ).getPopulator( eq( forSchema( forLabel( 0, 0 ), PROVIDER_DESCRIPTOR ).withId( 0 ) ),
-                any( IndexSamplingConfig.class ) );
+                any( IndexSamplingConfig.class ), any() );
         verify( indexProvider ).getPopulator( eq( forSchema( forLabel( 0, 1 ), PROVIDER_DESCRIPTOR ).withId( 1 ) ),
-                any( IndexSamplingConfig.class ) );
+                any( IndexSamplingConfig.class ), any() );
         verify( indexProvider ).getPopulator( eq( forSchema( forLabel( 1, 0 ), PROVIDER_DESCRIPTOR ).withId( 2 ) ),
-                any( IndexSamplingConfig.class ) );
+                any( IndexSamplingConfig.class ), any() );
 
         waitForIndexesToComeOnline( indexing, 0, 1, 2 );
     }
@@ -1452,7 +1454,7 @@ public class IndexingServiceTest
     {
         when( indexProvider.getInitialState( any( StoreIndexDescriptor.class ) ) ).thenReturn( ONLINE );
         when( indexProvider.getProviderDescriptor() ).thenReturn( PROVIDER_DESCRIPTOR );
-        when( indexProvider.getPopulator( any( StoreIndexDescriptor.class ), any( IndexSamplingConfig.class ) ) )
+        when( indexProvider.getPopulator( any( StoreIndexDescriptor.class ), any( IndexSamplingConfig.class ), any() ) )
                 .thenReturn( populator );
         data.getsProcessedByStoreScanFrom( storeView );
         when( indexProvider.getOnlineAccessor( any( StoreIndexDescriptor.class ), any( IndexSamplingConfig.class ) ) )
