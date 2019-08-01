@@ -62,6 +62,7 @@ import org.neo4j.kernel.api.index.IndexEntryUpdate;
 import org.neo4j.kernel.api.index.IndexPopulator;
 import org.neo4j.kernel.api.index.IndexProvider;
 import org.neo4j.kernel.api.index.IndexUpdater;
+import org.neo4j.kernel.impl.index.schema.ByteBufferFactory;
 import org.neo4j.storageengine.api.NodePropertyAccessor;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.extension.ExtensionType;
@@ -504,9 +505,9 @@ public class SchemaIndexHaIT
         }
 
         @Override
-        public IndexPopulator getPopulator( StoreIndexDescriptor descriptor, IndexSamplingConfig samplingConfig )
-        {
-            IndexPopulator populator = delegate.getPopulator( descriptor, samplingConfig );
+        public IndexPopulator getPopulator(StoreIndexDescriptor descriptor,
+            IndexSamplingConfig samplingConfig, ByteBufferFactory bufferFactory) {
+            IndexPopulator populator = delegate.getPopulator( descriptor, samplingConfig, bufferFactory );
             return new ControlledIndexPopulator( populator, latch );
         }
 
