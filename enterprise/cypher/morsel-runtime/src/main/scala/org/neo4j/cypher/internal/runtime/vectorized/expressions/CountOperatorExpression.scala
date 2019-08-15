@@ -22,6 +22,7 @@
  */
 package org.neo4j.cypher.internal.runtime.vectorized.expressions
 
+import org.neo4j.cypher.internal.runtime.interpreted.commands.AstNode
 import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.Expression
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.{QueryState => OldQueryState}
 import org.neo4j.cypher.internal.runtime.vectorized._
@@ -41,6 +42,8 @@ case class CountOperatorExpression(anInner: Expression) extends AggregationExpre
   override def createAggregationMapper: AggregationMapper = new CountMapper(anInner)
 
   override def createAggregationReducer: AggregationReducer = new CountReducer
+
+  override def children: Seq[AstNode[_]] = Seq(anInner)
 }
 
 private class CountMapper(value: Expression) extends AggregationMapper {
