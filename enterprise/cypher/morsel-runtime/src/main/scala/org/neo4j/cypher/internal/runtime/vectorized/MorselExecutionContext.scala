@@ -23,6 +23,7 @@
 package org.neo4j.cypher.internal.runtime.vectorized
 
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.SlotConfiguration
+import org.neo4j.cypher.internal.runtime.EntityById
 import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
 import org.neo4j.cypher.internal.v3_5.logical.plans.CachedNodeProperty
 import org.neo4j.values.AnyValue
@@ -122,7 +123,7 @@ class MorselExecutionContext(private val morsel: Morsel, private val longsPerRow
 
   override def set(key1: String, value1: AnyValue, key2: String, value2: AnyValue, key3: String, value3: AnyValue): Unit = ???
 
-  override def mergeWith(other: ExecutionContext): Unit = ???
+  override def mergeWith(other: ExecutionContext, entityById: EntityById): Unit = ???
 
   override def createClone(): MorselExecutionContext = new MorselExecutionContext(morsel, longsPerRow, refsPerRow, currentRow)
 
