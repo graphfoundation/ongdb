@@ -76,7 +76,7 @@ class SlottedExecutionContextTest extends CypherFunSuite {
     rhsCtx.setCachedProperty(prop("n", "name"), stringValue("b"))
 
     // when
-    lhsCtx.mergeWith(rhsCtx)
+    lhsCtx.mergeWith(rhsCtx,null)
 
     // then
     def cachedPropAt(key: CachedNodeProperty, ctx: ExecutionContext) =
@@ -115,7 +115,7 @@ class SlottedExecutionContextTest extends CypherFunSuite {
     arg.setCachedProperty(prop("c", "age"), stringValue("arg"))
 
     // when
-    result.mergeWith(arg)
+    result.mergeWith(arg,null)
 
     // then
     def cachedPropAt(key: CachedNodeProperty) =

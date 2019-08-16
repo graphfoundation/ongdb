@@ -27,7 +27,7 @@ import org.neo4j.cypher.internal.runtime.slotted.SlottedExecutionContext
 import org.neo4j.cypher.internal.v3_5.util.attribution.Id
 import org.neo4j.values.AnyValue
 import org.neo4j.values.storable.Values.NO_VALUE
-
+// See:  https://github.com/neo4j/neo4j/blob/2df152552eae2164934ccc2f8f6174fe46848b5f/community/cypher/interpreted-runtime/src/main/scala/org/neo4j/cypher/internal/runtime/interpreted/pipes/ValueHashJoinPipe.scala
 case class ValueHashJoinSlottedPipe(leftSide: Expression,
                                     rightSide: Expression,
                                     left: Pipe,
@@ -38,7 +38,8 @@ case class ValueHashJoinSlottedPipe(leftSide: Expression,
                                     argumentSize: SlotConfiguration.Size)
                                    (val id: Id = Id.INVALID_ID)
   extends AbstractHashJoinPipe[AnyValue, Expression](left, right, slots) {
-
+  leftSide.registerOwningPipe(this)
+  rightSide.registerOwningPipe(this)
   override def computeKey(context: ExecutionContext, keyColumns: Expression, queryState: QueryState): Option[AnyValue] = {
     val value = keyColumns.apply(context, queryState)
     if (value == NO_VALUE)

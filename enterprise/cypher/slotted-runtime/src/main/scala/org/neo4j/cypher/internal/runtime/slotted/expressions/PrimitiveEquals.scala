@@ -20,6 +20,7 @@
 package org.neo4j.cypher.internal.runtime.slotted.expressions
 
 import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
+import org.neo4j.cypher.internal.runtime.interpreted.commands.AstNode
 import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.Expression
 import org.neo4j.cypher.internal.runtime.interpreted.commands.predicates.Predicate
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.QueryState
@@ -34,4 +35,6 @@ case class PrimitiveEquals(a: Expression, b: Expression) extends Predicate with 
   override def containsIsNull: Boolean = false
 
   override def rewrite(f: (Expression) => Expression): Expression = f(PrimitiveEquals(a.rewrite(f), b.rewrite(f)))
+
+  override def children: Seq[AstNode[_]] = Seq(a,b)
 }

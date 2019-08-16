@@ -43,6 +43,8 @@ case class OptionalExpandIntoSlottedPipe(source: Pipe,
   extends PipeWithSource(source) with PrimitiveCachingExpandInto {
   self =>
 
+
+  predicate.registerOwningPipe(this) // Register owning pipe
   //===========================================================================
   // Compile-time initializations
   //===========================================================================

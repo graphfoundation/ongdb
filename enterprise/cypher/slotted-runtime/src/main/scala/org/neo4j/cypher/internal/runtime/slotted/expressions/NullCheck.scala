@@ -20,6 +20,7 @@
 package org.neo4j.cypher.internal.runtime.slotted.expressions
 
 import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
+import org.neo4j.cypher.internal.runtime.interpreted.commands.AstNode
 import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.Expression
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.QueryState
 import org.neo4j.cypher.internal.runtime.slotted.helpers.NullChecker.entityIsNull
@@ -31,4 +32,5 @@ case class NullCheck(offset: Int, inner: Expression) extends Expression with Slo
   override def apply(ctx: ExecutionContext, state: QueryState): AnyValue =
     if (entityIsNull(ctx.getLongAt(offset))) Values.NO_VALUE else inner(ctx, state)
 
+  override def children: Seq[AstNode[_]] = Seq(inner)
 }
