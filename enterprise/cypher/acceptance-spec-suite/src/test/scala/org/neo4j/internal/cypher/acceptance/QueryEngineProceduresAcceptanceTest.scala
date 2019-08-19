@@ -78,7 +78,7 @@ class QueryEngineProceduresAcceptanceTest extends ExecutionEngineFunSuite {
     val query = "CALL dbms.clearQueryCaches()"
     graphDatabaseService.execute(query)
 
-    logProvider.assertContainsLogCallContaining("Called dbms.clearQueryCaches(): Query caches successfully cleared of 1 queries.")
+    logProvider.formattedMessageMatcher().assertContains("Called dbms.clearQueryCaches(): Query caches successfully cleared of 1 queries.")
     graphDatabaseService.shutdown()
 
   }
