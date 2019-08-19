@@ -75,8 +75,8 @@ public class ConnectionInfoIT
         {
             //expected.
         }
-        logProvider.assertContainsMessageContaining( "server-name: address is already bound: " );
-        userLogProvider.assertContainsMessageContaining( "server-name: address is already bound: " );
+        logProvider.formattedMessageMatcher().assertContains( "server-name: address is already bound: " );
+        userLogProvider.formattedMessageMatcher().assertContains( "server-name: address is already bound: " );
     }
 
     @SuppressWarnings( "SameParameterValue" )
