@@ -19,6 +19,7 @@
  */
 package org.neo4j.cypher.internal.runtime.slotted
 
+import org.neo4j.cypher.internal.runtime.EntityById
 import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
 import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.Expression
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.QueryState
@@ -139,7 +140,7 @@ case class ArrayResultExecutionContext(resultArray: Array[AnyValue],
 
   override def set(key1: String, value1: AnyValue, key2: String, value2: AnyValue, key3: String, value3: AnyValue): Unit = fail()
 
-  override def mergeWith(other: ExecutionContext): Unit = fail()
+  override def mergeWith(other: ExecutionContext, entityById: EntityById): Unit = fail()
 
   override def createClone(): ExecutionContext = fail()
 

@@ -23,6 +23,8 @@
 package org.neo4j.causalclustering.catchup.storecopy;
 
 import io.netty.channel.embedded.EmbeddedChannel;
+import java.io.IOException;
+import java.util.function.BooleanSupplier;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -233,6 +235,12 @@ public class StoreCopyRequestHandlerTest
         {
             incrementInvocationCounter( _tryCheckPoint );
             return _tryCheckPoint.orElseThrow( exceptionIfEmpty );
+        }
+
+        @Override
+        public long tryCheckPoint(TriggerInfo triggerInfo, BooleanSupplier timeout)
+            throws IOException {
+            return tryCheckPoint( triggerInfo, () -> false );
         }
 
         @Override

@@ -43,6 +43,8 @@ case class OptionalExpandAllSlottedPipe(source: Pipe,
                                         slots: SlotConfiguration)
                                        (val id: Id = Id.INVALID_ID) extends PipeWithSource(source) with Pipe {
 
+
+  predicate.registerOwningPipe(this) // Register owning pipe
   //===========================================================================
   // Compile-time initializations
   //===========================================================================

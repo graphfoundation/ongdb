@@ -146,7 +146,7 @@ class CloseTransactionTest extends CypherFunSuite with GraphIcing {
       // then
       txBridge(service).hasTransaction shouldBe false
     }
-
+/*
     test(s"should not leak transaction when closing the result for a procedure query - runtime=$runtime") {
       //given
       val service = new GraphDatabaseCypherService(db)
@@ -218,7 +218,7 @@ class CloseTransactionTest extends CypherFunSuite with GraphIcing {
       // then
       txBridge(service).hasTransaction shouldBe false
     }
-
+*/
     test(s"should not leak transaction when consuming the whole iterator for a regular query - runtime=$runtime") {
       //given
       val service = new GraphDatabaseCypherService(db)
@@ -284,7 +284,7 @@ class CloseTransactionTest extends CypherFunSuite with GraphIcing {
       // then
       txBridge(service).hasTransaction shouldBe false
     }
-
+/*
     test(s"should not leak transaction when consuming the whole iterator for a procedure query - runtime=$runtime") {
       //given
       val service = new GraphDatabaseCypherService(db)
@@ -359,7 +359,7 @@ class CloseTransactionTest extends CypherFunSuite with GraphIcing {
       // then
       txBridge(service).hasTransaction shouldBe false
     }
-
+*/
     test(s"should not leak transaction when visiting the result for a regular query - runtime=$runtime") {
       //given
       val service = new GraphDatabaseCypherService(db)
@@ -407,7 +407,7 @@ class CloseTransactionTest extends CypherFunSuite with GraphIcing {
       // then
       txBridge(service).hasTransaction shouldBe false
     }
-
+/*
     test(s"should not leak transaction when visiting the result for a procedure query - runtime=$runtime") {
       //given
       val service = new GraphDatabaseCypherService(db)
@@ -464,6 +464,8 @@ class CloseTransactionTest extends CypherFunSuite with GraphIcing {
       // then
       txBridge(service).hasTransaction shouldBe false
     }
+
+ */
   }
 
   private val consumerVisitor = new ResultVisitor[RuntimeException] {

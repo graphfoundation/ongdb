@@ -22,6 +22,7 @@
  */
 package org.neo4j.cypher.internal.runtime.vectorized.expressions
 
+import org.neo4j.cypher.internal.runtime.interpreted.commands.AstNode
 import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.Expression
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.{QueryState => OldQueryState}
 import org.neo4j.cypher.internal.runtime.vectorized._
@@ -44,6 +45,8 @@ case class CollectOperatorExpression(anInner: Expression) extends AggregationExp
   override def createAggregationMapper: AggregationMapper = new CollectMapper(anInner)
 
   override def createAggregationReducer: AggregationReducer = new CollectReducer
+
+  override def children: Seq[AstNode[_]] = Seq(anInner)
 }
 
 private class CollectMapper(value: Expression) extends AggregationMapper {

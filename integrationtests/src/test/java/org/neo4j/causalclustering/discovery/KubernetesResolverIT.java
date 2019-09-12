@@ -128,7 +128,7 @@ public class KubernetesResolverIT
     {
         withServer( longJson(), () -> {
            resolver.resolve( null );
-           userLogProvider.assertContainsMessageContaining( "Resolved %s from Kubernetes API at %s namespace %s labelSelector %s" );
+           userLogProvider.formattedMessageMatcher().assertContains( "Resolved %s from Kubernetes API at %s namespace %s labelSelector %s" );
         } );
     }
 
@@ -138,7 +138,7 @@ public class KubernetesResolverIT
         String response = "{ \"kind\":\"ServiceList\", \"items\":[] }";
         withServer( response, () -> {
             resolver.resolve( null );
-            logProvider.assertContainsMessageContaining( "Resolved empty hosts from Kubernetes API at %s namespace %s labelSelector %s" );
+            logProvider.formattedMessageMatcher().assertContains( "Resolved empty hosts from Kubernetes API at %s namespace %s labelSelector %s" );
         } );
     }
 
@@ -148,7 +148,7 @@ public class KubernetesResolverIT
         String response = "{}";
         withServer( response, () -> {
             resolver.resolve( null );
-            logProvider.assertContainsMessageContaining( "Failed to parse result from Kubernetes API" );
+            logProvider.formattedMessageMatcher().assertContains( "Failed to parse result from Kubernetes API" );
         } );
     }
 

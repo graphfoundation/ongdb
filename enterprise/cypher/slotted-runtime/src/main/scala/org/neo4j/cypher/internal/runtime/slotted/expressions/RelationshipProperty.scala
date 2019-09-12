@@ -20,6 +20,7 @@
 package org.neo4j.cypher.internal.runtime.slotted.expressions
 
 import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
+import org.neo4j.cypher.internal.runtime.interpreted.commands.AstNode
 import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.Expression
 import org.neo4j.cypher.internal.runtime.interpreted.commands.predicates.Predicate
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.QueryState
@@ -31,6 +32,7 @@ case class RelationshipProperty(offset: Int, token: Int) extends Expression with
   override def apply(ctx: ExecutionContext, state: QueryState): AnyValue =
     state.query.relationshipOps.getProperty(ctx.getLongAt(offset), token)
 
+  override def children: Seq[AstNode[_]] = Seq.empty
 }
 
 case class RelationshipPropertyLate(offset: Int, propKey: String) extends Expression with SlottedExpression {
@@ -43,6 +45,8 @@ case class RelationshipPropertyLate(offset: Int, propKey: String) extends Expres
       state.query.relationshipOps.getProperty(ctx.getLongAt(offset), maybeToken.get)
   }
 
+  override def children: Seq[AstNode[_]] = Seq.empty
+
 }
 
 case class RelationshipPropertyExists(offset: Int, token: Int) extends Predicate with SlottedExpression {
@@ -52,6 +56,8 @@ case class RelationshipPropertyExists(offset: Int, token: Int) extends Predicate
   }
 
   override def containsIsNull = false
+
+  override def children: Seq[AstNode[_]] = Seq.empty
 }
 
 case class RelationshipPropertyExistsLate(offset: Int, propKey: String) extends Predicate with SlottedExpression {
@@ -66,4 +72,6 @@ case class RelationshipPropertyExistsLate(offset: Int, propKey: String) extends 
   }
 
   override def containsIsNull = false
+
+  override def children: Seq[AstNode[_]] = Seq.empty
 }

@@ -162,7 +162,7 @@ public class HazelcastClusterTopologyTest
 
         // then
         assertEquals( emptyMap(), rrMap );
-        logProvider.assertContainsMessageContaining( "Some, but not all, of the read replica attribute maps are null" );
+        logProvider.formattedMessageMatcher().assertContains( "Some, but not all, of the read replica attribute maps are null" );
     }
 
     @Test
@@ -190,7 +190,7 @@ public class HazelcastClusterTopologyTest
 
         // then
         assertEquals( singletonMap( validMemberId, validReadReplicaInfo ), rrMap );
-        logProvider.assertContainsMessageContaining( "Missing attribute %s for read replica" );
+        logProvider.formattedMessageMatcher().assertContains( "Missing attribute %s for read replica" );
     }
 
     @Test
@@ -306,7 +306,7 @@ public class HazelcastClusterTopologyTest
         // then
         assertThat( map.keySet(), hasItems( coreMembers.get( 0 ), coreMembers.get( 1 ), coreMembers.get( 3 ) ) );
         assertThat( map.keySet(), not( hasItems( coreMembers.get( 2 ) ) ) );
-        logProvider.assertContainsMessageContaining( "Missing member attribute" );
+        logProvider.formattedMessageMatcher().assertContains( "Missing member attribute" );
     }
 
     @Test

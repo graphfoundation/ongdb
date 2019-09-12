@@ -22,6 +22,9 @@
  * More information is also available at:
  * https://neo4j.com/licensing/
  */
+ /*
+   * Note: Check for changes to how the server is registered here: https://github.com/neo4j/neo4j/blob/ba4e188d51e027a7e7870d511044ea940cf0455e/community/server/src/main/java/org/neo4j/server/rest/management/VersionAndEditionService.java
+ */
 package org.neo4j.server.enterprise;
 
 import org.eclipse.jetty.util.thread.ThreadPool;

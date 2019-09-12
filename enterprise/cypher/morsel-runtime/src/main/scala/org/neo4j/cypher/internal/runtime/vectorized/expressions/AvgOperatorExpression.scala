@@ -22,6 +22,7 @@
  */
 package org.neo4j.cypher.internal.runtime.vectorized.expressions
 
+import org.neo4j.cypher.internal.runtime.interpreted.commands.AstNode
 import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.Expression
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.{QueryState => OldQueryState}
 import org.neo4j.cypher.internal.runtime.vectorized._
@@ -44,6 +45,8 @@ case class AvgOperatorExpression(anInner: Expression) extends AggregationExpress
   override def createAggregationMapper: AggregationMapper = new AvgMapper(anInner)
 
   override def createAggregationReducer: AggregationReducer = new AvgReducer
+
+  override def children: Seq[AstNode[_]] = Seq(anInner)
 }
 
 class AvgMapper(value: Expression) extends AggregationMapper {

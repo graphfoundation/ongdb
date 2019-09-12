@@ -20,6 +20,7 @@
 package org.neo4j.cypher.internal.runtime.slotted
 
 import org.neo4j.cypher.internal.compatibility.v3_5.runtime.{LongSlot, RefSlot, SlotConfiguration}
+import org.neo4j.cypher.internal.runtime.EntityById
 import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
 import org.neo4j.cypher.internal.runtime.slotted.helpers.NullChecker.entityIsNull
 import org.neo4j.cypher.internal.v3_5.logical.plans.CachedNodeProperty
@@ -223,7 +224,8 @@ case class SlottedExecutionContext(slots: SlotConfiguration) extends ExecutionCo
   def getRefAtWithoutCheckingInitialized(offset: Int): AnyValue =
     refs(offset)
 
-  override def mergeWith(other: ExecutionContext): Unit = other match {
+  // Added entityById: EntityById to the signature to make it work... TODO: Did not implement this.
+  override def mergeWith(other: ExecutionContext, entityById: EntityById): Unit = other match {
     case slottedOther: SlottedExecutionContext =>
       slottedOther.slots.foreachSlot({
         case (key, otherSlot @ LongSlot(offset, _, CTNode)) =>

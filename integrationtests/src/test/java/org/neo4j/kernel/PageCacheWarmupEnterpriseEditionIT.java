@@ -233,7 +233,7 @@ public class PageCacheWarmupEnterpriseEditionIT extends PageCacheWarmupTestSuppo
 
         verifyEventuallyWarmsUp( pagesInMemory, metricsDirectory );
 
-        logProvider.assertContainsMessageContaining( "Page cache warmup started." );
-        logProvider.assertContainsMessageContaining( "Page cache warmup completed. %d pages loaded. Duration: %s." );
+        logProvider.formattedMessageMatcher().assertContains( "Page cache warmup started." );
+        logProvider.formattedMessageMatcher().assertContains( "Page cache warmup completed. %d pages loaded. Duration: %s." );
     }
 }

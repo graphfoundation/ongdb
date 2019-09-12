@@ -54,7 +54,8 @@ case class VarLengthExpandSlottedPipe(source: Pipe,
                                       argumentSize: SlotConfiguration.Size)
                                      (val id: Id = Id.INVALID_ID) extends PipeWithSource(source) {
   type LNode = Long
-
+  nodePredicate.registerOwningPipe(this) // Register owning pipe
+  edgePredicate.registerOwningPipe(this) // Register owning pipe
   //===========================================================================
   // Compile-time initializations
   //===========================================================================

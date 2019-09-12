@@ -30,6 +30,17 @@ Please note that we do not support building Debian packages on OS X.
 
 === With apt-get on Ubuntu ===
 
+
+=== With SDKMan ===
+
+Building Neo4j/ONgDB can be tricky with other JDKs such as open JDK.
+Currently Oracle 8 JDK works well, as we test other jdks we will update this documentation.
+
+https://sdkman.io/
+
+sdk use java oracle-8-221
+
+
   apt install maven openjdk-8-jdk
 
 On top of that, to build Debian packages and Neo4j Desktop:
