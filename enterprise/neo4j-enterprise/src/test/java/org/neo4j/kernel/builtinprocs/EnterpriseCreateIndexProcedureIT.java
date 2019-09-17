@@ -46,6 +46,7 @@ import org.neo4j.internal.kernel.api.exceptions.KernelException;
 import org.neo4j.internal.kernel.api.exceptions.ProcedureException;
 import org.neo4j.internal.kernel.api.exceptions.TransactionFailureException;
 import org.neo4j.internal.kernel.api.exceptions.schema.IllegalTokenNameException;
+import org.neo4j.internal.kernel.api.procs.ProcedureCallContext;
 import org.neo4j.internal.kernel.api.procs.ProcedureSignature;
 import org.neo4j.kernel.api.exceptions.index.IndexEntryConflictException;
 import org.neo4j.kernel.api.exceptions.schema.UniquePropertyValueValidationException;
@@ -246,7 +247,7 @@ public class EnterpriseCreateIndexProcedureIT extends KernelIntegrationTest
                         {
                                 pattern, // index
                                 specifiedProvider // providerName
-                        } );
+                        }, ProcedureCallContext.EMPTY );
     }
 
     private void awaitIndexOnline()

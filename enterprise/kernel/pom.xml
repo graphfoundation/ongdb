@@ -75,6 +75,13 @@
             <scope>test</scope>
         </dependency>
 
+
+        <dependency>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-kernel</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
         <!-- Neo4j test dependencies -->
         <dependency>
             <groupId>org.neo4j</groupId>

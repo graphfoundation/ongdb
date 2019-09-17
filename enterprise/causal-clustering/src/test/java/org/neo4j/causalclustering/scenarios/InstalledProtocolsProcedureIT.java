@@ -41,6 +41,7 @@ import org.neo4j.internal.kernel.api.Kernel;
 import org.neo4j.internal.kernel.api.Transaction;
 import org.neo4j.internal.kernel.api.exceptions.ProcedureException;
 import org.neo4j.internal.kernel.api.exceptions.TransactionFailureException;
+import org.neo4j.internal.kernel.api.procs.ProcedureCallContext;
 import org.neo4j.kernel.api.security.AnonymousContext;
 import org.neo4j.kernel.impl.factory.GraphDatabaseFacade;
 import org.neo4j.test.causalclustering.ClusterRule;
@@ -113,7 +114,7 @@ public class InstalledProtocolsProcedureIT
         try ( Transaction tx = kernel.beginTransaction( Transaction.Type.implicit, AnonymousContext.read() ) )
         {
             RawIterator<Object[],ProcedureException> itr =
-                    tx.procedures().procedureCallRead( procedureName( "dbms", "cluster", InstalledProtocolsProcedure.PROCEDURE_NAME ), null );
+                    tx.procedures().procedureCallRead( procedureName( "dbms", "cluster", InstalledProtocolsProcedure.PROCEDURE_NAME ), null, ProcedureCallContext.EMPTY );
 
             while ( itr.hasNext() )
             {

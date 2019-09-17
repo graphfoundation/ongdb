@@ -61,6 +61,7 @@ import org.neo4j.internal.kernel.api.Transaction.Type;
 import org.neo4j.internal.kernel.api.exceptions.KernelException;
 import org.neo4j.internal.kernel.api.exceptions.ProcedureException;
 import org.neo4j.internal.kernel.api.exceptions.TransactionFailureException;
+import org.neo4j.internal.kernel.api.procs.ProcedureCallContext;
 import org.neo4j.kernel.api.security.AnonymousContext;
 import org.neo4j.kernel.configuration.Settings;
 import org.neo4j.kernel.impl.factory.GraphDatabaseFacade;
@@ -383,7 +384,7 @@ public abstract class BaseClusterOverviewIT
         try ( Transaction tx = kernel.beginTransaction( Type.implicit, AnonymousContext.read() ) )
         {
             RawIterator<Object[],ProcedureException> itr =
-                    tx.procedures().procedureCallRead( procedureName( "dbms", "cluster", ClusterOverviewProcedure.PROCEDURE_NAME ), null );
+                    tx.procedures().procedureCallRead( procedureName( "dbms", "cluster", ClusterOverviewProcedure.PROCEDURE_NAME ), null, ProcedureCallContext.EMPTY );
 
             while ( itr.hasNext() )
             {

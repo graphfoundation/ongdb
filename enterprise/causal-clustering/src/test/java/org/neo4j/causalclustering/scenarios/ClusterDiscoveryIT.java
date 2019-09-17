@@ -38,6 +38,7 @@ import org.neo4j.internal.kernel.api.Transaction;
 import org.neo4j.internal.kernel.api.Transaction.Type;
 import org.neo4j.internal.kernel.api.exceptions.ProcedureException;
 import org.neo4j.internal.kernel.api.exceptions.TransactionFailureException;
+import org.neo4j.internal.kernel.api.procs.ProcedureCallContext;
 import org.neo4j.kernel.api.security.AnonymousContext;
 import org.neo4j.kernel.configuration.Settings;
 import org.neo4j.kernel.impl.factory.GraphDatabaseFacade;
@@ -130,7 +131,7 @@ public class ClusterDiscoveryIT
         {
             // when
             List<Object[]> currentMembers =
-                    asList( tx.procedures().procedureCallRead( procedureName( GET_SERVERS_V1.fullyQualifiedProcedureName() ), new Object[0] ) );
+                    asList( tx.procedures().procedureCallRead( procedureName( GET_SERVERS_V1.fullyQualifiedProcedureName() ), new Object[0], ProcedureCallContext.EMPTY ) );
 
             return (List<Map<String,Object>>) currentMembers.get( 0 )[1];
         }

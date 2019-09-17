@@ -117,7 +117,7 @@ object domainsOf {
           ofOption(properties, classOf[Expression]) ++
           ofOption(maybeBaseRel, classOf[LogicalVariable])
 
-      case FunctionInvocation(namespace, functionName, distinct, args) =>
+      case FunctionInvocation(namespace, functionName, distinct, args, procedureCallContext) =>
         ofSingle(namespace, classOf[Namespace]) ++
           ofSingle(functionName, classOf[FunctionName]) ++
           ofSeq(args, classOf[Expression])

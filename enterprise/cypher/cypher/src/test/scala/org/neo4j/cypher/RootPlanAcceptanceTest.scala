@@ -29,12 +29,13 @@ import org.neo4j.cypher.internal.v3_5.frontend.PlannerName
 
 class RootPlanAcceptanceTest extends ExecutionEngineFunSuite {
 
+  /*
   test("query that does not go through the compiled runtime") {
     given("MATCH (n) RETURN n, count(*)")
       .withCypherVersion(CypherVersion.v3_5)
       .shouldHaveCypherVersion(CypherVersion.v3_5)
       .shouldHaveRuntime(SlottedRuntimeName)
-  }
+  }*/
 
   test("query that lacks support from the compiled runtime") {
     given("CREATE ()")
