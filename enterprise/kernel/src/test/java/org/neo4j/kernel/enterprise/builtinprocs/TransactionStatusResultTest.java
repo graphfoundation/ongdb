@@ -158,7 +158,7 @@ public class TransactionStatusResultTest
     }
 
     private void checkTransactionStatus( TransactionStatusResult statusResult, String currentQuery,
-            String currentQueryId, String startTime )
+                                         String currentQueryId, String startTime )
     {
         assertEquals( "transaction-8", statusResult.transactionId );
         assertEquals( "testUser", statusResult.username );
@@ -192,15 +192,15 @@ public class TransactionStatusResultTest
     private ExecutingQuery createExecutingQuery( long queryId )
     {
         return new ExecutingQuery( queryId, getTestConnectionInfo(), "testUser", "testQuery", VirtualValues.EMPTY_MAP,
-                Collections.emptyMap(), () -> 1L, PageCursorTracer.NULL,
-                Thread.currentThread().getId(), Thread.currentThread().getName(),
-                new CountingNanoClock(), new CountingCpuClock(), new CountingHeapAllocation() );
+                                   Collections.emptyMap(), () -> 1L, PageCursorTracer.NULL,
+                                   Thread.currentThread().getId(), Thread.currentThread().getName(),
+                                   new CountingNanoClock(), new CountingCpuClock(), new CountingHeapAllocation() );
     }
 
     private HttpConnectionInfo getTestConnectionInfo()
     {
         return new HttpConnectionInfo( "https-42", "https", new InetSocketAddress( "localhost", 1000 ),
-                new InetSocketAddress( "localhost", 1001 ), "/path" );
+                                       new InetSocketAddress( "localhost", 1001 ), "/path" );
     }
 
     private static class TransactionHandleWithLocks extends TestKernelTransactionHandle
@@ -221,23 +221,30 @@ public class TransactionStatusResultTest
         public TransactionExecutionStatistic transactionStatistic()
         {
             KernelTransactionImplementation transaction = new KernelTransactionImplementation( Config.defaults(),
-                        mock( StatementOperationParts.class ), mock( SchemaWriteGuard.class ), new TransactionHooks(),
-                        mock( ConstraintIndexCreator.class ), new Procedures(), TransactionHeaderInformationFactory.DEFAULT,
-                        mock( TransactionCommitProcess.class ), new DatabaseTransactionStats(), mock( AuxiliaryTransactionStateManager.class ),
-                        mock( Pool.class ), Clocks.fakeClock(),
-                        new AtomicReference<>( CpuClock.NOT_AVAILABLE ), new AtomicReference<>( HeapAllocation.NOT_AVAILABLE ),
-                        TransactionTracer.NULL,
-                        LockTracer.NONE, PageCursorTracerSupplier.NULL,
-                        mock( StorageEngine.class, RETURNS_MOCKS ), new CanWrite(),
-                        AutoIndexing.UNSUPPORTED, mock( ExplicitIndexStore.class ),
-                        EmptyVersionContextSupplier.EMPTY, ON_HEAP, new StandardConstraintSemantics(), mock( SchemaState.class),
-                        mock( IndexingService.class ), mockedTokenHolders(), new Dependencies() )
+                                                                                               mock( StatementOperationParts.class ),
+                                                                                               mock( SchemaWriteGuard.class ), new TransactionHooks(),
+                                                                                               mock( ConstraintIndexCreator.class ), new Procedures(),
+                                                                                               TransactionHeaderInformationFactory.DEFAULT,
+                                                                                               mock( TransactionCommitProcess.class ),
+                                                                                               new DatabaseTransactionStats(),
+                                                                                               mock( AuxiliaryTransactionStateManager.class ),
+                                                                                               mock( Pool.class ), Clocks.fakeClock(),
+                                                                                               new AtomicReference<>( CpuClock.NOT_AVAILABLE ),
+                                                                                               new AtomicReference<>( HeapAllocation.NOT_AVAILABLE ),
+                                                                                               TransactionTracer.NULL,
+                                                                                               LockTracer.NONE, PageCursorTracerSupplier.NULL,
+                                                                                               mock( StorageEngine.class, RETURNS_MOCKS ), new CanWrite(),
+                                                                                               AutoIndexing.UNSUPPORTED, mock( ExplicitIndexStore.class ),
+                                                                                               EmptyVersionContextSupplier.EMPTY, ON_HEAP,
+                                                                                               new StandardConstraintSemantics(), mock( SchemaState.class ),
+                                                                                               mock( IndexingService.class ), mockedTokenHolders(),
+                                                                                               new Dependencies() )
             {
                 @Override
                 public Statistics getStatistics()
                 {
                     TestStatistics statistics = new TestStatistics( this, new AtomicReference<>( new CountingCpuClock() ),
-                                    new AtomicReference<>( new CountingHeapAllocation() ) );
+                                                                    new AtomicReference<>( new CountingHeapAllocation() ) );
                     statistics.init( Thread.currentThread().getId(), PageCursorTracer.NULL );
                     return statistics;
                 }
@@ -248,16 +255,16 @@ public class TransactionStatusResultTest
 
     private static class TestStatistics extends KernelTransactionImplementation.Statistics
     {
+        TestStatistics( KernelTransactionImplementation transaction, AtomicReference<CpuClock> cpuClockRef,
+                        AtomicReference<HeapAllocation> heapAllocationRef )
+        {
+            super( transaction, cpuClockRef, heapAllocationRef );
+        }
+
         @Override
         protected void init( long threadId, PageCursorTracer pageCursorTracer )
         {
             super.init( threadId, pageCursorTracer );
-        }
-
-        TestStatistics( KernelTransactionImplementation transaction, AtomicReference<CpuClock> cpuClockRef,
-                AtomicReference<HeapAllocation> heapAllocationRef )
-        {
-            super( transaction, cpuClockRef, heapAllocationRef );
         }
     }
 

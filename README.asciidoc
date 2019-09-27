@@ -87,3 +87,8 @@ ONgDB & Neo4j Community Edition is an open source product licensed under GPLv3.
 ONgDB & Neo4j Enterprise Edition expands the functionality of Community Edition with Enterprise-grade features.
 
 ONgDB & Neo4j Enterprise consists of modules from Neo4j Community Edition and modules licensed under AGPLv3 in this repository.
+
+
+== Misc ==
+Neo4j IDE code style configs can be found at 
+http://neo4j.github.io/ or under the build/ folder of this repository.

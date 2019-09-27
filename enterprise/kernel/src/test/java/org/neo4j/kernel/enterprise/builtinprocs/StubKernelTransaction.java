@@ -52,266 +52,219 @@ import org.neo4j.storageengine.api.schema.IndexDescriptor;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-public class StubKernelTransaction implements KernelTransaction
-{
+public class StubKernelTransaction implements KernelTransaction {
 
-    StubKernelTransaction( )
-    {
+    StubKernelTransaction() {
     }
 
     @Override
-    public Statement acquireStatement()
-    {
-        return new StubStatement( );
+    public Statement acquireStatement() {
+        return new StubStatement();
     }
 
     @Override
-    public IndexDescriptor indexUniqueCreate( SchemaDescriptor schema, String provider )
-    {
-        throw new UnsupportedOperationException( "not implemented" );
+    public IndexDescriptor indexUniqueCreate(SchemaDescriptor schema, String provider) {
+        return null;
     }
 
     @Override
-    public void success()
-    {
-        throw new UnsupportedOperationException( "not implemented" );
+    public void success() {
     }
 
     @Override
-    public void failure()
-    {
-        throw new UnsupportedOperationException( "not implemented" );
+    public void failure() {
     }
 
     @Override
-    public Read dataRead()
-    {
-        throw new UnsupportedOperationException( "not implemented" );
+    public Map<String, Object> getMetaData() {
+        return null;
     }
 
     @Override
-    public Write dataWrite()
-    {
-        throw new UnsupportedOperationException( "not implemented" );
+    public Read dataRead() {
+        return null;
     }
 
     @Override
-    public ExplicitIndexRead indexRead()
-    {
-        throw new UnsupportedOperationException( "not implemented" );
+    public Write dataWrite() {
+        return null;
     }
 
     @Override
-    public ExplicitIndexWrite indexWrite()
-    {
-        throw new UnsupportedOperationException( "not implemented" );
+    public ExplicitIndexRead indexRead() {
+        return null;
     }
 
     @Override
-    public TokenRead tokenRead()
-    {
-        throw new UnsupportedOperationException( "not implemented" );
+    public ExplicitIndexWrite indexWrite() {
+        return null;
     }
 
     @Override
-    public TokenWrite tokenWrite()
-    {
-        throw new UnsupportedOperationException( "not implemented" );
+    public TokenRead tokenRead() {
+        return null;
     }
 
     @Override
-    public Token token()
-    {
-        throw new UnsupportedOperationException( "not implemented" );
+    public TokenWrite tokenWrite() {
+        return null;
     }
 
     @Override
-    public SchemaRead schemaRead()
-    {
-        throw new UnsupportedOperationException( "not implemented" );
+    public Token token() {
+        return null;
     }
 
     @Override
-    public SchemaWrite schemaWrite()
-    {
-        throw new UnsupportedOperationException( "not implemented" );
+    public SchemaRead schemaRead() {
+        return null;
     }
 
     @Override
-    public Locks locks()
-    {
-        throw new UnsupportedOperationException( "not implemented" );
+    public Procedures procedures() {
+        return null;
     }
 
     @Override
-    public CursorFactory cursors()
-    {
-        throw new UnsupportedOperationException( "not implemented" );
+    public ExecutionStatistics executionStatistics() {
+        return null;
     }
 
     @Override
-    public Procedures procedures()
-    {
-        throw new UnsupportedOperationException( "not implemented" );
+    public SchemaWrite schemaWrite() {
+        return null;
     }
 
     @Override
-    public ExecutionStatistics executionStatistics()
-    {
-        throw new UnsupportedOperationException( "not implemented" );
+    public Locks locks() {
+        return null;
     }
 
     @Override
-    public long closeTransaction()
-    {
-        throw new UnsupportedOperationException( "not implemented" );
+    public CursorFactory cursors() {
+        return null;
     }
 
     @Override
-    public boolean isOpen()
-    {
-        throw new UnsupportedOperationException( "not implemented" );
+    public long closeTransaction() {
+        return 0;
     }
 
     @Override
-    public SecurityContext securityContext()
-    {
+    public boolean isOpen() {
+        return false;
+    }
+
+    @Override
+    public SecurityContext securityContext() {
         SecurityContext securityContext = mock(SecurityContext.class, Answers.RETURNS_DEEP_STUBS);
-                when(securityContext.subject().username()).thenReturn("testUser");
-                return securityContext;
+        when(securityContext.subject().username()).thenReturn("testUser");
+        return securityContext;
     }
 
     @Override
-    public AuthSubject subjectOrAnonymous()
-    {
+    public AuthSubject subjectOrAnonymous() {
         AuthSubject subject = mock(AuthSubject.class);
-                when(subject.username()).thenReturn("testUser");
-                return subject;
+        when(subject.username()).thenReturn("testUser");
+        return subject;
     }
 
     @Override
-    public Optional<Status> getReasonIfTerminated()
-    {
-        throw new UnsupportedOperationException( "not implemented" );
+    public Optional<Status> getReasonIfTerminated() {
+        return Optional.empty();
     }
 
     @Override
-    public boolean isTerminated()
-    {
+    public boolean isTerminated() {
         return false;
     }
 
     @Override
-    public void markForTermination( Status reason )
-    {
-        throw new UnsupportedOperationException( "not implemented" );
+    public void markForTermination(Status reason) {
     }
 
     @Override
-    public long lastTransactionTimestampWhenStarted()
-    {
-        throw new UnsupportedOperationException( "not implemented" );
+    public long lastTransactionTimestampWhenStarted() {
+        return 0;
     }
 
     @Override
-    public long lastTransactionIdWhenStarted()
-    {
-        throw new UnsupportedOperationException( "not implemented" );
+    public long lastTransactionIdWhenStarted() {
+        return 0;
     }
 
     @Override
-    public long startTime()
-    {
-        throw new UnsupportedOperationException( "not implemented" );
+    public long startTime() {
+        return 1984;
     }
 
     @Override
-    public long startTimeNanos()
-    {
-        throw new UnsupportedOperationException( "not implemented" );
+    public long startTimeNanos() {
+        return 1984000;
     }
 
     @Override
-    public long timeout()
-    {
-        throw new UnsupportedOperationException( "not implemented" );
+    public long timeout() {
+        return 0;
     }
 
     @Override
-    public void registerCloseListener( CloseListener listener )
-    {
-        throw new UnsupportedOperationException( "not implemented" );
+    public void registerCloseListener(CloseListener listener) {
     }
 
     @Override
-    public Type transactionType()
-    {
-        throw new UnsupportedOperationException( "not implemented" );
+    public Type transactionType() {
+        return null;
     }
 
     @Override
-    public long getTransactionId()
-    {
-        throw new UnsupportedOperationException( "not implemented" );
+    public long getTransactionId() {
+        return 8;
     }
 
     @Override
-    public long getCommitTime()
-    {
-        throw new UnsupportedOperationException( "not implemented" );
+    public long getCommitTime() {
+        return 0;
     }
 
     @Override
-    public Revertable overrideWith( SecurityContext context )
-    {
-        throw new UnsupportedOperationException( "not implemented" );
+    public Revertable overrideWith(SecurityContext context) {
+        return null;
     }
 
     @Override
-    public ClockContext clocks()
-    {
-        throw new UnsupportedOperationException( "not implemented" );
+    public NodeCursor ambientNodeCursor() {
+        throw new UnsupportedOperationException("not implemented");
     }
 
     @Override
-    public NodeCursor ambientNodeCursor()
-    {
-        throw new UnsupportedOperationException( "not implemented" );
+    public RelationshipScanCursor ambientRelationshipCursor() {
+        throw new UnsupportedOperationException("not implemented");
     }
 
     @Override
-    public RelationshipScanCursor ambientRelationshipCursor()
-    {
-        throw new UnsupportedOperationException( "not implemented" );
+    public PropertyCursor ambientPropertyCursor() {
+        throw new UnsupportedOperationException("not implemented");
     }
 
     @Override
-    public PropertyCursor ambientPropertyCursor()
-    {
-        throw new UnsupportedOperationException( "not implemented" );
+    public void setMetaData(Map<String, Object> metaData) {
     }
 
     @Override
-    public void setMetaData( Map<String,Object> metaData )
-    {
-        throw new UnsupportedOperationException( "not implemented" );
+    public ClockContext clocks() {
+        throw new UnsupportedOperationException("not implemented");
     }
 
     @Override
-    public Map<String,Object> getMetaData()
-    {
-        throw new UnsupportedOperationException( "not implemented" );
+    public void assertOpen() {
+        throw new UnsupportedOperationException("not implemented");
     }
 
     @Override
-    public void assertOpen()
-    {
-        throw new UnsupportedOperationException( "not implemented" );
-    }
-
-    @Override
-    public boolean isSchemaTransaction()
-    {
+    public boolean isSchemaTransaction() {
         return false;
     }
+
+
 }
