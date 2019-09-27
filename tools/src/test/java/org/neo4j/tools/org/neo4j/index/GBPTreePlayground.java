@@ -29,10 +29,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
 
-import org.neo4j.index.internal.gbptree.GBPTree;
-import org.neo4j.index.internal.gbptree.RecoveryCleanupWorkCollector;
-import org.neo4j.index.internal.gbptree.SimpleLongLayout;
-import org.neo4j.index.internal.gbptree.Writer;
+import org.neo4j.index.internal.gbptree.*;
 import org.neo4j.io.fs.DefaultFileSystemAbstraction;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.pagecache.IOLimiter;
@@ -67,8 +64,12 @@ public class GBPTreePlayground
 
     private void setupIndex() throws IOException
     {
-        tree = new GBPTree<>( pageCache, indexFile, layout, pageSize, NO_MONITOR, NO_HEADER_READER, NO_HEADER_WRITER,
-                RecoveryCleanupWorkCollector.immediate() );
+        RecoveryCleanupWorkCollector recoveryCleanupWorkCollector = RecoveryCleanupWorkCollector.immediate();
+        boolean readOnly = true;
+       // tree = new GBPTree<>( pageCache, indexFile, layout, pageSize, NO_MONITOR, NO_HEADER_READER, NO_HEADER_WRITER,
+       //         RecoveryCleanupWorkCollector.immediate() );
+        tree = new GBPTree<>( pageCache, indexFile, layout, pageSize, NO_MONITOR, NO_HEADER_READER, NO_HEADER_WRITER, recoveryCleanupWorkCollector, readOnly );
+
     }
 
     private void run() throws InterruptedException, IOException

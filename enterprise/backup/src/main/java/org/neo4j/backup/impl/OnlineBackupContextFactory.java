@@ -92,6 +92,11 @@ class OnlineBackupContextFactory
     static final String ARG_NAME_CHECK_INDEXES = "cc-indexes";
     static final String ARG_DESC_CHECK_INDEXES = "Perform consistency checks on indexes.";
 
+
+    static final String ARG_NAME_CHECK_INDEX_STRUCTURE = "check-index-structure";
+    static final String ARG_DESC_CHECK_INDEX_STRUCTURE = "Perform check of index structure";
+
+
     static final String ARG_NAME_CHECK_LABELS = "cc-label-scan-store";
     static final String ARG_DESC_CHECK_LABELS = "Perform consistency checks on the label scan store.";
 
@@ -172,9 +177,11 @@ class OnlineBackupContextFactory
             // Note: We can remove the loading from config file in 4.0.
             BiFunction<String,Setting<Boolean>,Boolean> oneOf = ( a, s ) -> arguments.has( a ) ? arguments.getBoolean( a ) : config.get( s );
 
-            ConsistencyFlags consistencyFlags = new ConsistencyFlags( oneOf.apply( ARG_NAME_CHECK_GRAPH, ConsistencyCheckSettings.consistency_check_graph ),
+            ConsistencyFlags consistencyFlags = new ConsistencyFlags(
+                    oneOf.apply( ARG_NAME_CHECK_GRAPH, ConsistencyCheckSettings.consistency_check_graph ),
                     oneOf.apply( ARG_NAME_CHECK_INDEXES, ConsistencyCheckSettings.consistency_check_indexes ),
                     oneOf.apply( ARG_NAME_CHECK_LABELS, ConsistencyCheckSettings.consistency_check_label_scan_store ),
+                    oneOf.apply( ARG_NAME_CHECK_INDEX_STRUCTURE, ConsistencyCheckSettings.consistency_check_index_structure ),
                     oneOf.apply( ARG_NAME_CHECK_OWNERS, ConsistencyCheckSettings.consistency_check_property_owners ) );
             return new OnlineBackupContext( requiredArguments, config, consistencyFlags );
         }

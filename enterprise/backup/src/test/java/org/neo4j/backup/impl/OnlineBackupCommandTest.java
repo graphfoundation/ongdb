@@ -79,7 +79,7 @@ public class OnlineBackupCommandTest
     // Parameters and helpers
     private final Config config = Config.defaults();
     private OnlineBackupRequiredArguments requiredArguments;
-    private final ConsistencyFlags consistencyFlags = new ConsistencyFlags( true, true, true, true );
+    private final ConsistencyFlags consistencyFlags = new ConsistencyFlags( true, true, true, true, true );
 
     private Path backupDirectory;
     private Path reportDirectory;

@@ -85,7 +85,7 @@
       -Dorg.neo4j.kernel.impl.api.KernelStatement.trackStatements=true
       -Dorg.org.neo4j.kernel.impl.newapi.DefaultCursors.trackCursors=true
       -XX:+UnlockExperimentalVMOptions -XX:+TrustFinalNonStaticFields ${java.exports} ${test.runner.jvm.settings.additional}
-      -Djdk.serialFilter=java.**;org.neo4j.**;com.neo4j.**;com.hazelcast.**;net.sf.ehcache.Element;com.sun.proxy.*;org.openjdk.jmh.**;io.findify.s3mock.**!*
+      -Djdk.serialFilter=java.**;org.graphfoundation.**;org.neo4j.**;com.neo4j.**;com.hazelcast.**;net.sf.ehcache.Element;com.sun.proxy.*;org.openjdk.jmh.**;io.findify.s3mock.**!*
     </test.runner.jvm.settings>
     <jetty.version>9.4.17.v20190418</jetty.version>
     <findbugs.version>3.0.1</findbugs.version>
@@ -882,7 +882,7 @@
                 <plugin>
                     <groupId>org.jacoco</groupId>
                     <artifactId>jacoco-maven-plugin</artifactId>
-                    <version>0.7.9</version>
+                    <version>0.8.2</version>
                     <executions>
                         <execution>
                             <id>default-prepare-agent</id>
@@ -1505,14 +1505,14 @@
 
       <!-- used by benchmark-infra module -->
       <dependency>
-      	<groupId>com.amazonaws</groupId>
-      	<artifactId>aws-java-sdk-batch</artifactId>
-      	<version>${amazon-sdk.version}</version>
-      </dependency>
-      <dependency>
         <groupId>com.amazonaws</groupId>
         <artifactId>aws-java-sdk-cloudformation</artifactId>
         <version>${amazon-sdk.version}</version>
+      </dependency>
+      <dependency>
+      	<groupId>com.amazonaws</groupId>
+      	<artifactId>aws-java-sdk-batch</artifactId>
+      	<version>${amazon-sdk.version}</version>
       </dependency>
       <dependency>
       	<groupId>com.amazonaws</groupId>

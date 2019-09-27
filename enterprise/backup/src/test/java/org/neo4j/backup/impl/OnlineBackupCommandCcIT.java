@@ -273,7 +273,7 @@ public class OnlineBackupCommandCcIT
         assertFalse( "Store should not require recovery",
                 new RecoveryRequiredChecker( fileSystemRule, pageCacheRule.getPageCache( fileSystemRule ), Config.defaults(),
                         new Monitors() ).isRecoveryRequiredAt( backupLayout ) );
-        ConsistencyFlags consistencyFlags = new ConsistencyFlags( true, true, true, true );
+        ConsistencyFlags consistencyFlags = new ConsistencyFlags( true, true, true, true, true );
         assertTrue( "Consistency check failed", new ConsistencyCheckService()
                 .runFullConsistencyCheck( backupLayout, Config.defaults(), ProgressMonitorFactory.NONE, NullLogProvider.getInstance(), false, consistencyFlags )
                 .isSuccessful() );
@@ -304,7 +304,7 @@ public class OnlineBackupCommandCcIT
         assertFalse( "Store should not require recovery",
                 new RecoveryRequiredChecker( fileSystemRule, pageCacheRule.getPageCache( fileSystemRule ), Config.defaults(),
                         new Monitors() ).isRecoveryRequiredAt( backupLayout ) );
-        ConsistencyFlags consistencyFlags = new ConsistencyFlags( true, true, true, true );
+        ConsistencyFlags consistencyFlags = new ConsistencyFlags( true, true, true, true, true );
         assertTrue( "Consistency check failed", new ConsistencyCheckService()
                 .runFullConsistencyCheck( backupLayout, Config.defaults(), ProgressMonitorFactory.NONE, NullLogProvider.getInstance(), false, consistencyFlags )
                 .isSuccessful() );

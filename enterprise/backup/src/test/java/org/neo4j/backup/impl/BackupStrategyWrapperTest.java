@@ -529,6 +529,6 @@ public class BackupStrategyWrapperTest
 
     private static ConsistencyFlags consistencyFlags()
     {
-        return new ConsistencyFlags( true, true, true, true );
+        return new ConsistencyFlags( true, true, true, true, true );
     }
 }
