@@ -22,6 +22,7 @@
  */
 package org.neo4j.causalclustering.discovery;
 
+import org.hamcrest.Matchers;
 import org.junit.Test;
 
 import java.net.InetAddress;
@@ -98,7 +99,11 @@ public class DnsHostnameResolverTest
         resolver.resolve( new AdvertisedSocketAddress( "google.com", 1234 ) );
 
         // then
-        userLogProvider.formattedMessageMatcher().assertContains( "Resolved initial host '%s' to %s" );
+        userLogProvider.rawMessageMatcher().assertContainsSingle(
+                Matchers.allOf(
+                        Matchers.containsString( "Resolved initial host '%s' to %s" )
+                )
+        );
     }
 
     @Test
@@ -108,7 +113,11 @@ public class DnsHostnameResolverTest
         resolver.resolve( new AdvertisedSocketAddress( "google.com", 1234 ) );
 
         // then
-        logProvider.formattedMessageMatcher().assertContains( "Failed to resolve host '%s'" );
+        logProvider.rawMessageMatcher().assertContains(
+                Matchers.allOf(
+                        Matchers.containsString( "Failed to resolve host '%s'" )
+                )
+        );
     }
 
     @Test

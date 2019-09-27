@@ -29,6 +29,7 @@ import com.hazelcast.core.IMap;
 import com.hazelcast.core.Member;
 import com.hazelcast.core.MultiMap;
 import com.hazelcast.nio.Address;
+import org.hamcrest.Matchers;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -94,8 +95,9 @@ public class HazelcastClusterTopologyTest
     private static final Set<String> DB_NAMES = Stream.of( "foo", "bar", "baz" ).collect( Collectors.toSet() );
     private static final String DEFAULT_DB_NAME = "default";
 
-    private static final IntFunction<HashMap<String, String>> DEFAULT_SETTINGS_GENERATOR = i -> {
-        HashMap<String, String> settings = new HashMap<>();
+    private static final IntFunction<HashMap<String,String>> DEFAULT_SETTINGS_GENERATOR = i ->
+    {
+        HashMap<String,String> settings = new HashMap<>();
         settings.put( CausalClusteringSettings.transaction_advertised_address.name(), "tx:" + (i + 1) );
         settings.put( CausalClusteringSettings.raft_advertised_address.name(), "raft:" + (i + 1) );
         settings.put( new BoltConnector( "bolt" ).type.name(), "BOLT" );
@@ -126,9 +128,9 @@ public class HazelcastClusterTopologyTest
         return generateConfigs( numConfigs, DEFAULT_SETTINGS_GENERATOR );
     }
 
-    private static List<Config> generateConfigs( int numConfigs, IntFunction<HashMap<String, String>> generator )
+    private static List<Config> generateConfigs( int numConfigs, IntFunction<HashMap<String,String>> generator )
     {
-        return IntStream.range(0, numConfigs).mapToObj( generator ).map( Config::defaults ).collect( Collectors.toList() );
+        return IntStream.range( 0, numConfigs ).mapToObj( generator ).map( Config::defaults ).collect( Collectors.toList() );
     }
 
     @Test
@@ -190,7 +192,12 @@ public class HazelcastClusterTopologyTest
 
         // then
         assertEquals( singletonMap( validMemberId, validReadReplicaInfo ), rrMap );
-        logProvider.formattedMessageMatcher().assertContains( "Missing attribute %s for read replica" );
+
+        logProvider.rawMessageMatcher().assertContains(
+                Matchers.allOf(
+                        Matchers.containsString( "Missing attribute %s for read replica" )
+                )
+        );
     }
 
     @Test
@@ -209,7 +216,7 @@ public class HazelcastClusterTopologyTest
             coreMembers.add( mId );
 
             Config c = configs.get( i );
-            Map<String, Object> attributes = buildMemberAttributesForCore( mId, c ).getAttributes();
+            Map<String,Object> attributes = buildMemberAttributesForCore( mId, c ).getAttributes();
             hazelcastMembers.add( new MemberImpl( new Address( "localhost", i ), null, attributes, false ) );
         }
 
@@ -236,9 +243,10 @@ public class HazelcastClusterTopologyTest
         Set<Member> hazelcastMembers = new HashSet<>();
         List<MemberId> coreMembers = new ArrayList<>();
 
-        Map<Integer, String> dbNames = CausalClusteringTestHelpers.distributeDatabaseNamesToHostNums( numMembers, DB_NAMES );
-        IntFunction<HashMap<String, String>> generator = i -> {
-            HashMap<String, String> settings =  DEFAULT_SETTINGS_GENERATOR.apply( i );
+        Map<Integer,String> dbNames = CausalClusteringTestHelpers.distributeDatabaseNamesToHostNums( numMembers, DB_NAMES );
+        IntFunction<HashMap<String,String>> generator = i ->
+        {
+            HashMap<String,String> settings = DEFAULT_SETTINGS_GENERATOR.apply( i );
             settings.put( CausalClusteringSettings.database.name(), dbNames.get( i ) );
             return settings;
         };
@@ -251,7 +259,7 @@ public class HazelcastClusterTopologyTest
             coreMembers.add( mId );
 
             Config c = configs.get( i );
-            Map<String, Object> attributes = buildMemberAttributesForCore( mId, c ).getAttributes();
+            Map<String,Object> attributes = buildMemberAttributesForCore( mId, c ).getAttributes();
             hazelcastMembers.add( new MemberImpl( new Address( "localhost", i ), null, attributes, false ) );
         }
 
@@ -265,7 +273,6 @@ public class HazelcastClusterTopologyTest
             String expectedDBName = dbNames.get( i );
             assertEquals( expectedDBName, coreServerInfo.getDatabaseName() );
         }
-
     }
 
     @Test
@@ -276,8 +283,9 @@ public class HazelcastClusterTopologyTest
         Set<Member> hazelcastMembers = new HashSet<>();
         List<MemberId> coreMembers = new ArrayList<>();
 
-        IntFunction<HashMap<String, String>> generator = i -> {
-            HashMap<String, String> settings =  DEFAULT_SETTINGS_GENERATOR.apply( i );
+        IntFunction<HashMap<String,String>> generator = i ->
+        {
+            HashMap<String,String> settings = DEFAULT_SETTINGS_GENERATOR.apply( i );
             settings.remove( CausalClusteringSettings.transaction_advertised_address.name() );
             settings.remove( CausalClusteringSettings.raft_advertised_address.name() );
             return settings;
@@ -290,7 +298,7 @@ public class HazelcastClusterTopologyTest
             MemberId memberId = new MemberId( UUID.randomUUID() );
             coreMembers.add( memberId );
             Config c = configs.get( i );
-            Map<String, Object> attributes = buildMemberAttributesForCore( memberId, c ).getAttributes();
+            Map<String,Object> attributes = buildMemberAttributesForCore( memberId, c ).getAttributes();
             if ( i == 2 )
             {
                 attributes.remove( HazelcastClusterTopology.RAFT_SERVER );
@@ -315,8 +323,8 @@ public class HazelcastClusterTopologyTest
         //given
         int numMembers = 3;
 
-        List<MemberId> members = IntStream.range(0, numMembers)
-                .mapToObj( ignored -> new MemberId( UUID.randomUUID() ) ).collect( Collectors.toList() );
+        List<MemberId> members = IntStream.range( 0, numMembers )
+                                          .mapToObj( ignored -> new MemberId( UUID.randomUUID() ) ).collect( Collectors.toList() );
 
         @SuppressWarnings( "unchecked" )
         IAtomicReference<LeaderInfo> leaderRef = mock( IAtomicReference.class );
@@ -324,13 +332,13 @@ public class HazelcastClusterTopologyTest
         when( leaderRef.get() ).thenReturn( new LeaderInfo( chosenLeaderId, 0L ) );
 
         @SuppressWarnings( "unchecked" )
-        IMap<String, UUID> uuidDBMap = mock( IMap.class );
+        IMap<String,UUID> uuidDBMap = mock( IMap.class );
         when( uuidDBMap.keySet() ).thenReturn( Collections.singleton( DEFAULT_DB_NAME ) );
         when( hzInstance.<LeaderInfo>getAtomicReference( startsWith( DB_NAME_LEADER_TERM_PREFIX ) ) ).thenReturn( leaderRef );
-        when( hzInstance.<String, UUID>getMap( eq( CLUSTER_UUID_DB_NAME_MAP ) ) ).thenReturn( uuidDBMap );
+        when( hzInstance.<String,UUID>getMap( eq( CLUSTER_UUID_DB_NAME_MAP ) ) ).thenReturn( uuidDBMap );
 
         // when
-        Map<MemberId, RoleInfo> roleMap = HazelcastClusterTopology.getCoreRoles( hzInstance, new HashSet<>( members ) );
+        Map<MemberId,RoleInfo> roleMap = HazelcastClusterTopology.getCoreRoles( hzInstance, new HashSet<>( members ) );
 
         // then
         assertEquals( "First member was expected to be leader.", RoleInfo.LEADER, roleMap.get( chosenLeaderId ) );
@@ -345,16 +353,17 @@ public class HazelcastClusterTopologyTest
     {
         Set<String> hzIds = new HashSet<>();
         readReplicaInfos.forEach( ( memberId, readReplicaInfo ) ->
-        {
-            UUID hzId = UUID.randomUUID();
-            hzIds.add( hzId.toString() );
-            generateReadReplicaAttributes( hzId, memberId, readReplicaInfo, missingAttrsMaps, nullAttrs.getOrDefault( memberId, emptySet() ) );
-        } );
+                                  {
+                                      UUID hzId = UUID.randomUUID();
+                                      hzIds.add( hzId.toString() );
+                                      generateReadReplicaAttributes( hzId, memberId, readReplicaInfo, missingAttrsMaps,
+                                                                     nullAttrs.getOrDefault( memberId, emptySet() ) );
+                                  } );
         rrAttributeMaps.forEach( ( ignored, attrs ) -> when( attrs.keySet() ).thenReturn( hzIds ) );
     }
 
     private void generateReadReplicaAttributes( UUID hzId, MemberId memberId, ReadReplicaInfo readReplicaInfo,
-            Set<String> missingAttrsMaps, Set<String> nullAttrs )
+                                                Set<String> missingAttrsMaps, Set<String> nullAttrs )
     {
         Map<String,BiFunction<MemberId,ReadReplicaInfo,String>> attributeFactories = new HashMap<>();
         attributeFactories.put( READ_REPLICAS_DB_NAME_MAP, ( ignored, rr ) -> rr.getDatabaseName() );
@@ -363,12 +372,12 @@ public class HazelcastClusterTopologyTest
         attributeFactories.put( READ_REPLICA_BOLT_ADDRESS_MAP, ( ignored, rr ) -> rr.connectors().toString() );
 
         attributeFactories.entrySet().stream()
-                .filter( e -> !missingAttrsMaps.contains( e.getKey() ) )
-                .forEach( e ->
-                {
-                    String attrValue = nullAttrs.contains( e.getKey() ) ? null : e.getValue().apply( memberId, readReplicaInfo );
-                    mockReadReplicaAttribute( e.getKey(), hzId, attrValue );
-                });
+                          .filter( e -> !missingAttrsMaps.contains( e.getKey() ) )
+                          .forEach( e ->
+                                    {
+                                        String attrValue = nullAttrs.contains( e.getKey() ) ? null : e.getValue().apply( memberId, readReplicaInfo );
+                                        mockReadReplicaAttribute( e.getKey(), hzId, attrValue );
+                                    } );
     }
 
     private void mockReadReplicaAttribute( String attrKey, UUID hzId, String attrValue )
@@ -384,7 +393,7 @@ public class HazelcastClusterTopologyTest
 
         List<ClientConnectorAddresses.ConnectorUri> connectorUris = singletonList(
                 new ClientConnectorAddresses.ConnectorUri( ClientConnectorAddresses.Scheme.bolt,
-                        new AdvertisedSocketAddress( "losthost", portFactory.getAsInt() ) ) );
+                                                           new AdvertisedSocketAddress( "losthost", portFactory.getAsInt() ) ) );
         ClientConnectorAddresses addresses = new ClientConnectorAddresses( connectorUris );
         return new ReadReplicaInfo( addresses, new AdvertisedSocketAddress( "localhost", portFactory.getAsInt() ), GROUPS, "foo" );
     }

@@ -39,10 +39,10 @@ public class CoreMonitorTest
     @Test
     public void shouldNotDuplicateToAnyLog()
     {
-        AssertableLogProvider user = new AssertableLogProvider();
-        AssertableLogProvider debug = new AssertableLogProvider();
+        AssertableLogProvider userLogProvider = new AssertableLogProvider();
+        AssertableLogProvider debugLogProvider = new AssertableLogProvider();
 
-        SimpleLogService logService = new SimpleLogService( user, debug );
+        SimpleLogService logService = new SimpleLogService( userLogProvider, debugLogProvider );
 
         Monitors monitors = new Monitors();
         CoreMonitor.register( logService.getInternalLogProvider(), logService.getUserLogProvider(), monitors );
@@ -51,10 +51,17 @@ public class CoreMonitorTest
 
         ClusterId clusterId = new ClusterId( UUID.randomUUID() );
         monitor.boundToCluster( clusterId );
-        user.formattedMessageMatcher().assertContainsSingle(Matchers.equalToIgnoringCase( "Bound to cluster with id " + clusterId.uuid() ));
-        debug.formattedMessageMatcher().assertContainsSingle(Matchers.equalToIgnoringCase( "Bound to cluster with id " + clusterId.uuid() ));
 
-        //user.assertContainsExactlyOneMessageMatching( Matchers.equalToIgnoringCase( "Bound to cluster with id " + clusterId.uuid() ) );
-        //debug.assertContainsExactlyOneMessageMatching( Matchers.equalToIgnoringCase( "Bound to cluster with id " + clusterId.uuid() ) );
+        userLogProvider.rawMessageMatcher().assertContainsSingle(
+                Matchers.allOf(
+                        Matchers.containsString( "Bound to cluster with id " + clusterId.uuid() )
+                )
+        );
+
+        debugLogProvider.rawMessageMatcher().assertContainsSingle(
+                Matchers.allOf(
+                        Matchers.containsString( "Bound to cluster with id " + clusterId.uuid() )
+                )
+        );
     }
 }

@@ -22,6 +22,7 @@
  */
 package org.neo4j.causalclustering.discovery;
 
+import org.hamcrest.Matchers;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -68,10 +69,10 @@ public class SrvHostnameResolverTest
     {
         // given
         mockSrvRecordResolver.addRecords( "_discovery._tcp.google.com",
-                asList(
-                        SrvRecordResolver.SrvRecord.parse( "1 1 80 1.2.3.4" ),
-                        SrvRecordResolver.SrvRecord.parse( "1 1 8080 5.6.7.8" )
-                )
+                                          asList(
+                                                  SrvRecordResolver.SrvRecord.parse( "1 1 80 1.2.3.4" ),
+                                                  SrvRecordResolver.SrvRecord.parse( "1 1 8080 5.6.7.8" )
+                                          )
         );
 
         // when
@@ -106,7 +107,11 @@ public class SrvHostnameResolverTest
         );
 
         // then
-        userLogProvider.formattedMessageMatcher().assertContains( "Resolved initial host '%s' to %s" );
+        logProvider.rawMessageMatcher().assertContains(
+                Matchers.allOf(
+                        Matchers.containsString( "Resolved initial host '%s' to %s" )
+                )
+        );
     }
 
     @Test
@@ -116,7 +121,11 @@ public class SrvHostnameResolverTest
         resolver.resolve( new AdvertisedSocketAddress( "unknown.com", 0 ) );
 
         // then
-        logProvider.formattedMessageMatcher().assertContains( "Failed to resolve srv records for '%s'" );
+        logProvider.rawMessageMatcher().assertContains(
+                Matchers.allOf(
+                        Matchers.containsString( "Failed to resolve srv records for '%s'" )
+                )
+        );
     }
 
     @Test
@@ -126,7 +135,11 @@ public class SrvHostnameResolverTest
         resolver.resolve( new AdvertisedSocketAddress( "emptyrecord.com", 0 ) );
 
         // then
-        logProvider.formattedMessageMatcher().assertContains( "Failed to resolve srv records for '%s'" );
+        logProvider.rawMessageMatcher().assertContains(
+                Matchers.allOf(
+                        Matchers.containsString( "Failed to resolve srv records for '%s'" )
+                )
+        );
     }
 
     @Test
@@ -134,13 +147,13 @@ public class SrvHostnameResolverTest
     {
         // given
         mockSrvRecordResolver.addRecords( "_discovery._tcp.google.com",
-                asList(
-                        SrvRecordResolver.SrvRecord.parse( "1 1 80 1.2.3.4" ),
-                        SrvRecordResolver.SrvRecord.parse( "1 1 8080 5.6.7.8" )
-                )
+                                          asList(
+                                                  SrvRecordResolver.SrvRecord.parse( "1 1 80 1.2.3.4" ),
+                                                  SrvRecordResolver.SrvRecord.parse( "1 1 8080 5.6.7.8" )
+                                          )
         );
         SrvRecordResolver mockResolver = spy( mockSrvRecordResolver );
-        when(  mockResolver.resolveSrvRecord( anyString() ) )
+        when( mockResolver.resolveSrvRecord( anyString() ) )
                 .thenReturn( Stream.empty() )
                 .thenReturn( Stream.empty() )
                 .thenCallRealMethod();
@@ -165,6 +178,5 @@ public class SrvHostnameResolverTest
         assertTrue( resolvedAddresses.removeIf(
                 address -> address.getHostname().equals( "5.6.7.8" ) && address.getPort() == 8080
         ) );
-
     }
 }
