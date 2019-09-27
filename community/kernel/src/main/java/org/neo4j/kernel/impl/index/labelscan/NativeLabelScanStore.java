@@ -31,11 +31,13 @@ import java.util.function.IntFunction;
 import org.neo4j.cursor.RawCursor;
 import org.neo4j.graphdb.ResourceIterator;
 import org.neo4j.index.internal.gbptree.GBPTree;
+import org.neo4j.index.internal.gbptree.GBPTreeConsistencyCheckVisitor;
 import org.neo4j.index.internal.gbptree.Header;
 import org.neo4j.index.internal.gbptree.Hit;
 import org.neo4j.index.internal.gbptree.Layout;
 import org.neo4j.index.internal.gbptree.MetadataMismatchException;
 import org.neo4j.index.internal.gbptree.RecoveryCleanupWorkCollector;
+import org.neo4j.index.internal.gbptree.TreeFileNotFoundException;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.io.pagecache.IOLimiter;
@@ -44,6 +46,7 @@ import org.neo4j.io.pagecache.PageCursor;
 import org.neo4j.kernel.api.labelscan.AllEntriesLabelScanReader;
 import org.neo4j.kernel.api.labelscan.LabelScanStore;
 import org.neo4j.kernel.api.labelscan.LabelScanWriter;
+import org.neo4j.kernel.impl.annotations.ReporterFactory;
 import org.neo4j.kernel.impl.api.scan.FullStoreChangeStream;
 import org.neo4j.kernel.monitoring.Monitors;
 import org.neo4j.storageengine.api.schema.LabelScanReader;
@@ -366,16 +369,24 @@ public class NativeLabelScanStore implements LabelScanStore
     /**
      * @return true if instantiated tree needs to be rebuilt.
      */
-    private boolean instantiateTree() throws IOException
+    private boolean instantiateTree()
     {
         monitors.addMonitorListener( treeMonitor() );
         GBPTree.Monitor monitor = monitors.newMonitor( GBPTree.Monitor.class );
         MutableBoolean isRebuilding = new MutableBoolean();
         Header.Reader readRebuilding =
                 headerData -> isRebuilding.setValue( headerData.get() == NEEDS_REBUILDING );
-        index = new GBPTree<>( pageCache, storeFile, new LabelScanLayout(), pageSize, monitor, readRebuilding,
-                needsRebuildingWriter, recoveryCleanupWorkCollector );
-        return isRebuilding.getValue();
+        try
+        {
+            index = new GBPTree<>( pageCache, storeFile, new LabelScanLayout(), pageSize, monitor, readRebuilding,
+                    needsRebuildingWriter, recoveryCleanupWorkCollector, readOnly );
+            return isRebuilding.getValue();
+        }
+        catch ( TreeFileNotFoundException e )
+        {
+            throw new IllegalStateException(
+                    "Label scan store file could not be found, most likely this database needs to be recovered, file:" + storeFile, e );
+        }
     }
 
     private GBPTree.Monitor treeMonitor()
@@ -479,6 +490,24 @@ public class NativeLabelScanStore implements LabelScanStore
     public boolean isDirty()
     {
         return index == null || index.wasDirtyOnStartup();
+    }
+
+    @Override
+    public boolean consistencyCheck( ReporterFactory reporterFactory )
+    {
+        return consistencyCheck( reporterFactory.getClass( GBPTreeConsistencyCheckVisitor.class ) );
+    }
+
+    private boolean consistencyCheck( GBPTreeConsistencyCheckVisitor<LabelScanKey> visitor )
+    {
+        try
+        {
+            return index.consistencyCheck( visitor );
+        }
+        catch ( IOException e )
+        {
+            throw new UncheckedIOException( e );
+        }
     }
 
     private class LabelIndexTreeMonitor extends GBPTree.Monitor.Adaptor

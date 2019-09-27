@@ -20,6 +20,7 @@
 package org.neo4j.consistency.checking.full;
 
 import java.lang.reflect.Array;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.neo4j.consistency.RecordType;
@@ -37,9 +38,14 @@ import org.neo4j.consistency.statistics.Statistics;
 import org.neo4j.consistency.store.CacheSmallStoresRecordAccess;
 import org.neo4j.consistency.store.DirectRecordAccess;
 import org.neo4j.consistency.store.RecordAccess;
+import org.neo4j.helpers.collection.Iterables;
+import org.neo4j.helpers.progress.ProgressListener;
 import org.neo4j.helpers.progress.ProgressMonitorFactory;
 import org.neo4j.kernel.api.direct.DirectStoreAccess;
+import org.neo4j.kernel.api.index.IndexAccessor;
+import org.neo4j.kernel.api.labelscan.LabelScanStore;
 import org.neo4j.kernel.configuration.Config;
+import org.neo4j.kernel.impl.annotations.ReporterFactory;
 import org.neo4j.kernel.impl.api.CountsAccessor;
 import org.neo4j.kernel.impl.api.index.sampling.IndexSamplingConfig;
 import org.neo4j.kernel.impl.store.RecordStore;
@@ -51,6 +57,7 @@ import org.neo4j.kernel.impl.store.record.LabelTokenRecord;
 import org.neo4j.kernel.impl.store.record.PropertyKeyTokenRecord;
 import org.neo4j.kernel.impl.store.record.RelationshipTypeTokenRecord;
 import org.neo4j.logging.Log;
+import org.neo4j.storageengine.api.schema.StoreIndexDescriptor;
 
 import static org.neo4j.consistency.report.ConsistencyReporter.NO_MONITOR;
 import static org.neo4j.kernel.impl.store.record.RecordLoad.FORCE;
@@ -61,6 +68,7 @@ public class FullCheck
     private final boolean checkPropertyOwners;
     private final boolean checkLabelScanStore;
     private final boolean checkIndexes;
+    private final boolean checkIndexStructure;
     private final ProgressMonitorFactory progressFactory;
     private final IndexSamplingConfig samplingConfig;
     private final boolean checkGraph;
@@ -83,6 +91,7 @@ public class FullCheck
         this.samplingConfig = new IndexSamplingConfig( config );
         this.checkGraph = consistencyFlags.isCheckGraph();
         this.checkIndexes = consistencyFlags.isCheckIndexes();
+        this.checkIndexStructure = consistencyFlags.isCheckIndexStructure();
         this.checkLabelScanStore = consistencyFlags.isCheckLabelScanStore();
         this.checkPropertyOwners = consistencyFlags.isCheckPropertyOwners();
         this.startCountsStore = startCountsStore;
@@ -164,8 +173,15 @@ public class FullCheck
             ConsistencyCheckTasks taskCreator = new ConsistencyCheckTasks( progress, processEverything,
                     nativeStores, statistics, cacheAccess, directStoreAccess.labelScanStore(), indexes, directStoreAccess.tokenHolders(),
                     multiPass, reporter, threads );
+
+            if ( checkIndexStructure )
+            {
+                consistencyCheckIndexStructure( directStoreAccess.labelScanStore(), indexes, reporter, progressFactory );
+            }
+
             List<ConsistencyCheckerTask> tasks =
                     taskCreator.createTasksForFullCheck( checkLabelScanStore, checkIndexes, checkGraph );
+            progress.build();
             TaskExecutor.execute( tasks, decorator::prepare );
         }
         catch ( Exception e )
@@ -181,6 +197,51 @@ public class FullCheck
                 readAllRecords( PropertyKeyTokenRecord.class, store.getPropertyKeyTokenStore() ),
                 readAllRecords( RelationshipTypeTokenRecord.class, store.getRelationshipTypeTokenStore() ),
                 readAllRecords( LabelTokenRecord.class, store.getLabelTokenStore() ) );
+    }
+
+    private static void consistencyCheckIndexStructure( LabelScanStore labelScanStore, IndexAccessors indexes,
+            ConsistencyReporter report, ProgressMonitorFactory progressMonitorFactory )
+    {
+        final long schemaIndexCount = Iterables.count( indexes.onlineRules() );
+        final long additionalCount = 1; // LabelScanStore
+        final long totalCount = schemaIndexCount + additionalCount;
+        final ProgressListener listener = progressMonitorFactory.singlePart( "Index structure consistency check", totalCount );
+        listener.started();
+
+        consistencyCheckLabelScanStore( labelScanStore, report, listener );
+        consistencyCheckSchemaIndexes( indexes, report, listener );
+
+        listener.done();
+    }
+
+    private static void consistencyCheckLabelScanStore( LabelScanStore labelScanStore, ConsistencyReporter report, ProgressListener listener )
+    {
+        ConsistencyReporter.FormattingDocumentedHandler handler = report.formattingHandler( RecordType.LABEL_SCAN_DOCUMENT );
+        ReporterFactory proxyFactory = new ReporterFactory( handler );
+        labelScanStore.consistencyCheck( proxyFactory );
+        handler.updateSummary();
+        listener.add( 1 );
+    }
+
+    private static void consistencyCheckSchemaIndexes( IndexAccessors indexes, ConsistencyReporter report, ProgressListener listener )
+    {
+        List<StoreIndexDescriptor> rulesToRemove = new ArrayList<>();
+        for ( StoreIndexDescriptor onlineRule : indexes.onlineRules() )
+        {
+            ConsistencyReporter.FormattingDocumentedHandler handler = report.formattingHandler( RecordType.INDEX );
+            ReporterFactory reporterFactory = new ReporterFactory( handler );
+            IndexAccessor accessor = indexes.accessorFor( onlineRule );
+            if ( !accessor.consistencyCheck( reporterFactory ) )
+            {
+                rulesToRemove.add( onlineRule );
+            }
+            handler.updateSummary();
+            listener.add( 1 );
+        }
+        for ( StoreIndexDescriptor toRemove : rulesToRemove )
+        {
+            indexes.remove( toRemove );
+        }
     }
 
     private static <T extends AbstractBaseRecord> T[] readAllRecords( Class<T> type, RecordStore<T> store )

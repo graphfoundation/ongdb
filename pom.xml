@@ -85,6 +85,7 @@
       -Dorg.neo4j.kernel.impl.api.KernelStatement.trackStatements=true
       -Dorg.org.neo4j.kernel.impl.newapi.DefaultCursors.trackCursors=true
       -XX:+UnlockExperimentalVMOptions -XX:+TrustFinalNonStaticFields ${java.exports} ${test.runner.jvm.settings.additional}
+      -Djdk.serialFilter=java.**;org.neo4j.**;com.neo4j.**;com.hazelcast.**;net.sf.ehcache.Element;com.sun.proxy.*;org.openjdk.jmh.**;io.findify.s3mock.**!*
     </test.runner.jvm.settings>
     <jetty.version>9.4.17.v20190418</jetty.version>
     <findbugs.version>3.0.1</findbugs.version>
@@ -1056,7 +1057,7 @@
       <dependency>
         <groupId>org.apache.shiro</groupId>
         <artifactId>shiro-core</artifactId>
-        <version>1.4.0</version>
+        <version>1.4.1</version>
       </dependency>
       <dependency>
         <groupId>com.github.ben-manes.caffeine</groupId>
@@ -1327,7 +1328,7 @@
       <dependency>
         <groupId>org.apache.commons</groupId>
         <artifactId>commons-compress</artifactId>
-        <version>1.18</version>
+        <version>1.19</version>
       </dependency>
       <dependency>
         <groupId>com.github.luben</groupId>
@@ -1507,6 +1508,11 @@
       	<groupId>com.amazonaws</groupId>
       	<artifactId>aws-java-sdk-batch</artifactId>
       	<version>${amazon-sdk.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.amazonaws</groupId>
+        <artifactId>aws-java-sdk-cloudformation</artifactId>
+        <version>${amazon-sdk.version}</version>
       </dependency>
       <dependency>
       	<groupId>com.amazonaws</groupId>
