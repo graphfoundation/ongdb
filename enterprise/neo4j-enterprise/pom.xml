@@ -4,13 +4,13 @@
   <parent>
     <groupId>org.neo4j</groupId>
     <artifactId>parent</artifactId>
-    <version>3.5.10-SNAPSHOT</version>
+    <version>3.5.11-SNAPSHOT</version>
     <relativePath>../..</relativePath>
   </parent>
 
   <groupId>org.graphfoundation.ongdb</groupId>
   <artifactId>neo4j-enterprise</artifactId>
-  <version>3.5.10-SNAPSHOT</version>
+  <version>3.5.11-SNAPSHOT</version>
 
   <name>Neo4j - Enterprise</name>
   <packaging>jar</packaging>
