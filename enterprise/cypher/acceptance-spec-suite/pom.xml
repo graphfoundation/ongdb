@@ -27,6 +27,8 @@
   <properties>
     <license-text.header>headers/AGPL-3-header.txt</license-text.header>
     <moduleName>org.neo4j.internal.enterprise.cypher.acceptance.spec.suite</moduleName>
+    <!-- The setting below is just a temporary setting as we upgrade the test infrastructure -->
+    <maven.test.skip>true</maven.test.skip>
   </properties>
 
   <licenses>
