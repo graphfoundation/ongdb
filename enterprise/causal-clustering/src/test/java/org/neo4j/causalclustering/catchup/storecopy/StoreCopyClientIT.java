@@ -27,6 +27,7 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import org.apache.commons.compress.utils.Charsets;
 import org.eclipse.collections.impl.factory.primitive.LongSets;
+import org.hamcrest.Matchers;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -71,9 +72,6 @@ import org.neo4j.ports.allocation.PortAuthority;
 import org.neo4j.test.rule.SuppressOutput;
 import org.neo4j.test.rule.TestDirectory;
 
-import static org.hamcrest.CoreMatchers.both;
-import static org.hamcrest.CoreMatchers.containsString;
-import static org.hamcrest.CoreMatchers.startsWith;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
@@ -327,19 +325,11 @@ public class StoreCopyClientIT
         catch ( StoreCopyFailedException e )
         {
 
-
-            assertableLogProvider.assertAtLeastOnce(
-                AssertableLogProvider.inLog( startsWith( "Connection refused:" ) ).any()
+            assertableLogProvider.rawMessageMatcher().assertContainsSingle(
+                    Matchers.allOf(
+                            Matchers.containsString( "Connection refused: localhost/127.0.0.1:" + port )
+                    )
             );
-
-            assertableLogProvider.assertAtLeastOnce(
-                AssertableLogProvider.inLog( containsString( "localhost/127.0.0.1:" + port ) ).any()
-            );
-
-
-
-           // assertableLogProvider.assertContainsExactlyOneMessageMatching(
-           //         both( startsWith( "Connection refused:" ) ).and( containsString( "localhost/127.0.0.1:" + port ) ) );
         }
     }
 
@@ -369,11 +359,13 @@ public class StoreCopyClientIT
         catch ( StoreCopyFailedException e )
         {
 
-           assertableLogProvider.formattedMessageMatcher().assertContainsSingle(startsWith( "Unable to resolve address for" ) );
-            assertableLogProvider.formattedMessageMatcher().assertContains(catchupAddressResolutionException.getMessage() );
+            assertableLogProvider.rawMessageMatcher().assertContains(
+                    Matchers.allOf(
+                            Matchers.containsString( "Unable to resolve address for '%s'. %s" )
+                    )
+            );
 
-           // assertableLogProvider.assertContainsExactlyOneMessageMatching( startsWith( "Unable to resolve address for" ) );
-           // assertableLogProvider.assertLogStringContains(catchupAddressResolutionException.getMessage() );
+            // assertableLogProvider.assertLogStringContains(catchupAddressResolutionException.getMessage() );
         }
     }
 
