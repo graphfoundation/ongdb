@@ -39,7 +39,6 @@ import org.neo4j.commandline.arguments.OptionalBooleanArg;
 import org.neo4j.commandline.arguments.OptionalNamedArg;
 import org.neo4j.commandline.arguments.common.MandatoryCanonicalPath;
 import org.neo4j.commandline.arguments.common.OptionalCanonicalPath;
-import org.neo4j.consistency.ConsistencyCheckSettings;
 import org.neo4j.consistency.checking.full.ConsistencyFlags;
 import org.neo4j.graphdb.config.Setting;
 import org.neo4j.graphdb.factory.GraphDatabaseSettings;
@@ -92,11 +91,6 @@ class OnlineBackupContextFactory
     static final String ARG_NAME_CHECK_INDEXES = "cc-indexes";
     static final String ARG_DESC_CHECK_INDEXES = "Perform consistency checks on indexes.";
 
-
-    static final String ARG_NAME_CHECK_INDEX_STRUCTURE = "consistency_check_index_structure";
-    static final String ARG_DESC_CHECK_INDEX_STRUCTURE = "Perform check of index structure";
-
-
     static final String ARG_NAME_CHECK_LABELS = "cc-label-scan-store";
     static final String ARG_DESC_CHECK_LABELS = "Perform consistency checks on the label scan store.";
 
@@ -126,7 +120,6 @@ class OnlineBackupContextFactory
                 new OptionalNamedArg( ARG_NAME_TIMEOUT, "timeout", ARG_DFLT_TIMEOUT, ARG_DESC_TIMEOUT ) ).withArgument(
                 new OptionalNamedArg( ARG_NAME_PAGECACHE, "8m", ARG_DFLT_PAGECACHE, ARG_DESC_PAGECACHE ) ).withArgument(
                 new OptionalBooleanArg( ARG_NAME_CHECK_CONSISTENCY, true, ARG_DESC_CHECK_CONSISTENCY ) ).withArgument(
-                new OptionalBooleanArg( ARG_NAME_CHECK_INDEX_STRUCTURE, true, ARG_DESC_CHECK_INDEX_STRUCTURE ) ).withArgument(
                 new OptionalCanonicalPath( ARG_NAME_REPORT_DIRECTORY, "directory", ".", ARG_DESC_REPORT_DIRECTORY ) ).withArgument(
                 new OptionalCanonicalPath( ARG_NAME_ADDITIONAL_CONFIG_DIR, "config-file-path", "", ARG_DESC_ADDITIONAL_CONFIG_DIR ) ).withArgument(
                 new OptionalBooleanArg( ARG_NAME_CHECK_GRAPH, true, ARG_DESC_CHECK_GRAPH ) ).withArgument(
@@ -152,9 +145,11 @@ class OnlineBackupContextFactory
             String pagecacheMemory = arguments.get( ARG_NAME_PAGECACHE );
             Optional<Path> additionalConfig = arguments.getOptionalPath( ARG_NAME_ADDITIONAL_CONFIG_DIR );
             Path reportDir = (Path) arguments.getOptionalPath( ARG_NAME_REPORT_DIRECTORY ).orElseThrow( () ->
-            {
-                return new IllegalArgumentException( ARG_NAME_REPORT_DIRECTORY + " must be a path" );
-            } );
+                                                                                                        {
+                                                                                                            return new IllegalArgumentException(
+                                                                                                                    ARG_NAME_REPORT_DIRECTORY +
+                                                                                                                    " must be a path" );
+                                                                                                        } );
             OnlineBackupRequiredArguments requiredArguments =
                     new OnlineBackupRequiredArguments( address, folder, name, selectedBackupProtocol, fallbackToFull, doConsistencyCheck, timeout, reportDir );
 
@@ -163,7 +158,7 @@ class OnlineBackupContextFactory
             Path logPath = requiredArguments.getResolvedLocationFromName();
 
             Config config = builder.withHome( this.homeDir ).withSetting( GraphDatabaseSettings.logical_logs_location,
-                    logPath.toString() ).withConnectorsDisabled().withNoThrowOnFileLoadFailure().build();
+                                                                          logPath.toString() ).withConnectorsDisabled().withNoThrowOnFileLoadFailure().build();
 
             additionalConfig.map( this::loadAdditionalConfigFile ).ifPresent( config::augment );
 
@@ -178,12 +173,8 @@ class OnlineBackupContextFactory
             // Note: We can remove the loading from config file in 4.0.
             BiFunction<String,Setting<Boolean>,Boolean> oneOf = ( a, s ) -> arguments.has( a ) ? arguments.getBoolean( a ) : config.get( s );
 
-            ConsistencyFlags consistencyFlags = new ConsistencyFlags(
-                    oneOf.apply( ARG_NAME_CHECK_GRAPH, ConsistencyCheckSettings.consistency_check_graph ),
-                    oneOf.apply( ARG_NAME_CHECK_INDEXES, ConsistencyCheckSettings.consistency_check_indexes ),
-                    oneOf.apply( ARG_NAME_CHECK_LABELS, ConsistencyCheckSettings.consistency_check_label_scan_store ),
-                    oneOf.apply( ARG_NAME_CHECK_INDEX_STRUCTURE, ConsistencyCheckSettings.consistency_check_index_structure ),
-                    oneOf.apply( ARG_NAME_CHECK_OWNERS, ConsistencyCheckSettings.consistency_check_property_owners ) );
+            ConsistencyFlags consistencyFlags = new ConsistencyFlags( config );
+            
             return new OnlineBackupContext( requiredArguments, config, consistencyFlags );
         }
         catch ( IllegalArgumentException e )

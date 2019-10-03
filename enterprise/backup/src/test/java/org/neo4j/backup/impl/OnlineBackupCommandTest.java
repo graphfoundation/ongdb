@@ -101,12 +101,12 @@ public class OnlineBackupCommandTest
         reportDirectory = testDirectory.directory( "reportDirectory/" ).toPath();
         BackupSupportingClasses backupSupportingClasses =
                 new BackupSupportingClasses( mock( BackupDelegator.class ), mock( BackupProtocolService.class ), mock( PageCache.class ),
-                        Collections.emptyList() );
+                                             Collections.emptyList() );
         when( backupSupportingClassesFactory.createSupportingClasses( any() ) ).thenReturn( backupSupportingClasses );
 
         requiredArguments =
                 new OnlineBackupRequiredArguments( address, backupDirectory, backupName, SelectedBackupProtocol.ANY, fallbackToFull, doConsistencyCheck,
-                        timeout, reportDirectory );
+                                                   timeout, reportDirectory );
         OnlineBackupContext onlineBackupContext = new OnlineBackupContext( requiredArguments, config, consistencyFlags );
 
         when( backupStrategyCoordinatorFactory.backupStrategyCoordinator( any(), any(), any(), any() ) ).thenReturn( backupStrategyCoordinator );
@@ -151,70 +151,70 @@ public class OnlineBackupCommandTest
         usage.printUsageForCommand( new OnlineBackupCommandProvider(), stdout::println );
 
         assertEquals( format( "usage: neo4j-admin backup --backup-dir=<backup-path> --name=<graph.db-backup>%n" +
-                "                          [--from=<address>] [--protocol=<any|catchup|common>]%n" +
-                "                          [--fallback-to-full[=<true|false>]]%n" +
-                "                          [--timeout=<timeout>] [--pagecache=<8m>]%n" +
-                "                          [--check-consistency[=<true|false>]]%n" +
-                "                          [--cc-report-dir=<directory>]%n" +
-                "                          [--additional-config=<config-file-path>]%n" +
-                "                          [--cc-graph[=<true|false>]]%n" +
-                "                          [--cc-indexes[=<true|false>]]%n" +
-                "                          [--cc-label-scan-store[=<true|false>]]%n" +
-                "                          [--cc-property-owners[=<true|false>]]%n" +
-                "%n" +
-                "environment variables:%n" +
-                "    NEO4J_CONF    Path to directory which contains neo4j.conf.%n" +
-                "    NEO4J_DEBUG   Set to anything to enable debug output.%n" +
-                "    NEO4J_HOME    Neo4j home directory.%n" +
-                "    HEAP_SIZE     Set JVM maximum heap size during command execution.%n" +
-                "                  Takes a number and a unit, for example 512m.%n" +
-                "%n" +
-                "Perform an online backup from a running Neo4j enterprise server. Neo4j's backup%n" +
-                "service must have been configured on the server beforehand.%n" +
-                "%n" +
-                "All consistency checks except 'cc-graph' can be quite expensive so it may be%n" +
-                "useful to turn them off for very large databases. Increasing the heap size can%n" +
-                "also be a good idea. See 'neo4j-admin help' for details.%n" +
-                "%n" +
-                "For more information see:%n" +
-                "https://neo4j.com/docs/operations-manual/current/backup/%n" +
-                "%n" +
-                "options:%n" +
-                "  --backup-dir=<backup-path>               Directory to place backup in.%n" +
-                "  --name=<graph.db-backup>                 Name of backup. If a backup with this%n" +
-                "                                           name already exists an incremental%n" +
-                "                                           backup will be attempted.%n" +
-                "  --from=<address>                         Host and port of Neo4j.%n" +
-                "                                           [default:localhost:6362]%n" +
-                "  --protocol=<any|catchup|common>          Preferred backup protocol%n" +
-                "                                           [default:any]%n" +
-                "  --fallback-to-full=<true|false>          If an incremental backup fails backup%n" +
-                "                                           will move the old backup to%n" +
-                "                                           <name>.err.<N> and fallback to a full%n" +
-                "                                           backup instead. [default:true]%n" +
-                "  --timeout=<timeout>                      Timeout in the form <time>[ms|s|m|h],%n" +
-                "                                           where the default unit is seconds.%n" +
-                "                                           [default:20m]%n" +
-                "  --pagecache=<8m>                         The size of the page cache to use for%n" +
-                "                                           the backup process. [default:8m]%n" +
-                "  --check-consistency=<true|false>         If a consistency check should be%n" +
-                "                                           made. [default:true]%n" +
-                "  --cc-report-dir=<directory>              Directory where consistency report%n" +
-                "                                           will be written. [default:.]%n" +
-                "  --additional-config=<config-file-path>   Configuration file to supply%n" +
-                "                                           additional configuration in. This%n" +
-                "                                           argument is DEPRECATED. [default:]%n" +
-                "  --cc-graph=<true|false>                  Perform consistency checks between%n" +
-                "                                           nodes, relationships, properties,%n" +
-                "                                           types and tokens. [default:true]%n" +
-                "  --cc-indexes=<true|false>                Perform consistency checks on%n" +
-                "                                           indexes. [default:true]%n" +
-                "  --cc-label-scan-store=<true|false>       Perform consistency checks on the%n" +
-                "                                           label scan store. [default:true]%n" +
-                "  --cc-property-owners=<true|false>        Perform additional consistency checks%n" +
-                "                                           on property ownership. This check is%n" +
-                "                                           *very* expensive in time and memory.%n" +
-                "                                           [default:false]%n" ), baosOut.toString() );
+                              "                          [--from=<address>] [--protocol=<any|catchup|common>]%n" +
+                              "                          [--fallback-to-full[=<true|false>]]%n" +
+                              "                          [--timeout=<timeout>] [--pagecache=<8m>]%n" +
+                              "                          [--check-consistency[=<true|false>]]%n" +
+                              "                          [--cc-report-dir=<directory>]%n" +
+                              "                          [--additional-config=<config-file-path>]%n" +
+                              "                          [--cc-graph[=<true|false>]]%n" +
+                              "                          [--cc-indexes[=<true|false>]]%n" +
+                              "                          [--cc-label-scan-store[=<true|false>]]%n" +
+                              "                          [--cc-property-owners[=<true|false>]]%n" +
+                              "%n" +
+                              "environment variables:%n" +
+                              "    NEO4J_CONF    Path to directory which contains neo4j.conf.%n" +
+                              "    NEO4J_DEBUG   Set to anything to enable debug output.%n" +
+                              "    NEO4J_HOME    Neo4j home directory.%n" +
+                              "    HEAP_SIZE     Set JVM maximum heap size during command execution.%n" +
+                              "                  Takes a number and a unit, for example 512m.%n" +
+                              "%n" +
+                              "Perform an online backup from a running Neo4j enterprise server. Neo4j's backup%n" +
+                              "service must have been configured on the server beforehand.%n" +
+                              "%n" +
+                              "All consistency checks except 'cc-graph' can be quite expensive so it may be%n" +
+                              "useful to turn them off for very large databases. Increasing the heap size can%n" +
+                              "also be a good idea. See 'neo4j-admin help' for details.%n" +
+                              "%n" +
+                              "For more information see:%n" +
+                              "https://neo4j.com/docs/operations-manual/current/backup/%n" +
+                              "%n" +
+                              "options:%n" +
+                              "  --backup-dir=<backup-path>               Directory to place backup in.%n" +
+                              "  --name=<graph.db-backup>                 Name of backup. If a backup with this%n" +
+                              "                                           name already exists an incremental%n" +
+                              "                                           backup will be attempted.%n" +
+                              "  --from=<address>                         Host and port of Neo4j.%n" +
+                              "                                           [default:localhost:6362]%n" +
+                              "  --protocol=<any|catchup|common>          Preferred backup protocol%n" +
+                              "                                           [default:any]%n" +
+                              "  --fallback-to-full=<true|false>          If an incremental backup fails backup%n" +
+                              "                                           will move the old backup to%n" +
+                              "                                           <name>.err.<N> and fallback to a full%n" +
+                              "                                           backup instead. [default:true]%n" +
+                              "  --timeout=<timeout>                      Timeout in the form <time>[ms|s|m|h],%n" +
+                              "                                           where the default unit is seconds.%n" +
+                              "                                           [default:20m]%n" +
+                              "  --pagecache=<8m>                         The size of the page cache to use for%n" +
+                              "                                           the backup process. [default:8m]%n" +
+                              "  --check-consistency=<true|false>         If a consistency check should be%n" +
+                              "                                           made. [default:true]%n" +
+                              "  --cc-report-dir=<directory>              Directory where consistency report%n" +
+                              "                                           will be written. [default:.]%n" +
+                              "  --additional-config=<config-file-path>   Configuration file to supply%n" +
+                              "                                           additional configuration in. This%n" +
+                              "                                           argument is DEPRECATED. [default:]%n" +
+                              "  --cc-graph=<true|false>                  Perform consistency checks between%n" +
+                              "                                           nodes, relationships, properties,%n" +
+                              "                                           types and tokens. [default:true]%n" +
+                              "  --cc-indexes=<true|false>                Perform consistency checks on%n" +
+                              "                                           indexes. [default:true]%n" +
+                              "  --cc-label-scan-store=<true|false>       Perform consistency checks on the%n" +
+                              "                                           label scan store. [default:true]%n" +
+                              "  --cc-property-owners=<true|false>        Perform additional consistency checks%n" +
+                              "                                           on property ownership. This check is%n" +
+                              "                                           *very* expensive in time and memory.%n" +
+                              "                                           [default:false]%n" ), baosOut.toString() );
     }
 
     @Test
@@ -223,15 +223,15 @@ public class OnlineBackupCommandTest
         // with
         List<Object[]> cases = asList(
                 new Object[]{SelectedBackupProtocol.CATCHUP,
-                        String.format( "The selected protocol `catchup` means that it is only compatible with causal clustering instances%n" )},
+                             String.format( "The selected protocol `catchup` means that it is only compatible with causal clustering instances%n" )},
                 new Object[]{SelectedBackupProtocol.COMMON,
-                        String.format( "The selected protocol `common` means that it is only compatible with HA and single instances%n" )}
+                             String.format( "The selected protocol `common` means that it is only compatible with HA and single instances%n" )}
         );
         for ( Object[] thisCase : cases )
         {
             // given
             requiredArguments = new OnlineBackupRequiredArguments( address, backupDirectory, backupName, (SelectedBackupProtocol) thisCase[0], fallbackToFull,
-                    doConsistencyCheck, timeout, reportDirectory );
+                                                                   doConsistencyCheck, timeout, reportDirectory );
             OnlineBackupContext onlineBackupContext = new OnlineBackupContext( requiredArguments, config, consistencyFlags );
             subject = newOnlineBackupCommand( outsideWorld, onlineBackupContext, backupSupportingClassesFactory, backupStrategyCoordinatorFactory );
 
@@ -245,7 +245,8 @@ public class OnlineBackupCommandTest
     }
 
     private static OnlineBackupCommand newOnlineBackupCommand( OutsideWorld outsideWorld, OnlineBackupContext onlineBackupContext,
-            BackupSupportingClassesFactory backupSupportingClassesFactory, BackupStrategyCoordinatorFactory backupStrategyCoordinatorFactory )
+                                                               BackupSupportingClassesFactory backupSupportingClassesFactory,
+                                                               BackupStrategyCoordinatorFactory backupStrategyCoordinatorFactory )
     {
         OnlineBackupContextFactory contextBuilder = mock( OnlineBackupContextFactory.class );
         try

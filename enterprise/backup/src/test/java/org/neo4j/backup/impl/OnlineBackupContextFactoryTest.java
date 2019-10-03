@@ -29,7 +29,6 @@ import org.junit.rules.ExpectedException;
 
 import java.io.IOException;
 import java.nio.file.Files;
-import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -39,8 +38,6 @@ import java.util.List;
 import org.neo4j.causalclustering.core.CausalClusteringSettings;
 import org.neo4j.commandline.admin.CommandFailed;
 import org.neo4j.commandline.admin.IncorrectUsage;
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
-import org.neo4j.io.ByteUnit;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.configuration.Settings;
 import org.neo4j.test.rule.SuppressOutput;
