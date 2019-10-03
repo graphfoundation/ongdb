@@ -93,7 +93,7 @@ class OnlineBackupContextFactory
     static final String ARG_DESC_CHECK_INDEXES = "Perform consistency checks on indexes.";
 
 
-    static final String ARG_NAME_CHECK_INDEX_STRUCTURE = "check-index-structure";
+    static final String ARG_NAME_CHECK_INDEX_STRUCTURE = "consistency_check_index_structure";
     static final String ARG_DESC_CHECK_INDEX_STRUCTURE = "Perform check of index structure";
 
 
@@ -126,6 +126,7 @@ class OnlineBackupContextFactory
                 new OptionalNamedArg( ARG_NAME_TIMEOUT, "timeout", ARG_DFLT_TIMEOUT, ARG_DESC_TIMEOUT ) ).withArgument(
                 new OptionalNamedArg( ARG_NAME_PAGECACHE, "8m", ARG_DFLT_PAGECACHE, ARG_DESC_PAGECACHE ) ).withArgument(
                 new OptionalBooleanArg( ARG_NAME_CHECK_CONSISTENCY, true, ARG_DESC_CHECK_CONSISTENCY ) ).withArgument(
+                new OptionalBooleanArg( ARG_NAME_CHECK_INDEX_STRUCTURE, true, ARG_DESC_CHECK_INDEX_STRUCTURE ) ).withArgument(
                 new OptionalCanonicalPath( ARG_NAME_REPORT_DIRECTORY, "directory", ".", ARG_DESC_REPORT_DIRECTORY ) ).withArgument(
                 new OptionalCanonicalPath( ARG_NAME_ADDITIONAL_CONFIG_DIR, "config-file-path", "", ARG_DESC_ADDITIONAL_CONFIG_DIR ) ).withArgument(
                 new OptionalBooleanArg( ARG_NAME_CHECK_GRAPH, true, ARG_DESC_CHECK_GRAPH ) ).withArgument(
