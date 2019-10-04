@@ -35,6 +35,7 @@ import org.eclipse.jetty.server.ServerConnector;
 import org.eclipse.jetty.server.SslConnectionFactory;
 import org.eclipse.jetty.server.handler.AbstractHandler;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
+import org.hamcrest.Matchers;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -106,7 +107,8 @@ public class KubernetesResolverIT
     @Test
     public void shouldResolveAddressesFromApiReturningShortJson() throws Throwable
     {
-        withServer( shortJson(), () -> {
+        withServer( shortJson(), () ->
+        {
             Collection<AdvertisedSocketAddress> addresses = resolver.resolve( null );
 
             assertThat( addresses, contains( expectedAddress ) );
@@ -116,7 +118,8 @@ public class KubernetesResolverIT
     @Test
     public void shouldResolveAddressesFromApiReturningLongJson() throws Throwable
     {
-        withServer( longJson(), () -> {
+        withServer( longJson(), () ->
+        {
             Collection<AdvertisedSocketAddress> addresses = resolver.resolve( null );
 
             assertThat( addresses, contains( expectedAddress ) );
@@ -126,9 +129,15 @@ public class KubernetesResolverIT
     @Test
     public void shouldLogResolvedAddressesToUserLog() throws Throwable
     {
-        withServer( longJson(), () -> {
-           resolver.resolve( null );
-           userLogProvider.formattedMessageMatcher().assertContains( "Resolved %s from Kubernetes API at %s namespace %s labelSelector %s" );
+        withServer( longJson(), () ->
+        {
+            resolver.resolve( null );
+
+            userLogProvider.rawMessageMatcher().assertContains(
+                    Matchers.allOf(
+                            Matchers.containsString( "Resolved %s from Kubernetes API at %s namespace %s labelSelector %s" )
+                    )
+            );
         } );
     }
 
@@ -136,9 +145,15 @@ public class KubernetesResolverIT
     public void shouldLogEmptyAddressesToDebugLog() throws Throwable
     {
         String response = "{ \"kind\":\"ServiceList\", \"items\":[] }";
-        withServer( response, () -> {
+        withServer( response, () ->
+        {
             resolver.resolve( null );
-            logProvider.formattedMessageMatcher().assertContains( "Resolved empty hosts from Kubernetes API at %s namespace %s labelSelector %s" );
+
+            logProvider.rawMessageMatcher().assertContains(
+                    Matchers.allOf(
+                            Matchers.containsString( "Resolved empty hosts from Kubernetes API at %s namespace %s labelSelector %s" )
+                    )
+            );
         } );
     }
 
@@ -146,7 +161,8 @@ public class KubernetesResolverIT
     public void shouldLogParseErrorToDebugLog() throws Throwable
     {
         String response = "{}";
-        withServer( response, () -> {
+        withServer( response, () ->
+        {
             resolver.resolve( null );
             logProvider.formattedMessageMatcher().assertContains( "Failed to parse result from Kubernetes API" );
         } );
@@ -158,7 +174,8 @@ public class KubernetesResolverIT
         expected.expect( IllegalStateException.class );
         expected.expectMessage( "Forbidden" );
 
-        withServer( failJson(), () -> {
+        withServer( failJson(), () ->
+        {
             resolver.resolve( null );
         } );
     }
