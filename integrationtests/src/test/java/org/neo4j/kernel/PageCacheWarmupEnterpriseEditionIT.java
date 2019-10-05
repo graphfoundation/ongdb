@@ -22,6 +22,7 @@
  */
 package org.neo4j.kernel;
 
+import org.hamcrest.Matchers;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -81,8 +82,8 @@ public class PageCacheWarmupEnterpriseEditionIT extends PageCacheWarmupTestSuppo
     private static void verifyEventuallyWarmsUp( long pagesInMemory, File metricsDirectory ) throws Exception
     {
         assertEventually( "Metrics report should include page cache page faults",
-                () -> readLongValue( metricsCsv( metricsDirectory, PC_PAGE_FAULTS ) ),
-                greaterThanOrEqualTo( pagesInMemory ), 20, SECONDS );
+                          () -> readLongValue( metricsCsv( metricsDirectory, PC_PAGE_FAULTS ) ),
+                          greaterThanOrEqualTo( pagesInMemory ), 20, SECONDS );
     }
 
     @Test
@@ -132,11 +133,11 @@ public class PageCacheWarmupEnterpriseEditionIT extends PageCacheWarmupTestSuppo
             fs.copyRecursively( backupDir, storeDir.databaseDirectory() );
         };
         db.restartDatabase( useBackupDir,
-                OnlineBackupSettings.online_backup_enabled.name(), Settings.FALSE,
-                MetricsSettings.neoPageCacheEnabled.name(), Settings.TRUE,
-                MetricsSettings.csvEnabled.name(), Settings.TRUE,
-                MetricsSettings.csvInterval.name(), "100ms",
-                MetricsSettings.csvPath.name(), metricsDirectory.getAbsolutePath() );
+                            OnlineBackupSettings.online_backup_enabled.name(), Settings.FALSE,
+                            MetricsSettings.neoPageCacheEnabled.name(), Settings.TRUE,
+                            MetricsSettings.csvEnabled.name(), Settings.TRUE,
+                            MetricsSettings.csvInterval.name(), "100ms",
+                            MetricsSettings.csvPath.name(), metricsDirectory.getAbsolutePath() );
 
         verifyEventuallyWarmsUp( pagesInMemory, metricsDirectory );
     }
@@ -218,8 +219,8 @@ public class PageCacheWarmupEnterpriseEditionIT extends PageCacheWarmupTestSuppo
     {
         File metricsDirectory = testDirectory.directory( "metrics" );
         db.withSetting( MetricsSettings.metricsEnabled, Settings.FALSE )
-                .withSetting( OnlineBackupSettings.online_backup_enabled, Settings.FALSE )
-                .withSetting( GraphDatabaseSettings.pagecache_warmup_profiling_interval, "100ms" );
+          .withSetting( OnlineBackupSettings.online_backup_enabled, Settings.FALSE )
+          .withSetting( GraphDatabaseSettings.pagecache_warmup_profiling_interval, "100ms" );
         db.ensureStarted();
 
         createTestData( db );
@@ -233,7 +234,16 @@ public class PageCacheWarmupEnterpriseEditionIT extends PageCacheWarmupTestSuppo
 
         verifyEventuallyWarmsUp( pagesInMemory, metricsDirectory );
 
-        logProvider.formattedMessageMatcher().assertContains( "Page cache warmup started." );
-        logProvider.formattedMessageMatcher().assertContains( "Page cache warmup completed. %d pages loaded. Duration: %s." );
+        logProvider.rawMessageMatcher().assertContains(
+                Matchers.allOf(
+                        Matchers.containsString( "Page cache warmup started." )
+                )
+        );
+
+        logProvider.rawMessageMatcher().assertContains(
+                Matchers.allOf(
+                        Matchers.containsString( "Page cache warmup completed. %d pages loaded. Duration: %s." )
+                )
+        );
     }
 }
