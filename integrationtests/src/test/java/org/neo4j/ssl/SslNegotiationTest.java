@@ -74,22 +74,6 @@ public class SslNegotiationTest
         return new TestSetup[]{
                 // succeeding exact matches
                 new TestSetup(
-                        protocols( TLSv10 ).ciphers( OLD_CIPHER_A ),
-                        protocols( TLSv10 ).ciphers( OLD_CIPHER_A ),
-                        true, TLSv10, OLD_CIPHER_A ),
-                new TestSetup(
-                        protocols( TLSv10 ).ciphers( NEW_CIPHER_A ),
-                        protocols( TLSv10 ).ciphers( NEW_CIPHER_A ),
-                        true, TLSv10, NEW_CIPHER_A ),
-                new TestSetup(
-                        protocols( TLSv11 ).ciphers( OLD_CIPHER_A ),
-                        protocols( TLSv11 ).ciphers( OLD_CIPHER_A ),
-                        true, TLSv11, OLD_CIPHER_A ),
-                new TestSetup(
-                        protocols( TLSv11 ).ciphers( NEW_CIPHER_A ),
-                        protocols( TLSv11 ).ciphers( NEW_CIPHER_A ),
-                        true, TLSv11, NEW_CIPHER_A ),
-                new TestSetup(
                         protocols( TLSv12 ).ciphers( NEW_CIPHER_A ),
                         protocols( TLSv12 ).ciphers( NEW_CIPHER_A ),
                         true, TLSv12, NEW_CIPHER_A ),
@@ -127,33 +111,12 @@ public class SslNegotiationTest
                         false ),
 
                 // overlapping cipher success
-                new TestSetup(
-                        protocols( TLSv10 ).ciphers( OLD_CIPHER_B, OLD_CIPHER_A ),
-                        protocols( TLSv10 ).ciphers( OLD_CIPHER_C, OLD_CIPHER_A ),
-                        true, TLSv10, OLD_CIPHER_A ),
-                new TestSetup(
-                        protocols( TLSv11 ).ciphers( NEW_CIPHER_B, NEW_CIPHER_A ),
-                        protocols( TLSv11 ).ciphers( NEW_CIPHER_C, NEW_CIPHER_A ),
-                        true, TLSv11, NEW_CIPHER_A ),
+
                 new TestSetup(
                         protocols( TLSv12 ).ciphers( NEW_CIPHER_B, NEW_CIPHER_A ),
                         protocols( TLSv12 ).ciphers( NEW_CIPHER_C, NEW_CIPHER_A ),
                         true, TLSv12, NEW_CIPHER_A ),
-
-                // overlapping protocol success
-                new TestSetup(
-                        protocols( TLSv10, TLSv11 ).ciphers( OLD_CIPHER_A ),
-                        protocols( TLSv11, TLSv12 ).ciphers( OLD_CIPHER_A ),
-                        true, TLSv11, OLD_CIPHER_A ),
-                new TestSetup(
-                        protocols( TLSv11, TLSv12 ).ciphers( OLD_CIPHER_A ),
-                        protocols( TLSv10, TLSv11 ).ciphers( OLD_CIPHER_A ),
-                        true, TLSv11, OLD_CIPHER_A ),
-                new TestSetup(
-                        protocols( TLSv10, TLSv11, TLSv12 ).ciphers( NEW_CIPHER_B ),
-                        protocols( TLSv10, TLSv11, TLSv12 ).ciphers( NEW_CIPHER_B ),
-                        true, TLSv12, NEW_CIPHER_B ),
-        };
+                };
     }
 
     @After
@@ -220,7 +183,7 @@ public class SslNegotiationTest
         public String toString()
         {
             return "TestSetup{" + "serverParams=" + serverParams + ", clientParams=" + clientParams + ", expectedSuccess=" + expectedSuccess +
-                    ", expectedProtocol='" + expectedProtocol + '\'' + ", expectedCipher='" + expectedCipher + '\'' + '}';
+                   ", expectedProtocol='" + expectedProtocol + '\'' + ", expectedCipher='" + expectedCipher + '\'' + '}';
         }
     }
 }
