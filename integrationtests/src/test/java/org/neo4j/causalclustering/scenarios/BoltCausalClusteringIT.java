@@ -92,16 +92,17 @@ public class BoltCausalClusteringIT
         // given
         cluster = clusterRule.withNumberOfReadReplicas( 0 ).startCluster();
         cluster.coreTx( ( db, tx ) ->
-        {
-            Iterators.count( db.execute( "CREATE CONSTRAINT ON (p:Person) ASSERT p.name is UNIQUE" ) );
-            tx.success();
-        } );
+                        {
+                            Iterators.count( db.execute( "CREATE CONSTRAINT ON (p:Person) ASSERT p.name is UNIQUE" ) );
+                            tx.success();
+                        } );
 
         // when
         int count = executeWriteAndReadThroughBolt( cluster.awaitLeader() );
 
         // then
         assertEquals( 1, count );
+        cluster.shutdown();
     }
 
     @Test
@@ -110,16 +111,17 @@ public class BoltCausalClusteringIT
         // given
         cluster = clusterRule.withNumberOfReadReplicas( 0 ).startCluster();
         cluster.coreTx( ( db, tx ) ->
-        {
-            Iterators.count( db.execute( "CREATE CONSTRAINT ON (p:Person) ASSERT p.name is UNIQUE" ) );
-            tx.success();
-        } );
+                        {
+                            Iterators.count( db.execute( "CREATE CONSTRAINT ON (p:Person) ASSERT p.name is UNIQUE" ) );
+                            tx.success();
+                        } );
 
         // when
         int count = executeWriteAndReadThroughBolt( cluster.getMemberWithRole( Role.FOLLOWER ) );
 
         // then
         assertEquals( 1, count );
+        cluster.shutdown();
     }
 
     private static int executeWriteAndReadThroughBolt( CoreClusterMember core ) throws TimeoutException
@@ -165,6 +167,7 @@ public class BoltCausalClusteringIT
                 driver.close();
             }
         }, is( true ), 30, SECONDS );
+        cluster.shutdown();
     }
 
     @Test
@@ -191,12 +194,14 @@ public class BoltCausalClusteringIT
         {
             // then
             assertEquals( String.format( "Server at %s no longer accepts writes", leader.boltAdvertisedAddress() ),
-                    sep.getMessage() );
+                          sep.getMessage() );
         }
         finally
         {
             driver.close();
         }
+
+        cluster.shutdown();
     }
 
     @Test
@@ -211,12 +216,14 @@ public class BoltCausalClusteringIT
         try ( Session session = driver.session() )
         {
             StatementResult overview = session.run( "CALL dbms.cluster.overview" );
-            assertThat(overview.list(), hasSize( 3 ));
+            assertThat( overview.list(), hasSize( 3 ) );
         }
         finally
         {
             driver.close();
         }
+
+        cluster.shutdown();
     }
 
     /**
@@ -334,7 +341,7 @@ public class BoltCausalClusteringIT
                 {
                     StatementResult result = session.run( "CREATE (p:Person)" );
                     ServerInfo server = result.summary().server();
-                    seenAddresses.add( server.address());
+                    seenAddresses.add( server.address() );
                     success = seenAddresses.size() >= 2;
                 }
                 catch ( Exception e )
@@ -359,6 +366,8 @@ public class BoltCausalClusteringIT
             assertTrue( leaderSwitcher.hadLeaderSwitch() );
             assertThat( seenAddresses.size(), greaterThanOrEqualTo( 2 ) );
         }
+
+        cluster.shutdown();
     }
 
     @Test
@@ -376,8 +385,10 @@ public class BoltCausalClusteringIT
         catch ( ServiceUnavailableException ex )
         {
             // then
-            assertThat(ex.getMessage(), startsWith( "Failed to run"));
+            assertThat( ex.getMessage(), startsWith( "Failed to run" ) );
         }
+
+        cluster.shutdown();
     }
 
     /*
@@ -433,6 +444,8 @@ public class BoltCausalClusteringIT
                 assertEquals( 2, record.get( "count" ).asInt() );
                 return null;
             } );
+
+            cluster.shutdown();
         }
     }
 
@@ -466,6 +479,7 @@ public class BoltCausalClusteringIT
                 tx.success();
             }
         }
+        cluster.shutdown();
     }
 
     @Test
@@ -514,6 +528,7 @@ public class BoltCausalClusteringIT
                 assertEquals( 2, record.get( "count" ).asInt() );
             }
         }
+        cluster.shutdown();
     }
 
     @Test
@@ -557,6 +572,7 @@ public class BoltCausalClusteringIT
                 assertEquals( 4, record.get( "count" ).asInt() );
             }
         }
+        cluster.shutdown();
     }
 
     @Test
@@ -564,8 +580,8 @@ public class BoltCausalClusteringIT
     {
         // given
         cluster = clusterRule.withNumberOfReadReplicas( 1 )
-                .withSharedCoreParams( stringMap( CausalClusteringSettings.cluster_routing_ttl.name(), "1s" ) )
-                .startCluster();
+                             .withSharedCoreParams( stringMap( CausalClusteringSettings.cluster_routing_ttl.name(), "1s" ) )
+                             .startCluster();
 
         CoreClusterMember leader = cluster.awaitLeader();
         Driver driver = GraphDatabase.driver( leader.routingURI(), AuthTokens.basic( "neo4j", "neo4j" ) );
@@ -614,7 +630,6 @@ public class BoltCausalClusteringIT
 
                         return null;
                     } );
-
                 }
                 catch ( Throwable throwable )
                 {
@@ -624,6 +639,8 @@ public class BoltCausalClusteringIT
 
             return readReplicas.size() == 0; // have sent something to all replicas
         }, is( true ), 30, SECONDS );
+
+        cluster.shutdown();
     }
 
     @Test
@@ -675,6 +692,8 @@ public class BoltCausalClusteringIT
                 }
             }
         }
+
+        cluster.shutdown();
     }
 
     @Test
@@ -682,9 +701,9 @@ public class BoltCausalClusteringIT
     {
         // given
         Map<String,String> params = stringMap( GraphDatabaseSettings.keep_logical_logs.name(), "keep_none",
-                GraphDatabaseSettings.logical_log_rotation_threshold.name(), "1M",
-                GraphDatabaseSettings.check_point_interval_time.name(), "100ms",
-                CausalClusteringSettings.cluster_allow_reads_on_followers.name(), "false");
+                                               GraphDatabaseSettings.logical_log_rotation_threshold.name(), "1M",
+                                               GraphDatabaseSettings.check_point_interval_time.name(), "100ms",
+                                               CausalClusteringSettings.cluster_allow_reads_on_followers.name(), "false" );
 
         Cluster<?> cluster = clusterRule.withSharedCoreParams( params ).withNumberOfReadReplicas( 1 ).startCluster();
 
@@ -693,16 +712,16 @@ public class BoltCausalClusteringIT
         try ( Session session = driver.session() )
         {
             session.writeTransaction( tx ->
-            {
-                tx.run( "MERGE (n:Person {name: 'Jim'})" );
-                return null;
-            } );
+                                      {
+                                          tx.run( "MERGE (n:Person {name: 'Jim'})" );
+                                          return null;
+                                      } );
         }
 
         ReadReplica replica = cluster.findAnyReadReplica();
 
         CatchupPollingProcess pollingClient = replica.database().getDependencyResolver()
-                .resolveDependency( CatchupPollingProcess.class );
+                                                     .resolveDependency( CatchupPollingProcess.class );
 
         pollingClient.stop();
 
@@ -714,12 +733,12 @@ public class BoltCausalClusteringIT
             try ( Session writeSession = driver.session() )
             {
                 writeSession.writeTransaction( tx ->
-                {
+                                               {
 
-                    tx.run( "UNWIND range(1, {nodesToCreate}) AS i CREATE (n:Person {name: 'Jim'})",
-                            Values.parameters( "nodesToCreate", nodesToCreate ) );
-                    return null;
-                } );
+                                                   tx.run( "UNWIND range(1, {nodesToCreate}) AS i CREATE (n:Person {name: 'Jim'})",
+                                                           Values.parameters( "nodesToCreate", nodesToCreate ) );
+                                                   return null;
+                                               } );
 
                 lastBookmark = writeSession.lastBookmark();
             }
@@ -737,14 +756,16 @@ public class BoltCausalClusteringIT
             try ( Session session = driver.session( lastBookmark ) )
             {
                 happyCount += session.readTransaction( tx ->
-                {
-                    tx.run( "MATCH (n:Person) RETURN COUNT(*) AS count" );
-                    return 1;
-                } );
+                                                       {
+                                                           tx.run( "MATCH (n:Person) RETURN COUNT(*) AS count" );
+                                                           return 1;
+                                                       } );
             }
         }
 
         assertEquals( numberOfRequests, happyCount );
+
+        cluster.shutdown();
     }
 
     private static void executeReadQuery( Session session )
