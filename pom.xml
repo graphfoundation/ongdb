@@ -85,7 +85,6 @@
       -Dorg.neo4j.kernel.impl.api.KernelStatement.trackStatements=true
       -Dorg.org.neo4j.kernel.impl.newapi.DefaultCursors.trackCursors=true
       -XX:+UnlockExperimentalVMOptions -XX:+TrustFinalNonStaticFields ${java.exports} ${test.runner.jvm.settings.additional}
-      -Djdk.serialFilter=java.**;org.neo4j.**;com.neo4j.**;com.hazelcast.**;net.sf.ehcache.Element;com.sun.proxy.*;org.openjdk.jmh.**;io.findify.s3mock.**!*
     </test.runner.jvm.settings>
     <jetty.version>9.4.17.v20190418</jetty.version>
     <findbugs.version>3.0.1</findbugs.version>
@@ -327,6 +326,11 @@
                   <item>
                       <!-- Ignore for now since some are already published, should be removed in 4.0 -->
                       <code>java.class.nonPublicPartOfAPI</code>
+                  </item>
+                  <item>
+                    <code>java.annotation.attributeValueChanged</code>
+                    <new>field org.neo4j.graphdb.factory.GraphDatabaseSettings.check_point_iops_limit</new>
+                    <justification>Updating documentation</justification>
                   </item>
               </revapi.ignore>
               <revapi.semver.ignore>
