@@ -5,13 +5,13 @@
   <parent>
     <groupId>org.neo4j</groupId>
     <artifactId>cypher-parent</artifactId>
-    <version>3.5.11-SNAPSHOT</version>
+    <version>3.5.12-SNAPSHOT</version>
     <relativePath>../../community/cypher/</relativePath>
   </parent>
 
   <groupId>org.graphfoundation.ongdb</groupId>
   <artifactId>cypher-enterprise-parent</artifactId>
-  <version>3.5.11-SNAPSHOT</version>
+  <version>3.5.12-SNAPSHOT</version>
   <packaging>pom</packaging>
   <name>Neo4j - Enterprise Cypher Build</name>
   <description>Project that builds the Neo4j Cypher modules as part of the Enterprise distribution.</description>
