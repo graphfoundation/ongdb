@@ -17,24 +17,14 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.kernel.impl.query;
+package org.neo4j.dbms.archive;
 
-import org.neo4j.graphdb.Result;
-import org.neo4j.values.virtual.MapValue;
+import java.io.IOException;
 
-public interface QueryExecutionEngine
+public class InvalidDumpEntryException extends IOException
 {
-    Result executeQuery( String query, MapValue parameters, TransactionalContext context )
-            throws QueryExecutionKernelException;
-
-    Result profileQuery( String query, MapValue parameters, TransactionalContext context )
-            throws QueryExecutionKernelException;
-
-    /**
-     * @return {@code true} if the query is a PERIODIC COMMIT query and not an EXPLAIN query
-     */
-    boolean isPeriodicCommit( String query );
-
-    long clearQueryCaches();
+    public InvalidDumpEntryException( String entryName )
+    {
+        super( "Dump file entry `" + entryName + "` points to a location outside of the destination database." );
+    }
 }
-
