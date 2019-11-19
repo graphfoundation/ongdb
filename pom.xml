@@ -7,7 +7,7 @@
   <artifactId>parent</artifactId>
   <version>3.5.13-SNAPSHOT</version>
   <packaging>pom</packaging>
-  <name>Neo4j</name>
+  <name>ONgDB</name>
   <description>ONgDB Graph Database</description>
   <inceptionYear>2002</inceptionYear>
   <url>https://graphfoundation.org/</url>
