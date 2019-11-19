@@ -72,7 +72,7 @@
     <maven.repository.snapshots>https://oss.sonatype.org/content/repositories/snapshots</maven.repository.snapshots>
     <maven.repository.releases>https://oss.sonatype.org/service/local/staging/deploy/maven2</maven.repository.releases>
     <licensing.prepend.text>licensing/notice-agpl-prefix.txt</licensing.prepend.text>
-    <lucene.version>5.5.5</lucene.version>
+    <lucene.version>8.3.0</lucene.version>
     <bouncycastle.version>1.60</bouncycastle.version>
     <generate-config-docs-phase>prepare-package</generate-config-docs-phase>
     <java.exports/>
