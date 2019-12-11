@@ -42,14 +42,6 @@ public class LabelTokenRecord extends TokenRecord
     @Override
     public LabelTokenRecord clone()
     {
-        LabelTokenRecord labelTokenRecord = new LabelTokenRecord( getIntId() );
-        labelTokenRecord.setInUse( inUse() );
-        if ( isCreated() )
-        {
-            labelTokenRecord.setCreated();
-        }
-        labelTokenRecord.setNameId( getNameId() );
-        labelTokenRecord.addNameRecords( getNameRecords() );
-        return labelTokenRecord;
+        return (LabelTokenRecord) super.clone();
     }
 }

@@ -38,7 +38,15 @@ public class CloningRecordIterator<R extends AbstractBaseRecord> extends Prefetc
     @SuppressWarnings( "unchecked" )
     protected R fetchNextOrNull()
     {
-        return actualIterator.hasNext() ? (R) actualIterator.next().clone() : null;
+        if ( actualIterator.hasNext() )
+        {
+            R next = actualIterator.next();
+            return (R) next.clone();
+        }
+        else
+        {
+            return null;
+        }
     }
 
     @Override

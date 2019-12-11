@@ -17,46 +17,35 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.kernel.impl.store.record;
+package org.neo4j.test.impl;
 
-public class NeoStoreRecord extends PrimitiveRecord
+import java.io.File;
+
+import org.neo4j.io.pagecache.PageSwapperFactory;
+import org.neo4j.io.pagecache.PageSwapperTest;
+
+public class EphemeralPageSwapperTest extends PageSwapperTest
 {
-    public NeoStoreRecord()
+    @Override
+    protected PageSwapperFactory swapperFactory()
     {
-        super( -1 );
-        setInUse( true );
+        return new EphemeralPageSwapperFactory();
     }
 
     @Override
-    public NeoStoreRecord initialize( boolean inUse, long nextProp )
-    {
-        super.initialize( inUse, nextProp );
-        return this;
-    }
-
-    @Override
-    public void clear()
-    {
-        initialize( false, -1 );
-    }
-
-    @Override
-    public String toString()
-    {
-        return getClass().getSimpleName() + "[" +
-                "used=" + inUse() +
-                ",prop=" + getNextProp() +
-                "]";
-    }
-
-    @Override
-    public void setIdTo( PropertyRecord property )
+    protected void mkdirs( File dir )
     {
     }
 
     @Override
-    public NeoStoreRecord clone()
+    protected void positionedVectoredReadWhereLastPageExtendBeyondEndOfFileMustHaveRemainderZeroFilled()
     {
-        return (NeoStoreRecord) super.clone();
+        // Disable this test because it maps the same file with different buffer sizes, and the ephemeral swapper does not support that.
+    }
+
+    @Override
+    protected void positionedVectoredReadWhereSecondLastPageExtendBeyondEndOfFileMustHaveRestZeroFilled() throws Exception
+    {
+        // Disable this test because it maps the same file with different buffer sizes, and the ephemeral swapper does not support that.
     }
 }

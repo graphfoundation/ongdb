@@ -42,14 +42,6 @@ public class RelationshipTypeTokenRecord extends TokenRecord
     @Override
     public RelationshipTypeTokenRecord clone()
     {
-        RelationshipTypeTokenRecord relationshipTypeTokenRecord = new RelationshipTypeTokenRecord( getIntId() );
-        relationshipTypeTokenRecord.setInUse( inUse() );
-        if ( isCreated() )
-        {
-            relationshipTypeTokenRecord.setCreated();
-        }
-        relationshipTypeTokenRecord.setNameId( getNameId() );
-        relationshipTypeTokenRecord.addNameRecords( getNameRecords() );
-        return relationshipTypeTokenRecord;
+        return (RelationshipTypeTokenRecord) super.clone();
     }
 }

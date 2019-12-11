@@ -19,6 +19,8 @@
  */
 package org.neo4j.kernel.impl.storageengine.impl.recordstorage;
 
+import org.apache.commons.lang3.exception.CloneFailedException;
+
 import org.neo4j.io.pagecache.PageCursor;
 import org.neo4j.kernel.impl.store.RelationshipStore;
 import org.neo4j.kernel.impl.store.record.RecordLoad;
@@ -105,5 +107,11 @@ abstract class RecordRelationshipCursor extends RelationshipRecord implements Re
     long relationshipHighMark()
     {
         return relationshipStore.getHighestPossibleIdInUse();
+    }
+
+    @Override
+    public final RelationshipRecord clone()
+    {
+        throw new CloneFailedException( "Record cursors are not cloneable." );
     }
 }

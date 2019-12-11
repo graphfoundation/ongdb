@@ -260,6 +260,7 @@ public class RecordBuilders
 
         }
 
+        @SuppressWarnings( "unchecked" )
         @Override
         public T clone( T record )
         {

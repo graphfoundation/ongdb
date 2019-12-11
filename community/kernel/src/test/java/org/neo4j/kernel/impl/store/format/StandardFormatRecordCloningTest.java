@@ -17,12 +17,27 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compiler.v3_5.helpers
+package org.neo4j.kernel.impl.store.format;
 
-object LazyIterable {
-  def apply[T](f: => Iterator[T]) = new LazyIterable[T] {
-    override def iterator = f
-  }
+import org.neo4j.kernel.impl.store.format.standard.Standard;
+
+public class StandardFormatRecordCloningTest extends AbstractRecordCloningTest
+{
+    @Override
+    protected RecordFormats formats()
+    {
+        return Standard.LATEST_RECORD_FORMATS;
+    }
+
+    @Override
+    protected int entityBits()
+    {
+        return 35;
+    }
+
+    @Override
+    protected int propertyBits()
+    {
+        return 36;
+    }
 }
-
-sealed abstract class LazyIterable[T] extends Iterable[T]

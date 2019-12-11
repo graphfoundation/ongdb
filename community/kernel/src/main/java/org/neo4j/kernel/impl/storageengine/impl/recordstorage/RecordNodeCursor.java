@@ -19,6 +19,8 @@
  */
 package org.neo4j.kernel.impl.storageengine.impl.recordstorage;
 
+import org.apache.commons.lang3.exception.CloneFailedException;
+
 import org.neo4j.io.pagecache.PageCursor;
 import org.neo4j.kernel.impl.newapi.RelationshipReferenceEncoding;
 import org.neo4j.kernel.impl.store.NodeLabelsField;
@@ -204,6 +206,12 @@ public class RecordNodeCursor extends NodeRecord implements StorageNodeCursor
     private boolean isSingle()
     {
         return highMark == NO_ID;
+    }
+
+    @Override
+    public final NodeRecord clone()
+    {
+        throw new CloneFailedException( "Record cursors are not cloneable." );
     }
 
     @Override
