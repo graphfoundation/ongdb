@@ -94,7 +94,7 @@ object MorselRuntime extends CypherRuntime[EnterpriseRuntimeContext] {
                                      schedulerTracer: SchedulerTracer) extends ExecutionPlan_V35 {
 
     override def run(queryContext: QueryContext,
-                     doProfile: Boolean,
+                     executionMode: ExecutionMode,
                      params: MapValue): RuntimeResult = {
 
       new VectorizedRuntimeResult(operators,
