@@ -32,6 +32,7 @@ import org.neo4j.cypher.internal.javacompat.GraphDatabaseCypherService
 import org.neo4j.cypher.internal.planner.v3_5.spi.PlanningAttributes.{Cardinalities, ProvidedOrders, Solveds}
 import org.neo4j.cypher.internal.planner.v3_5.spi.{IDPPlannerName, PlanContext, PlannerNameFor, PlanningAttributes}
 import org.neo4j.cypher.internal.queryReduction.DDmin.Oracle
+import org.neo4j.cypher.internal.runtime.NormalMode
 import org.neo4j.cypher.internal.runtime.interpreted.TransactionBoundQueryContext.IndexSearchMonitor
 import org.neo4j.cypher.internal.runtime.interpreted._
 import org.neo4j.cypher.internal.spi.codegen.GeneratedQueryStructure
@@ -205,7 +206,7 @@ trait CypherReductionSupport extends CypherTestSupport with GraphIcing {
 
     val queryContext = new TransactionBoundQueryContext(txContextWrapper)(CypherReductionSupport.searchMonitor)
 
-    val runtimeResult = executionPlan.run(queryContext, doProfile = false, ValueConversion.asValues(baseState.extractedParams()))
+    val runtimeResult = executionPlan.run(queryContext, NormalMode, ValueConversion.asValues(baseState.extractedParams()))
     RewindableExecutionResult(runtimeResult, queryContext)
   }
 

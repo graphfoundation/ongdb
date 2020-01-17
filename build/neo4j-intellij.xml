@@ -11,6 +11,7 @@
       <emptyLine />
       <package name="org.neo4j" withSubpackages="true" static="false" />
       <package name="com.neotechnology" withSubpackages="true" static="false" />
+      <package name="org.graphfoundation" withSubpackages="true" static="false" />
       <emptyLine />
       <package name="" withSubpackages="true" static="true" />
     </value>

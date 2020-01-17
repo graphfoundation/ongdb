@@ -58,12 +58,11 @@ object CompiledRuntime extends CypherRuntime[EnterpriseRuntimeContext] {
     * Execution plan for compiled runtime. Beware: will be cached.
     */
   class CompiledExecutionPlan(val compiled: CompiledPlan) extends ExecutionPlanv3_5 {
-
     override def run(queryContext: QueryContext,
-                     doProfile: Boolean,
+                     executionMode: ExecutionMode,
                      params: MapValue): RuntimeResult = {
+      val doProfile = executionMode == ProfileMode
 
-      val executionMode = if (doProfile) ProfileMode else NormalMode
       val tracer =
         if (doProfile) Some(new ProfilingTracer(queryContext.transactionalContext.kernelStatisticProvider))
         else None

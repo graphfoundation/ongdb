@@ -144,6 +144,7 @@ abstract class BaseHighLimitRecordFormatV3_0_6<RECORD extends AbstractBaseRecord
                     primaryCursor, primarySize, secondaryCursor, secondarySize );
             doReadInternal( record, composite, recordSize, headerByte, inUse );
             record.setSecondaryUnitId( secondaryId );
+            record.setRequiresSecondaryUnit(true); // Force override since we have secondaryUnitId
         }
         else
         {
