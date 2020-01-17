@@ -73,7 +73,7 @@
     <maven.repository.releases>https://oss.sonatype.org/service/local/staging/deploy/maven2</maven.repository.releases>
     <licensing.prepend.text>licensing/notice-agpl-prefix.txt</licensing.prepend.text>
     <lucene.version>5.5.5</lucene.version>
-    <bouncycastle.version>1.60</bouncycastle.version>
+    <bouncycastle.version>1.64</bouncycastle.version>
     <generate-config-docs-phase>prepare-package</generate-config-docs-phase>
     <java.exports/>
     <test.runner.jvm/>
@@ -111,7 +111,7 @@
     <opencypher.version>1.0.0-M12</opencypher.version>
     <caffeine.version>2.6.2</caffeine.version>
     <required.maven.version>3.5.2</required.maven.version>
-    <jackson.version>1.9.13</jackson.version>
+    <jackson.version>2.10.2</jackson.version>
 	  <amazon-sdk.version>1.11.524</amazon-sdk.version>
 	  <guava.version>26.0-jre</guava.version>
   </properties>
@@ -173,7 +173,7 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-javadoc-plugin</artifactId>
-          <version>3.0.1</version>
+          <version>3.1.1</version>
           <executions>
             <execution>
               <id>generate-javadocs</id>
@@ -1056,7 +1056,7 @@
       <dependency>
         <groupId>org.apache.shiro</groupId>
         <artifactId>shiro-core</artifactId>
-        <version>1.4.1</version>
+        <version>1.4.2</version>
       </dependency>
       <dependency>
         <groupId>com.github.ben-manes.caffeine</groupId>
@@ -1285,33 +1285,11 @@
         <groupId>commons-configuration</groupId>
         <artifactId>commons-configuration</artifactId>
         <version>1.10</version>
-        <type>jar</type>
-        <scope>compile</scope>
-        <exclusions>
-          <exclusion>
-            <artifactId>commons-digester</artifactId>
-            <groupId>commons-digester</groupId>
-          </exclusion>
-        </exclusions>
-      </dependency>
-      <!-- Added (directly) to avoid version clash in commons-configuration. -->
-      <dependency>
-        <groupId>org.apache.commons</groupId>
-        <artifactId>commons-digester3</artifactId>
-        <version>3.2</version>
-        <type>jar</type>
-        <scope>compile</scope>
-        <exclusions>
-          <exclusion>
-            <groupId>commons-beanutils</groupId>
-            <artifactId>commons-beanutils</artifactId>
-          </exclusion>
-        </exclusions>
       </dependency>
       <dependency>
         <groupId>commons-beanutils</groupId>
         <artifactId>commons-beanutils</artifactId>
-        <version>1.9.3</version>
+        <version>1.9.4</version>
         <scope>compile</scope>
       </dependency>
       <dependency>
@@ -1397,18 +1375,18 @@
         </exclusions>
       </dependency>
       <dependency>
-        <groupId>org.codehaus.jackson</groupId>
-        <artifactId>jackson-core-asl</artifactId>
+        <groupId>com.fasterxml.jackson.core</groupId>
+        <artifactId>jackson-core</artifactId>
         <version>${jackson.version}</version>
       </dependency>
       <dependency>
-        <groupId>org.codehaus.jackson</groupId>
-        <artifactId>jackson-jaxrs</artifactId>
+        <groupId>com.fasterxml.jackson.jaxrs</groupId>
+        <artifactId>jackson-jaxrs-json-provider</artifactId>
         <version>${jackson.version}</version>
       </dependency>
       <dependency>
-        <groupId>org.codehaus.jackson</groupId>
-        <artifactId>jackson-mapper-asl</artifactId>
+        <groupId>com.fasterxml.jackson.core</groupId>
+        <artifactId>jackson-databind</artifactId>
         <version>${jackson.version}</version>
       </dependency>
       <dependency>
