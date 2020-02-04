@@ -46,7 +46,6 @@ Apache Software License, Version 2.0
   Commons Lang
   Commons Logging
   ConcurrentLinkedHashMap
-  Data Mapper for Jackson
   detect-libc
   disposables
   fastinfoset
@@ -55,8 +54,12 @@ Apache Software License, Version 2.0
   Graphite Integration for Metrics
   grpc
   hazelcast-all
-  Jackson
-  JAX-RS provider for JSON content type
+  Jackson module: JAXB Annotations
+  Jackson-annotations
+  Jackson-core
+  jackson-databind
+  Jackson-JAXRS-base
+  Jackson-JAXRS-JSON
   Jetty :: Asynchronous HTTP Client
   Jetty :: Http Utility
   Jetty :: IO Utility

@@ -22,7 +22,7 @@
  */
 package org.neo4j.server.rest.security;
 
-import org.codehaus.jackson.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import org.junit.Test;
 
 import java.io.IOException;

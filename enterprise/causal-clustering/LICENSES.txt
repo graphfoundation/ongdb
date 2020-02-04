@@ -7,7 +7,6 @@ Apache Software License, Version 2.0
   Apache Commons BeanUtils
   Apache Commons Collections
   Apache Commons Compress
-  Apache Commons Configuration
   Apache Commons Text
   Apache Shiro :: Cache
   Apache Shiro :: Configuration :: Core
@@ -19,11 +18,10 @@ Apache Software License, Version 2.0
   Apache Shiro :: Event
   Apache Shiro :: Lang
   Caffeine cache
-  Commons Lang
-  Commons Logging
-  Data Mapper for Jackson
   hazelcast-all
-  Jackson
+  Jackson-annotations
+  Jackson-core
+  jackson-databind
   Jetty :: Asynchronous HTTP Client
   Jetty :: Http Utility
   Jetty :: IO Utility

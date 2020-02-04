@@ -22,12 +22,12 @@
  */
 package org.neo4j.server.rest.security;
 
-import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.node.ArrayNode;
-import org.codehaus.jackson.node.IntNode;
-import org.codehaus.jackson.node.LongNode;
-import org.codehaus.jackson.node.ObjectNode;
-import org.codehaus.jackson.node.TextNode;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.IntNode;
+import com.fasterxml.jackson.databind.node.LongNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.fasterxml.jackson.databind.node.TextNode;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -311,7 +311,7 @@ abstract class AbstractRESTInteraction extends CommunityServerTestBase implement
         }
         else if ( valueNode instanceof ObjectNode )
         {
-            value = mapValue( valueNode.getFieldNames(), valueNode );
+            value = mapValue( valueNode.fieldNames(), valueNode );
         }
         else if ( valueNode instanceof ArrayNode )
         {
@@ -325,11 +325,11 @@ abstract class AbstractRESTInteraction extends CommunityServerTestBase implement
         }
         else if ( valueNode instanceof IntNode )
         {
-            value = valueNode.getIntValue();
+            value = valueNode.intValue();
         }
         else if ( valueNode instanceof LongNode )
         {
-            value = valueNode.getLongValue();
+            value = valueNode.longValue();
         }
         else if ( valueNode.isNull() )
         {
