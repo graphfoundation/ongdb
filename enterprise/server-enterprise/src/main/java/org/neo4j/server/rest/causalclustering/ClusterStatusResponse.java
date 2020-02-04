@@ -22,7 +22,7 @@
  */
 package org.neo4j.server.rest.causalclustering;
 
-import org.codehaus.jackson.map.annotate.JsonSerialize;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
 import java.time.Duration;
 import java.util.Collection;

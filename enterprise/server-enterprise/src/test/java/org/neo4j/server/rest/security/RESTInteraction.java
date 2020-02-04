@@ -22,7 +22,7 @@
  */
 package org.neo4j.server.rest.security;
 
-import org.codehaus.jackson.JsonNode;
+import com.fasterxml.jackson.databind.JsonNode;
 
 import java.io.IOException;
 import java.util.Map;
