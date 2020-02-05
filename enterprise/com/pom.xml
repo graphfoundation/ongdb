@@ -11,7 +11,7 @@
   <artifactId>neo4j-com</artifactId>
   <version>3.5.15-SNAPSHOT</version>
 
-  <name>Neo4j - Communication Package</name>
+  <name>ONgDB - Communication Package</name>
   <packaging>jar</packaging>
 
   <properties>

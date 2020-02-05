@@ -14,8 +14,8 @@
   <artifactId>neo4j-enterprise-cypher-acceptance-spec-suite</artifactId>
   <packaging>jar</packaging>
   <version>3.5.15-SNAPSHOT</version>
-  <name>Neo4j - Cypher Acceptance, enterprise edition</name>
-  <description>Neo4j - Cypher Acceptance Specification Suite, enterprise edition</description>
+  <name>ONgDB - Cypher Acceptance, enterprise edition</name>
+  <description>ONgDB - Cypher Acceptance Specification Suite, enterprise edition</description>
   <url>http://components.neo4j.org/${project.artifactId}/${project.version}</url>
 
   <scm>

@@ -10,7 +10,7 @@
 
   <groupId>org.graphfoundation.ongdb</groupId>
   <artifactId>neo4j-ha</artifactId>
-  <name>Neo4j - High Availability</name>
+  <name>ONgDB - High Availability</name>
   <version>3.5.15-SNAPSHOT</version>
 
   <description>This component provides the means to set up a cluster of Neo4j instances that act together

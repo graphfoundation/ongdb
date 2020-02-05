@@ -15,7 +15,7 @@
 
     <packaging>jar</packaging>
 
-    <name>Neo4j - Enterprise Test Harness</name>
+    <name>ONgDB - Enterprise Test Harness</name>
     <description>Components for writing integration tests with Neo4j.</description>
     <url>http://components.neo4j.org/${project.artifactId}/${project.version}</url>
 

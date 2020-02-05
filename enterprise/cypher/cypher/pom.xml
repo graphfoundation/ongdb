@@ -13,7 +13,7 @@
   <artifactId>neo4j-enterprise-cypher</artifactId>
   <packaging>jar</packaging>
   <version>3.5.15-SNAPSHOT</version>
-  <name>Neo4j - Enterprise Cypher</name>
+  <name>ONgDB - Enterprise Cypher</name>
   <description>Neo4j query language</description>
   <url>http://components.neo4j.org/${project.artifactId}/${project.version}</url>
 

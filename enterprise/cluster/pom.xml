@@ -11,7 +11,7 @@
   <artifactId>neo4j-cluster</artifactId>
   <version>3.5.15-SNAPSHOT</version>
 
-  <name>Neo4j - Clustering Infrastructure</name>
+  <name>ONgDB - Clustering Infrastructure</name>
   <description>Library implementing Paxos and Heartbeat components required for High Availability Neo4j</description>
   <packaging>jar</packaging>
   <url>http://components.neo4j.org/${project.artifactId}/${project.version}</url>

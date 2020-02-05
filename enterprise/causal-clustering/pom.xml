@@ -11,7 +11,7 @@
 	<groupId>org.graphfoundation.ongdb</groupId>
     <modelVersion>4.0.0</modelVersion>
     <artifactId>neo4j-causal-clustering</artifactId>
-    <name>Neo4j - Causal Clustering</name>
+    <name>ONgDB - Causal Clustering</name>
     <version>3.5.15-SNAPSHOT</version>
 
     <description>This component provides the means to set up a cluster of Neo4j instances that act together
