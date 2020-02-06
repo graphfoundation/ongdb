@@ -11,7 +11,7 @@
   <artifactId>neo4j-auth-plugin-api</artifactId>
   <version>3.5.15-SNAPSHOT</version>
 
-  <name>Neo4j - Enterprise Graph Database Auth Plugin API</name>
+  <name>ONgDB - Enterprise Graph Database Auth Plugin API</name>
   <description>Enterprise auth plugin API for adding custom auth providers to the Neo4j database</description>
   <packaging>jar</packaging>
 

@@ -15,7 +15,7 @@
     <artifactId>neo4j-tools</artifactId>
     <version>3.5.15-SNAPSHOT</version>
 
-    <name>Neo4j - Low Level Tools</name>
+    <name>ONgDB - Low Level Tools</name>
     <packaging>jar</packaging>
     <description>A package for low level tools.</description>
     <properties>
@@ -25,8 +25,8 @@
 
     <scm>
         <connection>scm:git:git://github.com/graphfoundation/ongdb.git</connection>
-        <developerConnection>scm:git:git@github.com:neo4j/neo4j.git</developerConnection>
-        <url>https://github.com/neo4j/neo4j</url>
+        <developerConnection>scm:git:git@github.com:graphfoundation/ongdb.git</developerConnection>
+        <url>https://github.com/graphfoundation/ongdb</url>
     </scm>
 
     <licenses>

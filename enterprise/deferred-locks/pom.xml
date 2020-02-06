@@ -14,7 +14,7 @@
   <artifactId>neo4j-deferred-locks</artifactId>
   <version>3.5.15-SNAPSHOT</version>
 
-  <name>Neo4j - Deferred Locks</name>
+  <name>ONgDB - Deferred Locks</name>
   <description>Enterprise locks deferred to commit time</description>
   <packaging>jar</packaging>
 
