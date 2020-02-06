@@ -14,7 +14,7 @@
   <artifactId>neo4j-enterprise-cypher-compatibility-spec-suite</artifactId>
   <packaging>jar</packaging>
   <version>3.5.15-SNAPSHOT</version>
-  <name>Neo4j - Cypher Compatibility Specification Suite, enterprise edition</name>
+  <name>ONgDB - Cypher Compatibility Specification Suite, enterprise edition</name>
   <description>Neo4j query language compatibility suite, enterprise edition</description>
   <url>http://components.neo4j.org/${project.artifactId}/${project.version}</url>
 
