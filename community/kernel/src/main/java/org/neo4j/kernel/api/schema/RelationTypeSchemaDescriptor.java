@@ -36,11 +36,20 @@ public class RelationTypeSchemaDescriptor implements org.neo4j.internal.kernel.a
 {
     private final int relTypeId;
     private final int[] propertyIds;
+    private final int[] sortIds;
 
     RelationTypeSchemaDescriptor( int relTypeId, int... propertyIds )
     {
         this.relTypeId = relTypeId;
         this.propertyIds = propertyIds;
+        this.sortIds = new int[0];
+    }
+
+    public RelationTypeSchemaDescriptor( int relTypeId, int[] propertyIds, int[] sortIds )
+    {
+        this.relTypeId = relTypeId;
+        this.propertyIds = propertyIds;
+        this.sortIds = sortIds;
     }
 
     @Override
@@ -65,7 +74,7 @@ public class RelationTypeSchemaDescriptor implements org.neo4j.internal.kernel.a
     public String userDescription( TokenNameLookup tokenNameLookup )
     {
         return String.format( "-[:%s(%s)]-", tokenNameLookup.relationshipTypeGetName( relTypeId ),
-                SchemaUtil.niceProperties( tokenNameLookup, propertyIds ) );
+                              SchemaUtil.niceProperties( tokenNameLookup, propertyIds ) );
     }
 
     @Override
@@ -115,7 +124,7 @@ public class RelationTypeSchemaDescriptor implements org.neo4j.internal.kernel.a
     {
         if ( o instanceof RelationTypeSchemaDescriptor )
         {
-            RelationTypeSchemaDescriptor that = (RelationTypeSchemaDescriptor)o;
+            RelationTypeSchemaDescriptor that = (RelationTypeSchemaDescriptor) o;
             return relTypeId == that.getRelTypeId() && Arrays.equals( propertyIds, that.getPropertyIds() );
         }
         return false;
@@ -131,5 +140,11 @@ public class RelationTypeSchemaDescriptor implements org.neo4j.internal.kernel.a
     public SchemaDescriptor schema()
     {
         return this;
+    }
+
+    @Override
+    public int[] getSortIds()
+    {
+        return sortIds;
     }
 }

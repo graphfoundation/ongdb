@@ -35,11 +35,20 @@ public class LabelSchemaDescriptor implements org.neo4j.internal.kernel.api.sche
 {
     private final int labelId;
     private final int[] propertyIds;
+    private final int[] sortIds;
 
     LabelSchemaDescriptor( int labelId, int... propertyIds )
     {
         this.labelId = labelId;
         this.propertyIds = propertyIds;
+        this.sortIds = new int[0];
+    }
+
+    LabelSchemaDescriptor( int labelId, int[] propertyIds, int[] sortIds )
+    {
+        this.labelId = labelId;
+        this.propertyIds = propertyIds;
+        this.sortIds = sortIds;
     }
 
     @Override
@@ -64,7 +73,7 @@ public class LabelSchemaDescriptor implements org.neo4j.internal.kernel.api.sche
     public String userDescription( TokenNameLookup tokenNameLookup )
     {
         return String.format( ":%s(%s)", tokenNameLookup.labelGetName( labelId ),
-                SchemaUtil.niceProperties( tokenNameLookup, propertyIds ) );
+                              SchemaUtil.niceProperties( tokenNameLookup, propertyIds ) );
     }
 
     @Override
@@ -114,7 +123,7 @@ public class LabelSchemaDescriptor implements org.neo4j.internal.kernel.api.sche
     {
         if ( o instanceof LabelSchemaDescriptor )
         {
-            LabelSchemaDescriptor that = (LabelSchemaDescriptor)o;
+            LabelSchemaDescriptor that = (LabelSchemaDescriptor) o;
             return labelId == that.getLabelId() && Arrays.equals( propertyIds, that.getPropertyIds() );
         }
         return false;
@@ -136,5 +145,11 @@ public class LabelSchemaDescriptor implements org.neo4j.internal.kernel.api.sche
     public LabelSchemaDescriptor schema()
     {
         return this;
+    }
+
+    @Override
+    public int[] getSortIds()
+    {
+        return sortIds;
     }
 }
