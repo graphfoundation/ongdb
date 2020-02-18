@@ -23,6 +23,7 @@ import org.apache.commons.lang3.ArrayUtils;
 import org.apache.lucene.queryparser.classic.ParseException;
 
 import java.io.IOException;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -92,11 +93,11 @@ public class FulltextProcedures
     {
         Stream<AnalyzerProvider> stream = accessor.listAvailableAnalyzers();
         return stream.flatMap( provider ->
-        {
-            String description = provider.description();
-            Spliterator<String> spliterator = provider.getKeys().spliterator();
-            return StreamSupport.stream( spliterator, false ).map( name -> new AvailableAnalyzer( name, description ) );
-        } );
+                               {
+                                   String description = provider.description();
+                                   Spliterator<String> spliterator = provider.getKeys().spliterator();
+                                   return StreamSupport.stream( spliterator, false ).map( name -> new AvailableAnalyzer( name, description ) );
+                               } );
     }
 
     @Description( "Wait for the updates from recently committed transactions to be applied to any eventually-consistent fulltext indexes." )
@@ -107,7 +108,7 @@ public class FulltextProcedures
     }
 
     @Description( "Similar to db.awaitIndex(index, timeout), except instead of an index pattern, the index is specified by name. " +
-            "The name can be quoted by backticks, if necessary." )
+                  "The name can be quoted by backticks, if necessary." )
     @Procedure( name = "db.index.fulltext.awaitIndex", mode = READ )
     public void awaitIndex( @Name( "index" ) String index, @Name( value = "timeOutSeconds", defaultValue = "300" ) long timeout ) throws ProcedureException
     {
@@ -134,16 +135,18 @@ public class FulltextProcedures
             @Name( "indexName" ) String name,
             @Name( "labels" ) List<String> labels,
             @Name( "propertyNames" ) List<String> properties,
-            @Name( value = "config", defaultValue = "" ) Map<String,String> indexConfigurationMap )
+            @Name( value = "config", defaultValue = "" ) Map<String,String> indexConfigurationMap,
+            @Name( value = "sortPropertyMap", defaultValue = "{}" ) Map<String,String> sortProperties )
             throws InvalidTransactionTypeKernelException, SchemaKernelException
     {
         Properties indexConfiguration = new Properties();
         indexConfiguration.putAll( indexConfigurationMap );
-        SchemaDescriptor schemaDescriptor = accessor.schemaFor( EntityType.NODE, stringArray( labels ), indexConfiguration, stringArray( properties ) );
+        SchemaDescriptor schemaDescriptor = accessor.schemaForSort( EntityType.NODE, stringArray( labels ), indexConfiguration, stringArray( properties ),
+                                                                    stringArray( sortProperties.keySet() ), sortProperties );
         tx.schemaWrite().indexCreate( schemaDescriptor, DESCRIPTOR.name(), Optional.of( name ) );
     }
 
-    private String[] stringArray( List<String> strings )
+    private String[] stringArray( Collection<String> strings )
     {
         return strings.toArray( ArrayUtils.EMPTY_STRING_ARRAY );
     }
@@ -160,12 +163,14 @@ public class FulltextProcedures
             @Name( "indexName" ) String name,
             @Name( "relationshipTypes" ) List<String> relTypes,
             @Name( "propertyNames" ) List<String> properties,
-            @Name( value = "config", defaultValue = "" ) Map<String,String> config )
+            @Name( value = "config", defaultValue = "" ) Map<String,String> config,
+            @Name( value = "sortPropertyMap", defaultValue = "{}" ) Map<String,String> sortProperties )
             throws InvalidTransactionTypeKernelException, SchemaKernelException
     {
         Properties settings = new Properties();
         settings.putAll( config );
-        SchemaDescriptor schemaDescriptor = accessor.schemaFor( EntityType.RELATIONSHIP, stringArray( relTypes ), settings, stringArray( properties ) );
+        SchemaDescriptor schemaDescriptor = accessor.schemaForSort( EntityType.RELATIONSHIP, stringArray( relTypes ), settings, stringArray( properties ),
+                                                                    stringArray( sortProperties.keySet() ), sortProperties );
         tx.schemaWrite().indexCreate( schemaDescriptor, DESCRIPTOR.name(), Optional.of( name ) );
     }
 
@@ -179,7 +184,9 @@ public class FulltextProcedures
 
     @Description( "Query the given fulltext index. Returns the matching nodes and their lucene query score, ordered by score." )
     @Procedure( name = "db.index.fulltext.queryNodes", mode = READ )
-    public Stream<NodeOutput> queryFulltextForNodes( @Name( "indexName" ) String name, @Name( "queryString" ) String query )
+    public Stream<NodeOutput> queryFulltextForNodes( @Name( "indexName" ) String name, @Name( "queryString" ) String query,
+                                                     @Name( value = "sortProperty", defaultValue = "" ) String sortProperty,
+                                                     @Name( value = "sortDirection", defaultValue = "ASC" ) String sortDirection )
             throws ParseException, IndexNotFoundKernelException, IOException
     {
         IndexReference indexReference = getValidIndexReference( name );
@@ -188,17 +195,30 @@ public class FulltextProcedures
         if ( entityType != EntityType.NODE )
         {
             throw new IllegalArgumentException( "The '" + name + "' index (" + indexReference + ") is an index on " + entityType +
-                    ", so it cannot be queried for nodes." );
+                                                ", so it cannot be queried for nodes." );
         }
-        ScoreEntityIterator resultIterator = accessor.query( tx, name, query );
-        return resultIterator.stream()
-                .map( result -> NodeOutput.forExistingEntityOrNull( db, result ) )
-                .filter( Objects::nonNull );
+
+        if ( sortProperty.isEmpty() )
+        {
+            ScoreEntityIterator resultIterator = accessor.query( tx, name, query );
+            return resultIterator.stream()
+                                 .map( result -> NodeOutput.forExistingEntityOrNull( db, result ) )
+                                 .filter( Objects::nonNull );
+        }
+        else
+        {
+            ScoreEntityIterator resultIterator = accessor.queryWithSort( tx, name, query, sortProperty, sortDirection );
+            return resultIterator.stream()
+                                 .map( result -> NodeOutput.forExistingEntityOrNull( db, result ) )
+                                 .filter( Objects::nonNull );
+        }
     }
 
     @Description( "Query the given fulltext index. Returns the matching relationships and their lucene query score, ordered by score." )
     @Procedure( name = "db.index.fulltext.queryRelationships", mode = READ )
-    public Stream<RelationshipOutput> queryFulltextForRelationships( @Name( "indexName" ) String name, @Name( "queryString" ) String query )
+    public Stream<RelationshipOutput> queryFulltextForRelationships( @Name( "indexName" ) String name, @Name( "queryString" ) String query,
+                                                                     @Name( value = "sortProperty", defaultValue = "" ) String sortProperty,
+                                                                     @Name( value = "sortDirection", defaultValue = "ASC" ) String sortDirection )
             throws ParseException, IndexNotFoundKernelException, IOException
     {
         IndexReference indexReference = getValidIndexReference( name );
@@ -207,12 +227,23 @@ public class FulltextProcedures
         if ( entityType != EntityType.RELATIONSHIP )
         {
             throw new IllegalArgumentException( "The '" + name + "' index (" + indexReference + ") is an index on " + entityType +
-                    ", so it cannot be queried for relationships." );
+                                                ", so it cannot be queried for relationships." );
         }
-        ScoreEntityIterator resultIterator = accessor.query( tx, name, query );
-        return resultIterator.stream()
-                .map( result -> RelationshipOutput.forExistingEntityOrNull( db, result ) )
-                .filter( Objects::nonNull );
+
+        if ( sortProperty.isEmpty() )
+        {
+            ScoreEntityIterator resultIterator = accessor.query( tx, name, query );
+            return resultIterator.stream()
+                                 .map( result -> RelationshipOutput.forExistingEntityOrNull( db, result ) )
+                                 .filter( Objects::nonNull );
+        }
+        else
+        {
+            ScoreEntityIterator resultIterator = accessor.queryWithSort( tx, name, query, sortProperty, sortDirection );
+            return resultIterator.stream()
+                                 .map( result -> RelationshipOutput.forExistingEntityOrNull( db, result ) )
+                                 .filter( Objects::nonNull );
+        }
     }
 
     private IndexReference getValidIndexReference( @Name( "indexName" ) String name )
@@ -230,7 +261,7 @@ public class FulltextProcedures
         // We do the isAdded check on the transaction state first, because indexGetState will grab a schema read-lock, which can deadlock on the write-lock
         // held by the index populator. Also, if we index was created in this transaction, then we will never see it come online in this transaction anyway.
         // Indexes don't come online until the transaction that creates them has committed.
-        if ( !((KernelTransactionImplementation)tx).txState().indexDiffSetsBySchema( indexReference.schema() ).isAdded( (IndexDescriptor) indexReference ) )
+        if ( !((KernelTransactionImplementation) tx).txState().indexDiffSetsBySchema( indexReference.schema() ).isAdded( (IndexDescriptor) indexReference ) )
         {
             // If the index was not created in this transaction, then wait for it to come online before querying.
             Schema schema = db.schema();
