@@ -20,6 +20,7 @@
 package org.neo4j.kernel.impl.store.record;
 
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.Optional;
 
 import org.neo4j.internal.kernel.api.exceptions.schema.MalformedSchemaRuleException;
@@ -30,6 +31,7 @@ import org.neo4j.internal.kernel.api.schema.SchemaComputer;
 import org.neo4j.internal.kernel.api.schema.SchemaDescriptor;
 import org.neo4j.internal.kernel.api.schema.SchemaProcessor;
 import org.neo4j.internal.kernel.api.schema.constraints.ConstraintDescriptor;
+import org.neo4j.kernel.api.schema.MultiTokenSchemaDescriptor;
 import org.neo4j.kernel.api.schema.SchemaDescriptorFactory;
 import org.neo4j.kernel.api.schema.constraints.ConstraintDescriptorFactory;
 import org.neo4j.kernel.api.schema.constraints.NodeKeyConstraintDescriptor;
@@ -367,7 +369,8 @@ public class SchemaRuleSerialization
         }
         int[] entityTokenIds = readTokenIdList( source );
         int[] propertyIds = readTokenIdList( source );
-        return SchemaDescriptorFactory.multiToken( entityTokenIds, type, propertyIds );
+        int[] sortIds = readTokenIdList( source );
+        return SchemaDescriptorFactory.multiToken( entityTokenIds, type, propertyIds, sortIds );
     }
 
     private static int[] readTokenIdList( ByteBuffer source )
@@ -421,8 +424,15 @@ public class SchemaRuleSerialization
                 target.put( SIMPLE_REL_TYPE );
             }
 
+            int[] propIds = schema.getPropertyIds();
+            if ( schema instanceof MultiTokenSchemaDescriptor )
+            {
+                propIds = Arrays.stream( schema.getPropertyIds() ).limit( schema.getPropertyIds().length - schema.getSortIds().length ).toArray();
+            }
+
             putIds( schema.getEntityTokenIds() );
-            putIds( schema.getPropertyIds() );
+            putIds( propIds );
+            putIds( schema.getSortIds() );
         }
 
         private void putIds( int[] ids )
@@ -465,7 +475,9 @@ public class SchemaRuleSerialization
                     + 2 // entity token count
                     + 4 * schema.getEntityTokenIds().length // the actual property ids
                     + 2 // property id count
-                    + 4 * schema.getPropertyIds().length; // the actual property ids
+                    + 4 * (schema.getPropertyIds().length - schema.getSortIds().length)// the actual property ids
+                    + 2 // sort id count
+                    + 4 * schema.getSortIds().length; // the actual sort ids
         }
     };
 }
