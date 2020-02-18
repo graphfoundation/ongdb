@@ -25,9 +25,13 @@ import org.apache.lucene.queryparser.classic.ParseException;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.Sort;
+import org.apache.lucene.search.SortField;
+import org.apache.lucene.search.SortedNumericSortField;
 import org.apache.lucene.search.TotalHitCountCollector;
 
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.Map;
 
 import org.neo4j.kernel.api.impl.index.collector.DocValuesCollector;
 import org.neo4j.kernel.api.impl.index.collector.ValuesIterator;
@@ -47,12 +51,18 @@ class SimpleFulltextIndexReader extends FulltextIndexReader
     private final TokenHolder propertyKeyTokenHolder;
     private final String[] properties;
 
-    SimpleFulltextIndexReader( SearcherReference searcherRef, String[] properties, Analyzer analyzer, TokenHolder propertyKeyTokenHolder )
+    private final String[] sortProperties;
+    private final Map<String,String> sortTypes;
+
+    SimpleFulltextIndexReader( SearcherReference searcherRef, String[] properties, Analyzer analyzer, TokenHolder propertyKeyTokenHolder,
+                               String[] sortProperties, Map<String,String> sortTypes )
     {
         this.searcherRef = searcherRef;
         this.properties = properties;
         this.analyzer = analyzer;
         this.propertyKeyTokenHolder = propertyKeyTokenHolder;
+        this.sortProperties = sortProperties;
+        this.sortTypes = sortTypes;
     }
 
     @Override
@@ -77,6 +87,15 @@ class SimpleFulltextIndexReader extends FulltextIndexReader
         return indexQuery( query );
     }
 
+    @Override
+    public ScoreEntityIterator queryWithSort( String queryString, String sortField, String sortDirection ) throws ParseException
+    {
+        MultiFieldQueryParser multiFieldQueryParser = new MultiFieldQueryParser( properties, analyzer );
+        multiFieldQueryParser.setAllowLeadingWildcard( true );
+        Query query = multiFieldQueryParser.parse( queryString );
+        return indexQueryWithSort( query, sortField, sortDirection );
+    }
+
     private ScoreEntityIterator indexQuery( Query query )
     {
         try
@@ -90,6 +109,107 @@ class SimpleFulltextIndexReader extends FulltextIndexReader
         catch ( IOException e )
         {
             throw new RuntimeException( e );
+        }
+    }
+
+    private ScoreEntityIterator indexQueryWithSort( Query query, String sortFieldString, String sortDirection )
+    {
+        try
+        {
+            boolean reverseSortOrder = determineSortDirection( sortDirection );
+
+            Sort sort;
+            if ( Arrays.asList( sortProperties ).contains( sortFieldString ) )
+            {
+                sort = buildSort( sortFieldString, reverseSortOrder );
+            }
+            else if ( Arrays.asList( properties ).contains( sortFieldString ) )
+            {
+                sort = new Sort( new SortField( sortFieldString + LuceneFulltextDocumentStructure.FIELD_FULLTEXT_SORT_SUFFIX, SortField.Type.STRING,
+                                                reverseSortOrder ) );
+            }
+            else
+            {
+                throw new IOException( "Sort Field '" + sortFieldString + "' is not an indexed property." );
+            }
+
+            DocValuesCollector docValuesCollector = new DocValuesCollector( true );
+            getIndexSearcher().search( query, docValuesCollector );
+            ValuesIterator sortedValuesIterator =
+                    docValuesCollector.getSortedValuesIterator( LuceneFulltextDocumentStructure.FIELD_ENTITY_ID, sort );
+            return new ScoreEntityIterator( sortedValuesIterator );
+        }
+        catch ( IOException e )
+        {
+            throw new RuntimeException( e );
+        }
+    }
+
+    private Sort buildSort( String sortFieldString, boolean reverseSortOrder ) throws IOException
+    {
+
+        if ( sortTypes != null && sortTypes.containsKey( sortFieldString ) )
+        {
+            SortField sortField;
+            String sortType = sortTypes.get( sortFieldString );
+
+            FulltextSortType sortTypeEnum = FulltextSortType.valueOfIgnoreCase( sortType );
+
+            if ( sortTypeEnum == null )
+            {
+                throw new RuntimeException( "Unable to determine sortField type '" + sortType + "'." );
+            }
+
+            switch ( sortTypeEnum )
+            {
+            case LONG:
+                sortField = new SortedNumericSortField( sortFieldString, SortField.Type.LONG, reverseSortOrder );
+                if ( !reverseSortOrder )
+                {
+                    sortField.setMissingValue( Long.MAX_VALUE );
+                }
+                break;
+            case DOUBLE:
+                sortField = new SortedNumericSortField( sortFieldString, SortField.Type.DOUBLE, reverseSortOrder );
+                if ( !reverseSortOrder )
+                {
+                    sortField.setMissingValue( Double.MAX_VALUE );
+                }
+                break;
+            case STRING:
+                sortField = new SortField( sortFieldString, SortField.Type.STRING, reverseSortOrder );
+                if ( !reverseSortOrder )
+                {
+                    sortField.setMissingValue( SortField.STRING_LAST );
+                }
+                break;
+            default:
+                throw new IOException( "Unable to determine sortField type '" + sortType + "'." );
+            }
+
+            return new Sort( sortField );
+        }
+        throw new IOException( "Either sortTypes map is null or sortField '" + sortFieldString + "' is not in sortTypes." );
+    }
+
+    // Returns boolean that is used by SortField. If true then it reverses sort direction
+    private boolean determineSortDirection( String sortDirection ) throws IOException
+    {
+        FulltextSortDirection fulltextSortDirection = FulltextSortDirection.valueOfIgnoreCase( sortDirection );
+
+        if ( fulltextSortDirection == null )
+        {
+            throw new IOException( "Sort Direction '" + sortDirection + "' is invalid. Valid sort directions are 'ASC' (default) and 'DESC'." );
+        }
+
+        switch ( fulltextSortDirection )
+        {
+        case ASC:
+            return false;
+        case DESC:
+            return true;
+        default:
+            throw new IOException( "Sort Direction '" + sortDirection + "' is invalid. Valid sort directions are 'ASC' (default) and 'DESC'." );
         }
     }
 

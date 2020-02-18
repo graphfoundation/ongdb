@@ -52,6 +52,15 @@ class TransactionStateFulltextIndexReader extends FulltextIndexReader
     }
 
     @Override
+    public ScoreEntityIterator queryWithSort( String query, String sortField, String sortDirection ) throws ParseException
+    {
+        ScoreEntityIterator iterator = baseReader.queryWithSort( query, sortField, sortDirection );
+        iterator = iterator.filter( entry -> !modifiedEntityIdsInThisTransaction.contains( entry.entityId() ) );
+        iterator = mergeIterators( asList( iterator, nearRealTimeReader.queryWithSort( query, sortField, sortDirection ) ) );
+        return iterator;
+    }
+
+    @Override
     public long countIndexedNodes( long nodeId, int[] propertyKeyIds, Value... propertyValues )
     {
         // This is only used in the Consistency Checker. We don't need to worry about this here.

@@ -36,11 +36,20 @@ public class RelationTypeSchemaDescriptor implements org.neo4j.internal.kernel.a
 {
     private final int relTypeId;
     private final int[] propertyIds;
+    private final int[] sortIds;
 
     RelationTypeSchemaDescriptor( int relTypeId, int... propertyIds )
     {
         this.relTypeId = relTypeId;
         this.propertyIds = propertyIds;
+        this.sortIds = new int[0];
+    }
+
+    public RelationTypeSchemaDescriptor( int relTypeId, int[] propertyIds, int[] sortIds )
+    {
+        this.relTypeId = relTypeId;
+        this.propertyIds = propertyIds;
+        this.sortIds = sortIds;
     }
 
     @Override
@@ -131,5 +140,11 @@ public class RelationTypeSchemaDescriptor implements org.neo4j.internal.kernel.a
     public SchemaDescriptor schema()
     {
         return this;
+    }
+
+    @Override
+    public int[] getSortIds()
+    {
+        return sortIds;
     }
 }
