@@ -22,6 +22,8 @@ package org.neo4j.kernel.api.impl.fulltext;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.NumericDocValuesField;
+import org.apache.lucene.document.SortedDocValuesField;
+import org.apache.lucene.document.SortedNumericDocValuesField;
 import org.apache.lucene.document.StringField;
 import org.apache.lucene.document.TextField;
 import org.apache.lucene.index.IndexableField;
@@ -32,9 +34,12 @@ import org.apache.lucene.search.ConstantScoreQuery;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.TermQuery;
 import org.apache.lucene.search.WildcardQuery;
+import org.apache.lucene.util.BytesRef;
+import org.apache.lucene.util.NumericUtils;
 
 import java.util.Collection;
 import java.util.Iterator;
+import java.util.Map;
 
 import org.neo4j.values.storable.TextValue;
 import org.neo4j.values.storable.Value;
@@ -42,10 +47,12 @@ import org.neo4j.values.storable.ValueGroup;
 
 import static org.apache.lucene.document.Field.Store.NO;
 import static org.apache.lucene.document.Field.Store.YES;
+import static org.apache.lucene.util.ByteBlockPool.BYTE_BLOCK_SIZE;
 
 public class LuceneFulltextDocumentStructure
 {
     public static final String FIELD_ENTITY_ID = "__neo4j__lucene__fulltext__index__internal__id__";
+    public static final String FIELD_FULLTEXT_SORT_SUFFIX = "__neo4j__lucene__sort__index__internal__id__";
 
     private static final ThreadLocal<DocWithId> perThreadDocument = ThreadLocal.withInitial( DocWithId::new );
 
@@ -67,11 +74,44 @@ public class LuceneFulltextDocumentStructure
         return document.document;
     }
 
+    public static Document documentRepresentingPropertiesWithSort( long id, Collection<String> propertyNames, Value[] values, Collection<String> sortProperties,
+                                                                   Map<String,String> sortTypes )
+    {
+        DocWithId document = reuseDocument( id );
+        document.setValuesWithSort( propertyNames, values, sortProperties, sortTypes );
+        return document.document;
+    }
+
     private static Field encodeValueField( String propertyKey, Value value )
     {
         TextValue textValue = (TextValue) value;
         String stringValue = textValue.stringValue();
         return new TextField( propertyKey, stringValue, NO );
+    }
+
+    private static Field encodeSortableValueField( String sortKey, Value value )
+    {
+        if ( value.valueGroup().equals( ValueGroup.NUMBER ) )
+        {
+            if ( value.asObject() instanceof Long )
+            {
+                return new SortedNumericDocValuesField( sortKey, (Long) value.asObject() );
+            }
+            else if ( value.asObject() instanceof Double )
+            {
+                return new SortedNumericDocValuesField( sortKey, NumericUtils.doubleToSortableLong( (Double) value.asObject() ) );
+            }
+        }
+        if ( value.valueGroup().equals( ValueGroup.TEXT ) )
+        {
+            BytesRef bytesRef = new BytesRef( (String) value.asObject() );
+            // Check that bytesRef is less than the maximum allowed.
+            if ( bytesRef.length <= BYTE_BLOCK_SIZE - 2 )
+            {
+                return new SortedDocValuesField( sortKey, bytesRef );
+            }
+        }
+        return null;
     }
 
     static long getNodeId( Document from )
@@ -95,19 +135,34 @@ public class LuceneFulltextDocumentStructure
             Value value = propertyValues[i];
             if ( value.valueGroup() == ValueGroup.TEXT )
             {
-                Query valueQuery = new ConstantScoreQuery(
-                        new TermQuery( new Term( propertyKey, value.asObject().toString() ) ) );
+                Query valueQuery = new ConstantScoreQuery( new TermQuery( new Term( propertyKey, value.asObject().toString() ) ) );
                 builder.add( valueQuery, BooleanClause.Occur.SHOULD );
             }
             else if ( value.valueGroup() == ValueGroup.NO_VALUE )
             {
-                Query valueQuery = new ConstantScoreQuery(
-                        new WildcardQuery( new Term( propertyKey, "*" ) ) );
+                Query valueQuery = new ConstantScoreQuery( new WildcardQuery( new Term( propertyKey, "*" ) ) );
                 builder.add( valueQuery, BooleanClause.Occur.MUST_NOT );
             }
-
         }
         return builder.build();
+    }
+
+    /**
+     * Validates that the sortField is the correct sortType.
+     */
+    private static boolean validateSortType( Field sortField, String sortType )
+    {
+        FulltextSortType fulltextSortType = FulltextSortType.valueOfIgnoreCase( sortType );
+        switch ( fulltextSortType )
+        {
+        case LONG:
+        case DOUBLE:
+            return sortField instanceof SortedNumericDocValuesField;
+        case STRING:
+            return sortField instanceof SortedDocValuesField;
+        default:
+            return false;
+        }
     }
 
     private static class DocWithId
@@ -141,9 +196,49 @@ public class LuceneFulltextDocumentStructure
                 Value value = values[i++];
                 if ( value != null && value.valueGroup() == ValueGroup.TEXT )
                 {
-                    Field field = encodeValueField( name, value );
-                    document.add( field );
+                    addFulltextFieldsToDocument( name, value );
                 }
+            }
+        }
+
+        private void setValuesWithSort( Collection<String> propertyNames, Value[] values, Collection<String> sortProperties, Map<String,String> sortTypes )
+        {
+            int i = 0;
+
+            for ( String name : propertyNames )
+            {
+
+                Value value = values[i++];
+                if ( value != null && value.valueGroup() == ValueGroup.TEXT )
+                {
+                    addFulltextFieldsToDocument( name, value );
+                }
+            }
+
+            for ( String name : sortProperties )
+            {
+                Value value = values[i++];
+                if ( value != null )
+                {
+                    Field sortableField = encodeSortableValueField( name, value );
+                    if ( sortableField != null && validateSortType( sortableField, sortTypes.get( name ) ) )
+                    {
+                        document.add( sortableField );
+                    }
+                }
+            }
+        }
+
+        private void addFulltextFieldsToDocument( String name, Value value )
+        {
+            Field field = encodeValueField( name, value );
+            document.add( field );
+
+            // Also encode a sortable version with a special name
+            Field sortableField = encodeSortableValueField( name + FIELD_FULLTEXT_SORT_SUFFIX, value );
+            if ( sortableField != null )
+            {
+                document.add( sortableField );
             }
         }
 
