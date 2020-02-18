@@ -71,6 +71,24 @@ public interface SchemaDescriptor extends SchemaDescriptorSupplier
         }
 
         @Override
+        public int[] getPropertyIdsNoSorts()
+        {
+            return new int[0];
+        }
+
+        @Override
+        public int[] getSortIds()
+        {
+            return new int[0];
+        }
+
+        @Override
+        public int[] getSortTypes()
+        {
+            return new int[0];
+        }
+
+        @Override
         public int[] getEntityTokenIds()
         {
             return new int[0];
@@ -179,6 +197,8 @@ public interface SchemaDescriptor extends SchemaDescriptorSupplier
      */
     int[] getPropertyIds();
 
+    int[] getPropertyIdsNoSorts();
+
     /**
      * Assume that this schema descriptor describes a schema that includes a single property id, and return that id.
      *
@@ -195,6 +215,10 @@ public interface SchemaDescriptor extends SchemaDescriptorSupplier
         }
         return propertyIds[0];
     }
+
+    int[] getSortIds();
+
+    int[] getSortTypes();
 
     /**
      * This method returns the entity token ids handled by this descriptor.

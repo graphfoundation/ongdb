@@ -70,6 +70,12 @@ class FulltextSchemaDescriptor implements SchemaDescriptor
     }
 
     @Override
+    public int[] getPropertyIdsNoSorts()
+    {
+        return schema.getPropertyIdsNoSorts();
+    }
+
+    @Override
     public int getPropertyId()
     {
         return schema.getPropertyId();
@@ -109,6 +115,17 @@ class FulltextSchemaDescriptor implements SchemaDescriptor
     public SchemaDescriptor schema()
     {
         return this;
+    }
+
+    public int[] getSortIds()
+    {
+        return schema.getSortIds();
+    }
+
+    @Override
+    public int[] getSortTypes()
+    {
+        return schema.getSortTypes();
     }
 
     @Override

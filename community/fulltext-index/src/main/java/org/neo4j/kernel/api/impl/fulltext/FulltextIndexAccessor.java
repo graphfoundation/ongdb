@@ -35,6 +35,7 @@ import org.neo4j.values.storable.Value;
 import org.neo4j.values.storable.Values;
 
 import static org.neo4j.kernel.api.impl.fulltext.LuceneFulltextDocumentStructure.documentRepresentingProperties;
+import static org.neo4j.kernel.api.impl.fulltext.LuceneFulltextDocumentStructure.documentRepresentingPropertiesWithSort;
 import static org.neo4j.kernel.api.impl.fulltext.LuceneFulltextDocumentStructure.newTermForChangeOrRemove;
 
 public class FulltextIndexAccessor extends AbstractLuceneIndexAccessor<FulltextIndexReader,DatabaseFulltextIndex>
@@ -130,7 +131,7 @@ public class FulltextIndexAccessor extends AbstractLuceneIndexAccessor<FulltextI
         {
             try
             {
-                Document document = documentRepresentingProperties( entityId, descriptor.propertyNames(), values );
+                Document document = createDocument( entityId, values );
                 writer.updateDocument( newTermForChangeOrRemove( entityId ), document );
             }
             catch ( IOException e )
@@ -144,7 +145,7 @@ public class FulltextIndexAccessor extends AbstractLuceneIndexAccessor<FulltextI
         {
             try
             {
-                Document document = documentRepresentingProperties( entityId, descriptor.propertyNames(), values );
+                Document document = createDocument( entityId, values );
                 writer.addDocument( document );
             }
             catch ( IOException e )
@@ -158,7 +159,8 @@ public class FulltextIndexAccessor extends AbstractLuceneIndexAccessor<FulltextI
         {
             try
             {
-                writer.updateDocument( newTermForChangeOrRemove( entityId ), documentRepresentingProperties( entityId, descriptor.propertyNames(), values ) );
+                Document document = createDocument( entityId, values );
+                writer.updateDocument( newTermForChangeOrRemove( entityId ), document );
             }
             catch ( IOException e )
             {
@@ -177,6 +179,20 @@ public class FulltextIndexAccessor extends AbstractLuceneIndexAccessor<FulltextI
             {
                 throw new UncheckedIOException( e );
             }
+        }
+    }
+
+    private Document createDocument( long entityId, Value[] values )
+    {
+        if ( descriptor.sortPropertyNames() == null || descriptor.sortPropertyNames().isEmpty() )
+        {
+            return documentRepresentingProperties( entityId, descriptor.propertyNames(), values );
+        }
+        // Sort Properties are present, use them.
+        else
+        {
+            return documentRepresentingPropertiesWithSort( entityId, descriptor.propertyNames(), values, descriptor.sortPropertyNames(),
+                                                           descriptor.sortTypes() );
         }
     }
 }

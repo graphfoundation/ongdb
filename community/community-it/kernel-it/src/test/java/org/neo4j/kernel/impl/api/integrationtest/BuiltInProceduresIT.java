@@ -25,6 +25,7 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
@@ -190,7 +191,7 @@ public class BuiltInProceduresIT extends KernelIntegrationTest
                         "List the currently active config of Neo4j.", "DBMS" ),
                 proc( "db.constraints", "() :: (description :: STRING?)", "List all constraints in the database.", "READ" ),
                 proc( "db.indexes", "() :: (description :: STRING?, indexName :: STRING?, tokenNames :: LIST? OF STRING?, properties :: " +
-                                "LIST? OF STRING?, state :: STRING?, type :: STRING?, progress :: FLOAT?, provider :: MAP?, id :: INTEGER?, " +
+                                "LIST? OF STRING?, sortProperties :: LIST? OF STRING?, state :: STRING?, type :: STRING?, progress :: FLOAT?, provider :: MAP?, id :: INTEGER?, " +
                                 "failureMessage :: STRING?)",
                         "List all indexes in the database.", "READ" ),
                 proc( "db.awaitIndex", "(index :: STRING?, timeOutSeconds = 300 :: INTEGER?) :: VOID",
@@ -288,16 +289,16 @@ public class BuiltInProceduresIT extends KernelIntegrationTest
                         "Similar to db.awaitIndex(index, timeout), except instead of an index pattern, the index is specified by name. " +
                                 "The name can be quoted by backticks, if necessary.", "READ" ),
                 proc( "db.index.fulltext.createNodeIndex", "(indexName :: STRING?, labels :: LIST? OF STRING?, propertyNames :: LIST? OF STRING?, " +
-                        "config = {} :: MAP?) :: VOID", startsWith( "Create a node fulltext index for the given labels and properties." ), "SCHEMA" ),
+                        "config = {} :: MAP?, sortPropertyMap = {} :: MAP?) :: VOID", startsWith( "Create a node fulltext index for the given labels and properties." ), "SCHEMA" ),
                 proc( "db.index.fulltext.createRelationshipIndex",
-                        "(indexName :: STRING?, relationshipTypes :: LIST? OF STRING?, propertyNames :: LIST? OF STRING?, config = {} :: MAP?) :: VOID",
+                        "(indexName :: STRING?, relationshipTypes :: LIST? OF STRING?, propertyNames :: LIST? OF STRING?, config = {} :: MAP?, sortPropertyMap = {} :: MAP?) :: VOID",
                         startsWith( "Create a relationship fulltext index for the given relationship types and properties." ), "SCHEMA" ),
                 proc( "db.index.fulltext.drop", "(indexName :: STRING?) :: VOID", "Drop the specified index.", "SCHEMA" ),
                 proc( "db.index.fulltext.listAvailableAnalyzers", "() :: (analyzer :: STRING?, description :: STRING?)",
                         "List the available analyzers that the fulltext indexes can be configured with.", "READ" ),
-                proc( "db.index.fulltext.queryNodes", "(indexName :: STRING?, queryString :: STRING?) :: (node :: NODE?, score :: FLOAT?)",
+                proc( "db.index.fulltext.queryNodes", "(indexName :: STRING?, queryString :: STRING?, sortProperty =  :: STRING?, sortDirection = ASC :: STRING?) :: (node :: NODE?, score :: FLOAT?)",
                         "Query the given fulltext index. Returns the matching nodes and their lucene query score, ordered by score.", "READ"),
-                proc( "db.index.fulltext.queryRelationships", "(indexName :: STRING?, queryString :: STRING?) :: (relationship :: RELATIONSHIP?, " +
+                proc( "db.index.fulltext.queryRelationships", "(indexName :: STRING?, queryString :: STRING?, sortProperty =  :: STRING?, sortDirection = ASC :: STRING?) :: (relationship :: RELATIONSHIP?, " +
                         "score :: FLOAT?)", "Query the given fulltext index. Returns the matching relationships and their lucene query score, ordered by " +
                         "score.", "READ" ),
                 proc( "db.stats.retrieve", "(section :: STRING?, config = {} :: MAP?) :: (section :: STRING?, data :: MAP?)",
@@ -403,12 +404,12 @@ public class BuiltInProceduresIT extends KernelIntegrationTest
         Map<String,String> pdm = MapUtil.stringMap( // Provider Descriptor Map.
                 "key", provider.getProviderDescriptor().getKey(), "version", provider.getProviderDescriptor().getVersion() );
         assertThat( result, containsInAnyOrder(
-                new Object[]{"INDEX ON :Age(foo)", "index_1", singletonList( "Age" ), singletonList( "foo" ), "ONLINE",
+                new Object[]{"INDEX ON :Age(foo)", "index_1", singletonList( "Age" ), singletonList( "foo" ), Collections.emptyList(), "ONLINE",
                         "node_unique_property", 100D, pdm, indexingService.getIndexId( ageFooDescriptor ), ""},
                 new Object[]{"INDEX ON :Person(foo)", "Unnamed index", singletonList( "Person" ),
-                        singletonList( "foo" ), "ONLINE", "node_label_property", 100D, pdm, indexingService.getIndexId( personFooDescriptor ), ""},
+                        singletonList( "foo" ), Collections.emptyList(), "ONLINE", "node_label_property", 100D, pdm, indexingService.getIndexId( personFooDescriptor ), ""},
                 new Object[]{"INDEX ON :Person(foo, bar)", "Unnamed index", singletonList( "Person" ),
-                        Arrays.asList( "foo", "bar" ), "ONLINE", "node_label_property", 100D, pdm, indexingService.getIndexId( personFooBarDescriptor ), ""}
+                        Arrays.asList( "foo", "bar" ), Collections.emptyList(), "ONLINE", "node_label_property", 100D, pdm, indexingService.getIndexId( personFooBarDescriptor ), ""}
         ) );
         commit();
     }
@@ -478,14 +479,14 @@ public class BuiltInProceduresIT extends KernelIntegrationTest
             Map<String,String> pdm = MapUtil.stringMap( // Provider Descriptor Map.
                     "key", provider.getProviderDescriptor().getKey(), "version", provider.getProviderDescriptor().getVersion() );
             assertThat( result, containsInAnyOrder(
-                    new Object[]{"INDEX ON :Age(foo)", "index_1", singletonList( "Age" ), singletonList( "foo" ), "ONLINE",
+                    new Object[]{"INDEX ON :Age(foo)", "index_1", singletonList( "Age" ), singletonList( "foo" ), Collections.emptyList(), "ONLINE",
                             "node_unique_property", 100D, pdm, indexing.getIndexId( ageFooDescriptor ), ""},
                     new Object[]{"INDEX ON :Person(foo)", "Unnamed index", singletonList( "Person" ),
-                            singletonList( "foo" ), "ONLINE", "node_label_property", 100D, pdm, indexing.getIndexId( personFooDescriptor ), ""},
+                            singletonList( "foo" ), Collections.emptyList(),"ONLINE", "node_label_property", 100D, pdm, indexing.getIndexId( personFooDescriptor ), ""},
                     new Object[]{"INDEX ON :Person(foo, bar)", "Unnamed index", singletonList( "Person" ),
-                            Arrays.asList( "foo", "bar" ), "ONLINE", "node_label_property", 100D, pdm, indexing.getIndexId( personFooBarDescriptor ), ""},
+                            Arrays.asList( "foo", "bar" ), Collections.emptyList(), "ONLINE", "node_label_property", 100D, pdm, indexing.getIndexId( personFooBarDescriptor ), ""},
                     new Object[]{"INDEX ON :Person(baz)", "Unnamed index", singletonList( "Person" ),
-                            singletonList( "baz" ), "POPULATING", "node_unique_property", 100D, pdm, indexing.getIndexId( personBazDescriptor ), ""}
+                            singletonList( "baz" ), Collections.emptyList(), "POPULATING", "node_unique_property", 100D, pdm, indexing.getIndexId( personBazDescriptor ), ""}
             ) );
             commit();
         }
