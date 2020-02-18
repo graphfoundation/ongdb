@@ -40,7 +40,7 @@ import org.neo4j.storageengine.api.StorageProperty;
 import org.neo4j.storageengine.api.txstate.TxStateVisitor;
 import org.neo4j.values.storable.Value;
 
-import static org.neo4j.kernel.api.impl.fulltext.LuceneFulltextDocumentStructure.documentRepresentingProperties;
+import static org.neo4j.kernel.api.impl.fulltext.LuceneFulltextDocumentStructure.documentRepresentingPropertiesWithSort;
 
 /**
  * A {@link TxStateVisitor} that adds all entities to a {@link TransactionStateLuceneIndexWriter}, that matches the index according to the
@@ -62,7 +62,7 @@ class FulltextIndexTransactionStateVisitor extends TxStateVisitor.Adapter
     private RelationshipScanCursor relationshipCursor;
 
     FulltextIndexTransactionStateVisitor( FulltextIndexDescriptor descriptor, MutableLongSet modifiedEntityIdsInThisTransaction,
-            TransactionStateLuceneIndexWriter writer )
+                                          TransactionStateLuceneIndexWriter writer )
     {
         this.descriptor = descriptor;
         this.schema = descriptor.schema();
@@ -80,7 +80,7 @@ class FulltextIndexTransactionStateVisitor extends TxStateVisitor.Adapter
     }
 
     FulltextIndexTransactionStateVisitor init( AllStoreHolder read, NodeCursor nodeCursor, RelationshipScanCursor relationshipCursor,
-            PropertyCursor propertyCursor )
+                                               PropertyCursor propertyCursor )
     {
         this.read = read;
         this.nodeCursor = nodeCursor;
@@ -177,7 +177,8 @@ class FulltextIndexTransactionStateVisitor extends TxStateVisitor.Adapter
         {
             try
             {
-                writer.addDocument( documentRepresentingProperties( id, descriptor.propertyNames(), propertyValues ) );
+                writer.addDocument( documentRepresentingPropertiesWithSort( id, descriptor.propertyNames(), propertyValues, descriptor.sortPropertyNames(),
+                                                                            descriptor.sortTypes() ) );
             }
             catch ( IOException e )
             {
