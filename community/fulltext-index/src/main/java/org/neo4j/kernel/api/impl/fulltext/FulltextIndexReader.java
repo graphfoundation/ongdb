@@ -40,6 +40,8 @@ public abstract class FulltextIndexReader implements IndexReader
      */
     public abstract ScoreEntityIterator query( String query ) throws ParseException;
 
+    public abstract ScoreEntityIterator queryWithSort( String query, String sortProp, String sortDirection ) throws ParseException;
+
     @Override
     public IndexSampler createSampler()
     {

@@ -25,6 +25,7 @@ import org.apache.lucene.queryparser.classic.ParseException;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.neo4j.io.IOUtils;
@@ -44,12 +45,14 @@ class PartitionedFulltextIndexReader extends FulltextIndexReader
 
     private final List<FulltextIndexReader> indexReaders;
 
-    PartitionedFulltextIndexReader( List<PartitionSearcher> partitionSearchers, String[] properties, Analyzer analyzer, TokenHolder propertyKeyTokenHolder )
+    PartitionedFulltextIndexReader( List<PartitionSearcher> partitionSearchers, String[] properties, Analyzer analyzer, TokenHolder propertyKeyTokenHolder,
+                                    String[] sortProperties, Map<String,String> sortTypes )
     {
         this( partitionSearchers.stream()
-                .map( PartitionSearcherReference::new )
-                .map( searcher -> new SimpleFulltextIndexReader( searcher, properties, analyzer, propertyKeyTokenHolder ) )
-                .collect( Collectors.toList() ) );
+                                .map( PartitionSearcherReference::new )
+                                .map( searcher -> new SimpleFulltextIndexReader( searcher, properties, analyzer, propertyKeyTokenHolder, sortProperties,
+                                                                                 sortTypes ) )
+                                .collect( Collectors.toList() ) );
     }
 
     private PartitionedFulltextIndexReader( List<FulltextIndexReader> readers )
@@ -61,6 +64,12 @@ class PartitionedFulltextIndexReader extends FulltextIndexReader
     public ScoreEntityIterator query( String query ) throws ParseException
     {
         return partitionedQuery( query );
+    }
+
+    @Override
+    public ScoreEntityIterator queryWithSort( String query, String sortField, String sortDirection ) throws ParseException
+    {
+        return partitionedQuery( query, sortField, sortDirection );
     }
 
     @Override
@@ -82,6 +91,16 @@ class PartitionedFulltextIndexReader extends FulltextIndexReader
         for ( FulltextIndexReader indexReader : indexReaders )
         {
             results.add( indexReader.query( query ) );
+        }
+        return ScoreEntityIterator.mergeIterators( results );
+    }
+
+    private ScoreEntityIterator partitionedQuery( String query, String sortFieldString, String sortDirection ) throws ParseException
+    {
+        List<ScoreEntityIterator> results = new ArrayList<>();
+        for ( FulltextIndexReader indexReader : indexReaders )
+        {
+            results.add( indexReader.queryWithSort( query, sortFieldString, sortDirection ) );
         }
         return ScoreEntityIterator.mergeIterators( results );
     }

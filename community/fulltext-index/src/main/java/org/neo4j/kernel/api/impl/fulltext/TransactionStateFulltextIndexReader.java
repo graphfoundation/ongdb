@@ -35,7 +35,7 @@ class TransactionStateFulltextIndexReader extends FulltextIndexReader
     private final MutableLongSet modifiedEntityIdsInThisTransaction;
 
     TransactionStateFulltextIndexReader( FulltextIndexReader baseReader, FulltextIndexReader nearRealTimeReader,
-            MutableLongSet modifiedEntityIdsInThisTransaction )
+                                         MutableLongSet modifiedEntityIdsInThisTransaction )
     {
         this.baseReader = baseReader;
         this.nearRealTimeReader = nearRealTimeReader;
@@ -48,6 +48,15 @@ class TransactionStateFulltextIndexReader extends FulltextIndexReader
         ScoreEntityIterator iterator = baseReader.query( query );
         iterator = iterator.filter( entry -> !modifiedEntityIdsInThisTransaction.contains( entry.entityId() ) );
         iterator = mergeIterators( asList( iterator, nearRealTimeReader.query( query ) ) );
+        return iterator;
+    }
+
+    @Override
+    public ScoreEntityIterator queryWithSort( String query, String sortField, String sortDirection ) throws ParseException
+    {
+        ScoreEntityIterator iterator = baseReader.queryWithSort( query, sortField, sortDirection );
+        iterator = iterator.filter( entry -> !modifiedEntityIdsInThisTransaction.contains( entry.entityId() ) );
+        iterator = mergeIterators( asList( iterator, nearRealTimeReader.queryWithSort( query, sortField, sortDirection ) ) );
         return iterator;
     }
 
