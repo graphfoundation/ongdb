@@ -71,7 +71,8 @@ public class FulltextIndexPopulator extends LuceneIndexPopulator<DatabaseIndex<F
         {
             for ( IndexEntryUpdate<?> update : updates )
             {
-                writer.updateDocument( LuceneFulltextDocumentStructure.newTermForChangeOrRemove( update.getEntityId() ), updateAsDocument( update ) );
+                writer.updateDocument( LuceneFulltextDocumentStructure.newTermForChangeOrRemove( update.getEntityId() ),
+                                       updateAsDocument( update.getEntityId(), update ) );
             }
         }
         catch ( IOException e )
@@ -113,9 +114,17 @@ public class FulltextIndexPopulator extends LuceneIndexPopulator<DatabaseIndex<F
         return map;
     }
 
-    private Document updateAsDocument( IndexEntryUpdate<?> update )
+    private Document updateAsDocument( long nodeId, IndexEntryUpdate<?> update )
     {
-        return LuceneFulltextDocumentStructure.documentRepresentingProperties( update.getEntityId(), descriptor.propertyNames(), update.values() );
+        if ( descriptor.sortPropertyNames() == null || descriptor.sortPropertyNames().isEmpty() )
+        {
+            return LuceneFulltextDocumentStructure.documentRepresentingProperties( nodeId, descriptor.propertyNames(), update.values() );
+        }
+        else
+        {
+            return LuceneFulltextDocumentStructure.documentRepresentingPropertiesWithSort( nodeId, descriptor.propertyNames(), update.values(),
+                                                                                           descriptor.sortPropertyNames(), descriptor.sortTypes() );
+        }
     }
 
     private class PopulatingFulltextIndexUpdater implements IndexUpdater
@@ -131,12 +140,12 @@ public class FulltextIndexPopulator extends LuceneIndexPopulator<DatabaseIndex<F
                 case ADDED:
                     long nodeId = update.getEntityId();
                     luceneIndex.getIndexWriter().updateDocument( LuceneFulltextDocumentStructure.newTermForChangeOrRemove( nodeId ),
-                            LuceneFulltextDocumentStructure.documentRepresentingProperties( nodeId, descriptor.propertyNames(), update.values() ) );
+                                                                 updateAsDocument( nodeId, update ) );
 
                 case CHANGED:
                     long nodeId1 = update.getEntityId();
                     luceneIndex.getIndexWriter().updateDocument( LuceneFulltextDocumentStructure.newTermForChangeOrRemove( nodeId1 ),
-                            LuceneFulltextDocumentStructure.documentRepresentingProperties( nodeId1, descriptor.propertyNames(), update.values() ) );
+                                                                 updateAsDocument( nodeId1, update ) );
                     break;
                 case REMOVED:
                     luceneIndex.getIndexWriter().deleteDocuments( LuceneFulltextDocumentStructure.newTermForChangeOrRemove( update.getEntityId() ) );

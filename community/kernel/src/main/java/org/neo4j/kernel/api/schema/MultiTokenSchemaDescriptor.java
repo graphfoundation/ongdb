@@ -22,6 +22,8 @@ package org.neo4j.kernel.api.schema;
 import org.apache.commons.lang3.ArrayUtils;
 
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.Map;
 import java.util.Objects;
 
 import org.neo4j.internal.kernel.api.TokenNameLookup;
@@ -39,11 +41,25 @@ public class MultiTokenSchemaDescriptor implements SchemaDescriptor
     private final EntityType entityType;
     private final int[] propertyIds;
 
+    private final int[] sortIds;
+    private final int[] sortTypes;
+
     MultiTokenSchemaDescriptor( int[] entityTokens, EntityType entityType, int[] propertyIds )
     {
         this.entityTokens = entityTokens;
         this.entityType = entityType;
         this.propertyIds = propertyIds;
+        this.sortIds = new int[0];
+        this.sortTypes = new int[0];
+    }
+
+    MultiTokenSchemaDescriptor( int[] entityTokens, EntityType entityType, int[] propertyIds, int[] sortIds, int[] sortTypes )
+    {
+        this.entityTokens = entityTokens;
+        this.entityType = entityType;
+        this.propertyIds = propertyIds;
+        this.sortIds = sortIds;
+        this.sortTypes = sortTypes;
     }
 
     @Override
@@ -84,8 +100,15 @@ public class MultiTokenSchemaDescriptor implements SchemaDescriptor
                 SchemaUtil.niceProperties( tokenNameLookup, propertyIds ) );
     }
 
+    // Returns both propertyIds and sortIds
     @Override
     public int[] getPropertyIds()
+    {
+        return ArrayUtils.addAll( propertyIds, sortIds );
+    }
+
+    @Override
+    public int[] getPropertyIdsNoSorts()
     {
         return propertyIds;
     }
@@ -127,6 +150,18 @@ public class MultiTokenSchemaDescriptor implements SchemaDescriptor
     }
 
     @Override
+    public int[] getSortIds()
+    {
+        return sortIds;
+    }
+
+    @Override
+    public int[] getSortTypes()
+    {
+        return sortTypes;
+    }
+
+    @Override
     public boolean equals( Object o )
     {
         if ( this == o )
@@ -139,7 +174,7 @@ public class MultiTokenSchemaDescriptor implements SchemaDescriptor
         }
         SchemaDescriptor that = (SchemaDescriptor) o;
         return Arrays.equals( entityTokens, that.getEntityTokenIds() ) && entityType == that.entityType() &&
-               Arrays.equals( propertyIds, that.getPropertyIds() );
+               Arrays.equals( this.getPropertyIds(), that.getPropertyIds() );
     }
 
     @Override

@@ -138,6 +138,7 @@ public class BuiltInProcedures
                 long indexId = getIndexId( indexingService, schema );
                 List<String> tokenNames = Arrays.asList( tokens.entityTokensGetNames( schema.entityType(), schema.getEntityTokenIds() ) );
                 List<String> propertyNames = propertyNames( tokens, index );
+                List<String> sortNames = sortNames( tokens, index );
                 String description = "INDEX ON " + schema.userDescription( tokens );
                 IndexStatus status = getIndexStatus( schemaRead, index );
                 Map<String,String> providerDescriptorMap = indexProviderDescriptorMap( schemaRead.index( schema ) );
@@ -146,6 +147,7 @@ public class BuiltInProcedures
                         index.name(),
                         tokenNames,
                         propertyNames,
+                        sortNames,
                         status.state,
                         type.typeName(),
                         status.populationProgress,
@@ -708,13 +710,24 @@ public class BuiltInProcedures
 
     private static List<String> propertyNames( TokenNameLookup tokens, IndexReference index )
     {
-        int[] propertyIds = index.properties();
+        int[] propertyIds = index.schema().getPropertyIdsNoSorts();
         List<String> propertyNames = new ArrayList<>( propertyIds.length );
         for ( int propertyId : propertyIds )
         {
             propertyNames.add( tokens.propertyKeyGetName( propertyId ) );
         }
         return propertyNames;
+    }
+
+    private static List<String> sortNames( TokenNameLookup tokens, IndexReference index )
+    {
+        int[] sortIds = index.schema().getSortIds();
+        List<String> sortNames = new ArrayList<>( sortIds.length );
+        for ( int sortId : sortIds )
+        {
+            sortNames.add( tokens.propertyKeyGetName( sortId ) );
+        }
+        return sortNames;
     }
 
     private static <T> Stream<T> toStream( NodeExplicitIndexCursor cursor, LongFunction<T> mapper )
@@ -900,6 +913,7 @@ public class BuiltInProcedures
         public final String indexName;
         public final List<String> tokenNames;
         public final List<String> properties;
+        public final List<String> sortProperties;
         public final String state;
         public final String type;
         public final Double progress;
@@ -912,6 +926,7 @@ public class BuiltInProcedures
                              String indexName,
                              List<String> tokenNames,
                              List<String> properties,
+                             List<String> sortProperties,
                              String state,
                              String type,
                              Float progress,
@@ -923,6 +938,7 @@ public class BuiltInProcedures
             this.indexName = indexName;
             this.tokenNames = tokenNames;
             this.properties = properties;
+            this.sortProperties = sortProperties;
             this.state = state;
             this.type = type;
             this.progress = progress.doubleValue();
