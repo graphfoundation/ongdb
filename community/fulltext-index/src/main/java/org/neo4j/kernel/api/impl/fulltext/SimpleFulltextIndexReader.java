@@ -96,6 +96,15 @@ class SimpleFulltextIndexReader extends FulltextIndexReader
         return indexQueryWithSort( query, sortField, sortDirection );
     }
 
+    @Override
+    public CountResult queryForCount( String queryString ) throws ParseException
+    {
+        MultiFieldQueryParser multiFieldQueryParser = new MultiFieldQueryParser( properties, analyzer );
+        multiFieldQueryParser.setAllowLeadingWildcard( true );
+        Query query = multiFieldQueryParser.parse( queryString );
+        return indexQueryForCount( query );
+    }
+
     private ScoreEntityIterator indexQuery( Query query )
     {
         try
@@ -205,6 +214,19 @@ class SimpleFulltextIndexReader extends FulltextIndexReader
             return true;
         default:
             throw new IOException( "Sort Direction '" + sortDirection + "' is invalid. Valid sort directions are 'ASC' (default) and 'DESC'." );
+        }
+    }
+
+    private CountResult indexQueryForCount( Query query )
+    {
+        try
+        {
+            int count = getIndexSearcher().count( query );
+            return new CountResult( count );
+        }
+        catch ( IOException e )
+        {
+            throw new RuntimeException( e );
         }
     }
 

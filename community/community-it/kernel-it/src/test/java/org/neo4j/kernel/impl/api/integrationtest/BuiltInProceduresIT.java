@@ -301,6 +301,10 @@ public class BuiltInProceduresIT extends KernelIntegrationTest
                 proc( "db.index.fulltext.queryRelationships", "(indexName :: STRING?, queryString :: STRING?, sortProperty =  :: STRING?, sortDirection = ASC :: STRING?) :: (relationship :: RELATIONSHIP?, " +
                         "score :: FLOAT?)", "Query the given fulltext index. Returns the matching relationships and their lucene query score, ordered by " +
                         "score.", "READ" ),
+                proc( "db.index.fulltext.countNodes", "(indexName :: STRING?, queryString :: STRING?) :: (count :: INTEGER?)",
+                      "Query the given fulltext index. Returns the count of matching nodes.", "READ" ),
+                proc( "db.index.fulltext.countRelationships", "(indexName :: STRING?, queryString :: STRING?) :: (count :: INTEGER?)",
+                      "Query the given fulltext index. Returns the count of matching relationships.", "READ" ),
                 proc( "db.stats.retrieve", "(section :: STRING?, config = {} :: MAP?) :: (section :: STRING?, data :: MAP?)",
                       "Retrieve statistical data about the current database. Valid sections are 'GRAPH COUNTS', 'TOKENS', 'QUERIES', 'META'", "READ" ),
                 proc( "db.stats.retrieveAllAnonymized", "(graphToken :: STRING?, config = {} :: MAP?) :: (section :: STRING?, data :: MAP?)",

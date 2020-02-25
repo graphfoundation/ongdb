@@ -110,4 +110,15 @@ class PartitionedFulltextIndexReader extends FulltextIndexReader
     {
         return indexReaders.stream().mapToLong( reader -> reader.countIndexedNodes( nodeId, propertyKeyIds, propertyValues ) ).sum();
     }
+
+    @Override
+    public CountResult queryForCount( String query ) throws ParseException
+    {
+        List<CountResult> results = new ArrayList<>();
+        for ( FulltextIndexReader indexReader : indexReaders )
+        {
+            results.add( indexReader.queryForCount( query ) );
+        }
+        return new CountResult( results.stream().mapToLong( CountResult::getCount ).sum() );
+    }
 }
