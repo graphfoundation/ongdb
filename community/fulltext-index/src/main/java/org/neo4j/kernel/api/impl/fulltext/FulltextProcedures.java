@@ -246,6 +246,40 @@ public class FulltextProcedures
         }
     }
 
+    @Description( "Query the given fulltext index. Returns the count of matching nodes." )
+    @Procedure( name = "db.index.fulltext.countNodes", mode = READ )
+    public Stream<CountResult> fulltextCountNodes( @Name( "indexName" ) String name, @Name( "queryString" ) String query )
+            throws IndexNotFoundKernelException, ParseException
+    {
+        IndexReference indexReference = getValidIndexReference( name );
+        awaitOnline( indexReference );
+        EntityType entityType = indexReference.schema().entityType();
+        if ( entityType != EntityType.NODE )
+        {
+            throw new IllegalArgumentException( "The '" + name + "' index (" + indexReference + ") is an index on " + entityType +
+                                                ", so it cannot be queried for nodes." );
+        }
+        CountResult countResult = accessor.queryForCount( tx, name, query );
+        return Stream.of( countResult );
+    }
+
+    @Description( "Query the given fulltext index. Returns the count of matching relationships." )
+    @Procedure( name = "db.index.fulltext.countRelationships", mode = READ )
+    public Stream<CountResult> fulltextCountRelationships( @Name( "indexName" ) String name, @Name( "queryString" ) String query )
+            throws IndexNotFoundKernelException, ParseException
+    {
+        IndexReference indexReference = getValidIndexReference( name );
+        awaitOnline( indexReference );
+        EntityType entityType = indexReference.schema().entityType();
+        if ( entityType != EntityType.RELATIONSHIP )
+        {
+            throw new IllegalArgumentException( "The '" + name + "' index (" + indexReference + ") is an index on " + entityType +
+                                                ", so it cannot be queried for relationships." );
+        }
+        CountResult countResult = accessor.queryForCount( tx, name, query );
+        return Stream.of( countResult );
+    }
+
     private IndexReference getValidIndexReference( @Name( "indexName" ) String name )
     {
         IndexReference indexReference = tx.schemaRead().indexGetForName( name );
