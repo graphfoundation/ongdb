@@ -52,219 +52,262 @@ import org.neo4j.storageengine.api.schema.IndexDescriptor;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-public class StubKernelTransaction implements KernelTransaction {
+public class StubKernelTransaction implements KernelTransaction
+{
 
-    StubKernelTransaction() {
+    StubKernelTransaction()
+    {
     }
 
     @Override
-    public Statement acquireStatement() {
+    public Statement acquireStatement()
+    {
         return new StubStatement();
     }
 
     @Override
-    public IndexDescriptor indexUniqueCreate(SchemaDescriptor schema, String provider) {
+    public IndexDescriptor indexUniqueCreate( SchemaDescriptor schema, String provider )
+    {
         return null;
     }
 
     @Override
-    public void success() {
+    public void success()
+    {
     }
 
     @Override
-    public void failure() {
+    public void failure()
+    {
     }
 
     @Override
-    public Map<String, Object> getMetaData() {
+    public Map<String, Object> getMetaData()
+    {
         return null;
     }
 
     @Override
-    public Read dataRead() {
+    public Read dataRead()
+    {
         return null;
     }
 
     @Override
-    public Write dataWrite() {
+    public Write dataWrite()
+    {
         return null;
     }
 
     @Override
-    public ExplicitIndexRead indexRead() {
+    public ExplicitIndexRead indexRead()
+    {
         return null;
     }
 
     @Override
-    public ExplicitIndexWrite indexWrite() {
+    public ExplicitIndexWrite indexWrite()
+    {
         return null;
     }
 
     @Override
-    public TokenRead tokenRead() {
+    public TokenRead tokenRead()
+    {
         return null;
     }
 
     @Override
-    public TokenWrite tokenWrite() {
+    public TokenWrite tokenWrite()
+    {
         return null;
     }
 
     @Override
-    public Token token() {
+    public Token token()
+    {
         return null;
     }
 
     @Override
-    public SchemaRead schemaRead() {
+    public SchemaRead schemaRead()
+    {
         return null;
     }
 
     @Override
-    public Procedures procedures() {
+    public Procedures procedures()
+    {
         return null;
     }
 
     @Override
-    public ExecutionStatistics executionStatistics() {
+    public ExecutionStatistics executionStatistics()
+    {
         return null;
     }
 
     @Override
-    public SchemaWrite schemaWrite() {
+    public SchemaWrite schemaWrite()
+    {
         return null;
     }
 
     @Override
-    public Locks locks() {
+    public Locks locks()
+    {
         return null;
     }
 
     @Override
-    public CursorFactory cursors() {
+    public CursorFactory cursors()
+    {
         return null;
     }
 
     @Override
-    public long closeTransaction() {
+    public long closeTransaction()
+    {
         return 0;
     }
 
     @Override
-    public boolean isOpen() {
+    public boolean isOpen()
+    {
         return false;
     }
 
     @Override
-    public SecurityContext securityContext() {
+    public SecurityContext securityContext()
+    {
         SecurityContext securityContext = mock(SecurityContext.class, Answers.RETURNS_DEEP_STUBS);
-        when(securityContext.subject().username()).thenReturn("testUser");
+        when(securityContext.subject().username()).thenReturn( "testUser" );
         return securityContext;
     }
 
     @Override
-    public AuthSubject subjectOrAnonymous() {
+    public AuthSubject subjectOrAnonymous()
+    {
         AuthSubject subject = mock(AuthSubject.class);
-        when(subject.username()).thenReturn("testUser");
+        when(subject.username()).thenReturn( "testUser" );
         return subject;
     }
 
     @Override
-    public Optional<Status> getReasonIfTerminated() {
+    public Optional<Status> getReasonIfTerminated()
+    {
         return Optional.empty();
     }
 
     @Override
-    public boolean isTerminated() {
+    public boolean isTerminated()
+    {
         return false;
     }
 
     @Override
-    public void markForTermination(Status reason) {
+    public void markForTermination( Status reason )
+    {
     }
 
     @Override
-    public long lastTransactionTimestampWhenStarted() {
+    public long lastTransactionTimestampWhenStarted()
+    {
         return 0;
     }
 
     @Override
-    public long lastTransactionIdWhenStarted() {
+    public long lastTransactionIdWhenStarted()
+    {
         return 0;
     }
 
     @Override
-    public long startTime() {
+    public long startTime()
+    {
         return 1984;
     }
 
     @Override
-    public long startTimeNanos() {
+    public long startTimeNanos()
+    {
         return 1984000;
     }
 
     @Override
-    public long timeout() {
+    public long timeout()
+    {
         return 0;
     }
 
     @Override
-    public void registerCloseListener(CloseListener listener) {
+    public void registerCloseListener( CloseListener listener )
+    {
     }
 
     @Override
-    public Type transactionType() {
+    public Type transactionType()
+    {
         return null;
     }
 
     @Override
-    public long getTransactionId() {
+    public long getTransactionId()
+    {
         return 8;
     }
 
     @Override
-    public long getCommitTime() {
+    public long getCommitTime()
+    {
         return 0;
     }
 
     @Override
-    public Revertable overrideWith(SecurityContext context) {
+    public Revertable overrideWith( SecurityContext context )
+    {
         return null;
     }
 
     @Override
-    public NodeCursor ambientNodeCursor() {
-        throw new UnsupportedOperationException("not implemented");
+    public NodeCursor ambientNodeCursor()
+    {
+        throw new UnsupportedOperationException( "not implemented" );
     }
 
     @Override
-    public RelationshipScanCursor ambientRelationshipCursor() {
-        throw new UnsupportedOperationException("not implemented");
+    public RelationshipScanCursor ambientRelationshipCursor()
+    {
+        throw new UnsupportedOperationException( "not implemented" );
     }
 
     @Override
-    public PropertyCursor ambientPropertyCursor() {
-        throw new UnsupportedOperationException("not implemented");
+    public PropertyCursor ambientPropertyCursor()
+    {
+        throw new UnsupportedOperationException( "not implemented" );
     }
 
     @Override
-    public void setMetaData(Map<String, Object> metaData) {
+    public void setMetaData( Map<String, Object> metaData )
+    {
     }
 
     @Override
-    public ClockContext clocks() {
-        throw new UnsupportedOperationException("not implemented");
+    public ClockContext clocks()
+    {
+        throw new UnsupportedOperationException( "not implemented" );
     }
 
     @Override
-    public void assertOpen() {
-        throw new UnsupportedOperationException("not implemented");
+    public void assertOpen()
+    {
+        throw new UnsupportedOperationException( "not implemented" );
     }
 
     @Override
-    public boolean isSchemaTransaction() {
+    public boolean isSchemaTransaction()
+    {
         return false;
     }
-
 
 }
