@@ -505,8 +505,9 @@ public class SchemaIndexHaIT
         }
 
         @Override
-        public IndexPopulator getPopulator(StoreIndexDescriptor descriptor,
-            IndexSamplingConfig samplingConfig, ByteBufferFactory bufferFactory) {
+        public IndexPopulator getPopulator( StoreIndexDescriptor descriptor,
+            IndexSamplingConfig samplingConfig, ByteBufferFactory bufferFactory )
+        {
             IndexPopulator populator = delegate.getPopulator( descriptor, samplingConfig, bufferFactory );
             return new ControlledIndexPopulator( populator, latch );
         }
