@@ -238,8 +238,9 @@ public class StoreCopyRequestHandlerTest
         }
 
         @Override
-        public long tryCheckPoint(TriggerInfo triggerInfo, BooleanSupplier timeout)
-            throws IOException {
+        public long tryCheckPoint( TriggerInfo triggerInfo, BooleanSupplier timeout )
+            throws IOException
+        {
             return tryCheckPoint( triggerInfo, () -> false );
         }
 
