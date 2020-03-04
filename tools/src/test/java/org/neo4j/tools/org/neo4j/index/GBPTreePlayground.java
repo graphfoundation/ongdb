@@ -29,7 +29,10 @@ import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
 
-import org.neo4j.index.internal.gbptree.*;
+import org.neo4j.index.internal.gbptree.GBPTree;
+import org.neo4j.index.internal.gbptree.RecoveryCleanupWorkCollector;
+import org.neo4j.index.internal.gbptree.SimpleLongLayout;
+import org.neo4j.index.internal.gbptree.Writer;
 import org.neo4j.io.fs.DefaultFileSystemAbstraction;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.pagecache.IOLimiter;
