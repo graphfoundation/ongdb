@@ -72,7 +72,8 @@ public class InconsistencyReportReaderTest
                 "Some error", "something" );
         logger.error( RecordType.PROPERTY, new PropertyRecord( propertyId ),
                 "Some error", "something" );
-        logger.error( RecordType.INDEX, new IndexEntry( IndexDescriptorFactory.forSchema( SchemaDescriptorFactory.forLabel( 1, 1 ) ).withId( indexNodeId ), idTokenNameLookup, 0 ), "Some index error", "Something wrong with index" );
+        logger.error( RecordType.INDEX, new IndexEntry( IndexDescriptorFactory.forSchema( SchemaDescriptorFactory.forLabel( 1, 1 ) ).withId( indexNodeId ),
+                      idTokenNameLookup, 0 ), "Some index error", "Something wrong with index" );
         logger.error( RecordType.NODE, new NodeRecord( nodeNotInTheIndexId ), "Some index error",
                       IndexDescriptorFactory.forSchema( forLabel( 1, 2 ),
                                               new IndexProviderDescriptor( "key", "version" ) ).withId( indexId ).toString() );

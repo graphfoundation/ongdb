@@ -114,7 +114,8 @@ public class InstalledProtocolsProcedureIT
         try ( Transaction tx = kernel.beginTransaction( Transaction.Type.implicit, AnonymousContext.read() ) )
         {
             RawIterator<Object[],ProcedureException> itr =
-                    tx.procedures().procedureCallRead( procedureName( "dbms", "cluster", InstalledProtocolsProcedure.PROCEDURE_NAME ), null, ProcedureCallContext.EMPTY );
+                    tx.procedures().procedureCallRead( procedureName( "dbms", "cluster", InstalledProtocolsProcedure.PROCEDURE_NAME ),
+                                                       null, ProcedureCallContext.EMPTY );
 
             while ( itr.hasNext() )
             {

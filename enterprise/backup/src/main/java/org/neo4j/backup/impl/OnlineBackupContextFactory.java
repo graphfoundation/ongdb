@@ -174,7 +174,7 @@ class OnlineBackupContextFactory
             BiFunction<String,Setting<Boolean>,Boolean> oneOf = ( a, s ) -> arguments.has( a ) ? arguments.getBoolean( a ) : config.get( s );
 
             ConsistencyFlags consistencyFlags = new ConsistencyFlags( config );
-            
+
             return new OnlineBackupContext( requiredArguments, config, consistencyFlags );
         }
         catch ( IllegalArgumentException e )

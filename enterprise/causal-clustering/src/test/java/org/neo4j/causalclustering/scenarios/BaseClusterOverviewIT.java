@@ -384,7 +384,8 @@ public abstract class BaseClusterOverviewIT
         try ( Transaction tx = kernel.beginTransaction( Type.implicit, AnonymousContext.read() ) )
         {
             RawIterator<Object[],ProcedureException> itr =
-                    tx.procedures().procedureCallRead( procedureName( "dbms", "cluster", ClusterOverviewProcedure.PROCEDURE_NAME ), null, ProcedureCallContext.EMPTY );
+                    tx.procedures().procedureCallRead( procedureName( "dbms", "cluster", ClusterOverviewProcedure.PROCEDURE_NAME ),
+                                                       null, ProcedureCallContext.EMPTY );
 
             while ( itr.hasNext() )
             {

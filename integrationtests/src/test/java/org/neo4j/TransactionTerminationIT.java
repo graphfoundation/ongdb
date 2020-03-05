@@ -195,7 +195,6 @@ public class TransactionTerminationIT
         assertNodeExists( cluster, masterValue );
     }
 
-
     @Test
     public void terminateMasterTransactionThatWaitsForLockAcquiredBySlave() throws Exception
     {
