@@ -12,7 +12,11 @@ Learn more about ONgDB at https://graphfoundation.org[Graph Foundation website]
 
 Neo4j is available both as a standalone server, or an embeddable component. You can https://graphfoundation.org/projects/ongdb/[download] or http://console.neo4j.org[try Neo4j online].
 
+<<<<<<< HEAD
 == Extending ONgDB & Neo4j ==
+=======
+Neo4j is available both as a standalone server, or an embeddable component. You can https://neo4j.com/download/[download] or https://console.neo4j.org[try online].
+>>>>>>> neo4j/3.5
 
 We encourage experimentation with ONgDB & Neo4j. You can build extensions to ONgDB & Neo4j, develop library or drivers atop the product, or make contributions directly to the product core. You'll need to sign a Contributor License Agreement in order for us to accept your patches.
 
@@ -20,15 +24,15 @@ NOTE: This GitHub repository contains mixed GPL and AGPL code. Our Community edi
 
 == Dependencies ==
 
-Neo4j is built using http://maven.apache.org/[Apache Maven] version 3.3 and a recent version of supported VM. Bash and Make are also required. Note that maven needs more memory than the standard configuration, this can be achieved with `export MAVEN_OPTS="-Xmx512m"`.
+Neo4j is built using https://maven.apache.org/[Apache Maven] version 3.3 and a recent version of supported VM. Bash and Make are also required. Note that maven needs more memory than the standard configuration, this can be achieved with `export MAVEN_OPTS="-Xmx512m"`.
 
-OS X users need to have http://brew.sh/[Homebrew] installed.
+macOS users need to have https://brew.sh/[Homebrew] installed.
 
-=== With brew on OS X ===
+=== With brew on macOS ===
 
   brew install maven
 
-Please note that we do not support building Debian packages on OS X.
+Please note that we do not support building Debian packages on macOS.
 
 === With apt-get on Ubuntu ===
 
@@ -49,7 +53,7 @@ On top of that, to build Debian packages and Neo4j Desktop:
 
   apt install debhelper devscripts dos2unix dpkg make xmlstarlet
   # You will need a license for install4j, which is only needed for Neo4j Desktop
-  curl -O http://download-keycdn.ej-technologies.com/install4j/install4j_linux_6_1_4.deb
+  curl -O https://download-keycdn.ej-technologies.com/install4j/install4j_linux_6_1_4.deb
   dpkg -i install4j_linux_6_1_4.deb
 
 == Building ONgDB ==
@@ -66,17 +70,17 @@ Before you start running the unit and integration tests in the Neo4j Maven proje
 
 == Running ONgDB & Neo4j ==
 
-After running a `mvn clean install` cd into `packaging/standalone/target` and extract the version you want, then
+After running a `mvn clean install`, `cd` into `packaging/standalone/target` and extract the version you want, then:
 
   bin/neo4j start
 
-in the extracted folder to start Neo4j on `localhost:7474`. On Windows you want to run
+in the extracted folder to start Neo4j on `localhost:7474`. On Windows you want to run:
 
   bin\neo4j start
 
 instead.
 
-Or, if you are not interested in the tarballs and just want to run Neo4j you can instead run a `mvn clean install -DminimalBuild` and then cd into `community/server` and run
+Or, if you are not interested in the tarballs and just want to run Neo4j you can instead run a `mvn clean install -DminimalBuild` and then `cd` into `community/server` and run:
 
   mvn clean compile exec:java
 
@@ -98,5 +102,6 @@ ONgDB & Neo4j Enterprise consists of modules from Neo4j Community Edition and mo
 
 
 == Misc ==
-Neo4j IDE code style configs can be found at 
+ONgDB & Neo4j IDE code style configs can be found at 
 http://neo4j.github.io/ or under the build/ folder of this repository.
+
