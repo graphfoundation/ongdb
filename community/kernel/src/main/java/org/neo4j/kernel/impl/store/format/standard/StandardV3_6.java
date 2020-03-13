@@ -1,10 +1,9 @@
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
- * Neo4j Sweden AB [http://neo4j.com]
+ * Copyright (c) 2002-2020 Graph Foundation, Inc.[https://graphfoundation.org]
  *
- * This file is part of Neo4j.
+ * This file is part of ONgDB.
  *
- * Neo4j is free software: you can redistribute it and/or modify
+ * ONgDB is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
@@ -34,16 +33,16 @@ import org.neo4j.kernel.impl.store.record.RelationshipGroupRecord;
 import org.neo4j.kernel.impl.store.record.RelationshipRecord;
 import org.neo4j.kernel.impl.store.record.RelationshipTypeTokenRecord;
 
-public class StandardV3_4 extends BaseRecordFormats
+public class StandardV3_6 extends BaseRecordFormats
 {
-    public static final String STORE_VERSION = StoreVersion.STANDARD_V3_4.versionString();
-    public static final RecordFormats RECORD_FORMATS = new StandardV3_4();
-    public static final String NAME = "standardV3_4_0";
+    public static final String STORE_VERSION = StoreVersion.STANDARD_V3_6.versionString();
+    public static final RecordFormats RECORD_FORMATS = new StandardV3_6();
+    public static final String NAME = "standard";
 
-    public StandardV3_4()
+    public StandardV3_6()
     {
-        super( STORE_VERSION, StoreVersion.STANDARD_V3_4.introductionVersion(), 8, Capability.SCHEMA,
-                Capability.DENSE_NODES, Capability.LUCENE_5, Capability.POINT_PROPERTIES, Capability.TEMPORAL_PROPERTIES );
+        super( STORE_VERSION, StoreVersion.STANDARD_V3_6.introductionVersion(), 9, Capability.SCHEMA,
+                Capability.DENSE_NODES, Capability.LUCENE_5, Capability.POINT_PROPERTIES, Capability.TEMPORAL_PROPERTIES, Capability.SORT );
     }
 
     @Override

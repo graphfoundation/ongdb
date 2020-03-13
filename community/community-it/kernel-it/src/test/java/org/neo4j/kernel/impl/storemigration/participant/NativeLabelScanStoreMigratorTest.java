@@ -51,6 +51,7 @@ import org.neo4j.kernel.impl.store.MetaDataStore.Position;
 import org.neo4j.kernel.impl.store.format.standard.StandardV2_3;
 import org.neo4j.kernel.impl.store.format.standard.StandardV3_2;
 import org.neo4j.kernel.impl.store.format.standard.StandardV3_4;
+import org.neo4j.kernel.impl.store.format.standard.StandardV3_6;
 import org.neo4j.kernel.impl.util.monitoring.ProgressReporter;
 import org.neo4j.kernel.lifecycle.Lifespan;
 import org.neo4j.kernel.monitoring.Monitors;
@@ -172,8 +173,8 @@ public class NativeLabelScanStoreMigratorTest
     @Test
     public void populateNativeLabelScanIndexDuringMigration() throws IOException
     {
-        prepare34DatabaseWithNodes();
-        indexMigrator.migrate( databaseLayout, migrationLayout, progressReporter, StandardV3_4.STORE_VERSION, StandardV3_4.STORE_VERSION );
+        prepare36DatabaseWithNodes();
+        indexMigrator.migrate( databaseLayout, migrationLayout, progressReporter, StandardV3_6.STORE_VERSION, StandardV3_6.STORE_VERSION );
         indexMigrator.moveMigratedFiles( migrationLayout, databaseLayout, StandardV2_3.STORE_VERSION, StandardV3_2.STORE_VERSION );
 
         try ( Lifespan lifespan = new Lifespan() )
@@ -195,8 +196,8 @@ public class NativeLabelScanStoreMigratorTest
     @Test
     public void reportProgressOnNativeIndexPopulation() throws IOException
     {
-        prepare34DatabaseWithNodes();
-        indexMigrator.migrate( databaseLayout, migrationLayout, progressReporter, StandardV3_4.STORE_VERSION, StandardV3_4.STORE_VERSION );
+        prepare36DatabaseWithNodes();
+        indexMigrator.migrate( databaseLayout, migrationLayout, progressReporter, StandardV3_6.STORE_VERSION, StandardV3_6.STORE_VERSION );
         indexMigrator.moveMigratedFiles( migrationLayout, databaseLayout, StandardV2_3.STORE_VERSION, StandardV3_2.STORE_VERSION );
 
         verify( progressReporter ).start( 10 );
@@ -245,7 +246,7 @@ public class NativeLabelScanStoreMigratorTest
         return sourceBuffer;
     }
 
-    private void prepare34DatabaseWithNodes()
+    private void prepare36DatabaseWithNodes()
     {
         GraphDatabaseService embeddedDatabase = new TestGraphDatabaseFactory().newEmbeddedDatabase( storeDir );
         try

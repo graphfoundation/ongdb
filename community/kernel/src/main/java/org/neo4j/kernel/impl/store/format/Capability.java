@@ -65,7 +65,12 @@ public enum Capability
     /**
      * Records can spill over into secondary units (another record with a header saying it's a secondary unit to another record).
      */
-    SECONDARY_RECORD_UNITS( CapabilityType.FORMAT );
+    SECONDARY_RECORD_UNITS( CapabilityType.FORMAT ),
+
+    /**
+     * Lucene Index supports sorting
+     */
+    SORT( CapabilityType.INDEX );
 
     private final CapabilityType[] types;
     private boolean additive;

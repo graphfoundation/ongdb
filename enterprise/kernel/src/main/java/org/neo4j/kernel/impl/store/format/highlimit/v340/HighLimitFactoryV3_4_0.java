@@ -1,10 +1,9 @@
 /*
- * Copyright (c) 2002-2020 "Neo4j,"
- * Neo4j Sweden AB [http://neo4j.com]
+ * Copyright (c) 2002-2020 Graph Foundation, Inc.[https://graphfoundation.org]
  *
- * This file is part of Neo4j.
+ * This file is part of ONgDB.
  *
- * Neo4j is free software: you can redistribute it and/or modify
+ * ONgDB is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
@@ -17,19 +16,22 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.kernel.impl.store.format.standard;
+package org.neo4j.kernel.impl.store.format.highlimit.v340;
 
+import org.neo4j.helpers.Service;
 import org.neo4j.kernel.impl.store.format.RecordFormats;
-/**
- * This is a utility class always pointing to the latest Standard record format.
- */
-public class Standard
+
+@Service.Implementation( RecordFormats.Factory.class )
+public class HighLimitFactoryV3_4_0 extends RecordFormats.Factory
 {
-    private Standard()
+    public HighLimitFactoryV3_4_0()
     {
+        super( HighLimitV3_4_0.NAME, HighLimitV3_4_0.STORE_VERSION );
     }
 
-    public static final String LATEST_STORE_VERSION = StandardV3_6.STORE_VERSION;
-    public static final RecordFormats LATEST_RECORD_FORMATS = StandardV3_6.RECORD_FORMATS;
-    public static final String LATEST_NAME = StandardV3_6.NAME;
+    @Override
+    public RecordFormats newInstance()
+    {
+        return HighLimitV3_4_0.RECORD_FORMATS;
+    }
 }
