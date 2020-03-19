@@ -787,7 +787,7 @@ public class FulltextProceduresTest
     }
 
     @Test
-    public void fulltextIndexMustIgnoreNonStringPropertiesForUpdate()
+    public void fulltextIndexMustIgnoreNonStringNonNumberPropertiesForUpdate()
     {
         db = createDatabase();
 
@@ -801,7 +801,7 @@ public class FulltextProceduresTest
 
         awaitIndexesOnline();
 
-        List<Value> values = generateRandomNonStringValues();
+        List<Value> values = generateRandomNonStringNonNumberValues();
 
         try ( Transaction tx = db.beginTx() )
         {
@@ -843,11 +843,11 @@ public class FulltextProceduresTest
     }
 
     @Test
-    public void fulltextIndexMustIgnoreNonStringPropertiesForPopulation()
+    public void fulltextIndexMustIgnoreNonStringNonNumberPropertiesForPopulation()
     {
         db = createDatabase();
 
-        List<Value> values = generateRandomNonStringValues();
+        List<Value> values = generateRandomNonStringNonNumberValues();
 
         try ( Transaction tx = db.beginTx() )
         {
@@ -2631,6 +2631,12 @@ public class FulltextProceduresTest
     private List<Value> generateRandomNonStringValues()
     {
         Predicate<Value> nonString = v -> v.valueGroup() != ValueGroup.TEXT;
+        return generateRandomValues( nonString );
+    }
+
+    private List<Value> generateRandomNonStringNonNumberValues()
+    {
+        Predicate<Value> nonString = v -> v.valueGroup() != ValueGroup.TEXT && v.valueGroup() != ValueGroup.NUMBER;
         return generateRandomValues( nonString );
     }
 

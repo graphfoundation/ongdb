@@ -83,9 +83,22 @@ public class LuceneFulltextDocumentStructure
 
     private static Field encodeValueField( String propertyKey, Value value )
     {
-        TextValue textValue = (TextValue) value;
-        String stringValue = textValue.stringValue();
-        return new TextField( propertyKey, stringValue, NO );
+        ValueGroup valueGroup = value.valueGroup();
+        if (valueGroup == ValueGroup.TEXT )
+        {
+            TextValue textValue = (TextValue) value;
+            String stringValue = textValue.stringValue();
+            return new TextField( propertyKey, stringValue, NO );
+        }
+        else if (valueGroup == ValueGroup.NUMBER )
+        {
+            String stringValue = convertNumberValue( value );
+            if (stringValue != null)
+            {
+                return new TextField( propertyKey, stringValue, NO );
+            }
+        }
+        return null;
     }
 
     private static Field encodeSortableValueField( String sortKey, Value value )
@@ -127,6 +140,27 @@ public class LuceneFulltextDocumentStructure
         return null;
     }
 
+    private static String convertNumberValue( Value value )
+    {
+        Object valueObject = value.asObject();
+        if ( value.valueGroup().equals( ValueGroup.NUMBER ) )
+        {
+            if ( valueObject instanceof Long )
+            {
+                return Long.toString( (Long) valueObject );
+            }
+            else if ( valueObject instanceof Double )
+            {
+                return Double.toString( (Double) valueObject );
+            }
+            else if ( valueObject instanceof Float )
+            {
+                return Float.toString( (Float) valueObject );
+            }
+        }
+        return null;
+    }
+
     static long getNodeId( Document from )
     {
         String entityId = from.get( FIELD_ENTITY_ID );
@@ -151,6 +185,16 @@ public class LuceneFulltextDocumentStructure
                 Query valueQuery = new ConstantScoreQuery(
                         new TermQuery( new Term( propertyKey, value.asObject().toString() ) ) );
                 builder.add( valueQuery, BooleanClause.Occur.SHOULD );
+            }
+            else if ( value.valueGroup() == ValueGroup.NUMBER )
+            {
+                String stringValue = convertNumberValue( value );
+                if ( stringValue != null )
+                {
+                    Query valueQuery = new ConstantScoreQuery(
+                            new TermQuery( new Term( propertyKey, stringValue ) ) );
+                    builder.add( valueQuery, BooleanClause.Occur.SHOULD );
+                }
             }
             else if ( value.valueGroup() == ValueGroup.NO_VALUE )
             {
@@ -179,6 +223,11 @@ public class LuceneFulltextDocumentStructure
         default:
             return false;
         }
+    }
+
+    private static boolean checkSearchValue( Value value )
+    {
+        return value != null && (value.valueGroup() == ValueGroup.TEXT || value.valueGroup() == ValueGroup.NUMBER);
     }
 
     private static class DocWithId
@@ -210,7 +259,7 @@ public class LuceneFulltextDocumentStructure
             for ( String name : names )
             {
                 Value value = values[i++];
-                if ( value != null && value.valueGroup() == ValueGroup.TEXT )
+                if ( checkSearchValue( value ) )
                 {
                     addFulltextFieldToDocument( name, value );
                 }
@@ -231,7 +280,7 @@ public class LuceneFulltextDocumentStructure
             {
 
                 Value value = values[i++];
-                if ( value != null && value.valueGroup() == ValueGroup.TEXT )
+                if ( checkSearchValue( value ) )
                 {
                     addFulltextFieldToDocument( name, value );
                 }
@@ -254,7 +303,10 @@ public class LuceneFulltextDocumentStructure
         private void addFulltextFieldToDocument( String name, Value value )
         {
             Field field = encodeValueField( name, value );
-            document.add( field );
+            if (field != null )
+            {
+                document.add( field );
+            }
         }
 
         private void removeAllValueFields()
