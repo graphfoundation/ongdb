@@ -19,6 +19,8 @@
  */
 package org.neo4j.kernel.impl.store.record;
 
+import java.nio.BufferOverflowException;
+import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
 import java.util.Optional;
 
@@ -367,7 +369,27 @@ public class SchemaRuleSerialization
         }
         int[] entityTokenIds = readTokenIdList( source );
         int[] propertyIds = readTokenIdList( source );
-        return SchemaDescriptorFactory.multiToken( entityTokenIds, type, propertyIds );
+
+        // If Neo4j added in this bit it would make ONgDB and Neo4j backwards compatible.
+        if ( includesSortInFormat( source ) )
+        {
+            try
+            {
+                int[] sortIds = readTokenIdListIntegerLength( source );
+                int[] sortTypes = readTokenIdListIntegerLength( source );
+                return SchemaDescriptorFactory.multiToken( entityTokenIds, type, propertyIds, sortIds, sortTypes );
+            }
+            catch ( BufferUnderflowException | BufferOverflowException e )
+            {
+                throw new MalformedSchemaRuleException( "Something went wrong while reading 'sortIds' or 'sortTypes' from the SchemaStore.", e );
+            }
+
+        }
+        else
+        {
+            return SchemaDescriptorFactory.multiToken( entityTokenIds, type, propertyIds );
+        }
+
     }
 
     private static int[] readTokenIdList( ByteBuffer source )
@@ -379,6 +401,36 @@ public class SchemaRuleSerialization
             propertyIds[i] = source.getInt();
         }
         return propertyIds;
+    }
+
+    private static int[] readTokenIdListIntegerLength( ByteBuffer source )
+    {
+        int numProperties = source.getInt();
+        int[] propertyIds = new int[numProperties];
+        for ( int i = 0; i < numProperties; i++ )
+        {
+            propertyIds[i] = source.getInt();
+        }
+        return propertyIds;
+    }
+
+    /**
+     * Checks if the source ByteBuffer has the sortIds and sortTypes stored for the MultiTokenSchemaDescriptor.
+     * Legacy indexes will return false.
+     */
+    private static boolean includesSortInFormat( ByteBuffer source )
+    {
+        // Checks to see if theres at least 4 pos left. Should this throw an error if there is less than 4bytes left?
+        if (source.remaining() >= UTF8.MINIMUM_SERIALISED_LENGTH_BYTES)
+        {
+            ByteBuffer duplicate = source.duplicate();
+            int nameCountIfLegacySource = duplicate.getInt();
+            if (duplicate.remaining() == nameCountIfLegacySource)
+            {
+                return false;
+            }
+        }
+        return true;
     }
 
     // WRITE
@@ -422,7 +474,9 @@ public class SchemaRuleSerialization
             }
 
             putIds( schema.getEntityTokenIds() );
-            putIds( schema.getPropertyIds() );
+            putIds( schema.getPropertyIdsNoSorts() );
+            putIdsIntegerLength( schema.getSortIds() );
+            putIdsIntegerLength( schema.getSortTypes() );
         }
 
         private void putIds( int[] ids )
@@ -431,6 +485,15 @@ public class SchemaRuleSerialization
             for ( int entityTokenId : ids )
             {
                 target.putInt( entityTokenId );
+            }
+        }
+
+        private void putIdsIntegerLength( int[] ids )
+        {
+            target.putInt( ids.length );
+            for ( int tokenId : ids )
+            {
+                target.putInt( tokenId );
             }
         }
     }
@@ -465,7 +528,11 @@ public class SchemaRuleSerialization
                     + 2 // entity token count
                     + 4 * schema.getEntityTokenIds().length // the actual property ids
                     + 2 // property id count
-                    + 4 * schema.getPropertyIds().length; // the actual property ids
+                    + 4 * schema.getPropertyIdsNoSorts().length // the actual property ids
+                    + 4 // sort id count (as Int)
+                    + 4 * schema.getSortIds().length // the actual sort ids
+                    + 4 // sort type count (as Int)
+                    + 4 * schema.getSortTypes().length; // the actual sort types
         }
     };
 }

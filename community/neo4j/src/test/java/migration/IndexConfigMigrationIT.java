@@ -85,7 +85,7 @@ import static org.neo4j.values.storable.CoordinateReferenceSystem.all;
 import static org.neo4j.values.storable.Values.COMPARATOR;
 
 /**
- * This test should verify that index configurations from a 3.5 store stay intact when opened again, with migration if needed.
+ * This test should verify that index configurations from a 3.6 store stay intact when opened again, with migration if needed.
  */
 @ExtendWith( TestDirectoryExtension.class )
 class IndexConfigMigrationIT
@@ -157,7 +157,7 @@ class IndexConfigMigrationIT
         staticExpectedIndexConfig.put( "spatial.cartesian-3d.max", Values.doubleArray( new double[]{18.0, 19.0, 20.0} ) );
     }
 
-    private static final String ZIP_FILE_3_5 = "IndexConfigMigrationIT-3_5-db.zip";
+    private static final String ZIP_FILE_3_6 = "IndexConfigMigrationIT-3_6-db.zip";
 
     // Schema index
     private static final String propKey = "key";
@@ -199,9 +199,9 @@ class IndexConfigMigrationIT
         return storeDir;
     }
 
-    @Disabled( "Here as reference for how 3.5 db was created" )
+    @Disabled( "Here as reference for how 3.6 db was created" )
     @Test
-    void create3_5Database() throws Exception
+    void create3_6Database() throws Exception
     {
         File storeDir = tempStoreDirectory();
         GraphDatabaseBuilder builder = new GraphDatabaseFactory().newEmbeddedDatabaseBuilder( storeDir );
@@ -228,7 +228,7 @@ class IndexConfigMigrationIT
     void shouldHaveCorrectDataAndIndexConfiguration() throws IOException, IndexNotFoundKernelException
     {
         File storeDir = directory.databaseDir();
-        unzip( getClass(), ZIP_FILE_3_5, storeDir );
+        unzip( getClass(), ZIP_FILE_3_6, storeDir );
         // when
         GraphDatabaseAPI db = (GraphDatabaseAPI) new GraphDatabaseFactory()
                 .newEmbeddedDatabaseBuilder( storeDir )

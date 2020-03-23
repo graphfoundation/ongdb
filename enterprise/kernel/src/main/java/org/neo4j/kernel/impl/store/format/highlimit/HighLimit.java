@@ -49,16 +49,16 @@ import static org.neo4j.kernel.impl.store.format.highlimit.HighLimitFormatSettin
  */
 public class HighLimit extends BaseRecordFormats
 {
-    public static final String STORE_VERSION = StoreVersion.HIGH_LIMIT_V3_4_0.versionString();
+    public static final String STORE_VERSION = StoreVersion.HIGH_LIMIT_V3_6_0.versionString();
 
     public static final RecordFormats RECORD_FORMATS = new HighLimit();
     public static final String NAME = "high_limit";
 
     protected HighLimit()
     {
-        super( STORE_VERSION, StoreVersion.HIGH_LIMIT_V3_4_0.introductionVersion(), 5, Capability.DENSE_NODES,
+        super( STORE_VERSION, StoreVersion.HIGH_LIMIT_V3_6_0.introductionVersion(), 6, Capability.DENSE_NODES,
                 Capability.RELATIONSHIP_TYPE_3BYTES, Capability.SCHEMA, Capability.LUCENE_5, Capability.POINT_PROPERTIES, Capability.TEMPORAL_PROPERTIES,
-                Capability.SECONDARY_RECORD_UNITS );
+                Capability.SECONDARY_RECORD_UNITS, Capability.SORT );
     }
 
     @Override

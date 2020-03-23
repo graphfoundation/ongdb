@@ -62,6 +62,8 @@ public class ProcedureResourcesIT
     private final String relExplicitIndexName = "relExplicitIndex";
     private final String ftsNodesIndex = "'ftsNodes'";
     private final String ftsRelsIndex = "'ftsRels'";
+    // ftsDropIndex exists only to be dropped.
+    private final String ftsDropIndex = "'ftsDrop'";
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
 
     @After
@@ -164,6 +166,8 @@ public class ProcedureResourcesIT
         {
             db.execute( "call db.index.fulltext.createNodeIndex(" + ftsNodesIndex + ", ['Label'], ['prop'])" ).close();
             db.execute( "call db.index.fulltext.createRelationshipIndex(" + ftsRelsIndex + ", ['Label'], ['prop'])" ).close();
+            // Create ftsDropIndex so it can be dropped.
+            db.execute( "call db.index.fulltext.createRelationshipIndex(" + ftsDropIndex + ", ['Label'], ['prop2'])" ).close();
             tx.success();
         }
     }
@@ -400,8 +404,17 @@ public class ProcedureResourcesIT
             proc.withParam( ftsRelsIndex );
             proc.withParam( "'value'" );
             break;
-        case "db.index.fulltext.drop":
+        case "db.index.fulltext.countNodes":
+            proc.withParam( ftsNodesIndex );
+            proc.withParam( "'value'" );
+            break;
+        case "db.index.fulltext.countRelationships":
             proc.withParam( ftsRelsIndex );
+            proc.withParam( "'value'" );
+            break;
+        case "db.index.fulltext.drop":
+            // Drop ftsDropIndex instead of ftsNodesIndex/ftsRelsIndex so it does not cause test failures in other CASEs.
+            proc.withParam( ftsDropIndex );
             break;
         case "db.stats.retrieveAllAnonymized":
             proc.withParam( "'myToken'" );
