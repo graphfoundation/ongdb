@@ -12,11 +12,8 @@ Learn more about ONgDB at https://graphfoundation.org[Graph Foundation website]
 
 Neo4j is available both as a standalone server, or an embeddable component. You can https://graphfoundation.org/projects/ongdb/[download] or http://console.neo4j.org[try Neo4j online].
 
-<<<<<<< HEAD
 == Extending ONgDB & Neo4j ==
-=======
 Neo4j is available both as a standalone server, or an embeddable component. You can https://neo4j.com/download/[download] or https://console.neo4j.org[try online].
->>>>>>> neo4j/3.5
 
 We encourage experimentation with ONgDB & Neo4j. You can build extensions to ONgDB & Neo4j, develop library or drivers atop the product, or make contributions directly to the product core. You'll need to sign a Contributor License Agreement in order for us to accept your patches.
 
