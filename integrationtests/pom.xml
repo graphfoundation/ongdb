@@ -4,13 +4,13 @@
   <parent>
     <groupId>org.neo4j</groupId>
     <artifactId>parent</artifactId>
-    <version>3.5.17-SNAPSHOT</version>
+    <version>3.5.18-SNAPSHOT</version>
     <relativePath>..</relativePath>
   </parent>
 
   <groupId>org.graphfoundation.ongdb</groupId>
   <artifactId>neo4j-integrationtests</artifactId>
-  <version>3.5.17-SNAPSHOT</version>
+  <version>3.5.18-SNAPSHOT</version>
 
   <name>ONgDB - Integration Tests</name>
   <packaging>jar</packaging>

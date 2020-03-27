@@ -5,7 +5,7 @@
 
   <groupId>org.neo4j</groupId>
   <artifactId>parent</artifactId>
-  <version>3.5.17-SNAPSHOT</version>
+  <version>3.5.18-SNAPSHOT</version>
   <packaging>pom</packaging>
   <name>ONgDB</name>
   <description>ONgDB Graph Database</description>

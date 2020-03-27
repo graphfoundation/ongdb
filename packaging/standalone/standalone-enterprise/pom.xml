@@ -4,13 +4,13 @@
   <parent>
     <groupId>org.neo4j.assembly</groupId>
     <artifactId>neo4j-standalone</artifactId>
-    <version>3.5.17-SNAPSHOT</version>
+    <version>3.5.18-SNAPSHOT</version>
     <relativePath>..</relativePath>
   </parent>
 
   <groupId>org.graphfoundation.ongdb.assembly</groupId>
   <artifactId>neo4j-enterprise-standalone</artifactId>
-  <version>3.5.17-SNAPSHOT</version>
+  <version>3.5.18-SNAPSHOT</version>
   <packaging>pom</packaging>
 
   <name>ONgDB - Server Assembler</name>
