@@ -49,10 +49,10 @@ class ConfiguredQueryLogger implements QueryLogger
     private static final Pattern PASSWORD_PATTERN = Pattern.compile(
             // call signature
             "(?:(?i)call)\\s+dbms(?:\\.security)?\\.change(?:User)?Password\\(" +
-                    // optional username parameter, in single, double quotes, or parametrized
-                    "(?:\\s*(?:'(?:(?<=\\\\)'|[^'])*'|\"(?:(?<=\\\\)\"|[^\"])*\"|[^,]*)\\s*,)?" +
-                    // password parameter, in single, double quotes, or parametrized
-                    "\\s*('(?:(?<=\\\\)'|[^'])*'|\"(?:(?<=\\\\)\"|[^\"])*\"|\\$\\w*|\\{\\w*})\\s*\\)" );
+            // optional username parameter, in single, double quotes, or parametrized
+            "(?:\\s*(?:'(?:(?<=\\\\)'|[^'])*'|\"(?:(?<=\\\\)\"|[^\"])*\"|[^,]*)\\s*,)?" +
+            // password parameter, in single, double quotes, or parametrized
+            "\\s*('(?:(?<=\\\\)'|[^'])*'|\"(?:(?<=\\\\)\"|[^\"])*\"|\\$\\w*|\\{\\w*})\\s*\\)" );
 
     ConfiguredQueryLogger( Log log, Config config )
     {
@@ -69,6 +69,12 @@ class ConfiguredQueryLogger implements QueryLogger
     public void failure( ExecutingQuery query, Throwable failure )
     {
         log.error( logEntry( query.snapshot() ), failure );
+    }
+
+    @Override
+    public void failure( ExecutingQuery query, String reason )
+    {
+        log.error( logEntry( query.snapshot() ), reason );
     }
 
     @Override
