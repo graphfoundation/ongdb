@@ -127,7 +127,8 @@ public class VerbosePageCacheTracerTest
             flushEvent2.done();
         }
         logProvider.formattedMessageMatcher().assertContains( "Flushing file: 'fileToFlush'." );
-        logProvider.formattedMessageMatcher().assertContains( "'fileToFlush' flush completed. Flushed 2.000MiB in 110 pages. Flush took: 1s. Average speed: 2.000MiB/s." );
+        logProvider.formattedMessageMatcher().assertContains( "'fileToFlush' flush completed. " +
+            "Flushed 2.000MiB in 110 pages. Flush took: 1s. Average speed: 2.000MiB/s." );
     }
 
     private VerbosePageCacheTracer createTracer()

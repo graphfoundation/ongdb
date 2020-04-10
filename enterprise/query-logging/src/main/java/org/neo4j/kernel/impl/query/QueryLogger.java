@@ -37,8 +37,16 @@ public interface QueryLogger
         public void failure( ExecutingQuery query, Throwable throwable )
         {
         }
+
+        @Override
+        public void failure( ExecutingQuery query, String reason )
+        {
+        }
     };
 
     void success( ExecutingQuery query );
+
     void failure( ExecutingQuery query, Throwable throwable );
+
+    void failure( ExecutingQuery query, String reason );
 }

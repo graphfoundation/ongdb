@@ -51,8 +51,7 @@ class DynamicLoggingQueryExecutionMonitor extends LifecycleAdapter implements Qu
     private final Log debugLog;
 
     /**
-     * The currently configured QueryLogger.
-     * This may be accessed concurrently by any thread, even while the logger is being reconfigured.
+     * The currently configured QueryLogger. This may be accessed concurrently by any thread, even while the logger is being reconfigured.
      */
     private volatile QueryLogger currentLog = NO_LOG;
 
@@ -98,7 +97,7 @@ class DynamicLoggingQueryExecutionMonitor extends LifecycleAdapter implements Qu
 
     private <T> void registerDynamicSettingUpdater( Setting<T> setting )
     {
-        config.registerDynamicUpdateListener( setting, ( a,b ) -> updateSettings() );
+        config.registerDynamicUpdateListener( setting, ( a, b ) -> updateSettings() );
     }
 
     private synchronized void updateSettings()
@@ -215,6 +214,12 @@ class DynamicLoggingQueryExecutionMonitor extends LifecycleAdapter implements Qu
     public void endFailure( ExecutingQuery query, Throwable failure )
     {
         currentLog.failure( query, failure );
+    }
+
+    @Override
+    public void endFailure( ExecutingQuery query, String reason )
+    {
+        currentLog.failure( query, reason );
     }
 
     @Override

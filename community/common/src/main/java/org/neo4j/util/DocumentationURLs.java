@@ -17,29 +17,15 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compatibility
+package org.neo4j.util;
 
-import org.neo4j.kernel.api.query.ExecutingQuery
-import org.neo4j.kernel.impl.query.QueryExecutionMonitor
+public final class DocumentationURLs
+{
+    public static final String TRANSACTION_DEADLOCK = "https://neo4j.com/docs/java-reference/3.5/transactions/#transactions-deadlocks";
+    public static final String IMPORT_TOOL = "https://neo4j.com/docs/operations-manual/3.5/tools/import/";
+    public static final String BACKUP_DOCUMENTATION = "https://neo4j.com/docs/operations-manual/3.5/backup/";
 
-case class OnlyOnceQueryExecutionMonitor(monitor: QueryExecutionMonitor) extends QueryExecutionMonitor {
-  private var closed = false
-
-  override def endFailure(query: ExecutingQuery, failure: Throwable = null): Unit =
-    if (!closed) {
-      closed = true
-      monitor.endFailure(query, failure)
-    }
-
-  override def endFailure(query: ExecutingQuery, reason: String): Unit =
-    if (!closed) {
-      closed = true
-      monitor.endFailure(query, reason)
-    }
-
-  override def endSuccess(query: ExecutingQuery): Unit =
-    if (!closed) {
-      closed = true
-      monitor.endSuccess(query)
+    private DocumentationURLs()
+    {
     }
 }
