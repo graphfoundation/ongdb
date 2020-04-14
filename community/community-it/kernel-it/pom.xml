@@ -14,7 +14,7 @@
 
     <name>Neo4j - Community Kernel Integration Tests</name>
     <packaging>jar</packaging>
-    <description>Neo4j community edition kernel integration tests.</description>
+    <description>ONgDB Community Edition kernel integration tests.</description>
 
     <properties>
         <license-text.header>headers/GPL-3-header.txt</license-text.header>

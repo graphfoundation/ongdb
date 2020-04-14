@@ -14,7 +14,7 @@
   <name>Neo4j - Community</name>
   <packaging>jar</packaging>
   <url>http://components.neo4j.org/${project.artifactId}/${project.version}</url>
-  <description>Neo4j Community Edition</description>
+  <description>ONgDB Community Edition</description>
 
   <properties>
     <license-text.header>headers/GPL-3-header.txt</license-text.header>

@@ -14,7 +14,7 @@
 
     <name>Neo4j - Community Integration Test Support</name>
     <packaging>jar</packaging>
-    <description>Neo4j community edition integration tests support.</description>
+    <description>ONgDB Community Edition integration tests support.</description>
 
     <properties>
         <license-text.header>headers/GPL-3-header.txt</license-text.header>

@@ -161,7 +161,7 @@ public class GraphDatabaseFacade implements GraphDatabaseAPI, EmbeddedProxySPI
 
         DatabaseLayout databaseLayout();
 
-        /** Eg. Neo4j Enterprise HA, Neo4j Community Standalone.. */
+        /** Eg. ONgDB Enterprise HA, ONgDB Community Standalone.. */
         String name();
 
         void shutdown();

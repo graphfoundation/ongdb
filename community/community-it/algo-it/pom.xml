@@ -15,7 +15,7 @@
 
     <name>Neo4j - Community Graph Algorithms Integration Tests</name>
     <packaging>jar</packaging>
-    <description>Neo4j community edition graph algorithms integration tests.</description>
+    <description>ONgDB Community Edition graph algorithms integration tests.</description>
 
     <properties>
         <license-text.header>headers/GPL-3-header.txt</license-text.header>

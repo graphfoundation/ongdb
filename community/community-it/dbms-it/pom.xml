@@ -15,7 +15,7 @@
 
     <name>Neo4j - Community DBMS Integration Tests</name>
     <packaging>jar</packaging>
-    <description>Neo4j community edition DBMS integration tests.</description>
+    <description>ONgDB Community Edition DBMS integration tests.</description>
 
     <properties>
         <license-text.header>headers/GPL-3-header.txt</license-text.header>

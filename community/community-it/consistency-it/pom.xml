@@ -15,7 +15,7 @@
 
     <name>Neo4j - Community Consistency Checker Integration Tests</name>
     <packaging>jar</packaging>
-    <description>Neo4j community edition consistency checker integration tests.</description>
+    <description>ONgDB Community Edition consistency checker integration tests.</description>
 
     <properties>
         <license-text.header>headers/GPL-3-header.txt</license-text.header>
