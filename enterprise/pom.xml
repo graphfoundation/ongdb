@@ -15,7 +15,7 @@
   <name>ONgDB - Enterprise Build</name>
   <packaging>pom</packaging>
   <description>Project that builds the Neo4j Enterprise distribution.</description>
-  <url>http://components.neo4j.org/${project.artifactId}/${project.version}</url>
+  <url>https://ongdb.graphfoundation.org/${project.artifactId}/${project.version}</url>
 
   <scm>
     <connection>scm:git:git://github.com/graphfoundation/ongdb.git</connection>

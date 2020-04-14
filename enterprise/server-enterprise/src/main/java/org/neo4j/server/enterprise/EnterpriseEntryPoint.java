@@ -20,7 +20,7 @@ package org.neo4j.server.enterprise;
 import org.neo4j.server.BlockingBootstrapper;
 import org.neo4j.server.Bootstrapper;
 import org.neo4j.server.ServerBootstrapper;
-// See https://github.com/neo4j/neo4j/blob/3.2/enterprise/server-enterprise/src/main/java/org/neo4j/server/enterprise/EnterpriseEntryPoint.java
+// See https://github.com/graphfoundation/ongdb/blob/3.2/enterprise/server-enterprise/src/main/java/org/neo4j/server/enterprise/EnterpriseEntryPoint.java
 
 public class EnterpriseEntryPoint
 {

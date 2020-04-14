@@ -13,7 +13,7 @@
   <version>3.6.0-SNAPSHOT</version>
   <name>ONgDB - Compiled Expressions</name>
   <description>Module for compiling expressions</description>
-  <url>http://components.neo4j.org/${project.artifactId}/${project.version}</url>
+  <url>https://ongdb.graphfoundation.org/${project.artifactId}/${project.version}</url>
 
   <properties>
     <licensing.prepend.text>licensing/notice-agpl-prefix.txt</licensing.prepend.text>

@@ -14,7 +14,7 @@
 
   <name>ONgDB - Enterprise Server</name>
   <description>Standalone Neo4j server application.</description>
-  <url>http://components.neo4j.org/${project.artifactId}/${project.version}</url>
+  <url>https://ongdb.graphfoundation.org/${project.artifactId}/${project.version}</url>
 
   <packaging>jar</packaging>
 

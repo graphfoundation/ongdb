@@ -14,8 +14,8 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Affero General Public License for more details.
  *
- * Reference: https://github.com/neo4j/neo4j/blob/3.4/enterprise/causal-clustering/src/test/java/org/neo4j/causalclustering/core/EnterpriseCoreEditionModuleIT.java
- * https://github.com/neo4j/neo4j/blob/fc43ec9b0d751b2a1654866a6cd1927268294351/community/neo4j/src/test/java/org/neo4j/graphdb/factory/module/edition/CommunityEditionModuleIntegrationTest.java
+ * Reference: https://github.com/graphfoundation/ongdb/blob/3.4/enterprise/causal-clustering/src/test/java/org/neo4j/causalclustering/core/EnterpriseCoreEditionModuleIT.java
+ * https://github.com/graphfoundation/ongdb/blob/fc43ec9b0d751b2a1654866a6cd1927268294351/community/neo4j/src/test/java/org/neo4j/graphdb/factory/module/edition/CommunityEditionModuleIntegrationTest.java
  */
 
 package org.neo4j.causalclustering.core;

@@ -14,7 +14,7 @@
   <name>ONgDB - Backup Tool</name>
   <description>Command line tool for grabbing backups from a running Neo4j instance</description>
   <packaging>jar</packaging>
-  <url>http://components.neo4j.org/${project.artifactId}/${project.version}</url>
+  <url>https://ongdb.graphfoundation.org/${project.artifactId}/${project.version}</url>
 
   <properties>
     <license-text.header>headers/AGPL-3-header.txt</license-text.header>

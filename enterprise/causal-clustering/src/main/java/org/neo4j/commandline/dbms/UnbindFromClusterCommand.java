@@ -66,7 +66,7 @@ public class UnbindFromClusterCommand implements AdminCommand
     {
         return fromFile( configDir.resolve( Config.DEFAULT_CONFIG_FILE_NAME ) )
                 .withSetting( GraphDatabaseSettings.active_database, databaseName )
-                .withHome( homeDir )  // See https://github.com/neo4j/neo4j/blob/e645c5036342579c86ec29e9c8ee50d4e0203f75/community/io/src/test/java/org/neo4j/test/extension/TestDirectoryExtensionTest.java
+                .withHome( homeDir )  // See https://github.com/graphfoundation/ongdb/blob/e645c5036342579c86ec29e9c8ee50d4e0203f75/community/io/src/test/java/org/neo4j/test/extension/TestDirectoryExtensionTest.java
                 .withConnectorsDisabled()
                 .withNoThrowOnFileLoadFailure()
                 .build();

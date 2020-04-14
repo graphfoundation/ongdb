@@ -310,7 +310,7 @@ class WithPlanningIntegrationTest extends CypherFunSuite with LogicalPlanningTes
   }
 
   test("Complex star pattern with WITH in front should not trip up joinSolver"){
-    // created after https://github.com/neo4j/neo4j/issues/12212
+    // created after https://github.com/graphfoundation/ongdb/issues/12212
 
     val maxIterationTime = 1 // the goal here is to force compaction as fast as possible
     val configurationThatForcesCompacting = cypherCompilerConfig.copy(idpIterationDuration = maxIterationTime)

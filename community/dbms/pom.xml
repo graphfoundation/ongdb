@@ -21,11 +21,11 @@
   <description>
     This component provides management functionality and product surface for Neo4j instances.
   </description>
-  <url>http://components.neo4j.org/${project.artifactId}/${project.version}/</url>
+  <url>https://ongdb.graphfoundation.org/${project.artifactId}/${project.version}/</url>
   <packaging>jar</packaging>
 
   <scm>
-    <url>https://github.com/neo4j/neo4j/tree/3.0/community/dbms</url>
+    <url>https://github.com/graphfoundation/ongdb/tree/3.0/community/dbms</url>
   </scm>
 
   <licenses>

@@ -94,7 +94,7 @@ public class LabelsAcceptanceTest
         MY_OTHER_LABEL
     }
 
-    /** https://github.com/neo4j/neo4j/issues/1279 */
+    /** https://github.com/graphfoundation/ongdb/issues/1279 */
     @Test
     public void shouldInsertLabelsWithoutDuplicatingThem()
     {

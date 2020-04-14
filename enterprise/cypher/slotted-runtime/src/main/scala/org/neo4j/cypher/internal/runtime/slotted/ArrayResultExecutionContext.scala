@@ -109,7 +109,7 @@ case class ArrayResultExecutionContext(resultArray: Array[AnyValue],
     resultArray
   }
 
-  // See: https://github.com/neo4j/neo4j/blob/3.5.1/community/cypher/interpreted-runtime/src/main/scala/org/neo4j/cypher/internal/runtime/interpreted/ExecutionContext.scala
+  // See: https://github.com/graphfoundation/ongdb/blob/3.5.1/community/cypher/interpreted-runtime/src/main/scala/org/neo4j/cypher/internal/runtime/interpreted/ExecutionContext.scala
   // We are just overriding it right now.
   override def copyCachedFrom(input: ExecutionContext): Unit = fail()
 

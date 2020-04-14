@@ -17,7 +17,7 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  *
- * Modified from https://github.com/neo4j/neo4j/blob/3.3/enterprise/causal-clustering/src/main/java/org/neo4j/causalclustering/discovery/HazelcastSslContextFactory.java
+ * Modified from https://github.com/graphfoundation/ongdb/blob/3.3/enterprise/causal-clustering/src/main/java/org/neo4j/causalclustering/discovery/HazelcastSslContextFactory.java
  */
 
 package org.neo4j.causalclustering.discovery;

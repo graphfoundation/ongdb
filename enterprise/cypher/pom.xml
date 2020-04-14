@@ -15,7 +15,7 @@
   <packaging>pom</packaging>
   <name>ONgDB - Enterprise Cypher Build</name>
   <description>Project that builds the Neo4j Cypher modules as part of the Enterprise distribution.</description>
-  <url>http://components.neo4j.org/${project.artifactId}/${project.version}</url>
+  <url>https://ongdb.graphfoundation.org/${project.artifactId}/${project.version}</url>
 
   <properties>
     <licensing.prepend.text>licensing/notice-agpl-prefix.txt</licensing.prepend.text>

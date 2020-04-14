@@ -13,7 +13,7 @@
 
   <name>ONgDB - Community (Bill of Materials)</name>
   <packaging>pom</packaging>
-  <url>http://components.neo4j.org/${project.artifactId}/${project.version}</url>
+  <url>https://ongdb.graphfoundation.org/${project.artifactId}/${project.version}</url>
   <description>A project with bill-of-materials POM containing ONgDB Community Edition dependencies.</description>
 
   <properties>
@@ -22,9 +22,9 @@
   </properties>
 
   <scm>
-    <connection>scm:git:git://github.com/neo4j/neo4j.git</connection>
-    <developerConnection>scm:git:git@github.com:neo4j/neo4j.git</developerConnection>
-    <url>https://github.com/neo4j/neo4j</url>
+    <connection>scm:git:git://github.com/graphfoundation/ongdb.git</connection>
+    <developerConnection>scm:git:git@github.com:graphfoundation/ongdb.git</developerConnection>
+    <url>https://github.com/graphfoundation/ongdb</url>
   </scm>
 
   <dependencies>

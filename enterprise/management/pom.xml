@@ -13,7 +13,7 @@
 
   <name>ONgDB - Graph DB Monitoring and Management tools</name>
   <description>Management support using JMX.</description>
-  <url>http://components.neo4j.org/${project.artifactId}/${project.version}</url>
+  <url>https://ongdb.graphfoundation.org/${project.artifactId}/${project.version}</url>
 
   <packaging>jar</packaging>
 
