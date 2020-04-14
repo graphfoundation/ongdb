@@ -20,9 +20,9 @@ package org.neo4j.kernel.api.impl.fulltext;
 
 public enum FulltextSortType
 {
-    LONG(0),
-    DOUBLE(1),
-    STRING(2);
+    LONG( 0 ),
+    DOUBLE( 1 ),
+    STRING( 2 );
 
     int neoStoreByte;
 

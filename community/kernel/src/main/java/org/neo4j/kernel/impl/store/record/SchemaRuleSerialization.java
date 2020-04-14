@@ -421,11 +421,11 @@ public class SchemaRuleSerialization
     private static boolean includesSortInFormat( ByteBuffer source )
     {
         // Checks to see if theres at least 4 pos left. Should this throw an error if there is less than 4bytes left?
-        if (source.remaining() >= UTF8.MINIMUM_SERIALISED_LENGTH_BYTES)
+        if ( source.remaining() >= UTF8.MINIMUM_SERIALISED_LENGTH_BYTES )
         {
             ByteBuffer duplicate = source.duplicate();
             int nameCountIfLegacySource = duplicate.getInt();
-            if (duplicate.remaining() == nameCountIfLegacySource)
+            if ( duplicate.remaining() == nameCountIfLegacySource )
             {
                 return false;
             }

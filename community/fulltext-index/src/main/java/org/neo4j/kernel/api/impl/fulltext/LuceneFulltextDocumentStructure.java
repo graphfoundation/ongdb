@@ -84,16 +84,16 @@ public class LuceneFulltextDocumentStructure
     private static Field encodeValueField( String propertyKey, Value value )
     {
         ValueGroup valueGroup = value.valueGroup();
-        if (valueGroup == ValueGroup.TEXT )
+        if ( valueGroup == ValueGroup.TEXT )
         {
             TextValue textValue = (TextValue) value;
             String stringValue = textValue.stringValue();
             return new TextField( propertyKey, stringValue, NO );
         }
-        else if (valueGroup == ValueGroup.NUMBER )
+        else if ( valueGroup == ValueGroup.NUMBER )
         {
             String stringValue = convertNumberValue( value );
-            if (stringValue != null)
+            if ( stringValue != null )
             {
                 return new TextField( propertyKey, stringValue, NO );
             }
@@ -303,7 +303,7 @@ public class LuceneFulltextDocumentStructure
         private void addFulltextFieldToDocument( String name, Value value )
         {
             Field field = encodeValueField( name, value );
-            if (field != null )
+            if ( field != null )
             {
                 document.add( field );
             }

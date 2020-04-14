@@ -19,7 +19,6 @@
 package org.neo4j.kernel.api.impl.fulltext;
 
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -34,7 +33,6 @@ import java.util.stream.Collectors;
 
 import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.Node;
-import org.neo4j.graphdb.QueryExecutionException;
 import org.neo4j.graphdb.Relationship;
 import org.neo4j.graphdb.RelationshipType;
 import org.neo4j.graphdb.Result;
@@ -42,7 +40,6 @@ import org.neo4j.graphdb.Transaction;
 import org.neo4j.graphdb.factory.GraphDatabaseBuilder;
 import org.neo4j.graphdb.factory.GraphDatabaseFactory;
 import org.neo4j.graphdb.factory.GraphDatabaseSettings;
-import org.neo4j.kernel.impl.core.NodeProxy;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
 import org.neo4j.test.rule.CleanupRule;
 import org.neo4j.test.rule.TestDirectory;
@@ -50,10 +47,7 @@ import org.neo4j.test.rule.VerboseTimeout;
 import org.neo4j.test.rule.fs.DefaultFileSystemRule;
 
 import static java.lang.String.format;
-import static java.util.Arrays.asList;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 public class FulltextNumberTest
@@ -188,7 +182,7 @@ public class FulltextNumberTest
             {
                 row = result.next();
                 Long rating = (Long) ((Relationship) row.get( "relationship" )).getProperty( "rating" );
-                assertTrue( (rating >= 50 && rating < 60) || rating == 5);
+                assertTrue( (rating >= 50 && rating < 60) || rating == 5 );
                 numRecords++;
             }
             assertEquals( 11, numRecords );
@@ -199,7 +193,6 @@ public class FulltextNumberTest
 
         db.shutdown();
     }
-
 
     @Test
     public void stopAnalyzerNumericQuery()

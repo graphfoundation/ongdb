@@ -28,7 +28,6 @@ import org.junit.rules.RuleChain;
 import org.junit.rules.Timeout;
 
 import java.util.Arrays;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -378,25 +377,23 @@ public class FulltextSortTest
         // Assertions to ensure sorting is working as expected
         try ( Transaction tx = db.beginTx() )
         {
-            Integer[] expectedOrder = new Integer[]{1,2,3,4};
+            Integer[] expectedOrder = new Integer[]{1, 2, 3, 4};
             // Query with Sort : STRING -- NAME
             result = db.execute( format( QUERY_NODES_SORT, "sort-index", "*", NAME, "ASC" ) );
             sortOrderAssertionHelper( result, expectedOrder );
 
-
             // Query with Sort : LONG -- BORN
-            expectedOrder = new Integer[]{1,3,2,4};
+            expectedOrder = new Integer[]{1, 3, 2, 4};
             result = db.execute( format( QUERY_NODES_SORT, "sort-index", "*", BORN, "ASC" ) );
             sortOrderAssertionHelper( result, expectedOrder );
 
             // Query with Sort : DOUBLE -- HEIGHT
-            expectedOrder = new Integer[]{3,1,2,4};
+            expectedOrder = new Integer[]{3, 1, 2, 4};
             result = db.execute( format( QUERY_NODES_SORT, "sort-index", "*", HEIGHT, "ASC" ) );
             sortOrderAssertionHelper( result, expectedOrder );
 
-
             // Query with Sort : STRING -- COLOR
-            expectedOrder = new Integer[]{3,2,1,4};
+            expectedOrder = new Integer[]{3, 2, 1, 4};
             result = db.execute( format( QUERY_NODES_SORT, "sort-index", "*", COLOR, "ASC" ) );
             sortOrderAssertionHelper( result, expectedOrder );
 

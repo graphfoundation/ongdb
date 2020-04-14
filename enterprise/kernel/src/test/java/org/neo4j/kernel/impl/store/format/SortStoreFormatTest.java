@@ -104,7 +104,6 @@ public class SortStoreFormatTest
         // Migrate Database
         database = getGraphDatabaseService( databaseLayout.databaseDirectory(), to.storeVersion() );
 
-
         // Ensure the db has been started up with the right number of indexes already created
         indexesResult = database.execute( DB_INDEXES );
         Assert.assertEquals( 3, indexesResult.stream().count());
@@ -116,7 +115,6 @@ public class SortStoreFormatTest
         Map<String,Object> testIndexMap = indexesResult.stream().filter( m -> m.get( "indexName" ).equals( "testIndex" ) ).findFirst().get();
         Assert.assertTrue( "The fulltext 'testIndex' is missing 'sortProperties' after migration", testIndexMap.containsKey( "sortProperties" ));
         Assert.assertTrue( ((List<String>) testIndexMap.get( "sortProperties" )).isEmpty() );
-
 
         // Try dropping a fulltext index
         database.execute( "CALL db.index.fulltext.drop(\"testIndex\")" );
@@ -135,7 +133,6 @@ public class SortStoreFormatTest
         database.shutdown();
     }
 
-
     private static String baseDirName( RecordFormats toFormat, RecordFormats fromFormat )
     {
         return fromFormat.storeVersion() + toFormat.storeVersion();
@@ -147,8 +144,6 @@ public class SortStoreFormatTest
                                                    .setConfig( GraphDatabaseSettings.allow_upgrade, Settings.TRUE )
                                                    .setConfig( GraphDatabaseSettings.record_format, storeVersion ).newGraphDatabase();
     }
-
-
 
     private static String readQuery()
     {
@@ -164,6 +159,5 @@ public class SortStoreFormatTest
         }
         return result;
     }
-
 
 }

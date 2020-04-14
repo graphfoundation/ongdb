@@ -86,7 +86,7 @@ public class FulltextIndexSettings
 
         List<String> sortNames = new ArrayList<>();
         Map<String,String> sortTypes = new HashMap<>();
-        for(int i = 0; i < descriptor.schema().getSortIds().length; i++ )
+        for ( int i = 0; i < descriptor.schema().getSortIds().length; i++ )
         {
             int sortId = descriptor.schema().getSortIds()[i];
             int sortType = descriptor.schema().getSortTypes()[i];

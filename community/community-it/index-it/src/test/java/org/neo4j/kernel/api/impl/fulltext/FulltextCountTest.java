@@ -187,7 +187,7 @@ public class FulltextCountTest
         while ( result.hasNext() )
         {
             row = result.next();
-            assertEquals( expectedCount, ((long) row.get( "count" )) );
+            assertEquals( expectedCount, (long) row.get( "count" ) );
         }
         result.close();
     }

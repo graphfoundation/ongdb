@@ -26,6 +26,9 @@
     <option name="CLASS_NAMES_IN_JAVADOC" value="3" />
   </JavaCodeStyleSettings>
   <ScalaCodeStyleSettings>
+    <option name="classCountToUseImportOnDemand" value="5000" />
+    <option name="collectImports" value="false" />
+    <option name="doNotChangeLocalImportsOnOptimize" value="false" />
     <option name="FINALLY_BRACE_FORCE" value="3" />
     <option name="TRY_BRACE_FORCE" value="3" />
     <option name="ALIGN_EXTENDS_WITH" value="3" />
