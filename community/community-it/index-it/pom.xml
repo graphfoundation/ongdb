@@ -13,7 +13,7 @@
     <artifactId>index-it</artifactId>
     <version>3.6.0-SNAPSHOT</version>
 
-    <name>Neo4j - Community Index Integration Tests</name>
+    <name>ONgDB - Community Index Integration Tests</name>
     <packaging>jar</packaging>
     <description>ONgDB Community Edition index integration tests.</description>
 

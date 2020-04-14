@@ -13,7 +13,7 @@
   <artifactId>neo4j-fulltext-index</artifactId>
   <version>3.6.0-SNAPSHOT</version>
 
-  <name>Neo4j - Fulltext index</name>
+  <name>ONgDB - Fulltext index</name>
   <description>Fulltext index for neo4j</description>
   <packaging>jar</packaging>
 

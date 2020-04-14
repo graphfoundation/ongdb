@@ -17,7 +17,7 @@
   <artifactId>neo4j-index</artifactId>
 
   <packaging>jar</packaging>
-  <name>Neo4j - Native index</name>
+  <name>ONgDB - Native index</name>
   <description>Native index for Neo4j.</description>
   <url>http://components.neo4j.org/${project.artifactId}/${project.version}</url>
 

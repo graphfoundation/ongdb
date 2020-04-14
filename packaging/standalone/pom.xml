@@ -13,7 +13,7 @@
   <artifactId>neo4j-standalone</artifactId>
   <packaging>pom</packaging>
 
-  <name>Neo4j - Server Assembler</name>
+  <name>ONgDB - Server Assembler</name>
 
   <version>3.6.0-SNAPSHOT</version>
 

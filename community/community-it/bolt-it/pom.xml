@@ -13,7 +13,7 @@
     <artifactId>bolt-it</artifactId>
     <version>3.6.0-SNAPSHOT</version>
 
-    <name>Neo4j - Community Bolt Integration Tests</name>
+    <name>ONgDB - Community Bolt Integration Tests</name>
     <packaging>jar</packaging>
     <description>ONgDB Community Edition bolt integration tests.</description>
 

@@ -11,7 +11,7 @@
   <artifactId>neo4j-community</artifactId>
   <version>3.6.0-SNAPSHOT</version>
 
-  <name>Neo4j - Community (Bill of Materials)</name>
+  <name>ONgDB - Community (Bill of Materials)</name>
   <packaging>pom</packaging>
   <url>http://components.neo4j.org/${project.artifactId}/${project.version}</url>
   <description>A project with bill-of-materials POM containing ONgDB Community Edition dependencies.</description>

@@ -11,7 +11,7 @@
   <artifactId>neo4j</artifactId>
   <version>3.6.0-SNAPSHOT</version>
 
-  <name>Neo4j - Community</name>
+  <name>ONgDB - Community</name>
   <packaging>jar</packaging>
   <url>http://components.neo4j.org/${project.artifactId}/${project.version}</url>
   <description>ONgDB Community Edition</description>

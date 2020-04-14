@@ -18,7 +18,7 @@
   <version>3.6.0-SNAPSHOT</version>
 
   <packaging>jar</packaging>
-  <name>Neo4j - Diagnostics</name>
+  <name>ONgDB - Diagnostics</name>
   <description>Diagnostics registration and logging.</description>
   <url>http://components.neo4j.org/${project.artifactId}/${project.version}</url>
 

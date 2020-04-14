@@ -19,7 +19,7 @@
   <version>3.6.0-SNAPSHOT</version>
 
   <packaging>jar</packaging>
-  <name>Neo4j - Random Value</name>
+  <name>ONgDB - Random Value</name>
   <description>Utility for generating random values</description>
   <url>http://components.neo4j.org/${project.artifactId}/${project.version}</url>
 

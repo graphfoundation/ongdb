@@ -14,7 +14,7 @@
   <packaging>jar</packaging>
   <version>3.6.0-SNAPSHOT</version>
   <name>ONgDB - Enterprise Cypher</name>
-  <description>Neo4j query language</description>
+  <description>ONgDB query language</description>
   <url>http://components.neo4j.org/${project.artifactId}/${project.version}</url>
 
   <scm>

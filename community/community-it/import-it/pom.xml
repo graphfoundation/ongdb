@@ -13,7 +13,7 @@
     <artifactId>import-it</artifactId>
     <version>3.6.0-SNAPSHOT</version>
 
-    <name>Neo4j - Community Import Integration Tests</name>
+    <name>ONgDB - Community Import Integration Tests</name>
     <packaging>jar</packaging>
     <description>ONgDB Community Edition import integration tests.</description>
 

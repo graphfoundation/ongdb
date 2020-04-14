@@ -13,7 +13,7 @@
     <artifactId>algo-it</artifactId>
     <version>3.6.0-SNAPSHOT</version>
 
-    <name>Neo4j - Community Graph Algorithms Integration Tests</name>
+    <name>ONgDB - Community Graph Algorithms Integration Tests</name>
     <packaging>jar</packaging>
     <description>ONgDB Community Edition graph algorithms integration tests.</description>
 

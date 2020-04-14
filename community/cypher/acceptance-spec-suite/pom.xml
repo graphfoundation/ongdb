@@ -14,8 +14,8 @@
   <artifactId>neo4j-cypher-acceptance-spec-suite</artifactId>
   <packaging>jar</packaging>
   <version>3.6.0-SNAPSHOT</version>
-  <name>Neo4j - Cypher Acceptance</name>
-  <description>Neo4j - Cypher Acceptance Specification Suite</description>
+  <name>ONgDB - Cypher Acceptance</name>
+  <description>ONgDB Cypher Acceptance Specification Suite</description>
   <url>http://components.neo4j.org/${project.artifactId}/${project.version}</url>
 
   <scm>

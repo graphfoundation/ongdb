@@ -18,7 +18,7 @@
   <version>3.6.0-SNAPSHOT</version>
 
   <packaging>jar</packaging>
-  <name>Neo4j - Collections</name>
+  <name>ONgDB - Collections</name>
   <description>Collections and collection utilities for Neo4j.</description>
   <url>http://components.neo4j.org/${project.artifactId}/${project.version}</url>
 

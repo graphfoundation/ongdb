@@ -18,7 +18,7 @@
   <version>3.6.0-SNAPSHOT</version>
 
   <packaging>jar</packaging>
-  <name>Neo4j - Data Collector</name>
+  <name>ONgDB - Data Collector</name>
   <description>The Neo4j data collector daemon.</description>
   <url>http://components.neo4j.org/${project.artifactId}/${project.version}</url>
 

@@ -13,7 +13,7 @@
     <packaging>jar</packaging>
 
     <name>ONgDB - Procedure Compiler Enterprise tests</name>
-    <description>Neo4j Stored Procedure compile-time annotation processor</description>
+    <description>ONgDB Stored Procedure compile-time annotation processor</description>
     <url>http://components.neo4j.org/${project.artifactId}/${project.version}</url>
 
     <properties>

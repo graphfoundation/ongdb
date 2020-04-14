@@ -9,7 +9,7 @@
   <artifactId>neo4j-lucene-index</artifactId>
   <version>3.6.0-SNAPSHOT</version>
 
-  <name>Neo4j - Lucene Index</name>
+  <name>ONgDB - Lucene Index</name>
   <description>
 Integration layer between Neo4j and Lucene, providing one possible implementation of the Index API.
   </description>

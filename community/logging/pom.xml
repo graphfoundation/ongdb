@@ -18,7 +18,7 @@
   <version>3.6.0-SNAPSHOT</version>
 
   <packaging>jar</packaging>
-  <name>Neo4j - Logging</name>
+  <name>ONgDB - Logging</name>
   <description>Logging interfaces and basic logger implementations.</description>
   <url>http://components.neo4j.org/${project.artifactId}/${project.version}</url>
 

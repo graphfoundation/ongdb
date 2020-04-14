@@ -19,7 +19,7 @@
   <version>3.6.0-SNAPSHOT</version>
 
   <packaging>jar</packaging>
-  <name>Neo4j - Legacy</name>
+  <name>ONgDB - Legacy</name>
   <description>Legacy code needed at runtime for compatibility reasons only.</description>
   <url>http://components.neo4j.org/${project.artifactId}/${project.version}</url>
 

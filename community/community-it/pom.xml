@@ -13,7 +13,7 @@
     <version>3.6.0-SNAPSHOT</version>
     <packaging>pom</packaging>
 
-    <name>Neo4j - Community Integration Tests</name>
+    <name>ONgDB - Community Integration Tests</name>
     <description>ONgDB Community Edition integration tests modules.</description>
 
     <properties>

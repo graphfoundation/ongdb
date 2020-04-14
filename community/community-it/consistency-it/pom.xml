@@ -13,7 +13,7 @@
     <artifactId>consistency-it</artifactId>
     <version>3.6.0-SNAPSHOT</version>
 
-    <name>Neo4j - Community Consistency Checker Integration Tests</name>
+    <name>ONgDB - Community Consistency Checker Integration Tests</name>
     <packaging>jar</packaging>
     <description>ONgDB Community Edition consistency checker integration tests.</description>
 

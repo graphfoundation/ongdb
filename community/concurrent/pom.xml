@@ -19,7 +19,7 @@
   <version>3.6.0-SNAPSHOT</version>
 
   <packaging>jar</packaging>
-  <name>Neo4j - Concurrent</name>
+  <name>ONgDB - Concurrent</name>
   <description>A set of assorted utilities for concurrent computing.</description>
   <url>http://components.neo4j.org/${project.artifactId}/${project.version}</url>
 
