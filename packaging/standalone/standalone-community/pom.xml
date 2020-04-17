@@ -123,7 +123,7 @@ terms of the relevant Commercial Agreement.
 
   <dependencies>
     <dependency>
-      <groupId>org.neo4j</groupId>
+      <groupId>org.graphfoundation.ongdb</groupId>
       <artifactId>neo4j</artifactId>
       <version>${project.version}</version>
     </dependency>
@@ -133,12 +133,12 @@ terms of the relevant Commercial Agreement.
       <version>${project.version}</version>
     </dependency>
     <dependency>
-      <groupId>org.neo4j</groupId>
+      <groupId>org.graphfoundation.ongdb</groupId>
       <artifactId>neo4j-cypher-expression-evaluator</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
-      <groupId>org.neo4j</groupId>
+      <groupId>org.graphfoundation.ongdb</groupId>
       <artifactId>neo4j-push-to-cloud</artifactId>
       <version>${project.version}</version>
     </dependency>
