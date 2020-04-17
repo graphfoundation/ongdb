@@ -18,7 +18,7 @@
         as a cluster, providing cluster with RAFT consensus for the core machines and eventual
         consistency for the read replicas.
     </description>
-    <url>http://components.neo4j.org/${project.artifactId}/${project.version}/</url>
+    <url>https://ongdb.graphfoundation.org/${project.artifactId}/${project.version}/</url>
     <packaging>jar</packaging>
 
     <properties>
@@ -27,7 +27,7 @@
     </properties>
 
     <scm>
-        <url>https://github.com/neo4j/neo4j/tree/3.1/enterprise/causal-clustering</url>
+        <url>https://github.com/graphfoundation/ongdb/tree/3.1/enterprise/causal-clustering</url>
     </scm>
 
     <licenses>

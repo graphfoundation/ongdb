@@ -24,7 +24,7 @@ package org.neo4j.cypher.internal
 
 import org.neo4j.cypher.CypherRuntimeOption
 import org.neo4j.cypher.internal.compatibility.{CypherRuntime, FallbackRuntime, InterpretedRuntime, ProcedureCallOrSchemaCommandRuntime}
-// See: https://github.com/neo4j/neo4j/blob/e95e701325c53995a186b9222ff8cca022410286/community/cypher/cypher/src/main/scala/org/neo4j/cypher/internal/CommunityRuntimeFactory.scala
+// See: https://github.com/graphfoundation/ongdb/blob/e95e701325c53995a186b9222ff8cca022410286/community/cypher/cypher/src/main/scala/org/neo4j/cypher/internal/CommunityRuntimeFactory.scala
 object EnterpriseRuntimeFactory {
   val interpreted = new FallbackRuntime[EnterpriseRuntimeContext](List(ProcedureCallOrSchemaCommandRuntime, InterpretedRuntime), CypherRuntimeOption.interpreted)
   val slotted = new FallbackRuntime[EnterpriseRuntimeContext](List(ProcedureCallOrSchemaCommandRuntime,SlottedRuntime, InterpretedRuntime), CypherRuntimeOption.slotted)

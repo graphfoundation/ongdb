@@ -11,13 +11,13 @@
   <artifactId>neo4j-kernel</artifactId>
   <version>3.6.0-SNAPSHOT</version>
 
-  <name>Neo4j - Graph Database Kernel</name>
+  <name>ONgDB - Graph Database Kernel</name>
   <description>
  Neo4j kernel is a lightweight, embedded Java database designed to
  store data structured as graphs rather than tables. For more
  information, see http://neo4j.org.
   </description>
-  <url>http://components.neo4j.org/${project.artifactId}/${project.version}</url>
+  <url>https://ongdb.graphfoundation.org/${project.artifactId}/${project.version}</url>
 
   <properties>
     <license-text.header>headers/GPL-3-header.txt</license-text.header>
@@ -28,9 +28,9 @@
   <packaging>jar</packaging>
 
   <scm>
-    <connection>scm:git:git://github.com/neo4j/neo4j.git</connection>
-    <developerConnection>scm:git:git@github.com:neo4j/neo4j.git</developerConnection>
-    <url>https://github.com/neo4j/neo4j</url>
+    <connection>scm:git:git://github.com/graphfoundation/ongdb.git</connection>
+    <developerConnection>scm:git:git@github.com:graphfoundation/ongdb.git</developerConnection>
+    <url>https://github.com/graphfoundation/ongdb</url>
   </scm>
 
   <licenses>

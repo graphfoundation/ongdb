@@ -27,7 +27,7 @@ import static java.util.stream.Collectors.toList;
 import static org.junit.Assert.assertEquals;
 import static org.neo4j.backup.impl.OpenEnterpriseBackupSupportingClassesFactoryProvider.getProvidersByPriority;
 
-// See: https://github.com/neo4j/neo4j/blob/3.4/enterprise/backup/src/test/java/org/neo4j/backup/impl/BackupSupportingClassesFactoryProviderTest.java
+// See: https://github.com/graphfoundation/ongdb/blob/3.4/enterprise/backup/src/test/java/org/neo4j/backup/impl/BackupSupportingClassesFactoryProviderTest.java
 public class OpenEnterpriseBackupSupportingClassesFactoryProviderTest
 {
     public static Collection<BackupSupportingClassesFactoryProvider> allAvailableSupportingClassesFactories()

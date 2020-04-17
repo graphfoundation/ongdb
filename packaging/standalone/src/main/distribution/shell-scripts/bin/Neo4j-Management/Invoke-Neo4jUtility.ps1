@@ -36,7 +36,7 @@ System.Int32
 non-zero = an error occured
 
 .NOTES
-Only supported on version 3.x Neo4j Community and Enterprise Edition databases
+Only supported on version 3.x ONgDB Community and Enterprise Edition databases
 
 .NOTES
 This function is private to the powershell module

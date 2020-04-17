@@ -11,10 +11,10 @@
   <artifactId>neo4j-community</artifactId>
   <version>3.6.0-SNAPSHOT</version>
 
-  <name>Neo4j - Community (Bill of Materials)</name>
+  <name>ONgDB - Community (Bill of Materials)</name>
   <packaging>pom</packaging>
-  <url>http://components.neo4j.org/${project.artifactId}/${project.version}</url>
-  <description>A project with bill-of-materials POM containing Neo4j Community dependencies.</description>
+  <url>https://ongdb.graphfoundation.org/${project.artifactId}/${project.version}</url>
+  <description>A project with bill-of-materials POM containing ONgDB Community Edition dependencies.</description>
 
   <properties>
     <license-text.header>headers/GPL-3-header.txt</license-text.header>
@@ -22,9 +22,9 @@
   </properties>
 
   <scm>
-    <connection>scm:git:git://github.com/neo4j/neo4j.git</connection>
-    <developerConnection>scm:git:git@github.com:neo4j/neo4j.git</developerConnection>
-    <url>https://github.com/neo4j/neo4j</url>
+    <connection>scm:git:git://github.com/graphfoundation/ongdb.git</connection>
+    <developerConnection>scm:git:git@github.com:graphfoundation/ongdb.git</developerConnection>
+    <url>https://github.com/graphfoundation/ongdb</url>
   </scm>
 
   <dependencies>

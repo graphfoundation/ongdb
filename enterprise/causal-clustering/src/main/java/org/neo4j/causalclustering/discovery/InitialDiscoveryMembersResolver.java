@@ -20,7 +20,7 @@
  * More information is also available at:
  * https://neo4j.com/licensing/
  *
- * See: https://github.com/neo4j/neo4j/blob/3.5.0-beta03/enterprise/causal-clustering/src/main/java/org/neo4j/causalclustering/discovery/InitialDiscoveryMembersResolver.java
+ * See: https://github.com/graphfoundation/ongdb/blob/3.5.0-beta03/enterprise/causal-clustering/src/main/java/org/neo4j/causalclustering/discovery/InitialDiscoveryMembersResolver.java
  */
 package org.neo4j.causalclustering.discovery;
 

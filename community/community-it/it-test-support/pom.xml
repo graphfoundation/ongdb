@@ -12,9 +12,9 @@
     <artifactId>it-test-support</artifactId>
     <version>3.6.0-SNAPSHOT</version>
 
-    <name>Neo4j - Community Integration Test Support</name>
+    <name>ONgDB - Community Integration Test Support</name>
     <packaging>jar</packaging>
-    <description>Neo4j community edition integration tests support.</description>
+    <description>ONgDB Community Edition integration tests support.</description>
 
     <properties>
         <license-text.header>headers/GPL-3-header.txt</license-text.header>
@@ -23,9 +23,9 @@
     </properties>
 
     <scm>
-        <connection>scm:git:git://github.com/neo4j/neo4j.git</connection>
-        <developerConnection>scm:git:git@github.com:neo4j/neo4j.git</developerConnection>
-        <url>https://github.com/neo4j/neo4j</url>
+        <connection>scm:git:git://github.com/graphfoundation/ongdb.git</connection>
+        <developerConnection>scm:git:git@github.com:graphfoundation/ongdb.git</developerConnection>
+        <url>https://github.com/graphfoundation/ongdb</url>
     </scm>
 
     <licenses>

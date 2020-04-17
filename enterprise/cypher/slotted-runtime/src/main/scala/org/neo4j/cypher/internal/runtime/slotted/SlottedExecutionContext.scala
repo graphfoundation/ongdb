@@ -328,7 +328,7 @@ case class SlottedExecutionContext(slots: SlotConfiguration) extends ExecutionCo
 
 
   // Overriding the 2 methods below.
-  // See: https://github.com/neo4j/neo4j/blob/3.5.1/community/cypher/interpreted-runtime/src/main/scala/org/neo4j/cypher/internal/runtime/interpreted/ExecutionContext.scala
+  // See: https://github.com/graphfoundation/ongdb/blob/3.5.1/community/cypher/interpreted-runtime/src/main/scala/org/neo4j/cypher/internal/runtime/interpreted/ExecutionContext.scala
   /**
     *
     * @param input

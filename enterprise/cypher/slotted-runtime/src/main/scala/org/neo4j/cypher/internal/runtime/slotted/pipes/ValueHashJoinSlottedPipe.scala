@@ -27,7 +27,7 @@ import org.neo4j.cypher.internal.runtime.slotted.SlottedExecutionContext
 import org.neo4j.cypher.internal.v3_5.util.attribution.Id
 import org.neo4j.values.AnyValue
 import org.neo4j.values.storable.Values.NO_VALUE
-// See:  https://github.com/neo4j/neo4j/blob/2df152552eae2164934ccc2f8f6174fe46848b5f/community/cypher/interpreted-runtime/src/main/scala/org/neo4j/cypher/internal/runtime/interpreted/pipes/ValueHashJoinPipe.scala
+// See:  https://github.com/graphfoundation/ongdb/blob/2df152552eae2164934ccc2f8f6174fe46848b5f/community/cypher/interpreted-runtime/src/main/scala/org/neo4j/cypher/internal/runtime/interpreted/pipes/ValueHashJoinPipe.scala
 case class ValueHashJoinSlottedPipe(leftSide: Expression,
                                     rightSide: Expression,
                                     left: Pipe,

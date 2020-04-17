@@ -18,14 +18,14 @@
   <version>3.6.0-SNAPSHOT</version>
 
   <packaging>jar</packaging>
-  <name>Neo4j - SLF4J Neo4j Binding</name>
+  <name>ONgDB - SLF4J Neo4j Binding</name>
   <description>SLF4J binding for Neo4j Logging.</description>
-  <url>http://components.neo4j.org/${project.artifactId}/${project.version}</url>
+  <url>https://ongdb.graphfoundation.org/${project.artifactId}/${project.version}</url>
 
   <scm>
-    <connection>scm:git:git://github.com/neo4j/neo4j.git</connection>
-    <developerConnection>scm:git:git@github.com:neo4j/neo4j.git</developerConnection>
-    <url>https://github.com/neo4j/neo4j</url>
+    <connection>scm:git:git://github.com/graphfoundation/ongdb.git</connection>
+    <developerConnection>scm:git:git@github.com:graphfoundation/ongdb.git</developerConnection>
+    <url>https://github.com/graphfoundation/ongdb</url>
   </scm>
 
   <licenses>

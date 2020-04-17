@@ -11,7 +11,7 @@
   <artifactId>server-plugin-test</artifactId>
   <version>3.6.0-SNAPSHOT</version>
 
-  <name>Neo4j - Server Plugin Tests</name>
+  <name>ONgDB - Server Plugin Tests</name>
   <description>Tests the server plugin registration functionality.</description>
 
   <properties>
@@ -23,9 +23,9 @@
   <packaging>jar</packaging>
 
   <scm>
-    <connection>scm:git:git://github.com/neo4j/neo4j.git</connection>
-    <developerConnection>scm:git:git@github.com:neo4j/neo4j.git</developerConnection>
-    <url>https://github.com/neo4j/neo4j</url>
+    <connection>scm:git:git://github.com/graphfoundation/ongdb.git</connection>
+    <developerConnection>scm:git:git@github.com:graphfoundation/ongdb.git</developerConnection>
+    <url>https://github.com/graphfoundation/ongdb</url>
   </scm>
 
   <licenses>

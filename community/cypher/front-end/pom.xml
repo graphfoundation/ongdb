@@ -15,7 +15,7 @@
   <packaging>pom</packaging>
   <name>openCypher Front End Parent</name>
   <description>Project that builds the openCypher front end modules</description>
-  <url>http://components.neo4j.org/${project.artifactId}/${project.version}</url>
+  <url>https://ongdb.graphfoundation.org/${project.artifactId}/${project.version}</url>
 
   <properties>
     <licensing.prepend.text>licensing/notice-asl-prefix.txt</licensing.prepend.text>

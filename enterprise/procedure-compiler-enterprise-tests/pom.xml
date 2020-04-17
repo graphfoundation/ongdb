@@ -13,8 +13,8 @@
     <packaging>jar</packaging>
 
     <name>ONgDB - Procedure Compiler Enterprise tests</name>
-    <description>Neo4j Stored Procedure compile-time annotation processor</description>
-    <url>http://components.neo4j.org/${project.artifactId}/${project.version}</url>
+    <description>ONgDB Stored Procedure compile-time annotation processor</description>
+    <url>https://ongdb.graphfoundation.org/${project.artifactId}/${project.version}</url>
 
     <properties>
         <license-text.header>headers/AGPL-3-header.txt</license-text.header>

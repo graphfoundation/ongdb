@@ -14,7 +14,7 @@
   <name>openCypher Utils</name>
 
   <description>Cypher utilities</description>
-  <url>http://components.neo4j.org/${project.artifactId}/${project.version}</url>
+  <url>https://ongdb.graphfoundation.org/${project.artifactId}/${project.version}</url>
 
   <properties>
     <license-text.header>headers/ASL-2-header.txt</license-text.header>

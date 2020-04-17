@@ -11,19 +11,19 @@
   <artifactId>neo4j-community-standalone</artifactId>
   <packaging>pom</packaging>
 
-  <name>Neo4j - Community Server Assembler</name>
+  <name>ONgDB - Community Server Assembler</name>
   <version>3.6.0-SNAPSHOT</version>
 
-  <description>This project assembles the Neo4j Community stand-alone distribution,
+  <description>This project assembles the ONgDB Community Edition stand-alone distribution,
     pulling together all the deliverable artifacts and packaging them
     into a downloadable installer.
   </description>
-  <url>http://components.neo4j.org/${project.artifactId}/${project.version}</url>
+  <url>https://ongdb.graphfoundation.org/${project.artifactId}/${project.version}</url>
 
   <scm>
     <connection>scm:git:git://github.com/graphfoundation/ongdb.git</connection>
-    <developerConnection>scm:git:git@github.com:neo4j/neo4j.git</developerConnection>
-    <url>https://github.com/neo4j/neo4j</url>
+    <developerConnection>scm:git:git@github.com:graphfoundation/ongdb.git</developerConnection>
+    <url>https://github.com/graphfoundation/ongdb</url>
   </scm>
 
   <properties>

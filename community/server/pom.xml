@@ -11,9 +11,9 @@
   <groupId>org.neo4j.app</groupId>
   <artifactId>neo4j-server</artifactId>
   <version>3.6.0-SNAPSHOT</version>
-  <name>Neo4j - Server</name>
+  <name>ONgDB - Server</name>
   <description>Standalone Neo4j server application.</description>
-  <url>http://components.neo4j.org/${project.artifactId}/${project.version}</url>
+  <url>https://ongdb.graphfoundation.org/${project.artifactId}/${project.version}</url>
 
   <packaging>jar</packaging>
 
@@ -33,9 +33,9 @@
   </properties>
 
   <scm>
-    <connection>scm:git:git://github.com/neo4j/neo4j.git</connection>
-    <developerConnection>scm:git:git@github.com:neo4j/neo4j.git</developerConnection>
-    <url>https://github.com/neo4j/neo4j</url>
+    <connection>scm:git:git://github.com/graphfoundation/ongdb.git</connection>
+    <developerConnection>scm:git:git@github.com:graphfoundation/ongdb.git</developerConnection>
+    <url>https://github.com/graphfoundation/ongdb</url>
   </scm>
 
   <licenses>

@@ -11,15 +11,15 @@
   <artifactId>neo4j-cypher-ir-3.5</artifactId>
   <packaging>jar</packaging>
   <version>3.6.0-SNAPSHOT</version>
-  <name>Neo4j - Cypher Intermediate Representation</name>
+  <name>ONgDB - Cypher Intermediate Representation</name>
 
   <description>The intermediate representations, such as the query graph</description>
-  <url>http://components.neo4j.org/${project.artifactId}/${project.version}</url>
+  <url>https://ongdb.graphfoundation.org/${project.artifactId}/${project.version}</url>
 
   <scm>
-    <connection>scm:git:git://github.com/neo4j/neo4j.git</connection>
-    <developerConnection>scm:git:git@github.com:neo4j/neo4j.git</developerConnection>
-    <url>https://github.com/neo4j/neo4j</url>
+    <connection>scm:git:git://github.com/graphfoundation/ongdb.git</connection>
+    <developerConnection>scm:git:git@github.com:graphfoundation/ongdb.git</developerConnection>
+    <url>https://github.com/graphfoundation/ongdb</url>
   </scm>
 
   <properties>

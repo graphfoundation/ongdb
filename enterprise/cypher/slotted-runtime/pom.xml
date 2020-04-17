@@ -15,7 +15,7 @@
   <version>3.6.0-SNAPSHOT</version>
   <name>ONgDB - Cypher Slotted Runtime</name>
   <description>Planner for the physical query plans</description>
-  <url>http://components.neo4j.org/${project.artifactId}/${project.version}</url>
+  <url>https://ongdb.graphfoundation.org/${project.artifactId}/${project.version}</url>
 
   <properties>
     <license-text.header>headers/GPL-3-header.txt</license-text.header>

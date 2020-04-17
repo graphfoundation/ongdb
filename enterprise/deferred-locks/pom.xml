@@ -24,7 +24,7 @@
   </properties>
 
   <scm>
-    <url>https://github.com/neo4j/neo4j/tree/3.0/enterprise/deferred-locks</url>
+    <url>https://github.com/graphfoundation/ongdb/tree/3.0/enterprise/deferred-locks</url>
   </scm>
 
   <licenses>

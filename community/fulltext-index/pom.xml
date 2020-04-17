@@ -13,7 +13,7 @@
   <artifactId>neo4j-fulltext-index</artifactId>
   <version>3.6.0-SNAPSHOT</version>
 
-  <name>Neo4j - Fulltext index</name>
+  <name>ONgDB - Fulltext index</name>
   <description>Fulltext index for neo4j</description>
   <packaging>jar</packaging>
 
@@ -24,9 +24,9 @@
   </properties>
 
     <scm>
-        <connection>scm:git:git://github.com/neo4j/neo4j.git</connection>
-        <developerConnection>scm:git:git@github.com:neo4j/neo4j.git</developerConnection>
-        <url>https://github.com/neo4j/neo4j</url>
+        <connection>scm:git:git://github.com/graphfoundation/ongdb.git</connection>
+        <developerConnection>scm:git:git@github.com:graphfoundation/ongdb.git</developerConnection>
+        <url>https://github.com/graphfoundation/ongdb</url>
     </scm>
 
     <licenses>
