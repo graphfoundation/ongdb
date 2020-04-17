@@ -8,7 +8,7 @@
         <version>3.6.0-SNAPSHOT</version>
     </parent>
 
-    <groupId>org.neo4j.community</groupId>
+    <groupId>org.graphfoundation.ongdb.community</groupId>
     <artifactId>it-test-support</artifactId>
     <version>3.6.0-SNAPSHOT</version>
 

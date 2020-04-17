@@ -59,7 +59,7 @@
         </dependency>
 
         <dependency>
-            <groupId>org.neo4j.app</groupId>
+            <groupId>org.graphfoundation.ongdb.app</groupId>
             <artifactId>neo4j-server</artifactId>
             <version>${project.version}</version>
         </dependency>
@@ -90,7 +90,7 @@
             <type>test-jar</type>
         </dependency>
         <dependency>
-            <groupId>org.neo4j.community</groupId>
+            <groupId>org.graphfoundation.ongdb.community</groupId>
             <artifactId>it-test-support</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
@@ -115,7 +115,7 @@
         </dependency>
 
         <dependency>
-            <groupId>org.neo4j.app</groupId>
+            <groupId>org.graphfoundation.ongdb.app</groupId>
             <artifactId>neo4j-server</artifactId>
             <version>${project.version}</version>
             <type>test-jar</type>

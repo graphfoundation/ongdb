@@ -98,7 +98,7 @@
 
         <!-- Test dependencies -->
         <dependency>
-            <groupId>org.neo4j.community</groupId>
+            <groupId>org.graphfoundation.ongdb.community</groupId>
             <artifactId>it-test-support</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
@@ -165,7 +165,7 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.neo4j.community</groupId>
+            <groupId>org.graphfoundation.ongdb.community</groupId>
             <artifactId>bolt-it</artifactId>
             <version>${project.version}</version>
             <type>test-jar</type>

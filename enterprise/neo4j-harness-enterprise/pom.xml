@@ -110,7 +110,7 @@
         </dependency>
 
         <dependency>
-            <groupId>org.neo4j.app</groupId>
+            <groupId>org.graphfoundation.ongdb.app</groupId>
             <artifactId>neo4j-server</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>

@@ -152,22 +152,6 @@
       <version>${cypher.compatibility.23}</version>
       <exclusions>
         <exclusion>
-          <groupId>org.graphfoundation.ongdb</groupId>
-          <artifactId>neo4j-kernel</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>org.graphfoundation.ongdb</groupId>
-          <artifactId>neo4j-lucene-index</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>org.graphfoundation.ongdb</groupId>
-          <artifactId>neo4j-graph-algo</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>org.graphfoundation.ongdb</groupId>
-          <artifactId>neo4j-cypher-commons</artifactId>
-        </exclusion>
-        <exclusion>
           <groupId>org.neo4j</groupId>
           <artifactId>neo4j-kernel</artifactId>
         </exclusion>
@@ -194,18 +178,6 @@
       <artifactId>neo4j-cypher-compiler-3.1</artifactId>
       <version>${cypher.compatibility.31}</version>
       <exclusions>
-        <exclusion>
-          <groupId>org.graphfoundation.ongdb</groupId>
-          <artifactId>neo4j-kernel</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>org.graphfoundation.ongdb</groupId>
-          <artifactId>neo4j-lucene-index</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>org.graphfoundation.ongdb</groupId>
-          <artifactId>neo4j-graph-algo</artifactId>
-        </exclusion>
         <exclusion>
           <groupId>org.neo4j</groupId>
           <artifactId>neo4j-kernel</artifactId>
@@ -245,18 +217,6 @@
       <artifactId>neo4j-cypher-planner-3.4</artifactId>
       <version>${cypher.compatibility.34}</version>
       <exclusions>
-        <exclusion>
-          <groupId>org.graphfoundation.ongdb</groupId>
-          <artifactId>neo4j-kernel</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>org.graphfoundation.ongdb</groupId>
-          <artifactId>neo4j-lucene-index</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>org.graphfoundation.ongdb</groupId>
-          <artifactId>neo4j-graph-algo</artifactId>
-        </exclusion>
         <exclusion>
           <groupId>org.neo4j</groupId>
           <artifactId>neo4j-kernel</artifactId>
