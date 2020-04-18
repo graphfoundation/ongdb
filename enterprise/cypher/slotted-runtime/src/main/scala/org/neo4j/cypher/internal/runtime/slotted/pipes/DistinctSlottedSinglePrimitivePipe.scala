@@ -20,14 +20,14 @@
 package org.neo4j.cypher.internal.runtime.slotted.pipes
 
 import org.eclipse.collections.impl.factory.primitive.LongSets
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.{Slot, SlotConfiguration}
+import org.neo4j.cypher.internal.compatibility.v3_6.runtime.{Slot, SlotConfiguration}
 import org.neo4j.cypher.internal.runtime.PrefetchingIterator
 import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
 import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.Expression
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.{Pipe, PipeWithSource, QueryState}
 import org.neo4j.cypher.internal.runtime.slotted.SlottedExecutionContext
 import org.neo4j.cypher.internal.runtime.slotted.helpers.SlottedPipeBuilderUtils.makeSetValueInSlotFunctionFor
-import org.neo4j.cypher.internal.v3_5.util.attribution.Id
+import org.neo4j.cypher.internal.v3_6.util.attribution.Id
 import org.neo4j.values.AnyValue
 
 case class DistinctSlottedSinglePrimitivePipe(source: Pipe,

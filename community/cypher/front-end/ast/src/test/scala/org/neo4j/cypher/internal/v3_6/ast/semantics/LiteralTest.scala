@@ -14,10 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.neo4j.cypher.internal.v3_5.ast.semantics
+package org.neo4j.cypher.internal.v3_6.ast.semantics
 
-import org.neo4j.cypher.internal.v3_5.expressions.{Literal, StringLiteral, UnsignedDecimalIntegerLiteral}
-import org.neo4j.cypher.internal.v3_5.util.symbols._
+import org.neo4j.cypher.internal.v3_6.expressions.{Literal, StringLiteral, UnsignedDecimalIntegerLiteral}
+import org.neo4j.cypher.internal.v3_6.util.symbols._
 
 class LiteralTest extends SemanticFunSuite {
   test("has type CTString") {

@@ -14,11 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.neo4j.cypher.internal.v3_5.frontend.helpers
+package org.neo4j.cypher.internal.v3_6.frontend.helpers
 
-import org.neo4j.cypher.internal.v3_5.frontend.phases.{BaseContext, CompilationPhaseTracer, InternalNotificationLogger, Monitors}
-import org.neo4j.cypher.internal.v3_5.util.spi.MapToPublicExceptions
-import org.neo4j.cypher.internal.v3_5.util.{CypherException, InputPosition}
+import org.neo4j.cypher.internal.v3_6.frontend.phases.{BaseContext, CompilationPhaseTracer, InternalNotificationLogger, Monitors}
+import org.neo4j.cypher.internal.v3_6.util.spi.MapToPublicExceptions
+import org.neo4j.cypher.internal.v3_6.util.{CypherException, InputPosition}
 import org.scalatest.mock.MockitoSugar.mock
 
 //noinspection TypeAnnotation

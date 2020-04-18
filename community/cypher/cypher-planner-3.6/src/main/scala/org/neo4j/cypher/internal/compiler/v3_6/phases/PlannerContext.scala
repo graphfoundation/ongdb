@@ -17,18 +17,18 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compiler.v3_5.phases
+package org.neo4j.cypher.internal.compiler.v3_6.phases
 
 import java.time.Clock
 
-import org.neo4j.cypher.internal.v3_5.util.{CypherException, InputPosition}
-import org.neo4j.cypher.internal.compiler.v3_5._
-import org.neo4j.cypher.internal.compiler.v3_5.planner.logical.{ExpressionEvaluator, Metrics, MetricsFactory, QueryGraphSolver}
-import org.neo4j.cypher.internal.v3_5.frontend.phases.{BaseContext, InternalNotificationLogger, Monitors}
-import org.neo4j.cypher.internal.v3_5.ast.semantics.SemanticErrorDef
-import org.neo4j.cypher.internal.planner.v3_5.spi.PlanContext
-import org.neo4j.cypher.internal.v3_5.frontend.phases.CompilationPhaseTracer
-import org.neo4j.cypher.internal.v3_5.util.attribution.IdGen
+import org.neo4j.cypher.internal.v3_6.util.{CypherException, InputPosition}
+import org.neo4j.cypher.internal.compiler.v3_6._
+import org.neo4j.cypher.internal.compiler.v3_6.planner.logical.{ExpressionEvaluator, Metrics, MetricsFactory, QueryGraphSolver}
+import org.neo4j.cypher.internal.v3_6.frontend.phases.{BaseContext, InternalNotificationLogger, Monitors}
+import org.neo4j.cypher.internal.v3_6.ast.semantics.SemanticErrorDef
+import org.neo4j.cypher.internal.planner.v3_6.spi.PlanContext
+import org.neo4j.cypher.internal.v3_6.frontend.phases.CompilationPhaseTracer
+import org.neo4j.cypher.internal.v3_6.util.attribution.IdGen
 
 class PlannerContext(val exceptionCreator: (String, InputPosition) => CypherException,
                      val tracer: CompilationPhaseTracer,

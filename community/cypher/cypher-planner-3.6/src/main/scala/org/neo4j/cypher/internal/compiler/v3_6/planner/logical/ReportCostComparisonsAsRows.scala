@@ -17,18 +17,18 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compiler.v3_5.planner.logical
+package org.neo4j.cypher.internal.compiler.v3_6.planner.logical
 
-import org.neo4j.cypher.internal.compiler.v3_5.phases.LogicalPlanState
-import org.neo4j.cypher.internal.compiler.v3_5.planner.logical.steps.CostComparisonListener
-import org.neo4j.cypher.internal.ir.v3_5.PlannerQuery
-import org.neo4j.cypher.internal.planner.v3_5.spi.PlanningAttributes
-import org.neo4j.cypher.internal.planner.v3_5.spi.PlanningAttributes.{Cardinalities, ProvidedOrders, Solveds}
-import org.neo4j.cypher.internal.v3_5.logical.plans._
-import org.neo4j.cypher.internal.v3_5.ast._
-import org.neo4j.cypher.internal.v3_5.expressions._
-import org.neo4j.cypher.internal.v3_5.util.attribution.{Id, SequentialIdGen}
-import org.neo4j.cypher.internal.v3_5.util.{Cardinality, Cost, InputPosition}
+import org.neo4j.cypher.internal.compiler.v3_6.phases.LogicalPlanState
+import org.neo4j.cypher.internal.compiler.v3_6.planner.logical.steps.CostComparisonListener
+import org.neo4j.cypher.internal.ir.v3_6.PlannerQuery
+import org.neo4j.cypher.internal.planner.v3_6.spi.PlanningAttributes
+import org.neo4j.cypher.internal.planner.v3_6.spi.PlanningAttributes.{Cardinalities, ProvidedOrders, Solveds}
+import org.neo4j.cypher.internal.v3_6.logical.plans._
+import org.neo4j.cypher.internal.v3_6.ast._
+import org.neo4j.cypher.internal.v3_6.expressions._
+import org.neo4j.cypher.internal.v3_6.util.attribution.{Id, SequentialIdGen}
+import org.neo4j.cypher.internal.v3_6.util.{Cardinality, Cost, InputPosition}
 
 import scala.collection.{immutable, mutable}
 

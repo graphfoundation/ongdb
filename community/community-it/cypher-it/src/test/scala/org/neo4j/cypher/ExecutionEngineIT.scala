@@ -20,11 +20,11 @@
 package org.neo4j.cypher
 
 import org.neo4j.cypher.internal.javacompat.GraphDatabaseCypherService
-import org.neo4j.cypher.internal.planner.v3_5.spi.CostBasedPlannerName
+import org.neo4j.cypher.internal.planner.v3_6.spi.CostBasedPlannerName
 import org.neo4j.graphdb.factory.GraphDatabaseSettings
 import org.neo4j.graphdb.{ExecutionPlanDescription, GraphDatabaseService, QueryExecutionException, Result}
 import org.neo4j.test.TestGraphDatabaseFactory
-import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
 
 class ExecutionEngineIT extends CypherFunSuite with GraphIcing {
 
@@ -77,7 +77,7 @@ class ExecutionEngineIT extends CypherFunSuite with GraphIcing {
     //given
     db = new TestGraphDatabaseFactory()
       .newImpermanentDatabaseBuilder()
-      .setConfig(GraphDatabaseSettings.cypher_parser_version, "3.5").newGraphDatabase()
+      .setConfig(GraphDatabaseSettings.cypher_parser_version, "3.6").newGraphDatabase()
     val service = new GraphDatabaseCypherService(db)
 
     //when
@@ -160,7 +160,7 @@ class ExecutionEngineIT extends CypherFunSuite with GraphIcing {
     db = new TestGraphDatabaseFactory()
       .newImpermanentDatabaseBuilder()
       .setConfig(GraphDatabaseSettings.cypher_planner, "COST")
-      .setConfig(GraphDatabaseSettings.cypher_parser_version, "3.5").newGraphDatabase()
+      .setConfig(GraphDatabaseSettings.cypher_parser_version, "3.6").newGraphDatabase()
     val service = new GraphDatabaseCypherService(db)
 
     //when

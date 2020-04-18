@@ -17,12 +17,12 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compatibility.v3_5.notification
+package org.neo4j.cypher.internal.compatibility.v3_6.notification
 
-import org.neo4j.cypher.internal.compiler.v3_5.LargeLabelWithLoadCsvNotification
-import org.neo4j.cypher.internal.planner.v3_5.spi.PlanContext
-import org.neo4j.cypher.internal.v3_5.logical.plans.{LoadCSV, LogicalPlan, NodeByLabelScan}
-import org.neo4j.cypher.internal.v3_5.util._
+import org.neo4j.cypher.internal.compiler.v3_6.LargeLabelWithLoadCsvNotification
+import org.neo4j.cypher.internal.planner.v3_6.spi.PlanContext
+import org.neo4j.cypher.internal.v3_6.logical.plans.{LoadCSV, LogicalPlan, NodeByLabelScan}
+import org.neo4j.cypher.internal.v3_6.util._
 
 case class checkForLoadCsvAndMatchOnLargeLabel(planContext: PlanContext,
                                                nonIndexedLabelWarningThreshold: Long
@@ -31,7 +31,7 @@ case class checkForLoadCsvAndMatchOnLargeLabel(planContext: PlanContext,
   private val threshold = Cardinality(nonIndexedLabelWarningThreshold)
 
   def apply(plan: LogicalPlan): Seq[InternalNotification] = {
-    import org.neo4j.cypher.internal.v3_5.util.Foldable._
+    import org.neo4j.cypher.internal.v3_6.util.Foldable._
 
     sealed trait SearchState
     case object NoneFound extends SearchState

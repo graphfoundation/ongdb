@@ -14,11 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.neo4j.cypher.internal.v3_5.frontend.phases
+package org.neo4j.cypher.internal.v3_6.frontend.phases
 
-import org.neo4j.cypher.internal.v3_5.frontend.helpers.closing
-import org.neo4j.cypher.internal.v3_5.frontend.phases.CompilationPhaseTracer.CompilationPhase
-import org.neo4j.cypher.internal.v3_5.frontend.phases.CompilationPhaseTracer.CompilationPhase.PIPE_BUILDING
+import org.neo4j.cypher.internal.v3_6.frontend.helpers.closing
+import org.neo4j.cypher.internal.v3_6.frontend.phases.CompilationPhaseTracer.CompilationPhase
+import org.neo4j.cypher.internal.v3_6.frontend.phases.CompilationPhaseTracer.CompilationPhase.PIPE_BUILDING
 
 /*
 A phase is a leaf component of the tree structure that is the compilation pipe line.

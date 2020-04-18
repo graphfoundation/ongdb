@@ -14,10 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.neo4j.cypher.internal.v3_5.expressions
+package org.neo4j.cypher.internal.v3_6.expressions
 
-import org.neo4j.cypher.internal.v3_5.expressions.functions.UnresolvedFunction
-import org.neo4j.cypher.internal.v3_5.util.InputPosition
+import org.neo4j.cypher.internal.v3_6.expressions.functions.UnresolvedFunction
+import org.neo4j.cypher.internal.v3_6.util.InputPosition
 
 object FunctionInvocation {
   def apply(name: FunctionName, argument: Expression)(position: InputPosition): FunctionInvocation =

@@ -17,12 +17,12 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compatibility.v3_5.notification
+package org.neo4j.cypher.internal.compatibility.v3_6.notification
 
-import org.neo4j.cypher.internal.compiler.v3_5.CypherPlannerConfiguration
-import org.neo4j.cypher.internal.planner.v3_5.spi.PlanContext
-import org.neo4j.cypher.internal.v3_5.logical.plans.LogicalPlan
-import org.neo4j.cypher.internal.v3_5.util.InternalNotification
+import org.neo4j.cypher.internal.compiler.v3_6.CypherPlannerConfiguration
+import org.neo4j.cypher.internal.planner.v3_6.spi.PlanContext
+import org.neo4j.cypher.internal.v3_6.logical.plans.LogicalPlan
+import org.neo4j.cypher.internal.v3_6.util.InternalNotification
 
 trait NotificationChecker {
   def apply(plan: LogicalPlan): TraversableOnce[InternalNotification]

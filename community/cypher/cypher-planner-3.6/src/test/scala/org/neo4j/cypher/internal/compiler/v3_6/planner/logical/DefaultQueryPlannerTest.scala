@@ -17,24 +17,24 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compiler.v3_5.planner.logical
+package org.neo4j.cypher.internal.compiler.v3_6.planner.logical
 
 import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito.{times, verify, when}
-import org.neo4j.cypher.internal.compiler.v3_5.planner._
-import org.neo4j.cypher.internal.compiler.v3_5.planner.logical.Metrics.QueryGraphSolverInput
-import org.neo4j.cypher.internal.compiler.v3_5.planner.logical.steps.{LogicalPlanProducer, devNullListener}
-import org.neo4j.cypher.internal.ir.v3_5._
-import org.neo4j.cypher.internal.planner.v3_5.spi.PlanningAttributes.{Cardinalities, ProvidedOrders, Solveds}
-import org.neo4j.cypher.internal.planner.v3_5.spi.{PlanContext, PlanningAttributes}
-import org.neo4j.cypher.internal.v3_5.logical.plans._
-import org.neo4j.cypher.internal.v3_5.ast.semantics.{ExpressionTypeInfo, SemanticTable}
-import org.neo4j.cypher.internal.v3_5.ast.{ASTAnnotationMap, Hint}
-import org.neo4j.cypher.internal.v3_5.expressions._
-import org.neo4j.cypher.internal.v3_5.frontend.phases.devNullLogger
-import org.neo4j.cypher.internal.v3_5.util.attribution.IdGen
-import org.neo4j.cypher.internal.v3_5.util.symbols._
-import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.compiler.v3_6.planner._
+import org.neo4j.cypher.internal.compiler.v3_6.planner.logical.Metrics.QueryGraphSolverInput
+import org.neo4j.cypher.internal.compiler.v3_6.planner.logical.steps.{LogicalPlanProducer, devNullListener}
+import org.neo4j.cypher.internal.ir.v3_6._
+import org.neo4j.cypher.internal.planner.v3_6.spi.PlanningAttributes.{Cardinalities, ProvidedOrders, Solveds}
+import org.neo4j.cypher.internal.planner.v3_6.spi.{PlanContext, PlanningAttributes}
+import org.neo4j.cypher.internal.v3_6.logical.plans._
+import org.neo4j.cypher.internal.v3_6.ast.semantics.{ExpressionTypeInfo, SemanticTable}
+import org.neo4j.cypher.internal.v3_6.ast.{ASTAnnotationMap, Hint}
+import org.neo4j.cypher.internal.v3_6.expressions._
+import org.neo4j.cypher.internal.v3_6.frontend.phases.devNullLogger
+import org.neo4j.cypher.internal.v3_6.util.attribution.IdGen
+import org.neo4j.cypher.internal.v3_6.util.symbols._
+import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
 
 class DefaultQueryPlannerTest extends CypherFunSuite with LogicalPlanningTestSupport2 {
 

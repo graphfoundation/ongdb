@@ -17,21 +17,21 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compatibility.v3_5.runtime.executionplan.procs
+package org.neo4j.cypher.internal.compatibility.v3_6.runtime.executionplan.procs
 
 import org.mockito.ArgumentMatchers.{any, anyInt}
 import org.mockito.Mockito.when
 import org.mockito.invocation.InvocationOnMock
 import org.mockito.stubbing.Answer
-import org.neo4j.cypher.internal.planner.v3_5.spi.TokenContext
+import org.neo4j.cypher.internal.planner.v3_6.spi.TokenContext
 import org.neo4j.cypher.internal.runtime.interpreted.commands.convert.{CommunityExpressionConverter, ExpressionConverters}
 import org.neo4j.cypher.internal.runtime.{NormalMode, QueryContext, QueryTransactionalContext, ResourceManager}
-import org.neo4j.cypher.internal.v3_5.expressions._
-import org.neo4j.cypher.internal.v3_5.logical.plans._
-import org.neo4j.cypher.internal.v3_5.util.DummyPosition
-import org.neo4j.cypher.internal.v3_5.util.attribution.SequentialIdGen
-import org.neo4j.cypher.internal.v3_5.util.symbols._
-import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.v3_6.expressions._
+import org.neo4j.cypher.internal.v3_6.logical.plans._
+import org.neo4j.cypher.internal.v3_6.util.DummyPosition
+import org.neo4j.cypher.internal.v3_6.util.attribution.SequentialIdGen
+import org.neo4j.cypher.internal.v3_6.util.symbols._
+import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
 import org.neo4j.cypher.result.RuntimeResult
 import org.neo4j.internal.kernel.api.Procedures
 import org.neo4j.internal.kernel.api.procs.ProcedureCallContext

@@ -23,9 +23,9 @@
 package org.neo4j.internal.cypher.acceptance
 
 import org.neo4j.cypher.ExecutionEngineFunSuite
-import org.neo4j.cypher.internal.planner.v3_5.spi.{DPPlannerName, IDPPlannerName}
+import org.neo4j.cypher.internal.planner.v3_6.spi.{DPPlannerName, IDPPlannerName}
 import org.neo4j.cypher.internal.runtime.planDescription.InternalPlanDescription
-import org.neo4j.cypher.internal.v3_5.frontend.PlannerName
+import org.neo4j.cypher.internal.v3_6.frontend.PlannerName
 import org.scalatest.matchers.Matcher
 
 class PreParsingAcceptanceTest extends ExecutionEngineFunSuite {

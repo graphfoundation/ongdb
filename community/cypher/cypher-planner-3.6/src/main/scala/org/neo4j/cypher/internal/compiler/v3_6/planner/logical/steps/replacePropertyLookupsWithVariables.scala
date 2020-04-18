@@ -17,18 +17,18 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compiler.v3_5.planner.logical.steps
+package org.neo4j.cypher.internal.compiler.v3_6.planner.logical.steps
 
-import org.neo4j.cypher.internal.compiler.v3_5.phases.LogicalPlanState
-import org.neo4j.cypher.internal.compiler.v3_5.phases.PlannerContext
-import org.neo4j.cypher.internal.v3_5.logical.plans.CachedNodeProperty
-import org.neo4j.cypher.internal.v3_5.logical.plans.LogicalPlan
-import org.neo4j.cypher.internal.v3_5.ast.semantics.SemanticTable
-import org.neo4j.cypher.internal.v3_5.expressions.Property
-import org.neo4j.cypher.internal.v3_5.frontend.phases.Transformer
-import org.neo4j.cypher.internal.v3_5.util.bottomUp
-import org.neo4j.cypher.internal.v3_5.util.Rewriter
-import org.neo4j.cypher.internal.v3_5.util.topDown
+import org.neo4j.cypher.internal.compiler.v3_6.phases.LogicalPlanState
+import org.neo4j.cypher.internal.compiler.v3_6.phases.PlannerContext
+import org.neo4j.cypher.internal.v3_6.logical.plans.CachedNodeProperty
+import org.neo4j.cypher.internal.v3_6.logical.plans.LogicalPlan
+import org.neo4j.cypher.internal.v3_6.ast.semantics.SemanticTable
+import org.neo4j.cypher.internal.v3_6.expressions.Property
+import org.neo4j.cypher.internal.v3_6.frontend.phases.Transformer
+import org.neo4j.cypher.internal.v3_6.util.bottomUp
+import org.neo4j.cypher.internal.v3_6.util.Rewriter
+import org.neo4j.cypher.internal.v3_6.util.topDown
 
 /**
   * A logical plan rewriter that also changes the semantic table (thus a Transformer).

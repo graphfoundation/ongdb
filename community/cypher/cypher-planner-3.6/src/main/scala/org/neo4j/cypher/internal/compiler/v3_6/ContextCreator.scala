@@ -17,16 +17,16 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compiler.v3_5
+package org.neo4j.cypher.internal.compiler.v3_6
 
 import java.time.Clock
 
-import org.neo4j.cypher.internal.v3_5.util.InputPosition
-import org.neo4j.cypher.internal.compiler.v3_5.planner.logical.{ExpressionEvaluator, MetricsFactory, QueryGraphSolver}
-import org.neo4j.cypher.internal.v3_5.frontend.phases.{BaseContext, InternalNotificationLogger, Monitors}
-import org.neo4j.cypher.internal.planner.v3_5.spi.PlanContext
-import org.neo4j.cypher.internal.v3_5.frontend.phases.CompilationPhaseTracer
-import org.neo4j.cypher.internal.v3_5.util.attribution.IdGen
+import org.neo4j.cypher.internal.v3_6.util.InputPosition
+import org.neo4j.cypher.internal.compiler.v3_6.planner.logical.{ExpressionEvaluator, MetricsFactory, QueryGraphSolver}
+import org.neo4j.cypher.internal.v3_6.frontend.phases.{BaseContext, InternalNotificationLogger, Monitors}
+import org.neo4j.cypher.internal.planner.v3_6.spi.PlanContext
+import org.neo4j.cypher.internal.v3_6.frontend.phases.CompilationPhaseTracer
+import org.neo4j.cypher.internal.v3_6.util.attribution.IdGen
 
 trait ContextCreator[Context <: BaseContext] {
   def create(tracer: CompilationPhaseTracer,

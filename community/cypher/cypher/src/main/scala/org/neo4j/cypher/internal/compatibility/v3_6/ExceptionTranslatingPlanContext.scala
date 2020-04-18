@@ -17,11 +17,11 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compatibility.v3_5
+package org.neo4j.cypher.internal.compatibility.v3_6
 
-import org.neo4j.cypher.internal.planner.v3_5.spi.{IndexDescriptor, InstrumentedGraphStatistics, PlanContext}
-import org.neo4j.cypher.internal.v3_5.frontend.phases.InternalNotificationLogger
-import org.neo4j.cypher.internal.v3_5.logical.plans.{ProcedureSignature, QualifiedName, UserFunctionSignature}
+import org.neo4j.cypher.internal.planner.v3_6.spi.{IndexDescriptor, InstrumentedGraphStatistics, PlanContext}
+import org.neo4j.cypher.internal.v3_6.frontend.phases.InternalNotificationLogger
+import org.neo4j.cypher.internal.v3_6.logical.plans.{ProcedureSignature, QualifiedName, UserFunctionSignature}
 
 class ExceptionTranslatingPlanContext(inner: PlanContext) extends PlanContext with ExceptionTranslationSupport {
 

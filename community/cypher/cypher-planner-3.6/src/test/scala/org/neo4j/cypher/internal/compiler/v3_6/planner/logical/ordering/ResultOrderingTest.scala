@@ -17,13 +17,13 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compiler.v3_5.planner.logical.ordering
+package org.neo4j.cypher.internal.compiler.v3_6.planner.logical.ordering
 
-import org.neo4j.cypher.internal.ir.v3_5.{ProvidedOrder, InterestingOrder}
-import org.neo4j.cypher.internal.planner.v3_5.spi.IndexOrderCapability
-import org.neo4j.cypher.internal.planner.v3_5.spi.IndexOrderCapability.{ASC, DESC, BOTH}
-import org.neo4j.cypher.internal.v3_5.util.symbols._
-import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.ir.v3_6.{ProvidedOrder, InterestingOrder}
+import org.neo4j.cypher.internal.planner.v3_6.spi.IndexOrderCapability
+import org.neo4j.cypher.internal.planner.v3_6.spi.IndexOrderCapability.{ASC, DESC, BOTH}
+import org.neo4j.cypher.internal.v3_6.util.symbols._
+import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
 
 class ResultOrderingTest extends CypherFunSuite {
 

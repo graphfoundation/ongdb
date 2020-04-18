@@ -26,8 +26,8 @@ import org.neo4j.cypher.operations.CypherFunctions
 import org.neo4j.values._
 import org.neo4j.values.storable.Values.NO_VALUE
 import org.neo4j.values.storable._
-import org.neo4j.cypher.internal.v3_5.util.CypherTypeException
-import org.neo4j.cypher.internal.v3_5.util.symbols.{NumberType, _}
+import org.neo4j.cypher.internal.v3_6.util.CypherTypeException
+import org.neo4j.cypher.internal.v3_6.util.symbols.{NumberType, _}
 
 abstract class MathFunction(arg: Expression) extends Expression with NumericHelper {
 

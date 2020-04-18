@@ -19,14 +19,14 @@
  */
 package org.neo4j.cypher.internal.runtime.slotted.pipes
 
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.{SlotConfiguration, SlottedIndexedProperty}
+import org.neo4j.cypher.internal.compatibility.v3_6.runtime.{SlotConfiguration, SlottedIndexedProperty}
 import org.neo4j.cypher.internal.runtime.QueryContext
 import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
 import org.neo4j.cypher.internal.runtime.interpreted.pipes._
-import org.neo4j.cypher.internal.v3_5.logical.plans.IndexOrder
+import org.neo4j.cypher.internal.v3_6.logical.plans.IndexOrder
 import org.neo4j.internal.kernel.api.IndexReference
-import org.neo4j.cypher.internal.v3_5.expressions.LabelToken
-import org.neo4j.cypher.internal.v3_5.util.attribution.Id
+import org.neo4j.cypher.internal.v3_6.expressions.LabelToken
+import org.neo4j.cypher.internal.v3_6.util.attribution.Id
 
 case class NodeIndexScanSlottedPipe(ident: String,
                                     label: LabelToken,

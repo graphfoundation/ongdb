@@ -22,9 +22,9 @@ package org.neo4j.cypher.internal.runtime.interpreted
 import java.util.Optional
 
 import org.neo4j.cypher.MissingIndexException
-import org.neo4j.cypher.internal.planner.v3_5.spi.IndexDescriptor.{OrderCapability, ValueCapability}
-import org.neo4j.cypher.internal.planner.v3_5.spi._
-import org.neo4j.cypher.internal.v3_5.logical.plans._
+import org.neo4j.cypher.internal.planner.v3_6.spi.IndexDescriptor.{OrderCapability, ValueCapability}
+import org.neo4j.cypher.internal.planner.v3_6.spi._
+import org.neo4j.cypher.internal.v3_6.logical.plans._
 import org.neo4j.internal.kernel.api
 import org.neo4j.internal.kernel.api.exceptions.KernelException
 import org.neo4j.internal.kernel.api.procs.Neo4jTypes.AnyType
@@ -33,9 +33,9 @@ import org.neo4j.internal.kernel.api.{IndexReference, InternalIndexState, procs}
 import org.neo4j.kernel.api.schema.SchemaDescriptorFactory
 import org.neo4j.procedure.Mode
 import org.neo4j.values.storable.ValueCategory
-import org.neo4j.cypher.internal.v3_5.frontend.phases.InternalNotificationLogger
-import org.neo4j.cypher.internal.v3_5.util.symbols._
-import org.neo4j.cypher.internal.v3_5.util.{CypherExecutionException, LabelId, PropertyKeyId, symbols => types}
+import org.neo4j.cypher.internal.v3_6.frontend.phases.InternalNotificationLogger
+import org.neo4j.cypher.internal.v3_6.util.symbols._
+import org.neo4j.cypher.internal.v3_6.util.{CypherExecutionException, LabelId, PropertyKeyId, symbols => types}
 
 import scala.collection.JavaConverters._
 

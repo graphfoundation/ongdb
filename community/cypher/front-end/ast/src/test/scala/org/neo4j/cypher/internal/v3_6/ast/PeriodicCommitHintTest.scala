@@ -14,13 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.neo4j.cypher.internal.v3_5.ast
+package org.neo4j.cypher.internal.v3_6.ast
 
-import org.neo4j.cypher.internal.v3_5.expressions._
-import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
-import org.neo4j.cypher.internal.v3_5.util.{DummyPosition, InputPosition}
-import org.neo4j.cypher.internal.v3_5.ast.semantics.SemanticState
-import org.neo4j.cypher.internal.v3_5.expressions.{EveryPath, NodePattern, Pattern}
+import org.neo4j.cypher.internal.v3_6.expressions._
+import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.v3_6.util.{DummyPosition, InputPosition}
+import org.neo4j.cypher.internal.v3_6.ast.semantics.SemanticState
+import org.neo4j.cypher.internal.v3_6.expressions.{EveryPath, NodePattern, Pattern}
 
 class PeriodicCommitHintTest extends CypherFunSuite with Positional {
   test("negative values should fail") {

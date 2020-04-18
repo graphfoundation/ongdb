@@ -21,7 +21,7 @@ package org.neo4j.cypher.internal.runtime.slotted.pipes
 
 import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.{Pipe, PipeWithSource, QueryState}
-import org.neo4j.cypher.internal.v3_5.util.attribution.Id
+import org.neo4j.cypher.internal.v3_6.util.attribution.Id
 
 case class ApplySlottedPipe(lhs: Pipe, rhs: Pipe)
                            (val id: Id = Id.INVALID_ID)

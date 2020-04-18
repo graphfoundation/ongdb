@@ -26,7 +26,7 @@ import org.neo4j.cypher.internal.runtime.interpreted.pipes.{Pipe, QueryState}
 import org.neo4j.cypher.internal.runtime.interpreted.symbols.TypeSafe
 import org.neo4j.values.AnyValue
 import org.neo4j.values.storable.Values
-import org.neo4j.cypher.internal.v3_5.util.symbols.CypherType
+import org.neo4j.cypher.internal.v3_6.util.symbols.CypherType
 
 abstract class Expression extends TypeSafe with AstNode[Expression] {
 

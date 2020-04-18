@@ -14,10 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.neo4j.cypher.internal.v3_5.expressions
+package org.neo4j.cypher.internal.v3_6.expressions
 
-import org.neo4j.cypher.internal.v3_5.util.symbols.TypeSpec
-import org.neo4j.cypher.internal.v3_5.util.{DummyPosition, InputPosition}
+import org.neo4j.cypher.internal.v3_6.util.symbols.TypeSpec
+import org.neo4j.cypher.internal.v3_6.util.{DummyPosition, InputPosition}
 
 case class DummyExpression(possibleTypes: TypeSpec,
                            position: InputPosition = DummyPosition(0)) extends Expression

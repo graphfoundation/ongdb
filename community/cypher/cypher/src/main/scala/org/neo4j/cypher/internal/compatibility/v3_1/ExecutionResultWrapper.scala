@@ -36,7 +36,7 @@ import org.neo4j.cypher.internal.runtime.planDescription.InternalPlanDescription
 import org.neo4j.cypher.internal.runtime.planDescription.InternalPlanDescription.Arguments._
 import org.neo4j.cypher.internal.runtime.planDescription.{Argument, Children, NoChildren, PlanDescriptionImpl, SingleChild, TwoChildren, InternalPlanDescription => InternalPlanDescription3_4}
 import org.neo4j.cypher.internal.runtime.{ExplainMode, NormalMode, ProfileMode, QueryStatistics}
-import org.neo4j.cypher.internal.v3_5.logical.plans.QualifiedName
+import org.neo4j.cypher.internal.v3_6.logical.plans.QualifiedName
 import org.neo4j.cypher.result.QueryResult
 import org.neo4j.cypher.result.QueryResult.Record
 import org.neo4j.graphdb
@@ -45,9 +45,9 @@ import org.neo4j.graphdb.impl.notification.{NotificationCode, NotificationDetail
 import org.neo4j.graphdb.{InputPosition, Notification, ResourceIterator}
 import org.neo4j.kernel.impl.util.ValueUtils
 import org.neo4j.values.AnyValue
-import org.neo4j.cypher.internal.v3_5.expressions.SemanticDirection.{BOTH, INCOMING, OUTGOING}
-import org.neo4j.cypher.internal.v3_5.util.attribution.Id
-import org.neo4j.cypher.internal.v3_5.util.{symbols => symbolsv3_5}
+import org.neo4j.cypher.internal.v3_6.expressions.SemanticDirection.{BOTH, INCOMING, OUTGOING}
+import org.neo4j.cypher.internal.v3_6.util.attribution.Id
+import org.neo4j.cypher.internal.v3_6.util.{symbols => symbolsv3_6}
 
 import scala.collection.JavaConverters._
 
@@ -150,20 +150,20 @@ class ExecutionResultWrapper(val inner: InternalExecutionResult3_1,
     PlanDescriptionImpl(Id.INVALID_ID, name, children, arguments, planDescription.variables)
   }
 
-  private def lift(cypherType: symbols3_1.CypherType): symbolsv3_5.CypherType = cypherType match {
-    case symbols3_1.CTAny => symbolsv3_5.CTAny
-    case symbols3_1.CTBoolean => symbolsv3_5.CTBoolean
-    case symbols3_1.CTString => symbolsv3_5.CTString
-    case symbols3_1.CTNumber => symbolsv3_5.CTNumber
-    case symbols3_1.CTFloat => symbolsv3_5.CTFloat
-    case symbols3_1.CTInteger => symbolsv3_5.CTInteger
-    case symbols3_1.CTMap => symbolsv3_5.CTMap
-    case symbols3_1.CTNode => symbolsv3_5.CTNode
-    case symbols3_1.CTRelationship => symbolsv3_5.CTRelationship
-    case symbols3_1.CTPoint => symbolsv3_5.CTPoint
-    case symbols3_1.CTGeometry => symbolsv3_5.CTGeometry
-    case symbols3_1.CTPath => symbolsv3_5.CTPath
-    case symbols3_1.ListType(t) => symbolsv3_5.ListType(lift(t))
+  private def lift(cypherType: symbols3_1.CypherType): symbolsv3_6.CypherType = cypherType match {
+    case symbols3_1.CTAny => symbolsv3_6.CTAny
+    case symbols3_1.CTBoolean => symbolsv3_6.CTBoolean
+    case symbols3_1.CTString => symbolsv3_6.CTString
+    case symbols3_1.CTNumber => symbolsv3_6.CTNumber
+    case symbols3_1.CTFloat => symbolsv3_6.CTFloat
+    case symbols3_1.CTInteger => symbolsv3_6.CTInteger
+    case symbols3_1.CTMap => symbolsv3_6.CTMap
+    case symbols3_1.CTNode => symbolsv3_6.CTNode
+    case symbols3_1.CTRelationship => symbolsv3_6.CTRelationship
+    case symbols3_1.CTPoint => symbolsv3_6.CTPoint
+    case symbols3_1.CTGeometry => symbolsv3_6.CTGeometry
+    case symbols3_1.CTPath => symbolsv3_6.CTPath
+    case symbols3_1.ListType(t) => symbolsv3_6.ListType(lift(t))
   }
 
   override def hasNext: Boolean = inner.hasNext

@@ -17,10 +17,10 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compatibility.v3_5.runtime
+package org.neo4j.cypher.internal.compatibility.v3_6.runtime
 
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.SlotConfiguration.Size
-import org.neo4j.cypher.internal.v3_5.util.attribution.Attribute
+import org.neo4j.cypher.internal.compatibility.v3_6.runtime.SlotConfiguration.Size
+import org.neo4j.cypher.internal.v3_6.util.attribution.Attribute
 
 object PhysicalPlanningAttributes {
   class SlotConfigurations extends Attribute[SlotConfiguration]

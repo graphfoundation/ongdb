@@ -17,13 +17,13 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compatibility.v3_5.runtime.executionplan
+package org.neo4j.cypher.internal.compatibility.v3_6.runtime.executionplan
 
 import java.io.PrintWriter
 import java.util
 
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.InterpretedRuntimeName
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.profiler.PlanDescriptionBuilder
+import org.neo4j.cypher.internal.compatibility.v3_6.runtime.InterpretedRuntimeName
+import org.neo4j.cypher.internal.compatibility.v3_6.runtime.profiler.PlanDescriptionBuilder
 import org.neo4j.cypher.internal.runtime._
 import org.neo4j.cypher.result.RuntimeResult.ConsumptionState
 import org.neo4j.cypher.result.{QueryProfile, QueryResult, RuntimeResult}
@@ -31,8 +31,8 @@ import org.neo4j.graphdb.ResourceIterator
 import org.neo4j.graphdb.Result.ResultVisitor
 import org.neo4j.values.AnyValue
 import org.neo4j.values.storable.Values
-import org.neo4j.cypher.internal.v3_5.util.TaskCloser
-import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.v3_6.util.TaskCloser
+import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
 
 import scala.collection.JavaConverters._
 

@@ -17,12 +17,12 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.ir.v3_5
+package org.neo4j.cypher.internal.ir.v3_6
 
-import org.neo4j.cypher.internal.ir.v3_5.helpers.ExpressionConverters._
-import org.neo4j.cypher.internal.v3_5.ast._
-import org.neo4j.cypher.internal.v3_5.ast.prettifier.ExpressionStringifier
-import org.neo4j.cypher.internal.v3_5.expressions._
+import org.neo4j.cypher.internal.ir.v3_6.helpers.ExpressionConverters._
+import org.neo4j.cypher.internal.v3_6.ast._
+import org.neo4j.cypher.internal.v3_6.ast.prettifier.ExpressionStringifier
+import org.neo4j.cypher.internal.v3_6.expressions._
 
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.GenSeq

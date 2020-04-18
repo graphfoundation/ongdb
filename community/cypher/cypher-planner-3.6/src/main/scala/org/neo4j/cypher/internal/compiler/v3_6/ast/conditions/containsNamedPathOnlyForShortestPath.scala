@@ -17,11 +17,11 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compiler.v3_5.ast.conditions
+package org.neo4j.cypher.internal.compiler.v3_6.ast.conditions
 
-import org.neo4j.cypher.internal.v3_5.expressions.{NamedPatternPart, ShortestPaths}
-import org.neo4j.cypher.internal.v3_5.rewriting.Condition
-import org.neo4j.cypher.internal.v3_5.rewriting.conditions.containsNoMatchingNodes
+import org.neo4j.cypher.internal.v3_6.expressions.{NamedPatternPart, ShortestPaths}
+import org.neo4j.cypher.internal.v3_6.rewriting.Condition
+import org.neo4j.cypher.internal.v3_6.rewriting.conditions.containsNoMatchingNodes
 
 case object containsNamedPathOnlyForShortestPath extends Condition {
   private val matcher = containsNoMatchingNodes({

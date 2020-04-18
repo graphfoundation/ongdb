@@ -17,12 +17,12 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.planner.v3_5.spi
+package org.neo4j.cypher.internal.planner.v3_6.spi
 
-import org.neo4j.cypher.internal.ir.v3_5.{PlannerQuery, ProvidedOrder}
-import org.neo4j.cypher.internal.planner.v3_5.spi.PlanningAttributes.{Cardinalities, ProvidedOrders, Solveds}
-import org.neo4j.cypher.internal.v3_5.util.Cardinality
-import org.neo4j.cypher.internal.v3_5.util.attribution.{Attribute, Attributes, IdGen}
+import org.neo4j.cypher.internal.ir.v3_6.{PlannerQuery, ProvidedOrder}
+import org.neo4j.cypher.internal.planner.v3_6.spi.PlanningAttributes.{Cardinalities, ProvidedOrders, Solveds}
+import org.neo4j.cypher.internal.v3_6.util.Cardinality
+import org.neo4j.cypher.internal.v3_6.util.attribution.{Attribute, Attributes, IdGen}
 
 object PlanningAttributes {
   class Solveds extends Attribute[PlannerQuery]

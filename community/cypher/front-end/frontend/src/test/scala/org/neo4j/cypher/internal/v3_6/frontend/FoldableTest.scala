@@ -14,10 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.neo4j.cypher.internal.v3_5.frontend
+package org.neo4j.cypher.internal.v3_6.frontend
 
-import org.neo4j.cypher.internal.v3_5.util.Foldable
-import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.v3_6.util.Foldable
+import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
 
 object FoldableTest {
   trait Exp extends Foldable

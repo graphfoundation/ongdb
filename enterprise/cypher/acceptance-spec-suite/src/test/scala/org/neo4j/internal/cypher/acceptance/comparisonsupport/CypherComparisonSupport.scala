@@ -32,9 +32,9 @@ import org.neo4j.kernel.monitoring.Monitors
 import org.neo4j.test.TestEnterpriseGraphDatabaseFactory
 import org.neo4j.test.TestGraphDatabaseFactory
 import org.neo4j.values.virtual.MapValue
-import org.neo4j.cypher.internal.v3_5.util.Eagerly
-import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
-import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherTestSupport
+import org.neo4j.cypher.internal.v3_6.util.Eagerly
+import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherTestSupport
 
 import scala.util.Failure
 import scala.util.Success

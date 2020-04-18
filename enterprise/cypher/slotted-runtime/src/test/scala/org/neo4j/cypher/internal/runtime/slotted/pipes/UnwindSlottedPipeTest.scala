@@ -19,12 +19,12 @@
  */
 package org.neo4j.cypher.internal.runtime.slotted.pipes
 
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.SlotConfiguration
+import org.neo4j.cypher.internal.compatibility.v3_6.runtime.SlotConfiguration
 import org.neo4j.cypher.internal.runtime.interpreted.QueryStateHelper
 import org.neo4j.cypher.internal.runtime.slotted.SlottedExecutionContext
 import org.neo4j.cypher.internal.runtime.slotted.expressions.ReferenceFromSlot
-import org.neo4j.cypher.internal.v3_5.util.symbols._
-import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.v3_6.util.symbols._
+import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
 import org.neo4j.values.storable.Values.intValue
 import org.neo4j.values.virtual.VirtualValues.list
 

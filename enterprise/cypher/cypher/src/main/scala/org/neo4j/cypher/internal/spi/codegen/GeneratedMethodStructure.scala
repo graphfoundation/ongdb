@@ -49,11 +49,11 @@ import org.neo4j.kernel.impl.util.ValueUtils
 import org.neo4j.values.AnyValue
 import org.neo4j.values.storable._
 import org.neo4j.values.virtual._
-import org.neo4j.cypher.internal.v3_5.expressions.SemanticDirection
-import org.neo4j.cypher.internal.v3_5.frontend.helpers._
-import org.neo4j.cypher.internal.v3_5.util.attribution.Id
-import org.neo4j.cypher.internal.v3_5.util.symbols.{CTInteger, CTNode, CTRelationship, ListType}
-import org.neo4j.cypher.internal.v3_5.util.{ParameterNotFoundException, symbols}
+import org.neo4j.cypher.internal.v3_6.expressions.SemanticDirection
+import org.neo4j.cypher.internal.v3_6.frontend.helpers._
+import org.neo4j.cypher.internal.v3_6.util.attribution.Id
+import org.neo4j.cypher.internal.v3_6.util.symbols.{CTInteger, CTNode, CTRelationship, ListType}
+import org.neo4j.cypher.internal.v3_6.util.{ParameterNotFoundException, symbols}
 
 import scala.collection.mutable
 

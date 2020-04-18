@@ -17,19 +17,19 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compiler.v3_5.planner.logical.steps
+package org.neo4j.cypher.internal.compiler.v3_6.planner.logical.steps
 
 import org.mockito.Mockito._
-import org.neo4j.cypher.internal.compiler.v3_5.planner._
-import org.neo4j.cypher.internal.compiler.v3_5.planner.logical.ExpressionEvaluator
-import org.neo4j.cypher.internal.compiler.v3_5.planner.logical.Metrics.QueryGraphSolverInput
-import org.neo4j.cypher.internal.ir.v3_5._
-import org.neo4j.cypher.internal.planner.v3_5.spi.PlanningAttributes.Cardinalities
-import org.neo4j.cypher.internal.v3_5.ast.{Hint, UsingJoinHint}
-import org.neo4j.cypher.internal.v3_5.expressions.{PatternExpression, PropertyKeyName, SemanticDirection, Variable}
-import org.neo4j.cypher.internal.v3_5.logical.plans.{AllNodesScan, LogicalPlan, RightOuterHashJoin, _}
-import org.neo4j.cypher.internal.v3_5.util.Cost
-import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.compiler.v3_6.planner._
+import org.neo4j.cypher.internal.compiler.v3_6.planner.logical.ExpressionEvaluator
+import org.neo4j.cypher.internal.compiler.v3_6.planner.logical.Metrics.QueryGraphSolverInput
+import org.neo4j.cypher.internal.ir.v3_6._
+import org.neo4j.cypher.internal.planner.v3_6.spi.PlanningAttributes.Cardinalities
+import org.neo4j.cypher.internal.v3_6.ast.{Hint, UsingJoinHint}
+import org.neo4j.cypher.internal.v3_6.expressions.{PatternExpression, PropertyKeyName, SemanticDirection, Variable}
+import org.neo4j.cypher.internal.v3_6.logical.plans.{AllNodesScan, LogicalPlan, RightOuterHashJoin, _}
+import org.neo4j.cypher.internal.v3_6.util.Cost
+import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
 
 class RightOuterHashJoinTest extends CypherFunSuite with LogicalPlanningTestSupport {
 

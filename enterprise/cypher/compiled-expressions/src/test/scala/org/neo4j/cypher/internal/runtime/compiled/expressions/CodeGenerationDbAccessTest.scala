@@ -23,17 +23,17 @@
 package org.neo4j.cypher.internal.runtime.compiled.expressions
 
 import org.mockito.Mockito.when
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.SlotConfiguration
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast._
+import org.neo4j.cypher.internal.compatibility.v3_6.runtime.SlotConfiguration
+import org.neo4j.cypher.internal.compatibility.v3_6.runtime.ast._
 import org.neo4j.cypher.internal.runtime.DbAccess
 import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
 import org.neo4j.values.storable.Values
 import org.neo4j.values.storable.Values.{NO_VALUE, stringValue}
 import org.neo4j.values.virtual.VirtualValues.EMPTY_MAP
 import org.neo4j.values.virtual.{NodeValue, RelationshipValue}
-import org.neo4j.cypher.internal.v3_5.ast.AstConstructionTestSupport
-import org.neo4j.cypher.internal.v3_5.expressions.{Expression, HasLabels, LabelName, SemanticDirection}
-import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.v3_6.ast.AstConstructionTestSupport
+import org.neo4j.cypher.internal.v3_6.expressions.{Expression, HasLabels, LabelName, SemanticDirection}
+import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
 
 class CodeGenerationDbAccessTest extends CypherFunSuite with AstConstructionTestSupport {
 

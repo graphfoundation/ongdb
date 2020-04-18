@@ -47,7 +47,7 @@ class PreParser(configuredVersion: CypherVersion,
                 planCacheSize: Int) {
 
   private final val ILLEGAL_PLANNER_RUNTIME_COMBINATIONS: Set[(CypherPlannerOption, CypherRuntimeOption)] = Set((CypherPlannerOption.rule, CypherRuntimeOption.compiled), (CypherPlannerOption.rule, CypherRuntimeOption.slotted))
-  private final val ILLEGAL_PLANNER_VERSION_COMBINATIONS: Set[(CypherPlannerOption, CypherVersion)] = Set((CypherPlannerOption.rule, CypherVersion.v3_4), (CypherPlannerOption.rule, CypherVersion.v3_5))
+  private final val ILLEGAL_PLANNER_VERSION_COMBINATIONS: Set[(CypherPlannerOption, CypherVersion)] = Set((CypherPlannerOption.rule, CypherVersion.v3_4), (CypherPlannerOption.rule, CypherVersion.v3_6))
   private final val ILLEGAL_EXPRESSION_ENGINE_RUNTIME_COMBINATIONS: Set[(CypherExpressionEngineOption, CypherRuntimeOption)] =
     Set((CypherExpressionEngineOption.compiled, CypherRuntimeOption.compiled), (CypherExpressionEngineOption.compiled, CypherRuntimeOption.interpreted))
 

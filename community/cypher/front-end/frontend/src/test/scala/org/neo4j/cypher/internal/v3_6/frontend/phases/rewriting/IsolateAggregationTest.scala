@@ -14,15 +14,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.neo4j.cypher.internal.v3_5.frontend.phases.rewriting
+package org.neo4j.cypher.internal.v3_6.frontend.phases.rewriting
 
-import org.neo4j.cypher.internal.v3_5.ast.AstConstructionTestSupport
-import org.neo4j.cypher.internal.v3_5.ast.semantics.SyntaxExceptionCreator
-import org.neo4j.cypher.internal.v3_5.frontend.phases.{Monitors, isolateAggregation}
-import org.neo4j.cypher.internal.v3_5.rewriting.RewriteTest
-import org.neo4j.cypher.internal.v3_5.rewriting.rewriters.normalizeWithAndReturnClauses
-import org.neo4j.cypher.internal.v3_5.util.inSequence
-import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.v3_6.ast.AstConstructionTestSupport
+import org.neo4j.cypher.internal.v3_6.ast.semantics.SyntaxExceptionCreator
+import org.neo4j.cypher.internal.v3_6.frontend.phases.{Monitors, isolateAggregation}
+import org.neo4j.cypher.internal.v3_6.rewriting.RewriteTest
+import org.neo4j.cypher.internal.v3_6.rewriting.rewriters.normalizeWithAndReturnClauses
+import org.neo4j.cypher.internal.v3_6.util.inSequence
+import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
 
 class IsolateAggregationTest extends CypherFunSuite with RewriteTest with AstConstructionTestSupport {
   val rewriterUnderTest = isolateAggregation.instance(new TestContext(mock[Monitors]))

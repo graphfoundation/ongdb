@@ -17,17 +17,17 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compiler.v3_5.planner.logical.idp
+package org.neo4j.cypher.internal.compiler.v3_6.planner.logical.idp
 
-import org.neo4j.cypher.internal.compiler.v3_5.planner._
-import org.neo4j.cypher.internal.ir.v3_5._
-import org.neo4j.cypher.internal.planner.v3_5.spi.PlanningAttributes
-import org.neo4j.cypher.internal.planner.v3_5.spi.PlanningAttributes.{Cardinalities, ProvidedOrders, Solveds}
-import org.neo4j.cypher.internal.v3_5.logical.plans._
-import org.neo4j.cypher.internal.v3_5.ast.AstConstructionTestSupport
-import org.neo4j.cypher.internal.v3_5.expressions.{Contains, Equals}
-import org.neo4j.cypher.internal.v3_5.util.Cardinality
-import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.compiler.v3_6.planner._
+import org.neo4j.cypher.internal.ir.v3_6._
+import org.neo4j.cypher.internal.planner.v3_6.spi.PlanningAttributes
+import org.neo4j.cypher.internal.planner.v3_6.spi.PlanningAttributes.{Cardinalities, ProvidedOrders, Solveds}
+import org.neo4j.cypher.internal.v3_6.logical.plans._
+import org.neo4j.cypher.internal.v3_6.ast.AstConstructionTestSupport
+import org.neo4j.cypher.internal.v3_6.expressions.{Contains, Equals}
+import org.neo4j.cypher.internal.v3_6.util.Cardinality
+import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
 
 class CartesianProductsOrValueJoinsTest
   extends CypherFunSuite with LogicalPlanningTestSupport2 with AstConstructionTestSupport {

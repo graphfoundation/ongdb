@@ -23,7 +23,7 @@
 package org.neo4j.cypher.internal.runtime.vectorized.operators
 
 import org.mockito.Mockito.{RETURNS_DEEP_STUBS, when}
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.{SlotConfiguration, SlottedIndexedProperty}
+import org.neo4j.cypher.internal.compatibility.v3_6.runtime.{SlotConfiguration, SlottedIndexedProperty}
 import org.neo4j.cypher.internal.runtime.interpreted.ImplicitDummyPos
 import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.Literal
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.IndexMockingHelp
@@ -33,10 +33,10 @@ import org.neo4j.internal.kernel.api.helpers.StubNodeValueIndexCursor
 import org.neo4j.values.AnyValue
 import org.neo4j.values.storable.Values
 import org.neo4j.values.virtual.NodeValue
-import org.neo4j.cypher.internal.v3_5.expressions._
-import org.neo4j.cypher.internal.v3_5.util.symbols.{CTAny, CTNode}
-import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
-import org.neo4j.cypher.internal.v3_5.util.{LabelId, PropertyKeyId}
+import org.neo4j.cypher.internal.v3_6.expressions._
+import org.neo4j.cypher.internal.v3_6.util.symbols.{CTAny, CTNode}
+import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.v3_6.util.{LabelId, PropertyKeyId}
 
 class NodeIndexContainsScanOperatorTest extends CypherFunSuite with ImplicitDummyPos with IndexMockingHelp {
 

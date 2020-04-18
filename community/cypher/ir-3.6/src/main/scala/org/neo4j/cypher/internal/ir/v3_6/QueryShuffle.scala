@@ -17,11 +17,11 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.ir.v3_5
+package org.neo4j.cypher.internal.ir.v3_6
 
-import org.neo4j.cypher.internal.v3_5.util.InternalException
-import org.neo4j.cypher.internal.v3_5.ast.{Limit, Skip, SortItem}
-import org.neo4j.cypher.internal.v3_5.expressions.Expression
+import org.neo4j.cypher.internal.v3_6.util.InternalException
+import org.neo4j.cypher.internal.v3_6.ast.{Limit, Skip, SortItem}
+import org.neo4j.cypher.internal.v3_6.expressions.Expression
 
 final case class QueryShuffle(sortItems: Seq[SortItem] = Seq.empty,
                               skip: Option[Expression] = None,

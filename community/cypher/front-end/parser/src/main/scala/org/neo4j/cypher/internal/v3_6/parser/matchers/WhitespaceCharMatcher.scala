@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.neo4j.cypher.internal.v3_5.parser.matchers
+package org.neo4j.cypher.internal.v3_6.parser.matchers
 
 class WhitespaceCharMatcher extends ScalaCharMatcher("whitespace") {
   protected def matchChar(c: Char): Boolean = c.isWhitespace

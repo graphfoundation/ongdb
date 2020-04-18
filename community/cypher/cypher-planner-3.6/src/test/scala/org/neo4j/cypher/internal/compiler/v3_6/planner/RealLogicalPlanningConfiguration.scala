@@ -17,16 +17,16 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compiler.v3_5.planner
+package org.neo4j.cypher.internal.compiler.v3_6.planner
 
-import org.neo4j.cypher.internal.compiler.v3_5.CypherPlannerConfiguration
-import org.neo4j.cypher.internal.compiler.v3_5.planner.logical.Metrics.{CardinalityModel, QueryGraphCardinalityModel, QueryGraphSolverInput}
-import org.neo4j.cypher.internal.compiler.v3_5.planner.logical.{CardinalityCostModel, ExpressionEvaluator, Metrics, StatisticsBackedCardinalityModel}
-import org.neo4j.cypher.internal.ir.v3_5.QueryGraph
-import org.neo4j.cypher.internal.planner.v3_5.spi.GraphStatistics
-import org.neo4j.cypher.internal.planner.v3_5.spi.PlanningAttributes.Cardinalities
-import org.neo4j.cypher.internal.v3_5.logical.plans.{LogicalPlan, ProcedureSignature}
-import org.neo4j.cypher.internal.v3_5.util.{Cardinality, Cost}
+import org.neo4j.cypher.internal.compiler.v3_6.CypherPlannerConfiguration
+import org.neo4j.cypher.internal.compiler.v3_6.planner.logical.Metrics.{CardinalityModel, QueryGraphCardinalityModel, QueryGraphSolverInput}
+import org.neo4j.cypher.internal.compiler.v3_6.planner.logical.{CardinalityCostModel, ExpressionEvaluator, Metrics, StatisticsBackedCardinalityModel}
+import org.neo4j.cypher.internal.ir.v3_6.QueryGraph
+import org.neo4j.cypher.internal.planner.v3_6.spi.GraphStatistics
+import org.neo4j.cypher.internal.planner.v3_6.spi.PlanningAttributes.Cardinalities
+import org.neo4j.cypher.internal.v3_6.logical.plans.{LogicalPlan, ProcedureSignature}
+import org.neo4j.cypher.internal.v3_6.util.{Cardinality, Cost}
 
 case class RealLogicalPlanningConfiguration(cypherCompilerConfig: CypherPlannerConfiguration)
   extends LogicalPlanningConfiguration with LogicalPlanningConfigurationAdHocSemanticTable {

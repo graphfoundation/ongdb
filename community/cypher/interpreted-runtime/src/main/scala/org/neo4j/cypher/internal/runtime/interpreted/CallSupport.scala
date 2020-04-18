@@ -21,7 +21,7 @@ package org.neo4j.cypher.internal.runtime.interpreted
 
 import org.neo4j.collection.RawIterator
 import org.neo4j.cypher.internal.runtime.UserDefinedAggregator
-import org.neo4j.cypher.internal.v3_5.logical.plans.QualifiedName
+import org.neo4j.cypher.internal.v3_6.logical.plans.QualifiedName
 import org.neo4j.internal.kernel.api.exceptions.ProcedureException
 import org.neo4j.internal.kernel.api.procs.{ProcedureCallContext, UserAggregator, QualifiedName => KernelQualifiedName}
 import org.neo4j.kernel.impl.query.TransactionalContext

@@ -14,13 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.neo4j.cypher.internal.v3_5.frontend.phases
+package org.neo4j.cypher.internal.v3_6.frontend.phases
 
-import org.neo4j.cypher.internal.v3_5.expressions.NotEquals
-import org.neo4j.cypher.internal.v3_5.frontend.phases.CompilationPhaseTracer.CompilationPhase.AST_REWRITE
-import org.neo4j.cypher.internal.v3_5.rewriting.RewriterStepSequencer
-import org.neo4j.cypher.internal.v3_5.rewriting.conditions._
-import org.neo4j.cypher.internal.v3_5.rewriting.rewriters.LiteralExtraction
+import org.neo4j.cypher.internal.v3_6.expressions.NotEquals
+import org.neo4j.cypher.internal.v3_6.frontend.phases.CompilationPhaseTracer.CompilationPhase.AST_REWRITE
+import org.neo4j.cypher.internal.v3_6.rewriting.RewriterStepSequencer
+import org.neo4j.cypher.internal.v3_6.rewriting.conditions._
+import org.neo4j.cypher.internal.v3_6.rewriting.rewriters.LiteralExtraction
 
 case class AstRewriting(sequencer: String => RewriterStepSequencer, literalExtraction: LiteralExtraction,
                         getDegreeRewriting: Boolean = true// This does not really belong in the front end. Should move to a planner rewriter

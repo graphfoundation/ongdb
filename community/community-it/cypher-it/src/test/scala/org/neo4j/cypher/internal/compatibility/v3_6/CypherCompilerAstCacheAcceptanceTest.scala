@@ -17,7 +17,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compatibility.v3_5
+package org.neo4j.cypher.internal.compatibility.v3_6
 
 import java.time.{Clock, Instant, ZoneOffset}
 
@@ -26,7 +26,7 @@ import org.neo4j.cypher._
 import org.neo4j.cypher.internal.QueryCache.ParameterTypeMap
 import org.neo4j.cypher.internal.compatibility.v3_4.Cypher34Planner
 import org.neo4j.cypher.internal.compatibility.{CommunityRuntimeContextCreator, CypherCurrentCompiler, CypherPlanner, RuntimeContext}
-import org.neo4j.cypher.internal.compiler.v3_5.{CypherPlannerConfiguration, StatsDivergenceCalculator}
+import org.neo4j.cypher.internal.compiler.v3_6.{CypherPlannerConfiguration, StatsDivergenceCalculator}
 import org.neo4j.cypher.internal.runtime.interpreted.CSVResources
 import org.neo4j.cypher.internal._
 import org.neo4j.graphdb.config.Setting
@@ -36,9 +36,9 @@ import org.neo4j.kernel.configuration.Config
 import org.neo4j.kernel.impl.util.ValueUtils
 import org.neo4j.logging.AssertableLogProvider.inLog
 import org.neo4j.logging.{AssertableLogProvider, Log, NullLog, NullLogProvider}
-import org.neo4j.cypher.internal.v3_5.frontend.phases.CompilationPhaseTracer
-import org.neo4j.cypher.internal.v3_5.util.DummyPosition
-import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.v3_6.frontend.phases.CompilationPhaseTracer
+import org.neo4j.cypher.internal.v3_6.util.DummyPosition
+import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
 
 import scala.collection.Map
 

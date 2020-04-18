@@ -23,7 +23,7 @@
 package org.neo4j.internal.cypher.acceptance
 
 import org.neo4j.cypher._
-import org.neo4j.cypher.internal.v3_5.util.helpers.StringHelper.RichString
+import org.neo4j.cypher.internal.v3_6.util.helpers.StringHelper.RichString
 import org.neo4j.cypher.internal.runtime.interpreted.CSVResources
 import org.neo4j.internal.cypher.acceptance.comparisonsupport.CypherComparisonSupport
 import org.neo4j.internal.cypher.acceptance.comparisonsupport.Configs

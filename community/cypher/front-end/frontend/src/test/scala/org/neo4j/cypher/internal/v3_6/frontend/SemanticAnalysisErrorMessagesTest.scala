@@ -14,12 +14,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.neo4j.cypher.internal.v3_5.frontend
+package org.neo4j.cypher.internal.v3_6.frontend
 
-import org.neo4j.cypher.internal.v3_5.ast.AstConstructionTestSupport
-import org.neo4j.cypher.internal.v3_5.frontend.phases._
-import org.neo4j.cypher.internal.v3_5.util.symbols._
-import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.v3_6.ast.AstConstructionTestSupport
+import org.neo4j.cypher.internal.v3_6.frontend.phases._
+import org.neo4j.cypher.internal.v3_6.util.symbols._
+import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
 
 /**
   * Opposed to `SemanticAnalysisTest` this does not focus on whether

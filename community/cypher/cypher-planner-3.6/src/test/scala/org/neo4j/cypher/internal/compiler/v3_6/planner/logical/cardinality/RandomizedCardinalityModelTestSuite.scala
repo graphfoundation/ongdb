@@ -17,11 +17,11 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compiler.v3_5.planner.logical.cardinality
+package org.neo4j.cypher.internal.compiler.v3_6.planner.logical.cardinality
 
-import org.neo4j.cypher.internal.compiler.v3_5.planner.LogicalPlanningTestSupport
-import org.neo4j.cypher.internal.compiler.v3_5.test_helpers.RandomizedTestSupport
-import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.compiler.v3_6.planner.LogicalPlanningTestSupport
+import org.neo4j.cypher.internal.compiler.v3_6.test_helpers.RandomizedTestSupport
+import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
 
 abstract class RandomizedCardinalityModelTestSuite
   extends CypherFunSuite with RandomizedTestSupport with LogicalPlanningTestSupport with CardinalityModelTestHelper

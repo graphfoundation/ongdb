@@ -17,13 +17,13 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compatibility.v3_5.runtime
+package org.neo4j.cypher.internal.compatibility.v3_6.runtime
 
-import org.neo4j.cypher.internal.planner.v3_5.spi.TokenContext
+import org.neo4j.cypher.internal.planner.v3_6.spi.TokenContext
 import org.neo4j.cypher.internal.runtime.interpreted.InterpretedPipeBuilder
 import org.neo4j.cypher.internal.runtime.interpreted.commands.convert.ExpressionConverters
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.{OwningPipeAsserter, Pipe, PipeBuilderFactory, PipeExecutionBuilderContext}
-import org.neo4j.cypher.internal.v3_5.logical.plans.{LogicalPlan, LogicalPlans}
+import org.neo4j.cypher.internal.v3_6.logical.plans.{LogicalPlan, LogicalPlans}
 
 class PipeExecutionPlanBuilder(pipeBuilderFactory: PipeBuilderFactory,
                                expressionConverters: ExpressionConverters) {

@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.neo4j.cypher.internal.v3_5.expressions.functions
+package org.neo4j.cypher.internal.v3_6.expressions.functions
 
 case object Tail extends Function {
   def name = "tail"

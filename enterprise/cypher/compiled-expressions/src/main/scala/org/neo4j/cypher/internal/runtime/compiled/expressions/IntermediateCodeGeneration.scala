@@ -24,24 +24,24 @@ package org.neo4j.cypher.internal.runtime.compiled.expressions
 
 import java.util.regex
 
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.{LongSlot, RefSlot, SlotConfiguration}
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast._
-import org.neo4j.cypher.internal.compiler.v3_5.helpers.PredicateHelper.isPredicate
+import org.neo4j.cypher.internal.compatibility.v3_6.runtime.{LongSlot, RefSlot, SlotConfiguration}
+import org.neo4j.cypher.internal.compatibility.v3_6.runtime.ast._
+import org.neo4j.cypher.internal.compiler.v3_6.helpers.PredicateHelper.isPredicate
 import org.neo4j.cypher.internal.runtime.DbAccess
 import org.neo4j.cypher.internal.runtime.compiled.expressions.IntermediateRepresentation.{load, method}
 import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.NestedPipeExpression
-import org.neo4j.cypher.internal.v3_5.logical.plans.{CoerceToPredicate, NestedPlanExpression}
+import org.neo4j.cypher.internal.v3_6.logical.plans.{CoerceToPredicate, NestedPlanExpression}
 import org.neo4j.cypher.operations.{CypherBoolean, CypherCoercions, CypherFunctions, CypherMath}
 import org.neo4j.internal.kernel.api.procs.Neo4jTypes
 import org.neo4j.internal.kernel.api.procs.Neo4jTypes.AnyType
 import org.neo4j.values.AnyValue
 import org.neo4j.values.storable._
 import org.neo4j.values.virtual._
-import org.neo4j.cypher.internal.v3_5.expressions
-import org.neo4j.cypher.internal.v3_5.expressions._
-import org.neo4j.cypher.internal.v3_5.util.symbols.{CTAny, CTBoolean, CTDate, CTDateTime, CTDuration, CTFloat, CTGeometry, CTInteger, CTLocalDateTime, CTLocalTime, CTMap, CTNode, CTNumber, CTPath, CTPoint, CTRelationship, CTString, CTTime, CypherType, ListType}
-import org.neo4j.cypher.internal.v3_5.util.{CypherTypeException, InternalException}
+import org.neo4j.cypher.internal.v3_6.expressions
+import org.neo4j.cypher.internal.v3_6.expressions._
+import org.neo4j.cypher.internal.v3_6.util.symbols.{CTAny, CTBoolean, CTDate, CTDateTime, CTDuration, CTFloat, CTGeometry, CTInteger, CTLocalDateTime, CTLocalTime, CTMap, CTNode, CTNumber, CTPath, CTPoint, CTRelationship, CTString, CTTime, CypherType, ListType}
+import org.neo4j.cypher.internal.v3_6.util.{CypherTypeException, InternalException}
 
 import scala.collection.mutable
 

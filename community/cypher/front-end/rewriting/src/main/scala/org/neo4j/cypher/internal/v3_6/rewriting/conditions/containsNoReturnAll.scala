@@ -14,10 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.neo4j.cypher.internal.v3_5.rewriting.conditions
+package org.neo4j.cypher.internal.v3_6.rewriting.conditions
 
-import org.neo4j.cypher.internal.v3_5.ast.ReturnItems
-import org.neo4j.cypher.internal.v3_5.rewriting.Condition
+import org.neo4j.cypher.internal.v3_6.ast.ReturnItems
+import org.neo4j.cypher.internal.v3_6.rewriting.Condition
 
 case object containsNoReturnAll extends Condition {
   private val matcher = containsNoMatchingNodes({

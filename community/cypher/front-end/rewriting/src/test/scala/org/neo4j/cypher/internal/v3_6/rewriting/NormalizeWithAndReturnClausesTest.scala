@@ -14,14 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.neo4j.cypher.internal.v3_5.rewriting
+package org.neo4j.cypher.internal.v3_6.rewriting
 
-import org.neo4j.cypher.internal.v3_5.ast.semantics.{SemanticState, SyntaxExceptionCreator}
-import org.neo4j.cypher.internal.v3_5.ast.{AstConstructionTestSupport, Statement}
-import org.neo4j.cypher.internal.v3_5.parser.ParserFixture.parser
-import org.neo4j.cypher.internal.v3_5.rewriting.rewriters.normalizeWithAndReturnClauses
-import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
-import org.neo4j.cypher.internal.v3_5.util.{Rewriter, SyntaxException}
+import org.neo4j.cypher.internal.v3_6.ast.semantics.{SemanticState, SyntaxExceptionCreator}
+import org.neo4j.cypher.internal.v3_6.ast.{AstConstructionTestSupport, Statement}
+import org.neo4j.cypher.internal.v3_6.parser.ParserFixture.parser
+import org.neo4j.cypher.internal.v3_6.rewriting.rewriters.normalizeWithAndReturnClauses
+import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.v3_6.util.{Rewriter, SyntaxException}
 
 class NormalizeWithAndReturnClausesTest extends CypherFunSuite with RewriteTest with AstConstructionTestSupport {
   val mkException = new SyntaxExceptionCreator("<Query>", Some(pos))

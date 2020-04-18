@@ -17,12 +17,12 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.v3_5.logical.plans
+package org.neo4j.cypher.internal.v3_6.logical.plans
 
-import org.neo4j.cypher.internal.v3_5.util.InputPosition
-import org.neo4j.cypher.internal.v3_5.util.attribution.{IdGen, SequentialIdGen}
-import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
-import org.neo4j.cypher.internal.v3_5.expressions.True
+import org.neo4j.cypher.internal.v3_6.util.InputPosition
+import org.neo4j.cypher.internal.v3_6.util.attribution.{IdGen, SequentialIdGen}
+import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.v3_6.expressions.True
 
 import scala.collection.mutable.ArrayBuffer
 

@@ -21,8 +21,8 @@ package org.neo4j.cypher.internal.compatibility
 
 import java.time.Clock
 
-import org.neo4j.cypher.internal.compiler.v3_5.CypherPlannerConfiguration
-import org.neo4j.cypher.internal.planner.v3_5.spi.TokenContext
+import org.neo4j.cypher.internal.compiler.v3_6.CypherPlannerConfiguration
+import org.neo4j.cypher.internal.planner.v3_6.spi.TokenContext
 import org.neo4j.logging.Log
 
 /**

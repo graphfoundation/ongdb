@@ -17,19 +17,19 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compiler.v3_5.planner
+package org.neo4j.cypher.internal.compiler.v3_6.planner
 
 import org.mockito.Mockito._
-import org.neo4j.cypher.internal.planner.v3_5.spi.PlanContext
-import org.neo4j.cypher.internal.v3_5.ast.semantics.SemanticTable
-import org.neo4j.cypher.internal.v3_5.ast.{Match, Query, SingleQuery, Where, _}
-import org.neo4j.cypher.internal.v3_5.expressions._
-import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
-import org.neo4j.cypher.internal.v3_5.util.{LabelId, PropertyKeyId, RelTypeId}
+import org.neo4j.cypher.internal.planner.v3_6.spi.PlanContext
+import org.neo4j.cypher.internal.v3_6.ast.semantics.SemanticTable
+import org.neo4j.cypher.internal.v3_6.ast.{Match, Query, SingleQuery, Where, _}
+import org.neo4j.cypher.internal.v3_6.expressions._
+import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.v3_6.util.{LabelId, PropertyKeyId, RelTypeId}
 
 class ResolveTokensTest extends CypherFunSuite {
 
-  import org.neo4j.cypher.internal.v3_5.parser.ParserFixture._
+  import org.neo4j.cypher.internal.v3_6.parser.ParserFixture._
 
   parseTest("match (n) where n.name = 'Resolved' return *") { query =>
     implicit val semanticTable = SemanticTable()

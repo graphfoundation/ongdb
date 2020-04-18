@@ -14,11 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.neo4j.cypher.internal.v3_5.parser
+package org.neo4j.cypher.internal.v3_6.parser
 
-import org.neo4j.cypher.internal.v3_5.{expressions => exp}
-import org.neo4j.cypher.internal.v3_5.util.InputPosition
-import org.neo4j.cypher.internal.v3_5.util.test_helpers.TestName
+import org.neo4j.cypher.internal.v3_6.{expressions => exp}
+import org.neo4j.cypher.internal.v3_6.util.InputPosition
+import org.neo4j.cypher.internal.v3_6.util.test_helpers.TestName
 import org.parboiled.scala._
 
 trait ParserAstTest[AST] extends ParserTest[AST, AST] with TestName {
@@ -28,9 +28,9 @@ trait ParserAstTest[AST] extends ParserTest[AST, AST] with TestName {
 
   final def failsToParse(implicit parser: Rule1[AST]): Unit = assertFails(testName)
 
-  private type Expression = (InputPosition) => org.neo4j.cypher.internal.v3_5.expressions.Expression
+  private type Expression = (InputPosition) => org.neo4j.cypher.internal.v3_6.expressions.Expression
 
-  final def id(id: String): (InputPosition) => org.neo4j.cypher.internal.v3_5.expressions.Variable = exp.Variable(id)(_)
+  final def id(id: String): (InputPosition) => org.neo4j.cypher.internal.v3_6.expressions.Variable = exp.Variable(id)(_)
 
   final def lt(lhs: Expression, rhs: Expression): Expression = { pos => exp.LessThan(lhs(pos), rhs(pos))(pos) }
 

@@ -25,8 +25,8 @@ package org.neo4j.cypher.internal.runtime.compiled.codegen.ir.expressions
 import org.neo4j.cypher.internal.runtime.compiled.codegen.CodeGenContext
 import org.neo4j.cypher.internal.runtime.compiled.codegen.spi.MethodStructure
 import org.neo4j.cypher.internal.runtime.compiled.helpers.LiteralTypeSupport
-import org.neo4j.cypher.internal.v3_5.util.symbols
-import org.neo4j.cypher.internal.v3_5.util.symbols.ListType
+import org.neo4j.cypher.internal.v3_6.util.symbols
+import org.neo4j.cypher.internal.v3_6.util.symbols.ListType
 
 case class ListLiteral(expressions: Seq[CodeGenExpression]) extends CodeGenExpression {
 

@@ -14,11 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.neo4j.cypher.internal.v3_5.rewriting.conditions
+package org.neo4j.cypher.internal.v3_6.rewriting.conditions
 
-import org.neo4j.cypher.internal.v3_5.expressions.{Expression, IsAggregate, containsAggregate}
-import org.neo4j.cypher.internal.v3_5.util.Foldable._
-import org.neo4j.cypher.internal.v3_5.rewriting.Condition
+import org.neo4j.cypher.internal.v3_6.expressions.{Expression, IsAggregate, containsAggregate}
+import org.neo4j.cypher.internal.v3_6.util.Foldable._
+import org.neo4j.cypher.internal.v3_6.rewriting.Condition
 
 case object aggregationsAreIsolated extends Condition {
 

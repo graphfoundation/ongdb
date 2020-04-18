@@ -17,15 +17,15 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compiler.v3_5.planner.logical.cardinality.assumeIndependence
+package org.neo4j.cypher.internal.compiler.v3_6.planner.logical.cardinality.assumeIndependence
 
-import org.neo4j.cypher.internal.compiler.v3_5.planner.logical.Metrics.{QueryGraphCardinalityModel, QueryGraphSolverInput}
-import org.neo4j.cypher.internal.compiler.v3_5.planner.logical.cardinality.{ExpressionSelectivityCalculator, SelectivityCombiner}
-import org.neo4j.cypher.internal.v3_5.ast.semantics.SemanticTable
-import org.neo4j.cypher.internal.ir.v3_5.{QueryGraph, _}
-import org.neo4j.cypher.internal.planner.v3_5.spi.GraphStatistics
-import org.neo4j.cypher.internal.v3_5.util.{Cardinality, Selectivity}
-import org.neo4j.cypher.internal.v3_5.expressions.LabelName
+import org.neo4j.cypher.internal.compiler.v3_6.planner.logical.Metrics.{QueryGraphCardinalityModel, QueryGraphSolverInput}
+import org.neo4j.cypher.internal.compiler.v3_6.planner.logical.cardinality.{ExpressionSelectivityCalculator, SelectivityCombiner}
+import org.neo4j.cypher.internal.v3_6.ast.semantics.SemanticTable
+import org.neo4j.cypher.internal.ir.v3_6.{QueryGraph, _}
+import org.neo4j.cypher.internal.planner.v3_6.spi.GraphStatistics
+import org.neo4j.cypher.internal.v3_6.util.{Cardinality, Selectivity}
+import org.neo4j.cypher.internal.v3_6.expressions.LabelName
 
 case class AssumeIndependenceQueryGraphCardinalityModel(stats: GraphStatistics, combiner: SelectivityCombiner)
   extends QueryGraphCardinalityModel {

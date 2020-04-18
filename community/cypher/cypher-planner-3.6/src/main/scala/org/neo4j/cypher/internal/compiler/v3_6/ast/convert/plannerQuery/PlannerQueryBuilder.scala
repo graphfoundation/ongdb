@@ -17,14 +17,14 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compiler.v3_5.ast.convert.plannerQuery
+package org.neo4j.cypher.internal.compiler.v3_6.ast.convert.plannerQuery
 
-import org.neo4j.cypher.internal.compiler.v3_5.helpers.ListSupport
-import org.neo4j.cypher.internal.v3_5.ast.RelationshipStartItem
-import org.neo4j.cypher.internal.v3_5.ast.semantics.SemanticTable
-import org.neo4j.cypher.internal.ir.v3_5._
-import org.neo4j.cypher.internal.v3_5.util.UnNamedNameGenerator
-import org.neo4j.cypher.internal.v3_5.expressions.SemanticDirection
+import org.neo4j.cypher.internal.compiler.v3_6.helpers.ListSupport
+import org.neo4j.cypher.internal.v3_6.ast.RelationshipStartItem
+import org.neo4j.cypher.internal.v3_6.ast.semantics.SemanticTable
+import org.neo4j.cypher.internal.ir.v3_6._
+import org.neo4j.cypher.internal.v3_6.util.UnNamedNameGenerator
+import org.neo4j.cypher.internal.v3_6.expressions.SemanticDirection
 
 import scala.collection.mutable
 
@@ -138,7 +138,7 @@ case class PlannerQueryBuilder(private val q: PlannerQuery, semanticTable: Seman
     }
 
     def groupInequalities(plannerQuery: PlannerQuery): PlannerQuery = {
-      import org.neo4j.cypher.internal.v3_5.util.NonEmptyList._
+      import org.neo4j.cypher.internal.v3_6.util.NonEmptyList._
 
       plannerQuery
         .amendQueryGraph(_.mapSelections {

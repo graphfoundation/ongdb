@@ -17,10 +17,10 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compiler.v3_5.phases
+package org.neo4j.cypher.internal.compiler.v3_6.phases
 
-import org.neo4j.cypher.internal.v3_5.util.AssertionRunner.{Thunk, runUnderAssertion}
-import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.v3_6.util.AssertionRunner.{Thunk, runUnderAssertion}
+import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
 
 class AssertionsShouldBeEnabledTest extends CypherFunSuite {
   test("tests should be run with assertions enabled") {

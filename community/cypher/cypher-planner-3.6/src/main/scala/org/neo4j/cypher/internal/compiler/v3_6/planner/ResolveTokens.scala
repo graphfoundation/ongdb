@@ -17,16 +17,16 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compiler.v3_5.planner
+package org.neo4j.cypher.internal.compiler.v3_6.planner
 
-import org.neo4j.cypher.internal.compiler.v3_5.phases._
-import org.neo4j.cypher.internal.v3_5.ast.Query
-import org.neo4j.cypher.internal.v3_5.frontend.phases.CompilationPhaseTracer.CompilationPhase.AST_REWRITE
-import org.neo4j.cypher.internal.v3_5.frontend.phases.{BaseState, VisitorPhase}
-import org.neo4j.cypher.internal.v3_5.ast.semantics.SemanticTable
-import org.neo4j.cypher.internal.planner.v3_5.spi.TokenContext
-import org.neo4j.cypher.internal.v3_5.util.{LabelId, PropertyKeyId, RelTypeId}
-import org.neo4j.cypher.internal.v3_5.expressions.{LabelName, PropertyKeyName, RelTypeName}
+import org.neo4j.cypher.internal.compiler.v3_6.phases._
+import org.neo4j.cypher.internal.v3_6.ast.Query
+import org.neo4j.cypher.internal.v3_6.frontend.phases.CompilationPhaseTracer.CompilationPhase.AST_REWRITE
+import org.neo4j.cypher.internal.v3_6.frontend.phases.{BaseState, VisitorPhase}
+import org.neo4j.cypher.internal.v3_6.ast.semantics.SemanticTable
+import org.neo4j.cypher.internal.planner.v3_6.spi.TokenContext
+import org.neo4j.cypher.internal.v3_6.util.{LabelId, PropertyKeyId, RelTypeId}
+import org.neo4j.cypher.internal.v3_6.expressions.{LabelName, PropertyKeyName, RelTypeName}
 
 object ResolveTokens extends VisitorPhase[PlannerContext, BaseState] {
   def resolve(ast: Query)(implicit semanticTable: SemanticTable, tokenContext: TokenContext) {

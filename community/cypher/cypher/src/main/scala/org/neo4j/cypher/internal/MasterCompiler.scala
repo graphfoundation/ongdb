@@ -21,8 +21,8 @@ package org.neo4j.cypher.internal
 
 import java.time.Clock
 
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.helpers.InternalWrapping.asKernelNotification
-import org.neo4j.cypher.internal.compiler.v3_5.{StatsDivergenceCalculator, _}
+import org.neo4j.cypher.internal.compatibility.v3_6.runtime.helpers.InternalWrapping.asKernelNotification
+import org.neo4j.cypher.internal.compiler.v3_6.{StatsDivergenceCalculator, _}
 import org.neo4j.cypher.{InvalidArgumentException, _}
 import org.neo4j.graphdb.Notification
 import org.neo4j.kernel.GraphDatabaseQueryService
@@ -30,8 +30,8 @@ import org.neo4j.kernel.impl.query.TransactionalContext
 import org.neo4j.kernel.monitoring.{Monitors => KernelMonitors}
 import org.neo4j.logging.LogProvider
 import org.neo4j.values.virtual.MapValue
-import org.neo4j.cypher.internal.v3_5.frontend.phases.{CompilationPhaseTracer, RecordingNotificationLogger}
-import org.neo4j.cypher.internal.v3_5.util.{DeprecatedStartNotification, InternalNotification, SyntaxException => InternalSyntaxException}
+import org.neo4j.cypher.internal.v3_6.frontend.phases.{CompilationPhaseTracer, RecordingNotificationLogger}
+import org.neo4j.cypher.internal.v3_6.util.{DeprecatedStartNotification, InternalNotification, SyntaxException => InternalSyntaxException}
 
 object MasterCompiler {
   val DEFAULT_QUERY_CACHE_SIZE: Int = 128
@@ -98,11 +98,11 @@ class MasterCompiler(config: CypherConfiguration,
       */
     def innerCompile(preParsedQuery: PreParsedQuery, params: MapValue): ExecutableQuery = {
 
-      if ((preParsedQuery.version == CypherVersion.v3_4 || preParsedQuery.version == CypherVersion.v3_5) && preParsedQuery.planner == CypherPlannerOption.rule) {
+      if ((preParsedQuery.version == CypherVersion.v3_4 || preParsedQuery.version == CypherVersion.v3_6) && preParsedQuery.planner == CypherPlannerOption.rule) {
         logger.log(RulePlannerUnavailableFallbackNotification)
         innerCompile(preParsedQuery.copy(version = CypherVersion.v3_1), params)
 
-      } else if (preParsedQuery.version == CypherVersion.v3_5) {
+      } else if (preParsedQuery.version == CypherVersion.v3_6) {
         val compiler3_5 = compilerLibrary.selectCompiler(preParsedQuery.version,
                                                          preParsedQuery.planner,
                                                          preParsedQuery.runtime,

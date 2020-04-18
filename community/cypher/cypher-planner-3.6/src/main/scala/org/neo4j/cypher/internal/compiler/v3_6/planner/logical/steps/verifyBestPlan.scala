@@ -17,16 +17,16 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compiler.v3_5.planner.logical.steps
+package org.neo4j.cypher.internal.compiler.v3_6.planner.logical.steps
 
-import org.neo4j.cypher.internal.compiler.v3_5.planner.logical.{LogicalPlanningContext, PlanTransformer}
-import org.neo4j.cypher.internal.compiler.v3_5.{IndexHintUnfulfillableNotification, JoinHintUnfulfillableNotification}
-import org.neo4j.cypher.internal.ir.v3_5.PlannerQuery
-import org.neo4j.cypher.internal.planner.v3_5.spi.PlanContext
-import org.neo4j.cypher.internal.v3_5.logical.plans.LogicalPlan
-import org.neo4j.cypher.internal.v3_5.ast._
-import org.neo4j.cypher.internal.v3_5.expressions.LabelName
-import org.neo4j.cypher.internal.v3_5.util._
+import org.neo4j.cypher.internal.compiler.v3_6.planner.logical.{LogicalPlanningContext, PlanTransformer}
+import org.neo4j.cypher.internal.compiler.v3_6.{IndexHintUnfulfillableNotification, JoinHintUnfulfillableNotification}
+import org.neo4j.cypher.internal.ir.v3_6.PlannerQuery
+import org.neo4j.cypher.internal.planner.v3_6.spi.PlanContext
+import org.neo4j.cypher.internal.v3_6.logical.plans.LogicalPlan
+import org.neo4j.cypher.internal.v3_6.ast._
+import org.neo4j.cypher.internal.v3_6.expressions.LabelName
+import org.neo4j.cypher.internal.v3_6.util._
 
 object verifyBestPlan extends PlanTransformer {
   def apply(plan: LogicalPlan, expected: PlannerQuery, context: LogicalPlanningContext): LogicalPlan = {

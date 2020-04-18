@@ -17,7 +17,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compiler.v3_5
+package org.neo4j.cypher.internal.compiler.v3_6
 
 import org.mockito.Mockito._
 import org.neo4j.cypher.GraphDatabaseFunSuite
@@ -27,8 +27,8 @@ import org.neo4j.cypher.internal.runtime.interpreted.commands.predicates.True
 import org.neo4j.cypher.internal.runtime.interpreted.commands.{ShortestPath, SingleNode, SortItem}
 import org.neo4j.cypher.internal.runtime.interpreted.pipes._
 import org.neo4j.graphdb._
-import org.neo4j.cypher.internal.v3_5.expressions.SemanticDirection
-import org.neo4j.cypher.internal.v3_5.util.symbols._
+import org.neo4j.cypher.internal.v3_6.expressions.SemanticDirection
+import org.neo4j.cypher.internal.v3_6.util.symbols._
 
 import scala.collection.JavaConverters._
 

@@ -14,14 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.neo4j.cypher.internal.v3_5.rewriting
+package org.neo4j.cypher.internal.v3_6.rewriting
 
-import org.neo4j.cypher.internal.v3_5.ast._
-import org.neo4j.cypher.internal.v3_5.expressions.{GetDegree, GreaterThan}
-import org.neo4j.cypher.internal.v3_5.parser.ParserFixture.parser
-import org.neo4j.cypher.internal.v3_5.rewriting.rewriters.{LabelPredicateNormalizer, MatchPredicateNormalization, PropertyPredicateNormalizer}
-import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
-import org.neo4j.cypher.internal.v3_5.util.{Rewriter, inSequence}
+import org.neo4j.cypher.internal.v3_6.ast._
+import org.neo4j.cypher.internal.v3_6.expressions.{GetDegree, GreaterThan}
+import org.neo4j.cypher.internal.v3_6.parser.ParserFixture.parser
+import org.neo4j.cypher.internal.v3_6.rewriting.rewriters.{LabelPredicateNormalizer, MatchPredicateNormalization, PropertyPredicateNormalizer}
+import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.v3_6.util.{Rewriter, inSequence}
 
 class MatchPredicateNormalizerTest extends CypherFunSuite with RewriteTest {
 

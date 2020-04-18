@@ -17,17 +17,17 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compiler.v3_5.ast.convert.plannerQuery
+package org.neo4j.cypher.internal.compiler.v3_6.ast.convert.plannerQuery
 
-import org.neo4j.cypher.internal.compiler.v3_5.planner._
-import org.neo4j.cypher.internal.ir.v3_5.helpers.ExpressionConverters._
-import org.neo4j.cypher.internal.ir.v3_5.helpers.PatternConverters._
-import org.neo4j.cypher.internal.ir.v3_5.{NoHeaders, _}
-import org.neo4j.cypher.internal.v3_5.logical.plans.ResolvedCall
-import org.neo4j.cypher.internal.v3_5.ast._
-import org.neo4j.cypher.internal.v3_5.ast.semantics.SemanticTable
-import org.neo4j.cypher.internal.v3_5.expressions._
-import org.neo4j.cypher.internal.v3_5.util.{InternalException, SyntaxException}
+import org.neo4j.cypher.internal.compiler.v3_6.planner._
+import org.neo4j.cypher.internal.ir.v3_6.helpers.ExpressionConverters._
+import org.neo4j.cypher.internal.ir.v3_6.helpers.PatternConverters._
+import org.neo4j.cypher.internal.ir.v3_6.{NoHeaders, _}
+import org.neo4j.cypher.internal.v3_6.logical.plans.ResolvedCall
+import org.neo4j.cypher.internal.v3_6.ast._
+import org.neo4j.cypher.internal.v3_6.ast.semantics.SemanticTable
+import org.neo4j.cypher.internal.v3_6.expressions._
+import org.neo4j.cypher.internal.v3_6.util.{InternalException, SyntaxException}
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer

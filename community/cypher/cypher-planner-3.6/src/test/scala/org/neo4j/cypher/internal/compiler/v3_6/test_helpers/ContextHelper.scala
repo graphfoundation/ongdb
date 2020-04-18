@@ -17,19 +17,19 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compiler.v3_5.test_helpers
+package org.neo4j.cypher.internal.compiler.v3_6.test_helpers
 
 import java.time.Clock
 
-import org.neo4j.cypher.internal.compiler.v3_5._
-import org.neo4j.cypher.internal.compiler.v3_5.phases.PlannerContext
-import org.neo4j.cypher.internal.compiler.v3_5.planner.logical.{Metrics, QueryGraphSolver}
-import org.neo4j.cypher.internal.planner.v3_5.spi.PlanContext
-import org.neo4j.cypher.internal.v3_5.frontend.phases.CompilationPhaseTracer
-import org.neo4j.cypher.internal.v3_5.frontend.phases.CompilationPhaseTracer.NO_TRACING
-import org.neo4j.cypher.internal.v3_5.frontend.phases.{InternalNotificationLogger, Monitors, devNullLogger}
-import org.neo4j.cypher.internal.v3_5.util.attribution.{IdGen, SequentialIdGen}
-import org.neo4j.cypher.internal.v3_5.util.{CypherException, InputPosition, InternalException}
+import org.neo4j.cypher.internal.compiler.v3_6._
+import org.neo4j.cypher.internal.compiler.v3_6.phases.PlannerContext
+import org.neo4j.cypher.internal.compiler.v3_6.planner.logical.{Metrics, QueryGraphSolver}
+import org.neo4j.cypher.internal.planner.v3_6.spi.PlanContext
+import org.neo4j.cypher.internal.v3_6.frontend.phases.CompilationPhaseTracer
+import org.neo4j.cypher.internal.v3_6.frontend.phases.CompilationPhaseTracer.NO_TRACING
+import org.neo4j.cypher.internal.v3_6.frontend.phases.{InternalNotificationLogger, Monitors, devNullLogger}
+import org.neo4j.cypher.internal.v3_6.util.attribution.{IdGen, SequentialIdGen}
+import org.neo4j.cypher.internal.v3_6.util.{CypherException, InputPosition, InternalException}
 import org.scalatest.mock.MockitoSugar
 
 object ContextHelper extends MockitoSugar {

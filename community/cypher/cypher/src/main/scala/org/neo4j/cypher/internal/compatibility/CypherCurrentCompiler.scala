@@ -21,28 +21,28 @@ package org.neo4j.cypher.internal.compatibility
 
 import org.neo4j.cypher.exceptionHandler.runSafely
 import org.neo4j.cypher.internal._
-import org.neo4j.cypher.internal.compatibility.v3_5.ExceptionTranslatingQueryContext
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.executionplan.{StandardInternalExecutionResult, ExecutionPlan => ExecutionPlan_v3_5}
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.helpers.InternalWrapping.asKernelNotification
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.profiler.PlanDescriptionBuilder
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.{ExplainExecutionResult, RuntimeName}
-import org.neo4j.cypher.internal.compiler.v3_5.phases.LogicalPlanState
+import org.neo4j.cypher.internal.compatibility.v3_6.ExceptionTranslatingQueryContext
+import org.neo4j.cypher.internal.compatibility.v3_6.runtime.executionplan.{StandardInternalExecutionResult, ExecutionPlan => ExecutionPlan_v3_6}
+import org.neo4j.cypher.internal.compatibility.v3_6.runtime.helpers.InternalWrapping.asKernelNotification
+import org.neo4j.cypher.internal.compatibility.v3_6.runtime.profiler.PlanDescriptionBuilder
+import org.neo4j.cypher.internal.compatibility.v3_6.runtime.{ExplainExecutionResult, RuntimeName}
+import org.neo4j.cypher.internal.compiler.v3_6.phases.LogicalPlanState
 import org.neo4j.cypher.internal.javacompat.ExecutionResult
-import org.neo4j.cypher.internal.planner.v3_5.spi.PlanningAttributes.{Cardinalities, ProvidedOrders}
+import org.neo4j.cypher.internal.planner.v3_6.spi.PlanningAttributes.{Cardinalities, ProvidedOrders}
 import org.neo4j.cypher.internal.runtime.interpreted.TransactionBoundQueryContext.IndexSearchMonitor
 import org.neo4j.cypher.internal.runtime.interpreted.{TransactionBoundQueryContext, TransactionalContextWrapper}
 import org.neo4j.cypher.internal.runtime.planDescription.InternalPlanDescription
 import org.neo4j.cypher.internal.runtime.{ExecutableQuery => _, _}
-import org.neo4j.cypher.internal.v3_5.logical.plans._
+import org.neo4j.cypher.internal.v3_6.logical.plans._
 import org.neo4j.cypher.{CypherException, CypherExecutionMode, CypherExpressionEngineOption}
 import org.neo4j.graphdb.{Notification, Result}
 import org.neo4j.kernel.api.query.{CompilerInfo, ExplicitIndexUsage, SchemaIndexUsage}
 import org.neo4j.kernel.impl.query.{QueryExecutionMonitor, TransactionalContext}
 import org.neo4j.kernel.monitoring.{Monitors => KernelMonitors}
 import org.neo4j.values.virtual.MapValue
-import org.neo4j.cypher.internal.v3_5.frontend.PlannerName
-import org.neo4j.cypher.internal.v3_5.frontend.phases.{CompilationPhaseTracer, RecordingNotificationLogger}
-import org.neo4j.cypher.internal.v3_5.util.{InternalNotification, TaskCloser}
+import org.neo4j.cypher.internal.v3_6.frontend.PlannerName
+import org.neo4j.cypher.internal.v3_6.frontend.phases.{CompilationPhaseTracer, RecordingNotificationLogger}
+import org.neo4j.cypher.internal.v3_6.util.{InternalNotification, TaskCloser}
 
 import scala.collection.JavaConverters._
 
@@ -92,7 +92,7 @@ case class CypherCurrentCompiler[CONTEXT <: RuntimeContext](planner: CypherPlann
                                                queryType == READ_ONLY,
                                                preParsedQuery.useCompiledExpressions)
 
-    val executionPlan3_5: ExecutionPlan_v3_5 = runtime.compileToExecutable(planState, runtimeContext)
+    val executionPlan3_5: ExecutionPlan_v3_6 = runtime.compileToExecutable(planState, runtimeContext)
 
     new CypherExecutableQuery(
       logicalPlan,
@@ -147,7 +147,7 @@ case class CypherCurrentCompiler[CONTEXT <: RuntimeContext](planner: CypherPlann
                                         readOnly: Boolean,
                                         cardinalities: Cardinalities,
                                         providedOrders: ProvidedOrders,
-                                        executionPlan: ExecutionPlan_v3_5,
+                                        executionPlan: ExecutionPlan_v3_6,
                                         preParsingNotifications: Set[Notification],
                                         planningNotifications: Set[InternalNotification],
                                         reusabilityState: ReusabilityState,

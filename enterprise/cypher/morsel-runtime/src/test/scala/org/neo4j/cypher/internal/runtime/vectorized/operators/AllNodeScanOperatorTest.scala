@@ -23,13 +23,13 @@
 package org.neo4j.cypher.internal.runtime.vectorized.operators
 
 import org.mockito.Mockito._
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.SlotConfiguration
+import org.neo4j.cypher.internal.compatibility.v3_6.runtime.SlotConfiguration
 import org.neo4j.cypher.internal.runtime.QueryContext
 import org.neo4j.cypher.internal.runtime.vectorized._
 import org.neo4j.internal.kernel.api.NodeCursor
 import org.neo4j.values.AnyValue
 import org.neo4j.values.storable.Values
-import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
 
 class AllNodeScanOperatorTest extends CypherFunSuite {
 

@@ -14,15 +14,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.neo4j.cypher.internal.v3_5.frontend.phases
+package org.neo4j.cypher.internal.v3_6.frontend.phases
 
-import org.neo4j.cypher.internal.v3_5.ast.{AstConstructionTestSupport, Statement}
-import org.neo4j.cypher.internal.v3_5.frontend.helpers.{TestContext, TestState}
-import org.neo4j.cypher.internal.v3_5.parser.ParserFixture.parser
-import org.neo4j.cypher.internal.v3_5.rewriting.Deprecations
-import org.neo4j.cypher.internal.v3_5.rewriting.Deprecations.{V1, V2}
-import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
-import org.neo4j.cypher.internal.v3_5.util.{DeprecatedFunctionNotification, InputPosition}
+import org.neo4j.cypher.internal.v3_6.ast.{AstConstructionTestSupport, Statement}
+import org.neo4j.cypher.internal.v3_6.frontend.helpers.{TestContext, TestState}
+import org.neo4j.cypher.internal.v3_6.parser.ParserFixture.parser
+import org.neo4j.cypher.internal.v3_6.rewriting.Deprecations
+import org.neo4j.cypher.internal.v3_6.rewriting.Deprecations.{V1, V2}
+import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.v3_6.util.{DeprecatedFunctionNotification, InputPosition}
 
 class SyntaxDeprecationWarningsTest extends CypherFunSuite with AstConstructionTestSupport {
 

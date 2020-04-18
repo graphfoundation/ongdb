@@ -17,29 +17,29 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compiler.v3_5.planner
+package org.neo4j.cypher.internal.compiler.v3_6.planner
 
-import org.neo4j.cypher.internal.ir.v3_5.PlannerQuery
-import org.neo4j.cypher.internal.ir.v3_5.ProvidedOrder
-import org.neo4j.cypher.internal.planner.v3_5.spi.PlanningAttributes.Cardinalities
-import org.neo4j.cypher.internal.planner.v3_5.spi.PlanningAttributes.ProvidedOrders
-import org.neo4j.cypher.internal.planner.v3_5.spi.PlanningAttributes.Solveds
-import org.neo4j.cypher.internal.v3_5.logical.plans.CachedNodeProperty
-import org.neo4j.cypher.internal.v3_5.logical.plans.GetValue
-import org.neo4j.cypher.internal.v3_5.logical.plans.IndexOrderNone
-import org.neo4j.cypher.internal.v3_5.logical.plans.IndexedProperty
-import org.neo4j.cypher.internal.v3_5.logical.plans.NodeIndexScan
-import org.neo4j.cypher.internal.v3_5.ast.AstConstructionTestSupport
-import org.neo4j.cypher.internal.v3_5.expressions.LabelToken
-import org.neo4j.cypher.internal.v3_5.expressions.PropertyKeyName
-import org.neo4j.cypher.internal.v3_5.expressions.PropertyKeyToken
-import org.neo4j.cypher.internal.v3_5.parser.ParserFixture
-import org.neo4j.cypher.internal.v3_5.util.Cardinality
-import org.neo4j.cypher.internal.v3_5.util.LabelId
-import org.neo4j.cypher.internal.v3_5.util.PropertyKeyId
-import org.neo4j.cypher.internal.v3_5.util.attribution.Id
-import org.neo4j.cypher.internal.v3_5.util.attribution.SequentialIdGen
-import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherTestSupport
+import org.neo4j.cypher.internal.ir.v3_6.PlannerQuery
+import org.neo4j.cypher.internal.ir.v3_6.ProvidedOrder
+import org.neo4j.cypher.internal.planner.v3_6.spi.PlanningAttributes.Cardinalities
+import org.neo4j.cypher.internal.planner.v3_6.spi.PlanningAttributes.ProvidedOrders
+import org.neo4j.cypher.internal.planner.v3_6.spi.PlanningAttributes.Solveds
+import org.neo4j.cypher.internal.v3_6.logical.plans.CachedNodeProperty
+import org.neo4j.cypher.internal.v3_6.logical.plans.GetValue
+import org.neo4j.cypher.internal.v3_6.logical.plans.IndexOrderNone
+import org.neo4j.cypher.internal.v3_6.logical.plans.IndexedProperty
+import org.neo4j.cypher.internal.v3_6.logical.plans.NodeIndexScan
+import org.neo4j.cypher.internal.v3_6.ast.AstConstructionTestSupport
+import org.neo4j.cypher.internal.v3_6.expressions.LabelToken
+import org.neo4j.cypher.internal.v3_6.expressions.PropertyKeyName
+import org.neo4j.cypher.internal.v3_6.expressions.PropertyKeyToken
+import org.neo4j.cypher.internal.v3_6.parser.ParserFixture
+import org.neo4j.cypher.internal.v3_6.util.Cardinality
+import org.neo4j.cypher.internal.v3_6.util.LabelId
+import org.neo4j.cypher.internal.v3_6.util.PropertyKeyId
+import org.neo4j.cypher.internal.v3_6.util.attribution.Id
+import org.neo4j.cypher.internal.v3_6.util.attribution.SequentialIdGen
+import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherTestSupport
 
 import scala.language.implicitConversions
 

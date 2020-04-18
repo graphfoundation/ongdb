@@ -17,17 +17,17 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compiler.v3_5.planner.logical.plans.rewriter
+package org.neo4j.cypher.internal.compiler.v3_6.planner.logical.plans.rewriter
 
-import org.neo4j.cypher.internal.compiler.v3_5.phases.{LogicalPlanState, PlannerContext}
-import org.neo4j.cypher.internal.planner.v3_5.spi.PlanningAttributes.{Cardinalities, Solveds}
-import org.neo4j.cypher.internal.v3_5.frontend.phases.CompilationPhaseTracer.CompilationPhase
-import org.neo4j.cypher.internal.v3_5.frontend.phases.CompilationPhaseTracer.CompilationPhase.LOGICAL_PLANNING
-import org.neo4j.cypher.internal.v3_5.frontend.phases.{Condition, Phase}
-import org.neo4j.cypher.internal.v3_5.rewriting.RewriterStepSequencer
-import org.neo4j.cypher.internal.v3_5.util.Rewriter
-import org.neo4j.cypher.internal.v3_5.util.attribution.Attributes
-import org.neo4j.cypher.internal.v3_5.util.helpers.fixedPoint
+import org.neo4j.cypher.internal.compiler.v3_6.phases.{LogicalPlanState, PlannerContext}
+import org.neo4j.cypher.internal.planner.v3_6.spi.PlanningAttributes.{Cardinalities, Solveds}
+import org.neo4j.cypher.internal.v3_6.frontend.phases.CompilationPhaseTracer.CompilationPhase
+import org.neo4j.cypher.internal.v3_6.frontend.phases.CompilationPhaseTracer.CompilationPhase.LOGICAL_PLANNING
+import org.neo4j.cypher.internal.v3_6.frontend.phases.{Condition, Phase}
+import org.neo4j.cypher.internal.v3_6.rewriting.RewriterStepSequencer
+import org.neo4j.cypher.internal.v3_6.util.Rewriter
+import org.neo4j.cypher.internal.v3_6.util.attribution.Attributes
+import org.neo4j.cypher.internal.v3_6.util.helpers.fixedPoint
 /*
  * Rewriters that live here are required to adhere to the contract of
  * receiving a valid plan and producing a valid plan. It should be possible

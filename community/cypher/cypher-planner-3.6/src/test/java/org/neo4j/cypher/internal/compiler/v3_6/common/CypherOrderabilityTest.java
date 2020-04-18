@@ -17,7 +17,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compiler.v3_5.common;
+package org.neo4j.cypher.internal.compiler.v3_6.common;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -26,7 +26,7 @@ import org.junit.rules.ExpectedException;
 import java.util.Arrays;
 import java.util.HashMap;
 
-import org.neo4j.cypher.internal.v3_5.util.IncomparableValuesException;
+import org.neo4j.cypher.internal.v3_6.util.IncomparableValuesException;
 import org.neo4j.kernel.impl.util.ValueUtils;
 import org.neo4j.values.virtual.VirtualValues;
 

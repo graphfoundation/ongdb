@@ -17,16 +17,16 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compiler.v3_5.planner.logical.plans.rewriter
+package org.neo4j.cypher.internal.compiler.v3_6.planner.logical.plans.rewriter
 
-import org.neo4j.cypher.internal.compiler.v3_5.planner._
-import org.neo4j.cypher.internal.ir.v3_5._
-import org.neo4j.cypher.internal.planner.v3_5.spi.PlanningAttributes
-import org.neo4j.cypher.internal.v3_5.logical.plans.{NodeHashJoin, Selection}
-import org.neo4j.cypher.internal.v3_5.expressions.{Equals, Expression, SignedDecimalIntegerLiteral}
-import org.neo4j.cypher.internal.v3_5.util.Cardinality
-import org.neo4j.cypher.internal.v3_5.util.attribution.Attributes
-import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.compiler.v3_6.planner._
+import org.neo4j.cypher.internal.ir.v3_6._
+import org.neo4j.cypher.internal.planner.v3_6.spi.PlanningAttributes
+import org.neo4j.cypher.internal.v3_6.logical.plans.{NodeHashJoin, Selection}
+import org.neo4j.cypher.internal.v3_6.expressions.{Equals, Expression, SignedDecimalIntegerLiteral}
+import org.neo4j.cypher.internal.v3_6.util.Cardinality
+import org.neo4j.cypher.internal.v3_6.util.attribution.Attributes
+import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
 
 class PredicateRemovalThroughJoinsTest extends CypherFunSuite with LogicalPlanningTestSupport {
   val aHasLabel = identHasLabel("a", "LABEL")

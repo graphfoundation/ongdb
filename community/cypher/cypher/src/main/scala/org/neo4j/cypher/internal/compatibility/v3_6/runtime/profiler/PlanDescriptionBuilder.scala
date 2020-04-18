@@ -17,16 +17,16 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compatibility.v3_5.runtime.profiler
+package org.neo4j.cypher.internal.compatibility.v3_6.runtime.profiler
 
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.RuntimeName
-import org.neo4j.cypher.internal.planner.v3_5.spi.PlanningAttributes.{Cardinalities, ProvidedOrders}
+import org.neo4j.cypher.internal.compatibility.v3_6.runtime.RuntimeName
+import org.neo4j.cypher.internal.planner.v3_6.spi.PlanningAttributes.{Cardinalities, ProvidedOrders}
 import org.neo4j.cypher.internal.runtime.planDescription.InternalPlanDescription.Arguments
 import org.neo4j.cypher.internal.runtime.planDescription.InternalPlanDescription.Arguments.{Runtime, RuntimeImpl}
 import org.neo4j.cypher.internal.runtime.planDescription.{Argument, InternalPlanDescription, LogicalPlan2PlanDescription}
-import org.neo4j.cypher.internal.v3_5.logical.plans.LogicalPlan
+import org.neo4j.cypher.internal.v3_6.logical.plans.LogicalPlan
 import org.neo4j.cypher.result.{OperatorProfile, QueryProfile}
-import org.neo4j.cypher.internal.v3_5.frontend.PlannerName
+import org.neo4j.cypher.internal.v3_6.frontend.PlannerName
 
 class PlanDescriptionBuilder(logicalPlan: LogicalPlan,
                              plannerName: PlannerName,

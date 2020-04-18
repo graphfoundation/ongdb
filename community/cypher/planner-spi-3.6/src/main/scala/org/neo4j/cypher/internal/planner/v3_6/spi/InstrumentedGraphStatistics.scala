@@ -17,15 +17,15 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.planner.v3_5.spi
+package org.neo4j.cypher.internal.planner.v3_6.spi
 
 import java.lang.Math.abs
 import java.lang.Math.max
 
-import org.neo4j.cypher.internal.v3_5.util.Cardinality
-import org.neo4j.cypher.internal.v3_5.util.LabelId
-import org.neo4j.cypher.internal.v3_5.util.RelTypeId
-import org.neo4j.cypher.internal.v3_5.util.Selectivity
+import org.neo4j.cypher.internal.v3_6.util.Cardinality
+import org.neo4j.cypher.internal.v3_6.util.LabelId
+import org.neo4j.cypher.internal.v3_6.util.RelTypeId
+import org.neo4j.cypher.internal.v3_6.util.Selectivity
 
 import scala.collection.mutable
 

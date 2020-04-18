@@ -14,12 +14,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.neo4j.cypher.internal.v3_5.ast
+package org.neo4j.cypher.internal.v3_6.ast
 
-import org.neo4j.cypher.internal.v3_5.ast.semantics.{SemanticCheck, SemanticCheckable, SemanticError}
-import org.neo4j.cypher.internal.v3_5.expressions.IntegerLiteral
-import org.neo4j.cypher.internal.v3_5.util.{ASTNode, InputPosition}
-import org.neo4j.cypher.internal.v3_5.ast.semantics.{SemanticCheckResult, SemanticCheckable}
+import org.neo4j.cypher.internal.v3_6.ast.semantics.{SemanticCheck, SemanticCheckable, SemanticError}
+import org.neo4j.cypher.internal.v3_6.expressions.IntegerLiteral
+import org.neo4j.cypher.internal.v3_6.util.{ASTNode, InputPosition}
+import org.neo4j.cypher.internal.v3_6.ast.semantics.{SemanticCheckResult, SemanticCheckable}
 
 case class PeriodicCommitHint(size: Option[IntegerLiteral])(val position: InputPosition) extends ASTNode with SemanticCheckable {
   def name = s"USING PERIODIC COMMIT $size"

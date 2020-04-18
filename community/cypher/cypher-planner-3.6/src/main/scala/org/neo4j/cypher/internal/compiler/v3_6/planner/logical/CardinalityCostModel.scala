@@ -17,19 +17,19 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compiler.v3_5.planner.logical
+package org.neo4j.cypher.internal.compiler.v3_6.planner.logical
 
-import org.neo4j.cypher.internal.compiler.v3_5.CypherPlannerConfiguration
-import org.neo4j.cypher.internal.compiler.v3_5.planner.logical.Metrics._
-import org.neo4j.cypher.internal.ir.v3_5._
-import org.neo4j.cypher.internal.planner.v3_5.spi.PlanningAttributes.Cardinalities
-import org.neo4j.cypher.internal.v3_5.logical.plans._
-import org.neo4j.cypher.internal.v3_5.expressions.HasLabels
-import org.neo4j.cypher.internal.v3_5.expressions.Property
-import org.neo4j.cypher.internal.v3_5.util.Cardinality
-import org.neo4j.cypher.internal.v3_5.util.Cost
-import org.neo4j.cypher.internal.v3_5.util.CostPerRow
-import org.neo4j.cypher.internal.v3_5.util.Multiplier
+import org.neo4j.cypher.internal.compiler.v3_6.CypherPlannerConfiguration
+import org.neo4j.cypher.internal.compiler.v3_6.planner.logical.Metrics._
+import org.neo4j.cypher.internal.ir.v3_6._
+import org.neo4j.cypher.internal.planner.v3_6.spi.PlanningAttributes.Cardinalities
+import org.neo4j.cypher.internal.v3_6.logical.plans._
+import org.neo4j.cypher.internal.v3_6.expressions.HasLabels
+import org.neo4j.cypher.internal.v3_6.expressions.Property
+import org.neo4j.cypher.internal.v3_6.util.Cardinality
+import org.neo4j.cypher.internal.v3_6.util.Cost
+import org.neo4j.cypher.internal.v3_6.util.CostPerRow
+import org.neo4j.cypher.internal.v3_6.util.Multiplier
 
 case class CardinalityCostModel(config: CypherPlannerConfiguration) extends CostModel {
 

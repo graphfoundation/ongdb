@@ -17,16 +17,16 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compatibility.v3_5.notification
+package org.neo4j.cypher.internal.compatibility.v3_6.notification
 
-import org.neo4j.cypher.internal.compiler.v3_5.EagerLoadCsvNotification
-import org.neo4j.cypher.internal.v3_5.logical.plans.{Eager, LoadCSV, LogicalPlan}
-import org.neo4j.cypher.internal.v3_5.util.InternalNotification
+import org.neo4j.cypher.internal.compiler.v3_6.EagerLoadCsvNotification
+import org.neo4j.cypher.internal.v3_6.logical.plans.{Eager, LoadCSV, LogicalPlan}
+import org.neo4j.cypher.internal.v3_6.util.InternalNotification
 
 object checkForEagerLoadCsv extends NotificationChecker {
 
   def apply(plan: LogicalPlan): Seq[InternalNotification] = {
-    import org.neo4j.cypher.internal.v3_5.util.Foldable._
+    import org.neo4j.cypher.internal.v3_6.util.Foldable._
     sealed trait SearchState
     case object NoEagerFound extends SearchState
     case object EagerFound extends SearchState

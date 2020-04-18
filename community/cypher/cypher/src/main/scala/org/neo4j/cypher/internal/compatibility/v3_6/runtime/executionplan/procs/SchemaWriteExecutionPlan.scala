@@ -17,16 +17,16 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compatibility.v3_5.runtime.executionplan.procs
+package org.neo4j.cypher.internal.compatibility.v3_6.runtime.executionplan.procs
 
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime._
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.executionplan.ExecutionPlan
+import org.neo4j.cypher.internal.compatibility.v3_6.runtime._
+import org.neo4j.cypher.internal.compatibility.v3_6.runtime.executionplan.ExecutionPlan
 import org.neo4j.cypher.internal.runtime._
 import org.neo4j.cypher.internal.runtime.interpreted.UpdateCountingQueryContext
 import org.neo4j.cypher.internal.runtime.planDescription.Argument
 import org.neo4j.cypher.result.RuntimeResult
 import org.neo4j.values.virtual.MapValue
-import org.neo4j.cypher.internal.v3_5.util.InternalNotification
+import org.neo4j.cypher.internal.v3_6.util.InternalNotification
 
 /**
   * Execution plan for performing schema writes, i.e. creating or dropping indexes and constraints.

@@ -22,13 +22,13 @@
  */
 package org.neo4j.cypher.internal.runtime.vectorized.operators
 
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.RefSlot
+import org.neo4j.cypher.internal.compatibility.v3_6.runtime.RefSlot
 import org.neo4j.cypher.internal.runtime.vectorized.{Morsel, QueryState, _}
 import org.neo4j.values.AnyValue
 import org.neo4j.values.storable.Values
 import org.neo4j.values.storable.Values.stringValue
-import org.neo4j.cypher.internal.v3_5.util.symbols.CTAny
-import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.v3_6.util.symbols.CTAny
+import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
 
 class AggregationReducerOperatorTest extends CypherFunSuite {
 

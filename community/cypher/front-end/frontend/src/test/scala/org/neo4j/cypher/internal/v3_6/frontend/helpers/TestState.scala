@@ -14,13 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.neo4j.cypher.internal.v3_5.frontend.helpers
+package org.neo4j.cypher.internal.v3_6.frontend.helpers
 
-import org.neo4j.cypher.internal.v3_5.ast
-import org.neo4j.cypher.internal.v3_5.ast.semantics.{SemanticState, SemanticTable}
-import org.neo4j.cypher.internal.v3_5.frontend.PlannerName
-import org.neo4j.cypher.internal.v3_5.frontend.phases._
-import org.neo4j.cypher.internal.v3_5.util.symbols.CypherType
+import org.neo4j.cypher.internal.v3_6.ast
+import org.neo4j.cypher.internal.v3_6.ast.semantics.{SemanticState, SemanticTable}
+import org.neo4j.cypher.internal.v3_6.frontend.PlannerName
+import org.neo4j.cypher.internal.v3_6.frontend.phases._
+import org.neo4j.cypher.internal.v3_6.util.symbols.CypherType
 
 //noinspection TypeAnnotation
 case class TestState(override val maybeStatement: Option[ast.Statement]) extends BaseState {

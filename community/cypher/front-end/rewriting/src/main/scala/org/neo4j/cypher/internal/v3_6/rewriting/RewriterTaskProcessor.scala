@@ -14,9 +14,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.neo4j.cypher.internal.v3_5.rewriting
+package org.neo4j.cypher.internal.v3_6.rewriting
 
-import org.neo4j.cypher.internal.v3_5.util.{InternalException, Rewriter}
+import org.neo4j.cypher.internal.v3_6.util.{InternalException, Rewriter}
 
 trait RewriterTaskProcessor extends (RewriterTask => Rewriter) {
   def sequenceName: String

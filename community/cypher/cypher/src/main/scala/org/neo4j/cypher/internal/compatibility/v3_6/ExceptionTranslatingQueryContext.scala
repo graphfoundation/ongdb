@@ -17,16 +17,16 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compatibility.v3_5
+package org.neo4j.cypher.internal.compatibility.v3_6
 
 import java.net.URL
 
 import org.eclipse.collections.api.iterator.LongIterator
-import org.neo4j.cypher.internal.planner.v3_5.spi.IndexDescriptor
+import org.neo4j.cypher.internal.planner.v3_6.spi.IndexDescriptor
 import org.neo4j.cypher.internal.runtime._
 import org.neo4j.cypher.internal.runtime.interpreted.{DelegatingOperations, DelegatingQueryTransactionalContext}
-import org.neo4j.cypher.internal.v3_5.expressions.SemanticDirection
-import org.neo4j.cypher.internal.v3_5.logical.plans.{IndexOrder, QualifiedName}
+import org.neo4j.cypher.internal.v3_6.expressions.SemanticDirection
+import org.neo4j.cypher.internal.v3_6.logical.plans.{IndexOrder, QualifiedName}
 import org.neo4j.graphdb.{Path, PropertyContainer}
 import org.neo4j.internal.kernel.api.helpers.RelationshipSelectionCursor
 import org.neo4j.internal.kernel.api.procs.ProcedureCallContext

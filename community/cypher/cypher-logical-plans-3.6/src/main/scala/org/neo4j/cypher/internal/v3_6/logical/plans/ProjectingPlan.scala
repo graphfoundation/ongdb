@@ -17,10 +17,10 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.v3_5.logical.plans
+package org.neo4j.cypher.internal.v3_6.logical.plans
 
-import org.neo4j.cypher.internal.v3_5.expressions.{Expression, Property, PropertyKeyName, Variable}
-import org.neo4j.cypher.internal.v3_5.util.InputPosition
+import org.neo4j.cypher.internal.v3_6.expressions.{Expression, Property, PropertyKeyName, Variable}
+import org.neo4j.cypher.internal.v3_6.util.InputPosition
 
 trait ProjectingPlan extends LogicalPlan {
   val source: LogicalPlan

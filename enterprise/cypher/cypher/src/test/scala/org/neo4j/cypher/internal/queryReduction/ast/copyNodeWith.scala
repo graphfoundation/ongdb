@@ -22,9 +22,9 @@
  */
 package org.neo4j.cypher.internal.queryReduction.ast
 
-import org.neo4j.cypher.internal.v3_5.ast._
-import org.neo4j.cypher.internal.v3_5.expressions._
-import org.neo4j.cypher.internal.v3_5.util._
+import org.neo4j.cypher.internal.v3_6.ast._
+import org.neo4j.cypher.internal.v3_6.expressions._
+import org.neo4j.cypher.internal.v3_6.util._
 
 object copyNodeWith {
 

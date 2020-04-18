@@ -14,12 +14,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.neo4j.cypher.internal.v3_5.rewriting.rewriters
+package org.neo4j.cypher.internal.v3_6.rewriting.rewriters
 
-import org.neo4j.cypher.internal.v3_5.ast._
-import org.neo4j.cypher.internal.v3_5.ast.semantics.SemanticState
-import org.neo4j.cypher.internal.v3_5.expressions.{Expression, Variable}
-import org.neo4j.cypher.internal.v3_5.util.{Rewriter, bottomUp}
+import org.neo4j.cypher.internal.v3_6.ast._
+import org.neo4j.cypher.internal.v3_6.ast.semantics.SemanticState
+import org.neo4j.cypher.internal.v3_6.expressions.{Expression, Variable}
+import org.neo4j.cypher.internal.v3_6.util.{Rewriter, bottomUp}
 
 case class expandStar(state: SemanticState) extends Rewriter {
 

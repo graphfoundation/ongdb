@@ -17,24 +17,24 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compiler.v3_5.planner.logical.steps
+package org.neo4j.cypher.internal.compiler.v3_6.planner.logical.steps
 
-import org.neo4j.cypher.internal.compiler.v3_5.helpers.ListSupport
-import org.neo4j.cypher.internal.compiler.v3_5.helpers.PredicateHelper.coercePredicates
-import org.neo4j.cypher.internal.compiler.v3_5.planner._
-import org.neo4j.cypher.internal.compiler.v3_5.planner.logical.LogicalPlanningContext
-import org.neo4j.cypher.internal.compiler.v3_5.planner.logical.Metrics.CardinalityModel
-import org.neo4j.cypher.internal.ir.v3_5._
-import org.neo4j.cypher.internal.planner.v3_5.spi.PlanningAttributes
-import org.neo4j.cypher.internal.v3_5.ast
-import org.neo4j.cypher.internal.v3_5.ast._
-import org.neo4j.cypher.internal.v3_5.expressions._
-import org.neo4j.cypher.internal.v3_5.logical.plans
-import org.neo4j.cypher.internal.v3_5.logical.plans.{DeleteExpression => DeleteExpressionPlan, Limit => LimitPlan, LoadCSV => LoadCSVPlan, Skip => SkipPlan, _}
-import org.neo4j.cypher.internal.v3_5.util.AssertionRunner.Thunk
-import org.neo4j.cypher.internal.v3_5.util.Foldable.FoldableAny
-import org.neo4j.cypher.internal.v3_5.util.attribution.{Attributes, IdGen}
-import org.neo4j.cypher.internal.v3_5.util.{AssertionRunner, ExhaustiveShortestPathForbiddenException, InternalException}
+import org.neo4j.cypher.internal.compiler.v3_6.helpers.ListSupport
+import org.neo4j.cypher.internal.compiler.v3_6.helpers.PredicateHelper.coercePredicates
+import org.neo4j.cypher.internal.compiler.v3_6.planner._
+import org.neo4j.cypher.internal.compiler.v3_6.planner.logical.LogicalPlanningContext
+import org.neo4j.cypher.internal.compiler.v3_6.planner.logical.Metrics.CardinalityModel
+import org.neo4j.cypher.internal.ir.v3_6._
+import org.neo4j.cypher.internal.planner.v3_6.spi.PlanningAttributes
+import org.neo4j.cypher.internal.v3_6.ast
+import org.neo4j.cypher.internal.v3_6.ast._
+import org.neo4j.cypher.internal.v3_6.expressions._
+import org.neo4j.cypher.internal.v3_6.logical.plans
+import org.neo4j.cypher.internal.v3_6.logical.plans.{DeleteExpression => DeleteExpressionPlan, Limit => LimitPlan, LoadCSV => LoadCSVPlan, Skip => SkipPlan, _}
+import org.neo4j.cypher.internal.v3_6.util.AssertionRunner.Thunk
+import org.neo4j.cypher.internal.v3_6.util.Foldable.FoldableAny
+import org.neo4j.cypher.internal.v3_6.util.attribution.{Attributes, IdGen}
+import org.neo4j.cypher.internal.v3_6.util.{AssertionRunner, ExhaustiveShortestPathForbiddenException, InternalException}
 
 /*
  * The responsibility of this class is to produce the correct solved PlannerQuery when creating logical plans.

@@ -14,12 +14,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.neo4j.cypher.internal.v3_5.frontend.phases
+package org.neo4j.cypher.internal.v3_6.frontend.phases
 
-import org.neo4j.cypher.internal.v3_5.ast.UnaliasedReturnItem
-import org.neo4j.cypher.internal.v3_5.ast.semantics.{SemanticCheckResult, SemanticChecker, SemanticFeature, SemanticState, SemanticTable}
-import org.neo4j.cypher.internal.v3_5.frontend.phases.CompilationPhaseTracer.CompilationPhase.SEMANTIC_CHECK
-import org.neo4j.cypher.internal.v3_5.rewriting.conditions.containsNoNodesOfType
+import org.neo4j.cypher.internal.v3_6.ast.UnaliasedReturnItem
+import org.neo4j.cypher.internal.v3_6.ast.semantics.{SemanticCheckResult, SemanticChecker, SemanticFeature, SemanticState, SemanticTable}
+import org.neo4j.cypher.internal.v3_6.frontend.phases.CompilationPhaseTracer.CompilationPhase.SEMANTIC_CHECK
+import org.neo4j.cypher.internal.v3_6.rewriting.conditions.containsNoNodesOfType
 
 case class SemanticAnalysis(warn: Boolean, features: SemanticFeature*)
   extends Phase[BaseContext, BaseState, BaseState] {

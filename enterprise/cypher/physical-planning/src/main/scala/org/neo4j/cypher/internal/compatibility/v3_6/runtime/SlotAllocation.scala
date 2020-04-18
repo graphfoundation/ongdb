@@ -17,19 +17,19 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compatibility.v3_5.runtime
+package org.neo4j.cypher.internal.compatibility.v3_6.runtime
 
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.PhysicalPlanningAttributes.{ArgumentSizes, SlotConfigurations}
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.SlotConfiguration.Size
-import org.neo4j.cypher.internal.ir.v3_5.{HasHeaders, NoHeaders, ShortestPathPattern}
-import org.neo4j.cypher.internal.v3_5.logical.plans._
-import org.neo4j.cypher.internal.v3_5.ast.ProcedureResultItem
-import org.neo4j.cypher.internal.v3_5.ast.semantics.SemanticTable
-import org.neo4j.cypher.internal.v3_5.expressions._
-import org.neo4j.cypher.internal.v3_5.util.attribution.Id
-import org.neo4j.cypher.internal.v3_5.util.symbols._
-import org.neo4j.cypher.internal.v3_5.util.{Foldable, InternalException, UnNamedNameGenerator}
-import org.neo4j.cypher.internal.v3_5.{expressions => parserAst}
+import org.neo4j.cypher.internal.compatibility.v3_6.runtime.PhysicalPlanningAttributes.{ArgumentSizes, SlotConfigurations}
+import org.neo4j.cypher.internal.compatibility.v3_6.runtime.SlotConfiguration.Size
+import org.neo4j.cypher.internal.ir.v3_6.{HasHeaders, NoHeaders, ShortestPathPattern}
+import org.neo4j.cypher.internal.v3_6.logical.plans._
+import org.neo4j.cypher.internal.v3_6.ast.ProcedureResultItem
+import org.neo4j.cypher.internal.v3_6.ast.semantics.SemanticTable
+import org.neo4j.cypher.internal.v3_6.expressions._
+import org.neo4j.cypher.internal.v3_6.util.attribution.Id
+import org.neo4j.cypher.internal.v3_6.util.symbols._
+import org.neo4j.cypher.internal.v3_6.util.{Foldable, InternalException, UnNamedNameGenerator}
+import org.neo4j.cypher.internal.v3_6.{expressions => parserAst}
 
 import scala.collection.mutable
 import scala.util.Try

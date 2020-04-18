@@ -8,7 +8,7 @@
   </parent>
 
   <modelVersion>4.0.0</modelVersion>
-  <artifactId>neo4j-cypher-logical-plans-3.5</artifactId>
+  <artifactId>neo4j-cypher-logical-plans-3.6</artifactId>
   <packaging>jar</packaging>
   <version>3.6.0-SNAPSHOT</version>
   <name>ONgDB - Cypher Logical Plans</name>
@@ -18,7 +18,7 @@
 
   <properties>
     <license-text.header>headers/GPL-3-header.txt</license-text.header>
-    <moduleName>org.neo4j.cypher.internal.v3_5.logical.plans</moduleName>
+    <moduleName>org.neo4j.cypher.internal.v3_6.logical.plans</moduleName>
   </properties>
 
   <scm>
@@ -70,7 +70,7 @@
 
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-cypher-ir-3.5</artifactId>
+      <artifactId>neo4j-cypher-ir-3.6</artifactId>
       <version>${project.version}</version>
     </dependency>
 
@@ -78,7 +78,7 @@
 
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-util-3.5</artifactId>
+      <artifactId>neo4j-util-3.6</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>

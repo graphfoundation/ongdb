@@ -17,19 +17,19 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compiler.v3_5.planner.logical
+package org.neo4j.cypher.internal.compiler.v3_6.planner.logical
 
 import org.neo4j.csv.reader.Configuration
 import org.neo4j.csv.reader.Configuration.DEFAULT_LEGACY_STYLE_QUOTING
-import org.neo4j.cypher.internal.compiler.v3_5.planner.logical.Metrics.{CardinalityModel, CostModel, QueryGraphSolverInput}
-import org.neo4j.cypher.internal.compiler.v3_5.planner.logical.steps.{CostComparisonListener, LogicalPlanProducer}
-import org.neo4j.cypher.internal.ir.v3_5.StrictnessMode
-import org.neo4j.cypher.internal.planner.v3_5.spi.{GraphStatistics, PlanContext, PlanningAttributes}
-import org.neo4j.cypher.internal.v3_5.logical.plans.LogicalPlan
-import org.neo4j.cypher.internal.v3_5.ast.semantics.SemanticTable
-import org.neo4j.cypher.internal.v3_5.expressions.Variable
-import org.neo4j.cypher.internal.v3_5.frontend.phases.InternalNotificationLogger
-import org.neo4j.cypher.internal.v3_5.util.Cardinality
+import org.neo4j.cypher.internal.compiler.v3_6.planner.logical.Metrics.{CardinalityModel, CostModel, QueryGraphSolverInput}
+import org.neo4j.cypher.internal.compiler.v3_6.planner.logical.steps.{CostComparisonListener, LogicalPlanProducer}
+import org.neo4j.cypher.internal.ir.v3_6.StrictnessMode
+import org.neo4j.cypher.internal.planner.v3_6.spi.{GraphStatistics, PlanContext, PlanningAttributes}
+import org.neo4j.cypher.internal.v3_6.logical.plans.LogicalPlan
+import org.neo4j.cypher.internal.v3_6.ast.semantics.SemanticTable
+import org.neo4j.cypher.internal.v3_6.expressions.Variable
+import org.neo4j.cypher.internal.v3_6.frontend.phases.InternalNotificationLogger
+import org.neo4j.cypher.internal.v3_6.util.Cardinality
 
 case class LogicalPlanningContext(planContext: PlanContext,
                                   logicalPlanProducer: LogicalPlanProducer,

@@ -17,21 +17,21 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compiler.v3_5.planner.logical.steps
+package org.neo4j.cypher.internal.compiler.v3_6.planner.logical.steps
 
-import org.neo4j.cypher.internal.compiler.v3_5.IndexLookupUnfulfillableNotification
-import org.neo4j.cypher.internal.compiler.v3_5.planner.logical.LeafPlansForVariable.maybeLeafPlans
-import org.neo4j.cypher.internal.compiler.v3_5.planner.logical.ordering.ResultOrdering
-import org.neo4j.cypher.internal.compiler.v3_5.planner.logical.plans._
-import org.neo4j.cypher.internal.compiler.v3_5.planner.logical.{LeafPlanFromExpressions, LeafPlanner, LeafPlansForVariable, LogicalPlanningContext}
-import org.neo4j.cypher.internal.ir.v3_5.{ProvidedOrder, QueryGraph, InterestingOrder}
-import org.neo4j.cypher.internal.planner.v3_5.spi.IndexDescriptor
-import org.neo4j.cypher.internal.v3_5.logical.plans._
-import org.neo4j.cypher.internal.v3_5.ast._
-import org.neo4j.cypher.internal.v3_5.ast.semantics.SemanticTable
-import org.neo4j.cypher.internal.v3_5.expressions._
-import org.neo4j.cypher.internal.v3_5.util.LabelId
-import org.neo4j.cypher.internal.v3_5.util.symbols.CypherType
+import org.neo4j.cypher.internal.compiler.v3_6.IndexLookupUnfulfillableNotification
+import org.neo4j.cypher.internal.compiler.v3_6.planner.logical.LeafPlansForVariable.maybeLeafPlans
+import org.neo4j.cypher.internal.compiler.v3_6.planner.logical.ordering.ResultOrdering
+import org.neo4j.cypher.internal.compiler.v3_6.planner.logical.plans._
+import org.neo4j.cypher.internal.compiler.v3_6.planner.logical.{LeafPlanFromExpressions, LeafPlanner, LeafPlansForVariable, LogicalPlanningContext}
+import org.neo4j.cypher.internal.ir.v3_6.{ProvidedOrder, QueryGraph, InterestingOrder}
+import org.neo4j.cypher.internal.planner.v3_6.spi.IndexDescriptor
+import org.neo4j.cypher.internal.v3_6.logical.plans._
+import org.neo4j.cypher.internal.v3_6.ast._
+import org.neo4j.cypher.internal.v3_6.ast.semantics.SemanticTable
+import org.neo4j.cypher.internal.v3_6.expressions._
+import org.neo4j.cypher.internal.v3_6.util.LabelId
+import org.neo4j.cypher.internal.v3_6.util.symbols.CypherType
 
 abstract class AbstractIndexSeekLeafPlanner extends LeafPlanner with LeafPlanFromExpressions {
 

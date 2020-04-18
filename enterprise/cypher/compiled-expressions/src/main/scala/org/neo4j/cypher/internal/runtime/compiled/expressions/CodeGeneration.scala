@@ -40,7 +40,7 @@ import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
 import org.neo4j.values.AnyValue
 import org.neo4j.values.storable._
 import org.neo4j.values.virtual.MapValue
-import org.neo4j.cypher.internal.v3_5.frontend.helpers.using
+import org.neo4j.cypher.internal.v3_6.frontend.helpers.using
 
 /**
   * Produces runnable code from an IntermediateRepresentation
@@ -52,7 +52,7 @@ object CodeGeneration {
   private val LONG = classOf[LongValue]
   private val DOUBLE = classOf[DoubleValue]
   private val TEXT = classOf[TextValue]
-  private val PACKAGE_NAME = "org.neo4j.cypher.internal.compiler.v3_5.generated"
+  private val PACKAGE_NAME = "org.neo4j.cypher.internal.compiler.v3_6.generated"
   private val EXPRESSION = classOf[CompiledExpression]
   private val PROJECTION = classOf[CompiledProjection]
   private val COMPUTE_METHOD: MethodDeclaration.Builder = method(classOf[AnyValue], "evaluate",

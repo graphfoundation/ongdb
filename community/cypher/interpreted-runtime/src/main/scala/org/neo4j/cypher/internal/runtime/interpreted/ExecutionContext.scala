@@ -20,8 +20,8 @@
 package org.neo4j.cypher.internal.runtime.interpreted
 
 import org.neo4j.cypher.internal.runtime.EntityById
-import org.neo4j.cypher.internal.v3_5.logical.plans.CachedNodeProperty
-import org.neo4j.cypher.internal.v3_5.util.InternalException
+import org.neo4j.cypher.internal.v3_6.logical.plans.CachedNodeProperty
+import org.neo4j.cypher.internal.v3_6.util.InternalException
 import org.neo4j.values.AnyValue
 import org.neo4j.values.storable.{Value, Values}
 import org.neo4j.values.virtual._

@@ -14,11 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.neo4j.cypher.internal.v3_5.frontend.phases
+package org.neo4j.cypher.internal.v3_6.frontend.phases
 
-import org.neo4j.cypher.internal.v3_5.util.Rewriter
-import org.neo4j.cypher.internal.v3_5.frontend.phases.CompilationPhaseTracer.CompilationPhase
-import org.neo4j.cypher.internal.v3_5.frontend.phases.CompilationPhaseTracer.CompilationPhase.AST_REWRITE
+import org.neo4j.cypher.internal.v3_6.util.Rewriter
+import org.neo4j.cypher.internal.v3_6.frontend.phases.CompilationPhaseTracer.CompilationPhase
+import org.neo4j.cypher.internal.v3_6.frontend.phases.CompilationPhaseTracer.CompilationPhase.AST_REWRITE
 
 trait StatementRewriter extends Phase[BaseContext, BaseState, BaseState] {
   override def phase: CompilationPhase = AST_REWRITE

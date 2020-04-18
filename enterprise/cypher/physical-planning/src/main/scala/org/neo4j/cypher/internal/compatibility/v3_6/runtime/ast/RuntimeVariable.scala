@@ -17,12 +17,12 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast
+package org.neo4j.cypher.internal.compatibility.v3_6.runtime.ast
 
-import org.neo4j.cypher.internal.v3_5.ast.semantics.SemanticCheck
-import org.neo4j.cypher.internal.v3_5.ast.semantics.{SemanticCheckResult, SemanticCheckableExpression}
-import org.neo4j.cypher.internal.v3_5.util.{InputPosition, InternalException}
-import org.neo4j.cypher.internal.v3_5.expressions.{LogicalVariable, Expression => ASTExpression}
+import org.neo4j.cypher.internal.v3_6.ast.semantics.SemanticCheck
+import org.neo4j.cypher.internal.v3_6.ast.semantics.{SemanticCheckResult, SemanticCheckableExpression}
+import org.neo4j.cypher.internal.v3_6.util.{InputPosition, InternalException}
+import org.neo4j.cypher.internal.v3_6.expressions.{LogicalVariable, Expression => ASTExpression}
 
 abstract class RuntimeVariable(override val name: String) extends LogicalVariable with SemanticCheckableExpression {
   override def semanticCheck(ctx: ASTExpression.SemanticContext): SemanticCheck = SemanticCheckResult.success

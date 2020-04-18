@@ -14,9 +14,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.neo4j.cypher.internal.v3_5.parser
+package org.neo4j.cypher.internal.v3_6.parser
 
-import org.neo4j.cypher.internal.v3_5.util.InputPosition
+import org.neo4j.cypher.internal.v3_6.util.InputPosition
 import org.parboiled.Context
 import org.parboiled.buffers.InputBuffer
 

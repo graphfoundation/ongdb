@@ -17,13 +17,13 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compatibility.v3_5.runtime.executionplan
+package org.neo4j.cypher.internal.compatibility.v3_6.runtime.executionplan
 
 import org.neo4j.cypher.internal.runtime.QueryContext
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.PipeDecorator
 import org.neo4j.cypher.result.{QueryProfile, RuntimeResult}
 import org.neo4j.values.virtual.MapValue
-import org.neo4j.cypher.internal.v3_5.frontend.phases.InternalNotificationLogger
+import org.neo4j.cypher.internal.v3_6.frontend.phases.InternalNotificationLogger
 
 trait ExecutionResultBuilder {
   def setLoadCsvPeriodicCommitObserver(batchRowCount: Long)

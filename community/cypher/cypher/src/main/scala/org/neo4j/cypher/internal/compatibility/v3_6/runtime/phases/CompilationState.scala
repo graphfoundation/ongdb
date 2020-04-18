@@ -17,10 +17,10 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compatibility.v3_5.runtime.phases
+package org.neo4j.cypher.internal.compatibility.v3_6.runtime.phases
 
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.executionplan.{ExecutionPlan => RuntimeExecutionPlan}
-import org.neo4j.cypher.internal.compiler.v3_5.phases.LogicalPlanState
+import org.neo4j.cypher.internal.compatibility.v3_6.runtime.executionplan.{ExecutionPlan => RuntimeExecutionPlan}
+import org.neo4j.cypher.internal.compiler.v3_6.phases.LogicalPlanState
 
 import scala.util.{Failure, Try}
 

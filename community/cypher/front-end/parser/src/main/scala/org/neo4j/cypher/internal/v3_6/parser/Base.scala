@@ -14,10 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.neo4j.cypher.internal.v3_5.parser
+package org.neo4j.cypher.internal.v3_6.parser
 
-import org.neo4j.cypher.internal.v3_5.expressions.{Namespace => ASTNamespace}
-import org.neo4j.cypher.internal.v3_5.util.{InputPosition, InternalException, SyntaxException}
+import org.neo4j.cypher.internal.v3_6.expressions.{Namespace => ASTNamespace}
+import org.neo4j.cypher.internal.v3_6.util.{InputPosition, InternalException, SyntaxException}
 import org.parboiled.Context
 import org.parboiled.errors.{InvalidInputError, ParseError}
 import org.parboiled.scala.{Parser, _}

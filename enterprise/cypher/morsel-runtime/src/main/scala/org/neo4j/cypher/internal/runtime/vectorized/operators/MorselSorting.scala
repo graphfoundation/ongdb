@@ -24,7 +24,7 @@ package org.neo4j.cypher.internal.runtime.vectorized.operators
 
 import java.util.Comparator
 
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.{LongSlot, RefSlot}
+import org.neo4j.cypher.internal.compatibility.v3_6.runtime.{LongSlot, RefSlot}
 import org.neo4j.cypher.internal.runtime.slotted.pipes.ColumnOrder
 import org.neo4j.cypher.internal.runtime.vectorized.{Morsel, MorselExecutionContext}
 import org.neo4j.values.AnyValue

@@ -14,9 +14,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.neo4j.cypher.internal.v3_5.util
+package org.neo4j.cypher.internal.v3_6.util
 
-import org.neo4j.cypher.internal.v3_5.util.AssertionRunner.Thunk
+import org.neo4j.cypher.internal.v3_6.util.AssertionRunner.Thunk
 
 object AssertionUtils {
   def ifAssertionsEnabled(f: => Unit): Unit = {

@@ -17,13 +17,13 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compiler.v3_5.planner.logical.plans
+package org.neo4j.cypher.internal.compiler.v3_6.planner.logical.plans
 
-import org.neo4j.cypher.internal.compiler.v3_5.planner.LogicalPlanningTestSupport
-import org.neo4j.cypher.internal.ir.v3_5.StrictnessMode
-import org.neo4j.cypher.internal.v3_5.util.attribution.SequentialIdGen
-import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
-import org.neo4j.cypher.internal.v3_5.logical.plans.LogicalPlan
+import org.neo4j.cypher.internal.compiler.v3_6.planner.LogicalPlanningTestSupport
+import org.neo4j.cypher.internal.ir.v3_6.StrictnessMode
+import org.neo4j.cypher.internal.v3_6.util.attribution.SequentialIdGen
+import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.v3_6.logical.plans.LogicalPlan
 
 class LogicalPlanEqualityTest extends CypherFunSuite with LogicalPlanningTestSupport  {
   test("leafs") {

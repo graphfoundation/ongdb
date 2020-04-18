@@ -14,9 +14,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.neo4j.cypher.internal.v3_5.ast.semantics
+package org.neo4j.cypher.internal.v3_6.ast.semantics
 
-import org.neo4j.cypher.internal.v3_5.util.{CypherException, InputPosition, SyntaxException}
+import org.neo4j.cypher.internal.v3_6.util.{CypherException, InputPosition, SyntaxException}
 
 class SyntaxExceptionCreator(queryText: String, preParserOffset: Option[InputPosition]) extends ((String, InputPosition) => CypherException) {
   override def apply(message: String, position: InputPosition): CypherException = {

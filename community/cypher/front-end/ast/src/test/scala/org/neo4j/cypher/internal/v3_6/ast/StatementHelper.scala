@@ -14,9 +14,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.neo4j.cypher.internal.v3_5.ast
+package org.neo4j.cypher.internal.v3_6.ast
 
-import org.neo4j.cypher.internal.v3_5.ast.semantics.{Scope, SemanticCheckResult, SemanticFeature, SemanticState}
+import org.neo4j.cypher.internal.v3_6.ast.semantics.{Scope, SemanticCheckResult, SemanticFeature, SemanticState}
 import org.scalatest.Assertions
 
 object StatementHelper extends Assertions {

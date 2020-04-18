@@ -22,12 +22,12 @@ package org.neo4j.cypher.internal.runtime.interpreted.pipes
 import org.mockito.Mockito._
 import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.Literal
 import org.neo4j.cypher.internal.runtime.interpreted.{ImplicitDummyPos, QueryStateHelper}
-import org.neo4j.cypher.internal.v3_5.logical.plans.{GetValue, IndexOrderNone, IndexedProperty}
+import org.neo4j.cypher.internal.v3_6.logical.plans.{GetValue, IndexOrderNone, IndexedProperty}
 import org.neo4j.values.storable.Values
 import org.neo4j.values.virtual.NodeValue
-import org.neo4j.cypher.internal.v3_5.expressions.{LabelName, LabelToken, PropertyKeyName, PropertyKeyToken}
-import org.neo4j.cypher.internal.v3_5.util.test_helpers.{CypherFunSuite, WindowsStringSafe}
-import org.neo4j.cypher.internal.v3_5.util.{LabelId, PropertyKeyId}
+import org.neo4j.cypher.internal.v3_6.expressions.{LabelName, LabelToken, PropertyKeyName, PropertyKeyToken}
+import org.neo4j.cypher.internal.v3_6.util.test_helpers.{CypherFunSuite, WindowsStringSafe}
+import org.neo4j.cypher.internal.v3_6.util.{LabelId, PropertyKeyId}
 
 class NodeIndexStringSeekPipeTest extends CypherFunSuite with ImplicitDummyPos with IndexMockingHelp {
 

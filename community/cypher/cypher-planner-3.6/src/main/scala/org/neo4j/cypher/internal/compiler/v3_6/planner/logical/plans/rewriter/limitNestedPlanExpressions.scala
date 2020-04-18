@@ -17,13 +17,13 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compiler.v3_5.planner.logical.plans.rewriter
+package org.neo4j.cypher.internal.compiler.v3_6.planner.logical.plans.rewriter
 
-import org.neo4j.cypher.internal.v3_5.expressions.functions.Head
-import org.neo4j.cypher.internal.v3_5.expressions.{Add, ContainerIndex, FunctionInvocation, FunctionName, ListSlice, Namespace, SignedDecimalIntegerLiteral}
-import org.neo4j.cypher.internal.v3_5.logical.plans.{DoNotIncludeTies, Limit, NestedPlanExpression}
-import org.neo4j.cypher.internal.v3_5.util.attribution.IdGen
-import org.neo4j.cypher.internal.v3_5.util.{Rewriter, bottomUp}
+import org.neo4j.cypher.internal.v3_6.expressions.functions.Head
+import org.neo4j.cypher.internal.v3_6.expressions.{Add, ContainerIndex, FunctionInvocation, FunctionName, ListSlice, Namespace, SignedDecimalIntegerLiteral}
+import org.neo4j.cypher.internal.v3_6.logical.plans.{DoNotIncludeTies, Limit, NestedPlanExpression}
+import org.neo4j.cypher.internal.v3_6.util.attribution.IdGen
+import org.neo4j.cypher.internal.v3_6.util.{Rewriter, bottomUp}
 
 /**
   * Places a Limit inside of NestenPlanExpressions, if the NestenPlanExpressions is inside an expression that does not need the whole list as a result.

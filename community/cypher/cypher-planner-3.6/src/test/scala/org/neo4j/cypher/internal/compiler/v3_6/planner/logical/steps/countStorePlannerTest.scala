@@ -17,16 +17,16 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compiler.v3_5.planner.logical.steps
+package org.neo4j.cypher.internal.compiler.v3_6.planner.logical.steps
 
-import org.neo4j.cypher.internal.compiler.v3_5.planner.LogicalPlanningTestSupport
-import org.neo4j.cypher.internal.compiler.v3_5.planner.logical.{LogicalPlanningContext, QueryGraphProducer}
-import org.neo4j.cypher.internal.ir.v3_5.{AggregatingQueryProjection, PlannerQuery}
-import org.neo4j.cypher.internal.planner.v3_5.spi.PlanContext
-import org.neo4j.cypher.internal.v3_5.logical.plans.{LogicalPlan, NodeCountFromCountStore, RelationshipCountFromCountStore}
-import org.neo4j.cypher.internal.v3_5.ast.AstConstructionTestSupport
-import org.neo4j.cypher.internal.v3_5.expressions.{FunctionInvocation, FunctionName, Variable}
-import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.compiler.v3_6.planner.LogicalPlanningTestSupport
+import org.neo4j.cypher.internal.compiler.v3_6.planner.logical.{LogicalPlanningContext, QueryGraphProducer}
+import org.neo4j.cypher.internal.ir.v3_6.{AggregatingQueryProjection, PlannerQuery}
+import org.neo4j.cypher.internal.planner.v3_6.spi.PlanContext
+import org.neo4j.cypher.internal.v3_6.logical.plans.{LogicalPlan, NodeCountFromCountStore, RelationshipCountFromCountStore}
+import org.neo4j.cypher.internal.v3_6.ast.AstConstructionTestSupport
+import org.neo4j.cypher.internal.v3_6.expressions.{FunctionInvocation, FunctionName, Variable}
+import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
 import org.scalatest.matchers.{MatchResult, Matcher}
 
 class countStorePlannerTest extends CypherFunSuite with LogicalPlanningTestSupport with QueryGraphProducer with AstConstructionTestSupport {

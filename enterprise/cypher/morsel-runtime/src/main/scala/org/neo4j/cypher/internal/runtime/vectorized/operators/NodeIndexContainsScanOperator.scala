@@ -22,14 +22,14 @@
  */
 package org.neo4j.cypher.internal.runtime.vectorized.operators
 
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.{SlotConfiguration, SlottedIndexedProperty}
+import org.neo4j.cypher.internal.compatibility.v3_6.runtime.{SlotConfiguration, SlottedIndexedProperty}
 import org.neo4j.cypher.internal.runtime.QueryContext
 import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.Expression
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.{QueryState => OldQueryState}
 import org.neo4j.cypher.internal.runtime.vectorized._
 import org.neo4j.internal.kernel.api._
 import org.neo4j.values.storable.{TextValue, Values}
-import org.neo4j.cypher.internal.v3_5.util.CypherTypeException
+import org.neo4j.cypher.internal.v3_6.util.CypherTypeException
 
 class NodeIndexContainsScanOperator(nodeOffset: Int,
                                     label: Int,

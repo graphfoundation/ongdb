@@ -83,12 +83,12 @@ the relevant Commercial Agreement.
         </dependency>
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>neo4j-parser-3.5</artifactId>
+            <artifactId>neo4j-parser-3.6</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>neo4j-rewriting-3.5</artifactId>
+            <artifactId>neo4j-rewriting-3.6</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>

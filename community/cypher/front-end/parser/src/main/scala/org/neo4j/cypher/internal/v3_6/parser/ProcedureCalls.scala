@@ -14,12 +14,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.neo4j.cypher.internal.v3_5.parser
+package org.neo4j.cypher.internal.v3_6.parser
 
-import org.neo4j.cypher.internal.v3_5.ast
-import org.neo4j.cypher.internal.v3_5.ast.Where
-import org.neo4j.cypher.internal.v3_5.{expressions => exp}
-import org.neo4j.cypher.internal.v3_5.util.InputPosition
+import org.neo4j.cypher.internal.v3_6.ast
+import org.neo4j.cypher.internal.v3_6.ast.Where
+import org.neo4j.cypher.internal.v3_6.{expressions => exp}
+import org.neo4j.cypher.internal.v3_6.util.InputPosition
 import org.parboiled.scala._
 
 trait ProcedureCalls {
@@ -29,7 +29,7 @@ trait ProcedureCalls {
     group(keyword("CALL") ~~ Namespace ~ ProcedureName ~ ProcedureArguments ~~ ProcedureResult) ~~>> (ast.UnresolvedCall(_, _, _, _))
   }
 
-  private def ProcedureArguments: Rule1[Option[Seq[org.neo4j.cypher.internal.v3_5.expressions.Expression]]] = rule("arguments to a procedure") {
+  private def ProcedureArguments: Rule1[Option[Seq[org.neo4j.cypher.internal.v3_6.expressions.Expression]]] = rule("arguments to a procedure") {
     optional(group("(" ~~
       zeroOrMore(Expression, separator = CommaSep) ~~ ")"
     ) ~~> (_.toIndexedSeq))
@@ -64,7 +64,7 @@ trait ProcedureCalls {
       Variable ~~>> (ast.ProcedureResultItem(_))
     }
 
-  private def ProcedureOutput: Rule1[org.neo4j.cypher.internal.v3_5.expressions.ProcedureOutput] =
+  private def ProcedureOutput: Rule1[org.neo4j.cypher.internal.v3_6.expressions.ProcedureOutput] =
     rule("procedure output") {
       SymbolicNameString ~~>> (exp.ProcedureOutput(_))
     }

@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.neo4j.cypher.internal.v3_5.parser.matchers
+package org.neo4j.cypher.internal.v3_6.parser.matchers
 
 class IdentifierStartMatcher extends ScalaCharMatcher("an identifier") {
   protected def matchChar(c: Char): Boolean = Character.isJavaIdentifierStart(c) && Character.getType(c) != Character.CURRENCY_SYMBOL

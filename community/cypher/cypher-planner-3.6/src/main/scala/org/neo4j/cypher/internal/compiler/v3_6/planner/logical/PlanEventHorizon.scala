@@ -17,13 +17,13 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compiler.v3_5.planner.logical
+package org.neo4j.cypher.internal.compiler.v3_6.planner.logical
 
-import org.neo4j.cypher.internal.compiler.v3_5.planner._
-import org.neo4j.cypher.internal.compiler.v3_5.planner.logical.steps._
-import org.neo4j.cypher.internal.ir.v3_5._
-import org.neo4j.cypher.internal.v3_5.logical.plans.LogicalPlan
-import org.neo4j.cypher.internal.v3_5.util.InternalException
+import org.neo4j.cypher.internal.compiler.v3_6.planner._
+import org.neo4j.cypher.internal.compiler.v3_6.planner.logical.steps._
+import org.neo4j.cypher.internal.ir.v3_6._
+import org.neo4j.cypher.internal.v3_6.logical.plans.LogicalPlan
+import org.neo4j.cypher.internal.v3_6.util.InternalException
 
 /*
 Planning event horizons means planning the WITH clauses between query patterns. Some of these clauses are inlined

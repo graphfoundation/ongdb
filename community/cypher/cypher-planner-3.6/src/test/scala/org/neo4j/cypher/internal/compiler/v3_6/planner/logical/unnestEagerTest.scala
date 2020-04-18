@@ -17,16 +17,16 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compiler.v3_5.planner.logical
+package org.neo4j.cypher.internal.compiler.v3_6.planner.logical
 
-import org.neo4j.cypher.internal.compiler.v3_5.planner.LogicalPlanningTestSupport
-import org.neo4j.cypher.internal.compiler.v3_5.planner.logical.Eagerness.unnestEager
-import org.neo4j.cypher.internal.ir.v3_5.CreateNode
-import org.neo4j.cypher.internal.v3_5.logical.plans._
-import org.neo4j.cypher.internal.v3_5.expressions.PropertyKeyName
-import org.neo4j.cypher.internal.v3_5.util.attribution.Attributes
-import org.neo4j.cypher.internal.v3_5.util.helpers.fixedPoint
-import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.compiler.v3_6.planner.LogicalPlanningTestSupport
+import org.neo4j.cypher.internal.compiler.v3_6.planner.logical.Eagerness.unnestEager
+import org.neo4j.cypher.internal.ir.v3_6.CreateNode
+import org.neo4j.cypher.internal.v3_6.logical.plans._
+import org.neo4j.cypher.internal.v3_6.expressions.PropertyKeyName
+import org.neo4j.cypher.internal.v3_6.util.attribution.Attributes
+import org.neo4j.cypher.internal.v3_6.util.helpers.fixedPoint
+import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
 
 class unnestEagerTest extends CypherFunSuite with LogicalPlanningTestSupport {
 

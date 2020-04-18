@@ -17,22 +17,22 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.v3_5.logical.plans
+package org.neo4j.cypher.internal.v3_6.logical.plans
 
 import java.lang.reflect.Method
 
-import org.neo4j.cypher.internal.ir.v3_5.PlannerQuery
-import org.neo4j.cypher.internal.ir.v3_5.Strictness
-import org.neo4j.cypher.internal.v3_5.expressions._
-import org.neo4j.cypher.internal.v3_5.util.Foldable._
-import org.neo4j.cypher.internal.v3_5.util.Rewritable._
-import org.neo4j.cypher.internal.v3_5.util.attribution.Id
-import org.neo4j.cypher.internal.v3_5.util.attribution.IdGen
-import org.neo4j.cypher.internal.v3_5.util.attribution.SameId
-import org.neo4j.cypher.internal.v3_5.util.Foldable
-import org.neo4j.cypher.internal.v3_5.util.InputPosition
-import org.neo4j.cypher.internal.v3_5.util.InternalException
-import org.neo4j.cypher.internal.v3_5.util.Rewritable
+import org.neo4j.cypher.internal.ir.v3_6.PlannerQuery
+import org.neo4j.cypher.internal.ir.v3_6.Strictness
+import org.neo4j.cypher.internal.v3_6.expressions._
+import org.neo4j.cypher.internal.v3_6.util.Foldable._
+import org.neo4j.cypher.internal.v3_6.util.Rewritable._
+import org.neo4j.cypher.internal.v3_6.util.attribution.Id
+import org.neo4j.cypher.internal.v3_6.util.attribution.IdGen
+import org.neo4j.cypher.internal.v3_6.util.attribution.SameId
+import org.neo4j.cypher.internal.v3_6.util.Foldable
+import org.neo4j.cypher.internal.v3_6.util.InputPosition
+import org.neo4j.cypher.internal.v3_6.util.InternalException
+import org.neo4j.cypher.internal.v3_6.util.Rewritable
 
 import scala.collection.mutable
 import scala.util.hashing.MurmurHash3
@@ -196,7 +196,7 @@ abstract class LogicalPlan(idGen: IdGen)
   def flatten: Seq[LogicalPlan] = Flattener.create(this)
 
   def indexUsage: Seq[IndexUsage] = {
-    import org.neo4j.cypher.internal.v3_5.util.Foldable._
+    import org.neo4j.cypher.internal.v3_6.util.Foldable._
     this.fold(Seq.empty[IndexUsage]) {
       case NodeIndexSeek(idName, label, properties, _, _, _) =>
         acc => acc :+ SchemaIndexSeekUsage(idName, label.nameId.id, label.name, properties.map(_.propertyKeyToken.name))

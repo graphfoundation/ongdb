@@ -19,7 +19,7 @@
  */
 package org.neo4j.cypher.internal.runtime.slotted.pipes
 
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.{Slot, SlotConfiguration}
+import org.neo4j.cypher.internal.compatibility.v3_6.runtime.{Slot, SlotConfiguration}
 import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
 import org.neo4j.cypher.internal.runtime.interpreted.commands.predicates.Predicate
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.{LazyTypes, Pipe, PipeWithSource, QueryState}
@@ -30,9 +30,9 @@ import org.neo4j.kernel.impl.api.store.RelationshipIterator
 import org.neo4j.storageengine.api.RelationshipVisitor
 import org.neo4j.values.storable.Values
 import org.neo4j.values.virtual.{RelationshipValue, VirtualValues}
-import org.neo4j.cypher.internal.v3_5.expressions.SemanticDirection
-import org.neo4j.cypher.internal.v3_5.util.InternalException
-import org.neo4j.cypher.internal.v3_5.util.attribution.Id
+import org.neo4j.cypher.internal.v3_6.expressions.SemanticDirection
+import org.neo4j.cypher.internal.v3_6.util.InternalException
+import org.neo4j.cypher.internal.v3_6.util.attribution.Id
 
 import scala.collection.mutable
 

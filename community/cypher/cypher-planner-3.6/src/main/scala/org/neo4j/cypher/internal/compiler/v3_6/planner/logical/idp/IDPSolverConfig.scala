@@ -17,11 +17,11 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compiler.v3_5.planner.logical.idp
+package org.neo4j.cypher.internal.compiler.v3_6.planner.logical.idp
 
-import org.neo4j.cypher.internal.compiler.v3_5.planner.logical.LogicalPlanningContext
-import org.neo4j.cypher.internal.ir.v3_5.{PatternRelationship, QueryGraph}
-import org.neo4j.cypher.internal.v3_5.logical.plans.LogicalPlan
+import org.neo4j.cypher.internal.compiler.v3_6.planner.logical.LogicalPlanningContext
+import org.neo4j.cypher.internal.ir.v3_6.{PatternRelationship, QueryGraph}
+import org.neo4j.cypher.internal.v3_6.logical.plans.LogicalPlan
 
 /**
  * The IDP inner loop can be optimized and tweaked in several ways, and this trait encapsulates those settings

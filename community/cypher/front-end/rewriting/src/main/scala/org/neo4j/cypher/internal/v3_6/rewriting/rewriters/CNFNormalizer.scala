@@ -14,13 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.neo4j.cypher.internal.v3_5.rewriting.rewriters
+package org.neo4j.cypher.internal.v3_6.rewriting.rewriters
 
-import org.neo4j.cypher.internal.v3_5.expressions._
-import org.neo4j.cypher.internal.v3_5.rewriting.AstRewritingMonitor
-import org.neo4j.cypher.internal.v3_5.util.Foldable._
-import org.neo4j.cypher.internal.v3_5.util.helpers.fixedPoint
-import org.neo4j.cypher.internal.v3_5.util.{Rewriter, bottomUp, inSequence, topDown}
+import org.neo4j.cypher.internal.v3_6.expressions._
+import org.neo4j.cypher.internal.v3_6.rewriting.AstRewritingMonitor
+import org.neo4j.cypher.internal.v3_6.util.Foldable._
+import org.neo4j.cypher.internal.v3_6.util.helpers.fixedPoint
+import org.neo4j.cypher.internal.v3_6.util.{Rewriter, bottomUp, inSequence, topDown}
 
 
 case class deMorganRewriter()(implicit monitor: AstRewritingMonitor) extends Rewriter {

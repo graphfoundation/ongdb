@@ -17,11 +17,11 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compatibility.v3_5.runtime.profiler
+package org.neo4j.cypher.internal.compatibility.v3_6.runtime.profiler
 
 import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito.when
-import org.neo4j.cypher.internal.planner.v3_5.spi.{EmptyKernelStatisticProvider, KernelStatisticProvider}
+import org.neo4j.cypher.internal.planner.v3_6.spi.{EmptyKernelStatisticProvider, KernelStatisticProvider}
 import org.neo4j.cypher.internal.runtime.interpreted.commands.convert.InterpretedCommandProjection
 import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.{NestedPipeExpression, ProjectedPath}
 import org.neo4j.cypher.internal.runtime.interpreted.pipes._
@@ -30,8 +30,8 @@ import org.neo4j.cypher.internal.runtime.{QueryContext, QueryTransactionalContex
 import org.neo4j.cypher.result.{OperatorProfile, QueryProfile}
 import org.neo4j.kernel.impl.factory.DatabaseInfo
 import org.neo4j.values.storable.Values.NO_VALUE
-import org.neo4j.cypher.internal.v3_5.util.attribution.{Id, SequentialIdGen}
-import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.v3_6.util.attribution.{Id, SequentialIdGen}
+import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
 
 class ProfilerTest extends CypherFunSuite {
 

@@ -17,10 +17,10 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.v3_5.logical.plans
+package org.neo4j.cypher.internal.v3_6.logical.plans
 
-import org.neo4j.cypher.internal.v3_5.expressions._
-import org.neo4j.cypher.internal.v3_5.util.attribution.{IdGen, SameId}
+import org.neo4j.cypher.internal.v3_6.expressions._
+import org.neo4j.cypher.internal.v3_6.util.attribution.{IdGen, SameId}
 
 /**
   * For every node with the given label and property values, produces rows with that node.

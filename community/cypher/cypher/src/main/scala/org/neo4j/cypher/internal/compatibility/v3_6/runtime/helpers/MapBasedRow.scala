@@ -17,7 +17,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compatibility.v3_5.runtime.helpers
+package org.neo4j.cypher.internal.compatibility.v3_6.runtime.helpers
 
 import org.neo4j.graphdb.Result.ResultRow
 import org.neo4j.graphdb.{Node, Path, Relationship}

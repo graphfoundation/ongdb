@@ -14,16 +14,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.neo4j.cypher.internal.v3_5.rewriting.conditions
+package org.neo4j.cypher.internal.v3_6.rewriting.conditions
 
-import org.neo4j.cypher.internal.v3_5.ast.AstConstructionTestSupport
-import org.neo4j.cypher.internal.v3_5.expressions.CountStar
-import org.neo4j.cypher.internal.v3_5.expressions.Equals
-import org.neo4j.cypher.internal.v3_5.expressions.Expression
-import org.neo4j.cypher.internal.v3_5.expressions.FunctionInvocation
-import org.neo4j.cypher.internal.v3_5.expressions.FunctionName
-import org.neo4j.cypher.internal.v3_5.expressions.UnsignedDecimalIntegerLiteral
-import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.v3_6.ast.AstConstructionTestSupport
+import org.neo4j.cypher.internal.v3_6.expressions.CountStar
+import org.neo4j.cypher.internal.v3_6.expressions.Equals
+import org.neo4j.cypher.internal.v3_6.expressions.Expression
+import org.neo4j.cypher.internal.v3_6.expressions.FunctionInvocation
+import org.neo4j.cypher.internal.v3_6.expressions.FunctionName
+import org.neo4j.cypher.internal.v3_6.expressions.UnsignedDecimalIntegerLiteral
+import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
 
 class AggregationsAreIsolatedTest extends CypherFunSuite with AstConstructionTestSupport {
 

@@ -17,7 +17,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compiler.v3_5
+package org.neo4j.cypher.internal.compiler.v3_6
 
 import org.neo4j.cypher.GraphDatabaseFunSuite
 import org.neo4j.cypher.internal.runtime.ImplicitValueConversion._
@@ -29,7 +29,7 @@ import org.neo4j.cypher.internal.runtime.interpreted.{ExecutionContext, QuerySta
 import org.neo4j.kernel.impl.util.ValueUtils.fromNodeProxy
 import org.neo4j.values.storable.Values.{FALSE, TRUE}
 import org.neo4j.values.virtual.PathValue
-import org.neo4j.cypher.internal.v3_5.expressions.SemanticDirection
+import org.neo4j.cypher.internal.v3_6.expressions.SemanticDirection
 
 class PathExpressionTest extends GraphDatabaseFunSuite with QueryStateTestSupport {
 
