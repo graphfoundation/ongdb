@@ -23,7 +23,7 @@ import java.time.Clock
 
 import org.neo4j.cypher.internal._
 import org.neo4j.cypher.internal.compatibility._
-import org.neo4j.cypher.internal.compatibility.v3_4.helpers.{as3_4, as3_5}
+import org.neo4j.cypher.internal.compatibility.v3_4.helpers.{as3_4, as3_6}
 import org.neo4j.cypher.internal.compatibility.v3_6.notification.LogicalPlanNotifications
 import org.neo4j.cypher.internal.compatibility.v3_6.runtime.helpers.simpleExpressionEvaluator
 import org.neo4j.cypher.internal.compatibility.v3_6.{ExceptionTranslatingPlanContext => ExceptionTranslatingPlanContextv3_6}
@@ -186,7 +186,7 @@ case class Cypher34Planner(configv3_6: CypherPlannerConfiguration,
                                      CachedMetricsFactory(SimpleMetricsFactory),
                                      null,
                                      configv3_6,
-                                     maybeUpdateStrategy.map(helpers.as3_5).getOrElse(defaultUpdateStrategy),
+                                     maybeUpdateStrategy.map(helpers.as3_6).getOrElse(defaultUpdateStrategy),
                                      clock,
                                      logicalPlanIdGenv3_6,
                                      simpleExpressionEvaluator(PlanningQueryContext(transactionalContext)))
@@ -199,14 +199,14 @@ case class Cypher34Planner(configv3_6: CypherPlannerConfiguration,
       // If the query is not cached we do full planning + creating of executable plan
       def createPlan(): CacheableLogicalPlan = {
         val logicalPlanStateV3_4 = compiler.planPreparedQuery(preparedQuery, contextV3_4)
-        val logicalPlanStatev3_6 = helpers.as3_5(logicalPlanStateV3_4) // Here we switch from 3.4 to 3.6
+        val logicalPlanStatev3_6 = helpers.as3_6(logicalPlanStateV3_4) // Here we switch from 3.4 to 3.6
         LogicalPlanNotifications
           .checkForNotifications(logicalPlanStatev3_6.maybeLogicalPlan.get, planContextv3_6, configv3_6)
           .foreach(notificationLoggerv3_6.log)
 
         val reusabilityState = createReusabilityState(logicalPlanStatev3_6, planContextv3_6)
         // Log notifications/warnings from planning
-        notificationLoggerV3_4.notifications.map(helpers.as3_5).foreach(notificationLoggerv3_6.log)
+        notificationLoggerV3_4.notifications.map(helpers.as3_6).foreach(notificationLoggerv3_6.log)
 
         CacheableLogicalPlan(logicalPlanStatev3_6, reusabilityState, notificationLoggerv3_6.notifications)
       }
@@ -234,7 +234,7 @@ case class Cypher34Planner(configv3_6: CypherPlannerConfiguration,
     }
   }
 
-  override val name: PlannerName = PlannerNameWithVersion(as3_5(plannerName), CypherVersion.v3_4.name)
+  override val name: PlannerName = PlannerNameWithVersion(as3_6(plannerName), CypherVersion.v3_4.name)
 }
 
 private[v3_4] class Parser3_4(compiler: v3_4.CypherCompiler[CommunityRuntimeContext],

@@ -97,7 +97,7 @@ public class NotificationAcceptanceTest extends NotificationTestSupport
     }
 
     @Test
-    public void shouldNotifyWhenUsingCreateUniqueWhenCypherVersionIs3_5()
+    public void shouldNotifyWhenUsingCreateUniqueWhenCypherVersionIs3_6()
     {
         // when
         Result result = db().execute( "EXPLAIN CYPHER 3.6 MATCH (b) WITH b LIMIT 1 CREATE UNIQUE (b)-[:REL]->()" );

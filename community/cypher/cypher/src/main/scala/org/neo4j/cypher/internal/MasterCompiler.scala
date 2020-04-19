@@ -103,26 +103,26 @@ class MasterCompiler(config: CypherConfiguration,
         innerCompile(preParsedQuery.copy(version = CypherVersion.v3_1), params)
 
       } else if (preParsedQuery.version == CypherVersion.v3_6) {
-        val compiler3_5 = compilerLibrary.selectCompiler(preParsedQuery.version,
+        val compiler3_6 = compilerLibrary.selectCompiler(preParsedQuery.version,
                                                          preParsedQuery.planner,
                                                          preParsedQuery.runtime,
                                                          preParsedQuery.updateStrategy)
 
         try {
-          compiler3_5.compile(preParsedQuery, tracer, notificationsSoFar(), transactionalContext, params)
+          compiler3_6.compile(preParsedQuery, tracer, notificationsSoFar(), transactionalContext, params)
         } catch {
           case ex: SyntaxException if ex.getMessage.startsWith("CREATE UNIQUE") =>
-            val ex3_5 = ex.getCause.asInstanceOf[InternalSyntaxException]
-            logger.log(CreateUniqueUnavailableFallback(ex3_5.pos.get))
-            logger.log(CreateUniqueDeprecated(ex3_5.pos.get))
-            assertSupportedRuntime(ex3_5, preParsedQuery.runtime)
+            val ex3_6 = ex.getCause.asInstanceOf[InternalSyntaxException]
+            logger.log(CreateUniqueUnavailableFallback(ex3_6.pos.get))
+            logger.log(CreateUniqueDeprecated(ex3_6.pos.get))
+            assertSupportedRuntime(ex3_6, preParsedQuery.runtime)
             innerCompile(preParsedQuery.copy(version = CypherVersion.v3_1, runtime = CypherRuntimeOption.interpreted), params)
 
           case ex: SyntaxException if ex.getMessage.startsWith("START is deprecated") =>
-            val ex3_5 = ex.getCause.asInstanceOf[InternalSyntaxException]
+            val ex3_6 = ex.getCause.asInstanceOf[InternalSyntaxException]
             logger.log(StartUnavailableFallback)
             logger.log(DeprecatedStartNotification(inputPosition, ex.getMessage))
-            assertSupportedRuntime(ex3_5, preParsedQuery.runtime)
+            assertSupportedRuntime(ex3_6, preParsedQuery.runtime)
             innerCompile(preParsedQuery.copy(version = CypherVersion.v3_1, runtime = CypherRuntimeOption.interpreted), params)
         }
 

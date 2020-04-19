@@ -83,8 +83,8 @@ object LogicalPlanConverter {
   //noinspection ZeroIndexToHead
   private class LogicalPlanRewriter(solveds3_4: SolvedsV3_4,
                                     cardinalities3_4: CardinalitiesV3_4,
-                                    solveds3_5: SolvedsV3_6,
-                                    cardinalities3_5: CardinalitiesV3_6,
+                                    solveds3_6: SolvedsV3_6,
+                                    cardinalities3_6: CardinalitiesV3_6,
                                     ids: IdConverter,
                                     val expressionMap: MutableExpressionMapping3To4 = new mutable.HashMap[(ExpressionV3_4, InputPositionV3_4), Expressionv3_6],
                                     val seenBySemanticTable: ExpressionV3_4 => Boolean = _ => true)
@@ -137,7 +137,7 @@ object LogicalPlanConverter {
             children(4).asInstanceOf[expressionsv3_6.SemanticDirection],
             children(5).asInstanceOf[Boolean],
             None
-          )(helpers.as3_5(item.position))
+          )(helpers.as3_6(item.position))
 
         case (item: expressionsv3_4.NodePattern, children: Seq[AnyRef]) =>
           expressionsv3_6.NodePattern(
@@ -145,7 +145,7 @@ object LogicalPlanConverter {
             children(1).asInstanceOf[Seq[expressionsv3_6.LabelName]],
             children(2).asInstanceOf[Option[expressionsv3_6.Expression]],
             None
-          )(helpers.as3_5(item.position))
+          )(helpers.as3_6(item.position))
 
         case (plan: plansV3_4.SetRelationshipPropery, children: Seq[AnyRef]) =>
           plansv3_6.SetRelationshipProperty(
@@ -213,14 +213,14 @@ object LogicalPlanConverter {
                     _: plansV3_4.PointDistanceSeekRangeWrapper |
                     _: plansV3_4.NestedPlanExpression |
                     _: plansV3_4.ResolvedFunctionInvocation), children: Seq[AnyRef]) =>
-          convertVersion(oldLogicalPlanPackage, newLogicalPlanPackage, item, children, helpers.as3_5(item.asInstanceOf[utilv3_4.ASTNode].position), classOf[InputPosition])
+          convertVersion(oldLogicalPlanPackage, newLogicalPlanPackage, item, children, helpers.as3_6(item.asInstanceOf[utilv3_4.ASTNode].position), classOf[InputPosition])
 
           // TODO this seems unnecessary
         case (item: frontendV3_4.ast.rewriters.DesugaredMapProjection, children: Seq[AnyRef]) =>
-          convertVersion(oldRewritersPackage, newExpressionPackage, item, children, helpers.as3_5(item.position), classOf[InputPosition])
+          convertVersion(oldRewritersPackage, newExpressionPackage, item, children, helpers.as3_6(item.position), classOf[InputPosition])
 
         case (item: frontendV3_4.ast.ProcedureResultItem, children: Seq[AnyRef]) =>
-          convertVersion(oldASTPackage, newASTPackage, item, children, helpers.as3_5(item.position), classOf[InputPosition])
+          convertVersion(oldASTPackage, newASTPackage, item, children, helpers.as3_6(item.position), classOf[InputPosition])
 
         case (funcV3_4@expressionsv3_4.FunctionInvocation(_, expressionsv3_4.FunctionName("timestamp"), _, _), _: Seq[AnyRef]) => {
           val datetimeSignature = UserFunctionSignature(
@@ -233,7 +233,7 @@ object LogicalPlanConverter {
             isAggregate = false,
             id = None // will use by-name lookup for built-in functions for that came from a 3.4 plan, since timestamp is not a user-defined function in 3.4
           )
-          val funcPosV3_6 = helpers.as3_5(funcV3_4.functionName.position)
+          val funcPosV3_6 = helpers.as3_6(funcV3_4.functionName.position)
           val datetimeFuncV3_6 = plansv3_6.ResolvedFunctionInvocation(
             QualifiedName(Seq(), "datetime"),
             Some(datetimeSignature),
@@ -254,26 +254,26 @@ object LogicalPlanConverter {
             children(1).asInstanceOf[expressionsv3_6.RelationshipsPattern],
             children(2).asInstanceOf[Option[expressionsv3_6.Expression]],
             children(3).asInstanceOf[expressionsv3_6.Expression]
-          )(helpers.as3_5(item.position), item.outerScope.map(v => expressionsv3_6.Variable(v.name)(helpers.as3_5(v.position))))
+          )(helpers.as3_6(item.position), item.outerScope.map(v => expressionsv3_6.Variable(v.name)(helpers.as3_6(v.position))))
 
         case (item: expressionsv3_4.MapProjection, children: Seq[AnyRef]) =>
           expressionsv3_6.MapProjection(
             children(0).asInstanceOf[expressionsv3_6.Variable],
             children(1).asInstanceOf[Seq[expressionsv3_6.MapProjectionElement]]
-          )(helpers.as3_5(item.position), item.definitionPos.map(helpers.as3_5))
+          )(helpers.as3_6(item.position), item.definitionPos.map(helpers.as3_6))
 
         case (item: plansV3_4.ResolvedCall, children: Seq[AnyRef]) =>
-          convertVersion(oldLogicalPlanPackage, newLogicalPlanPackage, item, children, helpers.as3_5(item.position), classOf[InputPosition])
+          convertVersion(oldLogicalPlanPackage, newLogicalPlanPackage, item, children, helpers.as3_6(item.position), classOf[InputPosition])
 
         case (funcV3_4:expressionsv3_4.FunctionInvocation, children: Seq[AnyRef]) =>
-          convertVersion(oldExpressionPackage, newExpressionPackage, funcV3_4, children:+Boolean.box(false), helpers.as3_5(funcV3_4.position), classOf[InputPosition])
+          convertVersion(oldExpressionPackage, newExpressionPackage, funcV3_4, children:+Boolean.box(false), helpers.as3_6(funcV3_4.position), classOf[InputPosition])
 
         case (listCompV3_4:expressionsv3_4.ListComprehension, children: Seq[AnyRef]) =>
-          convertVersion(oldExpressionPackage, newExpressionPackage, listCompV3_4, children:+Boolean.box(false), helpers.as3_5(listCompV3_4.position), classOf[InputPosition])
+          convertVersion(oldExpressionPackage, newExpressionPackage, listCompV3_4, children:+Boolean.box(false), helpers.as3_6(listCompV3_4.position), classOf[InputPosition])
 
         // Fallthrough for all ASTNodes
         case (expressionV3_4: utilv3_4.ASTNode, children: Seq[AnyRef]) =>
-          convertVersion(oldExpressionPackage, newExpressionPackage, expressionV3_4, children, helpers.as3_5(expressionV3_4.position), classOf[InputPosition])
+          convertVersion(oldExpressionPackage, newExpressionPackage, expressionV3_4, children, helpers.as3_6(expressionV3_4.position), classOf[InputPosition])
 
         case (symbolsV3_4.CTAny, _) => symbolsv3_6.CTAny
         case (symbolsV3_4.CTBoolean, _) => symbolsv3_6.CTBoolean
@@ -308,7 +308,7 @@ object LogicalPlanConverter {
         case (_: utilv3_4.ExhaustiveShortestPathForbiddenException, _) => new utilv3_6.ExhaustiveShortestPathForbiddenException
 
         case (spp: irV3_4.ShortestPathPattern, children: Seq[AnyRef]) =>
-          val sp3_4 = convertASTNode[expressionsv3_6.ShortestPaths](spp.expr, expressionMap, solveds3_4, cardinalities3_4, solveds3_5, cardinalities3_5, ids, seenBySemanticTable)
+          val sp3_4 = convertASTNode[expressionsv3_6.ShortestPaths](spp.expr, expressionMap, solveds3_4, cardinalities3_4, solveds3_6, cardinalities3_6, ids, seenBySemanticTable)
           irv3_6.ShortestPathPattern(children(0).asInstanceOf[Option[String]], children(1).asInstanceOf[irv3_6.PatternRelationship], children(2).asInstanceOf[Boolean])(sp3_4)
 
         case (expressionsv3_4.NilPathStep, _) => expressionsv3_6.NilPathStep
@@ -366,13 +366,13 @@ object LogicalPlanConverter {
 
       before._1 match {
         case plan: LogicalPlanV3_4 =>
-          val plan3_5 = rewritten.asInstanceOf[LogicalPlanv3_6]
+          val plan3_6 = rewritten.asInstanceOf[LogicalPlanv3_6]
           // Set attributes
           if (solveds3_4.isDefinedAt(plan.id)) {
-            solveds3_5.set(plan3_5.id, new PlannerQueryWrapper(solveds3_4.get(plan.id)))
+            solveds3_6.set(plan3_6.id, new PlannerQueryWrapper(solveds3_4.get(plan.id)))
           }
           if (cardinalities3_4.isDefinedAt(plan.id)) {
-            cardinalities3_5.set(plan3_5.id, helpers.as3_5(cardinalities3_4.get(plan.id)))
+            cardinalities3_6.set(plan3_6.id, helpers.as3_6(cardinalities3_4.get(plan.id)))
           }
         // Save Mapping from 3.4 expression to 3.6 expression
         case e: ExpressionV3_4 if seenBySemanticTable(e) => expressionMap += (((e, e.position), rewritten.asInstanceOf[Expressionv3_6]))
@@ -390,11 +390,11 @@ object LogicalPlanConverter {
   def convertLogicalPlan[T <: LogicalPlanv3_6](logicalPlan: LogicalPlanV3_4,
                                                solveds3_4: SolvedsV3_4,
                                                cardinalities3_4: CardinalitiesV3_4,
-                                               solveds3_5: SolvedsV3_6,
-                                               cardinalities3_5: CardinalitiesV3_6,
+                                               solveds3_6: SolvedsV3_6,
+                                               cardinalities3_6: CardinalitiesV3_6,
                                                idConverter: IdConverter,
                                                seenBySemanticTable: ExpressionV3_4 => Boolean = _ => true): (LogicalPlanv3_6, ExpressionMapping4To5) = {
-    val rewriter = new LogicalPlanRewriter(solveds3_4, cardinalities3_4, solveds3_5, cardinalities3_5, idConverter, seenBySemanticTable = seenBySemanticTable)
+    val rewriter = new LogicalPlanRewriter(solveds3_4, cardinalities3_4, solveds3_6, cardinalities3_6, idConverter, seenBySemanticTable = seenBySemanticTable)
     val planv3_6 = new RewritableAny[LogicalPlanV3_4](logicalPlan).rewrite(rewriter, Seq.empty).asInstanceOf[T]
     (planv3_6, rewriter.expressionMap.toMap)
   }
@@ -405,11 +405,11 @@ object LogicalPlanConverter {
   private[v3_4] def convertExpression[T <: Expressionv3_6](expression: ExpressionV3_4,
                                                            solveds3_4: SolvedsV3_4,
                                                            cardinalities3_4: CardinalitiesV3_4,
-                                                           solveds3_5: SolvedsV3_6,
-                                                           cardinalities3_5: CardinalitiesV3_6,
+                                                           solveds3_6: SolvedsV3_6,
+                                                           cardinalities3_6: CardinalitiesV3_6,
                                                            idConverter: IdConverter): T = {
     new RewritableAny[ExpressionV3_4](expression)
-      .rewrite(new LogicalPlanRewriter(solveds3_4, cardinalities3_4, solveds3_5, cardinalities3_5, idConverter), Seq.empty)
+      .rewrite(new LogicalPlanRewriter(solveds3_4, cardinalities3_4, solveds3_6, cardinalities3_6, idConverter), Seq.empty)
       .asInstanceOf[T]
   }
 
@@ -420,15 +420,15 @@ object LogicalPlanConverter {
                                                     expressionMap: MutableExpressionMapping3To4,
                                                     solveds3_4: SolvedsV3_4,
                                                     cardinalities3_4: CardinalitiesV3_4,
-                                                    solveds3_5: SolvedsV3_6,
-                                                    cardinalities3_5: CardinalitiesV3_6,
+                                                    solveds3_6: SolvedsV3_6,
+                                                    cardinalities3_6: CardinalitiesV3_6,
                                                     idConverter: IdConverter,
                                                     seenBySemanticTable: ExpressionV3_4 => Boolean): T = {
     new RewritableAny[utilv3_4.ASTNode](ast)
       .rewrite(new LogicalPlanRewriter(solveds3_4,
                                        cardinalities3_4,
-                                       solveds3_5,
-                                       cardinalities3_5,
+                                       solveds3_6,
+                                       cardinalities3_6,
                                        idConverter,
                                        expressionMap,
                                        seenBySemanticTable), Seq.empty)
