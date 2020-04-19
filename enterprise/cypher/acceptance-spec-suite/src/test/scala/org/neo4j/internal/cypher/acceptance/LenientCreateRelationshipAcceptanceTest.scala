@@ -35,8 +35,8 @@ class LenientCreateRelationshipAcceptanceTest extends ExecutionEngineFunSuite wi
     GraphDatabaseSettings.cypher_lenient_create_relationship -> "true"
   )
 
-  private val createConf = Configs.Version3_5 + Configs.Version3_4 - Configs.Compiled
-  private val mergeConf = Configs.Version3_5 + Configs.Version3_4 - Configs.Compiled + Configs.RulePlanner
+  private val createConf = Configs.Version3_6 + Configs.Version3_4 - Configs.Compiled
+  private val mergeConf = Configs.Version3_6 + Configs.Version3_4 - Configs.Compiled + Configs.RulePlanner
 
   // No CLG decision on this AFAIK, so not TCK material
   test("should silently not CREATE relationship if start-point is missing") {

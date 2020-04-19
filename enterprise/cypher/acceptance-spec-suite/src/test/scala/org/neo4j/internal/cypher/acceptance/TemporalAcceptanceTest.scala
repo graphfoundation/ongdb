@@ -167,7 +167,7 @@ class TemporalAcceptanceTest extends ExecutionEngineFunSuite with QueryStatistic
                              planComparisonStrategy = ComparePlansWithAssertion({ plan =>
                                plan should includeSomewhere.aPlan("Projection").containingArgumentRegex(cached("timeSpan", "o.timeSpan"))
                                  .onTopOf(aPlan("NodeIndexSeek").containingArgument(":Occasion(timeSpan)"))
-      }, expectPlansToFail = Configs.All - Configs.Version3_5 - Configs.Version3_4),
+      }, expectPlansToFail = Configs.All - Configs.Version3_6 - Configs.Version3_4),
                              params = Map("param" ->
         Array(LocalDate.of(2018, 4, 1))))
 
@@ -192,7 +192,7 @@ class TemporalAcceptanceTest extends ExecutionEngineFunSuite with QueryStatistic
                              planComparisonStrategy = ComparePlansWithAssertion({ plan =>
                                plan should includeSomewhere.aPlan("Projection").containingArgumentRegex(cached("timeSpan", "o.timeSpan"))
                                  .onTopOf(aPlan("NodeIndexSeek").containingArgument(":Occasion(timeSpan)"))
-      }, expectPlansToFail = Configs.All - Configs.Version3_5 - Configs.Version3_4),
+      }, expectPlansToFail = Configs.All - Configs.Version3_6 - Configs.Version3_4),
                              params = Map("param" ->
         List(LocalDate.of(2018, 4, 1))))
 
@@ -218,7 +218,7 @@ class TemporalAcceptanceTest extends ExecutionEngineFunSuite with QueryStatistic
                              planComparisonStrategy = ComparePlansWithAssertion({ plan =>
                                plan should includeSomewhere.aPlan("Projection").containingArgumentRegex(cached("timeSpan", "o.timeSpan"))
                                  .onTopOf(aPlan("NodeIndexSeek").containingArgument(":Occasion(timeSpan)"))
-      }, expectPlansToFail = Configs.All - Configs.Version3_5 - Configs.Version3_4),
+      }, expectPlansToFail = Configs.All - Configs.Version3_6 - Configs.Version3_4),
                              params = Map("param" ->
         Array(LocalDate.of(2018, 4, 1), LocalDate.of(2018, 4, 2))))
 
@@ -245,7 +245,7 @@ class TemporalAcceptanceTest extends ExecutionEngineFunSuite with QueryStatistic
                              planComparisonStrategy = ComparePlansWithAssertion({ plan =>
                                plan should includeSomewhere.aPlan("Projection").containingArgumentRegex(cached("timeSpan", "o.timeSpan"))
                                  .onTopOf(aPlan("NodeIndexSeek").containingArgument(":Occasion(timeSpan)"))
-      }, expectPlansToFail = Configs.All - Configs.Version3_5 - Configs.Version3_4),
+      }, expectPlansToFail = Configs.All - Configs.Version3_6 - Configs.Version3_4),
                              params = Map("param" ->
         List(LocalDate.of(2018, 4, 1), LocalDate.of(2018, 4, 2))))
 
@@ -840,7 +840,7 @@ class TemporalAcceptanceTest extends ExecutionEngineFunSuite with QueryStatistic
           *  Version 3.3 returns null instead due to running with 3.6 runtime
           *  SyntaxException come from the 3.6 planner and IncomparableValuesException from earlier runtimes
           */
-        failWithError(Configs.Version3_5 - Configs.RulePlanner, query, Seq("Type mismatch"))
+        failWithError(Configs.Version3_6 - Configs.RulePlanner, query, Seq("Type mismatch"))
       }
     }
   }

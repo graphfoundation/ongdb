@@ -124,7 +124,7 @@ case class Cypher35Planner(config: CypherPlannerConfiguration,
     runSafely {
       val notificationLogger = new RecordingNotificationLogger(Some(preParsedQuery.offset))
       val syntacticQuery =
-        getOrParse(preParsedQuery, new Parser3_5(planner, notificationLogger, preParsedQuery.offset, tracer))
+        getOrParse(preParsedQuery, new Parser3_6(planner, notificationLogger, preParsedQuery.offset, tracer))
 
       // The parser populates the notificationLogger as a side-effect of its work, therefore
       // in the case of a cached query the notificationLogger will not be properly filled
@@ -200,7 +200,7 @@ case class Cypher35Planner(config: CypherPlannerConfiguration,
   override val name: PlannerName = plannerName
 }
 
-private[v3_6] class Parser3_5(planner: v3_6.CypherPlanner[PlannerContext],
+private[v3_6] class Parser3_6(planner: v3_6.CypherPlanner[PlannerContext],
                               notificationLogger: InternalNotificationLogger,
                               offset: InputPosition,
                               tracer: CompilationPhaseTracer

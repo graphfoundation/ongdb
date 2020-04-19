@@ -137,7 +137,7 @@ class HintAcceptanceTest
         |AND date("2017-01-01") <= r.date <= date("2018-01-01")
         |RETURN COUNT(*)""".stripMargin
 
-    val result = executeWith(Configs.Version3_5 + Configs.Version3_4 - Configs.Compiled, query)
+    val result = executeWith(Configs.Version3_6 + Configs.Version3_4 - Configs.Compiled, query)
 
     // Then
     result.toList should be(List(Map("COUNT(*)" -> 1)))

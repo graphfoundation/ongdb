@@ -71,7 +71,7 @@ object Configs {
 
   def Version3_4: TestConfiguration = TestConfiguration(V3_4, Planners.all, Runtimes.all)
 
-  def Version3_5: TestConfiguration = TestConfiguration(V3_6, Planners.all, Runtimes.all)
+  def Version3_6: TestConfiguration = TestConfiguration(V3_6, Planners.all, Runtimes.all)
 
   /**
     * Configs which support CREATE, DELETE, SET, REMOVE, MERGE etc.

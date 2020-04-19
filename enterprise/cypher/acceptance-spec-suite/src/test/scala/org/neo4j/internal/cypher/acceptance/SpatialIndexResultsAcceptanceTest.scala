@@ -77,7 +77,7 @@ class SpatialIndexResultsAcceptanceTest extends IndexingTestSupport {
         plan should includeSomewhere
           .aPlan("Projection").containingArgumentRegex("\\{point : .*\\}".r)
           .onTopOf(aPlan("NodeIndexSeek").containingArgument(":Place(location)"))
-      }, expectPlansToFail = Configs.All - Configs.Version3_5 - Configs.Version3_4))
+      }, expectPlansToFail = Configs.All - Configs.Version3_6 - Configs.Version3_4))
 
     // Then
     val point = result.columnAs("point").toList.head.asInstanceOf[Point]
@@ -101,7 +101,7 @@ class SpatialIndexResultsAcceptanceTest extends IndexingTestSupport {
           .aPlan("Projection").containingArgumentRegex("\\{point : .*\\}".r)
           .onTopOf(aPlan("NodeIndexSeek").containingArgument(":Place(location)"))
 
-      }, expectPlansToFail = Configs.All - Configs.Version3_5 - Configs.Version3_4),
+      }, expectPlansToFail = Configs.All - Configs.Version3_6 - Configs.Version3_4),
       params = ImmutableMap("param" -> wgsPoint(12.78, 56.7)))
 
     // Then
@@ -125,7 +125,7 @@ class SpatialIndexResultsAcceptanceTest extends IndexingTestSupport {
         plan should includeSomewhere
           .aPlan("Projection").containingArgumentRegex("\\{point : .*\\}".r)
           .onTopOf(aPlan("NodeIndexSeek").containingArgument(":Place(location)"))
-      }, expectPlansToFail = Configs.All - Configs.Version3_5 - Configs.Version3_4),
+      }, expectPlansToFail = Configs.All - Configs.Version3_6 - Configs.Version3_4),
       params = ImmutableMap("param" -> Array(wgsPoint(12.78, 56.7))))
 
     // Then
@@ -153,7 +153,7 @@ class SpatialIndexResultsAcceptanceTest extends IndexingTestSupport {
         plan should includeSomewhere
           .aPlan("Projection").containingArgumentRegex("\\{point : .*\\}".r)
           .onTopOf(aPlan("NodeIndexSeek").containingArgument(":Place(location)"))
-      }, expectPlansToFail = Configs.All - Configs.Version3_5 - Configs.Version3_4),
+      }, expectPlansToFail = Configs.All - Configs.Version3_6 - Configs.Version3_4),
       params = ImmutableMap("param" ->
         Array(wgsPoint(12.78, 56.7),
           wgsPoint(13.78, 56.7))))
@@ -187,7 +187,7 @@ class SpatialIndexResultsAcceptanceTest extends IndexingTestSupport {
         plan should includeSomewhere
           .aPlan("Projection").containingArgumentRegex("\\{point : .*\\}".r)
           .onTopOf(aPlan("NodeIndexSeek").containingArgument(":Place(location)"))
-      }, expectPlansToFail = Configs.All - Configs.Version3_5 - Configs.Version3_4),
+      }, expectPlansToFail = Configs.All - Configs.Version3_6 - Configs.Version3_4),
       params = ImmutableMap("param" ->
         List(wgsPoint(12.78, 56.7),
           wgsPoint(13.78, 56.7))))
@@ -256,7 +256,7 @@ class SpatialIndexResultsAcceptanceTest extends IndexingTestSupport {
         plan should includeSomewhere
           .aPlan("Projection").containingArgumentRegex("\\{point : .*\\}".r)
           .onTopOf(aPlan("NodeIndexSeek").containingArgument(":Place(location)"))
-      }, expectPlansToFail = Configs.All - Configs.Version3_5 - Configs.Version3_4))
+      }, expectPlansToFail = Configs.All - Configs.Version3_6 - Configs.Version3_4))
 
     // Then
     val point = result.columnAs("point").toList.head.asInstanceOf[Point]

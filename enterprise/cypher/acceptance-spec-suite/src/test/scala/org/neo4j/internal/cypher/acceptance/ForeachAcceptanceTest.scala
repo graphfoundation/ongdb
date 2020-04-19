@@ -222,7 +222,7 @@ class ForeachAcceptanceTest extends ExecutionEngineFunSuite with CypherCompariso
     graph.execute("CREATE (:X)-[:T]->(), (:X)")
 
     val result = executeWith(
-      expectSucceed = Configs.InterpretedAndSlotted /\ Configs.Version3_5,
+      expectSucceed = Configs.InterpretedAndSlotted /\ Configs.Version3_6,
       query = "FOREACH (x in  [ (n:X)-->() | n ] | SET x.prop = 12 )")
     assertStats(result, propertiesWritten = 1)
   }

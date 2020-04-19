@@ -59,10 +59,10 @@ import scala.util.Try
 class LogicalPlanConverterTest extends CypherFunSuite {
 
   private implicit val idGen3_4 = new SequentialIdGenv3_4()
-  private implicit val idGen3_5 = new SequentialIdGenv3_6()
+  private implicit val idGen3_6 = new SequentialIdGenv3_6()
 
   private val pos3_4 = InputPositionV3_4(0,0,0)
-  private val pos3_5 = InputPosition(0,0,0)
+  private val pos3_6 = InputPosition(0,0,0)
   // We use these package names to enumerate all classes of a certain type in these packages and test
   // for all of them.
   private val reflectExpressions = new Reflections("org.neo4j.cypher.internal.v3_4.expressions")
@@ -70,37 +70,37 @@ class LogicalPlanConverterTest extends CypherFunSuite {
 
   test("should convert an IntegerLiteral with its position") {
     val i3_4 = expressionsv3_4.SignedDecimalIntegerLiteral("5")(InputPositionV3_4(1, 2, 3))
-    val i3_5 = expressionsv3_6.SignedDecimalIntegerLiteral("5")(InputPosition(1, 2, 3))
+    val i3_6 = expressionsv3_6.SignedDecimalIntegerLiteral("5")(InputPosition(1, 2, 3))
 
     val rewritten = convert[expressionsv3_6.SignedDecimalIntegerLiteral](i3_4)
-    rewritten should be(i3_5)
-    rewritten.position should be(i3_5.position)
+    rewritten should be(i3_6)
+    rewritten.position should be(i3_6.position)
   }
 
   test("should convert an Add with its position (recursively)") {
     val i3_4a = expressionsv3_4.SignedDecimalIntegerLiteral("2")(InputPositionV3_4(1, 2, 3))
     val i3_4b = expressionsv3_4.SignedDecimalIntegerLiteral("5")(InputPositionV3_4(1, 2, 5))
     val add3_4 = expressionsv3_4.Add(i3_4a, i3_4b)(InputPositionV3_4(1,2,3))
-    val i3_5a = expressionsv3_6.SignedDecimalIntegerLiteral("2")(InputPosition(1, 2, 3))
-    val i3_5b = expressionsv3_6.SignedDecimalIntegerLiteral("5")(InputPosition(1, 2, 5))
-    val add3_5 = expressionsv3_6.Add(i3_5a, i3_5b)(InputPosition(1,2,3))
+    val i3_6a = expressionsv3_6.SignedDecimalIntegerLiteral("2")(InputPosition(1, 2, 3))
+    val i3_6b = expressionsv3_6.SignedDecimalIntegerLiteral("5")(InputPosition(1, 2, 5))
+    val add3_6 = expressionsv3_6.Add(i3_6a, i3_6b)(InputPosition(1,2,3))
 
     val rewritten = convert[expressionsv3_6.Add](add3_4)
-    rewritten should be(add3_5)
-    rewritten.position should equal(add3_5.position)
-    rewritten.lhs.position should equal(i3_5a.position)
-    rewritten.rhs.position should equal(i3_5b.position)
+    rewritten should be(add3_6)
+    rewritten.position should equal(add3_6.position)
+    rewritten.lhs.position should equal(i3_6a.position)
+    rewritten.rhs.position should equal(i3_6b.position)
   }
 
   test("should convert Expression with Seq") {
     val i3_4a = expressionsv3_4.SignedDecimalIntegerLiteral("2")(pos3_4)
     val i3_4b = expressionsv3_4.SignedDecimalIntegerLiteral("5")(pos3_4)
     val l3_4 = expressionsv3_4.ListLiteral(Seq(i3_4a, i3_4b))(pos3_4)
-    val i3_5a = expressionsv3_6.SignedDecimalIntegerLiteral("2")(pos3_5)
-    val i3_5b = expressionsv3_6.SignedDecimalIntegerLiteral("5")(pos3_5)
-    val l3_5 = expressionsv3_6.ListLiteral(Seq(i3_5a, i3_5b))(pos3_5)
+    val i3_6a = expressionsv3_6.SignedDecimalIntegerLiteral("2")(pos3_6)
+    val i3_6b = expressionsv3_6.SignedDecimalIntegerLiteral("5")(pos3_6)
+    val l3_6 = expressionsv3_6.ListLiteral(Seq(i3_6a, i3_6b))(pos3_6)
 
-    convert[expressionsv3_6.ListLiteral](l3_4) should be(l3_5)
+    convert[expressionsv3_6.ListLiteral](l3_4) should be(l3_6)
   }
 
   test("should convert Expression with Option") {
@@ -109,24 +109,24 @@ class LogicalPlanConverterTest extends CypherFunSuite {
     val f3_4 = expressionsv3_4.FilterScope(v3_4, Some(i3_4))(pos3_4)
     val f3_4b = expressionsv3_4.FilterScope(v3_4, None)(pos3_4)
 
-    val i3_5 = expressionsv3_6.SignedDecimalIntegerLiteral("2")(pos3_5)
-    val v3_6 = expressionsv3_6.Variable("var")(pos3_5)
-    val f3_5 = expressionsv3_6.FilterScope(v3_6, Some(i3_5))(pos3_5)
-    val f3_5b = expressionsv3_6.FilterScope(v3_6, None)(pos3_5)
+    val i3_6 = expressionsv3_6.SignedDecimalIntegerLiteral("2")(pos3_6)
+    val v3_6 = expressionsv3_6.Variable("var")(pos3_6)
+    val f3_6 = expressionsv3_6.FilterScope(v3_6, Some(i3_6))(pos3_6)
+    val f3_6b = expressionsv3_6.FilterScope(v3_6, None)(pos3_6)
 
-    convert[expressionsv3_6.FilterScope](f3_4) should be(f3_5)
-    convert[expressionsv3_6.FilterScope](f3_4b) should be(f3_5b)
+    convert[expressionsv3_6.FilterScope](f3_4) should be(f3_6)
+    convert[expressionsv3_6.FilterScope](f3_4b) should be(f3_6b)
   }
 
   test("should convert Expression with Set") {
     val i3_4a = expressionsv3_4.SignedDecimalIntegerLiteral("2")(pos3_4)
     val i3_4b = expressionsv3_4.SignedDecimalIntegerLiteral("5")(pos3_4)
     val l3_4 = expressionsv3_4.Ands(Set(i3_4a, i3_4b))(pos3_4)
-    val i3_5a = expressionsv3_6.SignedDecimalIntegerLiteral("2")(pos3_5)
-    val i3_5b = expressionsv3_6.SignedDecimalIntegerLiteral("5")(pos3_5)
-    val l3_5 = expressionsv3_6.Ands(Set(i3_5a, i3_5b))(pos3_5)
+    val i3_6a = expressionsv3_6.SignedDecimalIntegerLiteral("2")(pos3_6)
+    val i3_6b = expressionsv3_6.SignedDecimalIntegerLiteral("5")(pos3_6)
+    val l3_6 = expressionsv3_6.Ands(Set(i3_6a, i3_6b))(pos3_6)
 
-    convert[expressionsv3_6.Ands](l3_4) should be(l3_5)
+    convert[expressionsv3_6.Ands](l3_4) should be(l3_6)
   }
 
   test("should convert Expression with Seq of Tuple") {
@@ -136,13 +136,13 @@ class LogicalPlanConverterTest extends CypherFunSuite {
     val i3_4d = expressionsv3_4.SignedDecimalIntegerLiteral("11")(pos3_4)
     val c3_4 = expressionsv3_4.CaseExpression(None, List((i3_4a, i3_4b), (i3_4c, i3_4d)), None)(pos3_4)
 
-    val i3_5a = expressionsv3_6.SignedDecimalIntegerLiteral("2")(pos3_5)
-    val i3_5b = expressionsv3_6.SignedDecimalIntegerLiteral("5")(pos3_5)
-    val i3_5c = expressionsv3_6.SignedDecimalIntegerLiteral("10")(pos3_5)
-    val i3_5d = expressionsv3_6.SignedDecimalIntegerLiteral("11")(pos3_5)
-    val c3_5 = expressionsv3_6.CaseExpression(None, List((i3_5a, i3_5b), (i3_5c, i3_5d)), None)(pos3_5)
+    val i3_6a = expressionsv3_6.SignedDecimalIntegerLiteral("2")(pos3_6)
+    val i3_6b = expressionsv3_6.SignedDecimalIntegerLiteral("5")(pos3_6)
+    val i3_6c = expressionsv3_6.SignedDecimalIntegerLiteral("10")(pos3_6)
+    val i3_6d = expressionsv3_6.SignedDecimalIntegerLiteral("11")(pos3_6)
+    val c3_6 = expressionsv3_6.CaseExpression(None, List((i3_6a, i3_6b), (i3_6c, i3_6d)), None)(pos3_6)
 
-    convert[expressionsv3_6.CaseExpression](c3_4) should be(c3_5)
+    convert[expressionsv3_6.CaseExpression](c3_4) should be(c3_6)
   }
 
   test("should convert Expression with Seq of Tuple (MapExpression)") {
@@ -152,7 +152,7 @@ class LogicalPlanConverterTest extends CypherFunSuite {
     val p3_4b = expressionsv3_4.PropertyKeyName("b")(pos3_4)
     val m3_4 = expressionsv3_4.MapExpression(Seq((p3_4a, i3_4a),(p3_4b, i3_4b)))(pos3_4)
 
-    val i3_5a = expressionsv3_6.SignedDecimalIntegerLiteral("2")(pos3_5)
+    val i3_6a = expressionsv3_6.SignedDecimalIntegerLiteral("2")(pos3_6)
     val i3_5b = expressionsv3_6.SignedDecimalIntegerLiteral("5")(pos3_5)
     val p3_5a = expressionsv3_6.PropertyKeyName("a")(pos3_5)
     val p3_5b = expressionsv3_6.PropertyKeyName("b")(pos3_5)
