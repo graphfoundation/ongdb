@@ -41,7 +41,7 @@
         </dependency>
         <dependency>
             <groupId>org.graphfoundation.ongdb.test</groupId>
-            <artifactId>neo4j-harness</artifactId>
+            <artifactId>ongdb-harness</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
         </dependency>

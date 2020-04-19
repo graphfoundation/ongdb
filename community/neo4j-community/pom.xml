@@ -8,7 +8,7 @@
     <relativePath>../..</relativePath>
   </parent>
 
-  <artifactId>neo4j-community</artifactId>
+  <artifactId>ongdb-community</artifactId>
   <version>3.6.0-SNAPSHOT</version>
 
   <name>ONgDB - Community (Bill of Materials)</name>

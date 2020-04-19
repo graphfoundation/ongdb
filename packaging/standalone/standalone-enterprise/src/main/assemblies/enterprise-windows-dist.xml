@@ -115,7 +115,7 @@
       </includes>
       <excludes>
         <exclude>*:pom:*</exclude>
-        <exclude>org.graphfoundation.ongdb:neo4j-enterprise:jar</exclude>
+        <exclude>org.graphfoundation.ongdb:ongdb-enterprise:jar</exclude>
         <!--<exclude>org.neo4j:neo4j</exclude>-->
       </excludes>
     </dependencySet>

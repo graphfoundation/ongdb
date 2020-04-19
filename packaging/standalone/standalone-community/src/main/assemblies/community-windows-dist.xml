@@ -63,7 +63,7 @@
         <include>**/*.ps1</include>
       </includes>
       <excludes>
-        <exclude>**/neo4j-backup*</exclude>
+        <exclude>**/ongdb-backup*</exclude>
         <exclude>**/*.m4</exclude>
       </excludes>
       <filtered>true</filtered>

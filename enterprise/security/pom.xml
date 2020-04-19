@@ -8,7 +8,7 @@
   </parent>
 
   <groupId>org.graphfoundation.ongdb</groupId>
-  <artifactId>neo4j-security-enterprise</artifactId>
+  <artifactId>ongdb-security-enterprise</artifactId>
   <version>3.6.0-SNAPSHOT</version>
 
   <name>ONgDB - Enterprise Graph Database Security Features</name>
@@ -60,27 +60,27 @@
         <!-- Neo4j dependencies -->
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>neo4j-kernel</artifactId>
+            <artifactId>ongdb-kernel</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>neo4j-enterprise-kernel</artifactId>
+            <artifactId>ongdb-enterprise-kernel</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>neo4j-security</artifactId>
+            <artifactId>ongdb-security</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>neo4j-auth-plugin-api</artifactId>
+            <artifactId>ongdb-auth-plugin-api</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>neo4j-dbms</artifactId>
+            <artifactId>ongdb-dbms</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
@@ -105,61 +105,61 @@
         </dependency>
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>neo4j-common</artifactId>
+            <artifactId>ongdb-common</artifactId>
             <version>${project.version}</version>
             <type>test-jar</type>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>neo4j-security</artifactId>
+            <artifactId>ongdb-security</artifactId>
             <version>${project.version}</version>
             <type>test-jar</type>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>neo4j-kernel</artifactId>
+            <artifactId>ongdb-kernel</artifactId>
             <version>${project.version}</version>
             <type>test-jar</type>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>neo4j-enterprise-kernel</artifactId>
+            <artifactId>ongdb-enterprise-kernel</artifactId>
             <version>${project.version}</version>
             <type>test-jar</type>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>neo4j-io</artifactId>
+            <artifactId>ongdb-io</artifactId>
             <version>${project.version}</version>
             <type>test-jar</type>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>neo4j-cypher</artifactId>
+            <artifactId>ongdb-cypher</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>neo4j-logging</artifactId>
+            <artifactId>ongdb-logging</artifactId>
             <version>${project.version}</version>
             <type>test-jar</type>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>neo4j-bolt</artifactId>
+            <artifactId>ongdb-bolt</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>neo4j-bolt</artifactId>
+            <artifactId>ongdb-bolt</artifactId>
             <version>${project.version}</version>
             <type>test-jar</type>
             <scope>test</scope>

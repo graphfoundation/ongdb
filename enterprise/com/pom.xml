@@ -7,7 +7,7 @@
     <relativePath>../..</relativePath>
   </parent>
   
-  <artifactId>neo4j-com</artifactId>
+  <artifactId>ongdb-com</artifactId>
   <version>3.6.0-SNAPSHOT</version>
 
   <name>ONgDB - Communication Package</name>
@@ -46,12 +46,12 @@
     <dependencies>
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>neo4j-kernel</artifactId>
+            <artifactId>ongdb-kernel</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>neo4j-enterprise-kernel</artifactId>
+            <artifactId>ongdb-enterprise-kernel</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
@@ -60,7 +60,7 @@
         </dependency>
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>neo4j-kernel</artifactId>
+            <artifactId>ongdb-kernel</artifactId>
             <version>${project.version}</version>
             <type>test-jar</type>
             <scope>test</scope>
@@ -73,21 +73,21 @@
         </dependency>
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>neo4j-io</artifactId>
+            <artifactId>ongdb-io</artifactId>
             <version>${project.version}</version>
             <type>test-jar</type>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>neo4j-common</artifactId>
+            <artifactId>ongdb-common</artifactId>
             <version>${project.version}</version>
             <type>test-jar</type>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>neo4j-logging</artifactId>
+            <artifactId>ongdb-logging</artifactId>
             <version>${project.version}</version>
             <type>test-jar</type>
             <scope>test</scope>
@@ -123,7 +123,7 @@
 
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>neo4j-lucene-index</artifactId>
+            <artifactId>ongdb-lucene-index</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
         </dependency>

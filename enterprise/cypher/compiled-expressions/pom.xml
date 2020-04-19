@@ -8,7 +8,7 @@
   </parent>
 
   <modelVersion>4.0.0</modelVersion>
-  <artifactId>neo4j-cypher-compiled-expressions</artifactId>
+  <artifactId>ongdb-cypher-compiled-expressions</artifactId>
   <packaging>jar</packaging>
   <version>3.6.0-SNAPSHOT</version>
   <name>ONgDB - Compiled Expressions</name>
@@ -90,30 +90,30 @@
 
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-codegen</artifactId>
+      <artifactId>ongdb-codegen</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-cypher-logical-plans-3.5</artifactId>
+      <artifactId>ongdb-cypher-logical-plans-3.5</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-cypher-physical-planning</artifactId>
+      <artifactId>ongdb-cypher-physical-planning</artifactId>
       <version>${project.version}</version>
     </dependency>
 
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-ast-3.5</artifactId>
+      <artifactId>ongdb-ast-3.5</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-util-3.5</artifactId>
+      <artifactId>ongdb-util-3.5</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
