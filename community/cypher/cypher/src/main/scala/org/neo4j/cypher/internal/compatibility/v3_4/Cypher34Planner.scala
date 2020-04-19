@@ -199,7 +199,7 @@ case class Cypher34Planner(configv3_6: CypherPlannerConfiguration,
       // If the query is not cached we do full planning + creating of executable plan
       def createPlan(): CacheableLogicalPlan = {
         val logicalPlanStateV3_4 = compiler.planPreparedQuery(preparedQuery, contextV3_4)
-        val logicalPlanStatev3_6 = helpers.as3_5(logicalPlanStateV3_4) // Here we switch from 3.4 to 3.5
+        val logicalPlanStatev3_6 = helpers.as3_5(logicalPlanStateV3_4) // Here we switch from 3.4 to 3.6
         LogicalPlanNotifications
           .checkForNotifications(logicalPlanStatev3_6.maybeLogicalPlan.get, planContextv3_6, configv3_6)
           .foreach(notificationLoggerv3_6.log)

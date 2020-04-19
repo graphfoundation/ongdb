@@ -374,7 +374,7 @@ object LogicalPlanConverter {
           if (cardinalities3_4.isDefinedAt(plan.id)) {
             cardinalities3_5.set(plan3_5.id, helpers.as3_5(cardinalities3_4.get(plan.id)))
           }
-        // Save Mapping from 3.4 expression to 3.5 expression
+        // Save Mapping from 3.4 expression to 3.6 expression
         case e: ExpressionV3_4 if seenBySemanticTable(e) => expressionMap += (((e, e.position), rewritten.asInstanceOf[Expressionv3_6]))
         case _ =>
       }
@@ -446,7 +446,7 @@ object LogicalPlanConverter {
 
   /**
     * Given the class name in 3.4 and the old and new package names, return the constructor of the
-    * 3.5 class with the same name.
+    * 3.6 class with the same name.
     */
   private def getConstructor(classNameV3_4: String, oldPackage: String, newPackage: String): Constructor[_] = {
     constructors.get.getOrElseUpdate((classNameV3_4, oldPackage, newPackage), {
@@ -455,7 +455,7 @@ object LogicalPlanConverter {
       Try(Class.forName(classNamev3_6)).map(_.getConstructors.head) match {
         case Success(c) => c
         case Failure(e: ClassNotFoundException) => throw new InternalException(
-          s"Failed trying to rewrite $classNameV3_4 - 3.5 class not found ($classNamev3_6)", e)
+          s"Failed trying to rewrite $classNameV3_4 - 3.6 class not found ($classNamev3_6)", e)
         case Failure(e: NoSuchElementException) => throw new InternalException(
           s"Failed trying to rewrite $classNameV3_4 - this class does not have a constructor", e)
         case Failure(e) => throw e
@@ -464,10 +464,10 @@ object LogicalPlanConverter {
   }
 
   /**
-    * Convert something (expression, AstNode, LogicalPlan) from 3.4 to 3.5.
+    * Convert something (expression, AstNode, LogicalPlan) from 3.4 to 3.6.
     *
     * @param oldPackage the package name in 3.4
-    * @param newPackage the package name in 3.5
+    * @param newPackage the package name in 3.6
     * @param thing      the thing to convert
     * @param children   the already converted children, which will be used as constructor arguments when constructing the
     *                   converted thing
@@ -517,10 +517,10 @@ object LogicalPlanConverter {
   }
 
   /**
-    * Converts a 3.4 CreateNode or CreateRelationship logical plan operator into a 3.5 Create operator.
+    * Converts a 3.4 CreateNode or CreateRelationship logical plan operator into a 3.6 Create operator.
     *
     * If the source operator is a Create operator, the create command is added to that operator instead of creating a
-    * new one, effectively squashing deep tree of 3.3 CreateNode and CreateRelationship operators into on 3.5 Create.
+    * new one, effectively squashing deep tree of 3.3 CreateNode and CreateRelationship operators into on 3.6 Create.
     */
   private def flattenCreates(source: LogicalPlanv3_6,
                              createNode: Option[CreateNode],

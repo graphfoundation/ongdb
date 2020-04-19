@@ -482,7 +482,7 @@ order by a.COL1""".format(a, b))
   test("shouldReturnASimplePath") {
     val errorMessage = List("Index `missingIndex` does not exist")
 
-    // Version 3.5 silently falls back to 3.1
+    // Version 3.6 silently falls back to 3.1
     val conf = TestConfiguration(Versions(V2_3, V3_1, V3_5), Planners.all, Runtimes.Interpreted)
     val conf2 = TestConfiguration(Versions(V2_3, V3_1, V3_5), Planners.Rule, Runtimes.Interpreted)
     failWithError(conf, "start a=node:missingIndex(key='value') return a", errorMessage)

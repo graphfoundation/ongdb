@@ -664,7 +664,7 @@ class LoadCsvAcceptanceTest
           writer.println(longName)
       })
       for (url <- urls) {
-        //TODO this message should mention `dbms.import.csv.buffer_size` in 3.5
+        //TODO this message should mention `dbms.import.csv.buffer_size` in 3.6
         val error = intercept[QueryExecutionException](db.execute(
           s"""LOAD CSV WITH HEADERS FROM '$url' AS row
              |RETURN row.prop""".stripMargin).next().get("row.prop"))

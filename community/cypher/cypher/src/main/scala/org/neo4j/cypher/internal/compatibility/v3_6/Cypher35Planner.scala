@@ -66,7 +66,7 @@ case class Cypher35Planner(config: CypherPlannerConfiguration,
                            txIdProvider: () => Long)
   extends BasePlanner[Statement, BaseState](config, clock, kernelMonitors, txIdProvider) with CypherPlanner {
 
-  monitors.addMonitorListener(logStalePlanRemovalMonitor(log), "cypher3.5")
+  monitors.addMonitorListener(logStalePlanRemovalMonitor(log), "cypher3.6")
 
   val plannerName: CostBasedPlannerName =
     plannerOption match {

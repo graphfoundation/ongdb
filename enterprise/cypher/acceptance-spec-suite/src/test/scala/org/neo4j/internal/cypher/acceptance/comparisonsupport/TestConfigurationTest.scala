@@ -54,24 +54,24 @@ class TestConfigurationTest extends CypherFunSuite {
   }
 
   test("should parse version and planner") {
-    TestConfiguration("3.5 planner=cost") should be(TestConfiguration(Versions.V3_5, Planners.Cost, Runtimes.all))
+    TestConfiguration("3.6 planner=cost") should be(TestConfiguration(Versions.V3_5, Planners.Cost, Runtimes.all))
     TestConfiguration("3.1 planner=rule") should be(TestConfiguration(Versions.V3_1, Planners.Rule, Runtimes.all))
   }
 
   test("should parse version and planner and runtime") {
-    TestConfiguration("3.5 planner=cost runtime=compiled") should be(TestConfiguration(Versions.V3_5, Planners.Cost, Runtimes.CompiledBytecode))
+    TestConfiguration("3.6 planner=cost runtime=compiled") should be(TestConfiguration(Versions.V3_5, Planners.Cost, Runtimes.CompiledBytecode))
     TestConfiguration("3.1 planner=rule runtime=interpreted") should be(TestConfiguration(Versions.V3_1, Planners.Rule, Runtimes.Interpreted))
   }
 
   test("should parse multiple lines") {
     TestConfiguration(
-      """3.5 planner=cost runtime=compiled
+      """3.6 planner=cost runtime=compiled
         |3.1 planner=rule runtime=interpreted""".stripMargin) should be(TestConfiguration(Versions.V3_5, Planners.Cost, Runtimes.CompiledBytecode) + TestConfiguration(Versions.V3_1, Planners.Rule, Runtimes.Interpreted))
     TestConfiguration(
       """2.3 planner=rule
         |3.1
         |3.4
-        |3.5
+        |3.6
       """.stripMargin
     ) should be(
       TestConfiguration(Versions(V3_1, V3_4, V3_5),

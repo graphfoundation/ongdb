@@ -26,7 +26,7 @@ import org.neo4j.cypher.internal.v3_6.frontend.PlannerName
 
 class RootPlanAcceptanceTest extends ExecutionEngineFunSuite {
 
-  test("cost should be default planner in 3.5") {
+  test("cost should be default planner in 3.6") {
     given("match (n) return n")
       .withCypherVersion(CypherVersion.v3_6)
       .shouldHavePlanner(CostBasedPlannerName.default)
@@ -38,27 +38,27 @@ class RootPlanAcceptanceTest extends ExecutionEngineFunSuite {
       .shouldHaveCypherVersion(CypherVersion.v3_4)
   }
 
-  test("interpreted should be default runtime in 3.5") {
+  test("interpreted should be default runtime in 3.6") {
     given("match (n) return n")
       .withCypherVersion(CypherVersion.v3_6)
       .shouldHaveRuntime(InterpretedRuntimeName)
   }
 
-  test("should use cost for varlength in 3.5") {
+  test("should use cost for varlength in 3.6") {
     given("match (a)-[r:T1*]->(b) return a,r,b")
       .withCypherVersion(CypherVersion.v3_6)
       .shouldHaveCypherVersion(CypherVersion.v3_6)
       .shouldHavePlanner(CostBasedPlannerName.default)
   }
 
-  test("should use cost for cycles in 3.5") {
+  test("should use cost for cycles in 3.6") {
     given("match (a)-[r]->(a) return a")
       .withCypherVersion(CypherVersion.v3_6)
       .shouldHaveCypherVersion(CypherVersion.v3_6)
       .shouldHavePlanner(CostBasedPlannerName.default)
   }
 
-  test("should handle updates in 3.5") {
+  test("should handle updates in 3.6") {
     given("create() return 1")
       .withCypherVersion(CypherVersion.v3_6)
       .shouldHaveCypherVersion(CypherVersion.v3_6)

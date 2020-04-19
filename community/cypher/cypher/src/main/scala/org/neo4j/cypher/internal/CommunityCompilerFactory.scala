@@ -79,7 +79,7 @@ class CommunityCompilerFactory(graph: GraphDatabaseQueryService,
           kernelMonitors
         )
 
-        // 3.5
+        // 3.6
       case (CypherVersion.v3_6, _) =>
         CypherCurrentCompiler(
           Cypher35Planner(plannerConfig, MasterCompiler.CLOCK, kernelMonitors, log,

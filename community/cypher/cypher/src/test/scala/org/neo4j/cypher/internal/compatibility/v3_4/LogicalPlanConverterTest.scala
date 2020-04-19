@@ -422,7 +422,7 @@ class LogicalPlanConverterTest extends CypherFunSuite {
           case Success(plan) =>
             val rewritten = convert[plansv3_6.LogicalPlan](plan)
             rewritten shouldBe an[plansv3_6.LogicalPlan]
-          case Failure(e: InstantiationException) => fail(s"could not instantiate 3.5 logical plan: ${subType.getSimpleName} with arguments ${paramTypes.toList}", e)
+          case Failure(e: InstantiationException) => fail(s"could not instantiate 3.6 logical plan: ${subType.getSimpleName} with arguments ${paramTypes.toList}", e)
           case Failure(e) => fail(s"Converting ${subType.getName} failed", e)
         }
       }

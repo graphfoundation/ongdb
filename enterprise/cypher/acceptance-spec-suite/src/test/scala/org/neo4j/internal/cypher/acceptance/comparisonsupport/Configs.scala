@@ -89,7 +89,7 @@ object Configs {
       TestConfiguration(V3_4 -> V3_5, Rule, Runtimes.all) -
       // No slotted runtime before 3.4
       TestConfiguration(V2_3 -> V3_1, Planners.all, Runtimes(Slotted, SlottedWithCompiledExpressions)) -
-      // No slotted runtime with compiled expressions before 3.5
+      // No slotted runtime with compiled expressions before 3.6
       TestConfiguration(V3_4, Planners.all, Runtimes(SlottedWithCompiledExpressions)) -
       // No compiled runtime before 3.4
       TestConfiguration(V2_3 -> V3_1, Planners.all, Runtimes(CompiledSource, CompiledBytecode))

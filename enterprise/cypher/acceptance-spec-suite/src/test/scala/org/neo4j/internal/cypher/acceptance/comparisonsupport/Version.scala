@@ -48,12 +48,12 @@ object Versions {
   object V3_1 extends Version("3.1")
 
   object V3_4 extends Version("3.4") {
-    // 3.4 has 3.5 runtime
+    // 3.4 has 3.6 runtime
     override val acceptedRuntimeVersionNames = Set("3.6")
   }
 
   object V3_5 extends Version("3.6") {
-    // 3.5 may fall back to 3.1 deprecated features
+    // 3.6 may fall back to 3.1 deprecated features
     override val acceptedRuntimeVersionNames = Set("3.6", "3.1")
     override val acceptedPlannerVersionNames = Set("3.6", "3.1")
   }

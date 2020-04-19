@@ -28,7 +28,7 @@ import org.neo4j.cypher.internal.v3_6.rewriting.RewriterStepSequencer
 import org.neo4j.cypher.internal.v3_6.rewriting.rewriters.IfNoParameter
 
 class CypherPlannerFactory[C <: PlannerContext, T <: Transformer[C, LogicalPlanState, LogicalPlanState]] {
-  val monitorTag = "cypher3.5"
+  val monitorTag = "cypher3.6"
 
   def costBasedCompiler(config: CypherPlannerConfiguration,
                         clock: Clock,

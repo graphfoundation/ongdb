@@ -30,7 +30,7 @@ import org.neo4j.cypher.internal.v3_6.util.{LabelId, PropertyKeyId, RelTypeId}
   * so that existing 3.4 code will see it as the same type. However it overrides all behaviour in that class.
   *
   * @param innerV3_4 - the inner 3.4 graph statistics used by the planner to make the plans
-  * @param snapshotv3_6 - the 3.5 version of the graph statistics snapshot used to remember what was used by the planner
+  * @param snapshotv3_6 - the 3.6 version of the graph statistics snapshot used to remember what was used by the planner
   */
 class WrappedInstrumentedGraphStatistics(innerV3_4: GraphStatisticsV3_4, snapshotv3_6: MutableGraphStatisticsSnapshot) extends InstrumentedGraphStatisticsV3_4(innerV3_4, new MutableGraphStatisticsSnapshotV3_4()) {
   override def nodesWithLabelCardinality(labelId: Option[LabelIdV3_4]): CardinalityV3_4 =
