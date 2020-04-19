@@ -136,7 +136,7 @@
             <artifactId>commons-compress</artifactId>
         </dependency>
         <dependency>
-            <groupId>org.neo4j.licensing-proxy</groupId>
+            <groupId>org.graphfoundation.ongdb.licensing-proxy</groupId>
             <artifactId>zstd-proxy</artifactId>
             <version>${project.version}</version>
         </dependency>

@@ -9,7 +9,7 @@
     <relativePath>../..</relativePath>
   </parent>
 
-  <groupId>org.neo4j.assembly</groupId>
+  <groupId>org.graphfoundation.ongdb.assembly</groupId>
   <artifactId>neo4j-standalone</artifactId>
   <packaging>pom</packaging>
 
@@ -145,7 +145,7 @@
 
     <!-- Defined to allow maven to calculate build order, it's used in the plugin above -->
     <dependency>
-      <groupId>org.neo4j.build</groupId>
+      <groupId>org.graphfoundation.ongdb.build</groupId>
       <artifactId>build-resources</artifactId>
       <version>${project.version}</version>
       <scope>provided</scope>

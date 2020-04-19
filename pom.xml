@@ -516,7 +516,7 @@
           </executions>
           <dependencies>
             <dependency>
-              <groupId>org.neo4j.build</groupId>
+              <groupId>org.graphfoundation.ongdb.build</groupId>
               <artifactId>build-resources</artifactId>
               <version>${project.version}</version>
             </dependency>
@@ -563,7 +563,7 @@
           </configuration>
           <dependencies>
             <dependency>
-              <groupId>org.neo4j.build</groupId>
+              <groupId>org.graphfoundation.ongdb.build</groupId>
               <artifactId>build-resources</artifactId>
               <version>${project.version}</version>
             </dependency>
@@ -781,7 +781,7 @@
             <version>8.26</version>
           </dependency>
           <dependency>
-            <groupId>org.neo4j.build</groupId>
+            <groupId>org.graphfoundation.ongdb.build</groupId>
             <artifactId>build-resources</artifactId>
             <version>${project.version}</version>
           </dependency>

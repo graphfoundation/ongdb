@@ -10,7 +10,7 @@
   </parent>
   <modelVersion>4.0.0</modelVersion>
 
-  <groupId>org.neo4j.test</groupId>
+  <groupId>org.graphfoundation.ongdb.test</groupId>
   <artifactId>neo4j-harness</artifactId>
 
   <packaging>jar</packaging>
