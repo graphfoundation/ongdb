@@ -97,8 +97,8 @@
       <useProjectArtifact>false</useProjectArtifact>
       <useStrictFiltering>true</useStrictFiltering>
       <includes>
+        <include>org.graphfoundation.ongdb:*</include>
         <include>org.neo4j:*</include>
-		<include>org.graphfoundation.ongdb:*</include>
         <include>jline:jline</include>
         <include>org.apache.lucene:lucene-core</include>
         <include>org.apache.lucene:lucene-analyzers-common</include>
@@ -125,8 +125,8 @@
       <useProjectArtifact>false</useProjectArtifact>
       <useStrictFiltering>true</useStrictFiltering>
       <excludes>
+        <exclude>org.graphfoundation.ongdb:*</exclude>
         <exclude>org.neo4j:*</exclude>
-		<exclude>org.graphfoundation.ongdb:*</exclude>
         <exclude>jline:jline</exclude>
         <exclude>org.apache.lucene:*</exclude>
         <exclude>io.netty:netty</exclude>

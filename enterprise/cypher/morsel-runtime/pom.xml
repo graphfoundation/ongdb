@@ -101,7 +101,7 @@
     </dependency>
 
     <dependency>
-      <groupId>org.neo4j</groupId>
+      <groupId>org.graphfoundation.ongdb</groupId>
       <artifactId>neo4j-ast-3.5</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
@@ -109,7 +109,7 @@
     </dependency>
 
     <dependency>
-      <groupId>org.neo4j</groupId>
+      <groupId>org.graphfoundation.ongdb</groupId>
       <artifactId>neo4j-util-3.5</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
@@ -117,7 +117,7 @@
     </dependency>
 
     <dependency>
-      <groupId>org.neo4j</groupId>
+      <groupId>org.graphfoundation.ongdb</groupId>
       <artifactId>neo4j-cypher</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
@@ -125,7 +125,7 @@
     </dependency>
 
     <dependency>
-      <groupId>org.neo4j</groupId>
+      <groupId>org.graphfoundation.ongdb</groupId>
       <artifactId>neo4j-cypher-interpreted-runtime</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
@@ -133,7 +133,7 @@
     </dependency>
 
     <dependency>
-      <groupId>org.neo4j</groupId>
+      <groupId>org.graphfoundation.ongdb</groupId>
       <artifactId>neo4j-kernel-api</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>

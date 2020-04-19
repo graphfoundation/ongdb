@@ -96,14 +96,14 @@
     <!-- neo4j -->
 
     <dependency>
-      <groupId>org.neo4j</groupId>
+      <groupId>org.graphfoundation.ongdb</groupId>
       <artifactId>neo4j-cypher</artifactId>
       <version>${project.version}</version>
       <scope>test</scope>
     </dependency>
 
     <dependency>
-      <groupId>org.neo4j</groupId>
+      <groupId>org.graphfoundation.ongdb</groupId>
       <artifactId>neo4j-cypher-spec-suite-tools</artifactId>
       <version>${project.version}</version>
       <scope>test</scope>
@@ -118,22 +118,22 @@
     <!-- neo4j testing -->
 
     <dependency>
-      <groupId>org.neo4j.community</groupId>
+      <groupId>org.graphfoundation.ongdb.community</groupId>
       <artifactId>it-test-support</artifactId>
       <version>${project.version}</version>
       <scope>test</scope>
     </dependency>
 
     <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>neo4j-enterprise-kernel</artifactId>
-            <version>${project.version}</version>
-            <type>test-jar</type>
-            <scope>test</scope>
-        </dependency>
+      <groupId>org.graphfoundation.ongdb</groupId>
+      <artifactId>neo4j-enterprise-kernel</artifactId>
+      <version>${project.version}</version>
+      <type>test-jar</type>
+      <scope>test</scope>
+    </dependency>
 
     <dependency>
-      <groupId>org.neo4j</groupId>
+      <groupId>org.graphfoundation.ongdb</groupId>
       <artifactId>neo4j-io</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
@@ -141,7 +141,7 @@
     </dependency>
 
     <dependency>
-      <groupId>org.neo4j</groupId>
+      <groupId>org.graphfoundation.ongdb</groupId>
       <artifactId>neo4j-cypher</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
@@ -155,7 +155,7 @@
     </dependency>
 
     <dependency>
-      <groupId>org.neo4j</groupId>
+      <groupId>org.graphfoundation.ongdb</groupId>
       <artifactId>neo4j-cypher-spec-suite-tools</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>

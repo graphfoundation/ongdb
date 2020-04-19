@@ -98,7 +98,7 @@
     <!-- neo4j -->
 
     <dependency>
-      <groupId>org.neo4j</groupId>
+      <groupId>org.graphfoundation.ongdb</groupId>
       <artifactId>neo4j-kernel</artifactId>
       <version>${project.version}</version>
     </dependency>
@@ -108,7 +108,7 @@
       <version>${project.version}</version>
     </dependency>
     <dependency>
-      <groupId>org.neo4j</groupId>
+      <groupId>org.graphfoundation.ongdb</groupId>
       <artifactId>neo4j-cypher</artifactId>
       <version>${project.version}</version>
     </dependency>
@@ -121,35 +121,35 @@
     <!-- neo4j testing -->
 
     <dependency>
-      <groupId>org.neo4j.community</groupId>
+      <groupId>org.graphfoundation.ongdb.community</groupId>
       <artifactId>it-test-support</artifactId>
       <version>${project.version}</version>
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>org.neo4j</groupId>
+      <groupId>org.graphfoundation.ongdb</groupId>
       <artifactId>neo4j-kernel</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>org.neo4j.community</groupId>
+      <groupId>org.graphfoundation.ongdb.community</groupId>
       <artifactId>cypher-it</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>
     <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>neo4j-enterprise-kernel</artifactId>
-            <version>${project.version}</version>
-            <type>test-jar</type>
-            <scope>test</scope>
-        </dependency>
+      <groupId>org.graphfoundation.ongdb</groupId>
+      <artifactId>neo4j-enterprise-kernel</artifactId>
+      <version>${project.version}</version>
+      <type>test-jar</type>
+      <scope>test</scope>
+    </dependency>
 
     <dependency>
-      <groupId>org.neo4j</groupId>
+      <groupId>org.graphfoundation.ongdb</groupId>
       <artifactId>neo4j-io</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
@@ -157,14 +157,14 @@
     </dependency>
 
     <dependency>
-      <groupId>org.neo4j</groupId>
+      <groupId>org.graphfoundation.ongdb</groupId>
       <artifactId>neo4j-cypher</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
     </dependency>
 
     <dependency>
-      <groupId>org.neo4j</groupId>
+      <groupId>org.graphfoundation.ongdb</groupId>
       <artifactId>neo4j-logging</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
@@ -178,7 +178,7 @@
     </dependency>
 
     <dependency>
-      <groupId>org.neo4j</groupId>
+      <groupId>org.graphfoundation.ongdb</groupId>
       <artifactId>neo4j-cypher-runtime-util</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
@@ -188,7 +188,7 @@
     <!-- neo4j-cypher -->
 
     <dependency>
-      <groupId>org.neo4j</groupId>
+      <groupId>org.graphfoundation.ongdb</groupId>
       <artifactId>neo4j-cypher-planner-3.5</artifactId>
       <version>${project.version}</version>
     </dependency>
@@ -196,7 +196,7 @@
     <!-- neo4j-cypher test -->
 
     <dependency>
-      <groupId>org.neo4j</groupId>
+      <groupId>org.graphfoundation.ongdb</groupId>
       <artifactId>neo4j-cypher-planner-3.5</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
@@ -204,7 +204,7 @@
     </dependency>
 
     <dependency>
-      <groupId>org.neo4j</groupId>
+      <groupId>org.graphfoundation.ongdb</groupId>
       <artifactId>neo4j-ast-3.5</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
@@ -212,7 +212,7 @@
     </dependency>
 
     <dependency>
-      <groupId>org.neo4j</groupId>
+      <groupId>org.graphfoundation.ongdb</groupId>
       <artifactId>neo4j-util-3.5</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
@@ -220,14 +220,14 @@
     </dependency>
 
     <dependency>
-      <groupId>org.neo4j</groupId>
+      <groupId>org.graphfoundation.ongdb</groupId>
       <artifactId>neo4j-cypher-spec-suite-tools</artifactId>
       <version>${project.version}</version>
       <scope>test</scope>
     </dependency>
 
     <dependency>
-      <groupId>org.neo4j</groupId>
+      <groupId>org.graphfoundation.ongdb</groupId>
       <artifactId>neo4j-cypher-spec-suite-tools</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
@@ -235,7 +235,7 @@
     </dependency>
 
     <dependency>
-      <groupId>org.neo4j</groupId>
+      <groupId>org.graphfoundation.ongdb</groupId>
       <artifactId>neo4j-cypher-acceptance-spec-suite</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
