@@ -40,7 +40,7 @@ class CreateAcceptanceTest extends ExecutionEngineFunSuite with QueryStatisticsT
   private val BIG_TIMEOUT = 15 minutes
   private val BIG_N = 1000
   private val BIG_CREATE_CONFIGS =
-    TestConfiguration(Versions.V3_5, Planners.all, Runtimes(Runtimes.Interpreted, Runtimes.Slotted)) +
+    TestConfiguration(Versions.V3_6, Planners.all, Runtimes(Runtimes.Interpreted, Runtimes.Slotted)) +
     TestConfiguration(Versions.V3_4, Planners.all, Runtimes(Runtimes.Interpreted))
 
   test("handle big CREATE clause") {

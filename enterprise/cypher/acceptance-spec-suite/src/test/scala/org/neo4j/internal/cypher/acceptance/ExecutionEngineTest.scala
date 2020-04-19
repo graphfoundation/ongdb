@@ -42,7 +42,7 @@ import org.neo4j.internal.cypher.acceptance.comparisonsupport.TestConfiguration
 import org.neo4j.internal.cypher.acceptance.comparisonsupport.Versions
 import org.neo4j.internal.cypher.acceptance.comparisonsupport.Versions.V2_3
 import org.neo4j.internal.cypher.acceptance.comparisonsupport.Versions.V3_1
-import org.neo4j.internal.cypher.acceptance.comparisonsupport.Versions.V3_5
+import org.neo4j.internal.cypher.acceptance.comparisonsupport.Versions.V3_6
 import org.neo4j.internal.kernel.api.Transaction.Type
 import org.neo4j.io.fs.FileUtils
 import org.neo4j.kernel.NeoStoreDataSource
@@ -483,8 +483,8 @@ order by a.COL1""".format(a, b))
     val errorMessage = List("Index `missingIndex` does not exist")
 
     // Version 3.6 silently falls back to 3.1
-    val conf = TestConfiguration(Versions(V2_3, V3_1, V3_5), Planners.all, Runtimes.Interpreted)
-    val conf2 = TestConfiguration(Versions(V2_3, V3_1, V3_5), Planners.Rule, Runtimes.Interpreted)
+    val conf = TestConfiguration(Versions(V2_3, V3_1, V3_6), Planners.all, Runtimes.Interpreted)
+    val conf2 = TestConfiguration(Versions(V2_3, V3_1, V3_6), Planners.Rule, Runtimes.Interpreted)
     failWithError(conf, "start a=node:missingIndex(key='value') return a", errorMessage)
     failWithError(conf, "start a=node:missingIndex('value') return a", errorMessage)
     failWithError(conf2, "start a=relationship:missingIndex(key='value') return a", errorMessage)

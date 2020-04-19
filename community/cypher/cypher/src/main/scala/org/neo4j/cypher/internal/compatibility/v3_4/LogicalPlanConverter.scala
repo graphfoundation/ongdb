@@ -27,7 +27,7 @@ import org.neo4j.cypher.internal.frontend.{v3_4 => frontendV3_4}
 import org.neo4j.cypher.internal.ir.v3_6.{CreateNode, CreateRelationship}
 import org.neo4j.cypher.internal.ir.{v3_4 => irV3_4, v3_6 => irv3_6}
 import org.neo4j.cypher.internal.planner.v3_4.spi.PlanningAttributes.{Cardinalities => CardinalitiesV3_4, Solveds => SolvedsV3_4}
-import org.neo4j.cypher.internal.planner.v3_6.spi.PlanningAttributes.{Cardinalities => CardinalitiesV3_5, Solveds => SolvedsV3_5}
+import org.neo4j.cypher.internal.planner.v3_6.spi.PlanningAttributes.{Cardinalities => CardinalitiesV3_6, Solveds => SolvedsV3_6}
 import org.neo4j.cypher.internal.util.v3_4.{InputPosition => InputPositionV3_4, symbols => symbolsV3_4}
 import org.neo4j.cypher.internal.util.{v3_4 => utilv3_4}
 import org.neo4j.cypher.internal.v3_4.expressions.{Expression => ExpressionV3_4, SemanticDirection => SemanticDirectionV3_4}
@@ -83,8 +83,8 @@ object LogicalPlanConverter {
   //noinspection ZeroIndexToHead
   private class LogicalPlanRewriter(solveds3_4: SolvedsV3_4,
                                     cardinalities3_4: CardinalitiesV3_4,
-                                    solveds3_5: SolvedsV3_5,
-                                    cardinalities3_5: CardinalitiesV3_5,
+                                    solveds3_5: SolvedsV3_6,
+                                    cardinalities3_5: CardinalitiesV3_6,
                                     ids: IdConverter,
                                     val expressionMap: MutableExpressionMapping3To4 = new mutable.HashMap[(ExpressionV3_4, InputPositionV3_4), Expressionv3_6],
                                     val seenBySemanticTable: ExpressionV3_4 => Boolean = _ => true)
@@ -233,19 +233,19 @@ object LogicalPlanConverter {
             isAggregate = false,
             id = None // will use by-name lookup for built-in functions for that came from a 3.4 plan, since timestamp is not a user-defined function in 3.4
           )
-          val funcPosV3_5 = helpers.as3_5(funcV3_4.functionName.position)
-          val datetimeFuncV3_5 = plansv3_6.ResolvedFunctionInvocation(
+          val funcPosV3_6 = helpers.as3_5(funcV3_4.functionName.position)
+          val datetimeFuncV3_6 = plansv3_6.ResolvedFunctionInvocation(
             QualifiedName(Seq(), "datetime"),
             Some(datetimeSignature),
             callArguments = IndexedSeq.empty
-          )(funcPosV3_5)
+          )(funcPosV3_6)
 
-          val epochMillisV3_5 = expressionsv3_6.Property(
-            datetimeFuncV3_5,
-            expressionsv3_6.PropertyKeyName("epochMillis")(funcPosV3_5)
-          )(funcPosV3_5)
+          val epochMillisV3_6 = expressionsv3_6.Property(
+            datetimeFuncV3_6,
+            expressionsv3_6.PropertyKeyName("epochMillis")(funcPosV3_6)
+          )(funcPosV3_6)
 
-          epochMillisV3_5
+          epochMillisV3_6
         }
 
         case (item: expressionsv3_4.PatternComprehension, children: Seq[AnyRef]) =>
@@ -390,8 +390,8 @@ object LogicalPlanConverter {
   def convertLogicalPlan[T <: LogicalPlanv3_6](logicalPlan: LogicalPlanV3_4,
                                                solveds3_4: SolvedsV3_4,
                                                cardinalities3_4: CardinalitiesV3_4,
-                                               solveds3_5: SolvedsV3_5,
-                                               cardinalities3_5: CardinalitiesV3_5,
+                                               solveds3_5: SolvedsV3_6,
+                                               cardinalities3_5: CardinalitiesV3_6,
                                                idConverter: IdConverter,
                                                seenBySemanticTable: ExpressionV3_4 => Boolean = _ => true): (LogicalPlanv3_6, ExpressionMapping4To5) = {
     val rewriter = new LogicalPlanRewriter(solveds3_4, cardinalities3_4, solveds3_5, cardinalities3_5, idConverter, seenBySemanticTable = seenBySemanticTable)
@@ -405,8 +405,8 @@ object LogicalPlanConverter {
   private[v3_4] def convertExpression[T <: Expressionv3_6](expression: ExpressionV3_4,
                                                            solveds3_4: SolvedsV3_4,
                                                            cardinalities3_4: CardinalitiesV3_4,
-                                                           solveds3_5: SolvedsV3_5,
-                                                           cardinalities3_5: CardinalitiesV3_5,
+                                                           solveds3_5: SolvedsV3_6,
+                                                           cardinalities3_5: CardinalitiesV3_6,
                                                            idConverter: IdConverter): T = {
     new RewritableAny[ExpressionV3_4](expression)
       .rewrite(new LogicalPlanRewriter(solveds3_4, cardinalities3_4, solveds3_5, cardinalities3_5, idConverter), Seq.empty)
@@ -420,8 +420,8 @@ object LogicalPlanConverter {
                                                     expressionMap: MutableExpressionMapping3To4,
                                                     solveds3_4: SolvedsV3_4,
                                                     cardinalities3_4: CardinalitiesV3_4,
-                                                    solveds3_5: SolvedsV3_5,
-                                                    cardinalities3_5: CardinalitiesV3_5,
+                                                    solveds3_5: SolvedsV3_6,
+                                                    cardinalities3_5: CardinalitiesV3_6,
                                                     idConverter: IdConverter,
                                                     seenBySemanticTable: ExpressionV3_4 => Boolean): T = {
     new RewritableAny[utilv3_4.ASTNode](ast)

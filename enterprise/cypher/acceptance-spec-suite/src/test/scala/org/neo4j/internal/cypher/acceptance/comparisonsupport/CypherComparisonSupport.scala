@@ -264,7 +264,7 @@ trait AbstractCypherComparisonSupport extends CypherFunSuite with CypherTestSupp
         fail("At least one scenario must be expected to succeed to be able to compare plans")
       }
 
-      val baseScenario = TestScenario(Versions.V3_5, Planners.Cost, Runtimes.Interpreted)
+      val baseScenario = TestScenario(Versions.V3_6, Planners.Cost, Runtimes.Interpreted)
       executeBefore()
       val baseResult = innerExecute(s"CYPHER ${baseScenario.preparserOptions} $query", params)
       baseResult
@@ -291,7 +291,7 @@ trait AbstractCypherComparisonSupport extends CypherFunSuite with CypherTestSupp
     if (scenariosToChooseFrom.scenarios.isEmpty) {
       fail("At least one scenario must be expected to succeed, to be comparable with plan and result")
     }
-    val preferredScenario = TestScenario(Versions.V3_5, Planners.Cost, Runtimes.Interpreted)
+    val preferredScenario = TestScenario(Versions.V3_6, Planners.Cost, Runtimes.Interpreted)
     if (scenariosToChooseFrom.containsScenario(preferredScenario)) {
       preferredScenario
     } else {

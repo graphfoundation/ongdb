@@ -32,7 +32,7 @@ import org.neo4j.cypher.internal.frontend.v3_4.{PlannerName => PlannerNameV3_4, 
 import org.neo4j.cypher.internal.ir.{v3_4 => irV3_4, v3_6 => irv3_6}
 import org.neo4j.cypher.internal.planner.v3_4.spi.PlanningAttributes.{Cardinalities => CardinalitiesV3_4, Solveds => SolvedsV3_4}
 import org.neo4j.cypher.internal.planner.v3_4.{spi => spiV3_4}
-import org.neo4j.cypher.internal.planner.v3_6.spi.PlanningAttributes.{ProvidedOrders, Cardinalities => CardinalitiesV3_5, Solveds => SolvedsV3_5}
+import org.neo4j.cypher.internal.planner.v3_6.spi.PlanningAttributes.{ProvidedOrders, Cardinalities => CardinalitiesV3_6, Solveds => SolvedsV3_6}
 import org.neo4j.cypher.internal.planner.v3_6.spi._
 import org.neo4j.cypher.internal.util.v3_4.attribution.{Id => IdV3_4}
 import org.neo4j.cypher.internal.util.v3_4.{Cardinality => CardinalityV3_4, InputPosition => InputPositionV3_4}
@@ -165,8 +165,8 @@ object helpers {
     val solveds3_4 = logicalPlanState.solveds
     val cardinalities3_4 = logicalPlanState.cardinalities
 
-    val solveds3_5 = new SolvedsV3_5
-    val cardinalities3_5 = new CardinalitiesV3_5
+    val solveds3_5 = new SolvedsV3_6
+    val cardinalities3_5 = new CardinalitiesV3_6
     val providedOrders = new ProvidedOrders
     val (plan3_4, semanticTable3_4) = convertLogicalPlan(logicalPlanState, solveds3_4, cardinalities3_4, solveds3_5, cardinalities3_5)
 
@@ -189,8 +189,8 @@ object helpers {
   private def convertLogicalPlan(logicalPlanState: LogicalPlanStateV3_4,
                                  solveds3_4: SolvedsV3_4,
                                  cardinalities3_4: CardinalitiesV3_4,
-                                 solveds3_5: SolvedsV3_5,
-                                 cardinalities3_5: CardinalitiesV3_5): (LogicalPlanv3_6, SemanticTablev3_6) = {
+                                 solveds3_5: SolvedsV3_6,
+                                 cardinalities3_5: CardinalitiesV3_6): (LogicalPlanv3_6, SemanticTablev3_6) = {
 
     def seenBySemanticTable(expression: ExpressionV3_4) : Boolean =
       logicalPlanState.maybeSemanticTable.exists(_.seen(expression))

@@ -32,19 +32,19 @@ import org.neo4j.internal.cypher.acceptance.comparisonsupport.Runtimes.SlottedWi
 import org.neo4j.internal.cypher.acceptance.comparisonsupport.Versions.V2_3
 import org.neo4j.internal.cypher.acceptance.comparisonsupport.Versions.V3_1
 import org.neo4j.internal.cypher.acceptance.comparisonsupport.Versions.V3_4
-import org.neo4j.internal.cypher.acceptance.comparisonsupport.Versions.V3_5
+import org.neo4j.internal.cypher.acceptance.comparisonsupport.Versions.V3_6
 
 object Configs {
 
   // Configurations with runtimes
-  def Compiled: TestConfiguration = TestConfiguration(V3_4 -> V3_5, Planners.all, Runtimes(CompiledSource, CompiledBytecode))
+  def Compiled: TestConfiguration = TestConfiguration(V3_4 -> V3_6, Planners.all, Runtimes(CompiledSource, CompiledBytecode))
 
-  def Morsel: TestConfiguration = TestConfiguration(V3_4 -> V3_5, Planners.all, Runtimes(Runtimes.Morsel))
+  def Morsel: TestConfiguration = TestConfiguration(V3_4 -> V3_6, Planners.all, Runtimes(Runtimes.Morsel))
 
   def InterpretedRuntime: TestConfiguration =
     TestConfiguration(Versions.all, Planners.all, Runtimes(Interpreted))
 
-  def SlottedRuntime: TestConfiguration = TestConfiguration(V3_4 -> V3_5, Planners.all, Runtimes(Slotted, SlottedWithCompiledExpressions))
+  def SlottedRuntime: TestConfiguration = TestConfiguration(V3_4 -> V3_6, Planners.all, Runtimes(Slotted, SlottedWithCompiledExpressions))
 
   def InterpretedAndSlotted: TestConfiguration = InterpretedRuntime + SlottedRuntime
 
@@ -71,7 +71,7 @@ object Configs {
 
   def Version3_4: TestConfiguration = TestConfiguration(V3_4, Planners.all, Runtimes.all)
 
-  def Version3_5: TestConfiguration = TestConfiguration(V3_5, Planners.all, Runtimes.all)
+  def Version3_5: TestConfiguration = TestConfiguration(V3_6, Planners.all, Runtimes.all)
 
   /**
     * Configs which support CREATE, DELETE, SET, REMOVE, MERGE etc.
@@ -86,7 +86,7 @@ object Configs {
   def All: TestConfiguration =
     TestConfiguration(Versions.all, Planners.all, Runtimes.all) -
       // No rule planner after 3.1
-      TestConfiguration(V3_4 -> V3_5, Rule, Runtimes.all) -
+      TestConfiguration(V3_4 -> V3_6, Rule, Runtimes.all) -
       // No slotted runtime before 3.4
       TestConfiguration(V2_3 -> V3_1, Planners.all, Runtimes(Slotted, SlottedWithCompiledExpressions)) -
       // No slotted runtime with compiled expressions before 3.6

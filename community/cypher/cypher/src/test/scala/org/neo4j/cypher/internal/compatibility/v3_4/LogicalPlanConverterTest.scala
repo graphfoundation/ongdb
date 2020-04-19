@@ -27,8 +27,8 @@ import org.neo4j.cypher.internal.frontend.{v3_4 => frontendV3_4}
 import org.neo4j.cypher.internal.ir.{v3_4 => irV3_4}
 import org.neo4j.cypher.internal.planner.v3_4.spi.PlanningAttributes.{Cardinalities => CardinalitiesV3_4}
 import org.neo4j.cypher.internal.planner.v3_4.spi.PlanningAttributes.{Solveds => SolvedsV3_4}
-import org.neo4j.cypher.internal.planner.v3_6.spi.PlanningAttributes.{Cardinalities => CardinalitiesV3_5}
-import org.neo4j.cypher.internal.planner.v3_6.spi.PlanningAttributes.{Solveds => SolvedsV3_5}
+import org.neo4j.cypher.internal.planner.v3_6.spi.PlanningAttributes.{Cardinalities => CardinalitiesV3_6}
+import org.neo4j.cypher.internal.planner.v3_6.spi.PlanningAttributes.{Solveds => SolvedsV3_6}
 import org.neo4j.cypher.internal.util.v3_4.attribution.{SequentialIdGen => SequentialIdGenv3_4}
 import org.neo4j.cypher.internal.util.v3_4.{InputPosition => InputPositionV3_4}
 import org.neo4j.cypher.internal.util.v3_4.{symbols => symbolsV3_4}
@@ -248,8 +248,8 @@ class LogicalPlanConverterTest extends CypherFunSuite {
     solveds3_4.set(a3_4.id, irV3_4.PlannerQuery.empty)
     cardinalities3_4.set(a3_4.id, utilv3_4.Cardinality(5.0))
 
-    val solveds3_5 = new SolvedsV3_5
-    val cardinalities3_5 = new CardinalitiesV3_5
+    val solveds3_5 = new SolvedsV3_6
+    val cardinalities3_5 = new CardinalitiesV3_6
     val rewrittenPlan = LogicalPlanConverter.convertLogicalPlan[plansv3_6.AllNodesScan](
                           a3_4, solveds3_4, cardinalities3_4, solveds3_5, cardinalities3_5, new MaxIdConverter
                         )._1
@@ -512,7 +512,7 @@ class LogicalPlanConverterTest extends CypherFunSuite {
         assignAttributesRecursivelyWithDefaultValues(nestedPlan.plan, solveds, cardinalities)
       case _ =>
     }
-    LogicalPlanConverter.convertExpression(input, solveds, cardinalities, new SolvedsV3_5, new CardinalitiesV3_5, new MaxIdConverter)
+    LogicalPlanConverter.convertExpression(input, solveds, cardinalities, new SolvedsV3_6, new CardinalitiesV3_6, new MaxIdConverter)
   }
 
   /**
@@ -522,7 +522,7 @@ class LogicalPlanConverterTest extends CypherFunSuite {
     val solveds = new SolvedsV3_4
     val cardinalities = new CardinalitiesV3_4
     assignAttributesRecursivelyWithDefaultValues(input, solveds, cardinalities)
-    LogicalPlanConverter.convertLogicalPlan(input, solveds, cardinalities, new SolvedsV3_5, new CardinalitiesV3_5, new MaxIdConverter)._1
+    LogicalPlanConverter.convertLogicalPlan(input, solveds, cardinalities, new SolvedsV3_6, new CardinalitiesV3_6, new MaxIdConverter)._1
   }
 
   /**
@@ -536,8 +536,8 @@ class LogicalPlanConverterTest extends CypherFunSuite {
     LogicalPlanConverter.convertLogicalPlan(input,
                                             solveds,
                                             cardinalities,
-                                            new SolvedsV3_5,
-                                            new CardinalitiesV3_5,
+                                            new SolvedsV3_6,
+                                            new CardinalitiesV3_6,
                                             new MaxIdConverter,
                                             seenBySemanticTable
                                           )._2

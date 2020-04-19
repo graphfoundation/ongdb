@@ -31,7 +31,7 @@ import org.neo4j.internal.cypher.acceptance.comparisonsupport.Runtimes
 import org.neo4j.internal.cypher.acceptance.comparisonsupport.TestConfiguration
 import org.neo4j.internal.cypher.acceptance.comparisonsupport.Versions.V2_3
 import org.neo4j.internal.cypher.acceptance.comparisonsupport.Versions.V3_4
-import org.neo4j.internal.cypher.acceptance.comparisonsupport.Versions.V3_5
+import org.neo4j.internal.cypher.acceptance.comparisonsupport.Versions.V3_6
 
 /**
  * These tests are testing the actual index implementation, thus they should all check the actual result.
