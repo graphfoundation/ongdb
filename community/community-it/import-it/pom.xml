@@ -51,7 +51,7 @@
     <dependencies>
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>neo4j</artifactId>
+            <artifactId>ongdb</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
@@ -62,7 +62,7 @@
         </dependency>
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>neo4j-random-values</artifactId>
+            <artifactId>ongdb-random-values</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
         </dependency>

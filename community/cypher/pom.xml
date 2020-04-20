@@ -123,33 +123,33 @@
       <!-- neo4j -->
       <dependency>
         <groupId>org.graphfoundation.ongdb</groupId>
-        <artifactId>neo4j-kernel</artifactId>
+        <artifactId>ongdb-kernel</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>
         <groupId>org.graphfoundation.ongdb</groupId>
-        <artifactId>neo4j-kernel</artifactId>
-        <version>${project.version}</version>
-        <type>test-jar</type>
-        <scope>test</scope>
-      </dependency>
-      <dependency>
-        <groupId>org.graphfoundation.ongdb</groupId>
-        <artifactId>neo4j-common</artifactId>
+        <artifactId>ongdb-kernel</artifactId>
         <version>${project.version}</version>
         <type>test-jar</type>
         <scope>test</scope>
       </dependency>
       <dependency>
         <groupId>org.graphfoundation.ongdb</groupId>
-        <artifactId>neo4j-io</artifactId>
+        <artifactId>ongdb-common</artifactId>
         <version>${project.version}</version>
         <type>test-jar</type>
         <scope>test</scope>
       </dependency>
       <dependency>
         <groupId>org.graphfoundation.ongdb</groupId>
-        <artifactId>neo4j-lucene-index</artifactId>
+        <artifactId>ongdb-io</artifactId>
+        <version>${project.version}</version>
+        <type>test-jar</type>
+        <scope>test</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.graphfoundation.ongdb</groupId>
+        <artifactId>ongdb-lucene-index</artifactId>
         <version>${project.version}</version>
       </dependency>
       <!-- graph matching is used in old cypher compilers 3.1 and 2.3 we can use the old component -->
@@ -160,7 +160,7 @@
       </dependency>
       <dependency>
         <groupId>org.graphfoundation.ongdb</groupId>
-        <artifactId>neo4j-graph-algo</artifactId>
+        <artifactId>ongdb-graph-algo</artifactId>
         <version>${project.version}</version>
       </dependency>
 

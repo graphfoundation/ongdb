@@ -9,7 +9,7 @@
     </parent>
 
     <modelVersion>4.0.0</modelVersion>
-    <artifactId>neo4j-cypher-expression-evaluator</artifactId>
+    <artifactId>ongdb-cypher-expression-evaluator</artifactId>
     <packaging>jar</packaging>
     <version>3.6.0-SNAPSHOT</version>
     <name>ONgDB - Cypher Expression Evaluator</name>
@@ -55,37 +55,37 @@
         <!-- neo4j -->
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>neo4j-values</artifactId>
+            <artifactId>ongdb-values</artifactId>
             <version>${project.version}</version>
         </dependency>
 
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>neo4j-parser-3.5</artifactId>
+            <artifactId>ongdb-parser-3.5</artifactId>
             <version>${project.version}</version>
         </dependency>
 
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>neo4j-ast-3.5</artifactId>
+            <artifactId>ongdb-ast-3.5</artifactId>
             <version>${project.version}</version>
         </dependency>
 
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>neo4j-expressions-3.5</artifactId>
+            <artifactId>ongdb-expressions-3.5</artifactId>
             <version>${project.version}</version>
         </dependency>
 
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>neo4j-cypher-runtime-util</artifactId>
+            <artifactId>ongdb-cypher-runtime-util</artifactId>
             <version>${project.version}</version>
         </dependency>
 
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>neo4j-cypher-interpreted-runtime</artifactId>
+            <artifactId>ongdb-cypher-interpreted-runtime</artifactId>
             <version>${project.version}</version>
         </dependency>
 

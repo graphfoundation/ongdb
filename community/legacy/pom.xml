@@ -15,7 +15,7 @@
   </properties>
 
   <modelVersion>4.0.0</modelVersion>
-  <artifactId>neo4j-legacy</artifactId>
+  <artifactId>ongdb-legacy</artifactId>
   <version>3.6.0-SNAPSHOT</version>
 
   <packaging>jar</packaging>
@@ -51,17 +51,17 @@
   <dependencies>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-unsafe</artifactId>
+      <artifactId>ongdb-unsafe</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-common</artifactId>
+      <artifactId>ongdb-common</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-resource</artifactId>
+      <artifactId>ongdb-resource</artifactId>
       <version>${project.version}</version>
     </dependency>
 

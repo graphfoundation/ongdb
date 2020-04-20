@@ -9,8 +9,8 @@
     <relativePath>../..</relativePath>
   </parent>
 
-  <groupId>org.neo4j.assembly</groupId>
-  <artifactId>neo4j-standalone</artifactId>
+  <groupId>org.graphfoundation.ongdb.assembly</groupId>
+  <artifactId>ongdb-standalone</artifactId>
   <packaging>pom</packaging>
 
   <name>ONgDB - Server Assembler</name>
@@ -139,13 +139,13 @@
   <dependencies>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-import-tool</artifactId>
+      <artifactId>ongdb-import-tool</artifactId>
       <version>${project.version}</version>
     </dependency>
 
     <!-- Defined to allow maven to calculate build order, it's used in the plugin above -->
     <dependency>
-      <groupId>org.neo4j.build</groupId>
+      <groupId>org.graphfoundation.ongdb.build</groupId>
       <artifactId>build-resources</artifactId>
       <version>${project.version}</version>
       <scope>provided</scope>

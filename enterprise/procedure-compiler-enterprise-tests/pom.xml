@@ -8,7 +8,7 @@
         <relativePath>../..</relativePath>
     </parent>
 
-    <artifactId>neo4j-procedure-compiler-enterprise-tests</artifactId>
+    <artifactId>ongdb-procedure-compiler-enterprise-tests</artifactId>
     <packaging>jar</packaging>
 
     <name>ONgDB - Procedure Compiler Enterprise tests</name>
@@ -71,13 +71,13 @@
         </dependency>
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>neo4j-security-enterprise</artifactId>
+            <artifactId>ongdb-security-enterprise</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>neo4j-enterprise-kernel</artifactId>
+            <artifactId>ongdb-enterprise-kernel</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
         </dependency>

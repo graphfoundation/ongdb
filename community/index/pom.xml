@@ -14,7 +14,7 @@
   </properties>
 
   <modelVersion>4.0.0</modelVersion>
-  <artifactId>neo4j-index</artifactId>
+  <artifactId>ongdb-index</artifactId>
 
   <packaging>jar</packaging>
   <name>ONgDB - Native index</name>
@@ -50,12 +50,12 @@ the relevant Commercial Agreement.
         <!-- Main dependencies -->
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>neo4j-io</artifactId>
+            <artifactId>ongdb-io</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>neo4j-annotation-processors</artifactId>
+            <artifactId>ongdb-annotation-processors</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
@@ -66,27 +66,27 @@ the relevant Commercial Agreement.
         <!-- Test dependencies -->
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>neo4j-io</artifactId>
+            <artifactId>ongdb-io</artifactId>
             <version>${project.version}</version>
             <type>test-jar</type>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>neo4j-common</artifactId>
+            <artifactId>ongdb-common</artifactId>
             <version>${project.version}</version>
             <type>test-jar</type>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>neo4j-random-values</artifactId>
+            <artifactId>ongdb-random-values</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>neo4j-collections</artifactId>
+            <artifactId>ongdb-collections</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
         </dependency>

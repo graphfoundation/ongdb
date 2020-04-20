@@ -10,8 +10,8 @@
   </parent>
   <modelVersion>4.0.0</modelVersion>
 
-  <groupId>org.neo4j.test</groupId>
-  <artifactId>neo4j-harness</artifactId>
+  <groupId>org.graphfoundation.ongdb.test</groupId>
+  <artifactId>ongdb-harness</artifactId>
 
   <packaging>jar</packaging>
 
@@ -54,13 +54,13 @@
 
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>neo4j</artifactId>
+            <artifactId>ongdb</artifactId>
             <version>${project.version}</version>
         </dependency>
 
         <dependency>
             <groupId>org.graphfoundation.ongdb.app</groupId>
-            <artifactId>neo4j-server</artifactId>
+            <artifactId>ongdb-server</artifactId>
             <version>${project.version}</version>
         </dependency>
 
@@ -85,7 +85,7 @@
 
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>neo4j-common</artifactId>
+            <artifactId>ongdb-common</artifactId>
             <version>${project.version}</version>
             <type>test-jar</type>
         </dependency>
@@ -97,14 +97,14 @@
         </dependency>
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>neo4j-kernel</artifactId>
+            <artifactId>ongdb-kernel</artifactId>
             <version>${project.version}</version>
             <type>test-jar</type>
         </dependency>
 
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>neo4j-io</artifactId>
+            <artifactId>ongdb-io</artifactId>
             <version>${project.version}</version>
             <type>test-jar</type>
         </dependency>
@@ -116,7 +116,7 @@
 
         <dependency>
             <groupId>org.graphfoundation.ongdb.app</groupId>
-            <artifactId>neo4j-server</artifactId>
+            <artifactId>ongdb-server</artifactId>
             <version>${project.version}</version>
             <type>test-jar</type>
         </dependency>
@@ -141,7 +141,7 @@
 
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>neo4j-bolt</artifactId>
+            <artifactId>ongdb-bolt</artifactId>
             <version>${project.version}</version>
             <type>test-jar</type>
             <scope>test</scope>
@@ -149,7 +149,7 @@
 
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>neo4j-kernel</artifactId>
+            <artifactId>ongdb-kernel</artifactId>
             <version>${project.version}</version>
         </dependency>
 
