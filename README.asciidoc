@@ -1,27 +1,36 @@
 image::https://bamboo.graphfoundation.org/plugins/servlet/wittified/build-status/ONGDB-ONGDB[Build Status]
 
-= ONgDB - Neo4j Enterprise Fork: Graphs for Everyone =
+= ONgDB - fork of Neo4j Enterprise: Graphs for Everyone =
 
-https://neo4j.com[Neo4j] is the world's leading Graph Database. It is a high performance graph store with all the features expected of a mature and robust database, like a friendly query language and ACID transactions. The programmer works with a flexible network structure of nodes and relationships rather than static tables -- yet enjoys all the benefits of enterprise-quality database. For many applications, Neo4j offers orders of magnitude performance benefits compared to relational DBs.
+https://graphfoundation.org/projects/ongdb/[Open Native Graph DB (ONgDB)] is a fork of the https://github.com/neo4j/neo4j[neo4j project]
+that continues development of the neo4j enterprise codebase as a fully open source project after
+https://graphfoundation.org/neo4j-is-open-core-now-what-ujah7ein5mis/[Neo4j Inc’s Open Core Shift]
+that closed ongoing development and removed existing source code.
 
-Learn more on the https://neo4j.com[Neo4j website].
+ONgDB is a high performance, native graph store with everything you would expect from an enterprise-ready database,
+including high availability clustering, ACID transactions, and uses the intuitive, pattern-centric open cypher query language.
+Developers use graph theory-based structures that we call nodes and relationships instead of rows and columns.
+For many use cases, ONgDB will provide orders of magnitude performance benefits compared to non-native graph, relational and NoSQL databases.
 
-Learn more about ONgDB at https://graphfoundation.org[Graph Foundation website]
+Learn more about our open source mission at https://graphfoundation.org[The Graph Foundation website].
 
 == Using ONgDB ==
 
-Neo4j is available both as a standalone server, or an embeddable component. You can https://graphfoundation.org/projects/ongdb/[download] or http://console.neo4j.org[try Neo4j online].
+ONgDB is available as a standalone server, an embeddable component or a Docker image.
+You can https://graphfoundation.org/projects/ongdb/[download distributions] from our CDN or
+https://hub.docker.com/r/graphfoundation/ongdb[pull images] from DockerHub.
 
 == Extending ONgDB ==
-Neo4j is available both as a standalone server, or an embeddable component. You can https://neo4j.com/download/[download] or https://console.neo4j.org[try online].
+We encourage experimentation with ONgDB. You can build extensions to ONgDB, develop library or drivers atop the product,
+or make contributions directly to the product core. You'll need to sign a Contributor License Agreement in order for us to accept your patches.
 
-We encourage experimentation with ONgDB. You can build extensions to ONgDB, develop library or drivers atop the product, or make contributions directly to the product core. You'll need to sign a Contributor License Agreement in order for us to accept your patches.
-
-NOTE: This GitHub repository contains mixed GPL and AGPL code. Our Community edition (in the link:community/[community/] directory) is GPLv3. The Enterprise edition (link:enterprise/[enterprise/]) is licensed under the AGPLv3.
+NOTE: This GitHub repository contains mixed GPL and AGPL code. The Community edition (in the link:community/[community/] directory) is GPLv3.
+The Enterprise edition (link:enterprise/[enterprise/]) is licensed under the AGPLv3.
 
 == Dependencies ==
 
-Neo4j is built using https://maven.apache.org/[Apache Maven] version 3.3 and a recent version of supported VM. Bash and Make are also required. Note that maven needs more memory than the standard configuration, this can be achieved with `export MAVEN_OPTS="-Xmx512m"`.
+ONgDB is built using https://maven.apache.org/[Apache Maven] version 3.3 and a recent version of supported VM.
+Bash and Make are also required. Note that maven needs more memory than the standard configuration, this can be achieved with `export MAVEN_OPTS="-Xmx512m"`.
 
 macOS users need to have https://brew.sh/[Homebrew] installed.
 
@@ -36,7 +45,7 @@ Please note that we do not support building Debian packages on macOS.
 
 === With SDKMan ===
 
-Building Neo4j/ONgDB can be tricky with other JDKs such as open JDK.
+Building ONgDB can be tricky with other JDKs such as open JDK.
 Currently Oracle 8 JDK works well, as we test other jdks we will update this documentation.
 
 https://sdkman.io/
@@ -46,48 +55,60 @@ sdk use java oracle-8-221
 
   apt install maven openjdk-8-jdk
 
-On top of that, to build Debian packages and Neo4j Desktop:
+On top of that, to build Debian packages:
 
   apt install debhelper devscripts dos2unix dpkg make xmlstarlet
-  # You will need a license for install4j, which is only needed for Neo4j Desktop
-  curl -O https://download-keycdn.ej-technologies.com/install4j/install4j_linux_6_1_4.deb
-  dpkg -i install4j_linux_6_1_4.deb
 
 == Building ONgDB ==
 
-Before you start running the unit and integration tests in the Neo4j Maven project on a Linux-like system, you should ensure your limit on open files is set to a reasonable value. You can test it with `ulimit -n`. We recommend you have a limit of at least 40K.
+Before you start running the unit and integration tests in the ONgDB Maven project on a Linux-like system,
+you should ensure your limit on open files is set to a reasonable value.
+You can test it with `ulimit -n`. We recommend you have a limit of at least 40K.
 
 * A plain `mvn clean install` will only build the individual jar files.
 * Test execution is, of course, part of the build.
 * In case you just want the jars, without running tests, this is for you: `mvn clean install -DskipTests`.
 * To build product packages, do `export PATH="bin:$PATH" && make clean all` in the packaging directory after building artifacts with Maven.
 * To build the documentation see the https://github.com/graphfoundation/ongdb-documentation/[ONgDB documentation].
-* If you are running into problems building on Windows you can try building Neo4j in a Ubuntu virtual machine.
+* If you are running into problems building on Windows you can try building ONgDB in a Ubuntu virtual machine.
 * You may need to increase the memory available to Maven: `export MAVEN_OPTS="-Xmx512m"`.
 
 == Running ONgDB ==
 
-After running a `mvn clean install`, `cd` into `packaging/standalone/target` and extract the version you want, then:
+After running a `mvn clean install`, `cd` into `packaging/standalone/target` and extract the version you want.
+If you are not building from source you can start from a https://github.com/graphfoundation/ongdb/releases[published release].
 
-  bin/neo4j start
+=== Linux/macOS
+On Linux/macOS you want to run:
 
-in the extracted folder to start Neo4j on `localhost:7474`. On Windows you want to run:
+  bin/ongdb start
 
-  bin\neo4j start
+in the extracted folder to start ONgDB on `localhost:7474`.
 
-instead.
+=== Windows
+On Windows you want to run:
 
-Or, if you are not interested in the tarballs and just want to run Neo4j you can instead run a `mvn clean install -DminimalBuild` and then `cd` into `community/server` and run:
+  bin\ongdb start
+
+in the extracted folder to start ONgDB on `localhost:7474`.
+
+=== Maven
+If you are not interested in the tarballs and just want to run ONgDB you can instead run a `mvn clean install -DminimalBuild`
+and then `cd` into `community/server` and run:
 
   mvn clean compile exec:java
 
-to start Neo4j.
+to start ONgDB.
 
-== Neo4j Desktop ==
+=== Docker
+To run with Docker execute the following:
 
-Neo4j Desktop is a convenient way for developers to work with local Neo4j databases.
+ docker run \
+    --publish=7474:7474 --publish=7687:7687 \
+    --volume=$HOME/ongdb/data:/data \
+    graphfoundation/ongdb:3.6
 
-To install Neo4j Desktop, go to https://neo4j.com/download-center/[Neo4j Download Center] and follow the instructions. 
+to start `localhost:7474`. See https://hub.docker.com/repository/docker/graphfoundation/ongdb[DockerHub] for published release tags and more details.
 
 == Licensing ==
 
@@ -97,8 +118,6 @@ ONgDB Enterprise Edition expands the functionality of Community Edition with Ent
 
 ONgDB Enterprise Edition consists of modules from ONgDB Community Edition and modules licensed under AGPLv3 in this repository.
 
-
 == Misc ==
-ONgDB IDE code style configs can be found at
-http://neo4j.github.io/ or under the build/ folder of this repository.
+ONgDB IDE code style configs can be found at under the build/ folder of this repository.
 
