@@ -21,12 +21,12 @@ package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
 import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.{Expression, InequalitySeekRangeExpression, PointDistanceSeekRangeExpression, PrefixSeekRangeExpression}
 import org.neo4j.cypher.internal.runtime.interpreted.{ExecutionContext, IsList, makeValueNeoSafe}
-import org.neo4j.cypher.internal.v3_5.logical.plans._
+import org.neo4j.cypher.internal.v3_6.logical.plans._
 import org.neo4j.internal.kernel.api.{IndexQuery, IndexReference, NodeValueIndexCursor}
 import org.neo4j.values.AnyValue
 import org.neo4j.values.storable._
-import org.neo4j.cypher.internal.v3_5.frontend.helpers.SeqCombiner.combine
-import org.neo4j.cypher.internal.v3_5.util.{CypherTypeException, InternalException}
+import org.neo4j.cypher.internal.v3_6.frontend.helpers.SeqCombiner.combine
+import org.neo4j.cypher.internal.v3_6.util.{CypherTypeException, InternalException}
 
 import scala.collection.JavaConverters._
 

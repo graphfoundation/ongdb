@@ -14,10 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.neo4j.cypher.internal.v3_5.rewriting.rewriters
+package org.neo4j.cypher.internal.v3_6.rewriting.rewriters
 
-import org.neo4j.cypher.internal.v3_5.expressions.Expression
-import org.neo4j.cypher.internal.v3_5.util.helpers.PartialFunctionSupport
+import org.neo4j.cypher.internal.v3_6.expressions.Expression
+import org.neo4j.cypher.internal.v3_6.util.helpers.PartialFunctionSupport
 
 case class MatchPredicateNormalizerChain(normalizers: MatchPredicateNormalizer*) extends MatchPredicateNormalizer {
   val extract = PartialFunctionSupport.reduceAnyDefined(normalizers.map(_.extract))(IndexedSeq.empty[Expression])(_ ++ _)

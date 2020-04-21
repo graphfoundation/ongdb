@@ -14,10 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.neo4j.cypher.internal.v3_5.rewriting
+package org.neo4j.cypher.internal.v3_6.rewriting
 
-import org.neo4j.cypher.internal.v3_5.rewriting.rewriters.inliningContextCreator
-import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.v3_6.rewriting.rewriters.inliningContextCreator
+import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
 
 
 class InliningContextCreatorTest extends CypherFunSuite with AstRewritingTestSupport {

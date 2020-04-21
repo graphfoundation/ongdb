@@ -17,13 +17,13 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compiler.v3_5.phases
+package org.neo4j.cypher.internal.compiler.v3_6.phases
 
-import org.neo4j.cypher.internal.v3_5.ast.Statement
-import org.neo4j.cypher.internal.v3_5.frontend.phases.Condition
-import org.neo4j.cypher.internal.v3_5.ast.semantics.SemanticState
-import org.neo4j.cypher.internal.ir.v3_5.UnionQuery
-import org.neo4j.cypher.internal.v3_5.logical.plans.LogicalPlan
+import org.neo4j.cypher.internal.v3_6.ast.Statement
+import org.neo4j.cypher.internal.v3_6.frontend.phases.Condition
+import org.neo4j.cypher.internal.v3_6.ast.semantics.SemanticState
+import org.neo4j.cypher.internal.ir.v3_6.UnionQuery
+import org.neo4j.cypher.internal.v3_6.logical.plans.LogicalPlan
 
 import scala.reflect.ClassTag
 

@@ -14,15 +14,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.neo4j.cypher.internal.v3_5.rewriting
+package org.neo4j.cypher.internal.v3_6.rewriting
 
-import org.neo4j.cypher.internal.v3_5.ast._
-import org.neo4j.cypher.internal.v3_5.ast.semantics.{SemanticState, SyntaxExceptionCreator}
-import org.neo4j.cypher.internal.v3_5.expressions.{Add, SignedDecimalIntegerLiteral, Variable}
-import org.neo4j.cypher.internal.v3_5.rewriting.rewriters.{expandStar, inlineProjections, normalizeWithAndReturnClauses}
-import org.neo4j.cypher.internal.v3_5.util.helpers.StringHelper.RichString
-import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
-import org.neo4j.cypher.internal.v3_5.util.{InternalException, inSequence}
+import org.neo4j.cypher.internal.v3_6.ast._
+import org.neo4j.cypher.internal.v3_6.ast.semantics.{SemanticState, SyntaxExceptionCreator}
+import org.neo4j.cypher.internal.v3_6.expressions.{Add, SignedDecimalIntegerLiteral, Variable}
+import org.neo4j.cypher.internal.v3_6.rewriting.rewriters.{expandStar, inlineProjections, normalizeWithAndReturnClauses}
+import org.neo4j.cypher.internal.v3_6.util.helpers.StringHelper.RichString
+import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.v3_6.util.{InternalException, inSequence}
 
 class InlineProjectionsTest extends CypherFunSuite with AstRewritingTestSupport {
 

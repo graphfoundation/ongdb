@@ -22,13 +22,13 @@
  */
 package org.neo4j.cypher.internal.runtime.vectorized.operators
 
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.LongSlot
+import org.neo4j.cypher.internal.compatibility.v3_6.runtime.LongSlot
 import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.Literal
 import org.neo4j.cypher.internal.runtime.slotted.pipes.Ascending
 import org.neo4j.cypher.internal.runtime.vectorized._
 import org.neo4j.values.AnyValue
-import org.neo4j.cypher.internal.v3_5.util.symbols.CTNode
-import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.v3_6.util.symbols.CTNode
+import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
 
 class MergeSortOperatorTest extends CypherFunSuite {
 

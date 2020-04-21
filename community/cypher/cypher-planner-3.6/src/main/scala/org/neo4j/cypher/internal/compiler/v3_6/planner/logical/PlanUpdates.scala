@@ -17,13 +17,13 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compiler.v3_5.planner.logical
+package org.neo4j.cypher.internal.compiler.v3_6.planner.logical
 
-import org.neo4j.cypher.internal.compiler.v3_5.planner.logical.steps.{LogicalPlanProducer, PatternExpressionSolver, mergeUniqueIndexSeekLeafPlanner}
-import org.neo4j.cypher.internal.ir.v3_5._
-import org.neo4j.cypher.internal.v3_5.logical.plans.LogicalPlan
-import org.neo4j.cypher.internal.v3_5.expressions.{ContainerIndex, PathExpression, Variable}
-import org.neo4j.cypher.internal.v3_5.util.InternalException
+import org.neo4j.cypher.internal.compiler.v3_6.planner.logical.steps.{LogicalPlanProducer, PatternExpressionSolver, mergeUniqueIndexSeekLeafPlanner}
+import org.neo4j.cypher.internal.ir.v3_6._
+import org.neo4j.cypher.internal.v3_6.logical.plans.LogicalPlan
+import org.neo4j.cypher.internal.v3_6.expressions.{ContainerIndex, PathExpression, Variable}
+import org.neo4j.cypher.internal.v3_6.util.InternalException
 
 /*
  * This coordinates PlannerQuery planning of updates.

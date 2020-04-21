@@ -14,13 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.neo4j.cypher.internal.v3_5.rewriting.rewriters
+package org.neo4j.cypher.internal.v3_6.rewriting.rewriters
 
-import org.neo4j.cypher.internal.v3_5.ast._
-import org.neo4j.cypher.internal.v3_5.expressions._
-import org.neo4j.cypher.internal.v3_5.util.symbols._
-import org.neo4j.cypher.internal.v3_5.util.{ASTNode, IdentityMap, Rewriter, bottomUp}
-import org.neo4j.cypher.internal.v3_5.expressions.{NodePattern, Parameter, RelationshipPattern}
+import org.neo4j.cypher.internal.v3_6.ast._
+import org.neo4j.cypher.internal.v3_6.expressions._
+import org.neo4j.cypher.internal.v3_6.util.symbols._
+import org.neo4j.cypher.internal.v3_6.util.{ASTNode, IdentityMap, Rewriter, bottomUp}
+import org.neo4j.cypher.internal.v3_6.expressions.{NodePattern, Parameter, RelationshipPattern}
 
 object literalReplacement {
 

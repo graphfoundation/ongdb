@@ -17,14 +17,14 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compiler.v3_5.phases
+package org.neo4j.cypher.internal.compiler.v3_6.phases
 
-import org.neo4j.cypher.internal.v3_5.util.InternalException
-import org.neo4j.cypher.internal.compiler.v3_5.ast.convert.plannerQuery.StatementConverters._
-import org.neo4j.cypher.internal.v3_5.ast.Query
-import org.neo4j.cypher.internal.v3_5.frontend.phases.CompilationPhaseTracer.CompilationPhase.LOGICAL_PLANNING
-import org.neo4j.cypher.internal.v3_5.frontend.phases.{BaseContext, BaseState, Phase}
-import org.neo4j.cypher.internal.ir.v3_5.UnionQuery
+import org.neo4j.cypher.internal.v3_6.util.InternalException
+import org.neo4j.cypher.internal.compiler.v3_6.ast.convert.plannerQuery.StatementConverters._
+import org.neo4j.cypher.internal.v3_6.ast.Query
+import org.neo4j.cypher.internal.v3_6.frontend.phases.CompilationPhaseTracer.CompilationPhase.LOGICAL_PLANNING
+import org.neo4j.cypher.internal.v3_6.frontend.phases.{BaseContext, BaseState, Phase}
+import org.neo4j.cypher.internal.ir.v3_6.UnionQuery
 
 
 object CreatePlannerQuery extends Phase[BaseContext, BaseState, LogicalPlanState] {

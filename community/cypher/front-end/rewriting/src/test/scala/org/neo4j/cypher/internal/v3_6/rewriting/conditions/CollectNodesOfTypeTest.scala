@@ -14,16 +14,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.neo4j.cypher.internal.v3_5.rewriting.conditions
+package org.neo4j.cypher.internal.v3_6.rewriting.conditions
 
-import org.neo4j.cypher.internal.v3_5.ast.AstConstructionTestSupport
-import org.neo4j.cypher.internal.v3_5.ast.Match
-import org.neo4j.cypher.internal.v3_5.expressions.EveryPath
-import org.neo4j.cypher.internal.v3_5.expressions.NodePattern
-import org.neo4j.cypher.internal.v3_5.expressions.Pattern
-import org.neo4j.cypher.internal.v3_5.expressions.Variable
-import org.neo4j.cypher.internal.v3_5.util.ASTNode
-import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.v3_6.ast.AstConstructionTestSupport
+import org.neo4j.cypher.internal.v3_6.ast.Match
+import org.neo4j.cypher.internal.v3_6.expressions.EveryPath
+import org.neo4j.cypher.internal.v3_6.expressions.NodePattern
+import org.neo4j.cypher.internal.v3_6.expressions.Pattern
+import org.neo4j.cypher.internal.v3_6.expressions.Variable
+import org.neo4j.cypher.internal.v3_6.util.ASTNode
+import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
 
 class CollectNodesOfTypeTest extends CypherFunSuite with AstConstructionTestSupport {
 

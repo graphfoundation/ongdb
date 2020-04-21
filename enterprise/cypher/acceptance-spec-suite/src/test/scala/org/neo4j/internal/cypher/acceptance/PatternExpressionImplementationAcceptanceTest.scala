@@ -30,7 +30,7 @@ import org.neo4j.internal.cypher.acceptance.comparisonsupport.ComparePlansWithAs
 import org.neo4j.internal.cypher.acceptance.comparisonsupport.Configs
 import org.neo4j.internal.cypher.acceptance.comparisonsupport.CypherComparisonSupport
 import org.neo4j.internal.cypher.acceptance.comparisonsupport.TestConfiguration
-import org.neo4j.cypher.internal.v3_5.expressions.SemanticDirection
+import org.neo4j.cypher.internal.v3_6.expressions.SemanticDirection
 import org.scalatest.Matchers
 
 class PatternExpressionImplementationAcceptanceTest extends ExecutionEngineFunSuite with Matchers with CypherComparisonSupport {

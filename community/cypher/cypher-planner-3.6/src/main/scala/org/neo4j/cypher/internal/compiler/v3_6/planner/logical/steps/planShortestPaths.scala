@@ -17,17 +17,17 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compiler.v3_5.planner.logical.steps
+package org.neo4j.cypher.internal.compiler.v3_6.planner.logical.steps
 
-import org.neo4j.cypher.internal.compiler.v3_5.ExhaustiveShortestPathForbiddenNotification
-import org.neo4j.cypher.internal.compiler.v3_5.planner.logical.LogicalPlanningContext
-import org.neo4j.cypher.internal.compiler.v3_5.planner.logical.idp.expandSolverStep
-import org.neo4j.cypher.internal.ir.v3_5.{Predicate, ShortestPathPattern, _}
-import org.neo4j.cypher.internal.v3_5.expressions._
-import org.neo4j.cypher.internal.v3_5.expressions.functions.{Length, Nodes}
-import org.neo4j.cypher.internal.v3_5.logical.plans.{Ascending, DoNotIncludeTies, IncludeTies, LogicalPlan}
-import org.neo4j.cypher.internal.v3_5.rewriting.rewriters.projectNamedPaths
-import org.neo4j.cypher.internal.v3_5.util.{ExhaustiveShortestPathForbiddenException, FreshIdNameGenerator, InternalException}
+import org.neo4j.cypher.internal.compiler.v3_6.ExhaustiveShortestPathForbiddenNotification
+import org.neo4j.cypher.internal.compiler.v3_6.planner.logical.LogicalPlanningContext
+import org.neo4j.cypher.internal.compiler.v3_6.planner.logical.idp.expandSolverStep
+import org.neo4j.cypher.internal.ir.v3_6.{Predicate, ShortestPathPattern, _}
+import org.neo4j.cypher.internal.v3_6.expressions._
+import org.neo4j.cypher.internal.v3_6.expressions.functions.{Length, Nodes}
+import org.neo4j.cypher.internal.v3_6.logical.plans.{Ascending, DoNotIncludeTies, IncludeTies, LogicalPlan}
+import org.neo4j.cypher.internal.v3_6.rewriting.rewriters.projectNamedPaths
+import org.neo4j.cypher.internal.v3_6.util.{ExhaustiveShortestPathForbiddenException, FreshIdNameGenerator, InternalException}
 
 case object planShortestPaths {
 

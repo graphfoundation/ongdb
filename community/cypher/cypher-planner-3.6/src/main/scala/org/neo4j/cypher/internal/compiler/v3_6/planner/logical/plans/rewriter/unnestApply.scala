@@ -17,12 +17,12 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compiler.v3_5.planner.logical.plans.rewriter
+package org.neo4j.cypher.internal.compiler.v3_6.planner.logical.plans.rewriter
 
-import org.neo4j.cypher.internal.planner.v3_5.spi.PlanningAttributes.Solveds
-import org.neo4j.cypher.internal.v3_5.util.attribution.{Attributes, SameId}
-import org.neo4j.cypher.internal.v3_5.util.{Rewriter, topDown}
-import org.neo4j.cypher.internal.v3_5.logical.plans._
+import org.neo4j.cypher.internal.planner.v3_6.spi.PlanningAttributes.Solveds
+import org.neo4j.cypher.internal.v3_6.util.attribution.{Attributes, SameId}
+import org.neo4j.cypher.internal.v3_6.util.{Rewriter, topDown}
+import org.neo4j.cypher.internal.v3_6.logical.plans._
 
 case class unnestApply(solveds: Solveds, attributes: Attributes) extends Rewriter {
 

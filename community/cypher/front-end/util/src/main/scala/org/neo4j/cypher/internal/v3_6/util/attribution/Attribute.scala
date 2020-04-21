@@ -14,9 +14,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.neo4j.cypher.internal.v3_5.util.attribution
+package org.neo4j.cypher.internal.v3_6.util.attribution
 
-import org.neo4j.cypher.internal.v3_5.util.Unchangeable
+import org.neo4j.cypher.internal.v3_6.util.Unchangeable
 
 import scala.collection.mutable.ArrayBuffer
 

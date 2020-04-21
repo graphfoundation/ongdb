@@ -14,11 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.neo4j.cypher.internal.v3_5.ast.semantics
+package org.neo4j.cypher.internal.v3_6.ast.semantics
 
-import org.neo4j.cypher.internal.v3_5.util.InputPosition
-import org.neo4j.cypher.internal.v3_5.util.symbols.{CTInteger, CTList, CTNode, CTPath, CTString, TypeSpec}
-import org.neo4j.cypher.internal.v3_5.ast.semantics
+import org.neo4j.cypher.internal.v3_6.util.InputPosition
+import org.neo4j.cypher.internal.v3_6.util.symbols.{CTInteger, CTList, CTNode, CTPath, CTString, TypeSpec}
+import org.neo4j.cypher.internal.v3_6.ast.semantics
 
 object ScopeTestHelper {
 

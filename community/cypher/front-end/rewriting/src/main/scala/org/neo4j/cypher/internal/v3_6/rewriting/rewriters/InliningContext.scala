@@ -14,12 +14,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.neo4j.cypher.internal.v3_5.rewriting.rewriters
+package org.neo4j.cypher.internal.v3_6.rewriting.rewriters
 
-import org.neo4j.cypher.internal.v3_5.expressions._
-import org.neo4j.cypher.internal.v3_5.rewriting.rewriters.InliningContext.INLINING_THRESHOLD
-import org.neo4j.cypher.internal.v3_5.util._
-import org.neo4j.cypher.internal.v3_5.expressions.{PathExpression, Variable}
+import org.neo4j.cypher.internal.v3_6.expressions._
+import org.neo4j.cypher.internal.v3_6.rewriting.rewriters.InliningContext.INLINING_THRESHOLD
+import org.neo4j.cypher.internal.v3_6.util._
+import org.neo4j.cypher.internal.v3_6.expressions.{PathExpression, Variable}
 
 case class InliningContext(projections: Map[LogicalVariable, Expression] = Map.empty,
                            seenVariables: Set[LogicalVariable] = Set.empty,

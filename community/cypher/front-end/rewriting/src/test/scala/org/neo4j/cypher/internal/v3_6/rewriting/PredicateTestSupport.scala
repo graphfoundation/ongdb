@@ -14,12 +14,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.neo4j.cypher.internal.v3_5.rewriting
+package org.neo4j.cypher.internal.v3_6.rewriting
 
-import org.neo4j.cypher.internal.v3_5.expressions._
-import org.neo4j.cypher.internal.v3_5.util.test_helpers.{CypherFunSuite, CypherTestSupport}
-import org.neo4j.cypher.internal.v3_5.util.{DummyPosition, Rewriter}
-import org.neo4j.cypher.internal.v3_5.expressions._
+import org.neo4j.cypher.internal.v3_6.expressions._
+import org.neo4j.cypher.internal.v3_6.util.test_helpers.{CypherFunSuite, CypherTestSupport}
+import org.neo4j.cypher.internal.v3_6.util.{DummyPosition, Rewriter}
+import org.neo4j.cypher.internal.v3_6.expressions._
 
 trait PredicateTestSupport extends CypherTestSupport {
   self: CypherFunSuite =>

@@ -22,7 +22,7 @@
  */
 package org.neo4j.cypher.internal.queryReduction.ast
 
-import org.neo4j.cypher.internal.v3_5.util._
+import org.neo4j.cypher.internal.v3_6.util._
 
 object ASTNodeHelper {
 

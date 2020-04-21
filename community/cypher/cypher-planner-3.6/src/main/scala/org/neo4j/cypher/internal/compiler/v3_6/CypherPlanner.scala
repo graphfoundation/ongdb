@@ -17,26 +17,26 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compiler.v3_5
+package org.neo4j.cypher.internal.compiler.v3_6
 
 import java.time.Clock
 
-import org.neo4j.cypher.internal.compiler.v3_5.phases.PlannerContext
-import org.neo4j.cypher.internal.compiler.v3_5.phases._
-import org.neo4j.cypher.internal.compiler.v3_5.planner.logical._
-import org.neo4j.cypher.internal.compiler.v3_5.planner.logical.debug.DebugPrinter
-import org.neo4j.cypher.internal.compiler.v3_5.planner.logical.plans.rewriter.PlanRewriter
-import org.neo4j.cypher.internal.compiler.v3_5.planner.logical.steps.replacePropertyLookupsWithVariables
-import org.neo4j.cypher.internal.compiler.v3_5.planner.CheckForUnresolvedTokens
-import org.neo4j.cypher.internal.compiler.v3_5.planner.ResolveTokens
-import org.neo4j.cypher.internal.ir.v3_5.UnionQuery
-import org.neo4j.cypher.internal.planner.v3_5.spi.IDPPlannerName
-import org.neo4j.cypher.internal.planner.v3_5.spi.PlannerNameFor
-import org.neo4j.cypher.internal.v3_5.logical.plans.LogicalPlan
-import org.neo4j.cypher.internal.v3_5.frontend.phases.CompilationPhaseTracer
-import org.neo4j.cypher.internal.v3_5.frontend.phases._
-import org.neo4j.cypher.internal.v3_5.rewriting.{Deprecations, RewriterStepSequencer}
-import org.neo4j.cypher.internal.v3_5.util.InputPosition
+import org.neo4j.cypher.internal.compiler.v3_6.phases.PlannerContext
+import org.neo4j.cypher.internal.compiler.v3_6.phases._
+import org.neo4j.cypher.internal.compiler.v3_6.planner.logical._
+import org.neo4j.cypher.internal.compiler.v3_6.planner.logical.debug.DebugPrinter
+import org.neo4j.cypher.internal.compiler.v3_6.planner.logical.plans.rewriter.PlanRewriter
+import org.neo4j.cypher.internal.compiler.v3_6.planner.logical.steps.replacePropertyLookupsWithVariables
+import org.neo4j.cypher.internal.compiler.v3_6.planner.CheckForUnresolvedTokens
+import org.neo4j.cypher.internal.compiler.v3_6.planner.ResolveTokens
+import org.neo4j.cypher.internal.ir.v3_6.UnionQuery
+import org.neo4j.cypher.internal.planner.v3_6.spi.IDPPlannerName
+import org.neo4j.cypher.internal.planner.v3_6.spi.PlannerNameFor
+import org.neo4j.cypher.internal.v3_6.logical.plans.LogicalPlan
+import org.neo4j.cypher.internal.v3_6.frontend.phases.CompilationPhaseTracer
+import org.neo4j.cypher.internal.v3_6.frontend.phases._
+import org.neo4j.cypher.internal.v3_6.rewriting.{Deprecations, RewriterStepSequencer}
+import org.neo4j.cypher.internal.v3_6.util.InputPosition
 
 case class CypherPlanner[Context <: PlannerContext](monitors: Monitors,
                                                     sequencer: String => RewriterStepSequencer,

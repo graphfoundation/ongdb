@@ -23,7 +23,7 @@
 package org.neo4j.internal.cypher.acceptance
 
 import org.neo4j.cypher._
-import org.neo4j.cypher.internal.ir.v3_5.ProvidedOrder
+import org.neo4j.cypher.internal.ir.v3_6.ProvidedOrder
 import org.neo4j.internal.cypher.acceptance.comparisonsupport.Configs
 import org.neo4j.internal.cypher.acceptance.comparisonsupport.CypherComparisonSupport
 

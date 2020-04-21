@@ -26,7 +26,7 @@ import org.neo4j.graphdb.config.Setting
 import org.neo4j.graphdb.factory.GraphDatabaseSettings
 import org.neo4j.helpers.collection.Pair
 import org.neo4j.kernel.impl.core.ThreadToStatementContextBridge
-import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
 import org.scalatest.prop.TableDrivenPropertyChecks
 
 import scala.collection.JavaConversions._
@@ -80,10 +80,10 @@ class QueryCachingTest extends CypherFunSuite with GraphDatabaseTestSupport with
         val actual = cacheListener.trace.map(str => str.replaceAll("\\s+", " "))
         val expected = List(
           s"cacheFlushDetected",
-          s"cacheMiss: (CYPHER 3.5 $query, $empty_parameters)",
-          s"cacheHit: (CYPHER 3.5 $query, $empty_parameters)",
-          s"cacheRecompile: (CYPHER 3.5 $query, $empty_parameters)",
-          s"cacheHit: (CYPHER 3.5 $query, $empty_parameters)")
+          s"cacheMiss: (CYPHER 3.6 $query, $empty_parameters)",
+          s"cacheHit: (CYPHER 3.6 $query, $empty_parameters)",
+          s"cacheRecompile: (CYPHER 3.6 $query, $empty_parameters)",
+          s"cacheHit: (CYPHER 3.6 $query, $empty_parameters)")
 
         actual should equal(expected)
     }
@@ -103,10 +103,10 @@ class QueryCachingTest extends CypherFunSuite with GraphDatabaseTestSupport with
     val actual = cacheListener.trace.map(str => str.replaceAll("\\s+", " "))
     val expected = List(
       s"cacheFlushDetected",
-      s"cacheMiss: (CYPHER 3.5 $query, Map(n -> class org.neo4j.values.storable.LongValue))",
-      s"cacheHit: (CYPHER 3.5 $query, Map(n -> class org.neo4j.values.storable.LongValue))",
-      s"cacheRecompile: (CYPHER 3.5 $query, Map(n -> class org.neo4j.values.storable.LongValue))",
-      s"cacheHit: (CYPHER 3.5 $query, Map(n -> class org.neo4j.values.storable.LongValue))")
+      s"cacheMiss: (CYPHER 3.6 $query, Map(n -> class org.neo4j.values.storable.LongValue))",
+      s"cacheHit: (CYPHER 3.6 $query, Map(n -> class org.neo4j.values.storable.LongValue))",
+      s"cacheRecompile: (CYPHER 3.6 $query, Map(n -> class org.neo4j.values.storable.LongValue))",
+      s"cacheHit: (CYPHER 3.6 $query, Map(n -> class org.neo4j.values.storable.LongValue))")
 
     actual should equal(expected)
   }
@@ -125,10 +125,10 @@ class QueryCachingTest extends CypherFunSuite with GraphDatabaseTestSupport with
     val actual = cacheListener.trace.map(str => str.replaceAll("\\s+", " "))
     val expected = List(
       s"cacheFlushDetected",
-      s"cacheMiss: (CYPHER 3.5 $query, Map(n -> class org.neo4j.values.storable.LongValue))",
-      s"cacheHit: (CYPHER 3.5 $query, Map(n -> class org.neo4j.values.storable.LongValue))",
-      s"cacheRecompile: (CYPHER 3.5 $query, Map(n -> class org.neo4j.values.storable.LongValue))",
-      s"cacheHit: (CYPHER 3.5 $query, Map(n -> class org.neo4j.values.storable.LongValue))")
+      s"cacheMiss: (CYPHER 3.6 $query, Map(n -> class org.neo4j.values.storable.LongValue))",
+      s"cacheHit: (CYPHER 3.6 $query, Map(n -> class org.neo4j.values.storable.LongValue))",
+      s"cacheRecompile: (CYPHER 3.6 $query, Map(n -> class org.neo4j.values.storable.LongValue))",
+      s"cacheHit: (CYPHER 3.6 $query, Map(n -> class org.neo4j.values.storable.LongValue))")
 
     actual should equal(expected)
   }
@@ -148,10 +148,10 @@ class QueryCachingTest extends CypherFunSuite with GraphDatabaseTestSupport with
     val actual = cacheListener.trace.map(str => str.replaceAll("\\s+", " "))
     val expected = List(
       s"cacheFlushDetected",
-      s"cacheMiss: (CYPHER 3.5 $query, Map(n -> class org.neo4j.values.storable.LongValue))",
-      s"cacheHit: (CYPHER 3.5 $query, Map(n -> class org.neo4j.values.storable.LongValue))",
-      s"cacheMiss: (CYPHER 3.5 $query, Map(n -> class org.neo4j.values.storable.StringWrappingStringValue))",
-      s"cacheHit: (CYPHER 3.5 $query, Map(n -> class org.neo4j.values.storable.StringWrappingStringValue))")
+      s"cacheMiss: (CYPHER 3.6 $query, Map(n -> class org.neo4j.values.storable.LongValue))",
+      s"cacheHit: (CYPHER 3.6 $query, Map(n -> class org.neo4j.values.storable.LongValue))",
+      s"cacheMiss: (CYPHER 3.6 $query, Map(n -> class org.neo4j.values.storable.StringWrappingStringValue))",
+      s"cacheHit: (CYPHER 3.6 $query, Map(n -> class org.neo4j.values.storable.StringWrappingStringValue))")
 
     actual should equal(expected)
   }
@@ -169,8 +169,8 @@ class QueryCachingTest extends CypherFunSuite with GraphDatabaseTestSupport with
     val actual = cacheListener.trace.map(str => str.replaceAll("\\s+", " "))
     val expected = List(
       s"cacheFlushDetected",
-      s"cacheMiss: (CYPHER 3.5 $query, Map(n -> class org.neo4j.values.storable.LongValue))",
-      s"cacheHit: (CYPHER 3.5 $query, Map(n -> class org.neo4j.values.storable.LongValue))"
+      s"cacheMiss: (CYPHER 3.6 $query, Map(n -> class org.neo4j.values.storable.LongValue))",
+      s"cacheHit: (CYPHER 3.6 $query, Map(n -> class org.neo4j.values.storable.LongValue))"
     )
 
     actual should equal(expected)
@@ -193,13 +193,13 @@ class QueryCachingTest extends CypherFunSuite with GraphDatabaseTestSupport with
     val actual = cacheListener.trace.map(str => str.replaceAll("\\s+", " "))
     val expected = List(
       s"cacheFlushDetected",
-      s"cacheMiss: (CYPHER 3.5 $query, Map(n -> class org.neo4j.values.storable.LongValue))",
-      s"cacheHit: (CYPHER 3.5 $query, Map(n -> class org.neo4j.values.storable.LongValue))",
-      s"cacheRecompile: (CYPHER 3.5 $query, Map(n -> class org.neo4j.values.storable.LongValue))",
-      s"cacheHit: (CYPHER 3.5 $query, Map(n -> class org.neo4j.values.storable.LongValue))",
-      s"cacheHit: (CYPHER 3.5 $query, Map(n -> class org.neo4j.values.storable.LongValue))",
-      s"cacheHit: (CYPHER 3.5 $query, Map(n -> class org.neo4j.values.storable.LongValue))",
-      s"cacheHit: (CYPHER 3.5 $query, Map(n -> class org.neo4j.values.storable.LongValue))")
+      s"cacheMiss: (CYPHER 3.6 $query, Map(n -> class org.neo4j.values.storable.LongValue))",
+      s"cacheHit: (CYPHER 3.6 $query, Map(n -> class org.neo4j.values.storable.LongValue))",
+      s"cacheRecompile: (CYPHER 3.6 $query, Map(n -> class org.neo4j.values.storable.LongValue))",
+      s"cacheHit: (CYPHER 3.6 $query, Map(n -> class org.neo4j.values.storable.LongValue))",
+      s"cacheHit: (CYPHER 3.6 $query, Map(n -> class org.neo4j.values.storable.LongValue))",
+      s"cacheHit: (CYPHER 3.6 $query, Map(n -> class org.neo4j.values.storable.LongValue))",
+      s"cacheHit: (CYPHER 3.6 $query, Map(n -> class org.neo4j.values.storable.LongValue))")
 
     actual should equal(expected)
   }

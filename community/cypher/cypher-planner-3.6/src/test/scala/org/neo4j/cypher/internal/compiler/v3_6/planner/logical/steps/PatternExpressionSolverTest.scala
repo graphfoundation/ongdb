@@ -17,20 +17,20 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compiler.v3_5.planner.logical.steps
+package org.neo4j.cypher.internal.compiler.v3_6.planner.logical.steps
 
 import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito.when
 import org.mockito.invocation.InvocationOnMock
 import org.mockito.stubbing.Answer
-import org.neo4j.cypher.internal.compiler.v3_5.planner.LogicalPlanningTestSupport
-import org.neo4j.cypher.internal.compiler.v3_5.planner.logical.{LogicalPlanningContext, QueryGraphSolver}
-import org.neo4j.cypher.internal.ir.v3_5.InterestingOrder
-import org.neo4j.cypher.internal.v3_5.ast.semantics.SemanticTable
-import org.neo4j.cypher.internal.v3_5.expressions._
-import org.neo4j.cypher.internal.v3_5.logical.plans.{LogicalPlan, Projection, RollUpApply}
-import org.neo4j.cypher.internal.v3_5.util.DummyPosition
-import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.compiler.v3_6.planner.LogicalPlanningTestSupport
+import org.neo4j.cypher.internal.compiler.v3_6.planner.logical.{LogicalPlanningContext, QueryGraphSolver}
+import org.neo4j.cypher.internal.ir.v3_6.InterestingOrder
+import org.neo4j.cypher.internal.v3_6.ast.semantics.SemanticTable
+import org.neo4j.cypher.internal.v3_6.expressions._
+import org.neo4j.cypher.internal.v3_6.logical.plans.{LogicalPlan, Projection, RollUpApply}
+import org.neo4j.cypher.internal.v3_6.util.DummyPosition
+import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
 
 class PatternExpressionSolverTest extends CypherFunSuite with LogicalPlanningTestSupport {
   test("Rewrites single pattern expression") {

@@ -14,14 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.neo4j.cypher.internal.v3_5.frontend.phases
+package org.neo4j.cypher.internal.v3_6.frontend.phases
 
-import org.neo4j.cypher.internal.v3_5.expressions._
-import org.neo4j.cypher.internal.v3_5.util.Foldable._
-import org.neo4j.cypher.internal.v3_5.util.helpers.fixedPoint
-import org.neo4j.cypher.internal.v3_5.util.{Rewriter, bottomUp}
-import org.neo4j.cypher.internal.v3_5.ast.Where
-import org.neo4j.cypher.internal.v3_5.expressions.{And, Equals, Or}
+import org.neo4j.cypher.internal.v3_6.expressions._
+import org.neo4j.cypher.internal.v3_6.util.Foldable._
+import org.neo4j.cypher.internal.v3_6.util.helpers.fixedPoint
+import org.neo4j.cypher.internal.v3_6.util.{Rewriter, bottomUp}
+import org.neo4j.cypher.internal.v3_6.ast.Where
+import org.neo4j.cypher.internal.v3_6.expressions.{And, Equals, Or}
 
 /**
   * TODO: This should instead implement Rewriter

@@ -20,12 +20,12 @@
  * More information is also available at:
  * https://neo4j.com/licensing/
  */
-package org.neo4j.cypher.internal.compiled_runtime.v3_5.codegen.expressions
+package org.neo4j.cypher.internal.compiled_runtime.v3_6.codegen.expressions
 
 import org.neo4j.cypher.internal.runtime.compiled.codegen.ir.expressions._
 import org.neo4j.cypher.internal.runtime.compiled.codegen.{CodeGenContext, Variable}
-import org.neo4j.cypher.internal.v3_5.util.symbols._
-import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.v3_6.util.symbols._
+import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
 
 class CodeGenExpressionTypesTest extends CypherFunSuite {
 

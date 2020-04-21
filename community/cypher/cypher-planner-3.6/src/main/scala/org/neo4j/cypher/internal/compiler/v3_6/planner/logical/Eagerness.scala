@@ -17,14 +17,14 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compiler.v3_5.planner.logical
+package org.neo4j.cypher.internal.compiler.v3_6.planner.logical
 
-import org.neo4j.cypher.internal.ir.v3_5.{PlannerQuery, QueryGraph}
-import org.neo4j.cypher.internal.planner.v3_5.spi.PlanningAttributes.Solveds
-import org.neo4j.cypher.internal.v3_5.logical.plans._
-import org.neo4j.cypher.internal.v3_5.util.attribution.{Attributes, SameId}
-import org.neo4j.cypher.internal.v3_5.util.helpers.fixedPoint
-import org.neo4j.cypher.internal.v3_5.util.{Rewriter, bottomUp}
+import org.neo4j.cypher.internal.ir.v3_6.{PlannerQuery, QueryGraph}
+import org.neo4j.cypher.internal.planner.v3_6.spi.PlanningAttributes.Solveds
+import org.neo4j.cypher.internal.v3_6.logical.plans._
+import org.neo4j.cypher.internal.v3_6.util.attribution.{Attributes, SameId}
+import org.neo4j.cypher.internal.v3_6.util.helpers.fixedPoint
+import org.neo4j.cypher.internal.v3_6.util.{Rewriter, bottomUp}
 
 import scala.annotation.tailrec
 

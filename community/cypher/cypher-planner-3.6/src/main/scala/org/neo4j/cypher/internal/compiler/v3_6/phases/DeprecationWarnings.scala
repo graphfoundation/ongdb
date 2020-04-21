@@ -17,14 +17,14 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compiler.v3_5.phases
+package org.neo4j.cypher.internal.compiler.v3_6.phases
 
-import org.neo4j.cypher.internal.compiler.v3_5.{DeprecatedFieldNotification, DeprecatedProcedureNotification, ProcedureWarningNotification}
-import org.neo4j.cypher.internal.v3_5.ast.{ProcedureResultItem, Statement, UnresolvedCall}
-import org.neo4j.cypher.internal.v3_5.frontend.phases.CompilationPhaseTracer.CompilationPhase.DEPRECATION_WARNINGS
-import org.neo4j.cypher.internal.v3_5.frontend.phases.{BaseContext, BaseState, VisitorPhase}
-import org.neo4j.cypher.internal.v3_5.util._
-import org.neo4j.cypher.internal.v3_5.logical.plans.{FieldSignature, ProcedureSignature, ResolvedCall}
+import org.neo4j.cypher.internal.compiler.v3_6.{DeprecatedFieldNotification, DeprecatedProcedureNotification, ProcedureWarningNotification}
+import org.neo4j.cypher.internal.v3_6.ast.{ProcedureResultItem, Statement, UnresolvedCall}
+import org.neo4j.cypher.internal.v3_6.frontend.phases.CompilationPhaseTracer.CompilationPhase.DEPRECATION_WARNINGS
+import org.neo4j.cypher.internal.v3_6.frontend.phases.{BaseContext, BaseState, VisitorPhase}
+import org.neo4j.cypher.internal.v3_6.util._
+import org.neo4j.cypher.internal.v3_6.logical.plans.{FieldSignature, ProcedureSignature, ResolvedCall}
 
 object ProcedureDeprecationWarnings extends VisitorPhase[BaseContext, BaseState] {
   override def visit(value: BaseState, context: BaseContext): Unit = {

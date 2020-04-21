@@ -17,18 +17,18 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compiler.v3_5.phases
+package org.neo4j.cypher.internal.compiler.v3_6.phases
 
-import org.neo4j.cypher.internal.ir.v3_5.{PeriodicCommit, UnionQuery}
-import org.neo4j.cypher.internal.planner.v3_5.spi.PlanningAttributes
-import org.neo4j.cypher.internal.planner.v3_5.spi.PlanningAttributes.{Cardinalities, ProvidedOrders, Solveds}
-import org.neo4j.cypher.internal.v3_5.logical.plans.LogicalPlan
-import org.neo4j.cypher.internal.v3_5.ast.semantics.{SemanticState, SemanticTable}
-import org.neo4j.cypher.internal.v3_5.ast.{Query, Statement}
-import org.neo4j.cypher.internal.v3_5.frontend.PlannerName
-import org.neo4j.cypher.internal.v3_5.frontend.phases.{BaseState, Condition}
-import org.neo4j.cypher.internal.v3_5.util.InputPosition
-import org.neo4j.cypher.internal.v3_5.util.symbols.CypherType
+import org.neo4j.cypher.internal.ir.v3_6.{PeriodicCommit, UnionQuery}
+import org.neo4j.cypher.internal.planner.v3_6.spi.PlanningAttributes
+import org.neo4j.cypher.internal.planner.v3_6.spi.PlanningAttributes.{Cardinalities, ProvidedOrders, Solveds}
+import org.neo4j.cypher.internal.v3_6.logical.plans.LogicalPlan
+import org.neo4j.cypher.internal.v3_6.ast.semantics.{SemanticState, SemanticTable}
+import org.neo4j.cypher.internal.v3_6.ast.{Query, Statement}
+import org.neo4j.cypher.internal.v3_6.frontend.PlannerName
+import org.neo4j.cypher.internal.v3_6.frontend.phases.{BaseState, Condition}
+import org.neo4j.cypher.internal.v3_6.util.InputPosition
+import org.neo4j.cypher.internal.v3_6.util.symbols.CypherType
 
 /*
 This is the state that is used during query compilation. It accumulates more and more values as it passes through

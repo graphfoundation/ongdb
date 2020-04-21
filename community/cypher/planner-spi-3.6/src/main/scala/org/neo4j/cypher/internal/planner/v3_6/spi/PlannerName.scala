@@ -17,13 +17,13 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.planner.v3_5.spi
+package org.neo4j.cypher.internal.planner.v3_6.spi
 
-import org.neo4j.cypher.internal.v3_5.frontend.PlannerName
+import org.neo4j.cypher.internal.v3_6.frontend.PlannerName
 
 sealed abstract class CostBasedPlannerName extends PlannerName {
   val toTextOutput = "COST"
-  val version = "3.5"
+  val version = "3.6"
 }
 
 object CostBasedPlannerName {
@@ -52,7 +52,7 @@ case object DPPlannerName extends CostBasedPlannerName {
   */
 case object ProcedurePlannerName extends PlannerName {
   val name = "PROCEDURE"
-  val version = "3.5"
+  val version = "3.6"
 
   override def toTextOutput: String = "PROCEDURE"
 }

@@ -17,18 +17,18 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compiler.v3_5.planner
+package org.neo4j.cypher.internal.compiler.v3_6.planner
 
-import org.neo4j.cypher.internal.compiler.v3_5.planner.logical.ExpressionEvaluator
-import org.neo4j.cypher.internal.compiler.v3_5.planner.logical.Metrics._
-import org.neo4j.cypher.internal.ir.v3_5.{PlannerQuery, QueryGraph}
-import org.neo4j.cypher.internal.planner.v3_5.spi.PlanningAttributes.Cardinalities
-import org.neo4j.cypher.internal.planner.v3_5.spi.{GraphStatistics, IndexOrderCapability}
-import org.neo4j.cypher.internal.v3_5.logical.plans.{LogicalPlan, ProcedureSignature}
-import org.neo4j.cypher.internal.v3_5.ast.semantics.{ExpressionTypeInfo, SemanticTable}
-import org.neo4j.cypher.internal.v3_5.expressions.Expression
-import org.neo4j.cypher.internal.v3_5.util.symbols.TypeSpec
-import org.neo4j.cypher.internal.v3_5.util.{Cardinality, Cost, LabelId, PropertyKeyId}
+import org.neo4j.cypher.internal.compiler.v3_6.planner.logical.ExpressionEvaluator
+import org.neo4j.cypher.internal.compiler.v3_6.planner.logical.Metrics._
+import org.neo4j.cypher.internal.ir.v3_6.{PlannerQuery, QueryGraph}
+import org.neo4j.cypher.internal.planner.v3_6.spi.PlanningAttributes.Cardinalities
+import org.neo4j.cypher.internal.planner.v3_6.spi.{GraphStatistics, IndexOrderCapability}
+import org.neo4j.cypher.internal.v3_6.logical.plans.{LogicalPlan, ProcedureSignature}
+import org.neo4j.cypher.internal.v3_6.ast.semantics.{ExpressionTypeInfo, SemanticTable}
+import org.neo4j.cypher.internal.v3_6.expressions.Expression
+import org.neo4j.cypher.internal.v3_6.util.symbols.TypeSpec
+import org.neo4j.cypher.internal.v3_6.util.{Cardinality, Cost, LabelId, PropertyKeyId}
 
 import scala.collection.mutable
 

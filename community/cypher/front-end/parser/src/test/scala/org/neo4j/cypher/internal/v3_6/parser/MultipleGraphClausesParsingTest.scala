@@ -14,13 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.neo4j.cypher.internal.v3_5.parser
+package org.neo4j.cypher.internal.v3_6.parser
 
-import org.neo4j.cypher.internal.v3_5.ast.{AstConstructionTestSupport, Clause}
-import org.neo4j.cypher.internal.v3_5.expressions.{Property, PropertyKeyName, RelationshipChain, SignedDecimalIntegerLiteral}
-import org.neo4j.cypher.internal.v3_5.util.DummyPosition
-import org.neo4j.cypher.internal.v3_5.util.symbols.{CTAny, CTMap}
-import org.neo4j.cypher.internal.v3_5.{ast, expressions => exp}
+import org.neo4j.cypher.internal.v3_6.ast.{AstConstructionTestSupport, Clause}
+import org.neo4j.cypher.internal.v3_6.expressions.{Property, PropertyKeyName, RelationshipChain, SignedDecimalIntegerLiteral}
+import org.neo4j.cypher.internal.v3_6.util.DummyPosition
+import org.neo4j.cypher.internal.v3_6.util.symbols.{CTAny, CTMap}
+import org.neo4j.cypher.internal.v3_6.{ast, expressions => exp}
 import org.parboiled.scala._
 
 import scala.language.implicitConversions

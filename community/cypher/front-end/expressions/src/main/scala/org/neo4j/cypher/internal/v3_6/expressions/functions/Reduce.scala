@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.neo4j.cypher.internal.v3_5.expressions.functions
+package org.neo4j.cypher.internal.v3_6.expressions.functions
 
 // this implementation exists only to handle the case where "reduce(x = 0, x in y : foo)" is parsed as a function invocation,
 // rather than a ReduceExpression

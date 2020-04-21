@@ -22,14 +22,14 @@
  */
 package org.neo4j.cypher.internal.runtime.compiled.codegen.ir.expressions
 
-import org.neo4j.cypher.internal.compiler.v3_5.planner.CantCompileQueryException
+import org.neo4j.cypher.internal.compiler.v3_6.planner.CantCompileQueryException
 import org.neo4j.cypher.internal.runtime.compiled.codegen.CodeGenContext
 import org.neo4j.cypher.internal.runtime.compiled.codegen.ir.expressions
 import org.neo4j.cypher.internal.runtime.compiled.codegen.ir.functions.functionConverter
 import org.neo4j.cypher.internal.runtime.compiled.codegen.spi.MethodStructure
-import org.neo4j.cypher.internal.v3_5.logical.plans.{CachedNodeProperty, CoerceToPredicate}
-import org.neo4j.cypher.internal.v3_5.util.symbols._
-import org.neo4j.cypher.internal.v3_5.{expressions => ast}
+import org.neo4j.cypher.internal.v3_6.logical.plans.{CachedNodeProperty, CoerceToPredicate}
+import org.neo4j.cypher.internal.v3_6.util.symbols._
+import org.neo4j.cypher.internal.v3_6.{expressions => ast}
 
 object ExpressionConverter {
 

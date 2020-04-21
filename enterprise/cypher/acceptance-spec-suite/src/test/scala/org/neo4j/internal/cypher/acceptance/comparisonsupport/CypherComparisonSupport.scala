@@ -32,9 +32,9 @@ import org.neo4j.kernel.monitoring.Monitors
 import org.neo4j.test.TestEnterpriseGraphDatabaseFactory
 import org.neo4j.test.TestGraphDatabaseFactory
 import org.neo4j.values.virtual.MapValue
-import org.neo4j.cypher.internal.v3_5.util.Eagerly
-import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
-import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherTestSupport
+import org.neo4j.cypher.internal.v3_6.util.Eagerly
+import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherTestSupport
 
 import scala.util.Failure
 import scala.util.Success
@@ -264,7 +264,7 @@ trait AbstractCypherComparisonSupport extends CypherFunSuite with CypherTestSupp
         fail("At least one scenario must be expected to succeed to be able to compare plans")
       }
 
-      val baseScenario = TestScenario(Versions.V3_5, Planners.Cost, Runtimes.Interpreted)
+      val baseScenario = TestScenario(Versions.V3_6, Planners.Cost, Runtimes.Interpreted)
       executeBefore()
       val baseResult = innerExecute(s"CYPHER ${baseScenario.preparserOptions} $query", params)
       baseResult
@@ -291,7 +291,7 @@ trait AbstractCypherComparisonSupport extends CypherFunSuite with CypherTestSupp
     if (scenariosToChooseFrom.scenarios.isEmpty) {
       fail("At least one scenario must be expected to succeed, to be comparable with plan and result")
     }
-    val preferredScenario = TestScenario(Versions.V3_5, Planners.Cost, Runtimes.Interpreted)
+    val preferredScenario = TestScenario(Versions.V3_6, Planners.Cost, Runtimes.Interpreted)
     if (scenariosToChooseFrom.containsScenario(preferredScenario)) {
       preferredScenario
     } else {

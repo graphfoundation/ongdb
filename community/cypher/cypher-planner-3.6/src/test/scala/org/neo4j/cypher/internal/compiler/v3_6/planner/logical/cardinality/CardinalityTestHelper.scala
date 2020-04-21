@@ -17,19 +17,19 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compiler.v3_5.planner.logical.cardinality
+package org.neo4j.cypher.internal.compiler.v3_6.planner.logical.cardinality
 
-import org.neo4j.cypher.internal.compiler.v3_5.helpers.MapSupport._
-import org.neo4j.cypher.internal.compiler.v3_5.planner.LogicalPlanningTestSupport
-import org.neo4j.cypher.internal.compiler.v3_5.planner.logical.QueryGraphProducer
-import org.neo4j.cypher.internal.ir.v3_5._
-import org.neo4j.cypher.internal.planner.v3_5.spi.GraphStatistics
-import org.neo4j.cypher.internal.planner.v3_5.spi.IndexDescriptor
-import org.neo4j.cypher.internal.v3_5.ast.semantics.SemanticTable
-import org.neo4j.cypher.internal.v3_5.expressions.Variable
-import org.neo4j.cypher.internal.v3_5.util.Cardinality.NumericCardinality
-import org.neo4j.cypher.internal.v3_5.util._
-import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.compiler.v3_6.helpers.MapSupport._
+import org.neo4j.cypher.internal.compiler.v3_6.planner.LogicalPlanningTestSupport
+import org.neo4j.cypher.internal.compiler.v3_6.planner.logical.QueryGraphProducer
+import org.neo4j.cypher.internal.ir.v3_6._
+import org.neo4j.cypher.internal.planner.v3_6.spi.GraphStatistics
+import org.neo4j.cypher.internal.planner.v3_6.spi.IndexDescriptor
+import org.neo4j.cypher.internal.v3_6.ast.semantics.SemanticTable
+import org.neo4j.cypher.internal.v3_6.expressions.Variable
+import org.neo4j.cypher.internal.v3_6.util.Cardinality.NumericCardinality
+import org.neo4j.cypher.internal.v3_6.util._
+import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
 import org.scalatest.matchers.MatchResult
 import org.scalatest.matchers.Matcher
 

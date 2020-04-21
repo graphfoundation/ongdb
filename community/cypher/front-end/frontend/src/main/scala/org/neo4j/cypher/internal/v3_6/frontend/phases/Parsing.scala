@@ -14,11 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.neo4j.cypher.internal.v3_5.frontend.phases
+package org.neo4j.cypher.internal.v3_6.frontend.phases
 
-import org.neo4j.cypher.internal.v3_5.ast.Statement
-import org.neo4j.cypher.internal.v3_5.parser.CypherParser
-import org.neo4j.cypher.internal.v3_5.frontend.phases.CompilationPhaseTracer.CompilationPhase.PARSING
+import org.neo4j.cypher.internal.v3_6.ast.Statement
+import org.neo4j.cypher.internal.v3_6.parser.CypherParser
+import org.neo4j.cypher.internal.v3_6.frontend.phases.CompilationPhaseTracer.CompilationPhase.PARSING
 
 case object Parsing extends Phase[BaseContext, BaseState, BaseState] {
   private val parser = new CypherParser

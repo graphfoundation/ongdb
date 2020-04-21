@@ -17,14 +17,14 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compiler.v3_5.planner
+package org.neo4j.cypher.internal.compiler.v3_6.planner
 
-import org.neo4j.cypher.internal.compiler.v3_5.{MissingLabelNotification, MissingPropertyNameNotification, MissingRelTypeNotification}
-import org.neo4j.cypher.internal.compiler.v3_5.phases.LogicalPlanState
-import org.neo4j.cypher.internal.v3_5.expressions.{LabelName, Property, PropertyKeyName, RelTypeName}
-import org.neo4j.cypher.internal.v3_5.frontend.phases.CompilationPhaseTracer.CompilationPhase.LOGICAL_PLANNING
-import org.neo4j.cypher.internal.v3_5.frontend.phases.{BaseContext, VisitorPhase}
-import org.neo4j.cypher.internal.v3_5.util.InternalNotification
+import org.neo4j.cypher.internal.compiler.v3_6.{MissingLabelNotification, MissingPropertyNameNotification, MissingRelTypeNotification}
+import org.neo4j.cypher.internal.compiler.v3_6.phases.LogicalPlanState
+import org.neo4j.cypher.internal.v3_6.expressions.{LabelName, Property, PropertyKeyName, RelTypeName}
+import org.neo4j.cypher.internal.v3_6.frontend.phases.CompilationPhaseTracer.CompilationPhase.LOGICAL_PLANNING
+import org.neo4j.cypher.internal.v3_6.frontend.phases.{BaseContext, VisitorPhase}
+import org.neo4j.cypher.internal.v3_6.util.InternalNotification
 
 import org.neo4j.values.storable.TemporalValue.TemporalFields
 import org.neo4j.values.storable.{DurationFields, PointFields}

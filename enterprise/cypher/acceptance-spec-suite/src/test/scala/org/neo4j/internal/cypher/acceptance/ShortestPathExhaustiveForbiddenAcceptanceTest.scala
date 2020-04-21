@@ -29,7 +29,7 @@ import org.neo4j.graphdb.factory.GraphDatabaseSettings
 import org.neo4j.graphdb.impl.notification.NotificationCode.EXHAUSTIVE_SHORTEST_PATH
 import org.neo4j.internal.cypher.acceptance.comparisonsupport.Configs
 import org.neo4j.internal.cypher.acceptance.comparisonsupport.CypherComparisonSupport
-import org.neo4j.cypher.internal.v3_5.util.{ExhaustiveShortestPathForbiddenException => InternalExhaustiveShortestPathForbiddenException}
+import org.neo4j.cypher.internal.v3_6.util.{ExhaustiveShortestPathForbiddenException => InternalExhaustiveShortestPathForbiddenException}
 
 import scala.collection.mutable
 

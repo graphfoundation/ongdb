@@ -14,14 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.neo4j.cypher.internal.v3_5.ast
+package org.neo4j.cypher.internal.v3_6.ast
 
-import org.neo4j.cypher.internal.v3_5.ast.semantics.SemanticExpressionCheck
-import org.neo4j.cypher.internal.v3_5.expressions._
-import org.neo4j.cypher.internal.v3_5.util.InputPosition
-import org.neo4j.cypher.internal.v3_5.util.symbols.{CypherType, _}
-import org.neo4j.cypher.internal.v3_5.ast.semantics.{SemanticAnalysisTooling, SemanticExpressionCheck}
-import org.neo4j.cypher.internal.v3_5.expressions.{LabelName, PropertyKeyName, RelTypeName, Variable}
+import org.neo4j.cypher.internal.v3_6.ast.semantics.SemanticExpressionCheck
+import org.neo4j.cypher.internal.v3_6.expressions._
+import org.neo4j.cypher.internal.v3_6.util.InputPosition
+import org.neo4j.cypher.internal.v3_6.util.symbols.{CypherType, _}
+import org.neo4j.cypher.internal.v3_6.ast.semantics.{SemanticAnalysisTooling, SemanticExpressionCheck}
+import org.neo4j.cypher.internal.v3_6.expressions.{LabelName, PropertyKeyName, RelTypeName, Variable}
 
 
 sealed trait Command extends Statement {

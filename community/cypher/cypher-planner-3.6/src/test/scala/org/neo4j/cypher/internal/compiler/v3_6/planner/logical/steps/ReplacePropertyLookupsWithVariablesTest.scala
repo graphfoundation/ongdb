@@ -17,22 +17,22 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compiler.v3_5.planner.logical.steps
+package org.neo4j.cypher.internal.compiler.v3_6.planner.logical.steps
 
-import org.neo4j.cypher.internal.compiler.v3_5.phases.LogicalPlanState
-import org.neo4j.cypher.internal.compiler.v3_5.phases.PlannerContext
-import org.neo4j.cypher.internal.compiler.v3_5.planner.LogicalPlanConstructionTestSupport
-import org.neo4j.cypher.internal.planner.v3_5.spi.IDPPlannerName
-import org.neo4j.cypher.internal.v3_5.logical.plans.{CachedNodeProperty, LogicalPlan, NodeHashJoin, Selection}
-import org.neo4j.cypher.internal.v3_5.ast.ASTAnnotationMap
-import org.neo4j.cypher.internal.v3_5.ast.AstConstructionTestSupport
-import org.neo4j.cypher.internal.v3_5.ast.semantics.ExpressionTypeInfo
-import org.neo4j.cypher.internal.v3_5.ast.semantics.SemanticTable
-import org.neo4j.cypher.internal.v3_5.expressions._
-import org.neo4j.cypher.internal.v3_5.frontend.phases.InitialState
-import org.neo4j.cypher.internal.v3_5.util.InputPosition
-import org.neo4j.cypher.internal.v3_5.util.symbols._
-import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.compiler.v3_6.phases.LogicalPlanState
+import org.neo4j.cypher.internal.compiler.v3_6.phases.PlannerContext
+import org.neo4j.cypher.internal.compiler.v3_6.planner.LogicalPlanConstructionTestSupport
+import org.neo4j.cypher.internal.planner.v3_6.spi.IDPPlannerName
+import org.neo4j.cypher.internal.v3_6.logical.plans.{CachedNodeProperty, LogicalPlan, NodeHashJoin, Selection}
+import org.neo4j.cypher.internal.v3_6.ast.ASTAnnotationMap
+import org.neo4j.cypher.internal.v3_6.ast.AstConstructionTestSupport
+import org.neo4j.cypher.internal.v3_6.ast.semantics.ExpressionTypeInfo
+import org.neo4j.cypher.internal.v3_6.ast.semantics.SemanticTable
+import org.neo4j.cypher.internal.v3_6.expressions._
+import org.neo4j.cypher.internal.v3_6.frontend.phases.InitialState
+import org.neo4j.cypher.internal.v3_6.util.InputPosition
+import org.neo4j.cypher.internal.v3_6.util.symbols._
+import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
 
 class ReplacePropertyLookupsWithVariablesTest extends CypherFunSuite with AstConstructionTestSupport with LogicalPlanConstructionTestSupport {
   // Have specific input positions to test semantic table (not DummyPosition)

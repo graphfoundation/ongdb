@@ -14,14 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.neo4j.cypher.internal.v3_5.rewriting.rewriters
+package org.neo4j.cypher.internal.v3_6.rewriting.rewriters
 
-import org.neo4j.cypher.internal.v3_5.ast.Match
-import org.neo4j.cypher.internal.v3_5.expressions._
-import org.neo4j.cypher.internal.v3_5.util.{InputPosition, Rewriter, topDown}
-import org.neo4j.cypher.internal.v3_5.ast.Where
-import org.neo4j.cypher.internal.v3_5.expressions
-import org.neo4j.cypher.internal.v3_5.expressions.{And, GreaterThan, Not, Or}
+import org.neo4j.cypher.internal.v3_6.ast.Match
+import org.neo4j.cypher.internal.v3_6.expressions._
+import org.neo4j.cypher.internal.v3_6.util.{InputPosition, Rewriter, topDown}
+import org.neo4j.cypher.internal.v3_6.ast.Where
+import org.neo4j.cypher.internal.v3_6.expressions
+import org.neo4j.cypher.internal.v3_6.expressions.{And, GreaterThan, Not, Or}
 
 abstract class MatchPredicateNormalization(normalizer: MatchPredicateNormalizer, getDegreeRewriting: Boolean) extends Rewriter {
 

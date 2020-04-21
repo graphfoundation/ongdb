@@ -14,12 +14,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.neo4j.cypher.internal.v3_5.frontend
+package org.neo4j.cypher.internal.v3_6.frontend
 
-import org.neo4j.cypher.internal.v3_5.ast.Statement
-import org.neo4j.cypher.internal.v3_5.ast.prettifier.{ExpressionStringifier, Prettifier}
-import org.neo4j.cypher.internal.v3_5.parser.CypherParser
-import org.neo4j.cypher.internal.v3_5.util.test_helpers.{CypherFunSuite, WindowsStringSafe}
+import org.neo4j.cypher.internal.v3_6.ast.Statement
+import org.neo4j.cypher.internal.v3_6.ast.prettifier.{ExpressionStringifier, Prettifier}
+import org.neo4j.cypher.internal.v3_6.parser.CypherParser
+import org.neo4j.cypher.internal.v3_6.util.test_helpers.{CypherFunSuite, WindowsStringSafe}
 
 class PrettifierIT extends CypherFunSuite {
   private implicit val windowsSafe: WindowsStringSafe.type = WindowsStringSafe

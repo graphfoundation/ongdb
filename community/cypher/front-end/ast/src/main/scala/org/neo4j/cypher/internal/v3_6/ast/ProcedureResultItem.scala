@@ -14,14 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.neo4j.cypher.internal.v3_5.ast
+package org.neo4j.cypher.internal.v3_6.ast
 
-import org.neo4j.cypher.internal.v3_5.ast.semantics.SemanticCheck
-import org.neo4j.cypher.internal.v3_5.expressions.{LogicalVariable, Variable}
-import org.neo4j.cypher.internal.v3_5.util.symbols._
-import org.neo4j.cypher.internal.v3_5.util.{ASTNode, InputPosition}
-import org.neo4j.cypher.internal.v3_5.ast.semantics.SemanticAnalysisTooling
-import org.neo4j.cypher.internal.v3_5.expressions.{ProcedureOutput, Variable}
+import org.neo4j.cypher.internal.v3_6.ast.semantics.SemanticCheck
+import org.neo4j.cypher.internal.v3_6.expressions.{LogicalVariable, Variable}
+import org.neo4j.cypher.internal.v3_6.util.symbols._
+import org.neo4j.cypher.internal.v3_6.util.{ASTNode, InputPosition}
+import org.neo4j.cypher.internal.v3_6.ast.semantics.SemanticAnalysisTooling
+import org.neo4j.cypher.internal.v3_6.expressions.{ProcedureOutput, Variable}
 
 object ProcedureResultItem {
   def apply(output: ProcedureOutput, variable: Variable)(position: InputPosition): ProcedureResultItem =

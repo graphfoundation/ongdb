@@ -17,16 +17,16 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compiler.v3_5.planner.logical
+package org.neo4j.cypher.internal.compiler.v3_6.planner.logical
 
-import org.neo4j.cypher.internal.compiler.v3_5.CypherPlannerConfiguration
-import org.neo4j.cypher.internal.compiler.v3_5.helpers.CachedFunction
-import org.neo4j.cypher.internal.compiler.v3_5.planner.logical.Metrics.{CardinalityModel, QueryGraphCardinalityModel}
-import org.neo4j.cypher.internal.compiler.v3_5.planner.logical.cardinality.ExpressionSelectivityCalculator
-import org.neo4j.cypher.internal.ir.v3_5.{PlannerQuery, QueryGraph}
-import org.neo4j.cypher.internal.planner.v3_5.spi.GraphStatistics
-import org.neo4j.cypher.internal.v3_5.ast.semantics.SemanticTable
-import org.neo4j.cypher.internal.v3_5.util.Cardinality
+import org.neo4j.cypher.internal.compiler.v3_6.CypherPlannerConfiguration
+import org.neo4j.cypher.internal.compiler.v3_6.helpers.CachedFunction
+import org.neo4j.cypher.internal.compiler.v3_6.planner.logical.Metrics.{CardinalityModel, QueryGraphCardinalityModel}
+import org.neo4j.cypher.internal.compiler.v3_6.planner.logical.cardinality.ExpressionSelectivityCalculator
+import org.neo4j.cypher.internal.ir.v3_6.{PlannerQuery, QueryGraph}
+import org.neo4j.cypher.internal.planner.v3_6.spi.GraphStatistics
+import org.neo4j.cypher.internal.v3_6.ast.semantics.SemanticTable
+import org.neo4j.cypher.internal.v3_6.util.Cardinality
 
 case class CachedMetricsFactory(metricsFactory: MetricsFactory) extends MetricsFactory {
   def newCardinalityEstimator(queryGraphCardinalityModel: QueryGraphCardinalityModel, evaluator: ExpressionEvaluator): CardinalityModel = {

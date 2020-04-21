@@ -17,7 +17,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compiler.v3_5
+package org.neo4j.cypher.internal.compiler.v3_6
 
 import java.io.File
 import java.nio.file.Files
@@ -31,7 +31,7 @@ import org.neo4j.cypher.internal.runtime.interpreted.commands.predicates.Equals
 import org.neo4j.cypher.internal.runtime.interpreted.commands.values.TokenType.PropertyKey
 import org.neo4j.cypher.internal.runtime.interpreted.pipes._
 import org.neo4j.cypher.internal.runtime.interpreted.{QueryStateHelper, TransactionBoundPlanContext, TransactionBoundQueryContext, TransactionalContextWrapper}
-import org.neo4j.cypher.internal.v3_5.logical.plans.{DoNotGetValue, IndexOrderNone, IndexedProperty, SingleQueryExpression}
+import org.neo4j.cypher.internal.v3_6.logical.plans.{DoNotGetValue, IndexOrderNone, IndexedProperty, SingleQueryExpression}
 import org.neo4j.graphdb._
 import org.neo4j.internal.kernel.api.Transaction.Type
 import org.neo4j.internal.kernel.api.security.LoginContext
@@ -41,10 +41,10 @@ import org.neo4j.kernel.impl.query.Neo4jTransactionalContextFactory
 import org.neo4j.kernel.impl.query.clientconnection.ClientConnectionInfo
 import org.neo4j.test.TestGraphDatabaseFactory
 import org.neo4j.values.virtual.VirtualValues.EMPTY_MAP
-import org.neo4j.cypher.internal.v3_5.expressions.{LabelToken, PropertyKeyToken, SemanticDirection}
-import org.neo4j.cypher.internal.v3_5.frontend.phases.devNullLogger
-import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
-import org.neo4j.cypher.internal.v3_5.util.{LabelId, PropertyKeyId}
+import org.neo4j.cypher.internal.v3_6.expressions.{LabelToken, PropertyKeyToken, SemanticDirection}
+import org.neo4j.cypher.internal.v3_6.frontend.phases.devNullLogger
+import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.v3_6.util.{LabelId, PropertyKeyId}
 
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer

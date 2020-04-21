@@ -17,17 +17,17 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compiler.v3_5.planner.logical.idp
+package org.neo4j.cypher.internal.compiler.v3_6.planner.logical.idp
 
-import org.neo4j.cypher.internal.compiler.v3_5.planner.logical.LogicalPlanningContext
-import org.neo4j.cypher.internal.compiler.v3_5.planner.logical.steps.PatternExpressionSolver
-import org.neo4j.cypher.internal.ir.v3_5._
-import org.neo4j.cypher.internal.v3_5.expressions.{Ands, Expression, LogicalVariable}
-import org.neo4j.cypher.internal.v3_5.logical.plans.{Argument, ExpandAll, ExpandInto, LogicalLeafPlan, LogicalPlan}
+import org.neo4j.cypher.internal.compiler.v3_6.planner.logical.LogicalPlanningContext
+import org.neo4j.cypher.internal.compiler.v3_6.planner.logical.steps.PatternExpressionSolver
+import org.neo4j.cypher.internal.ir.v3_6._
+import org.neo4j.cypher.internal.v3_6.expressions.{Ands, Expression, LogicalVariable}
+import org.neo4j.cypher.internal.v3_6.logical.plans.{Argument, ExpandAll, ExpandInto, LogicalLeafPlan, LogicalPlan}
 
 case class expandSolverStep(qg: QueryGraph) extends IDPSolverStep[PatternRelationship, LogicalPlan, LogicalPlanningContext] {
 
-  import org.neo4j.cypher.internal.compiler.v3_5.planner.logical.idp.expandSolverStep._
+  import org.neo4j.cypher.internal.compiler.v3_6.planner.logical.idp.expandSolverStep._
 
   override def apply(registry: IdRegistry[PatternRelationship], goal: Goal, table: IDPCache[LogicalPlan], context: LogicalPlanningContext): Iterator[LogicalPlan] = {
     val result: Iterator[Iterator[LogicalPlan]] =

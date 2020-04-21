@@ -17,10 +17,10 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compatibility.v3_5.runtime.profiler
+package org.neo4j.cypher.internal.compatibility.v3_6.runtime.profiler
 
 import org.neo4j.cypher.result.{OperatorProfile, QueryProfile}
-import org.neo4j.cypher.internal.v3_5.util.attribution.Id
+import org.neo4j.cypher.internal.v3_6.util.attribution.Id
 
 import scala.collection.mutable
 

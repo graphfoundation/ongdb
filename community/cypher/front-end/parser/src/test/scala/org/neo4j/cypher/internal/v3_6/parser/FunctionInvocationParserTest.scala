@@ -14,13 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.neo4j.cypher.internal.v3_5.parser
+package org.neo4j.cypher.internal.v3_6.parser
 
-import org.neo4j.cypher.internal.v3_5.util.DummyPosition
-import org.neo4j.cypher.internal.v3_5.{expressions => exp}
+import org.neo4j.cypher.internal.v3_6.util.DummyPosition
+import org.neo4j.cypher.internal.v3_6.{expressions => exp}
 
 class FunctionInvocationParserTest
-  extends ParserAstTest[org.neo4j.cypher.internal.v3_5.expressions.FunctionInvocation]
+  extends ParserAstTest[org.neo4j.cypher.internal.v3_6.expressions.FunctionInvocation]
     with Expressions
     with Literals
     with Base

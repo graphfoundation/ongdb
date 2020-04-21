@@ -17,10 +17,10 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compiler.v3_5.planner.logical.plans.rewriter
+package org.neo4j.cypher.internal.compiler.v3_6.planner.logical.plans.rewriter
 
-import org.neo4j.cypher.internal.v3_5.util.{Rewriter, bottomUp}
-import org.neo4j.cypher.internal.v3_5.expressions.{AndedPropertyInequalities, Equals, In, ListLiteral}
+import org.neo4j.cypher.internal.v3_6.util.{Rewriter, bottomUp}
+import org.neo4j.cypher.internal.v3_6.expressions.{AndedPropertyInequalities, Equals, In, ListLiteral}
 
 case object simplifyPredicates extends Rewriter {
   override def apply(input: AnyRef) = instance.apply(input)

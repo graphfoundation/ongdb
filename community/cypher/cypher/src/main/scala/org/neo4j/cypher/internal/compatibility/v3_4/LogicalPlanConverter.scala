@@ -22,26 +22,26 @@ package org.neo4j.cypher.internal.compatibility.v3_4
 import java.lang.reflect.Constructor
 
 import org.neo4j.cypher.internal.compatibility.v3_4.SemanticTableConverter.ExpressionMapping4To5
-import org.neo4j.cypher.internal.compiler.v3_5.helpers.PredicateHelper
+import org.neo4j.cypher.internal.compiler.v3_6.helpers.PredicateHelper
 import org.neo4j.cypher.internal.frontend.{v3_4 => frontendV3_4}
-import org.neo4j.cypher.internal.ir.v3_5.{CreateNode, CreateRelationship}
-import org.neo4j.cypher.internal.ir.{v3_4 => irV3_4, v3_5 => irv3_5}
+import org.neo4j.cypher.internal.ir.v3_6.{CreateNode, CreateRelationship}
+import org.neo4j.cypher.internal.ir.{v3_4 => irV3_4, v3_6 => irv3_6}
 import org.neo4j.cypher.internal.planner.v3_4.spi.PlanningAttributes.{Cardinalities => CardinalitiesV3_4, Solveds => SolvedsV3_4}
-import org.neo4j.cypher.internal.planner.v3_5.spi.PlanningAttributes.{Cardinalities => CardinalitiesV3_5, Solveds => SolvedsV3_5}
+import org.neo4j.cypher.internal.planner.v3_6.spi.PlanningAttributes.{Cardinalities => CardinalitiesV3_6, Solveds => SolvedsV3_6}
 import org.neo4j.cypher.internal.util.v3_4.{InputPosition => InputPositionV3_4, symbols => symbolsV3_4}
 import org.neo4j.cypher.internal.util.{v3_4 => utilv3_4}
 import org.neo4j.cypher.internal.v3_4.expressions.{Expression => ExpressionV3_4, SemanticDirection => SemanticDirectionV3_4}
 import org.neo4j.cypher.internal.v3_4.logical.plans.{LogicalPlan => LogicalPlanV3_4}
 import org.neo4j.cypher.internal.v3_4.logical.{plans => plansV3_4}
 import org.neo4j.cypher.internal.v3_4.{expressions => expressionsv3_4}
-import org.neo4j.cypher.internal.v3_5.expressions.{LogicalVariable, PropertyKeyName, Expression => Expressionv3_5, LabelName => LabelNamev3_5, RelTypeName => RelTypeNamev3_5, SemanticDirection => SemanticDirectionv3_5}
-import org.neo4j.cypher.internal.v3_5.logical.plans.{DoNotGetValue, FieldSignature, IndexOrderNone, IndexedProperty, ProcedureAccessMode, QualifiedName, UserFunctionSignature, LogicalPlan => LogicalPlanv3_5}
-import org.neo4j.cypher.internal.v3_5.logical.{plans => plansv3_5}
-import org.neo4j.cypher.internal.v3_5.util.Rewritable.RewritableAny
-import org.neo4j.cypher.internal.v3_5.util.attribution.IdGen
-import org.neo4j.cypher.internal.v3_5.util.symbols.CypherType
-import org.neo4j.cypher.internal.v3_5.util.{symbols => symbolsv3_5, _}
-import org.neo4j.cypher.internal.v3_5.{expressions => expressionsv3_5, util => utilv3_5}
+import org.neo4j.cypher.internal.v3_6.expressions.{LogicalVariable, PropertyKeyName, Expression => Expressionv3_6, LabelName => LabelNamev3_6, RelTypeName => RelTypeNamev3_6, SemanticDirection => SemanticDirectionv3_6}
+import org.neo4j.cypher.internal.v3_6.logical.plans.{DoNotGetValue, FieldSignature, IndexOrderNone, IndexedProperty, ProcedureAccessMode, QualifiedName, UserFunctionSignature, LogicalPlan => LogicalPlanv3_6}
+import org.neo4j.cypher.internal.v3_6.logical.{plans => plansv3_6}
+import org.neo4j.cypher.internal.v3_6.util.Rewritable.RewritableAny
+import org.neo4j.cypher.internal.v3_6.util.attribution.IdGen
+import org.neo4j.cypher.internal.v3_6.util.symbols.CypherType
+import org.neo4j.cypher.internal.v3_6.util.{symbols => symbolsv3_6, _}
+import org.neo4j.cypher.internal.v3_6.{expressions => expressionsv3_6, util => utilv3_6}
 
 import scala.collection.mutable
 import scala.collection.mutable.{HashMap => MutableHashMap}
@@ -52,18 +52,18 @@ import scala.util.{Failure, Success, Try}
   */
 object LogicalPlanConverter {
 
-  type MutableExpressionMapping3To4 = mutable.Map[(ExpressionV3_4, InputPositionV3_4), Expressionv3_5]
+  type MutableExpressionMapping3To4 = mutable.Map[(ExpressionV3_4, InputPositionV3_4), Expressionv3_6]
 
   val oldLogicalPlanPackage = "org.neo4j.cypher.internal.v3_4.logical.plans"
-  val newLogicalPlanPackage = "org.neo4j.cypher.internal.v3_5.logical.plans"
+  val newLogicalPlanPackage = "org.neo4j.cypher.internal.v3_6.logical.plans"
   val oldASTPackage = "org.neo4j.cypher.internal.frontend.v3_4.ast"
-  val newASTPackage = "org.neo4j.cypher.internal.v3_5.ast"
+  val newASTPackage = "org.neo4j.cypher.internal.v3_6.ast"
   val oldExpressionPackage = "org.neo4j.cypher.internal.v3_4.expressions"
-  val newExpressionPackage = "org.neo4j.cypher.internal.v3_5.expressions"
+  val newExpressionPackage = "org.neo4j.cypher.internal.v3_6.expressions"
   val oldUtilPackage = "org.neo4j.cypher.internal.util.v3_4"
-  val newUtilPackage = "org.neo4j.cypher.internal.v3_5.util"
+  val newUtilPackage = "org.neo4j.cypher.internal.v3_6.util"
   val oldIRPackage = "org.neo4j.cypher.internal.ir.v3_4"
-  val newIRPackage = "org.neo4j.cypher.internal.ir.v3_5"
+  val newIRPackage = "org.neo4j.cypher.internal.ir.v3_6"
   val oldRewritersPackage = "org.neo4j.cypher.internal.frontend.v3_4.ast.rewriters"
 
   /**
@@ -83,10 +83,10 @@ object LogicalPlanConverter {
   //noinspection ZeroIndexToHead
   private class LogicalPlanRewriter(solveds3_4: SolvedsV3_4,
                                     cardinalities3_4: CardinalitiesV3_4,
-                                    solveds3_5: SolvedsV3_5,
-                                    cardinalities3_5: CardinalitiesV3_5,
+                                    solveds3_5: SolvedsV3_6,
+                                    cardinalities3_5: CardinalitiesV3_6,
                                     ids: IdConverter,
-                                    val expressionMap: MutableExpressionMapping3To4 = new mutable.HashMap[(ExpressionV3_4, InputPositionV3_4), Expressionv3_5],
+                                    val expressionMap: MutableExpressionMapping3To4 = new mutable.HashMap[(ExpressionV3_4, InputPositionV3_4), Expressionv3_6],
                                     val seenBySemanticTable: ExpressionV3_4 => Boolean = _ => true)
     extends RewriterWithArgs {
 
@@ -96,17 +96,17 @@ object LogicalPlanConverter {
       val rewritten = RewriterWithArgs.lift {
 
         case ( plan:plansV3_4.Selection, children: Seq[AnyRef]) =>
-          plansv3_5.Selection(PredicateHelper.coercePredicates(children(0).asInstanceOf[Seq[Expressionv3_5]]),
-                              children(1).asInstanceOf[LogicalPlanv3_5]
+          plansv3_6.Selection(PredicateHelper.coercePredicates(children(0).asInstanceOf[Seq[Expressionv3_6]]),
+                              children(1).asInstanceOf[LogicalPlanv3_6]
                               )(ids.convertId(plan))
 
         case (plan: plansV3_4.CreateNode, children: Seq[AnyRef]) =>
           flattenCreates(
-            children(0).asInstanceOf[LogicalPlanv3_5],
+            children(0).asInstanceOf[LogicalPlanv3_6],
             Some(CreateNode(
               plan.idName,
-              children(2).asInstanceOf[Seq[LabelNamev3_5]],
-              children(3).asInstanceOf[Option[Expressionv3_5]]
+              children(2).asInstanceOf[Seq[LabelNamev3_6]],
+              children(3).asInstanceOf[Option[Expressionv3_6]]
             )),
             None,
             ids.convertId(plan)
@@ -114,92 +114,92 @@ object LogicalPlanConverter {
 
         case (plan: plansV3_4.CreateRelationship, children: Seq[AnyRef]) =>
           flattenCreates(
-            children(0).asInstanceOf[LogicalPlanv3_5],
+            children(0).asInstanceOf[LogicalPlanv3_6],
             None,
             Some(CreateRelationship(
               plan.idName,
               plan.startNode,
-              children(3).asInstanceOf[RelTypeNamev3_5],
+              children(3).asInstanceOf[RelTypeNamev3_6],
               plan.endNode,
-              SemanticDirectionv3_5.OUTGOING, // as we always provide the start node as "left" and
+              SemanticDirectionv3_6.OUTGOING, // as we always provide the start node as "left" and
                                               // the end node and "right", the direction is always OUTGOING
-              children(5).asInstanceOf[Option[Expressionv3_5]]
+              children(5).asInstanceOf[Option[Expressionv3_6]]
             )),
             ids.convertId(plan)
           )
 
         case (item: expressionsv3_4.RelationshipPattern, children: Seq[AnyRef]) =>
-          expressionsv3_5.RelationshipPattern(
-            children(0).asInstanceOf[Option[expressionsv3_5.LogicalVariable]],
-            children(1).asInstanceOf[Seq[expressionsv3_5.RelTypeName]],
-            children(2).asInstanceOf[Option[Option[expressionsv3_5.Range]]],
-            children(3).asInstanceOf[Option[expressionsv3_5.Expression]],
-            children(4).asInstanceOf[expressionsv3_5.SemanticDirection],
+          expressionsv3_6.RelationshipPattern(
+            children(0).asInstanceOf[Option[expressionsv3_6.LogicalVariable]],
+            children(1).asInstanceOf[Seq[expressionsv3_6.RelTypeName]],
+            children(2).asInstanceOf[Option[Option[expressionsv3_6.Range]]],
+            children(3).asInstanceOf[Option[expressionsv3_6.Expression]],
+            children(4).asInstanceOf[expressionsv3_6.SemanticDirection],
             children(5).asInstanceOf[Boolean],
             None
           )(helpers.as3_5(item.position))
 
         case (item: expressionsv3_4.NodePattern, children: Seq[AnyRef]) =>
-          expressionsv3_5.NodePattern(
-            children(0).asInstanceOf[Option[expressionsv3_5.LogicalVariable]],
-            children(1).asInstanceOf[Seq[expressionsv3_5.LabelName]],
-            children(2).asInstanceOf[Option[expressionsv3_5.Expression]],
+          expressionsv3_6.NodePattern(
+            children(0).asInstanceOf[Option[expressionsv3_6.LogicalVariable]],
+            children(1).asInstanceOf[Seq[expressionsv3_6.LabelName]],
+            children(2).asInstanceOf[Option[expressionsv3_6.Expression]],
             None
           )(helpers.as3_5(item.position))
 
         case (plan: plansV3_4.SetRelationshipPropery, children: Seq[AnyRef]) =>
-          plansv3_5.SetRelationshipProperty(
-            children(0).asInstanceOf[LogicalPlanv3_5],
+          plansv3_6.SetRelationshipProperty(
+            children(0).asInstanceOf[LogicalPlanv3_6],
             children(1).asInstanceOf[String],
             children(2).asInstanceOf[PropertyKeyName],
-            children(3).asInstanceOf[Expressionv3_5]
+            children(3).asInstanceOf[Expressionv3_6]
           )(ids.convertId(plan))
 
         case (plan: plansV3_4.NodeIndexContainsScan, children: Seq[AnyRef]) =>
-          plansv3_5.NodeIndexContainsScan(
+          plansv3_6.NodeIndexContainsScan(
             children(0).asInstanceOf[String],
-            children(1).asInstanceOf[expressionsv3_5.LabelToken],
-            IndexedProperty(children(2).asInstanceOf[expressionsv3_5.PropertyKeyToken], DoNotGetValue),
-            children(3).asInstanceOf[Expressionv3_5],
+            children(1).asInstanceOf[expressionsv3_6.LabelToken],
+            IndexedProperty(children(2).asInstanceOf[expressionsv3_6.PropertyKeyToken], DoNotGetValue),
+            children(3).asInstanceOf[Expressionv3_6],
             children(4).asInstanceOf[Set[String]],
             IndexOrderNone
           )(ids.convertId(plan))
 
         case (plan: plansV3_4.NodeIndexEndsWithScan, children: Seq[AnyRef]) =>
-          plansv3_5.NodeIndexEndsWithScan(
+          plansv3_6.NodeIndexEndsWithScan(
             children(0).asInstanceOf[String],
-            children(1).asInstanceOf[expressionsv3_5.LabelToken],
-            IndexedProperty(children(2).asInstanceOf[expressionsv3_5.PropertyKeyToken], DoNotGetValue),
-            children(3).asInstanceOf[Expressionv3_5],
+            children(1).asInstanceOf[expressionsv3_6.LabelToken],
+            IndexedProperty(children(2).asInstanceOf[expressionsv3_6.PropertyKeyToken], DoNotGetValue),
+            children(3).asInstanceOf[Expressionv3_6],
             children(4).asInstanceOf[Set[String]],
             IndexOrderNone
           )(ids.convertId(plan))
 
         case (plan: plansV3_4.NodeIndexScan, children: Seq[AnyRef]) =>
-          plansv3_5.NodeIndexScan(
+          plansv3_6.NodeIndexScan(
             children(0).asInstanceOf[String],
-            children(1).asInstanceOf[expressionsv3_5.LabelToken],
-            IndexedProperty(children(2).asInstanceOf[expressionsv3_5.PropertyKeyToken], DoNotGetValue),
+            children(1).asInstanceOf[expressionsv3_6.LabelToken],
+            IndexedProperty(children(2).asInstanceOf[expressionsv3_6.PropertyKeyToken], DoNotGetValue),
             children(3).asInstanceOf[Set[String]],
             IndexOrderNone
           )(ids.convertId(plan))
 
         case (plan: plansV3_4.NodeIndexSeek, children: Seq[AnyRef]) =>
-          plansv3_5.NodeIndexSeek(
+          plansv3_6.NodeIndexSeek(
             children(0).asInstanceOf[String],
-            children(1).asInstanceOf[expressionsv3_5.LabelToken],
-            children(2).asInstanceOf[Seq[expressionsv3_5.PropertyKeyToken]].map(IndexedProperty(_, DoNotGetValue)),
-            children(3).asInstanceOf[plansv3_5.QueryExpression[expressionsv3_5.Expression]],
+            children(1).asInstanceOf[expressionsv3_6.LabelToken],
+            children(2).asInstanceOf[Seq[expressionsv3_6.PropertyKeyToken]].map(IndexedProperty(_, DoNotGetValue)),
+            children(3).asInstanceOf[plansv3_6.QueryExpression[expressionsv3_6.Expression]],
             children(4).asInstanceOf[Set[String]],
             IndexOrderNone
           )(ids.convertId(plan))
 
         case (plan: plansV3_4.NodeUniqueIndexSeek, children: Seq[AnyRef]) =>
-          plansv3_5.NodeUniqueIndexSeek(
+          plansv3_6.NodeUniqueIndexSeek(
             children(0).asInstanceOf[String],
-            children(1).asInstanceOf[expressionsv3_5.LabelToken],
-            children(2).asInstanceOf[Seq[expressionsv3_5.PropertyKeyToken]].map(IndexedProperty(_, DoNotGetValue)),
-            children(3).asInstanceOf[plansv3_5.QueryExpression[expressionsv3_5.Expression]],
+            children(1).asInstanceOf[expressionsv3_6.LabelToken],
+            children(2).asInstanceOf[Seq[expressionsv3_6.PropertyKeyToken]].map(IndexedProperty(_, DoNotGetValue)),
+            children(3).asInstanceOf[plansv3_6.QueryExpression[expressionsv3_6.Expression]],
             children(4).asInstanceOf[Set[String]],
             IndexOrderNone
           )(ids.convertId(plan))
@@ -226,40 +226,40 @@ object LogicalPlanConverter {
           val datetimeSignature = UserFunctionSignature(
             QualifiedName(Seq(), "datetime"),
             inputSignature = IndexedSeq.empty,
-            symbolsv3_5.CTDateTime,
+            symbolsv3_6.CTDateTime,
             deprecationInfo = None,
             allowed = Array.empty,
             description = None,
             isAggregate = false,
             id = None // will use by-name lookup for built-in functions for that came from a 3.4 plan, since timestamp is not a user-defined function in 3.4
           )
-          val funcPosV3_5 = helpers.as3_5(funcV3_4.functionName.position)
-          val datetimeFuncV3_5 = plansv3_5.ResolvedFunctionInvocation(
+          val funcPosV3_6 = helpers.as3_5(funcV3_4.functionName.position)
+          val datetimeFuncV3_6 = plansv3_6.ResolvedFunctionInvocation(
             QualifiedName(Seq(), "datetime"),
             Some(datetimeSignature),
             callArguments = IndexedSeq.empty
-          )(funcPosV3_5)
+          )(funcPosV3_6)
 
-          val epochMillisV3_5 = expressionsv3_5.Property(
-            datetimeFuncV3_5,
-            expressionsv3_5.PropertyKeyName("epochMillis")(funcPosV3_5)
-          )(funcPosV3_5)
+          val epochMillisV3_6 = expressionsv3_6.Property(
+            datetimeFuncV3_6,
+            expressionsv3_6.PropertyKeyName("epochMillis")(funcPosV3_6)
+          )(funcPosV3_6)
 
-          epochMillisV3_5
+          epochMillisV3_6
         }
 
         case (item: expressionsv3_4.PatternComprehension, children: Seq[AnyRef]) =>
-          expressionsv3_5.PatternComprehension(
+          expressionsv3_6.PatternComprehension(
             children(0).asInstanceOf[Option[LogicalVariable]],
-            children(1).asInstanceOf[expressionsv3_5.RelationshipsPattern],
-            children(2).asInstanceOf[Option[expressionsv3_5.Expression]],
-            children(3).asInstanceOf[expressionsv3_5.Expression]
-          )(helpers.as3_5(item.position), item.outerScope.map(v => expressionsv3_5.Variable(v.name)(helpers.as3_5(v.position))))
+            children(1).asInstanceOf[expressionsv3_6.RelationshipsPattern],
+            children(2).asInstanceOf[Option[expressionsv3_6.Expression]],
+            children(3).asInstanceOf[expressionsv3_6.Expression]
+          )(helpers.as3_5(item.position), item.outerScope.map(v => expressionsv3_6.Variable(v.name)(helpers.as3_5(v.position))))
 
         case (item: expressionsv3_4.MapProjection, children: Seq[AnyRef]) =>
-          expressionsv3_5.MapProjection(
-            children(0).asInstanceOf[expressionsv3_5.Variable],
-            children(1).asInstanceOf[Seq[expressionsv3_5.MapProjectionElement]]
+          expressionsv3_6.MapProjection(
+            children(0).asInstanceOf[expressionsv3_6.Variable],
+            children(1).asInstanceOf[Seq[expressionsv3_6.MapProjectionElement]]
           )(helpers.as3_5(item.position), item.definitionPos.map(helpers.as3_5))
 
         case (item: plansV3_4.ResolvedCall, children: Seq[AnyRef]) =>
@@ -275,43 +275,43 @@ object LogicalPlanConverter {
         case (expressionV3_4: utilv3_4.ASTNode, children: Seq[AnyRef]) =>
           convertVersion(oldExpressionPackage, newExpressionPackage, expressionV3_4, children, helpers.as3_5(expressionV3_4.position), classOf[InputPosition])
 
-        case (symbolsV3_4.CTAny, _) => symbolsv3_5.CTAny
-        case (symbolsV3_4.CTBoolean, _) => symbolsv3_5.CTBoolean
-        case (symbolsV3_4.CTFloat, _) => symbolsv3_5.CTFloat
-        case (symbolsV3_4.CTGeometry, _) => symbolsv3_5.CTGeometry
-        case (symbolsV3_4.CTGraphRef, _) => symbolsv3_5.CTGraphRef
-        case (symbolsV3_4.CTInteger, _) => symbolsv3_5.CTInteger
-        case (symbolsV3_4.ListType(_), children: Seq[AnyRef]) => symbolsv3_5.CTList(children.head.asInstanceOf[symbolsv3_5.CypherType])
-        case (symbolsV3_4.CTMap, _) => symbolsv3_5.CTMap
-        case (symbolsV3_4.CTNode, _) => symbolsv3_5.CTNode
-        case (symbolsV3_4.CTNumber, _) => symbolsv3_5.CTNumber
-        case (symbolsV3_4.CTPath, _) => symbolsv3_5.CTPath
-        case (symbolsV3_4.CTPoint, _) => symbolsv3_5.CTPoint
-        case (symbolsV3_4.CTRelationship, _) => symbolsv3_5.CTRelationship
-        case (symbolsV3_4.CTString, _) => symbolsv3_5.CTString
+        case (symbolsV3_4.CTAny, _) => symbolsv3_6.CTAny
+        case (symbolsV3_4.CTBoolean, _) => symbolsv3_6.CTBoolean
+        case (symbolsV3_4.CTFloat, _) => symbolsv3_6.CTFloat
+        case (symbolsV3_4.CTGeometry, _) => symbolsv3_6.CTGeometry
+        case (symbolsV3_4.CTGraphRef, _) => symbolsv3_6.CTGraphRef
+        case (symbolsV3_4.CTInteger, _) => symbolsv3_6.CTInteger
+        case (symbolsV3_4.ListType(_), children: Seq[AnyRef]) => symbolsv3_6.CTList(children.head.asInstanceOf[symbolsv3_6.CypherType])
+        case (symbolsV3_4.CTMap, _) => symbolsv3_6.CTMap
+        case (symbolsV3_4.CTNode, _) => symbolsv3_6.CTNode
+        case (symbolsV3_4.CTNumber, _) => symbolsv3_6.CTNumber
+        case (symbolsV3_4.CTPath, _) => symbolsv3_6.CTPath
+        case (symbolsV3_4.CTPoint, _) => symbolsv3_6.CTPoint
+        case (symbolsV3_4.CTRelationship, _) => symbolsv3_6.CTRelationship
+        case (symbolsV3_4.CTString, _) => symbolsv3_6.CTString
 
-        case (SemanticDirectionV3_4.BOTH, _) => expressionsv3_5.SemanticDirection.BOTH
-        case (SemanticDirectionV3_4.INCOMING, _) => expressionsv3_5.SemanticDirection.INCOMING
-        case (SemanticDirectionV3_4.OUTGOING, _) => expressionsv3_5.SemanticDirection.OUTGOING
+        case (SemanticDirectionV3_4.BOTH, _) => expressionsv3_6.SemanticDirection.BOTH
+        case (SemanticDirectionV3_4.INCOMING, _) => expressionsv3_6.SemanticDirection.INCOMING
+        case (SemanticDirectionV3_4.OUTGOING, _) => expressionsv3_6.SemanticDirection.OUTGOING
 
-        case (irV3_4.SimplePatternLength, _) => irv3_5.SimplePatternLength
+        case (irV3_4.SimplePatternLength, _) => irv3_6.SimplePatternLength
 
-        case (plansV3_4.IncludeTies, _) => plansv3_5.IncludeTies
-        case (plansV3_4.DoNotIncludeTies, _) => plansv3_5.DoNotIncludeTies
+        case (plansV3_4.IncludeTies, _) => plansv3_6.IncludeTies
+        case (plansV3_4.DoNotIncludeTies, _) => plansv3_6.DoNotIncludeTies
 
-        case (irV3_4.HasHeaders, _) => irv3_5.HasHeaders
-        case (irV3_4.NoHeaders, _) => irv3_5.NoHeaders
+        case (irV3_4.HasHeaders, _) => irv3_6.HasHeaders
+        case (irV3_4.NoHeaders, _) => irv3_6.NoHeaders
 
-        case (plansV3_4.ExpandAll, _) => plansv3_5.ExpandAll
-        case (plansV3_4.ExpandInto, _) => plansv3_5.ExpandInto
+        case (plansV3_4.ExpandAll, _) => plansv3_6.ExpandAll
+        case (plansV3_4.ExpandInto, _) => plansv3_6.ExpandInto
 
-        case (_: utilv3_4.ExhaustiveShortestPathForbiddenException, _) => new utilv3_5.ExhaustiveShortestPathForbiddenException
+        case (_: utilv3_4.ExhaustiveShortestPathForbiddenException, _) => new utilv3_6.ExhaustiveShortestPathForbiddenException
 
         case (spp: irV3_4.ShortestPathPattern, children: Seq[AnyRef]) =>
-          val sp3_4 = convertASTNode[expressionsv3_5.ShortestPaths](spp.expr, expressionMap, solveds3_4, cardinalities3_4, solveds3_5, cardinalities3_5, ids, seenBySemanticTable)
-          irv3_5.ShortestPathPattern(children(0).asInstanceOf[Option[String]], children(1).asInstanceOf[irv3_5.PatternRelationship], children(2).asInstanceOf[Boolean])(sp3_4)
+          val sp3_4 = convertASTNode[expressionsv3_6.ShortestPaths](spp.expr, expressionMap, solveds3_4, cardinalities3_4, solveds3_5, cardinalities3_5, ids, seenBySemanticTable)
+          irv3_6.ShortestPathPattern(children(0).asInstanceOf[Option[String]], children(1).asInstanceOf[irv3_6.PatternRelationship], children(2).asInstanceOf[Boolean])(sp3_4)
 
-        case (expressionsv3_4.NilPathStep, _) => expressionsv3_5.NilPathStep
+        case (expressionsv3_4.NilPathStep, _) => expressionsv3_6.NilPathStep
 
         case (item@(_: expressionsv3_4.PathStep | _: expressionsv3_4.NameToken[_]), children: Seq[AnyRef]) =>
           convertVersion(oldExpressionPackage, newExpressionPackage, item, children)
@@ -319,12 +319,12 @@ object LogicalPlanConverter {
         case (nameId: utilv3_4.NameId, children: Seq[AnyRef]) =>
           convertVersion(oldUtilPackage, newUtilPackage, nameId, children)
 
-        case (utilv3_4.Fby(head, tail), children: Seq[AnyRef]) => utilv3_5.Fby(children(0), children(1).asInstanceOf[utilv3_5.NonEmptyList[_]])
+        case (utilv3_4.Fby(head, tail), children: Seq[AnyRef]) => utilv3_6.Fby(children(0), children(1).asInstanceOf[utilv3_6.NonEmptyList[_]])
 
-        case (utilv3_4.Last(head), children: Seq[AnyRef]) => utilv3_5.Last(children(0))
+        case (utilv3_4.Last(head), children: Seq[AnyRef]) => utilv3_6.Last(children(0))
 
         case ( _:plansV3_4.ProcedureSignature, children: Seq[AnyRef]) =>
-         plansv3_5.ProcedureSignature(children(0).asInstanceOf[QualifiedName],
+         plansv3_6.ProcedureSignature(children(0).asInstanceOf[QualifiedName],
                                       children(1).asInstanceOf[IndexedSeq[FieldSignature]],
                                       children(2).asInstanceOf[Option[IndexedSeq[FieldSignature]]],
                                       children(3).asInstanceOf[Option[String]],
@@ -335,7 +335,7 @@ object LogicalPlanConverter {
                                       children(8).asInstanceOf[Option[Int]])
 
         case ( _:plansV3_4.UserFunctionSignature, children: Seq[AnyRef]) =>
-          plansv3_5.UserFunctionSignature(children(0).asInstanceOf[QualifiedName],
+          plansv3_6.UserFunctionSignature(children(0).asInstanceOf[QualifiedName],
                                        children(1).asInstanceOf[IndexedSeq[FieldSignature]],
                                        children(2).asInstanceOf[CypherType],
                                        children(3).asInstanceOf[Option[String]],
@@ -366,7 +366,7 @@ object LogicalPlanConverter {
 
       before._1 match {
         case plan: LogicalPlanV3_4 =>
-          val plan3_5 = rewritten.asInstanceOf[LogicalPlanv3_5]
+          val plan3_5 = rewritten.asInstanceOf[LogicalPlanv3_6]
           // Set attributes
           if (solveds3_4.isDefinedAt(plan.id)) {
             solveds3_5.set(plan3_5.id, new PlannerQueryWrapper(solveds3_4.get(plan.id)))
@@ -375,7 +375,7 @@ object LogicalPlanConverter {
             cardinalities3_5.set(plan3_5.id, helpers.as3_5(cardinalities3_4.get(plan.id)))
           }
         // Save Mapping from 3.4 expression to 3.5 expression
-        case e: ExpressionV3_4 if seenBySemanticTable(e) => expressionMap += (((e, e.position), rewritten.asInstanceOf[Expressionv3_5]))
+        case e: ExpressionV3_4 if seenBySemanticTable(e) => expressionMap += (((e, e.position), rewritten.asInstanceOf[Expressionv3_6]))
         case _ =>
       }
       rewritten
@@ -387,26 +387,26 @@ object LogicalPlanConverter {
     * Returns also a mapping from old to new expressions for all expressions that are imporant according to the
     * provided lambda.
     */
-  def convertLogicalPlan[T <: LogicalPlanv3_5](logicalPlan: LogicalPlanV3_4,
+  def convertLogicalPlan[T <: LogicalPlanv3_6](logicalPlan: LogicalPlanV3_4,
                                                solveds3_4: SolvedsV3_4,
                                                cardinalities3_4: CardinalitiesV3_4,
-                                               solveds3_5: SolvedsV3_5,
-                                               cardinalities3_5: CardinalitiesV3_5,
+                                               solveds3_5: SolvedsV3_6,
+                                               cardinalities3_5: CardinalitiesV3_6,
                                                idConverter: IdConverter,
-                                               seenBySemanticTable: ExpressionV3_4 => Boolean = _ => true): (LogicalPlanv3_5, ExpressionMapping4To5) = {
+                                               seenBySemanticTable: ExpressionV3_4 => Boolean = _ => true): (LogicalPlanv3_6, ExpressionMapping4To5) = {
     val rewriter = new LogicalPlanRewriter(solveds3_4, cardinalities3_4, solveds3_5, cardinalities3_5, idConverter, seenBySemanticTable = seenBySemanticTable)
-    val planv3_5 = new RewritableAny[LogicalPlanV3_4](logicalPlan).rewrite(rewriter, Seq.empty).asInstanceOf[T]
-    (planv3_5, rewriter.expressionMap.toMap)
+    val planv3_6 = new RewritableAny[LogicalPlanV3_4](logicalPlan).rewrite(rewriter, Seq.empty).asInstanceOf[T]
+    (planv3_6, rewriter.expressionMap.toMap)
   }
 
   /**
     * Converts an expression.
     */
-  private[v3_4] def convertExpression[T <: Expressionv3_5](expression: ExpressionV3_4,
+  private[v3_4] def convertExpression[T <: Expressionv3_6](expression: ExpressionV3_4,
                                                            solveds3_4: SolvedsV3_4,
                                                            cardinalities3_4: CardinalitiesV3_4,
-                                                           solveds3_5: SolvedsV3_5,
-                                                           cardinalities3_5: CardinalitiesV3_5,
+                                                           solveds3_5: SolvedsV3_6,
+                                                           cardinalities3_5: CardinalitiesV3_6,
                                                            idConverter: IdConverter): T = {
     new RewritableAny[ExpressionV3_4](expression)
       .rewrite(new LogicalPlanRewriter(solveds3_4, cardinalities3_4, solveds3_5, cardinalities3_5, idConverter), Seq.empty)
@@ -416,12 +416,12 @@ object LogicalPlanConverter {
   /**
     * Converts an AST node.
     */
-  private def convertASTNode[T <: utilv3_5.ASTNode](ast: utilv3_4.ASTNode,
+  private def convertASTNode[T <: utilv3_6.ASTNode](ast: utilv3_4.ASTNode,
                                                     expressionMap: MutableExpressionMapping3To4,
                                                     solveds3_4: SolvedsV3_4,
                                                     cardinalities3_4: CardinalitiesV3_4,
-                                                    solveds3_5: SolvedsV3_5,
-                                                    cardinalities3_5: CardinalitiesV3_5,
+                                                    solveds3_5: SolvedsV3_6,
+                                                    cardinalities3_5: CardinalitiesV3_6,
                                                     idConverter: IdConverter,
                                                     seenBySemanticTable: ExpressionV3_4 => Boolean): T = {
     new RewritableAny[utilv3_4.ASTNode](ast)
@@ -451,11 +451,11 @@ object LogicalPlanConverter {
   private def getConstructor(classNameV3_4: String, oldPackage: String, newPackage: String): Constructor[_] = {
     constructors.get.getOrElseUpdate((classNameV3_4, oldPackage, newPackage), {
       assert(classNameV3_4.contains(oldPackage), s"wrong 3.4 package name given. $classNameV3_4 does not contain $oldPackage")
-      val classNamev3_5 = classNameV3_4.replace(oldPackage, newPackage)
-      Try(Class.forName(classNamev3_5)).map(_.getConstructors.head) match {
+      val classNamev3_6 = classNameV3_4.replace(oldPackage, newPackage)
+      Try(Class.forName(classNamev3_6)).map(_.getConstructors.head) match {
         case Success(c) => c
         case Failure(e: ClassNotFoundException) => throw new InternalException(
-          s"Failed trying to rewrite $classNameV3_4 - 3.5 class not found ($classNamev3_5)", e)
+          s"Failed trying to rewrite $classNameV3_4 - 3.5 class not found ($classNamev3_6)", e)
         case Failure(e: NoSuchElementException) => throw new InternalException(
           s"Failed trying to rewrite $classNameV3_4 - this class does not have a constructor", e)
         case Failure(e) => throw e
@@ -522,16 +522,16 @@ object LogicalPlanConverter {
     * If the source operator is a Create operator, the create command is added to that operator instead of creating a
     * new one, effectively squashing deep tree of 3.3 CreateNode and CreateRelationship operators into on 3.5 Create.
     */
-  private def flattenCreates(source: LogicalPlanv3_5,
+  private def flattenCreates(source: LogicalPlanv3_6,
                              createNode: Option[CreateNode],
                              createRelationship: Option[CreateRelationship],
-                             id: IdGen): plansv3_5.Create = {
+                             id: IdGen): plansv3_6.Create = {
     source match {
-      case plansv3_5.Create(source, nodes, relationships) =>
-        plansv3_5.Create(source, nodes ++ createNode, relationships ++ createRelationship)(id)
+      case plansv3_6.Create(source, nodes, relationships) =>
+        plansv3_6.Create(source, nodes ++ createNode, relationships ++ createRelationship)(id)
 
       case nonCreate =>
-        plansv3_5.Create(nonCreate, createNode.toSeq, createRelationship.toSeq)(id)
+        plansv3_6.Create(nonCreate, createNode.toSeq, createRelationship.toSeq)(id)
     }
   }
 }

@@ -14,11 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.neo4j.cypher.internal.v3_5.rewriting.rewriters
+package org.neo4j.cypher.internal.v3_6.rewriting.rewriters
 
-import org.neo4j.cypher.internal.v3_5.expressions._
-import org.neo4j.cypher.internal.v3_5.util.{FreshIdNameGenerator, InputPosition}
-import org.neo4j.cypher.internal.v3_5.expressions.{And, Equals, Parameter, Variable}
+import org.neo4j.cypher.internal.v3_6.expressions._
+import org.neo4j.cypher.internal.v3_6.util.{FreshIdNameGenerator, InputPosition}
+import org.neo4j.cypher.internal.v3_6.expressions.{And, Equals, Parameter, Variable}
 
 object PropertyPredicateNormalizer extends MatchPredicateNormalizer {
   override val extract: PartialFunction[AnyRef, IndexedSeq[Expression]] = {

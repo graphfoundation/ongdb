@@ -14,10 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.neo4j.cypher.internal.v3_5.parser
+package org.neo4j.cypher.internal.v3_6.parser
 
-import org.neo4j.cypher.internal.v3_5.ast
-import org.neo4j.cypher.internal.v3_5.expressions.{LabelName, Variable}
+import org.neo4j.cypher.internal.v3_6.ast
+import org.neo4j.cypher.internal.v3_6.expressions.{LabelName, Variable}
 import org.parboiled.scala._
 
 trait Command extends Parser
@@ -41,7 +41,7 @@ trait Command extends Parser
       | DropIndex
   )
 
-  def PropertyExpressions: Rule1[Seq[org.neo4j.cypher.internal.v3_5.expressions.Property]] = rule("multiple property expressions") {
+  def PropertyExpressions: Rule1[Seq[org.neo4j.cypher.internal.v3_6.expressions.Property]] = rule("multiple property expressions") {
     oneOrMore(WS ~ Variable ~ PropertyLookup, separator = CommaSep)
   }
 
@@ -95,19 +95,19 @@ trait Command extends Parser
     group(keyword("DROP") ~~ RelationshipPropertyExistenceConstraintSyntax) ~~>> (ast.DropRelationshipPropertyExistenceConstraint(_, _, _))
   }
 
-  private def ProcedureArguments: Rule1[Option[Seq[org.neo4j.cypher.internal.v3_5.expressions.Expression]]] = rule("arguments to a procedure") {
+  private def ProcedureArguments: Rule1[Option[Seq[org.neo4j.cypher.internal.v3_6.expressions.Expression]]] = rule("arguments to a procedure") {
     optional(group("(" ~~
       zeroOrMore(Expression, separator = CommaSep) ~~ ")"
     ) ~~> (_.toIndexedSeq))
   }
 
-  private def NodeKeyConstraintSyntax: Rule3[Variable, LabelName, Seq[org.neo4j.cypher.internal.v3_5.expressions.Property]] = keyword("CONSTRAINT ON") ~~ "(" ~~ Variable ~~ NodeLabel ~~ ")" ~~
+  private def NodeKeyConstraintSyntax: Rule3[Variable, LabelName, Seq[org.neo4j.cypher.internal.v3_6.expressions.Property]] = keyword("CONSTRAINT ON") ~~ "(" ~~ Variable ~~ NodeLabel ~~ ")" ~~
     keyword("ASSERT") ~~ "(" ~~ PropertyExpressions ~~ ")" ~~ keyword("IS NODE KEY")
 
-  private def UniqueConstraintSyntax: Rule3[Variable, LabelName, org.neo4j.cypher.internal.v3_5.expressions.Property] = keyword("CONSTRAINT ON") ~~ "(" ~~ Variable ~~ NodeLabel ~~ ")" ~~
+  private def UniqueConstraintSyntax: Rule3[Variable, LabelName, org.neo4j.cypher.internal.v3_6.expressions.Property] = keyword("CONSTRAINT ON") ~~ "(" ~~ Variable ~~ NodeLabel ~~ ")" ~~
     keyword("ASSERT") ~~ PropertyExpression ~~ keyword("IS UNIQUE")
 
-  private def UniqueCompositeConstraintSyntax: Rule3[Variable, LabelName, Seq[org.neo4j.cypher.internal.v3_5.expressions.Property]] = keyword("CONSTRAINT ON") ~~ "(" ~~ Variable ~~ NodeLabel ~~ ")" ~~
+  private def UniqueCompositeConstraintSyntax: Rule3[Variable, LabelName, Seq[org.neo4j.cypher.internal.v3_6.expressions.Property]] = keyword("CONSTRAINT ON") ~~ "(" ~~ Variable ~~ NodeLabel ~~ ")" ~~
     keyword("ASSERT") ~~ "(" ~~ PropertyExpressions ~~ ")" ~~ keyword("IS UNIQUE")
 
   private def NodePropertyExistenceConstraintSyntax = keyword("CONSTRAINT ON") ~~ "(" ~~ Variable ~~ NodeLabel ~~ ")" ~~

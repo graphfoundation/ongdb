@@ -17,7 +17,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compatibility.v3_5.runtime.executionplan
+package org.neo4j.cypher.internal.compatibility.v3_6.runtime.executionplan
 
 import java.net.URL
 
@@ -27,7 +27,7 @@ import org.mockito.Mockito._
 import org.neo4j.csv.reader.Configuration
 import org.neo4j.cypher.internal.runtime.{QueryContext, QueryTransactionalContext}
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.ExternalCSVResource
-import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
 
 class LoadCsvPeriodicCommitObserverTest extends CypherFunSuite {
   private val DEFAULT_BUFFER_SIZE = Configuration.DEFAULT_BUFFER_SIZE_4MB

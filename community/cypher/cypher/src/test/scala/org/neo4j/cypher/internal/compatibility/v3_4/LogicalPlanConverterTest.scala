@@ -27,28 +27,28 @@ import org.neo4j.cypher.internal.frontend.{v3_4 => frontendV3_4}
 import org.neo4j.cypher.internal.ir.{v3_4 => irV3_4}
 import org.neo4j.cypher.internal.planner.v3_4.spi.PlanningAttributes.{Cardinalities => CardinalitiesV3_4}
 import org.neo4j.cypher.internal.planner.v3_4.spi.PlanningAttributes.{Solveds => SolvedsV3_4}
-import org.neo4j.cypher.internal.planner.v3_5.spi.PlanningAttributes.{Cardinalities => CardinalitiesV3_5}
-import org.neo4j.cypher.internal.planner.v3_5.spi.PlanningAttributes.{Solveds => SolvedsV3_5}
+import org.neo4j.cypher.internal.planner.v3_6.spi.PlanningAttributes.{Cardinalities => CardinalitiesV3_6}
+import org.neo4j.cypher.internal.planner.v3_6.spi.PlanningAttributes.{Solveds => SolvedsV3_6}
 import org.neo4j.cypher.internal.util.v3_4.attribution.{SequentialIdGen => SequentialIdGenv3_4}
 import org.neo4j.cypher.internal.util.v3_4.{InputPosition => InputPositionV3_4}
 import org.neo4j.cypher.internal.util.v3_4.{symbols => symbolsV3_4}
 import org.neo4j.cypher.internal.util.{v3_4 => utilv3_4}
 import org.neo4j.cypher.internal.v3_4.logical.{plans => plansV3_4}
 import org.neo4j.cypher.internal.v3_4.{expressions => expressionsv3_4}
-import org.neo4j.cypher.internal.v3_5.logical.plans.ErrorPlan
-import org.neo4j.cypher.internal.v3_5.logical.plans.IndexOrderNone
-import org.neo4j.cypher.internal.v3_5.logical.plans.ProcedureCall
-import org.neo4j.cypher.internal.v3_5.logical.{plans => plansv3_5}
-import org.neo4j.cypher.internal.v3_5.expressions.PathExpression
-import  org.neo4j.cypher.internal.v3_5.expressions.SemanticDirection
-import org.neo4j.cypher.internal.v3_5.util.attribution.{SequentialIdGen => SequentialIdGenv3_5}
-import  org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
-import org.neo4j.cypher.internal.v3_5.util.InputPosition
-import  org.neo4j.cypher.internal.v3_5.util.NonEmptyList
-import  org.neo4j.cypher.internal.v3_5.util.{symbols => symbolsv3_5}
-import org.neo4j.cypher.internal.v3_5.{ast => astv3_5}
-import  org.neo4j.cypher.internal.v3_5.{util => utilv3_5}
-import  org.neo4j.cypher.internal.v3_5.{expressions => expressionsv3_5}
+import org.neo4j.cypher.internal.v3_6.logical.plans.ErrorPlan
+import org.neo4j.cypher.internal.v3_6.logical.plans.IndexOrderNone
+import org.neo4j.cypher.internal.v3_6.logical.plans.ProcedureCall
+import org.neo4j.cypher.internal.v3_6.logical.{plans => plansv3_6}
+import org.neo4j.cypher.internal.v3_6.expressions.PathExpression
+import  org.neo4j.cypher.internal.v3_6.expressions.SemanticDirection
+import org.neo4j.cypher.internal.v3_6.util.attribution.{SequentialIdGen => SequentialIdGenv3_6}
+import  org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.v3_6.util.InputPosition
+import  org.neo4j.cypher.internal.v3_6.util.NonEmptyList
+import  org.neo4j.cypher.internal.v3_6.util.{symbols => symbolsv3_6}
+import org.neo4j.cypher.internal.v3_6.{ast => astv3_6}
+import  org.neo4j.cypher.internal.v3_6.{util => utilv3_6}
+import  org.neo4j.cypher.internal.v3_6.{expressions => expressionsv3_6}
 import org.reflections.Reflections
 
 import scala.collection.JavaConverters._
@@ -59,7 +59,7 @@ import scala.util.Try
 class LogicalPlanConverterTest extends CypherFunSuite {
 
   private implicit val idGen3_4 = new SequentialIdGenv3_4()
-  private implicit val idGen3_5 = new SequentialIdGenv3_5()
+  private implicit val idGen3_5 = new SequentialIdGenv3_6()
 
   private val pos3_4 = InputPositionV3_4(0,0,0)
   private val pos3_5 = InputPosition(0,0,0)
@@ -70,9 +70,9 @@ class LogicalPlanConverterTest extends CypherFunSuite {
 
   test("should convert an IntegerLiteral with its position") {
     val i3_4 = expressionsv3_4.SignedDecimalIntegerLiteral("5")(InputPositionV3_4(1, 2, 3))
-    val i3_5 = expressionsv3_5.SignedDecimalIntegerLiteral("5")(InputPosition(1, 2, 3))
+    val i3_5 = expressionsv3_6.SignedDecimalIntegerLiteral("5")(InputPosition(1, 2, 3))
 
-    val rewritten = convert[expressionsv3_5.SignedDecimalIntegerLiteral](i3_4)
+    val rewritten = convert[expressionsv3_6.SignedDecimalIntegerLiteral](i3_4)
     rewritten should be(i3_5)
     rewritten.position should be(i3_5.position)
   }
@@ -81,11 +81,11 @@ class LogicalPlanConverterTest extends CypherFunSuite {
     val i3_4a = expressionsv3_4.SignedDecimalIntegerLiteral("2")(InputPositionV3_4(1, 2, 3))
     val i3_4b = expressionsv3_4.SignedDecimalIntegerLiteral("5")(InputPositionV3_4(1, 2, 5))
     val add3_4 = expressionsv3_4.Add(i3_4a, i3_4b)(InputPositionV3_4(1,2,3))
-    val i3_5a = expressionsv3_5.SignedDecimalIntegerLiteral("2")(InputPosition(1, 2, 3))
-    val i3_5b = expressionsv3_5.SignedDecimalIntegerLiteral("5")(InputPosition(1, 2, 5))
-    val add3_5 = expressionsv3_5.Add(i3_5a, i3_5b)(InputPosition(1,2,3))
+    val i3_5a = expressionsv3_6.SignedDecimalIntegerLiteral("2")(InputPosition(1, 2, 3))
+    val i3_5b = expressionsv3_6.SignedDecimalIntegerLiteral("5")(InputPosition(1, 2, 5))
+    val add3_5 = expressionsv3_6.Add(i3_5a, i3_5b)(InputPosition(1,2,3))
 
-    val rewritten = convert[expressionsv3_5.Add](add3_4)
+    val rewritten = convert[expressionsv3_6.Add](add3_4)
     rewritten should be(add3_5)
     rewritten.position should equal(add3_5.position)
     rewritten.lhs.position should equal(i3_5a.position)
@@ -96,11 +96,11 @@ class LogicalPlanConverterTest extends CypherFunSuite {
     val i3_4a = expressionsv3_4.SignedDecimalIntegerLiteral("2")(pos3_4)
     val i3_4b = expressionsv3_4.SignedDecimalIntegerLiteral("5")(pos3_4)
     val l3_4 = expressionsv3_4.ListLiteral(Seq(i3_4a, i3_4b))(pos3_4)
-    val i3_5a = expressionsv3_5.SignedDecimalIntegerLiteral("2")(pos3_5)
-    val i3_5b = expressionsv3_5.SignedDecimalIntegerLiteral("5")(pos3_5)
-    val l3_5 = expressionsv3_5.ListLiteral(Seq(i3_5a, i3_5b))(pos3_5)
+    val i3_5a = expressionsv3_6.SignedDecimalIntegerLiteral("2")(pos3_5)
+    val i3_5b = expressionsv3_6.SignedDecimalIntegerLiteral("5")(pos3_5)
+    val l3_5 = expressionsv3_6.ListLiteral(Seq(i3_5a, i3_5b))(pos3_5)
 
-    convert[expressionsv3_5.ListLiteral](l3_4) should be(l3_5)
+    convert[expressionsv3_6.ListLiteral](l3_4) should be(l3_5)
   }
 
   test("should convert Expression with Option") {
@@ -109,24 +109,24 @@ class LogicalPlanConverterTest extends CypherFunSuite {
     val f3_4 = expressionsv3_4.FilterScope(v3_4, Some(i3_4))(pos3_4)
     val f3_4b = expressionsv3_4.FilterScope(v3_4, None)(pos3_4)
 
-    val i3_5 = expressionsv3_5.SignedDecimalIntegerLiteral("2")(pos3_5)
-    val v3_5 = expressionsv3_5.Variable("var")(pos3_5)
-    val f3_5 = expressionsv3_5.FilterScope(v3_5, Some(i3_5))(pos3_5)
-    val f3_5b = expressionsv3_5.FilterScope(v3_5, None)(pos3_5)
+    val i3_5 = expressionsv3_6.SignedDecimalIntegerLiteral("2")(pos3_5)
+    val v3_6 = expressionsv3_6.Variable("var")(pos3_5)
+    val f3_5 = expressionsv3_6.FilterScope(v3_6, Some(i3_5))(pos3_5)
+    val f3_5b = expressionsv3_6.FilterScope(v3_6, None)(pos3_5)
 
-    convert[expressionsv3_5.FilterScope](f3_4) should be(f3_5)
-    convert[expressionsv3_5.FilterScope](f3_4b) should be(f3_5b)
+    convert[expressionsv3_6.FilterScope](f3_4) should be(f3_5)
+    convert[expressionsv3_6.FilterScope](f3_4b) should be(f3_5b)
   }
 
   test("should convert Expression with Set") {
     val i3_4a = expressionsv3_4.SignedDecimalIntegerLiteral("2")(pos3_4)
     val i3_4b = expressionsv3_4.SignedDecimalIntegerLiteral("5")(pos3_4)
     val l3_4 = expressionsv3_4.Ands(Set(i3_4a, i3_4b))(pos3_4)
-    val i3_5a = expressionsv3_5.SignedDecimalIntegerLiteral("2")(pos3_5)
-    val i3_5b = expressionsv3_5.SignedDecimalIntegerLiteral("5")(pos3_5)
-    val l3_5 = expressionsv3_5.Ands(Set(i3_5a, i3_5b))(pos3_5)
+    val i3_5a = expressionsv3_6.SignedDecimalIntegerLiteral("2")(pos3_5)
+    val i3_5b = expressionsv3_6.SignedDecimalIntegerLiteral("5")(pos3_5)
+    val l3_5 = expressionsv3_6.Ands(Set(i3_5a, i3_5b))(pos3_5)
 
-    convert[expressionsv3_5.Ands](l3_4) should be(l3_5)
+    convert[expressionsv3_6.Ands](l3_4) should be(l3_5)
   }
 
   test("should convert Expression with Seq of Tuple") {
@@ -136,13 +136,13 @@ class LogicalPlanConverterTest extends CypherFunSuite {
     val i3_4d = expressionsv3_4.SignedDecimalIntegerLiteral("11")(pos3_4)
     val c3_4 = expressionsv3_4.CaseExpression(None, List((i3_4a, i3_4b), (i3_4c, i3_4d)), None)(pos3_4)
 
-    val i3_5a = expressionsv3_5.SignedDecimalIntegerLiteral("2")(pos3_5)
-    val i3_5b = expressionsv3_5.SignedDecimalIntegerLiteral("5")(pos3_5)
-    val i3_5c = expressionsv3_5.SignedDecimalIntegerLiteral("10")(pos3_5)
-    val i3_5d = expressionsv3_5.SignedDecimalIntegerLiteral("11")(pos3_5)
-    val c3_5 = expressionsv3_5.CaseExpression(None, List((i3_5a, i3_5b), (i3_5c, i3_5d)), None)(pos3_5)
+    val i3_5a = expressionsv3_6.SignedDecimalIntegerLiteral("2")(pos3_5)
+    val i3_5b = expressionsv3_6.SignedDecimalIntegerLiteral("5")(pos3_5)
+    val i3_5c = expressionsv3_6.SignedDecimalIntegerLiteral("10")(pos3_5)
+    val i3_5d = expressionsv3_6.SignedDecimalIntegerLiteral("11")(pos3_5)
+    val c3_5 = expressionsv3_6.CaseExpression(None, List((i3_5a, i3_5b), (i3_5c, i3_5d)), None)(pos3_5)
 
-    convert[expressionsv3_5.CaseExpression](c3_4) should be(c3_5)
+    convert[expressionsv3_6.CaseExpression](c3_4) should be(c3_5)
   }
 
   test("should convert Expression with Seq of Tuple (MapExpression)") {
@@ -152,13 +152,13 @@ class LogicalPlanConverterTest extends CypherFunSuite {
     val p3_4b = expressionsv3_4.PropertyKeyName("b")(pos3_4)
     val m3_4 = expressionsv3_4.MapExpression(Seq((p3_4a, i3_4a),(p3_4b, i3_4b)))(pos3_4)
 
-    val i3_5a = expressionsv3_5.SignedDecimalIntegerLiteral("2")(pos3_5)
-    val i3_5b = expressionsv3_5.SignedDecimalIntegerLiteral("5")(pos3_5)
-    val p3_5a = expressionsv3_5.PropertyKeyName("a")(pos3_5)
-    val p3_5b = expressionsv3_5.PropertyKeyName("b")(pos3_5)
-    val m3_5 = expressionsv3_5.MapExpression(Seq((p3_5a, i3_5a),(p3_5b, i3_5b)))(pos3_5)
+    val i3_5a = expressionsv3_6.SignedDecimalIntegerLiteral("2")(pos3_5)
+    val i3_5b = expressionsv3_6.SignedDecimalIntegerLiteral("5")(pos3_5)
+    val p3_5a = expressionsv3_6.PropertyKeyName("a")(pos3_5)
+    val p3_5b = expressionsv3_6.PropertyKeyName("b")(pos3_5)
+    val m3_5 = expressionsv3_6.MapExpression(Seq((p3_5a, i3_5a),(p3_5b, i3_5b)))(pos3_5)
 
-    convert[expressionsv3_5.CaseExpression](m3_4) should be(m3_5)
+    convert[expressionsv3_6.CaseExpression](m3_4) should be(m3_5)
   }
 
   test("should convert PathExpression") {
@@ -169,14 +169,14 @@ class LogicalPlanConverterTest extends CypherFunSuite {
     val psv3_4d = expressionsv3_4.NodePathStep(var3_4, psv3_4c)
     val pexpv3_4 = expressionsv3_4.PathExpression(psv3_4d)(pos3_4)
 
-    val var3_5 = expressionsv3_5.Variable("n")(pos3_5)
-    val psv3_5a = expressionsv3_5.NilPathStep
-    val psv3_5b = expressionsv3_5.MultiRelationshipPathStep(var3_5, SemanticDirection.BOTH, psv3_5a)
-    val psv3_5c = expressionsv3_5.SingleRelationshipPathStep(var3_5, SemanticDirection.OUTGOING, psv3_5b)
-    val psv3_5d = expressionsv3_5.NodePathStep(var3_5, psv3_5c)
-    val pexpv3_5 = expressionsv3_5.PathExpression(psv3_5d)(pos3_5)
+    val var3_5 = expressionsv3_6.Variable("n")(pos3_5)
+    val psv3_6a = expressionsv3_6.NilPathStep
+    val psv3_6b = expressionsv3_6.MultiRelationshipPathStep(var3_5, SemanticDirection.BOTH, psv3_6a)
+    val psv3_6c = expressionsv3_6.SingleRelationshipPathStep(var3_5, SemanticDirection.OUTGOING, psv3_6b)
+    val psv3_6d = expressionsv3_6.NodePathStep(var3_5, psv3_6c)
+    val pexpv3_6 = expressionsv3_6.PathExpression(psv3_6d)(pos3_5)
 
-    convert[PathExpression](pexpv3_4) should be(pexpv3_5)
+    convert[PathExpression](pexpv3_4) should be(pexpv3_6)
   }
 
   test("should convert AndedPropertyInequalities") {
@@ -187,12 +187,12 @@ class LogicalPlanConverterTest extends CypherFunSuite {
     val i3_4c = expressionsv3_4.GreaterThan(var3_4, var3_4)(pos3_4)
     val a3_4 = expressionsv3_4.AndedPropertyInequalities(var3_4, p3_4, utilv3_4.NonEmptyList(i3_4a, i3_4b, i3_4c))
 
-    val var3_5 = expressionsv3_5.Variable("n")(pos3_5)
-    val p3_5 = expressionsv3_5.Property(var3_5, expressionsv3_5.PropertyKeyName("n")(pos3_5))(pos3_5)
-    val i3_5a = expressionsv3_5.LessThan(var3_5, var3_5)(pos3_5)
-    val i3_5b = expressionsv3_5.LessThan(var3_5, var3_5)(pos3_5)
-    val i3_5c = expressionsv3_5.GreaterThan(var3_5, var3_5)(pos3_5)
-    val a3_5 = expressionsv3_5.AndedPropertyInequalities(var3_5, p3_5, NonEmptyList(i3_5a, i3_5b, i3_5c))
+    val var3_5 = expressionsv3_6.Variable("n")(pos3_5)
+    val p3_5 = expressionsv3_6.Property(var3_5, expressionsv3_6.PropertyKeyName("n")(pos3_5))(pos3_5)
+    val i3_5a = expressionsv3_6.LessThan(var3_5, var3_5)(pos3_5)
+    val i3_5b = expressionsv3_6.LessThan(var3_5, var3_5)(pos3_5)
+    val i3_5c = expressionsv3_6.GreaterThan(var3_5, var3_5)(pos3_5)
+    val a3_5 = expressionsv3_6.AndedPropertyInequalities(var3_5, p3_5, NonEmptyList(i3_5a, i3_5b, i3_5c))
 
     convert[PathExpression](a3_4) should be(a3_5)
   }
@@ -200,8 +200,8 @@ class LogicalPlanConverterTest extends CypherFunSuite {
   test("should convert Parameter and CypherTypes") {
     val p3_4a = expressionsv3_4.Parameter("a", symbolsV3_4.CTBoolean)(pos3_4)
     val p3_4b = expressionsv3_4.Parameter("a", symbolsV3_4.CTList(symbolsV3_4.CTAny))(pos3_4)
-    val p3_5a = expressionsv3_5.Parameter("a", symbolsv3_5.CTBoolean)(pos3_5)
-    val p3_5b = expressionsv3_5.Parameter("a", symbolsv3_5.CTList(symbolsv3_5.CTAny))(pos3_5)
+    val p3_5a = expressionsv3_6.Parameter("a", symbolsv3_6.CTBoolean)(pos3_5)
+    val p3_5b = expressionsv3_6.Parameter("a", symbolsv3_6.CTList(symbolsv3_6.CTAny))(pos3_5)
 
     convert[PathExpression](p3_4a) should be(p3_5a)
     convert[PathExpression](p3_4b) should be(p3_5b)
@@ -220,7 +220,7 @@ class LogicalPlanConverterTest extends CypherFunSuite {
     val a3_4 = plansV3_4.AllNodesScan("n", Set.empty)
     val l3_4 = plansV3_4.Limit(a3_4, var3_4, plansV3_4.IncludeTies)
 
-    val var3_5 = expressionsv3_5.Variable("n")(pos3_5)
+    val var3_5 = expressionsv3_6.Variable("n")(pos3_5)
 
     expressionMapping(l3_4, expr => true) should contain only ((var3_4, var3_4.position) -> var3_5)
   }
@@ -232,8 +232,8 @@ class LogicalPlanConverterTest extends CypherFunSuite {
     val l3_4a = plansV3_4.Limit(a3_4, var3_4a, plansV3_4.IncludeTies)
     val l3_4b = plansV3_4.Limit(l3_4a, var3_4b, plansV3_4.IncludeTies)
 
-    val var3_5a = expressionsv3_5.Variable("n")(InputPosition(0, 0, 0))
-    val var3_5b = expressionsv3_5.Variable("n")(InputPosition(1, 1, 1))
+    val var3_5a = expressionsv3_6.Variable("n")(InputPosition(0, 0, 0))
+    val var3_5b = expressionsv3_6.Variable("n")(InputPosition(1, 1, 1))
 
     expressionMapping(l3_4b, expr => true) should contain only(
       (var3_4a, var3_4a.position) -> var3_5a,
@@ -248,9 +248,9 @@ class LogicalPlanConverterTest extends CypherFunSuite {
     solveds3_4.set(a3_4.id, irV3_4.PlannerQuery.empty)
     cardinalities3_4.set(a3_4.id, utilv3_4.Cardinality(5.0))
 
-    val solveds3_5 = new SolvedsV3_5
-    val cardinalities3_5 = new CardinalitiesV3_5
-    val rewrittenPlan = LogicalPlanConverter.convertLogicalPlan[plansv3_5.AllNodesScan](
+    val solveds3_5 = new SolvedsV3_6
+    val cardinalities3_5 = new CardinalitiesV3_6
+    val rewrittenPlan = LogicalPlanConverter.convertLogicalPlan[plansv3_6.AllNodesScan](
                           a3_4, solveds3_4, cardinalities3_4, solveds3_5, cardinalities3_5, new MaxIdConverter
                         )._1
     solveds3_5.get(rewrittenPlan.id).readOnly should equal(solveds3_4.get(a3_4.id).readOnly)
@@ -260,9 +260,9 @@ class LogicalPlanConverterTest extends CypherFunSuite {
   test("should convert AllNodeScan and keep id") {
     val a3_4 = plansV3_4.AllNodesScan("n", Set.empty)
     val id3_4 = a3_4.id
-    val a3_5 = plansv3_5.AllNodesScan("n", Set.empty)
+    val a3_5 = plansv3_6.AllNodesScan("n", Set.empty)
 
-    val rewrittenPlan = convert[plansv3_5.AllNodesScan](a3_4)
+    val rewrittenPlan = convert[plansv3_6.AllNodesScan](a3_4)
     rewrittenPlan should be(a3_5)
     rewrittenPlan.id should be(helpers.as3_5(id3_4))
   }
@@ -275,12 +275,12 @@ class LogicalPlanConverterTest extends CypherFunSuite {
     val ans_id = a3_4.id
     val ag_id = ag3_4.id
 
-    val a3_5 = plansv3_5.AllNodesScan("n", Set.empty)
-    val i3_5a = expressionsv3_5.SignedDecimalIntegerLiteral("2")(pos3_5)
-    val i3_5b = expressionsv3_5.SignedDecimalIntegerLiteral("5")(pos3_5)
-    val ag3_5 = plansv3_5.Aggregation(a3_5, Map("a" -> i3_5a), Map("b" -> i3_5b))
+    val a3_5 = plansv3_6.AllNodesScan("n", Set.empty)
+    val i3_5a = expressionsv3_6.SignedDecimalIntegerLiteral("2")(pos3_5)
+    val i3_5b = expressionsv3_6.SignedDecimalIntegerLiteral("5")(pos3_5)
+    val ag3_5 = plansv3_6.Aggregation(a3_5, Map("a" -> i3_5a), Map("b" -> i3_5b))
 
-    val rewrittenPlan = convert[plansv3_5.Aggregation](ag3_4)
+    val rewrittenPlan = convert[plansv3_6.Aggregation](ag3_4)
     rewrittenPlan should be(ag3_5)
     rewrittenPlan.id should be(helpers.as3_5(ag_id))
     rewrittenPlan.lhs.get.id should be(helpers.as3_5(ans_id))
@@ -293,10 +293,10 @@ class LogicalPlanConverterTest extends CypherFunSuite {
     val s3_4_id = s3_4.id
     val p3_4_id = p3_4.id
 
-    val s3_5 = plansv3_5.Argument()
-    val p3_5 = plansv3_5.ProduceResult(s3_5, Seq("a"))
+    val s3_5 = plansv3_6.Argument()
+    val p3_5 = plansv3_6.ProduceResult(s3_5, Seq("a"))
 
-    val rewrittenPlan = convert[plansv3_5.ProduceResult](p3_4)
+    val rewrittenPlan = convert[plansv3_6.ProduceResult](p3_4)
     rewrittenPlan should be(p3_5)
     rewrittenPlan.id should be(helpers.as3_5(p3_4_id))
     rewrittenPlan.lhs.get.id should be(helpers.as3_5(s3_4_id))
@@ -306,12 +306,12 @@ class LogicalPlanConverterTest extends CypherFunSuite {
     val a3_4 = plansV3_4.AllNodesScan("n", Set.empty)
     val e3_4 = plansV3_4.ErrorPlan(a3_4, new utilv3_4.ExhaustiveShortestPathForbiddenException)
 
-    val a3_5 = plansv3_5.AllNodesScan("n", Set.empty)
+    val a3_5 = plansv3_6.AllNodesScan("n", Set.empty)
 
     val rewrittenPlan = convert[ErrorPlan](e3_4)
-    rewrittenPlan shouldBe an[plansv3_5.ErrorPlan]
-    rewrittenPlan.asInstanceOf[plansv3_5.ErrorPlan].source should be(a3_5)
-    rewrittenPlan.asInstanceOf[plansv3_5.ErrorPlan].exception shouldBe an[utilv3_5.ExhaustiveShortestPathForbiddenException]
+    rewrittenPlan shouldBe an[plansv3_6.ErrorPlan]
+    rewrittenPlan.asInstanceOf[plansv3_6.ErrorPlan].source should be(a3_5)
+    rewrittenPlan.asInstanceOf[plansv3_6.ErrorPlan].exception shouldBe an[utilv3_6.ExhaustiveShortestPathForbiddenException]
   }
 
   test("should convert NodeIndexSeek") {
@@ -322,12 +322,12 @@ class LogicalPlanConverterTest extends CypherFunSuite {
       Seq(expressionsv3_4.PropertyKeyToken("c", utilv3_4.PropertyKeyId(3))),
       plansV3_4.SingleQueryExpression(var3_4), Set.empty)
 
-    val var3_5 = expressionsv3_5.Variable("n")(pos3_5)
-    val a3_5 = plansv3_5.AllNodesScan("n", Set.empty)
-    val n3_5 = plansv3_5.NodeIndexSeek("a",
-      expressionsv3_5.LabelToken("b", utilv3_5.LabelId(2)),
-      Seq(plansv3_5.IndexedProperty(expressionsv3_5.PropertyKeyToken("c", utilv3_5.PropertyKeyId(3)), plansv3_5.DoNotGetValue)),
-      plansv3_5.SingleQueryExpression(var3_5), Set.empty, IndexOrderNone)
+    val var3_5 = expressionsv3_6.Variable("n")(pos3_5)
+    val a3_5 = plansv3_6.AllNodesScan("n", Set.empty)
+    val n3_5 = plansv3_6.NodeIndexSeek("a",
+      expressionsv3_6.LabelToken("b", utilv3_6.LabelId(2)),
+      Seq(plansv3_6.IndexedProperty(expressionsv3_6.PropertyKeyToken("c", utilv3_6.PropertyKeyId(3)), plansv3_6.DoNotGetValue)),
+      plansv3_6.SingleQueryExpression(var3_5), Set.empty, IndexOrderNone)
 
     convert[ErrorPlan](n3_4) should be(n3_5)
   }
@@ -341,13 +341,13 @@ class LogicalPlanConverterTest extends CypherFunSuite {
     val rc3_4 = plansV3_4.ResolvedCall(sigv3_4, Seq(var3_4), IndexedSeq(pres3_4))(pos3_4)
     val pc3_4 = plansV3_4.ProcedureCall(a3_4, rc3_4)
 
-    val var3_5 = expressionsv3_5.Variable("n")(pos3_5)
-    val a3_5 = plansv3_5.AllNodesScan("n", Set.empty)
-    val inputv3_5 = plansv3_5.FieldSignature("d", symbolsv3_5.CTString, Some(plansv3_5.CypherValue("e", symbolsv3_5.CTString)))
-    val sigv3_5 = plansv3_5.ProcedureSignature(plansv3_5.QualifiedName(Seq("a", "b"), "c"), IndexedSeq(inputv3_5), None, None, plansv3_5.ProcedureReadWriteAccess(Array("foo", "bar")))
-    val pres3_5 = astv3_5.ProcedureResultItem(Some(expressionsv3_5.ProcedureOutput("f")(pos3_5)), var3_5)(pos3_5)
-    val rc3_5 = plansv3_5.ResolvedCall(sigv3_5, Seq(var3_5), IndexedSeq(pres3_5))(pos3_5)
-    val pc3_5 = plansv3_5.ProcedureCall(a3_5, rc3_5)
+    val var3_5 = expressionsv3_6.Variable("n")(pos3_5)
+    val a3_5 = plansv3_6.AllNodesScan("n", Set.empty)
+    val inputv3_6 = plansv3_6.FieldSignature("d", symbolsv3_6.CTString, Some(plansv3_6.CypherValue("e", symbolsv3_6.CTString)))
+    val sigv3_6 = plansv3_6.ProcedureSignature(plansv3_6.QualifiedName(Seq("a", "b"), "c"), IndexedSeq(inputv3_6), None, None, plansv3_6.ProcedureReadWriteAccess(Array("foo", "bar")))
+    val pres3_5 = astv3_6.ProcedureResultItem(Some(expressionsv3_6.ProcedureOutput("f")(pos3_5)), var3_5)(pos3_5)
+    val rc3_5 = plansv3_6.ResolvedCall(sigv3_6, Seq(var3_5), IndexedSeq(pres3_5))(pos3_5)
+    val pc3_5 = plansv3_6.ProcedureCall(a3_5, rc3_5)
 
     convert[ProcedureCall](pc3_4) should be(pc3_5)
   }
@@ -356,8 +356,8 @@ class LogicalPlanConverterTest extends CypherFunSuite {
     val a3_4 = plansV3_4.AllNodesScan("n", Set.empty)
     val s3_4 = plansV3_4.Sort(a3_4, Seq(plansV3_4.Ascending("n")))
 
-    val a3_5 = plansv3_5.AllNodesScan("n", Set.empty)
-    val s3_5 = plansv3_5.Sort(a3_5, Seq(plansv3_5.Ascending("n")))
+    val a3_5 = plansv3_6.AllNodesScan("n", Set.empty)
+    val s3_5 = plansv3_6.Sort(a3_5, Seq(plansv3_6.Ascending("n")))
 
     convert[ProcedureCall](s3_4) should be(s3_5)
   }
@@ -370,13 +370,13 @@ class LogicalPlanConverterTest extends CypherFunSuite {
         default = Some(plansV3_4.CypherValue(null, symbolsV3_4.CTAny)))),
         symbolsV3_4.CTAny, None, allowed, None, isAggregate = false)), Vector())(InputPositionV3_4(1, 2, 3))
 
-    val name3_5 = plansv3_5.QualifiedName(Seq.empty, "foo")
-    val call3_5 = plansv3_5.ResolvedFunctionInvocation(name3_5,
-      Some(plansv3_5.UserFunctionSignature(name3_5, Vector(plansv3_5.FieldSignature("input", symbolsv3_5.CTAny,
-        default = Some(plansv3_5.CypherValue(null, symbolsv3_5.CTAny)))),
-        symbolsv3_5.CTAny, None, allowed, None, isAggregate = false)), Vector())(InputPosition(1, 2, 3))
+    val name3_5 = plansv3_6.QualifiedName(Seq.empty, "foo")
+    val call3_5 = plansv3_6.ResolvedFunctionInvocation(name3_5,
+      Some(plansv3_6.UserFunctionSignature(name3_5, Vector(plansv3_6.FieldSignature("input", symbolsv3_6.CTAny,
+        default = Some(plansv3_6.CypherValue(null, symbolsv3_6.CTAny)))),
+        symbolsv3_6.CTAny, None, allowed, None, isAggregate = false)), Vector())(InputPosition(1, 2, 3))
 
-    convert[plansv3_5.ResolvedFunctionInvocation](call3_4) should be(call3_5)
+    convert[plansv3_6.ResolvedFunctionInvocation](call3_4) should be(call3_5)
   }
 
   test("should convert all expressions") {
@@ -392,8 +392,8 @@ class LogicalPlanConverterTest extends CypherFunSuite {
         constructor.newInstance(constructorArgs: _*).asInstanceOf[expressionsv3_4.Expression]
       } match {
         case Success(expressionV3_4) =>
-          val rewritten = convert[expressionsv3_5.Expression](expressionV3_4)
-          rewritten shouldBe an[expressionsv3_5.Expression]
+          val rewritten = convert[expressionsv3_6.Expression](expressionV3_4)
+          rewritten shouldBe an[expressionsv3_6.Expression]
         case Failure(e: InstantiationException) => fail(s"could not instantiate 3.4 expression: ${subType.getSimpleName} with arguments ${paramTypes.toList}", e)
         case Failure(e) => fail(s"Converting ${subType.getName} failed", e)
       }
@@ -420,8 +420,8 @@ class LogicalPlanConverterTest extends CypherFunSuite {
         }
         planV3_4 match {
           case Success(plan) =>
-            val rewritten = convert[plansv3_5.LogicalPlan](plan)
-            rewritten shouldBe an[plansv3_5.LogicalPlan]
+            val rewritten = convert[plansv3_6.LogicalPlan](plan)
+            rewritten shouldBe an[plansv3_6.LogicalPlan]
           case Failure(e: InstantiationException) => fail(s"could not instantiate 3.5 logical plan: ${subType.getSimpleName} with arguments ${paramTypes.toList}", e)
           case Failure(e) => fail(s"Converting ${subType.getName} failed", e)
         }
@@ -504,7 +504,7 @@ class LogicalPlanConverterTest extends CypherFunSuite {
   /**
     * Converts an expression.
     */
-  private def convert[T <: expressionsv3_5.Expression](input: expressionsv3_4.Expression): T = {
+  private def convert[T <: expressionsv3_6.Expression](input: expressionsv3_4.Expression): T = {
     val solveds = new SolvedsV3_4
     val cardinalities = new CardinalitiesV3_4
     input match {
@@ -512,17 +512,17 @@ class LogicalPlanConverterTest extends CypherFunSuite {
         assignAttributesRecursivelyWithDefaultValues(nestedPlan.plan, solveds, cardinalities)
       case _ =>
     }
-    LogicalPlanConverter.convertExpression(input, solveds, cardinalities, new SolvedsV3_5, new CardinalitiesV3_5, new MaxIdConverter)
+    LogicalPlanConverter.convertExpression(input, solveds, cardinalities, new SolvedsV3_6, new CardinalitiesV3_6, new MaxIdConverter)
   }
 
   /**
     * Converts a logical plan with default solved and cardinality.
     */
-  private def convert[T <: plansv3_5.LogicalPlan](input: plansV3_4.LogicalPlan): plansv3_5.LogicalPlan = {
+  private def convert[T <: plansv3_6.LogicalPlan](input: plansV3_4.LogicalPlan): plansv3_6.LogicalPlan = {
     val solveds = new SolvedsV3_4
     val cardinalities = new CardinalitiesV3_4
     assignAttributesRecursivelyWithDefaultValues(input, solveds, cardinalities)
-    LogicalPlanConverter.convertLogicalPlan(input, solveds, cardinalities, new SolvedsV3_5, new CardinalitiesV3_5, new MaxIdConverter)._1
+    LogicalPlanConverter.convertLogicalPlan(input, solveds, cardinalities, new SolvedsV3_6, new CardinalitiesV3_6, new MaxIdConverter)._1
   }
 
   /**
@@ -536,8 +536,8 @@ class LogicalPlanConverterTest extends CypherFunSuite {
     LogicalPlanConverter.convertLogicalPlan(input,
                                             solveds,
                                             cardinalities,
-                                            new SolvedsV3_5,
-                                            new CardinalitiesV3_5,
+                                            new SolvedsV3_6,
+                                            new CardinalitiesV3_6,
                                             new MaxIdConverter,
                                             seenBySemanticTable
                                           )._2

@@ -20,9 +20,9 @@
 package org.neo4j.cypher.internal.runtime.interpreted
 
 import org.mockito.Mockito.when
-import org.neo4j.cypher.internal.planner.v3_5.spi.IndexDescriptor
-import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
-import org.neo4j.cypher.internal.v3_5.util.{LabelId, PropertyKeyId, Selectivity}
+import org.neo4j.cypher.internal.planner.v3_6.spi.IndexDescriptor
+import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.v3_6.util.{LabelId, PropertyKeyId, Selectivity}
 import org.neo4j.internal.kernel.api.{Read, SchemaRead}
 
 class TransactionBoundGraphStatisticsTest extends CypherFunSuite {

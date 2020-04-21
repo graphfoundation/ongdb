@@ -17,14 +17,14 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compiler.v3_5.planner.logical
+package org.neo4j.cypher.internal.compiler.v3_6.planner.logical
 
-import org.neo4j.cypher.internal.ir.v3_5.InterestingOrder
-import org.neo4j.cypher.internal.v3_5.logical.plans.NestedPlanExpression
-import org.neo4j.cypher.internal.v3_5.expressions._
-import org.neo4j.cypher.internal.v3_5.rewriting.rewriters.projectNamedPaths
-import org.neo4j.cypher.internal.v3_5.util.Foldable._
-import org.neo4j.cypher.internal.v3_5.util.{IdentityMap, Rewriter, topDown}
+import org.neo4j.cypher.internal.ir.v3_6.InterestingOrder
+import org.neo4j.cypher.internal.v3_6.logical.plans.NestedPlanExpression
+import org.neo4j.cypher.internal.v3_6.expressions._
+import org.neo4j.cypher.internal.v3_6.rewriting.rewriters.projectNamedPaths
+import org.neo4j.cypher.internal.v3_6.util.Foldable._
+import org.neo4j.cypher.internal.v3_6.util.{IdentityMap, Rewriter, topDown}
 
 /*
 Rewrite pattern expressions and pattern comprehensions to nested plan expressions by planning them using the given context.

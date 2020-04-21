@@ -14,15 +14,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.neo4j.cypher.internal.v3_5.frontend
+package org.neo4j.cypher.internal.v3_6.frontend
 
-import org.neo4j.cypher.internal.v3_5.ast.semantics.{SemanticCheckResult, SemanticErrorDef, SemanticFeature, SemanticState}
-import org.neo4j.cypher.internal.v3_5.ast.{AstConstructionTestSupport, Query, Statement}
-import org.neo4j.cypher.internal.v3_5.frontend.helpers.{TestContext, TestState}
-import org.neo4j.cypher.internal.v3_5.frontend.phases._
-import org.neo4j.cypher.internal.v3_5.parser.ParserTest
-import org.neo4j.cypher.internal.v3_5.rewriting.Deprecations
-import org.neo4j.cypher.internal.v3_5.{ast, parser}
+import org.neo4j.cypher.internal.v3_6.ast.semantics.{SemanticCheckResult, SemanticErrorDef, SemanticFeature, SemanticState}
+import org.neo4j.cypher.internal.v3_6.ast.{AstConstructionTestSupport, Query, Statement}
+import org.neo4j.cypher.internal.v3_6.frontend.helpers.{TestContext, TestState}
+import org.neo4j.cypher.internal.v3_6.frontend.phases._
+import org.neo4j.cypher.internal.v3_6.parser.ParserTest
+import org.neo4j.cypher.internal.v3_6.rewriting.Deprecations
+import org.neo4j.cypher.internal.v3_6.{ast, parser}
 import org.parboiled.scala.Rule1
 
 class MultipleGraphClauseSemanticCheckingTest

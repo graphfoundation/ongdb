@@ -17,21 +17,21 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compatibility.v3_5.runtime
+package org.neo4j.cypher.internal.compatibility.v3_6.runtime
 
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.PhysicalPlanningAttributes.SlotConfigurations
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.ast._
-import org.neo4j.cypher.internal.compiler.v3_5.planner.CantCompileQueryException
-import org.neo4j.cypher.internal.planner.v3_5.spi.TokenContext
-import org.neo4j.cypher.internal.v3_5.logical.plans
-import org.neo4j.cypher.internal.v3_5.logical.plans.{LogicalPlan, NestedPlanExpression, Projection, VarExpand, _}
-import org.neo4j.cypher.internal.v3_5.expressions
-import org.neo4j.cypher.internal.v3_5.expressions.{FunctionInvocation, functions => frontendFunctions, _}
-import org.neo4j.cypher.internal.v3_5.util.AssertionUtils.ifAssertionsEnabled
-import org.neo4j.cypher.internal.v3_5.util.Foldable._
-import org.neo4j.cypher.internal.v3_5.util.attribution.SameId
-import org.neo4j.cypher.internal.v3_5.util.symbols._
-import org.neo4j.cypher.internal.v3_5.util.{InternalException, Rewriter, topDown}
+import org.neo4j.cypher.internal.compatibility.v3_6.runtime.PhysicalPlanningAttributes.SlotConfigurations
+import org.neo4j.cypher.internal.compatibility.v3_6.runtime.ast._
+import org.neo4j.cypher.internal.compiler.v3_6.planner.CantCompileQueryException
+import org.neo4j.cypher.internal.planner.v3_6.spi.TokenContext
+import org.neo4j.cypher.internal.v3_6.logical.plans
+import org.neo4j.cypher.internal.v3_6.logical.plans.{LogicalPlan, NestedPlanExpression, Projection, VarExpand, _}
+import org.neo4j.cypher.internal.v3_6.expressions
+import org.neo4j.cypher.internal.v3_6.expressions.{FunctionInvocation, functions => frontendFunctions, _}
+import org.neo4j.cypher.internal.v3_6.util.AssertionUtils.ifAssertionsEnabled
+import org.neo4j.cypher.internal.v3_6.util.Foldable._
+import org.neo4j.cypher.internal.v3_6.util.attribution.SameId
+import org.neo4j.cypher.internal.v3_6.util.symbols._
+import org.neo4j.cypher.internal.v3_6.util.{InternalException, Rewriter, topDown}
 
 /**
   * This class rewrites logical plans so they use slotted variable access instead of using key-based. It will also

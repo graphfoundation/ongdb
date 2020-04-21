@@ -17,12 +17,12 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.ir.v3_5.helpers
+package org.neo4j.cypher.internal.ir.v3_6.helpers
 
-import org.neo4j.cypher.internal.ir.v3_5.helpers.ExpressionConverters._
-import org.neo4j.cypher.internal.ir.v3_5.{PatternRelationship, ShortestPathPattern}
-import org.neo4j.cypher.internal.v3_5.expressions._
-import org.neo4j.cypher.internal.v3_5.util.{FreshIdNameGenerator, InternalException}
+import org.neo4j.cypher.internal.ir.v3_6.helpers.ExpressionConverters._
+import org.neo4j.cypher.internal.ir.v3_6.{PatternRelationship, ShortestPathPattern}
+import org.neo4j.cypher.internal.v3_6.expressions._
+import org.neo4j.cypher.internal.v3_6.util.{FreshIdNameGenerator, InternalException}
 
 object PatternConverters {
 

@@ -25,7 +25,7 @@ package org.neo4j.internal.cypher.acceptance
 import java.util
 
 import org.neo4j.cypher.ExecutionEngineFunSuite
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.{CompiledRuntimeName, InterpretedRuntimeName, SlottedRuntimeName}
+import org.neo4j.cypher.internal.compatibility.v3_6.runtime.{CompiledRuntimeName, InterpretedRuntimeName, SlottedRuntimeName}
 import org.neo4j.graphdb.QueryExecutionException
 
 class SemanticErrorAcceptanceTest extends ExecutionEngineFunSuite {
@@ -481,7 +481,7 @@ class SemanticErrorAcceptanceTest extends ExecutionEngineFunSuite {
   }
 
   private def executeAndEnsureError(query: String, expected: Seq[String], params: (String,Any)*) {
-    import org.neo4j.cypher.internal.v3_5.util.helpers.StringHelper._
+    import org.neo4j.cypher.internal.v3_6.util.helpers.StringHelper._
 
     import scala.collection.JavaConverters._
 

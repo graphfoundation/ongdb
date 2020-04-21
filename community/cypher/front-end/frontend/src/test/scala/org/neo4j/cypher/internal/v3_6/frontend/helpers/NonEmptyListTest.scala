@@ -14,10 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.neo4j.cypher.internal.v3_5.frontend.helpers
+package org.neo4j.cypher.internal.v3_6.frontend.helpers
 
-import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
-import org.neo4j.cypher.internal.v3_5.util.{Fby, Last, NonEmptyList}
+import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.v3_6.util.{Fby, Last, NonEmptyList}
 
 class NonEmptyListTest extends CypherFunSuite {
 

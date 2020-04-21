@@ -269,19 +269,19 @@
 
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>ongdb-util-3.5</artifactId>
+      <artifactId>ongdb-util-3.6</artifactId>
       <version>${project.version}</version>
     </dependency>
 
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>ongdb-cypher-planner-3.5</artifactId>
+      <artifactId>ongdb-cypher-planner-3.6</artifactId>
       <version>${project.version}</version>
     </dependency>
 
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>ongdb-cypher-planner-spi-3.5</artifactId>
+      <artifactId>ongdb-cypher-planner-spi-3.6</artifactId>
       <version>${project.version}</version>
     </dependency>
 
@@ -301,7 +301,7 @@
 
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>ongdb-cypher-planner-3.5</artifactId>
+      <artifactId>ongdb-cypher-planner-3.6</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
@@ -325,7 +325,7 @@
 
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>ongdb-util-3.5</artifactId>
+      <artifactId>ongdb-util-3.6</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
@@ -333,7 +333,7 @@
 
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>ongdb-ast-3.5</artifactId>
+      <artifactId>ongdb-ast-3.6</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
@@ -341,7 +341,7 @@
 
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>ongdb-parser-3.5</artifactId>
+      <artifactId>ongdb-parser-3.6</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>

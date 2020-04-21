@@ -17,9 +17,9 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.ir.v3_5
+package org.neo4j.cypher.internal.ir.v3_6
 
-import org.neo4j.cypher.internal.v3_5.expressions.{Expression, Property, PropertyKeyName, Variable}
+import org.neo4j.cypher.internal.v3_6.expressions.{Expression, Property, PropertyKeyName, Variable}
 
 object InterestingOrder {
   sealed trait ColumnOrder {

@@ -14,13 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.neo4j.cypher.internal.v3_5.rewriting.rewriters
+package org.neo4j.cypher.internal.v3_6.rewriting.rewriters
 
-import org.neo4j.cypher.internal.v3_5.ast.{AliasedReturnItem, ProjectionClause}
-import org.neo4j.cypher.internal.v3_5.expressions
-import org.neo4j.cypher.internal.v3_5.expressions._
-import org.neo4j.cypher.internal.v3_5.util.Foldable.FoldableAny
-import org.neo4j.cypher.internal.v3_5.util.{InternalException, Ref, Rewriter, topDown}
+import org.neo4j.cypher.internal.v3_6.ast.{AliasedReturnItem, ProjectionClause}
+import org.neo4j.cypher.internal.v3_6.expressions
+import org.neo4j.cypher.internal.v3_6.expressions._
+import org.neo4j.cypher.internal.v3_6.util.Foldable.FoldableAny
+import org.neo4j.cypher.internal.v3_6.util.{InternalException, Ref, Rewriter, topDown}
 
 import scala.annotation.tailrec
 

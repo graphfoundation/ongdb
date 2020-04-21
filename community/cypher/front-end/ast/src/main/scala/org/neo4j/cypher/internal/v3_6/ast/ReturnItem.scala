@@ -14,22 +14,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.neo4j.cypher.internal.v3_5.ast
+package org.neo4j.cypher.internal.v3_6.ast
 
-import org.neo4j.cypher.internal.v3_5.ast.semantics.SemanticCheckResult.success
-import org.neo4j.cypher.internal.v3_5.ast.semantics._
-import org.neo4j.cypher.internal.v3_5.ast.semantics.Scope
-import org.neo4j.cypher.internal.v3_5.ast.semantics.SemanticAnalysisTooling
-import org.neo4j.cypher.internal.v3_5.ast.semantics.SemanticCheckResult
-import org.neo4j.cypher.internal.v3_5.ast.semantics.SemanticCheckable
-import org.neo4j.cypher.internal.v3_5.ast.semantics.SemanticExpressionCheck
-import org.neo4j.cypher.internal.v3_5.ast.semantics.SemanticState
-import org.neo4j.cypher.internal.v3_5.expressions.Expression
-import org.neo4j.cypher.internal.v3_5.expressions.LogicalVariable
-import org.neo4j.cypher.internal.v3_5.expressions.MapProjection
-import org.neo4j.cypher.internal.v3_5.util.ASTNode
-import org.neo4j.cypher.internal.v3_5.util.InputPosition
-import org.neo4j.cypher.internal.v3_5.util.InternalException
+import org.neo4j.cypher.internal.v3_6.ast.semantics.SemanticCheckResult.success
+import org.neo4j.cypher.internal.v3_6.ast.semantics._
+import org.neo4j.cypher.internal.v3_6.ast.semantics.Scope
+import org.neo4j.cypher.internal.v3_6.ast.semantics.SemanticAnalysisTooling
+import org.neo4j.cypher.internal.v3_6.ast.semantics.SemanticCheckResult
+import org.neo4j.cypher.internal.v3_6.ast.semantics.SemanticCheckable
+import org.neo4j.cypher.internal.v3_6.ast.semantics.SemanticExpressionCheck
+import org.neo4j.cypher.internal.v3_6.ast.semantics.SemanticState
+import org.neo4j.cypher.internal.v3_6.expressions.Expression
+import org.neo4j.cypher.internal.v3_6.expressions.LogicalVariable
+import org.neo4j.cypher.internal.v3_6.expressions.MapProjection
+import org.neo4j.cypher.internal.v3_6.util.ASTNode
+import org.neo4j.cypher.internal.v3_6.util.InputPosition
+import org.neo4j.cypher.internal.v3_6.util.InternalException
 
 sealed trait ReturnItemsDef extends ASTNode with SemanticCheckable with SemanticAnalysisTooling {
   /**

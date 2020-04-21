@@ -14,12 +14,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.neo4j.cypher.internal.v3_5.ast
+package org.neo4j.cypher.internal.v3_6.ast
 
-import org.neo4j.cypher.internal.v3_5.ast.semantics.{SemanticCheck, SemanticExpressionCheck}
-import org.neo4j.cypher.internal.v3_5.util.{ASTNode, InputPosition}
-import org.neo4j.cypher.internal.v3_5.ast.semantics.{SemanticCheckable, SemanticExpressionCheck}
-import org.neo4j.cypher.internal.v3_5.expressions.Variable
+import org.neo4j.cypher.internal.v3_6.ast.semantics.{SemanticCheck, SemanticExpressionCheck}
+import org.neo4j.cypher.internal.v3_6.util.{ASTNode, InputPosition}
+import org.neo4j.cypher.internal.v3_6.ast.semantics.{SemanticCheckable, SemanticExpressionCheck}
+import org.neo4j.cypher.internal.v3_6.expressions.Variable
 
 final case class GraphRef(name: Variable)(val position: InputPosition)
   extends ASTNode with SemanticCheckable {

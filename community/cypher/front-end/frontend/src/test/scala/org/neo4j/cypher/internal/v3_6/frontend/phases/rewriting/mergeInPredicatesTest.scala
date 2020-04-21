@@ -14,13 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.neo4j.cypher.internal.v3_5.frontend.phases.rewriting
+package org.neo4j.cypher.internal.v3_6.frontend.phases.rewriting
 
-import org.neo4j.cypher.internal.v3_5.ast.Query
-import org.neo4j.cypher.internal.v3_5.frontend.phases.CNFNormalizer
-import org.neo4j.cypher.internal.v3_5.rewriting.AstRewritingTestSupport
-import org.neo4j.cypher.internal.v3_5.rewriting.rewriters.mergeInPredicates
-import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.v3_6.ast.Query
+import org.neo4j.cypher.internal.v3_6.frontend.phases.CNFNormalizer
+import org.neo4j.cypher.internal.v3_6.rewriting.AstRewritingTestSupport
+import org.neo4j.cypher.internal.v3_6.rewriting.rewriters.mergeInPredicates
+import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
 
 class mergeInPredicatesTest extends CypherFunSuite with AstRewritingTestSupport {
 

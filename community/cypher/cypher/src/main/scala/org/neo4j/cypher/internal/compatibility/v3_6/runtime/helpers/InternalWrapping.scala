@@ -17,12 +17,12 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compatibility.v3_5.runtime.helpers
+package org.neo4j.cypher.internal.compatibility.v3_6.runtime.helpers
 
-import org.neo4j.cypher.internal.compiler.v3_5._
+import org.neo4j.cypher.internal.compiler.v3_6._
 import org.neo4j.graphdb
 import org.neo4j.graphdb.impl.notification.{NotificationCode, NotificationDetail}
-import org.neo4j.cypher.internal.v3_5.util._
+import org.neo4j.cypher.internal.v3_6.util._
 
 import scala.collection.JavaConverters._
 

@@ -26,7 +26,7 @@ import java.io.File
 import java.util
 
 import org.neo4j.cypher._
-import org.neo4j.cypher.internal.compiler.v3_5.planner.logical.idp.IDPSolverMonitor
+import org.neo4j.cypher.internal.compiler.v3_6.planner.logical.idp.IDPSolverMonitor
 import org.neo4j.cypher.internal.javacompat.GraphDatabaseCypherService
 import org.neo4j.cypher.internal.runtime.planDescription.InternalPlanDescription
 import org.neo4j.cypher.internal.{CommunityCompilerFactory, ExecutionEngine}

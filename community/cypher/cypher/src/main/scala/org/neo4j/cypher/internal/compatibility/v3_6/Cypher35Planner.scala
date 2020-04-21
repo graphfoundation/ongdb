@@ -17,7 +17,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compatibility.v3_5
+package org.neo4j.cypher.internal.compatibility.v3_6
 
 import java.time.Clock
 import java.util.function.BiFunction
@@ -25,22 +25,22 @@ import java.util.function.BiFunction
 import org.neo4j.cypher._
 import org.neo4j.cypher.exceptionHandler.runSafely
 import org.neo4j.cypher.internal._
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.helpers.simpleExpressionEvaluator
+import org.neo4j.cypher.internal.compatibility.v3_6.runtime.helpers.simpleExpressionEvaluator
 import org.neo4j.cypher.internal.compatibility.{CypherPlanner, _}
-import org.neo4j.cypher.internal.compiler.v3_5
-import org.neo4j.cypher.internal.compiler.v3_5._
-import org.neo4j.cypher.internal.compiler.v3_5.phases.{PlannerContext, PlannerContextCreator}
-import org.neo4j.cypher.internal.compiler.v3_5.planner.logical.idp._
-import org.neo4j.cypher.internal.compiler.v3_5.planner.logical.{CachedMetricsFactory, SimpleMetricsFactory}
-import org.neo4j.cypher.internal.planner.v3_5.spi.{CostBasedPlannerName, DPPlannerName, IDPPlannerName, PlanContext}
+import org.neo4j.cypher.internal.compiler.v3_6
+import org.neo4j.cypher.internal.compiler.v3_6._
+import org.neo4j.cypher.internal.compiler.v3_6.phases.{PlannerContext, PlannerContextCreator}
+import org.neo4j.cypher.internal.compiler.v3_6.planner.logical.idp._
+import org.neo4j.cypher.internal.compiler.v3_6.planner.logical.{CachedMetricsFactory, SimpleMetricsFactory}
+import org.neo4j.cypher.internal.planner.v3_6.spi.{CostBasedPlannerName, DPPlannerName, IDPPlannerName, PlanContext}
 import org.neo4j.cypher.internal.runtime.interpreted._
-import org.neo4j.cypher.internal.v3_5.ast.Statement
-import org.neo4j.cypher.internal.v3_5.expressions.Parameter
-import org.neo4j.cypher.internal.v3_5.frontend.PlannerName
-import org.neo4j.cypher.internal.v3_5.frontend.phases._
-import org.neo4j.cypher.internal.v3_5.rewriting.RewriterStepSequencer
-import org.neo4j.cypher.internal.v3_5.util.InputPosition
-import org.neo4j.cypher.internal.v3_5.util.attribution.SequentialIdGen
+import org.neo4j.cypher.internal.v3_6.ast.Statement
+import org.neo4j.cypher.internal.v3_6.expressions.Parameter
+import org.neo4j.cypher.internal.v3_6.frontend.PlannerName
+import org.neo4j.cypher.internal.v3_6.frontend.phases._
+import org.neo4j.cypher.internal.v3_6.rewriting.RewriterStepSequencer
+import org.neo4j.cypher.internal.v3_6.util.InputPosition
+import org.neo4j.cypher.internal.v3_6.util.attribution.SequentialIdGen
 import org.neo4j.helpers.collection.Pair
 import org.neo4j.kernel.impl.api.SchemaStateKey
 import org.neo4j.kernel.impl.query.TransactionalContext
@@ -90,7 +90,7 @@ case class Cypher35Planner(config: CypherPlannerConfiguration,
 
   private val contextCreator = PlannerContextCreator
 
-  protected val planner: v3_5.CypherPlanner[PlannerContext] =
+  protected val planner: v3_6.CypherPlanner[PlannerContext] =
     new CypherPlannerFactory().costBasedCompiler(config, clock, monitors, rewriterSequencer,
       maybeUpdateStrategy, contextCreator)
 
@@ -200,7 +200,7 @@ case class Cypher35Planner(config: CypherPlannerConfiguration,
   override val name: PlannerName = plannerName
 }
 
-private[v3_5] class Parser3_5(planner: v3_5.CypherPlanner[PlannerContext],
+private[v3_6] class Parser3_5(planner: v3_6.CypherPlanner[PlannerContext],
                               notificationLogger: InternalNotificationLogger,
                               offset: InputPosition,
                               tracer: CompilationPhaseTracer

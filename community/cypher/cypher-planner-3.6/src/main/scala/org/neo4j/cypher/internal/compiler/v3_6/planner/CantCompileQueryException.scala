@@ -17,10 +17,10 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compiler.v3_5.planner
+package org.neo4j.cypher.internal.compiler.v3_6.planner
 
-import org.neo4j.cypher.internal.v3_5.util.CypherException
-import org.neo4j.cypher.internal.v3_5.util.spi.MapToPublicExceptions
+import org.neo4j.cypher.internal.v3_6.util.CypherException
+import org.neo4j.cypher.internal.v3_6.util.spi.MapToPublicExceptions
 
 class CantCompileQueryException(message: String = "Internal error - should have used fall back to execute query, but something went horribly wrong", cause:Throwable=null)
   extends CypherException(message, cause) {

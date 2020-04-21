@@ -17,9 +17,9 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compiler.v3_5.planner.logical
+package org.neo4j.cypher.internal.compiler.v3_6.planner.logical
 
-import org.neo4j.cypher.internal.ir.v3_5.{PatternRelationship, QueryGraph}
+import org.neo4j.cypher.internal.ir.v3_6.{PatternRelationship, QueryGraph}
 
 sealed trait Solvable {
   def solvables: Set[SolvableLeaf]

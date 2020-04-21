@@ -14,11 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.neo4j.cypher.internal.v3_5.parser
+package org.neo4j.cypher.internal.v3_6.parser
 
-import org.neo4j.cypher.internal.v3_5.ast
-import org.neo4j.cypher.internal.v3_5.util.InputPosition
-import org.neo4j.cypher.internal.v3_5.expressions.Variable
+import org.neo4j.cypher.internal.v3_6.ast
+import org.neo4j.cypher.internal.v3_6.util.InputPosition
+import org.neo4j.cypher.internal.v3_6.expressions.Variable
 import org.parboiled.scala.{Parser, ReductionRule2, Rule1, _}
 
 trait StartPoints extends Parser
@@ -77,15 +77,15 @@ trait StartPoints extends Parser
     (p))
   }
 
-  private def IdentifiedIndexLookup: Rule3[String, String, org.neo4j.cypher.internal.v3_5.expressions.Expression] = rule {
+  private def IdentifiedIndexLookup: Rule3[String, String, org.neo4j.cypher.internal.v3_6.expressions.Expression] = rule {
     ":" ~~ SymbolicNameString ~~ "(" ~~ SymbolicNameString ~~ operator("=") ~~ (StringLiteral | Parameter | OldParameter) ~~ ")"
   }
 
-  private def IndexQuery: Rule2[String, org.neo4j.cypher.internal.v3_5.expressions.Expression] = rule {
+  private def IndexQuery: Rule2[String, org.neo4j.cypher.internal.v3_6.expressions.Expression] = rule {
     ":" ~~ SymbolicNameString ~~ "(" ~~ (StringLiteral | Parameter | OldParameter) ~~ ")"
   }
 
-  private def LiteralIds: Rule1[Seq[org.neo4j.cypher.internal.v3_5.expressions.UnsignedIntegerLiteral]] = rule("an unsigned integer") {
+  private def LiteralIds: Rule1[Seq[org.neo4j.cypher.internal.v3_6.expressions.UnsignedIntegerLiteral]] = rule("an unsigned integer") {
     oneOrMore(UnsignedIntegerLiteral, separator = CommaSep)
   }
 }

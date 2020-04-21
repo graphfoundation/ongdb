@@ -14,14 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.neo4j.cypher.internal.v3_5.rewriting.conditions
+package org.neo4j.cypher.internal.v3_6.rewriting.conditions
 
-import org.neo4j.cypher.internal.v3_5.ast._
-import org.neo4j.cypher.internal.v3_5.expressions.EveryPath
-import org.neo4j.cypher.internal.v3_5.expressions.NodePattern
-import org.neo4j.cypher.internal.v3_5.expressions.Pattern
-import org.neo4j.cypher.internal.v3_5.util.ASTNode
-import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.v3_6.ast._
+import org.neo4j.cypher.internal.v3_6.expressions.EveryPath
+import org.neo4j.cypher.internal.v3_6.expressions.NodePattern
+import org.neo4j.cypher.internal.v3_6.expressions.Pattern
+import org.neo4j.cypher.internal.v3_6.util.ASTNode
+import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
 
 class NoReferenceEqualityAmongVariablesTest extends CypherFunSuite with AstConstructionTestSupport {
 

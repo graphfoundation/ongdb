@@ -30,7 +30,7 @@ import org.neo4j.cypher.internal.runtime.interpreted.CSVResource
 import org.neo4j.graphdb.{DependencyResolver, GraphDatabaseService}
 import org.neo4j.kernel.internal.GraphDatabaseAPI
 import org.neo4j.kernel.{GraphDatabaseQueryService, monitoring}
-import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
 
 trait ResourceTracking extends CypherFunSuite {
 

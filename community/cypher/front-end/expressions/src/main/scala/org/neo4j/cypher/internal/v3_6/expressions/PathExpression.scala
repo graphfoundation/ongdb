@@ -14,10 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.neo4j.cypher.internal.v3_5.expressions
+package org.neo4j.cypher.internal.v3_6.expressions
 
-import org.neo4j.cypher.internal.v3_5.util.Rewritable._
-import org.neo4j.cypher.internal.v3_5.util.{Foldable, InputPosition, Rewritable}
+import org.neo4j.cypher.internal.v3_6.util.Rewritable._
+import org.neo4j.cypher.internal.v3_6.util.{Foldable, InputPosition, Rewritable}
 
 sealed trait PathStep extends Product with Foldable with Rewritable {
 

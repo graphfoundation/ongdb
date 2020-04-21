@@ -19,8 +19,8 @@
  */
 package org.neo4j.cypher.internal.runtime.slotted.expressions
 
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.SlotAllocation.PhysicalPlan
-import org.neo4j.cypher.internal.planner.v3_5.spi.TokenContext
+import org.neo4j.cypher.internal.compatibility.v3_6.runtime.SlotAllocation.PhysicalPlan
+import org.neo4j.cypher.internal.planner.v3_6.spi.TokenContext
 import org.neo4j.cypher.internal.runtime.compiled.expressions.{CodeGeneration, CompiledExpression, CompiledProjection, IntermediateCodeGeneration}
 import org.neo4j.cypher.internal.runtime.interpreted.commands.AstNode
 import org.neo4j.cypher.internal.runtime.interpreted.commands.convert.{CommunityExpressionConverter, ExpressionConverter, ExpressionConverters}
@@ -30,10 +30,10 @@ import org.neo4j.cypher.internal.runtime.interpreted.{CommandProjection, Executi
 import org.neo4j.cypher.internal.runtime.slotted.expressions.CompiledExpressionConverter.COMPILE_LIMIT
 import org.neo4j.logging.Log
 import org.neo4j.values.AnyValue
-import org.neo4j.cypher.internal.v3_5.expressions.FunctionInvocation
-import org.neo4j.cypher.internal.v3_5.expressions.functions.AggregatingFunction
-import org.neo4j.cypher.internal.v3_5.util.attribution.Id
-import org.neo4j.cypher.internal.v3_5.{expressions => ast}
+import org.neo4j.cypher.internal.v3_6.expressions.FunctionInvocation
+import org.neo4j.cypher.internal.v3_6.expressions.functions.AggregatingFunction
+import org.neo4j.cypher.internal.v3_6.util.attribution.Id
+import org.neo4j.cypher.internal.v3_6.{expressions => ast}
 
 class CompiledExpressionConverter(log: Log, physicalPlan: PhysicalPlan, tokenContext: TokenContext) extends ExpressionConverter {
 
@@ -65,7 +65,7 @@ class CompiledExpressionConverter(log: Log, physicalPlan: PhysicalPlan, tokenCon
     case _ => None
   }
 
-  import org.neo4j.cypher.internal.v3_5.util.Foldable._
+  import org.neo4j.cypher.internal.v3_6.util.Foldable._
 
   private def sizeOf(expression: ast.Expression)= expression.treeCount {
     case _: ast.Expression => true

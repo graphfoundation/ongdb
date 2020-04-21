@@ -17,15 +17,15 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compiler.v3_5.planner.logical.steps
+package org.neo4j.cypher.internal.compiler.v3_6.planner.logical.steps
 
-import org.neo4j.cypher.internal.compiler.v3_5.planner.logical.{LogicalPlanningContext, patternExpressionRewriter}
-import org.neo4j.cypher.internal.ir.v3_5.{InterestingOrder, QueryGraph}
-import org.neo4j.cypher.internal.v3_5.expressions._
-import org.neo4j.cypher.internal.v3_5.expressions.functions.{Coalesce, Exists, Head}
-import org.neo4j.cypher.internal.v3_5.logical.plans.LogicalPlan
-import org.neo4j.cypher.internal.v3_5.rewriting.rewriters.{PatternExpressionPatternElementNamer, projectNamedPaths}
-import org.neo4j.cypher.internal.v3_5.util.{FreshIdNameGenerator, Rewriter, UnNamedNameGenerator, topDown}
+import org.neo4j.cypher.internal.compiler.v3_6.planner.logical.{LogicalPlanningContext, patternExpressionRewriter}
+import org.neo4j.cypher.internal.ir.v3_6.{InterestingOrder, QueryGraph}
+import org.neo4j.cypher.internal.v3_6.expressions._
+import org.neo4j.cypher.internal.v3_6.expressions.functions.{Coalesce, Exists, Head}
+import org.neo4j.cypher.internal.v3_6.logical.plans.LogicalPlan
+import org.neo4j.cypher.internal.v3_6.rewriting.rewriters.{PatternExpressionPatternElementNamer, projectNamedPaths}
+import org.neo4j.cypher.internal.v3_6.util.{FreshIdNameGenerator, Rewriter, UnNamedNameGenerator, topDown}
 
 import scala.collection.mutable
 import scala.reflect.ClassTag
@@ -140,7 +140,7 @@ object PatternExpressionSolver {
   def solvePatternExpressions(availableSymbols: Set[String], interestingOrder: InterestingOrder, context: LogicalPlanningContext, pathStepBuilder: EveryPath => PathStep): ListSubQueryExpressionSolver[PatternExpression] = {
 
     def extractQG(source: LogicalPlan, namedExpr: PatternExpression): QueryGraph = {
-      import org.neo4j.cypher.internal.ir.v3_5.helpers.ExpressionConverters._
+      import org.neo4j.cypher.internal.ir.v3_6.helpers.ExpressionConverters._
 
       val dependencies = namedExpr.
         dependencies.
@@ -175,7 +175,7 @@ object PatternExpressionSolver {
 
   def solvePatternComprehensions(availableSymbols: Set[String], interestingOrder: InterestingOrder, context: LogicalPlanningContext, pathStepBuilder: EveryPath => PathStep): ListSubQueryExpressionSolver[PatternComprehension] = {
     def extractQG(source: LogicalPlan, namedExpr: PatternComprehension) = {
-      import org.neo4j.cypher.internal.ir.v3_5.helpers.ExpressionConverters._
+      import org.neo4j.cypher.internal.ir.v3_6.helpers.ExpressionConverters._
 
       val queryGraph = namedExpr.asQueryGraph
       val args = queryGraph.idsWithoutOptionalMatchesOrUpdates intersect availableSymbols

@@ -17,15 +17,15 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compiler.v3_5
+package org.neo4j.cypher.internal.compiler.v3_6
 
 import java.time.Clock
 
-import org.neo4j.cypher.internal.compiler.v3_5.phases.{PlannerContext, LogicalPlanState}
-import org.neo4j.cypher.internal.compiler.v3_5.planner.logical._
-import org.neo4j.cypher.internal.v3_5.frontend.phases.{ASTRewriter, Monitors, Transformer}
-import org.neo4j.cypher.internal.v3_5.rewriting.RewriterStepSequencer
-import org.neo4j.cypher.internal.v3_5.rewriting.rewriters.IfNoParameter
+import org.neo4j.cypher.internal.compiler.v3_6.phases.{PlannerContext, LogicalPlanState}
+import org.neo4j.cypher.internal.compiler.v3_6.planner.logical._
+import org.neo4j.cypher.internal.v3_6.frontend.phases.{ASTRewriter, Monitors, Transformer}
+import org.neo4j.cypher.internal.v3_6.rewriting.RewriterStepSequencer
+import org.neo4j.cypher.internal.v3_6.rewriting.rewriters.IfNoParameter
 
 class CypherPlannerFactory[C <: PlannerContext, T <: Transformer[C, LogicalPlanState, LogicalPlanState]] {
   val monitorTag = "cypher3.5"

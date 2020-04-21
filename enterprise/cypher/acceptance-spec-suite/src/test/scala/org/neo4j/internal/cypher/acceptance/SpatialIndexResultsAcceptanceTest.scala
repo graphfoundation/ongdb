@@ -227,7 +227,7 @@ class SpatialIndexResultsAcceptanceTest extends IndexingTestSupport {
     graph.execute("MATCH (p:Place) SET p.location = point({latitude: 56.7, longitude: 12.78, crs: 'WGS-84'}) RETURN p.location as point")
     graph.execute("CREATE (p:Place) SET p.location = point({latitude: 40.7, longitude: -35.78, crs: 'WGS-84'})")
 
-    val configuration = TestConfiguration(Versions(Versions.V3_4, Versions.V3_5), Planners.Cost,
+    val configuration = TestConfiguration(Versions(Versions.V3_4, Versions.V3_6), Planners.Cost,
                                           Runtimes(Runtimes.Interpreted, Runtimes.Slotted, Runtimes.SlottedWithCompiledExpressions))
     val query = "MATCH (p:Place) WHERE p.location = point({latitude: 56.7, longitude: 12.78, crs: 'WGS-84'}) RETURN p.location as point"
 
@@ -272,7 +272,7 @@ class SpatialIndexResultsAcceptanceTest extends IndexingTestSupport {
     graph.execute("MATCH (p:Place) SET p.location = point({x: 1.2, y: 3.4, z: 5.6}) RETURN p.location as point")
     graph.execute("CREATE (p:Place) SET p.location = point({x: 1.2, y: 3.4, z: 5.601})")
 
-    val configuration = TestConfiguration(Versions(Versions.V3_4, Versions.V3_5),
+    val configuration = TestConfiguration(Versions(Versions.V3_4, Versions.V3_6),
                                           Planners(Planners.Cost),
                                           Runtimes(Runtimes.Interpreted, Runtimes.Slotted, Runtimes.SlottedWithCompiledExpressions))
     // When

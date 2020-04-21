@@ -14,9 +14,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.neo4j.cypher.internal.v3_5
+package org.neo4j.cypher.internal.v3_6
 
-import org.neo4j.cypher.internal.v3_5.parser.matchers.{IdentifierPartMatcher, IdentifierStartMatcher, WhitespaceCharMatcher}
+import org.neo4j.cypher.internal.v3_6.parser.matchers.{IdentifierPartMatcher, IdentifierStartMatcher, WhitespaceCharMatcher}
 import org.parboiled.scala.Rule0
 
 package object parser {

@@ -24,22 +24,22 @@ package org.neo4j.cypher.internal
 
 import org.neo4j.cypher.internal.codegen.profiling.ProfilingTracer
 import org.neo4j.cypher.internal.compatibility.CypherRuntime
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.executionplan.{ExecutionPlan => ExecutionPlanv3_5}
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.{CompiledRuntimeName, RuntimeName}
-import org.neo4j.cypher.internal.compiler.v3_5.phases.LogicalPlanState
-import org.neo4j.cypher.internal.compiler.v3_5.planner.CantCompileQueryException
+import org.neo4j.cypher.internal.compatibility.v3_6.runtime.executionplan.{ExecutionPlan => ExecutionPlanv3_6}
+import org.neo4j.cypher.internal.compatibility.v3_6.runtime.{CompiledRuntimeName, RuntimeName}
+import org.neo4j.cypher.internal.compiler.v3_6.phases.LogicalPlanState
+import org.neo4j.cypher.internal.compiler.v3_6.planner.CantCompileQueryException
 import org.neo4j.cypher.internal.runtime._
 import org.neo4j.cypher.internal.runtime.compiled.codegen.{CodeGenConfiguration, CodeGenerator}
 import org.neo4j.cypher.internal.runtime.compiled.{CompiledPlan, projectIndexProperties}
 import org.neo4j.cypher.internal.runtime.planDescription.Argument
 import org.neo4j.cypher.result.RuntimeResult
 import org.neo4j.values.virtual.MapValue
-import org.neo4j.cypher.internal.v3_5.util.InternalNotification
+import org.neo4j.cypher.internal.v3_6.util.InternalNotification
 
 object CompiledRuntime extends CypherRuntime[EnterpriseRuntimeContext] {
 
   @throws[CantCompileQueryException]
-  override def compileToExecutable(state: LogicalPlanState, context: EnterpriseRuntimeContext): ExecutionPlanv3_5 = {
+  override def compileToExecutable(state: LogicalPlanState, context: EnterpriseRuntimeContext): ExecutionPlanv3_6 = {
     val (newPlan, newSemanticTable) = projectIndexProperties(state.logicalPlan, state.semanticTable())
 
     val codeGen = new CodeGenerator(context.codeStructure, context.clock, CodeGenConfiguration(context.debugOptions))
@@ -57,7 +57,7 @@ object CompiledRuntime extends CypherRuntime[EnterpriseRuntimeContext] {
   /**
     * Execution plan for compiled runtime. Beware: will be cached.
     */
-  class CompiledExecutionPlan(val compiled: CompiledPlan) extends ExecutionPlanv3_5 {
+  class CompiledExecutionPlan(val compiled: CompiledPlan) extends ExecutionPlanv3_6 {
     override def run(queryContext: QueryContext,
                      executionMode: ExecutionMode,
                      params: MapValue): RuntimeResult = {

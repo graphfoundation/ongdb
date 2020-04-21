@@ -17,11 +17,11 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compiler.v3_5.planner.logical.steps
+package org.neo4j.cypher.internal.compiler.v3_6.planner.logical.steps
 
-import org.neo4j.cypher.internal.compiler.v3_5.planner.logical.{LeafPlanFinder, LogicalPlanningContext, QueryPlannerConfiguration}
-import org.neo4j.cypher.internal.ir.v3_5.{QueryGraph, InterestingOrder}
-import org.neo4j.cypher.internal.v3_5.logical.plans.LogicalPlan
+import org.neo4j.cypher.internal.compiler.v3_6.planner.logical.{LeafPlanFinder, LogicalPlanningContext, QueryPlannerConfiguration}
+import org.neo4j.cypher.internal.ir.v3_6.{QueryGraph, InterestingOrder}
+import org.neo4j.cypher.internal.v3_6.logical.plans.LogicalPlan
 
 object leafPlanOptions extends LeafPlanFinder {
 

@@ -22,7 +22,7 @@
  */
 package org.neo4j.cypher.internal.queryReduction
 
-import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
 
 class DDminTest extends CypherFunSuite with ReductionTestHelper {
 

@@ -14,13 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.neo4j.cypher.internal.v3_5.frontend.phases
+package org.neo4j.cypher.internal.v3_6.frontend.phases
 
-import org.neo4j.cypher.internal.v3_5.ast._
-import org.neo4j.cypher.internal.v3_5.expressions.{Variable, _}
-import org.neo4j.cypher.internal.v3_5.rewriting.conditions.{aggregationsAreIsolated, hasAggregateButIsNotAggregate}
-import org.neo4j.cypher.internal.v3_5.util.helpers.fixedPoint
-import org.neo4j.cypher.internal.v3_5.util.{AggregationNameGenerator, InternalException, Rewriter, bottomUp, _}
+import org.neo4j.cypher.internal.v3_6.ast._
+import org.neo4j.cypher.internal.v3_6.expressions.{Variable, _}
+import org.neo4j.cypher.internal.v3_6.rewriting.conditions.{aggregationsAreIsolated, hasAggregateButIsNotAggregate}
+import org.neo4j.cypher.internal.v3_6.util.helpers.fixedPoint
+import org.neo4j.cypher.internal.v3_6.util.{AggregationNameGenerator, InternalException, Rewriter, bottomUp, _}
 
 /**
   * This rewriter makes sure that aggregations are on their own in RETURN/WITH clauses, so

@@ -17,11 +17,11 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compiler.v3_5.planner.logical.cardinality
+package org.neo4j.cypher.internal.compiler.v3_6.planner.logical.cardinality
 
 import java.math
 
-import org.neo4j.cypher.internal.v3_5.util.Selectivity
+import org.neo4j.cypher.internal.v3_6.util.Selectivity
 
 trait SelectivityCombiner {
 

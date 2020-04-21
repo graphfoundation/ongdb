@@ -17,19 +17,19 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compiler.v3_5.planner.logical.idp
+package org.neo4j.cypher.internal.compiler.v3_6.planner.logical.idp
 
 
-import org.neo4j.cypher.internal.compiler.v3_5.helpers.IteratorSupport._
-import org.neo4j.cypher.internal.compiler.v3_5.planner.logical.LogicalPlanningSupport._
-import org.neo4j.cypher.internal.compiler.v3_5.planner.logical._
-import org.neo4j.cypher.internal.compiler.v3_5.planner.logical.idp.SingleComponentPlanner.planSinglePattern
-import org.neo4j.cypher.internal.compiler.v3_5.planner.logical.idp.expandSolverStep.{planSinglePatternSide, planSingleProjectEndpoints}
-import org.neo4j.cypher.internal.compiler.v3_5.planner.logical.steps.leafPlanOptions
-import org.neo4j.cypher.internal.ir.v3_5.{PatternRelationship, QueryGraph, InterestingOrder}
-import org.neo4j.cypher.internal.v3_5.logical.plans.{Argument, LogicalPlan}
-import org.neo4j.cypher.internal.v3_5.ast.RelationshipHint
-import org.neo4j.cypher.internal.v3_5.util.InternalException
+import org.neo4j.cypher.internal.compiler.v3_6.helpers.IteratorSupport._
+import org.neo4j.cypher.internal.compiler.v3_6.planner.logical.LogicalPlanningSupport._
+import org.neo4j.cypher.internal.compiler.v3_6.planner.logical._
+import org.neo4j.cypher.internal.compiler.v3_6.planner.logical.idp.SingleComponentPlanner.planSinglePattern
+import org.neo4j.cypher.internal.compiler.v3_6.planner.logical.idp.expandSolverStep.{planSinglePatternSide, planSingleProjectEndpoints}
+import org.neo4j.cypher.internal.compiler.v3_6.planner.logical.steps.leafPlanOptions
+import org.neo4j.cypher.internal.ir.v3_6.{PatternRelationship, QueryGraph, InterestingOrder}
+import org.neo4j.cypher.internal.v3_6.logical.plans.{Argument, LogicalPlan}
+import org.neo4j.cypher.internal.v3_6.ast.RelationshipHint
+import org.neo4j.cypher.internal.v3_6.util.InternalException
 
 /**
   * This class contains the main IDP loop in the cost planner.

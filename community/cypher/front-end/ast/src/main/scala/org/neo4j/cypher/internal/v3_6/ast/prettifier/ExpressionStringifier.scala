@@ -14,11 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.neo4j.cypher.internal.v3_5.ast.prettifier
+package org.neo4j.cypher.internal.v3_6.ast.prettifier
 
-import org.neo4j.cypher.internal.v3_5.ast.prettifier.ExpressionStringifier.backtick
-import org.neo4j.cypher.internal.v3_5.expressions._
-import org.neo4j.cypher.internal.v3_5.util.InternalException
+import org.neo4j.cypher.internal.v3_6.ast.prettifier.ExpressionStringifier.backtick
+import org.neo4j.cypher.internal.v3_6.expressions._
+import org.neo4j.cypher.internal.v3_6.util.InternalException
 
 case class ExpressionStringifier(extender: Expression => String = e => throw new InternalException(s"failed to pretty print $e")) {
   def apply(ast: Expression): String = {

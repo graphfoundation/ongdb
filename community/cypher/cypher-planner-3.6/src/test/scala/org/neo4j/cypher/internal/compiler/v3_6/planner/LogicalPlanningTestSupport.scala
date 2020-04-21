@@ -17,36 +17,36 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compiler.v3_5.planner
+package org.neo4j.cypher.internal.compiler.v3_6.planner
 
 import org.mockito.ArgumentMatchers._
 import org.mockito.Mockito._
 import org.mockito.invocation.InvocationOnMock
 import org.mockito.stubbing.Answer
 import org.neo4j.csv.reader.Configuration
-import org.neo4j.cypher.internal.compiler.v3_5._
-import org.neo4j.cypher.internal.compiler.v3_5.phases._
-import org.neo4j.cypher.internal.compiler.v3_5.planner.logical.Metrics._
-import org.neo4j.cypher.internal.compiler.v3_5.planner.logical._
-import org.neo4j.cypher.internal.compiler.v3_5.planner.logical.idp._
-import org.neo4j.cypher.internal.compiler.v3_5.planner.logical.steps.{LogicalPlanProducer, devNullListener}
-import org.neo4j.cypher.internal.compiler.v3_5.test_helpers.ContextHelper
-import org.neo4j.cypher.internal.ir.v3_5._
-import org.neo4j.cypher.internal.planner.v3_5.spi.PlanningAttributes.{Cardinalities, ProvidedOrders, Solveds}
-import org.neo4j.cypher.internal.planner.v3_5.spi.{CostBasedPlannerName, GraphStatistics, InstrumentedGraphStatistics, PlanContext, PlanningAttributes}
-import org.neo4j.cypher.internal.v3_5.ast._
-import org.neo4j.cypher.internal.v3_5.ast.semantics.SemanticTable
-import org.neo4j.cypher.internal.v3_5.expressions._
-import org.neo4j.cypher.internal.v3_5.frontend.phases._
-import org.neo4j.cypher.internal.v3_5.logical.plans._
-import org.neo4j.cypher.internal.v3_5.parser.CypherParser
-import org.neo4j.cypher.internal.v3_5.rewriting.RewriterStepSequencer.newPlain
-import org.neo4j.cypher.internal.v3_5.rewriting.rewriters._
-import org.neo4j.cypher.internal.v3_5.rewriting.{Deprecations, RewriterStepSequencer}
-import org.neo4j.cypher.internal.v3_5.util._
-import org.neo4j.cypher.internal.v3_5.util.attribution.IdGen
-import org.neo4j.cypher.internal.v3_5.util.symbols._
-import org.neo4j.cypher.internal.v3_5.util.test_helpers.{CypherFunSuite, CypherTestSupport}
+import org.neo4j.cypher.internal.compiler.v3_6._
+import org.neo4j.cypher.internal.compiler.v3_6.phases._
+import org.neo4j.cypher.internal.compiler.v3_6.planner.logical.Metrics._
+import org.neo4j.cypher.internal.compiler.v3_6.planner.logical._
+import org.neo4j.cypher.internal.compiler.v3_6.planner.logical.idp._
+import org.neo4j.cypher.internal.compiler.v3_6.planner.logical.steps.{LogicalPlanProducer, devNullListener}
+import org.neo4j.cypher.internal.compiler.v3_6.test_helpers.ContextHelper
+import org.neo4j.cypher.internal.ir.v3_6._
+import org.neo4j.cypher.internal.planner.v3_6.spi.PlanningAttributes.{Cardinalities, ProvidedOrders, Solveds}
+import org.neo4j.cypher.internal.planner.v3_6.spi.{CostBasedPlannerName, GraphStatistics, InstrumentedGraphStatistics, PlanContext, PlanningAttributes}
+import org.neo4j.cypher.internal.v3_6.ast._
+import org.neo4j.cypher.internal.v3_6.ast.semantics.SemanticTable
+import org.neo4j.cypher.internal.v3_6.expressions._
+import org.neo4j.cypher.internal.v3_6.frontend.phases._
+import org.neo4j.cypher.internal.v3_6.logical.plans._
+import org.neo4j.cypher.internal.v3_6.parser.CypherParser
+import org.neo4j.cypher.internal.v3_6.rewriting.RewriterStepSequencer.newPlain
+import org.neo4j.cypher.internal.v3_6.rewriting.rewriters._
+import org.neo4j.cypher.internal.v3_6.rewriting.{Deprecations, RewriterStepSequencer}
+import org.neo4j.cypher.internal.v3_6.util._
+import org.neo4j.cypher.internal.v3_6.util.attribution.IdGen
+import org.neo4j.cypher.internal.v3_6.util.symbols._
+import org.neo4j.cypher.internal.v3_6.util.test_helpers.{CypherFunSuite, CypherTestSupport}
 
 import scala.collection.mutable
 

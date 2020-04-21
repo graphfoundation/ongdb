@@ -17,18 +17,18 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compiler.v3_5
+package org.neo4j.cypher.internal.compiler.v3_6
 
-import org.neo4j.cypher.internal.compiler.v3_5.phases._
-import org.neo4j.cypher.internal.planner.v3_5.spi.ProcedurePlannerName
-import org.neo4j.cypher.internal.v3_5.logical.plans
-import org.neo4j.cypher.internal.v3_5.logical.plans.{LogicalPlan, ResolvedCall}
-import org.neo4j.cypher.internal.v3_5.ast._
-import org.neo4j.cypher.internal.v3_5.ast.semantics.{SemanticCheckResult, SemanticState}
-import org.neo4j.cypher.internal.v3_5.frontend.phases.CompilationPhaseTracer.CompilationPhase
-import org.neo4j.cypher.internal.v3_5.frontend.phases.CompilationPhaseTracer.CompilationPhase.PIPE_BUILDING
-import org.neo4j.cypher.internal.v3_5.frontend.phases.{BaseState, Condition, Phase}
-import org.neo4j.cypher.internal.v3_5.util.attribution.SequentialIdGen
+import org.neo4j.cypher.internal.compiler.v3_6.phases._
+import org.neo4j.cypher.internal.planner.v3_6.spi.ProcedurePlannerName
+import org.neo4j.cypher.internal.v3_6.logical.plans
+import org.neo4j.cypher.internal.v3_6.logical.plans.{LogicalPlan, ResolvedCall}
+import org.neo4j.cypher.internal.v3_6.ast._
+import org.neo4j.cypher.internal.v3_6.ast.semantics.{SemanticCheckResult, SemanticState}
+import org.neo4j.cypher.internal.v3_6.frontend.phases.CompilationPhaseTracer.CompilationPhase
+import org.neo4j.cypher.internal.v3_6.frontend.phases.CompilationPhaseTracer.CompilationPhase.PIPE_BUILDING
+import org.neo4j.cypher.internal.v3_6.frontend.phases.{BaseState, Condition, Phase}
+import org.neo4j.cypher.internal.v3_6.util.attribution.SequentialIdGen
 
 /**
   * This planner takes on queries that requires no planning such as procedures and schema commands

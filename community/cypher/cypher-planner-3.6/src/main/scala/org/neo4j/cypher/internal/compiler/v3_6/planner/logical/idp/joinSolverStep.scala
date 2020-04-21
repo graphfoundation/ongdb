@@ -17,13 +17,13 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compiler.v3_5.planner.logical.idp
+package org.neo4j.cypher.internal.compiler.v3_6.planner.logical.idp
 
-import org.neo4j.cypher.internal.compiler.v3_5.planner.logical.idp.joinSolverStep._
-import org.neo4j.cypher.internal.compiler.v3_5.planner.logical.{LogicalPlanningContext, LogicalPlanningSupport}
-import org.neo4j.cypher.internal.ir.v3_5.{PatternRelationship, QueryGraph}
-import org.neo4j.cypher.internal.planner.v3_5.spi.PlanningAttributes.Solveds
-import org.neo4j.cypher.internal.v3_5.logical.plans.LogicalPlan
+import org.neo4j.cypher.internal.compiler.v3_6.planner.logical.idp.joinSolverStep._
+import org.neo4j.cypher.internal.compiler.v3_6.planner.logical.{LogicalPlanningContext, LogicalPlanningSupport}
+import org.neo4j.cypher.internal.ir.v3_6.{PatternRelationship, QueryGraph}
+import org.neo4j.cypher.internal.planner.v3_6.spi.PlanningAttributes.Solveds
+import org.neo4j.cypher.internal.v3_6.logical.plans.LogicalPlan
 
 import scala.collection.immutable.BitSet
 

@@ -17,20 +17,20 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compiler.v3_5.planner.logical.steps
+package org.neo4j.cypher.internal.compiler.v3_6.planner.logical.steps
 
-import org.neo4j.cypher.internal.compiler.v3_5.planner.logical.LeafPlanUpdater
-import org.neo4j.cypher.internal.ir.v3_5.PlannerQuery
-import org.neo4j.cypher.internal.ir.v3_5.Predicate
-import org.neo4j.cypher.internal.ir.v3_5.QueryProjection
-import org.neo4j.cypher.internal.planner.v3_5.spi.PlanningAttributes.Solveds
-import org.neo4j.cypher.internal.v3_5.logical.plans._
-import org.neo4j.cypher.internal.v3_5.expressions._
-import org.neo4j.cypher.internal.v3_5.util.Foldable.FoldableAny
-import org.neo4j.cypher.internal.v3_5.util.InputPosition
-import org.neo4j.cypher.internal.v3_5.util.Rewriter
-import org.neo4j.cypher.internal.v3_5.util.attribution.Attributes
-import org.neo4j.cypher.internal.v3_5.util.topDown
+import org.neo4j.cypher.internal.compiler.v3_6.planner.logical.LeafPlanUpdater
+import org.neo4j.cypher.internal.ir.v3_6.PlannerQuery
+import org.neo4j.cypher.internal.ir.v3_6.Predicate
+import org.neo4j.cypher.internal.ir.v3_6.QueryProjection
+import org.neo4j.cypher.internal.planner.v3_6.spi.PlanningAttributes.Solveds
+import org.neo4j.cypher.internal.v3_6.logical.plans._
+import org.neo4j.cypher.internal.v3_6.expressions._
+import org.neo4j.cypher.internal.v3_6.util.Foldable.FoldableAny
+import org.neo4j.cypher.internal.v3_6.util.InputPosition
+import org.neo4j.cypher.internal.v3_6.util.Rewriter
+import org.neo4j.cypher.internal.v3_6.util.attribution.Attributes
+import org.neo4j.cypher.internal.v3_6.util.topDown
 
 /**
   * This updates index leaf plans such that they have the right GetValueFromIndexBehavior.

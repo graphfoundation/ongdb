@@ -17,10 +17,10 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compiler.v3_5
+package org.neo4j.cypher.internal.compiler.v3_6
 
-import org.neo4j.cypher.internal.v3_5.util.{CypherException, InputPosition, SyntaxException}
-import org.neo4j.cypher.internal.v3_5.ast.semantics.SemanticErrorDef
+import org.neo4j.cypher.internal.v3_6.util.{CypherException, InputPosition, SyntaxException}
+import org.neo4j.cypher.internal.v3_6.ast.semantics.SemanticErrorDef
 
 class SyntaxExceptionCreator(queryText: String, preParserOffset: Option[InputPosition]) extends ((String, InputPosition) => CypherException) {
   override def apply(message: String, position: InputPosition): CypherException = {

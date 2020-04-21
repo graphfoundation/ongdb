@@ -14,9 +14,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.neo4j.cypher.internal.v3_5.util
+package org.neo4j.cypher.internal.v3_6.util
 
-import org.neo4j.cypher.internal.v3_5.util.spi.MapToPublicExceptions
+import org.neo4j.cypher.internal.v3_6.util.spi.MapToPublicExceptions
 
 abstract class CypherException(protected val message: String, cause: Throwable)
     extends RuntimeException(message, cause) {

@@ -14,17 +14,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.neo4j.cypher.internal.v3_5.rewriting
+package org.neo4j.cypher.internal.v3_6.rewriting
 
-import org.neo4j.cypher.internal.v3_5.rewriting.rewriters.{Forced, IfNoParameter, LiteralExtraction, literalReplacement}
-import org.neo4j.cypher.internal.v3_5.util.symbols._
-import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
-import org.neo4j.cypher.internal.v3_5.util.{Rewriter, bottomUp}
-import org.neo4j.cypher.internal.v3_5.expressions.Parameter
+import org.neo4j.cypher.internal.v3_6.rewriting.rewriters.{Forced, IfNoParameter, LiteralExtraction, literalReplacement}
+import org.neo4j.cypher.internal.v3_6.util.symbols._
+import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.v3_6.util.{Rewriter, bottomUp}
+import org.neo4j.cypher.internal.v3_6.expressions.Parameter
 
 class LiteralReplacementTest extends CypherFunSuite  {
 
-  import org.neo4j.cypher.internal.v3_5.parser.ParserFixture.parser
+  import org.neo4j.cypher.internal.v3_6.parser.ParserFixture.parser
 
   test("should extract starts with patterns") {
     assertRewrite("RETURN x STARTS WITH 'Pattern' as X", "RETURN x STARTS WITH $`  AUTOSTRING0` as X", Map("  AUTOSTRING0" -> "Pattern"))

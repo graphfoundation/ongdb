@@ -17,11 +17,11 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compiler.v3_5.planner.logical.plans.rewriter
+package org.neo4j.cypher.internal.compiler.v3_6.planner.logical.plans.rewriter
 
-import org.neo4j.cypher.internal.v3_5.util.attribution.SameId
-import org.neo4j.cypher.internal.v3_5.logical.plans.{DoNotIncludeTies, Limit, Sort, Top}
-import org.neo4j.cypher.internal.v3_5.util.{Rewriter, bottomUp}
+import org.neo4j.cypher.internal.v3_6.util.attribution.SameId
+import org.neo4j.cypher.internal.v3_6.logical.plans.{DoNotIncludeTies, Limit, Sort, Top}
+import org.neo4j.cypher.internal.v3_6.util.{Rewriter, bottomUp}
 
 /**
   * When doing ORDER BY c1,c2,...,cn LIMIT e, we don't have to sort the full result in one go

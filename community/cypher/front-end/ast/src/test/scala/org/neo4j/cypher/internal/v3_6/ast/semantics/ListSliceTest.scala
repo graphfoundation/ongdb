@@ -14,11 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.neo4j.cypher.internal.v3_5.ast.semantics
+package org.neo4j.cypher.internal.v3_6.ast.semantics
 
-import org.neo4j.cypher.internal.v3_5.expressions.{DecimalDoubleLiteral, DummyExpression, ListSlice, SignedDecimalIntegerLiteral}
-import org.neo4j.cypher.internal.v3_5.util.DummyPosition
-import org.neo4j.cypher.internal.v3_5.util.symbols._
+import org.neo4j.cypher.internal.v3_6.expressions.{DecimalDoubleLiteral, DummyExpression, ListSlice, SignedDecimalIntegerLiteral}
+import org.neo4j.cypher.internal.v3_6.util.DummyPosition
+import org.neo4j.cypher.internal.v3_6.util.symbols._
 
 class ListSliceTest extends SemanticFunSuite {
   val dummyList = DummyExpression(

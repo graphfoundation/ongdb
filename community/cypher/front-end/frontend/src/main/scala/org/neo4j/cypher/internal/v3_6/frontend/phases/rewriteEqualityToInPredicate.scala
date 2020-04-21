@@ -14,10 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.neo4j.cypher.internal.v3_5.frontend.phases
+package org.neo4j.cypher.internal.v3_6.frontend.phases
 
-import org.neo4j.cypher.internal.v3_5.expressions.{In, Variable, _}
-import org.neo4j.cypher.internal.v3_5.util.{Rewriter, bottomUp}
+import org.neo4j.cypher.internal.v3_6.expressions.{In, Variable, _}
+import org.neo4j.cypher.internal.v3_6.util.{Rewriter, bottomUp}
 
 /*
 TODO: This should implement Rewriter instead

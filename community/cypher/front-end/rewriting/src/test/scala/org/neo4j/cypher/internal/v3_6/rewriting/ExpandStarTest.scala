@@ -14,17 +14,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.neo4j.cypher.internal.v3_5.rewriting
+package org.neo4j.cypher.internal.v3_6.rewriting
 
-import org.neo4j.cypher.internal.v3_5.ast._
-import org.neo4j.cypher.internal.v3_5.ast.semantics.{SemanticState, SyntaxExceptionCreator}
-import org.neo4j.cypher.internal.v3_5.rewriting.rewriters.{expandStar, normalizeWithAndReturnClauses}
-import org.neo4j.cypher.internal.v3_5.util.inSequence
-import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.v3_6.ast._
+import org.neo4j.cypher.internal.v3_6.ast.semantics.{SemanticState, SyntaxExceptionCreator}
+import org.neo4j.cypher.internal.v3_6.rewriting.rewriters.{expandStar, normalizeWithAndReturnClauses}
+import org.neo4j.cypher.internal.v3_6.util.inSequence
+import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
 
 class ExpandStarTest extends CypherFunSuite with AstConstructionTestSupport {
 
-  import org.neo4j.cypher.internal.v3_5.parser.ParserFixture.parser
+  import org.neo4j.cypher.internal.v3_6.parser.ParserFixture.parser
 
   test("rewrites * in return") {
     assertRewrite(

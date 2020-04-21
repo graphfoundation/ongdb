@@ -17,11 +17,11 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compiler.v3_5.planner.logical.cardinality
+package org.neo4j.cypher.internal.compiler.v3_6.planner.logical.cardinality
 
-import org.neo4j.cypher.internal.compiler.v3_5.planner.logical.Metrics.QueryGraphCardinalityModel
-import org.neo4j.cypher.internal.compiler.v3_5.planner.logical.cardinality.assumeIndependence.AssumeIndependenceQueryGraphCardinalityModel
-import org.neo4j.cypher.internal.planner.v3_5.spi.GraphStatistics
+import org.neo4j.cypher.internal.compiler.v3_6.planner.logical.Metrics.QueryGraphCardinalityModel
+import org.neo4j.cypher.internal.compiler.v3_6.planner.logical.cardinality.assumeIndependence.AssumeIndependenceQueryGraphCardinalityModel
+import org.neo4j.cypher.internal.planner.v3_6.spi.GraphStatistics
 
 object QueryGraphCardinalityModel {
   def default(statistics: GraphStatistics): QueryGraphCardinalityModel =

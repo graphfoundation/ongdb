@@ -17,12 +17,12 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.planner.v3_5.spi
+package org.neo4j.cypher.internal.planner.v3_6.spi
 
-import org.neo4j.cypher.internal.planner.v3_5.spi.IndexDescriptor.{OrderCapability, ValueCapability}
-import org.neo4j.cypher.internal.v3_5.logical.plans.{DoNotGetValue, GetValueFromIndexBehavior}
-import org.neo4j.cypher.internal.v3_5.util.symbols.CypherType
-import org.neo4j.cypher.internal.v3_5.util.{LabelId, PropertyKeyId}
+import org.neo4j.cypher.internal.planner.v3_6.spi.IndexDescriptor.{OrderCapability, ValueCapability}
+import org.neo4j.cypher.internal.v3_6.logical.plans.{DoNotGetValue, GetValueFromIndexBehavior}
+import org.neo4j.cypher.internal.v3_6.util.symbols.CypherType
+import org.neo4j.cypher.internal.v3_6.util.{LabelId, PropertyKeyId}
 
 sealed trait IndexLimitation
 case object SlowContains extends IndexLimitation

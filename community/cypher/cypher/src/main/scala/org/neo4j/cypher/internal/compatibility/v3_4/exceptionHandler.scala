@@ -23,9 +23,9 @@ import org.neo4j.cypher.exceptionHandler.{RunSafely, mapToCypher}
 import org.neo4j.cypher.internal.compatibility.ExceptionHandler
 import org.neo4j.cypher.internal.util.v3_4.spi.MapToPublicExceptions
 import org.neo4j.cypher.internal.util.v3_4.{CypherException => InternalCypherExceptionV3_4}
-import org.neo4j.cypher.{exceptionHandler => exceptionHandlerv3_5, _}
+import org.neo4j.cypher.{exceptionHandler => exceptionHandlerv3_6, _}
 import org.neo4j.values.utils.ValuesException
-import org.neo4j.cypher.internal.v3_5.util.{CypherException => InternalCypherExceptionv3_5}
+import org.neo4j.cypher.internal.v3_6.util.{CypherException => InternalCypherExceptionv3_6}
 
 object exceptionHandler extends MapToPublicExceptions[CypherException] {
   override def syntaxException(message: String, query: String, offset: Option[Int], cause: Throwable) = new SyntaxException(message, query, offset, cause)
@@ -98,9 +98,9 @@ object runSafely extends RunSafely {
       case e: InternalCypherExceptionV3_4 =>
         f(e)
         throw e.mapToPublic(exceptionHandler)
-      case e: InternalCypherExceptionv3_5 =>
+      case e: InternalCypherExceptionv3_6 =>
         f(e)
-        throw e.mapToPublic(exceptionHandlerv3_5)
+        throw e.mapToPublic(exceptionHandlerv3_6)
       case e: ValuesException =>
         f(e)
         throw mapToCypher(e)

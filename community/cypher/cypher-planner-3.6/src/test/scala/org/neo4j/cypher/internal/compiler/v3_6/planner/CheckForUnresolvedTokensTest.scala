@@ -17,19 +17,19 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compiler.v3_5.planner
+package org.neo4j.cypher.internal.compiler.v3_6.planner
 
-import org.neo4j.cypher.internal.compiler.v3_5.phases.LogicalPlanState
-import org.neo4j.cypher.internal.compiler.v3_5.test_helpers.ContextHelper
-import org.neo4j.cypher.internal.compiler.v3_5.{MissingLabelNotification, MissingPropertyNameNotification, MissingRelTypeNotification}
-import org.neo4j.cypher.internal.planner.v3_5.spi.{IDPPlannerName, PlanningAttributes}
+import org.neo4j.cypher.internal.compiler.v3_6.phases.LogicalPlanState
+import org.neo4j.cypher.internal.compiler.v3_6.test_helpers.ContextHelper
+import org.neo4j.cypher.internal.compiler.v3_6.{MissingLabelNotification, MissingPropertyNameNotification, MissingRelTypeNotification}
+import org.neo4j.cypher.internal.planner.v3_6.spi.{IDPPlannerName, PlanningAttributes}
 import org.neo4j.values.storable.TemporalValue.TemporalFields
 import org.neo4j.values.storable.{DurationFields, PointFields}
-import org.neo4j.cypher.internal.v3_5.ast.Query
-import org.neo4j.cypher.internal.v3_5.ast.semantics.SemanticTable
-import org.neo4j.cypher.internal.v3_5.frontend.phases.RecordingNotificationLogger
-import org.neo4j.cypher.internal.v3_5.util._
-import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.v3_6.ast.Query
+import org.neo4j.cypher.internal.v3_6.ast.semantics.SemanticTable
+import org.neo4j.cypher.internal.v3_6.frontend.phases.RecordingNotificationLogger
+import org.neo4j.cypher.internal.v3_6.util._
+import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
 
 class CheckForUnresolvedTokensTest extends CypherFunSuite with AstRewritingTestSupport with LogicalPlanConstructionTestSupport {
 

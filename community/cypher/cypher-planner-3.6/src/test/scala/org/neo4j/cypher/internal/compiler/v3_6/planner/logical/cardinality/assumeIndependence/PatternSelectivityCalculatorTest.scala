@@ -17,20 +17,20 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compiler.v3_5.planner.logical.cardinality.assumeIndependence
+package org.neo4j.cypher.internal.compiler.v3_6.planner.logical.cardinality.assumeIndependence
 
 import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito._
 import org.mockito.invocation.InvocationOnMock
 import org.mockito.stubbing.Answer
-import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
-import org.neo4j.cypher.internal.compiler.v3_5.planner.logical.cardinality.IndependenceCombiner
-import org.neo4j.cypher.internal.v3_5.ast.AstConstructionTestSupport
-import org.neo4j.cypher.internal.v3_5.ast.semantics.SemanticTable
-import org.neo4j.cypher.internal.ir.v3_5.{VarPatternLength, _}
-import org.neo4j.cypher.internal.planner.v3_5.spi.GraphStatistics
-import org.neo4j.cypher.internal.v3_5.util.{Cardinality, LabelId, Selectivity}
-import org.neo4j.cypher.internal.v3_5.expressions.{HasLabels, LabelName, SemanticDirection}
+import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.compiler.v3_6.planner.logical.cardinality.IndependenceCombiner
+import org.neo4j.cypher.internal.v3_6.ast.AstConstructionTestSupport
+import org.neo4j.cypher.internal.v3_6.ast.semantics.SemanticTable
+import org.neo4j.cypher.internal.ir.v3_6.{VarPatternLength, _}
+import org.neo4j.cypher.internal.planner.v3_6.spi.GraphStatistics
+import org.neo4j.cypher.internal.v3_6.util.{Cardinality, LabelId, Selectivity}
+import org.neo4j.cypher.internal.v3_6.expressions.{HasLabels, LabelName, SemanticDirection}
 
 import scala.collection.mutable
 

@@ -17,14 +17,14 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compiler.v3_5.planner.logical
+package org.neo4j.cypher.internal.compiler.v3_6.planner.logical
 
-import org.neo4j.cypher.internal.compiler.v3_5.planner._
-import org.neo4j.cypher.internal.compiler.v3_5.planner.logical.Metrics.QueryGraphCardinalityModel
-import org.neo4j.cypher.internal.compiler.v3_5.planner.logical.cardinality.CardinalityModelTestHelper
-import org.neo4j.cypher.internal.compiler.v3_5.planner.logical.cardinality.assumeIndependence.AssumeIndependenceQueryGraphCardinalityModel
-import org.neo4j.cypher.internal.planner.v3_5.spi.GraphStatistics
-import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.compiler.v3_6.planner._
+import org.neo4j.cypher.internal.compiler.v3_6.planner.logical.Metrics.QueryGraphCardinalityModel
+import org.neo4j.cypher.internal.compiler.v3_6.planner.logical.cardinality.CardinalityModelTestHelper
+import org.neo4j.cypher.internal.compiler.v3_6.planner.logical.cardinality.assumeIndependence.AssumeIndependenceQueryGraphCardinalityModel
+import org.neo4j.cypher.internal.planner.v3_6.spi.GraphStatistics
+import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
 
 class StatisticsBackedCardinalityModelTest extends CypherFunSuite with LogicalPlanningTestSupport with CardinalityModelTestHelper {
 

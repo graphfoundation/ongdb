@@ -17,33 +17,33 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compiler.v3_5.planner.logical
+package org.neo4j.cypher.internal.compiler.v3_6.planner.logical
 
-import org.neo4j.cypher.internal.compiler.v3_5._
-import org.neo4j.cypher.internal.compiler.v3_5.phases.LogicalPlanState
-import org.neo4j.cypher.internal.compiler.v3_5.planner._
-import org.neo4j.cypher.internal.compiler.v3_5.test_helpers.ContextHelper
-import org.neo4j.cypher.internal.ir.v3_5.PlannerQuery
-import org.neo4j.cypher.internal.planner.v3_5.spi.IDPPlannerName
-import org.neo4j.cypher.internal.planner.v3_5.spi.PlanningAttributes
-import org.neo4j.cypher.internal.v3_5.ast.semantics.SemanticCheckResult
-import org.neo4j.cypher.internal.v3_5.ast.semantics.SemanticChecker
-import org.neo4j.cypher.internal.v3_5.ast.semantics.SemanticTable
-import org.neo4j.cypher.internal.v3_5.ast.Query
-import org.neo4j.cypher.internal.v3_5.ast.Statement
-import org.neo4j.cypher.internal.v3_5.frontend.phases.CNFNormalizer
-import org.neo4j.cypher.internal.v3_5.frontend.phases.LateAstRewriting
-import org.neo4j.cypher.internal.v3_5.frontend.phases.Namespacer
-import org.neo4j.cypher.internal.v3_5.frontend.phases.rewriteEqualityToInPredicate
-import org.neo4j.cypher.internal.v3_5.rewriting.rewriters._
-import org.neo4j.cypher.internal.v3_5.util.inSequence
+import org.neo4j.cypher.internal.compiler.v3_6._
+import org.neo4j.cypher.internal.compiler.v3_6.phases.LogicalPlanState
+import org.neo4j.cypher.internal.compiler.v3_6.planner._
+import org.neo4j.cypher.internal.compiler.v3_6.test_helpers.ContextHelper
+import org.neo4j.cypher.internal.ir.v3_6.PlannerQuery
+import org.neo4j.cypher.internal.planner.v3_6.spi.IDPPlannerName
+import org.neo4j.cypher.internal.planner.v3_6.spi.PlanningAttributes
+import org.neo4j.cypher.internal.v3_6.ast.semantics.SemanticCheckResult
+import org.neo4j.cypher.internal.v3_6.ast.semantics.SemanticChecker
+import org.neo4j.cypher.internal.v3_6.ast.semantics.SemanticTable
+import org.neo4j.cypher.internal.v3_6.ast.Query
+import org.neo4j.cypher.internal.v3_6.ast.Statement
+import org.neo4j.cypher.internal.v3_6.frontend.phases.CNFNormalizer
+import org.neo4j.cypher.internal.v3_6.frontend.phases.LateAstRewriting
+import org.neo4j.cypher.internal.v3_6.frontend.phases.Namespacer
+import org.neo4j.cypher.internal.v3_6.frontend.phases.rewriteEqualityToInPredicate
+import org.neo4j.cypher.internal.v3_6.rewriting.rewriters._
+import org.neo4j.cypher.internal.v3_6.util.inSequence
 import org.scalatest.mock.MockitoSugar
 
 trait QueryGraphProducer extends MockitoSugar {
 
   self: LogicalPlanningTestSupport =>
 
-  import org.neo4j.cypher.internal.compiler.v3_5.ast.convert.plannerQuery.StatementConverters._
+  import org.neo4j.cypher.internal.compiler.v3_6.ast.convert.plannerQuery.StatementConverters._
 
   def producePlannerQueryForPattern(query: String): (PlannerQuery, SemanticTable) = {
     val q = query + " RETURN 1 AS Result"

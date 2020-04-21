@@ -19,14 +19,14 @@
  */
 package org.neo4j.cypher.internal.parser
 
-import org.neo4j.cypher.internal.planner.v3_5.spi.TokenContext
+import org.neo4j.cypher.internal.planner.v3_6.spi.TokenContext
 import org.neo4j.cypher.internal.runtime.interpreted.commands.convert.{CommunityExpressionConverter, ExpressionConverters}
 import org.neo4j.cypher.internal.runtime.interpreted.commands.predicates.{Equals, True}
 import org.neo4j.cypher.internal.runtime.interpreted.commands.values.TokenType.PropertyKey
 import org.neo4j.cypher.internal.runtime.interpreted.commands.{predicates, expressions => legacy}
-import org.neo4j.cypher.internal.v3_5.parser.{Expressions, ParserTest}
-import org.neo4j.cypher.internal.v3_5.util.attribution.Id
-import org.neo4j.cypher.internal.v3_5.{expressions => ast}
+import org.neo4j.cypher.internal.v3_6.parser.{Expressions, ParserTest}
+import org.neo4j.cypher.internal.v3_6.util.attribution.Id
+import org.neo4j.cypher.internal.v3_6.{expressions => ast}
 
 // TODO: This should be tested without using the legacy expressions and moved to the semantics module
 class ExpressionsTest extends ParserTest[ast.Expression, legacy.Expression] with Expressions {

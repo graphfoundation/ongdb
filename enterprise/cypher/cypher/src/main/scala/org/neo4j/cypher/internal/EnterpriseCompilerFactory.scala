@@ -25,11 +25,11 @@ package org.neo4j.cypher.internal
 import java.time.Clock
 
 import org.neo4j.cypher.internal.compatibility.v3_4.Cypher34Planner
-import org.neo4j.cypher.internal.compatibility.v3_5.Cypher35Planner
+import org.neo4j.cypher.internal.compatibility.v3_6.Cypher35Planner
 import org.neo4j.cypher.internal.compatibility.{CypherPlanner, _}
-import org.neo4j.cypher.internal.compiler.v3_5._
+import org.neo4j.cypher.internal.compiler.v3_6._
 import org.neo4j.cypher.internal.executionplan.GeneratedQuery
-import org.neo4j.cypher.internal.planner.v3_5.spi.TokenContext
+import org.neo4j.cypher.internal.planner.v3_6.spi.TokenContext
 import org.neo4j.cypher.internal.runtime.compiled.codegen.spi.CodeStructure
 import org.neo4j.cypher.internal.runtime.interpreted.LastCommittedTxIdProvider
 import org.neo4j.cypher.internal.runtime.parallel._
@@ -40,7 +40,7 @@ import org.neo4j.kernel.GraphDatabaseQueryService
 import org.neo4j.kernel.monitoring.{Monitors => KernelMonitors}
 import org.neo4j.logging.{Log, LogProvider}
 import org.neo4j.scheduler.{Group, JobScheduler}
-import org.neo4j.cypher.internal.v3_5.frontend.phases.InternalNotificationLogger
+import org.neo4j.cypher.internal.v3_6.frontend.phases.InternalNotificationLogger
 
 class EnterpriseCompilerFactory(community: CommunityCompilerFactory,
                                 graph: GraphDatabaseQueryService,
@@ -50,7 +50,7 @@ class EnterpriseCompilerFactory(community: CommunityCompilerFactory,
                                 runtimeConfig: CypherRuntimeConfiguration
                                ) extends CompilerFactory {
   /*
-  One compiler is created for every Planner:Runtime:Version combination, e.g., Cost-Morsel-3.4 & Cost-Morsel-3.5.
+  One compiler is created for every Planner:Runtime:Version combination, e.g., Cost-Morsel-3.4 & Cost-Morsel-3.6.
   Each compiler contains a runtime instance, and each morsel runtime instance requires a dispatcher instance.
   This ensures only one (shared) dispatcher/tracer instance is created, even when there are multiple morsel runtime instances.
    */
@@ -73,7 +73,7 @@ class EnterpriseCompilerFactory(community: CommunityCompilerFactory,
           cypherUpdateStrategy,
           LastCommittedTxIdProvider(graph))
 
-      case CypherVersion.v3_5 =>
+      case CypherVersion.v3_6 =>
         Cypher35Planner(
           plannerConfig,
           MasterCompiler.CLOCK,

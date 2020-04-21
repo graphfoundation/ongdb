@@ -14,14 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.neo4j.cypher.internal.v3_5.ast.semantics
+package org.neo4j.cypher.internal.v3_6.ast.semantics
 
-import org.neo4j.cypher.internal.v3_5.expressions.Expression.DefaultTypeMismatchMessageGenerator
-import org.neo4j.cypher.internal.v3_5.expressions.Expression.SemanticContext
-import org.neo4j.cypher.internal.v3_5.expressions.TypeSignature
-import org.neo4j.cypher.internal.v3_5.expressions._
-import org.neo4j.cypher.internal.v3_5.util.InputPosition
-import org.neo4j.cypher.internal.v3_5.util.symbols._
+import org.neo4j.cypher.internal.v3_6.expressions.Expression.DefaultTypeMismatchMessageGenerator
+import org.neo4j.cypher.internal.v3_6.expressions.Expression.SemanticContext
+import org.neo4j.cypher.internal.v3_6.expressions.TypeSignature
+import org.neo4j.cypher.internal.v3_6.expressions._
+import org.neo4j.cypher.internal.v3_6.util.InputPosition
+import org.neo4j.cypher.internal.v3_6.util.symbols._
 
 /**
   * This class holds methods for performing semantic analysis.

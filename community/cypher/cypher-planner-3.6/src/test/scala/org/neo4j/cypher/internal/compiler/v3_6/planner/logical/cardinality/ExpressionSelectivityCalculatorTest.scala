@@ -17,30 +17,30 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compiler.v3_5.planner.logical.cardinality
+package org.neo4j.cypher.internal.compiler.v3_6.planner.logical.cardinality
 
 import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito.when
 import org.mockito.invocation.InvocationOnMock
 import org.mockito.stubbing.Answer
-import org.neo4j.cypher.internal.ir.v3_5._
-import org.neo4j.cypher.internal.planner.v3_5.spi.GraphStatistics
-import org.neo4j.cypher.internal.planner.v3_5.spi.GraphStatistics.DEFAULT_EQUALITY_SELECTIVITY
-import org.neo4j.cypher.internal.planner.v3_5.spi.GraphStatistics.DEFAULT_LIST_CARDINALITY
-import org.neo4j.cypher.internal.planner.v3_5.spi.GraphStatistics.DEFAULT_PROPERTY_SELECTIVITY
-import org.neo4j.cypher.internal.planner.v3_5.spi.GraphStatistics.DEFAULT_RANGE_SEEK_FACTOR
-import org.neo4j.cypher.internal.planner.v3_5.spi.GraphStatistics.DEFAULT_RANGE_SELECTIVITY
-import org.neo4j.cypher.internal.planner.v3_5.spi.GraphStatistics.DEFAULT_STRING_LENGTH
-import org.neo4j.cypher.internal.planner.v3_5.spi.GraphStatistics.DEFAULT_TYPE_SELECTIVITY
-import org.neo4j.cypher.internal.planner.v3_5.spi.IndexDescriptor
-import org.neo4j.cypher.internal.v3_5.ast._
-import org.neo4j.cypher.internal.v3_5.ast.semantics.SemanticTable
-import org.neo4j.cypher.internal.v3_5.expressions.LessThan
-import org.neo4j.cypher.internal.v3_5.expressions._
-import org.neo4j.cypher.internal.v3_5.expressions.functions.Distance
-import org.neo4j.cypher.internal.v3_5.expressions.functions.Exists
-import org.neo4j.cypher.internal.v3_5.util._
-import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.ir.v3_6._
+import org.neo4j.cypher.internal.planner.v3_6.spi.GraphStatistics
+import org.neo4j.cypher.internal.planner.v3_6.spi.GraphStatistics.DEFAULT_EQUALITY_SELECTIVITY
+import org.neo4j.cypher.internal.planner.v3_6.spi.GraphStatistics.DEFAULT_LIST_CARDINALITY
+import org.neo4j.cypher.internal.planner.v3_6.spi.GraphStatistics.DEFAULT_PROPERTY_SELECTIVITY
+import org.neo4j.cypher.internal.planner.v3_6.spi.GraphStatistics.DEFAULT_RANGE_SEEK_FACTOR
+import org.neo4j.cypher.internal.planner.v3_6.spi.GraphStatistics.DEFAULT_RANGE_SELECTIVITY
+import org.neo4j.cypher.internal.planner.v3_6.spi.GraphStatistics.DEFAULT_STRING_LENGTH
+import org.neo4j.cypher.internal.planner.v3_6.spi.GraphStatistics.DEFAULT_TYPE_SELECTIVITY
+import org.neo4j.cypher.internal.planner.v3_6.spi.IndexDescriptor
+import org.neo4j.cypher.internal.v3_6.ast._
+import org.neo4j.cypher.internal.v3_6.ast.semantics.SemanticTable
+import org.neo4j.cypher.internal.v3_6.expressions.LessThan
+import org.neo4j.cypher.internal.v3_6.expressions._
+import org.neo4j.cypher.internal.v3_6.expressions.functions.Distance
+import org.neo4j.cypher.internal.v3_6.expressions.functions.Exists
+import org.neo4j.cypher.internal.v3_6.util._
+import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
 
 class ExpressionSelectivityCalculatorTest extends CypherFunSuite with AstConstructionTestSupport {
 

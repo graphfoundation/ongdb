@@ -17,19 +17,19 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compiler.v3_5.planner
+package org.neo4j.cypher.internal.compiler.v3_6.planner
 
-import org.neo4j.cypher.internal.planner.v3_5.spi.GraphStatistics
-import org.neo4j.cypher.internal.planner.v3_5.spi.IndexDescriptor
+import org.neo4j.cypher.internal.planner.v3_6.spi.GraphStatistics
+import org.neo4j.cypher.internal.planner.v3_6.spi.IndexDescriptor
 import org.neo4j.kernel.impl.util.dbstructure.DbStructureLookup
-import org.neo4j.cypher.internal.v3_5.util.Cardinality
-import org.neo4j.cypher.internal.v3_5.util.LabelId
-import org.neo4j.cypher.internal.v3_5.util.RelTypeId
-import org.neo4j.cypher.internal.v3_5.util.Selectivity
+import org.neo4j.cypher.internal.v3_6.util.Cardinality
+import org.neo4j.cypher.internal.v3_6.util.LabelId
+import org.neo4j.cypher.internal.v3_6.util.RelTypeId
+import org.neo4j.cypher.internal.v3_6.util.Selectivity
 
 class DbStructureGraphStatistics(lookup: DbStructureLookup) extends GraphStatistics {
 
-  import org.neo4j.cypher.internal.v3_5.util.NameId._
+  import org.neo4j.cypher.internal.v3_6.util.NameId._
 
   override def nodesWithLabelCardinality( label: Option[LabelId] ): Cardinality =
     Cardinality(lookup.nodesWithLabelCardinality(label))

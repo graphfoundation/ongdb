@@ -22,16 +22,16 @@ package org.neo4j.cypher.internal.runtime.planDescription
 import java.util
 
 import org.neo4j.cypher.exceptionHandler
-import org.neo4j.cypher.internal.ir.v3_5.ProvidedOrder
+import org.neo4j.cypher.internal.ir.v3_6.ProvidedOrder
 import org.neo4j.cypher.internal.runtime.planDescription.InternalPlanDescription.Arguments._
-import org.neo4j.cypher.internal.v3_5.logical.plans.{QualifiedName, SeekableArgs}
+import org.neo4j.cypher.internal.v3_6.logical.plans.{QualifiedName, SeekableArgs}
 import org.neo4j.graphdb.ExecutionPlanDescription
 import org.neo4j.graphdb.ExecutionPlanDescription.ProfilerStatistics
-import org.neo4j.cypher.internal.v3_5.expressions.SemanticDirection
-import org.neo4j.cypher.internal.v3_5.util.InternalException
-import org.neo4j.cypher.internal.v3_5.util.attribution.Id
-import org.neo4j.cypher.internal.v3_5.util.symbols.CypherType
-import org.neo4j.cypher.internal.v3_5.{expressions => ast}
+import org.neo4j.cypher.internal.v3_6.expressions.SemanticDirection
+import org.neo4j.cypher.internal.v3_6.util.InternalException
+import org.neo4j.cypher.internal.v3_6.util.attribution.Id
+import org.neo4j.cypher.internal.v3_6.util.symbols.CypherType
+import org.neo4j.cypher.internal.v3_6.{expressions => ast}
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer

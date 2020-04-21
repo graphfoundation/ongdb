@@ -21,9 +21,9 @@ package org.neo4j.util;
 
 public final class DocumentationURLs
 {
-    public static final String TRANSACTION_DEADLOCK = "https://neo4j.com/docs/java-reference/3.5/transactions/#transactions-deadlocks";
-    public static final String IMPORT_TOOL = "https://neo4j.com/docs/operations-manual/3.5/tools/import/";
-    public static final String BACKUP_DOCUMENTATION = "https://neo4j.com/docs/operations-manual/3.5/backup/";
+    public static final String TRANSACTION_DEADLOCK = "https://neo4j.com/docs/java-reference/3.6/transactions/#transactions-deadlocks";
+    public static final String IMPORT_TOOL = "https://neo4j.com/docs/operations-manual/3.6/tools/import/";
+    public static final String BACKUP_DOCUMENTATION = "https://neo4j.com/docs/operations-manual/3.6/backup/";
 
     private DocumentationURLs()
     {

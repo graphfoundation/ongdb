@@ -17,11 +17,11 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compiler.v3_5.planner
+package org.neo4j.cypher.internal.compiler.v3_6.planner
 
-import org.neo4j.cypher.internal.v3_5.expressions.SemanticDirection.BOTH
-import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
-import org.neo4j.cypher.internal.ir.v3_5.{PatternRelationship, QueryGraph, SimplePatternLength}
+import org.neo4j.cypher.internal.v3_6.expressions.SemanticDirection.BOTH
+import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.ir.v3_6.{PatternRelationship, QueryGraph, SimplePatternLength}
 
 class QueryGraphTest extends CypherFunSuite {
   val x = "x"

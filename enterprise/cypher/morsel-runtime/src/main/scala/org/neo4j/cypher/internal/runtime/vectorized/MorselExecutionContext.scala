@@ -22,13 +22,13 @@
  */
 package org.neo4j.cypher.internal.runtime.vectorized
 
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.SlotConfiguration
+import org.neo4j.cypher.internal.compatibility.v3_6.runtime.SlotConfiguration
 import org.neo4j.cypher.internal.runtime.EntityById
 import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
-import org.neo4j.cypher.internal.v3_5.logical.plans.CachedNodeProperty
+import org.neo4j.cypher.internal.v3_6.logical.plans.CachedNodeProperty
 import org.neo4j.values.AnyValue
 import org.neo4j.values.storable.Value
-import org.neo4j.cypher.internal.v3_5.util.InternalException
+import org.neo4j.cypher.internal.v3_6.util.InternalException
 
 object MorselExecutionContext {
   def apply(morsel: Morsel, pipeline: Pipeline) = new MorselExecutionContext(morsel,

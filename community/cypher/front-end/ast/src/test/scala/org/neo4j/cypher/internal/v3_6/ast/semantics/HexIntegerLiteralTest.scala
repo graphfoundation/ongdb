@@ -14,11 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.neo4j.cypher.internal.v3_5.ast.semantics
+package org.neo4j.cypher.internal.v3_6.ast.semantics
 
-import org.neo4j.cypher.internal.v3_5.expressions.Expression.SemanticContext
-import org.neo4j.cypher.internal.v3_5.expressions.SignedHexIntegerLiteral
-import org.neo4j.cypher.internal.v3_5.util.DummyPosition
+import org.neo4j.cypher.internal.v3_6.expressions.Expression.SemanticContext
+import org.neo4j.cypher.internal.v3_6.expressions.SignedHexIntegerLiteral
+import org.neo4j.cypher.internal.v3_6.util.DummyPosition
 
 class HexIntegerLiteralTest extends SemanticFunSuite {
   test("correctly parses hexadecimal numbers") {

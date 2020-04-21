@@ -17,14 +17,14 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compiler.v3_5.planner.logical.cardinality
+package org.neo4j.cypher.internal.compiler.v3_6.planner.logical.cardinality
 
-import org.neo4j.cypher.internal.compiler.v3_5.planner.LogicalPlanningTestSupport
-import org.neo4j.cypher.internal.compiler.v3_5.planner.logical.Metrics
-import org.neo4j.cypher.internal.compiler.v3_5.planner.logical.Metrics._
-import org.neo4j.cypher.internal.planner.v3_5.spi.GraphStatistics
-import org.neo4j.cypher.internal.v3_5.util.Cardinality
-import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.compiler.v3_6.planner.LogicalPlanningTestSupport
+import org.neo4j.cypher.internal.compiler.v3_6.planner.logical.Metrics
+import org.neo4j.cypher.internal.compiler.v3_6.planner.logical.Metrics._
+import org.neo4j.cypher.internal.planner.v3_6.spi.GraphStatistics
+import org.neo4j.cypher.internal.v3_6.util.Cardinality
+import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
 
 trait CardinalityModelTestHelper extends CardinalityTestHelper {
 
@@ -38,7 +38,7 @@ trait CardinalityModelTestHelper extends CardinalityTestHelper {
   implicit class RichTestUnit(testUnit: CardinalityTestHelper#TestUnit) {
     def shouldHaveQueryGraphCardinality(number: Double) {
       // used to handle double rounding errors in assertion
-      import org.neo4j.cypher.internal.compiler.v3_5.planner.logical.CardinalitySupport.Eq
+      import org.neo4j.cypher.internal.compiler.v3_6.planner.logical.CardinalitySupport.Eq
 
       val (statistics, semanticTable) = testUnit.prepareTestContext
 
@@ -51,7 +51,7 @@ trait CardinalityModelTestHelper extends CardinalityTestHelper {
 
     def shouldHavePlannerQueryCardinality(f: QueryGraphCardinalityModel => Metrics.CardinalityModel)(number: Double) {
       // used to handle double rounding errors in assertion
-      import org.neo4j.cypher.internal.compiler.v3_5.planner.logical.CardinalitySupport.Eq
+      import org.neo4j.cypher.internal.compiler.v3_6.planner.logical.CardinalitySupport.Eq
 
       val (statistics, semanticTable) = testUnit.prepareTestContext
 

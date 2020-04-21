@@ -17,18 +17,18 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compatibility.v3_5.runtime
+package org.neo4j.cypher.internal.compatibility.v3_6.runtime
 
-import org.neo4j.cypher.internal.compiler.v3_5.planner.LogicalPlanningTestSupport2
-import org.neo4j.cypher.internal.ir.v3_5.{CreateNode, VarPatternLength}
-import org.neo4j.cypher.internal.v3_5.logical.plans.{Ascending, _}
-import org.neo4j.cypher.internal.v3_5.logical.{plans => logicalPlans}
-import org.neo4j.cypher.internal.v3_5.ast.ASTAnnotationMap
-import org.neo4j.cypher.internal.v3_5.ast.semantics.{ExpressionTypeInfo, SemanticTable}
-import org.neo4j.cypher.internal.v3_5.expressions._
-import org.neo4j.cypher.internal.v3_5.util.LabelId
-import org.neo4j.cypher.internal.v3_5.util.symbols._
-import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.compiler.v3_6.planner.LogicalPlanningTestSupport2
+import org.neo4j.cypher.internal.ir.v3_6.{CreateNode, VarPatternLength}
+import org.neo4j.cypher.internal.v3_6.logical.plans.{Ascending, _}
+import org.neo4j.cypher.internal.v3_6.logical.{plans => logicalPlans}
+import org.neo4j.cypher.internal.v3_6.ast.ASTAnnotationMap
+import org.neo4j.cypher.internal.v3_6.ast.semantics.{ExpressionTypeInfo, SemanticTable}
+import org.neo4j.cypher.internal.v3_6.expressions._
+import org.neo4j.cypher.internal.v3_6.util.LabelId
+import org.neo4j.cypher.internal.v3_6.util.symbols._
+import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
 
 //noinspection NameBooleanParameters
 class SlotAllocationTest extends CypherFunSuite with LogicalPlanningTestSupport2 {

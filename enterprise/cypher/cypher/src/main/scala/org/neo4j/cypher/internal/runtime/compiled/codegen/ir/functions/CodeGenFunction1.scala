@@ -22,7 +22,7 @@
  */
 package org.neo4j.cypher.internal.runtime.compiled.codegen.ir.functions
 
-import org.neo4j.cypher.internal.v3_5.util.InternalException
+import org.neo4j.cypher.internal.v3_6.util.InternalException
 import org.neo4j.cypher.internal.runtime.compiled.codegen.ir.expressions._
 
 sealed trait CodeGenFunction1 {

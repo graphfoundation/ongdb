@@ -17,9 +17,9 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.v3_5.logical
+package org.neo4j.cypher.internal.v3_6.logical
 
-import org.neo4j.cypher.internal.v3_5.util.NonEmptyList
+import org.neo4j.cypher.internal.v3_6.util.NonEmptyList
 
 package object plans {
   type Bounds[+V] = NonEmptyList[Bound[V]]

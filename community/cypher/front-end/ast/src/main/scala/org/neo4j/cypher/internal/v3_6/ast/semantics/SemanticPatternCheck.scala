@@ -14,13 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.neo4j.cypher.internal.v3_5.ast.semantics
+package org.neo4j.cypher.internal.v3_6.ast.semantics
 
-import org.neo4j.cypher.internal.v3_5.expressions.Pattern.SemanticContext.{Construct, Match, name}
-import org.neo4j.cypher.internal.v3_5.expressions.Pattern.{SemanticContext, findDuplicateRelationships}
-import org.neo4j.cypher.internal.v3_5.expressions._
-import org.neo4j.cypher.internal.v3_5.util.UnboundedShortestPathNotification
-import org.neo4j.cypher.internal.v3_5.util.symbols._
+import org.neo4j.cypher.internal.v3_6.expressions.Pattern.SemanticContext.{Construct, Match, name}
+import org.neo4j.cypher.internal.v3_6.expressions.Pattern.{SemanticContext, findDuplicateRelationships}
+import org.neo4j.cypher.internal.v3_6.expressions._
+import org.neo4j.cypher.internal.v3_6.util.UnboundedShortestPathNotification
+import org.neo4j.cypher.internal.v3_6.util.symbols._
 
 object SemanticPatternCheck extends SemanticAnalysisTooling {
 
