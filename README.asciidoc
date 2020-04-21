@@ -70,14 +70,14 @@ If you are not building from source you can start from a https://github.com/grap
 === Linux/macOS
 On Linux/macOS you want to run:
 
-  bin/ongdb start
+  bin/neo4j start
 
 in the extracted folder to start ONgDB on `localhost:7474`.
 
 === Windows
 On Windows you want to run:
 
-  bin\ongdb start
+  bin\neo4j start
 
 in the extracted folder to start ONgDB on `localhost:7474`.
 
