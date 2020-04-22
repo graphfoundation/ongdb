@@ -184,9 +184,9 @@
             </execution>
           </executions>
           <configuration>
-            <header>Neo4j</header>
-            <doctitle>Neo4j ${project.version} API</doctitle>
-            <windowtitle>Neo4j ${project.version} API</windowtitle>
+            <header>ONgDB</header>
+            <doctitle>ONgDB ${project.version} API</doctitle>
+            <windowtitle>ONgDB ${project.version} API</windowtitle>
             <show>public</show>
 
             <detectLinks>false</detectLinks>
@@ -198,8 +198,7 @@
             <groups>
               <group>
                 <title>Graph database</title>
-                <packages>org.neo4j.graphdb:org.neo4j.graphdb.*
-                </packages>
+                <packages>org.neo4j.graphdb:org.neo4j.graphdb.*</packages>
               </group>
               <group>
                 <title>Query language</title>
@@ -489,7 +488,7 @@
             <plainTextReport>true</plainTextReport>
             <prependText>${licensing.prepend.text}</prependText>
             <excludedGroups>
-              ^((org.neo4j){1}|(org.neo4j.app){1}|(org.neo4j.server.plugin){1}|(org.neo4j.assembly){1}|(org.neo4j.bolt){1}|(org.neo4j.build){1}|(org.neo4j.test){1})$
+              ^((org.graphfoundation.ongdb){1}|(org.graphfoundation.ongdb.app){1}|(org.graphfoundation.ongdb.server.plugin){1}|(org.graphfoundation.ongdb.assembly){1}|(org.graphfoundation.ongdb.bolt){1}|(org.graphfoundation.ongdb.build){1}|(org.graphfoundation.ongdb.test){1})$
             </excludedGroups>
             <excludedArtifacts>^((neo4j-browser))$</excludedArtifacts>
             <includedScopes>compile</includedScopes>
@@ -620,8 +619,8 @@
           <configuration>
             <rules>
               <evaluateBeanshell>
-                <message>Maven module has to be in a "groupId" beginning with "org.neo4j" or "org.graphfoundation.ongdb"</message>
-                <condition>{String s = "${project.groupId}"; s.startsWith("org.neo4j") || s.startsWith("org.graphfoundation.ongdb");}</condition>
+                <message>Maven module has to be in a "groupId" beginning with "org.graphfoundation.ongdb"</message>
+                <condition>{String s = "${project.groupId}"; s.startsWith("org.graphfoundation.ongdb");}</condition>
               </evaluateBeanshell>
               <requireFilesDontExist>
                 <message>You are not allowed to have classes in "com" package</message>
