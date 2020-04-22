@@ -34,15 +34,12 @@ Apache Software License, Version 2.0
   Lucene Common Analyzers
   Lucene Core
   Lucene QueryParsers
+  Neo4j - Cypher Expressions 3.4
+  Neo4j - Cypher Util 3.4
   Netty/All-in-One
   opencsv
-  openCypher AST for the Cypher Query Language
-  openCypher Expressions
-  openCypher Front End
-  openCypher Parser
-  openCypher Rewriting
+  openCypher Frontend
   openCypher TCK Features and Graphs
-  openCypher Utils
   parboiled-core
   parboiled-scala
 
