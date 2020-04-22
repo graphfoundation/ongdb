@@ -22,13 +22,13 @@
  */
 package org.neo4j.cypher.internal.codegen.profiling;
 
-import org.neo4j.cypher.internal.v3_5.util.attribution.Id;
+import org.neo4j.cypher.internal.v3_6.util.attribution.Id;
 
 import java.util.HashMap;
 import java.util.Map;
 
 import org.neo4j.cypher.internal.codegen.QueryExecutionTracer;
-import org.neo4j.cypher.internal.planner.v3_5.spi.KernelStatisticProvider;
+import org.neo4j.cypher.internal.planner.v3_6.spi.KernelStatisticProvider;
 import org.neo4j.cypher.internal.runtime.compiled.codegen.QueryExecutionEvent;
 import org.neo4j.cypher.result.OperatorProfile;
 import org.neo4j.cypher.result.QueryProfile;

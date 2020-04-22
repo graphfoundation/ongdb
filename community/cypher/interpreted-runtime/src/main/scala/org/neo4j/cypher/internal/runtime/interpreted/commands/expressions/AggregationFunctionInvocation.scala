@@ -24,7 +24,7 @@ import org.neo4j.cypher.internal.runtime.interpreted.commands.AstNode
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.QueryState
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.aggregation.AggregationFunction
 import org.neo4j.cypher.internal.runtime.interpreted.{ExecutionContext, ValueConversion}
-import org.neo4j.cypher.internal.v3_5.logical.plans.UserFunctionSignature
+import org.neo4j.cypher.internal.v3_6.logical.plans.UserFunctionSignature
 import org.neo4j.values.AnyValue
 
 abstract class AggregationFunctionInvocation(signature: UserFunctionSignature, arguments: IndexedSeq[Expression])

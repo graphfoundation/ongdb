@@ -116,7 +116,7 @@
 
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>ongdb-cypher-planner-3.5</artifactId>
+      <artifactId>ongdb-cypher-planner-3.6</artifactId>
       <version>${project.version}</version>
     </dependency>
 

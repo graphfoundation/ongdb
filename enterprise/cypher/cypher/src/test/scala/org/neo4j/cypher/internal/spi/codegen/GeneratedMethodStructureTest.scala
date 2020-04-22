@@ -28,18 +28,18 @@ import org.neo4j.codegen.bytecode.ByteCode
 import org.neo4j.codegen.source.SourceCode
 import org.neo4j.codegen.{CodeGenerationStrategy, CodeGenerator, Expression, MethodDeclaration}
 import org.neo4j.cypher.internal.codegen.QueryExecutionTracer
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.executionplan.Provider
-import org.neo4j.cypher.internal.v3_5.frontend.helpers._
-import org.neo4j.cypher.internal.v3_5.ast.semantics.SemanticTable
+import org.neo4j.cypher.internal.compatibility.v3_6.runtime.executionplan.Provider
+import org.neo4j.cypher.internal.v3_6.frontend.helpers._
+import org.neo4j.cypher.internal.v3_6.ast.semantics.SemanticTable
 import org.neo4j.cypher.internal.runtime.compiled.codegen.CodeGenContext
 import org.neo4j.cypher.internal.runtime.compiled.codegen.ir.expressions.{CodeGenType, CypherCodeGenType, ReferenceType}
 import org.neo4j.cypher.internal.runtime.compiled.codegen.spi._
 import org.neo4j.cypher.internal.runtime.planDescription.InternalPlanDescription
 import org.neo4j.cypher.internal.runtime.{ExecutionMode, QueryContext}
 import org.neo4j.cypher.internal.spi.codegen.GeneratedQueryStructure.typeRef
-import org.neo4j.cypher.internal.v3_5.util.symbols
-import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
-import org.neo4j.cypher.internal.v3_5.expressions.SemanticDirection
+import org.neo4j.cypher.internal.v3_6.util.symbols
+import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.v3_6.expressions.SemanticDirection
 import org.neo4j.internal.kernel.api.helpers.RelationshipSelectionCursor
 import org.neo4j.internal.kernel.api.{CursorFactory, NodeCursor, PropertyCursor, Read, _}
 import org.neo4j.kernel.impl.core.EmbeddedProxySPI

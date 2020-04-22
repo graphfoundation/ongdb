@@ -23,10 +23,10 @@ import java.time.Clock
 
 import org.neo4j.cypher.internal.QueryCache.ParameterTypeMap
 import org.neo4j.cypher.internal._
-import org.neo4j.cypher.internal.compiler.v3_5.StatsDivergenceCalculator
-import org.neo4j.cypher.internal.compiler.v3_5.phases.LogicalPlanState
+import org.neo4j.cypher.internal.compiler.v3_6.StatsDivergenceCalculator
+import org.neo4j.cypher.internal.compiler.v3_6.phases.LogicalPlanState
 import org.neo4j.helpers.collection.Pair
-import org.neo4j.cypher.internal.v3_5.util.InternalNotification
+import org.neo4j.cypher.internal.v3_6.util.InternalNotification
 
 /**
   * Cache which stores logical plans indexed by an AST statement.

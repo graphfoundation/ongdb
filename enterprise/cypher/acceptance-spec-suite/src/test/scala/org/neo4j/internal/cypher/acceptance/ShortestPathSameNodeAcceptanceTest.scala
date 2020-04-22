@@ -38,13 +38,13 @@ import org.neo4j.internal.cypher.acceptance.comparisonsupport.TestConfiguration
 import org.neo4j.internal.cypher.acceptance.comparisonsupport.Versions
 import org.neo4j.internal.cypher.acceptance.comparisonsupport.Versions.V3_1
 import org.neo4j.internal.cypher.acceptance.comparisonsupport.Versions.V3_4
-import org.neo4j.internal.cypher.acceptance.comparisonsupport.Versions.V3_5
+import org.neo4j.internal.cypher.acceptance.comparisonsupport.Versions.V3_6
 import org.neo4j.values.virtual.VirtualValues
 
 class ShortestPathSameNodeAcceptanceTest extends ExecutionEngineFunSuite with RunWithConfigTestSupport with CypherComparisonSupport {
 
   val expectedToFail = TestConfiguration(
-    Versions(V3_1, V3_4, V3_5),
+    Versions(V3_1, V3_4, V3_6),
     Planners(Planners.Cost, Planners.Rule),
     Runtimes(Runtimes.Interpreted, Runtimes.Slotted, Runtimes.SlottedWithCompiledExpressions))
 

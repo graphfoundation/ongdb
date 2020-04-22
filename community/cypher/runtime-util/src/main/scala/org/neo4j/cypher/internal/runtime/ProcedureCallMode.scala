@@ -19,7 +19,7 @@
  */
 package org.neo4j.cypher.internal.runtime
 
-import org.neo4j.cypher.internal.v3_5.logical.plans._
+import org.neo4j.cypher.internal.v3_6.logical.plans._
 import org.neo4j.internal.kernel.api.procs.ProcedureCallContext
 
 import scala.collection.mutable.ArrayBuffer

@@ -20,14 +20,14 @@
 package org.neo4j.cypher.internal.compatibility.v3_1
 
 import org.neo4j.cypher.InternalException
-import org.neo4j.cypher.internal.v3_5.util.InputPosition
+import org.neo4j.cypher.internal.v3_6.util.InputPosition
 import org.neo4j.cypher.internal.compiler.v3_1
 import org.neo4j.cypher.internal.compiler.v3_1.CompilationPhaseTracer.{CompilationPhaseEvent, CompilationPhase => v3_1Phase}
 import org.neo4j.cypher.internal.compiler.v3_1.{CypherCompilerConfiguration => CypherCompilerConfiguration3_1}
-import org.neo4j.cypher.internal.v3_5.frontend.phases.CompilationPhaseTracer.{CompilationPhase => v3_5Phase}
-import org.neo4j.cypher.internal.compiler.v3_5.CypherPlannerConfiguration
+import org.neo4j.cypher.internal.v3_6.frontend.phases.CompilationPhaseTracer.{CompilationPhase => v3_6Phase}
+import org.neo4j.cypher.internal.compiler.v3_6.CypherPlannerConfiguration
 import org.neo4j.cypher.internal.frontend.v3_1.{InputPosition => InputPosition3_1}
-import org.neo4j.cypher.internal.v3_5.frontend.phases.CompilationPhaseTracer
+import org.neo4j.cypher.internal.v3_6.frontend.phases.CompilationPhaseTracer
 import org.neo4j.kernel.impl.query.{QueryExecutionMonitor, TransactionalContext}
 
 object helpers {
@@ -52,12 +52,12 @@ object helpers {
     new v3_1.CompilationPhaseTracer {
       override def beginPhase(phase: v3_1.CompilationPhaseTracer.CompilationPhase) = {
         val wrappedPhase = phase match {
-          case v3_1Phase.AST_REWRITE => v3_5Phase.AST_REWRITE
-          case v3_1Phase.CODE_GENERATION => v3_5Phase.CODE_GENERATION
-          case v3_1Phase.LOGICAL_PLANNING => v3_5Phase.LOGICAL_PLANNING
-          case v3_1Phase.PARSING => v3_5Phase.PARSING
-          case v3_1Phase.PIPE_BUILDING => v3_5Phase.PIPE_BUILDING
-          case v3_1Phase.SEMANTIC_CHECK => v3_5Phase.SEMANTIC_CHECK
+          case v3_1Phase.AST_REWRITE => v3_6Phase.AST_REWRITE
+          case v3_1Phase.CODE_GENERATION => v3_6Phase.CODE_GENERATION
+          case v3_1Phase.LOGICAL_PLANNING => v3_6Phase.LOGICAL_PLANNING
+          case v3_1Phase.PARSING => v3_6Phase.PARSING
+          case v3_1Phase.PIPE_BUILDING => v3_6Phase.PIPE_BUILDING
+          case v3_1Phase.SEMANTIC_CHECK => v3_6Phase.SEMANTIC_CHECK
           case _ => throw new InternalException(s"Cannot handle $phase in 3.1")
         }
 

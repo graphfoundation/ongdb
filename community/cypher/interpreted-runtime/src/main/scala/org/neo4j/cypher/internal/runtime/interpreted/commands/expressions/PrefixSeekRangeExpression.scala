@@ -19,11 +19,11 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.commands.expressions
 
-import org.neo4j.cypher.internal.v3_5.util.InternalException
+import org.neo4j.cypher.internal.v3_6.util.InternalException
 import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
 import org.neo4j.cypher.internal.runtime.interpreted.commands.AstNode
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.QueryState
-import org.neo4j.cypher.internal.v3_5.logical.plans.PrefixRange
+import org.neo4j.cypher.internal.v3_6.logical.plans.PrefixRange
 import org.neo4j.values.AnyValue
 
 case class PrefixSeekRangeExpression(range: PrefixRange[Expression]) extends Expression {

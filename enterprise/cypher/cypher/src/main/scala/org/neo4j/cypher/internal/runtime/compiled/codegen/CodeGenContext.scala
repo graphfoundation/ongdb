@@ -25,9 +25,9 @@ package org.neo4j.cypher.internal.runtime.compiled.codegen
 import org.neo4j.cypher.InternalException
 import org.neo4j.cypher.internal.runtime.compiled.codegen.ir.JoinData
 import org.neo4j.cypher.internal.runtime.compiled.codegen.ir.expressions.CodeGenType
-import org.neo4j.cypher.internal.v3_5.logical.plans.LogicalPlan
-import org.neo4j.cypher.internal.v3_5.ast.semantics.SemanticTable
-import org.neo4j.cypher.internal.v3_5.util.attribution.Id
+import org.neo4j.cypher.internal.v3_6.logical.plans.LogicalPlan
+import org.neo4j.cypher.internal.v3_6.ast.semantics.SemanticTable
+import org.neo4j.cypher.internal.v3_6.util.attribution.Id
 
 import scala.collection.mutable
 

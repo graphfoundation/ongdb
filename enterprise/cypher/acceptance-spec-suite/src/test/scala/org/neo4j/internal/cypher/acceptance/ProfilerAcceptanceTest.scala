@@ -23,7 +23,7 @@
 package org.neo4j.internal.cypher.acceptance
 
 import org.neo4j.cypher.internal.RewindableExecutionResult
-import org.neo4j.cypher.internal.planner.v3_5.spi.GraphStatistics
+import org.neo4j.cypher.internal.planner.v3_6.spi.GraphStatistics
 import org.neo4j.cypher.internal.runtime.planDescription.InternalPlanDescription.Arguments.DbHits
 import org.neo4j.cypher.internal.runtime.planDescription.InternalPlanDescription.Arguments.Rows
 import org.neo4j.cypher.internal.runtime.planDescription.Argument
@@ -37,7 +37,7 @@ import org.neo4j.graphdb.QueryExecutionException
 import org.neo4j.internal.cypher.acceptance.comparisonsupport.Configs
 import org.neo4j.internal.cypher.acceptance.comparisonsupport.CypherComparisonSupport
 import org.neo4j.internal.cypher.acceptance.comparisonsupport.TestConfiguration
-import org.neo4j.cypher.internal.v3_5.util.helpers.StringHelper.RichString
+import org.neo4j.cypher.internal.v3_6.util.helpers.StringHelper.RichString
 
 import scala.reflect.ClassTag
 

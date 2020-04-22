@@ -22,11 +22,11 @@
  */
 package org.neo4j.cypher.internal.runtime.compiled
 
-import org.neo4j.cypher.internal.v3_5.logical.plans._
-import org.neo4j.cypher.internal.v3_5.ast.semantics.{ExpressionTypeInfo, SemanticTable}
-import org.neo4j.cypher.internal.v3_5.util.attribution.SameId
-import org.neo4j.cypher.internal.v3_5.util.symbols.CTNode
-import org.neo4j.cypher.internal.v3_5.util.{Rewriter, topDown}
+import org.neo4j.cypher.internal.v3_6.logical.plans._
+import org.neo4j.cypher.internal.v3_6.ast.semantics.{ExpressionTypeInfo, SemanticTable}
+import org.neo4j.cypher.internal.v3_6.util.attribution.SameId
+import org.neo4j.cypher.internal.v3_6.util.symbols.CTNode
+import org.neo4j.cypher.internal.v3_6.util.{Rewriter, topDown}
 
 /**
   * Replace index plans that have indexed properties with `GetValue` by plans

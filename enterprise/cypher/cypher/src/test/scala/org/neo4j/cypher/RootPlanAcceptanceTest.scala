@@ -22,34 +22,34 @@
  */
 package org.neo4j.cypher
 
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.{CompiledRuntimeName, InterpretedRuntimeName, RuntimeName, SlottedRuntimeName}
-import org.neo4j.cypher.internal.planner.v3_5.spi.{CostBasedPlannerName, DPPlannerName, IDPPlannerName}
+import org.neo4j.cypher.internal.compatibility.v3_6.runtime.{CompiledRuntimeName, InterpretedRuntimeName, RuntimeName, SlottedRuntimeName}
+import org.neo4j.cypher.internal.planner.v3_6.spi.{CostBasedPlannerName, DPPlannerName, IDPPlannerName}
 import org.neo4j.graphdb.ExecutionPlanDescription
-import org.neo4j.cypher.internal.v3_5.frontend.PlannerName
+import org.neo4j.cypher.internal.v3_6.frontend.PlannerName
 
 class RootPlanAcceptanceTest extends ExecutionEngineFunSuite {
 
   /*
   test("query that does not go through the compiled runtime") {
     given("MATCH (n) RETURN n, count(*)")
-      .withCypherVersion(CypherVersion.v3_5)
-      .shouldHaveCypherVersion(CypherVersion.v3_5)
+      .withCypherVersion(CypherVersion.v3_6)
+      .shouldHaveCypherVersion(CypherVersion.v3_6)
       .shouldHaveRuntime(SlottedRuntimeName)
   }*/
 
   test("query that lacks support from the compiled runtime") {
     given("CREATE ()")
-      .withCypherVersion(CypherVersion.v3_5)
+      .withCypherVersion(CypherVersion.v3_6)
       .withRuntime(CompiledRuntimeName)
-      .shouldHaveCypherVersion(CypherVersion.v3_5)
+      .shouldHaveCypherVersion(CypherVersion.v3_6)
       .shouldHaveRuntime(SlottedRuntimeName)
   }
 
   test("query that should go through the compiled runtime") {
     given("MATCH (a)-->(b) RETURN a")
-      .withCypherVersion(CypherVersion.v3_5)
+      .withCypherVersion(CypherVersion.v3_6)
       .withRuntime(CompiledRuntimeName)
-      .shouldHaveCypherVersion(CypherVersion.v3_5)
+      .shouldHaveCypherVersion(CypherVersion.v3_6)
       .shouldHaveRuntime(CompiledRuntimeName)
       .shouldHavePlanner(CostBasedPlannerName.default)
   }
@@ -77,7 +77,7 @@ class RootPlanAcceptanceTest extends ExecutionEngineFunSuite {
       given("match (n) return n")
         .withPlanner(planner)
         .withRuntime(runtime)
-        .shouldHaveCypherVersion(CypherVersion.v3_5)
+        .shouldHaveCypherVersion(CypherVersion.v3_6)
         .shouldHavePlanner(planner)
         .shouldHaveRuntime(runtime)
     }

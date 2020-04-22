@@ -89,21 +89,21 @@ public class TestIndexProviderStore
         store.close();
         try
         {
-            new IndexProviderStore( file, fileSystem, MetaDataStore.versionStringToLong( "3.5" ), false );
+            new IndexProviderStore( file, fileSystem, MetaDataStore.versionStringToLong( "3.6" ), false );
             fail( "Shouldn't be able to upgrade there" );
         }
         catch ( UpgradeNotAllowedByConfigurationException e )
         {   // Good
         }
-        store = new IndexProviderStore( file, fileSystem, MetaDataStore.versionStringToLong( "3.5" ), true );
-        assertEquals( "3.5", MetaDataStore.versionLongToString( store.getIndexVersion() ) );
+        store = new IndexProviderStore( file, fileSystem, MetaDataStore.versionStringToLong( "3.6" ), true );
+        assertEquals( "3.6", MetaDataStore.versionLongToString( store.getIndexVersion() ) );
         store.close();
     }
 
     @Test( expected = NotCurrentStoreVersionException.class )
     public void shouldFailToGoBackToOlderVersion()
     {
-        String newerVersion = "3.5";
+        String newerVersion = "3.6";
         String olderVersion = "3.1";
         try
         {
@@ -123,7 +123,7 @@ public class TestIndexProviderStore
     @Test( expected = NotCurrentStoreVersionException.class )
     public void shouldFailToGoBackToOlderVersionEvenIfAllowUpgrade()
     {
-        String newerVersion = "3.5";
+        String newerVersion = "3.6";
         String olderVersion = "3.1";
         try
         {
@@ -186,7 +186,7 @@ public class TestIndexProviderStore
         fs.deleteFile( file );
 
         // When
-        IndexProviderStore store = new IndexProviderStore( file, fs, MetaDataStore.versionStringToLong( "3.5" ), false );
+        IndexProviderStore store = new IndexProviderStore( file, fs, MetaDataStore.versionStringToLong( "3.6" ), false );
 
         // Then
         StoreChannel channel = channelUsedToCreateFile[0];
@@ -206,7 +206,7 @@ public class TestIndexProviderStore
         when( fs.getFileSize( file ) ).thenReturn( 42L );
 
         // When
-        new IndexProviderStore( file, fs, MetaDataStore.versionStringToLong( "3.5" ), false );
+        new IndexProviderStore( file, fs, MetaDataStore.versionStringToLong( "3.6" ), false );
 
         // Then
         // exception is thrown
@@ -219,7 +219,7 @@ public class TestIndexProviderStore
         file.createNewFile();
 
         // When
-        IndexProviderStore store = new IndexProviderStore( file, fileSystem, MetaDataStore.versionStringToLong( "3.5" ), false );
+        IndexProviderStore store = new IndexProviderStore( file, fileSystem, MetaDataStore.versionStringToLong( "3.6" ), false );
 
         // Then
         assertTrue( fileSystem.getFileSize( file ) > 0 );

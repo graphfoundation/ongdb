@@ -95,7 +95,7 @@
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>ongdb-cypher-logical-plans-3.5</artifactId>
+      <artifactId>ongdb-cypher-logical-plans-3.6</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
@@ -106,14 +106,14 @@
 
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>ongdb-ast-3.5</artifactId>
+      <artifactId>ongdb-ast-3.6</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>ongdb-util-3.5</artifactId>
+      <artifactId>ongdb-util-3.6</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>

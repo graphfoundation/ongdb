@@ -24,23 +24,23 @@ import java.time.Clock
 import org.neo4j.cypher.internal._
 import org.neo4j.cypher.internal.compatibility._
 import org.neo4j.cypher.internal.compatibility.v3_4.helpers.{as3_4, as3_5}
-import org.neo4j.cypher.internal.compatibility.v3_5.notification.LogicalPlanNotifications
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.helpers.simpleExpressionEvaluator
-import org.neo4j.cypher.internal.compatibility.v3_5.{ExceptionTranslatingPlanContext => ExceptionTranslatingPlanContextv3_5}
+import org.neo4j.cypher.internal.compatibility.v3_6.notification.LogicalPlanNotifications
+import org.neo4j.cypher.internal.compatibility.v3_6.runtime.helpers.simpleExpressionEvaluator
+import org.neo4j.cypher.internal.compatibility.v3_6.{ExceptionTranslatingPlanContext => ExceptionTranslatingPlanContextv3_6}
 import org.neo4j.cypher.internal.compiler.v3_4
 import org.neo4j.cypher.internal.compiler.v3_4.CypherCompilerFactory
 import org.neo4j.cypher.internal.compiler.v3_4.planner.logical.{idp => idpV3_4}
 import org.neo4j.cypher.internal.compiler.v3_4.planner.{logical => logicalV3_4}
-import org.neo4j.cypher.internal.compiler.v3_5.phases.{PlannerContext, PlannerContextCreator}
-import org.neo4j.cypher.internal.compiler.v3_5.planner.logical.{CachedMetricsFactory, SimpleMetricsFactory}
-import org.neo4j.cypher.internal.compiler.v3_5.{CypherPlannerConfiguration, defaultUpdateStrategy}
+import org.neo4j.cypher.internal.compiler.v3_6.phases.{PlannerContext, PlannerContextCreator}
+import org.neo4j.cypher.internal.compiler.v3_6.planner.logical.{CachedMetricsFactory, SimpleMetricsFactory}
+import org.neo4j.cypher.internal.compiler.v3_6.{CypherPlannerConfiguration, defaultUpdateStrategy}
 import org.neo4j.cypher.internal.frontend.v3_4.ast.{Statement => StatementV3_4}
 import org.neo4j.cypher.internal.frontend.v3_4.helpers.rewriting.RewriterStepSequencer
 import org.neo4j.cypher.internal.frontend.v3_4.phases
 import org.neo4j.cypher.internal.frontend.v3_4.phases.{BaseState, Monitors => MonitorsV3_4, RecordingNotificationLogger => RecordingNotificationLoggerV3_4}
 import org.neo4j.cypher.internal.planner.v3_4.spi.{DPPlannerName => DPPlannerNameV3_4, IDPPlannerName => IDPPlannerNameV3_4}
 import org.neo4j.cypher.internal.planner.v3_4.{spi => spiV3_4}
-import org.neo4j.cypher.internal.planner.v3_5.spi.{PlanContext, PlannerNameWithVersion, InstrumentedGraphStatistics => InstrumentedGraphStatisticsv3_5, MutableGraphStatisticsSnapshot => MutableGraphStatisticsSnapshotv3_5}
+import org.neo4j.cypher.internal.planner.v3_6.spi.{PlanContext, PlannerNameWithVersion, InstrumentedGraphStatistics => InstrumentedGraphStatisticsv3_6, MutableGraphStatisticsSnapshot => MutableGraphStatisticsSnapshotv3_6}
 import org.neo4j.cypher.internal.runtime.interpreted._
 import org.neo4j.cypher.internal.spi.v3_4.{ExceptionTranslatingPlanContext => ExceptionTranslatingPlanContextV3_4, TransactionBoundGraphStatistics => TransactionBoundGraphStatisticsV3_4, TransactionBoundPlanContext => TransactionBoundPlanContextV3_4}
 import org.neo4j.cypher.internal.util.{v3_4 => utilV3_4}
@@ -52,23 +52,23 @@ import org.neo4j.kernel.impl.query.TransactionalContext
 import org.neo4j.kernel.monitoring.{Monitors => KernelMonitors}
 import org.neo4j.logging.Log
 import org.neo4j.values.virtual.MapValue
-import org.neo4j.cypher.internal.v3_5.frontend.PlannerName
-import org.neo4j.cypher.internal.v3_5.frontend.phases.{CompilationPhaseTracer, RecordingNotificationLogger, InternalNotificationLogger => InternalNotificationLoggerv3_5}
-import org.neo4j.cypher.internal.v3_5.util.attribution.SequentialIdGen
+import org.neo4j.cypher.internal.v3_6.frontend.PlannerName
+import org.neo4j.cypher.internal.v3_6.frontend.phases.{CompilationPhaseTracer, RecordingNotificationLogger, InternalNotificationLogger => InternalNotificationLoggerv3_6}
+import org.neo4j.cypher.internal.v3_6.util.attribution.SequentialIdGen
 
-case class Cypher34Planner(configv3_5: CypherPlannerConfiguration,
+case class Cypher34Planner(configv3_6: CypherPlannerConfiguration,
                            clock: Clock,
                            kernelMonitors: KernelMonitors,
                            log: Log,
                            plannerOption: CypherPlannerOption,
                            updateStrategy: CypherUpdateStrategy,
                            txIdProvider: () => Long)
-  extends BasePlanner[StatementV3_4, BaseState](configv3_5, clock, kernelMonitors, txIdProvider) with CypherPlanner {
+  extends BasePlanner[StatementV3_4, BaseState](configv3_6, clock, kernelMonitors, txIdProvider) with CypherPlanner {
 
   val monitorsV3_4: MonitorsV3_4 = WrappedMonitors(kernelMonitors)
   monitorsV3_4.addMonitorListener(logStalePlanRemovalMonitor(log), "cypher3.4")
 
-  val configV3_4: v3_4.CypherCompilerConfiguration = helpers.as3_4(configv3_5)
+  val configV3_4: v3_4.CypherCompilerConfiguration = helpers.as3_4(configv3_6)
   val plannerName: spiV3_4.CostBasedPlannerName = plannerOption match {
     case CypherPlannerOption.default => spiV3_4.CostBasedPlannerName.default
     case CypherPlannerOption.cost | CypherPlannerOption.idp => IDPPlannerNameV3_4
@@ -81,7 +81,7 @@ case class Cypher34Planner(configv3_5: CypherPlannerConfiguration,
     case _ => None
   }
 
-  override def parserCacheSize: Int = configv3_5.queryCacheSize
+  override def parserCacheSize: Int = configv3_6.queryCacheSize
 
   val rewriterSequencer: (String) => RewriterStepSequencer = {
     import RewriterStepSequencer._
@@ -123,33 +123,33 @@ case class Cypher34Planner(configv3_5: CypherPlannerConfiguration,
                            ): LogicalPlanResult = {
 
     val inputPositionV3_4 = as3_4(preParsedQuery.offset)
-    val inputPositionv3_5 = preParsedQuery.offset
+    val inputPositionv3_6 = preParsedQuery.offset
     val notificationLoggerV3_4 = new RecordingNotificationLoggerV3_4(Some(inputPositionV3_4))
-    val notificationLoggerv3_5 = new RecordingNotificationLogger(Some(inputPositionv3_5))
+    val notificationLoggerv3_6 = new RecordingNotificationLogger(Some(inputPositionv3_6))
 
     runSafely {
       val syntacticQuery =
         getOrParse(preParsedQuery, new Parser3_4(compiler, notificationLoggerV3_4, inputPositionV3_4, as3_4(tracer)))
 
       // Context used for db communication during planning
-      val tcv3_5 = TransactionalContextWrapper(transactionalContext)
+      val tcv3_6 = TransactionalContextWrapper(transactionalContext)
 
       // Create graph-statistics to be shared between 3.3 logical planning and 3.5 physical planning
-      val graphStatisticsSnapshotv3_5 = new MutableGraphStatisticsSnapshotv3_5()
+      val graphStatisticsSnapshotv3_6 = new MutableGraphStatisticsSnapshotv3_6()
       val graphStatisticsV3_4 = new WrappedInstrumentedGraphStatistics(
-        TransactionBoundGraphStatisticsV3_4(tcv3_5.dataRead, tcv3_5.schemaRead),
-        graphStatisticsSnapshotv3_5)
+        TransactionBoundGraphStatisticsV3_4(tcv3_6.dataRead, tcv3_6.schemaRead),
+        graphStatisticsSnapshotv3_6)
 
       val planContextV3_4 = new ExceptionTranslatingPlanContextV3_4(
         new TransactionBoundPlanContextV3_4(() => transactionalContext.kernelTransaction,
                                             notificationLoggerV3_4, graphStatisticsV3_4))
 
-      val graphStatisticsv3_5 = InstrumentedGraphStatisticsv3_5(
-        TransactionBoundGraphStatistics(tcv3_5.dataRead, tcv3_5.schemaRead),
-        graphStatisticsSnapshotv3_5)
+      val graphStatisticsv3_6 = InstrumentedGraphStatisticsv3_6(
+        TransactionBoundGraphStatistics(tcv3_6.dataRead, tcv3_6.schemaRead),
+        graphStatisticsSnapshotv3_6)
 
-      val planContextv3_5 = new ExceptionTranslatingPlanContextv3_5(
-        new TransactionBoundPlanContext(tcv3_5, notificationLoggerv3_5, graphStatisticsv3_5))
+      val planContextv3_6 = new ExceptionTranslatingPlanContextv3_6(
+        new TransactionBoundPlanContext(tcv3_6, notificationLoggerv3_6, graphStatisticsv3_6))
 
       // Only used during planning
       def simpleExpressionEvaluatorV3_4 = new logicalV3_4.ExpressionEvaluator {
@@ -174,41 +174,41 @@ case class Cypher34Planner(configv3_5: CypherPlannerConfiguration,
                                   logicalPlanIdGenv3_4,
                                   simpleExpressionEvaluatorV3_4)
 
-      val logicalPlanIdGenv3_5 = new SequentialIdGen()
-      val contextv3_5: PlannerContext =
+      val logicalPlanIdGenv3_6 = new SequentialIdGen()
+      val contextv3_6: PlannerContext =
         PlannerContextCreator.create(tracer,
-                                     notificationLoggerv3_5,
-                                     planContextv3_5,
+                                     notificationLoggerv3_6,
+                                     planContextv3_6,
                                      syntacticQuery.queryText,
                                      preParsedQuery.debugOptions,
-                                     Some(inputPositionv3_5),
+                                     Some(inputPositionv3_6),
                                      monitors,
                                      CachedMetricsFactory(SimpleMetricsFactory),
                                      null,
-                                     configv3_5,
+                                     configv3_6,
                                      maybeUpdateStrategy.map(helpers.as3_5).getOrElse(defaultUpdateStrategy),
                                      clock,
-                                     logicalPlanIdGenv3_5,
+                                     logicalPlanIdGenv3_6,
                                      simpleExpressionEvaluator(PlanningQueryContext(transactionalContext)))
 
       // Prepare query for caching
       val preparedQuery = compiler.normalizeQuery(syntacticQuery, contextV3_4)
       val queryParamNames: Seq[String] = preparedQuery.statement().findByAllClass[Parameter].map(x => x.name)
-      checkForSchemaChanges(tcv3_5)
+      checkForSchemaChanges(tcv3_6)
 
       // If the query is not cached we do full planning + creating of executable plan
       def createPlan(): CacheableLogicalPlan = {
         val logicalPlanStateV3_4 = compiler.planPreparedQuery(preparedQuery, contextV3_4)
-        val logicalPlanStatev3_5 = helpers.as3_5(logicalPlanStateV3_4) // Here we switch from 3.4 to 3.5
+        val logicalPlanStatev3_6 = helpers.as3_5(logicalPlanStateV3_4) // Here we switch from 3.4 to 3.5
         LogicalPlanNotifications
-          .checkForNotifications(logicalPlanStatev3_5.maybeLogicalPlan.get, planContextv3_5, configv3_5)
-          .foreach(notificationLoggerv3_5.log)
+          .checkForNotifications(logicalPlanStatev3_6.maybeLogicalPlan.get, planContextv3_6, configv3_6)
+          .foreach(notificationLoggerv3_6.log)
 
-        val reusabilityState = createReusabilityState(logicalPlanStatev3_5, planContextv3_5)
+        val reusabilityState = createReusabilityState(logicalPlanStatev3_6, planContextv3_6)
         // Log notifications/warnings from planning
-        notificationLoggerV3_4.notifications.map(helpers.as3_5).foreach(notificationLoggerv3_5.log)
+        notificationLoggerV3_4.notifications.map(helpers.as3_5).foreach(notificationLoggerv3_6.log)
 
-        CacheableLogicalPlan(logicalPlanStatev3_5, reusabilityState, notificationLoggerv3_5.notifications)
+        CacheableLogicalPlan(logicalPlanStatev3_6, reusabilityState, notificationLoggerv3_6.notifications)
       }
 
       // 3.4 does not produce different plans for different parameter types.
@@ -229,7 +229,7 @@ case class Cypher34Planner(configv3_5: CypherPlannerConfiguration,
         queryParamNames,
         ValueConversion.asValues(preparedQuery.extractedParams()),
         cacheableLogicalPlan.reusability,
-        contextv3_5,
+        contextv3_6,
         cacheableLogicalPlan.notifications)
     }
   }

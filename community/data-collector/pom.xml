@@ -83,12 +83,12 @@ the relevant Commercial Agreement.
         </dependency>
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-parser-3.5</artifactId>
+            <artifactId>ongdb-parser-3.6</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-rewriting-3.5</artifactId>
+            <artifactId>ongdb-rewriting-3.6</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>

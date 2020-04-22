@@ -22,15 +22,15 @@
  */
 package org.neo4j.cypher.internal.runtime.vectorized.expressions
 
-import org.neo4j.cypher.internal.compiler.v3_5.planner.CantCompileQueryException
+import org.neo4j.cypher.internal.compiler.v3_6.planner.CantCompileQueryException
 import org.neo4j.cypher.internal.runtime.interpreted.CommandProjection
 import org.neo4j.cypher.internal.runtime.interpreted.commands.convert.{ExpressionConverter, ExpressionConverters}
 import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.Expression
-import org.neo4j.cypher.internal.v3_5.logical.plans.NestedPlanExpression
-import org.neo4j.cypher.internal.v3_5.expressions.functions.AggregatingFunction
-import org.neo4j.cypher.internal.v3_5.expressions.{functions, _}
-import org.neo4j.cypher.internal.v3_5.util.attribution.Id
-import org.neo4j.cypher.internal.v3_5.{expressions => ast}
+import org.neo4j.cypher.internal.v3_6.logical.plans.NestedPlanExpression
+import org.neo4j.cypher.internal.v3_6.expressions.functions.AggregatingFunction
+import org.neo4j.cypher.internal.v3_6.expressions.{functions, _}
+import org.neo4j.cypher.internal.v3_6.util.attribution.Id
+import org.neo4j.cypher.internal.v3_6.{expressions => ast}
 
 object MorselExpressionConverters extends ExpressionConverter {
 

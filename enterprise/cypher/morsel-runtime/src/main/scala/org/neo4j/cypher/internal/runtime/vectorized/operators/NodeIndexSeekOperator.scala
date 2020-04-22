@@ -22,15 +22,15 @@
  */
 package org.neo4j.cypher.internal.runtime.vectorized.operators
 
-import org.neo4j.cypher.internal.compatibility.v3_5.runtime.{SlotConfiguration, SlottedIndexedProperty}
+import org.neo4j.cypher.internal.compatibility.v3_6.runtime.{SlotConfiguration, SlottedIndexedProperty}
 import org.neo4j.cypher.internal.runtime.QueryContext
 import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.Expression
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.{IndexSeek, IndexSeekMode, NodeIndexSeeker, QueryState => OldQueryState}
 import org.neo4j.cypher.internal.runtime.vectorized._
-import org.neo4j.cypher.internal.v3_5.logical.plans.{IndexOrder, QueryExpression}
+import org.neo4j.cypher.internal.v3_6.logical.plans.{IndexOrder, QueryExpression}
 import org.neo4j.internal.kernel.api._
 import org.neo4j.values.storable.Value
-import org.neo4j.cypher.internal.v3_5.expressions.LabelToken
+import org.neo4j.cypher.internal.v3_6.expressions.LabelToken
 
 class NodeIndexSeekOperator(offset: Int,
                             label: LabelToken,

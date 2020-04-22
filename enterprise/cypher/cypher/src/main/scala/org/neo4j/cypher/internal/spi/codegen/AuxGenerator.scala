@@ -28,14 +28,14 @@ import org.neo4j.codegen.FieldReference.field
 import org.neo4j.codegen.Parameter.param
 import org.neo4j.codegen._
 import org.neo4j.cypher.internal.codegen.CompiledEquivalenceUtils
-import org.neo4j.cypher.internal.compiler.v3_5.common.CypherOrderability
+import org.neo4j.cypher.internal.compiler.v3_6.common.CypherOrderability
 import org.neo4j.cypher.internal.runtime.compiled.codegen.CodeGenContext
 import org.neo4j.cypher.internal.runtime.compiled.codegen.ir.expressions._
 import org.neo4j.cypher.internal.runtime.compiled.codegen.spi._
 import org.neo4j.values.AnyValue
 import org.neo4j.values.storable.Value
-import org.neo4j.cypher.internal.v3_5.frontend.helpers._
-import org.neo4j.cypher.internal.v3_5.util.symbols
+import org.neo4j.cypher.internal.v3_6.frontend.helpers._
+import org.neo4j.cypher.internal.v3_6.util.symbols
 
 import scala.collection.mutable
 

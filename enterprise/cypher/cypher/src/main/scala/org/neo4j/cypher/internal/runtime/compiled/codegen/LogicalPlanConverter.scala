@@ -22,26 +22,26 @@
  */
 package org.neo4j.cypher.internal.runtime.compiled.codegen
 
-import org.neo4j.cypher.internal.compiler.v3_5.planner.CantCompileQueryException
-import org.neo4j.cypher.internal.planner.v3_5.spi.PlanningAttributes.Cardinalities
+import org.neo4j.cypher.internal.compiler.v3_6.planner.CantCompileQueryException
+import org.neo4j.cypher.internal.planner.v3_6.spi.PlanningAttributes.Cardinalities
 import org.neo4j.cypher.internal.runtime.compiled.codegen.ir._
 import org.neo4j.cypher.internal.runtime.compiled.codegen.ir.aggregation.AggregationConverter.aggregateExpressionConverter
 import org.neo4j.cypher.internal.runtime.compiled.codegen.ir.aggregation.Distinct
 import org.neo4j.cypher.internal.runtime.compiled.codegen.ir.expressions.ExpressionConverter.createExpression
 import org.neo4j.cypher.internal.runtime.compiled.codegen.ir.expressions._
 import org.neo4j.cypher.internal.runtime.compiled.codegen.spi.SortItem
-import org.neo4j.cypher.internal.v3_5.logical.plans
-import org.neo4j.cypher.internal.v3_5.logical.plans.ColumnOrder
-import org.neo4j.cypher.internal.v3_5.expressions.Expression
-import org.neo4j.cypher.internal.v3_5.expressions.FunctionInvocation
-import org.neo4j.cypher.internal.v3_5.expressions.{functions => ast_functions}
-import org.neo4j.cypher.internal.v3_5.util.Eagerly.immutableMapValues
-import org.neo4j.cypher.internal.v3_5.util.Foldable._
-import org.neo4j.cypher.internal.v3_5.util.InternalException
-import org.neo4j.cypher.internal.v3_5.util.One
-import org.neo4j.cypher.internal.v3_5.util.ZeroOneOrMany
-import org.neo4j.cypher.internal.v3_5.util.symbols
-import org.neo4j.cypher.internal.v3_5.{expressions => ast}
+import org.neo4j.cypher.internal.v3_6.logical.plans
+import org.neo4j.cypher.internal.v3_6.logical.plans.ColumnOrder
+import org.neo4j.cypher.internal.v3_6.expressions.Expression
+import org.neo4j.cypher.internal.v3_6.expressions.FunctionInvocation
+import org.neo4j.cypher.internal.v3_6.expressions.{functions => ast_functions}
+import org.neo4j.cypher.internal.v3_6.util.Eagerly.immutableMapValues
+import org.neo4j.cypher.internal.v3_6.util.Foldable._
+import org.neo4j.cypher.internal.v3_6.util.InternalException
+import org.neo4j.cypher.internal.v3_6.util.One
+import org.neo4j.cypher.internal.v3_6.util.ZeroOneOrMany
+import org.neo4j.cypher.internal.v3_6.util.symbols
+import org.neo4j.cypher.internal.v3_6.{expressions => ast}
 
 object LogicalPlanConverter {
 

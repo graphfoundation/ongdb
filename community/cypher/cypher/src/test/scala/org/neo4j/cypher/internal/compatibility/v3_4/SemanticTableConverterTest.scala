@@ -25,8 +25,8 @@ import org.neo4j.cypher.internal.frontend.v3_4.{ast => astV3_4}
 import org.neo4j.cypher.internal.util.v3_4.symbols.{TypeSpec => TypeSpecV3_4}
 import org.neo4j.cypher.internal.util.v3_4.{InputPosition => InputPositionV3_4}
 import org.neo4j.cypher.internal.v3_4.{expressions => expressionsV3_4}
-import org.neo4j.cypher.internal.v3_5.util.test_helpers.CypherFunSuite
-import org.neo4j.cypher.internal.v3_5.{expressions => expressionsV3_5, util => utilV3_5}
+import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.v3_6.{expressions => expressionsV3_6, util => utilV3_6}
 
 class SemanticTableConverterTest extends CypherFunSuite {
 
@@ -37,8 +37,8 @@ class SemanticTableConverterTest extends CypherFunSuite {
     val variable2 = expressionsV3_4.Variable("A")(InputPositionV3_4(2,2,2))
     val table = SemanticTableV3_4(types = astV3_4.ASTAnnotationMap((variable1, typeInfo), (variable2, typeInfo)))
     val mapping: ExpressionMapping4To5 = Map(
-      (variable1, variable1.position) -> expressionsV3_5.Variable("A")(utilV3_5.InputPosition(1, 1, 1)),
-      (variable2, variable2.position) -> expressionsV3_5.Variable("A")(utilV3_5.InputPosition(2, 2, 2))
+      (variable1, variable1.position) -> expressionsV3_6.Variable("A")(utilV3_6.InputPosition(1, 1, 1)),
+      (variable2, variable2.position) -> expressionsV3_6.Variable("A")(utilV3_6.InputPosition(2, 2, 2))
     )
 
     // when
