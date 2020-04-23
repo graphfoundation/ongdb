@@ -62,17 +62,13 @@ Apache Software License, Version 2.0
   Lucene Common Analyzers
   Lucene Core
   Lucene QueryParsers
+  Neo4j - Cypher Expressions 3.4
+  Neo4j - Cypher Util 3.4
   neo4j-driver
   Netty/All-in-One
   oauth-sign
-  ONgDB - Push To Cloud - Admin command
   opencsv
-  openCypher AST for the Cypher Query Language
-  openCypher Expressions
-  openCypher Front End
-  openCypher Parser
-  openCypher Rewriting
-  openCypher Utils
+  openCypher Frontend
   parboiled-core
   parboiled-scala
   protobufjs
