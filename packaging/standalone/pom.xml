@@ -3,62 +3,32 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-<<<<<<< HEAD
         <groupId>org.graphfoundation.ongdb</groupId>
         <artifactId>parent</artifactId>
         <version>4.0.4-SNAPSHOT</version>
-=======
-        <groupId>org.neo4j</groupId>
-        <artifactId>parent</artifactId>
-        <version>4.0.4-SNAPSHOT</version>
->>>>>>> fork/4.0
-
         <relativePath>../..</relativePath>
     </parent>
 
-<<<<<<< HEAD
     <groupId>org.graphfoundation.ongdb.assembly</groupId>
     <artifactId>ongdb-standalone</artifactId>
     <packaging>pom</packaging>
 
     <name>ONgDB - Server Assembler</name>
-
-    <version>4.0.4-SNAPSHOT</version>
-=======
-    <groupId>org.neo4j.assembly</groupId>
-    <artifactId>neo4j-standalone</artifactId>
-    <packaging>pom</packaging>
-
-    <name>Neo4j - Server Assembler</name>
->>>>>>> fork/4.0
-
     <description>This project assembles the Neo4j stand-alone distribution,
         pulling together all the deliverable artifacts and packaging them
         into a downloadable installer.
     </description>
-<<<<<<< HEAD
     <url>https://ongdb.graphfoundation.org/${project.artifactId}/${project.version}</url>
 
     <scm>
         <connection>scm:git:git://github.com/graphfoundation/ongdb.git</connection>
         <developerConnection>scm:git:git@github.com:graphfoundation/ongdb.git</developerConnection>
         <url>https://github.com/graphfoundation/ongdb</url>
-=======
-    <url>http://components.neo4j.org/${project.artifactId}/${project.version}</url>
-
-    <scm>
-        <connection>scm:git:git://github.com/neo4j/neo4j.git</connection>
-        <developerConnection>scm:git:git@github.com:neo4j/neo4j.git</developerConnection>
-        <url>https://github.com/neo4j/neo4j</url>
->>>>>>> fork/4.0
     </scm>
 
     <modules>
         <module>standalone-community</module>
-<<<<<<< HEAD
         <module>standalone-enterprise</module>
-=======
->>>>>>> fork/4.0
     </modules>
 
     <properties>
@@ -66,7 +36,6 @@
         <!-- other filter properties -->
         <neo4j.version>${project.version}</neo4j.version>
 
-<<<<<<< HEAD
         <!-- conf/neo4j.conf filter properties -->
         <default.http.port>7474</default.http.port>
         <default.https.port>7473</default.https.port>
@@ -77,8 +46,6 @@
         <neo4j.confdir>${neo4j.home}/conf</neo4j.confdir> <!-- needed? -->
         <neo4j.datadir>${neo4j.home}/data</neo4j.datadir> <!-- needed? -->
         <neo4j.logdir>${neo4j.datadir}/log</neo4j.logdir> <!-- needed? -->
-=======
->>>>>>> fork/4.0
         <skip.shell.tests>false</skip.shell.tests>
     </properties>
 
@@ -86,14 +53,8 @@
         <license>
             <name>GNU Affero General Public License, Version 3 with the Commons Clause</name>
             <url>http://www.gnu.org/licenses/agpl-3.0-standalone.html</url>
-<<<<<<< HEAD
             <comments>The software ("Software") developed and owned by Neo4j Sweden AB (referred to in this notice as "Neo4j") is
                 licensed under the GNU AFFERO GENERAL PUBLIC LICENSE Version 3 to all
-=======
-            <comments>
-                The software ("Software") developed and owned by Neo4j Sweden AB (referred to in this notice as "Neo4j") is
-                licensed under the GNU AFFERO GENERAL PUBLIC LICENSE Version 3 with the Commons Clause to all
->>>>>>> fork/4.0
                 third parties and that license is included below.
 
                 However, if you have executed an End User Software License and Services
@@ -134,12 +95,8 @@
                 <artifactId>licensing-maven-plugin</artifactId>
                 <configuration>
                     <prependText>licensing/notice-agpl-prefix.txt</prependText>
-<<<<<<< HEAD
                     <excludedGroups>
                         ^((org.graphfoundation.ongdb){1}|(org.graphfoundation.ongdb.app){1}|(org.graphfoundation.ongdb.server.plugin){1}|(org.graphfoundation.ongdb.assembly){1})$
-=======
-                    <excludedGroups>^((org.neo4j){1}|(org.neo4j.community){1}|(org.neo4j.app){1}|(org.neo4j.server.plugin){1}|(org.neo4j.assembly){1})$
->>>>>>> fork/4.0
                     </excludedGroups>
                 </configuration>
                 <executions>
@@ -181,23 +138,14 @@
 
     <dependencies>
         <dependency>
-<<<<<<< HEAD
             <groupId>org.graphfoundation.ongdb</groupId>
             <artifactId>ongdb-import-tool</artifactId>
-=======
-            <groupId>org.neo4j</groupId>
-            <artifactId>neo4j-import-tool</artifactId>
->>>>>>> fork/4.0
             <version>${project.version}</version>
         </dependency>
 
         <!-- Defined to allow maven to calculate build order, it's used in the plugin above -->
         <dependency>
-<<<<<<< HEAD
             <groupId>org.graphfoundation.ongdb.build</groupId>
-=======
-            <groupId>org.neo4j.build</groupId>
->>>>>>> fork/4.0
             <artifactId>build-resources</artifactId>
             <version>${project.version}</version>
             <scope>provided</scope>

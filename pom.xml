@@ -82,10 +82,7 @@
         <test.runner.jvm.settings>
             -Xmx2G
             -XX:+UseG1GC
-            <dependency>
-                <groupId>-XX</groupId>
-                <artifactId>-OmitStackTraceInFastThrow</artifactId>
-            </dependency>
+            -XX:-OmitStackTraceInFastThrow
             -XX:+HeapDumpOnOutOfMemoryError
             -XX:+ExitOnOutOfMemoryError
             -Djdk.nio.maxCachedBufferSize=262144
@@ -141,10 +138,10 @@
         <module>annotations</module>
         <module>build-resources</module>
         <module>community</module>
-        <module>enterprise</module>
-        <module>integrationtests</module>
-        <module>stresstests</module>
-        <module>tools</module>
+<!--        <module>enterprise</module>-->
+<!--        <module>integrationtests</module>-->
+<!--        <module>stresstests</module>-->
+<!--        <module>tools</module>-->
         <module>packaging</module>
     </modules>
 
@@ -582,21 +579,15 @@
                     <version>3.0.0-M2</version>
                     <configuration>
                         <rules>
-                            <dependencyConvergence/>
                             <evaluateBeanshell>
-                                <message>Maven module has to be in a "groupId" beginning with "org.neo4j"</message>
-                                <condition>{String s = "${project.groupId}"; s.startsWith("org.neo4j");}</condition>
+                                <message>Maven module has to be in a "groupId" beginning with "org.graphfoundation.ongdb"</message>
+                                <condition>{String s = "${project.groupId}"; s.startsWith("org.graphfoundation.ongdb");}</condition>
                             </evaluateBeanshell>
                             <requireFilesDontExist>
                                 <message>You are not allowed to have classes in "com" package</message>
                                 <files>
                                     <file>${project.build.sourceDirectory}/com</file>
                                     <file>${project.build.testSourceDirectory}/com</file>
-                                </files>
-                            </requireFilesDontExist>
-                            <requireFilesDontExist>
-                                <files>
-                                    <file>enterprise</file>
                                 </files>
                             </requireFilesDontExist>
                             <requireMavenVersion>
@@ -1075,6 +1066,22 @@
                 <version>${guava.version}</version>
             </dependency>
             <dependency>
+                <groupId>org.apache.httpcomponents</groupId>
+                <artifactId>httpclient</artifactId>
+                <version>4.5.6</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.httpcomponents</groupId>
+                <artifactId>httpclient</artifactId>
+                <version>4.5.6</version>
+                <classifier>tests</classifier>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.httpcomponents</groupId>
+                <artifactId>httpcore</artifactId>
+                <version>4.4.10</version>
+            </dependency>
+            <dependency>
                 <groupId>org.slf4j</groupId>
                 <artifactId>slf4j-log4j12</artifactId>
                 <version>1.7.25</version>
@@ -1089,8 +1096,26 @@
                 <scope>test</scope>
             </dependency>
             <dependency>
+                <groupId>org.junit.jupiter</groupId>
+                <artifactId>junit-jupiter-params</artifactId>
+                <version>${junit.version}</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.junit.jupiter</groupId>
+                <artifactId>junit-jupiter-migrationsupport</artifactId>
+                <version>${junit.version}</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
                 <groupId>org.junit.vintage</groupId>
                 <artifactId>junit-vintage-engine</artifactId>
+                <version>${junit.version}</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.junit.jupiter</groupId>
+                <artifactId>junit-jupiter-engine</artifactId>
                 <version>${junit.version}</version>
                 <scope>test</scope>
             </dependency>
@@ -1576,4 +1601,5 @@
                 <version>${amazon-sdk.version}</version>
             </dependency>
         </dependencies>
-    </dependencyManagement
+    </dependencyManagement>
+</project>

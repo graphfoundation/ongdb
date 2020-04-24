@@ -4,7 +4,7 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <parent>
         <artifactId>testing-parent</artifactId>
-        <groupId>org.neo4j</groupId>
+        <groupId>org.graphfoundation.ongdb</groupId>
         <version>4.0.4-SNAPSHOT</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
@@ -18,7 +18,7 @@
         <default.jupiter.test.mode>concurrent</default.jupiter.test.mode>
     </properties>
 
-    <name>Neo4j - Database Layout API utilities</name>
+    <name>ONgDB - Database Layout API utilities</name>
 
     <description>A set of database layout API utilities used by tests.</description>
     <url>http://components.neo4j.org/${project.artifactId}/${project.version}</url>
@@ -49,7 +49,7 @@
 
     <dependencies>
         <dependency>
-            <groupId>org.neo4j</groupId>
+            <groupId>org.graphfoundation.ongdb</groupId>
             <artifactId>io-test-utils</artifactId>
             <version>${project.version}</version>
         </dependency>
@@ -70,8 +70,8 @@
             <scope>compile</scope>
         </dependency>
         <dependency>
-            <groupId>org.neo4j</groupId>
-            <artifactId>neo4j-layout</artifactId>
+            <groupId>org.graphfoundation.ongdb</groupId>
+            <artifactId>ongdb-layout</artifactId>
             <version>${project.version}</version>
         </dependency>
     </dependencies>

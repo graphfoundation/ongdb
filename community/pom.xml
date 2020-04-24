@@ -2,17 +2,17 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <parent>
-        <groupId>org.neo4j</groupId>
+        <groupId>org.graphfoundation.ongdb</groupId>
         <artifactId>parent</artifactId>
         <version>4.0.4-SNAPSHOT</version>
         <relativePath>..</relativePath>
     </parent>
 
     <modelVersion>4.0.0</modelVersion>
-    <groupId>org.neo4j.build</groupId>
+    <groupId>org.graphfoundation.ongdb.build</groupId>
     <artifactId>community-build</artifactId>
 
-    <name>Neo4j - Community Build</name>
+    <name>ONgDB - Community Build</name>
     <packaging>pom</packaging>
     <description>Project that builds the Neo4j Community distribution.</description>
     <url>http://components.neo4j.org/${project.artifactId}/${project.version}</url>
