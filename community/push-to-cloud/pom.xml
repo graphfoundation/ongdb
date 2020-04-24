@@ -27,7 +27,7 @@
         <developerConnection>scm:git:git@github.com:graphfoundation/ongdb.git</developerConnection>
         <url>https://github.com/graphfoundation/ongdb</url>
     </scm>
-    
+
     <licenses>
         <license>
             <name>Apache License, Version 2.0</name>
