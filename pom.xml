@@ -78,13 +78,19 @@
         <java.exports/>
         <test.runner.jvm/>
         <test.runner.jvm.settings.additional/>
-        <test.runner.jvm.settings>-Xmx2G -XX:+UseG1GC -XX:-OmitStackTraceInFastThrow -XX:+HeapDumpOnOutOfMemoryError
-            -XX:HeapDumpPath=target/test-data -Dorg.neo4j.unsafe.impl.internal.dragons.UnsafeUtil.DIRTY_MEMORY=true
+        <test.runner.jvm.settings>
+            -Xmx2G
+            -XX:+UseG1GC
+            -XX:-OmitStackTraceInFastThrow
+            -XX:+HeapDumpOnOutOfMemoryError
+            -XX:HeapDumpPath=target/test-data
+            -Dorg.neo4j.unsafe.impl.internal.dragons.UnsafeUtil.DIRTY_MEMORY=true
             -Dorg.neo4j.unsafe.impl.internal.dragons.UnsafeUtil.CHECK_NATIVE_ACCESS=true
             -Dorg.neo4j.io.pagecache.impl.muninn.usePreciseCursorErrorStackTraces=true
             -Dorg.neo4j.kernel.impl.api.KernelStatement.trackStatements=true
             -Dorg.org.neo4j.kernel.impl.newapi.DefaultCursors.trackCursors=true
-            -XX:+UnlockExperimentalVMOptions -XX:+TrustFinalNonStaticFields ${java.exports} ${test.runner.jvm.settings.additional}
+            -XX:+UnlockExperimentalVMOptions
+            -XX:+TrustFinalNonStaticFields ${java.exports} ${test.runner.jvm.settings.additional}
         </test.runner.jvm.settings>
         <jetty.version>9.4.17.v20190418</jetty.version>
         <findbugs.version>3.0.1</findbugs.version>
