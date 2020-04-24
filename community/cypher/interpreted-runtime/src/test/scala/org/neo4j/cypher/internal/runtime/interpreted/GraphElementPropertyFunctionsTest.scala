@@ -19,7 +19,8 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted
 
-import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.runtime.makeValueNeoSafe
+import org.neo4j.cypher.internal.v4_0.util.test_helpers.CypherFunSuite
 import org.neo4j.kernel.impl.util.ValueUtils
 import org.neo4j.values.storable.ArrayValue
 import org.neo4j.values.storable.Values._

@@ -19,16 +19,17 @@
  */
 package org.neo4j.kernel.internal;
 
-import java.net.URL;
 import java.util.concurrent.TimeUnit;
 
-import org.neo4j.graphdb.DependencyResolver;
+import org.neo4j.common.DependencyResolver;
 import org.neo4j.graphdb.GraphDatabaseService;
-import org.neo4j.graphdb.security.URLAccessValidationError;
+import org.neo4j.internal.kernel.api.connectioninfo.ClientConnectionInfo;
 import org.neo4j.internal.kernel.api.security.LoginContext;
 import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.kernel.api.KernelTransaction;
+import org.neo4j.kernel.database.NamedDatabaseId;
 import org.neo4j.kernel.impl.coreapi.InternalTransaction;
+import org.neo4j.kernel.impl.factory.DatabaseInfo;
 import org.neo4j.storageengine.api.StoreId;
 
 /**
@@ -46,17 +47,16 @@ public interface GraphDatabaseAPI extends GraphDatabaseService
     StoreId storeId();
 
     /**
-     * Validate whether this database instance is permitted to reach out to the specified URL (e.g. when using {@code LOAD CSV} in Cypher).
-     *
-     * @param url the URL being validated
-     * @return an updated URL that should be used for accessing the resource
-     */
-    URL validateURLAccess( URL url ) throws URLAccessValidationError;
-
-    /**
      * @return underlying database directory
      */
     DatabaseLayout databaseLayout();
+
+    /**
+     * @return underlying database id
+     */
+    NamedDatabaseId databaseId();
+
+    DatabaseInfo databaseInfo();
 
     /**
      * Begin internal transaction with specified type and access mode
@@ -67,12 +67,23 @@ public interface GraphDatabaseAPI extends GraphDatabaseService
     InternalTransaction beginTransaction( KernelTransaction.Type type, LoginContext loginContext );
 
     /**
+     * Begin internal transaction with specified type and access mode
+     * @param type transaction type
+     * @param loginContext transaction login context
+     * @param clientInfo transaction client info
+     * @return internal transaction
+     */
+    InternalTransaction beginTransaction( KernelTransaction.Type type, LoginContext loginContext, ClientConnectionInfo clientInfo );
+
+    /**
      * Begin internal transaction with specified type, access mode and timeout
      * @param type transaction type
      * @param loginContext transaction login context
+     * @param clientInfo transaction client info
      * @param timeout transaction timeout
      * @param unit time unit of timeout argument
      * @return internal transaction
      */
-    InternalTransaction beginTransaction( KernelTransaction.Type type, LoginContext loginContext, long timeout, TimeUnit unit );
+    InternalTransaction beginTransaction( KernelTransaction.Type type, LoginContext loginContext, ClientConnectionInfo clientInfo, long timeout,
+            TimeUnit unit );
 }

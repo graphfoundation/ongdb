@@ -24,7 +24,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-import org.neo4j.cypher.result.QueryResult;
 import org.neo4j.graphdb.ExecutionPlanDescription;
 import org.neo4j.graphdb.NotFoundException;
 import org.neo4j.graphdb.Notification;
@@ -33,16 +32,16 @@ import org.neo4j.graphdb.QueryStatistics;
 import org.neo4j.graphdb.ResourceIterator;
 import org.neo4j.graphdb.Result;
 import org.neo4j.io.pagecache.tracing.cursor.context.VersionContext;
+import org.neo4j.kernel.impl.query.QueryExecution;
 import org.neo4j.kernel.impl.query.QueryExecutionKernelException;
-import org.neo4j.kernel.impl.util.ValueUtils;
-import org.neo4j.values.AnyValue;
+import org.neo4j.kernel.impl.query.QuerySubscriber;
 
 import static java.lang.System.lineSeparator;
 
 /**
  * Result produced as result of eager query execution for cases when {@link SnapshotExecutionEngine} is used.
  */
-class EagerResult implements Result, QueryResultProvider
+class EagerResult implements Result
 {
     private static final String ITEM_SEPARATOR = ", ";
     private final Result originalResult;
@@ -62,6 +61,11 @@ class EagerResult implements Result, QueryResultProvider
         {
             queryResult.add( originalResult.next() );
         }
+    }
+
+    QueryExecution streamToSubscriber( QuerySubscriber subscriber, QueryExecution innerExecution )
+    {
+        return new EagerQueryExecution( subscriber, innerExecution, originalResult.getQueryStatistics(), queryResult );
     }
 
     @Override
@@ -113,12 +117,6 @@ class EagerResult implements Result, QueryResultProvider
     }
 
     @Override
-    public QueryResult queryResult()
-    {
-        return new EagerQueryResult();
-    }
-
-    @Override
     public String resultAsString()
     {
         List<String> columns = originalResult.columns();
@@ -163,7 +161,7 @@ class EagerResult implements Result, QueryResultProvider
         {
             for ( Map<String,Object> map : queryResult )
             {
-                visitor.visit( new MapRow( map ) );
+                visitor.visit( new ResultRowImpl( map ) );
             }
             checkIfDirty();
         }
@@ -184,7 +182,7 @@ class EagerResult implements Result, QueryResultProvider
         }
     }
 
-    private void writeRow( List<String> columns, StringBuilder builder, int numberOfColumns, Map<String,Object> row )
+    private static void writeRow( List<String> columns, StringBuilder builder, int numberOfColumns, Map<String,Object> row )
     {
         for ( int i = 0; i < numberOfColumns; i++ )
         {
@@ -222,70 +220,6 @@ class EagerResult implements Result, QueryResultProvider
         public void close()
         {
             // Nothing to close.
-        }
-    }
-
-    private class EagerQueryResult implements QueryResult
-    {
-
-        private final String[] fields;
-
-        EagerQueryResult()
-        {
-            fields = originalResult.columns().toArray( new String[0] );
-        }
-
-        @Override
-        public String[] fieldNames()
-        {
-            return fields;
-        }
-
-        @Override
-        public <E extends Exception> void accept( QueryResultVisitor<E> visitor ) throws E
-        {
-            while ( hasNext() )
-            {
-                Map<String,Object> row = next();
-                AnyValue[] anyValues = new AnyValue[fields.length];
-
-                for ( int i = 0; i < fields.length; i++ )
-                {
-                    anyValues[i] = ValueUtils.of( row.get( fields[i] ) );
-                }
-
-                visitor.visit( () -> anyValues );
-            }
-        }
-
-        @Override
-        public QueryExecutionType executionType()
-        {
-            return originalResult.getQueryExecutionType();
-        }
-
-        @Override
-        public QueryStatistics queryStatistics()
-        {
-            return originalResult.getQueryStatistics();
-        }
-
-        @Override
-        public ExecutionPlanDescription executionPlanDescription()
-        {
-            return originalResult.getExecutionPlanDescription();
-        }
-
-        @Override
-        public Iterable<Notification> getNotifications()
-        {
-            return originalResult.getNotifications();
-        }
-
-        @Override
-        public void close()
-        {
-            // nothing to close
         }
     }
 }

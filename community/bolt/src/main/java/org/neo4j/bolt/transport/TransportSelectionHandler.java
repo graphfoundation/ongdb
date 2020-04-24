@@ -35,7 +35,7 @@ import java.util.List;
 import org.neo4j.bolt.BoltChannel;
 import org.neo4j.bolt.transport.pipeline.ProtocolHandshaker;
 import org.neo4j.bolt.transport.pipeline.WebSocketFrameTranslator;
-import org.neo4j.helpers.Exceptions;
+import org.neo4j.internal.helpers.Exceptions;
 import org.neo4j.logging.Log;
 import org.neo4j.logging.LogProvider;
 
@@ -120,7 +120,7 @@ public class TransportSelectionHandler extends ByteToMessageDecoder
         }
     }
 
-    private boolean isBoltPreamble( ByteBuf in )
+    private static boolean isBoltPreamble( ByteBuf in )
     {
         return in.getInt( 0 ) == BOLT_MAGIC_PREAMBLE;
     }
@@ -130,7 +130,7 @@ public class TransportSelectionHandler extends ByteToMessageDecoder
         return sslCtx != null && SslHandler.isEncrypted( buf );
     }
 
-    private boolean isHttp( ByteBuf buf )
+    private static boolean isHttp( ByteBuf buf )
     {
         for ( int i = 0; i < WEBSOCKET_MAGIC.length(); ++i )
         {

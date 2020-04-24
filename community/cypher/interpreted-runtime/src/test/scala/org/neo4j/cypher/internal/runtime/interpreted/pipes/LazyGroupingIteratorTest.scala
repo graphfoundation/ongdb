@@ -21,7 +21,7 @@ package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
 import org.eclipse.collections.api.LongIterable
 import org.eclipse.collections.impl.set.mutable.primitive.LongHashSet
-import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.v4_0.util.test_helpers.CypherFunSuite
 
 class LazyGroupingIteratorTest extends CypherFunSuite {
 
@@ -72,7 +72,7 @@ class LazyGroupingIteratorTest extends CypherFunSuite {
 
   test("should let null through, but not include it in the state") {
     // given
-    val iterator = new LazyGroupingRowIterator(new Row("a", 1), new Row("a", None), new Row("a", 2))
+    val iterator = new LazyGroupingRowIterator(new Row("a", 1), Row("a", None), new Row("a", 2))
 
     iterator.next() should equal(new Row("a", 1))
     val state = iterator.state
@@ -89,7 +89,7 @@ class LazyGroupingIteratorTest extends CypherFunSuite {
   }
 
   class LazyGroupingRowIterator(rows: Row*) extends LazyGroupingIterator[Row](rows.iterator) {
-    var state: LongHashSet = null
+    var state: LongHashSet = _
 
     override def setState(state: LongHashSet) = {
       this.state = state

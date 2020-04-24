@@ -31,9 +31,9 @@ import org.neo4j.graphdb.Relationship;
 import org.neo4j.graphdb.RelationshipType;
 import org.neo4j.graphdb.ResourceIterator;
 import org.neo4j.graphdb.traversal.BranchState;
-import org.neo4j.helpers.collection.Iterables;
-import org.neo4j.helpers.collection.NestingResourceIterator;
-import org.neo4j.helpers.collection.Pair;
+import org.neo4j.internal.helpers.collection.Iterables;
+import org.neo4j.internal.helpers.collection.NestingResourceIterator;
+import org.neo4j.internal.helpers.collection.Pair;
 
 public final class OrderedByTypeExpander extends StandardExpander.RegularExpander
 {
@@ -99,17 +99,14 @@ public final class OrderedByTypeExpander extends StandardExpander.RegularExpande
     ResourceIterator<Relationship> doExpand( final Path path, BranchState state )
     {
         final Node node = path.endNode();
-        return new NestingResourceIterator<Relationship, Pair<RelationshipType, Direction>>(
-                orderedTypes.iterator() )
+        return new NestingResourceIterator<>( orderedTypes.iterator() )
         {
             @Override
-            protected ResourceIterator<Relationship> createNestedIterator(
-                    Pair<RelationshipType, Direction> entry )
+            protected ResourceIterator<Relationship> createNestedIterator( Pair<RelationshipType,Direction> entry )
             {
                 RelationshipType type = entry.first();
                 Direction dir = entry.other();
-                Iterable<Relationship> relationshipsIterable =
-                        (dir == Direction.BOTH) ? node.getRelationships( type ) : node.getRelationships( type, dir );
+                Iterable<Relationship> relationshipsIterable = (dir == Direction.BOTH) ? node.getRelationships( type ) : node.getRelationships( dir, type );
                 return Iterables.asResourceIterable( relationshipsIterable ).iterator();
             }
         };

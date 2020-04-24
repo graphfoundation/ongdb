@@ -22,10 +22,10 @@ package org.neo4j.kernel.api.impl.fulltext.analyzer.providers;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.ckb.SoraniAnalyzer;
 
-import org.neo4j.graphdb.index.fulltext.AnalyzerProvider;
-import org.neo4j.helpers.Service;
+import org.neo4j.annotations.service.ServiceProvider;
+import org.neo4j.graphdb.schema.AnalyzerProvider;
 
-@Service.Implementation( AnalyzerProvider.class )
+@ServiceProvider
 public class Sorani extends AnalyzerProvider
 {
     public Sorani()
@@ -36,7 +36,7 @@ public class Sorani extends AnalyzerProvider
     @Override
     public Analyzer createAnalyzer()
     {
-        return new SoraniAnalyzer();
+        return new SoraniAnalyzer( cleanStopWordSet( SoraniAnalyzer.getDefaultStopSet() ) );
     }
 
     @Override

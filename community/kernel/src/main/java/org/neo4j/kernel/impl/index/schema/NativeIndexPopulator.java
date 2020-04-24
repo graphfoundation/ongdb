@@ -19,36 +19,32 @@
  */
 package org.neo4j.kernel.impl.index.schema;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.NoSuchFileException;
 import java.util.Collection;
 import java.util.function.Consumer;
 
 import org.neo4j.index.internal.gbptree.GBPTree;
 import org.neo4j.index.internal.gbptree.RecoveryCleanupWorkCollector;
 import org.neo4j.index.internal.gbptree.Writer;
+import org.neo4j.internal.schema.IndexDescriptor;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.pagecache.IOLimiter;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.io.pagecache.PageCursor;
 import org.neo4j.kernel.api.exceptions.index.IndexEntryConflictException;
-import org.neo4j.kernel.api.index.IndexEntryUpdate;
 import org.neo4j.kernel.api.index.IndexPopulator;
 import org.neo4j.kernel.api.index.IndexProvider;
+import org.neo4j.kernel.api.index.IndexSample;
 import org.neo4j.kernel.api.index.IndexUpdater;
-import org.neo4j.kernel.impl.api.index.sampling.UniqueIndexSampler;
+import org.neo4j.kernel.api.index.UniqueIndexSampler;
+import org.neo4j.storageengine.api.IndexEntryUpdate;
 import org.neo4j.storageengine.api.NodePropertyAccessor;
-import org.neo4j.storageengine.api.schema.IndexSample;
-import org.neo4j.storageengine.api.schema.StoreIndexDescriptor;
 import org.neo4j.util.Preconditions;
 import org.neo4j.values.storable.Value;
 
 import static org.neo4j.index.internal.gbptree.GBPTree.NO_HEADER_WRITER;
-import static org.neo4j.storageengine.api.schema.IndexDescriptor.Type.GENERAL;
-import static org.neo4j.storageengine.api.schema.IndexDescriptor.Type.UNIQUE;
 
 /**
  * {@link IndexPopulator} backed by a {@link GBPTree}.
@@ -75,29 +71,19 @@ public abstract class NativeIndexPopulator<KEY extends NativeIndexKey<KEY>, VALU
     private boolean dropped;
     private boolean closed;
 
-    NativeIndexPopulator( PageCache pageCache, FileSystemAbstraction fs, File storeFile, IndexLayout<KEY,VALUE> layout, IndexProvider.Monitor monitor,
-            StoreIndexDescriptor descriptor, Consumer<PageCursor> additionalHeaderWriter )
+    NativeIndexPopulator( PageCache pageCache, FileSystemAbstraction fs, IndexFiles indexFiles, IndexLayout<KEY,VALUE> layout, IndexProvider.Monitor monitor,
+            IndexDescriptor descriptor, Consumer<PageCursor> additionalHeaderWriter )
     {
-        super( pageCache, fs, storeFile, layout, monitor, descriptor, false );
+        super( pageCache, fs, indexFiles, layout, monitor, descriptor, false );
         this.treeKey = layout.newKey();
         this.treeValue = layout.newValue();
         this.additionalHeaderWriter = additionalHeaderWriter;
-        switch ( descriptor.type() )
-        {
-        case GENERAL:
-            uniqueSampler = null;
-            break;
-        case UNIQUE:
-            uniqueSampler = new UniqueIndexSampler();
-            break;
-        default:
-            throw new IllegalArgumentException( "Unexpected index type " + descriptor.type() );
-        }
+        this.uniqueSampler = descriptor.isUnique() ? new UniqueIndexSampler() : null;
     }
 
     public void clear()
     {
-        deleteFileIfPresent( fileSystem, storeFile );
+        indexFiles.clear();
     }
 
     @Override
@@ -111,7 +97,7 @@ public abstract class NativeIndexPopulator<KEY extends NativeIndexKey<KEY>, VALU
         assertNotDropped();
         assertNotClosed();
 
-        deleteFileIfPresent( fileSystem, storeFile );
+        clear();
         instantiateTree( RecoveryCleanupWorkCollector.immediate(), headerWriter );
 
         // true:  tree uniqueness is (value,entityId)
@@ -124,7 +110,7 @@ public abstract class NativeIndexPopulator<KEY extends NativeIndexKey<KEY>, VALU
 
     ConflictDetectingValueMerger<KEY,VALUE,Value[]> getMainConflictDetector()
     {
-        return new ThrowingConflictDetector<>( descriptor.type() == GENERAL );
+        return new ThrowingConflictDetector<>( !descriptor.isUnique() );
     }
 
     @Override
@@ -133,7 +119,7 @@ public abstract class NativeIndexPopulator<KEY extends NativeIndexKey<KEY>, VALU
         try
         {
             closeTree();
-            deleteFileIfPresent( fileSystem, storeFile );
+            clear();
         }
         finally
         {
@@ -163,7 +149,7 @@ public abstract class NativeIndexPopulator<KEY extends NativeIndexKey<KEY>, VALU
     IndexUpdater newPopulatingUpdater()
     {
         IndexUpdater updater = new CollectingIndexUpdater( updates -> processUpdates( updates, updatesConflictDetector ) );
-        if ( descriptor.type() == UNIQUE && canCheckConflictsWithoutStoreAccess() )
+        if ( descriptor.isUnique() && canCheckConflictsWithoutStoreAccess() )
         {
             // The index population detects conflicts on the fly, however for updates coming in we're in a position
             // where we cannot detect conflicts while applying, but instead afterwards.
@@ -279,17 +265,11 @@ public abstract class NativeIndexPopulator<KEY extends NativeIndexKey<KEY>, VALU
     @Override
     public void includeSample( IndexEntryUpdate<?> update )
     {
-        switch ( descriptor.type() )
+        if ( descriptor.isUnique() )
         {
-        case GENERAL:
-            // Don't do anything here, we'll do a scan in the end instead
-            break;
-        case UNIQUE:
             updateUniqueSample( update );
-            break;
-        default:
-            throw new IllegalArgumentException( "Unexpected index type " + descriptor.type() );
         }
+        // else don't do anything here, we'll do a scan in the end instead
     }
 
     private void updateUniqueSample( IndexEntryUpdate<?> update )
@@ -312,30 +292,10 @@ public abstract class NativeIndexPopulator<KEY extends NativeIndexKey<KEY>, VALU
     @Override
     public IndexSample sampleResult()
     {
-        switch ( descriptor.type() )
+        if ( descriptor.isUnique() )
         {
-        case GENERAL:
-            return new FullScanNonUniqueIndexSampler<>( tree, layout ).result();
-        case UNIQUE:
             return uniqueSampler.result();
-        default:
-            throw new IllegalArgumentException( "Unexpected index type " + descriptor.type() );
         }
-    }
-
-    private static void deleteFileIfPresent( FileSystemAbstraction fs, File storeFile )
-    {
-        try
-        {
-            fs.deleteFileOrThrow( storeFile );
-        }
-        catch ( NoSuchFileException e )
-        {
-            // File does not exist, we don't need to delete
-        }
-        catch ( IOException e )
-        {
-            throw new UncheckedIOException( e );
-        }
+        return new FullScanNonUniqueIndexSampler<>( tree, layout ).result();
     }
 }

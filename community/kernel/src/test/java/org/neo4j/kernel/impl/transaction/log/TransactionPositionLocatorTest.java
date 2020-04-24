@@ -19,42 +19,40 @@
  */
 package org.neo4j.kernel.impl.transaction.log;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 
-import org.neo4j.kernel.impl.store.record.NodeRecord;
-import org.neo4j.kernel.impl.transaction.command.Command;
+import org.neo4j.kernel.impl.api.TestCommand;
 import org.neo4j.kernel.impl.transaction.log.entry.LogEntryCommand;
 import org.neo4j.kernel.impl.transaction.log.entry.LogEntryCommit;
 import org.neo4j.kernel.impl.transaction.log.entry.LogEntryReader;
 import org.neo4j.kernel.impl.transaction.log.entry.LogEntryStart;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.neo4j.storageengine.api.TransactionIdStore.BASE_TX_CHECKSUM;
 
-public class TransactionPositionLocatorTest
+class TransactionPositionLocatorTest
 {
-    private final LogEntryReader<ReadableClosablePositionAwareChannel> logEntryReader = mock( LogEntryReader.class );
-    private final ReadableClosablePositionAwareChannel channel = mock( ReadableClosablePositionAwareChannel.class );
+    private final LogEntryReader logEntryReader = mock( LogEntryReader.class );
+    private final ReadableClosablePositionAwareChecksumChannel channel = mock( ReadableClosablePositionAwareChecksumChannel.class );
     private final TransactionMetadataCache metadataCache = mock( TransactionMetadataCache.class );
 
     private final long txId = 42;
     private final LogPosition startPosition = new LogPosition( 1, 128 );
 
-    private final LogEntryStart start = new LogEntryStart( 0, 0, 0, 0, null, startPosition );
-    private final LogEntryCommand command = new LogEntryCommand(
-            new Command.NodeCommand( new NodeRecord( 42 ), new NodeRecord( 42 ) ) );
-    private final LogEntryCommit commit = new LogEntryCommit( txId, System.currentTimeMillis() );
+    private final LogEntryStart start = new LogEntryStart( 0, 0, 0, null, startPosition );
+    private final LogEntryCommand command = new LogEntryCommand( new TestCommand() );
+    private final LogEntryCommit commit = new LogEntryCommit( txId, System.currentTimeMillis(), BASE_TX_CHECKSUM );
 
     @Test
-    public void shouldFindTransactionLogPosition() throws IOException
+    void shouldFindTransactionLogPosition() throws IOException
     {
         // given
         final PhysicalLogicalTransactionStore.TransactionPositionLocator locator =
@@ -69,18 +67,16 @@ public class TransactionPositionLocatorTest
         // then
         assertFalse( result );
         assertEquals( startPosition, position );
-        verify( metadataCache, times( 1 ) ).cacheTransactionMetadata(
+        verify( metadataCache ).cacheTransactionMetadata(
                 txId,
                 startPosition,
-                start.getMasterId(),
-                start.getLocalId(),
-                LogEntryStart.checksum( start ),
+                commit.getChecksum(),
                 commit.getTimeWritten()
         );
     }
 
     @Test
-    public void shouldNotFindTransactionLogPosition() throws IOException
+    void shouldNotFindTransactionLogPosition() throws IOException
     {
         // given
         final PhysicalLogicalTransactionStore.TransactionPositionLocator locator =
@@ -93,14 +89,8 @@ public class TransactionPositionLocatorTest
 
         // then
         assertTrue( result );
-        try
-        {
-            locator.getAndCacheFoundLogPosition( metadataCache );
-            fail( "should have thrown" );
-        }
-        catch ( NoSuchTransactionException e )
-        {
-            assertEquals( "Unable to find transaction " + txId + " in any of my logical logs", e.getMessage() );
-        }
+        NoSuchTransactionException exception =
+                assertThrows( NoSuchTransactionException.class, () -> locator.getAndCacheFoundLogPosition( metadataCache ) );
+        assertEquals( "Unable to find transaction " + txId + " in any of my logical logs", exception.getMessage() );
     }
 }

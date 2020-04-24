@@ -1,29 +1,30 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0"?>
+
+
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <parent>
-        <groupId>org.graphfoundation.ongdb</groupId>
+        <groupId>org.neo4j</groupId>
         <artifactId>cypher-parent</artifactId>
-        <version>3.6.0-SNAPSHOT</version>
+        <version>4.0.4-SNAPSHOT</version>
         <relativePath>../</relativePath>
     </parent>
 
     <modelVersion>4.0.0</modelVersion>
-    <artifactId>ongdb-cypher-compatibility-spec-suite</artifactId>
+    <artifactId>neo4j-cypher-compatibility-spec-suite</artifactId>
     <packaging>jar</packaging>
-    <version>3.6.0-SNAPSHOT</version>
-    <name>ONgDB - Cypher Compatibility Specification Suite</name>
-    <description>ONgDB query language compatibility suite</description>
-    <url>https://ongdb.graphfoundation.org/${project.artifactId}/${project.version}</url>
+    <name>Neo4j - Cypher Compatibility Specification Suite</name>
+    <description>Neo4j query language compatibility suite</description>
+    <url>http://components.neo4j.org/${project.artifactId}/${project.version}</url>
 
     <scm>
-        <connection>scm:git:git://github.com/graphfoundation/ongdb.git</connection>
-        <developerConnection>scm:git:git@github.com:graphfoundation/ongdb.git</developerConnection>
-        <url>https://github.com/graphfoundation/ongdb</url>
+        <connection>scm:git:git://github.com/neo4j/neo4j.git</connection>
+        <developerConnection>scm:git:git@github.com:neo4j/neo4j.git</developerConnection>
+        <url>https://github.com/neo4j/neo4j</url>
     </scm>
 
     <properties>
-        <moduleName>org.neo4j.cypher.internal.runtime.util</moduleName>
+        <moduleName>org.neo4j.cypher.internal.planning.spec.suite</moduleName>
         <license-text.header>headers/GPL-3-header.txt</license-text.header>
     </properties>
 
@@ -31,7 +32,8 @@
         <license>
             <name>GNU General Public License, Version 3</name>
             <url>http://www.gnu.org/licenses/gpl-3.0-standalone.html</url>
-            <comments>The software ("Software") developed and owned by Neo4j Sweden AB (referred to in this notice as "Neo4j") is
+            <comments>
+                The software ("Software") developed and owned by Neo4j Sweden AB (referred to in this notice as "Neo4j") is
                 licensed under the GNU GENERAL PUBLIC LICENSE Version 3 to all third
                 parties and that license is included below.
 
@@ -45,15 +47,6 @@
             </comments>
         </license>
     </licenses>
-
-    <build>
-        <plugins>
-            <plugin>
-                <groupId>org.scalastyle</groupId>
-                <artifactId>scalastyle-maven-plugin</artifactId>
-            </plugin>
-        </plugins>
-    </build>
 
     <dependencies>
 
@@ -76,15 +69,11 @@
 
         <dependency>
             <groupId>org.scalatest</groupId>
-            <artifactId>scalatest_2.11</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.scalautils</groupId>
-            <artifactId>scalautils_2.11</artifactId>
+            <artifactId>scalatest_${scala.binary.version}</artifactId>
         </dependency>
         <dependency>
             <groupId>org.scalacheck</groupId>
-            <artifactId>scalacheck_2.11</artifactId>
+            <artifactId>scalacheck_${scala.binary.version}</artifactId>
         </dependency>
         <dependency>
             <groupId>org.scala-lang</groupId>
@@ -94,15 +83,15 @@
         <!-- neo4j -->
 
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-cypher</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-cypher</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
         </dependency>
 
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-cypher-spec-suite-tools</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-cypher-spec-suite-tools</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
         </dependency>
@@ -110,30 +99,29 @@
         <!-- neo4j testing -->
 
         <dependency>
-            <groupId>org.graphfoundation.ongdb.community</groupId>
+            <groupId>org.neo4j.community</groupId>
             <artifactId>it-test-support</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
         </dependency>
 
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-io</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>io-test-utils</artifactId>
             <version>${project.version}</version>
-            <type>test-jar</type>
             <scope>test</scope>
         </dependency>
 
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-cypher</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-cypher</artifactId>
             <version>${project.version}</version>
             <type>test-jar</type>
         </dependency>
 
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-cypher-spec-suite-tools</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-cypher-spec-suite-tools</artifactId>
             <version>${project.version}</version>
             <type>test-jar</type>
             <scope>test</scope>

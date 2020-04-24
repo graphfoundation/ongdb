@@ -19,29 +19,28 @@
  */
 package org.neo4j.kernel.monitoring.tracing;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import org.neo4j.io.pagecache.tracing.DefaultPageCacheTracer;
 import org.neo4j.io.pagecache.tracing.PageCacheTracer;
 import org.neo4j.io.pagecache.tracing.cursor.DefaultPageCursorTracerSupplier;
 import org.neo4j.io.pagecache.tracing.cursor.PageCursorTracerSupplier;
-import org.neo4j.kernel.impl.api.DefaultTransactionTracer;
-import org.neo4j.kernel.impl.transaction.log.checkpoint.DefaultCheckPointerTracer;
-import org.neo4j.kernel.impl.transaction.tracing.TransactionTracer;
-import org.neo4j.scheduler.JobScheduler;
-import org.neo4j.kernel.monitoring.Monitors;
+import org.neo4j.kernel.impl.api.tracer.DefaultTracer;
+import org.neo4j.kernel.impl.transaction.tracing.DatabaseTracer;
 import org.neo4j.logging.AssertableLogProvider;
 import org.neo4j.logging.Log;
+import org.neo4j.monitoring.Monitors;
+import org.neo4j.scheduler.JobScheduler;
 import org.neo4j.time.Clocks;
 import org.neo4j.time.SystemNanoClock;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.mock;
 
-public class TracersTest
+class TracersTest
 {
     private final AssertableLogProvider logProvider = new AssertableLogProvider();
     private final JobScheduler jobScheduler = mock( JobScheduler.class );
@@ -50,35 +49,24 @@ public class TracersTest
 
     private Log log;
 
-    @Before
-    public void setUp()
+    @BeforeEach
+    void setUp()
     {
         log = logProvider.getLog( getClass() );
-        System.setProperty( "org.neo4j.helpers.Service.printServiceLoaderStackTraces", "true" );
     }
 
     @Test
-    public void mustProduceNullImplementationsWhenRequested()
+    void mustProduceNullImplementationsWhenRequested()
     {
         Tracers tracers = createTracers( "null" );
-        assertThat( tracers.pageCacheTracer, is( PageCacheTracer.NULL ) );
-        assertThat( tracers.pageCursorTracerSupplier, is( PageCursorTracerSupplier.NULL ) );
-        assertThat( tracers.transactionTracer, is( TransactionTracer.NULL ) );
+        assertThat( tracers.getPageCacheTracer(), is( PageCacheTracer.NULL ) );
+        assertThat( tracers.getPageCursorTracerSupplier(), is( PageCursorTracerSupplier.NULL ) );
+        assertThat( tracers.getDatabaseTracer(), is( DatabaseTracer.NULL.NULL ) );
         assertNoWarning();
     }
 
     @Test
-    public void mustProduceNullImplementationsWhenRequestedIgnoringCase()
-    {
-        Tracers tracers = createTracers( "NuLl" );
-        assertThat( tracers.pageCacheTracer, is( PageCacheTracer.NULL ) );
-        assertThat( tracers.pageCursorTracerSupplier, is( PageCursorTracerSupplier.NULL ) );
-        assertThat( tracers.transactionTracer, is( TransactionTracer.NULL ) );
-        assertNoWarning();
-    }
-
-    @Test
-    public void mustProduceDefaultImplementationForNullConfiguration()
+    void mustProduceDefaultImplementationForNullConfiguration()
     {
         Tracers tracers = createTracers( null );
         assertDefaultImplementation( tracers );
@@ -86,7 +74,7 @@ public class TracersTest
     }
 
     @Test
-    public void mustProduceDefaultImplementationWhenRequested()
+    void mustProduceDefaultImplementationWhenRequested()
     {
         Tracers tracers = createTracers( "default" );
         assertDefaultImplementation( tracers );
@@ -94,15 +82,7 @@ public class TracersTest
     }
 
     @Test
-    public void mustProduceDefaultImplementationWhenRequestedIgnoringCase()
-    {
-        Tracers tracers = createTracers( "DeFaUlT" );
-        assertDefaultImplementation( tracers );
-        assertNoWarning();
-    }
-
-    @Test
-    public void mustProduceDefaultImplementationWhenRequestingUnknownImplementation()
+    void mustProduceDefaultImplementationWhenRequestingUnknownImplementation()
     {
         Tracers tracers = createTracers( "there's nothing like this" );
         assertDefaultImplementation( tracers );
@@ -116,10 +96,9 @@ public class TracersTest
 
     private void assertDefaultImplementation( Tracers tracers )
     {
-        assertThat( tracers.pageCacheTracer, instanceOf( DefaultPageCacheTracer.class ) );
-        assertThat( tracers.transactionTracer, instanceOf( DefaultTransactionTracer.class ) );
-        assertThat( tracers.checkPointTracer, instanceOf( DefaultCheckPointerTracer.class ) );
-        assertThat( tracers.pageCursorTracerSupplier, instanceOf( DefaultPageCursorTracerSupplier.class ) );
+        assertThat( tracers.getPageCacheTracer(), instanceOf( DefaultPageCacheTracer.class ) );
+        assertThat( tracers.getDatabaseTracer(), instanceOf( DefaultTracer.class ) );
+        assertThat( tracers.getPageCursorTracerSupplier(), instanceOf( DefaultPageCursorTracerSupplier.class ) );
     }
 
     private void assertNoWarning()

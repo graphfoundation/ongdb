@@ -22,12 +22,11 @@ package org.neo4j.server.rest.repr;
 import java.util.Iterator;
 import java.util.Map;
 
-import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Relationship;
-import org.neo4j.helpers.collection.FirstItemIterable;
-import org.neo4j.helpers.collection.IterableWrapper;
-import org.neo4j.helpers.collection.IteratorWrapper;
+import org.neo4j.internal.helpers.collection.FirstItemIterable;
+import org.neo4j.internal.helpers.collection.IterableWrapper;
+import org.neo4j.internal.helpers.collection.IteratorWrapper;
 
 public class ObjectToRepresentationConverter
 {
@@ -44,7 +43,6 @@ public class ObjectToRepresentationConverter
         }
         if ( data instanceof Map )
         {
-
             return getMapRepresentation( (Map) data );
         }
         return getSingleRepresentation( data );
@@ -56,7 +54,6 @@ public class ObjectToRepresentationConverter
 
     public static MappingRepresentation getMapRepresentation( Map data )
     {
-
         return new MapRepresentation( data );
     }
 
@@ -71,8 +68,7 @@ public class ObjectToRepresentationConverter
                     {
                         if ( value instanceof Iterable )
                         {
-                            FirstItemIterable<Representation> nested =
-                                    convertValuesToRepresentations( (Iterable) value );
+                            FirstItemIterable<Representation> nested = convertValuesToRepresentations( (Iterable) value );
                             return new ListRepresentation( getType( nested ), nested );
                         }
                         else
@@ -118,10 +114,6 @@ public class ObjectToRepresentationConverter
         if ( result == null )
         {
             return ValueRepresentation.ofNull();
-        }
-        else if ( result instanceof GraphDatabaseService )
-        {
-            return new DatabaseRepresentation();
         }
         else if ( result instanceof Node )
         {

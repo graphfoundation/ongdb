@@ -19,9 +19,9 @@
  */
 package org.neo4j.kernel.api.exceptions.schema;
 
-import org.neo4j.internal.kernel.api.TokenNameLookup;
+import org.neo4j.common.TokenNameLookup;
 import org.neo4j.internal.kernel.api.exceptions.schema.SchemaKernelException;
-import org.neo4j.internal.kernel.api.schema.constraints.ConstraintDescriptor;
+import org.neo4j.internal.schema.ConstraintDescriptor;
 import org.neo4j.kernel.api.exceptions.Status;
 
 import static java.lang.String.format;
@@ -46,11 +46,6 @@ public class AlreadyConstrainedException extends SchemaKernelException
         this.context = context;
     }
 
-    public ConstraintDescriptor constraint()
-    {
-        return constraint;
-    }
-
     private static String constructUserMessage( OperationContext context, TokenNameLookup tokenNameLookup,
             ConstraintDescriptor constraint )
     {
@@ -60,7 +55,7 @@ public class AlreadyConstrainedException extends SchemaKernelException
                 return messageWithLabelAndPropertyName( tokenNameLookup, INDEX_CONTEXT_FORMAT, constraint.schema() );
 
             case CONSTRAINT_CREATION:
-                return ALREADY_CONSTRAINED_MESSAGE_PREFIX + constraint.prettyPrint( tokenNameLookup );
+                return ALREADY_CONSTRAINED_MESSAGE_PREFIX + constraint.userDescription( tokenNameLookup );
 
             default:
                 return format( NO_CONTEXT_FORMAT, constraint );
@@ -70,6 +65,10 @@ public class AlreadyConstrainedException extends SchemaKernelException
     @Override
     public String getUserMessage( TokenNameLookup tokenNameLookup )
     {
-        return constructUserMessage( context, tokenNameLookup, constraint );
+        if ( constraint != null )
+        {
+            return constructUserMessage( context, tokenNameLookup, constraint );
+        }
+        return "Already constrained.";
     }
 }

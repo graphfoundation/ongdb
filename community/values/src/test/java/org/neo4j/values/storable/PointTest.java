@@ -22,11 +22,12 @@ package org.neo4j.values.storable;
 import org.hamcrest.CoreMatchers;
 import org.junit.jupiter.api.Test;
 
+import org.neo4j.exceptions.InvalidArgumentException;
 import org.neo4j.values.Comparison;
-import org.neo4j.values.utils.InvalidValuesArgumentException;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -76,6 +77,75 @@ class PointTest
     void geographicShouldNotEqualCartesian()
     {
         assertNotEqual( pointValue( WGS84, 1.0, 2.0 ), pointValue( Cartesian, 1.0, 2.0 ) );
+    }
+
+    @Test
+    void geometricInvalid2DPointsShouldBehave()
+    {
+        // we wrap around for x [-180,180]
+        // we fail on going over or under [-90,90] for y
+
+        // valid ones for x
+        assertArrayEquals( pointValue( WGS84, 0, 0 ).coordinate(), new double[]{0, 0} );
+        assertArrayEquals( pointValue( WGS84, 180, 0 ).coordinate(), new double[]{180, 0} );
+        assertArrayEquals( pointValue( WGS84, -180, 0 ).coordinate(), new double[]{-180, 0} );
+
+        // valid ones for x that should wrap around
+        assertArrayEquals( pointValue( WGS84, 190, 0 ).coordinate(), new double[]{-170, 0} );
+        assertArrayEquals( pointValue( WGS84, -190, 0 ).coordinate(), new double[]{170, 0} );
+        assertArrayEquals( pointValue( WGS84, 360, 0 ).coordinate(), new double[]{0, 0} );
+        assertArrayEquals( pointValue( WGS84, -360, 0 ).coordinate(), new double[]{0, 0} );
+        assertArrayEquals( pointValue( WGS84, 350, 0 ).coordinate(), new double[]{-10, 0} );
+        assertArrayEquals( pointValue( WGS84, -350, 0 ).coordinate(), new double[]{10, 0} );
+        assertArrayEquals( pointValue( WGS84, 370, 0 ).coordinate(), new double[]{10, 0} );
+        assertArrayEquals( pointValue( WGS84, -370, 0 ).coordinate(), new double[]{-10, 0} );
+        assertArrayEquals( pointValue( WGS84, 540, 0 ).coordinate(), new double[]{180, 0} );
+        assertArrayEquals( pointValue( WGS84, -540, 0 ).coordinate(), new double[]{-180, 0} );
+
+        // valid ones for y
+        assertArrayEquals( pointValue( WGS84, 0, 90 ).coordinate(), new double[]{0, 90} );
+        assertArrayEquals( pointValue( WGS84, 0, -90 ).coordinate(), new double[]{0, -90} );
+
+        // invalid ones for y
+        assertThrows( InvalidArgumentException.class, () -> pointValue( WGS84, 0, 91 ),
+                "Cannot create WGS84 point with invalid coordinate: [0.0, 91.0]. Valid range for Y coordinate is [-90, 90]." );
+        assertThrows( InvalidArgumentException.class, () -> pointValue( WGS84, 0, -91 ),
+                "Cannot create WGS84 point with invalid coordinate: [0.0, -91.0]. Valid range for Y coordinate is [-90, 90]." );
+    }
+
+    @Test
+    void geometricInvalid3DPointsShouldBehave()
+    {
+        // we wrap around for x [-180,180]
+        // we fail on going over or under [-90,90] for y
+        // we accept all values for z
+
+        // valid ones for x
+        assertArrayEquals( pointValue( WGS84_3D, 0, 0, 0 ).coordinate(), new double[]{0, 0, 0} );
+        assertArrayEquals( pointValue( WGS84_3D, 180, 0, 0 ).coordinate(), new double[]{180, 0, 0} );
+        assertArrayEquals( pointValue( WGS84_3D, -180, 0, 0 ).coordinate(), new double[]{-180, 0, 0} );
+
+        // valid ones for x that should wrap around
+        assertArrayEquals( pointValue( WGS84_3D, 190, 0, 0 ).coordinate(), new double[]{-170, 0, 0} );
+        assertArrayEquals( pointValue( WGS84_3D, -190, 0, 0 ).coordinate(), new double[]{170, 0, 0} );
+        assertArrayEquals( pointValue( WGS84_3D, 360, 0, 0 ).coordinate(), new double[]{0, 0, 0} );
+        assertArrayEquals( pointValue( WGS84_3D, -360, 0, 0 ).coordinate(), new double[]{0, 0, 0} );
+        assertArrayEquals( pointValue( WGS84_3D, 350, 0, 0 ).coordinate(), new double[]{-10, 0, 0} );
+        assertArrayEquals( pointValue( WGS84_3D, -350, 0, 0 ).coordinate(), new double[]{10, 0, 0} );
+        assertArrayEquals( pointValue( WGS84_3D, 370, 0, 0 ).coordinate(), new double[]{10, 0, 0} );
+        assertArrayEquals( pointValue( WGS84_3D, -370, 0, 0 ).coordinate(), new double[]{-10, 0, 0} );
+        assertArrayEquals( pointValue( WGS84_3D, 540, 0, 0 ).coordinate(), new double[]{180, 0, 0} );
+        assertArrayEquals( pointValue( WGS84_3D, -540, 0, 0 ).coordinate(), new double[]{-180, 0, 0} );
+
+        // valid ones for y
+        assertArrayEquals( pointValue( WGS84_3D, 0, 90, 0 ).coordinate(), new double[]{0, 90, 0} );
+        assertArrayEquals( pointValue( WGS84_3D, 0, -90, 0 ).coordinate(), new double[]{0, -90, 0} );
+
+        // invalid ones for y
+        assertThrows( InvalidArgumentException.class, () -> pointValue( WGS84_3D, 0, 91, 0 ),
+                "Cannot create WGS84 point with invalid coordinate: [0.0, 91.0, 0.0]. Valid range for Y coordinate is [-90, 90]." );
+        assertThrows( InvalidArgumentException.class, () -> pointValue( WGS84_3D, 0, -91, 0 ),
+                "Cannot create WGS84 point with invalid coordinate: [0.0, -91.0, 0.0]. Valid range for Y coordinate is [-90, 90]." );
     }
 
     @Test
@@ -314,7 +384,7 @@ class PointTest
         String headerInformation = "{latitude: 40.7128}";
         String data = "{longitude: -74.0060, height: 567.8, crs:wgs-84-3D}";
 
-        assertThrows( InvalidValuesArgumentException.class, () -> PointValue.parse( data ) );
+        assertThrows( InvalidArgumentException.class, () -> PointValue.parse( data ) );
 
         // this should work
         PointValue.parse( data, PointValue.parseHeaderInformation( headerInformation ) );
@@ -357,8 +427,8 @@ class PointTest
         assertCannotParse( "{crs:WGS-84 , lat:1, y:2}" );
     }
 
-    private InvalidValuesArgumentException assertCannotParse( String text )
+    private InvalidArgumentException assertCannotParse( String text )
     {
-        return assertThrows( InvalidValuesArgumentException.class, () -> PointValue.parse( text ) );
+        return assertThrows( InvalidArgumentException.class, () -> PointValue.parse( text ) );
     }
 }

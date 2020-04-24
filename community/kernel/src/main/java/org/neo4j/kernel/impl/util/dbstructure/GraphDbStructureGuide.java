@@ -21,48 +21,41 @@ package org.neo4j.kernel.impl.util.dbstructure;
 
 import java.util.Iterator;
 
-import org.neo4j.graphdb.DependencyResolver;
+import org.neo4j.common.TokenNameLookup;
+import org.neo4j.exceptions.KernelException;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.RelationshipType;
 import org.neo4j.graphdb.Transaction;
-import org.neo4j.helpers.collection.Visitable;
-import org.neo4j.internal.kernel.api.IndexReference;
+import org.neo4j.internal.helpers.collection.Visitable;
 import org.neo4j.internal.kernel.api.Read;
 import org.neo4j.internal.kernel.api.SchemaRead;
-import org.neo4j.internal.kernel.api.TokenNameLookup;
 import org.neo4j.internal.kernel.api.TokenRead;
-import org.neo4j.internal.kernel.api.exceptions.KernelException;
 import org.neo4j.internal.kernel.api.exceptions.schema.IndexNotFoundKernelException;
-import org.neo4j.internal.kernel.api.schema.constraints.ConstraintDescriptor;
+import org.neo4j.internal.schema.ConstraintDescriptor;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.internal.schema.constraints.NodeExistenceConstraintDescriptor;
+import org.neo4j.internal.schema.constraints.NodeKeyConstraintDescriptor;
+import org.neo4j.internal.schema.constraints.RelExistenceConstraintDescriptor;
 import org.neo4j.kernel.api.KernelTransaction;
 import org.neo4j.kernel.api.SilentTokenNameLookup;
-import org.neo4j.kernel.api.schema.constraints.NodeExistenceConstraintDescriptor;
-import org.neo4j.kernel.api.schema.constraints.NodeKeyConstraintDescriptor;
-import org.neo4j.kernel.api.schema.constraints.RelExistenceConstraintDescriptor;
-import org.neo4j.kernel.api.schema.constraints.UniquenessConstraintDescriptor;
-import org.neo4j.kernel.impl.core.ThreadToStatementContextBridge;
+import org.neo4j.kernel.impl.coreapi.InternalTransaction;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
-import org.neo4j.storageengine.api.schema.IndexDescriptor;
 
 import static java.lang.String.format;
-import static org.neo4j.helpers.collection.Iterators.loop;
-import static org.neo4j.internal.kernel.api.IndexReference.sortByType;
-import static org.neo4j.kernel.api.StatementConstants.ANY_LABEL;
-import static org.neo4j.kernel.api.StatementConstants.ANY_RELATIONSHIP_TYPE;
+import static org.neo4j.internal.helpers.collection.Iterators.loop;
+import static org.neo4j.internal.kernel.api.TokenRead.ANY_LABEL;
+import static org.neo4j.internal.kernel.api.TokenRead.ANY_RELATIONSHIP_TYPE;
 
 public class GraphDbStructureGuide implements Visitable<DbStructureVisitor>
 {
-    private static RelationshipType WILDCARD_REL_TYPE = () -> "";
+    private static final RelationshipType WILDCARD_REL_TYPE = () -> "";
 
-    private final GraphDatabaseService db;
-    private final ThreadToStatementContextBridge bridge;
+    private final GraphDatabaseAPI db;
 
     public GraphDbStructureGuide( GraphDatabaseService graph )
     {
-        this.db = graph;
-        DependencyResolver dependencies = ((GraphDatabaseAPI) graph).getDependencyResolver();
-        this.bridge = dependencies.resolveDependency( ThreadToStatementContextBridge.class );
+        this.db = (GraphDatabaseAPI) graph;
     }
 
     @Override
@@ -70,19 +63,19 @@ public class GraphDbStructureGuide implements Visitable<DbStructureVisitor>
     {
         try ( Transaction tx = db.beginTx() )
         {
-            showStructure( bridge.getKernelTransactionBoundToThisThread( true ), visitor );
-            tx.success();
+            showStructure( (InternalTransaction) tx, visitor );
+            tx.commit();
         }
     }
 
-    private void showStructure( KernelTransaction ktx, DbStructureVisitor visitor )
+    private void showStructure( InternalTransaction transaction, DbStructureVisitor visitor )
     {
 
         try
         {
-            showTokens( visitor, ktx );
-            showSchema( visitor, ktx );
-            showStatistics( visitor, ktx );
+            showTokens( visitor, transaction );
+            showSchema( visitor, transaction.kernelTransaction() );
+            showStatistics( visitor, transaction );
         }
         catch ( KernelException e )
         {
@@ -91,36 +84,36 @@ public class GraphDbStructureGuide implements Visitable<DbStructureVisitor>
         }
     }
 
-    private void showTokens( DbStructureVisitor visitor, KernelTransaction ktx )
+    private void showTokens( DbStructureVisitor visitor, InternalTransaction transaction )
     {
-        showLabels( ktx, visitor );
-        showPropertyKeys( ktx, visitor );
-        showRelTypes( ktx, visitor );
+        showLabels( transaction, visitor );
+        showPropertyKeys( transaction, visitor );
+        showRelTypes( transaction, visitor );
     }
 
-    private void showLabels( KernelTransaction ktx, DbStructureVisitor visitor )
+    private void showLabels( InternalTransaction transaction, DbStructureVisitor visitor )
     {
-        for ( Label label : db.getAllLabels() )
+        for ( Label label : transaction.getAllLabels() )
         {
-            int labelId = ktx.tokenRead().nodeLabel( label.name() );
+            int labelId = transaction.kernelTransaction().tokenRead().nodeLabel( label.name() );
             visitor.visitLabel( labelId, label.name() );
         }
     }
 
-    private void showPropertyKeys( KernelTransaction ktx, DbStructureVisitor visitor )
+    private void showPropertyKeys( InternalTransaction transaction, DbStructureVisitor visitor )
     {
-        for ( String propertyKeyName : db.getAllPropertyKeys() )
+        for ( String propertyKeyName : transaction.getAllPropertyKeys() )
         {
-            int propertyKeyId = ktx.tokenRead().propertyKey( propertyKeyName );
+            int propertyKeyId = transaction.kernelTransaction().tokenRead().propertyKey( propertyKeyName );
             visitor.visitPropertyKey( propertyKeyId, propertyKeyName );
         }
     }
 
-    private void showRelTypes( KernelTransaction ktx, DbStructureVisitor visitor )
+    private void showRelTypes( InternalTransaction transaction, DbStructureVisitor visitor )
     {
-        for ( RelationshipType relType : db.getAllRelationshipTypes() )
+        for ( RelationshipType relType : transaction.getAllRelationshipTypes() )
         {
-            int relTypeId = ktx.tokenRead().relationshipType( relType.name() );
+            int relTypeId = transaction.kernelTransaction().tokenRead().relationshipType( relType.name() );
             visitor.visitRelationshipType( relTypeId, relType.name() );
         }
     }
@@ -137,12 +130,12 @@ public class GraphDbStructureGuide implements Visitable<DbStructureVisitor>
             throws IndexNotFoundKernelException
     {
         SchemaRead schemaRead = ktx.schemaRead();
-        for ( IndexReference reference : loop( sortByType( schemaRead.indexesGetAll() ) ) )
+        for ( IndexDescriptor reference : loop( IndexDescriptor.sortByType( schemaRead.indexesGetAll() ) ) )
         {
             String userDescription = reference.schema().userDescription( nameLookup );
             double uniqueValuesPercentage = schemaRead.indexUniqueValuesSelectivity( reference );
             long size = schemaRead.indexSize( reference );
-            visitor.visitIndex( (IndexDescriptor) reference, userDescription, uniqueValuesPercentage, size );
+            visitor.visitIndex( reference, userDescription, uniqueValuesPercentage, size );
         }
     }
 
@@ -154,23 +147,23 @@ public class GraphDbStructureGuide implements Visitable<DbStructureVisitor>
             ConstraintDescriptor constraint = constraints.next();
             String userDescription = constraint.prettyPrint( nameLookup );
 
-            if ( constraint instanceof UniquenessConstraintDescriptor )
+            if ( constraint.isUniquenessConstraint() )
             {
-                visitor.visitUniqueConstraint( (UniquenessConstraintDescriptor) constraint, userDescription );
+                visitor.visitUniqueConstraint( constraint.asUniquenessConstraint(), userDescription );
             }
-            else if ( constraint instanceof NodeExistenceConstraintDescriptor )
+            else if ( constraint.isNodePropertyExistenceConstraint() )
             {
-                NodeExistenceConstraintDescriptor existenceConstraint = (NodeExistenceConstraintDescriptor) constraint;
+                NodeExistenceConstraintDescriptor existenceConstraint = constraint.asNodePropertyExistenceConstraint();
                 visitor.visitNodePropertyExistenceConstraint( existenceConstraint, userDescription );
             }
-            else if ( constraint instanceof RelExistenceConstraintDescriptor )
+            else if ( constraint.isRelationshipPropertyExistenceConstraint() )
             {
-                RelExistenceConstraintDescriptor existenceConstraint = (RelExistenceConstraintDescriptor) constraint;
+                RelExistenceConstraintDescriptor existenceConstraint = constraint.asRelationshipPropertyExistenceConstraint();
                 visitor.visitRelationshipPropertyExistenceConstraint( existenceConstraint, userDescription );
             }
-            else if ( constraint instanceof NodeKeyConstraintDescriptor )
+            else if ( constraint.isNodeKeyConstraint() )
             {
-                NodeKeyConstraintDescriptor nodeKeyConstraint = (NodeKeyConstraintDescriptor) constraint;
+                NodeKeyConstraintDescriptor nodeKeyConstraint = constraint.asNodeKeyConstraint();
                 visitor.visitNodeKeyConstraint( nodeKeyConstraint, userDescription );
             }
             else
@@ -181,30 +174,32 @@ public class GraphDbStructureGuide implements Visitable<DbStructureVisitor>
         }
     }
 
-    private void showStatistics( DbStructureVisitor visitor, KernelTransaction ktx )
+    private void showStatistics( DbStructureVisitor visitor, InternalTransaction transaction )
     {
-        showNodeCounts( ktx, visitor );
-        showRelCounts( ktx, visitor );
+        showNodeCounts( transaction, visitor );
+        showRelCounts( transaction, visitor );
     }
 
-    private void showNodeCounts( KernelTransaction ktx, DbStructureVisitor visitor )
+    private void showNodeCounts( InternalTransaction transaction, DbStructureVisitor visitor )
     {
-        Read read = ktx.dataRead();
+        var kernelTransaction = transaction.kernelTransaction();
+        Read read = kernelTransaction.dataRead();
         visitor.visitAllNodesCount( read.countsForNode( ANY_LABEL ) );
-        for ( Label label : db.getAllLabels() )
+        for ( Label label : transaction.getAllLabels() )
         {
-            int labelId = ktx.tokenRead().nodeLabel( label.name() );
+            int labelId = kernelTransaction.tokenRead().nodeLabel( label.name() );
             visitor.visitNodeCount( labelId, label.name(), read.countsForNode( labelId ) );
         }
     }
-    private void showRelCounts( KernelTransaction ktx, DbStructureVisitor visitor )
+    private void showRelCounts( InternalTransaction transaction, DbStructureVisitor visitor )
     {
         // all wildcards
+        KernelTransaction ktx = transaction.kernelTransaction();
         noSide( ktx, visitor, WILDCARD_REL_TYPE, ANY_RELATIONSHIP_TYPE );
 
         TokenRead tokenRead = ktx.tokenRead();
         // one label only
-        for ( Label label : db.getAllLabels() )
+        for ( Label label : transaction.getAllLabels() )
         {
             int labelId = tokenRead.nodeLabel( label.name() );
 
@@ -213,12 +208,12 @@ public class GraphDbStructureGuide implements Visitable<DbStructureVisitor>
         }
 
         // fixed rel type
-        for ( RelationshipType relType : db.getAllRelationshipTypes() )
+        for ( RelationshipType relType : transaction.getAllRelationshipTypes() )
         {
             int relTypeId = tokenRead.relationshipType( relType.name() );
             noSide( ktx, visitor, relType, relTypeId );
 
-            for ( Label label : db.getAllLabels() )
+            for ( Label label : transaction.getAllLabels() )
             {
                 int labelId = tokenRead.nodeLabel( label.name() );
 
@@ -261,6 +256,6 @@ public class GraphDbStructureGuide implements Visitable<DbStructureVisitor>
 
     private String colon( String name )
     {
-        return  name.length() == 0 ? name : (":" + name);
+        return  name.isEmpty() ? name : (":" + name);
     }
 }

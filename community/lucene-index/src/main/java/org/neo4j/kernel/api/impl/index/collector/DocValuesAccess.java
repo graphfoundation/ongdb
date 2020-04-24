@@ -29,10 +29,4 @@ public interface DocValuesAccess
      * @return the current value of the main field that is driving the values.
      */
     long current();
-
-    /**
-     * @return the value of an additional sidecar field.
-     * @throws IllegalStateException if no such field is indexed.
-     */
-    long getValue( String field );
 }

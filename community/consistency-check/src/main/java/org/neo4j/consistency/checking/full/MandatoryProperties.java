@@ -31,18 +31,20 @@ import java.util.function.Function;
 import org.neo4j.consistency.RecordType;
 import org.neo4j.consistency.report.ConsistencyReport;
 import org.neo4j.consistency.report.ConsistencyReporter;
-import org.neo4j.internal.kernel.api.schema.LabelSchemaDescriptor;
-import org.neo4j.internal.kernel.api.schema.RelationTypeSchemaDescriptor;
-import org.neo4j.internal.kernel.api.schema.SchemaDescriptor;
-import org.neo4j.internal.kernel.api.schema.SchemaProcessor;
-import org.neo4j.kernel.impl.store.SchemaStorage;
+import org.neo4j.internal.recordstorage.SchemaRuleAccess;
+import org.neo4j.internal.recordstorage.StoreTokens;
+import org.neo4j.internal.schema.ConstraintDescriptor;
+import org.neo4j.internal.schema.LabelSchemaDescriptor;
+import org.neo4j.internal.schema.RelationTypeSchemaDescriptor;
+import org.neo4j.internal.schema.SchemaDescriptor;
+import org.neo4j.internal.schema.SchemaProcessor;
 import org.neo4j.kernel.impl.store.StoreAccess;
-import org.neo4j.kernel.impl.store.record.ConstraintRule;
 import org.neo4j.kernel.impl.store.record.NodeRecord;
 import org.neo4j.kernel.impl.store.record.PrimitiveRecord;
 import org.neo4j.kernel.impl.store.record.RelationshipRecord;
+import org.neo4j.token.TokenHolders;
 
-import static org.neo4j.helpers.Numbers.safeCastLongToInt;
+import static org.neo4j.internal.helpers.Numbers.safeCastLongToInt;
 
 public class MandatoryProperties
 {
@@ -53,17 +55,18 @@ public class MandatoryProperties
     public MandatoryProperties( StoreAccess storeAccess )
     {
         this.storeAccess = storeAccess;
-        SchemaStorage schemaStorage = new SchemaStorage( storeAccess.getSchemaStore() );
-        for ( ConstraintRule rule : constraintsIgnoringMalformed( schemaStorage ) )
+        TokenHolders tokenHolders = StoreTokens.readOnlyTokenHolders( storeAccess.getRawNeoStores() );
+        SchemaRuleAccess schemaRuleAccess = SchemaRuleAccess.getSchemaRuleAccess( storeAccess.getSchemaStore(), tokenHolders );
+        for ( ConstraintDescriptor constraint : constraintsIgnoringMalformed( schemaRuleAccess ) )
         {
-            if ( rule.getConstraintDescriptor().enforcesPropertyExistence() )
+            if ( constraint.enforcesPropertyExistence() )
             {
-                rule.schema().processWith( constraintRecorder );
+                constraint.schema().processWith( constraintRecorder );
             }
         }
     }
 
-    private SchemaProcessor constraintRecorder = new SchemaProcessor()
+    private final SchemaProcessor constraintRecorder = new SchemaProcessor()
     {
         @Override
         public void processSpecific( LabelSchemaDescriptor schema )
@@ -139,7 +142,7 @@ public class MandatoryProperties
         };
     }
 
-    private Iterable<ConstraintRule> constraintsIgnoringMalformed( SchemaStorage schemaStorage )
+    private Iterable<ConstraintDescriptor> constraintsIgnoringMalformed( SchemaRuleAccess schemaStorage )
     {
         return schemaStorage::constraintsGetAllIgnoreMalformed;
     }

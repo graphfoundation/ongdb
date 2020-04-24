@@ -21,62 +21,63 @@ package org.neo4j.server.security.auth;
 
 import java.io.File;
 
+import org.neo4j.common.DependencySatisfier;
+import org.neo4j.configuration.Config;
+import org.neo4j.configuration.GraphDatabaseSettings;
+import org.neo4j.cypher.internal.security.SecureHasher;
 import org.neo4j.dbms.DatabaseManagementSystemSettings;
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
-import org.neo4j.helpers.Service;
-import org.neo4j.internal.kernel.api.exceptions.KernelException;
+import org.neo4j.dbms.database.DatabaseManager;
+import org.neo4j.dbms.database.SystemGraphInitializer;
 import org.neo4j.io.fs.FileSystemAbstraction;
+import org.neo4j.kernel.api.procedure.GlobalProcedures;
 import org.neo4j.kernel.api.security.AuthManager;
-import org.neo4j.kernel.api.security.PasswordPolicy;
 import org.neo4j.kernel.api.security.SecurityModule;
-import org.neo4j.kernel.api.security.UserManager;
-import org.neo4j.kernel.api.security.UserManagerSupplier;
-import org.neo4j.kernel.configuration.Config;
-import org.neo4j.kernel.impl.proc.Procedures;
 import org.neo4j.logging.LogProvider;
+import org.neo4j.logging.internal.LogService;
+import org.neo4j.server.security.systemgraph.BasicSystemGraphRealm;
+import org.neo4j.server.security.systemgraph.UserSecurityGraphInitializer;
 import org.neo4j.time.Clocks;
 
-@Service.Implementation( SecurityModule.class )
 public class CommunitySecurityModule extends SecurityModule
 {
-    public static final String COMMUNITY_SECURITY_MODULE_ID = "community-security-module";
+    private final LogProvider logProvider;
+    private final Config config;
+    private final GlobalProcedures globalProcedures;
+    private final FileSystemAbstraction fileSystem;
+    private final DependencySatisfier dependencySatisfier;
+    private BasicSystemGraphRealm authManager;
+    private SystemGraphInitializer systemGraphInitializer;
+    private DatabaseManager<?> databaseManager;
 
-    private BasicAuthManager authManager;
-
-    public CommunitySecurityModule()
+    public CommunitySecurityModule(
+            LogService logService,
+            Config config,
+            GlobalProcedures procedures,
+            FileSystemAbstraction fileSystem,
+            DependencySatisfier dependencySatisfier )
     {
-        super( COMMUNITY_SECURITY_MODULE_ID );
+        this.logProvider = logService.getUserLogProvider();
+        this.config = config;
+        this.globalProcedures = procedures;
+        this.fileSystem = fileSystem;
+        this.dependencySatisfier = dependencySatisfier;
     }
 
     @Override
-    public void setup( Dependencies dependencies ) throws KernelException
+    public void setup()
     {
-        Config config = dependencies.config();
-        Procedures procedures = dependencies.procedures();
-        LogProvider logProvider = dependencies.logService().getUserLogProvider();
-        FileSystemAbstraction fileSystem = dependencies.fileSystem();
-        final UserRepository userRepository = getUserRepository( config, logProvider, fileSystem );
-        final UserRepository initialUserRepository = getInitialUserRepository( config, logProvider, fileSystem );
+        org.neo4j.collection.Dependencies platformDependencies = (org.neo4j.collection.Dependencies) dependencySatisfier;
+        this.databaseManager = platformDependencies.resolveDependency( DatabaseManager.class );
+        this.systemGraphInitializer = platformDependencies.resolveDependency( SystemGraphInitializer.class );
 
-        final PasswordPolicy passwordPolicy = new BasicPasswordPolicy();
+        authManager = createBasicSystemGraphRealm( config, logProvider, fileSystem );
 
-        authManager = new BasicAuthManager( userRepository, passwordPolicy, Clocks.systemClock(),
-                initialUserRepository, config );
-
-        life.add( dependencies.dependencySatisfier().satisfyDependency( authManager ) );
-
-        procedures.registerComponent( UserManager.class, ctx -> authManager, false );
-        procedures.registerProcedure( AuthProcedures.class );
+        life.add( dependencySatisfier.satisfyDependency( authManager ) );
+        registerProcedure( globalProcedures, logProvider.getLog( getClass() ), AuthProcedures.class, null );
     }
 
     @Override
     public AuthManager authManager()
-    {
-        return authManager;
-    }
-
-    @Override
-    public UserManagerSupplier userManagerSupplier()
     {
         return authManager;
     }
@@ -109,15 +110,41 @@ public class CommunitySecurityModule extends SecurityModule
     private static File getUserRepositoryFile( Config config, String fileName )
     {
         // Resolve auth store file names
-        File authStoreDir = config.get( DatabaseManagementSystemSettings.auth_store_directory );
 
         // Because it contains sensitive information there is a legacy setting to configure
         // the location of the user store file that we still respect
-        File userStoreFile = config.get( GraphDatabaseSettings.auth_store );
-        if ( userStoreFile == null )
+
+        File authStore = config.get( GraphDatabaseSettings.auth_store ).toFile();
+        if ( authStore.isFile() )
         {
-            userStoreFile = new File( authStoreDir, fileName );
+            return authStore;
         }
-        return userStoreFile;
+        File authStoreDir = config.get( DatabaseManagementSystemSettings.auth_store_directory ).toFile();
+        return new File( authStoreDir, fileName );
+    }
+
+    private BasicSystemGraphRealm createBasicSystemGraphRealm( Config config, LogProvider logProvider, FileSystemAbstraction fileSystem )
+    {
+        SecureHasher secureHasher = new SecureHasher();
+
+        UserRepository migrationUserRepository = CommunitySecurityModule.getUserRepository( config, logProvider, fileSystem );
+        UserRepository initialUserRepository = CommunitySecurityModule.getInitialUserRepository( config, logProvider, fileSystem );
+
+        UserSecurityGraphInitializer securityGraphInitializer =
+                new UserSecurityGraphInitializer( databaseManager, systemGraphInitializer, logProvider.getLog( getClass() ),
+                        migrationUserRepository, initialUserRepository, secureHasher );
+
+        return new BasicSystemGraphRealm(
+                securityGraphInitializer, // always init on start in community
+                databaseManager,
+                secureHasher,
+                createAuthenticationStrategy( config ),
+                true // native authentication in always enabled in community
+        );
+    }
+
+    public static AuthenticationStrategy createAuthenticationStrategy( Config config )
+    {
+        return new RateLimitedAuthenticationStrategy( Clocks.systemClock(), config );
     }
 }

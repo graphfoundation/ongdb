@@ -25,6 +25,7 @@ import org.junit.Test;
 
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.regex.Pattern;
 import javax.servlet.FilterChain;
 import javax.servlet.ServletOutputStream;
@@ -36,9 +37,10 @@ import javax.ws.rs.core.HttpHeaders;
 import org.neo4j.internal.kernel.api.security.AuthSubject;
 import org.neo4j.internal.kernel.api.security.AuthenticationResult;
 import org.neo4j.logging.AssertableLogProvider;
-import org.neo4j.server.security.auth.BasicAuthManager;
 import org.neo4j.server.security.auth.BasicLoginContext;
+import org.neo4j.server.security.systemgraph.BasicSystemGraphRealm;
 
+import static java.util.stream.Collectors.toList;
 import static javax.servlet.http.HttpServletRequest.BASIC_AUTH;
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertThat;
@@ -56,7 +58,7 @@ import static org.neo4j.test.AuthTokenUtil.authTokenArgumentMatcher;
 
 public class AuthorizationFilterTest
 {
-    private final BasicAuthManager authManager = mock( BasicAuthManager.class );
+    private final BasicSystemGraphRealm authManager = mock( BasicSystemGraphRealm.class );
     private final AssertableLogProvider logProvider = new AssertableLogProvider();
     private final ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
     private final HttpServletRequest servletRequest = mock( HttpServletRequest.class );
@@ -92,7 +94,7 @@ public class AuthorizationFilterTest
     public void shouldAllowOptionsRequests() throws Exception
     {
         // Given
-        final AuthorizationEnabledFilter filter = new AuthorizationEnabledFilter( () -> authManager, logProvider );
+        final AuthorizationEnabledFilter filter = newFilter();
         when( servletRequest.getMethod() ).thenReturn( "OPTIONS" );
 
         // When
@@ -106,8 +108,7 @@ public class AuthorizationFilterTest
     public void shouldWhitelistMatchingUris() throws Exception
     {
         // Given
-        final AuthorizationEnabledFilter filter = new AuthorizationEnabledFilter( () -> authManager, logProvider,
-                Pattern.compile( "/" ), Pattern.compile( "/browser.*" ) );
+        final AuthorizationEnabledFilter filter = newFilter( "/", "/browser.*" );
         when( servletRequest.getMethod() ).thenReturn( "GET" );
         when( servletRequest.getContextPath() ).thenReturn( "/", "/browser/index.html" );
 
@@ -123,8 +124,7 @@ public class AuthorizationFilterTest
     public void shouldRequireAuthorizationForNonWhitelistedUris() throws Exception
     {
         // Given
-        final AuthorizationEnabledFilter filter = new AuthorizationEnabledFilter( () -> authManager, logProvider,
-                Pattern.compile( "/" ), Pattern.compile( "/browser.*" ) );
+        final AuthorizationEnabledFilter filter = newFilter( "/", "/browser.*" );
         when( servletRequest.getMethod() ).thenReturn( "GET" );
         when( servletRequest.getContextPath() ).thenReturn( "/db/data" );
 
@@ -146,7 +146,7 @@ public class AuthorizationFilterTest
     public void shouldRequireValidAuthorizationHeader() throws Exception
     {
         // Given
-        final AuthorizationEnabledFilter filter = new AuthorizationEnabledFilter( () -> authManager, logProvider );
+        final AuthorizationEnabledFilter filter = newFilter();
         when( servletRequest.getMethod() ).thenReturn( "GET" );
         when( servletRequest.getContextPath() ).thenReturn( "/db/data" );
         when( servletRequest.getHeader( HttpHeaders.AUTHORIZATION ) ).thenReturn( "NOT A VALID VALUE" );
@@ -168,7 +168,7 @@ public class AuthorizationFilterTest
     public void shouldNotAuthorizeInvalidCredentials() throws Exception
     {
         // Given
-        final AuthorizationEnabledFilter filter = new AuthorizationEnabledFilter( () -> authManager, logProvider );
+        final AuthorizationEnabledFilter filter = newFilter();
         String credentials = Base64.encodeBase64String( "foo:bar".getBytes( StandardCharsets.UTF_8 ) );
         BasicLoginContext loginContext = mock( BasicLoginContext.class );
         AuthSubject authSubject = mock( AuthSubject.class );
@@ -196,33 +196,10 @@ public class AuthorizationFilterTest
     }
 
     @Test
-    public void shouldAuthorizeWhenPasswordChangeRequiredForWhitelistedPath() throws Exception
+    public void shouldAuthorizeWhenPasswordChangeRequired() throws Exception
     {
         // Given
-        final AuthorizationEnabledFilter filter = new AuthorizationEnabledFilter( () -> authManager, logProvider );
-        String credentials = Base64.encodeBase64String( "foo:bar".getBytes( StandardCharsets.UTF_8 ) );
-        BasicLoginContext loginContext = mock( BasicLoginContext.class );
-        AuthSubject authSubject = mock( AuthSubject.class );
-        when( servletRequest.getMethod() ).thenReturn( "GET" );
-        when( servletRequest.getContextPath() ).thenReturn( "/user/foo" );
-        when( servletRequest.getHeader( HttpHeaders.AUTHORIZATION ) ).thenReturn( "BASIC " + credentials );
-        when( authManager.login( authTokenArgumentMatcher( authToken( "foo", "bar" ) ) ) ).thenReturn( loginContext );
-        when( loginContext.subject() ).thenReturn( authSubject );
-        when( authSubject.getAuthenticationResult() ).thenReturn( AuthenticationResult.PASSWORD_CHANGE_REQUIRED );
-
-        // When
-        filter.doFilter( servletRequest, servletResponse, filterChain );
-
-        // Then
-        verify( filterChain ).doFilter(
-                eq( new AuthorizedRequestWrapper( BASIC_AUTH, "foo", servletRequest, AUTH_DISABLED ) ), same( servletResponse ) );
-    }
-
-    @Test
-    public void shouldNotAuthorizeWhenPasswordChangeRequired() throws Exception
-    {
-        // Given
-        final AuthorizationEnabledFilter filter = new AuthorizationEnabledFilter( () -> authManager, logProvider );
+        final AuthorizationEnabledFilter filter = newFilter();
         String credentials = Base64.encodeBase64String( "foo:bar".getBytes( StandardCharsets.UTF_8 ) );
         BasicLoginContext loginContext = mock( BasicLoginContext.class );
         AuthSubject authSubject = mock( AuthSubject.class );
@@ -239,22 +216,15 @@ public class AuthorizationFilterTest
         filter.doFilter( servletRequest, servletResponse, filterChain );
 
         // Then
-        verifyNoMoreInteractions( filterChain );
-        verify( servletResponse ).setStatus( 403 );
-        verify( servletResponse ).addHeader( HttpHeaders.CONTENT_TYPE, "application/json; charset=UTF-8" );
-        assertThat( outputStream.toString( StandardCharsets.UTF_8.name() ),
-                containsString( "\"password_change\" : \"http://bar.baz:7474/user/foo/password\"" ) );
-        assertThat( outputStream.toString( StandardCharsets.UTF_8.name() ),
-                containsString( "\"code\" : \"Neo.ClientError.Security.Forbidden\"" ) );
-        assertThat( outputStream.toString( StandardCharsets.UTF_8.name() ),
-                containsString( "\"message\" : \"User is required to change their password.\"" ) );
+        verify( filterChain ).doFilter(
+                eq( new AuthorizedRequestWrapper( BASIC_AUTH, "foo", servletRequest, AUTH_DISABLED ) ), same( servletResponse ) );
     }
 
     @Test
     public void shouldNotAuthorizeWhenTooManyAttemptsMade() throws Exception
     {
         // Given
-        final AuthorizationEnabledFilter filter = new AuthorizationEnabledFilter( () -> authManager, logProvider );
+        final AuthorizationEnabledFilter filter = newFilter();
         String credentials = Base64.encodeBase64String( "foo:bar".getBytes( StandardCharsets.UTF_8 ) );
         BasicLoginContext loginContext = mock( BasicLoginContext.class );
         AuthSubject authSubject = mock( AuthSubject.class );
@@ -283,7 +253,7 @@ public class AuthorizationFilterTest
     public void shouldAuthorizeWhenValidCredentialsSupplied() throws Exception
     {
         // Given
-        final AuthorizationEnabledFilter filter = new AuthorizationEnabledFilter( () -> authManager, logProvider );
+        final AuthorizationEnabledFilter filter = newFilter();
         String credentials = Base64.encodeBase64String( "foo:bar".getBytes( StandardCharsets.UTF_8 ) );
         BasicLoginContext loginContext = mock( BasicLoginContext.class );
         AuthSubject authSubject = mock( AuthSubject.class );
@@ -306,8 +276,7 @@ public class AuthorizationFilterTest
     public void shouldIncludeCrippledAuthHeaderIfBrowserIsTheOneCalling() throws Throwable
     {
         // Given
-        final AuthorizationEnabledFilter filter = new AuthorizationEnabledFilter( () -> authManager, logProvider,
-                Pattern.compile( "/" ), Pattern.compile( "/browser.*" ) );
+        final AuthorizationEnabledFilter filter = newFilter( "/", "/browser.*" );
         when( servletRequest.getMethod() ).thenReturn( "GET" );
         when( servletRequest.getContextPath() ).thenReturn( "/db/data" );
         when( servletRequest.getHeader( "X-Ajax-Browser-Auth" )).thenReturn( "true" );
@@ -324,5 +293,14 @@ public class AuthorizationFilterTest
                 containsString( "\"code\" : \"Neo.ClientError.Security.Unauthorized\"" ) );
         assertThat( outputStream.toString( StandardCharsets.UTF_8.name() ),
                 containsString( "\"message\" : \"No authentication header supplied.\"" ) );
+    }
+
+    private AuthorizationEnabledFilter newFilter( String... uriWhitelist )
+    {
+        var uriWhitelistPatterns = Arrays.stream( uriWhitelist )
+                .map( Pattern::compile )
+                .collect( toList() );
+
+        return new AuthorizationEnabledFilter( () -> authManager, logProvider, uriWhitelistPatterns );
     }
 }

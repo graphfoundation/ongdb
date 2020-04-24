@@ -25,7 +25,7 @@ import java.util.Iterator;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Path;
 import org.neo4j.graphdb.Relationship;
-import org.neo4j.helpers.collection.IterableWrapper;
+import org.neo4j.internal.helpers.collection.IterableWrapper;
 
 public class PathRepresentation<P extends Path> extends ObjectRepresentation // implements
                                                                              // ExtensibleRepresentation
@@ -65,28 +65,28 @@ public class PathRepresentation<P extends Path> extends ObjectRepresentation // 
     public ListRepresentation nodes()
     {
         return new ListRepresentation( RepresentationType.NODE,
-                new IterableWrapper<Representation, Node>( path.nodes() )
-                {
-                    @Override
-                    protected Representation underlyingObjectToObject( Node node )
-                    {
-                        return ValueRepresentation.uri( NodeRepresentation.path( node ) );
-                    }
-                } );
+                                       new IterableWrapper<>( path.nodes() )
+                                       {
+                                           @Override
+                                           protected Representation underlyingObjectToObject( Node node )
+                                           {
+                                               return ValueRepresentation.uri( NodeRepresentation.path( node ) );
+                                           }
+                                       } );
     }
 
     @Mapping( "relationships" )
     public ListRepresentation relationships()
     {
         return new ListRepresentation( RepresentationType.RELATIONSHIP,
-                new IterableWrapper<Representation, Relationship>( path.relationships() )
-                {
-                    @Override
-                    protected Representation underlyingObjectToObject( Relationship node )
-                    {
-                        return ValueRepresentation.uri( RelationshipRepresentation.path( node ) );
-                    }
-                } );
+                                       new IterableWrapper<>( path.relationships() )
+                                       {
+                                           @Override
+                                           protected Representation underlyingObjectToObject( Relationship node )
+                                           {
+                                               return ValueRepresentation.uri( RelationshipRepresentation.path( node ) );
+                                           }
+                                       } );
     }
 
     @Mapping( "directions" )
@@ -117,13 +117,13 @@ public class PathRepresentation<P extends Path> extends ObjectRepresentation // 
         }
 
         return new ListRepresentation( RepresentationType.STRING,
-                new IterableWrapper<Representation, String>( directionStrings )
-                {
-                    @Override
-                    protected Representation underlyingObjectToObject( String directionString )
-                    {
-                        return ValueRepresentation.string(directionString);
-                    }
-                } );
+                                       new IterableWrapper<>( directionStrings )
+                                       {
+                                           @Override
+                                           protected Representation underlyingObjectToObject( String directionString )
+                                           {
+                                               return ValueRepresentation.string( directionString );
+                                           }
+                                       } );
     }
 }

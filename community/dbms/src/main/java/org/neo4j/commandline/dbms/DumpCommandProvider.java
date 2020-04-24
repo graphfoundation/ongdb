@@ -19,56 +19,17 @@
  */
 package org.neo4j.commandline.dbms;
 
-import java.nio.file.Path;
-import javax.annotation.Nonnull;
-
-import org.neo4j.commandline.admin.AdminCommand;
-import org.neo4j.commandline.admin.AdminCommandSection;
-import org.neo4j.commandline.admin.OutsideWorld;
-import org.neo4j.commandline.arguments.Arguments;
+import org.neo4j.annotations.service.ServiceProvider;
+import org.neo4j.cli.CommandProvider;
+import org.neo4j.cli.ExecutionContext;
 import org.neo4j.dbms.archive.Dumper;
 
-public class DumpCommandProvider extends AdminCommand.Provider
+@ServiceProvider
+public class DumpCommandProvider implements CommandProvider<DumpCommand>
 {
-    public DumpCommandProvider()
-    {
-        super( "dump" );
-    }
-
     @Override
-    @Nonnull
-    public Arguments allArguments()
+    public DumpCommand createCommand( ExecutionContext ctx )
     {
-        return DumpCommand.arguments();
-    }
-
-    @Override
-    @Nonnull
-    public String description()
-    {
-        return "Dump a database into a single-file archive. The archive can be used by the load command. " +
-                "<destination-path> can be a file or directory (in which case a file called <database>.dump will " +
-                "be created). It is not possible to dump a database that is mounted in a running Neo4j server.";
-    }
-
-    @Override
-    @Nonnull
-    public String summary()
-    {
-        return "Dump a database into a single-file archive.";
-    }
-
-    @Override
-    @Nonnull
-    public AdminCommandSection commandSection()
-    {
-        return OfflineBackupCommandSection.instance();
-    }
-
-    @Override
-    @Nonnull
-    public AdminCommand create( Path homeDir, Path configDir, OutsideWorld outsideWorld )
-    {
-        return new DumpCommand( homeDir, configDir, new Dumper( outsideWorld.errorStream() ), outsideWorld.errorStream() );
+        return new DumpCommand( ctx, new Dumper( ctx.err() ) );
     }
 }

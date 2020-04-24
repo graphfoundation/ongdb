@@ -20,40 +20,55 @@
 package org.neo4j.kernel.impl.newapi;
 
 import java.util.Iterator;
-import java.util.regex.Pattern;
 
+import org.neo4j.internal.kernel.api.LabelSet;
 import org.neo4j.internal.kernel.api.PropertyCursor;
+import org.neo4j.internal.kernel.api.security.AccessMode;
 import org.neo4j.kernel.api.AssertOpen;
 import org.neo4j.storageengine.api.StorageProperty;
 import org.neo4j.storageengine.api.StoragePropertyCursor;
-import org.neo4j.storageengine.api.txstate.PropertyContainerState;
+import org.neo4j.storageengine.api.txstate.EntityState;
 import org.neo4j.values.storable.Value;
 import org.neo4j.values.storable.ValueGroup;
-import org.neo4j.values.storable.ValueWriter;
 
-import static org.neo4j.kernel.impl.store.record.AbstractBaseRecord.NO_ID;
+import static org.neo4j.kernel.impl.newapi.Read.NO_ID;
 
-public class DefaultPropertyCursor implements PropertyCursor
+public class DefaultPropertyCursor extends TraceableCursor implements PropertyCursor
 {
+    private static final long NO_NODE = -1L;
+    private static final long NO_RELATIONSHIP = -1L;
+
     private Read read;
     private StoragePropertyCursor storeCursor;
-    private PropertyContainerState propertiesState;
+    private final FullAccessNodeCursor nodeCursor;
+    private final FullAccessRelationshipScanCursor relCursor;
+    private EntityState propertiesState;
     private Iterator<StorageProperty> txStateChangedProperties;
     private StorageProperty txStateValue;
     private AssertOpen assertOpen;
-    private final DefaultCursors pool;
+    private final CursorPool<DefaultPropertyCursor> pool;
+    private AccessMode accessMode;
+    private long nodeReference = NO_NODE;
+    private long relationshipReference = NO_RELATIONSHIP;
+    private LabelSet labels;
 
-    DefaultPropertyCursor( DefaultCursors pool, StoragePropertyCursor storeCursor )
+    DefaultPropertyCursor( CursorPool<DefaultPropertyCursor> pool, StoragePropertyCursor storeCursor, FullAccessNodeCursor nodeCursor,
+                           FullAccessRelationshipScanCursor relCursor )
     {
         this.pool = pool;
         this.storeCursor = storeCursor;
+        this.nodeCursor = nodeCursor;
+        this.relCursor = relCursor;
     }
 
     void initNode( long nodeReference, long reference, Read read, AssertOpen assertOpen )
     {
         assert nodeReference != NO_ID;
 
-        init( reference, read, assertOpen );
+        init( read, assertOpen );
+        storeCursor.initNodeProperties( reference );
+        this.nodeReference = nodeReference;
+        relationshipReference = NO_RELATIONSHIP;
 
         // Transaction state
         if ( read.hasTxStateWithChanges() )
@@ -61,13 +76,21 @@ public class DefaultPropertyCursor implements PropertyCursor
             this.propertiesState = read.txState().getNodeState( nodeReference );
             this.txStateChangedProperties = this.propertiesState.addedAndChangedProperties();
         }
+        else
+        {
+            this.propertiesState = null;
+            this.txStateChangedProperties = null;
+        }
     }
 
     void initRelationship( long relationshipReference, long reference, Read read, AssertOpen assertOpen )
     {
         assert relationshipReference != NO_ID;
 
-        init( reference, read, assertOpen );
+        init( read, assertOpen );
+        storeCursor.initRelationshipProperties( reference );
+        nodeReference = NO_NODE;
+        this.relationshipReference = relationshipReference;
 
         // Transaction state
         if ( read.hasTxStateWithChanges() )
@@ -75,53 +98,47 @@ public class DefaultPropertyCursor implements PropertyCursor
             this.propertiesState = read.txState().getRelationshipState( relationshipReference );
             this.txStateChangedProperties = this.propertiesState.addedAndChangedProperties();
         }
-    }
-
-    void initGraph( long reference, Read read, AssertOpen assertOpen )
-    {
-        init( reference, read, assertOpen );
-
-        // Transaction state
-        if ( read.hasTxStateWithChanges() )
+        else
         {
-            this.propertiesState = read.txState().getGraphState( );
-            if ( this.propertiesState != null )
-            {
-                this.txStateChangedProperties = this.propertiesState.addedAndChangedProperties();
-            }
+            this.propertiesState = null;
+            this.txStateChangedProperties = null;
         }
     }
 
-    private void init( long reference, Read read, AssertOpen assertOpen )
+    private void init( Read read, AssertOpen assertOpen )
     {
         this.assertOpen = assertOpen;
         this.read = read;
-        this.storeCursor.init( reference );
+        this.accessMode = read.ktx.securityContext().mode();
+        this.labels = null;
+    }
+
+    boolean allowed()
+    {
+        int propertyKey = propertyKey();
+        if ( isNode() )
+        {
+            return accessMode.allowsReadNodeProperty( this::labelsIgnoringTxStateSetRemove, propertyKey );
+        }
+        if ( isRelationship() )
+        {
+            return accessMode.allowsReadRelationshipProperty( this::getRelType, propertyKey );
+        }
+        return true;
     }
 
     @Override
     public boolean next()
-    {
-        boolean hasNext;
-        do
-        {
-            hasNext = innerNext();
-        } while ( hasNext && !allowed( propertyKey() ) );
-        return hasNext;
-    }
-
-    private boolean allowed( int propertyKey )
-    {
-        return read.ktx.securityContext().mode().allowsPropertyReads( propertyKey );
-    }
-
-    private boolean innerNext()
     {
         if ( txStateChangedProperties != null )
         {
             if ( txStateChangedProperties.hasNext() )
             {
                 txStateValue = txStateChangedProperties.next();
+                if ( tracer != null )
+                {
+                    tracer.onProperty( propertyKey() );
+                }
                 return true;
             }
             else
@@ -134,8 +151,12 @@ public class DefaultPropertyCursor implements PropertyCursor
         while ( storeCursor.next() )
         {
             boolean skip = propertiesState != null && propertiesState.isPropertyChangedOrRemoved( storeCursor.propertyKey() );
-            if ( !skip )
+            if ( !skip && allowed() )
             {
+                if ( tracer != null )
+                {
+                    tracer.onProperty( propertyKey() );
+                }
                 return true;
             }
         }
@@ -143,7 +164,7 @@ public class DefaultPropertyCursor implements PropertyCursor
     }
 
     @Override
-    public void close()
+    public void closeInternal()
     {
         if ( !isClosed() )
         {
@@ -152,6 +173,7 @@ public class DefaultPropertyCursor implements PropertyCursor
             txStateValue = null;
             read = null;
             storeCursor.reset();
+            accessMode = null;
 
             pool.accept( this );
         }
@@ -192,108 +214,6 @@ public class DefaultPropertyCursor implements PropertyCursor
     }
 
     @Override
-    public <E extends Exception> void writeTo( ValueWriter<E> target )
-    {
-        throw new UnsupportedOperationException( "not implemented" );
-    }
-
-    @Override
-    public boolean booleanValue()
-    {
-        throw new UnsupportedOperationException( "not implemented" );
-    }
-
-    @Override
-    public String stringValue()
-    {
-        throw new UnsupportedOperationException( "not implemented" );
-    }
-
-    @Override
-    public long longValue()
-    {
-        throw new UnsupportedOperationException( "not implemented" );
-    }
-
-    @Override
-    public double doubleValue()
-    {
-        throw new UnsupportedOperationException( "not implemented" );
-    }
-
-    @Override
-    public boolean valueEqualTo( long value )
-    {
-        throw new UnsupportedOperationException( "not implemented" );
-    }
-
-    @Override
-    public boolean valueEqualTo( double value )
-    {
-        throw new UnsupportedOperationException( "not implemented" );
-    }
-
-    @Override
-    public boolean valueEqualTo( String value )
-    {
-        throw new UnsupportedOperationException( "not implemented" );
-    }
-
-    @Override
-    public boolean valueMatches( Pattern regex )
-    {
-        throw new UnsupportedOperationException( "not implemented" );
-    }
-
-    @Override
-    public boolean valueGreaterThan( long number )
-    {
-        throw new UnsupportedOperationException( "not implemented" );
-    }
-
-    @Override
-    public boolean valueGreaterThan( double number )
-    {
-        throw new UnsupportedOperationException( "not implemented" );
-    }
-
-    @Override
-    public boolean valueLessThan( long number )
-    {
-        throw new UnsupportedOperationException( "not implemented" );
-    }
-
-    @Override
-    public boolean valueLessThan( double number )
-    {
-        throw new UnsupportedOperationException( "not implemented" );
-    }
-
-    @Override
-    public boolean valueGreaterThanOrEqualTo( long number )
-    {
-        throw new UnsupportedOperationException( "not implemented" );
-    }
-
-    @Override
-    public boolean valueGreaterThanOrEqualTo( double number )
-    {
-        throw new UnsupportedOperationException( "not implemented" );
-    }
-
-    @Override
-    public boolean valueLessThanOrEqualTo( long number )
-    {
-        throw new UnsupportedOperationException( "not implemented" );
-    }
-
-    @Override
-    public boolean valueLessThanOrEqualTo( double number )
-    {
-        throw new UnsupportedOperationException( "not implemented" );
-    }
-
-    @Override
     public boolean isClosed()
     {
         return read == null;
@@ -313,8 +233,44 @@ public class DefaultPropertyCursor implements PropertyCursor
         }
     }
 
+    private LabelSet labelsIgnoringTxStateSetRemove()
+    {
+        assert isNode();
+
+        if ( labels == null )
+        {
+            read.singleNode( nodeReference, nodeCursor );
+            nodeCursor.next();
+            labels = nodeCursor.labelsIgnoringTxStateSetRemove();
+        }
+        return labels;
+    }
+
+    private int getRelType()
+    {
+        assert isRelationship();
+
+        read.singleRelationship( relationshipReference, relCursor );
+        relCursor.next();
+        return relCursor.type();
+    }
+
     public void release()
     {
         storeCursor.close();
+        nodeCursor.close();
+        nodeCursor.release();
+        relCursor.close();
+        relCursor.release();
+    }
+
+    private boolean isNode()
+    {
+        return nodeReference != NO_NODE;
+    }
+
+    private boolean isRelationship()
+    {
+        return relationshipReference != NO_RELATIONSHIP;
     }
 }

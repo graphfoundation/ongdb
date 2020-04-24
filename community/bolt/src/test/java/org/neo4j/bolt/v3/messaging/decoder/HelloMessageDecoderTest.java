@@ -23,20 +23,19 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Map;
 
-import org.neo4j.bolt.messaging.Neo4jPack;
 import org.neo4j.bolt.messaging.RequestMessage;
 import org.neo4j.bolt.messaging.RequestMessageDecoder;
+import org.neo4j.bolt.packstream.Neo4jPack;
+import org.neo4j.bolt.packstream.PackedInputArray;
 import org.neo4j.bolt.runtime.BoltResponseHandler;
 import org.neo4j.bolt.security.auth.AuthTokenDecoderTest;
-import org.neo4j.bolt.v1.packstream.PackedInputArray;
 import org.neo4j.bolt.v3.messaging.request.HelloMessage;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.Mockito.mock;
-import static org.neo4j.bolt.v3.messaging.BoltProtocolV3ComponentFactory.encode;
-import static org.neo4j.bolt.v3.messaging.BoltProtocolV3ComponentFactory.newNeo4jPack;
-import static org.neo4j.helpers.collection.MapUtil.map;
+import static org.neo4j.bolt.v3.BoltProtocolV3ComponentFactory.encode;
+import static org.neo4j.bolt.v3.BoltProtocolV3ComponentFactory.newNeo4jPack;
+import static org.neo4j.internal.helpers.collection.MapUtil.map;
 import static org.neo4j.test.AuthTokenUtil.assertAuthTokenMatches;
 
 class HelloMessageDecoderTest extends AuthTokenDecoderTest
@@ -79,7 +78,7 @@ class HelloMessageDecoderTest extends AuthTokenDecoderTest
     }
 
     @Override
-    protected void testShouldDecodeAuthToken( Map<String,Object> authToken, boolean checkDecodingResult ) throws Exception
+    protected void testShouldDecodeAuthToken( Map<String,Object> authToken ) throws Exception
     {
         Neo4jPack neo4jPack = newNeo4jPack();
         authToken.put( "user_agent", "My Driver" );
@@ -94,10 +93,7 @@ class HelloMessageDecoderTest extends AuthTokenDecoderTest
 
         RequestMessage deserializedMessage = decoder.decode( unpacker );
 
-        if ( checkDecodingResult )
-        {
-            assertHelloMessageMatches( originalMessage, deserializedMessage );
-        }
+        assertHelloMessageMatches( originalMessage, deserializedMessage );
     }
 
     private static void assertHelloMessageMatches( HelloMessage expected, RequestMessage actual )

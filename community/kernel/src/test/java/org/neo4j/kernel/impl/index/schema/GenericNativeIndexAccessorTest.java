@@ -19,51 +19,54 @@
  */
 package org.neo4j.kernel.impl.index.schema;
 
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.File;
 
 import org.neo4j.gis.spatial.index.curves.SpaceFillingCurveConfiguration;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.internal.schema.SchemaDescriptor;
 import org.neo4j.io.fs.FileSystemAbstraction;
+import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.kernel.api.index.IndexDirectoryStructure;
-import org.neo4j.kernel.api.schema.SchemaDescriptorFactory;
-import org.neo4j.kernel.impl.index.schema.config.IndexSpecificSpaceFillingCurveSettingsCache;
-import org.neo4j.storageengine.api.schema.IndexDescriptorFactory;
-import org.neo4j.storageengine.api.schema.StoreIndexDescriptor;
-import org.neo4j.test.rule.PageCacheAndDependenciesRule;
-import org.neo4j.test.rule.fs.DefaultFileSystemRule;
+import org.neo4j.kernel.impl.index.schema.config.IndexSpecificSpaceFillingCurveSettings;
+import org.neo4j.test.extension.Inject;
+import org.neo4j.test.extension.pagecache.PageCacheExtension;
+import org.neo4j.test.rule.TestDirectory;
 
-import static org.junit.Assert.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.mockito.Mockito.mock;
 import static org.neo4j.index.internal.gbptree.RecoveryCleanupWorkCollector.immediate;
+import static org.neo4j.internal.schema.IndexPrototype.forSchema;
 import static org.neo4j.kernel.api.index.IndexProvider.Monitor.EMPTY;
 
-public class GenericNativeIndexAccessorTest
+@PageCacheExtension
+class GenericNativeIndexAccessorTest
 {
-    @Rule
-    public final PageCacheAndDependenciesRule storage = new PageCacheAndDependenciesRule().with( new DefaultFileSystemRule() );
+    @Inject
+    private PageCache pageCache;
+    @Inject
+    private TestDirectory testDirectory;
+    @Inject
+    private FileSystemAbstraction fs;
 
     @Test
-    public void dropShouldDeleteEntireIndexFolder()
+    void dropShouldDeleteEntireIndexFolder()
     {
         // given
-        File root = storage.directory().directory( "root" );
+        File root = testDirectory.directory( "root" );
         IndexDirectoryStructure directoryStructure = IndexDirectoryStructure.directoriesByProvider( root ).forProvider( GenericNativeIndexProvider.DESCRIPTOR );
         long indexId = 8;
-        File indexDirectory = directoryStructure.directoryForIndex( indexId );
-        File indexFile = new File( indexDirectory, "my-index" );
-        StoreIndexDescriptor descriptor = IndexDescriptorFactory.forSchema( SchemaDescriptorFactory.forLabel( 1, 1 ) ).withId( indexId );
-        IndexSpecificSpaceFillingCurveSettingsCache spatialSettings = mock( IndexSpecificSpaceFillingCurveSettingsCache.class );
-        FileSystemAbstraction fs = storage.fileSystem();
-        IndexDropAction dropAction = new FileSystemIndexDropAction( fs, directoryStructure );
-        GenericNativeIndexAccessor accessor = new GenericNativeIndexAccessor( storage.pageCache(), fs, indexFile, new GenericLayout( 1, spatialSettings ),
-                immediate(), EMPTY, descriptor, spatialSettings, mock( SpaceFillingCurveConfiguration.class ), dropAction, false );
+        IndexDescriptor descriptor = forSchema( SchemaDescriptor.forLabel( 1, 1 ) ).withName( "index" ).materialise( indexId );
+        IndexSpecificSpaceFillingCurveSettings spatialSettings = mock( IndexSpecificSpaceFillingCurveSettings.class );
+        IndexFiles indexFiles = new IndexFiles.Directory( fs, directoryStructure, descriptor.getId() );
+        GenericNativeIndexAccessor accessor = new GenericNativeIndexAccessor( pageCache, fs, indexFiles, new GenericLayout( 1, spatialSettings ),
+                immediate(), EMPTY, descriptor, spatialSettings, mock( SpaceFillingCurveConfiguration.class ), false );
 
         // when
         accessor.drop();
 
         // then
-        assertFalse( fs.fileExists( indexDirectory ) );
+        assertFalse( fs.fileExists( indexFiles.getBase() ) );
     }
 }

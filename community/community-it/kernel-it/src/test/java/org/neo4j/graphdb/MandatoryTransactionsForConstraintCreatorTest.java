@@ -19,7 +19,7 @@
  */
 package org.neo4j.graphdb;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import org.neo4j.graphdb.schema.ConstraintCreator;
 
@@ -27,22 +27,20 @@ public class MandatoryTransactionsForConstraintCreatorTest
     extends AbstractMandatoryTransactionsTest<ConstraintCreator>
 {
     @Test
-    public void shouldRequireTransactionsWhenCallingMethodsConstraintCreators()
+    void shouldRequireTransactionsWhenCallingMethodsConstraintCreators()
     {
         assertFacadeMethodsThrowNotInTransaction( obtainEntity(), ConstraintCreatorFacadeMethods.values() );
     }
 
     @Test
-    public void shouldTerminateWhenCallingMethodsConstraintCreators()
+    void shouldTerminateWhenCallingMethodsConstraintCreators()
     {
         assertFacadeMethodsThrowAfterTerminate( ConstraintCreatorFacadeMethods.values() );
     }
 
     @Override
-    protected ConstraintCreator obtainEntityInTransaction( GraphDatabaseService graphDatabaseService )
+    protected ConstraintCreator obtainEntityInTransaction( Transaction transaction )
     {
-        return graphDatabaseService
-               .schema()
-               .constraintFor( Label.label( "Label" ) );
+        return transaction.schema().constraintFor( Label.label( "Label" ) );
     }
 }

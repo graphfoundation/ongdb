@@ -19,19 +19,13 @@
  */
 package org.neo4j.kernel.impl.index.schema.config;
 
-import java.nio.ByteBuffer;
 import java.util.Arrays;
-import java.util.function.Consumer;
-import java.util.function.Function;
+import java.util.Objects;
 
 import org.neo4j.gis.spatial.index.Envelope;
 import org.neo4j.gis.spatial.index.curves.HilbertSpaceFillingCurve2D;
 import org.neo4j.gis.spatial.index.curves.HilbertSpaceFillingCurve3D;
 import org.neo4j.gis.spatial.index.curves.SpaceFillingCurve;
-import org.neo4j.index.internal.gbptree.Header;
-import org.neo4j.io.pagecache.PageCursor;
-
-import static org.neo4j.kernel.impl.index.schema.NativeIndexPopulator.BYTE_FAILED;
 
 /**
  * <p>
@@ -55,38 +49,26 @@ import static org.neo4j.kernel.impl.index.schema.NativeIndexPopulator.BYTE_FAILE
  * the edges, and also cause additional post-index filtering costs.</dd>
  * </dl>
  * </p>
- * <p>If the settings are for an existing index, they are read from the GBPTree header, and in that case
- * an additional field is maintained:
- * <dl>
- *     <dt>failureMessage</dt>
- *         <dd>The settings are read from the GBPTree header structure, but when this is a FAILED index, there are no settings,
- *         but instead an error message describing the failure. If that happens, code that triggered the read should check this
- *         field and react accordingly. If the the value is null, there was no failure.</dd>
- * </dl>
- * </p>
  */
 public class SpaceFillingCurveSettings
 {
-    private SpatialIndexType indexType = SpatialIndexType.SingleSpaceFillingCurve;
-    int dimensions;
-    int maxLevels;
-    Envelope extents;
+    /**
+     * Number of bits to use for the space filling curve value in 1D.
+     * This number affects the physical structure of indexed spatial values
+     * and thus changing it is a format change for btree indexes.
+     * 60 because it needs to be divisible by both 2 and 3 to be usable by both
+     * 2D and 3D mapping.
+     */
+    private static final int NBR_OF_BITS = 60;
+    private final int dimensions;
+    private final int maxLevels;
+    private final Envelope extents;
 
-    SpaceFillingCurveSettings( int dimensions, Envelope extents, int maxLevels )
+    public SpaceFillingCurveSettings( int dimensions, Envelope extents )
     {
         this.dimensions = dimensions;
         this.extents = extents;
-        this.maxLevels = maxLevels;
-    }
-
-    public Consumer<PageCursor> headerWriter( byte initialIndexState )
-    {
-        return cursor ->
-        {
-            cursor.putByte( initialIndexState );
-            cursor.putInt( indexType.id );
-            indexType.writeHeader( this, cursor );
-        };
+        this.maxLevels = NBR_OF_BITS / dimensions;
     }
 
     /**
@@ -95,14 +77,6 @@ public class SpaceFillingCurveSettings
     public int getDimensions()
     {
         return dimensions;
-    }
-
-    /**
-     * @return The number of levels in the 2D (or 3D) to 1D mapping tree.
-     */
-    public int getMaxLevels()
-    {
-        return maxLevels;
     }
 
     /**
@@ -148,102 +122,24 @@ public class SpaceFillingCurveSettings
         return 31 * extents.hashCode() + maxLevels;
     }
 
-    public boolean equals( SpaceFillingCurveSettings other )
-    {
-        return this.dimensions == other.dimensions && this.maxLevels == other.maxLevels && this.extents.equals( other.extents );
-    }
-
     @Override
-    public boolean equals( Object obj )
+    public boolean equals( Object o )
     {
-        return obj instanceof SpaceFillingCurveSettings && equals( (SpaceFillingCurveSettings) obj );
-    }
+        if ( this == o )
+        {
+            return true;
+        }
+        if ( o == null || getClass() != o.getClass() )
+        {
+            return false;
+        }
+        SpaceFillingCurveSettings that = (SpaceFillingCurveSettings) o;
+        return dimensions == that.dimensions && maxLevels == that.maxLevels && Objects.equals( extents, that.extents ); }
 
     @Override
     public String toString()
     {
         return String.format( "Space filling curves settings: dimensions=%d, maxLevels=%d, min=%s, max=%s", dimensions, maxLevels,
                 Arrays.toString( extents.getMin() ), Arrays.toString( extents.getMax() ) );
-    }
-
-    static class SettingsFromConfig extends SpaceFillingCurveSettings
-    {
-        SettingsFromConfig( int dimensions, int maxBits, Envelope extents )
-        {
-            super( dimensions, extents, calcMaxLevels( dimensions, maxBits ) );
-        }
-
-        private static int calcMaxLevels( int dimensions, int maxBits )
-        {
-            int maxConfigured = maxBits / dimensions;
-            int maxSupported = (dimensions == 2) ? HilbertSpaceFillingCurve2D.MAX_LEVEL : HilbertSpaceFillingCurve3D.MAX_LEVEL;
-            return Math.min( maxConfigured, maxSupported );
-        }
-    }
-
-    static class SettingsFromIndexHeader extends SpaceFillingCurveSettings
-    {
-        private String failureMessage;
-
-        SettingsFromIndexHeader()
-        {
-            super( 0, null, 0 );
-        }
-
-        void markAsFailed( String failureMessage )
-        {
-            this.failureMessage = failureMessage;
-        }
-
-        private void markAsSucceeded()
-        {
-            this.failureMessage = null;
-        }
-
-        /**
-         * The settings are read from the GBPTree header structure, but when this is a FAILED index, there are no settings, but instead an error message
-         * describing the failure. If that happens, code that triggered the read should check this field and react accordingly. If the the value is null, there
-         * was no failure.
-         */
-        String getFailureMessage()
-        {
-            return failureMessage;
-        }
-
-        /**
-         * The settings are read from the GBPTree header structure, but when this is a FAILED index, there are no settings, but instead an error message
-         * describing the failure. If that happens, code that triggered the read should check this. If the value is true, calling getFailureMessage() will
-         * provide an error message describing the failure.
-         */
-        boolean isFailed()
-        {
-            return failureMessage != null;
-        }
-
-        Header.Reader headerReader( Function<ByteBuffer,String> onError )
-        {
-            return headerBytes ->
-            {
-                byte state = headerBytes.get();
-                if ( state == BYTE_FAILED )
-                {
-                    this.failureMessage = "Unexpectedly trying to read the header of a failed index: " + onError.apply( headerBytes );
-                }
-                else
-                {
-                    int typeId = headerBytes.getInt();
-                    SpatialIndexType indexType = SpatialIndexType.get( typeId );
-                    if ( indexType == null )
-                    {
-                        markAsFailed( "Unknown spatial index type in index header: " + typeId );
-                    }
-                    else
-                    {
-                        markAsSucceeded();
-                        indexType.readHeader( this, headerBytes );
-                    }
-                }
-            };
-        }
     }
 }

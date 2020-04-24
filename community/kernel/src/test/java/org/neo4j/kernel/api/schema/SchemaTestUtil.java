@@ -19,7 +19,7 @@
  */
 package org.neo4j.kernel.api.schema;
 
-import org.neo4j.internal.kernel.api.TokenNameLookup;
+import org.neo4j.common.TokenNameLookup;
 
 import static java.lang.String.format;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -38,7 +38,7 @@ public class SchemaTestUtil
         assertEquals( o1.getClass().getSimpleName() + "s do not have the same hashcode", o1.hashCode(), o2.hashCode() );
     }
 
-    public static void assertArray( int[] values, int... expected )
+    static void assertArray( int[] values, int... expected )
     {
         assertThat( values.length, equalTo( expected.length ) );
         for ( int i = 0; i < values.length; i++ )
@@ -47,7 +47,7 @@ public class SchemaTestUtil
         }
     }
 
-    public static TokenNameLookup simpleNameLookup = new TokenNameLookup()
+    public static final TokenNameLookup SIMPLE_NAME_LOOKUP = new TokenNameLookup()
     {
         @Override
         public String labelGetName( int labelId )

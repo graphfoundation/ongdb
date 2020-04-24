@@ -2,9 +2,9 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <parent>
-        <groupId>org.graphfoundation.ongdb</groupId>
+        <groupId>org.neo4j</groupId>
         <artifactId>parent</artifactId>
-        <version>3.6.0-SNAPSHOT</version>
+        <version>4.0.4-SNAPSHOT</version>
         <relativePath>../..</relativePath>
     </parent>
 
@@ -12,27 +12,29 @@
         <license-text.header>headers/GPL-3-header.txt</license-text.header>
         <licensing.prepend.text>licensing/notice-gpl-prefix.txt</licensing.prepend.text>
         <moduleName>org.neo4j.index</moduleName>
+        <default.jupiter.test.mode>concurrent</default.jupiter.test.mode>
     </properties>
 
     <modelVersion>4.0.0</modelVersion>
-    <artifactId>ongdb-index</artifactId>
+    <artifactId>neo4j-index</artifactId>
 
     <packaging>jar</packaging>
-    <name>ONgDB - Native index</name>
+    <name>Neo4j - Native index</name>
     <description>Native index for Neo4j.</description>
-    <url>https://ongdb.graphfoundation.org/${project.artifactId}/${project.version}</url>
+    <url>http://components.neo4j.org/${project.artifactId}/${project.version}</url>
 
     <scm>
-        <connection>scm:git:git://github.com/graphfoundation/ongdb.git</connection>
-        <developerConnection>scm:git:git@github.com:graphfoundation/ongdb.git</developerConnection>
-        <url>https://github.com/graphfoundation/ongdb</url>
+        <connection>scm:git:git://github.com/neo4j/neo4j.git</connection>
+        <developerConnection>scm:git:git@github.com:neo4j/neo4j.git</developerConnection>
+        <url>https://github.com/neo4j/neo4j</url>
     </scm>
 
     <licenses>
         <license>
             <name>GNU General Public License, Version 3</name>
             <url>http://www.gnu.org/licenses/gpl-3.0-standalone.html</url>
-            <comments>The software ("Software") developed and owned by Neo4j Sweden AB (referred to in this notice as "Neo4j") is
+            <comments>
+                The software ("Software") developed and owned by Neo4j Sweden AB (referred to in this notice as "Neo4j") is
                 licensed under the GNU GENERAL PUBLIC LICENSE Version 3 to all third
                 parties and that license is included below.
 
@@ -50,13 +52,13 @@
     <dependencies>
         <!-- Main dependencies -->
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-io</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-io</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-annotation-processors</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>annotations</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
@@ -66,28 +68,26 @@
 
         <!-- Test dependencies -->
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-io</artifactId>
-            <version>${project.version}</version>
-            <type>test-jar</type>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-common</artifactId>
-            <version>${project.version}</version>
-            <type>test-jar</type>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-random-values</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>io-test-utils</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-collections</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>test-utils</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-random-values</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-collections</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
         </dependency>
@@ -97,23 +97,21 @@
         </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter-params</artifactId>
+            <artifactId>junit-jupiter</artifactId>
         </dependency>
         <dependency>
-            <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter-migrationsupport</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.junit.vintage</groupId>
-            <artifactId>junit-vintage-engine</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter-engine</artifactId>
+            <groupId>org.hamcrest</groupId>
+            <artifactId>hamcrest</artifactId>
         </dependency>
         <dependency>
             <groupId>org.mockito</groupId>
             <artifactId>mockito-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.neo4j</groupId>
+            <artifactId>layout-test-utils</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
         </dependency>
     </dependencies>
 </project>

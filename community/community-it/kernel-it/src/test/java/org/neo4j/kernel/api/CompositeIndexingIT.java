@@ -19,143 +19,147 @@
  */
 package org.neo4j.kernel.api;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.ClassRule;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TestName;
-import org.junit.rules.Timeout;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Timeout;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
-import java.util.Arrays;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.Set;
+import java.util.stream.Stream;
 
+import org.neo4j.exceptions.KernelException;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Transaction;
-import org.neo4j.helpers.collection.Iterators;
-import org.neo4j.internal.kernel.api.IndexOrder;
 import org.neo4j.internal.kernel.api.IndexQuery;
+import org.neo4j.internal.kernel.api.IndexReadSession;
 import org.neo4j.internal.kernel.api.InternalIndexState;
 import org.neo4j.internal.kernel.api.NodeValueIndexCursor;
+import org.neo4j.internal.kernel.api.TokenWrite;
 import org.neo4j.internal.kernel.api.Write;
-import org.neo4j.internal.kernel.api.exceptions.KernelException;
-import org.neo4j.kernel.api.schema.constraints.ConstraintDescriptorFactory;
-import org.neo4j.kernel.api.schema.index.TestIndexDescriptorFactory;
-import org.neo4j.kernel.impl.core.ThreadToStatementContextBridge;
+import org.neo4j.internal.schema.ConstraintDescriptor;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.internal.schema.IndexOrder;
+import org.neo4j.internal.schema.IndexPrototype;
+import org.neo4j.kernel.impl.coreapi.InternalTransaction;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
-import org.neo4j.storageengine.api.schema.IndexDescriptor;
-import org.neo4j.test.rule.ImpermanentDatabaseRule;
+import org.neo4j.test.extension.ImpermanentDbmsExtension;
+import org.neo4j.test.extension.Inject;
 import org.neo4j.values.storable.Values;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import static org.neo4j.storageengine.api.schema.IndexDescriptor.Type.UNIQUE;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.params.provider.Arguments.arguments;
+import static org.neo4j.internal.schema.SchemaDescriptor.forLabel;
 
-@RunWith( Parameterized.class )
-public class CompositeIndexingIT
+@ImpermanentDbmsExtension
+@Timeout( 20 )
+class CompositeIndexingIT
 {
     private static final int LABEL_ID = 1;
 
-    @ClassRule
-    public static ImpermanentDatabaseRule dbRule = new ImpermanentDatabaseRule();
-
-    @Rule
-    public final TestName testName = new TestName();
-
-    @Rule
-    public Timeout globalTimeout = Timeout.seconds( 200 );
-
-    private final IndexDescriptor index;
+    @Inject
     private GraphDatabaseAPI graphDatabaseAPI;
+    private IndexDescriptor index;
 
-    @Before
-    public void setup() throws Exception
+    void setup( IndexPrototype prototype ) throws Exception
     {
-        graphDatabaseAPI = dbRule.getGraphDatabaseAPI();
         try ( Transaction tx = graphDatabaseAPI.beginTx() )
         {
-            KernelTransaction ktx = ktx();
-            if ( index.type() == UNIQUE )
+            KernelTransaction ktx = ((InternalTransaction) tx).kernelTransaction();
+            TokenWrite tokenWrite = ktx.tokenWrite();
+            tokenWrite.labelGetOrCreateForName( "Label0" );
+            assertEquals( LABEL_ID, tokenWrite.labelGetOrCreateForName( "Label1" ) );
+            for ( int i = 0; i < 10; i++ )
             {
-                ktx.schemaWrite().uniquePropertyConstraintCreate( index.schema() );
+                tokenWrite.propertyKeyGetOrCreateForName( "prop" + i );
+            }
+            tx.commit();
+        }
+        try ( Transaction tx = graphDatabaseAPI.beginTx() )
+        {
+            KernelTransaction ktx = ((InternalTransaction) tx).kernelTransaction();
+            if ( prototype.isUnique() )
+            {
+                ConstraintDescriptor constraint = ktx.schemaWrite().uniquePropertyConstraintCreate( prototype );
+                index = ktx.schemaRead().indexGetForName( constraint.getName() );
             }
             else
             {
-                ktx.schemaWrite().indexCreate( index.schema() );
+                index = ktx.schemaWrite().indexCreate( prototype.schema(), null );
             }
-            tx.success();
+            tx.commit();
         }
 
-        try ( Transaction ignore = graphDatabaseAPI.beginTx() )
+        try ( Transaction tx = graphDatabaseAPI.beginTx() )
         {
-            KernelTransaction ktx = ktx();
-            while ( ktx.schemaRead().indexGetState( index ) !=
-                    InternalIndexState.ONLINE )
+            KernelTransaction ktx = ((InternalTransaction) tx).kernelTransaction();
+            while ( ktx.schemaRead().indexGetState( index ) != InternalIndexState.ONLINE )
             {
                 Thread.sleep( 10 );
             } // Will break loop on test timeout
         }
     }
 
-    @After
-    public void clean() throws Exception
+    @AfterEach
+    void clean() throws Exception
     {
         try ( Transaction tx = graphDatabaseAPI.beginTx() )
         {
-            KernelTransaction ktx = ktx();
-            if ( index.type() == UNIQUE )
+            KernelTransaction ktx = ((InternalTransaction) tx).kernelTransaction();
+            if ( index.isUnique() )
             {
-                ktx.schemaWrite().constraintDrop(
-                        ConstraintDescriptorFactory.uniqueForSchema( index.schema() ) );
+                Iterator<ConstraintDescriptor> constraints = ktx.schemaRead().constraintsGetForSchema( index.schema() );
+                while ( constraints.hasNext() )
+                {
+                    ktx.schemaWrite().constraintDrop( constraints.next() );
+                }
             }
             else
             {
                 ktx.schemaWrite().indexDrop( index );
             }
-            tx.success();
+            tx.commit();
         }
 
         try ( Transaction tx = graphDatabaseAPI.beginTx() )
         {
-            for ( Node node : graphDatabaseAPI.getAllNodes() )
+            for ( Node node : tx.getAllNodes() )
             {
                 node.delete();
             }
-            tx.success();
+            tx.commit();
         }
     }
 
-    @Parameterized.Parameters( name = "Index: {0}" )
-    public static Iterable<Object[]> parameterValues()
+    private static Stream<Arguments> params()
     {
-        return Arrays.asList( Iterators.array( TestIndexDescriptorFactory.forLabel( LABEL_ID, 1 ) ),
-                Iterators.array( TestIndexDescriptorFactory.forLabel( LABEL_ID, 1, 2 ) ),
-                Iterators.array( TestIndexDescriptorFactory.forLabel( LABEL_ID, 1, 2, 3, 4 ) ),
-                Iterators.array( TestIndexDescriptorFactory.forLabel( LABEL_ID, 1, 2, 3, 4, 5, 6, 7 ) ),
-                Iterators.array( TestIndexDescriptorFactory.uniqueForLabel( LABEL_ID, 1 ) ),
-                Iterators.array( TestIndexDescriptorFactory.uniqueForLabel( LABEL_ID, 1, 2 ) ),
-                Iterators.array( TestIndexDescriptorFactory.uniqueForLabel( LABEL_ID, 1, 2, 3, 4, 5, 6, 7 ) )
+        return Stream.of(
+            arguments( IndexPrototype.forSchema( forLabel( LABEL_ID, 1 ) ) ),
+            arguments( IndexPrototype.forSchema( forLabel( LABEL_ID, 1, 2 ) ) ),
+            arguments( IndexPrototype.forSchema( forLabel( LABEL_ID, 1, 2, 3, 4 ) ) ),
+            arguments( IndexPrototype.forSchema( forLabel( LABEL_ID, 1, 2, 3, 4, 5, 6, 7 ) ) ),
+            arguments( IndexPrototype.uniqueForSchema( forLabel( LABEL_ID, 1 ) ) ),
+            arguments( IndexPrototype.uniqueForSchema( forLabel( LABEL_ID, 1, 2 ) ) ),
+            arguments( IndexPrototype.uniqueForSchema( forLabel( LABEL_ID, 1, 2, 3, 4, 5, 6, 7 ) ) )
         );
     }
 
-    public CompositeIndexingIT( IndexDescriptor nodeDescriptor )
+    @ParameterizedTest
+    @MethodSource( "params" )
+    void shouldSeeNodeAddedByPropertyToIndexInTranslation( IndexPrototype prototype ) throws Exception
     {
-        this.index = nodeDescriptor;
-    }
-
-    @Test
-    public void shouldSeeNodeAddedByPropertyToIndexInTranslation() throws Exception
-    {
-        try ( Transaction ignore = graphDatabaseAPI.beginTx() )
+        setup( prototype );
+        try ( Transaction tx = graphDatabaseAPI.beginTx() )
         {
-            KernelTransaction ktx = ktx();
+            KernelTransaction ktx = ((InternalTransaction) tx).kernelTransaction();
             Write write = ktx.dataWrite();
             long nodeID = write.nodeCreate();
             write.nodeAddLabel( nodeID, LABEL_ID );
@@ -172,12 +176,14 @@ public class CompositeIndexingIT
         }
     }
 
-    @Test
-    public void shouldSeeNodeAddedToByLabelIndexInTransaction() throws Exception
+    @ParameterizedTest
+    @MethodSource( "params" )
+    void shouldSeeNodeAddedToByLabelIndexInTransaction( IndexPrototype prototype ) throws Exception
     {
-        try ( Transaction ignore = graphDatabaseAPI.beginTx() )
+        setup( prototype );
+        try ( Transaction tx = graphDatabaseAPI.beginTx() )
         {
-            KernelTransaction ktx = ktx();
+            KernelTransaction ktx = ((InternalTransaction) tx).kernelTransaction();
             Write write = ktx.dataWrite();
             long nodeID = write.nodeCreate();
             for ( int propID : index.schema().getPropertyIds() )
@@ -194,13 +200,15 @@ public class CompositeIndexingIT
         }
     }
 
-    @Test
-    public void shouldNotSeeNodeThatWasDeletedInTransaction() throws Exception
+    @ParameterizedTest
+    @MethodSource( "params" )
+    void shouldNotSeeNodeThatWasDeletedInTransaction( IndexPrototype prototype ) throws Exception
     {
+        setup( prototype );
         long nodeID = createNode();
-        try ( Transaction ignore = graphDatabaseAPI.beginTx() )
+        try ( Transaction tx = graphDatabaseAPI.beginTx() )
         {
-            KernelTransaction ktx = ktx();
+            KernelTransaction ktx = ((InternalTransaction) tx).kernelTransaction();
             ktx.dataWrite().nodeDelete( nodeID );
             try ( NodeValueIndexCursor cursor = seek( ktx ) )
             {
@@ -209,13 +217,15 @@ public class CompositeIndexingIT
         }
     }
 
-    @Test
-    public void shouldNotSeeNodeThatHasItsLabelRemovedInTransaction() throws Exception
+    @ParameterizedTest
+    @MethodSource( "params" )
+    void shouldNotSeeNodeThatHasItsLabelRemovedInTransaction( IndexPrototype prototype ) throws Exception
     {
+        setup( prototype );
         long nodeID = createNode();
-        try ( Transaction ignore = graphDatabaseAPI.beginTx() )
+        try ( Transaction tx = graphDatabaseAPI.beginTx() )
         {
-            KernelTransaction ktx = ktx();
+            KernelTransaction ktx = ((InternalTransaction) tx).kernelTransaction();
             ktx.dataWrite().nodeRemoveLabel( nodeID, LABEL_ID );
             try ( NodeValueIndexCursor cursor = seek( ktx ) )
             {
@@ -224,13 +234,15 @@ public class CompositeIndexingIT
         }
     }
 
-    @Test
-    public void shouldNotSeeNodeThatHasAPropertyRemovedInTransaction() throws Exception
+    @ParameterizedTest
+    @MethodSource( "params" )
+    void shouldNotSeeNodeThatHasAPropertyRemovedInTransaction( IndexPrototype prototype ) throws Exception
     {
+        setup( prototype );
         long nodeID = createNode();
-        try ( Transaction ignore = graphDatabaseAPI.beginTx() )
+        try ( Transaction tx = graphDatabaseAPI.beginTx() )
         {
-            KernelTransaction ktx = ktx();
+            KernelTransaction ktx = ((InternalTransaction) tx).kernelTransaction();
             ktx.dataWrite().nodeRemoveProperty( nodeID, index.schema().getPropertyIds()[0] );
             try ( NodeValueIndexCursor cursor = seek( ktx ) )
             {
@@ -239,42 +251,20 @@ public class CompositeIndexingIT
         }
     }
 
-    @Test
-    public void shouldSeeAllNodesAddedInTransaction() throws Exception
+    @ParameterizedTest
+    @MethodSource( "params" )
+    void shouldSeeAllNodesAddedInTransaction( IndexPrototype prototype ) throws Exception
     {
-        if ( index.type() != UNIQUE ) // this test does not make any sense for UNIQUE indexes
-        {
-            try ( Transaction ignore = graphDatabaseAPI.beginTx() )
-            {
-                long nodeID1 = createNode();
-                long nodeID2 = createNode();
-                long nodeID3 = createNode();
-                KernelTransaction ktx = ktx();
-                Set<Long> result = new HashSet<>(  );
-                try ( NodeValueIndexCursor cursor = seek( ktx ) )
-                {
-                    while ( cursor.next() )
-                    {
-                        result.add( cursor.nodeReference() );
-                    }
-                }
-                assertThat( result, containsInAnyOrder( nodeID1, nodeID2, nodeID3 ) );
-            }
-        }
-    }
-
-    @Test
-    public void shouldSeeAllNodesAddedBeforeTransaction() throws Exception
-    {
-        if ( index.type() != UNIQUE ) // this test does not make any sense for UNIQUE indexes
+        setup( prototype );
+        if ( !index.isUnique() ) // this test does not make any sense for UNIQUE indexes
         {
             long nodeID1 = createNode();
             long nodeID2 = createNode();
             long nodeID3 = createNode();
-            try ( Transaction ignore = graphDatabaseAPI.beginTx() )
+            try ( Transaction tx = graphDatabaseAPI.beginTx() )
             {
-                KernelTransaction ktx = ktx();
-                Set<Long> result = new HashSet<>(  );
+                KernelTransaction ktx = ((InternalTransaction) tx).kernelTransaction();
+                Set<Long> result = new HashSet<>();
                 try ( NodeValueIndexCursor cursor = seek( ktx ) )
                 {
                     while ( cursor.next() )
@@ -287,13 +277,41 @@ public class CompositeIndexingIT
         }
     }
 
-    @Test
-    public void shouldNotSeeNodesLackingOneProperty() throws Exception
+    @ParameterizedTest
+    @MethodSource( "params" )
+    void shouldSeeAllNodesAddedBeforeTransaction( IndexPrototype prototype ) throws Exception
     {
-        long nodeID1 = createNode();
-        try ( Transaction ignore = graphDatabaseAPI.beginTx() )
+        setup( prototype );
+        if ( !index.isUnique() ) // this test does not make any sense for UNIQUE indexes
         {
-            KernelTransaction ktx = ktx();
+            long nodeID1 = createNode();
+            long nodeID2 = createNode();
+            long nodeID3 = createNode();
+            try ( Transaction tx = graphDatabaseAPI.beginTx() )
+            {
+                KernelTransaction ktx = ((InternalTransaction) tx).kernelTransaction();
+                Set<Long> result = new HashSet<>();
+                try ( NodeValueIndexCursor cursor = seek( ktx ) )
+                {
+                    while ( cursor.next() )
+                    {
+                        result.add( cursor.nodeReference() );
+                    }
+                }
+                assertThat( result, containsInAnyOrder( nodeID1, nodeID2, nodeID3 ) );
+            }
+        }
+    }
+
+    @ParameterizedTest
+    @MethodSource( "params" )
+    void shouldNotSeeNodesLackingOneProperty( IndexPrototype prototype ) throws Exception
+    {
+        setup( prototype );
+        long nodeID1 = createNode();
+        try ( Transaction tx = graphDatabaseAPI.beginTx() )
+        {
+            KernelTransaction ktx = ((InternalTransaction) tx).kernelTransaction();
             Write write = ktx.dataWrite();
             long irrelevantNodeID = write.nodeCreate();
             write.nodeAddLabel( irrelevantNodeID, LABEL_ID );
@@ -303,7 +321,7 @@ public class CompositeIndexingIT
                 int propID = propertyIds[i];
                 write.nodeSetProperty( irrelevantNodeID, propID, Values.intValue( propID ) );
             }
-            Set<Long> result = new HashSet<>(  );
+            Set<Long> result = new HashSet<>();
             try ( NodeValueIndexCursor cursor = seek( ktx ) )
             {
                 while ( cursor.next() )
@@ -321,7 +339,7 @@ public class CompositeIndexingIT
         long nodeID;
         try ( Transaction tx = graphDatabaseAPI.beginTx() )
         {
-            KernelTransaction ktx = ktx();
+            KernelTransaction ktx = ((InternalTransaction) tx).kernelTransaction();
             Write write = ktx.dataWrite();
             nodeID = write.nodeCreate();
             write.nodeAddLabel( nodeID, LABEL_ID );
@@ -329,7 +347,7 @@ public class CompositeIndexingIT
             {
                 write.nodeSetProperty( nodeID, propID, Values.intValue( propID ) );
             }
-            tx.success();
+            tx.commit();
         }
         return nodeID;
     }
@@ -337,7 +355,8 @@ public class CompositeIndexingIT
     private NodeValueIndexCursor seek( KernelTransaction transaction ) throws KernelException
     {
         NodeValueIndexCursor cursor = transaction.cursors().allocateNodeValueIndexCursor();
-        transaction.dataRead().nodeIndexSeek( index, cursor, IndexOrder.NONE, false, exactQuery() );
+        IndexReadSession indexSession = transaction.dataRead().indexReadSession( index );
+        transaction.dataRead().nodeIndexSeek( indexSession, cursor, IndexOrder.NONE, false, exactQuery() );
         return cursor;
     }
 
@@ -351,10 +370,5 @@ public class CompositeIndexingIT
             query[i] = IndexQuery.exact( propID, Values.of( propID ) );
         }
         return query;
-    }
-
-    private KernelTransaction ktx()
-    {
-        return graphDatabaseAPI.getDependencyResolver().resolveDependency( ThreadToStatementContextBridge.class ).getKernelTransactionBoundToThisThread( true );
     }
 }

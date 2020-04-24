@@ -40,7 +40,7 @@ import org.neo4j.logging.RotatingFileOutputStreamSupplier;
 import org.neo4j.scheduler.Group;
 import org.neo4j.scheduler.JobScheduler;
 
-import static org.neo4j.io.file.Files.createOrOpenAsOutputStream;
+import static org.neo4j.io.fs.FileSystemUtils.createOrOpenAsOutputStream;
 
 public class StoreLogService extends AbstractLogService implements Lifecycle
 {
@@ -98,6 +98,12 @@ public class StoreLogService extends AbstractLogService implements Lifecycle
             return this;
         }
 
+        public Builder withLevels( Map<String,Level> levels )
+        {
+            this.logLevels.putAll( levels );
+            return this;
+        }
+
         public Builder withTimeZone( ZoneId timeZoneId )
         {
             this.timeZoneId = timeZoneId;
@@ -147,6 +153,8 @@ public class StoreLogService extends AbstractLogService implements Lifecycle
 
     private final Closeable closeable;
     private final SimpleLogService logService;
+    // keep a (somewhat redundant) reference to the internal log provider, although more strongly typed
+    private final FormattedLogProvider internalLogProvider;
 
     private StoreLogService( LogProvider userLogProvider,
             FileSystemAbstraction fileSystem,
@@ -208,6 +216,7 @@ public class StoreLogService extends AbstractLogService implements Lifecycle
             this.closeable = rotatingSupplier;
         }
         this.logService = new SimpleLogService( userLogProvider, internalLogProvider );
+        this.internalLogProvider = internalLogProvider;
     }
 
     @Override
@@ -226,7 +235,7 @@ public class StoreLogService extends AbstractLogService implements Lifecycle
     }
 
     @Override
-    public void shutdown() throws Throwable
+    public void shutdown() throws Exception
     {
         closeable.close();
     }
@@ -240,6 +249,16 @@ public class StoreLogService extends AbstractLogService implements Lifecycle
     @Override
     public LogProvider getInternalLogProvider()
     {
-        return logService.getInternalLogProvider();
+        return internalLogProvider;
+    }
+
+    public void setDefaultLogLevel( Level newLevel )
+    {
+        internalLogProvider.setDefaultLevel( newLevel );
+    }
+
+    public void setContextLogLevels( Map<String,Level> newLevels )
+    {
+        internalLogProvider.setContextLogLevels( newLevels );
     }
 }

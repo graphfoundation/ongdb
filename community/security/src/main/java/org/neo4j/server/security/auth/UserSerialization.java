@@ -19,8 +19,8 @@
  */
 package org.neo4j.server.security.auth;
 
+import org.neo4j.cypher.internal.security.FormatException;
 import org.neo4j.kernel.impl.security.User;
-import org.neo4j.server.security.auth.exception.FormatException;
 import org.neo4j.string.HexString;
 
 import static java.lang.String.format;
@@ -56,9 +56,7 @@ public class UserSerialization extends FileRepositorySerializer<User>
             ) );
         }
 
-        User.Builder b = new User.Builder()
-                .withName( parts[0] )
-                .withCredentials( deserializeCredentials( parts[1], lineNumber ) );
+        User.Builder b = new User.Builder( parts[0], deserializeCredentials( parts[1], lineNumber ) );
 
         for ( String flag : parts[2].split( ",", -1 ) )
         {

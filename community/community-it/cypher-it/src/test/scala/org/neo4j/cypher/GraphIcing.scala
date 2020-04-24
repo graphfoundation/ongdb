@@ -26,15 +26,14 @@ import org.neo4j.cypher.internal.javacompat.GraphDatabaseCypherService
 import org.neo4j.cypher.internal.runtime.{RuntimeJavaValueConverter, isGraphKernelResultValue}
 import org.neo4j.graphdb.Label.label
 import org.neo4j.graphdb._
-import org.neo4j.internal.kernel.api.Transaction.Type
+import org.neo4j.graphdb.schema.{ConstraintDefinition, ConstraintType, IndexDefinition}
+import org.neo4j.internal.helpers.collection.Iterables
 import org.neo4j.internal.kernel.api.security.LoginContext.AUTH_DISABLED
 import org.neo4j.kernel.GraphDatabaseQueryService
-import org.neo4j.kernel.api.Statement
-import org.neo4j.kernel.impl.core.ThreadToStatementContextBridge
-import org.neo4j.kernel.impl.coreapi.{InternalTransaction, PropertyContainerLocker}
+import org.neo4j.kernel.api.KernelTransaction.Type
+import org.neo4j.kernel.impl.coreapi.InternalTransaction
 import org.neo4j.kernel.impl.factory.GraphDatabaseFacade
 import org.neo4j.kernel.impl.query._
-import org.neo4j.kernel.impl.query.clientconnection.ClientConnectionInfo
 import org.neo4j.kernel.impl.transaction.stats.DatabaseTransactionStats
 import org.neo4j.kernel.impl.util.ValueUtils.asMapValue
 
@@ -54,82 +53,175 @@ trait GraphIcing {
 
     private val graph: GraphDatabaseFacade = graphService.asInstanceOf[GraphDatabaseCypherService].getGraphDatabaseService
 
-    def getAllNodes() = graph.getAllNodes
-
-    def getAllRelationships() = graph.getAllRelationships
-
-    def getAllRelationshipTypes() = graph.getAllRelationshipTypes
-
-    def index() = graph.index
-
-    def schema() = graph.schema
-
-    def shutdown() = graph.shutdown()
-
-    def createNode() = graph.createNode()
-
-    def createNode(label: Label) = graph.createNode(label)
-
-    def createNode(label1: Label, label2: Label) = graph.createNode(label1, label2)
-
-    def execute(query: String) = graph.execute(query)
-
-    def execute(query: String, params: util.Map[String, Object]) = graph.execute(query, params)
-
-    def indexPropsForLabel(label: String): List[List[String]] = {
-      val indexDefs = graph.schema.getIndexes(Label.label(label)).asScala.toList
-      indexDefs.map(_.getPropertyKeys.asScala.toList)
+    def createUniqueConstraint(label: String, property: String) = {
+      withTx( tx =>  {
+        tx.schema().constraintFor(Label.label(label)).assertPropertyIsUnique(property).create()
+      } )
     }
 
-    def createConstraint(label: String, property: String) = {
-      inTx {
-        graph.schema().constraintFor(Label.label(label)).assertPropertyIsUnique(property).create()
+    def createUniqueConstraintWithName(name: String, label: String, property: String) = {
+      withTx( tx =>  {
+        tx.schema().constraintFor(Label.label(label)).assertPropertyIsUnique(property).withName(name).create()
+      } )
+    }
+
+    def createNodeExistenceConstraint(label: String, property: String) = {
+      withTx( tx => {
+        tx.execute(s"CREATE CONSTRAINT ON (n:$label) ASSERT exists(n.$property)")
+      })
+    }
+
+    def createNodeExistenceConstraintWithName(name: String, label: String, property: String) = {
+      withTx( tx => {
+        tx.execute(s"CREATE CONSTRAINT `$name` ON (n:$label) ASSERT exists(n.$property)")
+      })
+    }
+
+    def createRelationshipExistenceConstraint(relType: String, property: String, direction: Direction = Direction.BOTH): Result = {
+      val relSyntax = direction match {
+        case Direction.OUTGOING => s"()-[r:$relType]->()"
+        case Direction.INCOMING => s"()<-[r:$relType]-()"
+        case _ => s"()-[r:$relType]-()"
       }
+      withTx( tx => {
+        tx.execute(s"CREATE CONSTRAINT ON $relSyntax ASSERT exists(r.$property)")
+      })
     }
 
-    def createNodeKeyConstraint(label: String, property: String): Result = {
-      inTx {
-        graph.execute(s"CREATE CONSTRAINT ON (n:$label) ASSERT (n.$property) IS NODE KEY")
+    def createRelationshipExistenceConstraintWithName(name: String, relType: String, property: String, direction: Direction = Direction.BOTH): Result = {
+      val relSyntax = direction match {
+        case Direction.OUTGOING => s"()-[r:$relType]->()"
+        case Direction.INCOMING => s"()<-[r:$relType]-()"
+        case _ => s"()-[r:$relType]-()"
       }
+      withTx( tx => {
+        tx.execute(s"CREATE CONSTRAINT `$name` ON $relSyntax ASSERT exists(r.$property)")
+      })
     }
 
-    def createIndex(label: String, properties: String*): Unit = {
-      graph.execute(s"CREATE INDEX ON :$label(${properties.map(p => s"`$p`").mkString(",")})")
+    def createNodeKeyConstraint(label: String, properties: String*): Result = {
+      withTx( tx => {
+        tx.execute(s"CREATE CONSTRAINT ON (n:$label) ASSERT (n.${properties.mkString(", n.")}) IS NODE KEY")
+      })
+    }
 
-      inTx {
-        graph.schema().awaitIndexesOnline(10, TimeUnit.MINUTES)
+    def createNodeKeyConstraintWithName(name: String, label: String, properties: String*): Result = {
+      withTx( tx => {
+        tx.execute(s"CREATE CONSTRAINT `$name` ON (n:$label) ASSERT (n.${properties.mkString(", n.")}) IS NODE KEY")
+      })
+    }
+
+    def createIndex(label: String, properties: String*): IndexDefinition = {
+      withTx( tx => {
+        tx.execute(s"CREATE INDEX FOR (n:$label) ON (${properties.map(p => s"n.`$p`").mkString(",")})")
+      })
+
+      withTx( tx => {
+        tx.schema().awaitIndexesOnline(10, TimeUnit.MINUTES)
+      } )
+
+      getIndex(label, properties)
+    }
+
+    def createIndexWithName(name: String, label: String, properties: String*): IndexDefinition = {
+      withTx( tx => {
+        tx.execute(s"CREATE INDEX `$name` FOR (n:$label) ON (${properties.map(p => s"n.`$p`").mkString(",")})")
+      })
+
+      withTx( tx =>  {
+        tx.schema().awaitIndexesOnline(10, TimeUnit.MINUTES)
+      } )
+
+      getIndex(label, properties)
+    }
+
+    def awaitIndexesOnline(): Unit = {
+      withTx( tx =>  {
+        tx.schema().awaitIndexesOnline(10, TimeUnit.MINUTES)
+      } )
+    }
+
+    def getIndex(label: String, properties: Seq[String]): IndexDefinition = {
+      withTx( tx => {
+        tx.schema().getIndexes(Label.label(label)).asScala.find(index => index.getPropertyKeys.asScala.toList == properties.toList).get
+      } )
+    }
+
+    def getMaybeIndex(label: String, properties: Seq[String]): Option[IndexDefinition] = {
+      withTx( tx =>  {
+        tx.schema().getIndexes(Label.label(label)).asScala.find(index => index.getPropertyKeys.asScala.toList == properties.toList)
+      } )
+    }
+
+    def getIndexSchemaByName(name: String): (String, Seq[String]) = {
+      withTx( tx =>  {
+        val index = tx.schema().getIndexByName(name)
+        val label = Iterables.single( index.getLabels ).name()
+        val properties = index.getPropertyKeys.asScala.toList
+        (label, properties)
+      } )
+    }
+
+    def getNodeConstraint(label: String, properties: Seq[String]): ConstraintDefinition = {
+      withTx( tx =>  {
+        tx.schema().getConstraints(Label.label(label)).asScala.find(constraint => constraint.getPropertyKeys.asScala.toList == properties.toList).get
+      } )
+    }
+
+    def getMaybeNodeConstraint(label: String, properties: Seq[String]): Option[ConstraintDefinition] = {
+      withTx( tx =>  {
+        tx.schema().getConstraints(Label.label(label)).asScala.find(constraint => constraint.getPropertyKeys.asScala.toList == properties.toList)
+      } )
+    }
+
+    def getRelationshipConstraint(relType: String, property: String): ConstraintDefinition = {
+      withTx( tx =>  {
+        tx.schema().getConstraints(RelationshipType.withName(relType)).asScala.find(constraint => constraint.getPropertyKeys.asScala.toList == List(property)).get
+      } )
+    }
+
+    def getMaybeRelationshipConstraint(relType: String, property: String): Option[ConstraintDefinition] = {
+      withTx( tx =>  {
+        tx.schema().getConstraints(RelationshipType.withName(relType)).asScala.find(constraint => constraint.getPropertyKeys.asScala.toList == List(property))
+      } )
+    }
+
+    def getConstraintSchemaByName(name: String): (String, Seq[String])  = withTx( tx =>  {
+      val constraint = tx.schema().getConstraintByName(name)
+      val properties = constraint.getPropertyKeys.asScala.toList
+      val labelOrRelType = constraint.getConstraintType match {
+        case ConstraintType.RELATIONSHIP_PROPERTY_EXISTENCE => constraint.getRelationshipType.name()
+        case _ => constraint.getLabel.name()
       }
-    }
+      (labelOrRelType, properties)
+    } )
 
     def createUniqueIndex(label: String, property: String): Unit = {
-      graph.execute(s"CREATE CONSTRAINT ON (p:$label) ASSERT p.$property IS UNIQUE")
+      withTx( tx => {
+        tx.execute(s"CREATE CONSTRAINT ON (p:$label) ASSERT p.$property IS UNIQUE")
+      } )
 
-      inTx {
-        graph.schema().awaitIndexesOnline(10, TimeUnit.MINUTES)
-      }
+      withTx( tx => {
+        tx.schema().awaitIndexesOnline(10, TimeUnit.MINUTES)
+      } )
     }
-
-    def statement: Statement = txBridge.get()
 
     // Runs code inside of a transaction. Will mark the transaction as successful if no exception is thrown
-    def inTx[T](f: => T, txType: Type = Type.`implicit`): T = withTx(_ => f, txType)
+    def inTx[T](f: InternalTransaction => T, txType: Type = Type.`implicit`): T = withTx(f, txType)
 
-    private val locker: PropertyContainerLocker = new PropertyContainerLocker
+    def inTx[T](f: => T): T = inTx(_ => f)
+
     private val javaValues = new RuntimeJavaValueConverter(isGraphKernelResultValue)
 
-    private def createTransactionalContext(txType: Type, queryText: String, params: Map[String, Any] = Map.empty): (InternalTransaction, TransactionalContext) = {
-      val tx = graph.beginTransaction(txType, AUTH_DISABLED)
+    private def createTransactionalContext(tx: InternalTransaction, queryText: String, params: Map[String, Any] = Map.empty): TransactionalContext = {
       val javaParams = javaValues.asDeepJavaMap(params).asInstanceOf[util.Map[String, AnyRef]]
-      val contextFactory = Neo4jTransactionalContextFactory.create(graphService,
-        locker)
-      val transactionalContext = contextFactory.newContext(ClientConnectionInfo.EMBEDDED_CONNECTION, tx, queryText, asMapValue(javaParams))
-      (tx, transactionalContext)
+      val contextFactory = Neo4jTransactionalContextFactory.create(graphService)
+      contextFactory.newContext(tx, queryText, asMapValue(javaParams))
     }
 
-    def transactionalContext(txType: Type = Type.`implicit`, query: (String, Map[String, Any])): TransactionalContext = {
+    def transactionalContext(tx: InternalTransaction, query: (String, Map[String, Any])): TransactionalContext = {
       val (queryText, params) = query
-      val (_, context) = createTransactionalContext(txType, queryText, params)
-      context
+      createTransactionalContext(tx, queryText, params)
     }
 
     // Runs code inside of a transaction. Will mark the transaction as successful if no exception is thrown
@@ -137,7 +229,9 @@ trait GraphIcing {
       val tx = graph.beginTransaction(txType, AUTH_DISABLED)
       try {
         val result = f(tx)
-        tx.success()
+        if (tx.isOpen) {
+          tx.commit()
+        }
         result
       } finally {
         tx.close()
@@ -145,14 +239,13 @@ trait GraphIcing {
 
     }
 
-    def rollback[T](f: => T): T = {
+    def rollback[T](f: InternalTransaction => T): T = {
       val tx = graph.beginTransaction(Type.`implicit`, AUTH_DISABLED)
       try {
-        val result = f
-        tx.failure()
+        val result = f(tx)
+        tx.rollback()
         result
       } finally {
-        tx.failure()
         tx.close()
       }
     }
@@ -160,8 +253,6 @@ trait GraphIcing {
     def txCounts = TxCounts(txMonitor.getNumberOfCommittedTransactions, txMonitor.getNumberOfRolledBackTransactions, txMonitor.getNumberOfActiveTransactions)
 
     private def txMonitor: DatabaseTransactionStats = graph.getDependencyResolver.resolveDependency(classOf[DatabaseTransactionStats])
-
-    private def txBridge: ThreadToStatementContextBridge = graph.getDependencyResolver.resolveDependency(classOf[ThreadToStatementContextBridge])
   }
 }
 

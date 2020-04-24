@@ -19,47 +19,47 @@
  */
 package org.neo4j.kernel;
 
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import org.neo4j.graphdb.GraphDatabaseService;
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
-import org.neo4j.kernel.configuration.Settings;
+import org.neo4j.configuration.GraphDatabaseSettings;
+import org.neo4j.dbms.api.DatabaseManagementService;
 import org.neo4j.kernel.impl.store.MetaDataStore;
 import org.neo4j.logging.AssertableLogProvider;
-import org.neo4j.test.TestGraphDatabaseFactory;
-import org.neo4j.test.rule.CleanupRule;
+import org.neo4j.test.TestDatabaseManagementServiceBuilder;
 
-public class DiagnosticsLoggingTest
+class DiagnosticsLoggingTest
 {
-    @Rule
-    public CleanupRule cleanupRule = new CleanupRule();
 
     @Test
-    public void shouldSeeExpectedDiagnostics()
+    void shouldSeeExpectedDiagnostics()
     {
         AssertableLogProvider logProvider = new AssertableLogProvider();
-        GraphDatabaseService db =
-                new TestGraphDatabaseFactory().setInternalLogProvider( logProvider )
-                .newImpermanentDatabaseBuilder()
-                .setConfig( GraphDatabaseSettings.dump_configuration, Settings.TRUE )
+        DatabaseManagementService managementService = new TestDatabaseManagementServiceBuilder()
+                .setInternalLogProvider( logProvider )
+                .impermanent()
+                .setConfig( GraphDatabaseSettings.dump_configuration, true )
                 .setConfig( GraphDatabaseSettings.pagecache_memory, "4M" )
-                .newGraphDatabase();
-        cleanupRule.add( db );
-
-        // THEN we should have logged
-        logProvider.rawMessageMatcher().assertContains( "Network information" );
-        logProvider.rawMessageMatcher().assertContains( "Disk space on partition" );
-        logProvider.rawMessageMatcher().assertContains( "Local timezone" );
-        // page cache info
-        logProvider.rawMessageMatcher().assertContains( "Page cache: 4M" );
-        // neostore records
-        for ( MetaDataStore.Position position : MetaDataStore.Position.values() )
+                .build();
+        try
         {
-            logProvider.rawMessageMatcher().assertContains( position.name() );
+            // THEN we should have logged
+            logProvider.rawMessageMatcher().assertContains( "Network information" );
+            logProvider.rawMessageMatcher().assertContains( "Disk space on partition" );
+            logProvider.rawMessageMatcher().assertContains( "Local timezone" );
+            // page cache info
+            logProvider.rawMessageMatcher().assertContains( "Page cache: 4M" );
+            // neostore records
+            for ( MetaDataStore.Position position : MetaDataStore.Position.values() )
+            {
+                logProvider.rawMessageMatcher().assertContains( position.name() );
+            }
+            // transaction log info
+            logProvider.rawMessageMatcher().assertContains( "Transaction log" );
+            logProvider.rawMessageMatcher().assertContains( "TimeZone version: " );
         }
-        // transaction log info
-        logProvider.rawMessageMatcher().assertContains( "Transaction log" );
-        logProvider.rawMessageMatcher().assertContains( "TimeZone version: " );
+        finally
+        {
+            managementService.shutdown();
+        }
     }
 }

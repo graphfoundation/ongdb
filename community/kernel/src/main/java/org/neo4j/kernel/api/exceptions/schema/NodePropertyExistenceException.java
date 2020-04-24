@@ -19,11 +19,11 @@
  */
 package org.neo4j.kernel.api.exceptions.schema;
 
-import org.neo4j.internal.kernel.api.TokenNameLookup;
+import org.neo4j.common.TokenNameLookup;
 import org.neo4j.internal.kernel.api.exceptions.schema.ConstraintValidationException;
-import org.neo4j.internal.kernel.api.schema.LabelSchemaDescriptor;
-import org.neo4j.internal.kernel.api.schema.SchemaUtil;
-import org.neo4j.kernel.api.schema.constraints.ConstraintDescriptorFactory;
+import org.neo4j.internal.schema.LabelSchemaDescriptor;
+import org.neo4j.internal.schema.constraints.ConstraintDescriptorFactory;
+import org.neo4j.token.api.TokenIdPrettyPrinter;
 
 import static java.lang.String.format;
 
@@ -44,10 +44,14 @@ public class NodePropertyExistenceException extends ConstraintValidationExceptio
     @Override
     public String getUserMessage( TokenNameLookup tokenNameLookup )
     {
-        String propertyNoun = (schema.getPropertyIds().length > 1) ? "properties" : "property";
-        return format( "Node(%d) with label `%s` must have the %s `%s`",
+        boolean pluralProps = schema.getPropertyIds().length > 1;
+        String propertyNoun = pluralProps ? "properties" : "property";
+        String sep = pluralProps ? "" : "`";
+        String props = pluralProps ? TokenIdPrettyPrinter.niceProperties( tokenNameLookup, schema.getPropertyIds() ) :
+                       tokenNameLookup.propertyKeyGetName( schema.getPropertyId() );
+        return format( "Node(%d) with label `%s` must have the %s %s%s%s",
                 nodeId,
                 tokenNameLookup.labelGetName( schema.getLabelId() ), propertyNoun,
-                SchemaUtil.niceProperties( tokenNameLookup, schema.getPropertyIds() ) );
+                sep, props, sep );
     }
 }

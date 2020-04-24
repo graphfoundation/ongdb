@@ -24,13 +24,12 @@ import java.util.ArrayDeque;
 import java.util.Arrays;
 import java.util.Deque;
 
+import org.neo4j.io.fs.ReadAheadChannel;
 import org.neo4j.kernel.impl.transaction.CommittedTransactionRepresentation;
 import org.neo4j.kernel.impl.transaction.log.LogPosition;
 import org.neo4j.kernel.impl.transaction.log.LogVersionBridge;
 import org.neo4j.kernel.impl.transaction.log.PhysicalTransactionCursor;
-import org.neo4j.kernel.impl.transaction.log.ReadAheadChannel;
 import org.neo4j.kernel.impl.transaction.log.ReadAheadLogChannel;
-import org.neo4j.kernel.impl.transaction.log.ReadableClosablePositionAwareChannel;
 import org.neo4j.kernel.impl.transaction.log.TransactionCursor;
 import org.neo4j.kernel.impl.transaction.log.entry.LogEntryReader;
 import org.neo4j.kernel.impl.transaction.log.entry.UnsupportedLogVersionException;
@@ -79,8 +78,7 @@ public class ReversedSingleFileTransactionCursor implements TransactionCursor
     private int chunkStartOffsetIndex;
     private long totalSize;
 
-    ReversedSingleFileTransactionCursor( ReadAheadLogChannel channel,
-            LogEntryReader<ReadableClosablePositionAwareChannel> logEntryReader, boolean failOnCorruptedLogFiles,
+    ReversedSingleFileTransactionCursor( ReadAheadLogChannel channel, LogEntryReader logEntryReader, boolean failOnCorruptedLogFiles,
             ReversedTransactionCursorMonitor monitor ) throws IOException
     {
         this.channel = channel;
@@ -88,7 +86,7 @@ public class ReversedSingleFileTransactionCursor implements TransactionCursor
         this.monitor = monitor;
         // There's an assumption here: that the underlying channel can move in between calls and that the
         // transaction cursor will just happily read from the new position.
-        this.transactionCursor = new PhysicalTransactionCursor<>( channel, logEntryReader );
+        this.transactionCursor = new PhysicalTransactionCursor( channel, logEntryReader );
         this.offsets = sketchOutTransactionStartOffsets();
     }
 

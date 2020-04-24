@@ -26,19 +26,19 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-import org.neo4j.graphdb.factory.GraphDatabaseFactory;
+import org.neo4j.dbms.api.DatabaseManagementServiceBuilder;
 import org.neo4j.graphdb.schema.IndexDefinition;
-import org.neo4j.kernel.extension.KernelExtensionFactory;
+import org.neo4j.kernel.extension.ExtensionFactory;
 import org.neo4j.kernel.impl.api.index.ControlledPopulationIndexProvider;
 import org.neo4j.test.DoubleLatch;
-import org.neo4j.test.TestGraphDatabaseFactory;
-import org.neo4j.test.rule.DatabaseRule;
-import org.neo4j.test.rule.ImpermanentDatabaseRule;
+import org.neo4j.test.TestDatabaseManagementServiceBuilder;
+import org.neo4j.test.rule.DbmsRule;
+import org.neo4j.test.rule.ImpermanentDbmsRule;
 
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
-import static org.neo4j.graphdb.factory.GraphDatabaseSettings.default_schema_provider;
+import static org.neo4j.configuration.GraphDatabaseSettings.default_schema_provider;
 import static org.neo4j.kernel.impl.api.index.SchemaIndexTestHelper.singleInstanceIndexProviderFactory;
 
 public class SchemaIndexWaitingAcceptanceTest
@@ -46,14 +46,14 @@ public class SchemaIndexWaitingAcceptanceTest
     private final ControlledPopulationIndexProvider provider = new ControlledPopulationIndexProvider();
 
     @Rule
-    public final DatabaseRule rule = new ImpermanentDatabaseRule()
+    public final DbmsRule rule = new ImpermanentDbmsRule()
     {
         @Override
-        protected void configure( GraphDatabaseFactory databaseFactory )
+        protected void configure( DatabaseManagementServiceBuilder databaseFactory )
         {
             super.configure( databaseFactory );
-            List<KernelExtensionFactory<?>> extensions = Collections.singletonList( singleInstanceIndexProviderFactory( "test", provider ) );
-            ((TestGraphDatabaseFactory) databaseFactory).setKernelExtensions( extensions );
+            List<ExtensionFactory<?>> extensions = Collections.singletonList( singleInstanceIndexProviderFactory( "test", provider ) );
+            ((TestDatabaseManagementServiceBuilder) databaseFactory).setExtensions( extensions ).noOpSystemGraphInitializer();
         }
     }.withSetting( default_schema_provider, provider.getProviderDescriptor().name() );
 
@@ -67,8 +67,8 @@ public class SchemaIndexWaitingAcceptanceTest
         IndexDefinition index;
         try ( Transaction tx = db.beginTx() )
         {
-            index = db.schema().indexFor( Label.label( "Person" ) ).on( "name" ).create();
-            tx.success();
+            index = tx.schema().indexFor( Label.label( "Person" ) ).on( "name" ).create();
+            tx.commit();
         }
 
         latch.waitForAllToStart();
@@ -77,7 +77,41 @@ public class SchemaIndexWaitingAcceptanceTest
         try ( Transaction tx = db.beginTx() )
         {
             // then
-            db.schema().awaitIndexOnline( index, 1, TimeUnit.MILLISECONDS );
+            tx.schema().awaitIndexOnline( index, 1, TimeUnit.MILLISECONDS );
+
+            fail( "Expected IllegalStateException to be thrown" );
+        }
+        catch ( IllegalStateException e )
+        {
+            // good
+            assertThat( e.getMessage(), containsString( "come online" ) );
+        }
+        finally
+        {
+            latch.finish();
+        }
+    }
+
+    @Test
+    public void shouldTimeoutWaitingForIndexByNameToComeOnline()
+    {
+        // given
+        GraphDatabaseService db = rule.getGraphDatabaseAPI();
+        DoubleLatch latch = provider.installPopulationJobCompletionLatch();
+
+        try ( Transaction tx = db.beginTx() )
+        {
+            tx.schema().indexFor( Label.label( "Person" ) ).on( "name" ).withName( "my_index" ).create();
+            tx.commit();
+        }
+
+        latch.waitForAllToStart();
+
+        // when
+        try ( Transaction tx = db.beginTx() )
+        {
+            // then
+            tx.schema().awaitIndexOnline( "my_index", 1, TimeUnit.MILLISECONDS );
 
             fail( "Expected IllegalStateException to be thrown" );
         }
@@ -101,8 +135,8 @@ public class SchemaIndexWaitingAcceptanceTest
 
         try ( Transaction tx = db.beginTx() )
         {
-            db.schema().indexFor( Label.label( "Person" ) ).on( "name" ).create();
-            tx.success();
+            tx.schema().indexFor( Label.label( "Person" ) ).on( "name" ).create();
+            tx.commit();
         }
 
         latch.waitForAllToStart();
@@ -111,7 +145,7 @@ public class SchemaIndexWaitingAcceptanceTest
         try ( Transaction tx = db.beginTx() )
         {
             // then
-            db.schema().awaitIndexesOnline( 1, TimeUnit.MILLISECONDS );
+            tx.schema().awaitIndexesOnline( 1, TimeUnit.MILLISECONDS );
 
             fail( "Expected IllegalStateException to be thrown" );
         }

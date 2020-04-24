@@ -50,6 +50,7 @@ abstract class TreeNode<KEY,VALUE>
     static final int BYTE_POS_NODE_TYPE = 0;
     static final byte NODE_TYPE_TREE_NODE = 1;
     static final byte NODE_TYPE_FREE_LIST_NODE = 2;
+    static final byte NODE_TYPE_OFFLOAD = 3;
 
     static final int SIZE_PAGE_REFERENCE = GenerationSafePointerPair.SIZE;
     static final int BYTE_POS_TYPE = BYTE_POS_NODE_TYPE + Byte.BYTES;
@@ -63,6 +64,7 @@ abstract class TreeNode<KEY,VALUE>
     static final byte LEAF_FLAG = 1;
     static final byte INTERNAL_FLAG = 0;
     static final long NO_NODE_FLAG = 0;
+    static final long NO_OFFLOAD_ID = -1;
 
     static final int NO_KEY_VALUE_SIZE_CAP = -1;
 
@@ -240,20 +242,23 @@ abstract class TreeNode<KEY,VALUE>
         cursor.shiftBytes( baseOffset + (pos + 1) * slotSize, (totalSlotCount - (pos + 1)) * slotSize, -slotSize );
     }
 
+    abstract long offloadIdAt( PageCursor cursor, int pos, Type type );
+
     abstract KEY keyAt( PageCursor cursor, KEY into, int pos, Type type );
 
     abstract void keyValueAt( PageCursor cursor, KEY intoKey, VALUE intoValue, int pos );
 
     abstract void insertKeyAndRightChildAt( PageCursor cursor, KEY key, long child, int pos, int keyCount,
-            long stableGeneration, long unstableGeneration );
+            long stableGeneration, long unstableGeneration ) throws IOException;
 
-    abstract void insertKeyValueAt( PageCursor cursor, KEY key, VALUE value, int pos, int keyCount );
+    abstract void insertKeyValueAt( PageCursor cursor, KEY key, VALUE value, int pos, int keyCount, long stableGeneration, long unstableGeneration )
+            throws IOException;
 
-    abstract void removeKeyValueAt( PageCursor cursor, int pos, int keyCount );
+    abstract void removeKeyValueAt( PageCursor cursor, int pos, int keyCount, long stableGeneration, long unstableGeneration ) throws IOException;
 
-    abstract void removeKeyAndRightChildAt( PageCursor cursor, int keyPos, int keyCount );
+    abstract void removeKeyAndRightChildAt( PageCursor cursor, int keyPos, int keyCount, long stableGeneration, long unstableGeneration ) throws IOException;
 
-    abstract void removeKeyAndLeftChildAt( PageCursor cursor, int keyPos, int keyCount );
+    abstract void removeKeyAndLeftChildAt( PageCursor cursor, int keyPos, int keyCount, long stableGeneration, long unstableGeneration ) throws IOException;
 
     /**
      * Overwrite key at position with given key.
@@ -291,6 +296,8 @@ abstract class TreeNode<KEY,VALUE>
     // HELPERS
 
     abstract int keyValueSizeCap();
+
+    abstract int inlineKeyValueSizeCap();
 
     /**
      * This method can throw and should not be used on read path.
@@ -363,7 +370,7 @@ abstract class TreeNode<KEY,VALUE>
      * Key count is updated.
      */
     abstract void doSplitLeaf( PageCursor leftCursor, int leftKeyCount, PageCursor rightCursor, int insertPos, KEY newKey, VALUE newValue, KEY newSplitter,
-            double ratioToKeepInLeftOnSplit );
+            double ratioToKeepInLeftOnSplit, long stableGeneration, long unstableGeneration ) throws IOException;
 
     /**
      * Performs the entry moving part of split in internal.
@@ -373,7 +380,8 @@ abstract class TreeNode<KEY,VALUE>
      * Key count is updated.
      */
     abstract void doSplitInternal( PageCursor leftCursor, int leftKeyCount, PageCursor rightCursor, int insertPos,
-            KEY newKey, long newRightChild, long stableGeneration, long unstableGeneration, KEY newSplitter, double ratioToKeepInLeftOnSplit );
+            KEY newKey, long newRightChild, long stableGeneration, long unstableGeneration, KEY newSplitter, double ratioToKeepInLeftOnSplit )
+            throws IOException;
 
     /**
      * Move all rightmost keys and values in left leaf from given position to right leaf.

@@ -20,23 +20,21 @@
 package org.neo4j.graphalgo.path;
 
 import common.Neo4jAlgoTestCase;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
+import org.neo4j.graphalgo.BasicEvaluationContext;
+import org.neo4j.graphalgo.EvaluationContext;
 import org.neo4j.graphalgo.PathFinder;
 import org.neo4j.graphdb.Path;
 import org.neo4j.graphdb.PathExpanders;
+import org.neo4j.graphdb.Transaction;
 
 import static org.neo4j.graphalgo.GraphAlgoFactory.allPaths;
 
-public class TestAllPaths extends Neo4jAlgoTestCase
+class TestAllPaths extends Neo4jAlgoTestCase
 {
-    protected PathFinder<Path> instantiatePathFinder( int maxDepth )
-    {
-        return allPaths( PathExpanders.allTypesAndDirections(), maxDepth );
-    }
-
     @Test
-    public void testCircularGraph()
+    void testCircularGraph()
     {
         /* Layout
          *
@@ -44,36 +42,49 @@ public class TestAllPaths extends Neo4jAlgoTestCase
          *         \   /
          *          (d)
          */
-        graph.makeEdge( "a", "b" );
-        graph.makeEdge( "b", "c" );
-        graph.makeEdge( "b", "c" );
-        graph.makeEdge( "b", "d" );
-        graph.makeEdge( "c", "d" );
-        graph.makeEdge( "c", "e" );
+        try ( Transaction transaction = graphDb.beginTx() )
+        {
+            graph.makeEdge( transaction, "a", "b" );
+            graph.makeEdge( transaction, "b", "c" );
+            graph.makeEdge( transaction, "b", "c" );
+            graph.makeEdge( transaction, "b", "d" );
+            graph.makeEdge( transaction, "c", "d" );
+            graph.makeEdge( transaction, "c", "e" );
+            var context = new BasicEvaluationContext( transaction, graphDb );
 
-        PathFinder<Path> finder = instantiatePathFinder( 10 );
-        Iterable<Path> paths = finder.findAllPaths( graph.getNode( "a" ), graph.getNode( "e" ) );
-        assertPaths( paths, "a,b,c,e", "a,b,c,e", "a,b,d,c,e", "a,b,c,d,b,c,e", "a,b,c,d,b,c,e",
-                "a,b,c,b,d,c,e", "a,b,c,b,d,c,e", "a,b,d,c,b,c,e", "a,b,d,c,b,c,e" );
+            PathFinder<Path> finder = instantiatePathFinder( context, 10 );
+            Iterable<Path> paths = finder.findAllPaths( graph.getNode( transaction, "a" ), graph.getNode( transaction, "e" ) );
+            assertPaths( paths, "a,b,c,e", "a,b,c,e", "a,b,d,c,e", "a,b,c,d,b,c,e", "a,b,c,d,b,c,e", "a,b,c,b,d,c,e", "a,b,c,b,d,c,e", "a,b,d,c,b,c,e",
+                    "a,b,d,c,b,c,e" );
+            transaction.commit();
+        }
     }
 
     @Test
-    public void testTripleRelationshipGraph()
+    void testTripleRelationshipGraph()
     {
         /* Layout
          *          ___
          * (a)---(b)===(c)---(d)
          */
-        graph.makeEdge( "a", "b" );
-        graph.makeEdge( "b", "c" );
-        graph.makeEdge( "b", "c" );
-        graph.makeEdge( "b", "c" );
-        graph.makeEdge( "c", "d" );
+        try ( Transaction transaction = graphDb.beginTx() )
+        {
+            graph.makeEdge( transaction, "a", "b" );
+            graph.makeEdge( transaction, "b", "c" );
+            graph.makeEdge( transaction, "b", "c" );
+            graph.makeEdge( transaction, "b", "c" );
+            graph.makeEdge( transaction, "c", "d" );
+            var context = new BasicEvaluationContext( transaction, graphDb );
 
-        PathFinder<Path> finder = instantiatePathFinder( 10 );
-        Iterable<Path> paths = finder.findAllPaths( graph.getNode( "a" ), graph.getNode( "d" ) );
-        assertPaths( paths, "a,b,c,d", "a,b,c,d", "a,b,c,d",
-                "a,b,c,b,c,d", "a,b,c,b,c,d", "a,b,c,b,c,d", "a,b,c,b,c,d",
-                "a,b,c,b,c,d", "a,b,c,b,c,d" );
+            PathFinder<Path> finder = instantiatePathFinder( context, 10 );
+            Iterable<Path> paths = finder.findAllPaths( graph.getNode( transaction, "a" ), graph.getNode( transaction, "d" ) );
+            assertPaths( paths, "a,b,c,d", "a,b,c,d", "a,b,c,d", "a,b,c,b,c,d", "a,b,c,b,c,d", "a,b,c,b,c,d", "a,b,c,b,c,d", "a,b,c,b,c,d", "a,b,c,b,c,d" );
+            transaction.commit();
+        }
+    }
+
+    private static PathFinder<Path> instantiatePathFinder( EvaluationContext context, int maxDepth )
+    {
+        return allPaths( context, PathExpanders.allTypesAndDirections(), maxDepth );
     }
 }

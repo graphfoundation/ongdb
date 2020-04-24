@@ -19,13 +19,14 @@
  */
 package org.neo4j.kernel.impl.coreapi.schema;
 
-import java.util.Optional;
-
+import org.neo4j.exceptions.KernelException;
 import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.RelationshipType;
 import org.neo4j.graphdb.schema.ConstraintDefinition;
 import org.neo4j.graphdb.schema.IndexDefinition;
-import org.neo4j.internal.kernel.api.exceptions.KernelException;
+import org.neo4j.graphdb.schema.IndexType;
+import org.neo4j.internal.schema.ConstraintDescriptor;
+import org.neo4j.internal.schema.IndexConfig;
 
 /**
  * Implementations are used to configure {@link IndexCreatorImpl} and {@link BaseNodeConstraintCreator} for re-use
@@ -33,25 +34,21 @@ import org.neo4j.internal.kernel.api.exceptions.KernelException;
  */
 public interface InternalSchemaActions
 {
-    IndexDefinition createIndexDefinition( Label label, Optional<String> indexName, String... propertyKey );
+    IndexDefinition createIndexDefinition( Label[] label, String indexName, IndexType indexType, IndexConfig indexConfig, String... propertyKey );
+
+    IndexDefinition createIndexDefinition( RelationshipType[] types, String indexName, IndexType indexType, IndexConfig indexConfig, String... propertyKey );
 
     void dropIndexDefinitions( IndexDefinition indexDefinition );
 
-    ConstraintDefinition createPropertyUniquenessConstraint( IndexDefinition indexDefinition );
+    ConstraintDefinition createPropertyUniquenessConstraint( IndexDefinition indexDefinition, String name, IndexType indexType, IndexConfig indexConfig );
 
-    ConstraintDefinition createNodeKeyConstraint( IndexDefinition indexDefinition );
+    ConstraintDefinition createNodeKeyConstraint( IndexDefinition indexDefinition, String name, IndexType indexType, IndexConfig indexConfig );
 
-    ConstraintDefinition createPropertyExistenceConstraint( Label label, String... propertyKey );
+    ConstraintDefinition createPropertyExistenceConstraint( String name, Label label, String... propertyKey );
 
-    ConstraintDefinition createPropertyExistenceConstraint( RelationshipType type, String propertyKey );
+    ConstraintDefinition createPropertyExistenceConstraint( String name, RelationshipType type, String propertyKey );
 
-    void dropPropertyUniquenessConstraint( Label label, String[] properties );
-
-    void dropNodeKeyConstraint( Label label, String[] properties );
-
-    void dropNodePropertyExistenceConstraint( Label label, String[] properties );
-
-    void dropRelationshipPropertyExistenceConstraint( RelationshipType type, String propertyKey );
+    void dropConstraint( ConstraintDescriptor constraint );
 
     String getUserMessage( KernelException e );
 

@@ -24,6 +24,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Objects;
 
+import org.neo4j.internal.unsafe.UnsafeUtil;
 import org.neo4j.io.pagecache.CursorException;
 import org.neo4j.io.pagecache.PageCursor;
 import org.neo4j.io.pagecache.PageSwapper;
@@ -34,7 +35,6 @@ import org.neo4j.io.pagecache.tracing.PinEvent;
 import org.neo4j.io.pagecache.tracing.cursor.PageCursorTracer;
 import org.neo4j.io.pagecache.tracing.cursor.context.VersionContext;
 import org.neo4j.io.pagecache.tracing.cursor.context.VersionContextSupplier;
-import org.neo4j.unsafe.impl.internal.dragons.UnsafeUtil;
 
 import static org.neo4j.io.pagecache.PagedFile.PF_EAGER_FLUSH;
 import static org.neo4j.io.pagecache.PagedFile.PF_NO_FAULT;
@@ -42,12 +42,15 @@ import static org.neo4j.io.pagecache.PagedFile.PF_SHARED_WRITE_LOCK;
 import static org.neo4j.io.pagecache.impl.muninn.MuninnPagedFile.UNMAPPED_TTE;
 import static org.neo4j.util.FeatureToggles.flag;
 
-abstract class MuninnPageCursor extends PageCursor
+public abstract class MuninnPageCursor extends PageCursor
 {
     private static final boolean usePreciseCursorErrorStackTraces =
             flag( MuninnPageCursor.class, "usePreciseCursorErrorStackTraces", false );
 
     private static final boolean boundsCheck = flag( MuninnPageCursor.class, "boundsCheck", true );
+
+    private static final int BYTE_ARRAY_BASE_OFFSET = UnsafeUtil.arrayBaseOffset( byte[].class );
+    private static final int BYTE_ARRAY_INDEX_SCALE = UnsafeUtil.arrayIndexScale( byte[].class );
 
     // Size of the respective primitive types in bytes.
     private static final int SIZE_OF_BYTE = Byte.BYTES;
@@ -101,7 +104,7 @@ abstract class MuninnPageCursor extends PageCursor
         this.pf_flags = pf_flags;
         this.eagerFlush = isFlagRaised( pf_flags, PF_EAGER_FLUSH );
         this.noFault = isFlagRaised( pf_flags, PF_NO_FAULT );
-        this.noGrow = noFault | isFlagRaised( pf_flags, PagedFile.PF_NO_GROW );
+        this.noGrow = noFault || isFlagRaised( pf_flags, PagedFile.PF_NO_GROW );
     }
 
     private boolean isFlagRaised( int flagSet, int flag )
@@ -293,7 +296,7 @@ abstract class MuninnPageCursor extends PageCursor
                 // item and try again, as the eviction thread would have set the chunk array slot to null.
                 long pageRef = pagedFile.deref( mappedPageId );
                 boolean locked = tryLockPage( pageRef );
-                if ( locked & pagedFile.isBoundTo( pageRef, swapperId, filePageId ) )
+                if ( locked && pagedFile.isBoundTo( pageRef, swapperId, filePageId ) )
                 {
                     pinCursorToPage( pageRef, filePageId, swapper );
                     pinEvent.hit();
@@ -681,12 +684,24 @@ abstract class MuninnPageCursor extends PageCursor
     @Override
     public void getBytes( byte[] data, int arrayOffset, int length )
     {
-        long p = getBoundedPointer( offset, length );
+        if ( arrayOffset + length > data.length )
+        {
+            throw new ArrayIndexOutOfBoundsException();
+        }
+        long p = nextBoundedPointer( length );
         if ( !outOfBounds )
         {
-            for ( int i = 0; i < length; i++ )
+            int inset = UnsafeUtil.arrayOffset( arrayOffset, BYTE_ARRAY_BASE_OFFSET, BYTE_ARRAY_INDEX_SCALE );
+            if ( length < 16 )
             {
-                data[arrayOffset + i] = UnsafeUtil.getByte( p + i );
+                for ( int i = 0; i < length; i++ )
+                {
+                    UnsafeUtil.putByte( data, inset + i, UnsafeUtil.getByte( p + i ) );
+                }
+            }
+            else
+            {
+                UnsafeUtil.copyMemory( null, p, data, inset, length );
             }
         }
         offset += length;
@@ -701,13 +716,24 @@ abstract class MuninnPageCursor extends PageCursor
     @Override
     public void putBytes( byte[] data, int arrayOffset, int length )
     {
-        long p = getBoundedPointer( offset, length );
+        if ( arrayOffset + length > data.length )
+        {
+            throw new ArrayIndexOutOfBoundsException();
+        }
+        long p = nextBoundedPointer( length );
         if ( !outOfBounds )
         {
-            for ( int i = 0; i < length; i++ )
+            int inset = UnsafeUtil.arrayOffset( arrayOffset, BYTE_ARRAY_BASE_OFFSET, BYTE_ARRAY_INDEX_SCALE );
+            if ( length < 16 )
             {
-                byte b = data[arrayOffset + i];
-                UnsafeUtil.putByte( p + i, b );
+                for ( int i = 0; i < length; i++ )
+                {
+                    UnsafeUtil.putByte( p + i, UnsafeUtil.getByte( data, inset + i ) );
+                }
+            }
+            else
+            {
+                UnsafeUtil.copyMemory( data, inset, null, p, length );
             }
         }
         offset += length;
@@ -716,7 +742,7 @@ abstract class MuninnPageCursor extends PageCursor
     @Override
     public void putBytes( int bytes, byte value )
     {
-        long p = getBoundedPointer( offset, bytes );
+        long p = nextBoundedPointer( bytes );
         if ( !outOfBounds )
         {
             UnsafeUtil.setMemory( p, bytes, value );
@@ -800,10 +826,10 @@ abstract class MuninnPageCursor extends PageCursor
             throw new IllegalArgumentException( "Target cursor must be writable" );
         }
         if ( sourceOffset >= 0
-             & targetOffset >= 0
-             & sourceOffset < sourcePageSize
-             & targetOffset < targetPageSize
-             & lengthInBytes >= 0 )
+             && targetOffset >= 0
+             && sourceOffset < sourcePageSize
+             && targetOffset < targetPageSize
+             && lengthInBytes >= 0 )
         {
             MuninnPageCursor cursor = (MuninnPageCursor) targetCursor;
             int remainingSource = sourcePageSize - sourceOffset;
@@ -837,7 +863,7 @@ abstract class MuninnPageCursor extends PageCursor
         int pos = buf.position();
         int bytesToCopy = Math.min( buf.limit() - pos, pageSize - sourceOffset );
         long source = pointer + sourceOffset;
-        if ( sourceOffset < getCurrentPageSize() & sourceOffset >= 0 )
+        if ( sourceOffset < getCurrentPageSize() && sourceOffset >= 0 )
         {
             long target = UnsafeUtil.getDirectByteBufferAddress( buf );
             UnsafeUtil.copyMemory( source, target + pos, bytesToCopy );
@@ -868,10 +894,10 @@ abstract class MuninnPageCursor extends PageCursor
         int targetStart = sourceStart + shift;
         int targetEnd = sourceStart + length + shift;
         if ( sourceStart < 0
-                | sourceEnd > filePageSize
-                | targetStart < 0
-                | targetEnd > filePageSize
-                | length < 0 )
+                || sourceEnd > filePageSize
+                || targetStart < 0
+                || targetEnd > filePageSize
+                || length < 0 )
         {
             outOfBounds = true;
             return;
@@ -933,7 +959,7 @@ abstract class MuninnPageCursor extends PageCursor
     public void setOffset( int offset )
     {
         this.offset = offset;
-        if ( offset < 0 | offset > filePageSize )
+        if ( offset < 0 || offset > filePageSize )
         {
             this.offset = 0;
             outOfBounds = true;
@@ -1051,5 +1077,10 @@ abstract class MuninnPageCursor extends PageCursor
     public boolean isWriteLocked()
     {
         return isFlagRaised( pf_flags, PF_SHARED_WRITE_LOCK );
+    }
+
+    public long lastTxModifierId()
+    {
+        return pagedFile.getLastModifiedTxId( pinnedPageRef );
     }
 }

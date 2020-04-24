@@ -19,7 +19,6 @@
  */
 package org.neo4j.kernel.api.impl.schema;
 
-import org.eclipse.collections.api.iterator.LongIterator;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.ClassRule;
@@ -33,42 +32,49 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.Future;
 
 import org.neo4j.collection.PrimitiveLongCollections;
+import org.neo4j.configuration.Config;
 import org.neo4j.function.IOFunction;
-import org.neo4j.helpers.TaskCoordinator;
 import org.neo4j.internal.kernel.api.IndexQuery;
+import org.neo4j.internal.kernel.api.exceptions.schema.IndexNotApplicableKernelException;
 import org.neo4j.internal.kernel.api.exceptions.schema.IndexNotFoundKernelException;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.internal.schema.IndexOrder;
+import org.neo4j.internal.schema.IndexPrototype;
 import org.neo4j.kernel.api.exceptions.index.IndexEntryConflictException;
 import org.neo4j.kernel.api.impl.index.storage.DirectoryFactory;
-import org.neo4j.kernel.api.index.IndexEntryUpdate;
 import org.neo4j.kernel.api.index.IndexQueryHelper;
+import org.neo4j.kernel.api.index.IndexReader;
+import org.neo4j.kernel.api.index.IndexSampler;
 import org.neo4j.kernel.api.index.IndexUpdater;
-import org.neo4j.kernel.api.schema.index.TestIndexDescriptorFactory;
-import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.impl.api.index.IndexUpdateMode;
-import org.neo4j.storageengine.api.schema.IndexDescriptor;
-import org.neo4j.storageengine.api.schema.IndexReader;
-import org.neo4j.storageengine.api.schema.IndexSampler;
+import org.neo4j.kernel.impl.index.schema.NodeValueIterator;
+import org.neo4j.storageengine.api.IndexEntryUpdate;
 import org.neo4j.test.rule.concurrent.ThreadingRule;
 import org.neo4j.test.rule.fs.EphemeralFileSystemRule;
 
 import static java.util.Arrays.asList;
 import static java.util.Collections.emptySet;
+import static java.util.Collections.singletonList;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
-import static org.neo4j.helpers.collection.Iterators.asSet;
+import static org.neo4j.collection.PrimitiveLongCollections.toSet;
+import static org.neo4j.internal.helpers.collection.Iterators.asSet;
 import static org.neo4j.internal.kernel.api.IndexQuery.exact;
 import static org.neo4j.internal.kernel.api.IndexQuery.range;
+import static org.neo4j.internal.kernel.api.QueryContext.NULL_CONTEXT;
+import static org.neo4j.internal.schema.SchemaDescriptor.forLabel;
 import static org.neo4j.test.rule.concurrent.ThreadingRule.waitingWhileIn;
 
 @RunWith( Parameterized.class )
 public class DatabaseIndexAccessorTest
 {
-    public static final int PROP_ID = 1;
+    private static final int PROP_ID = 1;
 
     @Rule
     public final ThreadingRule threading = new ThreadingRule();
@@ -84,10 +90,10 @@ public class DatabaseIndexAccessorTest
     private final long nodeId = 1;
     private final long nodeId2 = 2;
     private final Object value = "value";
-    private final Object value2 = 40;
+    private final Object value2 = "40";
     private DirectoryFactory.InMemoryDirectoryFactory dirFactory;
-    private static final IndexDescriptor GENERAL_INDEX = TestIndexDescriptorFactory.forLabel( 0, PROP_ID );
-    private static final IndexDescriptor UNIQUE_INDEX = TestIndexDescriptorFactory.uniqueForLabel( 1, PROP_ID );
+    private static final IndexDescriptor GENERAL_INDEX = IndexPrototype.forSchema( forLabel( 0, PROP_ID ) ).withName( "a" ).materialise( 0 );
+    private static final IndexDescriptor UNIQUE_INDEX = IndexPrototype.uniqueForSchema( forLabel( 1, PROP_ID ) ).withName( "b" ).materialise( 1 );
     private static final Config CONFIG = Config.defaults();
 
     @Parameterized.Parameters( name = "{0}" )
@@ -137,7 +143,7 @@ public class DatabaseIndexAccessorTest
     }
 
     @After
-    public void after() throws IOException
+    public void after()
     {
         accessor.close();
         dirFactory.close();
@@ -151,12 +157,12 @@ public class DatabaseIndexAccessorTest
         IndexReader reader = accessor.newReader();
 
         // WHEN
-        LongIterator results = reader.query( IndexQuery.exists( PROP_ID ) );
+        Set<Long> results = resultSet( reader, IndexQuery.exists( PROP_ID ) );
+        Set<Long> results2 = resultSet( reader, exact( PROP_ID, value ) );
 
         // THEN
-        assertEquals( asSet( nodeId, nodeId2 ), PrimitiveLongCollections.toSet( results ) );
-        assertEquals( asSet( nodeId ),
-                PrimitiveLongCollections.toSet( reader.query( exact( PROP_ID, value ) ) ) );
+        assertEquals( asSet( nodeId, nodeId2 ), results );
+        assertEquals( asSet( nodeId ), results2 );
         reader.close();
     }
 
@@ -167,69 +173,61 @@ public class DatabaseIndexAccessorTest
 
         IndexReader reader = accessor.newReader();
 
-        LongIterator rangeFromBInclusive = reader.query( range( PROP_ID, "B", true, null, false ) );
-        assertThat( PrimitiveLongCollections.asArray( rangeFromBInclusive ), LongArrayMatcher.of( 2, 3 ) );
+        long[] rangeFromBInclusive = resultsArray( reader, range( PROP_ID, "B", true, null, false ) );
+        assertThat( rangeFromBInclusive, LongArrayMatcher.of( 2, 3 ) );
 
-        LongIterator rangeFromANonInclusive = reader.query( range( PROP_ID, "A", false, null, false ) );
-        assertThat( PrimitiveLongCollections.asArray( rangeFromANonInclusive ), LongArrayMatcher.of( 2, 3 ) );
+        long[] rangeFromANonInclusive = resultsArray( reader, range( PROP_ID, "A", false, null, false ) );
+        assertThat( rangeFromANonInclusive, LongArrayMatcher.of( 2, 3 ) );
 
-        LongIterator emptyLowInclusive = reader.query( range( PROP_ID, "", true, null, false ) );
-        assertThat( PrimitiveLongCollections.asArray( emptyLowInclusive ), LongArrayMatcher.of( PROP_ID, 2, 3, 4 ) );
+        long[] emptyLowInclusive = resultsArray( reader, range( PROP_ID, "", true, null, false ) );
+        assertThat( emptyLowInclusive, LongArrayMatcher.of( PROP_ID, 2, 3, 4 ) );
 
-        LongIterator emptyUpperNonInclusive = reader.query( range( PROP_ID, "B", true, "", false ) );
-        assertThat( PrimitiveLongCollections.asArray( emptyUpperNonInclusive ), LongArrayMatcher.emptyArrayMatcher() );
+        long[] emptyUpperNonInclusive = resultsArray( reader, range( PROP_ID, "B", true, "", false ) );
+        assertThat( emptyUpperNonInclusive, LongArrayMatcher.emptyArrayMatcher() );
 
-        LongIterator emptyInterval = reader.query( range( PROP_ID, "", true, "", true ) );
-        assertThat( PrimitiveLongCollections.asArray( emptyInterval ), LongArrayMatcher.of( 4 ) );
+        long[] emptyInterval = resultsArray( reader, range( PROP_ID, "", true, "", true ) );
+        assertThat( emptyInterval, LongArrayMatcher.of( 4 ) );
 
-        LongIterator emptyAllNonInclusive = reader.query( range( PROP_ID, "", false, null, false ) );
-        assertThat( PrimitiveLongCollections.asArray( emptyAllNonInclusive ), LongArrayMatcher.of( PROP_ID, 2, 3 ) );
+        long[] emptyAllNonInclusive = resultsArray( reader, range( PROP_ID, "", false, null, false ) );
+        assertThat( emptyAllNonInclusive, LongArrayMatcher.of( PROP_ID, 2, 3 ) );
 
-        LongIterator nullNonInclusive = reader.query( range( PROP_ID, (String) null, false, null, false ) );
-        assertThat( PrimitiveLongCollections.asArray( nullNonInclusive ), LongArrayMatcher.of( PROP_ID, 2, 3, 4 ) );
+        long[] nullNonInclusive = resultsArray( reader, range( PROP_ID, (String) null, false, null, false ) );
+        assertThat( nullNonInclusive, LongArrayMatcher.of( PROP_ID, 2, 3, 4 ) );
 
-        LongIterator nullInclusive = reader.query( range( PROP_ID, (String) null, false, null, false ) );
-        assertThat( PrimitiveLongCollections.asArray( nullInclusive ), LongArrayMatcher.of( PROP_ID, 2, 3, 4 ) );
+        long[] nullInclusive = resultsArray( reader, range( PROP_ID, (String) null, false, null, false ) );
+        assertThat( nullInclusive, LongArrayMatcher.of( PROP_ID, 2, 3, 4 ) );
     }
 
     @Test
-    public void indexNumberRangeQuery() throws Exception
+    public void indexNumberRangeQueryMustThrow() throws Exception
     {
-        updateAndCommit( asList( add( 1, 1 ), add( 2, 2 ), add( 3, 3 ), add( 4, 4 ), add( 5, Double.NaN ) ) );
+        updateAndCommit( asList( add( 1, "1" ), add( 2, "2" ), add( 3, "3" ), add( 4, "4" ), add( 5, "Double.NaN" ) ) );
 
         IndexReader reader = accessor.newReader();
 
-        LongIterator rangeTwoThree = reader.query( range( PROP_ID, 2, true, 3, true ) );
-        assertThat( PrimitiveLongCollections.asArray( rangeTwoThree ), LongArrayMatcher.of( 2, 3 ) );
-
-        LongIterator infiniteMaxRange = reader.query( range( PROP_ID, 2, true, Long.MAX_VALUE, true ) );
-        assertThat( PrimitiveLongCollections.asArray( infiniteMaxRange ), LongArrayMatcher.of( 2, 3, 4 ) );
-
-        LongIterator infiniteMinRange = reader.query( range( PROP_ID, Long.MIN_VALUE, true, 3, true ) );
-        assertThat( PrimitiveLongCollections.asArray( infiniteMinRange ), LongArrayMatcher.of( PROP_ID, 2, 3 ) );
-
-        LongIterator maxNanInterval = reader.query( range( PROP_ID, 3, true, Double.NaN, true ) );
-        assertThat( PrimitiveLongCollections.asArray( maxNanInterval ), LongArrayMatcher.of( 3, 4, 5 ) );
-
-        LongIterator minNanInterval = reader.query( range( PROP_ID, Double.NaN, true, 5, true ) );
-        assertThat( PrimitiveLongCollections.asArray( minNanInterval ), LongArrayMatcher.emptyArrayMatcher() );
-
-        LongIterator nanInterval = reader.query( range( PROP_ID, Double.NaN, true, Double.NaN, true ) );
-        assertThat( PrimitiveLongCollections.asArray( nanInterval ), LongArrayMatcher.of( 5 ) );
+        try
+        {
+            resultsArray( reader, range( PROP_ID, 2, true, 3, true ) );
+            fail( "Expected to throw" );
+        }
+        catch ( UnsupportedOperationException e )
+        {
+            assertEquals( "Range scans of value group NUMBER are not supported", e.getMessage() );
+        }
     }
 
     @Test
     public void indexReaderShouldHonorRepeatableReads() throws Exception
     {
         // GIVEN
-        updateAndCommit( asList( add( nodeId, value ) ) );
+        updateAndCommit( singletonList( add( nodeId, value ) ) );
         IndexReader reader = accessor.newReader();
 
         // WHEN
-        updateAndCommit( asList( remove( nodeId, value ) ) );
+        updateAndCommit( singletonList( remove( nodeId, value ) ) );
 
         // THEN
-        assertEquals( asSet( nodeId ), PrimitiveLongCollections.toSet( reader.query( exact( PROP_ID, value ) ) ) );
+        assertEquals( asSet( nodeId ), resultSet( reader, exact( PROP_ID, value ) ) );
         reader.close();
     }
 
@@ -237,18 +235,16 @@ public class DatabaseIndexAccessorTest
     public void multipleIndexReadersFromDifferentPointsInTimeCanSeeDifferentResults() throws Exception
     {
         // WHEN
-        updateAndCommit( asList( add( nodeId, value ) ) );
+        updateAndCommit( singletonList( add( nodeId, value ) ) );
         IndexReader firstReader = accessor.newReader();
-        updateAndCommit( asList( add( nodeId2, value2 ) ) );
+        updateAndCommit( singletonList( add( nodeId2, value2 ) ) );
         IndexReader secondReader = accessor.newReader();
 
         // THEN
-        assertEquals( asSet( nodeId ), PrimitiveLongCollections.toSet( firstReader.query( exact( PROP_ID, value ) ) ) );
-        assertEquals( asSet(), PrimitiveLongCollections.toSet( firstReader.query( exact( PROP_ID, value2 ) ) ) );
-        assertEquals( asSet( nodeId ),
-                PrimitiveLongCollections.toSet( secondReader.query( exact( PROP_ID, value ) ) ) );
-        assertEquals( asSet( nodeId2 ),
-                PrimitiveLongCollections.toSet( secondReader.query( exact( PROP_ID, value2 ) ) ) );
+        assertEquals( asSet( nodeId ), resultSet( firstReader, exact( PROP_ID, value ) ) );
+        assertEquals( asSet(), resultSet( firstReader, exact( PROP_ID, value2 ) ) );
+        assertEquals( asSet( nodeId ), resultSet( secondReader, exact( PROP_ID, value ) ) );
+        assertEquals( asSet( nodeId2 ), resultSet( secondReader, exact( PROP_ID, value2 ) ) );
         firstReader.close();
         secondReader.close();
     }
@@ -261,7 +257,7 @@ public class DatabaseIndexAccessorTest
         IndexReader reader = accessor.newReader();
 
         // THEN
-        assertEquals( asSet( nodeId ), PrimitiveLongCollections.toSet( reader.query( exact( PROP_ID, value ) ) ) );
+        assertEquals( asSet( nodeId ), resultSet( reader, exact( PROP_ID, value ) ) );
         reader.close();
     }
 
@@ -269,16 +265,15 @@ public class DatabaseIndexAccessorTest
     public void canChangeExistingData() throws Exception
     {
         // GIVEN
-        updateAndCommit( asList( add( nodeId, value ) ) );
+        updateAndCommit( singletonList( add( nodeId, value ) ) );
 
         // WHEN
-        updateAndCommit( asList( change( nodeId, value, value2 ) ) );
+        updateAndCommit( singletonList( change( nodeId, value, value2 ) ) );
         IndexReader reader = accessor.newReader();
 
         // THEN
-        assertEquals( asSet( nodeId ), PrimitiveLongCollections.toSet( reader.query( exact( PROP_ID, value2 ) ) ) );
-        assertEquals( emptySet(),
-                PrimitiveLongCollections.toSet( reader.query( exact( PROP_ID, value ) ) ) );
+        assertEquals( asSet( nodeId ), resultSet( reader, exact( PROP_ID, value2 ) ) );
+        assertEquals( emptySet(), resultSet( reader, exact( PROP_ID, value ) ) );
         reader.close();
     }
 
@@ -289,12 +284,12 @@ public class DatabaseIndexAccessorTest
         updateAndCommit( asList( add( nodeId, value ), add( nodeId2, value2 ) ) );
 
         // WHEN
-        updateAndCommit( asList( remove( nodeId, value ) ) );
+        updateAndCommit( singletonList( remove( nodeId, value ) ) );
         IndexReader reader = accessor.newReader();
 
         // THEN
-        assertEquals( asSet( nodeId2 ), PrimitiveLongCollections.toSet( reader.query( exact( PROP_ID, value2 ) ) ) );
-        assertEquals( asSet(), PrimitiveLongCollections.toSet( reader.query( exact( PROP_ID, value ) ) ) );
+        assertEquals( asSet( nodeId2 ), resultSet( reader, exact( PROP_ID, value2 ) ) );
+        assertEquals( asSet(), resultSet( reader, exact( PROP_ID, value ) ) );
         reader.close();
     }
 
@@ -330,6 +325,26 @@ public class DatabaseIndexAccessorTest
         }
     }
 
+    private Set<Long> resultSet( IndexReader reader, IndexQuery... queries ) throws IndexNotApplicableKernelException
+    {
+        return toSet( results( reader, queries ) );
+    }
+
+    private NodeValueIterator results( IndexReader reader, IndexQuery... queries ) throws IndexNotApplicableKernelException
+    {
+        NodeValueIterator results = new NodeValueIterator();
+        reader.query( NULL_CONTEXT, results, IndexOrder.NONE, false, queries );
+        return results;
+    }
+
+    private long[] resultsArray( IndexReader reader, IndexQuery... queries ) throws IndexNotApplicableKernelException
+    {
+        try ( NodeValueIterator iterator = results( reader, queries ) )
+        {
+            return PrimitiveLongCollections.asArray( iterator );
+        }
+    }
+
     private IndexEntryUpdate<?> add( long nodeId, Object value )
     {
         return IndexQueryHelper.add( nodeId, index.schema(), value );
@@ -345,8 +360,7 @@ public class DatabaseIndexAccessorTest
         return IndexQueryHelper.change( nodeId, index.schema(), valueBefore, valueAfter );
     }
 
-    private void updateAndCommit( List<IndexEntryUpdate<?>> nodePropertyUpdates )
-            throws IOException, IndexEntryConflictException
+    private void updateAndCommit( List<IndexEntryUpdate<?>> nodePropertyUpdates ) throws IndexEntryConflictException
     {
         try ( IndexUpdater updater = accessor.newUpdater( IndexUpdateMode.ONLINE ) )
         {

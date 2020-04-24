@@ -24,10 +24,11 @@ import java.net.URL
 import org.apache.commons.lang3.SystemUtils
 import org.mockito.ArgumentMatchers._
 import org.mockito.Mockito._
-import org.neo4j.cypher.internal.runtime.{CreateTempFileTestSupport, ResourceManager}
-import org.neo4j.cypher.internal.v3_6.util.{LoadExternalResourceException, TaskCloser}
-import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
 import org.neo4j.cypher.internal.runtime.interpreted.CSVResources.DEFAULT_BUFFER_SIZE
+import org.neo4j.cypher.internal.runtime.{CreateTempFileTestSupport, ResourceManager}
+import org.neo4j.cypher.internal.v4_0.util.test_helpers.CypherFunSuite
+import org.neo4j.exceptions.LoadExternalResourceException
+import org.neo4j.internal.kernel.api.AutoCloseablePlus
 import org.neo4j.io.fs.FileUtils
 
 class CSVResourcesTest extends CypherFunSuite with CreateTempFileTestSupport {
@@ -137,7 +138,7 @@ class CSVResourcesTest extends CypherFunSuite with CreateTempFileTestSupport {
     resources.getCsvIterator(new URL(url), None, legacyCsvQuoteEscaping = false, DEFAULT_BUFFER_SIZE)
 
     // then
-    verify(cleaner, times(1)).trace(any(classOf[AutoCloseable]))
+    verify(cleaner).trace(any(classOf[AutoCloseablePlus]))
   }
 
   test("should accept and use a custom field terminator") {

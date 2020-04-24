@@ -19,26 +19,27 @@
  */
 package org.neo4j.kernel.impl.transaction.log.checkpoint;
 
-import org.junit.Before;
+import org.hamcrest.Matcher;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
 
 import java.time.Duration;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.function.Consumer;
 
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
-import org.neo4j.kernel.configuration.Config;
+import org.neo4j.configuration.Config;
+import org.neo4j.configuration.GraphDatabaseSettings;
+import org.neo4j.configuration.SettingImpl;
 import org.neo4j.kernel.impl.transaction.log.pruning.LogPruning;
 import org.neo4j.logging.LogProvider;
 import org.neo4j.logging.NullLogProvider;
 import org.neo4j.time.Clocks;
 import org.neo4j.time.FakeClock;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-import static org.neo4j.helpers.collection.MapUtil.stringMap;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class CheckPointThresholdTestSupport
 {
@@ -52,7 +53,7 @@ public class CheckPointThresholdTestSupport
     protected BlockingQueue<String> triggerConsumer;
     protected Consumer<String> triggered;
 
-    @Before
+    @BeforeEach
     public void setUp()
     {
         config = Config.defaults();
@@ -63,22 +64,24 @@ public class CheckPointThresholdTestSupport
         intervalTime = config.get( GraphDatabaseSettings.check_point_interval_time );
         triggerConsumer = new LinkedBlockingQueue<>();
         triggered = triggerConsumer::offer;
-        notTriggered = s -> fail( "Should not have triggered: " + s );
+        notTriggered = s -> Assertions.fail( "Should not have triggered: " + s );
     }
 
     protected void withPolicy( String policy )
     {
-        config.augment( stringMap( GraphDatabaseSettings.check_point_policy.name(), policy ) );
+        config.set( GraphDatabaseSettings.check_point_policy,
+                ((SettingImpl<GraphDatabaseSettings.CheckpointPolicy>) GraphDatabaseSettings.check_point_policy).parse( policy ) );
     }
 
     protected void withIntervalTime( String time )
     {
-        config.augment( stringMap( GraphDatabaseSettings.check_point_interval_time.name(), time ) );
+        config.set( GraphDatabaseSettings.check_point_interval_time ,
+                ((SettingImpl<Duration>) GraphDatabaseSettings.check_point_interval_time).parse( time ) );
     }
 
     protected void withIntervalTx( int count )
     {
-        config.augment( stringMap( GraphDatabaseSettings.check_point_interval_tx.name(), String.valueOf( count ) ) );
+        config.set( GraphDatabaseSettings.check_point_interval_tx, count );
     }
 
     protected CheckPointThreshold createThreshold()
@@ -88,7 +91,12 @@ public class CheckPointThresholdTestSupport
 
     protected void verifyTriggered( String reason )
     {
-        assertThat( triggerConsumer.poll(), containsString( reason ) );
+        verifyTriggered( containsString( reason ) );
+    }
+
+    protected void verifyTriggered( Matcher<String> reason )
+    {
+        assertThat( triggerConsumer.poll(), reason );
     }
 
     protected void verifyNoMoreTriggers()

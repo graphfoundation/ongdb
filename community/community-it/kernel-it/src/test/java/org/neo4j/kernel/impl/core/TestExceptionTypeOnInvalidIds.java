@@ -28,17 +28,18 @@ import org.junit.Test;
 
 import java.io.File;
 
+import org.neo4j.dbms.api.DatabaseManagementService;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.NotFoundException;
 import org.neo4j.graphdb.Relationship;
 import org.neo4j.graphdb.Transaction;
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
-import org.neo4j.test.TestGraphDatabaseFactory;
+import org.neo4j.test.TestDatabaseManagementServiceBuilder;
 import org.neo4j.test.rule.TestDirectory;
 
 import static org.junit.Assert.fail;
-import static org.neo4j.kernel.configuration.Settings.TRUE;
+import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
+import static org.neo4j.configuration.GraphDatabaseSettings.read_only;
 
 public class TestExceptionTypeOnInvalidIds
 {
@@ -56,24 +57,28 @@ public class TestExceptionTypeOnInvalidIds
 
     @ClassRule
     public static final TestDirectory testDirectory = TestDirectory.testDirectory();
+    private static DatabaseManagementService readOnlyService;
+    private static DatabaseManagementService managementService;
 
     @BeforeClass
     public static void createDatabase()
     {
-        graphdb = new TestGraphDatabaseFactory().newEmbeddedDatabase( testDirectory.storeDir() );
-        File databaseDirectory = testDirectory.databaseLayout( "read_only" ).databaseDirectory();
-        new TestGraphDatabaseFactory().newEmbeddedDatabase( databaseDirectory ).shutdown();
-        graphDbReadOnly = new TestGraphDatabaseFactory().newEmbeddedDatabaseBuilder( databaseDirectory ).
-            setConfig( GraphDatabaseSettings.read_only, TRUE ).
-            newGraphDatabase();
+        File writableLayout = testDirectory.homeDir( "writable" );
+        File readOnlyLayout = testDirectory.homeDir( "readOnly" );
+        managementService = new TestDatabaseManagementServiceBuilder( writableLayout ).build();
+        graphdb = managementService.database( DEFAULT_DATABASE_NAME );
+        DatabaseManagementService managementService1 = new TestDatabaseManagementServiceBuilder( readOnlyLayout ).build();
+        managementService1.shutdown();
+        readOnlyService = new TestDatabaseManagementServiceBuilder( readOnlyLayout ).setConfig( read_only, true ).build();
+        graphDbReadOnly = readOnlyService.database( DEFAULT_DATABASE_NAME );
     }
 
     @AfterClass
     public static void destroyDatabase()
     {
-        graphDbReadOnly.shutdown();
+        readOnlyService.shutdown();
         graphDbReadOnly = null;
-        graphdb.shutdown();
+        managementService.shutdown();
         graphdb = null;
     }
 
@@ -218,30 +223,30 @@ public class TestExceptionTypeOnInvalidIds
         getRelationshipByIdReadOnly( BIG_NEGATIVE_LONG );
     }
 
-    private static void getNodeById( long index )
+    private void getNodeById( long index )
     {
-        Node value = graphdb.getNodeById( index );
+        Node value = tx.getNodeById( index );
         fail( String.format( "Returned Node [0x%x] for index 0x%x (int value: 0x%x)",
                 value.getId(), index, (int) index ) );
     }
 
-    private static void getNodeByIdReadOnly( long index )
+    private void getNodeByIdReadOnly( long index )
     {
-        Node value = graphDbReadOnly.getNodeById( index );
+        Node value = tx.getNodeById( index );
         fail( String.format( "Returned Node [0x%x] for index 0x%x (int value: 0x%x)",
                 value.getId(), index, (int) index ) );
     }
 
-    private static void getRelationshipById( long index )
+    private void getRelationshipById( long index )
     {
-        Relationship value = graphdb.getRelationshipById( index );
+        Relationship value = tx.getRelationshipById( index );
         fail( String.format( "Returned Relationship [0x%x] for index 0x%x (int value: 0x%x)",
                 value.getId(), index, (int) index ) );
     }
 
-    private static void getRelationshipByIdReadOnly( long index )
+    private void getRelationshipByIdReadOnly( long index )
     {
-        Relationship value = graphDbReadOnly.getRelationshipById( index );
+        Relationship value = tx.getRelationshipById( index );
         fail( String.format( "Returned Relationship [0x%x] for index 0x%x (int value: 0x%x)",
                 value.getId(), index, (int) index ) );
     }

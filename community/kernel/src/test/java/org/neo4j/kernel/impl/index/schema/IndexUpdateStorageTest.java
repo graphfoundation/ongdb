@@ -24,33 +24,31 @@ import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 
-import org.neo4j.internal.kernel.api.schema.SchemaDescriptorSupplier;
-import org.neo4j.kernel.api.index.IndexEntryUpdate;
-import org.neo4j.kernel.api.schema.SchemaDescriptorFactory;
-import org.neo4j.kernel.configuration.Config;
-import org.neo4j.kernel.impl.api.index.UpdateMode;
-import org.neo4j.kernel.impl.index.schema.config.ConfiguredSpaceFillingCurveSettingsCache;
-import org.neo4j.kernel.impl.index.schema.config.IndexSpecificSpaceFillingCurveSettingsCache;
+import org.neo4j.configuration.Config;
+import org.neo4j.internal.schema.SchemaDescriptor;
+import org.neo4j.internal.schema.SchemaDescriptorSupplier;
+import org.neo4j.kernel.impl.index.schema.config.IndexSpecificSpaceFillingCurveSettings;
+import org.neo4j.storageengine.api.IndexEntryUpdate;
+import org.neo4j.storageengine.api.UpdateMode;
 import org.neo4j.test.extension.Inject;
 import org.neo4j.test.extension.RandomExtension;
-import org.neo4j.test.extension.TestDirectoryExtension;
+import org.neo4j.test.extension.testdirectory.TestDirectoryExtension;
 import org.neo4j.test.rule.RandomRule;
 import org.neo4j.test.rule.TestDirectory;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.neo4j.kernel.impl.index.schema.ByteBufferFactory.HEAP_ALLOCATOR;
+import static org.neo4j.io.memory.ByteBufferFactory.HEAP_ALLOCATOR;
 
-@ExtendWith( {TestDirectoryExtension.class, RandomExtension.class} )
+@TestDirectoryExtension
+@ExtendWith( RandomExtension.class )
 class IndexUpdateStorageTest
 {
-    private static final IndexSpecificSpaceFillingCurveSettingsCache spatialSettings =
-            new IndexSpecificSpaceFillingCurveSettingsCache( new ConfiguredSpaceFillingCurveSettingsCache( Config.defaults() ), new HashMap<>() );
-    private static final SchemaDescriptorSupplier descriptor = SchemaDescriptorFactory.forLabel( 1, 1 );
+    private static final IndexSpecificSpaceFillingCurveSettings spatialSettings = IndexSpecificSpaceFillingCurveSettings.fromConfig( Config.defaults() );
+    private static final SchemaDescriptorSupplier descriptor = SchemaDescriptor.forLabel( 1, 1 );
 
     @Inject
     protected TestDirectory directory;

@@ -32,7 +32,7 @@ Feature: OptionalMatchAcceptance
       """
       MATCH (n1 :L1 {prop: 3}) OPTIONAL MATCH (n2 :L2)<-[r]-(n1) RETURN id(n2), id(r)
       """
-    Then the result should be:
+    Then the result should be, in any order:
       | id(n2) | id(r) |
       | null   | null  |
     And no side effects
@@ -47,7 +47,7 @@ Feature: OptionalMatchAcceptance
       """
       MATCH (n1 :L1 {prop: 3}) OPTIONAL MATCH (n2 :L2)<-[r]-(n1) RETURN type(r)
       """
-    Then the result should be:
+    Then the result should be, in any order:
       | type(r) |
       | null    |
     And no side effects
@@ -62,7 +62,7 @@ Feature: OptionalMatchAcceptance
       """
       OPTIONAL MATCH (n {prop: false}) RETURN n
       """
-    Then the result should be:
+    Then the result should be, in any order:
       | n    |
       | null |
     And no side effects
@@ -77,7 +77,7 @@ Feature: OptionalMatchAcceptance
       """
       OPTIONAL MATCH (:A)-[:Y]->(:B)-[:X]->(b:B) RETURN DISTINCT labels(b)
       """
-    Then the result should be:
+    Then the result should be, in any order:
       | labels(b) |
       | ['B']     |
     And no side effects
@@ -97,7 +97,7 @@ Feature: OptionalMatchAcceptance
     WHERE n3 IS NULL OR n3 <> n1
     RETURN n1.prop, n2.prop, n3.prop
     """
-    Then the result should be:
+    Then the result should be, in any order:
       | n1.prop | n2.prop | n3.prop |
       | 'a'     | 'b'     | 'c'     |
       | 'b'     | 'c'     | null    |
@@ -113,7 +113,7 @@ Feature: OptionalMatchAcceptance
        MATCH (n)-[r]->(m2)
        RETURN n, r, m, m2
       """
-    Then the result should be:
+    Then the result should be, in any order:
       | n    | r    | m    | m2   |
     And no side effects
 
@@ -125,7 +125,19 @@ Feature: OptionalMatchAcceptance
        OPTIONAL MATCH (n)-[r]->(m2)
        RETURN n, r, m, m2
       """
-    Then the result should be:
+    Then the result should be, in any order:
       | n    | r    | m    | m2   |
       | null | null | null | null |
+    And no side effects
+
+  Scenario: optional match followed by aggregation and map-projection
+    Given an empty graph
+    When executing query:
+      """
+       OPTIONAL MATCH (n)-->(m)
+       RETURN collect(n {.*, m, meta: {prop: 42}}) AS result
+      """
+    Then the result should be, in any order:
+      | result |
+      | []     |
     And no side effects

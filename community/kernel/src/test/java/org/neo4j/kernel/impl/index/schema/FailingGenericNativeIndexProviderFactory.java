@@ -23,26 +23,22 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.EnumSet;
 
-import org.neo4j.internal.kernel.api.IndexCapability;
 import org.neo4j.internal.kernel.api.InternalIndexState;
-import org.neo4j.io.fs.FileSystemAbstraction;
-import org.neo4j.io.pagecache.PageCache;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.io.memory.ByteBufferFactory;
 import org.neo4j.kernel.api.exceptions.index.IndexEntryConflictException;
 import org.neo4j.kernel.api.index.IndexAccessor;
-import org.neo4j.kernel.api.index.IndexDirectoryStructure;
-import org.neo4j.kernel.api.index.IndexEntryUpdate;
 import org.neo4j.kernel.api.index.IndexPopulator;
 import org.neo4j.kernel.api.index.IndexProvider;
 import org.neo4j.kernel.api.index.IndexUpdater;
+import org.neo4j.kernel.extension.ExtensionFactory;
 import org.neo4j.kernel.extension.ExtensionType;
-import org.neo4j.kernel.extension.KernelExtensionFactory;
-import org.neo4j.kernel.impl.api.index.sampling.IndexSamplingConfig;
-import org.neo4j.kernel.impl.spi.KernelContext;
-import org.neo4j.kernel.impl.storemigration.StoreMigrationParticipant;
+import org.neo4j.kernel.extension.context.ExtensionContext;
+import org.neo4j.kernel.impl.api.index.IndexSamplingConfig;
+import org.neo4j.kernel.impl.api.index.IndexUpdateMode;
+import org.neo4j.kernel.impl.api.index.updater.DelegatingIndexUpdater;
 import org.neo4j.kernel.lifecycle.Lifecycle;
-import org.neo4j.storageengine.api.NodePropertyAccessor;
-import org.neo4j.storageengine.api.schema.IndexSample;
-import org.neo4j.storageengine.api.schema.StoreIndexDescriptor;
+import org.neo4j.storageengine.api.IndexEntryUpdate;
 
 import static java.util.Arrays.copyOfRange;
 
@@ -55,12 +51,12 @@ import static java.util.Arrays.copyOfRange;
  * To be sure to use this provider in your test please do something like:
  * <pre>
  * db = new TestGraphDatabaseFactory()
- *     .removeKernelExtensions( TestGraphDatabaseFactory.INDEX_PROVIDERS_FILTER )
- *     .addKernelExtension( new FailingGenericNativeIndexProviderFactory( FailureType.INITIAL_STATE ) )
+ *     .removeExtensions( TestGraphDatabaseFactory.INDEX_PROVIDERS_FILTER )
+ *     .addExtension( new FailingGenericNativeIndexProviderFactory( FailureType.INITIAL_STATE ) )
  *     .newEmbeddedDatabase( dir );
  * </pre>
  */
-public class FailingGenericNativeIndexProviderFactory extends KernelExtensionFactory<GenericNativeIndexProviderFactory.Dependencies>
+public class FailingGenericNativeIndexProviderFactory extends ExtensionFactory<AbstractIndexProviderFactory.Dependencies>
 {
     public static final String INITIAL_STATE_FAILURE_MESSAGE = "Override initial state as failed";
     public static final String POPULATION_FAILURE_MESSAGE = "Fail on update during population";
@@ -68,7 +64,8 @@ public class FailingGenericNativeIndexProviderFactory extends KernelExtensionFac
     public enum FailureType
     {
         POPULATION,
-        INITIAL_STATE
+        INITIAL_STATE,
+        SKIP_ONLINE_UPDATES
     }
 
     private final GenericNativeIndexProviderFactory actual;
@@ -76,12 +73,12 @@ public class FailingGenericNativeIndexProviderFactory extends KernelExtensionFac
 
     public FailingGenericNativeIndexProviderFactory( FailureType... failureTypes )
     {
-        this( new GenericNativeIndexProviderFactory(), 10_000, failureTypes );
+        this( new GenericNativeIndexProviderFactory(), failureTypes );
     }
 
-    private FailingGenericNativeIndexProviderFactory( GenericNativeIndexProviderFactory actual, int priority, FailureType... failureTypes )
+    private FailingGenericNativeIndexProviderFactory( GenericNativeIndexProviderFactory actual, FailureType... failureTypes )
     {
-        super( ExtensionType.DATABASE, actual.getKeys().iterator().next() );
+        super( ExtensionType.DATABASE, actual.getName() );
         if ( failureTypes.length == 0 )
         {
             throw new IllegalArgumentException( "At least one failure type, otherwise there's no point in this provider" );
@@ -91,71 +88,23 @@ public class FailingGenericNativeIndexProviderFactory extends KernelExtensionFac
     }
 
     @Override
-    public Lifecycle newInstance( KernelContext context, GenericNativeIndexProviderFactory.Dependencies dependencies )
+    public Lifecycle newInstance( ExtensionContext context, AbstractIndexProviderFactory.Dependencies dependencies )
     {
         IndexProvider actualProvider = actual.newInstance( context, dependencies );
-        return new IndexProvider( actualProvider.getProviderDescriptor(), IndexDirectoryStructure.given( actualProvider.directoryStructure() ) )
+        return new IndexProvider.Delegating( actualProvider )
         {
             @Override
-            public IndexPopulator getPopulator( StoreIndexDescriptor descriptor, IndexSamplingConfig samplingConfig, ByteBufferFactory bufferFactory )
+            public IndexPopulator getPopulator( IndexDescriptor descriptor, IndexSamplingConfig samplingConfig, ByteBufferFactory bufferFactory )
             {
                 IndexPopulator actualPopulator = actualProvider.getPopulator( descriptor, samplingConfig, bufferFactory );
                 if ( failureTypes.contains( FailureType.POPULATION ) )
                 {
-                    return new IndexPopulator()
+                    return new IndexPopulator.Delegating( actualPopulator )
                     {
-                        @Override
-                        public void create()
-                        {
-                            actualPopulator.create();
-                        }
-
-                        @Override
-                        public void drop()
-                        {
-                            actualPopulator.drop();
-                        }
-
                         @Override
                         public void add( Collection<? extends IndexEntryUpdate<?>> updates )
                         {
                             throw new RuntimeException( POPULATION_FAILURE_MESSAGE );
-                        }
-
-                        @Override
-                        public void verifyDeferredConstraints( NodePropertyAccessor nodePropertyAccessor ) throws IndexEntryConflictException
-                        {
-                            actualPopulator.verifyDeferredConstraints( nodePropertyAccessor );
-                        }
-
-                        @Override
-                        public IndexUpdater newPopulatingUpdater( NodePropertyAccessor accessor )
-                        {
-                            return actualPopulator.newPopulatingUpdater( accessor );
-                        }
-
-                        @Override
-                        public void close( boolean populationCompletedSuccessfully )
-                        {
-                            actualPopulator.close( populationCompletedSuccessfully );
-                        }
-
-                        @Override
-                        public void markAsFailed( String failure )
-                        {
-                            actualPopulator.markAsFailed( failure );
-                        }
-
-                        @Override
-                        public void includeSample( IndexEntryUpdate<?> update )
-                        {
-                            actualPopulator.includeSample( update );
-                        }
-
-                        @Override
-                        public IndexSample sampleResult()
-                        {
-                            return actualPopulator.sampleResult();
                         }
                     };
                 }
@@ -163,33 +112,40 @@ public class FailingGenericNativeIndexProviderFactory extends KernelExtensionFac
             }
 
             @Override
-            public IndexAccessor getOnlineAccessor( StoreIndexDescriptor descriptor, IndexSamplingConfig samplingConfig ) throws IOException
+            public IndexAccessor getOnlineAccessor( IndexDescriptor descriptor, IndexSamplingConfig samplingConfig ) throws IOException
             {
-                return actualProvider.getOnlineAccessor( descriptor, samplingConfig );
+                IndexAccessor actualAccessor = actualProvider.getOnlineAccessor( descriptor, samplingConfig );
+                return new IndexAccessor.Delegating( actualAccessor )
+                {
+                    @Override
+                    public IndexUpdater newUpdater( IndexUpdateMode mode )
+                    {
+                        IndexUpdater actualUpdater = actualAccessor.newUpdater( mode );
+                        return new DelegatingIndexUpdater( actualUpdater )
+                        {
+                            @Override
+                            public void process( IndexEntryUpdate<?> update ) throws IndexEntryConflictException
+                            {
+                                if ( !failureTypes.contains( FailureType.SKIP_ONLINE_UPDATES ) )
+                                {
+                                    super.process( update );
+                                }
+                            }
+                        };
+                    }
+                };
             }
 
             @Override
-            public String getPopulationFailure( StoreIndexDescriptor descriptor ) throws IllegalStateException
+            public String getPopulationFailure( IndexDescriptor descriptor )
             {
                 return failureTypes.contains( FailureType.INITIAL_STATE ) ? INITIAL_STATE_FAILURE_MESSAGE : actualProvider.getPopulationFailure( descriptor );
             }
 
             @Override
-            public InternalIndexState getInitialState( StoreIndexDescriptor descriptor )
+            public InternalIndexState getInitialState( IndexDescriptor descriptor )
             {
                 return failureTypes.contains( FailureType.INITIAL_STATE ) ? InternalIndexState.FAILED : actualProvider.getInitialState( descriptor );
-            }
-
-            @Override
-            public IndexCapability getCapability( StoreIndexDescriptor descriptor )
-            {
-                return actualProvider.getCapability( descriptor );
-            }
-
-            @Override
-            public StoreMigrationParticipant storeMigrationParticipant( FileSystemAbstraction fs, PageCache pageCache )
-            {
-                return actualProvider.storeMigrationParticipant( fs, pageCache );
             }
         };
     }

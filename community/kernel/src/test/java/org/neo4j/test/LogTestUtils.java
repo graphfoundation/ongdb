@@ -21,12 +21,11 @@ package org.neo4j.test;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.util.function.Predicate;
 
 import org.neo4j.io.fs.FileSystemAbstraction;
-import org.neo4j.io.fs.OpenMode;
 import org.neo4j.io.fs.StoreChannel;
+import org.neo4j.io.memory.ByteBuffers;
 import org.neo4j.kernel.impl.transaction.log.PhysicalLogVersionedStoreChannel;
 import org.neo4j.kernel.impl.transaction.log.ReadAheadLogChannel;
 import org.neo4j.kernel.impl.transaction.log.ReadableLogChannel;
@@ -34,15 +33,14 @@ import org.neo4j.kernel.impl.transaction.log.entry.LogEntry;
 import org.neo4j.kernel.impl.transaction.log.entry.LogEntryReader;
 import org.neo4j.kernel.impl.transaction.log.entry.LogHeader;
 import org.neo4j.kernel.impl.transaction.log.entry.VersionAwareLogEntryReader;
+import org.neo4j.kernel.impl.transaction.log.files.LogFileChannelNativeAccessor;
 import org.neo4j.kernel.impl.transaction.log.files.LogFiles;
 
-import static org.neo4j.kernel.impl.transaction.log.entry.LogHeader.LOG_HEADER_SIZE;
 import static org.neo4j.kernel.impl.transaction.log.entry.LogHeaderReader.readLogHeader;
+import static org.neo4j.kernel.impl.transaction.log.entry.LogVersions.CURRENT_FORMAT_LOG_HEADER_SIZE;
 
 /**
  * Utility for reading and filtering logical logs as well as tx logs.
- *
- * @author Mattias Persson
  */
 public class LogTestUtils
 {
@@ -93,23 +91,25 @@ public class LogTestUtils
         File[] files = logFiles.logFiles();
         for ( File file : files )
         {
-            filterTransactionLogFile( fileSystem, file, filter );
+            filterTransactionLogFile( fileSystem, file, filter, logFiles.getChannelNativeAccessor() );
         }
 
         return files;
     }
 
-    static void filterTransactionLogFile( FileSystemAbstraction fileSystem, File file, final LogHook<LogEntry> filter )
+    private static void filterTransactionLogFile( FileSystemAbstraction fileSystem, File file, final LogHook<LogEntry> filter,
+            LogFileChannelNativeAccessor channelNativeAccessor )
             throws IOException
     {
         filter.file( file );
-        try ( StoreChannel in = fileSystem.open( file, OpenMode.READ ) )
+        try ( StoreChannel in = fileSystem.read( file ) )
         {
-            LogHeader logHeader = readLogHeader( ByteBuffer.allocate( LOG_HEADER_SIZE ), in, true, file );
+            LogHeader logHeader = readLogHeader( ByteBuffers.allocate( CURRENT_FORMAT_LOG_HEADER_SIZE ), in, true, file );
+            assert logHeader != null : "Looks like we tried to read a log header of an empty pre-allocated file.";
             PhysicalLogVersionedStoreChannel inChannel =
-                    new PhysicalLogVersionedStoreChannel( in, logHeader.logVersion, logHeader.logFormatVersion );
+                    new PhysicalLogVersionedStoreChannel( in, logHeader.getLogVersion(), logHeader.getLogFormatVersion(), file, channelNativeAccessor );
             ReadableLogChannel inBuffer = new ReadAheadLogChannel( inChannel );
-            LogEntryReader<ReadableLogChannel> entryReader = new VersionAwareLogEntryReader<>();
+            LogEntryReader entryReader = new VersionAwareLogEntryReader();
 
             LogEntry entry;
             while ( (entry = entryReader.readLogEntry( inBuffer )) != null )

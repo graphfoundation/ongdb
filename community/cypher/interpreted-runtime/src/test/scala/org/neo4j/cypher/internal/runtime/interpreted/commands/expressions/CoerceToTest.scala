@@ -19,15 +19,13 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.commands.expressions
 
-import java.util.{ArrayList => JavaList, HashMap => JavaMap}
-
-import org.neo4j.cypher.internal.runtime.{Counter, QueryContext}
-import org.neo4j.cypher.internal.v3_6.util.CypherTypeException
-import org.neo4j.cypher.internal.runtime.interpreted.{ExecutionContext, QueryStateHelper}
-import org.neo4j.cypher.internal.runtime.interpreted.pipes.QueryState
-import org.neo4j.cypher.internal.v3_6.util.symbols._
-import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.runtime.interpreted.QueryStateHelper
 import org.neo4j.cypher.internal.runtime.interpreted.commands.AstNode
+import org.neo4j.cypher.internal.runtime.interpreted.pipes.QueryState
+import org.neo4j.cypher.internal.runtime.{Counter, ExecutionContext, QueryContext}
+import org.neo4j.cypher.internal.v4_0.util.symbols._
+import org.neo4j.cypher.internal.v4_0.util.test_helpers.CypherFunSuite
+import org.neo4j.exceptions.CypherTypeException
 import org.neo4j.values.AnyValue
 import org.neo4j.values.storable.PointValue
 import org.neo4j.values.storable.Values._
@@ -37,7 +35,7 @@ import scala.language.postfixOps
 
 class CoerceToTest extends CypherFunSuite {
 
-  implicit var openCases: Counter = Counter()
+  implicit val openCases: Counter = Counter()
   implicit val qtx = mock[QueryContext]
   implicit val state = QueryStateHelper.emptyWith(query = qtx)
 
@@ -221,13 +219,11 @@ class CoerceToTest extends CypherFunSuite {
 
       case class TestExpression(in: AnyValue) extends Expression {
 
-        override def rewrite(f: (Expression) => Expression): Expression = this
+        override def rewrite(f: Expression => Expression): Expression = this
 
         override def arguments: Seq[Expression] = Seq.empty
 
         override def children: Seq[AstNode[_]] = Seq.empty
-
-        override def symbolTableDependencies: Set[String] = Set.empty
 
         override def apply(ctx: ExecutionContext, state: QueryState): AnyValue = in
 

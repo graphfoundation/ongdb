@@ -24,34 +24,33 @@ import org.junit.Rule;
 import org.junit.Test;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
+import org.neo4j.configuration.GraphDatabaseSettings;
 import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.Transaction;
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
-import org.neo4j.helpers.collection.Iterators;
-import org.neo4j.internal.kernel.api.schema.IndexProviderDescriptor;
+import org.neo4j.internal.helpers.collection.Iterators;
+import org.neo4j.internal.schema.IndexProviderDescriptor;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.layout.DatabaseLayout;
-import org.neo4j.kernel.impl.index.schema.NumberIndexProvider;
+import org.neo4j.kernel.impl.index.schema.GenericNativeIndexProvider;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
-import org.neo4j.test.rule.DatabaseRule;
-import org.neo4j.test.rule.EmbeddedDatabaseRule;
+import org.neo4j.test.rule.DbmsRule;
+import org.neo4j.test.rule.EmbeddedDbmsRule;
 import org.neo4j.values.storable.CoordinateReferenceSystem;
 import org.neo4j.values.storable.DateValue;
 import org.neo4j.values.storable.PointValue;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.neo4j.kernel.api.impl.schema.NativeLuceneFusionIndexProviderFactory20.subProviderDirectoryStructure;
+import static org.neo4j.kernel.impl.index.schema.fusion.NativeLuceneFusionIndexProviderFactory30.subProviderDirectoryStructure;
 import static org.neo4j.values.storable.Values.pointValue;
 
 public class FusionIndexIT
 {
     @Rule
-    public DatabaseRule db = new EmbeddedDatabaseRule()
-            .withSetting( GraphDatabaseSettings.default_schema_provider, GraphDatabaseSettings.SchemaIndex.NATIVE20.providerName() );
+    public DbmsRule db = new EmbeddedDbmsRule()
+            .withSetting( GraphDatabaseSettings.default_schema_provider, GraphDatabaseSettings.SchemaIndex.NATIVE30.providerName() );
 
     private DatabaseLayout databaseLayout;
     private final Label label = Label.label( "label" );
@@ -70,13 +69,13 @@ public class FusionIndexIT
     }
 
     @Test
-    public void mustRebuildFusionIndexIfNativePartIsMissing() throws IOException
+    public void mustRebuildFusionIndexIfNativePartIsMissing()
     {
         // given
         initializeIndexWithDataAndShutdown();
 
         // when
-        IndexProviderDescriptor descriptor = NumberIndexProvider.NATIVE_PROVIDER_DESCRIPTOR;
+        IndexProviderDescriptor descriptor = GenericNativeIndexProvider.DESCRIPTOR;
         deleteIndexFilesFor( descriptor );
 
         // then
@@ -85,13 +84,13 @@ public class FusionIndexIT
     }
 
     @Test
-    public void mustRebuildFusionIndexIfLucenePartIsMissing() throws IOException
+    public void mustRebuildFusionIndexIfLucenePartIsMissing()
     {
         // given
         initializeIndexWithDataAndShutdown();
 
         // when
-        IndexProviderDescriptor descriptor = LuceneIndexProviderFactory.PROVIDER_DESCRIPTOR;
+        IndexProviderDescriptor descriptor = LuceneIndexProvider.DESCRIPTOR;
         deleteIndexFilesFor( descriptor );
 
         // then
@@ -100,14 +99,14 @@ public class FusionIndexIT
     }
 
     @Test
-    public void mustRebuildFusionIndexIfCompletelyMissing() throws IOException
+    public void mustRebuildFusionIndexIfCompletelyMissing()
     {
         // given
         initializeIndexWithDataAndShutdown();
 
         // when
-        IndexProviderDescriptor luceneDescriptor = LuceneIndexProviderFactory.PROVIDER_DESCRIPTOR;
-        IndexProviderDescriptor nativeDescriptor = NumberIndexProvider.NATIVE_PROVIDER_DESCRIPTOR;
+        IndexProviderDescriptor luceneDescriptor = LuceneIndexProvider.DESCRIPTOR;
+        IndexProviderDescriptor nativeDescriptor = GenericNativeIndexProvider.DESCRIPTOR;
         deleteIndexFilesFor( luceneDescriptor );
         deleteIndexFilesFor( nativeDescriptor );
 
@@ -121,12 +120,12 @@ public class FusionIndexIT
         GraphDatabaseAPI newDb = db.getGraphDatabaseAPI();
         try ( Transaction tx = newDb.beginTx() )
         {
-            assertEquals( 1L, Iterators.stream( newDb.schema().getIndexes( label ).iterator() ).count() );
-            assertNotNull( newDb.findNode( label, propKey, numberValue ) );
-            assertNotNull( newDb.findNode( label, propKey, stringValue ) );
-            assertNotNull( newDb.findNode( label, propKey, spatialValue ) );
-            assertNotNull( newDb.findNode( label, propKey, temporalValue ) );
-            tx.success();
+            assertEquals( 1L, Iterators.stream( tx.schema().getIndexes( label ).iterator() ).count() );
+            assertNotNull( tx.findNode( label, propKey, numberValue ) );
+            assertNotNull( tx.findNode( label, propKey, stringValue ) );
+            assertNotNull( tx.findNode( label, propKey, spatialValue ) );
+            assertNotNull( tx.findNode( label, propKey, temporalValue ) );
+            tx.commit();
         }
     }
 
@@ -146,11 +145,11 @@ public class FusionIndexIT
         createIndex();
         try ( Transaction tx = db.beginTx() )
         {
-            db.createNode( label ).setProperty( propKey, numberValue );
-            db.createNode( label ).setProperty( propKey, stringValue );
-            db.createNode( label ).setProperty( propKey, spatialValue );
-            db.createNode( label ).setProperty( propKey, temporalValue );
-            tx.success();
+            tx.createNode( label ).setProperty( propKey, numberValue );
+            tx.createNode( label ).setProperty( propKey, stringValue );
+            tx.createNode( label ).setProperty( propKey, spatialValue );
+            tx.createNode( label ).setProperty( propKey, temporalValue );
+            tx.commit();
         }
         db.shutdown();
     }
@@ -159,13 +158,13 @@ public class FusionIndexIT
     {
         try ( Transaction tx = db.beginTx() )
         {
-            db.schema().indexFor( label ).on( propKey ).create();
-            tx.success();
+            tx.schema().indexFor( label ).on( propKey ).create();
+            tx.commit();
         }
         try ( Transaction tx = db.beginTx() )
         {
-            db.schema().awaitIndexesOnline( 10, TimeUnit.SECONDS );
-            tx.success();
+            tx.schema().awaitIndexesOnline( 10, TimeUnit.SECONDS );
+            tx.commit();
         }
     }
 }

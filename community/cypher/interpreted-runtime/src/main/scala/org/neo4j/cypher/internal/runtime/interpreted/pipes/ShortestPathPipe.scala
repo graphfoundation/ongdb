@@ -19,12 +19,10 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
-import org.neo4j.cypher.InternalException
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
-import org.neo4j.cypher.internal.runtime.interpreted.commands.ShortestPath
+import org.neo4j.cypher.internal.runtime.ExecutionContext
 import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.ShortestPathExpression
-import org.neo4j.cypher.internal.runtime.interpreted.commands.predicates.Predicate
-import org.neo4j.cypher.internal.v3_6.util.attribution.Id
+import org.neo4j.cypher.internal.v4_0.util.attribution.Id
+import org.neo4j.exceptions.InternalException
 import org.neo4j.values.storable.Values
 import org.neo4j.values.virtual.{ListValue, PathValue, VirtualValues}
 
@@ -33,8 +31,8 @@ import scala.collection.JavaConverters._
 /**
  * Shortest pipe inserts a single shortest path between two already found nodes
  */
-case class ShortestPathPipe(source: Pipe, shortestPathExpression: ShortestPathExpression,
-                            withFallBack: Boolean = false, disallowSameNode: Boolean = true)
+case class ShortestPathPipe(source: Pipe,
+                            shortestPathExpression: ShortestPathExpression)
                            (val id: Id = Id.INVALID_ID)
   extends PipeWithSource(source) {
 
@@ -43,11 +41,11 @@ case class ShortestPathPipe(source: Pipe, shortestPathExpression: ShortestPathEx
   private val shortestPathCommand = shortestPathExpression.shortestPathPattern
   private def pathName = shortestPathCommand.pathName
 
-  protected def internalCreateResults(input:Iterator[ExecutionContext], state: QueryState) =
+  protected def internalCreateResults(input:Iterator[ExecutionContext], state: QueryState): Iterator[ExecutionContext] =
     input.flatMap(ctx => {
       val result = shortestPathExpression(ctx, state) match {
         case in: ListValue => in
-        case v if v == Values.NO_VALUE => VirtualValues.EMPTY_LIST
+        case v if v eq Values.NO_VALUE => VirtualValues.EMPTY_LIST
         case path: PathValue    => VirtualValues.list(path)
       }
 

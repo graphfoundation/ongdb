@@ -19,11 +19,12 @@
  */
 package org.neo4j.kernel.api.exceptions.schema;
 
-import org.neo4j.internal.kernel.api.TokenNameLookup;
+import org.neo4j.common.TokenNameLookup;
 import org.neo4j.internal.kernel.api.exceptions.schema.SchemaKernelException;
-import org.neo4j.internal.kernel.api.schema.SchemaDescriptor;
-import org.neo4j.internal.kernel.api.schema.SchemaUtil;
+import org.neo4j.internal.schema.SchemaDescriptor;
 import org.neo4j.kernel.api.exceptions.Status;
+
+import static org.neo4j.common.TokenNameLookup.idTokenNameLookup;
 
 public abstract class RepeatedSchemaComponentException extends SchemaKernelException
 {
@@ -33,7 +34,7 @@ public abstract class RepeatedSchemaComponentException extends SchemaKernelExcep
 
     RepeatedSchemaComponentException( Status status, SchemaDescriptor schema, OperationContext context, SchemaComponent component )
     {
-        super( status, format( schema, context, SchemaUtil.idTokenNameLookup, component ) );
+        super( status, format( schema, context, idTokenNameLookup, component ) );
         this.schema = schema;
         this.context = context;
         this.component = component;

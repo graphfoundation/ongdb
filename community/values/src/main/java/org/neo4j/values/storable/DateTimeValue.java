@@ -41,13 +41,13 @@ import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import org.neo4j.helpers.collection.Pair;
+import org.neo4j.exceptions.InvalidArgumentException;
+import org.neo4j.exceptions.TemporalParseException;
+import org.neo4j.exceptions.UnsupportedTemporalUnitException;
+import org.neo4j.internal.helpers.collection.Pair;
 import org.neo4j.values.AnyValue;
 import org.neo4j.values.StructureBuilder;
 import org.neo4j.values.ValueMapper;
-import org.neo4j.values.utils.InvalidValuesArgumentException;
-import org.neo4j.values.utils.TemporalParseException;
-import org.neo4j.values.utils.UnsupportedTemporalUnitException;
 import org.neo4j.values.virtual.MapValue;
 
 import static java.time.Instant.ofEpochMilli;
@@ -130,7 +130,7 @@ public final class DateTimeValue extends TemporalValue<ZonedDateTime,DateTimeVal
         long ns = safeCastIntegral( "nanosecond", nano, 0 );
         if ( ns < 0 || ns >= 1000_000_000 )
         {
-            throw new InvalidValuesArgumentException( "Invalid nanosecond: " + ns );
+            throw new InvalidArgumentException( "Invalid nanosecond: " + ns );
         }
         return new DateTimeValue( datetimeRaw( epochSecondUTC.longValue(), ns, UTC ) );
     }
@@ -237,7 +237,7 @@ public final class DateTimeValue extends TemporalValue<ZonedDateTime,DateTimeVal
 
     static DateTimeBuilder<DateTimeValue> builder( Supplier<ZoneId> defaultZone )
     {
-        return new DateTimeBuilder<DateTimeValue>( defaultZone )
+        return new DateTimeBuilder<>( defaultZone )
         {
             @Override
             protected boolean supportsTimeZone()
@@ -253,9 +253,9 @@ public final class DateTimeValue extends TemporalValue<ZonedDateTime,DateTimeVal
 
             private final ZonedDateTime defaultZonedDateTime =
                     ZonedDateTime.of( TemporalFields.year.defaultValue, TemporalFields.month.defaultValue,
-                            TemporalFields.day.defaultValue, TemporalFields.hour.defaultValue,
-                            TemporalFields.minute.defaultValue, TemporalFields.second.defaultValue,
-                            TemporalFields.nanosecond.defaultValue, timezone() );
+                                      TemporalFields.day.defaultValue, TemporalFields.hour.defaultValue,
+                                      TemporalFields.minute.defaultValue, TemporalFields.second.defaultValue,
+                                      TemporalFields.nanosecond.defaultValue, timezone() );
 
             @Override
             public DateTimeValue buildInternal()
@@ -272,7 +272,7 @@ public final class DateTimeValue extends TemporalValue<ZonedDateTime,DateTimeVal
                     AnyValue dtField = fields.get( TemporalFields.datetime );
                     if ( !(dtField instanceof TemporalValue) )
                     {
-                        throw new InvalidValuesArgumentException(
+                        throw new InvalidArgumentException(
                                 String.format( "Cannot construct date time from: %s", dtField ) );
                     }
                     TemporalValue dt = (TemporalValue) dtField;
@@ -288,7 +288,7 @@ public final class DateTimeValue extends TemporalValue<ZonedDateTime,DateTimeVal
                         AnyValue epochField = fields.get( TemporalFields.epochSeconds );
                         if ( !(epochField instanceof IntegralValue) )
                         {
-                            throw new InvalidValuesArgumentException(
+                            throw new InvalidArgumentException(
                                     String.format( "Cannot construct date time from: %s", epochField ) );
                         }
                         IntegralValue epochSeconds = (IntegralValue) epochField;
@@ -300,7 +300,7 @@ public final class DateTimeValue extends TemporalValue<ZonedDateTime,DateTimeVal
                         AnyValue epochField = fields.get( TemporalFields.epochMillis );
                         if ( !(epochField instanceof IntegralValue) )
                         {
-                            throw new InvalidValuesArgumentException(
+                            throw new InvalidArgumentException(
                                     String.format( "Cannot construct date time from: %s", epochField ) );
                         }
                         IntegralValue epochMillis = (IntegralValue) epochField;
@@ -319,7 +319,7 @@ public final class DateTimeValue extends TemporalValue<ZonedDateTime,DateTimeVal
                         AnyValue timeField = fields.get( TemporalFields.time );
                         if ( !(timeField instanceof TemporalValue) )
                         {
-                            throw new InvalidValuesArgumentException(
+                            throw new InvalidArgumentException(
                                     String.format( "Cannot construct time from: %s", timeField ) );
                         }
                         TemporalValue t = (TemporalValue) timeField;
@@ -339,7 +339,7 @@ public final class DateTimeValue extends TemporalValue<ZonedDateTime,DateTimeVal
                         AnyValue dateField = fields.get( TemporalFields.date );
                         if ( !(dateField instanceof TemporalValue) )
                         {
-                            throw new InvalidValuesArgumentException(
+                            throw new InvalidArgumentException(
                                     String.format( "Cannot construct date from: %s", dateField ) );
                         }
                         TemporalValue t = (TemporalValue) dateField;
@@ -363,8 +363,8 @@ public final class DateTimeValue extends TemporalValue<ZonedDateTime,DateTimeVal
                     // Be sure to be in the start of the week based year (which can be later than 1st Jan)
                     result = result
                             .with( IsoFields.WEEK_BASED_YEAR,
-                                    safeCastIntegral( TemporalFields.year.name(), fields.get( TemporalFields.year ),
-                                            TemporalFields.year.defaultValue ) )
+                                   safeCastIntegral( TemporalFields.year.name(), fields.get( TemporalFields.year ),
+                                                     TemporalFields.year.defaultValue ) )
                             .with( IsoFields.WEEK_OF_WEEK_BASED_YEAR, 1 )
                             .with( ChronoField.DAY_OF_WEEK, 1 );
                 }
@@ -380,7 +380,7 @@ public final class DateTimeValue extends TemporalValue<ZonedDateTime,DateTimeVal
                         }
                         catch ( DateTimeParseException e )
                         {
-                            throw new InvalidValuesArgumentException( e.getMessage(), e );
+                            throw new TemporalParseException( e.getMessage(), e.getParsedString(), e.getErrorIndex(), e );
                         }
                     }
                     else
@@ -618,6 +618,15 @@ public final class DateTimeValue extends TemporalValue<ZonedDateTime,DateTimeVal
         return value == datetime ? this : new DateTimeValue( datetime );
     }
 
+    @Override
+    protected long estimatedPayloadSize()
+    {
+        //This is a rough estimate, the wrapped ZoneDateTime can be much larger but it shares a lot of it fields
+        //with other instances, small integers and ZoneId are shared across instances. On average this is roughly the
+        // measured size per item.
+        return 120;
+    }
+
     private static final String ZONE_NAME = "(?<zoneName>[a-zA-Z0-9~._ /+-]+)";
     private static final Pattern PATTERN = Pattern.compile(
             DATE_PATTERN + "(?<time>T" + TIME_PATTERN + "(?:\\[" + ZONE_NAME + "\\])?" + ")?",
@@ -649,7 +658,7 @@ public final class DateTimeValue extends TemporalValue<ZonedDateTime,DateTimeVal
                 }
                 if ( !expected.equals( offset ) )
                 {
-                    throw new InvalidValuesArgumentException( "Timezone and offset do not match: " + matcher.group() );
+                    throw new InvalidArgumentException( "Timezone and offset do not match: " + matcher.group() );
                 }
             }
         }

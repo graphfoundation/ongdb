@@ -29,10 +29,11 @@ import java.io.Reader;
 import java.io.Writer;
 import java.nio.charset.Charset;
 import java.nio.file.CopyOption;
+import java.nio.file.OpenOption;
+import java.util.Set;
 
-import org.neo4j.graphdb.mockfs.DelegatingFileSystemAbstraction;
+import org.neo4j.io.fs.DelegatingFileSystemAbstraction;
 import org.neo4j.io.fs.FileSystemAbstraction;
-import org.neo4j.io.fs.OpenMode;
 import org.neo4j.io.fs.StoreChannel;
 import org.neo4j.test.impl.ChannelInputStream;
 import org.neo4j.test.impl.ChannelOutputStream;
@@ -47,21 +48,21 @@ public class LimitedFilesystemAbstraction extends DelegatingFileSystemAbstractio
     }
 
     @Override
-    public StoreChannel open( File fileName, OpenMode openMode ) throws IOException
+    public StoreChannel open( File fileName, Set<OpenOption> options ) throws IOException
     {
-        return new LimitedFileChannel( super.open( fileName, openMode ), this );
+        return new LimitedFileChannel( super.open( fileName, options ), this );
     }
 
     @Override
     public OutputStream openAsOutputStream( File fileName, boolean append ) throws IOException
     {
-        return new ChannelOutputStream( open( fileName, OpenMode.READ_WRITE ), append );
+        return new ChannelOutputStream( write( fileName ), append );
     }
 
     @Override
     public InputStream openAsInputStream( File fileName ) throws IOException
     {
-        return new ChannelInputStream( open( fileName, OpenMode.READ ) );
+        return new ChannelInputStream( read( fileName ) );
     }
 
     @Override
@@ -77,10 +78,10 @@ public class LimitedFilesystemAbstraction extends DelegatingFileSystemAbstractio
     }
 
     @Override
-    public StoreChannel create( File fileName ) throws IOException
+    public StoreChannel write( File fileName ) throws IOException
     {
         ensureHasSpace();
-        return new LimitedFileChannel( super.create( fileName ), this );
+        return new LimitedFileChannel( super.write( fileName ), this );
     }
 
     @Override

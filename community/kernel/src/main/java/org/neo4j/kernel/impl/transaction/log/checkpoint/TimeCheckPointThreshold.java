@@ -19,27 +19,37 @@
  */
 package org.neo4j.kernel.impl.transaction.log.checkpoint;
 
+import java.time.Duration;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
+import org.neo4j.internal.helpers.Format;
+import org.neo4j.time.Stopwatch;
 import org.neo4j.time.SystemNanoClock;
 
 class TimeCheckPointThreshold extends AbstractCheckPointThreshold
 {
     private volatile long lastCheckPointedTransactionId;
-    private volatile long lastCheckPointTimeNanos;
+    private volatile Duration timeout;
+    private volatile Stopwatch stopWatch;
 
     private final long timeMillisThreshold;
     private final SystemNanoClock clock;
 
     TimeCheckPointThreshold( long thresholdMillis, SystemNanoClock clock )
     {
-        super( "time threshold" );
+        super( "every " + formatDuration( thresholdMillis ) + " threshold" );
         this.timeMillisThreshold = thresholdMillis;
         this.clock = clock;
         // The random start offset means database in a cluster will not all check-point at the same time.
         long randomStartOffset = thresholdMillis > 0 ? ThreadLocalRandom.current().nextLong( thresholdMillis ) : 0;
-        this.lastCheckPointTimeNanos = clock.nanos() + TimeUnit.MILLISECONDS.toNanos( randomStartOffset );
+        this.timeout = Duration.ofMillis( thresholdMillis + randomStartOffset );
+        this.stopWatch = clock.startStopWatch();
+    }
+
+    private static String formatDuration( long thresholdMillis )
+    {
+        return Format.duration( thresholdMillis, TimeUnit.DAYS, TimeUnit.MILLISECONDS, unit -> ' ' + unit.name().toLowerCase() );
     }
 
     @Override
@@ -51,15 +61,15 @@ class TimeCheckPointThreshold extends AbstractCheckPointThreshold
     @Override
     protected boolean thresholdReached( long lastCommittedTransactionId )
     {
-        return lastCommittedTransactionId > lastCheckPointedTransactionId &&
-               clock.nanos() - lastCheckPointTimeNanos >= TimeUnit.MILLISECONDS.toNanos( timeMillisThreshold );
+        return lastCommittedTransactionId > lastCheckPointedTransactionId && stopWatch.hasTimedOut( timeout );
     }
 
     @Override
     public void checkPointHappened( long transactionId )
     {
-        lastCheckPointTimeNanos = clock.nanos();
         lastCheckPointedTransactionId = transactionId;
+        stopWatch = clock.startStopWatch();
+        timeout = Duration.ofMillis( timeMillisThreshold );
     }
 
     @Override

@@ -31,11 +31,11 @@ import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
 
-import org.neo4j.internal.kernel.api.IndexOrder;
 import org.neo4j.internal.kernel.api.IndexQuery;
-import org.neo4j.internal.kernel.api.schema.SchemaDescriptor;
-import org.neo4j.kernel.api.schema.index.TestIndexDescriptorFactory;
-import org.neo4j.storageengine.api.schema.IndexDescriptor;
+import org.neo4j.internal.schema.IndexOrder;
+import org.neo4j.internal.schema.IndexPrototype;
+import org.neo4j.internal.schema.SchemaDescriptor;
+import org.neo4j.storageengine.api.IndexEntryUpdate;
 import org.neo4j.values.storable.Value;
 import org.neo4j.values.storable.ValueCategory;
 import org.neo4j.values.storable.ValueTuple;
@@ -46,9 +46,10 @@ import static java.util.stream.Collectors.toList;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
-import static org.neo4j.helpers.collection.Iterables.single;
-import static org.neo4j.kernel.api.index.IndexQueryHelper.add;
-import static org.neo4j.kernel.api.index.IndexQueryHelper.exact;
+import static org.neo4j.internal.helpers.collection.Iterables.single;
+import static org.neo4j.internal.kernel.api.IndexQuery.exact;
+import static org.neo4j.internal.schema.SchemaDescriptor.forLabel;
+import static org.neo4j.storageengine.api.IndexEntryUpdate.add;
 
 @Ignore( "Not a test. This is a compatibility suite that provides test cases for verifying" +
         " IndexProvider implementations. Each index provider that is to be tested by this suite" +
@@ -57,9 +58,9 @@ import static org.neo4j.kernel.api.index.IndexQueryHelper.exact;
         " errors or warnings in some IDEs about test classes needing a public zero-arg constructor." )
 public class CompositeRandomizedIndexAccessorCompatibility extends IndexAccessorCompatibility
 {
-    public CompositeRandomizedIndexAccessorCompatibility( IndexProviderCompatibilityTestSuite testSuite, IndexDescriptor descriptor )
+    CompositeRandomizedIndexAccessorCompatibility( IndexProviderCompatibilityTestSuite testSuite, IndexPrototype prototype )
     {
-        super( testSuite, descriptor );
+        super( testSuite, prototype );
     }
 
     @Ignore( "Not a test. This is a compatibility suite" )
@@ -68,7 +69,7 @@ public class CompositeRandomizedIndexAccessorCompatibility extends IndexAccessor
         public Exact( IndexProviderCompatibilityTestSuite testSuite )
         {
             // composite index of 4 properties
-            super( testSuite, TestIndexDescriptorFactory.forLabel( 1000, 100, 101, 102, 103 ) );
+            super( testSuite, IndexPrototype.forSchema( forLabel( 1000, 100, 101, 102, 103 ) ) );
         }
 
         @Test
@@ -83,7 +84,7 @@ public class CompositeRandomizedIndexAccessorCompatibility extends IndexAccessor
                 IndexEntryUpdate<SchemaDescriptor> update;
                 do
                 {
-                    update = IndexQueryHelper.add( id, descriptor.schema(),
+                    update = add( id, descriptor.schema(),
                             random.randomValues().nextValueOfTypes( types ),
                             random.randomValues().nextValueOfTypes( types ),
                             random.randomValues().nextValueOfTypes( types ),
@@ -115,7 +116,7 @@ public class CompositeRandomizedIndexAccessorCompatibility extends IndexAccessor
         public Range( IndexProviderCompatibilityTestSuite testSuite )
         {
             // composite index of 2 properties
-            super( testSuite, TestIndexDescriptorFactory.forLabel( 1000, 100, 101 ) );
+            super( testSuite, IndexPrototype.forSchema( forLabel( 1000, 100, 101 ) ) );
         }
 
         /**
@@ -154,7 +155,7 @@ public class CompositeRandomizedIndexAccessorCompatibility extends IndexAccessor
                             ValueTuple value = generateUniqueRandomValue( types, uniqueValues );
                             long id = nextId.getAndIncrement();
                             sortedValues.add( new ValueAndId( value, id ) );
-                            updates.add( IndexEntryUpdate.add( id, descriptor.schema(), value.getValues() ) );
+                            updates.add( add( id, descriptor.schema(), value.getValues() ) );
                         }
                         else if ( type == 1 )
                         {   // update
@@ -203,10 +204,10 @@ public class CompositeRandomizedIndexAccessorCompatibility extends IndexAccessor
 
                 // Depending on order capabilities we verify ids or order and ids.
                 IndexQuery[] predicates = new IndexQuery[]{
-                        IndexQuery.exact( 100, booleanValue ),
+                        exact( 100, booleanValue ),
                         IndexQuery.range( 101, from, fromInclusive, to, toInclusive )};
                 ValueCategory[] valueCategories = getValueCategories( predicates );
-                IndexOrder[] indexOrders = indexProvider.getCapability( descriptor ).orderCapability( valueCategories );
+                IndexOrder[] indexOrders = descriptor.getCapability().orderCapability( valueCategories );
                 for ( IndexOrder order : indexOrders )
                 {
                     List<Long> actualIds = assertInOrder( order, predicates );
@@ -217,15 +218,14 @@ public class CompositeRandomizedIndexAccessorCompatibility extends IndexAccessor
             }
         }
 
-        public ValueCategory[] getValueCategories( IndexQuery[] predicates )
+        ValueCategory[] getValueCategories( IndexQuery[] predicates )
         {
             return Arrays.stream( predicates )
                                 .map( iq -> iq.valueGroup().category() )
                                 .toArray( ValueCategory[]::new );
         }
 
-        public List<Long> expectedIds( TreeSet<ValueAndId> sortedValues, Value booleanValue, Value from, Value to, boolean fromInclusive,
-                boolean toInclusive )
+        List<Long> expectedIds( TreeSet<ValueAndId> sortedValues, Value booleanValue, Value from, Value to, boolean fromInclusive, boolean toInclusive )
         {
             return sortedValues.subSet(
                                 new ValueAndId( ValueTuple.of( booleanValue, from ), 0 ), fromInclusive,
@@ -266,7 +266,7 @@ public class CompositeRandomizedIndexAccessorCompatibility extends IndexAccessor
             List<IndexEntryUpdate<?>> updates = new ArrayList<>();
             for ( ValueTuple value : values )
             {
-                updates.add( add( nextId.getAndIncrement(), descriptor.schema(), (Object[]) value.getValues() ) );
+                updates.add( add( nextId.getAndIncrement(), descriptor.schema(), value.getValues() ) );
             }
             return updates;
         }

@@ -147,11 +147,11 @@ public final class GBPTreeCorruption
             node.valueAt( cursor, value, higherKeyPos );
 
             // Remove key and value, may need to defragment node to make sure we have room for insert later
-            node.removeKeyValueAt( cursor, higherKeyPos, keyCount );
+            node.removeKeyValueAt( cursor, higherKeyPos, keyCount, treeState.stableGeneration(), treeState.unstableGeneration() );
             node.defragmentLeaf( cursor );
 
             // Insert key and value in lower position
-            node.insertKeyValueAt( cursor, key, value, lowerKeyPos, keyCount - 1 );
+            node.insertKeyValueAt( cursor, key, value, lowerKeyPos, keyCount - 1, treeState.stableGeneration(), treeState.unstableGeneration() );
         };
     }
 
@@ -169,7 +169,7 @@ public final class GBPTreeCorruption
             long rightChild = node.childAt( cursor, higherKeyPos + 1, treeState.stableGeneration(), treeState.unstableGeneration(), childPointerGeneration );
 
             // Remove key and right child, may need to defragment node to make sure we have room for insert later
-            node.removeKeyAndRightChildAt( cursor, higherKeyPos, keyCount );
+            node.removeKeyAndRightChildAt( cursor, higherKeyPos, keyCount, treeState.stableGeneration(), treeState.unstableGeneration() );
             node.defragmentLeaf( cursor );
 
             // Insert key and right child in lower position
@@ -204,12 +204,12 @@ public final class GBPTreeCorruption
             node.valueAt( cursor, value, keyPos );
 
             // Remove key and value, may need to defragment node to make sure we have room for insert later
-            node.removeKeyValueAt( cursor, keyPos, keyCount );
+            node.removeKeyValueAt( cursor, keyPos, keyCount, treeState.stableGeneration(), treeState.unstableGeneration() );
             TreeNode.setKeyCount( cursor, keyCount - 1 );
             node.defragmentLeaf( cursor );
 
             // Insert new key and value
-            node.insertKeyValueAt( cursor, key, value, keyPos, keyCount - 1 );
+            node.insertKeyValueAt( cursor, key, value, keyPos, keyCount - 1, treeState.stableGeneration(), treeState.unstableGeneration() );
             TreeNode.setKeyCount( cursor, keyCount );
         };
     }
@@ -221,7 +221,7 @@ public final class GBPTreeCorruption
             long rightChild = node.childAt( cursor, keyPos + 1, treeState.stableGeneration(), treeState.unstableGeneration() );
 
             // Remove key and right child, may need to defragment node to make sure we have room for insert later
-            node.removeKeyAndRightChildAt( cursor, keyPos, keyCount );
+            node.removeKeyAndRightChildAt( cursor, keyPos, keyCount, treeState.stableGeneration(), treeState.unstableGeneration() );
             TreeNode.setKeyCount( cursor, keyCount - 1 );
             node.defragmentInternal( cursor );
 
@@ -302,6 +302,22 @@ public final class GBPTreeCorruption
                 goTo( cursor, "", treeState.pageId() ); // Write new tree state to current tree states page
                 TreeState.write( cursor, target.stableGeneration(), target.unstableGeneration(), target.rootId(), target.rootGeneration(), target.lastId(),
                         target.freeListWritePageId(), target.freeListReadPageId(), target.freeListWritePos(), target.freeListReadPos(), target.isClean() );
+            }
+        };
+    }
+
+    public static <VALUE, KEY> IndexCorruption<KEY,VALUE> copyChildPointerFromOther( long targetInternalNode, long otherInternalNode, int targetChildPos,
+            int otherChildPos )
+    {
+        return ( pagedFile, layout, node, treeState ) -> {
+            try ( PageCursor cursor = pagedFile.io( 0, PagedFile.PF_SHARED_WRITE_LOCK ) )
+            {
+                goTo( cursor, "", otherInternalNode );
+                final GenerationKeeper generationKeeper = new GenerationKeeper();
+                final long child = node.childAt( cursor, otherChildPos, treeState.stableGeneration(), treeState.unstableGeneration(), generationKeeper );
+
+                goTo( cursor, "", targetInternalNode );
+                overwriteGSPP( cursor, GBPTreePointerType.child( targetChildPos ).offset( node ), generationKeeper.generation, child );
             }
         };
     }

@@ -19,16 +19,16 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
-import org.neo4j.cypher.internal.v3_6.ast.semantics.SemanticTable
+import org.neo4j.cypher.internal.v4_0.ast.semantics.SemanticTable
 import org.neo4j.cypher.internal.runtime.QueryContext
-import org.neo4j.cypher.internal.v3_6.expressions.RelTypeName
+import org.neo4j.cypher.internal.v4_0.expressions.RelTypeName
 
 case class LazyType(name: String) {
 
-  private var id = LazyType.UNINITIALIZED
+  private var id = LazyType.UNKNOWN
 
   def typ(context: QueryContext): Int = {
-    if (id == LazyType.UNINITIALIZED) {
+    if (id == LazyType.UNKNOWN) {
       id = context.getOrCreateRelTypeId(name)
     }
     id
@@ -36,7 +36,7 @@ case class LazyType(name: String) {
 }
 
 object LazyType {
-  val UNINITIALIZED = -1
+  val UNKNOWN = -1
 
   def apply(relTypeName: RelTypeName)(implicit table: SemanticTable): LazyType = {
     val typ = LazyType(relTypeName.name)

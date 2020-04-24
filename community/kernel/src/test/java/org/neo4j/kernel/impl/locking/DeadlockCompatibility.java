@@ -19,112 +19,106 @@
  */
 package org.neo4j.kernel.impl.locking;
 
-import org.junit.After;
-import org.junit.Ignore;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.stream.Collectors;
 
-import org.neo4j.helpers.collection.Pair;
 import org.neo4j.kernel.DeadlockDetectedException;
-import org.neo4j.storageengine.api.lock.LockTracer;
+import org.neo4j.lock.LockTracer;
 
-import static org.neo4j.kernel.impl.locking.Locks.Client;
-import static org.neo4j.kernel.impl.locking.ResourceTypes.NODE;
+import static org.neo4j.lock.ResourceTypes.NODE;
 
-@Ignore( "Not a test. This is a compatibility suite, run from LockingCompatibilityTestSuite." )
-public class DeadlockCompatibility extends LockingCompatibilityTestSuite.Compatibility
+abstract class DeadlockCompatibility extends LockCompatibilityTestSupport
 {
-    public DeadlockCompatibility( LockingCompatibilityTestSuite suite )
+    DeadlockCompatibility( LockingCompatibilityTestSuite suite )
     {
         super( suite );
     }
 
-    @After
-    public void shutdown()
-    {
-        threadA.interrupt();
-        threadB.interrupt();
-        threadC.interrupt();
-    }
-
     @Test
-    public void shouldDetectTwoClientExclusiveDeadlock()
+    void shouldDetectTwoClientExclusiveDeadlock() throws Exception
     {
-        assertDetectsDeadlock(
-                acquireExclusive( clientA, LockTracer.NONE, NODE, 1L ),
-                acquireExclusive( clientB, LockTracer.NONE, NODE, 2L ),
+        acquireExclusive( clientA, LockTracer.NONE, NODE, 1L ).call().get();
+        acquireExclusive( clientB, LockTracer.NONE, NODE, 2L ).call().get();
 
+        assertDetectsDeadlock(
                 acquireExclusive( clientB, LockTracer.NONE, NODE, 1L ),
                 acquireExclusive( clientA, LockTracer.NONE, NODE, 2L ) );
     }
 
     @Test
-    public void shouldDetectThreeClientExclusiveDeadlock()
+    void shouldDetectThreeClientExclusiveDeadlock() throws Exception
     {
-        assertDetectsDeadlock(
-                acquireExclusive( clientA, LockTracer.NONE, NODE, 1L ),
-                acquireExclusive( clientB, LockTracer.NONE, NODE, 2L ),
-                acquireExclusive( clientC, LockTracer.NONE, NODE, 3L ),
+        acquireExclusive( clientA, LockTracer.NONE, NODE, 1L ).call().get();
+        acquireExclusive( clientB, LockTracer.NONE, NODE, 2L ).call().get();
+        acquireExclusive( clientC, LockTracer.NONE, NODE, 3L ).call().get();
 
+        assertDetectsDeadlock(
                 acquireExclusive( clientB, LockTracer.NONE, NODE, 1L ),
                 acquireExclusive( clientC, LockTracer.NONE, NODE, 2L ),
                 acquireExclusive( clientA, LockTracer.NONE, NODE, 3L ) );
     }
 
     @Test
-    public void shouldDetectMixedExclusiveAndSharedDeadlock()
+    void shouldDetectMixedExclusiveAndSharedDeadlock() throws Exception
     {
+        acquireShared( clientA, LockTracer.NONE, NODE, 1L ).call().get();
+        acquireExclusive( clientB, LockTracer.NONE, NODE, 2L ).call().get();
+
         assertDetectsDeadlock(
-
-                acquireShared( clientA, LockTracer.NONE, NODE, 1L ),
-                acquireExclusive( clientB, LockTracer.NONE, NODE, 2L ),
-
                 acquireExclusive( clientB, LockTracer.NONE, NODE, 1L ),
                 acquireShared( clientA, LockTracer.NONE, NODE, 2L ) );
     }
 
     private void assertDetectsDeadlock( LockCommand... commands )
     {
-        List<Pair<Client, Future<Object>>> calls = new ArrayList<>();
-        for ( LockCommand command : commands )
-        {
-            calls.add( Pair.of( command.client(), command.call() ) );
-        }
+        List<Future<Void>> calls = Arrays.stream( commands )
+                .map( LockCommand::call )
+                .collect( Collectors.toList() );
 
         long timeout = System.currentTimeMillis() + (1000 * 10);
         while ( System.currentTimeMillis() < timeout )
         {
-            for ( Pair<Client,Future<Object>> call : calls )
+            for ( Future<Void> call : calls )
             {
-                try
+                if ( tryDetectDeadlock( call ) )
                 {
-                    call.other().get( 1, TimeUnit.MILLISECONDS );
-                }
-                catch ( ExecutionException e )
-                {
-                    if ( e.getCause() instanceof DeadlockDetectedException )
-                    {
-                        return;
-                    }
-                    else
-                    {
-                        throw new RuntimeException( e );
-                    }
-                }
-                catch ( InterruptedException | TimeoutException e )
-                {
-                    // Fine, we're just looking for deadlocks, clients may still be waiting for things
+                    return;
                 }
             }
         }
 
         throw new AssertionError( "Failed to detect deadlock. Expected lock manager to detect deadlock, " +
                 "but none of the clients reported any deadlocks." );
+    }
+
+    private boolean tryDetectDeadlock( Future<Void> call )
+    {
+        try
+        {
+            call.get( 1, TimeUnit.MILLISECONDS );
+        }
+        catch ( ExecutionException e )
+        {
+            if ( e.getCause() instanceof DeadlockDetectedException )
+            {
+                return true;
+            }
+            else
+            {
+                throw new RuntimeException( e );
+            }
+        }
+        catch ( InterruptedException | TimeoutException e )
+        {
+            // Fine, we're just looking for deadlocks, clients may still be waiting for things
+        }
+        return false;
     }
 }

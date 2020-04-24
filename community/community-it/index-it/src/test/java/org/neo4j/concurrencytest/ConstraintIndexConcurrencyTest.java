@@ -19,74 +19,72 @@
  */
 package org.neo4j.concurrencytest;
 
-import org.junit.Rule;
-import org.junit.Test;
-
-import java.util.function.Supplier;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.Transaction;
-import org.neo4j.helpers.collection.Iterators;
-import org.neo4j.internal.kernel.api.IndexOrder;
+import org.neo4j.internal.helpers.collection.Iterators;
 import org.neo4j.internal.kernel.api.IndexQuery;
+import org.neo4j.internal.kernel.api.IndexReadSession;
 import org.neo4j.internal.kernel.api.NodeValueIndexCursor;
 import org.neo4j.internal.kernel.api.Read;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.internal.schema.IndexOrder;
+import org.neo4j.internal.schema.constraints.ConstraintDescriptorFactory;
 import org.neo4j.kernel.api.KernelTransaction;
 import org.neo4j.kernel.api.exceptions.index.IndexEntryConflictException;
 import org.neo4j.kernel.api.exceptions.schema.UniquePropertyValueValidationException;
-import org.neo4j.kernel.api.schema.constraints.ConstraintDescriptorFactory;
-import org.neo4j.kernel.api.schema.index.TestIndexDescriptorFactory;
-import org.neo4j.kernel.impl.core.ThreadToStatementContextBridge;
+import org.neo4j.kernel.impl.coreapi.InternalTransaction;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
-import org.neo4j.storageengine.api.schema.IndexDescriptor;
-import org.neo4j.test.rule.DatabaseRule;
-import org.neo4j.test.rule.ImpermanentDatabaseRule;
+import org.neo4j.test.extension.ImpermanentDbmsExtension;
+import org.neo4j.test.extension.Inject;
+import org.neo4j.test.rule.concurrent.ThreadingExtension;
 import org.neo4j.test.rule.concurrent.ThreadingRule;
 import org.neo4j.values.storable.Values;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.neo4j.graphdb.Label.label;
 
-public class ConstraintIndexConcurrencyTest
+@ImpermanentDbmsExtension
+@ExtendWith( ThreadingExtension.class )
+class ConstraintIndexConcurrencyTest
 {
-    @Rule
-    public final DatabaseRule db = new ImpermanentDatabaseRule();
-    @Rule
-    public final ThreadingRule threads = new ThreadingRule();
+    @Inject
+    private GraphDatabaseAPI db;
+    @Inject
+    private ThreadingRule threads;
 
     @Test
-    public void shouldNotAllowConcurrentViolationOfConstraint() throws Exception
+    void shouldNotAllowConcurrentViolationOfConstraint() throws Exception
     {
         // Given
-        GraphDatabaseAPI graphDb = db.getGraphDatabaseAPI();
-
-        Supplier<KernelTransaction> ktxSupplier = () -> graphDb.getDependencyResolver()
-                .resolveDependency( ThreadToStatementContextBridge.class ).getKernelTransactionBoundToThisThread( true );
-
         Label label = label( "Foo" );
         String propertyKey = "bar";
         String conflictingValue = "baz";
+        String constraintName = "MyConstraint";
 
         // a constraint
-        try ( Transaction tx = graphDb.beginTx() )
+        try ( Transaction tx = db.beginTx() )
         {
-            graphDb.schema().constraintFor( label ).assertPropertyIsUnique( propertyKey ).create();
-            tx.success();
+            tx.schema().constraintFor( label ).assertPropertyIsUnique( propertyKey ).withName( constraintName ).create();
+            tx.commit();
         }
 
         // When
-        try ( Transaction tx = graphDb.beginTx() )
+        try ( Transaction tx = db.beginTx() )
         {
-            KernelTransaction ktx = ktxSupplier.get();
+            KernelTransaction ktx = ((InternalTransaction) tx).kernelTransaction();
             int labelId = ktx.tokenRead().nodeLabel( label.name() );
             int propertyKeyId = ktx.tokenRead().propertyKey( propertyKey );
-            IndexDescriptor index = TestIndexDescriptorFactory.uniqueForLabel( labelId, propertyKeyId );
             Read read = ktx.dataRead();
             try ( NodeValueIndexCursor cursor = ktx.cursors().allocateNodeValueIndexCursor() )
             {
-                read.nodeIndexSeek( ktx.schemaRead().index( labelId, propertyKeyId ), cursor, IndexOrder.NONE, false,
-                        IndexQuery.exact( index.schema().getPropertyId(),
+                IndexDescriptor index = ktx.schemaRead().indexGetForName( constraintName );
+                IndexReadSession indexSession = ktx.dataRead().indexReadSession( index );
+                read.nodeIndexSeek( indexSession, cursor, IndexOrder.NONE, false,
+                        IndexQuery.exact( propertyKeyId,
                                 "The value is irrelevant, we just want to perform some sort of lookup against this " + "index" ) );
             }
             // then let another thread come in and create a node
@@ -94,31 +92,24 @@ public class ConstraintIndexConcurrencyTest
             {
                 try ( Transaction transaction = db.beginTx() )
                 {
-                    db.createNode( label ).setProperty( propertyKey, conflictingValue );
-                    transaction.success();
+                    transaction.createNode( label ).setProperty( propertyKey, conflictingValue );
+                    transaction.commit();
                 }
                 return null;
-            }, graphDb ).get();
+            }, db ).get();
 
             // before we create a node with the same property ourselves - using the same statement that we have
             // already used for lookup against that very same index
             long node = ktx.dataWrite().nodeCreate();
             ktx.dataWrite().nodeAddLabel( node, labelId );
-            try
-            {
-                ktx.dataWrite().nodeSetProperty( node, propertyKeyId, Values.of( conflictingValue ) );
 
-                fail( "exception expected" );
-            }
-            // Then
-            catch ( UniquePropertyValueValidationException e )
-            {
-                assertEquals( ConstraintDescriptorFactory.uniqueForLabel( labelId, propertyKeyId ), e.constraint() );
-                IndexEntryConflictException conflict = Iterators.single( e.conflicts().iterator() );
-                assertEquals( Values.stringValue( conflictingValue ), conflict.getSinglePropertyValue() );
-            }
+            var e = assertThrows( UniquePropertyValueValidationException.class,
+                    () -> ktx.dataWrite().nodeSetProperty( node, propertyKeyId, Values.of( conflictingValue ) ) );
+            assertEquals( ConstraintDescriptorFactory.uniqueForLabel( labelId, propertyKeyId ), e.constraint() );
+            IndexEntryConflictException conflict = Iterators.single( e.conflicts().iterator() );
+            assertEquals( Values.stringValue( conflictingValue ), conflict.getSinglePropertyValue() );
 
-            tx.success();
+            tx.commit();
         }
     }
 }

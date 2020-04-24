@@ -101,7 +101,7 @@ class InternalTreeLogic<KEY,VALUE>
      * - level: 1 is at first level below root
      * ... a.s.o
      * <p>
-     * Calling {@link #insert(PageCursor, StructurePropagation, Object, Object, ValueMerger, long, long)}
+     * Calling {@link #insert(PageCursor, StructurePropagation, Object, Object, ValueMerger, boolean, long, long)}
      * or {@link #remove(PageCursor, StructurePropagation, Object, Object, long, long)} leaves the cursor
      * at the last updated page (tree node id) and remembers the path down the tree to where it is.
      * Further inserts/removals will move the cursor from its current position to where the next change will
@@ -358,18 +358,19 @@ class InternalTreeLogic<KEY,VALUE>
      * @param key key to be inserted
      * @param value value to be associated with key
      * @param valueMerger {@link ValueMerger} for deciding what to do with existing keys
+     * @param createIfNotExists create this key if it doesn't exist
      * @param stableGeneration stable generation, i.e. generations <= this generation are considered stable.
      * @param unstableGeneration unstable generation, i.e. generation which is under development right now.
      * @throws IOException on cursor failure
      */
-    void insert( PageCursor cursor, StructurePropagation<KEY> structurePropagation, KEY key, VALUE value,
-            ValueMerger<KEY,VALUE> valueMerger, long stableGeneration, long unstableGeneration ) throws IOException
+    void insert( PageCursor cursor, StructurePropagation<KEY> structurePropagation, KEY key, VALUE value, ValueMerger<KEY,VALUE> valueMerger,
+            boolean createIfNotExists, long stableGeneration, long unstableGeneration ) throws IOException
     {
         assert cursorIsAtExpectedLocation( cursor );
         bTreeNode.validateKeyValueSize( key, value );
         moveToCorrectLeaf( cursor, key, stableGeneration, unstableGeneration );
 
-        insertInLeaf( cursor, structurePropagation, key, value, valueMerger, stableGeneration, unstableGeneration );
+        insertInLeaf( cursor, structurePropagation, key, value, valueMerger, createIfNotExists, stableGeneration, unstableGeneration );
 
         handleStructureChanges( cursor, structurePropagation, stableGeneration, unstableGeneration );
     }
@@ -512,50 +513,72 @@ class InternalTreeLogic<KEY,VALUE>
      * @param key key to be inserted
      * @param value value to be associated with key
      * @param valueMerger {@link ValueMerger} for deciding what to do with existing keys
+     * @param createIfNotExists create this key if it doesn't exist
      * @throws IOException on cursor failure
      */
-    private void insertInLeaf( PageCursor cursor, StructurePropagation<KEY> structurePropagation, KEY key, VALUE value,
-            ValueMerger<KEY,VALUE> valueMerger, long stableGeneration, long unstableGeneration ) throws IOException
+    private void insertInLeaf( PageCursor cursor, StructurePropagation<KEY> structurePropagation, KEY key, VALUE value, ValueMerger<KEY,VALUE> valueMerger,
+            boolean createIfNotExists, long stableGeneration, long unstableGeneration ) throws IOException
     {
         int keyCount = TreeNode.keyCount( cursor );
         int search = search( cursor, LEAF, key, readKey, keyCount );
         int pos = positionOf( search );
         if ( isHit( search ) )
         {
-            overwriteValue( cursor, structurePropagation, key, value, valueMerger, pos, keyCount, stableGeneration, unstableGeneration );
+            mergeValue( cursor, structurePropagation, key, value, valueMerger, pos, keyCount, stableGeneration, unstableGeneration );
+            return;
+        }
+
+        if ( createIfNotExists )
+        {
+            createSuccessorIfNeeded( cursor, structurePropagation, UPDATE_MID_CHILD, stableGeneration, unstableGeneration );
+            doInsertInLeaf( cursor, structurePropagation, key, value, pos, keyCount, stableGeneration, unstableGeneration );
+        }
+    }
+
+    private void mergeValue( PageCursor cursor, StructurePropagation<KEY> structurePropagation, KEY key, VALUE value,
+            ValueMerger<KEY,VALUE> valueMerger, int pos, int keyCount, long stableGeneration, long unstableGeneration ) throws IOException
+    {
+        // This key already exists, what shall we do? ask the valueMerger
+        bTreeNode.valueAt( cursor, readValue, pos );
+        ValueMerger.MergeResult mergeResult = valueMerger.merge( readKey, key, readValue, value );
+        if ( mergeResult == ValueMerger.MergeResult.UNCHANGED )
+        {
             return;
         }
 
         createSuccessorIfNeeded( cursor, structurePropagation, UPDATE_MID_CHILD, stableGeneration, unstableGeneration );
-
-        doInsertInLeaf( cursor, structurePropagation, key, value, pos, keyCount, stableGeneration, unstableGeneration );
-    }
-
-    private void overwriteValue( PageCursor cursor, StructurePropagation<KEY> structurePropagation, KEY key, VALUE value,
-            ValueMerger<KEY,VALUE> valueMerger, int pos, int keyCount, long stableGeneration, long unstableGeneration ) throws IOException
-    {
-        // this key already exists, what shall we do? ask the valueMerger
-        bTreeNode.valueAt( cursor, readValue, pos );
-        VALUE mergedValue = valueMerger.merge( readKey, key, readValue, value );
-        if ( mergedValue != null )
+        if ( mergeResult == ValueMerger.MergeResult.REPLACED || mergeResult == ValueMerger.MergeResult.MERGED )
         {
-            createSuccessorIfNeeded( cursor, structurePropagation, UPDATE_MID_CHILD, stableGeneration, unstableGeneration );
-            // simple, just write the merged value right in there
+            // First try to write the merged value right in there
+            VALUE mergedValue = mergeResult == ValueMerger.MergeResult.REPLACED ? value : readValue;
             boolean couldOverwrite = bTreeNode.setValueAt( cursor, mergedValue, pos );
-            //noinspection StatementWithEmptyBody
             if ( !couldOverwrite )
             {
                 // Value could not be overwritten in a simple way because they differ in size.
-                // Delete old value
-                bTreeNode.removeKeyValueAt( cursor, pos, keyCount );
+                // Delete old value and insert w/ overflow/underflow checks.
+                bTreeNode.removeKeyValueAt( cursor, pos, keyCount, stableGeneration, unstableGeneration );
                 TreeNode.setKeyCount( cursor, keyCount - 1 );
-                boolean didSplit =
-                        doInsertInLeaf( cursor, structurePropagation, key, mergedValue, pos, keyCount - 1, stableGeneration, unstableGeneration );
+                boolean didSplit = doInsertInLeaf( cursor, structurePropagation, key, mergedValue, pos, keyCount - 1, stableGeneration, unstableGeneration );
                 if ( !didSplit && bTreeNode.leafUnderflow( cursor, keyCount ) )
                 {
                     underflowInLeaf( cursor, structurePropagation, keyCount, stableGeneration, unstableGeneration );
                 }
             }
+        }
+        else if ( mergeResult == ValueMerger.MergeResult.REMOVED )
+        {
+            // Remove this entry from the tree and possible underflow while doing so
+            bTreeNode.removeKeyValueAt( cursor, pos, keyCount, stableGeneration, unstableGeneration );
+            int newKeyCount = keyCount - 1;
+            TreeNode.setKeyCount( cursor, newKeyCount );
+            if ( bTreeNode.leafUnderflow( cursor, newKeyCount ) )
+            {
+                underflowInLeaf( cursor, structurePropagation, newKeyCount, stableGeneration, unstableGeneration );
+            }
+        }
+        else
+        {
+            throw new UnsupportedOperationException( "Unexpected merge result " + mergeResult );
         }
     }
 
@@ -576,7 +599,7 @@ class InternalTreeLogic<KEY,VALUE>
         }
 
         // No overflow, insert key and value
-        bTreeNode.insertKeyValueAt( cursor, key, value, pos, keyCount );
+        bTreeNode.insertKeyValueAt( cursor, key, value, pos, keyCount, stableGeneration, unstableGeneration );
         TreeNode.setKeyCount( cursor, keyCount + 1 );
         return false;
     }
@@ -670,7 +693,8 @@ class InternalTreeLogic<KEY,VALUE>
             TreeNode.setLeftSibling( rightCursor, current, stableGeneration, unstableGeneration );
 
             // Do split
-            bTreeNode.doSplitLeaf( cursor, keyCount, rightCursor, pos, newKey, newValue, structurePropagation.rightKey, ratioToKeepInLeftOnSplit );
+            bTreeNode.doSplitLeaf( cursor, keyCount, rightCursor, pos, newKey, newValue, structurePropagation.rightKey, ratioToKeepInLeftOnSplit,
+                    stableGeneration, unstableGeneration );
         }
 
         // Update old right with new left sibling (newRight)
@@ -849,7 +873,7 @@ class InternalTreeLogic<KEY,VALUE>
         {
             // Remove key and right child
             long rightChild = bTreeNode.childAt( cursor, pos + 1, stableGeneration, unstableGeneration );
-            bTreeNode.removeKeyAndRightChildAt( cursor, pos, keyCount );
+            bTreeNode.removeKeyAndRightChildAt( cursor, pos, keyCount, stableGeneration, unstableGeneration );
             TreeNode.setKeyCount( cursor, keyCount - 1 );
 
             doInsertInInternal( cursor, structurePropagation, keyCount - 1, newKey, rightChild, stableGeneration, unstableGeneration );
@@ -920,7 +944,7 @@ class InternalTreeLogic<KEY,VALUE>
             createSuccessorIfNeeded( cursor, structurePropagation, UPDATE_MID_CHILD,
                     stableGeneration, unstableGeneration);
             int keyCount = TreeNode.keyCount( cursor );
-            simplyRemoveFromInternal( cursor, keyCount, subtreePosition, true );
+            simplyRemoveFromInternal( cursor, keyCount, subtreePosition, true, stableGeneration, unstableGeneration );
         }
     }
 
@@ -968,7 +992,7 @@ class InternalTreeLogic<KEY,VALUE>
             // Create new version of node, save rightmost key in structurePropagation, remove rightmost key and child
             createSuccessorIfNeeded( cursor, structurePropagation, UPDATE_MID_CHILD, stableGeneration, unstableGeneration );
             bTreeNode.keyAt( cursor, structurePropagation.bubbleKey, keyCount - 1, INTERNAL );
-            simplyRemoveFromInternal( cursor, keyCount, keyCount - 1, false );
+            simplyRemoveFromInternal( cursor, keyCount, keyCount - 1, false, stableGeneration, unstableGeneration );
 
             return true;
         }
@@ -978,22 +1002,21 @@ class InternalTreeLogic<KEY,VALUE>
         }
     }
 
-    private int simplyRemoveFromInternal( PageCursor cursor, int keyCount, int keyPos, boolean leftChild )
+    private void simplyRemoveFromInternal( PageCursor cursor, int keyCount, int keyPos, boolean leftChild, long stableGeneration, long unstableGeneration )
+            throws IOException
     {
         // Remove key and child
         if ( leftChild )
         {
-            bTreeNode.removeKeyAndLeftChildAt(  cursor, keyPos, keyCount );
+            bTreeNode.removeKeyAndLeftChildAt(  cursor, keyPos, keyCount, stableGeneration, unstableGeneration );
         }
         else
         {
-            bTreeNode.removeKeyAndRightChildAt( cursor, keyPos, keyCount );
+            bTreeNode.removeKeyAndRightChildAt( cursor, keyPos, keyCount, stableGeneration, unstableGeneration );
         }
 
         // Decrease key count
-        int newKeyCount = keyCount - 1;
-        TreeNode.setKeyCount( cursor, newKeyCount );
-        return newKeyCount;
+        TreeNode.setKeyCount( cursor, keyCount - 1 );
     }
 
     private void updateRightmostChildInLeftSibling( PageCursor cursor, long childPointer, long stableGeneration,
@@ -1057,7 +1080,7 @@ class InternalTreeLogic<KEY,VALUE>
 
         createSuccessorIfNeeded( cursor, structurePropagation, UPDATE_MID_CHILD,
                 stableGeneration, unstableGeneration );
-        keyCount = simplyRemoveFromLeaf( cursor, into, keyCount, pos );
+        keyCount = simplyRemoveFromLeaf( cursor, into, keyCount, pos, stableGeneration, unstableGeneration );
 
         if ( bTreeNode.leafUnderflow( cursor, keyCount ) )
         {
@@ -1210,14 +1233,16 @@ class InternalTreeLogic<KEY,VALUE>
      * @param into VALUE in which to store removed value
      * @param keyCount Key count of node before remove
      * @param pos Position to remove from
+     * @param stableGeneration stable generation, i.e. generations <= this generation are considered stable.
+     * @param unstableGeneration unstable generation, i.e. generation which is under development right now.
      * @return keyCount after remove
      */
-    private int simplyRemoveFromLeaf( PageCursor cursor, VALUE into, int keyCount, int pos )
+    private int simplyRemoveFromLeaf( PageCursor cursor, VALUE into, int keyCount, int pos, long stableGeneration, long unstableGeneration ) throws IOException
     {
         // Save value to remove
         bTreeNode.valueAt( cursor, into, pos );
         // Remove key/value
-        bTreeNode.removeKeyValueAt( cursor, pos, keyCount );
+        bTreeNode.removeKeyValueAt( cursor, pos, keyCount, stableGeneration, unstableGeneration );
 
         // Decrease key count
         int newKeyCount = keyCount - 1;

@@ -19,7 +19,11 @@
  */
 package org.neo4j.server.security.auth;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
+
+import org.neo4j.cypher.internal.security.SecureHasher;
+import org.neo4j.cypher.internal.security.SystemGraphCredential;
 
 import static org.neo4j.kernel.api.security.AuthToken.newBasicAuthToken;
 
@@ -32,5 +36,15 @@ public class SecurityTestUtils
     public static Map<String,Object> authToken( String username, String password )
     {
         return newBasicAuthToken( username, password );
+    }
+
+    public static byte[] password( String passwordString )
+    {
+        return passwordString != null ? passwordString.getBytes( StandardCharsets.UTF_8 ) : null;
+    }
+
+    public static SystemGraphCredential credentialFor( String passwordString )
+    {
+        return SystemGraphCredential.createCredentialForPassword( password( passwordString ), new SecureHasher() );
     }
 }

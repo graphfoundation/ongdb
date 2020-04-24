@@ -22,11 +22,12 @@ package org.neo4j.kernel.api.impl.schema.verification;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.index.LeafReader;
 import org.apache.lucene.index.LeafReaderContext;
+import org.apache.lucene.search.ScoreMode;
 import org.apache.lucene.search.SimpleCollector;
 
 import java.io.IOException;
 
-import org.neo4j.internal.kernel.api.exceptions.KernelException;
+import org.neo4j.exceptions.KernelException;
 import org.neo4j.kernel.api.exceptions.index.IndexEntryConflictException;
 import org.neo4j.kernel.api.impl.schema.LuceneDocumentStructure;
 import org.neo4j.kernel.api.impl.schema.verification.DuplicateCheckStrategy.BucketsDuplicateCheckStrategy;
@@ -59,13 +60,13 @@ public class DuplicateCheckingCollector extends SimpleCollector
         {
             doCollect( doc );
         }
-        catch ( KernelException e )
-        {
-            throw new IllegalStateException( "Indexed node should exist and have the indexed property.", e );
-        }
         catch ( IndexEntryConflictException e )
         {
             throw new IOException( e );
+        }
+        catch ( KernelException e )
+        {
+            throw new IllegalStateException( "Indexed node should exist and have the indexed property.", e );
         }
     }
 
@@ -84,9 +85,9 @@ public class DuplicateCheckingCollector extends SimpleCollector
     }
 
     @Override
-    public boolean needsScores()
+    public ScoreMode scoreMode()
     {
-        return false;
+        return ScoreMode.COMPLETE_NO_SCORES;
     }
 
     /**

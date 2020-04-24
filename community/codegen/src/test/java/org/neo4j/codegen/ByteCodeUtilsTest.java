@@ -19,27 +19,32 @@
  */
 package org.neo4j.codegen;
 
-import org.junit.Test;
 
+import org.junit.jupiter.api.Test;
+
+import java.util.Arrays;
 import java.util.List;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.neo4j.codegen.ByteCodeUtils.assertMethodExists;
 import static org.neo4j.codegen.ByteCodeUtils.desc;
 import static org.neo4j.codegen.ByteCodeUtils.exceptions;
 import static org.neo4j.codegen.ByteCodeUtils.signature;
 import static org.neo4j.codegen.ByteCodeUtils.typeName;
 import static org.neo4j.codegen.MethodDeclaration.method;
+import static org.neo4j.codegen.MethodReference.methodReference;
 import static org.neo4j.codegen.Parameter.param;
 import static org.neo4j.codegen.TypeReference.extending;
 import static org.neo4j.codegen.TypeReference.typeParameter;
 import static org.neo4j.codegen.TypeReference.typeReference;
 
-public class ByteCodeUtilsTest
+class ByteCodeUtilsTest
 {
     @Test
-    public void shouldTranslateTypeNames()
+    void shouldTranslateTypeNames()
     {
         //primitive types
         assertTypeName( int.class, "I" );
@@ -68,7 +73,7 @@ public class ByteCodeUtilsTest
     }
 
     @Test
-    public void shouldDescribeMethodWithNoParameters()
+    void shouldDescribeMethodWithNoParameters()
     {
         // GIVEN
         TypeReference owner = typeReference( ByteCodeUtilsTest.class );
@@ -82,7 +87,7 @@ public class ByteCodeUtilsTest
     }
 
     @Test
-    public void shouldDescribeMethodWithParameters()
+    void shouldDescribeMethodWithParameters()
     {
         // GIVEN
         TypeReference owner = typeReference( ByteCodeUtilsTest.class );
@@ -98,7 +103,7 @@ public class ByteCodeUtilsTest
     }
 
     @Test
-    public void signatureShouldBeNullWhenNotGeneric()
+    void signatureShouldBeNullWhenNotGeneric()
     {
         // GIVEN
         TypeReference reference = typeReference( String.class );
@@ -111,7 +116,7 @@ public class ByteCodeUtilsTest
     }
 
     @Test
-    public void signatureShouldBeCorrectWhenGeneric()
+    void signatureShouldBeCorrectWhenGeneric()
     {
         // GIVEN
         TypeReference reference = TypeReference.parameterizedType( List.class, String.class );
@@ -124,7 +129,7 @@ public class ByteCodeUtilsTest
     }
 
     @Test
-    public void methodSignatureShouldBeNullWhenNotGeneric()
+    void methodSignatureShouldBeNullWhenNotGeneric()
     {
         // GIVEN
         TypeReference owner = typeReference( ByteCodeUtilsTest.class );
@@ -140,7 +145,7 @@ public class ByteCodeUtilsTest
     }
 
     @Test
-    public void methodSignatureShouldBeCorrectWhenGeneric()
+    void methodSignatureShouldBeCorrectWhenGeneric()
     {
         // GIVEN
         TypeReference owner = typeReference( ByteCodeUtilsTest.class );
@@ -156,7 +161,7 @@ public class ByteCodeUtilsTest
     }
 
     @Test
-    public void shouldHandleGenericReturnType()
+    void shouldHandleGenericReturnType()
     {
         // GIVEN
         TypeReference owner = typeReference( ByteCodeUtilsTest.class );
@@ -175,7 +180,7 @@ public class ByteCodeUtilsTest
     }
 
     @Test
-    public void shouldHandleGenericThrows()
+    void shouldHandleGenericThrows()
     {
         // GIVEN
         TypeReference owner = typeReference( ByteCodeUtilsTest.class );
@@ -193,6 +198,82 @@ public class ByteCodeUtilsTest
         assertThat( exceptions, equalTo(new String[]{"java/lang/Exception"} ));
     }
 
+    @Test
+    void shouldHandleNestedInnerClasses()
+    {
+        // Given
+        TypeReference innerInner = typeReference( Inner.InnerInner.class );
+
+        // When
+        String byteCodeName = ByteCodeUtils.byteCodeName( innerInner );
+
+        // Then
+        assertThat( byteCodeName, equalTo( "org/neo4j/codegen/ByteCodeUtilsTest$Inner$InnerInner" ));
+    }
+
+    @Test
+    void assertMethodExistsShouldHandlePrimitiveAndReferenceTypes()
+    {
+        List<Class<?>> types =
+                Arrays.asList( byte.class, char.class, short.class, int.class, long.class, float.class, double.class,
+                        boolean.class, String.class );
+
+        TypeReference owner = typeReference( Tester.class );
+        for ( Class<?> type : types )
+        {
+            assertMethodExists( methodReference( owner, typeReference( type ),
+                    type.getSimpleName().toLowerCase() + "Method", typeReference( type ) ) );
+        }
+    }
+
+    @Test
+    void assertMethodExistsShouldFailOnBadMethodName()
+    {
+        assertThrows( AssertionError.class, () ->
+                assertMethodExists(methodReference( typeReference( Tester.class ),
+                        typeReference( byte.class ), "bteMethod", typeReference( byte.class ) )) );
+    }
+
+    @Test
+    void assertMethodExistsShouldFailOnBadReturnType()
+    {
+        assertThrows( AssertionError.class, () ->
+                assertMethodExists(methodReference( typeReference( Tester.class ),
+                        typeReference( float.class ), "byteMethod", typeReference( byte.class ) )) );
+    }
+
+    @Test
+    void assertMethodExistsShouldFailOnBadParameterType()
+    {
+        assertThrows( AssertionError.class, () ->
+                assertMethodExists(methodReference( typeReference( Tester.class ),
+                        typeReference( byte.class ), "byteMethod", typeReference( float.class ) )) );
+    }
+
+    @Test
+    void assertMethodExistsShouldFailOnMissingParameter()
+    {
+        assertThrows( AssertionError.class, () ->
+                assertMethodExists(methodReference( typeReference( Tester.class ),
+                        typeReference( byte.class ), "byteMethod" )) );
+    }
+
+    @Test
+    void assertMethodExistsShouldFailOnTooManyParameters()
+    {
+        assertThrows( AssertionError.class, () ->
+                assertMethodExists( methodReference( typeReference( Tester.class ),
+                        typeReference( byte.class ), "byteMethod", typeReference( byte.class ),
+                        typeReference( byte.class ) ) ) );
+    }
+
+    class Inner
+    {
+        class InnerInner
+        {
+        }
+    }
+
     private void assertTypeName( Class<?> type, String expected )
     {
         // GIVEN
@@ -203,5 +284,54 @@ public class ByteCodeUtilsTest
 
         // THEN
         assertThat( byteCodeName, equalTo( expected ) );
+    }
+
+    @SuppressWarnings( "unused" )
+    static class Tester
+    {
+        public byte byteMethod( byte b )
+        {
+            return b;
+        }
+
+        public char charMethod( char c )
+        {
+            return c;
+        }
+
+        public short shortMethod( short s )
+        {
+            return s;
+        }
+
+        public int intMethod( int i )
+        {
+            return i;
+        }
+
+        public long longMethod( long l )
+        {
+            return l;
+        }
+
+        public float floatMethod( float f )
+        {
+            return f;
+        }
+
+        public double doubleMethod( double d )
+        {
+            return d;
+        }
+
+        public boolean booleanMethod( boolean b )
+        {
+            return b;
+        }
+
+        public String stringMethod( String s )
+        {
+            return s;
+        }
     }
 }

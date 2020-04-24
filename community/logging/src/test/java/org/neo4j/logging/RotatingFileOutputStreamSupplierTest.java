@@ -22,6 +22,8 @@ package org.neo4j.logging;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.parallel.ResourceLock;
+import org.junit.jupiter.api.parallel.Resources;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -49,15 +51,14 @@ import org.neo4j.adversaries.RandomAdversary;
 import org.neo4j.adversaries.fs.AdversarialFileSystemAbstraction;
 import org.neo4j.adversaries.fs.AdversarialOutputStream;
 import org.neo4j.function.Suppliers;
-import org.neo4j.graphdb.mockfs.DelegatingFileSystemAbstraction;
-import org.neo4j.graphdb.mockfs.EphemeralFileSystemAbstraction;
 import org.neo4j.io.fs.DefaultFileSystemAbstraction;
+import org.neo4j.io.fs.DelegatingFileSystemAbstraction;
+import org.neo4j.io.fs.EphemeralFileSystemAbstraction;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.logging.RotatingFileOutputStreamSupplier.RotationListener;
-import org.neo4j.test.extension.EphemeralFileSystemExtension;
 import org.neo4j.test.extension.Inject;
 import org.neo4j.test.extension.SuppressOutputExtension;
-import org.neo4j.test.extension.TestDirectoryExtension;
+import org.neo4j.test.extension.testdirectory.EphemeralTestDirectoryExtension;
 import org.neo4j.test.rule.SuppressOutput;
 import org.neo4j.test.rule.TestDirectory;
 
@@ -70,7 +71,7 @@ import static org.hamcrest.core.Is.is;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTimeout;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
@@ -81,7 +82,9 @@ import static org.mockito.Mockito.verify;
 import static org.neo4j.logging.FormattedLog.OUTPUT_STREAM_CONVERTER;
 import static org.neo4j.logging.RotatingFileOutputStreamSupplier.getAllArchives;
 
-@ExtendWith( {SuppressOutputExtension.class, EphemeralFileSystemExtension.class, TestDirectoryExtension.class} )
+@EphemeralTestDirectoryExtension
+@ExtendWith( SuppressOutputExtension.class )
+@ResourceLock( Resources.SYSTEM_OUT )
 class RotatingFileOutputStreamSupplierTest
 {
     private static final long TEST_TIMEOUT_MILLIS = 10_000;
@@ -107,7 +110,7 @@ class RotatingFileOutputStreamSupplierTest
     @BeforeEach
     void setup()
     {
-        File logDir = testDirectory.directory();
+        File logDir = testDirectory.homeDir();
         logFile = new File( logDir, "logfile.log" );
         archiveLogFile1 = new File( logDir, "logfile.log.1" );
         archiveLogFile2 = new File( logDir, "logfile.log.2" );
@@ -187,7 +190,7 @@ class RotatingFileOutputStreamSupplierTest
     @Test
     void rotationShouldNotDeadlockOnListener()
     {
-        assertTimeout( ofMillis( TEST_TIMEOUT_MILLIS ), () ->
+        assertTimeoutPreemptively( ofMillis( TEST_TIMEOUT_MILLIS ), () ->
         {
             String logContent = "Output file created";
             final AtomicReference<Exception> listenerException = new AtomicReference<>( null );
@@ -243,8 +246,7 @@ class RotatingFileOutputStreamSupplierTest
 
             shutDownExecutor( executor );
 
-            List<String> strings = Files.readAllLines( logFile.toPath() );
-            String actual = String.join( "", strings );
+            String actual = Files.readString( logFile.toPath() );
             assertEquals( logContent, actual );
             assertNull( listenerException.get() );
         } );

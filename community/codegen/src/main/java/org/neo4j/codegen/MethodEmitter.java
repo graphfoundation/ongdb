@@ -23,11 +23,15 @@ import java.util.function.Consumer;
 
 public interface MethodEmitter
 {
+    boolean isStatic();
+
     void done();
 
     void expression( Expression expression );
 
     void put( Expression target, FieldReference field, Expression value );
+
+    void putStatic( FieldReference field, Expression value );
 
     void returns();
 
@@ -35,15 +39,19 @@ public interface MethodEmitter
 
     void continues();
 
+    void breaks( String labelName );
+
     void assign( LocalVariable local, Expression value );
 
-    void beginWhile( Expression test );
+    void beginWhile( Expression test, String labelName );
 
     void beginIf( Expression test );
 
     void beginBlock();
 
     void endBlock();
+
+    <T> void ifElseStatement( Expression test, Consumer<T> onTrue, Consumer<T> onFalse, T block );
 
     <T> void tryCatchBlock( Consumer<T> body, Consumer<T> handler, LocalVariable exception, T block );
 

@@ -19,36 +19,37 @@
  */
 package org.neo4j.kernel.impl.newapi;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.mockito.InOrder;
 
 import org.neo4j.internal.kernel.api.IndexQuery;
-import org.neo4j.internal.kernel.api.IndexReference;
 import org.neo4j.internal.kernel.api.NodeValueIndexCursor;
-import org.neo4j.kernel.api.schema.SchemaDescriptorFactory;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.internal.schema.IndexPrototype;
+import org.neo4j.internal.schema.SchemaDescriptor;
 import org.neo4j.kernel.impl.locking.Locks;
 import org.neo4j.kernel.impl.newapi.LockingNodeUniqueIndexSeek.UniqueNodeIndexSeeker;
-import org.neo4j.storageengine.api.lock.LockTracer;
-import org.neo4j.storageengine.api.schema.IndexDescriptorFactory;
+import org.neo4j.lock.LockTracer;
 import org.neo4j.values.storable.Value;
 import org.neo4j.values.storable.Values;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 import static org.neo4j.internal.kernel.api.IndexQuery.exact;
-import static org.neo4j.kernel.impl.locking.ResourceTypes.INDEX_ENTRY;
-import static org.neo4j.kernel.impl.locking.ResourceTypes.indexEntryResourceId;
+import static org.neo4j.kernel.impl.locking.ResourceIds.indexEntryResourceId;
+import static org.neo4j.lock.ResourceTypes.INDEX_ENTRY;
 
-public class LockingNodeUniqueIndexSeekTest
+class LockingNodeUniqueIndexSeekTest
 {
     private final int labelId = 1;
     private final int propertyKeyId = 2;
-    private IndexReference index = IndexDescriptorFactory.uniqueForSchema( SchemaDescriptorFactory.forLabel( labelId, propertyKeyId ) );
+    private IndexDescriptor index = IndexPrototype.uniqueForSchema( SchemaDescriptor.forLabel( labelId, propertyKeyId ) )
+            .withName( "index_12" ).materialise( 12 );
 
     private final Value value = Values.of( "value" );
     private final IndexQuery.ExactPredicate predicate = exact( propertyKeyId, value );
@@ -59,14 +60,14 @@ public class LockingNodeUniqueIndexSeekTest
     private final Read read = mock( Read.class );
     private InOrder order;
 
-    @Before
-    public void setup()
+    @BeforeEach
+    void setup()
     {
         order = inOrder( locks );
     }
 
     @Test
-    public void shouldHoldSharedIndexLockIfNodeIsExists() throws Exception
+    void shouldHoldSharedIndexLockIfNodeIsExists() throws Exception
     {
         // given
         NodeValueIndexCursor cursor = mock( NodeValueIndexCursor.class );
@@ -76,7 +77,7 @@ public class LockingNodeUniqueIndexSeekTest
         // when
         long nodeId = LockingNodeUniqueIndexSeek.apply( locks,
                                                         LockTracer.NONE,
-                                                        () -> cursor,
+                                                        cursor,
                                                         uniqueNodeIndexSeeker,
                                                         read,
                                                         index,
@@ -86,12 +87,10 @@ public class LockingNodeUniqueIndexSeekTest
         assertEquals( 42L, nodeId );
         verify( locks ).acquireShared( LockTracer.NONE, INDEX_ENTRY, resourceId );
         verifyNoMoreInteractions( locks );
-
-        verify( cursor ).close();
     }
 
     @Test
-    public void shouldHoldSharedIndexLockIfNodeIsConcurrentlyCreated() throws Exception
+    void shouldHoldSharedIndexLockIfNodeIsConcurrentlyCreated() throws Exception
     {
         // given
         NodeValueIndexCursor cursor = mock( NodeValueIndexCursor.class );
@@ -101,7 +100,7 @@ public class LockingNodeUniqueIndexSeekTest
         // when
         long nodeId = LockingNodeUniqueIndexSeek.apply( locks,
                                                         LockTracer.NONE,
-                                                        () -> cursor,
+                                                        cursor,
                                                         uniqueNodeIndexSeeker,
                                                         read,
                                                         index,
@@ -115,12 +114,10 @@ public class LockingNodeUniqueIndexSeekTest
         order.verify( locks ).acquireShared( LockTracer.NONE, INDEX_ENTRY, resourceId );
         order.verify( locks ).releaseExclusive( INDEX_ENTRY, resourceId );
         verifyNoMoreInteractions( locks );
-
-        verify( cursor ).close();
     }
 
     @Test
-    public void shouldHoldExclusiveIndexLockIfNodeDoesNotExist() throws Exception
+    void shouldHoldExclusiveIndexLockIfNodeDoesNotExist() throws Exception
     {
         // given
         NodeValueIndexCursor cursor = mock( NodeValueIndexCursor.class );
@@ -130,7 +127,7 @@ public class LockingNodeUniqueIndexSeekTest
         // when
         long nodeId = LockingNodeUniqueIndexSeek.apply( locks,
                                                         LockTracer.NONE,
-                                                        () -> cursor,
+                                                        cursor,
                                                         uniqueNodeIndexSeeker,
                                                         read,
                                                         index,
@@ -142,7 +139,5 @@ public class LockingNodeUniqueIndexSeekTest
         order.verify( locks ).releaseShared( INDEX_ENTRY, resourceId );
         order.verify( locks ).acquireExclusive( LockTracer.NONE, INDEX_ENTRY, resourceId );
         verifyNoMoreInteractions( locks );
-
-        verify( cursor ).close();
     }
 }

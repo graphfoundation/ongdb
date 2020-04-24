@@ -19,13 +19,13 @@
  */
 package org.neo4j.consistency.checking;
 
-import org.neo4j.internal.kernel.api.schema.IndexProviderDescriptor;
-import org.neo4j.kernel.api.schema.constraints.ConstraintDescriptorFactory;
-import org.neo4j.kernel.impl.store.record.ConstraintRule;
-import org.neo4j.storageengine.api.schema.IndexDescriptorFactory;
-import org.neo4j.storageengine.api.schema.StoreIndexDescriptor;
+import org.neo4j.internal.schema.ConstraintDescriptor;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.internal.schema.IndexPrototype;
+import org.neo4j.internal.schema.IndexProviderDescriptor;
+import org.neo4j.internal.schema.constraints.ConstraintDescriptorFactory;
 
-import static org.neo4j.kernel.api.schema.SchemaDescriptorFactory.forLabel;
+import static org.neo4j.internal.schema.SchemaDescriptor.forLabel;
 
 public class SchemaRuleUtil
 {
@@ -33,39 +33,40 @@ public class SchemaRuleUtil
     {
     }
 
-    public static ConstraintRule uniquenessConstraintRule( long ruleId, int labelId, int propertyId, long indexId )
+    public static ConstraintDescriptor uniquenessConstraintRule( long ruleId, int labelId, int propertyId, long indexId )
     {
-        return ConstraintRule.constraintRule( ruleId,
-                ConstraintDescriptorFactory.uniqueForLabel( labelId, propertyId ), indexId );
+        return ConstraintDescriptorFactory.uniqueForLabel( labelId, propertyId )
+                .withId( ruleId ).withName( "constraint_" + ruleId ).withOwnedIndexId( indexId );
     }
 
-    public static ConstraintRule nodePropertyExistenceConstraintRule( long ruleId, int labelId, int propertyId )
+    public static ConstraintDescriptor nodePropertyExistenceConstraintRule( long ruleId, int labelId, int propertyId )
     {
-        return ConstraintRule.constraintRule( ruleId,
-                ConstraintDescriptorFactory.existsForLabel( labelId, propertyId ) );
+        return ConstraintDescriptorFactory.existsForLabel( labelId, propertyId )
+                .withId( ruleId ).withName( "constraint_" + ruleId );
     }
 
-    public static ConstraintRule relPropertyExistenceConstraintRule( long ruleId, int labelId, int propertyId )
+    public static ConstraintDescriptor relPropertyExistenceConstraintRule( long ruleId, int relTypeId, int propertyId )
     {
-        return ConstraintRule.constraintRule( ruleId,
-                ConstraintDescriptorFactory.existsForRelType( labelId, propertyId ) );
+        return ConstraintDescriptorFactory.existsForRelType( relTypeId, propertyId )
+                .withId( ruleId ).withName( "constraint_" + ruleId );
     }
 
-    public static StoreIndexDescriptor indexRule( long ruleId, int labelId, int propertyId, IndexProviderDescriptor
-            descriptor )
+    public static IndexDescriptor indexRule( long ruleId, int labelId, int propertyId, IndexProviderDescriptor descriptor )
     {
-        return IndexDescriptorFactory.forSchema( forLabel( labelId, propertyId ), descriptor ).withId( ruleId );
+        return IndexPrototype.forSchema( forLabel( labelId, propertyId ), descriptor ).withName( "index_" + ruleId ).materialise( ruleId );
     }
 
-    public static StoreIndexDescriptor constraintIndexRule( long ruleId, int labelId, int propertyId,
+    public static IndexDescriptor constraintIndexRule( long ruleId, int labelId, int propertyId,
                                                             IndexProviderDescriptor descriptor, long constraintId )
     {
-        return IndexDescriptorFactory.uniqueForSchema( forLabel( labelId, propertyId ), descriptor ).withIds( ruleId, constraintId );
+        return IndexPrototype.uniqueForSchema( forLabel( labelId, propertyId ), descriptor )
+                .withName( "constraint_" + constraintId ).materialise( ruleId ).withOwningConstraintId( constraintId );
     }
 
-    public static StoreIndexDescriptor constraintIndexRule( long ruleId, int labelId, int propertyId,
+    public static IndexDescriptor constraintIndexRule( long ruleId, int labelId, int propertyId,
                                                             IndexProviderDescriptor descriptor )
     {
-        return IndexDescriptorFactory.uniqueForSchema( forLabel( labelId, propertyId ), descriptor ).withId( ruleId );
+        return IndexPrototype.uniqueForSchema( forLabel( labelId, propertyId ), descriptor )
+                .withName( "constraint_" + ruleId ).materialise( ruleId );
     }
 }

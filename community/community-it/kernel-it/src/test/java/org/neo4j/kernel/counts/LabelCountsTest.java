@@ -19,53 +19,40 @@
  */
 package org.neo4j.kernel.counts;
 
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import java.util.function.Supplier;
-
-import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Transaction;
 import org.neo4j.internal.kernel.api.Read;
 import org.neo4j.internal.kernel.api.TokenRead;
 import org.neo4j.kernel.api.KernelTransaction;
-import org.neo4j.kernel.api.StatementConstants;
-import org.neo4j.kernel.impl.core.ThreadToStatementContextBridge;
-import org.neo4j.test.rule.DatabaseRule;
-import org.neo4j.test.rule.ImpermanentDatabaseRule;
+import org.neo4j.kernel.impl.coreapi.InternalTransaction;
+import org.neo4j.kernel.internal.GraphDatabaseAPI;
+import org.neo4j.test.extension.ImpermanentDbmsExtension;
+import org.neo4j.test.extension.Inject;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.neo4j.graphdb.Label.label;
+import static org.neo4j.internal.kernel.api.TokenRead.ANY_LABEL;
 
-public class LabelCountsTest
+@ImpermanentDbmsExtension
+class LabelCountsTest
 {
-    @Rule
-    public final DatabaseRule db = new ImpermanentDatabaseRule();
-
-    private Supplier<KernelTransaction> transactionSupplier;
-
-    @Before
-    public void exposeGuts()
-    {
-        transactionSupplier = () -> db.getGraphDatabaseAPI().getDependencyResolver()
-                .resolveDependency( ThreadToStatementContextBridge.class ).getKernelTransactionBoundToThisThread( true );
-    }
+    @Inject
+    private GraphDatabaseAPI db;
 
     @Test
-    public void shouldGetNumberOfNodesWithLabel()
+    void shouldGetNumberOfNodesWithLabel()
     {
         // given
-        GraphDatabaseService graphDb = db.getGraphDatabaseAPI();
-        try ( Transaction tx = graphDb.beginTx() )
+        try ( Transaction tx = db.beginTx() )
         {
-            graphDb.createNode( label( "Foo" ) );
-            graphDb.createNode( label( "Bar" ) );
-            graphDb.createNode( label( "Bar" ) );
+            tx.createNode( label( "Foo" ) );
+            tx.createNode( label( "Bar" ) );
+            tx.createNode( label( "Bar" ) );
 
-            tx.success();
+            tx.commit();
         }
 
         // when
@@ -78,23 +65,22 @@ public class LabelCountsTest
     }
 
     @Test
-    public void shouldAccountForDeletedNodes()
+    void shouldAccountForDeletedNodes()
     {
         // given
-        GraphDatabaseService graphDb = db.getGraphDatabaseAPI();
         Node node;
-        try ( Transaction tx = graphDb.beginTx() )
+        try ( Transaction tx = db.beginTx() )
         {
-            node = graphDb.createNode( label( "Foo" ) );
-            graphDb.createNode( label( "Foo" ) );
+            node = tx.createNode( label( "Foo" ) );
+            tx.createNode( label( "Foo" ) );
 
-            tx.success();
+            tx.commit();
         }
-        try ( Transaction tx = graphDb.beginTx() )
+        try ( Transaction tx = db.beginTx() )
         {
-            node.delete();
+            tx.getNodeById( node.getId() ).delete();
 
-            tx.success();
+            tx.commit();
         }
 
         // when
@@ -105,24 +91,23 @@ public class LabelCountsTest
     }
 
     @Test
-    public void shouldAccountForDeletedNodesWithMultipleLabels()
+    void shouldAccountForDeletedNodesWithMultipleLabels()
     {
         // given
-        GraphDatabaseService graphDb = db.getGraphDatabaseAPI();
         Node node;
-        try ( Transaction tx = graphDb.beginTx() )
+        try ( Transaction tx = db.beginTx() )
         {
-            node = graphDb.createNode( label( "Foo" ), label( "Bar" ) );
-            graphDb.createNode( label( "Foo" ) );
-            graphDb.createNode( label( "Bar" ) );
+            node = tx.createNode( label( "Foo" ), label( "Bar" ) );
+            tx.createNode( label( "Foo" ) );
+            tx.createNode( label( "Bar" ) );
 
-            tx.success();
+            tx.commit();
         }
-        try ( Transaction tx = graphDb.beginTx() )
+        try ( Transaction tx = db.beginTx() )
         {
-            node.delete();
+            tx.getNodeById( node.getId() ).delete();
 
-            tx.success();
+            tx.commit();
         }
 
         // when
@@ -135,28 +120,27 @@ public class LabelCountsTest
     }
 
     @Test
-    public void shouldAccountForAddedLabels()
+    void shouldAccountForAddedLabels()
     {
         // given
-        GraphDatabaseService graphDb = db.getGraphDatabaseAPI();
         Node n1;
         Node n2;
         Node n3;
-        try ( Transaction tx = graphDb.beginTx() )
+        try ( Transaction tx = db.beginTx() )
         {
-            n1 = graphDb.createNode( label( "Foo" ) );
-            n2 = graphDb.createNode();
-            n3 = graphDb.createNode();
+            n1 = tx.createNode( label( "Foo" ) );
+            n2 = tx.createNode();
+            n3 = tx.createNode();
 
-            tx.success();
+            tx.commit();
         }
-        try ( Transaction tx = graphDb.beginTx() )
+        try ( Transaction tx = db.beginTx() )
         {
-            n1.addLabel( label( "Bar" ) );
-            n2.addLabel( label( "Bar" ) );
-            n3.addLabel( label( "Foo" ) );
+            tx.getNodeById( n1.getId() ).addLabel( label( "Bar" ) );
+            tx.getNodeById( n2.getId() ).addLabel( label( "Bar" ) );
+            tx.getNodeById( n3.getId() ).addLabel( label( "Foo" ) );
 
-            tx.success();
+            tx.commit();
         }
 
         // when
@@ -169,28 +153,27 @@ public class LabelCountsTest
     }
 
     @Test
-    public void shouldAccountForRemovedLabels()
+    void shouldAccountForRemovedLabels()
     {
         // given
-        GraphDatabaseService graphDb = db.getGraphDatabaseAPI();
         Node n1;
         Node n2;
         Node n3;
-        try ( Transaction tx = graphDb.beginTx() )
+        try ( Transaction tx = db.beginTx() )
         {
-            n1 = graphDb.createNode( label( "Foo" ), label( "Bar" ) );
-            n2 = graphDb.createNode( label( "Bar" ) );
-            n3 = graphDb.createNode( label( "Foo" ) );
+            n1 = tx.createNode( label( "Foo" ), label( "Bar" ) );
+            n2 = tx.createNode( label( "Bar" ) );
+            n3 = tx.createNode( label( "Foo" ) );
 
-            tx.success();
+            tx.commit();
         }
-        try ( Transaction tx = graphDb.beginTx() )
+        try ( Transaction tx = db.beginTx() )
         {
-            n1.removeLabel( label( "Bar" ) );
-            n2.removeLabel( label( "Bar" ) );
-            n3.removeLabel( label( "Foo" ) );
+            tx.getNodeById( n1.getId() ).removeLabel( label( "Bar" ) );
+            tx.getNodeById( n2.getId() ).removeLabel( label( "Bar" ) );
+            tx.getNodeById( n3.getId() ).removeLabel( label( "Foo" ) );
 
-            tx.success();
+            tx.commit();
         }
 
         // when
@@ -202,26 +185,26 @@ public class LabelCountsTest
         assertEquals( 0, barCount );
     }
 
-    /** Transactional version of {@link #countsForNode(Label)} */
+    /** Transactional version of {@link #countsForNode(Transaction, Label)} */
     private long numberOfNodesWith( Label label )
     {
-        try ( Transaction tx = db.getGraphDatabaseAPI().beginTx() )
+        try ( Transaction tx = db.beginTx() )
         {
-            long nodeCount = countsForNode( label );
-            tx.success();
+            long nodeCount = countsForNode( tx, label );
+            tx.commit();
             return nodeCount;
         }
     }
 
     /** @param label the label to get the number of nodes of, or {@code null} to get the total number of nodes. */
-    private long countsForNode( Label label )
+    private long countsForNode( Transaction tx, Label label )
     {
-        KernelTransaction transaction = transactionSupplier.get();
+        KernelTransaction transaction = ((InternalTransaction) tx).kernelTransaction();
         Read read = transaction.dataRead();
         int labelId;
         if ( label == null )
         {
-            labelId = StatementConstants.ANY_LABEL;
+            labelId = ANY_LABEL;
         }
         else
         {

@@ -78,6 +78,36 @@ class ExpressionToString implements ExpressionVisitor
     }
 
     @Override
+    public void arrayLoad( Expression array, Expression index )
+    {
+        result.append( "loadArray{array=" );
+        array.accept( this );
+        result.append( ", index=" );
+        index.accept( this );
+        result.append( "}" );
+    }
+
+    @Override
+    public void arraySet( Expression array, Expression index, Expression value )
+    {
+        result.append( "setArray{array=" );
+        array.accept( this );
+        result.append( ", index=" );
+        index.accept( this );
+        result.append( ", value=" );
+        value.accept( this );
+        result.append( "}" );
+    }
+
+    @Override
+    public void arrayLength( Expression array )
+    {
+        result.append( "length{array=" );
+        array.accept( this );
+        result.append( "}" );
+    }
+
+    @Override
     public void getField( Expression target, FieldReference field )
     {
         result.append( "get{target=" );
@@ -291,7 +321,7 @@ class ExpressionToString implements ExpressionVisitor
     }
 
     @Override
-    public void newArray( TypeReference type, Expression... constants )
+    public void newInitializedArray( TypeReference type, Expression... constants )
     {
         result.append( "newArray{type=" );
         type.writeTo( result );
@@ -304,6 +334,14 @@ class ExpressionToString implements ExpressionVisitor
             sep = ", ";
         }
         result.append( "}" );
+    }
+
+    @Override
+    public void newArray( TypeReference type, int size )
+    {
+        result.append( "newArray{type=" );
+        type.writeTo( result );
+        result.append( ", size=" ).append( size ).append( "}" );
     }
 
     @Override

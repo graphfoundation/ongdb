@@ -19,13 +19,14 @@
  */
 package org.neo4j.kernel.impl.api.index;
 
-import org.neo4j.internal.kernel.api.exceptions.schema.MisconfiguredIndexException;
-import org.neo4j.internal.kernel.api.schema.IndexProviderDescriptor;
-import org.neo4j.internal.kernel.api.schema.SchemaDescriptor;
-import org.neo4j.storageengine.api.schema.IndexDescriptor;
+import org.neo4j.internal.schema.IndexConfigCompleter;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.internal.schema.IndexPrototype;
+import org.neo4j.internal.schema.IndexProviderDescriptor;
+import org.neo4j.kernel.api.index.IndexProvider;
 import org.neo4j.values.storable.Value;
 
-public interface IndexingProvidersService
+public interface IndexingProvidersService extends IndexConfigCompleter
 {
     /**
      * Get the index provider descriptor for the index provider with the given name, or the
@@ -38,18 +39,28 @@ public interface IndexingProvidersService
     /**
      * Validate that the given value tuple can be stored in the index associated with the given schema.
      *
-     * @param schema index schema of the target index
+     * @param index the target index
      * @param tuple value tuple to validate
      */
-    void validateBeforeCommit( SchemaDescriptor schema, Value[] tuple );
+    void validateBeforeCommit( IndexDescriptor index, Value[] tuple );
 
     /**
-     * Since indexes can now have provider-specific settings and configurations, the provider needs to have an opportunity to inspect and validate the index
-     * descriptor before an index is created. The return descriptor is a blessed version of the given descriptor, and is what must be used for creating an
-     * index.
-     * @param index The descriptor of an index that we are about to create, and we wish to be blessed by its chosen index provider.
-     * @return The blessed index descriptor.
-     * @throws MisconfiguredIndexException if the provider cannot be bless the given index descriptor.
+     * Validate the given index prototype, or throw an {@link IllegalArgumentException}.
+     * @param prototype The prototype to the validated.
      */
-    IndexDescriptor getBlessedDescriptorFromProvider( IndexDescriptor index ) throws MisconfiguredIndexException;
+    void validateIndexPrototype( IndexPrototype prototype );
+
+    /**
+     * There's always a default {@link IndexProvider}, this method returns it.
+     *
+     * @return the default index provider for this instance.
+     */
+    IndexProviderDescriptor getDefaultProvider();
+
+    /**
+     * The preferred {@link IndexProvider} for handling full-text indexes.
+     *
+     * @return the default or preferred index provider for full-text indexes.
+     */
+    IndexProviderDescriptor getFulltextProvider();
 }

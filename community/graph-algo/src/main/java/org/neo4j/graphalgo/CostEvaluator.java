@@ -19,6 +19,7 @@
  */
 package org.neo4j.graphalgo;
 
+import org.neo4j.annotations.api.PublicApi;
 import org.neo4j.graphdb.Direction;
 import org.neo4j.graphdb.Relationship;
 
@@ -33,9 +34,9 @@ import org.neo4j.graphdb.Relationship;
  * are then added through a CostAccumulator. Costs for alternative paths are
  * compared with a common java.util.Comparator.
  *
- * @author Patrik Larsson
  * @param <T> The data type the edge weights are represented by.
  */
+@PublicApi
 public interface CostEvaluator<T>
 {
     /**

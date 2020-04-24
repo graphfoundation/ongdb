@@ -23,22 +23,21 @@ import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-import org.neo4j.helpers.TaskCoordinator;
+import org.neo4j.internal.schema.IndexDescriptor;
 import org.neo4j.kernel.api.exceptions.index.IndexEntryConflictException;
 import org.neo4j.kernel.api.impl.index.AbstractLuceneIndex;
+import org.neo4j.kernel.api.impl.index.SearcherReference;
 import org.neo4j.kernel.api.impl.index.partition.AbstractIndexPartition;
 import org.neo4j.kernel.api.impl.index.partition.IndexPartitionFactory;
-import org.neo4j.kernel.api.impl.index.partition.PartitionSearcher;
 import org.neo4j.kernel.api.impl.index.storage.PartitionedIndexStorage;
 import org.neo4j.kernel.api.impl.schema.reader.PartitionedIndexReader;
 import org.neo4j.kernel.api.impl.schema.reader.SimpleIndexReader;
 import org.neo4j.kernel.api.impl.schema.verification.PartitionedUniquenessVerifier;
 import org.neo4j.kernel.api.impl.schema.verification.SimpleUniquenessVerifier;
 import org.neo4j.kernel.api.impl.schema.verification.UniquenessVerifier;
+import org.neo4j.kernel.api.index.IndexReader;
+import org.neo4j.kernel.impl.api.index.IndexSamplingConfig;
 import org.neo4j.storageengine.api.NodePropertyAccessor;
-import org.neo4j.kernel.impl.api.index.sampling.IndexSamplingConfig;
-import org.neo4j.storageengine.api.schema.IndexDescriptor;
-import org.neo4j.storageengine.api.schema.IndexReader;
 import org.neo4j.values.storable.Value;
 
 /**
@@ -123,27 +122,27 @@ class LuceneSchemaIndex extends AbstractLuceneIndex<IndexReader>
     private UniquenessVerifier createSimpleUniquenessVerifier( List<AbstractIndexPartition> partitions ) throws IOException
     {
         AbstractIndexPartition singlePartition = getFirstPartition( partitions );
-        PartitionSearcher partitionSearcher = singlePartition.acquireSearcher();
+        SearcherReference partitionSearcher = singlePartition.acquireSearcher();
         return new SimpleUniquenessVerifier( partitionSearcher );
     }
 
     private UniquenessVerifier createPartitionedUniquenessVerifier( List<AbstractIndexPartition> partitions ) throws IOException
     {
-        List<PartitionSearcher> searchers = acquireSearchers( partitions );
+        List<SearcherReference> searchers = acquireSearchers( partitions );
         return new PartitionedUniquenessVerifier( searchers );
     }
 
     @Override
     protected SimpleIndexReader createSimpleReader( List<AbstractIndexPartition> partitions ) throws IOException
     {
-        AbstractIndexPartition singlePartition = getFirstPartition( partitions );
-        return new SimpleIndexReader( singlePartition.acquireSearcher(), descriptor, samplingConfig, taskCoordinator );
+        AbstractIndexPartition searcher = getFirstPartition( partitions );
+        return new SimpleIndexReader( searcher.acquireSearcher(), descriptor, samplingConfig, taskCoordinator );
     }
 
     @Override
     protected PartitionedIndexReader createPartitionedReader( List<AbstractIndexPartition> partitions ) throws IOException
     {
-        List<PartitionSearcher> searchers = acquireSearchers( partitions );
+        List<SearcherReference> searchers = acquireSearchers( partitions );
         return new PartitionedIndexReader( searchers, descriptor, samplingConfig, taskCoordinator );
     }
 

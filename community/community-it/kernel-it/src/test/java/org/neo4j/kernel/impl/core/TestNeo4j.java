@@ -19,7 +19,7 @@
  */
 package org.neo4j.kernel.impl.core;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Random;
 
@@ -29,76 +29,77 @@ import org.neo4j.graphdb.RelationshipType;
 import org.neo4j.graphdb.ResourceIterable;
 import org.neo4j.graphdb.ResourceIterator;
 import org.neo4j.graphdb.Transaction;
-import org.neo4j.helpers.collection.Iterables;
+import org.neo4j.internal.helpers.collection.Iterables;
+import org.neo4j.internal.id.IdType;
 import org.neo4j.kernel.impl.AbstractNeo4jTestCase;
 import org.neo4j.kernel.impl.MyRelTypes;
-import org.neo4j.kernel.impl.store.id.IdType;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-import static org.neo4j.helpers.collection.Iterators.asResourceIterator;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.neo4j.internal.helpers.collection.Iterators.asResourceIterator;
 
-public class TestNeo4j extends AbstractNeo4jTestCase
+class TestNeo4j extends AbstractNeo4jTestCase
 {
     @Test
-    public void testBasicNodeRelationships()
+    void testBasicNodeRelationships()
     {
-        Node firstNode;
-        Node secondNode;
-        Relationship rel;
-        // Create nodes and a relationship between them
-        firstNode = getGraphDb().createNode();
-        assertNotNull( "Failure creating first node", firstNode );
-        secondNode = getGraphDb().createNode();
-        assertNotNull( "Failure creating second node", secondNode );
-        rel = firstNode.createRelationshipTo( secondNode, MyRelTypes.TEST );
-        assertNotNull( "Relationship is null", rel );
-        RelationshipType relType = rel.getType();
-        assertNotNull( "Relationship's type is is null", relType );
-
-        // Verify that the node reports that it has a relationship of
-        // the type we created above
-        try ( ResourceIterator<Relationship> iterator = asResourceIterator( firstNode.getRelationships( relType ).iterator() ) )
+        try ( Transaction transaction = getGraphDb().beginTx() )
         {
-            assertTrue( iterator.hasNext() );
+            Node firstNode;
+            Node secondNode;
+            Relationship rel;
+            // Create nodes and a relationship between them
+            firstNode = transaction.createNode();
+            assertNotNull( firstNode, "Failure creating first node" );
+            secondNode = transaction.createNode();
+            assertNotNull( secondNode, "Failure creating second node" );
+            rel = firstNode.createRelationshipTo( secondNode, MyRelTypes.TEST );
+            assertNotNull( rel, "Relationship is null" );
+            RelationshipType relType = rel.getType();
+            assertNotNull( relType, "Relationship's type is is null" );
+
+            // Verify that the node reports that it has a relationship of
+            // the type we created above
+            try ( ResourceIterator<Relationship> iterator = asResourceIterator( firstNode.getRelationships( relType ).iterator() ) )
+            {
+                assertTrue( iterator.hasNext() );
+            }
+            try ( ResourceIterator<Relationship> iterator = asResourceIterator( secondNode.getRelationships( relType ).iterator() ) )
+            {
+                assertTrue( iterator.hasNext() );
+            }
+
+            ResourceIterable<Relationship> allRels;
+
+            // Verify that both nodes return the relationship we created above
+            allRels = (ResourceIterable<Relationship>) firstNode.getRelationships();
+            assertTrue( objectExistsInIterable( rel, allRels ) );
+            allRels = (ResourceIterable<Relationship>) firstNode.getRelationships( relType );
+            assertTrue( objectExistsInIterable( rel, allRels ) );
+
+            allRels = (ResourceIterable<Relationship>) secondNode.getRelationships();
+            assertTrue( objectExistsInIterable( rel, allRels ) );
+            allRels = (ResourceIterable<Relationship>) secondNode.getRelationships( relType );
+            assertTrue( objectExistsInIterable( rel, allRels ) );
+
+            // Verify that the relationship reports that it is associated with
+            // firstNode and secondNode
+            Node[] relNodes = rel.getNodes();
+            assertEquals( relNodes.length, 2, "A relationship should always be connected to exactly two nodes" );
+            assertTrue( objectExistsInArray( firstNode, relNodes ), "Relationship says that it isn't connected to firstNode" );
+            assertTrue( objectExistsInArray( secondNode, relNodes ), "Relationship says that it isn't connected to secondNode" );
+            assertEquals( rel.getOtherNode( firstNode ), secondNode, "The other node should be secondNode but it isn't" );
+            assertEquals( rel.getOtherNode( secondNode ), firstNode, "The other node should be firstNode but it isn't" );
+            rel.delete();
+            secondNode.delete();
+            firstNode.delete();
+            transaction.commit();
         }
-        try ( ResourceIterator<Relationship> iterator = asResourceIterator( secondNode.getRelationships( relType ).iterator() ) )
-        {
-            assertTrue( iterator.hasNext() );
-        }
-
-        ResourceIterable<Relationship> allRels;
-
-        // Verify that both nodes return the relationship we created above
-        allRels = (ResourceIterable<Relationship>) firstNode.getRelationships();
-        assertTrue( this.objectExistsInIterable( rel, allRels ) );
-        allRels = (ResourceIterable<Relationship>) firstNode.getRelationships( relType );
-        assertTrue( this.objectExistsInIterable( rel, allRels ) );
-
-        allRels = (ResourceIterable<Relationship>) secondNode.getRelationships();
-        assertTrue( this.objectExistsInIterable( rel, allRels ) );
-        allRels = (ResourceIterable<Relationship>) secondNode.getRelationships( relType );
-        assertTrue( this.objectExistsInIterable( rel, allRels ) );
-
-        // Verify that the relationship reports that it is associated with
-        // firstNode and secondNode
-        Node[] relNodes = rel.getNodes();
-        assertEquals( "A relationship should always be connected to exactly "
-            + "two nodes", relNodes.length, 2 );
-        assertTrue( "Relationship says that it isn't connected to firstNode",
-            this.objectExistsInArray( firstNode, relNodes ) );
-        assertTrue( "Relationship says that it isn't connected to secondNode",
-            this.objectExistsInArray( secondNode, relNodes ) );
-        assertEquals( "The other node should be secondNode but it isn't", rel.getOtherNode( firstNode ), secondNode );
-        assertEquals( "The other node should be firstNode but it isn't", rel.getOtherNode( secondNode ), firstNode );
-        rel.delete();
-        secondNode.delete();
-        firstNode.delete();
     }
 
-    private boolean objectExistsInIterable( Relationship rel,
-        ResourceIterable<Relationship> allRels )
+    private static boolean objectExistsInIterable( Relationship rel, ResourceIterable<Relationship> allRels )
     {
         try ( ResourceIterator<Relationship> resourceIterator = allRels.iterator() )
         {
@@ -116,7 +117,7 @@ public class TestNeo4j extends AbstractNeo4jTestCase
         }
     }
 
-    private boolean objectExistsInArray( Object obj, Object[] objArray )
+    private static boolean objectExistsInArray( Object obj, Object[] objArray )
     {
         for ( Object o : objArray )
         {
@@ -129,102 +130,111 @@ public class TestNeo4j extends AbstractNeo4jTestCase
     }
 
     @Test
-    public void testRandomPropertyName()
+    void testRandomPropertyName()
     {
-        Node node1 = getGraphDb().createNode();
-        String key = "random_"
-            + new Random( System.currentTimeMillis() ).nextLong();
-        node1.setProperty( key, "value" );
-        assertEquals( "value", node1.getProperty( key ) );
-        node1.delete();
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            Node node1 = transaction.createNode();
+            String key = "random_" + new Random( System.currentTimeMillis() ).nextLong();
+            node1.setProperty( key, "value" );
+            assertEquals( "value", node1.getProperty( key ) );
+            node1.delete();
+            transaction.commit();
+        }
     }
 
     @Test
-    public void testNodeChangePropertyArray()
+    void testNodeChangePropertyArray()
     {
-        getTransaction().close();
-
         Node node;
         try ( Transaction tx = getGraphDb().beginTx() )
         {
-            node = getGraphDb().createNode();
-            tx.success();
+            node = tx.createNode();
+            tx.commit();
         }
 
         try ( Transaction tx = getGraphDb().beginTx() )
         {
-            node.setProperty( "test", new String[] { "value1" } );
-            tx.success();
+            tx.getNodeById( node.getId() ).setProperty( "test", new String[] { "value1" } );
+            tx.commit();
         }
 
-        try ( Transaction ignored = getGraphDb().beginTx() )
+        try ( Transaction tx = getGraphDb().beginTx() )
         {
-            node.setProperty( "test", new String[] { "value1", "value2" } );
+            tx.getNodeById( node.getId() ).setProperty( "test", new String[] { "value1", "value2" } );
             // no success, we wanna test rollback on this operation
         }
 
         try ( Transaction tx = getGraphDb().beginTx() )
         {
-            String[] value = (String[]) node.getProperty( "test" );
+            String[] value = (String[]) tx.getNodeById( node.getId() ).getProperty( "test" );
             assertEquals( 1, value.length );
             assertEquals( "value1", value[0] );
-            tx.success();
+            tx.commit();
         }
-
-        setTransaction( getGraphDb().beginTx() );
     }
 
     @Test
-    public void testGetAllNodes()
+    void testGetAllNodes()
     {
         long highId = getIdGenerator( IdType.NODE ).getHighestPossibleIdInUse();
         if ( highId >= 0 && highId < 10000 )
         {
-            long count = Iterables.count( getGraphDb().getAllNodes() );
+            long count;
             boolean found = false;
-            Node newNode = getGraphDb().createNode();
-            newTransaction();
+            Node newNode;
+            try ( Transaction transaction = getGraphDb().beginTx() )
+            {
+                count = Iterables.count( transaction.getAllNodes() );
+                newNode = transaction.createNode();
+                transaction.commit();
+            }
             long oldCount = count;
             count = 0;
-            for ( Node node : getGraphDb().getAllNodes() )
+            try ( Transaction transaction = getGraphDb().beginTx() )
             {
-                count++;
-                if ( node.equals( newNode ) )
+                for ( Node node : transaction.getAllNodes() )
                 {
-                    found = true;
+                    count++;
+                    if ( node.equals( newNode ) )
+                    {
+                        found = true;
+                    }
                 }
+                assertTrue( found );
+                assertEquals( count, oldCount + 1 );
+
+                // Tests a bug in the "all nodes" iterator
+                ResourceIterator<Node> allNodesIterator = transaction.getAllNodes().iterator();
+                assertNotNull( allNodesIterator.next() );
+                allNodesIterator.close();
+
+                transaction.getNodeById( newNode.getId() ).delete();
+                transaction.commit();
             }
-            assertTrue( found );
-            assertEquals( count, oldCount + 1 );
-
-            // Tests a bug in the "all nodes" iterator
-            ResourceIterator<Node> allNodesIterator = getGraphDb().getAllNodes().iterator();
-            assertNotNull( allNodesIterator.next() );
-            allNodesIterator.close();
-
-            newNode.delete();
-            newTransaction();
             found = false;
-            count = 0;
-            for ( Node node : getGraphDb().getAllNodes() )
+            try ( Transaction transaction = getGraphDb().beginTx() )
             {
-                count++;
-                if ( node.equals( newNode ) )
+                count = 0;
+                for ( Node node : transaction.getAllNodes() )
                 {
-                    found = true;
+                    count++;
+                    if ( node.equals( newNode ) )
+                    {
+                        found = true;
+                    }
                 }
+                assertFalse( found );
+                assertEquals( count, oldCount );
+                transaction.commit();
             }
-            assertTrue( !found );
-            assertEquals( count, oldCount );
         }
-        // else we skip test, takes too long
     }
 
     @Test
-    public void testMultipleShutdown()
+    void testMultipleShutdown()
     {
-        commit();
-        getGraphDb().shutdown();
-        getGraphDb().shutdown();
+        getManagementService().shutdown();
+        getManagementService().shutdown();
     }
 }

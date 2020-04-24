@@ -19,22 +19,18 @@
  */
 package org.neo4j.kernel.impl.storemigration;
 
+import java.io.IOException;
+
+import org.neo4j.configuration.Config;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.io.pagecache.PageCache;
-import org.neo4j.kernel.configuration.Config;
-import org.neo4j.kernel.impl.api.ExplicitIndexProvider;
 import org.neo4j.kernel.impl.api.index.IndexProviderMap;
-import org.neo4j.kernel.impl.store.format.RecordFormats;
-import org.neo4j.kernel.impl.storemigration.monitoring.MigrationProgressMonitor;
-import org.neo4j.kernel.impl.storemigration.participant.CountsMigrator;
-import org.neo4j.kernel.impl.storemigration.participant.ExplicitIndexMigrator;
-import org.neo4j.kernel.impl.storemigration.participant.NativeLabelScanStoreMigrator;
-import org.neo4j.kernel.impl.storemigration.participant.StoreMigrator;
 import org.neo4j.kernel.recovery.LogTailScanner;
-import org.neo4j.logging.LogProvider;
 import org.neo4j.logging.internal.LogService;
 import org.neo4j.scheduler.JobScheduler;
+import org.neo4j.storageengine.api.StorageEngineFactory;
+import org.neo4j.storageengine.api.StoreVersionCheck;
 
 /**
  * DatabaseMigrator collects all dependencies required for store migration,
@@ -45,59 +41,58 @@ import org.neo4j.scheduler.JobScheduler;
  */
 public class DatabaseMigrator
 {
-    private final MigrationProgressMonitor progressMonitor;
     private final FileSystemAbstraction fs;
     private final Config config;
     private final LogService logService;
     private final IndexProviderMap indexProviderMap;
-    private final ExplicitIndexProvider explicitIndexProvider;
     private final PageCache pageCache;
-    private final RecordFormats format;
     private final LogTailScanner tailScanner;
     private final JobScheduler jobScheduler;
+    private final DatabaseLayout databaseLayout;
+    private final LegacyTransactionLogsLocator legacyLogsLocator;
+    private final StorageEngineFactory storageEngineFactory;
 
-    public DatabaseMigrator(
-            MigrationProgressMonitor progressMonitor, FileSystemAbstraction fs,
-            Config config, LogService logService, IndexProviderMap indexProviderMap,
-            ExplicitIndexProvider indexProvider, PageCache pageCache,
-            RecordFormats format, LogTailScanner tailScanner, JobScheduler jobScheduler )
+    public DatabaseMigrator( FileSystemAbstraction fs, Config config, LogService logService, IndexProviderMap indexProviderMap, PageCache pageCache,
+            LogTailScanner tailScanner, JobScheduler jobScheduler, DatabaseLayout databaseLayout, LegacyTransactionLogsLocator legacyLogsLocator,
+            StorageEngineFactory storageEngineFactory )
     {
-        this.progressMonitor = progressMonitor;
         this.fs = fs;
         this.config = config;
         this.logService = logService;
         this.indexProviderMap = indexProviderMap;
-        this.explicitIndexProvider = indexProvider;
         this.pageCache = pageCache;
-        this.format = format;
         this.tailScanner = tailScanner;
         this.jobScheduler = jobScheduler;
+        this.databaseLayout = databaseLayout;
+        this.legacyLogsLocator = legacyLogsLocator;
+        this.storageEngineFactory = storageEngineFactory;
     }
 
     /**
      * Performs construction of {@link StoreUpgrader} and all of the necessary participants and performs store
      * migration if that is required.
-     * @param directoryStructure database to migrate
      */
-    public void migrate( DatabaseLayout directoryStructure )
+    public void migrate() throws IOException
     {
-        LogProvider logProvider = logService.getInternalLogProvider();
-        UpgradableDatabase upgradableDatabase = new UpgradableDatabase( new StoreVersionCheck( pageCache ), format, tailScanner );
-        StoreUpgrader storeUpgrader = new StoreUpgrader( upgradableDatabase, progressMonitor, config, fs, pageCache,
-                logProvider );
+        StoreVersionCheck storeVersionCheck = storageEngineFactory.versionCheck( fs, databaseLayout, config, pageCache, logService );
+        StoreUpgrader storeUpgrader = new StoreUpgrader( storeVersionCheck,
+                new VisibleMigrationProgressMonitor( logService.getUserLog( DatabaseMigrator.class ) ), config, fs, logService.getInternalLogProvider(),
+                tailScanner, legacyLogsLocator );
 
-        ExplicitIndexMigrator explicitIndexMigrator = new ExplicitIndexMigrator( fs, explicitIndexProvider, logProvider );
-        StoreMigrator storeMigrator = new StoreMigrator( fs, pageCache, config, logService, jobScheduler );
-        NativeLabelScanStoreMigrator nativeLabelScanStoreMigrator =
-                new NativeLabelScanStoreMigrator( fs, pageCache, config );
-        CountsMigrator countsMigrator = new CountsMigrator( fs, pageCache, config );
+        // Get all the participants from the storage engine and add them where they want to be
+        var storeParticipants = storageEngineFactory.migrationParticipants( fs, config, pageCache, jobScheduler, logService );
+        storeParticipants.forEach( storeUpgrader::addParticipant );
 
-        indexProviderMap.accept(
-                provider -> storeUpgrader.addParticipant( provider.storeMigrationParticipant( fs, pageCache ) ) );
-        storeUpgrader.addParticipant( explicitIndexMigrator );
-        storeUpgrader.addParticipant( storeMigrator );
-        storeUpgrader.addParticipant( nativeLabelScanStoreMigrator );
-        storeUpgrader.addParticipant( countsMigrator );
-        storeUpgrader.migrateIfNeeded( directoryStructure );
+        IndexConfigMigrator indexConfigMigrator = new IndexConfigMigrator( fs, config, pageCache, logService, storageEngineFactory, indexProviderMap,
+                logService.getUserLog( IndexConfigMigrator.class ) );
+        storeUpgrader.addParticipant( indexConfigMigrator );
+
+        IndexProviderMigrator indexProviderMigrator = new IndexProviderMigrator( fs, config, pageCache, logService, storageEngineFactory );
+        storeUpgrader.addParticipant( indexProviderMigrator );
+
+        // Do individual index provider migration last because they may delete files that we need in earlier steps.
+        this.indexProviderMap.accept( provider -> storeUpgrader.addParticipant( provider.storeMigrationParticipant( fs, pageCache, storageEngineFactory ) ) );
+
+        storeUpgrader.migrateIfNeeded( databaseLayout );
     }
 }

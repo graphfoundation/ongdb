@@ -20,10 +20,11 @@
 package org.neo4j.bolt.v3.runtime;
 
 import org.neo4j.bolt.messaging.RequestMessage;
-import org.neo4j.bolt.runtime.BoltStateMachineState;
-import org.neo4j.bolt.runtime.StateMachineContext;
-import org.neo4j.bolt.v1.messaging.request.DiscardAllMessage;
-import org.neo4j.bolt.v1.messaging.request.PullAllMessage;
+import org.neo4j.bolt.runtime.statemachine.BoltStateMachineState;
+import org.neo4j.bolt.runtime.statemachine.StateMachineContext;
+import org.neo4j.bolt.v3.messaging.request.DiscardAllMessage;
+import org.neo4j.bolt.v3.messaging.request.PullAllMessage;
+import org.neo4j.bolt.messaging.ResultConsumer;
 
 import static org.neo4j.util.Preconditions.checkState;
 
@@ -41,12 +42,15 @@ public abstract class AbstractStreamingState extends FailSafeBoltStateMachineSta
     {
         if ( message instanceof PullAllMessage )
         {
-            return processStreamResultMessage( true, context );
+            ResultConsumer resultConsumer = new ResultConsumerAdaptor( context, true );
+            return processStreamResultMessage( resultConsumer, context );
         }
-        if ( message instanceof DiscardAllMessage )
+        else if ( message instanceof DiscardAllMessage )
         {
-            return processStreamResultMessage( false, context );
+            ResultConsumer resultConsumer = new ResultConsumerAdaptor( context, false );
+            return processStreamResultMessage( resultConsumer, context );
         }
+
         return null;
     }
 
@@ -55,7 +59,7 @@ public abstract class AbstractStreamingState extends FailSafeBoltStateMachineSta
         this.readyState = readyState;
     }
 
-    abstract BoltStateMachineState processStreamResultMessage( boolean pull, StateMachineContext context ) throws Throwable;
+    protected abstract BoltStateMachineState processStreamResultMessage( ResultConsumer resultConsumer, StateMachineContext context ) throws Throwable;
 
     @Override
     protected void assertInitialized()

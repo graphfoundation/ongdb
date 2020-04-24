@@ -20,21 +20,26 @@
 package org.neo4j.kernel.impl.scheduler;
 
 import java.lang.reflect.Field;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Stream;
 
-import org.neo4j.helpers.Exceptions;
+import org.neo4j.internal.helpers.Exceptions;
+import org.neo4j.kernel.impl.scheduler.ThreadPool.ThreadPoolParameters;
 import org.neo4j.kernel.lifecycle.LifecycleAdapter;
+import org.neo4j.resources.Profiler;
+import org.neo4j.scheduler.ActiveGroup;
 import org.neo4j.scheduler.Group;
 import org.neo4j.scheduler.JobHandle;
 import org.neo4j.scheduler.JobScheduler;
-import org.neo4j.time.Clocks;
+import org.neo4j.scheduler.SchedulerThreadFactoryFactory;
+import org.neo4j.time.SystemNanoClock;
 
 public class CentralJobScheduler extends LifecycleAdapter implements JobScheduler, AutoCloseable
 {
@@ -42,15 +47,9 @@ public class CentralJobScheduler extends LifecycleAdapter implements JobSchedule
 
     private final TimeBasedTaskScheduler scheduler;
     private final Thread schedulerThread;
-
-    // Contains workStealingExecutors for each group that have asked for one.
-    // If threads need to be created, they need to be inside one of these pools.
-    // We also need to remember to shutdown all pools when we shutdown the database to shutdown queries in an orderly
-    // fashion.
-    private final ConcurrentHashMap<Group,ExecutorService> workStealingExecutors;
-
     private final TopLevelGroup topLevelGroup;
     private final ThreadPoolManager pools;
+    private final ConcurrentHashMap<Group,ThreadPoolParameters> extraParameters;
 
     private volatile boolean started;
 
@@ -69,15 +68,15 @@ public class CentralJobScheduler extends LifecycleAdapter implements JobSchedule
         }
     }
 
-    protected CentralJobScheduler()
+    protected CentralJobScheduler( SystemNanoClock clock )
     {
-        workStealingExecutors = new ConcurrentHashMap<>( 1 );
         topLevelGroup = new TopLevelGroup();
         pools = new ThreadPoolManager( topLevelGroup );
-        ThreadFactory threadFactory = new GroupedDaemonThreadFactory( Group.TASK_SCHEDULER, topLevelGroup );
-        scheduler = new TimeBasedTaskScheduler( Clocks.nanoClock(), pools );
+        scheduler = new TimeBasedTaskScheduler( clock, pools );
+        extraParameters = new ConcurrentHashMap<>();
 
         // The scheduler thread runs at slightly elevated priority for timeliness, and is started in init().
+        ThreadFactory threadFactory = new GroupedDaemonThreadFactory( Group.TASK_SCHEDULER, topLevelGroup );
         schedulerThread = threadFactory.newThread( scheduler );
         int priority = Thread.NORM_PRIORITY + 1;
         schedulerThread.setPriority( priority );
@@ -96,6 +95,20 @@ public class CentralJobScheduler extends LifecycleAdapter implements JobSchedule
     }
 
     @Override
+    public void setParallelism( Group group, int parallelism )
+    {
+        pools.assumeNotStarted( group );
+        extraParameters.computeIfAbsent( group, g -> new ThreadPoolParameters() ).desiredParallelism = parallelism;
+    }
+
+    @Override
+    public void setThreadFactory( Group group, SchedulerThreadFactoryFactory threadFactory )
+    {
+        pools.assumeNotStarted( group );
+        extraParameters.computeIfAbsent( group, g -> new ThreadPoolParameters() ).providedThreadFactory = threadFactory;
+    }
+
+    @Override
     public void init()
     {
         if ( !started )
@@ -108,37 +121,18 @@ public class CentralJobScheduler extends LifecycleAdapter implements JobSchedule
     @Override
     public Executor executor( Group group )
     {
-        return job -> schedule( group, job );
-    }
-
-    @Override
-    public ExecutorService workStealingExecutor( Group group, int parallelism )
-    {
-        return workStealingExecutor( group, parallelism, false );
-    }
-
-    @Override
-    public ExecutorService workStealingExecutorAsyncMode( Group group, int parallelism )
-    {
-        return workStealingExecutor( group, parallelism, true );
-    }
-
-    private ExecutorService workStealingExecutor( Group group, int parallelism, boolean asyncMode )
-    {
-        return workStealingExecutors.computeIfAbsent( group, g -> createNewWorkStealingExecutor( g, parallelism, asyncMode ) );
+        return getThreadPool( group ).getExecutorService();
     }
 
     @Override
     public ThreadFactory threadFactory( Group group )
     {
-        return pools.getThreadPool( group ).getThreadFactory();
+        return getThreadPool( group ).getThreadFactory();
     }
 
-    private ExecutorService createNewWorkStealingExecutor( Group group, int parallelism, boolean asyncMode )
+    private ThreadPool getThreadPool( Group group )
     {
-        ForkJoinPool.ForkJoinWorkerThreadFactory factory =
-                new GroupedDaemonThreadFactory( group, topLevelGroup );
-        return new ForkJoinPool( parallelism, factory, null, asyncMode );
+        return pools.getThreadPool( group, extraParameters.get( group ) );
     }
 
     @Override
@@ -148,7 +142,7 @@ public class CentralJobScheduler extends LifecycleAdapter implements JobSchedule
         {
             throw new RejectedExecutionException( "Scheduler is not started" );
         }
-        return pools.submit( group, job );
+        return getThreadPool( group ).submit( job );
     }
 
     @Override
@@ -162,6 +156,31 @@ public class CentralJobScheduler extends LifecycleAdapter implements JobSchedule
     {
         return scheduler.submit(
                 group, runnable, unit.toNanos( initialDelay ), unit.toNanos( period ) );
+    }
+
+    @Override
+    public Stream<ActiveGroup> activeGroups()
+    {
+        List<ActiveGroup> groups = new ArrayList<>();
+        pools.forEachStarted( ( group, pool ) ->
+        {
+            int activeThreadCount = pool.activeThreadCount();
+            if ( activeThreadCount > 0 )
+            {
+                groups.add( new ActiveGroup( group, activeThreadCount ) );
+            }
+        } );
+        return groups.stream();
+    }
+
+    @Override
+    public void profileGroup( Group group, Profiler profiler )
+    {
+        if ( !pools.isStarted( group ) )
+        {
+            return; // Don't bother profiling groups that hasn't been started.
+        }
+        getThreadPool( group ).activeThreads().forEach( profiler::profile );
     }
 
     @Override
@@ -181,13 +200,6 @@ public class CentralJobScheduler extends LifecycleAdapter implements JobSchedule
         // Then shut down the thread pools. This involves cancelling jobs which hasn't been cancelled already,
         // so we avoid having to wait the full maximum wait time on the executor service shut-downs.
         exception = Exceptions.chain( exception, pools.shutDownAll() );
-
-        // Finally, we shut the work-stealing executors down.
-        for ( ExecutorService workStealingExecutor : workStealingExecutors.values() )
-        {
-            exception = shutdownPool( workStealingExecutor, exception );
-        }
-        workStealingExecutors.clear();
 
         if ( exception != null )
         {
@@ -213,22 +225,5 @@ public class CentralJobScheduler extends LifecycleAdapter implements JobSchedule
             return e;
         }
         return null;
-    }
-
-    private InterruptedException shutdownPool( ExecutorService pool, InterruptedException exception )
-    {
-        if ( pool != null )
-        {
-            pool.shutdown();
-            try
-            {
-                pool.awaitTermination( 30, TimeUnit.SECONDS );
-            }
-            catch ( InterruptedException e )
-            {
-                return Exceptions.chain( exception, e );
-            }
-        }
-        return exception;
     }
 }

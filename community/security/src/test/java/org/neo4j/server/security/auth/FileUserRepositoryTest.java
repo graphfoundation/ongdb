@@ -19,19 +19,18 @@
  */
 package org.neo4j.server.security.auth;
 
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.CopyOption;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
-import org.neo4j.graphdb.mockfs.DelegatingFileSystemAbstraction;
+import org.neo4j.io.fs.DelegatingFileSystemAbstraction;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.kernel.api.exceptions.InvalidArgumentsException;
 import org.neo4j.kernel.impl.security.User;
@@ -41,44 +40,39 @@ import org.neo4j.logging.NullLogProvider;
 import org.neo4j.server.security.auth.exception.ConcurrentModificationException;
 import org.neo4j.string.UTF8;
 import org.neo4j.test.DoubleLatch;
+import org.neo4j.test.extension.Inject;
+import org.neo4j.test.extension.testdirectory.EphemeralTestDirectoryExtension;
 import org.neo4j.test.rule.TestDirectory;
-import org.neo4j.test.rule.concurrent.ThreadingRule;
-import org.neo4j.test.rule.fs.DefaultFileSystemRule;
 
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.CoreMatchers.startsWith;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.neo4j.test.assertion.Assert.assertException;
 
-public class FileUserRepositoryTest
+@EphemeralTestDirectoryExtension
+class FileUserRepositoryTest
 {
-    private File authFile;
-    private final LogProvider logProvider = NullLogProvider.getInstance();
+    @Inject
     private FileSystemAbstraction fs;
+    @Inject
+    private TestDirectory testDirectory;
 
-    @Rule
-    public final TestDirectory testDirectory = TestDirectory.testDirectory();
-    @Rule
-    public final ExpectedException thrown = ExpectedException.none();
-    @Rule
-    public final ThreadingRule threading = new ThreadingRule();
-    @Rule
-    public final DefaultFileSystemRule fileSystemRule = new DefaultFileSystemRule();
+    private final LogProvider logProvider = NullLogProvider.getInstance();
+    private File authFile;
 
-    @Before
-    public void setUp()
+    @BeforeEach
+    void setUp()
     {
-        fs = fileSystemRule.get();
         authFile = new File( testDirectory.directory( "dbms" ), "auth" );
     }
 
     @Test
-    public void shouldStoreAndRetrieveUsersByName() throws Exception
+    void shouldStoreAndRetrieveUsersByName() throws Exception
     {
         // Given
         FileUserRepository users = new FileUserRepository( fs, authFile, logProvider );
@@ -93,7 +87,7 @@ public class FileUserRepositoryTest
     }
 
     @Test
-    public void shouldPersistUsers() throws Throwable
+    void shouldPersistUsers() throws Throwable
     {
         // Given
         FileUserRepository users = new FileUserRepository( fs, authFile, logProvider );
@@ -111,7 +105,7 @@ public class FileUserRepositoryTest
     }
 
     @Test
-    public void shouldNotFindUserAfterDelete() throws Throwable
+    void shouldNotFindUserAfterDelete() throws Throwable
     {
         // Given
         FileUserRepository users = new FileUserRepository( fs, authFile, logProvider );
@@ -126,7 +120,7 @@ public class FileUserRepositoryTest
     }
 
     @Test
-    public void shouldNotAllowComplexNames() throws Exception
+    void shouldNotAllowComplexNames() throws Exception
     {
         // Given
         FileUserRepository users = new FileUserRepository( fs, authFile, logProvider );
@@ -155,7 +149,7 @@ public class FileUserRepositoryTest
     }
 
     @Test
-    public void shouldRecoverIfCrashedDuringMove() throws Throwable
+    void shouldRecoverIfCrashedDuringMove() throws Throwable
     {
         // Given
         final IOException exception = new IOException( "simulated IO Exception on create" );
@@ -178,15 +172,8 @@ public class FileUserRepositoryTest
         User user = new User.Builder( "jake", LegacyCredential.INACCESSIBLE ).withRequiredPasswordChange( true ).build();
 
         // When
-        try
-        {
-            users.create( user );
-            fail( "Expected an IOException" );
-        }
-        catch ( IOException e )
-        {
-            assertSame( exception, e );
-        }
+        var e = assertThrows( IOException.class, () -> users.create( user ) );
+        assertSame( exception, e );
 
         // Then
         assertFalse( crashingFileSystem.fileExists( authFile ) );
@@ -194,7 +181,7 @@ public class FileUserRepositoryTest
     }
 
     @Test
-    public void shouldThrowIfUpdateChangesName() throws Throwable
+    void shouldThrowIfUpdateChangesName() throws Throwable
     {
         // Given
         FileUserRepository users = new FileUserRepository( fs, authFile, logProvider );
@@ -204,21 +191,12 @@ public class FileUserRepositoryTest
         // When
         User updatedUser = new User.Builder( "john", LegacyCredential.INACCESSIBLE ).withRequiredPasswordChange( true )
                 .build();
-        try
-        {
-            users.update( user, updatedUser );
-            fail( "expected exception not thrown" );
-        }
-        catch ( IllegalArgumentException e )
-        {
-            // Then continue
-        }
-
+        assertThrows( IllegalArgumentException.class, () -> users.update( user, updatedUser ) );
         assertThat( users.getUserByName( user.name() ), equalTo( user ) );
     }
 
     @Test
-    public void shouldThrowIfExistingUserDoesNotMatch() throws Throwable
+    void shouldThrowIfExistingUserDoesNotMatch() throws Throwable
     {
         // Given
         FileUserRepository users = new FileUserRepository( fs, authFile, logProvider );
@@ -228,19 +206,11 @@ public class FileUserRepositoryTest
 
         // When
         User updatedUser = user.augment().withCredentials( LegacyCredential.forPassword( "bar" ) ).build();
-        try
-        {
-            users.update( modifiedUser, updatedUser );
-            fail( "expected exception not thrown" );
-        }
-        catch ( ConcurrentModificationException e )
-        {
-            // Then continue
-        }
+        assertThrows( ConcurrentModificationException.class, () -> users.update( modifiedUser, updatedUser ) );
     }
 
     @Test
-    public void shouldFailOnReadingInvalidEntries() throws Throwable
+    void shouldFailOnReadingInvalidEntries() throws Throwable
     {
         // Given
         AssertableLogProvider logProvider = new AssertableLogProvider();
@@ -254,29 +224,20 @@ public class FileUserRepositoryTest
         // When
         FileUserRepository users = new FileUserRepository( fs, authFile, logProvider );
 
-        thrown.expect( IllegalStateException.class );
-        thrown.expectMessage( startsWith( "Failed to read authentication file: " ) );
+        var e = assertThrows( IllegalStateException.class, () -> users.start() );
+        assertThat( e.getMessage(), startsWith( "Failed to read authentication file: " ) );
 
-        try
-        {
-            users.start();
-        }
-        // Then
-        catch ( IllegalStateException e )
-        {
-            assertThat( users.numberOfUsers(), equalTo( 0 ) );
-            logProvider.assertExactly(
-                    AssertableLogProvider.inLog( FileUserRepository.class ).error(
-                            "Failed to read authentication file \"%s\" (%s)", authFile.getAbsolutePath(),
-                            "wrong number of line fields, expected 3, got 4 [line 2]"
-                    )
-            );
-            throw e;
-        }
+        assertThat( users.numberOfUsers(), equalTo( 0 ) );
+        logProvider.assertExactly(
+                AssertableLogProvider.inLog( FileUserRepository.class ).error(
+                        "Failed to read authentication file \"%s\" (%s)", authFile.getAbsolutePath(),
+                        "wrong number of line fields, expected 3, got 4 [line 2]"
+                )
+        );
     }
 
     @Test
-    public void shouldProvideUserByUsernameEvenIfMidSetUsers() throws Throwable
+    void shouldProvideUserByUsernameEvenIfMidSetUsers() throws Throwable
     {
         // Given
         FileUserRepository users = new FileUserRepository( fs, authFile, logProvider );
@@ -284,22 +245,36 @@ public class FileUserRepositoryTest
         DoubleLatch latch = new DoubleLatch( 2 );
 
         // When
-        Future<Object> setUsers = threading.execute( o ->
+        var executor = Executors.newSingleThreadExecutor();
+        try
+        {
+            Future<?> setUsers = executor.submit( () ->
             {
-                users.setUsers( new HangingListSnapshot( latch, 10L, Collections.emptyList() ) );
-                return null;
-            }, null );
+                try
+                {
+                    users.setUsers( new HangingListSnapshot( latch, 10L, Collections.emptyList() ) );
+                }
+                catch ( InvalidArgumentsException e )
+                {
+                    throw new RuntimeException( e );
+                }
+            } );
 
-        latch.startAndWaitForAllToStart();
+            latch.startAndWaitForAllToStart();
 
-        // Then
-        assertNotNull( users.getUserByName( "oskar" ) );
+            // Then
+            assertNotNull( users.getUserByName( "oskar" ) );
 
-        latch.finish();
-        setUsers.get();
+            latch.finish();
+            setUsers.get();
+        }
+        finally
+        {
+            executor.shutdown();
+        }
     }
 
-    class HangingListSnapshot extends ListSnapshot<User>
+    static class HangingListSnapshot extends ListSnapshot<User>
     {
         private final DoubleLatch latch;
 

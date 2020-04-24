@@ -19,8 +19,7 @@
  */
 package org.neo4j.kernel.impl.api;
 
-import org.neo4j.kernel.api.index.ArrayEncoder;
-import org.neo4j.kernel.impl.util.Validator;
+import org.neo4j.common.Validator;
 import org.neo4j.values.storable.Value;
 import org.neo4j.values.storable.Values;
 
@@ -37,7 +36,7 @@ public class LuceneIndexValueValidator implements Validator<Value>
     // encoded as UTF8.  If a term arrives from the analyzer
     // longer than this length, an IllegalArgumentException
     // when lucene writer trying to add or update document
-    static final int MAX_TERM_LENGTH = (1 << 15) - 2;
+    public static final int MAX_TERM_LENGTH = (1 << 15) - 2;
 
     private final IndexTextValueLengthValidator textValueValidator = new IndexTextValueLengthValidator( MAX_TERM_LENGTH );
 

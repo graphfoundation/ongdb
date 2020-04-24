@@ -23,35 +23,28 @@ import org.neo4j.graphdb.Transaction;
 import org.neo4j.internal.kernel.api.exceptions.ProcedureException;
 import org.neo4j.kernel.api.KernelTransaction;
 import org.neo4j.kernel.api.exceptions.Status;
-import org.neo4j.kernel.api.security.AnonymousContext;
-import org.neo4j.kernel.impl.core.ThreadToStatementContextBridge;
-import org.neo4j.kernel.internal.GraphDatabaseAPI;
+import org.neo4j.kernel.impl.coreapi.InternalTransaction;
 import org.neo4j.logging.Log;
 
 public class MyCoreAPI
 {
-    private final GraphDatabaseAPI graph;
-    private final ThreadToStatementContextBridge txBridge;
     private final Log log;
 
-    public MyCoreAPI( GraphDatabaseAPI graph, ThreadToStatementContextBridge txBridge, Log log )
+    public MyCoreAPI( Log log )
     {
-        this.graph = graph;
-        this.txBridge = txBridge;
         this.log = log;
     }
 
-    public long makeNode( String label ) throws ProcedureException
+    public long makeNode( Transaction tx, String label ) throws ProcedureException
     {
         long result;
-        try ( Transaction tx = graph.beginTransaction( KernelTransaction.Type.explicit, AnonymousContext.write() ) )
+        try
         {
-            KernelTransaction ktx = txBridge.getKernelTransactionBoundToThisThread( true );
+            KernelTransaction ktx = ((InternalTransaction) tx).kernelTransaction();
             long nodeId = ktx.dataWrite().nodeCreate();
             int labelId = ktx.tokenWrite().labelGetOrCreateForName( label );
             ktx.dataWrite().nodeAddLabel( nodeId, labelId );
-            result = nodeId;
-            tx.success();
+            return nodeId;
         }
         catch ( Exception e )
         {
@@ -59,18 +52,11 @@ public class MyCoreAPI
             throw new ProcedureException( Status.Procedure.ProcedureCallFailed,
                     "Failed to create node: " + e.getMessage(), e );
         }
-        return result;
     }
 
-    public long countNodes()
+    public long countNodes( Transaction tx )
     {
-        long result;
-        try ( Transaction tx = graph.beginTransaction( KernelTransaction.Type.explicit, AnonymousContext.read() ) )
-        {
-            KernelTransaction kernelTransaction = this.txBridge.getKernelTransactionBoundToThisThread(true );
-            result = kernelTransaction.dataRead().countsForNode( -1 );
-            tx.success();
-        }
-        return result;
+        KernelTransaction kernelTransaction = ((InternalTransaction) tx).kernelTransaction();
+        return kernelTransaction.dataRead().countsForNode( -1 );
     }
 }

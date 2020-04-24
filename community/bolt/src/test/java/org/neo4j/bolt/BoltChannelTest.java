@@ -24,8 +24,8 @@ import io.netty.channel.ChannelFuture;
 import io.netty.channel.embedded.EmbeddedChannel;
 import org.junit.jupiter.api.Test;
 
-import org.neo4j.helpers.SocketAddress;
-import org.neo4j.kernel.impl.query.clientconnection.ClientConnectionInfo;
+import org.neo4j.configuration.helpers.SocketAddress;
+import org.neo4j.internal.kernel.api.connectioninfo.ClientConnectionInfo;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
@@ -99,7 +99,6 @@ class BoltChannelTest
     }
 
     @Test
-    @SuppressWarnings( "deprecation" )
     void shouldExposeClientConnectionInfo()
     {
         EmbeddedChannel channel = new EmbeddedChannel();
@@ -116,7 +115,6 @@ class BoltChannelTest
         assertEquals( "bolt-42", info2.connectionId() );
         assertEquals( "bolt", info2.protocol() );
         assertEquals( SocketAddress.format( channel.remoteAddress() ), info2.clientAddress() );
-        assertThat( info2.asConnectionDetails(), containsString( "Tom" ) );
         assertThat( info2.asConnectionDetails(), containsString( "my-driver" ) );
     }
 

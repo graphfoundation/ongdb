@@ -23,46 +23,41 @@ import org.apache.lucene.document.Document;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
-import java.util.HashMap;
 import java.util.Map;
 
-import org.neo4j.helpers.collection.BoundedIterable;
+import org.neo4j.internal.helpers.collection.BoundedIterable;
+import org.neo4j.internal.schema.IndexDescriptor;
 import org.neo4j.kernel.api.impl.index.AbstractLuceneIndexAccessor;
+import org.neo4j.kernel.api.impl.index.DatabaseIndex;
 import org.neo4j.kernel.api.index.IndexUpdater;
 import org.neo4j.kernel.impl.api.index.IndexUpdateMode;
 import org.neo4j.storageengine.api.NodePropertyAccessor;
 import org.neo4j.values.storable.Value;
-import org.neo4j.values.storable.Values;
 
+import static org.neo4j.kernel.api.impl.fulltext.FulltextIndexSettings.isEventuallyConsistent;
 import static org.neo4j.kernel.api.impl.fulltext.LuceneFulltextDocumentStructure.documentRepresentingProperties;
-import static org.neo4j.kernel.api.impl.fulltext.LuceneFulltextDocumentStructure.documentRepresentingPropertiesWithSort;
 import static org.neo4j.kernel.api.impl.fulltext.LuceneFulltextDocumentStructure.newTermForChangeOrRemove;
 
-public class FulltextIndexAccessor extends AbstractLuceneIndexAccessor<FulltextIndexReader,DatabaseFulltextIndex>
+public class FulltextIndexAccessor extends AbstractLuceneIndexAccessor<FulltextIndexReader,DatabaseIndex<FulltextIndexReader>>
 {
     private final IndexUpdateSink indexUpdateSink;
-    private final FulltextIndexDescriptor descriptor;
-    private final Runnable onClose;
+    private final IndexDescriptor index;
+    private final String[] propertyNames;
 
-    public FulltextIndexAccessor( IndexUpdateSink indexUpdateSink, DatabaseFulltextIndex luceneIndex, FulltextIndexDescriptor descriptor,
-            Runnable onClose )
+    FulltextIndexAccessor( IndexUpdateSink indexUpdateSink, DatabaseIndex<FulltextIndexReader> luceneIndex, IndexDescriptor index,
+            String[] propertyNames )
     {
-        super( luceneIndex, descriptor );
+        super( luceneIndex, index );
         this.indexUpdateSink = indexUpdateSink;
-        this.descriptor = descriptor;
-        this.onClose = onClose;
-    }
-
-    public FulltextIndexDescriptor getDescriptor()
-    {
-        return descriptor;
+        this.index = index;
+        this.propertyNames = propertyNames;
     }
 
     @Override
     public IndexUpdater getIndexUpdater( IndexUpdateMode mode )
     {
         IndexUpdater indexUpdater = new FulltextIndexUpdater( mode.requiresIdempotency(), mode.requiresRefresh() );
-        if ( descriptor.isEventuallyConsistent() )
+        if ( isEventuallyConsistent( index ) )
         {
             indexUpdater = new EventuallyConsistentIndexUpdater( luceneIndex, indexUpdater, indexUpdateSink );
         }
@@ -72,24 +67,17 @@ public class FulltextIndexAccessor extends AbstractLuceneIndexAccessor<FulltextI
     @Override
     public void close()
     {
-        try
+        if ( isEventuallyConsistent( index ) )
         {
-            if ( descriptor.isEventuallyConsistent() )
-            {
-                indexUpdateSink.awaitUpdateApplication();
-            }
-            super.close();
+            indexUpdateSink.awaitUpdateApplication();
         }
-        finally
-        {
-            onClose.run();
-        }
+        super.close();
     }
 
     @Override
-    public BoundedIterable<Long> newAllEntriesReader()
+    public BoundedIterable<Long> newAllEntriesReader( long fromIdInclusive, long toIdExclusive )
     {
-        return super.newAllEntriesReader( LuceneFulltextDocumentStructure::getNodeId );
+        return super.newAllEntriesReader( LuceneFulltextDocumentStructure::getNodeId, fromIdInclusive, toIdExclusive );
     }
 
     @Override
@@ -101,22 +89,7 @@ public class FulltextIndexAccessor extends AbstractLuceneIndexAccessor<FulltextI
     @Override
     public Map<String,Value> indexConfig()
     {
-        Map<String,Value> map = new HashMap<>();
-        map.put( FulltextIndexSettings.INDEX_CONFIG_ANALYZER, Values.stringValue( descriptor.analyzerName() ) );
-        map.put( FulltextIndexSettings.INDEX_CONFIG_EVENTUALLY_CONSISTENT, Values.booleanValue( descriptor.isEventuallyConsistent() ) );
-        return map;
-    }
-
-    public TransactionStateLuceneIndexWriter getTransactionStateIndexWriter()
-    {
-        try
-        {
-            return luceneIndex.getTransactionalIndexWriter();
-        }
-        catch ( IOException e )
-        {
-            throw new UncheckedIOException( e );
-        }
+        return index.getIndexConfig().asMap();
     }
 
     public class FulltextIndexUpdater extends AbstractLuceneIndexUpdater
@@ -131,7 +104,7 @@ public class FulltextIndexAccessor extends AbstractLuceneIndexAccessor<FulltextI
         {
             try
             {
-                Document document = createDocument( entityId, values );
+                Document document = documentRepresentingProperties( entityId, propertyNames, values );
                 writer.updateDocument( newTermForChangeOrRemove( entityId ), document );
             }
             catch ( IOException e )
@@ -145,7 +118,7 @@ public class FulltextIndexAccessor extends AbstractLuceneIndexAccessor<FulltextI
         {
             try
             {
-                Document document = createDocument( entityId, values );
+                Document document = documentRepresentingProperties( entityId, propertyNames, values );
                 writer.addDocument( document );
             }
             catch ( IOException e )
@@ -159,8 +132,7 @@ public class FulltextIndexAccessor extends AbstractLuceneIndexAccessor<FulltextI
         {
             try
             {
-                Document document = createDocument( entityId, values );
-                writer.updateDocument( newTermForChangeOrRemove( entityId ), document );
+                writer.updateDocument( newTermForChangeOrRemove( entityId ), documentRepresentingProperties( entityId, propertyNames, values ) );
             }
             catch ( IOException e )
             {
@@ -179,20 +151,6 @@ public class FulltextIndexAccessor extends AbstractLuceneIndexAccessor<FulltextI
             {
                 throw new UncheckedIOException( e );
             }
-        }
-    }
-
-    private Document createDocument( long entityId, Value[] values )
-    {
-        if ( descriptor.sortPropertyNames() == null || descriptor.sortPropertyNames().isEmpty() )
-        {
-            return documentRepresentingProperties( entityId, descriptor.propertyNames(), values );
-        }
-        // Sort Properties are present, use them.
-        else
-        {
-            return documentRepresentingPropertiesWithSort( entityId, descriptor.propertyNames(), values, descriptor.sortPropertyNames(),
-                                                           descriptor.sortTypes() );
         }
     }
 }

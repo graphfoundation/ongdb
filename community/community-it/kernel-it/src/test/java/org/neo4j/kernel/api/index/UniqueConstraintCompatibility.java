@@ -36,30 +36,32 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.function.Consumer;
 
+import org.neo4j.common.DependencyResolver;
+import org.neo4j.dbms.api.DatabaseManagementService;
 import org.neo4j.graphdb.ConstraintViolationException;
-import org.neo4j.graphdb.DependencyResolver;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Transaction;
+import org.neo4j.internal.schema.IndexPrototype;
+import org.neo4j.internal.schema.SchemaDescriptor;
 import org.neo4j.kernel.api.KernelTransaction;
-import org.neo4j.kernel.api.schema.index.TestIndexDescriptorFactory;
+import org.neo4j.kernel.extension.ExtensionFactory;
 import org.neo4j.kernel.extension.ExtensionType;
-import org.neo4j.kernel.extension.KernelExtensionFactory;
-import org.neo4j.kernel.impl.core.ThreadToStatementContextBridge;
-import org.neo4j.kernel.impl.locking.Lock;
-import org.neo4j.kernel.impl.locking.LockService;
-import org.neo4j.kernel.impl.spi.KernelContext;
+import org.neo4j.kernel.extension.context.ExtensionContext;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
 import org.neo4j.kernel.lifecycle.Lifecycle;
-import org.neo4j.test.TestGraphDatabaseFactory;
+import org.neo4j.lock.Lock;
+import org.neo4j.lock.LockService;
+import org.neo4j.test.TestDatabaseManagementServiceBuilder;
 
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertThat;
-import static org.neo4j.graphdb.factory.GraphDatabaseSettings.default_schema_provider;
-import static org.neo4j.kernel.impl.locking.LockService.LockType;
+import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
+import static org.neo4j.configuration.GraphDatabaseSettings.default_schema_provider;
+import static org.neo4j.lock.LockService.LockType;
 
 @Ignore( "Not a test. This is a compatibility suite that provides test cases for verifying" +
         " IndexProvider implementations. Each index provider that is to be tested by this suite" +
@@ -68,9 +70,12 @@ import static org.neo4j.kernel.impl.locking.LockService.LockType;
         " errors or warnings in some IDEs about test classes needing a public zero-arg constructor." )
 public class UniqueConstraintCompatibility extends IndexProviderCompatibilityTestSuite.Compatibility
 {
+
+    private DatabaseManagementService managementService;
+
     public UniqueConstraintCompatibility( IndexProviderCompatibilityTestSuite testSuite )
     {
-        super( testSuite, TestIndexDescriptorFactory.uniqueForLabel( 1, 2 ) );
+        super( testSuite, IndexPrototype.uniqueForSchema( SchemaDescriptor.forLabel( 1, 2 ) ) );
     }
 
     /*
@@ -133,17 +138,19 @@ public class UniqueConstraintCompatibility extends IndexProviderCompatibilityTes
     @Before
     public void setUp()
     {
-        TestGraphDatabaseFactory dbFactory = new TestGraphDatabaseFactory();
-        dbFactory.setKernelExtensions( Collections.singletonList( new PredefinedIndexProviderFactory( indexProvider ) ) );
-        db = dbFactory.newImpermanentDatabaseBuilder( graphDbDir )
-                      .setConfig( default_schema_provider, indexProvider.getProviderDescriptor().name() )
-                      .newGraphDatabase();
+        managementService = new TestDatabaseManagementServiceBuilder( graphDbDir )
+                .setExtensions( Collections.singletonList( new PredefinedIndexProviderFactory( indexProvider ) ) )
+                .noOpSystemGraphInitializer()
+                .impermanent()
+                .setConfig( default_schema_provider, indexProvider.getProviderDescriptor().name() )
+                .build();
+        db = managementService.database( DEFAULT_DATABASE_NAME );
     }
 
     @After
     public void tearDown()
     {
-        db.shutdown();
+        managementService.shutdown();
     }
 
     // -- Tests:
@@ -158,9 +165,9 @@ public class UniqueConstraintCompatibility extends IndexProviderCompatibilityTes
         Node n;
         try ( Transaction tx = db.beginTx() )
         {
-            n = db.createNode( label );
+            n = tx.createNode( label );
             n.setProperty( property, "n" );
-            tx.success();
+            tx.commit();
         }
 
         // Then
@@ -180,12 +187,12 @@ public class UniqueConstraintCompatibility extends IndexProviderCompatibilityTes
         Node m;
         try ( Transaction tx = db.beginTx() )
         {
-            n = db.createNode( label );
+            n = tx.createNode( label );
             n.setProperty( property, "n" );
 
-            m = db.createNode( label );
+            m = tx.createNode( label );
             m.setProperty( property, "m" );
-            tx.success();
+            tx.commit();
         }
 
         // Then
@@ -203,17 +210,17 @@ public class UniqueConstraintCompatibility extends IndexProviderCompatibilityTes
         Node m;
         try ( Transaction tx = db.beginTx() )
         {
-            n = db.createNode( label );
+            n = tx.createNode( label );
             n.setProperty( property, COLLISION_X );
-            tx.success();
+            tx.commit();
         }
 
         // When
         try ( Transaction tx = db.beginTx() )
         {
-            m = db.createNode( label );
+            m = tx.createNode( label );
             m.setProperty( property, COLLISION_Y );
-            tx.success();
+            tx.commit();
         }
 
         // Then
@@ -280,8 +287,7 @@ public class UniqueConstraintCompatibility extends IndexProviderCompatibilityTes
                 success );
 
         Transaction otherTx = db.beginTx();
-        a.removeLabel( label );
-        suspend( otherTx );
+        otherTx.getNodeById( a.getId() ).removeLabel( label );
 
         // When
         try
@@ -297,9 +303,7 @@ public class UniqueConstraintCompatibility extends IndexProviderCompatibilityTes
         }
         finally
         {
-            resume( otherTx );
-            otherTx.failure();
-            otherTx.close();
+            otherTx.rollback();
         }
     }
 
@@ -632,7 +636,7 @@ public class UniqueConstraintCompatibility extends IndexProviderCompatibilityTes
                 {
                     action.accept( tx );
                 }
-                tx.success();
+                tx.commit();
                 createNodeReadyLatch.countDown();
                 awaitUninterruptibly( createNodeCommitLatch );
             }
@@ -719,14 +723,14 @@ public class UniqueConstraintCompatibility extends IndexProviderCompatibilityTes
         createUniqueConstraint();
         try ( Transaction tx = db.beginTx() )
         {
-            a = db.createNode( label );
+            a = tx.createNode( label );
             a.setProperty( property, "a" );
-            b = db.createNode( label );
-            c = db.createNode();
+            b = tx.createNode( label );
+            c = tx.createNode();
             c.setProperty( property, "a" );
-            d = db.createNode();
+            d = tx.createNode();
             d.setProperty( property, "d" );
-            tx.success();
+            tx.commit();
         }
     }
 
@@ -745,15 +749,15 @@ public class UniqueConstraintCompatibility extends IndexProviderCompatibilityTes
     {
         try ( Transaction tx = db.beginTx() )
         {
-            a = db.createNode( label );
+            a = tx.createNode( label );
             a.setProperty( property, "a" );
-            b = db.createNode( label );
+            b = tx.createNode( label );
             b.setProperty( property, "b" );
-            c = db.createNode( label );
+            c = tx.createNode( label );
             c.setProperty( property, "c" );
-            d = db.createNode( label );
+            d = tx.createNode( label );
             d.setProperty( property, "d" );
-            tx.success();
+            tx.commit();
         }
     }
 
@@ -788,8 +792,8 @@ public class UniqueConstraintCompatibility extends IndexProviderCompatibilityTes
             {
                 preCreateLatch.countDown();
             }
-            db.schema().constraintFor( label ).assertPropertyIsUnique( property ).create();
-            tx.success();
+            tx.schema().constraintFor( label ).assertPropertyIsUnique( property ).create();
+            tx.commit();
         }
     }
 
@@ -800,9 +804,9 @@ public class UniqueConstraintCompatibility extends IndexProviderCompatibilityTes
      *     return single( db.findNodesByLabelAndProperty( label, property, value ), null );
      * </code></pre>
      */
-    private Node lookUpNode( Object value )
+    private Node lookUpNode( Transaction tx, Object value )
     {
-        return db.findNode( label, property, value );
+        return tx.findNode( label, property, value );
     }
 
     // -- Set Up: Transaction handling
@@ -835,7 +839,7 @@ public class UniqueConstraintCompatibility extends IndexProviderCompatibilityTes
     {
         private final String name;
 
-        protected Action( String name )
+        Action( String name )
         {
             this.name = name;
         }
@@ -852,21 +856,19 @@ public class UniqueConstraintCompatibility extends IndexProviderCompatibilityTes
         @Override
         public void accept( Transaction transaction )
         {
-            transaction.success();
-            // We also call close() here, because some validations and checks don't run until commit
-            transaction.close();
+            transaction.commit();
         }
     };
 
     private Action createNode( final Object propertyValue )
     {
-        return new Action( "Node node = db.createNode( label ); " +
+        return new Action( "Node node = tx.createNode( label ); " +
                 "node.setProperty( property, " + reprValue( propertyValue ) + " );" )
         {
             @Override
             public void accept( Transaction transaction )
             {
-                Node node = db.createNode( label );
+                Node node = transaction.createNode( label );
                 node.setProperty( property, propertyValue );
             }
         };
@@ -879,7 +881,7 @@ public class UniqueConstraintCompatibility extends IndexProviderCompatibilityTes
             @Override
             public void accept( Transaction transaction )
             {
-                node.setProperty( property, value );
+                transaction.getNodeById( node.getId() ).setProperty( property, value );
             }
         };
     }
@@ -891,7 +893,7 @@ public class UniqueConstraintCompatibility extends IndexProviderCompatibilityTes
             @Override
             public void accept( Transaction transaction )
             {
-                node.removeProperty( property );
+                transaction.getNodeById( node.getId() ).removeProperty( property );
             }
         };
     }
@@ -903,7 +905,7 @@ public class UniqueConstraintCompatibility extends IndexProviderCompatibilityTes
             @Override
             public void accept( Transaction transaction )
             {
-                node.addLabel( label );
+                transaction.getNodeById( node.getId() ).addLabel( label );
             }
         };
     }
@@ -927,7 +929,7 @@ public class UniqueConstraintCompatibility extends IndexProviderCompatibilityTes
             @Override
             public void accept( Transaction transaction )
             {
-                assertThat( lookUpNode( propertyValue ), matcher );
+                assertThat( lookUpNode( transaction, propertyValue ), matcher );
             }
         };
     }
@@ -946,24 +948,6 @@ public class UniqueConstraintCompatibility extends IndexProviderCompatibilityTes
 
     private final Map<Transaction,KernelTransaction> txMap = new IdentityHashMap<>();
 
-    private void suspend( Transaction tx )
-    {
-        ThreadToStatementContextBridge txManager = getTransactionManager();
-        txMap.put( tx, txManager.getKernelTransactionBoundToThisThread( true ) );
-        txManager.unbindTransactionFromCurrentThread();
-    }
-
-    private void resume( Transaction tx )
-    {
-        ThreadToStatementContextBridge txManager = getTransactionManager();
-        txManager.bindTransactionToCurrentThread( txMap.remove(tx) );
-    }
-
-    private ThreadToStatementContextBridge getTransactionManager()
-    {
-        return resolveInternalDependency( ThreadToStatementContextBridge.class );
-    }
-
     // -- Set Up: Misc. sharp tools
 
     /**
@@ -976,7 +960,6 @@ public class UniqueConstraintCompatibility extends IndexProviderCompatibilityTes
 
     private <T> T resolveInternalDependency( Class<T> type )
     {
-        @SuppressWarnings( "deprecation" )
         GraphDatabaseAPI api = (GraphDatabaseAPI) db;
         DependencyResolver resolver = api.getDependencyResolver();
         return resolver.resolveDependency( type );
@@ -994,12 +977,12 @@ public class UniqueConstraintCompatibility extends IndexProviderCompatibilityTes
         }
     }
 
-    private static class PredefinedIndexProviderFactory extends KernelExtensionFactory<PredefinedIndexProviderFactory.NoDeps>
+    private static class PredefinedIndexProviderFactory extends ExtensionFactory<PredefinedIndexProviderFactory.NoDeps>
     {
         private final IndexProvider indexProvider;
 
         @Override
-        public Lifecycle newInstance( KernelContext context, NoDeps noDeps )
+        public Lifecycle newInstance( ExtensionContext context, NoDeps noDeps )
         {
             return indexProvider;
         }

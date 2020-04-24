@@ -20,26 +20,25 @@
 package org.neo4j.consistency.checking;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 
+import org.neo4j.internal.recordstorage.Command;
+import org.neo4j.internal.schema.SchemaRule;
 import org.neo4j.kernel.impl.store.NeoStores;
 import org.neo4j.kernel.impl.store.PropertyStore;
 import org.neo4j.kernel.impl.store.record.DynamicRecord;
 import org.neo4j.kernel.impl.store.record.LabelTokenRecord;
-import org.neo4j.kernel.impl.store.record.NeoStoreRecord;
 import org.neo4j.kernel.impl.store.record.NodeRecord;
 import org.neo4j.kernel.impl.store.record.PropertyKeyTokenRecord;
 import org.neo4j.kernel.impl.store.record.PropertyRecord;
 import org.neo4j.kernel.impl.store.record.RelationshipGroupRecord;
 import org.neo4j.kernel.impl.store.record.RelationshipRecord;
 import org.neo4j.kernel.impl.store.record.RelationshipTypeTokenRecord;
+import org.neo4j.kernel.impl.store.record.SchemaRecord;
 import org.neo4j.kernel.impl.store.record.TokenRecord;
 import org.neo4j.kernel.impl.transaction.TransactionRepresentation;
-import org.neo4j.kernel.impl.transaction.command.Command;
 import org.neo4j.kernel.impl.transaction.log.PhysicalTransactionRepresentation;
 import org.neo4j.storageengine.api.StorageCommand;
-import org.neo4j.storageengine.api.schema.SchemaRule;
 
 import static org.neo4j.kernel.impl.store.TokenStore.NAME_STORE_BLOCK_SIZE;
 import static org.neo4j.kernel.impl.store.record.Record.NO_NEXT_PROPERTY;
@@ -59,39 +58,36 @@ public class TransactionWriter
         this.neoStores = neoStores;
     }
 
-    public TransactionRepresentation representation( byte[] additionalHeader, int masterId, int authorId,
-            long startTime, long lastCommittedTx, long committedTime )
+    public TransactionRepresentation representation( byte[] additionalHeader, long startTime, long lastCommittedTx, long committedTime )
     {
         prepareForCommit();
         PhysicalTransactionRepresentation representation = new PhysicalTransactionRepresentation( allCommands() );
-        representation.setHeader( additionalHeader, masterId, authorId, startTime, lastCommittedTx, committedTime, -1 );
+        representation.setHeader( additionalHeader, startTime, lastCommittedTx, committedTime, -1 );
         return representation;
     }
 
-    public void propertyKey( int id, String key, int... dynamicIds )
+    public void propertyKey( int id, String key, boolean internal, int... dynamicIds )
     {
         PropertyKeyTokenRecord before = new PropertyKeyTokenRecord( id );
         PropertyKeyTokenRecord after = withName( new PropertyKeyTokenRecord( id ), dynamicIds, key );
+        after.setInternal( internal );
         otherCommands.add( new Command.PropertyKeyTokenCommand( before, after ) );
     }
 
-    public void label( int id, String name, int... dynamicIds )
+    public void label( int id, String name, boolean internal, int... dynamicIds )
     {
         LabelTokenRecord before = new LabelTokenRecord( id );
         LabelTokenRecord after = withName( new LabelTokenRecord( id ), dynamicIds, name );
+        after.setInternal( internal );
         otherCommands.add( new Command.LabelTokenCommand( before, after ) );
     }
 
-    public void relationshipType( int id, String label, int... dynamicIds )
+    public void relationshipType( int id, String relType, boolean internal, int... dynamicIds )
     {
         RelationshipTypeTokenRecord before = new RelationshipTypeTokenRecord( id );
-        RelationshipTypeTokenRecord after = withName( new RelationshipTypeTokenRecord( id ), dynamicIds, label );
+        RelationshipTypeTokenRecord after = withName( new RelationshipTypeTokenRecord( id ), dynamicIds, relType );
+        after.setInternal( internal );
         otherCommands.add( new Command.RelationshipTypeTokenCommand( before, after ) );
-    }
-
-    public void update( NeoStoreRecord before, NeoStoreRecord after )
-    {
-        otherCommands.add( new Command.NeoStoreCommand( before, after ) );
     }
 
     public void update( LabelTokenRecord before, LabelTokenRecord after )
@@ -154,24 +150,16 @@ public class TransactionWriter
         add( group, new RelationshipGroupRecord( group.getId(), group.getType() ) );
     }
 
-    public void createSchema( Collection<DynamicRecord> beforeRecord, Collection<DynamicRecord> afterRecord,
-            SchemaRule rule )
+    public void createSchema( SchemaRecord before, SchemaRecord after, SchemaRule rule )
     {
-        for ( DynamicRecord record : afterRecord )
-        {
-            record.setCreated();
-        }
-        updateSchema( beforeRecord, afterRecord, rule );
+        after.setCreated();
+        updateSchema( before, after, rule );
     }
 
-    public void updateSchema( Collection<DynamicRecord> beforeRecords, Collection<DynamicRecord> afterRecords,
-            SchemaRule rule )
+    public void updateSchema( SchemaRecord before, SchemaRecord after, SchemaRule rule )
     {
-        for ( DynamicRecord record : afterRecords )
-        {
-            record.setInUse( true );
-        }
-        addSchema( beforeRecords, afterRecords, rule );
+        after.setInUse( true );
+        addSchema( before, after, rule );
     }
 
     public void update( RelationshipRecord before, RelationshipRecord after )
@@ -204,6 +192,10 @@ public class TransactionWriter
         {
             before.setRelId( property.getRelId() );
         }
+        if ( property.isSchemaSet() )
+        {
+            before.setSchemaRuleId( property.getSchemaRuleId() );
+        }
         update( before, property );
     }
 
@@ -221,10 +213,9 @@ public class TransactionWriter
 
     // Internals
 
-    private void addSchema( Collection<DynamicRecord> beforeRecords, Collection<DynamicRecord> afterRecords,
-            SchemaRule rule )
+    private void addSchema( SchemaRecord before, SchemaRecord after, SchemaRule rule )
     {
-        otherCommands.add( new Command.SchemaRuleCommand( beforeRecords, afterRecords, rule ) );
+        otherCommands.add( new Command.SchemaRuleCommand( before, after, rule ) );
     }
 
     public void add( NodeRecord before, NodeRecord after )
@@ -255,11 +246,6 @@ public class TransactionWriter
     public void add( PropertyKeyTokenRecord before, PropertyKeyTokenRecord after )
     {
         otherCommands.add( new Command.PropertyKeyTokenCommand( before, after ) );
-    }
-
-    public void add( NeoStoreRecord before, NeoStoreRecord after )
-    {
-        otherCommands.add( new Command.NeoStoreCommand( before, after ) );
     }
 
     public void incrementNodeCount( int labelId, long delta )

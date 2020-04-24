@@ -22,35 +22,40 @@ package org.neo4j.cypher
 import java.io.File
 import java.util.concurrent.TimeUnit
 
+import org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME
 import org.neo4j.cypher.ExecutionEngineHelper.createEngine
 import org.neo4j.cypher.internal.javacompat.GraphDatabaseCypherService
-import org.neo4j.graphdb.GraphDatabaseService
-import org.neo4j.kernel.api.exceptions.schema.{DropIndexFailureException, NoSuchIndexException}
+import org.neo4j.exceptions.{CypherExecutionException, FailedIndexException}
+import org.neo4j.graphdb.{GraphDatabaseService, Label, Transaction}
+import org.neo4j.kernel.api.exceptions.schema.DropIndexFailureException
 import org.neo4j.kernel.impl.index.schema.FailingGenericNativeIndexProviderFactory
 import org.neo4j.kernel.impl.index.schema.FailingGenericNativeIndexProviderFactory.FailureType.POPULATION
-import org.neo4j.test.TestGraphDatabaseFactory
+import org.neo4j.test.TestDatabaseManagementServiceBuilder
 import org.neo4j.test.rule.TestDirectory
+
+import scala.collection.JavaConverters._
 
 class IndexOpAcceptanceTest extends ExecutionEngineFunSuite with QueryStatisticsTestSupport {
 
   test("createIndex") {
     // WHEN
-    execute("CREATE INDEX ON :Person(name)")
+    execute("CREATE INDEX FOR (n:Person) ON (n.name)")
 
     // THEN
-    graph.inTx {
-      graph.indexPropsForLabel("Person") should equal(List(List("name")))
-    }
+    graph.withTx(tx => {
+      indexPropsForLabel(tx, "Person") should equal(List(List("name")))
+    })
   }
 
-  test("createIndexShouldBeIdempotent") {
+  test("createIndexShouldFailWhenCreatedTwice") {
     // GIVEN
-    execute("CREATE INDEX ON :Person(name)")
+    execute("CREATE INDEX FOR (n:Person) ON (n.name)")
 
     // WHEN
-    execute("CREATE INDEX ON :Person(name)")
+    val e = intercept[CypherExecutionException](execute("CREATE INDEX FOR (n:Person) ON (n.name)"))
 
-    // THEN no exception is thrown
+    // THEN
+    e should have message "An equivalent index already exists, 'Index( 1, 'index_5c0607ad', GENERAL BTREE, :Person(name), native-btree-1.0 )'."
   }
 
   test("secondIndexCreationShouldFailIfIndexesHasFailed") {
@@ -58,32 +63,30 @@ class IndexOpAcceptanceTest extends ExecutionEngineFunSuite with QueryStatistics
     val graph = createDbWithFailedIndex
     try {
       // WHEN THEN
-      val e = intercept[FailedIndexException](execute("CREATE INDEX ON :Person(name)"))
+      val e = intercept[FailedIndexException](execute("CREATE INDEX FOR (n:Person) ON (n.name)"))
       e.getMessage should include (org.neo4j.kernel.impl.index.schema.FailingGenericNativeIndexProviderFactory.POPULATION_FAILURE_MESSAGE)
     } finally {
-      graph.shutdown()
-      new File("target/test-data/test-impermanent-db").deleteAll()
+      managementService.shutdown()
     }
   }
 
   test("dropIndex") {
     // GIVEN
-    execute("CREATE INDEX ON :Person(name)")
+    execute("CREATE INDEX FOR (n:Person) ON (n.name)")
 
     // WHEN
     execute("DROP INDEX ON :Person(name)")
 
     // THEN
-    graph.inTx {
-      graph.indexPropsForLabel("Person") shouldBe empty
-    }
+    graph.withTx( tx  => {
+      indexPropsForLabel( tx, "Person") shouldBe empty
+    } )
   }
 
   test("drop_index_that_does_not_exist") {
     // WHEN
     val e = intercept[CypherExecutionException](execute("DROP INDEX ON :Person(name)"))
     assert(e.getCause.isInstanceOf[DropIndexFailureException])
-    assert(e.getCause.getCause.isInstanceOf[NoSuchIndexException])
   }
 
   implicit class FileHelper(file: File) {
@@ -99,25 +102,31 @@ class IndexOpAcceptanceTest extends ExecutionEngineFunSuite with QueryStatistics
     }
   }
 
+  def indexPropsForLabel(tx: Transaction, label: String): List[List[String]] = {
+    val indexDefs = tx.schema.getIndexes(Label.label(label)).asScala.toList
+    indexDefs.map(_.getPropertyKeys.asScala.toList)
+  }
+
   private def createDbWithFailedIndex: GraphDatabaseService = {
     val testDirectory = TestDirectory.testDirectory()
     testDirectory.prepareDirectory(getClass, "createDbWithFailedIndex")
-    val storeDir = testDirectory.databaseDir()
-    graph.shutdown()
-    val dbFactory = new TestGraphDatabaseFactory()
+    managementService.shutdown()
+    val dbFactory = new TestDatabaseManagementServiceBuilder(testDirectory.homeDir())
+    dbFactory.noOpSystemGraphInitializer()
     // Build a properly failing index provider which is a wrapper around the default provider, but which throws exception
     // in its populator when trying to add updates to it
     val providerFactory = new FailingGenericNativeIndexProviderFactory(POPULATION)
-    dbFactory.removeKernelExtensions(TestGraphDatabaseFactory.INDEX_PROVIDERS_FILTER)
-    dbFactory.addKernelExtension(providerFactory)
-    graph = new GraphDatabaseCypherService(dbFactory.newEmbeddedDatabase(storeDir))
+    dbFactory.removeExtensions(TestDatabaseManagementServiceBuilder.INDEX_PROVIDERS_FILTER)
+    dbFactory.addExtension(providerFactory)
+    managementService = dbFactory.build()
+    graph = new GraphDatabaseCypherService(managementService.database(DEFAULT_DATABASE_NAME))
     eengine = createEngine(graph)
     execute("create (:Person {name:42})")
-    execute("CREATE INDEX ON :Person(name)")
+    execute("CREATE INDEX FOR (n:Person) ON (n.name)")
     val tx = graph.getGraphDatabaseService.beginTx()
     try {
-      graph.schema().awaitIndexesOnline(3, TimeUnit.SECONDS)
-      tx.success()
+      tx.schema().awaitIndexesOnline(3, TimeUnit.SECONDS)
+      tx.commit()
     } catch {
       case e:IllegalStateException => assert(e.getMessage.contains("FAILED"), "Was expecting FAILED state")
     } finally {

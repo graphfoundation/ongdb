@@ -32,7 +32,7 @@ import org.neo4j.test.server.HTTP;
 import static java.util.Arrays.asList;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.neo4j.helpers.collection.MapUtil.map;
+import static org.neo4j.internal.helpers.collection.MapUtil.map;
 import static org.neo4j.kernel.api.exceptions.Status.Transaction.TransactionNotFound;
 import static org.neo4j.server.helpers.CommunityServerBuilder.serverOnRandomPorts;
 
@@ -54,7 +54,7 @@ public class TransactionTimeoutIT extends ExclusiveServerTestBase
                 .withProperty( ServerSettings.transaction_idle_timeout.name(), "1" ).build();
         server.start();
 
-        String tx = HTTP.POST( txURI(), asList( map( "statement", "CREATE (n)" ) ) ).location();
+        String tx = HTTP.POST( txURI(), map("statements", asList( map( "statement", "CREATE (n)" ) ) ) ).location();
 
         // When
         Thread.sleep( 1000 * 5 );
@@ -68,7 +68,7 @@ public class TransactionTimeoutIT extends ExclusiveServerTestBase
 
     private String txURI()
     {
-        return server.baseUri().toString() + "db/data/transaction";
+        return server.baseUri().toString() + txEndpoint();
     }
 
 }

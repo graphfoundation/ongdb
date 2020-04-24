@@ -4,14 +4,14 @@
     <parent>
         <groupId>org.graphfoundation.ongdb</groupId>
         <artifactId>parent</artifactId>
-        <version>3.6.0-SNAPSHOT</version>
+        <version>4.0.4-SNAPSHOT</version>
         <relativePath>..</relativePath>
     </parent>
 
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.graphfoundation.ongdb.build</groupId>
     <artifactId>enterprise-build</artifactId>
-    <version>3.6.0-SNAPSHOT</version>
+    <version>4.0.4-SNAPSHOT</version>
 
     <name>ONgDB - Enterprise Build</name>
     <packaging>pom</packaging>

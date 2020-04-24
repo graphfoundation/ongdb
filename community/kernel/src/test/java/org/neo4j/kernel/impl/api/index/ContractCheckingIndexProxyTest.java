@@ -19,7 +19,7 @@
  */
 package org.neo4j.kernel.impl.api.index;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.concurrent.CountDownLatch;
@@ -31,16 +31,17 @@ import org.neo4j.kernel.api.index.IndexUpdater;
 import org.neo4j.test.DoubleLatch;
 import org.neo4j.test.ThreadTestUtils;
 
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.neo4j.kernel.impl.api.index.SchemaIndexTestHelper.mockIndexProxy;
 
-public class ContractCheckingIndexProxyTest
+class ContractCheckingIndexProxyTest
 {
     private static final long TEST_TIMEOUT = 20_000;
 
-    @Test( expected = /* THEN */ IllegalStateException.class )
-    public void shouldNotCreateIndexTwice() throws IOException
+    @Test
+    void shouldNotCreateIndexTwice()
     {
         // GIVEN
         IndexProxy inner = mockIndexProxy();
@@ -48,47 +49,47 @@ public class ContractCheckingIndexProxyTest
 
         // WHEN
         outer.start();
-        outer.start();
-    }
-
-    @Test( expected = /* THEN */ IllegalStateException.class )
-    public void shouldNotCloseIndexTwice() throws IOException
-    {
-        // GIVEN
-        IndexProxy inner = mockIndexProxy();
-        IndexProxy outer = newContractCheckingIndexProxy( inner );
-
-        // WHEN
-        outer.close();
-        outer.close();
-    }
-
-    @Test( expected = /* THEN */ IllegalStateException.class )
-    public void shouldNotDropIndexTwice() throws IOException
-    {
-        // GIVEN
-        IndexProxy inner = mockIndexProxy();
-        IndexProxy outer = newContractCheckingIndexProxy( inner );
-
-        // WHEN
-        outer.drop();
-        outer.drop();
-    }
-
-    @Test( expected = /* THEN */ IllegalStateException.class )
-    public void shouldNotDropAfterClose() throws IOException
-    {
-        // GIVEN
-        IndexProxy inner = mockIndexProxy();
-        IndexProxy outer = newContractCheckingIndexProxy( inner );
-
-        // WHEN
-        outer.close();
-        outer.drop();
+        assertThrows( IllegalStateException.class, outer::start );
     }
 
     @Test
-    public void shouldDropAfterCreate() throws IOException
+    void shouldNotCloseIndexTwice() throws IOException
+    {
+        // GIVEN
+        IndexProxy inner = mockIndexProxy();
+        IndexProxy outer = newContractCheckingIndexProxy( inner );
+
+        // WHEN
+        outer.close();
+        assertThrows( IllegalStateException.class, outer::close );
+    }
+
+    @Test
+    void shouldNotDropIndexTwice()
+    {
+        // GIVEN
+        IndexProxy inner = mockIndexProxy();
+        IndexProxy outer = newContractCheckingIndexProxy( inner );
+
+        // WHEN
+        outer.drop();
+        assertThrows( IllegalStateException.class, outer::drop );
+    }
+
+    @Test
+    void shouldNotDropAfterClose() throws IOException
+    {
+        // GIVEN
+        IndexProxy inner = mockIndexProxy();
+        IndexProxy outer = newContractCheckingIndexProxy( inner );
+
+        // WHEN
+        outer.close();
+        assertThrows( IllegalStateException.class, outer::drop );
+    }
+
+    @Test
+    void shouldDropAfterCreate()
     {
         // GIVEN
         IndexProxy inner = mockIndexProxy();
@@ -102,7 +103,7 @@ public class ContractCheckingIndexProxyTest
     }
 
     @Test
-    public void shouldCloseAfterCreate() throws IOException
+    void shouldCloseAfterCreate() throws IOException
     {
         // GIVEN
         IndexProxy inner = mockIndexProxy();
@@ -115,22 +116,25 @@ public class ContractCheckingIndexProxyTest
         outer.close();
     }
 
-    @Test( expected = IllegalStateException.class )
-    public void shouldNotUpdateBeforeCreate() throws Exception
+    @Test
+    void shouldNotUpdateBeforeCreate()
     {
         // GIVEN
         IndexProxy inner = mockIndexProxy();
         IndexProxy outer = newContractCheckingIndexProxy( inner );
 
         // WHEN
-        try ( IndexUpdater updater = outer.newUpdater( IndexUpdateMode.ONLINE ) )
+        assertThrows( IllegalStateException.class, () ->
         {
-            updater.process( null );
-        }
+            try ( IndexUpdater updater = outer.newUpdater( IndexUpdateMode.ONLINE ) )
+            {
+                updater.process( null );
+            }
+        } );
     }
 
-    @Test( expected = IllegalStateException.class )
-    public void shouldNotUpdateAfterClose() throws Exception
+    @Test
+    void shouldNotUpdateAfterClose() throws Exception
     {
         // GIVEN
         IndexProxy inner = mockIndexProxy();
@@ -139,14 +143,18 @@ public class ContractCheckingIndexProxyTest
         // WHEN
         outer.start();
         outer.close();
-        try ( IndexUpdater updater = outer.newUpdater( IndexUpdateMode.ONLINE ) )
+
+        assertThrows( IllegalStateException.class, () ->
         {
-            updater.process( null );
-        }
+            try ( IndexUpdater updater = outer.newUpdater( IndexUpdateMode.ONLINE ) )
+            {
+                updater.process( null );
+            }
+        } );
     }
 
     @Test
-    public void shouldNotForceBeforeCreate() throws IOException
+    void shouldNotForceBeforeCreate() throws IOException
     {
         // GIVEN
         IndexProxy inner = mockIndexProxy();
@@ -158,7 +166,7 @@ public class ContractCheckingIndexProxyTest
     }
 
     @Test
-    public void shouldNotForceAfterClose() throws IOException
+    void shouldNotForceAfterClose() throws IOException
     {
         // GIVEN
         IndexProxy inner = mockIndexProxy();
@@ -167,14 +175,15 @@ public class ContractCheckingIndexProxyTest
         // WHEN
         outer.start();
         outer.close();
+
         outer.force( IOLimiter.UNLIMITED );
         verify( inner ).start();
         verify( inner ).close();
         verifyNoMoreInteractions( inner );
     }
 
-    @Test( expected = /* THEN */ IllegalStateException.class )
-    public void shouldNotCloseWhileCreating() throws IOException
+    @Test
+    void shouldNotCloseWhileCreating()
     {
         // GIVEN
         final DoubleLatch latch = new DoubleLatch();
@@ -194,7 +203,7 @@ public class ContractCheckingIndexProxyTest
         try
         {
             latch.waitForAllToStart();
-            outer.close();
+            assertThrows( IllegalStateException.class, outer::close );
         }
         finally
         {
@@ -202,8 +211,8 @@ public class ContractCheckingIndexProxyTest
         }
     }
 
-    @Test( expected = /* THEN */ IllegalStateException.class )
-    public void shouldNotDropWhileCreating() throws IOException
+    @Test
+    void shouldNotDropWhileCreating()
     {
         // GIVEN
         final DoubleLatch latch = new DoubleLatch();
@@ -223,7 +232,7 @@ public class ContractCheckingIndexProxyTest
         try
         {
             latch.waitForAllToStart();
-            outer.drop();
+            assertThrows( IllegalStateException.class, outer::drop );
         }
         finally
         {
@@ -231,8 +240,8 @@ public class ContractCheckingIndexProxyTest
         }
     }
 
-    @Test( timeout = TEST_TIMEOUT )
-    public void closeWaitForUpdateToFinish() throws IOException, InterruptedException
+    @Test
+    void closeWaitForUpdateToFinish() throws InterruptedException
     {
         // GIVEN
         CountDownLatch latch = new CountDownLatch( 1 );
@@ -276,8 +285,8 @@ public class ContractCheckingIndexProxyTest
         actionThread.join();
     }
 
-    @Test( timeout = TEST_TIMEOUT )
-    public void closeWaitForForceToComplete() throws Exception
+    @Test
+    void closeWaitForForceToComplete() throws Exception
     {
         // GIVEN
         CountDownLatch latch = new CountDownLatch( 1 );
@@ -317,14 +326,14 @@ public class ContractCheckingIndexProxyTest
         void run() throws IOException;
     }
 
-    private Thread runInSeparateThread( final ThrowingRunnable action )
+    private static Thread runInSeparateThread( final ThrowingRunnable action )
     {
         Thread thread = createActionThread( action );
         thread.start();
         return thread;
     }
 
-    private Thread createActionThread( ThrowingRunnable action )
+    private static Thread createActionThread( ThrowingRunnable action )
     {
         return new Thread( () ->
         {
@@ -339,7 +348,7 @@ public class ContractCheckingIndexProxyTest
         } );
     }
 
-    private ContractCheckingIndexProxy newContractCheckingIndexProxy( IndexProxy inner )
+    private static ContractCheckingIndexProxy newContractCheckingIndexProxy( IndexProxy inner )
     {
         return new ContractCheckingIndexProxy( inner, false );
     }

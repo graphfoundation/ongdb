@@ -20,28 +20,27 @@
 package org.neo4j.harness;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
+import org.neo4j.graphdb.Transaction;
 import org.neo4j.internal.kernel.api.exceptions.ProcedureException;
 import org.neo4j.procedure.Context;
 import org.neo4j.procedure.UserFunction;
-import org.neo4j.test.rule.SuppressOutput;
+import org.neo4j.test.extension.Inject;
+import org.neo4j.test.extension.testdirectory.TestDirectoryExtension;
 import org.neo4j.test.rule.TestDirectory;
 import org.neo4j.test.server.HTTP;
 
 import static org.hamcrest.CoreMatchers.containsString;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.neo4j.test.server.HTTP.RawPayload.quotedJson;
 
-public class JavaFunctionsTestIT
+@TestDirectoryExtension
+class JavaFunctionsTestIT
 {
-    @Rule
-    public TestDirectory testDir = TestDirectory.testDirectory();
-
-    @Rule
-    public SuppressOutput suppressOutput = SuppressOutput.suppressAll();
+    @Inject
+    private TestDirectory testDir;
 
     public static class MyFunctions
     {
@@ -77,34 +76,37 @@ public class JavaFunctionsTestIT
         @Context
         public MyCoreAPI myCoreAPI;
 
+        @Context
+        public Transaction transaction;
+
         @UserFunction( value = "my.willFail" )
         public long willFail() throws ProcedureException
         {
-            return myCoreAPI.makeNode( "Test" );
+            return myCoreAPI.makeNode( transaction, "Test" );
         }
 
         @UserFunction( "my.countNodes" )
         public long countNodes()
         {
-            return myCoreAPI.countNodes();
+            return myCoreAPI.countNodes( transaction );
         }
     }
 
-    private TestServerBuilder createServer( Class<?> functionClass )
+    private Neo4jBuilder createServer( Class<?> functionClass )
     {
-        return TestServerBuilders.newInProcessBuilder()
+        return Neo4jBuilders.newInProcessBuilder()
                                  .withFunction( functionClass );
     }
 
     @Test
-    public void shouldLaunchWithDeclaredFunctions() throws Exception
+    void shouldLaunchWithDeclaredFunctions() throws Exception
     {
         // When
         Class<MyFunctions> functionClass = MyFunctions.class;
-        try ( ServerControls server = createServer( functionClass ).newServer() )
+        try ( Neo4j server = createServer( functionClass ).build() )
         {
             // Then
-            HTTP.Response response = HTTP.POST( server.httpURI().resolve( "db/data/transaction/commit" ).toString(),
+            HTTP.Response response = HTTP.POST( server.httpURI().resolve( "db/neo4j/tx/commit" ).toString(),
                     quotedJson(
                             "{ 'statements': [ { 'statement': 'RETURN org.neo4j.harness.myFunc() AS someNumber' } ] " +
                             "}" ) );
@@ -117,32 +119,29 @@ public class JavaFunctionsTestIT
     }
 
     @Test
-    public void shouldGetHelpfulErrorOnProcedureThrowsException() throws Exception
+    void shouldGetHelpfulErrorOnProcedureThrowsException() throws Exception
     {
         // When
-        try ( ServerControls server = createServer( MyFunctions.class ).newServer() )
+        try ( Neo4j server = createServer( MyFunctions.class ).build() )
         {
             // Then
-            HTTP.Response response = HTTP.POST( server.httpURI().resolve( "db/data/transaction/commit" ).toString(),
+            HTTP.Response response = HTTP.POST( server.httpURI().resolve( "db/neo4j/tx/commit" ).toString(),
                     quotedJson(
                             "{ 'statements': [ { 'statement': 'RETURN org.neo4j.harness.funcThatThrows()' } ] }" ) );
 
             String error = response.get( "errors" ).get( 0 ).get( "message" ).asText();
-            assertEquals(
-                    "Failed to invoke function `org.neo4j.harness.funcThatThrows`: Caused by: java.lang" +
-                    ".RuntimeException: This is an exception",
-                    error );
+            assertEquals( "Failed to invoke function `org.neo4j.harness.funcThatThrows`: Caused by: java.lang.RuntimeException: This is an exception", error );
         }
     }
 
     @Test
-    public void shouldWorkWithInjectableFromKernelExtension() throws Throwable
+    void shouldWorkWithInjectableFromExtension() throws Throwable
     {
         // When
-        try ( ServerControls server = createServer( MyFunctionsUsingMyService.class ).newServer() )
+        try ( Neo4j server = createServer( MyFunctionsUsingMyService.class ).build() )
         {
             // Then
-            HTTP.Response response = HTTP.POST( server.httpURI().resolve( "db/data/transaction/commit" ).toString(),
+            HTTP.Response response = HTTP.POST( server.httpURI().resolve( "db/neo4j/tx/commit" ).toString(),
                     quotedJson( "{ 'statements': [ { 'statement': 'RETURN my.hello() AS result' } ] }" ) );
 
             assertEquals( "[]", response.get( "errors" ).toString() );
@@ -153,12 +152,12 @@ public class JavaFunctionsTestIT
     }
 
     @Test
-    public void shouldWorkWithInjectableFromKernelExtensionWithMorePower() throws Throwable
+    void shouldWorkWithInjectableFromExtensionWithMorePower() throws Throwable
     {
         // When
-        try ( ServerControls server = createServer( MyFunctionsUsingMyCoreAPI.class ).newServer() )
+        try ( Neo4j server = createServer( MyFunctionsUsingMyCoreAPI.class ).build() )
         {
-            HTTP.POST( server.httpURI().resolve( "db/data/transaction/commit" ).toString(),
+            HTTP.POST( server.httpURI().resolve( "db/neo4j/tx/commit" ).toString(),
                     quotedJson( "{ 'statements': [ { 'statement': 'CREATE (), (), ()' } ] }" ) );
 
             // Then
@@ -167,9 +166,9 @@ public class JavaFunctionsTestIT
         }
     }
 
-    private void assertQueryGetsValue( ServerControls server, String query, long value ) throws Throwable
+    private void assertQueryGetsValue( Neo4j server, String query, long value ) throws Throwable
     {
-        HTTP.Response response = HTTP.POST( server.httpURI().resolve( "db/data/transaction/commit" ).toString(),
+        HTTP.Response response = HTTP.POST( server.httpURI().resolve( "db/neo4j/tx/commit" ).toString(),
                 quotedJson( "{ 'statements': [ { 'statement': '" + query + "' } ] }" ) );
 
         assertEquals( "[]", response.get( "errors" ).toString() );
@@ -178,9 +177,9 @@ public class JavaFunctionsTestIT
         assertEquals( value, result.get( "data" ).get( 0 ).get( "row" ).get( 0 ).asLong() );
     }
 
-    private void assertQueryGetsError( ServerControls server, String query, String error ) throws Throwable
+    private void assertQueryGetsError( Neo4j server, String query, String error ) throws Throwable
     {
-        HTTP.Response response = HTTP.POST( server.httpURI().resolve( "db/data/transaction/commit" ).toString(),
+        HTTP.Response response = HTTP.POST( server.httpURI().resolve( "db/neo4j/tx/commit" ).toString(),
                 quotedJson( "{ 'statements': [ { 'statement': '" + query + "' } ] }" ) );
 
         assertThat( response.get( "errors" ).toString(), containsString( error ) );

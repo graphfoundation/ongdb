@@ -52,27 +52,25 @@ public class GraphDescription implements GraphDefinition
             end = parts[2];
         }
 
-        public Relationship create( GraphDatabaseService graphdb,
-                Map<String, Node> nodes )
+        public Relationship create( Transaction transaction, Map<String, Node> nodes )
         {
-            Node startNode = getNode( graphdb, nodes, start );
-            Node endNode = getNode( graphdb, nodes, end );
+            Node startNode = getNode( transaction, nodes, start );
+            Node endNode = getNode( transaction, nodes, end );
             return startNode.createRelationshipTo( endNode, type );
         }
 
-        private Node getNode( GraphDatabaseService graphdb,
-                Map<String, Node> nodes, String name )
+        private Node getNode( Transaction transaction, Map<String, Node> nodes, String name )
         {
             Node node = nodes.get( name );
             if ( node == null )
             {
                 if ( nodes.size() == 0 )
                 {
-                    node = graphdb.createNode();
+                    node = transaction.createNode();
                 }
                 else
                 {
-                    node = graphdb.createNode();
+                    node = transaction.createNode();
                 }
                 node.setProperty( "name", name );
                 nodes.put( name, node );
@@ -93,7 +91,7 @@ public class GraphDescription implements GraphDefinition
                 lines.add( new RelationshipDescription( line ) );
             }
         }
-        this.description = lines.toArray( new RelationshipDescription[lines.size()] );
+        this.description = lines.toArray( new RelationshipDescription[0] );
     }
 
     @Override
@@ -105,9 +103,9 @@ public class GraphDescription implements GraphDefinition
         {
             for ( RelationshipDescription rel : description )
             {
-                node = rel.create( graphdb, nodes ).getEndNode();
+                node = rel.create( tx, nodes ).getEndNode();
             }
-            tx.success();
+            tx.commit();
         }
         return node;
     }

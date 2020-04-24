@@ -23,15 +23,17 @@ import io.netty.handler.ssl.SslContext;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 
 import java.time.Clock;
-import java.util.Map;
 
+import org.neo4j.bolt.dbapi.BoltGraphDatabaseManagementServiceSPI;
+import org.neo4j.bolt.dbapi.CustomBookmarkFormatParser;
 import org.neo4j.bolt.runtime.BoltConnectionFactory;
-import org.neo4j.bolt.runtime.BoltSchedulerProvider;
-import org.neo4j.bolt.runtime.BoltStateMachineFactory;
-import org.neo4j.bolt.runtime.BoltStateMachineFactoryImpl;
-import org.neo4j.bolt.runtime.CachedThreadPoolExecutorFactory;
 import org.neo4j.bolt.runtime.DefaultBoltConnectionFactory;
-import org.neo4j.bolt.runtime.ExecutorBoltSchedulerProvider;
+import org.neo4j.bolt.runtime.scheduling.BoltSchedulerProvider;
+import org.neo4j.bolt.runtime.scheduling.CachedThreadPoolExecutorFactory;
+import org.neo4j.bolt.runtime.scheduling.ExecutorBoltSchedulerProvider;
+import org.neo4j.bolt.runtime.scheduling.NettyThreadFactory;
+import org.neo4j.bolt.runtime.statemachine.BoltStateMachineFactory;
+import org.neo4j.bolt.runtime.statemachine.impl.BoltStateMachineFactoryImpl;
 import org.neo4j.bolt.security.auth.Authentication;
 import org.neo4j.bolt.security.auth.BasicAuthentication;
 import org.neo4j.bolt.transport.BoltProtocolFactory;
@@ -41,68 +43,67 @@ import org.neo4j.bolt.transport.NettyServer;
 import org.neo4j.bolt.transport.NettyServer.ProtocolInitializer;
 import org.neo4j.bolt.transport.SocketTransport;
 import org.neo4j.bolt.transport.TransportThrottleGroup;
-import org.neo4j.dbms.database.DatabaseManager;
-import org.neo4j.graphdb.DependencyResolver;
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
-import org.neo4j.helpers.ListenSocketAddress;
+import org.neo4j.common.DependencyResolver;
+import org.neo4j.configuration.Config;
+import org.neo4j.configuration.connectors.BoltConnector;
+import org.neo4j.configuration.connectors.ConnectorPortRegister;
+import org.neo4j.configuration.helpers.SocketAddress;
 import org.neo4j.kernel.api.net.NetworkConnectionTracker;
 import org.neo4j.kernel.api.security.AuthManager;
-import org.neo4j.kernel.api.security.UserManagerSupplier;
-import org.neo4j.kernel.configuration.BoltConnector;
-import org.neo4j.kernel.configuration.Config;
-import org.neo4j.kernel.configuration.ConnectorPortRegister;
-import org.neo4j.kernel.configuration.ssl.SslPolicyLoader;
+import org.neo4j.kernel.database.DatabaseIdRepository;
 import org.neo4j.kernel.lifecycle.LifeSupport;
 import org.neo4j.kernel.lifecycle.LifecycleAdapter;
-import org.neo4j.kernel.monitoring.Monitors;
 import org.neo4j.logging.Log;
 import org.neo4j.logging.internal.LogService;
+import org.neo4j.monitoring.Monitors;
 import org.neo4j.scheduler.Group;
 import org.neo4j.scheduler.JobScheduler;
-import org.neo4j.udc.UsageData;
+import org.neo4j.ssl.config.SslPolicyLoader;
+import org.neo4j.time.SystemNanoClock;
 
-import static java.util.function.Function.identity;
-import static java.util.stream.Collectors.toMap;
+import static org.neo4j.configuration.ssl.SslPolicyScope.BOLT;
 
 public class BoltServer extends LifecycleAdapter
 {
     // platform dependencies
-    private final DatabaseManager databaseManager;
+    private final BoltGraphDatabaseManagementServiceSPI boltGraphDatabaseManagementServiceSPI;
     private final JobScheduler jobScheduler;
     private final ConnectorPortRegister connectorPortRegister;
     private final NetworkConnectionTracker connectionTracker;
-    private final UsageData usageData;
+    private final DatabaseIdRepository databaseIdRepository;
     private final Config config;
-    private final Clock clock;
+    private final SystemNanoClock clock;
     private final Monitors monitors;
     private final LogService logService;
+    private final AuthManager authManager;
 
     // edition specific dependencies are resolved dynamically
     private final DependencyResolver dependencyResolver;
 
     private final LifeSupport life = new LifeSupport();
 
-    public BoltServer( DatabaseManager databaseManager, JobScheduler jobScheduler,
-            ConnectorPortRegister connectorPortRegister, NetworkConnectionTracker connectionTracker, UsageData usageData, Config config, Clock clock,
-            Monitors monitors, LogService logService, DependencyResolver dependencyResolver )
+    public BoltServer( BoltGraphDatabaseManagementServiceSPI boltGraphDatabaseManagementServiceSPI, JobScheduler jobScheduler,
+            ConnectorPortRegister connectorPortRegister, NetworkConnectionTracker connectionTracker,
+            DatabaseIdRepository databaseIdRepository, Config config, SystemNanoClock clock,
+            Monitors monitors, LogService logService, DependencyResolver dependencyResolver, AuthManager authManager )
     {
-        this.databaseManager = databaseManager;
+        this.boltGraphDatabaseManagementServiceSPI = boltGraphDatabaseManagementServiceSPI;
         this.jobScheduler = jobScheduler;
         this.connectorPortRegister = connectorPortRegister;
         this.connectionTracker = connectionTracker;
-        this.usageData = usageData;
+        this.databaseIdRepository = databaseIdRepository;
         this.config = config;
         this.clock = clock;
         this.monitors = monitors;
         this.logService = logService;
         this.dependencyResolver = dependencyResolver;
+        this.authManager = authManager;
     }
 
     @Override
-    public void start() throws Throwable
+    public void init()
     {
         Log log = logService.getInternalLog( BoltServer.class );
-        Log userLog = logService.getUserLog( BoltServer.class );
 
         InternalLoggerFactory.setDefaultFactory( new Netty4LoggerFactory( logService.getInternalLogProvider() ) );
 
@@ -111,28 +112,41 @@ public class BoltServer extends LifecycleAdapter
         TransportThrottleGroup throttleGroup = new TransportThrottleGroup( config, clock );
 
         BoltSchedulerProvider boltSchedulerProvider =
-                life.add( new ExecutorBoltSchedulerProvider( config, new CachedThreadPoolExecutorFactory( log ), jobScheduler, logService ) );
+                life.setLast( new ExecutorBoltSchedulerProvider( config, new CachedThreadPoolExecutorFactory(), jobScheduler, logService ) );
         BoltConnectionFactory boltConnectionFactory =
                 createConnectionFactory( config, boltSchedulerProvider, throttleGroup, logService, clock );
-        BoltStateMachineFactory boltStateMachineFactory = createBoltFactory( authentication, clock );
+        BoltStateMachineFactory boltStateMachineFactory = createBoltStateMachineFactory( authentication, clock );
 
         BoltProtocolFactory boltProtocolFactory = createBoltProtocolFactory( boltConnectionFactory, boltStateMachineFactory );
 
-        if ( !config.enabledBoltConnectors().isEmpty() && !config.get( GraphDatabaseSettings.disconnected ) )
+        if ( config.get( BoltConnector.enabled ) )
         {
+            jobScheduler.setThreadFactory( Group.BOLT_NETWORK_IO, NettyThreadFactory::new );
             NettyServer server = new NettyServer( jobScheduler.threadFactory( Group.BOLT_NETWORK_IO ),
-                    createConnectors( boltProtocolFactory, throttleGroup, log ), connectorPortRegister, userLog );
+                    createProtocolInitializer( boltProtocolFactory, throttleGroup, log ), connectorPortRegister, logService );
             life.add( server );
             log.info( "Bolt server loaded" );
         }
 
+        life.init();
+    }
+
+    @Override
+    public void start() throws Exception
+    {
         life.start(); // init and start the nested lifecycle
     }
 
     @Override
-    public void stop() throws Throwable
+    public void stop() throws Exception
     {
-        life.shutdown(); // stop and shutdown the nested lifecycle
+        life.stop(); // stop the nested lifecycle
+    }
+
+    @Override
+    public void shutdown()
+    {
+        life.shutdown(); // shutdown the nested lifecycle
     }
 
     private BoltConnectionFactory createConnectionFactory( Config config, BoltSchedulerProvider schedulerProvider,
@@ -141,36 +155,28 @@ public class BoltServer extends LifecycleAdapter
         return new DefaultBoltConnectionFactory( schedulerProvider, throttleGroup, config, logService, clock, monitors );
     }
 
-    private Map<BoltConnector,ProtocolInitializer> createConnectors( BoltProtocolFactory boltProtocolFactory,
-            TransportThrottleGroup throttleGroup, Log log )
-    {
-        return config.enabledBoltConnectors()
-                .stream()
-                .collect( toMap( identity(), connector -> createProtocolInitializer( connector, boltProtocolFactory, throttleGroup, log ) ) );
-    }
-
-    private ProtocolInitializer createProtocolInitializer( BoltConnector connector, BoltProtocolFactory boltProtocolFactory,
+    private ProtocolInitializer createProtocolInitializer( BoltProtocolFactory boltProtocolFactory,
             TransportThrottleGroup throttleGroup, Log log )
     {
         SslContext sslCtx;
         boolean requireEncryption;
-        BoltConnector.EncryptionLevel encryptionLevel = config.get( connector.encryption_level );
+        BoltConnector.EncryptionLevel encryptionLevel = config.get( BoltConnector.encryption_level );
         SslPolicyLoader sslPolicyLoader = dependencyResolver.resolveDependency( SslPolicyLoader.class );
 
         switch ( encryptionLevel )
         {
         case REQUIRED:
-            // Encrypted connections are mandatory, a self-signed certificate may be generated.
+            // Encrypted connections are mandatory.
             requireEncryption = true;
-            sslCtx = createSslContext( sslPolicyLoader, config );
+            sslCtx = createSslContext( sslPolicyLoader );
             break;
         case OPTIONAL:
-            // Encrypted connections are optional, a self-signed certificate may be generated.
+            // Encrypted connections are optional.
             requireEncryption = false;
-            sslCtx = createSslContext( sslPolicyLoader, config );
+            sslCtx = createSslContext( sslPolicyLoader );
             break;
         case DISABLED:
-            // Encryption is turned off, no self-signed certificate will be generated.
+            // Encryption is turned off.
             requireEncryption = false;
             sslCtx = null;
             break;
@@ -185,43 +191,41 @@ public class BoltServer extends LifecycleAdapter
             break;
         }
 
-        ListenSocketAddress listenAddress = config.get( connector.listen_address );
-        return new SocketTransport( connector.key(), listenAddress, sslCtx, requireEncryption, logService.getInternalLogProvider(),
+        SocketAddress listenAddress = config.get( BoltConnector.listen_address );
+        return new SocketTransport( BoltConnector.NAME, listenAddress, sslCtx, requireEncryption, logService.getInternalLogProvider(),
                 throttleGroup, boltProtocolFactory, connectionTracker );
     }
 
-    private static SslContext createSslContext( SslPolicyLoader sslPolicyFactory, Config config )
+    private static SslContext createSslContext( SslPolicyLoader sslPolicyFactory )
     {
         try
         {
-            String policyName = config.get( GraphDatabaseSettings.bolt_ssl_policy );
-            if ( policyName == null )
+            if ( !sslPolicyFactory.hasPolicyForSource( BOLT ) )
             {
                 throw new IllegalArgumentException( "No SSL policy has been configured for Bolt server" );
             }
-            return sslPolicyFactory.getPolicy( policyName ).nettyServerContext();
+            return sslPolicyFactory.getPolicy( BOLT ).nettyServerContext();
         }
         catch ( Exception e )
         {
             throw new RuntimeException( "Failed to initialize SSL encryption support, which is required to start this connector. " +
-                                        "Error was: " + e.getMessage(), e );
+                    "Error was: " + e.getMessage(), e );
         }
     }
 
     private Authentication createAuthentication()
     {
-        return new BasicAuthentication( dependencyResolver.resolveDependency( AuthManager.class ),
-                dependencyResolver.resolveDependency( UserManagerSupplier.class ) );
+        return new BasicAuthentication( authManager );
     }
 
-    private BoltProtocolFactory createBoltProtocolFactory( BoltConnectionFactory connectionFactory,
-            BoltStateMachineFactory stateMachineFactory )
+    private BoltProtocolFactory createBoltProtocolFactory( BoltConnectionFactory connectionFactory, BoltStateMachineFactory stateMachineFactory )
     {
-        return new DefaultBoltProtocolFactory( connectionFactory, stateMachineFactory, logService );
+        var customBookmarkParser = boltGraphDatabaseManagementServiceSPI.getCustomBookmarkFormatParser().orElse( CustomBookmarkFormatParser.DEFAULT );
+        return new DefaultBoltProtocolFactory( connectionFactory, stateMachineFactory, logService, databaseIdRepository, customBookmarkParser );
     }
 
-    private BoltStateMachineFactory createBoltFactory( Authentication authentication, Clock clock )
+    private BoltStateMachineFactory createBoltStateMachineFactory( Authentication authentication, SystemNanoClock clock )
     {
-        return new BoltStateMachineFactoryImpl( databaseManager, usageData, authentication, clock, config, logService );
+        return new BoltStateMachineFactoryImpl( boltGraphDatabaseManagementServiceSPI, authentication, clock, config, logService );
     }
 }

@@ -19,43 +19,43 @@
  */
 package org.neo4j.kernel.impl.newapi;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.mockito.InOrder;
 
 import java.util.HashSet;
 import java.util.Set;
 
+import org.neo4j.exceptions.KernelException;
 import org.neo4j.function.ThrowingConsumer;
-import org.neo4j.internal.kernel.api.Transaction;
 import org.neo4j.internal.kernel.api.exceptions.EntityNotFoundException;
-import org.neo4j.internal.kernel.api.exceptions.KernelException;
 import org.neo4j.internal.kernel.api.helpers.StubCursorFactory;
 import org.neo4j.internal.kernel.api.helpers.StubNodeCursor;
 import org.neo4j.internal.kernel.api.helpers.StubRead;
 import org.neo4j.internal.kernel.api.helpers.StubRelationshipCursor;
 import org.neo4j.internal.kernel.api.helpers.TestRelationshipChain;
+import org.neo4j.kernel.api.KernelTransaction;
 import org.neo4j.kernel.impl.locking.Locks;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
-import static org.neo4j.helpers.collection.Iterators.set;
-import static org.neo4j.kernel.impl.locking.ResourceTypes.NODE;
-import static org.neo4j.storageengine.api.lock.LockTracer.NONE;
+import static org.neo4j.internal.helpers.collection.Iterators.set;
+import static org.neo4j.lock.LockTracer.NONE;
+import static org.neo4j.lock.ResourceTypes.NODE;
 
-public class TwoPhaseNodeForRelationshipLockingTest
+class TwoPhaseNodeForRelationshipLockingTest
 {
-    private final Transaction transaction = mock( Transaction.class );
+    private static final long nodeId = 42L;
+    private static final int TYPE = 77;
+    private final KernelTransaction transaction = mock( KernelTransaction.class );
     private final Locks.Client locks = mock( Locks.Client.class );
-    private final long nodeId = 42L;
-    private static int TYPE = 77;
 
     @Test
-    public void shouldLockNodesInOrderAndConsumeTheRelationships() throws Throwable
+    void shouldLockNodesInOrderAndConsumeTheRelationships() throws Throwable
     {
         // given
         Collector collector = new Collector();
@@ -81,7 +81,7 @@ public class TwoPhaseNodeForRelationshipLockingTest
     }
 
     @Test
-    public void shouldLockNodesInOrderAndConsumeTheRelationshipsAndRetryIfTheNewRelationshipsAreCreated()
+    void shouldLockNodesInOrderAndConsumeTheRelationshipsAndRetryIfTheNewRelationshipsAreCreated()
             throws Throwable
     {
         // given
@@ -109,7 +109,7 @@ public class TwoPhaseNodeForRelationshipLockingTest
     }
 
     @Test
-    public void lockNodeWithoutRelationships() throws Exception
+    void lockNodeWithoutRelationships() throws Exception
     {
         Collector collector = new Collector();
         TwoPhaseNodeForRelationshipLocking locking = new TwoPhaseNodeForRelationshipLocking( collector, locks, NONE );
@@ -121,7 +121,7 @@ public class TwoPhaseNodeForRelationshipLockingTest
         verifyNoMoreInteractions( locks );
     }
 
-    static void returnRelationships( Transaction transaction,
+    static void returnRelationships( KernelTransaction transaction,
             final boolean skipFirst, final TestRelationshipChain relIds ) throws EntityNotFoundException
     {
 

@@ -79,4 +79,10 @@ public final class RelationshipSparseSelectionIterator<R> extends RelationshipSp
 
         return current;
     }
+
+    @Override
+    public void close()
+    {
+        closeInternal();
+    }
 }

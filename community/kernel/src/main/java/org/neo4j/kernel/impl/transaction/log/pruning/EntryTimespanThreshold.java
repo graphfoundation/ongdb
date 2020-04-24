@@ -21,21 +21,26 @@ package org.neo4j.kernel.impl.transaction.log.pruning;
 
 import java.io.File;
 import java.io.IOException;
-import java.time.Clock;
 import java.util.concurrent.TimeUnit;
 
 import org.neo4j.kernel.impl.transaction.log.LogFileInformation;
+import org.neo4j.logging.Log;
+import org.neo4j.logging.LogProvider;
+import org.neo4j.time.SystemNanoClock;
 
 public final class EntryTimespanThreshold implements Threshold
 {
     private final long timeToKeepInMillis;
-    private final Clock clock;
-
+    private final SystemNanoClock clock;
+    private final TimeUnit timeUnit;
+    private final Log log;
     private long lowerLimit;
 
-    EntryTimespanThreshold( Clock clock, TimeUnit timeUnit, long timeToKeep )
+    EntryTimespanThreshold( LogProvider logProvider, SystemNanoClock clock, TimeUnit timeUnit, long timeToKeep )
     {
+        this.log = logProvider.getLog( getClass() );
         this.clock = clock;
+        this.timeUnit = timeUnit;
         this.timeToKeepInMillis = timeUnit.toMillis( timeToKeep );
     }
 
@@ -55,7 +60,14 @@ public final class EntryTimespanThreshold implements Threshold
         }
         catch ( IOException e )
         {
-            throw new RuntimeException( e );
+            log.warn( "Fail to get timestamp info from transaction log file " + version, e );
+            return false;
         }
+    }
+
+    @Override
+    public String toString()
+    {
+        return timeUnit.convert( timeToKeepInMillis, TimeUnit.MILLISECONDS ) + " " + timeUnit.name().toLowerCase();
     }
 }

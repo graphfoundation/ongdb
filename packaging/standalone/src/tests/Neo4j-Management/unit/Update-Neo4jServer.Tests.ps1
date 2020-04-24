@@ -1,4 +1,4 @@
-# Copyright (c) 2002-2018 "Neo4j,"
+# Copyright (c) 2002-2020 "Neo4j,"
 # Neo4j Sweden AB [http://neo4j.com]
 #
 # This file is part of Neo4j.
@@ -39,7 +39,7 @@ InModuleScope Neo4j-Management {
     }
     # Mock Neo4j environment
     Mock Get-Neo4jEnv { $global:mockNeo4jHome } -ParameterFilter { $Name -eq 'NEO4J_HOME' }
-    Mock Get-JavaVersion { @{ 'isValid' = $true; 'isJava8' = $true } }
+    Mock Get-JavaVersion { @{ 'isValid' = $true; 'isJava11' = $true } }
     Mock Start-Process { throw "Should not call Start-Process mock" }
     Mock Invoke-ExternalCommand { throw "Should not call Invoke-ExternalCommand mock" }
 

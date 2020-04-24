@@ -33,11 +33,11 @@ import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.neo4j.exceptions.InvalidArgumentException;
+import org.neo4j.exceptions.UnsupportedTemporalUnitException;
 import org.neo4j.values.AnyValue;
 import org.neo4j.values.StructureBuilder;
 import org.neo4j.values.ValueMapper;
-import org.neo4j.values.utils.InvalidValuesArgumentException;
-import org.neo4j.values.utils.UnsupportedTemporalUnitException;
 import org.neo4j.values.virtual.MapValue;
 
 import static java.lang.Integer.parseInt;
@@ -136,7 +136,7 @@ public final class LocalTimeValue extends TemporalValue<LocalTime,LocalTimeValue
 
     static TimeValue.TimeBuilder<LocalTimeValue> builder( Supplier<ZoneId> defaultZone )
     {
-        return new TimeValue.TimeBuilder<LocalTimeValue>( defaultZone )
+        return new TimeValue.TimeBuilder<>( defaultZone )
         {
             @Override
             protected boolean supportsTimeZone()
@@ -153,7 +153,7 @@ public final class LocalTimeValue extends TemporalValue<LocalTime,LocalTimeValue
                     AnyValue time = fields.get( TemporalFields.time );
                     if ( !(time instanceof TemporalValue) )
                     {
-                        throw new InvalidValuesArgumentException( String.format( "Cannot construct local time from: %s", time ) );
+                        throw new InvalidArgumentException( String.format( "Cannot construct local time from: %s", time ) );
                     }
                     result = ((TemporalValue) time).getLocalTimePart();
                 }
@@ -173,7 +173,7 @@ public final class LocalTimeValue extends TemporalValue<LocalTime,LocalTimeValue
 
                 if ( !(time instanceof TemporalValue) )
                 {
-                    throw new InvalidValuesArgumentException( String.format( "Cannot construct local time from: %s", time ) );
+                    throw new InvalidArgumentException( String.format( "Cannot construct local time from: %s", time ) );
                 }
                 TemporalValue v = (TemporalValue) time;
                 LocalTime lt = v.getLocalTimePart();
@@ -311,10 +311,17 @@ public final class LocalTimeValue extends TemporalValue<LocalTime,LocalTimeValue
         return time == value ? this : new LocalTimeValue( time );
     }
 
+    @Override
+    protected long estimatedPayloadSize()
+    {
+        //24 (LocalTime) + 4 reference
+        return 28;
+    }
+
     static final String TIME_PATTERN = "(?:(?:(?<longHour>[0-9]{1,2})(?::(?<longMinute>[0-9]{1,2})"
-            + "(?::(?<longSecond>[0-9]{1,2})(?:\\.(?<longFraction>[0-9]{1,9}))?)?)?)|"
-            + "(?:(?<shortHour>[0-9]{2})(?:(?<shortMinute>[0-9]{2})"
-            + "(?:(?<shortSecond>[0-9]{2})(?:\\.(?<shortFraction>[0-9]{1,9}))?)?)?))";
+                                       + "(?::(?<longSecond>[0-9]{1,2})(?:\\.(?<longFraction>[0-9]{1,9}))?)?)?)|"
+                                       + "(?:(?<shortHour>[0-9]{2})(?:(?<shortMinute>[0-9]{2})"
+                                       + "(?:(?<shortSecond>[0-9]{2})(?:\\.(?<shortFraction>[0-9]{1,9}))?)?)?))";
     private static final Pattern PATTERN = Pattern.compile( "(?:T)?" + TIME_PATTERN );
 
     private static LocalTimeValue parse( Matcher matcher )

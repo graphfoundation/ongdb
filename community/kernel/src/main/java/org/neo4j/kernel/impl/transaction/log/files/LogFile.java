@@ -19,14 +19,15 @@
  */
 package org.neo4j.kernel.impl.transaction.log.files;
 
+import java.io.File;
 import java.io.IOException;
 
-import org.neo4j.kernel.impl.transaction.log.FlushableChannel;
-import org.neo4j.kernel.impl.transaction.log.FlushablePositionAwareChannel;
+import org.neo4j.io.fs.FlushableChannel;
+import org.neo4j.io.fs.ReadableChannel;
+import org.neo4j.kernel.impl.transaction.log.FlushablePositionAwareChecksumChannel;
 import org.neo4j.kernel.impl.transaction.log.LogPosition;
 import org.neo4j.kernel.impl.transaction.log.LogVersionBridge;
-import org.neo4j.kernel.impl.transaction.log.ReadableClosableChannel;
-import org.neo4j.kernel.impl.transaction.log.ReadableClosablePositionAwareChannel;
+import org.neo4j.kernel.impl.transaction.log.ReadableClosablePositionAwareChecksumChannel;
 import org.neo4j.kernel.impl.transaction.log.ReadableLogChannel;
 
 /**
@@ -34,22 +35,23 @@ import org.neo4j.kernel.impl.transaction.log.ReadableLogChannel;
  */
 public interface LogFile
 {
+    @FunctionalInterface
     interface LogFileVisitor
     {
-        boolean visit( ReadableClosablePositionAwareChannel channel ) throws IOException;
+        boolean visit( ReadableClosablePositionAwareChecksumChannel channel ) throws IOException;
     }
 
     /**
      * @return {@link FlushableChannel} capable of appending data to this log.
      */
-    FlushablePositionAwareChannel getWriter();
+    FlushablePositionAwareChecksumChannel getWriter();
 
     /**
      * Opens a {@link ReadableLogChannel reader} at the desired {@link LogPosition}, capable of reading log entries
      * from that position and onwards, through physical log versions.
      *
      * @param position {@link LogPosition} to position the returned reader at.
-     * @return {@link ReadableClosableChannel} capable of reading log data, starting from {@link LogPosition position}.
+     * @return {@link ReadableChannel} capable of reading log data, starting from {@link LogPosition position}.
      * @throws IOException on I/O error.
      */
     ReadableLogChannel getReader( LogPosition position ) throws IOException;
@@ -60,7 +62,7 @@ public interface LogFile
      *
      * @param position {@link LogPosition} to position the returned reader at.
      * @param logVersionBridge {@link LogVersionBridge} how to bridge log versions.
-     * @return {@link ReadableClosableChannel} capable of reading log data, starting from {@link LogPosition position}.
+     * @return {@link ReadableChannel} capable of reading log data, starting from {@link LogPosition position}.
      * @throws IOException on I/O error.
      */
     ReadableLogChannel getReader( LogPosition position, LogVersionBridge logVersionBridge ) throws IOException;
@@ -69,9 +71,13 @@ public interface LogFile
 
     /**
      * @return {@code true} if a rotation is needed.
-     * @throws IOException on I/O error.
      */
     boolean rotationNeeded();
 
-    void rotate() throws IOException;
+    /**
+     * Rotate the active log file.
+     * @return A file object representing the file name and path of the log file rotated to.
+     * @throws IOException if something goes wrong with either flushing the existing log file, or creating the new log file.
+     */
+    File rotate() throws IOException;
 }

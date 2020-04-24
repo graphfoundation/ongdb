@@ -22,73 +22,80 @@ package org.neo4j.cypher.internal.runtime.interpreted
 import org.mockito.invocation.InvocationOnMock
 import org.mockito.stubbing.Answer
 import org.mockito.{ArgumentMatchers, Mockito}
-import org.neo4j.cypher.internal.runtime.QueryContext
 import org.neo4j.cypher.internal.runtime.interpreted.TransactionBoundQueryContext.IndexSearchMonitor
-import org.neo4j.cypher.internal.runtime.interpreted.pipes.{ExternalCSVResource, NullPipeDecorator, PipeDecorator, QueryState}
+import org.neo4j.cypher.internal.runtime.interpreted.pipes._
+import org.neo4j.cypher.internal.runtime.{ExecutionContext, ExpressionCursors, NoMemoryTracker, QueryContext}
 import org.neo4j.graphdb.spatial.Point
 import org.neo4j.graphdb.{Node, Relationship}
+import org.neo4j.internal.kernel.api.{CursorFactory, IndexReadSession}
 import org.neo4j.kernel.GraphDatabaseQueryService
-import org.neo4j.kernel.impl.coreapi.{InternalTransaction, PropertyContainerLocker}
-import org.neo4j.kernel.impl.query.Neo4jTransactionalContextFactory
-import org.neo4j.kernel.impl.query.clientconnection.ClientConnectionInfo
+import org.neo4j.kernel.impl.coreapi.InternalTransaction
+import org.neo4j.kernel.impl.query.{Neo4jTransactionalContextFactory, QuerySubscriber}
 import org.neo4j.kernel.impl.util.BaseToObjectValueWriter
-import org.neo4j.kernel.monitoring.{Monitors => KernelMonitors}
+import org.neo4j.monitoring.Monitors
 import org.neo4j.values.AnyValue
 import org.neo4j.values.storable.CoordinateReferenceSystem
-import org.neo4j.values.virtual.MapValue
 import org.neo4j.values.virtual.VirtualValues.EMPTY_MAP
+import org.scalatest.mock.MockitoSugar
 
-import scala.collection.mutable
-
-object QueryStateHelper {
+object QueryStateHelper extends MockitoSugar {
   def empty: QueryState = emptyWith()
 
   def emptyWith(db: GraphDatabaseQueryService = null,
                 query: QueryContext = null,
                 resources: ExternalCSVResource = null,
-                params: MapValue = EMPTY_MAP,
+                params: Array[AnyValue] = Array.empty,
+                expressionCursors: ExpressionCursors = new ExpressionCursors(mock[CursorFactory]),
+                queryIndexes: Array[IndexReadSession] = Array(mock[IndexReadSession]),
+                expressionVariables: Array[AnyValue] = Array.empty,
+                subscriber: QuerySubscriber = QuerySubscriber.DO_NOTHING_SUBSCRIBER,
                 decorator: PipeDecorator = NullPipeDecorator,
                 initialContext: Option[ExecutionContext] = None
                ):QueryState =
-    new QueryState(query, resources, params, decorator,
-      triadicState = mutable.Map.empty, repeatableReads = mutable.Map.empty, initialContext = initialContext)
-
-  private val locker: PropertyContainerLocker = new PropertyContainerLocker
+    new QueryState(query, resources, params, expressionCursors, queryIndexes, expressionVariables, subscriber, NoMemoryTracker,
+                   decorator, initialContext = initialContext)
 
   def queryStateFrom(db: GraphDatabaseQueryService,
                      tx: InternalTransaction,
-                     params: MapValue = EMPTY_MAP
+                     params: Array[AnyValue] = Array.empty,
+                     subscriber: QuerySubscriber = QuerySubscriber.DO_NOTHING_SUBSCRIBER
                     ): QueryState = {
-    val searchMonitor = new KernelMonitors().newMonitor(classOf[IndexSearchMonitor])
-    val contextFactory = Neo4jTransactionalContextFactory.create(db, locker)
-    val transactionalContext = TransactionalContextWrapper(contextFactory.newContext(ClientConnectionInfo.EMBEDDED_CONNECTION, tx, "X", EMPTY_MAP))
+    val searchMonitor = new Monitors().newMonitor(classOf[IndexSearchMonitor])
+    val contextFactory = Neo4jTransactionalContextFactory.create(db)
+    val transactionalContext = TransactionalContextWrapper(contextFactory.newContext(tx, "X", EMPTY_MAP))
     val queryContext = new TransactionBoundQueryContext(transactionalContext)(searchMonitor)
-    emptyWith(db = db, query = queryContext, params = params)
+    emptyWith(db = db,
+              query = queryContext,
+              params = params,
+              expressionCursors = new ExpressionCursors(transactionalContext.cursors),
+              subscriber = subscriber)
   }
 
-  def withQueryState[T](db: GraphDatabaseQueryService, tx: InternalTransaction, params: MapValue = EMPTY_MAP, f: (QueryState) => T)  = {
-    val queryState = queryStateFrom(db, tx, params)
+  def withQueryState[T](db: GraphDatabaseQueryService, tx: InternalTransaction, params: Array[AnyValue] = Array.empty,
+                        f: QueryState => T, subscriber: QuerySubscriber = QuerySubscriber.DO_NOTHING_SUBSCRIBER): T = {
+    val queryState = queryStateFrom(db, tx, params, subscriber)
     try {
       f(queryState)
     } finally {
-      queryState.query.transactionalContext.close(true)
+      queryState.close()
+      queryState.query.transactionalContext.close()
     }
 
   }
 
-  def countStats(q: QueryState) = q.withQueryContext(query = new UpdateCountingQueryContext(q.query))
+  def countStats(q: QueryState): QueryState = q.withQueryContext(query = new UpdateCountingQueryContext(q.query))
 
   def emptyWithValueSerialization: QueryState = emptyWith(query = context)
 
-  private val context = Mockito.mock(classOf[QueryContext])
+  private val context = mock[QueryContext]
   Mockito.when(context.asObject(ArgumentMatchers.any())).thenAnswer(new Answer[Any] {
     override def answer(invocationOnMock: InvocationOnMock): AnyRef = toObject(invocationOnMock.getArgument(0))
   })
 
   private def toObject(any: AnyValue) = {
     val writer = new BaseToObjectValueWriter[RuntimeException] {
-      override protected def newNodeProxyById(id: Long): Node = ???
-      override protected def newRelationshipProxyById(id: Long): Relationship = ???
+      override protected def newNodeEntityById(id: Long): Node = ???
+      override protected def newRelationshipEntityById(id: Long): Relationship = ???
       override protected def newPoint(crs: CoordinateReferenceSystem, coordinate: Array[Double]): Point = ???
     }
     any.writeTo(writer)

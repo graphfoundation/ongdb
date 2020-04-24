@@ -19,20 +19,20 @@
  */
 package org.neo4j.kernel.impl.locking;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 
-import org.neo4j.helpers.collection.Iterables;
+import org.neo4j.internal.helpers.collection.Iterables;
 import org.neo4j.internal.kernel.api.IndexQuery.ExactPredicate;
 import org.neo4j.values.storable.Value;
 import org.neo4j.values.storable.Values;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
-import static org.neo4j.helpers.collection.Iterators.array;
+import static org.neo4j.internal.helpers.collection.Iterators.array;
 import static org.neo4j.internal.kernel.api.IndexQuery.exact;
 
 public class IndexEntryResourceTypesTest
@@ -43,14 +43,14 @@ public class IndexEntryResourceTypesTest
     public static final Value value = Values.of( "value" );
 
     @Test
-    public void shouldProduceBackwardsCompatibleId()
+    void shouldProduceBackwardsCompatibleId()
     {
-        long id = ResourceTypes.indexEntryResourceId( labelId, exact( propertyId, value ) );
-        assertThat( id, equalTo( 155667838465249649L ) );
+        long id = ResourceIds.indexEntryResourceId( labelId, exact( propertyId, value ) );
+        assertThat( id, equalTo( 6676982443481287192L ) );
     }
 
     @Test
-    public void shouldDifferentiateBetweenIndexes()
+    void shouldDifferentiateBetweenIndexes()
     {
         ExactPredicate pred1 = exact( 1, "value" );
         ExactPredicate pred2 = exact( 1, "value2" );
@@ -58,29 +58,23 @@ public class IndexEntryResourceTypesTest
         ExactPredicate pred4 = exact( 2, "value2" );
 
         List<Long> ids = Arrays.asList(
-                ResourceTypes.indexEntryResourceId( 1, array( pred1 ) ),
-                ResourceTypes.indexEntryResourceId( 1, array( pred2 ) ),
-                ResourceTypes.indexEntryResourceId( 1, array( pred3 ) ),
-                ResourceTypes.indexEntryResourceId( 1, array( pred4 ) ),
-                ResourceTypes.indexEntryResourceId( 2, array( pred1 ) ),
-                ResourceTypes.indexEntryResourceId( 1, array( pred1, pred2 ) ),
-                ResourceTypes.indexEntryResourceId( 1, array( pred1, pred2, pred3 ) ),
-                ResourceTypes.indexEntryResourceId( 2, array( pred1, pred2, pred3, pred4 ) ) );
+                ResourceIds.indexEntryResourceId( 1, array( pred1 ) ),
+                ResourceIds.indexEntryResourceId( 1, array( pred2 ) ),
+                ResourceIds.indexEntryResourceId( 1, array( pred3 ) ),
+                ResourceIds.indexEntryResourceId( 1, array( pred4 ) ),
+                ResourceIds.indexEntryResourceId( 2, array( pred1 ) ),
+                ResourceIds.indexEntryResourceId( 1, array( pred1, pred2 ) ),
+                ResourceIds.indexEntryResourceId( 1, array( pred1, pred2, pred3 ) ),
+                ResourceIds.indexEntryResourceId( 2, array( pred1, pred2, pred3, pred4 ) ) );
 
         Set<Long> uniqueIds = Iterables.asSet( ids );
         assertThat( ids.size(), equalTo( uniqueIds.size() ) );
     }
 
     @Test
-    public void mustBeAbleToHashAllTypesWith220HashFunction()
+    void mustBeAbleToHashAllTypesWith4xHashFunction()
     {
-        verifyCanHashAllTypes( ResourceTypes::indexEntryResourceId_2_2_0 );
-    }
-
-    @Test
-    public void mustBeAbleToHashAllTypesWith4xHashFunction()
-    {
-        verifyCanHashAllTypes( ResourceTypes::indexEntryResourceId_4_x );
+        verifyCanHashAllTypes( ResourceIds::indexEntryResourceId_4_x );
     }
 
     private interface IndexEntryHasher

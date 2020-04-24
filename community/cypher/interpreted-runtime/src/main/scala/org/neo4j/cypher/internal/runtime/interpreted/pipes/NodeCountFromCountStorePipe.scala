@@ -19,11 +19,19 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
-import org.neo4j.cypher.internal.v3_6.util.NameId
-import org.neo4j.cypher.internal.v3_6.util.attribution.Id
+import org.neo4j.cypher.internal.runtime.ExecutionContext
+import org.neo4j.cypher.internal.v4_0.util.NameId
+import org.neo4j.cypher.internal.v4_0.util.attribution.Id
 import org.neo4j.values.storable.Values
 
+/**
+  * Retrieves node counts from count store, for nodes with specified (optional) labels.
+  * Can also be used to compute node count for cartesian product of multiple pattern nodes.
+  * E.g.,
+  * MATCH (n:L1), (n2:L2), (n3) RETURN count(*)
+  *
+  * @param labels list of labels, of different pattern nodes
+  */
 case class NodeCountFromCountStorePipe(ident: String, labels: List[Option[LazyLabel]])
                                       (val id: Id = Id.INVALID_ID) extends Pipe {
 
@@ -32,11 +40,13 @@ case class NodeCountFromCountStorePipe(ident: String, labels: List[Option[LazyLa
     val it = labels.iterator
     while (it.hasNext) {
       it.next() match {
-        case Some(lazyLabel) => lazyLabel.getOptId(state.query) match {
-          case Some(idOfLabel) =>
-            count = count * state.query.nodeCountByCountStore(idOfLabel)
-          case _ => count = 0
-        }
+        case Some(lazyLabel) =>
+            val idOfLabel = lazyLabel.getId(state.query)
+            if (idOfLabel == LazyLabel.UNKNOWN) {
+              count = 0
+            } else {
+              count = count * state.query.nodeCountByCountStore(idOfLabel)
+            }
         case _ =>
           count *= state.query.nodeCountByCountStore(NameId.WILDCARD)
       }

@@ -19,7 +19,12 @@
  */
 package org.neo4j.kernel.impl.api.security;
 
+import java.util.function.IntSupplier;
+import java.util.function.Supplier;
+
+import org.neo4j.internal.kernel.api.LabelSet;
 import org.neo4j.internal.kernel.api.security.AccessMode;
+import org.neo4j.internal.kernel.api.security.PrivilegeAction;
 
 /**
  * Access mode that overrides the original access mode with the overriding mode. Allows exactly what the overriding
@@ -33,21 +38,15 @@ public class OverriddenAccessMode extends WrappedAccessMode
     }
 
     @Override
-    public boolean allowsReads()
-    {
-        return wrapping.allowsReads();
-    }
-
-    @Override
     public boolean allowsWrites()
     {
         return wrapping.allowsWrites();
     }
 
     @Override
-    public boolean allowsTokenCreates()
+    public boolean allowsTokenCreates( PrivilegeAction action )
     {
-        return wrapping.allowsTokenCreates();
+        return wrapping.allowsTokenCreates( action );
     }
 
     @Override
@@ -57,9 +56,81 @@ public class OverriddenAccessMode extends WrappedAccessMode
     }
 
     @Override
-    public boolean allowsPropertyReads( int propertyKey )
+    public boolean allowsSchemaWrites( PrivilegeAction action )
     {
-        return wrapping.allowsPropertyReads( propertyKey );
+        return wrapping.allowsSchemaWrites( action );
+    }
+
+    @Override
+    public boolean allowsTraverseAllLabels()
+    {
+        return wrapping.allowsTraverseAllLabels();
+    }
+
+    @Override
+    public boolean allowsTraverseAllNodesWithLabel( long label )
+    {
+        return wrapping.allowsTraverseAllNodesWithLabel( label );
+    }
+
+    @Override
+    public boolean disallowsTraverseLabel( long label )
+    {
+        return wrapping.disallowsTraverseLabel( label );
+    }
+
+    @Override
+    public boolean allowsTraverseNode( long... labels )
+    {
+        return wrapping.allowsTraverseNode( labels );
+    }
+
+    @Override
+    public boolean allowsTraverseAllRelTypes()
+    {
+        return wrapping.allowsTraverseAllRelTypes();
+    }
+
+    @Override
+    public boolean allowsTraverseRelType( int relType )
+    {
+        return wrapping.allowsTraverseRelType( relType );
+    }
+
+    @Override
+    public boolean allowsReadPropertyAllLabels( int propertyKey )
+    {
+        return wrapping.allowsReadPropertyAllLabels( propertyKey );
+    }
+
+    @Override
+    public boolean disallowsReadPropertyForSomeLabel( int propertyKey )
+    {
+        return wrapping.disallowsReadPropertyForSomeLabel( propertyKey );
+    }
+
+    @Override
+    public boolean allowsReadNodeProperty( Supplier<LabelSet> labels, int propertyKey )
+    {
+        return wrapping.allowsReadNodeProperty( labels, propertyKey );
+    }
+
+    @Override
+    public boolean allowsReadPropertyAllRelTypes( int propertyKey )
+    {
+        return wrapping.allowsReadPropertyAllRelTypes( propertyKey );
+    }
+
+    @Override
+    public boolean allowsReadRelationshipProperty( IntSupplier relType, int propertyKey )
+    {
+        return wrapping.allowsReadRelationshipProperty( relType, propertyKey );
+    }
+
+    @Override
+    public boolean allowsSeePropertyKeyToken( int propertyKey )
+    {
+        return wrapping.allowsSeePropertyKeyToken( propertyKey );
     }
 
     @Override

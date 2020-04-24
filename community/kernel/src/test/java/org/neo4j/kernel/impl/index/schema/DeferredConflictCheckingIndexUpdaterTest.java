@@ -19,55 +19,56 @@
  */
 package org.neo4j.kernel.impl.index.schema;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
 
 import org.neo4j.internal.kernel.api.IndexQuery;
+import org.neo4j.internal.schema.IndexDescriptor;
 import org.neo4j.kernel.api.exceptions.index.IndexEntryConflictException;
-import org.neo4j.kernel.api.index.IndexEntryUpdate;
+import org.neo4j.kernel.api.index.IndexReader;
 import org.neo4j.kernel.api.index.IndexUpdater;
 import org.neo4j.kernel.api.schema.index.TestIndexDescriptorFactory;
-import org.neo4j.kernel.impl.api.index.UpdateMode;
-import org.neo4j.storageengine.api.schema.IndexDescriptor;
-import org.neo4j.storageengine.api.schema.IndexReader;
+import org.neo4j.storageengine.api.IndexEntryUpdate;
+import org.neo4j.storageengine.api.UpdateMode;
 import org.neo4j.values.storable.Value;
 import org.neo4j.values.storable.Values;
 
 import static org.hamcrest.CoreMatchers.containsString;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
-import static org.mockito.Matchers.anyVararg;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
-import static org.mockito.Mockito.when;
-import static org.neo4j.collection.PrimitiveLongCollections.iterator;
-import static org.neo4j.kernel.api.index.IndexEntryUpdate.add;
-import static org.neo4j.kernel.api.index.IndexEntryUpdate.change;
-import static org.neo4j.kernel.api.index.IndexEntryUpdate.remove;
+import static org.neo4j.storageengine.api.IndexEntryUpdate.add;
+import static org.neo4j.storageengine.api.IndexEntryUpdate.change;
+import static org.neo4j.storageengine.api.IndexEntryUpdate.remove;
 
-public class DeferredConflictCheckingIndexUpdaterTest
+class DeferredConflictCheckingIndexUpdaterTest
 {
-    private final int labelId = 1;
+    private static final int labelId = 1;
     private final int[] propertyKeyIds = {2, 3};
     private final IndexDescriptor descriptor = TestIndexDescriptorFactory.forLabel( labelId, propertyKeyIds );
 
     @Test
-    public void shouldQueryAboutAddedAndChangedValueTuples() throws Exception
+    void shouldQueryAboutAddedAndChangedValueTuples() throws Exception
     {
         // given
         IndexUpdater actual = mock( IndexUpdater.class );
         IndexReader reader = mock( IndexReader.class );
-        when( reader.query( anyVararg() ) ).thenAnswer( invocation -> iterator( 0 ) );
+        doAnswer( new NodeIdsIndexReaderQueryAnswer( descriptor, 0 ) ).when( reader ).query( any(), any(), any(), anyBoolean(), any() );
         long nodeId = 0;
         List<IndexEntryUpdate<IndexDescriptor>> updates = new ArrayList<>();
         updates.add( add( nodeId++, descriptor, tuple( 10, 11 ) ) );
         updates.add( change( nodeId++, descriptor, tuple( "abc", "def" ), tuple( "ghi", "klm" ) ) );
         updates.add( remove( nodeId++, descriptor, tuple( 1001L, 1002L ) ) );
         updates.add( change( nodeId++, descriptor, tuple( (byte) 2, (byte) 3 ), tuple( (byte) 4, (byte) 5 ) ) );
-        updates.add( add( nodeId++, descriptor, tuple( 5, "5" ) ) );
+        updates.add( add( nodeId, descriptor, tuple( 5, "5" ) ) );
         try ( DeferredConflictCheckingIndexUpdater updater = new DeferredConflictCheckingIndexUpdater( actual, () -> reader, descriptor ) )
         {
             // when
@@ -89,7 +90,7 @@ public class DeferredConflictCheckingIndexUpdaterTest
                 {
                     query[i] = IndexQuery.exact( propertyKeyIds[i], tuple[i] );
                 }
-                verify( reader ).query( query );
+                verify( reader ).query( any(), any(), any(), anyBoolean(), eq( query[0] ), eq( query[1] ) );
             }
         }
         verify( reader ).close();
@@ -97,30 +98,22 @@ public class DeferredConflictCheckingIndexUpdaterTest
     }
 
     @Test
-    public void shouldThrowOnIndexEntryConflict() throws Exception
+    void shouldThrowOnIndexEntryConflict() throws Exception
     {
         // given
         IndexUpdater actual = mock( IndexUpdater.class );
         IndexReader reader = mock( IndexReader.class );
-        when( reader.query( anyVararg() ) ).thenAnswer( invocation -> iterator( 101, 202 ) );
+        doAnswer( new NodeIdsIndexReaderQueryAnswer( descriptor, 101, 202 ) ).when( reader ).query( any(), any(), any(), anyBoolean(), any() );
         DeferredConflictCheckingIndexUpdater updater = new DeferredConflictCheckingIndexUpdater( actual, () -> reader, descriptor );
 
         // when
         updater.process( add( 0, descriptor, tuple( 10, 11 ) ) );
-        try
-        {
-            updater.close();
-            fail( "Should have failed" );
-        }
-        catch ( IndexEntryConflictException e )
-        {
-            // then good
-            assertThat( e.getMessage(), containsString( "101" ) );
-            assertThat( e.getMessage(), containsString( "202" ) );
-        }
+        var e = assertThrows( IndexEntryConflictException.class, updater::close );
+        assertThat( e.getMessage(), containsString( "101" ) );
+        assertThat( e.getMessage(), containsString( "202" ) );
     }
 
-    private Value[] tuple( Object... values )
+    private static Value[] tuple( Object... values )
     {
         Value[] result = new Value[values.length];
         for ( int i = 0; i < values.length; i++ )

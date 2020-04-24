@@ -25,13 +25,13 @@ import org.neo4j.consistency.checking.cache.CacheAccess;
 import org.neo4j.consistency.checking.full.MultiPassStore;
 import org.neo4j.kernel.impl.store.record.DynamicRecord;
 import org.neo4j.kernel.impl.store.record.LabelTokenRecord;
-import org.neo4j.kernel.impl.store.record.NeoStoreRecord;
 import org.neo4j.kernel.impl.store.record.NodeRecord;
 import org.neo4j.kernel.impl.store.record.PropertyKeyTokenRecord;
 import org.neo4j.kernel.impl.store.record.PropertyRecord;
 import org.neo4j.kernel.impl.store.record.RelationshipGroupRecord;
 import org.neo4j.kernel.impl.store.record.RelationshipRecord;
 import org.neo4j.kernel.impl.store.record.RelationshipTypeTokenRecord;
+import org.neo4j.kernel.impl.store.record.SchemaRecord;
 
 public class DelegatingRecordAccess implements RecordAccess
 {
@@ -43,7 +43,7 @@ public class DelegatingRecordAccess implements RecordAccess
     }
 
     @Override
-    public RecordReference<DynamicRecord> schema( long id )
+    public RecordReference<SchemaRecord> schema( long id )
     {
         return delegate.schema( id );
     }
@@ -124,12 +124,6 @@ public class DelegatingRecordAccess implements RecordAccess
     public RecordReference<DynamicRecord> propertyKeyName( int id )
     {
         return delegate.propertyKeyName( id );
-    }
-
-    @Override
-    public RecordReference<NeoStoreRecord> graph()
-    {
-        return delegate.graph();
     }
 
     @Override

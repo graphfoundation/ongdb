@@ -19,24 +19,25 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.commands.expressions
 
+import org.neo4j.cypher.internal.runtime.ExecutionContext
 import org.neo4j.cypher.internal.runtime.interpreted.commands.AstNode
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.QueryState
-import org.neo4j.cypher.internal.runtime.interpreted.{ExecutionContext, GraphElementPropertyFunctions, IsMap, LazyMap}
+import org.neo4j.cypher.internal.runtime.interpreted.{GraphElementPropertyFunctions, IsMap, LazyMap}
 import org.neo4j.values.AnyValue
 import org.neo4j.values.storable.Values
 import org.neo4j.values.virtual.{MapValueBuilder, VirtualValues}
 
 import scala.collection.Map
 
-case class DesugaredMapProjection(id: String, includeAllProps: Boolean, literalExpressions: Map[String, Expression])
+case class DesugaredMapProjection(variable: VariableCommand, includeAllProps: Boolean, literalExpressions: Map[String, Expression])
   extends Expression with GraphElementPropertyFunctions {
 
   override def apply(ctx: ExecutionContext, state: QueryState): AnyValue = {
-    val variableValue = ctx(id)
+    val variableValue = variable(ctx, state)
 
     val mapOfProperties = variableValue match {
-      case v if v == Values.NO_VALUE => return Values.NO_VALUE
-      case IsMap(m) => if (includeAllProps) m(state.query) else VirtualValues.emptyMap()
+      case v if v eq Values.NO_VALUE => return Values.NO_VALUE
+      case IsMap(m) => if (includeAllProps) m(state) else VirtualValues.EMPTY_MAP
     }
     val builder = new MapValueBuilder(literalExpressions.size)
     literalExpressions.foreach {
@@ -45,21 +46,19 @@ case class DesugaredMapProjection(id: String, includeAllProps: Boolean, literalE
 
     //in case we get a lazy map we need to make sure it has been loaded
     mapOfProperties match {
-      case m :LazyMap[_] => m.load()
+      case m :LazyMap[_,_] => m.load()
       case _ =>
     }
 
     mapOfProperties.updatedWith(builder.build())
   }
 
-  override def rewrite(f: (Expression) => Expression) =
-    f(DesugaredMapProjection(id, includeAllProps, literalExpressions.rewrite(f)))
+  override def rewrite(f: Expression => Expression): Expression =
+    f(DesugaredMapProjection(variable, includeAllProps, literalExpressions.rewrite(f)))
 
-  override def arguments = literalExpressions.values.toIndexedSeq
+  override def arguments: Seq[Expression] = literalExpressions.values.toIndexedSeq
 
-  override def children: Seq[AstNode[_]] = arguments
+  override def children: Seq[AstNode[_]] = Seq(variable) ++ arguments
 
-  override def symbolTableDependencies: Set[String] = literalExpressions.symboltableDependencies + id
-
-  override def toString = s"$id{.*, " + literalExpressions.mkString + "}"
+  override def toString: String = s"$variable{.*, " + literalExpressions.mkString + "}"
 }

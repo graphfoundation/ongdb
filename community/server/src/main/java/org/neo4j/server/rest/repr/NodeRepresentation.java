@@ -23,14 +23,13 @@ import java.util.Collection;
 
 import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.Node;
-import org.neo4j.helpers.collection.IterableWrapper;
-import org.neo4j.helpers.collection.Iterables;
-import org.neo4j.server.rest.transactional.TransactionStateChecker;
+import org.neo4j.internal.helpers.collection.IterableWrapper;
+import org.neo4j.internal.helpers.collection.Iterables;
+import org.neo4j.server.http.cypher.TransactionStateChecker;
 
-import static org.neo4j.helpers.collection.MapUtil.map;
+import static org.neo4j.internal.helpers.collection.MapUtil.map;
 
-public final class NodeRepresentation extends ObjectRepresentation implements ExtensibleRepresentation,
-        EntityRepresentation
+public final class NodeRepresentation extends ObjectRepresentation implements ExtensibleRepresentation, EntityRepresentation
 {
     private final Node node;
     private TransactionStateChecker checker;
@@ -155,7 +154,7 @@ public final class NodeRepresentation extends ObjectRepresentation implements Ex
         }
         else
         {
-            Collection<String> labels = Iterables.asCollection( new IterableWrapper<String,Label>( node.getLabels() )
+            Collection<String> labels = Iterables.asCollection( new IterableWrapper<>( node.getLabels() )
             {
                 @Override
                 protected String underlyingObjectToObject( Label label )
@@ -173,31 +172,14 @@ public final class NodeRepresentation extends ObjectRepresentation implements Ex
     }
 
     @Override
-    void extraData( MappingSerializer serializer )
+    public void extraData( MappingSerializer serializer )
     {
         if ( !isDeleted() )
         {
             MappingWriter writer = serializer.writer;
             MappingWriter properties = writer.newMapping( RepresentationType.PROPERTIES, "data" );
             new PropertiesRepresentation( node ).serialize( properties );
-            if ( writer.isInteractive() )
-            {
-                serializer.putList( "relationship_types", ListRepresentation.relationshipTypes(
-                        node.getGraphDatabase().getAllRelationshipTypes() ) );
-            }
             properties.done();
         }
-    }
-
-    public static ListRepresentation list( Iterable<Node> nodes )
-    {
-        return new ListRepresentation( RepresentationType.NODE, new IterableWrapper<Representation, Node>( nodes )
-        {
-            @Override
-            protected Representation underlyingObjectToObject( Node node )
-            {
-                return new NodeRepresentation( node );
-            }
-        } );
     }
 }

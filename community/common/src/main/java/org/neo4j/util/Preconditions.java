@@ -19,8 +19,10 @@
  */
 package org.neo4j.util;
 
+import java.util.Arrays;
+
 import static java.lang.String.format;
-import static org.neo4j.helpers.Numbers.isPowerOfTwo;
+import static org.neo4j.internal.helpers.Numbers.isPowerOfTwo;
 
 /**
  * A set of static convenience methods for checking ctor/method parameters or state.
@@ -129,6 +131,35 @@ public final class Preconditions
     }
 
     /**
+     * Ensures that {@code array} is not empty
+     * @param array array to check
+     * @param <T> type of elements in the array
+     */
+    public static <T> void requireNonEmpty( T[] array )
+    {
+        if ( array == null || array.length == 0 )
+        {
+            throw new IllegalArgumentException( "Expected non empty array, got " + Arrays.toString( array ) );
+        }
+    }
+
+    /**
+     * Ensures that {@code array} does not contain null elements
+     * @param array array to check
+     * @param <T> type of elements in the array
+     */
+    public static <T> void requireNoNullElements( T[] array )
+    {
+        for ( T element : array )
+        {
+            if ( element == null )
+            {
+                throw new IllegalArgumentException( "Expected array without null elements, got " + Arrays.toString( array ) );
+            }
+        }
+    }
+
+    /**
      * Ensures that {@code expression} is {@code true} or throws {@link IllegalStateException} otherwise.
      *
      * @param expression an expression for check
@@ -144,10 +175,42 @@ public final class Preconditions
     }
 
     /**
+     * Ensures that {@code expression} is {@code true} or throws {@link IllegalStateException} otherwise.
+     *
+     * @param expression an expression for check
+     * @param message error message format
+     * @param args arguments referenced by the error message format
+     * @throws IllegalStateException if {@code expression} is {@code false}
+     */
+    public static void checkState( boolean expression, String message, Object... args )
+    {
+        if ( !expression )
+        {
+            throw new IllegalStateException( args.length > 0 ? format( message, args ) : message );
+        }
+    }
+
+    /**
      * Ensures that {@code expression} is {@code true} or throws {@link IllegalArgumentException} otherwise.
      *
      * @param expression an expression for check
-     * @param message error message for the exception
+     * @param message error message
+     * @throws IllegalArgumentException if {@code expression} is {@code false}
+     */
+    public static void checkArgument( boolean expression, String message )
+    {
+        if ( !expression )
+        {
+            throw new IllegalArgumentException( message );
+        }
+    }
+
+    /**
+     * Ensures that {@code expression} is {@code true} or throws {@link IllegalArgumentException} otherwise.
+     *
+     * @param expression an expression for check
+     * @param message error message format
+     * @param args arguments referenced by the error message format
      * @throws IllegalArgumentException if {@code expression} is {@code false}
      */
     public static void checkArgument( boolean expression, String message, Object... args )

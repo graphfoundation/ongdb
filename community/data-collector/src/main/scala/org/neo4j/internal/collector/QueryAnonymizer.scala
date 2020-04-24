@@ -19,13 +19,14 @@
  */
 package org.neo4j.internal.collector
 
-import org.neo4j.cypher.{CypherExpressionEngineOption, CypherPlannerOption, CypherRuntimeOption, CypherVersion}
 import org.neo4j.cypher.internal.PreParser
-import org.neo4j.cypher.internal.v3_6.ast.Statement
-import org.neo4j.cypher.internal.v3_6.ast.prettifier.{ExpressionStringifier, Prettifier}
-import org.neo4j.cypher.internal.v3_6.expressions.Expression
-import org.neo4j.cypher.internal.v3_6.parser.CypherParser
-import org.neo4j.cypher.internal.v3_6.rewriting.rewriters.anonymizeQuery
+import org.neo4j.cypher.internal.compiler.Neo4jCypherExceptionFactory
+import org.neo4j.cypher.internal.v4_0.ast.Statement
+import org.neo4j.cypher.internal.v4_0.ast.prettifier.{ExpressionStringifier, Prettifier}
+import org.neo4j.cypher.internal.v4_0.expressions.Expression
+import org.neo4j.cypher.internal.v4_0.parser.CypherParser
+import org.neo4j.cypher.internal.v4_0.rewriting.rewriters.anonymizeQuery
+import org.neo4j.cypher.{CypherExpressionEngineOption, CypherInterpretedPipesFallbackOption, CypherOperatorEngineOption, CypherPlannerOption, CypherRuntimeOption, CypherVersion}
 import org.neo4j.internal.kernel.api.TokenRead
 import org.neo4j.values.ValueMapper
 import org.neo4j.values.virtual.MapValue
@@ -43,7 +44,13 @@ case class PlainText(valueMapper: ValueMapper.JavaMapper) extends QueryAnonymize
 }
 
 object IdAnonymizer {
-  private val preParser = new PreParser(CypherVersion.default, CypherPlannerOption.default, CypherRuntimeOption.default, CypherExpressionEngineOption.default, 0)
+  private val preParser = new PreParser(CypherVersion.default,
+    CypherPlannerOption.default,
+    CypherRuntimeOption.default,
+    CypherExpressionEngineOption.default,
+    CypherOperatorEngineOption.default,
+    CypherInterpretedPipesFallbackOption.default,
+    0)
 }
 
 case class IdAnonymizer(tokens: TokenRead) extends QueryAnonymizer {
@@ -52,8 +59,8 @@ case class IdAnonymizer(tokens: TokenRead) extends QueryAnonymizer {
   private val prettifier = Prettifier(ExpressionStringifier(_.asCanonicalStringVal))
 
   override def queryText(queryText: String): String = {
-    val preParsedQuery = IdAnonymizer.preParser.preParseQuery(queryText, false)
-    val originalAst = parser.parse(preParsedQuery.statement, None)
+    val preParsedQuery = IdAnonymizer.preParser.preParseQuery(queryText)
+    val originalAst = parser.parse(preParsedQuery.statement, Neo4jCypherExceptionFactory(queryText, Some(preParsedQuery.options.offset)), None)
     val anonymizer = anonymizeQuery(new IdAnonymizerState(tokens, prettifier))
     val rewrittenAst = anonymizer(originalAst).asInstanceOf[Statement]
     preParsedQuery.rawPreparserOptions ++ prettifier.asString(rewrittenAst)
@@ -64,7 +71,7 @@ case class IdAnonymizer(tokens: TokenRead) extends QueryAnonymizer {
   }
 }
 
-class IdAnonymizerState(tokens: TokenRead, prettifier: Prettifier) extends org.neo4j.cypher.internal.v3_6.rewriting.rewriters.Anonymizer {
+class IdAnonymizerState(tokens: TokenRead, prettifier: Prettifier) extends org.neo4j.cypher.internal.v4_0.rewriting.rewriters.Anonymizer {
 
   private val variables = mutable.Map[String, String]()
   private val parameters = mutable.Map[String, String]()
@@ -74,7 +81,7 @@ class IdAnonymizerState(tokens: TokenRead, prettifier: Prettifier) extends org.n
     variables.getOrElseUpdate(name, "var" + variables.size)
 
   override def unaliasedReturnItemName(anonymizedExpression: Expression, input: String): String =
-    prettifier.mkStringOf(anonymizedExpression)
+    prettifier.expr(anonymizedExpression)
 
   override def label(name: String): String =
     tokenName("L", name, tokens.nodeLabel(name))

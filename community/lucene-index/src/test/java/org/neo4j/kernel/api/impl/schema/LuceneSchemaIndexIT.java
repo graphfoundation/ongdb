@@ -22,7 +22,6 @@ package org.neo4j.kernel.api.impl.schema;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.io.File;
 import java.io.IOException;
@@ -34,22 +33,22 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import org.neo4j.configuration.Config;
 import org.neo4j.graphdb.ResourceIterator;
-import org.neo4j.helpers.collection.Iterables;
-import org.neo4j.helpers.collection.Iterators;
+import org.neo4j.internal.helpers.collection.Iterables;
+import org.neo4j.internal.helpers.collection.Iterators;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.internal.schema.IndexPrototype;
+import org.neo4j.internal.schema.SchemaDescriptor;
 import org.neo4j.io.fs.DefaultFileSystemAbstraction;
 import org.neo4j.io.pagecache.IOLimiter;
 import org.neo4j.kernel.api.exceptions.index.IndexEntryConflictException;
 import org.neo4j.kernel.api.impl.index.LuceneAllDocumentsReader;
-import org.neo4j.kernel.api.index.IndexEntryUpdate;
 import org.neo4j.kernel.api.index.IndexUpdater;
-import org.neo4j.kernel.api.schema.index.TestIndexDescriptorFactory;
-import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.impl.api.index.IndexUpdateMode;
-import org.neo4j.storageengine.api.schema.IndexDescriptor;
-import org.neo4j.test.extension.DefaultFileSystemExtension;
+import org.neo4j.storageengine.api.IndexEntryUpdate;
 import org.neo4j.test.extension.Inject;
-import org.neo4j.test.extension.TestDirectoryExtension;
+import org.neo4j.test.extension.testdirectory.TestDirectoryExtension;
 import org.neo4j.test.rule.TestDirectory;
 import org.neo4j.values.storable.Values;
 
@@ -59,9 +58,9 @@ import static org.hamcrest.core.IsEqual.equalTo;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.neo4j.helpers.collection.Iterators.asList;
+import static org.neo4j.internal.helpers.collection.Iterators.asList;
 
-@ExtendWith( {DefaultFileSystemExtension.class, TestDirectoryExtension.class} )
+@TestDirectoryExtension
 class LuceneSchemaIndexIT
 {
 
@@ -70,7 +69,7 @@ class LuceneSchemaIndexIT
     @Inject
     private DefaultFileSystemAbstraction fileSystem;
 
-    private final IndexDescriptor descriptor = TestIndexDescriptorFactory.forLabel( 0, 0 );
+    private final IndexDescriptor descriptor = IndexPrototype.forSchema( SchemaDescriptor.forLabel( 0, 0 ) ).withName( "a" ).materialise( 1 );
     private final Config config = Config.defaults();
 
     @BeforeEach
@@ -138,7 +137,7 @@ class LuceneSchemaIndexIT
             addDocumentToIndex( index, 45 );
 
             index.getIndexWriter().updateDocument( LuceneDocumentStructure.newTermForChangeOrRemove( 100 ),
-                    LuceneDocumentStructure.documentRepresentingProperties( (long) 100, Values.intValue( 100 ) ) );
+                    LuceneDocumentStructure.documentRepresentingProperties( 100, Values.stringValue( "100" ) ) );
             index.maybeRefreshBlocking();
 
             long documentsInIndex = Iterators.count( index.allDocumentsReader().iterator() );
@@ -194,13 +193,11 @@ class LuceneSchemaIndexIT
     @Test
     void openClosePartitionedIndex() throws IOException
     {
-        SchemaIndex reopenIndex = null;
-        try
+        File indexRootFolder = new File( testDir.directory( "reopenIndexFolder" ), "reopenIndex" );
+        LuceneSchemaIndexBuilder luceneSchemaIndexBuilder =
+                LuceneSchemaIndexBuilder.create( descriptor, config ).withFileSystem( fileSystem ).withIndexRootFolder( indexRootFolder );
+        try ( SchemaIndex reopenIndex = luceneSchemaIndexBuilder.build() )
         {
-            reopenIndex = LuceneSchemaIndexBuilder.create( descriptor, config )
-                    .withFileSystem( fileSystem )
-                    .withIndexRootFolder( new File( testDir.directory( "reopenIndexFolder" ), "reopenIndex" ) )
-                    .build();
             reopenIndex.open();
 
             addDocumentToIndex( reopenIndex, 1 );
@@ -230,13 +227,6 @@ class LuceneSchemaIndexIT
                 assertEquals( 111, allDocumentsReader.maxCount(), "All documents should be visible" );
             }
         }
-        finally
-        {
-            if ( reopenIndex != null )
-            {
-                reopenIndex.close();
-            }
-        }
     }
 
     private void addDocumentToIndex( SchemaIndex index, int documents ) throws IOException
@@ -244,7 +234,7 @@ class LuceneSchemaIndexIT
         for ( int i = 0; i < documents; i++ )
         {
             index.getIndexWriter().addDocument(
-                    LuceneDocumentStructure.documentRepresentingProperties( (long) i, Values.intValue( i ) ) );
+                    LuceneDocumentStructure.documentRepresentingProperties( i, Values.stringValue( "" + i ) ) );
         }
     }
 
@@ -261,20 +251,19 @@ class LuceneSchemaIndexIT
 
     private List<String> asFileInsidePartitionNames( ResourceIterator<File> resources )
     {
-        int testDirectoryPathLength = testDir.directory().getAbsolutePath().length();
+        int testDirectoryPathLength = testDir.homeDir().getAbsolutePath().length();
         return asList( resources ).stream()
                 .map( file -> file.getAbsolutePath().substring( testDirectoryPathLength ) )
                 .collect( Collectors.toList() );
     }
 
-    private void generateUpdates( LuceneIndexAccessor indexAccessor, int nodesToUpdate )
-            throws IOException, IndexEntryConflictException
+    private void generateUpdates( LuceneIndexAccessor indexAccessor, int nodesToUpdate ) throws IndexEntryConflictException
     {
         try ( IndexUpdater updater = indexAccessor.newUpdater( IndexUpdateMode.ONLINE ) )
         {
             for ( int nodeId = 0; nodeId < nodesToUpdate; nodeId++ )
             {
-                updater.process( add( nodeId, nodeId ) );
+                updater.process( add( nodeId, "node " + nodeId ) );
             }
         }
     }

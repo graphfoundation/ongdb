@@ -19,7 +19,7 @@
  */
 package org.neo4j.kernel.api.exceptions.schema;
 
-import org.neo4j.internal.kernel.api.schema.SchemaDescriptor;
+import org.neo4j.internal.schema.SchemaDescriptor;
 import org.neo4j.kernel.api.exceptions.Status;
 
 public class RepeatedPropertyInSchemaException extends RepeatedSchemaComponentException

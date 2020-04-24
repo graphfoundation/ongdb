@@ -19,15 +19,30 @@
  */
 package org.neo4j.server.rest.security;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import org.junit.After;
 
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
+import org.neo4j.configuration.GraphDatabaseSettings;
 import org.neo4j.server.CommunityNeoServer;
 import org.neo4j.server.configuration.ServerSettings;
 import org.neo4j.server.helpers.CommunityServerBuilder;
+import org.neo4j.server.rest.domain.JsonParseException;
 import org.neo4j.test.server.ExclusiveServerTestBase;
+import org.neo4j.test.server.HTTP;
+
+import static org.hamcrest.CoreMatchers.equalTo;
+import static org.hamcrest.CoreMatchers.startsWith;
+import static org.hamcrest.Matchers.in;
+import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertThat;
+import static org.neo4j.kernel.api.exceptions.Status.Security.CredentialsExpired;
+import static org.neo4j.kernel.api.exceptions.Status.Security.Forbidden;
+import static org.neo4j.test.server.HTTP.RawPayload.rawPayload;
 
 public class CommunityServerTestBase extends ExclusiveServerTestBase
 {
@@ -50,7 +65,8 @@ public class CommunityServerTestBase extends ExclusiveServerTestBase
         server.start();
     }
 
-    protected void startServer( boolean authEnabled, String accessControlAllowOrigin ) throws IOException
+    @SuppressWarnings( "SameParameterValue" )
+    void startServer( boolean authEnabled, String accessControlAllowOrigin ) throws IOException
     {
         server = CommunityServerBuilder.serverOnRandomPorts()
                 .withProperty( GraphDatabaseSettings.auth_enabled.name(), Boolean.toString( authEnabled ) )
@@ -59,23 +75,45 @@ public class CommunityServerTestBase extends ExclusiveServerTestBase
         server.start();
     }
 
-    protected String dataURL()
+    String databaseURL()
     {
-        return server.baseUri().resolve( "db/data/" ).toString();
-    }
-
-    protected String userURL( String username )
-    {
-        return server.baseUri().resolve( "user/" + username ).toString();
-    }
-
-    protected String passwordURL( String username )
-    {
-        return server.baseUri().resolve( "user/" + username + "/password" ).toString();
+        return server.baseUri().resolve( "db/neo4j/" ).toString();
     }
 
     protected String txCommitURL()
     {
-        return server.baseUri().resolve( "db/data/transaction/commit" ).toString();
+        return txCommitURL( "neo4j" );
+    }
+
+    protected String txCommitURL( String database )
+    {
+        return server.baseUri().resolve( txCommitEndpoint( database ) ).toString();
+    }
+
+    protected void assertPermissionErrorAtDataAccess( HTTP.Response response ) throws JsonParseException
+    {
+        assertPermissionError( response, Collections.singletonList( CredentialsExpired.code().serialize() ) );
+    }
+
+    void assertPermissionErrorAtSystemAccess( HTTP.Response response ) throws JsonParseException
+    {
+        List<String> possibleErrors = Arrays.asList( CredentialsExpired.code().serialize(), Forbidden.code().serialize() );
+        assertPermissionError( response, possibleErrors );
+    }
+
+    private void assertPermissionError( HTTP.Response response, List<String> errors ) throws JsonParseException
+    {
+        assertThat( response.status(), equalTo( 200 ) );
+        assertThat( response.get( "errors" ).size(), equalTo( 1 ) );
+
+        JsonNode firstError = response.get( "errors" ).get( 0 );
+        assertThat( firstError.get( "code" ).asText(), is(in( errors ) ) );
+
+        assertThat( firstError.get( "message" ).asText(), startsWith( "Permission denied." ) );
+    }
+
+    protected static HTTP.RawPayload query( String statement )
+    {
+        return rawPayload( "{\"statements\":[{\"statement\":\"" + statement + "\"}]}" );
     }
 }

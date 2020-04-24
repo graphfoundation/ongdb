@@ -32,9 +32,12 @@ import java.util.function.BiFunction;
 import java.util.stream.StreamSupport;
 
 import org.neo4j.function.ThrowingBiConsumer;
-import org.neo4j.helpers.collection.PrefetchingIterator;
+import org.neo4j.internal.helpers.collection.PrefetchingIterator;
 import org.neo4j.values.AnyValue;
 import org.neo4j.values.AnyValueWriter;
+import org.neo4j.values.Comparison;
+import org.neo4j.values.Equality;
+import org.neo4j.values.TernaryComparator;
 import org.neo4j.values.ValueMapper;
 import org.neo4j.values.VirtualValue;
 import org.neo4j.values.storable.Values;
@@ -43,7 +46,7 @@ import static org.neo4j.values.storable.Values.NO_VALUE;
 
 public abstract class MapValue extends VirtualValue
 {
-    public static MapValue EMPTY = new MapValue()
+    public static final MapValue EMPTY = new MapValue()
     {
         @Override
         public Iterable<String> keySet()
@@ -73,6 +76,19 @@ public abstract class MapValue extends VirtualValue
         public int size()
         {
             return 0;
+        }
+
+        @Override
+        protected long estimatedPayloadSize()
+        {
+            return 0L;
+        }
+
+        @Override
+        public long estimatedHeapUsage()
+        {
+            //EMPTY is a singleton and doesn't add to heap usage
+            return 0L;
         }
     };
 
@@ -292,7 +308,7 @@ public abstract class MapValue extends VirtualValue
         @Override
         public Iterable<String> keySet()
         {
-            return () -> new Iterator<String>()
+            return () -> new Iterator<>()
             {
                 private Iterator<String> internal = map.keySet().iterator();
                 private int index;
@@ -385,7 +401,7 @@ public abstract class MapValue extends VirtualValue
         @Override
         public Iterable<String> keySet()
         {
-           return () -> new PrefetchingIterator<String>()
+           return () -> new PrefetchingIterator<>()
            {
                private int mapIndex;
                private Iterator<String> internal;
@@ -544,12 +560,8 @@ public abstract class MapValue extends VirtualValue
     }
 
     @Override
-    public int compareTo( VirtualValue other, Comparator<AnyValue> comparator )
+    public int unsafeCompareTo( VirtualValue other, Comparator<AnyValue> comparator )
     {
-        if ( !(other instanceof MapValue) )
-        {
-            throw new IllegalArgumentException( "Cannot compare different virtual values" );
-        }
         MapValue otherMap = (MapValue) other;
         int size = size();
         int compare = Integer.compare( size, otherMap.size() );
@@ -582,21 +594,56 @@ public abstract class MapValue extends VirtualValue
     }
 
     @Override
-    public Boolean ternaryEquals( AnyValue other )
+    public Comparison unsafeTernaryCompareTo( VirtualValue other, TernaryComparator<AnyValue> comparator )
     {
-        if ( other == null || other == NO_VALUE )
+        MapValue otherMap = (MapValue) other;
+        int size = size();
+        int compare = Integer.compare( size, otherMap.size() );
+        if ( compare == 0 )
         {
-            return null;
+            String[] thisKeys = StreamSupport.stream( keySet().spliterator(), false).toArray( String[]::new  );
+            Arrays.sort( thisKeys, String::compareTo );
+            String[] thatKeys = StreamSupport.stream( otherMap.keySet().spliterator(), false).toArray( String[]::new  );
+            Arrays.sort( thatKeys, String::compareTo );
+            for ( int i = 0; i < size; i++ )
+            {
+                compare = thisKeys[i].compareTo( thatKeys[i] );
+                if ( compare != 0 )
+                {
+                    return Comparison.from( compare );
+                }
+            }
+
+            for ( int i = 0; i < size; i++ )
+            {
+                String key = thisKeys[i];
+                Comparison comparison = comparator.ternaryCompare( get( key ), otherMap.get( key ) );
+                if ( comparison != Comparison.EQUAL )
+                {
+                    return comparison;
+                }
+            }
+        }
+        return Comparison.from( compare );
+    }
+
+    @Override
+    public Equality ternaryEquals( AnyValue other )
+    {
+        assert other != null : "null values are not supported, use NoValue.NO_VALUE instead";
+        if ( other == NO_VALUE )
+        {
+            return Equality.UNDEFINED;
         }
         else if ( !(other instanceof MapValue) )
         {
-            return Boolean.FALSE;
+            return Equality.FALSE;
         }
         MapValue otherMap = (MapValue) other;
         int size = size();
         if ( size != otherMap.size() )
         {
-            return Boolean.FALSE;
+            return Equality.FALSE;
         }
         String[] thisKeys = StreamSupport.stream( keySet().spliterator(), false ).toArray( String[]::new );
         Arrays.sort( thisKeys, String::compareTo );
@@ -606,22 +653,24 @@ public abstract class MapValue extends VirtualValue
         {
             if ( thisKeys[i].compareTo( thatKeys[i] ) != 0 )
             {
-                return Boolean.FALSE;
+                return Equality.FALSE;
             }
         }
-        Boolean equalityResult = Boolean.TRUE;
-
+        Equality equalityResult = Equality.TRUE;
         for ( int i = 0; i < size; i++ )
         {
             String key = thisKeys[i];
-            Boolean s = get( key ).ternaryEquals( otherMap.get( key ) );
-            if ( s == null )
+            AnyValue thisValue = get( key );
+            AnyValue otherValue = otherMap.get( key );
+
+            Equality equality = thisValue.ternaryEquals( otherValue );
+            if ( equality == Equality.UNDEFINED )
             {
-                equalityResult = null;
+                equalityResult = Equality.UNDEFINED;
             }
-            else if ( !s )
+            else if ( equality == Equality.FALSE )
             {
-                return Boolean.FALSE;
+                return Equality.FALSE;
             }
         }
         return equalityResult;
@@ -675,6 +724,7 @@ public abstract class MapValue extends VirtualValue
         return new CombinedMapValue( this, other );
     }
 
+    @Override
     public String getTypeName()
     {
         return "Map";
@@ -695,6 +745,13 @@ public abstract class MapValue extends VirtualValue
         } );
         sb.append( '}' );
         return sb.toString();
+    }
+
+    @Override
+    protected long estimatedPayloadSize()
+    {
+        //rough estimate
+        return size() * 150;
     }
 
     public abstract int size();

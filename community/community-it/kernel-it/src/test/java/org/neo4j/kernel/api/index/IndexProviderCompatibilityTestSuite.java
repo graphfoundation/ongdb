@@ -38,11 +38,12 @@ import java.util.Arrays;
 import java.util.List;
 
 import org.neo4j.function.ThrowingConsumer;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.internal.schema.IndexPrototype;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.kernel.impl.api.index.PhaseTracker;
-import org.neo4j.storageengine.api.schema.IndexDescriptor;
-import org.neo4j.storageengine.api.schema.StoreIndexDescriptor;
+import org.neo4j.storageengine.api.IndexEntryUpdate;
 import org.neo4j.test.rule.PageCacheAndDependenciesRule;
 import org.neo4j.test.rule.RandomRule;
 import org.neo4j.test.rule.fs.DefaultFileSystemRule;
@@ -72,7 +73,8 @@ import org.neo4j.values.storable.Values;
         UniqueConstraintCompatibility.class,
         SimpleRandomizedIndexAccessorCompatibility.class,
         CompositeRandomizedIndexAccessorCompatibility.Exact.class,
-        CompositeRandomizedIndexAccessorCompatibility.Range.class
+        CompositeRandomizedIndexAccessorCompatibility.Range.class,
+        IndexConfigurationCompletionCompatibility.class
 } )
 public abstract class IndexProviderCompatibilityTestSuite
 {
@@ -94,7 +96,7 @@ public abstract class IndexProviderCompatibilityTestSuite
     public boolean supportsBooleanRangeQueries()
     {
         return false;
-    };
+    }
 
     public boolean supportFullValuePrecisionForNumbers()
     {
@@ -131,10 +133,11 @@ public abstract class IndexProviderCompatibilityTestSuite
         @Rule
         public RuleChain ruleChain;
 
-        protected File graphDbDir;
+        File graphDbDir;
         protected FileSystemAbstraction fs;
         protected IndexProvider indexProvider;
-        protected StoreIndexDescriptor descriptor;
+        private final IndexPrototype incompleteIndexPrototype;
+        protected IndexDescriptor descriptor;
         final IndexProviderCompatibilityTestSuite testSuite;
         final List<NodeAndValue> valueSet1;
         final List<NodeAndValue> valueSet2;
@@ -143,20 +146,22 @@ public abstract class IndexProviderCompatibilityTestSuite
         public void setup()
         {
             fs = pageCacheAndDependenciesRule.fileSystem();
-            graphDbDir = pageCacheAndDependenciesRule.directory().databaseDir();
+            graphDbDir = pageCacheAndDependenciesRule.directory().homeDir();
             PageCache pageCache = pageCacheAndDependenciesRule.pageCache();
             indexProvider = testSuite.createIndexProvider( pageCache, fs, graphDbDir );
+            descriptor = indexProvider.completeConfiguration( incompleteIndexPrototype.withName( "index_17" ).materialise( 17 ) );
         }
 
-        public Compatibility( IndexProviderCompatibilityTestSuite testSuite, IndexDescriptor descriptor )
+        Compatibility( IndexProviderCompatibilityTestSuite testSuite, IndexPrototype prototype )
         {
             this.testSuite = testSuite;
-            this.descriptor = descriptor.withId( 17 );
+            this.incompleteIndexPrototype = prototype;
             this.valueSet1 = allValues(
                     testSuite.supportsSpatial(),
                     Arrays.asList(
                             Values.of( "string1" ),
                             Values.of( 42 ),
+                            Values.of( Double.NaN ),
                             Values.of( true ),
                             Values.of( new char[]{'a', 'z'} ),
                             Values.of( new String[]{"arrayString1", "arraysString2"} ),
@@ -184,7 +189,7 @@ public abstract class IndexProviderCompatibilityTestSuite
                             DateTimeValue.datetime( 2014, 3, 25, 12, 46, 13, 7474, "+05:00" ),
                             DateTimeValue.datetime( 2014, 3, 25, 12, 45, 14, 7474, "+05:00" ),
                             DateTimeValue.datetime( 2014, 3, 25, 12, 45, 13, 7475, "+05:00" ),
-                            // only runnable it JVM supports East-Saskatchewan
+                            // only runnable if JVM supports East-Saskatchewan
                             // DateTimeValue.datetime( 2001, 1, 25, 11, 11, 30, 0, "Canada/East-Saskatchewan" ),
                             DateTimeValue.datetime( 2038, 1, 18, 9, 14, 7, 0, "-18:00" ),
                             DateTimeValue.datetime( 10000, 100, ZoneOffset.ofTotalSeconds( 3 ) ),

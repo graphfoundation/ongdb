@@ -19,11 +19,11 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.commands.predicates
 
-import org.neo4j.cypher.internal.v3_6.util.NonEmptyList
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
-import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.{Expression, Property, Variable}
+import org.neo4j.cypher.internal.runtime.ExecutionContext
 import org.neo4j.cypher.internal.runtime.interpreted.commands.AstNode
+import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.{Expression, Variable, VariableCommand}
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.QueryState
+import org.neo4j.cypher.internal.v4_0.util.NonEmptyList
 
 case class Ands(predicates: NonEmptyList[Predicate]) extends CompositeBooleanPredicate {
   override def shouldExitWhen = false
@@ -68,7 +68,6 @@ class And(val a: Predicate, val b: Predicate) extends Predicate {
     case _          => false
   }
 
-  override def symbolTableDependencies: Set[String] = a.symbolTableDependencies ++ b.symbolTableDependencies
 }
 
 @deprecated("Use Ands (plural) instead")
@@ -80,12 +79,12 @@ object And {
   }
 }
 
-case class AndedPropertyComparablePredicates(ident: Variable, prop: Property,
+case class AndedPropertyComparablePredicates(ident: VariableCommand, prop: Expression,
                                              override val predicates: NonEmptyList[ComparablePredicate])
   extends CompositeBooleanPredicate {
 
   // some rewriters change the type of this, and we can't allow that
-  private def rewriteVariableIfNotTypeChanged(f: (Expression) => Expression) =
+  private def rewriteVariableIfNotTypeChanged(f: Expression => Expression) =
     ident.rewrite(f) match {
       case i: Variable => i
       case _ => ident
@@ -93,7 +92,7 @@ case class AndedPropertyComparablePredicates(ident: Variable, prop: Property,
 
   override def rewrite(f: Expression => Expression): Expression =
     f(AndedPropertyComparablePredicates(rewriteVariableIfNotTypeChanged(f),
-      prop.rewrite(f).asInstanceOf[Property],
+      prop.rewrite(f),
       predicates.map(_.rewriteAsPredicate(f).asInstanceOf[ComparablePredicate])))
 
   override def shouldExitWhen: Boolean = false

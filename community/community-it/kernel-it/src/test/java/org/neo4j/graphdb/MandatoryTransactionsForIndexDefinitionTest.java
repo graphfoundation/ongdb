@@ -19,28 +19,28 @@
  */
 package org.neo4j.graphdb;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import org.neo4j.graphdb.schema.IndexDefinition;
 
 public class MandatoryTransactionsForIndexDefinitionTest extends AbstractMandatoryTransactionsTest<IndexDefinition>
 {
     @Test
-    public void shouldRequireTransactionsWhenCallingMethodsOnIndexDefinitions()
+    void shouldRequireTransactionsWhenCallingMethodsOnIndexDefinitions()
     {
         assertFacadeMethodsThrowNotInTransaction( obtainEntity(), IndexDefinitionFacadeMethods.values() );
     }
 
     @Test
-    public void shouldTerminateWhenCallingMethodsOnIndexDefinitions()
+    void shouldTerminateWhenCallingMethodsOnIndexDefinitions()
     {
         assertFacadeMethodsThrowAfterTerminate( IndexDefinitionFacadeMethods.values() );
     }
 
     @Override
-    protected IndexDefinition obtainEntityInTransaction( GraphDatabaseService graphDatabaseService )
+    protected IndexDefinition obtainEntityInTransaction( Transaction transaction )
     {
-        return graphDatabaseService
+        return transaction
                .schema()
                .indexFor( Label.label( "Label" ) )
                .on( "property" )

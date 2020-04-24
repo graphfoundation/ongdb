@@ -28,8 +28,8 @@ import org.neo4j.consistency.report.ConsistencyReport.PropertyKeyTokenConsistenc
 import org.neo4j.consistency.report.ConsistencyReport.RelationshipConsistencyReport;
 import org.neo4j.consistency.report.ConsistencyReport.RelationshipGroupConsistencyReport;
 import org.neo4j.consistency.report.ConsistencyReport.RelationshipTypeConsistencyReport;
+import org.neo4j.internal.id.IdType;
 import org.neo4j.kernel.impl.store.RecordStore;
-import org.neo4j.kernel.impl.store.id.IdType;
 import org.neo4j.kernel.impl.store.record.DynamicRecord;
 import org.neo4j.kernel.impl.store.record.LabelTokenRecord;
 import org.neo4j.kernel.impl.store.record.NodeRecord;
@@ -38,11 +38,11 @@ import org.neo4j.kernel.impl.store.record.PropertyRecord;
 import org.neo4j.kernel.impl.store.record.RelationshipGroupRecord;
 import org.neo4j.kernel.impl.store.record.RelationshipRecord;
 import org.neo4j.kernel.impl.store.record.RelationshipTypeTokenRecord;
+import org.neo4j.kernel.impl.store.record.SchemaRecord;
 
 import static java.lang.String.format;
 import static org.neo4j.consistency.checking.DynamicStore.ARRAY;
 import static org.neo4j.consistency.checking.DynamicStore.NODE_LABEL;
-import static org.neo4j.consistency.checking.DynamicStore.SCHEMA;
 
 public abstract class AbstractStoreProcessor extends RecordStore.Processor<RuntimeException>
 {
@@ -125,10 +125,9 @@ public abstract class AbstractStoreProcessor extends RecordStore.Processor<Runti
             RecordCheck<RelationshipGroupRecord, RelationshipGroupConsistencyReport> checker );
 
     @Override
-    public void processSchema( RecordStore<DynamicRecord> store, DynamicRecord schema )
+    public void processSchema( RecordStore<SchemaRecord> store, SchemaRecord schema )
     {
-        // cf. StoreProcessor
-        checkDynamic( RecordType.SCHEMA, store, schema, new DynamicRecordCheck( store, SCHEMA ) );
+        // See StoreProcessor
     }
 
     @Override

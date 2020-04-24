@@ -25,30 +25,27 @@ import java.nio.ByteBuffer;
 import java.util.Random;
 
 import org.neo4j.io.fs.FileSystemAbstraction;
-import org.neo4j.io.fs.OpenMode;
 import org.neo4j.io.fs.StoreChannel;
-import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.kernel.api.index.IndexDirectoryStructure;
-import org.neo4j.kernel.impl.index.schema.GenericNativeIndexProvider;
-import org.neo4j.test.rule.DatabaseRule;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.neo4j.io.ByteUnit.mebiBytes;
 
-public class SabotageNativeIndex implements DatabaseRule.RestartAction
+public class SabotageNativeIndex extends NativeIndexRestartAction
 {
     private final Random random;
 
     SabotageNativeIndex( Random random )
     {
+        super();
         this.random = random;
     }
 
     @Override
-    public void run( FileSystemAbstraction fs, DatabaseLayout databaseLayout ) throws IOException
+    protected void runOnDirectoryStructure( FileSystemAbstraction fs, IndexDirectoryStructure indexDirectoryStructure ) throws IOException
     {
-        int files = scrambleIndexFiles( fs, nativeIndexDirectoryStructure( databaseLayout ).rootDirectory() );
+        int files = scrambleIndexFiles( fs, indexDirectoryStructure.rootDirectory() );
         assertThat( "there is no index to sabotage", files, greaterThanOrEqualTo( 1 ) );
     }
 
@@ -70,7 +67,7 @@ public class SabotageNativeIndex implements DatabaseRule.RestartAction
         else
         {
             // Completely scramble file, assuming small files
-            try ( StoreChannel channel = fs.open( fileOrDir, OpenMode.READ_WRITE ) )
+            try ( StoreChannel channel = fs.write( fileOrDir ) )
             {
                 if ( channel.size() > mebiBytes( 10 ) )
                 {
@@ -82,11 +79,5 @@ public class SabotageNativeIndex implements DatabaseRule.RestartAction
             }
             return 1;
         }
-    }
-
-    static IndexDirectoryStructure nativeIndexDirectoryStructure( DatabaseLayout databaseLayout )
-    {
-        return IndexDirectoryStructure.directoriesByProvider( databaseLayout.databaseDirectory() ).forProvider(
-                GenericNativeIndexProvider.DESCRIPTOR );
     }
 }

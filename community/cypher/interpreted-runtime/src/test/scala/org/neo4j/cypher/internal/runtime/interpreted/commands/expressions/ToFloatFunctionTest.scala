@@ -19,10 +19,10 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.commands.expressions
 
-import org.neo4j.cypher.internal.v3_6.util.ParameterWrongTypeException
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
+import org.neo4j.cypher.internal.runtime.ExecutionContext
 import org.neo4j.cypher.internal.runtime.interpreted.QueryStateHelper
-import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.v4_0.util.test_helpers.CypherFunSuite
+import org.neo4j.exceptions.ParameterWrongTypeException
 import org.neo4j.values.storable.Values.{NO_VALUE, doubleValue}
 
 class ToFloatFunctionTest extends CypherFunSuite {
@@ -60,7 +60,7 @@ class ToFloatFunctionTest extends CypherFunSuite {
   }
 
   test("should throw an exception if the argument is an object which cannot be converted to a float") {
-    val caughtException = evaluating { toFloat(true) } should produce[ParameterWrongTypeException]
+    val caughtException = the[ParameterWrongTypeException] thrownBy toFloat(true)
     caughtException.getMessage should startWith("Expected a String or Number, got: ")
   }
 

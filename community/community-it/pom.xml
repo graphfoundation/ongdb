@@ -3,28 +3,29 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <parent>
-        <groupId>org.graphfoundation.ongdb</groupId>
+        <groupId>org.neo4j</groupId>
         <artifactId>parent</artifactId>
         <version>4.0.4-SNAPSHOT</version>
         <relativePath>../..</relativePath>
     </parent>
 
     <artifactId>community-integration-tests</artifactId>
-    <version>4.0.4-SNAPSHOT</version>
     <packaging>pom</packaging>
 
-    <name>ONgDB - Community Integration Tests</name>
-    <description>ONgDB Community Edition integration tests modules.</description>
+    <name>Neo4j - Community Integration Tests</name>
+    <description>Neo4j community edition integration tests modules.</description>
 
     <properties>
         <license-text.header>headers/GPL-3-header.txt</license-text.header>
+        <licensing.prepend.text>licensing/notice-gpl-prefix.txt</licensing.prepend.text>
     </properties>
 
     <licenses>
         <license>
             <name>GNU General Public License, Version 3</name>
             <url>http://www.gnu.org/licenses/gpl-3.0-standalone.html</url>
-            <comments>The software ("Software") developed and owned by Neo4j Sweden AB (referred to in this notice as "Neo4j") is
+            <comments>
+                The software ("Software") developed and owned by Neo4j Sweden AB (referred to in this notice as "Neo4j") is
                 licensed under the GNU GENERAL PUBLIC LICENSE Version 3 to all third
                 parties and that license is included below.
 
@@ -41,7 +42,9 @@
 
     <modules>
         <module>it-test-support</module>
+        <module>record-storage-engine-it</module>
         <module>kernel-it</module>
+        <module>batch-insert-it</module>
         <module>index-it</module>
         <module>import-it</module>
         <module>dbms-it</module>

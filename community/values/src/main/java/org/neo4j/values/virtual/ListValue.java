@@ -22,15 +22,19 @@ package org.neo4j.values.virtual;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
 
-import org.neo4j.helpers.collection.Iterators;
-import org.neo4j.helpers.collection.PrefetchingIterator;
+import org.neo4j.internal.helpers.ArrayUtil;
+import org.neo4j.internal.helpers.collection.Iterators;
+import org.neo4j.internal.helpers.collection.PrefetchingIterator;
 import org.neo4j.values.AnyValue;
 import org.neo4j.values.AnyValueWriter;
+import org.neo4j.values.Comparison;
 import org.neo4j.values.SequenceValue;
+import org.neo4j.values.TernaryComparator;
 import org.neo4j.values.ValueMapper;
 import org.neo4j.values.VirtualValue;
 import org.neo4j.values.storable.ArrayValue;
@@ -234,7 +238,7 @@ public abstract class ListValue extends VirtualValue implements SequenceValue, I
             case RANDOM_ACCESS:
                 return super.iterator();
             case ITERATION:
-                return new PrefetchingIterator<AnyValue>()
+                return new PrefetchingIterator<>()
                 {
                     private int count;
                     private Iterator<AnyValue> innerIterator = inner.iterator();
@@ -447,7 +451,7 @@ public abstract class ListValue extends VirtualValue implements SequenceValue, I
             else
             {
                 long l = ((end - start) / step) + 1;
-                if ( l > Integer.MAX_VALUE )
+                if ( l > ArrayUtil.MAX_ARRAY_SIZE )
                 {
                     throw new OutOfMemoryError( "Cannot index an collection of size " + l );
                 }
@@ -722,7 +726,7 @@ public abstract class ListValue extends VirtualValue implements SequenceValue, I
     @Override
     public Iterator<AnyValue> iterator()
     {
-        return new Iterator<AnyValue>()
+        return new Iterator<>()
         {
             private int count;
 
@@ -757,22 +761,17 @@ public abstract class ListValue extends VirtualValue implements SequenceValue, I
     }
 
     @Override
-    public int compareTo( VirtualValue other, Comparator<AnyValue> comparator )
+    public int unsafeCompareTo( VirtualValue other, Comparator<AnyValue> comparator )
     {
-        if ( !(other instanceof ListValue) )
-        {
-            throw new IllegalArgumentException( "Cannot compare different virtual values" );
-        }
-
         ListValue otherList = (ListValue) other;
-        if ( iterationPreference() == RANDOM_ACCESS && otherList.iterationPreference() == RANDOM_ACCESS )
-        {
-            return randomAccessCompareTo( comparator, otherList );
-        }
-        else
-        {
-            return iteratorCompareTo( comparator, otherList );
-        }
+        return compareToSequence( otherList, comparator );
+    }
+
+    @Override
+    public Comparison unsafeTernaryCompareTo( VirtualValue other, TernaryComparator<AnyValue> comparator )
+    {
+        ListValue otherList = (ListValue) other;
+        return ternaryCompareToSequence( otherList, comparator );
     }
 
     public AnyValue[] asArray()
@@ -816,6 +815,14 @@ public abstract class ListValue extends VirtualValue implements SequenceValue, I
         default:
             throw new IllegalStateException( "not a valid iteration preference" );
         }
+    }
+
+    @Override
+    protected long estimatedPayloadSize()
+    {
+        int size = size();
+        //assume we store a AnyValue[]
+        return size > 0 ?   28 + (4 + head().estimatedHeapUsage() ) * size  : 0L;
     }
 
     public ListValue dropNoValues()
@@ -876,6 +883,32 @@ public abstract class ListValue extends VirtualValue implements SequenceValue, I
             return this;
         }
         return new PrependList( this, values );
+    }
+
+    public boolean contains( AnyValue toFind )
+    {
+        for ( AnyValue value : this )
+        {
+            if ( value.equals( toFind ) )
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public ListValue distinct()
+    {
+        HashSet<AnyValue> seen = new HashSet<>();
+        ArrayList<AnyValue> kept = new ArrayList<>();
+        for ( AnyValue value : this )
+        {
+            if ( seen.add( value ) )
+            {
+                kept.add( value );
+            }
+        }
+        return new JavaListListValue( kept );
     }
 
     private AnyValue[] iterationAsArray()
@@ -942,48 +975,4 @@ public abstract class ListValue extends VirtualValue implements SequenceValue, I
         writer.endList();
     }
 
-    private int randomAccessCompareTo( Comparator<AnyValue> comparator, ListValue otherList )
-    {
-        int x = Integer.compare( this.length(), otherList.length() );
-
-        if ( x == 0 )
-        {
-            for ( int i = 0; i < length(); i++ )
-            {
-                x = comparator.compare( this.value( i ), otherList.value( i ) );
-                if ( x != 0 )
-                {
-                    return x;
-                }
-            }
-        }
-
-        return x;
-    }
-
-    private int iteratorCompareTo( Comparator<AnyValue> comparator, ListValue otherList )
-    {
-        Iterator<AnyValue> thisIterator = iterator();
-        Iterator<AnyValue> thatIterator = otherList.iterator();
-        while ( thisIterator.hasNext() )
-        {
-            if ( !thatIterator.hasNext() )
-            {
-                return 1;
-            }
-            int compare = comparator.compare( thisIterator.next(), thatIterator.next() );
-            if ( compare != 0 )
-            {
-                return compare;
-            }
-        }
-        if ( thatIterator.hasNext() )
-        {
-            return -1;
-        }
-        else
-        {
-            return 0;
-        }
-    }
 }

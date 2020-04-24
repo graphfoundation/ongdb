@@ -19,19 +19,19 @@
  */
 package org.neo4j.kernel.impl.transaction.log.checkpoint;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.neo4j.kernel.impl.transaction.log.checkpoint.CheckPointThreshold.DEFAULT_CHECKING_FREQUENCY_MILLIS;
 
-public class CheckPointThresholdTest extends CheckPointThresholdTestSupport
+class CheckPointThresholdTest extends CheckPointThresholdTestSupport
 {
     @Test
-    public void mustCreateThresholdThatTriggersAfterTransactionCount()
+    void mustCreateThresholdThatTriggersAfterTransactionCount()
     {
         CheckPointThreshold threshold = createThreshold();
         threshold.initialize( 1 ); // Initialise at transaction id offset by 1.
@@ -42,12 +42,12 @@ public class CheckPointThresholdTest extends CheckPointThresholdTestSupport
         assertFalse( threshold.isCheckPointingNeeded( intervalTx, notTriggered ) );
         // True because new we're at intervalTx + initial offset.
         assertTrue( threshold.isCheckPointingNeeded( intervalTx + 1, triggered ) );
-        verifyTriggered( "count" );
+        verifyTriggered( "every 100000 transactions" );
         verifyNoMoreTriggers();
     }
 
     @Test
-    public void mustCreateThresholdThatTriggersAfterTime()
+    void mustCreateThresholdThatTriggersAfterTime()
     {
         CheckPointThreshold threshold = createThreshold();
         threshold.initialize( 1 );
@@ -60,12 +60,12 @@ public class CheckPointThresholdTest extends CheckPointThresholdTestSupport
         // True because we now moved forward by an interval.
         clock.forward( intervalTime.toMillis(), MILLISECONDS );
         assertTrue( threshold.isCheckPointingNeeded( 4, triggered ) );
-        verifyTriggered( "time" );
+        verifyTriggered( "every 15 minutes threshold" );
         verifyNoMoreTriggers();
     }
 
     @Test
-    public void mustNotTriggerBeforeTimeWithTooFewCommittedTransactions()
+    void mustNotTriggerBeforeTimeWithTooFewCommittedTransactions()
     {
         withIntervalTime( "100ms" );
         CheckPointThreshold threshold = createThreshold();
@@ -76,7 +76,7 @@ public class CheckPointThresholdTest extends CheckPointThresholdTestSupport
     }
 
     @Test
-    public void mustTriggerWhenTimeThresholdIsReachedAndThereAreCommittedTransactions()
+    void mustTriggerWhenTimeThresholdIsReachedAndThereAreCommittedTransactions()
     {
         withIntervalTime( "100ms" );
         CheckPointThreshold threshold = createThreshold();
@@ -85,12 +85,26 @@ public class CheckPointThresholdTest extends CheckPointThresholdTestSupport
         clock.forward( 199, MILLISECONDS );
 
         assertTrue( threshold.isCheckPointingNeeded( 42, triggered ) );
-        verifyTriggered( "time" );
+        verifyTriggered( "every 100 milliseconds" );
         verifyNoMoreTriggers();
     }
 
     @Test
-    public void mustNotTriggerWhenTimeThresholdIsReachedAndThereAreNoCommittedTransactions()
+    void mustTriggerWhenWeirdTimeThresholdIsReachedAndThereAreCommittedTransactions()
+    {
+        withIntervalTime( "1100ms" );
+        CheckPointThreshold threshold = createThreshold();
+        threshold.initialize( 2 );
+
+        clock.forward( 2199, MILLISECONDS );
+
+        assertTrue( threshold.isCheckPointingNeeded( 42, triggered ) );
+        verifyTriggered( "every 1 seconds 100 milliseconds" );
+        verifyNoMoreTriggers();
+    }
+
+    @Test
+    void mustNotTriggerWhenTimeThresholdIsReachedAndThereAreNoCommittedTransactions()
     {
         withIntervalTime( "100ms" );
         CheckPointThreshold threshold = createThreshold();
@@ -103,7 +117,7 @@ public class CheckPointThresholdTest extends CheckPointThresholdTestSupport
     }
 
     @Test
-    public void mustNotTriggerPastTimeThresholdSinceLastCheckpointWithNoNewTransactions()
+    void mustNotTriggerPastTimeThresholdSinceLastCheckpointWithNoNewTransactions()
     {
         withIntervalTime( "100ms" );
         CheckPointThreshold threshold = createThreshold();
@@ -118,7 +132,7 @@ public class CheckPointThresholdTest extends CheckPointThresholdTestSupport
     }
 
     @Test
-    public void mustTriggerPastTimeThresholdSinceLastCheckpointWithNewTransactions()
+    void mustTriggerPastTimeThresholdSinceLastCheckpointWithNewTransactions()
     {
         withIntervalTime( "100ms" );
         CheckPointThreshold threshold = createThreshold();
@@ -129,12 +143,12 @@ public class CheckPointThresholdTest extends CheckPointThresholdTestSupport
         clock.forward( 100, MILLISECONDS );
 
         assertTrue( threshold.isCheckPointingNeeded( 43, triggered ) );
-        verifyTriggered( "time" );
+        verifyTriggered( "every 100 milliseconds" );
         verifyNoMoreTriggers();
     }
 
     @Test
-    public void mustNotTriggerOnTransactionCountWhenThereAreNoNewTransactions()
+    void mustNotTriggerOnTransactionCountWhenThereAreNoNewTransactions()
     {
         withIntervalTx( 2 );
         CheckPointThreshold threshold = createThreshold();
@@ -144,7 +158,7 @@ public class CheckPointThresholdTest extends CheckPointThresholdTestSupport
     }
 
     @Test
-    public void mustNotTriggerOnTransactionCountWhenCountIsBellowThreshold()
+    void mustNotTriggerOnTransactionCountWhenCountIsBellowThreshold()
     {
         withIntervalTx( 2 );
         CheckPointThreshold threshold = createThreshold();
@@ -154,19 +168,19 @@ public class CheckPointThresholdTest extends CheckPointThresholdTestSupport
     }
 
     @Test
-    public void mustTriggerOnTransactionCountWhenCountIsAtThreshold()
+    void mustTriggerOnTransactionCountWhenCountIsAtThreshold()
     {
         withIntervalTx( 2 );
         CheckPointThreshold threshold = createThreshold();
         threshold.initialize( 2 );
 
         assertTrue( threshold.isCheckPointingNeeded( 4, triggered ) );
-        verifyTriggered( "count" );
+        verifyTriggered( "every 2 transactions" );
         verifyNoMoreTriggers();
     }
 
     @Test
-    public void mustNotTriggerOnTransactionCountAtThresholdIfCheckPointAlreadyHappened()
+    void mustNotTriggerOnTransactionCountAtThresholdIfCheckPointAlreadyHappened()
     {
         withIntervalTx( 2 );
         CheckPointThreshold threshold = createThreshold();
@@ -177,7 +191,7 @@ public class CheckPointThresholdTest extends CheckPointThresholdTestSupport
     }
 
     @Test
-    public void mustNotTriggerWhenTransactionCountIsWithinThresholdSinceLastTrigger()
+    void mustNotTriggerWhenTransactionCountIsWithinThresholdSinceLastTrigger()
     {
         withIntervalTx( 2 );
         CheckPointThreshold threshold = createThreshold();
@@ -188,7 +202,7 @@ public class CheckPointThresholdTest extends CheckPointThresholdTestSupport
     }
 
     @Test
-    public void mustTriggerOnTransactionCountWhenCountIsAtThresholdSinceLastCheckPoint()
+    void mustTriggerOnTransactionCountWhenCountIsAtThresholdSinceLastCheckPoint()
     {
         withIntervalTx( 2 );
         CheckPointThreshold threshold = createThreshold();
@@ -196,13 +210,12 @@ public class CheckPointThresholdTest extends CheckPointThresholdTestSupport
 
         threshold.checkPointHappened( 4 );
         assertTrue( threshold.isCheckPointingNeeded( 6, triggered ) );
-        verifyTriggered( "count" );
+        verifyTriggered( "2 transactions" );
         verifyNoMoreTriggers();
     }
 
-    @SuppressWarnings( "ConstantConditions" )
     @Test
-    public void timeBasedThresholdMustSuggestSchedulingFrequency()
+    void timeBasedThresholdMustSuggestSchedulingFrequency()
     {
         // By default, the transaction count based threshold wants a higher check frequency than the time based
         // default threshold.

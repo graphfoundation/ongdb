@@ -31,7 +31,8 @@ import java.util.concurrent.locks.LockSupport;
 
 class SamplingProfiler implements Profiler
 {
-    private static final long DEFAULT_SAMPLE_INTERVAL_NANOS = TimeUnit.MILLISECONDS.toNanos( 1 );
+    private static final ThreadGroup SAMPLER_GROUP = new ThreadGroup( "StackSamplers" );
+    private static final long DEFAULT_SAMPLE_INTERVAL_NANOS = TimeUnit.MILLISECONDS.toNanos( 20 );
 
     private final ConcurrentLinkedQueue<Thread> samplerThreads = new ConcurrentLinkedQueue<>();
     private final AtomicBoolean stopped = new AtomicBoolean();
@@ -65,7 +66,7 @@ class SamplingProfiler implements Profiler
         out.println( "### " + profileTitle );
         if ( underSampling.get() > 0 )
         {
-            long allSamplesTotal = samples.reduceToLong( Long.MAX_VALUE, ( thread, sample ) -> sample.get(), 0, ( a, b ) -> a + b );
+            long allSamplesTotal = samples.reduceToLong( Long.MAX_VALUE, ( thread, sample ) -> sample.get(), 0, Long::sum );
             out.println( "Info: Did not achieve target sampling frequency. " + underSampling + " of " + allSamplesTotal + " samples were delayed." );
         }
         for ( Map.Entry<Thread,Sample> entry : samples.entrySet() )
@@ -90,7 +91,7 @@ class SamplingProfiler implements Profiler
     {
         long capturedSampleIntervalNanos = sampleIntervalNanos.get();
         long baseline = System.nanoTime();
-        Thread samplerThread = new Thread( () ->
+        Thread samplerThread = new Thread( SAMPLER_GROUP, () ->
         {
             long nextSleepBaseline = initialDelayNanos > 0 ? sleep( baseline, initialDelayNanos ) : baseline;
             Sample root = samples.computeIfAbsent( threadToProfile, k -> new Sample( null ) );
@@ -160,7 +161,8 @@ class SamplingProfiler implements Profiler
     private static final class Sample extends AtomicLong implements Comparable<Sample>
     {
         private final StackTraceElement stackTraceElement;
-        private Map<StackTraceElement, Sample> children;
+        private final Map<StackTraceElement, Sample> children;
+        private long snapshot;
         private PriorityQueue<Sample> orderedChildren;
 
         private Sample( StackTraceElement stackTraceElement )
@@ -169,21 +171,26 @@ class SamplingProfiler implements Profiler
             children = new ConcurrentHashMap<>();
         }
 
+        private void snapshot()
+        {
+            this.snapshot = get();
+        }
+
         @Override
         public int compareTo( Sample o )
         {
             // Higher count orders first.
-            return Long.compare( o.get(), this.get() );
+            return Long.compare( o.snapshot, this.snapshot );
         }
 
         void intoOrdered()
         {
             orderedChildren = new PriorityQueue<>();
-            orderedChildren.addAll( children.values() );
-            children.clear();
-            for ( Sample child : orderedChildren )
+            for ( Sample sample : children.values() )
             {
-                child.intoOrdered();
+                sample.snapshot();
+                orderedChildren.add( sample );
+                sample.intoOrdered();
             }
         }
     }

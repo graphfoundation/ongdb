@@ -19,6 +19,8 @@
  */
 package org.neo4j.kernel.impl.util;
 
+import org.apache.commons.lang3.StringUtils;
+
 import java.io.File;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -26,17 +28,11 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Optional;
 import java.util.function.Function;
-import java.util.function.Predicate;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import java.util.stream.Stream;
 
-import org.neo4j.helpers.HostnamePort;
-import org.neo4j.helpers.collection.Pair;
-
-import static org.neo4j.function.Predicates.not;
+import org.neo4j.configuration.helpers.SocketAddress;
+import org.neo4j.internal.helpers.HostnamePort;
+import org.neo4j.internal.helpers.collection.NumberAwareStringComparator;
 
 public class Converters
 {
@@ -57,11 +53,6 @@ public class Converters
         return from -> null;
     }
 
-    public static <T> Function<String,T> withDefault( final T defaultValue )
-    {
-        return from -> defaultValue;
-    }
-
     public static Function<String,File> toFile()
     {
         return File::new;
@@ -77,9 +68,9 @@ public class Converters
         return s -> s;
     }
 
-    public static final Comparator<File> BY_FILE_NAME = Comparator.comparing( File::getName );
+    private static final Comparator<File> BY_FILE_NAME = Comparator.comparing( File::getName );
 
-    public static final Comparator<File> BY_FILE_NAME_WITH_CLEVER_NUMBERS =
+    private static final Comparator<File> BY_FILE_NAME_WITH_CLEVER_NUMBERS =
             ( o1, o2 ) -> NumberAwareStringComparator.INSTANCE.compare( o1.getAbsolutePath(), o2.getAbsolutePath() );
 
     public static Function<String,File[]> regexFiles( final boolean cleverNumberRegexSort )
@@ -89,7 +80,7 @@ public class Converters
             Comparator<File> sorting = cleverNumberRegexSort ? BY_FILE_NAME_WITH_CLEVER_NUMBERS : BY_FILE_NAME;
             List<File> files = Validators.matchingFiles( new File( name.trim() ) );
             files.sort( sorting );
-            return files.toArray( new File[files.size()] );
+            return files.toArray( new File[0] );
         };
     }
 
@@ -109,35 +100,21 @@ public class Converters
             {
                 files.addAll( Arrays.asList( eachFileConverter.apply( name ) ) );
             }
-            return files.toArray( new File[files.size()] );
+            return files.toArray( new File[0] );
         };
     }
 
-    public static Function<String,Integer> toInt()
+    static SocketAddress toSocketAddress( HostnamePort hostnamePort, String defaultHostname, int defaultPort )
     {
-        return Integer::new;
+        String hostname = removeIpV6Brackets( hostnamePort.getHost() != null ? hostnamePort.getHost() : defaultHostname );
+        // port 0 only makes sense for a listen address, not advertised address
+        // it is thus safe to treat port 0 as missing port when converting the given host and port into an advertised address
+        int port = hostnamePort.getPort() != 0 ? hostnamePort.getPort() : defaultPort;
+        return new SocketAddress( hostname, port );
     }
 
-    /**
-     * Takes a raw address that can have a single port or 2 ports (lower and upper bounds of port range) and
-     * processes it to a clean separation of host and ports. When only one port is specified, it is in the lower bound.
-     * The presence of an upper bound implies a range.
-     *
-     * @param rawAddress the raw address that a user can provide via config or command line
-     * @return the host, lower bound port, and upper bound port
-     */
-    public static OptionalHostnamePort toOptionalHostnamePortFromRawAddress( String rawAddress )
+    private static String removeIpV6Brackets( String hostname )
     {
-        HostnamePort hostnamePort = new HostnamePort( rawAddress );
-        Optional<String> processedHost = Optional.ofNullable( hostnamePort.getHost() )
-                .map( str -> str.replaceAll( "\\[", "" ) )
-                .map( str -> str.replaceAll( "]", "" ) );
-        return new OptionalHostnamePort( processedHost, optionalFromZeroable( hostnamePort.getPorts()[0] ),
-                optionalFromZeroable( hostnamePort.getPorts()[1] ) );
-    }
-
-    private static Optional<Integer> optionalFromZeroable( int port )
-    {
-        return port == 0 ? Optional.empty() : Optional.of( port );
+        return StringUtils.remove( StringUtils.remove( hostname, '[' ), ']' );
     }
 }

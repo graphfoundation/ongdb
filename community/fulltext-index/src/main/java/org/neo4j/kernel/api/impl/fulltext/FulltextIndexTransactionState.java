@@ -19,6 +19,8 @@
  */
 package org.neo4j.kernel.api.impl.fulltext;
 
+import org.apache.lucene.analysis.Analyzer;
+import org.apache.lucene.search.BooleanQuery;
 import org.eclipse.collections.api.set.primitive.MutableLongSet;
 import org.eclipse.collections.impl.set.mutable.primitive.LongHashSet;
 
@@ -27,100 +29,98 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.neo4j.internal.kernel.api.IndexReference;
+import org.neo4j.common.EntityType;
+import org.neo4j.internal.kernel.api.CursorFactory;
 import org.neo4j.internal.kernel.api.NodeCursor;
 import org.neo4j.internal.kernel.api.PropertyCursor;
+import org.neo4j.internal.kernel.api.QueryContext;
+import org.neo4j.internal.kernel.api.Read;
 import org.neo4j.internal.kernel.api.RelationshipScanCursor;
-import org.neo4j.internal.kernel.api.schema.SchemaDescriptor;
+import org.neo4j.internal.schema.IndexDescriptor;
 import org.neo4j.io.IOUtils;
-import org.neo4j.kernel.api.txstate.TransactionState;
-import org.neo4j.kernel.impl.api.KernelTransactionImplementation;
-import org.neo4j.kernel.impl.newapi.AllStoreHolder;
-import org.neo4j.logging.Log;
-import org.neo4j.storageengine.api.EntityType;
-import org.neo4j.storageengine.api.schema.StoreIndexDescriptor;
+import org.neo4j.kernel.api.impl.index.SearcherReference;
+import org.neo4j.kernel.api.impl.index.collector.ValuesIterator;
+import org.neo4j.storageengine.api.txstate.ReadableTransactionState;
+
+import static java.util.Arrays.asList;
+import static org.neo4j.kernel.api.impl.fulltext.ScoreEntityIterator.mergeIterators;
 
 /**
  * Manages the transaction state of a specific individual fulltext index, in a given transaction.
  * <p>
  * This works by first querying the base index, then filtering out all results that are modified in this transaction, and then querying an in-memory Lucene
- * index, where the transaction state is indexed. This all happens in the {@link TransactionStateFulltextIndexReader}.
+ * index, where the transaction state is indexed.
  * <p>
  * The transaction state is indexed prior to querying whenever we detect that the
- * {@link KernelTransactionImplementation#getTransactionDataRevision() transaction data revision} has changed.
+ * {@link ReadableTransactionState#getDataRevision()}  transaction data revision} has changed.
  * <p>
  * The actual transaction state indexing is done by the {@link FulltextIndexTransactionStateVisitor}, which for the most part only looks at the ids, and then
- * loads the modified entities up through the existing transaction state, via the {@link AllStoreHolder} API.
+ * loads the modified entities up through the existing transaction state, via the kernel API.
  */
 class FulltextIndexTransactionState implements Closeable
 {
-    private final FulltextIndexDescriptor descriptor;
     private final List<AutoCloseable> toCloseLater;
     private final MutableLongSet modifiedEntityIdsInThisTransaction;
     private final TransactionStateLuceneIndexWriter writer;
     private final FulltextIndexTransactionStateVisitor txStateVisitor;
     private final boolean visitingNodes;
     private long lastUpdateRevision;
-    private FulltextIndexReader currentReader;
+    private SearcherReference currentSearcher;
 
-    FulltextIndexTransactionState( FulltextIndexProvider provider, Log log, IndexReference indexReference )
+    FulltextIndexTransactionState( IndexDescriptor descriptor, Analyzer analyzer, String[] propertyNames )
     {
-        FulltextIndexAccessor accessor = provider.getOpenOnlineAccessor( (StoreIndexDescriptor) indexReference );
-        log.debug( "Acquired online fulltext schema index accessor, as base accessor for transaction state: %s", accessor );
-        descriptor = accessor.getDescriptor();
-        SchemaDescriptor schema = descriptor.schema();
         toCloseLater = new ArrayList<>();
-        writer = accessor.getTransactionStateIndexWriter();
+        writer = new TransactionStateLuceneIndexWriter( analyzer );
         modifiedEntityIdsInThisTransaction = new LongHashSet();
-        visitingNodes = schema.entityType() == EntityType.NODE;
-        txStateVisitor = new FulltextIndexTransactionStateVisitor( descriptor, modifiedEntityIdsInThisTransaction, writer );
+        visitingNodes = descriptor.schema().entityType() == EntityType.NODE;
+        txStateVisitor = new FulltextIndexTransactionStateVisitor( descriptor, propertyNames, modifiedEntityIdsInThisTransaction, writer );
     }
 
-    FulltextIndexReader getIndexReader( KernelTransactionImplementation kti )
+    void maybeUpdate( QueryContext context )
     {
-        if ( currentReader == null || lastUpdateRevision != kti.getTransactionDataRevision() )
+        if ( currentSearcher == null || lastUpdateRevision != context.getTransactionStateOrNull().getDataRevision() )
         {
-            if ( currentReader != null )
-            {
-                toCloseLater.add( currentReader );
-            }
             try
             {
-                updateReader( kti );
+                updateSearcher( context );
             }
             catch ( Exception e )
             {
-                currentReader = null;
-                throw new RuntimeException( "Failed to update the fulltext schema index transaction state.", e );
+                throw new RuntimeException( "Could not update fulltext schema index transaction state.", e );
             }
         }
-        return currentReader;
     }
 
-    private void updateReader( KernelTransactionImplementation kti ) throws Exception
+    private void updateSearcher( QueryContext context ) throws Exception
     {
+        Read read = context.getRead();
+        CursorFactory cursors = context.cursors();
+        ReadableTransactionState state = context.getTransactionStateOrNull();
         modifiedEntityIdsInThisTransaction.clear(); // Clear this so we don't filter out entities who have had their changes reversed since last time.
         writer.resetWriterState();
-        AllStoreHolder read = (AllStoreHolder) kti.dataRead();
-        TransactionState transactionState = kti.txState();
 
-        try ( NodeCursor nodeCursor = visitingNodes ? kti.cursors().allocateNodeCursor() : null;
-              RelationshipScanCursor relationshipCursor = visitingNodes ? null : kti.cursors().allocateRelationshipScanCursor();
-              PropertyCursor propertyCursor = kti.cursors().allocatePropertyCursor() )
+        try ( NodeCursor nodeCursor = visitingNodes ? cursors.allocateFullAccessNodeCursor() : null;
+              RelationshipScanCursor relationshipCursor = visitingNodes ? null : cursors.allocateRelationshipScanCursor();
+              PropertyCursor propertyCursor = cursors.allocateFullAccessPropertyCursor() )
         {
-            transactionState.accept( txStateVisitor.init( read, nodeCursor, relationshipCursor, propertyCursor ) );
+            state.accept( txStateVisitor.init( read, nodeCursor, relationshipCursor, propertyCursor ) );
         }
-        FulltextIndexReader baseReader = (FulltextIndexReader) read.indexReader( descriptor, false );
-        FulltextIndexReader nearRealTimeReader = writer.getNearRealTimeReader();
-        currentReader = new TransactionStateFulltextIndexReader( baseReader, nearRealTimeReader, modifiedEntityIdsInThisTransaction );
-        lastUpdateRevision = kti.getTransactionDataRevision();
+        currentSearcher = writer.getNearRealTimeSearcher();
+        toCloseLater.add( currentSearcher );
+        lastUpdateRevision = state.getDataRevision();
     }
 
     @Override
     public void close() throws IOException
     {
-        toCloseLater.add( currentReader );
         toCloseLater.add( writer );
         IOUtils.closeAll( toCloseLater );
+    }
+
+    public ValuesIterator filter( ValuesIterator iterator, BooleanQuery query )
+    {
+        iterator = ScoreEntityIterator.filter( iterator, entityId -> !modifiedEntityIdsInThisTransaction.contains( entityId ) );
+        iterator = mergeIterators( asList( iterator, FulltextIndexReader.searchLucene( currentSearcher, query ) ) );
+        return iterator;
     }
 }

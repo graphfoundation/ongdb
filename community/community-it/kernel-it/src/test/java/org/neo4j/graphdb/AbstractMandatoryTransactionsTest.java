@@ -19,27 +19,25 @@
  */
 package org.neo4j.graphdb;
 
-import org.junit.Rule;
-
 import java.util.function.Consumer;
 
-import org.neo4j.test.rule.EmbeddedDatabaseRule;
+import org.neo4j.test.extension.DbmsExtension;
+import org.neo4j.test.extension.Inject;
 
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
+@DbmsExtension
 public abstract class AbstractMandatoryTransactionsTest<T>
 {
-    @Rule
-    public EmbeddedDatabaseRule dbRule = new EmbeddedDatabaseRule();
+    @Inject
+    public GraphDatabaseService db;
 
     public T obtainEntity()
     {
-        GraphDatabaseService graphDatabaseService = dbRule.getGraphDatabaseAPI();
-
-        try ( Transaction tx = graphDatabaseService.beginTx() )
+        try ( Transaction tx = db.beginTx() )
         {
-            T result = obtainEntityInTransaction( graphDatabaseService );
-            tx.success();
+            T result = obtainEntityInTransaction( tx );
+            tx.commit();
 
             return result;
         }
@@ -47,33 +45,22 @@ public abstract class AbstractMandatoryTransactionsTest<T>
 
     public void obtainEntityInTerminatedTransaction( Consumer<T> f )
     {
-        GraphDatabaseService graphDatabaseService = dbRule.getGraphDatabaseAPI();
-
-        try ( Transaction tx = graphDatabaseService.beginTx() )
+        try ( Transaction tx = db.beginTx() )
         {
-            T result = obtainEntityInTransaction( graphDatabaseService );
+            T result = obtainEntityInTransaction( tx );
             tx.terminate();
 
             f.accept(result);
         }
     }
 
-    protected abstract T obtainEntityInTransaction( GraphDatabaseService graphDatabaseService );
+    protected abstract T obtainEntityInTransaction( Transaction transaction );
 
     public static <T> void assertFacadeMethodsThrowNotInTransaction( T entity, Consumer<T>[] methods )
     {
         for ( Consumer<T> method : methods )
         {
-            try
-            {
-                method.accept( entity );
-
-                fail( "Transactions are mandatory, also for reads: " + method );
-            }
-            catch ( NotInTransactionException e )
-            {
-                // awesome
-            }
+            assertThrows( NotInTransactionException.class, () -> method.accept( entity ) );
         }
     }
 
@@ -81,19 +68,7 @@ public abstract class AbstractMandatoryTransactionsTest<T>
     {
         for ( final Consumer<T> method : methods )
         {
-            obtainEntityInTerminatedTransaction( entity ->
-            {
-                try
-                {
-                    method.accept( entity );
-
-                    fail( "Transaction was terminated, yet not exception thrown in: " + method );
-                }
-                catch ( TransactionTerminatedException e )
-                {
-                    // awesome
-                }
-            } );
+            obtainEntityInTerminatedTransaction( entity -> assertThrows( TransactionTerminatedException.class, () -> method.accept( entity ) ) );
         }
     }
 }

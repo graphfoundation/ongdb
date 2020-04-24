@@ -41,9 +41,15 @@ public class NullResponseHandler implements BoltResponseHandler
     }
 
     @Override
-    public void onRecords( BoltResult result, boolean pull )
+    public boolean onPullRecords( BoltResult result, long size )
     {
-        // this page intentionally left blank
+        return false;
+    }
+
+    @Override
+    public boolean onDiscardRecords( BoltResult result, long size )
+    {
+        return false;
     }
 
     @Override

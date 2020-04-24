@@ -20,26 +20,24 @@
 package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
 import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.Expression
-import org.neo4j.cypher.internal.v3_6.util.AssertionRunner.Thunk
-import org.neo4j.cypher.internal.v3_6.util.Foldable._
-import org.neo4j.cypher.internal.v3_6.util.{AssertionRunner, InternalException}
+import org.neo4j.cypher.internal.v4_0.util.AssertionRunner
+import org.neo4j.cypher.internal.v4_0.util.Foldable._
+import org.neo4j.exceptions.InternalException
 
 object OwningPipeAsserter {
 
   def assertAllExpressionsHaveAnOwningPipe(pipe: Pipe): Unit = {
-    AssertionRunner.runUnderAssertion(new Thunk {
-      override def apply(): Unit = {
-        pipe.treeFold(()) {
-          case e: Expression =>
-            e.owningPipe.getOrElse(
-              throw new InternalException(
-                s"""Expressions need to be registered with it's owning Pipe, so the profiling knows where to report db-hits
-                   |Top level pipe: $pipe
-                   |Expression: $e
-                 """.stripMargin))
-            acc => (acc, Some(identity))
-        }
+    AssertionRunner.runUnderAssertion(() =>
+      pipe.treeFold(()) {
+        case e: Expression =>
+          try {
+            e.owningPipe
+          } catch {
+            case exp: InternalException =>
+              throw new InternalException(s"${exp.getMessage}\nTop level pipe: $pipe\nExpression: $e")
+          }
+          acc => (acc, Some(identity))
       }
-    })
+    )
   }
 }

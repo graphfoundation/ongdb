@@ -21,11 +21,13 @@ package org.neo4j.index.internal.gbptree;
 
 import org.apache.commons.lang3.mutable.MutableInt;
 import org.apache.commons.lang3.mutable.MutableLong;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.RuleChain;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -34,32 +36,37 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.io.pagecache.PageCursor;
 import org.neo4j.io.pagecache.PagedFile;
-import org.neo4j.test.rule.PageCacheRule;
+import org.neo4j.test.extension.Inject;
+import org.neo4j.test.extension.RandomExtension;
+import org.neo4j.test.extension.pagecache.PageCacheSupportExtension;
+import org.neo4j.test.extension.testdirectory.TestDirectoryExtension;
 import org.neo4j.test.rule.RandomRule;
 import org.neo4j.test.rule.TestDirectory;
-import org.neo4j.test.rule.fs.DefaultFileSystemRule;
-import org.neo4j.test.rule.fs.FileSystemRule;
 
 import static java.nio.file.StandardOpenOption.CREATE;
 import static java.nio.file.StandardOpenOption.DELETE_ON_CLOSE;
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.neo4j.index.internal.gbptree.SimpleLongLayout.longLayout;
 import static org.neo4j.index.internal.gbptree.TreeNode.Overflow;
 import static org.neo4j.index.internal.gbptree.TreeNode.setKeyCount;
-import static org.neo4j.test.rule.PageCacheRule.config;
+import static org.neo4j.test.rule.PageCacheConfig.config;
 
-public class CrashGenerationCleanerTest
+@TestDirectoryExtension
+@ExtendWith( RandomExtension.class )
+class CrashGenerationCleanerTest
 {
-    private final FileSystemRule fileSystemRule = new DefaultFileSystemRule();
-    private final PageCacheRule pageCacheRule = new PageCacheRule();
-    private final TestDirectory testDirectory = TestDirectory.testDirectory( this.getClass(), fileSystemRule.get() );
-    private final RandomRule randomRule = new RandomRule();
-    @Rule
-    public RuleChain ruleChain = RuleChain
-            .outerRule( fileSystemRule ).around( testDirectory ).around( pageCacheRule ).around( randomRule );
+    @RegisterExtension
+    static PageCacheSupportExtension pageCacheExtension = new PageCacheSupportExtension();
+    @Inject
+    private FileSystemAbstraction fileSystem;
+    @Inject
+    private TestDirectory testDirectory;
+    @Inject
+    private RandomRule randomRule;
 
     private static final String FILE_NAME = "index";
     private static final int PAGE_SIZE = 256;
@@ -67,7 +74,7 @@ public class CrashGenerationCleanerTest
     private PagedFile pagedFile;
     private final Layout<MutableLong,MutableLong> layout = longLayout().build();
     private final TreeNode<MutableLong,MutableLong> treeNode = new TreeNodeFixedSize<>( PAGE_SIZE, layout );
-    private final ExecutorService executor = Executors.newFixedThreadPool( Runtime.getRuntime().availableProcessors() );
+    private static ExecutorService executor;
     private final TreeState checkpointedTreeState = new TreeState( 0, 9, 10, 0, 0, 0, 0, 0, 0, 0, true, true );
     private final TreeState unstableTreeState = new TreeState( 0, 10, 12, 0, 0, 0, 0, 0, 0, 0, true, true );
     private final List<GBPTreeCorruption.PageCorruption> possibleCorruptionsInInternal = Arrays.asList(
@@ -82,23 +89,35 @@ public class CrashGenerationCleanerTest
             GBPTreeCorruption.crashed( GBPTreePointerType.successor() )
     );
 
-    @Before
-    public void setupPagedFile() throws IOException
+    @BeforeAll
+    static void setUp()
     {
-        PageCache pageCache = pageCacheRule
-                .getPageCache( fileSystemRule.get(), config().withPageSize( PAGE_SIZE ).withAccessChecks( true ) );
+        executor = Executors.newFixedThreadPool( Runtime.getRuntime().availableProcessors() );
+    }
+
+    @AfterAll
+    static void tearDown()
+    {
+        executor.shutdown();
+    }
+
+    @BeforeEach
+    void setupPagedFile() throws IOException
+    {
+        PageCache pageCache = pageCacheExtension
+                .getPageCache( fileSystem, config().withPageSize( PAGE_SIZE ).withAccessChecks( true ) );
         pagedFile = pageCache
                 .map( testDirectory.file( FILE_NAME ), PAGE_SIZE, CREATE, DELETE_ON_CLOSE );
     }
 
-    @After
-    public void teardownPagedFile() throws IOException
+    @AfterEach
+    void teardownPagedFile()
     {
         pagedFile.close();
     }
 
     @Test
-    public void shouldNotCrashOnEmptyFile() throws Exception
+    void shouldNotCrashOnEmptyFile() throws Exception
     {
         // GIVEN
         Page[] pages = with();
@@ -110,11 +129,12 @@ public class CrashGenerationCleanerTest
 
         // THEN
         assertPagesVisited( monitor, pages.length );
+        assertTreeNodes( monitor, pages.length );
         assertCleanedCrashPointers( monitor, 0 );
     }
 
     @Test
-    public void shouldNotReportErrorsOnCleanPages() throws Exception
+    void shouldNotReportErrorsOnCleanPages() throws Exception
     {
         // GIVEN
         Page[] pages = with(
@@ -128,12 +148,13 @@ public class CrashGenerationCleanerTest
         crashGenerationCleaner( pagedFile, 0, pages.length, monitor ).clean( executor );
 
         // THEN
-        assertPagesVisited( monitor, 2 );
+        assertPagesVisited( monitor, pages.length );
+        assertTreeNodes( monitor, pages.length );
         assertCleanedCrashPointers( monitor, 0 );
     }
 
     @Test
-    public void shouldCleanOneCrashPerPage() throws Exception
+    void shouldCleanOneCrashPerPage() throws Exception
     {
         // GIVEN
         Page[] pages = with(
@@ -160,11 +181,12 @@ public class CrashGenerationCleanerTest
 
         // THEN
         assertPagesVisited( monitor, pages.length );
+        assertTreeNodes( monitor, pages.length );
         assertCleanedCrashPointers( monitor, 7 );
     }
 
     @Test
-    public void shouldCleanMultipleCrashPerPage() throws Exception
+    void shouldCleanMultipleCrashPerPage() throws Exception
     {
         // GIVEN
         Page[] pages = with(
@@ -186,11 +208,32 @@ public class CrashGenerationCleanerTest
 
         // THEN
         assertPagesVisited( monitor, pages.length );
+        assertTreeNodes( monitor, pages.length );
         assertCleanedCrashPointers( monitor, 7 );
     }
 
     @Test
-    public void shouldCleanLargeFile() throws Exception
+    void shouldNotCleanOffloadOrFreelistPages() throws IOException
+    {
+        // GIVEN
+        Page[] pages = with(
+                offload(),
+                freelist()
+        );
+        initializeFile( pagedFile, pages );
+
+        // WHEN
+        SimpleCleanupMonitor monitor = new SimpleCleanupMonitor();
+        crashGenerationCleaner( pagedFile, 0, pages.length, monitor ).clean( executor );
+
+        // THEN
+        assertPagesVisited( monitor, 2 );
+        assertTreeNodes( monitor, 0 );
+        assertCleanedCrashPointers( monitor, 0 );
+    }
+
+    @Test
+    void shouldCleanLargeFile() throws Exception
     {
         // GIVEN
         int numberOfPages = randomRule.intBetween( 1_000, 10_000 );
@@ -211,6 +254,7 @@ public class CrashGenerationCleanerTest
 
         // THEN
         assertPagesVisited( monitor, numberOfPages );
+        assertTreeNodes( monitor, numberOfPages );
         assertCleanedCrashPointers( monitor, totalNumberOfCorruptions.getValue() );
     }
 
@@ -234,19 +278,25 @@ public class CrashGenerationCleanerTest
     }
 
     /* Assertions */
-    private void assertCleanedCrashPointers( SimpleCleanupMonitor monitor,
-            int expectedNumberOfCleanedCrashPointers )
+    private static void assertCleanedCrashPointers( SimpleCleanupMonitor monitor, int expectedNumberOfCleanedCrashPointers )
     {
-        assertEquals( "Expected number of cleaned crash pointers to be " +
-                        expectedNumberOfCleanedCrashPointers + " but was " + monitor.numberOfCleanedCrashPointers,
-                expectedNumberOfCleanedCrashPointers, monitor.numberOfCleanedCrashPointers );
+        assertEquals( expectedNumberOfCleanedCrashPointers, monitor.numberOfCleanedCrashPointers,
+                "Expected number of cleaned crash pointers to be " +
+                        expectedNumberOfCleanedCrashPointers + " but was " + monitor.numberOfCleanedCrashPointers );
     }
 
-    private void assertPagesVisited( SimpleCleanupMonitor monitor, int expectedNumberOfPagesVisited )
+    private static void assertPagesVisited( SimpleCleanupMonitor monitor, int expectedNumberOfPagesVisited )
     {
-        assertEquals( "Expected number of visited pages to be " + expectedNumberOfPagesVisited +
-                        " but was " + monitor.numberOfPagesVisited,
-                expectedNumberOfPagesVisited, monitor.numberOfPagesVisited );
+        assertEquals( expectedNumberOfPagesVisited, monitor.numberOfPagesVisited,
+                "Expected number of visited pages to be " + expectedNumberOfPagesVisited +
+                        " but was " + monitor.numberOfPagesVisited );
+    }
+
+    private static void assertTreeNodes( SimpleCleanupMonitor monitor, int expectedNumberOfTreeNodes )
+    {
+        assertEquals( expectedNumberOfTreeNodes, monitor.numberOfTreeNodes,
+                "Expected number of TreeNodes to be " + expectedNumberOfTreeNodes +
+                        " but was " + monitor.numberOfTreeNodes );
     }
 
     /* Random page */
@@ -301,6 +351,16 @@ public class CrashGenerationCleanerTest
         return new Page( PageType.INTERNAL, pageCorruptions );
     }
 
+    private Page offload()
+    {
+        return new Page( PageType.OFFLOAD );
+    }
+
+    private Page freelist()
+    {
+        return new Page( PageType.FREELIST );
+    }
+
     private class Page
     {
         private final PageType type;
@@ -350,6 +410,24 @@ public class CrashGenerationCleanerTest
                             treeNode.setChildAt( cursor, child, keyCount, treeState.stableGeneration(), treeState.unstableGeneration() );
                         }
                         setKeyCount( cursor, keyCount );
+                    }
+                },
+        OFFLOAD
+                {
+                    @Override
+                    void write( PageCursor cursor, TreeNode<MutableLong,MutableLong> treeNode, Layout<MutableLong,MutableLong> layout,
+                            TreeState treeState )
+                    {
+                        OffloadStoreImpl.writeHeader( cursor );
+                    }
+                },
+        FREELIST
+                {
+                    @Override
+                    void write( PageCursor cursor, TreeNode<MutableLong,MutableLong> treeNode, Layout<MutableLong,MutableLong> layout,
+                            TreeState treeState )
+                    {
+                        FreelistNode.initialize( cursor );
                     }
                 };
 

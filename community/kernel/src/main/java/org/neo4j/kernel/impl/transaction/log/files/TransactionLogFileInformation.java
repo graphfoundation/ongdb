@@ -28,8 +28,7 @@ import org.neo4j.kernel.impl.transaction.log.ReadableLogChannel;
 import org.neo4j.kernel.impl.transaction.log.entry.LogEntry;
 import org.neo4j.kernel.impl.transaction.log.entry.LogEntryReader;
 import org.neo4j.kernel.impl.transaction.log.entry.LogEntryStart;
-
-import static org.neo4j.kernel.impl.transaction.log.TransactionIdStore.BASE_TX_ID;
+import org.neo4j.kernel.impl.transaction.log.entry.LogHeader;
 
 public class TransactionLogFileInformation implements LogFileInformation
 {
@@ -66,18 +65,18 @@ public class TransactionLogFileInformation implements LogFileInformation
     @Override
     public long getFirstEntryId( long version ) throws IOException
     {
-        Long logHeader = logHeaderCache.getLogHeader( version );
+        LogHeader logHeader = logHeaderCache.getLogHeader( version );
         if ( logHeader != null )
         {   // It existed in cache
-            return logHeader + 1;
+            return logHeader.getLastCommittedTxId() + 1;
         }
 
         // Wasn't cached, go look for it
         if ( logFiles.versionExists( version ) )
         {
-            long previousVersionLastCommittedTx = logFiles.extractHeader( version ).lastCommittedTxId;
-            logHeaderCache.putHeader( version, previousVersionLastCommittedTx );
-            return previousVersionLastCommittedTx + 1;
+            logHeader = logFiles.extractHeader( version );
+            logHeaderCache.putHeader( version, logHeader );
+            return logHeader.getLastCommittedTxId() + 1;
         }
         return -1;
     }
@@ -89,27 +88,24 @@ public class TransactionLogFileInformation implements LogFileInformation
     }
 
     @Override
-    public long getFirstStartRecordTimestamp( long version ) throws IOException
+    public long committingEntryId()
     {
-        return logFileTimestampMapper.getTimestampForVersion( version );
+        return logFileContext.committingTransactionId();
     }
 
     @Override
-    public boolean transactionExistsOnDisk( long transactionId ) throws IOException
+    public long getFirstStartRecordTimestamp( long version ) throws IOException
     {
-        long lowestOnDisk = getFirstExistingEntryId();
-        long highestOnDisk = getLastEntryId();
-        return ( transactionId >= BASE_TX_ID ) // It's a real transaction id
-                && ( transactionId >= lowestOnDisk && transactionId <= highestOnDisk ); // and it's in the on-disk range
+        return logFileTimestampMapper.getTimestampForVersion( version );
     }
 
     private static class TransactionLogFileTimestampMapper
     {
 
         private final LogFiles logFiles;
-        private final LogEntryReader<ReadableLogChannel> logEntryReader;
+        private final LogEntryReader logEntryReader;
 
-        TransactionLogFileTimestampMapper( LogFiles logFiles, LogEntryReader<ReadableLogChannel> logEntryReader )
+        TransactionLogFileTimestampMapper( LogFiles logFiles, LogEntryReader logEntryReader )
         {
             this.logFiles = logFiles;
             this.logEntryReader = logEntryReader;
@@ -117,7 +113,7 @@ public class TransactionLogFileInformation implements LogFileInformation
 
         long getTimestampForVersion( long version ) throws IOException
         {
-            LogPosition position = LogPosition.start( version );
+            LogPosition position = logFiles.extractHeader( version ).getStartPosition();
             try ( ReadableLogChannel channel = logFiles.getLogFile().getReader( position ) )
             {
                 LogEntry entry;
@@ -125,7 +121,7 @@ public class TransactionLogFileInformation implements LogFileInformation
                 {
                     if ( entry instanceof LogEntryStart )
                     {
-                        return entry.<LogEntryStart>as().getTimeWritten();
+                        return ((LogEntryStart) entry).getTimeWritten();
                     }
                 }
             }

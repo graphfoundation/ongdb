@@ -19,8 +19,7 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
-import org.neo4j.cypher.internal.v3_6.logical.plans.CachedNodeProperty
+import org.neo4j.cypher.internal.runtime.ExecutionContext
 import org.neo4j.values.AnyValue
 import org.neo4j.values.storable.Values
 import org.neo4j.values.virtual.VirtualNodeValue
@@ -31,8 +30,7 @@ import scala.collection.mutable.{ListBuffer, MutableList}
 abstract class NodeOuterHashJoinPipe(nodeVariables: Set[String],
                                      lhs: Pipe,
                                      rhs: Pipe,
-                                     nullableVariables: Set[String],
-                                     nullableCachedProperties: Set[CachedNodeProperty]) extends PipeWithSource(lhs) {
+                                     nullableVariables: Set[String]) extends PipeWithSource(lhs) {
 
   private val myVariables = nodeVariables.toIndexedSeq
   private val nullVariables: Array[(String, AnyValue)] = nullableVariables.map(_ -> Values.NO_VALUE).toArray
@@ -41,7 +39,7 @@ abstract class NodeOuterHashJoinPipe(nodeVariables: Set[String],
     val key = new Array[Long](myVariables.length)
 
     for (idx <- myVariables.indices) {
-      key(idx) = context(myVariables(idx)) match {
+      key(idx) = context.getByName(myVariables(idx)) match {
         case n: VirtualNodeValue => n.id
         case _ => return None
       }
@@ -52,8 +50,6 @@ abstract class NodeOuterHashJoinPipe(nodeVariables: Set[String],
   protected def addNulls(in: ExecutionContext): ExecutionContext = {
     val withNulls = executionContextFactory.copyWith(in)
     withNulls.set(nullVariables)
-    for (x <- nullableCachedProperties)
-      withNulls.setCachedProperty(x, Values.NO_VALUE)
     withNulls
   }
 

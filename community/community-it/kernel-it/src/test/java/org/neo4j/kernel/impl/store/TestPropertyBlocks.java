@@ -20,8 +20,8 @@
 package org.neo4j.kernel.impl.store;
 
 import org.eclipse.collections.api.tuple.Pair;
-import org.junit.Assume;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -29,125 +29,153 @@ import java.util.List;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Relationship;
 import org.neo4j.graphdb.RelationshipType;
+import org.neo4j.graphdb.Transaction;
+import org.neo4j.internal.id.IdType;
 import org.neo4j.kernel.impl.AbstractNeo4jTestCase;
-import org.neo4j.kernel.impl.store.id.IdType;
 import org.neo4j.kernel.impl.store.record.PropertyRecord;
 import org.neo4j.kernel.impl.store.record.RecordLoad;
 
 import static org.eclipse.collections.impl.tuple.Tuples.pair;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
-public class TestPropertyBlocks extends AbstractNeo4jTestCase
+class TestPropertyBlocks extends AbstractNeo4jTestCase
 {
-    @Override
-    protected boolean restartGraphDbBetweenTests()
+    @AfterEach
+    void tearDown()
     {
-        return true;
+        stopDb();
+        startDb();
     }
 
     @Test
-    public void simpleAddIntegers()
+    void simpleAddIntegers()
     {
         long inUseBefore = propertyRecordsInUse();
-        Node node = getGraphDb().createNode();
-
-        for ( int i = 0; i < PropertyType.getPayloadSizeLongs(); i++ )
+        Node node = createNode();
+        try ( Transaction transaction = getGraphDb().beginTx() )
         {
-            node.setProperty( "prop" + i, i );
-            assertEquals( i, node.getProperty( "prop" + i ) );
+            var txNode = transaction.getNodeById( node.getId() );
+            for ( int i = 0; i < PropertyType.getPayloadSizeLongs(); i++ )
+            {
+                txNode.setProperty( "prop" + i, i );
+                assertEquals( i, txNode.getProperty( "prop" + i ) );
+            }
+            transaction.commit();
         }
-
-        newTransaction();
         assertEquals( inUseBefore + 1, propertyRecordsInUse() );
 
-        for ( int i = 0; i < PropertyType.getPayloadSizeLongs(); i++ )
+        try ( Transaction transaction = getGraphDb().beginTx() )
         {
-            assertEquals( i, node.getProperty( "prop" + i ) );
-        }
+            var txNode = transaction.getNodeById( node.getId() );
+            for ( int i = 0; i < PropertyType.getPayloadSizeLongs(); i++ )
+            {
+                assertEquals( i, txNode.getProperty( "prop" + i ) );
+            }
 
-        for ( int i = 0; i < PropertyType.getPayloadSizeLongs(); i++ )
-        {
-            assertEquals( i, node.removeProperty( "prop" + i ) );
-            assertFalse( node.hasProperty( "prop" + i ) );
+            for ( int i = 0; i < PropertyType.getPayloadSizeLongs(); i++ )
+            {
+                assertEquals( i, txNode.removeProperty( "prop" + i ) );
+                assertFalse( txNode.hasProperty( "prop" + i ) );
+            }
+            transaction.commit();
         }
-        commit();
         assertEquals( inUseBefore, propertyRecordsInUse() );
     }
 
     @Test
-    public void simpleAddDoubles()
+    void simpleAddDoubles()
     {
         long inUseBefore = propertyRecordsInUse();
-        Node node = getGraphDb().createNode();
+        Node node = createNode();
 
-        for ( int i = 0; i < PropertyType.getPayloadSizeLongs() / 2; i++ )
+        try ( Transaction transaction = getGraphDb().beginTx() )
         {
-            node.setProperty( "prop" + i, i * -1.0 );
-            assertEquals( i * -1.0, node.getProperty( "prop" + i ) );
+            var txNode = transaction.getNodeById( node.getId() );
+            for ( int i = 0; i < PropertyType.getPayloadSizeLongs() / 2; i++ )
+            {
+                txNode.setProperty( "prop" + i, i * -1.0 );
+                assertEquals( i * -1.0, txNode.getProperty( "prop" + i ) );
+            }
+            transaction.commit();
         }
 
-        newTransaction();
         assertEquals( inUseBefore + 1, propertyRecordsInUse() );
 
-        for ( int i = 0; i < PropertyType.getPayloadSizeLongs() / 2; i++ )
+        try ( Transaction transaction = getGraphDb().beginTx() )
         {
-            assertEquals( i * -1.0, node.getProperty( "prop" + i ) );
-        }
+            var txNode = transaction.getNodeById( node.getId() );
+            for ( int i = 0; i < PropertyType.getPayloadSizeLongs() / 2; i++ )
+            {
+                assertEquals( i * -1.0, txNode.getProperty( "prop" + i ) );
+            }
 
-        for ( int i = 0; i < PropertyType.getPayloadSizeLongs() / 2; i++ )
-        {
-            assertEquals( i * -1.0, node.removeProperty( "prop" + i ) );
-            assertFalse( node.hasProperty( "prop" + i ) );
+            for ( int i = 0; i < PropertyType.getPayloadSizeLongs() / 2; i++ )
+            {
+                assertEquals( i * -1.0, txNode.removeProperty( "prop" + i ) );
+                assertFalse( txNode.hasProperty( "prop" + i ) );
+            }
+            transaction.commit();
         }
-        commit();
         assertEquals( inUseBefore, propertyRecordsInUse() );
     }
 
     @Test
-    public void deleteEverythingInMiddleRecord()
+    void deleteEverythingInMiddleRecord()
     {
         long inUseBefore = propertyRecordsInUse();
-        Node node = getGraphDb().createNode();
+        Node node = createNode();
 
-        for ( int i = 0; i < 3 * PropertyType.getPayloadSizeLongs(); i++ )
+        try ( Transaction transaction = getGraphDb().beginTx() )
         {
-            node.setProperty( "shortString" + i, String.valueOf( i ) );
+            var txNode = transaction.getNodeById( node.getId() );
+            for ( int i = 0; i < 3 * PropertyType.getPayloadSizeLongs(); i++ )
+            {
+                txNode.setProperty( "shortString" + i, String.valueOf( i ) );
+            }
+            transaction.commit();
         }
-        newTransaction();
         assertEquals( inUseBefore + 3, propertyRecordsInUse() );
 
         final List<Pair<String, Object>> middleRecordProps = getPropertiesFromRecord( 1 );
-        middleRecordProps.forEach( nameAndValue ->
+        try ( Transaction transaction = getGraphDb().beginTx() )
         {
-            final String name = nameAndValue.getOne();
-            final Object value = nameAndValue.getTwo();
-            assertEquals( value, node.removeProperty( name ) );
-        } );
-
-        newTransaction();
+            middleRecordProps.forEach( nameAndValue ->
+            {
+                final String name = nameAndValue.getOne();
+                final Object value = nameAndValue.getTwo();
+                assertEquals( value, transaction.getNodeById( node.getId() ).removeProperty( name ) );
+            } );
+            transaction.commit();
+        }
 
         assertEquals( inUseBefore + 2, propertyRecordsInUse() );
-        middleRecordProps.forEach( nameAndValue -> assertFalse( node.hasProperty( nameAndValue.getOne() ) ) );
-        getPropertiesFromRecord( 0 ).forEach( nameAndValue ->
+        try ( Transaction transaction = getGraphDb().beginTx() )
         {
-            final String name = nameAndValue.getOne();
-            final Object value = nameAndValue.getTwo();
-            assertEquals( value, node.removeProperty( name ) );
-        } );
-        getPropertiesFromRecord( 2 ).forEach( nameAndValue ->
-        {
-            final String name = nameAndValue.getOne();
-            final Object value = nameAndValue.getTwo();
-            assertEquals( value, node.removeProperty( name ) );
-        } );
+            var txNode = transaction.getNodeById( node.getId() );
+            middleRecordProps.forEach( nameAndValue -> assertFalse( txNode.hasProperty( nameAndValue.getOne() ) ) );
+            getPropertiesFromRecord( 0 ).forEach( nameAndValue ->
+            {
+                final String name = nameAndValue.getOne();
+                final Object value = nameAndValue.getTwo();
+                assertEquals( value, txNode.removeProperty( name ) );
+            } );
+            getPropertiesFromRecord( 2 ).forEach( nameAndValue ->
+            {
+                final String name = nameAndValue.getOne();
+                final Object value = nameAndValue.getTwo();
+                assertEquals( value, txNode.removeProperty( name ) );
+            } );
+            transaction.commit();
+        }
     }
 
     private List<Pair<String, Object>> getPropertiesFromRecord( long recordId )
     {
-        final PropertyRecord record = propertyStore().getRecord( recordId, propertyStore().newRecord(), RecordLoad.FORCE );
         final List<Pair<String, Object>> props = new ArrayList<>();
+        final PropertyRecord record = propertyStore().getRecord( recordId, propertyStore().newRecord(), RecordLoad.FORCE );
         record.forEach( block ->
         {
             final Object value = propertyStore().getValue( block ).asObject();
@@ -158,17 +186,20 @@ public class TestPropertyBlocks extends AbstractNeo4jTestCase
     }
 
     @Test
-    public void largeTx()
+    void largeTx()
     {
-        Node node = getGraphDb().createNode();
-
-        node.setProperty( "anchor", "hi" );
-        for ( int i = 0; i < 255; i++ )
+        try ( Transaction transaction = getGraphDb().beginTx() )
         {
-            node.setProperty( "foo", 1 );
-            node.removeProperty( "foo" );
+            Node node = transaction.createNode();
+
+            node.setProperty( "anchor", "hi" );
+            for ( int i = 0; i < 255; i++ )
+            {
+                node.setProperty( "foo", 1 );
+                node.removeProperty( "foo" );
+            }
+            transaction.commit();
         }
-        commit();
     }
 
     /*
@@ -176,120 +207,168 @@ public class TestPropertyBlocks extends AbstractNeo4jTestCase
      * adds something that should fit.
      */
     @Test
-    public void deleteAndAddToFullPropertyRecord()
+    void deleteAndAddToFullPropertyRecord()
     {
         // Fill it up, each integer is one block
-        Node node = getGraphDb().createNode();
-        for ( int i = 0; i < PropertyType.getPayloadSizeLongs(); i++ )
+        Node node = createNode();
+        try ( Transaction transaction = getGraphDb().beginTx() )
         {
-            node.setProperty( "prop" + i, i );
+            var txNode = transaction.getNodeById( node.getId() );
+            for ( int i = 0; i < PropertyType.getPayloadSizeLongs(); i++ )
+            {
+                txNode.setProperty( "prop" + i, i );
+            }
+            transaction.commit();
         }
 
-        newTransaction();
-
-        // Remove all but one and add one
-        for ( int i = 0; i < PropertyType.getPayloadSizeLongs() - 1; i++ )
+        try ( Transaction transaction = getGraphDb().beginTx() )
         {
-            assertEquals( i, node.removeProperty( "prop" + i ) );
+            var txNode = transaction.getNodeById( node.getId() );
+            // Remove all but one and add one
+            for ( int i = 0; i < PropertyType.getPayloadSizeLongs() - 1; i++ )
+            {
+                assertEquals( i, txNode.removeProperty( "prop" + i ) );
+            }
+            txNode.setProperty( "profit", 5 );
+            transaction.commit();
         }
-        node.setProperty( "profit", 5 );
-
-        newTransaction();
 
         // Verify
         int remainingProperty = PropertyType.getPayloadSizeLongs() - 1;
-        assertEquals( remainingProperty, node.getProperty( "prop" + remainingProperty ) );
-        assertEquals( 5, node.getProperty( "profit" ) );
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            var txNode = transaction.getNodeById( node.getId() );
+            assertEquals( remainingProperty, txNode.getProperty( "prop" + remainingProperty ) );
+            assertEquals( 5, txNode.getProperty( "profit" ) );
+            transaction.commit();
+        }
     }
 
     @Test
-    public void checkPacking()
+    void checkPacking()
     {
         long inUseBefore = propertyRecordsInUse();
 
         // Fill it up, each integer is one block
-        Node node = getGraphDb().createNode();
-        node.setProperty( "prop0", 0 );
-        newTransaction();
+        Node node = createNode();
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            transaction.getNodeById( node.getId() ).setProperty( "prop0", 0 );
+            transaction.commit();
+        }
 
         // One record must have been added
         assertEquals( inUseBefore + 1, propertyRecordsInUse() );
 
-        // Since integers take up one block, adding the remaining should not
-        // create a new record.
-        for ( int i = 1; i < PropertyType.getPayloadSizeLongs(); i++ )
+        try ( Transaction transaction = getGraphDb().beginTx() )
         {
-            node.setProperty( "prop" + i, i );
+            var txNode = transaction.getNodeById( node.getId() );
+            // Since integers take up one block, adding the remaining should not
+            // create a new record.
+            for ( int i = 1; i < PropertyType.getPayloadSizeLongs(); i++ )
+            {
+                txNode.setProperty( "prop" + i, i );
+            }
+            transaction.commit();
         }
-        newTransaction();
 
         assertEquals( inUseBefore + 1, propertyRecordsInUse() );
 
-        // Removing one and adding one of the same size should not create a new
-        // record.
-        assertEquals( 0, node.removeProperty( "prop0" ) );
-        node.setProperty( "prop-1", -1 );
-        newTransaction();
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            var txNode = transaction.getNodeById( node.getId() );
+            // Removing one and adding one of the same size should not create a new
+            // record.
+            assertEquals( 0, txNode.removeProperty( "prop0" ) );
+            txNode.setProperty( "prop-1", -1 );
+            transaction.commit();
+        }
 
         assertEquals( inUseBefore + 1, propertyRecordsInUse() );
 
-        // Removing two that take up 1 block and adding one that takes up 2
-        // should not create a new record.
-        assertEquals( -1, node.removeProperty( "prop-1" ) );
-        // Hopefully prop1 exists, meaning payload is at least 16
-        assertEquals( 1, node.removeProperty( "prop1" ) );
-        // A double value should do the trick
-        node.setProperty( "propDouble", 1.0 );
-        newTransaction();
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            var txNode = transaction.getNodeById( node.getId() );
+            // Removing two that take up 1 block and adding one that takes up 2
+            // should not create a new record.
+            assertEquals( -1, txNode.removeProperty( "prop-1" ) );
+            // Hopefully prop1 exists, meaning payload is at least 16
+            assertEquals( 1, txNode.removeProperty( "prop1" ) );
+            // A double value should do the trick
+            txNode.setProperty( "propDouble", 1.0 );
+            transaction.commit();
+        }
 
         assertEquals( inUseBefore + 1, propertyRecordsInUse() );
 
         // Adding just one now should create a new property record.
-        node.setProperty( "prop-2", -2 );
-        newTransaction();
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            transaction.getNodeById( node.getId() ).setProperty( "prop-2", -2 );
+            transaction.commit();
+        }
         assertEquals( inUseBefore + 2, propertyRecordsInUse() );
     }
 
     @Test
-    public void substituteOneLargeWithManySmallPropBlocks()
+    void substituteOneLargeWithManySmallPropBlocks()
     {
-        Node node = getGraphDb().createNode();
+        Node node = createNode();
         long inUseBefore = propertyRecordsInUse();
-        /*
-         * Fill up with doubles and the rest with ints - we assume
-         * the former take up two blocks, the latter 1.
-         */
-        for ( int i = 0; i < PropertyType.getPayloadSizeLongs() / 2; i++ )
+        try ( Transaction transaction = getGraphDb().beginTx() )
         {
-            node.setProperty( "double" + i, i * 1.0 );
+            var txNode = transaction.getNodeById( node.getId() );
+            /*
+             * Fill up with doubles and the rest with ints - we assume
+             * the former take up two blocks, the latter 1.
+             */
+            for ( int i = 0; i < PropertyType.getPayloadSizeLongs() / 2; i++ )
+            {
+                txNode.setProperty( "double" + i, i * 1.0 );
+            }
+            transaction.commit();
         }
-        /*
-         * I know this is stupid in that it is executed 0 or 1 times but it
-         * is easier to maintain and change for different payload sizes.
-         */
-        for ( int i = 0; i < PropertyType.getPayloadSizeLongs() % 2; i++ )
+        try ( Transaction transaction = getGraphDb().beginTx() )
         {
-            node.setProperty( "int" + i, i );
+            var txNode = transaction.getNodeById( node.getId() );
+            /*
+             * I know this is stupid in that it is executed 0 or 1 times but it
+             * is easier to maintain and change for different payload sizes.
+             */
+            for ( int i = 0; i < PropertyType.getPayloadSizeLongs() % 2; i++ )
+            {
+                txNode.setProperty( "int" + i, i );
+            }
+            transaction.commit();
         }
-        newTransaction();
 
         // Just checking that the assumptions above is correct
         assertEquals( inUseBefore + 1, propertyRecordsInUse() );
 
         // We assume at least one double has been added
-        node.removeProperty( "double0" );
-        newTransaction();
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            transaction.getNodeById( node.getId() ).removeProperty( "double0" );
+            transaction.commit();
+        }
         assertEquals( inUseBefore + 1, propertyRecordsInUse() );
 
-        // Do the actual substitution, check that no record is created
-        node.setProperty( "int-1", -1 );
-        node.setProperty( "int-2", -2 );
-        newTransaction();
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            // Do the actual substitution, check that no record is created
+            var txNode = transaction.getNodeById( node.getId() );
+            txNode.setProperty( "int-1", -1 );
+            txNode.setProperty( "int-2", -2 );
+            transaction.commit();
+        }
         assertEquals( inUseBefore + 1, propertyRecordsInUse() );
 
         // Finally, make sure we actually are with a full prop record
-        node.setProperty( "int-3", -3 );
-        newTransaction();
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            transaction.getNodeById( node.getId() ).setProperty( "int-3", -3 );
+            transaction.commit();
+        }
         assertEquals( inUseBefore + 2, propertyRecordsInUse() );
     }
 
@@ -298,78 +377,109 @@ public class TestPropertyBlocks extends AbstractNeo4jTestCase
      * Adds a 2-block property and checks if it is added in the same record.
      */
     @Test
-    public void testBlockDefragmentationWithTwoSpaces()
+    void testBlockDefragmentationWithTwoSpaces()
     {
-        Assume.assumeTrue( PropertyType.getPayloadSizeLongs() > 2 );
-        Node node = getGraphDb().createNode();
+        assumeTrue( PropertyType.getPayloadSizeLongs() > 2 );
+        Node node = createNode();
         long inUseBefore = propertyRecordsInUse();
 
         int stuffedIntegers = 0;
-        for ( ; stuffedIntegers < PropertyType.getPayloadSizeLongs(); stuffedIntegers++ )
+        try ( Transaction transaction = getGraphDb().beginTx() )
         {
-            node.setProperty( "int" + stuffedIntegers, stuffedIntegers );
+            var txNode = transaction.getNodeById( node.getId() );
+            for ( ; stuffedIntegers < PropertyType.getPayloadSizeLongs(); stuffedIntegers++ )
+            {
+                txNode.setProperty( "int" + stuffedIntegers, stuffedIntegers );
+            }
+            transaction.commit();
         }
 
         // Basic check that integers take up one (8 byte) block.
         assertEquals( stuffedIntegers, PropertyType.getPayloadSizeLongs() );
-        newTransaction();
 
         assertEquals( inUseBefore + 1, propertyRecordsInUse() );
 
-        // Remove first and third
-        node.removeProperty( "int0" );
-        node.removeProperty( "int2" );
-        newTransaction();
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            var txNode = transaction.getNodeById( node.getId() );
+            // Remove first and third
+            txNode.removeProperty( "int0" );
+            txNode.removeProperty( "int2" );
+            transaction.commit();
+        }
         // Add the two block thing.
-        node.setProperty( "theDouble", 1.0 );
-        newTransaction();
-
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            transaction.getNodeById( node.getId() ).setProperty( "theDouble", 1.0 );
+            transaction.commit();
+        }
         // Let's make sure everything is in one record and with proper values.
         assertEquals( inUseBefore + 1, propertyRecordsInUse() );
 
-        assertNull( node.getProperty( "int0", null ) );
-        assertEquals( 1, node.getProperty( "int1" ) );
-        assertNull( node.getProperty( "int2", null ) );
-        for ( int i = 3; i < stuffedIntegers; i++ )
+        try ( Transaction transaction = getGraphDb().beginTx() )
         {
-            assertEquals( i, node.getProperty( "int" + i ) );
+            var txNode = transaction.getNodeById( node.getId() );
+            assertNull( txNode.getProperty( "int0", null ) );
+            assertEquals( 1, txNode.getProperty( "int1" ) );
+            assertNull( txNode.getProperty( "int2", null ) );
+            for ( int i = 3; i < stuffedIntegers; i++ )
+            {
+                assertEquals( i, txNode.getProperty( "int" + i ) );
+            }
+            assertEquals( 1.0, txNode.getProperty( "theDouble" ) );
+            transaction.commit();
         }
-        assertEquals( 1.0, node.getProperty( "theDouble" ) );
     }
 
     @Test
-    public void checkDeletesRemoveRecordsWhenProper()
+    void checkDeletesRemoveRecordsWhenProper()
     {
-        Node node = getGraphDb().createNode();
+        Node node = createNode();
         long recordsInUseAtStart = propertyRecordsInUse();
 
         int stuffedBooleans = 0;
-        for ( ; stuffedBooleans < PropertyType.getPayloadSizeLongs(); stuffedBooleans++ )
+        try ( Transaction transaction = getGraphDb().beginTx() )
         {
-            node.setProperty( "boolean" + stuffedBooleans, stuffedBooleans % 2 == 0 );
+            var txNode = transaction.getNodeById( node.getId() );
+            for ( ; stuffedBooleans < PropertyType.getPayloadSizeLongs(); stuffedBooleans++ )
+            {
+                txNode.setProperty( "boolean" + stuffedBooleans, stuffedBooleans % 2 == 0 );
+            }
+            transaction.commit();
         }
-        newTransaction();
 
         assertEquals( recordsInUseAtStart + 1, propertyRecordsInUse() );
 
-        node.setProperty( "theExraOne", true );
-        newTransaction();
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            transaction.getNodeById( node.getId() ).setProperty( "theExraOne", true );
+            transaction.commit();
+        }
 
         assertEquals( recordsInUseAtStart + 2, propertyRecordsInUse() );
 
-        for ( int i = 0; i < stuffedBooleans; i++ )
+        try ( Transaction transaction = getGraphDb().beginTx() )
         {
-            assertEquals( Boolean.valueOf( i % 2 == 0 ), node.removeProperty( "boolean" + i ) );
+            var txNode = transaction.getNodeById( node.getId() );
+            for ( int i = 0; i < stuffedBooleans; i++ )
+            {
+                assertEquals( Boolean.valueOf( i % 2 == 0 ), txNode.removeProperty( "boolean" + i ) );
+            }
+            transaction.commit();
         }
-        newTransaction();
 
         assertEquals( recordsInUseAtStart + 1, propertyRecordsInUse() );
 
-        for ( int i = 0; i < stuffedBooleans; i++ )
+        try ( Transaction transaction = getGraphDb().beginTx() )
         {
-            assertFalse( node.hasProperty( "boolean" + i ) );
+            var txNode = transaction.getNodeById( node.getId() );
+            for ( int i = 0; i < stuffedBooleans; i++ )
+            {
+                assertFalse( txNode.hasProperty( "boolean" + i ) );
+            }
+            assertEquals( Boolean.TRUE, txNode.getProperty( "theExraOne" ) );
+            transaction.commit();
         }
-        assertEquals( Boolean.TRUE, node.getProperty( "theExraOne" ) );
     }
 
     /*
@@ -377,204 +487,262 @@ public class TestPropertyBlocks extends AbstractNeo4jTestCase
      * string that is a number fits in one block.
      */
     @Test
-    public void testMessWithMiddleRecordDeletes()
+    void testMessWithMiddleRecordDeletes()
     {
-        Node node = getGraphDb().createNode();
+        Node node = createNode();
         long recordsInUseAtStart = propertyRecordsInUse();
 
         int stuffedShortStrings = 0;
-        for ( ; stuffedShortStrings < 3 * PropertyType.getPayloadSizeLongs(); stuffedShortStrings++ )
+        try ( Transaction transaction = getGraphDb().beginTx() )
         {
-            node.setProperty( "shortString" + stuffedShortStrings, String.valueOf( stuffedShortStrings ) );
+            var txNode = transaction.getNodeById( node.getId() );
+            for ( ; stuffedShortStrings < 3 * PropertyType.getPayloadSizeLongs(); stuffedShortStrings++ )
+            {
+                txNode.setProperty( "shortString" + stuffedShortStrings, String.valueOf( stuffedShortStrings ) );
+            }
+            transaction.commit();
         }
-        newTransaction();
         assertEquals( recordsInUseAtStart + 3, propertyRecordsInUse() );
 
         final List<Pair<String, Object>> middleRecordProps = getPropertiesFromRecord( 1 );
         final Pair<String, Object> secondBlockInMiddleRecord = middleRecordProps.get( 1 );
         final Pair<String, Object> thirdBlockInMiddleRecord = middleRecordProps.get( 2 );
 
-        assertEquals( secondBlockInMiddleRecord.getTwo(), node.removeProperty( secondBlockInMiddleRecord.getOne() ) );
-        assertEquals( thirdBlockInMiddleRecord.getTwo(), node.removeProperty( thirdBlockInMiddleRecord.getOne() ) );
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            var txNode = transaction.getNodeById( node.getId() );
+            assertEquals( secondBlockInMiddleRecord.getTwo(), txNode.removeProperty( secondBlockInMiddleRecord.getOne() ) );
+            assertEquals( thirdBlockInMiddleRecord.getTwo(), txNode.removeProperty( thirdBlockInMiddleRecord.getOne() ) );
+            transaction.commit();
+        }
 
-        newTransaction();
         assertEquals( recordsInUseAtStart + 3, propertyRecordsInUse() );
 
-        for ( int i = 0; i < stuffedShortStrings; i++ )
+        try ( Transaction transaction = getGraphDb().beginTx() )
         {
-            if ( secondBlockInMiddleRecord.getTwo().equals( String.valueOf( i ) ) || thirdBlockInMiddleRecord.getTwo().equals( String.valueOf( i ) ) )
+            var txNode = transaction.getNodeById( node.getId() );
+            for ( int i = 0; i < stuffedShortStrings; i++ )
             {
-                assertFalse( node.hasProperty( "shortString" + i ) );
+                if ( secondBlockInMiddleRecord.getTwo().equals( String.valueOf( i ) ) || thirdBlockInMiddleRecord.getTwo().equals( String.valueOf( i ) ) )
+                {
+                    assertFalse( txNode.hasProperty( "shortString" + i ) );
+                }
+                else
+                {
+                    assertEquals( String.valueOf( i ), txNode.getProperty( "shortString" + i ) );
+                }
             }
-            else
+            // Start deleting stuff. First, all the middle property blocks
+            int deletedProps = 0;
+
+            for ( Pair<String,Object> prop : middleRecordProps )
             {
-                assertEquals( String.valueOf( i ), node.getProperty( "shortString" + i ) );
+                final String name = prop.getOne();
+                if ( txNode.hasProperty( name ) )
+                {
+                    deletedProps++;
+                    txNode.removeProperty( name );
+                }
             }
+
+            assertEquals( PropertyType.getPayloadSizeLongs() - 2, deletedProps );
+            transaction.commit();
         }
-        // Start deleting stuff. First, all the middle property blocks
-        int deletedProps = 0;
 
-        for ( Pair<String, Object> prop : middleRecordProps )
-        {
-            final String name = prop.getOne();
-            if ( node.hasProperty( name ) )
-            {
-                deletedProps++;
-                node.removeProperty( name );
-            }
-        }
-
-        assertEquals( PropertyType.getPayloadSizeLongs() - 2, deletedProps );
-
-        newTransaction();
         assertEquals( recordsInUseAtStart + 2, propertyRecordsInUse() );
 
-        middleRecordProps.forEach( nameAndValue -> assertFalse( node.hasProperty( nameAndValue.getOne() ) ) );
-        getPropertiesFromRecord( 0 ).forEach( nameAndValue ->
+        try ( Transaction transaction = getGraphDb().beginTx() )
         {
-            final String name = nameAndValue.getOne();
-            final Object value = nameAndValue.getTwo();
-            assertEquals( value, node.removeProperty( name ) );
-        } );
-        getPropertiesFromRecord( 2 ).forEach( nameAndValue ->
-        {
-            final String name = nameAndValue.getOne();
-            final Object value = nameAndValue.getTwo();
-            assertEquals( value, node.removeProperty( name ) );
-        } );
+            var txNode = transaction.getNodeById( node.getId() );
+            middleRecordProps.forEach( nameAndValue -> assertFalse( txNode.hasProperty( nameAndValue.getOne() ) ) );
+            getPropertiesFromRecord( 0 ).forEach( nameAndValue ->
+            {
+                final String name = nameAndValue.getOne();
+                final Object value = nameAndValue.getTwo();
+                assertEquals( value, txNode.removeProperty( name ) );
+            } );
+            getPropertiesFromRecord( 2 ).forEach( nameAndValue ->
+            {
+                final String name = nameAndValue.getOne();
+                final Object value = nameAndValue.getTwo();
+                assertEquals( value, txNode.removeProperty( name ) );
+            } );
+            transaction.commit();
+        }
     }
 
     @Test
-    public void mixAndPackDifferentTypes()
+    void mixAndPackDifferentTypes()
     {
-        Node node = getGraphDb().createNode();
+        Node node = createNode();
         long recordsInUseAtStart = propertyRecordsInUse();
 
         int stuffedShortStrings = 0;
-        for ( ; stuffedShortStrings < PropertyType.getPayloadSizeLongs(); stuffedShortStrings++ )
+        try ( Transaction transaction = getGraphDb().beginTx() )
         {
-            node.setProperty( "shortString" + stuffedShortStrings, String.valueOf( stuffedShortStrings ) );
+            var txNode = transaction.getNodeById( node.getId() );
+            for ( ; stuffedShortStrings < PropertyType.getPayloadSizeLongs(); stuffedShortStrings++ )
+            {
+                txNode.setProperty( "shortString" + stuffedShortStrings, String.valueOf( stuffedShortStrings ) );
+            }
+            transaction.commit();
         }
-        newTransaction();
 
         assertEquals( recordsInUseAtStart + 1, propertyRecordsInUse() );
 
-        node.removeProperty( "shortString0" );
-        node.removeProperty( "shortString2" );
-        node.setProperty( "theDoubleOne", -1.0 );
-        newTransaction();
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            var txNode = transaction.getNodeById( node.getId() );
+            txNode.removeProperty( "shortString0" );
+            txNode.removeProperty( "shortString2" );
+            txNode.setProperty( "theDoubleOne", -1.0 );
+            transaction.commit();
+        }
 
         assertEquals( recordsInUseAtStart + 1, propertyRecordsInUse() );
-        for ( int i = 0; i < stuffedShortStrings; i++ )
+        try ( Transaction transaction = getGraphDb().beginTx() )
         {
-            if ( i == 0 )
+            var txNode = transaction.getNodeById( node.getId() );
+
+            for ( int i = 0; i < stuffedShortStrings; i++ )
             {
-                assertFalse( node.hasProperty( "shortString" + i ) );
+                if ( i == 0 )
+                {
+                    assertFalse( txNode.hasProperty( "shortString" + i ) );
+                }
+                else if ( i == 2 )
+                {
+                    assertFalse( txNode.hasProperty( "shortString" + i ) );
+                }
+                else
+                {
+                    assertEquals( String.valueOf( i ), txNode.getProperty( "shortString" + i ) );
+                }
             }
-            else if ( i == 2 )
-            {
-                assertFalse( node.hasProperty( "shortString" + i ) );
-            }
-            else
-            {
-                assertEquals( String.valueOf( i ), node.getProperty( "shortString" + i ) );
-            }
+            assertEquals( -1.0, txNode.getProperty( "theDoubleOne" ) );
+            transaction.commit();
         }
-        assertEquals( -1.0, node.getProperty( "theDoubleOne" ) );
     }
 
     @Test
-    public void testAdditionsHappenAtTheFirstRecordIfFits1()
+    void testAdditionsHappenAtTheFirstRecordIfFits1()
     {
-        Node node = getGraphDb().createNode();
+        Node node = createNode();
         long recordsInUseAtStart = propertyRecordsInUse();
 
-        node.setProperty( "int1", 1 );
-        node.setProperty( "double1", 1.0 );
-        node.setProperty( "int2", 2 );
-        newTransaction();
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            var txNode = transaction.getNodeById( node.getId() );
+            txNode.setProperty( "int1", 1 );
+            txNode.setProperty( "double1", 1.0 );
+            txNode.setProperty( "int2", 2 );
+            transaction.commit();
+        }
 
         assertEquals( recordsInUseAtStart + 1, propertyRecordsInUse() );
 
-        node.removeProperty( "double1" );
-        newTransaction();
-        node.setProperty( "double2", 1.0 );
-        newTransaction();
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            transaction.getNodeById( node.getId() ).removeProperty( "double1" );
+            transaction.commit();
+        }
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            transaction.getNodeById( node.getId() ).setProperty( "double2", 1.0 );
+            transaction.commit();
+        }
         assertEquals( recordsInUseAtStart + 1, propertyRecordsInUse() );
 
-        node.setProperty( "paddingBoolean", false );
-        newTransaction();
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            transaction.getNodeById( node.getId() ).setProperty( "paddingBoolean", false );
+            transaction.commit();
+        }
         assertEquals( recordsInUseAtStart + 2, propertyRecordsInUse() );
     }
 
     @Test
-    public void testAdditionHappensInTheMiddleIfItFits()
+    void testAdditionHappensInTheMiddleIfItFits()
     {
-        Node node = getGraphDb().createNode();
+        Node node = createNode();
 
         long recordsInUseAtStart = propertyRecordsInUse();
 
-        node.setProperty( "int1", 1 );
-        node.setProperty( "double1", 1.0 );
-        node.setProperty( "int2", 2 );
-
-        int stuffedShortStrings = 0;
-        for ( ; stuffedShortStrings < PropertyType.getPayloadSizeLongs(); stuffedShortStrings++ )
+        try ( Transaction transaction = getGraphDb().beginTx() )
         {
-            node.setProperty( "shortString" + stuffedShortStrings, String.valueOf( stuffedShortStrings ) );
+            var txNode = transaction.getNodeById( node.getId() );
+            txNode.setProperty( "int1", 1 );
+            txNode.setProperty( "double1", 1.0 );
+            txNode.setProperty( "int2", 2 );
+
+            int stuffedShortStrings = 0;
+            for ( ; stuffedShortStrings < PropertyType.getPayloadSizeLongs(); stuffedShortStrings++ )
+            {
+                txNode.setProperty( "shortString" + stuffedShortStrings, String.valueOf( stuffedShortStrings ) );
+            }
+            transaction.commit();
         }
-        newTransaction();
 
         assertEquals( recordsInUseAtStart + 2, propertyRecordsInUse() );
 
-        node.removeProperty( "shortString" + 1 );
-        node.setProperty( "int3", 3 );
-
-        newTransaction();
-
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            var txNode = transaction.getNodeById( node.getId() );
+            txNode.removeProperty( "shortString" + 1 );
+            txNode.setProperty( "int3", 3 );
+            transaction.commit();
+        }
         assertEquals( recordsInUseAtStart + 2, propertyRecordsInUse() );
     }
 
     @Test
-    public void testChangePropertyType()
+    void testChangePropertyType()
     {
-        Node node = getGraphDb().createNode();
+        Node node = createNode();
 
         long recordsInUseAtStart = propertyRecordsInUse();
 
-        int stuffedShortStrings = 0;
-        for ( ; stuffedShortStrings < PropertyType.getPayloadSizeLongs(); stuffedShortStrings++ )
+        try ( Transaction transaction = getGraphDb().beginTx() )
         {
-            node.setProperty( "shortString" + stuffedShortStrings, String.valueOf( stuffedShortStrings ) );
+            var txNode = transaction.getNodeById( node.getId() );
+            int stuffedShortStrings = 0;
+            for ( ; stuffedShortStrings < PropertyType.getPayloadSizeLongs(); stuffedShortStrings++ )
+            {
+                txNode.setProperty( "shortString" + stuffedShortStrings, String.valueOf( stuffedShortStrings ) );
+            }
+            transaction.commit();
         }
-        newTransaction();
-
         assertEquals( recordsInUseAtStart + 1, propertyRecordsInUse() );
 
-        node.setProperty( "shortString1", 1.0 );
-        commit();
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            transaction.getNodeById( node.getId() ).setProperty( "shortString1", 1.0 );
+            transaction.commit();
+        }
     }
 
     @Test
-    public void testRevertOverflowingChange()
+    void testRevertOverflowingChange()
     {
-        Relationship rel = getGraphDb().createNode()
-                                       .createRelationshipTo( getGraphDb().createNode(),
-                                               RelationshipType.withName( "INVALIDATES" ) );
+        long recordsInUseAtStart;
+        Relationship rel;
+        long valueRecordsInUseAtStart;
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            rel = transaction.createNode().createRelationshipTo( transaction.createNode(), RelationshipType.withName( "INVALIDATES" ) );
 
-        long recordsInUseAtStart = propertyRecordsInUse();
-        long valueRecordsInUseAtStart = dynamicArrayRecordsInUse();
+            recordsInUseAtStart = propertyRecordsInUse();
+            valueRecordsInUseAtStart = dynamicArrayRecordsInUse();
 
-        rel.setProperty( "theByte", (byte) -8 );
-        rel.setProperty( "theDoubleThatGrows", Math.PI );
-        rel.setProperty( "theInteger", -444345 );
+            rel.setProperty( "theByte", (byte) -8 );
+            rel.setProperty( "theDoubleThatGrows", Math.PI );
+            rel.setProperty( "theInteger", -444345 );
 
-        rel.setProperty( "theDoubleThatGrows", new long[] { 1L << 63, 1L << 63, 1L << 63 } );
+            rel.setProperty( "theDoubleThatGrows", new long[]{1L << 63, 1L << 63, 1L << 63} );
 
-        rel.setProperty( "theDoubleThatGrows", Math.E );
-
-        // When
-        newTransaction();
+            rel.setProperty( "theDoubleThatGrows", Math.E );
+            transaction.commit();
+        }
 
         // Then
         /*
@@ -582,206 +750,273 @@ public class TestPropertyBlocks extends AbstractNeo4jTestCase
          * size shrinking.
          */
         // assertEquals( recordsInUseAtStart + 1, propertyRecordsInUse() );
-        assertEquals( recordsInUseAtStart + 1, propertyRecordsInUse() );
-        assertEquals( valueRecordsInUseAtStart, dynamicArrayRecordsInUse() );
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            assertEquals( recordsInUseAtStart + 1, propertyRecordsInUse() );
+            assertEquals( valueRecordsInUseAtStart, dynamicArrayRecordsInUse() );
 
-        assertEquals( (byte) -8, rel.getProperty( "theByte" ) );
-        assertEquals( -444345, rel.getProperty( "theInteger" ) );
-        assertEquals( Math.E, rel.getProperty( "theDoubleThatGrows" ) );
+            var txRel = transaction.getRelationshipById( rel.getId() );
+            assertEquals( (byte) -8, txRel.getProperty( "theByte" ) );
+            assertEquals( -444345, txRel.getProperty( "theInteger" ) );
+            assertEquals( Math.E, txRel.getProperty( "theDoubleThatGrows" ) );
+            transaction.commit();
+        }
     }
 
     @Test
-    public void testYoYoArrayPropertyWithinTx()
+    void testYoYoArrayPropertyWithinTx()
     {
-        testYoyoArrayBase( false );
+        testArrayBase( false );
     }
 
     @Test
-    public void testYoYoArrayPropertyOverTxs()
+    void testYoYoArrayPropertyOverTxs()
     {
-        testYoyoArrayBase( true );
+        testArrayBase( true );
     }
 
-    private void testYoyoArrayBase( boolean withNewTx )
+    private void testArrayBase( boolean withNewTx )
     {
-        Relationship rel = getGraphDb().createNode().createRelationshipTo( getGraphDb().createNode(),
-                RelationshipType.withName( "LOCKS" ) );
+        Relationship rel;
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            rel = transaction.createNode().createRelationshipTo( transaction.createNode(), RelationshipType.withName( "LOCKS" ) );
+            transaction.commit();
+        }
 
         long recordsInUseAtStart = propertyRecordsInUse();
         long valueRecordsInUseAtStart = dynamicArrayRecordsInUse();
 
-        List<Long> theYoyoData = new ArrayList<>();
+        List<Long> theData = new ArrayList<>();
+        Transaction tx = getGraphDb().beginTx();
         for ( int i = 0; i < PropertyType.getPayloadSizeLongs() - 1; i++ )
         {
-            theYoyoData.add( 1L << 63 );
-            Long[] value = theYoyoData.toArray( new Long[] {} );
-            rel.setProperty( "yoyo", value );
+            theData.add( 1L << 63 );
+            Long[] value = theData.toArray( new Long[] {} );
+            tx.getRelationshipById( rel.getId() ).setProperty( "yoyo", value );
             if ( withNewTx )
             {
-                newTransaction();
+                tx.commit();
+                tx = getGraphDb().beginTx();
                 assertEquals( recordsInUseAtStart + 1, propertyRecordsInUse() );
                 assertEquals( valueRecordsInUseAtStart, dynamicArrayRecordsInUse() );
             }
         }
+        tx.commit();
 
-        theYoyoData.add( 1L << 63 );
-        Long[] value = theYoyoData.toArray( new Long[] {} );
-        rel.setProperty( "yoyo", value );
+        theData.add( 1L << 63 );
+        Long[] value = theData.toArray( new Long[] {} );
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            transaction.getRelationshipById( rel.getId() ).setProperty( "yoyo", value );
+            transaction.commit();
+        }
 
-        newTransaction();
-        assertEquals( recordsInUseAtStart + 1, propertyRecordsInUse() );
-        assertEquals( valueRecordsInUseAtStart + 1, dynamicArrayRecordsInUse() );
-        rel.setProperty( "filler", new long[] { 1L << 63, 1L << 63, 1L << 63 } );
-        newTransaction();
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            assertEquals( recordsInUseAtStart + 1, propertyRecordsInUse() );
+            assertEquals( valueRecordsInUseAtStart + 1, dynamicArrayRecordsInUse() );
+            transaction.getRelationshipById( rel.getId() ).setProperty( "filler", new long[]{1L << 63, 1L << 63, 1L << 63} );
+            transaction.commit();
+        }
         assertEquals( recordsInUseAtStart + 2, propertyRecordsInUse() );
     }
 
     @Test
-    public void testRemoveZigZag()
+    void testRemoveZigZag()
     {
-        Relationship rel = getGraphDb().createNode().createRelationshipTo( getGraphDb().createNode(),
-                RelationshipType.withName( "LOCKS" ) );
-
-        long recordsInUseAtStart = propertyRecordsInUse();
-
+        long recordsInUseAtStart;
         int propRecCount = 1;
-        for ( ; propRecCount <= 3; propRecCount++ )
+        Relationship rel;
+        try ( Transaction transaction = getGraphDb().beginTx() )
         {
-            for ( int i = 1; i <= PropertyType.getPayloadSizeLongs(); i++ )
+            rel = transaction.createNode().createRelationshipTo( transaction.createNode(), RelationshipType.withName( "LOCKS" ) );
+
+            recordsInUseAtStart = propertyRecordsInUse();
+
+            for ( ; propRecCount <= 3; propRecCount++ )
             {
-                rel.setProperty( "int" + ( propRecCount * 10 + i ), propRecCount * 10 + i );
+                for ( int i = 1; i <= PropertyType.getPayloadSizeLongs(); i++ )
+                {
+                    rel.setProperty( "int" + (propRecCount * 10 + i), propRecCount * 10 + i );
+                }
             }
+            transaction.commit();
         }
 
-        newTransaction();
         assertEquals( recordsInUseAtStart + 3, propertyRecordsInUse() );
 
-        for ( int i = 1; i <= PropertyType.getPayloadSizeLongs(); i++ )
+        try ( Transaction transaction = getGraphDb().beginTx() )
         {
-            for ( int j = 1; j < propRecCount; j++ )
+            var txRel = transaction.getRelationshipById( rel.getId() );
+            for ( int i = 1; i <= PropertyType.getPayloadSizeLongs(); i++ )
             {
-                assertEquals( j * 10 + i, rel.removeProperty( "int" + ( j * 10 + i ) ) );
-                if ( i == PropertyType.getPayloadSize() - 1 && j != propRecCount - 1 )
+                for ( int j = 1; j < propRecCount; j++ )
                 {
-                    assertEquals( recordsInUseAtStart + ( propRecCount - j ), propertyRecordsInUse() );
-                }
-                else if ( i == PropertyType.getPayloadSize() - 1 && j == propRecCount - 1 )
-                {
-                    assertEquals( recordsInUseAtStart, propertyRecordsInUse() );
-                }
-                else
-                {
-                    assertEquals( recordsInUseAtStart + 3, propertyRecordsInUse() );
+                    assertEquals( j * 10 + i, txRel.removeProperty( "int" + (j * 10 + i) ) );
+                    if ( i == PropertyType.getPayloadSize() - 1 && j != propRecCount - 1 )
+                    {
+                        assertEquals( recordsInUseAtStart + (propRecCount - j), propertyRecordsInUse() );
+                    }
+                    else if ( i == PropertyType.getPayloadSize() - 1 && j == propRecCount - 1 )
+                    {
+                        assertEquals( recordsInUseAtStart, propertyRecordsInUse() );
+                    }
+                    else
+                    {
+                        assertEquals( recordsInUseAtStart + 3, propertyRecordsInUse() );
+                    }
                 }
             }
-        }
-        for ( int i = 1; i <= PropertyType.getPayloadSizeLongs(); i++ )
-        {
-            for ( int j = 1; j < propRecCount; j++ )
+            for ( int i = 1; i <= PropertyType.getPayloadSizeLongs(); i++ )
             {
-                assertFalse( rel.hasProperty( "int" + ( j * 10 + i ) ) );
+                for ( int j = 1; j < propRecCount; j++ )
+                {
+                    assertFalse( txRel.hasProperty( "int" + (j * 10 + i) ) );
+                }
             }
+            transaction.commit();
         }
-        newTransaction();
 
-        for ( int i = 1; i <= PropertyType.getPayloadSizeLongs(); i++ )
+        try ( Transaction transaction = getGraphDb().beginTx() )
         {
-            for ( int j = 1; j < propRecCount; j++ )
+            var txRel = transaction.getRelationshipById( rel.getId() );
+            for ( int i = 1; i <= PropertyType.getPayloadSizeLongs(); i++ )
             {
-                assertFalse( rel.hasProperty( "int" + ( j * 10 + i ) ) );
+                for ( int j = 1; j < propRecCount; j++ )
+                {
+                    assertFalse( txRel.hasProperty( "int" + (j * 10 + i) ) );
+                }
             }
+            transaction.commit();
         }
         assertEquals( recordsInUseAtStart, propertyRecordsInUse() );
     }
 
     @Test
-    public void testSetWithSameValue()
+    void testSetWithSameValue()
     {
-        Node node = getGraphDb().createNode();
-        node.setProperty( "rev_pos", "40000633e7ad67ff" );
-        assertEquals( "40000633e7ad67ff", node.getProperty( "rev_pos" ) );
-        newTransaction();
-        node.setProperty( "rev_pos", "40000633e7ad67ef" );
-        assertEquals( "40000633e7ad67ef", node.getProperty( "rev_pos" ) );
+        Node node = createNode();
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            var txNode = transaction.getNodeById( node.getId() );
+            txNode.setProperty( "rev_pos", "40000633e7ad67ff" );
+            assertEquals( "40000633e7ad67ff", txNode.getProperty( "rev_pos" ) );
+            transaction.commit();
+        }
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            var txNode = transaction.getNodeById( node.getId() );
+            txNode.setProperty( "rev_pos", "40000633e7ad67ef" );
+            assertEquals( "40000633e7ad67ef", txNode.getProperty( "rev_pos" ) );
+            transaction.commit();
+        }
     }
 
-    private void testStringYoYoBase( boolean withNewTx )
+    private void testStringBase( boolean withNewTx )
     {
-        Node node = getGraphDb().createNode();
+        Node node = createNode();
 
         long recordsInUseAtStart = propertyRecordsInUse();
         long valueRecordsInUseAtStart = dynamicStringRecordsInUse();
 
         String data = "0";
         int counter = 1;
+        Transaction tx = getGraphDb().beginTx();
         while ( dynamicStringRecordsInUse() == valueRecordsInUseAtStart )
         {
             data += counter++;
-            node.setProperty( "yoyo", data );
+            tx.getNodeById( node.getId() ).setProperty( "yoyo", data );
             if ( withNewTx )
             {
-                newTransaction();
+                tx.commit();
+                tx = getGraphDb().beginTx();
                 assertEquals( recordsInUseAtStart + 1, propertyRecordsInUse() );
             }
         }
+        tx.commit();
 
         data = data.substring( 0, data.length() - 2 );
-        node.setProperty( "yoyo", data );
-
-        newTransaction();
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            transaction.getNodeById( node.getId() ).setProperty( "yoyo", data );
+            transaction.commit();
+        }
 
         assertEquals( valueRecordsInUseAtStart, dynamicStringRecordsInUse() );
         assertEquals( recordsInUseAtStart + 1, propertyRecordsInUse() );
 
-        node.setProperty( "fillerBoolean", true );
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            transaction.getNodeById( node.getId() ).setProperty( "fillerBoolean", true );
+            transaction.commit();
+        }
 
-        newTransaction();
         assertEquals( recordsInUseAtStart + 2, propertyRecordsInUse() );
     }
 
     @Test
-    public void testStringYoYoWithTx()
+    void testStringWithTx()
     {
-        testStringYoYoBase( true );
+        testStringBase( true );
     }
 
     @Test
-    public void testRemoveFirstOfTwo()
+    void testRemoveFirstOfTwo()
     {
-        Node node = getGraphDb().createNode();
+        Node node = createNode();
 
         long recordsInUseAtStart = propertyRecordsInUse();
 
-        node.setProperty( "Double1", 1.0 );
-        node.setProperty( "Int1", 1 );
-        node.setProperty( "Int2", 2 );
-        node.setProperty( "Int2", 1.2 );
-        node.setProperty( "Int2", 2 );
-        node.setProperty( "Double3", 3.0 );
-        newTransaction();
-        assertEquals( recordsInUseAtStart + 2, propertyRecordsInUse() );
-        assertEquals( 1.0, node.getProperty( "Double1" ) );
-        assertEquals( 1, node.getProperty( "Int1" ) );
-        assertEquals( 2, node.getProperty( "Int2" ) );
-        assertEquals( 3.0, node.getProperty( "Double3" ) );
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            var txNode = transaction.getNodeById( node.getId() );
+            txNode.setProperty( "Double1", 1.0 );
+            txNode.setProperty( "Int1", 1 );
+            txNode.setProperty( "Int2", 2 );
+            txNode.setProperty( "Int2", 1.2 );
+            txNode.setProperty( "Int2", 2 );
+            txNode.setProperty( "Double3", 3.0 );
+            transaction.commit();
+        }
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            var txNode = transaction.getNodeById( node.getId() );
+            assertEquals( recordsInUseAtStart + 2, propertyRecordsInUse() );
+            assertEquals( 1.0, txNode.getProperty( "Double1" ) );
+            assertEquals( 1, txNode.getProperty( "Int1" ) );
+            assertEquals( 2, txNode.getProperty( "Int2" ) );
+            assertEquals( 3.0, txNode.getProperty( "Double3" ) );
+            transaction.commit();
+        }
     }
 
     @Test
-    public void deleteNodeWithNewPropertyRecordShouldFreeTheNewRecord()
+    void deleteNodeWithNewPropertyRecordShouldFreeTheNewRecord()
     {
         final long propcount = getIdGenerator( IdType.PROPERTY ).getNumberOfIdsInUse();
-        Node node = getGraphDb().createNode();
-        node.setProperty( "one", 1 );
-        node.setProperty( "two", 2 );
-        node.setProperty( "three", 3 );
-        node.setProperty( "four", 4 );
-        newTransaction();
-        assertEquals( "Invalid assumption: property record count", propcount + 1, propertyRecordsInUse() );
-        node.setProperty( "final", 666 );
-        newTransaction();
-        assertEquals( "Invalid assumption: property record count", propcount + 2, propertyRecordsInUse() );
-        node.delete();
-        commit();
-        assertEquals( "All property records should be freed", propcount, propertyRecordsInUse() );
+        Node node = createNode();
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            var txNode = transaction.getNodeById( node.getId() );
+            txNode.setProperty( "one", 1 );
+            txNode.setProperty( "two", 2 );
+            txNode.setProperty( "three", 3 );
+            txNode.setProperty( "four", 4 );
+            transaction.commit();
+        }
+        assertEquals( propcount + 1, propertyRecordsInUse(), "Invalid assumption: property record count" );
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            transaction.getNodeById( node.getId() ).setProperty( "final", 666 );
+            transaction.commit();
+        }
+        assertEquals( propcount + 2, propertyRecordsInUse(), "Invalid assumption: property record count" );
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            transaction.getNodeById( node.getId() ).delete();
+            transaction.commit();
+        }
+        assertEquals( propcount, propertyRecordsInUse(), "All property records should be freed" );
     }
 }

@@ -21,18 +21,18 @@ package org.neo4j.function;
 
 import java.time.Clock;
 import java.util.Arrays;
-import java.util.HashSet;
 import java.util.Objects;
-import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.locks.LockSupport;
 import java.util.function.BooleanSupplier;
 import java.util.function.IntPredicate;
+import java.util.function.LongPredicate;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.neo4j.function.ThrowingPredicate.throwingPredicate;
 import static org.neo4j.function.ThrowingSupplier.throwingSupplier;
 
@@ -43,8 +43,10 @@ public class Predicates
 {
     public static final IntPredicate ALWAYS_TRUE_INT = v -> true;
     public static final IntPredicate ALWAYS_FALSE_INT = v -> false;
+    public static final LongPredicate ALWAYS_FALSE_LONG = v -> false;
 
     private static final int DEFAULT_POLL_INTERVAL = 20;
+    private static final int DEFAULT_TIMEOUT_MS = 20_000;
 
     private Predicates()
     {
@@ -130,20 +132,6 @@ public class Predicates
         };
     }
 
-    public static <T> Predicate<T> noDuplicates()
-    {
-        return new Predicate<T>()
-        {
-            private final Set<T> visitedItems = new HashSet<>();
-
-            @Override
-            public boolean test( T item )
-            {
-                return visitedItems.add( item );
-            }
-        };
-    }
-
     public static <TYPE> TYPE await( Supplier<TYPE> supplier, Predicate<TYPE> predicate, long timeout,
             TimeUnit timeoutUnit, long pollInterval, TimeUnit pollUnit ) throws TimeoutException
     {
@@ -174,6 +162,11 @@ public class Predicates
         return composed.lastInput();
     }
 
+    public static void await( BooleanSupplier condition ) throws TimeoutException
+    {
+        awaitEx( condition::getAsBoolean, DEFAULT_TIMEOUT_MS, MILLISECONDS );
+    }
+
     public static void await( BooleanSupplier condition, long timeout, TimeUnit unit ) throws TimeoutException
     {
         awaitEx( condition::getAsBoolean, timeout, unit );
@@ -182,7 +175,7 @@ public class Predicates
     public static <EXCEPTION extends Exception> void awaitEx( ThrowingSupplier<Boolean,EXCEPTION> condition,
             long timeout, TimeUnit unit ) throws TimeoutException, EXCEPTION
     {
-        awaitEx( condition, timeout, unit, DEFAULT_POLL_INTERVAL, TimeUnit.MILLISECONDS );
+        awaitEx( condition, timeout, unit, DEFAULT_POLL_INTERVAL, MILLISECONDS );
     }
 
     public static void await( BooleanSupplier condition, long timeout, TimeUnit timeoutUnit, long pollInterval,
@@ -243,11 +236,6 @@ public class Predicates
     public static <T> Predicate<T> in( final T... allowed )
     {
         return in( Arrays.asList( allowed ) );
-    }
-
-    public static <T> Predicate<T> not( Predicate<T> predicate )
-    {
-        return t -> !predicate.test( t );
     }
 
     public static <T> Predicate<T> in( final Iterable<T> allowed )

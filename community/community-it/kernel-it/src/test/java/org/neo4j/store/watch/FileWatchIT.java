@@ -19,80 +19,82 @@
  */
 package org.neo4j.store.watch;
 
-import org.apache.commons.lang3.SystemUtils;
 import org.hamcrest.Matchers;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledOnOs;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.Path;
+import java.nio.file.WatchKey;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
-import org.neo4j.graphdb.DependencyResolver;
+import org.neo4j.common.DependencyResolver;
+import org.neo4j.configuration.GraphDatabaseSettings;
+import org.neo4j.dbms.api.DatabaseManagementService;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Transaction;
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.graphdb.schema.IndexDefinition;
-import org.neo4j.index.impl.lucene.explicit.LuceneDataSource;
 import org.neo4j.io.fs.DefaultFileSystemAbstraction;
 import org.neo4j.io.fs.FileUtils;
 import org.neo4j.io.fs.watcher.FileWatchEventListener;
 import org.neo4j.io.fs.watcher.FileWatcher;
 import org.neo4j.io.layout.DatabaseLayout;
-import org.neo4j.kernel.configuration.Settings;
 import org.neo4j.kernel.impl.transaction.log.checkpoint.CheckPointer;
 import org.neo4j.kernel.impl.transaction.log.checkpoint.SimpleTriggerInfo;
-import org.neo4j.kernel.impl.transaction.log.files.TransactionLogFiles;
+import org.neo4j.kernel.impl.transaction.log.files.TransactionLogFilesHelper;
 import org.neo4j.kernel.impl.util.watcher.DefaultFileDeletionEventListener;
 import org.neo4j.kernel.impl.util.watcher.FileSystemWatcherService;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
 import org.neo4j.logging.AssertableLogProvider;
-import org.neo4j.test.TestGraphDatabaseFactory;
+import org.neo4j.test.TestDatabaseManagementServiceBuilder;
+import org.neo4j.test.extension.Inject;
+import org.neo4j.test.extension.Neo4jLayoutExtension;
 import org.neo4j.test.rule.TestDirectory;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assume.assumeFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.condition.OS.LINUX;
+import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
 
-public class FileWatchIT
+@Neo4jLayoutExtension
+@EnabledOnOs( LINUX )
+class FileWatchIT
 {
-    private static final long TEST_TIMEOUT = 600_000;
+    @Inject
+    private TestDirectory testDirectory;
+    @Inject
+    private DatabaseLayout databaseLayout;
 
-    @Rule
-    public final TestDirectory testDirectory = TestDirectory.testDirectory();
-
-    private File storeDir;
     private AssertableLogProvider logProvider;
     private GraphDatabaseService database;
+    private DatabaseManagementService managementService;
 
-    @Before
-    public void setUp()
+    @BeforeEach
+    void setUp()
     {
-        storeDir = testDirectory.storeDir();
         logProvider = new AssertableLogProvider();
-        database = new TestGraphDatabaseFactory().setInternalLogProvider( logProvider ).newEmbeddedDatabase( storeDir );
+        managementService = new TestDatabaseManagementServiceBuilder( databaseLayout ).setInternalLogProvider( logProvider ).build();
+        database = managementService.database( DEFAULT_DATABASE_NAME );
     }
 
-    @After
-    public void tearDown()
+    @AfterEach
+    void tearDown()
     {
-        shutdownDatabaseSilently( database );
+        shutdownDatabaseSilently( managementService );
     }
 
-    @Test( timeout = TEST_TIMEOUT )
-    public void notifyAboutStoreFileDeletion() throws Exception
+    @Test
+    void notifyAboutStoreFileDeletion() throws IOException, InterruptedException
     {
-        assumeFalse( SystemUtils.IS_OS_WINDOWS );
-
-        String fileName = testDirectory.databaseLayout().metadataStore().getName();
+        String fileName = databaseLayout.metadataStore().getName();
         FileWatcher fileWatcher = getFileWatcher( database );
         CheckPointer checkpointer = getCheckpointer( database );
         DeletionLatchEventListener deletionListener = new DeletionLatchEventListener( fileName );
@@ -105,68 +107,43 @@ public class FileWatchIT
         }
         while ( !deletionListener.awaitModificationNotification() );
 
-        deleteFile( testDirectory.storeDir(), fileName );
+        deleteFile( databaseLayout.databaseDirectory(), fileName );
         deletionListener.awaitDeletionNotification();
 
-        logProvider.rawMessageMatcher().assertContains(
-                "'" + fileName + "' which belongs to the store was deleted while database was running." );
+        logProvider.formattedMessageMatcher().assertContains( "'" + fileName + "' which belongs to the '" + databaseLayout.databaseDirectory().getName() +
+                "' database was deleted while it was running." );
     }
 
-    @Test( timeout = TEST_TIMEOUT )
-    public void notifyWhenFileWatchingFailToStart()
+    @Test
+    void notifyWhenFileWatchingFailToStart()
     {
         AssertableLogProvider logProvider = new AssertableLogProvider( true );
-        GraphDatabaseService db = null;
+        DatabaseManagementService service = null;
         try
         {
-            db = new TestGraphDatabaseFactory().setInternalLogProvider( logProvider )
+            service = new TestDatabaseManagementServiceBuilder( testDirectory.homeDir( "failed-start-db" ) )
+                    .setInternalLogProvider( logProvider )
                     .setFileSystem( new NonWatchableFileSystemAbstraction() )
-                    .newEmbeddedDatabase( testDirectory.storeDir( "failed-start-db" ) );
+                    .build();
+            assertNotNull( managementService.database( DEFAULT_DATABASE_NAME ) );
 
-            logProvider.rawMessageMatcher().assertContains( "Can not create file watcher for current file system. " +
-                    "File monitoring capabilities for store files will be disabled." );
+            logProvider.formattedMessageMatcher().assertContains(
+                    "Can not create file watcher for current file system. " + "File monitoring capabilities for store files will be disabled." );
         }
         finally
         {
-            shutdownDatabaseSilently( db );
+            shutdownDatabaseSilently( service );
         }
     }
 
-    @Test( timeout = TEST_TIMEOUT )
-    public void notifyAboutExplicitIndexFolderRemoval() throws InterruptedException, IOException
-    {
-        String monitoredDirectory = getExplicitIndexDirectory( testDirectory.databaseLayout() );
-
-        FileWatcher fileWatcher = getFileWatcher( database );
-        CheckPointer checkPointer = getCheckpointer( database );
-        DeletionLatchEventListener deletionListener = new DeletionLatchEventListener( monitoredDirectory );
-        String metadataStore = testDirectory.databaseLayout().metadataStore().getName();
-        ModificationEventListener modificationEventListener = new ModificationEventListener( metadataStore );
-        fileWatcher.addFileWatchEventListener( deletionListener );
-        fileWatcher.addFileWatchEventListener( modificationEventListener );
-
-        do
-        {
-            createNode( database );
-            forceCheckpoint( checkPointer );
-        }
-        while ( !modificationEventListener.awaitModificationNotification() );
-
-        deleteStoreDirectory( storeDir, monitoredDirectory );
-        deletionListener.awaitDeletionNotification();
-
-        logProvider.rawMessageMatcher().assertContains(
-                "'" + monitoredDirectory + "' which belongs to the store was deleted while database was running." );
-    }
-
-    @Test( timeout = TEST_TIMEOUT )
-    public void doNotNotifyAboutLuceneIndexFilesDeletion() throws InterruptedException, IOException
+    @Test
+    void doNotNotifyAboutLuceneIndexFilesDeletion() throws IOException, InterruptedException
     {
         DependencyResolver dependencyResolver = ((GraphDatabaseAPI) database).getDependencyResolver();
         FileWatcher fileWatcher = getFileWatcher( database );
         CheckPointer checkPointer = dependencyResolver.resolveDependency( CheckPointer.class );
 
-        String propertyStoreName = testDirectory.databaseLayout().propertyStore().getName();
+        String propertyStoreName = databaseLayout.propertyStore().getName();
         AccumulativeDeletionEventListener accumulativeListener = new AccumulativeDeletionEventListener();
         ModificationEventListener modificationListener = new ModificationEventListener( propertyStoreName );
         fileWatcher.addFileWatchEventListener( modificationListener );
@@ -198,16 +175,13 @@ public class FileWatchIT
         accumulativeListener.assertDoesNotHaveAnyDeletions();
     }
 
-    @Test( timeout = TEST_TIMEOUT )
-    public void doNotMonitorTransactionLogFiles() throws InterruptedException, IOException
+    @Test
+    void doNotMonitorTransactionLogFiles() throws IOException, InterruptedException
     {
-        assumeFalse( SystemUtils.IS_OS_WINDOWS );
-
         FileWatcher fileWatcher = getFileWatcher( database );
         CheckPointer checkpointer = getCheckpointer( database );
-        String metadataStore = testDirectory.databaseLayout().metadataStore().getName();
-        ModificationEventListener modificationEventListener =
-                new ModificationEventListener( metadataStore );
+        String metadataStore = databaseLayout.metadataStore().getName();
+        ModificationEventListener modificationEventListener = new ModificationEventListener( metadataStore );
         fileWatcher.addFileWatchEventListener( modificationEventListener );
 
         do
@@ -217,24 +191,21 @@ public class FileWatchIT
         }
         while ( !modificationEventListener.awaitModificationNotification() );
 
-        String fileName = TransactionLogFiles.DEFAULT_NAME + ".0";
+        String fileName = TransactionLogFilesHelper.DEFAULT_NAME + ".0";
         DeletionLatchEventListener deletionListener = new DeletionLatchEventListener( fileName );
         fileWatcher.addFileWatchEventListener( deletionListener );
-        deleteFile( testDirectory.storeDir(), fileName );
+        deleteFile( databaseLayout.getTransactionLogsDirectory(), fileName );
         deletionListener.awaitDeletionNotification();
 
         AssertableLogProvider.LogMatcher logMatcher =
-                AssertableLogProvider.inLog( DefaultFileDeletionEventListener.class )
-                        .info( containsString( fileName ) );
+                AssertableLogProvider.inLog( DefaultFileDeletionEventListener.class ).info( containsString( fileName ) );
         logProvider.assertNone( logMatcher );
     }
 
-    @Test( timeout = TEST_TIMEOUT )
-    public void notifyWhenWholeStoreDirectoryRemoved() throws IOException, InterruptedException
+    @Test
+    void notifyWhenWholeStoreDirectoryRemoved() throws IOException, InterruptedException
     {
-        assumeFalse( SystemUtils.IS_OS_WINDOWS );
-
-        String fileName = testDirectory.databaseLayout().metadataStore().getName();
+        String fileName = databaseLayout.metadataStore().getName();
         FileWatcher fileWatcher = getFileWatcher( database );
         CheckPointer checkpointer = getCheckpointer( database );
 
@@ -248,45 +219,47 @@ public class FileWatchIT
         while ( !modificationListener.awaitModificationNotification() );
         fileWatcher.removeFileWatchEventListener( modificationListener );
 
-        String storeDirectoryName = testDirectory.databaseLayout().databaseDirectory().getName();
+        String storeDirectoryName = databaseLayout.databaseDirectory().getName();
         DeletionLatchEventListener eventListener = new DeletionLatchEventListener( storeDirectoryName );
         fileWatcher.addFileWatchEventListener( eventListener );
-        FileUtils.deleteRecursively( testDirectory.databaseLayout().databaseDirectory() );
+        FileUtils.deleteRecursively( databaseLayout.databaseDirectory() );
 
         eventListener.awaitDeletionNotification();
 
-        logProvider.rawMessageMatcher().assertContains(
-                "'" + storeDirectoryName + "' which belongs to the store was deleted while database was running." );
+        logProvider.formattedMessageMatcher().assertContains( "'" + storeDirectoryName + "' which belongs to the '" +
+                databaseLayout.databaseDirectory().getName() + "' database was deleted while it was running." );
     }
 
-    @Test( timeout = TEST_TIMEOUT )
-    public void shouldLogWhenDisabled()
+    @Test
+    void shouldLogWhenDisabled()
     {
         AssertableLogProvider logProvider = new AssertableLogProvider( true );
         GraphDatabaseService db = null;
+        DatabaseManagementService service = null;
         try
         {
-            db = new TestGraphDatabaseFactory().setInternalLogProvider( logProvider )
+            service = new TestDatabaseManagementServiceBuilder( testDirectory.homeDir( "failed-start-db" ) )
+                    .setInternalLogProvider( logProvider )
                     .setFileSystem( new NonWatchableFileSystemAbstraction() )
-                    .newEmbeddedDatabaseBuilder( testDirectory.directory( "failed-start-db" ) )
-                    .setConfig( GraphDatabaseSettings.filewatcher_enabled, Settings.FALSE )
-                    .newGraphDatabase();
+                    .setConfig( GraphDatabaseSettings.filewatcher_enabled, false )
+                    .build();
+            assertNotNull( managementService.database( DEFAULT_DATABASE_NAME ) );
 
-            logProvider.rawMessageMatcher().assertContains( "File watcher disabled by configuration." );
+            logProvider.formattedMessageMatcher().assertContains( "File watcher disabled by configuration." );
         }
         finally
         {
-            shutdownDatabaseSilently( db );
+            shutdownDatabaseSilently( service );
         }
     }
 
-    private static void shutdownDatabaseSilently( GraphDatabaseService databaseService )
+    private static void shutdownDatabaseSilently( DatabaseManagementService managementService )
     {
-        if ( databaseService != null )
+        if ( managementService != null )
         {
             try
             {
-                databaseService.shutdown();
+                managementService.shutdown();
             }
             catch ( Exception expected )
             {
@@ -299,11 +272,11 @@ public class FileWatchIT
     {
         try ( Transaction transaction = database.beginTx() )
         {
-            for ( IndexDefinition definition : database.schema().getIndexes() )
+            for ( IndexDefinition definition : transaction.schema().getIndexes() )
             {
                 definition.drop();
             }
-            transaction.success();
+            transaction.commit();
         }
     }
 
@@ -311,13 +284,13 @@ public class FileWatchIT
     {
         try ( Transaction transaction = database.beginTx() )
         {
-            database.schema().indexFor( testLabel ).on( propertyName ).create();
-            transaction.success();
+            transaction.schema().indexFor( testLabel ).on( propertyName ).create();
+            transaction.commit();
         }
 
-        try ( Transaction ignored = database.beginTx() )
+        try ( Transaction tx = database.beginTx() )
         {
-            database.schema().awaitIndexesOnline( 1, TimeUnit.MINUTES );
+            tx.schema().awaitIndexesOnline( 1, TimeUnit.MINUTES );
         }
     }
 
@@ -326,20 +299,13 @@ public class FileWatchIT
         checkPointer.forceCheckPoint( new SimpleTriggerInfo( "testForceCheckPoint" ) );
     }
 
-    private static String getExplicitIndexDirectory( DatabaseLayout databaseLayout )
-    {
-        File schemaIndexDirectory = LuceneDataSource.getLuceneIndexStoreDirectory( databaseLayout );
-        Path relativeIndexPath = databaseLayout.databaseDirectory().toPath().relativize( schemaIndexDirectory.toPath() );
-        return relativeIndexPath.getName( 0 ).toString();
-    }
-
     private static void createNode( GraphDatabaseService database, String propertyName, Label testLabel )
     {
         try ( Transaction transaction = database.beginTx() )
         {
-            Node node = database.createNode( testLabel );
+            Node node = transaction.createNode( testLabel );
             node.setProperty( propertyName, "value" );
-            transaction.success();
+            transaction.commit();
         }
     }
 
@@ -360,18 +326,12 @@ public class FileWatchIT
         FileUtils.deleteFile( metadataStore );
     }
 
-    private static void deleteStoreDirectory( File storeDir, String directoryName ) throws IOException
-    {
-        File directory = new File( storeDir, directoryName );
-        FileUtils.deleteRecursively( directory );
-    }
-
     private static void createNode( GraphDatabaseService database )
     {
         try ( Transaction transaction = database.beginTx() )
         {
-            database.createNode();
-            transaction.success();
+            transaction.createNode();
+            transaction.commit();
         }
     }
 
@@ -389,7 +349,7 @@ public class FileWatchIT
         private final List<String> deletedFiles = new ArrayList<>();
 
         @Override
-        public void fileDeleted( String fileName )
+        public void fileDeleted( WatchKey key, String fileName )
         {
             deletedFiles.add( fileName );
         }
@@ -411,7 +371,7 @@ public class FileWatchIT
         }
 
         @Override
-        public void fileModified( String fileName )
+        public void fileModified( WatchKey key, String fileName )
         {
             if ( expectedFileName.equals( fileName ) )
             {
@@ -435,7 +395,7 @@ public class FileWatchIT
         }
 
         @Override
-        public void fileDeleted( String fileName )
+        public void fileDeleted( WatchKey key, String fileName )
         {
             if ( fileName.endsWith( expectedFileName ) )
             {

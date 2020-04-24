@@ -27,6 +27,7 @@ import org.eclipse.collections.api.bag.MutableBag;
 import org.eclipse.collections.api.bag.primitive.MutableLongBag;
 import org.eclipse.collections.api.block.function.primitive.LongFunction;
 import org.eclipse.collections.api.block.function.primitive.LongFunction0;
+import org.eclipse.collections.api.block.function.primitive.LongLongToLongFunction;
 import org.eclipse.collections.api.block.function.primitive.LongToLongFunction;
 import org.eclipse.collections.api.block.function.primitive.LongToObjectFunction;
 import org.eclipse.collections.api.block.function.primitive.ObjectLongToObjectFunction;
@@ -57,10 +58,9 @@ import java.util.NoSuchElementException;
 import org.neo4j.graphdb.Resource;
 import org.neo4j.util.VisibleForTesting;
 
-import static java.lang.Integer.bitCount;
 import static java.util.Objects.requireNonNull;
 import static org.eclipse.collections.impl.tuple.primitive.PrimitiveTuples.pair;
-import static org.neo4j.util.Preconditions.checkArgument;
+import static org.neo4j.util.Preconditions.requirePowerOfTwo;
 
 /**
  * Off heap implementation of long-long hash map.
@@ -513,6 +513,12 @@ class LinearProbeLongLongHashMap extends AbstractLongIterable implements Mutable
     }
 
     @Override
+    public void updateValues( LongLongToLongFunction function )
+    {
+        throw new UnsupportedOperationException( "not implemented" );
+    }
+
+    @Override
     public MutableLongIterator longIterator()
     {
         return new KeysIterator();
@@ -759,7 +765,7 @@ class LinearProbeLongLongHashMap extends AbstractLongIterable implements Mutable
 
     private void allocateMemory( int newCapacity )
     {
-        checkArgument( newCapacity > 1 && bitCount( newCapacity ) == 1, "Capacity must be power of 2" );
+        requirePowerOfTwo( newCapacity );
         capacity = newCapacity;
         resizeOccupancyThreshold = (int) (newCapacity * LOAD_FACTOR);
         resizeRemovalsThreshold = (int) (newCapacity * REMOVALS_FACTOR);

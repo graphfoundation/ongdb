@@ -25,24 +25,25 @@ import java.util.stream.Collectors;
 import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.RelationshipType;
 import org.neo4j.graphdb.schema.IndexDefinition;
+import org.neo4j.internal.schema.ConstraintDescriptor;
 
 import static java.util.Objects.requireNonNull;
-import static org.neo4j.helpers.collection.Iterables.single;
+import static org.neo4j.internal.helpers.collection.Iterables.single;
 import static org.neo4j.kernel.impl.coreapi.schema.IndexDefinitionImpl.labelNameList;
 
 abstract class NodeConstraintDefinition extends MultiPropertyConstraintDefinition
 {
     protected final Label label;
 
-    protected NodeConstraintDefinition( InternalSchemaActions actions, Label label, String[] propertyKeys )
+    NodeConstraintDefinition( InternalSchemaActions actions, ConstraintDescriptor constraint, Label label, String[] propertyKeys )
     {
-        super( actions, propertyKeys );
+        super( actions, constraint, propertyKeys );
         this.label = requireNonNull( label );
     }
 
-    protected NodeConstraintDefinition( InternalSchemaActions actions, IndexDefinition indexDefinition )
+    NodeConstraintDefinition( InternalSchemaActions actions, ConstraintDescriptor constraint, IndexDefinition indexDefinition )
     {
-        super( actions, indexDefinition );
+        super( actions, constraint, indexDefinition );
         if ( indexDefinition.isMultiTokenIndex() )
         {
             throw new IllegalArgumentException( "Node constraints do not support multi-token definitions. That is, they cannot apply to more than one label, " +
@@ -81,7 +82,7 @@ abstract class NodeConstraintDefinition extends MultiPropertyConstraintDefinitio
         return label.name().equals( that.label.name() ) && Arrays.equals( propertyKeys, that.propertyKeys );
     }
 
-    protected String propertyText()
+    String propertyText()
     {
         String nodeVariable = label.name().toLowerCase();
         if ( propertyKeys.length == 1 )

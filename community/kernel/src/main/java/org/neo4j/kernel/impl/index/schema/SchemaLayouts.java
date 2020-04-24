@@ -19,32 +19,22 @@
  */
 package org.neo4j.kernel.impl.index.schema;
 
-import org.apache.commons.lang3.mutable.MutableBoolean;
-
 import java.io.File;
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.function.Function;
 
-import org.neo4j.index.internal.gbptree.GBPTree;
+import org.neo4j.configuration.Config;
 import org.neo4j.index.internal.gbptree.Layout;
 import org.neo4j.index.internal.gbptree.LayoutBootstrapper;
 import org.neo4j.index.internal.gbptree.Meta;
 import org.neo4j.index.internal.gbptree.MetadataMismatchException;
+import org.neo4j.internal.id.indexed.IdRangeLayout;
+import org.neo4j.internal.index.label.LabelScanLayout;
 import org.neo4j.io.pagecache.PageCache;
-import org.neo4j.kernel.configuration.Config;
-import org.neo4j.kernel.impl.index.labelscan.LabelScanLayout;
-import org.neo4j.kernel.impl.index.schema.config.ConfiguredSpaceFillingCurveSettingsCache;
-import org.neo4j.kernel.impl.index.schema.config.IndexSpecificSpaceFillingCurveSettingsCache;
-import org.neo4j.kernel.impl.index.schema.config.SpaceFillingCurveSettings;
-import org.neo4j.kernel.impl.index.schema.config.SpaceFillingCurveSettingsFactory;
-import org.neo4j.kernel.impl.index.schema.config.SpaceFillingCurveSettingsReader;
-import org.neo4j.values.storable.CoordinateReferenceSystem;
+import org.neo4j.kernel.impl.api.index.stats.IndexStatisticsLayout;
+import org.neo4j.kernel.impl.index.schema.config.IndexSpecificSpaceFillingCurveSettings;
 
 public class SchemaLayouts implements LayoutBootstrapper
 {
@@ -54,57 +44,34 @@ public class SchemaLayouts implements LayoutBootstrapper
     {
         allSchemaLayout = new ArrayList<>();
         allSchemaLayout.addAll( Arrays.asList(
-                spatialLayoutFactory( CoordinateReferenceSystem.WGS84 ),
-                spatialLayoutFactory( CoordinateReferenceSystem.WGS84_3D ),
-                spatialLayoutFactory( CoordinateReferenceSystem.Cartesian ),
-                spatialLayoutFactory( CoordinateReferenceSystem.Cartesian_3D ),
-                ( indexFile, pageCache, meta, targetLayout ) -> new LocalTimeLayout(),
-                ( indexFile, pageCache, meta, targetLayout ) -> new ZonedDateTimeLayout(),
-                ( indexFile, pageCache, meta, targetLayout ) -> new DurationLayout(),
-                ( indexFile, pageCache, meta, targetLayout ) -> new ZonedTimeLayout(),
-                ( indexFile, pageCache, meta, targetLayout ) -> new DateLayout(),
-                ( indexFile, pageCache, meta, targetLayout ) -> new LocalDateTimeLayout(),
-                ( indexFile, pageCache, meta, targetLayout ) -> new StringLayout(),
-                ( indexFile, pageCache, meta, targetLayout ) -> new NumberLayoutUnique(),
-                ( indexFile, pageCache, meta, targetLayout ) -> new NumberLayoutNonUnique(),
                 genericLayout(),
-                ( indexFile, pageCache, meta, targetLayout ) -> new LabelScanLayout() ) );
+                idRangeLayout(),
+                ( indexFile, pageCache, meta ) -> new LabelScanLayout(),
+                ( indexFile, pageCache, meta ) -> new IndexStatisticsLayout() ) );
     }
 
     public static String[] layoutDescriptions()
     {
         return new String[]{
-                "Generic layout with given number of slots - 'generic1', 'generic2', etc",
-                "Spatial cartesian - 'cartesian'",
-                "Spatial cartesian 3d - 'cartesian-3d'",
-                "Spatial wgs-84 (geographic) - 'wgs-84'",
-                "Spatial wgs-84-3d (geographic) - 'wgs-84-3d'",
-                "Local time - No user input needed",
-                "Zoned date time - No user input needed",
-                "Duration - No user input needed",
-                "Zoned time - No user input needed",
-                "Date - No user input needed",
-                "Local date time - No user input needed",
-                "String - No user input needed",
-                "Number unique - No user input needed",
-                "Number non-unique - No user input needed",
-                "Label scan - No user input needed"
+                "Generic layout",
+                "Id range layout",
+                "Label scan layout",
+                "Index statistics layout"
         };
     }
 
     @Override
-    public Layout<?,?> create( File indexFile, PageCache pageCache, Meta meta, String targetLayout ) throws IOException
+    public Layout<?,?> create( File indexFile, PageCache pageCache, Meta meta ) throws IOException
     {
         for ( LayoutBootstrapper factory : allSchemaLayout )
         {
-            final Layout<?,?> layout = factory.create( indexFile, pageCache, meta, targetLayout );
+            final Layout<?,?> layout = factory.create( indexFile, pageCache, meta );
             if ( layout != null && matchingLayout( meta, layout ) )
             {
-                // Verify spatial and generic
                 return layout;
             }
         }
-        throw new RuntimeException( "Layout with identifier \"" + targetLayout + "\" did not match meta " + meta );
+        throw new RuntimeException( "Could not find any layout matching meta " + meta );
     }
 
     private static boolean matchingLayout( Meta meta, Layout layout )
@@ -122,37 +89,34 @@ public class SchemaLayouts implements LayoutBootstrapper
 
     private static LayoutBootstrapper genericLayout()
     {
-        return ( indexFile, pageCache, meta, targetLayout ) ->
+        return ( indexFile, pageCache, meta ) ->
         {
-            if ( targetLayout != null && targetLayout.contains( "generic" ) )
+            final IndexSpecificSpaceFillingCurveSettings settings = IndexSpecificSpaceFillingCurveSettings.fromConfig( Config.defaults() );
+            int maxNumberOfSlots = 10;
+            for ( int numberOfSlots = 1; numberOfSlots < maxNumberOfSlots; numberOfSlots++ )
             {
-                final String numberOfSlotsString = targetLayout.replace( "generic", "" );
-                final int numberOfSlots = Integer.parseInt( numberOfSlotsString );
-                final Map<CoordinateReferenceSystem,SpaceFillingCurveSettings> settings = new HashMap<>();
-                GBPTree.readHeader( pageCache, indexFile, new NativeIndexHeaderReader( new SpaceFillingCurveSettingsReader( settings ) ) );
-                final ConfiguredSpaceFillingCurveSettingsCache configuredSettings =
-                        new ConfiguredSpaceFillingCurveSettingsCache( Config.defaults() );
-                return new GenericLayout( numberOfSlots, new IndexSpecificSpaceFillingCurveSettingsCache( configuredSettings, settings ) );
+                final GenericLayout genericLayout = new GenericLayout( numberOfSlots, settings );
+                if ( matchingLayout( meta, genericLayout ) )
+                {
+                    return genericLayout;
+                }
             }
             return null;
         };
     }
 
-    private static LayoutBootstrapper spatialLayoutFactory( CoordinateReferenceSystem crs )
+    private static LayoutBootstrapper idRangeLayout()
     {
-        return ( indexFile, pageCache, meta, targetLayout ) -> {
-            if ( crs.getName().equals( targetLayout ) )
+        return ( indexFile, pageCache, meta ) ->
+        {
+            int maxExponent = 10;
+            for ( int exponent = 0; exponent < maxExponent; exponent++ )
             {
-                final MutableBoolean failure = new MutableBoolean( false );
-                final Function<ByteBuffer,String> onError = byteBuffer ->
+                final int idsPerEntry = 1 << exponent;
+                final IdRangeLayout idRangeLayout = new IdRangeLayout( idsPerEntry );
+                if ( matchingLayout( meta, idRangeLayout ) )
                 {
-                    failure.setTrue();
-                    return "";
-                };
-                final SpaceFillingCurveSettings curveSettings = SpaceFillingCurveSettingsFactory.fromGBPTree( indexFile, pageCache, onError );
-                if ( !failure.getValue() )
-                {
-                    return new SpatialLayout( crs, curveSettings.curve() );
+                    return idRangeLayout;
                 }
             }
             return null;

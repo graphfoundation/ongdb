@@ -19,16 +19,17 @@
  */
 package org.neo4j.graphdb;
 
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import org.neo4j.test.GraphDatabaseServiceCleaner;
-import org.neo4j.test.rule.ImpermanentDatabaseRule;
+import org.neo4j.test.extension.ImpermanentDbmsExtension;
+import org.neo4j.test.extension.Inject;
 
-public class CreateAndDeleteNodesIT
+@ImpermanentDbmsExtension
+class CreateAndDeleteNodesIT
 {
-    @Rule
-    public ImpermanentDatabaseRule dbRule = new ImpermanentDatabaseRule();
+    @Inject
+    private GraphDatabaseService db;
 
     enum RelTypes implements RelationshipType
     {
@@ -36,23 +37,22 @@ public class CreateAndDeleteNodesIT
     }
 
     @Test
-    public void creatingAndDeletingEntitiesShouldNotThrow()
+    void creatingAndDeletingEntitiesShouldNotThrow()
     {
         // Given
-        GraphDatabaseService dataBase = dbRule.getGraphDatabaseAPI();
         Node myNode;
 
         // When
-        try ( Transaction bobTransaction = dataBase.beginTx() )
+        try ( Transaction bobTransaction = db.beginTx() )
         {
-            myNode = dataBase.createNode();
+            myNode = bobTransaction.createNode();
             myNode.setProperty( "Name", "Bob" );
 
-            myNode.createRelationshipTo( dataBase.createNode(), RelTypes.ASD );
-            bobTransaction.success();
+            myNode.createRelationshipTo( bobTransaction.createNode(), RelTypes.ASD );
+            bobTransaction.commit();
         }
 
         // When
-        GraphDatabaseServiceCleaner.cleanupAllRelationshipsAndNodes( dataBase );
+        GraphDatabaseServiceCleaner.cleanupAllRelationshipsAndNodes( db );
     }
 }

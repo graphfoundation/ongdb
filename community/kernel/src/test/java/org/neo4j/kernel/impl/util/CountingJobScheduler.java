@@ -20,14 +20,17 @@
 package org.neo4j.kernel.impl.util;
 
 import java.util.concurrent.Executor;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Stream;
 
+import org.neo4j.resources.Profiler;
+import org.neo4j.scheduler.ActiveGroup;
 import org.neo4j.scheduler.Group;
 import org.neo4j.scheduler.JobHandle;
 import org.neo4j.scheduler.JobScheduler;
+import org.neo4j.scheduler.SchedulerThreadFactoryFactory;
 
 public class CountingJobScheduler implements JobScheduler
 {
@@ -47,6 +50,18 @@ public class CountingJobScheduler implements JobScheduler
     }
 
     @Override
+    public void setParallelism( Group group, int parallelism )
+    {
+        delegate.setParallelism( group, parallelism );
+    }
+
+    @Override
+    public void setThreadFactory( Group group, SchedulerThreadFactoryFactory threadFactory )
+    {
+        delegate.setThreadFactory( group, threadFactory );
+    }
+
+    @Override
     public Executor executor( Group group )
     {
         return delegate.executor( group );
@@ -56,18 +71,6 @@ public class CountingJobScheduler implements JobScheduler
     public ThreadFactory threadFactory( Group group )
     {
         return delegate.threadFactory( group );
-    }
-
-    @Override
-    public ExecutorService workStealingExecutor( Group group, int parallelism )
-    {
-        return delegate.workStealingExecutor( group, parallelism );
-    }
-
-    @Override
-    public ExecutorService workStealingExecutorAsyncMode( Group group, int parallelism )
-    {
-        return delegate.workStealingExecutorAsyncMode( group, parallelism );
     }
 
     @Override
@@ -101,25 +104,36 @@ public class CountingJobScheduler implements JobScheduler
     }
 
     @Override
-    public void init() throws Throwable
+    public Stream<ActiveGroup> activeGroups()
+    {
+        return delegate.activeGroups();
+    }
+
+    @Override
+    public void profileGroup( Group group, Profiler profiler )
+    {
+    }
+
+    @Override
+    public void init() throws Exception
     {
         delegate.init();
     }
 
     @Override
-    public void start() throws Throwable
+    public void start() throws Exception
     {
         delegate.start();
     }
 
     @Override
-    public void stop() throws Throwable
+    public void stop() throws Exception
     {
         delegate.stop();
     }
 
     @Override
-    public void shutdown() throws Throwable
+    public void shutdown() throws Exception
     {
         delegate.shutdown();
     }

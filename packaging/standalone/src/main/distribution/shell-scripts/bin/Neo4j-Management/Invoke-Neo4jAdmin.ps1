@@ -1,4 +1,4 @@
-# Copyright (c) 2002-2018 "Neo4j,"
+# Copyright (c) 2002-2020 "Neo4j,"
 # Neo4j Sweden AB [http://neo4j.com]
 #
 # This file is part of Neo4j.
@@ -40,7 +40,7 @@ System.Int32
 non-zero = an error occured
 
 .NOTES
-Only supported on version 3.x ONgDB Community and Enterprise Edition databases
+Only supported on version 4.x Neo4j Community and Enterprise Edition databases
 
 #>
 function Invoke-Neo4jAdmin

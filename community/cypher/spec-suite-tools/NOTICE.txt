@@ -26,19 +26,26 @@ Third-party licenses
 --------------------
 
 Apache Software License, Version 2.0
+  Apache Commons BeanUtils
+  Apache Commons Collections
   Apache Commons Lang
+  Apache Commons Text
   Caffeine cache
   casbah-commons
   casbah-core
   casbah-query
   Gherkin Repackaged Dependencies
+  Java Concurrency Tools Core Library
   Joda convert
   Joda-Time
-  MongoDB Java Driver
+  Lucene codecs
+  Lucene Common Analyzers
+  Lucene Core
+  Lucene QueryParsers
+  Netty/All-in-One
   nscala-time
   openCypher TCK API
   openCypher TCK Features and Graphs
-  org.apiguardian:apiguardian-api
   parboiled-core
   parboiled-scala
   salat-core
@@ -48,8 +55,11 @@ BSD - Scala License
   Scala Library
 
 BSD License
-  ANTLR 4 Runtime
   Scala Compiler
+
+Bouncy Castle License
+  Bouncy Castle PKIX, CMS, EAC, TSP, PKCS, OCSP, CMP, and CRMF APIs
+  Bouncy Castle Provider
 
 Eclipse Distribution License - v 1.0
   Eclipse Collections API
@@ -59,9 +69,17 @@ Eclipse Public License - v 1.0
   Eclipse Collections API
   Eclipse Collections Main Library
 
+GNU Lesser General Public License, Version 2.1
+  Java Native Access
+
 MIT License
+  fastparse_2.12
   Gherkin
   SLF4J API Module
+  sourcecode
+
+Unlicense
+  Gherkin Repackaged Dependencies
 
 Dependencies with multiple licenses
 -----------------------------------
@@ -73,4 +91,8 @@ Eclipse Collections API
 Eclipse Collections Main Library
   Eclipse Distribution License - v 1.0
   Eclipse Public License - v 1.0
+
+Gherkin Repackaged Dependencies
+  Apache Software License, Version 2.0
+  Unlicense
 

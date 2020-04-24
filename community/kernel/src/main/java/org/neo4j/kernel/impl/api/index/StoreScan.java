@@ -19,8 +19,8 @@
  */
 package org.neo4j.kernel.impl.api.index;
 
-import org.neo4j.kernel.api.index.IndexEntryUpdate;
-import org.neo4j.storageengine.api.schema.PopulationProgress;
+import org.neo4j.internal.kernel.api.PopulationProgress;
+import org.neo4j.storageengine.api.IndexEntryUpdate;
 
 public interface StoreScan<FAILURE extends Exception>
 {

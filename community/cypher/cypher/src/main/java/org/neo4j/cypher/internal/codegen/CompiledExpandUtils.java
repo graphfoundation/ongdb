@@ -19,11 +19,13 @@
  */
 package org.neo4j.cypher.internal.codegen;
 
+import org.neo4j.cypher.operations.CursorUtils;
 import org.neo4j.graphdb.Direction;
+import org.neo4j.internal.kernel.api.CloseListener;
 import org.neo4j.internal.kernel.api.CursorFactory;
+import org.neo4j.internal.kernel.api.KernelReadTracer;
 import org.neo4j.internal.kernel.api.NodeCursor;
 import org.neo4j.internal.kernel.api.Read;
-import org.neo4j.internal.kernel.api.exceptions.EntityNotFoundException;
 import org.neo4j.internal.kernel.api.helpers.RelationshipSelectionCursor;
 
 import static org.neo4j.internal.kernel.api.helpers.Nodes.countAll;
@@ -35,9 +37,8 @@ public abstract class CompiledExpandUtils
 {
     private static final int NOT_DENSE_DEGREE = -1;
 
-    public static RelationshipSelectionCursor connectingRelationships( Read read, CursorFactory cursors,
-            NodeCursor nodeCursor,
-            long fromNode, Direction direction, long toNode )
+    public static RelationshipSelectionCursor connectingRelationships( Read read,
+            CursorFactory cursors, NodeCursor nodeCursor, long fromNode, Direction direction, long toNode )
     {
         //Check from
         int fromDegree = nodeGetDegreeIfDense( read, fromNode, nodeCursor, cursors, direction );
@@ -76,17 +77,17 @@ public abstract class CompiledExpandUtils
                 relDirection = direction.reverse();
             }
 
-            return connectingRelationshipsIterator( CompiledCursorUtils
+            return connectingRelationshipsIterator( CursorUtils
                     .nodeGetRelationships( read, cursors, nodeCursor, startNode, relDirection ), endNode );
         }
         else if ( fromNodeIsDense )
         {
-            return connectingRelationshipsIterator( CompiledCursorUtils
+            return connectingRelationshipsIterator( CursorUtils
                     .nodeGetRelationships( read, cursors, nodeCursor, toNode, direction.reverse() ), fromNode );
         }
         else
         {   //either only toNode is dense or none of them, just go with what we got
-            return connectingRelationshipsIterator( CompiledCursorUtils
+            return connectingRelationshipsIterator( CursorUtils
                     .nodeGetRelationships( read, cursors, nodeCursor, fromNode, direction ), toNode );
         }
     }
@@ -131,23 +132,22 @@ public abstract class CompiledExpandUtils
                 relDirection = direction.reverse();
             }
 
-            return connectingRelationshipsIterator( CompiledCursorUtils
+            return connectingRelationshipsIterator( CursorUtils
                     .nodeGetRelationships( read, cursors, nodeCursor, startNode, relDirection, relTypes ), endNode );
         }
         else if ( fromNodeIsDense )
         {
-            return connectingRelationshipsIterator( CompiledCursorUtils
+            return connectingRelationshipsIterator( CursorUtils
                     .nodeGetRelationships( read, cursors, nodeCursor, toNode, direction.reverse(), relTypes ), fromNode );
         }
         else
         {   //either only toNode is dense or none of them, just go with what we got
-            return connectingRelationshipsIterator( CompiledCursorUtils
+            return connectingRelationshipsIterator( CursorUtils
                     .nodeGetRelationships( read, cursors, nodeCursor, fromNode, direction, relTypes ), toNode );
         }
     }
 
-    static int nodeGetDegreeIfDense( Read read, long node, NodeCursor nodeCursor, CursorFactory cursors,
-            Direction direction )
+    static int nodeGetDegreeIfDense( Read read, long node, NodeCursor nodeCursor, CursorFactory cursors, Direction direction )
     {
         read.singleNode( node, nodeCursor );
         if ( !nodeCursor.next() )
@@ -162,8 +162,7 @@ public abstract class CompiledExpandUtils
         return nodeGetDegree( nodeCursor, cursors, direction );
     }
 
-    private static int nodeGetDegree( NodeCursor nodeCursor, CursorFactory cursors,
-            Direction direction )
+    private static int nodeGetDegree( NodeCursor nodeCursor, CursorFactory cursors, Direction direction )
     {
         switch ( direction )
         {
@@ -178,8 +177,7 @@ public abstract class CompiledExpandUtils
         }
     }
 
-    static int nodeGetDegreeIfDense( Read read, long node, NodeCursor nodeCursor, CursorFactory cursors,
-            Direction direction, int type )
+    static int nodeGetDegreeIfDense( Read read, long node, NodeCursor nodeCursor, CursorFactory cursors, Direction direction, int type )
     {
         read.singleNode( node, nodeCursor );
         if ( !nodeCursor.next() )
@@ -194,8 +192,7 @@ public abstract class CompiledExpandUtils
         return nodeGetDegree( nodeCursor, cursors, direction, type );
     }
 
-    private static int nodeGetDegree( NodeCursor nodeCursor, CursorFactory cursors,
-            Direction direction, int type )
+    private static int nodeGetDegree( NodeCursor nodeCursor, CursorFactory cursors, Direction direction, int type )
     {
         switch ( direction )
         {
@@ -210,8 +207,8 @@ public abstract class CompiledExpandUtils
         }
     }
 
-    private static int calculateTotalDegreeIfDense( Read read, long node, NodeCursor nodeCursor, Direction direction,
-            int[] relTypes, CursorFactory cursors )
+    private static int calculateTotalDegreeIfDense( Read read, long node,
+            NodeCursor nodeCursor, Direction direction, int[] relTypes, CursorFactory cursors )
     {
         read.singleNode( node, nodeCursor );
         if ( !nodeCursor.next() )
@@ -225,8 +222,7 @@ public abstract class CompiledExpandUtils
         return calculateTotalDegree( nodeCursor, direction, relTypes, cursors );
     }
 
-    private static int calculateTotalDegree( NodeCursor nodeCursor, Direction direction, int[] relTypes,
-            CursorFactory cursors )
+    private static int calculateTotalDegree( NodeCursor nodeCursor, Direction direction, int[] relTypes, CursorFactory cursors )
     {
         int degree = 0;
         for ( int relType : relTypes )
@@ -244,6 +240,17 @@ public abstract class CompiledExpandUtils
         {
             @Override
             public void close()
+            {
+                closeInternal();
+                CloseListener closeListener = allRelationships.getCloseListener();
+                if ( closeListener != null )
+                {
+                    closeListener.onClosed( this );
+                }
+            }
+
+            @Override
+            public void closeInternal()
             {
                 allRelationships.close();
             }
@@ -296,6 +303,42 @@ public abstract class CompiledExpandUtils
                 }
 
                 return false;
+            }
+
+            @Override
+            public void setTracer( KernelReadTracer tracer )
+            {
+                allRelationships.setTracer( tracer );
+            }
+
+            @Override
+            public boolean isClosed()
+            {
+                return allRelationships.isClosed();
+            }
+
+            @Override
+            public void setCloseListener( CloseListener closeListener )
+            {
+                allRelationships.setCloseListener( closeListener );
+            }
+
+            @Override
+            public CloseListener getCloseListener()
+            {
+                return allRelationships.getCloseListener();
+            }
+
+            @Override
+            public void setToken( int token )
+            {
+                allRelationships.setToken( token );
+            }
+
+            @Override
+            public int getToken()
+            {
+                return allRelationships.getToken();
             }
         };
     }

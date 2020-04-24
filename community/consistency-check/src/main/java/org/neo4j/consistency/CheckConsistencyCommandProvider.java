@@ -19,61 +19,16 @@
  */
 package org.neo4j.consistency;
 
-import java.nio.file.Path;
-import javax.annotation.Nonnull;
+import org.neo4j.annotations.service.ServiceProvider;
+import org.neo4j.cli.CommandProvider;
+import org.neo4j.cli.ExecutionContext;
 
-import org.neo4j.commandline.admin.AdminCommand;
-import org.neo4j.commandline.admin.AdminCommandSection;
-import org.neo4j.commandline.admin.OutsideWorld;
-import org.neo4j.commandline.arguments.Arguments;
-
-import static java.lang.String.format;
-
-public class CheckConsistencyCommandProvider extends AdminCommand.Provider
+@ServiceProvider
+public class CheckConsistencyCommandProvider implements CommandProvider<CheckConsistencyCommand>
 {
-    public CheckConsistencyCommandProvider()
-    {
-        super( "check-consistency" );
-    }
-
     @Override
-    @Nonnull
-    public Arguments allArguments()
+    public CheckConsistencyCommand createCommand( ExecutionContext ctx )
     {
-        return CheckConsistencyCommand.arguments();
-    }
-
-    @Override
-    @Nonnull
-    public String description()
-    {
-        return format(
-                "This command allows for checking the consistency of a database or a backup thereof. It cannot " +
-                        "be used with a database which is currently in use.%n" +
-                        "%n" +
-                        "All checks except 'check-graph' can be quite expensive so it may be useful to turn them off" +
-                        " for very large databases. Increasing the heap size can also be a good idea." +
-                        " See 'neo4j-admin help' for details." );
-    }
-
-    @Override
-    @Nonnull
-    public String summary()
-    {
-        return "Check the consistency of a database.";
-    }
-
-    @Override
-    @Nonnull
-    public AdminCommandSection commandSection()
-    {
-        return AdminCommandSection.general();
-    }
-
-    @Override
-    @Nonnull
-    public AdminCommand create( Path homeDir, Path configDir, OutsideWorld outsideWorld )
-    {
-        return new CheckConsistencyCommand( homeDir, configDir );
+        return new CheckConsistencyCommand( ctx );
     }
 }

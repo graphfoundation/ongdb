@@ -19,18 +19,19 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.commands.expressions
 
-import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.v4_0.util.test_helpers.CypherFunSuite
+import org.neo4j.internal.helpers.collection.Pair
 import org.neo4j.values.storable.CRSCalculator.GeographicCalculator.EARTH_RADIUS_METERS
 import org.neo4j.values.storable.{CoordinateReferenceSystem, PointValue, Values}
 import org.scalactic.{Equality, TolerantNumerics}
 import org.scalatest.matchers.{MatchResult, Matcher}
-import collection.JavaConverters._
 
+import scala.collection.JavaConverters._
 import scala.language.implicitConversions
 
 class DistanceFunctionTest extends CypherFunSuite {
 
-  implicit def javaToScalaPair(pair: org.neo4j.helpers.collection.Pair[PointValue, PointValue]): (PointValue, PointValue) = (pair.first(), pair.other())
+  implicit def javaToScalaPair(pair: Pair[PointValue, PointValue]): (PointValue, PointValue) = (pair.first(), pair.other())
 
   def boundingBox(center: PointValue, distance: Double): Seq[(PointValue, PointValue)] =
     center.getCoordinateReferenceSystem.getCalculator.boundingBox(center, distance).asScala.map(pair => (pair.first(), pair.other()))
@@ -245,10 +246,10 @@ class DistanceFunctionTest extends CypherFunSuite {
       val calculator = point.getCoordinateReferenceSystem.getCalculator
       withClue(s"Calculating bounding box with distance $distance of $point\n") {
         val boxes = boundingBox(point, distance)
-        var minLat = Double.MaxValue
-        var maxLat = Double.MinValue
-        var minLong = Double.MaxValue
-        var maxLong = Double.MinValue
+        var minLat = 180.0
+        var maxLat = -180.0
+        var minLong = 90.0
+        var maxLong = -90.0
 
         // Test that points on the circle lie inside the bounding box
         for (brng <- 0.0 to 2.0 * Math.PI by 0.01) {
@@ -273,10 +274,6 @@ class DistanceFunctionTest extends CypherFunSuite {
         }
         if (!northPoleIncluded) {
           makePoint(maxLong, maxLat + delta) shouldNot beInsideOneBoundingBox(boxes)
-        }
-        if (!northPoleIncluded && !southPoleIncluded) {
-          makePoint(minLong - delta, minLat) shouldNot beInsideOneBoundingBox(boxes)
-          makePoint(maxLong + delta, maxLat) shouldNot beInsideOneBoundingBox(boxes)
         }
 
         // Special cases where poles are included
@@ -323,15 +320,6 @@ class DistanceFunctionTest extends CypherFunSuite {
       (lat < trLat || doubleEquality.areEquivalent(lat, trLat)) &&
       (long > blLong || doubleEquality.areEquivalent(long, blLong)) &&
       (long < trLong || doubleEquality.areEquivalent(long, trLong))
-  }
-
-  private def beInsideBoundingBox(bottomLeft: PointValue, topRight: PointValue, tolerant: Boolean = false): Matcher[PointValue] = new Matcher[PointValue] {
-    override def apply(point: PointValue): MatchResult = {
-      MatchResult(
-        matches = insideBoundingBox(point, bottomLeft, topRight, tolerant),
-        rawFailureMessage = s"$point should be inside $bottomLeft -> $topRight, but was not.",
-        rawNegatedFailureMessage = s"$point should not be inside $bottomLeft -> $topRight, but was.")
-    }
   }
 
   private def beInsideOneBoundingBox(boxes: Seq[(PointValue, PointValue)], tolerant: Boolean = false): Matcher[PointValue] = new Matcher[PointValue] {

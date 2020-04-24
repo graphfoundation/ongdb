@@ -21,21 +21,21 @@ package org.neo4j.kernel.impl.index.schema;
 
 import java.io.File;
 
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
-import org.neo4j.helpers.Service;
+import org.neo4j.annotations.service.ServiceProvider;
+import org.neo4j.configuration.Config;
+import org.neo4j.configuration.GraphDatabaseSettings;
 import org.neo4j.index.internal.gbptree.RecoveryCleanupWorkCollector;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.kernel.api.index.IndexDirectoryStructure;
 import org.neo4j.kernel.api.index.IndexProvider;
-import org.neo4j.kernel.configuration.Config;
-import org.neo4j.kernel.extension.KernelExtensionFactory;
+import org.neo4j.internal.schema.IndexProviderDescriptor;
 import org.neo4j.kernel.impl.factory.OperationalMode;
 
 import static org.neo4j.kernel.api.index.IndexDirectoryStructure.directoriesByProvider;
 
-@Service.Implementation( KernelExtensionFactory.class )
-public class GenericNativeIndexProviderFactory extends AbstractIndexProviderFactory<GenericNativeIndexProviderFactory.Dependencies>
+@ServiceProvider
+public class GenericNativeIndexProviderFactory extends AbstractIndexProviderFactory
 {
     public GenericNativeIndexProviderFactory()
     {
@@ -49,9 +49,9 @@ public class GenericNativeIndexProviderFactory extends AbstractIndexProviderFact
     }
 
     @Override
-    protected String descriptorString()
+    public IndexProviderDescriptor descriptor()
     {
-        return GenericNativeIndexProvider.DESCRIPTOR.toString();
+        return GenericNativeIndexProvider.DESCRIPTOR;
     }
 
     @Override
@@ -65,11 +65,7 @@ public class GenericNativeIndexProviderFactory extends AbstractIndexProviderFact
             OperationalMode mode, RecoveryCleanupWorkCollector recoveryCleanupWorkCollector )
     {
         IndexDirectoryStructure.Factory directoryStructure = directoriesByProvider( storeDir );
-        boolean readOnly = config.get( GraphDatabaseSettings.read_only ) && (OperationalMode.single == mode);
+        boolean readOnly = config.get( GraphDatabaseSettings.read_only ) && (OperationalMode.SINGLE == mode);
         return new GenericNativeIndexProvider( directoryStructure, pageCache, fs, monitor, recoveryCleanupWorkCollector, readOnly, config );
-    }
-
-    public interface Dependencies extends AbstractIndexProviderFactory.Dependencies
-    {
     }
 }

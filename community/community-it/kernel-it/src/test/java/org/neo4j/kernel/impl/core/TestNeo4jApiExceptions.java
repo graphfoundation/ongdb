@@ -19,11 +19,11 @@
  */
 package org.neo4j.kernel.impl.core;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
-import org.neo4j.graphdb.DatabaseShutdownException;
+import org.neo4j.dbms.api.DatabaseManagementService;
 import org.neo4j.graphdb.Direction;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Node;
@@ -32,95 +32,72 @@ import org.neo4j.graphdb.NotInTransactionException;
 import org.neo4j.graphdb.Relationship;
 import org.neo4j.graphdb.Transaction;
 import org.neo4j.kernel.impl.MyRelTypes;
-import org.neo4j.test.TestGraphDatabaseFactory;
+import org.neo4j.test.TestDatabaseManagementServiceBuilder;
 
-import static java.util.Arrays.asList;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
-import static org.neo4j.helpers.collection.Iterators.count;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
 
-public class TestNeo4jApiExceptions
+class TestNeo4jApiExceptions
 {
-    @Test
-    public void testNotInTransactionException()
+    private Transaction tx;
+    private GraphDatabaseService graph;
+    private DatabaseManagementService managementService;
+
+    @BeforeEach
+    void init()
     {
-        Node node1 = graph.createNode();
+        managementService = new TestDatabaseManagementServiceBuilder().impermanent().build();
+        graph = managementService.database( DEFAULT_DATABASE_NAME );
+        newTransaction();
+    }
+
+    @AfterEach
+    void cleanUp()
+    {
+        if ( graph != null )
+        {
+            rollback();
+            managementService.shutdown();
+        }
+    }
+
+    @Test
+    void testNotInTransactionException()
+    {
+        Node node1 = tx.createNode();
         node1.setProperty( "test", 1 );
-        Node node2 = graph.createNode();
-        Node node3 = graph.createNode();
+        Node node2 = tx.createNode();
+        Node node3 = tx.createNode();
         Relationship rel = node1.createRelationshipTo( node2, MyRelTypes.TEST );
         rel.setProperty( "test", 11 );
         commit();
-        try
-        {
-            graph.createNode();
-            fail( "Create node with no transaction should throw exception" );
-        }
-        catch ( NotInTransactionException e )
-        { // good
-        }
-        try
-        {
-            node1.createRelationshipTo( node2, MyRelTypes.TEST );
-            fail( "Create relationship with no transaction should " +
-                    "throw exception" );
-        }
-        catch ( NotInTransactionException e )
-        { // good
-        }
-        try
-        {
-            node1.setProperty( "test", 2 );
-            fail( "Set property with no transaction should throw exception" );
-        }
-        catch ( NotInTransactionException e )
-        { // good
-        }
-        try
-        {
-            rel.setProperty( "test", 22 );
-            fail( "Set property with no transaction should throw exception" );
-        }
-        catch ( NotInTransactionException e )
-        { // good
-        }
-        try
-        {
-            node3.delete();
-            fail( "Delete node with no transaction should " +
-                    "throw exception" );
-        }
-        catch ( NotInTransactionException e )
-        { // good
-        }
-        try
-        {
-            rel.delete();
-            fail( "Delete relationship with no transaction should " +
-                    "throw exception" );
-        }
-        catch ( NotInTransactionException e )
-        { // good
-        }
+        assertThrows( NotInTransactionException.class, () -> node1.createRelationshipTo( node2, MyRelTypes.TEST ) );
+        assertThrows( NotInTransactionException.class, () -> node1.setProperty( "test", 2 ) );
+        assertThrows( NotInTransactionException.class, () -> rel.setProperty( "test", 22 ) );
+        assertThrows( NotInTransactionException.class, node3::delete );
+        assertThrows( NotInTransactionException.class, rel::delete );
+
         newTransaction();
-        assertEquals( node1.getProperty( "test" ), 1 );
-        assertEquals( rel.getProperty( "test" ), 11 );
-        assertEquals( rel, node1.getSingleRelationship( MyRelTypes.TEST,
-                Direction.OUTGOING ) );
-        node1.delete();
-        node2.delete();
-        rel.delete();
-        node3.delete();
+        var testNode = tx.getNodeById( node1.getId() );
+        var testRelationship = tx.getRelationshipById( rel.getId() );
+        assertEquals( testNode.getProperty( "test" ), 1 );
+        assertEquals( testRelationship.getProperty( "test" ), 11 );
+        assertEquals( testRelationship, testNode.getSingleRelationship( MyRelTypes.TEST, Direction.OUTGOING ) );
+        testNode.delete();
+        tx.getNodeById( node2.getId() ).delete();
+        testRelationship.delete();
+        tx.getNodeById( node3.getId() ).delete();
 
         // Finally
         rollback();
     }
 
     @Test
-    public void testNotFoundException()
+    void testNotFoundException()
     {
-        Node node1 = graph.createNode();
-        Node node2 = graph.createNode();
+        Node node1 = tx.createNode();
+        Node node2 = tx.createNode();
         Relationship rel = node1.createRelationshipTo( node2, MyRelTypes.TEST );
         long nodeId = node1.getId();
         long relId = rel.getId();
@@ -128,81 +105,40 @@ public class TestNeo4jApiExceptions
         node2.delete();
         node1.delete();
         newTransaction();
-        try
-        {
-            graph.getNodeById( nodeId );
-            fail( "Get node by id on deleted node should throw exception" );
-        }
-        catch ( NotFoundException e )
-        { // good
-        }
-        try
-        {
-            graph.getRelationshipById( relId );
-            fail( "Get relationship by id on deleted node should " +
-                    "throw exception" );
-        }
-        catch ( NotFoundException e )
-        { // good
-        }
+        assertThrows( NotFoundException.class, () -> tx.getNodeById( nodeId ) );
+        assertThrows( NotFoundException.class, () -> tx.getRelationshipById( relId ) );
 
         // Finally
         rollback();
     }
 
     @Test
-    public void shouldGiveNiceErrorWhenShutdownKernelApi()
+    void shouldGiveNiceErrorWhenShutdownKernelApi()
     {
         GraphDatabaseService graphDb = graph;
-        Node node = graphDb.createNode();
+        Node node = tx.createNode();
         commit();
-        graphDb.shutdown();
+        managementService.shutdown();
 
-        try
-        {
-            count( node.getLabels().iterator() );
-            fail( "Did not get a nice exception" );
-        }
-        catch ( DatabaseShutdownException e )
-        { // good
-        }
+        assertThrows( NotInTransactionException.class, () -> node.getLabels().iterator() );
     }
 
     @Test
-    public void shouldGiveNiceErrorWhenShutdownLegacy()
+    void shouldGiveNiceErrorWhenShutdownLegacy()
     {
         GraphDatabaseService graphDb = graph;
-        Node node = graphDb.createNode();
+        Node node = tx.createNode();
         commit();
-        graphDb.shutdown();
+        managementService.shutdown();
 
-        try
-        {
-            node.getRelationships();
-            fail( "Did not get a nice exception" );
-        }
-        catch ( DatabaseShutdownException e )
-        { // good
-        }
-        try
-        {
-            graphDb.createNode();
-            fail( "Create node did not produce expected error" );
-        }
-        catch ( DatabaseShutdownException e )
-        { // good
-        }
+        assertThrows( NotInTransactionException.class, node::getRelationships );
     }
-
-    private Transaction tx;
-    private GraphDatabaseService graph;
 
     private void newTransaction()
     {
         if ( tx != null )
         {
-            tx.success();
-            tx.close();
+            tx.commit();
         }
         tx = graph.beginTx();
     }
@@ -211,8 +147,7 @@ public class TestNeo4jApiExceptions
     {
         if ( tx != null )
         {
-            tx.success();
-            tx.close();
+            tx.commit();
             tx = null;
         }
     }
@@ -224,20 +159,6 @@ public class TestNeo4jApiExceptions
             tx.close();
             tx = null;
         }
-    }
-
-    @Before
-    public void init()
-    {
-        graph = new TestGraphDatabaseFactory().newImpermanentDatabase();
-        newTransaction();
-    }
-
-    @After
-    public void cleanUp()
-    {
-        rollback();
-        graph.shutdown();
     }
 
 }

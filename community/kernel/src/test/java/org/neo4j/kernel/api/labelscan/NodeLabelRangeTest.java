@@ -19,14 +19,16 @@
  */
 package org.neo4j.kernel.api.labelscan;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertArrayEquals;
+import org.neo4j.internal.index.label.NodeLabelRange;
 
-public class NodeLabelRangeTest
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+
+class NodeLabelRangeTest
 {
     @Test
-    public void shouldTransposeNodeIdsAndLabelIds()
+    void shouldTransposeNodeIdsAndLabelIds()
     {
         // given
         long[][] labelsPerNode = new long[][] {
@@ -52,7 +54,7 @@ public class NodeLabelRangeTest
     }
 
     @Test
-    public void shouldRebaseOnRangeId()
+    void shouldRebaseOnRangeId()
     {
         // given
         long[][] labelsPerNode = new long[][] {

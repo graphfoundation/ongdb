@@ -31,10 +31,12 @@ import java.io.PrintStream;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.FileSystemException;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
 import org.neo4j.graphdb.Resource;
+import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.kernel.impl.transaction.log.files.TransactionLogFiles;
 import org.neo4j.util.VisibleForTesting;
 
@@ -56,13 +58,18 @@ public class Loader
         progressPrinter = new ArchiveProgressPrinter( output );
     }
 
-    public void load( Path archive, Path databaseDestination, Path transactionLogsDirectory ) throws IOException, IncorrectFormat
+    public void load( Path archive, DatabaseLayout databaseLayout ) throws IOException, IncorrectFormat
     {
-        validatePath( databaseDestination );
-        validatePath( transactionLogsDirectory );
+        Path databaseDestination = databaseLayout.databaseDirectory().toPath();
+        Path transactionLogsDirectory = databaseLayout.getTransactionLogsDirectory().toPath();
+
+        validatePath( databaseDestination, false );
+        validatePath( transactionLogsDirectory, true );
 
         createDestination( databaseDestination );
         createDestination( transactionLogsDirectory );
+
+        checkDatabasePresence( databaseLayout );
 
         try ( ArchiveInputStream stream = openArchiveIn( archive );
               Resource ignore = progressPrinter.startPrinting() )
@@ -76,6 +83,33 @@ public class Loader
         }
     }
 
+    public DumpMetaData getMetaData( Path archive ) throws IOException
+    {
+        try ( InputStream decompressor = CompressionFormat.decompress( () -> Files.newInputStream( archive ) ) )
+        {
+            String format = "TAR+GZIP.";
+            String files = "?";
+            String bytes = "?";
+            if ( CompressionFormat.ZSTD.isFormat( decompressor ) )
+            {
+                format = "Neo4j ZSTD Dump.";
+                // Important: Only the ZSTD compressed archives have any archive metadata.
+                readArchiveMetadata( decompressor );
+                files = String.valueOf( progressPrinter.maxFiles );
+                bytes = String.valueOf( progressPrinter.maxBytes );
+            }
+            return new DumpMetaData( format, files, bytes );
+        }
+    }
+
+    private void checkDatabasePresence( DatabaseLayout databaseLayout ) throws FileAlreadyExistsException
+    {
+        if ( databaseLayout.metadataStore().exists() )
+        {
+            throw new FileAlreadyExistsException( databaseLayout.metadataStore().getAbsolutePath() );
+        }
+    }
+
     private void createDestination( Path destination ) throws IOException
     {
         if ( !destination.toFile().exists() )
@@ -84,9 +118,9 @@ public class Loader
         }
     }
 
-    private void validatePath( Path path ) throws FileSystemException
+    private void validatePath( Path path, boolean validateExistence ) throws FileSystemException
     {
-        if ( exists( path ) )
+        if ( validateExistence && exists( path ) )
         {
             throw new FileAlreadyExistsException( path.toString() );
         }
@@ -136,31 +170,26 @@ public class Loader
 
     private ArchiveInputStream openArchiveIn( Path archive ) throws IOException, IncorrectFormat
     {
-        InputStream input = Files.newInputStream( archive );
-        InputStream decompressor;
         try
         {
-            decompressor = CompressionFormat.GZIP.decompress( input );
-        }
-        catch ( IOException e )
-        {
-            input.close(); // Reopen to reset file position.
-            input = Files.newInputStream( archive );
-            try
+            InputStream decompressor = CompressionFormat.decompress( () -> Files.newInputStream( archive ) );
+
+            if ( CompressionFormat.ZSTD.isFormat( decompressor ) )
             {
-                decompressor = CompressionFormat.ZSTD.decompress( input );
                 // Important: Only the ZSTD compressed archives have any archive metadata.
                 readArchiveMetadata( decompressor );
             }
-            catch ( IOException ex )
-            {
-                input.close();
-                ex.addSuppressed( e );
-                throw new IncorrectFormat( archive, ex );
-            }
-        }
 
-        return new TarArchiveInputStream( decompressor );
+            return new TarArchiveInputStream( decompressor );
+        }
+        catch ( NoSuchFileException ioe )
+        {
+            throw ioe;
+        }
+        catch ( IOException e )
+        {
+            throw new IncorrectFormat( archive, e );
+        }
     }
 
     /**
@@ -178,6 +207,20 @@ public class Loader
         else
         {
             throw new IOException( "Cannot read archive meta-data. I don't recognise this archive version: " + version + "." );
+        }
+    }
+
+    public static class DumpMetaData
+    {
+        public final String format;
+        public final String fileCount;
+        public final String byteCount;
+
+        public DumpMetaData( String format, String fileCount, String byteCount )
+        {
+            this.format = format;
+            this.fileCount = fileCount;
+            this.byteCount = byteCount;
         }
     }
 }

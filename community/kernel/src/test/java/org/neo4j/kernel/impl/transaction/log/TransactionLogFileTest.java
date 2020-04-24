@@ -19,18 +19,20 @@
  */
 package org.neo4j.kernel.impl.transaction.log;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.RuleChain;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.neo4j.internal.nativeimpl.NativeAccess;
+import org.neo4j.internal.nativeimpl.NativeCallResult;
 import org.neo4j.io.fs.FileSystemAbstraction;
-import org.neo4j.io.fs.OpenMode;
+import org.neo4j.io.fs.ReadableChannel;
 import org.neo4j.io.fs.StoreChannel;
+import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.kernel.impl.transaction.SimpleLogVersionRepository;
 import org.neo4j.kernel.impl.transaction.SimpleTransactionIdStore;
 import org.neo4j.kernel.impl.transaction.log.entry.IncompleteLogHeaderException;
@@ -38,50 +40,60 @@ import org.neo4j.kernel.impl.transaction.log.entry.LogHeader;
 import org.neo4j.kernel.impl.transaction.log.files.LogFile;
 import org.neo4j.kernel.impl.transaction.log.files.LogFiles;
 import org.neo4j.kernel.impl.transaction.log.files.LogFilesBuilder;
-import org.neo4j.kernel.lifecycle.LifeRule;
-import org.neo4j.test.rule.TestDirectory;
-import org.neo4j.test.rule.fs.DefaultFileSystemRule;
+import org.neo4j.kernel.lifecycle.LifeSupport;
+import org.neo4j.storageengine.api.LogVersionRepository;
+import org.neo4j.storageengine.api.StoreId;
+import org.neo4j.storageengine.api.TransactionIdStore;
+import org.neo4j.test.extension.Inject;
+import org.neo4j.test.extension.LifeExtension;
+import org.neo4j.test.extension.Neo4jLayoutExtension;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.neo4j.kernel.impl.transaction.log.TransactionIdStore.BASE_TX_COMMIT_TIMESTAMP;
+import static org.neo4j.kernel.impl.transaction.log.TestLogEntryReader.logEntryReader;
 import static org.neo4j.kernel.impl.transaction.log.entry.LogHeaderReader.readLogHeader;
+import static org.neo4j.kernel.impl.transaction.log.entry.LogVersions.CURRENT_FORMAT_LOG_HEADER_SIZE;
+import static org.neo4j.storageengine.api.TransactionIdStore.BASE_TX_COMMIT_TIMESTAMP;
 
-public class TransactionLogFileTest
+@Neo4jLayoutExtension
+@ExtendWith( LifeExtension.class )
+class TransactionLogFileTest
 {
-    private final TestDirectory directory = TestDirectory.testDirectory();
-    private final DefaultFileSystemRule fileSystemRule = new DefaultFileSystemRule();
-    private final LifeRule life = new LifeRule( true );
-
-    @Rule
-    public RuleChain ruleChain = RuleChain.outerRule( directory ).around( fileSystemRule ).around( life );
+    @Inject
+    private DatabaseLayout databaseLayout;
+    @Inject
+    private FileSystemAbstraction fileSystem;
+    @Inject
+    private LifeSupport life;
 
     private final LogVersionRepository logVersionRepository = new SimpleLogVersionRepository( 1L );
     private final TransactionIdStore transactionIdStore =
             new SimpleTransactionIdStore( 2L, 0, BASE_TX_COMMIT_TIMESTAMP, 0, 0 );
 
     @Test
-    public void skipLogFileWithoutHeader() throws IOException
+    void skipLogFileWithoutHeader() throws IOException
     {
-        FileSystemAbstraction fs = fileSystemRule.get();
-        LogFiles logFiles = LogFilesBuilder.builder( directory.databaseLayout(), fs )
-                                           .withTransactionIdStore( transactionIdStore )
-                                           .withLogVersionRepository( logVersionRepository ).build();
+        LogFiles logFiles = LogFilesBuilder.builder( databaseLayout, fileSystem )
+                .withTransactionIdStore( transactionIdStore )
+                .withLogVersionRepository( logVersionRepository )
+                .withLogEntryReader( logEntryReader() )
+                .withStoreId( StoreId.UNKNOWN )
+                .build();
         life.add( logFiles );
         life.start();
 
         // simulate new file without header presence
         logVersionRepository.incrementAndGetVersion();
-        fs.create( logFiles.getLogFileForVersion( logVersionRepository.getCurrentLogVersion() ) ).close();
-        transactionIdStore.transactionCommitted( 5L, 5L, 5L );
+        fileSystem.write( logFiles.getLogFileForVersion( logVersionRepository.getCurrentLogVersion() ) ).close();
+        transactionIdStore.transactionCommitted( 5L, 5, 5L );
 
         PhysicalLogicalTransactionStore.LogVersionLocator versionLocator = new PhysicalLogicalTransactionStore.LogVersionLocator( 4L );
         logFiles.accept( versionLocator );
@@ -91,14 +103,51 @@ public class TransactionLogFileTest
     }
 
     @Test
-    public void shouldOpenInFreshDirectoryAndFinallyAddHeader() throws Exception
+    void preAllocateOnStartAndEvictOnShutdownNewLogFile() throws IOException
+    {
+        final CapturingNativeAccess capturingNativeAccess = new CapturingNativeAccess();
+        LogFiles logFiles = LogFilesBuilder.builder( databaseLayout, fileSystem )
+                .withTransactionIdStore( transactionIdStore )
+                .withLogVersionRepository( logVersionRepository )
+                .withLogEntryReader( logEntryReader() )
+                .withStoreId( StoreId.UNKNOWN )
+                .withNativeAccess( capturingNativeAccess )
+                .build();
+
+        startStop( capturingNativeAccess, life );
+
+        assertEquals( 1, capturingNativeAccess.getPreallocateCounter() );
+        assertEquals( 1, capturingNativeAccess.getEvictionCounter() );
+        assertEquals( 0, capturingNativeAccess.getAdviseCounter() );
+        assertEquals( 0, capturingNativeAccess.getKeepCounter() );
+    }
+
+    @Test
+    void adviseOnStartAndEvictOnShutdownExistingLogFile() throws IOException
+    {
+        var capturingNativeAccess = new CapturingNativeAccess();
+
+        startStop( capturingNativeAccess, life );
+        capturingNativeAccess.reset();
+
+        startStop( capturingNativeAccess, new LifeSupport() );
+
+        assertEquals( 0, capturingNativeAccess.getPreallocateCounter() );
+        assertEquals( 1, capturingNativeAccess.getEvictionCounter() );
+        assertEquals( 1, capturingNativeAccess.getAdviseCounter() );
+        assertEquals( 1, capturingNativeAccess.getKeepCounter() );
+    }
+
+    @Test
+    void shouldOpenInFreshDirectoryAndFinallyAddHeader() throws Exception
     {
         // GIVEN
-        String name = "log";
-        FileSystemAbstraction fs = fileSystemRule.get();
-        LogFiles logFiles = LogFilesBuilder.builder( directory.databaseLayout(), fs )
+        LogFiles logFiles = LogFilesBuilder.builder( databaseLayout, fileSystem )
                 .withTransactionIdStore( transactionIdStore )
-                .withLogVersionRepository( logVersionRepository ).build();
+                .withLogVersionRepository( logVersionRepository )
+                .withLogEntryReader( logEntryReader() )
+                .withStoreId( StoreId.UNKNOWN )
+                .build();
 
         // WHEN
         life.start();
@@ -106,26 +155,29 @@ public class TransactionLogFileTest
         life.shutdown();
 
         // THEN
-        File file =  LogFilesBuilder.logFilesBasedOnlyBuilder( directory.databaseDir(), fs ).build().getLogFileForVersion( 1L );
-        LogHeader header = readLogHeader( fs, file );
-        assertEquals( 1L, header.logVersion );
-        assertEquals( 2L, header.lastCommittedTxId );
+        File file =  LogFilesBuilder.logFilesBasedOnlyBuilder( databaseLayout.getTransactionLogsDirectory(), fileSystem )
+                .withLogEntryReader( logEntryReader() )
+                .build().getLogFileForVersion( 1L );
+        LogHeader header = readLogHeader( fileSystem, file );
+        assertEquals( 1L, header.getLogVersion() );
+        assertEquals( 2L, header.getLastCommittedTxId() );
     }
 
     @Test
-    public void shouldWriteSomeDataIntoTheLog() throws Exception
+    void shouldWriteSomeDataIntoTheLog() throws Exception
     {
         // GIVEN
-        String name = "log";
-        FileSystemAbstraction fs = fileSystemRule.get();
-        LogFiles logFiles = LogFilesBuilder.builder( directory.databaseLayout(), fs )
+        LogFiles logFiles = LogFilesBuilder.builder( databaseLayout, fileSystem )
                 .withTransactionIdStore( transactionIdStore )
-                .withLogVersionRepository( logVersionRepository ).build();
+                .withLogVersionRepository( logVersionRepository )
+                .withLogEntryReader( logEntryReader() )
+                .withStoreId( StoreId.UNKNOWN )
+                .build();
         life.start();
         life.add( logFiles );
 
         // WHEN
-        FlushablePositionAwareChannel writer = logFiles.getLogFile().getWriter();
+        FlushablePositionAwareChecksumChannel writer = logFiles.getLogFile().getWriter();
         LogPositionMarker positionMarker = new LogPositionMarker();
         writer.getCurrentPosition( positionMarker );
         int intValue = 45;
@@ -135,7 +187,7 @@ public class TransactionLogFileTest
         writer.prepareForFlush().flush();
 
         // THEN
-        try ( ReadableClosableChannel reader = logFiles.getLogFile().getReader( positionMarker.newPosition() ) )
+        try ( ReadableChannel reader = logFiles.getLogFile().getReader( positionMarker.newPosition() ) )
         {
             assertEquals( intValue, reader.getInt() );
             assertEquals( longValue, reader.getLong() );
@@ -143,19 +195,21 @@ public class TransactionLogFileTest
     }
 
     @Test
-    public void shouldReadOlderLogs() throws Exception
+    void shouldReadOlderLogs() throws Exception
     {
         // GIVEN
-        FileSystemAbstraction fs = fileSystemRule.get();
-        LogFiles logFiles = LogFilesBuilder.builder( directory.databaseLayout(), fs )
+        LogFiles logFiles = LogFilesBuilder.builder( databaseLayout, fileSystem )
                 .withTransactionIdStore( transactionIdStore )
-                .withLogVersionRepository( logVersionRepository ).build();
+                .withLogVersionRepository( logVersionRepository )
+                .withLogEntryReader( logEntryReader() )
+                .withStoreId( StoreId.UNKNOWN )
+                .build();
         life.start();
         life.add( logFiles );
 
         // WHEN
         LogFile logFile = logFiles.getLogFile();
-        FlushablePositionAwareChannel writer = logFile.getWriter();
+        FlushablePositionAwareChecksumChannel writer = logFile.getWriter();
         LogPositionMarker positionMarker = new LogPositionMarker();
         writer.getCurrentPosition( positionMarker );
         LogPosition position1 = positionMarker.newPosition();
@@ -174,13 +228,13 @@ public class TransactionLogFileTest
         writer.prepareForFlush().flush();
 
         // THEN
-        try ( ReadableClosableChannel reader = logFile.getReader( position1 ) )
+        try ( ReadableChannel reader = logFile.getReader( position1 ) )
         {
             assertEquals( intValue, reader.getInt() );
             assertEquals( longValue, reader.getLong() );
             assertArrayEquals( someBytes, readBytes( reader, 40 ) );
         }
-        try ( ReadableClosableChannel reader = logFile.getReader( position2 ) )
+        try ( ReadableChannel reader = logFile.getReader( position2 ) )
         {
             assertEquals( longValue2, reader.getLong() );
             assertArrayEquals( someBytes, readBytes( reader, 40 ) );
@@ -188,19 +242,20 @@ public class TransactionLogFileTest
     }
 
     @Test
-    public void shouldVisitLogFile() throws Exception
+    void shouldVisitLogFile() throws Exception
     {
         // GIVEN
-        String name = "log";
-        FileSystemAbstraction fs = fileSystemRule.get();
-        LogFiles logFiles = LogFilesBuilder.builder( directory.databaseLayout(), fs )
+        LogFiles logFiles = LogFilesBuilder.builder( databaseLayout, fileSystem )
                 .withTransactionIdStore( transactionIdStore )
-                .withLogVersionRepository( logVersionRepository ).build();
+                .withLogVersionRepository( logVersionRepository )
+                .withLogEntryReader( logEntryReader() )
+                .withStoreId( StoreId.UNKNOWN )
+                .build();
         life.start();
         life.add( logFiles );
 
         LogFile logFile = logFiles.getLogFile();
-        FlushablePositionAwareChannel writer = logFile.getWriter();
+        FlushablePositionAwareChecksumChannel writer = logFile.getWriter();
         LogPositionMarker mark = new LogPositionMarker();
         writer.getCurrentPosition( mark );
         for ( int i = 0; i < 5; i++ )
@@ -224,65 +279,81 @@ public class TransactionLogFileTest
     }
 
     @Test
-    public void shouldCloseChannelInFailedAttemptToReadHeaderAfterOpen() throws Exception
+    void shouldCloseChannelInFailedAttemptToReadHeaderAfterOpen() throws Exception
     {
         // GIVEN a file which returns 1/2 log header size worth of bytes
         FileSystemAbstraction fs = mock( FileSystemAbstraction.class );
-        LogFiles logFiles = LogFilesBuilder.builder( directory.databaseLayout(), fs )
+        LogFiles logFiles = LogFilesBuilder.builder( databaseLayout, fs )
                 .withTransactionIdStore( transactionIdStore )
-                .withLogVersionRepository( logVersionRepository ).build();
+                .withLogVersionRepository( logVersionRepository )
+                .withLogEntryReader( logEntryReader() )
+                .build();
         int logVersion = 0;
         File logFile = logFiles.getLogFileForVersion( logVersion );
         StoreChannel channel = mock( StoreChannel.class );
-        when( channel.read( any( ByteBuffer.class ) ) ).thenReturn( LogHeader.LOG_HEADER_SIZE / 2 );
+        when( channel.read( any( ByteBuffer.class ) ) ).thenReturn( CURRENT_FORMAT_LOG_HEADER_SIZE / 2 );
         when( fs.fileExists( logFile ) ).thenReturn( true );
-        when( fs.open( eq( logFile ), any( OpenMode.class ) ) ).thenReturn( channel );
+        when( fs.read( eq( logFile ) ) ).thenReturn( channel );
 
         // WHEN
-        try
-        {
-            logFiles.openForVersion( logVersion );
-            fail( "Should have failed" );
-        }
-        catch ( IncompleteLogHeaderException e )
-        {
-            // THEN good
-            verify( channel ).close();
-        }
+        assertThrows( IncompleteLogHeaderException.class, () -> logFiles.openForVersion( logVersion ) );
+        verify( channel ).close();
     }
 
     @Test
-    public void shouldSuppressFailureToCloseChannelInFailedAttemptToReadHeaderAfterOpen() throws Exception
+    void shouldSuppressFailureToCloseChannelInFailedAttemptToReadHeaderAfterOpen() throws Exception
     {
         // GIVEN a file which returns 1/2 log header size worth of bytes
         FileSystemAbstraction fs = mock( FileSystemAbstraction.class );
-        LogFiles logFiles = LogFilesBuilder.builder( directory.databaseLayout(), fs )
+        LogFiles logFiles = LogFilesBuilder.builder( databaseLayout, fs )
                 .withTransactionIdStore( transactionIdStore )
-                .withLogVersionRepository( logVersionRepository ).build();
+                .withLogVersionRepository( logVersionRepository )
+                .withLogEntryReader( logEntryReader() )
+                .build();
         int logVersion = 0;
         File logFile = logFiles.getLogFileForVersion( logVersion );
         StoreChannel channel = mock( StoreChannel.class );
-        when( channel.read( any( ByteBuffer.class ) ) ).thenReturn( LogHeader.LOG_HEADER_SIZE / 2 );
+        when( channel.read( any( ByteBuffer.class ) ) ).thenReturn( CURRENT_FORMAT_LOG_HEADER_SIZE / 2 );
         when( fs.fileExists( logFile ) ).thenReturn( true );
-        when( fs.open( eq( logFile ), any( OpenMode.class ) ) ).thenReturn( channel );
+        when( fs.read( eq( logFile ) ) ).thenReturn( channel );
         doThrow( IOException.class ).when( channel ).close();
 
         // WHEN
-        try
-        {
-            logFiles.openForVersion( logVersion );
-            fail( "Should have failed" );
-        }
-        catch ( IncompleteLogHeaderException e )
-        {
-            // THEN good
-            verify( channel ).close();
-            assertEquals( 1, e.getSuppressed().length );
-            assertTrue( e.getSuppressed()[0] instanceof IOException );
-        }
+        IncompleteLogHeaderException exception =
+                assertThrows( IncompleteLogHeaderException.class, () -> logFiles.openForVersion( logVersion ) );
+        verify( channel ).close();
+        assertEquals( 1, exception.getSuppressed().length );
+        assertTrue( exception.getSuppressed()[0] instanceof IOException );
     }
 
-    private static byte[] readBytes( ReadableClosableChannel reader, int length ) throws IOException
+    @Test
+    void closeChannelThrowExceptionOnAttemptToAppendTransactionLogRecords() throws IOException
+    {
+        LogFiles logFiles = LogFilesBuilder.builder( databaseLayout, fileSystem )
+                .withTransactionIdStore( transactionIdStore )
+                .withLogVersionRepository( logVersionRepository )
+                .withLogEntryReader( logEntryReader() )
+                .withStoreId( StoreId.UNKNOWN )
+                .build();
+        life.start();
+        life.add( logFiles );
+
+        LogFile logFile = logFiles.getLogFile();
+        FlushablePositionAwareChecksumChannel writer = logFile.getWriter();
+
+        life.shutdown();
+
+        assertThrows( Throwable.class, () -> writer.put( (byte) 7 ) );
+        assertThrows( Throwable.class, () -> writer.putInt( 7 ) );
+        assertThrows( Throwable.class, () -> writer.putLong( 7 ) );
+        assertThrows( Throwable.class, () -> writer.putDouble( 7 ) );
+        assertThrows( Throwable.class, () -> writer.putFloat( 7 ) );
+        assertThrows( Throwable.class, () -> writer.putShort( (short) 7 ) );
+        assertThrows( Throwable.class, () -> writer.put( new byte[]{1, 2, 3}, 3 ) );
+        assertThrows( IllegalStateException.class, () -> writer.prepareForFlush().flush() );
+    }
+
+    private static byte[] readBytes( ReadableChannel reader, int length ) throws IOException
     {
         byte[] result = new byte[length];
         reader.get( result, length );
@@ -297,5 +368,96 @@ public class TransactionLogFileTest
             result[i] = (byte) (i % 5);
         }
         return result;
+    }
+
+    private void startStop( CapturingNativeAccess capturingNativeAccess, LifeSupport lifeSupport ) throws IOException
+    {
+        LogFiles logFiles = LogFilesBuilder.builder( databaseLayout, fileSystem )
+                            .withTransactionIdStore( transactionIdStore )
+                            .withLogVersionRepository( logVersionRepository )
+                            .withLogEntryReader( logEntryReader() )
+                            .withStoreId( StoreId.UNKNOWN )
+                            .withNativeAccess( capturingNativeAccess ).build();
+
+        lifeSupport.add( logFiles );
+        lifeSupport.start();
+
+        lifeSupport.shutdown();
+    }
+
+    private static class CapturingNativeAccess implements NativeAccess
+    {
+        private int evictionCounter;
+        private int adviseCounter;
+        private int preallocateCounter;
+        private int keepCounter;
+
+        @Override
+        public boolean isAvailable()
+        {
+            return true;
+        }
+
+        @Override
+        public NativeCallResult tryEvictFromCache( int fd )
+        {
+            evictionCounter++;
+            return NativeCallResult.SUCCESS;
+        }
+
+        @Override
+        public NativeCallResult tryAdviseSequentialAccess( int fd )
+        {
+            adviseCounter++;
+            return NativeCallResult.SUCCESS;
+        }
+
+        @Override
+        public NativeCallResult tryAdviseToKeepInCache( int fd )
+        {
+            keepCounter++;
+            return NativeCallResult.SUCCESS;
+        }
+
+        @Override
+        public NativeCallResult tryPreallocateSpace( int fd, long bytes )
+        {
+            preallocateCounter++;
+            return NativeCallResult.SUCCESS;
+        }
+
+        @Override
+        public String describe()
+        {
+            return "Test only";
+        }
+
+        public int getEvictionCounter()
+        {
+            return evictionCounter;
+        }
+
+        public int getAdviseCounter()
+        {
+            return adviseCounter;
+        }
+
+        public int getKeepCounter()
+        {
+            return keepCounter;
+        }
+
+        public int getPreallocateCounter()
+        {
+            return preallocateCounter;
+        }
+
+        public void reset()
+        {
+            adviseCounter = 0;
+            evictionCounter = 0;
+            preallocateCounter = 0;
+            keepCounter = 0;
+        }
     }
 }

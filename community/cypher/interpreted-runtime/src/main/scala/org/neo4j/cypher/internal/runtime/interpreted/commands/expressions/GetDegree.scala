@@ -19,29 +19,28 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.commands.expressions
 
-import org.neo4j.cypher.internal.runtime.QueryContext
-import org.neo4j.cypher.internal.v3_6.util.CypherTypeException
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
+import org.neo4j.cypher.internal.runtime.ExecutionContext
 import org.neo4j.cypher.internal.runtime.interpreted.commands.AstNode
 import org.neo4j.cypher.internal.runtime.interpreted.commands.values.KeyToken
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.QueryState
-import org.neo4j.cypher.internal.v3_6.expressions.SemanticDirection
+import org.neo4j.cypher.internal.v4_0.expressions.SemanticDirection
+import org.neo4j.exceptions.CypherTypeException
 import org.neo4j.values.AnyValue
 import org.neo4j.values.storable.Values
 import org.neo4j.values.virtual.NodeValue
 
 case class GetDegree(node: Expression, typ: Option[KeyToken], direction: SemanticDirection) extends NullInNullOutExpression(node) {
 
-  val getDegree: (QueryContext, Long) => Long = typ match {
-    case None    => (qtx, node) => qtx.nodeGetDegree(node, direction)
-    case Some(t) => (qtx, node) => t.getOptId(qtx) match {
+  val getDegree: (QueryState, Long) => Long = typ match {
+    case None    => (state, node) => state.query.nodeGetDegree(node, direction, state.cursors.nodeCursor)
+    case Some(t) => (state, node) => t.getOptId(state.query) match {
       case None            => 0
-      case Some(relTypeId) => qtx.nodeGetDegree(node, direction, relTypeId)
+      case Some(relTypeId) => state.query.nodeGetDegree(node, direction, relTypeId, state.cursors.nodeCursor)
     }
   }
 
   override def compute(value: AnyValue, m: ExecutionContext, state: QueryState): AnyValue = value match {
-    case n: NodeValue => Values.longValue(getDegree(state.query, n.id()))
+    case n: NodeValue => Values.longValue(getDegree(state, n.id()))
     case other   => throw new CypherTypeException(s"Type mismatch: expected a node but was $other of type ${other.getClass.getSimpleName}")
   }
 
@@ -50,6 +49,4 @@ case class GetDegree(node: Expression, typ: Option[KeyToken], direction: Semanti
   override def children: Seq[AstNode[_]] = Seq(node) ++ typ
 
   override def rewrite(f: Expression => Expression): Expression = f(GetDegree(node.rewrite(f), typ, direction))
-
-  override def symbolTableDependencies: Set[String] = node.symbolTableDependencies
 }

@@ -19,15 +19,13 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.commands.expressions
 
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
+import org.neo4j.cypher.internal.runtime.ExecutionContext
 import org.neo4j.cypher.internal.runtime.interpreted.commands.AstNode
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.QueryState
 import org.neo4j.cypher.operations.CypherFunctions
 import org.neo4j.values._
 
 case class ToIntegerFunction(a: Expression) extends NullInNullOutExpression(a) {
-
-  override def symbolTableDependencies: Set[String] = a.symbolTableDependencies
 
   override def arguments: Seq[Expression] = Seq(a)
 

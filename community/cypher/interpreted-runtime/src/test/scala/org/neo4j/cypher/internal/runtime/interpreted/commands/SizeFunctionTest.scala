@@ -19,13 +19,13 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.commands
 
-import org.neo4j.cypher.internal.v3_6.util.CypherTypeException
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
+import org.neo4j.cypher.internal.runtime.ExecutionContext
 import org.neo4j.cypher.internal.runtime.ImplicitValueConversion._
 import org.neo4j.cypher.internal.runtime.PathImpl
 import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.{SizeFunction, Variable}
 import org.neo4j.cypher.internal.runtime.interpreted.QueryStateHelper
-import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.v4_0.util.test_helpers.CypherFunSuite
+import org.neo4j.exceptions.CypherTypeException
 import org.neo4j.graphdb.{Node, Relationship}
 import org.neo4j.values.storable.Values.longValue
 
@@ -59,7 +59,7 @@ class SizeFunctionTest extends CypherFunSuite {
 
   test("size cannot be used on paths") {
     //given
-    val p = new PathImpl(mock[Node], mock[Relationship], mock[Node])
+    val p = PathImpl(mock[Node], mock[Relationship], mock[Node])
     val m = ExecutionContext.from("p" -> p)
     val sizeFunction = SizeFunction(Variable("p"))
 

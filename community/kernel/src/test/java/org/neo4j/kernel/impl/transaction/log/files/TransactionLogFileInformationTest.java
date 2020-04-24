@@ -19,25 +19,25 @@
  */
 package org.neo4j.kernel.impl.transaction.log.files;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import org.neo4j.kernel.impl.transaction.log.LogHeaderCache;
 import org.neo4j.kernel.impl.transaction.log.entry.LogHeader;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.neo4j.kernel.impl.transaction.log.entry.LogVersions.CURRENT_FORMAT_LOG_HEADER_SIZE;
 
-public class TransactionLogFileInformationTest
+class TransactionLogFileInformationTest
 {
-    private LogFiles logFiles = mock( TransactionLogFiles.class );
-    private LogHeaderCache logHeaderCache = mock( LogHeaderCache.class );
-    private TransactionLogFilesContext context = mock( TransactionLogFilesContext.class );
+    private final LogFiles logFiles = mock( TransactionLogFiles.class );
+    private final LogHeaderCache logHeaderCache = mock( LogHeaderCache.class );
+    private final TransactionLogFilesContext context = mock( TransactionLogFilesContext.class );
 
     @Test
-    public void shouldReadAndCacheFirstCommittedTransactionIdForAGivenVersionWhenNotCached() throws Exception
+    void shouldReadAndCacheFirstCommittedTransactionIdForAGivenVersionWhenNotCached() throws Exception
     {
         TransactionLogFileInformation info = new TransactionLogFileInformation( logFiles, logHeaderCache, context );
         long expected = 5;
@@ -45,30 +45,30 @@ public class TransactionLogFileInformationTest
         long version = 10L;
         when( logHeaderCache.getLogHeader( version ) ).thenReturn( null );
         when( logFiles.versionExists( version ) ).thenReturn( true );
-        when( logFiles.extractHeader( version ) ).thenReturn(
-                new LogHeader( (byte) -1/*ignored*/, -1L/*ignored*/, expected - 1L )
-        );
+        LogHeader expectedHeader = new LogHeader( (byte) -1/*ignored*/, -1L/*ignored*/, expected - 1L, CURRENT_FORMAT_LOG_HEADER_SIZE );
+        when( logFiles.extractHeader( version ) ).thenReturn( expectedHeader );
 
         long firstCommittedTxId = info.getFirstEntryId( version );
         assertEquals( expected, firstCommittedTxId );
-        verify( logHeaderCache, times( 1 ) ).putHeader( version, expected - 1 );
+        verify( logHeaderCache ).putHeader( version, expectedHeader );
     }
 
     @Test
-    public void shouldReadFirstCommittedTransactionIdForAGivenVersionWhenCached() throws Exception
+    void shouldReadFirstCommittedTransactionIdForAGivenVersionWhenCached() throws Exception
     {
         TransactionLogFileInformation info = new TransactionLogFileInformation( logFiles, logHeaderCache, context );
         long expected = 5;
 
         long version = 10L;
-        when( logHeaderCache.getLogHeader( version ) ).thenReturn( expected - 1 );
+        LogHeader expectedHeader = new LogHeader( (byte) -1/*ignored*/, -1L/*ignored*/, expected - 1L, CURRENT_FORMAT_LOG_HEADER_SIZE );
+        when( logHeaderCache.getLogHeader( version ) ).thenReturn( expectedHeader );
 
         long firstCommittedTxId = info.getFirstEntryId( version );
         assertEquals( expected, firstCommittedTxId );
     }
 
     @Test
-    public void shouldReadAndCacheFirstCommittedTransactionIdWhenNotCached() throws Exception
+    void shouldReadAndCacheFirstCommittedTransactionIdWhenNotCached() throws Exception
     {
         TransactionLogFileInformation info = new TransactionLogFileInformation( logFiles, logHeaderCache, context );
         long expected = 5;
@@ -77,18 +77,17 @@ public class TransactionLogFileInformationTest
         when( logFiles.getHighestLogVersion() ).thenReturn( version );
         when( logHeaderCache.getLogHeader( version ) ).thenReturn( null );
         when( logFiles.versionExists( version ) ).thenReturn( true );
-        when( logFiles.extractHeader( version ) ).thenReturn(
-                new LogHeader( (byte) -1/*ignored*/, -1L/*ignored*/, expected - 1L )
-        );
+        LogHeader expectedHeader = new LogHeader( (byte) -1/*ignored*/, -1L/*ignored*/, expected - 1L, CURRENT_FORMAT_LOG_HEADER_SIZE );
+        when( logFiles.extractHeader( version ) ).thenReturn( expectedHeader );
         when( logFiles.hasAnyEntries( version ) ).thenReturn( true );
 
         long firstCommittedTxId = info.getFirstExistingEntryId();
         assertEquals( expected, firstCommittedTxId );
-        verify( logHeaderCache, times( 1 ) ).putHeader( version, expected - 1 );
+        verify( logHeaderCache ).putHeader( version, expectedHeader );
     }
 
     @Test
-    public void shouldReadFirstCommittedTransactionIdWhenCached() throws Exception
+    void shouldReadFirstCommittedTransactionIdWhenCached() throws Exception
     {
         TransactionLogFileInformation info = new TransactionLogFileInformation( logFiles, logHeaderCache, context );
         long expected = 5;
@@ -96,7 +95,9 @@ public class TransactionLogFileInformationTest
         long version = 10L;
         when( logFiles.getHighestLogVersion() ).thenReturn( version );
         when( logFiles.versionExists( version ) ).thenReturn( true );
-        when( logHeaderCache.getLogHeader( version ) ).thenReturn( expected - 1 );
+
+        LogHeader expectedHeader = new LogHeader( (byte) -1/*ignored*/, -1L/*ignored*/, expected - 1L, CURRENT_FORMAT_LOG_HEADER_SIZE );
+        when( logHeaderCache.getLogHeader( version ) ).thenReturn( expectedHeader );
         when( logFiles.hasAnyEntries( version ) ).thenReturn( true );
 
         long firstCommittedTxId = info.getFirstExistingEntryId();
@@ -104,7 +105,7 @@ public class TransactionLogFileInformationTest
     }
 
     @Test
-    public void shouldReturnNothingWhenThereAreNoTransactions() throws Exception
+    void shouldReturnNothingWhenThereAreNoTransactions() throws Exception
     {
         TransactionLogFileInformation info = new TransactionLogFileInformation( logFiles, logHeaderCache, context );
 

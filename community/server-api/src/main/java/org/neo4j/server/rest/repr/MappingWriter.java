@@ -21,14 +21,9 @@ package org.neo4j.server.rest.repr;
 
 public abstract class MappingWriter
 {
-    MappingWriter newMapping( RepresentationType type, String param )
+    public MappingWriter newMapping( RepresentationType type, String param )
     {
         return newMapping( type.valueName, param );
-    }
-
-    protected boolean isInteractive()
-    {
-        return false;
     }
 
     protected abstract MappingWriter newMapping( String type, String key );
@@ -88,5 +83,5 @@ public abstract class MappingWriter
 
     protected abstract void writeValue( String type, String key, Object value );
 
-    protected abstract void done();
+    public abstract void done();
 }

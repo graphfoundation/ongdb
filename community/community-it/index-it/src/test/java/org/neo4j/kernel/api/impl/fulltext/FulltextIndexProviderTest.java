@@ -19,110 +19,192 @@
  */
 package org.neo4j.kernel.api.impl.fulltext;
 
+import org.eclipse.collections.api.set.primitive.MutableLongSet;
+import org.eclipse.collections.impl.factory.primitive.LongSets;
 import org.eclipse.collections.impl.set.mutable.primitive.LongHashSet;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.jupiter.api.parallel.ResourceLock;
 import org.junit.rules.Timeout;
 
-import java.util.Optional;
-import java.util.Properties;
+import java.io.File;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-import org.neo4j.collection.primitive.Primitive;
-import org.neo4j.collection.primitive.PrimitiveLongSet;
+import org.neo4j.common.EntityType;
+import org.neo4j.configuration.Config;
+import org.neo4j.exceptions.KernelException;
 import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Relationship;
 import org.neo4j.graphdb.RelationshipType;
 import org.neo4j.graphdb.Transaction;
+import org.neo4j.graphdb.schema.IndexCreator;
 import org.neo4j.graphdb.schema.IndexDefinition;
-import org.neo4j.internal.kernel.api.IndexReference;
-import org.neo4j.internal.kernel.api.InternalIndexState;
-import org.neo4j.internal.kernel.api.exceptions.InvalidTransactionTypeKernelException;
+import org.neo4j.graphdb.schema.IndexSetting;
+import org.neo4j.graphdb.schema.Schema;
+import org.neo4j.index.internal.gbptree.RecoveryCleanupWorkCollector;
+import org.neo4j.internal.id.DefaultIdGeneratorFactory;
+import org.neo4j.internal.kernel.api.IndexQuery;
+import org.neo4j.internal.kernel.api.IndexReadSession;
+import org.neo4j.internal.kernel.api.NodeValueIndexCursor;
+import org.neo4j.internal.kernel.api.Read;
+import org.neo4j.internal.kernel.api.RelationshipIndexCursor;
+import org.neo4j.internal.kernel.api.SchemaWrite;
+import org.neo4j.internal.kernel.api.TokenRead;
 import org.neo4j.internal.kernel.api.exceptions.TransactionFailureException;
-import org.neo4j.internal.kernel.api.exceptions.schema.IndexNotFoundKernelException;
-import org.neo4j.internal.kernel.api.exceptions.schema.SchemaKernelException;
 import org.neo4j.internal.kernel.api.security.LoginContext;
+import org.neo4j.internal.recordstorage.SchemaStorage;
+import org.neo4j.internal.recordstorage.StoreTokens;
+import org.neo4j.internal.schema.IndexConfig;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.internal.schema.IndexOrder;
+import org.neo4j.internal.schema.IndexPrototype;
+import org.neo4j.internal.schema.IndexType;
+import org.neo4j.internal.schema.SchemaDescriptor;
+import org.neo4j.io.pagecache.PageCache;
+import org.neo4j.io.pagecache.impl.muninn.StandalonePageCacheFactory;
 import org.neo4j.kernel.api.KernelTransaction;
-import org.neo4j.kernel.api.schema.MultiTokenSchemaDescriptor;
+import org.neo4j.kernel.api.index.IndexProgressor;
 import org.neo4j.kernel.impl.api.KernelImpl;
 import org.neo4j.kernel.impl.api.KernelTransactionImplementation;
-import org.neo4j.kernel.impl.api.index.IndexProviderMap;
-import org.neo4j.storageengine.api.EntityType;
-import org.neo4j.storageengine.api.schema.IndexDescriptor;
-import org.neo4j.test.rule.DatabaseRule;
-import org.neo4j.test.rule.EmbeddedDatabaseRule;
+import org.neo4j.kernel.impl.coreapi.InternalTransaction;
+import org.neo4j.kernel.impl.newapi.ExtendedNodeValueIndexCursorAdapter;
+import org.neo4j.kernel.impl.scheduler.JobSchedulerFactory;
+import org.neo4j.kernel.impl.store.NeoStores;
+import org.neo4j.kernel.impl.store.SchemaStore;
+import org.neo4j.kernel.impl.store.StoreFactory;
+import org.neo4j.logging.NullLogProvider;
+import org.neo4j.scheduler.JobScheduler;
+import org.neo4j.test.rule.DbmsRule;
+import org.neo4j.test.rule.EmbeddedDbmsRule;
 import org.neo4j.test.rule.VerboseTimeout;
+import org.neo4j.token.TokenHolders;
+import org.neo4j.values.storable.Value;
+import org.neo4j.values.storable.Values;
 
 import static java.lang.String.format;
+import static java.util.Objects.requireNonNull;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.greaterThan;
+import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.neo4j.graphdb.Label.label;
-import static org.neo4j.kernel.api.impl.fulltext.FulltextIndexProviderFactory.DESCRIPTOR;
-import static org.neo4j.kernel.api.impl.fulltext.FulltextProceduresTest.NODE_CREATE;
-import static org.neo4j.kernel.api.impl.fulltext.FulltextProceduresTest.RELATIONSHIP_CREATE;
-import static org.neo4j.kernel.api.impl.fulltext.FulltextProceduresTest.array;
+import static org.neo4j.internal.kernel.api.IndexQuery.fulltextSearch;
+import static org.neo4j.internal.schema.IndexType.FULLTEXT;
+import static org.neo4j.kernel.api.impl.fulltext.FulltextIndexProceduresUtil.NODE_CREATE;
+import static org.neo4j.kernel.api.impl.fulltext.FulltextIndexProceduresUtil.RELATIONSHIP_CREATE;
+import static org.neo4j.kernel.api.impl.fulltext.FulltextIndexProceduresUtil.asCypherStringsList;
 import static org.neo4j.kernel.api.impl.fulltext.FulltextProceduresTest.assertQueryFindsIds;
-import static org.neo4j.kernel.api.schema.SchemaDescriptorFactory.multiToken;
+import static org.neo4j.kernel.impl.index.schema.FulltextIndexProviderFactory.DESCRIPTOR;
 
 public class FulltextIndexProviderTest
 {
     private static final String NAME = "fulltext";
 
     @Rule
-    public Timeout timeout = VerboseTimeout.builder().withTimeout( 1, TimeUnit.MINUTES ).build();
+    public Timeout timeout = VerboseTimeout.builder().withTimeout( 10, TimeUnit.MINUTES ).build();
 
     @Rule
-    public DatabaseRule db = new EmbeddedDatabaseRule();
+    public DbmsRule db = new EmbeddedDbmsRule();
 
     private Node node1;
     private Node node2;
+    private int labelIdHej;
+    private int labelIdHa;
+    private int labelIdHe;
+    private int propIdHej;
+    private int propIdHa;
+    private int propIdHe;
+    private int propIdHo;
 
     @Before
     public void prepDB()
     {
+        Label hej = label( "hej" );
+        Label ha = label( "ha" );
+        Label he = label( "he" );
         try ( Transaction transaction = db.beginTx() )
         {
-            node1 = db.createNode( label( "hej" ), label( "ha" ), label( "he" ) );
+            node1 = transaction.createNode( hej, ha, he );
             node1.setProperty( "hej", "value" );
             node1.setProperty( "ha", "value1" );
             node1.setProperty( "he", "value2" );
             node1.setProperty( "ho", "value3" );
-            node1.setProperty( "hi", "value4" );
-            node2 = db.createNode();
+            node2 = transaction.createNode();
             Relationship rel = node1.createRelationshipTo( node2, RelationshipType.withName( "hej" ) );
             rel.setProperty( "hej", "valuuu" );
             rel.setProperty( "ha", "value1" );
             rel.setProperty( "he", "value2" );
             rel.setProperty( "ho", "value3" );
-            rel.setProperty( "hi", "value4" );
 
-            transaction.success();
+            transaction.commit();
+        }
+
+        try ( Transaction tx = db.beginTx() )
+        {
+            TokenRead tokenRead = tokenRead( tx );
+            labelIdHej = tokenRead.nodeLabel( hej.name() );
+            labelIdHa = tokenRead.nodeLabel( ha.name() );
+            labelIdHe = tokenRead.nodeLabel( he.name() );
+            propIdHej = tokenRead.propertyKey( "hej" );
+            propIdHa = tokenRead.propertyKey( "ha" );
+            propIdHe = tokenRead.propertyKey( "he" );
+            propIdHo = tokenRead.propertyKey( "ho" );
+            tx.commit();
         }
     }
 
     @Test
     public void createFulltextIndex() throws Exception
     {
-        IndexReference fulltextIndex = createIndex( new int[]{7, 8, 9}, new int[]{2, 3, 4} );
+        IndexDescriptor fulltextIndex = createIndex( new int[]{labelIdHej, labelIdHa, labelIdHe}, new int[]{propIdHej, propIdHa, propIdHe} );
         try ( KernelTransactionImplementation transaction = getKernelTransaction() )
         {
-            IndexReference descriptor = transaction.schemaRead().indexGetForName( NAME );
+            IndexDescriptor descriptor = transaction.schemaRead().indexGetForName( NAME );
             assertEquals( descriptor.schema(), fulltextIndex.schema() );
             transaction.success();
         }
     }
 
     @Test
+    public void shouldHaveAReasonableDirectoryStructure() throws Exception
+    {
+        createIndex( new int[]{labelIdHej, labelIdHa, labelIdHe}, new int[]{propIdHej, propIdHa, propIdHe} );
+        try ( Transaction tx = db.beginTx() )
+        {
+            tx.schema().awaitIndexesOnline( 1, TimeUnit.HOURS );
+            tx.commit();
+        }
+        try ( KernelTransactionImplementation transaction = getKernelTransaction() )
+        {
+            IndexDescriptor descriptor = transaction.schemaRead().indexGetForName( NAME );
+            File indexDir = Path.of( db.databaseLayout().databaseDirectory().getAbsolutePath(),
+                    "schema", "index", descriptor.getIndexProvider().name(), "" + descriptor.getId() ).toFile();
+            List<File> listFiles = List.of( requireNonNull( indexDir.listFiles() ) );
+            assertTrue( listFiles.contains( new File( indexDir, "failure-message" ) ) );
+            assertTrue( listFiles.contains( new File( indexDir, "1" ) ) );
+            assertTrue( listFiles.contains( new File( indexDir, indexDir.getName() + ".tx" ) ) );
+        }
+    }
+
+    @Test
     public void createAndRetainFulltextIndex() throws Exception
     {
-        IndexReference fulltextIndex = createIndex( new int[]{7, 8, 9}, new int[]{2, 3, 4} );
-        db.restartDatabase( DatabaseRule.RestartAction.EMPTY );
+        IndexDescriptor fulltextIndex = createIndex( new int[]{labelIdHej, labelIdHa, labelIdHe}, new int[]{propIdHej, propIdHa, propIdHe} );
+        db.restartDatabase( DbmsRule.RestartAction.EMPTY );
 
         verifyThatFulltextIndexIsPresent( fulltextIndex );
     }
@@ -130,16 +212,17 @@ public class FulltextIndexProviderTest
     @Test
     public void createAndRetainRelationshipFulltextIndex() throws Exception
     {
-        IndexReference indexReference;
+        IndexDescriptor indexReference;
         try ( KernelTransactionImplementation transaction = getKernelTransaction() )
         {
-            MultiTokenSchemaDescriptor multiTokenSchemaDescriptor = multiToken( new int[]{0, 1, 2}, EntityType.RELATIONSHIP, 0, 1, 2, 3 );
-            FulltextSchemaDescriptor schema = new FulltextSchemaDescriptor( multiTokenSchemaDescriptor, new Properties() );
-            indexReference = transaction.schemaWrite().indexCreate( schema, DESCRIPTOR.name(), Optional.of( "fulltext" ) );
+            SchemaDescriptor schema = SchemaDescriptor.fulltext( EntityType.RELATIONSHIP, new int[]{labelIdHej, labelIdHa, labelIdHe},
+                    new int[]{propIdHej, propIdHa, propIdHe, propIdHo} );
+            IndexPrototype prototype = IndexPrototype.forSchema( schema, DESCRIPTOR ).withIndexType( FULLTEXT ).withName( "fulltext" );
+            indexReference = transaction.schemaWrite().indexCreate( prototype );
             transaction.success();
         }
         await( indexReference );
-        db.restartDatabase( DatabaseRule.RestartAction.EMPTY );
+        db.restartDatabase( DbmsRule.RestartAction.EMPTY );
 
         verifyThatFulltextIndexIsPresent( indexReference );
     }
@@ -147,44 +230,43 @@ public class FulltextIndexProviderTest
     @Test
     public void createAndQueryFulltextIndex() throws Exception
     {
-        IndexReference indexReference;
-        FulltextIndexProvider provider = (FulltextIndexProvider) db.resolveDependency( IndexProviderMap.class ).lookup( DESCRIPTOR );
-        indexReference = createIndex( new int[]{0, 1, 2}, new int[]{0, 1, 2, 3} );
+        IndexDescriptor indexReference;
+        indexReference = createIndex( new int[]{labelIdHej, labelIdHa, labelIdHe}, new int[]{propIdHej, propIdHa, propIdHe, propIdHo} );
         await( indexReference );
-        long thirdNodeid;
-        thirdNodeid = createTheThirdNode();
-        verifyNodeData( provider, thirdNodeid );
-        db.restartDatabase( DatabaseRule.RestartAction.EMPTY );
-        provider = (FulltextIndexProvider) db.resolveDependency( IndexProviderMap.class ).lookup( DESCRIPTOR );
-        verifyNodeData( provider, thirdNodeid );
+        long thirdNodeId;
+        thirdNodeId = createTheThirdNode();
+        verifyNodeData( thirdNodeId );
+        db.restartDatabase( DbmsRule.RestartAction.EMPTY );
+        verifyNodeData( thirdNodeId );
     }
 
     @Test
     public void createAndQueryFulltextRelationshipIndex() throws Exception
     {
-        FulltextIndexProvider provider = (FulltextIndexProvider) db.resolveDependency( IndexProviderMap.class ).lookup( DESCRIPTOR );
-        IndexReference indexReference;
+        IndexDescriptor indexReference;
         try ( KernelTransactionImplementation transaction = getKernelTransaction() )
         {
-            MultiTokenSchemaDescriptor multiTokenSchemaDescriptor = multiToken( new int[]{0, 1, 2}, EntityType.RELATIONSHIP, 0, 1, 2, 3 );
-            FulltextSchemaDescriptor schema = new FulltextSchemaDescriptor( multiTokenSchemaDescriptor, new Properties() );
-            indexReference = transaction.schemaWrite().indexCreate( schema, DESCRIPTOR.name(), Optional.of( "fulltext" ) );
+            SchemaDescriptor schema = SchemaDescriptor.fulltext( EntityType.RELATIONSHIP, new int[]{labelIdHej, labelIdHa, labelIdHe},
+                    new int[]{propIdHej, propIdHa, propIdHe, propIdHo} );
+            IndexPrototype prototype = IndexPrototype.forSchema( schema, DESCRIPTOR ).withIndexType( FULLTEXT ).withName( "fulltext" );
+            indexReference = transaction.schemaWrite().indexCreate( prototype );
             transaction.success();
         }
         await( indexReference );
         long secondRelId;
         try ( Transaction transaction = db.beginTx() )
         {
-            Relationship ho = node1.createRelationshipTo( node2, RelationshipType.withName( "ho" ) );
+            Relationship ho = transaction.getNodeById( node1.getId() )
+                    .createRelationshipTo( transaction.getNodeById( node2.getId() ),
+                            RelationshipType.withName( "ho" ) );
             secondRelId = ho.getId();
             ho.setProperty( "hej", "villa" );
             ho.setProperty( "ho", "value3" );
-            transaction.success();
+            transaction.commit();
         }
-        verifyRelationshipData( provider, secondRelId );
-        db.restartDatabase( DatabaseRule.RestartAction.EMPTY );
-        provider = (FulltextIndexProvider) db.resolveDependency( IndexProviderMap.class ).lookup( DESCRIPTOR );
-        verifyRelationshipData( provider, secondRelId );
+        verifyRelationshipData( secondRelId );
+        db.restartDatabase( DbmsRule.RestartAction.EMPTY );
+        verifyRelationshipData( secondRelId );
     }
 
     @Test
@@ -192,14 +274,18 @@ public class FulltextIndexProviderTest
     {
         try ( Transaction tx = db.beginTx() )
         {
-            db.execute( format( NODE_CREATE, "nodeIndex", array( "Label1", "Label2" ), array( "prop1", "prop2" ) ) ).close();
-            db.execute( format( RELATIONSHIP_CREATE, "relIndex", array( "RelType1", "RelType2" ), array( "prop1", "prop2" ) ) ).close();
-            tx.success();
+            tx.execute( format( NODE_CREATE, "nodeIndex",
+                    asCypherStringsList( "Label1", "Label2" ),
+                    asCypherStringsList( "prop1", "prop2" ) ) ).close();
+            tx.execute( format( RELATIONSHIP_CREATE, "relIndex",
+                    asCypherStringsList( "RelType1", "RelType2" ),
+                    asCypherStringsList( "prop1", "prop2" ) ) ).close();
+            tx.commit();
         }
 
         try ( Transaction tx = db.beginTx() )
         {
-            for ( IndexDefinition index : db.schema().getIndexes() )
+            for ( IndexDefinition index : tx.schema().getIndexes() )
             {
                 assertFalse( index.isConstraintIndex() );
                 assertTrue( index.isMultiTokenIndex() );
@@ -208,14 +294,6 @@ public class FulltextIndexProviderTest
                 {
                     assertFalse( index.isRelationshipIndex() );
                     assertThat( index.getLabels(), containsInAnyOrder( Label.label( "Label1" ), Label.label( "Label2" ) ) );
-                    try
-                    {
-                        index.getLabel();
-                        fail( "index.getLabel() on multi-token IndexDefinition should have thrown." );
-                    }
-                    catch ( IllegalStateException ignore )
-                    {
-                    }
                     try
                     {
                         index.getRelationshipTypes();
@@ -232,14 +310,6 @@ public class FulltextIndexProviderTest
                             containsInAnyOrder( RelationshipType.withName( "RelType1" ), RelationshipType.withName( "RelType2" ) ) );
                     try
                     {
-                        index.getRelationshipType();
-                        fail( "index.getRelationshipType() on multi-token IndexDefinition should have thrown." );
-                    }
-                    catch ( IllegalStateException ignore )
-                    {
-                    }
-                    try
-                    {
                         index.getLabels();
                         fail( "index.getLabels() on node IndexDefinition should have thrown." );
                     }
@@ -248,7 +318,7 @@ public class FulltextIndexProviderTest
                     }
                 }
             }
-            tx.success();
+            tx.commit();
         }
     }
 
@@ -279,83 +349,456 @@ public class FulltextIndexProviderTest
         {
             for ( int i = 0; i < 100; i++ )
             {
-                Node node1 = db.createNode( label1 );
+                Node node1 = tx.createNode( label1 );
                 node1.setProperty( prop1, val1 );
                 nodes1.add( node1.getId() );
                 Relationship rel1 = node1.createRelationshipTo( node1, relType1 );
                 rel1.setProperty( prop1, val1 );
                 rels1.add( rel1.getId() );
 
-                Node node2 = db.createNode( label2 );
+                Node node2 = tx.createNode( label2 );
                 node2.setProperty( prop2, val2 );
                 nodes2.add( node2.getId() );
                 Relationship rel2 = node1.createRelationshipTo( node2, relType2 );
                 rel2.setProperty( prop2, val2 );
                 rels2.add( rel2.getId() );
 
-                Node node3 = db.createNode( label3 );
+                Node node3 = tx.createNode( label3 );
                 node3.setProperty( prop3, val3 );
                 nodes3.add( node3.getId() );
                 Relationship rel3 = node1.createRelationshipTo( node3, relType3 );
                 rel3.setProperty( prop3, val3 );
                 rels3.add( rel3.getId() );
             }
-            tx.success();
+            tx.commit();
         }
 
         // Test that multi-token node indexes can be waited for.
         try ( Transaction tx = db.beginTx() )
         {
-            db.execute( format( NODE_CREATE, "nodeIndex",
-                    array( label1.name(), label2.name(), label3.name() ),
-                    array( prop1, prop2, prop3 ) ) ).close();
-            tx.success();
+            tx.execute( format( NODE_CREATE, "nodeIndex",
+                    asCypherStringsList( label1.name(), label2.name(), label3.name() ),
+                    asCypherStringsList( prop1, prop2, prop3 ) ) ).close();
+            tx.commit();
         }
 
         try ( Transaction tx = db.beginTx() )
         {
-            db.schema().awaitIndexesOnline( 10, TimeUnit.SECONDS );
-            tx.success();
+            tx.schema().awaitIndexesOnline( 10, TimeUnit.SECONDS );
+            tx.commit();
         }
 
-        try ( Transaction tx = db.beginTx() )
-        {
-            assertQueryFindsIds( db, true, "nodeIndex", "foo", nodes1 );
-            assertQueryFindsIds( db, true, "nodeIndex", "bar", nodes2 );
-            assertQueryFindsIds( db, true, "nodeIndex", "baz", nodes3 );
-            tx.success();
-        }
+        assertQueryFindsIds( db, true, "nodeIndex", "foo", nodes1 );
+        assertQueryFindsIds( db, true, "nodeIndex", "bar", nodes2 );
+        assertQueryFindsIds( db, true, "nodeIndex", "baz", nodes3 );
 
         // Test that multi-token relationship indexes can be waited for.
         try ( Transaction tx = db.beginTx() )
         {
-            db.execute( format( RELATIONSHIP_CREATE, "relIndex",
-                    array( relType1.name(), relType2.name(), relType3.name() ),
-                    array( prop1, prop2, prop3 ) ) ).close();
-            tx.success();
+            tx.execute( format( RELATIONSHIP_CREATE, "relIndex",
+                    asCypherStringsList( relType1.name(), relType2.name(), relType3.name() ),
+                    asCypherStringsList( prop1, prop2, prop3 ) ) ).close();
+            tx.commit();
         }
 
         try ( Transaction tx = db.beginTx() )
         {
-            db.schema().awaitIndexesOnline( 10, TimeUnit.SECONDS );
-            tx.success();
+            tx.schema().awaitIndexesOnline( 10, TimeUnit.SECONDS );
+            tx.commit();
         }
 
+        assertQueryFindsIds( db, false, "relIndex", "foo", rels1 );
+        assertQueryFindsIds( db, false, "relIndex", "bar", rels2 );
+        assertQueryFindsIds( db, false, "relIndex", "baz", rels3 );
+    }
+
+    @Test
+    public void queryingWithIndexProgressorMustProvideScore() throws Exception
+    {
+        long nodeId = createTheThirdNode();
+        IndexDescriptor index;
+        index = createIndex( new int[]{labelIdHej, labelIdHa, labelIdHe}, new int[]{propIdHej, propIdHa, propIdHe, propIdHo} );
+        await( index );
+        List<String> acceptedEntities = new ArrayList<>();
+        try ( KernelTransactionImplementation ktx = getKernelTransaction() )
+        {
+            NodeValueIndexCursor cursor = new ExtendedNodeValueIndexCursorAdapter()
+            {
+                private long nodeReference;
+                private IndexProgressor progressor;
+
+                @Override
+                public long nodeReference()
+                {
+                    return nodeReference;
+                }
+
+                @Override
+                public boolean next()
+                {
+                    return progressor.next();
+                }
+
+                @Override
+                public void initialize( IndexDescriptor descriptor, IndexProgressor progressor,
+                        IndexQuery[] query, IndexOrder indexOrder, boolean needsValues,
+                        boolean indexIncludesTransactionState )
+                {
+                    this.progressor = progressor;
+                }
+
+                @Override
+                public boolean acceptEntity( long reference, float score, Value... values )
+                {
+                    this.nodeReference = reference;
+                    assertFalse( "score should not be NaN", Float.isNaN( score ) );
+                    assertThat( "score must be positive", score, greaterThan( 0.0f ) );
+                    acceptedEntities.add( "reference = " + reference + ", score = " + score + ", " + Arrays.toString( values ) );
+                    return true;
+                }
+            };
+            Read read = ktx.dataRead();
+            IndexReadSession indexSession = ktx.dataRead().indexReadSession( index );
+            read.nodeIndexSeek( indexSession, cursor, IndexOrder.NONE, false, fulltextSearch( "hej:\"villa\"" ) );
+            int counter = 0;
+            while ( cursor.next() )
+            {
+                assertThat( cursor.nodeReference(), is( nodeId ) );
+                counter++;
+            }
+            assertThat( counter, is( 1 ) );
+            assertThat( acceptedEntities.size(), is( 1 ) );
+            acceptedEntities.clear();
+        }
+    }
+
+    @Test
+    public void validateMustThrowIfSchemaIsNotFulltext() throws Exception
+    {
+        try ( KernelTransactionImplementation transaction = getKernelTransaction() )
+        {
+            int[] propertyIds = {propIdHa};
+            SchemaDescriptor schema = SchemaDescriptor.forLabel( labelIdHa, propertyIds );
+            IndexPrototype prototype = IndexPrototype.forSchema( schema ).withIndexType( FULLTEXT ).withName( NAME );
+            SchemaWrite schemaWrite = transaction.schemaWrite();
+            var e = assertThrows( IllegalArgumentException.class, () -> schemaWrite.indexCreate( prototype ) );
+            assertThat( e.getMessage(), containsString( "schema is not a full-text index schema" ) );
+            transaction.success();
+        }
+    }
+
+    @Test
+    public void indexWithUnknownAnalyzerWillBeMarkedAsFailedOnStartup() throws Exception
+    {
+        // Create a full-text index.
+        long indexId;
+        try ( KernelTransactionImplementation transaction = getKernelTransaction() )
+        {
+            int[] propertyIds = {propIdHa};
+            SchemaDescriptor schema = SchemaDescriptor.fulltext( EntityType.NODE, new int[]{labelIdHa}, propertyIds );
+            IndexPrototype prototype = IndexPrototype.forSchema( schema ).withIndexType( FULLTEXT ).withName( NAME );
+            SchemaWrite schemaWrite = transaction.schemaWrite();
+            IndexDescriptor index = schemaWrite.indexCreate( prototype );
+            indexId = index.getId();
+            transaction.success();
+        }
+
+        // Modify the full-text index such that it has an analyzer configured that does not exist.
+        db.restartDatabase( ( fs, databaseLayout ) ->
+        {
+            DefaultIdGeneratorFactory idGenFactory = new DefaultIdGeneratorFactory( fs, RecoveryCleanupWorkCollector.ignore() );
+            try ( JobScheduler scheduler = JobSchedulerFactory.createInitialisedScheduler();
+                  PageCache pageCache = StandalonePageCacheFactory.createPageCache( fs, scheduler ) )
+            {
+
+                StoreFactory factory = new StoreFactory( databaseLayout, Config.defaults(), idGenFactory, pageCache, fs, NullLogProvider.getInstance() );
+                try ( NeoStores neoStores = factory.openAllNeoStores( false ) )
+                {
+                    TokenHolders tokens = StoreTokens.readOnlyTokenHolders( neoStores );
+                    SchemaStore schemaStore = neoStores.getSchemaStore();
+                    SchemaStorage storage = new SchemaStorage( schemaStore, tokens );
+                    IndexDescriptor index = (IndexDescriptor) storage.loadSingleSchemaRule( indexId );
+                    Map<String,Value> indexConfigMap = new HashMap<>( index.getIndexConfig().asMap() );
+                    for ( Map.Entry<String,Value> entry : indexConfigMap.entrySet() )
+                    {
+                        if ( entry.getKey().contains( "analyzer" ) )
+                        {
+                            entry.setValue( Values.stringValue( "bla-bla-lyzer" ) ); // This analyzer does not exist!
+                        }
+                    }
+                    index = index.withIndexConfig( IndexConfig.with( indexConfigMap ) );
+                    storage.writeSchemaRule( index );
+                    schemaStore.flush();
+                }
+            }
+            catch ( Exception e )
+            {
+                throw new RuntimeException( e );
+            }
+        } );
+
+        // Verify that the index comes up in a failed state.
         try ( Transaction tx = db.beginTx() )
         {
-            assertQueryFindsIds( db, false, "relIndex", "foo", rels1 );
-            assertQueryFindsIds( db, false, "relIndex", "bar", rels2 );
-            assertQueryFindsIds( db, false, "relIndex", "baz", rels3 );
-            tx.success();
+            IndexDefinition index = tx.schema().getIndexByName( NAME );
+
+            Schema.IndexState indexState = tx.schema().getIndexState( index );
+            assertThat( indexState, is( Schema.IndexState.FAILED ) );
+
+            String indexFailure = tx.schema().getIndexFailure( index );
+            assertThat( indexFailure, containsString( "bla-bla-lyzer" ) );
         }
+
+        // Verify that the failed index can be dropped.
+        try ( Transaction tx = db.beginTx() )
+        {
+            tx.schema().getIndexByName( NAME ).drop();
+            assertThrows( IllegalArgumentException.class, () -> tx.schema().getIndexByName( NAME ) );
+            tx.commit();
+        }
+        try ( Transaction tx = db.beginTx() )
+        {
+            assertThrows( IllegalArgumentException.class, () -> tx.schema().getIndexByName( NAME ) );
+        }
+        db.restartDatabase();
+        try ( Transaction tx = db.beginTx() )
+        {
+            assertThrows( IllegalArgumentException.class, () -> tx.schema().getIndexByName( NAME ) );
+        }
+    }
+
+    @ResourceLock( "BrokenAnalyzerProvider" )
+    @Test
+    public void indexWithAnalyzerThatThrowsWillNotBeCreated() throws Exception
+    {
+        BrokenAnalyzerProvider.shouldThrow = true;
+        BrokenAnalyzerProvider.shouldReturnNull = false;
+        try ( Transaction tx = db.beginTx() )
+        {
+            IndexCreator creator = tx.schema().indexFor( label( "Label" ) )
+                    .withIndexType( org.neo4j.graphdb.schema.IndexType.FULLTEXT )
+                    .withIndexConfiguration( Map.of( IndexSetting.fulltext_Analyzer(), BrokenAnalyzerProvider.NAME ) )
+                    .on( "prop" )
+                    .withName( NAME );
+
+            // Validation must initially prevent this index from being created.
+            var e = assertThrows( RuntimeException.class, creator::create );
+            assertThat( e.getMessage(), containsString( "boom" ) );
+
+            // Create the index anyway.
+            BrokenAnalyzerProvider.shouldThrow = false;
+            creator.create();
+            BrokenAnalyzerProvider.shouldThrow = true;
+
+            // The analyzer will now throw during the index population, and the index should then enter a FAILED state.
+            tx.commit();
+        }
+        try ( Transaction tx = db.beginTx() )
+        {
+            var e = assertThrows( IllegalStateException.class, () -> tx.schema().awaitIndexOnline( NAME, 10, TimeUnit.SECONDS ) );
+            assertThat( e.getMessage(), containsString( "FAILED" ) );
+            IndexDefinition index = tx.schema().getIndexByName( NAME );
+            assertThat( tx.schema().getIndexState( index ), is( Schema.IndexState.FAILED ) );
+            index.drop();
+            tx.commit();
+        }
+
+        BrokenAnalyzerProvider.shouldThrow = false;
+        try ( Transaction tx = db.beginTx() )
+        {
+            IndexCreator creator = tx.schema().indexFor( label( "Label" ) )
+                    .withIndexType( org.neo4j.graphdb.schema.IndexType.FULLTEXT )
+                    .withIndexConfiguration( Map.of( IndexSetting.fulltext_Analyzer(), BrokenAnalyzerProvider.NAME ) )
+                    .on( "prop" )
+                    .withName( NAME );
+
+            // The analyzer no longer throws.
+            creator.create();
+            tx.commit();
+        }
+        try ( Transaction tx = db.beginTx() )
+        {
+            tx.schema().awaitIndexOnline( NAME, 10, TimeUnit.SECONDS );
+            IndexDefinition index = tx.schema().getIndexByName( NAME );
+            Schema.IndexState indexState = tx.schema().getIndexState( index );
+            assertThat( indexState, is( Schema.IndexState.ONLINE ) );
+        }
+        db.restartDatabase();
+        try ( Transaction tx = db.beginTx() )
+        {
+            IndexDefinition index = tx.schema().getIndexByName( NAME );
+            Schema.IndexState indexState = tx.schema().getIndexState( index );
+            assertThat( indexState, is( Schema.IndexState.ONLINE ) );
+        }
+    }
+
+    @ResourceLock( "BrokenAnalyzerProvider" )
+    @Test
+    public void indexWithAnalyzerThatReturnsNullWillNotBeCreated() throws Exception
+    {
+        BrokenAnalyzerProvider.shouldThrow = false;
+        BrokenAnalyzerProvider.shouldReturnNull = true;
+        try ( Transaction tx = db.beginTx() )
+        {
+            IndexCreator creator = tx.schema().indexFor( label( "Label" ) )
+                    .withIndexType( org.neo4j.graphdb.schema.IndexType.FULLTEXT )
+                    .withIndexConfiguration( Map.of( IndexSetting.fulltext_Analyzer(), BrokenAnalyzerProvider.NAME ) )
+                    .on( "prop" )
+                    .withName( NAME );
+
+            // Validation must initially prevent this index from being created.
+            var e = assertThrows( RuntimeException.class, creator::create );
+            assertThat( e.getMessage(), containsString( "null" ) );
+
+            // Create the index anyway.
+            BrokenAnalyzerProvider.shouldReturnNull = false;
+            creator.create();
+            BrokenAnalyzerProvider.shouldReturnNull = true;
+
+            // The analyzer will now return null during the index population, and the index should then enter a FAILED state.
+            tx.commit();
+        }
+        try ( Transaction tx = db.beginTx() )
+        {
+            var e = assertThrows( IllegalStateException.class, () -> tx.schema().awaitIndexOnline( NAME, 10, TimeUnit.SECONDS ) );
+            assertThat( e.getMessage(), containsString( "FAILED" ) );
+            IndexDefinition index = tx.schema().getIndexByName( NAME );
+            assertThat( tx.schema().getIndexState( index ), is( Schema.IndexState.FAILED ) );
+            index.drop();
+            tx.commit();
+        }
+
+        BrokenAnalyzerProvider.shouldReturnNull = false;
+        try ( Transaction tx = db.beginTx() )
+        {
+            IndexCreator creator = tx.schema().indexFor( label( "Label" ) )
+                    .withIndexType( org.neo4j.graphdb.schema.IndexType.FULLTEXT )
+                    .withIndexConfiguration( Map.of( IndexSetting.fulltext_Analyzer(), BrokenAnalyzerProvider.NAME ) )
+                    .on( "prop" )
+                    .withName( NAME );
+
+            // The analyzer no longer returns null.
+            creator.create();
+            tx.commit();
+        }
+        try ( Transaction tx = db.beginTx() )
+        {
+            tx.schema().awaitIndexOnline( NAME, 10, TimeUnit.SECONDS );
+            IndexDefinition index = tx.schema().getIndexByName( NAME );
+            Schema.IndexState indexState = tx.schema().getIndexState( index );
+            assertThat( indexState, is( Schema.IndexState.ONLINE ) );
+        }
+        db.restartDatabase();
+        try ( Transaction tx = db.beginTx() )
+        {
+            IndexDefinition index = tx.schema().getIndexByName( NAME );
+            Schema.IndexState indexState = tx.schema().getIndexState( index );
+            assertThat( indexState, is( Schema.IndexState.ONLINE ) );
+        }
+    }
+
+    @ResourceLock( "BrokenAnalyzerProvider" )
+    @Test
+    public void indexWithAnalyzerProviderThatThrowsAnExceptionOnStartupWillBeMarkedAsFailedOnStartup() throws Exception
+    {
+        BrokenAnalyzerProvider.shouldThrow = false;
+        BrokenAnalyzerProvider.shouldReturnNull = false;
+        try ( Transaction tx = db.beginTx() )
+        {
+            IndexCreator creator = tx.schema().indexFor( label( "Label" ) )
+                    .withIndexType( org.neo4j.graphdb.schema.IndexType.FULLTEXT )
+                    .withIndexConfiguration( Map.of( IndexSetting.fulltext_Analyzer(), BrokenAnalyzerProvider.NAME ) )
+                    .on( "prop" )
+                    .withName( NAME );
+
+            // The analyzer no longer throws.
+            creator.create();
+            tx.commit();
+        }
+        try ( Transaction tx = db.beginTx() )
+        {
+            tx.schema().awaitIndexOnline( NAME, 10, TimeUnit.SECONDS );
+            IndexDefinition index = tx.schema().getIndexByName( NAME );
+            Schema.IndexState indexState = tx.schema().getIndexState( index );
+            assertThat( indexState, is( Schema.IndexState.ONLINE ) );
+        }
+
+        BrokenAnalyzerProvider.shouldThrow = true;
+        db.restartDatabase();
+        try ( Transaction tx = db.beginTx() )
+        {
+            IndexDefinition index = tx.schema().getIndexByName( NAME );
+            Schema.IndexState indexState = tx.schema().getIndexState( index );
+            assertThat( indexState, is( Schema.IndexState.FAILED ) );
+            String indexFailure = tx.schema().getIndexFailure( index );
+            assertThat( indexFailure, containsString( "boom" ) );
+            index.drop();
+            tx.commit();
+        }
+        try ( Transaction tx = db.beginTx() )
+        {
+            assertThrows( IllegalArgumentException.class, () -> tx.schema().getIndexByName( NAME ) );
+            tx.commit();
+        }
+    }
+
+    @ResourceLock( "BrokenAnalyzerProvider" )
+    @Test
+    public void indexWithAnalyzerProviderThatReturnsNullWillBeMarkedAsFailedOnStartup() throws Exception
+    {
+        BrokenAnalyzerProvider.shouldThrow = false;
+        BrokenAnalyzerProvider.shouldReturnNull = false;
+        try ( Transaction tx = db.beginTx() )
+        {
+            IndexCreator creator = tx.schema().indexFor( label( "Label" ) )
+                    .withIndexType( org.neo4j.graphdb.schema.IndexType.FULLTEXT )
+                    .withIndexConfiguration( Map.of( IndexSetting.fulltext_Analyzer(), BrokenAnalyzerProvider.NAME ) )
+                    .on( "prop" )
+                    .withName( NAME );
+
+            // The analyzer no longer returns null.
+            creator.create();
+            tx.commit();
+        }
+        try ( Transaction tx = db.beginTx() )
+        {
+            tx.schema().awaitIndexOnline( NAME, 10, TimeUnit.SECONDS );
+            IndexDefinition index = tx.schema().getIndexByName( NAME );
+            Schema.IndexState indexState = tx.schema().getIndexState( index );
+            assertThat( indexState, is( Schema.IndexState.ONLINE ) );
+        }
+
+        BrokenAnalyzerProvider.shouldReturnNull = true;
+        db.restartDatabase();
+        try ( Transaction tx = db.beginTx() )
+        {
+            IndexDefinition index = tx.schema().getIndexByName( NAME );
+            Schema.IndexState indexState = tx.schema().getIndexState( index );
+            assertThat( indexState, is( Schema.IndexState.FAILED ) );
+            String indexFailure = tx.schema().getIndexFailure( index );
+            assertThat( indexFailure, containsString( "null" ) );
+            index.drop();
+            tx.commit();
+        }
+        try ( Transaction tx = db.beginTx() )
+        {
+            assertThrows( IllegalArgumentException.class, () -> tx.schema().getIndexByName( NAME ) );
+            tx.commit();
+        }
+    }
+
+    private TokenRead tokenRead( Transaction tx )
+    {
+        return ((InternalTransaction) tx).kernelTransaction().tokenRead();
     }
 
     private KernelTransactionImplementation getKernelTransaction()
     {
         try
         {
-            return (KernelTransactionImplementation) db.resolveDependency( KernelImpl.class ).beginTransaction(
-                    org.neo4j.internal.kernel.api.Transaction.Type.explicit, LoginContext.AUTH_DISABLED );
+            KernelImpl kernel = db.resolveDependency( KernelImpl.class );
+            return (KernelTransactionImplementation) kernel.beginTransaction(
+                    KernelTransaction.Type.explicit, LoginContext.AUTH_DISABLED );
         }
         catch ( TransactionFailureException e )
         {
@@ -363,111 +806,110 @@ public class FulltextIndexProviderTest
         }
     }
 
-    private IndexReference createIndex( int[] entityTokens, int[] propertyIds )
-            throws TransactionFailureException, InvalidTransactionTypeKernelException, SchemaKernelException
-
+    private IndexDescriptor createIndex( int[] entityTokens, int[] propertyIds ) throws KernelException
     {
-        IndexReference fulltext;
+        IndexDescriptor fulltext;
         try ( KernelTransactionImplementation transaction = getKernelTransaction() )
         {
-            MultiTokenSchemaDescriptor multiTokenSchemaDescriptor = multiToken( entityTokens, EntityType.NODE, propertyIds );
-            FulltextSchemaDescriptor schema = new FulltextSchemaDescriptor( multiTokenSchemaDescriptor, new Properties() );
-            fulltext = transaction.schemaWrite().indexCreate( schema, DESCRIPTOR.name(), Optional.of( NAME ) );
+            SchemaDescriptor schema = SchemaDescriptor.fulltext( EntityType.NODE, entityTokens, propertyIds );
+            IndexPrototype prototype = IndexPrototype.forSchema( schema, DESCRIPTOR ).withIndexType( IndexType.FULLTEXT ).withName( NAME );
+            fulltext = transaction.schemaWrite().indexCreate( prototype );
             transaction.success();
         }
         return fulltext;
     }
 
-    private void verifyThatFulltextIndexIsPresent( IndexReference fulltextIndexDescriptor ) throws TransactionFailureException
+    private void verifyThatFulltextIndexIsPresent( IndexDescriptor fulltextIndexDescriptor ) throws TransactionFailureException
     {
         try ( KernelTransactionImplementation transaction = getKernelTransaction() )
         {
-            IndexReference descriptor = transaction.schemaRead().indexGetForName( NAME );
+            IndexDescriptor descriptor = transaction.schemaRead().indexGetForName( NAME );
             assertEquals( fulltextIndexDescriptor.schema(), descriptor.schema() );
-            assertEquals( ((IndexDescriptor) fulltextIndexDescriptor).type(), ((IndexDescriptor) descriptor).type() );
+            assertEquals( fulltextIndexDescriptor.isUnique(), descriptor.isUnique() );
             transaction.success();
         }
     }
 
     private long createTheThirdNode()
     {
-        long secondNodeId;
+        long nodeId;
         try ( Transaction transaction = db.beginTx() )
         {
-            Node hej = db.createNode( label( "hej" ) );
-            secondNodeId = hej.getId();
+            Node hej = transaction.createNode( label( "hej" ) );
+            nodeId = hej.getId();
             hej.setProperty( "hej", "villa" );
             hej.setProperty( "ho", "value3" );
-            transaction.success();
+            transaction.commit();
         }
-        return secondNodeId;
+        return nodeId;
     }
 
-    private void verifyNodeData( FulltextIndexProvider provider, long thirdNodeid ) throws Exception
+    private void verifyNodeData( long thirdNodeId ) throws Exception
     {
         try ( Transaction tx = db.beginTx() )
         {
             KernelTransaction ktx = LuceneFulltextTestSupport.kernelTransaction( tx );
-            ScoreEntityIterator result = provider.query( ktx, "fulltext", "value" );
-            assertTrue( result.hasNext() );
-            assertEquals( 0L, result.next().entityId() );
-            assertFalse( result.hasNext() );
-
-            result = provider.query( ktx, "fulltext", "villa" );
-            assertTrue( result.hasNext() );
-            assertEquals( thirdNodeid, result.next().entityId() );
-            assertFalse( result.hasNext() );
-
-            result = provider.query( ktx, "fulltext", "value3" );
-            PrimitiveLongSet ids = Primitive.longSet();
-            ids.add( 0L );
-            ids.add( thirdNodeid );
-            assertTrue( result.hasNext() );
-            assertTrue( ids.remove( result.next().entityId() ) );
-            assertTrue( result.hasNext() );
-            assertTrue( ids.remove( result.next().entityId() ) );
-            assertFalse( result.hasNext() );
-            tx.success();
-        }
-    }
-
-    private void verifyRelationshipData( FulltextIndexProvider provider, long secondRelId ) throws Exception
-    {
-        try ( Transaction tx = db.beginTx() )
-        {
-            KernelTransaction ktx = LuceneFulltextTestSupport.kernelTransaction( tx );
-            ScoreEntityIterator result = provider.query( ktx, "fulltext", "valuuu" );
-            assertTrue( result.hasNext() );
-            assertEquals( 0L, result.next().entityId() );
-            assertFalse( result.hasNext() );
-
-            result = provider.query( ktx, "fulltext", "villa" );
-            assertTrue( result.hasNext() );
-            assertEquals( secondRelId, result.next().entityId() );
-            assertFalse( result.hasNext() );
-
-            result = provider.query( ktx, "fulltext", "value3" );
-            assertTrue( result.hasNext() );
-            assertEquals( 0L, result.next().entityId() );
-            assertTrue( result.hasNext() );
-            assertEquals( secondRelId, result.next().entityId() );
-            assertFalse( result.hasNext() );
-            tx.success();
-        }
-    }
-
-    private void await( IndexReference descriptor ) throws IndexNotFoundKernelException
-    {
-        try ( Transaction ignore = db.beginTx() )
-        {
-            while ( getKernelTransaction().schemaRead().indexGetState( descriptor ) != InternalIndexState.ONLINE )
+            IndexReadSession index = ktx.dataRead().indexReadSession( ktx.schemaRead().indexGetForName( "fulltext" ) );
+            try ( NodeValueIndexCursor cursor = ktx.cursors().allocateNodeValueIndexCursor() )
             {
-                Thread.sleep( 100 );
+                ktx.dataRead().nodeIndexSeek( index, cursor, IndexOrder.NONE, false, fulltextSearch( "value" ) );
+                assertTrue( cursor.next() );
+                assertEquals( 0L, cursor.nodeReference() );
+                assertFalse( cursor.next() );
+
+                ktx.dataRead().nodeIndexSeek( index, cursor, IndexOrder.NONE, false, fulltextSearch( "villa" ) );
+                assertTrue( cursor.next() );
+                assertEquals( thirdNodeId, cursor.nodeReference() );
+                assertFalse( cursor.next() );
+
+                ktx.dataRead().nodeIndexSeek( index, cursor, IndexOrder.NONE, false, fulltextSearch( "value3" ) );
+                MutableLongSet ids = LongSets.mutable.empty();
+                ids.add( 0L );
+                ids.add( thirdNodeId );
+                assertTrue( cursor.next() );
+                assertTrue( ids.remove( cursor.nodeReference() ) );
+                assertTrue( cursor.next() );
+                assertTrue( ids.remove( cursor.nodeReference() ) );
+                assertFalse( cursor.next() );
             }
+            tx.commit();
         }
-        catch ( InterruptedException e )
+    }
+
+    private void verifyRelationshipData( long secondRelId ) throws Exception
+    {
+        try ( Transaction tx = db.beginTx() )
         {
-            e.printStackTrace();
+            KernelTransaction ktx = LuceneFulltextTestSupport.kernelTransaction( tx );
+            IndexDescriptor index = ktx.schemaRead().indexGetForName( "fulltext" );
+            try ( RelationshipIndexCursor cursor = ktx.cursors().allocateRelationshipIndexCursor() )
+            {
+                ktx.dataRead().relationshipIndexSeek( index, cursor, fulltextSearch( "valuuu" ) );
+                assertTrue( cursor.next() );
+                assertEquals( 0L, cursor.relationshipReference() );
+                assertFalse( cursor.next() );
+
+                ktx.dataRead().relationshipIndexSeek( index, cursor, fulltextSearch( "villa" ) );
+                assertTrue( cursor.next() );
+                assertEquals( secondRelId, cursor.relationshipReference() );
+                assertFalse( cursor.next() );
+
+                ktx.dataRead().relationshipIndexSeek( index, cursor, fulltextSearch( "value3" ) );
+                assertTrue( cursor.next() );
+                assertEquals( 0L, cursor.relationshipReference() );
+                assertTrue( cursor.next() );
+                assertEquals( secondRelId, cursor.relationshipReference() );
+                assertFalse( cursor.next() );
+            }
+            tx.commit();
+        }
+    }
+
+    private void await( IndexDescriptor index )
+    {
+        try ( Transaction tx = db.beginTx() )
+        {
+            tx.schema().awaitIndexOnline( index.getName(), 30, TimeUnit.SECONDS );
         }
     }
 }

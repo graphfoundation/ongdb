@@ -19,35 +19,36 @@
  */
 package org.neo4j.kernel.impl.index.schema;
 
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Predicate;
 
-import org.neo4j.cursor.RawCursor;
-import org.neo4j.index.internal.gbptree.Hit;
-import org.neo4j.internal.kernel.api.IndexOrder;
+import org.neo4j.index.internal.gbptree.Seeker;
+import org.neo4j.internal.schema.IndexOrder;
 import org.neo4j.internal.kernel.api.IndexQuery;
 import org.neo4j.kernel.api.schema.index.TestIndexDescriptorFactory;
+import org.neo4j.test.extension.Inject;
+import org.neo4j.test.extension.RandomExtension;
 import org.neo4j.test.rule.RandomRule;
 import org.neo4j.values.storable.TextValue;
 import org.neo4j.values.storable.Value;
 
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-public class FilteringNativeHitIndexProgressorTest
+@ExtendWith( RandomExtension.class )
+class FilteringNativeHitIndexProgressorTest
 {
-    @Rule
-    public final RandomRule random = new RandomRule();
+    @Inject
+    private RandomRule random;
 
     @Test
-    public void shouldFilterResults()
+    void shouldFilterResults()
     {
         // given
         List<String> keys = new ArrayList<>();
@@ -57,7 +58,7 @@ public class FilteringNativeHitIndexProgressorTest
             keys.add( random.nextString() );
         }
 
-        RawCursor<Hit<StringIndexKey,NativeIndexValue>,IOException> cursor = new ResultCursor( keys.iterator() );
+        Seeker<GenericKey,NativeIndexValue> cursor = new ResultCursor( keys.iterator() );
         NodeValueIterator valueClient = new NodeValueIterator()
         {
             @Override
@@ -68,26 +69,28 @@ public class FilteringNativeHitIndexProgressorTest
         };
         IndexQuery[] predicates = new IndexQuery[]{mock( IndexQuery.class )};
         Predicate<String> filter = string -> string.contains( "a" );
-        when( predicates[0].acceptsValue( any( Value.class ) ) ).then( invocation -> filter.test( ((TextValue)invocation.getArgument( 0 )).stringValue() ) );
-        FilteringNativeHitIndexProgressor<StringIndexKey,NativeIndexValue> progressor = new FilteringNativeHitIndexProgressor<>( cursor, valueClient,
-                new ArrayList<>(), predicates );
-        valueClient.initialize( TestIndexDescriptorFactory.forLabel( 0, 0 ), progressor, predicates, IndexOrder.NONE, true );
-        List<Long> result = new ArrayList<>();
-
-        // when
-        while ( valueClient.hasNext() )
+        when( predicates[0].acceptsValue( any( Value.class ) ) ).then( invocation -> filter.test( ((TextValue) invocation.getArgument( 0 )).stringValue() ) );
+        try ( FilteringNativeHitIndexProgressor<GenericKey,NativeIndexValue> progressor = new FilteringNativeHitIndexProgressor<>( cursor, valueClient,
+                predicates ) )
         {
-            result.add( valueClient.next() );
-        }
+            valueClient.initialize( TestIndexDescriptorFactory.forLabel( 0, 0 ), progressor, predicates, IndexOrder.NONE, true, false );
+            List<Long> result = new ArrayList<>();
 
-        // then
-        for ( int i = 0; i < keys.size(); i++ )
-        {
-            if ( filter.test( keys.get( i ) ) )
+            // when
+            while ( valueClient.hasNext() )
             {
-                assertTrue( result.remove( (long) i ) );
+                result.add( valueClient.next() );
             }
+
+            // then
+            for ( int i = 0; i < keys.size(); i++ )
+            {
+                if ( filter.test( keys.get( i ) ) )
+                {
+                    assertTrue( result.remove( (long) i ) );
+                }
+            }
+            assertTrue( result.isEmpty() );
         }
-        assertTrue( result.isEmpty() );
     }
 }

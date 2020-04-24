@@ -27,22 +27,24 @@ import org.junit.Test;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Future;
 
+import org.neo4j.dbms.api.DatabaseManagementService;
 import org.neo4j.kernel.impl.locking.LockCountVisitor;
 import org.neo4j.kernel.impl.locking.Locks;
 import org.neo4j.kernel.impl.locking.community.CommunityLockClient;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
-import org.neo4j.test.TestGraphDatabaseFactory;
-import org.neo4j.test.rule.concurrent.OtherThreadRule;
+import org.neo4j.test.TestDatabaseManagementServiceBuilder;
+import org.neo4j.test.rule.OtherThreadRule;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
+import static org.apache.commons.lang3.exception.ExceptionUtils.getRootCause;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
+import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
 import static org.neo4j.graphdb.Label.label;
-import static org.neo4j.helpers.Exceptions.rootCause;
 
 public class GraphDatabaseShutdownTest
 {
@@ -52,6 +54,7 @@ public class GraphDatabaseShutdownTest
     public final OtherThreadRule<Void> t2 = new OtherThreadRule<>( "T2" );
     @Rule
     public final OtherThreadRule<Void> t3 = new OtherThreadRule<>( "T3" );
+    private DatabaseManagementService managementService;
 
     @Before
     public void setUp()
@@ -62,7 +65,7 @@ public class GraphDatabaseShutdownTest
     @After
     public void tearDown()
     {
-        db.shutdown();
+        managementService.shutdown();
     }
 
     @Test
@@ -76,14 +79,14 @@ public class GraphDatabaseShutdownTest
         // WHEN
         try ( Transaction tx = db.beginTx() )
         {
-            Node node = db.createNode();
+            Node node = tx.createNode();
             tx.acquireWriteLock( node );
             assertThat( lockCount( locks ), greaterThanOrEqualTo( 1 ) );
 
-            db.shutdown();
+            managementService.shutdown();
 
-            db.createNode();
-            tx.success();
+            tx.createNode();
+            tx.commit();
         }
         catch ( Exception e )
         {
@@ -91,7 +94,7 @@ public class GraphDatabaseShutdownTest
         }
 
         // THEN
-        assertThat( exceptionThrownByTxClose, instanceOf( DatabaseShutdownException.class ) );
+        assertThat( exceptionThrownByTxClose, instanceOf( TransactionTerminatedException.class ) );
         assertFalse( db.isAvailable( 1 ) );
         assertEquals( 0, lockCount( locks ) );
     }
@@ -103,8 +106,8 @@ public class GraphDatabaseShutdownTest
         final Node node;
         try ( Transaction tx = db.beginTx() )
         {
-            node = db.createNode();
-            tx.success();
+            node = tx.createNode();
+            tx.commit();
         }
 
         final CountDownLatch nodeLockedLatch = new CountDownLatch( 1 );
@@ -116,16 +119,16 @@ public class GraphDatabaseShutdownTest
         {
             try ( Transaction tx = db.beginTx() )
             {
-                node.addLabel( label( "ABC" ) );
+                tx.getNodeById( node.getId() ).addLabel( label( "ABC" ) );
                 nodeLockedLatch.countDown();
 
                 // Wait for T3 to start waiting for this node write lock
                 t3.get().waitUntilWaiting( details -> details.isAt( CommunityLockClient.class, "acquireExclusive" ) );
 
-                db.shutdown();
+                managementService.shutdown();
 
                 shutdownCalled.countDown();
-                tx.success();
+                tx.commit();
             }
             return null;
         } );
@@ -138,10 +141,10 @@ public class GraphDatabaseShutdownTest
                 nodeLockedLatch.await();
 
                 // T2 awaits this thread to get into a waiting state for this node write lock
-                node.addLabel( label( "DEF" ) );
+                tx.getNodeById( node.getId() ).addLabel( label( "DEF" ) );
 
                 shutdownCalled.await();
-                tx.success();
+                tx.commit();
             }
             return null;
         } );
@@ -154,7 +157,7 @@ public class GraphDatabaseShutdownTest
         }
         catch ( Exception e )
         {
-            assertThat( rootCause( e ), instanceOf( TransactionTerminatedException.class ) );
+            assertThat( getRootCause( e ), instanceOf( TransactionTerminatedException.class ) );
         }
         try
         {
@@ -163,7 +166,7 @@ public class GraphDatabaseShutdownTest
         }
         catch ( Exception e )
         {
-            assertThat( rootCause( e ), instanceOf( TransactionTerminatedException.class ) );
+            assertThat( getRootCause( e ), instanceOf( TransactionTerminatedException.class ) );
         }
     }
 
@@ -176,8 +179,7 @@ public class GraphDatabaseShutdownTest
 
     private GraphDatabaseAPI newDb()
     {
-        return (GraphDatabaseAPI) new TestGraphDatabaseFactory()
-                .newImpermanentDatabaseBuilder()
-                .newGraphDatabase();
+        managementService = new TestDatabaseManagementServiceBuilder().impermanent().build();
+        return (GraphDatabaseAPI) managementService.database( DEFAULT_DATABASE_NAME );
     }
 }

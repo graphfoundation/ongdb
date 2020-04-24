@@ -19,7 +19,8 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
+import org.neo4j.cypher.internal.runtime.{ExecutionContext, ResourceLinenumber}
+import org.neo4j.exceptions.{Neo4jException, LoadCsvStatusWrapCypherException}
 
 /*
 A PipeDecorator is used to instrument calls between Pipes, and between a Pipe and the graph
@@ -27,7 +28,17 @@ A PipeDecorator is used to instrument calls between Pipes, and between a Pipe an
 trait PipeDecorator {
   def decorate(pipe: Pipe, state: QueryState): QueryState
 
+  /**
+   * This method should be called after createResults, with the decorated QueryState
+   */
+  def afterCreateResults(pipe: Pipe, state: QueryState): Unit
+
   def decorate(pipe: Pipe, iter: Iterator[ExecutionContext]): Iterator[ExecutionContext]
+
+  // These two are used for linenumber only
+  def decorate(pipe: Pipe, iter: Iterator[ExecutionContext], sourceIter: Iterator[ExecutionContext]): Iterator[ExecutionContext] = decorate(pipe, iter)
+
+  def decorate(pipe: Pipe, iter: Iterator[ExecutionContext], previousContextSupplier: () => Option[ExecutionContext]): Iterator[ExecutionContext] = decorate(pipe, iter)
 
   /*
    * Returns the inner decorator of this decorator. The inner decorator is used for nested expressions
@@ -42,4 +53,80 @@ object NullPipeDecorator extends PipeDecorator {
   def decorate(pipe: Pipe, state: QueryState): QueryState = state
 
   def innerDecorator(pipe: Pipe): PipeDecorator = NullPipeDecorator
+
+  override def afterCreateResults(pipe: Pipe, state: QueryState): Unit = {}
+}
+
+class LinenumberPipeDecorator() extends PipeDecorator {
+  private var inner: PipeDecorator = NullPipeDecorator
+
+  def setInnerDecorator(newDecorator: PipeDecorator): Unit = inner = newDecorator
+
+  override def decorate(pipe: Pipe, state: QueryState): QueryState = inner.decorate(pipe, state)
+
+  def decorate(pipe: Pipe, iter: Iterator[ExecutionContext]): Iterator[ExecutionContext] = throw new UnsupportedOperationException("This method should never be called on LinenumberPipeDecorator")
+
+  override def decorate(pipe: Pipe, iter: Iterator[ExecutionContext], sourceIter: Iterator[ExecutionContext]): Iterator[ExecutionContext] = {
+    val previousContextSupplier = sourceIter match {
+      case p: LinenumberIterator => () => p.previousRecord
+      case _ => () => None
+    }
+    decorate(pipe, iter, previousContextSupplier)
+  }
+
+  override def decorate(pipe: Pipe, iter: Iterator[ExecutionContext], previousContextSupplier: () => Option[ExecutionContext]): Iterator[ExecutionContext] = {
+    new LinenumberIterator(inner.decorate(pipe, iter), previousContextSupplier)
+  }
+
+  override def innerDecorator(owningPipe: Pipe): PipeDecorator = this
+
+  class LinenumberIterator(inner: Iterator[ExecutionContext], previousContextSupplier: () => Option[ExecutionContext]) extends Iterator[ExecutionContext] {
+
+    var previousRecord: Option[ExecutionContext] = None
+
+    def hasNext: Boolean = {
+      try {
+        inner.hasNext
+      } catch {
+        case e: LoadCsvStatusWrapCypherException =>
+          throw e
+        case e: Neo4jException =>
+          throw wrapException(e, previousContextSupplier())
+        case e: Throwable =>
+          throw e
+      }
+    }
+
+    def next(): ExecutionContext = {
+      try {
+        val record = inner.next()
+        previousRecord = Some(record)
+        record
+      } catch {
+        case e: LoadCsvStatusWrapCypherException =>
+          throw e
+        case e: Neo4jException =>
+            throw wrapException(e, previousContextSupplier())
+        case e: Throwable =>
+          throw e
+      }
+    }
+
+    private def wrapException(e: Neo4jException, maybeContext: Option[ExecutionContext]): Exception = maybeContext match {
+      case Some(record: ExecutionContext) if record.getLinenumber.nonEmpty =>
+        new LoadCsvStatusWrapCypherException(errorMessage(record), e)
+      case _ => e
+    }
+
+    private def errorMessage(record: ExecutionContext): String = {
+      record.getLinenumber match {
+        case Some(ResourceLinenumber(file, line, last)) =>
+          s"Failure when processing file '$file' on line $line" +
+            (if (last) " (which is the last row in the file)." else ".")
+        case _ => "" //should not get here
+      }
+    }
+  }
+
+  override def afterCreateResults(pipe: Pipe, state: QueryState): Unit = {}
 }

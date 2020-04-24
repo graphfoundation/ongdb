@@ -26,17 +26,16 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 
+import org.neo4j.configuration.Config;
 import org.neo4j.io.fs.FileSystemAbstraction;
-import org.neo4j.kernel.configuration.Config;
-import org.neo4j.kernel.impl.index.schema.config.ConfiguredSpaceFillingCurveSettingsCache;
-import org.neo4j.kernel.impl.index.schema.config.IndexSpecificSpaceFillingCurveSettingsCache;
+import org.neo4j.io.memory.ByteBufferFactory;
+import org.neo4j.kernel.impl.index.schema.config.IndexSpecificSpaceFillingCurveSettings;
 import org.neo4j.memory.LocalMemoryTracker;
 import org.neo4j.test.extension.Inject;
 import org.neo4j.test.extension.RandomExtension;
-import org.neo4j.test.extension.TestDirectoryExtension;
+import org.neo4j.test.extension.testdirectory.TestDirectoryExtension;
 import org.neo4j.test.rule.RandomRule;
 import org.neo4j.test.rule.TestDirectory;
 import org.neo4j.values.storable.Value;
@@ -44,15 +43,15 @@ import org.neo4j.values.storable.Value;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.neo4j.kernel.impl.index.schema.ByteBufferFactory.HEAP_ALLOCATOR;
+import static org.neo4j.io.memory.ByteBufferFactory.HEAP_ALLOCATOR;
 import static org.neo4j.kernel.impl.index.schema.NativeIndexKey.Inclusion.NEUTRAL;
 
-@ExtendWith( {TestDirectoryExtension.class, RandomExtension.class} )
+@TestDirectoryExtension
+@ExtendWith( RandomExtension.class )
 class IndexKeyStorageTest
 {
     private static final int BLOCK_SIZE = 2000;
-    private static final IndexSpecificSpaceFillingCurveSettingsCache spatialSettings =
-            new IndexSpecificSpaceFillingCurveSettingsCache( new ConfiguredSpaceFillingCurveSettingsCache( Config.defaults() ), new HashMap<>() );
+    private static final IndexSpecificSpaceFillingCurveSettings spatialSettings = IndexSpecificSpaceFillingCurveSettings.fromConfig( Config.defaults() );
 
     @Inject
     protected TestDirectory directory;

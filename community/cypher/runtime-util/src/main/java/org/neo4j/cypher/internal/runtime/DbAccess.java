@@ -19,20 +19,31 @@
  */
 package org.neo4j.cypher.internal.runtime;
 
+import java.util.Optional;
+
+import org.neo4j.internal.kernel.api.NodeCursor;
+import org.neo4j.internal.kernel.api.PropertyCursor;
+import org.neo4j.internal.kernel.api.RelationshipScanCursor;
+import org.neo4j.values.AnyValue;
+import org.neo4j.values.storable.TextValue;
 import org.neo4j.values.storable.Value;
 import org.neo4j.values.virtual.ListValue;
 import org.neo4j.values.virtual.MapValue;
-import org.neo4j.values.virtual.NodeValue;
-import org.neo4j.values.virtual.RelationshipValue;
 
 /**
  * Used to expose db access to expressions
  */
 public interface DbAccess extends EntityById
 {
-    Value nodeProperty( long node, int property );
+    Value nodeProperty( long node,
+            int property,
+            NodeCursor nodeCursor,
+            PropertyCursor propertyCursor,
+            boolean throwOnDeleted );
 
-    int[] nodePropertyIds( long node );
+    int[] nodePropertyIds( long node,
+            NodeCursor nodeCursor,
+            PropertyCursor propertyCursor );
 
     int propertyKey( String name );
 
@@ -40,38 +51,87 @@ public interface DbAccess extends EntityById
 
     int relationshipType( String name );
 
-    boolean nodeHasProperty( long node, int property );
+    boolean nodeHasProperty( long node,
+            int property,
+            NodeCursor nodeCursor,
+            PropertyCursor propertyCursor );
 
-    Value relationshipProperty( long node, int property );
+    Value relationshipProperty( long node,
+            int property,
+            RelationshipScanCursor relationshipScanCursor,
+            PropertyCursor propertyCursor,
+            boolean throwOnDeleted );
 
-    int[] relationshipPropertyIds( long node );
+    int[] relationshipPropertyIds( long node,
+            RelationshipScanCursor relationshipScanCursor,
+            PropertyCursor propertyCursor );
 
-    boolean relationshipHasProperty( long node, int property );
+    boolean relationshipHasProperty( long node,
+            int property,
+            RelationshipScanCursor relationshipScanCursor,
+            PropertyCursor propertyCursor );
 
-    int nodeGetOutgoingDegree( long node );
+    int nodeGetOutgoingDegree( long node, NodeCursor nodeCursor );
 
-    int nodeGetOutgoingDegree( long node, int relationship );
+    int nodeGetOutgoingDegree( long node, int relationship, NodeCursor nodeCursor );
 
-    int nodeGetIncomingDegree( long node );
+    int nodeGetIncomingDegree( long node, NodeCursor nodeCursor );
 
-    int nodeGetIncomingDegree( long node, int relationship );
+    int nodeGetIncomingDegree( long node, int relationship, NodeCursor nodeCursor );
 
-    int nodeGetTotalDegree( long node );
+    int nodeGetTotalDegree( long node, NodeCursor nodeCursor );
 
-    int nodeGetTotalDegree( long node, int relationship );
+    int nodeGetTotalDegree( long node, int relationship, NodeCursor nodeCursor );
 
-    NodeValue relationshipGetStartNode( RelationshipValue relationship );
+    void singleRelationship( long id, RelationshipScanCursor cursor );
 
-    NodeValue relationshipGetEndNode( RelationshipValue relationship );
+    ListValue getLabelsForNode( long id, NodeCursor nodeCursor );
 
-    ListValue getLabelsForNode( long id );
+    TextValue getTypeForRelationship( long id, RelationshipScanCursor relationshipCursor );
 
-    boolean isLabelSetOnNode( int label, long id );
+    boolean isLabelSetOnNode( int label, long id, NodeCursor nodeCursor );
 
     String getPropertyKeyName( int token );
 
-    MapValue nodeAsMap( long id );
+    MapValue nodeAsMap( long id, NodeCursor nodeCursor, PropertyCursor propertyCursor );
 
-    MapValue relationshipAsMap( long id );
+    MapValue relationshipAsMap( long id, RelationshipScanCursor relationshipCursor, PropertyCursor propertyCursor );
 
+    Value getTxStateNodePropertyOrNull( long nodeId, int propertyKey );
+
+    Value getTxStateRelationshipPropertyOrNull( long relId, int propertyKey );
+
+    AnyValue callFunction( int id, AnyValue[] args, String[] allowed );
+
+    /**
+     * @return `Optional.empty` if TxState has no changes.
+     *         `Optional.of(true)` if the property was changed.
+     *         `Optional.of(false)` if the property or the entity were deleted in TxState.
+     */
+    Optional<Boolean> hasTxStatePropertyForCachedNodeProperty( long nodeId, int propertyKeyId );
+
+    /**
+     * @return `Optional.empty` if TxState has no changes.
+     *         `Optional.of(true)` if the property was changed.
+     *         `Optional.of(false)` if the property or the entity were deleted in TxState.
+     */
+    Optional<Boolean> hasTxStatePropertyForCachedRelationshipProperty( long relId, int propertyKeyId );
+
+    /**
+     * Get the node count from the count store
+     *
+     * @param labelId the label of the nodes to count or -1 for wildcard count
+     * @return the number of nodes with the given label in the database
+     */
+    long nodeCountByCountStore( int labelId );
+
+    /**
+     * Get the node count from the count store
+     *
+     * @param startLabelId the label of the start node or -1 for wildcard count
+     * @param typeId the type of the relationship or -1 for wildcard count
+     * @param endLabelId the label of the end node or -1 for wildcard count
+     * @return the number of relationships with the given start label, type and end label in the database
+     */
+    long relationshipCountByCountStore( int startLabelId, int typeId, int endLabelId );
 }

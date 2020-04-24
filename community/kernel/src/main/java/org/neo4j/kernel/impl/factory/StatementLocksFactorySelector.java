@@ -19,16 +19,16 @@
  */
 package org.neo4j.kernel.impl.factory;
 
-import java.util.List;
+import java.util.Collection;
 
-import org.neo4j.helpers.Service;
-import org.neo4j.helpers.collection.Iterables;
-import org.neo4j.kernel.configuration.Config;
+import org.neo4j.configuration.Config;
+import org.neo4j.internal.helpers.collection.Iterables;
 import org.neo4j.kernel.impl.locking.Locks;
 import org.neo4j.kernel.impl.locking.SimpleStatementLocksFactory;
 import org.neo4j.kernel.impl.locking.StatementLocksFactory;
 import org.neo4j.logging.Log;
 import org.neo4j.logging.internal.LogService;
+import org.neo4j.service.Services;
 import org.neo4j.util.VisibleForTesting;
 
 public class StatementLocksFactorySelector
@@ -49,7 +49,7 @@ public class StatementLocksFactorySelector
         StatementLocksFactory statementLocksFactory;
 
         String serviceName = StatementLocksFactory.class.getSimpleName();
-        List<StatementLocksFactory> factories = serviceLoadFactories();
+        Collection<StatementLocksFactory> factories = serviceLoadFactories();
         if ( factories.isEmpty() )
         {
             statementLocksFactory = new SimpleStatementLocksFactory();
@@ -59,7 +59,7 @@ public class StatementLocksFactorySelector
         }
         else if ( factories.size() == 1 )
         {
-            statementLocksFactory = factories.get( 0 );
+            statementLocksFactory = Iterables.first( factories );
 
             log.info( "Found single implementation of " + serviceName +
                       ". Namely " + statementLocksFactory.getClass().getSimpleName() );
@@ -81,8 +81,8 @@ public class StatementLocksFactorySelector
      * @return list of available factories.
      */
     @VisibleForTesting
-    List<StatementLocksFactory> serviceLoadFactories()
+    Collection<StatementLocksFactory> serviceLoadFactories()
     {
-        return Iterables.asList( Service.load( StatementLocksFactory.class ) );
+        return Services.loadAll( StatementLocksFactory.class );
     }
 }

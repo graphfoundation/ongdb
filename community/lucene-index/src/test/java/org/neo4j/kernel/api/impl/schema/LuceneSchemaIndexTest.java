@@ -24,26 +24,25 @@ import org.apache.lucene.document.Field;
 import org.apache.lucene.document.StringField;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.io.File;
 import java.io.IOException;
 import java.util.UUID;
 
+import org.neo4j.configuration.Config;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.internal.schema.IndexPrototype;
 import org.neo4j.io.IOUtils;
 import org.neo4j.io.fs.DefaultFileSystemAbstraction;
 import org.neo4j.kernel.api.impl.index.storage.DirectoryFactory;
-import org.neo4j.kernel.api.schema.index.TestIndexDescriptorFactory;
-import org.neo4j.kernel.configuration.Config;
-import org.neo4j.storageengine.api.schema.IndexDescriptor;
-import org.neo4j.test.extension.DefaultFileSystemExtension;
 import org.neo4j.test.extension.Inject;
-import org.neo4j.test.extension.TestDirectoryExtension;
+import org.neo4j.test.extension.testdirectory.TestDirectoryExtension;
 import org.neo4j.test.rule.TestDirectory;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.neo4j.internal.schema.SchemaDescriptor.forLabel;
 
-@ExtendWith( {DefaultFileSystemExtension.class, TestDirectoryExtension.class} )
+@TestDirectoryExtension
 class LuceneSchemaIndexTest
 {
     @Inject
@@ -53,7 +52,7 @@ class LuceneSchemaIndexTest
 
     private final DirectoryFactory dirFactory = new DirectoryFactory.InMemoryDirectoryFactory();
     private SchemaIndex index;
-    private final IndexDescriptor descriptor = TestIndexDescriptorFactory.forLabel( 3, 5 );
+    private final IndexDescriptor descriptor = IndexPrototype.forSchema( forLabel( 3, 5 ) ).withName( "a" ).materialise( 1 );
 
     @AfterEach
     void closeIndex() throws Exception

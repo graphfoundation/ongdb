@@ -22,10 +22,10 @@ package org.neo4j.io.mem;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
+import org.neo4j.internal.unsafe.UnsafeUtil;
 import org.neo4j.io.ByteUnit;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.memory.LocalMemoryTracker;
-import org.neo4j.unsafe.impl.internal.dragons.UnsafeUtil;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
@@ -167,12 +167,42 @@ class MemoryAllocatorTest
 
         assertEquals( 0, memoryTracker.usedDirectMemory() );
 
-        long pointer = allocator.allocateAligned( ByteUnit.mebiBytes( 1 ), 1 );
+        allocator.allocateAligned( ByteUnit.mebiBytes( 1 ), 1 );
 
         assertEquals( ByteUnit.mebiBytes( 1 ), memoryTracker.usedDirectMemory() );
 
         allocator.close();
         assertEquals( 0, memoryTracker.usedDirectMemory() );
+    }
+
+    @Test
+    void allAllocatedMemoryMustBeAccessibleForAllAlignments() throws Exception
+    {
+        // This test relies on the native access bounds checks that are enabled in Unsafeutil during tests.
+        int k512 = (int) ByteUnit.kibiBytes( 512 );
+        int maxAlign = PageCache.PAGE_SIZE >> 2;
+        for ( int align = 1; align <= maxAlign; align += Long.BYTES )
+        {
+            for ( int alloc = PageCache.PAGE_SIZE; alloc <= k512; alloc += PageCache.PAGE_SIZE )
+            {
+                createAllocator( "2 MiB" );
+                long addr = allocator.allocateAligned( alloc, align );
+                int i = 0;
+                try
+                {
+                    // This must not throw any bad access exceptions.
+                    UnsafeUtil.getLong( addr + i ); // Start of allocation.
+                    i = alloc - Long.BYTES;
+                    UnsafeUtil.getLong( addr + i ); // End of allocation.
+                }
+                catch ( Throwable e )
+                {
+                    throw new Exception( String.format(
+                            "Access failed at offset %s (%x) into allocated address %s (%x) of size %s (align %s).",
+                            i, i, addr, addr, alloc, align ), e );
+                }
+            }
+        }
     }
 
     private void closeAllocator()

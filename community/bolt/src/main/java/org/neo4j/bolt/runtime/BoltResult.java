@@ -19,7 +19,7 @@
  */
 package org.neo4j.bolt.runtime;
 
-import org.neo4j.cypher.result.QueryResult;
+import org.neo4j.bolt.messaging.BoltRecordConsumer;
 import org.neo4j.values.AnyValue;
 
 /**
@@ -33,19 +33,53 @@ public interface BoltResult extends AutoCloseable
     /** Positional names for all fields in every record of this stream. */
     String[] fieldNames();
 
-    void accept( Visitor visitor ) throws Exception;
+    /**
+     * @return {@code true} if there could be more records, {@code false} otherwise.
+     */
+    boolean handleRecords( RecordConsumer recordConsumer, long size ) throws Throwable;
+
+    /**
+     * @return {@code true} if there could be more records, {@code false} otherwise.
+     */
+    boolean discardRecords( DiscardingRecordConsumer recordConsumer, long size ) throws Throwable;
 
     @Override
     void close();
 
-    interface Visitor
+    interface RecordConsumer extends BoltRecordConsumer
     {
-        void visit( QueryResult.Record record ) throws Exception;
-
         /**
          * Associate arbitrary metadata with the result stream. This will get transferred at the end of the stream.
-         * Please stick to Neo4j type system types (Map, List, Integer, Float, Boolean, String etc) */
+         * Please stick to Neo4j type system types (Map, List, Integer, Float, Boolean, String etc)
+         */
         void addMetadata( String key, AnyValue value );
+    }
+
+    abstract class DiscardingRecordConsumer implements RecordConsumer
+    {
+        @Override
+        public void beginRecord( int numberOfFields )
+        {
+            //discard
+        }
+
+        @Override
+        public void consumeField( AnyValue value )
+        {
+            //discard
+        }
+
+        @Override
+        public void endRecord()
+        {
+            //discard
+        }
+
+        @Override
+        public void onError()
+        {
+            //discard
+        }
     }
 
     BoltResult EMPTY = new BoltResult()
@@ -64,8 +98,15 @@ public interface BoltResult extends AutoCloseable
         }
 
         @Override
-        public void accept( Visitor visitor )
+        public boolean handleRecords( RecordConsumer recordConsumer, long size )
         {
+            return false;
+        }
+
+        @Override
+        public boolean discardRecords( DiscardingRecordConsumer recordConsumer, long size )
+        {
+            return false;
         }
 
         @Override

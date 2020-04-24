@@ -24,7 +24,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
 
-import org.neo4j.helpers.collection.Visitor;
+import org.neo4j.internal.helpers.collection.Visitor;
 import org.neo4j.kernel.impl.transaction.TransactionRepresentation;
 import org.neo4j.storageengine.api.StorageCommand;
 
@@ -32,34 +32,40 @@ public class PhysicalTransactionRepresentation implements TransactionRepresentat
 {
     private final Collection<StorageCommand> commands;
     private byte[] additionalHeader;
-    private int masterId;
-    private int authorId;
     private long timeStarted;
     private long latestCommittedTxWhenStarted;
     private long timeCommitted;
 
     /**
-     * This is a bit of a smell, it's used only for committing slave transactions on the master. Effectively, this
-     * identifies the lock session used to guard this transaction. The master ensures that lock session is live before
-     * committing, to guard against locks timing out. We may want to refactor this design later on.
+     * This is a bit of a smell since it's only used for coordinating transactions in a cluster.
+     * We may want to refactor this design later on.
      */
-    private int lockSessionIdentifier;
+    private int leaseId;
 
     public PhysicalTransactionRepresentation( Collection<StorageCommand> commands )
     {
         this.commands = commands;
     }
 
-    public void setHeader( byte[] additionalHeader, int masterId, int authorId, long timeStarted,
-                           long latestCommittedTxWhenStarted, long timeCommitted, int lockSession )
+    public PhysicalTransactionRepresentation( Collection<StorageCommand> commands, byte[] additionalHeader, long timeStarted, long latestCommittedTxWhenStarted,
+            long timeCommitted, int leaseId )
+    {
+        this( commands );
+        setHeader( additionalHeader, timeStarted, latestCommittedTxWhenStarted, timeCommitted, leaseId );
+    }
+
+    public void setAdditionalHeader( byte[] additionalHeader )
     {
         this.additionalHeader = additionalHeader;
-        this.masterId = masterId;
-        this.authorId = authorId;
+    }
+
+    public void setHeader( byte[] additionalHeader, long timeStarted, long latestCommittedTxWhenStarted, long timeCommitted, int leaseId )
+    {
+        this.additionalHeader = additionalHeader;
         this.timeStarted = timeStarted;
         this.latestCommittedTxWhenStarted = latestCommittedTxWhenStarted;
         this.timeCommitted = timeCommitted;
-        this.lockSessionIdentifier = lockSession;
+        this.leaseId = leaseId;
     }
 
     @Override
@@ -82,18 +88,6 @@ public class PhysicalTransactionRepresentation implements TransactionRepresentat
     }
 
     @Override
-    public int getMasterId()
-    {
-        return masterId;
-    }
-
-    @Override
-    public int getAuthorId()
-    {
-        return authorId;
-    }
-
-    @Override
     public long getTimeStarted()
     {
         return timeStarted;
@@ -112,9 +106,9 @@ public class PhysicalTransactionRepresentation implements TransactionRepresentat
     }
 
     @Override
-    public int getLockSessionId()
+    public int getLeaseId()
     {
-        return lockSessionIdentifier;
+        return leaseId;
     }
 
     @Override
@@ -130,9 +124,7 @@ public class PhysicalTransactionRepresentation implements TransactionRepresentat
         }
 
         PhysicalTransactionRepresentation that = (PhysicalTransactionRepresentation) o;
-        return authorId == that.authorId
-               && latestCommittedTxWhenStarted == that.latestCommittedTxWhenStarted
-               && masterId == that.masterId
+        return latestCommittedTxWhenStarted == that.latestCommittedTxWhenStarted
                && timeStarted == that.timeStarted
                && Arrays.equals( additionalHeader, that.additionalHeader )
                && commands.equals( that.commands );
@@ -143,8 +135,6 @@ public class PhysicalTransactionRepresentation implements TransactionRepresentat
     {
         int result = commands.hashCode();
         result = 31 * result + (additionalHeader != null ? Arrays.hashCode( additionalHeader ) : 0);
-        result = 31 * result + masterId;
-        result = 31 * result + authorId;
         result = 31 * result + (int) (timeStarted ^ (timeStarted >>> 32));
         result = 31 * result + (int) (latestCommittedTxWhenStarted ^ (latestCommittedTxWhenStarted >>> 32));
         return result;
@@ -153,16 +143,13 @@ public class PhysicalTransactionRepresentation implements TransactionRepresentat
     @Override
     public String toString()
     {
-        StringBuilder builder = new StringBuilder( getClass().getSimpleName() ).append( '[' );
-        builder.append( "masterId:" ).append( masterId ).append( ',' );
-        builder.append( "authorId:" ).append( authorId ).append( ',' );
-        builder.append( "timeStarted:" ).append( timeStarted ).append( ',' );
-        builder.append( "latestCommittedTxWhenStarted:" ).append( latestCommittedTxWhenStarted ).append( ',' );
-        builder.append( "timeCommitted:" ).append( timeCommitted ).append( ',' );
-        builder.append( "lockSession:" ).append( lockSessionIdentifier ).append( ',' );
-        builder.append( "additionalHeader:" ).append( Arrays.toString( additionalHeader ) );
-        builder.append( "commands.length:" ).append( commands.size() );
-        return builder.toString();
+        return getClass().getSimpleName() + '[' +
+                "timeStarted:" + timeStarted + ',' +
+                "latestCommittedTxWhenStarted:" + latestCommittedTxWhenStarted + ',' +
+                "timeCommitted:" + timeCommitted + ',' +
+                "lease:" + leaseId + ',' +
+                "additionalHeader:" + Arrays.toString( additionalHeader ) +
+                "commands.length:" + commands.size();
     }
 
     @Override

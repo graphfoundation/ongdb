@@ -31,7 +31,6 @@ import org.neo4j.io.pagecache.tracing.cursor.PageCursorTracerSupplier;
 import org.neo4j.io.pagecache.tracing.cursor.context.EmptyVersionContextSupplier;
 import org.neo4j.scheduler.JobScheduler;
 
-import static org.neo4j.graphdb.config.Configuration.EMPTY;
 import static org.neo4j.index.internal.gbptree.GBPTree.NO_HEADER_READER;
 import static org.neo4j.index.internal.gbptree.GBPTree.NO_HEADER_WRITER;
 import static org.neo4j.index.internal.gbptree.GBPTree.NO_MONITOR;
@@ -51,7 +50,7 @@ public class GBPTreeBootstrapper
         this.readOnly = readOnly;
     }
 
-    public Bootstrap bootstrapTree( File file, String targetLayout )
+    public Bootstrap bootstrapTree( File file )
     {
         try
         {
@@ -63,12 +62,10 @@ public class GBPTreeBootstrapper
             TreeState state = TreeStatePair.selectNewestValidState( statePair );
 
             // Create layout and treeNode from meta
-            Layout<?,?> layout = layoutBootstrapper.create( file, pageCache, meta, targetLayout );
-            TreeNodeSelector.Factory factory = TreeNodeSelector.selectByFormat( meta.getFormatIdentifier(), meta.getFormatVersion() );
-            TreeNode<?,?> treeNode = factory.create( meta.getPageSize(), layout );
+            Layout<?,?> layout = layoutBootstrapper.create( file, pageCache, meta );
             GBPTree<?,?> tree =
                     new GBPTree<>( pageCache, file, layout, meta.getPageSize(), NO_MONITOR, NO_HEADER_READER, NO_HEADER_WRITER, ignore(), readOnly );
-            return new SuccessfulBootstrap( tree, layout, treeNode, state, meta );
+            return new SuccessfulBootstrap( tree, layout, state, meta );
         }
         catch ( Exception e )
         {
@@ -80,7 +77,7 @@ public class GBPTreeBootstrapper
     {
         SingleFilePageSwapperFactory swapper = new SingleFilePageSwapperFactory();
         DefaultFileSystemAbstraction fs = new DefaultFileSystemAbstraction();
-        swapper.open( fs, EMPTY );
+        swapper.open( fs );
         PageCursorTracerSupplier cursorTracerSupplier = PageCursorTracerSupplier.NULL;
         return new MuninnPageCache( swapper, 100, NULL, cursorTracerSupplier, EmptyVersionContextSupplier.EMPTY, jobScheduler );
     }
@@ -90,7 +87,6 @@ public class GBPTreeBootstrapper
         boolean isTree();
         GBPTree<?,?> getTree();
         Layout<?,?> getLayout();
-        TreeNode<?,?> getTreeNode();
         TreeState getState();
         Meta getMeta();
     }
@@ -123,12 +119,6 @@ public class GBPTreeBootstrapper
         }
 
         @Override
-        public TreeNode<?,?> getTreeNode()
-        {
-            throw new IllegalStateException( "Bootstrap failed", cause );
-        }
-
-        @Override
         public TreeState getState()
         {
             throw new IllegalStateException( "Bootstrap failed", cause );
@@ -145,15 +135,13 @@ public class GBPTreeBootstrapper
     {
         private final GBPTree<?,?> tree;
         private final Layout<?,?> layout;
-        private final TreeNode<?,?> treeNode;
         private final TreeState state;
         private final Meta meta;
 
-        SuccessfulBootstrap( GBPTree<?,?> tree, Layout<?,?> layout, TreeNode<?,?> treeNode, TreeState state, Meta meta )
+        SuccessfulBootstrap( GBPTree<?,?> tree, Layout<?,?> layout, TreeState state, Meta meta )
         {
             this.tree = tree;
             this.layout = layout;
-            this.treeNode = treeNode;
             this.state = state;
             this.meta = meta;
         }
@@ -174,12 +162,6 @@ public class GBPTreeBootstrapper
         public Layout<?,?> getLayout()
         {
             return layout;
-        }
-
-        @Override
-        public TreeNode<?,?> getTreeNode()
-        {
-            return treeNode;
         }
 
         @Override

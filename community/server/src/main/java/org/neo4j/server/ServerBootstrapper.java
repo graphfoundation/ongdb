@@ -25,25 +25,24 @@ import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.util.Collection;
-import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import org.neo4j.configuration.Config;
+import org.neo4j.configuration.GraphDatabaseSettings;
+import org.neo4j.configuration.GroupSettingValidator;
+import org.neo4j.configuration.connectors.HttpConnector;
+import org.neo4j.configuration.connectors.HttpsConnector;
 import org.neo4j.graphdb.TransactionFailureException;
 import org.neo4j.graphdb.facade.GraphDatabaseDependencies;
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.io.IOUtils;
 import org.neo4j.io.fs.DefaultFileSystemAbstraction;
 import org.neo4j.io.fs.FileSystemAbstraction;
-import org.neo4j.kernel.configuration.Config;
-import org.neo4j.kernel.configuration.ConfigurationValidator;
-import org.neo4j.kernel.configuration.HttpConnector.Encryption;
 import org.neo4j.kernel.impl.scheduler.BufferingExecutor;
-import org.neo4j.kernel.info.JvmChecker;
-import org.neo4j.kernel.info.JvmMetadataRepository;
+import org.neo4j.kernel.internal.Version;
 import org.neo4j.logging.FormattedLogProvider;
 import org.neo4j.logging.Log;
 import org.neo4j.logging.LogProvider;
@@ -54,8 +53,7 @@ import org.neo4j.server.logging.JULBridge;
 import org.neo4j.server.logging.JettyLogBridge;
 
 import static java.lang.String.format;
-import static org.neo4j.commandline.Util.neo4jVersion;
-import static org.neo4j.io.file.Files.createOrOpenAsOutputStream;
+import static org.neo4j.io.fs.FileSystemUtils.createOrOpenAsOutputStream;
 
 public abstract class ServerBootstrapper implements Bootstrapper
 {
@@ -79,7 +77,7 @@ public abstract class ServerBootstrapper implements Bootstrapper
 
         if ( args.version() )
         {
-            System.out.println( "neo4j " + neo4jVersion() );
+            System.out.println( "neo4j " + Version.getNeo4jVersion() );
             return 0;
         }
 
@@ -96,29 +94,21 @@ public abstract class ServerBootstrapper implements Bootstrapper
     {
         addShutdownHook();
         installSignalHandlers();
+        Config config = Config.newBuilder()
+                .setDefaults( GraphDatabaseSettings.SERVER_DEFAULTS )
+                .fromFileNoThrow( configFile.orElse( null ) )
+                .setRaw( configOverrides )
+                .set( GraphDatabaseSettings.neo4j_home, homeDir.toPath().toAbsolutePath() )
+                .addValidators( configurationValidators() )
+                .build();
         try
         {
-            // Create config file from arguments
-            Config config = Config.builder()
-                    .withFile( configFile )
-                    .withSettings( configOverrides )
-                    .withHome(homeDir)
-                    .withValidators( configurationValidators() )
-                    .withNoThrowOnFileLoadFailure() // TODO 4.0: Remove this, and require a neo4j.conf file to be present?
-                    .withServerDefaults().build();
-
             LogProvider userLogProvider = setupLogging( config );
             dependencies = dependencies.userLogProvider( userLogProvider );
             log = userLogProvider.getLog( getClass() );
             config.setLogger( log );
 
-            serverAddress =  config.httpConnectors().stream()
-                    .filter( c -> Encryption.NONE.equals( c.encryptionLevel() ) )
-                    .findFirst()
-                    .map( connector -> config.get( connector.listen_address ).toString() )
-                    .orElse( serverAddress );
-
-            checkCompatibility();
+            serverAddress = HttpConnector.listen_address.toString();
 
             server = createNeoServer( config, dependencies );
             server.start();
@@ -133,7 +123,7 @@ public abstract class ServerBootstrapper implements Bootstrapper
         catch ( TransactionFailureException tfe )
         {
             String locationMsg = (server == null) ? "" :
-                    " Another process may be using database location " + server.getDatabase().getLocation();
+                    " Another process may be using databases at location: " + config.get( GraphDatabaseSettings.databases_root_path );
             log.error( format( "Failed to start Neo4j on %s.", serverAddress ) + locationMsg, tfe );
             return GRAPH_DATABASE_STARTUP_ERROR_CODE;
         }
@@ -142,6 +132,11 @@ public abstract class ServerBootstrapper implements Bootstrapper
             log.error( format( "Failed to start Neo4j on %s.", serverAddress ), e );
             return WEB_SERVER_STARTUP_ERROR_CODE;
         }
+    }
+
+    protected List<Class<? extends GroupSettingValidator>> configurationValidators()
+    {
+        return List.of();
     }
 
     @Override
@@ -166,7 +161,7 @@ public abstract class ServerBootstrapper implements Bootstrapper
 
     public boolean isRunning()
     {
-        return server != null && server.getDatabase() != null && server.getDatabase().isRunning();
+        return server != null && server.getDatabaseService() != null && server.getDatabaseService().isRunning();
     }
 
     public NeoServer getServer()
@@ -183,7 +178,7 @@ public abstract class ServerBootstrapper implements Bootstrapper
     {
         GraphFactory graphFactory = createGraphFactory( config );
 
-        boolean httpAndHttpsDisabled = config.enabledHttpConnectors().isEmpty();
+        boolean httpAndHttpsDisabled = !config.get( HttpConnector.enabled ) && !config.get( HttpsConnector.enabled );
         if ( httpAndHttpsDisabled )
         {
             return new DisabledNeoServer( graphFactory, dependencies, config );
@@ -197,11 +192,6 @@ public abstract class ServerBootstrapper implements Bootstrapper
      * Create a new server component. This method is invoked only when at least one HTTP connector is enabled.
      */
     protected abstract NeoServer createNeoServer( GraphFactory graphFactory, Config config, GraphDatabaseDependencies dependencies );
-
-    protected Collection<ConfigurationValidator> configurationValidators()
-    {
-        return Collections.emptyList();
-    }
 
     private LogProvider setupLogging( Config config )
     {
@@ -288,7 +278,7 @@ public abstract class ServerBootstrapper implements Bootstrapper
         dependencies = dependencies.withDeferredExecutor( deferredExecutor, Group.LOG_ROTATION );
 
         FileSystemAbstraction fs = new DefaultFileSystemAbstraction();
-        File destination = config.get( GraphDatabaseSettings.store_user_log_path );
+        File destination = config.get( GraphDatabaseSettings.store_user_log_path ).toFile();
         Long rotationThreshold = config.get( GraphDatabaseSettings.store_user_log_rotation_threshold );
         try
         {
@@ -310,10 +300,5 @@ public abstract class ServerBootstrapper implements Bootstrapper
         {
             throw new RuntimeException( e );
         }
-    }
-
-    private void checkCompatibility()
-    {
-        new JvmChecker( log, new JvmMetadataRepository() ).checkJvmCompatibilityAndIssueWarning();
     }
 }

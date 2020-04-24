@@ -36,22 +36,18 @@ public interface LogFileInformation
     long getFirstEntryId( long version ) throws IOException;
 
     /**
-     * @return the last committed entry id for this Log
+     * @return the last committed entry id for this log.
      */
     long getLastEntryId();
 
     /**
-     * @param version the log version to get first entry timestamp for.
-     * @return the timestamp for the start record for the first encountered entry
-     * in the log {@code version}.
+     * @return the committing entry id for this log.
      */
-    long getFirstStartRecordTimestamp( long version ) throws IOException;
+    long committingEntryId();
 
     /**
-     * Checks if a transaction with the given transaction id exists on disk
-     * @param transactionId The id of the transaction to check
-     * @return True if the transaction with the given id is contained in an existing log file, false otherwise
-     * @throws IOException If an IO exception occurred during scan of the log files
+     * @param version the log version to get first entry timestamp for.
+     * @return the timestamp for the start record for the first encountered entry in the log {@code version}.
      */
-    boolean transactionExistsOnDisk( long transactionId ) throws IOException;
+    long getFirstStartRecordTimestamp( long version ) throws IOException;
 }

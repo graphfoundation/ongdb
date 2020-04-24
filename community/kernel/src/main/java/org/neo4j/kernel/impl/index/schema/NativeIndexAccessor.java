@@ -25,7 +25,9 @@ import java.io.UncheckedIOException;
 import java.util.function.Consumer;
 
 import org.neo4j.graphdb.ResourceIterator;
-import org.neo4j.helpers.collection.BoundedIterable;
+import org.neo4j.index.internal.gbptree.TreeInconsistencyException;
+import org.neo4j.internal.helpers.collection.BoundedIterable;
+import org.neo4j.internal.schema.IndexDescriptor;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.pagecache.IOLimiter;
 import org.neo4j.io.pagecache.PageCache;
@@ -33,13 +35,12 @@ import org.neo4j.io.pagecache.PageCursor;
 import org.neo4j.kernel.api.exceptions.index.IndexEntryConflictException;
 import org.neo4j.kernel.api.index.IndexAccessor;
 import org.neo4j.kernel.api.index.IndexProvider;
+import org.neo4j.kernel.api.index.IndexReader;
 import org.neo4j.kernel.impl.api.index.IndexUpdateMode;
 import org.neo4j.storageengine.api.NodePropertyAccessor;
-import org.neo4j.storageengine.api.schema.IndexReader;
-import org.neo4j.storageengine.api.schema.StoreIndexDescriptor;
 
-import static org.neo4j.helpers.collection.Iterators.asResourceIterator;
-import static org.neo4j.helpers.collection.Iterators.iterator;
+import static org.neo4j.internal.helpers.collection.Iterators.asResourceIterator;
+import static org.neo4j.internal.helpers.collection.Iterators.iterator;
 import static org.neo4j.kernel.impl.index.schema.NativeIndexPopulator.BYTE_ONLINE;
 
 public abstract class NativeIndexAccessor<KEY extends NativeIndexKey<KEY>, VALUE extends NativeIndexValue> extends NativeIndex<KEY,VALUE>
@@ -48,10 +49,10 @@ public abstract class NativeIndexAccessor<KEY extends NativeIndexKey<KEY>, VALUE
     private final NativeIndexUpdater<KEY,VALUE> singleUpdater;
     final NativeIndexHeaderWriter headerWriter;
 
-    NativeIndexAccessor( PageCache pageCache, FileSystemAbstraction fs, File storeFile, IndexLayout<KEY,VALUE> layout,
-            IndexProvider.Monitor monitor, StoreIndexDescriptor descriptor, Consumer<PageCursor> additionalHeaderWriter, boolean readOnly )
+    NativeIndexAccessor( PageCache pageCache, FileSystemAbstraction fs, IndexFiles indexFiles, IndexLayout<KEY,VALUE> layout,
+            IndexProvider.Monitor monitor, IndexDescriptor descriptor, Consumer<PageCursor> additionalHeaderWriter, boolean readOnly )
     {
-        super( pageCache, fs, storeFile, layout, monitor, descriptor, readOnly );
+        super( pageCache, fs, indexFiles, layout, monitor, descriptor, readOnly );
         singleUpdater = new NativeIndexUpdater<>( layout.newKey(), layout.newValue() );
         headerWriter = new NativeIndexHeaderWriter( BYTE_ONLINE, additionalHeaderWriter );
     }
@@ -60,14 +61,7 @@ public abstract class NativeIndexAccessor<KEY extends NativeIndexKey<KEY>, VALUE
     public void drop()
     {
         closeTree();
-        try
-        {
-            fileSystem.deleteFileOrThrow( storeFile );
-        }
-        catch ( IOException e )
-        {
-            throw new UncheckedIOException( e );
-        }
+        indexFiles.clear();
     }
 
     @Override
@@ -112,19 +106,36 @@ public abstract class NativeIndexAccessor<KEY extends NativeIndexKey<KEY>, VALUE
     public abstract IndexReader newReader();
 
     @Override
-    public BoundedIterable<Long> newAllEntriesReader()
+    public BoundedIterable<Long> newAllEntriesReader( long fromIdInclusive, long toIdExclusive )
     {
-        return new NativeAllEntriesReader<>( tree, layout );
+        return new NativeAllEntriesReader<>( tree, layout, fromIdInclusive, toIdExclusive );
     }
 
     @Override
     public ResourceIterator<File> snapshotFiles()
     {
-        return asResourceIterator( iterator( storeFile ) );
+        return asResourceIterator( iterator( indexFiles.getStoreFile() ) );
     }
 
     @Override
     public void verifyDeferredConstraints( NodePropertyAccessor nodePropertyAccessor ) throws IndexEntryConflictException
     {   // Not needed since uniqueness is verified automatically w/o cost for every update.
+    }
+
+    @Override
+    public long estimateNumberOfEntries()
+    {
+        try
+        {
+            return tree.estimateNumberOfEntriesInTree();
+        }
+        catch ( IOException e )
+        {
+            throw new UncheckedIOException( e );
+        }
+        catch ( TreeInconsistencyException e )
+        {
+            return UNKNOWN_NUMBER_OF_ENTRIES;
+        }
     }
 }

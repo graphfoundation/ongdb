@@ -19,73 +19,75 @@
  */
 package org.neo4j.graphdb;
 
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
+import org.neo4j.configuration.Config;
+import org.neo4j.dbms.api.DatabaseManagementService;
 import org.neo4j.io.fs.FileSystemAbstraction;
+import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.kernel.impl.transaction.log.PhysicalLogVersionedStoreChannel;
 import org.neo4j.kernel.impl.transaction.log.files.LogFiles;
 import org.neo4j.kernel.impl.transaction.log.files.LogFilesBuilder;
-import org.neo4j.test.TestGraphDatabaseFactory;
+import org.neo4j.test.TestDatabaseManagementServiceBuilder;
+import org.neo4j.test.extension.Inject;
+import org.neo4j.test.extension.testdirectory.TestDirectoryExtension;
 import org.neo4j.test.rule.TestDirectory;
-import org.neo4j.test.rule.fs.DefaultFileSystemRule;
-import org.neo4j.test.rule.fs.FileSystemRule;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.greaterThan;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
+import static org.neo4j.configuration.GraphDatabaseSettings.neo4j_home;
+import static org.neo4j.configuration.GraphDatabaseSettings.transaction_logs_root_path;
 
-public class TransactionLogsInSeparateLocationIT
+@TestDirectoryExtension
+class TransactionLogsInSeparateLocationIT
 {
-    @Rule
-    public final TestDirectory testDirectory = TestDirectory.testDirectory();
-    @Rule
-    public final FileSystemRule fileSystemRule = new DefaultFileSystemRule();
+    @Inject
+    private TestDirectory testDirectory;
+    @Inject
+    private FileSystemAbstraction fileSystem;
 
     @Test
-    public void databaseWithTransactionLogsInSeparateRelativeLocation() throws IOException
+    void databaseWithTransactionLogsInSeparateAbsoluteLocation() throws IOException
     {
-        File databaseDirectory = testDirectory.databaseDir();
-        File txDirectory = new File( databaseDirectory, "transaction-logs" );
-        performTransactions( txDirectory.getName(), testDirectory.databaseDir() );
-        verifyTransactionLogs( txDirectory, databaseDirectory );
-    }
-
-    @Test
-    public void databaseWithTransactionLogsInSeparateAbsoluteLocation() throws IOException
-    {
-        File databaseDirectory = testDirectory.databaseDir();
         File txDirectory = testDirectory.directory( "transaction-logs" );
-        performTransactions( txDirectory.getAbsolutePath(), testDirectory.databaseDir() );
-        verifyTransactionLogs( txDirectory, databaseDirectory );
+        Config config = Config.newBuilder()
+                .set( neo4j_home, testDirectory.homeDir().toPath() )
+                .set( transaction_logs_root_path, txDirectory.toPath().toAbsolutePath() )
+                .build();
+        DatabaseLayout layout = DatabaseLayout.of( config );
+        performTransactions( txDirectory.toPath().toAbsolutePath(), layout.databaseDirectory() );
+        verifyTransactionLogs( layout.getTransactionLogsDirectory(), layout.databaseDirectory() );
     }
 
-    private static void performTransactions( String txPath, File storeDir )
+    private static void performTransactions( Path txPath, File storeDir )
     {
-        GraphDatabaseService database = new TestGraphDatabaseFactory().newEmbeddedDatabaseBuilder( storeDir )
-                .setConfig( GraphDatabaseSettings.logical_logs_location, txPath )
-                .newGraphDatabase();
+        DatabaseManagementService managementService =
+                new TestDatabaseManagementServiceBuilder( storeDir )
+                        .setConfig( transaction_logs_root_path, txPath )
+                        .build();
+        GraphDatabaseService database = managementService.database( DEFAULT_DATABASE_NAME );
         for ( int i = 0; i < 10; i++ )
         {
             try ( Transaction transaction = database.beginTx() )
             {
-                Node node = database.createNode();
+                Node node = transaction.createNode();
                 node.setProperty( "a", "b" );
                 node.setProperty( "c", "d" );
-                transaction.success();
+                transaction.commit();
             }
         }
-        database.shutdown();
+        managementService.shutdown();
     }
 
     private void verifyTransactionLogs( File txDirectory, File storeDir ) throws IOException
     {
-        FileSystemAbstraction fileSystem = fileSystemRule.get();
         LogFiles storeDirLogs = LogFilesBuilder.logFilesBasedOnlyBuilder( storeDir, fileSystem ).build();
         assertFalse( storeDirLogs.versionExists( 0 ) );
 

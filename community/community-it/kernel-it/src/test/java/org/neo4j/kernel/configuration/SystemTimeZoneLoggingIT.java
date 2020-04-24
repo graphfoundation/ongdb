@@ -19,8 +19,7 @@
  */
 package org.neo4j.kernel.configuration;
 
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.File;
 import java.io.IOException;
@@ -30,21 +29,25 @@ import java.nio.file.Paths;
 import java.time.ZoneOffset;
 import java.util.TimeZone;
 
-import org.neo4j.graphdb.GraphDatabaseService;
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
+import org.neo4j.configuration.GraphDatabaseSettings;
+import org.neo4j.dbms.api.DatabaseManagementService;
 import org.neo4j.logging.LogTimeZone;
-import org.neo4j.test.TestGraphDatabaseFactory;
+import org.neo4j.test.TestDatabaseManagementServiceBuilder;
+import org.neo4j.test.extension.Inject;
+import org.neo4j.test.extension.testdirectory.TestDirectoryExtension;
 import org.neo4j.test.rule.TestDirectory;
 
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
 
-public class SystemTimeZoneLoggingIT
+@TestDirectoryExtension
+class SystemTimeZoneLoggingIT
 {
-    @Rule
-    public TestDirectory testDirectory = TestDirectory.testDirectory();
+    @Inject
+    private TestDirectory testDirectory;
 
     @Test
-    public void databaseLogsUseSystemTimeZoneIfConfigure() throws IOException
+    void databaseLogsUseSystemTimeZoneIfConfigure() throws IOException
     {
         TimeZone defaultTimeZone = TimeZone.getDefault();
         try
@@ -61,15 +64,17 @@ public class SystemTimeZoneLoggingIT
     private void checkStartLogLine( int hoursShift, String timeZoneSuffix ) throws IOException
     {
         TimeZone.setDefault( TimeZone.getTimeZone( ZoneOffset.ofHours( hoursShift ) ) );
-        File storeDir = testDirectory.storeDir( String.valueOf( hoursShift ) );
-        File databaseDirectory = testDirectory.databaseLayout( storeDir ).databaseDirectory();
-        GraphDatabaseService database = new TestGraphDatabaseFactory().newEmbeddedDatabaseBuilder( databaseDirectory )
-                .setConfig( GraphDatabaseSettings.db_timezone, LogTimeZone.SYSTEM.name() ).newGraphDatabase();
-        database.shutdown();
+        File storeDir = testDirectory.homeDir( String.valueOf( hoursShift ) );
+        DatabaseManagementService managementService =
+                new TestDatabaseManagementServiceBuilder( storeDir )
+                        .setConfig( GraphDatabaseSettings.db_timezone, LogTimeZone.SYSTEM )
+                        .build();
+        managementService.database( DEFAULT_DATABASE_NAME );
+        managementService.shutdown();
         Path databasePath = storeDir.toPath();
         Path debugLog = Paths.get( "logs", "debug.log" );
         String debugLogLine = getLogLine( databasePath, debugLog );
-        assertTrue( debugLogLine, debugLogLine.contains( timeZoneSuffix ) );
+        assertTrue( debugLogLine.contains( timeZoneSuffix ), debugLogLine );
     }
 
     private static String getLogLine( Path databasePath, Path logFilePath ) throws IOException

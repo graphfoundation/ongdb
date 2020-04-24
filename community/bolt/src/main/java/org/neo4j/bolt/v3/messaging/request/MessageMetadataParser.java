@@ -24,6 +24,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.neo4j.bolt.messaging.BoltIOException;
+import org.neo4j.bolt.runtime.AccessMode;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Relationship;
 import org.neo4j.graphdb.spatial.Point;
@@ -32,22 +33,24 @@ import org.neo4j.kernel.impl.util.BaseToObjectValueWriter;
 import org.neo4j.values.AnyValue;
 import org.neo4j.values.storable.CoordinateReferenceSystem;
 import org.neo4j.values.storable.LongValue;
+import org.neo4j.values.storable.StringValue;
 import org.neo4j.values.storable.Values;
 import org.neo4j.values.virtual.MapValue;
 
 /**
  * The parsing methods in this class returns null if the specified key is not found in the input message metadata map.
  */
-final class MessageMetadataParser
+public final class MessageMetadataParser
 {
     private static final String TX_TIMEOUT_KEY = "tx_timeout";
     private static final String TX_META_DATA_KEY = "tx_metadata";
+    private static final String ACCESS_MODE_KEY = "mode";
 
     private MessageMetadataParser()
     {
     }
 
-    static Duration parseTransactionTimeout( MapValue meta ) throws BoltIOException
+    public static Duration parseTransactionTimeout( MapValue meta ) throws BoltIOException
     {
         AnyValue anyValue = meta.get( TX_TIMEOUT_KEY );
         if ( anyValue == Values.NO_VALUE )
@@ -64,7 +67,35 @@ final class MessageMetadataParser
         }
     }
 
-    static Map<String,Object> parseTransactionMetadata( MapValue meta ) throws BoltIOException
+    public static AccessMode parseAccessMode( MapValue meta ) throws BoltIOException
+    {
+        AnyValue anyValue = meta.get( ACCESS_MODE_KEY );
+        if ( anyValue == Values.NO_VALUE )
+        {
+            return AccessMode.WRITE;
+        }
+        else if ( anyValue instanceof StringValue )
+        {
+            String value = ((StringValue) anyValue).stringValue();
+            if ( value.equals( "r" ) )
+            {
+                return AccessMode.READ;
+            }
+
+            if ( value.equals( "w" ) )
+            {
+                return AccessMode.WRITE;
+            }
+
+            throw new BoltIOException( Status.Request.Invalid, "Expecting access mode value to be 'r' or 'w', but got: " + anyValue );
+        }
+        else
+        {
+            throw new BoltIOException( Status.Request.Invalid, "Expecting access mode value to be a String value, but got: " + anyValue );
+        }
+    }
+
+    public static Map<String,Object> parseTransactionMetadata( MapValue meta ) throws BoltIOException
     {
         AnyValue anyValue = meta.get( TX_META_DATA_KEY );
         if ( anyValue == Values.NO_VALUE )
@@ -88,13 +119,13 @@ final class MessageMetadataParser
     private static class TransactionMetadataWriter extends BaseToObjectValueWriter<RuntimeException>
     {
         @Override
-        protected Node newNodeProxyById( long id )
+        protected Node newNodeEntityById( long id )
         {
             throw new UnsupportedOperationException( "Transaction metadata should not contain nodes" );
         }
 
         @Override
-        protected Relationship newRelationshipProxyById( long id )
+        protected Relationship newRelationshipEntityById( long id )
         {
             throw new UnsupportedOperationException( "Transaction metadata should not contain relationships" );
         }

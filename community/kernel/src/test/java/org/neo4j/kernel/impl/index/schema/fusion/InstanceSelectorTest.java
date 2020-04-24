@@ -20,101 +20,73 @@
 package org.neo4j.kernel.impl.index.schema.fusion;
 
 import org.apache.commons.lang3.mutable.MutableInt;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import org.neo4j.helpers.collection.Iterables;
+import org.neo4j.internal.helpers.collection.Iterables;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-import static org.neo4j.kernel.impl.index.schema.fusion.IndexSlot.NUMBER;
-import static org.neo4j.kernel.impl.index.schema.fusion.IndexSlot.STRING;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.neo4j.kernel.impl.index.schema.fusion.IndexSlot.GENERIC;
+import static org.neo4j.kernel.impl.index.schema.fusion.IndexSlot.LUCENE;
 
-public class InstanceSelectorTest
+class InstanceSelectorTest
 {
     @Test
-    public void shouldSelect()
+    void shouldSelect()
     {
         // given
         InstanceSelector<String> selector = selector(
-                NUMBER, "0",
-                STRING, "1" );
+                LUCENE, "0",
+                GENERIC, "1" );
 
         // when
-        String select0 = selector.select( NUMBER );
+        String select0 = selector.select( LUCENE );
         // then
         assertEquals( "0", select0 );
 
         // when
-        String select1 = selector.select( STRING );
+        String select1 = selector.select( GENERIC );
         // then
         assertEquals( "1", select1 );
     }
 
     @Test
-    public void shouldThrowOnNonInstantiatedSelect()
+    void shouldThrowOnNonInstantiatedSelect()
     {
         // given
-        InstanceSelector<String> selector = selector( NUMBER, "0" );
+        InstanceSelector<String> selector = selector( LUCENE, "0" );
 
-        try
-        {
-            // when
-            selector.select( STRING );
-            fail( "Should have failed" );
-        }
-        catch ( IllegalStateException e )
-        {
-            // then
-            // good
-        }
+        assertThrows( IllegalStateException.class, () -> selector.select( GENERIC ) );
     }
 
     @Test
-    public void shouldThrowOnNonInstantiatedFlatMap()
+    void shouldThrowOnNonInstantiatedFlatMap()
     {
         // given
-        InstanceSelector<String> selector = selector( NUMBER, "0" );
+        InstanceSelector<String> selector = selector( LUCENE, "0" );
 
         // when
-        try
-        {
-            selector.transform( Integer::parseInt );
-            fail( "Should have failed" );
-        }
-        catch ( IllegalStateException e )
-        {
-            // then
-            // good
-        }
+        assertThrows( IllegalStateException.class, () -> selector.transform( Integer::parseInt ) );
     }
 
     @Test
-    public void shouldThrowOnNonInstantiatedMap()
+    void shouldThrowOnNonInstantiatedMap()
     {
         // given
-        InstanceSelector<String> selector = selector( NUMBER, "0" );
+        InstanceSelector<String> selector = selector( LUCENE, "0" );
 
         // when
-        try
-        {
-            selector.map( Integer::parseInt );
-            fail( "Should have failed" );
-        }
-        catch ( IllegalStateException e )
-        {
-            // then
-            // good
-        }
+        assertThrows( IllegalStateException.class, () -> selector.map( Integer::parseInt ) );
     }
 
     @Test
-    public void shouldFlatMap()
+    void shouldFlatMap()
     {
         // given
         InstanceSelector<String> selector = selectorFilledWithOrdinal();
@@ -132,7 +104,7 @@ public class InstanceSelectorTest
     }
 
     @Test
-    public void shouldMap()
+    void shouldMap()
     {
         // given
         InstanceSelector<String> selector = selectorFilledWithOrdinal();
@@ -149,26 +121,17 @@ public class InstanceSelectorTest
 
     @SuppressWarnings( "ResultOfMethodCallIgnored" )
     @Test
-    public void shouldThrowOnNonInstantiatedForAll()
+    void shouldThrowOnNonInstantiatedForAll()
     {
         // given
-        InstanceSelector<String> selector = selector( NUMBER, "0" );
+        InstanceSelector<String> selector = selector( LUCENE, "0" );
 
         // when
-        try
-        {
-            selector.forAll( Integer::parseInt );
-            fail( "Should have failed" );
-        }
-        catch ( IllegalStateException e )
-        {
-            // then
-            // good
-        }
+        assertThrows( IllegalStateException.class, () -> selector.forAll( Integer::parseInt ) );
     }
 
     @Test
-    public void shouldForAll()
+    void shouldForAll()
     {
         // given
         InstanceSelector<String> selector = selectorFilledWithOrdinal();
@@ -183,10 +146,10 @@ public class InstanceSelectorTest
 
     @SuppressWarnings( "ResultOfMethodCallIgnored" )
     @Test
-    public void shouldNotThrowOnNonInstantiatedClose()
+    void shouldNotThrowOnNonInstantiatedClose()
     {
         // given
-        InstanceSelector<String> selector = selector( NUMBER, "0" );
+        InstanceSelector<String> selector = selector( LUCENE, "0" );
 
         // when
         selector.close( Integer::parseInt );
@@ -196,7 +159,7 @@ public class InstanceSelectorTest
     }
 
     @Test
-    public void shouldCloseAll()
+    void shouldCloseAll()
     {
         // given
         InstanceSelector<String> selector = selectorFilledWithOrdinal();
@@ -209,7 +172,7 @@ public class InstanceSelectorTest
         assertEquals( IndexSlot.values().length, count.intValue() );
     }
 
-    private InstanceSelector<String> selector( Object... mapping )
+    private static InstanceSelector<String> selector( Object... mapping )
     {
         EnumMap<IndexSlot,String> map = new EnumMap<>( IndexSlot.class );
         int i = 0;
@@ -220,7 +183,7 @@ public class InstanceSelectorTest
         return new InstanceSelector<>( map );
     }
 
-    private InstanceSelector<String> selectorFilledWithOrdinal()
+    private static InstanceSelector<String> selectorFilledWithOrdinal()
     {
         EnumMap<IndexSlot,String> map = new EnumMap<>( IndexSlot.class );
         for ( IndexSlot slot : IndexSlot.values() )

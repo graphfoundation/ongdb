@@ -25,14 +25,13 @@ import org.mockito.ArgumentCaptor;
 import java.io.IOException;
 import java.util.List;
 
-import org.neo4j.internal.kernel.api.schema.SchemaDescriptor;
+import org.neo4j.internal.schema.SchemaDescriptor;
 import org.neo4j.kernel.api.exceptions.index.IndexEntryConflictException;
 import org.neo4j.kernel.api.impl.schema.SchemaIndex;
 import org.neo4j.kernel.api.impl.schema.writer.LuceneIndexWriter;
+import org.neo4j.kernel.api.index.IndexSample;
+import org.neo4j.kernel.api.index.UniqueIndexSampler;
 import org.neo4j.storageengine.api.NodePropertyAccessor;
-import org.neo4j.kernel.api.schema.SchemaDescriptorFactory;
-import org.neo4j.kernel.impl.api.index.sampling.UniqueIndexSampler;
-import org.neo4j.storageengine.api.schema.IndexSample;
 import org.neo4j.values.storable.Value;
 
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -52,7 +51,7 @@ import static org.neo4j.kernel.api.index.IndexQueryHelper.remove;
 
 class UniqueDatabaseIndexPopulatingUpdaterTest
 {
-    private static final SchemaDescriptor descriptor = SchemaDescriptorFactory.forLabel( 1, 42 );
+    private static final SchemaDescriptor descriptor = SchemaDescriptor.forLabel( 1, 42 );
 
     @Test
     void closeVerifiesUniquenessOfAddedValues() throws Exception
@@ -217,11 +216,6 @@ class UniqueDatabaseIndexPopulatingUpdaterTest
         assertEquals( expectedValue, sample.indexSize() );
         assertEquals( expectedValue, sample.uniqueValues() );
         assertEquals( expectedValue, sample.sampleSize() );
-    }
-
-    private static UniqueLuceneIndexPopulatingUpdater newUpdater()
-    {
-        return newUpdater( new UniqueIndexSampler() );
     }
 
     private static UniqueLuceneIndexPopulatingUpdater newUpdater( SchemaIndex index )

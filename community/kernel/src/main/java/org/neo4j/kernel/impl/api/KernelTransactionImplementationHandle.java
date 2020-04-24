@@ -23,11 +23,13 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Stream;
 
+import org.neo4j.internal.kernel.api.connectioninfo.ClientConnectionInfo;
 import org.neo4j.internal.kernel.api.security.AuthSubject;
 import org.neo4j.kernel.api.KernelTransaction;
 import org.neo4j.kernel.api.KernelTransactionHandle;
 import org.neo4j.kernel.api.exceptions.Status;
 import org.neo4j.kernel.api.query.ExecutingQuery;
+import org.neo4j.kernel.impl.api.transaction.trace.TransactionInitializationTrace;
 import org.neo4j.kernel.impl.locking.ActiveLock;
 import org.neo4j.time.SystemNanoClock;
 
@@ -39,7 +41,7 @@ import org.neo4j.time.SystemNanoClock;
  */
 class KernelTransactionImplementationHandle implements KernelTransactionHandle
 {
-    private static final String USER_TRANSACTION_NAME_PREFIX = "transaction-";
+    private static final String USER_TRANSACTION_NAME_SEPARATOR = "-transaction-";
 
     private final long txReuseCount;
     private final long lastTransactionIdWhenStarted;
@@ -49,11 +51,14 @@ class KernelTransactionImplementationHandle implements KernelTransactionHandle
     private final long timeoutMillis;
     private final KernelTransactionImplementation tx;
     private final SystemNanoClock clock;
+    private final ClientConnectionInfo clientInfo;
     private final AuthSubject subject;
     private final Optional<Status> terminationReason;
-    private final ExecutingQueryList executingQueries;
+    private final Optional<ExecutingQuery> executingQuery;
     private final Map<String,Object> metaData;
     private final long userTransactionId;
+    private final TransactionInitializationTrace initializationTrace;
+    private final String databaseName;
 
     KernelTransactionImplementationHandle( KernelTransactionImplementation tx, SystemNanoClock clock )
     {
@@ -65,17 +70,14 @@ class KernelTransactionImplementationHandle implements KernelTransactionHandle
         this.timeoutMillis = tx.timeout();
         this.subject = tx.subjectOrAnonymous();
         this.terminationReason = tx.getReasonIfTerminated();
-        this.executingQueries = tx.executingQueries();
+        this.executingQuery = tx.executingQuery();
         this.metaData = tx.getMetaData();
         this.userTransactionId = tx.userTransactionId();
+        this.initializationTrace = tx.getInitializationTrace();
+        this.clientInfo = tx.clientInfo();
+        databaseName = tx.getDatabaseName();
         this.tx = tx;
         this.clock = clock;
-    }
-
-    @Override
-    public long lastTransactionIdWhenStarted()
-    {
-        return lastTransactionIdWhenStarted;
     }
 
     @Override
@@ -106,6 +108,12 @@ class KernelTransactionImplementationHandle implements KernelTransactionHandle
     public boolean isOpen()
     {
         return tx.isOpen() && txReuseCount == tx.getReuseCount();
+    }
+
+    @Override
+    public boolean isClosing()
+    {
+        return tx.isClosing() && txReuseCount == tx.getReuseCount();
     }
 
     @Override
@@ -147,13 +155,13 @@ class KernelTransactionImplementationHandle implements KernelTransactionHandle
     @Override
     public String getUserTransactionName()
     {
-        return USER_TRANSACTION_NAME_PREFIX + getUserTransactionId();
+        return databaseName + USER_TRANSACTION_NAME_SEPARATOR + getUserTransactionId();
     }
 
     @Override
-    public Stream<ExecutingQuery> executingQueries()
+    public Optional<ExecutingQuery> executingQuery()
     {
-        return executingQueries.queries();
+        return executingQuery;
     }
 
     @Override
@@ -173,6 +181,18 @@ class KernelTransactionImplementationHandle implements KernelTransactionHandle
         {
             return TransactionExecutionStatistic.NOT_AVAILABLE;
         }
+    }
+
+    @Override
+    public TransactionInitializationTrace transactionInitialisationTrace()
+    {
+        return initializationTrace;
+    }
+
+    @Override
+    public ClientConnectionInfo clientInfo()
+    {
+        return clientInfo;
     }
 
     @Override

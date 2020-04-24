@@ -3,37 +3,38 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <parent>
-        <groupId>org.graphfoundation.ongdb</groupId>
+        <groupId>org.neo4j</groupId>
         <artifactId>parent</artifactId>
-        <version>3.6.0-SNAPSHOT</version>
+        <version>4.0.4-SNAPSHOT</version>
         <relativePath>../..</relativePath>
     </parent>
 
-    <artifactId>ongdb</artifactId>
-    <version>3.6.0-SNAPSHOT</version>
+    <artifactId>neo4j</artifactId>
 
-    <name>ONgDB - Community</name>
+    <name>Neo4j - Community</name>
     <packaging>jar</packaging>
-    <url>https://ongdb.graphfoundation.org/${project.artifactId}/${project.version}</url>
-    <description>ONgDB Community Edition</description>
+    <url>http://components.neo4j.org/${project.artifactId}/${project.version}</url>
+    <description>Neo4j Community Edition</description>
 
     <properties>
         <license-text.header>headers/GPL-3-header.txt</license-text.header>
         <licensing.prepend.text>licensing/notice-gpl-prefix.txt</licensing.prepend.text>
         <moduleName>org.neo4j.community</moduleName>
+        <default.jupiter.test.mode>concurrent</default.jupiter.test.mode>
     </properties>
 
     <scm>
-        <connection>scm:git:git://github.com/graphfoundation/ongdb.git</connection>
-        <developerConnection>scm:git:git@github.com:graphfoundation/ongdb.git</developerConnection>
-        <url>https://github.com/graphfoundation/ongdb</url>
+        <connection>scm:git:git://github.com/neo4j/neo4j.git</connection>
+        <developerConnection>scm:git:git@github.com:neo4j/neo4j.git</developerConnection>
+        <url>https://github.com/neo4j/neo4j</url>
     </scm>
 
     <licenses>
         <license>
             <name>GNU General Public License, Version 3</name>
             <url>http://www.gnu.org/licenses/gpl-3.0-standalone.html</url>
-            <comments>The software ("Software") developed and owned by Neo4j Sweden AB (referred to in this notice as "Neo4j") is
+            <comments>
+                The software ("Software") developed and owned by Neo4j Sweden AB (referred to in this notice as "Neo4j") is
                 licensed under the GNU GENERAL PUBLIC LICENSE Version 3 to all third
                 parties and that license is included below.
 
@@ -48,90 +49,90 @@
         </license>
     </licenses>
 
-    <build>
-        <plugins>
-            <plugin>
-                <groupId>org.revapi</groupId>
-                <artifactId>revapi-maven-plugin</artifactId>
-                <configuration>
-                    <oldArtifacts>
-                        <oldArtifact>
-                            org.neo4j:neo4j:jar:LATEST
-                        </oldArtifact>
-                    </oldArtifacts>
-                </configuration>
-            </plugin>
-        </plugins>
-    </build>
-
     <dependencies>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-kernel</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>annotations</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-kernel</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-lucene-index</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-procedure</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-fulltext-index</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-lucene-index</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-graph-algo</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-fulltext-index</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-udc</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-graph-algo</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-data-collector</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-data-collector</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-cypher</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-cypher</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-jmx</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-security</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-bolt</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-bolt</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-consistency-check</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-consistency-check</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-record-storage-engine</artifactId>
+            <version>${project.version}</version>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-dbms</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-import-tool</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-batch-insert</artifactId>
             <version>${project.version}</version>
         </dependency>
 
-        <!-- For the tests specified by this package -->
-        <dependency>
-            <groupId>org.junit.vintage</groupId>
-            <artifactId>junit-vintage-engine</artifactId>
-        </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter-engine</artifactId>
+            <artifactId>junit-jupiter</artifactId>
         </dependency>
         <dependency>
             <groupId>org.hamcrest</groupId>
-            <artifactId>hamcrest-core</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.hamcrest</groupId>
-            <artifactId>hamcrest-library</artifactId>
+            <artifactId>hamcrest</artifactId>
         </dependency>
         <dependency>
             <groupId>org.mockito</groupId>
@@ -142,47 +143,55 @@
             <artifactId>commons-codec</artifactId>
         </dependency>
         <dependency>
+            <groupId>co.unruly</groupId>
+            <artifactId>java-8-matchers</artifactId>
+        </dependency>
+        <dependency>
             <groupId>commons-io</groupId>
             <artifactId>commons-io</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-common</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-record-storage-engine</artifactId>
             <version>${project.version}</version>
             <type>test-jar</type>
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-random-values</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>test-utils</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-kernel</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-random-values</artifactId>
             <version>${project.version}</version>
-            <type>test-jar</type>
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-io</artifactId>
-            <version>${project.version}</version>
-            <type>test-jar</type>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-logging</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-kernel</artifactId>
             <version>${project.version}</version>
             <type>test-jar</type>
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-consistency-check</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>io-test-utils</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.neo4j</groupId>
+            <artifactId>log-test-utils</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-consistency-check</artifactId>
             <version>${project.version}</version>
             <type>test-jar</type>
             <scope>test</scope>
@@ -190,6 +199,12 @@
         <dependency>
             <groupId>com.google.code.findbugs</groupId>
             <artifactId>annotations</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.neo4j</groupId>
+            <artifactId>layout-test-utils</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
         </dependency>
     </dependencies>
 </project>

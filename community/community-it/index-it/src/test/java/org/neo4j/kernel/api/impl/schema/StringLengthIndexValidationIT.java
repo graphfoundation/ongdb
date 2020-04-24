@@ -19,44 +19,68 @@
  */
 package org.neo4j.kernel.api.impl.schema;
 
-import org.apache.commons.lang3.RandomStringUtils;
-import org.hamcrest.Matchers;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
+import java.util.HashMap;
 import java.util.Iterator;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
+import org.neo4j.configuration.GraphDatabaseSettings;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Transaction;
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
+import org.neo4j.graphdb.schema.IndexCreator;
 import org.neo4j.graphdb.schema.IndexDefinition;
 import org.neo4j.graphdb.schema.Schema;
-import org.neo4j.index.internal.gbptree.TreeNodeDynamicSize;
-import org.neo4j.io.pagecache.PageCache;
-import org.neo4j.test.rule.DatabaseRule;
-import org.neo4j.test.rule.EmbeddedDatabaseRule;
+import org.neo4j.kernel.internal.GraphDatabaseAPI;
+import org.neo4j.test.TestDatabaseManagementServiceBuilder;
+import org.neo4j.test.extension.DbmsExtension;
+import org.neo4j.test.extension.ExtensionCallback;
+import org.neo4j.test.extension.Inject;
+import org.neo4j.test.extension.RandomExtension;
+import org.neo4j.test.rule.RandomRule;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static java.util.concurrent.TimeUnit.MINUTES;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsString;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.neo4j.configuration.GraphDatabaseSettings.default_schema_provider;
 import static org.neo4j.test.TestLabels.LABEL_ONE;
 
-public class StringLengthIndexValidationIT
+@DbmsExtension( configurationCallback = "configure" )
+@ExtendWith( RandomExtension.class )
+public abstract class StringLengthIndexValidationIT
 {
-    @Rule
-    public DatabaseRule db = new EmbeddedDatabaseRule()
-            .withSetting( GraphDatabaseSettings.default_schema_provider, GraphDatabaseSettings.SchemaIndex.NATIVE20.providerName() );
-
     private static final String propKey = "largeString";
-    private static final int keySizeLimit = TreeNodeDynamicSize.keyValueSizeCapFromPageSize( PageCache.PAGE_SIZE ) - Long.BYTES;
+    private final int singleKeySizeLimit = getSingleKeySizeLimit();
+    private final GraphDatabaseSettings.SchemaIndex schemaIndex = getSchemaIndex();
+
+    @Inject
+    private GraphDatabaseAPI db;
+
+    @Inject
+    private RandomRule random;
+
+    protected abstract int getSingleKeySizeLimit();
+
+    protected abstract GraphDatabaseSettings.SchemaIndex getSchemaIndex();
+
+    protected abstract String expectedPopulationFailureMessage();
+
+    @ExtensionCallback
+    void configure( TestDatabaseManagementServiceBuilder builder )
+    {
+        builder.setConfig( default_schema_provider, schemaIndex.providerName() );
+    }
 
     @Test
-    public void shouldSuccessfullyWriteAndReadWithinIndexKeySizeLimit()
+    void shouldSuccessfullyWriteAndReadWithinIndexKeySizeLimit()
     {
-        createIndex();
-        String propValue = getString( keySizeLimit );
+        createIndex( propKey );
+        String propValue = getString( singleKeySizeLimit );
         long expectedNodeId;
 
         // Write
@@ -67,97 +91,143 @@ public class StringLengthIndexValidationIT
     }
 
     @Test
-    public void shouldSuccessfullyPopulateIndexWithinIndexKeySizeLimit()
+    void shouldSuccessfullyPopulateIndexWithinIndexKeySizeLimit()
     {
-        String propValue = getString( keySizeLimit );
+        String propValue = getString( singleKeySizeLimit );
         long expectedNodeId;
 
         // Write
         expectedNodeId = createNode( propValue );
 
         // Populate
-        createIndex();
+        createIndex( propKey );
 
         // Read
         assertReadNode( propValue, expectedNodeId );
     }
 
     @Test
-    public void txMustFailIfExceedingIndexKeySizeLimit()
+    void txMustFailIfExceedingIndexKeySizeLimit()
     {
-        createIndex();
+        createIndex( propKey );
 
         // Write
         try ( Transaction tx = db.beginTx() )
         {
-            String propValue = getString( keySizeLimit + 1 );
-            db.createNode( LABEL_ONE ).setProperty( propKey, propValue );
-            tx.success();
+            String propValue = getString( singleKeySizeLimit + 1 );
+            tx.createNode( LABEL_ONE ).setProperty( propKey, propValue );
+            tx.commit();
         }
         catch ( IllegalArgumentException e )
         {
-            assertThat( e.getMessage(),
-                    Matchers.containsString( "Property value size is too large for index. Please see index documentation for limitations." ) );
+            assertThat( e.getMessage(), containsString(
+                    "Property value is too large to index into this particular index. Please see index documentation for limitations." ) );
         }
     }
 
     @Test
-    public void indexPopulationMustFailIfExceedingIndexKeySizeLimit()
+    void indexPopulationMustFailIfExceedingIndexKeySizeLimit()
     {
         // Write
-        String propValue = getString( keySizeLimit + 1 );
+        String propValue = getString( singleKeySizeLimit + 1 );
         createNode( propValue );
 
         // Create index should be fine
         try ( Transaction tx = db.beginTx() )
         {
-            db.schema().indexFor( LABEL_ONE ).on( propKey ).create();
-            tx.success();
+            tx.schema().indexFor( LABEL_ONE ).on( propKey ).create();
+            tx.commit();
         }
 
         // Waiting for it to come online should fail
         try ( Transaction tx = db.beginTx() )
         {
-            db.schema().awaitIndexesOnline( 1, TimeUnit.MINUTES );
-            tx.success();
+            tx.schema().awaitIndexesOnline( 1, TimeUnit.MINUTES );
+            tx.commit();
         }
         catch ( IllegalStateException e )
         {
-            assertThat( e.getMessage(), Matchers.containsString(
-                    "Index IndexDefinition[label:LABEL_ONE on:largeString] (IndexRule[id=1, descriptor=Index( GENERAL, :label[0](property[0]) ), " +
-                            "provider={key=lucene+native, version=2.0}]) entered a FAILED state." ) );
+            GraphDatabaseSettings.SchemaIndex schemaIndex = getSchemaIndex();
+            assertThat( e.getMessage(), containsString(
+                    String.format( "Index IndexDefinition[label:LABEL_ONE on:largeString] " +
+                                    "(Index( 1, 'index_71616483', GENERAL BTREE, :label[0](property[0]), %s )) " +
+                                    "entered a FAILED state.",
+                            schemaIndex.providerName() ) ) );
         }
 
         // Index should be in failed state
         try ( Transaction tx = db.beginTx() )
         {
-            Iterator<IndexDefinition> iterator = db.schema().getIndexes( LABEL_ONE ).iterator();
+            Iterator<IndexDefinition> iterator = tx.schema().getIndexes( LABEL_ONE ).iterator();
             assertTrue( iterator.hasNext() );
             IndexDefinition next = iterator.next();
-            assertEquals( "state is FAILED", Schema.IndexState.FAILED, db.schema().getIndexState( next ) );
-            assertThat( db.schema().getIndexFailure( next ),
-                    Matchers.containsString( "Index key-value size it to large. Please see index documentation for limitations." ) );
-            tx.success();
+            assertEquals( Schema.IndexState.FAILED, tx.schema().getIndexState( next ), "state is FAILED" );
+            assertThat( tx.schema().getIndexFailure( next ),
+            containsString( expectedPopulationFailureMessage() ) );
+            tx.commit();
+        }
+    }
+
+    @Test
+    void shouldHandleSizesCloseToTheLimit()
+    {
+        // given
+        createIndex( propKey );
+
+        // when
+        Map<String,Long> strings = new HashMap<>();
+        try ( Transaction tx = db.beginTx() )
+        {
+            for ( int i = 0; i < 1_000; i++ )
+            {
+                String string;
+                do
+                {
+                    string = random.nextAlphaNumericString( singleKeySizeLimit / 2, singleKeySizeLimit );
+                }
+                while ( strings.containsKey( string ) );
+
+                Node node = tx.createNode( LABEL_ONE );
+                node.setProperty( propKey, string );
+                strings.put( string, node.getId() );
+            }
+            tx.commit();
+        }
+
+        // then
+        try ( Transaction tx = db.beginTx() )
+        {
+            for ( String string : strings.keySet() )
+            {
+                Node node = tx.findNode( LABEL_ONE, propKey, string );
+                assertEquals( strings.get( string ).longValue(), node.getId() );
+            }
+            tx.commit();
         }
     }
 
     // Each char in string need to fit in one byte
     private String getString( int byteArraySize )
     {
-        return RandomStringUtils.randomAlphabetic( byteArraySize );
+        return random.nextAlphaNumericString( byteArraySize, byteArraySize );
     }
 
-    private void createIndex()
+    private void createIndex( String... keys )
     {
         try ( Transaction tx = db.beginTx() )
         {
-            db.schema().indexFor( LABEL_ONE ).on( propKey ).create();
-            tx.success();
+            IndexCreator indexCreator = tx.schema().indexFor( LABEL_ONE );
+            for ( String key : keys )
+            {
+                indexCreator = indexCreator.on( key );
+            }
+            indexCreator.create();
+            tx.commit();
         }
         try ( Transaction tx = db.beginTx() )
         {
-            db.schema().awaitIndexesOnline( 1, TimeUnit.MINUTES );
-            tx.success();
+            tx.schema().awaitIndexesOnline( 1, MINUTES );
+            tx.commit();
         }
     }
 
@@ -166,10 +236,10 @@ public class StringLengthIndexValidationIT
         long expectedNodeId;
         try ( Transaction tx = db.beginTx() )
         {
-            Node node = db.createNode( LABEL_ONE );
+            Node node = tx.createNode( LABEL_ONE );
             node.setProperty( propKey, propValue );
             expectedNodeId = node.getId();
-            tx.success();
+            tx.commit();
         }
         return expectedNodeId;
     }
@@ -178,10 +248,10 @@ public class StringLengthIndexValidationIT
     {
         try ( Transaction tx = db.beginTx() )
         {
-            Node node = db.findNode( LABEL_ONE, propKey, propValue );
-            assertNotNull( node );
-            assertEquals( "node id", expectedNodeId, node.getId() );
-            tx.success();
+            Node node = tx.findNode( LABEL_ONE, propKey, propValue );
+            Assertions.assertNotNull( node );
+            assertEquals( expectedNodeId, node.getId(), "node id" );
+            tx.commit();
         }
     }
 }

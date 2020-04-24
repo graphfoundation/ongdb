@@ -19,29 +19,35 @@
  */
 package org.neo4j.kernel.impl.scheduler;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.RepeatedTest;
+import org.junit.jupiter.api.Test;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.CancellationException;
-import java.util.concurrent.ExecutionException;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.LockSupport;
 
+import org.neo4j.scheduler.CancelListener;
 import org.neo4j.scheduler.Group;
 import org.neo4j.scheduler.JobHandle;
 import org.neo4j.time.FakeClock;
 import org.neo4j.util.concurrent.BinaryLatch;
 
-import static org.hamcrest.Matchers.contains;
+import static java.time.Duration.ofMinutes;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
+import static org.hamcrest.Matchers.lessThanOrEqualTo;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
-public class TimeBasedTaskSchedulerTest
+class TimeBasedTaskSchedulerTest
 {
     private FakeClock clock;
     private ThreadPoolManager pools;
@@ -49,8 +55,8 @@ public class TimeBasedTaskSchedulerTest
     private AtomicInteger counter;
     private Semaphore semaphore;
 
-    @Before
-    public void setUp()
+    @BeforeEach
+    void setUp()
     {
         clock = new FakeClock();
         pools = new ThreadPoolManager( new ThreadGroup( "TestPool" ) );
@@ -59,8 +65,8 @@ public class TimeBasedTaskSchedulerTest
         semaphore = new Semaphore( 0 );
     }
 
-    @After
-    public void tearDown()
+    @AfterEach
+    void tearDown()
     {
         InterruptedException exception = pools.shutDownAll();
         if ( exception != null )
@@ -89,7 +95,7 @@ public class TimeBasedTaskSchedulerTest
     }
 
     @Test
-    public void mustDelayExecution() throws Exception
+    void mustDelayExecution() throws Exception
     {
         JobHandle handle = scheduler.submit( Group.STORAGE_MAINTENANCE, counter::incrementAndGet, 100, 0 );
         scheduler.tick();
@@ -104,7 +110,7 @@ public class TimeBasedTaskSchedulerTest
     }
 
     @Test
-    public void mustOnlyScheduleTasksThatAreDue() throws Exception
+    void mustOnlyScheduleTasksThatAreDue() throws Exception
     {
         JobHandle handle1 = scheduler.submit( Group.STORAGE_MAINTENANCE, () -> counter.addAndGet( 10 ), 100, 0 );
         JobHandle handle2 = scheduler.submit( Group.STORAGE_MAINTENANCE, () -> counter.addAndGet( 100 ), 200, 0 );
@@ -121,7 +127,7 @@ public class TimeBasedTaskSchedulerTest
     }
 
     @Test
-    public void mustNotRescheduleDelayedTasks() throws Exception
+    void mustNotRescheduleDelayedTasks() throws Exception
     {
         JobHandle handle = scheduler.submit( Group.STORAGE_MAINTENANCE, counter::incrementAndGet, 100, 0 );
         clock.forward( 100, TimeUnit.NANOSECONDS );
@@ -136,7 +142,7 @@ public class TimeBasedTaskSchedulerTest
     }
 
     @Test
-    public void mustRescheduleRecurringTasks() throws Exception
+    void mustRescheduleRecurringTasks() throws Exception
     {
         scheduler.submit( Group.STORAGE_MAINTENANCE, semaphore::release, 100, 100 );
         clock.forward( 100, TimeUnit.NANOSECONDS );
@@ -148,52 +154,80 @@ public class TimeBasedTaskSchedulerTest
     }
 
     @Test
-    public void mustNotRescheduleRecurringTasksThatThrows() throws Exception
+    void mustRescheduleRecurringTasksThatThrows() throws Exception
     {
+        var executionCountDown = new CountDownLatch( 20 );
         Runnable runnable = () ->
         {
-            semaphore.release();
-            throw new RuntimeException( "boom" );
+            try
+            {
+                semaphore.release();
+                throw new RuntimeException( "boom" );
+            }
+            finally
+            {
+                executionCountDown.countDown();
+            }
         };
-        JobHandle handle = scheduler.submit( Group.STORAGE_MAINTENANCE, runnable, 100, 100 );
+        JobHandle handle = scheduler.submit( Group.STORAGE_MAINTENANCE, runnable, 10, 10 );
         clock.forward( 100, TimeUnit.NANOSECONDS );
         scheduler.tick();
         assertSemaphoreAcquire();
-        clock.forward( 100, TimeUnit.NANOSECONDS );
-        scheduler.tick();
-        try
+
+        do
         {
-            handle.waitTermination();
-            fail( "waitTermination should have thrown because the task should have failed." );
+            clock.forward( 100, TimeUnit.NANOSECONDS );
+            scheduler.tick();
         }
-        catch ( ExecutionException e )
-        {
-            assertThat( e.getCause().getMessage(), is( "boom" ) );
-        }
-        assertThat( semaphore.drainPermits(), is( 0 ) );
+        while ( !executionCountDown.await( 1, TimeUnit.MILLISECONDS ) );
     }
 
-    @Test
-    public void mustNotStartRecurringTasksWherePriorExecutionHasNotYetFinished()
+    @RepeatedTest( value = 100 )
+    void ensureRescheduledThrowingTasksAreRescheduledCorrectly() throws InterruptedException
     {
+        //This is a added in a try to provoke an issue where it looks like tasks are scheduled more times than they should
+        AtomicInteger timesScheduled = new AtomicInteger( 0 );
         Runnable runnable = () ->
         {
-            counter.incrementAndGet();
-            semaphore.acquireUninterruptibly();
+            timesScheduled.incrementAndGet();
+            semaphore.release();
+            throw new RuntimeException( "boom" );
         };
-        scheduler.submit( Group.STORAGE_MAINTENANCE, runnable, 100, 100 );
-        for ( int i = 0; i < 4; i++ )
-        {
-            scheduler.tick();
-            clock.forward( 100, TimeUnit.NANOSECONDS );
-        }
-        semaphore.release( Integer.MAX_VALUE );
-        pools.getThreadPool( Group.STORAGE_MAINTENANCE ).shutDown();
-        assertThat( counter.get(), is( 1 ) );
+        JobHandle handle = scheduler.submit( Group.STORAGE_MAINTENANCE, runnable, 10, 10 );
+        clock.forward( 20, TimeUnit.NANOSECONDS ); // should run at MOST 2 times
+        scheduler.tick();
+        assertSemaphoreAcquire();
+        assertThat( timesScheduled.get(), lessThanOrEqualTo( 2 ) );
     }
 
     @Test
-    public void longRunningTasksMustNotDelayExecutionOfOtherTasks() throws Exception
+    void mustNotStartRecurringTasksWherePriorExecutionHasNotYetFinished()
+    {
+        assertTimeoutPreemptively( ofMinutes( 1 ), () ->
+        {
+            Runnable runnable = () ->
+            {
+                counter.incrementAndGet();
+                semaphore.acquireUninterruptibly();
+            };
+            scheduler.submit( Group.STORAGE_MAINTENANCE, runnable, 100, 100 );
+            for ( int i = 0; i < 4; i++ )
+            {
+                scheduler.tick();
+                clock.forward( 100, TimeUnit.NANOSECONDS );
+            }
+            while ( !semaphore.hasQueuedThreads() )
+            {
+                LockSupport.parkNanos( TimeUnit.MILLISECONDS.toNanos( 10 ) );
+            }
+            semaphore.release( Integer.MAX_VALUE );
+            pools.getThreadPool( Group.STORAGE_MAINTENANCE ).shutDown();
+            assertThat( counter.get(), is( 1 ) );
+        } );
+    }
+
+    @Test
+    void longRunningTasksMustNotDelayExecutionOfOtherTasks() throws Exception
     {
         BinaryLatch latch = new BinaryLatch();
         Runnable longRunning = latch::await;
@@ -210,59 +244,80 @@ public class TimeBasedTaskSchedulerTest
     }
 
     @Test
-    public void delayedTasksMustNotRunIfCancelledFirst() throws Exception
+    void delayedTasksMustNotRunIfCancelledFirst()
     {
-        List<Boolean> cancelListener = new ArrayList<>();
+        MonitoredCancelListener cancelListener = new MonitoredCancelListener();
         JobHandle handle = scheduler.submit( Group.STORAGE_MAINTENANCE, counter::incrementAndGet, 100, 0 );
-        handle.registerCancelListener( cancelListener::add );
+        handle.registerCancelListener( cancelListener );
         clock.forward( 90, TimeUnit.NANOSECONDS );
         scheduler.tick();
-        handle.cancel( false );
+        handle.cancel();
         clock.forward( 10, TimeUnit.NANOSECONDS );
         scheduler.tick();
         pools.getThreadPool( Group.STORAGE_MAINTENANCE ).shutDown();
         assertThat( counter.get(), is( 0 ) );
-        assertThat( cancelListener, contains( Boolean.FALSE ) );
-        try
-        {
-            handle.waitTermination();
-            fail( "waitTermination should have thrown a CancellationException." );
-        }
-        catch ( CancellationException ignore )
-        {
-            // Good stuff.
-        }
+        assertTrue( cancelListener.isCanceled() );
+        assertThrows( CancellationException.class, handle::waitTermination );
     }
 
     @Test
-    public void recurringTasksMustStopWhenCancelled() throws InterruptedException
+    void recurringTasksMustStopWhenCancelled() throws InterruptedException
     {
-        List<Boolean> cancelListener = new ArrayList<>();
+        MonitoredCancelListener cancelListener = new MonitoredCancelListener();
         Runnable recurring = () ->
         {
             counter.incrementAndGet();
             semaphore.release();
         };
         JobHandle handle = scheduler.submit( Group.STORAGE_MAINTENANCE, recurring, 100, 100 );
-        handle.registerCancelListener( cancelListener::add );
+        handle.registerCancelListener( cancelListener );
         clock.forward( 100, TimeUnit.NANOSECONDS );
         scheduler.tick();
         assertSemaphoreAcquire();
         clock.forward( 100, TimeUnit.NANOSECONDS );
         scheduler.tick();
         assertSemaphoreAcquire();
-        handle.cancel( true );
+        handle.cancel();
         clock.forward( 100, TimeUnit.NANOSECONDS );
         scheduler.tick();
         clock.forward( 100, TimeUnit.NANOSECONDS );
         scheduler.tick();
         pools.getThreadPool( Group.STORAGE_MAINTENANCE ).shutDown();
         assertThat( counter.get(), is( 2 ) );
-        assertThat( cancelListener, contains( Boolean.TRUE ) );
+        assertTrue( cancelListener.isCanceled() );
     }
 
     @Test
-    public void overdueRecurringTasksMustStartAsSoonAsPossible()
+    void cleanupCanceledHandles()
+    {
+        Runnable recurring = () -> counter.incrementAndGet();
+        JobHandle handle = scheduler.submit( Group.STORAGE_MAINTENANCE, recurring, 0, 100 );
+        // initial delay is 0 so this task will be scheduled right away
+        scheduler.tick();
+        // after the call to tick we know that we've scheduled the task and the thread pool will now race with this test to execute it.
+        // wait until the task has been run (and re-enqueued since it's recurring).
+        while ( scheduler.tasksLeft() == 0 )
+        {
+            Thread.yield();
+        }
+        assertThat( counter.get(), is( 1 ) );
+
+        handle.cancel();
+        // cancelling doesn't remove from queued tasks
+        assertEquals( 1, scheduler.tasksLeft() );
+
+        clock.forward( 100, TimeUnit.NANOSECONDS );
+        // enough time has passed that this task, if not cancelled, would have been queued again
+        scheduler.tick();
+        // tick will remove cancelled tasks
+        assertEquals( 0, scheduler.tasksLeft() );
+
+        pools.getThreadPool( Group.STORAGE_MAINTENANCE ).shutDown();
+        assertThat( counter.get(), is( 1 ) );
+    }
+
+    @Test
+    void overdueRecurringTasksMustStartAsSoonAsPossible()
     {
         Runnable recurring = () ->
         {
@@ -290,6 +345,22 @@ public class TimeBasedTaskSchedulerTest
         }
         assertThat( counter.get(), is( 2 ) );
         semaphore.release( Integer.MAX_VALUE );
-        handle.cancel( false );
+        handle.cancel();
+    }
+
+    private static class MonitoredCancelListener implements CancelListener
+    {
+        private boolean canceled;
+
+        @Override
+        public void cancelled()
+        {
+            canceled = true;
+        }
+
+        boolean isCanceled()
+        {
+            return canceled;
+        }
     }
 }

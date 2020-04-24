@@ -19,96 +19,103 @@
  */
 package org.neo4j.index;
 
-import org.junit.Rule;
-import org.junit.Test;
+import org.hamcrest.MatcherAssert;
+import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.TimeUnit;
 
+import org.neo4j.dbms.api.DatabaseManagementService;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.ResourceIterator;
 import org.neo4j.graphdb.Transaction;
 import org.neo4j.graphdb.schema.IndexDefinition;
-import org.neo4j.internal.kernel.api.IndexReference;
-import org.neo4j.internal.kernel.api.Kernel;
 import org.neo4j.internal.kernel.api.exceptions.TransactionFailureException;
 import org.neo4j.internal.kernel.api.exceptions.schema.IndexNotFoundKernelException;
-import org.neo4j.io.fs.FileUtils;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.io.layout.DatabaseLayout;
+import org.neo4j.kernel.api.Kernel;
+import org.neo4j.kernel.api.KernelTransaction;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
 import org.neo4j.register.Register.DoubleLongRegister;
 import org.neo4j.register.Registers;
-import org.neo4j.test.TestGraphDatabaseFactory;
-import org.neo4j.test.rule.TestDirectory;
+import org.neo4j.test.TestDatabaseManagementServiceBuilder;
+import org.neo4j.test.extension.Inject;
+import org.neo4j.test.extension.Neo4jLayoutExtension;
 
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
-import static org.neo4j.internal.kernel.api.Transaction.Type.explicit;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
 import static org.neo4j.internal.kernel.api.security.LoginContext.AUTH_DISABLED;
+import static org.neo4j.io.fs.FileUtils.deleteFile;
+import static org.neo4j.kernel.api.KernelTransaction.Type.explicit;
 
-public class IndexSamplingIntegrationTest
+@Neo4jLayoutExtension
+class IndexSamplingIntegrationTest
 {
-    @Rule
-    public final TestDirectory testDirectory = TestDirectory.testDirectory();
+    @Inject
+    private DatabaseLayout databaseLayout;
 
     private final Label label = Label.label( "Person" );
     private final String property = "name";
+    private final String schemaName = "schema_name";
     private final long nodes = 1000;
     private final String[] names = {"Neo4j", "Neo", "Graph", "Apa"};
 
     @Test
-    public void shouldSampleNotUniqueIndex() throws Throwable
+    void shouldSampleNotUniqueIndex() throws Throwable
     {
-        GraphDatabaseService db = null;
+        GraphDatabaseService db;
+        DatabaseManagementService managementService = null;
         long deletedNodes = 0;
         try
         {
             // Given
-            db = new TestGraphDatabaseFactory().newEmbeddedDatabase( testDirectory.storeDir() );
+            managementService = new TestDatabaseManagementServiceBuilder( databaseLayout ).build();
+            db = managementService.database( DEFAULT_DATABASE_NAME );
             IndexDefinition indexDefinition;
             try ( Transaction tx = db.beginTx() )
             {
-                indexDefinition = db.schema().indexFor( label ).on( property ).create();
-                tx.success();
+                indexDefinition = tx.schema().indexFor( label ).on( property ).withName( schemaName ).create();
+                tx.commit();
             }
 
             try ( Transaction tx = db.beginTx() )
             {
-                db.schema().awaitIndexOnline( indexDefinition, 10, TimeUnit.SECONDS );
-                tx.success();
+                tx.schema().awaitIndexOnline( indexDefinition, 10, TimeUnit.SECONDS );
+                tx.commit();
             }
 
             try ( Transaction tx = db.beginTx() )
             {
                 for ( int i = 0; i < nodes; i++ )
                 {
-                    db.createNode( label ).setProperty( property, names[i % names.length] );
-                    tx.success();
+                    tx.createNode( label ).setProperty( property, names[i % names.length] );
                 }
-
+                tx.commit();
             }
 
             try ( Transaction tx = db.beginTx() )
             {
                 for ( int i = 0; i < (nodes / 10) ; i++ )
                 {
-                    try ( ResourceIterator<Node> nodes = db.findNodes( label, property, names[i % names.length] ) )
+                    try ( ResourceIterator<Node> nodes = tx.findNodes( label, property, names[i % names.length] ) )
                     {
                         nodes.next().delete();
                     }
                     deletedNodes++;
-                    tx.success();
                 }
+                tx.commit();
             }
         }
         finally
         {
-            if ( db != null )
+            if ( managementService != null )
             {
-                db.shutdown();
+                managementService.shutdown();
             }
         }
 
@@ -118,38 +125,40 @@ public class IndexSamplingIntegrationTest
         // Then
 
         // lucene will consider also the delete nodes, native won't
-        DoubleLongRegister register = fetchIndexSamplingValues( db );
+        DoubleLongRegister register = fetchIndexSamplingValues();
         assertEquals( names.length, register.readFirst() );
-        assertThat( register.readSecond(), allOf( greaterThanOrEqualTo( nodes - deletedNodes ), lessThanOrEqualTo( nodes ) ) );
+        MatcherAssert.assertThat( register.readSecond(), allOf( greaterThanOrEqualTo( nodes - deletedNodes ), lessThanOrEqualTo( nodes ) ) );
 
         // but regardless, the deleted nodes should not be considered in the index size value
-        DoubleLongRegister indexSizeRegister = fetchIndexSizeValues( db );
+        DoubleLongRegister indexSizeRegister = fetchIndexSizeValues();
         assertEquals( 0, indexSizeRegister.readFirst() );
         assertEquals( nodes - deletedNodes, indexSizeRegister.readSecond() );
     }
 
     @Test
-    public void shouldSampleUniqueIndex() throws Throwable
+    void shouldSampleUniqueIndex() throws Throwable
     {
         GraphDatabaseService db = null;
+        DatabaseManagementService managementService = null;
         long deletedNodes = 0;
         try
         {
             // Given
-            db = new TestGraphDatabaseFactory().newEmbeddedDatabase( testDirectory.storeDir() );
+            managementService = new TestDatabaseManagementServiceBuilder( databaseLayout ).build();
+            db = managementService.database( DEFAULT_DATABASE_NAME );
             try ( Transaction tx = db.beginTx() )
             {
-                db.schema().constraintFor( label ).assertPropertyIsUnique( property ).create();
-                tx.success();
+                tx.schema().constraintFor( label ).assertPropertyIsUnique( property ).withName( schemaName ).create();
+                tx.commit();
             }
 
             try ( Transaction tx = db.beginTx() )
             {
                 for ( int i = 0; i < nodes; i++ )
                 {
-                    db.createNode( label ).setProperty( property, "" + i );
-                    tx.success();
+                    tx.createNode( label ).setProperty( property, "" + i );
                 }
+                tx.commit();
             }
 
             try ( Transaction tx = db.beginTx() )
@@ -159,17 +168,17 @@ public class IndexSamplingIntegrationTest
                     if ( i % 10 == 0 )
                     {
                         deletedNodes++;
-                        db.findNode( label, property, "" + i ).delete();
-                        tx.success();
+                        tx.findNode( label, property, "" + i ).delete();
                     }
                 }
+                tx.commit();
             }
         }
         finally
         {
             if ( db != null )
             {
-                db.shutdown();
+                managementService.shutdown();
             }
         }
 
@@ -177,64 +186,64 @@ public class IndexSamplingIntegrationTest
         triggerIndexResamplingOnNextStartup();
 
         // Then
-        DoubleLongRegister indexSampleRegister = fetchIndexSamplingValues( db );
+        DoubleLongRegister indexSampleRegister = fetchIndexSamplingValues();
         assertEquals( nodes - deletedNodes, indexSampleRegister.readFirst() );
         assertEquals( nodes - deletedNodes, indexSampleRegister.readSecond() );
 
-        DoubleLongRegister indexSizeRegister = fetchIndexSizeValues( db );
+        DoubleLongRegister indexSizeRegister = fetchIndexSizeValues();
         assertEquals( 0, indexSizeRegister.readFirst() );
         assertEquals( nodes - deletedNodes, indexSizeRegister.readSecond() );
     }
 
-    private IndexReference indexId( org.neo4j.internal.kernel.api.Transaction tx )
+    private IndexDescriptor indexId( KernelTransaction tx )
     {
-        int labelId = tx.tokenRead().nodeLabel( label.name() );
-        int propertyKeyId = tx.tokenRead().propertyKey( property );
-        return tx.schemaRead().index( labelId, propertyKeyId );
+        return tx.schemaRead().indexGetForName( schemaName );
     }
 
-    private DoubleLongRegister fetchIndexSamplingValues( GraphDatabaseService db ) throws IndexNotFoundKernelException, TransactionFailureException
+    private DoubleLongRegister fetchIndexSamplingValues() throws IndexNotFoundKernelException, TransactionFailureException
     {
+        DatabaseManagementService managementService = null;
         try
         {
             // Then
-            db = new TestGraphDatabaseFactory().newEmbeddedDatabase( testDirectory.storeDir() );
-            @SuppressWarnings( "deprecation" )
+            managementService = new TestDatabaseManagementServiceBuilder( databaseLayout ).build();
+            GraphDatabaseService db = managementService.database( DEFAULT_DATABASE_NAME );
             GraphDatabaseAPI api = (GraphDatabaseAPI) db;
-            try ( org.neo4j.internal.kernel.api.Transaction tx = api.getDependencyResolver().resolveDependency( Kernel.class )
-                    .beginTransaction( explicit, AUTH_DISABLED ) )
+            Kernel kernel = api.getDependencyResolver().resolveDependency( Kernel.class );
+            try ( KernelTransaction tx = kernel.beginTransaction( explicit, AUTH_DISABLED ) )
             {
                 return tx.schemaRead().indexSample( indexId( tx ), Registers.newDoubleLongRegister() );
             }
         }
         finally
         {
-            if ( db != null )
+            if ( managementService != null )
             {
-                db.shutdown();
+                managementService.shutdown();
             }
         }
     }
 
-    private DoubleLongRegister fetchIndexSizeValues( GraphDatabaseService db ) throws IndexNotFoundKernelException, TransactionFailureException
+    private DoubleLongRegister fetchIndexSizeValues() throws IndexNotFoundKernelException, TransactionFailureException
     {
+        DatabaseManagementService managementService = null;
         try
         {
             // Then
-            db = new TestGraphDatabaseFactory().newEmbeddedDatabase( testDirectory.storeDir() );
-            @SuppressWarnings( "deprecation" )
+            managementService = new TestDatabaseManagementServiceBuilder( databaseLayout ).build();
+            GraphDatabaseService db = managementService.database( DEFAULT_DATABASE_NAME );
             GraphDatabaseAPI api = (GraphDatabaseAPI) db;
-            try ( org.neo4j.internal.kernel.api.Transaction tx = api.getDependencyResolver().resolveDependency( Kernel.class )
-                    .beginTransaction( explicit, AUTH_DISABLED ) )
+            Kernel kernel = api.getDependencyResolver().resolveDependency( Kernel.class );
+            try ( KernelTransaction tx = kernel.beginTransaction( explicit, AUTH_DISABLED ) )
             {
                 return tx.schemaRead().indexUpdatesAndSize( indexId( tx ), Registers.newDoubleLongRegister() );
             }
         }
         finally
         {
-            if ( db != null )
+            if ( managementService != null )
             {
-                db.shutdown();
+                managementService.shutdown();
             }
         }
     }
@@ -242,7 +251,6 @@ public class IndexSamplingIntegrationTest
     private void triggerIndexResamplingOnNextStartup()
     {
         // Trigger index resampling on next at startup
-        FileUtils.deleteFile( testDirectory.databaseLayout().countStoreA() );
-        FileUtils.deleteFile( testDirectory.databaseLayout().countStoreB() );
+        deleteFile( databaseLayout.countStore() );
     }
 }

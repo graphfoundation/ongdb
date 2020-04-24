@@ -19,51 +19,55 @@
  */
 package org.neo4j.graphdb;
 
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.io.File;
 import java.io.IOException;
 
-import org.neo4j.collection.PrimitiveLongCollections;
-import org.neo4j.index.internal.gbptree.GroupingRecoveryCleanupWorkCollector;
+import org.neo4j.collection.PrimitiveLongResourceIterator;
+import org.neo4j.index.internal.gbptree.RecoveryCleanupWorkCollector;
+import org.neo4j.internal.index.label.LabelScanReader;
+import org.neo4j.internal.index.label.LabelScanStore;
+import org.neo4j.internal.index.label.LabelScanWriter;
+import org.neo4j.internal.index.label.NativeLabelScanStoreTest;
 import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.io.pagecache.IOLimiter;
 import org.neo4j.kernel.api.KernelTransaction;
-import org.neo4j.kernel.api.impl.labelscan.LabelScanStoreTest;
-import org.neo4j.kernel.api.labelscan.LabelScanStore;
-import org.neo4j.kernel.api.labelscan.LabelScanWriter;
-import org.neo4j.kernel.api.labelscan.NodeLabelUpdate;
-import org.neo4j.kernel.impl.core.ThreadToStatementContextBridge;
-import org.neo4j.storageengine.api.schema.LabelScanReader;
-import org.neo4j.test.rule.DatabaseRule;
-import org.neo4j.test.rule.EmbeddedDatabaseRule;
+import org.neo4j.kernel.impl.coreapi.InternalTransaction;
+import org.neo4j.kernel.internal.GraphDatabaseAPI;
+import org.neo4j.storageengine.api.NodeLabelUpdate;
+import org.neo4j.test.extension.DbmsExtension;
+import org.neo4j.test.extension.Inject;
+import org.neo4j.test.extension.RandomExtension;
 import org.neo4j.test.rule.RandomRule;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.neo4j.collection.PrimitiveLongCollections.closingAsArray;
 
-public class NativeLabelScanStoreStartupIT
+@DbmsExtension
+@ExtendWith( RandomExtension.class )
+class NativeLabelScanStoreStartupIT
 {
     private static final Label LABEL = Label.label( "testLabel" );
-
-    @Rule
-    public final DatabaseRule dbRule = new EmbeddedDatabaseRule();
-    @Rule
-    public final RandomRule random = new RandomRule();
+    @Inject
+    private GraphDatabaseAPI databaseAPI;
+    @Inject
+    private RandomRule random;
 
     private int labelId;
 
     @Test
-    public void scanStoreStartWithoutExistentIndex() throws Throwable
+    void scanStoreStartWithoutExistentIndex() throws Throwable
     {
         LabelScanStore labelScanStore = getLabelScanStore();
-        GroupingRecoveryCleanupWorkCollector workCollector = getGroupingRecoveryCleanupWorkCollector();
+        RecoveryCleanupWorkCollector workCollector = getGroupingRecoveryCleanupWorkCollector();
         labelScanStore.shutdown();
         workCollector.shutdown();
 
-        deleteLabelScanStoreFiles( dbRule.databaseLayout() );
+        deleteLabelScanStoreFiles( databaseAPI.databaseLayout() );
 
         workCollector.init();
         labelScanStore.init();
@@ -74,19 +78,19 @@ public class NativeLabelScanStoreStartupIT
     }
 
     @Test
-    public void scanStoreRecreateCorruptedIndexOnStartup() throws Throwable
+    void scanStoreRecreateCorruptedIndexOnStartup() throws Throwable
     {
         LabelScanStore labelScanStore = getLabelScanStore();
-        GroupingRecoveryCleanupWorkCollector workCollector = getGroupingRecoveryCleanupWorkCollector();
+        RecoveryCleanupWorkCollector workCollector = getGroupingRecoveryCleanupWorkCollector();
 
         createTestNode();
         long[] labels = readNodesForLabel( labelScanStore );
-        assertEquals( "Label scan store see 1 label for node", 1, labels.length );
+        assertEquals( 1, labels.length, "Label scan store see 1 label for node" );
         labelScanStore.force( IOLimiter.UNLIMITED );
         labelScanStore.shutdown();
         workCollector.shutdown();
 
-        corruptLabelScanStoreFiles( dbRule.databaseLayout() );
+        corruptLabelScanStoreFiles( databaseAPI.databaseLayout() );
 
         workCollector.init();
         labelScanStore.init();
@@ -94,7 +98,7 @@ public class NativeLabelScanStoreStartupIT
         labelScanStore.start();
 
         long[] rebuildLabels = readNodesForLabel( labelScanStore );
-        assertArrayEquals( "Store should rebuild corrupted index", labels, rebuildLabels );
+        assertArrayEquals( labels, rebuildLabels, "Store should rebuild corrupted index" );
     }
 
     private LabelScanStore getLabelScanStore()
@@ -102,42 +106,35 @@ public class NativeLabelScanStoreStartupIT
         return getDependency( LabelScanStore.class );
     }
 
-    private GroupingRecoveryCleanupWorkCollector getGroupingRecoveryCleanupWorkCollector()
+    private RecoveryCleanupWorkCollector getGroupingRecoveryCleanupWorkCollector()
     {
-        return dbRule.getDependencyResolver().resolveDependency( GroupingRecoveryCleanupWorkCollector.class );
+        return databaseAPI.getDependencyResolver().resolveDependency( RecoveryCleanupWorkCollector.class );
     }
 
     private <T> T getDependency( Class<T> clazz )
     {
-        return dbRule.getDependencyResolver().resolveDependency( clazz );
+        return databaseAPI.getDependencyResolver().resolveDependency( clazz );
     }
 
     private long[] readNodesForLabel( LabelScanStore labelScanStore )
     {
-        try ( LabelScanReader reader = labelScanStore.newReader() )
-        {
-            return PrimitiveLongCollections.asArray( reader.nodesWithLabel( labelId ) );
-        }
+        return closingAsArray( labelScanStore.newReader().nodesWithLabel( labelId ) );
     }
 
-    private Node createTestNode()
+    private void createTestNode()
     {
-        Node node;
-        try ( Transaction transaction = dbRule.beginTx() )
+        try ( Transaction transaction = databaseAPI.beginTx() )
         {
-            node = dbRule.createNode( LABEL);
-             KernelTransaction ktx = dbRule.getDependencyResolver()
-                    .resolveDependency( ThreadToStatementContextBridge.class )
-                    .getKernelTransactionBoundToThisThread( true );
-                labelId = ktx.tokenRead().nodeLabel( LABEL.name() );
-            transaction.success();
+            var node = transaction.createNode( LABEL );
+            KernelTransaction ktx = ((InternalTransaction) transaction).kernelTransaction();
+            labelId = ktx.tokenRead().nodeLabel( LABEL.name() );
+            transaction.commit();
         }
-        return node;
     }
 
     private void scrambleFile( File file ) throws IOException
     {
-        LabelScanStoreTest.scrambleFile( random.random(), file );
+        NativeLabelScanStoreTest.scrambleFile( random.random(), file );
     }
 
     private static File storeFile( DatabaseLayout databaseLayout )
@@ -162,9 +159,10 @@ public class NativeLabelScanStoreStartupIT
         {
             labelScanWriter.write( NodeLabelUpdate.labelChanges( 1, new long[]{}, new long[]{labelId} ) );
         }
-        try ( LabelScanReader labelScanReader = labelScanStore.newReader() )
+        LabelScanReader labelScanReader = labelScanStore.newReader();
+        try ( PrimitiveLongResourceIterator iterator = labelScanReader.nodesWithLabel( labelId ) )
         {
-            assertEquals( 1, labelScanReader.nodesWithLabel( labelId ).next() );
+            assertEquals( 1, iterator.next() );
         }
     }
 }

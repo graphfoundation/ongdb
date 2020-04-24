@@ -19,16 +19,16 @@
  */
 package org.neo4j.cypher.operations;
 
-import org.neo4j.cypher.internal.v3_6.util.CypherTypeException;
-import org.neo4j.cypher.internal.v3_6.util.InternalException;
-import org.neo4j.cypher.internal.v3_6.util.InvalidSemanticsException;
-
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
+import org.neo4j.exceptions.CypherTypeException;
+import org.neo4j.exceptions.InternalException;
+import org.neo4j.exceptions.InvalidSemanticsException;
 import org.neo4j.values.AnyValue;
 import org.neo4j.values.AnyValues;
 import org.neo4j.values.Comparison;
+import org.neo4j.values.Equality;
 import org.neo4j.values.SequenceValue;
 import org.neo4j.values.ValueMapper;
 import org.neo4j.values.storable.BooleanValue;
@@ -43,11 +43,14 @@ import org.neo4j.values.storable.PointValue;
 import org.neo4j.values.storable.TextValue;
 import org.neo4j.values.storable.TimeValue;
 import org.neo4j.values.storable.Value;
+import org.neo4j.values.storable.Values;
+import org.neo4j.values.virtual.ListValue;
 import org.neo4j.values.virtual.MapValue;
 import org.neo4j.values.virtual.PathValue;
 import org.neo4j.values.virtual.VirtualNodeValue;
 import org.neo4j.values.virtual.VirtualRelationshipValue;
 
+import static java.lang.String.format;
 import static org.neo4j.values.storable.Values.FALSE;
 import static org.neo4j.values.storable.Values.NO_VALUE;
 import static org.neo4j.values.storable.Values.TRUE;
@@ -55,7 +58,7 @@ import static org.neo4j.values.storable.Values.TRUE;
 /**
  * This class contains static helper boolean methods used by the compiled expressions
  */
-@SuppressWarnings( "unused" )
+@SuppressWarnings( {"unused", "ReferenceEquality"} )
 public final class CypherBoolean
 {
     private static final BooleanMapper BOOLEAN_MAPPER = new BooleanMapper();
@@ -67,36 +70,53 @@ public final class CypherBoolean
 
     public static Value xor( AnyValue lhs, AnyValue rhs )
     {
+        assert lhs != NO_VALUE && rhs != NO_VALUE : "NO_VALUE checks need to happen outside this call";
         return (lhs == TRUE) ^ (rhs == TRUE) ? TRUE : FALSE;
     }
 
     public static Value not( AnyValue in )
     {
+        assert in != NO_VALUE : "NO_VALUE checks need to happen outside this call";
         return in != TRUE ? TRUE : FALSE;
     }
 
     public static Value equals( AnyValue lhs, AnyValue rhs )
     {
-        Boolean compare = lhs.ternaryEquals( rhs );
-        if ( compare == null )
+        assert lhs != NO_VALUE && rhs != NO_VALUE : "NO_VALUE checks need to happen outside this call";
+        Equality compare = lhs.ternaryEquals( rhs );
+        switch ( compare )
         {
+        case TRUE:
+            return Values.TRUE;
+        case FALSE:
+            return Values.FALSE;
+        case UNDEFINED:
             return NO_VALUE;
+        default:
+            throw new IllegalArgumentException( format("%s is not a valid result for %s=%s", compare, lhs, rhs )  );
         }
-        return compare ? TRUE : FALSE;
     }
 
     public static Value notEquals( AnyValue lhs, AnyValue rhs )
     {
-        Boolean compare = lhs.ternaryEquals( rhs );
-        if ( compare == null )
+        assert lhs != NO_VALUE && rhs != NO_VALUE : "NO_VALUE checks need to happen outside this call";
+        Equality compare = lhs.ternaryEquals( rhs );
+        switch ( compare )
         {
+        case TRUE:
+            return Values.FALSE;
+        case FALSE:
+            return Values.TRUE;
+        case UNDEFINED:
             return NO_VALUE;
+        default:
+            throw new IllegalArgumentException( format("%s is not a valid result for %s<>%s", compare, lhs, rhs )  );
         }
-        return compare ? FALSE : TRUE;
     }
 
     public static BooleanValue regex( TextValue lhs, TextValue rhs )
     {
+        assert lhs != NO_VALUE && rhs != NO_VALUE : "NO_VALUE checks need to happen outside this call";
         String regexString = rhs.stringValue();
         try
         {
@@ -105,205 +125,107 @@ public final class CypherBoolean
         }
         catch ( PatternSyntaxException e )
         {
-            throw new InvalidSemanticsException( "Invalid Regex: " + e.getMessage() );
+            throw new InvalidSemanticsException( "Invalid Regex: " + e.getMessage(), null );
         }
     }
 
     public static BooleanValue regex( TextValue text, Pattern pattern )
     {
+        assert text != NO_VALUE : "NO_VALUE checks need to happen outside this call";
+
         boolean matches = pattern.matcher( text.stringValue() ).matches();
         return matches ? TRUE : FALSE;
     }
 
     public static Value lessThan( AnyValue lhs, AnyValue rhs )
     {
-        if ( isNan( lhs ) || isNan( rhs ) )
+        if ( AnyValue.isNanAndNumber(lhs, rhs) )
         {
+            return FALSE;
+        }
+        Comparison comparison = AnyValues.TERNARY_COMPARATOR.ternaryCompare( lhs, rhs );
+        switch ( comparison )
+        {
+        case GREATER_THAN_AND_EQUAL:
+        case GREATER_THAN:
+        case EQUAL:
+        case SMALLER_THAN_AND_EQUAL:
+            return FALSE;
+        case SMALLER_THAN:
+            return TRUE;
+        case UNDEFINED:
             return NO_VALUE;
-        }
-        else if ( lhs instanceof NumberValue && rhs instanceof NumberValue )
-        {
-            return lessThan( AnyValues.TERNARY_COMPARATOR.ternaryCompare( lhs, rhs ) );
-        }
-        else if ( lhs instanceof TextValue && rhs instanceof TextValue )
-        {
-            return lessThan( AnyValues.TERNARY_COMPARATOR.ternaryCompare( lhs, rhs ) );
-        }
-        else if ( lhs instanceof BooleanValue && rhs instanceof BooleanValue )
-        {
-            return lessThan( AnyValues.TERNARY_COMPARATOR.ternaryCompare( lhs, rhs ) );
-        }
-        else if ( lhs instanceof PointValue && rhs instanceof PointValue )
-        {
-            return lessThan( AnyValues.TERNARY_COMPARATOR.ternaryCompare( lhs, rhs ) );
-        }
-        else if ( lhs instanceof DateValue && rhs instanceof DateValue )
-        {
-            return lessThan( AnyValues.TERNARY_COMPARATOR.ternaryCompare( lhs, rhs ) );
-        }
-        else if ( lhs instanceof LocalTimeValue && rhs instanceof LocalTimeValue )
-        {
-            return lessThan( AnyValues.TERNARY_COMPARATOR.ternaryCompare( lhs, rhs ) );
-        }
-        else if ( lhs instanceof TimeValue && rhs instanceof TimeValue )
-        {
-            return lessThan( AnyValues.TERNARY_COMPARATOR.ternaryCompare( lhs, rhs ) );
-        }
-        else if ( lhs instanceof LocalDateTimeValue && rhs instanceof LocalDateTimeValue )
-        {
-            return lessThan( AnyValues.TERNARY_COMPARATOR.ternaryCompare( lhs, rhs ) );
-        }
-        else if ( lhs instanceof DateTimeValue && rhs instanceof DateTimeValue )
-        {
-            return lessThan( AnyValues.TERNARY_COMPARATOR.ternaryCompare( lhs, rhs ) );
-        }
-        else
-        {
-            return NO_VALUE;
+        default:
+            throw new InternalException( comparison + " is not a known comparison", null );
         }
     }
 
     public static Value lessThanOrEqual( AnyValue lhs, AnyValue rhs )
     {
-        if ( isNan( lhs ) || isNan( rhs ) )
+        if ( AnyValue.isNanAndNumber(lhs, rhs) )
         {
+            return FALSE;
+        }
+        Comparison comparison = AnyValues.TERNARY_COMPARATOR.ternaryCompare( lhs, rhs );
+        switch ( comparison )
+        {
+        case GREATER_THAN_AND_EQUAL:
+        case GREATER_THAN:
+            return FALSE;
+        case EQUAL:
+        case SMALLER_THAN_AND_EQUAL:
+        case SMALLER_THAN:
+            return TRUE;
+        case UNDEFINED:
             return NO_VALUE;
-        }
-        else if ( lhs instanceof NumberValue && rhs instanceof NumberValue )
-        {
-            return lessThanOrEqual( AnyValues.TERNARY_COMPARATOR.ternaryCompare( lhs, rhs ) );
-        }
-        else if ( lhs instanceof TextValue && rhs instanceof TextValue )
-        {
-            return lessThanOrEqual( AnyValues.TERNARY_COMPARATOR.ternaryCompare( lhs, rhs ) );
-        }
-        else if ( lhs instanceof BooleanValue && rhs instanceof BooleanValue )
-        {
-            return lessThanOrEqual( AnyValues.TERNARY_COMPARATOR.ternaryCompare( lhs, rhs ) );
-        }
-        else if ( lhs instanceof PointValue && rhs instanceof PointValue )
-        {
-            return lessThanOrEqual( AnyValues.TERNARY_COMPARATOR.ternaryCompare( lhs, rhs ) );
-        }
-        else if ( lhs instanceof DateValue && rhs instanceof DateValue )
-        {
-            return lessThanOrEqual( AnyValues.TERNARY_COMPARATOR.ternaryCompare( lhs, rhs ) );
-        }
-        else if ( lhs instanceof LocalTimeValue && rhs instanceof LocalTimeValue )
-        {
-            return lessThanOrEqual( AnyValues.TERNARY_COMPARATOR.ternaryCompare( lhs, rhs ) );
-        }
-        else if ( lhs instanceof TimeValue && rhs instanceof TimeValue )
-        {
-            return lessThanOrEqual( AnyValues.TERNARY_COMPARATOR.ternaryCompare( lhs, rhs ) );
-        }
-        else if ( lhs instanceof LocalDateTimeValue && rhs instanceof LocalDateTimeValue )
-        {
-            return lessThanOrEqual( AnyValues.TERNARY_COMPARATOR.ternaryCompare( lhs, rhs ) );
-        }
-        else if ( lhs instanceof DateTimeValue && rhs instanceof DateTimeValue )
-        {
-            return lessThanOrEqual( AnyValues.TERNARY_COMPARATOR.ternaryCompare( lhs, rhs ) );
-        }
-        else
-        {
-            return NO_VALUE;
+        default:
+            throw new InternalException( comparison + " is not a known comparison", null );
         }
     }
 
     public static Value greaterThan( AnyValue lhs, AnyValue rhs )
     {
-        if ( isNan( lhs ) || isNan( rhs ) )
+        if ( AnyValue.isNanAndNumber(lhs, rhs) )
         {
+            return FALSE;
+        }
+        Comparison comparison = AnyValues.TERNARY_COMPARATOR.ternaryCompare( lhs, rhs );
+        switch ( comparison )
+        {
+        case GREATER_THAN:
+            return TRUE;
+        case GREATER_THAN_AND_EQUAL:
+        case EQUAL:
+        case SMALLER_THAN_AND_EQUAL:
+        case SMALLER_THAN:
+            return FALSE;
+        case UNDEFINED:
             return NO_VALUE;
-        }
-        else if ( lhs instanceof NumberValue && rhs instanceof NumberValue )
-        {
-            return greaterThan( AnyValues.TERNARY_COMPARATOR.ternaryCompare( lhs, rhs ) );
-        }
-        else if ( lhs instanceof TextValue && rhs instanceof TextValue )
-        {
-            return greaterThan( AnyValues.TERNARY_COMPARATOR.ternaryCompare( lhs, rhs ) );
-        }
-        else if ( lhs instanceof BooleanValue && rhs instanceof BooleanValue )
-        {
-            return greaterThan( AnyValues.TERNARY_COMPARATOR.ternaryCompare( lhs, rhs ) );
-        }
-        else if ( lhs instanceof PointValue && rhs instanceof PointValue )
-        {
-            return greaterThan( AnyValues.TERNARY_COMPARATOR.ternaryCompare( lhs, rhs ) );
-        }
-        else if ( lhs instanceof DateValue && rhs instanceof DateValue )
-        {
-            return greaterThan( AnyValues.TERNARY_COMPARATOR.ternaryCompare( lhs, rhs ) );
-        }
-        else if ( lhs instanceof LocalTimeValue && rhs instanceof LocalTimeValue )
-        {
-            return greaterThan( AnyValues.TERNARY_COMPARATOR.ternaryCompare( lhs, rhs ) );
-        }
-        else if ( lhs instanceof TimeValue && rhs instanceof TimeValue )
-        {
-            return greaterThan( AnyValues.TERNARY_COMPARATOR.ternaryCompare( lhs, rhs ) );
-        }
-        else if ( lhs instanceof LocalDateTimeValue && rhs instanceof LocalDateTimeValue )
-        {
-            return greaterThan( AnyValues.TERNARY_COMPARATOR.ternaryCompare( lhs, rhs ) );
-        }
-        else if ( lhs instanceof DateTimeValue && rhs instanceof DateTimeValue )
-        {
-            return greaterThan( AnyValues.TERNARY_COMPARATOR.ternaryCompare( lhs, rhs ) );
-        }
-        else
-        {
-            return NO_VALUE;
+        default:
+            throw new InternalException( comparison + " is not a known comparison", null );
         }
     }
 
     public static Value greaterThanOrEqual( AnyValue lhs, AnyValue rhs )
     {
-        if ( isNan( lhs ) || isNan( rhs ) )
+        if ( AnyValue.isNanAndNumber(lhs, rhs) )
         {
+            return FALSE;
+        }
+        Comparison comparison = AnyValues.TERNARY_COMPARATOR.ternaryCompare( lhs, rhs );
+        switch ( comparison )
+        {
+        case GREATER_THAN_AND_EQUAL:
+        case GREATER_THAN:
+        case EQUAL:
+            return TRUE;
+        case SMALLER_THAN_AND_EQUAL:
+        case SMALLER_THAN:
+            return FALSE;
+        case UNDEFINED:
             return NO_VALUE;
-        }
-        else if ( lhs instanceof NumberValue && rhs instanceof NumberValue )
-        {
-            return greaterThanOrEqual( AnyValues.TERNARY_COMPARATOR.ternaryCompare( lhs, rhs ) );
-        }
-        else if ( lhs instanceof TextValue && rhs instanceof TextValue )
-        {
-            return greaterThanOrEqual( AnyValues.TERNARY_COMPARATOR.ternaryCompare( lhs, rhs ) );
-        }
-        else if ( lhs instanceof BooleanValue && rhs instanceof BooleanValue )
-        {
-            return greaterThanOrEqual( AnyValues.TERNARY_COMPARATOR.ternaryCompare( lhs, rhs ) );
-        }
-        else if ( lhs instanceof PointValue && rhs instanceof PointValue )
-        {
-            return greaterThanOrEqual( AnyValues.TERNARY_COMPARATOR.ternaryCompare( lhs, rhs ) );
-        }
-        else if ( lhs instanceof DateValue && rhs instanceof DateValue )
-        {
-            return greaterThanOrEqual( AnyValues.TERNARY_COMPARATOR.ternaryCompare( lhs, rhs ) );
-        }
-        else if ( lhs instanceof LocalTimeValue && rhs instanceof LocalTimeValue )
-        {
-            return greaterThanOrEqual( AnyValues.TERNARY_COMPARATOR.ternaryCompare( lhs, rhs ) );
-        }
-        else if ( lhs instanceof TimeValue && rhs instanceof TimeValue )
-        {
-            return greaterThanOrEqual( AnyValues.TERNARY_COMPARATOR.ternaryCompare( lhs, rhs ) );
-        }
-        else if ( lhs instanceof LocalDateTimeValue && rhs instanceof LocalDateTimeValue )
-        {
-            return greaterThanOrEqual( AnyValues.TERNARY_COMPARATOR.ternaryCompare( lhs, rhs ) );
-        }
-        else if ( lhs instanceof DateTimeValue && rhs instanceof DateTimeValue )
-        {
-            return greaterThanOrEqual( AnyValues.TERNARY_COMPARATOR.ternaryCompare( lhs, rhs ) );
-        }
-        else
-        {
-            return NO_VALUE;
+        default:
+            throw new InternalException( comparison + " is not a known comparison", null );
         }
     }
 
@@ -312,81 +234,29 @@ public final class CypherBoolean
         return value.map( BOOLEAN_MAPPER );
     }
 
-    private static Value lessThan( Comparison comparison )
+    public static Value in( AnyValue lhs, AnyValue rhs )
     {
-        switch ( comparison )
-        {
-        case GREATER_THAN_AND_EQUAL:
-        case GREATER_THAN:
-        case EQUAL:
-        case SMALLER_THAN_AND_EQUAL:
-            return FALSE;
-        case SMALLER_THAN:
-            return TRUE;
-        case UNDEFINED:
-            return NO_VALUE;
-        default:
-            throw new InternalException( comparison + " is not a known comparison", null );
-        }
-    }
+        assert rhs != NO_VALUE;
 
-    private static Value lessThanOrEqual( Comparison comparison )
-    {
-        switch ( comparison )
-        {
-        case GREATER_THAN_AND_EQUAL:
-        case GREATER_THAN:
-            return FALSE;
-        case EQUAL:
-        case SMALLER_THAN_AND_EQUAL:
-        case SMALLER_THAN:
-            return TRUE;
-        case UNDEFINED:
-            return NO_VALUE;
-        default:
-            throw new InternalException( comparison + " is not a known comparison", null );
-        }
-    }
+        ListValue anyValues = CypherFunctions.asList( rhs );
 
-    private static Value greaterThanOrEqual( Comparison comparison )
-    {
-        switch ( comparison )
+        boolean seenUndefined = false;
+        for ( AnyValue value : anyValues )
         {
-        case GREATER_THAN_AND_EQUAL:
-        case GREATER_THAN:
-        case EQUAL:
-            return TRUE;
-        case SMALLER_THAN_AND_EQUAL:
-        case SMALLER_THAN:
-            return FALSE;
-        case UNDEFINED:
-            return NO_VALUE;
-        default:
-            throw new InternalException( comparison + " is not a known comparison", null );
+            switch ( lhs.ternaryEquals( value ) )
+            {
+            case TRUE:
+                return Values.TRUE;
+            case UNDEFINED:
+                seenUndefined = true;
+            case FALSE:
+                break;
+            default:
+                throw new IllegalStateException( "Unknown state" );
+            }
         }
-    }
 
-    private static Value greaterThan( Comparison comparison )
-    {
-        switch ( comparison )
-        {
-        case GREATER_THAN:
-            return TRUE;
-        case GREATER_THAN_AND_EQUAL:
-        case EQUAL:
-        case SMALLER_THAN_AND_EQUAL:
-        case SMALLER_THAN:
-            return FALSE;
-        case UNDEFINED:
-            return NO_VALUE;
-        default:
-            throw new InternalException( comparison + " is not a known comparison", null );
-        }
-    }
-
-    private static boolean isNan( AnyValue value )
-    {
-        return value instanceof FloatingPointValue && ((FloatingPointValue) value).isNaN();
+        return seenUndefined ? NO_VALUE : Values.FALSE;
     }
 
     private static final class BooleanMapper implements ValueMapper<Value>

@@ -43,6 +43,7 @@ import static org.neo4j.codegen.ByteCodeUtils.outerName;
 import static org.neo4j.codegen.ByteCodeUtils.signature;
 import static org.neo4j.codegen.ByteCodeUtils.typeName;
 import static org.objectweb.asm.Opcodes.ACC_PUBLIC;
+import static org.objectweb.asm.Opcodes.ACC_STATIC;
 import static org.objectweb.asm.Opcodes.ARETURN;
 import static org.objectweb.asm.Opcodes.ASTORE;
 import static org.objectweb.asm.Opcodes.ATHROW;
@@ -56,6 +57,7 @@ import static org.objectweb.asm.Opcodes.ISTORE;
 import static org.objectweb.asm.Opcodes.LRETURN;
 import static org.objectweb.asm.Opcodes.LSTORE;
 import static org.objectweb.asm.Opcodes.PUTFIELD;
+import static org.objectweb.asm.Opcodes.PUTSTATIC;
 import static org.objectweb.asm.Opcodes.RETURN;
 
 class MethodByteCodeEmitter implements MethodEmitter
@@ -77,11 +79,18 @@ class MethodByteCodeEmitter implements MethodEmitter
                         type.simpleName(), type.modifiers() );
             }
         }
-        this.methodVisitor = classVisitor.visitMethod( ACC_PUBLIC, declaration.name(), desc( declaration ),
+        int access = declaration.isStatic() ? ACC_PUBLIC + ACC_STATIC : ACC_PUBLIC;
+        this.methodVisitor = classVisitor.visitMethod( access, declaration.name(), desc( declaration ),
                 signature( declaration ), exceptions( declaration ) );
         this.methodVisitor.visitCode();
         this.expressionVisitor = new ByteCodeExpressionVisitor( this.methodVisitor );
         stateStack.push( new Method( methodVisitor, declaration.returnType().isVoid() ) );
+    }
+
+    @Override
+    public boolean isStatic()
+    {
+        return declaration.isStatic();
     }
 
     @Override
@@ -103,6 +112,13 @@ class MethodByteCodeEmitter implements MethodEmitter
         value.accept( expressionVisitor );
         methodVisitor
                 .visitFieldInsn( PUTFIELD, byteCodeName( field.owner() ), field.name(), typeName( field.type() ) );
+    }
+
+    @Override
+    public void putStatic( FieldReference field, Expression value )
+    {
+        value.accept( expressionVisitor );
+        methodVisitor.visitFieldInsn( PUTSTATIC, byteCodeName( field.owner() ), field.name(), typeName( field.type() ) );
     }
 
     @Override
@@ -160,6 +176,22 @@ class MethodByteCodeEmitter implements MethodEmitter
     }
 
     @Override
+    public void breaks( String labelName )
+    {
+        for ( Block block : stateStack )
+        {
+            if ( block instanceof While )
+            {
+                if ( ((While)block).breakBlock( labelName ) )
+                {
+                    return;
+                }
+            }
+        }
+        throw new IllegalStateException( "Found no block to break out of with label " + labelName );
+    }
+
+    @Override
     public void assign( LocalVariable variable, Expression value )
     {
         value.accept( expressionVisitor );
@@ -194,14 +226,14 @@ class MethodByteCodeEmitter implements MethodEmitter
     }
 
     @Override
-    public void beginWhile( Expression test )
+    public void beginWhile( Expression test, String labelName )
     {
         Label repeat = new Label();
         Label done = new Label();
         methodVisitor.visitLabel( repeat );
         test.accept( new JumpVisitor( expressionVisitor, methodVisitor, done ) );
 
-        stateStack.push( new While( methodVisitor, repeat, done  ) );
+        stateStack.push( new While( methodVisitor, repeat, done, labelName ) );
     }
 
     @Override
@@ -210,6 +242,24 @@ class MethodByteCodeEmitter implements MethodEmitter
         Label after = new Label();
         test.accept( new JumpVisitor( expressionVisitor, methodVisitor, after ) );
         stateStack.push( new If( methodVisitor, after ) );
+    }
+
+    @Override
+    public <T> void ifElseStatement( Expression test, Consumer<T> onTrue, Consumer<T> onFalse, T block )
+    {
+        Label onFailLabel = new Label();
+        Label doneLabel = new Label();
+        test.accept( new JumpVisitor( expressionVisitor, methodVisitor, onFailLabel ) );
+        //test true, evaluate and GOTO done
+        onTrue.accept( block );
+        methodVisitor.visitJumpInsn( GOTO, doneLabel );
+
+        //test false, go to here
+        methodVisitor.visitLabel( onFailLabel );
+        onFalse.accept( block );
+
+        //goto here when onTrue body is done
+        methodVisitor.visitLabel( doneLabel );
     }
 
     @Override

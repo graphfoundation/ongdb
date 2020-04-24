@@ -19,8 +19,8 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
-import org.neo4j.cypher.internal.v3_6.util.attribution.Id
+import org.neo4j.cypher.internal.runtime.ExecutionContext
+import org.neo4j.cypher.internal.v4_0.util.attribution.Id
 import org.neo4j.values.storable.Values
 
 case class ConditionalApplyPipe(source: Pipe, inner: Pipe, items: Seq[String], negated: Boolean)
@@ -38,9 +38,7 @@ case class ConditionalApplyPipe(source: Pipe, inner: Pipe, items: Seq[String], n
     }
 
   private def condition(context: ExecutionContext) = {
-    val cond = items.exists { context.get(_).get != Values.NO_VALUE}
+    val cond = items.exists {x => !(context.getByName(x) eq Values.NO_VALUE) }
       if (negated) !cond else cond
   }
-
-  private def name = if (negated) "AntiConditionalApply" else "ConditionalApply"
 }

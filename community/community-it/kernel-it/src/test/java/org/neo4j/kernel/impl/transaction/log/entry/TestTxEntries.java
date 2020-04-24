@@ -19,74 +19,76 @@
  */
 package org.neo4j.kernel.impl.transaction.log.entry;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.RuleChain;
+import org.junit.jupiter.api.Test;
 
 import java.io.File;
 
+import org.neo4j.dbms.api.DatabaseManagementService;
+import org.neo4j.graphdb.ConstraintViolationException;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.RelationshipType;
 import org.neo4j.graphdb.Transaction;
-import org.neo4j.graphdb.mockfs.EphemeralFileSystemAbstraction;
-import org.neo4j.test.TestGraphDatabaseFactory;
+import org.neo4j.io.fs.EphemeralFileSystemAbstraction;
+import org.neo4j.test.TestDatabaseManagementServiceBuilder;
+import org.neo4j.test.extension.Inject;
+import org.neo4j.test.extension.testdirectory.EphemeralTestDirectoryExtension;
 import org.neo4j.test.rule.TestDirectory;
-import org.neo4j.test.rule.fs.EphemeralFileSystemRule;
 
-public class TestTxEntries
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
+
+@EphemeralTestDirectoryExtension
+class TestTxEntries
 {
-    private final EphemeralFileSystemRule fs = new EphemeralFileSystemRule();
-    private final TestDirectory testDirectory = TestDirectory.testDirectory();
-    @Rule
-    public final RuleChain ruleChain = RuleChain.outerRule( fs ).around( testDirectory );
+    @Inject
+    private EphemeralFileSystemAbstraction fs;
+    @Inject
+    private TestDirectory testDirectory;
 
-    /*
-     * Starts a JVM, executes a tx that fails on prepare and rollbacks,
-     * triggering a bug where an extra start entry for that tx is written
-     * in the xa log.
-     */
     @Test
-    public void testStartEntryWrittenOnceOnRollback() throws Exception
+    void testStartEntryWrittenOnceOnRollback()
     {
-        File storeDir = testDirectory.databaseDir();
-        final GraphDatabaseService db = new TestGraphDatabaseFactory().setFileSystem( fs.get() ).newImpermanentDatabase( storeDir );
+        File storeDir = testDirectory.homeDir();
+        DatabaseManagementService managementService = new TestDatabaseManagementServiceBuilder( storeDir )
+                .setFileSystem( fs )
+                .impermanent()
+                .build();
+        final GraphDatabaseService db = managementService.database( DEFAULT_DATABASE_NAME );
         createSomeTransactions( db );
-        EphemeralFileSystemAbstraction snapshot = fs.snapshot( db::shutdown );
+        EphemeralFileSystemAbstraction snapshot = fs.snapshot();
+        managementService.shutdown();
 
-        new TestGraphDatabaseFactory().setFileSystem( snapshot ).newImpermanentDatabase( storeDir ).shutdown();
+        managementService = new TestDatabaseManagementServiceBuilder( storeDir )
+                .setFileSystem( snapshot )
+                .impermanent()
+                .build();
+        managementService.shutdown();
     }
 
     private void createSomeTransactions( GraphDatabaseService db )
     {
-        Transaction tx = db.beginTx();
-        Node node1 = db.createNode();
-        Node node2 = db.createNode();
-        node1.createRelationshipTo( node2,
-                RelationshipType.withName( "relType1" ) );
-        tx.success();
-        tx.close();
+        Node node1;
+        try ( Transaction tx = db.beginTx() )
+        {
+            node1 = tx.createNode();
+            Node node2 = tx.createNode();
+            node1.createRelationshipTo( node2, RelationshipType.withName( "relType1" ) );
+            tx.commit();
+        }
 
-        tx = db.beginTx();
-        node1.delete();
-        tx.success();
-        try
+        try ( Transaction tx = db.beginTx() )
         {
+            tx.getNodeById( node1.getId() ).delete();
             // Will throw exception, causing the tx to be rolledback.
-            tx.close();
-        }
-        catch ( Exception nothingToSeeHereMoveAlong )
-        {
             // InvalidRecordException coming, node1 has rels
+            assertThrows( ConstraintViolationException.class, tx::commit );
         }
-        /*
-         *  The damage has already been done. The following just makes sure
-         *  the corrupting tx is flushed to disk, since we will exit
-         *  uncleanly.
-         */
-        tx = db.beginTx();
-        node1.setProperty( "foo", "bar" );
-        tx.success();
-        tx.close();
+
+        try ( Transaction tx = db.beginTx() )
+        {
+            tx.getNodeById( node1.getId() ).setProperty( "foo", "bar" );
+            tx.commit();
+        }
     }
 }

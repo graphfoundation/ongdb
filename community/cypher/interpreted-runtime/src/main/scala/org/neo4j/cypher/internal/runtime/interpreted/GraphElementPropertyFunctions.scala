@@ -19,6 +19,7 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted
 
+import org.neo4j.cypher.internal.runtime.ListSupport
 import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.Expression
 
 import scala.collection.Map
@@ -27,11 +28,10 @@ trait GraphElementPropertyFunctions extends ListSupport {
 
   implicit class RichMap(m: Map[String, Expression]) {
 
-    def rewrite(f: (Expression) => Expression): Map[String, Expression] = m.map {
+    def rewrite(f: Expression => Expression): Map[String, Expression] = m.map {
       case (k, v) => k -> v.rewrite(f)
     }
 
-    def symboltableDependencies: Set[String] = m.values.flatMap(_.symbolTableDependencies).toSet
   }
 
   def toString(m: Map[String, Expression]): String = m.map {

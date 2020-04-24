@@ -2,38 +2,38 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <parent>
-        <groupId>org.graphfoundation.ongdb</groupId>
+        <groupId>org.neo4j</groupId>
         <artifactId>parent</artifactId>
-        <version>3.6.0-SNAPSHOT</version>
+        <version>4.0.4-SNAPSHOT</version>
         <relativePath>../..</relativePath>
     </parent>
 
     <properties>
         <license-text.header>headers/GPL-3-header.txt</license-text.header>
         <licensing.prepend.text>licensing/notice-gpl-prefix.txt</licensing.prepend.text>
-        <moduleName>org.neo4j.common</moduleName>
+        <moduleName>org.neo4j.data.collector</moduleName>
     </properties>
 
     <modelVersion>4.0.0</modelVersion>
-    <artifactId>ongdb-data-collector</artifactId>
-    <version>3.6.0-SNAPSHOT</version>
+    <artifactId>neo4j-data-collector</artifactId>
 
     <packaging>jar</packaging>
-    <name>ONgDB - Data Collector</name>
+    <name>Neo4j - Data Collector</name>
     <description>The Neo4j data collector daemon.</description>
-    <url>https://ongdb.graphfoundation.org/${project.artifactId}/${project.version}</url>
+    <url>http://components.neo4j.org/${project.artifactId}/${project.version}</url>
 
     <scm>
-        <connection>scm:git:git://github.com/graphfoundation/ongdb.git</connection>
-        <developerConnection>scm:git:git@github.com:graphfoundation/ongdb.git</developerConnection>
-        <url>https://github.com/graphfoundation/ongdb</url>
+        <connection>scm:git:git://github.com/neo4j/neo4j.git</connection>
+        <developerConnection>scm:git:git@github.com:neo4j/neo4j.git</developerConnection>
+        <url>https://github.com/neo4j/neo4j</url>
     </scm>
 
     <licenses>
         <license>
             <name>GNU General Public License, Version 3</name>
             <url>http://www.gnu.org/licenses/gpl-3.0-standalone.html</url>
-            <comments>The software ("Software") developed and owned by Neo4j Sweden AB (referred to in this notice as "Neo4j") is
+            <comments>
+                The software ("Software") developed and owned by Neo4j Sweden AB (referred to in this notice as "Neo4j") is
                 licensed under the GNU GENERAL PUBLIC LICENSE Version 3 to all third
                 parties and that license is included below.
 
@@ -58,43 +58,35 @@
     </build>
 
     <dependencies>
-
-        <!-- scala -->
-
         <dependency>
-            <groupId>org.scala-lang</groupId>
-            <artifactId>scala-library</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>annotations</artifactId>
         </dependency>
         <dependency>
-            <groupId>org.scala-lang</groupId>
-            <artifactId>scala-reflect</artifactId>
-        </dependency>
-
-        <!-- neo4j -->
-
-        <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-procedure-api</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-procedure-api</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-kernel</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-kernel</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <!-- Test are located with other IT tests to solve problems with depending of TestGraphDatabaseFactory et.c. -->
+        <dependency>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-parser-4.0</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-parser-3.6</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-rewriting-4.0</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-rewriting-3.6</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-cypher</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-cypher</artifactId>
             <version>${project.version}</version>
         </dependency>
 
@@ -102,7 +94,7 @@
 
         <dependency>
             <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter-engine</artifactId>
+            <artifactId>junit-jupiter</artifactId>
         </dependency>
 
     </dependencies>

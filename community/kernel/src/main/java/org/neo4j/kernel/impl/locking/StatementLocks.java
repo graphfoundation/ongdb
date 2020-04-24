@@ -22,7 +22,8 @@ package org.neo4j.kernel.impl.locking;
 import java.util.stream.Stream;
 
 import org.neo4j.kernel.impl.api.KernelStatement;
-import org.neo4j.storageengine.api.lock.LockTracer;
+import org.neo4j.kernel.impl.api.LeaseClient;
+import org.neo4j.lock.LockTracer;
 
 /**
  * Component used by {@link KernelStatement} to acquire {@link #pessimistic() pessimistic} and
@@ -30,6 +31,12 @@ import org.neo4j.storageengine.api.lock.LockTracer;
  */
 public interface StatementLocks extends AutoCloseable
 {
+    /**
+     * Initializes this locks instance with a {@link LeaseClient}. Must be called before the first call to {@link #pessimistic()} or {@link #optimistic()}.
+     * @param leaseClient {@link LeaseClient} of the transaction owning this locks instance.
+     */
+    void initialize( LeaseClient leaseClient );
+
     /**
      * Get {@link Locks.Client} responsible for pessimistic locks. Such locks will be grabbed right away.
      *

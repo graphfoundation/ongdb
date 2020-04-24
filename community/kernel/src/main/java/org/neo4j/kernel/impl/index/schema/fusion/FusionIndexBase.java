@@ -22,12 +22,12 @@ package org.neo4j.kernel.impl.index.schema.fusion;
 import java.util.Arrays;
 import java.util.function.Function;
 
+import org.neo4j.annotations.documented.ReporterFactory;
 import org.neo4j.function.ThrowingConsumer;
-import org.neo4j.helpers.collection.Iterables;
-import org.neo4j.kernel.impl.annotations.ReporterFactory;
+import org.neo4j.internal.helpers.collection.Iterables;
 import org.neo4j.kernel.impl.index.schema.ConsistencyCheckable;
 import org.neo4j.values.storable.Value;
-import org.neo4j.values.storable.ValueGroup;
+import org.neo4j.values.storable.ValueCategory;
 
 /**
  * Acting as a simplifier for the multiplexing that is going in inside a fusion index. A fusion index consists of multiple parts,
@@ -38,7 +38,7 @@ import org.neo4j.values.storable.ValueGroup;
  */
 public abstract class FusionIndexBase<T>
 {
-    static Function<Value,ValueGroup> GROUP_OF = Value::valueGroup;
+    static final Function<Value,ValueCategory> CATEGORY_OF = value -> value.valueGroup().category();
 
     final SlotSelector slotSelector;
     final InstanceSelector<T> instanceSelector;

@@ -19,9 +19,9 @@
  */
 package org.neo4j.kernel.api;
 
-import org.neo4j.internal.kernel.api.TokenNameLookup;
+import org.neo4j.common.TokenNameLookup;
+import org.neo4j.exceptions.KernelException;
 import org.neo4j.internal.kernel.api.TokenRead;
-import org.neo4j.internal.kernel.api.exceptions.KernelException;
 import org.neo4j.internal.kernel.api.exceptions.LabelNotFoundKernelException;
 import org.neo4j.internal.kernel.api.exceptions.PropertyKeyIdNotFoundKernelException;
 

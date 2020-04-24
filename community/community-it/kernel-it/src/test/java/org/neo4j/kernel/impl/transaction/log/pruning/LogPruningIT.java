@@ -19,14 +19,13 @@
  */
 package org.neo4j.kernel.impl.transaction.log.pruning;
 
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 
+import org.neo4j.configuration.Config;
 import org.neo4j.graphdb.Transaction;
 import org.neo4j.io.fs.FileSystemAbstraction;
-import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.impl.transaction.SimpleLogVersionRepository;
 import org.neo4j.kernel.impl.transaction.SimpleTransactionIdStore;
 import org.neo4j.kernel.impl.transaction.log.checkpoint.CheckPointer;
@@ -34,22 +33,26 @@ import org.neo4j.kernel.impl.transaction.log.checkpoint.SimpleTriggerInfo;
 import org.neo4j.kernel.impl.transaction.log.files.LogFiles;
 import org.neo4j.kernel.impl.transaction.log.files.LogFilesBuilder;
 import org.neo4j.kernel.impl.transaction.log.rotation.LogRotation;
-import org.neo4j.test.rule.DatabaseRule;
-import org.neo4j.test.rule.EmbeddedDatabaseRule;
+import org.neo4j.kernel.impl.transaction.tracing.LogAppendEvent;
+import org.neo4j.kernel.internal.GraphDatabaseAPI;
+import org.neo4j.test.extension.DbmsExtension;
+import org.neo4j.test.extension.Inject;
 
 import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertThat;
-import static org.neo4j.graphdb.factory.GraphDatabaseSettings.keep_logical_logs;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.neo4j.configuration.GraphDatabaseSettings.keep_logical_logs;
+import static org.neo4j.configuration.SettingValueParsers.FALSE;
 
-public class LogPruningIT
+@DbmsExtension
+class LogPruningIT
 {
-    @Rule
-    public final DatabaseRule db = new EmbeddedDatabaseRule().withSetting( keep_logical_logs, "true" );
-
     private static final SimpleTriggerInfo triggerInfo = new SimpleTriggerInfo( "forced trigger" );
 
+    @Inject
+    private GraphDatabaseAPI db;
+
     @Test
-    public void pruningStrategyShouldBeDynamic() throws IOException
+    void pruningStrategyShouldBeDynamic() throws IOException
     {
         CheckPointer checkPointer = getInstanceFromDb( CheckPointer.class );
         Config config = getInstanceFromDb( Config.class );
@@ -70,7 +73,7 @@ public class LogPruningIT
         assertThat( countTransactionLogs( logFiles ), is( 3 ) );
 
         // Change pruning to true
-        config.updateDynamicSetting( keep_logical_logs.name(), "false", "test" );
+        config.setDynamic( keep_logical_logs, FALSE, "LogPruningIT" );
 
         // Checkpoint to make sure strategy is evaluated
         checkPointer.forceCheckPoint( triggerInfo );
@@ -85,25 +88,25 @@ public class LogPruningIT
         // Apparently we always keep an extra log file what even though the threshold is reached... produce two then
         try ( Transaction tx = db.beginTx() )
         {
-            db.createNode();
-            tx.success();
+            tx.createNode();
+            tx.commit();
         }
-        logRotation.rotateLogFile();
+        logRotation.rotateLogFile( LogAppendEvent.NULL );
         try ( Transaction tx = db.beginTx() )
         {
-            db.createNode();
-            tx.success();
+            tx.createNode();
+            tx.commit();
         }
-        logRotation.rotateLogFile();
+        logRotation.rotateLogFile( LogAppendEvent.NULL );
         try ( Transaction tx = db.beginTx() )
         {
-            db.createNode();
-            tx.success();
+            tx.createNode();
+            tx.commit();
         }
         try ( Transaction tx = db.beginTx() )
         {
-            db.createNode();
-            tx.success();
+            tx.createNode();
+            tx.commit();
         }
     }
 
@@ -112,7 +115,7 @@ public class LogPruningIT
         return db.getDependencyResolver().resolveDependency( clazz );
     }
 
-    private int countTransactionLogs( LogFiles logFiles )
+    private static int countTransactionLogs( LogFiles logFiles )
     {
         return logFiles.logFiles().length;
     }

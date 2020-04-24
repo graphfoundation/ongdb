@@ -19,77 +19,103 @@
  */
 package org.neo4j.graphdb.schema;
 
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
+import org.neo4j.dbms.api.DatabaseManagementService;
+import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.Transaction;
 import org.neo4j.kernel.impl.api.index.IndexingService;
-import org.neo4j.kernel.monitoring.Monitors;
+import org.neo4j.kernel.internal.GraphDatabaseAPI;
+import org.neo4j.monitoring.Monitors;
 import org.neo4j.test.Barrier;
+import org.neo4j.test.TestDatabaseManagementServiceBuilder;
 import org.neo4j.test.TestLabels;
-import org.neo4j.test.rule.EmbeddedDatabaseRule;
+import org.neo4j.test.extension.Inject;
+import org.neo4j.test.extension.testdirectory.TestDirectoryExtension;
+import org.neo4j.test.rule.TestDirectory;
 
-import static org.junit.Assert.assertEquals;
-import static org.neo4j.helpers.collection.Iterables.first;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
+import static org.neo4j.internal.helpers.collection.Iterables.first;
 
-public class CancelIndexPopulationIT
+@TestDirectoryExtension
+class CancelIndexPopulationIT
 {
     private static final Label LABEL = TestLabels.LABEL_ONE;
     private static final String KEY = "key";
 
-    @Rule
-    public final EmbeddedDatabaseRule db = new EmbeddedDatabaseRule();
+    @Inject
+    private TestDirectory directory;
 
     @Test
-    public void shouldKeepIndexInPopulatingStateBetweenRestarts() throws InterruptedException, IOException
+    void shouldKeepIndexInPopulatingStateBetweenRestarts() throws InterruptedException, IOException
     {
-        // given
-        Monitors monitors = db.getDependencyResolver().resolveDependency( Monitors.class );
-        Barrier.Control barrier = new Barrier.Control();
-        monitors.addMonitorListener( populationCompletionBlocker( barrier ) );
+        DatabaseManagementService dbms = new TestDatabaseManagementServiceBuilder( directory.homeDir() ).build();
+        try
+        {
+            GraphDatabaseAPI db = (GraphDatabaseAPI) dbms.database( DEFAULT_DATABASE_NAME );
 
-        // when
-        createRelevantNode();
-        createIndex();
-        barrier.await();
-        // This call will eventually make a call to populationCancelled on the monitor below
-        db.restartDatabase();
+            // given
+            Monitors monitors = db.getDependencyResolver().resolveDependency( Monitors.class );
+            Barrier.Control barrier = new Barrier.Control();
+            monitors.addMonitorListener( populationCompletionBlocker( barrier ) );
 
-        // then
-        assertEquals( Schema.IndexState.ONLINE, awaitAndGetIndexState() );
+            // when
+            createRelevantNode( db );
+            createIndex( db );
+            barrier.await();
+        }
+        finally
+        {
+            // This call to shutdown will eventually make a call to populationCancelled on the monitor below
+            dbms.shutdown();
+        }
+
+        dbms = new TestDatabaseManagementServiceBuilder( directory.homeDir() ).build();
+        try
+        {
+            GraphDatabaseAPI db = (GraphDatabaseAPI) dbms.database( DEFAULT_DATABASE_NAME );
+
+            // then
+            assertEquals( Schema.IndexState.ONLINE, awaitAndGetIndexState( db ) );
+        }
+        finally
+        {
+            dbms.shutdown();
+        }
     }
 
-    private Schema.IndexState awaitAndGetIndexState()
+    private Schema.IndexState awaitAndGetIndexState( GraphDatabaseService db )
     {
         try ( Transaction tx = db.beginTx() )
         {
-            IndexDefinition indexDefinition = first( db.schema().getIndexes( LABEL ) );
-            db.schema().awaitIndexOnline( indexDefinition, 1, TimeUnit.MINUTES );
-            Schema.IndexState indexState = db.schema().getIndexState( indexDefinition );
-            tx.success();
+            IndexDefinition indexDefinition = first( tx.schema().getIndexes( LABEL ) );
+            tx.schema().awaitIndexOnline( indexDefinition, 1, TimeUnit.MINUTES );
+            Schema.IndexState indexState = tx.schema().getIndexState( indexDefinition );
+            tx.commit();
             return indexState;
         }
     }
 
-    private void createIndex()
+    private void createIndex( GraphDatabaseService db )
     {
         try ( Transaction tx = db.beginTx() )
         {
-            db.schema().indexFor( LABEL ).on( KEY ).create();
-            tx.success();
+            tx.schema().indexFor( LABEL ).on( KEY ).create();
+            tx.commit();
         }
     }
 
-    private void createRelevantNode()
+    private void createRelevantNode( GraphDatabaseService db )
     {
         try ( Transaction tx = db.beginTx() )
         {
-            db.createNode( LABEL ).setProperty( KEY, "value" );
-            tx.success();
+            tx.createNode( LABEL ).setProperty( KEY, "value" );
+            tx.commit();
         }
     }
 

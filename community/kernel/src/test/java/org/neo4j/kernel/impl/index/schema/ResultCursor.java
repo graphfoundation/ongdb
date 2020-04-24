@@ -19,19 +19,20 @@
  */
 package org.neo4j.kernel.impl.index.schema;
 
-import java.io.IOException;
 import java.util.Iterator;
 
-import org.neo4j.cursor.RawCursor;
-import org.neo4j.index.internal.gbptree.Hit;
+import org.neo4j.configuration.Config;
+import org.neo4j.index.internal.gbptree.Seeker;
+import org.neo4j.kernel.impl.index.schema.config.IndexSpecificSpaceFillingCurveSettings;
 
 import static org.neo4j.values.storable.Values.stringValue;
 
-class ResultCursor implements RawCursor<Hit<StringIndexKey,NativeIndexValue>,IOException>
+class ResultCursor implements Seeker<GenericKey,NativeIndexValue>
 {
+    private static final IndexSpecificSpaceFillingCurveSettings specificSettings = IndexSpecificSpaceFillingCurveSettings.fromConfig( Config.defaults() );
     private final Iterator<String> iterator;
-    private String current;
     private int pos = -1;
+    private GenericKey key;
 
     ResultCursor( Iterator<String> keys )
     {
@@ -43,8 +44,11 @@ class ResultCursor implements RawCursor<Hit<StringIndexKey,NativeIndexValue>,IOE
     {
         if ( iterator.hasNext() )
         {
-            current = iterator.next();
+            String current = iterator.next();
             pos++;
+            key = new GenericKey( specificSettings );
+            key.initialize( pos );
+            key.initFromValue( 0, stringValue( current ), NativeIndexKey.Inclusion.NEUTRAL );
             return true;
         }
         return false;
@@ -57,11 +61,14 @@ class ResultCursor implements RawCursor<Hit<StringIndexKey,NativeIndexValue>,IOE
     }
 
     @Override
-    public Hit<StringIndexKey,NativeIndexValue> get()
+    public GenericKey key()
     {
-        StringIndexKey key = new StringIndexKey();
-        key.initialize( pos );
-        key.from( stringValue( current ) );
-        return new SimpleHit<>( key, NativeIndexValue.INSTANCE );
+        return key;
+    }
+
+    @Override
+    public NativeIndexValue value()
+    {
+        return NativeIndexValue.INSTANCE;
     }
 }

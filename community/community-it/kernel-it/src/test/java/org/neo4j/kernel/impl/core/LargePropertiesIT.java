@@ -20,59 +20,62 @@
 package org.neo4j.kernel.impl.core;
 
 import org.apache.commons.lang3.RandomStringUtils;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
+import org.neo4j.configuration.GraphDatabaseSettings;
+import org.neo4j.dbms.api.DatabaseManagementService;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Transaction;
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
-import org.neo4j.test.TestGraphDatabaseFactory;
-import org.neo4j.test.rule.fs.EphemeralFileSystemRule;
+import org.neo4j.io.fs.EphemeralFileSystemAbstraction;
+import org.neo4j.test.TestDatabaseManagementServiceBuilder;
+import org.neo4j.test.extension.EphemeralFileSystemExtension;
+import org.neo4j.test.extension.Inject;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
 
-public class LargePropertiesIT
+@ExtendWith( EphemeralFileSystemExtension.class )
+class LargePropertiesIT
 {
-    @Rule
-    public final EphemeralFileSystemRule fs = new EphemeralFileSystemRule();
+    @Inject
+    private EphemeralFileSystemAbstraction fs;
 
     @Test
-    public void readArrayAndStringPropertiesWithDifferentBlockSizes()
+    void readArrayAndStringPropertiesWithDifferentBlockSizes()
     {
         String stringValue = RandomStringUtils.randomAlphanumeric( 10000 );
         byte[] arrayValue = RandomStringUtils.randomAlphanumeric( 10000 ).getBytes();
 
-        GraphDatabaseService db = new TestGraphDatabaseFactory()
-                .setFileSystem( fs.get() )
-                .newImpermanentDatabaseBuilder()
-                .setConfig( GraphDatabaseSettings.string_block_size, "1024" )
-                .setConfig( GraphDatabaseSettings.array_block_size, "2048" )
-                .newGraphDatabase();
+        DatabaseManagementService managementService = new TestDatabaseManagementServiceBuilder().setFileSystem( fs ).impermanent()
+                .setConfig( GraphDatabaseSettings.string_block_size, 1024 )
+                .setConfig( GraphDatabaseSettings.array_block_size, 2048 ).build();
+        GraphDatabaseService db = managementService.database( DEFAULT_DATABASE_NAME );
         try
         {
             long nodeId;
             try ( Transaction tx = db.beginTx() )
             {
-                Node node = db.createNode();
+                Node node = tx.createNode();
                 nodeId = node.getId();
                 node.setProperty( "string", stringValue );
                 node.setProperty( "array", arrayValue );
-                tx.success();
+                tx.commit();
             }
 
             try ( Transaction tx = db.beginTx() )
             {
-                Node node = db.getNodeById( nodeId );
+                Node node = tx.getNodeById( nodeId );
                 assertEquals( stringValue, node.getProperty( "string" ) );
                 assertArrayEquals( arrayValue, (byte[]) node.getProperty( "array" ) );
-                tx.success();
+                tx.commit();
             }
         }
         finally
         {
-            db.shutdown();
+            managementService.shutdown();
         }
     }
 }

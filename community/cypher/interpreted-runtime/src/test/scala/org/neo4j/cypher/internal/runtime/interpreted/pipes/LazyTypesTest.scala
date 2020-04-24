@@ -21,13 +21,13 @@ package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
 import org.mockito.Mockito._
 import org.neo4j.cypher.internal.runtime.QueryContext
-import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.v4_0.util.test_helpers.CypherFunSuite
 
 class LazyTypesTest extends CypherFunSuite {
 
   test("should not initialize state when state is complete") {
     // given
-    val types = new LazyTypes(Array("a", "b", "c"))
+    val types = RelationshipTypes(Array("a", "b", "c"))
 
     val context = mock[QueryContext]
     when(context.getOptRelTypeId("a")).thenReturn(Some(1))
@@ -45,7 +45,7 @@ class LazyTypesTest extends CypherFunSuite {
 
   test("should re-initialize if not fully initialized") {
     // given
-    val types = new LazyTypes(Array("a", "b", "c"))
+    val types = RelationshipTypes(Array("a", "b", "c"))
 
     val context = mock[QueryContext]
     when(context.getOptRelTypeId("a")).thenReturn(Some(1))

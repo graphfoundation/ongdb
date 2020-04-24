@@ -19,26 +19,27 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
-import org.eclipse.collections.api.set.primitive.LongSet
+import org.neo4j.cypher.internal.runtime._
 import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.PathValueBuilder
 import org.neo4j.cypher.internal.runtime.interpreted.commands.predicates.{InCheckContainer, SingleThreadedLRUCache}
-import org.neo4j.cypher.internal.runtime.interpreted.{ExecutionContext, MapExecutionContext, MutableMaps}
-import org.neo4j.cypher.internal.runtime.{QueryContext, QueryStatistics}
+import org.neo4j.internal.kernel.api.IndexReadSession
+import org.neo4j.kernel.impl.query.QuerySubscriber
 import org.neo4j.values.AnyValue
-import org.neo4j.values.virtual.MapValue
-import org.neo4j.cypher.internal.v3_6.util.ParameterNotFoundException
-
-import scala.collection.mutable
 
 class QueryState(val query: QueryContext,
                  val resources: ExternalCSVResource,
-                 val params: MapValue,
+                 val params: Array[AnyValue],
+                 val cursors: ExpressionCursors,
+                 val queryIndexes: Array[IndexReadSession],
+                 val expressionVariables: Array[AnyValue],
+                 val subscriber: QuerySubscriber,
+                 val memoryTracker: QueryMemoryTracker,
                  val decorator: PipeDecorator = NullPipeDecorator,
                  val initialContext: Option[ExecutionContext] = None,
-                 val triadicState: mutable.Map[String, LongSet] = mutable.Map.empty,
-                 val repeatableReads: mutable.Map[Pipe, Seq[ExecutionContext]] = mutable.Map.empty,
                  val cachedIn: SingleThreadedLRUCache[Any, InCheckContainer] = new SingleThreadedLRUCache(maxSize = 16),
-                 val lenientCreateRelationship: Boolean = false) {
+                 val lenientCreateRelationship: Boolean = false,
+                 val prePopulateResults: Boolean = false,
+                 val input: InputDataStream = NoInput) extends AutoCloseable {
 
   private var _pathValueBuilder: PathValueBuilder = _
   private var _exFactory: ExecutionContextFactory = _
@@ -57,20 +58,15 @@ class QueryState(val query: QueryContext,
     _pathValueBuilder.clear()
   }
 
-  def getParam(key: String): AnyValue = {
-    if (!params.containsKey(key)) throw new ParameterNotFoundException("Expected a parameter named " + key)
-    params.get(key)
-  }
-
   def getStatistics: QueryStatistics = query.getOptStatistics.getOrElse(QueryState.defaultStatistics)
 
   def withDecorator(decorator: PipeDecorator) =
-    new QueryState(query, resources, params, decorator, initialContext, triadicState,
-                   repeatableReads, cachedIn, lenientCreateRelationship)
+    new QueryState(query, resources, params, cursors, queryIndexes, expressionVariables, subscriber, memoryTracker, decorator, initialContext,
+                   cachedIn, lenientCreateRelationship, prePopulateResults, input)
 
   def withInitialContext(initialContext: ExecutionContext) =
-    new QueryState(query, resources, params, decorator, Some(initialContext), triadicState,
-                   repeatableReads, cachedIn, lenientCreateRelationship)
+    new QueryState(query, resources, params, cursors, queryIndexes, expressionVariables, subscriber, memoryTracker, decorator, Some(initialContext),
+                   cachedIn, lenientCreateRelationship, prePopulateResults, input)
 
   /**
     * When running on the RHS of an Apply, this method will fill an execution context with argument data
@@ -80,17 +76,19 @@ class QueryState(val query: QueryContext,
   def copyArgumentStateTo(ctx: ExecutionContext, nLongs: Int, nRefs: Int): Unit = initialContext
     .foreach(initData => ctx.copyFrom(initData, nLongs, nRefs))
 
-  def copyArgumentStateTo(ctx: ExecutionContext): Unit = initialContext.foreach(initData => initData.copyTo(ctx))
-
   def withQueryContext(query: QueryContext) =
-    new QueryState(query, resources, params, decorator, initialContext, triadicState,
-                   repeatableReads, cachedIn, lenientCreateRelationship)
+    new QueryState(query, resources, params, cursors, queryIndexes, expressionVariables, subscriber, memoryTracker, decorator, initialContext,
+                   cachedIn, lenientCreateRelationship, prePopulateResults, input)
 
-  def setExecutionContextFactory(exFactory: ExecutionContextFactory) = {
+  def setExecutionContextFactory(exFactory: ExecutionContextFactory): Unit = {
     _exFactory = exFactory
   }
 
-  def executionContextFactory = _exFactory
+  def executionContextFactory: ExecutionContextFactory = _exFactory
+
+  override def close(): Unit = {
+    cursors.close()
+  }
 }
 
 object QueryState {
@@ -99,8 +97,6 @@ object QueryState {
 }
 
 trait ExecutionContextFactory {
-
-  def newExecutionContext(m: mutable.Map[String, AnyValue] = MutableMaps.empty): ExecutionContext
 
   def newExecutionContext(): ExecutionContext
 
@@ -119,9 +115,6 @@ trait ExecutionContextFactory {
 }
 
 case class CommunityExecutionContextFactory() extends ExecutionContextFactory {
-
-  override def newExecutionContext(m: mutable.Map[String, AnyValue] = MutableMaps.empty): ExecutionContext =
-    ExecutionContext(m)
 
   override def newExecutionContext(): ExecutionContext = ExecutionContext.empty
 
@@ -169,5 +162,4 @@ case class CommunityExecutionContextFactory() extends ExecutionContextFactory {
     case _ =>
       row.copyWith(key1, value1, key2, value2, key3, value3)
   }
-
 }

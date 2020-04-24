@@ -43,9 +43,10 @@ import static java.lang.Character.isWhitespace;
 import static java.lang.reflect.Modifier.isStatic;
 import static java.time.ZoneOffset.UTC;
 import static org.neo4j.collection.PrimitiveLongCollections.EMPTY_LONG_ARRAY;
-import static org.neo4j.helpers.Numbers.safeCastLongToByte;
-import static org.neo4j.helpers.Numbers.safeCastLongToInt;
-import static org.neo4j.helpers.Numbers.safeCastLongToShort;
+import static org.neo4j.csv.reader.Configuration.COMMAS;
+import static org.neo4j.internal.helpers.Numbers.safeCastLongToByte;
+import static org.neo4j.internal.helpers.Numbers.safeCastLongToInt;
+import static org.neo4j.internal.helpers.Numbers.safeCastLongToShort;
 
 /**
  * Common implementations of {@link Extractor}. Since array values can have a delimiter of user choice that isn't
@@ -112,12 +113,12 @@ public class Extractors
 
     public Extractors( char arrayDelimiter )
     {
-        this( arrayDelimiter, Configuration.DEFAULT.emptyQuotedStringsAsNull(), Configuration.DEFAULT.trimStrings(), inUTC );
+        this( arrayDelimiter, COMMAS.emptyQuotedStringsAsNull(), COMMAS.trimStrings(), inUTC );
     }
 
     public Extractors( char arrayDelimiter, boolean emptyStringsAsNull )
     {
-        this( arrayDelimiter, emptyStringsAsNull, Configuration.DEFAULT.trimStrings(), inUTC );
+        this( arrayDelimiter, emptyStringsAsNull, COMMAS.trimStrings(), inUTC );
     }
 
     public Extractors( char arrayDelimiter, boolean emptyStringsAsNull, boolean trimStrings )
@@ -149,13 +150,13 @@ public class Extractors
 
             add( string = new StringExtractor( emptyStringsAsNull ) );
             add( long_ = new LongExtractor() );
-            add( int_ = new IntExtractor() );
+            add( int_ = new IntExtractor( long_ ) );
             add( char_ = new CharExtractor() );
-            add( short_ = new ShortExtractor() );
-            add( byte_ = new ByteExtractor() );
+            add( short_ = new ShortExtractor( long_ ) );
+            add( byte_ = new ByteExtractor( long_ ) );
             add( boolean_ = new BooleanExtractor() );
-            add( float_ = new FloatExtractor() );
             add( double_ = new DoubleExtractor() );
+            add( float_ = new FloatExtractor( double_ ) );
             add( stringArray = new StringArrayExtractor( arrayDelimiter, trimStrings ) );
             add( booleanArray = new BooleanArrayExtractor( arrayDelimiter ) );
             add( byteArray = new ByteArrayExtractor( arrayDelimiter ) );
@@ -316,10 +317,17 @@ public class Extractors
     private abstract static class AbstractExtractor<T> implements Extractor<T>
     {
         private final String name;
+        private final Extractor<?> normalizedExtractor;
 
         AbstractExtractor( String name )
         {
+            this( name, null );
+        }
+
+        AbstractExtractor( String name, Extractor<?> normalizedExtractor )
+        {
             this.name = name;
+            this.normalizedExtractor = normalizedExtractor;
         }
 
         @Override
@@ -342,13 +350,24 @@ public class Extractors
                         ", at least this implementation assumes that. This doesn't seem to be the case anymore", e );
             }
         }
+
+        @Override
+        public Extractor<?> normalize()
+        {
+            return normalizedExtractor != null ? normalizedExtractor : this;
+        }
     }
 
     private abstract static class AbstractSingleValueExtractor<T> extends AbstractExtractor<T>
     {
         AbstractSingleValueExtractor( String toString )
         {
-            super( toString );
+            super( toString, null );
+        }
+
+        AbstractSingleValueExtractor( String toString, Extractor<?> normalizedExtractor )
+        {
+            super( toString, normalizedExtractor );
         }
 
         @Override
@@ -479,9 +498,9 @@ public class Extractors
     {
         private int value;
 
-        IntExtractor()
+        IntExtractor( LongExtractor longExtractor )
         {
-            super( Integer.TYPE.toString() );
+            super( Integer.TYPE.toString(), longExtractor );
         }
 
         @Override
@@ -517,9 +536,9 @@ public class Extractors
     {
         private short value;
 
-        ShortExtractor()
+        ShortExtractor( LongExtractor longExtractor )
         {
-            super( Short.TYPE.getSimpleName() );
+            super( Short.TYPE.getSimpleName(), longExtractor );
         }
 
         @Override
@@ -555,9 +574,9 @@ public class Extractors
     {
         private byte value;
 
-        ByteExtractor()
+        ByteExtractor( LongExtractor longExtractor )
         {
-            super( Byte.TYPE.getSimpleName() );
+            super( Byte.TYPE.getSimpleName(), longExtractor );
         }
 
         @Override
@@ -672,9 +691,9 @@ public class Extractors
     {
         private float value;
 
-        FloatExtractor()
+        FloatExtractor( DoubleExtractor doubleExtractor )
         {
-            super( Float.TYPE.getSimpleName() );
+            super( Float.TYPE.getSimpleName(), doubleExtractor );
         }
 
         @Override

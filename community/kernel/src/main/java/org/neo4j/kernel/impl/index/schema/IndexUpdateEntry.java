@@ -21,7 +21,7 @@ package org.neo4j.kernel.impl.index.schema;
 
 import org.neo4j.index.internal.gbptree.Layout;
 import org.neo4j.io.pagecache.PageCursor;
-import org.neo4j.kernel.impl.api.index.UpdateMode;
+import org.neo4j.storageengine.api.UpdateMode;
 
 public class IndexUpdateEntry
 {

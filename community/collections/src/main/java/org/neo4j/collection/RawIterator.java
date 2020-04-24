@@ -23,7 +23,7 @@ import java.util.Iterator;
 import java.util.NoSuchElementException;
 
 import org.neo4j.function.ThrowingSupplier;
-import org.neo4j.helpers.collection.Iterators;
+import org.neo4j.internal.helpers.collection.Iterators;
 
 /**
  * Just like {@link Iterator}, but with the addition that {@link #hasNext()} and {@link #next()} can
@@ -53,12 +53,12 @@ public interface RawIterator<T,EXCEPTION extends Exception>
 
     static <T, EX extends Exception> RawIterator<T, EX> of( T ... values )
     {
-        return new RawIterator<T,EX>()
+        return new RawIterator<>()
         {
             private int position;
 
             @Override
-            public boolean hasNext() throws EX
+            public boolean hasNext()
             {
                 return position < values.length;
             }
@@ -81,7 +81,7 @@ public interface RawIterator<T,EXCEPTION extends Exception>
      */
     static <T, EX extends Exception> RawIterator<T, EX> from( ThrowingSupplier<T, EX> supplier )
     {
-        return new PrefetchingRawIterator<T,EX>()
+        return new AbstractPrefetchingRawIterator<>()
         {
             @Override
             protected T fetchNextOrNull() throws EX

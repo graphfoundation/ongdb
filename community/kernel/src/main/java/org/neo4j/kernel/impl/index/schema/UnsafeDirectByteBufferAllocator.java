@@ -23,9 +23,11 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.neo4j.internal.unsafe.NativeMemoryAllocationRefusedError;
+import org.neo4j.internal.unsafe.UnsafeUtil;
+import org.neo4j.io.memory.ByteBufferFactory;
+import org.neo4j.io.memory.ByteBuffers;
 import org.neo4j.memory.MemoryAllocationTracker;
-import org.neo4j.unsafe.impl.internal.dragons.NativeMemoryAllocationRefusedError;
-import org.neo4j.unsafe.impl.internal.dragons.UnsafeUtil;
 import org.neo4j.util.Preconditions;
 
 /**
@@ -35,7 +37,7 @@ import org.neo4j.util.Preconditions;
 public class UnsafeDirectByteBufferAllocator implements ByteBufferFactory.Allocator
 {
     private final MemoryAllocationTracker memoryAllocationTracker;
-    private final List<Allocation> allocations = new ArrayList<>();
+    private final List<ByteBuffer> allocations = new ArrayList<>();
     private boolean closed;
 
     public UnsafeDirectByteBufferAllocator( MemoryAllocationTracker memoryAllocationTracker )
@@ -49,31 +51,16 @@ public class UnsafeDirectByteBufferAllocator implements ByteBufferFactory.Alloca
         assertOpen();
         try
         {
-            long address = UnsafeUtil.allocateMemory( bufferSize, memoryAllocationTracker );
-            try
-            {
-                ByteBuffer buffer = UnsafeUtil.newDirectByteBuffer( address, bufferSize );
-                UnsafeUtil.initDirectByteBuffer( buffer, address, bufferSize );
-                allocations.add( new Allocation( address, bufferSize ) );
-                return buffer;
-            }
-            catch ( Exception e )
-            {
-                // What ever went wrong we can safely fall back to on-heap buffer. Free the allocated memory right away first.
-                UnsafeUtil.free( address, bufferSize, memoryAllocationTracker );
-                return allocateHeapBuffer( bufferSize );
-            }
+            var byteBuffer = ByteBuffers.allocateDirect( bufferSize );
+            allocations.add( byteBuffer );
+            memoryAllocationTracker.allocated( bufferSize );
+            return byteBuffer;
         }
         catch ( NativeMemoryAllocationRefusedError allocationRefusedError )
         {
-            // What ever went wrong we can safely fall back to on-heap buffer.
-            return allocateHeapBuffer( bufferSize );
+            // What ever went wrong fallback to on-heap buffer.
+            return ByteBuffers.allocate( bufferSize );
         }
-    }
-
-    private ByteBuffer allocateHeapBuffer( int bufferSize )
-    {
-        return ByteBuffer.allocate( bufferSize );
     }
 
     @Override
@@ -82,7 +69,11 @@ public class UnsafeDirectByteBufferAllocator implements ByteBufferFactory.Alloca
         // Idempotent close due to the way the population lifecycle works sometimes
         if ( !closed )
         {
-            allocations.forEach( allocation -> UnsafeUtil.free( allocation.address, allocation.bytes, memoryAllocationTracker ) );
+            allocations.forEach( buffer -> {
+                int capacity = buffer.capacity();
+                memoryAllocationTracker.deallocated( capacity );
+                ByteBuffers.releaseBuffer( buffer );
+            } );
             closed = true;
         }
     }
@@ -90,17 +81,5 @@ public class UnsafeDirectByteBufferAllocator implements ByteBufferFactory.Alloca
     private void assertOpen()
     {
         Preconditions.checkState( !closed, "Already closed" );
-    }
-
-    private static class Allocation
-    {
-        private final long address;
-        private final int bytes;
-
-        Allocation( long address, int bytes )
-        {
-            this.address = address;
-            this.bytes = bytes;
-        }
     }
 }

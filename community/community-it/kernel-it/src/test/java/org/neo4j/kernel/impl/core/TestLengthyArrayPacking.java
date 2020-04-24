@@ -19,61 +19,72 @@
  */
 package org.neo4j.kernel.impl.core;
 
-import org.junit.Test;
-
-import java.util.Arrays;
+import org.junit.jupiter.api.Test;
 
 import org.neo4j.graphdb.Node;
+import org.neo4j.graphdb.Transaction;
 import org.neo4j.kernel.impl.AbstractNeo4jTestCase;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.neo4j.kernel.impl.store.format.standard.PropertyRecordFormat.DEFAULT_DATA_BLOCK_SIZE;
 
-public class TestLengthyArrayPacking extends AbstractNeo4jTestCase
+class TestLengthyArrayPacking extends AbstractNeo4jTestCase
 {
     private static final String SOME_MIXED_CHARS = "abc421#¤åäö(/&€";
     private static final String SOME_LATIN_1_CHARS = "abcdefghijklmnopqrstuvwxyz";
+    private final DynamicRecordCounter ARRAY_RECORD_COUNTER = new ArrayRecordCounter();
+    private final DynamicRecordCounter STRING_RECORD_COUNTER = new StringRecordCounter();
+
     @Test
-    public void bitPackingOfLengthyArrays()
+    void bitPackingOfLengthyArrays()
     {
         long arrayRecordsBefore = dynamicArrayRecordsInUse();
-
-        // Store an int array which would w/o packing require two dynamic records
-        // 4*40 = 160B (assuming data size of 120B)
         int[] arrayWhichUnpackedWouldFillTwoDynamicRecords = new int[40];
-        for ( int i = 0; i < arrayWhichUnpackedWouldFillTwoDynamicRecords.length; i++ )
-        {
-            arrayWhichUnpackedWouldFillTwoDynamicRecords[i] = i * i;
-        }
-        Node node = getGraphDb().createNode();
+        Node node;
         String key = "the array";
-        node.setProperty( key, arrayWhichUnpackedWouldFillTwoDynamicRecords );
-        newTransaction();
 
-        // Make sure it only requires one dynamic record
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            // Store an int array which would w/o packing require two dynamic records
+            // 4*40 = 160B (assuming data size of 120B)
+            for ( int i = 0; i < arrayWhichUnpackedWouldFillTwoDynamicRecords.length; i++ )
+            {
+                arrayWhichUnpackedWouldFillTwoDynamicRecords[i] = i * i;
+            }
+            node = transaction.createNode();
+            node.setProperty( key, arrayWhichUnpackedWouldFillTwoDynamicRecords );
+
+            // Make sure it only requires one dynamic record
+            transaction.commit();
+        }
+
         assertEquals( arrayRecordsBefore + 1, dynamicArrayRecordsInUse() );
-        assertTrue( Arrays.equals( arrayWhichUnpackedWouldFillTwoDynamicRecords, (int[]) node.getProperty( key ) ) );
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            assertArrayEquals( arrayWhichUnpackedWouldFillTwoDynamicRecords, (int[]) transaction.getNodeById( node.getId() ).getProperty( key ) );
+            transaction.commit();
+        }
     }
 
     // Tests for strings, although the test class name suggests otherwise
 
     @Test
-    public void makeSureLongLatin1StringUsesOneBytePerChar()
+    void makeSureLongLatin1StringUsesOneBytePerChar()
     {
         String string = stringOfLength( SOME_LATIN_1_CHARS, DEFAULT_DATA_BLOCK_SIZE * 2 - 1 );
         makeSureRightAmountOfDynamicRecordsUsed( string, 2, STRING_RECORD_COUNTER );
     }
 
     @Test
-    public void makeSureLongUtf8StringUsesLessThanTwoBytesPerChar()
+    void makeSureLongUtf8StringUsesLessThanTwoBytesPerChar()
     {
         String string = stringOfLength( SOME_MIXED_CHARS, DEFAULT_DATA_BLOCK_SIZE + 10 );
         makeSureRightAmountOfDynamicRecordsUsed( string, 2, STRING_RECORD_COUNTER );
     }
 
     @Test
-    public void makeSureLongLatin1StringArrayUsesOneBytePerChar()
+    void makeSureLongLatin1StringArrayUsesOneBytePerChar()
     {
         // Exactly 120 bytes: 5b header + (19+4)*5. w/o compression 5+(19*2 + 4)*5
         String[] stringArray = new String[5];
@@ -85,7 +96,7 @@ public class TestLengthyArrayPacking extends AbstractNeo4jTestCase
     }
 
     @Test
-    public void makeSureLongUtf8StringArrayUsesLessThanTwoBytePerChar()
+    void makeSureLongUtf8StringArrayUsesLessThanTwoBytePerChar()
     {
         String[] stringArray = new String[7];
         for ( int i = 0; i < stringArray.length; i++ )
@@ -99,14 +110,17 @@ public class TestLengthyArrayPacking extends AbstractNeo4jTestCase
             DynamicRecordCounter recordCounter )
     {
         long stringRecordsBefore = recordCounter.count();
-        Node node = getGraphDb().createNode();
-        node.setProperty( "name", value );
-        newTransaction();
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            Node node = transaction.createNode();
+            node.setProperty( "name", value );
+            transaction.commit();
+        }
         long stringRecordsAfter = recordCounter.count();
         assertEquals( stringRecordsBefore + expectedAddedDynamicRecords, stringRecordsAfter );
     }
 
-    private String stringOfLength( String possibilities, int length )
+    private static String stringOfLength( String possibilities, int length )
     {
         StringBuilder builder = new StringBuilder();
         for ( int i = 0; i < length; i++ )
@@ -138,7 +152,4 @@ public class TestLengthyArrayPacking extends AbstractNeo4jTestCase
             return dynamicStringRecordsInUse();
         }
     }
-
-    private final DynamicRecordCounter ARRAY_RECORD_COUNTER = new ArrayRecordCounter();
-    private final DynamicRecordCounter STRING_RECORD_COUNTER = new StringRecordCounter();
 }

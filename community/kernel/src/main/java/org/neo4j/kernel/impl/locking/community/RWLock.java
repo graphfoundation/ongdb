@@ -25,14 +25,15 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.ListIterator;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
-import org.neo4j.helpers.MathUtil;
+import org.neo4j.internal.helpers.MathUtil;
 import org.neo4j.kernel.DeadlockDetectedException;
 import org.neo4j.kernel.impl.locking.LockAcquisitionTimeoutException;
 import org.neo4j.kernel.impl.locking.LockType;
+import org.neo4j.lock.LockTracer;
+import org.neo4j.lock.LockWaitEvent;
 import org.neo4j.logging.Logger;
-import org.neo4j.storageengine.api.lock.LockTracer;
-import org.neo4j.storageengine.api.lock.LockWaitEvent;
 import org.neo4j.util.VisibleForTesting;
 
 import static java.lang.Thread.currentThread;
@@ -145,7 +146,7 @@ public class RWLock
         private final TxLockElement element;
         private final LockType lockType;
         private final Thread waitingThread;
-        private final long since = System.currentTimeMillis();
+        private final long since = System.nanoTime();
 
         LockRequest( TxLockElement element, LockType lockType, Thread thread )
         {
@@ -535,7 +536,7 @@ public class RWLock
         // (that is: If writeCount > 0 a waiting thread in the queue cannot be
         // the thread that holds the write locks because then it would never
         // have been put into wait mode)
-        if ( totalWriteCount == 0 && waitingThreadList.size() > 0 )
+        if ( totalWriteCount == 0 && !waitingThreadList.isEmpty() )
         {
             // wake elements in queue until a write lock is found or queue is
             // empty
@@ -627,7 +628,7 @@ public class RWLock
         return sb.toString();
     }
 
-    public synchronized long maxWaitTime()
+    synchronized long maxWaitTime()
     {
         long max = 0L;
         for ( LockRequest thread : waitingThreadList )
@@ -637,7 +638,7 @@ public class RWLock
                 max = thread.since;
             }
         }
-        return System.currentTimeMillis() - max;
+        return TimeUnit.NANOSECONDS.toMillis( System.nanoTime() - max );
     }
 
     // for specified transaction object mark all lock elements as terminated

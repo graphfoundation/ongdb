@@ -23,10 +23,10 @@ import java.io.File;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.regex.Pattern;
 
+import org.neo4j.common.Validator;
 import org.neo4j.io.fs.DefaultFileSystemAbstraction;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.layout.DatabaseLayout;
@@ -64,48 +64,11 @@ public class Validators
         return files;
     }
 
-    public static final Validator<File> DIRECTORY_IS_WRITABLE = value ->
-    {
-        if ( value.mkdirs() )
-        {   // It's OK, we created the directory right now, which means we have write access to it
-            return;
-        }
-
-        File test = new File( value, "_______test___" );
-        try
-        {
-            test.createNewFile();
-        }
-        catch ( IOException e )
-        {
-            throw new IllegalArgumentException( "Directory '" + value + "' not writable: " + e.getMessage() );
-        }
-        finally
-        {
-            test.delete();
-        }
-    };
-
-    public static final Validator<File> CONTAINS_NO_EXISTING_DATABASE = value ->
-    {
-        try ( FileSystemAbstraction fileSystem = new DefaultFileSystemAbstraction() )
-        {
-            if ( isExistingDatabase( fileSystem, DatabaseLayout.of( value ) ) )
-            {
-                throw new IllegalArgumentException( "Directory '" + value + "' already contains a database" );
-            }
-        }
-        catch ( IOException e )
-        {
-            throw new UncheckedIOException( e );
-        }
-    };
-
     public static final Validator<File> CONTAINS_EXISTING_DATABASE = dbDir ->
     {
         try ( FileSystemAbstraction fileSystem = new DefaultFileSystemAbstraction() )
         {
-            if ( !isExistingDatabase( fileSystem, DatabaseLayout.of( dbDir ) ) )
+            if ( !isExistingDatabase( fileSystem, DatabaseLayout.ofFlat( dbDir ) ) )
             {
                 throw new IllegalArgumentException( "Directory '" + dbDir + "' does not contain a database" );
             }
@@ -121,44 +84,8 @@ public class Validators
         return fileSystem.fileExists( layout.metadataStore() );
     }
 
-    public static Validator<String> inList( String[] validStrings )
-    {
-        return value ->
-        {
-            if ( Arrays.stream( validStrings ).noneMatch( s -> s.equals( value ) ) )
-            {
-                throw new IllegalArgumentException( "'" + value + "' found but must be one of: " +
-                    Arrays.toString( validStrings ) + "." );
-            }
-        };
-    }
-
-    public static <T> Validator<T[]> atLeast( final String key, final int length )
-    {
-        return value ->
-        {
-            if ( value.length < length )
-            {
-                throw new IllegalArgumentException( "Expected '" + key + "' to have at least " +
-                        length + " valid item" + (length == 1 ? "" : "s") + ", but had " + value.length +
-                        " " + Arrays.toString( value ) );
-            }
-        };
-    }
-
     public static <T> Validator<T> emptyValidator()
     {
         return value -> {};
-    }
-
-    public static <T> Validator<T> all( Validator<T>... validators )
-    {
-        return value ->
-        {
-            for ( Validator<T> validator : validators )
-            {
-                validator.validate( value );
-            }
-        };
     }
 }

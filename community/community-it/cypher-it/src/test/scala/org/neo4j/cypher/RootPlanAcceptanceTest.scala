@@ -19,49 +19,49 @@
  */
 package org.neo4j.cypher
 
-import org.neo4j.cypher.internal.compatibility.v3_6.runtime.{InterpretedRuntimeName, RuntimeName}
-import org.neo4j.cypher.internal.planner.v3_6.spi.CostBasedPlannerName
+import org.neo4j.cypher.internal.planner.spi.CostBasedPlannerName
+import org.neo4j.cypher.internal.v4_0.frontend.PlannerName
+import org.neo4j.cypher.internal.{InterpretedRuntimeName, RuntimeName}
 import org.neo4j.graphdb.ExecutionPlanDescription
-import org.neo4j.cypher.internal.v3_6.frontend.PlannerName
 
 class RootPlanAcceptanceTest extends ExecutionEngineFunSuite {
 
-  test("cost should be default planner in 3.5") {
+  test("cost should be default planner in 4.0") {
     given("match (n) return n")
-      .withCypherVersion(CypherVersion.v3_6)
+      .withCypherVersion(CypherVersion.v4_0)
       .shouldHavePlanner(CostBasedPlannerName.default)
   }
 
-  test("3.4 query should have 3.4 version") {
+  test("3.5 query should have 3.5 version") {
     given("match (n) return n")
-      .withCypherVersion(CypherVersion.v3_4)
-      .shouldHaveCypherVersion(CypherVersion.v3_4)
+      .withCypherVersion(CypherVersion.v3_5)
+      .shouldHaveCypherVersion(CypherVersion.v3_5)
   }
 
-  test("interpreted should be default runtime in 3.5") {
+  test("interpreted should be default runtime in 4.0") {
     given("match (n) return n")
-      .withCypherVersion(CypherVersion.v3_6)
+      .withCypherVersion(CypherVersion.v4_0)
       .shouldHaveRuntime(InterpretedRuntimeName)
   }
 
-  test("should use cost for varlength in 3.5") {
+  test("should use cost for varlength in 4.0") {
     given("match (a)-[r:T1*]->(b) return a,r,b")
-      .withCypherVersion(CypherVersion.v3_6)
-      .shouldHaveCypherVersion(CypherVersion.v3_6)
+      .withCypherVersion(CypherVersion.v4_0)
+      .shouldHaveCypherVersion(CypherVersion.v4_0)
       .shouldHavePlanner(CostBasedPlannerName.default)
   }
 
-  test("should use cost for cycles in 3.5") {
+  test("should use cost for cycles in 4.0") {
     given("match (a)-[r]->(a) return a")
-      .withCypherVersion(CypherVersion.v3_6)
-      .shouldHaveCypherVersion(CypherVersion.v3_6)
+      .withCypherVersion(CypherVersion.v4_0)
+      .shouldHaveCypherVersion(CypherVersion.v4_0)
       .shouldHavePlanner(CostBasedPlannerName.default)
   }
 
-  test("should handle updates in 3.5") {
+  test("should handle updates in 4.0") {
     given("create() return 1")
-      .withCypherVersion(CypherVersion.v3_6)
-      .shouldHaveCypherVersion(CypherVersion.v3_6)
+      .withCypherVersion(CypherVersion.v4_0)
+      .shouldHaveCypherVersion(CypherVersion.v4_0)
       .shouldHavePlanner(CostBasedPlannerName.default)
   }
 
@@ -72,8 +72,8 @@ class RootPlanAcceptanceTest extends ExecutionEngineFunSuite {
         |RETURN coc, COUNT(*) AS times
         |ORDER BY times DESC
         |LIMIT 10""".stripMargin)
-      .withCypherVersion(CypherVersion.v3_6)
-      .shouldHaveCypherVersion(CypherVersion.v3_6)
+      .withCypherVersion(CypherVersion.v4_0)
+      .shouldHaveCypherVersion(CypherVersion.v4_0)
       .shouldHavePlanner(CostBasedPlannerName.default)
   }
 
@@ -82,8 +82,8 @@ class RootPlanAcceptanceTest extends ExecutionEngineFunSuite {
       """MATCH (s:Location {name:'DeliverySegment-257227'}), (e:Location {name:'DeliverySegment-476821'})
         |MATCH (s)<-[:DELIVERY_ROUTE]-(db1) MATCH (db2)-[:DELIVERY_ROUTE]->(e)
         |MATCH (db1)<-[:CONNECTED_TO]-()-[:CONNECTED_TO]-(db2) RETURN s""".stripMargin)
-      .withCypherVersion(CypherVersion.v3_6)
-      .shouldHaveCypherVersion(CypherVersion.v3_6)
+      .withCypherVersion(CypherVersion.v4_0)
+      .shouldHaveCypherVersion(CypherVersion.v4_0)
       .shouldHavePlanner(CostBasedPlannerName.default)
   }
 
@@ -116,7 +116,8 @@ class RootPlanAcceptanceTest extends ExecutionEngineFunSuite {
   }
 
   test("EstimatedRows should be properly formatted") {
-    given("match (n) return n").planDescription.getArguments.get("EstimatedRows") should equal(1) // on missing statistics, we fake cardinality to one
+    // on missing statistics, we fake cardinality to 10
+    given("MATCH (n) RETURN n").planDescription.getArguments.get("EstimatedRows") should equal(10.0)
   }
 
   def given(query: String) = TestQuery(query)
@@ -152,17 +153,19 @@ class RootPlanAcceptanceTest extends ExecutionEngineFunSuite {
     }
 
     private def execute(): ExecutionPlanDescription = {
-      val prepend = (cypherVersion, planner, runtime) match {
-        case (None, None, None) => ""
-        case _ =>
-          val version = cypherVersion.map(_.name).getOrElse("")
-          val plannerString = planner.map("planner=" + _.name).getOrElse("")
-          val runtimeString = runtime.map("runtime=" + _.name).getOrElse("")
-          s"CYPHER $version $plannerString $runtimeString"
+      graph.withTx { tx =>
+        val prepend = (cypherVersion, planner, runtime) match {
+          case (None, None, None) => ""
+          case _ =>
+            val version = cypherVersion.map(_.name).getOrElse("")
+            val plannerString = planner.map("planner=" + _.name).getOrElse("")
+            val runtimeString = runtime.map("runtime=" + _.name).getOrElse("")
+            s"CYPHER $version $plannerString $runtimeString"
+        }
+        val result = executeOfficial( tx, s"$prepend PROFILE $query")
+        result.resultAsString()
+        result.getExecutionPlanDescription()
       }
-      val result = executeOfficial(s"$prepend PROFILE $query")
-      result.resultAsString()
-      result.getExecutionPlanDescription()
     }
   }
 }

@@ -19,11 +19,8 @@
  */
 package org.neo4j.kernel.impl.core;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Array;
 import java.time.LocalDate;
@@ -36,9 +33,10 @@ import java.time.temporal.TemporalAmount;
 import java.util.Arrays;
 
 import org.neo4j.graphdb.Node;
+import org.neo4j.graphdb.Transaction;
 import org.neo4j.graphdb.spatial.Point;
-import org.neo4j.helpers.ArrayUtil;
-import org.neo4j.helpers.Strings;
+import org.neo4j.internal.helpers.ArrayUtil;
+import org.neo4j.internal.helpers.Strings;
 import org.neo4j.kernel.impl.AbstractNeo4jTestCase;
 import org.neo4j.values.storable.CoordinateReferenceSystem;
 import org.neo4j.values.storable.DateTimeValue;
@@ -50,954 +48,1452 @@ import org.neo4j.values.storable.TimeValue;
 import org.neo4j.values.storable.Values;
 
 import static java.lang.String.format;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.neo4j.values.storable.CoordinateReferenceSystem.Cartesian;
 
-public class TestPropertyTypes extends AbstractNeo4jTestCase
+class TestPropertyTypes extends AbstractNeo4jTestCase
 {
     private Node node1;
 
-    @Rule
-    public ExpectedException thrown = ExpectedException.none();
-
-    @Before
-    public void createInitialNode()
+    @BeforeEach
+    void createInitialNode()
     {
-        node1 = getGraphDb().createNode();
-    }
-
-    @After
-    public void deleteInitialNode()
-    {
-        node1.delete();
+        node1 = createNode();
     }
 
     @Test
-    public void testDoubleType()
+    void testDoubleType()
     {
         Double dValue = 45.678d;
         String key = "testdouble";
-        node1.setProperty( key, dValue );
-        newTransaction();
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            transaction.getNodeById( node1.getId() ).setProperty( key, dValue );
+            transaction.commit();
+        }
         Double propertyValue;
-        propertyValue = (Double) node1.getProperty( key );
-        assertEquals( dValue, propertyValue );
-        dValue = 56784.3243d;
-        node1.setProperty( key, dValue );
-        newTransaction();
-        propertyValue = (Double) node1.getProperty( key );
-        assertEquals( dValue, propertyValue );
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            node1 = transaction.getNodeById( node1.getId() );
 
-        node1.removeProperty( key );
-        newTransaction();
-        assertTrue( !node1.hasProperty( key ) );
+            propertyValue = (Double) node1.getProperty( key );
+            assertEquals( dValue, propertyValue );
+            dValue = 56784.3243d;
+            node1.setProperty( key, dValue );
+            transaction.commit();
+        }
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            node1 = transaction.getNodeById( node1.getId() );
+
+            propertyValue = (Double) node1.getProperty( key );
+            assertEquals( dValue, propertyValue );
+            transaction.commit();
+        }
+
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            transaction.getNodeById( node1.getId() ).removeProperty( key );
+            transaction.commit();
+        }
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            assertFalse( transaction.getNodeById( node1.getId() ).hasProperty( key ) );
+            transaction.commit();
+        }
     }
 
     @Test
-    public void testFloatType()
+    void testFloatType()
     {
         Float fValue = 45.678f;
         String key = "testfloat";
-        node1.setProperty( key, fValue );
-        newTransaction();
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            transaction.getNodeById( node1.getId() ).setProperty( key, fValue );
+            transaction.commit();
+        }
 
-        Float propertyValue = null;
-        propertyValue = (Float) node1.getProperty( key );
-        assertEquals( fValue, propertyValue );
+        Float propertyValue;
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            node1 = transaction.getNodeById( node1.getId() );
 
-        fValue = 5684.3243f;
-        node1.setProperty( key, fValue );
-        newTransaction();
+            propertyValue = (Float) node1.getProperty( key );
+            assertEquals( fValue, propertyValue );
 
-        propertyValue = (Float) node1.getProperty( key );
-        assertEquals( fValue, propertyValue );
+            fValue = 5684.3243f;
+            node1.setProperty( key, fValue );
+            transaction.commit();
+        }
 
-        node1.removeProperty( key );
-        newTransaction();
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            node1 = transaction.getNodeById( node1.getId() );
 
-        assertTrue( !node1.hasProperty( key ) );
+            propertyValue = (Float) node1.getProperty( key );
+            assertEquals( fValue, propertyValue );
+
+            node1.removeProperty( key );
+            transaction.commit();
+        }
+
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            assertFalse( transaction.getNodeById( node1.getId() ).hasProperty( key ) );
+            transaction.commit();
+        }
     }
 
     @Test
-    public void testLongType()
+    void testLongType()
     {
         Long lValue = System.currentTimeMillis();
         String key = "testlong";
-        node1.setProperty( key, lValue );
-        newTransaction();
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            transaction.getNodeById( node1.getId() ).setProperty( key, lValue );
+            transaction.commit();
+        }
 
-        Long propertyValue = null;
-        propertyValue = (Long) node1.getProperty( key );
-        assertEquals( lValue, propertyValue );
+        Long propertyValue;
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            node1 = transaction.getNodeById( node1.getId() );
 
-        lValue = System.currentTimeMillis();
-        node1.setProperty( key, lValue );
-        newTransaction();
+            propertyValue = (Long) node1.getProperty( key );
+            assertEquals( lValue, propertyValue );
 
-        propertyValue = (Long) node1.getProperty( key );
-        assertEquals( lValue, propertyValue );
+            lValue = System.currentTimeMillis();
+            node1.setProperty( key, lValue );
+            transaction.commit();
+        }
 
-        node1.removeProperty( key );
-        newTransaction();
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            node1 = transaction.getNodeById( node1.getId() );
 
-        assertTrue( !node1.hasProperty( key ) );
+            propertyValue = (Long) node1.getProperty( key );
+            assertEquals( lValue, propertyValue );
 
-        node1.setProperty( "other", 123L );
-        assertEquals( 123L, node1.getProperty( "other" ) );
-        newTransaction();
-        assertEquals( 123L, node1.getProperty( "other" ) );
+            node1.removeProperty( key );
+            transaction.commit();
+        }
+
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            node1 = transaction.getNodeById( node1.getId() );
+
+            assertFalse( node1.hasProperty( key ) );
+
+            node1.setProperty( "other", 123L );
+            assertEquals( 123L, node1.getProperty( "other" ) );
+            transaction.commit();
+        }
+
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            assertEquals( 123L, transaction.getNodeById( node1.getId() ).getProperty( "other" ) );
+            transaction.commit();
+        }
     }
 
     @Test
-    public void testIntType()
+    void testIntType()
     {
-        int time = (int)System.currentTimeMillis();
-        Integer iValue = time;
+        Integer iValue = (int) System.currentTimeMillis();
         String key = "testing";
-        node1.setProperty( key, iValue );
-        newTransaction();
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            transaction.getNodeById( node1.getId() ).setProperty( key, iValue );
+            transaction.commit();
+        }
 
-        Integer propertyValue = null;
-        propertyValue = (Integer) node1.getProperty( key );
-        assertEquals( iValue, propertyValue );
+        Integer propertyValue;
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            node1 = transaction.getNodeById( node1.getId() );
 
-        iValue = (int) System.currentTimeMillis();
-        node1.setProperty( key, iValue );
-        newTransaction();
+            propertyValue = (Integer) node1.getProperty( key );
+            assertEquals( iValue, propertyValue );
 
-        propertyValue = (Integer) node1.getProperty( key );
-        assertEquals( iValue, propertyValue );
+            iValue = (int) System.currentTimeMillis();
+            node1.setProperty( key, iValue );
+            transaction.commit();
+        }
 
-        node1.removeProperty( key );
-        newTransaction();
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            node1 = transaction.getNodeById( node1.getId() );
 
-        assertTrue( !node1.hasProperty( key ) );
+            propertyValue = (Integer) node1.getProperty( key );
+            assertEquals( iValue, propertyValue );
 
-        node1.setProperty( "other", 123L );
-        assertEquals( 123L, node1.getProperty( "other" ) );
-        newTransaction();
-        assertEquals( 123L, node1.getProperty( "other" ) );
+            node1.removeProperty( key );
+            transaction.commit();
+        }
+
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            node1 = transaction.getNodeById( node1.getId() );
+
+            assertFalse( node1.hasProperty( key ) );
+
+            node1.setProperty( "other", 123L );
+            assertEquals( 123L, node1.getProperty( "other" ) );
+            transaction.commit();
+        }
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            assertEquals( 123L, transaction.getNodeById( node1.getId() ).getProperty( "other" ) );
+            transaction.commit();
+        }
     }
 
     @Test
-    public void testByteType()
+    void testByteType()
     {
         byte b = (byte) 177;
-        Byte bValue = b;
         String key = "testbyte";
-        node1.setProperty( key, bValue );
-        newTransaction();
+        Byte bValue = b;
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            transaction.getNodeById( node1.getId() ).setProperty( key, bValue );
+            transaction.commit();
+        }
 
-        Byte propertyValue = null;
-        propertyValue = (Byte) node1.getProperty( key );
-        assertEquals( bValue, propertyValue );
+        Byte propertyValue;
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            node1 = transaction.getNodeById( node1.getId() );
 
-        bValue = (byte) 200;
-        node1.setProperty( key, bValue );
-        newTransaction();
+            propertyValue = (Byte) node1.getProperty( key );
+            assertEquals( bValue, propertyValue );
 
-        propertyValue = (Byte) node1.getProperty( key );
-        assertEquals( bValue, propertyValue );
+            bValue = (byte) 200;
+            node1.setProperty( key, bValue );
+            transaction.commit();
+        }
 
-        node1.removeProperty( key );
-        newTransaction();
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            node1 = transaction.getNodeById( node1.getId() );
 
-        assertTrue( !node1.hasProperty( key ) );
+            propertyValue = (Byte) node1.getProperty( key );
+            assertEquals( bValue, propertyValue );
+
+            node1.removeProperty( key );
+            transaction.commit();
+        }
+
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            assertFalse( transaction.getNodeById( node1.getId() ).hasProperty( key ) );
+            transaction.commit();
+        }
     }
 
     @Test
-    public void testShortType()
+    void testShortType()
     {
         Short sValue = (short) 453;
         String key = "testshort";
-        node1.setProperty( key, sValue );
-        newTransaction();
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            transaction.getNodeById( node1.getId() ).setProperty( key, sValue );
+            transaction.commit();
+        }
 
-        Short propertyValue = null;
-        propertyValue = (Short) node1.getProperty( key );
-        assertEquals( sValue, propertyValue );
+        Short propertyValue;
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            node1 = transaction.getNodeById( node1.getId() );
 
-        sValue = (short) 5335;
-        node1.setProperty( key, sValue );
-        newTransaction();
+            propertyValue = (Short) node1.getProperty( key );
+            assertEquals( sValue, propertyValue );
 
-        propertyValue = (Short) node1.getProperty( key );
-        assertEquals( sValue, propertyValue );
+            sValue = (short) 5335;
+            node1.setProperty( key, sValue );
+            transaction.commit();
+        }
 
-        node1.removeProperty( key );
-        newTransaction();
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            node1 = transaction.getNodeById( node1.getId() );
 
-        assertTrue( !node1.hasProperty( key ) );
+            propertyValue = (Short) node1.getProperty( key );
+            assertEquals( sValue, propertyValue );
+
+            node1.removeProperty( key );
+            transaction.commit();
+        }
+
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            assertFalse( transaction.getNodeById( node1.getId() ).hasProperty( key ) );
+            transaction.commit();
+        }
     }
 
     @Test
-    public void testCharType()
+    void testCharType()
     {
-        char c = 'c';
-        Character cValue = c;
+        Character cValue = 'c';
         String key = "testchar";
-        node1.setProperty( key, cValue );
-        newTransaction();
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            transaction.getNodeById( node1.getId() ).setProperty( key, cValue );
+            transaction.commit();
+        }
 
-        Character propertyValue = null;
-        propertyValue = (Character) node1.getProperty( key );
-        assertEquals( cValue, propertyValue );
+        Character propertyValue;
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            node1 = transaction.getNodeById( node1.getId() );
 
-        cValue = 'd';
-        node1.setProperty( key, cValue );
-        newTransaction();
+            propertyValue = (Character) node1.getProperty( key );
+            assertEquals( cValue, propertyValue );
 
-        propertyValue = (Character) node1.getProperty( key );
-        assertEquals( cValue, propertyValue );
+            cValue = 'd';
+            node1.setProperty( key, cValue );
+            transaction.commit();
+        }
 
-        node1.removeProperty( key );
-        newTransaction();
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            node1 = transaction.getNodeById( node1.getId() );
 
-        assertTrue( !node1.hasProperty( key ) );
+            propertyValue = (Character) node1.getProperty( key );
+            assertEquals( cValue, propertyValue );
+
+            node1.removeProperty( key );
+            transaction.commit();
+        }
+
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            assertFalse( transaction.getNodeById( node1.getId() ).hasProperty( key ) );
+            transaction.commit();
+        }
     }
 
     @Test
-    public void testBooleanType()
+    void testBooleanType()
     {
         String key = "testbool";
-        node1.setProperty( key, Boolean.TRUE );
-        newTransaction();
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            transaction.getNodeById( node1.getId() ).setProperty( key, Boolean.TRUE );
+            transaction.commit();
+        }
 
-        Boolean propertyValue = (Boolean) node1.getProperty( key );
-        assertEquals( Boolean.TRUE, propertyValue );
+        Boolean propertyValue;
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            node1 = transaction.getNodeById( node1.getId() );
 
-        node1.setProperty( key, Boolean.FALSE );
-        newTransaction();
+            propertyValue = (Boolean) node1.getProperty( key );
+            assertEquals( Boolean.TRUE, propertyValue );
 
-        propertyValue = (Boolean) node1.getProperty( key );
-        assertEquals( Boolean.FALSE, propertyValue );
+            node1.setProperty( key, Boolean.FALSE );
+            transaction.commit();
+        }
 
-        node1.removeProperty( key );
-        newTransaction();
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            node1 = transaction.getNodeById( node1.getId() );
 
-        assertTrue( !node1.hasProperty( key ) );
+            propertyValue = (Boolean) node1.getProperty( key );
+            assertEquals( Boolean.FALSE, propertyValue );
+
+            node1.removeProperty( key );
+            transaction.commit();
+        }
+
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            assertFalse( transaction.getNodeById( node1.getId() ).hasProperty( key ) );
+            transaction.commit();
+        }
     }
 
     @Test
-    public void testPointType()
+    void testPointType()
     {
-        Point point = Values.pointValue( CoordinateReferenceSystem.Cartesian, 1, 1 );
+        Point point = Values.pointValue( Cartesian, 1, 1 );
         String key = "location";
-        node1.setProperty( key, point );
-        newTransaction();
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            transaction.getNodeById( node1.getId() ).setProperty( key, point );
+            transaction.commit();
+        }
 
-        Object property = node1.getProperty( key );
-        assertEquals( point, property );
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            Object property = transaction.getNodeById( node1.getId() ).getProperty( key );
+            assertEquals( point, property );
+            transaction.commit();
+        }
     }
 
     @Test
-    public void testPointTypeWithOneOtherProperty()
+    void testPointTypeWithOneOtherProperty()
     {
-        Point point = Values.pointValue( CoordinateReferenceSystem.Cartesian, 1, 1 );
+        Point point = Values.pointValue( Cartesian, 1, 1 );
         String key = "location";
-        node1.setProperty( "prop1", 1 );
-        node1.setProperty( key, point );
-        newTransaction();
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            node1 = transaction.getNodeById( node1.getId() );
 
-        Object property = node1.getProperty( key );
-        assertEquals( point, property );
+            node1.setProperty( "prop1", 1 );
+            node1.setProperty( key, point );
+            transaction.commit();
+        }
+
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            Object property = transaction.getNodeById( node1.getId() ).getProperty( key );
+            assertEquals( point, property );
+            transaction.commit();
+        }
     }
 
     @Test
-    public void testPointTypeWithTwoOtherProperties()
+    void testPointTypeWithTwoOtherProperties()
     {
-        Point point = Values.pointValue( CoordinateReferenceSystem.Cartesian, 1, 1 );
+        Point point = Values.pointValue( Cartesian, 1, 1 );
         String key = "location";
-        node1.setProperty( "prop1", 1 );
-        node1.setProperty( "prop2", 2 );
-        node1.setProperty( key, point );
-        newTransaction();
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            node1 = transaction.getNodeById( node1.getId() );
 
-        Object property = node1.getProperty( key );
-        assertEquals( point, property );
+            node1.setProperty( "prop1", 1 );
+            node1.setProperty( "prop2", 2 );
+            node1.setProperty( key, point );
+            transaction.commit();
+        }
+
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            Object property = transaction.getNodeById( node1.getId() ).getProperty( key );
+            assertEquals( point, property );
+            transaction.commit();
+        }
     }
 
     @Test
-    public void test3DPointType()
+    void test3DPointType()
     {
         Point point = Values.pointValue( CoordinateReferenceSystem.Cartesian_3D, 1, 1, 1 );
         String key = "location";
-        node1.setProperty( key, point );
-        newTransaction();
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            transaction.getNodeById( node1.getId() ).setProperty( key, point );
+            transaction.commit();
+        }
 
-        Object property = node1.getProperty( key );
-        assertEquals( point, property );
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            node1 = transaction.getNodeById( node1.getId() );
+
+            Object property = node1.getProperty( key );
+            assertEquals( point, property );
+            transaction.commit();
+        }
     }
 
     @Test
-    public void test4DPointType()
+    void test4DPointType()
     {
-        thrown.expect(Exception.class);
-        node1.setProperty( "location", Values.unsafePointValue( CoordinateReferenceSystem.Cartesian, 1, 1, 1, 1 ) );
-        newTransaction();
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            assertThrows( IllegalArgumentException.class, () -> transaction.getNodeById( node1.getId() ).setProperty( "location",
+                    Values.unsafePointValue( Cartesian, 1, 1, 1, 1 ) ) );
+        }
     }
 
     @Test
-    public void testPointArray()
+    void testPointArray()
     {
-        Point[] array = new Point[]{Values.pointValue( CoordinateReferenceSystem.Cartesian_3D, 1, 1, 1 ),
+        Point[] array = {Values.pointValue( CoordinateReferenceSystem.Cartesian_3D, 1, 1, 1 ),
                                     Values.pointValue( CoordinateReferenceSystem.Cartesian_3D, 2, 1, 3 )};
         String key = "testpointarray";
-        node1.setProperty( key, array );
-        newTransaction();
-
-        Point[] propertyValue = null;
-        propertyValue = (Point[]) node1.getProperty( key );
-        assertEquals( array.length, propertyValue.length );
-        for ( int i = 0; i < array.length; i++ )
+        try ( Transaction transaction = getGraphDb().beginTx() )
         {
-            assertEquals( array[i], propertyValue[i] );
+            transaction.getNodeById( node1.getId() ).setProperty( key, array );
+            transaction.commit();
         }
 
-        node1.removeProperty( key );
-        newTransaction();
-
-        assertTrue( !node1.hasProperty( key ) );
-    }
-
-    @Test
-    public void testDateTypeSmallEpochDay()
-    {
-        LocalDate date = DateValue.date( 2018, 1, 31 ).asObjectCopy();
-        String key = "dt";
-        node1.setProperty( key, date );
-        newTransaction();
-
-        Object property = node1.getProperty( key );
-        assertEquals( date, property );
-    }
-
-    @Test
-    public void testDateTypeLargeEpochDay()
-    {
-        LocalDate date = DateValue.epochDate( 2147483648L ).asObjectCopy();
-        String key = "dt";
-        node1.setProperty( key, date );
-        newTransaction();
-
-        Object property = node1.getProperty( key );
-        assertEquals( date, property );
-    }
-
-    @Test
-    public void testDateArray()
-    {
-        LocalDate[] array = new LocalDate[]{DateValue.date( 2018, 1, 31 ).asObjectCopy(), DateValue.epochDate( 2147483648L ).asObjectCopy()};
-        String key = "testarray";
-        node1.setProperty( key, array );
-        newTransaction();
-
-        LocalDate[] propertyValue = (LocalDate[]) node1.getProperty( key );
-        assertEquals( array.length, propertyValue.length );
-        for ( int i = 0; i < array.length; i++ )
+        try ( Transaction transaction = getGraphDb().beginTx() )
         {
-            assertEquals( array[i], propertyValue[i] );
-        }
+            node1 = transaction.getNodeById( node1.getId() );
 
-        node1.removeProperty( key );
-        newTransaction();
-
-        assertTrue( !node1.hasProperty( key ) );
-    }
-
-    @Test
-    public void testLocalTimeTypeSmallNano()
-    {
-        LocalTime time = LocalTimeValue.localTime( 0, 0, 0, 37 ).asObjectCopy();
-        String key = "dt";
-        node1.setProperty( key, time );
-        newTransaction();
-
-        Object property = node1.getProperty( key );
-        assertEquals( time, property );
-    }
-
-    @Test
-    public void testLocalTimeTypeLargeNano()
-    {
-        LocalTime time = LocalTimeValue.localTime( 0, 0, 13, 37 ).asObjectCopy();
-        String key = "dt";
-        node1.setProperty( key, time );
-        newTransaction();
-
-        Object property = node1.getProperty( key );
-        assertEquals( time, property );
-    }
-
-    @Test
-    public void testLocalTimeArray()
-    {
-        LocalTime[] array = new LocalTime[]{LocalTimeValue.localTime( 0, 0, 0, 37 ).asObjectCopy(), LocalTimeValue.localTime( 0, 0, 13, 37 ).asObjectCopy()};
-        String key = "testarray";
-        node1.setProperty( key, array );
-        newTransaction();
-
-        LocalTime[] propertyValue = (LocalTime[]) node1.getProperty( key );
-        assertEquals( array.length, propertyValue.length );
-        for ( int i = 0; i < array.length; i++ )
-        {
-            assertEquals( array[i], propertyValue[i] );
-        }
-
-        node1.removeProperty( key );
-        newTransaction();
-
-        assertTrue( !node1.hasProperty( key ) );
-    }
-
-    @Test
-    public void testLocalDateTimeType()
-    {
-        LocalDateTime dateTime = LocalDateTimeValue.localDateTime( 1991, 1, 1, 0, 0, 13, 37 ).asObjectCopy();
-        String key = "dt";
-        node1.setProperty( key, dateTime );
-        newTransaction();
-
-        Object property = node1.getProperty( key );
-        assertEquals( dateTime, property );
-    }
-
-    @Test
-    public void testLocalDateTimeArray()
-    {
-        LocalDateTime[] array = new LocalDateTime[]{LocalDateTimeValue.localDateTime( 1991, 1, 1, 0, 0, 13, 37 ).asObjectCopy(),
-                LocalDateTimeValue.localDateTime( 1992, 2, 28, 1, 15, 0, 4000 ).asObjectCopy()};
-        String key = "testarray";
-        node1.setProperty( key, array );
-        newTransaction();
-
-        LocalDateTime[] propertyValue = (LocalDateTime[]) node1.getProperty( key );
-        assertEquals( array.length, propertyValue.length );
-        for ( int i = 0; i < array.length; i++ )
-        {
-            assertEquals( array[i], propertyValue[i] );
-        }
-
-        node1.removeProperty( key );
-        newTransaction();
-
-        assertTrue( !node1.hasProperty( key ) );
-    }
-
-    @Test
-    public void testTimeType()
-    {
-        OffsetTime time = TimeValue.time( 23, 11, 8, 0, "+17:59" ).asObjectCopy();
-        String key = "dt";
-        node1.setProperty( key, time );
-        newTransaction();
-
-        Object property = node1.getProperty( key );
-        assertEquals( time, property );
-    }
-
-    @Test
-    public void testTimeArray()
-    {
-        String key = "testarray";
-
-        // array sizes 1 through 4
-        for ( OffsetTime[] array : new OffsetTime[][]{new OffsetTime[]{TimeValue.time( 23, 11, 8, 0, "+17:59" ).asObjectCopy()},
-                new OffsetTime[]{TimeValue.time( 23, 11, 8, 0, "+17:59" ).asObjectCopy(), TimeValue.time( 14, 34, 55, 3478, "+02:00" ).asObjectCopy()},
-                new OffsetTime[]{TimeValue.time( 23, 11, 8, 0, "+17:59" ).asObjectCopy(), TimeValue.time( 14, 34, 55, 3478, "+02:00" ).asObjectCopy(),
-                        TimeValue.time( 0, 17, 20, 783478, "-03:00" ).asObjectCopy()},
-                new OffsetTime[]{TimeValue.time( 23, 11, 8, 0, "+17:59" ).asObjectCopy(), TimeValue.time( 14, 34, 55, 3478, "+02:00" ).asObjectCopy(),
-                        TimeValue.time( 0, 17, 20, 783478, "-03:00" ).asObjectCopy(), TimeValue.time( 1, 1, 1, 1, "-01:00" ).asObjectCopy()}} )
-        {
-            node1.setProperty( key, array );
-            newTransaction();
-
-            OffsetTime[] propertyValue = (OffsetTime[]) node1.getProperty( key );
+            Point[] propertyValue = (Point[]) node1.getProperty( key );
             assertEquals( array.length, propertyValue.length );
             for ( int i = 0; i < array.length; i++ )
             {
                 assertEquals( array[i], propertyValue[i] );
             }
+
+            node1.removeProperty( key );
+            transaction.commit();
         }
 
-        node1.removeProperty( key );
-        newTransaction();
-
-        assertTrue( !node1.hasProperty( key ) );
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            assertFalse( transaction.getNodeById( node1.getId() ).hasProperty( key ) );
+            transaction.commit();
+        }
     }
 
     @Test
-    public void testDurationType()
+    void testDateTypeSmallEpochDay()
+    {
+        LocalDate date = DateValue.date( 2018, 1, 31 ).asObjectCopy();
+        String key = "dt";
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            transaction.getNodeById( node1.getId() ).setProperty( key, date );
+            transaction.commit();
+        }
+
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            Object property = transaction.getNodeById( node1.getId() ).getProperty( key );
+            assertEquals( date, property );
+            transaction.commit();
+        }
+    }
+
+    @Test
+    void testDateTypeLargeEpochDay()
+    {
+        LocalDate date = DateValue.epochDate( 2147483648L ).asObjectCopy();
+        String key = "dt";
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            transaction.getNodeById( node1.getId() ).setProperty( key, date );
+            transaction.commit();
+        }
+
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            Object property = transaction.getNodeById( node1.getId() ).getProperty( key );
+            assertEquals( date, property );
+            transaction.commit();
+        }
+    }
+
+    @Test
+    void testDateArray()
+    {
+        LocalDate[] array = {DateValue.date( 2018, 1, 31 ).asObjectCopy(), DateValue.epochDate( 2147483648L ).asObjectCopy()};
+        String key = "testarray";
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            transaction.getNodeById( node1.getId() ).setProperty( key, array );
+            transaction.commit();
+        }
+
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            node1 = transaction.getNodeById( node1.getId() );
+
+            LocalDate[] propertyValue = (LocalDate[]) node1.getProperty( key );
+            assertEquals( array.length, propertyValue.length );
+            for ( int i = 0; i < array.length; i++ )
+            {
+                assertEquals( array[i], propertyValue[i] );
+            }
+
+            node1.removeProperty( key );
+            transaction.commit();
+        }
+
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            assertFalse( transaction.getNodeById( node1.getId() ).hasProperty( key ) );
+            transaction.commit();
+        }
+    }
+
+    @Test
+    void testLocalTimeTypeSmallNano()
+    {
+        LocalTime time = LocalTimeValue.localTime( 0, 0, 0, 37 ).asObjectCopy();
+        String key = "dt";
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            transaction.getNodeById( node1.getId() ).setProperty( key, time );
+            transaction.commit();
+        }
+
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            Object property = transaction.getNodeById( node1.getId() ).getProperty( key );
+            assertEquals( time, property );
+            transaction.commit();
+        }
+    }
+
+    @Test
+    void testLocalTimeTypeLargeNano()
+    {
+        LocalTime time = LocalTimeValue.localTime( 0, 0, 13, 37 ).asObjectCopy();
+        String key = "dt";
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            transaction.getNodeById( node1.getId() ).setProperty( key, time );
+            transaction.commit();
+        }
+
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            Object property = transaction.getNodeById( node1.getId() ).getProperty( key );
+            assertEquals( time, property );
+            transaction.commit();
+        }
+    }
+
+    @Test
+    void testLocalTimeArray()
+    {
+        LocalTime[] array = {LocalTimeValue.localTime( 0, 0, 0, 37 ).asObjectCopy(), LocalTimeValue.localTime( 0, 0, 13, 37 ).asObjectCopy()};
+        String key = "testarray";
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            transaction.getNodeById( node1.getId() ).setProperty( key, array );
+            transaction.commit();
+        }
+
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            node1 = transaction.getNodeById( node1.getId() );
+
+            LocalTime[] propertyValue = (LocalTime[]) node1.getProperty( key );
+            assertEquals( array.length, propertyValue.length );
+            for ( int i = 0; i < array.length; i++ )
+            {
+                assertEquals( array[i], propertyValue[i] );
+            }
+
+            node1.removeProperty( key );
+            transaction.commit();
+        }
+
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            assertFalse( transaction.getNodeById( node1.getId() ).hasProperty( key ) );
+            transaction.commit();
+        }
+    }
+
+    @Test
+    void testLocalDateTimeType()
+    {
+        LocalDateTime dateTime = LocalDateTimeValue.localDateTime( 1991, 1, 1, 0, 0, 13, 37 ).asObjectCopy();
+        String key = "dt";
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            transaction.getNodeById( node1.getId() ).setProperty( key, dateTime );
+            transaction.commit();
+        }
+
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            Object property = transaction.getNodeById( node1.getId() ).getProperty( key );
+            assertEquals( dateTime, property );
+            transaction.commit();
+        }
+    }
+
+    @Test
+    void testLocalDateTimeArray()
+    {
+        LocalDateTime[] array = {LocalDateTimeValue.localDateTime( 1991, 1, 1, 0, 0, 13, 37 ).asObjectCopy(),
+                LocalDateTimeValue.localDateTime( 1992, 2, 28, 1, 15, 0, 4000 ).asObjectCopy()};
+        String key = "testarray";
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            transaction.getNodeById( node1.getId() ).setProperty( key, array );
+            transaction.commit();
+        }
+
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            node1 = transaction.getNodeById( node1.getId() );
+
+            LocalDateTime[] propertyValue = (LocalDateTime[]) node1.getProperty( key );
+            assertEquals( array.length, propertyValue.length );
+            for ( int i = 0; i < array.length; i++ )
+            {
+                assertEquals( array[i], propertyValue[i] );
+            }
+
+            node1.removeProperty( key );
+            transaction.commit();
+        }
+
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            assertFalse( transaction.getNodeById( node1.getId() ).hasProperty( key ) );
+            transaction.commit();
+        }
+    }
+
+    @Test
+    void testTimeType()
+    {
+        OffsetTime time = TimeValue.time( 23, 11, 8, 0, "+17:59" ).asObjectCopy();
+        String key = "dt";
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            transaction.getNodeById( node1.getId() ).setProperty( key, time );
+            transaction.commit();
+        }
+
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            Object property = transaction.getNodeById( node1.getId() ).getProperty( key );
+            assertEquals( time, property );
+            transaction.commit();
+        }
+    }
+
+    @Test
+    void testTimeArray()
+    {
+        String key = "testarray";
+
+        // array sizes 1 through 4
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            node1 = transaction.getNodeById( node1.getId() );
+
+            for ( OffsetTime[] array : new OffsetTime[][]{new OffsetTime[]{TimeValue.time( 23, 11, 8, 0, "+17:59" ).asObjectCopy()},
+                    new OffsetTime[]{TimeValue.time( 23, 11, 8, 0, "+17:59" ).asObjectCopy(), TimeValue.time( 14, 34, 55, 3478, "+02:00" ).asObjectCopy()},
+                    new OffsetTime[]{TimeValue.time( 23, 11, 8, 0, "+17:59" ).asObjectCopy(), TimeValue.time( 14, 34, 55, 3478, "+02:00" ).asObjectCopy(),
+                            TimeValue.time( 0, 17, 20, 783478, "-03:00" ).asObjectCopy()},
+                    new OffsetTime[]{TimeValue.time( 23, 11, 8, 0, "+17:59" ).asObjectCopy(), TimeValue.time( 14, 34, 55, 3478, "+02:00" ).asObjectCopy(),
+                            TimeValue.time( 0, 17, 20, 783478, "-03:00" ).asObjectCopy(), TimeValue.time( 1, 1, 1, 1, "-01:00" ).asObjectCopy()}} )
+            {
+                node1.setProperty( key, array );
+
+                OffsetTime[] propertyValue = (OffsetTime[]) node1.getProperty( key );
+                assertEquals( array.length, propertyValue.length );
+                for ( int i = 0; i < array.length; i++ )
+                {
+                    assertEquals( array[i], propertyValue[i] );
+                }
+            }
+            transaction.commit();
+        }
+
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            transaction.getNodeById( node1.getId() ).removeProperty( key );
+            transaction.commit();
+        }
+
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            assertFalse( transaction.getNodeById( node1.getId() ).hasProperty( key ) );
+            transaction.commit();
+        }
+    }
+
+    @Test
+    void testDurationType()
     {
         TemporalAmount duration = DurationValue.duration( 57, 57, 57, 57 ).asObjectCopy();
         String key = "dt";
-        node1.setProperty( key, duration );
-        newTransaction();
-
-        Object property = node1.getProperty( key );
-        assertEquals( duration, property );
-    }
-
-    @Test
-    public void testDurationArray()
-    {
-        TemporalAmount[] array = new TemporalAmount[]{DurationValue.duration( 57, 57, 57, 57 ).asObjectCopy(),
-                DurationValue.duration( -40, -189, -6247, -1 ).asObjectCopy()};
-        String key = "testarray";
-        node1.setProperty( key, array );
-        newTransaction();
-
-        TemporalAmount[] propertyValue = (TemporalAmount[]) node1.getProperty( key );
-        assertEquals( array.length, propertyValue.length );
-        for ( int i = 0; i < array.length; i++ )
+        try ( Transaction transaction = getGraphDb().beginTx() )
         {
-            assertEquals( array[i], propertyValue[i] );
+            transaction.getNodeById( node1.getId() ).setProperty( key, duration );
+            transaction.commit();
         }
 
-        node1.removeProperty( key );
-        newTransaction();
-
-        assertTrue( !node1.hasProperty( key ) );
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            Object property = transaction.getNodeById( node1.getId() ).getProperty( key );
+            assertEquals( duration, property );
+            transaction.commit();
+        }
     }
 
     @Test
-    public void testDateTimeTypeWithZoneOffset()
+    void testDurationArray()
+    {
+        TemporalAmount[] array = {DurationValue.duration( 57, 57, 57, 57 ).asObjectCopy(),
+                DurationValue.duration( -40, -189, -6247, -1 ).asObjectCopy()};
+        String key = "testarray";
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            transaction.getNodeById( node1.getId() ).setProperty( key, array );
+            transaction.commit();
+        }
+
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            node1 = transaction.getNodeById( node1.getId() );
+
+            TemporalAmount[] propertyValue = (TemporalAmount[]) node1.getProperty( key );
+            assertEquals( array.length, propertyValue.length );
+            for ( int i = 0; i < array.length; i++ )
+            {
+                assertEquals( array[i], propertyValue[i] );
+            }
+
+            node1.removeProperty( key );
+            transaction.commit();
+        }
+
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            assertFalse( transaction.getNodeById( node1.getId() ).hasProperty( key ) );
+            transaction.commit();
+        }
+    }
+
+    @Test
+    void testDateTimeTypeWithZoneOffset()
     {
         DateTimeValue dateTime = DateTimeValue.datetime( 1991, 1, 1, 0, 0, 13, 37, "+01:00" );
         String key = "dt";
-        node1.setProperty( key, dateTime );
-        newTransaction();
-
-        Object property = node1.getProperty( key );
-        assertEquals( dateTime.asObjectCopy(), property );
-    }
-
-    @Test
-    public void testDateTimeArrayWithZoneOffset()
-    {
-        ZonedDateTime[] array = new ZonedDateTime[]{DateTimeValue.datetime( 1991, 1, 1, 0, 0, 13, 37, "-01:00" ).asObjectCopy(),
-                DateTimeValue.datetime( 1992, 2, 28, 1, 15, 0, 4000, "+11:00" ).asObjectCopy()};
-        String key = "testarray";
-        node1.setProperty( key, array );
-        newTransaction();
-
-        ZonedDateTime[] propertyValue = (ZonedDateTime[]) node1.getProperty( key );
-        assertEquals( array.length, propertyValue.length );
-        for ( int i = 0; i < array.length; i++ )
+        try ( Transaction transaction = getGraphDb().beginTx() )
         {
-            assertEquals( array[i], propertyValue[i] );
+            transaction.getNodeById( node1.getId() ).setProperty( key, dateTime );
+            transaction.commit();
         }
 
-        node1.removeProperty( key );
-        newTransaction();
-
-        assertTrue( !node1.hasProperty( key ) );
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            Object property = transaction.getNodeById( node1.getId() ).getProperty( key );
+            assertEquals( dateTime.asObjectCopy(), property );
+            transaction.commit();
+        }
     }
 
     @Test
-    public void testDateTimeTypeWithZoneId()
+    void testDateTimeArrayWithZoneOffset()
+    {
+        ZonedDateTime[] array = {DateTimeValue.datetime( 1991, 1, 1, 0, 0, 13, 37, "-01:00" ).asObjectCopy(),
+                DateTimeValue.datetime( 1992, 2, 28, 1, 15, 0, 4000, "+11:00" ).asObjectCopy()};
+        String key = "testarray";
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            transaction.getNodeById( node1.getId() ).setProperty( key, array );
+            transaction.commit();
+        }
+
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            node1 = transaction.getNodeById( node1.getId() );
+
+            ZonedDateTime[] propertyValue = (ZonedDateTime[]) node1.getProperty( key );
+            assertEquals( array.length, propertyValue.length );
+            for ( int i = 0; i < array.length; i++ )
+            {
+                assertEquals( array[i], propertyValue[i] );
+            }
+
+            node1.removeProperty( key );
+            transaction.commit();
+        }
+
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            assertFalse( transaction.getNodeById( node1.getId() ).hasProperty( key ) );
+            transaction.commit();
+        }
+    }
+
+    @Test
+    void testDateTimeTypeWithZoneId()
     {
         DateTimeValue dateTime = DateTimeValue.datetime( 1991, 1, 1, 0, 0, 13, 37, ZoneId.of( "Europe/Stockholm" ) );
         String key = "dt";
-        node1.setProperty( key, dateTime );
-        newTransaction();
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            transaction.getNodeById( node1.getId() ).setProperty( key, dateTime );
+            transaction.commit();
+        }
 
-        Object property = node1.getProperty( key );
-        assertEquals( dateTime.asObjectCopy(), property );
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            Object property = transaction.getNodeById( node1.getId() ).getProperty( key );
+            assertEquals( dateTime.asObjectCopy(), property );
+            transaction.commit();
+        }
     }
 
     @Test
-    public void testDateTimeArrayWithZoneOffsetAndZoneID()
+    void testDateTimeArrayWithZoneOffsetAndZoneID()
     {
-        ZonedDateTime[] array = new ZonedDateTime[]{DateTimeValue.datetime( 1991, 1, 1, 0, 0, 13, 37, "-01:00" ).asObjectCopy(),
+        ZonedDateTime[] array = {DateTimeValue.datetime( 1991, 1, 1, 0, 0, 13, 37, "-01:00" ).asObjectCopy(),
                 DateTimeValue.datetime( 1992, 2, 28, 1, 15, 0, 4000, "+11:00" ).asObjectCopy(),
                 DateTimeValue.datetime( 1992, 2, 28, 1, 15, 0, 4000, ZoneId.of( "Europe/Stockholm" ) ).asObjectCopy()};
         String key = "testarray";
-        node1.setProperty( key, array );
-        newTransaction();
-
-        ZonedDateTime[] propertyValue = (ZonedDateTime[]) node1.getProperty( key );
-        assertEquals( array.length, propertyValue.length );
-        for ( int i = 0; i < array.length; i++ )
+        try ( Transaction transaction = getGraphDb().beginTx() )
         {
-            assertEquals( array[i], propertyValue[i] );
+            transaction.getNodeById( node1.getId() ).setProperty( key, array );
+            transaction.commit();
         }
 
-        node1.removeProperty( key );
-        newTransaction();
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            node1 = transaction.getNodeById( node1.getId() );
+            ZonedDateTime[] propertyValue = (ZonedDateTime[]) node1.getProperty( key );
+            assertEquals( array.length, propertyValue.length );
+            for ( int i = 0; i < array.length; i++ )
+            {
+                assertEquals( array[i], propertyValue[i] );
+            }
 
-        assertTrue( !node1.hasProperty( key ) );
+            node1.removeProperty( key );
+            transaction.commit();
+        }
+
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            assertFalse( transaction.getNodeById( node1.getId() ).hasProperty( key ) );
+            transaction.commit();
+        }
     }
 
     @Test
-    public void testIntArray()
+    void testIntArray()
     {
-        int[] array1 = new int[] { 1, 2, 3, 4, 5 };
-        Integer[] array2 = new Integer[] { 6, 7, 8 };
+        int[] array1 = { 1, 2, 3, 4, 5 };
+        Integer[] array2 = { 6, 7, 8 };
         String key = "testintarray";
-        node1.setProperty( key, array1 );
-        newTransaction();
-
-        int[] propertyValue = null;
-        propertyValue = (int[]) node1.getProperty( key );
-        assertEquals( array1.length, propertyValue.length );
-        for ( int i = 0; i < array1.length; i++ )
+        try ( Transaction transaction = getGraphDb().beginTx() )
         {
-            assertEquals( array1[i], propertyValue[i] );
+            transaction.getNodeById( node1.getId() ).setProperty( key, array1 );
+            transaction.commit();
         }
 
-        node1.setProperty( key, array2 );
-        newTransaction();
-
-        propertyValue = (int[]) node1.getProperty( key );
-        assertEquals( array2.length, propertyValue.length );
-        for ( int i = 0; i < array2.length; i++ )
+        int[] propertyValue;
+        try ( Transaction transaction = getGraphDb().beginTx() )
         {
-            assertEquals( array2[i], Integer.valueOf( propertyValue[i] ) );
+            node1 = transaction.getNodeById( node1.getId() );
+            propertyValue = (int[]) node1.getProperty( key );
+            assertEquals( array1.length, propertyValue.length );
+            for ( int i = 0; i < array1.length; i++ )
+            {
+                assertEquals( array1[i], propertyValue[i] );
+            }
+
+            node1.setProperty( key, array2 );
+            transaction.commit();
         }
 
-        node1.removeProperty( key );
-        newTransaction();
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            node1 = transaction.getNodeById( node1.getId() );
+            propertyValue = (int[]) node1.getProperty( key );
+            assertEquals( array2.length, propertyValue.length );
+            for ( int i = 0; i < array2.length; i++ )
+            {
+                assertEquals( array2[i], Integer.valueOf( propertyValue[i] ) );
+            }
 
-        assertTrue( !node1.hasProperty( key ) );
+            node1.removeProperty( key );
+            transaction.commit();
+        }
+
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            assertFalse( transaction.getNodeById( node1.getId() ).hasProperty( key ) );
+            transaction.commit();
+        }
     }
 
     @Test
-    public void testShortArray()
+    void testShortArray()
     {
-        short[] array1 = new short[] { 1, 2, 3, 4, 5 };
-        Short[] array2 = new Short[] { 6, 7, 8 };
+        short[] array1 = { 1, 2, 3, 4, 5 };
+        Short[] array2 = { 6, 7, 8 };
         String key = "testintarray";
-        node1.setProperty( key, array1 );
-        newTransaction();
-
-        short[] propertyValue = null;
-        propertyValue = (short[]) node1.getProperty( key );
-        assertEquals( array1.length, propertyValue.length );
-        for ( int i = 0; i < array1.length; i++ )
+        try ( Transaction transaction = getGraphDb().beginTx() )
         {
-            assertEquals( array1[i], propertyValue[i] );
+            transaction.getNodeById( node1.getId() ).setProperty( key, array1 );
+            transaction.commit();
         }
 
-        node1.setProperty( key, array2 );
-        newTransaction();
-
-        propertyValue = (short[]) node1.getProperty( key );
-        assertEquals( array2.length, propertyValue.length );
-        for ( int i = 0; i < array2.length; i++ )
+        short[] propertyValue;
+        try ( Transaction transaction = getGraphDb().beginTx() )
         {
-            assertEquals( array2[i], Short.valueOf( propertyValue[i] ) );
+            node1 = transaction.getNodeById( node1.getId() );
+
+            propertyValue = (short[]) node1.getProperty( key );
+            assertEquals( array1.length, propertyValue.length );
+            for ( int i = 0; i < array1.length; i++ )
+            {
+                assertEquals( array1[i], propertyValue[i] );
+            }
+
+            node1.setProperty( key, array2 );
+            transaction.commit();
         }
 
-        node1.removeProperty( key );
-        newTransaction();
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            node1 = transaction.getNodeById( node1.getId() );
 
-        assertTrue( !node1.hasProperty( key ) );
+            propertyValue = (short[]) node1.getProperty( key );
+            assertEquals( array2.length, propertyValue.length );
+            for ( int i = 0; i < array2.length; i++ )
+            {
+                assertEquals( array2[i], Short.valueOf( propertyValue[i] ) );
+            }
+
+            node1.removeProperty( key );
+            transaction.commit();
+        }
+
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            assertFalse( transaction.getNodeById( node1.getId() ).hasProperty( key ) );
+            transaction.commit();
+        }
     }
 
     @Test
-    public void testStringArray()
+    void testStringArray()
     {
-        String[] array1 = new String[] { "a", "b", "c", "d", "e" };
-        String[] array2 = new String[] { "ff", "gg", "hh" };
+        String[] array1 = { "a", "b", "c", "d", "e" };
+        String[] array2 = { "ff", "gg", "hh" };
         String key = "teststringarray";
-        node1.setProperty( key, array1 );
-        newTransaction();
-
-        String[] propertyValue = null;
-        propertyValue = (String[]) node1.getProperty( key );
-        assertEquals( array1.length, propertyValue.length );
-        for ( int i = 0; i < array1.length; i++ )
+        try ( Transaction transaction = getGraphDb().beginTx() )
         {
-            assertEquals( array1[i], propertyValue[i] );
+            transaction.getNodeById( node1.getId() ).setProperty( key, array1 );
+            transaction.commit();
         }
 
-        node1.setProperty( key, array2 );
-        newTransaction();
-
-        propertyValue = (String[]) node1.getProperty( key );
-        assertEquals( array2.length, propertyValue.length );
-        for ( int i = 0; i < array2.length; i++ )
+        String[] propertyValue;
+        try ( Transaction transaction = getGraphDb().beginTx() )
         {
-            assertEquals( array2[i], propertyValue[i] );
+            node1 = transaction.getNodeById( node1.getId() );
+
+            propertyValue = (String[]) node1.getProperty( key );
+            assertEquals( array1.length, propertyValue.length );
+            for ( int i = 0; i < array1.length; i++ )
+            {
+                assertEquals( array1[i], propertyValue[i] );
+            }
+
+            node1.setProperty( key, array2 );
+            transaction.commit();
         }
 
-        node1.removeProperty( key );
-        newTransaction();
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            node1 = transaction.getNodeById( node1.getId() );
 
-        assertTrue( !node1.hasProperty( key ) );
+            propertyValue = (String[]) node1.getProperty( key );
+            assertEquals( array2.length, propertyValue.length );
+            for ( int i = 0; i < array2.length; i++ )
+            {
+                assertEquals( array2[i], propertyValue[i] );
+            }
+
+            node1.removeProperty( key );
+            transaction.commit();
+        }
+
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            assertFalse( transaction.getNodeById( node1.getId() ).hasProperty( key ) );
+            transaction.commit();
+        }
     }
 
     @Test
-    public void testBooleanArray()
+    void testBooleanArray()
     {
-        boolean[] array1 = new boolean[] { true, false, true, false, true };
-        Boolean[] array2 = new Boolean[] { false, true, false };
+        boolean[] array1 = { true, false, true, false, true };
+        Boolean[] array2 = { false, true, false };
         String key = "testboolarray";
-        node1.setProperty( key, array1 );
-        newTransaction();
-
-        boolean[] propertyValue = null;
-        propertyValue = (boolean[]) node1.getProperty( key );
-        assertEquals( array1.length, propertyValue.length );
-        for ( int i = 0; i < array1.length; i++ )
+        try ( Transaction transaction = getGraphDb().beginTx() )
         {
-            assertEquals( array1[i], propertyValue[i] );
+            transaction.getNodeById( node1.getId() ).setProperty( key, array1 );
+            transaction.commit();
         }
 
-        node1.setProperty( key, array2 );
-        newTransaction();
-
-        propertyValue = (boolean[]) node1.getProperty( key );
-        assertEquals( array2.length, propertyValue.length );
-        for ( int i = 0; i < array2.length; i++ )
+        boolean[] propertyValue;
+        try ( Transaction transaction = getGraphDb().beginTx() )
         {
-            assertEquals( array2[i], propertyValue[i] );
+            node1 = transaction.getNodeById( node1.getId() );
+
+            propertyValue = (boolean[]) node1.getProperty( key );
+            assertEquals( array1.length, propertyValue.length );
+            for ( int i = 0; i < array1.length; i++ )
+            {
+                assertEquals( array1[i], propertyValue[i] );
+            }
+
+            node1.setProperty( key, array2 );
+            transaction.commit();
         }
 
-        node1.removeProperty( key );
-        newTransaction();
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            node1 = transaction.getNodeById( node1.getId() );
 
-        assertTrue( !node1.hasProperty( key ) );
+            propertyValue = (boolean[]) node1.getProperty( key );
+            assertEquals( array2.length, propertyValue.length );
+            for ( int i = 0; i < array2.length; i++ )
+            {
+                assertEquals( array2[i], propertyValue[i] );
+            }
+
+            node1.removeProperty( key );
+            transaction.commit();
+        }
+
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            assertFalse( transaction.getNodeById( node1.getId() ).hasProperty( key ) );
+            transaction.commit();
+        }
     }
 
     @Test
-    public void testDoubleArray()
+    void testDoubleArray()
     {
-        double[] array1 = new double[] { 1.0, 2.0, 3.0, 4.0, 5.0 };
-        Double[] array2 = new Double[] { 6.0, 7.0, 8.0 };
+        double[] array1 = { 1.0, 2.0, 3.0, 4.0, 5.0 };
+        Double[] array2 = { 6.0, 7.0, 8.0 };
         String key = "testdoublearray";
-        node1.setProperty( key, array1 );
-        newTransaction();
-
-        double[] propertyValue = null;
-        propertyValue = (double[]) node1.getProperty( key );
-        assertEquals( array1.length, propertyValue.length );
-        for ( int i = 0; i < array1.length; i++ )
+        try ( Transaction transaction = getGraphDb().beginTx() )
         {
-            assertEquals( array1[i], propertyValue[i], 0.0 );
+            transaction.getNodeById( node1.getId() ).setProperty( key, array1 );
+            transaction.commit();
         }
 
-        node1.setProperty( key, array2 );
-        newTransaction();
-
-        propertyValue = (double[]) node1.getProperty( key );
-        assertEquals( array2.length, propertyValue.length );
-        for ( int i = 0; i < array2.length; i++ )
+        double[] propertyValue;
+        try ( Transaction transaction = getGraphDb().beginTx() )
         {
-            assertEquals( array2[i], new Double( propertyValue[i] ) );
+            node1 = transaction.getNodeById( node1.getId() );
+
+            propertyValue = (double[]) node1.getProperty( key );
+            assertEquals( array1.length, propertyValue.length );
+            for ( int i = 0; i < array1.length; i++ )
+            {
+                assertEquals( array1[i], propertyValue[i], 0.0 );
+            }
+
+            node1.setProperty( key, array2 );
+            transaction.commit();
         }
 
-        node1.removeProperty( key );
-        newTransaction();
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            node1 = transaction.getNodeById( node1.getId() );
 
-        assertTrue( !node1.hasProperty( key ) );
+            propertyValue = (double[]) node1.getProperty( key );
+            assertEquals( array2.length, propertyValue.length );
+            for ( int i = 0; i < array2.length; i++ )
+            {
+                assertEquals( array2[i], new Double( propertyValue[i] ) );
+            }
+
+            node1.removeProperty( key );
+            transaction.commit();
+        }
+
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            assertFalse( transaction.getNodeById( node1.getId() ).hasProperty( key ) );
+            transaction.commit();
+        }
     }
 
     @Test
-    public void testFloatArray()
+    void testFloatArray()
     {
-        float[] array1 = new float[] { 1.0f, 2.0f, 3.0f, 4.0f, 5.0f };
-        Float[] array2 = new Float[] { 6.0f, 7.0f, 8.0f };
+        float[] array1 = { 1.0f, 2.0f, 3.0f, 4.0f, 5.0f };
+        Float[] array2 = { 6.0f, 7.0f, 8.0f };
         String key = "testfloatarray";
-        node1.setProperty( key, array1 );
-        newTransaction();
-
-        float[] propertyValue = null;
-        propertyValue = (float[]) node1.getProperty( key );
-        assertEquals( array1.length, propertyValue.length );
-        for ( int i = 0; i < array1.length; i++ )
+        try ( Transaction transaction = getGraphDb().beginTx() )
         {
-            assertEquals( array1[i], propertyValue[i], 0.0 );
+            transaction.getNodeById( node1.getId() ).setProperty( key, array1 );
+            transaction.commit();
         }
 
-        node1.setProperty( key, array2 );
-        newTransaction();
-
-        propertyValue = (float[]) node1.getProperty( key );
-        assertEquals( array2.length, propertyValue.length );
-        for ( int i = 0; i < array2.length; i++ )
+        float[] propertyValue;
+        try ( Transaction transaction = getGraphDb().beginTx() )
         {
-            assertEquals( array2[i], new Float( propertyValue[i] ) );
+            node1 = transaction.getNodeById( node1.getId() );
+
+            propertyValue = (float[]) node1.getProperty( key );
+            assertEquals( array1.length, propertyValue.length );
+            for ( int i = 0; i < array1.length; i++ )
+            {
+                assertEquals( array1[i], propertyValue[i], 0.0 );
+            }
+
+            node1.setProperty( key, array2 );
+            transaction.commit();
         }
 
-        node1.removeProperty( key );
-        newTransaction();
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            node1 = transaction.getNodeById( node1.getId() );
 
-        assertTrue( !node1.hasProperty( key ) );
+            propertyValue = (float[]) node1.getProperty( key );
+            assertEquals( array2.length, propertyValue.length );
+            for ( int i = 0; i < array2.length; i++ )
+            {
+                assertEquals( array2[i], new Float( propertyValue[i] ) );
+            }
+
+            node1.removeProperty( key );
+            transaction.commit();
+        }
+
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            assertFalse( transaction.getNodeById( node1.getId() ).hasProperty( key ) );
+            transaction.commit();
+        }
     }
 
     @Test
-    public void testLongArray()
+    void testLongArray()
     {
-        long[] array1 = new long[] { 1, 2, 3, 4, 5 };
-        Long[] array2 = new Long[] { 6L, 7L, 8L };
+        long[] array1 = { 1, 2, 3, 4, 5 };
+        Long[] array2 = { 6L, 7L, 8L };
         String key = "testlongarray";
-        node1.setProperty( key, array1 );
-        newTransaction();
-
-        long[] propertyValue = null;
-        propertyValue = (long[]) node1.getProperty( key );
-        assertEquals( array1.length, propertyValue.length );
-        for ( int i = 0; i < array1.length; i++ )
+        try ( Transaction transaction = getGraphDb().beginTx() )
         {
-            assertEquals( array1[i], propertyValue[i] );
+            transaction.getNodeById( node1.getId() ).setProperty( key, array1 );
+            transaction.commit();
         }
 
-        node1.setProperty( key, array2 );
-        newTransaction();
-
-        propertyValue = (long[]) node1.getProperty( key );
-        assertEquals( array2.length, propertyValue.length );
-        for ( int i = 0; i < array2.length; i++ )
+        long[] propertyValue;
+        try ( Transaction transaction = getGraphDb().beginTx() )
         {
-            assertEquals( array2[i], Long.valueOf( propertyValue[i] ) );
+            node1 = transaction.getNodeById( node1.getId() );
+
+            propertyValue = (long[]) node1.getProperty( key );
+            assertEquals( array1.length, propertyValue.length );
+            for ( int i = 0; i < array1.length; i++ )
+            {
+                assertEquals( array1[i], propertyValue[i] );
+            }
+
+            node1.setProperty( key, array2 );
+            transaction.commit();
         }
 
-        node1.removeProperty( key );
-        newTransaction();
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            node1 = transaction.getNodeById( node1.getId() );
 
-        assertTrue( !node1.hasProperty( key ) );
+            propertyValue = (long[]) node1.getProperty( key );
+            assertEquals( array2.length, propertyValue.length );
+            for ( int i = 0; i < array2.length; i++ )
+            {
+                assertEquals( array2[i], Long.valueOf( propertyValue[i] ) );
+            }
+
+            node1.removeProperty( key );
+            transaction.commit();
+        }
+
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            assertFalse( transaction.getNodeById( node1.getId() ).hasProperty( key ) );
+            transaction.commit();
+        }
     }
 
     @Test
-    public void testByteArray()
+    void testByteArray()
     {
-        byte[] array1 = new byte[] { 1, 2, 3, 4, 5 };
-        Byte[] array2 = new Byte[] { 6, 7, 8 };
+        byte[] array1 = { 1, 2, 3, 4, 5 };
+        Byte[] array2 = { 6, 7, 8 };
         String key = "testbytearray";
-        node1.setProperty( key, array1 );
-        newTransaction();
-
-        byte[] propertyValue = null;
-        propertyValue = (byte[]) node1.getProperty( key );
-        assertEquals( array1.length, propertyValue.length );
-        for ( int i = 0; i < array1.length; i++ )
+        try ( Transaction transaction = getGraphDb().beginTx() )
         {
-            assertEquals( array1[i], propertyValue[i] );
+            transaction.getNodeById( node1.getId() ).setProperty( key, array1 );
+            transaction.commit();
         }
 
-        node1.setProperty( key, array2 );
-        newTransaction();
-
-        propertyValue = (byte[]) node1.getProperty( key );
-        assertEquals( array2.length, propertyValue.length );
-        for ( int i = 0; i < array2.length; i++ )
+        byte[] propertyValue;
+        try ( Transaction transaction = getGraphDb().beginTx() )
         {
-            assertEquals( array2[i], Byte.valueOf( propertyValue[i] ) );
+            node1 = transaction.getNodeById( node1.getId() );
+
+            propertyValue = (byte[]) node1.getProperty( key );
+            assertEquals( array1.length, propertyValue.length );
+            for ( int i = 0; i < array1.length; i++ )
+            {
+                assertEquals( array1[i], propertyValue[i] );
+            }
+
+            node1.setProperty( key, array2 );
+            transaction.commit();
         }
 
-        node1.removeProperty( key );
-        newTransaction();
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            node1 = transaction.getNodeById( node1.getId() );
 
-        assertTrue( !node1.hasProperty( key ) );
+            propertyValue = (byte[]) node1.getProperty( key );
+            assertEquals( array2.length, propertyValue.length );
+            for ( int i = 0; i < array2.length; i++ )
+            {
+                assertEquals( array2[i], Byte.valueOf( propertyValue[i] ) );
+            }
+
+            node1.removeProperty( key );
+            transaction.commit();
+        }
+
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            assertFalse( transaction.getNodeById( node1.getId() ).hasProperty( key ) );
+            transaction.commit();
+        }
     }
 
     @Test
-    public void testCharArray()
+    void testCharArray()
     {
-        char[] array1 = new char[] { '1', '2', '3', '4', '5' };
-        Character[] array2 = new Character[] { '6', '7', '8' };
+        char[] array1 = { '1', '2', '3', '4', '5' };
+        Character[] array2 = { '6', '7', '8' };
         String key = "testchararray";
-        node1.setProperty( key, array1 );
-        newTransaction();
-
-        char[] propertyValue = null;
-        propertyValue = (char[]) node1.getProperty( key );
-        assertEquals( array1.length, propertyValue.length );
-        for ( int i = 0; i < array1.length; i++ )
+        try ( Transaction transaction = getGraphDb().beginTx() )
         {
-            assertEquals( array1[i], propertyValue[i] );
+            transaction.getNodeById( node1.getId() ).setProperty( key, array1 );
+            transaction.commit();
         }
 
-        node1.setProperty( key, array2 );
-        newTransaction();
-
-        propertyValue = (char[]) node1.getProperty( key );
-        assertEquals( array2.length, propertyValue.length );
-        for ( int i = 0; i < array2.length; i++ )
+        char[] propertyValue;
+        try ( Transaction transaction = getGraphDb().beginTx() )
         {
-            assertEquals( array2[i], new Character( propertyValue[i] ) );
+            node1 = transaction.getNodeById( node1.getId() );
+
+            propertyValue = (char[]) node1.getProperty( key );
+            assertEquals( array1.length, propertyValue.length );
+            for ( int i = 0; i < array1.length; i++ )
+            {
+                assertEquals( array1[i], propertyValue[i] );
+            }
+
+            node1.setProperty( key, array2 );
+            transaction.commit();
         }
 
-        node1.removeProperty( key );
-        newTransaction();
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            node1 = transaction.getNodeById( node1.getId() );
 
-        assertTrue( !node1.hasProperty( key ) );
+            propertyValue = (char[]) node1.getProperty( key );
+            assertEquals( array2.length, propertyValue.length );
+            for ( int i = 0; i < array2.length; i++ )
+            {
+                assertEquals( array2[i], new Character( propertyValue[i] ) );
+            }
+
+            node1.removeProperty( key );
+            transaction.commit();
+        }
+
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            assertFalse( transaction.getNodeById( node1.getId() ).hasProperty( key ) );
+            transaction.commit();
+        }
     }
 
     @Test
-    public void testEmptyString()
+    void testEmptyString()
     {
-        Node node = getGraphDb().createNode();
-        node.setProperty( "1", 2 );
-        node.setProperty( "2", "" );
-        node.setProperty( "3", "" );
-        newTransaction();
+        Node node = createNode();
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            node = transaction.getNodeById( node.getId() );
 
-        assertEquals( 2, node.getProperty( "1" ) );
-        assertEquals( "", node.getProperty( "2" ) );
-        assertEquals( "", node.getProperty( "3" ) );
+            node.setProperty( "1", 2 );
+            node.setProperty( "2", "" );
+            node.setProperty( "3", "" );
+            transaction.commit();
+        }
+
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            node = transaction.getNodeById( node.getId() );
+
+            assertEquals( 2, node.getProperty( "1" ) );
+            assertEquals( "", node.getProperty( "2" ) );
+            assertEquals( "", node.getProperty( "3" ) );
+            transaction.commit();
+        }
     }
 
     @Test
-    public void shouldNotBeAbleToPoisonBooleanArrayProperty()
+    void shouldNotBeAbleToPoisonBooleanArrayProperty()
     {
         shouldNotBeAbleToPoisonArrayProperty( new boolean[] {false, false, false}, true );
     }
 
     @Test
-    public void shouldNotBeAbleToPoisonByteArrayProperty()
+    void shouldNotBeAbleToPoisonByteArrayProperty()
     {
         shouldNotBeAbleToPoisonArrayProperty( new byte[] {0, 0, 0}, (byte)1 );
     }
 
     @Test
-    public void shouldNotBeAbleToPoisonShortArrayProperty()
+    void shouldNotBeAbleToPoisonShortArrayProperty()
     {
         shouldNotBeAbleToPoisonArrayProperty( new short[] {0, 0, 0}, (short)1 );
     }
 
     @Test
-    public void shouldNotBeAbleToPoisonIntArrayProperty()
+    void shouldNotBeAbleToPoisonIntArrayProperty()
     {
         shouldNotBeAbleToPoisonArrayProperty( new int[] {0, 0, 0}, 1 );
     }
 
     @Test
-    public void shouldNotBeAbleToPoisonLongArrayProperty()
+    void shouldNotBeAbleToPoisonLongArrayProperty()
     {
         shouldNotBeAbleToPoisonArrayProperty( new long[] {0, 0, 0}, 1L );
     }
 
     @Test
-    public void shouldNotBeAbleToPoisonFloatArrayProperty()
+    void shouldNotBeAbleToPoisonFloatArrayProperty()
     {
         shouldNotBeAbleToPoisonArrayProperty( new float[] {0F, 0F, 0F}, 1F );
     }
 
     @Test
-    public void shouldNotBeAbleToPoisonDoubleArrayProperty()
+    void shouldNotBeAbleToPoisonDoubleArrayProperty()
     {
         shouldNotBeAbleToPoisonArrayProperty( new double[] {0D, 0D, 0D}, 1D );
     }
 
     @Test
-    public void shouldNotBeAbleToPoisonCharArrayProperty()
+    void shouldNotBeAbleToPoisonCharArrayProperty()
     {
         shouldNotBeAbleToPoisonArrayProperty( new char[] {'0', '0', '0'}, '1' );
     }
 
     @Test
-    public void shouldNotBeAbleToPoisonStringArrayProperty()
+    void shouldNotBeAbleToPoisonStringArrayProperty()
     {
         shouldNotBeAbleToPoisonArrayProperty( new String[] {"zero", "zero", "zero"}, "one" );
     }
 
     private Object veryLongArray( Class<?> type )
     {
-        Object array = Array.newInstance( type, 1000 );
-        return array;
+        return Array.newInstance( type, 1000 );
     }
 
     private String[] veryLongStringArray()
@@ -1008,55 +1504,55 @@ public class TestPropertyTypes extends AbstractNeo4jTestCase
     }
 
     @Test
-    public void shouldNotBeAbleToPoisonVeryLongBooleanArrayProperty()
+    void shouldNotBeAbleToPoisonVeryLongBooleanArrayProperty()
     {
         shouldNotBeAbleToPoisonArrayProperty( veryLongArray( Boolean.TYPE ), true );
     }
 
     @Test
-    public void shouldNotBeAbleToPoisonVeryLongByteArrayProperty()
+    void shouldNotBeAbleToPoisonVeryLongByteArrayProperty()
     {
         shouldNotBeAbleToPoisonArrayProperty( veryLongArray( Byte.TYPE ), (byte)1 );
     }
 
     @Test
-    public void shouldNotBeAbleToPoisonVeryLongShortArrayProperty()
+    void shouldNotBeAbleToPoisonVeryLongShortArrayProperty()
     {
         shouldNotBeAbleToPoisonArrayProperty( veryLongArray( Short.TYPE ), (short)1 );
     }
 
     @Test
-    public void shouldNotBeAbleToPoisonVeryLongIntArrayProperty()
+    void shouldNotBeAbleToPoisonVeryLongIntArrayProperty()
     {
         shouldNotBeAbleToPoisonArrayProperty( veryLongArray( Integer.TYPE ), 1 );
     }
 
     @Test
-    public void shouldNotBeAbleToPoisonVeryLongLongArrayProperty()
+    void shouldNotBeAbleToPoisonVeryLongLongArrayProperty()
     {
         shouldNotBeAbleToPoisonArrayProperty( veryLongArray( Long.TYPE ), 1L );
     }
 
     @Test
-    public void shouldNotBeAbleToPoisonVeryLongFloatArrayProperty()
+    void shouldNotBeAbleToPoisonVeryLongFloatArrayProperty()
     {
         shouldNotBeAbleToPoisonArrayProperty( veryLongArray( Float.TYPE ), 1F );
     }
 
     @Test
-    public void shouldNotBeAbleToPoisonVeryLongDoubleArrayProperty()
+    void shouldNotBeAbleToPoisonVeryLongDoubleArrayProperty()
     {
         shouldNotBeAbleToPoisonArrayProperty( veryLongArray( Double.TYPE ), 1D );
     }
 
     @Test
-    public void shouldNotBeAbleToPoisonVeryLongCharArrayProperty()
+    void shouldNotBeAbleToPoisonVeryLongCharArrayProperty()
     {
         shouldNotBeAbleToPoisonArrayProperty( veryLongArray( Character.TYPE ), '1' );
     }
 
     @Test
-    public void shouldNotBeAbleToPoisonVeryLongStringArrayProperty()
+    void shouldNotBeAbleToPoisonVeryLongStringArrayProperty()
     {
         shouldNotBeAbleToPoisonArrayProperty( veryLongStringArray(), "one" );
     }
@@ -1070,18 +1566,23 @@ public class TestPropertyTypes extends AbstractNeo4jTestCase
     private void shouldNotBeAbleToPoisonArrayPropertyInsideTransaction( Object value, Object poison )
     {
         // GIVEN
-        String key = "key";
-        // setting a property, then reading it back
-        node1.setProperty( key, value );
-        Object readValue = node1.getProperty( key );
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            node1 = transaction.getNodeById( node1.getId() );
 
-        // WHEN changing the value read back
-        Array.set( readValue, 0, poison );
+            String key = "key";
+            // setting a property, then reading it back
+            node1.setProperty( key, value );
+            Object readValue = node1.getProperty( key );
 
-        // THEN reading the value one more time should still yield the set property
-        assertTrue(
-                format( "Expected %s, but was %s", Strings.prettyPrint( value ), Strings.prettyPrint( readValue ) ),
-                ArrayUtil.equals( value, node1.getProperty( key ) ) );
+            // WHEN changing the value read back
+            Array.set( readValue, 0, poison );
+
+            // THEN reading the value one more time should still yield the set property
+            assertTrue( ArrayUtil.equals( value, node1.getProperty( key ) ),
+                    format( "Expected %s, but was %s", Strings.prettyPrint( value ), Strings.prettyPrint( readValue ) ) );
+            transaction.commit();
+        }
     }
 
     private void shouldNotBeAbleToPoisonArrayPropertyOutsideTransaction( Object value, Object poison )
@@ -1089,16 +1590,24 @@ public class TestPropertyTypes extends AbstractNeo4jTestCase
         // GIVEN
         String key = "key";
         // setting a property, then reading it back
-        node1.setProperty( key, value );
-        newTransaction();
-        Object readValue = node1.getProperty( key );
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            transaction.getNodeById( node1.getId() ).setProperty( key, value );
+            transaction.commit();
+        }
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            node1 = transaction.getNodeById( node1.getId() );
 
-        // WHEN changing the value read back
-        Array.set( readValue, 0, poison );
+            Object readValue = node1.getProperty( key );
 
-        // THEN reading the value one more time should still yield the set property
-        assertTrue(
-                format( "Expected %s, but was %s", Strings.prettyPrint( value ), Strings.prettyPrint( readValue ) ),
-                ArrayUtil.equals( value, node1.getProperty( key ) ) );
+            // WHEN changing the value read back
+            Array.set( readValue, 0, poison );
+
+            // THEN reading the value one more time should still yield the set property
+            assertTrue( ArrayUtil.equals( value, node1.getProperty( key ) ),
+                    format( "Expected %s, but was %s", Strings.prettyPrint( value ), Strings.prettyPrint( readValue ) ) );
+            transaction.commit();
+        }
     }
 }

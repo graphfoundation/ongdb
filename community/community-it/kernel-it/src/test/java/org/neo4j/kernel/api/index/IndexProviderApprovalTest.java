@@ -19,6 +19,7 @@
  */
 package org.neo4j.kernel.api.index;
 
+import org.apache.commons.lang3.ArrayUtils;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -32,22 +33,24 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
 
+import org.neo4j.dbms.api.DatabaseManagementService;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.ResourceIterator;
 import org.neo4j.graphdb.Transaction;
-import org.neo4j.helpers.ArrayUtil;
-import org.neo4j.helpers.Strings;
-import org.neo4j.helpers.collection.Iterables;
-import org.neo4j.helpers.collection.Iterators;
-import org.neo4j.test.TestGraphDatabaseFactory;
+import org.neo4j.internal.helpers.ArrayUtil;
+import org.neo4j.internal.helpers.Strings;
+import org.neo4j.internal.helpers.collection.Iterables;
+import org.neo4j.internal.helpers.collection.Iterators;
+import org.neo4j.test.TestDatabaseManagementServiceBuilder;
 import org.neo4j.values.storable.CoordinateReferenceSystem;
 import org.neo4j.values.storable.PointValue;
 import org.neo4j.values.storable.Values;
 
 import static org.junit.Assert.assertEquals;
+import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
 import static org.neo4j.graphdb.Label.label;
-import static org.neo4j.helpers.collection.Iterators.asSet;
+import static org.neo4j.internal.helpers.collection.Iterators.asSet;
 import static org.neo4j.test.mockito.matcher.Neo4jMatchers.createIndex;
 
 /*
@@ -135,7 +138,8 @@ public abstract class IndexProviderApprovalTest
     @BeforeClass
     public static void init()
     {
-        GraphDatabaseService db = new TestGraphDatabaseFactory().newImpermanentDatabase();
+        DatabaseManagementService managementService = new TestDatabaseManagementServiceBuilder().impermanent().build();
+        GraphDatabaseService db = managementService.database( DEFAULT_DATABASE_NAME );
         for ( TestValue value : TestValue.values() )
         {
             createNode( db, PROPERTY_KEY, value.value );
@@ -144,12 +148,12 @@ public abstract class IndexProviderApprovalTest
         noIndexRun = runFindByLabelAndProperty( db );
         createIndex( db, label( LABEL ), PROPERTY_KEY );
         indexRun = runFindByLabelAndProperty( db );
-        db.shutdown();
+        managementService.shutdown();
     }
 
     public static final String LABEL = "Person";
-    public static final String PROPERTY_KEY = "name";
-    public static final Function<Node, Object> PROPERTY_EXTRACTOR = node ->
+    private static final String PROPERTY_KEY = "name";
+    private static final Function<Node, Object> PROPERTY_EXTRACTOR = node ->
     {
         Object value = node.getProperty( PROPERTY_KEY );
         if ( value.getClass().isArray() )
@@ -177,9 +181,9 @@ public abstract class IndexProviderApprovalTest
         {
             for ( TestValue value : TestValue.values() )
             {
-                addToResults( db, results, value );
+                addToResults( tx, results, value );
             }
-            tx.success();
+            tx.commit();
         }
         return results;
     }
@@ -188,17 +192,16 @@ public abstract class IndexProviderApprovalTest
     {
         try ( Transaction tx = db.beginTx() )
         {
-            Node node = db.createNode( label( LABEL ) );
+            Node node = tx.createNode( label( LABEL ) );
             node.setProperty( propertyKey, value );
-            tx.success();
+            tx.commit();
             return node;
         }
     }
 
-    private static void addToResults( GraphDatabaseService db, HashMap<TestValue, Set<Object>> results,
-                                      TestValue value )
+    private static void addToResults( Transaction tx, HashMap<TestValue,Set<Object>> results, TestValue value )
     {
-        ResourceIterator<Node> foundNodes = db.findNodes( label( LABEL ), PROPERTY_KEY, value.value );
+        ResourceIterator<Node> foundNodes = tx.findNodes( label( LABEL ), PROPERTY_KEY, value.value );
         Set<Object> propertyValues = asSet( Iterators.map( PROPERTY_EXTRACTOR, foundNodes ) );
         results.put( value, propertyValues );
     }
@@ -215,7 +218,7 @@ public abstract class IndexProviderApprovalTest
         @Override
         public int hashCode()
         {
-            return ArrayUtil.hashCode( array );
+            return ArrayUtils.hashCode( array );
         }
 
         @Override

@@ -26,16 +26,16 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.function.Function;
 
-import org.neo4j.storageengine.api.schema.IndexProgressor;
+import org.neo4j.kernel.api.index.IndexProgressor;
 import org.neo4j.values.storable.Value;
 
 class LuceneDistinctValuesProgressor implements IndexProgressor
 {
     private final TermsEnum terms;
-    private final NodeValueClient client;
+    private final EntityValueClient client;
     private final Function<BytesRef,Value> valueMaterializer;
 
-    LuceneDistinctValuesProgressor( TermsEnum terms, NodeValueClient client, Function<BytesRef,Value> valueMaterializer ) throws IOException
+    LuceneDistinctValuesProgressor( TermsEnum terms, EntityValueClient client, Function<BytesRef,Value> valueMaterializer ) throws IOException
     {
         this.terms = terms;
         this.client = client;
@@ -49,7 +49,7 @@ class LuceneDistinctValuesProgressor implements IndexProgressor
         {
             while ( (terms.next()) != null )
             {
-                if ( client.acceptNode( terms.docFreq(), valueMaterializer.apply( terms.term() ) ) )
+                if ( client.acceptEntity( terms.docFreq(), Float.NaN, valueMaterializer.apply( terms.term() ) ) )
                 {
                     return true;
                 }

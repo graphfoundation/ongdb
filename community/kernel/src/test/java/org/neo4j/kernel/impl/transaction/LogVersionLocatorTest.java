@@ -19,24 +19,24 @@
  */
 package org.neo4j.kernel.impl.transaction;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import org.neo4j.kernel.impl.transaction.log.LogPosition;
 import org.neo4j.kernel.impl.transaction.log.NoSuchTransactionException;
 import org.neo4j.kernel.impl.transaction.log.PhysicalLogicalTransactionStore;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-public class LogVersionLocatorTest
+class LogVersionLocatorTest
 {
-    private final long firstTxIdInLog = 3;
-    private final long lastTxIdInLog = 67;
+    private static final long firstTxIdInLog = 3;
+    private static final long lastTxIdInLog = 67;
 
     @Test
-    public void shouldFindLogPosition() throws NoSuchTransactionException
+    void shouldFindLogPosition() throws NoSuchTransactionException
     {
         // given
         final long txId = 42L;
@@ -47,7 +47,7 @@ public class LogVersionLocatorTest
         final LogPosition position = new LogPosition( 1, 128 );
 
         // when
-        final boolean result = locator.visit( position, firstTxIdInLog, lastTxIdInLog );
+        final boolean result = locator.visit( null, position, firstTxIdInLog, lastTxIdInLog );
 
         // then
         assertFalse( result );
@@ -55,7 +55,7 @@ public class LogVersionLocatorTest
     }
 
     @Test
-    public void shouldNotFindLogPosition()
+    void shouldNotFindLogPosition()
     {
         // given
         final long txId = 1L;
@@ -66,28 +66,21 @@ public class LogVersionLocatorTest
         final LogPosition position = new LogPosition( 1, 128 );
 
         // when
-        final boolean result = locator.visit( position, firstTxIdInLog, lastTxIdInLog );
+        final boolean result = locator.visit( null, position, firstTxIdInLog, lastTxIdInLog );
 
         // then
         assertTrue( result );
 
-        try
-        {
-            locator.getLogPosition();
-            fail( "should have thrown" );
-        }
-        catch ( NoSuchTransactionException e )
-        {
-            assertEquals(
-                    "Unable to find transaction " + txId + " in any of my logical logs: " +
-                            "Couldn't find any log containing " + txId,
-                    e.getMessage()
-            );
-        }
+        var e = assertThrows( NoSuchTransactionException.class, locator::getLogPosition );
+        assertEquals(
+                "Unable to find transaction " + txId + " in any of my logical logs: " +
+                        "Couldn't find any log containing " + txId,
+                e.getMessage()
+        );
     }
 
     @Test
-    public void shouldAlwaysThrowIfVisitIsNotCalled()
+    void shouldAlwaysThrowIfVisitIsNotCalled()
     {
         // given
         final long txId = 1L;
@@ -95,19 +88,11 @@ public class LogVersionLocatorTest
         final PhysicalLogicalTransactionStore.LogVersionLocator locator =
                 new PhysicalLogicalTransactionStore.LogVersionLocator( txId );
 
-        // then
-        try
-        {
-            locator.getLogPosition();
-            fail( "should have thrown" );
-        }
-        catch ( NoSuchTransactionException e )
-        {
-            assertEquals(
-                    "Unable to find transaction " + txId + " in any of my logical logs: " +
-                            "Couldn't find any log containing " + txId,
-                    e.getMessage()
-            );
-        }
+        var e = assertThrows( NoSuchTransactionException.class, locator::getLogPosition );
+        assertEquals(
+                "Unable to find transaction " + txId + " in any of my logical logs: " +
+                        "Couldn't find any log containing " + txId,
+                e.getMessage()
+        );
     }
 }

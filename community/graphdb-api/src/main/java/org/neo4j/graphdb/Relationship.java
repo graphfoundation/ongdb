@@ -19,11 +19,13 @@
  */
 package org.neo4j.graphdb;
 
+import org.neo4j.annotations.api.PublicApi;
+
 /**
  * A relationship between two nodes in the graph. A relationship has a start
  * node, an end node and a {@link RelationshipType type}. You can attach
  * properties to relationships with the API specified in
- * {@link PropertyContainer}.
+ * {@link Entity}.
  * <p>
  * Relationships are created by invoking the
  * {@link Node#createRelationshipTo(Node, RelationshipType)
@@ -43,8 +45,8 @@ package org.neo4j.graphdb;
  *
  * <pre>
  * <code>
- * {@link Node} a = graphDb.{@link GraphDatabaseService#createNode() createNode}();
- * {@link Node} b = graphDb.{@link GraphDatabaseService#createNode() createNode}();
+ * {@link Node} a = tx.{@link Transaction#createNode() createNode}();
+ * {@link Node} b = tx.{@link Transaction#createNode() createNode}();
  * {@link Relationship} rel = a.{@link Node#createRelationshipTo(Node, RelationshipType)
  * createRelationshipTo}( b, {@link RelationshipType MyRels.REL_TYPE} );
  * // Now we have: (a) --- REL_TYPE ---&gt; (b)
@@ -70,20 +72,9 @@ package org.neo4j.graphdb;
  * when nodes and relationships are deleted, which means it's bad practice to
  * refer to them this way. Instead, use application generated ids.
  */
+@PublicApi
 public interface Relationship extends Entity
 {
-    /**
-     * Returns the unique id of this relationship. Ids are garbage collected
-     * over time so they are only guaranteed to be unique during a specific time
-     * span: if the relationship is deleted, it's likely that a new relationship
-     * at some point will get the old id. <b>Note</b>: This makes relationship
-     * ids brittle as public APIs.
-     *
-     * @return The id of this relationship
-     */
-    @Override
-    long getId();
-
     /**
      * Deletes this relationship. Invoking any methods on this relationship
      * after <code>delete()</code> has returned is invalid and will lead to

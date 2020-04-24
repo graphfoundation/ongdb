@@ -22,12 +22,12 @@ package org.neo4j.cypher.internal.runtime.interpreted.pipes
 import org.mockito.Mockito._
 import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.Literal
 import org.neo4j.cypher.internal.runtime.interpreted.{ImplicitDummyPos, QueryStateHelper}
-import org.neo4j.cypher.internal.v3_6.logical.plans.{GetValue, IndexOrderNone, IndexedProperty}
+import org.neo4j.cypher.internal.v4_0.expressions.{LabelName, LabelToken, PropertyKeyName, PropertyKeyToken}
+import org.neo4j.cypher.internal.logical.plans.{GetValue, IndexOrderNone, IndexedProperty}
+import org.neo4j.cypher.internal.v4_0.util.test_helpers.{CypherFunSuite, WindowsStringSafe}
+import org.neo4j.cypher.internal.v4_0.util.{LabelId, PropertyKeyId}
 import org.neo4j.values.storable.Values
 import org.neo4j.values.virtual.NodeValue
-import org.neo4j.cypher.internal.v3_6.expressions.{LabelName, LabelToken, PropertyKeyName, PropertyKeyToken}
-import org.neo4j.cypher.internal.v3_6.util.test_helpers.{CypherFunSuite, WindowsStringSafe}
-import org.neo4j.cypher.internal.v3_6.util.{LabelId, PropertyKeyId}
 
 class NodeIndexStringSeekPipeTest extends CypherFunSuite with ImplicitDummyPos with IndexMockingHelp {
 
@@ -55,12 +55,12 @@ class NodeIndexStringSeekPipeTest extends CypherFunSuite with ImplicitDummyPos w
     )
 
     // when
-    val pipe = NodeIndexEndsWithScanPipe("n", label, IndexedProperty(propertyKey, GetValue), Literal("hello"), IndexOrderNone)()
+    val pipe = NodeIndexEndsWithScanPipe("n", label, IndexedProperty(propertyKey, GetValue), 0, Literal("hello"), IndexOrderNone)()
     val result = pipe.createResults(queryState).toList
 
     // then
-    result.map(_("n")) should be(List(node))
-    result.map(_.getCachedProperty(cachedNodeProperty("n", propertyKey))) should be(
+    result.map(_.getByName("n")) should be(List(node))
+    result.map(_.getCachedProperty(cachedProperty("n", propertyKey))) should be(
       List(Values.stringValue("hello"))
     )
   }
@@ -75,12 +75,12 @@ class NodeIndexStringSeekPipeTest extends CypherFunSuite with ImplicitDummyPos w
     )
 
     // when
-    val pipe = NodeIndexContainsScanPipe("n", label, IndexedProperty(propertyKey, GetValue), Literal("bye"), IndexOrderNone)()
+    val pipe = NodeIndexContainsScanPipe("n", label, IndexedProperty(propertyKey, GetValue), 0, Literal("bye"), IndexOrderNone)()
     val result = pipe.createResults(queryState).toList
 
     // then
-    result.map(_("n")) should be(List(node2))
-    result.map(_.getCachedProperty(cachedNodeProperty("n", propertyKey))) should be(
+    result.map(_.getByName("n")) should be(List(node2))
+    result.map(_.getCachedProperty(cachedProperty("n", propertyKey))) should be(
       List(Values.stringValue("bye"))
     )
   }

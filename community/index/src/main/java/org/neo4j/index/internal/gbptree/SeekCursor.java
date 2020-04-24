@@ -23,7 +23,6 @@ import java.io.IOException;
 import java.util.function.Consumer;
 import java.util.function.LongSupplier;
 
-import org.neo4j.cursor.RawCursor;
 import org.neo4j.io.pagecache.PageCursor;
 
 import static org.neo4j.index.internal.gbptree.PageCursorUtil.checkOutOfBounds;
@@ -31,10 +30,10 @@ import static org.neo4j.index.internal.gbptree.TreeNode.Type.INTERNAL;
 import static org.neo4j.index.internal.gbptree.TreeNode.Type.LEAF;
 
 /**
- * {@link RawCursor} over tree leaves, making keys/values accessible to user. Given a starting leaf
+ * {@link Seeker} over tree leaves, making keys/values accessible to user. Given a starting leaf
  * and key range this cursor traverses each leaf and its right siblings as long as visited keys are within
- * key range. Each visited key within the key range can be accessible using {@link #get()}.
- * The key/value instances provided by {@link Hit} instance are mutable and overwritten with new values
+ * key range. Each visited key within the key range can be accessible using {@link #key()}.
+ * The instances provided by {@link Seeker#key()} and {@link Seeker#value()} are mutable and overwritten with new values
  * for every call to {@link #next()} so user cannot keep references to key/value instances, expecting them
  * to keep their values intact.
  * <p>
@@ -139,8 +138,36 @@ import static org.neo4j.index.internal.gbptree.TreeNode.Type.LEAF;
  * suddenly another key when he goes there he knows that he could have missed some keys and he needs to go back until
  * he find the place where he left off, K4.
  */
-class SeekCursor<KEY,VALUE> implements RawCursor<Hit<KEY,VALUE>,IOException>, Hit<KEY,VALUE>
+class SeekCursor<KEY,VALUE> implements Seeker<KEY,VALUE>
 {
+    interface Monitor
+    {
+        /**
+         * @param depth where {@code depth==0} is the root.
+         * @param keyCount number of keys in the visited internal node.
+         */
+        void internalNode( int depth, int keyCount );
+
+        /**
+         * @param depth where {@code depth==0} is a root-only tree, where the root is a leaf.
+         * @param keyCount number of keys in the visited leaf node.
+         */
+        void leafNode( int depth, int keyCount );
+    }
+
+    static final Monitor NO_MONITOR = new Monitor()
+    {
+        @Override
+        public void internalNode( int depth, int keyCount )
+        {   // no-op
+        }
+
+        @Override
+        public void leafNode( int depth, int keyCount )
+        {   // no-op
+        }
+    };
+
     static final int DEFAULT_MAX_READ_AHEAD = 20;
 
     /**
@@ -382,6 +409,11 @@ class SeekCursor<KEY,VALUE> implements RawCursor<Hit<KEY,VALUE>,IOException>, Hi
     private final Consumer<Throwable> exceptionDecorator;
 
     /**
+     * Monitor for internal seek events.
+     */
+    private final Monitor monitor;
+
+    /**
      * Normally {@link #readHeader()} is called when {@link #concurrentWriteHappened} is {@code true}. However this flag
      * guards for cases where the header must be read and {@link #concurrentWriteHappened} is {@code false},
      * such as when moving over to the next sibling and continuing reading.
@@ -396,7 +428,7 @@ class SeekCursor<KEY,VALUE> implements RawCursor<Hit<KEY,VALUE>,IOException>, Hi
     @SuppressWarnings( "unchecked" )
     SeekCursor( PageCursor cursor, TreeNode<KEY,VALUE> bTreeNode, KEY fromInclusive, KEY toExclusive,
             Layout<KEY,VALUE> layout, long stableGeneration, long unstableGeneration, LongSupplier generationSupplier,
-            RootCatchup rootCatchup, long lastFollowedPointerGeneration, Consumer<Throwable> exceptionDecorator, int maxReadAhead )
+            RootCatchup rootCatchup, long lastFollowedPointerGeneration, Consumer<Throwable> exceptionDecorator, int maxReadAhead, Monitor monitor )
                     throws IOException
     {
         this.cursor = cursor;
@@ -404,6 +436,7 @@ class SeekCursor<KEY,VALUE> implements RawCursor<Hit<KEY,VALUE>,IOException>, Hi
         this.toExclusive = toExclusive;
         this.layout = layout;
         this.exceptionDecorator = exceptionDecorator;
+        this.monitor = monitor;
         this.exactMatch = layout.compare( fromInclusive, toExclusive ) == 0;
         this.stableGeneration = stableGeneration;
         this.unstableGeneration = unstableGeneration;
@@ -449,6 +482,7 @@ class SeekCursor<KEY,VALUE> implements RawCursor<Hit<KEY,VALUE>,IOException>, Hi
      */
     private void traverseDownToFirstLeaf() throws IOException
     {
+        int depth = 0;
         do
         {
             // Read
@@ -482,6 +516,7 @@ class SeekCursor<KEY,VALUE> implements RawCursor<Hit<KEY,VALUE>,IOException>, Hi
             {
                 prepareToStartFromRoot();
                 isInternal = true;
+                depth = 0;
                 continue;
             }
             else if ( !saneRead() )
@@ -501,10 +536,13 @@ class SeekCursor<KEY,VALUE> implements RawCursor<Hit<KEY,VALUE>,IOException>, Hi
 
             if ( isInternal )
             {
+                monitor.internalNode( depth, keyCount );
                 goTo( pointerId, pointerGeneration, "child", false );
+                depth++;
             }
         }
         while ( isInternal );
+        monitor.leafNode( depth, keyCount );
 
         // We've now come to the first relevant leaf, initialize the state for the coming leaf scan
         pos -= stride;
@@ -902,21 +940,6 @@ class SeekCursor<KEY,VALUE> implements RawCursor<Hit<KEY,VALUE>,IOException>, Hi
     }
 
     /**
-     * @return the key/value found from the most recent call to {@link #next()} returning {@code true}.
-     * @throws IllegalStateException if no {@link #next()} call which returned {@code true} has been made yet.
-     */
-    @Override
-    public Hit<KEY,VALUE> get()
-    {
-        if ( first )
-        {
-            throw new IllegalStateException( "There has been no successful call to next() yet" );
-        }
-
-        return this;
-    }
-
-    /**
      * Moves {@link PageCursor} to next sibling (read before this call into {@link #pointerId}).
      * Also, on backwards seek, calls {@link #scoutNextSibling()} to be able to verify consistent read on
      * new sibling even on concurrent writes.
@@ -1098,6 +1121,27 @@ class SeekCursor<KEY,VALUE> implements RawCursor<Hit<KEY,VALUE>,IOException>, Hi
         {
             layout.copyKey( prevKey, fromInclusive );
         }
+
+        // Reset mutable state
+        cachedIndex = 0;
+        cachedLength = 0;
+        resultOnTrack = false;
+        pos = 0;
+        keyCount = 0;
+        concurrentWriteHappened = false;
+        verifyExpectedFirstAfterGoToNext = false;
+        currentNodeGeneration = 0;
+        expectedCurrentNodeGeneration = 0;
+        nodeType = 0;
+        successor = 0;
+        successorGeneration = 0;
+        isInternal = false;
+        pointerId = 0;
+        pointerGeneration = 0;
+        searchResult = 0;
+        prevSiblingId = 0;
+        prevSiblingGeneration = 0;
+        forceReadHeader = false;
     }
 
     /**
@@ -1178,15 +1222,25 @@ class SeekCursor<KEY,VALUE> implements RawCursor<Hit<KEY,VALUE>,IOException>, Hi
         return false;
     }
 
+    /**
+     * @return the key found from the most recent call to {@link #next()} returning {@code true}.
+     * @throws IllegalStateException if no {@link #next()} call which returned {@code true} has been made yet.
+     */
     @Override
     public KEY key()
     {
+        assertHasResult();
         return mutableKeys[cachedIndex];
     }
 
+    /**
+     * @return the value found from the most recent call to {@link #next()} returning {@code true}.
+     * @throws IllegalStateException if no {@link #next()} call which returned {@code true} has been made yet.
+     */
     @Override
     public VALUE value()
     {
+        assertHasResult();
         return mutableValues[cachedIndex];
     }
 
@@ -1195,5 +1249,13 @@ class SeekCursor<KEY,VALUE> implements RawCursor<Hit<KEY,VALUE>,IOException>, Hi
     {
         cursor.close();
         closed = true;
+    }
+
+    private void assertHasResult()
+    {
+        if ( first )
+        {
+            throw new IllegalStateException( "There has been no successful call to next() yet" );
+        }
     }
 }

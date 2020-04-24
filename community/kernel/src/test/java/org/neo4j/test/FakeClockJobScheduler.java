@@ -23,13 +23,16 @@ import java.util.Collection;
 import java.util.Objects;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executor;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Stream;
 
+import org.neo4j.resources.Profiler;
+import org.neo4j.scheduler.ActiveGroup;
 import org.neo4j.scheduler.Group;
 import org.neo4j.scheduler.JobScheduler;
+import org.neo4j.scheduler.SchedulerThreadFactoryFactory;
 import org.neo4j.time.FakeClock;
 
 /**
@@ -95,21 +98,19 @@ public class FakeClockJobScheduler extends FakeClock implements JobScheduler
     }
 
     @Override
+    public void setParallelism( Group group, int parallelism )
+    {
+    }
+
+    @Override
+    public void setThreadFactory( Group group, SchedulerThreadFactoryFactory threadFactory )
+    {
+    }
+
+    @Override
     public Executor executor( Group group )
     {
         return job -> schedule( job, now() );
-    }
-
-    @Override
-    public ExecutorService workStealingExecutor( Group group, int parallelism )
-    {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public ExecutorService workStealingExecutorAsyncMode( Group group, int parallelism )
-    {
-        throw new UnsupportedOperationException();
     }
 
     @Override
@@ -154,6 +155,17 @@ public class FakeClockJobScheduler extends FakeClock implements JobScheduler
             processSchedule();
         }
         return handle;
+    }
+
+    @Override
+    public Stream<ActiveGroup> activeGroups()
+    {
+        return Stream.empty();
+    }
+
+    @Override
+    public void profileGroup( Group group, Profiler profiler )
+    {
     }
 
     @Override
@@ -220,13 +232,19 @@ public class FakeClockJobScheduler extends FakeClock implements JobScheduler
         }
 
         @Override
-        public void cancel( boolean mayInterruptIfRunning )
+        public void cancel()
         {
             jobs.remove( this );
         }
 
         @Override
         public void waitTermination()
+        {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public void waitTermination( long timeout, TimeUnit unit )
         {
             throw new UnsupportedOperationException();
         }

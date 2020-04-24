@@ -22,33 +22,33 @@ package org.neo4j.kernel.impl.coreapi.schema;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 
+import org.neo4j.dbms.api.DatabaseManagementService;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Transaction;
-import org.neo4j.graphdb.index.IndexPopulationProgress;
-import org.neo4j.graphdb.mockfs.EphemeralFileSystemAbstraction;
 import org.neo4j.graphdb.schema.IndexDefinition;
+import org.neo4j.graphdb.schema.IndexPopulationProgress;
 import org.neo4j.graphdb.schema.Schema;
-import org.neo4j.helpers.collection.Iterables;
-import org.neo4j.internal.kernel.api.IndexReference;
-import org.neo4j.test.TestGraphDatabaseFactory;
-import org.neo4j.test.extension.EphemeralFileSystemExtension;
+import org.neo4j.internal.helpers.collection.Iterables;
+import org.neo4j.io.fs.EphemeralFileSystemAbstraction;
+import org.neo4j.test.TestDatabaseManagementServiceBuilder;
 import org.neo4j.test.extension.Inject;
-import org.neo4j.test.extension.TestDirectoryExtension;
+import org.neo4j.test.extension.testdirectory.EphemeralTestDirectoryExtension;
 import org.neo4j.test.rule.TestDirectory;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
 
-@ExtendWith( {EphemeralFileSystemExtension.class, TestDirectoryExtension.class} )
-public class SchemaImplTest
+@EphemeralTestDirectoryExtension
+class SchemaImplTest
 {
     private static final Label USER_LABEL = Label.label( "User" );
 
@@ -58,17 +58,22 @@ public class SchemaImplTest
     private TestDirectory testDirectory;
 
     private GraphDatabaseService db;
+    private DatabaseManagementService managementService;
 
     @BeforeEach
     void createDb()
     {
-        db = new TestGraphDatabaseFactory().setFileSystem( fs ).newImpermanentDatabase( testDirectory.databaseDir() );
+        managementService = new TestDatabaseManagementServiceBuilder( testDirectory.homeDir() )
+                .setFileSystem( fs )
+                .impermanent()
+                .build();
+        db = managementService.database( DEFAULT_DATABASE_NAME );
     }
 
     @AfterEach
     void shutdownDb()
     {
-        db.shutdown();
+        managementService.shutdown();
     }
 
     @Test
@@ -84,25 +89,25 @@ public class SchemaImplTest
             // Create a huge bunch of users so the index takes a while to build
             for ( int id = 0; id < 100000; id++ )
             {
-                Node userNode = db.createNode( label );
+                Node userNode = tx.createNode( label );
                 userNode.setProperty( "username", "user" + id + "@neo4j.org" );
             }
-            tx.success();
+            tx.commit();
         }
 
         // Create an index
         IndexDefinition indexDefinition;
         try ( Transaction tx = db.beginTx() )
         {
-            Schema schema = db.schema();
+            Schema schema = tx.schema();
             indexDefinition = schema.indexFor( USER_LABEL ).on( "username" ).create();
-            tx.success();
+            tx.commit();
         }
 
         // Get state and progress
-        try ( Transaction ignore = db.beginTx() )
+        try ( Transaction tx = db.beginTx() )
         {
-            Schema schema = db.schema();
+            Schema schema = tx.schema();
             Schema.IndexState state;
 
             IndexPopulationProgress progress;
@@ -123,13 +128,13 @@ public class SchemaImplTest
     }
 
     @Test
-    void createdIndexDefinitionsMustBeUnnamed()
+    void createdIndexDefinitionsMustBeNamed()
     {
         try ( Transaction tx = db.beginTx() )
         {
-            IndexDefinition index = db.schema().indexFor( USER_LABEL ).on( "name" ).create();
-            assertThat( index.getName(), is( IndexReference.UNNAMED_INDEX ) );
-            tx.success();
+            IndexDefinition index = tx.schema().indexFor( USER_LABEL ).on( "name" ).create();
+            assertThat( index.getName(), equalTo( "index_a908f819" ) );
+            tx.commit();
         }
     }
 
@@ -139,15 +144,15 @@ public class SchemaImplTest
         String indexName = "Users index";
         try ( Transaction tx = db.beginTx() )
         {
-            IndexDefinition index = db.schema().indexFor( USER_LABEL ).on( "name" ).withName( indexName ).create();
+            IndexDefinition index = tx.schema().indexFor( USER_LABEL ).on( "name" ).withName( indexName ).create();
             assertThat( index.getName(), is( indexName ) );
-            tx.success();
+            tx.commit();
         }
         try ( Transaction tx = db.beginTx() )
         {
-            IndexDefinition index = db.schema().getIndexByName( indexName );
+            IndexDefinition index = tx.schema().getIndexByName( indexName );
             assertThat( index.getName(), is( indexName ) );
-            tx.success();
+            tx.commit();
         }
     }
 
@@ -155,10 +160,10 @@ public class SchemaImplTest
     {
         try ( Transaction transaction = db.beginTx() )
         {
-            Iterable<IndexDefinition> indexes = db.schema().getIndexes( label );
+            Iterable<IndexDefinition> indexes = transaction.schema().getIndexes( label );
             IndexDefinition index = Iterables.firstOrNull( indexes );
             boolean exists = index != null;
-            transaction.success();
+            transaction.commit();
             return exists;
         }
     }

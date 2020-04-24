@@ -24,45 +24,41 @@ import org.apache.lucene.analysis.Analyzer;
 import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
-import java.util.Collection;
 import java.util.List;
-import java.util.Map;
 
-import org.neo4j.internal.kernel.api.schema.SchemaUtil;
+import org.neo4j.common.EntityType;
+import org.neo4j.internal.schema.IndexDescriptor;
 import org.neo4j.kernel.api.impl.index.AbstractLuceneIndex;
+import org.neo4j.kernel.api.impl.index.SearcherReference;
 import org.neo4j.kernel.api.impl.index.partition.AbstractIndexPartition;
 import org.neo4j.kernel.api.impl.index.partition.IndexPartitionFactory;
-import org.neo4j.kernel.api.impl.index.partition.PartitionSearcher;
 import org.neo4j.kernel.api.impl.index.storage.PartitionedIndexStorage;
-import org.neo4j.kernel.impl.core.TokenHolder;
-import org.neo4j.storageengine.api.EntityType;
+import org.neo4j.token.api.TokenHolder;
+
+import static org.neo4j.common.TokenNameLookup.idTokenNameLookup;
 
 public class LuceneFulltextIndex extends AbstractLuceneIndex<FulltextIndexReader> implements Closeable
 {
     private final Analyzer analyzer;
     private final String identifier;
     private final EntityType type;
-    private final Collection<String> properties;
     private final TokenHolder propertyKeyTokenHolder;
+    private final String[] propertyNames;
     private final File transactionsFolder;
+    private final IndexDescriptor descriptor;
 
-    private final Collection<String> sortProperties;
-    private final Map<String,String> sortTypes;
-
-    LuceneFulltextIndex( PartitionedIndexStorage storage, IndexPartitionFactory partitionFactory, FulltextIndexDescriptor descriptor,
-            TokenHolder propertyKeyTokenHolder )
+    LuceneFulltextIndex( PartitionedIndexStorage storage, IndexPartitionFactory partitionFactory, IndexDescriptor descriptor,
+            TokenHolder propertyKeyTokenHolder, Analyzer analyzer, String[] propertyNames )
     {
         super( storage, partitionFactory, descriptor );
-        this.analyzer = descriptor.analyzer();
+        this.descriptor = descriptor;
+        this.analyzer = analyzer;
+        this.propertyNames = propertyNames;
         this.identifier = descriptor.getName();
         this.type = descriptor.schema().entityType();
-        this.properties = descriptor.propertyNames();
         this.propertyKeyTokenHolder = propertyKeyTokenHolder;
         File indexFolder = storage.getIndexFolder();
-        transactionsFolder = new File( indexFolder.getParent(), indexFolder.getName() + ".tx" );
-
-        sortProperties = descriptor.sortPropertyNames();
-        sortTypes = descriptor.sortTypes();
+        transactionsFolder = new File( indexFolder, indexFolder.getName() + ".tx" );
     }
 
     @Override
@@ -86,49 +82,26 @@ public class LuceneFulltextIndex extends AbstractLuceneIndex<FulltextIndexReader
                "analyzer=" + analyzer.getClass().getSimpleName() +
                ", identifier='" + identifier + '\'' +
                ", type=" + type +
-               ", properties=" + properties +
-               ", descriptor=" + descriptor.userDescription( SchemaUtil.idTokenNameLookup ) +
+               ", descriptor=" + descriptor.userDescription( idTokenNameLookup ) +
                '}';
     }
 
-    String[] getPropertiesArray()
+    @Override
+    public IndexDescriptor getDescriptor()
     {
-        return properties.toArray( new String[0] );
-    }
-
-    String[] getSortPropertiesArray()
-    {
-        return sortProperties.toArray( new String[0] );
-    }
-
-    Map<String,String> getSortTypes()
-    {
-        return sortTypes;
-    }
-
-    Analyzer getAnalyzer()
-    {
-        return analyzer;
-    }
-
-    TokenHolder getPropertyKeyTokenHolder()
-    {
-        return propertyKeyTokenHolder;
+        return descriptor;
     }
 
     @Override
     protected FulltextIndexReader createSimpleReader( List<AbstractIndexPartition> partitions ) throws IOException
     {
-        AbstractIndexPartition singlePartition = getFirstPartition( partitions );
-        SearcherReference searcher = new PartitionSearcherReference( singlePartition.acquireSearcher() );
-        return new SimpleFulltextIndexReader( searcher, getPropertiesArray(), analyzer, propertyKeyTokenHolder, getSortPropertiesArray(), getSortTypes() );
+        return createPartitionedReader( partitions );
     }
 
     @Override
     protected FulltextIndexReader createPartitionedReader( List<AbstractIndexPartition> partitions ) throws IOException
     {
-        List<PartitionSearcher> searchers = acquireSearchers( partitions );
-        return new PartitionedFulltextIndexReader( searchers, getPropertiesArray(), analyzer, propertyKeyTokenHolder, getSortPropertiesArray(),
-                                                   getSortTypes() );
+        List<SearcherReference> searchers = acquireSearchers( partitions );
+        return new FulltextIndexReader( searchers, propertyKeyTokenHolder, getDescriptor(), analyzer, propertyNames );
     }
 }

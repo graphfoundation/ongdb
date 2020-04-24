@@ -21,10 +21,10 @@ package org.neo4j.dbms;
 
 import org.junit.jupiter.api.Test;
 
-import java.io.File;
+import java.nio.file.Path;
 
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
-import org.neo4j.kernel.configuration.Config;
+import org.neo4j.configuration.Config;
+import org.neo4j.configuration.GraphDatabaseSettings;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.IsEqual.equalTo;
@@ -32,10 +32,9 @@ import static org.hamcrest.core.IsEqual.equalTo;
 class DatabaseManagementSystemSettingsTest
 {
     @Test
-    void shouldPutDatabaseDirectoriesIntoDataDatabases()
+    void shouldPutDatabasesDirectoriesIntoData()
     {
-        Config config = Config.defaults( GraphDatabaseSettings.data_directory, "the-data-directory" );
-        assertThat( config.get( GraphDatabaseSettings.database_path ),
-                equalTo( new File( "the-data-directory/databases/" + GraphDatabaseSettings.DEFAULT_DATABASE_NAME ) ) );
+        Config config = Config.defaults( GraphDatabaseSettings.data_directory, Path.of( "the-data-directory" ) );
+        assertThat( config.get( GraphDatabaseSettings.databases_root_path ), equalTo( Path.of( "the-data-directory/databases/" ).toAbsolutePath() ) );
     }
 }

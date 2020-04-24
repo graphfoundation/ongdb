@@ -36,7 +36,7 @@ InModuleScope Neo4j-Management {
     Mock Get-ItemProperty { $null } -ParameterFilter {
       $Path -like 'Registry::*\JavaSoft\Java Runtime Environment*'
     }
-    Mock Get-JavaVersion { @{ 'isValid' = $true; 'isJava8' = $true } }
+    Mock Get-JavaVersion { @{ 'isValid' = $true; 'isJava11' = $true } }
     # Mock Neo4j environment
     Mock Get-Neo4jEnv { $global:mockNeo4jHome } -ParameterFilter { $Name -eq 'NEO4J_HOME' }
     Mock Set-Neo4jEnv {}
@@ -138,8 +138,8 @@ InModuleScope Neo4j-Management {
     }
 
 
-    Context "Server Invoke - Community v3.0" {
-      $serverObject = global:New-MockNeo4jInstall -ServerVersion '3.0' -ServerType 'Community'
+    Context "Server Invoke - Community v4.0" {
+      $serverObject = global:New-MockNeo4jInstall -ServerVersion '4.0' -ServerType 'Community'
 
       $prunsrv = Get-Neo4jPrunsrv -Neo4jServer $serverObject -ForServerInstall
 
@@ -149,7 +149,7 @@ InModuleScope Neo4j-Management {
     }
 
     Context "Server Invoke - Additional Java Parameters" {
-      $serverObject = global:New-MockNeo4jInstall -ServerVersion '3.0' -ServerType 'Community' `
+      $serverObject = global:New-MockNeo4jInstall -ServerVersion '4.0' -ServerType 'Community' `
          -NeoConfSettings @('dbms.logs.gc.enabled=true', 'dbms.jvm.additional=-DmyProperty1=a;b;c')
 
       $prunsrv = Get-Neo4jPrunsrv -Neo4jServer $serverObject -ForServerInstall
@@ -159,9 +159,9 @@ InModuleScope Neo4j-Management {
         $jvmArgs | Should Match ([regex]::Escape('-Dfile.encoding=UTF-8'))
       }
 
-      # dbms.logs.gc.enabled=true is specified in the mock so -Xloggc:... should be present in the Prunsrv command
+      # dbms.logs.gc.enabled=true is specified in the mock so -Xlog:gc:... should be present in the Prunsrv command
       It "should set GCLogfile in Prunsrv if specified in neo4j.conf" {
-        $jvmArgs | Should Match ([regex]::Escape('-Xloggc:'))
+        $jvmArgs | Should Match ([regex]::Escape('-Xlog:gc'))
       }
 
       It "should escape ; characters in additional java parameters" {
@@ -174,7 +174,7 @@ InModuleScope Neo4j-Management {
       $mockJvmMx = 140
 
       # Create a mock configuration with JVM settings set
-      $serverObject = global:New-MockNeo4jInstall -ServerVersion '3.0' -ServerType 'Community' `
+      $serverObject = global:New-MockNeo4jInstall -ServerVersion '4.0' -ServerType 'Community' `
          -NeoConfSettings "dbms.memory.heap.initial_size=$mockJvmMs","dbms.memory.heap.max_size=$mockJvmMx"
 
       $prunsrv = Get-Neo4jPrunsrv -Neo4jServer $serverObject -ForServerInstall

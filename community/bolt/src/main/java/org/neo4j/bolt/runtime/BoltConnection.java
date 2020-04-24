@@ -24,8 +24,7 @@ import io.netty.channel.Channel;
 import java.net.SocketAddress;
 import java.util.concurrent.RejectedExecutionException;
 
-import org.neo4j.bolt.v1.packstream.PackOutput;
-import org.neo4j.bolt.v1.runtime.Job;
+import org.neo4j.bolt.packstream.PackOutput;
 
 public interface BoltConnection
 {
@@ -36,6 +35,13 @@ public interface BoltConnection
      * @return identifier
      */
     String id();
+
+    /**
+     * Returns whether this connection is idle or not.
+     *
+     * @return true if idle, false otherwise
+     */
+    boolean idle();
 
     /**
      * Returns the local (server) socket address that this client is bound to

@@ -31,10 +31,11 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
 
-import org.neo4j.internal.kernel.api.IndexOrder;
 import org.neo4j.internal.kernel.api.IndexQuery;
-import org.neo4j.internal.kernel.api.schema.SchemaDescriptor;
-import org.neo4j.kernel.api.schema.index.TestIndexDescriptorFactory;
+import org.neo4j.internal.schema.IndexOrder;
+import org.neo4j.internal.schema.IndexPrototype;
+import org.neo4j.internal.schema.SchemaDescriptor;
+import org.neo4j.storageengine.api.IndexEntryUpdate;
 import org.neo4j.values.storable.Value;
 import org.neo4j.values.storable.ValueType;
 import org.neo4j.values.storable.Values;
@@ -42,10 +43,11 @@ import org.neo4j.values.storable.Values;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
-import static org.neo4j.helpers.collection.Iterables.single;
-import static org.neo4j.kernel.api.index.IndexEntryUpdate.change;
-import static org.neo4j.kernel.api.index.IndexEntryUpdate.remove;
+import static org.neo4j.internal.helpers.collection.Iterables.single;
+import static org.neo4j.internal.schema.SchemaDescriptor.forLabel;
 import static org.neo4j.kernel.api.index.IndexQueryHelper.add;
+import static org.neo4j.kernel.api.index.IndexQueryHelper.remove;
+import static org.neo4j.storageengine.api.IndexEntryUpdate.change;
 
 @Ignore( "Not a test. This is a compatibility suite that provides test cases for verifying" +
         " IndexProvider implementations. Each index provider that is to be tested by this suite" +
@@ -56,7 +58,7 @@ public class SimpleRandomizedIndexAccessorCompatibility extends IndexAccessorCom
 {
     public SimpleRandomizedIndexAccessorCompatibility( IndexProviderCompatibilityTestSuite testSuite )
     {
-        super( testSuite, TestIndexDescriptorFactory.forLabel( 1000, 100 ) );
+        super( testSuite, IndexPrototype.forSchema( forLabel( 1000, 100 ) ) );
     }
 
     @Test
@@ -156,7 +158,7 @@ public class SimpleRandomizedIndexAccessorCompatibility extends IndexAccessorCom
             List<Long> expectedIds = expectedIds( sortedValues, from, to, fromInclusive, toInclusive );
 
             // Depending on order capabilities we verify ids or order and ids.
-            IndexOrder[] indexOrders = indexProvider.getCapability( descriptor ).orderCapability( predicate.valueGroup().category() );
+            IndexOrder[] indexOrders = descriptor.getCapability().orderCapability( predicate.valueGroup().category() );
             for ( IndexOrder order : indexOrders )
             {
                 List<Long> actualIds = assertInOrder( order, predicate );

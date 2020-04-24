@@ -23,9 +23,9 @@ import io.netty.channel.Channel;
 
 import java.net.SocketAddress;
 
+import org.neo4j.internal.kernel.api.connectioninfo.ClientConnectionInfo;
 import org.neo4j.kernel.api.net.TrackedNetworkConnection;
 import org.neo4j.kernel.impl.query.clientconnection.BoltConnectionInfo;
-import org.neo4j.kernel.impl.query.clientconnection.ClientConnectionInfo;
 
 /**
  * A channel through which Bolt messaging can occur.
@@ -135,6 +135,6 @@ public class BoltChannel implements TrackedNetworkConnection
 
     private ClientConnectionInfo createConnectionInfo()
     {
-        return new BoltConnectionInfo( id, username, userAgent, clientAddress(), serverAddress() );
+        return new BoltConnectionInfo( id, userAgent, clientAddress(), serverAddress() );
     }
 }

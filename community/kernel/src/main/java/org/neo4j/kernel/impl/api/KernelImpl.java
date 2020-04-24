@@ -19,23 +19,26 @@
  */
 package org.neo4j.kernel.impl.api;
 
-import org.neo4j.internal.kernel.api.Transaction;
+import org.neo4j.configuration.Config;
+import org.neo4j.internal.kernel.api.CursorFactory;
+import org.neo4j.internal.kernel.api.connectioninfo.ClientConnectionInfo;
 import org.neo4j.internal.kernel.api.exceptions.ProcedureException;
 import org.neo4j.internal.kernel.api.exceptions.TransactionFailureException;
 import org.neo4j.internal.kernel.api.security.LoginContext;
-import org.neo4j.kernel.api.InwardKernel;
+import org.neo4j.kernel.api.Kernel;
 import org.neo4j.kernel.api.KernelTransaction;
-import org.neo4j.kernel.api.TransactionHook;
-import org.neo4j.kernel.api.proc.CallableProcedure;
-import org.neo4j.kernel.api.proc.CallableUserAggregationFunction;
-import org.neo4j.kernel.api.proc.CallableUserFunction;
-import org.neo4j.kernel.configuration.Config;
-import org.neo4j.kernel.impl.proc.Procedures;
+import org.neo4j.kernel.api.procedure.CallableProcedure;
+import org.neo4j.kernel.api.procedure.CallableUserAggregationFunction;
+import org.neo4j.kernel.api.procedure.CallableUserFunction;
+import org.neo4j.kernel.api.procedure.GlobalProcedures;
+import org.neo4j.kernel.impl.newapi.DefaultThreadSafeCursors;
 import org.neo4j.kernel.impl.transaction.TransactionMonitor;
-import org.neo4j.kernel.internal.DatabaseHealth;
 import org.neo4j.kernel.lifecycle.LifecycleAdapter;
+import org.neo4j.monitoring.Health;
+import org.neo4j.storageengine.api.StorageEngine;
 
-import static org.neo4j.graphdb.factory.GraphDatabaseSettings.transaction_timeout;
+import static org.neo4j.configuration.GraphDatabaseSettings.transaction_timeout;
+import static org.neo4j.internal.kernel.api.connectioninfo.ClientConnectionInfo.EMBEDDED_CONNECTION;
 
 /**
  * This is the Neo4j Kernel, an implementation of the Kernel API which is an internal component used by Cypher and the
@@ -50,69 +53,71 @@ import static org.neo4j.graphdb.factory.GraphDatabaseSettings.transaction_timeou
  * Please refer to the {@link KernelTransaction} javadoc for details.
  *
  */
-public class KernelImpl extends LifecycleAdapter implements InwardKernel
+public class KernelImpl extends LifecycleAdapter implements Kernel
 {
     private final KernelTransactions transactions;
-    private final TransactionHooks hooks;
-    private final DatabaseHealth health;
+    private final Health health;
     private final TransactionMonitor transactionMonitor;
-    private final Procedures procedures;
+    private final GlobalProcedures globalProcedures;
     private final Config config;
+    private final DefaultThreadSafeCursors cursors;
     private volatile boolean isRunning;
 
-    public KernelImpl( KernelTransactions transactionFactory, TransactionHooks hooks, DatabaseHealth health, TransactionMonitor transactionMonitor,
-            Procedures procedures, Config config )
+    public KernelImpl( KernelTransactions transactionFactory, Health health,
+                       TransactionMonitor transactionMonitor,
+                       GlobalProcedures globalProcedures, Config config, StorageEngine storageEngine )
     {
         this.transactions = transactionFactory;
-        this.hooks = hooks;
         this.health = health;
         this.transactionMonitor = transactionMonitor;
-        this.procedures = procedures;
+        this.globalProcedures = globalProcedures;
         this.config = config;
+        this.cursors = new DefaultThreadSafeCursors( storageEngine.newReader() );
     }
 
     @Override
-    public KernelTransaction beginTransaction( Transaction.Type type, LoginContext loginContext ) throws TransactionFailureException
+    public KernelTransaction beginTransaction( KernelTransaction.Type type, LoginContext loginContext ) throws TransactionFailureException
+    {
+        return beginTransaction( type, loginContext, EMBEDDED_CONNECTION );
+    }
+
+    @Override
+    public KernelTransaction beginTransaction( KernelTransaction.Type type, LoginContext loginContext, ClientConnectionInfo connectionInfo )
+            throws TransactionFailureException
     {
         if ( !isRunning )
         {
             throw new IllegalStateException( "Kernel is not running, so it is not possible to use it" );
         }
-        return beginTransaction( type, loginContext, config.get( transaction_timeout ).toMillis() );
+        return beginTransaction( type, loginContext, connectionInfo, config.get( transaction_timeout ).toMillis() );
     }
 
     @Override
-    public KernelTransaction beginTransaction( Transaction.Type type, LoginContext loginContext, long timeout ) throws
-            TransactionFailureException
+    public KernelTransaction beginTransaction( KernelTransaction.Type type, LoginContext loginContext, ClientConnectionInfo connectionInfo, long timeout )
+            throws TransactionFailureException
     {
         health.assertHealthy( TransactionFailureException.class );
-        KernelTransaction transaction = transactions.newInstance( type, loginContext, timeout );
+        KernelTransaction transaction = transactions.newInstance( type, loginContext, connectionInfo, timeout );
         transactionMonitor.transactionStarted();
         return transaction;
     }
 
     @Override
-    public void registerTransactionHook( TransactionHook hook )
-    {
-        hooks.register( hook );
-    }
-
-    @Override
     public void registerProcedure( CallableProcedure procedure ) throws ProcedureException
     {
-        procedures.register( procedure );
+        globalProcedures.register( procedure );
     }
 
     @Override
     public void registerUserFunction( CallableUserFunction function ) throws ProcedureException
     {
-        procedures.register( function );
+        globalProcedures.register( function );
     }
 
     @Override
     public void registerUserAggregationFunction( CallableUserAggregationFunction function ) throws ProcedureException
     {
-        procedures.register( function );
+        globalProcedures.register( function );
     }
 
     @Override
@@ -126,8 +131,21 @@ public class KernelImpl extends LifecycleAdapter implements InwardKernel
     {
         if ( !isRunning )
         {
-            throw new IllegalStateException( "kernel is not running, so it is not possible to stop it" );
+            throw new IllegalStateException( "Kernel is not running, so it is not possible to stop it" );
         }
+
         isRunning = false;
+    }
+
+    @Override
+    public CursorFactory cursors()
+    {
+        return cursors;
+    }
+
+    @Override
+    public void shutdown()
+    {
+        cursors.close();
     }
 }

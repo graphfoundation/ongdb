@@ -25,44 +25,45 @@ import java.util.concurrent.TimeUnit;
 
 import org.neo4j.graphdb.ResourceIterator;
 import org.neo4j.internal.kernel.api.InternalIndexState;
+import org.neo4j.internal.schema.IndexDescriptor;
 import org.neo4j.kernel.api.exceptions.index.IndexPopulationFailedKernelException;
-import org.neo4j.kernel.api.index.IndexPopulator;
+import org.neo4j.kernel.api.index.IndexDropper;
+import org.neo4j.kernel.impl.api.index.stats.IndexStatisticsStore;
 import org.neo4j.logging.Log;
 import org.neo4j.logging.LogProvider;
-import org.neo4j.storageengine.api.schema.CapableIndexDescriptor;
 import org.neo4j.values.storable.Value;
 
-import static org.neo4j.helpers.collection.Iterators.emptyResourceIterator;
+import static org.neo4j.internal.helpers.collection.Iterators.emptyResourceIterator;
 
 public class FailedIndexProxy extends AbstractSwallowingIndexProxy
 {
-    protected final IndexPopulator populator;
+    private final IndexDropper indexDropper;
     private final String indexUserDescription;
-    private final IndexCountsRemover indexCountsRemover;
+    private final IndexStatisticsStore indexStatisticsStore;
     private final Log log;
 
-    FailedIndexProxy( CapableIndexDescriptor capableIndexDescriptor,
+    FailedIndexProxy( IndexDescriptor descriptor,
             String indexUserDescription,
-            IndexPopulator populator,
+            IndexDropper indexDropper,
             IndexPopulationFailure populationFailure,
-            IndexCountsRemover indexCountsRemover,
+            IndexStatisticsStore indexStatisticsStore,
             LogProvider logProvider )
     {
-        super( capableIndexDescriptor, populationFailure );
-        this.populator = populator;
+        super( descriptor, populationFailure );
+        this.indexDropper = indexDropper;
         this.indexUserDescription = indexUserDescription;
-        this.indexCountsRemover = indexCountsRemover;
+        this.indexStatisticsStore = indexStatisticsStore;
         this.log = logProvider.getLog( getClass() );
     }
 
     @Override
     public void drop()
     {
-        indexCountsRemover.remove();
+        indexStatisticsStore.removeIndex( getDescriptor().getId() );
         String message = "FailedIndexProxy#drop index on " + indexUserDescription + " dropped due to:\n" +
                      getPopulationFailure().asString();
         log.info( message );
-        populator.drop();
+        indexDropper.drop();
     }
 
     @Override
@@ -108,6 +109,6 @@ public class FailedIndexProxy extends AbstractSwallowingIndexProxy
     @Override
     public Map<String,Value> indexConfig()
     {
-        return populator.indexConfig();
+        return indexDropper.indexConfig();
     }
 }

@@ -22,7 +22,6 @@ package org.neo4j.io.pagecache.impl.muninn;
 import java.io.File;
 import java.io.IOException;
 import java.io.UncheckedIOException;
-import java.nio.channels.ClosedChannelException;
 import java.nio.file.OpenOption;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
@@ -35,6 +34,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.LockSupport;
 
+import org.neo4j.internal.unsafe.UnsafeUtil;
 import org.neo4j.io.mem.MemoryAllocator;
 import org.neo4j.io.pagecache.IOLimiter;
 import org.neo4j.io.pagecache.PageCache;
@@ -48,14 +48,13 @@ import org.neo4j.io.pagecache.tracing.PageCacheTracer;
 import org.neo4j.io.pagecache.tracing.PageFaultEvent;
 import org.neo4j.io.pagecache.tracing.cursor.PageCursorTracerSupplier;
 import org.neo4j.io.pagecache.tracing.cursor.context.VersionContextSupplier;
-import org.neo4j.memory.GlobalMemoryTracker;
-import org.neo4j.memory.MemoryAllocationTracker;
+import org.neo4j.memory.EmptyMemoryTracker;
 import org.neo4j.scheduler.Group;
 import org.neo4j.scheduler.JobHandle;
 import org.neo4j.scheduler.JobScheduler;
-import org.neo4j.unsafe.impl.internal.dragons.UnsafeUtil;
 
 import static java.lang.String.format;
+import static org.neo4j.internal.helpers.Numbers.isPowerOfTwo;
 import static org.neo4j.util.FeatureToggles.flag;
 import static org.neo4j.util.FeatureToggles.getInteger;
 
@@ -229,7 +228,7 @@ public class MuninnPageCache implements PageCache
     {
         this( swapperFactory,
                 // Cast to long prevents overflow:
-                MemoryAllocator.createAllocator( "" + memoryRequiredForPages( maxPages ), GlobalMemoryTracker.INSTANCE ),
+                MemoryAllocator.createAllocator( "" + memoryRequiredForPages( maxPages ), EmptyMemoryTracker.INSTANCE ),
                 PAGE_SIZE,
                 pageCacheTracer,
                 pageCursorTracerSupplier,
@@ -279,7 +278,6 @@ public class MuninnPageCache implements PageCache
 
         // Expose the total number of pages
         pageCacheTracer.maxPages( maxPages );
-        MemoryAllocationTracker memoryTracker = GlobalMemoryTracker.INSTANCE;
 
         this.pageCacheId = pageCacheIdCounter.incrementAndGet();
         this.swapperFactory = swapperFactory;
@@ -290,7 +288,7 @@ public class MuninnPageCache implements PageCache
         this.versionContextSupplier = versionContextSupplier;
         this.printExceptionsOnClose = true;
         long alignment = swapperFactory.getRequiredBufferAlignment();
-        this.victimPage = VictimPageReference.getVictimPage( cachePageSize, memoryTracker );
+        this.victimPage = VictimPageReference.getVictimPage( cachePageSize );
         this.pages = new PageList( maxPages, cachePageSize, memoryAllocator, new SwapperSet(), victimPage, alignment );
         this.scheduler = jobScheduler;
 
@@ -305,8 +303,7 @@ public class MuninnPageCache implements PageCache
 
     private static void verifyCachePageSizeIsPowerOfTwo( int cachePageSize )
     {
-        int exponent = 31 - Integer.numberOfLeadingZeros( cachePageSize );
-        if ( 1 << exponent != cachePageSize )
+        if ( !isPowerOfTwo( cachePageSize ) )
         {
             throw new IllegalArgumentException(
                     "Cache page size must be a power of two, but was " + cachePageSize );
@@ -329,7 +326,8 @@ public class MuninnPageCache implements PageCache
     }
 
     @Override
-    public synchronized PagedFile map( File file, int filePageSize, OpenOption... openOptions ) throws IOException
+    public synchronized PagedFile map( File file, VersionContextSupplier versionContextSupplier, int filePageSize, OpenOption... openOptions )
+            throws IOException
     {
         assertHealthy();
         ensureThreadsInitialised();
@@ -395,7 +393,7 @@ public class MuninnPageCache implements PageCache
                     throw new UnsupportedOperationException( "Cannot truncate a file that is already mapped" );
                 }
                 pagedFile.incrementRefCount();
-                pagedFile.markDeleteOnClose( deleteOnClose );
+                pagedFile.setDeleteOnClose( deleteOnClose );
                 return pagedFile;
             }
             current = current.next;
@@ -421,7 +419,7 @@ public class MuninnPageCache implements PageCache
                 truncateExisting,
                 noChannelStriping );
         pagedFile.incrementRefCount();
-        pagedFile.markDeleteOnClose( deleteOnClose );
+        pagedFile.setDeleteOnClose( deleteOnClose );
         current = new FileMapping( file, pagedFile );
         current.next = mappedFiles;
         mappedFiles = current;
@@ -604,7 +602,6 @@ public class MuninnPageCache implements PageCache
             {
                 flushAllPagesParallel( files, limiter );
             }
-            syncDevice();
         }
         clearEvictorException();
     }
@@ -658,24 +655,6 @@ public class MuninnPageCache implements PageCache
             FlushEventOpportunity flushOpportunity = fileFlush.flushEventOpportunity();
             muninnPagedFile.flushAndForceInternal( flushOpportunity, false, limiter );
         }
-        catch ( ClosedChannelException e )
-        {
-            if ( muninnPagedFile.getRefCount() > 0 )
-            {
-                // The file is not supposed to be closed, since we have a positive ref-count, yet we got a
-                // ClosedChannelException anyway? It's an odd situation, so let's tell the outside world about
-                // this failure.
-                throw e;
-            }
-            // Otherwise: The file was closed while we were trying to flush it. Since unmapping implies a flush
-            // anyway, we can safely assume that this is not a problem. The file was flushed, and it doesn't
-            // really matter how that happened. We'll ignore this exception.
-        }
-    }
-
-    void syncDevice()
-    {
-        swapperFactory.syncDevice();
     }
 
     @Override
@@ -761,6 +740,12 @@ public class MuninnPageCache implements PageCache
     public void reportEvents()
     {
         pageCursorTracerSupplier.get().reportEvents();
+    }
+
+    @Override
+    public VersionContextSupplier versionContextSupplier()
+    {
+        return versionContextSupplier;
     }
 
     int getPageCacheId()

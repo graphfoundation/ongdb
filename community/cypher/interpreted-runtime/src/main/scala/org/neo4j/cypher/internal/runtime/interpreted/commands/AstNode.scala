@@ -19,8 +19,8 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.commands
 
-import org.neo4j.cypher.internal.v3_6.util.CypherTypeException
 import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.Expression
+import org.neo4j.exceptions.CypherTypeException
 
 import scala.reflect.ClassTag
 
@@ -31,7 +31,7 @@ trait AstNode[T] {
   def rewrite(f: Expression => Expression): T
 
   def typedRewrite[R <: T](f: Expression => Expression)(implicit mf: ClassTag[R]): R = rewrite(f) match {
-    case (value: R) => value
+    case value: R => value
     case _          => throw new CypherTypeException("Invalid rewrite")
   }
 

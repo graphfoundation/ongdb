@@ -21,16 +21,15 @@ package org.neo4j.kernel.impl.newapi;
 
 import java.util.Iterator;
 
-import org.neo4j.internal.kernel.api.IndexReference;
 import org.neo4j.internal.kernel.api.InternalIndexState;
+import org.neo4j.internal.kernel.api.PopulationProgress;
 import org.neo4j.internal.kernel.api.SchemaReadCore;
 import org.neo4j.internal.kernel.api.exceptions.schema.IndexNotFoundKernelException;
-import org.neo4j.internal.kernel.api.schema.SchemaDescriptor;
-import org.neo4j.internal.kernel.api.schema.constraints.ConstraintDescriptor;
+import org.neo4j.internal.schema.ConstraintDescriptor;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.internal.schema.SchemaDescriptor;
 import org.neo4j.kernel.impl.api.KernelTransactionImplementation;
 import org.neo4j.storageengine.api.StorageSchemaReader;
-import org.neo4j.storageengine.api.schema.IndexDescriptor;
-import org.neo4j.storageengine.api.schema.PopulationProgress;
 
 class SchemaReadCoreSnapshot implements SchemaReadCore
 {
@@ -46,55 +45,66 @@ class SchemaReadCoreSnapshot implements SchemaReadCore
     }
 
     @Override
-    public IndexReference index( SchemaDescriptor schema )
+    public IndexDescriptor indexGetForName( String name )
+    {
+        return stores.indexGetForName( snapshot, name );
+    }
+
+    @Override
+    public ConstraintDescriptor constraintGetForName( String name )
+    {
+        return stores.constraintGetForName( snapshot, name );
+    }
+
+    @Override
+    public Iterator<IndexDescriptor> index( SchemaDescriptor schema )
     {
         ktx.assertOpen();
         return stores.indexGetForSchema( snapshot, schema );
     }
 
     @Override
-    public Iterator<IndexReference> indexesGetForLabel( int labelId )
+    public Iterator<IndexDescriptor> indexesGetForLabel( int labelId )
     {
         ktx.assertOpen();
         return stores.indexesGetForLabel( snapshot, labelId );
     }
 
     @Override
-    public Iterator<IndexReference> indexesGetForRelationshipType( int relationshipType )
+    public Iterator<IndexDescriptor> indexesGetForRelationshipType( int relationshipType )
     {
         ktx.assertOpen();
         return stores.indexesGetForRelationshipType( snapshot, relationshipType );
     }
 
     @Override
-    public Iterator<IndexReference> indexesGetAll()
+    public Iterator<IndexDescriptor> indexesGetAll()
     {
         ktx.assertOpen();
-        //noinspection unchecked
-        return (Iterator) stores.indexesGetAll( snapshot );
+        return stores.indexesGetAll( snapshot );
     }
 
     @Override
-    public InternalIndexState indexGetState( IndexReference index ) throws IndexNotFoundKernelException
+    public InternalIndexState indexGetState( IndexDescriptor index ) throws IndexNotFoundKernelException
     {
         AllStoreHolder.assertValidIndex( index );
         ktx.assertOpen();
-        return stores.indexGetState( snapshot, (IndexDescriptor) index );
+        return stores.indexGetStateLocked( index );
     }
 
     @Override
-    public PopulationProgress indexGetPopulationProgress( IndexReference index ) throws IndexNotFoundKernelException
+    public PopulationProgress indexGetPopulationProgress( IndexDescriptor index ) throws IndexNotFoundKernelException
     {
         AllStoreHolder.assertValidIndex( index );
         ktx.assertOpen();
-        return stores.indexGetPopulationProgress( snapshot, index );
+        return stores.indexGetPopulationProgressLocked( index );
     }
 
     @Override
-    public String indexGetFailure( IndexReference index ) throws IndexNotFoundKernelException
+    public String indexGetFailure( IndexDescriptor index ) throws IndexNotFoundKernelException
     {
         AllStoreHolder.assertValidIndex( index );
-        return snapshot.indexGetFailure( index.schema() );
+        return stores.indexGetFailure( index );
     }
 
     @Override

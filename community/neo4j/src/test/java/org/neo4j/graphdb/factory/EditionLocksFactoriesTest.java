@@ -23,10 +23,11 @@ import org.junit.jupiter.api.Test;
 
 import java.time.Clock;
 
-import org.neo4j.kernel.configuration.Config;
+import org.neo4j.configuration.Config;
+import org.neo4j.configuration.GraphDatabaseSettings;
 import org.neo4j.kernel.impl.locking.LocksFactory;
-import org.neo4j.kernel.impl.locking.ResourceTypes;
 import org.neo4j.kernel.impl.locking.community.CommunityLocksFactory;
+import org.neo4j.lock.ResourceTypes;
 import org.neo4j.logging.internal.NullLogService;
 import org.neo4j.time.Clocks;
 
@@ -67,7 +68,7 @@ class EditionLocksFactoriesTest
     @Test
     void createCommunityLocksFactoryWhenSpecified()
     {
-        Config config = Config.defaults(GraphDatabaseSettings.lock_manager, "community");
+        Config config = Config.defaults( GraphDatabaseSettings.lock_manager, "community");
 
         LocksFactory lockFactory = createLockFactory( config, NullLogService.getInstance() );
 

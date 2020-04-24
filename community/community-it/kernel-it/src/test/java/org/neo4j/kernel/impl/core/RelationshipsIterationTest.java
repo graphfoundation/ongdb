@@ -25,26 +25,47 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
+<<<<<<< HEAD
+=======
+import org.neo4j.dbms.api.DatabaseManagementService;
+>>>>>>> fork/4.0
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Relationship;
 import org.neo4j.graphdb.RelationshipType;
 import org.neo4j.graphdb.Transaction;
+<<<<<<< HEAD
 import org.neo4j.test.TestGraphDatabaseFactory;
+=======
+import org.neo4j.test.TestDatabaseManagementServiceBuilder;
+>>>>>>> fork/4.0
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+<<<<<<< HEAD
+=======
+import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
+>>>>>>> fork/4.0
 import static org.neo4j.graphdb.Direction.BOTH;
 import static org.neo4j.graphdb.Direction.INCOMING;
 import static org.neo4j.graphdb.Direction.OUTGOING;
 import static org.neo4j.graphdb.RelationshipType.withName;
 
+<<<<<<< HEAD
 class RelationshipsIterationTest
 {
     private static final TestGraphDatabaseFactory FACTORY = new TestGraphDatabaseFactory();
     private static final int DENSE_NODE_THRESHOLD = 51;
     private static GraphDatabaseService DATABASE;
+=======
+
+class RelationshipsIterationTest
+{
+    private static final TestDatabaseManagementServiceBuilder BUILDER = new TestDatabaseManagementServiceBuilder();
+    private static final int DENSE_NODE_THRESHOLD = 51;
+    private static DatabaseManagementService DATABASE;
+>>>>>>> fork/4.0
 
     private GraphDatabaseService db;
     private RelationshipType typeA = withName( "A" );
@@ -56,7 +77,11 @@ class RelationshipsIterationTest
     @BeforeAll
     static void setUp()
     {
+<<<<<<< HEAD
         DATABASE = FACTORY.newImpermanentDatabase();
+=======
+        DATABASE = BUILDER.impermanent().build();
+>>>>>>> fork/4.0
     }
 
     @AfterAll
@@ -68,12 +93,21 @@ class RelationshipsIterationTest
     @BeforeEach
     void setUpEach()
     {
+<<<<<<< HEAD
         db = DATABASE;
         try ( Transaction tx = db.beginTx() )
         {
             db.getAllRelationships().forEach( Relationship::delete );
             db.getAllNodes().forEach( Node::delete );
             tx.success();
+=======
+        db = DATABASE.database( DEFAULT_DATABASE_NAME );
+        try ( Transaction tx = db.beginTx() )
+        {
+            tx.getAllRelationships().forEach( Relationship::delete );
+            tx.getAllNodes().forEach( Node::delete );
+            tx.commit();
+>>>>>>> fork/4.0
         }
     }
 
@@ -88,9 +122,15 @@ class RelationshipsIterationTest
         {
             try ( Transaction tx = db.beginTx() )
             {
+<<<<<<< HEAD
                 Node first = db.createNode();
                 Node unrelated = db.createNode();
                 Node second = db.createNode();
+=======
+                Node first = tx.createNode();
+                Node unrelated = tx.createNode();
+                Node second = tx.createNode();
+>>>>>>> fork/4.0
                 matchingFirst = first.getId();
                 notMatching = unrelated.getId();
                 matchingSecond = second.getId();
@@ -98,6 +138,7 @@ class RelationshipsIterationTest
                 first.createRelationshipTo( second, typeB );
                 first.createRelationshipTo( unrelated, typeC );
                 second.createRelationshipTo( unrelated, typeD );
+<<<<<<< HEAD
                 tx.success();
             }
             try ( Transaction tx = db.beginTx() )
@@ -107,6 +148,17 @@ class RelationshipsIterationTest
                 first.createRelationshipTo( second, typeA );
                 first.createRelationshipTo( second, typeB );
                 tx.success();
+=======
+                tx.commit();
+            }
+            try ( Transaction tx = db.beginTx() )
+            {
+                Node first = tx.getNodeById( matchingFirst );
+                Node second = tx.getNodeById( matchingSecond );
+                first.createRelationshipTo( second, typeA );
+                first.createRelationshipTo( second, typeB );
+                tx.commit();
+>>>>>>> fork/4.0
             }
         }
 
@@ -159,9 +211,15 @@ class RelationshipsIterationTest
         {
             check( ( first, unrelated, second ) ->
             {
+<<<<<<< HEAD
                 assertTrue( first.hasRelationship( typeA, OUTGOING ) );
                 assertFalse( unrelated.hasRelationship( typeA, BOTH ) );
                 assertFalse( second.hasRelationship( typeA, OUTGOING ) );
+=======
+                assertTrue( first.hasRelationship( OUTGOING, typeA ) );
+                assertFalse( unrelated.hasRelationship( BOTH, typeA ) );
+                assertFalse( second.hasRelationship( OUTGOING, typeA ) );
+>>>>>>> fork/4.0
             } );
         }
 
@@ -170,9 +228,15 @@ class RelationshipsIterationTest
         {
             check( ( first, unrelated, second ) ->
             {
+<<<<<<< HEAD
                 assertTrue( first.hasRelationship( typeA, OUTGOING ) );
                 assertFalse( unrelated.hasRelationship( typeA, BOTH ) );
                 assertFalse( first.hasRelationship( typeA, INCOMING ) );
+=======
+                assertTrue( first.hasRelationship( OUTGOING, typeA ) );
+                assertFalse( unrelated.hasRelationship( BOTH, typeA ) );
+                assertFalse( first.hasRelationship( INCOMING, typeA ) );
+>>>>>>> fork/4.0
             } );
         }
 
@@ -181,9 +245,15 @@ class RelationshipsIterationTest
         {
             check( ( first, unrelated, second ) ->
             {
+<<<<<<< HEAD
                 assertFalse( first.hasRelationship( typeA, INCOMING ) );
                 assertFalse( unrelated.hasRelationship( typeA, BOTH ) );
                 assertTrue( second.hasRelationship( typeA, INCOMING ) );
+=======
+                assertFalse( first.hasRelationship( INCOMING, typeA ) );
+                assertFalse( unrelated.hasRelationship( BOTH, typeA ) );
+                assertTrue( second.hasRelationship( INCOMING, typeA ) );
+>>>>>>> fork/4.0
             } );
         }
 
@@ -192,9 +262,15 @@ class RelationshipsIterationTest
         {
             check( ( first, unrelated, second ) ->
             {
+<<<<<<< HEAD
                 assertFalse( second.hasRelationship( typeA, OUTGOING ) );
                 assertFalse( unrelated.hasRelationship( typeA, BOTH ) );
                 assertTrue( first.hasRelationship( typeA, OUTGOING ) );
+=======
+                assertFalse( second.hasRelationship( OUTGOING, typeA ) );
+                assertFalse( unrelated.hasRelationship( BOTH, typeA ) );
+                assertTrue( first.hasRelationship( OUTGOING, typeA ) );
+>>>>>>> fork/4.0
             } );
         }
 
@@ -223,8 +299,13 @@ class RelationshipsIterationTest
         {
             check( ( first, unrelated, second ) ->
             {
+<<<<<<< HEAD
                 assertFalse( first.hasRelationship( typeA, INCOMING ) );
                 assertTrue( second.hasRelationship( typeA, INCOMING ) );
+=======
+                assertFalse( first.hasRelationship( INCOMING, typeA ) );
+                assertTrue( second.hasRelationship( INCOMING, typeA ) );
+>>>>>>> fork/4.0
             } );
         }
 
@@ -233,8 +314,13 @@ class RelationshipsIterationTest
         {
             check( ( first, unrelated, second ) ->
             {
+<<<<<<< HEAD
                 assertFalse( second.hasRelationship( typeA, OUTGOING ) );
                 assertTrue( first.hasRelationship( typeA, OUTGOING ) );
+=======
+                assertFalse( second.hasRelationship( OUTGOING, typeA ) );
+                assertTrue( first.hasRelationship( OUTGOING, typeA ) );
+>>>>>>> fork/4.0
             } );
         }
 
@@ -243,9 +329,15 @@ class RelationshipsIterationTest
         {
             check( ( first, unrelated, second ) ->
             {
+<<<<<<< HEAD
                 assertTrue( first.hasRelationship( typeA, OUTGOING ) );
                 assertFalse( first.hasRelationship( typeA, INCOMING ) );
                 assertTrue( second.hasRelationship( typeA, INCOMING ) );
+=======
+                assertTrue( first.hasRelationship( OUTGOING, typeA ) );
+                assertFalse( first.hasRelationship( INCOMING, typeA ) );
+                assertTrue( second.hasRelationship( INCOMING, typeA ) );
+>>>>>>> fork/4.0
             } );
         }
 
@@ -254,9 +346,15 @@ class RelationshipsIterationTest
         {
             check( ( first, unrelated, second ) ->
             {
+<<<<<<< HEAD
                 assertTrue( second.hasRelationship( typeA, INCOMING ) );
                 assertFalse( first.hasRelationship( typeA, INCOMING ) );
                 assertTrue( second.hasRelationship( typeA, INCOMING ) );
+=======
+                assertTrue( second.hasRelationship( INCOMING, typeA ) );
+                assertFalse( first.hasRelationship( INCOMING, typeA ) );
+                assertTrue( second.hasRelationship( INCOMING, typeA ) );
+>>>>>>> fork/4.0
             } );
         }
 
@@ -265,9 +363,15 @@ class RelationshipsIterationTest
         {
             check( ( first, unrelated, second ) ->
             {
+<<<<<<< HEAD
                 assertTrue( second.hasRelationship( typeA, INCOMING ) );
                 assertFalse( first.hasRelationship( typeA, INCOMING ) );
                 assertTrue( first.hasRelationship( typeA, OUTGOING ) );
+=======
+                assertTrue( second.hasRelationship( INCOMING, typeA ) );
+                assertFalse( first.hasRelationship( INCOMING, typeA ) );
+                assertTrue( first.hasRelationship( OUTGOING, typeA ) );
+>>>>>>> fork/4.0
             } );
         }
 
@@ -276,9 +380,15 @@ class RelationshipsIterationTest
         {
             check( ( first, unrelated, second ) ->
             {
+<<<<<<< HEAD
                 assertTrue( first.hasRelationship( typeA, OUTGOING ) );
                 assertFalse( first.hasRelationship( typeA, INCOMING ) );
                 assertTrue( first.hasRelationship( typeA, OUTGOING ) );
+=======
+                assertTrue( first.hasRelationship( OUTGOING, typeA ) );
+                assertFalse( first.hasRelationship( INCOMING, typeA ) );
+                assertTrue( first.hasRelationship( OUTGOING, typeA ) );
+>>>>>>> fork/4.0
             } );
         }
 
@@ -287,9 +397,15 @@ class RelationshipsIterationTest
         {
             check( ( first, unrelated, second ) ->
             {
+<<<<<<< HEAD
                 assertTrue( second.hasRelationship( typeA, INCOMING ) );
                 assertFalse( second.hasRelationship( typeA, OUTGOING ) );
                 assertTrue( second.hasRelationship( typeA, INCOMING ) );
+=======
+                assertTrue( second.hasRelationship( INCOMING, typeA ) );
+                assertFalse( second.hasRelationship( OUTGOING, typeA ) );
+                assertTrue( second.hasRelationship( INCOMING, typeA ) );
+>>>>>>> fork/4.0
             } );
         }
 
@@ -298,8 +414,13 @@ class RelationshipsIterationTest
         {
             check( ( first, unrelated, second ) ->
             {
+<<<<<<< HEAD
                 assertFalse( unrelated.hasRelationship( typeA, BOTH ) );
                 assertFalse( second.hasRelationship( typeA, OUTGOING ) );
+=======
+                assertFalse( unrelated.hasRelationship( BOTH, typeA ) );
+                assertFalse( second.hasRelationship( OUTGOING, typeA ) );
+>>>>>>> fork/4.0
             } );
         }
 
@@ -308,8 +429,13 @@ class RelationshipsIterationTest
         {
             check( ( first, unrelated, second ) ->
             {
+<<<<<<< HEAD
                 assertFalse( unrelated.hasRelationship( typeA, BOTH ) );
                 assertFalse( first.hasRelationship( typeA, INCOMING ) );
+=======
+                assertFalse( unrelated.hasRelationship( BOTH, typeA ) );
+                assertFalse( first.hasRelationship( INCOMING, typeA ) );
+>>>>>>> fork/4.0
             } );
         }
 
@@ -386,9 +512,15 @@ class RelationshipsIterationTest
         {
             check( ( first, unrelated, second ) ->
             {
+<<<<<<< HEAD
                 assertEquals( 2, countTypes( typeA, first.getRelationships( typeA, OUTGOING ) ) );
                 assertEquals( 0, countTypes( typeA, unrelated.getRelationships( typeA, BOTH ) ) );
                 assertEquals( 0, countTypes( typeA, second.getRelationships( typeA, OUTGOING ) ) );
+=======
+                assertEquals( 2, countTypes( typeA, first.getRelationships( OUTGOING, typeA ) ) );
+                assertEquals( 0, countTypes( typeA, unrelated.getRelationships( BOTH, typeA ) ) );
+                assertEquals( 0, countTypes( typeA, second.getRelationships( OUTGOING, typeA ) ) );
+>>>>>>> fork/4.0
             } );
         }
 
@@ -397,9 +529,15 @@ class RelationshipsIterationTest
         {
             check( ( first, unrelated, second ) ->
             {
+<<<<<<< HEAD
                 assertEquals( 2, countTypes( typeA, first.getRelationships( typeA, OUTGOING ) ) );
                 assertEquals( 0, countTypes( typeA, unrelated.getRelationships( typeA, BOTH ) ) );
                 assertEquals( 0, countTypes( typeA, first.getRelationships( typeA, INCOMING ) ) );
+=======
+                assertEquals( 2, countTypes( typeA, first.getRelationships( OUTGOING, typeA ) ) );
+                assertEquals( 0, countTypes( typeA, unrelated.getRelationships( BOTH, typeA ) ) );
+                assertEquals( 0, countTypes( typeA, first.getRelationships( INCOMING, typeA ) ) );
+>>>>>>> fork/4.0
             } );
         }
 
@@ -408,9 +546,15 @@ class RelationshipsIterationTest
         {
             check( ( first, unrelated, second ) ->
             {
+<<<<<<< HEAD
                 assertEquals( 0, countTypes( typeA, first.getRelationships( typeA, INCOMING ) ) );
                 assertEquals( 0, countTypes( typeA, unrelated.getRelationships( typeA, BOTH ) ) );
                 assertEquals( 2, countTypes( typeA, second.getRelationships( typeA, INCOMING ) ) );
+=======
+                assertEquals( 0, countTypes( typeA, first.getRelationships( INCOMING, typeA ) ) );
+                assertEquals( 0, countTypes( typeA, unrelated.getRelationships( BOTH, typeA ) ) );
+                assertEquals( 2, countTypes( typeA, second.getRelationships( INCOMING, typeA ) ) );
+>>>>>>> fork/4.0
             } );
         }
 
@@ -419,9 +563,15 @@ class RelationshipsIterationTest
         {
             check( ( first, unrelated, second ) ->
             {
+<<<<<<< HEAD
                 assertEquals( 0, countTypes( typeA, second.getRelationships( typeA, OUTGOING ) ) );
                 assertEquals( 0, countTypes( typeA, unrelated.getRelationships( typeA, BOTH ) ) );
                 assertEquals( 2, countTypes( typeA, first.getRelationships( typeA, OUTGOING ) ) );
+=======
+                assertEquals( 0, countTypes( typeA, second.getRelationships( OUTGOING, typeA ) ) );
+                assertEquals( 0, countTypes( typeA, unrelated.getRelationships( BOTH, typeA ) ) );
+                assertEquals( 2, countTypes( typeA, first.getRelationships( OUTGOING, typeA ) ) );
+>>>>>>> fork/4.0
             } );
         }
 
@@ -450,8 +600,13 @@ class RelationshipsIterationTest
         {
             check( ( first, unrelated, second ) ->
             {
+<<<<<<< HEAD
                 assertEquals( 0, countTypes( typeA, first.getRelationships( typeA, INCOMING ) ) );
                 assertEquals( 2, countTypes( typeA, second.getRelationships( typeA, INCOMING ) ) );
+=======
+                assertEquals( 0, countTypes( typeA, first.getRelationships( INCOMING, typeA ) ) );
+                assertEquals( 2, countTypes( typeA, second.getRelationships( INCOMING, typeA ) ) );
+>>>>>>> fork/4.0
             } );
         }
 
@@ -460,8 +615,13 @@ class RelationshipsIterationTest
         {
             check( ( first, unrelated, second ) ->
             {
+<<<<<<< HEAD
                 assertEquals( 0, countTypes( typeA, second.getRelationships( typeA, OUTGOING ) ) );
                 assertEquals( 2, countTypes( typeA, first.getRelationships( typeA, OUTGOING ) ) );
+=======
+                assertEquals( 0, countTypes( typeA, second.getRelationships( OUTGOING, typeA ) ) );
+                assertEquals( 2, countTypes( typeA, first.getRelationships( OUTGOING, typeA ) ) );
+>>>>>>> fork/4.0
             } );
         }
 
@@ -470,9 +630,15 @@ class RelationshipsIterationTest
         {
             check( ( first, unrelated, second ) ->
             {
+<<<<<<< HEAD
                 assertEquals( 2, countTypes( typeA, first.getRelationships( typeA, OUTGOING ) ) );
                 assertEquals( 0, countTypes( typeA, first.getRelationships( typeA, INCOMING ) ) );
                 assertEquals( 2, countTypes( typeA, second.getRelationships( typeA, INCOMING ) ) );
+=======
+                assertEquals( 2, countTypes( typeA, first.getRelationships( OUTGOING, typeA ) ) );
+                assertEquals( 0, countTypes( typeA, first.getRelationships( INCOMING, typeA ) ) );
+                assertEquals( 2, countTypes( typeA, second.getRelationships( INCOMING, typeA ) ) );
+>>>>>>> fork/4.0
             } );
         }
 
@@ -481,9 +647,15 @@ class RelationshipsIterationTest
         {
             check( ( first, unrelated, second ) ->
             {
+<<<<<<< HEAD
                 assertEquals( 2, countTypes( typeA, second.getRelationships( typeA, INCOMING ) ) );
                 assertEquals( 0, countTypes( typeA, first.getRelationships( typeA, INCOMING ) ) );
                 assertEquals( 2, countTypes( typeA, second.getRelationships( typeA, INCOMING ) ) );
+=======
+                assertEquals( 2, countTypes( typeA, second.getRelationships( INCOMING, typeA ) ) );
+                assertEquals( 0, countTypes( typeA, first.getRelationships( INCOMING, typeA ) ) );
+                assertEquals( 2, countTypes( typeA, second.getRelationships( INCOMING, typeA ) ) );
+>>>>>>> fork/4.0
             } );
         }
 
@@ -492,9 +664,15 @@ class RelationshipsIterationTest
         {
             check( ( first, unrelated, second ) ->
             {
+<<<<<<< HEAD
                 assertEquals( 2, countTypes( typeA, second.getRelationships( typeA, INCOMING ) ) );
                 assertEquals( 0, countTypes( typeA, first.getRelationships( typeA, INCOMING ) ) );
                 assertEquals( 2, countTypes( typeA, first.getRelationships( typeA, OUTGOING ) ) );
+=======
+                assertEquals( 2, countTypes( typeA, second.getRelationships( INCOMING, typeA ) ) );
+                assertEquals( 0, countTypes( typeA, first.getRelationships( INCOMING, typeA ) ) );
+                assertEquals( 2, countTypes( typeA, first.getRelationships( OUTGOING, typeA ) ) );
+>>>>>>> fork/4.0
             } );
         }
 
@@ -503,9 +681,15 @@ class RelationshipsIterationTest
         {
             check( ( first, unrelated, second ) ->
             {
+<<<<<<< HEAD
                 assertEquals( 2, countTypes( typeA, first.getRelationships( typeA, OUTGOING ) ) );
                 assertEquals( 0, countTypes( typeA, first.getRelationships( typeA, INCOMING ) ) );
                 assertEquals( 2, countTypes( typeA, first.getRelationships( typeA, OUTGOING ) ) );
+=======
+                assertEquals( 2, countTypes( typeA, first.getRelationships( OUTGOING, typeA ) ) );
+                assertEquals( 0, countTypes( typeA, first.getRelationships( INCOMING, typeA ) ) );
+                assertEquals( 2, countTypes( typeA, first.getRelationships( OUTGOING, typeA ) ) );
+>>>>>>> fork/4.0
             } );
         }
 
@@ -514,9 +698,15 @@ class RelationshipsIterationTest
         {
             check( ( first, unrelated, second ) ->
             {
+<<<<<<< HEAD
                 assertEquals( 2, countTypes( typeA, second.getRelationships( typeA, INCOMING ) ) );
                 assertEquals( 0, countTypes( typeA, second.getRelationships( typeA, OUTGOING ) ) );
                 assertEquals( 2, countTypes( typeA, second.getRelationships( typeA, INCOMING ) ) );
+=======
+                assertEquals( 2, countTypes( typeA, second.getRelationships( INCOMING, typeA ) ) );
+                assertEquals( 0, countTypes( typeA, second.getRelationships( OUTGOING, typeA ) ) );
+                assertEquals( 2, countTypes( typeA, second.getRelationships( INCOMING, typeA ) ) );
+>>>>>>> fork/4.0
             } );
         }
 
@@ -525,8 +715,13 @@ class RelationshipsIterationTest
         {
             check( ( first, unrelated, second ) ->
             {
+<<<<<<< HEAD
                 assertEquals( 0, countTypes( typeA, unrelated.getRelationships( typeA, BOTH ) ) );
                 assertEquals( 0, countTypes( typeA, second.getRelationships( typeA, OUTGOING ) ) );
+=======
+                assertEquals( 0, countTypes( typeA, unrelated.getRelationships( BOTH, typeA ) ) );
+                assertEquals( 0, countTypes( typeA, second.getRelationships( OUTGOING, typeA ) ) );
+>>>>>>> fork/4.0
             } );
         }
 
@@ -535,8 +730,13 @@ class RelationshipsIterationTest
         {
             check( ( first, unrelated, second ) ->
             {
+<<<<<<< HEAD
                 assertEquals( 0, countTypes( typeA, unrelated.getRelationships( typeA, BOTH ) ) );
                 assertEquals( 0, countTypes( typeA, first.getRelationships( typeA, INCOMING ) ) );
+=======
+                assertEquals( 0, countTypes( typeA, unrelated.getRelationships( BOTH, typeA ) ) );
+                assertEquals( 0, countTypes( typeA, first.getRelationships( INCOMING, typeA ) ) );
+>>>>>>> fork/4.0
             } );
         }
 
@@ -566,9 +766,15 @@ class RelationshipsIterationTest
         {
             try ( Transaction tx = db.beginTx() )
             {
+<<<<<<< HEAD
                 Node first = db.getNodeById( matchingFirst );
                 Node unrelated = db.getNodeById( notMatching );
                 Node second = db.getNodeById( matchingSecond );
+=======
+                Node first = tx.getNodeById( matchingFirst );
+                Node unrelated = tx.getNodeById( notMatching );
+                Node second = tx.getNodeById( matchingSecond );
+>>>>>>> fork/4.0
                 check.check( first, unrelated, second );
             }
         }
@@ -600,12 +806,20 @@ class RelationshipsIterationTest
             super.setUp();
             try ( Transaction tx = db.beginTx() )
             {
+<<<<<<< HEAD
                 Node first = db.getNodeById( matchingFirst );
+=======
+                Node first = tx.getNodeById( matchingFirst );
+>>>>>>> fork/4.0
                 for ( int i = 0; i < DENSE_NODE_THRESHOLD; i++ )
                 {
                     first.createRelationshipTo( first, typeX );
                 }
+<<<<<<< HEAD
                 tx.success();
+=======
+                tx.commit();
+>>>>>>> fork/4.0
             }
         }
     }
@@ -620,12 +834,20 @@ class RelationshipsIterationTest
             super.setUp();
             try ( Transaction tx = db.beginTx() )
             {
+<<<<<<< HEAD
                 Node second = db.getNodeById( matchingSecond );
+=======
+                Node second = tx.getNodeById( matchingSecond );
+>>>>>>> fork/4.0
                 for ( int i = 0; i < DENSE_NODE_THRESHOLD; i++ )
                 {
                     second.createRelationshipTo( second, typeX );
                 }
+<<<<<<< HEAD
                 tx.success();
+=======
+                tx.commit();
+>>>>>>> fork/4.0
             }
         }
     }
@@ -640,12 +862,20 @@ class RelationshipsIterationTest
             super.setUp();
             try ( Transaction tx = db.beginTx() )
             {
+<<<<<<< HEAD
                 Node unrelated = db.getNodeById( notMatching );
+=======
+                Node unrelated = tx.getNodeById( notMatching );
+>>>>>>> fork/4.0
                 for ( int i = 0; i < DENSE_NODE_THRESHOLD; i++ )
                 {
                     unrelated.createRelationshipTo( unrelated, typeX );
                 }
+<<<<<<< HEAD
                 tx.success();
+=======
+                tx.commit();
+>>>>>>> fork/4.0
             }
         }
     }

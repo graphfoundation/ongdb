@@ -20,35 +20,33 @@
 package org.neo4j.graphalgo.impl.util;
 
 import common.Neo4jAlgoTestCase;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.util.Arrays;
-import java.util.Collection;
+import java.util.stream.Stream;
 
 import org.neo4j.graphalgo.CommonEvaluators;
 import org.neo4j.graphalgo.CostEvaluator;
 import org.neo4j.graphdb.Direction;
 import org.neo4j.graphdb.Node;
-import org.neo4j.graphdb.Path;
 import org.neo4j.graphdb.PathExpander;
 import org.neo4j.graphdb.PathExpanders;
-import org.neo4j.graphdb.ResourceIterator;
+import org.neo4j.graphdb.Transaction;
 import org.neo4j.graphdb.traversal.TraversalBranch;
 import org.neo4j.graphdb.traversal.Traverser;
 import org.neo4j.graphdb.traversal.Uniqueness;
 import org.neo4j.kernel.impl.traversal.MonoDirectionalTraversalDescription;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.params.provider.Arguments.arguments;
 
-/**
- * @author Anton Persson
- */
-@RunWith( Parameterized.class )
-public class TestBestFirstSelectorFactory extends Neo4jAlgoTestCase
+class TestBestFirstSelectorFactory extends Neo4jAlgoTestCase
 {
+    private static final String LENGTH = "length";
+
     /*
      * LAYOUT
      *
@@ -57,111 +55,99 @@ public class TestBestFirstSelectorFactory extends Neo4jAlgoTestCase
      *   2 -> (c) - 4
      *
      */
-    @Before
-    public void buildGraph()
+    @BeforeEach
+    void buildGraph()
     {
-        graph.makePathWithRelProperty( length, "a-1-b-2-d" );
-        graph.makePathWithRelProperty( length, "a-2-c-4-b" );
-    }
-
-    @Test
-    public void shouldDoWholeTraversalInCorrectOrder()
-    {
-        Node a = graph.getNode( "a" );
-
-        Traverser traverser = new MonoDirectionalTraversalDescription(  )
-                .expand( expander )
-                .order( factory )
-                .uniqueness( uniqueness )
-                .traverse( a );
-
-        ResourceIterator<Path> iterator = traverser.iterator();
-
-        int i = 0;
-        while ( iterator.hasNext() )
+        try ( Transaction transaction = graphDb.beginTx() )
         {
-            assertPath( iterator.next(), expectedResult[i] );
-            i++;
+            graph.makePathWithRelProperty( transaction, LENGTH, "a-1-b-2-d" );
+            graph.makePathWithRelProperty( transaction, LENGTH, "a-2-c-4-b" );
+            transaction.commit();
         }
-        assertEquals( String.format( "Not all expected paths where traversed. Missing paths are %s\n",
-                Arrays.toString( Arrays.copyOfRange(expectedResult, i, expectedResult.length ) ) ),
-                expectedResult.length, i );
     }
 
-    @Parameterized.Parameters
-    public static Collection<Object[]> data()
+    @ParameterizedTest
+    @MethodSource( "params" )
+    void shouldDoWholeTraversalInCorrectOrder( PathExpander expander, PathInterest<Integer> interest, Uniqueness uniqueness, String[] expectedResult )
     {
-        return Arrays.asList( new Object[][] {
-                // Different PathInterests
-                {
-                        PathExpanders.allTypesAndDirections(),
-                        PathInterestFactory.all(),
-                        Uniqueness.NODE_PATH,
-                        new String[]{ "a", "a,b", "a,c", "a,b,d", "a,b,c", "a,c,b", "a,c,b,d" }
-                },
-                {
-                        PathExpanders.allTypesAndDirections(),
-                        PathInterestFactory.allShortest(),
-                        Uniqueness.NODE_PATH,
-                        new String[]{ "a", "a,b", "a,c", "a,b,d" }
-                },
-                // Different PathExpanders
-                {
-                        PathExpanders.forDirection( Direction.OUTGOING ),
-                        PathInterestFactory.all( ),
-                        Uniqueness.NODE_PATH,
-                        new String[]{ "a", "a,b", "a,c", "a,b,d", "a,c,b", "a,c,b,d" }
-                },
-                // Different uniqueness
-                {
-                        PathExpanders.allTypesAndDirections(),
-                        PathInterestFactory.all(),
-                        Uniqueness.NODE_GLOBAL,
-                        new String[]{ "a", "a,b", "a,c", "a,b,d" }
-                },
-                {
-                        PathExpanders.allTypesAndDirections(),
-                        PathInterestFactory.all(),
-                        Uniqueness.RELATIONSHIP_GLOBAL,
-                        new String[]{ "a", "a,b", "a,c", "a,b,d", "a,b,c" }
-                }
-        } );
-    }
-
-    private final String length = "length";
-    private final PathExpander expander;
-    private final Uniqueness uniqueness;
-    private final String[] expectedResult;
-    private final BestFirstSelectorFactory<Integer, Integer> factory;
-
-    public TestBestFirstSelectorFactory( PathExpander expander, PathInterest<Integer> interest, Uniqueness uniqueness,
-            String[] expectedResult )
-    {
-
-        this.expander = expander;
-        this.uniqueness = uniqueness;
-        this.expectedResult = expectedResult;
-        factory = new BestFirstSelectorFactory<Integer, Integer>( interest )
+        try ( Transaction transaction = graphDb.beginTx() )
         {
-            private final CostEvaluator<Integer> evaluator = CommonEvaluators.intCostEvaluator( length );
-
-            @Override
-            protected Integer getStartData()
+            var factory = new BestFirstSelectorFactory<Integer,Integer>( interest )
             {
-                return 0;
-            }
+                private final CostEvaluator<Integer> evaluator = CommonEvaluators.intCostEvaluator( LENGTH );
 
-            @Override
-            protected Integer addPriority( TraversalBranch source, Integer currentAggregatedValue, Integer value )
-            {
-                return value + currentAggregatedValue;
-            }
+                @Override
+                protected Integer getStartData()
+                {
+                    return 0;
+                }
 
-            @Override
-            protected Integer calculateValue( TraversalBranch next )
+                @Override
+                protected Integer addPriority( TraversalBranch source, Integer currentAggregatedValue, Integer value )
+                {
+                    return value + currentAggregatedValue;
+                }
+
+                @Override
+                protected Integer calculateValue( TraversalBranch next )
+                {
+                    return next.length() == 0 ? 0 : evaluator.getCost( next.lastRelationship(), Direction.BOTH );
+                }
+            };
+            Node a = transaction.getNodeById( graph.getNode( transaction, "a" ).getId() );
+
+            Traverser traverser = new MonoDirectionalTraversalDescription().expand( expander ).order( factory ).uniqueness( uniqueness ).traverse( a );
+
+            var iterator = traverser.iterator();
+
+            int i = 0;
+            while ( iterator.hasNext() )
             {
-                return next.length() == 0 ? 0 : evaluator.getCost( next.lastRelationship(), Direction.BOTH );
+                assertPath( transaction, iterator.next(), expectedResult[i] );
+                i++;
             }
-        };
+            assertEquals( expectedResult.length, i, String.format( "Not all expected paths where traversed. Missing paths are %s\n",
+                    Arrays.toString( Arrays.copyOfRange( expectedResult, i, expectedResult.length ) ) ) );
+            transaction.commit();
+        }
+    }
+
+    private static Stream<Arguments> params()
+    {
+        return Stream.of(
+            // Different PathInterests
+            arguments(
+                PathExpanders.allTypesAndDirections(),
+                PathInterestFactory.all(),
+                Uniqueness.NODE_PATH,
+                new String[]{"a", "a,b", "a,c", "a,b,d", "a,b,c", "a,c,b", "a,c,b,d"}
+            ),
+            arguments(
+                PathExpanders.allTypesAndDirections(),
+                PathInterestFactory.allShortest(),
+                Uniqueness.NODE_PATH,
+                new String[]{"a", "a,b", "a,c", "a,b,d"}
+            ),
+            // Different PathExpanders
+            arguments(
+                PathExpanders.forDirection( Direction.OUTGOING ),
+                PathInterestFactory.all(),
+                Uniqueness.NODE_PATH,
+                new String[]{"a", "a,b", "a,c", "a,b,d", "a,c,b", "a,c,b,d"}
+            ),
+            // Different uniqueness
+            arguments(
+                PathExpanders.allTypesAndDirections(),
+                PathInterestFactory.all(),
+                Uniqueness.NODE_GLOBAL,
+                new String[]{"a", "a,b", "a,c", "a,b,d"}
+            ),
+            arguments(
+                PathExpanders.allTypesAndDirections(),
+                PathInterestFactory.all(),
+                Uniqueness.RELATIONSHIP_GLOBAL,
+                new String[]{"a", "a,b", "a,c", "a,b,d", "a,b,c"}
+            )
+        );
     }
 }

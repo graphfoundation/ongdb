@@ -19,11 +19,12 @@
  */
 package org.neo4j.kernel.api.exceptions.schema;
 
-import org.neo4j.internal.kernel.api.TokenNameLookup;
+import org.neo4j.common.TokenNameLookup;
 import org.neo4j.internal.kernel.api.exceptions.schema.SchemaKernelException;
-import org.neo4j.internal.kernel.api.schema.SchemaDescriptor;
-import org.neo4j.internal.kernel.api.schema.SchemaUtil;
+import org.neo4j.internal.schema.SchemaDescriptor;
 import org.neo4j.kernel.api.exceptions.Status;
+
+import static org.neo4j.common.TokenNameLookup.idTokenNameLookup;
 
 public class AlreadyIndexedException extends SchemaKernelException
 {
@@ -38,14 +39,13 @@ public class AlreadyIndexedException extends SchemaKernelException
 
     public AlreadyIndexedException( SchemaDescriptor descriptor, OperationContext context )
     {
-        super( Status.Schema.IndexAlreadyExists, constructUserMessage( context, SchemaUtil.idTokenNameLookup, descriptor ) );
+        super( Status.Schema.IndexAlreadyExists, constructUserMessage( context, idTokenNameLookup, descriptor ) );
 
         this.descriptor = descriptor;
         this.context = context;
     }
 
-    private static String constructUserMessage( OperationContext context, TokenNameLookup tokenNameLookup,
-            SchemaDescriptor descriptor )
+    private static String constructUserMessage( OperationContext context, TokenNameLookup tokenNameLookup, SchemaDescriptor descriptor )
     {
         switch ( context )
         {
@@ -61,6 +61,10 @@ public class AlreadyIndexedException extends SchemaKernelException
     @Override
     public String getUserMessage( TokenNameLookup tokenNameLookup )
     {
-        return constructUserMessage( context, tokenNameLookup, descriptor );
+        if ( descriptor != null )
+        {
+            return constructUserMessage( context, tokenNameLookup, descriptor );
+        }
+        return "Already indexed.";
     }
 }

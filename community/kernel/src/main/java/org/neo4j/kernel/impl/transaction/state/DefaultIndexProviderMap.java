@@ -23,11 +23,12 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Consumer;
 
-import org.neo4j.graphdb.DependencyResolver;
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
-import org.neo4j.internal.kernel.api.schema.IndexProviderDescriptor;
+import org.neo4j.common.DependencyResolver;
+import org.neo4j.configuration.Config;
+import org.neo4j.configuration.GraphDatabaseSettings;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.internal.schema.IndexProviderDescriptor;
 import org.neo4j.kernel.api.index.IndexProvider;
-import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.impl.api.index.IndexProviderMap;
 import org.neo4j.kernel.impl.api.index.IndexProviderNotFoundException;
 import org.neo4j.kernel.lifecycle.LifecycleAdapter;
@@ -41,6 +42,7 @@ public class DefaultIndexProviderMap extends LifecycleAdapter implements IndexPr
     private final Map<String,IndexProvider> indexProvidersByName = new HashMap<>();
     private final DependencyResolver dependencies;
     private IndexProvider defaultIndexProvider;
+    private IndexProvider fulltextIndexProvider;
     private final Config config;
 
     public DefaultIndexProviderMap( DependencyResolver dependencies, Config config )
@@ -64,7 +66,7 @@ public class DefaultIndexProviderMap extends LifecycleAdapter implements IndexPr
                         providerDescriptor + ". First loaded " + existing + " then " + provider );
             }
         }
-        initDefaultProvider();
+        initDefaultProviders();
     }
 
     @Override
@@ -72,6 +74,13 @@ public class DefaultIndexProviderMap extends LifecycleAdapter implements IndexPr
     {
         assertInit();
         return defaultIndexProvider;
+    }
+
+    @Override
+    public IndexProvider getFulltextProvider()
+    {
+        assertInit();
+        return fulltextIndexProvider;
     }
 
     @Override
@@ -111,19 +120,27 @@ public class DefaultIndexProviderMap extends LifecycleAdapter implements IndexPr
 
     private void assertInit()
     {
-        if ( defaultIndexProvider == null )
+        if ( defaultIndexProvider == null || fulltextIndexProvider == null )
         {
             throw new IllegalStateException( "DefaultIndexProviderMap must be part of life cycle and initialized before getting providers." );
         }
     }
 
-    private void initDefaultProvider()
+    private void initDefaultProviders()
     {
         String providerName = config.get( GraphDatabaseSettings.default_schema_provider );
         IndexProvider configuredDefaultProvider = indexProvidersByName.get( providerName );
         requireNonNull( configuredDefaultProvider, () -> format( "Configured default provider: `%s` not found. Available index providers: %s.", providerName,
                 indexProvidersByName.keySet().toString() ) );
         defaultIndexProvider = configuredDefaultProvider;
+
+        String fulltextProviderName = config.get( GraphDatabaseSettings.default_fulltext_provider );
+        fulltextIndexProvider = indexProvidersByName.get( fulltextProviderName );
+        if ( fulltextIndexProvider == null )
+        {
+            // Not all environments have the full-text index provider available.
+            fulltextIndexProvider = IndexProvider.EMPTY;
+        }
     }
 
     private IndexProvider put( IndexProviderDescriptor providerDescriptor, IndexProvider provider )
@@ -131,5 +148,13 @@ public class DefaultIndexProviderMap extends LifecycleAdapter implements IndexPr
         IndexProvider existing = indexProvidersByDescriptor.putIfAbsent( providerDescriptor, provider );
         indexProvidersByName.putIfAbsent( providerDescriptor.name(), provider );
         return existing;
+    }
+
+    @Override
+    public IndexDescriptor completeConfiguration( IndexDescriptor index )
+    {
+        IndexProviderDescriptor providerDescriptor = index.getIndexProvider();
+        IndexProvider provider = lookup( providerDescriptor );
+        return provider.completeConfiguration( index );
     }
 }

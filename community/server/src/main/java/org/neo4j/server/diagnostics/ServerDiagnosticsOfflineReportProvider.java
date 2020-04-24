@@ -24,14 +24,16 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
-import org.neo4j.diagnostics.DiagnosticsOfflineReportProvider;
-import org.neo4j.diagnostics.DiagnosticsReportSource;
+import org.neo4j.annotations.service.ServiceProvider;
+import org.neo4j.configuration.Config;
 import org.neo4j.io.fs.FileSystemAbstraction;
-import org.neo4j.kernel.configuration.Config;
+import org.neo4j.kernel.diagnostics.DiagnosticsOfflineReportProvider;
+import org.neo4j.kernel.diagnostics.DiagnosticsReportSource;
 import org.neo4j.server.configuration.ServerSettings;
 
-import static org.neo4j.diagnostics.DiagnosticsReportSources.newDiagnosticsRotatingFile;
+import static org.neo4j.kernel.diagnostics.DiagnosticsReportSources.newDiagnosticsRotatingFile;
 
+@ServiceProvider
 public class ServerDiagnosticsOfflineReportProvider extends DiagnosticsOfflineReportProvider
 {
     private FileSystemAbstraction fs;
@@ -39,10 +41,11 @@ public class ServerDiagnosticsOfflineReportProvider extends DiagnosticsOfflineRe
 
     public ServerDiagnosticsOfflineReportProvider()
     {
-        super( "server", "logs" );
+        super( "logs" );
     }
+
     @Override
-    public void init( FileSystemAbstraction fs, Config config, File storeDirectory )
+    public void init( FileSystemAbstraction fs, String defaultDatabaseName, Config config, File storeDirectory )
     {
         this.fs = fs;
         this.config = config;
@@ -53,7 +56,7 @@ public class ServerDiagnosticsOfflineReportProvider extends DiagnosticsOfflineRe
     {
         if ( classifiers.contains( "logs" ) )
         {
-            File httpLog = config.get( ServerSettings.http_log_path );
+            File httpLog = config.get( ServerSettings.http_log_path ).toFile();
             if ( fs.fileExists( httpLog ) )
             {
                 return newDiagnosticsRotatingFile( "logs/http.log", fs, httpLog );

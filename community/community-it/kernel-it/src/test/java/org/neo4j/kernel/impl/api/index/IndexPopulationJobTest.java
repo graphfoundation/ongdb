@@ -19,10 +19,9 @@
  */
 package org.neo4j.kernel.impl.api.index;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentMatchers;
 
 import java.util.Collection;
@@ -31,48 +30,48 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.function.IntPredicate;
 
+import org.neo4j.common.EntityType;
+import org.neo4j.configuration.Config;
+import org.neo4j.dbms.api.DatabaseManagementService;
+import org.neo4j.exceptions.KernelException;
 import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Relationship;
 import org.neo4j.graphdb.RelationshipType;
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
-import org.neo4j.helpers.collection.Pair;
-import org.neo4j.helpers.collection.Visitor;
+import org.neo4j.internal.helpers.collection.Pair;
+import org.neo4j.internal.helpers.collection.Visitor;
 import org.neo4j.internal.kernel.api.InternalIndexState;
-import org.neo4j.internal.kernel.api.Kernel;
-import org.neo4j.internal.kernel.api.Transaction;
+import org.neo4j.internal.kernel.api.PopulationProgress;
 import org.neo4j.internal.kernel.api.exceptions.TransactionFailureException;
-import org.neo4j.internal.kernel.api.exceptions.schema.IllegalTokenNameException;
-import org.neo4j.internal.kernel.api.exceptions.schema.TooManyLabelsException;
-import org.neo4j.internal.kernel.api.schema.LabelSchemaDescriptor;
-import org.neo4j.internal.kernel.api.schema.SchemaDescriptor;
-import org.neo4j.kernel.api.index.IndexEntryUpdate;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.internal.schema.IndexPrototype;
+import org.neo4j.internal.schema.LabelSchemaDescriptor;
+import org.neo4j.internal.schema.SchemaDescriptor;
+import org.neo4j.internal.schema.SchemaState;
+import org.neo4j.kernel.api.Kernel;
+import org.neo4j.kernel.api.KernelTransaction;
 import org.neo4j.kernel.api.index.IndexPopulator;
 import org.neo4j.kernel.api.index.IndexProvider;
 import org.neo4j.kernel.api.index.IndexUpdater;
-import org.neo4j.kernel.api.labelscan.NodeLabelUpdate;
-import org.neo4j.kernel.api.schema.SchemaDescriptorFactory;
-import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.impl.api.DatabaseSchemaState;
-import org.neo4j.kernel.impl.api.SchemaState;
-import org.neo4j.kernel.impl.api.index.sampling.IndexSamplingConfig;
+import org.neo4j.kernel.impl.api.index.stats.IndexStatisticsStore;
 import org.neo4j.kernel.impl.transaction.state.DefaultIndexProviderMap;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
 import org.neo4j.logging.AssertableLogProvider;
 import org.neo4j.logging.AssertableLogProvider.LogMatcherBuilder;
 import org.neo4j.logging.LogProvider;
 import org.neo4j.logging.NullLogProvider;
-import org.neo4j.storageengine.api.EntityType;
+import org.neo4j.scheduler.JobHandle;
+import org.neo4j.storageengine.api.EntityUpdates;
+import org.neo4j.storageengine.api.IndexEntryUpdate;
+import org.neo4j.storageengine.api.NodeLabelUpdate;
 import org.neo4j.storageengine.api.NodePropertyAccessor;
-import org.neo4j.storageengine.api.schema.IndexDescriptor;
-import org.neo4j.storageengine.api.schema.IndexDescriptorFactory;
-import org.neo4j.storageengine.api.schema.PopulationProgress;
 import org.neo4j.test.DoubleLatch;
 import org.neo4j.test.OtherThreadExecutor;
-import org.neo4j.test.TestGraphDatabaseFactory;
-import org.neo4j.test.rule.CleanupRule;
+import org.neo4j.test.TestDatabaseManagementServiceBuilder;
 import org.neo4j.values.storable.Value;
 import org.neo4j.values.storable.Values;
 
@@ -82,9 +81,9 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.sameInstance;
 import static org.hamcrest.core.IsEqual.equalTo;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyCollection;
@@ -96,68 +95,69 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.neo4j.helpers.collection.Iterators.asSet;
-import static org.neo4j.helpers.collection.MapUtil.genericMap;
-import static org.neo4j.helpers.collection.MapUtil.map;
-import static org.neo4j.internal.kernel.api.Transaction.Type.implicit;
+import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
+import static org.neo4j.internal.helpers.collection.Iterators.asSet;
+import static org.neo4j.internal.helpers.collection.MapUtil.genericMap;
+import static org.neo4j.internal.helpers.collection.MapUtil.map;
 import static org.neo4j.internal.kernel.api.security.LoginContext.AUTH_DISABLED;
-import static org.neo4j.kernel.api.index.IndexEntryUpdate.add;
+import static org.neo4j.io.memory.ByteBufferFactory.heapBufferFactory;
+import static org.neo4j.kernel.api.KernelTransaction.Type.implicit;
 import static org.neo4j.kernel.impl.api.index.IndexingService.NO_MONITOR;
 import static org.neo4j.kernel.impl.api.index.TestIndexProviderDescriptor.PROVIDER_DESCRIPTOR;
-import static org.neo4j.kernel.impl.index.schema.ByteBufferFactory.heapBufferFactory;
 import static org.neo4j.logging.AssertableLogProvider.inLog;
+import static org.neo4j.storageengine.api.IndexEntryUpdate.add;
 
-public class IndexPopulationJobTest
+class IndexPopulationJobTest
 {
-    @Rule
-    public final CleanupRule cleanup = new CleanupRule();
-
     private GraphDatabaseAPI db;
 
-    private final Label FIRST = Label.label( "FIRST" );
-    private final Label SECOND = Label.label( "SECOND" );
-    private final RelationshipType likes = RelationshipType.withName( "likes" );
-    private final RelationshipType knows = RelationshipType.withName( "knows" );
-    private final String name = "name";
-    private final String age = "age";
+    private static final Label FIRST = Label.label( "FIRST" );
+    private static final Label SECOND = Label.label( "SECOND" );
+    private static final String name = "name";
+    private static final String age = "age";
+    private static final RelationshipType likes = RelationshipType.withName( "likes" );
+    private static final RelationshipType knows = RelationshipType.withName( "knows" );
 
     private Kernel kernel;
     private IndexStoreView indexStoreView;
     private DatabaseSchemaState stateHolder;
     private int labelId;
+    private IndexStatisticsStore indexStatisticsStore;
+    private DatabaseManagementService managementService;
 
-    @Before
-    public void before() throws Exception
+    @BeforeEach
+    void before() throws Exception
     {
-        db = (GraphDatabaseAPI) new TestGraphDatabaseFactory().newImpermanentDatabaseBuilder()
-                .setConfig( GraphDatabaseSettings.record_id_batch_size, "1" ).newGraphDatabase();
+        managementService = new TestDatabaseManagementServiceBuilder().impermanent().build();
+        db = (GraphDatabaseAPI) managementService.database( DEFAULT_DATABASE_NAME );
         kernel = db.getDependencyResolver().resolveDependency( Kernel.class );
         stateHolder = new DatabaseSchemaState( NullLogProvider.getInstance() );
         indexStoreView = indexStoreView();
+        indexStatisticsStore = db.getDependencyResolver().resolveDependency( IndexStatisticsStore.class );
 
-        try ( Transaction tx = kernel.beginTransaction( implicit, AUTH_DISABLED ) )
+        try ( KernelTransaction tx = kernel.beginTransaction( implicit, AUTH_DISABLED ) )
         {
             labelId = tx.tokenWrite().labelGetOrCreateForName( FIRST.name() );
             tx.tokenWrite().labelGetOrCreateForName( SECOND.name() );
-            tx.success();
+            tx.commit();
         }
     }
 
-    @After
-    public void after()
+    @AfterEach
+    void after()
     {
-        db.shutdown();
+        managementService.shutdown();
     }
 
     @Test
-    public void shouldPopulateIndexWithOneNode() throws Exception
+    void shouldPopulateIndexWithOneNode() throws Exception
     {
         // GIVEN
         String value = "Taylor";
         long nodeId = createNode( map( name, value ), FIRST );
         IndexPopulator populator = spy( indexPopulator( false ) );
-        LabelSchemaDescriptor descriptor = SchemaDescriptorFactory.forLabel( 0, 0 );
-        IndexPopulationJob job = newIndexPopulationJob( populator, new FlippableIndexProxy(), EntityType.NODE, IndexDescriptorFactory.forSchema( descriptor ) );
+        LabelSchemaDescriptor descriptor = SchemaDescriptor.forLabel( 0, 0 );
+        IndexPopulationJob job = newIndexPopulationJob( populator, new FlippableIndexProxy(), EntityType.NODE, IndexPrototype.forSchema( descriptor ) );
 
         // WHEN
         job.run();
@@ -167,19 +167,19 @@ public class IndexPopulationJobTest
 
         verify( populator ).create();
         verify( populator ).includeSample( update );
-        verify( populator, times( 2 ) ).add( any( Collection.class) );
+        verify( populator, times( 2 ) ).add( any( Collection.class ) );
         verify( populator ).sampleResult();
         verify( populator ).close( true );
     }
 
     @Test
-    public void shouldPopulateIndexWithOneRelationship() throws Exception
+    void shouldPopulateIndexWithOneRelationship() throws Exception
     {
         // GIVEN
         String value = "Taylor";
         long nodeId = createNode( map( name, value ), FIRST );
         long relationship = createRelationship( map( name, age ), likes, nodeId, nodeId );
-        IndexDescriptor descriptor = IndexDescriptorFactory.forSchema( SchemaDescriptorFactory.forRelType( 0, 0 ) );
+        IndexPrototype descriptor = IndexPrototype.forSchema( SchemaDescriptor.forRelType( 0, 0 ) );
         IndexPopulator populator = spy( indexPopulator( descriptor ) );
         IndexPopulationJob job =
                 newIndexPopulationJob( populator, new FlippableIndexProxy(), EntityType.RELATIONSHIP, descriptor );
@@ -198,14 +198,14 @@ public class IndexPopulationJobTest
     }
 
     @Test
-    public void shouldFlushSchemaStateAfterPopulation() throws Exception
+    void shouldFlushSchemaStateAfterPopulation() throws Exception
     {
         // GIVEN
         String value = "Taylor";
         createNode( map( name, value ), FIRST );
         stateHolder.put( "key", "original_value" );
         IndexPopulator populator = spy( indexPopulator( false ) );
-        IndexPopulationJob job = newIndexPopulationJob( populator, new FlippableIndexProxy(), EntityType.NODE, indexDescriptor( FIRST, name, false ) );
+        IndexPopulationJob job = newIndexPopulationJob( populator, new FlippableIndexProxy(), EntityType.NODE, indexPrototype( FIRST, name, false ) );
 
         // WHEN
         job.run();
@@ -216,7 +216,7 @@ public class IndexPopulationJobTest
     }
 
     @Test
-    public void shouldPopulateIndexWithASmallDataset() throws Exception
+    void shouldPopulateIndexWithASmallDataset() throws Exception
     {
         // GIVEN
         String value = "Mattias";
@@ -225,8 +225,8 @@ public class IndexPopulationJobTest
         createNode( map( age, 31 ), FIRST );
         long node4 = createNode( map( age, 35, name, value ), FIRST );
         IndexPopulator populator = spy( indexPopulator( false ) );
-        LabelSchemaDescriptor descriptor = SchemaDescriptorFactory.forLabel( 0, 0 );
-        IndexPopulationJob job = newIndexPopulationJob( populator, new FlippableIndexProxy(), EntityType.NODE, IndexDescriptorFactory.forSchema( descriptor ) );
+        LabelSchemaDescriptor descriptor = SchemaDescriptor.forLabel( 0, 0 );
+        IndexPopulationJob job = newIndexPopulationJob( populator, new FlippableIndexProxy(), EntityType.NODE, IndexPrototype.forSchema( descriptor ) );
 
         // WHEN
         job.run();
@@ -244,7 +244,7 @@ public class IndexPopulationJobTest
     }
 
     @Test
-    public void shouldPopulateRelatonshipIndexWithASmallDataset() throws Exception
+    void shouldPopulateRelatonshipIndexWithASmallDataset() throws Exception
     {
         // GIVEN
         String value = "Philip J.Fry";
@@ -258,7 +258,7 @@ public class IndexPopulationJobTest
         createRelationship( map( age, 31 ), likes, node2, node1 );
         long rel4 = createRelationship( map( age, 35, name, value ), likes, node4, node4 );
 
-        IndexDescriptor descriptor = IndexDescriptorFactory.forSchema( SchemaDescriptorFactory.forRelType( 0, 0 ) );
+        IndexPrototype descriptor = IndexPrototype.forSchema( SchemaDescriptor.forRelType( 0, 0 ) );
         IndexPopulator populator = spy( indexPopulator( descriptor ) );
         IndexPopulationJob job =
                 newIndexPopulationJob( populator, new FlippableIndexProxy(), EntityType.RELATIONSHIP, descriptor );
@@ -279,7 +279,7 @@ public class IndexPopulationJobTest
     }
 
     @Test
-    public void shouldIndexConcurrentUpdatesWhilePopulating() throws Exception
+    void shouldIndexConcurrentUpdatesWhilePopulating() throws Exception
     {
         // GIVEN
         Object value1 = "Mattias";
@@ -294,7 +294,7 @@ public class IndexPopulationJobTest
         int propertyKeyId = getPropertyKeyForName( name );
         NodeChangingWriter populator = new NodeChangingWriter( changeNode, propertyKeyId, value1, changedValue,
                 labelId );
-        IndexPopulationJob job = newIndexPopulationJob( populator, new FlippableIndexProxy(), EntityType.NODE, indexDescriptor( FIRST, name, false ) );
+        IndexPopulationJob job = newIndexPopulationJob( populator, new FlippableIndexProxy(), EntityType.NODE, indexPrototype( FIRST, name, false ) );
         populator.setJob( job );
 
         // WHEN
@@ -310,7 +310,7 @@ public class IndexPopulationJobTest
     }
 
     @Test
-    public void shouldRemoveViaConcurrentIndexUpdatesWhilePopulating() throws Exception
+    void shouldRemoveViaConcurrentIndexUpdatesWhilePopulating() throws Exception
     {
         // GIVEN
         String value1 = "Mattias";
@@ -321,7 +321,7 @@ public class IndexPopulationJobTest
         long node3 = createNode( map( name, value3 ), FIRST );
         int propertyKeyId = getPropertyKeyForName( name );
         NodeDeletingWriter populator = new NodeDeletingWriter( node2, propertyKeyId, value2, labelId );
-        IndexPopulationJob job = newIndexPopulationJob( populator, new FlippableIndexProxy(), EntityType.NODE, indexDescriptor( FIRST, name, false ) );
+        IndexPopulationJob job = newIndexPopulationJob( populator, new FlippableIndexProxy(), EntityType.NODE, indexPrototype( FIRST, name, false ) );
         populator.setJob( job );
 
         // WHEN
@@ -335,16 +335,16 @@ public class IndexPopulationJobTest
     }
 
     @Test
-    public void shouldTransitionToFailedStateIfPopulationJobCrashes() throws Exception
+    void shouldTransitionToFailedStateIfPopulationJobCrashes() throws Exception
     {
         // GIVEN
         IndexPopulator failingPopulator = mock( IndexPopulator.class );
-        doThrow( new RuntimeException( "BORK BORK" ) ).when( failingPopulator ).add( any(Collection.class) );
+        doThrow( new RuntimeException( "BORK BORK" ) ).when( failingPopulator ).add( any( Collection.class ) );
 
         FlippableIndexProxy index = new FlippableIndexProxy();
 
         createNode( map( name, "Taylor" ), FIRST );
-        IndexPopulationJob job = newIndexPopulationJob( failingPopulator, index, EntityType.NODE, indexDescriptor( FIRST, name, false ) );
+        IndexPopulationJob job = newIndexPopulationJob( failingPopulator, index, EntityType.NODE, indexPrototype( FIRST, name, false ) );
 
         // WHEN
         job.run();
@@ -354,7 +354,7 @@ public class IndexPopulationJobTest
     }
 
     @Test
-    public void shouldBeAbleToCancelPopulationJob() throws Exception
+    void shouldBeAbleToCancelPopulationJob() throws Exception
     {
         // GIVEN
         createNode( map( name, "Mattias" ), FIRST );
@@ -366,33 +366,41 @@ public class IndexPopulationJobTest
                 ArgumentMatchers.any(),
                 ArgumentMatchers.<Visitor<NodeLabelUpdate,RuntimeException>>any(), anyBoolean() ) )
                 .thenReturn(storeScan );
+        when( storeView.newPropertyAccessor() ).thenReturn( mock( NodePropertyAccessor.class ) );
 
         final IndexPopulationJob job =
-                newIndexPopulationJob( populator, index, storeView, NullLogProvider.getInstance(), EntityType.NODE, indexDescriptor( FIRST, name, false ) );
+                newIndexPopulationJob( populator, index, storeView, NullLogProvider.getInstance(), EntityType.NODE, indexPrototype( FIRST, name, false ) );
+        JobHandle jobHandle = mock( JobHandle.class );
+        job.setHandle( jobHandle );
 
-        OtherThreadExecutor<Void> populationJobRunner = cleanup.add( new OtherThreadExecutor<>(
-                "Population job test runner", null ) );
-        Future<Void> runFuture = populationJobRunner
+        Future<Void> runFuture;
+        try ( OtherThreadExecutor<Void> populationJobRunner = new OtherThreadExecutor<>(
+            "Population job test runner", null ) )
+        {
+            runFuture = populationJobRunner
                 .executeDontWait( state ->
                 {
                     job.run();
                     return null;
                 } );
 
-        storeScan.latch.waitForAllToStart();
-        job.cancel().get();
-        storeScan.latch.waitForAllToFinish();
+            storeScan.latch.waitForAllToStart();
+            job.cancel();
+            job.awaitCompletion( 0, TimeUnit.SECONDS );
+            storeScan.latch.waitForAllToFinish();
 
-        // WHEN
-        runFuture.get();
+            // WHEN
+            runFuture.get();
+        }
 
         // THEN
-        verify( populator, times( 1 ) ).close( false );
+        verify( populator ).close( false );
         verify( index, never() ).flip( any(), any() );
+        verify( jobHandle ).cancel();
     }
 
     @Test
-    public void shouldLogJobProgress() throws Exception
+    void shouldLogJobProgress() throws Exception
     {
         // Given
         createNode( map( name, "irrelephant" ), FIRST );
@@ -403,7 +411,7 @@ public class IndexPopulationJobTest
         try
         {
             IndexPopulationJob job = newIndexPopulationJob( populator, index, indexStoreView, logProvider,
-                            EntityType.NODE, indexDescriptor( FIRST, name, false ) );
+                            EntityType.NODE, indexPrototype( FIRST, name, false ) );
 
             // When
             job.run();
@@ -420,7 +428,7 @@ public class IndexPopulationJobTest
     }
 
     @Test
-    public void logConstraintJobProgress() throws Exception
+    void logConstraintJobProgress() throws Exception
     {
         // Given
         createNode( map( name, "irrelephant" ), FIRST );
@@ -431,7 +439,7 @@ public class IndexPopulationJobTest
         try
         {
             IndexPopulationJob job = newIndexPopulationJob( populator, index, indexStoreView, logProvider,
-                    EntityType.NODE, indexDescriptor( FIRST, name, true ) );
+                    EntityType.NODE, indexPrototype( FIRST, name, true ) );
 
             // When
             job.run();
@@ -448,14 +456,14 @@ public class IndexPopulationJobTest
     }
 
     @Test
-    public void shouldLogJobFailure() throws Exception
+    void shouldLogJobFailure() throws Exception
     {
         // Given
         createNode( map( name, "irrelephant" ), FIRST );
         AssertableLogProvider logProvider = new AssertableLogProvider();
         FlippableIndexProxy index = mock( FlippableIndexProxy.class );
         IndexPopulator populator = spy( indexPopulator( false ) );
-        IndexPopulationJob job = newIndexPopulationJob( populator, index, indexStoreView, logProvider, EntityType.NODE, indexDescriptor( FIRST, name, false ) );
+        IndexPopulationJob job = newIndexPopulationJob( populator, index, indexStoreView, logProvider, EntityType.NODE, indexPrototype( FIRST, name, false ) );
 
         Throwable failure = new IllegalStateException( "not successful" );
         doThrow( failure ).when( populator ).create();
@@ -471,14 +479,14 @@ public class IndexPopulationJobTest
     }
 
     @Test
-    public void shouldFlipToFailedUsingFailedIndexProxyFactory() throws Exception
+    void shouldFlipToFailedUsingFailedIndexProxyFactory() throws Exception
     {
         // Given
         FailedIndexProxyFactory failureDelegateFactory = mock( FailedIndexProxyFactory.class );
         IndexPopulator populator = spy( indexPopulator( false ) );
         IndexPopulationJob job =
                 newIndexPopulationJob( failureDelegateFactory, populator, new FlippableIndexProxy(), indexStoreView, NullLogProvider.getInstance(),
-                        EntityType.NODE, indexDescriptor( FIRST, name, false ) );
+                        EntityType.NODE, indexPrototype( FIRST, name, false ) );
 
         IllegalStateException failure = new IllegalStateException( "not successful" );
         doThrow( failure ).when( populator ).close( true );
@@ -491,13 +499,13 @@ public class IndexPopulationJobTest
     }
 
     @Test
-    public void shouldCloseAndFailOnFailure() throws Exception
+    void shouldCloseAndFailOnFailure() throws Exception
     {
         createNode( map( name, "irrelephant" ), FIRST );
         LogProvider logProvider = NullLogProvider.getInstance();
         FlippableIndexProxy index = mock( FlippableIndexProxy.class );
         IndexPopulator populator = spy( indexPopulator( false ) );
-        IndexPopulationJob job = newIndexPopulationJob( populator, index, indexStoreView, logProvider, EntityType.NODE, indexDescriptor( FIRST, name, false ) );
+        IndexPopulationJob job = newIndexPopulationJob( populator, index, indexStoreView, logProvider, EntityType.NODE, indexPrototype( FIRST, name, false ) );
 
         String failureMessage = "not successful";
         IllegalStateException failure = new IllegalStateException( failureMessage );
@@ -511,12 +519,12 @@ public class IndexPopulationJobTest
     }
 
     @Test
-    public void shouldCloseMultiPopulatorOnSuccessfulPopulation()
+    void shouldCloseMultiPopulatorOnSuccessfulPopulation()
     {
         // given
         NullLogProvider logProvider = NullLogProvider.getInstance();
         TrackingMultipleIndexPopulator populator = new TrackingMultipleIndexPopulator( IndexStoreView.EMPTY, logProvider, EntityType.NODE,
-                new DatabaseSchemaState( logProvider ) );
+                new DatabaseSchemaState( logProvider ), mock( IndexStatisticsStore.class ) );
         IndexPopulationJob populationJob = new IndexPopulationJob( populator, NO_MONITOR, false );
 
         // when
@@ -527,7 +535,7 @@ public class IndexPopulationJobTest
     }
 
     @Test
-    public void shouldCloseMultiPopulatorOnFailedPopulation()
+    void shouldCloseMultiPopulatorOnFailedPopulation()
     {
         // given
         NullLogProvider logProvider = NullLogProvider.getInstance();
@@ -537,7 +545,7 @@ public class IndexPopulationJobTest
             public <FAILURE extends Exception> StoreScan<FAILURE> visitNodes( int[] labelIds, IntPredicate propertyKeyIdFilter,
                     Visitor<EntityUpdates,FAILURE> propertyUpdateVisitor, Visitor<NodeLabelUpdate,FAILURE> labelUpdateVisitor, boolean forceStoreScan )
             {
-                return new StoreScan<FAILURE>()
+                return new StoreScan<>()
                 {
                     @Override
                     public void run()
@@ -564,7 +572,7 @@ public class IndexPopulationJobTest
             }
         };
         TrackingMultipleIndexPopulator populator = new TrackingMultipleIndexPopulator( failingStoreView, logProvider, EntityType.NODE,
-                new DatabaseSchemaState( logProvider ) );
+                new DatabaseSchemaState( logProvider ), mock( IndexStatisticsStore.class ) );
         IndexPopulationJob populationJob = new IndexPopulationJob( populator, NO_MONITOR, false );
 
         // when
@@ -616,7 +624,7 @@ public class IndexPopulationJobTest
             this.nodeToChange = nodeToChange;
             this.previousValue = Values.of( previousValue );
             this.newValue = Values.of( newValue );
-            this.index = SchemaDescriptorFactory.forLabel( label, propertyKeyId );
+            this.index = SchemaDescriptor.forLabel( label, propertyKeyId );
         }
 
         @Override
@@ -663,7 +671,7 @@ public class IndexPopulationJobTest
             };
         }
 
-        public void setJob( IndexPopulationJob job )
+        void setJob( IndexPopulationJob job )
         {
             this.job = job;
         }
@@ -682,10 +690,10 @@ public class IndexPopulationJobTest
         {
             this.nodeToDelete = nodeToDelete;
             this.valueToDelete = Values.of( valueToDelete );
-            this.index = SchemaDescriptorFactory.forLabel( label, propertyKeyId );
+            this.index = SchemaDescriptor.forLabel( label, propertyKeyId );
         }
 
-        public void setJob( IndexPopulationJob job )
+        void setJob( IndexPopulationJob job )
         {
             this.job = job;
         }
@@ -738,56 +746,56 @@ public class IndexPopulationJobTest
         }
     }
 
-    private IndexPopulator indexPopulator( boolean constraint )
-            throws TransactionFailureException, IllegalTokenNameException, TooManyLabelsException
+    private IndexPopulator indexPopulator( boolean constraint ) throws KernelException
     {
-        IndexDescriptor descriptor = indexDescriptor( FIRST, name, constraint );
-        return indexPopulator( descriptor );
+        IndexPrototype prototype = indexPrototype( FIRST, name, constraint );
+        return indexPopulator( prototype );
     }
 
-    private IndexPopulator indexPopulator( IndexDescriptor descriptor )
+    private IndexPopulator indexPopulator( IndexPrototype prototype )
     {
         IndexSamplingConfig samplingConfig = new IndexSamplingConfig( Config.defaults() );
         IndexProvider indexProvider = db.getDependencyResolver().resolveDependency( DefaultIndexProviderMap.class ).getDefaultProvider();
-        return indexProvider.getPopulator( descriptor.withId( 21 ), samplingConfig, heapBufferFactory( 1024 ) );
+        IndexDescriptor indexDescriptor = prototype.withName( "index_21" ).materialise( 21 );
+        indexDescriptor = indexProvider.completeConfiguration( indexDescriptor );
+        return indexProvider.getPopulator( indexDescriptor, samplingConfig, heapBufferFactory( 1024 ) );
     }
 
-    private IndexPopulationJob newIndexPopulationJob( IndexPopulator populator, FlippableIndexProxy flipper, EntityType type, IndexDescriptor descriptor )
+    private IndexPopulationJob newIndexPopulationJob( IndexPopulator populator, FlippableIndexProxy flipper, EntityType type, IndexPrototype prototype )
     {
-        return newIndexPopulationJob( populator, flipper, indexStoreView, NullLogProvider.getInstance(), type, descriptor );
+        return newIndexPopulationJob( populator, flipper, indexStoreView, NullLogProvider.getInstance(), type, prototype );
     }
 
     private IndexPopulationJob newIndexPopulationJob( IndexPopulator populator, FlippableIndexProxy flipper, IndexStoreView storeView, LogProvider logProvider,
-            EntityType type, IndexDescriptor descriptor )
+            EntityType type, IndexPrototype prototype )
     {
-        return newIndexPopulationJob( mock( FailedIndexProxyFactory.class ), populator, flipper, storeView, logProvider, type, descriptor );
+        return newIndexPopulationJob( mock( FailedIndexProxyFactory.class ), populator, flipper, storeView, logProvider, type, prototype );
     }
 
     private IndexPopulationJob newIndexPopulationJob( FailedIndexProxyFactory failureDelegateFactory, IndexPopulator populator, FlippableIndexProxy flipper,
-            IndexStoreView storeView, LogProvider logProvider, EntityType type, IndexDescriptor descriptor )
+            IndexStoreView storeView, LogProvider logProvider, EntityType type, IndexPrototype prototype )
     {
         long indexId = 0;
         flipper.setFlipTarget( mock( IndexProxyFactory.class ) );
 
-        MultipleIndexPopulator multiPopulator = new MultipleIndexPopulator( storeView, logProvider, type, stateHolder );
+        MultipleIndexPopulator multiPopulator = new MultipleIndexPopulator( storeView, logProvider, type, stateHolder, indexStatisticsStore );
         IndexPopulationJob job = new IndexPopulationJob( multiPopulator, NO_MONITOR, false );
-        job.addPopulator( populator, descriptor.withId( indexId ).withoutCapabilities(),
-                format( ":%s(%s)", FIRST.name(), name ), flipper, failureDelegateFactory );
+        IndexDescriptor descriptor = prototype.withName( "index_" + indexId ).materialise( indexId );
+        job.addPopulator( populator, descriptor, format( ":%s(%s)", FIRST.name(), name ), flipper, failureDelegateFactory );
         return job;
     }
 
-    private IndexDescriptor indexDescriptor( Label label, String propertyKey, boolean constraint )
-            throws TransactionFailureException, IllegalTokenNameException, TooManyLabelsException
+    private IndexPrototype indexPrototype( Label label, String propertyKey, boolean constraint ) throws KernelException
     {
-        try ( Transaction tx = kernel.beginTransaction( implicit, AUTH_DISABLED ) )
+        try ( KernelTransaction tx = kernel.beginTransaction( implicit, AUTH_DISABLED ) )
         {
             int labelId = tx.tokenWrite().labelGetOrCreateForName( label.name() );
             int propertyKeyId = tx.tokenWrite().propertyKeyGetOrCreateForName( propertyKey );
-            SchemaDescriptor schema = SchemaDescriptorFactory.forLabel( labelId, propertyKeyId );
-            IndexDescriptor descriptor = constraint ?
-                                         IndexDescriptorFactory.uniqueForSchema( schema, PROVIDER_DESCRIPTOR ) :
-                                         IndexDescriptorFactory.forSchema( schema, PROVIDER_DESCRIPTOR );
-            tx.success();
+            SchemaDescriptor schema = SchemaDescriptor.forLabel( labelId, propertyKeyId );
+            IndexPrototype descriptor = constraint ?
+                                         IndexPrototype.uniqueForSchema( schema, PROVIDER_DESCRIPTOR ) :
+                                         IndexPrototype.forSchema( schema, PROVIDER_DESCRIPTOR );
+            tx.commit();
             return descriptor;
         }
     }
@@ -796,12 +804,12 @@ public class IndexPopulationJobTest
     {
         try ( org.neo4j.graphdb.Transaction tx = db.beginTx() )
         {
-            Node node = db.createNode( labels );
+            Node node = tx.createNode( labels );
             for ( Map.Entry<String,Object> property : properties.entrySet() )
             {
                 node.setProperty( property.getKey(), property.getValue() );
             }
-            tx.success();
+            tx.commit();
             return node.getId();
         }
     }
@@ -810,24 +818,24 @@ public class IndexPopulationJobTest
     {
         try ( org.neo4j.graphdb.Transaction tx = db.beginTx() )
         {
-            Node node1 = db.getNodeById( fromNode );
-            Node node2 = db.getNodeById( toNode );
+            Node node1 = tx.getNodeById( fromNode );
+            Node node2 = tx.getNodeById( toNode );
             Relationship relationship = node1.createRelationshipTo( node2, relType );
             for ( Map.Entry<String,Object> property : properties.entrySet() )
             {
                 relationship.setProperty( property.getKey(), property.getValue() );
             }
-            tx.success();
+            tx.commit();
             return relationship.getId();
         }
     }
 
     private int getPropertyKeyForName( String name ) throws TransactionFailureException
     {
-        try ( Transaction tx = kernel.beginTransaction( implicit, AUTH_DISABLED ) )
+        try ( KernelTransaction tx = kernel.beginTransaction( implicit, AUTH_DISABLED ) )
         {
             int result = tx.tokenRead().propertyKey( name );
-            tx.success();
+            tx.commit();
             return result;
         }
     }
@@ -841,9 +849,10 @@ public class IndexPopulationJobTest
     {
         private volatile boolean closed;
 
-        TrackingMultipleIndexPopulator( IndexStoreView storeView, LogProvider logProvider, EntityType type, SchemaState schemaState )
+        TrackingMultipleIndexPopulator( IndexStoreView storeView, LogProvider logProvider, EntityType type, SchemaState schemaState,
+                IndexStatisticsStore indexStatisticsStore )
         {
-            super( storeView, logProvider, type, schemaState );
+            super( storeView, logProvider, type, schemaState, indexStatisticsStore );
         }
 
         @Override

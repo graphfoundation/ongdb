@@ -19,7 +19,7 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.commands.expressions
 
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
+import org.neo4j.cypher.internal.runtime.ExecutionContext
 import org.neo4j.cypher.internal.runtime.interpreted.commands.AstNode
 import org.neo4j.cypher.internal.runtime.interpreted.commands.predicates.Predicate
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.QueryState
@@ -57,8 +57,4 @@ case class GenericCase(alternatives: IndexedSeq[(Predicate, Expression)], defaul
     f(GenericCase(newAlternatives, newDefault))
   }
 
-  override def symbolTableDependencies: Set[String] = {
-    val expressions = alternativePredicates ++ default.toIndexedSeq ++ alternativeExpressions
-    expressions.flatMap(_.symbolTableDependencies).toSet
-  }
 }

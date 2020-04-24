@@ -28,7 +28,7 @@ import org.neo4j.consistency.statistics.Counts;
 import org.neo4j.consistency.store.DirectRecordReference;
 import org.neo4j.consistency.store.RecordAccess;
 import org.neo4j.consistency.store.RecordReference;
-import org.neo4j.helpers.ArrayUtil;
+import org.neo4j.internal.helpers.ArrayUtil;
 import org.neo4j.kernel.impl.store.record.Record;
 import org.neo4j.kernel.impl.store.record.RelationshipRecord;
 import org.neo4j.kernel.impl.store.record.RelationshipTypeTokenRecord;
@@ -41,7 +41,7 @@ import static org.neo4j.consistency.checking.cache.CacheSlots.RelationshipLink.S
 import static org.neo4j.consistency.checking.cache.CacheSlots.RelationshipLink.SLOT_SOURCE_OR_TARGET;
 import static org.neo4j.consistency.checking.cache.CacheSlots.RelationshipLink.SOURCE;
 import static org.neo4j.consistency.checking.cache.CacheSlots.RelationshipLink.TARGET;
-import static org.neo4j.helpers.ArrayUtil.union;
+import static org.neo4j.internal.helpers.ArrayUtil.union;
 
 public class RelationshipRecordCheck extends
         PrimitiveRecordCheck<RelationshipRecord,ConsistencyReport.RelationshipConsistencyReport>
@@ -473,7 +473,6 @@ public class RelationshipRecordCheck extends
             {
                 if ( referenceShouldBeSkipped( relationship, reference, records ) )
                 {
-                    // wrong direction, so skip
                     cacheAccess.incAndGetCount( Counts.Type.correctSkipCheck );
                     return RecordReference.SkippingReference.skipReference();
                 }
@@ -526,17 +525,18 @@ public class RelationshipRecordCheck extends
             {
                 RecordReference<RelationshipRecord> referred = null;
                 long reference = valueFrom( relationship );
-                long nodeId = -1;
                 if ( records.shouldCheck( reference, MultiPassStore.RELATIONSHIPS ) )
                 {
-                    nodeId = NODE == NodeField.SOURCE ? relationship.getFirstNode() : relationship.getSecondNode();
+                    long nodeId = NODE == NodeField.SOURCE ? relationship.getFirstNode() : relationship.getSecondNode();
                     if ( Record.NO_NEXT_RELATIONSHIP.is( cacheAccess.getFromCache( nodeId, SLOT_RELATIONSHIP_ID ) ) )
                     {
+                        // First, i.e. nothing to compare with
                         referred = RecordReference.SkippingReference.skipReference();
                         cacheAccess.incAndGetCount( Counts.Type.noCacheSkip );
                     }
                     else
                     {
+                        // Not first, we can compare to the previous value
                         referred = buildFromCache( relationship, reference, nodeId, records );
                         if ( referred == RecordReference.SkippingReference.<RelationshipRecord>skipReference() )
                         {

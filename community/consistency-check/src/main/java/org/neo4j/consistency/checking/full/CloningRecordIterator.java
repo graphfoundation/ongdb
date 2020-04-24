@@ -22,14 +22,14 @@ package org.neo4j.consistency.checking.full;
 import java.util.Iterator;
 
 import org.neo4j.graphdb.Resource;
-import org.neo4j.helpers.collection.PrefetchingResourceIterator;
+import org.neo4j.internal.helpers.collection.PrefetchingResourceIterator;
 import org.neo4j.kernel.impl.store.record.AbstractBaseRecord;
 
 public class CloningRecordIterator<R extends AbstractBaseRecord> extends PrefetchingResourceIterator<R>
 {
     private final Iterator<R> actualIterator;
 
-    public CloningRecordIterator( Iterator<R> actualIterator )
+    private CloningRecordIterator( Iterator<R> actualIterator )
     {
         this.actualIterator = actualIterator;
     }
@@ -58,7 +58,7 @@ public class CloningRecordIterator<R extends AbstractBaseRecord> extends Prefetc
         }
     }
 
-    public static <R extends AbstractBaseRecord> Iterator<R> cloned( Iterator<R> iterator )
+    static <R extends AbstractBaseRecord> Iterator<R> cloned( Iterator<R> iterator )
     {
         return new CloningRecordIterator<>( iterator );
     }

@@ -20,55 +20,29 @@
 package org.neo4j.memory;
 
 import java.util.concurrent.atomic.AtomicLong;
-
-import static java.lang.Long.max;
+import java.util.concurrent.atomic.LongAccumulator;
 
 /**
- * A {@link MemoryAllocationTracker} which is thread-safe, forwards allocations and deallocations to another {@link MemoryAllocationTracker}
- * and will register peak memory usage during its lifetime.
+ * A {@link MemoryAllocationTracker} which is thread-safe and will register peak memory usage during its lifetime.
+ * Note that thread-safe and accurate is not the same thing, since we don't enforce the memory ordering peak memory is not exact, but a good enough estimate.
  */
 public class ThreadSafePeakMemoryAllocationTracker implements MemoryAllocationTracker
 {
-    // Why AtomicLong instead of LongAdder? AtomicLong fits this use case due to:
-    // - Having much faster "sum", this is used in every call to allocate/deallocate
-    // - Convenient and accurate sum when making allocations to correctly register peak memory usage
     private final AtomicLong allocated = new AtomicLong();
-    private final AtomicLong peak = new AtomicLong();
-    private final MemoryAllocationTracker alsoReportTo;
-
-    public ThreadSafePeakMemoryAllocationTracker( MemoryAllocationTracker alsoReportTo )
-    {
-        this.alsoReportTo = alsoReportTo;
-    }
+    private final LongAccumulator peak = new LongAccumulator( Long::max, 0 );
 
     @Override
     public void allocated( long bytes )
     {
         // Update allocated
         long total = allocated.addAndGet( bytes );
-
-        // Update peak
-        long currentPeak;
-        long updatedPeak;
-        do
-        {
-            currentPeak = peak.get();
-            if ( currentPeak >= total )
-            {
-                break;
-            }
-            updatedPeak = max( currentPeak, total );
-        }
-        while ( !peak.compareAndSet( currentPeak, updatedPeak ) );
-
-        alsoReportTo.allocated( bytes );
+        peak.accumulate( total );
     }
 
     @Override
     public void deallocated( long bytes )
     {
         allocated.addAndGet( -bytes );
-        alsoReportTo.deallocated( bytes );
     }
 
     @Override

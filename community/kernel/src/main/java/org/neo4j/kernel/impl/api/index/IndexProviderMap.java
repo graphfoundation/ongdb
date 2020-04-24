@@ -21,16 +21,15 @@ package org.neo4j.kernel.impl.api.index;
 
 import java.util.function.Consumer;
 
-import org.neo4j.internal.kernel.api.IndexCapability;
-import org.neo4j.internal.kernel.api.schema.IndexProviderDescriptor;
+import org.neo4j.internal.schema.IndexConfigCompleter;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.internal.schema.IndexProviderDescriptor;
 import org.neo4j.kernel.api.index.IndexProvider;
-import org.neo4j.storageengine.api.schema.CapableIndexDescriptor;
-import org.neo4j.storageengine.api.schema.StoreIndexDescriptor;
 
 /**
  * Contains mapping from {@link IndexProviderDescriptor} or provider name to {@link IndexProvider}.
  */
-public interface IndexProviderMap
+public interface IndexProviderMap extends IndexConfigCompleter
 {
     /**
      * Looks up and returns the {@link IndexProvider} for the given {@link IndexProviderDescriptor}.
@@ -59,27 +58,27 @@ public interface IndexProviderMap
     IndexProvider getDefaultProvider();
 
     /**
+     * The preferred {@link IndexProvider} for handling full-text indexes.
+     *
+     * @return the default or preferred index provider for full-text indexes.
+     */
+    IndexProvider getFulltextProvider();
+
+    /**
      * Visits all the {@link IndexProvider} with the visitor.
      *
      * @param visitor {@link Consumer} visiting all the {@link IndexProvider index providers} in this map.
      */
     void accept( Consumer<IndexProvider> visitor );
 
-    /**
-     * Create a {@link CapableIndexDescriptor} from the given index descriptor, which includes the capabilities
-     * that correspond to those of the index provider of the given {@code descriptor}, found in this {@link IndexProviderMap}.
-     *
-     * @return a CapableIndexDescriptor.
-     */
-    default CapableIndexDescriptor withCapabilities( StoreIndexDescriptor descriptor )
-    {
-        IndexProviderDescriptor providerDescriptor = descriptor.providerDescriptor();
-        IndexCapability capability = lookup( providerDescriptor ).getCapability( descriptor );
-        return new CapableIndexDescriptor( descriptor, capability );
-    }
-
     IndexProviderMap EMPTY = new IndexProviderMap()
     {
+        @Override
+        public IndexDescriptor completeConfiguration( IndexDescriptor index )
+        {
+            return index;
+        }
+
         @Override
         public IndexProvider lookup( IndexProviderDescriptor descriptor ) throws IndexProviderNotFoundException
         {
@@ -94,6 +93,12 @@ public interface IndexProviderMap
 
         @Override
         public IndexProvider getDefaultProvider()
+        {
+            return IndexProvider.EMPTY;
+        }
+
+        @Override
+        public IndexProvider getFulltextProvider()
         {
             return IndexProvider.EMPTY;
         }

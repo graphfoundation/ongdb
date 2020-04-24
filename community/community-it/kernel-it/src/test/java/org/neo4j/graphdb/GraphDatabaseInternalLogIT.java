@@ -19,62 +19,69 @@
  */
 package org.neo4j.graphdb;
 
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.StringWriter;
 import java.nio.file.Files;
+import java.util.List;
 import java.util.stream.Stream;
 
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
+import org.neo4j.configuration.GraphDatabaseSettings;
+import org.neo4j.dbms.api.DatabaseManagementService;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
 import org.neo4j.logging.internal.LogService;
-import org.neo4j.test.TestGraphDatabaseFactory;
+import org.neo4j.test.TestDatabaseManagementServiceBuilder;
+import org.neo4j.test.extension.Inject;
+import org.neo4j.test.extension.testdirectory.TestDirectoryExtension;
 import org.neo4j.test.rule.TestDirectory;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.core.Is.is;
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
 
-public class GraphDatabaseInternalLogIT
+@TestDirectoryExtension
+class GraphDatabaseInternalLogIT
 {
     private static final String INTERNAL_LOG_FILE = "debug.log";
-    @Rule
-    public TestDirectory testDir = TestDirectory.testDirectory();
+    @Inject
+    private TestDirectory testDir;
 
     @Test
-    public void shouldWriteToInternalDiagnosticsLog() throws Exception
+    void shouldWriteToInternalDiagnosticsLog() throws Exception
     {
         // Given
-        new TestGraphDatabaseFactory().newEmbeddedDatabaseBuilder( testDir.databaseDir() )
-                .setConfig( GraphDatabaseSettings.logs_directory, testDir.directory("logs").getAbsolutePath() )
-                .newGraphDatabase().shutdown();
+        DatabaseManagementService managementService = new TestDatabaseManagementServiceBuilder( testDir.homeDir() )
+                .setConfig( GraphDatabaseSettings.logs_directory, testDir.directory("logs").toPath().toAbsolutePath() )
+                .build();
+        managementService.shutdown();
         File internalLog = new File( testDir.directory( "logs" ), INTERNAL_LOG_FILE );
 
         // Then
         assertThat( internalLog.isFile(), is( true ) );
         assertThat( internalLog.length(), greaterThan( 0L ) );
 
-        assertEquals( 1, countOccurrences( internalLog, "Database graph.db is ready." ) );
-        assertEquals( 2, countOccurrences( internalLog, "Database graph.db is unavailable." ) );
+        assertEquals( 1, countOccurrences( internalLog, "Database " + DEFAULT_DATABASE_NAME + " is ready." ) );
+        assertEquals( 2, countOccurrences( internalLog, "Database " + DEFAULT_DATABASE_NAME + " is unavailable." ) );
     }
 
     @Test
-    public void shouldNotWriteDebugToInternalDiagnosticsLogByDefault() throws Exception
+    void shouldNotWriteDebugToInternalDiagnosticsLogByDefault() throws Exception
     {
         // Given
-        GraphDatabaseService db = new TestGraphDatabaseFactory().newEmbeddedDatabaseBuilder( testDir.storeDir() )
-                .setConfig( GraphDatabaseSettings.logs_directory, testDir.directory("logs").getAbsolutePath() )
-                .newGraphDatabase();
+        DatabaseManagementService managementService = new TestDatabaseManagementServiceBuilder( testDir.homeDir() )
+                .setConfig( GraphDatabaseSettings.logs_directory, testDir.directory("logs").toPath().toAbsolutePath() )
+                .build();
+        GraphDatabaseService db = managementService.database( DEFAULT_DATABASE_NAME );
 
         // When
         LogService logService = ((GraphDatabaseAPI) db).getDependencyResolver().resolveDependency( LogService.class );
         logService.getInternalLog( getClass() ).debug( "A debug entry" );
 
-        db.shutdown();
+        managementService.shutdown();
         File internalLog = new File( testDir.directory( "logs" ), INTERNAL_LOG_FILE );
 
         // Then
@@ -85,13 +92,14 @@ public class GraphDatabaseInternalLogIT
     }
 
     @Test
-    public void shouldWriteDebugToInternalDiagnosticsLogForEnabledContexts() throws Exception
+    void shouldWriteDebugToInternalDiagnosticsLogForEnabledContexts() throws Exception
     {
         // Given
-        GraphDatabaseService db = new TestGraphDatabaseFactory().newEmbeddedDatabaseBuilder( testDir.storeDir() )
-                .setConfig( GraphDatabaseSettings.store_internal_debug_contexts, getClass().getName() + ",java.io" )
-                .setConfig( GraphDatabaseSettings.logs_directory, testDir.directory("logs").getAbsolutePath() )
-                .newGraphDatabase();
+        DatabaseManagementService managementService = new TestDatabaseManagementServiceBuilder( testDir.homeDir() )
+                .setConfig( GraphDatabaseSettings.store_internal_debug_contexts, List.of( getClass().getName(), "java.io" ) )
+                .setConfig( GraphDatabaseSettings.logs_directory, testDir.directory("logs").toPath().toAbsolutePath() )
+                .build();
+        GraphDatabaseService db = managementService.database( DEFAULT_DATABASE_NAME );
 
         // When
         LogService logService = ((GraphDatabaseAPI) db).getDependencyResolver().resolveDependency( LogService.class );
@@ -99,7 +107,7 @@ public class GraphDatabaseInternalLogIT
         logService.getInternalLog( GraphDatabaseService.class ).debug( "A GDS debug entry" );
         logService.getInternalLog( StringWriter.class ).debug( "A SW debug entry" );
 
-        db.shutdown();
+        managementService.shutdown();
         File internalLog = new File( testDir.directory( "logs" ), INTERNAL_LOG_FILE );
 
         // Then

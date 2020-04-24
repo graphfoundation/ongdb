@@ -26,14 +26,14 @@ import org.junit.Test;
 import java.io.File;
 import java.util.concurrent.TimeUnit;
 
+import org.neo4j.configuration.GraphDatabaseSettings;
 import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Transaction;
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.graphdb.schema.IndexDefinition;
 import org.neo4j.graphdb.schema.Schema;
-import org.neo4j.test.rule.DatabaseRule;
-import org.neo4j.test.rule.EmbeddedDatabaseRule;
+import org.neo4j.test.rule.DbmsRule;
+import org.neo4j.test.rule.EmbeddedDbmsRule;
 import org.neo4j.test.rule.RandomRule;
 import org.neo4j.values.storable.CoordinateReferenceSystem;
 import org.neo4j.values.storable.Values;
@@ -55,7 +55,7 @@ public class IndexFailureOnStartupTest
     @Rule
     public final RandomRule random = new RandomRule();
     @Rule
-    public final DatabaseRule db = new EmbeddedDatabaseRule().startLazily();
+    public final DbmsRule db = new EmbeddedDbmsRule().startLazily();
 
     @Test
     public void failedIndexShouldRepairAutomatically() throws Exception
@@ -63,8 +63,8 @@ public class IndexFailureOnStartupTest
         // given
         try ( Transaction tx = db.beginTx() )
         {
-            db.schema().indexFor( PERSON ).on( "name" ).create();
-            tx.success();
+            tx.schema().indexFor( PERSON ).on( "name" ).create();
+            tx.commit();
         }
         awaitIndexesOnline( 5, SECONDS );
         createNamed( PERSON, "Johan" );
@@ -83,8 +83,8 @@ public class IndexFailureOnStartupTest
         // given
         try ( Transaction tx = db.beginTx() )
         {
-            db.schema().constraintFor( PERSON ).assertPropertyIsUnique( "name" ).create();
-            tx.success();
+            tx.schema().constraintFor( PERSON ).assertPropertyIsUnique( "name" ).create();
+            tx.commit();
         }
         createNamed( PERSON, "Lars" );
         // when - we restart the database in a state where the index is not operational
@@ -109,24 +109,24 @@ public class IndexFailureOnStartupTest
     public void shouldArchiveFailedIndex() throws Exception
     {
         // given
-        db.withSetting( GraphDatabaseSettings.archive_failed_index, "true" );
+        db.withSetting( GraphDatabaseSettings.archive_failed_index, true );
         try ( Transaction tx = db.beginTx() )
         {
-            Node node = db.createNode( PERSON );
+            Node node = tx.createNode( PERSON );
             node.setProperty( "name", "Fry" );
-            tx.success();
+            tx.commit();
         }
         try ( Transaction tx = db.beginTx() )
         {
-            Node node = db.createNode( PERSON );
+            Node node = tx.createNode( PERSON );
             node.setProperty( "name", Values.pointValue( CoordinateReferenceSystem.WGS84, 1, 2 ) );
-            tx.success();
+            tx.commit();
         }
 
         try ( Transaction tx = db.beginTx() )
         {
-            db.schema().constraintFor( PERSON ).assertPropertyIsUnique( "name" ).create();
-            tx.success();
+            tx.schema().constraintFor( PERSON ).assertPropertyIsUnique( "name" ).create();
+            tx.commit();
         }
         assertThat( archiveFile(), nullValue() );
 
@@ -154,8 +154,8 @@ public class IndexFailureOnStartupTest
     {
         try ( Transaction tx = db.beginTx() )
         {
-            db.schema().awaitIndexesOnline( timeout, unit );
-            tx.success();
+            tx.schema().awaitIndexesOnline( timeout, unit );
+            tx.commit();
         }
     }
 
@@ -164,8 +164,8 @@ public class IndexFailureOnStartupTest
         try ( Transaction tx = db.beginTx() )
         {
             assertNotNull( "Must be able to find node created while index was offline",
-                    db.findNode( label, "name", name ) );
-            tx.success();
+                    tx.findNode( label, "name", name ) );
+            tx.commit();
         }
     }
 
@@ -173,11 +173,11 @@ public class IndexFailureOnStartupTest
     {
         try ( Transaction tx = db.beginTx() )
         {
-            for ( IndexDefinition index : db.schema().getIndexes() )
+            for ( IndexDefinition index : tx.schema().getIndexes() )
             {
-                assertThat( db.schema().getIndexState( index ), matchesExpectation );
+                assertThat( tx.schema().getIndexState( index ), matchesExpectation );
             }
-            tx.success();
+            tx.commit();
         }
     }
 
@@ -185,8 +185,8 @@ public class IndexFailureOnStartupTest
     {
         try ( Transaction tx = db.beginTx() )
         {
-            db.createNode( label ).setProperty( "name", name );
-            tx.success();
+            tx.createNode( label ).setProperty( "name", name );
+            tx.commit();
         }
     }
 }

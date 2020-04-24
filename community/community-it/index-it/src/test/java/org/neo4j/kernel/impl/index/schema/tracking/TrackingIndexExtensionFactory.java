@@ -19,37 +19,45 @@
  */
 package org.neo4j.kernel.impl.index.schema.tracking;
 
-import org.neo4j.kernel.api.impl.schema.NativeLuceneFusionIndexProviderFactory20;
+import java.util.concurrent.ConcurrentHashMap;
+
 import org.neo4j.kernel.api.index.IndexProvider;
-import org.neo4j.kernel.extension.KernelExtensionFactory;
-import org.neo4j.kernel.impl.spi.KernelContext;
+import org.neo4j.kernel.database.Database;
+import org.neo4j.kernel.database.NamedDatabaseId;
+import org.neo4j.kernel.extension.ExtensionFactory;
+import org.neo4j.kernel.extension.ExtensionType;
+import org.neo4j.kernel.extension.context.ExtensionContext;
+import org.neo4j.kernel.impl.index.schema.AbstractIndexProviderFactory;
 
-public class TrackingIndexExtensionFactory extends KernelExtensionFactory<TrackingIndexExtensionFactory.Dependencies>
+public class TrackingIndexExtensionFactory extends ExtensionFactory<TrackingIndexExtensionFactory.Dependencies>
 {
-    private TrackingReadersIndexProvider indexProvider;
+    private final ConcurrentHashMap<String,TrackingReadersIndexProvider> indexProvider = new ConcurrentHashMap<>();
+    private final AbstractIndexProviderFactory delegate;
 
-    public TrackingIndexExtensionFactory()
+    public TrackingIndexExtensionFactory( AbstractIndexProviderFactory delegate )
     {
-        super( "trackingIndex" );
+        super( ExtensionType.DATABASE, "trackingIndex" );
+        this.delegate = delegate;
     }
 
-    public interface Dependencies extends NativeLuceneFusionIndexProviderFactory20.Dependencies
+    public interface Dependencies extends AbstractIndexProviderFactory.Dependencies
     {
+        Database database();
     }
 
     @Override
-    public synchronized IndexProvider newInstance( KernelContext context, Dependencies dependencies )
+    public synchronized IndexProvider newInstance( ExtensionContext context, Dependencies dependencies )
     {
-        if ( indexProvider == null )
+        NamedDatabaseId namedDatabaseId = dependencies.database().getNamedDatabaseId();
+        return indexProvider.computeIfAbsent( namedDatabaseId.name(), s ->
         {
-            IndexProvider indexProvider = new NativeLuceneFusionIndexProviderFactory20().newInstance( context, dependencies );
-            this.indexProvider = new TrackingReadersIndexProvider( indexProvider );
-        }
-        return indexProvider;
+            IndexProvider indexProvider = delegate.newInstance( context, dependencies );
+            return new TrackingReadersIndexProvider( indexProvider );
+        } );
     }
 
-    public TrackingReadersIndexProvider getIndexProvider()
+    public TrackingReadersIndexProvider getIndexProvider( String databaseName )
     {
-        return indexProvider;
+        return indexProvider.get( databaseName );
     }
 }

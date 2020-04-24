@@ -19,8 +19,6 @@
  */
 package org.neo4j.kernel.impl.query;
 
-import org.neo4j.graphdb.Lock;
-import org.neo4j.graphdb.PropertyContainer;
 import org.neo4j.internal.kernel.api.security.SecurityContext;
 import org.neo4j.kernel.GraphDatabaseQueryService;
 import org.neo4j.kernel.api.KernelTransaction;
@@ -28,25 +26,35 @@ import org.neo4j.kernel.api.ResourceTracker;
 import org.neo4j.kernel.api.Statement;
 import org.neo4j.kernel.api.dbms.DbmsOperations;
 import org.neo4j.kernel.api.query.ExecutingQuery;
-import org.neo4j.kernel.api.txstate.TxStateHolder;
+import org.neo4j.kernel.database.NamedDatabaseId;
+import org.neo4j.kernel.impl.coreapi.InternalTransaction;
 import org.neo4j.kernel.impl.query.statistic.StatisticProvider;
+import org.neo4j.values.ValueMapper;
 
 public interface TransactionalContext
 {
+    ValueMapper<Object> valueMapper();
+
     ExecutingQuery executingQuery();
 
     DbmsOperations dbmsOperations();
 
     KernelTransaction kernelTransaction();
 
+    InternalTransaction transaction();
+
     boolean isTopLevelTx();
 
     /**
      * This should be called once the query is finished, either successfully or not.
      * Should be called from the same thread the query was executing in.
-     * @param success signals if the underlying transaction should be committed or rolled back.
      */
-    void close( boolean success );
+    void close();
+
+    /**
+     * Close and rollback transaction context. For cases when exception occurred during query execution and owning transaction should be rolledback
+     */
+    void rollback();
 
     /**
      * This is used to terminate a currently running query. Can be called from any thread. Will roll back the current
@@ -56,13 +64,13 @@ public interface TransactionalContext
 
     void commitAndRestartTx();
 
-    void cleanForReuse();
-
     TransactionalContext getOrBeginNewIfClosed();
 
     boolean isOpen();
 
     GraphDatabaseQueryService graph();
+
+    NamedDatabaseId databaseId();
 
     Statement statement();
 
@@ -72,10 +80,6 @@ public interface TransactionalContext
      * thrown.
      */
     void check();
-
-    TxStateHolder stateView();
-
-    Lock acquireWriteLock( PropertyContainer p );
 
     SecurityContext securityContext();
 

@@ -4,36 +4,36 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <parent>
-        <groupId>org.graphfoundation.ongdb</groupId>
+        <groupId>org.neo4j</groupId>
         <artifactId>community-integration-tests</artifactId>
         <version>4.0.4-SNAPSHOT</version>
     </parent>
 
-    <groupId>org.graphfoundation.ongdb.community</groupId>
+    <groupId>org.neo4j.community</groupId>
     <artifactId>cypher-it</artifactId>
-    <version>4.0.4-SNAPSHOT</version>
 
-    <name>ONgDB - Community Cypher Integration Tests</name>
+    <name>Neo4j - Community Cypher Integration Tests</name>
     <packaging>jar</packaging>
-    <description>ONgDB Community Edition cypher integration tests.</description>
+    <description>Neo4j community edition cypher integration tests.</description>
 
     <properties>
         <license-text.header>headers/GPL-3-header.txt</license-text.header>
         <licensing.prepend.text>licensing/notice-gpl-prefix.txt</licensing.prepend.text>
-        <moduleName>org.neo4j.community.cypher-it</moduleName>
+        <moduleName>org.neo4j.community.cypher.it</moduleName>
     </properties>
 
     <scm>
-        <connection>scm:git:git://github.com/graphfoundation/ongdb.git</connection>
-        <developerConnection>scm:git:git@github.com:graphfoundation/ongdb.git</developerConnection>
-        <url>https://github.com/graphfoundation/ongdb</url>
+        <connection>scm:git:git://github.com/neo4j/neo4j.git</connection>
+        <developerConnection>scm:git:git@github.com:neo4j/neo4j.git</developerConnection>
+        <url>https://github.com/neo4j/neo4j</url>
     </scm>
 
     <licenses>
         <license>
             <name>GNU General Public License, Version 3</name>
             <url>http://www.gnu.org/licenses/gpl-3.0-standalone.html</url>
-            <comments>The software ("Software") developed and owned by Neo4j Sweden AB (referred to in this notice as "Neo4j") is
+            <comments>
+                The software ("Software") developed and owned by Neo4j Sweden AB (referred to in this notice as "Neo4j") is
                 licensed under the GNU GENERAL PUBLIC LICENSE Version 3 to all third
                 parties and that license is included below.
 
@@ -59,33 +59,41 @@
 
     <dependencies>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.graphfoundation.ongdb.community</groupId>
+            <groupId>org.neo4j.community</groupId>
             <artifactId>it-test-support</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-logging</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>log-test-utils</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-kernel</artifactId>
             <version>${project.version}</version>
             <type>test-jar</type>
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-kernel</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-security</artifactId>
             <version>${project.version}</version>
-            <type>test-jar</type>
             <scope>test</scope>
+            <type>test-jar</type>
         </dependency>
         <dependency>
-            <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter-migrationsupport</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-security</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.junit.vintage</groupId>
@@ -93,15 +101,11 @@
         </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter-engine</artifactId>
+            <artifactId>junit-jupiter</artifactId>
         </dependency>
         <dependency>
             <groupId>org.hamcrest</groupId>
-            <artifactId>hamcrest-core</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.hamcrest</groupId>
-            <artifactId>hamcrest-library</artifactId>
+            <artifactId>hamcrest</artifactId>
         </dependency>
         <dependency>
             <groupId>org.mockito</groupId>
@@ -127,47 +131,43 @@
         <!-- scala test dependencies -->
         <dependency>
             <groupId>org.scalatest</groupId>
-            <artifactId>scalatest_2.11</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.scalautils</groupId>
-            <artifactId>scalautils_2.11</artifactId>
+            <artifactId>scalatest_${scala.binary.version}</artifactId>
         </dependency>
         <dependency>
             <groupId>org.scalacheck</groupId>
-            <artifactId>scalacheck_2.11</artifactId>
+            <artifactId>scalacheck_${scala.binary.version}</artifactId>
         </dependency>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-cypher</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-cypher</artifactId>
             <version>${project.version}</version>
             <type>test-jar</type>
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-cypher-planner-spi-3.6</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-cypher-planner-spi</artifactId>
             <version>${project.version}</version>
             <type>test-jar</type>
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-util-3.6</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-util-4.0</artifactId>
             <version>${project.version}</version>
             <type>test-jar</type>
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-cypher-runtime-util</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-cypher-runtime-util</artifactId>
             <version>${project.version}</version>
             <type>test-jar</type>
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-cypher-interpreted-runtime</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-cypher-interpreted-runtime</artifactId>
             <version>${project.version}</version>
             <type>test-jar</type>
             <scope>test</scope>

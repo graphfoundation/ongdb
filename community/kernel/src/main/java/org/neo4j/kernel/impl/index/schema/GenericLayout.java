@@ -19,17 +19,18 @@
  */
 package org.neo4j.kernel.impl.index.schema;
 
+import org.neo4j.index.internal.gbptree.Layout;
 import org.neo4j.io.pagecache.PageCursor;
-import org.neo4j.kernel.impl.index.schema.config.IndexSpecificSpaceFillingCurveSettingsCache;
+import org.neo4j.kernel.impl.index.schema.config.IndexSpecificSpaceFillingCurveSettings;
 
 class GenericLayout extends IndexLayout<GenericKey,NativeIndexValue>
 {
     private final int numberOfSlots;
-    private final IndexSpecificSpaceFillingCurveSettingsCache spatialSettings;
+    private final IndexSpecificSpaceFillingCurveSettings spatialSettings;
 
-    GenericLayout( int numberOfSlots, IndexSpecificSpaceFillingCurveSettingsCache spatialSettings )
+    GenericLayout( int numberOfSlots, IndexSpecificSpaceFillingCurveSettings spatialSettings )
     {
-        super( "NSIL", 0, 5 );
+        super( false, Layout.namedIdentifier( "NSIL", numberOfSlots ), 0, 5 );
         this.numberOfSlots = numberOfSlots;
         this.spatialSettings = spatialSettings;
     }
@@ -70,19 +71,25 @@ class GenericLayout extends IndexLayout<GenericKey,NativeIndexValue>
     }
 
     @Override
-    public boolean fixedSize()
-    {
-        return false;
-    }
-
-    @Override
     public void minimalSplitter( GenericKey left, GenericKey right, GenericKey into )
     {
         right.minimalSplitter( left, right, into );
     }
 
-    IndexSpecificSpaceFillingCurveSettingsCache getSpaceFillingCurveSettings()
+    IndexSpecificSpaceFillingCurveSettings getSpaceFillingCurveSettings()
     {
         return spatialSettings;
+    }
+
+    @Override
+    public void initializeAsLowest( GenericKey key )
+    {
+        key.initValuesAsLowest();
+    }
+
+    @Override
+    public void initializeAsHighest( GenericKey key )
+    {
+        key.initValuesAsHighest();
     }
 }

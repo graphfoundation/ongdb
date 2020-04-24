@@ -21,7 +21,7 @@ package org.neo4j.internal.collector
 
 import java.nio.file.Files
 
-import org.neo4j.graphdb.factory.GraphDatabaseSettings
+import org.neo4j.configuration.GraphDatabaseSettings
 import org.neo4j.graphdb.{Node, Path, Relationship}
 import org.scalatest.matchers.{MatchResult, Matcher}
 
@@ -149,7 +149,7 @@ class DataCollectorQueriesAcceptanceTest extends DataCollectorTestSupport {
   test("should retrieve query execution plan and estimated rows") {
     // given
     execute("CALL db.stats.stop('QUERIES')").single
-    execute("CREATE (a), (b), (c)")
+    execute("UNWIND range(0, 19) AS i CREATE (n)")
 
     execute("CALL db.stats.collect('QUERIES')").single
     execute("MATCH (n) RETURN sum(id(n))")
@@ -177,7 +177,7 @@ class DataCollectorQueriesAcceptanceTest extends DataCollectorTestSupport {
               )
             )
           ),
-          "estimatedRows" -> List(1.0, 1.0, 3.0)
+          "estimatedRows" -> List(1.0, 1.0, 20.0)
         )
       ),
       beMapContaining(
@@ -319,7 +319,7 @@ class DataCollectorQueriesAcceptanceTest extends DataCollectorTestSupport {
 
   test("should limit the collected query text size by configured max_query_text_size") {
     // given
-    restartWithConfig(Map(GraphDatabaseSettings.data_collector_max_query_text_size -> "33"))
+    restartWithConfig(Map(GraphDatabaseSettings.data_collector_max_query_text_size -> Integer.valueOf(33)))
     val largeQuery = (0 until 10).map(i => s"CREATE (n$i) ").mkString("\n")
     execute(largeQuery)
 
@@ -339,7 +339,7 @@ class DataCollectorQueriesAcceptanceTest extends DataCollectorTestSupport {
 
   test("should drop query text on max_query_text_size=0") {
     // given
-    restartWithConfig(Map(GraphDatabaseSettings.data_collector_max_query_text_size -> "0"))
+    restartWithConfig(Map(GraphDatabaseSettings.data_collector_max_query_text_size -> Integer.valueOf(0)))
     execute("RETURN 1")
 
     // when
@@ -356,7 +356,7 @@ class DataCollectorQueriesAcceptanceTest extends DataCollectorTestSupport {
 
   test("should distinguish queries even though dropped query text is not unique") {
     // given
-    restartWithConfig(Map(GraphDatabaseSettings.data_collector_max_query_text_size -> "6"))
+    restartWithConfig(Map(GraphDatabaseSettings.data_collector_max_query_text_size -> Integer.valueOf(6)))
     execute("RETURN 1+1 AS a", params = Map("p" -> 1))
     execute("RETURN 1+2 AS a", params = Map("p" -> 2))
     execute("RETURN 1+3 AS a", params = Map("p" -> 3))
@@ -461,7 +461,7 @@ class DataCollectorQueriesAcceptanceTest extends DataCollectorTestSupport {
 
   test("should respect the configured max_recent_query_count") {
     // given
-    restartWithConfig(Map(GraphDatabaseSettings.data_collector_max_recent_query_count -> "4"))
+    restartWithConfig(Map(GraphDatabaseSettings.data_collector_max_recent_query_count -> Integer.valueOf(4)))
     execute("RETURN 1")
     execute("RETURN 1, 2")
     execute("RETURN 1, 2, 3")
@@ -495,7 +495,7 @@ class DataCollectorQueriesAcceptanceTest extends DataCollectorTestSupport {
 
   test("should not collect queries for max_recent_query_count=0") {
     // given
-    restartWithConfig(Map(GraphDatabaseSettings.data_collector_max_recent_query_count -> "0"))
+    restartWithConfig(Map(GraphDatabaseSettings.data_collector_max_recent_query_count -> Integer.valueOf(0)))
     execute("RETURN 1")
 
     // when
@@ -527,7 +527,7 @@ class DataCollectorQueriesAcceptanceTest extends DataCollectorTestSupport {
     execute("CREATE (:User {age: 99})-[:KNOWS]->(:Buddy {p: 42})-[:WANTS]->(:Raccoon)") // create tokens
 
     execute("EXPLAIN MATCH (:User)-[:KNOWS]->(:Buddy)-[:WANTS]->(:Raccoon) RETURN 1")
-    execute("CYPHER 3.4 runtime=interpreted PROFILE CREATE ()")
+    execute("CYPHER 3.5 runtime=interpreted PROFILE CREATE ()")
 
     // when
     val res = execute("CALL db.stats.retrieveAllAnonymized('myToken')")
@@ -535,7 +535,7 @@ class DataCollectorQueriesAcceptanceTest extends DataCollectorTestSupport {
     // then
     res.toList should beListWithoutOrder(
       querySection("EXPLAIN MATCH (:L0)-[:R0]->(:L1)-[:R1]->(:L2) RETURN 1"),
-      querySection("CYPHER 3.4 runtime=interpreted PROFILE CREATE ()")
+      querySection("CYPHER 3.5 runtime=interpreted PROFILE CREATE ()")
     )
   }
 

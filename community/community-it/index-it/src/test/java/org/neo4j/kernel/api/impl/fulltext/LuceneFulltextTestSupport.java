@@ -19,38 +19,40 @@
  */
 package org.neo4j.kernel.api.impl.fulltext;
 
-import org.apache.lucene.queryparser.classic.ParseException;
+import org.eclipse.collections.api.set.primitive.MutableLongSet;
+import org.eclipse.collections.impl.factory.primitive.LongSets;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.rules.RuleChain;
 
 import java.io.IOException;
-import java.lang.reflect.Field;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
-import java.util.Properties;
+import java.util.Map;
 
-import org.neo4j.collection.primitive.PrimitiveLongCollections;
-import org.neo4j.collection.primitive.PrimitiveLongSet;
 import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Relationship;
 import org.neo4j.graphdb.RelationshipType;
 import org.neo4j.graphdb.Transaction;
 import org.neo4j.graphdb.config.Setting;
-import org.neo4j.internal.kernel.api.IndexReference;
+import org.neo4j.internal.kernel.api.IndexQuery;
+import org.neo4j.internal.kernel.api.IndexReadSession;
 import org.neo4j.internal.kernel.api.InternalIndexState;
+import org.neo4j.internal.kernel.api.NodeValueIndexCursor;
+import org.neo4j.internal.kernel.api.RelationshipIndexCursor;
 import org.neo4j.internal.kernel.api.exceptions.TransactionFailureException;
-import org.neo4j.internal.kernel.api.exceptions.schema.IndexNotFoundKernelException;
 import org.neo4j.internal.kernel.api.security.LoginContext;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.internal.schema.IndexOrder;
 import org.neo4j.kernel.api.KernelTransaction;
 import org.neo4j.kernel.impl.api.KernelImpl;
 import org.neo4j.kernel.impl.api.KernelTransactionImplementation;
 import org.neo4j.kernel.impl.api.index.IndexProviderMap;
-import org.neo4j.kernel.impl.coreapi.TopLevelTransaction;
-import org.neo4j.test.rule.DatabaseRule;
-import org.neo4j.test.rule.EmbeddedDatabaseRule;
+import org.neo4j.kernel.impl.coreapi.InternalTransaction;
+import org.neo4j.kernel.impl.coreapi.TransactionImpl;
+import org.neo4j.kernel.impl.index.schema.FulltextIndexProviderFactory;
+import org.neo4j.test.rule.DbmsRule;
+import org.neo4j.test.rule.EmbeddedDbmsRule;
 import org.neo4j.test.rule.RepeatRule;
 
 import static java.lang.String.format;
@@ -66,15 +68,16 @@ public class LuceneFulltextTestSupport
     static final Label LABEL = Label.label( "LABEL" );
     static final RelationshipType RELTYPE = RelationshipType.withName( "type" );
     static final String PROP = "prop";
+    static final String PROP2 = "prop2";
+    static final String PROP3 = "prop3";
 
-    DatabaseRule db = new EmbeddedDatabaseRule();
+    DbmsRule db = new EmbeddedDbmsRule();
     private RepeatRule repeatRule = createRepeatRule();
 
     @Rule
     public RuleChain rules = RuleChain.outerRule( repeatRule ).around( db );
 
-    Properties settings;
-    FulltextAdapter fulltextAdapter;
+    FulltextIndexProvider indexProvider;
 
     protected RepeatRule createRepeatRule()
     {
@@ -84,15 +87,14 @@ public class LuceneFulltextTestSupport
     @Before
     public void setUp()
     {
-        settings = new Properties();
-        fulltextAdapter = getAccessor();
+        indexProvider = getAdapter();
     }
 
     void applySetting( Setting<String> setting, String value ) throws IOException
     {
-        db.restartDatabase( setting.name(), value );
+        db.restartDatabase( Map.of( setting, value ) );
         db.ensureStarted();
-        fulltextAdapter = getAccessor();
+        indexProvider = getAdapter();
     }
 
     KernelTransactionImplementation getKernelTransaction()
@@ -100,7 +102,7 @@ public class LuceneFulltextTestSupport
         try
         {
             return (KernelTransactionImplementation) db.resolveDependency( KernelImpl.class ).beginTransaction(
-                    org.neo4j.internal.kernel.api.Transaction.Type.explicit, LoginContext.AUTH_DISABLED );
+                    KernelTransaction.Type.explicit, LoginContext.AUTH_DISABLED );
         }
         catch ( TransactionFailureException e )
         {
@@ -108,127 +110,128 @@ public class LuceneFulltextTestSupport
         }
     }
 
-    private FulltextAdapter getAccessor()
+    private FulltextIndexProvider getAdapter()
     {
-        return (FulltextAdapter) db.resolveDependency( IndexProviderMap.class ).lookup( FulltextIndexProviderFactory.DESCRIPTOR );
+        return (FulltextIndexProvider) db.resolveDependency( IndexProviderMap.class ).lookup( FulltextIndexProviderFactory.DESCRIPTOR );
     }
 
-    long createNodeIndexableByPropertyValue( Label label, Object propertyValue )
+    long createNodeIndexableByPropertyValue( Transaction tx, Label label, Object propertyValue )
     {
-        return createNodeWithProperty( label, PROP, propertyValue );
+        return createNodeWithProperty( tx, label, PROP, propertyValue );
     }
 
-    long createNodeWithProperty( Label label, String propertyKey, Object propertyValue )
+    long createNodeWithProperty( Transaction tx, Label label, String propertyKey, Object propertyValue )
     {
-        Node node = db.createNode( label );
+        Node node = tx.createNode( label );
         node.setProperty( propertyKey, propertyValue );
         return node.getId();
     }
 
-    long createRelationshipIndexableByPropertyValue( long firstNodeId, long secondNodeId, Object propertyValue )
+    long createRelationshipIndexableByPropertyValue( Transaction transaction, long firstNodeId, long secondNodeId, Object propertyValue )
     {
-        return createRelationshipWithProperty( firstNodeId, secondNodeId, PROP, propertyValue );
+        return createRelationshipWithProperty( transaction, firstNodeId, secondNodeId, PROP, propertyValue );
     }
 
-    long createRelationshipWithProperty( long firstNodeId, long secondNodeId, String propertyKey, Object propertyValue )
+    long createRelationshipWithProperty( Transaction transaction, long firstNodeId, long secondNodeId, String propertyKey, Object propertyValue )
     {
-        Node first = db.getNodeById( firstNodeId );
-        Node second = db.getNodeById( secondNodeId );
+        Node first = transaction.getNodeById( firstNodeId );
+        Node second = transaction.getNodeById( secondNodeId );
         Relationship relationship = first.createRelationshipTo( second, RELTYPE );
         relationship.setProperty( propertyKey, propertyValue );
         return relationship.getId();
     }
 
-    public static KernelTransaction kernelTransaction( Transaction tx ) throws Exception
+    static KernelTransaction kernelTransaction( Transaction tx )
     {
-        assertThat( tx, instanceOf( TopLevelTransaction.class ) );
-        Field transactionField = TopLevelTransaction.class.getDeclaredField( "transaction" );
-        transactionField.setAccessible( true );
-        return (KernelTransaction) transactionField.get( tx );
+        assertThat( tx, instanceOf( TransactionImpl.class ) );
+        return ((InternalTransaction)tx).kernelTransaction();
     }
 
-    void assertQueryFindsNothing( KernelTransaction ktx, String indexName, String query ) throws Exception
+    void assertQueryFindsNothing( KernelTransaction ktx, boolean nodes, String indexName, String query ) throws Exception
     {
-        assertQueryFindsIds( ktx, indexName, query );
+        assertQueryFindsIds( ktx, nodes, indexName, query );
     }
 
-    void assertQueryFindsIds( KernelTransaction ktx, String indexName, String query, long... ids ) throws Exception
+    void assertQueryFindsIds( KernelTransaction ktx, boolean nodes, String indexName, String query, long... ids ) throws Exception
     {
-        ScoreEntityIterator result = fulltextAdapter.query( ktx, indexName, query );
-        assertQueryResultsMatch( result, ids );
-    }
-
-    void assertQueryFindsIdsInOrder( KernelTransaction ktx, String indexName, String query, long... ids )
-            throws IOException, IndexNotFoundKernelException, ParseException
-    {
-        ScoreEntityIterator result = fulltextAdapter.query( ktx, indexName, query );
-        assertQueryResultsMatchInOrder( result, ids );
-    }
-
-    private static void assertQueryResultsMatch( ScoreEntityIterator result, long[] ids )
-    {
-        PrimitiveLongSet set = PrimitiveLongCollections.setOf( ids );
-        while ( result.hasNext() )
+        IndexDescriptor index = ktx.schemaRead().indexGetForName( indexName );
+        IndexReadSession indexSession = ktx.dataRead().indexReadSession( index );
+        MutableLongSet set = LongSets.mutable.of( ids );
+        if ( nodes )
         {
-            long next = result.next().entityId();
-            assertTrue( format( "Result returned node id %d, expected one of %s", next, Arrays.toString( ids ) ), set.remove( next ) );
+            try ( NodeValueIndexCursor cursor = ktx.cursors().allocateNodeValueIndexCursor() )
+            {
+                ktx.dataRead().nodeIndexSeek( indexSession, cursor, IndexOrder.NONE, false, IndexQuery.fulltextSearch( query ) );
+                while ( cursor.next() )
+                {
+                    long nodeId = cursor.nodeReference();
+                    assertTrue( format( "Result returned node id %d, expected one of %s", nodeId, Arrays.toString( ids ) ), set.remove( nodeId ) );
+                }
+            }
         }
+        else
+        {
+            try ( RelationshipIndexCursor cursor = ktx.cursors().allocateRelationshipIndexCursor() )
+            {
+                ktx.dataRead().relationshipIndexSeek( index, cursor, IndexQuery.fulltextSearch( query ) );
+                while ( cursor.next() )
+                {
+                    long relationshipId = cursor.relationshipReference();
+                    assertTrue( format( "Result returned relationship id %d, expected one of %s",
+                            relationshipId, Arrays.toString( ids ) ), set.remove( relationshipId ) );
+                }
+            }
+        }
+
         if ( !set.isEmpty() )
         {
-            List<Long> list = new ArrayList<>();
-            set.visitKeys( k -> !list.add( k ) );
-            fail( "Number of results differ from expected. " + set.size() + " IDs were not found in the result: " + list );
+            fail( "Number of results differ from expected. " + set.size() + " IDs were not found in the result: " + set );
         }
     }
 
-    private static void assertQueryResultsMatchInOrder( ScoreEntityIterator result, long[] ids )
+    void assertQueryFindsNodeIdsInOrder( KernelTransaction ktx, String indexName, String query, long... ids )
+            throws Exception
     {
-        int num = 0;
-        float score = Float.MAX_VALUE;
-        while ( result.hasNext() )
+
+        IndexDescriptor index = ktx.schemaRead().indexGetForName( indexName );
+        IndexReadSession indexSession = ktx.dataRead().indexReadSession( index );
+        try ( NodeValueIndexCursor cursor = ktx.cursors().allocateNodeValueIndexCursor() )
         {
-            ScoreEntityIterator.ScoreEntry scoredResult = result.next();
-            long nextId = scoredResult.entityId();
-            float nextScore = scoredResult.score();
-            assertThat( nextScore, lessThanOrEqualTo( score ) );
-            score = nextScore;
-            assertEquals( format( "Result returned node id %d, expected %d", nextId, ids[num] ), ids[num], nextId );
-            num++;
-        }
-        assertEquals( "Number of results differ from expected", ids.length, num );
-    }
-
-    void setNodeProp( long nodeId, String value )
-    {
-        setNodeProp( nodeId, PROP, value );
-    }
-
-    void setNodeProp( long nodeId, String propertyKey, String value )
-    {
-        try ( Transaction tx = db.beginTx() )
-        {
-            Node node = db.getNodeById( nodeId );
-            node.setProperty( propertyKey, value );
-            tx.success();
+            int num = 0;
+            float score = Float.MAX_VALUE;
+            ktx.dataRead().nodeIndexSeek( indexSession, cursor, IndexOrder.NONE, false, IndexQuery.fulltextSearch( query ) );
+            while ( cursor.next() )
+            {
+                long nextId = cursor.nodeReference();
+                float nextScore = cursor.score();
+                assertThat( nextScore, lessThanOrEqualTo( score ) );
+                score = nextScore;
+                assertEquals( format( "Result returned node id %d, expected %d", nextId, ids[num] ), ids[num], nextId );
+                num++;
+            }
+            assertEquals( "Number of results differ from expected", ids.length, num );
         }
     }
 
-    void await( IndexReference descriptor ) throws Exception
+    void setNodeProp( Transaction transaction, long nodeId, String value )
+    {
+        setNodeProp( transaction, nodeId, PROP, value );
+    }
+
+    void setNodeProp( Transaction transaction, long nodeId, String propertyKey, String value )
+    {
+        Node node = transaction.getNodeById( nodeId );
+        node.setProperty( propertyKey, value );
+    }
+
+    void await( IndexDescriptor index ) throws Exception
     {
         try ( KernelTransactionImplementation tx = getKernelTransaction() )
         {
-            while ( tx.schemaRead().index( descriptor.schema() ) == IndexReference.NO_INDEX )
+            while ( tx.schemaRead().indexGetState( index ) != InternalIndexState.ONLINE )
             {
                 Thread.sleep( 100 );
             }
-            while ( tx.schemaRead().indexGetState( descriptor ) != InternalIndexState.ONLINE )
-            {
-                Thread.sleep( 100 );
-            }
-        }
-        catch ( InterruptedException e )
-        {
-            e.printStackTrace();
         }
     }
 }

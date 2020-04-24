@@ -19,28 +19,26 @@
  */
 package org.neo4j.kernel.impl.newapi;
 
-import java.util.function.Supplier;
-
 import org.neo4j.internal.kernel.api.IndexQuery;
-import org.neo4j.internal.kernel.api.IndexReference;
 import org.neo4j.internal.kernel.api.NodeValueIndexCursor;
 import org.neo4j.internal.kernel.api.exceptions.schema.IndexNotApplicableKernelException;
 import org.neo4j.internal.kernel.api.exceptions.schema.IndexNotFoundKernelException;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.kernel.api.index.IndexReader;
 import org.neo4j.kernel.impl.locking.Locks;
-import org.neo4j.storageengine.api.lock.LockTracer;
-import org.neo4j.storageengine.api.schema.IndexReader;
+import org.neo4j.lock.LockTracer;
 
-import static org.neo4j.kernel.impl.locking.ResourceTypes.INDEX_ENTRY;
-import static org.neo4j.kernel.impl.locking.ResourceTypes.indexEntryResourceId;
+import static org.neo4j.kernel.impl.locking.ResourceIds.indexEntryResourceId;
+import static org.neo4j.lock.ResourceTypes.INDEX_ENTRY;
 
 public class LockingNodeUniqueIndexSeek
 {
     public static <CURSOR extends NodeValueIndexCursor> long apply( Locks.Client locks,
                                                                     LockTracer lockTracer,
-                                                                    Supplier<CURSOR> cursors,
+                                                                    CURSOR cursor,
                                                                     UniqueNodeIndexSeeker<CURSOR> nodeIndexSeeker,
                                                                     Read read,
-                                                                    IndexReference index,
+                                                                    IndexDescriptor index,
                                                                     IndexQuery.ExactPredicate... predicates )
             throws IndexNotApplicableKernelException, IndexNotFoundKernelException
     {
@@ -54,8 +52,7 @@ public class LockingNodeUniqueIndexSeek
         //First try to find node under a shared lock
         //if not found upgrade to exclusive and try again
         locks.acquireShared( lockTracer, INDEX_ENTRY, indexEntryId );
-        try ( CURSOR cursor = cursors.get();
-              IndexReaders readers = new IndexReaders( index, read ) )
+        try ( IndexReaders readers = new IndexReaders( index, read ) )
         {
             nodeIndexSeeker.nodeIndexSeekWithFreshIndexReader( cursor, readers.createReader(), predicates );
             if ( !cursor.next() )

@@ -24,12 +24,12 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 
-import org.neo4j.kernel.configuration.Config;
+import org.neo4j.configuration.Config;
 import org.neo4j.kernel.impl.transaction.log.pruning.LogPruning;
 import org.neo4j.logging.LogProvider;
 import org.neo4j.time.SystemNanoClock;
 
-import static org.neo4j.graphdb.factory.GraphDatabaseSettings.check_point_policy;
+import static org.neo4j.configuration.GraphDatabaseSettings.check_point_policy;
 
 
 /**
@@ -79,7 +79,7 @@ public interface CheckPointThreshold
     static CheckPointThreshold createThreshold(
             Config config, SystemNanoClock clock, LogPruning logPruning, LogProvider logProvider )
     {
-        String policyName = config.get( check_point_policy );
+        String policyName = config.get( check_point_policy ).name().toLowerCase();
         CheckPointThresholdPolicy policy;
         try
         {

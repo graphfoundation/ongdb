@@ -27,8 +27,7 @@ import java.util.Collection;
 
 import org.neo4j.collection.PrimitiveLongCollections;
 import org.neo4j.collection.PrimitiveLongResourceIterator;
-import org.neo4j.cursor.RawCursor;
-import org.neo4j.index.internal.gbptree.Hit;
+import org.neo4j.index.internal.gbptree.Seeker;
 import org.neo4j.values.storable.Value;
 
 /**
@@ -38,15 +37,14 @@ import org.neo4j.values.storable.Value;
  * @param <VALUE> type of {@link NativeIndexValue}.
  */
 public class NativeHitIterator<KEY extends NativeIndexKey<KEY>, VALUE extends NativeIndexValue>
-        extends PrimitiveLongCollections.PrimitiveLongBaseIterator
+        extends PrimitiveLongCollections.AbstractPrimitiveLongBaseIterator
         implements PrimitiveLongResourceIterator
 {
-    private final RawCursor<Hit<KEY,VALUE>,IOException> seeker;
-    private final Collection<RawCursor<Hit<KEY,VALUE>,IOException>> toRemoveFromWhenExhausted;
+    private final Seeker<KEY,VALUE> seeker;
+    private final Collection<Seeker<KEY,VALUE>> toRemoveFromWhenExhausted;
     private boolean closed;
 
-    NativeHitIterator( RawCursor<Hit<KEY,VALUE>,IOException> seeker,
-            Collection<RawCursor<Hit<KEY,VALUE>,IOException>> toRemoveFromWhenExhausted )
+    NativeHitIterator( Seeker<KEY,VALUE> seeker, Collection<Seeker<KEY,VALUE>> toRemoveFromWhenExhausted )
     {
         this.seeker = seeker;
         this.toRemoveFromWhenExhausted = toRemoveFromWhenExhausted;
@@ -59,7 +57,7 @@ public class NativeHitIterator<KEY extends NativeIndexKey<KEY>, VALUE extends Na
         {
             while ( seeker.next() )
             {
-                KEY key = seeker.get().key();
+                KEY key = seeker.key();
                 if ( acceptValues( key.asValues() ) )
                 {
                     return next( key.getEntityId() );

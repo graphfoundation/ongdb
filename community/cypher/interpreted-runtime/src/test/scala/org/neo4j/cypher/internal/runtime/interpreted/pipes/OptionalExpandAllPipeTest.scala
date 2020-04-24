@@ -23,115 +23,27 @@ import org.mockito.ArgumentMatchers._
 import org.mockito.Mockito._
 import org.mockito.invocation.InvocationOnMock
 import org.mockito.stubbing.Answer
-import org.neo4j.cypher.internal.runtime.interpreted.{ExecutionContext, QueryStateHelper}
 import org.neo4j.cypher.internal.runtime.ImplicitValueConversion._
-import org.neo4j.cypher.internal.runtime.QueryContext
+import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContextHelper._
+import org.neo4j.cypher.internal.runtime.interpreted.QueryStateHelper
 import org.neo4j.cypher.internal.runtime.interpreted.commands.predicates.{Not, Predicate, True}
-import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
-import org.neo4j.cypher.internal.v3_6.expressions.SemanticDirection
+import org.neo4j.cypher.internal.runtime.{ExecutionContext, QueryContext}
+import org.neo4j.cypher.internal.v4_0.expressions.SemanticDirection
+import org.neo4j.cypher.internal.v4_0.util.test_helpers.CypherFunSuite
 import org.neo4j.graphdb.{Node, Relationship}
-import org.neo4j.kernel.impl.util.ValueUtils
-import org.neo4j.kernel.impl.util.ValueUtils.{fromNodeProxy, fromRelationshipProxy}
+import org.neo4j.kernel.impl.util.ValueUtils.{fromNodeEntity, fromRelationshipEntity}
 import org.neo4j.values.AnyValue
 import org.neo4j.values.storable.Values.NO_VALUE
 import org.neo4j.values.virtual.RelationshipValue
 
 class OptionalExpandAllPipeTest extends CypherFunSuite {
 
-  val startNode = newMockedNode(1)
-  val endNode1 = newMockedNode(2)
-  val endNode2 = newMockedNode(3)
-  val relationship1 = newMockedRelationship(1, startNode, endNode1)
-  val relationship2 = newMockedRelationship(2, startNode, endNode2)
-  val selfRelationship = newMockedRelationship(3, startNode, startNode)
-  val query = mock[QueryContext]
-  val queryState = QueryStateHelper.emptyWith(query = query)
-
-  test("should support expand between two nodes with a relationship") {
-    // given
-    mockRelationships(relationship1)
-    val left = newMockedPipe("a",
-      row("a" -> startNode))
-
-    // when
-    val result = OptionalExpandAllPipe(left, "a", "r", "b", SemanticDirection.OUTGOING, LazyTypes.empty, True())().createResults(queryState).toList
-
-    // then
-    val (single :: Nil) = result
-    single.toMap should equal(Map("a" -> fromNodeProxy(startNode), "r" -> fromRelationshipProxy(relationship1),
-                              "b" -> fromNodeProxy(endNode1)))
-  }
-
-  test("should support optional expand from a node with no relationships") {
-    // given
-    mockRelationships()
-    val left = newMockedPipe("a",
-      row("a" -> startNode))
-
-    // when
-    val result = OptionalExpandAllPipe(left, "a", "r", "b", SemanticDirection.OUTGOING, LazyTypes.empty, True())().createResults(queryState).toList
-
-    // then
-    val (single :: Nil) = result
-    single.toMap should equal(Map("a" -> fromNodeProxy(startNode), "r" -> NO_VALUE, "b" -> NO_VALUE))
-  }
-
-  test("should support optional expand from a node with relationships that do not match the predicates") {
-    // given
-    mockRelationships(relationship1)
-    val left = newMockedPipe("a",
-      row("a" -> startNode))
-
-    val falsePredicate: Predicate = Not(True())
-    // when
-    val result = OptionalExpandAllPipe(left, "a", "r", "b", SemanticDirection.OUTGOING, LazyTypes.empty, falsePredicate)().createResults(queryState).toList
-
-    // then
-    val (single :: Nil) = result
-    single.toMap should equal(Map("a" -> fromNodeProxy(startNode), "r" -> NO_VALUE, "b" -> NO_VALUE))
-  }
-
-  test("should support expand between two nodes with multiple relationships") {
-    // given
-    mockRelationships(relationship1, relationship2)
-    val left = newMockedPipe("a",
-      row("a" -> startNode))
-
-    // when
-    val result = OptionalExpandAllPipe(left, "a", "r", "b", SemanticDirection.OUTGOING, LazyTypes.empty, True())().createResults(queryState).toList
-
-    // then
-    val (first :: second :: Nil) = result
-    first.toMap should equal(Map("a" -> fromNodeProxy(startNode), "r" -> fromRelationshipProxy(relationship1), "b" -> fromNodeProxy(endNode1)))
-    second.toMap should equal(Map("a" -> fromNodeProxy(startNode), "r" -> fromRelationshipProxy(relationship2), "b" -> fromNodeProxy(endNode2)))
-  }
-
-  test("should support expand between two nodes with multiple relationships and self loops") {
-    // given
-    mockRelationships(relationship1, selfRelationship)
-    val left = newMockedPipe("a",
-      row("a" -> startNode))
-
-    // when
-    val result = OptionalExpandAllPipe(left, "a", "r", "b", SemanticDirection.OUTGOING, LazyTypes.empty, True())().createResults(queryState).toList
-
-    // then
-    val (first :: second :: Nil) = result
-    first.toMap should equal(Map("a" -> fromNodeProxy(startNode), "r" -> fromRelationshipProxy(relationship1), "b" -> fromNodeProxy(endNode1)))
-    second.toMap should equal(Map("a" -> fromNodeProxy(startNode), "r" -> fromRelationshipProxy(selfRelationship), "b" -> fromNodeProxy(startNode)))
-  }
-
-  test("given empty input, should return empty output") {
-    // given
-    mockRelationships()
-    val left = newMockedPipe("a")
-
-    // when
-    val result = OptionalExpandAllPipe(left, "a", "r", "b", SemanticDirection.OUTGOING, LazyTypes.empty, True())().createResults(queryState).toList
-
-    // then
-    result shouldBe 'empty
-  }
+  private val startNode = newMockedNode(1)
+  private val endNode1 = newMockedNode(2)
+  private val endNode2 = newMockedNode(3)
+  private val relationship1 = newMockedRelationship(1, startNode, endNode1)
+  private val query = mock[QueryContext]
+  private val queryState = QueryStateHelper.emptyWith(query = query)
 
   test("should register owning pipe") {
     // given
@@ -139,16 +51,17 @@ class OptionalExpandAllPipeTest extends CypherFunSuite {
     val left = newMockedPipe("a",
       row("a" -> startNode))
 
+    val pred = True()
     // when
-    val pipe = OptionalExpandAllPipe(left, "a", "r", "b", SemanticDirection.OUTGOING, LazyTypes.empty, True())()
+    val pipe = OptionalExpandAllPipe(left, "a", "r", "b", SemanticDirection.OUTGOING, RelationshipTypes.empty, Some(pred))()
 
     // then
-    pipe.predicate.owningPipe.get should equal(pipe)
+    pred.owningPipe should equal(pipe)
   }
 
   private def mockRelationships(rels: Relationship*) {
     when(query.getRelationshipsForIds(any(), any(), any())).thenAnswer(new Answer[Iterator[RelationshipValue]] {
-      def answer(invocation: InvocationOnMock): Iterator[RelationshipValue] = rels.iterator.map(fromRelationshipProxy)
+      def answer(invocation: InvocationOnMock): Iterator[RelationshipValue] = rels.iterator.map(fromRelationshipEntity)
     })
   }
 

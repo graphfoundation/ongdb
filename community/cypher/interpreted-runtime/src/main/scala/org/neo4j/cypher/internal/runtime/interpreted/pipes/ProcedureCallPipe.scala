@@ -19,12 +19,11 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
+import org.neo4j.cypher.internal.logical.plans.ProcedureSignature
 import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.Expression
-import org.neo4j.cypher.internal.runtime.interpreted.{ExecutionContext, ValueConversion}
-import org.neo4j.cypher.internal.runtime.{ProcedureCallMode, QueryContext}
-import org.neo4j.cypher.internal.v3_6.logical.plans.ProcedureSignature
-import org.neo4j.cypher.internal.v3_6.util.attribution.Id
-import org.neo4j.cypher.internal.v3_6.util.symbols.CypherType
+import org.neo4j.cypher.internal.runtime.{ExecutionContext, ProcedureCallMode, QueryContext}
+import org.neo4j.cypher.internal.v4_0.util.attribution.Id
+import org.neo4j.cypher.internal.v4_0.util.symbols.CypherType
 import org.neo4j.internal.kernel.api.procs.ProcedureCallContext
 import org.neo4j.values.AnyValue
 
@@ -51,15 +50,16 @@ case class ProcedureCallPipe(source: Pipe,
 
   argExprs.foreach(_.registerOwningPipe(this))
 
-  private val maybeConverter = signature.outputSignature.map(_.map(v => ValueConversion.getValueConverter(v.typ)).toArray)
   private val rowProcessor = rowProcessing match {
     case FlatMapAndAppendToRow => internalCreateResultsByAppending _
     case PassThroughRow => internalCreateResultsByPassingThrough _
   }
 
-  private def createProcedureCallContext(): ProcedureCallContext ={
+  private def createProcedureCallContext(qtx: QueryContext): ProcedureCallContext ={
     // getting the original name of the yielded variable
-    new ProcedureCallContext( resultIndices.map(_._2._2).toArray, true )
+    val originalVariables = resultIndices.map(_._2._2).toArray
+    val databaseId = qtx.transactionalContext.databaseId
+    new ProcedureCallContext( originalVariables, true, databaseId.name(), databaseId.isSystemDatabase )
   }
 
   override protected def internalCreateResults(input: Iterator[ExecutionContext], state: QueryState): Iterator[ExecutionContext] = rowProcessor(input, state)
@@ -68,13 +68,12 @@ case class ProcedureCallPipe(source: Pipe,
     val qtx = state.query
     val builder = Seq.newBuilder[(String, AnyValue)]
     builder.sizeHint(resultIndices.length)
-    input flatMap { input =>
-      val argValues = argExprs.map(arg => qtx.asObject(arg(input, state)))
-      val results = call(qtx, argValues, createProcedureCallContext()) // always returns all items from the procedure
+    input.flatMap { input =>
+      val argValues = argExprs.map(arg => arg(input, state))
+      val results: Iterator[Array[AnyValue]] = call(qtx, argValues, createProcedureCallContext(qtx)) // always returns all items from the procedure
       results map { resultValues =>
         resultIndices foreach { case (k, (v, _)) =>
-          val javaValue = maybeConverter.get(k)(resultValues(k))
-          builder += v -> javaValue // get the output from correct position and add store variable -> value
+          builder += v -> resultValues(k) // get the output from correct position and add store variable -> value
         }
         val rowEntries = builder.result()
         val output = executionContextFactory.copyWith(input, rowEntries)
@@ -84,17 +83,14 @@ case class ProcedureCallPipe(source: Pipe,
     }
   }
 
-  private def call(qtx: QueryContext,
-                   argValues: Seq[Any],
-                   context: ProcedureCallContext) =
-    if (signature.id.nonEmpty) callMode.callProcedure(qtx, signature.id.get, argValues, context)
-    else callMode.callProcedure(qtx, signature.name, argValues, context)
+  private def call(qtx: QueryContext, argValues: Seq[AnyValue], context: ProcedureCallContext) =
+    callMode.callProcedure(qtx, signature.id, argValues, context)
 
   private def internalCreateResultsByPassingThrough(input: Iterator[ExecutionContext], state: QueryState): Iterator[ExecutionContext] = {
     val qtx = state.query
     input map { input =>
-      val argValues = argExprs.map(arg => qtx.asObject(arg(input, state)))
-      val results = call(qtx, argValues, createProcedureCallContext())
+      val argValues = argExprs.map(arg => arg(input, state))
+      val results = call(qtx, argValues, createProcedureCallContext(qtx))
       // the iterator here should be empty; we'll drain just in case
       while (results.hasNext) results.next()
       input

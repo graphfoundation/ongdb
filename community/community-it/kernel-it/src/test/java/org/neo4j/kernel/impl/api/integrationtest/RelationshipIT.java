@@ -20,8 +20,9 @@
 package org.neo4j.kernel.impl.api.integrationtest;
 
 import org.hamcrest.Matcher;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -31,31 +32,42 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import org.neo4j.graphdb.Direction;
-import org.neo4j.helpers.collection.Iterators;
-import org.neo4j.internal.kernel.api.Transaction;
+import org.neo4j.internal.helpers.collection.Iterators;
 import org.neo4j.internal.kernel.api.security.LoginContext;
+import org.neo4j.kernel.api.KernelTransaction;
 import org.neo4j.kernel.api.security.AnonymousContext;
-import org.neo4j.test.rule.concurrent.OtherThreadRule;
+import org.neo4j.test.rule.OtherThreadRule;
 
 import static org.hamcrest.CoreMatchers.hasItem;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.AllOf.allOf;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.neo4j.graphdb.Direction.BOTH;
 import static org.neo4j.graphdb.Direction.INCOMING;
 import static org.neo4j.graphdb.Direction.OUTGOING;
-import static org.neo4j.internal.kernel.api.Transaction.Type.implicit;
+import static org.neo4j.kernel.api.KernelTransaction.Type.implicit;
 
-public class RelationshipIT extends KernelIntegrationTest
+class RelationshipIT extends KernelIntegrationTest
 {
-    @Rule
-    public OtherThreadRule<Object> otherThread = new OtherThreadRule<>( 10, TimeUnit.SECONDS );
+    private final OtherThreadRule<Object> otherThread = new OtherThreadRule<>();
+
+    @BeforeEach
+    void setUp()
+    {
+        otherThread.init( "t2" );
+    }
+
+    @AfterEach
+    void tearDown()
+    {
+        otherThread.close();
+    }
 
     @Test
-    public void shouldListRelationshipsInCurrentAndSubsequentTx() throws Exception
+    void shouldListRelationshipsInCurrentAndSubsequentTx() throws Exception
     {
         // given
-        Transaction transaction = newTransaction( AnonymousContext.writeToken() );
+        KernelTransaction transaction = newTransaction( AnonymousContext.writeToken() );
         int relType1 = transaction.tokenWrite().relationshipTypeGetOrCreateForName( "Type1" );
         int relType2 = transaction.tokenWrite().relationshipTypeGetOrCreateForName( "Type2" );
 
@@ -112,7 +124,7 @@ public class RelationshipIT extends KernelIntegrationTest
     }
 
     @Test
-    public void shouldInterleaveModifiedRelationshipsWithExistingOnes() throws Exception
+    void shouldInterleaveModifiedRelationshipsWithExistingOnes() throws Exception
     {
         // given
         long refNode;
@@ -121,7 +133,7 @@ public class RelationshipIT extends KernelIntegrationTest
         int relType1;
         int relType2;
         {
-            Transaction transaction = newTransaction( AnonymousContext.writeToken() );
+            KernelTransaction transaction = newTransaction( AnonymousContext.writeToken() );
 
             relType1 = transaction.tokenWrite().relationshipTypeGetOrCreateForName( "Type1" );
             relType2 = transaction.tokenWrite().relationshipTypeGetOrCreateForName( "Type2" );
@@ -133,7 +145,7 @@ public class RelationshipIT extends KernelIntegrationTest
             commit();
         }
         {
-            Transaction transaction = newTransaction( AnonymousContext.writeToken() );
+            KernelTransaction transaction = newTransaction( AnonymousContext.writeToken() );
 
             // When
             transaction.dataWrite().relationshipDelete( fromRefToOther1 );
@@ -148,9 +160,9 @@ public class RelationshipIT extends KernelIntegrationTest
     }
 
     @Test
-    public void shouldReturnRelsWhenAskingForRelsWhereOnlySomeTypesExistInCurrentRel() throws Exception
+    void shouldReturnRelsWhenAskingForRelsWhereOnlySomeTypesExistInCurrentRel() throws Exception
     {
-        Transaction transaction = newTransaction( AnonymousContext.writeToken() );
+        KernelTransaction transaction = newTransaction( AnonymousContext.writeToken() );
 
         int relType1 = transaction.tokenWrite().relationshipTypeGetOrCreateForName( "Type1" );
         int relType2 = transaction.tokenWrite().relationshipTypeGetOrCreateForName( "Type2" );
@@ -164,7 +176,7 @@ public class RelationshipIT extends KernelIntegrationTest
     }
 
     @Test
-    public void askingForNonExistantReltypeOnDenseNodeShouldNotCorruptState() throws Exception
+    void askingForNonExistantReltypeOnDenseNodeShouldNotCorruptState() throws Exception
     {
         // Given a dense node with one type of rels
         long[] rels = new long[200];
@@ -172,7 +184,7 @@ public class RelationshipIT extends KernelIntegrationTest
         int relTypeTheNodeDoesUse;
         int relTypeTheNodeDoesNotUse;
         {
-            Transaction transaction = newTransaction( AnonymousContext.writeToken() );
+            KernelTransaction transaction = newTransaction( AnonymousContext.writeToken() );
 
             relTypeTheNodeDoesUse = transaction.tokenWrite().relationshipTypeGetOrCreateForName( "Type1" );
             relTypeTheNodeDoesNotUse = transaction.tokenWrite().relationshipTypeGetOrCreateForName( "Type2" );
@@ -187,13 +199,13 @@ public class RelationshipIT extends KernelIntegrationTest
             }
             commit();
         }
-        Transaction transaction = newTransaction();
+        KernelTransaction transaction = newTransaction();
 
         // When I've asked for rels that the node does not have
-        assertRels( nodeGetRelationships( transaction, refNode, Direction.INCOMING, new int[]{relTypeTheNodeDoesNotUse} ) );
+        assertRels( nodeGetRelationships( transaction, refNode, INCOMING, new int[]{relTypeTheNodeDoesNotUse} ) );
 
         // Then the node should still load the real rels
-        assertRels( nodeGetRelationships( transaction, refNode, Direction.BOTH, new int[]{relTypeTheNodeDoesUse} ), rels );
+        assertRels( nodeGetRelationships( transaction, refNode, BOTH, new int[]{relTypeTheNodeDoesUse} ), rels );
         commit();
     }
 
@@ -202,7 +214,7 @@ public class RelationshipIT extends KernelIntegrationTest
     {
         assertTrue( otherThread.execute( state ->
         {
-            try ( Transaction ktx = kernel.beginTransaction( implicit, LoginContext.AUTH_DISABLED ) )
+            try ( KernelTransaction ktx = kernel.beginTransaction( implicit, LoginContext.AUTH_DISABLED ) )
             {
                 assertRels( nodeGetRelationships( ktx, refNode, both ), longs );
             }
@@ -210,7 +222,7 @@ public class RelationshipIT extends KernelIntegrationTest
         } ).get( 10, TimeUnit.SECONDS ) );
     }
 
-    private void assertRels( Iterator<Long> it, long ... rels )
+    private static void assertRels( Iterator<Long> it, long... rels )
     {
         List<Matcher<? super Iterable<Long>>> all = new ArrayList<>( rels.length );
         for ( long element : rels )

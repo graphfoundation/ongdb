@@ -19,49 +19,65 @@
  */
 package org.neo4j.server;
 
+import org.apache.commons.lang3.ArrayUtils;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 
+import org.neo4j.configuration.Config;
+import org.neo4j.configuration.connectors.BoltConnector;
+import org.neo4j.configuration.connectors.HttpConnector;
+import org.neo4j.configuration.connectors.HttpsConnector;
+import org.neo4j.configuration.ssl.SslPolicyConfig;
+import org.neo4j.configuration.ssl.SslPolicyScope;
+import org.neo4j.dbms.api.DatabaseManagementService;
 import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Transaction;
 import org.neo4j.graphdb.config.Setting;
-import org.neo4j.kernel.configuration.Config;
+import org.neo4j.io.layout.Neo4jLayout;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
+import org.neo4j.test.rule.TestDirectory;
 import org.neo4j.test.server.ExclusiveServerTestBase;
+import org.neo4j.test.ssl.SelfSignedCertificateFactory;
 
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
-import static org.neo4j.graphdb.factory.GraphDatabaseSettings.data_directory;
-import static org.neo4j.graphdb.factory.GraphDatabaseSettings.forced_kernel_id;
-import static org.neo4j.graphdb.factory.GraphDatabaseSettings.logs_directory;
-import static org.neo4j.helpers.collection.Iterators.single;
-import static org.neo4j.helpers.collection.MapUtil.store;
-import static org.neo4j.helpers.collection.MapUtil.stringMap;
+import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
+import static org.neo4j.configuration.GraphDatabaseSettings.data_directory;
+import static org.neo4j.configuration.GraphDatabaseSettings.forced_kernel_id;
+import static org.neo4j.configuration.GraphDatabaseSettings.logs_directory;
+import static org.neo4j.configuration.SettingValueParsers.FALSE;
+import static org.neo4j.configuration.SettingValueParsers.TRUE;
+import static org.neo4j.internal.helpers.collection.Iterators.single;
+import static org.neo4j.internal.helpers.collection.MapUtil.store;
+import static org.neo4j.internal.helpers.collection.MapUtil.stringMap;
+import static org.neo4j.io.fs.FileUtils.relativePath;
+import static org.neo4j.server.ServerTestUtils.getDefaultRelativeProperties;
 import static org.neo4j.server.ServerTestUtils.verifyConnector;
 import static org.neo4j.test.assertion.Assert.assertEventually;
 
 public abstract class BaseBootstrapperIT extends ExclusiveServerTestBase
 {
     @Rule
-    public TemporaryFolder tempDir = new TemporaryFolder();
+    public TestDirectory testDirectory = TestDirectory.testDirectory();
 
     protected ServerBootstrapper bootstrapper;
 
     @Before
-    public void before()
+    public void before() throws IOException
     {
         bootstrapper = newBootstrapper();
+        SelfSignedCertificateFactory.create( testDirectory.homeDir() );
     }
 
     @After
@@ -79,32 +95,35 @@ public abstract class BaseBootstrapperIT extends ExclusiveServerTestBase
     public void shouldStartStopNeoServerWithoutAnyConfigFiles() throws Throwable
     {
         // When
-        int resultCode = ServerBootstrapper.start( bootstrapper, withConnectorsOnRandomPortsConfig(
-                "--home-dir", tempDir.newFolder( "home-dir" ).getAbsolutePath(),
-                "-c", configOption( data_directory, tempDir.getRoot().getAbsolutePath() ),
-                "-c", configOption( logs_directory, tempDir.getRoot().getAbsolutePath() ),
-                "-c", "dbms.backup.enabled=false" ) );
+        int resultCode = ServerBootstrapper.start( bootstrapper, withConnectorsOnRandomPortsConfig( getAdditionalArguments() ) );
 
         // Then
         assertEquals( ServerBootstrapper.OK, resultCode );
         assertEventually( "Server was not started", bootstrapper::isRunning, is( true ), 1, TimeUnit.MINUTES );
     }
 
+    protected String[] getAdditionalArguments() throws IOException
+    {
+        return new String[]{"--home-dir", testDirectory.directory( "home-dir" ).getAbsolutePath(),
+                "-c", configOption( data_directory, testDirectory.homeDir().getAbsolutePath() ),
+                "-c", configOption( logs_directory, testDirectory.homeDir().getAbsolutePath() )};
+    }
+
     @Test
     public void canSpecifyConfigFile() throws Throwable
     {
         // Given
-        File configFile = tempDir.newFile( Config.DEFAULT_CONFIG_FILE_NAME );
+        File configFile = testDirectory.file( Config.DEFAULT_CONFIG_FILE_NAME );
 
         Map<String,String> properties = stringMap( forced_kernel_id.name(), "ourcustomvalue" );
-        properties.putAll( ServerTestUtils.getDefaultRelativeProperties() );
+        properties.putAll( getDefaultRelativeProperties( testDirectory.homeDir() ) );
         properties.putAll( connectorsOnRandomPortsConfig() );
 
         store( properties, configFile );
 
         // When
         ServerBootstrapper.start( bootstrapper,
-                "--home-dir", tempDir.newFolder( "home-dir" ).getAbsolutePath(),
+                "--home-dir", testDirectory.directory( "home-dir" ).getAbsolutePath(),
                 "--config-dir", configFile.getParentFile().getAbsolutePath() );
 
         // Then
@@ -115,17 +134,17 @@ public abstract class BaseBootstrapperIT extends ExclusiveServerTestBase
     public void canOverrideConfigValues() throws Throwable
     {
         // Given
-        File configFile = tempDir.newFile( Config.DEFAULT_CONFIG_FILE_NAME );
+        File configFile = testDirectory.file( Config.DEFAULT_CONFIG_FILE_NAME );
 
         Map<String,String> properties = stringMap( forced_kernel_id.name(), "thisshouldnotshowup" );
-        properties.putAll( ServerTestUtils.getDefaultRelativeProperties() );
+        properties.putAll( getDefaultRelativeProperties( testDirectory.homeDir() ) );
         properties.putAll( connectorsOnRandomPortsConfig() );
 
         store( properties, configFile );
 
         // When
         ServerBootstrapper.start( bootstrapper,
-                "--home-dir", tempDir.newFolder( "home-dir" ).getAbsolutePath(),
+                "--home-dir", testDirectory.directory( "home-dir" ).getAbsolutePath(),
                 "--config-dir", configFile.getParentFile().getAbsolutePath(),
                 "-c", configOption( forced_kernel_id, "mycustomvalue" ) );
 
@@ -175,30 +194,58 @@ public abstract class BaseBootstrapperIT extends ExclusiveServerTestBase
         testStartupWithConnectors( false, true, true );
     }
 
+    @Test
+    public void shouldHaveSameLayoutAsEmbedded() throws Exception
+    {
+        File serverDir = testDirectory.directory( "server-dir" );
+        ServerBootstrapper.start( bootstrapper, withConnectorsOnRandomPortsConfig( "--home-dir", serverDir.getAbsolutePath() ) );
+        assertEventually( "Server was not started", bootstrapper::isRunning, is( true ), 1, TimeUnit.MINUTES );
+        Neo4jLayout serverLayout = bootstrapper.getServer().getDatabaseService().getDatabase().databaseLayout().getNeo4jLayout();
+        bootstrapper.stop();
+
+        File embeddedDir = testDirectory.directory( "embedded-dir" );
+        DatabaseManagementService dbms = newEmbeddedDbms( embeddedDir );
+        Neo4jLayout embeddedLayout = ((GraphDatabaseAPI) dbms.database( DEFAULT_DATABASE_NAME )).databaseLayout().getNeo4jLayout();
+        dbms.shutdown();
+
+        assertEquals( relativePath( serverDir, serverLayout.homeDirectory() ), relativePath( embeddedDir, embeddedLayout.homeDirectory() ) );
+        assertEquals( relativePath( serverDir, serverLayout.databasesDirectory() ), relativePath( embeddedDir, embeddedLayout.databasesDirectory() ) );
+        assertEquals( relativePath( serverDir, serverLayout.transactionLogsRootDirectory() ),
+                relativePath( embeddedDir, embeddedLayout.transactionLogsRootDirectory() ) );
+    }
+
+    protected abstract DatabaseManagementService newEmbeddedDbms( File homeDir );
+
     private void testStartupWithConnectors( boolean httpEnabled, boolean httpsEnabled, boolean boltEnabled ) throws Exception
     {
-        int resultCode = ServerBootstrapper.start( bootstrapper,
-                "--home-dir", tempDir.newFolder( "home-dir" ).getAbsolutePath(),
-                "-c", configOption( data_directory, tempDir.getRoot().getAbsolutePath() ),
-                "-c", configOption( logs_directory, tempDir.getRoot().getAbsolutePath() ),
+        SslPolicyConfig httpsPolicy = SslPolicyConfig.forScope( SslPolicyScope.HTTPS );
+        if ( httpsEnabled )
+        {
+            //create self signed
+            SelfSignedCertificateFactory.create( testDirectory.homeDir().getAbsoluteFile() );
+        }
 
-                "-c", "dbms.connector.http.enabled=" + httpEnabled,
-                "-c", "dbms.connector.http.listen_address=:0",
+        String[] config = { "-c", httpsEnabled ? configOption( httpsPolicy.enabled, TRUE ) : "",
+                "-c", httpsEnabled ? configOption( httpsPolicy.base_directory, testDirectory.homeDir().getAbsolutePath() ) : "",
 
-                "-c", "dbms.connector.https.enabled=" + httpsEnabled,
-                "-c", "dbms.connector.https.listen_address=:0",
+                "-c", HttpConnector.enabled.name() + "=" + httpEnabled,
+                "-c", HttpConnector.listen_address.name() + "=localhost:0",
 
-                "-c", "dbms.connector.bolt.enabled=" + boltEnabled,
-                "-c", "dbms.connector.bolt.listen_address=:0"
-        );
+                "-c", HttpsConnector.enabled.name() + "=" + httpsEnabled,
+                "-c", HttpsConnector.listen_address.name() + "=localhost:0",
+
+                "-c", BoltConnector.enabled.name() + "=" + boltEnabled,
+                "-c", BoltConnector.listen_address.name() + "=localhost:0" };
+        var allConfigOptions = ArrayUtils.addAll( config, getAdditionalArguments() );
+        int resultCode = ServerBootstrapper.start( bootstrapper, allConfigOptions );
 
         assertEquals( ServerBootstrapper.OK, resultCode );
         assertEventually( "Server was not started", bootstrapper::isRunning, is( true ), 1, TimeUnit.MINUTES );
         assertDbAccessibleAsEmbedded();
 
-        verifyConnector( db(), "http", httpEnabled );
-        verifyConnector( db(), "https", httpsEnabled );
-        verifyConnector( db(), "bolt", boltEnabled );
+        verifyConnector( db(), HttpConnector.NAME, httpEnabled );
+        verifyConnector( db(), HttpsConnector.NAME, httpsEnabled );
+        verifyConnector( db(), BoltConnector.NAME, boltEnabled );
     }
 
     protected String configOption( Setting<?> setting, String value )
@@ -221,20 +268,15 @@ public abstract class BaseBootstrapperIT extends ExclusiveServerTestBase
     protected static Map<String,String> connectorsOnRandomPortsConfig()
     {
         return stringMap(
-                "dbms.connector.http.type", "HTTP",
-                "dbms.connector.http.listen_address", "localhost:0",
-                "dbms.connector.http.encryption", "NONE",
-                "dbms.connector.http.enabled", "true",
+                HttpConnector.listen_address.name(), "localhost:0",
+                HttpConnector.enabled.name(), TRUE,
 
-                "dbms.connector.https.type", "HTTP",
-                "dbms.connector.https.listen_address", "localhost:0",
-                "dbms.connector.https.encryption", "TLS",
-                "dbms.connector.https.enabled", "true",
+                HttpsConnector.listen_address.name(), "localhost:0",
+                HttpsConnector.enabled.name(), FALSE,
 
-                "dbms.connector.bolt.type", "BOLT",
-                "dbms.connector.bolt.listen_address", "localhost:0",
-                "dbms.connector.bolt.tls_level", "OPTIONAL",
-                "dbms.connector.bolt.enabled", "true"
+                BoltConnector.listen_address.name(), "localhost:0",
+                BoltConnector.encryption_level.name(), "DISABLED",
+                BoltConnector.enabled.name(), TRUE
         );
     }
 
@@ -248,19 +290,19 @@ public abstract class BaseBootstrapperIT extends ExclusiveServerTestBase
 
         try ( Transaction tx = db.beginTx() )
         {
-            db.createNode( label ).setProperty( propertyKey, propertyValue );
-            tx.success();
+            tx.createNode( label ).setProperty( propertyKey, propertyValue );
+            tx.commit();
         }
         try ( Transaction tx = db.beginTx() )
         {
-            Node node = single( db.findNodes( label ) );
+            Node node = single( tx.findNodes( label ) );
             assertEquals( propertyValue, node.getProperty( propertyKey ) );
-            tx.success();
+            tx.commit();
         }
     }
 
     private GraphDatabaseAPI db()
     {
-        return bootstrapper.getServer().getDatabase().getGraph();
+        return bootstrapper.getServer().getDatabaseService().getDatabase();
     }
 }

@@ -42,6 +42,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
+import org.neo4j.common.TokenNameLookup;
 import org.neo4j.consistency.RecordType;
 import org.neo4j.consistency.checking.CheckerEngine;
 import org.neo4j.consistency.checking.ComparativeRecordChecker;
@@ -52,10 +53,12 @@ import org.neo4j.consistency.store.RecordReference;
 import org.neo4j.consistency.store.synthetic.CountsEntry;
 import org.neo4j.consistency.store.synthetic.IndexEntry;
 import org.neo4j.consistency.store.synthetic.LabelScanDocument;
-import org.neo4j.internal.kernel.api.schema.IndexProviderDescriptor;
-import org.neo4j.internal.kernel.api.schema.SchemaDescriptor;
-import org.neo4j.kernel.api.labelscan.NodeLabelRange;
-import org.neo4j.kernel.api.schema.SchemaDescriptorFactory;
+import org.neo4j.internal.index.label.NodeLabelRange;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.internal.schema.IndexPrototype;
+import org.neo4j.internal.schema.IndexProviderDescriptor;
+import org.neo4j.internal.schema.SchemaDescriptor;
+import org.neo4j.internal.schema.SchemaRule;
 import org.neo4j.kernel.impl.store.record.AbstractBaseRecord;
 import org.neo4j.kernel.impl.store.record.DynamicRecord;
 import org.neo4j.kernel.impl.store.record.LabelTokenRecord;
@@ -67,9 +70,7 @@ import org.neo4j.kernel.impl.store.record.PropertyRecord;
 import org.neo4j.kernel.impl.store.record.RelationshipGroupRecord;
 import org.neo4j.kernel.impl.store.record.RelationshipRecord;
 import org.neo4j.kernel.impl.store.record.RelationshipTypeTokenRecord;
-import org.neo4j.storageengine.api.schema.IndexDescriptorFactory;
-import org.neo4j.storageengine.api.schema.SchemaRule;
-import org.neo4j.storageengine.api.schema.StoreIndexDescriptor;
+import org.neo4j.kernel.impl.store.record.SchemaRecord;
 
 import static java.lang.String.format;
 import static org.hamcrest.Matchers.containsString;
@@ -84,10 +85,10 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.verifyZeroInteractions;
 import static org.mockito.hamcrest.MockitoHamcrest.argThat;
+import static org.neo4j.common.TokenNameLookup.idTokenNameLookup;
 import static org.neo4j.consistency.report.ConsistencyReporter.NO_MONITOR;
-import static org.neo4j.internal.kernel.api.schema.SchemaUtil.idTokenNameLookup;
-import static org.neo4j.kernel.api.schema.SchemaDescriptorFactory.forLabel;
-import static org.neo4j.kernel.impl.store.counts.keys.CountsKeyFactory.nodeKey;
+import static org.neo4j.internal.counts.CountsKey.nodeKey;
+import static org.neo4j.internal.schema.SchemaDescriptor.forLabel;
 
 @RunWith( Suite.class )
 @Suite.SuiteClasses( {ConsistencyReporterTest.TestAllReportMessages.class,
@@ -104,18 +105,13 @@ public class ConsistencyReporterTest
         {
             // given
             ConsistencySummaryStatistics summary = mock( ConsistencySummaryStatistics.class );
-            @SuppressWarnings( "unchecked" )
             RecordAccess records = mock( RecordAccess.class );
             ConsistencyReporter.ReportHandler handler = new ConsistencyReporter.ReportHandler(
                     new InconsistencyReport( mock( InconsistencyLogger.class ), summary ),
                     mock( ConsistencyReporter.ProxyFactory.class ), RecordType.PROPERTY, records,
                     new PropertyRecord( 0 ), NO_MONITOR );
 
-            // when
-            handler.updateSummary();
-
             // then
-            verify( summary ).update( RecordType.PROPERTY, 0, 0 );
             verifyNoMoreInteractions( summary );
         }
 
@@ -141,9 +137,6 @@ public class ConsistencyReporterTest
             verify( reference ).dispatch( captor.capture() );
             PendingReferenceCheck pendingRefCheck = captor.getValue();
 
-            // when
-            handler.updateSummary();
-
             // then
             verifyZeroInteractions( summary );
 
@@ -151,7 +144,6 @@ public class ConsistencyReporterTest
             pendingRefCheck.skip();
 
             // then
-            verify( summary ).update( RecordType.PROPERTY, 0, 0 );
             verifyNoMoreInteractions( summary );
         }
 
@@ -222,7 +214,6 @@ public class ConsistencyReporterTest
     public static class TestAllReportMessages implements Answer
     {
         @Test
-        @SuppressWarnings( "unchecked" )
         public void shouldLogInconsistency() throws Exception
         {
             // given
@@ -280,12 +271,15 @@ public class ConsistencyReporterTest
             ArrayList<Object[]> methods = new ArrayList<>();
             for ( Method reporterMethod : ConsistencyReport.Reporter.class.getMethods() )
             {
-                Type[] parameterTypes = reporterMethod.getGenericParameterTypes();
-                ParameterizedType checkerParameter = (ParameterizedType) parameterTypes[parameterTypes.length - 1];
-                Class reportType = (Class) checkerParameter.getActualTypeArguments()[1];
-                for ( Method method : reportType.getMethods() )
+                if ( reporterMethod.getReturnType() == Void.class )
                 {
-                    methods.add( new Object[]{reporterMethod, method} );
+                    Type[] parameterTypes = reporterMethod.getGenericParameterTypes();
+                    ParameterizedType checkerParameter = (ParameterizedType) parameterTypes[parameterTypes.length - 1];
+                    Class reportType = (Class) checkerParameter.getActualTypeArguments()[1];
+                    for ( Method method : reportType.getMethods() )
+                    {
+                        methods.add( new Object[]{reporterMethod, method} );
+                    }
                 }
             }
             return methods;
@@ -391,23 +385,25 @@ public class ConsistencyReporterTest
             }
             if ( type == IndexEntry.class )
             {
-                return new IndexEntry( IndexDescriptorFactory.forSchema( SchemaDescriptorFactory.forLabel( 1, 1 ) ).withId( 1L ), idTokenNameLookup, 0 );
+                return new IndexEntry( IndexPrototype.forSchema( SchemaDescriptor.forLabel( 1, 1 ) )
+                        .withName( "index" ).materialise( 1L ), idTokenNameLookup, 0 );
             }
             if ( type == CountsEntry.class )
             {
                 return new CountsEntry( nodeKey( 7 ), 42 );
             }
-            if ( type == SchemaRule.Kind.class )
+            if ( type == IndexDescriptor.class )
             {
-                return SchemaRule.Kind.INDEX_RULE;
-            }
-            if ( type == StoreIndexDescriptor.class )
-            {
-                return IndexDescriptorFactory.forSchema( forLabel( 2, 3 ), IndexProviderDescriptor.UNDECIDED ).withId( 1 );
+                return IndexPrototype.forSchema( forLabel( 2, 3 ), IndexProviderDescriptor.UNDECIDED )
+                        .withName( "index" ).materialise( 1 );
             }
             if ( type == SchemaRule.class )
             {
                 return simpleSchemaRule();
+            }
+            if ( type == SchemaRecord.class )
+            {
+                return new SchemaRecord( 42 );
             }
             if ( type == RelationshipGroupRecord.class )
             {
@@ -441,7 +437,19 @@ public class ConsistencyReporterTest
                 }
 
                 @Override
+                public SchemaRule withName( String name )
+                {
+                    return null;
+                }
+
+                @Override
                 public SchemaDescriptor schema()
+                {
+                    return null;
+                }
+
+                @Override
+                public String userDescription( TokenNameLookup tokenNameLookup )
                 {
                     return null;
                 }
@@ -483,7 +491,7 @@ public class ConsistencyReporterTest
 
     private static Matcher<String> hasExpectedFormat()
     {
-        return new TypeSafeMatcher<String>()
+        return new TypeSafeMatcher<>()
         {
             @Override
             public boolean matchesSafely( String item )

@@ -20,41 +20,43 @@
 package org.neo4j.kernel.api.schema;
 
 import org.hamcrest.Matchers;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
 
-import org.neo4j.internal.kernel.api.schema.SchemaDescriptor;
-import org.neo4j.internal.kernel.api.schema.SchemaProcessor;
+import org.neo4j.internal.schema.LabelSchemaDescriptor;
+import org.neo4j.internal.schema.RelationTypeSchemaDescriptor;
+import org.neo4j.internal.schema.SchemaDescriptor;
+import org.neo4j.internal.schema.SchemaProcessor;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 
-public class SchemaProcessorTest
+class SchemaProcessorTest
 {
     private static final int LABEL_ID = 0;
     private static final int REL_TYPE_ID = 0;
 
     @Test
-    public void shouldHandleCorrectDescriptorVersions()
+    void shouldHandleCorrectDescriptorVersions()
     {
         List<String> callHistory = new ArrayList<>();
         SchemaProcessor processor = new SchemaProcessor()
         {
             @Override
-            public void processSpecific( org.neo4j.internal.kernel.api.schema.LabelSchemaDescriptor schema )
+            public void processSpecific( LabelSchemaDescriptor schema )
             {
                 callHistory.add( "LabelSchemaDescriptor" );
             }
 
             @Override
-            public void processSpecific( org.neo4j.internal.kernel.api.schema.RelationTypeSchemaDescriptor schema )
+            public void processSpecific( RelationTypeSchemaDescriptor schema )
             {
                 callHistory.add( "RelationTypeSchemaDescriptor" );
             }
 
             @Override
-            public void processSpecific( org.neo4j.internal.kernel.api.schema.SchemaDescriptor schemaDescriptor )
+            public void processSpecific( SchemaDescriptor schemaDescriptor )
             {
                 callHistory.add( "SchemaDescriptor" );
             }
@@ -75,11 +77,11 @@ public class SchemaProcessorTest
 
     private SchemaDescriptor disguisedLabel()
     {
-        return SchemaDescriptorFactory.forLabel( LABEL_ID, 1 );
+        return SchemaDescriptor.forLabel( LABEL_ID, 1 );
     }
 
     private SchemaDescriptor disguisedRelType()
     {
-        return SchemaDescriptorFactory.forRelType( REL_TYPE_ID, 1 );
+        return SchemaDescriptor.forRelType( REL_TYPE_ID, 1 );
     }
 }

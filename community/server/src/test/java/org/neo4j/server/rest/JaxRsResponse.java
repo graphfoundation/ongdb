@@ -19,140 +19,202 @@
  */
 package org.neo4j.server.rest;
 
-import com.sun.jersey.api.client.ClientResponse;
-import com.sun.jersey.core.util.StringKeyObjectValueIgnoreCaseMultivaluedMap;
-import org.junit.Test;
-
+import java.lang.annotation.Annotation;
 import java.net.URI;
-import java.util.Collections;
-import java.util.List;
+import java.net.http.HttpResponse;
+import java.util.Date;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
+import javax.ws.rs.core.EntityTag;
+import javax.ws.rs.core.GenericType;
+import javax.ws.rs.core.Link;
 import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.MultivaluedHashMap;
 import javax.ws.rs.core.MultivaluedMap;
+import javax.ws.rs.core.NewCookie;
 import javax.ws.rs.core.Response;
 
-import org.neo4j.logging.NullLogProvider;
-import org.neo4j.server.database.Database;
-import org.neo4j.server.rest.management.console.ConsoleService;
-import org.neo4j.server.rest.management.repr.ServerRootRepresentation;
-
-import static org.hamcrest.Matchers.containsString;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThat;
-import static org.mockito.Mockito.mock;
+import static javax.ws.rs.core.HttpHeaders.CONTENT_TYPE;
 
 public class JaxRsResponse extends Response
 {
+    private final HttpResponse<String> response;
 
-    private final int status;
-    private final MultivaluedMap<String,Object> metaData;
-    private final MultivaluedMap<String,String> headers;
-    private final URI location;
-    private String data;
-    private MediaType type;
-
-    public JaxRsResponse( ClientResponse response )
+    public JaxRsResponse( HttpResponse<String> response )
     {
-        this( response, extractContent( response ) );
-    }
-
-    public JaxRsResponse( ClientResponse response, String entity )
-    {
-        status = response.getStatus();
-        metaData = extractMetaData( response );
-        headers = extractHeaders( response );
-        location = response.getLocation();
-        type = response.getType();
-        data = entity;
-        response.close();
-    }
-
-    private static String extractContent( ClientResponse response )
-    {
-        if ( response.getStatus() == Status.NO_CONTENT.getStatusCode() )
-        {
-            return null;
-        }
-        return response.getEntity( String.class );
-    }
-
-    public static JaxRsResponse extractFrom( ClientResponse clientResponse )
-    {
-        return new JaxRsResponse( clientResponse );
+        this.response = response;
     }
 
     @Override
     public String getEntity()
     {
-        return data;
+        return response.body();
+    }
+
+    @Override
+    public <T> T readEntity( Class<T> entityType )
+    {
+        return null;
+    }
+
+    @Override
+    public <T> T readEntity( GenericType<T> entityType )
+    {
+        return null;
+    }
+
+    @Override
+    public <T> T readEntity( Class<T> entityType, Annotation[] annotations )
+    {
+        return null;
+    }
+
+    @Override
+    public <T> T readEntity( GenericType<T> entityType, Annotation[] annotations )
+    {
+        return null;
+    }
+
+    @Override
+    public boolean hasEntity()
+    {
+        return false;
+    }
+
+    @Override
+    public boolean bufferEntity()
+    {
+        return false;
     }
 
     @Override
     public int getStatus()
     {
-        return status;
+        return response.statusCode();
+    }
+
+    @Override
+    public StatusType getStatusInfo()
+    {
+        return null;
     }
 
     @Override
     public MultivaluedMap<String,Object> getMetadata()
     {
-        return metaData;
-    }
-
-    private MultivaluedMap<String,Object> extractMetaData( ClientResponse jettyResponse )
-    {
-        MultivaluedMap<String,Object> metadata = new StringKeyObjectValueIgnoreCaseMultivaluedMap();
-        for ( Map.Entry<String,List<String>> header : jettyResponse.getHeaders().entrySet() )
+        var metadata = new MultivaluedHashMap<String,Object>();
+        for ( var entry : response.headers().map().entrySet() )
         {
-            for ( Object value : header.getValue() )
-            {
-                metadata.putSingle( header.getKey(), value );
-            }
+            metadata.addAll( entry.getKey(), entry.getValue() );
         }
         return metadata;
     }
 
-    public MultivaluedMap<String,String> getHeaders()
+    @Override
+    public MultivaluedMap<String,Object> getHeaders()
     {
-        return headers;
+        return getMetadata();
     }
 
-    private MultivaluedMap<String,String> extractHeaders( ClientResponse jettyResponse )
+    @Override
+    public MultivaluedMap<String,String> getStringHeaders()
     {
-        return jettyResponse.getHeaders();
+        return null;
     }
 
-    // new URI( getHeaders().get( HttpHeaders.LOCATION ).get(0));
+    @Override
+    public String getHeaderString( String name )
+    {
+        return response.headers().firstValue( name ).orElseThrow();
+    }
+
+    @Override
     public URI getLocation()
     {
-        return location;
+        return response.uri();
     }
 
+    @Override
+    public Set<Link> getLinks()
+    {
+        return null;
+    }
+
+    @Override
+    public boolean hasLink( String relation )
+    {
+        return false;
+    }
+
+    @Override
+    public Link getLink( String relation )
+    {
+        return null;
+    }
+
+    @Override
+    public Link.Builder getLinkBuilder( String relation )
+    {
+        return null;
+    }
+
+    @Override
     public void close()
     {
 
     }
 
-    public MediaType getType()
+    @Override
+    public MediaType getMediaType()
     {
-        return type;
+        return null;
     }
 
-    public static class ServerRootRepresentationTest
+    @Override
+    public Locale getLanguage()
     {
-        @Test
-        public void shouldProvideAListOfServiceUris() throws Exception
-        {
-            ConsoleService consoleService =
-                    new ConsoleService( null, mock( Database.class ), NullLogProvider.getInstance(), null );
-            ServerRootRepresentation srr = new ServerRootRepresentation( new URI( "http://example.org:9999" ),
-                    Collections.singletonList( consoleService ) );
-            Map<String,Map<String,String>> map = srr.serialize();
+        return null;
+    }
 
-            assertNotNull( map.get( "services" ) );
+    @Override
+    public int getLength()
+    {
+        return 0;
+    }
 
-            assertThat( map.get( "services" ).get( consoleService.getName() ),
-                    containsString( consoleService.getServerPath() ) );
-        }
+    @Override
+    public Set<String> getAllowedMethods()
+    {
+        return null;
+    }
+
+    @Override
+    public Map<String,NewCookie> getCookies()
+    {
+        return null;
+    }
+
+    @Override
+    public EntityTag getEntityTag()
+    {
+        return null;
+    }
+
+    @Override
+    public Date getDate()
+    {
+        return null;
+    }
+
+    @Override
+    public Date getLastModified()
+    {
+        return null;
+    }
+
+    public MediaType getType()
+    {
+        return MediaType.valueOf( getHeaderString( CONTENT_TYPE ) );
     }
 }

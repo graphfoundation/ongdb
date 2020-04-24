@@ -23,13 +23,12 @@ import java.util.Iterator;
 
 import org.neo4j.consistency.checking.cache.CacheAccess;
 import org.neo4j.consistency.checking.full.MultiPassStore;
-import org.neo4j.helpers.collection.PrefetchingIterator;
+import org.neo4j.internal.helpers.collection.PrefetchingIterator;
 import org.neo4j.kernel.impl.store.RecordStore;
 import org.neo4j.kernel.impl.store.StoreAccess;
 import org.neo4j.kernel.impl.store.record.AbstractBaseRecord;
 import org.neo4j.kernel.impl.store.record.DynamicRecord;
 import org.neo4j.kernel.impl.store.record.LabelTokenRecord;
-import org.neo4j.kernel.impl.store.record.NeoStoreRecord;
 import org.neo4j.kernel.impl.store.record.NodeRecord;
 import org.neo4j.kernel.impl.store.record.PropertyKeyTokenRecord;
 import org.neo4j.kernel.impl.store.record.PropertyRecord;
@@ -37,6 +36,7 @@ import org.neo4j.kernel.impl.store.record.Record;
 import org.neo4j.kernel.impl.store.record.RelationshipGroupRecord;
 import org.neo4j.kernel.impl.store.record.RelationshipRecord;
 import org.neo4j.kernel.impl.store.record.RelationshipTypeTokenRecord;
+import org.neo4j.kernel.impl.store.record.SchemaRecord;
 
 import static org.neo4j.kernel.impl.store.record.RecordLoad.FORCE;
 
@@ -52,7 +52,7 @@ public class DirectRecordAccess implements RecordAccess
     }
 
     @Override
-    public RecordReference<DynamicRecord> schema( long id )
+    public RecordReference<SchemaRecord> schema( long id )
     {
         return referenceTo( access.getSchemaStore(), id );
     }
@@ -84,7 +84,7 @@ public class DirectRecordAccess implements RecordAccess
     @Override
     public Iterator<PropertyRecord> rawPropertyChain( final long firstId )
     {
-        return new PrefetchingIterator<PropertyRecord>()
+        return new PrefetchingIterator<>()
         {
             private long next = firstId;
 
@@ -155,12 +155,6 @@ public class DirectRecordAccess implements RecordAccess
     public RecordReference<DynamicRecord> propertyKeyName( int id )
     {
         return referenceTo( access.getPropertyKeyNameStore(), id );
-    }
-
-    @Override
-    public RecordReference<NeoStoreRecord> graph()
-    {
-        return new DirectRecordReference<>( access.getRawNeoStores().getMetaDataStore().graphPropertyRecord(), this );
     }
 
     @Override

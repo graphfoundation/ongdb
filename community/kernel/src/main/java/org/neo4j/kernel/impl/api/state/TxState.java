@@ -21,26 +21,25 @@ package org.neo4j.kernel.impl.api.state;
 
 import org.eclipse.collections.api.iterator.LongIterator;
 import org.eclipse.collections.api.map.primitive.MutableLongObjectMap;
-import org.eclipse.collections.api.map.primitive.MutableObjectLongMap;
 import org.eclipse.collections.api.set.primitive.MutableLongSet;
 import org.eclipse.collections.impl.UnmodifiableMap;
 import org.eclipse.collections.impl.map.mutable.primitive.LongObjectHashMap;
-import org.eclipse.collections.impl.map.mutable.primitive.ObjectLongHashMap;
 
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.NavigableMap;
 import java.util.TreeMap;
 import javax.annotation.Nullable;
 
-import org.neo4j.helpers.collection.Iterables;
-import org.neo4j.internal.kernel.api.exceptions.schema.ConstraintValidationException;
-import org.neo4j.internal.kernel.api.exceptions.schema.CreateConstraintFailureException;
-import org.neo4j.internal.kernel.api.schema.SchemaDescriptor;
-import org.neo4j.internal.kernel.api.schema.SchemaDescriptorPredicates;
-import org.neo4j.internal.kernel.api.schema.constraints.ConstraintDescriptor;
-import org.neo4j.kernel.api.schema.constraints.IndexBackedConstraintDescriptor;
+import org.neo4j.exceptions.KernelException;
+import org.neo4j.internal.helpers.collection.Iterables;
+import org.neo4j.internal.schema.ConstraintDescriptor;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.internal.schema.SchemaDescriptor;
+import org.neo4j.internal.schema.SchemaDescriptorPredicates;
+import org.neo4j.internal.schema.constraints.IndexBackedConstraintDescriptor;
 import org.neo4j.kernel.api.txstate.TransactionState;
 import org.neo4j.kernel.impl.util.collection.CollectionsFactory;
 import org.neo4j.kernel.impl.util.collection.OnHeapCollectionsFactory;
@@ -50,9 +49,7 @@ import org.neo4j.kernel.impl.util.diffsets.MutableLongDiffSets;
 import org.neo4j.kernel.impl.util.diffsets.MutableLongDiffSetsImpl;
 import org.neo4j.storageengine.api.RelationshipDirection;
 import org.neo4j.storageengine.api.RelationshipVisitor;
-import org.neo4j.storageengine.api.schema.IndexDescriptor;
 import org.neo4j.storageengine.api.txstate.DiffSets;
-import org.neo4j.storageengine.api.txstate.GraphState;
 import org.neo4j.storageengine.api.txstate.LongDiffSets;
 import org.neo4j.storageengine.api.txstate.NodeState;
 import org.neo4j.storageengine.api.txstate.RelationshipState;
@@ -61,13 +58,12 @@ import org.neo4j.util.VisibleForTesting;
 import org.neo4j.values.storable.Value;
 import org.neo4j.values.storable.ValueTuple;
 
-import static org.neo4j.helpers.collection.Iterables.map;
 import static org.neo4j.values.storable.Values.NO_VALUE;
 
 /**
  * This class contains transaction-local changes to the graph. These changes can then be used to augment reads from the
  * committed state of the database (to make the local changes appear in local transaction read operations). At commit
- * time a visitor is sent into this class to convert the end result of the tx changes into a physical changeset.
+ * time a visitor is sent into this class to convert the end result of the tx changes into a physical change-set.
  * <p>
  * See {@link org.neo4j.kernel.impl.api.KernelTransactionImplementation} for how this happens.
  * <p>
@@ -86,18 +82,17 @@ public class TxState implements TransactionState, RelationshipVisitor.Home
     private MutableLongObjectMap<NodeStateImpl> nodeStatesMap;
     private MutableLongObjectMap<RelationshipStateImpl> relationshipStatesMap;
 
-    private MutableLongObjectMap<String> createdLabelTokens;
-    private MutableLongObjectMap<String> createdPropertyKeyTokens;
-    private MutableLongObjectMap<String> createdRelationshipTypeTokens;
+    private MutableLongObjectMap<TokenState> createdLabelTokens;
+    private MutableLongObjectMap<TokenState> createdPropertyKeyTokens;
+    private MutableLongObjectMap<TokenState> createdRelationshipTypeTokens;
 
-    private GraphStateImpl graphState;
     private MutableDiffSets<IndexDescriptor> indexChanges;
     private MutableDiffSets<ConstraintDescriptor> constraintsChanges;
 
     private RemovalsCountingDiffSets nodes;
     private RemovalsCountingDiffSets relationships;
 
-    private MutableObjectLongMap<IndexBackedConstraintDescriptor> createdConstraintIndexesByConstraint;
+    private Map<IndexBackedConstraintDescriptor,IndexDescriptor> createdConstraintIndexesByConstraint;
 
     private Map<SchemaDescriptor, Map<ValueTuple, MutableLongDiffSets>> indexUpdates;
 
@@ -115,7 +110,7 @@ public class TxState implements TransactionState, RelationshipVisitor.Home
     }
 
     @Override
-    public void accept( final TxStateVisitor visitor ) throws ConstraintValidationException, CreateConstraintFailureException
+    public void accept( final TxStateVisitor visitor ) throws KernelException
     {
         if ( nodes != null )
         {
@@ -160,14 +155,12 @@ public class TxState implements TransactionState, RelationshipVisitor.Home
             visitor.visitRelPropertyChanges( rel.getId(), rel.addedProperties(), rel.changedProperties(), rel.removedProperties() );
         }
 
-        if ( graphState != null )
-        {
-            visitor.visitGraphPropertyChanges( graphState.addedProperties(), graphState.changedProperties(), graphState.removedProperties() );
-        }
-
         if ( indexChanges != null )
         {
-            indexChanges.getAdded().forEach( visitor::visitAddedIndex );
+            for ( IndexDescriptor indexDescriptor : indexChanges.getAdded() )
+            {
+                visitor.visitAddedIndex( indexDescriptor );
+            }
             indexChanges.getRemoved().forEach( visitor::visitRemovedIndex );
         }
 
@@ -182,17 +175,17 @@ public class TxState implements TransactionState, RelationshipVisitor.Home
 
         if ( createdLabelTokens != null )
         {
-            createdLabelTokens.forEachKeyValue( visitor::visitCreatedLabelToken );
+            createdLabelTokens.forEachKeyValue( ( id, token ) -> visitor.visitCreatedLabelToken( id, token.name, token.internal ) );
         }
 
         if ( createdPropertyKeyTokens != null )
         {
-            createdPropertyKeyTokens.forEachKeyValue( visitor::visitCreatedPropertyKeyToken );
+            createdPropertyKeyTokens.forEachKeyValue( ( id, token ) -> visitor.visitCreatedPropertyKeyToken( id, token.name, token.internal ) );
         }
 
         if ( createdRelationshipTypeTokens != null )
         {
-            createdRelationshipTypeTokens.forEachKeyValue( visitor::visitCreatedRelationshipTypeToken );
+            createdRelationshipTypeTokens.forEachKeyValue( ( id, token ) -> visitor.visitCreatedRelationshipTypeToken( id, token.name, token.internal ) );
         }
     }
 
@@ -200,6 +193,12 @@ public class TxState implements TransactionState, RelationshipVisitor.Home
     public boolean hasChanges()
     {
         return revision != 0;
+    }
+
+    @Override
+    public boolean hasDataChanges()
+    {
+        return getDataRevision() != 0;
     }
 
     @Override
@@ -384,20 +383,6 @@ public class TxState implements TransactionState, RelationshipVisitor.Home
     }
 
     @Override
-    public void graphDoReplaceProperty( int propertyKeyId, Value replacedValue, Value newValue )
-    {
-        if ( replacedValue != NO_VALUE )
-        {
-            getOrCreateGraphState().changeProperty( propertyKeyId, newValue );
-        }
-        else
-        {
-            getOrCreateGraphState().addProperty( propertyKeyId, newValue );
-        }
-        dataChanged();
-    }
-
-    @Override
     public void nodeDoRemoveProperty( long nodeId, int propertyKeyId )
     {
         getOrCreateNodeState( nodeId ).removeProperty( propertyKeyId );
@@ -408,13 +393,6 @@ public class TxState implements TransactionState, RelationshipVisitor.Home
     public void relationshipDoRemoveProperty( long relationshipId, int propertyKeyId )
     {
         getOrCreateRelationshipState( relationshipId ).removeProperty( propertyKeyId );
-        dataChanged();
-    }
-
-    @Override
-    public void graphDoRemoveProperty( int propertyKeyId )
-    {
-        getOrCreateGraphState().removeProperty( propertyKeyId );
         dataChanged();
     }
 
@@ -435,35 +413,35 @@ public class TxState implements TransactionState, RelationshipVisitor.Home
     }
 
     @Override
-    public void labelDoCreateForName( String labelName, long id )
+    public void labelDoCreateForName( String labelName, boolean internal, long id )
     {
         if ( createdLabelTokens == null )
         {
             createdLabelTokens = new LongObjectHashMap<>();
         }
-        createdLabelTokens.put( id, labelName );
+        createdLabelTokens.put( id, new TokenState( labelName, internal ) );
         changed();
     }
 
     @Override
-    public void propertyKeyDoCreateForName( String propertyKeyName, int id )
+    public void propertyKeyDoCreateForName( String propertyKeyName, boolean internal, int id )
     {
         if ( createdPropertyKeyTokens == null )
         {
             createdPropertyKeyTokens = new LongObjectHashMap<>();
         }
-        createdPropertyKeyTokens.put( id, propertyKeyName );
+        createdPropertyKeyTokens.put( id, new TokenState( propertyKeyName, internal ) );
         changed();
     }
 
     @Override
-    public void relationshipTypeDoCreateForName( String labelName, int id )
+    public void relationshipTypeDoCreateForName( String labelName, boolean internal, int id )
     {
         if ( createdRelationshipTypeTokens == null )
         {
             createdRelationshipTypeTokens = new LongObjectHashMap<>();
         }
-        createdRelationshipTypeTokens.put( id, labelName );
+        createdRelationshipTypeTokens.put( id, new TokenState( labelName, internal ) );
         changed();
     }
 
@@ -487,12 +465,6 @@ public class TxState implements TransactionState, RelationshipVisitor.Home
         }
         final RelationshipStateImpl relationshipState = relationshipStatesMap.get( id );
         return relationshipState == null ? RelationshipStateImpl.EMPTY : relationshipState;
-    }
-
-    @Override
-    public GraphState getGraphState()
-    {
-        return graphState;
     }
 
     @Override
@@ -525,16 +497,16 @@ public class TxState implements TransactionState, RelationshipVisitor.Home
     }
 
     @Override
-    public void indexDoDrop( IndexDescriptor descriptor )
+    public void indexDoDrop( IndexDescriptor index )
     {
-        indexChangesDiffSets().remove( descriptor );
+        indexChangesDiffSets().remove( index );
         changed();
     }
 
     @Override
-    public boolean indexDoUnRemove( IndexDescriptor descriptor )
+    public boolean indexDoUnRemove( IndexDescriptor index )
     {
-        return indexChangesDiffSets().unRemove( descriptor );
+        return indexChangesDiffSets().unRemove( index );
     }
 
     @Override
@@ -625,21 +597,14 @@ public class TxState implements TransactionState, RelationshipVisitor.Home
         return relationshipStatesMap.getIfAbsentPut( relationshipId, () -> new RelationshipStateImpl( relationshipId, collectionsFactory ) );
     }
 
-    @VisibleForTesting
-    GraphStateImpl getOrCreateGraphState()
-    {
-        if ( graphState == null )
-        {
-            graphState = new GraphStateImpl( collectionsFactory );
-        }
-        return graphState;
-    }
-
     @Override
-    public void constraintDoAdd( IndexBackedConstraintDescriptor constraint, long indexId )
+    public void constraintDoAdd( IndexBackedConstraintDescriptor constraint, IndexDescriptor index )
     {
         constraintsChangesDiffSets().add( constraint );
-        createdConstraintIndexesByConstraint().put( constraint, indexId );
+        if ( index != null && index != IndexDescriptor.NO_INDEX )
+        {
+            createdConstraintIndexesByConstraint().put( constraint, index );
+        }
         changed();
     }
 
@@ -687,10 +652,6 @@ public class TxState implements TransactionState, RelationshipVisitor.Home
     public void constraintDoDrop( ConstraintDescriptor constraint )
     {
         constraintsChangesDiffSets().remove( constraint );
-        if ( constraint.enforcesUniqueness() )
-        {
-            indexDoDrop( getIndexForIndexBackedConstraint( (IndexBackedConstraintDescriptor) constraint ) );
-        }
         changed();
     }
 
@@ -701,20 +662,25 @@ public class TxState implements TransactionState, RelationshipVisitor.Home
     }
 
     @Override
-    public Iterable<IndexDescriptor> constraintIndexesCreatedInTx()
+    public Iterator<IndexDescriptor> constraintIndexesCreatedInTx()
     {
         if ( createdConstraintIndexesByConstraint != null && !createdConstraintIndexesByConstraint.isEmpty() )
         {
-            return map( TxState::getIndexForIndexBackedConstraint, createdConstraintIndexesByConstraint.keySet() );
+            return createdConstraintIndexesByConstraint.values().iterator();
         }
-        return Iterables.empty();
+        return Collections.emptyIterator();
     }
 
     @Override
-    public Long indexCreatedForConstraint( ConstraintDescriptor constraint )
+    public IndexDescriptor indexCreatedForConstraint( ConstraintDescriptor constraint )
     {
-        return createdConstraintIndexesByConstraint == null ? null :
-                createdConstraintIndexesByConstraint.get( constraint );
+        if ( constraint.isIndexBackedConstraint() )
+        {
+            IndexBackedConstraintDescriptor indexBacked = constraint.asIndexBackedConstraint();
+            return createdConstraintIndexesByConstraint == null ? null :
+                   createdConstraintIndexesByConstraint.get( indexBacked );
+        }
+        return IndexDescriptor.NO_INDEX;
     }
 
     @Override
@@ -770,7 +736,6 @@ public class TxState implements TransactionState, RelationshipVisitor.Home
         if ( propertiesBefore != null )
         {
             MutableLongDiffSets before = getOrCreateIndexUpdatesForSeek( updates, propertiesBefore );
-            //noinspection ConstantConditions
             before.remove( nodeId );
             if ( before.getRemoved().contains( nodeId ) )
             {
@@ -784,7 +749,6 @@ public class TxState implements TransactionState, RelationshipVisitor.Home
         if ( propertiesAfter != null )
         {
             MutableLongDiffSets after = getOrCreateIndexUpdatesForSeek( updates, propertiesAfter );
-            //noinspection ConstantConditions
             after.add( nodeId );
             if ( after.getAdded().contains( nodeId ) )
             {
@@ -812,18 +776,13 @@ public class TxState implements TransactionState, RelationshipVisitor.Home
         return indexUpdates.computeIfAbsent( schema, k -> new HashMap<>() );
     }
 
-    private MutableObjectLongMap<IndexBackedConstraintDescriptor> createdConstraintIndexesByConstraint()
+    private Map<IndexBackedConstraintDescriptor,IndexDescriptor> createdConstraintIndexesByConstraint()
     {
         if ( createdConstraintIndexesByConstraint == null )
         {
-            createdConstraintIndexesByConstraint = new ObjectLongHashMap<>();
+            createdConstraintIndexesByConstraint = new HashMap<>();
         }
         return createdConstraintIndexesByConstraint;
-    }
-
-    private static IndexDescriptor getIndexForIndexBackedConstraint( IndexBackedConstraintDescriptor constraint )
-    {
-        return constraint.ownedIndexDescriptor();
     }
 
     @Override
@@ -833,11 +792,6 @@ public class TxState implements TransactionState, RelationshipVisitor.Home
     }
 
     @Override
-    public boolean hasDataChanges()
-    {
-        return dataRevision != 0;
-    }
-
     public long getDataRevision()
     {
         return dataRevision;

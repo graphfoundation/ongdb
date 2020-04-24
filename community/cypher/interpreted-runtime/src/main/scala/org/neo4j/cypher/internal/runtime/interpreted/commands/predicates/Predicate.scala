@@ -21,29 +21,20 @@ package org.neo4j.cypher.internal.runtime.interpreted.commands.predicates
 
 import java.util.regex.Pattern
 
+import org.neo4j.cypher.internal.runtime.interpreted.IsMap
 import org.neo4j.cypher.internal.runtime.interpreted.commands.AstNode
-import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.{Expression, Literal}
+import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.{AbstractCachedNodeProperty, AbstractCachedRelationshipProperty, Expression, Literal}
 import org.neo4j.cypher.internal.runtime.interpreted.commands.values.KeyToken
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.QueryState
-import org.neo4j.cypher.internal.runtime.interpreted.CastSupport
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
-import org.neo4j.cypher.internal.runtime.interpreted.IsList
-import org.neo4j.cypher.internal.runtime.interpreted.IsMap
-import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.AbstractCachedNodeProperty
+import org.neo4j.cypher.internal.runtime.{CastSupport, ExecutionContext, IsList, IsNoValue}
+import org.neo4j.cypher.internal.v4_0.util.NonEmptyList
 import org.neo4j.cypher.operations.CypherBoolean
+import org.neo4j.exceptions.CypherTypeException
 import org.neo4j.kernel.api.StatementConstants
-import org.neo4j.values.storable.BooleanValue
-import org.neo4j.values.storable.TextValue
-import org.neo4j.values.storable.Value
-import org.neo4j.values.storable.Values
-import org.neo4j.values.virtual.VirtualNodeValue
-import org.neo4j.values.virtual.VirtualRelationshipValue
-import org.neo4j.cypher.internal.v3_6.util.CypherTypeException
-import org.neo4j.cypher.internal.v3_6.util.NonEmptyList
+import org.neo4j.values.storable.{BooleanValue, TextValue, Value, Values}
+import org.neo4j.values.virtual.{VirtualNodeValue, VirtualRelationshipValue}
 
-import scala.util.Failure
-import scala.util.Success
-import scala.util.Try
+import scala.util.{Failure, Success, Try}
 
 abstract class Predicate extends Expression {
   override def apply(ctx: ExecutionContext, state: QueryState): Value =
@@ -73,9 +64,6 @@ abstract class CompositeBooleanPredicate extends Predicate {
   def predicates: NonEmptyList[Predicate]
 
   def shouldExitWhen: Boolean
-
-  override def symbolTableDependencies: Set[String] =
-    predicates.map(_.symbolTableDependencies).reduceLeft(_ ++ _)
 
   override def containsIsNull: Boolean = predicates.exists(_.containsIsNull)
 
@@ -123,7 +111,6 @@ case class Not(a: Predicate) extends Predicate {
   override def rewrite(f: Expression => Expression): Expression = f(Not(a.rewriteAsPredicate(f)))
   override def arguments: Seq[Expression] = Seq(a)
   override def children: Seq[AstNode[_]] = Seq(a)
-  override def symbolTableDependencies: Set[String] = a.symbolTableDependencies
 }
 
 case class Xor(a: Predicate, b: Predicate) extends Predicate {
@@ -141,13 +128,11 @@ case class Xor(a: Predicate, b: Predicate) extends Predicate {
   override def arguments: Seq[Expression] = Seq(a, b)
 
   override def children: Seq[AstNode[_]] = Seq(a, b)
-
-  override def symbolTableDependencies: Set[String] = a.symbolTableDependencies ++ b.symbolTableDependencies
 }
 
 case class IsNull(expression: Expression) extends Predicate {
   override def isMatch(m: ExecutionContext, state: QueryState): Option[Boolean] = expression(m, state) match {
-    case Values.NO_VALUE => Some(true)
+    case IsNoValue() => Some(true)
     case _ => Some(false)
   }
 
@@ -156,7 +141,6 @@ case class IsNull(expression: Expression) extends Predicate {
   override def rewrite(f: Expression => Expression): Expression = f(IsNull(expression.rewrite(f)))
   override def arguments: Seq[Expression] = Seq(expression)
   override def children: Seq[AstNode[_]] = Seq(expression)
-  override def symbolTableDependencies: Set[String] = expression.symbolTableDependencies
 }
 
 case class True() extends Predicate {
@@ -166,16 +150,24 @@ case class True() extends Predicate {
   override def rewrite(f: Expression => Expression): Expression = f(this)
   override def arguments: Seq[Expression] = Seq.empty
   override def children: Seq[AstNode[_]] = Seq.empty
-  override def symbolTableDependencies: Set[String] = Set()
 }
 
 case class PropertyExists(variable: Expression, propertyKey: KeyToken) extends Predicate {
-  def isMatch(m: ExecutionContext, state: QueryState): Option[Boolean] = variable(m, state) match {
-    case pc: VirtualNodeValue => Some(propertyKey.getOptId(state.query).exists(state.query.nodeOps.hasProperty(pc.id, _)))
-    case pc: VirtualRelationshipValue => Some(
-      propertyKey.getOptId(state.query).exists(state.query.relationshipOps.hasProperty(pc.id, _)))
-    case IsMap(map) => Some(map(state.query).get(propertyKey.name) != Values.NO_VALUE)
-    case Values.NO_VALUE => None
+  override def isMatch(m: ExecutionContext, state: QueryState): Option[Boolean] = variable(m, state) match {
+    case pc: VirtualNodeValue =>
+      Some(propertyKey.getOptId(state.query).exists(
+        (propertyKeyId: Int) =>
+          state.query.nodeOps.hasProperty(pc.id, propertyKeyId, state.cursors.nodeCursor, state.cursors.propertyCursor)))
+
+    case pc: VirtualRelationshipValue =>
+      Some(propertyKey.getOptId(state.query).exists(
+        (propertyKeyId: Int) =>
+          state.query.relationshipOps.hasProperty(pc.id, propertyKeyId, state.cursors.relationshipScanCursor, state.cursors.propertyCursor)))
+
+    case IsMap(map) =>
+      Some(map(state).get(propertyKey.name) != Values.NO_VALUE)
+
+    case IsNoValue() => None
     case _ => throw new CypherTypeException("Expected " + variable + " to be a property container.")
   }
 
@@ -188,19 +180,38 @@ case class PropertyExists(variable: Expression, propertyKey: KeyToken) extends P
   override def arguments: Seq[Expression] = Seq(variable)
 
   override def children: Seq[AstNode[_]] = Seq(variable, propertyKey)
-
-  override def symbolTableDependencies: Set[String] = variable.symbolTableDependencies
 }
 
 case class CachedNodePropertyExists(cachedNodeProperty: Expression) extends Predicate {
   override def isMatch(m: ExecutionContext, state: QueryState): Option[Boolean] = {
     cachedNodeProperty match {
-      case cnp: AbstractCachedNodeProperty =>
-        val nodeId = cnp.getNodeId(m)
+      case cp: AbstractCachedNodeProperty =>
+        val nodeId = cp.getId(m)
         if (nodeId == StatementConstants.NO_SUCH_NODE) {
           None
         } else {
-          Some(state.query.nodeOps.hasTxStatePropertyForCachedNodeProperty(nodeId, cnp.getPropertyKey(state.query)))
+          cp.getPropertyKey(state.query) match {
+            case StatementConstants.NO_SUCH_PROPERTY_KEY =>
+              Some(false)
+            case propId =>
+              state.query.nodeOps.hasTxStatePropertyForCachedProperty(nodeId, propId) match {
+                case None => // no change in TX state
+                 cp.getCachedProperty(m) match {
+                   case null =>
+                     // the cached node property has been invalidated
+                     val property = state.query.nodeOps.getProperty(nodeId, propId, state.cursors.nodeCursor, state.cursors.propertyCursor, throwOnDeleted = false)
+                     // Re-cache the value
+                     cp.setCachedProperty(m, property)
+                     Some(!(property eq Values.NO_VALUE))
+                   case IsNoValue() =>
+                     Some(false)
+                   case _ =>
+                     Some(true)
+                 }
+                case changedInTXState =>
+                  changedInTXState
+              }
+          }
         }
       case _ => throw new CypherTypeException("Expected " + cachedNodeProperty + " to be a cached node property.")
     }
@@ -215,8 +226,52 @@ case class CachedNodePropertyExists(cachedNodeProperty: Expression) extends Pred
   override def arguments: Seq[Expression] = Seq(cachedNodeProperty)
 
   override def children: Seq[AstNode[_]] = Seq(cachedNodeProperty)
+}
 
-  override def symbolTableDependencies: Set[String] = cachedNodeProperty.symbolTableDependencies
+case class CachedRelationshipPropertyExists(cachedRelProperty: Expression) extends Predicate {
+  override def isMatch(m: ExecutionContext, state: QueryState): Option[Boolean] = {
+    cachedRelProperty match {
+      case cp: AbstractCachedRelationshipProperty =>
+        val relId = cp.getId(m)
+        if (relId == StatementConstants.NO_SUCH_RELATIONSHIP) {
+          None
+        } else {
+          cp.getPropertyKey(state.query) match {
+            case StatementConstants.NO_SUCH_PROPERTY_KEY =>
+              Some(false)
+            case propId =>
+              state.query.relationshipOps.hasTxStatePropertyForCachedProperty(relId, propId) match {
+                case None => // no change in TX state
+                  cp.getCachedProperty(m) match {
+                    case null =>
+                      // the cached rel property has been invalidated
+                      val property = state.query.relationshipOps.getProperty(relId, propId, state.cursors.relationshipScanCursor, state.cursors.propertyCursor, throwOnDeleted = false)
+                      // Re-cache the value
+                      cp.setCachedProperty(m, property)
+                      Some(!(property eq Values.NO_VALUE))
+                    case IsNoValue() =>
+                      Some(false)
+                    case _ =>
+                      Some(true)
+                  }
+                case changedInTXState =>
+                  changedInTXState
+              }
+          }
+        }
+      case _ => throw new CypherTypeException("Expected " + cachedRelProperty + " to be a cached relationship property.")
+    }
+  }
+
+  override def toString: String = s"hasCachedRelationshipProp($cachedRelProperty)"
+
+  override def containsIsNull = false
+
+  override def rewrite(f: Expression => Expression): Expression = f(CachedRelationshipPropertyExists(cachedRelProperty.rewrite(f)))
+
+  override def arguments: Seq[Expression] = Seq(cachedRelProperty)
+
+  override def children: Seq[AstNode[_]] = Seq(cachedRelProperty)
 }
 
 trait StringOperator {
@@ -231,7 +286,6 @@ trait StringOperator {
   def compare(a: TextValue, b: TextValue): Boolean
   override def containsIsNull = false
   override def arguments: Seq[Expression] = Seq(lhs, rhs)
-  override def symbolTableDependencies: Set[String] = lhs.symbolTableDependencies ++ rhs.symbolTableDependencies
 }
 
 case class StartsWith(lhs: Expression, rhs: Expression) extends Predicate with StringOperator {
@@ -278,9 +332,6 @@ case class LiteralRegularExpression(lhsExpr: Expression, regexExpr: Literal)
   override def arguments: Seq[Expression] = Seq(lhsExpr, regexExpr)
 
   override def children: Seq[AstNode[_]] = Seq(lhsExpr, regexExpr)
-
-  override def symbolTableDependencies: Set[String] = lhsExpr.symbolTableDependencies ++ regexExpr.symbolTableDependencies
-
   override def toString = s"$lhsExpr =~ $regexExpr"
 }
 
@@ -290,7 +341,7 @@ case class RegularExpression(lhsExpr: Expression, regexExpr: Expression)
     val lValue = lhsExpr(m, state)
     val rValue = regexExpr(m, state)
     (lValue, rValue) match {
-      case (lhs: TextValue, rhs) if rhs != Values.NO_VALUE =>
+      case (lhs: TextValue, rhs) if !(rhs eq Values.NO_VALUE) =>
         val rhsAsRegexString = converter(CastSupport.castOrFail[TextValue](rhs))
         Some(CypherBoolean.regex(lhs, rhsAsRegexString).booleanValue())
       case _ => None
@@ -309,15 +360,13 @@ case class RegularExpression(lhsExpr: Expression, regexExpr: Expression)
   override def arguments: Seq[Expression] = Seq(lhsExpr, regexExpr)
 
   override def children: Seq[AstNode[_]] = Seq(lhsExpr, regexExpr)
-
-  override def symbolTableDependencies: Set[String] = lhsExpr.symbolTableDependencies ++ regexExpr.symbolTableDependencies
 }
 
 case class NonEmpty(collection: Expression) extends Predicate {
   override def isMatch(m: ExecutionContext, state: QueryState): Option[Boolean] = {
     collection(m, state) match {
       case IsList(x) => Some(x.nonEmpty)
-      case x if x == Values.NO_VALUE => None
+      case IsNoValue() => None
       case x => throw new CypherTypeException(s"Expected a collection, got `$x`")
     }
   }
@@ -331,15 +380,13 @@ case class NonEmpty(collection: Expression) extends Predicate {
   override def arguments: Seq[Expression] = Seq(collection)
 
   override def children: Seq[AstNode[_]] = Seq(collection)
-
-  override def symbolTableDependencies: Set[String] = collection.symbolTableDependencies
 }
 
 case class HasLabel(entity: Expression, label: KeyToken) extends Predicate {
 
   override def isMatch(m: ExecutionContext, state: QueryState): Option[Boolean] = entity(m, state) match {
 
-    case Values.NO_VALUE =>
+    case IsNoValue() =>
       None
 
     case value =>
@@ -351,7 +398,7 @@ case class HasLabel(entity: Expression, label: KeyToken) extends Predicate {
         case None =>
           Some(false)
         case Some(labelId) =>
-          Some(queryCtx.isLabelSetOnNode(labelId, nodeId))
+          Some(queryCtx.isLabelSetOnNode(labelId, nodeId, state.cursors.nodeCursor))
       }
   }
 
@@ -363,8 +410,6 @@ case class HasLabel(entity: Expression, label: KeyToken) extends Predicate {
 
   override def arguments: Seq[Expression] = Seq(entity)
 
-  override def symbolTableDependencies: Set[String] = entity.symbolTableDependencies ++ label.symbolTableDependencies
-
   override def containsIsNull = false
 }
 
@@ -375,7 +420,7 @@ case class CoercedPredicate(inner: Expression) extends Predicate {
 
   override def isMatch(m: ExecutionContext, state: QueryState): Option[Boolean] = inner(m, state) match {
     case x: BooleanValue => Some(x.booleanValue())
-    case Values.NO_VALUE => None
+    case IsNoValue() => None
     case IsList(coll) => Some(coll.nonEmpty)
     case x => throw new CypherTypeException(s"Don't know how to treat that as a predicate: $x")
   }
@@ -383,8 +428,6 @@ case class CoercedPredicate(inner: Expression) extends Predicate {
   override def rewrite(f: Expression => Expression): Expression = f(CoercedPredicate(inner.rewrite(f)))
 
   override def containsIsNull = false
-
-  override def symbolTableDependencies: Set[String] = inner.symbolTableDependencies
 
   override def toString: String = inner.toString
 }

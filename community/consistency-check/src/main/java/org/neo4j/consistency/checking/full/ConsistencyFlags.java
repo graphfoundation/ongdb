@@ -22,31 +22,21 @@ package org.neo4j.consistency.checking.full;
 import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
 
-import org.neo4j.consistency.ConsistencyCheckSettings;
-import org.neo4j.kernel.configuration.Config;
-
 public class ConsistencyFlags
 {
+    public static final ConsistencyFlags DEFAULT = new ConsistencyFlags( true, true, true, true, false );
+
     private final boolean checkGraph;
     private final boolean checkIndexes;
     private final boolean checkIndexStructure;
     private final boolean checkLabelScanStore;
     private final boolean checkPropertyOwners;
 
-    public ConsistencyFlags( Config tuningConfiguration )
-    {
-        this( tuningConfiguration.get( ConsistencyCheckSettings.consistency_check_graph ),
-                tuningConfiguration.get( ConsistencyCheckSettings.consistency_check_indexes ),
-                tuningConfiguration.get( ConsistencyCheckSettings.consistency_check_index_structure ),
-                tuningConfiguration.get( ConsistencyCheckSettings.consistency_check_label_scan_store ),
-                tuningConfiguration.get( ConsistencyCheckSettings.consistency_check_property_owners ) );
-    }
-
     public ConsistencyFlags( boolean checkGraph,
-                             boolean checkIndexes,
-                             boolean checkIndexStructure,
-                             boolean checkLabelScanStore,
-                             boolean checkPropertyOwners )
+            boolean checkIndexes,
+            boolean checkIndexStructure,
+            boolean checkLabelScanStore,
+            boolean checkPropertyOwners )
     {
         this.checkGraph = checkGraph;
         this.checkIndexes = checkIndexes;

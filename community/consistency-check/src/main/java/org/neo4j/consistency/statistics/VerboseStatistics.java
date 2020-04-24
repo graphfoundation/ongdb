@@ -19,18 +19,20 @@
  */
 package org.neo4j.consistency.statistics;
 
-import org.neo4j.helpers.Format;
+import org.neo4j.internal.helpers.Format;
 import org.neo4j.logging.Log;
+import org.neo4j.time.Stopwatch;
 
 import static java.lang.String.format;
-import static java.lang.System.currentTimeMillis;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static org.neo4j.io.ByteUnit.bytesToString;
 
 public class VerboseStatistics implements Statistics
 {
     private final AccessStatistics accessStatistics;
     private final Counts counts;
     private final Log logger;
-    private long startTime;
+    private Stopwatch startTime;
 
     public VerboseStatistics( AccessStatistics accessStatistics, Counts counts, Log logger )
     {
@@ -47,7 +49,7 @@ public class VerboseStatistics implements Statistics
         logger.info( format( "I/Os%n%s", accessStr ) );
         logger.info( counts.toString() );
         logger.info( memoryStats() );
-        logger.info( "Done in  " + Format.duration( currentTimeMillis() - startTime ) );
+        logger.info( "Done in  " + Format.duration( startTime.elapsed( MILLISECONDS ) ) );
     }
 
     @Override
@@ -55,17 +57,17 @@ public class VerboseStatistics implements Statistics
     {
         accessStatistics.reset();
         counts.reset();
-        startTime = currentTimeMillis();
+        startTime = Stopwatch.start();
     }
 
     private static String memoryStats()
     {
         Runtime runtime = Runtime.getRuntime();
         return format( "Memory[used:%s, free:%s, total:%s, max:%s]",
-                Format.bytes( runtime.totalMemory() - runtime.freeMemory() ),
-                Format.bytes( runtime.freeMemory() ),
-                Format.bytes( runtime.totalMemory() ),
-                Format.bytes( runtime.maxMemory() ) );
+                bytesToString( runtime.totalMemory() - runtime.freeMemory() ),
+                bytesToString( runtime.freeMemory() ),
+                bytesToString( runtime.totalMemory() ),
+                bytesToString( runtime.maxMemory() ) );
     }
 
     @Override

@@ -20,9 +20,9 @@
 package org.neo4j.bolt.runtime;
 
 import io.netty.channel.Channel;
-import org.apache.commons.lang3.exception.ExceptionUtils;
 
 import java.net.SocketAddress;
+import java.time.Clock;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -31,18 +31,21 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.neo4j.bolt.BoltChannel;
 import org.neo4j.bolt.BoltServer;
-import org.neo4j.bolt.v1.packstream.PackOutput;
-import org.neo4j.bolt.v1.runtime.Job;
+import org.neo4j.bolt.packstream.PackOutput;
+import org.neo4j.bolt.runtime.scheduling.BoltConnectionLifetimeListener;
+import org.neo4j.bolt.runtime.scheduling.BoltConnectionQueueMonitor;
+import org.neo4j.bolt.runtime.statemachine.BoltStateMachine;
 import org.neo4j.kernel.api.exceptions.Status;
 import org.neo4j.logging.Log;
 import org.neo4j.logging.internal.LogService;
 import org.neo4j.util.FeatureToggles;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
+import static org.apache.commons.lang3.exception.ExceptionUtils.hasCause;
 
 public class DefaultBoltConnection implements BoltConnection
 {
-    protected static final int DEFAULT_MAX_BATCH_SIZE = FeatureToggles.getInteger( BoltServer.class, "max_batch_size", 100 );
+    static final int DEFAULT_MAX_BATCH_SIZE = FeatureToggles.getInteger( BoltServer.class, "max_batch_size", 100 );
 
     private final String id;
 
@@ -61,17 +64,13 @@ public class DefaultBoltConnection implements BoltConnection
 
     private final AtomicBoolean shouldClose = new AtomicBoolean();
     private final AtomicBoolean closed = new AtomicBoolean();
+    private final AtomicBoolean idle = new AtomicBoolean( true );
 
-    public DefaultBoltConnection( BoltChannel channel, PackOutput output, BoltStateMachine machine, LogService logService,
-            BoltConnectionLifetimeListener listener,
-            BoltConnectionQueueMonitor queueMonitor )
-    {
-        this( channel, output, machine, logService, listener, queueMonitor, DEFAULT_MAX_BATCH_SIZE );
-    }
+    private final BoltConnectionMetricsMonitor metricsMonitor;
+    private final Clock clock;
 
-    public DefaultBoltConnection( BoltChannel channel, PackOutput output, BoltStateMachine machine, LogService logService,
-            BoltConnectionLifetimeListener listener,
-            BoltConnectionQueueMonitor queueMonitor, int maxBatchSize )
+    DefaultBoltConnection( BoltChannel channel, PackOutput output, BoltStateMachine machine, LogService logService, BoltConnectionLifetimeListener listener,
+            BoltConnectionQueueMonitor queueMonitor, int maxBatchSize, BoltConnectionMetricsMonitor metricsMonitor, Clock clock )
     {
         this.id = channel.id();
         this.channel = channel;
@@ -83,12 +82,22 @@ public class DefaultBoltConnection implements BoltConnection
         this.userLog = logService.getUserLog( getClass() );
         this.maxBatchSize = maxBatchSize;
         this.batch = new ArrayList<>( maxBatchSize );
+        this.metricsMonitor = metricsMonitor;
+        this.clock = clock;
     }
 
     @Override
     public String id()
     {
         return id;
+    }
+
+    @Override
+    public boolean idle()
+    {
+        // Checking additionally for whether the job queue is empty in order to respect
+        // pending and accepted jobs
+        return idle.get() && queue.isEmpty();
     }
 
     @Override
@@ -125,12 +134,29 @@ public class DefaultBoltConnection implements BoltConnection
     public void start()
     {
         notifyCreated();
+        metricsMonitor.connectionOpened();
     }
 
     @Override
     public void enqueue( Job job )
     {
-        enqueueInternal( job );
+        metricsMonitor.messageReceived();
+        long queuedAt = clock.millis();
+        enqueueInternal( machine ->
+        {
+            long queueTime = clock.millis() - queuedAt;
+            metricsMonitor.messageProcessingStarted( queueTime );
+            try
+            {
+                job.perform( machine );
+                metricsMonitor.messageProcessingCompleted( clock.millis() - queuedAt - queueTime );
+            }
+            catch ( Throwable t )
+            {
+                metricsMonitor.messageProcessingFailed();
+                throw t;
+            }
+        } );
     }
 
     @Override
@@ -139,7 +165,30 @@ public class DefaultBoltConnection implements BoltConnection
         return processNextBatch( maxBatchSize, false );
     }
 
-    protected boolean processNextBatch( int batchCount, boolean exitIfNoJobsAvailable )
+    private boolean processNextBatch( int batchCount, boolean exitIfNoJobsAvailable )
+    {
+        idle.set( false );
+        metricsMonitor.connectionActivated();
+
+        try
+        {
+            boolean continueProcessing = processNextBatchInternal( batchCount, exitIfNoJobsAvailable );
+
+            if ( !continueProcessing )
+            {
+                metricsMonitor.connectionClosed();
+            }
+
+            return continueProcessing;
+        }
+        finally
+        {
+            idle.set( true );
+            metricsMonitor.connectionWaiting();
+        }
+    }
+
+    private boolean processNextBatchInternal( int batchCount, boolean exitIfNoJobsAvailable )
     {
         try
         {
@@ -254,7 +303,7 @@ public class DefaultBoltConnection implements BoltConnection
         {
             String message;
             Neo4jError error;
-            if ( ExceptionUtils.hasCause( t, RejectedExecutionException.class ) )
+            if ( hasCause( t, RejectedExecutionException.class ) )
             {
                 error = Neo4jError.from( Status.Request.NoThreadsAvailable, Status.Request.NoThreadsAvailable.code().description() );
                 message = String.format( "Unable to schedule bolt session '%s' for execution since there are no available threads to " +

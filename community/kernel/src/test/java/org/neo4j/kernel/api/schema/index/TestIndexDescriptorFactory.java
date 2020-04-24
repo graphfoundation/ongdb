@@ -19,9 +19,11 @@
  */
 package org.neo4j.kernel.api.schema.index;
 
-import org.neo4j.kernel.api.schema.SchemaDescriptorFactory;
-import org.neo4j.storageengine.api.schema.IndexDescriptor;
-import org.neo4j.storageengine.api.schema.IndexDescriptorFactory;
+import java.util.concurrent.ThreadLocalRandom;
+
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.internal.schema.IndexPrototype;
+import org.neo4j.internal.schema.SchemaDescriptor;
 
 public class TestIndexDescriptorFactory
 {
@@ -29,13 +31,30 @@ public class TestIndexDescriptorFactory
     {
     }
 
+    public static IndexDescriptor forSchema( SchemaDescriptor schema )
+    {
+        int id = randomId();
+        return IndexPrototype.forSchema( schema ).withName( "index_" + id ).materialise( id );
+    }
+
+    public static IndexDescriptor uniqueForSchema( SchemaDescriptor schema )
+    {
+        int id = randomId();
+        return IndexPrototype.uniqueForSchema( schema ).withName( "index_" + id ).materialise( id );
+    }
+
     public static IndexDescriptor forLabel( int labelId, int... propertyIds )
     {
-        return IndexDescriptorFactory.forSchema( SchemaDescriptorFactory.forLabel( labelId, propertyIds ) );
+        return forSchema( SchemaDescriptor.forLabel( labelId, propertyIds ) );
     }
 
     public static IndexDescriptor uniqueForLabel( int labelId, int... propertyIds )
     {
-        return IndexDescriptorFactory.uniqueForSchema( SchemaDescriptorFactory.forLabel( labelId, propertyIds ) );
+        return uniqueForSchema( SchemaDescriptor.forLabel( labelId, propertyIds ) );
+    }
+
+    private static int randomId()
+    {
+        return ThreadLocalRandom.current().nextInt( 1, 1000 );
     }
 }

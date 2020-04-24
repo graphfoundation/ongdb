@@ -21,7 +21,9 @@ package org.neo4j.kernel.impl.query.clientconnection;
 
 import java.net.SocketAddress;
 
-import static org.neo4j.helpers.SocketAddress.format;
+import org.neo4j.internal.kernel.api.connectioninfo.ClientConnectionInfo;
+
+import static org.neo4j.configuration.helpers.SocketAddress.format;
 
 /**
  * @see ClientConnectionInfo Parent class for documentation and tests.
@@ -29,20 +31,17 @@ import static org.neo4j.helpers.SocketAddress.format;
 public class BoltConnectionInfo extends ClientConnectionInfo
 {
     private final String connectionId;
-    private final String principalName;
     private final String clientName;
     private final SocketAddress clientAddress;
     private final SocketAddress serverAddress;
 
     public BoltConnectionInfo(
             String connectionId,
-            String principalName,
             String clientName,
             SocketAddress clientAddress,
             SocketAddress serverAddress )
     {
         this.connectionId = connectionId;
-        this.principalName = principalName;
         this.clientName = clientName;
         this.clientAddress = clientAddress;
         this.serverAddress = serverAddress;
@@ -52,8 +51,7 @@ public class BoltConnectionInfo extends ClientConnectionInfo
     public String asConnectionDetails()
     {
         return String.format(
-                "bolt-session\tbolt\t%s\t%s\t\tclient%s\tserver%s>",
-                principalName,
+                "bolt-session\tbolt\t%s\t\tclient%s\tserver%s>",
                 clientName,
                 clientAddress,
                 serverAddress );

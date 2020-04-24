@@ -21,9 +21,9 @@ package org.neo4j.kernel.impl.index.schema;
 
 import java.util.Arrays;
 
+import org.neo4j.common.Validator;
 import org.neo4j.index.internal.gbptree.GBPTree;
 import org.neo4j.index.internal.gbptree.Layout;
-import org.neo4j.kernel.impl.util.Validator;
 import org.neo4j.values.AnyValue;
 import org.neo4j.values.SequenceValue;
 import org.neo4j.values.storable.TextArray;
@@ -58,7 +58,7 @@ class GenericIndexKeyValidator implements Validator<Value[]>
             if ( size > maxLength )
             {
                 throw new IllegalArgumentException( format(
-                        "Property value size:%d of %s is too large to index into this particular index. Please see index documentation for limitations.",
+                        "Property value is too large to index into this particular index. Please see index documentation for limitations. Size=%d, value=%s.",
                         size, Arrays.toString( values ) ) );
             }
         }

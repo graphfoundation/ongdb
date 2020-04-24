@@ -19,22 +19,23 @@
  */
 package org.neo4j.kernel.api.index;
 
-import org.eclipse.collections.api.iterator.MutableIntIterator;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.neo4j.internal.kernel.api.schema.LabelSchemaDescriptor;
-import org.neo4j.kernel.api.properties.PropertyKeyValue;
-import org.neo4j.kernel.api.schema.MultiTokenSchemaDescriptor;
-import org.neo4j.kernel.api.schema.SchemaDescriptorFactory;
-import org.neo4j.kernel.impl.api.index.EntityUpdates;
-import org.neo4j.kernel.impl.api.index.PropertyLoader;
-import org.neo4j.storageengine.api.EntityType;
+import org.neo4j.common.EntityType;
+import org.neo4j.internal.schema.LabelSchemaDescriptor;
+import org.neo4j.internal.schema.SchemaDescriptor;
+import org.neo4j.storageengine.api.EntityUpdates;
+import org.neo4j.storageengine.api.IndexEntryUpdate;
+import org.neo4j.storageengine.api.PropertyKeyValue;
 import org.neo4j.storageengine.api.StorageProperty;
+import org.neo4j.storageengine.api.StorageReader;
+import org.neo4j.storageengine.api.StubStorageCursors;
+import org.neo4j.token.api.NamedToken;
 import org.neo4j.values.storable.CoordinateReferenceSystem;
 import org.neo4j.values.storable.Value;
 import org.neo4j.values.storable.Values;
@@ -43,10 +44,10 @@ import static java.util.Collections.singleton;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.emptyIterable;
-import static org.junit.Assert.fail;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
-@SuppressWarnings( "unchecked" )
-public class EntityUpdatesTest
+class EntityUpdatesTest
 {
     private static final long nodeId = 0;
     private static final int labelId1 = 0;
@@ -59,14 +60,13 @@ public class EntityUpdatesTest
     private static final long[] allLabels = new long[]{labelId1, labelId2};
     private static final long[] empty = new long[]{};
 
-    private static final LabelSchemaDescriptor index1 = SchemaDescriptorFactory.forLabel( labelId1, propertyKeyId1 );
-    private static final LabelSchemaDescriptor index2 = SchemaDescriptorFactory.forLabel( labelId1, propertyKeyId2 );
-    private static final LabelSchemaDescriptor index3 = SchemaDescriptorFactory.forLabel( labelId1, propertyKeyId3 );
-    private static final LabelSchemaDescriptor index123
-            = SchemaDescriptorFactory.forLabel( labelId1, propertyKeyId1, propertyKeyId2, propertyKeyId3 );
+    private static final LabelSchemaDescriptor index1 = SchemaDescriptor.forLabel( labelId1, propertyKeyId1 );
+    private static final LabelSchemaDescriptor index2 = SchemaDescriptor.forLabel( labelId1, propertyKeyId2 );
+    private static final LabelSchemaDescriptor index3 = SchemaDescriptor.forLabel( labelId1, propertyKeyId3 );
+    private static final LabelSchemaDescriptor index123 = SchemaDescriptor.forLabel( labelId1, propertyKeyId1, propertyKeyId2, propertyKeyId3 );
     private static final List<LabelSchemaDescriptor> indexes = Arrays.asList( index1, index2, index3, index123 );
-    private static final MultiTokenSchemaDescriptor nonSchemaIndex =
-            SchemaDescriptorFactory.multiToken( new int[]{labelId1, labelId2}, EntityType.NODE, propertyKeyId1, propertyKeyId2, propertyKeyId3 );
+    private static final SchemaDescriptor nonSchemaIndex = SchemaDescriptor.fulltext( EntityType.NODE, new int[]{labelId1, labelId2},
+            new int[]{propertyKeyId1, propertyKeyId2, propertyKeyId3} );
 
     private static final StorageProperty property1 = new PropertyKeyValue( propertyKeyId1, Values.of( "Neo" ) );
     private static final StorageProperty property2 = new PropertyKeyValue( propertyKeyId2, Values.of( 100L ) );
@@ -74,7 +74,7 @@ public class EntityUpdatesTest
     private static final Value[] values123 = new Value[]{property1.value(), property2.value(), property3.value()};
 
     @Test
-    public void shouldNotGenerateUpdatesForEmptyNodeUpdates()
+    void shouldNotGenerateUpdatesForEmptyNodeUpdates()
     {
         // When
         EntityUpdates updates = EntityUpdates.forEntity( nodeId, false ).build();
@@ -84,7 +84,7 @@ public class EntityUpdatesTest
     }
 
     @Test
-    public void shouldNotGenerateUpdateForMultipleExistingPropertiesAndLabels()
+    void shouldNotGenerateUpdateForMultipleExistingPropertiesAndLabels()
     {
         // When
         EntityUpdates updates = EntityUpdates.forEntity( nodeId, false ).withTokens( label )
@@ -98,7 +98,7 @@ public class EntityUpdatesTest
     }
 
     @Test
-    public void shouldNotGenerateUpdatesForLabelAdditionWithNoProperties()
+    void shouldNotGenerateUpdatesForLabelAdditionWithNoProperties()
     {
         // When
         EntityUpdates updates = EntityUpdates.forEntity( nodeId, false ).withTokens( empty ).withTokensAfter( label ).build();
@@ -108,7 +108,7 @@ public class EntityUpdatesTest
     }
 
     @Test
-    public void shouldGenerateUpdateForLabelAdditionWithExistingProperty()
+    void shouldGenerateUpdateForLabelAdditionWithExistingProperty()
     {
         // When
         EntityUpdates updates = EntityUpdates.forEntity( nodeId, false ).withTokens( empty ).withTokensAfter( label ).build();
@@ -122,7 +122,7 @@ public class EntityUpdatesTest
     }
 
     @Test
-    public void shouldGenerateUpdatesForLabelAdditionWithExistingProperties()
+    void shouldGenerateUpdatesForLabelAdditionWithExistingProperties()
     {
         // When
         EntityUpdates updates =
@@ -144,7 +144,7 @@ public class EntityUpdatesTest
     }
 
     @Test
-    public void shouldNotGenerateUpdateForPartialCompositeSchemaIndexUpdate()
+    void shouldNotGenerateUpdateForPartialCompositeSchemaIndexUpdate()
     {
         // When
         EntityUpdates updates =
@@ -160,7 +160,7 @@ public class EntityUpdatesTest
     }
 
     @Test
-    public void shouldGenerateUpdateForWhenCompletingCompositeSchemaIndexUpdate()
+    void shouldGenerateUpdateForWhenCompletingCompositeSchemaIndexUpdate()
     {
         // When
         EntityUpdates updates =
@@ -178,7 +178,7 @@ public class EntityUpdatesTest
     }
 
     @Test
-    public void shouldNotGenerateUpdatesForLabelRemovalWithNoProperties()
+    void shouldNotGenerateUpdatesForLabelRemovalWithNoProperties()
     {
         // When
         EntityUpdates updates = EntityUpdates.forEntity( nodeId, false ).withTokens( label ).withTokensAfter( empty ).build();
@@ -188,7 +188,7 @@ public class EntityUpdatesTest
     }
 
     @Test
-    public void shouldGenerateUpdateForLabelRemovalWithExistingProperty()
+    void shouldGenerateUpdateForLabelRemovalWithExistingProperty()
     {
         // When
         EntityUpdates updates =
@@ -203,7 +203,7 @@ public class EntityUpdatesTest
     }
 
     @Test
-    public void shouldGenerateUpdatesForLabelRemovalWithExistingProperties()
+    void shouldGenerateUpdatesForLabelRemovalWithExistingProperties()
     {
         // When
         EntityUpdates updates =
@@ -221,7 +221,7 @@ public class EntityUpdatesTest
     }
 
     @Test
-    public void shouldNotGenerateUpdatesForPropertyAdditionWithNoLabels()
+    void shouldNotGenerateUpdatesForPropertyAdditionWithNoLabels()
     {
         // When
         EntityUpdates updates = EntityUpdates.forEntity( nodeId, false )
@@ -233,7 +233,7 @@ public class EntityUpdatesTest
     }
 
     @Test
-    public void shouldGenerateUpdatesForSinglePropertyAdditionWithLabels()
+    void shouldGenerateUpdatesForSinglePropertyAdditionWithLabels()
     {
         // When
         EntityUpdates updates = EntityUpdates.forEntity( nodeId, false ).withTokens( label )
@@ -249,7 +249,7 @@ public class EntityUpdatesTest
     }
 
     @Test
-    public void shouldGenerateUpdatesForMultiplePropertyAdditionWithLabels()
+    void shouldGenerateUpdatesForMultiplePropertyAdditionWithLabels()
     {
         // When
         EntityUpdates updates = EntityUpdates.forEntity( nodeId, false ).withTokens( label )
@@ -270,7 +270,7 @@ public class EntityUpdatesTest
     }
 
     @Test
-    public void shouldNotGenerateUpdatesForLabelAddAndPropertyRemove()
+    void shouldNotGenerateUpdatesForLabelAddAndPropertyRemove()
     {
         // When
         EntityUpdates updates = EntityUpdates.forEntity( nodeId, false ).withTokens( empty ).withTokensAfter( label )
@@ -284,7 +284,7 @@ public class EntityUpdatesTest
     }
 
     @Test
-    public void shouldNotGenerateUpdatesForLabelRemoveAndPropertyAdd()
+    void shouldNotGenerateUpdatesForLabelRemoveAndPropertyAdd()
     {
         // When
         EntityUpdates updates = EntityUpdates.forEntity( nodeId, false ).withTokens( label ).withTokensAfter( empty )
@@ -298,7 +298,7 @@ public class EntityUpdatesTest
     }
 
     @Test
-    public void shouldNotLoadPropertyForLabelsAndNoPropertyChanges()
+    void shouldNotLoadPropertyForLabelsAndNoPropertyChanges()
     {
         // When
         EntityUpdates updates = EntityUpdates.forEntity( nodeId, false ).withTokens( label ).build();
@@ -310,7 +310,7 @@ public class EntityUpdatesTest
     }
 
     @Test
-    public void shouldNotLoadPropertyForNoLabelsAndButPropertyAddition()
+    void shouldNotLoadPropertyForNoLabelsAndButPropertyAddition()
     {
         // When
         EntityUpdates updates = EntityUpdates.forEntity( nodeId, false ).withTokens( empty )
@@ -324,7 +324,7 @@ public class EntityUpdatesTest
     }
 
     @Test
-    public void shouldGenerateUpdateForPartialNonSchemaIndexUpdate()
+    void shouldGenerateUpdateForPartialNonSchemaIndexUpdate()
     {
         // When
         EntityUpdates updates =
@@ -340,7 +340,7 @@ public class EntityUpdatesTest
     }
 
     @Test
-    public void shouldGenerateUpdateForFullNonSchemaIndexUpdate()
+    void shouldGenerateUpdateForFullNonSchemaIndexUpdate()
     {
         // When
         EntityUpdates updates =
@@ -358,7 +358,7 @@ public class EntityUpdatesTest
     }
 
     @Test
-    public void shouldGenerateUpdateForSingleChangeNonSchemaIndex()
+    void shouldGenerateUpdateForSingleChangeNonSchemaIndex()
     {
         // When
         Value newValue2 = Values.of( 10L );
@@ -375,7 +375,7 @@ public class EntityUpdatesTest
     }
 
     @Test
-    public void shouldGenerateUpdateForAllChangedNonSchemaIndex()
+    void shouldGenerateUpdateForAllChangedNonSchemaIndex()
     {
         // When
         Value newValue1 = Values.of( "Nio" );
@@ -396,7 +396,7 @@ public class EntityUpdatesTest
     }
 
     @Test
-    public void shouldGenerateUpdateWhenRemovingLastPropForNonSchemaIndex()
+    void shouldGenerateUpdateWhenRemovingLastPropForNonSchemaIndex()
     {
         // When
         EntityUpdates updates =
@@ -412,7 +412,7 @@ public class EntityUpdatesTest
     }
 
     @Test
-    public void shouldGenerateUpdateWhenRemovingOnePropertyForNonSchemaIndex()
+    void shouldGenerateUpdateWhenRemovingOnePropertyForNonSchemaIndex()
     {
         // When
         EntityUpdates updates =
@@ -428,7 +428,7 @@ public class EntityUpdatesTest
     }
 
     @Test
-    public void shouldGenerateUpdateWhenAddingOneTokenForNonSchemaIndex()
+    void shouldGenerateUpdateWhenAddingOneTokenForNonSchemaIndex()
     {
         // When
         EntityUpdates updates =
@@ -442,7 +442,7 @@ public class EntityUpdatesTest
     }
 
     @Test
-    public void shouldGenerateUpdateWhenAddingMultipleTokensForNonSchemaIndex()
+    void shouldGenerateUpdateWhenAddingMultipleTokensForNonSchemaIndex()
     {
         // When
         EntityUpdates updates =
@@ -456,7 +456,7 @@ public class EntityUpdatesTest
     }
 
     @Test
-    public void shouldNotGenerateUpdateWhenAddingAnotherTokenForNonSchemaIndex()
+    void shouldNotGenerateUpdateWhenAddingAnotherTokenForNonSchemaIndex()
     {
         // When
         EntityUpdates updates =
@@ -470,7 +470,7 @@ public class EntityUpdatesTest
     }
 
     @Test
-    public void shouldNotGenerateUpdateWhenAddingAnotherUselessTokenForNonSchemaIndex()
+    void shouldNotGenerateUpdateWhenAddingAnotherUselessTokenForNonSchemaIndex()
     {
         // When
         EntityUpdates updates =
@@ -484,7 +484,7 @@ public class EntityUpdatesTest
     }
 
     @Test
-    public void shouldGenerateUpdateWhenSwitchingToUselessTokenForNonSchemaIndex()
+    void shouldGenerateUpdateWhenSwitchingToUselessTokenForNonSchemaIndex()
     {
         // When
         EntityUpdates updates =
@@ -498,7 +498,7 @@ public class EntityUpdatesTest
     }
 
     @Test
-    public void shouldNotGenerateUpdateWhenRemovingOneTokenForNonSchemaIndex()
+    void shouldNotGenerateUpdateWhenRemovingOneTokenForNonSchemaIndex()
     {
         // When
         EntityUpdates updates =
@@ -512,7 +512,7 @@ public class EntityUpdatesTest
     }
 
     @Test
-    public void shouldGenerateUpdateWhenRemovingLastTokenForNonSchemaIndex()
+    void shouldGenerateUpdateWhenRemovingLastTokenForNonSchemaIndex()
     {
         // When
         EntityUpdates updates =
@@ -525,30 +525,31 @@ public class EntityUpdatesTest
         );
     }
 
-    private PropertyLoader propertyLoader( StorageProperty... properties )
+    private static StorageReader propertyLoader( StorageProperty... properties )
     {
-        Map<Integer, Value> propertyMap = new HashMap<>( );
+        StubStorageCursors stub = new StubStorageCursors();
+        for ( StorageProperty property : properties )
+        {
+            stub.propertyKeyTokenHolder().addToken( new NamedToken( String.valueOf( property.propertyKeyId() ), property.propertyKeyId() ) );
+        }
+        Map<String,Value> propertyMap = new HashMap<>();
         for ( StorageProperty p : properties )
         {
-            propertyMap.put( p.propertyKeyId(), p.value() );
+            propertyMap.put( String.valueOf( p.propertyKeyId() ), p.value() );
         }
-        return ( nodeId1, type, propertyIds, sink ) ->
-        {
-            MutableIntIterator iterator = propertyIds.intIterator();
-            while ( iterator.hasNext() )
-            {
-                int propertyId = iterator.next();
-                if ( propertyMap.containsKey( propertyId ) )
-                {
-                    sink.onProperty( propertyId, propertyMap.get( propertyId ) );
-                    iterator.remove();
-                }
-            }
-        };
+        stub.withNode( nodeId ).properties( propertyMap );
+        return stub;
     }
 
-    private PropertyLoader assertNoLoading()
+    private static StorageReader assertNoLoading()
     {
-        return ( nodeId1, type, propertyIds, sink ) -> fail( "Should never attempt to load properties!" );
+        StorageReader reader = mock( StorageReader.class );
+        IllegalStateException exception = new IllegalStateException( "Should never attempt to load properties!" );
+        when( reader.allocateNodeCursor() ).thenThrow( exception );
+        when( reader.allocateRelationshipScanCursor() ).thenThrow( exception );
+        when( reader.allocateRelationshipTraversalCursor() ).thenThrow( exception );
+        when( reader.allocateRelationshipGroupCursor() ).thenThrow( exception );
+        when( reader.allocatePropertyCursor() ).thenThrow( exception );
+        return reader;
     }
 }

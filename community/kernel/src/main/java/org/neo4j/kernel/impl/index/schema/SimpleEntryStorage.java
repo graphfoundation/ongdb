@@ -25,11 +25,11 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 
 import org.neo4j.io.fs.FileSystemAbstraction;
-import org.neo4j.io.fs.OpenMode;
+import org.neo4j.io.fs.ReadAheadChannel;
 import org.neo4j.io.fs.StoreChannel;
+import org.neo4j.io.memory.ByteBufferFactory;
 import org.neo4j.io.pagecache.ByteArrayPageCursor;
 import org.neo4j.io.pagecache.PageCursor;
-import org.neo4j.kernel.impl.transaction.log.ReadAheadChannel;
 
 import static org.neo4j.io.IOUtils.closeAllUnchecked;
 import static org.neo4j.util.concurrent.Runnables.runAll;
@@ -91,7 +91,7 @@ public abstract class SimpleEntryStorage<ENTRY, CURSOR> implements Closeable
 
         // Reuse the existing buffer because we're not writing while reading anyway
         buffer.clear();
-        ReadAheadChannel<StoreChannel> channel = new ReadAheadChannel<>( fs.open( file, OpenMode.READ ), buffer );
+        ReadAheadChannel<StoreChannel> channel = new ReadAheadChannel<>( fs.read( file ), buffer );
         PageCursor pageCursor = new ReadableChannelPageCursor( channel );
         return reader( pageCursor );
     }
@@ -167,7 +167,7 @@ public abstract class SimpleEntryStorage<ENTRY, CURSOR> implements Closeable
         {
             this.buffer = byteBufferFactory.allocate( blockSize );
             this.pageCursor = new ByteArrayPageCursor( buffer );
-            this.storeChannel = fs.create( file );
+            this.storeChannel = fs.write( file );
             this.allocated = true;
         }
     }

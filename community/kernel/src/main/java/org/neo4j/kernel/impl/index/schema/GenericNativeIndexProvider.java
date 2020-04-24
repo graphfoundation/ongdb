@@ -20,36 +20,35 @@
 package org.neo4j.kernel.impl.index.schema;
 
 import java.io.File;
-import java.io.IOException;
-import java.io.UncheckedIOException;
-import java.util.HashMap;
 import java.util.Map;
 
+import org.neo4j.configuration.Config;
+import org.neo4j.configuration.GraphDatabaseSettings;
 import org.neo4j.gis.spatial.index.curves.SpaceFillingCurveConfiguration;
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.index.internal.gbptree.GBPTree;
 import org.neo4j.index.internal.gbptree.RecoveryCleanupWorkCollector;
-import org.neo4j.internal.kernel.api.IndexCapability;
-import org.neo4j.internal.kernel.api.IndexLimitation;
-import org.neo4j.internal.kernel.api.IndexOrder;
-import org.neo4j.internal.kernel.api.IndexValueCapability;
-import org.neo4j.internal.kernel.api.schema.IndexProviderDescriptor;
+import org.neo4j.internal.schema.IndexCapability;
+import org.neo4j.internal.schema.IndexConfig;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.internal.schema.IndexLimitation;
+import org.neo4j.internal.schema.IndexOrder;
+import org.neo4j.internal.schema.IndexPrototype;
+import org.neo4j.internal.schema.IndexProviderDescriptor;
+import org.neo4j.internal.schema.IndexValueCapability;
 import org.neo4j.io.fs.FileSystemAbstraction;
+import org.neo4j.io.memory.ByteBufferFactory;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.kernel.api.index.IndexAccessor;
 import org.neo4j.kernel.api.index.IndexDirectoryStructure;
 import org.neo4j.kernel.api.index.IndexPopulator;
-import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.impl.index.schema.config.ConfiguredSpaceFillingCurveSettingsCache;
-import org.neo4j.kernel.impl.index.schema.config.IndexSpecificSpaceFillingCurveSettingsCache;
+import org.neo4j.kernel.impl.index.schema.config.IndexSpecificSpaceFillingCurveSettings;
 import org.neo4j.kernel.impl.index.schema.config.SpaceFillingCurveSettings;
-import org.neo4j.kernel.impl.index.schema.config.SpaceFillingCurveSettingsReader;
-import org.neo4j.storageengine.api.schema.StoreIndexDescriptor;
 import org.neo4j.util.FeatureToggles;
 import org.neo4j.values.storable.CoordinateReferenceSystem;
 import org.neo4j.values.storable.ValueCategory;
 
-import static org.neo4j.graphdb.factory.GraphDatabaseSettings.SchemaIndex.NATIVE_BTREE10;
+import static org.neo4j.configuration.GraphDatabaseSettings.SchemaIndex.NATIVE_BTREE10;
 import static org.neo4j.kernel.impl.index.schema.config.SpaceFillingCurveSettingsFactory.getConfiguredSpaceFillingCurveConfiguration;
 
 /**
@@ -110,7 +109,7 @@ public class GenericNativeIndexProvider extends NativeIndexProvider<GenericKey,N
     public static final IndexCapability CAPABILITY = new GenericIndexCapability();
     public static final String BLOCK_BASED_POPULATION_NAME = "blockBasedPopulation";
     // todo turn OFF by default before releasing next patch. For now ON by default to test it.
-    private final boolean blockBasedPopulation = FeatureToggles.flag( GenericNativeIndexPopulator.class, BLOCK_BASED_POPULATION_NAME, false );
+    private final boolean blockBasedPopulation = FeatureToggles.flag( GenericNativeIndexPopulator.class, BLOCK_BASED_POPULATION_NAME, true );
 
     /**
      * Cache of all setting for various specific CRS's found in the config at instantiation of this provider.
@@ -123,63 +122,83 @@ public class GenericNativeIndexProvider extends NativeIndexProvider<GenericKey,N
      */
     private final SpaceFillingCurveConfiguration configuration;
     private final boolean archiveFailedIndex;
-    private final IndexDropAction dropAction;
 
-    GenericNativeIndexProvider( IndexDirectoryStructure.Factory directoryStructureFactory, PageCache pageCache, FileSystemAbstraction fs, Monitor monitor,
-            RecoveryCleanupWorkCollector recoveryCleanupWorkCollector, boolean readOnly, Config config )
+    public GenericNativeIndexProvider( IndexDirectoryStructure.Factory directoryStructureFactory, PageCache pageCache, FileSystemAbstraction fs,
+            Monitor monitor, RecoveryCleanupWorkCollector recoveryCleanupWorkCollector, boolean readOnly, Config config )
     {
         super( DESCRIPTOR, directoryStructureFactory, pageCache, fs, monitor, recoveryCleanupWorkCollector, readOnly );
 
         this.configuredSettings = new ConfiguredSpaceFillingCurveSettingsCache( config );
         this.configuration = getConfiguredSpaceFillingCurveConfiguration( config );
         this.archiveFailedIndex = config.get( GraphDatabaseSettings.archive_failed_index );
-        this.dropAction = new FileSystemIndexDropAction( fs, directoryStructure() );
     }
 
     @Override
-    GenericLayout layout( StoreIndexDescriptor descriptor, File storeFile )
+    public IndexDescriptor completeConfiguration( IndexDescriptor index )
     {
-        try
+        IndexConfig indexConfig = index.getIndexConfig();
+        indexConfig = completeSpatialConfiguration( indexConfig );
+        index = index.withIndexConfig( indexConfig );
+        if ( index.getCapability().equals( IndexCapability.NO_CAPABILITY ) )
         {
-            int numberOfSlots = descriptor.properties().length;
-            Map<CoordinateReferenceSystem,SpaceFillingCurveSettings> settings = new HashMap<>();
-            if ( storeFile != null && fs.fileExists( storeFile ) )
-            {
-                // The index file exists and is sane so use it to read header information from.
-                GBPTree.readHeader( pageCache, storeFile, new NativeIndexHeaderReader( new SpaceFillingCurveSettingsReader( settings ) ) );
-            }
-            return new GenericLayout( numberOfSlots, new IndexSpecificSpaceFillingCurveSettingsCache( configuredSettings, settings ) );
+            index = index.withIndexCapability( CAPABILITY );
         }
-        catch ( IOException e )
+        return index;
+    }
+
+    private IndexConfig completeSpatialConfiguration( IndexConfig indexConfig )
+    {
+        for ( CoordinateReferenceSystem crs : CoordinateReferenceSystem.all() )
         {
-            throw new UncheckedIOException( e );
+            SpaceFillingCurveSettings spaceFillingCurveSettings = configuredSettings.forCRS( crs );
+            indexConfig = SpatialIndexConfig.addSpatialConfig( indexConfig, crs, spaceFillingCurveSettings );
         }
+        return indexConfig;
     }
 
     @Override
-    protected IndexPopulator newIndexPopulator( File storeFile, GenericLayout layout, StoreIndexDescriptor descriptor, ByteBufferFactory bufferFactory )
+    GenericLayout layout( IndexDescriptor descriptor, File storeFile )
+    {
+        int numberOfSlots = descriptor.schema().getPropertyIds().length;
+        IndexConfig indexConfig = descriptor.getIndexConfig();
+        Map<CoordinateReferenceSystem,SpaceFillingCurveSettings> settings = SpatialIndexConfig.extractSpatialConfig( indexConfig );
+        return new GenericLayout( numberOfSlots, new IndexSpecificSpaceFillingCurveSettings( settings ) );
+    }
+
+    @Override
+    protected IndexPopulator newIndexPopulator( IndexFiles indexFiles, GenericLayout layout, IndexDescriptor descriptor, ByteBufferFactory bufferFactory )
     {
         if ( blockBasedPopulation )
         {
-            return new GenericBlockBasedIndexPopulator( pageCache, fs, storeFile, layout, monitor, descriptor, layout.getSpaceFillingCurveSettings(),
-                    directoryStructure(), configuration, dropAction, archiveFailedIndex, bufferFactory );
+            return new GenericBlockBasedIndexPopulator( pageCache, fs, indexFiles, layout, monitor, descriptor, layout.getSpaceFillingCurveSettings(),
+                    configuration, archiveFailedIndex, bufferFactory );
         }
         return new WorkSyncedNativeIndexPopulator<>(
-                new GenericNativeIndexPopulator( pageCache, fs, storeFile, layout, monitor, descriptor, layout.getSpaceFillingCurveSettings(),
-                        directoryStructure(), configuration, dropAction, archiveFailedIndex ) );
+                new GenericNativeIndexPopulator( pageCache, fs, indexFiles, layout, monitor, descriptor, layout.getSpaceFillingCurveSettings(), configuration,
+                        archiveFailedIndex ) );
     }
 
     @Override
-    protected IndexAccessor newIndexAccessor( File storeFile, GenericLayout layout, StoreIndexDescriptor descriptor, boolean readOnly )
+    protected IndexAccessor newIndexAccessor( IndexFiles indexFiles, GenericLayout layout, IndexDescriptor descriptor, boolean readOnly )
     {
-        return new GenericNativeIndexAccessor( pageCache, fs, storeFile, layout, recoveryCleanupWorkCollector, monitor, descriptor,
-                layout.getSpaceFillingCurveSettings(), configuration, dropAction, readOnly );
+        return new GenericNativeIndexAccessor( pageCache, fs, indexFiles, layout, recoveryCleanupWorkCollector, monitor, descriptor,
+                layout.getSpaceFillingCurveSettings(), configuration, readOnly );
     }
 
     @Override
-    public IndexCapability getCapability( StoreIndexDescriptor descriptor )
+    public void validatePrototype( IndexPrototype prototype )
     {
-        return CAPABILITY;
+        super.validatePrototype( prototype );
+        IndexConfig indexConfig = prototype.getIndexConfig();
+        indexConfig = completeSpatialConfiguration( indexConfig );
+        try
+        {
+            SpatialIndexConfig.validateSpatialConfig( indexConfig );
+        }
+        catch ( IllegalArgumentException e )
+        {
+            throw new IllegalArgumentException( "Invalid spatial index settings.", e );
+        }
     }
 
     private static class GenericIndexCapability implements IndexCapability
@@ -200,18 +219,6 @@ public class GenericNativeIndexProvider extends NativeIndexProvider<GenericKey,N
         public IndexValueCapability valueCapability( ValueCategory... valueCategories )
         {
             return IndexValueCapability.YES;
-        }
-
-        @Override
-        public boolean isFulltextIndex()
-        {
-            return false;
-        }
-
-        @Override
-        public boolean isEventuallyConsistent()
-        {
-            return false;
         }
 
         private boolean supportOrdering( ValueCategory[] valueCategories )

@@ -24,6 +24,8 @@ import java.util.Arrays;
 
 import org.neo4j.values.AnyValue;
 
+import static java.lang.String.format;
+import static java.util.Arrays.stream;
 import static org.neo4j.codegen.TypeReference.BOOLEAN;
 import static org.neo4j.codegen.TypeReference.DOUBLE;
 import static org.neo4j.codegen.TypeReference.INT;
@@ -32,6 +34,7 @@ import static org.neo4j.codegen.TypeReference.OBJECT;
 import static org.neo4j.codegen.TypeReference.VALUE;
 import static org.neo4j.codegen.TypeReference.VOID;
 import static org.neo4j.codegen.TypeReference.arrayOf;
+import static org.neo4j.codegen.TypeReference.toBoxedType;
 import static org.neo4j.codegen.TypeReference.typeReference;
 
 public abstract class Expression extends ExpressionTemplate
@@ -380,12 +383,54 @@ public abstract class Expression extends ExpressionTemplate
         };
     }
 
+    public static Expression arrayLoad( Expression array, Expression index )
+    {
+        assert array.type().isArray();
+
+        return new Expression( array.type() )
+        {
+            @Override
+            public void accept( ExpressionVisitor visitor )
+            {
+                visitor.arrayLoad( array, index);
+            }
+        };
+    }
+
+    public static Expression arrayLength( Expression array )
+    {
+        assert array.type().isArray();
+
+        return new Expression( INT )
+        {
+            @Override
+            public void accept( ExpressionVisitor visitor )
+            {
+                visitor.arrayLength( array );
+            }
+        };
+    }
+
+    public static Expression arraySet( Expression array, Expression index, Expression value )
+    {
+        assert array.type().isArray();
+
+        return new Expression( array.type() )
+        {
+            @Override
+            public void accept( ExpressionVisitor visitor )
+            {
+                visitor.arraySet( array, index, value);
+            }
+        };
+    }
+
     public static Expression add( final Expression lhs, final Expression rhs )
     {
         if ( !lhs.type.equals( rhs.type ) )
         {
             throw new IllegalArgumentException(
-                    String.format( "Cannot add variables with different types. LHS %s, RHS %s", lhs.type.simpleName(),
+                    format( "Cannot add variables with different types. LHS %s, RHS %s", lhs.type.simpleName(),
                             rhs.type.simpleName() ) );
         }
 
@@ -404,7 +449,7 @@ public abstract class Expression extends ExpressionTemplate
         if ( !lhs.type.equals( rhs.type ) )
         {
             throw new IllegalArgumentException(
-                    String.format(
+                    format(
                             "Cannot subtract variables with different types. LHS %s, RHS %s",
                             lhs.type.simpleName(),
                             rhs.type.simpleName() ) );
@@ -424,7 +469,7 @@ public abstract class Expression extends ExpressionTemplate
         if ( !lhs.type.equals( rhs.type ) )
         {
             throw new IllegalArgumentException(
-                    String.format(
+                    format(
                             "Cannot multiply variables with different types. LHS %s, RHS %s",
                             lhs.type.simpleName(),
                             rhs.type.simpleName() ) );
@@ -512,15 +557,27 @@ public abstract class Expression extends ExpressionTemplate
         }
     }
 
-    //TODO deduce type from constants
-    public static Expression newArray( TypeReference baseType, Expression... constants )
+    public static Expression newArray( TypeReference baseType, int size )
     {
         return new Expression( arrayOf( baseType ) )
         {
             @Override
             public void accept( ExpressionVisitor visitor )
             {
-                visitor.newArray( baseType, constants );
+                visitor.newArray( baseType, size );
+            }
+        };
+    }
+
+    //TODO deduce type from constants
+    public static Expression newInitializedArray( TypeReference baseType, Expression... constants )
+    {
+        return new Expression( arrayOf( baseType ) )
+        {
+            @Override
+            public void accept( ExpressionVisitor visitor )
+            {
+                visitor.newInitializedArray( baseType, constants );
             }
         };
     }
@@ -541,40 +598,7 @@ public abstract class Expression extends ExpressionTemplate
     /** box expression */
     public static Expression box( final Expression expression )
     {
-        TypeReference type = expression.type;
-        if ( type.isPrimitive() )
-        {
-            switch ( type.name() )
-            {
-            case "byte":
-                type = TypeReference.typeReference( Byte.class );
-                break;
-            case "short":
-                type = TypeReference.typeReference( Short.class );
-                break;
-            case "int":
-                type = TypeReference.typeReference( Integer.class );
-                break;
-            case "long":
-                type = TypeReference.typeReference( Long.class );
-                break;
-            case "char":
-                type = TypeReference.typeReference( Character.class );
-                break;
-            case "boolean":
-                type = TypeReference.typeReference( Boolean.class );
-                break;
-            case "float":
-                type = TypeReference.typeReference( Float.class );
-                break;
-            case "double":
-                type = TypeReference.typeReference( Double.class );
-                break;
-            default:
-                break;
-            }
-        }
-        return new Expression( type )
+        return new Expression( toBoxedType( expression.type ) )
         {
             @Override
             public void accept( ExpressionVisitor visitor )
@@ -681,11 +705,8 @@ public abstract class Expression extends ExpressionTemplate
 
     public static Expression invokeSuper( TypeReference parent, final Expression... parameters )
     {
-        TypeReference[] parameterTypes = new TypeReference[parameters.length];
-        for ( int i = 0; i < parameters.length; i++ )
-        {
-            parameterTypes[i] = parameters[i].type();
-        }
+        TypeReference[] parameterTypes = stream( parameters )
+                .map( ExpressionTemplate::type ).toArray( TypeReference[]::new );
 
         return new Expression( OBJECT )
         {

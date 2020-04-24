@@ -20,78 +20,110 @@
 package org.neo4j.graphalgo.path;
 
 import common.Neo4jAlgoTestCase;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameters;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
-import java.util.Arrays;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Stream;
 
+import org.neo4j.graphalgo.BasicEvaluationContext;
 import org.neo4j.graphalgo.EstimateEvaluator;
-import org.neo4j.graphalgo.GraphAlgoFactory;
+import org.neo4j.graphalgo.EvaluationContext;
 import org.neo4j.graphalgo.PathFinder;
 import org.neo4j.graphalgo.WeightedPath;
 import org.neo4j.graphalgo.impl.path.TraversalAStar;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Path;
 import org.neo4j.graphdb.PathExpander;
-import org.neo4j.graphdb.PathExpanders;
 import org.neo4j.graphdb.Relationship;
 import org.neo4j.graphdb.ResourceIterable;
+import org.neo4j.graphdb.Transaction;
 import org.neo4j.graphdb.traversal.BranchState;
 import org.neo4j.graphdb.traversal.InitialBranchState;
-import org.neo4j.helpers.collection.Iterables;
-import org.neo4j.helpers.collection.MapUtil;
+import org.neo4j.internal.helpers.collection.Iterables;
+import org.neo4j.internal.helpers.collection.MapUtil;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.params.provider.Arguments.arguments;
 import static org.neo4j.graphalgo.CommonEvaluators.doubleCostEvaluator;
 import static org.neo4j.graphalgo.GraphAlgoFactory.aStar;
 import static org.neo4j.graphdb.Direction.OUTGOING;
+import static org.neo4j.graphdb.PathExpanders.allTypesAndDirections;
 
-@RunWith( Parameterized.class )
-public class TestAStar extends Neo4jAlgoTestCase
+class TestAStar extends Neo4jAlgoTestCase
 {
-
-    @Test
-    public void pathToSelfReturnsZero()
+    private static final EstimateEvaluator<Double> ESTIMATE_EVALUATOR = ( node, goal ) ->
     {
-        // GIVEN
-        Node start = graph.makeNode( "start", "x", 0d, "y", 0d );
+        double dx = (Double) node.getProperty( "x" ) - (Double) goal.getProperty( "x" );
+        double dy = (Double) node.getProperty( "y" ) - (Double) goal.getProperty( "y" );
+        return Math.sqrt( Math.pow( dx, 2 ) + Math.pow( dy, 2 ) );
+    };
 
-        // WHEN
-        WeightedPath path = finder.findSinglePath( start, start );
-        // THEN
-        assertNotNull( path );
-        assertEquals( start, path.startNode() );
-        assertEquals( start, path.endNode() );
-        assertEquals( 0, path.length() );
+    private static Stream<Arguments> params()
+    {
+        return Stream.of(
+            arguments( (Function<EvaluationContext,PathFinder<WeightedPath>>) context ->
+                            aStar( context, allTypesAndDirections(), doubleCostEvaluator( "length" ), ESTIMATE_EVALUATOR ) ),
+            arguments( (Function<EvaluationContext,PathFinder<WeightedPath>>) context ->
+                    new TraversalAStar<>( context, allTypesAndDirections(), doubleCostEvaluator( "length" ), ESTIMATE_EVALUATOR ) )
+        );
     }
 
-    @Test
-    public void allPathsToSelfReturnsZero()
+    @ParameterizedTest
+    @MethodSource( "params" )
+    void pathToSelfReturnsZero( Function<EvaluationContext, PathFinder<WeightedPath>> finderFactory )
     {
+
         // GIVEN
-        Node start = graph.makeNode( "start", "x", 0d, "y", 0d );
-
-        // WHEN
-        ResourceIterable<WeightedPath> paths = Iterables.asResourceIterable(finder.findAllPaths( start, start ) );
-
-        // THEN
-        for ( WeightedPath path : paths )
+        try ( Transaction transaction = graphDb.beginTx() )
         {
+            Node start = graph.makeNode( transaction, "start", "x", 0d, "y", 0d );
+
+            // WHEN
+            var context = new BasicEvaluationContext( transaction, graphDb );
+            WeightedPath path = finderFactory.apply( context ).findSinglePath( start, start );
+            // THEN
             assertNotNull( path );
             assertEquals( start, path.startNode() );
             assertEquals( start, path.endNode() );
             assertEquals( 0, path.length() );
+            transaction.commit();
         }
     }
 
-    @Test
-    public void wikipediaExample()
+    @ParameterizedTest
+    @MethodSource( "params" )
+    void allPathsToSelfReturnsZero( Function<EvaluationContext, PathFinder<WeightedPath>> finderFactory )
+    {
+        try ( Transaction transaction = graphDb.beginTx() )
+        {
+            // GIVEN
+            Node start = graph.makeNode( transaction, "start", "x", 0d, "y", 0d );
+
+            // WHEN
+            var context = new BasicEvaluationContext( transaction, graphDb );
+            ResourceIterable<WeightedPath> paths = Iterables.asResourceIterable( finderFactory.apply( context ).findAllPaths( start, start ) );
+
+            // THEN
+            for ( WeightedPath path : paths )
+            {
+                assertNotNull( path );
+                assertEquals( start, path.startNode() );
+                assertEquals( start, path.endNode() );
+                assertEquals( 0, path.length() );
+            }
+            transaction.commit();
+        }
+    }
+
+    @ParameterizedTest
+    @MethodSource( "params" )
+    void wikipediaExample( Function<EvaluationContext, PathFinder<WeightedPath>> finderFactory )
     {
         /* GIVEN
          *
@@ -108,25 +140,30 @@ public class TestAStar extends Neo4jAlgoTestCase
          *     v        --4------->(end)
          *    (c)------/
          */
-        Node start = graph.makeNode( "start", "x", 0d,   "y", 0d );
-        graph.makeNode( "a", "x", 0.3d, "y", 1d );
-        graph.makeNode( "b", "x", 2d, "y", 2d );
-        graph.makeNode( "c", "x", 0d, "y", 3d );
-        graph.makeNode( "d", "x", 2d, "y", 0d );
-        graph.makeNode( "e", "x", 3d, "y", 1.5d );
-        Node end = graph.makeNode( "end", "x", 3.3d, "y", 2.8d );
-        graph.makeEdge( "start", "a", "length", 1.5d );
-        graph.makeEdge( "a", "b", "length", 2f );
-        graph.makeEdge( "b", "c", "length", 3 );
-        graph.makeEdge( "c", "end", "length", 4L );
-        graph.makeEdge( "start", "d", "length", (short)2 );
-        graph.makeEdge( "d", "e", "length", (byte)3 );
-        graph.makeEdge( "e", "end", "length", 2 );
+        try ( Transaction transaction = graphDb.beginTx() )
+        {
+            Node start = graph.makeNode( transaction, "start", "x", 0d, "y", 0d );
+            graph.makeNode( transaction, "a", "x", 0.3d, "y", 1d );
+            graph.makeNode( transaction, "b", "x", 2d, "y", 2d );
+            graph.makeNode( transaction, "c", "x", 0d, "y", 3d );
+            graph.makeNode( transaction, "d", "x", 2d, "y", 0d );
+            graph.makeNode( transaction, "e", "x", 3d, "y", 1.5d );
+            Node end = graph.makeNode( transaction, "end", "x", 3.3d, "y", 2.8d );
+            graph.makeEdge( transaction, "start", "a", "length", 1.5d );
+            graph.makeEdge( transaction, "a", "b", "length", 2f );
+            graph.makeEdge( transaction, "b", "c", "length", 3 );
+            graph.makeEdge( transaction, "c", "end", "length", 4L );
+            graph.makeEdge( transaction, "start", "d", "length", (short) 2 );
+            graph.makeEdge( transaction, "d", "e", "length", (byte) 3 );
+            graph.makeEdge( transaction, "e", "end", "length", 2 );
 
-        // WHEN
-        WeightedPath path = finder.findSinglePath( start, end );
-        // THEN
-        assertPathDef( path, "start", "d", "e", "end" );
+            // WHEN
+            var context = new BasicEvaluationContext( transaction, graphDb );
+            WeightedPath path = finderFactory.apply( context ).findSinglePath( start, end );
+            // THEN
+            assertPathDef( path, "start", "d", "e", "end" );
+            transaction.commit();
+        }
     }
 
     /**
@@ -139,31 +176,38 @@ public class TestAStar extends Neo4jAlgoTestCase
      *  y
      * </pre>
      */
-    @Test
-    public void testSimplest()
+    @ParameterizedTest
+    @MethodSource( "params" )
+    void testSimplest( Function<EvaluationContext, PathFinder<WeightedPath>> finderFactory )
     {
-        Node nodeA = graph.makeNode( "A", "x", 0d, "y", 0d );
-        Node nodeB = graph.makeNode( "B", "x", 2d, "y", 1d );
-        Node nodeC = graph.makeNode( "C", "x", 7d, "y", 0d );
-        Relationship relAB = graph.makeEdge( "A", "B", "length", 2d );
-        Relationship relAB2 = graph.makeEdge( "A", "B", "length", 2 );
-        Relationship relBC = graph.makeEdge( "B", "C", "length", 3f );
-        Relationship relAC = graph.makeEdge( "A", "C", "length", (short)10 );
-
-        int counter = 0;
-        Iterable<WeightedPath> allPaths = finder.findAllPaths( nodeA, nodeC );
-        for ( WeightedPath path : allPaths )
+        try ( Transaction transaction = graphDb.beginTx() )
         {
-            assertEquals( (Double)5d, (Double)path.weight() );
-            assertPath( path, nodeA, nodeB, nodeC );
-            counter++;
+            Node nodeA = graph.makeNode( transaction, "A", "x", 0d, "y", 0d );
+            Node nodeB = graph.makeNode( transaction, "B", "x", 2d, "y", 1d );
+            Node nodeC = graph.makeNode( transaction, "C", "x", 7d, "y", 0d );
+            Relationship relAB = graph.makeEdge( transaction, "A", "B", "length", 2d );
+            Relationship relAB2 = graph.makeEdge( transaction, "A", "B", "length", 2 );
+            Relationship relBC = graph.makeEdge( transaction, "B", "C", "length", 3f );
+            Relationship relAC = graph.makeEdge( transaction, "A", "C", "length", (short) 10 );
+
+            int counter = 0;
+            var context = new BasicEvaluationContext( transaction, graphDb );
+            Iterable<WeightedPath> allPaths = finderFactory.apply( context ).findAllPaths( nodeA, nodeC );
+            for ( WeightedPath path : allPaths )
+            {
+                assertEquals( (Double) 5d, (Double) path.weight() );
+                assertPath( path, nodeA, nodeB, nodeC );
+                counter++;
+            }
+            assertEquals( 1, counter );
+            transaction.commit();
         }
-        assertEquals( 1, counter );
     }
 
-    @SuppressWarnings( { "rawtypes", "unchecked" } )
-    @Test
-    public void canUseBranchState()
+    @SuppressWarnings( {"rawtypes", "unchecked"} )
+    @ParameterizedTest
+    @MethodSource( "params" )
+    void canUseBranchState( Function<EvaluationContext, PathFinder<WeightedPath>> finderFactory )
     {
         // This test doesn't use the predefined finder, which only means an unnecessary instantiation
         // if such an object. And this test will be run twice (once for each finder type in data()).
@@ -184,101 +228,81 @@ public class TestAStar extends Neo4jAlgoTestCase
          *
          * </pre>
          */
-        Node nodeA = graph.makeNode( "A", "x", 0d, "y", 0d );
-        Node nodeB = graph.makeNode( "B", "x", 2d, "y", 1d );
-        Node nodeC = graph.makeNode( "C", "x", 7d, "y", 0d );
-        graph.makeEdge( "A", "B", "length", 2d );
-        graph.makeEdge( "A", "B", "length", 2d );
-        graph.makeEdge( "B", "C", "length", 3d );
-        graph.makeEdge( "A", "C", "length", 10d );
-
-        final Map<Node, Double> seenBranchStates = new HashMap<>();
-        PathExpander<Double> expander = new PathExpander<Double>()
+        try ( Transaction transaction = graphDb.beginTx() )
         {
-            @Override
-            public Iterable<Relationship> expand( Path path, BranchState<Double> state )
+            Node nodeA = graph.makeNode( transaction, "A", "x", 0d, "y", 0d );
+            Node nodeB = graph.makeNode( transaction, "B", "x", 2d, "y", 1d );
+            Node nodeC = graph.makeNode( transaction, "C", "x", 7d, "y", 0d );
+            graph.makeEdge( transaction, "A", "B", "length", 2d );
+            graph.makeEdge( transaction, "A", "B", "length", 2d );
+            graph.makeEdge( transaction, "B", "C", "length", 3d );
+            graph.makeEdge( transaction, "A", "C", "length", 10d );
+
+            final Map<Node,Double> seenBranchStates = new HashMap<>();
+            PathExpander<Double> expander = new PathExpander<Double>()
             {
-                double newState = state.getState();
-                if ( path.length() > 0 )
+                @Override
+                public Iterable<Relationship> expand( Path path, BranchState<Double> state )
                 {
-                    newState += (Double) path.lastRelationship().getProperty( "length" );
-                    state.setState( newState );
+                    double newState = state.getState();
+                    if ( path.length() > 0 )
+                    {
+                        newState += (Double) path.lastRelationship().getProperty( "length" );
+                        state.setState( newState );
+                    }
+                    seenBranchStates.put( path.endNode(), newState );
+
+                    return path.endNode().getRelationships( OUTGOING );
                 }
-                seenBranchStates.put( path.endNode(), newState );
 
-                return path.endNode().getRelationships( OUTGOING );
-            }
+                @Override
+                public PathExpander<Double> reverse()
+                {
+                    throw new UnsupportedOperationException();
+                }
+            };
 
-            @Override
-            public PathExpander<Double> reverse()
-            {
-                throw new UnsupportedOperationException();
-            }
-        };
-
-        double initialStateValue = 0D;
-        PathFinder<WeightedPath> traversalFinder = new TraversalAStar( expander,
-                new InitialBranchState.State( initialStateValue, initialStateValue ),
-                doubleCostEvaluator( "length" ), ESTIMATE_EVALUATOR );
-        WeightedPath path = traversalFinder.findSinglePath( nodeA, nodeC );
-        assertEquals( (Double) 5.0D, (Double) path.weight() );
-        assertPathDef( path, "A", "B", "C" );
-        assertEquals( MapUtil.<Node,Double>genericMap( nodeA, 0D, nodeB, 2D ), seenBranchStates );
+            double initialStateValue = 0D;
+            var context = new BasicEvaluationContext( transaction, graphDb );
+            PathFinder<WeightedPath> traversalFinder =
+                    new TraversalAStar<>( context, expander,
+                            new InitialBranchState.State( initialStateValue, initialStateValue ), doubleCostEvaluator( "length" ),
+                            ESTIMATE_EVALUATOR );
+            WeightedPath path = traversalFinder.findSinglePath( nodeA, nodeC );
+            assertEquals( (Double) 5.0D, (Double) path.weight() );
+            assertPathDef( path, "A", "B", "C" );
+            assertEquals( MapUtil.<Node,Double>genericMap( nodeA, 0D, nodeB, 2D ), seenBranchStates );
+            transaction.commit();
+        }
     }
 
     @Test
-    public void betterTentativePath()
+    void betterTentativePath()
     {
         // GIVEN
-        EstimateEvaluator<Double> estimator = ( node, goal ) -> (Double) node.getProperty( "estimate" );
-        PathFinder<WeightedPath> finder = aStar( PathExpanders.allTypesAndDirections(),
-                doubleCostEvaluator( "weight", 0d ), estimator );
-
-        final Node node1 = graph.makeNode( "1", "estimate", 0.003d );
-        final Node node2 = graph.makeNode( "2", "estimate", 0.002d );
-        final Node node3 = graph.makeNode( "3", "estimate", 0.001d );
-        final Node node4 = graph.makeNode( "4", "estimate", 0d );
-        graph.makeEdge( "1", "3", "weight", 0.253d );
-        graph.makeEdge( "1", "2", "weight", 0.018d );
-        graph.makeEdge( "2", "4", "weight", 0.210d );
-        graph.makeEdge( "2", "3", "weight", 0.180d );
-        graph.makeEdge( "2", "3", "weight", 0.024d );
-        graph.makeEdge( "3", "4", "weight", 0.135d );
-        graph.makeEdge( "3", "4", "weight", 0.013d );
-
-        // WHEN
-        WeightedPath best14 = finder.findSinglePath( node1, node4 );
-        // THEN
-        assertPath( best14, node1, node2, node3, node4 );
-    }
-
-    static EstimateEvaluator<Double> ESTIMATE_EVALUATOR = ( node, goal ) ->
-    {
-        double dx = (Double) node.getProperty( "x" )
-                    - (Double) goal.getProperty( "x" );
-        double dy = (Double) node.getProperty( "y" )
-                    - (Double) goal.getProperty( "y" );
-        return Math.sqrt( Math.pow( dx, 2 ) + Math.pow( dy, 2 ) );
-    };
-
-    @Parameters
-    public static Collection<Object[]> data()
-    {
-        return Arrays.asList( new Object[][]
+        try ( Transaction transaction = graphDb.beginTx() )
         {
-            {
-                GraphAlgoFactory.aStar( PathExpanders.allTypesAndDirections(), doubleCostEvaluator( "length" ), ESTIMATE_EVALUATOR )
-            },
-            {
-                new TraversalAStar( PathExpanders.allTypesAndDirections(), doubleCostEvaluator( "length" ), ESTIMATE_EVALUATOR )
-            }
-        } );
-    }
+            EstimateEvaluator<Double> estimator = ( node, goal ) -> (Double) node.getProperty( "estimate" );
+            var context = new BasicEvaluationContext( transaction, graphDb );
+            PathFinder<WeightedPath> finder = aStar( context, allTypesAndDirections(), doubleCostEvaluator( "weight", 0d ), estimator );
 
-    private final PathFinder<WeightedPath> finder;
+            final Node node1 = graph.makeNode( transaction, "1", "estimate", 0.003d );
+            final Node node2 = graph.makeNode( transaction, "2", "estimate", 0.002d );
+            final Node node3 = graph.makeNode( transaction, "3", "estimate", 0.001d );
+            final Node node4 = graph.makeNode( transaction, "4", "estimate", 0d );
+            graph.makeEdge( transaction, "1", "3", "weight", 0.253d );
+            graph.makeEdge( transaction, "1", "2", "weight", 0.018d );
+            graph.makeEdge( transaction, "2", "4", "weight", 0.210d );
+            graph.makeEdge( transaction, "2", "3", "weight", 0.180d );
+            graph.makeEdge( transaction, "2", "3", "weight", 0.024d );
+            graph.makeEdge( transaction, "3", "4", "weight", 0.135d );
+            graph.makeEdge( transaction, "3", "4", "weight", 0.013d );
 
-    public TestAStar( PathFinder<WeightedPath> finder )
-    {
-        this.finder = finder;
+            // WHEN
+            WeightedPath best14 = finder.findSinglePath( node1, node4 );
+            // THEN
+            assertPath( best14, node1, node2, node3, node4 );
+            transaction.commit();
+        }
     }
 }

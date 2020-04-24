@@ -19,14 +19,14 @@
  */
 package org.neo4j.cypher.internal.parser
 
-import org.neo4j.cypher.internal.planner.v3_6.spi.TokenContext
+import org.neo4j.cypher.internal.planner.spi.TokenContext
 import org.neo4j.cypher.internal.runtime.interpreted.commands.convert.{CommunityExpressionConverter, ExpressionConverters}
 import org.neo4j.cypher.internal.runtime.interpreted.commands.predicates.{Equals, True}
 import org.neo4j.cypher.internal.runtime.interpreted.commands.values.TokenType.PropertyKey
 import org.neo4j.cypher.internal.runtime.interpreted.commands.{predicates, expressions => legacy}
-import org.neo4j.cypher.internal.v3_6.parser.{Expressions, ParserTest}
-import org.neo4j.cypher.internal.v3_6.util.attribution.Id
-import org.neo4j.cypher.internal.v3_6.{expressions => ast}
+import org.neo4j.cypher.internal.v4_0.parser.{Expressions, ParserTest}
+import org.neo4j.cypher.internal.v4_0.util.attribution.Id
+import org.neo4j.cypher.internal.v4_0.{expressions => ast}
 
 // TODO: This should be tested without using the legacy expressions and moved to the semantics module
 class ExpressionsTest extends ParserTest[ast.Expression, legacy.Expression] with Expressions {
@@ -73,20 +73,6 @@ class ExpressionsTest extends ParserTest[ast.Expression, legacy.Expression] with
                         ELSE 'OTHER'
          END""") shouldGive
       legacy.GenericCase(IndexedSeq(alt1, alt2), Some(legacy.Literal("OTHER")))
-  }
-
-  test("list_comprehension") {
-    val predicate = predicates.Equals(legacy.Property(legacy.Variable("x"), PropertyKey("prop")), legacy.Literal(42))
-    val mapExpression = legacy.Property(legacy.Variable("x"), PropertyKey("name"))
-
-    parsing("[x in collection WHERE x.prop = 42 | x.name]") shouldGive
-      legacy.ExtractFunction(legacy.FilterFunction(legacy.Variable("collection"), "x", predicate), "x", mapExpression)
-
-    parsing("[x in collection WHERE x.prop = 42]") shouldGive
-      legacy.FilterFunction(legacy.Variable("collection"), "x", predicate)
-
-    parsing("[x in collection | x.name]") shouldGive
-      legacy.ExtractFunction(legacy.Variable("collection"), "x", mapExpression)
   }
 
   test("array_indexing") {

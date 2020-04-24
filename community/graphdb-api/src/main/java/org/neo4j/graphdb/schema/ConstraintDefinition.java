@@ -19,15 +19,14 @@
  */
 package org.neo4j.graphdb.schema;
 
+import org.neo4j.annotations.api.PublicApi;
 import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.RelationshipType;
 
 /**
  * Definition of a constraint.
- *
- * <b>Note:</b> This interface is going to be changed/removed in next major release to better cope with node and
- * relationship constraints which are quite different concepts.
  */
+@PublicApi
 public interface ConstraintDefinition
 {
     /**
@@ -72,4 +71,11 @@ public interface ConstraintDefinition
      * @return true if this constraint definition's type is equal to the provided type
      */
     boolean isConstraintType( ConstraintType type );
+
+    /**
+     * Get the name given to this constraint when it was created.
+     * Constraints that were not explicitly given a name at creation, will have an auto-generated name.
+     * @return the unique name of the constraint.
+     */
+    String getName();
 }

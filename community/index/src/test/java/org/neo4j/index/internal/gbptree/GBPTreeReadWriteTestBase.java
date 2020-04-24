@@ -19,47 +19,53 @@
  */
 package org.neo4j.index.internal.gbptree;
 
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.RuleChain;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.neo4j.cursor.RawCursor;
-import org.neo4j.test.rule.PageCacheAndDependenciesRule;
+import org.neo4j.io.pagecache.PageCache;
+import org.neo4j.test.extension.Inject;
+import org.neo4j.test.extension.RandomExtension;
+import org.neo4j.test.extension.pagecache.PageCacheExtension;
 import org.neo4j.test.rule.RandomRule;
+import org.neo4j.test.rule.TestDirectory;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static java.lang.String.format;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
-public abstract class GBPTreeReadWriteTestBase<KEY,VALUE>
+@PageCacheExtension
+@ExtendWith( RandomExtension.class )
+abstract class GBPTreeReadWriteTestBase<KEY,VALUE>
 {
-    private RandomRule random = new RandomRule();
-    private PageCacheAndDependenciesRule deps = new PageCacheAndDependenciesRule();
-
-    @Rule
-    public RuleChain ruleChain = RuleChain.outerRule( random ).around( deps );
+    @Inject
+    private TestDirectory testDirectory;
+    @Inject
+    private RandomRule random;
+    @Inject
+    private PageCache pageCache;
 
     private TestLayout<KEY,VALUE> layout;
     private File indexFile;
 
-    @Before
-    public void setUp()
+    @BeforeEach
+    void setUp()
     {
-        indexFile = deps.directory().file( "index" );
-        layout = getLayout();
+        indexFile = testDirectory.file( "index" );
+        layout = getLayout( random, pageCache.pageSize() );
     }
 
-    abstract TestLayout<KEY,VALUE> getLayout();
+    abstract TestLayout<KEY,VALUE> getLayout( RandomRule random, int pageSize );
 
     @Test
-    public void shouldSeeSimpleInsertions() throws Exception
+    void shouldSeeSimpleInsertions() throws Exception
     {
         try ( GBPTree<KEY,VALUE> index = index() )
         {
@@ -72,12 +78,12 @@ public abstract class GBPTreeReadWriteTestBase<KEY,VALUE>
                 }
             }
 
-            try ( RawCursor<Hit<KEY,VALUE>,IOException> cursor = index.seek( key( 0 ), key( Long.MAX_VALUE ) ) )
+            try ( Seeker<KEY,VALUE> cursor = index.seek( key( 0 ), key( Long.MAX_VALUE ) ) )
             {
                 for ( int i = 0; i < count; i++ )
                 {
                     assertTrue( cursor.next() );
-                    assertEqualsKey( key( i ), cursor.get().key() );
+                    assertEqualsKey( key( i ), cursor.key() );
                 }
                 assertFalse( cursor.next() );
             }
@@ -85,7 +91,7 @@ public abstract class GBPTreeReadWriteTestBase<KEY,VALUE>
     }
 
     @Test
-    public void shouldSeeSimpleInsertionsWithExactMatch() throws Exception
+    void shouldSeeSimpleInsertionsWithExactMatch() throws Exception
     {
         try ( GBPTree<KEY,VALUE> index = index() )
         {
@@ -100,10 +106,10 @@ public abstract class GBPTreeReadWriteTestBase<KEY,VALUE>
 
             for ( int i = 0; i < count; i++ )
             {
-                try ( RawCursor<Hit<KEY,VALUE>,IOException> cursor = index.seek( key( i ), key( i ) ) )
+                try ( Seeker<KEY,VALUE> cursor = index.seek( key( i ), key( i ) ) )
                 {
                     assertTrue( cursor.next() );
-                    assertEqualsKey( key( i ), cursor.get().key() );
+                    assertEqualsKey( key( i ), cursor.key() );
                     assertFalse( cursor.next() );
                 }
             }
@@ -113,7 +119,7 @@ public abstract class GBPTreeReadWriteTestBase<KEY,VALUE>
     /* Randomized tests */
 
     @Test
-    public void shouldSplitCorrectly() throws Exception
+    void shouldSplitCorrectly() throws Exception
     {
         // GIVEN
         try ( GBPTree<KEY,VALUE> index = index() )
@@ -138,12 +144,12 @@ public abstract class GBPTreeReadWriteTestBase<KEY,VALUE>
             }
 
             // THEN
-            try ( RawCursor<Hit<KEY,VALUE>,IOException> cursor = index.seek( key( 0 ), key( Long.MAX_VALUE ) ) )
+            try ( Seeker<KEY,VALUE> cursor = index.seek( key( 0 ), key( Long.MAX_VALUE ) ) )
             {
                 long prev = -1;
                 while ( cursor.next() )
                 {
-                    KEY hit = cursor.get().key();
+                    KEY hit = cursor.key();
                     long hitSeed = layout.keySeed( hit );
                     if ( hitSeed < prev )
                     {
@@ -163,7 +169,7 @@ public abstract class GBPTreeReadWriteTestBase<KEY,VALUE>
 
     private GBPTree<KEY,VALUE> index() throws IOException
     {
-        return new GBPTreeBuilder<>( deps.pageCache(), indexFile, layout ).build();
+        return new GBPTreeBuilder<>( pageCache, indexFile, layout ).build();
     }
 
     private boolean removeFromList( List<KEY> list, KEY item )
@@ -203,7 +209,7 @@ public abstract class GBPTreeReadWriteTestBase<KEY,VALUE>
 
     private void assertEqualsKey( KEY expected, KEY actual )
     {
-        assertEquals( String.format( "expected equal, expected=%s, actual=%s", expected.toString(), actual.toString() ), 0,
-                layout.compare( expected, actual ) );
+        assertEquals( 0, layout.compare( expected, actual ),
+                format( "expected equal, expected=%s, actual=%s", expected.toString(), actual.toString() ) );
     }
 }

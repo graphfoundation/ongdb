@@ -19,70 +19,67 @@
  */
 package org.neo4j.server.rest.discovery;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.net.InetSocketAddress;
+import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.neo4j.kernel.configuration.BoltConnector;
-import org.neo4j.kernel.configuration.Config;
-import org.neo4j.kernel.configuration.ConnectorPortRegister;
+import org.neo4j.configuration.Config;
+import org.neo4j.configuration.connectors.BoltConnector;
+import org.neo4j.configuration.connectors.ConnectorPortRegister;
+import org.neo4j.configuration.helpers.SocketAddress;
 import org.neo4j.server.configuration.ServerSettings;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.neo4j.helpers.collection.MapUtil.map;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.neo4j.internal.helpers.collection.MapUtil.map;
 import static org.neo4j.server.rest.discovery.CommunityDiscoverableURIs.communityDiscoverableURIs;
 
-public class CommunityDiscoverableURIsTest
+class CommunityDiscoverableURIsTest
 {
     @Test
-    public void shouldAdvertiseDataAndManagementURIs() throws Exception
+    void shouldAdvertiseTransactionAndManagementURIs()
     {
-        DiscoverableURIs uris = communityDiscoverableURIs( Config.defaults(), null );
-
-        assertEquals( map( "data", "/db/data/", "management", "/db/manage/" ), toMap(uris) );
+        var uris = communityDiscoverableURIs( Config.defaults(), null );
+        assertEquals( map( "transaction", "/db/{databaseName}/tx" ), toMap( uris ) );
     }
 
     @Test
-    public void shouldAdvertiseBoltIfExplicitlyConfigured() throws Exception
+    void shouldAdvertiseBoltIfExplicitlyConfigured()
     {
-        DiscoverableURIs uris = communityDiscoverableURIs(
-                Config.defaults( ServerSettings.bolt_discoverable_address, "bolt://banana.com:1234" ), null );
+        var uris = communityDiscoverableURIs(
+                Config.newBuilder()
+                        .set( BoltConnector.enabled, true )
+                        .set( ServerSettings.bolt_discoverable_address, URI.create( "bolt://banana.com:1234" ) )
+                        .build(), null );
 
-        assertEquals( "bolt://banana.com:1234", toMap(uris).get("bolt") );
+        var map = toMap( uris );
+        assertEquals( "bolt://banana.com:1234", map.get( "bolt_direct" ) );
+        assertEquals( "neo4j://localhost:7687", map.get( "bolt_routing" ) );
     }
 
     @Test
-    public void shouldLookupBoltPortInRegisterIfConfiguredTo0() throws Exception
+    void shouldLookupBoltPortInRegisterIfConfigured()
     {
-        BoltConnector bolt = new BoltConnector( "honestJakesBoltConnector" );
-        ConnectorPortRegister register = new ConnectorPortRegister();
-        register.register( bolt.key(), new InetSocketAddress( 1337 ) );
+        var register = new ConnectorPortRegister();
+        register.register( BoltConnector.NAME, new InetSocketAddress( 1337 ) );
 
-        DiscoverableURIs uris = communityDiscoverableURIs(
-                Config.builder()
-                        .withSetting( bolt.advertised_address, "apple.com:0" )
-                        .withSetting( bolt.enabled, "true" )
-                        .withSetting( bolt.type, BoltConnector.ConnectorType.BOLT.name() )
+        var uris = communityDiscoverableURIs(
+                Config.newBuilder()
+                        .set( BoltConnector.advertised_address, new SocketAddress( "apple.com", 0 ) )
+                        .set( BoltConnector.enabled, true )
                         .build(), register );
 
-        assertEquals( "bolt://apple.com:1337", toMap(uris).get("bolt")  );
+        var map = toMap( uris );
+        assertEquals( "bolt://apple.com:1337", map.get( "bolt_direct" ) );
+        assertEquals( "neo4j://apple.com:1337", map.get( "bolt_routing" ) );
     }
 
-    @Test
-    public void shouldOmitBoltIfNoConnectorConfigured() throws Exception
+    private Map<String,String> toMap( DiscoverableURIs uris )
     {
-        DiscoverableURIs uris = communityDiscoverableURIs( Config.builder().build(), null );
-
-        assertFalse( toMap( uris ).containsKey( "bolt" ) );
-    }
-
-    private Map<String,Object> toMap( DiscoverableURIs uris )
-    {
-        Map<String,Object> out = new HashMap<>();
-        uris.forEach( ( k, v ) -> out.put( k, v.toASCIIString() ) );
+        Map<String,String> out = new HashMap<>();
+        uris.forEach( out::put );
         return out;
     }
 }

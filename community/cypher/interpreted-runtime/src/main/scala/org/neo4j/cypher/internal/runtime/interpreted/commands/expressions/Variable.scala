@@ -19,24 +19,14 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.commands.expressions
 
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
+import org.neo4j.cypher.internal.runtime.ExecutionContext
 import org.neo4j.cypher.internal.runtime.interpreted.commands.AstNode
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.QueryState
-import org.neo4j.graphdb.NotFoundException
 import org.neo4j.values.AnyValue
 
-case class Variable(entityName: String) extends Expression {
+case class Variable(name: String) extends VariableCommand(name) {
 
-  def apply(ctx: ExecutionContext, state: QueryState): AnyValue =
-    ctx.getOrElse(entityName, throw new NotFoundException("Unknown variable `%s`.".format(entityName)))
-
-  override def toString: String = entityName
-
-  def rewrite(f: (Expression) => Expression) = f(this)
-
-  def arguments = Seq()
-
-  def symbolTableDependencies = Set(entityName)
+  override def apply(ctx: ExecutionContext, state: QueryState): AnyValue = ctx.getByName(name)
 
   override def children: Seq[AstNode[_]] = Seq.empty
 }

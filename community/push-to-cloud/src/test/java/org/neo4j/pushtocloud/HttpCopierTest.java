@@ -16,28 +16,31 @@
  */
 package org.neo4j.pushtocloud;
 
+import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.client.MappingBuilder;
 import com.github.tomakehurst.wiremock.client.ResponseDefinitionBuilder;
-import com.github.tomakehurst.wiremock.junit.WireMockRule;
 import com.github.tomakehurst.wiremock.stubbing.Scenario;
-
-import wiremock.com.fasterxml.jackson.databind.ObjectMapper;
-
 import org.hamcrest.CoreMatchers;
 import org.hamcrest.Matcher;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
+import wiremock.com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.PrintStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-import org.neo4j.commandline.admin.CommandFailed;
-import org.neo4j.helpers.progress.ProgressListener;
+import org.neo4j.cli.CommandFailedException;
+import org.neo4j.cli.ExecutionContext;
+import org.neo4j.internal.helpers.progress.ProgressListener;
 import org.neo4j.io.fs.DefaultFileSystemAbstraction;
 import org.neo4j.pushtocloud.HttpCopier.ErrorBody;
+import org.neo4j.test.extension.Inject;
+import org.neo4j.test.extension.testdirectory.TestDirectoryExtension;
 import org.neo4j.test.rule.TestDirectory;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
@@ -63,23 +66,25 @@ import static java.net.HttpURLConnection.HTTP_NOT_ACCEPTABLE;
 import static java.net.HttpURLConnection.HTTP_NOT_FOUND;
 import static java.net.HttpURLConnection.HTTP_OK;
 import static java.net.HttpURLConnection.HTTP_UNAUTHORIZED;
-import static org.hamcrest.CoreMatchers.allOf;
-import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.hamcrest.Matchers.allOf;
+import static org.hamcrest.core.StringContains.containsString;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.Matchers.anyLong;
 import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.mock;
+import static org.neo4j.io.NullOutputStream.NULL_OUTPUT_STREAM;
 import static org.neo4j.pushtocloud.HttpCopier.ERROR_REASON_EXCEEDS_MAX_SIZE;
 import static org.neo4j.pushtocloud.HttpCopier.ERROR_REASON_UNSUPPORTED_INDEXES;
 import static org.neo4j.pushtocloud.HttpCopier.HTTP_RESUME_INCOMPLETE;
 import static org.neo4j.pushtocloud.HttpCopier.HTTP_UNPROCESSABLE_ENTITY;
 import static org.neo4j.pushtocloud.HttpCopier.StatusBody;
 
-public class HttpCopierTest
+@TestDirectoryExtension
+class HttpCopierTest
 {
     private static final HttpCopier.ProgressListenerFactory NO_OP_PROGRESS = ( name, length ) -> ProgressListener.NONE;
 
@@ -88,13 +93,43 @@ public class HttpCopierTest
     private static final String STATUS_POLLING_PASSED_FIRST_CALL = "Passed first";
 
     private final DefaultFileSystemAbstraction fs = new DefaultFileSystemAbstraction();
-    @Rule
-    public WireMockRule wireMock = new WireMockRule( TEST_PORT );
-    @Rule
-    public TestDirectory directory = TestDirectory.testDirectory();
+    WireMockServer wireMock;
+    @Inject
+    TestDirectory directory;
+    private ExecutionContext ctx;
+
+    private static void assertThrows( Class<? extends Exception> exceptionClass, Matcher<String> message, ThrowingRunnable action )
+    {
+        try
+        {
+            action.run();
+            fail( "Should have failed" );
+        }
+        catch ( Exception e )
+        {
+            assertTrue( exceptionClass.isInstance( e ) );
+            assertThat( e.getMessage(), message );
+        }
+    }
+
+    @BeforeEach
+    public void setup()
+    {
+        wireMock = new WireMockServer( TEST_PORT );
+        wireMock.start();
+        Path dir = directory.homeDir().toPath();
+        PrintStream out = new PrintStream( NULL_OUTPUT_STREAM );
+        ctx = new ExecutionContext( dir, dir, out, out, fs );
+    }
+
+    @AfterEach
+    public void teardown()
+    {
+        wireMock.stop();
+    }
 
     @Test
-    public void shouldHandleSuccessfulHappyCaseRunThroughOfTheWholeProcess() throws Exception
+    void shouldHandleSuccessfulHappyCaseRunThroughOfTheWholeProcess() throws Exception
     {
         // create dump
         Path source = createDump();
@@ -104,7 +139,7 @@ public class HttpCopierTest
     }
 
     @Test
-    public void shouldHandleSuccessfulHappyCaseRunThroughOfTheWholeProcessWithExistingDump() throws Exception
+    void shouldHandleSuccessfulHappyCaseRunThroughOfTheWholeProcessWithExistingDump() throws Exception
     {
         // create dump
         Path source = createDump();
@@ -113,11 +148,13 @@ public class HttpCopierTest
         assertEquals( true, source.toFile().exists() );
     }
 
-    private void runHappyPathTest( Path source, boolean sourceProvided ) throws CommandFailed
+    private void runHappyPathTest( Path source, boolean sourceProvided ) throws CommandFailedException
     {
         // given
         ControlledProgressListener progressListener = new ControlledProgressListener();
-        HttpCopier copier = new HttpCopier( new ControlledOutsideWorld( fs ), millis -> {}, ( name, length ) -> progressListener );
+        HttpCopier copier = new HttpCopier( ctx, millis ->
+        {
+        }, ( name, length ) -> progressListener );
 
         long sourceLength = fs.getFileSize( source.toFile() );
 
@@ -126,7 +163,7 @@ public class HttpCopierTest
         String uploadLocationPath = "/upload";
         wireMock.stubFor( authenticationRequest( false ).willReturn( successfulAuthorizationResponse( authorizationTokenResponse ) ) );
         wireMock.stubFor( initiateUploadTargetRequest( authorizationTokenResponse )
-                .willReturn( successfulInitiateUploadTargetResponse( signedURIPath ) ) );
+                                  .willReturn( successfulInitiateUploadTargetResponse( signedURIPath ) ) );
         wireMock.stubFor( initiateUploadRequest( signedURIPath ).willReturn( successfulInitiateUploadResponse( uploadLocationPath ) ) );
         wireMock.stubFor( resumeUploadRequest( uploadLocationPath, sourceLength ).willReturn( successfulResumeUploadResponse() ) );
         wireMock.stubFor( triggerImportRequest( authorizationTokenResponse ).willReturn( successfulTriggerImportResponse() ) );
@@ -139,7 +176,7 @@ public class HttpCopierTest
         // then
         verify( postRequestedFor( urlEqualTo( "/import/auth" ) ) );
         verify( postRequestedFor( urlEqualTo( "/import" ) )
-                .withRequestBody( matchingJsonPath("DumpSize", equalTo( String.valueOf( sourceLength ) ) ) ) );
+                        .withRequestBody( matchingJsonPath( "DumpSize", equalTo( String.valueOf( sourceLength ) ) ) ) );
         verify( postRequestedFor( urlEqualTo( signedURIPath ) ) );
         verify( putRequestedFor( urlEqualTo( uploadLocationPath ) ) );
         verify( postRequestedFor( urlEqualTo( "/import/upload-complete" ) ) );
@@ -149,11 +186,13 @@ public class HttpCopierTest
     }
 
     @Test
-    public void shouldHandleResumableFailureWhileUploading() throws Exception
+    void shouldHandleResumableFailureWhileUploading() throws Exception
     {
         // given
         ControlledProgressListener progressListener = new ControlledProgressListener();
-        HttpCopier copier = new HttpCopier( new ControlledOutsideWorld( fs ), millis -> {}, ( name, length ) -> progressListener );
+        HttpCopier copier = new HttpCopier( ctx, millis ->
+        {
+        }, ( name, length ) -> progressListener );
         Path source = createDump();
         long sourceLength = fs.getFileSize( source.toFile() );
 
@@ -162,21 +201,23 @@ public class HttpCopierTest
         String uploadLocationPath = "/upload";
         wireMock.stubFor( authenticationRequest( false ).willReturn( successfulAuthorizationResponse( authorizationTokenResponse ) ) );
         wireMock.stubFor( initiateUploadTargetRequest( authorizationTokenResponse )
-                .willReturn( successfulInitiateUploadTargetResponse( signedURIPath ) ) );
+                                  .willReturn( successfulInitiateUploadTargetResponse( signedURIPath ) ) );
         wireMock.stubFor( initiateUploadRequest( signedURIPath ).willReturn( successfulInitiateUploadResponse( uploadLocationPath ) ) );
         wireMock.stubFor( resumeUploadRequest( uploadLocationPath, sourceLength ).willReturn( aResponse().withStatus( HttpCopier.HTTP_TOO_MANY_REQUESTS ) ) );
 
         // when
-        assertThrows( CommandFailed.class, containsString( "You can re-try using the existing dump by running this command" ),
-                () -> authenticateAndCopy( copier, source,  true, "user", "pass".toCharArray() ) );
+        assertThrows( CommandFailedException.class, containsString( "You can re-try using the existing dump by running this command" ),
+                      () -> authenticateAndCopy( copier, source, true, "user", "pass".toCharArray() ) );
     }
 
     @Test
-    public void shouldHandleResumableFailureWhenImportIsTriggered() throws Exception
+    void shouldHandleResumableFailureWhenImportIsTriggered() throws Exception
     {
         // given
         ControlledProgressListener progressListener = new ControlledProgressListener();
-        HttpCopier copier = new HttpCopier( new ControlledOutsideWorld( fs ), millis -> {}, ( name, length ) -> progressListener );
+        HttpCopier copier = new HttpCopier( ctx, millis ->
+        {
+        }, ( name, length ) -> progressListener );
         Path source = createDump();
         long sourceLength = fs.getFileSize( source.toFile() );
 
@@ -185,7 +226,7 @@ public class HttpCopierTest
         String uploadLocationPath = "/upload";
         wireMock.stubFor( authenticationRequest( false ).willReturn( successfulAuthorizationResponse( authorizationTokenResponse ) ) );
         wireMock.stubFor( initiateUploadTargetRequest( authorizationTokenResponse )
-                .willReturn( successfulInitiateUploadTargetResponse( signedURIPath ) ) );
+                                  .willReturn( successfulInitiateUploadTargetResponse( signedURIPath ) ) );
         wireMock.stubFor( initiateUploadRequest( signedURIPath ).willReturn( successfulInitiateUploadResponse( uploadLocationPath ) ) );
         wireMock.stubFor( resumeUploadRequest( uploadLocationPath, sourceLength ).willReturn( successfulResumeUploadResponse() ) );
         wireMock.stubFor( triggerImportRequest( authorizationTokenResponse ).willReturn( aResponse().withStatus( HttpCopier.HTTP_TOO_MANY_REQUESTS ) ) );
@@ -193,43 +234,43 @@ public class HttpCopierTest
         wireMock.stubFor( secondStatusPollingRequest( authorizationTokenResponse ) );
 
         // when
-        assertThrows( CommandFailed.class, containsString( "You can re-try using the existing dump by running this command" ),
-                () -> authenticateAndCopy( copier, source, true, "user", "pass".toCharArray() ) );
+        assertThrows( CommandFailedException.class, containsString( "You can re-try using the existing dump by running this command" ),
+                      () -> authenticateAndCopy( copier, source, true, "user", "pass".toCharArray() ) );
     }
 
     @Test
-    public void shouldHandleBadCredentialsInAuthorizationRequest() throws IOException
+    void shouldHandleBadCredentialsInAuthorizationRequest() throws IOException
     {
         // given
-        HttpCopier copier = new HttpCopier( new ControlledOutsideWorld( fs ) );
+        HttpCopier copier = new HttpCopier( ctx );
         Path source = createDump();
         wireMock.stubFor( authenticationRequest( false ).willReturn( aResponse()
-                .withStatus( HTTP_UNAUTHORIZED ) ) );
+                                                                             .withStatus( HTTP_UNAUTHORIZED ) ) );
 
         // when/then
-        assertThrows( CommandFailed.class, CoreMatchers.equalTo( "Invalid username/password credentials" ),
-                () -> authenticateAndCopy( copier, source, true, "user", "pass".toCharArray() ) );
+        assertThrows( CommandFailedException.class, CoreMatchers.equalTo( "Invalid username/password credentials" ),
+                      () -> authenticateAndCopy( copier, source, true, "user", "pass".toCharArray() ) );
     }
 
     @Test
-    public void shouldHandleUnknownDbid() throws IOException
+    void shouldHandleUnknownDbid() throws IOException
     {
         // given
-        HttpCopier copier = new HttpCopier( new ControlledOutsideWorld( fs ) );
+        HttpCopier copier = new HttpCopier( ctx );
         Path source = createDump();
         wireMock.stubFor( authenticationRequest( false ).willReturn( aResponse()
-                .withStatus( HTTP_NOT_FOUND ) ) );
+                                                                             .withStatus( HTTP_NOT_FOUND ) ) );
 
         // when/then
-        assertThrows( CommandFailed.class, CoreMatchers.containsString( "please check your Bolt URI" ),
-                () -> authenticateAndCopy( copier, source, true, "user", "pass".toCharArray() ) );
+        assertThrows( CommandFailedException.class, CoreMatchers.containsString( "please check your Bolt URI" ),
+                      () -> authenticateAndCopy( copier, source, true, "user", "pass".toCharArray() ) );
     }
 
     @Test
-    public void shouldHandleMoveUploadTargetRoute() throws IOException
+    void shouldHandleMoveUploadTargetRoute() throws IOException
     {
         // given
-        HttpCopier copier = new HttpCopier( new ControlledOutsideWorld( fs ) );
+        HttpCopier copier = new HttpCopier( ctx );
         Path source = createDump();
 
         String authorizationTokenResponse = "abc";
@@ -239,18 +280,18 @@ public class HttpCopierTest
         wireMock.stubFor( authenticationRequest( false ).willReturn( successfulAuthorizationResponse( authorizationTokenResponse ) ) );
         wireMock.stubFor( initiateUploadRequest( signedURIPath ).willReturn( successfulInitiateUploadResponse( uploadLocationPath ) ) );
         wireMock.stubFor( initiateUploadTargetRequest( "abc" ).willReturn( aResponse()
-                .withStatus( HTTP_NOT_FOUND ) ) );
+                                                                                   .withStatus( HTTP_NOT_FOUND ) ) );
 
         // when/then
-        assertThrows( CommandFailed.class, CoreMatchers.containsString( "please contact support" ),
-                () -> authenticateAndCopy( copier, source, true, "user", "pass".toCharArray() ) );
+        assertThrows( CommandFailedException.class, CoreMatchers.containsString( "please contact support" ),
+                      () -> authenticateAndCopy( copier, source, true, "user", "pass".toCharArray() ) );
     }
 
     @Test
-    public void shouldHandleImportRequestMovedRoute() throws IOException
+    void shouldHandleImportRequestMovedRoute() throws IOException
     {
         // given
-        HttpCopier copier = new HttpCopier( new ControlledOutsideWorld( fs ) );
+        HttpCopier copier = new HttpCopier( ctx );
         Path source = createDump();
         long sourceLength = fs.getFileSize( source.toFile() );
 
@@ -260,82 +301,106 @@ public class HttpCopierTest
 
         wireMock.stubFor( authenticationRequest( false ).willReturn( successfulAuthorizationResponse( authorizationTokenResponse ) ) );
         wireMock.stubFor( initiateUploadTargetRequest( authorizationTokenResponse )
-                .willReturn( successfulInitiateUploadTargetResponse( signedURIPath ) ) );
+                                  .willReturn( successfulInitiateUploadTargetResponse( signedURIPath ) ) );
         wireMock.stubFor( initiateUploadRequest( signedURIPath ).willReturn( successfulInitiateUploadResponse( uploadLocationPath ) ) );
         wireMock.stubFor( resumeUploadRequest( uploadLocationPath, sourceLength ).willReturn( successfulResumeUploadResponse() ) );
 
         wireMock.stubFor( triggerImportRequest( "abc" ).willReturn( aResponse()
-                .withStatus( HTTP_NOT_FOUND ) ) );
+                                                                            .withStatus( HTTP_NOT_FOUND ) ) );
 
         // when/then
-        assertThrows( CommandFailed.class, CoreMatchers.containsString( "please contact support" ),
-                () -> authenticateAndCopy( copier, source, true, "user", "pass".toCharArray() ) );
+        assertThrows( CommandFailedException.class, CoreMatchers.containsString( "please contact support" ),
+                      () -> authenticateAndCopy( copier, source, true, "user", "pass".toCharArray() ) );
     }
 
     @Test
-    public void shouldHandleInsufficientCredentialsInAuthorizationRequest() throws IOException
+    void shouldHandleInsufficientSpaceInSizeRequest()
     {
         // given
-        HttpCopier copier = new HttpCopier( new ControlledOutsideWorld( fs ) );
-        Path source = createDump();
-        wireMock.stubFor( authenticationRequest( false ).willReturn( aResponse()
-                .withStatus( HTTP_FORBIDDEN ) ) );
-
+        HttpCopier copier = new HttpCopier( ctx );
+        wireMock.stubFor( initiateSizeRequest( "fakeToken", 100000000 ).willReturn( aResponse()
+                                                                                            .withStatus( HTTP_UNPROCESSABLE_ENTITY ) ) );
         // when/then
-        assertThrows( CommandFailed.class, containsString( "administrative access" ),
-                () -> authenticateAndCopy( copier, source, true, "user", "pass".toCharArray() ) );
+        assertThrows( CommandFailedException.class, containsString( "insufficient space" ),
+                      () -> copier.checkSize( false, TEST_CONSOLE_URL, 100000000, "fakeToken" ) );
     }
 
     @Test
-    public void shouldHandleUnexpectedResponseFromAuthorizationRequest() throws IOException
+    void shouldHandleSufficientSpaceInSizeRequest()
     {
         // given
-        HttpCopier copier = new HttpCopier( new ControlledOutsideWorld( fs ) );
-        Path source = createDump();
-        wireMock.stubFor( authenticationRequest( false ).willReturn( aResponse()
-                .withStatus( HTTP_INTERNAL_ERROR ) ) );
-
+        HttpCopier copier = new HttpCopier( ctx );
+        wireMock.stubFor( initiateSizeRequest( "fakeToken", 100000000 ).willReturn( aResponse()
+                                                                                            .withStatus( HTTP_OK ) ) );
         // when/then
-        assertThrows( CommandFailed.class, allOf( containsString( "Unexpected response" ), containsString( "Authorization" ) ),
-                () -> authenticateAndCopy( copier, source, true, "user", "pass".toCharArray() ) );
+        copier.checkSize( false, TEST_CONSOLE_URL, 100000000, "fakeToken" );
+        verify( postRequestedFor( urlEqualTo( "/import/size" ) ) );
     }
 
     @Test
-    public void shouldHandleUnauthorizedResponseFromInitiateUploadTarget() throws IOException
+    void shouldHandleInsufficientCredentialsInAuthorizationRequest() throws IOException
     {
-        HttpCopier copier = new HttpCopier( new ControlledOutsideWorld( fs ) );
+        // given
+        HttpCopier copier = new HttpCopier( ctx );
+        Path source = createDump();
+        wireMock.stubFor( authenticationRequest( false ).willReturn( aResponse()
+                                                                             .withStatus( HTTP_FORBIDDEN ) ) );
+
+        // when/then
+        assertThrows( CommandFailedException.class, containsString( "administrative access" ),
+                      () -> authenticateAndCopy( copier, source, true, "user", "pass".toCharArray() ) );
+    }
+
+    @Test
+    void shouldHandleUnexpectedResponseFromAuthorizationRequest() throws IOException
+    {
+        // given
+        HttpCopier copier = new HttpCopier( ctx );
+        Path source = createDump();
+        wireMock.stubFor( authenticationRequest( false ).willReturn( aResponse()
+                                                                             .withStatus( HTTP_INTERNAL_ERROR ) ) );
+
+        // when/then
+        assertThrows( CommandFailedException.class, allOf( containsString( "Unexpected response" ), containsString( "Authorization" ) ),
+                      () -> authenticateAndCopy( copier, source, true, "user", "pass".toCharArray() ) );
+    }
+
+    @Test
+    void shouldHandleUnauthorizedResponseFromInitiateUploadTarget() throws IOException
+    {
+        HttpCopier copier = new HttpCopier( ctx );
         Path source = createDump();
         String token = "abc";
         wireMock.stubFor( authenticationRequest( false ).willReturn( successfulAuthorizationResponse( token ) ) );
         wireMock.stubFor( initiateUploadTargetRequest( token ).willReturn( aResponse()
-                .withStatus( HTTP_UNAUTHORIZED ) ) );
+                                                                                   .withStatus( HTTP_UNAUTHORIZED ) ) );
 
         // when/then
-        assertThrows( CommandFailed.class, containsString( "authorization token is invalid" ),
-                () -> authenticateAndCopy( copier, source, true, "user", "pass".toCharArray() ) );
+        assertThrows( CommandFailedException.class, containsString( "authorization token is invalid" ),
+                      () -> authenticateAndCopy( copier, source, true, "user", "pass".toCharArray() ) );
     }
 
     @Test
-    public void shouldHandleNotAcceptableResponseFromInitiateUploadTarget() throws IOException
+    void shouldHandleNotAcceptableResponseFromInitiateUploadTarget() throws IOException
     {
         // given
-        HttpCopier copier = new HttpCopier( new ControlledOutsideWorld( fs ) );
+        HttpCopier copier = new HttpCopier( ctx );
         Path source = createDump();
         String token = "abc";
         wireMock.stubFor( authenticationRequest( false ).willReturn( successfulAuthorizationResponse( token ) ) );
         wireMock.stubFor( initiateUploadTargetRequest( token )
-                .willReturn( aResponse().withStatus( HTTP_NOT_ACCEPTABLE ) ) );
+                                  .willReturn( aResponse().withStatus( HTTP_NOT_ACCEPTABLE ) ) );
 
         // when/then
-        assertThrows( CommandFailed.class, containsString( "increase the size of your database" ),
-                () -> authenticateAndCopy( copier, source, true, "user", "pass".toCharArray() ) );
+        assertThrows( CommandFailedException.class, containsString( "increase the size of your database" ),
+                      () -> authenticateAndCopy( copier, source, true, "user", "pass".toCharArray() ) );
     }
 
     @Test
-    public void shouldHandleValidationFailureResponseFromInitiateUploadTarget() throws IOException
+    void shouldHandleValidationFailureResponseFromInitiateUploadTarget() throws IOException
     {
         // given
-        HttpCopier copier = new HttpCopier( new ControlledOutsideWorld( fs ) );
+        HttpCopier copier = new HttpCopier( ctx );
         ObjectMapper mapper = new ObjectMapper();
         Path source = createDump();
         String token = "abc";
@@ -345,23 +410,23 @@ public class HttpCopierTest
         ErrorBody errorBody = new ErrorBody( errorMessage, errorReason, errorUrl );
         wireMock.stubFor( authenticationRequest( false ).willReturn( successfulAuthorizationResponse( token ) ) );
         wireMock.stubFor( initiateUploadTargetRequest( token )
-                .willReturn( aResponse()
-                        .withBody( mapper.writeValueAsString( errorBody ) )
-                        .withHeader( "Content-Type", "application/json" )
-                        .withStatus( HTTP_UNPROCESSABLE_ENTITY ) ) );
+                                  .willReturn( aResponse()
+                                                       .withBody( mapper.writeValueAsString( errorBody ) )
+                                                       .withHeader( "Content-Type", "application/json" )
+                                                       .withStatus( HTTP_UNPROCESSABLE_ENTITY ) ) );
 
         // when/then
-        assertThrows( CommandFailed.class,
-                allOf( containsString( errorMessage ), containsString( errorUrl ), not( containsString( errorReason ) ),
-                        not( containsString( ".." ) ) ),
-                () -> authenticateAndCopy( copier, source, true, "user", "pass".toCharArray() ) );
+        assertThrows( CommandFailedException.class,
+                      allOf( containsString( errorMessage ), containsString( errorUrl ), not( containsString( errorReason ) ),
+                             not( containsString( ".." ) ) ),
+                      () -> authenticateAndCopy( copier, source, true, "user", "pass".toCharArray() ) );
     }
 
     @Test
-    public void shouldHandleValidationFailureResponseWithoutUrlFromInitiateUploadTarget() throws IOException
+    void shouldHandleValidationFailureResponseWithoutUrlFromInitiateUploadTarget() throws IOException
     {
         // given
-        HttpCopier copier = new HttpCopier( new ControlledOutsideWorld( fs ) );
+        HttpCopier copier = new HttpCopier( ctx );
         ObjectMapper mapper = new ObjectMapper();
         Path source = createDump();
         String token = "abc";
@@ -370,40 +435,40 @@ public class HttpCopierTest
         ErrorBody errorBody = new ErrorBody( errorMessage, errorReason, null );
         wireMock.stubFor( authenticationRequest( false ).willReturn( successfulAuthorizationResponse( token ) ) );
         wireMock.stubFor( initiateUploadTargetRequest( token )
-                .willReturn( aResponse()
-                        .withBody( mapper.writeValueAsString( errorBody ) )
-                        .withHeader( "Content-Type", "application/json" )
-                        .withStatus( HTTP_UNPROCESSABLE_ENTITY ) ) );
+                                  .willReturn( aResponse()
+                                                       .withBody( mapper.writeValueAsString( errorBody ) )
+                                                       .withHeader( "Content-Type", "application/json" )
+                                                       .withStatus( HTTP_UNPROCESSABLE_ENTITY ) ) );
 
         // when/then
-        assertThrows( CommandFailed.class, not( containsString( "null" ) ),
-                () -> authenticateAndCopy( copier, source, true, "user", "pass".toCharArray() ) );
+        assertThrows( CommandFailedException.class, not( containsString( "null" ) ),
+                      () -> authenticateAndCopy( copier, source, true, "user", "pass".toCharArray() ) );
     }
 
     @Test
-    public void shouldHandleEmptyValidationFailureResponseFromInitiateUploadTarget() throws IOException
+    void shouldHandleEmptyValidationFailureResponseFromInitiateUploadTarget() throws IOException
     {
         // given
-        HttpCopier copier = new HttpCopier( new ControlledOutsideWorld( fs ) );
+        HttpCopier copier = new HttpCopier( ctx );
         Path source = createDump();
         String token = "abc";
         wireMock.stubFor( authenticationRequest( false ).willReturn( successfulAuthorizationResponse( token ) ) );
         wireMock.stubFor( initiateUploadTargetRequest( token )
-                .willReturn( aResponse().withStatus( HTTP_UNPROCESSABLE_ENTITY ) ) );
+                                  .willReturn( aResponse().withStatus( HTTP_UNPROCESSABLE_ENTITY ) ) );
 
         // when/then
-        assertThrows( CommandFailed.class,
-                allOf( containsString( "No content to map due to end-of-input" ),
-                        not( containsString( "null" ) ),
-                        not( containsString( ".." ) ) ),
-                () -> authenticateAndCopy( copier, source, true, "user", "pass".toCharArray() ) );
+        assertThrows( CommandFailedException.class,
+                      allOf( containsString( "No content to map due to end-of-input" ),
+                             not( containsString( "null" ) ),
+                             not( containsString( ".." ) ) ),
+                      () -> authenticateAndCopy( copier, source, true, "user", "pass".toCharArray() ) );
     }
 
     @Test
-    public void shouldHandleValidationFailureResponseWithShortMessageFromInitiateUploadTarget() throws IOException
+    void shouldHandleValidationFailureResponseWithShortMessageFromInitiateUploadTarget() throws IOException
     {
         // given
-        HttpCopier copier = new HttpCopier( new ControlledOutsideWorld( fs ) );
+        HttpCopier copier = new HttpCopier( ctx );
         ObjectMapper mapper = new ObjectMapper();
         Path source = createDump();
         String token = "abc";
@@ -414,138 +479,100 @@ public class HttpCopierTest
         // ...and
         wireMock.stubFor( authenticationRequest( false ).willReturn( successfulAuthorizationResponse( token ) ) );
         wireMock.stubFor( initiateUploadTargetRequest( token )
-                .willReturn( aResponse().withBody( mapper.writeValueAsString( errorBody ) )
-                        .withHeader( "Content-Type", "application/json" ).withStatus( HTTP_UNPROCESSABLE_ENTITY ) ) );
+                                  .willReturn( aResponse().withBody( mapper.writeValueAsString( errorBody ) )
+                                                          .withHeader( "Content-Type", "application/json" ).withStatus( HTTP_UNPROCESSABLE_ENTITY ) ) );
 
         // when/then the final error message is well formatted with punctuation
-        assertThrows( CommandFailed.class, containsString( "Error: something bad happened. See: https://example.com/" ),
-                () -> authenticateAndCopy( copier, source, true, "user", "pass".toCharArray() ) );
+        assertThrows( CommandFailedException.class, containsString( "Error: something bad happened. See: https://example.com/" ),
+                      () -> authenticateAndCopy( copier, source, true, "user", "pass".toCharArray() ) );
     }
 
     @Test
-    public void shouldHandleSizeValidationFailureResponseFromInitiateUploadTarget() throws IOException
+    void shouldHandleSizeValidationFailureResponseFromInitiateUploadTarget() throws IOException
     {
         // given
-        HttpCopier copier = new HttpCopier( new ControlledOutsideWorld( fs ) );
+        HttpCopier copier = new HttpCopier( ctx );
         ObjectMapper mapper = new ObjectMapper();
         Path source = createDump();
         String token = "abc";
         String errorMessage = "There is insufficient space in your Neo4j Aura instance to upload your data. "
-                + "Please use the Console to increase the size of your database.";
+                              + "Please use the Console to increase the size of your database.";
         String errorUrl = "https://console.neo4j.io/";
         ErrorBody errorBody = new ErrorBody( errorMessage, ERROR_REASON_EXCEEDS_MAX_SIZE, errorUrl );
         wireMock.stubFor( authenticationRequest( false ).willReturn( successfulAuthorizationResponse( token ) ) );
         wireMock.stubFor( initiateUploadTargetRequest( token )
-                .willReturn( aResponse().withBody( mapper.writeValueAsString( errorBody ) )
-                        .withHeader( "Content-Type", "application/json" ).withStatus( HTTP_UNPROCESSABLE_ENTITY ) ) );
+                                  .willReturn( aResponse().withBody( mapper.writeValueAsString( errorBody ) )
+                                                          .withHeader( "Content-Type", "application/json" ).withStatus( HTTP_UNPROCESSABLE_ENTITY ) ) );
 
         // when/then
-        assertThrows( CommandFailed.class,
-                allOf( containsString( errorMessage ),
-                        containsString( "Minimum storage space required: 0.0 GB." ),
-                        containsString( "See: https://console.neo4j.io" ), not( containsString( ".." ) ) ),
-                () -> authenticateAndCopy( copier, source, true, "user", "pass".toCharArray() ) );
+        assertThrows( CommandFailedException.class,
+                      allOf( containsString( errorMessage ),
+                             containsString( "Minimum storage space required: 0" ),
+                             containsString( "See: https://console.neo4j.io" ), not( containsString( ".." ) ) ),
+                      () -> authenticateAndCopy( copier, source, true, "user", "pass".toCharArray() ) );
     }
 
     @Test
-    public void shouldHandleConflictResponseFromInitiateUploadTargetAndContinueOnUserConsent() throws IOException, CommandFailed
+    void shouldHandleConflictResponseFromAuthenticationWithoutUserConsent() throws IOException
     {
-        HttpCopier.Sleeper sleeper = mock( HttpCopier.Sleeper.class );
-        ControlledOutsideWorld outsideWorld = new ControlledOutsideWorld( fs );
-        outsideWorld.withPromptResponse( "my-username" ); // prompt for username
-        outsideWorld.withPasswordResponse( "pass".toCharArray() ); // prompt for password
-        outsideWorld.withPromptResponse( "y" ); // prompt for consent to overwrite db
-        HttpCopier copier = new HttpCopier( outsideWorld, sleeper, NO_OP_PROGRESS );
+        HttpCopier copier = new HttpCopier( ctx );
         Path source = createDump();
-        long sourceLength = fs.getFileSize( source.toFile() );
         String authorizationTokenResponse = "abc";
         String signedURIPath = "/signed";
-        String uploadLocationPath = "/upload";
+        wireMock.stubFor( authenticationRequest( false ).willReturn( aResponse().withStatus( HTTP_CONFLICT ) ) );
         wireMock.stubFor( authenticationRequest( true ).willReturn( successfulAuthorizationResponse( authorizationTokenResponse ) ) );
-        wireMock.stubFor( authenticationRequest( false ).willReturn( aResponse()
-                .withStatus( HTTP_CONFLICT ) ) );
         wireMock.stubFor( initiateUploadTargetRequest( authorizationTokenResponse )
-                .willReturn( successfulInitiateUploadTargetResponse( signedURIPath ) ) );
-        // and just the rest of the responses so that the upload can continue w/o failing
-        wireMock.stubFor( initiateUploadRequest( signedURIPath ).willReturn( successfulInitiateUploadResponse( uploadLocationPath ) ) );
-        wireMock.stubFor( resumeUploadRequest( uploadLocationPath, sourceLength ).willReturn( successfulResumeUploadResponse() ) );
-        wireMock.stubFor( triggerImportRequest( authorizationTokenResponse ).willReturn( successfulTriggerImportResponse() ) );
-        wireMock.stubFor( firstStatusPollingRequest( authorizationTokenResponse ) );
-        wireMock.stubFor( secondStatusPollingRequest( authorizationTokenResponse ) );
+                                  .willReturn( successfulInitiateUploadTargetResponse( signedURIPath ) ) );
 
         // when
-        authenticateAndCopy( copier, source, true, "user", "pass".toCharArray() );
+        assertThrows( CommandFailedException.class, containsString( "No consent to overwrite" ),
+                      () -> authenticateAndCopy( copier, source, true, "user", "pass".toCharArray() ) );
 
         // then there should be one request w/o the user consent and then (since the user entered 'y') one w/ user consent
-        verify( postRequestedFor( urlEqualTo( "/import/auth" ) ).withHeader("Confirmed", equalTo( "false" ) ) );
-        verify( postRequestedFor( urlEqualTo( "/import/auth" ) ).withHeader( "Confirmed", equalTo("true") ) );
+        verify( postRequestedFor( urlEqualTo( "/import/auth" ) ).withHeader( "Confirmed", equalTo( "false" ) ) );
+        verify( 0, postRequestedFor( urlEqualTo( "/import/auth" ) ).withHeader( "Confirmed", equalTo( "true" ) ) );
     }
 
     @Test
-    public void shouldHandleConflictResponseFromAuthenticationWithoutUserConsent() throws IOException
+    void shouldHandleUnexpectedResponseFromInitiateUploadTargetRequest() throws IOException
     {
-        ControlledOutsideWorld outsideWorld = new ControlledOutsideWorld( fs );
-        outsideWorld.withPromptResponse( "my-username" ); // prompt for username
-        outsideWorld.withPromptResponse( "n" ); // prompt for consent to overwrite db
-        HttpCopier copier = new HttpCopier( outsideWorld );
-        Path source = createDump();
-        String authorizationTokenResponse = "abc";
-        String signedURIPath = "/signed";
-        wireMock.stubFor( authenticationRequest(false).willReturn( aResponse().withStatus( HTTP_CONFLICT ) ) );
-        wireMock.stubFor( authenticationRequest(true).willReturn( successfulAuthorizationResponse( authorizationTokenResponse ) ) );
-        wireMock.stubFor( initiateUploadTargetRequest( authorizationTokenResponse)
-                .willReturn( successfulInitiateUploadTargetResponse( signedURIPath ) ) );
-
-        // when
-        assertThrows( CommandFailed.class, containsString( "No consent to overwrite" ),
-                () -> authenticateAndCopy( copier, source, true, "user", "pass".toCharArray() ) );
-
-        // then there should be one request w/o the user consent and then (since the user entered 'y') one w/ user consent
-        verify( postRequestedFor( urlEqualTo( "/import/auth" ) ).withHeader("Confirmed", equalTo( "false" ) ) );
-        verify( 0, postRequestedFor( urlEqualTo( "/import/auth" ) ).withHeader("Confirmed", equalTo( "true" ) ) );
-    }
-
-    @Test
-    public void shouldHandleUnexpectedResponseFromInitiateUploadTargetRequest() throws IOException
-    {
-        ControlledOutsideWorld outsideWorld = new ControlledOutsideWorld( fs );
-        outsideWorld.withPromptResponse( "my-username" ); // prompt for username
-        outsideWorld.withPromptResponse( "n" ); // prompt for consent to overwrite db
-        HttpCopier copier = new HttpCopier( outsideWorld );
+        HttpCopier copier = new HttpCopier( ctx );
         Path source = createDump();
         String authorizationTokenResponse = "abc";
         wireMock.stubFor( authenticationRequest( false ).willReturn( successfulAuthorizationResponse( authorizationTokenResponse ) ) );
         wireMock.stubFor( initiateUploadTargetRequest( authorizationTokenResponse ).willReturn( aResponse()
-                .withStatus( HTTP_BAD_GATEWAY ) ) );
+                                                                                                        .withStatus( HTTP_BAD_GATEWAY ) ) );
 
         // when
-        assertThrows( CommandFailed.class, allOf( containsString( "Unexpected response" ), containsString( "Initiating upload target" ) ),
-                () -> authenticateAndCopy( copier, source, true, "user", "pass".toCharArray() ) );
+        assertThrows( CommandFailedException.class, allOf( containsString( "Unexpected response" ), containsString( "Initiating upload target" ) ),
+                      () -> authenticateAndCopy( copier, source, true, "user", "pass".toCharArray() ) );
     }
 
     @Test
-    public void shouldHandleInitiateUploadFailure() throws IOException
+    void shouldHandleInitiateUploadFailure() throws IOException
     {
-        HttpCopier copier = new HttpCopier( new ControlledOutsideWorld( fs ) );
+        HttpCopier copier = new HttpCopier( ctx );
         Path source = createDump();
         String authorizationTokenResponse = "abc";
         String signedURIPath = "/signed";
         wireMock.stubFor( authenticationRequest( false ).willReturn( successfulAuthorizationResponse( authorizationTokenResponse ) ) );
         wireMock.stubFor( initiateUploadTargetRequest( authorizationTokenResponse )
-                .willReturn( successfulInitiateUploadTargetResponse( signedURIPath ) ) );
+                                  .willReturn( successfulInitiateUploadTargetResponse( signedURIPath ) ) );
         wireMock.stubFor( initiateUploadRequest( signedURIPath ).willReturn( aResponse()
-                .withStatus( HTTP_INTERNAL_ERROR ) ) );
+                                                                                     .withStatus( HTTP_INTERNAL_ERROR ) ) );
 
         // when
-        assertThrows( CommandFailed.class, allOf( containsString( "Unexpected response" ), containsString( "Initiating database upload" ) ),
-                () -> authenticateAndCopy( copier, source, true, "user", "pass".toCharArray() ) );
+        assertThrows( CommandFailedException.class, allOf( containsString( "Unexpected response" ), containsString( "Initiating database upload" ) ),
+                      () -> authenticateAndCopy( copier, source, true, "user", "pass".toCharArray() ) );
     }
 
     @Test
-    public void shouldHandleUploadInACoupleOfRounds() throws IOException, CommandFailed
+    void shouldHandleUploadInACoupleOfRounds() throws IOException, CommandFailedException
     {
         ControlledProgressListener progressListener = new ControlledProgressListener();
-        HttpCopier copier = new HttpCopier( new ControlledOutsideWorld( fs ), millis -> {}, ( name, length ) -> progressListener );
+        HttpCopier copier = new HttpCopier( ctx, millis ->
+        {
+        }, ( name, length ) -> progressListener );
         Path source = createDump();
         long sourceLength = fs.getFileSize( source.toFile() );
         long firstUploadLength = sourceLength / 3;
@@ -554,14 +581,14 @@ public class HttpCopierTest
         String uploadLocationPath = "/upload";
         wireMock.stubFor( authenticationRequest( false ).willReturn( successfulAuthorizationResponse( authorizationTokenResponse ) ) );
         wireMock.stubFor( initiateUploadTargetRequest( authorizationTokenResponse )
-                .willReturn( successfulInitiateUploadTargetResponse( signedURIPath ) ) );
+                                  .willReturn( successfulInitiateUploadTargetResponse( signedURIPath ) ) );
         wireMock.stubFor( initiateUploadRequest( signedURIPath ).willReturn( successfulInitiateUploadResponse( uploadLocationPath ) ) );
         wireMock.stubFor( resumeUploadRequest( uploadLocationPath, 0, sourceLength ).willReturn( aResponse()
-                .withStatus( HTTP_INTERNAL_ERROR ) ) );
+                                                                                                         .withStatus( HTTP_INTERNAL_ERROR ) ) );
         wireMock.stubFor( getResumablePositionRequest( sourceLength, uploadLocationPath )
-                .willReturn( uploadIncompleteGetResumablePositionResponse( firstUploadLength ) ) );
+                                  .willReturn( uploadIncompleteGetResumablePositionResponse( firstUploadLength ) ) );
         wireMock.stubFor( resumeUploadRequest( uploadLocationPath, firstUploadLength, sourceLength )
-                .willReturn( successfulResumeUploadResponse() ) );
+                                  .willReturn( successfulResumeUploadResponse() ) );
         wireMock.stubFor( triggerImportRequest( authorizationTokenResponse ).willReturn( successfulTriggerImportResponse() ) );
         wireMock.stubFor( firstStatusPollingRequest( authorizationTokenResponse ) );
         wireMock.stubFor( secondStatusPollingRequest( authorizationTokenResponse ) );
@@ -571,26 +598,28 @@ public class HttpCopierTest
 
         // then
         verify( putRequestedFor( urlEqualTo( uploadLocationPath ) )
-                .withHeader( "Content-Length", equalTo( Long.toString( sourceLength ) ) )
-                .withoutHeader( "Content-Range" ) );
+                        .withHeader( "Content-Length", equalTo( Long.toString( sourceLength ) ) )
+                        .withoutHeader( "Content-Range" ) );
         verify( putRequestedFor( urlEqualTo( uploadLocationPath ) )
-                .withHeader( "Content-Length", equalTo( Long.toString( sourceLength - firstUploadLength ) ) )
-                .withHeader( "Content-Range", equalTo( format( "bytes %d-%d/%d", firstUploadLength, sourceLength - 1, sourceLength ) ) ) );
+                        .withHeader( "Content-Length", equalTo( Long.toString( sourceLength - firstUploadLength ) ) )
+                        .withHeader( "Content-Range", equalTo( format( "bytes %d-%d/%d", firstUploadLength, sourceLength - 1, sourceLength ) ) ) );
         verify( putRequestedFor( urlEqualTo( uploadLocationPath ) )
-                .withHeader( "Content-Length", equalTo( "0" ) )
-                .withHeader( "Content-Range", equalTo( "bytes */" + sourceLength ) ) );
+                        .withHeader( "Content-Length", equalTo( "0" ) )
+                        .withHeader( "Content-Range", equalTo( "bytes */" + sourceLength ) ) );
         assertTrue( progressListener.doneCalled );
         // we need to add 100 extra ticks to the progress listener because of the database phases
         assertEquals( sourceLength + 100, progressListener.progress );
     }
 
     @Test
-    public void shouldHandleFailedImport() throws IOException, CommandFailed
+    void shouldHandleFailedImport() throws IOException, CommandFailedException
     {
         // given
         ObjectMapper mapper = new ObjectMapper();
         ControlledProgressListener progressListener = new ControlledProgressListener();
-        HttpCopier copier = new HttpCopier( new ControlledOutsideWorld( fs ), millis -> {}, ( name, length ) -> progressListener );
+        HttpCopier copier = new HttpCopier( ctx, millis ->
+        {
+        }, ( name, length ) -> progressListener );
         Path source = createDump();
         long sourceLength = fs.getFileSize( source.toFile() );
         String authorizationTokenResponse = "abc";
@@ -598,40 +627,42 @@ public class HttpCopierTest
         String uploadLocationPath = "/upload";
 
         wireMock.stubFor( authenticationRequest( false )
-                .willReturn( successfulAuthorizationResponse( authorizationTokenResponse ) ) );
+                                  .willReturn( successfulAuthorizationResponse( authorizationTokenResponse ) ) );
         wireMock.stubFor( initiateUploadTargetRequest( authorizationTokenResponse )
-                .willReturn( successfulInitiateUploadTargetResponse( signedURIPath ) ) );
+                                  .willReturn( successfulInitiateUploadTargetResponse( signedURIPath ) ) );
         wireMock.stubFor( initiateUploadRequest( signedURIPath )
-                .willReturn( successfulInitiateUploadResponse( uploadLocationPath ) ) );
+                                  .willReturn( successfulInitiateUploadResponse( uploadLocationPath ) ) );
         wireMock.stubFor( resumeUploadRequest( uploadLocationPath, sourceLength )
-                .willReturn( successfulResumeUploadResponse() ) );
+                                  .willReturn( successfulResumeUploadResponse() ) );
         wireMock.stubFor(
                 triggerImportRequest( authorizationTokenResponse ).willReturn( successfulTriggerImportResponse() ) );
         // ...and
         StatusBody statusBody = new StatusBody();
         statusBody.Status = "loading failed";
         String errorMessage = "The uploaded dump file contains deprecated indexes, "
-                + "which we are unable to import in the current version of Neo4j Aura. "
-                + "Please upgrade to the recommended index provider.";
+                              + "which we are unable to import in the current version of Neo4j Aura. "
+                              + "Please upgrade to the recommended index provider.";
         String errorUrl = "https://aura.support.neo4j.com/";
         statusBody.Error = new ErrorBody( errorMessage, ERROR_REASON_UNSUPPORTED_INDEXES, errorUrl );
 
         wireMock.stubFor( get( urlEqualTo( "/import/status" ) )
-                .withHeader( "Authorization", equalTo( "Bearer " + authorizationTokenResponse ) )
-                .willReturn( aResponse().withBody( mapper.writeValueAsString( statusBody ) )
-                        .withHeader( "Content-Type", "application/json" ).withStatus( HTTP_OK ) ) );
+                                  .withHeader( "Authorization", equalTo( "Bearer " + authorizationTokenResponse ) )
+                                  .willReturn( aResponse().withBody( mapper.writeValueAsString( statusBody ) )
+                                                          .withHeader( "Content-Type", "application/json" ).withStatus( HTTP_OK ) ) );
 
         // when/then
-        assertThrows( CommandFailed.class,
-                allOf( containsString( errorMessage ), containsString( errorUrl ),
-                        not( containsString( ERROR_REASON_UNSUPPORTED_INDEXES ) ), not( containsString( ".." ) ) ),
-                () -> authenticateAndCopy( copier, source, true, "user", "pass".toCharArray() ) );
+        assertThrows( CommandFailedException.class,
+                      allOf( containsString( errorMessage ), containsString( errorUrl ),
+                             not( containsString( ERROR_REASON_UNSUPPORTED_INDEXES ) ), not( containsString( ".." ) ) ),
+                      () -> authenticateAndCopy( copier, source, true, "user", "pass".toCharArray() ) );
     }
 
     @Test
-    public void shouldHandleIncompleteUploadButPositionSaysComplete() throws IOException, CommandFailed
+    void shouldHandleIncompleteUploadButPositionSaysComplete() throws IOException, CommandFailedException
     {
-        HttpCopier copier = new HttpCopier( new ControlledOutsideWorld( fs ), millis -> {}, NO_OP_PROGRESS );
+        HttpCopier copier = new HttpCopier( ctx, millis ->
+        {
+        }, NO_OP_PROGRESS );
         Path source = createDump();
         long sourceLength = fs.getFileSize( source.toFile() );
         String authorizationTokenResponse = "abc";
@@ -639,12 +670,12 @@ public class HttpCopierTest
         String uploadLocationPath = "/upload";
         wireMock.stubFor( authenticationRequest( false ).willReturn( successfulAuthorizationResponse( authorizationTokenResponse ) ) );
         wireMock.stubFor( initiateUploadTargetRequest( authorizationTokenResponse )
-                .willReturn( successfulInitiateUploadTargetResponse( signedURIPath ) ) );
+                                  .willReturn( successfulInitiateUploadTargetResponse( signedURIPath ) ) );
         wireMock.stubFor( initiateUploadRequest( signedURIPath ).willReturn( successfulInitiateUploadResponse( uploadLocationPath ) ) );
         wireMock.stubFor( resumeUploadRequest( uploadLocationPath, 0, sourceLength ).willReturn( aResponse()
-                .withStatus( HTTP_INTERNAL_ERROR ) ) );
+                                                                                                         .withStatus( HTTP_INTERNAL_ERROR ) ) );
         wireMock.stubFor( getResumablePositionRequest( sourceLength, uploadLocationPath )
-                .willReturn( uploadCompleteGetResumablePositionResponse() ) );
+                                  .willReturn( uploadCompleteGetResumablePositionResponse() ) );
         wireMock.stubFor( triggerImportRequest( authorizationTokenResponse ).willReturn( successfulTriggerImportResponse() ) );
         wireMock.stubFor( firstStatusPollingRequest( authorizationTokenResponse ) );
         wireMock.stubFor( secondStatusPollingRequest( authorizationTokenResponse ) );
@@ -654,18 +685,18 @@ public class HttpCopierTest
 
         // then
         verify( putRequestedFor( urlEqualTo( uploadLocationPath ) )
-                .withHeader( "Content-Length", equalTo( Long.toString( sourceLength ) ) )
-                .withoutHeader( "Content-Range" ) );
+                        .withHeader( "Content-Length", equalTo( Long.toString( sourceLength ) ) )
+                        .withoutHeader( "Content-Range" ) );
         verify( putRequestedFor( urlEqualTo( uploadLocationPath ) )
-                .withHeader( "Content-Length", equalTo( "0" ) )
-                .withHeader( "Content-Range", equalTo( "bytes */" + sourceLength ) ) );
+                        .withHeader( "Content-Length", equalTo( "0" ) )
+                        .withHeader( "Content-Range", equalTo( "bytes */" + sourceLength ) ) );
     }
 
     @Test
-    public void shouldHandleConflictOnTriggerImportAfterUpload() throws IOException
+    void shouldHandleConflictOnTriggerImportAfterUpload() throws IOException
     {
         // given
-        HttpCopier copier = new HttpCopier( new ControlledOutsideWorld( fs ) );
+        HttpCopier copier = new HttpCopier( ctx );
         Path source = createDump();
         long sourceLength = fs.getFileSize( source.toFile() );
         String authorizationTokenResponse = "abc";
@@ -673,23 +704,23 @@ public class HttpCopierTest
         String uploadLocationPath = "/upload";
         wireMock.stubFor( authenticationRequest( false ).willReturn( successfulAuthorizationResponse( authorizationTokenResponse ) ) );
         wireMock.stubFor( initiateUploadTargetRequest( authorizationTokenResponse )
-                .willReturn( successfulInitiateUploadTargetResponse( signedURIPath ) ) );
+                                  .willReturn( successfulInitiateUploadTargetResponse( signedURIPath ) ) );
         wireMock.stubFor( initiateUploadRequest( signedURIPath ).willReturn( successfulInitiateUploadResponse( uploadLocationPath ) ) );
         wireMock.stubFor( resumeUploadRequest( uploadLocationPath, sourceLength ).willReturn( successfulResumeUploadResponse() ) );
         wireMock.stubFor( triggerImportRequest( authorizationTokenResponse ).willReturn( aResponse()
-                .withStatus( HTTP_CONFLICT ) ) );
+                                                                                                 .withStatus( HTTP_CONFLICT ) ) );
 
         // when
-        assertThrows( CommandFailed.class, containsString( "The target database contained data and consent to overwrite the data was not given." ),
-                () -> authenticateAndCopy( copier, source, true, "user", "pass".toCharArray() ) );
+        assertThrows( CommandFailedException.class, containsString( "The target database contained data and consent to overwrite the data was not given." ),
+                      () -> authenticateAndCopy( copier, source, true, "user", "pass".toCharArray() ) );
     }
 
     @Test
-    public void shouldBackoffAndFailIfTooManyAttempts() throws IOException, InterruptedException
+    void shouldBackoffAndFailIfTooManyAttempts() throws IOException, InterruptedException
     {
         // given
         HttpCopier.Sleeper sleeper = mock( HttpCopier.Sleeper.class );
-        HttpCopier copier = new HttpCopier( new ControlledOutsideWorld( fs ), sleeper, NO_OP_PROGRESS );
+        HttpCopier copier = new HttpCopier( ctx, sleeper, NO_OP_PROGRESS );
         Path source = createDump();
         long sourceLength = fs.getFileSize( source.toFile() );
         String authorizationTokenResponse = "abc";
@@ -697,25 +728,25 @@ public class HttpCopierTest
         String uploadLocationPath = "/upload";
         wireMock.stubFor( authenticationRequest( false ).willReturn( successfulAuthorizationResponse( authorizationTokenResponse ) ) );
         wireMock.stubFor( initiateUploadTargetRequest( authorizationTokenResponse )
-                .willReturn( successfulInitiateUploadTargetResponse( signedURIPath ) ) );
+                                  .willReturn( successfulInitiateUploadTargetResponse( signedURIPath ) ) );
         wireMock.stubFor( initiateUploadRequest( signedURIPath ).willReturn( successfulInitiateUploadResponse( uploadLocationPath ) ) );
         wireMock.stubFor( resumeUploadRequest( uploadLocationPath, sourceLength ).willReturn( aResponse()
-                .withStatus( HTTP_INTERNAL_ERROR ) ) );
+                                                                                                      .withStatus( HTTP_INTERNAL_ERROR ) ) );
         wireMock.stubFor( getResumablePositionRequest( sourceLength, uploadLocationPath )
-                .willReturn( uploadIncompleteGetResumablePositionResponse( 0 ) ) );
+                                  .willReturn( uploadIncompleteGetResumablePositionResponse( 0 ) ) );
 
         // when/then
-        assertThrows( CommandFailed.class, containsString( "Upload failed after numerous attempts" ),
-                () -> authenticateAndCopy( copier, source, true, "user", "pass".toCharArray() ) );
+        assertThrows( CommandFailedException.class, containsString( "Upload failed after numerous attempts" ),
+                      () -> authenticateAndCopy( copier, source, true, "user", "pass".toCharArray() ) );
         Mockito.verify( sleeper, atLeast( 30 ) ).sleep( anyLong() );
     }
 
     @Test
-    public void shouldEstimateImportProgressBased() throws IOException, InterruptedException, CommandFailed
+    void shouldEstimateImportProgressBased() throws CommandFailedException
     {
         // given
         HttpCopier.Sleeper sleeper = mock( HttpCopier.Sleeper.class );
-        HttpCopier copier = new HttpCopier( new ControlledOutsideWorld( fs ), sleeper, NO_OP_PROGRESS );
+        HttpCopier copier = new HttpCopier( ctx, sleeper, NO_OP_PROGRESS );
         // when/then
         assertEquals( 0, copier.importStatusProgressEstimate( "running", 1234500000L, 6789000000L ) );
         assertEquals( 1, copier.importStatusProgressEstimate( "loading", 0, 1234567890 ) );
@@ -737,7 +768,7 @@ public class HttpCopierTest
         return post( urlEqualTo( "/import/auth" ) )
                 .withHeader( "Authorization", matching( "^Basic .*" ) )
                 .withHeader( "Accept", equalTo( "application/json" ) )
-                .withHeader( "Confirmed", equalTo( userConsent ? "true" : "false" ));
+                .withHeader( "Confirmed", equalTo( userConsent ? "true" : "false" ) );
     }
 
     private ResponseDefinitionBuilder successfulAuthorizationResponse( String authorizationTokenResponse )
@@ -753,6 +784,13 @@ public class HttpCopierTest
                 .withHeader( "Content-Type", equalTo( "application/json" ) )
                 .withHeader( "Authorization", equalTo( "Bearer " + authorizationTokenResponse ) )
                 .withHeader( "Accept", equalTo( "application/json" ) );
+    }
+
+    private MappingBuilder initiateSizeRequest( String authorizationTokenResponse, long size )
+    {
+        return post( urlEqualTo( "/import/size" ) )
+                .withHeader( "Authorization", equalTo( "Bearer " + authorizationTokenResponse ) )
+                .withHeader( "Content-Type", equalTo( "application/json" ) );
     }
 
     private ResponseDefinitionBuilder successfulInitiateUploadTargetResponse( String signedURIPath )
@@ -873,25 +911,11 @@ public class HttpCopierTest
         return file.toPath();
     }
 
-    private static void assertThrows( Class<? extends Exception> exceptionClass, Matcher<String> message, ThrowingRunnable action )
-    {
-        try
-        {
-            action.run();
-            fail( "Should have failed" );
-        }
-        catch ( Exception e )
-        {
-            assertTrue( exceptionClass.isInstance( e ) );
-            assertThat( e.getMessage(), message );
-        }
-    }
-
     private void authenticateAndCopy( PushToCloudCommand.Copier copier, Path source, boolean sourceProvided, String username, char[] password )
-            throws CommandFailed
+            throws CommandFailedException
     {
         String bearerToken = copier.authenticate( false, TEST_CONSOLE_URL, username, password, false );
-        copier.copy( true, TEST_CONSOLE_URL, "bolt+routing://deadbeef.databases.neo4j.io", source,  sourceProvided,bearerToken );
+        copier.copy( true, TEST_CONSOLE_URL, "bolt+routing://deadbeef.databases.neo4j.io", source, sourceProvided, bearerToken );
     }
 
     private interface ThrowingRunnable
@@ -899,7 +923,7 @@ public class HttpCopierTest
         void run() throws Exception;
     }
 
-    private static class ControlledProgressListener implements ProgressListener
+    private static class ControlledProgressListener extends ProgressListener.Adapter
     {
         long progress;
         boolean doneCalled;
@@ -912,12 +936,6 @@ public class HttpCopierTest
         @Override
         public void started()
         {
-        }
-
-        @Override
-        public void set( long progress )
-        {
-            throw new UnsupportedOperationException( "Should not be called" );
         }
 
         @Override

@@ -27,8 +27,8 @@ import java.util.Iterator;
 
 import org.neo4j.graphdb.RelationshipType;
 import org.neo4j.graphdb.spatial.Point;
-import org.neo4j.helpers.collection.IterableWrapper;
-import org.neo4j.helpers.collection.PrefetchingIterator;
+import org.neo4j.internal.helpers.collection.IterableWrapper;
+import org.neo4j.internal.helpers.collection.PrefetchingIterator;
 
 public class ListRepresentation extends Representation
 {
@@ -48,10 +48,10 @@ public class ListRepresentation extends Representation
     }
 
     @Override
-    String serialize( RepresentationFormat format, URI baseUri, ExtensionInjector extensions )
+    String serialize( RepresentationFormat format, URI baseUri )
     {
         ListWriter writer = format.serializeList( type );
-        serialize( new ListSerializer( writer, baseUri, extensions ) );
+        serialize( new ListSerializer( writer, baseUri ) );
         writer.done();
         return format.complete( writer );
     }
@@ -97,8 +97,7 @@ public class ListRepresentation extends Representation
 
     public static ListRepresentation string( Iterable<String> values )
     {
-        return new ListRepresentation( RepresentationType.STRING, new IterableWrapper<Representation, String>(
-                values )
+        return new ListRepresentation( RepresentationType.STRING, new IterableWrapper<>( values )
         {
             @Override
             protected Representation underlyingObjectToObject( String value )
@@ -115,8 +114,7 @@ public class ListRepresentation extends Representation
 
     public static ListRepresentation point( Iterable<Point> values )
     {
-        return new ListRepresentation( RepresentationType.POINT, new IterableWrapper<Representation, Point>(
-                values )
+        return new ListRepresentation( RepresentationType.POINT, new IterableWrapper<>( values )
         {
             @Override
             protected Representation underlyingObjectToObject( Point value )
@@ -133,8 +131,7 @@ public class ListRepresentation extends Representation
 
     public static ListRepresentation temporal( Iterable<Temporal> values )
     {
-        return new ListRepresentation( RepresentationType.TEMPORAL, new IterableWrapper<Representation, Temporal>(
-                values )
+        return new ListRepresentation( RepresentationType.TEMPORAL, new IterableWrapper<>( values )
         {
             @Override
             protected Representation underlyingObjectToObject( Temporal value )
@@ -151,8 +148,7 @@ public class ListRepresentation extends Representation
 
     public static ListRepresentation temporalAmount( Iterable<TemporalAmount> values )
     {
-        return new ListRepresentation( RepresentationType.TEMPORAL_AMOUNT, new IterableWrapper<Representation, TemporalAmount>(
-                values )
+        return new ListRepresentation( RepresentationType.TEMPORAL_AMOUNT, new IterableWrapper<>( values )
         {
             @Override
             protected Representation underlyingObjectToObject( TemporalAmount value )
@@ -165,39 +161,38 @@ public class ListRepresentation extends Representation
     public static ListRepresentation relationshipTypes( Iterable<RelationshipType> types )
     {
         return new ListRepresentation( RepresentationType.RELATIONSHIP_TYPE,
-                new IterableWrapper<Representation, RelationshipType>( types )
-                {
-                    @Override
-                    protected Representation underlyingObjectToObject( RelationshipType value )
-                    {
-                        return ValueRepresentation.relationshipType( value );
-                    }
-                } );
+                                       new IterableWrapper<>( types )
+                                       {
+                                           @Override
+                                           protected Representation underlyingObjectToObject( RelationshipType value )
+                                           {
+                                               return ValueRepresentation.relationshipType( value );
+                                           }
+                                       } );
     }
 
     public static ListRepresentation numbers( final long... values )
     {
-        return new ListRepresentation( RepresentationType.LONG, (Iterable<ValueRepresentation>) () ->
-                new PrefetchingIterator<ValueRepresentation>()
-                {
-                    int pos;
+        return new ListRepresentation( RepresentationType.LONG, (Iterable<ValueRepresentation>) () -> new PrefetchingIterator<>()
+        {
+            int pos;
 
-                    @Override
-                    protected ValueRepresentation fetchNextOrNull()
-                    {
-                        if ( pos >= values.length )
-                        {
-                            return null;
-                        }
-                        return ValueRepresentation.number( values[pos++] );
-                    }
-                } );
+            @Override
+            protected ValueRepresentation fetchNextOrNull()
+            {
+                if ( pos >= values.length )
+                {
+                    return null;
+                }
+                return ValueRepresentation.number( values[pos++] );
+            }
+        } );
     }
 
     public static ListRepresentation numbers( final double[] values )
     {
         return new ListRepresentation( RepresentationType.DOUBLE,
-                (Iterable<ValueRepresentation>) () -> new PrefetchingIterator<ValueRepresentation>()
+                (Iterable<ValueRepresentation>) () -> new PrefetchingIterator<>()
                 {
                     int pos;
 

@@ -19,25 +19,26 @@
  */
 package org.neo4j.server.security.auth;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 import java.util.stream.Stream;
 
-import org.neo4j.graphdb.security.AuthorizationViolationException;
-import org.neo4j.internal.kernel.api.security.AuthSubject;
+import org.neo4j.graphdb.Result;
+import org.neo4j.graphdb.Transaction;
+import org.neo4j.internal.kernel.api.exceptions.ProcedureException;
 import org.neo4j.internal.kernel.api.security.SecurityContext;
-import org.neo4j.kernel.api.exceptions.InvalidArgumentsException;
-import org.neo4j.kernel.api.security.UserManager;
-import org.neo4j.kernel.impl.security.User;
+import org.neo4j.kernel.api.exceptions.Status;
+import org.neo4j.kernel.api.procedure.SystemProcedure;
+import org.neo4j.kernel.internal.GraphDatabaseAPI;
 import org.neo4j.procedure.Context;
 import org.neo4j.procedure.Description;
 import org.neo4j.procedure.Name;
 import org.neo4j.procedure.Procedure;
-import org.neo4j.string.UTF8;
 
 import static java.util.Collections.emptyList;
+import static org.neo4j.kernel.api.exceptions.Status.Procedure.ProcedureCallFailed;
+import static org.neo4j.kernel.api.exceptions.Status.Statement.FeatureDeprecationWarning;
+import static org.neo4j.kernel.impl.security.User.PASSWORD_CHANGE_REQUIRED;
 import static org.neo4j.procedure.Mode.DBMS;
 
 @SuppressWarnings( {"unused", "WeakerAccess"} )
@@ -47,107 +48,129 @@ public class AuthProcedures
     public SecurityContext securityContext;
 
     @Context
-    public UserManager userManager;
+    public Transaction transaction;
 
+    @Context
+    public GraphDatabaseAPI graph;
+
+    @SystemProcedure
+    @Deprecated
     @Description( "Create a new user." )
-    @Procedure( name = "dbms.security.createUser", mode = DBMS )
+    @Procedure( name = "dbms.security.createUser", mode = DBMS, deprecatedBy = "Administration command: CREATE USER" )
     public void createUser(
             @Name( "username" ) String username,
             @Name( "password" ) String password,
             @Name( value = "requirePasswordChange", defaultValue = "true" ) boolean requirePasswordChange )
-            throws InvalidArgumentsException, IOException
+            throws ProcedureException
     {
-        // TODO: Deprecate this and create a new procedure that takes password as a byte[]
-        securityContext.assertCredentialsNotExpired();
-        userManager.newUser( username, password != null ? UTF8.encode( password ) : null, requirePasswordChange );
+        var query = String.format( "CREATE USER %s SET PASSWORD '%s' %s", escapeParameter( username ), password == null ? "" : password,
+                requirePasswordChange ? "CHANGE REQUIRED" : "CHANGE NOT REQUIRED" );
+        runSystemCommand( query, "dbms.security.createUser" );
     }
 
-    @Description( "Delete the specified user." )
-    @Procedure( name = "dbms.security.deleteUser", mode = DBMS )
-    public void deleteUser( @Name( "username" ) String username ) throws InvalidArgumentsException, IOException
-    {
-        securityContext.assertCredentialsNotExpired();
-        if ( securityContext.subject().hasUsername( username ) )
-        {
-            throw new InvalidArgumentsException( "Deleting yourself (user '" + username + "') is not allowed." );
-        }
-        userManager.deleteUser( username );
-    }
-
+    @SystemProcedure
     @Deprecated
-    @Description( "Change the current user's password. Deprecated by dbms.security.changePassword." )
-    @Procedure( name = "dbms.changePassword", mode = DBMS, deprecatedBy = "dbms.security.changePassword" )
-    public void changePasswordDeprecated( @Name( "password" ) String password ) throws InvalidArgumentsException, IOException
+    @Description( "Delete the specified user." )
+    @Procedure( name = "dbms.security.deleteUser", mode = DBMS, deprecatedBy = "Administration command: DROP USER" )
+    public void deleteUser( @Name( "username" ) String username ) throws ProcedureException
     {
-        // TODO: Deprecate this and create a new procedure that takes password as a byte[]
-        changePassword( password );
+        var query = String.format( "DROP USER %s", escapeParameter( username ) );
+        runSystemCommand( query, "dbms.security.deleteUser" );
     }
 
+    @SystemProcedure
+    @Deprecated
     @Description( "Change the current user's password." )
-    @Procedure( name = "dbms.security.changePassword", mode = DBMS )
-    public void changePassword( @Name( "password" ) String password ) throws InvalidArgumentsException, IOException
+    @Procedure( name = "dbms.security.changePassword", mode = DBMS, deprecatedBy = "Administration command: ALTER CURRENT USER SET PASSWORD" )
+    public void changePassword( @Name( "password" ) String password ) throws ProcedureException
     {
-        // TODO: Deprecate this and create a new procedure that takes password as a byte[]
-        if ( securityContext.subject() == AuthSubject.ANONYMOUS )
-        {
-            throw new AuthorizationViolationException( "Anonymous cannot change password" );
-        }
-        userManager.setUserPassword( securityContext.subject().username(), UTF8.encode( password ), false );
-        securityContext.subject().setPasswordChangeNoLongerRequired();
+        throw new ProcedureException( FeatureDeprecationWarning, "This procedure is no longer available, use: 'ALTER CURRENT USER SET PASSWORD'" );
     }
 
+    @SystemProcedure
     @Description( "Show the current user." )
     @Procedure( name = "dbms.showCurrentUser", mode = DBMS )
     public Stream<UserResult> showCurrentUser()
     {
-        return Stream.of( userResultForName( securityContext.subject().username() ) );
-    }
-
-    @Deprecated
-    @Description( "Show the current user. Deprecated by dbms.showCurrentUser." )
-    @Procedure( name = "dbms.security.showCurrentUser", mode = DBMS, deprecatedBy = "dbms.showCurrentUser" )
-    public Stream<UserResult> showCurrentUserDeprecated()
-    {
-        return showCurrentUser();
-    }
-
-    @Description( "List all native users." )
-    @Procedure( name = "dbms.security.listUsers", mode = DBMS )
-    public Stream<UserResult> listUsers()
-    {
         securityContext.assertCredentialsNotExpired();
-        Set<String> usernames = userManager.getAllUsernames();
+        String username = securityContext.subject().username();
+        return Stream.of( new UserResult( username, false ) );
+    }
 
-        if ( usernames.isEmpty() )
+    @SystemProcedure
+    @Deprecated
+    @Description( "List all native users." )
+    @Procedure( name = "dbms.security.listUsers", mode = DBMS, deprecatedBy = "Administration command: SHOW USERS" )
+    public Stream<UserResult> listUsers() throws ProcedureException
+    {
+        var query = "SHOW USERS";
+        List<UserResult> result = new ArrayList<>();
+
+        try
+        {
+            Result execute = transaction.execute( query );
+            execute.accept( row ->
+            {
+                var username = row.getString( "user" );
+                var changeRequired = row.getBoolean( "passwordChangeRequired" );
+                result.add( new UserResult( username, changeRequired ) );
+                return true;
+            } );
+        }
+        catch ( Exception e )
+        {
+            translateException( e, "dbms.security.listUsers" );
+        }
+
+        if ( result.isEmpty() )
         {
             return showCurrentUser();
         }
-        else
-        {
-            return usernames.stream().map( this::userResultForName );
-        }
+
+        return result.stream();
     }
 
-    private UserResult userResultForName( String username )
-    {
-        User user = userManager.silentlyGetUser( username );
-        Iterable<String> flags = user == null ? emptyList() : user.getFlags();
-        return new UserResult( username, flags );
-    }
+    private static List<String> changeRequiredList = List.of( PASSWORD_CHANGE_REQUIRED );
 
     public static class UserResult
     {
         public final String username;
+        public final List<String> roles = null; // this is just so that the community version has the same signature as in enterprise
         public final List<String> flags;
 
-        UserResult( String username, Iterable<String> flags )
+        UserResult( String username, boolean changeRequired )
         {
             this.username = username;
-            this.flags = new ArrayList<>();
-            for ( String f : flags )
-            {
-                this.flags.add( f );
-            }
+            this.flags = changeRequired ? changeRequiredList : emptyList();
         }
+    }
+
+    private void runSystemCommand( String query, String procedureName ) throws ProcedureException
+    {
+        try
+        {
+            Result execute = transaction.execute( query );
+            execute.accept( row -> true );
+        }
+        catch ( Exception e )
+        {
+            translateException( e, procedureName );
+        }
+    }
+
+    private void translateException( Exception e, String procedureName ) throws ProcedureException
+    {
+        Status status = Status.statusCodeOf( e );
+        if ( status != null && status.equals( Status.Statement.NotSystemDatabaseError ) )
+        {
+            throw new ProcedureException( ProcedureCallFailed, e,
+                    String.format( "This is an administration command and it should be executed against the system database: %s", procedureName ) );
+        }
+        throw new ProcedureException( ProcedureCallFailed, e, e.getMessage() );
+    }
+
+    private String escapeParameter( String input )
+    {
+        return String.format( "`%s`", input == null ? "" : input );
     }
 }

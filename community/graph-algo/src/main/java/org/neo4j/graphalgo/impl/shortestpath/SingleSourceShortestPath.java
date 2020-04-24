@@ -23,8 +23,8 @@ import java.util.List;
 import java.util.Map;
 
 import org.neo4j.graphdb.Direction;
+import org.neo4j.graphdb.Entity;
 import org.neo4j.graphdb.Node;
-import org.neo4j.graphdb.PropertyContainer;
 import org.neo4j.graphdb.Relationship;
 import org.neo4j.graphdb.RelationshipType;
 
@@ -32,7 +32,6 @@ import org.neo4j.graphdb.RelationshipType;
  * An object implementing this encapsulates an algorithm able to solve the
  * single source shortest path problem. I.e. it can find the shortest path(s)
  * from a given start node to all other nodes in a network.
- * @author Patrik Larsson
  * @param <CostType>
  *            The datatype the edge weights are represented by.
  */
@@ -56,7 +55,7 @@ public interface SingleSourceShortestPath<CostType>
      * Node/Relationship.
      * @return The path as an alternating list of Node/Relationship.
      */
-    List<PropertyContainer> getPath( Node targetNode );
+    List<Entity> getPath( Node targetNode );
 
     /**
      * A call to this will run the algorithm, if not already done, and return
@@ -77,7 +76,7 @@ public interface SingleSourceShortestPath<CostType>
      * already done, and return them as alternating lists of Node/Relationship.
      * @return A list of the paths as alternating lists of Node/Relationship.
      */
-    List<List<PropertyContainer>> getPaths( Node targetNode );
+    List<List<Entity>> getPaths( Node targetNode );
 
     /**
      * A call to this will run the algorithm to find all shortest paths, if not

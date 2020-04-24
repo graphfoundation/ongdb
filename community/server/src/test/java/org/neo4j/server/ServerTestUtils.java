@@ -29,17 +29,17 @@ import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.net.Socket;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Random;
 
+import org.neo4j.configuration.GraphDatabaseSettings;
+import org.neo4j.configuration.connectors.ConnectorPortRegister;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.config.Setting;
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
-import org.neo4j.helpers.HostnamePort;
-import org.neo4j.kernel.configuration.ConnectorPortRegister;
-import org.neo4j.kernel.configuration.ssl.LegacySslPolicyConfig;
+import org.neo4j.internal.helpers.HostnamePort;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
 
 import static org.junit.Assert.assertNotNull;
@@ -57,18 +57,6 @@ public class ServerTestUtils
         return Files.createTempDirectory( "neo4j-test" ).toFile();
     }
 
-    public static File getSharedTestTemporaryFolder()
-    {
-        try
-        {
-            return createTempConfigFile().getParentFile();
-        }
-        catch ( Exception e )
-        {
-            throw new RuntimeException( e );
-        }
-    }
-
     public static File createTempConfigFile() throws IOException
     {
         File file = File.createTempFile( "neo4j", "conf" );
@@ -76,16 +64,15 @@ public class ServerTestUtils
         return file;
     }
 
-    public static String getRelativePath( File folder, Setting<File> setting )
+    public static Path getRelativePath( File folder, Setting<Path> setting )
     {
-        return folder.toPath().resolve( setting.getDefaultValue() ).toString();
+        return folder.toPath().resolve( setting.defaultValue() );
     }
 
-    public static Map<String,String> getDefaultRelativeProperties()
+    public static Map<String,String> getDefaultRelativeProperties( File folder )
     {
-        File testFolder = getSharedTestTemporaryFolder();
         Map<String,String> settings = new HashMap<>();
-        addDefaultRelativeProperties( settings, testFolder );
+        addDefaultRelativeProperties( settings, folder );
         return settings;
     }
 
@@ -93,14 +80,13 @@ public class ServerTestUtils
     {
         addRelativeProperty( temporaryFolder, properties, GraphDatabaseSettings.data_directory );
         addRelativeProperty( temporaryFolder, properties, GraphDatabaseSettings.logs_directory );
-        addRelativeProperty( temporaryFolder, properties, LegacySslPolicyConfig.certificates_directory );
         properties.put( GraphDatabaseSettings.pagecache_memory.name(), "8m" );
     }
 
     private static void addRelativeProperty( File temporaryFolder, Map<String,String> properties,
-            Setting<File> setting )
+            Setting<Path> setting )
     {
-        properties.put( setting.name(), getRelativePath( temporaryFolder, setting ) );
+        properties.put( setting.name(), getRelativePath( temporaryFolder, setting ).toString() );
     }
 
     public static void writeConfigToFile( Map<String, String> properties, File file )

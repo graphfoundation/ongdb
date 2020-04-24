@@ -24,15 +24,12 @@ import org.eclipse.collections.api.IntIterable;
 import org.eclipse.collections.api.set.primitive.LongSet;
 import org.eclipse.collections.impl.UnmodifiableMap;
 import org.eclipse.collections.impl.factory.primitive.LongSets;
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.RuleChain;
-import org.junit.rules.TestRule;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.eclipse.collections.impl.set.mutable.primitive.LongHashSet;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.RepeatedTest;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -40,138 +37,94 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.List;
 import java.util.NavigableMap;
 import java.util.Set;
 import java.util.TreeMap;
 
+import org.neo4j.common.EntityType;
+import org.neo4j.exceptions.KernelException;
 import org.neo4j.function.Predicates;
-import org.neo4j.helpers.collection.Iterators;
-import org.neo4j.helpers.collection.Pair;
-import org.neo4j.internal.kernel.api.exceptions.schema.ConstraintValidationException;
-import org.neo4j.internal.kernel.api.exceptions.schema.CreateConstraintFailureException;
-import org.neo4j.internal.kernel.api.schema.constraints.ConstraintDescriptor;
-import org.neo4j.kernel.api.schema.SchemaDescriptorFactory;
-import org.neo4j.kernel.api.schema.constraints.ConstraintDescriptorFactory;
-import org.neo4j.kernel.api.schema.constraints.UniquenessConstraintDescriptor;
+import org.neo4j.internal.helpers.collection.Iterators;
+import org.neo4j.internal.helpers.collection.Pair;
+import org.neo4j.internal.schema.ConstraintDescriptor;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.internal.schema.IndexPrototype;
+import org.neo4j.internal.schema.LabelSchemaDescriptor;
+import org.neo4j.internal.schema.SchemaDescriptor;
+import org.neo4j.internal.schema.constraints.ConstraintDescriptorFactory;
+import org.neo4j.internal.schema.constraints.IndexBackedConstraintDescriptor;
+import org.neo4j.internal.schema.constraints.UniquenessConstraintDescriptor;
 import org.neo4j.kernel.api.schema.index.TestIndexDescriptorFactory;
-import org.neo4j.kernel.impl.util.collection.CachingOffHeapBlockAllocator;
 import org.neo4j.kernel.impl.util.collection.CollectionsFactory;
 import org.neo4j.kernel.impl.util.collection.CollectionsFactorySupplier;
-import org.neo4j.kernel.impl.util.collection.OffHeapCollectionsFactory;
 import org.neo4j.kernel.impl.util.diffsets.MutableLongDiffSets;
 import org.neo4j.kernel.impl.util.diffsets.MutableLongDiffSetsImpl;
 import org.neo4j.storageengine.api.StorageProperty;
-import org.neo4j.storageengine.api.schema.IndexDescriptor;
-import org.neo4j.storageengine.api.schema.IndexDescriptorFactory;
 import org.neo4j.storageengine.api.txstate.DiffSets;
 import org.neo4j.storageengine.api.txstate.LongDiffSets;
 import org.neo4j.storageengine.api.txstate.TxStateVisitor;
+import org.neo4j.test.extension.Inject;
+import org.neo4j.test.extension.RandomExtension;
 import org.neo4j.test.rule.RandomRule;
-import org.neo4j.test.rule.RepeatRule;
 import org.neo4j.values.storable.Value;
 import org.neo4j.values.storable.ValueTuple;
 import org.neo4j.values.storable.Values;
 
-import static java.util.Arrays.asList;
 import static java.util.Collections.singleton;
 import static org.eclipse.collections.impl.set.mutable.primitive.LongHashSet.newSetWith;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.is;
 import static org.hamcrest.core.IsEqual.equalTo;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-import static org.junit.runners.Parameterized.Parameter;
-import static org.junit.runners.Parameterized.Parameters;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.internal.verification.VerificationModeFactory.times;
-import static org.neo4j.helpers.collection.Iterators.asSet;
-import static org.neo4j.helpers.collection.Pair.of;
+import static org.neo4j.internal.helpers.collection.Iterators.asSet;
+import static org.neo4j.internal.helpers.collection.Pair.of;
+import static org.neo4j.internal.schema.SchemaDescriptor.forLabel;
 import static org.neo4j.values.storable.Values.stringValue;
 
-@RunWith( Parameterized.class )
-public class TxStateTest
+@ExtendWith( RandomExtension.class )
+abstract class TxStateTest
 {
-    private static final CachingOffHeapBlockAllocator BLOCK_ALLOCATOR = new CachingOffHeapBlockAllocator();
 
-    public final RandomRule random = new RandomRule();
-
-    @Rule
-    public final TestRule repeatWithDifferentRandomization()
-    {
-        return RuleChain.outerRule( new RepeatRule() ).around( random );
-    }
+    @Inject
+    private RandomRule random;
 
     private final IndexDescriptor indexOn_1_1 = TestIndexDescriptorFactory.forLabel( 1, 1 );
     private final IndexDescriptor indexOn_2_1 = TestIndexDescriptorFactory.forLabel( 2, 1 );
-    private final IndexDescriptor indexOnRels = IndexDescriptorFactory.forSchema( SchemaDescriptorFactory.forRelType( 3, 1 ) );
-
+    private final IndexDescriptor indexOnRels = TestIndexDescriptorFactory.forSchema( SchemaDescriptor.forRelType( 3, 1 ) );
+    private final CollectionsFactorySupplier collectionsFactorySupplier;
     private CollectionsFactory collectionsFactory;
     private TxState state;
 
-    @Parameter
-    public CollectionsFactorySupplier collectionsFactorySupplier;
-
-    @Parameters( name = "{0}" )
-    public static List<CollectionsFactorySupplier> data()
+    TxStateTest( CollectionsFactorySupplier collectionsFactorySupplier )
     {
-        return asList( new CollectionsFactorySupplier()
-        {
-            @Override
-            public CollectionsFactory create()
-            {
-                return CollectionsFactorySupplier.ON_HEAP.create();
-            }
-
-            @Override
-            public String toString()
-            {
-                return "On heap";
-            }
-        }, new CollectionsFactorySupplier()
-        {
-            @Override
-            public CollectionsFactory create()
-            {
-                return new OffHeapCollectionsFactory( BLOCK_ALLOCATOR );
-            }
-
-            @Override
-            public String toString()
-            {
-                return "Off heap";
-            }
-        } );
+        this.collectionsFactorySupplier = collectionsFactorySupplier;
     }
 
-    @AfterClass
-    public static void afterAll()
-    {
-        BLOCK_ALLOCATOR.release();
-    }
-
-    @Before
-    public void before()
+    @BeforeEach
+    void before()
     {
         collectionsFactory = spy( collectionsFactorySupplier.create() );
         state = new TxState( collectionsFactory );
     }
 
-    @After
-    public void after()
+    @AfterEach
+    void after()
     {
         collectionsFactory.release();
-        assertEquals( "Seems like native memory is leaking", 0L, collectionsFactory.getMemoryTracker().usedDirectMemory() );
+        assertEquals( 0L, collectionsFactory.getMemoryTracker().usedDirectMemory(), "Seems like native memory is leaking" );
     }
 
-    //region node label update tests
-
     @Test
-    public void shouldGetAddedLabels()
+    void shouldGetAddedLabels()
     {
         // GIVEN
         state.nodeDoAddLabel( 1, 0 );
@@ -186,7 +139,7 @@ public class TxStateTest
     }
 
     @Test
-    public void shouldGetRemovedLabels()
+    void shouldGetRemovedLabels()
     {
         // GIVEN
         state.nodeDoRemoveLabel( 1, 0 );
@@ -201,7 +154,7 @@ public class TxStateTest
     }
 
     @Test
-    public void removeAddedLabelShouldRemoveFromAdded()
+    void removeAddedLabelShouldRemoveFromAdded()
     {
         // GIVEN
         state.nodeDoAddLabel( 1, 0 );
@@ -216,7 +169,7 @@ public class TxStateTest
     }
 
     @Test
-    public void addRemovedLabelShouldRemoveFromRemoved()
+    void addRemovedLabelShouldRemoveFromRemoved()
     {
         // GIVEN
         state.nodeDoRemoveLabel( 1, 0 );
@@ -231,7 +184,7 @@ public class TxStateTest
     }
 
     @Test
-    public void shouldMapFromRemovedLabelToNodes()
+    void shouldMapFromRemovedLabelToNodes()
     {
         // GIVEN
         state.nodeDoRemoveLabel( 1, 0 );
@@ -247,12 +200,8 @@ public class TxStateTest
         assertEquals( newSetWith( 0L, 2L ), nodes );
     }
 
-    //endregion
-
-    //region index updates
-
     @Test
-    public void shouldComputeIndexUpdatesOnUninitializedTxState()
+    void shouldComputeIndexUpdatesOnUninitializedTxState()
     {
         // WHEN
         UnmodifiableMap<ValueTuple,? extends LongDiffSets> diffSets = state.getIndexUpdates( indexOn_1_1.schema() );
@@ -262,7 +211,7 @@ public class TxStateTest
     }
 
     @Test
-    public void shouldComputeSortedIndexUpdatesOnUninitializedTxState()
+    void shouldComputeSortedIndexUpdatesOnUninitializedTxState()
     {
         // WHEN
         NavigableMap<ValueTuple,? extends LongDiffSets> diffSets = state.getSortedIndexUpdates( indexOn_1_1.schema() );
@@ -272,7 +221,7 @@ public class TxStateTest
     }
 
     @Test
-    public void shouldComputeIndexUpdatesOnEmptyTxState()
+    void shouldComputeIndexUpdatesOnEmptyTxState()
     {
         // GIVEN
         addNodesToIndex( indexOn_2_1 ).withDefaultStringProperties( 42L );
@@ -285,7 +234,7 @@ public class TxStateTest
     }
 
     @Test
-    public void shouldComputeSortedIndexUpdatesOnEmptyTxState()
+    void shouldComputeSortedIndexUpdatesOnEmptyTxState()
     {
         // GIVEN
         addNodesToIndex( indexOn_2_1 ).withDefaultStringProperties( 42L );
@@ -298,7 +247,7 @@ public class TxStateTest
     }
 
     @Test
-    public void shouldComputeIndexUpdatesOnTxStateWithAddedNodes()
+    void shouldComputeIndexUpdatesOnTxStateWithAddedNodes()
     {
         // GIVEN
         addNodesToIndex( indexOn_1_1 ).withDefaultStringProperties( 42L );
@@ -309,13 +258,14 @@ public class TxStateTest
         UnmodifiableMap<ValueTuple,? extends LongDiffSets> diffSets = state.getIndexUpdates( indexOn_1_1.schema() );
 
         // THEN
+        assertNotNull( diffSets );
         assertEqualDiffSets( addedNodes( 42L ), diffSets.get( ValueTuple.of( stringValue( "value42" ) ) ) );
         assertEqualDiffSets( addedNodes( 43L ), diffSets.get( ValueTuple.of( stringValue( "value43" ) ) ) );
         assertEqualDiffSets( addedNodes( 41L ), diffSets.get( ValueTuple.of( stringValue( "value41" ) ) ) );
     }
 
     @Test
-    public void shouldComputeSortedIndexUpdatesOnTxStateWithAddedNodes()
+    void shouldComputeSortedIndexUpdatesOnTxStateWithAddedNodes()
     {
         // GIVEN
         addNodesToIndex( indexOn_1_1 ).withDefaultStringProperties( 42L );
@@ -327,6 +277,7 @@ public class TxStateTest
 
         TreeMap<ValueTuple,LongDiffSets> expected = sortedAddedNodesDiffSets( 42, 41, 43 );
         // THEN
+        assertNotNull( diffSets );
         assertEquals( expected.keySet(), diffSets.keySet() );
         for ( final ValueTuple key : expected.keySet() )
         {
@@ -334,34 +285,34 @@ public class TxStateTest
         }
     }
 
-    // endregion
-
-    //region index rule tests
-
     @Test
-    public void shouldAddAndGetByLabel()
+    void shouldAddAndGetByLabel()
     {
         // WHEN
         state.indexDoAdd( indexOn_1_1 );
         state.indexDoAdd( indexOn_2_1 );
 
         // THEN
-        assertEquals( asSet( indexOn_1_1 ), state.indexDiffSetsByLabel( indexOn_1_1.schema().keyId() ).getAdded() );
+        SchemaDescriptor schema = indexOn_1_1.schema();
+        int[] labels = schema.getEntityTokenIds();
+        assertEquals( schema.entityType(), EntityType.NODE );
+        assertEquals( labels.length, 1 );
+        assertEquals( asSet( indexOn_1_1 ), state.indexDiffSetsByLabel( labels[0] ).getAdded() );
     }
 
     @Test
-    public void shouldAddAndGetByRelType()
+    void shouldAddAndGetByRelType()
     {
         // WHEN
         state.indexDoAdd( indexOnRels );
         state.indexDoAdd( indexOn_2_1 );
 
         // THEN
-        assertEquals( asSet( indexOnRels ), state.indexDiffSetsByRelationshipType( indexOnRels.schema().keyId() ).getAdded() );
+        assertEquals( asSet( indexOnRels ), state.indexDiffSetsByRelationshipType( indexOnRels.schema().getRelTypeId() ).getAdded() );
     }
 
     @Test
-    public void shouldAddAndGetByRuleId()
+    void shouldAddAndGetByRuleId()
     {
         // GIVEN
         state.indexDoAdd( indexOn_1_1 );
@@ -370,12 +321,8 @@ public class TxStateTest
         assertEquals( asSet( indexOn_1_1 ), state.indexChanges().getAdded() );
     }
 
-    // endregion
-
-    //region miscellaneous
-
     @Test
-    public void shouldListNodeAsDeletedIfItIsDeleted()
+    void shouldListNodeAsDeletedIfItIsDeleted()
     {
         // Given
 
@@ -388,11 +335,12 @@ public class TxStateTest
     }
 
     @Test
-    public void shouldAddUniquenessConstraint()
+    void shouldAddUniquenessConstraint()
     {
         // when
-        UniquenessConstraintDescriptor constraint = ConstraintDescriptorFactory.uniqueForLabel( 1, 17 );
-        state.constraintDoAdd( constraint, 7 );
+        LabelSchemaDescriptor schema = forLabel( 1, 17 );
+        UniquenessConstraintDescriptor constraint = ConstraintDescriptorFactory.uniqueForSchema( schema );
+        state.constraintDoAdd( constraint, IndexPrototype.uniqueForSchema( schema ).withName( "constraint_7" ).materialise( 7 ) );
 
         // then
         DiffSets<ConstraintDescriptor> diff = state.constraintsChangesForLabel( 1 );
@@ -402,15 +350,16 @@ public class TxStateTest
     }
 
     @Test
-    public void addingUniquenessConstraintShouldBeIdempotent()
+    void addingUniquenessConstraintShouldBeIdempotent()
     {
         // given
-        UniquenessConstraintDescriptor constraint1 = ConstraintDescriptorFactory.uniqueForLabel( 1, 17 );
-        state.constraintDoAdd( constraint1, 7 );
+        LabelSchemaDescriptor schema = forLabel( 1, 17 );
+        UniquenessConstraintDescriptor constraint1 = ConstraintDescriptorFactory.uniqueForSchema( schema );
+        state.constraintDoAdd( constraint1, IndexPrototype.uniqueForSchema( schema ).withName( "constraint_7" ).materialise( 7 ) );
 
         // when
-        UniquenessConstraintDescriptor constraint2 = ConstraintDescriptorFactory.uniqueForLabel( 1, 17 );
-        state.constraintDoAdd( constraint2, 19 );
+        UniquenessConstraintDescriptor constraint2 = ConstraintDescriptorFactory.uniqueForSchema( schema );
+        state.constraintDoAdd( constraint2, IndexPrototype.uniqueForSchema( schema ).withName( "constraint_19" ).materialise( 19 ) );
 
         // then
         assertEquals( constraint1, constraint2 );
@@ -418,13 +367,15 @@ public class TxStateTest
     }
 
     @Test
-    public void shouldDifferentiateBetweenUniquenessConstraintsForDifferentLabels()
+    void shouldDifferentiateBetweenUniquenessConstraintsForDifferentLabels()
     {
         // when
-        UniquenessConstraintDescriptor constraint1 = ConstraintDescriptorFactory.uniqueForLabel( 1, 17 );
-        state.constraintDoAdd( constraint1, 7 );
-        UniquenessConstraintDescriptor constraint2 = ConstraintDescriptorFactory.uniqueForLabel( 2, 17 );
-        state.constraintDoAdd( constraint2, 19 );
+        LabelSchemaDescriptor schema1 = forLabel( 1, 17 );
+        UniquenessConstraintDescriptor constraint1 = ConstraintDescriptorFactory.uniqueForSchema( schema1 );
+        state.constraintDoAdd( constraint1, IndexPrototype.uniqueForSchema( schema1 ).withName( "constraint_7" ).materialise( 7 ) );
+        LabelSchemaDescriptor schema2 = forLabel( 2, 17 );
+        UniquenessConstraintDescriptor constraint2 = ConstraintDescriptorFactory.uniqueForSchema( schema2 );
+        state.constraintDoAdd( constraint2, IndexPrototype.uniqueForSchema( schema2 ).withName( "constraint_19" ).materialise( 19 ) );
 
         // then
         assertEquals( singleton( constraint1 ), state.constraintsChangesForLabel( 1 ).getAdded() );
@@ -432,7 +383,7 @@ public class TxStateTest
     }
 
     @Test
-    public void shouldAddRelationshipPropertyExistenceConstraint()
+    void shouldAddRelationshipPropertyExistenceConstraint()
     {
         // Given
         ConstraintDescriptor constraint = ConstraintDescriptorFactory.existsForRelType( 1, 42 );
@@ -445,7 +396,7 @@ public class TxStateTest
     }
 
     @Test
-    public void addingRelationshipPropertyExistenceConstraintConstraintShouldBeIdempotent()
+    void addingRelationshipPropertyExistenceConstraintConstraintShouldBeIdempotent()
     {
         // Given
         ConstraintDescriptor constraint1 = ConstraintDescriptorFactory.existsForRelType( 1, 42 );
@@ -461,7 +412,7 @@ public class TxStateTest
     }
 
     @Test
-    public void shouldDropRelationshipPropertyExistenceConstraint()
+    void shouldDropRelationshipPropertyExistenceConstraint()
     {
         // Given
         ConstraintDescriptor constraint = ConstraintDescriptorFactory.existsForRelType( 1, 42 );
@@ -475,7 +426,7 @@ public class TxStateTest
     }
 
     @Test
-    public void shouldDifferentiateRelationshipPropertyExistenceConstraints()
+    void shouldDifferentiateRelationshipPropertyExistenceConstraints()
     {
         // Given
         ConstraintDescriptor constraint1 = ConstraintDescriptorFactory.existsForRelType( 1, 11 );
@@ -496,7 +447,7 @@ public class TxStateTest
     }
 
     @Test
-    public void shouldListRelationshipsAsCreatedIfCreated()
+    void shouldListRelationshipsAsCreatedIfCreated()
     {
         // When
         long relId = 10;
@@ -508,7 +459,7 @@ public class TxStateTest
     }
 
     @Test
-    public void shouldNotChangeRecordForCreatedAndDeletedNode() throws Exception
+    void shouldNotChangeRecordForCreatedAndDeletedNode() throws Exception
     {
         // GIVEN
         state.nodeDoCreate( 0 );
@@ -521,7 +472,7 @@ public class TxStateTest
             @Override
             public void visitCreatedNode( long id )
             {
-                assertEquals( "Should not create any other node than 1", 1, id );
+                assertEquals( 1, id, "Should not create any other node than 1" );
             }
 
             @Override
@@ -533,7 +484,7 @@ public class TxStateTest
     }
 
     @Test
-    public void shouldVisitDeletedNode() throws Exception
+    void shouldVisitDeletedNode() throws Exception
     {
         // Given
         state.nodeDoDelete( 42 );
@@ -545,13 +496,13 @@ public class TxStateTest
             public void visitDeletedNode( long id )
             {
                 // Then
-                assertEquals( "Wrong deleted node id", 42, id );
+                assertEquals( 42, id, "Wrong deleted node id" );
             }
         } );
     }
 
     @Test
-    public void shouldReportDeletedNodeIfItWasCreatedAndDeletedInSameTx()
+    void shouldReportDeletedNodeIfItWasCreatedAndDeletedInSameTx()
     {
         // Given
         long nodeId = 42;
@@ -565,7 +516,7 @@ public class TxStateTest
     }
 
     @Test
-    public void shouldNotReportDeletedNodeIfItIsNotDeleted()
+    void shouldNotReportDeletedNodeIfItIsNotDeleted()
     {
         // Given
         long nodeId = 42;
@@ -578,7 +529,7 @@ public class TxStateTest
     }
 
     @Test
-    public void shouldNotChangeRecordForCreatedAndDeletedRelationship() throws Exception
+    void shouldNotChangeRecordForCreatedAndDeletedRelationship() throws Exception
     {
         // GIVEN
         state.relationshipDoCreate( 0, 0, 1, 2 );
@@ -591,7 +542,7 @@ public class TxStateTest
             @Override
             public void visitCreatedRelationship( long id, int type, long startNode, long endNode )
             {
-                assertEquals( "Should not create any other relationship than 1", 1, id );
+                assertEquals( 1, id, "Should not create any other relationship than 1" );
             }
 
             @Override
@@ -603,7 +554,7 @@ public class TxStateTest
     }
 
     @Test
-    public void doNotVisitNotModifiedPropertiesOnModifiedNodes() throws ConstraintValidationException, CreateConstraintFailureException
+    void doNotVisitNotModifiedPropertiesOnModifiedNodes() throws KernelException
     {
         state.nodeDoAddLabel( 5, 1 );
         MutableBoolean labelsChecked = new MutableBoolean();
@@ -629,7 +580,7 @@ public class TxStateTest
     }
 
     @Test
-    public void doNotVisitNotModifiedLabelsOnModifiedNodes() throws ConstraintValidationException, CreateConstraintFailureException
+    void doNotVisitNotModifiedLabelsOnModifiedNodes() throws KernelException
     {
         state.nodeDoAddProperty( 1, 2, stringValue( "propertyValue" ) );
         MutableBoolean propertiesChecked = new MutableBoolean();
@@ -655,7 +606,7 @@ public class TxStateTest
     }
 
     @Test
-    public void shouldVisitDeletedRelationship() throws Exception
+    void shouldVisitDeletedRelationship() throws Exception
     {
         // Given
         state.relationshipDoDelete( 42, 2, 3, 4 );
@@ -667,13 +618,13 @@ public class TxStateTest
             public void visitDeletedRelationship( long id )
             {
                 // Then
-                assertEquals( "Wrong deleted relationship id", 42, id );
+                assertEquals( 42, id, "Wrong deleted relationship id" );
             }
         } );
     }
 
     @Test
-    public void shouldReportDeletedRelationshipIfItWasCreatedAndDeletedInSameTx()
+    void shouldReportDeletedRelationshipIfItWasCreatedAndDeletedInSameTx()
     {
         // Given
         long startNodeId = 1;
@@ -690,7 +641,7 @@ public class TxStateTest
     }
 
     @Test
-    public void shouldNotReportDeletedRelationshipIfItIsNotDeleted()
+    void shouldNotReportDeletedRelationshipIfItIsNotDeleted()
     {
         // Given
         long startNodeId = 1;
@@ -705,9 +656,8 @@ public class TxStateTest
         assertFalse( state.relationshipIsDeletedInThisTx( relationshipId ) );
     }
 
-    @Test
-    @RepeatRule.Repeat( times = 100 )
-    public void shouldVisitCreatedNodesBeforeDeletedNodes() throws Exception
+    @RepeatedTest( 100 )
+    void shouldVisitCreatedNodesBeforeDeletedNodes() throws Exception
     {
         // when
         state.accept( new VisitationOrder( random.nextInt( 100 ) )
@@ -742,9 +692,8 @@ public class TxStateTest
         } );
     }
 
-    @Test
-    @RepeatRule.Repeat( times = 100 )
-    public void shouldVisitCreatedNodesBeforeCreatedRelationships() throws Exception
+    @RepeatedTest( 100 )
+    void shouldVisitCreatedNodesBeforeCreatedRelationships() throws Exception
     {
         // when
         state.accept( new VisitationOrder( random.nextInt( 100 ) )
@@ -782,9 +731,8 @@ public class TxStateTest
         } );
     }
 
-    @Test
-    @RepeatRule.Repeat( times = 100 )
-    public void shouldVisitCreatedRelationshipsBeforeDeletedRelationships() throws Exception
+    @RepeatedTest( 100 )
+    void shouldVisitCreatedRelationshipsBeforeDeletedRelationships() throws Exception
     {
         // when
         state.accept( new VisitationOrder( random.nextInt( 100 ) )
@@ -824,9 +772,8 @@ public class TxStateTest
         } );
     }
 
-    @Test
-    @RepeatRule.Repeat( times = 100 )
-    public void shouldVisitDeletedNodesAfterDeletedRelationships() throws Exception
+    @RepeatedTest( 100 )
+    void shouldVisitDeletedNodesAfterDeletedRelationships() throws Exception
     {
         // when
         state.accept( new VisitationOrder( random.nextInt( 100 ) )
@@ -864,10 +811,126 @@ public class TxStateTest
         } );
     }
 
-//    getOrCreateLabelStateNodeDiffSets
+    @Test
+    void dataRevisionMustChangeOnDataChange()
+    {
+        assertThat( state.getDataRevision(), is( 0L ) );
+        assertFalse( state.hasDataChanges() );
+        LongHashSet observedRevisions = new LongHashSet();
+        observedRevisions.add( 0L );
+
+        state.nodeDoCreate( 0 );
+        assertTrue( observedRevisions.add( state.getDataRevision() ) );
+        assertTrue( state.hasDataChanges() );
+
+        state.nodeDoAddLabel( 0, 0 );
+        assertTrue( observedRevisions.add( state.getDataRevision() ) );
+        assertTrue( state.hasDataChanges() );
+
+        state.nodeDoRemoveLabel( 0, 0 );
+        assertTrue( observedRevisions.add( state.getDataRevision() ) );
+        assertTrue( state.hasDataChanges() );
+
+        state.nodeDoAddProperty( 0, 0, Values.booleanValue( true ) );
+        assertTrue( observedRevisions.add( state.getDataRevision() ) );
+        assertTrue( state.hasDataChanges() );
+
+        state.nodeDoChangeProperty( 0, 0, Values.booleanValue( false ) );
+        assertTrue( observedRevisions.add( state.getDataRevision() ) );
+        assertTrue( state.hasDataChanges() );
+
+        state.nodeDoRemoveProperty( 0, 0 );
+        assertTrue( observedRevisions.add( state.getDataRevision() ) );
+        assertTrue( state.hasDataChanges() );
+
+        state.nodeDoDelete( 0 );
+        assertTrue( observedRevisions.add( state.getDataRevision() ) );
+        assertTrue( state.hasDataChanges() );
+
+        state.relationshipDoCreate( 0, 0, 0, 0 );
+        assertTrue( observedRevisions.add( state.getDataRevision() ) );
+        assertTrue( state.hasDataChanges() );
+
+        state.relationshipDoReplaceProperty( 0, 0, Values.NO_VALUE, Values.booleanValue( true ) );
+        assertTrue( observedRevisions.add( state.getDataRevision() ) );
+        assertTrue( state.hasDataChanges() );
+
+        state.relationshipDoReplaceProperty( 0, 0, Values.booleanValue( true ), Values.booleanValue( false ) );
+        assertTrue( observedRevisions.add( state.getDataRevision() ) );
+        assertTrue( state.hasDataChanges() );
+
+        state.relationshipDoRemoveProperty( 0, 0 );
+        assertTrue( observedRevisions.add( state.getDataRevision() ) );
+        assertTrue( state.hasDataChanges() );
+
+        state.relationshipDoDeleteAddedInThisTx( 0 );
+        assertTrue( observedRevisions.add( state.getDataRevision() ) );
+        assertTrue( state.hasDataChanges() );
+
+        state.relationshipDoDelete( 1, 0, 0, 0 );
+        assertTrue( observedRevisions.add( state.getDataRevision() ) );
+        assertTrue( state.hasDataChanges() );
+    }
 
     @Test
-    public void getOrCreateNodeState_props_useCollectionsFactory()
+    void dataRevisionMustNotChangeOnSchemaChanges()
+    {
+        assertThat( state.getDataRevision(), is( 0L ) );
+        assertFalse( state.hasDataChanges() );
+
+        state.indexDoAdd( indexOn_1_1 );
+        assertThat( state.getDataRevision(), is( 0L ) );
+        assertFalse( state.hasDataChanges() );
+
+        state.indexDoDrop( indexOn_1_1 );
+        assertThat( state.getDataRevision(), is( 0L ) );
+        assertFalse( state.hasDataChanges() );
+
+        state.indexDoUnRemove( indexOn_1_1 );
+        assertThat( state.getDataRevision(), is( 0L ) );
+        assertFalse( state.hasDataChanges() );
+
+        UniquenessConstraintDescriptor constraint1 = ConstraintDescriptorFactory.uniqueForLabel( 1, 17 );
+        state.constraintDoAdd( constraint1 );
+        assertThat( state.getDataRevision(), is( 0L ) );
+        assertFalse( state.hasDataChanges() );
+
+        state.constraintDoDrop( constraint1 );
+        assertThat( state.getDataRevision(), is( 0L ) );
+        assertFalse( state.hasDataChanges() );
+
+        state.constraintDoUnRemove( constraint1 );
+        assertThat( state.getDataRevision(), is( 0L ) );
+        assertFalse( state.hasDataChanges() );
+
+        IndexBackedConstraintDescriptor constraint2 = ConstraintDescriptorFactory.nodeKeyForLabel( 0, 0 );
+        state.constraintDoAdd( constraint2, IndexPrototype.uniqueForSchema( forLabel( 0, 0 ) ).withName( "index" ).materialise( 0 ) );
+        assertThat( state.getDataRevision(), is( 0L ) );
+        assertFalse( state.hasDataChanges() );
+
+        state.labelDoCreateForName( "Label", false, 0 );
+        assertThat( state.getDataRevision(), is( 0L ) );
+        assertFalse( state.hasDataChanges() );
+
+        state.relationshipTypeDoCreateForName( "REL", false, 0 );
+        assertThat( state.getDataRevision(), is( 0L ) );
+        assertFalse( state.hasDataChanges() );
+
+        state.propertyKeyDoCreateForName( "prop", false, 0 );
+        assertThat( state.getDataRevision(), is( 0L ) );
+        assertFalse( state.hasDataChanges() );
+
+        // This is not strictly a schema-change, but it is a "non-data" change in that these will not transform into store updates.
+        // Or schema updates for that matter. We only do these to speed up the transaction state filtering of schema index query results.
+        state.indexDoUpdateEntry( indexOn_1_1.schema(), 0, ValueTuple.of( Values.booleanValue( true ) ), ValueTuple.of( Values.booleanValue( false ) ) );
+        assertThat( state.getDataRevision(), is( 0L ) );
+        assertFalse( state.hasDataChanges() );
+    }
+
+    //    getOrCreateLabelStateNodeDiffSets
+
+    @Test
+    void getOrCreateNodeState_props_useCollectionsFactory()
     {
         final NodeStateImpl nodeState = state.getOrCreateNodeState( 1 );
 
@@ -876,27 +939,12 @@ public class TxStateTest
         nodeState.changeProperty( 4, stringValue( "bar" ) );
 
         verify( collectionsFactory, times( 2 ) ).newValuesMap();
-        verify( collectionsFactory, times( 1 ) ).newLongSet();
+        verify( collectionsFactory ).newLongSet();
         verifyNoMoreInteractions( collectionsFactory );
     }
 
     @Test
-    public void getOrCreateGraphState_useCollectionsFactory()
-    {
-        final GraphStateImpl graphState = state.getOrCreateGraphState();
-
-        graphState.addProperty( 2, stringValue( "foo" ) );
-        graphState.removeProperty( 3 );
-        graphState.changeProperty( 4, stringValue( "bar" ) );
-
-        verify( collectionsFactory, times( 2 ) ).newValuesMap();
-        verify( collectionsFactory, times( 1 ) ).newLongSet();
-
-        verifyNoMoreInteractions( collectionsFactory );
-    }
-
-    @Test
-    public void getOrCreateLabelStateNodeDiffSets_useCollectionsFactory()
+    void getOrCreateLabelStateNodeDiffSets_useCollectionsFactory()
     {
         final MutableLongDiffSets diffSets = state.getOrCreateLabelStateNodeDiffSets(1);
 
@@ -908,7 +956,7 @@ public class TxStateTest
     }
 
     @Test
-    public void getOrCreateIndexUpdatesForSeek_useCollectionsFactory()
+    void getOrCreateIndexUpdatesForSeek_useCollectionsFactory()
     {
         final MutableLongDiffSets diffSets = state.getOrCreateIndexUpdatesForSeek( new HashMap<>(), ValueTuple.of( stringValue( "test" ) ) );
         diffSets.add( 1 );
@@ -946,7 +994,7 @@ public class TxStateTest
                     visitMethods.add( method.getName() );
                 }
             }
-            assertEquals( "should implement exactly two visit*(...) methods", 2, visitMethods.size() );
+            assertEquals( 2, visitMethods.size(), "should implement exactly two visit*(...) methods" );
             do
             {
                 if ( random.nextBoolean() )
@@ -1020,16 +1068,19 @@ public class TxStateTest
 
             private <T> void withProperties( Collection<Pair<Long,T>> nodesWithValues )
             {
-                final int labelId = descriptor.schema().keyId();
-                final int propertyKeyId = descriptor.schema().getPropertyId();
+                SchemaDescriptor schema = descriptor.schema();
+                int[] labelIds = schema.getEntityTokenIds();
+                int[] propertyKeyIds = schema.getPropertyIds();
+                assertEquals( labelIds.length, 1 );
+                assertEquals( propertyKeyIds.length, 1 );
                 for ( Pair<Long,T> entry : nodesWithValues )
                 {
                     long nodeId = entry.first();
                     state.nodeDoCreate( nodeId );
-                    state.nodeDoAddLabel( labelId, nodeId );
+                    state.nodeDoAddLabel( labelIds[0], nodeId );
                     Value valueAfter = Values.of( entry.other() );
-                    state.nodeDoAddProperty( nodeId, propertyKeyId, valueAfter );
-                    state.indexDoUpdateEntry( descriptor.schema(), nodeId, null, ValueTuple.of( valueAfter ) );
+                    state.nodeDoAddProperty( nodeId, propertyKeyIds[0], valueAfter );
+                    state.indexDoUpdateEntry( schema, nodeId, null, ValueTuple.of( valueAfter ) );
                 }
             }
         };

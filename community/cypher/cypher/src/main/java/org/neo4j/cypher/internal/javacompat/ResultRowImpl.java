@@ -30,7 +30,7 @@ import org.neo4j.graphdb.Result;
 
 public class ResultRowImpl implements Result.ResultRow
 {
-    private Map<String,Object> results;
+    private final Map<String,Object> results;
 
     public ResultRowImpl( Map<String,Object> results )
     {

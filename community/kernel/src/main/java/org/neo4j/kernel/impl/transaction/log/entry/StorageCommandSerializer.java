@@ -21,9 +21,9 @@ package org.neo4j.kernel.impl.transaction.log.entry;
 
 import java.io.IOException;
 
-import org.neo4j.helpers.collection.Visitor;
+import org.neo4j.internal.helpers.collection.Visitor;
+import org.neo4j.io.fs.WritableChannel;
 import org.neo4j.storageengine.api.StorageCommand;
-import org.neo4j.storageengine.api.WritableChannel;
 
 import static org.neo4j.kernel.impl.transaction.log.entry.LogEntryByteCodes.COMMAND;
 

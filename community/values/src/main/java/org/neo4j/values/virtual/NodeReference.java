@@ -55,4 +55,10 @@ public class NodeReference extends VirtualNodeValue
     {
         return id;
     }
+
+    @Override
+    protected long estimatedPayloadSize()
+    {
+        return Long.BYTES;
+    }
 }

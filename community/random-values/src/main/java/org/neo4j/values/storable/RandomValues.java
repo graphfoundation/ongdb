@@ -40,13 +40,12 @@ import java.util.function.Consumer;
 import java.util.function.IntFunction;
 import java.util.function.Predicate;
 
-import org.neo4j.function.Predicates;
-
 import static java.lang.Math.abs;
 import static java.time.LocalDate.ofEpochDay;
 import static java.time.LocalTime.ofNanoOfDay;
 import static java.time.ZoneOffset.UTC;
 import static java.time.temporal.ChronoUnit.DAYS;
+import static org.neo4j.internal.helpers.Numbers.ceilingPowerOfTwo;
 import static org.neo4j.values.storable.DateTimeValue.datetime;
 import static org.neo4j.values.storable.DateValue.date;
 import static org.neo4j.values.storable.DurationValue.duration;
@@ -87,6 +86,8 @@ public class RandomValues
         int arrayMaxLength();
 
         int maxCodePoint();
+
+        int minCodePoint();
     }
 
     public static class Default implements Configuration
@@ -119,6 +120,12 @@ public class RandomValues
         public int maxCodePoint()
         {
             return Character.MAX_CODE_POINT;
+        }
+
+        @Override
+        public int minCodePoint()
+        {
+            return Character.MIN_CODE_POINT;
         }
     }
 
@@ -246,7 +253,7 @@ public class RandomValues
     public static ValueType[] excluding( ValueType[] among, Predicate<ValueType> exclude )
     {
         return Arrays.stream( among )
-                .filter( Predicates.not( exclude ) )
+                .filter( exclude.negate() )
                 .toArray( ValueType[]::new );
     }
 
@@ -701,7 +708,7 @@ public class RandomValues
     {
         // todo should we generate UTF8StringValue or StringValue? Or maybe both? Randomly?
         int length = intBetween( minLength, maxLength );
-        UTF8StringValueBuilder builder = new UTF8StringValueBuilder( nextPowerOf2( length ) );
+        UTF8StringValueBuilder builder = new UTF8StringValueBuilder( length > 0 ? ceilingPowerOfTwo( length ) : 0 );
 
         for ( int i = 0; i < length; i++ )
         {
@@ -734,7 +741,7 @@ public class RandomValues
         int type;
         do
         {
-            codePoint = intBetween( Character.MIN_CODE_POINT, maxCodePoint );
+            codePoint = intBetween( configuration.minCodePoint(), maxCodePoint );
             type = Character.getType( codePoint );
         }
         while ( type == Character.UNASSIGNED ||
@@ -1592,11 +1599,6 @@ public class RandomValues
             }
         }
         return result;
-    }
-
-    private static int nextPowerOf2( int i )
-    {
-        return 1 << (32 - Integer.numberOfLeadingZeros( i ));
     }
 
     private int maxArray()

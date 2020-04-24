@@ -21,22 +21,27 @@ package cypher.features
 
 class TestConfig(
   val blacklist: Option[String],
-  val executionPrefix: String
+  val executionPrefix: String,
+  val experimental: Boolean = false
 )
 
 case object DefaultTestConfig extends TestConfig(Some("default.txt"),"")
 
-case object CostSlottedTestConfig extends TestConfig(Some("cost-slotted.txt"),"CYPHER planner=cost runtime=slotted")
+case object SlottedTestConfig extends TestConfig(Some("slotted.txt"),"CYPHER planner=cost runtime=slotted")
 
-case object CostSlottedWithCompiledExpressionsTestConfig extends TestConfig(Some("cost-slotted.txt"),"CYPHER planner=cost runtime=slotted expressionEngine=COMPILED")
+case object SlottedWithCompiledExpressionsTestConfig extends TestConfig(Some("slotted.txt"),"CYPHER planner=cost runtime=slotted expressionEngine=COMPILED")
 
-case object CostCompiledTestConfig extends TestConfig(Some("cost-compiled.txt"),
-  "CYPHER planner=cost runtime=compiled debug=generate_java_source")
+case object PipelinedTestConfig extends TestConfig(Some("pipelined-single-threaded.txt"), "CYPHER planner=cost runtime=pipelined")
 
-case object CostInterpretedTestConfig extends TestConfig(Some("cost-interpreted.txt"),"CYPHER planner=cost runtime=interpreted")
+case object ParallelTestConfig extends TestConfig(Some("parallel.txt"), "CYPHER planner=cost runtime=parallel")
 
-case object Compatibility34TestConfig extends TestConfig(Some("compatibility-34.txt"),"CYPHER 3.4")
+case object CompiledTestConfig extends TestConfig(Some("compiled.txt"),
+  "CYPHER planner=cost runtime=legacy_compiled debug=generate_java_source")
 
-case object Compatibility31TestConfig extends TestConfig(Some("compatibility-31.txt"),"CYPHER 3.1")
+case object InterpretedTestConfig extends TestConfig(Some("interpreted.txt"),"CYPHER planner=cost runtime=interpreted")
 
-case object Compatibility23TestConfig extends TestConfig(Some("compatibility-23.txt"),"CYPHER 2.3")
+case object PipelinedFullTestConfig extends TestConfig(
+  Some("pipelined-single-threaded-full.txt"),
+  "CYPHER planner=cost runtime=pipelined interpretedPipesFallback=all",
+  experimental = true
+)

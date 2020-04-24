@@ -19,9 +19,8 @@
  */
 package org.neo4j.cypher;
 
-import org.junit.Ignore;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
 
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
@@ -31,17 +30,19 @@ import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.Result;
 import org.neo4j.graphdb.Transaction;
-import org.neo4j.helpers.collection.Pair;
+import org.neo4j.internal.helpers.collection.Pair;
 import org.neo4j.internal.kernel.api.security.LoginContext;
 import org.neo4j.kernel.GraphDatabaseQueryService;
 import org.neo4j.kernel.api.KernelTransaction;
 import org.neo4j.kernel.impl.coreapi.InternalTransaction;
-import org.neo4j.test.rule.EmbeddedDatabaseRule;
+import org.neo4j.test.extension.DbmsExtension;
+import org.neo4j.test.extension.Inject;
 
 import static java.lang.String.format;
 
-@Ignore( "Too costly to run by default but useful for testing resource clean up and indexing" )
-public class ManyMergesStressTest
+@Disabled( "Too costly to run by default but useful for testing resource clean up and indexing" )
+@DbmsExtension
+class ManyMergesStressTest
 {
     private Random random = new Random();
 
@@ -49,13 +50,12 @@ public class ManyMergesStressTest
 
     private static final int TRIES = 8000;
 
-    @Rule
-    public EmbeddedDatabaseRule dbRule = new EmbeddedDatabaseRule();
+    @Inject
+    private GraphDatabaseService db;
 
     @Test
-    public void shouldWorkFine()
+    void shouldWorkFine()
     {
-        GraphDatabaseService db = dbRule.getGraphDatabaseAPI();
         GraphDatabaseQueryService graph = new GraphDatabaseCypherService( db );
 
         Label person = Label.label( "Person" );
@@ -64,24 +64,24 @@ public class ManyMergesStressTest
         {
             // THIS USED TO CAUSE OUT OF FILE HANDLES
             // (maybe look at:  http://stackoverflow.com/questions/6210348/too-many-open-files-error-on-lucene)
-            db.schema().indexFor( person ).on( "id" ).create();
+            tx.schema().indexFor( person ).on( "id" ).create();
 
             // THIS SHOULD ALSO WORK
-            db.schema().constraintFor( person ).assertPropertyIsUnique( "id" ).create();
+            tx.schema().constraintFor( person ).assertPropertyIsUnique( "id" ).create();
 
-            tx.success();
+            tx.commit();
         }
 
         try ( Transaction tx = db.beginTx() )
         {
-            db.schema().indexFor( person ).on( "name" ).create();
-            tx.success();
+            tx.schema().indexFor( person ).on( "name" ).create();
+            tx.commit();
         }
 
         try ( Transaction tx = db.beginTx() )
         {
-            db.schema().awaitIndexesOnline( 1, TimeUnit.MINUTES );
-            tx.success();
+            tx.schema().awaitIndexesOnline( 1, TimeUnit.MINUTES );
+            tx.commit();
         }
 
         for ( int count = 0; count < TRIES; count++ )
@@ -95,14 +95,14 @@ public class ManyMergesStressTest
 
             try ( InternalTransaction tx = graph.beginTransaction( KernelTransaction.Type.implicit, LoginContext.AUTH_DISABLED ) )
             {
-                Result result = db.execute( query );
+                Result result = tx.execute( query );
                 result.close();
-                tx.success();
+                tx.commit();
             }
         }
     }
 
-    public Pair<String, String> getRandomName()
+    private Pair<String, String> getRandomName()
     {
         StringBuilder identBuilder = new StringBuilder();
         StringBuilder nameBuilder = new StringBuilder();

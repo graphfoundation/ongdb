@@ -19,60 +19,63 @@
  */
 package org.neo4j.kernel.impl.api.index;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
+import org.neo4j.common.EntityType;
+import org.neo4j.exceptions.KernelException;
 import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.schema.IndexDefinition;
-import org.neo4j.helpers.collection.Iterables;
-import org.neo4j.helpers.collection.Iterators;
-import org.neo4j.internal.kernel.api.IndexReference;
+import org.neo4j.internal.helpers.collection.Iterables;
+import org.neo4j.internal.helpers.collection.Iterators;
 import org.neo4j.internal.kernel.api.SchemaRead;
 import org.neo4j.internal.kernel.api.SchemaWrite;
 import org.neo4j.internal.kernel.api.TokenWrite;
-import org.neo4j.internal.kernel.api.Transaction;
 import org.neo4j.internal.kernel.api.Write;
-import org.neo4j.internal.kernel.api.exceptions.KernelException;
 import org.neo4j.internal.kernel.api.exceptions.schema.SchemaKernelException;
-import org.neo4j.internal.kernel.api.schema.LabelSchemaDescriptor;
-import org.neo4j.internal.kernel.api.schema.SchemaDescriptor;
-import org.neo4j.storageengine.api.NodePropertyAccessor;
-import org.neo4j.kernel.api.schema.MultiTokenSchemaDescriptor;
-import org.neo4j.kernel.api.schema.SchemaDescriptorFactory;
-import org.neo4j.kernel.api.schema.constraints.IndexBackedConstraintDescriptor;
-import org.neo4j.kernel.configuration.Config;
+import org.neo4j.internal.schema.ConstraintDescriptor;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.internal.schema.IndexPrototype;
+import org.neo4j.internal.schema.IndexProviderDescriptor;
+import org.neo4j.internal.schema.IndexType;
+import org.neo4j.internal.schema.LabelSchemaDescriptor;
+import org.neo4j.internal.schema.SchemaDescriptor;
+import org.neo4j.internal.schema.constraints.IndexBackedConstraintDescriptor;
+import org.neo4j.kernel.api.KernelTransaction;
 import org.neo4j.kernel.impl.api.integrationtest.KernelIntegrationTest;
 import org.neo4j.kernel.impl.api.state.ConstraintIndexCreator;
+import org.neo4j.kernel.impl.index.schema.FulltextIndexProviderFactory;
+import org.neo4j.kernel.impl.index.schema.GenericNativeIndexProvider;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
 import org.neo4j.logging.AssertableLogProvider;
-import org.neo4j.storageengine.api.EntityType;
-import org.neo4j.storageengine.api.schema.IndexDescriptor;
 
 import static java.util.Collections.emptySet;
 import static java.util.Collections.singletonList;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-import static org.mockito.Mockito.mock;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.neo4j.common.TokenNameLookup.idTokenNameLookup;
 import static org.neo4j.graphdb.Label.label;
 import static org.neo4j.graphdb.RelationshipType.withName;
-import static org.neo4j.graphdb.factory.GraphDatabaseSettings.default_schema_provider;
-import static org.neo4j.helpers.collection.Iterables.single;
-import static org.neo4j.helpers.collection.Iterators.asSet;
+import static org.neo4j.internal.helpers.collection.Iterables.single;
+import static org.neo4j.internal.helpers.collection.Iterators.asSet;
 import static org.neo4j.internal.kernel.api.security.LoginContext.AUTH_DISABLED;
+import static org.neo4j.internal.schema.IndexPrototype.uniqueForSchema;
 
-public class IndexIT extends KernelIntegrationTest
+class IndexIT extends KernelIntegrationTest
 {
     private static final String LABEL = "Label";
     private static final String LABEL2 = "Label2";
@@ -87,12 +90,12 @@ public class IndexIT extends KernelIntegrationTest
     private int relType2;
     private int propertyKeyId;
     private int propertyKeyId2;
-    private LabelSchemaDescriptor descriptor;
-    private LabelSchemaDescriptor descriptor2;
+    private LabelSchemaDescriptor schema;
+    private LabelSchemaDescriptor schema2;
     private ExecutorService executorService;
 
-    @Before
-    public void createLabelAndProperty() throws Exception
+    @BeforeEach
+    void createLabelAndProperty() throws Exception
     {
         TokenWrite tokenWrites = tokenWriteInNewTransaction();
         labelId = tokenWrites.labelGetOrCreateForName( LABEL );
@@ -101,40 +104,54 @@ public class IndexIT extends KernelIntegrationTest
         relType2 = tokenWrites.relationshipTypeGetOrCreateForName( REL_TYPE2 );
         propertyKeyId = tokenWrites.propertyKeyGetOrCreateForName( PROPERTY_KEY );
         propertyKeyId2 = tokenWrites.propertyKeyGetOrCreateForName( PROPERTY_KEY2 );
-        descriptor = SchemaDescriptorFactory.forLabel( labelId, propertyKeyId );
-        descriptor2 = SchemaDescriptorFactory.forLabel( labelId, propertyKeyId2 );
+        schema = SchemaDescriptor.forLabel( labelId, propertyKeyId );
+        schema2 = SchemaDescriptor.forLabel( labelId, propertyKeyId2 );
         commit();
         executorService = Executors.newCachedThreadPool();
     }
 
-    @After
-    public void tearDown()
+    @AfterEach
+    void tearDown()
     {
         executorService.shutdown();
     }
 
     @Test
-    public void createIndexForAnotherLabelWhileHoldingSharedLockOnOtherLabel() throws KernelException
+    void createIndexForAnotherLabelWhileHoldingSharedLockOnOtherLabel() throws KernelException, ExecutionException, InterruptedException
     {
         TokenWrite tokenWrite = tokenWriteInNewTransaction();
         int label2 = tokenWrite.labelGetOrCreateForName( "Label2" );
+        commit();
 
         Write write = dataWriteInNewTransaction();
         long nodeId = write.nodeCreate();
         write.nodeAddLabel( nodeId, label2 );
-
-        schemaWriteInNewTransaction().indexCreate( descriptor );
-        commit();
+        try ( var ignored = captureTransaction() )
+        {
+            executorService.submit( () -> {
+                try
+                {
+                    schemaWriteInNewTransaction().indexCreate( schema, null );
+                    commit();
+                }
+                catch ( Exception e )
+                {
+                    throw new RuntimeException( e );
+                }
+            } ).get();
+        }
     }
 
-    @Test( timeout = 10_000 )
-    public void createIndexesForDifferentLabelsConcurrently() throws Throwable
+    @Test
+    @Timeout( 10 )
+    void createIndexesForDifferentLabelsConcurrently() throws Throwable
     {
         TokenWrite tokenWrite = tokenWriteInNewTransaction();
         int label2 = tokenWrite.labelGetOrCreateForName( "Label2" );
+        commit();
 
-        LabelSchemaDescriptor anotherLabelDescriptor = SchemaDescriptorFactory.forLabel( label2, propertyKeyId );
-        schemaWriteInNewTransaction().indexCreate( anotherLabelDescriptor );
+        LabelSchemaDescriptor anotherLabelDescriptor = SchemaDescriptor.forLabel( label2, propertyKeyId );
+        schemaWriteInNewTransaction().indexCreate( anotherLabelDescriptor, "my index" );
 
         Future<?> indexFuture = executorService.submit( createIndex( db, label( LABEL ), PROPERTY_KEY ) );
         indexFuture.get();
@@ -142,35 +159,35 @@ public class IndexIT extends KernelIntegrationTest
     }
 
     @Test
-    public void addIndexRuleInATransaction() throws Exception
+    void addIndexRuleInATransaction() throws Exception
     {
         // GIVEN
         SchemaWrite schemaWriteOperations = schemaWriteInNewTransaction();
 
         // WHEN
-        IndexReference expectedRule = schemaWriteOperations.indexCreate( descriptor );
+        IndexDescriptor expectedRule = schemaWriteOperations.indexCreate( schema, "my index" );
         commit();
 
         // THEN
         SchemaRead schemaRead = newTransaction().schemaRead();
         assertEquals( asSet( expectedRule ), asSet( schemaRead.indexesGetForLabel( labelId ) ) );
-        assertEquals( expectedRule, schemaRead.index( descriptor.getLabelId(), descriptor.getPropertyIds() ) );
+        assertEquals( expectedRule, Iterators.single( schemaRead.index( schema ) ) );
         commit();
     }
 
     @Test
-    public void committedAndTransactionalIndexRulesShouldBeMerged() throws Exception
+    void committedAndTransactionalIndexRulesShouldBeMerged() throws Exception
     {
         // GIVEN
         SchemaWrite schemaWriteOperations = schemaWriteInNewTransaction();
-        IndexReference existingRule = schemaWriteOperations.indexCreate( descriptor );
+        IndexDescriptor existingRule = schemaWriteOperations.indexCreate( schema, "my index" );
         commit();
 
         // WHEN
-        Transaction transaction = newTransaction( AUTH_DISABLED );
-        IndexReference addedRule = transaction.schemaWrite()
-                                                   .indexCreate( SchemaDescriptorFactory.forLabel( labelId, 10 ) );
-        Set<IndexReference> indexRulesInTx = asSet( transaction.schemaRead().indexesGetForLabel( labelId ) );
+        KernelTransaction transaction = newTransaction( AUTH_DISABLED );
+        LabelSchemaDescriptor schema = SchemaDescriptor.forLabel( labelId, propertyKeyId2 );
+        IndexDescriptor addedRule = transaction.schemaWrite().indexCreate( schema, "my other index" );
+        Set<IndexDescriptor> indexRulesInTx = asSet( transaction.schemaRead().indexesGetForLabel( labelId ) );
         commit();
 
         // THEN
@@ -178,34 +195,34 @@ public class IndexIT extends KernelIntegrationTest
     }
 
     @Test
-    public void rollBackIndexRuleShouldNotBeCommitted() throws Exception
+    void rollBackIndexRuleShouldNotBeCommitted() throws Exception
     {
         // GIVEN
         SchemaWrite schemaWrite = schemaWriteInNewTransaction();
 
         // WHEN
-        schemaWrite.indexCreate( descriptor );
+        schemaWrite.indexCreate( schema, "my index" );
         // don't mark as success
         rollback();
 
         // THEN
-        Transaction transaction = newTransaction();
+        KernelTransaction transaction = newTransaction();
         assertEquals( emptySet(), asSet( transaction.schemaRead().indexesGetForLabel( labelId ) ) );
         commit();
     }
 
     @Test
-    public void shouldBeAbleToRemoveAConstraintIndexWithoutOwner() throws Exception
+    void shouldBeAbleToRemoveAConstraintIndexWithoutOwner() throws Exception
     {
         // given
-        NodePropertyAccessor propertyAccessor = mock( NodePropertyAccessor.class );
         AssertableLogProvider logProvider = new AssertableLogProvider();
-        ConstraintIndexCreator creator = new ConstraintIndexCreator( () -> kernel, indexingService, propertyAccessor, logProvider );
+        ConstraintIndexCreator creator = new ConstraintIndexCreator( () -> kernel, indexingService, logProvider );
 
-        String defaultProvider = Config.defaults().get( default_schema_provider );
-        IndexDescriptor constraintIndex = creator.createConstraintIndex( descriptor, defaultProvider );
+        IndexProviderDescriptor provider = GenericNativeIndexProvider.DESCRIPTOR;
+        IndexPrototype prototype = uniqueForSchema( schema ).withName( "constraint name" ).withIndexProvider( provider );
+        IndexDescriptor constraintIndex = creator.createConstraintIndex( prototype );
         // then
-        Transaction transaction = newTransaction();
+        KernelTransaction transaction = newTransaction();
         assertEquals( emptySet(), asSet( transaction.schemaRead().constraintsGetForLabel( labelId ) ) );
         commit();
 
@@ -221,13 +238,63 @@ public class IndexIT extends KernelIntegrationTest
     }
 
     @Test
-    public void shouldDisallowDroppingIndexThatDoesNotExist() throws Exception
+    void shouldDisallowDroppingIndexThatDoesNotExist() throws Exception
     {
         // given
-        IndexReference index;
+        IndexDescriptor index;
         {
             SchemaWrite statement = schemaWriteInNewTransaction();
-            index = statement.indexCreate( descriptor );
+            index = statement.indexCreate( schema, "my index" );
+            commit();
+        }
+        {
+            SchemaWrite statement = schemaWriteInNewTransaction();
+            statement.indexDrop( index );
+            commit();
+        }
+
+        var e = assertThrows( SchemaKernelException.class, () ->
+        {
+            SchemaWrite statement = schemaWriteInNewTransaction();
+            statement.indexDrop( index );
+        } );
+        assertEquals( "Unable to drop index: Index does not exist: Index( 1, 'my index', GENERAL BTREE, :Label(prop), native-btree-1.0 )",
+                e.getUserMessage( idTokenNameLookup ) );
+        commit();
+    }
+
+    @Test
+    void shouldDisallowDroppingIndexBySchemaThatDoesNotExist() throws Exception
+    {
+        // given
+        IndexDescriptor index;
+        {
+            SchemaWrite statement = schemaWriteInNewTransaction();
+            index = statement.indexCreate( schema, "my index" );
+            commit();
+        }
+        {
+            SchemaWrite statement = schemaWriteInNewTransaction();
+            statement.indexDrop( index.schema() );
+            commit();
+        }
+
+        // when
+        SchemaWrite statement = schemaWriteInNewTransaction();
+        SchemaKernelException e = assertThrows( SchemaKernelException.class, () -> statement.indexDrop( index.schema() ) );
+        assertEquals( "Unable to drop index on :" + LABEL + "(" + PROPERTY_KEY + "). There is no such index.", e.getMessage() );
+        commit();
+    }
+
+    @Test
+    void shouldDisallowDroppingIndexByNameThatDoesNotExist() throws KernelException
+    {
+        // given
+        String indexName = "My fancy index";
+        IndexDescriptor index;
+        {
+            SchemaWrite statement = schemaWriteInNewTransaction();
+            index = statement.indexCreate( schema, indexName );
             commit();
         }
         {
@@ -237,305 +304,247 @@ public class IndexIT extends KernelIntegrationTest
         }
 
         // when
-        try
-        {
-            SchemaWrite statement = schemaWriteInNewTransaction();
-            statement.indexDrop( index );
-            commit();
-        }
-        // then
-        catch ( SchemaKernelException e )
-        {
-            assertEquals( "Unable to drop index on :label[" + labelId + "](property[" + propertyKeyId + "]): " +
-                          "No such INDEX ON :label[" + labelId + "](property[" + propertyKeyId + "]).", e.getMessage() );
-        }
-        commit();
+        SchemaWrite statement = schemaWriteInNewTransaction();
+        SchemaKernelException e = assertThrows( SchemaKernelException.class, () -> statement.indexDrop( indexName ) );
+        assertEquals( e.getMessage(), "Unable to drop index called `My fancy index`. There is no such index." );
+        rollback();
     }
 
     @Test
-    public void shouldFailToCreateIndexWhereAConstraintAlreadyExists() throws Exception
+    void shouldDisallowDroppingConstraintByNameThatDoesNotExist() throws KernelException
     {
         // given
+        String constraintName = "my constraint";
+        ConstraintDescriptor constraint;
         {
             SchemaWrite statement = schemaWriteInNewTransaction();
-            statement.uniquePropertyConstraintCreate( descriptor );
+            constraint = statement.uniquePropertyConstraintCreate( uniqueForSchema( schema ).withName( "constraint name" ) );
+            commit();
+        }
+        {
+            SchemaWrite statement = schemaWriteInNewTransaction();
+            statement.constraintDrop( constraint );
             commit();
         }
 
         // when
-        try
+        SchemaWrite statement = schemaWriteInNewTransaction();
+        SchemaKernelException e = assertThrows( SchemaKernelException.class, () -> statement.constraintDrop( constraintName ) );
+        assertEquals( "Unable to drop constraint `my constraint`: No such constraint my constraint.", e.getMessage() );
+        rollback();
+    }
+
+    @Test
+    void shouldDisallowDroppingIndexByNameThatBelongsToConstraint() throws KernelException
+    {
+        // given
+        String constraintName = "my constraint";
         {
             SchemaWrite statement = schemaWriteInNewTransaction();
-            statement.indexCreate( descriptor );
+            statement.uniquePropertyConstraintCreate( uniqueForSchema( schema ).withName( "constraint name" ) );
             commit();
+        }
 
-            fail( "expected exception" );
-        }
-        // then
-        catch ( SchemaKernelException e )
+        // when
+        SchemaWrite statement = schemaWriteInNewTransaction();
+        SchemaKernelException e = assertThrows( SchemaKernelException.class, () -> statement.indexDrop( constraintName ) );
+        assertEquals( "Unable to drop index called `my constraint`. There is no such index.", e.getMessage() );
+        rollback();
+    }
+
+    @Test
+    void shouldFailToCreateIndexWhereAConstraintAlreadyExists() throws Exception
+    {
+        // given
         {
-            assertEquals( "There is a uniqueness constraint on :" + LABEL + "(" + PROPERTY_KEY + "), so an index is " +
-                          "already created that matches this.", e.getMessage() );
+            SchemaWrite statement = schemaWriteInNewTransaction();
+            statement.uniquePropertyConstraintCreate( uniqueForSchema( schema ).withName( "constraint name" ) );
+            commit();
         }
+
+        var e = assertThrows( SchemaKernelException.class, () ->
+        {
+            SchemaWrite statement = schemaWriteInNewTransaction();
+            statement.indexCreate( schema, "my index" );
+            commit();
+        } );
+        assertEquals( "There is a uniqueness constraint on :" + LABEL + "(" + PROPERTY_KEY + "), so an index is " +
+            "already created that matches this.", e.getMessage() );
         commit();
     }
 
     @Test
-    public void shouldListConstraintIndexesInTheCoreAPI() throws Exception
+    void shouldListConstraintIndexesInTheCoreAPI() throws Exception
     {
         // given
-        Transaction transaction = newTransaction( AUTH_DISABLED );
-        transaction.schemaWrite().uniquePropertyConstraintCreate(
-                SchemaDescriptorFactory.forLabel(
-                        transaction.tokenWrite().labelGetOrCreateForName( "Label1" ),
-                        transaction.tokenWrite().propertyKeyGetOrCreateForName( "property1" )
-                ) );
+        KernelTransaction transaction = newTransaction( AUTH_DISABLED );
+        int labelId = transaction.tokenWrite().labelGetOrCreateForName( "Label1" );
+        int propertyKeyId = transaction.tokenWrite().propertyKeyGetOrCreateForName( "property1" );
+        LabelSchemaDescriptor schema = SchemaDescriptor.forLabel( labelId, propertyKeyId );
+        transaction.schemaWrite().uniquePropertyConstraintCreate( uniqueForSchema( schema ).withName( "constraint name" ) );
         commit();
 
         // when
-        try ( org.neo4j.graphdb.Transaction ignore = db.beginTx() )
+        try ( org.neo4j.graphdb.Transaction tx = db.beginTx() )
         {
-            Set<IndexDefinition> indexes = Iterables.asSet( db.schema().getIndexes() );
+            Set<IndexDefinition> indexes = Iterables.asSet( tx.schema().getIndexes() );
 
             // then
             assertEquals( 1, indexes.size() );
             IndexDefinition index = indexes.iterator().next();
             assertEquals( "Label1", single( index.getLabels() ).name() );
             assertEquals( asSet( "property1" ), Iterables.asSet( index.getPropertyKeys() ) );
-            assertTrue( "index should be a constraint index", index.isConstraintIndex() );
+            assertTrue( index.isConstraintIndex(), "index should be a constraint index" );
 
             // when
-            try
-            {
-                index.drop();
-
-                fail( "expected exception" );
-            }
-            // then
-            catch ( IllegalStateException e )
-            {
-                assertEquals( "Constraint indexes cannot be dropped directly, " +
-                        "instead drop the owning uniqueness constraint.", e.getMessage() );
-            }
+            var e = assertThrows( IllegalStateException.class, index::drop );
+            assertEquals( "Constraint indexes cannot be dropped directly, instead drop the owning uniqueness constraint.", e.getMessage() );
         }
     }
 
     @Test
-    public void shouldListMultiTokenIndexesInTheCoreAPI() throws Exception
+    void shouldListMultiTokenIndexesInTheCoreAPI() throws Exception
     {
-        Transaction transaction = newTransaction( AUTH_DISABLED );
-        MultiTokenSchemaDescriptor descriptor = SchemaDescriptorFactory.multiToken(
-                new int[]{labelId, labelId2}, EntityType.NODE, propertyKeyId );
-        transaction.schemaWrite().indexCreate( descriptor );
+        KernelTransaction transaction = newTransaction( AUTH_DISABLED );
+        SchemaDescriptor schema = SchemaDescriptor.fulltext(
+                EntityType.NODE, new int[]{labelId, labelId2}, new int[]{propertyKeyId} );
+        IndexPrototype prototype = IndexPrototype.forSchema( schema, FulltextIndexProviderFactory.DESCRIPTOR ).withIndexType( IndexType.FULLTEXT );
+        transaction.schemaWrite().indexCreate( prototype );
         commit();
 
-        try ( @SuppressWarnings( "unused" ) org.neo4j.graphdb.Transaction tx = db.beginTx() )
+        try ( org.neo4j.graphdb.Transaction tx = db.beginTx() )
         {
-            Set<IndexDefinition> indexes = Iterables.asSet( db.schema().getIndexes() );
+            Set<IndexDefinition> indexes = Iterables.asSet( tx.schema().getIndexes() );
 
             // then
             assertEquals( 1, indexes.size() );
             IndexDefinition index = indexes.iterator().next();
-            try
-            {
-                index.getLabel();
-                fail( "index.getLabel() should have thrown. ");
-            }
-            catch ( IllegalStateException ignore )
-            {
-            }
-            try
-            {
-                index.getRelationshipType();
-                fail( "index.getRelationshipType() should have thrown. ");
-            }
-            catch ( IllegalStateException ignore )
-            {
-            }
-            try
-            {
-                index.getRelationshipTypes();
-                fail( "index.getRelationshipTypes() should have thrown. ");
-            }
-            catch ( IllegalStateException ignore )
-            {
-            }
+            assertThrows( IllegalStateException.class, index::getRelationshipTypes );
             assertThat( index.getLabels(), containsInAnyOrder( label( LABEL ), label( LABEL2 ) ) );
-            assertFalse( "should not be a constraint index", index.isConstraintIndex() );
-            assertTrue( "should be a multi-token index", index.isMultiTokenIndex() );
-            assertFalse( "should not be a composite index", index.isCompositeIndex() );
-            assertTrue( "should be a node index", index.isNodeIndex() );
-            assertFalse( "should not be a relationship index", index.isRelationshipIndex() );
+            assertFalse( index.isConstraintIndex(), "should not be a constraint index" );
+            assertTrue( index.isMultiTokenIndex(), "should be a multi-token index" );
+            assertFalse( index.isCompositeIndex(), "should not be a composite index" );
+            assertTrue( index.isNodeIndex(), "should be a node index" );
+            assertFalse( index.isRelationshipIndex(), "should not be a relationship index" );
             assertEquals( asSet( PROPERTY_KEY ), Iterables.asSet( index.getPropertyKeys() ) );
         }
     }
 
     @Test
-    public void shouldListCompositeIndexesInTheCoreAPI() throws Exception
+    void shouldListCompositeIndexesInTheCoreAPI() throws Exception
     {
-        Transaction transaction = newTransaction( AUTH_DISABLED );
-        SchemaDescriptor descriptor = SchemaDescriptorFactory.forLabel( labelId, propertyKeyId, propertyKeyId2 );
-        transaction.schemaWrite().indexCreate( descriptor );
+        KernelTransaction transaction = newTransaction( AUTH_DISABLED );
+        SchemaDescriptor schema = SchemaDescriptor.forLabel( labelId, propertyKeyId, propertyKeyId2 );
+        transaction.schemaWrite().indexCreate( schema, "my index" );
         commit();
 
-        try ( @SuppressWarnings( "unused" ) org.neo4j.graphdb.Transaction tx = db.beginTx() )
+        try ( org.neo4j.graphdb.Transaction tx = db.beginTx() )
         {
-            Set<IndexDefinition> indexes = Iterables.asSet( db.schema().getIndexes() );
+            Set<IndexDefinition> indexes = Iterables.asSet( tx.schema().getIndexes() );
 
             // then
             assertEquals( 1, indexes.size() );
             IndexDefinition index = indexes.iterator().next();
             assertEquals( LABEL, single( index.getLabels() ).name() );
             assertThat( index.getLabels(), containsInAnyOrder( label( LABEL ) ) );
-            try
-            {
-                index.getRelationshipType();
-                fail( "index.getRelationshipType() should have thrown. ");
-            }
-            catch ( IllegalStateException ignore )
-            {
-            }
-            try
-            {
-                index.getRelationshipTypes();
-                fail( "index.getRelationshipTypes() should have thrown. ");
-            }
-            catch ( IllegalStateException ignore )
-            {
-            }
-            assertFalse( "should not be a constraint index", index.isConstraintIndex() );
-            assertFalse( "should not be a multi-token index", index.isMultiTokenIndex() );
-            assertTrue( "should be a composite index", index.isCompositeIndex() );
-            assertTrue( "should be a node index", index.isNodeIndex() );
-            assertFalse( "should not be a relationship index", index.isRelationshipIndex() );
+            assertThrows( IllegalStateException.class, index::getRelationshipTypes );
+            assertFalse( index.isConstraintIndex(), "should not be a constraint index" );
+            assertFalse( index.isMultiTokenIndex(), "should not be a multi-token index" );
+            assertTrue( index.isCompositeIndex(), "should be a composite index" );
+            assertTrue( index.isNodeIndex(), "should be a node index" );
+            assertFalse( index.isRelationshipIndex(), "should not be a relationship index" );
             assertEquals( asSet( PROPERTY_KEY, PROPERTY_KEY2 ), Iterables.asSet( index.getPropertyKeys() ) );
         }
     }
 
     @Test
-    public void shouldListRelationshipIndexesInTheCoreAPI() throws Exception
+    void shouldListRelationshipIndexesInTheCoreAPI() throws Exception
     {
-        Transaction transaction = newTransaction( AUTH_DISABLED );
-        SchemaDescriptor descriptor = SchemaDescriptorFactory.forRelType( relType, propertyKeyId );
-        transaction.schemaWrite().indexCreate( descriptor );
+        KernelTransaction transaction = newTransaction( AUTH_DISABLED );
+        SchemaDescriptor schema = SchemaDescriptor.forRelType( relType, propertyKeyId );
+        transaction.schemaWrite().indexCreate( schema, "my index" );
         commit();
 
         try ( org.neo4j.graphdb.Transaction tx = db.beginTx() )
         {
-            Set<IndexDefinition> indexes = Iterables.asSet( db.schema().getIndexes() );
+            Set<IndexDefinition> indexes = Iterables.asSet( tx.schema().getIndexes() );
 
             // then
             assertEquals( 1, indexes.size() );
             IndexDefinition index = indexes.iterator().next();
-            try
-            {
-                index.getLabel();
-                fail( "index.getLabel() should have thrown. ");
-            }
-            catch ( IllegalStateException ignore )
-            {
-            }
-            try
-            {
-                index.getLabels();
-                fail( "index.getLabels() should have thrown. ");
-            }
-            catch ( IllegalStateException ignore )
-            {
-            }
-            assertEquals( REL_TYPE, index.getRelationshipType().name() );
+            assertThrows( IllegalStateException.class, index::getLabels );
             assertEquals( singletonList( withName( REL_TYPE ) ), index.getRelationshipTypes() );
-            assertFalse( "should not be a constraint index", index.isConstraintIndex() );
-            assertFalse( "should not be a multi-token index", index.isMultiTokenIndex() );
-            assertFalse( "should not be a composite index", index.isCompositeIndex() );
-            assertFalse( "should not be a node index", index.isNodeIndex() );
-            assertTrue( "should be a relationship index", index.isRelationshipIndex() );
+            assertFalse( index.isConstraintIndex(), "should not be a constraint index" );
+            assertFalse( index.isMultiTokenIndex(), "should not be a multi-token index" );
+            assertFalse( index.isCompositeIndex(), "should not be a composite index" );
+            assertFalse( index.isNodeIndex(), "should not be a node index" );
+            assertTrue( index.isRelationshipIndex(), "should be a relationship index" );
             assertEquals( asSet( PROPERTY_KEY ), Iterables.asSet( index.getPropertyKeys() ) );
         }
     }
 
     @Test
-    public void shouldListCompositeMultiTokenRelationshipIndexesInTheCoreAPI() throws Exception
+    void shouldListCompositeMultiTokenRelationshipIndexesInTheCoreAPI() throws Exception
     {
-        Transaction transaction = newTransaction( AUTH_DISABLED );
-        SchemaDescriptor descriptor = SchemaDescriptorFactory.multiToken(
-                new int[]{relType, relType2}, EntityType.RELATIONSHIP, propertyKeyId, propertyKeyId2 );
-        transaction.schemaWrite().indexCreate( descriptor );
+        KernelTransaction transaction = newTransaction( AUTH_DISABLED );
+        SchemaDescriptor schema = SchemaDescriptor.fulltext( EntityType.RELATIONSHIP, new int[]{relType, relType2},
+                new int[]{propertyKeyId, propertyKeyId2} );
+        IndexPrototype prototype = IndexPrototype.forSchema( schema, FulltextIndexProviderFactory.DESCRIPTOR )
+                .withIndexType( IndexType.FULLTEXT )
+                .withName( "index name" );
+        transaction.schemaWrite().indexCreate( prototype );
         commit();
 
         try ( org.neo4j.graphdb.Transaction tx = db.beginTx() )
         {
-            Set<IndexDefinition> indexes = Iterables.asSet( db.schema().getIndexes() );
+            Set<IndexDefinition> indexes = Iterables.asSet( tx.schema().getIndexes() );
 
             // then
             assertEquals( 1, indexes.size() );
             IndexDefinition index = indexes.iterator().next();
-            try
-            {
-                index.getLabel();
-                fail( "index.getLabel() should have thrown. ");
-            }
-            catch ( IllegalStateException ignore )
-            {
-            }
-            try
-            {
-                index.getLabels();
-                fail( "index.getLabels() should have thrown. ");
-            }
-            catch ( IllegalStateException ignore )
-            {
-            }
-            try
-            {
-                index.getRelationshipType();
-                fail( "index.getRelationshipType() should have thrown. ");
-            }
-            catch ( IllegalStateException ignore )
-            {
-            }
+            assertThrows( IllegalStateException.class, index::getLabels );
             assertThat( index.getRelationshipTypes(), containsInAnyOrder( withName( REL_TYPE ), withName( REL_TYPE2 ) ) );
-            assertFalse( "should not be a constraint index", index.isConstraintIndex() );
-            assertTrue( "should be a multi-token index", index.isMultiTokenIndex() );
-            assertTrue( "should be a composite index", index.isCompositeIndex() );
-            assertFalse( "should not be a node index", index.isNodeIndex() );
-            assertTrue( "should be a relationship index", index.isRelationshipIndex() );
+            assertFalse( index.isConstraintIndex(), "should not be a constraint index" );
+            assertTrue( index.isMultiTokenIndex(), "should be a multi-token index" );
+            assertTrue( index.isCompositeIndex(), "should be a composite index" );
+            assertFalse( index.isNodeIndex(), "should not be a node index" );
+            assertTrue( index.isRelationshipIndex(), "should be a relationship index" );
             assertEquals( asSet( PROPERTY_KEY, PROPERTY_KEY2 ), Iterables.asSet( index.getPropertyKeys() ) );
         }
     }
 
     @Test
-    public void shouldListAll() throws Exception
+    void shouldListAll() throws Exception
     {
         // given
         SchemaWrite schemaWrite = schemaWriteInNewTransaction();
-        IndexReference index1 = schemaWrite.indexCreate( descriptor );
-        IndexReference index2 =
-                ((IndexBackedConstraintDescriptor) schemaWrite.uniquePropertyConstraintCreate( descriptor2 ))
-                        .ownedIndexDescriptor();
+        IndexDescriptor index1 = schemaWrite.indexCreate( schema, "my index" );
+        IndexBackedConstraintDescriptor constraint = schemaWrite.uniquePropertyConstraintCreate( uniqueForSchema( schema2 ).withName( "constraint name" ) )
+                .asIndexBackedConstraint();
         commit();
 
         // then/when
         SchemaRead schemaRead = newTransaction().schemaRead();
-        List<IndexReference> indexes = Iterators.asList( schemaRead.indexesGetAll() );
+        IndexDescriptor index2 = Iterators.single( schemaRead.index( constraint.schema() ) );
+        List<IndexDescriptor> indexes = Iterators.asList( schemaRead.indexesGetAll() );
         assertThat( indexes, containsInAnyOrder( index1, index2 ) );
         commit();
     }
 
-    private Runnable createIndex( GraphDatabaseAPI db, Label label, String propertyKey )
+    private static Runnable createIndex( GraphDatabaseAPI db, Label label, String propertyKey )
     {
         return () ->
         {
             try ( org.neo4j.graphdb.Transaction transaction = db.beginTx() )
             {
-                db.schema().indexFor( label ).on( propertyKey ).create();
-                transaction.success();
+                transaction.schema().indexFor( label ).on( propertyKey ).create();
+                transaction.commit();
             }
 
             try ( org.neo4j.graphdb.Transaction transaction = db.beginTx() )
             {
-                db.schema().awaitIndexesOnline( 1, TimeUnit.MINUTES );
-                transaction.success();
+                transaction.schema().awaitIndexesOnline( 1, TimeUnit.MINUTES );
+                transaction.commit();
             }
         };
     }

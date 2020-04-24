@@ -19,41 +19,48 @@
  */
 package org.neo4j.server.web.logging;
 
-import org.apache.http.HttpStatus;
+import org.hamcrest.Matcher;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.rules.RuleChain;
 import org.junit.rules.TestName;
 
-import java.io.File;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.UUID;
-import java.util.concurrent.TimeUnit;
 
+import org.neo4j.configuration.GraphDatabaseSettings;
+import org.neo4j.configuration.connectors.BoltConnector;
 import org.neo4j.function.ThrowingSupplier;
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
-import org.neo4j.kernel.configuration.BoltConnector;
-import org.neo4j.kernel.configuration.Settings;
-import org.neo4j.server.NeoServer;
+import org.neo4j.server.CommunityNeoServer;
 import org.neo4j.server.configuration.ServerSettings;
 import org.neo4j.server.helpers.FunctionalTestHelper;
-import org.neo4j.server.rest.JaxRsResponse;
-import org.neo4j.server.rest.RestRequest;
 import org.neo4j.test.rule.TestDirectory;
 import org.neo4j.test.server.ExclusiveServerTestBase;
 
+import static java.net.http.HttpClient.Redirect.NORMAL;
+import static java.net.http.HttpResponse.BodyHandlers.discarding;
+import static java.util.concurrent.TimeUnit.SECONDS;
+import static org.eclipse.jetty.http.HttpStatus.NOT_FOUND_404;
+import static org.eclipse.jetty.http.HttpStatus.OK_200;
 import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.Matchers.both;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertThat;
-import static org.neo4j.io.fs.FileUtils.readTextFile;
+import static org.neo4j.configuration.SettingValueParsers.FALSE;
+import static org.neo4j.configuration.SettingValueParsers.TRUE;
 import static org.neo4j.server.helpers.CommunityServerBuilder.serverOnRandomPorts;
 import static org.neo4j.test.assertion.Assert.assertEventually;
 
 public class HTTPLoggingIT extends ExclusiveServerTestBase
 {
-
     private final ExpectedException exception = ExpectedException.none();
     private final TestDirectory testDirectory = TestDirectory.testDirectory();
     private final TestName testName = new TestName();
@@ -66,30 +73,20 @@ public class HTTPLoggingIT extends ExclusiveServerTestBase
     public void givenExplicitlyDisabledServerLoggingConfigurationShouldNotLogAccesses() throws Exception
     {
         // given
-        String directoryPrefix = testName.getMethodName();
-        File logDirectory = testDirectory.directory( directoryPrefix + "-logdir" );
+        var query = "?implicitlyDisabled" + randomString();
+        var server = createServer( FALSE );
 
-        NeoServer server = serverOnRandomPorts().withDefaultDatabaseTuning().persistent()
-                .withProperty( ServerSettings.http_logging_enabled.name(), Settings.FALSE )
-                .withProperty( GraphDatabaseSettings.logs_directory.name(), logDirectory.toString() )
-                .withProperty( new BoltConnector( "bolt" ).listen_address.name(), ":0" )
-                .usingDataDir( testDirectory.directory( directoryPrefix + "-dbdir" ).getAbsolutePath() )
-                .build();
         try
         {
             server.start();
-            FunctionalTestHelper functionalTestHelper = new FunctionalTestHelper( server );
+            var functionalTestHelper = new FunctionalTestHelper( server );
 
             // when
-            String query = "?implicitlyDisabled" + randomString();
-            JaxRsResponse response = new RestRequest().get( functionalTestHelper.managementUri() + query );
-
-            assertThat( response.getStatus(), is( HttpStatus.SC_OK ) );
-            response.close();
+            var response = queryBaseUri( query, functionalTestHelper );
+            assertThat( response.statusCode(), is( OK_200 ) );
 
             // then
-            File httpLog = new File( logDirectory, "http.log" );
-            assertThat( httpLog.exists(), is( false ) );
+            assertThat( Files.exists( httpLogFile( server ) ), is( false ) );
         }
         finally
         {
@@ -101,30 +98,20 @@ public class HTTPLoggingIT extends ExclusiveServerTestBase
     public void givenExplicitlyEnabledServerLoggingConfigurationShouldLogAccess() throws Exception
     {
         // given
-        String directoryPrefix = testName.getMethodName();
-        File logDirectory = testDirectory.directory( directoryPrefix + "-logdir" );
-        final String query = "?explicitlyEnabled=" + randomString();
+        var query = "?explicitlyEnabled=" + randomString();
+        var server = createServer( TRUE );
 
-        NeoServer server = serverOnRandomPorts().withDefaultDatabaseTuning().persistent()
-                .withProperty( ServerSettings.http_logging_enabled.name(), Settings.TRUE )
-                .withProperty( GraphDatabaseSettings.logs_directory.name(), logDirectory.getAbsolutePath() )
-                .withProperty( new BoltConnector( "bolt" ).listen_address.name(), ":0" )
-                .usingDataDir( testDirectory.directory( directoryPrefix + "-dbdir" ).getAbsolutePath() )
-                .build();
         try
         {
             server.start();
-
-            FunctionalTestHelper functionalTestHelper = new FunctionalTestHelper( server );
+            var functionalTestHelper = new FunctionalTestHelper( server );
 
             // when
-            JaxRsResponse response = new RestRequest().get( functionalTestHelper.managementUri() + query );
-            assertThat( response.getStatus(), is( HttpStatus.SC_OK ) );
-            response.close();
+            var response = queryBaseUri( query, functionalTestHelper );
+            assertThat( response.statusCode(), is( OK_200 ) );
 
             // then
-            File httpLog = new File( logDirectory, "http.log" );
-            assertEventually( "request appears in log", fileContentSupplier( httpLog ), containsString( query ), 5, TimeUnit.SECONDS );
+            assertEventually( "request appears in log", httpLogContent( server ), containsString( query ), 5, SECONDS );
         }
         finally
         {
@@ -132,13 +119,75 @@ public class HTTPLoggingIT extends ExclusiveServerTestBase
         }
     }
 
-    private ThrowingSupplier<String, IOException> fileContentSupplier( final File file )
+    @Test
+    public void givenExplicitlyEnabledServerLoggingConfigurationShouldLogWithoutQueryString() throws Exception
     {
-        return () -> readTextFile( file, StandardCharsets.UTF_8 );
+        // given
+        var path = "/foo/bar/baz";
+        var server = createServer( TRUE );
+
+        try
+        {
+            server.start();
+            var functionalTestHelper = new FunctionalTestHelper( server );
+
+            // when
+            var response = queryUri( functionalTestHelper.baseUri().resolve( path ) );
+            assertThat( response.statusCode(), is( NOT_FOUND_404 ) );
+
+            // then
+            assertEventually( "request appears in log", httpLogContent( server ), containsPathWithoutQueryString( path ), 5, SECONDS );
+        }
+        finally
+        {
+            server.stop();
+        }
     }
 
-    private String randomString()
+    private CommunityNeoServer createServer( String httpLoggingEnabledValue ) throws IOException
+    {
+        var directoryPrefix = testName.getMethodName();
+        var logDirectory = testDirectory.directory( directoryPrefix + "-logdir" );
+
+        return serverOnRandomPorts().withDefaultDatabaseTuning().persistent()
+                .withProperty( ServerSettings.http_logging_enabled.name(), httpLoggingEnabledValue )
+                .withProperty( GraphDatabaseSettings.logs_directory.name(), logDirectory.getAbsolutePath() )
+                .withProperty( BoltConnector.listen_address.name(), ":0" )
+                .usingDataDir( testDirectory.directory( directoryPrefix + "-dbdir" ).getAbsolutePath() )
+                .build();
+    }
+
+    private static ThrowingSupplier<String,IOException> httpLogContent( CommunityNeoServer server )
+    {
+        var httpLogFile = httpLogFile( server );
+        return () -> Files.readString( httpLogFile );
+    }
+
+    private static Path httpLogFile( CommunityNeoServer server )
+    {
+        var logDirectory = server.getConfig().get( GraphDatabaseSettings.logs_directory );
+        return logDirectory.resolve( "http.log" );
+    }
+
+    private static String randomString()
     {
         return UUID.randomUUID().toString();
+    }
+
+    private static HttpResponse<Void> queryBaseUri( String query, FunctionalTestHelper functionalTestHelper ) throws IOException, InterruptedException
+    {
+        return queryUri( URI.create( functionalTestHelper.baseUri() + query ) );
+    }
+
+    private static HttpResponse<Void> queryUri( URI uri ) throws IOException, InterruptedException
+    {
+        var httpRequest = HttpRequest.newBuilder( uri ).GET().build();
+        var httpClient = HttpClient.newBuilder().followRedirects( NORMAL ).build();
+        return httpClient.send( httpRequest, discarding() );
+    }
+
+    private static Matcher<String> containsPathWithoutQueryString( String path )
+    {
+        return both( containsString( path ) ).and( not( containsString( "?" ) ) );
     }
 }

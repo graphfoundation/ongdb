@@ -29,13 +29,19 @@ public interface CursorFactory
 
     NodeCursor allocateNodeCursor();
 
+    NodeCursor allocateFullAccessNodeCursor();
+
     RelationshipScanCursor allocateRelationshipScanCursor();
+
+    RelationshipScanCursor allocateFullAccessRelationshipScanCursor();
 
     RelationshipTraversalCursor allocateRelationshipTraversalCursor();
 
     // properties
 
     PropertyCursor allocatePropertyCursor();
+
+    PropertyCursor allocateFullAccessPropertyCursor();
 
     // traversal
 
@@ -47,9 +53,5 @@ public interface CursorFactory
 
     NodeLabelIndexCursor allocateNodeLabelIndexCursor();
 
-    // explicit indexes
-
-    NodeExplicitIndexCursor allocateNodeExplicitIndexCursor();
-
-    RelationshipExplicitIndexCursor allocateRelationshipExplicitIndexCursor();
+    RelationshipIndexCursor allocateRelationshipIndexCursor();
 }

@@ -19,22 +19,18 @@
  */
 package org.neo4j.kernel.impl.index.schema.fusion;
 
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.EnumMap;
 import java.util.function.Function;
 
-import org.neo4j.internal.kernel.api.schema.LabelSchemaDescriptor;
+import org.neo4j.internal.schema.LabelSchemaDescriptor;
 import org.neo4j.kernel.api.exceptions.index.IndexEntryConflictException;
-import org.neo4j.kernel.api.index.IndexEntryUpdate;
 import org.neo4j.kernel.api.index.IndexUpdater;
-import org.neo4j.kernel.impl.api.index.updater.SwallowingIndexUpdater;
-import org.neo4j.test.rule.RandomRule;
+import org.neo4j.kernel.impl.api.index.SwallowingIndexUpdater;
+import org.neo4j.storageengine.api.IndexEntryUpdate;
 import org.neo4j.values.storable.Value;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -44,43 +40,28 @@ import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
-import static org.neo4j.helpers.ArrayUtil.without;
+import static org.neo4j.internal.helpers.ArrayUtil.without;
 import static org.neo4j.kernel.impl.index.schema.fusion.FusionIndexTestHelp.add;
 import static org.neo4j.kernel.impl.index.schema.fusion.FusionIndexTestHelp.change;
 import static org.neo4j.kernel.impl.index.schema.fusion.FusionIndexTestHelp.fill;
 import static org.neo4j.kernel.impl.index.schema.fusion.FusionIndexTestHelp.remove;
-import static org.neo4j.kernel.impl.index.schema.fusion.FusionVersion.v00;
-import static org.neo4j.kernel.impl.index.schema.fusion.FusionVersion.v10;
-import static org.neo4j.kernel.impl.index.schema.fusion.FusionVersion.v20;
+import static org.neo4j.kernel.impl.index.schema.fusion.IndexSlot.GENERIC;
 import static org.neo4j.kernel.impl.index.schema.fusion.IndexSlot.LUCENE;
-import static org.neo4j.kernel.impl.index.schema.fusion.IndexSlot.NUMBER;
-import static org.neo4j.kernel.impl.index.schema.fusion.IndexSlot.SPATIAL;
-import static org.neo4j.kernel.impl.index.schema.fusion.IndexSlot.STRING;
-import static org.neo4j.kernel.impl.index.schema.fusion.IndexSlot.TEMPORAL;
 
-@RunWith( Parameterized.class )
-public class FusionIndexUpdaterTest
+abstract class FusionIndexUpdaterTest
 {
+    private final FusionVersion fusionVersion;
     private IndexUpdater[] aliveUpdaters;
     private EnumMap<IndexSlot,IndexUpdater> updaters;
     private FusionIndexUpdater fusionIndexUpdater;
 
-    @Rule
-    public RandomRule random = new RandomRule();
-    @Parameterized.Parameters( name = "{0}" )
-    public static FusionVersion[] versions()
+    FusionIndexUpdaterTest( FusionVersion fusionVersion )
     {
-        return new FusionVersion[]
-                {
-                        v00, v10, v20
-                };
+        this.fusionVersion = fusionVersion;
     }
 
-    @Parameterized.Parameter
-    public static FusionVersion fusionVersion;
-
-    @Before
-    public void setup()
+    @BeforeEach
+    void setup()
     {
         initiateMocks();
     }
@@ -97,17 +78,8 @@ public class FusionIndexUpdaterTest
             aliveUpdaters[i] = mock;
             switch ( activeSlots[i] )
             {
-            case STRING:
-                updaters.put( STRING, mock );
-                break;
-            case NUMBER:
-                updaters.put( NUMBER, mock );
-                break;
-            case SPATIAL:
-                updaters.put( SPATIAL, mock );
-                break;
-            case TEMPORAL:
-                updaters.put( TEMPORAL, mock );
+            case GENERIC:
+                updaters.put( GENERIC, mock );
                 break;
             case LUCENE:
                 updaters.put( LUCENE, mock );
@@ -138,7 +110,7 @@ public class FusionIndexUpdaterTest
     /* process */
 
     @Test
-    public void processMustSelectCorrectForAdd() throws Exception
+    void processMustSelectCorrectForAdd() throws Exception
     {
         // given
         EnumMap<IndexSlot,Value[]> values = FusionIndexTestHelp.valuesByGroup();
@@ -158,13 +130,13 @@ public class FusionIndexUpdaterTest
         {
             for ( Value secondValue : allValues )
             {
-                verifyAddWithCorrectUpdater( updaters.get( LUCENE ), firstValue, secondValue );
+                verifyAddWithCorrectUpdater( updaters.get( GENERIC ), firstValue, secondValue );
             }
         }
     }
 
     @Test
-    public void processMustSelectCorrectForRemove() throws Exception
+    void processMustSelectCorrectForRemove() throws Exception
     {
         // given
         EnumMap<IndexSlot,Value[]> values = FusionIndexTestHelp.valuesByGroup();
@@ -184,13 +156,13 @@ public class FusionIndexUpdaterTest
         {
             for ( Value secondValue : allValues )
             {
-                verifyRemoveWithCorrectUpdater( updaters.get( LUCENE ), firstValue, secondValue );
+                verifyRemoveWithCorrectUpdater( updaters.get( GENERIC ), firstValue, secondValue );
             }
         }
     }
 
     @Test
-    public void processMustSelectCorrectForChange() throws Exception
+    void processMustSelectCorrectForChange() throws Exception
     {
         // given
         EnumMap<IndexSlot,Value[]> values = FusionIndexTestHelp.valuesByGroup();
@@ -209,7 +181,7 @@ public class FusionIndexUpdaterTest
     }
 
     @Test
-    public void processMustSelectCorrectForChangeFromOneGroupToAnother() throws Exception
+    void processMustSelectCorrectForChangeFromOneGroupToAnother() throws Exception
     {
         EnumMap<IndexSlot,Value[]> values = FusionIndexTestHelp.valuesByGroup();
         for ( IndexSlot from : IndexSlot.values() )
@@ -242,7 +214,7 @@ public class FusionIndexUpdaterTest
     {
         IndexEntryUpdate<LabelSchemaDescriptor> update = add( numberValues );
         fusionIndexUpdater.process( update );
-        verify( correctPopulator, times( 1 ) ).process( update );
+        verify( correctPopulator ).process( update );
         for ( IndexUpdater populator : aliveUpdaters )
         {
             if ( populator != correctPopulator )
@@ -257,7 +229,7 @@ public class FusionIndexUpdaterTest
     {
         IndexEntryUpdate<LabelSchemaDescriptor> update = FusionIndexTestHelp.remove( numberValues );
         fusionIndexUpdater.process( update );
-        verify( correctPopulator, times( 1 ) ).process( update );
+        verify( correctPopulator ).process( update );
         for ( IndexUpdater populator : aliveUpdaters )
         {
             if ( populator != correctPopulator )
@@ -272,7 +244,7 @@ public class FusionIndexUpdaterTest
     {
         IndexEntryUpdate<LabelSchemaDescriptor> update = FusionIndexTestHelp.change( before, after );
         fusionIndexUpdater.process( update );
-        verify( correctPopulator, times( 1 ) ).process( update );
+        verify( correctPopulator ).process( update );
         for ( IndexUpdater populator : aliveUpdaters )
         {
             if ( populator != correctPopulator )
@@ -313,7 +285,7 @@ public class FusionIndexUpdaterTest
                 }
                 else
                 {
-                    verify( expectRemoveFrom, times( 1 ) ).process( change( before, after ) );
+                    verify( expectRemoveFrom ).process( change( before, after ) );
                 }
             }
         }
@@ -322,7 +294,7 @@ public class FusionIndexUpdaterTest
     /* close */
 
     @Test
-    public void closeMustCloseAll() throws Exception
+    void closeMustCloseAll() throws Exception
     {
         // when
         fusionIndexUpdater.close();
@@ -330,12 +302,12 @@ public class FusionIndexUpdaterTest
         // then
         for ( IndexUpdater updater : aliveUpdaters )
         {
-            verify( updater, times( 1 ) ).close();
+            verify( updater ).close();
         }
     }
 
     @Test
-    public void closeMustThrowIfAnyThrow() throws Exception
+    void closeMustThrowIfAnyThrow() throws Exception
     {
         for ( IndexSlot indexSlot : fusionVersion.aliveSlots() )
         {
@@ -345,7 +317,7 @@ public class FusionIndexUpdaterTest
     }
 
     @Test
-    public void closeMustCloseOthersIfAnyThrow() throws Exception
+    void closeMustCloseOthersIfAnyThrow() throws Exception
     {
         for ( IndexSlot indexSlot : fusionVersion.aliveSlots() )
         {
@@ -356,13 +328,13 @@ public class FusionIndexUpdaterTest
     }
 
     @Test
-    public void closeMustThrowIfAllThrow() throws Exception
+    void closeMustThrowIfAllThrow() throws Exception
     {
         FusionIndexTestHelp.verifyFusionCloseThrowIfAllThrow( fusionIndexUpdater, aliveUpdaters );
     }
 
     @Test
-    public void shouldInstantiatePartLazilyForSpecificValueGroupUpdates() throws IOException, IndexEntryConflictException
+    void shouldInstantiatePartLazilyForSpecificValueGroupUpdates() throws IOException, IndexEntryConflictException
     {
         // given
         EnumMap<IndexSlot,Value[]> values = FusionIndexTestHelp.valuesByGroup();

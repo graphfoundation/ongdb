@@ -1,4 +1,4 @@
-# Copyright (c) 2002-2018 "Neo4j,"
+# Copyright (c) 2002-2020 "Neo4j,"
 # Neo4j Sweden AB [http://neo4j.com]
 #
 # This file is part of Neo4j.
@@ -22,7 +22,7 @@
 Invokes various Neo4j Utilities
 
 .DESCRIPTION
-Invokes various Neo4j Utilities.  This is a generic utility function called by the external functions e.g. Shell, Import
+Invokes various Neo4j Utilities.  This is a generic utility function called by the external functions e.g. Admin
 
 .PARAMETER Command
 A string of the command to run.
@@ -36,7 +36,7 @@ System.Int32
 non-zero = an error occured
 
 .NOTES
-Only supported on version 3.x ONgDB Community and Enterprise Edition databases
+Only supported on version 4.x Neo4j Community and Enterprise Edition databases
 
 .NOTES
 This function is private to the powershell module
@@ -79,7 +79,7 @@ function Invoke-Neo4jUtility
       "admintool" {
         Write-Verbose "Admintool command specified"
         $GetJavaParams = @{
-          StartingClass = 'org.neo4j.commandline.admin.AdminTool';
+          StartingClass = 'org.neo4j.cli.AdminTool';
         }
         break
       }
@@ -87,17 +87,6 @@ function Invoke-Neo4jUtility
         Write-Verbose "Import command specified"
         $GetJavaParams = @{
           StartingClass = 'org.neo4j.tooling.ImportTool';
-        }
-        break
-      }
-      "backup" {
-        Write-Verbose "Backup command specified"
-        if ($thisServer.ServerType -ne 'Enterprise')
-        {
-          throw "Neo4j Server type $($thisServer.ServerType) does not support online backup"
-        }
-        $GetJavaParams = @{
-          StartingClass = 'org.neo4j.backup.BackupTool';
         }
         break
       }

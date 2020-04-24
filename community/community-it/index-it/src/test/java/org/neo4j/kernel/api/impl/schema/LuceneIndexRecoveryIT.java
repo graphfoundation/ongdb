@@ -19,10 +19,10 @@
  */
 package org.neo4j.kernel.api.impl.schema;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -30,61 +30,72 @@ import java.util.Iterator;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
+import org.neo4j.common.DependencyResolver;
+import org.neo4j.dbms.api.DatabaseManagementService;
 import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Transaction;
 import org.neo4j.graphdb.schema.IndexDefinition;
 import org.neo4j.internal.kernel.api.InternalIndexState;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.io.fs.EphemeralFileSystemAbstraction;
 import org.neo4j.kernel.api.impl.index.storage.DirectoryFactory;
 import org.neo4j.kernel.api.index.IndexProvider;
+import org.neo4j.kernel.extension.ExtensionFactory;
 import org.neo4j.kernel.extension.ExtensionType;
-import org.neo4j.kernel.extension.KernelExtensionFactory;
-import org.neo4j.kernel.impl.spi.KernelContext;
+import org.neo4j.kernel.extension.context.ExtensionContext;
+import org.neo4j.kernel.impl.factory.OperationalMode;
+import org.neo4j.kernel.impl.index.schema.AbstractIndexProviderFactory;
 import org.neo4j.kernel.impl.transaction.log.checkpoint.CheckPointer;
 import org.neo4j.kernel.impl.transaction.log.checkpoint.SimpleTriggerInfo;
 import org.neo4j.kernel.impl.transaction.log.rotation.LogRotation;
+import org.neo4j.kernel.impl.transaction.tracing.LogAppendEvent;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
 import org.neo4j.kernel.lifecycle.Lifecycle;
-import org.neo4j.storageengine.api.schema.StoreIndexDescriptor;
-import org.neo4j.test.TestGraphDatabaseFactory;
-import org.neo4j.test.rule.fs.EphemeralFileSystemRule;
+import org.neo4j.kernel.recovery.RecoveryExtension;
+import org.neo4j.test.TestDatabaseManagementServiceBuilder;
+import org.neo4j.test.extension.EphemeralFileSystemExtension;
+import org.neo4j.test.extension.Inject;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
+import static org.neo4j.configuration.GraphDatabaseSettings.default_schema_provider;
 import static org.neo4j.graphdb.Label.label;
-import static org.neo4j.graphdb.factory.GraphDatabaseSettings.default_schema_provider;
-import static org.neo4j.helpers.collection.Iterators.asUniqueSet;
-import static org.neo4j.kernel.api.impl.schema.LuceneIndexProvider.defaultDirectoryStructure;
-import static org.neo4j.kernel.api.impl.schema.LuceneIndexProviderFactory.PROVIDER_DESCRIPTOR;
+import static org.neo4j.internal.helpers.collection.Iterators.asUniqueSet;
+import static org.neo4j.kernel.api.impl.schema.LuceneIndexProvider.DESCRIPTOR;
+import static org.neo4j.kernel.api.index.IndexDirectoryStructure.directoriesByProvider;
 
-public class LuceneIndexRecoveryIT
+@ExtendWith( EphemeralFileSystemExtension.class )
+class LuceneIndexRecoveryIT
 {
-    @Rule
-    public EphemeralFileSystemRule fs = new EphemeralFileSystemRule();
-
-    private final String NUM_BANANAS_KEY = "number_of_bananas_owned";
+    private static final String NUM_BANANAS_KEY = "number_of_bananas_owned";
     private static final Label myLabel = label( "MyLabel" );
+
+    @Inject
+    private EphemeralFileSystemAbstraction fs;
     private GraphDatabaseAPI db;
     private DirectoryFactory directoryFactory;
+    private DatabaseManagementService managementService;
 
-    @Before
-    public void before()
+    @BeforeEach
+    void before()
     {
         directoryFactory = new DirectoryFactory.InMemoryDirectoryFactory();
     }
 
-    @After
-    public void after() throws Exception
+    @AfterEach
+    void after() throws Exception
     {
         if ( db != null )
         {
-            db.shutdown();
+            managementService.shutdown();
         }
         directoryFactory.close();
     }
 
     @Test
-    public void addShouldBeIdempotentWhenDoingRecovery() throws Exception
+    void addShouldBeIdempotentWhenDoingRecovery()
     {
         // Given
         startDb( createLuceneIndexFactory() );
@@ -92,12 +103,12 @@ public class LuceneIndexRecoveryIT
         IndexDefinition index = createIndex( myLabel );
         waitForIndex( index );
 
-        long nodeId = createNode( myLabel, 12 );
-        try ( Transaction ignored = db.beginTx() )
+        long nodeId = createNode( myLabel, "12" );
+        try ( Transaction tx = db.beginTx() )
         {
-            assertNotNull( db.getNodeById( nodeId ) );
+            assertNotNull( tx.getNodeById( nodeId ) );
         }
-        assertEquals( 1, doIndexLookup( myLabel, 12 ).size() );
+        assertEquals( 1, doIndexLookup( myLabel, "12" ).size() );
 
         // And Given
         killDb();
@@ -106,15 +117,15 @@ public class LuceneIndexRecoveryIT
         startDb( createLuceneIndexFactory() );
 
         // Then
-        try ( Transaction ignored = db.beginTx() )
+        try ( Transaction tx = db.beginTx() )
         {
-            assertNotNull( db.getNodeById( nodeId ) );
+            assertNotNull( tx.getNodeById( nodeId ) );
         }
-        assertEquals( 1, doIndexLookup( myLabel, 12 ).size() );
+        assertEquals( 1, doIndexLookup( myLabel, "12" ).size() );
     }
 
     @Test
-    public void changeShouldBeIdempotentWhenDoingRecovery() throws Exception
+    void changeShouldBeIdempotentWhenDoingRecovery() throws Exception
     {
         // Given
         startDb( createLuceneIndexFactory() );
@@ -122,10 +133,10 @@ public class LuceneIndexRecoveryIT
         IndexDefinition indexDefinition = createIndex( myLabel );
         waitForIndex( indexDefinition );
 
-        long node = createNode( myLabel, 12 );
+        long node = createNode( myLabel, "12" );
         rotateLogsAndCheckPoint();
 
-        updateNode( node, 13 );
+        updateNode( node, "13" );
 
         // And Given
         killDb();
@@ -134,12 +145,12 @@ public class LuceneIndexRecoveryIT
         startDb( createLuceneIndexFactory() );
 
         // Then
-        assertEquals( 0, doIndexLookup( myLabel, 12 ).size() );
-        assertEquals( 1, doIndexLookup( myLabel, 13 ).size() );
+        assertEquals( 0, doIndexLookup( myLabel, "12" ).size() );
+        assertEquals( 1, doIndexLookup( myLabel, "13" ).size() );
     }
 
     @Test
-    public void removeShouldBeIdempotentWhenDoingRecovery() throws Exception
+    void removeShouldBeIdempotentWhenDoingRecovery() throws Exception
     {
         // Given
         startDb( createLuceneIndexFactory() );
@@ -147,7 +158,7 @@ public class LuceneIndexRecoveryIT
         IndexDefinition indexDefinition = createIndex( myLabel );
         waitForIndex( indexDefinition );
 
-        long node = createNode( myLabel, 12 );
+        long node = createNode( myLabel, "12" );
         rotateLogsAndCheckPoint();
 
         deleteNode( node );
@@ -159,11 +170,11 @@ public class LuceneIndexRecoveryIT
         startDb( createLuceneIndexFactory() );
 
         // Then
-        assertEquals( 0, doIndexLookup( myLabel, 12 ).size() );
+        assertEquals( 0, doIndexLookup( myLabel, "12" ).size() );
     }
 
     @Test
-    public void shouldNotAddTwiceDuringRecoveryIfCrashedDuringPopulation() throws Exception
+    void shouldNotAddTwiceDuringRecoveryIfCrashedDuringPopulation()
     {
         // Given
         startDb( createAlwaysInitiallyPopulatingLuceneIndexFactory() );
@@ -171,8 +182,8 @@ public class LuceneIndexRecoveryIT
         IndexDefinition indexDefinition = createIndex( myLabel );
         waitForIndex( indexDefinition );
 
-        long nodeId = createNode( myLabel, 12 );
-        assertEquals( 1, doIndexLookup( myLabel, 12 ).size() );
+        long nodeId = createNode( myLabel, "12" );
+        assertEquals( 1, doIndexLookup( myLabel, "12" ).size() );
 
         // And Given
         killDb();
@@ -180,19 +191,22 @@ public class LuceneIndexRecoveryIT
         // When
         startDb( createAlwaysInitiallyPopulatingLuceneIndexFactory() );
 
-        try ( Transaction ignored = db.beginTx() )
+        IndexDefinition index;
+        try ( Transaction tx = db.beginTx() )
         {
-            IndexDefinition index = db.schema().getIndexes().iterator().next();
-            waitForIndex( index );
-
-            // Then
-            assertEquals( 12, db.getNodeById( nodeId ).getProperty( NUM_BANANAS_KEY ) );
-            assertEquals( 1, doIndexLookup( myLabel, 12 ).size() );
+            index = tx.schema().getIndexes().iterator().next();
         }
+        waitForIndex( index );
+
+        try ( Transaction tx = db.beginTx() )
+        {
+            assertEquals( "12", tx.getNodeById( nodeId ).getProperty( NUM_BANANAS_KEY ) );
+        }
+        assertEquals( 1, doIndexLookup( myLabel, "12" ).size() );
     }
 
     @Test
-    public void shouldNotUpdateTwiceDuringRecovery() throws Exception
+    void shouldNotUpdateTwiceDuringRecovery()
     {
         // Given
         startDb( createLuceneIndexFactory() );
@@ -200,8 +214,8 @@ public class LuceneIndexRecoveryIT
         IndexDefinition indexDefinition = createIndex( myLabel );
         waitForIndex( indexDefinition );
 
-        long nodeId = createNode( myLabel, 12 );
-        updateNode( nodeId, 14 );
+        long nodeId = createNode( myLabel, "12" );
+        updateNode( nodeId, "14" );
 
         // And Given
         killDb();
@@ -210,49 +224,47 @@ public class LuceneIndexRecoveryIT
         startDb( createLuceneIndexFactory() );
 
         // Then
-        assertEquals( 0, doIndexLookup( myLabel, 12 ).size() );
-        assertEquals( 1, doIndexLookup( myLabel, 14 ).size() );
+        assertEquals( 0, doIndexLookup( myLabel, "12" ).size() );
+        assertEquals( 1, doIndexLookup( myLabel, "14" ).size() );
     }
 
-    private void startDb( KernelExtensionFactory<?> indexProviderFactory )
+    private void startDb( ExtensionFactory<?> indexProviderFactory )
     {
         if ( db != null )
         {
-            db.shutdown();
+            managementService.shutdown();
         }
 
-        TestGraphDatabaseFactory factory = new TestGraphDatabaseFactory();
-        factory.setFileSystem( fs.get() );
-        factory.setKernelExtensions( Collections.singletonList( indexProviderFactory ) );
-        db = (GraphDatabaseAPI) factory.newImpermanentDatabaseBuilder()
-                .setConfig( default_schema_provider, PROVIDER_DESCRIPTOR.name() ).newGraphDatabase();
+        TestDatabaseManagementServiceBuilder factory = new TestDatabaseManagementServiceBuilder();
+        factory.setFileSystem( fs );
+        factory.setExtensions( Collections.singletonList( indexProviderFactory ) );
+        managementService = factory.impermanent()
+                .setConfig( default_schema_provider, DESCRIPTOR.name() ).build();
+        db = (GraphDatabaseAPI) managementService.database( DEFAULT_DATABASE_NAME );
     }
 
-    private void killDb() throws Exception
+    private void killDb()
     {
         if ( db != null )
         {
-            fs.snapshot( () ->
-            {
-                db.shutdown();
-                db = null;
-            } );
+            fs = fs.snapshot();
+            managementService.shutdown();
         }
     }
 
     private void rotateLogsAndCheckPoint() throws IOException
     {
-        db.getDependencyResolver().resolveDependency( LogRotation.class ).rotateLogFile();
-        db.getDependencyResolver().resolveDependency( CheckPointer.class ).forceCheckPoint(
-                new SimpleTriggerInfo( "test" ) );
+        DependencyResolver resolver = db.getDependencyResolver();
+        resolver.resolveDependency( LogRotation.class ).rotateLogFile( LogAppendEvent.NULL );
+        resolver.resolveDependency( CheckPointer.class ).forceCheckPoint( new SimpleTriggerInfo( "test" ) );
     }
 
     private IndexDefinition createIndex( Label label )
     {
         try ( Transaction tx = db.beginTx() )
         {
-            IndexDefinition definition = db.schema().indexFor( label ).on( NUM_BANANAS_KEY ).create();
-            tx.success();
+            IndexDefinition definition = tx.schema().indexFor( label ).on( NUM_BANANAS_KEY ).create();
+            tx.commit();
             return definition;
         }
     }
@@ -261,41 +273,41 @@ public class LuceneIndexRecoveryIT
     {
         try ( Transaction tx = db.beginTx() )
         {
-            db.schema().awaitIndexOnline( definition, 10, TimeUnit.SECONDS );
-            tx.success();
+            tx.schema().awaitIndexOnline( definition, 10, TimeUnit.MINUTES );
+            tx.commit();
         }
     }
 
-    private Set<Node> doIndexLookup( Label myLabel, Object value )
+    private Set<Node> doIndexLookup( Label myLabel, String value )
     {
         try ( Transaction tx = db.beginTx() )
         {
-            Iterator<Node> iter = db.findNodes( myLabel, NUM_BANANAS_KEY, value );
+            Iterator<Node> iter = tx.findNodes( myLabel, NUM_BANANAS_KEY, value );
             Set<Node> nodes = asUniqueSet( iter );
-            tx.success();
+            tx.commit();
             return nodes;
         }
     }
 
-    private long createNode( Label label, int number )
+    private long createNode( Label label, String number )
     {
         try ( Transaction tx = db.beginTx() )
         {
-            Node node = db.createNode( label );
+            Node node = tx.createNode( label );
             node.setProperty( NUM_BANANAS_KEY, number );
-            tx.success();
+            tx.commit();
             return node.getId();
         }
     }
 
-    private void updateNode( long nodeId, int value )
+    private void updateNode( long nodeId, String value )
     {
 
         try ( Transaction tx = db.beginTx() )
         {
-            Node node = db.getNodeById( nodeId );
+            Node node = tx.getNodeById( nodeId );
             node.setProperty( NUM_BANANAS_KEY, value );
-            tx.success();
+            tx.commit();
         }
     }
 
@@ -304,45 +316,61 @@ public class LuceneIndexRecoveryIT
 
         try ( Transaction tx = db.beginTx() )
         {
-            db.getNodeById( node ).delete();
-            tx.success();
+            tx.getNodeById( node ).delete();
+            tx.commit();
         }
     }
 
-    private KernelExtensionFactory<LuceneIndexProviderFactory.Dependencies> createAlwaysInitiallyPopulatingLuceneIndexFactory()
+    private ExtensionFactory<AbstractIndexProviderFactory.Dependencies> createAlwaysInitiallyPopulatingLuceneIndexFactory()
     {
-        return new KernelExtensionFactory<LuceneIndexProviderFactory.Dependencies>(
-                ExtensionType.DATABASE, PROVIDER_DESCRIPTOR.getKey() )
-        {
-            @Override
-            public Lifecycle newInstance( KernelContext context, LuceneIndexProviderFactory.Dependencies dependencies )
-            {
-                return new LuceneIndexProvider( fs.get(), directoryFactory, defaultDirectoryStructure( context.directory() ),
-                        IndexProvider.Monitor.EMPTY, dependencies.getConfig(), context.databaseInfo().operationalMode )
-                {
-                    @Override
-                    public InternalIndexState getInitialState( StoreIndexDescriptor descriptor )
-                    {
-                        return InternalIndexState.POPULATING;
-                    }
-                };
-            }
-        };
+        return new PopulatingTestLuceneIndexExtension();
     }
 
     // Creates a lucene index factory with the shared in-memory directory
-    private KernelExtensionFactory<LuceneIndexProviderFactory.Dependencies> createLuceneIndexFactory()
+    private ExtensionFactory<AbstractIndexProviderFactory.Dependencies> createLuceneIndexFactory()
     {
-        return new KernelExtensionFactory<LuceneIndexProviderFactory.Dependencies>(
-                ExtensionType.DATABASE, PROVIDER_DESCRIPTOR.getKey() )
-        {
+        return new TestLuceneIndexExtension();
+    }
 
-            @Override
-            public Lifecycle newInstance( KernelContext context, LuceneIndexProviderFactory.Dependencies dependencies )
+    @RecoveryExtension
+    private class TestLuceneIndexExtension extends ExtensionFactory<AbstractIndexProviderFactory.Dependencies>
+    {
+
+        TestLuceneIndexExtension()
+        {
+            super( ExtensionType.DATABASE, DESCRIPTOR.getKey() );
+        }
+
+        @Override
+        public Lifecycle newInstance( ExtensionContext context, AbstractIndexProviderFactory.Dependencies dependencies )
+        {
+            boolean isSingleInstance = context.databaseInfo().operationalMode == OperationalMode.SINGLE;
+            return new LuceneIndexProvider( fs, directoryFactory, directoriesByProvider( context.directory() ), IndexProvider.Monitor.EMPTY,
+                    dependencies.getConfig(), isSingleInstance );
+        }
+    }
+
+    @RecoveryExtension
+    private class PopulatingTestLuceneIndexExtension extends ExtensionFactory<AbstractIndexProviderFactory.Dependencies>
+    {
+        PopulatingTestLuceneIndexExtension()
+        {
+            super( ExtensionType.DATABASE, DESCRIPTOR.getKey() );
+        }
+
+        @Override
+        public Lifecycle newInstance( ExtensionContext context, AbstractIndexProviderFactory.Dependencies dependencies )
+        {
+            boolean isSingleInstance = context.databaseInfo().operationalMode == OperationalMode.SINGLE;
+            return new LuceneIndexProvider( fs, directoryFactory, directoriesByProvider( context.directory() ),
+                    IndexProvider.Monitor.EMPTY, dependencies.getConfig(), isSingleInstance )
             {
-                return new LuceneIndexProvider( fs.get(), directoryFactory, defaultDirectoryStructure( context.directory() ), IndexProvider.Monitor.EMPTY,
-                        dependencies.getConfig(), context.databaseInfo().operationalMode );
-            }
-        };
+                @Override
+                public InternalIndexState getInitialState( IndexDescriptor descriptor )
+                {
+                    return InternalIndexState.POPULATING;
+                }
+            };
+        }
     }
 }

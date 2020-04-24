@@ -207,6 +207,18 @@ public interface Layout<KEY, VALUE> extends Comparator<KEY>
     boolean compatibleWith( long layoutIdentifier, int majorVersion, int minorVersion );
 
     /**
+     * Initializes the given key to a state where it's lower than any possible key in the tree.
+     * @param key key to initialize.
+     */
+    void initializeAsLowest( KEY key );
+
+    /**
+     * Initializes the given key to a state where it's higher than any possible key in the tree.
+     * @param key key to initialize.
+     */
+    void initializeAsHighest( KEY key );
+
+    /**
      * Adapter for {@link Layout}, which contains convenient standard implementations of some methods.
      *
      * @param <KEY> type of key
@@ -214,6 +226,43 @@ public interface Layout<KEY, VALUE> extends Comparator<KEY>
      */
     abstract class Adapter<KEY, VALUE> implements Layout<KEY,VALUE>
     {
+        private final boolean fixedSize;
+        private final long identifier;
+        private final int majorVersion;
+        private final int minorVersion;
+
+        protected Adapter( boolean fixedSize, long identifier, int majorVersion, int minorVersion )
+        {
+            this.fixedSize = fixedSize;
+            this.identifier = identifier;
+            this.majorVersion = majorVersion;
+            this.minorVersion = minorVersion;
+        }
+
+        @Override
+        public boolean fixedSize()
+        {
+            return fixedSize;
+        }
+
+        @Override
+        public long identifier()
+        {
+            return identifier;
+        }
+
+        @Override
+        public int majorVersion()
+        {
+            return majorVersion;
+        }
+
+        @Override
+        public int minorVersion()
+        {
+            return minorVersion;
+        }
+
         @Override
         public String toString()
         {

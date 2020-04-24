@@ -20,13 +20,12 @@
 package org.neo4j.values.storable;
 
 import org.apache.commons.lang3.ArrayUtils;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.HashSet;
-import java.util.Random;
 import java.util.Set;
 import java.util.SplittableRandom;
 import java.util.concurrent.ThreadLocalRandom;
@@ -35,7 +34,8 @@ import java.util.stream.Collectors;
 
 import org.neo4j.values.AnyValue;
 
-import static org.hamcrest.Matchers.empty;
+import static java.lang.Character.isAlphabetic;
+import static java.lang.Character.isDigit;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
@@ -46,28 +46,15 @@ import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import static org.neo4j.values.storable.Values.ZERO_INT;
 import static org.neo4j.values.storable.Values.longValue;
 
-@RunWith( Parameterized.class )
-public class RandomValuesTest
+abstract class RandomValuesTest
 {
     private static final int ITERATIONS = 1000;
 
-    @Parameterized.Parameter()
-    public RandomValues randomValues;
-
-    @Parameterized.Parameter( 1 )
-    public String name;
-
-    @Parameterized.Parameters( name = "{1}" )
-    public static Iterable<Object[]> generators()
-    {
-        return Arrays.asList(
-                new Object[]{RandomValues.create( ThreadLocalRandom.current() ), Random.class.getName()},
-                new Object[]{RandomValues.create( new SplittableRandom() ), SplittableRandom.class.getName()}
-        );
-    }
+    private RandomValues randomValues;
 
     private static final byte BOUND = 100;
     private static final LongValue UPPER = longValue( BOUND );
@@ -99,21 +86,29 @@ public class RandomValuesTest
                     DurationValue.class
             ) );
 
+    @BeforeEach
+    void setUp()
+    {
+        this.randomValues = randomValues();
+    }
+
+    abstract RandomValues randomValues();
+
     @Test
-    public void nextLongValueUnbounded()
+    void nextLongValueUnbounded()
     {
         checkDistribution( randomValues::nextLongValue );
     }
 
     @Test
-    public void nextLongValueBounded()
+    void nextLongValueBounded()
     {
         checkDistribution( () -> randomValues.nextLongValue( BOUND ) );
         checkBounded( () -> randomValues.nextLongValue( BOUND ) );
     }
 
     @Test
-    public void nextLongValueBoundedAndShifted()
+    void nextLongValueBoundedAndShifted()
     {
         Set<Value> values = new HashSet<>();
         for ( int i = 0; i < ITERATIONS; i++ )
@@ -129,98 +124,103 @@ public class RandomValuesTest
     }
 
     @Test
-    public void nextBooleanValue()
+    void nextBooleanValue()
     {
         checkDistribution( randomValues::nextBooleanValue );
     }
 
     @Test
-    public void nextIntValueUnbounded()
+    void nextIntValueUnbounded()
     {
         checkDistribution( randomValues::nextIntValue );
     }
 
     @Test
-    public void nextIntValueBounded()
+    void nextIntValueBounded()
     {
         checkDistribution( () -> randomValues.nextIntValue( BOUND ) );
         checkBounded( () -> randomValues.nextIntValue( BOUND ) );
     }
 
     @Test
-    public void nextShortValueUnbounded()
+    void nextShortValueUnbounded()
     {
         checkDistribution( randomValues::nextShortValue );
     }
 
     @Test
-    public void nextShortValueBounded()
+    void nextShortValueBounded()
     {
         checkDistribution( () -> randomValues.nextShortValue( BOUND ) );
         checkBounded( () -> randomValues.nextShortValue( BOUND ) );
     }
 
     @Test
-    public void nextByteValueUnbounded()
+    void nextByteValueUnbounded()
     {
         checkDistribution( randomValues::nextByteValue );
     }
 
     @Test
-    public void nextByteValueBounded()
+    void nextByteValueBounded()
     {
         checkDistribution( () -> randomValues.nextByteValue( BOUND ) );
         checkBounded( () -> randomValues.nextByteValue( BOUND ) );
     }
 
     @Test
-    public void nextFloatValue()
+    void nextFloatValue()
     {
         checkDistribution( randomValues::nextFloatValue );
     }
 
     @Test
-    public void nextDoubleValue()
+    void nextDoubleValue()
     {
         checkDistribution( randomValues::nextDoubleValue );
     }
 
     @Test
-    public void nextNumberValue()
+    void nextNumberValue()
     {
-        HashSet<Class<? extends NumberValue>> seen = new HashSet<>( NUMBER_TYPES );
-
-        for ( int i = 0; i < ITERATIONS; i++ )
+        assertTimeoutPreemptively( Duration.ofMillis( 10_000 ), () ->
         {
-            NumberValue numberValue = randomValues.nextNumberValue();
-            assertThat( NUMBER_TYPES, hasItem( numberValue.getClass() ) );
-            seen.remove( numberValue.getClass() );
-        }
-        assertThat( seen, empty() );
-    }
+            HashSet<Class<? extends NumberValue>> seen = new HashSet<>( NUMBER_TYPES );
 
-    @Test
-    public void nextAlphaNumericString()
-    {
-        Set<Integer> seenDigits = "ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvxyz0123456789".chars().boxed()
-                .collect( Collectors.toSet() );
-        for ( int i = 0; i < ITERATIONS; i++ )
-        {
-            TextValue textValue = randomValues.nextAlphaNumericTextValue( 10, 20 );
-            String asString = textValue.stringValue();
-            for ( int j = 0; j < asString.length(); j++ )
+            while ( !seen.isEmpty() )
             {
-                int ch = asString.charAt( j );
-                assertTrue( "Not a character nor letter: " + ch,
-                        Character.isAlphabetic( ch ) || Character.isDigit( ch ) );
-                seenDigits.remove( ch );
+                NumberValue numberValue = randomValues.nextNumberValue();
+                assertThat( NUMBER_TYPES, hasItem( numberValue.getClass() ) );
+                seen.remove( numberValue.getClass() );
             }
-        }
-        assertThat( seenDigits, empty() );
+        } );
     }
 
     @Test
-    public void nextAsciiString()
+    void nextAlphaNumericString()
+    {
+        assertTimeoutPreemptively( Duration.ofMillis( 10_000 ), () ->
+        {
+            Set<Integer> seenDigits = "ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvxyz0123456789".chars().boxed()
+                    .collect( Collectors.toSet() );
+            while ( !seenDigits.isEmpty() )
+            {
+                {
+                    TextValue textValue = randomValues.nextAlphaNumericTextValue( 10, 20 );
+                    String asString = textValue.stringValue();
+                    for ( int j = 0; j < asString.length(); j++ )
+                    {
+                        int ch = asString.charAt( j );
+                        assertTrue( "Not a character nor letter: " + ch, isAlphabetic( ch ) || isDigit( ch ) );
+                        seenDigits.remove( ch );
+                    }
+                }
+            }
+        } );
+    }
+
+    @Test
+    void nextAsciiString()
     {
         for ( int i = 0; i < ITERATIONS; i++ )
         {
@@ -233,7 +233,7 @@ public class RandomValuesTest
     }
 
     @Test
-    public void nextString()
+    void nextString()
     {
         for ( int i = 0; i < ITERATIONS; i++ )
         {
@@ -246,63 +246,67 @@ public class RandomValuesTest
     }
 
     @Test
-    public void nextArray()
+    void nextArray()
     {
-        HashSet<Class<? extends AnyValue>> seen = new HashSet<>( TYPES );
-        for ( int i = 0; i < ITERATIONS; i++ )
+        assertTimeoutPreemptively( Duration.ofMillis( 10_000 ), () ->
         {
-            ArrayValue arrayValue = randomValues.nextArray();
-            assertThat( arrayValue.length(), greaterThanOrEqualTo( 1 ) );
-            AnyValue value = arrayValue.value( 0 );
-            assertKnownType( value.getClass(), TYPES );
-            markSeen( value.getClass(), seen );
-        }
-
-        assertThat( seen, empty() );
+            HashSet<Class<? extends AnyValue>> seen = new HashSet<>( TYPES );
+            while ( !seen.isEmpty() )
+            {
+                ArrayValue arrayValue = randomValues.nextArray();
+                assertThat( arrayValue.length(), greaterThanOrEqualTo( 1 ) );
+                AnyValue value = arrayValue.value( 0 );
+                assertKnownType( value.getClass(), TYPES );
+                markSeen( value.getClass(), seen );
+            }
+        } );
     }
 
     @Test
-    public void nextValue()
+    void nextValue()
     {
-        HashSet<Class<? extends AnyValue>> all = new HashSet<>( TYPES );
-        all.add( ArrayValue.class );
-        HashSet<Class<? extends AnyValue>> seen = new HashSet<>( all );
-
-        for ( int i = 0; i < ITERATIONS; i++ )
+        assertTimeoutPreemptively( Duration.ofMillis( 10_000 ), () ->
         {
-            Value value = randomValues.nextValue();
-            assertKnownType( value.getClass(), all );
-            markSeen( value.getClass(), seen );
-        }
+            HashSet<Class<? extends AnyValue>> all = new HashSet<>( TYPES );
+            all.add( ArrayValue.class );
+            HashSet<Class<? extends AnyValue>> seen = new HashSet<>( all );
 
-        assertThat( seen, empty() );
+            while ( !seen.isEmpty() )
+            {
+                Value value = randomValues.nextValue();
+                assertKnownType( value.getClass(), all );
+                markSeen( value.getClass(), seen );
+            }
+        } );
     }
 
     @Test
-    public void nextValueOfTypes()
+    void nextValueOfTypes()
     {
-        ValueType[] allTypes = ValueType.values();
-        ValueType[] including = randomValues.selection( allTypes, 1, allTypes.length, false );
-        HashSet<Class<? extends AnyValue>> seen = new HashSet<>();
-        for ( ValueType type : including )
+        assertTimeoutPreemptively( Duration.ofMillis( 10_000 ), () ->
         {
-            seen.add( type.valueClass );
-        }
-        for ( int i = 0; i < ITERATIONS; i++ )
-        {
-            Value value = randomValues.nextValueOfTypes( including );
-            assertValueAmongTypes( including, value );
-            markSeen( value.getClass(), seen );
-        }
-        assertThat( seen, empty() );
+            ValueType[] allTypes = ValueType.values();
+            ValueType[] including = randomValues.selection( allTypes, 1, allTypes.length, false );
+            HashSet<Class<? extends AnyValue>> seen = new HashSet<>();
+            for ( ValueType type : including )
+            {
+                seen.add( type.valueClass );
+            }
+            while ( !seen.isEmpty() )
+            {
+                Value value = randomValues.nextValueOfTypes( including );
+                assertValueAmongTypes( including, value );
+                markSeen( value.getClass(), seen );
+            }
+        } );
     }
 
     @Test
-    public void excluding()
+    void excluding()
     {
         ValueType[] allTypes = ValueType.values();
         ValueType[] excluding = randomValues.selection( allTypes, 1, allTypes.length, false );
-        ValueType[] including = randomValues.excluding( excluding );
+        ValueType[] including = RandomValues.excluding( excluding );
         for ( ValueType excludedType : excluding )
         {
             if ( ArrayUtils.contains( including, excludedType ) )
@@ -313,7 +317,7 @@ public class RandomValuesTest
     }
 
     @Test
-    public void nextBasicMultilingualPlaneTextValue()
+    void nextBasicMultilingualPlaneTextValue()
     {
         for ( int i = 0; i < ITERATIONS; i++ )
         {
@@ -375,5 +379,25 @@ public class RandomValuesTest
             assertThat( value.compareTo( ZERO_INT ), greaterThanOrEqualTo( 0 ) );
             assertThat( value.compareTo( UPPER ), lessThan( 0 ) );
         }
+    }
+}
+
+class RandomRandomValuesTest extends RandomValuesTest
+{
+
+    @Override
+    RandomValues randomValues()
+    {
+        return RandomValues.create( ThreadLocalRandom.current() );
+    }
+}
+
+class SplittableRandomValuesTest extends RandomValuesTest
+{
+
+    @Override
+    RandomValues randomValues()
+    {
+        return RandomValues.create( new SplittableRandom() );
     }
 }

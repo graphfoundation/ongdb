@@ -33,7 +33,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.neo4j.cursor.RawCursor;
 import org.neo4j.io.pagecache.IOLimiter;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.test.FormatCompatibilityVerifier;
@@ -145,8 +144,7 @@ public class GBPTreeFormatTest extends FormatCompatibilityVerifier
                 // WHEN reading from the tree
                 // THEN initial keys should be there
                 tree.consistencyCheck();
-                try ( RawCursor<Hit<MutableLong,MutableLong>,IOException> cursor =
-                              tree.seek( layout.key( 0 ), layout.key( Long.MAX_VALUE ) ) )
+                try ( Seeker<MutableLong,MutableLong> cursor = tree.seek( layout.key( 0 ), layout.key( Long.MAX_VALUE ) ) )
                 {
                     for ( Long expectedKey : initialKeys )
                     {
@@ -174,8 +172,7 @@ public class GBPTreeFormatTest extends FormatCompatibilityVerifier
                 // WHEN reading from the tree again
                 // THEN all keys including newly added should be there
                 tree.consistencyCheck();
-                try ( RawCursor<Hit<MutableLong,MutableLong>,IOException> cursor =
-                              tree.seek( layout.key( 0 ), layout.key( 2 * INITIAL_KEY_COUNT ) ) )
+                try ( Seeker<MutableLong,MutableLong> cursor = tree.seek( layout.key( 0 ), layout.key( 2 * INITIAL_KEY_COUNT ) ) )
                 {
                     for ( Long expectedKey : allKeys )
                     {
@@ -205,8 +202,7 @@ public class GBPTreeFormatTest extends FormatCompatibilityVerifier
                 // WHEN reading from the tree after remove
                 // THEN we should see everything that is left in the tree
                 tree.consistencyCheck();
-                try ( RawCursor<Hit<MutableLong,MutableLong>,IOException> cursor =
-                              tree.seek( layout.key( 0 ), layout.key( 2 * INITIAL_KEY_COUNT ) ) )
+                try ( Seeker<MutableLong,MutableLong> cursor = tree.seek( layout.key( 0 ), layout.key( 2 * INITIAL_KEY_COUNT ) ) )
                 {
                     for ( Long expectedKey : allKeys )
                     {
@@ -243,12 +239,11 @@ public class GBPTreeFormatTest extends FormatCompatibilityVerifier
         return keysToAdd;
     }
 
-    private static void assertHit( RawCursor<Hit<MutableLong,MutableLong>,IOException> cursor, Long expectedKey ) throws IOException
+    private static void assertHit( Seeker<MutableLong,MutableLong> cursor, Long expectedKey ) throws IOException
     {
         assertTrue( "Had no next when expecting key " + expectedKey, cursor.next() );
-        Hit<MutableLong,MutableLong> hit = cursor.get();
-        assertEquals( expectedKey.longValue(), hit.key().longValue() );
-        assertEquals( value( expectedKey ), hit.value().longValue() );
+        assertEquals( expectedKey.longValue(), cursor.key().longValue() );
+        assertEquals( value( expectedKey ), cursor.value().longValue() );
     }
 
     private void put( Writer<MutableLong,MutableLong> writer, long key )

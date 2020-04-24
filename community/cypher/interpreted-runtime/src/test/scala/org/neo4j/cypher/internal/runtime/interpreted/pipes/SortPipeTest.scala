@@ -20,10 +20,9 @@
 package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
 import org.junit.Assert._
+import org.neo4j.cypher.internal.runtime.interpreted.{Ascending, Descending, InterpretedExecutionContextOrdering, QueryStateHelper}
 import org.neo4j.cypher.internal.runtime.interpreted.ValueComparisonHelper._
-import org.neo4j.cypher.internal.runtime.interpreted.QueryStateHelper
-import org.neo4j.cypher.internal.v3_6.util.symbols._
-import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.v4_0.util.test_helpers.CypherFunSuite
 import org.neo4j.values.storable.Values
 import org.neo4j.values.storable.Values.intValue
 import org.scalatest.mock.MockitoSugar
@@ -33,29 +32,27 @@ import scala.collection.mutable.{Map => MutableMap}
 class SortPipeTest extends CypherFunSuite with MockitoSugar {
 
   test("empty input gives empty output") {
-    val source = new FakePipe(List(), "x" -> CTAny)
-    val sortPipe = new SortPipe(source, List(Ascending("x")))()
+    val source = new FakePipe(List())
+    val sortPipe = SortPipe(source, InterpretedExecutionContextOrdering.asComparator(List(Ascending("x"))))()
 
     assertEquals(List(), sortPipe.createResults(QueryStateHelper.emptyWithValueSerialization).toList)
   }
 
   test("simple sorting is supported") {
     val list: Seq[MutableMap[String, Any]] = List(MutableMap("x" -> "B"), MutableMap("x" -> "A"))
-    val source = new FakePipe(list, "x" -> CTString)
-    val sortPipe = new SortPipe(source, List(Ascending("x")))()
+    val source = new FakePipe(list)
+    val sortPipe = SortPipe(source, InterpretedExecutionContextOrdering.asComparator(List(Ascending("x"))))()
 
     sortPipe.createResults(QueryStateHelper.emptyWithValueSerialization).toList should beEquivalentTo(List(Map("x" -> "A"), Map("x" -> "B")))
   }
 
   test("sort by two columns") {
     val source = new FakePipe(List(
-      MutableMap[String, Any]("x" -> "B", "y" -> 20),
-      MutableMap[String, Any]("x" -> "A", "y" -> 100),
-      MutableMap[String, Any]("x" -> "B", "y" -> 10)), "x" -> CTString, "y" -> CTNumber)
+          MutableMap[String, Any]("x" -> "B", "y" -> 20),
+          MutableMap[String, Any]("x" -> "A", "y" -> 100),
+          MutableMap[String, Any]("x" -> "B", "y" -> 10)))
 
-    val sortPipe = new SortPipe(source, List(
-      Ascending("x"),
-      Ascending("y")))()
+    val sortPipe = SortPipe(source, InterpretedExecutionContextOrdering.asComparator(List(Ascending("x"), Ascending("y"))))()
 
     sortPipe.createResults(QueryStateHelper.emptyWithValueSerialization).toList should beEquivalentTo(List(
       Map("x" -> "A", "y" -> 100),
@@ -65,13 +62,11 @@ class SortPipeTest extends CypherFunSuite with MockitoSugar {
 
   test("sort by two columns with one descending") {
     val source = new FakePipe(List(
-      MutableMap[String, Any]("x" -> "B", "y" -> 20),
-      MutableMap[String, Any]("x" -> "A", "y" -> 100),
-      MutableMap[String, Any]("x" -> "B", "y" -> 10)), "x" -> CTString, "y" -> CTNumber)
+          MutableMap[String, Any]("x" -> "B", "y" -> 20),
+          MutableMap[String, Any]("x" -> "A", "y" -> 100),
+          MutableMap[String, Any]("x" -> "B", "y" -> 10)))
 
-    val sortPipe = new SortPipe(source, List(
-      Ascending("x"),
-      Descending("y")))()
+    val sortPipe = SortPipe(source, InterpretedExecutionContextOrdering.asComparator(List(Ascending("x"), Descending("y"))))()
 
     sortPipe.createResults(QueryStateHelper.emptyWithValueSerialization).toList should beEquivalentTo(List(
       Map[String, Any]("x" -> "A", "y" -> 100),
@@ -84,11 +79,11 @@ class SortPipeTest extends CypherFunSuite with MockitoSugar {
       MutableMap("y" -> 1),
       MutableMap("y" -> null),
       MutableMap("y" -> 2))
-    val source = new FakePipe(list, "y" -> CTNumber)
+    val source = new FakePipe(list)
 
-    val sortPipe = new SortPipe(source, List(Ascending("y")))()
+    val sortPipe = SortPipe(source, InterpretedExecutionContextOrdering.asComparator(List(Ascending("y"))))()
 
-    sortPipe.createResults(QueryStateHelper.emptyWithValueSerialization).toList should equal(List(
+    sortPipe.createResults(QueryStateHelper.emptyWithValueSerialization).toList should beEquivalentTo(List(
       Map("y" -> intValue(1)),
       Map("y" -> intValue(2)),
       Map("y" -> Values.NO_VALUE)))

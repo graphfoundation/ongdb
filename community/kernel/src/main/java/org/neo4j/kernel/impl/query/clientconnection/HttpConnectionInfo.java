@@ -22,7 +22,9 @@ package org.neo4j.kernel.impl.query.clientconnection;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 
-import static org.neo4j.helpers.SocketAddress.format;
+import org.neo4j.internal.kernel.api.connectioninfo.ClientConnectionInfo;
+
+import static org.neo4j.configuration.helpers.SocketAddress.format;
 
 /**
  * @see ClientConnectionInfo Parent class for documentation and tests.

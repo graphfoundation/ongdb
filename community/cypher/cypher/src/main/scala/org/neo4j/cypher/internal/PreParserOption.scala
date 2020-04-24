@@ -25,22 +25,29 @@ sealed abstract class PlannerPreParserOption(val name: String) extends PreParser
 sealed abstract class RuntimePreParserOption(val name: String) extends PreParserOption
 sealed abstract class ExpressionEnginePreParserOption(val name: String) extends PreParserOption
 sealed abstract class UpdateStrategyOption(val name: String) extends PreParserOption
+sealed abstract class OperatorEnginePreParserOption(val name: String) extends PreParserOption
+sealed abstract class InterpretedPipesFallbackPreParserOption(val name: String) extends PreParserOption
 
 case class VersionOption(version: String) extends PreParserOption
 case object ProfileOption extends ExecutionModePreParserOption("profile")
 case object ExplainOption extends ExecutionModePreParserOption("explain")
 case object CostPlannerOption extends PlannerPreParserOption("cost")
-case object RulePlannerOption extends PlannerPreParserOption("rule")
 case object GreedyPlannerOption extends PlannerPreParserOption("greedy")
 case object IDPPlannerOption extends PlannerPreParserOption("idp")
 case object DPPlannerOption extends PlannerPreParserOption("dp")
 case object InterpretedRuntimeOption extends RuntimePreParserOption("interpreted")
 case object SlottedRuntimeOption extends RuntimePreParserOption("slotted")
-case object MorselRuntimeOption extends RuntimePreParserOption("morsel")
-case object CompiledRuntimeOption extends RuntimePreParserOption("compiled")
+case object PipelinedRuntimeOption extends RuntimePreParserOption("pipelined")
+case object ParallelRuntimeOption extends RuntimePreParserOption("parallel")
+case object CompiledRuntimeOption extends RuntimePreParserOption("legacy_compiled")
 case object EagerOption extends UpdateStrategyOption("eager")
 case class DebugOption(key: String) extends PreParserOption
 case object CompiledExpressionOption extends ExpressionEnginePreParserOption("compiled")
 case object InterpretedExpressionOption extends ExpressionEnginePreParserOption("interpreted")
+case object CompiledOperatorEngineOption extends OperatorEnginePreParserOption("compiled")
+case object InterpretedOperatorEngineOption extends OperatorEnginePreParserOption("interpreted")
+case object DisabledInterpretedPipesFallbackOption extends InterpretedPipesFallbackPreParserOption("disabled")
+case object DefaultInterpretedPipesFallbackOption extends InterpretedPipesFallbackPreParserOption("default")
+case object AllInterpretedPipesFallbackOption extends InterpretedPipesFallbackPreParserOption("all")
 
 case class ConfigurationOptions(version: Option[VersionOption], options: Seq[PreParserOption]) extends PreParserOption

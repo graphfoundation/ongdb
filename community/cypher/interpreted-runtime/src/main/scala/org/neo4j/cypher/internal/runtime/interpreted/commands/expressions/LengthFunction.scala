@@ -19,7 +19,7 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.commands.expressions
 
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
+import org.neo4j.cypher.internal.runtime.ExecutionContext
 import org.neo4j.cypher.internal.runtime.interpreted.commands.AstNode
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.QueryState
 import org.neo4j.cypher.operations.CypherFunctions
@@ -35,8 +35,6 @@ case class LengthFunction(inner: Expression) extends NullInNullOutExpression(inn
   override def arguments: Seq[Expression] = Seq(inner)
 
   override def children: Seq[AstNode[_]] = Seq(inner)
-
-  override def symbolTableDependencies: Set[String] = inner.symbolTableDependencies
 
   override def toString = s"length($inner)"
 }

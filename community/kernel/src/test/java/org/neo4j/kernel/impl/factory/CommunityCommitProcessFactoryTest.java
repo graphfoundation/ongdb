@@ -19,28 +19,28 @@
  */
 package org.neo4j.kernel.impl.factory;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
-import org.neo4j.kernel.configuration.Config;
+import org.neo4j.configuration.Config;
+import org.neo4j.configuration.GraphDatabaseSettings;
 import org.neo4j.kernel.impl.api.ReadOnlyTransactionCommitProcess;
 import org.neo4j.kernel.impl.api.TransactionCommitProcess;
 import org.neo4j.kernel.impl.api.TransactionRepresentationCommitProcess;
 import org.neo4j.kernel.impl.transaction.log.TransactionAppender;
 import org.neo4j.storageengine.api.StorageEngine;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.instanceOf;
-import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.mock;
 
-public class CommunityCommitProcessFactoryTest
+class CommunityCommitProcessFactoryTest
 {
     @Test
-    public void createReadOnlyCommitProcess()
+    void createReadOnlyCommitProcess()
     {
         CommunityCommitProcessFactory factory = new CommunityCommitProcessFactory();
 
-        Config config = Config.defaults( GraphDatabaseSettings.read_only, "true" );
+        Config config = Config.defaults( GraphDatabaseSettings.read_only, true );
 
         TransactionCommitProcess commitProcess = factory.create( mock( TransactionAppender.class ),
                 mock( StorageEngine.class ), config );
@@ -49,7 +49,7 @@ public class CommunityCommitProcessFactoryTest
     }
 
     @Test
-    public void createRegularCommitProcess()
+    void createRegularCommitProcess()
     {
         CommunityCommitProcessFactory factory = new CommunityCommitProcessFactory();
 

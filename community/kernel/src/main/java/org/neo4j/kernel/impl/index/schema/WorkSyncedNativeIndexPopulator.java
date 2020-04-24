@@ -26,14 +26,14 @@ import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
+import org.neo4j.annotations.documented.ReporterFactory;
 import org.neo4j.kernel.api.exceptions.index.IndexEntryConflictException;
-import org.neo4j.kernel.api.index.IndexEntryUpdate;
 import org.neo4j.kernel.api.index.IndexPopulator;
+import org.neo4j.kernel.api.index.IndexSample;
 import org.neo4j.kernel.api.index.IndexUpdater;
-import org.neo4j.kernel.impl.annotations.ReporterFactory;
 import org.neo4j.kernel.impl.api.index.PhaseTracker;
+import org.neo4j.storageengine.api.IndexEntryUpdate;
 import org.neo4j.storageengine.api.NodePropertyAccessor;
-import org.neo4j.storageengine.api.schema.IndexSample;
 import org.neo4j.util.concurrent.Work;
 import org.neo4j.util.concurrent.WorkSync;
 import org.neo4j.values.storable.Value;

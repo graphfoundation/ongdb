@@ -21,10 +21,11 @@ package org.neo4j.memory;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.LongStream;
-
-import org.neo4j.test.Race;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.greaterThan;
@@ -33,37 +34,41 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class ThreadSafePeakMemoryAllocationTrackerTest
 {
     @Test
-    void shouldRegisterConcurrentAllocationsAndDeallocations() throws Throwable
+    void shouldRegisterConcurrentAllocationsAndDeallocations() throws InterruptedException
     {
         // given
-        ThreadSafePeakMemoryAllocationTracker tracker = new ThreadSafePeakMemoryAllocationTracker( GlobalMemoryTracker.INSTANCE );
-        Race race = new Race();
-        race.addContestants( 10, () ->
+        ThreadSafePeakMemoryAllocationTracker tracker = new ThreadSafePeakMemoryAllocationTracker();
+        ExecutorService executorService = Executors.newFixedThreadPool( 10 );
+        for ( int t = 0; t < 10; t++ )
         {
-            for ( int i = 1; i < 100; i++ )
+            executorService.submit( () ->
             {
-                tracker.allocated( i );
-                assertThat( tracker.usedDirectMemory(), greaterThan( 0L ) );
-            }
-            for ( int i = 1; i < 100; i++ )
-            {
-                assertThat( tracker.usedDirectMemory(), greaterThan( 0L ) );
-                tracker.deallocated( i );
-            }
-        }, 1 );
+                for ( int i = 1; i < 100; i++ )
+                {
+                    tracker.allocated( i );
+                    assertThat( tracker.usedDirectMemory(), greaterThan( 0L ) );
+                }
+                for ( int i = 1; i < 100; i++ )
+                {
+                    assertThat( tracker.usedDirectMemory(), greaterThan( 0L ) );
+                    tracker.deallocated( i );
+                }
+            } );
+        }
 
         // when
-        race.go();
+        executorService.shutdown();
+        executorService.awaitTermination( 10, TimeUnit.MINUTES );
 
         // then
         assertEquals( 0, tracker.usedDirectMemory() );
     }
 
     @Test
-    void shouldRegisterPeakMemoryUsage() throws Throwable
+    void shouldRegisterPeakMemoryUsage() throws InterruptedException
     {
         // given
-        ThreadSafePeakMemoryAllocationTracker tracker = new ThreadSafePeakMemoryAllocationTracker( GlobalMemoryTracker.INSTANCE );
+        ThreadSafePeakMemoryAllocationTracker tracker = new ThreadSafePeakMemoryAllocationTracker();
         int threads = 200;
         long[] allocations = new long[threads];
         ThreadLocalRandom random = ThreadLocalRandom.current();
@@ -75,13 +80,15 @@ class ThreadSafePeakMemoryAllocationTrackerTest
         }
 
         // when
-        Race race = new Race();
+        ExecutorService executorService = Executors.newFixedThreadPool( threads );
         for ( int i = 0; i < threads; i++ )
         {
             int id = i;
-            race.addContestant( () -> tracker.allocated( allocations[id] ) );
+            executorService.submit( () -> tracker.allocated( allocations[id] ) );
         }
-        race.go();
+        executorService.shutdown();
+        executorService.awaitTermination( 10, TimeUnit.MINUTES );
+
         long peakAfterAllocation = tracker.peakMemoryUsage();
         LongStream.of( allocations ).forEach( tracker::deallocated );
         long peakAfterDeallocation = tracker.peakMemoryUsage();

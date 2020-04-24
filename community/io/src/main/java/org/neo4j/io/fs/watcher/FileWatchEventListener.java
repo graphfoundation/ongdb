@@ -19,6 +19,7 @@
  */
 package org.neo4j.io.fs.watcher;
 
+import java.nio.file.WatchKey;
 import java.util.EventListener;
 
 /**
@@ -29,9 +30,10 @@ public interface FileWatchEventListener extends EventListener
     /**
      * Notification about deletion of file with provided name
      *
+     * @param key watched resource key
      * @param fileName deleted file name
      */
-    default void fileDeleted( String fileName )
+    default void fileDeleted( WatchKey key, String fileName )
     {
         // no-op
     }
@@ -39,9 +41,10 @@ public interface FileWatchEventListener extends EventListener
     /**
      * Notification about update of file with provided name
      *
+     * @param key watched resource key
      * @param fileName updated file name
      */
-    default void fileModified( String fileName )
+    default void fileModified( WatchKey key, String fileName )
     {
         // no-op
     }

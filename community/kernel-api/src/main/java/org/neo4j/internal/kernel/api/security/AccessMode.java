@@ -19,7 +19,13 @@
  */
 package org.neo4j.internal.kernel.api.security;
 
+import java.util.Collections;
+import java.util.Set;
+import java.util.function.IntSupplier;
+import java.util.function.Supplier;
+
 import org.neo4j.graphdb.security.AuthorizationViolationException;
+import org.neo4j.internal.kernel.api.LabelSet;
 import org.neo4j.kernel.api.exceptions.Status;
 
 /** Controls the capabilities of a KernelTransaction. */
@@ -28,9 +34,9 @@ public interface AccessMode
     enum Static implements AccessMode
     {
         /** No reading or writing allowed. */
-        NONE( false, false, false, false, false, false ),
+        ACCESS( false, false, false, false, false ),
         /** No reading or writing allowed because of expired credentials. */
-        CREDENTIALS_EXPIRED( false, false, false, false, false, false )
+        CREDENTIALS_EXPIRED( false, false, false, false, false )
                 {
                     @Override
                     public AuthorizationViolationException onViolation( String msg )
@@ -44,44 +50,37 @@ public interface AccessMode
                                 "requires a password change.%n" +
                                 "Changing your password is easy to do via the Neo4j Browser.%n" +
                                 "If you are connecting via a shell or programmatically via a driver, " +
-                                "just issue a `CALL dbms.changePassword('new password')` statement in the current " +
+                                "just issue a `ALTER CURRENT USER SET PASSWORD FROM 'current password' TO 'new password'` " +
+                                "statement against the system database in the current " +
                                 "session, and then restart your driver with the new password configured." ),
                                 Status.Security.CredentialsExpired );
                     }
                 },
 
         /** Allows reading data and schema, but not writing. */
-        READ( true, false, false, false, false, true ),
+        READ( true, false, false, false, false ),
         /** Allows writing data */
-        WRITE_ONLY( false, true, false, false, false, true ),
+        WRITE_ONLY( false, true, false, false, false ),
         /** Allows reading and writing data, but not schema. */
-        WRITE( true, true, false, false, false, true ),
+        WRITE( true, true, false, false, false ),
         /** Allows reading and writing data and creating new tokens, but not schema. */
-        TOKEN_WRITE( true, true, true, false, false, true ),
+        TOKEN_WRITE( true, true, true, false, false ),
         /** Allows all operations. */
-        FULL( true, true, true, true, true, true );
+        FULL( true, true, true, true, true );
 
         private final boolean read;
         private final boolean write;
         private final boolean token;
         private final boolean schema;
         private final boolean procedure;
-        private final boolean property;
 
-        Static( boolean read, boolean write, boolean token, boolean schema, boolean procedure, boolean property )
+        Static( boolean read, boolean write, boolean token, boolean schema, boolean procedure )
         {
             this.read = read;
             this.write = write;
             this.token = token;
             this.schema = schema;
             this.procedure = procedure;
-            this.property = property;
-        }
-
-        @Override
-        public boolean allowsReads()
-        {
-            return read;
         }
 
         @Override
@@ -91,7 +90,7 @@ public interface AccessMode
         }
 
         @Override
-        public boolean allowsTokenCreates()
+        public boolean allowsTokenCreates( PrivilegeAction action )
         {
             return token;
         }
@@ -103,9 +102,81 @@ public interface AccessMode
         }
 
         @Override
-        public boolean allowsPropertyReads( int propertyKey )
+        public boolean allowsSchemaWrites( PrivilegeAction action )
         {
-            return property;
+            return schema;
+        }
+
+        @Override
+        public boolean allowsTraverseAllLabels()
+        {
+            return read;
+        }
+
+        @Override
+        public boolean allowsTraverseAllNodesWithLabel( long label )
+        {
+            return read;
+        }
+
+        @Override
+        public boolean disallowsTraverseLabel( long label )
+        {
+            return false;
+        }
+
+        @Override
+        public boolean allowsTraverseNode( long... labels )
+        {
+            return read;
+        }
+
+        @Override
+        public boolean allowsTraverseAllRelTypes()
+        {
+            return read;
+        }
+
+        @Override
+        public boolean allowsTraverseRelType( int relType )
+        {
+            return read;
+        }
+
+        @Override
+        public boolean allowsReadPropertyAllLabels( int propertyKey )
+        {
+            return read;
+        }
+
+        @Override
+        public boolean disallowsReadPropertyForSomeLabel( int propertyKey )
+        {
+            return false;
+        }
+
+        @Override
+        public boolean allowsReadNodeProperty( Supplier<LabelSet> labels, int propertyKey )
+        {
+            return read;
+        }
+
+        @Override
+        public boolean allowsReadPropertyAllRelTypes( int propertyKey )
+        {
+            return read;
+        }
+
+        @Override
+        public boolean allowsReadRelationshipProperty( IntSupplier relType, int propertyKey )
+        {
+            return read;
+        }
+
+        @Override
+        public boolean allowsSeePropertyKeyToken( int propertyKey )
+        {
+            return read;
         }
 
         @Override
@@ -121,12 +192,44 @@ public interface AccessMode
         }
     }
 
-    boolean allowsReads();
     boolean allowsWrites();
-    boolean allowsTokenCreates();
+    boolean allowsTokenCreates( PrivilegeAction action );
     boolean allowsSchemaWrites();
+    boolean allowsSchemaWrites( PrivilegeAction action );
 
-    boolean allowsPropertyReads( int propertyKey );
+    /** true if all nodes can be traversed */
+    boolean allowsTraverseAllLabels();
+
+    /** true if all nodes with this label always can be traversed */
+    boolean allowsTraverseAllNodesWithLabel( long label );
+
+    /** true if this label is blacklisted for traversal */
+    boolean disallowsTraverseLabel( long label );
+
+    /** true if a particular node with exactly these labels can be traversed.
+     * @param labels the labels on the node to be checked. If labels only contains {@link org.neo4j.token.api.TokenConstants#ANY_LABEL} it will work
+     *               the same as {@link #allowsTraverseAllLabels}
+     */
+    boolean allowsTraverseNode( long... labels );
+
+    /** true if all relationships can be traversed */
+    boolean allowsTraverseAllRelTypes();
+
+    /**
+     * true if the relType can be traversed.
+     * @param relType the relationship type to check access for. If relType is {@link org.neo4j.token.api.TokenConstants#ANY_RELATIONSHIP_TYPE} it will work
+     *               the same as {@link #allowsTraverseAllRelTypes}
+     */
+    boolean allowsTraverseRelType( int relType );
+
+    boolean allowsReadPropertyAllLabels( int propertyKey );
+    boolean disallowsReadPropertyForSomeLabel( int propertyKey );
+    boolean allowsReadNodeProperty( Supplier<LabelSet> labels, int propertyKey );
+
+    boolean allowsReadPropertyAllRelTypes( int propertyKey );
+    boolean allowsReadRelationshipProperty( IntSupplier relType, int propertyKey );
+
+    boolean allowsSeePropertyKeyToken( int propertyKey );
 
     /**
      * Determines whether this mode allows execution of a procedure with the parameter string array in its
@@ -140,6 +243,11 @@ public interface AccessMode
 
     AuthorizationViolationException onViolation( String msg );
     String name();
+
+    default Set<String> roles()
+    {
+        return Collections.emptySet();
+    }
 
     default boolean isOverridden()
     {

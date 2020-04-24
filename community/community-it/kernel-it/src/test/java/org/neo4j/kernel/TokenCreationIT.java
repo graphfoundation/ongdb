@@ -20,75 +20,65 @@
 package org.neo4j.kernel;
 
 import org.apache.commons.lang3.RandomStringUtils;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.RepeatedTest;
 
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.LockSupport;
 
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Transaction;
-import org.neo4j.test.rule.EmbeddedDatabaseRule;
-import org.neo4j.test.rule.RepeatRule;
+import org.neo4j.test.extension.DbmsExtension;
+import org.neo4j.test.extension.Inject;
 
 import static java.util.Arrays.asList;
-import static org.junit.Assert.assertEquals;
-import static org.neo4j.helpers.collection.Iterables.asSet;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.neo4j.internal.helpers.collection.Iterables.asSet;
 
-/**
- * Token creation should be able to handle cases of concurrent token creation
- * with different/same names. Short random interval (1-3) give a high chances of same token name in this test.
- * <p>
- * Newly created token should be visible only when token cache already have both mappings:
- * "name -> id" and "id -> name" populated.
- * Otherwise attempt to retrieve labels from newly created node can fail.
- */
-public class TokenCreationIT
+@DbmsExtension
+class TokenCreationIT
 {
-    @Rule
-    public final EmbeddedDatabaseRule databaseRule = new EmbeddedDatabaseRule();
+    @Inject
+    private GraphDatabaseService db;
 
-    private volatile boolean stop;
-
-    @Test
-    @RepeatRule.Repeat( times = 5 )
-    public void concurrentLabelTokenCreation() throws InterruptedException
+    /**
+     * Token creation should be able to handle cases of concurrent token creation
+     * with different/same names. Short random interval (1-3) give a high chances of the same token name in this test.
+     * <p>
+     * Newly created token should be visible only when token cache already have both mappings:
+     * "name -> id" and "id -> name" populated.
+     * Otherwise, attempt to retrieve labels from the newly created node can fail.
+     */
+    @RepeatedTest( 5 )
+    void concurrentLabelTokenCreation() throws InterruptedException
     {
+        AtomicBoolean stop = new AtomicBoolean();
         int concurrentWorkers = 10;
         CountDownLatch latch = new CountDownLatch( concurrentWorkers );
         for ( int i = 0; i < concurrentWorkers; i++ )
         {
-            new LabelCreator( databaseRule, latch ).start();
+            new LabelCreator( db, latch, stop ).start();
         }
         LockSupport.parkNanos( TimeUnit.MILLISECONDS.toNanos( 500 ) );
-        stop = true;
+        stop.set( true );
         latch.await();
     }
 
-    public Label[] getLabels()
-    {
-        int randomLabelValue = ThreadLocalRandom.current().nextInt( 2 ) + 1;
-        Label[] labels = new Label[randomLabelValue];
-        for ( int i = 0; i < labels.length; i++ )
-        {
-            labels[i] = Label.label( RandomStringUtils.randomAscii( randomLabelValue ) );
-        }
-        return labels;
-    }
-
-    private class LabelCreator extends Thread
+    private static class LabelCreator extends Thread
     {
         private final GraphDatabaseService database;
         private final CountDownLatch createLatch;
+        private final AtomicBoolean stop;
 
-        LabelCreator( GraphDatabaseService database, CountDownLatch createLatch )
+        LabelCreator( GraphDatabaseService database, CountDownLatch createLatch, AtomicBoolean stop )
         {
             this.database = database;
             this.createLatch = createLatch;
+            this.stop = stop;
         }
 
         @Override
@@ -96,20 +86,20 @@ public class TokenCreationIT
         {
             try
             {
-                while ( !stop )
+                while ( !stop.get() )
                 {
 
                     try ( Transaction transaction = database.beginTx() )
                     {
                         Label[] createdLabels = getLabels();
-                        Node node = database.createNode( createdLabels );
+                        Node node = transaction.createNode( createdLabels );
                         Iterable<Label> nodeLabels = node.getLabels();
                         assertEquals( asSet( asList( createdLabels ) ), asSet( nodeLabels ) );
-                        transaction.success();
+                        transaction.commit();
                     }
                     catch ( Exception e )
                     {
-                        stop = true;
+                        stop.set( true );
                         throw e;
                     }
                 }
@@ -118,6 +108,17 @@ public class TokenCreationIT
             {
                 createLatch.countDown();
             }
+        }
+
+        private Label[] getLabels()
+        {
+            int randomLabelValue = ThreadLocalRandom.current().nextInt( 2 ) + 1;
+            Label[] labels = new Label[randomLabelValue];
+            for ( int i = 0; i < labels.length; i++ )
+            {
+                labels[i] = Label.label( RandomStringUtils.randomAscii( randomLabelValue ) );
+            }
+            return labels;
         }
     }
 }

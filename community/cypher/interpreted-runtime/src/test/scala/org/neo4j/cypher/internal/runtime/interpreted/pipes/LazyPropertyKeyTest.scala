@@ -20,13 +20,11 @@
 package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
 import org.mockito.Mockito._
-import org.neo4j.cypher.internal.v3_6.util.{DummyPosition, PropertyKeyId}
-import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
-import org.neo4j.cypher.internal.v3_6.ast.semantics.SemanticTable
-import org.neo4j.cypher.internal.planner.v3_6.spi.TokenContext
-import org.neo4j.cypher.internal.v3_6.expressions.PropertyKeyName
-
-import scala.collection.mutable
+import org.neo4j.cypher.internal.planner.spi.TokenContext
+import org.neo4j.cypher.internal.v4_0.ast.semantics.SemanticTable
+import org.neo4j.cypher.internal.v4_0.expressions.PropertyKeyName
+import org.neo4j.cypher.internal.v4_0.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.v4_0.util.{DummyPosition, PropertyKeyId}
 
 class LazyPropertyKeyTest extends CypherFunSuite {
   private val pos = DummyPosition(0)
@@ -43,7 +41,7 @@ class LazyPropertyKeyTest extends CypherFunSuite {
     val id = LazyPropertyKey(PROPERTY_KEY_NAME).id(context)
 
     // THEN
-    id should equal(Some(PROPERTY_KEY_ID))
+    id should equal(PROPERTY_KEY_ID.id)
     verifyZeroInteractions(context)
   }
 
@@ -58,8 +56,8 @@ class LazyPropertyKeyTest extends CypherFunSuite {
     val id = LazyPropertyKey(PROPERTY_KEY_NAME).id(context)
 
     // THEN
-    id should equal(Some(PROPERTY_KEY_ID))
-    verify(context, times(1)).getOptPropertyKeyId("foo")
+    id should equal(PROPERTY_KEY_ID.id)
+    verify(context).getOptPropertyKeyId("foo")
     verifyNoMoreInteractions(context)
   }
 
@@ -72,10 +70,10 @@ class LazyPropertyKeyTest extends CypherFunSuite {
 
     // WHEN
     val lazyPropertyKey = LazyPropertyKey(PROPERTY_KEY_NAME)
-    for (i <- 1 to 100) lazyPropertyKey.id(context)
+    for (_ <- 1 to 100) lazyPropertyKey.id(context)
 
     // THEN
-    verify(context, times(1)).getOptPropertyKeyId("foo")
+    verify(context).getOptPropertyKeyId("foo")
     verifyNoMoreInteractions(context)
   }
 }

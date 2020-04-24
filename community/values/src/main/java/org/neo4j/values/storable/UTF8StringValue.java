@@ -107,6 +107,12 @@ public final class UTF8StringValue extends StringValue
         return numberOfCodePoints( bytes, offset, byteLength );
     }
 
+    @Override
+    protected long estimatedPayloadSize()
+    {
+        return 28 + Byte.BYTES * bytes.length;
+    }
+
     private static int numberOfCodePoints( byte[] bytes, int offset, int byteLength )
     {
         int count = 0, i = offset, len = offset + byteLength;

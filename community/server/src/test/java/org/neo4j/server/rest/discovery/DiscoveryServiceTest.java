@@ -26,21 +26,19 @@ import org.junit.runners.Parameterized;
 import org.mockito.Answers;
 
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.function.Consumer;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriInfo;
 
-import org.neo4j.graphdb.DependencyResolver;
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
-import org.neo4j.helpers.AdvertisedSocketAddress;
-import org.neo4j.helpers.HostnamePort;
-import org.neo4j.kernel.configuration.BoltConnector;
-import org.neo4j.kernel.configuration.Config;
-import org.neo4j.kernel.configuration.ConnectorPortRegister;
+import org.neo4j.common.DependencyResolver;
+import org.neo4j.configuration.Config;
+import org.neo4j.configuration.GraphDatabaseSettings;
+import org.neo4j.configuration.connectors.BoltConnector;
+import org.neo4j.configuration.connectors.ConnectorPortRegister;
+import org.neo4j.configuration.helpers.SocketAddress;
+import org.neo4j.internal.helpers.HostnamePort;
 import org.neo4j.server.NeoServer;
 import org.neo4j.server.configuration.ServerSettings;
 import org.neo4j.server.rest.repr.formats.JsonFormat;
@@ -126,31 +124,27 @@ public class DiscoveryServiceTest
     private final ConnectorPortRegister portRegistry = mock( ConnectorPortRegister.class );
 
     private URI baseUri;
-    private URI dataUri;
-    private URI managementUri;
+    private URI dbUri;
     private Consumer<ConnectorPortRegister> portRegistryOverrider;
-    private Consumer<Config> configOverrider;
+    private Consumer<Config.Builder> configOverrider;
 
-    private String expectedDataUri;
-    private String expectedManagementUri;
+    private String expectedDatabaseUri;
     private String expectedBoltUri;
 
-    public DiscoveryServiceTest( String description, String baseUri, Consumer<ConnectorPortRegister> portRegistryOverrider, Consumer<Config> configOverrider,
-            String expectedBoltUri ) throws Throwable
+    public DiscoveryServiceTest( String description, String baseUri, Consumer<ConnectorPortRegister> portRegistryOverrider,
+            Consumer<Config.Builder> configOverrider, String expectedBoltUri ) throws Throwable
     {
         this.baseUri = new URI( baseUri );
-        this.dataUri = new URI( "/data" );
-        this.managementUri = new URI( "/management" );
+        this.dbUri = new URI( "/db" );
         this.portRegistryOverrider = portRegistryOverrider;
         this.configOverrider = configOverrider;
 
-        this.expectedDataUri = this.baseUri.resolve( this.dataUri ).toString();
-        this.expectedManagementUri = this.baseUri.resolve( this.managementUri ).toString();
+        this.expectedDatabaseUri = this.baseUri.resolve( this.dbUri ).toString();
         this.expectedBoltUri = expectedBoltUri;
     }
 
     @Before
-    public void setUp() throws URISyntaxException
+    public void setUp()
     {
         if ( portRegistryOverrider != null )
         {
@@ -163,32 +157,29 @@ public class DiscoveryServiceTest
 
         DependencyResolver dependencyResolver = mock( DependencyResolver.class );
         when( dependencyResolver.resolveDependency( ConnectorPortRegister.class ) ).thenReturn( portRegistry );
-        when( neoServer.getDatabase().getGraph().getDependencyResolver() ).thenReturn( dependencyResolver );
+        when( neoServer.getDatabaseService().getDatabase().getDependencyResolver() ).thenReturn( dependencyResolver );
     }
 
     private Config mockConfig()
     {
-        HashMap<String,String> settings = new HashMap<>();
-        settings.put( GraphDatabaseSettings.auth_enabled.name(), "false" );
-        settings.put( new BoltConnector( "bolt" ).type.name(), "BOLT" );
-        settings.put( new BoltConnector( "bolt" ).enabled.name(), "true" );
-        settings.put( ServerSettings.management_api_path.name(), managementUri.toString() );
-        settings.put( ServerSettings.rest_api_path.name(), dataUri.toString() );
-
-        Config config = Config.defaults( settings );
+        Config.Builder builder = Config.newBuilder()
+            .set( GraphDatabaseSettings.auth_enabled, false )
+            .set( BoltConnector.enabled, true )
+            .set( ServerSettings.db_api_path, dbUri );
 
         if ( configOverrider != null )
         {
-            configOverrider.accept( config );
+            configOverrider.accept( builder );
         }
 
-        return config;
+        return builder.build();
     }
 
-    private DiscoveryService testDiscoveryService() throws URISyntaxException
+    private DiscoveryService testDiscoveryService()
     {
         Config config = mockConfig();
-        return new DiscoveryService( config, new EntityOutputFormat( new JsonFormat(), baseUri, null ), communityDiscoverableURIs( config, portRegistry ) );
+        return new DiscoveryService( config, new EntityOutputFormat( new JsonFormat(), baseUri ),
+                communityDiscoverableURIs( config, portRegistry ), mock( ServerVersionAndEdition.class ) );
     }
 
     @Test
@@ -211,37 +202,37 @@ public class DiscoveryServiceTest
     }
 
     @Test
-    public void shouldReturnBoltURI() throws Exception
+    public void shouldReturnBoltDirectURI() throws Exception
     {
         Response response = testDiscoveryService().getDiscoveryDocument( uriInfo( baseUri ) );
         String json = new String( (byte[]) response.getEntity() );
-        assertThat( json, containsString( "\"bolt\" : \"" + expectedBoltUri ) );
+        assertThat( json, containsString( "\"bolt_direct\" : \"" + expectedBoltUri ) );
     }
 
     @Test
-    public void shouldReturnDataURI() throws Exception
+    public void shouldReturnTxURI() throws Exception
     {
         Response response = testDiscoveryService().getDiscoveryDocument( uriInfo( baseUri ) );
         String json = new String( (byte[]) response.getEntity() );
-        assertThat( json, containsString( "\"data\" : \"" + expectedDataUri + "/\"" ) );
+        assertThat( json, containsString( "\"transaction\" : \"" + expectedDatabaseUri + "/" ) );
     }
 
     @Test
-    public void shouldReturnManagementURI() throws Exception
+    public void shouldNotReturnManagementURI() throws Exception
     {
         Response response = testDiscoveryService().getDiscoveryDocument( uriInfo( baseUri ) );
         String json = new String( (byte[]) response.getEntity() );
-        assertThat( json, containsString( "\"management\" : \"" + expectedManagementUri + "/\"" ) );
+        assertThat( json, not( containsString( "\"management\"" ) ) );
     }
 
     @Test
     public void shouldReturnRedirectToAbsoluteAPIUsingOutputFormat() throws Exception
     {
-        Config config = Config.defaults( ServerSettings.browser_path, "/browser/" );
+        Config config = Config.defaults( ServerSettings.browser_path, URI.create( "/browser/" ) );
 
         String baseUri = "http://www.example.com:5435";
-        DiscoveryService ds =
-                new DiscoveryService( config, new EntityOutputFormat( new JsonFormat(), new URI( baseUri ), null ), communityDiscoverableURIs( config, null ) );
+        DiscoveryService ds = new DiscoveryService( config, new EntityOutputFormat( new JsonFormat(), new URI( baseUri ) ),
+                communityDiscoverableURIs( config, null ), mock( ServerVersionAndEdition.class ) );
 
         Response response = ds.redirectToBrowser();
 
@@ -253,43 +244,36 @@ public class DiscoveryServiceTest
         return register -> when( register.getLocalAddress( connector ) ).thenReturn( new HostnamePort( host, port ) );
     }
 
-    private static Consumer<ConnectorPortRegister> combineRegisterers( Consumer<ConnectorPortRegister>... overriders )
+    private static Consumer<Config.Builder> overrideWithAdvertisedAddress( String host, int port )
     {
-        return config ->
+        return builder -> builder.set( BoltConnector.advertised_address, new SocketAddress( host, port ) );
+    }
+
+    private static Consumer<Config.Builder> overrideWithListenAddress( String host, int port )
+    {
+        return builder ->
         {
-            for ( Consumer<ConnectorPortRegister> overrider : overriders )
-            {
-                overrider.accept( config );
-            }
+            builder.set( BoltConnector.listen_address, new SocketAddress( host, port ) );
+            builder.setDefault( BoltConnector.advertised_address, new SocketAddress( port ) );
         };
     }
 
-    private static Consumer<Config> overrideWithAdvertisedAddress( String host, int port )
+    private static Consumer<Config.Builder> overrideWithDefaultListenAddress( String host )
     {
-        return config -> config.augment( new BoltConnector( "bolt" ).advertised_address.name(), AdvertisedSocketAddress.advertisedAddress( host, port ) );
+        return builder -> builder.set( GraphDatabaseSettings.default_listen_address, new SocketAddress( host ) );
     }
 
-    private static Consumer<Config> overrideWithListenAddress( String host, int port )
+    private static Consumer<Config.Builder> overrideWithDiscoverable( String uri )
     {
-        return config -> config.augment( new BoltConnector( "bolt" ).listen_address.name(), AdvertisedSocketAddress.advertisedAddress( host, port ) );
-    }
-
-    private static Consumer<Config> overrideWithDefaultListenAddress( String host )
-    {
-        return config -> config.augment( GraphDatabaseSettings.default_listen_address, host );
-    }
-
-    private static Consumer<Config> overrideWithDiscoverable( String uri )
-    {
-        return config -> config.augment( ServerSettings.bolt_discoverable_address, uri );
+        return builder -> builder.set( ServerSettings.bolt_discoverable_address, URI.create( uri ) );
     }
 
     @SafeVarargs
-    private static Consumer<Config> combineConfigOverriders( Consumer<Config>... overriders )
+    private static Consumer<Config.Builder> combineConfigOverriders( Consumer<Config.Builder>... overriders )
     {
         return config ->
         {
-            for ( Consumer<Config> overrider : overriders )
+            for ( Consumer<Config.Builder> overrider : overriders )
             {
                 overrider.accept( config );
             }

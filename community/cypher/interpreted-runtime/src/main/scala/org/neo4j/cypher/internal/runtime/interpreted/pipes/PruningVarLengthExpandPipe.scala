@@ -20,17 +20,21 @@
 package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
 import org.eclipse.collections.impl.map.mutable.primitive.LongObjectHashMap
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
-import org.neo4j.cypher.internal.v3_6.util.InternalException
-import org.neo4j.cypher.internal.v3_6.util.attribution.Id
-import org.neo4j.cypher.internal.v3_6.expressions.SemanticDirection
+import org.neo4j.cypher.internal.runtime.NoMemoryTracker
+import org.neo4j.cypher.internal.runtime.QueryMemoryTracker
+import org.neo4j.cypher.internal.runtime.{ExecutionContext, IsNoValue}
+import org.neo4j.cypher.internal.v4_0.expressions.SemanticDirection
+import org.neo4j.cypher.internal.v4_0.util.attribution.Id
+import org.neo4j.exceptions.InternalException
 import org.neo4j.values.storable.{Value, Values}
-import org.neo4j.values.virtual.{RelationshipValue, VirtualNodeValue}
+import org.neo4j.values.virtual.{NodeReference, NodeValue, RelationshipValue, VirtualNodeValue}
+
+import scala.collection.mutable.ArrayBuffer
 
 case class PruningVarLengthExpandPipe(source: Pipe,
                                       fromName: String,
                                       toName: String,
-                                      types: LazyTypes,
+                                      types: RelationshipTypes,
                                       dir: SemanticDirection,
                                       min: Int,
                                       max: Int,
@@ -156,7 +160,7 @@ case class PruningVarLengthExpandPipe(source: Pipe,
       nodeState.depths(i) >= stepsLeft
     }
 
-    private def updatePrevFullExpandDepth() = {
+    private def updatePrevFullExpandDepth(): Unit = {
       if ( pathLength > 0 ) {
         val requiredStepsFromPrev = math.max(0, self.min - pathLength + 1)
         if (requiredStepsFromPrev <= 1 || nodeState.isEmitted) {
@@ -180,7 +184,7 @@ case class PruningVarLengthExpandPipe(source: Pipe,
     private def initiate(): Unit = {
       nodeState = expandMap.get(node.id())
       if (nodeState == NodeState.UNINITIALIZED) {
-        nodeState = new NodeState()
+        nodeState = new NodeState(queryState.memoryTracker)
         expandMap.put(node.id(), nodeState)
       }
     }
@@ -192,7 +196,7 @@ case class PruningVarLengthExpandPipe(source: Pipe,
     val NOOP_REL: Int = 0
 
     val NOOP: NodeState = {
-      val noop = new NodeState()
+      val noop = new NodeState(NoMemoryTracker)
       noop.rels = Array(null)
       noop.depths = Array[Byte](0)
       noop
@@ -202,7 +206,7 @@ case class PruningVarLengthExpandPipe(source: Pipe,
   /**
     * The state of expansion for one node
     */
-  class NodeState() {
+  class NodeState(memoryTracker: QueryMemoryTracker) {
 
     // All relationships that connect to this node, filtered by the var-length predicates
     var rels: Array[RelationshipValue] = _
@@ -241,11 +245,18 @@ case class PruningVarLengthExpandPipe(source: Pipe,
     def ensureExpanded(queryState: QueryState, row: ExecutionContext, node: VirtualNodeValue): Unit = {
       if ( rels == null ) {
         val allRels = queryState.query.getRelationshipsForIds(node.id(), dir, types.types(queryState.query))
-        rels = allRels.filter(r => {
-          filteringStep.filterRelationship(row, queryState)(r) &&
-            filteringStep.filterNode(row, queryState)(r.otherNode(node))
-        }).toArray
+        val builder = Array.newBuilder[RelationshipValue]
+        while (allRels.hasNext) {
+          val rel = allRels.next()
+          if (filteringStep.filterRelationship(row, queryState)(rel) &&
+            filteringStep.filterNode(row, queryState)(rel.otherNode(node))) {
+            builder += rel
+            memoryTracker.allocated(rel)
+          }
+        }
+        rels = builder.result()
         depths = new Array[Byte](rels.length)
+        memoryTracker.allocated(rels.length * java.lang.Byte.BYTES)
       }
     }
   }
@@ -257,6 +268,7 @@ case class PruningVarLengthExpandPipe(source: Pipe,
     private var inputRow:ExecutionContext = _
     private val nodeState = new Array[PruningDFS](self.max + 1)
     private val path = new Array[Long](max)
+    queryState.memoryTracker.allocated(max * java.lang.Long.BYTES)
     private var depth = -1
 
     def startRow( inputRow:ExecutionContext ): Unit = {
@@ -267,16 +279,16 @@ case class PruningVarLengthExpandPipe(source: Pipe,
     def next(): ExecutionContext = {
       val endNode =
         if (depth == -1) {
-          val fromValue = inputRow.getOrElse(fromName, error(s"Required variable `$fromName` is not in context"))
+          val fromValue = inputRow.getByName(fromName)
           fromValue match {
-            case node: VirtualNodeValue =>
-              push( node = node,
-                pathLength = 0,
-                expandMap = new LongObjectHashMap[NodeState](),
-                prevLocalRelIndex = -1,
-                prevNodeState = NodeState.NOOP )
+            case node: NodeValue =>
+                pushStartNode(node)
 
-            case x: Value if x == Values.NO_VALUE =>
+            case nodeRef: NodeReference =>
+              val node = queryState.query.nodeOps.getById(nodeRef.id)
+              pushStartNode(node)
+
+            case IsNoValue() =>
               null
 
             case _ =>
@@ -295,6 +307,18 @@ case class PruningVarLengthExpandPipe(source: Pipe,
         null
       }
       else executionContextFactory.copyWith(inputRow, self.toName, endNode)
+    }
+
+    def pushStartNode(node: NodeValue): VirtualNodeValue = {
+      if(filteringStep.filterNode(inputRow, queryState)(node)) {
+        push(node,
+          pathLength = 0,
+          expandMap = new LongObjectHashMap[NodeState](),
+          prevLocalRelIndex = -1,
+          prevNodeState = NodeState.NOOP)
+      } else {
+        null
+      }
     }
 
     def push(node: VirtualNodeValue,
@@ -323,7 +347,7 @@ case class PruningVarLengthExpandPipe(source: Pipe,
   ) extends Iterator[ExecutionContext] {
 
     var outputRow:ExecutionContext = _
-    var fullPruneState:FullPruneState = new FullPruneState( queryState )
+    val fullPruneState:FullPruneState = new FullPruneState( queryState )
     var hasPrefetched = false
 
     override def hasNext: Boolean = {

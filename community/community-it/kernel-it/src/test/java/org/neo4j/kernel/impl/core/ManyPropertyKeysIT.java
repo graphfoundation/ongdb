@@ -19,58 +19,64 @@
  */
 package org.neo4j.kernel.impl.core;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.RuleChain;
+import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
 import java.util.Collection;
 
-import org.neo4j.dbms.database.DatabaseManager;
+import org.neo4j.configuration.Config;
+import org.neo4j.configuration.GraphDatabaseSettings;
+import org.neo4j.dbms.api.DatabaseManagementService;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Transaction;
-import org.neo4j.helpers.collection.Iterables;
+import org.neo4j.internal.helpers.collection.Iterables;
+import org.neo4j.internal.id.DefaultIdGeneratorFactory;
 import org.neo4j.internal.kernel.api.exceptions.TransactionFailureException;
+import org.neo4j.io.fs.FileSystemAbstraction;
+import org.neo4j.io.layout.DatabaseLayout;
+import org.neo4j.io.pagecache.IOLimiter;
 import org.neo4j.io.pagecache.PageCache;
-import org.neo4j.io.pagecache.tracing.cursor.context.EmptyVersionContextSupplier;
-import org.neo4j.kernel.api.InwardKernel;
+import org.neo4j.kernel.api.Kernel;
 import org.neo4j.kernel.api.KernelTransaction;
 import org.neo4j.kernel.api.security.AnonymousContext;
-import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.impl.store.NeoStores;
 import org.neo4j.kernel.impl.store.PropertyKeyTokenStore;
 import org.neo4j.kernel.impl.store.PropertyStore;
 import org.neo4j.kernel.impl.store.StoreFactory;
-import org.neo4j.kernel.impl.store.id.DefaultIdGeneratorFactory;
 import org.neo4j.kernel.impl.store.record.DynamicRecord;
 import org.neo4j.kernel.impl.store.record.PropertyKeyTokenRecord;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
 import org.neo4j.logging.NullLogProvider;
 import org.neo4j.test.OtherThreadExecutor;
 import org.neo4j.test.OtherThreadExecutor.WorkerCommand;
-import org.neo4j.test.TestGraphDatabaseFactory;
-import org.neo4j.test.rule.PageCacheRule;
-import org.neo4j.test.rule.TestDirectory;
-import org.neo4j.test.rule.fs.DefaultFileSystemRule;
+import org.neo4j.test.TestDatabaseManagementServiceBuilder;
+import org.neo4j.test.extension.Inject;
+import org.neo4j.test.extension.Neo4jLayoutExtension;
+import org.neo4j.test.extension.pagecache.PageCacheExtension;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
+import static org.neo4j.index.internal.gbptree.RecoveryCleanupWorkCollector.immediate;
 
 /**
  * Tests for handling many property keys (even after restart of database)
  * as well as concurrent creation of property keys.
  */
-public class ManyPropertyKeysIT
+@PageCacheExtension
+@Neo4jLayoutExtension
+class ManyPropertyKeysIT
 {
-    private final PageCacheRule pageCacheRule = new PageCacheRule();
-    private final TestDirectory testDirectory = TestDirectory.testDirectory();
-    private final DefaultFileSystemRule fileSystemRule = new DefaultFileSystemRule();
-
-    @Rule
-    public final RuleChain ruleChain = RuleChain.outerRule( testDirectory )
-            .around( fileSystemRule ).around( pageCacheRule );
+    @Inject
+    private FileSystemAbstraction fileSystem;
+    @Inject
+    private DatabaseLayout databaseLayout;
+    @Inject
+    private PageCache pageCache;
+    private DatabaseManagementService managementService;
 
     @Test
-    public void creating_many_property_keys_should_have_all_loaded_the_next_restart() throws Exception
+    void creating_many_property_keys_should_have_all_loaded_the_next_restart() throws Exception
     {
         // GIVEN
         // The previous limit to load was 2500, so go some above that
@@ -78,21 +84,21 @@ public class ManyPropertyKeysIT
         int countBefore = propertyKeyCount( db );
 
         // WHEN
-        db.shutdown();
+        managementService.shutdown();
         db = database();
         createNodeWithProperty( db, key( 2800 ), true );
 
         // THEN
         assertEquals( countBefore, propertyKeyCount( db ) );
-        db.shutdown();
+        managementService.shutdown();
     }
 
     @Test
-    public void concurrently_creating_same_property_key_in_different_transactions_should_end_up_with_same_key_id()
-            throws Exception
+    void concurrently_creating_same_property_key_in_different_transactions_should_end_up_with_same_key_id() throws Exception
     {
         // GIVEN
-        GraphDatabaseAPI db = (GraphDatabaseAPI) new TestGraphDatabaseFactory().newImpermanentDatabase();
+        DatabaseManagementService managementService = new TestDatabaseManagementServiceBuilder().impermanent().build();
+        GraphDatabaseAPI db = (GraphDatabaseAPI) managementService.database( DEFAULT_DATABASE_NAME );
         OtherThreadExecutor<WorkerState> worker1 = new OtherThreadExecutor<>( "w1", new WorkerState( db ) );
         OtherThreadExecutor<WorkerState> worker2 = new OtherThreadExecutor<>( "w2", new WorkerState( db ) );
         worker1.execute( new BeginTx() );
@@ -109,20 +115,22 @@ public class ManyPropertyKeysIT
 
         // THEN
         assertEquals( 1, propertyKeyCount( db ) );
-        db.shutdown();
+        managementService.shutdown();
     }
 
     private GraphDatabaseAPI database()
     {
-        return (GraphDatabaseAPI) new TestGraphDatabaseFactory().newEmbeddedDatabase( testDirectory.databaseDir() );
+        managementService = new TestDatabaseManagementServiceBuilder( databaseLayout )
+                .setConfig( GraphDatabaseSettings.fail_on_missing_files, false )
+                .build();
+        return (GraphDatabaseAPI) managementService.database( DEFAULT_DATABASE_NAME );
     }
 
-    private GraphDatabaseAPI databaseWithManyPropertyKeys( int propertyKeyCount )
+    private GraphDatabaseAPI databaseWithManyPropertyKeys( int propertyKeyCount ) throws IOException
     {
 
-        PageCache pageCache = pageCacheRule.getPageCache( fileSystemRule.get() );
-        StoreFactory storeFactory = new StoreFactory( testDirectory.databaseLayout(), Config.defaults(), new DefaultIdGeneratorFactory( fileSystemRule.get() ),
-                pageCache, fileSystemRule.get(), NullLogProvider.getInstance(), EmptyVersionContextSupplier.EMPTY );
+        StoreFactory storeFactory = new StoreFactory( databaseLayout, Config.defaults(),
+                new DefaultIdGeneratorFactory( fileSystem, immediate() ), pageCache, fileSystem, NullLogProvider.getInstance() );
         NeoStores neoStores = storeFactory.openAllNeoStores( true );
         PropertyKeyTokenStore store = neoStores.getPropertyKeyTokenStore();
         for ( int i = 0; i < propertyKeyCount; i++ )
@@ -134,30 +142,30 @@ public class ManyPropertyKeysIT
             record.setNameId( (int) Iterables.first( nameRecords ).getId() );
             store.updateRecord( record );
         }
+        neoStores.flush( IOLimiter.UNLIMITED );
         neoStores.close();
 
         return database();
     }
 
-    private String key( int i )
+    private static String key( int i )
     {
         return "key" + i;
     }
 
-    private static Node createNodeWithProperty( GraphDatabaseService db, String key, Object value )
+    private static void createNodeWithProperty( GraphDatabaseService db, String key, Object value )
     {
         try ( Transaction tx = db.beginTx() )
         {
-            Node node = db.createNode();
+            Node node = tx.createNode();
             node.setProperty( key, value );
-            tx.success();
-            return node;
+            tx.commit();
         }
     }
 
     private static int propertyKeyCount( GraphDatabaseAPI db ) throws TransactionFailureException
     {
-        InwardKernel kernelAPI = db.getDependencyResolver().resolveDependency( InwardKernel.class );
+        Kernel kernelAPI = db.getDependencyResolver().resolveDependency( Kernel.class );
         try ( KernelTransaction tx = kernelAPI.beginTransaction( KernelTransaction.Type.implicit, AnonymousContext.read() ) )
         {
             return tx.tokenRead().propertyKeyCount();
@@ -197,7 +205,7 @@ public class ManyPropertyKeysIT
         @Override
         public Void doWork( WorkerState state )
         {
-            Node node = state.db.createNode();
+            Node node = state.tx.createNode();
             node.setProperty( key, true );
             return null;
         }
@@ -208,8 +216,7 @@ public class ManyPropertyKeysIT
         @Override
         public Void doWork( WorkerState state )
         {
-            state.tx.success();
-            state.tx.close();
+            state.tx.commit();
             return null;
         }
     }

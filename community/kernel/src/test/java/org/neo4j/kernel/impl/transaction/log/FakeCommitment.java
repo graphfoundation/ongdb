@@ -19,6 +19,8 @@
  */
 package org.neo4j.kernel.impl.transaction.log;
 
+import org.neo4j.storageengine.api.TransactionIdStore;
+
 public class FakeCommitment implements Commitment
 {
     public static final int CHECKSUM = 3;
@@ -26,7 +28,6 @@ public class FakeCommitment implements Commitment
     private final long id;
     private final TransactionIdStore transactionIdStore;
     private boolean committed;
-    private boolean hasExplicitIndexChanges;
 
     public FakeCommitment( long id, TransactionIdStore transactionIdStore )
     {
@@ -59,14 +60,4 @@ public class FakeCommitment implements Commitment
         return committed;
     }
 
-    public void setHasExplicitIndexChanges( boolean hasExplicitIndexChanges )
-    {
-        this.hasExplicitIndexChanges = hasExplicitIndexChanges;
-    }
-
-    @Override
-    public boolean hasExplicitIndexChanges()
-    {
-        return hasExplicitIndexChanges;
-    }
 }

@@ -26,6 +26,7 @@ import java.io.IOException;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.neo4j.annotations.service.ServiceProvider;
 import org.neo4j.io.pagecache.PageEvictionCallback;
 import org.neo4j.io.pagecache.PageSwapper;
 import org.neo4j.io.pagecache.impl.SingleFilePageSwapperFactory;
@@ -36,13 +37,8 @@ import static org.junit.Assert.fail;
 
 public abstract class NeoServerRestartTestIT extends ExclusiveServerTestBase
 {
-    public static final String CUSTOM_SWAPPER = "CustomSwapper";
-    private static Semaphore semaphore;
-
-    static
-    {
-        semaphore = new Semaphore( 0 );
-    }
+    protected static final String CUSTOM_SWAPPER = "CustomSwapper";
+    private static final Semaphore SEMAPHORE = new Semaphore( 0 );
 
     /**
      * This test makes sure that the database is able to start after having been stopped during initialization.
@@ -51,15 +47,12 @@ public abstract class NeoServerRestartTestIT extends ExclusiveServerTestBase
      * In order to make sure that this thread does not call stop before the startup procedure has started we use a
      * custom implementation of a PageSwapperFactory, which communicates with the thread that calls stop. We do this
      * via a static semaphore.
-     * @throws IOException
-     * @throws InterruptedException
      */
-
     @Test
     public void shouldBeAbleToRestartWhenStoppedDuringStartup() throws IOException, InterruptedException
     {
         // Make sure that the semaphore is in a clean state.
-        semaphore.drainPermits();
+        SEMAPHORE.drainPermits();
         // Get a server that uses our custom swapper.
         NeoServer server = getNeoServer( CUSTOM_SWAPPER );
 
@@ -87,14 +80,14 @@ public abstract class NeoServerRestartTestIT extends ExclusiveServerTestBase
 
     protected abstract NeoServer getNeoServer( String customPageSwapperName ) throws IOException;
 
-    private Runnable stopServerAfterStartingHasStarted( NeoServer server, AtomicBoolean failure )
+    private static Runnable stopServerAfterStartingHasStarted( NeoServer server, AtomicBoolean failure )
     {
         return () ->
         {
             try
             {
                 // Make sure that we have started the startup procedure before calling stop.
-                semaphore.acquire();
+                SEMAPHORE.acquire();
                 server.stop();
             }
             catch ( Exception e )
@@ -105,21 +98,22 @@ public abstract class NeoServerRestartTestIT extends ExclusiveServerTestBase
     }
 
     // This class is used to notify the test that the server has started its startup procedure.
+    @ServiceProvider
     public static class CustomSwapper extends SingleFilePageSwapperFactory
     {
         @Override
-        public String implementationName()
+        public String getName()
         {
             return CUSTOM_SWAPPER;
         }
 
         @Override
         public PageSwapper createPageSwapper( File file, int filePageSize, PageEvictionCallback onEviction,
-                boolean createIfNotExist, boolean noChannelStriping ) throws IOException
+                boolean createIfNotExist, boolean noChannelStriping, boolean useDirectIO ) throws IOException
         {
             // This will be called early in the startup sequence. Notifies that we can call stop on the server.
-            semaphore.release();
-            return super.createPageSwapper( file, filePageSize, onEviction, createIfNotExist, noChannelStriping );
+            SEMAPHORE.release();
+            return super.createPageSwapper( file, filePageSize, onEviction, createIfNotExist, noChannelStriping, useDirectIO );
         }
     }
 }

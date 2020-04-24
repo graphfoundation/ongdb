@@ -27,14 +27,14 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Set;
 
+import org.neo4j.internal.index.label.NativeLabelScanStoreTest;
 import org.neo4j.io.layout.DatabaseLayout;
-import org.neo4j.kernel.api.impl.labelscan.LabelScanStoreTest;
-import org.neo4j.test.rule.DatabaseRule;
-import org.neo4j.test.rule.EmbeddedDatabaseRule;
+import org.neo4j.test.rule.DbmsRule;
+import org.neo4j.test.rule.EmbeddedDbmsRule;
 import org.neo4j.test.rule.RandomRule;
 
 import static org.junit.Assert.assertEquals;
-import static org.neo4j.helpers.collection.Iterators.asSet;
+import static org.neo4j.internal.helpers.collection.Iterators.asSet;
 
 /**
  * Tests functionality around missing or corrupted lucene label scan store index, and that
@@ -42,7 +42,7 @@ import static org.neo4j.helpers.collection.Iterators.asSet;
  */
 public class NativeLabelScanStoreChaosIT
 {
-    private final DatabaseRule dbRule = new EmbeddedDatabaseRule();
+    private final DbmsRule dbRule = new EmbeddedDbmsRule();
     private final RandomRule randomRule = new RandomRule();
     @Rule
     public final RuleChain ruleChain = RuleChain.outerRule( randomRule ).around( dbRule );
@@ -78,12 +78,12 @@ public class NativeLabelScanStoreChaosIT
         return databaseLayout.labelScanStore();
     }
 
-    private DatabaseRule.RestartAction corruptTheLabelScanStoreIndex()
+    private DbmsRule.RestartAction corruptTheLabelScanStoreIndex()
     {
         return ( fs, directory ) -> scrambleFile( storeFile( directory ) );
     }
 
-    private DatabaseRule.RestartAction deleteTheLabelScanStoreIndex()
+    private static DbmsRule.RestartAction deleteTheLabelScanStoreIndex()
     {
         return ( fs, directory ) -> fs.deleteFile( storeFile( directory ) );
     }
@@ -92,31 +92,31 @@ public class NativeLabelScanStoreChaosIT
     {
         try ( Transaction tx = dbRule.getGraphDatabaseAPI().beginTx() )
         {
-            Node node = dbRule.getGraphDatabaseAPI().createNode( labels );
-            tx.success();
+            Node node = tx.createNode( labels );
+            tx.commit();
             return node;
         }
     }
 
     private Set<Node> getAllNodesWithLabel( Label label )
     {
-        try ( Transaction ignored = dbRule.getGraphDatabaseAPI().beginTx() )
+        try ( Transaction tx = dbRule.getGraphDatabaseAPI().beginTx() )
         {
-            return asSet( dbRule.getGraphDatabaseAPI().findNodes( label ) );
+            return asSet( tx.findNodes( label ) );
         }
     }
 
     private void scrambleFile( File file ) throws IOException
     {
-        LabelScanStoreTest.scrambleFile( randomRule.random(), file );
+        NativeLabelScanStoreTest.scrambleFile( randomRule.random(), file );
     }
 
     private void deleteNode( Node node )
     {
         try ( Transaction tx = dbRule.getGraphDatabaseAPI().beginTx() )
         {
-            node.delete();
-            tx.success();
+            tx.getNodeById( node.getId() ).delete();
+            tx.commit();
         }
     }
 

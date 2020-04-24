@@ -19,163 +19,108 @@
  */
 package org.neo4j.graphdb.factory.module.edition;
 
-import java.io.File;
-import java.time.Clock;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
+import org.neo4j.annotations.api.IgnoreApiCheck;
+import org.neo4j.bolt.dbapi.BoltGraphDatabaseManagementServiceSPI;
+import org.neo4j.collection.Dependencies;
+import org.neo4j.common.DependencyResolver;
+import org.neo4j.configuration.helpers.NormalizedDatabaseName;
+import org.neo4j.dbms.api.DatabaseManagementService;
 import org.neo4j.dbms.database.DatabaseManager;
-import org.neo4j.dmbs.database.DefaultDatabaseManager;
-import org.neo4j.graphdb.facade.GraphDatabaseFacadeFactory;
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
-import org.neo4j.graphdb.factory.module.PlatformModule;
-import org.neo4j.graphdb.factory.module.edition.context.DatabaseEditionContext;
-import org.neo4j.helpers.Service;
-import org.neo4j.internal.kernel.api.exceptions.KernelException;
-import org.neo4j.io.fs.FileSystemAbstraction;
-import org.neo4j.io.fs.watcher.RestartableFileSystemWatcher;
+import org.neo4j.dbms.database.SystemGraphInitializer;
+import org.neo4j.exceptions.KernelException;
+import org.neo4j.graphdb.facade.DatabaseManagementServiceFactory;
+import org.neo4j.graphdb.factory.module.GlobalModule;
+import org.neo4j.graphdb.factory.module.edition.context.EditionDatabaseComponents;
+import org.neo4j.internal.collector.DataCollectorProcedures;
+import org.neo4j.io.fs.watcher.DatabaseLayoutWatcher;
+import org.neo4j.io.fs.watcher.FileWatcher;
+import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.io.pagecache.IOLimiter;
 import org.neo4j.kernel.api.net.NetworkConnectionTracker;
-import org.neo4j.kernel.api.security.SecurityModule;
+import org.neo4j.kernel.api.procedure.GlobalProcedures;
+import org.neo4j.kernel.api.security.AuthManager;
 import org.neo4j.kernel.api.security.provider.SecurityProvider;
-import org.neo4j.kernel.availability.AvailabilityGuard;
-import org.neo4j.kernel.availability.DatabaseAvailabilityGuard;
-import org.neo4j.kernel.configuration.Config;
-import org.neo4j.kernel.impl.api.SchemaWriteGuard;
+import org.neo4j.kernel.database.DatabaseStartupController;
+import org.neo4j.kernel.database.NamedDatabaseId;
 import org.neo4j.kernel.impl.constraints.ConstraintSemantics;
-import org.neo4j.kernel.impl.core.ThreadToStatementContextBridge;
-import org.neo4j.kernel.impl.factory.AccessCapability;
-import org.neo4j.kernel.impl.factory.DatabaseInfo;
-import org.neo4j.kernel.impl.factory.GraphDatabaseFacade;
-import org.neo4j.kernel.impl.proc.ProcedureConfig;
-import org.neo4j.kernel.impl.proc.Procedures;
-import org.neo4j.kernel.impl.transaction.TransactionHeaderInformationFactory;
+import org.neo4j.kernel.impl.query.QueryEngineProvider;
 import org.neo4j.kernel.impl.transaction.stats.DatabaseTransactionStats;
+import org.neo4j.kernel.impl.transaction.stats.GlobalTransactionStats;
 import org.neo4j.kernel.impl.transaction.stats.TransactionCounters;
-import org.neo4j.kernel.impl.util.watcher.DefaultFileDeletionEventListener;
-import org.neo4j.kernel.impl.util.watcher.DefaultFileSystemWatcherService;
-import org.neo4j.kernel.impl.util.watcher.FileSystemWatcherService;
-import org.neo4j.logging.Log;
-import org.neo4j.logging.Logger;
+import org.neo4j.kernel.impl.util.watcher.DefaultFileDeletionListenerFactory;
 import org.neo4j.logging.internal.LogService;
-import org.neo4j.scheduler.JobScheduler;
-import org.neo4j.udc.UsageData;
-import org.neo4j.udc.UsageDataKeys;
+import org.neo4j.monitoring.Monitors;
+import org.neo4j.procedure.builtin.BuiltInDbmsProcedures;
+import org.neo4j.procedure.builtin.BuiltInFunctions;
+import org.neo4j.procedure.builtin.BuiltInProcedures;
+import org.neo4j.procedure.builtin.FulltextProcedures;
+import org.neo4j.procedure.builtin.TokenProcedures;
+import org.neo4j.procedure.builtin.routing.BaseRoutingProcedureInstaller;
+import org.neo4j.procedure.impl.ProcedureConfig;
+import org.neo4j.time.SystemNanoClock;
 
-import static org.neo4j.kernel.impl.proc.temporal.TemporalFunction.registerTemporalFunctions;
+import static org.neo4j.procedure.impl.temporal.TemporalFunction.registerTemporalFunctions;
 
 /**
- * Edition module for {@link GraphDatabaseFacadeFactory}. Implementations of this class
+ * Edition module for {@link DatabaseManagementServiceFactory}. Implementations of this class
  * need to create all the services that would be specific for a particular edition of the database.
  */
+@IgnoreApiCheck
 public abstract class AbstractEditionModule
 {
-    private final DatabaseTransactionStats databaseStatistics = new DatabaseTransactionStats();
+    private final GlobalTransactionStats transactionStatistic = new GlobalTransactionStats();
     protected NetworkConnectionTracker connectionTracker;
-    protected ThreadToStatementContextBridge threadToTransactionBridge;
-    protected long transactionStartTimeout;
-    protected TransactionHeaderInformationFactory headerInformationFactory;
-    protected SchemaWriteGuard schemaWriteGuard;
     protected ConstraintSemantics constraintSemantics;
-    protected AccessCapability accessCapability;
     protected IOLimiter ioLimiter;
-    protected Function<File, FileSystemWatcherService> watcherServiceFactory;
-    protected AvailabilityGuard globalAvailabilityGuard;
+    protected Function<DatabaseLayout,DatabaseLayoutWatcher> watcherServiceFactory;
     protected SecurityProvider securityProvider;
+    protected GlobalProcedures globalProcedures;
 
-    public abstract DatabaseEditionContext createDatabaseContext( String databaseName );
+    public abstract EditionDatabaseComponents createDatabaseComponents( NamedDatabaseId namedDatabaseId );
 
-    protected FileSystemWatcherService createFileSystemWatcherService( FileSystemAbstraction fileSystem, File databaseDirectory,
-            LogService logging, JobScheduler jobScheduler, Config config, Predicate<String> fileNameFilter )
+    protected DatabaseLayoutWatcher createDatabaseFileSystemWatcher( FileWatcher watcher, DatabaseLayout databaseLayout, LogService logging,
+            Predicate<String> fileNameFilter )
     {
-        if ( !config.get( GraphDatabaseSettings.filewatcher_enabled ) )
-        {
-            Log log = logging.getInternalLog( getClass() );
-            log.info( "File watcher disabled by configuration." );
-            return FileSystemWatcherService.EMPTY_WATCHER;
-        }
-
-        try
-        {
-            RestartableFileSystemWatcher watcher = new RestartableFileSystemWatcher( fileSystem.fileWatcher() );
-            watcher.addFileWatchEventListener( new DefaultFileDeletionEventListener( logging, fileNameFilter ) );
-            watcher.watch( databaseDirectory );
-            // register to watch database dir parent folder to see when database dir removed
-            watcher.watch( databaseDirectory.getParentFile() );
-            return new DefaultFileSystemWatcherService( jobScheduler, watcher );
-        }
-        catch ( Exception e )
-        {
-            Log log = logging.getInternalLog( getClass() );
-            log.warn( "Can not create file watcher for current file system. File monitoring capabilities for store " +
-                    "files will be disabled.", e );
-            return FileSystemWatcherService.EMPTY_WATCHER;
-        }
+        DefaultFileDeletionListenerFactory listenerFactory =
+                new DefaultFileDeletionListenerFactory( new NormalizedDatabaseName( databaseLayout.getDatabaseName() ), logging, fileNameFilter );
+        return new DatabaseLayoutWatcher( watcher, databaseLayout, listenerFactory );
     }
 
-    public void registerProcedures( Procedures procedures, ProcedureConfig procedureConfig ) throws KernelException
+    public void registerProcedures( GlobalProcedures globalProcedures, ProcedureConfig procedureConfig, GlobalModule globalModule,
+            DatabaseManager<?> databaseManager ) throws KernelException
     {
-        procedures.registerProcedure( org.neo4j.kernel.builtinprocs.BuiltInProcedures.class );
-        procedures.registerProcedure( org.neo4j.kernel.builtinprocs.TokenProcedures.class );
-        procedures.registerProcedure( org.neo4j.kernel.builtinprocs.BuiltInDbmsProcedures.class );
-        procedures.registerBuiltInFunctions( org.neo4j.kernel.builtinprocs.BuiltInFunctions.class );
-        registerTemporalFunctions( procedures, procedureConfig );
+        globalProcedures.registerProcedure( BuiltInProcedures.class );
+        globalProcedures.registerProcedure( TokenProcedures.class );
+        globalProcedures.registerProcedure( BuiltInDbmsProcedures.class );
+        globalProcedures.registerProcedure( FulltextProcedures.class );
+        globalProcedures.registerProcedure( DataCollectorProcedures.class );
+        globalProcedures.registerBuiltInFunctions( BuiltInFunctions.class );
+        registerTemporalFunctions( globalProcedures, procedureConfig );
 
-        registerEditionSpecificProcedures( procedures );
+        registerEditionSpecificProcedures( globalProcedures, databaseManager );
+        BaseRoutingProcedureInstaller routingProcedureInstaller = createRoutingProcedureInstaller( globalModule, databaseManager );
+        routingProcedureInstaller.install( globalProcedures );
+        this.globalProcedures = globalProcedures;
     }
 
-    protected abstract void registerEditionSpecificProcedures( Procedures procedures ) throws KernelException;
-
-    protected void publishEditionInfo( UsageData sysInfo, DatabaseInfo databaseInfo, Config config )
+    public GlobalProcedures getGlobalProcedures()
     {
-        sysInfo.set( UsageDataKeys.edition, databaseInfo.edition );
-        sysInfo.set( UsageDataKeys.operationalMode, databaseInfo.operationalMode );
-        config.augment( GraphDatabaseSettings.editionName, databaseInfo.edition.toString() );
+        return globalProcedures;
     }
 
-    public DatabaseManager createDatabaseManager( GraphDatabaseFacade graphDatabaseFacade, PlatformModule platform, AbstractEditionModule edition,
-            Procedures procedures, Logger msgLog )
-    {
-        return new DefaultDatabaseManager( platform, edition, procedures, msgLog, graphDatabaseFacade );
-    }
+    protected abstract void registerEditionSpecificProcedures( GlobalProcedures globalProcedures, DatabaseManager<?> databaseManager )
+            throws KernelException;
 
-    public abstract void createSecurityModule( PlatformModule platformModule, Procedures procedures );
+    protected abstract BaseRoutingProcedureInstaller createRoutingProcedureInstaller( GlobalModule globalModule, DatabaseManager<?> databaseManager );
 
-    protected static SecurityModule setupSecurityModule( PlatformModule platformModule, AbstractEditionModule editionModule, Log log, Procedures procedures,
-            String key )
-    {
-        SecurityModule.Dependencies securityModuleDependencies = new SecurityModuleDependenciesDependencies( platformModule, editionModule, procedures );
-        Iterable<SecurityModule> candidates = Service.load( SecurityModule.class );
-        for ( SecurityModule candidate : candidates )
-        {
-            if ( candidate.matches( key ) )
-            {
-                try
-                {
-                    candidate.setup( securityModuleDependencies );
-                    return candidate;
-                }
-                catch ( Exception e )
-                {
-                    String errorMessage = "Failed to load security module.";
-                    String innerErrorMessage = e.getMessage();
+    public abstract DatabaseManager<?> createDatabaseManager( GlobalModule globalModule );
 
-                    if ( innerErrorMessage != null )
-                    {
-                        log.error( errorMessage + " Caused by: " + innerErrorMessage, e );
-                    }
-                    else
-                    {
-                        log.error( errorMessage, e );
-                    }
-                    throw new RuntimeException( errorMessage, e );
-                }
-            }
-        }
-        String errorMessage = "Failed to load security module with key '" + key + "'.";
-        log.error( errorMessage );
-        throw new IllegalArgumentException( errorMessage );
-    }
+    public abstract SystemGraphInitializer createSystemGraphInitializer( GlobalModule globalModule, DatabaseManager<?> databaseManager );
+
+    public abstract void createSecurityModule( GlobalModule globalModule );
 
     protected NetworkConnectionTracker createConnectionTracker()
     {
@@ -184,47 +129,12 @@ public abstract class AbstractEditionModule
 
     public DatabaseTransactionStats createTransactionMonitor()
     {
-        return databaseStatistics;
+        return transactionStatistic.createDatabaseTransactionMonitor();
     }
 
     public TransactionCounters globalTransactionCounter()
     {
-        return databaseStatistics;
-    }
-
-    public AvailabilityGuard getGlobalAvailabilityGuard( Clock clock, LogService logService, Config config )
-    {
-        if ( globalAvailabilityGuard == null )
-        {
-            globalAvailabilityGuard = new DatabaseAvailabilityGuard( config.get( GraphDatabaseSettings.active_database ), clock,
-                    logService.getInternalLog( DatabaseAvailabilityGuard.class ) );
-        }
-        return globalAvailabilityGuard;
-    }
-
-    public DatabaseAvailabilityGuard createDatabaseAvailabilityGuard( String databaseName, Clock clock, LogService logService, Config config )
-    {
-        return (DatabaseAvailabilityGuard) getGlobalAvailabilityGuard( clock, logService, config );
-    }
-
-    public void createDatabases( DatabaseManager databaseManager, Config config )
-    {
-        databaseManager.createDatabase( config.get( GraphDatabaseSettings.active_database ) );
-    }
-
-    public long getTransactionStartTimeout()
-    {
-        return transactionStartTimeout;
-    }
-
-    public SchemaWriteGuard getSchemaWriteGuard()
-    {
-        return schemaWriteGuard;
-    }
-
-    public TransactionHeaderInformationFactory getHeaderInformationFactory()
-    {
-        return headerInformationFactory;
+        return transactionStatistic;
     }
 
     public ConstraintSemantics getConstraintSemantics()
@@ -237,19 +147,9 @@ public abstract class AbstractEditionModule
         return ioLimiter;
     }
 
-    public AccessCapability getAccessCapability()
-    {
-        return accessCapability;
-    }
-
-    public Function<File,FileSystemWatcherService> getWatcherServiceFactory()
+    public Function<DatabaseLayout,DatabaseLayoutWatcher> getWatcherServiceFactory()
     {
         return watcherServiceFactory;
-    }
-
-    public ThreadToStatementContextBridge getThreadToTransactionBridge()
-    {
-        return threadToTransactionBridge;
     }
 
     public NetworkConnectionTracker getConnectionTracker()
@@ -266,4 +166,19 @@ public abstract class AbstractEditionModule
     {
         this.securityProvider = securityProvider;
     }
+
+    /**
+     * @return the query engine provider for this edition.
+     */
+    public abstract QueryEngineProvider getQueryEngineProvider();
+
+    public abstract BoltGraphDatabaseManagementServiceSPI createBoltDatabaseManagementServiceProvider( Dependencies dependencies,
+            DatabaseManagementService managementService, Monitors monitors, SystemNanoClock clock, LogService logService );
+
+    public AuthManager getBoltAuthManager( DependencyResolver dependencyResolver )
+    {
+        return dependencyResolver.resolveDependency( AuthManager.class );
+    }
+
+    public abstract DatabaseStartupController getDatabaseStartupController();
 }

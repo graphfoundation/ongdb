@@ -25,20 +25,23 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.IOException;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.util.Map;
 
-import org.neo4j.bolt.v1.transport.socket.client.SecureSocketConnection;
-import org.neo4j.helpers.HostnamePort;
-import org.neo4j.kernel.configuration.BoltConnector;
-import org.neo4j.kernel.configuration.ConnectorPortRegister;
-import org.neo4j.server.rest.JaxRsResponse;
-import org.neo4j.server.rest.RestRequest;
+import org.neo4j.bolt.testing.client.SocketConnection;
+import org.neo4j.configuration.connectors.BoltConnector;
+import org.neo4j.configuration.connectors.ConnectorPortRegister;
+import org.neo4j.internal.helpers.HostnamePort;
 import org.neo4j.server.rest.domain.JsonHelper;
 import org.neo4j.test.server.ExclusiveServerTestBase;
 
+import static java.net.http.HttpClient.newHttpClient;
+import static java.net.http.HttpResponse.BodyHandlers.ofString;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
+import static org.neo4j.configuration.SettingValueParsers.TRUE;
 import static org.neo4j.server.helpers.CommunityServerBuilder.serverOnRandomPorts;
 
 public class BoltIT extends ExclusiveServerTestBase
@@ -61,12 +64,8 @@ public class BoltIT extends ExclusiveServerTestBase
     public void shouldLaunchBolt() throws Throwable
     {
         // When I run Neo4j with Bolt enabled
-        server = serverOnRandomPorts().withProperty( new BoltConnector( "bolt" ).type.name(), "BOLT" )
-                .withProperty( new BoltConnector( "bolt" ).enabled.name(), "true" )
-                .withProperty( new BoltConnector( "bolt" ).encryption_level.name(), "REQUIRED" )
-                .withProperty( new BoltConnector( "bolt" ).listen_address.name(), "localhost:0" )
-                .usingDataDir( tmpDir.getRoot().getAbsolutePath() ).build();
-        server.start();
+        startServerWithBoltEnabled();
+
         ConnectorPortRegister connectorPortRegister = getDependency( ConnectorPortRegister.class );
 
         // Then
@@ -91,14 +90,15 @@ public class BoltIT extends ExclusiveServerTestBase
         String host = "neo4j.com";
 
         startServerWithBoltEnabled( host, 9999, "localhost", 0 );
-        RestRequest request = new RestRequest( server.baseUri() ).host( host );
+
+        HttpRequest request = HttpRequest.newBuilder( server.baseUri() ).GET().build();
 
         // When
-        JaxRsResponse response = request.get();
+        HttpResponse<String> response = newHttpClient().send( request, ofString() );
 
         // Then
-        Map<String,Object> map = JsonHelper.jsonToMap( response.getEntity() );
-        assertThat( String.valueOf( map.get( "bolt" ) ), containsString( "bolt://" + host + ":" + 9999 ) );
+        Map<String,Object> map = JsonHelper.jsonToMap( response.body() );
+        assertThat( String.valueOf( map.get( "bolt_direct" ) ), containsString( "bolt://" + host + ":" + 9999 ) );
     }
 
     private void startServerWithBoltEnabled() throws IOException
@@ -106,32 +106,29 @@ public class BoltIT extends ExclusiveServerTestBase
         startServerWithBoltEnabled( "localhost", 7687, "localhost", 7687 );
     }
 
-    private void startServerWithBoltEnabled( String advertisedHost, int advertisedPort, String listenHost,
-            int listenPort ) throws IOException
+    private void startServerWithBoltEnabled( String advertisedHost, int advertisedPort, String listenHost, int listenPort ) throws IOException
     {
         server = serverOnRandomPorts()
-                .withProperty( new BoltConnector( "bolt" ).type.name(), "BOLT" )
-                .withProperty( new BoltConnector( "bolt" ).enabled.name(), "true" )
-                .withProperty( new BoltConnector( "bolt" ).encryption_level.name(), "REQUIRED" )
-                .withProperty( new BoltConnector( "bolt" ).advertised_address.name(), advertisedHost + ":" +
-                        advertisedPort )
-                .withProperty( new BoltConnector( "bolt" ).listen_address.name(), listenHost + ":" + listenPort )
+                .withProperty( BoltConnector.enabled.name(), TRUE )
+                .withProperty( BoltConnector.encryption_level.name(), "DISABLED" )
+                .withProperty( BoltConnector.advertised_address.name(), advertisedHost + ":" + advertisedPort )
+                .withProperty( BoltConnector.listen_address.name(), listenHost + ":" + listenPort )
                 .usingDataDir( tmpDir.getRoot().getAbsolutePath() ).build();
         server.start();
     }
 
     private void assertEventuallyServerResponds( String host, int port ) throws Exception
     {
-        SecureSocketConnection conn = new SecureSocketConnection();
+        SocketConnection conn = new SocketConnection();
         conn.connect( new HostnamePort( host, port ) );
         conn.send(
-                new byte[]{(byte) 0x60, (byte) 0x60, (byte) 0xB0, (byte) 0x17, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                new byte[]{(byte) 0x60, (byte) 0x60, (byte) 0xB0, (byte) 0x17, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                         0, 0} );
-        assertThat( conn.recv( 4 ), equalTo( new byte[]{0, 0, 0, 1} ) );
+        assertThat( conn.recv( 4 ), equalTo( new byte[]{0, 0, 0, 4} ) );
     }
 
     private <T> T getDependency( Class<T> clazz )
     {
-        return server.getDatabase().getGraph().getDependencyResolver().resolveDependency( clazz );
+        return server.getDatabaseService().getDatabase().getDependencyResolver().resolveDependency( clazz );
     }
 }

@@ -21,24 +21,25 @@ package org.neo4j.consistency.checking;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.OptionalLong;
 
 import org.neo4j.consistency.checking.index.IndexAccessors;
 import org.neo4j.consistency.report.ConsistencyReport;
 import org.neo4j.consistency.store.RecordAccess;
 import org.neo4j.internal.kernel.api.exceptions.schema.MalformedSchemaRuleException;
-import org.neo4j.internal.kernel.api.schema.LabelSchemaDescriptor;
-import org.neo4j.internal.kernel.api.schema.RelationTypeSchemaDescriptor;
-import org.neo4j.internal.kernel.api.schema.SchemaDescriptor;
-import org.neo4j.internal.kernel.api.schema.SchemaProcessor;
-import org.neo4j.kernel.impl.store.SchemaRuleAccess;
-import org.neo4j.kernel.impl.store.record.AbstractBaseRecord;
-import org.neo4j.kernel.impl.store.record.ConstraintRule;
-import org.neo4j.kernel.impl.store.record.DynamicRecord;
+import org.neo4j.internal.recordstorage.SchemaRuleAccess;
+import org.neo4j.internal.schema.ConstraintDescriptor;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.internal.schema.LabelSchemaDescriptor;
+import org.neo4j.internal.schema.RelationTypeSchemaDescriptor;
+import org.neo4j.internal.schema.SchemaDescriptor;
+import org.neo4j.internal.schema.SchemaProcessor;
+import org.neo4j.internal.schema.SchemaRule;
+import org.neo4j.internal.schema.constraints.IndexBackedConstraintDescriptor;
 import org.neo4j.kernel.impl.store.record.LabelTokenRecord;
 import org.neo4j.kernel.impl.store.record.PropertyKeyTokenRecord;
 import org.neo4j.kernel.impl.store.record.RelationshipTypeTokenRecord;
-import org.neo4j.storageengine.api.schema.SchemaRule;
-import org.neo4j.storageengine.api.schema.StoreIndexDescriptor;
+import org.neo4j.kernel.impl.store.record.SchemaRecord;
 
 /**
  * Note that this class builds up an in-memory representation of the complete schema store by being used in
@@ -48,14 +49,19 @@ import org.neo4j.storageengine.api.schema.StoreIndexDescriptor;
  * larger than available memory. However, it is safe to make the assumption that schema storage will fit in memory
  * because the same assumption is also made by the online database.
  */
-public class SchemaRecordCheck implements RecordCheck<DynamicRecord, ConsistencyReport.SchemaConsistencyReport>
+public class SchemaRecordCheck implements RecordCheck<SchemaRecord, ConsistencyReport.SchemaConsistencyReport>
 {
-    final SchemaRuleAccess ruleAccess;
+    static final String CONSTRAINT_OBLIGATION = "UNIQUENESS_CONSTRAINT";
+    static final String INDEX_OBLIGATION = "CONSTRAINT_INDEX_RULE";
 
-    private final IndexAccessors indexAccessors;
-    private final Map<Long, DynamicRecord> indexObligations;
-    private final Map<Long, DynamicRecord> constraintObligations;
-    private final Map<SchemaRule, DynamicRecord> verifiedRulesWithRecords;
+    final SchemaRuleAccess ruleAccess;
+    final IndexAccessors indexAccessors;
+
+    private final Map<Long, SchemaRecord> indexObligations;
+    private final Map<Long, String> indexNameObligations;
+    private final Map<Long, SchemaRecord> constraintObligations;
+    private final Map<SchemaRuleKey, SchemaRecord> verifiedRulesWithRecords;
+    private final Map<String, NamedSchema> verifiedRuleNames;
     private final CheckStrategy strategy;
 
     public SchemaRecordCheck( SchemaRuleAccess ruleAccess, IndexAccessors indexAccessors )
@@ -63,39 +69,45 @@ public class SchemaRecordCheck implements RecordCheck<DynamicRecord, Consistency
         this.ruleAccess = ruleAccess;
         this.indexAccessors = indexAccessors;
         this.indexObligations = new HashMap<>();
+        this.indexNameObligations = new HashMap<>();
         this.constraintObligations = new HashMap<>();
         this.verifiedRulesWithRecords = new HashMap<>();
+        this.verifiedRuleNames = new HashMap<>();
         this.strategy = new RulesCheckStrategy();
     }
 
     private SchemaRecordCheck(
             SchemaRuleAccess ruleAccess,
             IndexAccessors indexAccessors,
-            Map<Long, DynamicRecord> indexObligations,
-            Map<Long, DynamicRecord> constraintObligations,
-            Map<SchemaRule, DynamicRecord> verifiedRulesWithRecords,
+            Map<Long, SchemaRecord> indexObligations,
+            Map<Long, String> indexNameObligations,
+            Map<Long, SchemaRecord> constraintObligations,
+            Map<SchemaRuleKey, SchemaRecord> verifiedRulesWithRecords,
+            Map<String, NamedSchema> verifiedRuleNames,
             CheckStrategy strategy )
     {
         this.ruleAccess = ruleAccess;
         this.indexAccessors = indexAccessors;
         this.indexObligations = indexObligations;
+        this.indexNameObligations = indexNameObligations;
         this.constraintObligations = constraintObligations;
         this.verifiedRulesWithRecords = verifiedRulesWithRecords;
+        this.verifiedRuleNames = verifiedRuleNames;
         this.strategy = strategy;
     }
 
     public SchemaRecordCheck forObligationChecking()
     {
-        return new SchemaRecordCheck( ruleAccess, indexAccessors, indexObligations, constraintObligations,
-                verifiedRulesWithRecords, new ObligationsCheckStrategy() );
+        return new SchemaRecordCheck( ruleAccess, indexAccessors, indexObligations, indexNameObligations, constraintObligations,
+                verifiedRulesWithRecords, verifiedRuleNames, new ObligationsCheckStrategy() );
     }
 
     @Override
-    public void check( DynamicRecord record,
-                       CheckerEngine<DynamicRecord, ConsistencyReport.SchemaConsistencyReport> engine,
+    public void check( SchemaRecord record,
+                       CheckerEngine<SchemaRecord, ConsistencyReport.SchemaConsistencyReport> engine,
                        RecordAccess records )
     {
-        if ( record.inUse() && record.isStartRecord() )
+        if ( record.inUse() )
         {
             // parse schema rule
             SchemaRule rule;
@@ -105,32 +117,34 @@ public class SchemaRecordCheck implements RecordCheck<DynamicRecord, Consistency
             }
             catch ( MalformedSchemaRuleException e )
             {
-                engine.report().malformedSchemaRule();
+                strategy.reportMalformedSchemaRule( engine.report() );
                 return;
             }
 
-            if ( rule instanceof StoreIndexDescriptor )
+            if ( rule instanceof IndexDescriptor )
             {
-                strategy.checkIndexRule( (StoreIndexDescriptor)rule, record, records, engine );
+                strategy.checkIndexRule( (IndexDescriptor)rule, record, records, engine );
             }
-            else if ( rule instanceof ConstraintRule )
+            else if ( rule instanceof ConstraintDescriptor )
             {
-                strategy.checkConstraintRule( (ConstraintRule) rule, record, records, engine );
+                strategy.checkConstraintRule( (ConstraintDescriptor) rule, record, records, engine );
             }
             else
             {
-                engine.report().unsupportedSchemaRuleKind( null );
+                engine.report().unsupportedSchemaRuleType( rule.getClass() );
             }
         }
     }
 
     private interface CheckStrategy
     {
-        void checkIndexRule( StoreIndexDescriptor rule, DynamicRecord record, RecordAccess records,
-                             CheckerEngine<DynamicRecord,ConsistencyReport.SchemaConsistencyReport> engine );
+        void checkIndexRule( IndexDescriptor rule, SchemaRecord record, RecordAccess records,
+                             CheckerEngine<SchemaRecord,ConsistencyReport.SchemaConsistencyReport> engine );
 
-        void checkConstraintRule( ConstraintRule rule, DynamicRecord record,
-                RecordAccess records, CheckerEngine<DynamicRecord,ConsistencyReport.SchemaConsistencyReport> engine );
+        void checkConstraintRule( ConstraintDescriptor rule, SchemaRecord record,
+                RecordAccess records, CheckerEngine<SchemaRecord,ConsistencyReport.SchemaConsistencyReport> engine );
+
+        void reportMalformedSchemaRule( ConsistencyReport.SchemaConsistencyReport report );
     }
 
     /**
@@ -140,14 +154,14 @@ public class SchemaRecordCheck implements RecordCheck<DynamicRecord, Consistency
     private class RulesCheckStrategy implements CheckStrategy
     {
         @Override
-        public void checkIndexRule( StoreIndexDescriptor rule, DynamicRecord record, RecordAccess records,
-                                    CheckerEngine<DynamicRecord,ConsistencyReport.SchemaConsistencyReport> engine )
+        public void checkIndexRule( IndexDescriptor rule, SchemaRecord record, RecordAccess records,
+                                    CheckerEngine<SchemaRecord,ConsistencyReport.SchemaConsistencyReport> engine )
         {
             checkSchema( rule, record, records, engine );
 
-            if ( rule.canSupportUniqueConstraint() && rule.getOwningConstraint() != null )
+            if ( rule.isUnique() && rule.getOwningConstraintId().isPresent() )
             {
-                DynamicRecord previousObligation = constraintObligations.put( rule.getOwningConstraint(), cloneRecord( record ) );
+                SchemaRecord previousObligation = constraintObligations.put( rule.getOwningConstraintId().getAsLong(), cloneRecord( record ) );
                 if ( previousObligation != null )
                 {
                     engine.report().duplicateObligation( previousObligation );
@@ -156,19 +170,27 @@ public class SchemaRecordCheck implements RecordCheck<DynamicRecord, Consistency
         }
 
         @Override
-        public void checkConstraintRule( ConstraintRule rule, DynamicRecord record,
-                RecordAccess records, CheckerEngine<DynamicRecord,ConsistencyReport.SchemaConsistencyReport> engine )
+        public void checkConstraintRule( ConstraintDescriptor constraint, SchemaRecord record,
+                RecordAccess records, CheckerEngine<SchemaRecord,ConsistencyReport.SchemaConsistencyReport> engine )
         {
-            checkSchema( rule, record, records, engine );
+            checkSchema( constraint, record, records, engine );
 
-            if ( rule.getConstraintDescriptor().enforcesUniqueness() )
+            if ( constraint.isIndexBackedConstraint() )
             {
-                DynamicRecord previousObligation = indexObligations.put( rule.getOwnedIndex(), cloneRecord( record ) );
+                IndexBackedConstraintDescriptor indexBacked = constraint.asIndexBackedConstraint();
+                SchemaRecord previousObligation = indexObligations.put( indexBacked.ownedIndexId(), cloneRecord( record ) );
                 if ( previousObligation != null )
                 {
                     engine.report().duplicateObligation( previousObligation );
                 }
+                indexNameObligations.put( indexBacked.ownedIndexId(), indexBacked.getName() );
             }
+        }
+
+        @Override
+        public void reportMalformedSchemaRule( ConsistencyReport.SchemaConsistencyReport report )
+        {
+            report.malformedSchemaRule();
         }
     }
 
@@ -178,26 +200,32 @@ public class SchemaRecordCheck implements RecordCheck<DynamicRecord, Consistency
     private class ObligationsCheckStrategy implements CheckStrategy
     {
         @Override
-        public void checkIndexRule( StoreIndexDescriptor rule, DynamicRecord record, RecordAccess records,
-                                    CheckerEngine<DynamicRecord,ConsistencyReport.SchemaConsistencyReport> engine )
+        public void checkIndexRule( IndexDescriptor rule, SchemaRecord record, RecordAccess records,
+                                    CheckerEngine<SchemaRecord,ConsistencyReport.SchemaConsistencyReport> engine )
         {
-            if ( rule.canSupportUniqueConstraint() )
+            if ( rule.isUnique() )
             {
-                DynamicRecord obligation = indexObligations.get( rule.getId() );
+                SchemaRecord obligation = indexObligations.get( rule.getId() );
                 if ( obligation == null ) // no pointer to here
                 {
-                    if ( rule.getOwningConstraint() != null ) // we only expect a pointer if we have an owner
+                    if ( rule.getOwningConstraintId().isPresent() ) // we only expect a pointer if we have an owner
                     {
-                        engine.report().missingObligation( SchemaRule.Kind.UNIQUENESS_CONSTRAINT );
+                        engine.report().missingObligation( CONSTRAINT_OBLIGATION );
                     }
                 }
                 else
                 {
                     // if someone points to here, it must be our owner
-                    if ( obligation.getId() != rule.getOwningConstraint() )
+                    if ( obligation.getId() != rule.getOwningConstraintId().getAsLong() )
                     {
                         engine.report().constraintIndexRuleNotReferencingBack( obligation );
                     }
+                }
+
+                String nameObligation = indexNameObligations.get( rule.getId() );
+                if ( nameObligation != null && !nameObligation.equals( rule.getName() ) )
+                {
+                    engine.report().constraintIndexNameDoesNotMatchConstraintName( record, rule.getName(), nameObligation );
                 }
             }
             if ( indexAccessors.notOnlineRules().contains( rule ) )
@@ -207,46 +235,51 @@ public class SchemaRecordCheck implements RecordCheck<DynamicRecord, Consistency
         }
 
         @Override
-        public void checkConstraintRule( ConstraintRule rule, DynamicRecord record,
-                RecordAccess records, CheckerEngine<DynamicRecord,ConsistencyReport.SchemaConsistencyReport> engine )
+        public void checkConstraintRule( ConstraintDescriptor constraint, SchemaRecord record,
+                RecordAccess records, CheckerEngine<SchemaRecord,ConsistencyReport.SchemaConsistencyReport> engine )
         {
-            if ( rule.getConstraintDescriptor().enforcesUniqueness() )
+            if ( constraint.isIndexBackedConstraint() )
             {
-                DynamicRecord obligation = constraintObligations.get( rule.getId() );
+                SchemaRecord obligation = constraintObligations.get( constraint.getId() );
                 if ( obligation == null )
                 {
-                    engine.report().missingObligation( SchemaRule.Kind.CONSTRAINT_INDEX_RULE );
+                    engine.report().missingObligation( INDEX_OBLIGATION );
                 }
                 else
                 {
-                    if ( obligation.getId() != rule.getOwnedIndex() )
+                    if ( obligation.getId() != constraint.asIndexBackedConstraint().ownedIndexId() )
                     {
                         engine.report().uniquenessConstraintNotReferencingBack( obligation );
                     }
                 }
             }
         }
+
+        @Override
+        public void reportMalformedSchemaRule( ConsistencyReport.SchemaConsistencyReport report )
+        {
+            // Do nothing. The RulesCheckStrategy will report this for us.
+        }
     }
 
-    private void checkSchema( SchemaRule rule, DynamicRecord record,
-            RecordAccess records, CheckerEngine<DynamicRecord,ConsistencyReport.SchemaConsistencyReport> engine )
+    private void checkSchema( SchemaRule rule, SchemaRecord record,
+            RecordAccess records, CheckerEngine<SchemaRecord,ConsistencyReport.SchemaConsistencyReport> engine )
     {
         rule.schema().processWith( new CheckSchema( engine, records ) );
-        checkForDuplicates( rule, record, engine );
+        checkNamesAndDuplicates( rule, record, engine );
     }
 
-    @SuppressWarnings( "unchecked" )
-    private <T extends AbstractBaseRecord> T cloneRecord( T record )
+    private SchemaRecord cloneRecord( SchemaRecord record )
     {
-        return (T) record.clone();
+        return record.clone();
     }
 
     static class CheckSchema implements SchemaProcessor
     {
-        private final CheckerEngine<DynamicRecord,ConsistencyReport.SchemaConsistencyReport> engine;
+        private final CheckerEngine<SchemaRecord,ConsistencyReport.SchemaConsistencyReport> engine;
         private final RecordAccess records;
 
-        CheckSchema( CheckerEngine<DynamicRecord,ConsistencyReport.SchemaConsistencyReport> engine,
+        CheckSchema( CheckerEngine<SchemaRecord,ConsistencyReport.SchemaConsistencyReport> engine,
                 RecordAccess records )
         {
             this.engine = engine;
@@ -300,17 +333,69 @@ public class SchemaRecordCheck implements RecordCheck<DynamicRecord, Consistency
         }
     }
 
-    private void checkForDuplicates( SchemaRule rule, DynamicRecord record,
-            CheckerEngine<DynamicRecord,ConsistencyReport.SchemaConsistencyReport> engine )
+    private void checkNamesAndDuplicates( SchemaRule rule, SchemaRecord record,
+            CheckerEngine<SchemaRecord,ConsistencyReport.SchemaConsistencyReport> engine )
     {
-        DynamicRecord previousContentRecord = verifiedRulesWithRecords.put( rule, cloneRecord( record ) );
+        SchemaRecord previousContentRecord = verifiedRulesWithRecords.put( new SchemaRuleKey( rule ), cloneRecord( record ) );
         if ( previousContentRecord != null )
         {
             engine.report().duplicateRuleContent( previousContentRecord );
         }
+
+        String name = rule.getName();
+        NamedSchema namedSchema = verifiedRuleNames.get( name );
+        if ( namedSchema == null )
+        {
+            namedSchema = new NamedSchema();
+            verifiedRuleNames.put( name, namedSchema );
+        }
+        if ( rule instanceof ConstraintDescriptor )
+        {
+            ConstraintDescriptor constraint = (ConstraintDescriptor) rule;
+            if ( namedSchema.constraint != null )
+            {
+                engine.report().duplicateRuleName( namedSchema.constraintRecord, name );
+            }
+            namedSchema.constraint = constraint;
+            namedSchema.constraintRecord = record;
+            if ( namedSchema.index != null )
+            {
+                if ( constraint.isIndexBackedConstraint() )
+                {
+                    IndexBackedConstraintDescriptor ibc = constraint.asIndexBackedConstraint();
+                    if ( ibc.hasOwnedIndexId() && ibc.ownedIndexId() == namedSchema.index.getId() )
+                    {
+                        return;
+                    }
+                }
+                if ( namedSchema.indexRecord.getId() != rule.getId() /*don't report itself*/ )
+                {
+                    engine.report().duplicateRuleName( namedSchema.indexRecord, name );
+                }
+            }
+        }
+        else
+        {
+            IndexDescriptor index = (IndexDescriptor) rule;
+            if ( namedSchema.index != null &&
+                    namedSchema.indexRecord.getId() != index.getId() /*don't report itself*/ )
+            {
+                engine.report().duplicateRuleName( namedSchema.indexRecord, name );
+            }
+            namedSchema.index = index;
+            namedSchema.indexRecord = record;
+            if ( namedSchema.constraint != null )
+            {
+                OptionalLong owningConstraintId = index.getOwningConstraintId();
+                if ( owningConstraintId.isEmpty() || owningConstraintId.getAsLong() != namedSchema.constraint.getId() )
+                {
+                    engine.report().duplicateRuleName( namedSchema.constraintRecord, name );
+                }
+            }
+        }
     }
 
-    private static final ComparativeRecordChecker<DynamicRecord,LabelTokenRecord,
+    private static final ComparativeRecordChecker<SchemaRecord,LabelTokenRecord,
             ConsistencyReport.SchemaConsistencyReport> VALID_LABEL =
             ( record, labelTokenRecord, engine, records ) ->
             {
@@ -320,7 +405,7 @@ public class SchemaRecordCheck implements RecordCheck<DynamicRecord, Consistency
                 }
             };
 
-    private static final ComparativeRecordChecker<DynamicRecord,RelationshipTypeTokenRecord,
+    private static final ComparativeRecordChecker<SchemaRecord,RelationshipTypeTokenRecord,
             ConsistencyReport.SchemaConsistencyReport> VALID_RELATIONSHIP_TYPE =
             ( record, relTypeTokenRecord, engine, records ) ->
             {
@@ -330,7 +415,7 @@ public class SchemaRecordCheck implements RecordCheck<DynamicRecord, Consistency
                 }
             };
 
-    private static final ComparativeRecordChecker<DynamicRecord, PropertyKeyTokenRecord,
+    private static final ComparativeRecordChecker<SchemaRecord, PropertyKeyTokenRecord,
             ConsistencyReport.SchemaConsistencyReport> VALID_PROPERTY_KEY =
             ( record, propertyKeyTokenRecord, engine, records ) ->
             {
@@ -339,4 +424,12 @@ public class SchemaRecordCheck implements RecordCheck<DynamicRecord, Consistency
                     engine.report().propertyKeyNotInUse( propertyKeyTokenRecord );
                 }
             };
+
+    private static class NamedSchema
+    {
+        private IndexDescriptor index;
+        private ConstraintDescriptor constraint;
+        private SchemaRecord indexRecord;
+        private SchemaRecord constraintRecord;
+    }
 }

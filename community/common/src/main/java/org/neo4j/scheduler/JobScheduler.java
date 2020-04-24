@@ -21,11 +21,12 @@ package org.neo4j.scheduler;
 
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Stream;
 
 import org.neo4j.kernel.lifecycle.Lifecycle;
+import org.neo4j.resources.Profiler;
 
 /**
  * To be expanded, the idea here is to have a database-global service for running jobs, handling jobs crashing and so
@@ -41,20 +42,31 @@ public interface JobScheduler extends Lifecycle, AutoCloseable
      */
     void setTopLevelGroupName( String name );
 
-    /** Expose a group scheduler as an {@link Executor} */
-    Executor executor( Group group );
-
     /**
-     * Creates an {@link ExecutorService} that does works-stealing - read more about this in {@link ForkJoinPool}
+     * Set the desired parallelism for the given group. This only has an effect if the underlying scheduler for the given group has not already been
+     * started, and a desired parallelism has not already been set.
+     *
+     * @param group The group to set the desired parallelism for.
+     * @param parallelism The desired number of threads in the thread pool for the given group.
      */
-    ExecutorService workStealingExecutor( Group group, int parallelism );
+    void setParallelism( Group group, int parallelism );
 
     /**
-     * Creates an {@link ExecutorService} that does works-stealing with asyncMode set to true - read more about this in {@link ForkJoinPool}
+     * Assign a {@link SchedulerThreadFactory} to a given group. This only has an effect if the underlying scheduler for the given group has not already been
+     * started.
+     *
+     * @param group The group to assign the given thread factory for.
+     * @param threadFactory The thread factory to assign.
+     */
+    void setThreadFactory( Group group, SchedulerThreadFactoryFactory threadFactory );
+
+    /**
+     * Expose a group scheduler as an {@link Executor}.
      * <p>
-     * This may be more suitable for systems where worker threads only process event-style asynchronous tasks.
-     */
-    ExecutorService workStealingExecutorAsyncMode( Group group, int parallelism );
+     * <strong>NOTE:</strong> The returned instance might be an implementation of the {@link ExecutorService} interface. If so, then it is <em>NOT</em> allowed
+     * to shut it down, because the life cycle of the executor is managed by the JobScheduler.
+     **/
+    Executor executor( Group group );
 
     /**
      * Expose a group scheduler as a {@link java.util.concurrent.ThreadFactory}.
@@ -81,4 +93,17 @@ public interface JobScheduler extends Lifecycle, AutoCloseable
 
     /** Schedule a recurring job where the first invocation is delayed the specified time */
     JobHandle scheduleRecurring( Group group, Runnable runnable, long initialDelay, long period, TimeUnit timeUnit );
+
+    /**
+     * Return a stream of all active scheduling groups.
+     * @return all active groups.
+     */
+    Stream<ActiveGroup> activeGroups();
+
+    /**
+     * Initiate profiling of all threads within the given group, using the given profiler.
+     * @param group the group with all the threads to profile.
+     * @param profiler the profiler to use.
+     */
+    void profileGroup( Group group, Profiler profiler );
 }

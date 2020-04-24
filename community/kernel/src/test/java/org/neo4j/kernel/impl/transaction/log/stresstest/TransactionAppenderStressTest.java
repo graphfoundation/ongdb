@@ -19,8 +19,7 @@
  */
 package org.neo4j.kernel.impl.transaction.log.stresstest;
 
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.File;
 import java.io.IOException;
@@ -34,39 +33,40 @@ import org.neo4j.kernel.impl.transaction.log.PhysicalLogVersionedStoreChannel;
 import org.neo4j.kernel.impl.transaction.log.ReadAheadLogChannel;
 import org.neo4j.kernel.impl.transaction.log.ReadableLogChannel;
 import org.neo4j.kernel.impl.transaction.log.ReaderLogVersionBridge;
-import org.neo4j.kernel.impl.transaction.log.TransactionIdStore;
 import org.neo4j.kernel.impl.transaction.log.entry.LogEntry;
-import org.neo4j.kernel.impl.transaction.log.entry.LogEntryByteCodes;
 import org.neo4j.kernel.impl.transaction.log.entry.LogEntryCommit;
 import org.neo4j.kernel.impl.transaction.log.entry.LogEntryReader;
-import org.neo4j.kernel.impl.transaction.log.entry.VersionAwareLogEntryReader;
 import org.neo4j.kernel.impl.transaction.log.files.LogFiles;
 import org.neo4j.kernel.impl.transaction.log.files.LogFilesBuilder;
 import org.neo4j.kernel.impl.transaction.log.stresstest.workload.Runner;
-import org.neo4j.test.rule.TestDirectory;
+import org.neo4j.storageengine.api.TransactionIdStore;
+import org.neo4j.test.extension.Inject;
+import org.neo4j.test.extension.Neo4jLayoutExtension;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.neo4j.function.Suppliers.untilTimeExpired;
+import static org.neo4j.kernel.impl.transaction.log.TestLogEntryReader.logEntryReader;
 
+@Neo4jLayoutExtension
 public class TransactionAppenderStressTest
 {
-    @Rule
-    public final TestDirectory directory = TestDirectory.testDirectory( );
+    @Inject
+    private DatabaseLayout databaseLayout;
 
     @Test
-    public void concurrentTransactionAppendingTest() throws Exception
+    void concurrentTransactionAppendingTest() throws Exception
     {
         int threads = 10;
         Callable<Long> runner = new Builder()
                 .with( untilTimeExpired( 10, SECONDS ) )
-                .withWorkingDirectory( directory.databaseLayout() )
+                .withWorkingDirectory( databaseLayout )
                 .withNumThreads( threads )
                 .build();
 
         long appendedTxs = runner.call();
 
-        assertEquals( new TransactionIdChecker( directory.databaseLayout().databaseDirectory() ).parseAllTxLogs(), appendedTxs );
+        assertEquals( new TransactionIdChecker( databaseLayout.getTransactionLogsDirectory() ).parseAllTxLogs(), appendedTxs );
     }
 
     public static class Builder
@@ -120,13 +120,13 @@ public class TransactionAppenderStressTest
             try ( FileSystemAbstraction fs = new DefaultFileSystemAbstraction();
                   ReadableLogChannel channel = openLogFile( fs, 0 ) )
             {
-                LogEntryReader<ReadableLogChannel> reader = new VersionAwareLogEntryReader<>();
+                LogEntryReader reader = logEntryReader();
                 LogEntry logEntry = reader.readLogEntry( channel );
                 for ( ; logEntry != null; logEntry = reader.readLogEntry( channel ) )
                 {
-                    if ( logEntry.getType() == LogEntryByteCodes.TX_COMMIT )
+                    if ( logEntry instanceof LogEntryCommit )
                     {
-                        txId = logEntry.<LogEntryCommit>as().getTxId();
+                        txId = ((LogEntryCommit) logEntry).getTxId();
                     }
                 }
             }
@@ -135,7 +135,9 @@ public class TransactionAppenderStressTest
 
         private ReadableLogChannel openLogFile( FileSystemAbstraction fs, int version ) throws IOException
         {
-            LogFiles logFiles = LogFilesBuilder.logFilesBasedOnlyBuilder( workingDirectory, fs ).build();
+            LogFiles logFiles = LogFilesBuilder.logFilesBasedOnlyBuilder( workingDirectory, fs )
+                    .withLogEntryReader( logEntryReader() )
+                    .build();
             PhysicalLogVersionedStoreChannel channel = logFiles.openForVersion( version );
             return new ReadAheadLogChannel( channel, new ReaderLogVersionBridge( logFiles ) );
         }

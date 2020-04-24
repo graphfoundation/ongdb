@@ -63,8 +63,6 @@ class QueryCollector extends CollectorStateMachine<Iterator<TruncatedQuerySnapsh
         return queries.numSilentQueryDrops();
     }
 
-    // CollectorStateMachine
-
     @Override
     protected Result doCollect( Map<String,Object> config, long collectionId ) throws InvalidArgumentsException
     {
@@ -100,6 +98,11 @@ class QueryCollector extends CollectorStateMachine<Iterator<TruncatedQuerySnapsh
     }
 
     // QueryExecutionMonitor
+
+    @Override
+    public void start( ExecutingQuery query )
+    {
+    }
 
     @Override
     public void endFailure( ExecutingQuery query, Throwable failure )

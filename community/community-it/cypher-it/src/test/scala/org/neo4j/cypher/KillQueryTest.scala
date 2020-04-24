@@ -25,13 +25,10 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 import org.neo4j.cypher.internal.ExecutionEngine
 import org.neo4j.graphdb.{TransactionTerminatedException, TransientTransactionFailureException}
-import org.neo4j.internal.kernel.api.Transaction.Type
 import org.neo4j.internal.kernel.api.security.LoginContext.AUTH_DISABLED
-import org.neo4j.kernel.impl.coreapi.PropertyContainerLocker
-import org.neo4j.kernel.impl.query.clientconnection.ClientConnectionInfo.EMBEDDED_CONNECTION
+import org.neo4j.kernel.api.KernelTransaction.Type
+import org.neo4j.kernel.impl.query.QuerySubscriber.DO_NOTHING_SUBSCRIBER
 import org.neo4j.kernel.impl.query.{Neo4jTransactionalContextFactory, TransactionalContext, TransactionalContextFactory}
-import org.neo4j.logging.{LogProvider, NullLogProvider}
-import org.neo4j.values.virtual.VirtualValues
 import org.neo4j.values.virtual.VirtualValues.EMPTY_MAP
 
 class KillQueryTest extends ExecutionEngineFunSuite {
@@ -42,18 +39,16 @@ class KillQueryTest extends ExecutionEngineFunSuite {
    */
   val emptyMap = new util.HashMap[String, AnyRef]
   val NODE_COUNT = 1000
-  val THREAD_COUNT = Runtime.getRuntime().availableProcessors() * 2
+  val THREAD_COUNT: Int = Runtime.getRuntime.availableProcessors() * 2
   val SECONDS_TO_RUN = 5
 
   test("run queries and kill them left and right") {
-    val locker = new PropertyContainerLocker()
-    val contextFactory = Neo4jTransactionalContextFactory.create(graph, locker)
+    val contextFactory = Neo4jTransactionalContextFactory.create(graph)
 
     (1 to NODE_COUNT) foreach { x =>
       createLabeledNode(Map("x" -> x, "name" -> ("apa" + x)), "Label")
     }
 
-    val logProvider: LogProvider = NullLogProvider.getInstance()
     val engine = ExecutionEngineHelper.createEngine(graph)
 
     val query = "MATCH (n:Label) WHERE n.x > 12 RETURN n.name"
@@ -102,11 +97,16 @@ class KillQueryTest extends ExecutionEngineFunSuite {
         while (continue.get()) {
           val tx = graph.beginTransaction(Type.`implicit`, AUTH_DISABLED)
           try {
-            val transactionalContext: TransactionalContext = contextFactory.newContext(EMBEDDED_CONNECTION, tx, query, EMPTY_MAP)
+            val transactionalContext: TransactionalContext = contextFactory.newContext(tx, query, EMPTY_MAP)
             tcs.put(transactionalContext)
-            val result = engine.execute(query, VirtualValues.emptyMap(), transactionalContext)
-            result.resultAsString()
-            tx.success()
+            val result = engine.execute(query,
+                                        EMPTY_MAP,
+                                        transactionalContext,
+                                        profile = false,
+                                        prePopulate = false,
+                                        DO_NOTHING_SUBSCRIBER)
+            result.request(Long.MaxValue)
+            result.await()
           }
           catch {
             // These are the acceptable exceptions

@@ -36,6 +36,7 @@ import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLException;
 import javax.net.ssl.TrustManagerFactory;
 
+import org.neo4j.configuration.ssl.ClientAuth;
 import org.neo4j.logging.Log;
 import org.neo4j.logging.LogProvider;
 
@@ -61,7 +62,7 @@ public class SslPolicy
     {
         this.privateKey = privateKey;
         this.keyCertChain = keyCertChain;
-        this.tlsVersions = tlsVersions == null ? null : tlsVersions.toArray( new String[tlsVersions.size()] );
+        this.tlsVersions = tlsVersions == null ? null : tlsVersions.toArray( new String[0] );
         this.ciphers = ciphers;
         this.clientAuth = clientAuth;
         this.trustManagerFactory = trustManagerFactory;
@@ -125,7 +126,7 @@ public class SslPolicy
         return nettyClientHandler( channel, nettyClientContext() );
     }
 
-    ChannelHandler nettyClientHandler( Channel channel, SslContext sslContext )
+    public ChannelHandler nettyClientHandler( Channel channel, SslContext sslContext )
     {
         return new ClientSideOnConnectSslHandler( channel, sslContext, verifyHostname, tlsVersions );
     }

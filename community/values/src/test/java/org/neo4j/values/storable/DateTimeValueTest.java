@@ -19,9 +19,10 @@
  */
 package org.neo4j.values.storable;
 
-import org.junit.Ignore;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -30,22 +31,23 @@ import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.neo4j.values.utils.InvalidValuesArgumentException;
-import org.neo4j.values.utils.TemporalParseException;
-import org.neo4j.values.utils.UnsupportedTemporalUnitException;
+import org.neo4j.exceptions.InvalidArgumentException;
+import org.neo4j.exceptions.TemporalParseException;
+import org.neo4j.exceptions.UnsupportedTemporalUnitException;
 
 import static java.time.ZoneOffset.UTC;
 import static java.util.Collections.singletonList;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.StringStartsWith.startsWith;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertSame;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.neo4j.values.storable.AssertingStructureBuilder.asserting;
 import static org.neo4j.values.storable.DateTimeValue.builder;
 import static org.neo4j.values.storable.DateTimeValue.datetime;
 import static org.neo4j.values.storable.DateTimeValue.parse;
 import static org.neo4j.values.storable.DateValue.date;
-import static org.neo4j.values.storable.FrozenClockRule.assertEqualTemporal;
+import static org.neo4j.values.storable.FrozenClock.assertEqualTemporal;
 import static org.neo4j.values.storable.InputMappingStructureBuilder.fromValues;
 import static org.neo4j.values.storable.LocalDateTimeValue.localDateTime;
 import static org.neo4j.values.storable.LocalTimeValue.localTime;
@@ -55,15 +57,13 @@ import static org.neo4j.values.storable.TimeValueTest.orFail;
 import static org.neo4j.values.storable.Values.stringValue;
 import static org.neo4j.values.utils.AnyValueTestUtil.assertEqual;
 import static org.neo4j.values.utils.AnyValueTestUtil.assertNotEqual;
-import static org.neo4j.values.utils.AnyValueTestUtil.assertThrows;
 
-public class DateTimeValueTest
+class DateTimeValueTest
 {
-    @Rule
-    public final FrozenClockRule clock = new FrozenClockRule();
+    private FrozenClock clock = new FrozenClock( "UTC" );
 
     @Test
-    public void shouldParseDateTime()
+    void shouldParseDateTime()
     {
         assertEquals(
                 datetime( date( 2017, 12, 17 ), time( 17, 14, 35, 123456789, UTC ) ),
@@ -82,15 +82,8 @@ public class DateTimeValueTest
                 parse( "-1-12-17T17:14:35.123456789+0000", orFail ) );
     }
 
-    @Ignore
-    public void shouldSupportLeapSeconds()
-    {
-        // Leap second according to https://www.timeanddate.com/time/leap-seconds-future.html
-        assertEquals( datetime( 2016, 12, 31, 23, 59, 60, 0, UTC ), parse( "2016-12-31T23:59:60Z", orFail ) );
-    }
-
     @Test
-    public void shouldRejectInvalidDateTimeString()
+    void shouldRejectInvalidDateTimeString()
     {
         // Wrong year
         assertThrows( TemporalParseException.class, () -> parse( "10000-12-17T17:14:35", inUTC ) );
@@ -136,7 +129,7 @@ public class DateTimeValueTest
     }
 
     @Test
-    public void shouldWriteDateTime()
+    void shouldWriteDateTime()
     {
         // given
         for ( DateTimeValue value : new DateTimeValue[] {
@@ -167,9 +160,9 @@ public class DateTimeValueTest
     }
 
     @Test
-    @FrozenClockRule.TimeZone( "Europe/Stockholm" )
-    public void shouldAcquireCurrentDateTime()
+    void shouldAcquireCurrentDateTime()
     {
+        clock = new FrozenClock( "Europe/Stockholm" );
         assertEqualTemporal(
                 datetime( ZonedDateTime.now( clock ) ),
                 DateTimeValue.now( clock ) );
@@ -183,30 +176,31 @@ public class DateTimeValueTest
                 DateTimeValue.now( clock, "Z" ) );
     }
 
-    @Test
-    @FrozenClockRule.TimeZone( {"Europe/Stockholm", "America/Los_Angeles"} )
-    public void shouldCopyDateTime()
+    @ParameterizedTest
+    @ValueSource( strings = {"Europe/Stockholm", "America/Los_Angeles"} )
+    void shouldCopyDateTime( String zone )
     {
+        clock = new FrozenClock( zone );
         assertEqualTemporal(
-                datetime( ZonedDateTime.now( clock ) ),
-                builder( clock ).add( "datetime", datetime( ZonedDateTime.now( clock ) ) ).build() );
+            datetime( ZonedDateTime.now( clock ) ),
+            builder( clock ).add( "datetime", datetime( ZonedDateTime.now( clock ) ) ).build() );
         assertEqualTemporal(
-                datetime( ZonedDateTime.now( clock ) ),
-                builder( clock )
-                        .add( "datetime", localDateTime( LocalDateTime.now( clock ) ) )
-                        .build() );
+            datetime( ZonedDateTime.now( clock ) ),
+            builder( clock )
+                .add( "datetime", localDateTime( LocalDateTime.now( clock ) ) )
+                .build() );
         assertEqualTemporal(
-                datetime( ZonedDateTime.now( clock ).withZoneSameLocal( ZoneId.of( "America/New_York" ) ) ),
-                builder( clock )
-                        .add( "datetime", localDateTime( LocalDateTime.now( clock ) ) )
-                        .add( "timezone", stringValue( "America/New_York" ) )
-                        .build() );
+            datetime( ZonedDateTime.now( clock ).withZoneSameLocal( ZoneId.of( "America/New_York" ) ) ),
+            builder( clock )
+                .add( "datetime", localDateTime( LocalDateTime.now( clock ) ) )
+                .add( "timezone", stringValue( "America/New_York" ) )
+                .build() );
     }
 
     @Test
-    @FrozenClockRule.TimeZone( "Europe/Stockholm" )
-    public void shouldConstructDateTimeFromComponents()
+    void shouldConstructDateTimeFromComponents()
     {
+        clock = new FrozenClock( "Europe/Stockholm" );
         assertEqualTemporal(
                 parse( "2018-01-10T10:35:57", clock::getZone ),
                 fromValues( builder( clock ) )
@@ -303,7 +297,7 @@ public class DateTimeValueTest
     }
 
     @Test
-    public void shouldRejectInvalidFieldCombinations()
+    void shouldRejectInvalidFieldCombinations()
     {
         asserting( fromValues( builder( clock ) ) )
                 .add( "year", 2018 )
@@ -328,7 +322,7 @@ public class DateTimeValueTest
                 .add( "minute", 35 )
                 .add( "second", 57 )
                 .add( "nanosecond", 1000000000 )
-                .assertThrows( InvalidValuesArgumentException.class, "Invalid value for Nanosecond: 1000000000" );
+                .assertThrows( InvalidArgumentException.class, "Invalid value for Nanosecond: 1000000000" );
         asserting( fromValues( builder( clock ) ))
                 .add( "year", 2018 )
                 .add( "month", 1 )
@@ -337,7 +331,7 @@ public class DateTimeValueTest
                 .add( "minute", 35 )
                 .add( "second", 57 )
                 .add( "microsecond", 1000000 )
-                .assertThrows( InvalidValuesArgumentException.class, "Invalid value for Microsecond: 1000000" );
+                .assertThrows( InvalidArgumentException.class, "Invalid value for Microsecond: 1000000" );
         asserting( fromValues( builder( clock ) ))
                 .add( "year", 2018 )
                 .add( "month", 1 )
@@ -346,7 +340,7 @@ public class DateTimeValueTest
                 .add( "minute", 35 )
                 .add( "second", 57 )
                 .add( "millisecond", 1000 )
-                .assertThrows( InvalidValuesArgumentException.class, "Invalid value for Millisecond: 1000" );
+                .assertThrows( InvalidArgumentException.class, "Invalid value for Millisecond: 1000" );
         asserting( fromValues( builder( clock ) ))
                 .add( "year", 2018 )
                 .add( "month", 1 )
@@ -356,7 +350,7 @@ public class DateTimeValueTest
                 .add( "second", 57 )
                 .add( "millisecond", 1 )
                 .add( "nanosecond", 1000000 )
-                .assertThrows( InvalidValuesArgumentException.class, "Invalid value for Nanosecond: 1000000" );
+                .assertThrows( InvalidArgumentException.class, "Invalid value for Nanosecond: 1000000" );
         asserting( fromValues( builder( clock ) ))
                 .add( "year", 2018 )
                 .add( "month", 1 )
@@ -366,7 +360,7 @@ public class DateTimeValueTest
                 .add( "second", 57 )
                 .add( "microsecond", 1 )
                 .add( "nanosecond", 1000 )
-                .assertThrows( InvalidValuesArgumentException.class, "Invalid value for Nanosecond: 1000" );
+                .assertThrows( InvalidArgumentException.class, "Invalid value for Nanosecond: 1000" );
         asserting( fromValues( builder( clock ) ))
                 .add( "year", 2018 )
                 .add( "month", 1 )
@@ -376,7 +370,7 @@ public class DateTimeValueTest
                 .add( "second", 57 )
                 .add( "millisecond", 1 )
                 .add( "microsecond", 1000 )
-                .assertThrows( InvalidValuesArgumentException.class, "Invalid value for Microsecond: 1000" );
+                .assertThrows( InvalidArgumentException.class, "Invalid value for Microsecond: 1000" );
         asserting( fromValues( builder( clock ) ))
                 .add( "year", 2018 )
                 .add( "month", 1 )
@@ -387,7 +381,7 @@ public class DateTimeValueTest
                 .add( "millisecond", 1 )
                 .add( "microsecond", 1000 )
                 .add( "nanosecond", 999 )
-                .assertThrows( InvalidValuesArgumentException.class, "Invalid value for Microsecond: 1000" );
+                .assertThrows( InvalidArgumentException.class, "Invalid value for Microsecond: 1000" );
         asserting( fromValues( builder( clock ) ))
                 .add( "year", 2018 )
                 .add( "month", 1 )
@@ -398,20 +392,20 @@ public class DateTimeValueTest
                 .add( "millisecond", 1 )
                 .add( "microsecond", 999 )
                 .add( "nanosecond", 1000 )
-                .assertThrows( InvalidValuesArgumentException.class, "Invalid value for Nanosecond: 1000" );
+                .assertThrows( InvalidArgumentException.class, "Invalid value for Nanosecond: 1000" );
     }
 
     @Test
-    public void shouldRejectInvalidComponentValues()
+    void shouldRejectInvalidComponentValues()
     {
-        asserting( fromValues( builder( clock ) ) ).add( "year", 2018 ).add( "moment", 12 ).assertThrows( InvalidValuesArgumentException.class,
+        asserting( fromValues( builder( clock ) ) ).add( "year", 2018 ).add( "moment", 12 ).assertThrows( InvalidArgumentException.class,
                 "No such field: moment" );
         asserting( fromValues( builder( clock ) ) ).add( "year", 2018 ).add( "month", 12 ).add( "day", 5 ).add( "hour", 5 ).add( "minute", 5 ).add( "second",
-                5 ).add( "picosecond", 12 ).assertThrows( InvalidValuesArgumentException.class, "No such field: picosecond" );
+                5 ).add( "picosecond", 12 ).assertThrows( InvalidArgumentException.class, "No such field: picosecond" );
     }
 
     @Test
-    public void shouldAddDurationToDateTimes()
+    void shouldAddDurationToDateTimes()
     {
         assertEquals( datetime( date( 2018, 2, 1 ), time( 1, 17, 3, 0, UTC ) ),
                 datetime( date( 2018, 1, 1 ), time( 1, 2, 3, 0, UTC ) ).add( DurationValue.duration( 1, 0, 900, 0 ) ) );
@@ -422,7 +416,7 @@ public class DateTimeValueTest
     }
 
     @Test
-    public void shouldReuseInstanceInArithmetics()
+    void shouldReuseInstanceInArithmetics()
     {
         final DateTimeValue datetime = datetime( date( 2018, 2, 1 ), time( 1, 17, 3, 0, UTC ) );
         assertSame( datetime,
@@ -430,7 +424,7 @@ public class DateTimeValueTest
     }
 
     @Test
-    public void shouldSubtractDurationFromDateTimes()
+    void shouldSubtractDurationFromDateTimes()
     {
         assertEquals( datetime( date( 2018, 1, 1 ), time( 1, 2, 3, 0, UTC ) ),
                 datetime( date( 2018, 2, 1 ), time( 1, 17, 3, 0, UTC ) ).sub( DurationValue.duration( 1, 0, 900, 0 ) ) );
@@ -441,32 +435,32 @@ public class DateTimeValueTest
     }
 
     @Test
-    public void shouldEqualItself()
+    void shouldEqualItself()
     {
         assertEqual( datetime( 10000, 100, UTC ), datetime( 10000, 100, UTC ) );
     }
 
-    @Ignore // only runnable it JVM supports East-Saskatchewan
-    public void shouldEqualRenamedTimeZone()
+    @Disabled // only runnable it JVM supports East-Saskatchewan
+    void shouldEqualRenamedTimeZone()
     {
         assertEqual( datetime( 10000, 100, ZoneId.of( "Canada/Saskatchewan" ) ),
                      datetime( 10000, 100, ZoneId.of( "Canada/East-Saskatchewan" ) ) );
     }
 
     @Test
-    public void shouldNotEqualSameInstantButDifferentTimezone()
+    void shouldNotEqualSameInstantButDifferentTimezone()
     {
         assertNotEqual( datetime( 10000, 100, UTC ), datetime( 10000, 100, ZoneOffset.of( "+01:00" ) ) );
     }
 
     @Test
-    public void shouldNotEqualSameInstantInSameLocalTimeButDifferentTimezone()
+    void shouldNotEqualSameInstantInSameLocalTimeButDifferentTimezone()
     {
         assertNotEqual( datetime( 2018, 1, 31, 10, 52, 5, 6, UTC ), datetime( 2018, 1, 31, 11, 52, 5, 6, "+01:00" ) );
     }
 
     @Test
-    public void shouldNotEqualSameInstantButDifferentTimezoneWithSameOffset()
+    void shouldNotEqualSameInstantButDifferentTimezoneWithSameOffset()
     {
         assertNotEqual( datetime( 1969, 12, 31, 23, 59, 59, 0, UTC ), datetime(1969, 12, 31, 23, 59, 59, 0, "Africa/Freetown" ) );
     }

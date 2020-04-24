@@ -19,28 +19,30 @@
  */
 package org.neo4j.kernel.lifecycle;
 
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.Collections;
 
-import org.neo4j.test.rule.TestDirectory;
-import org.neo4j.test.rule.fs.DefaultFileSystemRule;
-import org.neo4j.unsafe.batchinsert.BatchInserter;
-import org.neo4j.unsafe.batchinsert.BatchInserters;
+import org.neo4j.batchinsert.BatchInserter;
+import org.neo4j.batchinsert.BatchInserters;
+import org.neo4j.io.fs.FileSystemAbstraction;
+import org.neo4j.io.layout.DatabaseLayout;
+import org.neo4j.test.extension.Inject;
+import org.neo4j.test.extension.Neo4jLayoutExtension;
 
-public class GitHub1304Test
+@Neo4jLayoutExtension
+class GitHub1304Test
 {
-    @Rule
-    public final TestDirectory testDirectory = TestDirectory.testDirectory();
-    @Rule
-    public DefaultFileSystemRule fileSystemRule = new DefaultFileSystemRule();
+    @Inject
+    private FileSystemAbstraction fileSystem;
+    @Inject
+    private DatabaseLayout databaseLayout;
 
     @Test
-    public void givenBatchInserterWhenArrayPropertyUpdated4TimesThenShouldNotFail() throws IOException
+    void givenBatchInserterWhenArrayPropertyUpdated4TimesThenShouldNotFail() throws IOException
     {
-        BatchInserter batchInserter = BatchInserters.inserter( testDirectory.databaseDir(), fileSystemRule.get() );
+        BatchInserter batchInserter = BatchInserters.inserter( databaseLayout, fileSystem );
 
         long nodeId = batchInserter.createNode( Collections.emptyMap() );
 

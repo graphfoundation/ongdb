@@ -19,20 +19,20 @@
  */
 package org.neo4j.kernel.impl.transaction.log;
 
+import org.neo4j.storageengine.api.TransactionIdStore;
+
 class TransactionCommitment implements Commitment
 {
-    private final boolean hasExplicitIndexChanges;
     private final long transactionId;
-    private final long transactionChecksum;
+    private final int transactionChecksum;
     private final long transactionCommitTimestamp;
     private final LogPosition logPosition;
     private final TransactionIdStore transactionIdStore;
     private boolean markedAsCommitted;
 
-    TransactionCommitment( boolean hasExplicitIndexChanges, long transactionId, long transactionChecksum,
-            long transactionCommitTimestamp, LogPosition logPosition, TransactionIdStore transactionIdStore )
+    TransactionCommitment( long transactionId, int transactionChecksum, long transactionCommitTimestamp, LogPosition logPosition,
+            TransactionIdStore transactionIdStore )
     {
-        this.hasExplicitIndexChanges = hasExplicitIndexChanges;
         this.transactionId = transactionId;
         this.transactionChecksum = transactionChecksum;
         this.transactionCommitTimestamp = transactionCommitTimestamp;
@@ -64,9 +64,8 @@ class TransactionCommitment implements Commitment
         return markedAsCommitted;
     }
 
-    @Override
-    public boolean hasExplicitIndexChanges()
+    public int getTransactionChecksum()
     {
-        return hasExplicitIndexChanges;
+        return transactionChecksum;
     }
 }

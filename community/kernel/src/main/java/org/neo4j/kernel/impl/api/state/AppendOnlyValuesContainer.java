@@ -34,10 +34,10 @@ import java.util.List;
 import javax.annotation.Nonnull;
 
 import org.neo4j.graphdb.Resource;
+import org.neo4j.internal.unsafe.UnsafeUtil;
 import org.neo4j.io.ByteUnit;
 import org.neo4j.kernel.impl.util.collection.Memory;
 import org.neo4j.kernel.impl.util.collection.MemoryAllocator;
-import org.neo4j.unsafe.impl.internal.dragons.UnsafeUtil;
 import org.neo4j.util.VisibleForTesting;
 import org.neo4j.values.storable.ArrayValue;
 import org.neo4j.values.storable.BooleanArray;
@@ -78,6 +78,7 @@ import org.neo4j.values.storable.TimeValue;
 import org.neo4j.values.storable.TimeZones;
 import org.neo4j.values.storable.Value;
 import org.neo4j.values.storable.ValueWriter;
+import org.neo4j.values.storable.Values;
 import org.neo4j.values.utils.TemporalUtil;
 
 import static java.lang.Math.max;
@@ -580,7 +581,7 @@ public class AppendOnlyValuesContainer implements ValuesContainer
 
     private enum ValueType
     {
-        NO_VALUE( NoValue.class, ( unused, unused2 ) -> NoValue.NO_VALUE ),
+        NO_VALUE( NoValue.class, ( unused, unused2 ) -> Values.NO_VALUE ),
         BOOLEAN( BooleanValue.class, AppendOnlyValuesContainer::readBoolean ),
         BOOLEAN_ARRAY( BooleanArray.class, AppendOnlyValuesContainer::readBooleanArray ),
         BYTE( ByteValue.class, AppendOnlyValuesContainer::readByte ),

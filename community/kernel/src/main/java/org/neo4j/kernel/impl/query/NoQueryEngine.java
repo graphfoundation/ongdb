@@ -19,6 +19,8 @@
  */
 package org.neo4j.kernel.impl.query;
 
+import java.util.List;
+
 import org.neo4j.graphdb.Result;
 import org.neo4j.values.virtual.MapValue;
 
@@ -27,13 +29,14 @@ enum NoQueryEngine implements QueryExecutionEngine
     INSTANCE;
 
     @Override
-    public Result executeQuery( String query, MapValue parameters, TransactionalContext context )
+    public Result executeQuery( String query, MapValue parameters, TransactionalContext context, boolean prePopulate )
     {
         throw noQueryEngine();
     }
 
     @Override
-    public Result profileQuery( String query, MapValue parameter, TransactionalContext context )
+    public QueryExecution executeQuery( String query, MapValue parameters, TransactionalContext context,
+            boolean prePopulate, QuerySubscriber subscriber )
     {
         throw noQueryEngine();
     }
@@ -46,6 +49,12 @@ enum NoQueryEngine implements QueryExecutionEngine
 
     @Override
     public long clearQueryCaches()
+    {
+        throw noQueryEngine();
+    }
+
+    @Override
+    public List<FunctionInformation> getProvidedLanguageFunctions()
     {
         throw noQueryEngine();
     }

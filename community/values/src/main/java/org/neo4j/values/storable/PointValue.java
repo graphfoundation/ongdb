@@ -24,13 +24,13 @@ import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
+import org.neo4j.exceptions.InvalidArgumentException;
 import org.neo4j.graphdb.spatial.CRS;
 import org.neo4j.graphdb.spatial.Coordinate;
 import org.neo4j.graphdb.spatial.Point;
 import org.neo4j.hashing.HashFunction;
 import org.neo4j.values.Comparison;
 import org.neo4j.values.ValueMapper;
-import org.neo4j.values.utils.InvalidValuesArgumentException;
 import org.neo4j.values.utils.PrettyPrinter;
 import org.neo4j.values.virtual.MapValue;
 
@@ -64,8 +64,31 @@ public class PointValue extends ScalarValue implements Point, Comparable<PointVa
         {
             if ( !Double.isFinite( c ) )
             {
-                throw new InvalidValuesArgumentException( "Cannot create a point with non-finite coordinate values: " + Arrays.toString(coordinate) );
+                throw new InvalidArgumentException( "Cannot create a point with non-finite coordinate values: " + Arrays.toString( coordinate) );
             }
+        }
+        if ( crs.isGeographic() && (coordinate.length == 2 || coordinate.length == 3) )
+        {
+            // anything with less or more coordinates gets a pass as it is and needs to be stopped from other places like bolt does
+            //   (@see org.neo4j.bolt.v2.messaging.Neo4jPackV2Test#shouldFailToPackPointWithIllegalDimensions )
+            if ( coordinate[1] > 90 || coordinate[1] < -90 )
+            {
+                throw new InvalidArgumentException(
+                        "Cannot create WGS84 point with invalid coordinate: " + Arrays.toString( coordinate ) +
+                                ". Valid range for Y coordinate is [-90, 90]." );
+            }
+
+            double x = coordinate[0];
+            // Valid range for X is  [-180,180]
+            while ( x > 180 )
+            {
+                x = x - 360;
+            }
+            while ( x < -180 )
+            {
+                x = x + 360;
+            }
+            this.coordinate[0] = x;
         }
     }
 
@@ -129,7 +152,7 @@ public class PointValue extends ScalarValue implements Point, Comparable<PointVa
     }
 
     @Override
-    public boolean eq( Object other )
+    public boolean equalTo( Object other )
     {
         return other != null && ((other instanceof Value && equals( (Value) other )) || (other instanceof Point && equals( (Point) other )));
     }
@@ -306,6 +329,20 @@ public class PointValue extends ScalarValue implements Point, Comparable<PointVa
         return crs;
     }
 
+    @Override
+    protected long estimatedPayloadSize()
+    {
+        //assume the crs is just a static and doesn't use extra space
+        if ( coordinate.length == 2 )
+        {
+            return 40;
+        }
+        else
+        {
+            return 48;
+        }
+    }
+
     /**
      * Checks if this point is greater than (or equal) to lower and smaller than (or equal) to upper.
      *
@@ -421,7 +458,7 @@ public class PointValue extends ScalarValue implements Point, Comparable<PointVa
         int sridValue = fields.srid;
         if ( crsValue != null && sridValue != -1 )
         {
-            throw new InvalidValuesArgumentException( "Cannot specify both CRS and SRID" );
+            throw new InvalidArgumentException( "Cannot specify both CRS and SRID" );
         }
         else if ( crsValue != null )
         {
@@ -473,7 +510,7 @@ public class PointValue extends ScalarValue implements Point, Comparable<PointVa
             }
             if ( !crs.isGeographic() )
             {
-                throw new InvalidValuesArgumentException( "Geographic points does not support coordinate reference system: " + crs +
+                throw new InvalidArgumentException( "Geographic points does not support coordinate reference system: " + crs +
                         ". This is set either in the csv header or the actual data column" );
             }
         }
@@ -481,27 +518,27 @@ public class PointValue extends ScalarValue implements Point, Comparable<PointVa
         {
             if ( crs == CoordinateReferenceSystem.Cartesian )
             {
-                throw new InvalidValuesArgumentException( "A " + CoordinateReferenceSystem.Cartesian.getName() + " point must contain 'x' and 'y'" );
+                throw new InvalidArgumentException( "A " + CoordinateReferenceSystem.Cartesian.getName() + " point must contain 'x' and 'y'" );
             }
             else if ( crs == CoordinateReferenceSystem.Cartesian_3D )
             {
-                throw new InvalidValuesArgumentException( "A " + CoordinateReferenceSystem.Cartesian_3D.getName() + " point must contain 'x', 'y' and 'z'" );
+                throw new InvalidArgumentException( "A " + CoordinateReferenceSystem.Cartesian_3D.getName() + " point must contain 'x', 'y' and 'z'" );
             }
             else if ( crs == CoordinateReferenceSystem.WGS84 )
             {
-                throw new InvalidValuesArgumentException( "A " + CoordinateReferenceSystem.WGS84.getName() + " point must contain 'latitude' and 'longitude'" );
+                throw new InvalidArgumentException( "A " + CoordinateReferenceSystem.WGS84.getName() + " point must contain 'latitude' and 'longitude'" );
             }
             else if ( crs == CoordinateReferenceSystem.WGS84_3D )
             {
-                throw new InvalidValuesArgumentException(
+                throw new InvalidArgumentException(
                         "A " + CoordinateReferenceSystem.WGS84_3D.getName() + " point must contain 'latitude', 'longitude' and 'height'" );
             }
-            throw new InvalidValuesArgumentException( "A point must contain either 'x' and 'y' or 'latitude' and 'longitude'" );
+            throw new InvalidArgumentException( "A point must contain either 'x' and 'y' or 'latitude' and 'longitude'" );
         }
 
         if ( crs.getDimension() != coordinates.length )
         {
-            throw new InvalidValuesArgumentException( "Cannot create point with " + crs.getDimension() + "D coordinate reference system and "
+            throw new InvalidArgumentException( "Cannot create point with " + crs.getDimension() + "D coordinate reference system and "
                     + coordinates.length + " coordinates. Please consider using equivalent " + coordinates.length + "D coordinate reference system" );
         }
         return Values.pointValue( crs, coordinates );
@@ -519,11 +556,11 @@ public class PointValue extends ScalarValue implements Point, Comparable<PointVa
     {
         if ( onlyGeographic && !this.getCoordinateReferenceSystem().isGeographic() )
         {
-            throw new InvalidValuesArgumentException( "Field: " + fieldName + " is not available on cartesian point: " + this );
+            throw new InvalidArgumentException( "Field: " + fieldName + " is not available on cartesian point: " + this );
         }
         else if ( n >= this.coordinate().length )
         {
-            throw new InvalidValuesArgumentException( "Field: " + fieldName + " is not available on point: " + this );
+            throw new InvalidArgumentException( "Field: " + fieldName + " is not available on point: " + this );
         }
         else
         {
@@ -549,7 +586,7 @@ public class PointValue extends ScalarValue implements Point, Comparable<PointVa
             {
             case "crs":
                 checkUnassigned( crs, key );
-                assignTextValue( key, value, str -> crs = quotesPattern.matcher( str ).replaceAll( "" ) );
+                assignTextValue( key, value, str -> crs = QUOTES_PATTERN.matcher( str ).replaceAll( "" ) );
                 break;
             case "x":
                 checkUnassigned( x, key );
@@ -578,7 +615,7 @@ public class PointValue extends ScalarValue implements Point, Comparable<PointVa
             case "srid":
                 if ( srid != -1 )
                 {
-                    throw new InvalidValuesArgumentException( String.format( "Duplicate field '%s' is not allowed.", key ) );
+                    throw new InvalidArgumentException( String.format( "Duplicate field '%s' is not allowed.", key ) );
                 }
                 assignIntegral( key, value, i -> srid = i );
                 break;
@@ -610,7 +647,7 @@ public class PointValue extends ScalarValue implements Point, Comparable<PointVa
             }
             else
             {
-                throw new InvalidValuesArgumentException( String.format( "Cannot assign %s to field %s", value, key ) );
+                throw new InvalidArgumentException( String.format( "Cannot assign %s to field %s", value, key ) );
             }
         }
 
@@ -630,7 +667,7 @@ public class PointValue extends ScalarValue implements Point, Comparable<PointVa
             }
             else
             {
-                throw new InvalidValuesArgumentException( String.format( "Cannot assign %s to field %s", value, key ) );
+                throw new InvalidArgumentException( String.format( "Cannot assign %s to field %s", value, key ) );
             }
         }
 
@@ -646,7 +683,7 @@ public class PointValue extends ScalarValue implements Point, Comparable<PointVa
             }
             else
             {
-                throw new InvalidValuesArgumentException( String.format( "Cannot assign %s to field %s", value, key ) );
+                throw new InvalidArgumentException( String.format( "Cannot assign %s to field %s", value, key ) );
             }
         }
 
@@ -658,7 +695,7 @@ public class PointValue extends ScalarValue implements Point, Comparable<PointVa
             }
             catch ( NumberFormatException e )
             {
-                throw new InvalidValuesArgumentException( e.getMessage(), e );
+                throw new InvalidArgumentException( e.getMessage(), e );
             }
         }
 
@@ -666,7 +703,7 @@ public class PointValue extends ScalarValue implements Point, Comparable<PointVa
         {
             if ( key != null )
             {
-                throw new InvalidValuesArgumentException( String.format( "Duplicate field '%s' is not allowed.", fieldName ) );
+                throw new InvalidArgumentException( String.format( "Duplicate field '%s' is not allowed.", fieldName ) );
             }
         }
     }

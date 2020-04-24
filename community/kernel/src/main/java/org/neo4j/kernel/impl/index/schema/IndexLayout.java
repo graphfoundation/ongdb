@@ -24,21 +24,15 @@ import org.neo4j.io.pagecache.PageCursor;
 
 abstract class IndexLayout<KEY extends NativeIndexKey<KEY>, VALUE extends NativeIndexValue> extends Layout.Adapter<KEY,VALUE>
 {
-    private final long identifier;
-    private final int majorVersion;
-    private final int minorVersion;
-
     // allows more control of the identifier, needed for legacy reasons for the two number layouts
-    IndexLayout( long identifier, int majorVersion, int minorVersion )
+    IndexLayout( boolean fixedSize, long identifier, int majorVersion, int minorVersion )
     {
-        this.identifier = identifier;
-        this.majorVersion = majorVersion;
-        this.minorVersion = minorVersion;
+        super( fixedSize, identifier, majorVersion, minorVersion );
     }
 
-    IndexLayout( String layoutName, int majorVersion, int minorVersion )
+    IndexLayout( boolean fixedSize, String layoutName, int majorVersion, int minorVersion )
     {
-        this( Layout.namedIdentifier( layoutName, NativeIndexValue.SIZE ), majorVersion, minorVersion );
+        this( fixedSize, Layout.namedIdentifier( layoutName, NativeIndexValue.SIZE ), majorVersion, minorVersion );
     }
 
     @Override
@@ -66,37 +60,13 @@ abstract class IndexLayout<KEY extends NativeIndexKey<KEY>, VALUE extends Native
     }
 
     @Override
-    public boolean fixedSize()
-    {
-        return true; // for the most case
-    }
-
-    @Override
-    public long identifier()
-    {
-        return identifier;
-    }
-
-    @Override
-    public int majorVersion()
-    {
-        return majorVersion;
-    }
-
-    @Override
-    public int minorVersion()
-    {
-        return minorVersion;
-    }
-
-    @Override
     public final int compare( KEY o1, KEY o2 )
     {
         int valueComparison = compareValue( o1, o2 );
         if ( valueComparison == 0 )
         {
             // This is a special case where we need also compare entityId to support inclusive/exclusive
-            if ( o1.getCompareId() & o2.getCompareId() )
+            if ( o1.getCompareId() && o2.getCompareId() )
             {
                 return Long.compare( o1.getEntityId(), o2.getEntityId() );
             }

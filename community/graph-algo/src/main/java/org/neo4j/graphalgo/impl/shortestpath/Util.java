@@ -26,8 +26,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.neo4j.graphdb.Entity;
 import org.neo4j.graphdb.Node;
-import org.neo4j.graphdb.PropertyContainer;
 import org.neo4j.graphdb.Relationship;
 
 /**
@@ -35,7 +35,6 @@ import org.neo4j.graphdb.Relationship;
  * constructing them from sets of predecessors or counting them. These functions
  * are lifted out here because they can be used by algorithms for too different
  * problems.
- * @author Patrik Larsson
  */
 public class Util
 {
@@ -61,9 +60,9 @@ public class Util
         Map<Node,List<Relationship>> predecessors, boolean includeNode,
         boolean backwards )
     {
-        List<PropertyContainer> singlePathToNode = constructSinglePathToNode(
+        List<Entity> singlePathToNode = constructSinglePathToNode(
             node, predecessors, includeNode, backwards );
-        Iterator<PropertyContainer> iterator = singlePathToNode.iterator();
+        Iterator<Entity> iterator = singlePathToNode.iterator();
         // When going backwards and not including the node the first element is
         // a relationship. Thus skip it.
         if ( backwards && !includeNode && iterator.hasNext() )
@@ -96,9 +95,9 @@ public class Util
     public static List<Relationship> constructSinglePathToNodeAsRelationships(
         Node node, Map<Node,List<Relationship>> predecessors, boolean backwards )
     {
-        List<PropertyContainer> singlePathToNode = constructSinglePathToNode(
+        List<Entity> singlePathToNode = constructSinglePathToNode(
             node, predecessors, true, backwards );
-        Iterator<PropertyContainer> iterator = singlePathToNode.iterator();
+        Iterator<Entity> iterator = singlePathToNode.iterator();
         // Skip the first, it is a node
         if ( iterator.hasNext() )
         {
@@ -131,11 +130,11 @@ public class Util
      *            reversed
      * @return A path as a list of alternating Node/Relationship.
      */
-    public static List<PropertyContainer> constructSinglePathToNode( Node node,
+    public static List<Entity> constructSinglePathToNode( Node node,
         Map<Node,List<Relationship>> predecessors, boolean includeNode,
         boolean backwards )
     {
-        LinkedList<PropertyContainer> path = new LinkedList<>();
+        LinkedList<Entity> path = new LinkedList<>();
         if ( includeNode )
         {
             if ( backwards )
@@ -250,7 +249,7 @@ public class Util
      *            reversed
      * @return List of lists of alternating Node/Relationship.
      */
-    public static List<List<PropertyContainer>> constructAllPathsToNode(
+    public static List<List<Entity>> constructAllPathsToNode(
         Node node, Map<Node,List<Relationship>> predecessors,
         boolean includeNode, boolean backwards )
     {
@@ -260,11 +259,11 @@ public class Util
     /**
      * Same as constructAllPathsToNode, but different return type
      */
-    protected static List<LinkedList<PropertyContainer>> constructAllPathsToNodeAsLinkedLists(
+    protected static List<LinkedList<Entity>> constructAllPathsToNodeAsLinkedLists(
         Node node, Map<Node,List<Relationship>> predecessors,
         boolean includeNode, boolean backwards )
     {
-        List<LinkedList<PropertyContainer>> paths = new LinkedList<>();
+        List<LinkedList<Entity>> paths = new LinkedList<>();
         List<Relationship> current = predecessors.get( node );
         // First build all paths to this node's predecessors
         if ( current != null )
@@ -272,11 +271,11 @@ public class Util
             for ( Relationship r : current )
             {
                 Node n = r.getOtherNode( node );
-                List<LinkedList<PropertyContainer>> newPaths = constructAllPathsToNodeAsLinkedLists(
+                List<LinkedList<Entity>> newPaths = constructAllPathsToNodeAsLinkedLists(
                     n, predecessors, true, backwards );
                 paths.addAll( newPaths );
                 // Add the relationship
-                for ( LinkedList<PropertyContainer> path : newPaths )
+                for ( LinkedList<Entity> path : newPaths )
                 {
                     if ( backwards )
                     {
@@ -298,7 +297,7 @@ public class Util
         // Then add this node to all those paths
         if ( includeNode )
         {
-            for ( LinkedList<PropertyContainer> path : paths )
+            for ( LinkedList<Entity> path : paths )
             {
                 if ( backwards )
                 {

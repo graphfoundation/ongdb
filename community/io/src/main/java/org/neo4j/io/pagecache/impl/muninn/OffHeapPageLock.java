@@ -19,7 +19,7 @@
  */
 package org.neo4j.io.pagecache.impl.muninn;
 
-import org.neo4j.unsafe.impl.internal.dragons.UnsafeUtil;
+import org.neo4j.internal.unsafe.UnsafeUtil;
 
 /**
  * OffHeapPageLock is a sequence-based lock like StampedLock, but entirely non-blocking, and with special lock modes
@@ -183,8 +183,7 @@ public final class OffHeapPageLock
             boolean unwritablyLocked = (s & EXL_MASK) != 0;
             boolean writeCountOverflow = (s & CNT_MASK) == CNT_MASK;
 
-            // bitwise-OR to reduce branching and allow more ILP
-            if ( unwritablyLocked | writeCountOverflow )
+            if ( unwritablyLocked || writeCountOverflow )
             {
                 return failWriteLock( s, writeCountOverflow );
             }

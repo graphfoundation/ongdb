@@ -19,36 +19,46 @@
  */
 package org.neo4j.kernel.impl.util.watcher;
 
+import java.nio.file.WatchKey;
+import java.util.Set;
 import java.util.function.Predicate;
 
+import org.neo4j.configuration.helpers.NormalizedDatabaseName;
 import org.neo4j.io.fs.watcher.FileWatchEventListener;
+import org.neo4j.io.fs.watcher.resource.WatchedResource;
 import org.neo4j.logging.Log;
 import org.neo4j.logging.internal.LogService;
-
-import static java.lang.String.format;
 
 /**
  * Listener that will print notification about deleted filename into internal log.
  */
 public class DefaultFileDeletionEventListener implements FileWatchEventListener
 {
-
+    private final NormalizedDatabaseName databaseName;
+    private final Set<WatchedResource> watchedResources;
     private final Log internalLog;
     private final Predicate<String> fileNameFilter;
 
-    public DefaultFileDeletionEventListener( LogService logService, Predicate<String> fileNameFilter )
+    DefaultFileDeletionEventListener( NormalizedDatabaseName databaseName, Set<WatchedResource> watchedResources, LogService logService,
+            Predicate<String> fileNameFilter )
     {
+        this.databaseName = databaseName;
+        this.watchedResources = watchedResources;
         this.internalLog = logService.getInternalLog( getClass() );
         this.fileNameFilter = fileNameFilter;
     }
 
     @Override
-    public void fileDeleted( String fileName )
+    public void fileDeleted( WatchKey key, String fileName )
     {
-        if ( !fileNameFilter.test( fileName ) )
+        if ( isListenedResource( key ) && !fileNameFilter.test( fileName ) )
         {
-            internalLog.error( format( "'%s' which belongs to the store was deleted while database was running.",
-                    fileName ) );
+            internalLog.error( "'%s' which belongs to the '%s' database was deleted while it was running.", fileName, databaseName.name() );
         }
+    }
+
+    private boolean isListenedResource( WatchKey watchKey )
+    {
+        return watchedResources.stream().map( WatchedResource::getWatchKey ).anyMatch( watchKey::equals );
     }
 }

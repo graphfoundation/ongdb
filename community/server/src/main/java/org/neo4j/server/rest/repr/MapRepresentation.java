@@ -66,13 +66,11 @@ public class MapRepresentation extends MappingRepresentation
             }
             else if ( val instanceof Iterable )
             {
-                serializer.putList( keyString, ObjectToRepresentationConverter.getListRepresentation( (Iterable)
-                        val ) );
+                serializer.putList( keyString, ObjectToRepresentationConverter.getListRepresentation( (Iterable) val ) );
             }
             else if ( val instanceof Map )
             {
-                serializer.putMapping( keyString, ObjectToRepresentationConverter.getMapRepresentation( (Map)
-                        val ) );
+                serializer.putMapping( keyString, ObjectToRepresentationConverter.getMapRepresentation( (Map) val ) );
             }
             else if ( val == null )
             {

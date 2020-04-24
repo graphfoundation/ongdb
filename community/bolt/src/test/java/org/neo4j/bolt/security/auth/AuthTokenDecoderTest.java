@@ -21,80 +21,36 @@ package org.neo4j.bolt.security.auth;
 
 import org.junit.jupiter.api.Test;
 
-import java.util.Collections;
 import java.util.Map;
 
 import org.neo4j.kernel.api.security.AuthToken;
 
-import static org.neo4j.helpers.collection.MapUtil.map;
+import static org.neo4j.internal.helpers.collection.MapUtil.map;
 
 public abstract class AuthTokenDecoderTest
 {
-    protected abstract void testShouldDecodeAuthToken( Map<String,Object> authToken, boolean checkDecodingResult ) throws Exception;
+    protected abstract void testShouldDecodeAuthToken( Map<String,Object> authToken ) throws Exception;
 
     @Test
     void shouldDecodeAuthTokenWithStringCredentials() throws Exception
     {
-        testShouldDecodeAuthToken( authTokenMapWith( AuthToken.CREDENTIALS, "password" ), true );
+        testShouldDecodeAuthToken( authTokenMapWithCredential( "password" ) );
     }
 
     @Test
     void shouldDecodeAuthTokenWithEmptyStringCredentials() throws Exception
     {
-        testShouldDecodeAuthToken( authTokenMapWith( AuthToken.CREDENTIALS, "" ), true );
+        testShouldDecodeAuthToken( authTokenMapWithCredential( "" ) );
     }
 
     @Test
     void shouldDecodeAuthTokenWithNullCredentials() throws Exception
     {
-        testShouldDecodeAuthToken( authTokenMapWith( AuthToken.CREDENTIALS, null ), true );
+        testShouldDecodeAuthToken( authTokenMapWithCredential( null ) );
     }
 
-    @Test
-    void shouldDecodeAuthTokenWithStringNewCredentials() throws Exception
+    private static Map<String,Object> authTokenMapWithCredential( String pwd )
     {
-        testShouldDecodeAuthToken( authTokenMapWith( AuthToken.NEW_CREDENTIALS, "password" ), true );
+        return map( AuthToken.PRINCIPAL, "neo4j", AuthToken.CREDENTIALS, pwd );
     }
-
-    @Test
-    void shouldDecodeAuthTokenWithEmptyStringNewCredentials() throws Exception
-    {
-        testShouldDecodeAuthToken( authTokenMapWith( AuthToken.NEW_CREDENTIALS, "" ), true );
-    }
-
-    @Test
-    void shouldDecodeAuthTokenWithNullNewCredentials() throws Exception
-    {
-        testShouldDecodeAuthToken( authTokenMapWith( AuthToken.NEW_CREDENTIALS, null ), true );
-    }
-
-    @Test
-    void shouldDecodeAuthTokenWithCredentialsOfUnsupportedTypes() throws Exception
-    {
-        for ( Object value : valuesWithInvalidTypes )
-        {
-            testShouldDecodeAuthToken( authTokenMapWith( AuthToken.NEW_CREDENTIALS, value ), false );
-        }
-    }
-
-    @Test
-    void shouldDecodeAuthTokenWithNewCredentialsOfUnsupportedType() throws Exception
-    {
-        for ( Object value : valuesWithInvalidTypes )
-        {
-            testShouldDecodeAuthToken( authTokenMapWith( AuthToken.NEW_CREDENTIALS, value ), false );
-        }
-    }
-
-    private static Map<String,Object> authTokenMapWith( String fieldName, Object fieldValue )
-    {
-        return map( AuthToken.PRINCIPAL, "neo4j", fieldName, fieldValue );
-    }
-
-    private static Object[] valuesWithInvalidTypes = {
-            // This is not an exhaustive list
-            new char[]{ 'p', 'a', 's', 's' },
-            Collections.emptyList(),
-            Collections.emptyMap()
-    };
 }

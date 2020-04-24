@@ -19,39 +19,42 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.commands.expressions
 
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
+import java.util
+
+import org.neo4j.cypher.internal.runtime.ExecutionContext
 import org.neo4j.cypher.internal.runtime.interpreted.commands.AstNode
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.{Pipe, QueryState}
 import org.neo4j.values.AnyValue
 import org.neo4j.values.virtual.VirtualValues
 
-/*
-Contains an expression that is really a pipe. An inner expression is run for every row returned by the inner pipe, and
-the result of the NestedPipeExpression evaluation is a collection containing the result of these inner expressions
- */
-case class NestedPipeExpression(pipe: Pipe, inner: Expression) extends Expression {
+/**
+  * Expression that is really a pipe. An inner expression is run for every row returned by the inner pipe, and
+  * the result of the NestedPipeExpression evaluation is a collection containing the result of these inner expressions
+  */
+case class NestedPipeExpression(pipe: Pipe,
+                                inner: Expression,
+                                availableExpressionVariables: Seq[ExpressionVariable]) extends Expression {
+
   override def apply(ctx: ExecutionContext, state: QueryState): AnyValue = {
-    val innerState =
-      if (owningPipe.isDefined) {
-        state.withInitialContext(ctx).withDecorator(state.decorator.innerDecorator(owningPipe.get))
-      } else {
-        // We will get inaccurate profiling information of any db hits incurred by this nested expression
-        // but at least we will be able to execute the query
-        state.withInitialContext(ctx)
-      }
+    val initialContext = pipe.executionContextFactory.copyWith(ctx)
+    availableExpressionVariables.foreach { expVar =>
+      initialContext.set(expVar.name, state.expressionVariables(expVar.offset))
+    }
+    val innerState = state.withInitialContext(initialContext).withDecorator(state.decorator.innerDecorator(owningPipe))
 
     val results = pipe.createResults(innerState)
-    val map = results.map(ctx => inner(ctx, state))
-    VirtualValues.list(map.toArray:_*)
+    val all = new util.ArrayList[AnyValue]()
+    while (results.hasNext) {
+      all.add(inner(results.next(), state))
+    }
+    VirtualValues.fromList(all)
   }
 
-  override def rewrite(f: (Expression) => Expression): Expression = f(NestedPipeExpression(pipe, inner.rewrite(f)))
+  override def rewrite(f: Expression => Expression): Expression = f(NestedPipeExpression(pipe, inner.rewrite(f), availableExpressionVariables))
 
   override def arguments: Seq[Expression] = Seq(inner)
 
-  override def children: Seq[AstNode[_]] = Seq(inner)
-
-  override def symbolTableDependencies: Set[String] = Set()
+  override def children: Seq[AstNode[_]] = Seq(inner) ++ availableExpressionVariables
 
   override def toString: String = s"NestedExpression()"
 }

@@ -23,7 +23,7 @@ import org.neo4j.util.Preconditions;
 import org.neo4j.values.storable.Value;
 import org.neo4j.values.storable.ValueGroup;
 
-import static org.neo4j.helpers.collection.Iterators.array;
+import static org.neo4j.internal.helpers.collection.Iterators.array;
 
 /**
  * Includes value and entity id (to be able to handle non-unique values).
@@ -37,7 +37,6 @@ abstract class NativeIndexSingleValueKey<SELF extends NativeIndexSingleValueKey<
     @Override
     void assertValidValue( int stateSlot, Value value )
     {
-        //noinspection ResultOfMethodCallIgnored
         Preconditions.requireExactlyZero( stateSlot );
         assertCorrectType( value );
     }

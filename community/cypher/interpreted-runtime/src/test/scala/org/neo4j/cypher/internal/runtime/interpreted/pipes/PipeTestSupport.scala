@@ -24,10 +24,10 @@ import org.mockito.Mockito._
 import org.mockito.invocation.InvocationOnMock
 import org.mockito.stubbing.Answer
 import org.neo4j.cypher.internal.runtime.QueryContext
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
-import org.neo4j.cypher.internal.v3_6.util.attribution.Id
-import org.neo4j.cypher.internal.v3_6.util.symbols.{CypherType, _}
-import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherTestSupport
+import org.neo4j.cypher.internal.runtime.ExecutionContext
+import org.neo4j.cypher.internal.v4_0.util.attribution.Id
+import org.neo4j.cypher.internal.v4_0.util.symbols.{CypherType, _}
+import org.neo4j.cypher.internal.v4_0.util.test_helpers.CypherTestSupport
 import org.neo4j.graphdb.{Node, Relationship}
 import org.neo4j.kernel.impl.util.ValueUtils
 import org.scalatest.mock.MockitoSugar

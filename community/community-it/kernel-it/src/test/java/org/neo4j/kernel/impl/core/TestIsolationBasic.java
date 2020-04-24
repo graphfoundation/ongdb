@@ -19,30 +19,29 @@
  */
 package org.neo4j.kernel.impl.core;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicReference;
 
+import org.neo4j.graphdb.Entity;
 import org.neo4j.graphdb.Node;
-import org.neo4j.graphdb.PropertyContainer;
 import org.neo4j.graphdb.Relationship;
 import org.neo4j.graphdb.RelationshipType;
 import org.neo4j.graphdb.Transaction;
 import org.neo4j.kernel.impl.AbstractNeo4jTestCase;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
-public class TestIsolationBasic extends AbstractNeo4jTestCase
+class TestIsolationBasic extends AbstractNeo4jTestCase
 {
     /*
      * Tests that changes performed in a transaction before commit are not apparent in another.
      */
     @Test
-    public void testSimpleTransactionIsolation() throws Exception
+    void testSimpleTransactionIsolation() throws Exception
     {
         // Start setup - create base data
-        commit();
         final CountDownLatch latch1 = new CountDownLatch( 1 );
         final CountDownLatch latch2 = new CountDownLatch( 1 );
         Node n1;
@@ -50,11 +49,11 @@ public class TestIsolationBasic extends AbstractNeo4jTestCase
         Relationship r1;
         try ( Transaction tx = getGraphDb().beginTx() )
         {
-            n1 = getGraphDb().createNode();
-            n2 = getGraphDb().createNode();
+            n1 = tx.createNode();
+            n2 = tx.createNode();
             r1 = n1.createRelationshipTo( n2,
                     RelationshipType.withName( "TEST" ) );
-            tx.success();
+            tx.commit();
         }
 
         final Node node1 = n1;
@@ -63,51 +62,61 @@ public class TestIsolationBasic extends AbstractNeo4jTestCase
 
         try ( Transaction tx = getGraphDb().beginTx() )
         {
-            node1.setProperty( "key", "old" );
-            rel1.setProperty( "key", "old" );
-            tx.success();
+            tx.getNodeById( node1.getId() ).setProperty( "key", "old" );
+            tx.getRelationshipById( rel1.getId() ).setProperty( "key", "old" );
+            tx.commit();
         }
-        assertPropertyEqual( node1, "key", "old" );
-        assertPropertyEqual( rel1, "key", "old" );
-        assertRelationshipCount( node1, 1 );
-        assertRelationshipCount( node2, 1 );
+        try ( Transaction tx = getGraphDb().beginTx() )
+        {
+            var txNode = tx.getNodeById( node1.getId() );
+            var txNode2 = tx.getNodeById( node2.getId() );
+            var txRel = tx.getRelationshipById( rel1.getId() );
+            assertPropertyEqual( txNode, "key", "old" );
+            assertPropertyEqual( txRel, "key", "old" );
+            assertRelationshipCount( txNode, 1 );
+            assertRelationshipCount( txNode2, 1 );
+        }
 
         // This is the mutating transaction - it will change stuff which will be read in between
         final AtomicReference<Exception> t1Exception = new AtomicReference<>();
         Thread t1 = new Thread( () ->
         {
-
             try ( Transaction tx = getGraphDb().beginTx() )
             {
-                node1.setProperty( "key", "new" );
-                rel1.setProperty( "key", "new" );
-                node1.createRelationshipTo( node2, RelationshipType.withName( "TEST" ) );
-                assertPropertyEqual( node1, "key", "new" );
-                assertPropertyEqual( rel1, "key", "new" );
-                assertRelationshipCount( node1, 2 );
-                assertRelationshipCount( node2, 2 );
+                var txNode = tx.getNodeById( node1.getId() );
+                var txNode2 = tx.getNodeById( node2.getId() );
+                var txRel = tx.getRelationshipById( rel1.getId() );
+                txNode.setProperty( "key", "new" );
+                txRel.setProperty( "key", "new" );
+                txNode.createRelationshipTo( txNode2, RelationshipType.withName( "TEST" ) );
+                assertPropertyEqual( txNode, "key", "new" );
+                assertPropertyEqual( txRel, "key", "new" );
+                assertRelationshipCount( txNode, 2 );
+                assertRelationshipCount( txNode2, 2 );
                 latch1.countDown();
                 latch2.await();
-                assertPropertyEqual( node1, "key", "new" );
-                assertPropertyEqual( rel1, "key", "new" );
-                assertRelationshipCount( node1, 2 );
-                assertRelationshipCount( node2, 2 );
+                assertPropertyEqual( txNode, "key", "new" );
+                assertPropertyEqual( txRel, "key", "new" );
+                assertRelationshipCount( txNode, 2 );
+                assertRelationshipCount( txNode2, 2 );
                 // no tx.success();
             }
             catch ( Exception e )
             {
-                e.printStackTrace();
                 Thread.interrupted();
                 t1Exception.set( e );
             }
             finally
             {
-                try
+                try ( Transaction tx = getGraphDb().beginTx() )
                 {
-                    assertPropertyEqual( node1, "key", "old" );
-                    assertPropertyEqual( rel1, "key", "old" );
-                    assertRelationshipCount( node1, 1 );
-                    assertRelationshipCount( node2, 1 );
+                    var txNode = tx.getNodeById( node1.getId() );
+                    var txNode2 = tx.getNodeById( node2.getId() );
+                    var txRel = tx.getRelationshipById( rel1.getId() );
+                    assertPropertyEqual( txNode, "key", "old" );
+                    assertPropertyEqual( txRel, "key", "old" );
+                    assertRelationshipCount( txNode, 1 );
+                    assertRelationshipCount( txNode2, 1 );
                 }
                 catch ( Exception e )
                 {
@@ -120,20 +129,31 @@ public class TestIsolationBasic extends AbstractNeo4jTestCase
         latch1.await();
 
         // The transaction started above that runs in t1 has not finished. The old values should still be visible.
-        assertPropertyEqual( node1, "key", "old" );
-        assertPropertyEqual( rel1, "key", "old" );
-        assertRelationshipCount( node1, 1 );
-        assertRelationshipCount( node2, 1 );
+        try ( Transaction tx = getGraphDb().beginTx() )
+        {
+            var txNode = tx.getNodeById( node1.getId() );
+            var txNode2 = tx.getNodeById( node2.getId() );
+            var txRel = tx.getRelationshipById( rel1.getId() );
+            assertPropertyEqual( txNode, "key", "old" );
+            assertPropertyEqual( txRel, "key", "old" );
+            assertRelationshipCount( txNode, 1 );
+            assertRelationshipCount( txNode2, 1 );
+        }
 
         latch2.countDown();
         t1.join();
 
         // The transaction in t1 has finished but not committed. Its changes should still not be visible.
-        assertPropertyEqual( node1, "key", "old" );
-        assertPropertyEqual( rel1, "key", "old" );
-        assertRelationshipCount( node1, 1 );
-        assertRelationshipCount( node2, 1 );
-
+        try ( Transaction tx = getGraphDb().beginTx() )
+        {
+            var txNode = tx.getNodeById( node1.getId() );
+            var txNode2 = tx.getNodeById( node2.getId() );
+            var txRel = tx.getRelationshipById( rel1.getId() );
+            assertPropertyEqual( txNode, "key", "old" );
+            assertPropertyEqual( txRel, "key", "old" );
+            assertRelationshipCount( txNode, 1 );
+            assertRelationshipCount( txNode2, 1 );
+        }
         if ( t1Exception.get() != null )
         {
             throw t1Exception.get();
@@ -141,36 +161,30 @@ public class TestIsolationBasic extends AbstractNeo4jTestCase
 
         try ( Transaction tx = getGraphDb().beginTx() )
         {
-            for ( Relationship rel : node1.getRelationships() )
+            var txNode = tx.getNodeById( node1.getId() );
+            var txNode2 = tx.getNodeById( node2.getId() );
+            for ( Relationship rel : txNode.getRelationships() )
             {
                 rel.delete();
             }
-            node1.delete();
-            node2.delete();
-            tx.success();
+            txNode.delete();
+            txNode2.delete();
+            tx.commit();
         }
     }
 
-    private void assertPropertyEqual( PropertyContainer primitive, String key,
-        String value )
+    private void assertPropertyEqual( Entity primitive, String key, String value )
     {
-        try ( Transaction tx = getGraphDb().beginTx() )
-        {
-            assertEquals( value, primitive.getProperty( key ) );
-        }
+        assertEquals( value, primitive.getProperty( key ) );
     }
 
     private void assertRelationshipCount( Node node, int count )
     {
-
-        try ( Transaction tx = getGraphDb().beginTx() )
+        int actualCount = 0;
+        for ( Relationship rel : node.getRelationships() )
         {
-            int actualCount = 0;
-            for ( Relationship rel : node.getRelationships() )
-            {
-                actualCount++;
-            }
-            assertEquals( count, actualCount );
+            actualCount++;
         }
+        assertEquals( count, actualCount );
     }
 }

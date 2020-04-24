@@ -19,12 +19,12 @@
  */
 package org.neo4j.kernel.impl.newapi;
 
+import org.neo4j.common.EntityType;
 import org.neo4j.internal.kernel.api.NodeCursor;
 import org.neo4j.internal.kernel.api.PropertyCursor;
 import org.neo4j.internal.kernel.api.Read;
 import org.neo4j.internal.kernel.api.exceptions.EntityNotFoundException;
 import org.neo4j.io.IOUtils;
-import org.neo4j.storageengine.api.EntityType;
 import org.neo4j.storageengine.api.NodePropertyAccessor;
 import org.neo4j.values.storable.Value;
 import org.neo4j.values.storable.Values;

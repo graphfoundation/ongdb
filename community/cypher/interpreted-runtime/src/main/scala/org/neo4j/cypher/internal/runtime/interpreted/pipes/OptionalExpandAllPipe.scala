@@ -19,21 +19,24 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
-import org.neo4j.cypher.internal.runtime.interpreted.commands.predicates.Predicate
-import org.neo4j.cypher.internal.v3_6.util.InternalException
-import org.neo4j.cypher.internal.v3_6.util.attribution.Id
-import org.neo4j.cypher.internal.v3_6.expressions.SemanticDirection
+import org.neo4j.cypher.internal.runtime.ExecutionContext
+import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.Expression
+import org.neo4j.cypher.internal.v4_0.expressions.SemanticDirection
+import org.neo4j.cypher.internal.v4_0.util.attribution.Id
+import org.neo4j.exceptions.{InternalException, ParameterWrongTypeException}
 import org.neo4j.values.AnyValue
 import org.neo4j.values.storable.Values
-import org.neo4j.values.virtual.NodeValue
+import org.neo4j.values.virtual.{NodeValue, RelationshipValue}
 
-case class OptionalExpandAllPipe(source: Pipe, fromName: String, relName: String, toName: String, dir: SemanticDirection,
-                                 types: LazyTypes, predicate: Predicate)
-                                (val id: Id = Id.INVALID_ID)
+import scala.collection.Iterator
+
+abstract class OptionalExpandAllPipe(source: Pipe,
+                                     fromName: String,
+                                     relName: String,
+                                     toName: String,
+                                     dir: SemanticDirection,
+                                     types: RelationshipTypes)
   extends PipeWithSource(source) {
-
-  predicate.registerOwningPipe(this)
 
   protected def internalCreateResults(input: Iterator[ExecutionContext], state: QueryState): Iterator[ExecutionContext] = {
     input.flatMap {
@@ -42,31 +45,87 @@ case class OptionalExpandAllPipe(source: Pipe, fromName: String, relName: String
         fromNode match {
           case n: NodeValue =>
             val relationships = state.query.getRelationshipsForIds(n.id(), dir, types.types(state.query))
-            val matchIterator = relationships.map { r =>
-                val other = r.otherNode(n)
-                executionContextFactory.copyWith(row, relName, r, toName, other)
-            }.filter(ctx => predicate.isTrue(ctx, state))
-
+            val matchIterator = findMatchIterator(row, state, relationships, n)
             if (matchIterator.isEmpty) {
               Iterator(withNulls(row))
             } else {
               matchIterator
             }
 
-          case value if value == Values.NO_VALUE =>
+          case value if value eq Values.NO_VALUE =>
             Iterator(withNulls(row))
 
           case value =>
-            throw new InternalException(s"Expected to find a node at '$fromName' but found $value instead")
+            throw new ParameterWrongTypeException(s"Expected to find a node at '$fromName' but found $value instead")
         }
     }
   }
+
+  def findMatchIterator(row: ExecutionContext,
+                        state: QueryState,
+                        relationships: Iterator[RelationshipValue],
+                        n: NodeValue): Iterator[ExecutionContext]
 
   private def withNulls(row: ExecutionContext) = {
     row.set(relName, Values.NO_VALUE, toName, Values.NO_VALUE)
     row
   }
 
-  def getFromNode(row: ExecutionContext): AnyValue =
-    row.getOrElse(fromName, throw new InternalException(s"Expected to find a node at '$fromName' but found nothing"))
+  def getFromNode(row: ExecutionContext): AnyValue = row.getByName(fromName)
+}
+
+object OptionalExpandAllPipe {
+  def apply(source: Pipe,
+            fromName: String,
+            relName: String,
+            toName: String,
+            dir: SemanticDirection,
+            types: RelationshipTypes,
+            maybePredicate: Option[Expression])(id: Id = Id.INVALID_ID): OptionalExpandAllPipe = maybePredicate match {
+    case Some(predicate) => FilteringOptionalExpandAllPipe(source, fromName, relName, toName, dir, types, predicate)(id)
+    case None => NonFilteringOptionalExpandAllPipe(source, fromName, relName, toName, dir, types)(id)
+  }
+}
+
+case class NonFilteringOptionalExpandAllPipe(source: Pipe,
+                                             fromName: String,
+                                             relName: String,
+                                             toName: String,
+                                             dir: SemanticDirection,
+                                             types: RelationshipTypes)
+                                            (val id: Id = Id.INVALID_ID)
+  extends OptionalExpandAllPipe(source, fromName, relName, toName, dir, types) {
+
+  override def findMatchIterator(row: ExecutionContext,
+                                 ignore: QueryState,
+                                 relationships: Iterator[RelationshipValue],
+                                 n: NodeValue): Iterator[ExecutionContext] = {
+    relationships.map { r =>
+      val other = r.otherNode(n)
+      executionContextFactory.copyWith(row, relName, r, toName, other)
+    }
+  }
+}
+
+case class FilteringOptionalExpandAllPipe(source: Pipe,
+                                          fromName: String,
+                                          relName: String,
+                                          toName: String,
+                                          dir: SemanticDirection,
+                                          types: RelationshipTypes,
+                                          predicate: Expression)
+                                         (val id: Id = Id.INVALID_ID)
+  extends OptionalExpandAllPipe(source, fromName, relName, toName, dir, types) {
+
+  predicate.registerOwningPipe(this)
+
+  override def findMatchIterator(row: ExecutionContext,
+                                 state: QueryState,
+                                 relationships: Iterator[RelationshipValue],
+                                 n: NodeValue): Iterator[ExecutionContext] = {
+    relationships.map { r =>
+      val other = r.otherNode(n)
+      executionContextFactory.copyWith(row, relName, r, toName, other)
+    }.filter(ctx => predicate(ctx, state) eq Values.TRUE)
+  }
 }

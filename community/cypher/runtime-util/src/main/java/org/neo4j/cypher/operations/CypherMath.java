@@ -19,9 +19,8 @@
  */
 package org.neo4j.cypher.operations;
 
-import org.neo4j.cypher.internal.v3_6.util.ArithmeticException;
-import org.neo4j.cypher.internal.v3_6.util.CypherTypeException;
-
+import org.neo4j.exceptions.CypherTypeException;
+import org.neo4j.exceptions.ArithmeticException;
 import org.neo4j.values.AnyValue;
 import org.neo4j.values.storable.ArrayValue;
 import org.neo4j.values.storable.DurationValue;
@@ -32,10 +31,10 @@ import org.neo4j.values.storable.PointValue;
 import org.neo4j.values.storable.TemporalValue;
 import org.neo4j.values.storable.TextValue;
 import org.neo4j.values.storable.Value;
-import org.neo4j.values.storable.Values;
 import org.neo4j.values.virtual.ListValue;
 import org.neo4j.values.virtual.VirtualValues;
 
+import static org.neo4j.values.storable.Values.NO_VALUE;
 import static org.neo4j.values.storable.Values.ZERO_INT;
 import static org.neo4j.values.storable.Values.doubleValue;
 import static org.neo4j.values.storable.Values.longValue;
@@ -44,7 +43,7 @@ import static org.neo4j.values.storable.Values.stringValue;
 /**
  * This class contains static helper math methods used by the compiled expressions
  */
-@SuppressWarnings( "unused" )
+@SuppressWarnings( {"unused", "ReferenceEquality"} )
 public final class CypherMath
 {
     private CypherMath()
@@ -55,9 +54,18 @@ public final class CypherMath
     //TODO this is horrible spaghetti code, we should push most of this down to AnyValue
     public static AnyValue add( AnyValue lhs, AnyValue rhs )
     {
+        assert lhs != NO_VALUE && rhs != NO_VALUE : "NO_VALUE checks need to happen outside this call";
+
         if ( lhs instanceof NumberValue && rhs instanceof NumberValue )
         {
-            return ((NumberValue) lhs).plus( (NumberValue) rhs );
+            try
+            {
+                return ((NumberValue) lhs).plus( (NumberValue) rhs );
+            }
+            catch ( java.lang.ArithmeticException e )
+            {
+                throw new ArithmeticException( e.getMessage(), e );
+            }
         }
         //List addition
         //arrays are same as lists when it comes to addition
@@ -148,10 +156,19 @@ public final class CypherMath
 
     public static AnyValue subtract( AnyValue lhs, AnyValue rhs )
     {
+        assert lhs != NO_VALUE && rhs != NO_VALUE : "NO_VALUE checks need to happen outside this call";
+
         //numbers
         if ( lhs instanceof NumberValue && rhs instanceof NumberValue )
         {
-            return ((NumberValue) lhs).minus( (NumberValue) rhs );
+            try
+            {
+                return ((NumberValue) lhs).minus( (NumberValue) rhs );
+            }
+            catch ( java.lang.ArithmeticException e )
+            {
+                throw new ArithmeticException( e.getMessage(), e );
+            }
         }
         // Temporal values
         if ( lhs instanceof TemporalValue )
@@ -174,9 +191,18 @@ public final class CypherMath
 
     public static AnyValue multiply( AnyValue lhs, AnyValue rhs )
     {
+        assert lhs != NO_VALUE && rhs != NO_VALUE : "NO_VALUE checks need to happen outside this call";
+
         if ( lhs instanceof NumberValue && rhs instanceof NumberValue )
         {
-            return ((NumberValue) lhs).times( (NumberValue) rhs );
+            try
+            {
+                return ((NumberValue) lhs).times( (NumberValue) rhs );
+            }
+            catch ( java.lang.ArithmeticException e )
+            {
+                throw new ArithmeticException( e.getMessage(), e );
+            }
         }
         // Temporal values
         if ( lhs instanceof DurationValue )
@@ -205,12 +231,14 @@ public final class CypherMath
         }
         else
         {
-            return lhs == Values.NO_VALUE || rhs == Values.NO_VALUE;
+            return lhs == NO_VALUE || rhs == NO_VALUE;
         }
     }
 
     public static AnyValue divide( AnyValue lhs, AnyValue rhs )
     {
+        assert lhs != NO_VALUE && rhs != NO_VALUE : "NO_VALUE checks need to happen outside this call";
+
         if ( lhs instanceof NumberValue && rhs instanceof NumberValue )
         {
             return ((NumberValue) lhs).divideBy( (NumberValue) rhs );
@@ -229,15 +257,24 @@ public final class CypherMath
 
     public static AnyValue modulo( AnyValue lhs, AnyValue rhs )
     {
+        assert lhs != NO_VALUE && rhs != NO_VALUE : "NO_VALUE checks need to happen outside this call";
+
         if ( lhs instanceof NumberValue && rhs instanceof NumberValue )
         {
-            if ( lhs instanceof FloatingPointValue || rhs instanceof FloatingPointValue )
+            try
             {
-                return doubleValue( ((NumberValue) lhs).doubleValue() % ((NumberValue) rhs).doubleValue() );
+                if ( lhs instanceof FloatingPointValue || rhs instanceof FloatingPointValue )
+                {
+                    return doubleValue( ((NumberValue) lhs).doubleValue() % ((NumberValue) rhs).doubleValue() );
+                }
+                else
+                {
+                    return longValue( ((NumberValue) lhs).longValue() % ((NumberValue) rhs).longValue() );
+                }
             }
-            else
+            catch ( java.lang.ArithmeticException e )
             {
-                return longValue( ((NumberValue) lhs).longValue() % ((NumberValue) rhs).longValue() );
+                throw new ArithmeticException( e.getMessage(), e );
             }
         }
         throw new CypherTypeException(
@@ -247,6 +284,8 @@ public final class CypherMath
 
     public static AnyValue pow( AnyValue lhs, AnyValue rhs )
     {
+        assert lhs != NO_VALUE && rhs != NO_VALUE : "NO_VALUE checks need to happen outside this call";
+
         if ( lhs instanceof NumberValue && rhs instanceof NumberValue )
         {
             return doubleValue( Math.pow( ((NumberValue) lhs).doubleValue(), ((NumberValue) rhs).doubleValue() ) );

@@ -21,57 +21,53 @@ package org.neo4j.kernel.api.impl.schema;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.io.File;
 import java.io.IOException;
 
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
+import org.neo4j.configuration.Config;
+import org.neo4j.configuration.GraphDatabaseSettings;
+import org.neo4j.internal.schema.IndexDescriptor;
 import org.neo4j.io.fs.DefaultFileSystemAbstraction;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.pagecache.IOLimiter;
 import org.neo4j.kernel.api.impl.index.storage.DirectoryFactory;
 import org.neo4j.kernel.api.index.IndexAccessor;
 import org.neo4j.kernel.api.index.IndexProvider;
-import org.neo4j.kernel.configuration.Config;
-import org.neo4j.kernel.configuration.Settings;
+import org.neo4j.kernel.impl.api.index.IndexSamplingConfig;
 import org.neo4j.kernel.impl.api.index.IndexUpdateMode;
-import org.neo4j.kernel.impl.api.index.sampling.IndexSamplingConfig;
-import org.neo4j.kernel.impl.factory.OperationalMode;
-import org.neo4j.storageengine.api.schema.StoreIndexDescriptor;
-import org.neo4j.test.extension.DefaultFileSystemExtension;
 import org.neo4j.test.extension.Inject;
-import org.neo4j.test.extension.TestDirectoryExtension;
+import org.neo4j.test.extension.testdirectory.TestDirectoryExtension;
 import org.neo4j.test.rule.TestDirectory;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.neo4j.kernel.api.impl.schema.LuceneIndexProvider.defaultDirectoryStructure;
-import static org.neo4j.kernel.api.schema.SchemaDescriptorFactory.forLabel;
-import static org.neo4j.kernel.impl.api.index.TestIndexProviderDescriptor.PROVIDER_DESCRIPTOR;
-import static org.neo4j.kernel.impl.index.schema.ByteBufferFactory.heapBufferFactory;
-import static org.neo4j.storageengine.api.schema.IndexDescriptorFactory.forSchema;
+import static org.neo4j.internal.schema.IndexPrototype.forSchema;
+import static org.neo4j.internal.schema.SchemaDescriptor.forLabel;
+import static org.neo4j.io.memory.ByteBufferFactory.heapBufferFactory;
+import static org.neo4j.kernel.api.impl.schema.LuceneIndexProvider.DESCRIPTOR;
+import static org.neo4j.kernel.api.index.IndexDirectoryStructure.directoriesByProvider;
 
-@ExtendWith( {DefaultFileSystemExtension.class, TestDirectoryExtension.class} )
+@TestDirectoryExtension
 class LuceneIndexProviderTest
 {
+    private static final IndexDescriptor descriptor = forSchema( forLabel( 1, 1 ), DESCRIPTOR ).withName( "index_1" ).materialise( 1 );
+
     @Inject
     private DefaultFileSystemAbstraction fileSystem;
     @Inject
     private TestDirectory testDir;
-
     private File graphDbDir;
-    private static final StoreIndexDescriptor descriptor = forSchema( forLabel( 1, 1 ), PROVIDER_DESCRIPTOR ).withId( 1 );
 
     @BeforeEach
     void setup()
     {
-        graphDbDir = testDir.databaseDir();
+        graphDbDir = testDir.homeDir();
     }
 
     @Test
     void shouldFailToInvokePopulatorInReadOnlyMode()
     {
-        Config readOnlyConfig = Config.defaults( GraphDatabaseSettings.read_only, Settings.TRUE );
+        Config readOnlyConfig = Config.defaults( GraphDatabaseSettings.read_only, true );
         LuceneIndexProvider readOnlyIndexProvider =
                 getLuceneIndexProvider( readOnlyConfig, new DirectoryFactory.InMemoryDirectoryFactory(), fileSystem, graphDbDir );
         assertThrows( UnsupportedOperationException.class,
@@ -84,7 +80,7 @@ class LuceneIndexProviderTest
         DirectoryFactory directoryFactory = DirectoryFactory.PERSISTENT;
         createEmptySchemaIndex( directoryFactory );
 
-        Config readOnlyConfig = Config.defaults( GraphDatabaseSettings.read_only, Settings.TRUE );
+        Config readOnlyConfig = Config.defaults( GraphDatabaseSettings.read_only, true );
         LuceneIndexProvider readOnlyIndexProvider = getLuceneIndexProvider( readOnlyConfig,
                 directoryFactory, fileSystem, graphDbDir );
         IndexAccessor onlineAccessor = getIndexAccessor( readOnlyConfig, readOnlyIndexProvider );
@@ -95,7 +91,7 @@ class LuceneIndexProviderTest
     @Test
     void indexUpdateNotAllowedInReadOnlyMode() throws Exception
     {
-        Config readOnlyConfig = Config.defaults( GraphDatabaseSettings.read_only, Settings.TRUE );
+        Config readOnlyConfig = Config.defaults( GraphDatabaseSettings.read_only, true );
         LuceneIndexProvider readOnlyIndexProvider = getLuceneIndexProvider( readOnlyConfig,
                 new DirectoryFactory.InMemoryDirectoryFactory(), fileSystem, graphDbDir );
 
@@ -108,7 +104,7 @@ class LuceneIndexProviderTest
     {
         // IndexAccessor.force is used in check-pointing, and must be allowed in read-only mode as it would otherwise
         // prevent backups from working.
-        Config readOnlyConfig = Config.defaults( GraphDatabaseSettings.read_only, Settings.TRUE );
+        Config readOnlyConfig = Config.defaults( GraphDatabaseSettings.read_only, true );
         LuceneIndexProvider readOnlyIndexProvider = getLuceneIndexProvider( readOnlyConfig,
                 new DirectoryFactory.InMemoryDirectoryFactory(), fileSystem, graphDbDir );
 
@@ -134,7 +130,7 @@ class LuceneIndexProviderTest
     private LuceneIndexProvider getLuceneIndexProvider( Config config, DirectoryFactory directoryFactory,
                                                         FileSystemAbstraction fs, File graphDbDir )
     {
-        return new LuceneIndexProvider( fs, directoryFactory, defaultDirectoryStructure( graphDbDir ),
-                IndexProvider.Monitor.EMPTY, config, OperationalMode.single );
+        return new LuceneIndexProvider( fs, directoryFactory, directoriesByProvider( graphDbDir ),
+                IndexProvider.Monitor.EMPTY, config, true );
     }
 }

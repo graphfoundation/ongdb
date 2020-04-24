@@ -19,7 +19,7 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.commands.expressions
 
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
+import org.neo4j.cypher.internal.runtime.{ExecutionContext, IsNoValue}
 import org.neo4j.cypher.internal.runtime.interpreted.commands.AstNode
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.QueryState
 import org.neo4j.cypher.operations.CypherFunctions
@@ -30,7 +30,7 @@ case class IdFunction(inner: Expression) extends Expression {
 
   override def apply(ctx: ExecutionContext,
                      state: QueryState): AnyValue = inner(ctx, state) match {
-    case Values.NO_VALUE => Values.NO_VALUE
+    case IsNoValue() => Values.NO_VALUE
     case value => CypherFunctions.id(value)
   }
 
@@ -39,6 +39,4 @@ case class IdFunction(inner: Expression) extends Expression {
   override def arguments: Seq[Expression] = Seq(inner)
 
   override def children: Seq[AstNode[_]] = Seq(inner)
-
-  override def symbolTableDependencies: Set[String] = inner.symbolTableDependencies
 }

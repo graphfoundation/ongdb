@@ -19,6 +19,8 @@
  */
 package org.neo4j.kernel.api.impl.index;
 
+import org.apache.commons.lang3.ArrayUtils;
+import org.apache.lucene.document.Document;
 import org.apache.lucene.index.CheckIndex;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexWriter;
@@ -35,20 +37,17 @@ import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 import org.neo4j.graphdb.ResourceIterator;
-import org.neo4j.helpers.ArrayUtil;
-import org.neo4j.helpers.collection.Iterators;
+import org.neo4j.internal.helpers.collection.Iterators;
+import org.neo4j.internal.schema.IndexDescriptor;
 import org.neo4j.io.IOUtils;
 import org.neo4j.kernel.api.impl.index.backup.WritableIndexSnapshotFileIterator;
 import org.neo4j.kernel.api.impl.index.partition.AbstractIndexPartition;
 import org.neo4j.kernel.api.impl.index.partition.IndexPartitionFactory;
-import org.neo4j.kernel.api.impl.index.partition.PartitionSearcher;
 import org.neo4j.kernel.api.impl.index.storage.PartitionedIndexStorage;
 import org.neo4j.kernel.api.impl.schema.writer.LuceneIndexWriter;
 import org.neo4j.kernel.api.impl.schema.writer.PartitionedIndexWriter;
-import org.neo4j.storageengine.api.schema.IndexDescriptor;
-import org.neo4j.storageengine.api.schema.IndexReader;
+import org.neo4j.kernel.api.index.IndexReader;
 
-import static java.util.Collections.singletonMap;
 import static java.util.stream.Collectors.toList;
 
 /**
@@ -64,7 +63,7 @@ public abstract class AbstractLuceneIndex<READER extends IndexReader>
 {
     private static final String KEY_STATUS = "status";
     private static final String ONLINE = "online";
-    private static final Map<String,String> ONLINE_COMMIT_USER_DATA = singletonMap( KEY_STATUS, ONLINE );
+    private static final Set<Map.Entry<String,String>> ONLINE_COMMIT_USER_DATA = Set.of( Map.entry( KEY_STATUS, ONLINE ) );
     protected final PartitionedIndexStorage indexStorage;
     protected final IndexDescriptor descriptor;
     private final IndexPartitionFactory partitionFactory;
@@ -165,7 +164,7 @@ public abstract class AbstractLuceneIndex<READER extends IndexReader>
             {
                 // it is ok for index directory to be empty
                 // this can happen if it is opened and closed without any writes in between
-                if ( !ArrayUtil.isEmpty( directory.listAll() ) )
+                if ( ArrayUtils.isNotEmpty(  directory.listAll() ) )
                 {
                     try ( CheckIndex checker = new CheckIndex( directory ) )
                     {
@@ -184,7 +183,10 @@ public abstract class AbstractLuceneIndex<READER extends IndexReader>
         }
         finally
         {
-            IOUtils.closeAllSilently( directories );
+            if ( directories != null )
+            {
+                IOUtils.closeAllSilently( directories );
+            }
         }
         return true;
     }
@@ -251,14 +253,14 @@ public abstract class AbstractLuceneIndex<READER extends IndexReader>
     }
 
     /**
-     * Creates an iterable over all {@link org.apache.lucene.document.Document document}s in all partitions.
+     * Creates an iterable over all {@link Document document}s in all partitions.
      *
      * @return LuceneAllDocumentsReader over all documents
      */
     public LuceneAllDocumentsReader allDocumentsReader()
     {
         ensureOpen();
-        List<PartitionSearcher> searchers = new ArrayList<>( partitions.size() );
+        List<SearcherReference> searchers = new ArrayList<>( partitions.size() );
         try
         {
             for ( AbstractIndexPartition partition : partitions )
@@ -395,9 +397,9 @@ public abstract class AbstractLuceneIndex<READER extends IndexReader>
         }
     }
 
-    protected static List<PartitionSearcher> acquireSearchers( List<AbstractIndexPartition> partitions ) throws IOException
+    protected static List<SearcherReference> acquireSearchers( List<AbstractIndexPartition> partitions ) throws IOException
     {
-        List<PartitionSearcher> searchers = new ArrayList<>( partitions.size() );
+        List<SearcherReference> searchers = new ArrayList<>( partitions.size() );
         try
         {
             for ( AbstractIndexPartition partition : partitions )
@@ -456,7 +458,7 @@ public abstract class AbstractLuceneIndex<READER extends IndexReader>
         ensureOpen();
         AbstractIndexPartition partition = getFirstPartition( getPartitions() );
         IndexWriter indexWriter = partition.getIndexWriter();
-        indexWriter.setCommitData( ONLINE_COMMIT_USER_DATA );
+        indexWriter.setLiveCommitData( ONLINE_COMMIT_USER_DATA );
         flush( false );
     }
 

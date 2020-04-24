@@ -22,7 +22,7 @@ package org.neo4j.internal.kernel.api.procs;
 import java.util.Arrays;
 import java.util.List;
 
-import org.neo4j.helpers.collection.Iterables;
+import org.neo4j.internal.helpers.collection.Iterables;
 
 import static java.util.Arrays.asList;
 
@@ -33,7 +33,7 @@ public class QualifiedName
 
     public QualifiedName( List<String> namespace, String name )
     {
-        this( namespace.toArray( new String[namespace.size()] ), name );
+        this( namespace.toArray( new String[0] ), name );
     }
 
     public QualifiedName( String[] namespace, String name )

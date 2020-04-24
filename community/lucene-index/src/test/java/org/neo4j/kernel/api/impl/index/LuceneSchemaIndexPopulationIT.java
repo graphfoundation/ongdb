@@ -21,43 +21,45 @@ package org.neo4j.kernel.api.impl.index;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
 import java.io.File;
 
 import org.neo4j.collection.PrimitiveLongCollections;
+import org.neo4j.configuration.Config;
 import org.neo4j.internal.kernel.api.IndexQuery;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.internal.schema.IndexOrder;
+import org.neo4j.internal.schema.IndexPrototype;
+import org.neo4j.internal.schema.SchemaDescriptor;
 import org.neo4j.io.fs.DefaultFileSystemAbstraction;
 import org.neo4j.io.pagecache.IOLimiter;
 import org.neo4j.kernel.api.exceptions.index.IndexEntryConflictException;
 import org.neo4j.kernel.api.impl.schema.LuceneIndexAccessor;
 import org.neo4j.kernel.api.impl.schema.LuceneSchemaIndexBuilder;
 import org.neo4j.kernel.api.impl.schema.SchemaIndex;
-import org.neo4j.kernel.api.index.IndexEntryUpdate;
+import org.neo4j.kernel.api.index.IndexReader;
+import org.neo4j.kernel.api.index.IndexSample;
+import org.neo4j.kernel.api.index.IndexSampler;
 import org.neo4j.kernel.api.index.IndexUpdater;
-import org.neo4j.kernel.api.schema.index.TestIndexDescriptorFactory;
-import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.impl.api.index.IndexUpdateMode;
-import org.neo4j.storageengine.api.schema.IndexDescriptor;
-import org.neo4j.storageengine.api.schema.IndexReader;
-import org.neo4j.storageengine.api.schema.IndexSample;
-import org.neo4j.storageengine.api.schema.IndexSampler;
-import org.neo4j.test.extension.DefaultFileSystemExtension;
+import org.neo4j.kernel.impl.index.schema.NodeValueIterator;
+import org.neo4j.storageengine.api.IndexEntryUpdate;
 import org.neo4j.test.extension.Inject;
-import org.neo4j.test.extension.TestDirectoryExtension;
+import org.neo4j.test.extension.testdirectory.TestDirectoryExtension;
 import org.neo4j.test.rule.TestDirectory;
 import org.neo4j.values.storable.Values;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.neo4j.internal.kernel.api.QueryContext.NULL_CONTEXT;
 
-@ExtendWith( {DefaultFileSystemExtension.class, TestDirectoryExtension.class} )
+@TestDirectoryExtension
 class LuceneSchemaIndexPopulationIT
 {
-    private final IndexDescriptor descriptor = TestIndexDescriptorFactory.uniqueForLabel( 0, 0 );
+    private final IndexDescriptor descriptor = IndexPrototype.uniqueForSchema( SchemaDescriptor.forLabel( 0, 0 ) ).withName( "a" ).materialise( 1 );
 
     @Inject
     private TestDirectory testDir;
@@ -100,9 +102,11 @@ class LuceneSchemaIndexPopulationIT
                 assertTrue( uniqueIndex.isOnline() );
 
                 try ( IndexReader indexReader = indexAccessor.newReader();
+                      NodeValueIterator results = new NodeValueIterator();
                       IndexSampler indexSampler = indexReader.createSampler() )
                 {
-                    long[] nodes = PrimitiveLongCollections.asArray( indexReader.query( IndexQuery.exists( 1 ) ) );
+                    indexReader.query( NULL_CONTEXT, results, IndexOrder.NONE, false, IndexQuery.exists( 1 ) );
+                    long[] nodes = PrimitiveLongCollections.asArray( results );
                     assertEquals( affectedNodes, nodes.length );
 
                     IndexSample sample = indexSampler.sampleIndex();
@@ -120,7 +124,7 @@ class LuceneSchemaIndexPopulationIT
         {
             for ( int nodeId = 0; nodeId < nodesToUpdate; nodeId++ )
             {
-                updater.process( add( nodeId, nodeId ) );
+                updater.process( add( nodeId, "node " + nodeId ) );
             }
         }
     }

@@ -21,11 +21,9 @@ package org.neo4j.kernel.impl.index.schema;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
-import java.util.Collection;
 import java.util.Comparator;
 
-import org.neo4j.cursor.RawCursor;
-import org.neo4j.index.internal.gbptree.Hit;
+import org.neo4j.index.internal.gbptree.Seeker;
 
 public class NativeDistinctValuesProgressor<KEY extends NativeIndexKey<KEY>, VALUE extends NativeIndexValue> extends NativeIndexProgressor<KEY,VALUE>
 {
@@ -36,11 +34,10 @@ public class NativeDistinctValuesProgressor<KEY extends NativeIndexKey<KEY>, VAL
     private long countForCurrentValue;
     private boolean last;
 
-    NativeDistinctValuesProgressor( RawCursor<Hit<KEY,VALUE>,IOException> seeker, NodeValueClient client,
-            Collection<RawCursor<Hit<KEY,VALUE>,IOException>> toRemoveFromOnClose, IndexLayout<KEY,VALUE> layout,
+    NativeDistinctValuesProgressor( Seeker<KEY,VALUE> seeker, EntityValueClient client, IndexLayout<KEY,VALUE> layout,
             Comparator<KEY> comparator )
     {
-        super( seeker, client, toRemoveFromOnClose );
+        super( seeker, client );
         this.layout = layout;
         prev = layout.newKey();
         this.comparator = comparator;
@@ -53,7 +50,7 @@ public class NativeDistinctValuesProgressor<KEY extends NativeIndexKey<KEY>, VAL
         {
             while ( seeker.next() )
             {
-                KEY key = seeker.get().key();
+                KEY key = seeker.key();
                 if ( first )
                 {
                     first = false;
@@ -68,7 +65,7 @@ public class NativeDistinctValuesProgressor<KEY extends NativeIndexKey<KEY>, VAL
                 else
                 {
                     // different from previous
-                    boolean accepted = client.acceptNode( countForCurrentValue, extractValues( prev ) );
+                    boolean accepted = client.acceptEntity( countForCurrentValue, Float.NaN, extractValues( prev ) );
                     countForCurrentValue = 1;
                     layout.copyKey( key, prev );
                     if ( accepted )
@@ -77,7 +74,7 @@ public class NativeDistinctValuesProgressor<KEY extends NativeIndexKey<KEY>, VAL
                     }
                 }
             }
-            boolean finalResult = !first && !last && client.acceptNode( countForCurrentValue, extractValues( prev ) );
+            boolean finalResult = !first && !last && client.acceptEntity( countForCurrentValue, Float.NaN, extractValues( prev ) );
             last = true;
             return finalResult;
         }

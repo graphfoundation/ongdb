@@ -19,9 +19,9 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
+import org.neo4j.cypher.internal.runtime.ExecutionContext
 import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.Expression
-import org.neo4j.cypher.internal.v3_6.util.attribution.Id
+import org.neo4j.cypher.internal.v4_0.util.attribution.Id
 import org.neo4j.values.AnyValue
 import org.neo4j.values.storable.Values
 
@@ -50,7 +50,7 @@ case class ValueHashJoinPipe(lhsExpression: Expression, rhsExpression: Expressio
       return Iterator.empty
 
     val result = for {rhsRow <- rhsIterator
-                      joinKey = rhsExpression(rhsRow, state) if joinKey != Values.NO_VALUE}
+                      joinKey = rhsExpression(rhsRow, state) if !(joinKey eq Values.NO_VALUE) }
       yield {
         val lhsRows = table.getOrElse(joinKey, mutable.MutableList.empty)
         lhsRows.map { lhsRow =>

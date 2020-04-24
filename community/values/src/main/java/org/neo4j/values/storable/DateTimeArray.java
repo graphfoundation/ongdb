@@ -24,7 +24,7 @@ import java.util.Arrays;
 
 import org.neo4j.values.ValueMapper;
 
-public class DateTimeArray extends TemporalArray<ZonedDateTime,DateTimeValue>
+public final class DateTimeArray extends TemporalArray<ZonedDateTime,DateTimeValue>
 {
     private final ZonedDateTime[] value;
 
@@ -80,5 +80,14 @@ public class DateTimeArray extends TemporalArray<ZonedDateTime,DateTimeValue>
     public String getTypeName()
     {
         return "DateTimeArray";
+    }
+
+    @Override
+    long sizePerItem()
+    {
+        //This is a rough estimate, the wrapped ZoneDateTime can be much larger but it shares a lot of it fields
+        //with other instances, small integers and ZoneId are shared across instances. On average this is roughly the
+        // measured size per item.
+        return 100;
     }
 }

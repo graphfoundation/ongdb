@@ -22,8 +22,10 @@ package org.neo4j.io.pagecache;
 import java.io.File;
 import java.io.IOException;
 
-import org.neo4j.graphdb.config.Configuration;
+import org.neo4j.annotations.service.Service;
+import org.neo4j.internal.unsafe.UnsafeUtil;
 import org.neo4j.io.fs.FileSystemAbstraction;
+import org.neo4j.service.NamedService;
 
 /**
  * Creates PageSwappers for the given files.
@@ -36,23 +38,18 @@ import org.neo4j.io.fs.FileSystemAbstraction;
  * Note that this API is <em>only</em> intended to be used by a {@link PageCache} implementation.
  * It should never be used directly by user code.
  */
-public interface PageSwapperFactory
+@Service
+public interface PageSwapperFactory extends NamedService
 {
     /**
      * Open page swapper factory with provided filesystem and config
      * @param fs file system to use in page swappers
-     * @param config custom page swapper configuration
      */
-    void open( FileSystemAbstraction fs, Configuration config );
-
-    /**
-     * Get the name of this PageSwapperFactory implementation, for configuration purpose.
-     */
-    String implementationName();
+    void open( FileSystemAbstraction fs );
 
     /**
      * Get the unit of alignment that the swappers require of the memory buffers. For instance, if page alignment is
-     * required for doing direct IO, then {@link org.neo4j.unsafe.impl.internal.dragons.UnsafeUtil#pageSize()} can be
+     * required for doing direct IO, then {@link UnsafeUtil#pageSize()} can be
      * returned.
      *
      * @return The required buffer alignment byte multiple.
@@ -72,6 +69,8 @@ public interface PageSwapperFactory
      * exception.
      * @param noChannelStriping When true, overrides channel striping behaviour,
      * setting it to a single channel per mapped file.
+     * @param useDirectIO When true, direct io open open will gonna be used for underlying channel.
+     * Option supported only on Linux with certain limitations.
      * @return A working PageSwapper instance for the given file.
      * @throws IOException If the PageSwapper could not be created, for
      * instance if the underlying file could not be opened, or the given file does not exist and createIfNotExist is
@@ -82,18 +81,8 @@ public interface PageSwapperFactory
             int filePageSize,
             PageEvictionCallback onEviction,
             boolean createIfNotExist,
-            boolean noChannelStriping ) throws IOException;
-
-    /**
-     * Forces all prior writes made through all non-closed PageSwappers that this factory has created, to all the
-     * relevant devices, such that the writes are durable when this call returns.
-     * <p>
-     * This method has no effect if the {@link PageSwapper#force()} method forces the writes for the individual file.
-     * The {@link PageCache#flushAndForce()} method will first call <code>force</code> on the PageSwappers for all
-     * mapped files, then call <code>syncDevice</code> on the PageSwapperFactory. This way, the writes are always made
-     * durable regardless of which method that does the forcing.
-     */
-    void syncDevice();
+            boolean noChannelStriping,
+            boolean useDirectIO ) throws IOException;
 
     /**
      * Close and release any resources associated with this PageSwapperFactory, that it may have opened or acquired

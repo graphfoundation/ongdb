@@ -31,19 +31,21 @@ import java.util.function.LongSupplier;
 import java.util.function.Supplier;
 
 import org.neo4j.graphdb.ExecutionPlanDescription;
-import org.neo4j.io.pagecache.tracing.cursor.PageCursorCounters;
+import org.neo4j.graphdb.QueryExecutionType;
+import org.neo4j.internal.kernel.api.connectioninfo.ClientConnectionInfo;
+import org.neo4j.kernel.database.NamedDatabaseId;
 import org.neo4j.kernel.impl.locking.ActiveLock;
-import org.neo4j.kernel.impl.query.clientconnection.ClientConnectionInfo;
+import org.neo4j.lock.LockTracer;
+import org.neo4j.lock.LockWaitEvent;
+import org.neo4j.lock.ResourceType;
+import org.neo4j.memory.OptionalMemoryTracker;
 import org.neo4j.resources.CpuClock;
-import org.neo4j.resources.HeapAllocation;
-import org.neo4j.storageengine.api.lock.LockTracer;
-import org.neo4j.storageengine.api.lock.LockWaitEvent;
-import org.neo4j.storageengine.api.lock.ResourceType;
 import org.neo4j.time.SystemNanoClock;
 import org.neo4j.values.virtual.MapValue;
 
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.concurrent.atomic.AtomicLongFieldUpdater.newUpdater;
+import static org.neo4j.kernel.database.DatabaseIdRepository.NAMED_SYSTEM_DATABASE_ID;
 
 /**
  * Represents a currently running query.
@@ -54,15 +56,20 @@ public class ExecutingQuery
             newUpdater( ExecutingQuery.class, "waitTimeNanos" );
     private final long queryId;
     private final LockTracer lockTracer = this::waitForLock;
-    private final PageCursorCounters pageCursorCounters;
     private final String username;
     private final ClientConnectionInfo clientConnection;
-    private final String queryText;
-    private final MapValue queryParameters;
+    private final String rawQueryText;
+    private final MapValue rawQueryParameters;
     private final long startTimeNanos;
     private final long startTimestampMillis;
+    private final NamedDatabaseId namedDatabaseId;
+    private final LongSupplier hitsSupplier;
+    private final LongSupplier faultsSupplier;
     /** Uses write barrier of {@link #status}. */
     private long compilationCompletedNanos;
+    private String obfuscatedQueryText;
+    private MapValue obfuscatedQueryParameters;
+    private QueryExecutionType.QueryType queryType;
     private Supplier<ExecutionPlanDescription> planDescriptionSupplier;
     private final long threadExecutingTheQueryId;
     @SuppressWarnings( {"unused", "FieldCanBeLocal"} )
@@ -71,9 +78,7 @@ public class ExecutingQuery
     private final long initialActiveLocks;
     private final SystemNanoClock clock;
     private final CpuClock cpuClock;
-    private final HeapAllocation heapAllocation;
     private final long cpuTimeNanosWhenQueryStarted;
-    private final long heapAllocatedBytesWhenQueryStarted;
     private final Map<String,Object> transactionAnnotationData;
     /** Uses write barrier of {@link #status}. */
     private CompilerInfo compilerInfo;
@@ -81,22 +86,16 @@ public class ExecutingQuery
     /** Updated through {@link #WAIT_TIME} */
     @SuppressWarnings( "unused" )
     private volatile long waitTimeNanos;
+    private OptionalMemoryTracker memoryTracker = OptionalMemoryTracker.NONE;
 
-    public ExecutingQuery(
-            long queryId,
-            ClientConnectionInfo clientConnection,
-            String username,
-            String queryText,
-            MapValue queryParameters,
-            Map<String,Object> transactionAnnotationData,
-            LongSupplier activeLockCount,
-            PageCursorCounters pageCursorCounters,
-            long threadExecutingTheQueryId,
-            String threadExecutingTheQueryName,
-            SystemNanoClock clock,
-            CpuClock cpuClock,
-            HeapAllocation heapAllocation )
+    public ExecutingQuery( long queryId, ClientConnectionInfo clientConnection, NamedDatabaseId namedDatabaseId, String username, String queryText,
+            MapValue queryParameters, Map<String,Object> transactionAnnotationData, LongSupplier activeLockCount,
+            LongSupplier hitsSupplier, LongSupplier faultsSupplier,
+            long threadExecutingTheQueryId, String threadExecutingTheQueryName, SystemNanoClock clock, CpuClock cpuClock )
     {
+        this.namedDatabaseId = namedDatabaseId;
+        this.hitsSupplier = hitsSupplier;
+        this.faultsSupplier = faultsSupplier;
         // Capture timestamps first
         this.cpuTimeNanosWhenQueryStarted = cpuClock.cpuTimeNanos( threadExecutingTheQueryId );
         this.startTimeNanos = clock.nanos();
@@ -104,49 +103,57 @@ public class ExecutingQuery
         // then continue with assigning fields
         this.queryId = queryId;
         this.clientConnection = clientConnection;
-        this.pageCursorCounters = pageCursorCounters;
         this.username = username;
 
-        Set<String> passwordParams = new HashSet<>();
-        this.queryText = QueryObfuscation.obfuscateText( queryText, passwordParams );
-        this.queryParameters = QueryObfuscation.obfuscateParams( queryParameters, passwordParams );
+        this.rawQueryText = queryText;
+        this.rawQueryParameters = queryParameters;
         this.transactionAnnotationData = transactionAnnotationData;
         this.activeLockCount = activeLockCount;
         this.initialActiveLocks = activeLockCount.getAsLong();
         this.threadExecutingTheQueryId = threadExecutingTheQueryId;
         this.threadExecutingTheQueryName = threadExecutingTheQueryName;
         this.cpuClock = cpuClock;
-        this.heapAllocation = heapAllocation;
         this.clock = clock;
-        this.heapAllocatedBytesWhenQueryStarted = heapAllocation.allocatedBytes( this.threadExecutingTheQueryId );
     }
 
     // update state
 
-    public void compilationCompleted( CompilerInfo compilerInfo, Supplier<ExecutionPlanDescription> planDescriptionSupplier )
+    public void onCompilationCompleted( CompilerInfo compilerInfo,
+                                        QueryExecutionType.QueryType queryType,
+                                        Supplier<ExecutionPlanDescription> planDescriptionSupplier )
     {
+        assertExpectedStatus( SimpleState.planning() );
+
         this.compilerInfo = compilerInfo;
         this.compilationCompletedNanos = clock.nanos();
         this.planDescriptionSupplier = planDescriptionSupplier;
+        this.queryType = queryType;
+        this.status = SimpleState.planned(); // write barrier - must be last
+    }
+
+    public void onExecutionStarted( OptionalMemoryTracker memoryTracker )
+    {
+        assertExpectedStatus( SimpleState.planned() );
+
+        this.memoryTracker = memoryTracker;
         this.status = SimpleState.running(); // write barrier - must be last
+    }
+
+    public void onRetryAttempted()
+    {
+        assertExpectedStatus( SimpleState.running() );
+
+        this.compilerInfo = null;
+        this.compilationCompletedNanos = 0;
+        this.planDescriptionSupplier = null;
+        this.queryType = null;
+        this.memoryTracker = OptionalMemoryTracker.NONE;
+        this.status = SimpleState.planning();
     }
 
     public LockTracer lockTracer()
     {
         return lockTracer;
-    }
-
-    public void waitsForQuery( ExecutingQuery child )
-    {
-        if ( child == null )
-        {
-            WAIT_TIME.addAndGet( this, status.waitTimeNanos( clock.nanos() ) );
-            this.status = SimpleState.running();
-        }
-        else
-        {
-            this.status = new WaitingOnQuery( child, clock.nanos() );
-        }
     }
 
     // snapshot state
@@ -174,19 +181,13 @@ public class ExecutingQuery
         // activeLockCount is not atomic to capture, so we capture it after the most sensitive part.
         long totalActiveLocks = this.activeLockCount.getAsLong();
         // just needs to be captured at some point...
-        long heapAllocatedBytes = heapAllocation.allocatedBytes( threadExecutingTheQueryId );
-        PageCounterValues pageCounters = new PageCounterValues( pageCursorCounters );
+        PageCounterValues pageCounters = new PageCounterValues( hitsSupplier, faultsSupplier );
 
         // - at this point we are done capturing the "live" state, and can start computing the snapshot -
         long compilationTimeNanos = (status.isPlanning() ? currentTimeNanos : compilationCompletedNanos) - startTimeNanos;
         long elapsedTimeNanos = currentTimeNanos - startTimeNanos;
         cpuTimeNanos -= cpuTimeNanosWhenQueryStarted;
         waitTimeNanos += status.waitTimeNanos( currentTimeNanos );
-        // TODO: when we start allocating native memory as well during query execution,
-        // we should have a tracer that keeps track of how much memory we have allocated for the query,
-        // and get the value from that here.
-        heapAllocatedBytes = heapAllocatedBytesWhenQueryStarted < 0 ? -1 : // mark that we were unable to measure
-                heapAllocatedBytes - heapAllocatedBytesWhenQueryStarted;
 
         return new QuerySnapshot(
                 this,
@@ -200,7 +201,7 @@ public class ExecutingQuery
                 status.toMap( currentTimeNanos ),
                 waitingOnLocks,
                 totalActiveLocks - initialActiveLocks,
-                heapAllocatedBytes
+                memoryTracker.totalAllocatedMemory()
         );
     }
 
@@ -242,6 +243,11 @@ public class ExecutingQuery
         return queryId;
     }
 
+    public String id()
+    {
+        return Long.toString( internalQueryId() );
+    }
+
     public String username()
     {
         return username;
@@ -249,17 +255,32 @@ public class ExecutingQuery
 
     public String queryText()
     {
-        return queryText;
+        if ( queryNeedsObfuscation() )
+        {
+            obfuscateQuery();
+            return obfuscatedQueryText;
+        }
+        return rawQueryText;
     }
 
-    public Supplier<ExecutionPlanDescription> planDescriptionSupplier()
+    Supplier<ExecutionPlanDescription> planDescriptionSupplier()
     {
         return planDescriptionSupplier;
     }
 
     public MapValue queryParameters()
     {
-        return queryParameters;
+        if ( queryNeedsObfuscation() )
+        {
+            obfuscateQuery();
+            return obfuscatedQueryParameters;
+        }
+        return rawQueryParameters;
+    }
+
+    public NamedDatabaseId databaseId()
+    {
+        return namedDatabaseId;
     }
 
     public long startTimestampMillis()
@@ -313,5 +334,34 @@ public class ExecutingQuery
         }
         WAIT_TIME.addAndGet( this, waiting.waitTimeNanos( clock.nanos() ) );
         status = waiting.previousStatus();
+    }
+
+    private boolean queryNeedsObfuscation()
+    {
+        return queryType == QueryExecutionType.QueryType.DBMS || queryType == null || namedDatabaseId.equals( NAMED_SYSTEM_DATABASE_ID );
+    }
+
+    private void obfuscateQuery()
+    {
+        if ( obfuscatedQueryText == null )
+        {
+            Set<String> passwordParams = new HashSet<>();
+            // security procedures can be run on both user and system database currently
+            this.obfuscatedQueryText = QueryObfuscation.obfuscateText( rawQueryText, passwordParams );
+            if ( namedDatabaseId.equals( NAMED_SYSTEM_DATABASE_ID ) )
+            {
+                // check for system commands
+                this.obfuscatedQueryText = QueryObfuscation.obfuscateSystemCommand( obfuscatedQueryText, passwordParams );
+            }
+            this.obfuscatedQueryParameters = QueryObfuscation.obfuscateParams( rawQueryParameters, passwordParams );
+        }
+    }
+
+    private void assertExpectedStatus( ExecutingQueryStatus expectedStatus )
+    {
+        if ( status != expectedStatus )
+        {
+            throw new IllegalStateException( String.format( "Expected query in '%s' state, actual state is '%s'.", expectedStatus.name(), status.name() ) );
+        }
     }
 }

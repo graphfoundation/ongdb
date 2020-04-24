@@ -36,7 +36,6 @@ import org.neo4j.consistency.checking.RecordCheck;
 import org.neo4j.consistency.report.ConsistencyReport;
 import org.neo4j.consistency.report.ConsistencyReport.DynamicConsistencyReport;
 import org.neo4j.consistency.report.ConsistencyReport.LabelTokenConsistencyReport;
-import org.neo4j.consistency.report.ConsistencyReport.NeoStoreConsistencyReport;
 import org.neo4j.consistency.report.ConsistencyReport.NodeConsistencyReport;
 import org.neo4j.consistency.report.ConsistencyReport.PropertyConsistencyReport;
 import org.neo4j.consistency.report.ConsistencyReport.PropertyKeyTokenConsistencyReport;
@@ -44,12 +43,11 @@ import org.neo4j.consistency.report.ConsistencyReport.RelationshipConsistencyRep
 import org.neo4j.consistency.report.ConsistencyReport.RelationshipGroupConsistencyReport;
 import org.neo4j.consistency.report.ConsistencyReport.RelationshipTypeConsistencyReport;
 import org.neo4j.consistency.store.RecordAccess;
-import org.neo4j.helpers.progress.ProgressListener;
-import org.neo4j.helpers.progress.ProgressMonitorFactory;
+import org.neo4j.internal.helpers.progress.ProgressListener;
+import org.neo4j.internal.helpers.progress.ProgressMonitorFactory;
 import org.neo4j.kernel.impl.store.PropertyType;
 import org.neo4j.kernel.impl.store.record.DynamicRecord;
 import org.neo4j.kernel.impl.store.record.LabelTokenRecord;
-import org.neo4j.kernel.impl.store.record.NeoStoreRecord;
 import org.neo4j.kernel.impl.store.record.NodeRecord;
 import org.neo4j.kernel.impl.store.record.PrimitiveRecord;
 import org.neo4j.kernel.impl.store.record.PropertyBlock;
@@ -142,24 +140,6 @@ class OwnerCheck implements CheckDecorator
     }
 
     @Override
-    public OwningRecordCheck<NeoStoreRecord, NeoStoreConsistencyReport> decorateNeoStoreChecker(
-            OwningRecordCheck<NeoStoreRecord, NeoStoreConsistencyReport> checker )
-    {
-        if ( owners == null )
-        {
-            return checker;
-        }
-        return new PrimitiveCheckerDecorator<NeoStoreRecord, NeoStoreConsistencyReport>( checker )
-        {
-            @Override
-            PropertyOwner owner( NeoStoreRecord record )
-            {
-                return PropertyOwner.OWNING_GRAPH;
-            }
-        };
-    }
-
-    @Override
     public OwningRecordCheck<NodeRecord, NodeConsistencyReport> decorateNodeChecker(
             OwningRecordCheck<NodeRecord, NodeConsistencyReport> checker )
     {
@@ -167,7 +147,7 @@ class OwnerCheck implements CheckDecorator
         {
             return checker;
         }
-        return new PrimitiveCheckerDecorator<NodeRecord, NodeConsistencyReport>( checker )
+        return new PrimitiveCheckerDecorator<>( checker )
         {
             @Override
             PropertyOwner owner( NodeRecord record )
@@ -185,8 +165,7 @@ class OwnerCheck implements CheckDecorator
         {
             return checker;
         }
-        return new PrimitiveCheckerDecorator<RelationshipRecord, RelationshipConsistencyReport>(
-                checker )
+        return new PrimitiveCheckerDecorator<>( checker )
         {
             @Override
             PropertyOwner owner( RelationshipRecord record )
@@ -270,8 +249,7 @@ class OwnerCheck implements CheckDecorator
         {
             return checker;
         }
-        return new NameCheckerDecorator
-                <PropertyKeyTokenRecord, PropertyKeyTokenConsistencyReport>( checker, dynamicOwners )
+        return new NameCheckerDecorator<>( checker, dynamicOwners )
         {
             @Override
             DynamicOwner.NameOwner owner( PropertyKeyTokenRecord record )
@@ -290,8 +268,7 @@ class OwnerCheck implements CheckDecorator
         {
             return checker;
         }
-        return new NameCheckerDecorator<RelationshipTypeTokenRecord,RelationshipTypeConsistencyReport>(
-                checker, dynamicOwners )
+        return new NameCheckerDecorator<>( checker, dynamicOwners )
         {
             @Override
             DynamicOwner.NameOwner owner( RelationshipTypeTokenRecord record )
@@ -310,7 +287,7 @@ class OwnerCheck implements CheckDecorator
         {
             return checker;
         }
-        return new NameCheckerDecorator<LabelTokenRecord, LabelTokenConsistencyReport>( checker, dynamicOwners )
+        return new NameCheckerDecorator<>( checker, dynamicOwners )
         {
             @Override
             DynamicOwner.NameOwner owner( LabelTokenRecord record )

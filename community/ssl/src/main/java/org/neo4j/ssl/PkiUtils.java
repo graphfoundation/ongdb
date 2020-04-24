@@ -19,139 +19,56 @@
  */
 package org.neo4j.ssl;
 
-import org.bouncycastle.asn1.x500.X500Name;
-import org.bouncycastle.asn1.x509.Extension;
-import org.bouncycastle.asn1.x509.GeneralName;
-import org.bouncycastle.asn1.x509.GeneralNames;
-import org.bouncycastle.cert.X509CertificateHolder;
-import org.bouncycastle.cert.X509v3CertificateBuilder;
-import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter;
-import org.bouncycastle.cert.jcajce.JcaX509v3CertificateBuilder;
+import org.bouncycastle.asn1.pkcs.PrivateKeyInfo;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
-import org.bouncycastle.operator.ContentSigner;
+import org.bouncycastle.openssl.PEMDecryptorProvider;
+import org.bouncycastle.openssl.PEMEncryptedKeyPair;
+import org.bouncycastle.openssl.PEMKeyPair;
+import org.bouncycastle.openssl.PEMParser;
+import org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter;
+import org.bouncycastle.openssl.jcajce.JceOpenSSLPKCS8DecryptorProviderBuilder;
+import org.bouncycastle.openssl.jcajce.JcePEMDecryptorProviderBuilder;
+import org.bouncycastle.operator.InputDecryptorProvider;
 import org.bouncycastle.operator.OperatorCreationException;
-import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
+import org.bouncycastle.pkcs.PKCS8EncryptedPrivateKeyInfo;
+import org.bouncycastle.pkcs.PKCSException;
 import org.bouncycastle.util.io.pem.PemObject;
 import org.bouncycastle.util.io.pem.PemReader;
-import org.bouncycastle.util.io.pem.PemWriter;
 
 import java.io.ByteArrayInputStream;
-import java.io.DataInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileReader;
-import java.io.FileWriter;
 import java.io.IOException;
-import java.math.BigInteger;
-import java.security.GeneralSecurityException;
-import java.security.KeyFactory;
-import java.security.KeyPair;
-import java.security.KeyPairGenerator;
-import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.Provider;
-import java.security.SecureRandom;
 import java.security.Security;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
-import java.security.spec.InvalidKeySpecException;
-import java.security.spec.KeySpec;
-import java.security.spec.PKCS8EncodedKeySpec;
 import java.util.Collection;
-import java.util.Date;
 import java.util.LinkedList;
 
 /**
  * Public Key Infrastructure utilities, e.g. generating/loading keys and certificates.
  */
-public class PkiUtils
+public final class PkiUtils
 {
-    /* Generating SSL certificates takes a long time.
-     * This non-official setting allows us to use a fast source of randomness when running tests */
-    private static final boolean useInsecureCertificateGeneration = Boolean.getBoolean( "org.neo4j.useInsecureCertificateGeneration" );
     public static final String CERTIFICATE_TYPE = "X.509";
     private static final String DEFAULT_ENCRYPTION = "RSA";
-    private final SecureRandom random;
-    /** Current time minus 1 year, just in case software clock goes back due to time synchronization */
-    private static final Date NOT_BEFORE = new Date( System.currentTimeMillis() - 86400000L * 365 );
-    /** The maximum possible value in X.509 specification: 9999-12-31 23:59:59 */
-    private static final Date NOT_AFTER = new Date( 253402300799000L );
+
     private static final Provider PROVIDER = new BouncyCastleProvider();
-
-    private static volatile boolean cleanupRequired = true;
-
     static
     {
         Security.addProvider( PROVIDER );
     }
 
-    public PkiUtils()
+    private PkiUtils()
     {
-        random = useInsecureCertificateGeneration ? new InsecureRandom() : new SecureRandom();
+        // Disallow any instance creation. Only static methods are available.
     }
 
-    public void createSelfSignedCertificate( File certificatePath, File privateKeyPath, String hostName )
-            throws GeneralSecurityException, IOException, OperatorCreationException
-    {
-        installCleanupHook( certificatePath, privateKeyPath );
-        KeyPairGenerator keyGen = KeyPairGenerator.getInstance( DEFAULT_ENCRYPTION );
-        keyGen.initialize( 2048, random );
-        KeyPair keypair = keyGen.generateKeyPair();
-
-        // Prepare the information required for generating an X.509 certificate.
-        X500Name owner = new X500Name( "CN=" + hostName );
-        X509v3CertificateBuilder builder = new JcaX509v3CertificateBuilder(
-                owner, new BigInteger( 64, random ), NOT_BEFORE, NOT_AFTER, owner, keypair.getPublic() );
-
-        // Subject alternative name (part of SNI extension, used for hostname verification)
-        GeneralNames subjectAlternativeName = new GeneralNames( new GeneralName( GeneralName.dNSName, hostName ) );
-        builder.addExtension( Extension.subjectAlternativeName, false, subjectAlternativeName );
-
-        PrivateKey privateKey = keypair.getPrivate();
-        ContentSigner signer = new JcaContentSignerBuilder( "SHA512WithRSAEncryption" ).build( privateKey );
-        X509CertificateHolder certHolder = builder.build( signer );
-        X509Certificate cert = new JcaX509CertificateConverter().setProvider( PROVIDER ).getCertificate( certHolder );
-
-        //check so that cert is valid
-        cert.verify( keypair.getPublic() );
-
-        //write to disk
-        writePem( "CERTIFICATE", cert.getEncoded(), certificatePath );
-        writePem( "PRIVATE KEY", privateKey.getEncoded(), privateKeyPath );
-        // Mark as done so we don't clean up certificates
-        cleanupRequired = false;
-    }
-
-    /**
-     * Makes sure to delete partially generated certificates. Does nothing if both certificate and private key have
-     * been generated successfully.
-     *
-     * The hook should only be installed prior to generation of self-signed certificate, and not if certificates
-     * already exist.
-     */
-    private static void installCleanupHook( final File certificatePath, final File privateKeyPath )
-    {
-        Runtime.getRuntime().addShutdownHook( new Thread( () ->
-        {
-            if ( cleanupRequired )
-            {
-                System.err.println( "Cleaning up partially generated self-signed certificate..." );
-
-                if ( certificatePath.exists() )
-                {
-                    certificatePath.delete();
-                }
-
-                if ( privateKeyPath.exists() )
-                {
-                    privateKeyPath.delete();
-                }
-            }
-        } ) );
-    }
-
-    public X509Certificate[] loadCertificates( File certFile ) throws CertificateException, IOException
+    public static X509Certificate[] loadCertificates( File certFile ) throws CertificateException, IOException
     {
         CertificateFactory certFactory = CertificateFactory.getInstance( CERTIFICATE_TYPE );
         Collection<X509Certificate> certificates = new LinkedList<>();
@@ -161,13 +78,13 @@ public class PkiUtils
             for ( PemObject pemObject = r.readPemObject(); pemObject != null; pemObject = r.readPemObject() )
             {
                 byte[] encodedCert = pemObject.getContent();
-                Collection<? extends X509Certificate> loadedCertificates = (Collection<X509Certificate>)
-                        certFactory.generateCertificates( new ByteArrayInputStream( encodedCert ) );
+                Collection<X509Certificate> loadedCertificates =
+                        (Collection<X509Certificate>) certFactory.generateCertificates( new ByteArrayInputStream( encodedCert ) );
                 certificates.addAll( loadedCertificates );
             }
         }
 
-        if ( certificates.size() == 0 )
+        if ( certificates.isEmpty() )
         {
             // Ok, failed to read as PEM file, try and read it as raw binary certificate
             try ( FileInputStream in = new FileInputStream( certFile ) )
@@ -176,68 +93,52 @@ public class PkiUtils
             }
         }
 
-        return certificates.toArray( new X509Certificate[certificates.size()] );
+        return certificates.toArray( new X509Certificate[0] );
     }
 
-    public PrivateKey loadPrivateKey( File privateKeyFile )
-            throws IOException, NoSuchAlgorithmException,
-            InvalidKeySpecException
+    public static PrivateKey loadPrivateKey( File privateKeyFile, String passPhrase ) throws IOException
     {
-        try ( PemReader r = new PemReader( new FileReader( privateKeyFile ) ) )
+        if ( passPhrase == null )
         {
-            PemObject pemObject = r.readPemObject();
-            if ( pemObject != null )
+            passPhrase = "";
+        }
+        try ( PEMParser r = new PEMParser( new FileReader( privateKeyFile ) ) )
+        {
+            Object pemObject = r.readObject();
+            final JcaPEMKeyConverter converter = new JcaPEMKeyConverter().setProvider( PROVIDER );
+
+            if ( pemObject instanceof PEMEncryptedKeyPair ) // -----BEGIN RSA/DSA/EC PRIVATE KEY----- Proc-Type: 4,ENCRYPTED
             {
-                byte[] encodedKey = pemObject.getContent();
-                KeySpec keySpec = new PKCS8EncodedKeySpec( encodedKey );
+                final PEMEncryptedKeyPair ckp = (PEMEncryptedKeyPair) pemObject;
+                final PEMDecryptorProvider decProv = new JcePEMDecryptorProviderBuilder().build( passPhrase.toCharArray() );
+                return converter.getKeyPair( ckp.decryptKeyPair( decProv ) ).getPrivate();
+            }
+            else if ( pemObject instanceof PKCS8EncryptedPrivateKeyInfo ) // -----BEGIN ENCRYPTED PRIVATE KEY-----
+            {
                 try
                 {
-                    return KeyFactory.getInstance( "RSA" ).generatePrivate( keySpec );
+                    final PKCS8EncryptedPrivateKeyInfo encryptedInfo = (PKCS8EncryptedPrivateKeyInfo) pemObject;
+                    final InputDecryptorProvider provider = new JceOpenSSLPKCS8DecryptorProviderBuilder().build( passPhrase.toCharArray() );
+                    final PrivateKeyInfo privateKeyInfo = encryptedInfo.decryptPrivateKeyInfo( provider );
+                    return converter.getPrivateKey( privateKeyInfo );
                 }
-                catch ( InvalidKeySpecException ignore )
+                catch ( PKCSException | OperatorCreationException e )
                 {
-                    try
-                    {
-                        return KeyFactory.getInstance( "DSA" ).generatePrivate( keySpec );
-                    }
-                    catch ( InvalidKeySpecException ignore2 )
-                    {
-                        try
-                        {
-                            return KeyFactory.getInstance( "EC" ).generatePrivate( keySpec );
-                        }
-                        catch ( InvalidKeySpecException e )
-                        {
-                            throw new InvalidKeySpecException( "Neither RSA, DSA nor EC worked", e );
-                        }
-                    }
+                    throw new IOException( "Unable to decrypt private key.", e );
                 }
             }
+            else if ( pemObject instanceof PrivateKeyInfo ) // -----BEGIN PRIVATE KEY-----
+            {
+                return converter.getPrivateKey( (PrivateKeyInfo) pemObject );
+            }
+            else if ( pemObject instanceof PEMKeyPair ) // -----BEGIN RSA/DSA/EC PRIVATE KEY-----
+            {
+                return converter.getKeyPair( (PEMKeyPair) pemObject ).getPrivate();
+            }
+            else
+            {
+                throw new IOException( "Unrecognized private key format." );
+            }
         }
-
-        // Ok, failed to read as PEM file, try and read it as a raw binary private key
-        try ( DataInputStream in = new DataInputStream( new FileInputStream( privateKeyFile ) ) )
-        {
-            byte[] keyBytes = new byte[(int) privateKeyFile.length()];
-            in.readFully( keyBytes );
-
-            KeySpec keySpec = new PKCS8EncodedKeySpec( keyBytes );
-
-            return KeyFactory.getInstance( DEFAULT_ENCRYPTION ).generatePrivate( keySpec );
-        }
-    }
-
-    private void writePem( String type, byte[] encodedContent, File path ) throws IOException
-    {
-        path.getParentFile().mkdirs();
-        try ( PemWriter writer = new PemWriter( new FileWriter( path ) ) )
-        {
-            writer.writeObject( new PemObject( type, encodedContent ) );
-            writer.flush();
-        }
-        path.setReadable( false, false );
-        path.setWritable( false, false );
-        path.setReadable( true );
-        path.setWritable( true );
     }
 }

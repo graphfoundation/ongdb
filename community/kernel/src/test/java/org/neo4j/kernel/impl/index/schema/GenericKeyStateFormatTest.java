@@ -34,17 +34,15 @@ import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
+import org.neo4j.configuration.Config;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.io.pagecache.PageCursor;
 import org.neo4j.io.pagecache.PagedFile;
-import org.neo4j.kernel.configuration.Config;
-import org.neo4j.kernel.impl.index.schema.config.ConfiguredSpaceFillingCurveSettingsCache;
-import org.neo4j.kernel.impl.index.schema.config.IndexSpecificSpaceFillingCurveSettingsCache;
+import org.neo4j.kernel.impl.index.schema.config.IndexSpecificSpaceFillingCurveSettings;
 import org.neo4j.test.FormatCompatibilityVerifier;
 import org.neo4j.test.rule.PageCacheRule;
 import org.neo4j.values.storable.CoordinateReferenceSystem;
@@ -278,8 +276,7 @@ public class GenericKeyStateFormatTest extends FormatCompatibilityVerifier
 
     private GenericLayout getLayout()
     {
-        return new GenericLayout( NUMBER_OF_SLOTS,
-                new IndexSpecificSpaceFillingCurveSettingsCache( new ConfiguredSpaceFillingCurveSettingsCache( Config.defaults() ), new HashMap<>() ) );
+        return new GenericLayout( NUMBER_OF_SLOTS, IndexSpecificSpaceFillingCurveSettings.fromConfig( Config.defaults() ) );
     }
 
     private void withCursor( File storeFile, boolean create, Consumer<PageCursor> cursorConsumer ) throws IOException

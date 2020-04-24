@@ -31,13 +31,6 @@ import org.neo4j.kernel.impl.transaction.tracing.LogAppendEvent;
  */
 public interface LogRotation
 {
-    interface Monitor
-    {
-        void startedRotating( long currentVersion );
-
-        void finishedRotating( long currentVersion );
-    }
-
     LogRotation NO_ROTATION = new LogRotation()
     {
         @Override
@@ -47,7 +40,7 @@ public interface LogRotation
         }
 
         @Override
-        public void rotateLogFile()
+        public void rotateLogFile( LogAppendEvent logAppendEvent )
         {
         }
     };
@@ -63,5 +56,5 @@ public interface LogRotation
      *
      * @throws IOException
      */
-    void rotateLogFile() throws IOException;
+    void rotateLogFile( LogAppendEvent logAppendEvent ) throws IOException;
 }

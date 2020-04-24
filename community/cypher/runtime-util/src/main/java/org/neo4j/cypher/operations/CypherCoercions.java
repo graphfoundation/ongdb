@@ -19,12 +19,16 @@
  */
 package org.neo4j.cypher.operations;
 
-import org.neo4j.cypher.internal.v3_6.util.CypherTypeException;
-
 import java.util.HashMap;
 import java.util.Map;
 
 import org.neo4j.cypher.internal.runtime.DbAccess;
+import org.neo4j.cypher.internal.runtime.ExpressionCursors;
+import org.neo4j.cypher.internal.runtime.makeValueNeoSafe;
+import org.neo4j.exceptions.CypherTypeException;
+import org.neo4j.internal.kernel.api.NodeCursor;
+import org.neo4j.internal.kernel.api.PropertyCursor;
+import org.neo4j.internal.kernel.api.RelationshipScanCursor;
 import org.neo4j.internal.kernel.api.procs.Neo4jTypes;
 import org.neo4j.values.AnyValue;
 import org.neo4j.values.SequenceValue;
@@ -42,6 +46,7 @@ import org.neo4j.values.storable.NumberValue;
 import org.neo4j.values.storable.PointValue;
 import org.neo4j.values.storable.TextValue;
 import org.neo4j.values.storable.TimeValue;
+import org.neo4j.values.storable.Value;
 import org.neo4j.values.storable.Values;
 import org.neo4j.values.virtual.ListValue;
 import org.neo4j.values.virtual.MapValue;
@@ -82,8 +87,20 @@ public final class CypherCoercions
         throw new UnsupportedOperationException( "do not instantiate" );
     }
 
+    /**
+     * This indirection is here because it is really inconvenient to generate code for calling object methods in scala
+     * from scala because it hides the generated classes.
+     *
+     * TODO: makeValueNeoSafe is not fast, rewrite it here and use this method instead.
+     */
+    public static Value asStorableValue( AnyValue value )
+    {
+        return makeValueNeoSafe.apply( value );
+    }
+
     public static TextValue asTextValue( AnyValue value )
     {
+        assert value != NO_VALUE : "NO_VALUE checks need to happen outside this call";
         if ( !(value instanceof TextValue) )
         {
             throw cantCoerce( value, "String" );
@@ -93,6 +110,7 @@ public final class CypherCoercions
 
     public static NodeValue asNodeValue( AnyValue value )
     {
+        assert value != NO_VALUE : "NO_VALUE checks need to happen outside this call";
         if ( !(value instanceof NodeValue) )
         {
             throw cantCoerce( value, "Node" );
@@ -102,6 +120,7 @@ public final class CypherCoercions
 
     public static RelationshipValue asRelationshipValue( AnyValue value )
     {
+        assert value != NO_VALUE : "NO_VALUE checks need to happen outside this call";
         if ( !(value instanceof RelationshipValue) )
         {
             throw cantCoerce( value, "Relationship" );
@@ -111,6 +130,7 @@ public final class CypherCoercions
 
     public static PathValue asPathValue( AnyValue value )
     {
+        assert value != NO_VALUE : "NO_VALUE checks need to happen outside this call";
         if ( !(value instanceof PathValue) )
         {
             throw cantCoerce( value, "Path" );
@@ -120,6 +140,7 @@ public final class CypherCoercions
 
     public static IntegralValue asIntegralValue( AnyValue value )
     {
+        assert value != NO_VALUE : "NO_VALUE checks need to happen outside this call";
         if ( !(value instanceof NumberValue) )
         {
             throw cantCoerce( value, "Integer" );
@@ -129,6 +150,7 @@ public final class CypherCoercions
 
     public static FloatingPointValue asFloatingPointValue( AnyValue value )
     {
+        assert value != NO_VALUE : "NO_VALUE checks need to happen outside this call";
         if ( !(value instanceof NumberValue) )
         {
             throw cantCoerce( value, "Float" );
@@ -138,6 +160,7 @@ public final class CypherCoercions
 
     public static BooleanValue asBooleanValue( AnyValue value )
     {
+        assert value != NO_VALUE : "NO_VALUE checks need to happen outside this call";
         if ( !(value instanceof BooleanValue) )
         {
             throw cantCoerce( value, "Boolean" );
@@ -147,6 +170,7 @@ public final class CypherCoercions
 
     public static NumberValue asNumberValue( AnyValue value )
     {
+        assert value != NO_VALUE : "NO_VALUE checks need to happen outside this call";
         if ( !(value instanceof NumberValue) )
         {
             throw cantCoerce( value, "Number" );
@@ -156,6 +180,7 @@ public final class CypherCoercions
 
     public static PointValue asPointValue( AnyValue value )
     {
+        assert value != NO_VALUE : "NO_VALUE checks need to happen outside this call";
         if ( !(value instanceof PointValue) )
         {
             throw cantCoerce( value, "Point" );
@@ -165,6 +190,7 @@ public final class CypherCoercions
 
     public static DateValue asDateValue( AnyValue value )
     {
+        assert value != NO_VALUE : "NO_VALUE checks need to happen outside this call";
         if ( !(value instanceof DateValue) )
         {
             throw cantCoerce( value, "Date" );
@@ -174,6 +200,7 @@ public final class CypherCoercions
 
     public static TimeValue asTimeValue( AnyValue value )
     {
+        assert value != NO_VALUE : "NO_VALUE checks need to happen outside this call";
         if ( !(value instanceof TimeValue) )
         {
             throw cantCoerce( value, "Time" );
@@ -183,6 +210,7 @@ public final class CypherCoercions
 
     public static LocalTimeValue asLocalTimeValue( AnyValue value )
     {
+        assert value != NO_VALUE : "NO_VALUE checks need to happen outside this call";
         if ( !(value instanceof LocalTimeValue) )
         {
             throw cantCoerce( value, "LocalTime" );
@@ -192,6 +220,7 @@ public final class CypherCoercions
 
     public static LocalDateTimeValue asLocalDateTimeValue( AnyValue value )
     {
+        assert value != NO_VALUE : "NO_VALUE checks need to happen outside this call";
         if ( !(value instanceof LocalDateTimeValue) )
         {
             throw cantCoerce( value, "LocalDateTime" );
@@ -201,6 +230,7 @@ public final class CypherCoercions
 
     public static DateTimeValue asDateTimeValue( AnyValue value )
     {
+        assert value != NO_VALUE : "NO_VALUE checks need to happen outside this call";
         if ( !(value instanceof DateTimeValue) )
         {
             throw cantCoerce( value, "DateTime" );
@@ -210,6 +240,7 @@ public final class CypherCoercions
 
     public static DurationValue asDurationValue( AnyValue value )
     {
+        assert value != NO_VALUE : "NO_VALUE checks need to happen outside this call";
         if ( !(value instanceof DurationValue) )
         {
             throw cantCoerce( value, "Duration" );
@@ -217,19 +248,24 @@ public final class CypherCoercions
         return (DurationValue) value;
     }
 
-    public static MapValue asMapValue( AnyValue value, DbAccess access )
+    public static MapValue asMapValue( AnyValue value,
+                                       DbAccess access,
+                                       NodeCursor nodeCursor,
+                                       RelationshipScanCursor relationshipCursor,
+                                       PropertyCursor propertyCursor )
     {
+        assert value != NO_VALUE : "NO_VALUE checks need to happen outside this call";
         if ( value instanceof MapValue )
         {
             return (MapValue) value;
         }
-        else if ( value instanceof NodeValue )
+        else if ( value instanceof VirtualNodeValue )
         {
-            return access.nodeAsMap( ((NodeValue) value).id() );
+            return access.nodeAsMap( ((VirtualNodeValue) value).id(), nodeCursor, propertyCursor );
         }
-        else if ( value instanceof RelationshipValue )
+        else if ( value instanceof VirtualRelationshipValue )
         {
-            return access.relationshipAsMap( ((RelationshipValue) value).id() );
+            return access.relationshipAsMap( ((VirtualRelationshipValue) value).id(), relationshipCursor, propertyCursor );
         }
         else
         {
@@ -237,9 +273,13 @@ public final class CypherCoercions
         }
     }
 
-    public static ListValue asList( AnyValue value, Neo4jTypes.AnyType innerType, DbAccess access )
+    public static ListValue asList( AnyValue value,
+                                    Neo4jTypes.AnyType innerType,
+                                    DbAccess access,
+                                    ExpressionCursors cursors )
     {
-        return new ListCoercer().apply( value, innerType, access );
+        assert value != NO_VALUE : "NO_VALUE checks need to happen outside this call";
+        return new ListCoercer().apply( value, innerType, access, cursors );
     }
 
     private static CypherTypeException cantCoerce( AnyValue value, String type )
@@ -350,22 +390,15 @@ public final class CypherCoercions
     @FunctionalInterface
     interface Coercer
     {
-        AnyValue apply( AnyValue value, Neo4jTypes.AnyType coerceTo, DbAccess access );
+        AnyValue apply( AnyValue value, Neo4jTypes.AnyType coerceTo, DbAccess access, ExpressionCursors cursors );
     }
 
     private static final Map<Class<? extends Neo4jTypes.AnyType>,Coercer> CONVERTERS = new HashMap<>();
 
-    private AnyValue coerceTo( AnyValue value, DbAccess access, Neo4jTypes.AnyType types )
-    {
-        Coercer function = CONVERTERS.get( types.getClass() );
-
-        return function.apply( value, types, access );
-    }
-
     private static class ListCoercer implements Coercer
     {
         @Override
-        public ListValue apply( AnyValue value, Neo4jTypes.AnyType innerType, DbAccess access )
+        public ListValue apply( AnyValue value, Neo4jTypes.AnyType innerType, DbAccess access, ExpressionCursors cursors )
         {
             //Fast route
             if ( innerType == NTAny )
@@ -387,7 +420,7 @@ public final class CypherCoercions
                 for ( int i = 0; i < coercedValues.length; i++ )
                 {
                     AnyValue nextItem = listValue.value( i );
-                    coercedValues[i] = nextItem == NO_VALUE ? NO_VALUE : innerCoercer.apply( nextItem, nextInner, access );
+                    coercedValues[i] = nextItem == NO_VALUE ? NO_VALUE : innerCoercer.apply( nextItem, nextInner, access, cursors );
                 }
             }
             else
@@ -396,7 +429,7 @@ public final class CypherCoercions
                 for ( AnyValue anyValue : listValue )
                 {
                     AnyValue nextItem = listValue.value( i );
-                    coercedValues[i++] = nextItem == NO_VALUE ? NO_VALUE : innerCoercer.apply( anyValue, nextInner, access );
+                    coercedValues[i++] = nextItem == NO_VALUE ? NO_VALUE : innerCoercer.apply( anyValue, nextInner, access, cursors );
                 }
             }
             return VirtualValues.list( coercedValues );
@@ -434,24 +467,28 @@ public final class CypherCoercions
 
     static
     {
-        CONVERTERS.put( NTAny.getClass(), ( a, ignore1, ignore2 ) -> a );
-        CONVERTERS.put( NTString.getClass(), ( a, ignore1, ignore2 ) -> asTextValue( a ) );
-        CONVERTERS.put( NTNumber.getClass(), ( a, ignore1, ignore2 ) -> asNumberValue( a ) );
-        CONVERTERS.put( NTInteger.getClass(), ( a, ignore1, ignore2 ) -> asIntegralValue( a ) );
-        CONVERTERS.put( NTFloat.getClass(), ( a, ignore1, ignore2 ) -> asFloatingPointValue( a ) );
-        CONVERTERS.put( NTBoolean.getClass(), ( a, ignore1, ignore2 ) -> asBooleanValue( a ) );
-        CONVERTERS.put( NTMap.getClass(), ( a, ignore, c ) -> asMapValue( a, c ) );
-        CONVERTERS.put( NTNode.getClass(), ( a, ignore1, ignore2 ) -> asNodeValue( a ) );
-        CONVERTERS.put( NTRelationship.getClass(), ( a, ignore1, ignore2 ) -> asRelationshipValue( a ) );
-        CONVERTERS.put( NTPath.getClass(), ( a, ignore1, ignore2 ) -> asPathValue( a ) );
-        CONVERTERS.put( NTGeometry.getClass(), ( a, ignore1, ignore2 ) -> asPointValue( a ) );
-        CONVERTERS.put( NTPoint.getClass(), ( a, ignore1, ignore2 ) -> asPointValue( a ) );
-        CONVERTERS.put( NTDateTime.getClass(), ( a, ignore1, ignore2 ) -> asDateTimeValue( a ) );
-        CONVERTERS.put( NTLocalDateTime.getClass(), ( a, ignore1, ignore2 ) -> asLocalDateTimeValue( a ) );
-        CONVERTERS.put( NTDate.getClass(), ( a, ignore1, ignore2 ) -> asDateValue( a ) );
-        CONVERTERS.put( NTTime.getClass(), ( a, ignore1, ignore2 ) -> asTimeValue( a ) );
-        CONVERTERS.put( NTLocalTime.getClass(), ( a, ignore1, ignore2 ) -> asLocalTimeValue( a ) );
-        CONVERTERS.put( NTDuration.getClass(), ( a, ignore1, ignore2 ) -> asDurationValue( a ) );
+        CONVERTERS.put( NTAny.getClass(), ( a, ignore1, ignore2, cursors ) -> a );
+        CONVERTERS.put( NTString.getClass(), ( a, ignore1, ignore2, cursors ) -> asTextValue( a ) );
+        CONVERTERS.put( NTNumber.getClass(), ( a, ignore1, ignore2, cursors ) -> asNumberValue( a ) );
+        CONVERTERS.put( NTInteger.getClass(), ( a, ignore1, ignore2, cursors ) -> asIntegralValue( a ) );
+        CONVERTERS.put( NTFloat.getClass(), ( a, ignore1, ignore2, cursors ) -> asFloatingPointValue( a ) );
+        CONVERTERS.put( NTBoolean.getClass(), ( a, ignore1, ignore2, cursors ) -> asBooleanValue( a ) );
+        CONVERTERS.put( NTMap.getClass(), ( a, ignore, c, cursors ) -> asMapValue( a,
+                                                                                   c,
+                                                                                   cursors.nodeCursor(),
+                                                                                   cursors.relationshipScanCursor(),
+                                                                                   cursors.propertyCursor() ) );
+        CONVERTERS.put( NTNode.getClass(), ( a, ignore1, ignore2, cursors ) -> asNodeValue( a ) );
+        CONVERTERS.put( NTRelationship.getClass(), ( a, ignore1, ignore2, cursors ) -> asRelationshipValue( a ) );
+        CONVERTERS.put( NTPath.getClass(), ( a, ignore1, ignore2, cursors ) -> asPathValue( a ) );
+        CONVERTERS.put( NTGeometry.getClass(), ( a, ignore1, ignore2, cursors ) -> asPointValue( a ) );
+        CONVERTERS.put( NTPoint.getClass(), ( a, ignore1, ignore2, cursors ) -> asPointValue( a ) );
+        CONVERTERS.put( NTDateTime.getClass(), ( a, ignore1, ignore2, cursors ) -> asDateTimeValue( a ) );
+        CONVERTERS.put( NTLocalDateTime.getClass(), ( a, ignore1, ignore2, cursors ) -> asLocalDateTimeValue( a ) );
+        CONVERTERS.put( NTDate.getClass(), ( a, ignore1, ignore2, cursors ) -> asDateValue( a ) );
+        CONVERTERS.put( NTTime.getClass(), ( a, ignore1, ignore2, cursors ) -> asTimeValue( a ) );
+        CONVERTERS.put( NTLocalTime.getClass(), ( a, ignore1, ignore2, cursors ) -> asLocalTimeValue( a ) );
+        CONVERTERS.put( NTDuration.getClass(), ( a, ignore1, ignore2, cursors ) -> asDurationValue( a ) );
         CONVERTERS.put( Neo4jTypes.ListType.class, new ListCoercer() );
     }
 }

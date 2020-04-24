@@ -41,33 +41,10 @@ public enum NotificationCode
        "use of this cross " +
        "product, perhaps by adding a relationship between the different parts or by using OPTIONAL MATCH"
     ),
-    LEGACY_PLANNER(
-        SeverityLevel.WARNING,
-        Status.Statement.FeatureDeprecationWarning,
-        "Using PLANNER for switching between planners has been deprecated, please use CYPHER planner=[rule,cost] instead"
-    ),
-    DEPRECATED_RULE_PLANNER(
-        SeverityLevel.WARNING,
-        Status.Statement.FeatureDeprecationWarning,
-        "The rule planner, which was used to plan this query, is deprecated and will be discontinued soon. " +
-                "If you did not explicitly choose the rule planner, you should try to change your query so that the " +
-                "rule planner is not used"
-    ),
     DEPRECATED_COMPILED_RUNTIME(
             SeverityLevel.WARNING,
             Status.Statement.FeatureDeprecationWarning,
             "The compiled runtime, which was requested to execute this query, is deprecated and will be removed in a future release."
-    ),
-    PLANNER_UNSUPPORTED(
-        SeverityLevel.WARNING,
-        Status.Statement.PlannerUnsupportedWarning,
-        "Using COST planner is unsupported for this query, please use RULE planner instead"
-    ),
-    RULE_PLANNER_UNAVAILABLE_FALLBACK(
-        SeverityLevel.WARNING,
-        Status.Statement.PlannerUnavailableWarning,
-        "Using RULE planner is unsupported for current CYPHER version, the query has been executed by an older CYPHER " +
-        "version"
     ),
     RUNTIME_UNSUPPORTED(
         SeverityLevel.WARNING,
@@ -85,11 +62,6 @@ public enum NotificationCode
         "The hinted join was not planned. This could happen because no generated plan contained the join key, " +
                 "please try using a different join key or restructure your query."
     ),
-    JOIN_HINT_UNSUPPORTED(
-        SeverityLevel.WARNING,
-        Status.Statement.JoinHintUnsupportedWarning,
-        "Using RULE planner is unsupported for queries with join hints, please use COST planner instead"
-    ),
     LENGTH_ON_NON_PATH(
         SeverityLevel.WARNING,
         Status.Statement.FeatureDeprecationWarning,
@@ -99,11 +71,6 @@ public enum NotificationCode
         SeverityLevel.WARNING,
         Status.Statement.DynamicPropertyWarning,
         "Using a dynamic property makes it impossible to use an index lookup for this query"
-    ),
-    BARE_NODE_SYNTAX_DEPRECATED( // This notification is no longer produced by current Cypher compilers
-        SeverityLevel.WARNING,   // but it is left here for backwards compatibility.
-        Status.Statement.FeatureDeprecationWarning,
-        "Use of bare node patterns has been deprecated. Please enclose the identifier in parenthesis."
     ),
     DEPRECATED_FUNCTION(
             SeverityLevel.WARNING,
@@ -137,9 +104,24 @@ public enum NotificationCode
             "use of variable binding, inlined property predicates, or variable length will change in a future version."
     ),
     DEPRECATED_PARAMETER_SYNTAX(
-        SeverityLevel.WARNING,
-        Status.Statement.FeatureDeprecationWarning,
-        "The parameter syntax `{param}` is deprecated, please use `$param` instead"
+            SeverityLevel.WARNING,
+            Status.Statement.FeatureDeprecationWarning,
+            "The parameter syntax `{param}` is deprecated, please use `$param` instead"
+    ),
+    DEPRECATED_CREATE_INDEX_SYNTAX(
+            SeverityLevel.WARNING,
+            Status.Statement.FeatureDeprecationWarning,
+            "The create index syntax `CREATE INDEX ON :Label(property)` is deprecated, please use `CREATE INDEX FOR (n:Label) ON (n.property)` instead"
+    ),
+    DEPRECATED_DROP_INDEX_SYNTAX(
+            SeverityLevel.WARNING,
+            Status.Statement.FeatureDeprecationWarning,
+            "The drop index syntax `DROP INDEX ON :Label(property)` is deprecated, please use `DROP INDEX index_name` instead"
+    ),
+    DEPRECATED_DROP_CONSTRAINT_SYNTAX(
+            SeverityLevel.WARNING,
+            Status.Statement.FeatureDeprecationWarning,
+            "The drop constraint by schema syntax `DROP CONSTRAINT ON ...` is deprecated, please use `DROP CONSTRAINT constraint_name` instead"
     ),
     EAGER_LOAD_CSV(
         SeverityLevel.WARNING,
@@ -186,29 +168,14 @@ public enum NotificationCode
             "graph algorithms might not work for this use case. It is recommended to introduce a WITH to separate the " +
             "MATCH containing the shortest path from the existential predicates on that path."
     ),
-    CREATE_UNIQUE_UNAVAILABLE_FALLBACK(
-            SeverityLevel.WARNING,
-            Status.Statement.PlannerUnavailableWarning,
-        "CREATE UNIQUE is unsupported for current CYPHER version, the query has been executed by an older CYPHER version"
-    ),
-    CREATE_UNIQUE_DEPRECATED(
-            SeverityLevel.WARNING,
-            Status.Statement.FeatureDeprecationWarning,
-            "CREATE UNIQUE is deprecated and will be removed in a future version."
-    ),
-    START_UNAVAILABLE_FALLBACK(
-            SeverityLevel.WARNING,
-            Status.Statement.PlannerUnavailableWarning,
-            "START is not supported for current CYPHER version, the query has been executed by an older CYPHER version"
-    ),
-    START_DEPRECATED(
-            SeverityLevel.WARNING,
-            Status.Statement.FeatureDeprecationWarning,
-            "START has been deprecated and will be removed in a future version." ),
     EXPERIMENTAL_FEATURE(
             SeverityLevel.WARNING,
             Status.Statement.ExperimentalFeature,
             "You are using an experimental feature" ),
+    MISSING_PARAMETERS_FOR_EXPLAIN(
+            SeverityLevel.WARNING,
+            Status.Statement.ParameterMissing,
+            "Did not supply query with enough parameters. The produced query plan will not be cached and is not executable without EXPLAIN." ),
     SUBOPTIMAL_INDEX_FOR_CONTAINS_QUERY(
             SeverityLevel.INFORMATION,
             Status.Statement.SuboptimalIndexForWildcardQuery,
@@ -218,7 +185,11 @@ public enum NotificationCode
             SeverityLevel.INFORMATION,
             Status.Statement.SuboptimalIndexForWildcardQuery,
             "If the performance of this statement using `ENDS WITH` doesn't meet your expectations check out the alternative index-providers, see " +
-                    "documentation on index configuration." );
+                    "documentation on index configuration." ),
+    CODE_GENERATION_FAILED(
+            SeverityLevel.WARNING,
+            Status.Statement.CodeGenerationFailed,
+            "The database was unable to generate code for the query. A stacktrace can be found in the debug.log." );
 
     private final Status status;
     private final String description;

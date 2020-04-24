@@ -19,54 +19,16 @@
  */
 package org.neo4j.commandline.dbms;
 
-import java.nio.file.Path;
-import javax.annotation.Nonnull;
+import org.neo4j.annotations.service.ServiceProvider;
+import org.neo4j.cli.CommandProvider;
+import org.neo4j.cli.ExecutionContext;
 
-import org.neo4j.commandline.admin.AdminCommand;
-import org.neo4j.commandline.admin.AdminCommandSection;
-import org.neo4j.commandline.admin.OutsideWorld;
-import org.neo4j.commandline.arguments.Arguments;
-
-public class StoreInfoCommandProvider extends AdminCommand.Provider
+@ServiceProvider
+public class StoreInfoCommandProvider implements CommandProvider<StoreInfoCommand>
 {
-    public StoreInfoCommandProvider()
-    {
-        super( "store-info" );
-    }
-
     @Override
-    @Nonnull
-    public Arguments allArguments()
+    public StoreInfoCommand createCommand( ExecutionContext ctx )
     {
-        return StoreInfoCommand.arguments();
-    }
-
-    @Override
-    @Nonnull
-    public String summary()
-    {
-        return "Prints information about a Neo4j database store.";
-    }
-
-    @Override
-    @Nonnull
-    public AdminCommandSection commandSection()
-    {
-        return AdminCommandSection.general();
-    }
-
-    @Override
-    @Nonnull
-    public String description()
-    {
-        return "Prints information about a Neo4j database store, such as what version of Neo4j created it. Note that " +
-                "this command expects a path to a store directory, for example --store=data/databases/graph.db.";
-    }
-
-    @Override
-    @Nonnull
-    public AdminCommand create( Path homeDir, Path configDir, OutsideWorld outsideWorld )
-    {
-        return new StoreInfoCommand( outsideWorld::stdOutLine );
+        return new StoreInfoCommand( ctx );
     }
 }

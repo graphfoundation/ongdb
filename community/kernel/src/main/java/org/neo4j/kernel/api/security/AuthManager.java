@@ -22,6 +22,7 @@ package org.neo4j.kernel.api.security;
 import java.util.Map;
 
 import org.neo4j.internal.kernel.api.security.LoginContext;
+import org.neo4j.internal.kernel.api.security.SecurityContext;
 import org.neo4j.kernel.api.security.exception.InvalidAuthTokenException;
 import org.neo4j.kernel.lifecycle.Lifecycle;
 
@@ -30,6 +31,9 @@ import org.neo4j.kernel.lifecycle.Lifecycle;
  */
 public interface AuthManager extends Lifecycle
 {
+    String INITIAL_USER_NAME = "neo4j";
+    String INITIAL_PASSWORD = "neo4j";
+
     /**
      * Log in using the provided authentication token
      *
@@ -40,6 +44,8 @@ public interface AuthManager extends Lifecycle
      * @throws InvalidAuthTokenException if the authentication token is malformed
      */
     LoginContext login( Map<String,Object> authToken ) throws InvalidAuthTokenException;
+
+    void log( String message, SecurityContext securityContext );
 
     /**
      * Implementation that does no authentication.
@@ -71,6 +77,11 @@ public interface AuthManager extends Lifecycle
         {
             AuthToken.clearCredentials( authToken );
             return LoginContext.AUTH_DISABLED;
+        }
+
+        @Override
+        public void log( String message, SecurityContext securityContext )
+        {
         }
     };
 }

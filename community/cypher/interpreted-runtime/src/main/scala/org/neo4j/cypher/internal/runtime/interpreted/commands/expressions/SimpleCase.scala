@@ -19,7 +19,7 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.commands.expressions
 
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
+import org.neo4j.cypher.internal.runtime.ExecutionContext
 import org.neo4j.cypher.internal.runtime.interpreted.commands.AstNode
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.QueryState
 import org.neo4j.values.AnyValue
@@ -56,8 +56,4 @@ case class SimpleCase(expression: Expression, alternatives: Seq[(Expression, Exp
     f(SimpleCase(expression.rewrite(f), newAlternatives, default.map(f)))
   }
 
-  override def symbolTableDependencies: Set[String] = {
-    val expressions = default.toIndexedSeq ++ alternativeComparison ++ alternativeExpressions :+ expression
-    expressions.flatMap(_.symbolTableDependencies).toSet
-  }
 }

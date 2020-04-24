@@ -23,7 +23,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.NoSuchFileException;
 
-import org.neo4j.graphdb.config.Configuration;
+import org.neo4j.annotations.service.ServiceProvider;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.pagecache.PageEvictionCallback;
 import org.neo4j.io.pagecache.PageSwapper;
@@ -34,12 +34,13 @@ import org.neo4j.io.pagecache.PageSwapperFactory;
  *
  * @see org.neo4j.io.pagecache.impl.SingleFilePageSwapper
  */
+@ServiceProvider
 public class SingleFilePageSwapperFactory implements PageSwapperFactory
 {
     private FileSystemAbstraction fs;
 
     @Override
-    public void open( FileSystemAbstraction fs, Configuration config )
+    public void open( FileSystemAbstraction fs )
     {
         this.fs = fs;
     }
@@ -50,26 +51,21 @@ public class SingleFilePageSwapperFactory implements PageSwapperFactory
             int filePageSize,
             PageEvictionCallback onEviction,
             boolean createIfNotExist,
-            boolean noChannelStriping ) throws IOException
+            boolean noChannelStriping,
+            boolean useDirectIO ) throws IOException
     {
         if ( !fs.fileExists( file ) )
         {
             if ( createIfNotExist )
             {
-                fs.create( file ).close();
+                fs.write( file ).close();
             }
             else
             {
                 throw new NoSuchFileException( file.getPath(), null, "Cannot map non-existing file" );
             }
         }
-        return new SingleFilePageSwapper( file, fs, filePageSize, onEviction, noChannelStriping );
-    }
-
-    @Override
-    public void syncDevice()
-    {
-        // Nothing do to, since we `fsync` files individually in `force()`.
+        return new SingleFilePageSwapper( file, fs, filePageSize, onEviction, noChannelStriping, useDirectIO );
     }
 
     @Override
@@ -79,7 +75,7 @@ public class SingleFilePageSwapperFactory implements PageSwapperFactory
     }
 
     @Override
-    public String implementationName()
+    public String getName()
     {
         return "single";
     }

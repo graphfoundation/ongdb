@@ -19,8 +19,10 @@
  */
 package org.neo4j.bolt.v3.runtime;
 
-import org.neo4j.bolt.runtime.BoltStateMachineState;
-import org.neo4j.bolt.runtime.StateMachineContext;
+import org.neo4j.bolt.runtime.statemachine.BoltStateMachineState;
+import org.neo4j.bolt.runtime.statemachine.StateMachineContext;
+import org.neo4j.bolt.runtime.statemachine.StatementMetadata;
+import org.neo4j.bolt.messaging.ResultConsumer;
 
 public class TransactionStreamingState extends AbstractStreamingState
 {
@@ -31,10 +33,10 @@ public class TransactionStreamingState extends AbstractStreamingState
     }
 
     @Override
-    protected BoltStateMachineState processStreamResultMessage( boolean pull, StateMachineContext context ) throws Throwable
+    protected BoltStateMachineState processStreamResultMessage( ResultConsumer resultConsumer, StateMachineContext context ) throws Throwable
     {
-        context.connectionState().getStatementProcessor().streamResult(
-                recordStream -> context.connectionState().getResponseHandler().onRecords( recordStream, pull ) );
+        int statementId = StatementMetadata.ABSENT_QUERY_ID;
+        context.connectionState().getStatementProcessor().streamResult( statementId, resultConsumer );
         return readyState;
     }
 }

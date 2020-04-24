@@ -23,7 +23,7 @@ import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.commons.lang3.RandomUtils;
 import org.junit.jupiter.api.Test;
 
-import org.neo4j.kernel.impl.util.Validator;
+import org.neo4j.common.Validator;
 import org.neo4j.values.storable.Values;
 
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -40,7 +40,8 @@ class LuceneIndexValueValidatorTest
     {
         int length = MAX_TERM_LENGTH + 1;
         IllegalArgumentException iae = assertThrows( IllegalArgumentException.class, () -> getValidator().validate( RandomUtils.nextBytes( length ) ) );
-        assertThat( iae.getMessage(), containsString( "Property value size is too large for index. Please see index documentation for limitations." ) );
+        assertThat( iae.getMessage(),
+                containsString( "Property value is too large to index into this particular index. Please see index documentation for limitations." ) );
     }
 
     @Test
@@ -49,7 +50,8 @@ class LuceneIndexValueValidatorTest
         int length = MAX_TERM_LENGTH * 2;
         IllegalArgumentException iae =
                 assertThrows( IllegalArgumentException.class, () -> getValidator().validate( RandomStringUtils.randomAlphabetic( length ) ) );
-        assertThat( iae.getMessage(), containsString( "Property value size is too large for index. Please see index documentation for limitations." ) );
+        assertThat( iae.getMessage(),
+                containsString( "Property value is too large to index into this particular index. Please see index documentation for limitations." ) );
     }
 
     @Test

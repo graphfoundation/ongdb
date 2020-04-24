@@ -19,22 +19,25 @@
  */
 package org.neo4j.kernel.impl.store;
 
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Iterator;
+import java.util.function.Consumer;
 
+import org.neo4j.configuration.GraphDatabaseSettings;
+import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Relationship;
 import org.neo4j.graphdb.Transaction;
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
-import org.neo4j.test.rule.DatabaseRule;
-import org.neo4j.test.rule.ImpermanentDatabaseRule;
+import org.neo4j.test.TestDatabaseManagementServiceBuilder;
+import org.neo4j.test.extension.ExtensionCallback;
+import org.neo4j.test.extension.ImpermanentDbmsExtension;
+import org.neo4j.test.extension.Inject;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import static org.neo4j.helpers.collection.Iterables.asArray;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.neo4j.internal.helpers.collection.Iterables.asArray;
 import static org.neo4j.kernel.impl.MyRelTypes.TEST;
 import static org.neo4j.kernel.impl.MyRelTypes.TEST2;
 import static org.neo4j.kernel.impl.MyRelTypes.TEST_TRAVERSAL;
@@ -49,38 +52,45 @@ import static org.neo4j.kernel.impl.MyRelTypes.TEST_TRAVERSAL;
  * behaviour has been changed to continue through such unused relationships, reading its pointers,
  * until arriving at either {@code -1} or a used relationship.
  */
-public class RelationshipChainPointerChasingTest
+@ImpermanentDbmsExtension( configurationCallback = "configure" )
+class RelationshipChainPointerChasingTest
 {
     private static final int THRESHOLD = 10;
 
-    @Rule
-    public final DatabaseRule db = new ImpermanentDatabaseRule()
-            .withSetting( GraphDatabaseSettings.dense_node_threshold, String.valueOf( THRESHOLD ) );
+    @Inject
+    private GraphDatabaseService db;
+
+    @ExtensionCallback
+    static void configure( TestDatabaseManagementServiceBuilder builder )
+    {
+        builder.setConfig( GraphDatabaseSettings.dense_node_threshold, THRESHOLD );
+    }
 
     @Test
-    public void shouldChaseTheLivingRelationships() throws Exception
+    void shouldChaseTheLivingRelationships() throws Exception
     {
         // GIVEN a sound relationship chain
         int numberOfRelationships = THRESHOLD / 2;
         Node node;
         try ( Transaction tx = db.beginTx() )
         {
-            node = db.createNode();
+            node = tx.createNode();
             for ( int i = 0; i < numberOfRelationships; i++ )
             {
-                node.createRelationshipTo( db.createNode(), TEST );
+                node.createRelationshipTo( tx.createNode(), TEST );
             }
-            tx.success();
+            tx.commit();
         }
         Relationship[] relationships;
         try ( Transaction tx = db.beginTx() )
         {
-            relationships = asArray( Relationship.class, node.getRelationships() );
-            tx.success();
+            relationships = asArray( Relationship.class, tx.getNodeById( node.getId() ).getRelationships() );
+            tx.commit();
         }
 
         try ( Transaction tx = db.beginTx() )
         {
+            node = tx.getNodeById( node.getId() );
             // WHEN getting the relationship iterator, i.e. starting to traverse this relationship chain,
             // the cursor eagerly goes to the first relationship before we call #hasNexxt/#next.
             Iterator<Relationship> iterator = node.getRelationships().iterator();
@@ -96,12 +106,12 @@ public class RelationshipChainPointerChasingTest
             assertNext( relationships[3], iterator );
             assertNext( relationships[4], iterator );
             assertFalse( iterator.hasNext() );
-            tx.success();
+            tx.commit();
         }
     }
 
     @Test
-    public void shouldChaseTheLivingRelationshipGroups() throws Exception
+    void shouldChaseTheLivingRelationshipGroups() throws Exception
     {
         // GIVEN
         Node node;
@@ -109,18 +119,21 @@ public class RelationshipChainPointerChasingTest
         Relationship relationshipInTheEnd;
         try ( Transaction tx = db.beginTx() )
         {
-            node = db.createNode();
+            node = tx.createNode();
             for ( int i = 0; i < THRESHOLD; i++ )
             {
-                node.createRelationshipTo( db.createNode(), TEST );
+                node.createRelationshipTo( tx.createNode(), TEST );
             }
-            relationshipInTheMiddle = node.createRelationshipTo( db.createNode(), TEST2 );
-            relationshipInTheEnd = node.createRelationshipTo( db.createNode(), TEST_TRAVERSAL );
-            tx.success();
+            relationshipInTheMiddle = node.createRelationshipTo( tx.createNode(), TEST2 );
+            relationshipInTheEnd = node.createRelationshipTo( tx.createNode(), TEST_TRAVERSAL );
+            tx.commit();
         }
 
         try ( Transaction tx = db.beginTx() )
         {
+            node = tx.getNodeById( node.getId() );
+            relationshipInTheEnd = tx.getRelationshipById( relationshipInTheEnd.getId() );
+
             // WHEN getting the relationship iterator, the first group record will be read and held,
             // already pointing to the next group
             Iterator<Relationship> relationships = node.getRelationships().iterator();
@@ -144,34 +157,34 @@ public class RelationshipChainPointerChasingTest
             assertNext( relationshipInTheEnd, relationships );
             assertFalse( relationships.hasNext() );
 
-            tx.success();
+            tx.commit();
         }
     }
 
-    private void assertNext( Relationship expected, Iterator<Relationship> iterator )
+    private static void assertNext( Relationship expected, Iterator<Relationship> iterator )
     {
-        assertTrue( "Expected there to be more relationships", iterator.hasNext() );
-        assertEquals( "Unexpected next relationship", expected, iterator.next() );
+        assertTrue( iterator.hasNext(), "Expected there to be more relationships" );
+        assertEquals( expected, iterator.next(), "Unexpected next relationship" );
     }
 
     private void deleteRelationshipsInSeparateThread( final Relationship... relationships ) throws InterruptedException
     {
-        executeTransactionInSeparateThread( () ->
+        executeTransactionInSeparateThread( tx ->
         {
             for ( Relationship relationship : relationships )
             {
-                relationship.delete();
+                tx.getRelationshipById( relationship.getId() ).delete();
             }
         } );
     }
 
-    private void executeTransactionInSeparateThread( final Runnable actionInsideTransaction ) throws InterruptedException
+    private void executeTransactionInSeparateThread( final Consumer<Transaction> actionInsideTransaction ) throws InterruptedException
     {
         Thread thread = new Thread( () -> {
             try ( Transaction tx = db.beginTx() )
             {
-                actionInsideTransaction.run();
-                tx.success();
+                actionInsideTransaction.accept( tx );
+                tx.commit();
             }
         } );
         thread.start();

@@ -19,10 +19,17 @@
  */
 package org.neo4j.kernel.impl.locking;
 
+<<<<<<< HEAD
 import org.junit.AfterClass;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
+=======
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.RepeatedTest;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
+>>>>>>> fork/4.0
 import org.junit.jupiter.api.Assertions;
 
 import java.util.ArrayList;
@@ -37,6 +44,10 @@ import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Predicate;
 
+<<<<<<< HEAD
+=======
+import org.neo4j.graphdb.GraphDatabaseService;
+>>>>>>> fork/4.0
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.NotFoundException;
 import org.neo4j.graphdb.RelationshipType;
@@ -44,6 +55,7 @@ import org.neo4j.graphdb.Transaction;
 import org.neo4j.internal.kernel.api.Write;
 import org.neo4j.kernel.api.KernelTransaction;
 import org.neo4j.kernel.impl.api.KernelTransactionImplementation;
+<<<<<<< HEAD
 import org.neo4j.kernel.impl.core.ThreadToStatementContextBridge;
 import org.neo4j.kernel.impl.locking.community.RWLock;
 import org.neo4j.test.rule.ImpermanentDatabaseRule;
@@ -66,30 +78,70 @@ public class DetachDeleteIT
 
     @AfterClass
     public static void tearDown()
+=======
+import org.neo4j.kernel.impl.coreapi.InternalTransaction;
+import org.neo4j.kernel.impl.locking.community.RWLock;
+import org.neo4j.lock.ResourceTypes;
+import org.neo4j.test.extension.ImpermanentDbmsExtension;
+import org.neo4j.test.extension.Inject;
+import org.neo4j.test.rule.concurrent.ThreadingRule;
+import org.neo4j.util.concurrent.BinaryLatch;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+
+@TestInstance( TestInstance.Lifecycle.PER_CLASS )
+@ImpermanentDbmsExtension
+class DetachDeleteIT
+{
+    private static ExecutorService executor = Executors.newFixedThreadPool( 5 );
+
+    @AfterAll
+    static void tearDown()
+>>>>>>> fork/4.0
     {
         executor.shutdown();
     }
 
+<<<<<<< HEAD
     @Test
     public void detachDeleteMustRemoveAllRelationships() throws Exception
+=======
+    @Inject
+    GraphDatabaseService db;
+
+    @Test
+    void detachDeleteMustRemoveAllRelationships() throws Exception
+>>>>>>> fork/4.0
     {
         long nodeId = makeSimpleNode();
 
         try ( Transaction tx = db.beginTx() )
         {
+<<<<<<< HEAD
             Write write = getWrite();
             assertEquals( 10, write.nodeDetachDelete( nodeId ) );
             tx.success();
+=======
+            Write write = getWrite( tx );
+            assertEquals( 10, write.nodeDetachDelete( nodeId ) );
+            tx.commit();
+>>>>>>> fork/4.0
         }
     }
 
     @Test
+<<<<<<< HEAD
     public void detachDeleteMustRemoveAllRelationshipsOfDenseNodes() throws Exception
+=======
+    void detachDeleteMustRemoveAllRelationshipsOfDenseNodes() throws Exception
+>>>>>>> fork/4.0
     {
         long nodeId = makeDenseNode();
 
         try ( Transaction tx = db.beginTx() )
         {
+<<<<<<< HEAD
             Write write = getWrite();
             assertEquals( 100, write.nodeDetachDelete( nodeId ) );
             tx.success();
@@ -99,22 +151,42 @@ public class DetachDeleteIT
     @RepeatRule.Repeat( times = 10 )
     @Test
     public void detachDeleteMustRemoveAllRelationshipsWhenMoreAreConcurrentlyAdded() throws Exception
+=======
+            Write write = getWrite( tx );
+            assertEquals( 100, write.nodeDetachDelete( nodeId ) );
+            tx.commit();
+        }
+    }
+
+    @RepeatedTest( 10 )
+    void detachDeleteMustRemoveAllRelationshipsWhenMoreAreConcurrentlyAdded() throws Exception
+>>>>>>> fork/4.0
     {
         long nodeId = makeSimpleNode();
         verifyDetachDeleteRacingWithRelationCreateWithoutThrowing( nodeId, 1 );
     }
 
+<<<<<<< HEAD
     @RepeatRule.Repeat( times = 10 )
     @Test
     public void detachDeleteMustRemoveAllRelationshipsWhenMoreAreConcurrentlyAddedToMakeNodeDense() throws Exception
+=======
+    @RepeatedTest( 10 )
+    void detachDeleteMustRemoveAllRelationshipsWhenMoreAreConcurrentlyAddedToMakeNodeDense() throws Exception
+>>>>>>> fork/4.0
     {
         long nodeId = makeSimpleNode();
         verifyDetachDeleteRacingWithRelationCreateWithoutThrowing( nodeId, 10 );
     }
 
+<<<<<<< HEAD
     @RepeatRule.Repeat( times = 10 )
     @Test
     public void detachDeleteMustRemoveAllRelationshipsWhenMoreAreConcurrentlyAddedToAlreadyDenseNode() throws Exception
+=======
+    @RepeatedTest( 10 )
+    void detachDeleteMustRemoveAllRelationshipsWhenMoreAreConcurrentlyAddedToAlreadyDenseNode() throws Exception
+>>>>>>> fork/4.0
     {
         long nodeId = makeDenseNode();
         verifyDetachDeleteRacingWithRelationCreateWithoutThrowing( nodeId, 10 );
@@ -129,21 +201,31 @@ public class DetachDeleteIT
     }
 
     @Test
+<<<<<<< HEAD
     public void detachDeleteMustLockAllNeighboursIncludingThoseConcurrentlyAdded() throws Exception
+=======
+    void detachDeleteMustLockAllNeighboursIncludingThoseConcurrentlyAdded() throws Exception
+>>>>>>> fork/4.0
     {
         Sequencer<Phases> sequencer = Sequencer.from( Phases.class );
         Thread main = Thread.currentThread();
         long otherNodeId;
         try ( Transaction tx = db.beginTx() )
         {
+<<<<<<< HEAD
             otherNodeId = db.createNodeId();
             tx.success();
+=======
+            otherNodeId = tx.createNode().getId();
+            tx.commit();
+>>>>>>> fork/4.0
         }
         long nodeId = makeDenseNode();
         AtomicLong otherRelId = new AtomicLong();
 
         Future<Object> relationshipAdder = executor.submit( () ->
         {
+<<<<<<< HEAD
             try ( Transaction tx1 = db.beginTx() )
             {
                 Node node = db.getNodeById( nodeId );
@@ -153,6 +235,17 @@ public class DetachDeleteIT
                 tx1.success();
                 sequencer.release( Phases.OTHER_REL_CREATED ); // Allow detach delete to commence.
                 sequencer.await( Phases.DETACH_DELETE_HAS_STARTED ); // Wait for the detach delete to have been attempted
+=======
+            try ( Transaction tx = db.beginTx() )
+            {
+                Node node = tx.getNodeById( nodeId );
+                Node other = tx.getNodeById( otherNodeId );
+                long id = node.createRelationshipTo( other, RelationshipType.withName( "R5" ) ).getId();
+                otherRelId.set( id );
+                sequencer.release( Phases.OTHER_REL_CREATED ); // Allow detach delete to commence.
+                sequencer.await( Phases.DETACH_DELETE_HAS_STARTED ); // Wait for the detach delete to have been attempted
+                tx.commit();
+>>>>>>> fork/4.0
             }
             return null;
         } );
@@ -170,7 +263,11 @@ public class DetachDeleteIT
             sequencer.await( Phases.DETACH_DELETE_HAS_FINISHED ); // Now the DETACH DELETE *should* be holding a lock on all neighbours. Verify.
             try ( Transaction ignore = db.beginTx() )
             {
+<<<<<<< HEAD
                 Locks.Client locksClient = getLocksClient();
+=======
+                Locks.Client locksClient = getLocksClient( ignore );
+>>>>>>> fork/4.0
                 // The try-lock should fail because the detach-delete should already be holding an exclusive lock on that node.
                 assertFalse( locksClient.trySharedLock( ResourceTypes.NODE, otherNodeId ) );
                 // The detach-delete should also hold an exclusive lock on the associated relationship.
@@ -186,11 +283,19 @@ public class DetachDeleteIT
         sequencer.await( Phases.OTHER_REL_CREATED ); // Wait for node to be locked in a transaction with pending relationship create.
         try ( Transaction tx = db.beginTx() )
         {
+<<<<<<< HEAD
             Write write = getWrite();
             write.nodeDetachDelete( nodeId );
             tx.success();
             sequencer.release( Phases.DETACH_DELETE_HAS_FINISHED );
             sequencer.await( Phases.LOCK_VERIFICATION_FINISHED );
+=======
+            Write write = getWrite( tx );
+            write.nodeDetachDelete( nodeId );
+            sequencer.release( Phases.DETACH_DELETE_HAS_FINISHED );
+            sequencer.await( Phases.LOCK_VERIFICATION_FINISHED );
+            tx.commit();
+>>>>>>> fork/4.0
         }
         relationshipAdder.get();
         lockVerifier.get();
@@ -210,9 +315,15 @@ public class DetachDeleteIT
                 latch.await();
                 try ( Transaction tx = db.beginTx() )
                 {
+<<<<<<< HEAD
                     Node node = db.getNodeById( nodeId );
                     node.createRelationshipTo( db.createNode(), type );
                     tx.success();
+=======
+                    Node node = tx.getNodeById( nodeId );
+                    node.createRelationshipTo( tx.createNode(), type );
+                    tx.commit();
+>>>>>>> fork/4.0
                 }
                 catch ( NotFoundException ignore )
                 {
@@ -231,9 +342,15 @@ public class DetachDeleteIT
             latch.await();
             try ( Transaction tx = db.beginTx() )
             {
+<<<<<<< HEAD
                 Write write = getWrite();
                 write.nodeDetachDelete( nodeId );
                 tx.success();
+=======
+                Write write = getWrite( tx );
+                write.nodeDetachDelete( nodeId );
+                tx.commit();
+>>>>>>> fork/4.0
             }
             return null;
         } );
@@ -252,6 +369,7 @@ public class DetachDeleteIT
         long nodeId;
         try ( Transaction tx = db.beginTx() )
         {
+<<<<<<< HEAD
             Node node = db.createNode();
             nodeId = node.getId();
             for ( int i = 0; i < 10; i++ )
@@ -259,6 +377,15 @@ public class DetachDeleteIT
                 node.createRelationshipTo( db.createNode(), RelationshipType.withName( "R" + i ) );
             }
             tx.success();
+=======
+            Node node = tx.createNode();
+            nodeId = node.getId();
+            for ( int i = 0; i < 10; i++ )
+            {
+                node.createRelationshipTo( tx.createNode(), RelationshipType.withName( "R" + i ) );
+            }
+            tx.commit();
+>>>>>>> fork/4.0
         }
         return nodeId;
     }
@@ -268,9 +395,15 @@ public class DetachDeleteIT
         long nodeId;
         try ( Transaction tx = db.beginTx() )
         {
+<<<<<<< HEAD
             Node node = db.createNode();
             nodeId = node.getId();
             tx.success();
+=======
+            Node node = tx.createNode();
+            nodeId = node.getId();
+            tx.commit();
+>>>>>>> fork/4.0
         }
 
         // Create each group in a separate transaction, in order to make the arrangement of records more deterministic.
@@ -279,17 +412,27 @@ public class DetachDeleteIT
             RelationshipType type = RelationshipType.withName( "R" + i );
             try ( Transaction tx = db.beginTx() )
             {
+<<<<<<< HEAD
                 Node node = db.getNodeById( nodeId );
                 for ( int j = 0; j < 10; j++ )
                 {
                     node.createRelationshipTo( db.createNode(), type );
                 }
                 tx.success();
+=======
+                Node node = tx.getNodeById( nodeId );
+                for ( int j = 0; j < 10; j++ )
+                {
+                    node.createRelationshipTo( tx.createNode(), type );
+                }
+                tx.commit();
+>>>>>>> fork/4.0
             }
         }
         return nodeId;
     }
 
+<<<<<<< HEAD
     private Write getWrite() throws Exception
     {
         return getKernelTransaction().dataWrite();
@@ -305,6 +448,23 @@ public class DetachDeleteIT
     {
         ThreadToStatementContextBridge txBridge = db.getDependencyResolver().resolveDependency( ThreadToStatementContextBridge.class );
         return txBridge.getKernelTransactionBoundToThisThread( true );
+=======
+    private Write getWrite( Transaction tx ) throws Exception
+    {
+        return getKernelTransaction( tx ).dataWrite();
+    }
+
+    private Locks.Client getLocksClient( Transaction tx )
+    {
+        KernelTransactionImplementation kti = (KernelTransactionImplementation) getKernelTransaction( tx );
+        return kti.statementLocks().pessimistic();
+    }
+
+    private KernelTransaction getKernelTransaction( Transaction tx )
+    {
+        InternalTransaction itx = (InternalTransaction) tx;
+        return itx.kernelTransaction();
+>>>>>>> fork/4.0
     }
 
     /**

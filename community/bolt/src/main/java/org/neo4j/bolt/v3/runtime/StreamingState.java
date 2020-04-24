@@ -19,9 +19,11 @@
  */
 package org.neo4j.bolt.v3.runtime;
 
-import org.neo4j.bolt.runtime.BoltStateMachineState;
-import org.neo4j.bolt.runtime.StateMachineContext;
-import org.neo4j.bolt.v1.runtime.bookmarking.Bookmark;
+import org.neo4j.bolt.runtime.statemachine.BoltStateMachineState;
+import org.neo4j.bolt.runtime.Bookmark;
+import org.neo4j.bolt.runtime.statemachine.StateMachineContext;
+import org.neo4j.bolt.runtime.statemachine.StatementMetadata;
+import org.neo4j.bolt.messaging.ResultConsumer;
 
 /**
  * When STREAMING, additionally attach bookmark to PULL_ALL, DISCARD_ALL result
@@ -35,10 +37,10 @@ public class StreamingState extends AbstractStreamingState
     }
 
     @Override
-    protected BoltStateMachineState processStreamResultMessage( boolean pull, StateMachineContext context ) throws Throwable
+    protected BoltStateMachineState processStreamResultMessage( ResultConsumer resultConsumer, StateMachineContext context ) throws Throwable
     {
-        Bookmark bookmark = context.connectionState().getStatementProcessor().streamResult(
-                recordStream -> context.connectionState().getResponseHandler().onRecords( recordStream, pull ) );
+        int statementId = StatementMetadata.ABSENT_QUERY_ID;
+        Bookmark bookmark = context.connectionState().getStatementProcessor().streamResult( statementId, resultConsumer );
         bookmark.attachTo( context.connectionState() );
         return readyState;
     }

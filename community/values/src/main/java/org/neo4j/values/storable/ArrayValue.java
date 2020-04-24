@@ -42,7 +42,7 @@ public abstract class ArrayValue extends Value implements SequenceValue
     @Override
     public Iterator<AnyValue> iterator()
     {
-        return new Iterator<AnyValue>()
+        return new Iterator<>()
         {
             private int offset;
 
@@ -65,7 +65,7 @@ public abstract class ArrayValue extends Value implements SequenceValue
     }
 
     @Override
-    public final boolean eq( Object other )
+    public final boolean equalTo( Object other )
     {
         if ( other == null )
         {
@@ -110,4 +110,13 @@ public abstract class ArrayValue extends Value implements SequenceValue
     {
         return true;
     }
+
+    @Override
+    protected long estimatedPayloadSize()
+    {
+        // 16 (array header) + 4 (length field) + 4 bytes (reference to array object)
+        return 24 + length() * sizePerItem();
+    }
+
+    abstract long sizePerItem();
 }

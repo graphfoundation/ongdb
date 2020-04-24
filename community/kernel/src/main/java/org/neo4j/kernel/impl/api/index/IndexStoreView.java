@@ -19,23 +19,17 @@
  */
 package org.neo4j.kernel.impl.api.index;
 
-import org.eclipse.collections.api.set.primitive.MutableIntSet;
-
 import java.util.function.IntPredicate;
 
-import org.neo4j.helpers.collection.Visitor;
-import org.neo4j.kernel.api.index.IndexEntryUpdate;
+import org.neo4j.internal.helpers.collection.Visitor;
+import org.neo4j.internal.kernel.api.PopulationProgress;
+import org.neo4j.storageengine.api.EntityUpdates;
+import org.neo4j.storageengine.api.IndexEntryUpdate;
+import org.neo4j.storageengine.api.NodeLabelUpdate;
 import org.neo4j.storageengine.api.NodePropertyAccessor;
-import org.neo4j.kernel.api.labelscan.NodeLabelUpdate;
-import org.neo4j.register.Register.DoubleLongRegister;
-import org.neo4j.storageengine.api.EntityType;
-import org.neo4j.storageengine.api.schema.PopulationProgress;
-import org.neo4j.util.VisibleForTesting;
-import org.neo4j.values.storable.Value;
-import org.neo4j.values.storable.Values;
 
 /** The indexing services view of the universe. */
-public interface IndexStoreView extends NodePropertyAccessor, PropertyLoader
+public interface IndexStoreView
 {
     /**
      * Retrieve all nodes in the database which has got one or more of the given labels AND
@@ -68,23 +62,7 @@ public interface IndexStoreView extends NodePropertyAccessor, PropertyLoader
     <FAILURE extends Exception> StoreScan<FAILURE> visitRelationships( int[] relationshipTypeIds, IntPredicate propertyKeyIdFilter,
             Visitor<EntityUpdates,FAILURE> propertyUpdateVisitor );
 
-    /**
-     * Produces {@link EntityUpdates} objects from reading node {@code entityId}, its labels and properties
-     * and puts those updates into node updates container.
-     *
-     * @param entityId id of entity to load.
-     * @return node updates container
-     */
-    @VisibleForTesting
-    EntityUpdates nodeAsUpdates( long entityId );
-
-    DoubleLongRegister indexUpdatesAndSize( long indexId, DoubleLongRegister output );
-
-    DoubleLongRegister indexSample( long indexId, DoubleLongRegister output );
-
-    void replaceIndexCounts( long indexId, long uniqueElements, long maxUniqueElements, long indexSize );
-
-    void incrementIndexUpdates( long indexId, long updatesDelta );
+    NodePropertyAccessor newPropertyAccessor();
 
     @SuppressWarnings( "rawtypes" )
     StoreScan EMPTY_SCAN = new StoreScan()
@@ -116,17 +94,6 @@ public interface IndexStoreView extends NodePropertyAccessor, PropertyLoader
 
     class Adaptor implements IndexStoreView
     {
-        @Override
-        public void loadProperties( long nodeId, EntityType type, MutableIntSet propertyIds, PropertyLoadSink sink )
-        {
-        }
-
-        @Override
-        public Value getNodePropertyValue( long nodeId, int propertyKeyId )
-        {
-            return Values.NO_VALUE;
-        }
-
         @SuppressWarnings( "unchecked" )
         @Override
         public <FAILURE extends Exception> StoreScan<FAILURE> visitNodes( int[] labelIds,
@@ -145,32 +112,9 @@ public interface IndexStoreView extends NodePropertyAccessor, PropertyLoader
         }
 
         @Override
-        public void replaceIndexCounts( long indexId, long uniqueElements, long maxUniqueElements,
-                long indexSize )
+        public NodePropertyAccessor newPropertyAccessor()
         {
-        }
-
-        @Override
-        public EntityUpdates nodeAsUpdates( long nodeId )
-        {
-            return null;
-        }
-
-        @Override
-        public DoubleLongRegister indexUpdatesAndSize( long indexId, DoubleLongRegister output )
-        {
-            return output;
-        }
-
-        @Override
-        public DoubleLongRegister indexSample( long indexId, DoubleLongRegister output )
-        {
-            return output;
-        }
-
-        @Override
-        public void incrementIndexUpdates( long indexId, long updatesDelta )
-        {
+            return NodePropertyAccessor.EMPTY;
         }
     }
 }

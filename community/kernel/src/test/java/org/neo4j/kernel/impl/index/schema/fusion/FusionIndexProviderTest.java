@@ -19,11 +19,10 @@
  */
 package org.neo4j.kernel.impl.index.schema.fusion;
 
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.apache.commons.lang3.StringUtils;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -31,76 +30,64 @@ import java.util.EnumMap;
 import java.util.List;
 
 import org.neo4j.internal.kernel.api.InternalIndexState;
-import org.neo4j.internal.kernel.api.schema.IndexProviderDescriptor;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.internal.schema.IndexPrototype;
+import org.neo4j.internal.schema.IndexProviderDescriptor;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.kernel.api.index.IndexProvider;
-import org.neo4j.kernel.impl.index.schema.NumberIndexProvider;
-import org.neo4j.kernel.impl.index.schema.SpatialIndexProvider;
-import org.neo4j.kernel.impl.index.schema.StringIndexProvider;
-import org.neo4j.kernel.impl.index.schema.TemporalIndexProvider;
-import org.neo4j.storageengine.api.schema.IndexDescriptorFactory;
-import org.neo4j.storageengine.api.schema.IndexSample;
-import org.neo4j.storageengine.api.schema.StoreIndexDescriptor;
+import org.neo4j.kernel.api.index.IndexSample;
+import org.neo4j.kernel.impl.index.schema.GenericNativeIndexProvider;
+import org.neo4j.test.extension.Inject;
+import org.neo4j.test.extension.RandomExtension;
 import org.neo4j.test.rule.RandomRule;
 import org.neo4j.values.storable.Value;
 
 import static org.hamcrest.CoreMatchers.containsString;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.mockito.AdditionalAnswers.returnsFirstArg;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.neo4j.helpers.ArrayUtil.array;
+import static org.neo4j.internal.helpers.ArrayUtil.array;
+import static org.neo4j.internal.schema.SchemaDescriptor.forLabel;
 import static org.neo4j.kernel.api.index.IndexDirectoryStructure.NONE;
-import static org.neo4j.kernel.api.schema.SchemaDescriptorFactory.forLabel;
 import static org.neo4j.kernel.impl.api.index.TestIndexProviderDescriptor.PROVIDER_DESCRIPTOR;
-import static org.neo4j.kernel.impl.index.schema.fusion.FusionIndexBase.GROUP_OF;
+import static org.neo4j.kernel.impl.index.schema.fusion.FusionIndexBase.CATEGORY_OF;
 import static org.neo4j.kernel.impl.index.schema.fusion.FusionIndexTestHelp.fill;
-import static org.neo4j.kernel.impl.index.schema.fusion.FusionVersion.v00;
-import static org.neo4j.kernel.impl.index.schema.fusion.FusionVersion.v10;
-import static org.neo4j.kernel.impl.index.schema.fusion.FusionVersion.v20;
+import static org.neo4j.kernel.impl.index.schema.fusion.IndexSlot.GENERIC;
 import static org.neo4j.kernel.impl.index.schema.fusion.IndexSlot.LUCENE;
-import static org.neo4j.kernel.impl.index.schema.fusion.IndexSlot.NUMBER;
-import static org.neo4j.kernel.impl.index.schema.fusion.IndexSlot.SPATIAL;
-import static org.neo4j.kernel.impl.index.schema.fusion.IndexSlot.STRING;
-import static org.neo4j.kernel.impl.index.schema.fusion.IndexSlot.TEMPORAL;
 
-@RunWith( Parameterized.class )
-public class FusionIndexProviderTest
+@ExtendWith( RandomExtension.class )
+abstract class FusionIndexProviderTest
 {
     private static final IndexProviderDescriptor DESCRIPTOR = new IndexProviderDescriptor( "test-fusion", "1" );
-    public static final StoreIndexDescriptor AN_INDEX =
-            IndexDescriptorFactory.forSchema( forLabel( 0, 0 ), PROVIDER_DESCRIPTOR ).withId( 0 );
+    private static final IndexDescriptor AN_INDEX =
+            IndexPrototype.forSchema( forLabel( 0, 0 ), PROVIDER_DESCRIPTOR ).withName( "index" ).materialise( 0 );
 
+    private final FusionVersion fusionVersion;
     private EnumMap<IndexSlot,IndexProvider> providers;
     private IndexProvider[] aliveProviders;
     private IndexProvider fusionIndexProvider;
     private SlotSelector slotSelector;
     private InstanceSelector<IndexProvider> instanceSelector;
+    @Inject
+    private RandomRule random;
 
-    @Parameterized.Parameters( name = "{0}" )
-    public static FusionVersion[] versions()
+    FusionIndexProviderTest( FusionVersion fusionVersion )
     {
-        return new FusionVersion[]
-                {
-                        v00, v10, v20
-                };
+        this.fusionVersion = fusionVersion;
     }
 
-    @Parameterized.Parameter
-    public static FusionVersion fusionVersion;
-
-    @Before
-    public void setup()
+    @BeforeEach
+    void setup()
     {
         slotSelector = fusionVersion.slotSelector();
         setupMocks();
     }
-
-    @Rule
-    public RandomRule random = new RandomRule();
 
     private void setupMocks()
     {
@@ -112,25 +99,10 @@ public class FusionIndexProviderTest
         {
             switch ( aliveSlots[i] )
             {
-            case STRING:
-                IndexProvider string = mockProvider( StringIndexProvider.class, "string" );
-                providers.put( STRING, string );
-                aliveProviders[i] = string;
-                break;
-            case NUMBER:
-                IndexProvider number = mockProvider( NumberIndexProvider.class, "number" );
-                providers.put( NUMBER, number );
-                aliveProviders[i] = number;
-                break;
-            case SPATIAL:
-                IndexProvider spatial = mockProvider( SpatialIndexProvider.class, "spatial" );
-                providers.put( SPATIAL, spatial );
-                aliveProviders[i] = spatial;
-                break;
-            case TEMPORAL:
-                IndexProvider temporal = mockProvider( TemporalIndexProvider.class, "temporal" );
-                providers.put( TEMPORAL, temporal );
-                aliveProviders[i] = temporal;
+            case GENERIC:
+                IndexProvider generic = mockProvider( GenericNativeIndexProvider.class, "generic" );
+                providers.put( GENERIC, generic );
+                aliveProviders[i] = generic;
                 break;
             case LUCENE:
                 IndexProvider lucene = mockProvider( IndexProvider.class, "lucene" );
@@ -142,10 +114,7 @@ public class FusionIndexProviderTest
             }
         }
         fusionIndexProvider = new FusionIndexProvider(
-                providers.get( STRING ),
-                providers.get( NUMBER ),
-                providers.get( SPATIAL ),
-                providers.get( TEMPORAL ),
+                providers.get( GENERIC ),
                 providers.get( LUCENE ),
                 fusionVersion.slotSelector(), DESCRIPTOR, NONE, mock( FileSystemAbstraction.class ), false );
         instanceSelector = new InstanceSelector<>( providers );
@@ -159,7 +128,7 @@ public class FusionIndexProviderTest
     }
 
     @Test
-    public void mustSelectCorrectTargetForAllGivenValueCombinations()
+    void mustSelectCorrectTargetForAllGivenValueCombinations()
     {
         // given
         EnumMap<IndexSlot,Value[]> values = FusionIndexTestHelp.valuesByGroup();
@@ -171,29 +140,29 @@ public class FusionIndexProviderTest
             for ( Value value : group )
             {
                 // when
-                IndexProvider selected = instanceSelector.select( slotSelector.selectSlot( array( value ), GROUP_OF ) );
+                IndexProvider selected = instanceSelector.select( slotSelector.selectSlot( array( value ), CATEGORY_OF ) );
 
                 // then
                 assertSame( orLucene( providers.get( slot ) ), selected );
             }
         }
 
-        // All composite values should go to lucene
+        // All composite values should go to generic
         for ( Value firstValue : allValues )
         {
             for ( Value secondValue : allValues )
             {
                 // when
-                IndexProvider selected = instanceSelector.select( slotSelector.selectSlot( array( firstValue, secondValue ), GROUP_OF ) );
+                IndexProvider selected = instanceSelector.select( slotSelector.selectSlot( array( firstValue, secondValue ), CATEGORY_OF ) );
 
                 // then
-                assertSame( providers.get( LUCENE ), selected );
+                assertSame( providers.get( GENERIC ), selected );
             }
         }
     }
 
     @Test
-    public void mustCombineSamples()
+    void mustCombineSamples()
     {
         // given
         int sumIndexSize = 0;
@@ -221,44 +190,32 @@ public class FusionIndexProviderTest
     }
 
     @Test
-    public void getPopulationFailureMustThrowIfNoFailure()
+    void getPopulationFailureReturnEmptyStringIfNoFailure()
     {
-        // when
-        // ... no failure
-        IllegalStateException failure = new IllegalStateException( "not failed" );
         for ( IndexProvider provider : aliveProviders )
         {
-            when( provider.getPopulationFailure( any( StoreIndexDescriptor.class ) ) ).thenThrow( failure );
+            when( provider.getPopulationFailure( any( IndexDescriptor.class ) ) ).thenReturn( StringUtils.EMPTY );
         }
 
-        // then
-        try
-        {
-            fusionIndexProvider.getPopulationFailure( AN_INDEX );
-            fail( "Should have failed" );
-        }
-        catch ( IllegalStateException e )
-        {   // good
-        }
+        assertEquals( StringUtils.EMPTY, fusionIndexProvider.getPopulationFailure( AN_INDEX ) );
     }
 
     @Test
-    public void getPopulationFailureMustReportFailureWhenAnyFailed()
+    void getPopulationFailureMustReportFailureWhenAnyFailed()
     {
         for ( IndexProvider failingProvider : aliveProviders )
         {
             // when
             String failure = "failure";
-            IllegalStateException exception = new IllegalStateException( "not failed" );
             for ( IndexProvider provider : aliveProviders )
             {
                 if ( provider == failingProvider )
                 {
-                    when( provider.getPopulationFailure( any( StoreIndexDescriptor.class ) ) ).thenReturn( failure );
+                    when( provider.getPopulationFailure( any( IndexDescriptor.class ) ) ).thenReturn( failure );
                 }
                 else
                 {
-                    when( provider.getPopulationFailure( any( StoreIndexDescriptor.class ) ) ).thenThrow( exception );
+                    when( provider.getPopulationFailure( any( IndexDescriptor.class ) ) ).thenReturn( StringUtils.EMPTY );
                 }
             }
 
@@ -268,7 +225,7 @@ public class FusionIndexProviderTest
     }
 
     @Test
-    public void getPopulationFailureMustReportFailureWhenMultipleFail()
+    void getPopulationFailureMustReportFailureWhenMultipleFail()
     {
         // when
         List<String> failureMessages = new ArrayList<>();
@@ -276,7 +233,7 @@ public class FusionIndexProviderTest
         {
             String failureMessage = "FAILURE[" + aliveProvider + "]";
             failureMessages.add( failureMessage );
-            when( aliveProvider.getPopulationFailure( any( StoreIndexDescriptor.class ) ) ).thenReturn( failureMessage );
+            when( aliveProvider.getPopulationFailure( any( IndexDescriptor.class ) ) ).thenReturn( failureMessage );
         }
 
         // then
@@ -288,7 +245,7 @@ public class FusionIndexProviderTest
     }
 
     @Test
-    public void shouldReportFailedIfAnyIsFailed()
+    void shouldReportFailedIfAnyIsFailed()
     {
         // given
         IndexProvider provider = fusionIndexProvider;
@@ -311,7 +268,7 @@ public class FusionIndexProviderTest
     }
 
     @Test
-    public void shouldReportPopulatingIfAnyIsPopulating()
+    void shouldReportPopulatingIfAnyIsPopulating()
     {
         // given
         for ( InternalIndexState state : array( InternalIndexState.ONLINE, InternalIndexState.POPULATING ) )
@@ -331,9 +288,26 @@ public class FusionIndexProviderTest
         }
     }
 
-    private void setInitialState( IndexProvider mockedProvider, InternalIndexState state )
+    @Test
+    void shouldBlessWithAllProviders()
     {
-        when( mockedProvider.getInitialState( any( StoreIndexDescriptor.class ) ) ).thenReturn( state );
+        // when
+        for ( IndexProvider aliveProvider : aliveProviders )
+        {
+            when( aliveProvider.completeConfiguration( any( IndexDescriptor.class ) ) ).then( returnsFirstArg() );
+        }
+        fusionIndexProvider.completeConfiguration( AN_INDEX );
+
+        // then
+        for ( IndexProvider aliveProvider : aliveProviders )
+        {
+            verify( aliveProvider, times( 1 ) ).completeConfiguration( any( IndexDescriptor.class ) );
+        }
+    }
+
+    private static void setInitialState( IndexProvider mockedProvider, InternalIndexState state )
+    {
+        when( mockedProvider.getInitialState( any( IndexDescriptor.class ) ) ).thenReturn( state );
     }
 
     private IndexProvider orLucene( IndexProvider provider )

@@ -19,75 +19,75 @@
  */
 package org.neo4j.index;
 
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
-import org.neo4j.graphdb.DependencyResolver;
+import org.neo4j.common.DependencyResolver;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Transaction;
 import org.neo4j.graphdb.schema.Schema;
-import org.neo4j.kernel.NeoStoreDataSource;
-import org.neo4j.kernel.impl.storageengine.impl.recordstorage.RecordStorageEngine;
+import org.neo4j.internal.recordstorage.RecordStorageEngine;
+import org.neo4j.kernel.database.Database;
+import org.neo4j.kernel.internal.GraphDatabaseAPI;
 import org.neo4j.kernel.lifecycle.LifeSupport;
 import org.neo4j.kernel.lifecycle.LifecycleListener;
 import org.neo4j.kernel.lifecycle.LifecycleStatus;
-import org.neo4j.test.rule.DatabaseRule;
-import org.neo4j.test.rule.ImpermanentDatabaseRule;
+import org.neo4j.test.extension.ImpermanentDbmsExtension;
+import org.neo4j.test.extension.Inject;
 
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-public class ShutdownOnIndexUpdateIT
+@ImpermanentDbmsExtension
+class ShutdownOnIndexUpdateIT
 {
-    @Rule
-    public DatabaseRule database = new ImpermanentDatabaseRule();
+    @Inject
+    private GraphDatabaseAPI db;
 
     private static final String UNIQUE_PROPERTY_NAME = "uniquePropertyName";
     private static final AtomicLong indexProvider = new AtomicLong();
-    private static Label constraintIndexLabel = Label.label( "ConstraintIndexLabel" );
+    private static final Label CONSTRAINT_INDEX_LABEL = Label.label( "ConstraintIndexLabel" );
 
     @Test
-    public void shutdownWhileFinishingTransactionWithIndexUpdates()
+    void shutdownWhileFinishingTransactionWithIndexUpdates()
     {
-        createConstraint( database );
-        waitIndexesOnline( database );
+        createConstraint( db );
+        waitIndexesOnline( db );
 
-        try ( Transaction transaction = database.beginTx() )
+        try ( Transaction transaction = db.beginTx() )
         {
-            Node node = database.createNode( constraintIndexLabel );
+            Node node = transaction.createNode( CONSTRAINT_INDEX_LABEL );
             node.setProperty( UNIQUE_PROPERTY_NAME, indexProvider.getAndIncrement() );
 
-            DependencyResolver dependencyResolver = database.getDependencyResolver();
-            NeoStoreDataSource dataSource = dependencyResolver.resolveDependency( NeoStoreDataSource.class );
+            DependencyResolver dependencyResolver = db.getDependencyResolver();
+            Database dataSource = dependencyResolver.resolveDependency( Database.class );
             LifeSupport dataSourceLife = dataSource.getLife();
             TransactionCloseListener closeListener = new TransactionCloseListener( transaction );
             dataSourceLife.addLifecycleListener( closeListener );
             dataSource.stop();
 
-            assertTrue( "Transaction should be closed and no exception should be thrown.",
-                    closeListener.isTransactionClosed() );
+            assertTrue( closeListener.isTransactionClosed(), "Transaction should be closed and no exception should be thrown." );
         }
     }
 
-    private void waitIndexesOnline( GraphDatabaseService database )
+    private static void waitIndexesOnline( GraphDatabaseService database )
     {
-        try ( Transaction ignored = database.beginTx() )
+        try ( Transaction tx = database.beginTx() )
         {
-            database.schema().awaitIndexesOnline( 5, TimeUnit.MINUTES );
+            tx.schema().awaitIndexesOnline( 5, TimeUnit.MINUTES );
         }
     }
 
-    private void createConstraint( GraphDatabaseService database )
+    private static void createConstraint( GraphDatabaseService database )
     {
         try ( Transaction transaction = database.beginTx() )
         {
-            Schema schema = database.schema();
-            schema.constraintFor( constraintIndexLabel ).assertPropertyIsUnique( UNIQUE_PROPERTY_NAME ).create();
-            transaction.success();
+            Schema schema = transaction.schema();
+            schema.constraintFor( CONSTRAINT_INDEX_LABEL ).assertPropertyIsUnique( UNIQUE_PROPERTY_NAME ).create();
+            transaction.commit();
         }
     }
 
@@ -106,8 +106,7 @@ public class ShutdownOnIndexUpdateIT
         {
             if ( (LifecycleStatus.STOPPED == to) && (instance instanceof RecordStorageEngine) )
             {
-                transaction.success();
-                transaction.close();
+                transaction.commit();
                 transactionClosed = true;
             }
         }

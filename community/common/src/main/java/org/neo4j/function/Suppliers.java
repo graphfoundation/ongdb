@@ -24,7 +24,7 @@ import java.util.function.BooleanSupplier;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
-import static java.lang.System.currentTimeMillis;
+import static java.lang.System.nanoTime;
 
 /**
  * Constructors for basic {@link Supplier} types
@@ -56,7 +56,7 @@ public final class Suppliers
      */
     public static <T> Lazy<T> lazySingleton( final Supplier<T> supplier )
     {
-        return new Lazy<T>()
+        return new Lazy<>()
         {
             volatile T instance;
 
@@ -99,7 +99,7 @@ public final class Suppliers
      */
     public static <T, V> Supplier<T> adapted( final Supplier<V> supplier, final Function<V,T> adaptor )
     {
-        return new Supplier<T>()
+        return new Supplier<>()
         {
             volatile V lastValue;
             T instance;
@@ -136,8 +136,8 @@ public final class Suppliers
 
     public static BooleanSupplier untilTimeExpired( long duration, TimeUnit unit )
     {
-        final long endTimeInMilliseconds = currentTimeMillis() + unit.toMillis( duration );
-        return () -> currentTimeMillis() <= endTimeInMilliseconds;
+        final long endTimeInNanos = nanoTime() + unit.toNanos( duration );
+        return () -> nanoTime() <= endTimeInNanos;
     }
 
     static class ThrowingCapturingSupplier<T, E extends Exception> implements ThrowingSupplier<Boolean,E>

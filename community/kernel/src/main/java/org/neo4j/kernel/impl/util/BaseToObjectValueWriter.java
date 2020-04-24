@@ -33,13 +33,13 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 
+import org.neo4j.graphdb.Entity;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Path;
-import org.neo4j.graphdb.PropertyContainer;
 import org.neo4j.graphdb.Relationship;
 import org.neo4j.graphdb.spatial.Point;
 import org.neo4j.graphdb.traversal.Paths;
-import org.neo4j.helpers.collection.ReverseArrayIterator;
+import org.neo4j.internal.helpers.collection.ReverseArrayIterator;
 import org.neo4j.values.AnyValueWriter;
 import org.neo4j.values.storable.CoordinateReferenceSystem;
 import org.neo4j.values.storable.DurationValue;
@@ -49,7 +49,7 @@ import org.neo4j.values.virtual.MapValue;
 import org.neo4j.values.virtual.NodeValue;
 import org.neo4j.values.virtual.RelationshipValue;
 
-import static org.neo4j.helpers.collection.Iterators.iteratorsEqual;
+import static org.neo4j.internal.helpers.collection.Iterators.iteratorsEqual;
 
 /**
  * Base class for converting AnyValue to normal java objects.
@@ -69,9 +69,9 @@ public abstract class BaseToObjectValueWriter<E extends Exception> implements An
         stack.push( new ObjectWriter() );
     }
 
-    protected abstract Node newNodeProxyById( long id );
+    protected abstract Node newNodeEntityById( long id );
 
-    protected abstract Relationship newRelationshipProxyById( long id );
+    protected abstract Relationship newRelationshipEntityById( long id );
 
     protected abstract Point newPoint( CoordinateReferenceSystem crs, double[] coordinate );
 
@@ -99,7 +99,7 @@ public abstract class BaseToObjectValueWriter<E extends Exception> implements An
     {
         if ( nodeId >= 0 )
         {
-            writeValue( newNodeProxyById( nodeId ) );
+            writeValue( newNodeEntityById( nodeId ) );
         }
     }
 
@@ -121,7 +121,7 @@ public abstract class BaseToObjectValueWriter<E extends Exception> implements An
     {
         if ( relId >= 0 )
         {
-            writeValue( newRelationshipProxyById( relId ) );
+            writeValue( newRelationshipEntityById( relId ) );
         }
     }
 
@@ -168,12 +168,12 @@ public abstract class BaseToObjectValueWriter<E extends Exception> implements An
         Node[] nodeProxies = new Node[nodes.length];
         for ( int i = 0; i < nodes.length; i++ )
         {
-            nodeProxies[i] = newNodeProxyById( nodes[i].id() );
+            nodeProxies[i] = newNodeEntityById( nodes[i].id() );
         }
         Relationship[] relationship = new Relationship[relationships.length];
         for ( int i = 0; i < relationships.length; i++ )
         {
-            relationship[i] = newRelationshipProxyById( relationships[i].id() );
+            relationship[i] = newRelationshipEntityById( relationships[i].id() );
         }
         writeValue( new Path()
         {
@@ -259,12 +259,12 @@ public abstract class BaseToObjectValueWriter<E extends Exception> implements An
             }
 
             @Override
-            public Iterator<PropertyContainer> iterator()
+            public Iterator<Entity> iterator()
             {
-                return new Iterator<PropertyContainer>()
+                return new Iterator<>()
                 {
-                    Iterator<? extends PropertyContainer> current = nodes().iterator();
-                    Iterator<? extends PropertyContainer> next = relationships().iterator();
+                    Iterator<? extends Entity> current = nodes().iterator();
+                    Iterator<? extends Entity> next = relationships().iterator();
 
                     @Override
                     public boolean hasNext()
@@ -273,7 +273,7 @@ public abstract class BaseToObjectValueWriter<E extends Exception> implements An
                     }
 
                     @Override
-                    public PropertyContainer next()
+                    public Entity next()
                     {
                         try
                         {
@@ -281,7 +281,7 @@ public abstract class BaseToObjectValueWriter<E extends Exception> implements An
                         }
                         finally
                         {
-                            Iterator<? extends PropertyContainer> temp = current;
+                            Iterator<? extends Entity> temp = current;
                             current = next;
                             next = temp;
                         }

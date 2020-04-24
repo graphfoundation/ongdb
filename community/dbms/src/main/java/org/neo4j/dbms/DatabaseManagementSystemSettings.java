@@ -19,21 +19,24 @@
  */
 package org.neo4j.dbms;
 
-import java.io.File;
+import java.nio.file.Path;
 
+import org.neo4j.annotations.service.ServiceProvider;
+import org.neo4j.configuration.GraphDatabaseSettings;
 import org.neo4j.configuration.Internal;
-import org.neo4j.configuration.LoadableConfig;
+import org.neo4j.configuration.SettingsDeclaration;
 import org.neo4j.graphdb.config.Setting;
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 
-import static org.neo4j.kernel.configuration.Settings.PATH;
-import static org.neo4j.kernel.configuration.Settings.derivedSetting;
+import static org.neo4j.configuration.SettingImpl.newBuilder;
+import static org.neo4j.configuration.SettingValueParsers.PATH;
 
-public class DatabaseManagementSystemSettings implements LoadableConfig
+
+@ServiceProvider
+public class DatabaseManagementSystemSettings implements SettingsDeclaration
 {
     @Internal
-    public static final Setting<File> auth_store_directory = derivedSetting( "unsupported.dbms.directories.auth",
-            GraphDatabaseSettings.data_directory,
-            data -> new File( data, "dbms" ),
-            PATH );
+    public static final Setting<Path> auth_store_directory = newBuilder( "unsupported.dbms.directories.auth", PATH, Path.of( "dbms" ) )
+            .immutable()
+            .setDependency( GraphDatabaseSettings.data_directory )
+            .build();
 }

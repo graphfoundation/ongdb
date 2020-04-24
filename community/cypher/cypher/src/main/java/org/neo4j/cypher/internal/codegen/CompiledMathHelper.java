@@ -19,17 +19,18 @@
  */
 package org.neo4j.cypher.internal.codegen;
 
-import org.neo4j.cypher.internal.v3_6.util.ArithmeticException;
-import org.neo4j.cypher.internal.v3_6.util.CypherTypeException;
-
 import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.neo4j.exceptions.ArithmeticException;
+import org.neo4j.exceptions.CypherTypeException;
+import org.neo4j.exceptions.InvalidArgumentException;
 import org.neo4j.kernel.impl.util.ValueUtils;
 import org.neo4j.values.AnyValue;
 import org.neo4j.values.storable.ArrayValue;
 import org.neo4j.values.storable.DurationValue;
+import org.neo4j.values.storable.FloatingPointValue;
 import org.neo4j.values.storable.IntegralValue;
 import org.neo4j.values.storable.NumberValue;
 import org.neo4j.values.storable.PointValue;
@@ -255,8 +256,8 @@ public final class CompiledMathHelper
             }
         }
 
-        AnyValue lhsValue = lhs instanceof AnyValue ? (AnyValue) lhs : Values.of( lhs );
-        AnyValue rhsValue = rhs instanceof AnyValue ? (AnyValue) rhs : Values.of( rhs );
+        AnyValue lhsValue = lhs instanceof AnyValue ? (AnyValue) lhs : ValueUtils.of( lhs );
+        AnyValue rhsValue = rhs instanceof AnyValue ? (AnyValue) rhs : ValueUtils.of( rhs );
 
         throw new CypherTypeException( String.format( "Cannot add `%s` and `%s`", lhsValue.getTypeName(), rhsValue.getTypeName() ), null );
     }
@@ -322,8 +323,8 @@ public final class CompiledMathHelper
             }
         }
 
-        AnyValue lhsValue = lhs instanceof AnyValue ? (AnyValue) lhs : Values.of( lhs );
-        AnyValue rhsValue = rhs instanceof AnyValue ? (AnyValue) rhs : Values.of( rhs );
+        AnyValue lhsValue = lhs instanceof AnyValue ? (AnyValue) lhs : ValueUtils.of( lhs );
+        AnyValue rhsValue = rhs instanceof AnyValue ? (AnyValue) rhs : ValueUtils.of( rhs );
 
         throw new CypherTypeException( String.format( "Cannot subtract `%s` from `%s`", rhsValue.getTypeName(), lhsValue.getTypeName() ), null );
     }
@@ -397,8 +398,8 @@ public final class CompiledMathHelper
             // other numbers we cannot multiply
         }
 
-        AnyValue lhsValue = lhs instanceof AnyValue ? (AnyValue) lhs : Values.of( lhs );
-        AnyValue rhsValue = rhs instanceof AnyValue ? (AnyValue) rhs : Values.of( rhs );
+        AnyValue lhsValue = lhs instanceof AnyValue ? (AnyValue) lhs : ValueUtils.of( lhs );
+        AnyValue rhsValue = rhs instanceof AnyValue ? (AnyValue) rhs : ValueUtils.of( rhs );
 
         throw new CypherTypeException( String.format( "Cannot multiply `%s` and `%s`", lhsValue.getTypeName(), rhsValue.getTypeName() ), null );
     }
@@ -470,8 +471,8 @@ public final class CompiledMathHelper
             // other numbers we cannot divide
         }
 
-        AnyValue lhsValue = lhs instanceof AnyValue ? (AnyValue) lhs : Values.of( lhs );
-        AnyValue rhsValue = rhs instanceof AnyValue ? (AnyValue) rhs : Values.of( rhs );
+        AnyValue lhsValue = lhs instanceof AnyValue ? (AnyValue) lhs : ValueUtils.of( lhs );
+        AnyValue rhsValue = rhs instanceof AnyValue ? (AnyValue) rhs : ValueUtils.of( rhs );
 
         throw new CypherTypeException( String.format( "Cannot divide `%s` by `%s`", lhsValue.getTypeName(), rhsValue.getTypeName() ), null );
     }
@@ -518,8 +519,8 @@ public final class CompiledMathHelper
             // other numbers we cannot divide
         }
 
-        AnyValue lhsValue = lhs instanceof AnyValue ? (AnyValue) lhs : Values.of( lhs );
-        AnyValue rhsValue = rhs instanceof AnyValue ? (AnyValue) rhs : Values.of( rhs );
+        AnyValue lhsValue = lhs instanceof AnyValue ? (AnyValue) lhs : ValueUtils.of( lhs );
+        AnyValue rhsValue = rhs instanceof AnyValue ? (AnyValue) rhs : ValueUtils.of( rhs );
 
         throw new CypherTypeException( String.format( "Cannot calculate modulus of `%s` and `%s`", lhsValue.getTypeName(), rhsValue.getTypeName() ), null );
     }
@@ -547,8 +548,8 @@ public final class CompiledMathHelper
             return Math.pow( ((Number) lhs).doubleValue(), ((Number) rhs).doubleValue() );
         }
 
-        AnyValue lhsValue = lhs instanceof AnyValue ? (AnyValue) lhs : Values.of( lhs );
-        AnyValue rhsValue = rhs instanceof AnyValue ? (AnyValue) rhs : Values.of( rhs );
+        AnyValue lhsValue = lhs instanceof AnyValue ? (AnyValue) lhs : ValueUtils.of( lhs );
+        AnyValue rhsValue = rhs instanceof AnyValue ? (AnyValue) rhs : ValueUtils.of( rhs );
 
         throw new CypherTypeException( String.format( "Cannot raise `%s` to the power of `%s`", lhsValue.getTypeName(), rhsValue.getTypeName() ), null );
     }
@@ -589,6 +590,34 @@ public final class CompiledMathHelper
         if ( value instanceof Number )
         {
             Number number = (Number) value;
+            return number.longValue();
+        }
+
+        throw new CypherTypeException( String.format( "Expected a numeric value but got %s", value.toString() ), null );
+    }
+
+    public static long transformToLongOrFail( Object value, String errorOnFloatingPoint )
+    {
+        if ( value == null )
+        {
+            throw new CypherTypeException( "Expected a numeric value but got null", null );
+        }
+        if ( value instanceof NumberValue )
+        {
+            NumberValue number = (NumberValue) value;
+            if ( number instanceof FloatingPointValue )
+            {
+                throw new InvalidArgumentException( errorOnFloatingPoint, null );
+            }
+            return number.longValue();
+        }
+        if ( value instanceof Number )
+        {
+            Number number = (Number) value;
+            if ( number instanceof Float || number instanceof Double )
+            {
+                throw new InvalidArgumentException( errorOnFloatingPoint, null );
+            }
             return number.longValue();
         }
 

@@ -26,13 +26,12 @@ import org.mockito.invocation.InvocationOnMock
 import org.mockito.stubbing.Answer
 import org.neo4j.cypher.internal.runtime.interpreted.ImplicitDummyPos
 import org.neo4j.cypher.internal.runtime.{NodeValueHit, QueryContext}
-import org.neo4j.cypher.internal.v3_6.logical.plans.CachedNodeProperty
-import org.neo4j.internal.kernel.api.{IndexQuery, NodeCursor, NodeValueIndexCursor}
+import org.neo4j.cypher.internal.v4_0.expressions._
+import org.neo4j.cypher.internal.v4_0.util.test_helpers.CypherFunSuite
+import org.neo4j.internal.kernel.api._
 import org.neo4j.values.storable.Values.stringValue
 import org.neo4j.values.storable.{Value, Values}
 import org.neo4j.values.virtual.{NodeValue, VirtualNodeValue, VirtualValues}
-import org.neo4j.cypher.internal.v3_6.expressions.{PropertyKeyName, PropertyKeyToken}
-import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
 
 trait IndexMockingHelp extends CypherFunSuite with ImplicitDummyPos {
 
@@ -75,8 +74,8 @@ trait IndexMockingHelp extends CypherFunSuite with ImplicitDummyPos {
   protected def nodeValueHit(nodeValue: VirtualNodeValue, values: Object*): NodeValueHit =
     new NodeValueHit(nodeValue.id, values.map(Values.of).toArray)
 
-  protected def cachedNodeProperty(node: String, property: PropertyKeyToken): CachedNodeProperty =
-    CachedNodeProperty("n", PropertyKeyName(property.name)(pos))(pos)
+  protected def cachedProperty(node: String, property: PropertyKeyToken): CachedProperty =
+    CachedProperty("n", Variable(node)(pos), PropertyKeyName(property.name)(pos), NODE_TYPE)(pos)
 
   private def mockedQueryContext[T] = {
     val query = mock[QueryContext]
@@ -87,9 +86,9 @@ trait IndexMockingHelp extends CypherFunSuite with ImplicitDummyPos {
     query
   }
 
-  case class PredefinedCursor[T](nodeValueHits: Iterable[NodeValueHit] = Nil) extends NodeValueIndexCursor {
+  case class PredefinedCursor[T](nodeValueHits: Iterable[NodeValueHit] = Nil) extends DefaultCloseListenable with NodeValueIndexCursor {
 
-    private var iter = nodeValueHits.iterator
+    private val iter = nodeValueHits.iterator
     private var current: NodeValueHit = _
 
     override def numberOfProperties(): Int = current.numberOfProperties()
@@ -114,8 +113,17 @@ trait IndexMockingHelp extends CypherFunSuite with ImplicitDummyPos {
       }
     }
 
-    override def close(): Unit = {}
+    override def close(): Unit = {
+      if (getCloseListener != null) getCloseListener.onClosed(this)
+    }
+    override def closeInternal(): Unit = {}
 
     override def isClosed: Boolean = current != null
+
+    override def score(): Float = Float.NaN
+
+    override def setTracer(tracer: KernelReadTracer): Unit = throw new UnsupportedOperationException("not implemented")
+
+    override def removeTracer(): Unit = throw new UnsupportedOperationException("not implemented")
   }
 }

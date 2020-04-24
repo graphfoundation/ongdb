@@ -19,23 +19,27 @@
  */
 package org.neo4j.kernel.impl.index.schema;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
+import org.neo4j.configuration.Config;
+import org.neo4j.index.internal.gbptree.ValueMerger.MergeResult;
 import org.neo4j.kernel.api.exceptions.index.IndexEntryConflictException;
+import org.neo4j.kernel.impl.index.schema.config.IndexSpecificSpaceFillingCurveSettings;
 import org.neo4j.values.storable.Value;
 import org.neo4j.values.storable.Values;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.fail;
-import static org.neo4j.helpers.ArrayUtil.array;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.neo4j.internal.helpers.ArrayUtil.array;
 
-public class ThrowingConflictDetectorTest
+class ThrowingConflictDetectorTest
 {
-    private final ThrowingConflictDetector<NumberIndexKey,NativeIndexValue> detector = new ThrowingConflictDetector<>( true );
+    private static final IndexSpecificSpaceFillingCurveSettings specificSettings = IndexSpecificSpaceFillingCurveSettings.fromConfig( Config.defaults() );
+    private final ThrowingConflictDetector<GenericKey,NativeIndexValue> detector = new ThrowingConflictDetector<>( true );
 
     @Test
-    public void shouldReportConflictOnSameValueAndDifferentEntityIds()
+    void shouldReportConflictOnSameValueAndDifferentEntityIds()
     {
         // given
         Value value = Values.of( 123 );
@@ -43,51 +47,44 @@ public class ThrowingConflictDetectorTest
         long entityId2 = 20;
 
         // when
-        NativeIndexValue merged = detector.merge(
+        MergeResult mergeResult = detector.merge(
                 key( entityId1, value ),
                 key( entityId2, value ),
                 NativeIndexValue.INSTANCE,
                 NativeIndexValue.INSTANCE );
 
         // then
-        assertNull( merged );
-        try
-        {
-            detector.checkConflict( array( value ) );
-            fail( "Should've detected conflict" );
-        }
-        catch ( IndexEntryConflictException e )
-        {
-            assertEquals( entityId1, e.getExistingNodeId() );
-            assertEquals( entityId2, e.getAddedNodeId() );
-            assertEquals( value, e.getSinglePropertyValue() );
-        }
+        assertSame( MergeResult.UNCHANGED, mergeResult );
+        var e = assertThrows( IndexEntryConflictException.class, () -> detector.checkConflict( array( value ) ) );
+        assertEquals( entityId1, e.getExistingNodeId() );
+        assertEquals( entityId2, e.getAddedNodeId() );
+        assertEquals( value, e.getSinglePropertyValue() );
     }
 
     @Test
-    public void shouldNotReportConflictOnSameValueSameEntityId() throws IndexEntryConflictException
+    void shouldNotReportConflictOnSameValueSameEntityId() throws IndexEntryConflictException
     {
         // given
         Value value = Values.of( 123 );
         long entityId = 10;
 
         // when
-        NativeIndexValue merged = detector.merge(
+        MergeResult mergeResult = detector.merge(
                 key( entityId, value ),
                 key( entityId, value ),
                 NativeIndexValue.INSTANCE,
                 NativeIndexValue.INSTANCE );
 
         // then
-        assertNull( merged );
+        assertSame( MergeResult.UNCHANGED, mergeResult );
         detector.checkConflict( array() ); // <-- should not throw conflict exception
     }
 
-    private static NumberIndexKey key( long entityId, Value value )
+    private static GenericKey key( long entityId, Value value )
     {
-        NumberIndexKey key = new NumberIndexKey();
+        GenericKey key = new GenericKey( specificSettings );
         key.initialize( entityId );
-        key.initFromValue( 0, value, NativeIndexKey.Inclusion.LOW );
+        key.initFromValue( 0, value, NativeIndexKey.Inclusion.NEUTRAL );
         return key;
     }
 }

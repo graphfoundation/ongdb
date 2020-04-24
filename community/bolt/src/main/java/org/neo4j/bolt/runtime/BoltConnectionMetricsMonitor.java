@@ -21,7 +21,6 @@ package org.neo4j.bolt.runtime;
 
 public interface BoltConnectionMetricsMonitor
 {
-
     void connectionOpened();
 
     void connectionActivated();

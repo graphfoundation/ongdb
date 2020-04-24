@@ -20,42 +20,46 @@
 package org.neo4j.graphalgo.shortestpath;
 
 import common.Neo4jAlgoTestCase;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import org.neo4j.graphalgo.impl.shortestpath.Dijkstra;
 import org.neo4j.graphalgo.impl.util.DoubleAdder;
 import org.neo4j.graphdb.Direction;
 import org.neo4j.graphdb.RelationshipType;
+import org.neo4j.graphdb.Transaction;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
-public class DijkstraMultipleRelationshipTypesTest extends Neo4jAlgoTestCase
+class DijkstraMultipleRelationshipTypesTest extends Neo4jAlgoTestCase
 {
-    protected Dijkstra<Double> getDijkstra( String startNode, String endNode, RelationshipType... relTypes )
+    private static Dijkstra<Double> getDijkstra( Transaction tx, String startNode, String endNode, RelationshipType... relTypes )
     {
-        return new Dijkstra<>( 0.0, graph.getNode( startNode ), graph.getNode( endNode ),
+        return new Dijkstra<>( 0.0, graph.getNode( tx, startNode ), graph.getNode( tx, endNode ),
                 ( relationship, direction ) -> 1.0, new DoubleAdder(), Double::compareTo, Direction.BOTH,
                 relTypes );
     }
 
     @Test
-    public void testRun()
+    void testRun()
     {
-        graph.setCurrentRelType( MyRelTypes.R1 );
-        graph.makeEdgeChain( "a,b,c,d,e" );
-        graph.setCurrentRelType( MyRelTypes.R2 );
-        graph.makeEdges( "a,c" ); // first shortcut
-        graph.setCurrentRelType( MyRelTypes.R3 );
-        graph.makeEdges( "c,e" ); // second shortcut
-        Dijkstra<Double> dijkstra;
-        dijkstra = getDijkstra( "a", "e", MyRelTypes.R1 );
-        assertEquals( 4.0, dijkstra.getCost(), 0.0 );
-        dijkstra = getDijkstra( "a", "e", MyRelTypes.R1, MyRelTypes.R2 );
-        assertEquals( 3.0, dijkstra.getCost(), 0.0 );
-        dijkstra = getDijkstra( "a", "e", MyRelTypes.R1, MyRelTypes.R3 );
-        assertEquals( 3.0, dijkstra.getCost(), 0.0 );
-        dijkstra = getDijkstra( "a", "e", MyRelTypes.R1, MyRelTypes.R2,
-                MyRelTypes.R3 );
-        assertEquals( 2.0, dijkstra.getCost(), 0.0 );
+        try ( Transaction transaction = graphDb.beginTx() )
+        {
+            graph.setCurrentRelType( MyRelTypes.R1 );
+            graph.makeEdgeChain( transaction, "a,b,c,d,e" );
+            graph.setCurrentRelType( MyRelTypes.R2 );
+            graph.makeEdges( transaction, "a,c" ); // first shortcut
+            graph.setCurrentRelType( MyRelTypes.R3 );
+            graph.makeEdges( transaction, "c,e" ); // second shortcut
+            Dijkstra<Double> dijkstra;
+            dijkstra = getDijkstra( transaction, "a", "e", MyRelTypes.R1 );
+            assertEquals( 4.0, dijkstra.getCost(), 0.0 );
+            dijkstra = getDijkstra( transaction, "a", "e", MyRelTypes.R1, MyRelTypes.R2 );
+            assertEquals( 3.0, dijkstra.getCost(), 0.0 );
+            dijkstra = getDijkstra( transaction, "a", "e", MyRelTypes.R1, MyRelTypes.R3 );
+            assertEquals( 3.0, dijkstra.getCost(), 0.0 );
+            dijkstra = getDijkstra( transaction, "a", "e", MyRelTypes.R1, MyRelTypes.R2, MyRelTypes.R3 );
+            assertEquals( 2.0, dijkstra.getCost(), 0.0 );
+            transaction.commit();
+        }
     }
 }

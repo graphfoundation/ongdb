@@ -61,6 +61,11 @@ import static org.neo4j.values.storable.TimeValue.time;
 @SuppressWarnings( "WeakerAccess" )
 public final class Values
 {
+
+    public static final Value NO_VALUE = NoValue.NO_VALUE;
+
+    public static final Value MIN_GLOBAL = DateTimeValue.MIN_VALUE;
+    public static final Value MAX_GLOBAL = Values.NO_VALUE;
     public static final Value MIN_NUMBER = Values.doubleValue( Double.NEGATIVE_INFINITY );
     public static final Value MAX_NUMBER = Values.doubleValue( Double.NaN );
     public static final Value ZERO_FLOAT = Values.doubleValue( 0.0 );
@@ -72,6 +77,7 @@ public final class Values
     public static final TextValue EMPTY_STRING = StringValue.EMPTY;
     public static final DoubleValue E = Values.doubleValue( Math.E );
     public static final DoubleValue PI = Values.doubleValue( Math.PI );
+    public static final DoubleValue NaN = Values.doubleValue( Double.NaN );
     public static final ArrayValue EMPTY_SHORT_ARRAY = Values.shortArray( new short[0] );
     public static final ArrayValue EMPTY_BOOLEAN_ARRAY = Values.booleanArray( new boolean[0] );
     public static final ArrayValue EMPTY_BYTE_ARRAY = Values.byteArray( new byte[0] );
@@ -148,8 +154,6 @@ public final class Values
     }
 
     // DIRECT FACTORY METHODS
-
-    public static final Value NO_VALUE = NoValue.NO_VALUE;
 
     public static TextValue utf8Value( byte[] bytes )
     {
@@ -345,15 +349,43 @@ public final class Values
 
     public static PointValue minPointValue( PointValue reference )
     {
-        double[] coordinates = new double[reference.coordinate().length];
-        Arrays.fill( coordinates, -Double.MAX_VALUE );
+        int length = reference.coordinate().length;
+        double[] coordinates = new double[length];
+        if ( reference.getCoordinateReferenceSystem().isGeographic() )
+        {
+            // WGS-84 boundaries
+            coordinates[0] = -180;
+            coordinates[1] = -90;
+            if ( length > 2 )
+            {
+                coordinates[2] = -Double.MAX_VALUE;
+            }
+        }
+        else
+        {
+            Arrays.fill( coordinates, -Double.MAX_VALUE );
+        }
         return pointValue( reference.getCoordinateReferenceSystem(), coordinates );
     }
 
     public static PointValue maxPointValue( PointValue reference )
     {
-        double[] coordinates = new double[reference.coordinate().length];
-        Arrays.fill( coordinates, Double.MAX_VALUE );
+        int length = reference.coordinate().length;
+        double[] coordinates = new double[length];
+        if ( reference.getCoordinateReferenceSystem().isGeographic() )
+        {
+            // WGS-84 boundaries
+            coordinates[0] = 180;
+            coordinates[1] = 90;
+            if ( length > 2 )
+            {
+                coordinates[2] = Double.MAX_VALUE;
+            }
+        }
+        else
+        {
+            Arrays.fill( coordinates, Double.MAX_VALUE );
+        }
         return pointValue( reference.getCoordinateReferenceSystem(), coordinates );
     }
 
@@ -589,7 +621,7 @@ public final class Values
         {
             if ( allowNull )
             {
-                return NoValue.NO_VALUE;
+                return NO_VALUE;
             }
             throw new IllegalArgumentException( "[null] is not a supported property value" );
         }

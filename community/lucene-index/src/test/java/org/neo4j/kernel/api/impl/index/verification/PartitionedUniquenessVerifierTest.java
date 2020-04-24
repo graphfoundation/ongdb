@@ -19,16 +19,14 @@
  */
 package org.neo4j.kernel.api.impl.index.verification;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.Test;
 import org.mockito.Answers;
-import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnitRunner;
 
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 
+import org.neo4j.kernel.api.impl.index.SearcherReference;
 import org.neo4j.kernel.api.impl.index.partition.PartitionSearcher;
 import org.neo4j.kernel.api.impl.schema.LuceneDocumentStructure;
 import org.neo4j.kernel.api.impl.schema.verification.DuplicateCheckingCollector;
@@ -42,18 +40,14 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.neo4j.kernel.api.impl.LuceneTestUtil.valueTupleList;
 
-@RunWith( MockitoJUnitRunner.class )
-public class PartitionedUniquenessVerifierTest
+class PartitionedUniquenessVerifierTest
 {
-    @Mock( answer = Answers.RETURNS_DEEP_STUBS )
-    private PartitionSearcher searcher1;
-    @Mock( answer = Answers.RETURNS_DEEP_STUBS )
-    private PartitionSearcher searcher2;
-    @Mock( answer = Answers.RETURNS_DEEP_STUBS )
-    private PartitionSearcher searcher3;
+    private final PartitionSearcher searcher1 = mock( PartitionSearcher.class, Answers.RETURNS_DEEP_STUBS );
+    private final PartitionSearcher searcher2 = mock( PartitionSearcher .class, Answers.RETURNS_DEEP_STUBS );
+    private final PartitionSearcher searcher3 = mock( PartitionSearcher .class, Answers.RETURNS_DEEP_STUBS );
 
     @Test
-    public void partitionSearchersAreClosed() throws IOException
+    void partitionSearchersAreClosed() throws IOException
     {
         PartitionedUniquenessVerifier verifier = createPartitionedVerifier();
 
@@ -65,7 +59,7 @@ public class PartitionedUniquenessVerifierTest
     }
 
     @Test
-    public void verifyPropertyUpdates() throws Exception
+    void verifyPropertyUpdates() throws Exception
     {
         PartitionedUniquenessVerifier verifier = createPartitionedVerifier();
         NodePropertyAccessor nodePropertyAccessor = mock( NodePropertyAccessor.class );
@@ -82,7 +76,7 @@ public class PartitionedUniquenessVerifierTest
         return new PartitionedUniquenessVerifier( getSearchers() );
     }
 
-    private List<PartitionSearcher> getSearchers()
+    private List<SearcherReference> getSearchers()
     {
         return Arrays.asList( searcher1, searcher2, searcher3 );
     }

@@ -19,13 +19,13 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
-import org.neo4j.cypher.internal.v3_6.util.NameId
-import org.neo4j.cypher.internal.v3_6.util.attribution.Id
+import org.neo4j.cypher.internal.runtime.ExecutionContext
+import org.neo4j.cypher.internal.v4_0.util.NameId
+import org.neo4j.cypher.internal.v4_0.util.attribution.Id
 import org.neo4j.values.storable.Values
 
 case class RelationshipCountFromCountStorePipe(ident: String, startLabel: Option[LazyLabel],
-                                               typeNames: LazyTypes, endLabel: Option[LazyLabel])
+                                               types: RelationshipTypes, endLabel: Option[LazyLabel])
                                               (val id: Id = Id.INVALID_ID) extends Pipe {
 
   protected def internalCreateResults(state: QueryState): Iterator[ExecutionContext] = {
@@ -34,7 +34,7 @@ case class RelationshipCountFromCountStorePipe(ident: String, startLabel: Option
 
     val count = (maybeStartLabelId, maybeEndLabelId) match {
       case (Some(startLabelId), Some(endLabelId)) =>
-        countOneDirection(state, typeNames, startLabelId, endLabelId)
+        countOneDirection(state, startLabelId, endLabelId)
 
       // If any of the specified labels does not exist the count is zero
       case _ =>
@@ -47,15 +47,24 @@ case class RelationshipCountFromCountStorePipe(ident: String, startLabel: Option
   }
 
   private def getLabelId(lazyLabel: Option[LazyLabel], state: QueryState): Option[Int] = lazyLabel match {
-      case Some(label) => label.getOptId(state.query).map(_.id)
-      case _ => Some(NameId.WILDCARD)
-    }
+    case Some(label) =>
+      val id = label.getId(state.query)
+      if (id == LazyLabel.UNKNOWN) None
+      else Some(id)
+    case _ => Some(NameId.WILDCARD)
+  }
 
-  private def countOneDirection(state: QueryState, typeNames: LazyTypes, startLabelId: Int, endLabelId: Int) =
-    typeNames.types(state.query) match {
-      case None => state.query.relationshipCountByCountStore(startLabelId, NameId.WILDCARD, endLabelId)
-      case Some(types) => types.foldLeft(0L) { (count, typeId) =>
-        count + state.query.relationshipCountByCountStore(startLabelId, typeId, endLabelId)
+  private def countOneDirection(state: QueryState, startLabelId: Int, endLabelId: Int) = {
+    val  ts = types.types(state.query)
+    if (ts == null) state.query.relationshipCountByCountStore(startLabelId, NameId.WILDCARD, endLabelId)
+    else {
+      var i = 0
+      var count = 0L
+      while (i < ts.length) {
+        count +=  state.query.relationshipCountByCountStore(startLabelId, ts(i), endLabelId)
+        i += 1
       }
+      count
     }
+  }
 }

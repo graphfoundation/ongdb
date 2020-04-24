@@ -26,21 +26,21 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.function.ToLongFunction;
 
+import org.neo4j.annotations.documented.ReporterFactory;
 import org.neo4j.graphdb.ResourceIterator;
-import org.neo4j.helpers.collection.BoundedIterable;
+import org.neo4j.internal.helpers.collection.BoundedIterable;
+import org.neo4j.internal.schema.IndexDescriptor;
 import org.neo4j.io.pagecache.IOLimiter;
 import org.neo4j.kernel.api.exceptions.index.IndexEntryConflictException;
 import org.neo4j.kernel.api.impl.schema.LuceneIndexReaderAcquisitionException;
 import org.neo4j.kernel.api.impl.schema.reader.LuceneAllEntriesIndexAccessorReader;
 import org.neo4j.kernel.api.impl.schema.writer.LuceneIndexWriter;
 import org.neo4j.kernel.api.index.IndexAccessor;
-import org.neo4j.kernel.api.index.IndexEntryUpdate;
+import org.neo4j.kernel.api.index.IndexReader;
 import org.neo4j.kernel.api.index.IndexUpdater;
-import org.neo4j.kernel.impl.annotations.ReporterFactory;
 import org.neo4j.kernel.impl.api.index.IndexUpdateMode;
+import org.neo4j.storageengine.api.IndexEntryUpdate;
 import org.neo4j.storageengine.api.NodePropertyAccessor;
-import org.neo4j.storageengine.api.schema.IndexDescriptor;
-import org.neo4j.storageengine.api.schema.IndexReader;
 import org.neo4j.values.storable.Value;
 
 public abstract class AbstractLuceneIndexAccessor<READER extends IndexReader, INDEX extends DatabaseIndex<READER>> implements IndexAccessor
@@ -131,9 +131,9 @@ public abstract class AbstractLuceneIndexAccessor<READER extends IndexReader, IN
         }
     }
 
-    public BoundedIterable<Long> newAllEntriesReader( ToLongFunction<Document> entityIdReader )
+    public BoundedIterable<Long> newAllEntriesReader( ToLongFunction<Document> entityIdReader, long fromIdInclusive, long toIdExclusive )
     {
-        return new LuceneAllEntriesIndexAccessorReader( luceneIndex.allDocumentsReader(), entityIdReader );
+        return new LuceneAllEntriesIndexAccessorReader( luceneIndex.allDocumentsReader(), entityIdReader, fromIdInclusive, toIdExclusive );
     }
 
     @Override
@@ -168,6 +168,12 @@ public abstract class AbstractLuceneIndexAccessor<READER extends IndexReader, IN
             visitor.isInconsistent( descriptor );
         }
         return isConsistent;
+    }
+
+    @Override
+    public long estimateNumberOfEntries()
+    {
+        return luceneIndex.allDocumentsReader().maxCount();
     }
 
     protected abstract class AbstractLuceneIndexUpdater implements IndexUpdater

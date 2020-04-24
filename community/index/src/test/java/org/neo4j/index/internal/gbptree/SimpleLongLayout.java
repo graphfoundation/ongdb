@@ -29,10 +29,6 @@ public class SimpleLongLayout extends TestLayout<MutableLong,MutableLong>
 {
     private final int keyPadding;
     private String customNameAsMetaData;
-    private final boolean fixedSize;
-    private final int identifier;
-    private final int majorVersion;
-    private final int minorVersion;
 
     public static class Builder
     {
@@ -90,14 +86,11 @@ public class SimpleLongLayout extends TestLayout<MutableLong,MutableLong>
         return new Builder();
     }
 
-    public SimpleLongLayout( int keyPadding, String customNameAsMetaData, boolean fixedSize, int identifier, int majorVersion, int minorVersion )
+    private SimpleLongLayout( int keyPadding, String customNameAsMetaData, boolean fixedSize, int identifier, int majorVersion, int minorVersion )
     {
+        super( fixedSize, identifier, majorVersion, minorVersion );
         this.keyPadding = keyPadding;
         this.customNameAsMetaData = customNameAsMetaData;
-        this.fixedSize = fixedSize;
-        this.identifier = identifier;
-        this.majorVersion = majorVersion;
-        this.minorVersion = minorVersion;
     }
 
     @Override
@@ -168,30 +161,6 @@ public class SimpleLongLayout extends TestLayout<MutableLong,MutableLong>
     public void readValue( PageCursor cursor, MutableLong into, int valueSize )
     {
         into.setValue( cursor.getLong() );
-    }
-
-    @Override
-    public boolean fixedSize()
-    {
-        return fixedSize;
-    }
-
-    @Override
-    public long identifier()
-    {
-        return identifier;
-    }
-
-    @Override
-    public int majorVersion()
-    {
-        return majorVersion;
-    }
-
-    @Override
-    public int minorVersion()
-    {
-        return minorVersion;
     }
 
     @Override
@@ -275,5 +244,17 @@ public class SimpleLongLayout extends TestLayout<MutableLong,MutableLong>
     public long valueSeed( MutableLong value )
     {
         return value.getValue();
+    }
+
+    @Override
+    public void initializeAsLowest( MutableLong key )
+    {
+        key.setValue( Long.MIN_VALUE );
+    }
+
+    @Override
+    public void initializeAsHighest( MutableLong key )
+    {
+        key.setValue( Long.MAX_VALUE );
     }
 }

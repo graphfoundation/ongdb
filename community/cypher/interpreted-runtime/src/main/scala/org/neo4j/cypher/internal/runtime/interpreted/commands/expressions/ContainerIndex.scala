@@ -19,9 +19,10 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.commands.expressions
 
+import org.neo4j.cypher.internal.runtime.IsNoValue
 import org.neo4j.cypher.internal.runtime.interpreted.commands.AstNode
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.QueryState
-import org.neo4j.cypher.internal.runtime.interpreted.{ExecutionContext, ListSupport}
+import org.neo4j.cypher.internal.runtime.{ExecutionContext, ListSupport}
 import org.neo4j.cypher.operations.CypherFunctions
 import org.neo4j.values._
 import org.neo4j.values.storable.Values.NO_VALUE
@@ -33,13 +34,18 @@ case class ContainerIndex(expression: Expression, index: Expression) extends Exp
 
   override def apply(ctx: ExecutionContext,
                      state: QueryState): AnyValue = expression(ctx, state) match {
-    case NO_VALUE => NO_VALUE
+    case IsNoValue() => NO_VALUE
     case value =>
       val idx = index(ctx, state)
-      if (idx eq NO_VALUE) NO_VALUE else CypherFunctions.containerIndex(value, idx, state.query)
+      if (idx eq NO_VALUE) NO_VALUE
+      else CypherFunctions.containerIndex(value,
+                                          idx,
+                                          state.query,
+                                          state.cursors.nodeCursor,
+                                          state.cursors.relationshipScanCursor,
+                                          state.cursors.propertyCursor)
   }
 
   override def rewrite(f: Expression => Expression): Expression = f(ContainerIndex(expression.rewrite(f), index.rewrite(f)))
 
-  override def symbolTableDependencies: Set[String] = expression.symbolTableDependencies ++ index.symbolTableDependencies
 }

@@ -129,8 +129,6 @@ public class Neo4jError
         {
         case "Schema":
             return Status.Schema.valueOf( error );
-        case "LegacyIndex":
-            return Status.LegacyIndex.valueOf( error );
         case "General":
             return Status.General.valueOf( error );
         case "Statement":
@@ -139,8 +137,6 @@ public class Neo4jError
             return Status.Transaction.valueOf( error );
         case "Request":
             return Status.Request.valueOf( error );
-        case "Network":
-            return Status.Network.valueOf( error );
         case "Security":
             return Status.Security.valueOf( error );
         default:
@@ -154,7 +150,7 @@ public class Neo4jError
         {
             if ( cause instanceof DatabaseShutdownException )
             {
-                return new Neo4jError( Status.General.DatabaseUnavailable, cause, isFatal );
+                return new Neo4jError( Status.Database.DatabaseUnavailable, cause, isFatal );
             }
             if ( cause instanceof Status.HasStatus )
             {

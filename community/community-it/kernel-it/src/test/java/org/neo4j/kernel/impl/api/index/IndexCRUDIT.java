@@ -19,10 +19,10 @@
  */
 package org.neo4j.kernel.impl.api.index;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -32,51 +32,60 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
+import org.neo4j.dbms.api.DatabaseManagementService;
 import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Transaction;
 import org.neo4j.internal.kernel.api.TokenRead;
-import org.neo4j.internal.kernel.api.exceptions.schema.MisconfiguredIndexException;
-import org.neo4j.internal.kernel.api.schema.LabelSchemaDescriptor;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.internal.schema.LabelSchemaDescriptor;
+import org.neo4j.internal.schema.SchemaDescriptor;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.kernel.api.KernelTransaction;
 import org.neo4j.kernel.api.index.IndexAccessor;
-import org.neo4j.kernel.api.index.IndexEntryUpdate;
 import org.neo4j.kernel.api.index.IndexPopulator;
 import org.neo4j.kernel.api.index.IndexProvider;
+import org.neo4j.kernel.api.index.IndexSample;
 import org.neo4j.kernel.api.index.IndexUpdater;
-import org.neo4j.storageengine.api.NodePropertyAccessor;
-import org.neo4j.kernel.api.schema.SchemaDescriptorFactory;
-import org.neo4j.kernel.extension.KernelExtensionFactory;
-import org.neo4j.kernel.impl.api.index.sampling.IndexSamplingConfig;
-import org.neo4j.kernel.impl.core.ThreadToStatementContextBridge;
+import org.neo4j.kernel.extension.ExtensionFactory;
+import org.neo4j.kernel.impl.coreapi.InternalTransaction;
 import org.neo4j.kernel.impl.index.schema.CollectingIndexUpdater;
-import org.neo4j.kernel.impl.storemigration.StoreMigrationParticipant;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
-import org.neo4j.storageengine.api.schema.IndexDescriptor;
-import org.neo4j.storageengine.api.schema.IndexSample;
-import org.neo4j.storageengine.api.schema.StoreIndexDescriptor;
-import org.neo4j.test.TestGraphDatabaseFactory;
-import org.neo4j.test.rule.fs.EphemeralFileSystemRule;
+import org.neo4j.storageengine.api.IndexEntryUpdate;
+import org.neo4j.storageengine.api.NodePropertyAccessor;
+import org.neo4j.storageengine.migration.StoreMigrationParticipant;
+import org.neo4j.test.TestDatabaseManagementServiceBuilder;
+import org.neo4j.test.extension.EphemeralFileSystemExtension;
 import org.neo4j.values.storable.Values;
 
 import static org.hamcrest.CoreMatchers.equalTo;
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-import static org.neo4j.graphdb.factory.GraphDatabaseSettings.default_schema_provider;
-import static org.neo4j.helpers.collection.Iterators.asSet;
-import static org.neo4j.helpers.collection.MapUtil.map;
+import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
+import static org.neo4j.configuration.GraphDatabaseSettings.default_schema_provider;
+import static org.neo4j.internal.helpers.collection.Iterators.asSet;
+import static org.neo4j.internal.helpers.collection.MapUtil.map;
 import static org.neo4j.kernel.impl.api.index.SchemaIndexTestHelper.singleInstanceIndexProviderFactory;
 import static org.neo4j.kernel.impl.api.index.TestIndexProviderDescriptor.PROVIDER_DESCRIPTOR;
 import static org.neo4j.test.mockito.matcher.Neo4jMatchers.createIndex;
 
-public class IndexCRUDIT
+@ExtendWith( EphemeralFileSystemExtension.class )
+class IndexCRUDIT
 {
+    private FileSystemAbstraction fs;
+
+    private GraphDatabaseAPI db;
+    private final IndexProvider mockedIndexProvider = mock( IndexProvider.class );
+    private final ExtensionFactory<?> mockedIndexProviderFactory = singleInstanceIndexProviderFactory( "none", mockedIndexProvider );
+    private final Label myLabel = Label.label( "MYLABEL" );
+
+    private DatabaseManagementService managementService;
+
     @Test
-    public void addingANodeWithPropertyShouldGetIndexed() throws Exception
+    void addingANodeWithPropertyShouldGetIndexed() throws Exception
     {
         // Given
         String indexProperty = "indexProperty";
@@ -92,15 +101,14 @@ public class IndexCRUDIT
         // Then, for now, this should trigger two NodePropertyUpdates
         try ( Transaction tx = db.beginTx() )
         {
-            KernelTransaction ktx =
-                    ctxSupplier.getKernelTransactionBoundToThisThread( true );
+            KernelTransaction ktx = ((InternalTransaction) tx).kernelTransaction();
             TokenRead tokenRead = ktx.tokenRead();
             int propertyKey1 = tokenRead.propertyKey( indexProperty );
             int label = tokenRead.nodeLabel( myLabel.name() );
-            LabelSchemaDescriptor descriptor = SchemaDescriptorFactory.forLabel( label, propertyKey1 );
+            LabelSchemaDescriptor descriptor = SchemaDescriptor.forLabel( label, propertyKey1 );
             assertThat( writer.updatesCommitted, equalTo( asSet(
                     IndexEntryUpdate.add( node.getId(), descriptor, Values.of( value1 ) ) ) ) );
-            tx.success();
+            tx.commit();
         }
         // We get two updates because we both add a label and a property to be indexed
         // in the same transaction, in the future, we should optimize this down to
@@ -108,7 +116,7 @@ public class IndexCRUDIT
     }
 
     @Test
-    public void addingALabelToPreExistingNodeShouldGetIndexed() throws Exception
+    void addingALabelToPreExistingNodeShouldGetIndexed() throws Exception
     {
         // GIVEN
         String indexProperty = "indexProperty";
@@ -127,75 +135,70 @@ public class IndexCRUDIT
         // AND WHEN
         try ( Transaction tx = db.beginTx() )
         {
+            node = tx.getNodeById( node.getId() );
             node.addLabel( myLabel );
-            tx.success();
+            tx.commit();
         }
 
         // THEN
         try ( Transaction tx = db.beginTx() )
         {
-            KernelTransaction ktx =
-                    ctxSupplier.getKernelTransactionBoundToThisThread( true );
+            KernelTransaction ktx = ((InternalTransaction) tx).kernelTransaction();
             TokenRead tokenRead = ktx.tokenRead();
             int propertyKey1 = tokenRead.propertyKey( indexProperty );
             int label = tokenRead.nodeLabel( myLabel.name() );
-            LabelSchemaDescriptor descriptor = SchemaDescriptorFactory.forLabel( label, propertyKey1 );
+            LabelSchemaDescriptor descriptor = SchemaDescriptor.forLabel( label, propertyKey1 );
             assertThat( writer.updatesCommitted, equalTo( asSet(
                     IndexEntryUpdate.add( node.getId(), descriptor, Values.of( value ) ) ) ) );
-            tx.success();
+            tx.commit();
         }
     }
-
-    private GraphDatabaseAPI db;
-    @Rule
-    public EphemeralFileSystemRule fs = new EphemeralFileSystemRule();
-    private final IndexProvider mockedIndexProvider = mock( IndexProvider.class );
-    private final KernelExtensionFactory<?> mockedIndexProviderFactory =
-            singleInstanceIndexProviderFactory( "none", mockedIndexProvider );
-    private ThreadToStatementContextBridge ctxSupplier;
-    private final Label myLabel = Label.label( "MYLABEL" );
 
     private Node createNode( Map<String, Object> properties, Label ... labels )
     {
         try ( Transaction tx = db.beginTx() )
         {
-            Node node = db.createNode( labels );
+            Node node = tx.createNode( labels );
             for ( Map.Entry<String, Object> prop : properties.entrySet() )
             {
                 node.setProperty( prop.getKey(), prop.getValue() );
             }
-            tx.success();
+            tx.commit();
             return node;
         }
     }
 
-    @Before
-    public void before() throws MisconfiguredIndexException
+    @BeforeEach
+    void before()
     {
         when( mockedIndexProvider.getProviderDescriptor() ).thenReturn( PROVIDER_DESCRIPTOR );
-        when( mockedIndexProvider.storeMigrationParticipant( any( FileSystemAbstraction.class ), any( PageCache.class ) ) )
+        when( mockedIndexProvider.storeMigrationParticipant( any( FileSystemAbstraction.class ), any( PageCache.class ), any() ) )
                 .thenReturn( StoreMigrationParticipant.NOT_PARTICIPATING );
-        when( mockedIndexProvider.bless( any( IndexDescriptor.class ) ) ).thenCallRealMethod();
-        TestGraphDatabaseFactory factory = new TestGraphDatabaseFactory();
-        factory.setFileSystem( fs.get() );
-        factory.setKernelExtensions(
-                Collections.singletonList( mockedIndexProviderFactory ) );
-        db = (GraphDatabaseAPI) factory.newImpermanentDatabaseBuilder().setConfig( default_schema_provider, PROVIDER_DESCRIPTOR.name() ).newGraphDatabase();
-        ctxSupplier = db.getDependencyResolver().resolveDependency( ThreadToStatementContextBridge.class );
+        when( mockedIndexProvider.completeConfiguration( any( IndexDescriptor.class ) ) ).then( inv -> inv.getArgument( 0 ) );
+
+        managementService = new TestDatabaseManagementServiceBuilder()
+            .setFileSystem( fs )
+                .setExtensions( Collections.singletonList( mockedIndexProviderFactory ) )
+                .noOpSystemGraphInitializer()
+                .impermanent()
+                .setConfig( default_schema_provider, PROVIDER_DESCRIPTOR.name() )
+                .build();
+
+        db = (GraphDatabaseAPI) managementService.database( DEFAULT_DATABASE_NAME );
     }
 
     private GatheringIndexWriter newWriter() throws IOException
     {
         GatheringIndexWriter writer = new GatheringIndexWriter();
-        when( mockedIndexProvider.getPopulator( any( StoreIndexDescriptor.class ), any( IndexSamplingConfig.class ), any() ) ).thenReturn( writer );
-        when( mockedIndexProvider.getOnlineAccessor( any( StoreIndexDescriptor.class ), any( IndexSamplingConfig.class ) ) ).thenReturn( writer );
+        when( mockedIndexProvider.getPopulator( any( IndexDescriptor.class ), any( IndexSamplingConfig.class ), any() ) ).thenReturn( writer );
+        when( mockedIndexProvider.getOnlineAccessor( any( IndexDescriptor.class ), any( IndexSamplingConfig.class ) ) ).thenReturn( writer );
         return writer;
     }
 
-    @After
-    public void after()
+    @AfterEach
+    void after()
     {
-        db.shutdown();
+        managementService.shutdown();
     }
 
     private static class GatheringIndexWriter extends IndexAccessor.Adapter implements IndexPopulator

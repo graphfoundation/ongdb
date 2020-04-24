@@ -19,7 +19,7 @@
  */
 package org.neo4j.kernel.impl.traversal;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Path;
@@ -27,7 +27,7 @@ import org.neo4j.graphdb.PathExpander;
 import org.neo4j.graphdb.traversal.BranchState;
 import org.neo4j.graphdb.traversal.TraversalBranch;
 import org.neo4j.graphdb.traversal.TraversalContext;
-import org.neo4j.helpers.collection.Iterables;
+import org.neo4j.internal.helpers.collection.Iterables;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -38,11 +38,11 @@ import static org.mockito.Mockito.verifyZeroInteractions;
 import static org.mockito.Mockito.when;
 import static org.neo4j.graphdb.traversal.Evaluation.INCLUDE_AND_CONTINUE;
 
-public class TraversalBranchImplTest
+class TraversalBranchImplTest
 {
     @SuppressWarnings( "unchecked" )
     @Test
-    public void shouldExpandOnFirstAccess()
+    void shouldExpandOnFirstAccess()
     {
         // GIVEN
         TraversalBranch parent = mock( TraversalBranch.class );

@@ -23,9 +23,9 @@ import org.apache.commons.lang3.mutable.MutableLong;
 
 import static org.neo4j.index.internal.gbptree.SimpleLongLayout.longLayout;
 
-public class InternalTreeLogicFixedSizeTest extends InternalTreeLogicTestBase<MutableLong,MutableLong>
+class InternalTreeLogicFixedSizeTest extends InternalTreeLogicTestBase<MutableLong,MutableLong>
 {
-    SimpleLongLayout layout = longLayout().build();
+    private SimpleLongLayout layout = longLayout().build();
 
     @Override
     protected ValueMerger<MutableLong,MutableLong> getAdder()
@@ -33,12 +33,13 @@ public class InternalTreeLogicFixedSizeTest extends InternalTreeLogicTestBase<Mu
         return ( existingKey, newKey, base, add ) ->
         {
             base.add( add.longValue() );
-            return base;
+            return ValueMerger.MergeResult.MERGED;
         };
     }
 
     @Override
-    protected TreeNode<MutableLong,MutableLong> getTreeNode( int pageSize, Layout<MutableLong,MutableLong> layout )
+    protected TreeNode<MutableLong,MutableLong> getTreeNode( int pageSize, Layout<MutableLong,MutableLong> layout,
+            OffloadStore<MutableLong,MutableLong> offloadStore )
     {
         return new TreeNodeFixedSize<>( pageSize, layout );
     }

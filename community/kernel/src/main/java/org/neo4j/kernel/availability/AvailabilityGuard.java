@@ -43,11 +43,6 @@ public interface AvailabilityGuard
     void fulfill( AvailabilityRequirement requirement );
 
     /**
-     * Shutdown the guard. After this method is invoked, the availability guard will always be considered unavailable.
-     */
-    void shutdown();
-
-    /**
      * Check if the database is available for transactions to use.
      *
      * @return true if there are no requirements waiting to be fulfilled and the guard has not been shutdown
@@ -66,14 +61,6 @@ public interface AvailabilityGuard
      * @return true if there are no requirements waiting to be fulfilled and the guard has not been shutdown
      */
     boolean isAvailable( long millis );
-
-    /**
-     * Checks if available. If not then an {@link UnavailableException} is thrown describing why.
-     * This methods doesn't wait like {@link #await(long)} does.
-     *
-     * @throws UnavailableException if not available.
-     */
-    void checkAvailable() throws UnavailableException;
 
     /**
      * Await the database becoming available.
@@ -96,4 +83,9 @@ public interface AvailabilityGuard
      * @param listener the listener to remove
      */
     void removeListener( AvailabilityListener listener );
+
+    /**
+     * @return a textual representation of what components, if any, are blocking
+     */
+    String describe();
 }

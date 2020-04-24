@@ -19,53 +19,55 @@
  */
 package org.neo4j.index;
 
-import org.junit.After;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Relationship;
 import org.neo4j.graphdb.Result;
 import org.neo4j.graphdb.Transaction;
-import org.neo4j.test.rule.EmbeddedDatabaseRule;
+import org.neo4j.test.extension.ImpermanentDbmsExtension;
+import org.neo4j.test.extension.Inject;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.neo4j.helpers.collection.MapUtil.map;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.neo4j.internal.helpers.collection.MapUtil.map;
 
-public class IndexFreshDataReadIT
+@ImpermanentDbmsExtension
+class IndexFreshDataReadIT
 {
-    @Rule
-    public EmbeddedDatabaseRule databaseRule = new EmbeddedDatabaseRule();
+    @Inject
+    private GraphDatabaseService db;
 
     private ExecutorService executor = Executors.newCachedThreadPool();
 
-    @After
-    public void tearDown()
+    @AfterEach
+    void tearDown()
     {
         executor.shutdown();
     }
 
     @Test
-    public void readLatestIndexDataAfterUsingExhaustedNodeRelationshipIterator() throws Exception
+    void readLatestIndexDataAfterUsingExhaustedNodeRelationshipIterator() throws Exception
     {
-        try ( Transaction transaction = databaseRule.beginTx() )
+        try ( Transaction transaction = db.beginTx() )
         {
             addStaffMember( "Fry" );
-            assertEquals( 1, countStaff().intValue() );
+            assertEquals( 1, countStaff( transaction ).intValue() );
 
-            Node fry = databaseRule.getNodeById( 0 );
+            Node fry = transaction.getNodeById( 0 );
             Iterable<Relationship> fryRelationships = fry.getRelationships();
             assertFalse( fryRelationships.iterator().hasNext() );
 
             addStaffMember( "Lila" );
-            assertEquals( 2, countStaff().intValue() );
+            assertEquals( 2, countStaff( transaction ).intValue() );
 
             addStaffMember( "Bender" );
-            assertEquals( 3, countStaff().intValue() );
+            assertEquals( 3, countStaff( transaction ).intValue() );
         }
     }
 
@@ -74,9 +76,9 @@ public class IndexFreshDataReadIT
         executor.submit( new CreateNamedNodeTask( name ) ).get();
     }
 
-    private Number countStaff()
+    private Number countStaff( Transaction tx )
     {
-        try ( Result countResult = databaseRule.execute( "MATCH (n:staff) return count(n.name) as count" ) )
+        try ( Result countResult = tx.execute( "MATCH (n:staff) return count(n.name) as count" ) )
         {
             return (Number) countResult.columnAs( "count" ).next();
         }
@@ -94,10 +96,10 @@ public class IndexFreshDataReadIT
         @Override
         public void run()
         {
-            try ( Transaction transaction = databaseRule.beginTx() )
+            try ( Transaction transaction = db.beginTx() )
             {
-                databaseRule.execute( "CREATE (n:staff {name:{name}})", map( "name", name ) );
-                transaction.success();
+                transaction.execute( "CREATE (n:staff {name:$name})", map( "name", name ) );
+                transaction.commit();
             }
         }
     }

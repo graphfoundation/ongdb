@@ -32,37 +32,30 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.function.Supplier;
 
+import org.neo4j.configuration.GraphDatabaseSettings;
+import org.neo4j.dbms.api.DatabaseManagementServiceBuilder;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Transaction;
-import org.neo4j.graphdb.factory.GraphDatabaseFactory;
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
-import org.neo4j.internal.kernel.api.IndexCapability;
+import org.neo4j.internal.id.IdController;
+import org.neo4j.internal.index.label.LabelScanReader;
 import org.neo4j.internal.kernel.api.InternalIndexState;
-import org.neo4j.internal.kernel.api.schema.IndexProviderDescriptor;
-import org.neo4j.io.fs.FileSystemAbstraction;
-import org.neo4j.io.pagecache.PageCache;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.internal.schema.IndexProviderDescriptor;
+import org.neo4j.io.memory.ByteBufferFactory;
 import org.neo4j.kernel.api.index.IndexAccessor;
-import org.neo4j.kernel.api.index.IndexEntryUpdate;
 import org.neo4j.kernel.api.index.IndexPopulator;
 import org.neo4j.kernel.api.index.IndexProvider;
 import org.neo4j.kernel.api.index.IndexUpdater;
-import org.neo4j.kernel.configuration.Settings;
+import org.neo4j.kernel.extension.ExtensionFactory;
 import org.neo4j.kernel.extension.ExtensionType;
-import org.neo4j.kernel.extension.KernelExtensionFactory;
-import org.neo4j.kernel.impl.api.index.sampling.IndexSamplingConfig;
-import org.neo4j.kernel.impl.index.schema.ByteBufferFactory;
-import org.neo4j.kernel.impl.spi.KernelContext;
-import org.neo4j.kernel.impl.storageengine.impl.recordstorage.id.IdController;
-import org.neo4j.kernel.impl.storemigration.StoreMigrationParticipant;
+import org.neo4j.kernel.extension.context.ExtensionContext;
 import org.neo4j.kernel.lifecycle.Lifecycle;
+import org.neo4j.storageengine.api.IndexEntryUpdate;
 import org.neo4j.storageengine.api.NodePropertyAccessor;
-import org.neo4j.storageengine.api.schema.IndexSample;
-import org.neo4j.storageengine.api.schema.LabelScanReader;
-import org.neo4j.storageengine.api.schema.StoreIndexDescriptor;
 import org.neo4j.test.Barrier;
-import org.neo4j.test.TestGraphDatabaseFactory;
-import org.neo4j.test.rule.DatabaseRule;
-import org.neo4j.test.rule.ImpermanentDatabaseRule;
+import org.neo4j.test.TestDatabaseManagementServiceBuilder;
+import org.neo4j.test.rule.DbmsRule;
+import org.neo4j.test.rule.ImpermanentDbmsRule;
 import org.neo4j.util.FeatureToggles;
 
 import static java.util.concurrent.TimeUnit.MINUTES;
@@ -71,13 +64,12 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
-import static org.neo4j.helpers.collection.Iterables.count;
-import static org.neo4j.helpers.collection.Iterables.filter;
+import static org.neo4j.internal.helpers.collection.Iterables.count;
+import static org.neo4j.internal.helpers.collection.Iterables.filter;
 import static org.neo4j.internal.kernel.api.InternalIndexState.POPULATING;
 import static org.neo4j.kernel.api.index.IndexDirectoryStructure.directoriesByProvider;
 import static org.neo4j.kernel.impl.api.index.MultipleIndexPopulator.BATCH_SIZE_NAME;
 import static org.neo4j.kernel.impl.api.index.MultipleIndexPopulator.QUEUE_THRESHOLD_NAME;
-import static org.neo4j.kernel.impl.storemigration.StoreMigrationParticipant.NOT_PARTICIPATING;
 import static org.neo4j.test.TestLabels.LABEL_ONE;
 
 public class IndexPopulationMissConcurrentUpdateIT
@@ -89,15 +81,14 @@ public class IndexPopulationMissConcurrentUpdateIT
     private final ControlledSchemaIndexProvider index = new ControlledSchemaIndexProvider();
 
     @Rule
-    public final DatabaseRule db = new ImpermanentDatabaseRule()
+    public final DbmsRule db = new ImpermanentDbmsRule()
     {
         @Override
-        protected GraphDatabaseFactory newFactory()
+        protected DatabaseManagementServiceBuilder newFactory()
         {
-            TestGraphDatabaseFactory factory = new TestGraphDatabaseFactory();
-            return factory.addKernelExtension( index );
+            return new TestDatabaseManagementServiceBuilder().impermanent().noOpSystemGraphInitializer().addExtension( index );
         }
-    }.withSetting( GraphDatabaseSettings.multi_threaded_schema_index_population_enabled, Settings.FALSE )
+    }.withSetting( GraphDatabaseSettings.multi_threaded_schema_index_population_enabled, false )
      .withSetting( GraphDatabaseSettings.default_schema_provider, ControlledSchemaIndexProvider.INDEX_PROVIDER.name() );
     // The single-threaded setting makes the test deterministic. The multi-threaded variant has the same problem tested below.
 
@@ -140,12 +131,12 @@ public class IndexPopulationMissConcurrentUpdateIT
             Node node;
             do
             {
-                node = db.createNode( LABEL_ONE );
+                node = tx.createNode( LABEL_ONE );
                 node.setProperty( NAME_PROPERTY, "Node " + nextId++ );
                 nodes.add( node );
             }
             while ( node.getId() < INITIAL_CREATION_NODE_ID_THRESHOLD );
-            tx.success();
+            tx.commit();
         }
         assertThat( "At least one node below the scan barrier threshold must have been created, otherwise test assumptions are invalid or outdated",
                 count( filter( n -> n.getId() <= SCAN_BARRIER_NODE_ID_THRESHOLD, nodes ) ), greaterThan( 0L ) );
@@ -158,8 +149,8 @@ public class IndexPopulationMissConcurrentUpdateIT
         // when
         try ( Transaction tx = db.beginTx() )
         {
-            db.schema().indexFor( LABEL_ONE ).on( NAME_PROPERTY ).create();
-            tx.success();
+            tx.schema().indexFor( LABEL_ONE ).on( NAME_PROPERTY ).create();
+            tx.commit();
         }
 
         index.barrier.await();
@@ -169,43 +160,43 @@ public class IndexPopulationMissConcurrentUpdateIT
             Node node;
             do
             {
-                node = db.createNode( LABEL_ONE );
+                node = tx.createNode( LABEL_ONE );
                 node.setProperty( NAME_PROPERTY, nextId++ );
                 nodes.add( node );
             }
             while ( node.getId() < index.populationAtId );
             // here we know that we have created a node in front of the index populator and also inside the cached bit-set of the label index reader
-            tx.success();
+            tx.commit();
         }
         index.barrier.release();
         try ( Transaction tx = db.beginTx() )
         {
-            db.schema().awaitIndexesOnline( 1, MINUTES );
-            tx.success();
+            tx.schema().awaitIndexesOnline( 1, MINUTES );
+            tx.commit();
         }
 
         // then all nodes must be in the index
         assertEquals( nodes.size(), index.entitiesByScan.size() + index.entitiesByUpdater.size() );
         try ( Transaction tx = db.beginTx() )
         {
-            for ( Node node : db.getAllNodes() )
+            for ( Node node : tx.getAllNodes() )
             {
                 assertTrue( index.entitiesByScan.contains( node.getId() ) || index.entitiesByUpdater.contains( node.getId() ) );
             }
-            tx.success();
+            tx.commit();
         }
     }
 
     /**
      * A very specific {@link IndexProvider} which can be paused and continued at juuust the right places.
      */
-    private static class ControlledSchemaIndexProvider extends KernelExtensionFactory<Supplier>
+    private static class ControlledSchemaIndexProvider extends ExtensionFactory<Supplier>
     {
         private final Barrier.Control barrier = new Barrier.Control();
         private final Set<Long> entitiesByScan = new ConcurrentSkipListSet<>();
         private final Set<Long> entitiesByUpdater = new ConcurrentSkipListSet<>();
         private volatile long populationAtId;
-        static IndexProviderDescriptor INDEX_PROVIDER = new IndexProviderDescriptor( "controlled", "1" );
+        static final IndexProviderDescriptor INDEX_PROVIDER = new IndexProviderDescriptor( "controlled", "1" );
 
         ControlledSchemaIndexProvider()
         {
@@ -213,25 +204,15 @@ public class IndexPopulationMissConcurrentUpdateIT
         }
 
         @Override
-        public Lifecycle newInstance( KernelContext context, Supplier noDependencies )
+        public Lifecycle newInstance( ExtensionContext context, Supplier noDependencies )
         {
-            return new IndexProvider( INDEX_PROVIDER, directoriesByProvider( new File( "not-even-persistent" ) ) )
+            return new IndexProvider.Adaptor( INDEX_PROVIDER, directoriesByProvider( new File( "not-even-persistent" ) ) )
             {
                 @Override
-                public IndexPopulator getPopulator( StoreIndexDescriptor descriptor, IndexSamplingConfig samplingConfig, ByteBufferFactory bufferFactory )
+                public IndexPopulator getPopulator( IndexDescriptor descriptor, IndexSamplingConfig samplingConfig, ByteBufferFactory bufferFactory )
                 {
-                    return new IndexPopulator()
+                    return new IndexPopulator.Adapter()
                     {
-                        @Override
-                        public void create()
-                        {
-                        }
-
-                        @Override
-                        public void drop()
-                        {
-                        }
-
                         @Override
                         public void add( Collection<? extends IndexEntryUpdate<?>> updates )
                         {
@@ -245,11 +226,6 @@ public class IndexPopulationMissConcurrentUpdateIT
                                     barrier.reached();
                                 }
                             }
-                        }
-
-                        @Override
-                        public void verifyDeferredConstraints( NodePropertyAccessor nodePropertyAccessor )
-                        {
                         }
 
                         @Override
@@ -282,48 +258,19 @@ public class IndexPopulationMissConcurrentUpdateIT
                         {
                             throw new UnsupportedOperationException();
                         }
-
-                        @Override
-                        public void includeSample( IndexEntryUpdate<?> update )
-                        {
-                        }
-
-                        @Override
-                        public IndexSample sampleResult()
-                        {
-                            return new IndexSample( 0, 0, 0 );
-                        }
                     };
                 }
 
                 @Override
-                public IndexAccessor getOnlineAccessor( StoreIndexDescriptor descriptor, IndexSamplingConfig samplingConfig )
+                public IndexAccessor getOnlineAccessor( IndexDescriptor descriptor, IndexSamplingConfig samplingConfig )
                 {
                     return mock( IndexAccessor.class );
                 }
 
                 @Override
-                public String getPopulationFailure( StoreIndexDescriptor descriptor )
-                {
-                    throw new IllegalStateException();
-                }
-
-                @Override
-                public InternalIndexState getInitialState( StoreIndexDescriptor descriptor )
+                public InternalIndexState getInitialState( IndexDescriptor descriptor )
                 {
                     return POPULATING;
-                }
-
-                @Override
-                public IndexCapability getCapability( StoreIndexDescriptor descriptor )
-                {
-                    return IndexCapability.NO_CAPABILITY;
-                }
-
-                @Override
-                public StoreMigrationParticipant storeMigrationParticipant( FileSystemAbstraction fs, PageCache pageCache )
-                {
-                    return NOT_PARTICIPATING;
                 }
             };
         }

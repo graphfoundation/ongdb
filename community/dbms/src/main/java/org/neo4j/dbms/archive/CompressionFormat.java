@@ -23,6 +23,7 @@ import com.github.luben.zstd.ZstdInputStream;
 import com.github.luben.zstd.ZstdOutputStream;
 import com.github.luben.zstd.util.Native;
 
+import java.io.BufferedOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -30,6 +31,10 @@ import java.io.PrintStream;
 import java.util.Arrays;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
+
+import org.neo4j.function.ThrowingSupplier;
+import org.neo4j.internal.helpers.Exceptions;
+import org.neo4j.io.IOUtils;
 
 public enum CompressionFormat
 {
@@ -58,6 +63,10 @@ public enum CompressionFormat
                 {
                     ZstdOutputStream zstdout = new ZstdOutputStream( stream );
                     zstdout.setChecksum( true );
+                    if ( Runtime.getRuntime().availableProcessors() > 2 )
+                    {
+                        zstdout.setWorkers( Runtime.getRuntime().availableProcessors() );
+                    }
                     zstdout.write( HEADER );
                     return zstdout;
                 }
@@ -77,6 +86,73 @@ public enum CompressionFormat
 
     public abstract OutputStream compress( OutputStream stream ) throws IOException;
     public abstract InputStream decompress( InputStream stream ) throws IOException;
+
+    /**
+     * @return {@code true} if the given {@link InputStream} is <em>directly</em> a compressed input stream of this format. With "directly" meaning that the
+     * compressed stream is not wrapped in other streams, like buffered or filtering input streams.
+     */
+    public boolean isFormat( InputStream stream )
+    {
+        return (this == ZSTD && stream instanceof ZstdInputStream) || (this == GZIP && stream instanceof GZIPInputStream);
+    }
+
+    public static OutputStream compress( ThrowingSupplier<OutputStream, IOException> streamSupplier ) throws IOException
+    {
+        return compress( streamSupplier, selectCompressionFormat() );
+    }
+
+    public static OutputStream compress( ThrowingSupplier<OutputStream, IOException> streamSupplier, CompressionFormat format ) throws IOException
+    {
+        OutputStream sink = streamSupplier.get();
+        try
+        {
+            return new BufferedOutputStream( format.compress( sink ) );
+        }
+        catch ( IOException ioe )
+        {
+            IOUtils.closeAllSilently( sink );
+            throw ioe;
+        }
+    }
+
+    public static InputStream decompress( ThrowingSupplier<InputStream, IOException> streamSupplier ) throws IOException
+    {
+        if ( selectCompressionFormat().equals( ZSTD ) )
+        {
+            //ZSTD is available, try it.
+            try
+            {
+                return decompress( streamSupplier, ZSTD );
+            }
+            catch (  IOException zstdIOe )
+            {
+                //It failed, lets try GZIP
+                try
+                {
+                    return decompress( streamSupplier, GZIP );
+                }
+                catch (  IOException gzipIOe )
+                {
+                    throw Exceptions.chain( zstdIOe, gzipIOe );
+                }
+            }
+        }
+        return decompress( streamSupplier, GZIP );
+    }
+
+    public static InputStream decompress( ThrowingSupplier<InputStream, IOException> streamSupplier, CompressionFormat format ) throws IOException
+    {
+        InputStream source = streamSupplier.get();
+        try
+        {
+            return format.decompress( source );
+        }
+        catch ( IOException ioe )
+        {
+            IOUtils.closeAllSilently( source );
+            throw ioe;
+        }
+    }
 
     public static CompressionFormat selectCompressionFormat()
     {

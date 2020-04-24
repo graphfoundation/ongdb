@@ -26,7 +26,7 @@ import java.util.function.Consumer;
 
 import org.neo4j.function.ThrowingConsumer;
 import org.neo4j.function.ThrowingFunction;
-import org.neo4j.helpers.Exceptions;
+import org.neo4j.internal.helpers.Exceptions;
 
 /**
  * Selects an instance given a certain slot.
@@ -110,8 +110,7 @@ class InstanceSelector<T>
      * @return A new {@link EnumMap} containing the mapped values.
      * @throws E exception from converter.
      */
-    @SuppressWarnings( "unchecked" )
-    <R,E extends Exception> Iterable<R> transform( ThrowingFunction<T,R,E> converter ) throws E
+    <R,E extends Exception> List<R> transform( ThrowingFunction<T,R,E> converter ) throws E
     {
         List<R> result = new ArrayList<>();
         for ( IndexSlot slot : IndexSlot.values() )
@@ -136,6 +135,20 @@ class InstanceSelector<T>
         if ( exception != null )
         {
             throw exception;
+        }
+    }
+
+    /**
+     * Convenience method for doing something to all instances, even those that haven't already been instantiated.
+     * If consumer throws for any instance, the rest will not be called.
+     *
+     * @param consumer {@link ThrowingConsumer} which performs some action on an instance.
+     */
+    <E extends Exception> void throwingForAll( ThrowingConsumer<T,E> consumer ) throws E
+    {
+        for ( IndexSlot slot : IndexSlot.values() )
+        {
+            consumer.accept( select( slot ) );
         }
     }
 

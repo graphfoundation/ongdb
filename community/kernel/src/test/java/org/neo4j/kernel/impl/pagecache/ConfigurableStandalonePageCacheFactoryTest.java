@@ -19,11 +19,9 @@
  */
 package org.neo4j.kernel.impl.pagecache;
 
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.File;
-import java.util.concurrent.TimeUnit;
 
 import org.neo4j.io.fs.DefaultFileSystemAbstraction;
 import org.neo4j.io.fs.FileSystemAbstraction;
@@ -31,27 +29,27 @@ import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.io.pagecache.PageCursor;
 import org.neo4j.io.pagecache.PagedFile;
 import org.neo4j.scheduler.JobScheduler;
-import org.neo4j.scheduler.ThreadPoolJobScheduler;
+import org.neo4j.test.extension.Inject;
+import org.neo4j.test.extension.testdirectory.TestDirectoryExtension;
 import org.neo4j.test.rule.TestDirectory;
-import org.neo4j.test.rule.VerboseTimeout;
+import org.neo4j.test.scheduler.ThreadPoolJobScheduler;
 
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-public class ConfigurableStandalonePageCacheFactoryTest
+@TestDirectoryExtension
+class ConfigurableStandalonePageCacheFactoryTest
 {
-    @Rule
-    public VerboseTimeout timeout = VerboseTimeout.builder().withTimeout( 30, TimeUnit.SECONDS ).build();
-    @Rule
-    public TestDirectory testDirectory = TestDirectory.testDirectory();
+    @Inject
+    private TestDirectory testDirectory;
 
     @Test
-    public void mustAutomaticallyStartEvictionThread() throws Exception
+    void mustAutomaticallyStartEvictionThread() throws Exception
     {
         try ( FileSystemAbstraction fs = new DefaultFileSystemAbstraction();
               JobScheduler jobScheduler = new ThreadPoolJobScheduler() )
         {
-            File file = new File( testDirectory.directory(), "a" ).getCanonicalFile();
-            fs.create( file ).close();
+            File file = new File( testDirectory.homeDir(), "a" ).getCanonicalFile();
+            fs.write( file ).close();
 
             try ( PageCache cache = ConfigurableStandalonePageCacheFactory.createPageCache( fs, jobScheduler );
                     PagedFile pf = cache.map( file, 4096 );

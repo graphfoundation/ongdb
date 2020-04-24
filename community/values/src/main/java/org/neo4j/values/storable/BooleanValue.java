@@ -36,7 +36,7 @@ public abstract class BooleanValue extends ScalarValue
     }
 
     @Override
-    public boolean eq( Object other )
+    public boolean equalTo( Object other )
     {
         return other instanceof Value && equals( (Value) other );
     }
@@ -73,6 +73,19 @@ public abstract class BooleanValue extends ScalarValue
         return "Boolean";
     }
 
+    @Override
+    protected long estimatedPayloadSize()
+    {
+        return 0L;
+    }
+
+    @Override
+    public long estimatedHeapUsage()
+    {
+        //BOOLEANS are singletons and doesn't add to heap usage
+        return 0L;
+    }
+
     public static final BooleanValue TRUE = new BooleanValue()
     {
         @Override
@@ -90,8 +103,7 @@ public abstract class BooleanValue extends ScalarValue
         @Override
         public int computeHash()
         {
-            //Use same as Boolean.TRUE.hashCode
-            return 1231;
+            return Boolean.hashCode( Boolean.TRUE );
         }
 
         @Override
@@ -149,8 +161,7 @@ public abstract class BooleanValue extends ScalarValue
         @Override
         public int computeHash()
         {
-            //Use same as Boolean.FALSE.hashCode
-            return 1237;
+            return Boolean.hashCode( Boolean.FALSE );
         }
 
         @Override

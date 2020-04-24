@@ -19,9 +19,10 @@
  */
 package org.neo4j.cypher.internal
 
-import org.neo4j.cypher.internal.compatibility.CypherCurrentCompiler
+import java.util.concurrent.ConcurrentHashMap
+
+import org.neo4j.cypher.internal.planning.CypherPlanner
 import org.neo4j.cypher.{CypherPlannerOption, CypherRuntimeOption, CypherUpdateStrategy, CypherVersion}
-import org.neo4j.kernel.impl.util.CopyOnWriteHashMap
 
 import scala.collection.JavaConversions._
 
@@ -30,28 +31,23 @@ import scala.collection.JavaConversions._
   *
   * @param factory factory to create compilers
   */
-class CompilerLibrary(factory: CompilerFactory) {
+class CompilerLibrary(factory: CompilerFactory, executionEngineProvider: () => ExecutionEngine) {
 
-  private val compilers = new CopyOnWriteHashMap[CompilerKey, Compiler]
+  private val compilers = new ConcurrentHashMap[CompilerKey, Compiler]
 
   def selectCompiler(cypherVersion: CypherVersion,
                      cypherPlanner: CypherPlannerOption,
                      cypherRuntime: CypherRuntimeOption,
                      cypherUpdateStrategy: CypherUpdateStrategy): Compiler = {
     val key = CompilerKey(cypherVersion, cypherPlanner, cypherRuntime, cypherUpdateStrategy)
-    val compiler = compilers.get(key)
-    if (compiler == null) {
-      compilers.put(key, factory.createCompiler(cypherVersion, cypherPlanner, cypherRuntime, cypherUpdateStrategy))
-      compilers.get(key)
-    } else compiler
+    compilers.computeIfAbsent(key, ignore => factory.createCompiler(cypherVersion, cypherPlanner, cypherRuntime, cypherUpdateStrategy, executionEngineProvider))
   }
 
   def clearCaches(): Long = {
     val numClearedEntries =
       compilers.values().collect {
-        case c: CachingPlanner[_] => c.clearCaches()
-        case c: CypherCurrentCompiler[_] if c.planner.isInstanceOf[CachingPlanner[_]] =>
-          c.planner.asInstanceOf[CachingPlanner[_]].clearCaches()
+        case c: CypherPlanner => c.clearCaches()
+        case c: CypherCurrentCompiler[_] if c.planner.isInstanceOf[CypherPlanner] => c.planner.clearCaches()
       }
 
     if (numClearedEntries.nonEmpty)

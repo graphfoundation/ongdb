@@ -26,12 +26,9 @@ import java.util.List;
 import org.neo4j.graphalgo.CostEvaluator;
 import org.neo4j.graphalgo.WeightedPath;
 import org.neo4j.graphdb.Path;
-import org.neo4j.helpers.collection.PrefetchingIterator;
-import org.neo4j.kernel.impl.util.NoneStrictMath;
+import org.neo4j.internal.helpers.MathUtil;
+import org.neo4j.internal.helpers.collection.PrefetchingIterator;
 
-/**
- * @author Anton Persson
- */
 public class TopFetchingWeightedPathIterator extends PrefetchingIterator<WeightedPath>
 {
     private final Iterator<Path> paths;
@@ -41,13 +38,7 @@ public class TopFetchingWeightedPathIterator extends PrefetchingIterator<Weighte
     private double foundWeight;
     private final double epsilon;
 
-    public TopFetchingWeightedPathIterator( Iterator<Path> paths, CostEvaluator<Double> costEvaluator )
-    {
-        this( paths, costEvaluator, NoneStrictMath.EPSILON );
-    }
-
-    public TopFetchingWeightedPathIterator( Iterator<Path> paths, CostEvaluator<Double> costEvaluator,
-            double epsilon )
+    public TopFetchingWeightedPathIterator( Iterator<Path> paths, CostEvaluator<Double> costEvaluator, double epsilon )
     {
         this.paths = paths;
         this.costEvaluator = costEvaluator;
@@ -66,12 +57,12 @@ public class TopFetchingWeightedPathIterator extends PrefetchingIterator<Weighte
             {
                 WeightedPath path = new WeightedPathImpl( costEvaluator, paths.next() );
 
-                if ( NoneStrictMath.compare( path.weight(), foundWeight, epsilon ) < 0 )
+                if ( MathUtil.compare( path.weight(), foundWeight, epsilon ) < 0 )
                 {
                     foundWeight = path.weight();
                     shortestPaths.clear();
                 }
-                if ( NoneStrictMath.compare( path.weight(), foundWeight, epsilon ) <= 0 )
+                if ( MathUtil.compare( path.weight(), foundWeight, epsilon ) <= 0 )
                 {
                     shortestPaths.add( path );
                 }

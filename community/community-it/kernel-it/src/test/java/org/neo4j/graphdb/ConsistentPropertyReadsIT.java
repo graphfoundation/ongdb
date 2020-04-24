@@ -19,31 +19,31 @@
  */
 package org.neo4j.graphdb;
 
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicLong;
 
-import org.neo4j.helpers.ArrayUtil;
+import org.neo4j.internal.helpers.ArrayUtil;
 import org.neo4j.test.Race;
-import org.neo4j.test.rule.DatabaseRule;
-import org.neo4j.test.rule.EmbeddedDatabaseRule;
+import org.neo4j.test.extension.ImpermanentDbmsExtension;
+import org.neo4j.test.extension.Inject;
 
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Test for how properties are read and that they should be read consistently, i.e. adhere to neo4j's
  * interpretation of the ACID guarantees.
  */
-public class ConsistentPropertyReadsIT
+@ImpermanentDbmsExtension
+class ConsistentPropertyReadsIT
 {
-    @Rule
-    public DatabaseRule db = new EmbeddedDatabaseRule();
+    @Inject
+    private GraphDatabaseService db;
 
     @Test
-    public void shouldReadConsistentPropertyValues() throws Throwable
+    void shouldReadConsistentPropertyValues() throws Throwable
     {
         // GIVEN
         final Node[] nodes = new Node[10];
@@ -57,13 +57,13 @@ public class ConsistentPropertyReadsIT
         {
             for ( int i = 0; i < nodes.length; i++ )
             {
-                nodes[i] = db.createNode();
+                nodes[i] = tx.createNode();
                 for ( String key : keys )
                 {
                     nodes[i].setProperty( key, values[0] );
                 }
             }
-            tx.success();
+            tx.commit();
         }
 
         int updaters = 10;
@@ -83,13 +83,13 @@ public class ConsistentPropertyReadsIT
                         String key = keys[random.nextInt( keys.length )];
                         try ( Transaction tx = db.beginTx() )
                         {
-                            node.removeProperty( key );
-                            tx.success();
+                            tx.getNodeById( node.getId() ).removeProperty( key );
+                            tx.commit();
                         }
                         try ( Transaction tx = db.beginTx() )
                         {
-                            node.setProperty( key, values[random.nextInt( values.length )] );
-                            tx.success();
+                            tx.getNodeById( node.getId() ).setProperty( key, values[random.nextInt( values.length )] );
+                            tx.commit();
                         }
                     }
                 }
@@ -109,10 +109,10 @@ public class ConsistentPropertyReadsIT
                 {
                     try ( Transaction tx = db.beginTx() )
                     {
-                        String value = (String) nodes[random.nextInt( nodes.length )]
+                        String value = (String) tx.getNodeById( nodes[random.nextInt( nodes.length )].getId() )
                                 .getProperty( keys[random.nextInt( keys.length )], null );
-                        assertTrue( value, value == null || ArrayUtil.contains( values, value ) );
-                        tx.success();
+                        assertTrue( value == null || ArrayUtil.contains( values, value ), value );
+                        tx.commit();
                     }
                 }
             } );

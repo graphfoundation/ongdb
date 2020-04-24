@@ -21,11 +21,12 @@ package org.neo4j.kernel.impl.locking;
 
 import java.util.stream.Stream;
 
-import org.neo4j.storageengine.api.lock.AcquireLockTimeoutException;
-import org.neo4j.storageengine.api.lock.LockTracer;
-import org.neo4j.storageengine.api.lock.ResourceLocker;
-import org.neo4j.storageengine.api.lock.ResourceType;
-import org.neo4j.storageengine.api.lock.WaitStrategy;
+import org.neo4j.kernel.impl.api.LeaseClient;
+import org.neo4j.lock.AcquireLockTimeoutException;
+import org.neo4j.lock.LockTracer;
+import org.neo4j.lock.ResourceLocker;
+import org.neo4j.lock.ResourceType;
+import org.neo4j.lock.WaitStrategy;
 
 /**
  * API for managing locks.
@@ -48,7 +49,6 @@ import org.neo4j.storageengine.api.lock.WaitStrategy;
  */
 public interface Locks
 {
-
     /** For introspection and debugging. */
     interface Visitor
     {
@@ -63,6 +63,13 @@ public interface Locks
          * Represents the fact that no lock session is used because no locks are taken.
          */
         int NO_LOCK_SESSION_ID = -1;
+
+        /**
+         * Initializes this locks client with a {@link LeaseClient} for the owning transaction. Must be called before any lock can be acquired.
+         * An lease that has become invalid can abort a transaction midway.
+         * @param leaseClient {@link LeaseClient} of the owning transaction.
+         */
+        void initialize( LeaseClient leaseClient );
 
         /**
          * Can be grabbed when there are no locks or only share locks on a resource. If the lock cannot be acquired,
@@ -116,7 +123,6 @@ public interface Locks
         @Override
         void close();
 
-        /** For slave transactions, this tracks an identifier for the lock session running on the master */
         int getLockSessionId();
 
         Stream<? extends ActiveLock> activeLocks();

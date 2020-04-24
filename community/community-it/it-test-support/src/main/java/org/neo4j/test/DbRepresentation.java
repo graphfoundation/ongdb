@@ -30,21 +30,27 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.concurrent.TimeUnit;
 
+import org.neo4j.configuration.Config;
+import org.neo4j.dbms.api.DatabaseManagementService;
+import org.neo4j.graphdb.DatabaseShutdownException;
 import org.neo4j.graphdb.Direction;
+import org.neo4j.graphdb.Entity;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Node;
-import org.neo4j.graphdb.PropertyContainer;
 import org.neo4j.graphdb.Relationship;
 import org.neo4j.graphdb.Transaction;
 import org.neo4j.graphdb.TransactionFailureException;
-import org.neo4j.graphdb.factory.GraphDatabaseBuilder;
-import org.neo4j.graphdb.index.Index;
-import org.neo4j.graphdb.index.IndexHits;
 import org.neo4j.graphdb.schema.ConstraintDefinition;
 import org.neo4j.graphdb.schema.IndexDefinition;
-import org.neo4j.kernel.configuration.Config;
-import org.neo4j.kernel.impl.util.IoPrimitiveUtils;
+import org.neo4j.io.fs.IoPrimitiveUtils;
+import org.neo4j.io.layout.DatabaseLayout;
+import org.neo4j.io.layout.Neo4jLayout;
+
+import static org.neo4j.configuration.GraphDatabaseSettings.databases_root_path;
+import static org.neo4j.configuration.GraphDatabaseSettings.default_database;
+import static org.neo4j.configuration.GraphDatabaseSettings.transaction_logs_root_path;
 
 public class DbRepresentation
 {
@@ -56,76 +62,136 @@ public class DbRepresentation
 
     public static DbRepresentation of( GraphDatabaseService db )
     {
-        return of( db, true );
-    }
-
-    public static DbRepresentation of( GraphDatabaseService db, boolean includeIndexes )
-    {
-        int retryCount = 5;
+        int retryCount = 30;
         while ( true )
         {
-            try ( Transaction ignore = db.beginTx() )
+            try ( Transaction transaction = db.beginTx() )
             {
+                var schema = transaction.schema();
+                schema.awaitIndexesOnline( 1, TimeUnit.MINUTES );
                 DbRepresentation result = new DbRepresentation();
-                for ( Node node : db.getAllNodes() )
+                for ( Node node : transaction.getAllNodes() )
                 {
-                    NodeRep nodeRep = new NodeRep( db, node, includeIndexes );
+                    NodeRep nodeRep = new NodeRep( node );
                     result.nodes.put( node.getId(), nodeRep );
                     result.highestNodeId = Math.max( node.getId(), result.highestNodeId );
-                    result.highestRelationshipId =
-                            Math.max( nodeRep.highestRelationshipId, result.highestRelationshipId );
-
+                    result.highestRelationshipId = Math.max( nodeRep.highestRelationshipId, result.highestRelationshipId );
                 }
-                for ( IndexDefinition indexDefinition : db.schema().getIndexes() )
+                for ( IndexDefinition indexDefinition : schema.getIndexes() )
                 {
                     result.schemaIndexes.add( indexDefinition );
                 }
-                for ( ConstraintDefinition constraintDefinition : db.schema().getConstraints() )
+                for ( ConstraintDefinition constraintDefinition : schema.getConstraints() )
                 {
                     result.constraints.add( constraintDefinition );
                 }
                 return result;
             }
-            catch ( TransactionFailureException e )
+            catch ( TransactionFailureException | DatabaseShutdownException e )
             {
                 if ( retryCount-- < 0 )
                 {
                     throw e;
                 }
+
+                try
+                {
+                    Thread.sleep( 1000 );
+                }
+                catch ( InterruptedException ex )
+                {
+                    throw new RuntimeException( e );
+                }
             }
         }
     }
 
-    public static DbRepresentation of( File storeDir )
+    public static DbRepresentation of( File databaseDirectory )
     {
-        return of( storeDir, true, Config.defaults() );
+        return of( databaseDirectory, Config.defaults() );
     }
 
-    public static DbRepresentation of( File storeDir, Config config )
+    public static DbRepresentation of( File databaseDirectory, Config config )
     {
-        return of( storeDir, true, config );
+        return of( databaseDirectory.getParentFile(), config.get( default_database ), config );
     }
 
-    public static DbRepresentation of( File storeDir, boolean includeIndexes, Config config )
+    public static DbRepresentation of( File storeDirectory, String databaseName )
     {
-        GraphDatabaseBuilder builder = new TestGraphDatabaseFactory().newEmbeddedDatabaseBuilder( storeDir );
-        builder.setConfig( config.getRaw() );
+        Config config = Config.defaults( transaction_logs_root_path, storeDirectory.toPath().toAbsolutePath() );
+        return of( storeDirectory, databaseName, config );
+    }
 
-        GraphDatabaseService db = builder.newGraphDatabase();
+    public static DbRepresentation of( File storeDirectory, String databaseName, Config config )
+    {
+        DatabaseManagementService managementService = new TestDatabaseManagementServiceBuilder( storeDirectory )
+                .setConfig( config )
+                .noOpSystemGraphInitializer()
+                .build();
+        GraphDatabaseService db = managementService.database( databaseName );
         try
         {
-            return of( db, includeIndexes );
+            return of( db );
         }
         finally
         {
-            db.shutdown();
+            managementService.shutdown();
         }
     }
 
-    @Override
-    public boolean equals( Object obj )
+    public static DbRepresentation of( DatabaseLayout databaseLayout )
     {
-        return compareWith( (DbRepresentation) obj ).isEmpty();
+        Neo4jLayout layout = databaseLayout.getNeo4jLayout();
+        return of( databaseLayout.databaseDirectory(),
+                Config.newBuilder()
+                        .set( transaction_logs_root_path, layout.transactionLogsRootDirectory().toPath().toAbsolutePath() )
+                        .set( databases_root_path, layout.databasesDirectory().toPath().toAbsolutePath() )
+                        .set( default_database, databaseLayout.getDatabaseName() )
+                        .build());
+    }
+
+    public static DbRepresentation of( DatabaseLayout databaseLayout, Config config )
+    {
+        Neo4jLayout layout = databaseLayout.getNeo4jLayout();
+        Config cfg = Config.newBuilder().fromConfig( config )
+                .setDefault( transaction_logs_root_path, layout.transactionLogsRootDirectory().toPath().toAbsolutePath() )
+                .setDefault( databases_root_path, layout.databasesDirectory().toPath().toAbsolutePath() )
+                .setDefault( default_database, databaseLayout.getDatabaseName() )
+                .build();
+        return of( databaseLayout.databaseDirectory(), cfg );
+    }
+
+    @Override
+    public boolean equals( Object o )
+    {
+        if ( this == o )
+        {
+            return true;
+        }
+        if ( o == null || getClass() != o.getClass() )
+        {
+            return false;
+        }
+        var other = (DbRepresentation) o;
+        return compareWith( other ).isEmpty();
+    }
+
+    @Override
+    public int hashCode()
+    {
+        return Objects.hash( nodes, schemaIndexes, constraints, highestNodeId, highestRelationshipId );
+    }
+
+    @Override
+    public String toString()
+    {
+        return "DbRepresentation{" +
+               "nodes=" + nodes +
+               ", schemaIndexes=" + schemaIndexes +
+               ", constraints=" + constraints +
+               ", highestNodeId=" + highestNodeId +
+               ", highestRelationshipId=" + highestRelationshipId +
+               '}';
     }
 
     // Accessed from HA-robustness, needs to be public
@@ -198,27 +264,14 @@ public class DbRepresentation
         }
     }
 
-    @Override
-    public int hashCode()
-    {
-        return nodes.hashCode();
-    }
-
-    @Override
-    public String toString()
-    {
-        return nodes.toString();
-    }
-
     private static class NodeRep
     {
         private final PropertiesRep properties;
         private final Map<Long,PropertiesRep> outRelationships = new HashMap<>();
         private final long highestRelationshipId;
         private final long id;
-        private final Map<String,Map<String,Serializable>> index;
 
-        NodeRep( GraphDatabaseService db, Node node, boolean includeIndexes )
+        NodeRep( Node node )
         {
             id = node.getId();
             properties = new PropertiesRep( node, node.getId() );
@@ -229,87 +282,6 @@ public class DbRepresentation
                 highestRel = Math.max( highestRel, rel.getId() );
             }
             this.highestRelationshipId = highestRel;
-            this.index = includeIndexes ? checkIndex( db ) : null;
-        }
-
-        private Map<String,Map<String,Serializable>> checkIndex( GraphDatabaseService db )
-        {
-            Map<String,Map<String,Serializable>> result = new HashMap<>();
-            for ( String indexName : db.index().nodeIndexNames() )
-            {
-                Map<String,Serializable> thisIndex = new HashMap<>();
-                Index<Node> tempIndex = db.index().forNodes( indexName );
-                for ( Map.Entry<String,Serializable> property : properties.props.entrySet() )
-                {
-                    try ( IndexHits<Node> content = tempIndex.get( property.getKey(), property.getValue() ) )
-                    {
-                        if ( content.hasNext() )
-                        {
-                            for ( Node hit : content )
-                            {
-                                if ( hit.getId() == id )
-                                {
-                                    thisIndex.put( property.getKey(), property.getValue() );
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                }
-                result.put( indexName, thisIndex );
-            }
-            return result;
-        }
-
-        /*
-         * Yes, this is not the best way to do it - hash map does a deep equals. However,
-         * if things go wrong, this way give the ability to check where the inequality
-         * happened. If you feel strongly about this, feel free to change.
-         * Admittedly, the implementation could use some cleanup.
-         */
-        private void compareIndex( NodeRep other, DiffReport diff )
-        {
-            if ( other.index == index )
-            {
-                return;
-            }
-            Collection<String> allIndexes = new HashSet<>();
-            allIndexes.addAll( index.keySet() );
-            allIndexes.addAll( other.index.keySet() );
-            for ( String indexName : allIndexes )
-            {
-                if ( !index.containsKey( indexName ) )
-                {
-                    diff.add( this + " isn't indexed in " + indexName + " for mine" );
-                    continue;
-                }
-                if ( !other.index.containsKey( indexName ) )
-                {
-                    diff.add( this + " isn't indexed in " + indexName + " for other" );
-                    continue;
-                }
-
-                Map<String,Serializable> thisIndex = index.get( indexName );
-                Map<String,Serializable> otherIndex = other.index.get( indexName );
-
-                if ( thisIndex.size() != otherIndex.size() )
-                {
-                    diff.add( "other index had a different mapping count than me for node " + this + " mine:" +
-                            thisIndex + ", other:" + otherIndex );
-                    continue;
-                }
-
-                for ( Map.Entry<String,Serializable> indexEntry : thisIndex.entrySet() )
-                {
-                    if ( !indexEntry.getValue().equals(
-                            otherIndex.get( indexEntry.getKey() ) ) )
-                    {
-                        diff.add( "other index had a different value indexed for " + indexEntry.getKey() + "=" +
-                                indexEntry.getValue() + ", namely " + otherIndex.get( indexEntry.getKey() ) +
-                                " for " + this );
-                    }
-                }
-            }
         }
 
         void compareWith( NodeRep other, DiffReport diff )
@@ -319,10 +291,6 @@ public class DbRepresentation
                 diff.add( "Id differs mine:" + id + ", other:" + other.id );
             }
             properties.compareWith( other.properties, diff );
-            if ( index != null && other.index != null )
-            {
-                compareIndex( other, diff );
-            }
             compareRelationships( other, diff );
         }
 
@@ -355,10 +323,6 @@ public class DbRepresentation
             result += properties.hashCode() * 7;
             result += outRelationships.hashCode() * 13;
             result += id * 17;
-            if ( index != null )
-            {
-                result += index.hashCode() * 19;
-            }
             return result;
         }
 
@@ -375,14 +339,13 @@ public class DbRepresentation
             }
             NodeRep nodeRep = (NodeRep) o;
             return id == nodeRep.id && Objects.equals( properties, nodeRep.properties ) &&
-                    Objects.equals( outRelationships, nodeRep.outRelationships ) &&
-                    Objects.equals( index, nodeRep.index );
+                    Objects.equals( outRelationships, nodeRep.outRelationships );
         }
 
         @Override
         public String toString()
         {
-            return "<id: " + id + " props: " + properties + ", rels: " + outRelationships + ", index: " + index + ">";
+            return "<id: " + id + " props: " + properties + ", rels: " + outRelationships;
         }
     }
 
@@ -392,7 +355,7 @@ public class DbRepresentation
         private final String entityToString;
         private final long entityId;
 
-        PropertiesRep( PropertyContainer entity, long id )
+        PropertiesRep( Entity entity, long id )
         {
             this.entityId = id;
             this.entityToString = entity.toString();

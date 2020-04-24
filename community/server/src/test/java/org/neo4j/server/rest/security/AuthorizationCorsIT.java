@@ -21,14 +21,11 @@ package org.neo4j.server.rest.security;
 
 import org.junit.Test;
 
-import javax.ws.rs.core.HttpHeaders;
-
 import org.neo4j.server.web.HttpMethod;
 import org.neo4j.test.server.HTTP;
 
-import static com.sun.jersey.api.client.ClientResponse.Status.FORBIDDEN;
-import static com.sun.jersey.api.client.ClientResponse.Status.OK;
-import static com.sun.jersey.api.client.ClientResponse.Status.UNAUTHORIZED;
+import static javax.ws.rs.core.Response.Status.OK;
+import static javax.ws.rs.core.Response.Status.UNAUTHORIZED;
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
@@ -64,9 +61,9 @@ public class AuthorizationCorsIT extends CommunityServerTestBase
 
         HTTP.Response response = runQuery( "neo4j", "neo4j" );
 
-        assertEquals( FORBIDDEN.getStatusCode(), response.status() );
+        assertEquals( OK.getStatusCode(), response.status() );
         assertCorsHeaderPresent( response );
-        assertThat( response.content().toString(), containsString( "password_change" ) );
+        assertPermissionErrorAtDataAccess( response );
     }
 
     @Test
@@ -124,7 +121,7 @@ public class AuthorizationCorsIT extends CommunityServerTestBase
     {
         startServer( false );
 
-        HTTP.Builder requestBuilder = requestWithHeaders( "authDisabled", "authDisabled" )
+        HTTP.Builder requestBuilder = HTTP.withBasicAuth( "authDisabled", "authDisabled" )
                 .withHeaders( ACCESS_CONTROL_REQUEST_HEADERS, "Accept, X-Not-Accept" );
         HTTP.Response response = runQuery( requestBuilder );
 
@@ -140,7 +137,7 @@ public class AuthorizationCorsIT extends CommunityServerTestBase
 
     private void testCorsAllowMethods( HttpMethod method, String origin ) throws Exception
     {
-        HTTP.Builder requestBuilder = requestWithHeaders( "authDisabled", "authDisabled" )
+        HTTP.Builder requestBuilder = HTTP.withBasicAuth( "authDisabled", "authDisabled" )
                 .withHeaders( ACCESS_CONTROL_REQUEST_METHOD, method.toString() );
         HTTP.Response response = runQuery( requestBuilder );
 
@@ -151,27 +148,20 @@ public class AuthorizationCorsIT extends CommunityServerTestBase
 
     private HTTP.Response changePassword( String username, String oldPassword, String newPassword )
     {
-        HTTP.RawPayload passwordChange = quotedJson( "{'password': '" + newPassword + "'}" );
-        return requestWithHeaders( username, oldPassword ).POST( passwordURL( username ), passwordChange );
+        HTTP.RawPayload passwordChange = query( String.format( "ALTER CURRENT USER SET PASSWORD FROM '%s' TO '%s'",
+                oldPassword, newPassword ) );
+        return HTTP.withBasicAuth( username, oldPassword ).POST( txCommitURL( "system" ), passwordChange );
     }
 
     private HTTP.Response runQuery( String username, String password )
     {
-        return runQuery( requestWithHeaders( username, password ) );
+        return runQuery( HTTP.withBasicAuth( username, password ) );
     }
 
     private HTTP.Response runQuery( HTTP.Builder requestBuilder )
     {
         HTTP.RawPayload statements = quotedJson( "{'statements': [{'statement': 'RETURN 42'}]}" );
         return requestBuilder.POST( txCommitURL(), statements );
-    }
-
-    private static HTTP.Builder requestWithHeaders( String username, String password )
-    {
-        return HTTP.withBasicAuth( username, password ).withHeaders(
-                HttpHeaders.ACCEPT, "application/json; charset=UTF-8",
-                HttpHeaders.CONTENT_TYPE, "application/json"
-        );
     }
 
     private static void assertCorsHeaderPresent( HTTP.Response response )

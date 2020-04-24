@@ -21,9 +21,9 @@ package org.neo4j.kernel.impl.locking.community;
 
 import org.junit.jupiter.api.Test;
 
-import org.neo4j.kernel.configuration.Config;
+import org.neo4j.configuration.Config;
 import org.neo4j.kernel.impl.locking.Locks;
-import org.neo4j.kernel.impl.locking.ResourceTypes;
+import org.neo4j.lock.ResourceTypes;
 import org.neo4j.time.Clocks;
 
 import static org.hamcrest.MatcherAssert.assertThat;

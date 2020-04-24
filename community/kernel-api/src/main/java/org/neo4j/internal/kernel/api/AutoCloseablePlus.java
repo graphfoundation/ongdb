@@ -22,11 +22,33 @@ package org.neo4j.internal.kernel.api;
 /**
  * Enriches AutoCloseable with isClosed(). This method can be used to query whether a resource was closed or
  * to make sure that it is only closed once.
+ * <p>
+ * Also provides ability to register a listener for when this is closed.
  */
 public interface AutoCloseablePlus extends AutoCloseable
 {
     @Override
     void close();
 
+    /**
+     * Same as close(), but invoked before the listener has been notified.
+     */
+    void closeInternal();
+
     boolean isClosed();
+
+    void setCloseListener( CloseListener closeListener );
+
+    CloseListener getCloseListener();
+
+    /**
+     * Assigns a token to the AutoCloseable that can be used to as an index for faster lookups.
+     * @param token the token to assign to the AutoCloseable
+     */
+    void setToken( int token );
+
+    /**
+     * Retrieves the token associated with the AutoCloseable
+     */
+    int getToken();
 }

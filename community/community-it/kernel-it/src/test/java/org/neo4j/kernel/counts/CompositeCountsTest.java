@@ -19,11 +19,7 @@
  */
 package org.neo4j.kernel.counts;
 
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-
-import java.util.function.Supplier;
+import org.junit.jupiter.api.Test;
 
 import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.Node;
@@ -32,36 +28,37 @@ import org.neo4j.graphdb.RelationshipType;
 import org.neo4j.graphdb.Transaction;
 import org.neo4j.internal.kernel.api.TokenRead;
 import org.neo4j.kernel.api.KernelTransaction;
-import org.neo4j.kernel.api.Statement;
-import org.neo4j.kernel.api.StatementConstants;
-import org.neo4j.kernel.impl.core.ThreadToStatementContextBridge;
-import org.neo4j.test.rule.DatabaseRule;
-import org.neo4j.test.rule.ImpermanentDatabaseRule;
+import org.neo4j.kernel.impl.coreapi.InternalTransaction;
+import org.neo4j.kernel.internal.GraphDatabaseAPI;
+import org.neo4j.test.extension.ImpermanentDbmsExtension;
+import org.neo4j.test.extension.Inject;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.neo4j.graphdb.Label.label;
 import static org.neo4j.graphdb.RelationshipType.withName;
+import static org.neo4j.internal.kernel.api.TokenRead.ANY_LABEL;
 
-public class CompositeCountsTest
+@ImpermanentDbmsExtension
+class CompositeCountsTest
 {
-    @Rule
-    public final DatabaseRule db = new ImpermanentDatabaseRule();
+    @Inject
+    private GraphDatabaseAPI db;
 
     @Test
-    public void shouldReportNumberOfRelationshipsFromNodesWithGivenLabel()
+    void shouldReportNumberOfRelationshipsFromNodesWithGivenLabel()
     {
         // given
         try ( Transaction tx = db.beginTx() )
         {
-            Node foo = db.createNode( label( "Foo" ) );
-            Node fooBar = db.createNode( label( "Foo" ), label( "Bar" ) );
-            Node bar = db.createNode( label( "Bar" ) );
-            foo.createRelationshipTo( db.createNode(), withName( "ALPHA" ) );
+            Node foo = tx.createNode( label( "Foo" ) );
+            Node fooBar = tx.createNode( label( "Foo" ), label( "Bar" ) );
+            Node bar = tx.createNode( label( "Bar" ) );
+            foo.createRelationshipTo( tx.createNode(), withName( "ALPHA" ) );
             foo.createRelationshipTo( fooBar, withName( "BETA" ) );
-            fooBar.createRelationshipTo( db.createNode( label( "Bar" ) ), withName( "BETA" ) );
-            fooBar.createRelationshipTo( db.createNode(), withName( "GAMMA" ) );
-            bar.createRelationshipTo( db.createNode( label( "Foo" ) ), withName( "GAMMA" ) );
-            tx.success();
+            fooBar.createRelationshipTo( tx.createNode( label( "Bar" ) ), withName( "BETA" ) );
+            fooBar.createRelationshipTo( tx.createNode(), withName( "GAMMA" ) );
+            bar.createRelationshipTo( tx.createNode( label( "Foo" ) ), withName( "GAMMA" ) );
+            tx.commit();
         }
 
         // then
@@ -81,25 +78,25 @@ public class CompositeCountsTest
     }
 
     @Test
-    public void shouldMaintainCountsOnRelationshipCreate()
+    void shouldMaintainCountsOnRelationshipCreate()
     {
         // given
         Node foo;
         Node bar;
         try ( Transaction tx = db.beginTx() )
         {
-            foo = db.createNode( label( "Foo" ) );
-            bar = db.createNode( label( "Bar" ) );
+            foo = tx.createNode( label( "Foo" ) );
+            bar = tx.createNode( label( "Bar" ) );
 
-            tx.success();
+            tx.commit();
         }
 
         // when
         try ( Transaction tx = db.beginTx() )
         {
-            foo.createRelationshipTo( bar, withName( "KNOWS" ) );
+            tx.getNodeById( foo.getId() ).createRelationshipTo( bar, withName( "KNOWS" ) );
 
-            tx.success();
+            tx.commit();
         }
 
         // then
@@ -110,24 +107,24 @@ public class CompositeCountsTest
     }
 
     @Test
-    public void shouldMaintainCountsOnRelationshipDelete()
+    void shouldMaintainCountsOnRelationshipDelete()
     {
         // given
         Relationship relationship;
         try ( Transaction tx = db.beginTx() )
         {
-            relationship = db.createNode( label( "Foo" ) ).createRelationshipTo(
-                    db.createNode( label( "Bar" ) ), withName( "KNOWS" ) );
+            relationship = tx.createNode( label( "Foo" ) ).createRelationshipTo(
+                    tx.createNode( label( "Bar" ) ), withName( "KNOWS" ) );
 
-            tx.success();
+            tx.commit();
         }
 
         // when
         try ( Transaction tx = db.beginTx() )
         {
-            relationship.delete();
+            tx.getRelationshipById( relationship.getId() ).delete();
 
-            tx.success();
+            tx.commit();
         }
 
         // then
@@ -138,26 +135,26 @@ public class CompositeCountsTest
     }
 
     @Test
-    public void shouldMaintainCountsOnLabelAdd()
+    void shouldMaintainCountsOnLabelAdd()
     {
         // given
         Node foo;
         Node bar;
         try ( Transaction tx = db.beginTx() )
         {
-            foo = db.createNode();
-            bar = db.createNode( label( "Bar" ) );
+            foo = tx.createNode();
+            bar = tx.createNode( label( "Bar" ) );
             foo.createRelationshipTo( bar, withName( "KNOWS" ) );
 
-            tx.success();
+            tx.commit();
         }
 
         // when
         try ( Transaction tx = db.beginTx() )
         {
-            foo.addLabel( label( "Foo" ) );
+            tx.getNodeById( foo.getId() ).addLabel( label( "Foo" ) );
 
-            tx.success();
+            tx.commit();
         }
 
         // then
@@ -168,26 +165,26 @@ public class CompositeCountsTest
     }
 
     @Test
-    public void shouldMaintainCountsOnLabelRemove()
+    void shouldMaintainCountsOnLabelRemove()
     {
         // given
         Node foo;
         Node bar;
         try ( Transaction tx = db.beginTx() )
         {
-            foo = db.createNode( label( "Foo" ) );
-            bar = db.createNode( label( "Bar" ) );
+            foo = tx.createNode( label( "Foo" ) );
+            bar = tx.createNode( label( "Bar" ) );
             foo.createRelationshipTo( bar, withName( "KNOWS" ) );
 
-            tx.success();
+            tx.commit();
         }
 
         // when
         try ( Transaction tx = db.beginTx() )
         {
-            foo.removeLabel( label( "Foo" ) );
+            tx.getNodeById( foo.getId() ).removeLabel( label( "Foo" ) );
 
-            tx.success();
+            tx.commit();
         }
 
         // then
@@ -198,27 +195,28 @@ public class CompositeCountsTest
     }
 
     @Test
-    public void shouldMaintainCountsOnLabelAddAndRelationshipCreate()
+    void shouldMaintainCountsOnLabelAddAndRelationshipCreate()
     {
         // given
         Node foo;
         Node bar;
         try ( Transaction tx = db.beginTx() )
         {
-            foo = db.createNode( label( "Foo" ) );
-            bar = db.createNode( label( "Bar" ) );
+            foo = tx.createNode( label( "Foo" ) );
+            bar = tx.createNode( label( "Bar" ) );
             foo.createRelationshipTo( bar, withName( "KNOWS" ) );
 
-            tx.success();
+            tx.commit();
         }
 
         // when
         try ( Transaction tx = db.beginTx() )
         {
+            foo = tx.getNodeById( foo.getId() );
             foo.addLabel( label( "Bar" ) );
-            foo.createRelationshipTo( db.createNode( label( "Foo" ) ), withName( "KNOWS" ) );
+            foo.createRelationshipTo( tx.createNode( label( "Foo" ) ), withName( "KNOWS" ) );
 
-            tx.success();
+            tx.commit();
         }
 
         // then
@@ -229,7 +227,7 @@ public class CompositeCountsTest
     }
 
     @Test
-    public void shouldMaintainCountsOnLabelRemoveAndRelationshipDelete()
+    void shouldMaintainCountsOnLabelRemoveAndRelationshipDelete()
     {
         // given
         Node foo;
@@ -237,21 +235,21 @@ public class CompositeCountsTest
         Relationship rel;
         try ( Transaction tx = db.beginTx() )
         {
-            foo = db.createNode( label( "Foo" ), label( "Bar" ) );
-            bar = db.createNode( label( "Bar" ) );
+            foo = tx.createNode( label( "Foo" ), label( "Bar" ) );
+            bar = tx.createNode( label( "Bar" ) );
             foo.createRelationshipTo( bar, withName( "KNOWS" ) );
             rel = bar.createRelationshipTo( foo, withName( "KNOWS" ) );
 
-            tx.success();
+            tx.commit();
         }
 
         // when
         try ( Transaction tx = db.beginTx() )
         {
-            foo.removeLabel( label( "Bar" ) );
-            rel.delete();
+            tx.getNodeById( foo.getId() ).removeLabel( label( "Bar" ) );
+            tx.getRelationshipById( rel.getId() ).delete();
 
-            tx.success();
+            tx.commit();
         }
 
         // then
@@ -262,7 +260,7 @@ public class CompositeCountsTest
     }
 
     @Test
-    public void shouldMaintainCountsOnLabelAddAndRelationshipDelete()
+    void shouldMaintainCountsOnLabelAddAndRelationshipDelete()
     {
         // given
         Node foo;
@@ -270,21 +268,21 @@ public class CompositeCountsTest
         Relationship rel;
         try ( Transaction tx = db.beginTx() )
         {
-            foo = db.createNode( label( "Foo" ) );
-            bar = db.createNode( label( "Bar" ) );
+            foo = tx.createNode( label( "Foo" ) );
+            bar = tx.createNode( label( "Bar" ) );
             foo.createRelationshipTo( bar, withName( "KNOWS" ) );
             rel = bar.createRelationshipTo( foo, withName( "KNOWS" ) );
 
-            tx.success();
+            tx.commit();
         }
 
         // when
         try ( Transaction tx = db.beginTx() )
         {
-            foo.addLabel( label( "Bar" ) );
-            rel.delete();
+            tx.getNodeById( foo.getId() ).addLabel( label( "Bar" ) );
+            tx.getRelationshipById( rel.getId() ).delete();
 
-            tx.success();
+            tx.commit();
         }
 
         // then
@@ -295,27 +293,28 @@ public class CompositeCountsTest
     }
 
     @Test
-    public void shouldMaintainCountsOnLabelRemoveAndRelationshipCreate()
+    void shouldMaintainCountsOnLabelRemoveAndRelationshipCreate()
     {
         // given
         Node foo;
         Node bar;
         try ( Transaction tx = db.beginTx() )
         {
-            foo = db.createNode( label( "Foo" ), label( "Bar" ) );
-            bar = db.createNode( label( "Bar" ) );
+            foo = tx.createNode( label( "Foo" ), label( "Bar" ) );
+            bar = tx.createNode( label( "Bar" ) );
             foo.createRelationshipTo( bar, withName( "KNOWS" ) );
 
-            tx.success();
+            tx.commit();
         }
 
         // when
         try ( Transaction tx = db.beginTx() )
         {
+            foo = tx.getNodeById( foo.getId() );
             foo.removeLabel( label( "Bar" ) );
-            foo.createRelationshipTo( db.createNode( label( "Foo" ) ), withName( "KNOWS" ) );
+            foo.createRelationshipTo( tx.createNode( label( "Foo" ) ), withName( "KNOWS" ) );
 
-            tx.success();
+            tx.commit();
         }
 
         // then
@@ -326,25 +325,25 @@ public class CompositeCountsTest
     }
 
     @Test
-    public void shouldNotUpdateCountsIfCreatedRelationshipIsDeletedInSameTransaction()
+    void shouldNotUpdateCountsIfCreatedRelationshipIsDeletedInSameTransaction()
     {
         // given
         Node foo;
         Node bar;
         try ( Transaction tx = db.beginTx() )
         {
-            foo = db.createNode( label( "Foo" ) );
-            bar = db.createNode( label( "Bar" ) );
+            foo = tx.createNode( label( "Foo" ) );
+            bar = tx.createNode( label( "Bar" ) );
 
-            tx.success();
+            tx.commit();
         }
 
         // when
         try ( Transaction tx = db.beginTx() )
         {
-            foo.createRelationshipTo( bar, withName( "KNOWS" ) ).delete();
+            tx.getNodeById( foo.getId() ).createRelationshipTo( bar, withName( "KNOWS" ) ).delete();
 
-            tx.success();
+            tx.commit();
         }
 
         // then
@@ -355,14 +354,14 @@ public class CompositeCountsTest
     }
 
     /**
-     * Transactional version of {@link #countsForRelationship(Label, RelationshipType, Label)}
+     * Transactional version of {@link #countsForRelationship(Transaction, Label, RelationshipType, Label)}
      */
     private MatchingRelationships numberOfRelationshipsMatching( Label lhs, RelationshipType type, Label rhs )
     {
-        try ( Transaction tx = db.getGraphDatabaseAPI().beginTx() )
+        try ( Transaction tx = db.beginTx() )
         {
-            long nodeCount = countsForRelationship( lhs, type, rhs );
-            tx.success();
+            long nodeCount = countsForRelationship( tx, lhs, type, rhs );
+            tx.commit();
             return new MatchingRelationships( String.format( "(%s)-%s->(%s)",
                                                              lhs == null ? "" : ":" + lhs.name(),
                                                              type == null ? "" : "[:" + type.name() + "]",
@@ -381,9 +380,9 @@ public class CompositeCountsTest
             this.count = count;
         }
 
-        public void shouldBe( long expected )
+        void shouldBe( long expected )
         {
-            assertEquals( message, expected, count );
+            assertEquals( expected, count, message );
         }
     }
 
@@ -392,61 +391,49 @@ public class CompositeCountsTest
      * @param type  the type of the relationships to get the number of, or {@code null} for "any".
      * @param end   the label of the end node of relationships to get the number of, or {@code null} for "any".
      */
-    private long countsForRelationship( Label start, RelationshipType type, Label end )
+    private long countsForRelationship( Transaction tx, Label start, RelationshipType type, Label end )
     {
-        KernelTransaction transaction = transactionSupplier.get();
-        try ( Statement ignore = transaction.acquireStatement() )
+        KernelTransaction transaction = ((InternalTransaction) tx).kernelTransaction();
+        TokenRead tokenRead = transaction.tokenRead();
+        int startId;
+        int typeId;
+        int endId;
+        // start
+        if ( start == null )
         {
-            TokenRead tokenRead = transaction.tokenRead();
-            int startId;
-            int typeId;
-            int endId;
-            // start
-            if ( start == null )
-            {
-                startId = StatementConstants.ANY_LABEL;
-            }
-            else
-            {
-                if ( TokenRead.NO_TOKEN == (startId = tokenRead.nodeLabel( start.name() )) )
-                {
-                    return 0;
-                }
-            }
-            // type
-            if ( type == null )
-            {
-                typeId = TokenRead.NO_TOKEN;
-            }
-            else
-            {
-                if ( TokenRead.NO_TOKEN == (typeId = tokenRead.relationshipType( type.name() )) )
-                {
-                    return 0;
-                }
-            }
-            // end
-            if ( end == null )
-            {
-                endId = StatementConstants.ANY_LABEL;
-            }
-            else
-            {
-                if ( TokenRead.NO_TOKEN == (endId = tokenRead.nodeLabel( end.name() )) )
-                {
-                    return 0;
-                }
-            }
-            return transaction.dataRead().countsForRelationship( startId, typeId, endId );
+            startId = ANY_LABEL;
         }
-    }
-
-    private Supplier<KernelTransaction> transactionSupplier;
-
-    @Before
-    public void exposeGuts()
-    {
-        transactionSupplier = () -> db.getGraphDatabaseAPI().getDependencyResolver()
-                              .resolveDependency( ThreadToStatementContextBridge.class ).getKernelTransactionBoundToThisThread( true );
+        else
+        {
+            if ( TokenRead.NO_TOKEN == (startId = tokenRead.nodeLabel( start.name() )) )
+            {
+                return 0;
+            }
+        }
+        // type
+        if ( type == null )
+        {
+            typeId = TokenRead.NO_TOKEN;
+        }
+        else
+        {
+            if ( TokenRead.NO_TOKEN == (typeId = tokenRead.relationshipType( type.name() )) )
+            {
+                return 0;
+            }
+        }
+        // end
+        if ( end == null )
+        {
+            endId = ANY_LABEL;
+        }
+        else
+        {
+            if ( TokenRead.NO_TOKEN == (endId = tokenRead.nodeLabel( end.name() )) )
+            {
+                return 0;
+            }
+        }
+        return transaction.dataRead().countsForRelationship( startId, typeId, endId );
     }
 }

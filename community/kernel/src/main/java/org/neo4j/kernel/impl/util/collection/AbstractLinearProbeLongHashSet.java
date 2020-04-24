@@ -233,10 +233,7 @@ abstract class AbstractLinearProbeLongHashSet extends AbstractLongIterable imple
     public <V> MutableSet<V> collect( LongToObjectFunction<? extends V> function )
     {
         final MutableSet<V> result = new UnifiedSet<>( size() );
-        each( element ->
-        {
-            result.add( function.apply( element ) );
-        } );
+        each( element -> result.add( function.apply( element ) ) );
         return result;
     }
 
