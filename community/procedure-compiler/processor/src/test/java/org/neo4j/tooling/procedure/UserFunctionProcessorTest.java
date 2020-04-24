@@ -1,10 +1,13 @@
 /*
+ * Copyright (c) 2018-2020 "Graph Foundation"
+ * Graph Foundation, Inc. [https://graphfoundation.org]
+ *
  * Copyright (c) 2002-2020 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
- * This file is part of Neo4j.
+ * This file is part of ONgDB.
  *
- * Neo4j is free software: you can redistribute it and/or modify
+ * ONgDB is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
@@ -53,10 +56,10 @@ public class UserFunctionProcessorTest extends ExtensionTestBase
                         .withErrorCount( 2 );
 
         compilation.withErrorContaining( "@org.neo4j.procedure.Name usage error: missing on parameter <parameter>" )
-                .in( function ).onLine( 28 );
+                .in( function ).onLine( 31 );
 
         compilation.withErrorContaining( "@org.neo4j.procedure.Name usage error: missing on parameter <otherParam>" )
-                .in( function ).onLine( 28 );
+                .in( function ).onLine( 31 );
     }
 
     @Test
@@ -69,7 +72,7 @@ public class UserFunctionProcessorTest extends ExtensionTestBase
                 .withErrorContaining(
                         "Unsupported return type <java.util.stream.Stream<java.lang.Long>> of function defined in " +
                 "<org.neo4j.tooling.procedure.procedures.invalid.bad_return_type.BadReturnTypeUserFunction#wrongReturnTypeFunction>" )
-                .in( function ).onLine( 36 );
+                .in( function ).onLine( 39 );
     }
 
     @Test
@@ -81,7 +84,7 @@ public class UserFunctionProcessorTest extends ExtensionTestBase
         assert_().about( javaSource() ).that( function ).processedWith( processor() ).failsToCompile().withErrorCount( 1 )
                 .withErrorContaining(
                         "Unsupported parameter type <short> of procedure|function BadPrimitiveInputUserFunction#doSomething" )
-                .in( function ).onLine( 32 );
+                .in( function ).onLine( 35 );
     }
 
     @Test
@@ -96,15 +99,15 @@ public class UserFunctionProcessorTest extends ExtensionTestBase
 
         compilation.withErrorContaining( "Unsupported parameter type " +
                 "<java.util.List<java.util.List<java.util.Map<java.lang.String,java.lang.Thread>>>>" +
-                " of procedure|function BadGenericInputUserFunction#doSomething" ).in( function ).onLine( 36 );
+                " of procedure|function BadGenericInputUserFunction#doSomething" ).in( function ).onLine( 39 );
 
         compilation.withErrorContaining( "Unsupported parameter type " +
                 "<java.util.Map<java.lang.String,java.util.List<java.util.concurrent.ExecutorService>>>" +
-                " of procedure|function BadGenericInputUserFunction#doSomething2" ).in( function ).onLine( 42 );
+                " of procedure|function BadGenericInputUserFunction#doSomething2" ).in( function ).onLine( 45 );
 
         compilation.withErrorContaining(
                 "Unsupported parameter type <java.util.Map> of procedure|function BadGenericInputUserFunction#doSomething3" )
-                .in( function ).onLine( 48 );
+                .in( function ).onLine( 51 );
     }
 
     @Test
