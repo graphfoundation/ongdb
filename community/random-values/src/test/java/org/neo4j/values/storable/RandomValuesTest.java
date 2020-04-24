@@ -52,7 +52,7 @@ import static org.neo4j.values.storable.Values.longValue;
 
 abstract class RandomValuesTest
 {
-    private static final int ITERATIONS = 1000;
+    private static final int ITERATIONS = 500;
 
     private RandomValues randomValues;
 

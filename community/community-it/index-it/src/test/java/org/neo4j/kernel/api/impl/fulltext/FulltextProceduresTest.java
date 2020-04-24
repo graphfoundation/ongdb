@@ -994,7 +994,7 @@ public class FulltextProceduresTest
     }
 
     @Test
-    public void fulltextIndexMustIgnoreNonStringNonNumberPropertiesForUpdate()
+    public void fulltextIndexMustIgnoreNonStringPropertiesForUpdate()
     {
         db = createDatabase();
 
@@ -1008,7 +1008,7 @@ public class FulltextProceduresTest
 
         awaitIndexesOnline();
 
-        List<Value> values = generateRandomNonStringNonNumberValues();
+        List<Value> values = generateRandomNonStringValues();
 
         try ( Transaction tx = db.beginTx() )
         {
@@ -1054,11 +1054,11 @@ public class FulltextProceduresTest
     }
 
     @Test
-    public void fulltextIndexMustIgnoreNonStringNonNumberPropertiesForPopulation()
+    public void fulltextIndexMustIgnoreNonStringPropertiesForPopulation()
     {
         db = createDatabase();
 
-        List<Value> values = generateRandomNonStringNonNumberValues();
+        List<Value> values = generateRandomNonStringValues();
 
         try ( Transaction tx = db.beginTx() )
         {
@@ -2948,40 +2948,6 @@ public class FulltextProceduresTest
         }
     }
 
-    @Test
-    public void fulltextIndexMustWorkAfterRestartWithTxStateChanges()
-    {
-        // Create node and relationship fulltext indexes
-        db = createDatabase();
-        try ( Transaction tx = db.beginTx() )
-        {
-            db.execute( format( NODE_CREATE, "nodes", array( LABEL.name() ), array( PROP ) ) ).close();
-            createSimpleRelationshipIndex();
-            tx.success();
-        }
-        awaitIndexesOnline();
-
-        // Restart
-        db.shutdown();
-        db = createDatabase();
-
-        // Query node
-        try ( Transaction tx = db.beginTx() )
-        {
-            db.createNode(); // Tx state changed
-            db.execute( format( QUERY_NODES, "nodes", "*" ) ).close();
-            tx.success();
-        }
-
-        // Query relationship
-        try ( Transaction tx = db.beginTx() )
-        {
-            db.createNode(); // Tx state changed
-            db.execute( format( QUERY_RELS, "rels", "*" ) ).close();
-            tx.success();
-        }
-    }
-
     private void assertNoIndexSeeks( Result result )
     {
         assertThat( result.stream().count(), is( 1L ) );
@@ -3097,12 +3063,6 @@ public class FulltextProceduresTest
     private List<Value> generateRandomNonStringValues()
     {
         Predicate<Value> nonString = v -> v.valueGroup() != ValueGroup.TEXT;
-        return generateRandomValues( nonString );
-    }
-
-    private List<Value> generateRandomNonStringNonNumberValues()
-    {
-        Predicate<Value> nonString = v -> v.valueGroup() != ValueGroup.TEXT && v.valueGroup() != ValueGroup.NUMBER;
         return generateRandomValues( nonString );
     }
 

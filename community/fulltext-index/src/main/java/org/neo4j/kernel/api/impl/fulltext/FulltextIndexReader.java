@@ -105,10 +105,6 @@ public class FulltextIndexReader implements IndexReader
         }
     }
 
-    public abstract ScoreEntityIterator queryWithSort( String query, String sortProp, String sortDirection ) throws ParseException;
-
-    public abstract CountResult queryForCount( String query ) throws ParseException;
-
     @Override
     public IndexSampler createSampler()
     {

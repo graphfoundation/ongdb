@@ -113,7 +113,7 @@
             <artifactId>commons-compress</artifactId>
         </dependency>
         <dependency>
-            <groupId>org.graphfoundation.ongdb.build</groupId>
+            <groupId>org.graphfoundation.ongdb.licensing-proxy</groupId>
             <artifactId>zstd-proxy</artifactId>
             <version>${project.version}</version>
         </dependency>

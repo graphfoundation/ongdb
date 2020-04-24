@@ -42,8 +42,8 @@ import org.neo4j.storageengine.api.txstate.TxStateVisitor;
 @ServiceProvider
 public class StandardConstraintSemantics extends ConstraintSemantics
 {
-    public static final String ERROR_MESSAGE_EXISTS = "Property existence constraint requires ONgDB Enterprise Edition";
-    public static final String ERROR_MESSAGE_NODE_KEY = "Node Key constraint requires ONgDB Enterprise Edition";
+    public static final String ERROR_MESSAGE_EXISTS = "Property existence constraint requires Neo4j Enterprise Edition";
+    public static final String ERROR_MESSAGE_NODE_KEY = "Node Key constraint requires Neo4j Enterprise Edition";
 
     protected final StandardConstraintRuleAccessor accessor = new StandardConstraintRuleAccessor();
 

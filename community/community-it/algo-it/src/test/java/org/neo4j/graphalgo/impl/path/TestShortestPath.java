@@ -66,7 +66,7 @@ import static org.neo4j.internal.helpers.collection.Iterables.count;
 class TestShortestPath extends Neo4jAlgoTestCase
 {
     // Attempt at recreating this issue without cypher
-    // https://github.com/graphfoundation/ongdb/issues/4160
+    // https://github.com/neo4j/neo4j/issues/4160
     @Test
     void shouldAbortAsSoonAsPossible()
     {

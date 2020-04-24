@@ -13,7 +13,7 @@
     <packaging>jar</packaging>
 
     <name>ONgDB - Procedure Compiler Core</name>
-    <description>ONgDB Stored Procedure compile-time annotation processor</description>
+    <description>Neo4j Stored Procedure compile-time annotation processor</description>
 
     <properties>
         <license-text.header>headers/GPL-3-header.txt</license-text.header>
@@ -81,7 +81,7 @@
     <dependencies>
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb</artifactId>
+            <artifactId>neo4j</artifactId>
             <version>${project.version}</version>
             <scope>provided</scope>
         </dependency>

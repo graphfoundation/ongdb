@@ -1375,16 +1375,10 @@ public class Operations implements Write, SchemaWrite
     private static void assertValidDescriptor( SchemaDescriptor descriptor, SchemaKernelException.OperationContext context )
             throws RepeatedSchemaComponentException
     {
-        long numUniqueProp = Arrays.stream( descriptor.getPropertyIdsNoSorts() ).distinct().count();
+        long numUniqueProp = Arrays.stream( descriptor.getPropertyIds() ).distinct().count();
         long numUniqueEntityTokens = Arrays.stream( descriptor.getEntityTokenIds() ).distinct().count();
 
-        long numUniqueSort = Arrays.stream( descriptor.getSortIds() ).distinct().count();
-
-        if ( numUniqueProp != descriptor.getPropertyIdsNoSorts().length )
-        {
-            throw new RepeatedPropertyInSchemaException( descriptor, context );
-        }
-        if ( numUniqueSort != descriptor.getSortIds().length )
+        if ( numUniqueProp != descriptor.getPropertyIds().length )
         {
             throw new RepeatedPropertyInSchemaException( descriptor, context );
         }
