@@ -25,8 +25,14 @@ package org.neo4j.cypher
 import java.util.regex.Pattern
 
 import org.junit.Assert._
+import org.neo4j.cypher.internal.v4_0.util.test_helpers.WindowsStringSafe
+
+import scala.collection.JavaConverters._
 
 class ExecutionResultTest extends ExecutionEngineFunSuite {
+
+  implicit val windowsSafe = WindowsStringSafe
+
   test("columnOrderIsPreserved") {
     val columns = List("zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine")
 
@@ -41,7 +47,7 @@ class ExecutionResultTest extends ExecutionEngineFunSuite {
     val regex = "zero.*one.*two.*three.*four.*five.*six.*seven.*eight.*nine"
     val pattern = Pattern.compile(regex)
 
-    val stringDump = graph.execute(q).resultAsString()
+    val stringDump = graph.withTx(tx => tx.execute(q).resultAsString())
     assertTrue( "Columns did not appear in the expected order: \n" + stringDump, pattern.matcher(stringDump).find() )
   }
 
@@ -108,13 +114,11 @@ class ExecutionResultTest extends ExecutionEngineFunSuite {
     assert(stats.indexesRemoved === 0)
   }
 
-  test("correctIndexStatisticsForIndexAddedTwice") {
-    execute("create index on :Person(name)")
-
-    val result = execute("create index on :Person(name)")
+  test("correctIndexStatisticsForIndexWithNameAdded") {
+    val result = execute("create index my_index for (n:Person) on (n.name)")
     val stats  = result.queryStatistics()
 
-    assert(stats.indexesAdded === 0)
+    assert(stats.indexesAdded === 1)
     assert(stats.indexesRemoved === 0)
   }
 
@@ -126,13 +130,36 @@ class ExecutionResultTest extends ExecutionEngineFunSuite {
     assert(stats.uniqueConstraintsRemoved === 0)
   }
 
-  test("correctConstraintStatisticsForUniquenessConstraintAddedTwice") {
-    execute("create constraint on (n:Person) assert n.name is unique")
+  test("hasNext should not change resultAsString") {
+    graph.withTx( tx => {
+      val result = tx.execute("UNWIND [1,2,3] AS x RETURN x")
+      result.hasNext
+      result.resultAsString() should equal(
+        """+---+
+          || x |
+          |+---+
+          || 1 |
+          || 2 |
+          || 3 |
+          |+---+
+          |3 rows
+          |""".stripMargin)
+    })
+  }
 
-    val result = execute("create constraint on (n:Person) assert n.name is unique")
-    val stats  = result.queryStatistics()
-
-    assert(stats.uniqueConstraintsAdded === 0)
-    assert(stats.uniqueConstraintsRemoved === 0)
+  test("next should change resultAsString") {
+    graph.withTx( tx => {
+      val result = tx.execute("UNWIND [1,2,3] AS x RETURN x")
+      result.next().asScala should equal(Map("x" -> 1))
+      result.resultAsString() should equal(
+        """+---+
+          || x |
+          |+---+
+          || 2 |
+          || 3 |
+          |+---+
+          |2 rows
+          |""".stripMargin)
+    })
   }
 }

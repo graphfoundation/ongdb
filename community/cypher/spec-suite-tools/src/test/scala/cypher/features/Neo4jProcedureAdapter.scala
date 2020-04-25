@@ -23,15 +23,17 @@
 package cypher.features
 
 import org.neo4j.collection.RawIterator
-import org.neo4j.cypher.internal.v3_6.util.symbols.{CTBoolean, CTFloat, CTInteger, CTMap, CTNode, CTNumber, CTPath, CTRelationship, CTString, CypherType, ListType}
+import org.neo4j.cypher.internal.v4_0.util.symbols.{CTBoolean, CTFloat, CTInteger, CTMap, CTNode, CTNumber, CTPath, CTRelationship, CTString, CypherType, ListType}
 import org.neo4j.internal.kernel.api.exceptions.ProcedureException
 import org.neo4j.internal.kernel.api.procs
 import org.neo4j.internal.kernel.api.procs.Neo4jTypes
-import org.neo4j.kernel.api.proc.CallableProcedure.BasicProcedure
-import org.neo4j.kernel.api.proc.Context
-import org.neo4j.kernel.api.{InwardKernel, ResourceTracker}
+import org.neo4j.kernel.api.procedure.CallableProcedure.BasicProcedure
+import org.neo4j.kernel.api.procedure.Context
+import org.neo4j.kernel.api.{Kernel, ResourceTracker}
+import org.neo4j.kernel.impl.util.ValueUtils
 import org.neo4j.kernel.internal.GraphDatabaseAPI
 import org.neo4j.procedure.Mode
+import org.neo4j.values.AnyValue
 import org.opencypher.tools.tck.api.{CypherValueRecords, Graph, ProcedureSupport}
 import org.opencypher.tools.tck.values.CypherValue
 
@@ -57,14 +59,14 @@ object Neo4jValueRecords {
 trait Neo4jProcedureAdapter extends ProcedureSupport {
   self: Graph =>
 
-  protected def instance: GraphDatabaseAPI
+  protected def database: GraphDatabaseAPI
 
   protected val parser = new ProcedureSignatureParser
 
   override def registerProcedure(signature: String, values: CypherValueRecords): Unit = {
     val parsedSignature = parser.parse(signature)
     val kernelProcedure = buildProcedure(parsedSignature, values)
-    Try(instance.getDependencyResolver.resolveDependency(classOf[InwardKernel]).registerProcedure(kernelProcedure)) match {
+    Try(database.getDependencyResolver.resolveDependency(classOf[Kernel]).registerProcedure(kernelProcedure)) match {
       case Success(_) =>
       case Failure(e) => System.err.println(s"\nRegistration of procedure $signature failed: " + e.getMessage)
     }
@@ -78,19 +80,20 @@ trait Neo4jProcedureAdapter extends ProcedureSupport {
         s"Data table columns must be the same as all signature fields (inputs + outputs) in order (Actual: ${neo4jValues.rows} Expected: $signatureFields)"
       )
     val kernelSignature = asKernelSignature(parsedSignature)
+    val rows = neo4jValues.rows.map(_.map(ValueUtils.of))
     val kernelProcedure = new BasicProcedure(kernelSignature) {
       override def apply(ctx: Context,
-                         input: Array[AnyRef],
-                         resourceTracker: ResourceTracker): RawIterator[Array[AnyRef], ProcedureException] = {
+                         input: Array[AnyValue],
+                         resourceTracker: ResourceTracker): RawIterator[Array[AnyValue], ProcedureException] = {
         // For example of usage see ProcedureCallAcceptance.feature e.g. "Standalone call to procedure with explicit arguments"
-        val rowsWithMatchingInput = neo4jValues.rows.filter { row =>
+        val rowsWithMatchingInput = rows.filter { row =>
           row.startsWith(input)
         }
         val extractResultsFromRows = rowsWithMatchingInput.map { row =>
           row.drop(input.length)
         }
 
-        val rawIterator = RawIterator.wrap[Array[AnyRef], ProcedureException](extractResultsFromRows.toIterator.asJava)
+        val rawIterator = RawIterator.wrap[Array[AnyValue], ProcedureException](extractResultsFromRows.toIterator.asJava)
         rawIterator
       }
     }

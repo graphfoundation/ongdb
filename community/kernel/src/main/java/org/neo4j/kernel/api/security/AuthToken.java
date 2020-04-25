@@ -32,7 +32,7 @@ import org.neo4j.kernel.api.security.exception.InvalidAuthTokenException;
 import org.neo4j.string.UTF8;
 
 import static java.lang.String.format;
-import static org.neo4j.helpers.collection.MapUtil.map;
+import static org.neo4j.internal.helpers.collection.MapUtil.map;
 
 public interface AuthToken
 {
@@ -41,7 +41,6 @@ public interface AuthToken
     String CREDENTIALS = "credentials";
     String REALM_KEY = "realm";
     String PARAMETERS = "parameters";
-    String NEW_CREDENTIALS = "new_credentials";
     String BASIC_SCHEME = "basic";
     String NATIVE_REALM = "native";
 
@@ -98,7 +97,7 @@ public interface AuthToken
 
     static boolean containsSensitiveInformation( String key )
     {
-        return CREDENTIALS.equals( key ) || NEW_CREDENTIALS.equals( key );
+        return CREDENTIALS.equals( key );
     }
 
     static void clearCredentials( Map<String,Object> authToken )
@@ -107,12 +106,6 @@ public interface AuthToken
         if ( credentials instanceof byte[] )
         {
             Arrays.fill( (byte[]) credentials, (byte) 0 );
-        }
-
-        Object newCredentials = authToken.get( NEW_CREDENTIALS );
-        if ( newCredentials instanceof byte[] )
-        {
-            Arrays.fill( (byte[]) newCredentials, (byte) 0 );
         }
     }
 

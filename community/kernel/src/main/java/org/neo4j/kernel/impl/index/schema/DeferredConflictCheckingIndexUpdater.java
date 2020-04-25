@@ -26,18 +26,19 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.function.Supplier;
 
-import org.neo4j.collection.PrimitiveLongResourceIterator;
 import org.neo4j.internal.kernel.api.IndexQuery;
 import org.neo4j.internal.kernel.api.exceptions.schema.IndexNotApplicableKernelException;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.internal.schema.IndexOrder;
 import org.neo4j.kernel.api.exceptions.index.IndexEntryConflictException;
-import org.neo4j.kernel.api.index.IndexEntryUpdate;
+import org.neo4j.kernel.api.index.IndexReader;
 import org.neo4j.kernel.api.index.IndexUpdater;
-import org.neo4j.storageengine.api.schema.IndexDescriptor;
-import org.neo4j.storageengine.api.schema.IndexReader;
+import org.neo4j.storageengine.api.IndexEntryUpdate;
 import org.neo4j.values.storable.ValueTuple;
 
 import static org.neo4j.internal.kernel.api.IndexQuery.exact;
-import static org.neo4j.kernel.impl.api.index.UpdateMode.REMOVED;
+import static org.neo4j.internal.kernel.api.QueryContext.NULL_CONTEXT;
+import static org.neo4j.storageengine.api.UpdateMode.REMOVED;
 
 /**
  * This deferring conflict checker solves e.g. a problem of applying updates to an index that is aware of,
@@ -92,14 +93,15 @@ public class DeferredConflictCheckingIndexUpdater implements IndexUpdater
         {
             for ( ValueTuple tuple : touchedTuples )
             {
-                try ( PrimitiveLongResourceIterator results = reader.query( queryOf( tuple ) ) )
+                try ( NodeValueIterator client = new NodeValueIterator() )
                 {
-                    if ( results.hasNext() )
+                    reader.query( NULL_CONTEXT, client, IndexOrder.NONE, false, queryOf( tuple ) );
+                    if ( client.hasNext() )
                     {
-                        long firstEntityId = results.next();
-                        if ( results.hasNext() )
+                        long firstEntityId = client.next();
+                        if ( client.hasNext() )
                         {
-                            long secondEntityId = results.next();
+                            long secondEntityId = client.next();
                             throw new IndexEntryConflictException( firstEntityId, secondEntityId, tuple );
                         }
                     }

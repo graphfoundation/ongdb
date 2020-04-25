@@ -22,6 +22,7 @@
  */
 package org.neo4j.codegen;
 
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Modifier;
 
 public class ClassHandle extends TypeReference
@@ -32,7 +33,7 @@ public class ClassHandle extends TypeReference
 
     ClassHandle( String packageName, String name, TypeReference parent, CodeGenerator generator, long generation )
     {
-        super( packageName, name, parent.isPrimitive(), parent.isArray(), false, "", Modifier.PUBLIC );
+        super( packageName, name, parent.isPrimitive(), parent.isArray(), false, null, Modifier.PUBLIC );
         this.parent = parent;
         this.generator = generator;
         this.generation = generation;
@@ -50,9 +51,11 @@ public class ClassHandle extends TypeReference
         return simpleName().hashCode();
     }
 
-    public Object newInstance() throws CompilationFailureException, IllegalAccessException, InstantiationException
+    public Object newInstance()
+            throws CompilationFailureException, IllegalAccessException, InstantiationException, NoSuchMethodException,
+            InvocationTargetException
     {
-        return loadClass().newInstance();
+        return loadClass().getConstructor().newInstance();
     }
 
     public Class<?> loadClass() throws CompilationFailureException
@@ -60,8 +63,18 @@ public class ClassHandle extends TypeReference
         return generator.loadClass( fullName(), generation );
     }
 
+    public Class<?> loadAnonymousClass() throws CompilationFailureException
+    {
+        return generator.loadAnonymousClass( fullName(), generation );
+    }
+
     public TypeReference parent()
     {
         return parent;
+    }
+
+    public CodeGenerator generator()
+    {
+        return generator;
     }
 }

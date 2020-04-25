@@ -22,28 +22,33 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted
 
+import org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME
+import org.neo4j.cypher.internal.LastCommittedTxIdProvider
 import org.neo4j.cypher.internal.javacompat.GraphDatabaseCypherService
+import org.neo4j.cypher.internal.v4_0.util.test_helpers.CypherFunSuite
+import org.neo4j.dbms.api.DatabaseManagementService
 import org.neo4j.graphdb.GraphDatabaseService
-import org.neo4j.internal.kernel.api.Transaction
-import org.neo4j.kernel.NeoStoreDataSource
+import org.neo4j.kernel.api.KernelTransaction.Type
 import org.neo4j.kernel.api.security.AnonymousContext
-import org.neo4j.test.TestGraphDatabaseFactory
-import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
+import org.neo4j.kernel.database.Database
+import org.neo4j.test.TestDatabaseManagementServiceBuilder
 import org.scalatest.BeforeAndAfterAll
 
 class LastCommittedTxIdProviderTest extends CypherFunSuite with BeforeAndAfterAll {
 
+  var managementService: DatabaseManagementService = _
   var graph: GraphDatabaseService = _
   var db: GraphDatabaseCypherService = _
   var lastCommittedTxIdProvider: LastCommittedTxIdProvider = _
 
   override protected def beforeAll(): Unit = {
-    graph = new TestGraphDatabaseFactory().newImpermanentDatabase()
+    managementService = new TestDatabaseManagementServiceBuilder().impermanent().build()
+    graph = managementService.database(DEFAULT_DATABASE_NAME)
     db = new GraphDatabaseCypherService(graph)
     lastCommittedTxIdProvider = LastCommittedTxIdProvider(db)
   }
 
-  override protected def afterAll(): Unit = db.getGraphDatabaseService.shutdown()
+  override protected def afterAll(): Unit = managementService.shutdown()
 
   test("should return correct last committed tx id") {
     val startingTxId = lastCommittedTxIdProvider()
@@ -65,10 +70,10 @@ class LastCommittedTxIdProviderTest extends CypherFunSuite with BeforeAndAfterAl
   }
 
   private def createNode(): Unit = {
-    val tx = db.beginTransaction( Transaction.Type.explicit, AnonymousContext.write() )
+    val tx = db.beginTransaction( Type.explicit, AnonymousContext.write() )
     try {
-      graph.createNode()
-      tx.success()
+      tx.createNode()
+      tx.commit()
     }
     finally {
       tx.close()
@@ -76,7 +81,7 @@ class LastCommittedTxIdProviderTest extends CypherFunSuite with BeforeAndAfterAl
   }
 
   private def restartDataSource(): Unit = {
-    val ds = db.getDependencyResolver.resolveDependency(classOf[NeoStoreDataSource])
+    val ds = db.getDependencyResolver.resolveDependency(classOf[Database])
     ds.stop()
     ds.start()
   }

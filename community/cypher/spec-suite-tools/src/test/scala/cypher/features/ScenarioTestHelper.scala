@@ -26,11 +26,12 @@ import java.io.FileNotFoundException
 import java.net.URI
 import java.nio.charset.StandardCharsets
 import java.util
+import java.util.concurrent.atomic.AtomicInteger
 
 import org.junit.jupiter.api.DynamicTest
 import org.junit.jupiter.api.function.Executable
-import org.neo4j.test.TestGraphDatabaseFactory
-import org.opencypher.tools.tck.api.Scenario
+import org.neo4j.test.TestDatabaseManagementServiceBuilder
+import org.opencypher.tools.tck.api.{ExpectError, Scenario}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -38,9 +39,11 @@ import scala.io.Source
 import scala.util.{Failure, Success, Try}
 
 object ScenarioTestHelper {
+  var unexpectedSuccessCount = new AtomicInteger(0)
+
   def createTests(scenarios: Seq[Scenario],
                   config: TestConfig,
-                  graphDatabaseFactory: TestGraphDatabaseFactory,
+                  graphDatabaseFactory: () => TestDatabaseManagementServiceBuilder,
                   debugOutput: Boolean = false): util.Collection[DynamicTest] = {
     val blacklist = config.blacklist.map(parseBlacklist).getOrElse(Set.empty[BlacklistEntry])
     checkForDuplicates(scenarios, blacklist.toList)
@@ -55,13 +58,39 @@ object ScenarioTestHelper {
 
     val expectFailTests: Seq[DynamicTest] = expectFail.map { scenario =>
       val name = scenario.toString()
+      val scenarioExpectsError: Boolean = scenario.steps.exists(_.isInstanceOf[ExpectError])
       val executable = new Executable {
         override def execute(): Unit = {
           Try {
-            scenario(Neo4jAdapter(config.executionPrefix, graphDatabaseFactory)).execute()
+            scenario(Neo4jAdapter(config.executionPrefix, graphDatabaseFactory())).execute()
           } match {
-            case Success(_) => throw new IllegalStateException("Unexpectedly succeeded in the following blacklisted scenario:\n" + name)
-            case Failure(e) => // failed as expected
+            case Success(_) =>
+              if (config.experimental) {
+                unexpectedSuccessCount.getAndAdd(1)
+              } else {
+                if (!blacklist.exists(_.isFlaky(scenario)))
+                  throw new IllegalStateException("Unexpectedly succeeded in the following blacklisted scenario:\n" + name)
+              }
+            case Failure(e) =>
+              e.getCause match {
+                case cause@Neo4jExecutionFailed(_, phase, _, _) =>
+                  // If the scenario expects an error (e.g. at compile time), but we throw it at runtime instead
+                  // That is not critical. Therefore, if the test is blacklisted, we allow it to fail at runtime.
+                  // If, on the other hand, the scenario expects results and the test is blacklisted, only compile
+                  // time failures are acceptable.
+                  if (phase == Phase.runtime && !scenarioExpectsError) {
+                    // That's not OK
+                    throw new Exception(
+                      s"""Failed at $phase in scenario $name for query
+                         |(NOTE: This test is marked as expected to fail, but failing at $phase is not ok)
+                         |""".stripMargin, cause.cause)
+                  }
+                  // else failed as expected
+                  // Not supported
+                case _ =>
+                  // TODO consider failing here, once we fixed Ordering in pipelined runtime.
+                  // Wrong results
+              }
           }
         }
       }
@@ -70,7 +99,7 @@ object ScenarioTestHelper {
 
     val expectPassTests: Seq[DynamicTest] = expectPass.map { scenario =>
       val name = scenario.toString()
-      val executable = scenario(Neo4jAdapter(config.executionPrefix, graphDatabaseFactory))
+      val executable = scenario(Neo4jAdapter(config.executionPrefix, graphDatabaseFactory()))
       DynamicTest.dynamicTest(name, executable)
     }
     (expectPassTests ++ expectFailTests).asJavaCollection
@@ -118,17 +147,18 @@ object ScenarioTestHelper {
     It can be very useful when adding a new runtime for example.
    */
   def printComputedBlacklist(scenarios: Seq[Scenario],
-                             config: TestConfig, graphDatabaseFactory: TestGraphDatabaseFactory): Unit = {
+                             config: TestConfig, graphDatabaseFactory: () => TestDatabaseManagementServiceBuilder): Unit = {
     //Sometime this method doesn't print its progress output (but is actually working (Do not cancel)!).
     //TODO: Investigate this!
     println("Evaluating scenarios")
     val numberOfScenarios = scenarios.size
     val blacklist = scenarios.zipWithIndex.flatMap { case (scenario, index) =>
-      val isFailure = Try(scenario(Neo4jAdapter(config.executionPrefix, graphDatabaseFactory)).execute()).isFailure
+      val isFailure = Try(scenario(Neo4jAdapter(config.executionPrefix, graphDatabaseFactory())).execute()).isFailure
       print(s"Processing scenario ${index + 1}/$numberOfScenarios\n")
       Console.out.flush() // to make sure we see progress
       if (isFailure) Some(scenario.toString) else None
     }
-    println(blacklist.distinct.mkString("\n","\n","\n"))
+    // Sort the list alphabetically to normalize diffs
+    println(blacklist.distinct.sorted.mkString("\n","\n","\n"))
   }
 }

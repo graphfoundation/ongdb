@@ -25,7 +25,8 @@ package org.neo4j.index.internal.gbptree;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.LockSupport;
 
-import org.neo4j.unsafe.impl.internal.dragons.UnsafeUtil;
+import org.neo4j.internal.unsafe.UnsafeUtil;
+import org.neo4j.util.VisibleForTesting;
 
 class GBPTreeLock
 {
@@ -118,5 +119,14 @@ class GBPTreeLock
     private void sleep()
     {
         LockSupport.parkNanos( TimeUnit.MILLISECONDS.toNanos( 10 ) );
+    }
+
+    /**
+     * Force reset the lock state, to avoid threads getting stuck in tests.
+     */
+    @VisibleForTesting
+    void forceUnlock()
+    {
+        state = 0;
     }
 }

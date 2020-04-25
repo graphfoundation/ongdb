@@ -23,178 +23,24 @@
 package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
 import org.mockito.ArgumentMatchers._
-import org.mockito.invocation.InvocationOnMock
-import org.mockito.stubbing.Answer
+import org.mockito.Mockito._
+import org.neo4j.cypher.internal.runtime.ExecutionContext
 import org.neo4j.cypher.internal.runtime.ImplicitValueConversion._
-import org.neo4j.cypher.internal.runtime.interpreted.symbols.SymbolTable
-import org.neo4j.cypher.internal.runtime.interpreted.{ExecutionContext, QueryStateHelper, TestableIterator}
-import org.neo4j.cypher.internal.v3_6.util.symbols._
-import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.runtime.interpreted.{QueryStateHelper, TestableIterator}
+import org.neo4j.cypher.internal.v4_0.util.test_helpers.CypherFunSuite
 import org.neo4j.graphdb.Node
-import org.neo4j.kernel.impl.util.ValueUtils.fromNodeProxy
 import org.neo4j.values.AnyValue
-import org.neo4j.values.storable.Values.{NO_VALUE, intValue}
 
 class NodeHashJoinPipeTest extends CypherFunSuite {
-
-  import org.mockito.Mockito._
-
-  test("should support simple hash join over nodes") {
-    // given
-    val node1 = newMockedNode(1)
-    val node2 = newMockedNode(2)
-    val node3 = newMockedNode(3)
-    val queryState = QueryStateHelper.empty
-
-    val left = newMockedPipe(SymbolTable(Map("b" -> CTNode)))
-    when(left.createResults(queryState)).thenAnswer(new Answer[Iterator[ExecutionContext]]() {
-      override def answer(invocationOnMock: InvocationOnMock): Iterator[ExecutionContext] =
-        Iterator(row("b" -> fromNodeProxy(node1)), row("b" -> fromNodeProxy(node2)))
-    })
-
-    val right = newMockedPipe(SymbolTable(Map("b" -> CTNode)))
-    when(right.createResults(queryState)).thenAnswer(new Answer[Iterator[ExecutionContext]]() {
-      override def answer(invocationOnMock: InvocationOnMock): Iterator[ExecutionContext] =
-        Iterator(row("b" -> fromNodeProxy(node2)), row("b" -> fromNodeProxy(node3)))
-    })
-
-    // when
-    val result = NodeHashJoinPipe(Set("b"), left, right)().createResults(queryState)
-
-    // then
-    result.map(_("b")).toList should equal(List(fromNodeProxy(node2)))
-  }
-
-  test("should support joining on two different variables") {
-    // given
-    val node0 = newMockedNode(0)
-    val node1 = newMockedNode(1)
-    val node2 = newMockedNode(2)
-    val queryState = QueryStateHelper.empty
-
-    val left = newMockedPipe(SymbolTable(Map("b" -> CTNode)))
-    when(left.createResults(queryState)).thenAnswer(new Answer[Iterator[ExecutionContext]]() {
-      override def answer(invocationOnMock: InvocationOnMock): Iterator[ExecutionContext] =
-        Iterator(
-          row("a" -> fromNodeProxy(node0), "b" -> fromNodeProxy(node1), "c" -> intValue(1)),
-          row("a" -> fromNodeProxy(node0), "b" -> fromNodeProxy(node2), "c" -> intValue(2)),
-          row("a" -> fromNodeProxy(node0), "b" -> fromNodeProxy(node2), "c" -> intValue(3)),
-          row("a" -> fromNodeProxy(node1), "b" -> fromNodeProxy(node2), "c" -> intValue(4)),
-          row("a" -> fromNodeProxy(node0), "b" -> NO_VALUE, "c" -> intValue(5)))
-    })
-
-
-    val right = newMockedPipe(SymbolTable(Map("b" -> CTNode)))
-    when(right.createResults(queryState)).thenAnswer(new Answer[Iterator[ExecutionContext]]() {
-      override def answer(invocationOnMock: InvocationOnMock): Iterator[ExecutionContext] =
-        Iterator(
-          row("a" -> fromNodeProxy(node0), "b" -> fromNodeProxy(node1), "d" -> intValue(1)),
-          row("a" -> fromNodeProxy(node0), "b" -> fromNodeProxy(node2), "d" -> intValue(2)),
-          row("a" -> fromNodeProxy(node2), "b" -> fromNodeProxy(node2), "d" -> intValue(3)),
-          row("a" -> NO_VALUE,  "b" -> fromNodeProxy(node2),  "d" -> intValue(4)))
-    })
-
-    // when
-    val result = NodeHashJoinPipe(Set("a", "b"), left, right)().createResults(queryState).toList
-
-    // then
-    result should equal(List(
-      Map("a"->fromNodeProxy(node0), "b"->fromNodeProxy(node1), "c" -> intValue(1), "d" -> intValue(1)),
-      Map("a"->fromNodeProxy(node0), "b"->fromNodeProxy(node2), "c" -> intValue(2), "d" -> intValue(2)),
-      Map("a"->fromNodeProxy(node0), "b"->fromNodeProxy(node2), "c" -> intValue(3), "d" -> intValue(2))
-    ))
-  }
-
-  test("should work when the inner pipe produces multiple rows with the same join key") {
-    // given
-    val node1 = newMockedNode(1)
-    val node2 = newMockedNode(2)
-    val queryState = QueryStateHelper.empty
-
-    val left = newMockedPipe(SymbolTable(Map("b" -> CTNode)))
-    when(left.createResults(queryState)).thenAnswer(new Answer[Iterator[ExecutionContext]]() {
-      override def answer(invocationOnMock: InvocationOnMock): Iterator[ExecutionContext] =
-        Iterator(row("b" -> fromNodeProxy(node1), "a" -> intValue(10)), row("b" -> fromNodeProxy(node2), "a" -> intValue(20)))
-    })
-
-    val right = newMockedPipe(SymbolTable(Map("b" -> CTNode)))
-    when(right.createResults(queryState)).thenAnswer(new Answer[Iterator[ExecutionContext]]() {
-      override def answer(invocationOnMock: InvocationOnMock): Iterator[ExecutionContext] =
-        Iterator(row("b" -> fromNodeProxy(node2), "c" -> intValue(30)), row("b" -> fromNodeProxy(node2), "c" -> intValue(40)))
-    })
-
-    // when
-    val result = NodeHashJoinPipe(Set("b"), left, right)().createResults(queryState)
-
-    // then
-    result.toList should equal(List(
-      Map("a" -> intValue(20), "b" -> fromNodeProxy(node2), "c" -> intValue(30)),
-      Map("a" -> intValue(20), "b" -> fromNodeProxy(node2), "c" -> intValue(40))
-    ))
-  }
-
-  test("should work when the outer pipe produces rows with a null key") {
-    // given
-    val node1 = newMockedNode(1)
-    val node2 = newMockedNode(2)
-    val queryState = QueryStateHelper.empty
-
-    val left = newMockedPipe(SymbolTable(Map("b" -> CTNode)))
-    when(left.createResults(queryState)).thenAnswer(new Answer[Iterator[ExecutionContext]]() {
-      override def answer(invocationOnMock: InvocationOnMock): Iterator[ExecutionContext] =
-        Iterator(row("b" -> NO_VALUE, "a" -> intValue(10)), row("b" -> fromNodeProxy(node2), "a" -> intValue(20)))
-    })
-
-    val right = newMockedPipe(SymbolTable(Map("b" -> CTNode)))
-    when(right.createResults(queryState)).thenAnswer(new Answer[Iterator[ExecutionContext]]() {
-      override def answer(invocationOnMock: InvocationOnMock): Iterator[ExecutionContext] =
-        Iterator(row("b" -> fromNodeProxy(node2), "c" -> intValue(30)), row("b" -> fromNodeProxy(node1), "c" -> intValue(40)))
-    })
-
-    // when
-    val result = NodeHashJoinPipe(Set("b"), left, right)().createResults(queryState)
-
-    // then
-    result.toList should equal(List(
-      Map("a" -> intValue(20), "b" -> fromNodeProxy(node2), "c" -> intValue(30))
-    ))
-  }
-
-  test("should work when the inner pipe produces rows with a null key") {
-    // given
-    val node1 = newMockedNode(1)
-    val node2 = newMockedNode(2)
-    val queryState = QueryStateHelper.empty
-
-    val left = newMockedPipe(SymbolTable(Map("b" -> CTNode)))
-    when(left.createResults(queryState)).thenAnswer(new Answer[Iterator[ExecutionContext]]() {
-      override def answer(invocationOnMock: InvocationOnMock): Iterator[ExecutionContext] =
-        Iterator(row("b" -> fromNodeProxy(node2), "a" -> intValue(10)), row("b" -> fromNodeProxy(node1), "a" -> intValue(20)))
-    })
-
-    val right = newMockedPipe(SymbolTable(Map("b" -> CTNode)))
-    when(right.createResults(queryState)).thenAnswer(new Answer[Iterator[ExecutionContext]]() {
-      override def answer(invocationOnMock: InvocationOnMock): Iterator[ExecutionContext] =
-        Iterator(row("b" -> NO_VALUE, "c" -> intValue(30)), row("b" -> fromNodeProxy(node2), "c" -> intValue(40)))
-    })
-
-    // when
-    val result = NodeHashJoinPipe(Set("b"), left, right)().createResults(queryState)
-
-    // then
-    result.toList should equal(List(
-      Map("a" -> intValue(10), "b" -> fromNodeProxy(node2), "c" -> intValue(40))
-    ))
-  }
 
   test("should not fetch results from RHS if LHS is empty") {
     // given
     val queryState = QueryStateHelper.empty
 
-    val left = newMockedPipe(SymbolTable(Map("b" -> CTNode)))
+    val left = mock[Pipe]
     when(left.createResults(queryState)).thenReturn(Iterator.empty)
 
-    val right = newMockedPipe(SymbolTable(Map("b" -> CTNode)))
+    val right = mock[Pipe]
 
     // when
     val result = NodeHashJoinPipe(Set("b"), left, right)().createResults(queryState)
@@ -208,10 +54,10 @@ class NodeHashJoinPipeTest extends CypherFunSuite {
     // given
     val queryState = QueryStateHelper.empty
 
-    val left = newMockedPipe(SymbolTable(Map("b" -> CTNode)))
+    val left = mock[Pipe]
     when(left.createResults(queryState)).thenReturn(Iterator(row("b" -> null), row("b" -> null)))
 
-    val right = newMockedPipe(SymbolTable(Map("b" -> CTNode)))
+    val right = mock[Pipe]
     val rhsIterator = new TestableIterator(Iterator(row("b" -> newMockedNode(0))))
     when(left.createResults(queryState)).thenReturn(Iterator.empty)
 
@@ -227,14 +73,14 @@ class NodeHashJoinPipeTest extends CypherFunSuite {
     // given
     val queryState = QueryStateHelper.empty
 
-    val left = newMockedPipe(SymbolTable(Map("b" -> CTNode)))
+    val left = mock[Pipe]
     val node1 = newMockedNode(1)
     val node2 = newMockedNode(2)
 
     val lhsIterator = new TestableIterator(Iterator(row("b" -> node1), row("b" -> node2)))
     when(left.createResults(queryState)).thenReturn(lhsIterator)
 
-    val right = newMockedPipe(SymbolTable(Map("b" -> CTNode)))
+    val right = mock[Pipe]
     when(right.createResults(queryState)).thenReturn(Iterator.empty)
 
     // when
@@ -254,9 +100,5 @@ class NodeHashJoinPipeTest extends CypherFunSuite {
     node
   }
 
-  private def newMockedPipe(symbolTable: SymbolTable): Pipe = {
-    val pipe = mock[Pipe]
-    pipe
-  }
 }
 

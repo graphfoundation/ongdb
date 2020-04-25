@@ -25,15 +25,20 @@ package org.neo4j.kernel.api.impl.fulltext.analyzer.providers;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.standard.UAX29URLEmailAnalyzer;
 
-import org.neo4j.graphdb.index.fulltext.AnalyzerProvider;
-import org.neo4j.helpers.Service;
+import org.neo4j.annotations.service.ServiceProvider;
+import org.neo4j.graphdb.schema.AnalyzerProvider;
 
-@Service.Implementation( AnalyzerProvider.class )
+@ServiceProvider
 public class UrlOrEmail extends AnalyzerProvider
 {
     public UrlOrEmail()
     {
-        super( "url_or_email", "url", "email" );
+        this( "url_or_email" );
+    }
+
+    private UrlOrEmail( String name )
+    {
+        super( name );
     }
 
     @Override
@@ -48,5 +53,23 @@ public class UrlOrEmail extends AnalyzerProvider
         return "Tokenizes into sequences of alpha-numeric, numeric, URL, email, southeast asian terms, " +
                 "and into terms of individual ideographic and hiragana characters. " +
                 "English stop words are filtered out.";
+    }
+
+    @ServiceProvider
+    public static class UrlAnalyzer extends UrlOrEmail
+    {
+        public UrlAnalyzer()
+        {
+            super( "url" );
+        }
+    }
+
+    @ServiceProvider
+    public static class EmailAnalyzer extends UrlOrEmail
+    {
+        public EmailAnalyzer()
+        {
+            super( "email" );
+        }
     }
 }

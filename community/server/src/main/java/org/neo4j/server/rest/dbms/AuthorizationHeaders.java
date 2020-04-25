@@ -22,7 +22,11 @@
  */
 package org.neo4j.server.rest.dbms;
 
-import com.sun.jersey.core.util.Base64;
+import org.apache.commons.lang3.StringUtils;
+
+import java.util.Base64;
+
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 public class AuthorizationHeaders
 {
@@ -43,7 +47,7 @@ public class AuthorizationHeaders
             return null;
         }
 
-        String decoded = Base64.base64Decode( tokenSegment );
+        String decoded = decodeBase64( tokenSegment );
         if ( decoded.length() < 1 )
         {
             return null;
@@ -56,5 +60,18 @@ public class AuthorizationHeaders
         }
 
         return userAndPassword;
+    }
+
+    private static String decodeBase64( String base64 )
+    {
+        try
+        {
+            byte[] decodedBytes = Base64.getDecoder().decode( base64 );
+            return new String( decodedBytes, UTF_8 );
+        }
+        catch ( IllegalArgumentException e )
+        {
+            return StringUtils.EMPTY;
+        }
     }
 }

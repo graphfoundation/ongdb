@@ -22,179 +22,163 @@
  */
 package org.neo4j.graphdb.schema;
 
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import java.util.List;
-
+import org.neo4j.exceptions.KernelException;
 import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.Transaction;
-import org.neo4j.kernel.impl.storageengine.impl.recordstorage.RecordStorageEngine;
-import org.neo4j.kernel.impl.store.SchemaStore;
-import org.neo4j.kernel.impl.store.record.ConstraintRule;
-import org.neo4j.kernel.impl.store.record.DynamicRecord;
-import org.neo4j.storageengine.api.schema.SchemaRule;
-import org.neo4j.storageengine.api.schema.StoreIndexDescriptor;
-import org.neo4j.test.rule.DatabaseRule;
-import org.neo4j.test.rule.EmbeddedDatabaseRule;
+import org.neo4j.internal.recordstorage.RecordStorageEngine;
+import org.neo4j.internal.recordstorage.SchemaRuleAccess;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.kernel.internal.GraphDatabaseAPI;
+import org.neo4j.test.extension.DbmsExtension;
+import org.neo4j.test.extension.Inject;
 
-import static org.junit.Assert.assertFalse;
-import static org.neo4j.helpers.collection.Iterators.filter;
-import static org.neo4j.helpers.collection.Iterators.single;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.neo4j.internal.helpers.collection.Iterators.loop;
+import static org.neo4j.internal.helpers.collection.Iterators.single;
 
-public class DropBrokenUniquenessConstraintIT
+@DbmsExtension
+class DropBrokenUniquenessConstraintIT
 {
     private final Label label = Label.label( "Label" );
     private final String key = "key";
 
-    @Rule
-    public final DatabaseRule db = new EmbeddedDatabaseRule();
+    @Inject
+    private GraphDatabaseAPI db;
 
     @Test
-    public void shouldDropUniquenessConstraintWithBackingIndexNotInUse()
+    void shouldDropUniquenessConstraintWithBackingIndexNotInUse()
     {
         // given
         try ( Transaction tx = db.beginTx() )
         {
-            db.schema().constraintFor( label ).assertPropertyIsUnique( key ).create();
-            tx.success();
+            tx.schema().constraintFor( label ).assertPropertyIsUnique( key ).create();
+            tx.commit();
         }
 
         // when intentionally breaking the schema by setting the backing index rule to unused
         RecordStorageEngine storageEngine = db.getDependencyResolver().resolveDependency( RecordStorageEngine.class );
-        SchemaStore schemaStore = storageEngine.testAccessNeoStores().getSchemaStore();
-        SchemaRule indexRule = single( filter( rule -> rule instanceof StoreIndexDescriptor, schemaStore.loadAllSchemaRules() ) );
-        setSchemaRecordNotInUse( schemaStore, indexRule.getId() );
+        SchemaRuleAccess schemaRules = storageEngine.testAccessSchemaRules();
+        schemaRules.indexesGetAll().forEachRemaining( schemaRules::deleteSchemaRule );
         // At this point the SchemaCache doesn't know about this change so we have to reload it
         storageEngine.loadSchemaCache();
         try ( Transaction tx = db.beginTx() )
         {
-            single( db.schema().getConstraints( label ).iterator() ).drop();
-            tx.success();
+            single( tx.schema().getConstraints( label ).iterator() ).drop();
+            tx.commit();
         }
 
         // then
-        try ( Transaction ignore = db.beginTx() )
+        try ( Transaction tx = db.beginTx() )
         {
-            assertFalse( db.schema().getConstraints().iterator().hasNext() );
-            assertFalse( db.schema().getIndexes().iterator().hasNext() );
+            assertFalse( tx.schema().getConstraints().iterator().hasNext() );
+            assertFalse( tx.schema().getIndexes().iterator().hasNext() );
         }
     }
 
     @Test
-    public void shouldDropUniquenessConstraintWithBackingIndexHavingNoOwner() throws Exception
+    void shouldDropUniquenessConstraintWithBackingIndexHavingNoOwner() throws KernelException
     {
         // given
         try ( Transaction tx = db.beginTx() )
         {
-            db.schema().constraintFor( label ).assertPropertyIsUnique( key ).create();
-            tx.success();
+            tx.schema().constraintFor( label ).assertPropertyIsUnique( key ).create();
+            tx.commit();
         }
 
         // when intentionally breaking the schema by setting the backing index rule to unused
         RecordStorageEngine storageEngine = db.getDependencyResolver().resolveDependency( RecordStorageEngine.class );
-        SchemaStore schemaStore = storageEngine.testAccessNeoStores().getSchemaStore();
-        SchemaRule indexRule = single( filter( rule -> rule instanceof StoreIndexDescriptor, schemaStore.loadAllSchemaRules() ) );
-        setOwnerNull( schemaStore, (StoreIndexDescriptor) indexRule );
+        SchemaRuleAccess schemaRules = storageEngine.testAccessSchemaRules();
+        writeSchemaRulesWithoutConstraint( schemaRules );
         // At this point the SchemaCache doesn't know about this change so we have to reload it
         storageEngine.loadSchemaCache();
         try ( Transaction tx = db.beginTx() )
         {
-            single( db.schema().getConstraints( label ).iterator() ).drop();
-            tx.success();
+            single( tx.schema().getConstraints( label ).iterator() ).drop();
+            tx.commit();
         }
 
         // then
-        try ( Transaction ignore = db.beginTx() )
+        try ( Transaction tx = db.beginTx() )
         {
-            assertFalse( db.schema().getConstraints().iterator().hasNext() );
-            assertFalse( db.schema().getIndexes().iterator().hasNext() );
+            assertFalse( tx.schema().getConstraints().iterator().hasNext() );
+            assertFalse( tx.schema().getIndexes().iterator().hasNext() );
         }
     }
 
     @Test
-    public void shouldDropUniquenessConstraintWhereConstraintRecordIsMissing() throws Exception
+    void shouldDropUniquenessConstraintWhereConstraintRecordIsMissing()
     {
         // given
         try ( Transaction tx = db.beginTx() )
         {
-            db.schema().constraintFor( label ).assertPropertyIsUnique( key ).create();
-            tx.success();
+            tx.schema().constraintFor( label ).assertPropertyIsUnique( key ).create();
+            tx.commit();
         }
 
         // when intentionally breaking the schema by setting the backing index rule to unused
         RecordStorageEngine storageEngine = db.getDependencyResolver().resolveDependency( RecordStorageEngine.class );
-        SchemaStore schemaStore = storageEngine.testAccessNeoStores().getSchemaStore();
-        SchemaRule indexRule = single( filter( rule -> rule instanceof ConstraintRule, schemaStore.loadAllSchemaRules() ) );
-        setSchemaRecordNotInUse( schemaStore, indexRule.getId() );
-        // At this point the SchemaCache doesn't know about this change so we have to reload it
-        storageEngine.loadSchemaCache();
-        try ( Transaction tx = db.beginTx() )
-        {
-            // We don't use single() here, because it is okay for the schema cache reload to clean up after us.
-            db.schema().getConstraints( label ).forEach( ConstraintDefinition::drop );
-            db.schema().getIndexes( label ).forEach( IndexDefinition::drop );
-            tx.success();
-        }
+        SchemaRuleAccess schemaRules = storageEngine.testAccessSchemaRules();
+        schemaRules.constraintsGetAllIgnoreMalformed().forEachRemaining( schemaRules::deleteSchemaRule );
 
-        // then
-        try ( Transaction ignore = db.beginTx() )
-        {
-            assertFalse( db.schema().getConstraints().iterator().hasNext() );
-            assertFalse( db.schema().getIndexes().iterator().hasNext() );
-        }
-    }
-
-    @Test
-    public void shouldDropUniquenessConstraintWhereConstraintRecordIsMissingAndIndexHasNoOwner() throws Exception
-    {
-        // given
-        try ( Transaction tx = db.beginTx() )
-        {
-            db.schema().constraintFor( label ).assertPropertyIsUnique( key ).create();
-            tx.success();
-        }
-
-        // when intentionally breaking the schema by setting the backing index rule to unused
-        RecordStorageEngine storageEngine = db.getDependencyResolver().resolveDependency( RecordStorageEngine.class );
-        SchemaStore schemaStore = storageEngine.testAccessNeoStores().getSchemaStore();
-        SchemaRule constraintRule = single( filter( rule -> rule instanceof ConstraintRule, schemaStore.loadAllSchemaRules() ) );
-        setSchemaRecordNotInUse( schemaStore, constraintRule.getId() );
-        SchemaRule indexRule = single( filter( rule -> rule instanceof StoreIndexDescriptor, schemaStore.loadAllSchemaRules() ) );
-        setOwnerNull( schemaStore, (StoreIndexDescriptor) indexRule );
         // At this point the SchemaCache doesn't know about this change so we have to reload it
         storageEngine.loadSchemaCache();
         try ( Transaction tx = db.beginTx() )
         {
             // We don't use single() here, because it is okay for the schema cache reload to clean up after us.
-            db.schema().getConstraints( label ).forEach( ConstraintDefinition::drop );
-            db.schema().getIndexes( label ).forEach( IndexDefinition::drop );
-            tx.success();
+            tx.schema().getConstraints( label ).forEach( ConstraintDefinition::drop );
+            tx.schema().getIndexes( label ).forEach( IndexDefinition::drop );
+            tx.commit();
         }
 
         // then
-        try ( Transaction ignore = db.beginTx() )
+        try ( Transaction tx = db.beginTx() )
         {
-            assertFalse( db.schema().getConstraints().iterator().hasNext() );
-            assertFalse( db.schema().getIndexes().iterator().hasNext() );
+            assertFalse( tx.schema().getConstraints().iterator().hasNext() );
+            assertFalse( tx.schema().getIndexes().iterator().hasNext() );
         }
     }
 
-    private void setOwnerNull( SchemaStore schemaStore, StoreIndexDescriptor rule )
+    @Test
+    void shouldDropUniquenessConstraintWhereConstraintRecordIsMissingAndIndexHasNoOwner() throws KernelException
     {
-        rule = rule.withOwningConstraint( null );
-        List<DynamicRecord> dynamicRecords = schemaStore.allocateFrom( rule );
-        for ( DynamicRecord record : dynamicRecords )
+        // given
+        try ( Transaction tx = db.beginTx() )
         {
-            schemaStore.updateRecord( record );
+            tx.schema().constraintFor( label ).assertPropertyIsUnique( key ).create();
+            tx.commit();
+        }
+
+        // when intentionally breaking the schema by setting the backing index rule to unused
+        RecordStorageEngine storageEngine = db.getDependencyResolver().resolveDependency( RecordStorageEngine.class );
+        SchemaRuleAccess schemaRules = storageEngine.testAccessSchemaRules();
+        schemaRules.constraintsGetAllIgnoreMalformed().forEachRemaining( schemaRules::deleteSchemaRule );
+        writeSchemaRulesWithoutConstraint( schemaRules );
+
+        // At this point the SchemaCache doesn't know about this change so we have to reload it
+        storageEngine.loadSchemaCache();
+        try ( Transaction tx = db.beginTx() )
+        {
+            // We don't use single() here, because it is okay for the schema cache reload to clean up after us.
+            tx.schema().getConstraints( label ).forEach( ConstraintDefinition::drop );
+            tx.schema().getIndexes( label ).forEach( IndexDefinition::drop );
+            tx.commit();
+        }
+
+        // then
+        try ( Transaction tx = db.beginTx() )
+        {
+            assertFalse( tx.schema().getConstraints().iterator().hasNext() );
+            assertFalse( tx.schema().getIndexes().iterator().hasNext() );
         }
     }
 
-    private void setSchemaRecordNotInUse( SchemaStore schemaStore, long id )
+    private void writeSchemaRulesWithoutConstraint( SchemaRuleAccess schemaRules ) throws KernelException
     {
-        DynamicRecord record = schemaStore.newRecord();
-        record.setId( id );
-        record.setInUse( false );
-        schemaStore.updateRecord( record );
+        for ( IndexDescriptor rule : loop( schemaRules.indexesGetAll() ) )
+        {
+            schemaRules.writeSchemaRule( rule );
+        }
     }
 }

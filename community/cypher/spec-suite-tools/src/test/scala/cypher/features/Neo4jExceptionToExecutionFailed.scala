@@ -31,6 +31,8 @@ object Phase {
   val compile = "compile time"
 }
 
+case class Neo4jExecutionFailed(errorType: String, phase: String, detail: String, cause: Throwable) extends Exception
+
 object Neo4jExceptionToExecutionFailed {
 
   def convert(phase: String, t: Throwable): ExecutionFailed = {
@@ -39,18 +41,24 @@ object Neo4jExceptionToExecutionFailed {
       case _ => throw t
     }
     val errorType = Status.statusCodeOf(neo4jException)
+    val errorTypeStr = if (errorType != null) errorType.toString else ""
     val msg = neo4jException.getMessage
     val detail = phase match {
       case Phase.compile => compileTimeDetail(msg)
       case Phase.runtime => runtimeDetail(msg)
     }
-    ExecutionFailed(if(errorType != null) errorType.toString else "", phase, detail, Some(t))
+    val neo4jexception = Neo4jExecutionFailed(errorTypeStr, phase, detail, t)
+    ExecutionFailed(errorTypeStr, phase, detail, Some(neo4jexception))
   }
 
   private def runtimeDetail(msg: String): String = {
     import TCKErrorDetails._
     if (msg == null)
       ""
+    else if (msg.matches("((SKIP: )|(LIMIT: ))?Invalid input. ('-.+' is not a valid value|Got a negative integer)\\. Must be a non-negative integer\\.[\\s.\\S]*"))
+      NEGATIVE_INTEGER_ARGUMENT
+    else if (msg.matches("((SKIP: )|(LIMIT: ))?Invalid input. ('.+' is not a valid value|Got a floating-point number)\\. Must be a non-negative integer\\.[\\s.\\S]*"))
+      INVALID_ARGUMENT_TYPE
     else if (msg.matches("Type mismatch: expected a map but was .+"))
       PROPERTY_ACCESS_ON_NON_MAP
     else if (msg.matches("Expected .+ to be a ((java.lang.String)|(org.neo4j.values.storable.TextValue)), but it was a .+"))
@@ -81,15 +89,17 @@ object Neo4jExceptionToExecutionFailed {
       REQUIRES_DIRECTED_RELATIONSHIP
     else if (msg.matches("((Node)|(Relationship)) with id \\d+ has been deleted in this transaction"))
       DELETED_ENTITY_ACCESS
+    else if (msg.matches("Expected parameter\\(s\\): .+"))
+      MISSING_PARAMETER
     else
       msg
   }
 
   private def compileTimeDetail(msg: String): String = {
     import TCKErrorDetails._
-    if (msg.matches("Invalid input '-(\\d)+' is not a valid value, must be a positive integer[\\s.\\S]+"))
+    if (msg.matches("Invalid input. '-.+' is not a valid value. Must be a non-negative integer\\.[\\s.\\S]*"))
       NEGATIVE_INTEGER_ARGUMENT
-    else if (msg.matches("Invalid input '.+' is not a valid value, must be a positive integer[\\s.\\S]+"))
+    else if (msg.matches("Invalid input. '.+' is not a valid value. Must be a non-negative integer\\.[\\s.\\S]*"))
       INVALID_ARGUMENT_TYPE
     else if (msg.matches("Can't use aggregate functions inside of aggregate functions\\."))
       NESTED_AGGREGATION
@@ -127,8 +137,6 @@ object Neo4jExceptionToExecutionFailed {
       INVALID_PARAMETER_USE
     else if (msg.matches(semanticError("Variable `.+` already declared")))
       VARIABLE_ALREADY_BOUND
-    else if (msg.matches(semanticError("MATCH cannot follow OPTIONAL MATCH \\(perhaps use a WITH clause between them\\)")))
-      INVALID_CLAUSE_COMPOSITION
     else if (msg.matches(semanticError("Invalid combination of UNION and UNION ALL")))
       INVALID_CLAUSE_COMPOSITION
     else if (msg.matches(semanticError("floating point number is too large")))

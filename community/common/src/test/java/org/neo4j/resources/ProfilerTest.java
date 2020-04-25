@@ -26,7 +26,6 @@ import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
-import java.util.concurrent.TimeUnit;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
@@ -61,21 +60,7 @@ class ProfilerTest
         assertThat( output, not( containsString( "otherIntensiveWork" ) ) );
     }
 
-    @Test
-    void profilerMustWaitUntilAfterAnInitialDelay() throws Exception
-    {
-        Profiler profiler = Profiler.profiler();
-        long initialDelayNanos = TimeUnit.MILLISECONDS.toNanos( COMPUTE_WORK_MILLIS * 3 );
-        try ( Profiler.ProfiledInterval ignored = profiler.profile( Thread.currentThread(), initialDelayNanos ) )
-        {
-            expensiveComputation();
-        }
-        String output = getProfilerOutput( profiler );
-        // The initial delay is far longer than the profiled interval, so we should not get any samples.
-        assertThat( output, not( containsString( "expensiveComputation" ) ) );
-    }
-
-    private String getProfilerOutput( Profiler profiler ) throws InterruptedException
+    private static String getProfilerOutput( Profiler profiler ) throws InterruptedException
     {
         profiler.finish();
         ByteArrayOutputStream buffer = new ByteArrayOutputStream();
@@ -87,12 +72,12 @@ class ProfilerTest
         return buffer.toString();
     }
 
-    private void expensiveComputation() throws InterruptedException
+    private static void expensiveComputation() throws InterruptedException
     {
         Thread.sleep( COMPUTE_WORK_MILLIS );
     }
 
-    private void otherIntenseWork() throws InterruptedException
+    private static void otherIntenseWork() throws InterruptedException
     {
         Thread.sleep( COMPUTE_WORK_MILLIS );
     }

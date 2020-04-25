@@ -22,8 +22,7 @@
  */
 package org.neo4j.kernel.impl.core;
 
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -33,46 +32,47 @@ import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.ResourceIterator;
 import org.neo4j.graphdb.Transaction;
-import org.neo4j.test.rule.EmbeddedDatabaseRule;
+import org.neo4j.test.extension.ImpermanentDbmsExtension;
+import org.neo4j.test.extension.Inject;
 
-import static org.junit.Assert.assertEquals;
-import static org.neo4j.helpers.collection.Iterators.asSet;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.neo4j.internal.helpers.collection.Iterators.asSet;
 
-public class TestConcurrentIteratorModification
+@ImpermanentDbmsExtension
+class TestConcurrentIteratorModification
 {
-    @Rule
-    public EmbeddedDatabaseRule dbRule = new EmbeddedDatabaseRule();
+    @Inject
+    private GraphDatabaseService db;
 
     @Test
-    public void shouldNotThrowConcurrentModificationExceptionWhenUpdatingWhileIterating()
+    void shouldNotThrowConcurrentModificationExceptionWhenUpdatingWhileIterating()
     {
         // given
-        GraphDatabaseService graph = dbRule.getGraphDatabaseAPI();
         Label label = Label.label( "Bird" );
 
         Node node1;
         Node node2;
         Node node3;
-        try ( Transaction tx = graph.beginTx() )
+        try ( Transaction tx = db.beginTx() )
         {
-            node1 = graph.createNode( label );
-            node2 = graph.createNode( label );
-            tx.success();
+            node1 = tx.createNode( label );
+            node2 = tx.createNode( label );
+            tx.commit();
         }
 
         // when
         Set<Node> result = new HashSet<>();
-        try ( Transaction tx = graph.beginTx() )
+        try ( Transaction tx = db.beginTx() )
         {
-            node3 = graph.createNode( label );
-            ResourceIterator<Node> iterator = graph.findNodes( label );
+            node3 = tx.createNode( label );
+            ResourceIterator<Node> iterator = tx.findNodes( label );
             node3.removeLabel( label );
-            graph.createNode( label );
+            tx.createNode( label );
             while ( iterator.hasNext() )
             {
                 result.add( iterator.next() );
             }
-            tx.success();
+            tx.commit();
         }
 
         // then does not throw and retains view from iterator creation time

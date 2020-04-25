@@ -23,24 +23,21 @@
 package org.neo4j.kernel.api.impl.schema;
 
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
+import org.neo4j.configuration.Config;
+import org.neo4j.configuration.GraphDatabaseSettings;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.internal.schema.IndexPrototype;
+import org.neo4j.internal.schema.SchemaDescriptor;
 import org.neo4j.io.fs.DefaultFileSystemAbstraction;
-import org.neo4j.kernel.api.schema.index.TestIndexDescriptorFactory;
-import org.neo4j.kernel.configuration.Config;
-import org.neo4j.kernel.configuration.Settings;
-import org.neo4j.kernel.impl.factory.OperationalMode;
-import org.neo4j.storageengine.api.schema.IndexDescriptor;
-import org.neo4j.test.extension.DefaultFileSystemExtension;
 import org.neo4j.test.extension.Inject;
-import org.neo4j.test.extension.TestDirectoryExtension;
+import org.neo4j.test.extension.testdirectory.TestDirectoryExtension;
 import org.neo4j.test.rule.TestDirectory;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-@ExtendWith( {DefaultFileSystemExtension.class, TestDirectoryExtension.class} )
+@TestDirectoryExtension
 class LuceneSchemaIndexBuilderTest
 {
     @Inject
@@ -48,14 +45,14 @@ class LuceneSchemaIndexBuilderTest
     @Inject
     private DefaultFileSystemAbstraction fileSystemRule;
 
-    private final IndexDescriptor descriptor = TestIndexDescriptorFactory.forLabel( 0, 0 );
+    private final IndexDescriptor descriptor = IndexPrototype.forSchema( SchemaDescriptor.forLabel( 0, 0 ) ).withName( "a" ).materialise( 0 );
 
     @Test
     void readOnlyIndexCreation() throws Exception
     {
         try ( SchemaIndex schemaIndex = LuceneSchemaIndexBuilder.create( descriptor, getReadOnlyConfig() )
                 .withFileSystem( fileSystemRule )
-                .withOperationalMode( OperationalMode.single )
+                .withOperationalMode( true )
                 .withIndexRootFolder( testDir.directory( "a" ) )
                 .build() )
         {
@@ -68,7 +65,7 @@ class LuceneSchemaIndexBuilderTest
     {
         try ( SchemaIndex schemaIndex = LuceneSchemaIndexBuilder.create( descriptor, getDefaultConfig() )
                 .withFileSystem( fileSystemRule )
-                .withOperationalMode( OperationalMode.single )
+                .withOperationalMode( true )
                 .withIndexRootFolder( testDir.directory( "b" ) )
                 .build() )
         {
@@ -83,6 +80,6 @@ class LuceneSchemaIndexBuilderTest
 
     private static Config getReadOnlyConfig()
     {
-        return Config.defaults( GraphDatabaseSettings.read_only, Settings.TRUE );
+        return Config.defaults( GraphDatabaseSettings.read_only, true );
     }
 }

@@ -22,19 +22,12 @@
  */
 package org.neo4j.cypher.internal
 
-import org.neo4j.cypher.internal.compatibility.v2_3.helpers._
-import org.neo4j.cypher.internal.compatibility.v3_1.helpers._
-import org.neo4j.cypher.internal.compatibility.v3_4.Cypher34Planner
-import org.neo4j.cypher.internal.compatibility.v3_6.Cypher35Planner
-import org.neo4j.cypher.internal.compatibility._
-import org.neo4j.cypher.internal.compiler.v3_6.CypherPlannerConfiguration
-import org.neo4j.cypher.internal.runtime.interpreted.LastCommittedTxIdProvider
+import org.neo4j.cypher.internal.planning.CypherPlanner
+import org.neo4j.cypher.internal.compiler.CypherPlannerConfiguration
 import org.neo4j.cypher.{CypherPlannerOption, CypherRuntimeOption, CypherUpdateStrategy, CypherVersion}
-import org.neo4j.helpers.Clock
 import org.neo4j.kernel.GraphDatabaseQueryService
-import org.neo4j.kernel.monitoring.{Monitors => KernelMonitors}
 import org.neo4j.logging.{Log, LogProvider}
-import org.neo4j.cypher.internal.v3_6.util.InvalidArgumentException
+import org.neo4j.monitoring.{Monitors => KernelMonitors}
 
 /**
   * Factory which creates cypher compilers.
@@ -51,46 +44,34 @@ class CommunityCompilerFactory(graph: GraphDatabaseQueryService,
   override def createCompiler(cypherVersion: CypherVersion,
                               cypherPlanner: CypherPlannerOption,
                               cypherRuntime: CypherRuntimeOption,
-                              cypherUpdateStrategy: CypherUpdateStrategy
-                             ): Compiler = {
+                              cypherUpdateStrategy: CypherUpdateStrategy,
+                              executionEngineProvider: () => ExecutionEngine): Compiler = {
 
-    (cypherVersion, cypherPlanner) match {
-
-        // 2.3
-      case (CypherVersion.v2_3, CypherPlannerOption.rule) =>
-        v2_3.Rule23Compiler(graph, as2_3(plannerConfig), Clock.SYSTEM_CLOCK, kernelMonitors)
-      case (CypherVersion.v2_3, _) =>
-        v2_3.Cost23Compiler(graph, as2_3(plannerConfig), Clock.SYSTEM_CLOCK, kernelMonitors, log, cypherPlanner, cypherRuntime)
-
-        // 3.1
-      case (CypherVersion.v3_1, CypherPlannerOption.rule) =>
-        v3_1.Rule31Compiler(graph, as3_1(plannerConfig), MasterCompiler.CLOCK, kernelMonitors)
-      case (CypherVersion.v3_1, _) =>
-        v3_1.Cost31Compiler(graph, as3_1(plannerConfig), MasterCompiler.CLOCK, kernelMonitors, log, cypherPlanner, cypherRuntime, cypherUpdateStrategy)
-
-        // 3.3 or 3.5 + rule
-      case (_, CypherPlannerOption.rule) =>
-        throw new InvalidArgumentException(s"The rule planner is no longer a valid planner option in Neo4j ${cypherVersion.name}. If you need to use it, please select compatibility mode Cypher 3.1")
-
-        // 3.4
-      case (CypherVersion.v3_4, _) =>
-        CypherCurrentCompiler(
-          Cypher34Planner(plannerConfig, MasterCompiler.CLOCK, kernelMonitors, log,
-            cypherPlanner, cypherUpdateStrategy, LastCommittedTxIdProvider(graph)),
-          CommunityRuntimeFactory.getRuntime(cypherRuntime, plannerConfig.useErrorsOverWarnings),
-          CommunityRuntimeContextCreator(log, plannerConfig),
-          kernelMonitors
-        )
-
-        // 3.5
-      case (CypherVersion.v3_6, _) =>
-        CypherCurrentCompiler(
-          Cypher35Planner(plannerConfig, MasterCompiler.CLOCK, kernelMonitors, log,
-                          cypherPlanner, cypherUpdateStrategy, LastCommittedTxIdProvider(graph)),
-          CommunityRuntimeFactory.getRuntime(cypherRuntime, plannerConfig.useErrorsOverWarnings),
-          CommunityRuntimeContextCreator(log, plannerConfig),
-          kernelMonitors
-        )
+    val compatibilityMode = cypherVersion match {
+      case CypherVersion.`v3_5` => true
+      case CypherVersion.v4_0 => false
     }
+
+    val planner =
+      CypherPlanner(
+        plannerConfig,
+        MasterCompiler.CLOCK,
+        kernelMonitors,
+        log,
+        cypherPlanner,
+        cypherUpdateStrategy,
+        LastCommittedTxIdProvider(graph),
+        compatibilityMode)
+
+    val runtime = if (plannerConfig.planSystemCommands)
+      CommunityAdministrationCommandRuntime(executionEngineProvider(), graph.getDependencyResolver)
+    else
+      CommunityRuntimeFactory.getRuntime(cypherRuntime, plannerConfig.useErrorsOverWarnings)
+
+    CypherCurrentCompiler(
+      planner,
+      runtime,
+      CommunityRuntimeContextManager(log, runtimeConfig),
+      kernelMonitors)
   }
 }

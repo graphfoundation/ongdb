@@ -22,70 +22,54 @@
  */
 package org.neo4j.kernel.api.security;
 
-import java.io.IOException;
-
-import org.neo4j.helpers.Service;
-import org.neo4j.internal.kernel.api.exceptions.KernelException;
-import org.neo4j.io.fs.FileSystemAbstraction;
+import org.neo4j.exceptions.KernelException;
+import org.neo4j.kernel.api.procedure.GlobalProcedures;
 import org.neo4j.kernel.api.security.provider.SecurityProvider;
-import org.neo4j.kernel.configuration.Config;
-import org.neo4j.kernel.impl.factory.AccessCapability;
-import org.neo4j.kernel.impl.proc.Procedures;
-import org.neo4j.kernel.impl.util.DependencySatisfier;
 import org.neo4j.kernel.lifecycle.LifeSupport;
 import org.neo4j.kernel.lifecycle.Lifecycle;
-import org.neo4j.logging.internal.LogService;
-import org.neo4j.scheduler.JobScheduler;
+import org.neo4j.logging.Log;
 
-public abstract class SecurityModule extends Service implements Lifecycle, SecurityProvider
+public abstract class SecurityModule implements Lifecycle, SecurityProvider
 {
     protected final LifeSupport life = new LifeSupport();
 
-    public SecurityModule( String key, String... altKeys )
+    protected final void registerProcedure( GlobalProcedures globalProcedures, Log log, Class procedureClass, String warning )
     {
-        super( key, altKeys );
+        try
+        {
+            globalProcedures.registerProcedure( procedureClass, true, warning );
+        }
+        catch ( KernelException e )
+        {
+            String message = "Failed to register security procedures: " + e.getMessage();
+            log.error( message, e );
+            throw new RuntimeException( message, e );
+        }
     }
 
-    public abstract void setup( Dependencies dependencies ) throws KernelException, IOException;
+    public abstract void setup();
 
     @Override
-    public void init() throws Throwable
+    public void init()
     {
         life.init();
     }
 
     @Override
-    public void start() throws Throwable
+    public void start() throws Exception
     {
         life.start();
     }
 
     @Override
-    public void stop() throws Throwable
+    public void stop() throws Exception
     {
         life.stop();
     }
 
     @Override
-    public void shutdown() throws Throwable
+    public void shutdown()
     {
         life.shutdown();
-    }
-
-    public interface Dependencies
-    {
-        LogService logService();
-
-        Config config();
-
-        Procedures procedures();
-
-        JobScheduler scheduler();
-
-        FileSystemAbstraction fileSystem();
-
-        DependencySatisfier dependencySatisfier();
-
-        AccessCapability accessCapability();
     }
 }

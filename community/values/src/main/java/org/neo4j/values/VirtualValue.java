@@ -35,7 +35,7 @@ import static org.neo4j.values.storable.Values.NO_VALUE;
 public abstract class VirtualValue extends AnyValue
 {
     @Override
-    public final boolean eq( Object other )
+    public final boolean equalTo( Object other )
     {
         if ( other == null )
         {
@@ -52,11 +52,13 @@ public abstract class VirtualValue extends AnyValue
     public abstract boolean equals( VirtualValue other );
 
     @Override
-    public Boolean ternaryEquals( AnyValue other )
+    public Equality ternaryEquals( AnyValue other )
     {
-        if ( other == null || other == NO_VALUE )
+        assert other != null : "null values are not supported, use NoValue.NO_VALUE instead";
+
+        if ( other == NO_VALUE )
         {
-            return null;
+            return Equality.UNDEFINED;
         }
         if ( other instanceof SequenceValue && this.isSequenceValue() )
         {
@@ -64,12 +66,14 @@ public abstract class VirtualValue extends AnyValue
         }
         if ( other instanceof VirtualValue && ((VirtualValue) other).valueGroup() == valueGroup() )
         {
-            return equals( (VirtualValue) other );
+            return equals( (VirtualValue) other ) ? Equality.TRUE : Equality.FALSE;
         }
-        return Boolean.FALSE;
+        return Equality.FALSE;
     }
 
     public abstract VirtualValueGroup valueGroup();
 
-    public abstract int compareTo( VirtualValue other, Comparator<AnyValue> comparator );
+    public abstract int unsafeCompareTo( VirtualValue other, Comparator<AnyValue> comparator );
+
+    public abstract Comparison unsafeTernaryCompareTo( VirtualValue other, TernaryComparator<AnyValue> comparator );
 }

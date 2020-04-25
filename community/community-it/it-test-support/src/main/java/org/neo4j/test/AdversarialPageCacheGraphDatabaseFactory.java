@@ -26,17 +26,15 @@ import java.io.File;
 
 import org.neo4j.adversaries.Adversary;
 import org.neo4j.adversaries.pagecache.AdversarialPageCache;
-import org.neo4j.graphdb.GraphDatabaseService;
-import org.neo4j.graphdb.facade.GraphDatabaseFacadeFactory;
-import org.neo4j.graphdb.facade.GraphDatabaseFacadeFactory.Dependencies;
-import org.neo4j.graphdb.factory.GraphDatabaseFactory;
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
-import org.neo4j.graphdb.factory.module.PlatformModule;
+import org.neo4j.configuration.Config;
+import org.neo4j.dbms.api.DatabaseManagementService;
+import org.neo4j.dbms.api.DatabaseManagementServiceBuilder;
+import org.neo4j.graphdb.facade.DatabaseManagementServiceFactory;
+import org.neo4j.graphdb.facade.ExternalDependencies;
+import org.neo4j.graphdb.factory.module.GlobalModule;
 import org.neo4j.graphdb.factory.module.edition.CommunityEditionModule;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.pagecache.PageCache;
-import org.neo4j.io.pagecache.tracing.cursor.context.VersionContextSupplier;
-import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.impl.factory.DatabaseInfo;
 import org.neo4j.kernel.monitoring.tracing.Tracers;
 import org.neo4j.logging.internal.LogService;
@@ -49,25 +47,21 @@ public class AdversarialPageCacheGraphDatabaseFactory
         throw new AssertionError( "Not for instantiation!" );
     }
 
-    public static GraphDatabaseFactory create( FileSystemAbstraction fs, Adversary adversary )
+    public static DatabaseManagementServiceBuilder create( File homeDir, FileSystemAbstraction fs, Adversary adversary )
     {
-        return new TestGraphDatabaseFactory()
+        return new TestDatabaseManagementServiceBuilder( homeDir )
         {
             @Override
-            protected GraphDatabaseService newEmbeddedDatabase( File dir, Config config, Dependencies
-                    dependencies )
+            protected DatabaseManagementService newDatabaseManagementService( Config config, ExternalDependencies dependencies )
             {
-                return new GraphDatabaseFacadeFactory( DatabaseInfo.COMMUNITY, CommunityEditionModule::new )
+
+                return new DatabaseManagementServiceFactory( DatabaseInfo.COMMUNITY, CommunityEditionModule::new )
                 {
 
                     @Override
-                    protected PlatformModule createPlatform( File storeDir, Config config, Dependencies dependencies )
+                    protected GlobalModule createGlobalModule( Config config, ExternalDependencies dependencies )
                     {
-                        File absoluteStoreDir = storeDir.getAbsoluteFile();
-                        File databasesRoot = absoluteStoreDir.getParentFile();
-                        config.augment( GraphDatabaseSettings.active_database, absoluteStoreDir.getName() );
-                        config.augment( GraphDatabaseSettings.databases_root_path, databasesRoot.getAbsolutePath() );
-                        return new PlatformModule( databasesRoot, config, databaseInfo, dependencies )
+                        return new GlobalModule( config, databaseInfo, dependencies )
                         {
                             @Override
                             protected FileSystemAbstraction createFileSystemAbstraction()
@@ -77,14 +71,14 @@ public class AdversarialPageCacheGraphDatabaseFactory
 
                             @Override
                             protected PageCache createPageCache( FileSystemAbstraction fileSystem, Config config,
-                                    LogService logging, Tracers tracers, VersionContextSupplier versionContextSupplier, JobScheduler jobScheduler )
+                                    LogService logging, Tracers tracers, JobScheduler jobScheduler )
                             {
-                                PageCache pageCache = super.createPageCache( fileSystem, config, logging, tracers, versionContextSupplier, jobScheduler );
+                                PageCache pageCache = super.createPageCache( fileSystem, config, logging, tracers, jobScheduler );
                                 return new AdversarialPageCache( pageCache, adversary );
                             }
                         };
                     }
-                }.newFacade( dir, config, dependencies );
+                }.build( config, dependencies );
             }
         };
     }

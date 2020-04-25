@@ -22,20 +22,20 @@
  */
 package org.neo4j.kernel.impl.api.index.sampling;
 
-import org.neo4j.internal.kernel.api.TokenNameLookup;
+import org.neo4j.common.TokenNameLookup;
 import org.neo4j.kernel.impl.api.index.IndexProxy;
-import org.neo4j.kernel.impl.api.index.IndexStoreView;
+import org.neo4j.kernel.impl.api.index.stats.IndexStatisticsStore;
 import org.neo4j.logging.LogProvider;
 
 public class OnlineIndexSamplingJobFactory implements IndexSamplingJobFactory
 {
-    private final IndexStoreView storeView;
+    private final IndexStatisticsStore indexStatisticsStore;
     private final LogProvider logProvider;
     private final TokenNameLookup nameLookup;
 
-    public OnlineIndexSamplingJobFactory( IndexStoreView storeView, TokenNameLookup nameLookup, LogProvider logProvider )
+    public OnlineIndexSamplingJobFactory( IndexStatisticsStore indexStatisticsStore, TokenNameLookup nameLookup, LogProvider logProvider )
     {
-        this.storeView = storeView;
+        this.indexStatisticsStore = indexStatisticsStore;
         this.logProvider = logProvider;
         this.nameLookup = nameLookup;
     }
@@ -44,6 +44,6 @@ public class OnlineIndexSamplingJobFactory implements IndexSamplingJobFactory
     public IndexSamplingJob create( long indexId, IndexProxy indexProxy )
     {
         final String indexUserDescription = indexProxy.getDescriptor().userDescription( nameLookup );
-        return new OnlineIndexSamplingJob( indexId, indexProxy, storeView, indexUserDescription, logProvider );
+        return new OnlineIndexSamplingJob( indexId, indexProxy, indexStatisticsStore, indexUserDescription, logProvider );
     }
 }

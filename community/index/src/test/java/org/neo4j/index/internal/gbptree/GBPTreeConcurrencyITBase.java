@@ -22,13 +22,14 @@
  */
 package org.neo4j.index.internal.gbptree;
 
-import org.junit.After;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.RuleChain;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Iterator;
@@ -48,21 +49,23 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.LongStream;
 
-import org.neo4j.cursor.RawCursor;
+import org.neo4j.io.IOUtils;
+import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.pagecache.IOLimiter;
 import org.neo4j.io.pagecache.PageCache;
-import org.neo4j.test.rule.PageCacheRule;
+import org.neo4j.test.extension.Inject;
+import org.neo4j.test.extension.RandomExtension;
+import org.neo4j.test.extension.pagecache.PageCacheSupportExtension;
+import org.neo4j.test.extension.testdirectory.EphemeralTestDirectoryExtension;
 import org.neo4j.test.rule.RandomRule;
 import org.neo4j.test.rule.TestDirectory;
-import org.neo4j.test.rule.fs.DefaultFileSystemRule;
 
 import static java.lang.Math.max;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-import static org.junit.rules.RuleChain.outerRule;
-import static org.neo4j.test.rule.PageCacheRule.config;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
+import static org.neo4j.test.rule.PageCacheConfig.config;
 
 /**
  * From a range of keys two disjunct sets are generated, "toAdd" and "toRemove".
@@ -78,33 +81,37 @@ import static org.neo4j.test.rule.PageCacheRule.config;
  * toAdd and toRemove, prepare the GB+Tree with entries and serve readers and writer with information
  * about what they should do next.
  */
+
+@EphemeralTestDirectoryExtension
+@ExtendWith( RandomExtension.class )
 public abstract class GBPTreeConcurrencyITBase<KEY,VALUE>
 {
-    private final DefaultFileSystemRule fs = new DefaultFileSystemRule();
-    private final TestDirectory directory = TestDirectory.testDirectory( getClass(), fs.get() );
-    private final PageCacheRule pageCacheRule = new PageCacheRule();
-    private final RandomRule random = new RandomRule();
-
-    @Rule
-    public final RuleChain rules = outerRule( fs ).around( directory ).around( pageCacheRule ).around( random );
+    @Inject
+    private FileSystemAbstraction fileSystem;
+    @Inject
+    private TestDirectory testDirectory;
+    @Inject
+    private RandomRule random;
+    @RegisterExtension
+    static PageCacheSupportExtension pageCacheExtension = new PageCacheSupportExtension();
 
     private TestLayout<KEY,VALUE> layout;
     private GBPTree<KEY,VALUE> index;
     private final ExecutorService threadPool =
             Executors.newFixedThreadPool( Runtime.getRuntime().availableProcessors() );
 
-    private GBPTree<KEY,VALUE> createIndex() throws IOException
+    private GBPTree<KEY,VALUE> createIndex()
     {
         int pageSize = 512;
-        layout = getLayout( random );
-        PageCache pageCache = pageCacheRule.getPageCache( fs.get(), config().withPageSize( pageSize ).withAccessChecks( true ) );
-        return index = new GBPTreeBuilder<>( pageCache, directory.file( "index" ), layout ).build();
+        layout = getLayout( random, pageSize );
+        PageCache pageCache = pageCacheExtension.getPageCache( fileSystem, config().withPageSize( pageSize ).withAccessChecks( true ) );
+        return this.index = new GBPTreeBuilder<>( pageCache, testDirectory.file( "index" ), layout ).build();
     }
 
-    protected abstract TestLayout<KEY,VALUE> getLayout( RandomRule random );
+    protected abstract TestLayout<KEY,VALUE> getLayout( RandomRule random, int pageSize );
 
-    @After
-    public void consistencyCheckAndClose() throws IOException
+    @AfterEach
+    void consistencyCheckAndClose() throws IOException
     {
         threadPool.shutdownNow();
         index.consistencyCheck();
@@ -112,42 +119,63 @@ public abstract class GBPTreeConcurrencyITBase<KEY,VALUE>
     }
 
     @Test
-    public void shouldReadForwardCorrectlyWithConcurrentInsert() throws Throwable
+    void shouldReadForwardCorrectlyWithConcurrentInsert() throws Throwable
     {
         TestCoordinator testCoordinator = new TestCoordinator( random.random(), true, 1 );
         shouldReadCorrectlyWithConcurrentUpdates( testCoordinator );
     }
 
     @Test
-    public void shouldReadBackwardCorrectlyWithConcurrentInsert() throws Throwable
+    void shouldPartitionedReadForwardCorrectlyWithConcurrentInsert() throws Throwable
+    {
+        TestCoordinator testCoordinator = new TestCoordinator( random.random(), true, 1, true );
+        shouldReadCorrectlyWithConcurrentUpdates( testCoordinator );
+    }
+
+    @Test
+    void shouldReadBackwardCorrectlyWithConcurrentInsert() throws Throwable
     {
         TestCoordinator testCoordinator = new TestCoordinator( random.random(), false, 1 );
         shouldReadCorrectlyWithConcurrentUpdates( testCoordinator );
     }
 
     @Test
-    public void shouldReadForwardCorrectlyWithConcurrentRemove() throws Throwable
+    void shouldReadForwardCorrectlyWithConcurrentRemove() throws Throwable
     {
         TestCoordinator testCoordinator = new TestCoordinator( random.random(), true, 0 );
         shouldReadCorrectlyWithConcurrentUpdates( testCoordinator );
     }
 
     @Test
-    public void shouldReadBackwardCorrectlyWithConcurrentRemove() throws Throwable
+    void shouldPartitionedReadForwardCorrectlyWithConcurrentRemove() throws Throwable
+    {
+        TestCoordinator testCoordinator = new TestCoordinator( random.random(), true, 0, true );
+        shouldReadCorrectlyWithConcurrentUpdates( testCoordinator );
+    }
+
+    @Test
+    void shouldReadBackwardCorrectlyWithConcurrentRemove() throws Throwable
     {
         TestCoordinator testCoordinator = new TestCoordinator( random.random(), false, 0 );
         shouldReadCorrectlyWithConcurrentUpdates( testCoordinator );
     }
 
     @Test
-    public void shouldReadForwardCorrectlyWithConcurrentUpdates() throws Throwable
+    void shouldReadForwardCorrectlyWithConcurrentUpdates() throws Throwable
     {
         TestCoordinator testCoordinator = new TestCoordinator( random.random(), true, 0.5 );
         shouldReadCorrectlyWithConcurrentUpdates( testCoordinator );
     }
 
     @Test
-    public void shouldReadBackwardCorrectlyWithConcurrentUpdates() throws Throwable
+    void shouldPartitionedReadForwardCorrectlyWithConcurrentUpdates() throws Throwable
+    {
+        TestCoordinator testCoordinator = new TestCoordinator( random.random(), true, 0.5, true );
+        shouldReadCorrectlyWithConcurrentUpdates( testCoordinator );
+    }
+
+    @Test
+    void shouldReadBackwardCorrectlyWithConcurrentUpdates() throws Throwable
     {
         TestCoordinator testCoordinator = new TestCoordinator( random.random(), false, 0.5 );
         shouldReadCorrectlyWithConcurrentUpdates( testCoordinator );
@@ -216,6 +244,7 @@ public abstract class GBPTreeConcurrencyITBase<KEY,VALUE>
         private final boolean forwardsSeek;
         private final double writePercentage;
         private final AtomicReference<ReaderInstruction> currentReaderInstruction;
+        private final boolean partitionedSeek;
         TreeSet<Long> readersShouldSee;
 
         // Progress
@@ -228,6 +257,12 @@ public abstract class GBPTreeConcurrencyITBase<KEY,VALUE>
 
         TestCoordinator( Random random, boolean forwardsSeek, double writePercentage )
         {
+            this( random, forwardsSeek, writePercentage, false );
+        }
+
+        TestCoordinator( Random random, boolean forwardsSeek, double writePercentage, boolean partitionedSeek )
+        {
+            this.partitionedSeek = partitionedSeek;
             this.endSignal = new AtomicBoolean();
             this.random = random;
             this.forwardsSeek = forwardsSeek;
@@ -299,8 +334,8 @@ public abstract class GBPTreeConcurrencyITBase<KEY,VALUE>
                 TreeSet<Long> readersShouldSee )
         {
             return forwardsSeek ?
-                   new ReaderInstruction( minRange, maxRange, readersShouldSee ) :
-                   new ReaderInstruction( maxRange - 1, minRange, readersShouldSee );
+                   new ReaderInstruction( minRange, maxRange, readersShouldSee, partitionedSeek ) :
+                   new ReaderInstruction( maxRange - 1, minRange, readersShouldSee, partitionedSeek );
         }
 
         private List<UpdateOperation> generateUpdatesForNextIteration()
@@ -394,7 +429,7 @@ public abstract class GBPTreeConcurrencyITBase<KEY,VALUE>
         }
 
         @Override
-        void apply( Writer<KEY,VALUE> writer ) throws IOException
+        void apply( Writer<KEY,VALUE> writer )
         {
             writer.put( key( key ), value( key ) );
         }
@@ -420,7 +455,7 @@ public abstract class GBPTreeConcurrencyITBase<KEY,VALUE>
         }
 
         @Override
-        void apply( Writer<KEY,VALUE> writer ) throws IOException
+        void apply( Writer<KEY,VALUE> writer )
         {
             writer.remove( key( key ) );
         }
@@ -527,7 +562,7 @@ public abstract class GBPTreeConcurrencyITBase<KEY,VALUE>
             long start = readerInstruction.start();
             long end = readerInstruction.end();
             boolean forward = start <= end;
-            try ( RawCursor<Hit<KEY,VALUE>,IOException> cursor = index.seek( key( start ), key( end ) ) )
+            try ( Seeker<KEY,VALUE> cursor = readerInstruction.seek( index ) )
             {
                 if ( expectToSee.hasNext() )
                 {
@@ -535,8 +570,8 @@ public abstract class GBPTreeConcurrencyITBase<KEY,VALUE>
                     while ( cursor.next() )
                     {
                         // Actual
-                        long lastSeenKey = keySeed( cursor.get().key() );
-                        long lastSeenValue = valueSeed( cursor.get().value() );
+                        long lastSeenKey = keySeed( cursor.key() );
+                        long lastSeenValue = valueSeed( cursor.value() );
 
                         if ( lastSeenKey != lastSeenValue )
                         {
@@ -600,17 +635,19 @@ public abstract class GBPTreeConcurrencyITBase<KEY,VALUE>
         };
     }
 
-    private static class ReaderInstruction
+    private class ReaderInstruction
     {
         private final long startRange;
         private final long endRange;
         private final TreeSet<Long> expectToSee;
+        private final boolean partitionedSeek;
 
-        ReaderInstruction( long startRange, long endRange, TreeSet<Long> expectToSee )
+        ReaderInstruction( long startRange, long endRange, TreeSet<Long> expectToSee, boolean partitionedSeek )
         {
             this.startRange = startRange;
             this.endRange = endRange;
             this.expectToSee = expectToSee;
+            this.partitionedSeek = partitionedSeek;
         }
 
         long start()
@@ -626,6 +663,73 @@ public abstract class GBPTreeConcurrencyITBase<KEY,VALUE>
         TreeSet<Long> expectToSee()
         {
             return expectToSee;
+        }
+
+        Seeker<KEY,VALUE> seek( GBPTree<KEY,VALUE> tree ) throws IOException
+        {
+            KEY from = key( start() );
+            KEY to = key( end() );
+            if ( partitionedSeek )
+            {
+                Collection<Seeker<KEY,VALUE>> partitions = tree.partitionedSeek( from, to, 10 );
+                return new PartitionBridgingSeeker<KEY,VALUE>( partitions );
+            }
+
+            return tree.seek( from, to );
+        }
+    }
+
+    private static class PartitionBridgingSeeker<KEY, VALUE> implements Seeker<KEY,VALUE>
+    {
+        private final Collection<Seeker<KEY,VALUE>> partitionsToClose;
+        private final Iterator<Seeker<KEY,VALUE>> partitions;
+        private Seeker<KEY,VALUE> current;
+
+        PartitionBridgingSeeker( Collection<Seeker<KEY,VALUE>> partitions )
+        {
+            this.partitionsToClose = partitions;
+            this.partitions = partitions.iterator();
+            current = this.partitions.next();
+        }
+
+        @Override
+        public boolean next() throws IOException
+        {
+            while ( true )
+            {
+                if ( current.next() )
+                {
+                    return true;
+                }
+                if ( partitions.hasNext() )
+                {
+                    current.close();
+                    current = partitions.next();
+                }
+                else
+                {
+                    break;
+                }
+            }
+            return false;
+        }
+
+        @Override
+        public KEY key()
+        {
+            return current.key();
+        }
+
+        @Override
+        public VALUE value()
+        {
+            return current.value();
+        }
+
+        @Override
+        public void close() throws IOException
+        {
+            IOUtils.closeAll( partitionsToClose );
         }
     }
 

@@ -22,7 +22,7 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.pipes.aggregation
 
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
+import org.neo4j.cypher.internal.runtime.ExecutionContext
 import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.{Expression, NumericHelper}
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.QueryState
 import org.neo4j.values.AnyValue
@@ -30,8 +30,7 @@ import org.neo4j.values.storable.Values
 
 class StdevFunction(val value: Expression, val population:Boolean)
   extends AggregationFunction
-  with NumericExpressionOnly
-  with NumericHelper {
+  with NumericExpressionOnly {
 
   def name = if (population) "STDEVP" else "STDEV"
 
@@ -59,10 +58,11 @@ class StdevFunction(val value: Expression, val population:Boolean)
   }
 
   override def apply(data: ExecutionContext, state: QueryState) {
-    actOnNumber(value(data, state), (number) => {
+    actOnNumber(value(data, state), number => {
       count += 1
       total += number.doubleValue()
       temp = temp :+ number.doubleValue()
+      state.memoryTracker.allocated(java.lang.Double.BYTES)
     })
   }
 }

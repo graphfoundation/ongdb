@@ -26,23 +26,26 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.Iterator;
 
-import org.neo4j.cursor.RawCursor;
-import org.neo4j.helpers.collection.BoundedIterable;
-import org.neo4j.helpers.collection.PrefetchingIterator;
 import org.neo4j.index.internal.gbptree.GBPTree;
-import org.neo4j.index.internal.gbptree.Hit;
 import org.neo4j.index.internal.gbptree.Layout;
+import org.neo4j.index.internal.gbptree.Seeker;
+import org.neo4j.internal.helpers.collection.BoundedIterable;
+import org.neo4j.internal.helpers.collection.PrefetchingIterator;
 
 public class NativeAllEntriesReader<KEY extends NativeIndexKey<KEY>,VALUE extends NativeIndexValue> implements BoundedIterable<Long>
 {
     private final GBPTree<KEY,VALUE> tree;
     private final Layout<KEY,VALUE> layout;
-    private RawCursor<Hit<KEY,VALUE>,IOException> seeker;
+    private final long fromIdInclusive;
+    private final long toIdExclusive;
+    private Seeker<KEY,VALUE> seeker;
 
-    NativeAllEntriesReader( GBPTree<KEY,VALUE> tree, Layout<KEY,VALUE> layout )
+    NativeAllEntriesReader( GBPTree<KEY,VALUE> tree, Layout<KEY,VALUE> layout, long fromIdInclusive, long toIdExclusive )
     {
         this.tree = tree;
         this.layout = layout;
+        this.fromIdInclusive = fromIdInclusive;
+        this.toIdExclusive = toIdExclusive;
     }
 
     @Override
@@ -58,19 +61,31 @@ public class NativeAllEntriesReader<KEY extends NativeIndexKey<KEY>,VALUE extend
         {
             closeSeeker();
             seeker = tree.seek( from, to );
-            return new PrefetchingIterator<Long>()
+            return new PrefetchingIterator<>()
             {
                 @Override
                 protected Long fetchNextOrNull()
                 {
-                    try
+                    do
                     {
-                        return seeker.next() ? seeker.get().key().getEntityId() : null;
+                        try
+                        {
+                            if ( !seeker.next() )
+                            {
+                                return null;
+                            }
+                            long id = seeker.key().getEntityId();
+                            if ( id >= fromIdInclusive && id < toIdExclusive )
+                            {
+                                return id;
+                            }
+                        }
+                        catch ( IOException e )
+                        {
+                            throw new UncheckedIOException( e );
+                        }
                     }
-                    catch ( IOException e )
-                    {
-                        throw new UncheckedIOException( e );
-                    }
+                    while ( true );
                 }
             };
         }

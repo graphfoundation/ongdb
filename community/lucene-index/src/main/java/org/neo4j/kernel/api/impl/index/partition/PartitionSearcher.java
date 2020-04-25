@@ -25,14 +25,15 @@ package org.neo4j.kernel.api.impl.index.partition;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.ReferenceManager;
 
-import java.io.Closeable;
 import java.io.IOException;
+
+import org.neo4j.kernel.api.impl.index.SearcherReference;
 
 /**
  * Container for {@link IndexSearcher} of the particular {@link AbstractIndexPartition partition}.
  * Manages lifecycle of the underlying {@link IndexSearcher searcher}.
  */
-public class PartitionSearcher implements Closeable
+public class PartitionSearcher implements SearcherReference
 {
     private IndexSearcher indexSearcher;
     private ReferenceManager<IndexSearcher> referenceManager;
@@ -44,6 +45,7 @@ public class PartitionSearcher implements Closeable
         this.indexSearcher.setQueryCache( null );
     }
 
+    @Override
     public IndexSearcher getIndexSearcher()
     {
         return indexSearcher;

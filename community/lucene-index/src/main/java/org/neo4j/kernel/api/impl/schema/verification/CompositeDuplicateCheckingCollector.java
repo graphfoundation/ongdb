@@ -26,9 +26,8 @@ import org.apache.lucene.document.Document;
 
 import java.io.IOException;
 
+import org.neo4j.exceptions.KernelException;
 import org.neo4j.kernel.api.StatementConstants;
-import org.neo4j.internal.kernel.api.exceptions.KernelException;
-import org.neo4j.kernel.api.exceptions.index.IndexEntryConflictException;
 import org.neo4j.kernel.api.impl.schema.LuceneDocumentStructure;
 import org.neo4j.storageengine.api.NodePropertyAccessor;
 import org.neo4j.values.storable.Value;
@@ -44,7 +43,7 @@ public class CompositeDuplicateCheckingCollector extends DuplicateCheckingCollec
     }
 
     @Override
-    protected void doCollect( int doc ) throws IOException, KernelException, IndexEntryConflictException
+    protected void doCollect( int doc ) throws IOException, KernelException
     {
         Document document = reader.document( doc );
         long nodeId = LuceneDocumentStructure.getNodeId( document );

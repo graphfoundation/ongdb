@@ -90,6 +90,17 @@ public class DefaultComparatorTopTable<T> implements Iterable<T> // implements S
         }
     }
 
+    /**
+     * Returns the top <code>totalCount</code> elements, but in no particular order
+     */
+    public Iterator<T> unorderedIterator()
+    {
+        return heap.iterator();
+    }
+
+    /**
+     * Must call _before_ calling <code>iterator()</code>.
+     */
     public void sort()
     {
         count = heap.size();
@@ -102,6 +113,9 @@ public class DefaultComparatorTopTable<T> implements Iterable<T> // implements S
         }
     }
 
+    /**
+     * Must call _after_ calling <code>sort()</code>.
+     */
     @Override
     public Iterator<T> iterator()
     {
@@ -110,7 +124,7 @@ public class DefaultComparatorTopTable<T> implements Iterable<T> // implements S
             // This should never happen in generated code but is here to simplify debugging if used incorrectly
             throw new IllegalStateException( "sort() needs to be called before requesting an iterator" );
         }
-        return new Iterator<T>()
+        return new Iterator<>()
         {
             private int cursor = count;
 

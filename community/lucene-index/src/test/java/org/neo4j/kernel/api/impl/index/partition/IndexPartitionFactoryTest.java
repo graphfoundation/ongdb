@@ -27,21 +27,21 @@ import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.store.Directory;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.io.File;
 import java.io.IOException;
 
 import org.neo4j.kernel.api.impl.index.IndexWriterConfigs;
+import org.neo4j.kernel.api.impl.index.SearcherReference;
 import org.neo4j.kernel.api.impl.index.storage.DirectoryFactory;
 import org.neo4j.test.extension.Inject;
-import org.neo4j.test.extension.TestDirectoryExtension;
+import org.neo4j.test.extension.testdirectory.TestDirectoryExtension;
 import org.neo4j.test.rule.TestDirectory;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-@ExtendWith( TestDirectoryExtension.class )
+@TestDirectoryExtension
 class IndexPartitionFactoryTest
 {
 
@@ -52,7 +52,7 @@ class IndexPartitionFactoryTest
     @BeforeEach
     void setUp() throws IOException
     {
-        directory = DirectoryFactory.PERSISTENT.open( testDirectory.directory() );
+        directory = DirectoryFactory.PERSISTENT.open( testDirectory.homeDir() );
     }
 
     @Test
@@ -60,7 +60,7 @@ class IndexPartitionFactoryTest
     {
         prepareIndex();
         try ( AbstractIndexPartition indexPartition =
-                new ReadOnlyIndexPartitionFactory().createPartition( testDirectory.directory(), directory ) )
+                new ReadOnlyIndexPartitionFactory().createPartition( testDirectory.homeDir(), directory ) )
         {
             assertThrows(UnsupportedOperationException.class, indexPartition::getIndexWriter );
         }
@@ -71,7 +71,7 @@ class IndexPartitionFactoryTest
     {
         try ( AbstractIndexPartition indexPartition =
                       new WritableIndexPartitionFactory( IndexWriterConfigs::standard )
-                              .createPartition( testDirectory.directory(), directory ) )
+                              .createPartition( testDirectory.homeDir(), directory ) )
         {
 
             try ( IndexWriter indexWriter = indexPartition.getIndexWriter() )
@@ -79,7 +79,7 @@ class IndexPartitionFactoryTest
                 indexWriter.addDocument( new Document() );
                 indexWriter.commit();
                 indexPartition.maybeRefreshBlocking();
-                try ( PartitionSearcher searcher = indexPartition.acquireSearcher() )
+                try ( SearcherReference searcher = indexPartition.acquireSearcher() )
                 {
                     assertEquals( 1, searcher.getIndexSearcher().getIndexReader().numDocs(), "We should be able to see newly added document " );
                 }
@@ -89,7 +89,7 @@ class IndexPartitionFactoryTest
 
     private void prepareIndex() throws IOException
     {
-        File location = testDirectory.directory();
+        File location = testDirectory.homeDir();
         try ( AbstractIndexPartition ignored =
                       new WritableIndexPartitionFactory( IndexWriterConfigs::standard )
                               .createPartition( location, DirectoryFactory.PERSISTENT.open( location ) ) )

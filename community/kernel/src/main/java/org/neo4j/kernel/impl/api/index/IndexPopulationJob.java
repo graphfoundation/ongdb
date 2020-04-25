@@ -23,29 +23,26 @@
 package org.neo4j.kernel.impl.api.index;
 
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
-import org.neo4j.function.Suppliers;
+import org.neo4j.internal.kernel.api.PopulationProgress;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.io.memory.ByteBufferFactory;
 import org.neo4j.kernel.api.exceptions.index.IndexPopulationFailedKernelException;
-import org.neo4j.kernel.api.index.IndexEntryUpdate;
 import org.neo4j.kernel.api.index.IndexPopulator;
-import org.neo4j.kernel.impl.index.schema.ByteBufferFactory;
 import org.neo4j.kernel.impl.index.schema.UnsafeDirectByteBufferAllocator;
-import org.neo4j.memory.GlobalMemoryTracker;
 import org.neo4j.memory.ThreadSafePeakMemoryAllocationTracker;
-import org.neo4j.storageengine.api.schema.CapableIndexDescriptor;
-import org.neo4j.storageengine.api.schema.PopulationProgress;
+import org.neo4j.scheduler.JobHandle;
+import org.neo4j.storageengine.api.IndexEntryUpdate;
 import org.neo4j.util.concurrent.Runnables;
 
 import static java.lang.Thread.currentThread;
-import static org.neo4j.helpers.FutureAdapter.latchGuardedValue;
 import static org.neo4j.kernel.impl.index.schema.BlockBasedIndexPopulator.parseBlockSize;
 
 /**
  * A background job for initially populating one or more index over existing data in the database.
  * Use provided store view to scan store. Participating {@link IndexPopulator} are added with
- * {@link #addPopulator(IndexPopulator, CapableIndexDescriptor, String, FlippableIndexProxy, FailedIndexProxyFactory)}
+ * {@link #addPopulator(IndexPopulator, IndexDescriptor, String, FlippableIndexProxy, FailedIndexProxyFactory)}
  * before {@link #run() running} this job.
  */
 public class IndexPopulationJob implements Runnable
@@ -59,13 +56,18 @@ public class IndexPopulationJob implements Runnable
 
     private volatile StoreScan<IndexPopulationFailedKernelException> storeScan;
     private volatile boolean cancelled;
+    /**
+     * The {@link JobHandle} that represents the scheduling of this index population job.
+     * This is used in the cancellation of the job.
+     */
+    private volatile JobHandle jobHandle;
 
     public IndexPopulationJob( MultipleIndexPopulator multiPopulator, IndexingService.Monitor monitor, boolean verifyBeforeFlipping )
     {
         this.multiPopulator = multiPopulator;
         this.monitor = monitor;
         this.verifyBeforeFlipping = verifyBeforeFlipping;
-        this.memoryAllocationTracker = new ThreadSafePeakMemoryAllocationTracker( GlobalMemoryTracker.INSTANCE );
+        this.memoryAllocationTracker = new ThreadSafePeakMemoryAllocationTracker();
         this.bufferFactory = new ByteBufferFactory( () -> new UnsafeDirectByteBufferAllocator( memoryAllocationTracker ), parseBlockSize() );
     }
 
@@ -73,16 +75,16 @@ public class IndexPopulationJob implements Runnable
      * Adds an {@link IndexPopulator} to be populated in this store scan. All participating populators must
      * be added before calling {@link #run()}.
      *  @param populator {@link IndexPopulator} to participate.
-     * @param capableIndexDescriptor {@link CapableIndexDescriptor} meta information about index.
+     * @param indexDescriptor {@link IndexDescriptor} meta information about index.
      * @param indexUserDescription user description of this index.
      * @param flipper {@link FlippableIndexProxy} to call after a successful population.
      * @param failedIndexProxyFactory {@link FailedIndexProxyFactory} to use after an unsuccessful population.
      */
-    MultipleIndexPopulator.IndexPopulation addPopulator( IndexPopulator populator, CapableIndexDescriptor capableIndexDescriptor, String indexUserDescription,
+    MultipleIndexPopulator.IndexPopulation addPopulator( IndexPopulator populator, IndexDescriptor indexDescriptor, String indexUserDescription,
             FlippableIndexProxy flipper, FailedIndexProxyFactory failedIndexProxyFactory )
     {
         assert storeScan == null : "Population have already started, too late to add populators at this point";
-        return this.multiPopulator.addPopulator( populator, capableIndexDescriptor, flipper, failedIndexProxyFactory,
+        return this.multiPopulator.addPopulator( populator, indexDescriptor, flipper, failedIndexProxyFactory,
                 indexUserDescription );
     }
 
@@ -157,17 +159,16 @@ public class IndexPopulationJob implements Runnable
         return indexPopulation.progress( storeScanProgress );
     }
 
-    public Future<Void> cancel()
+    public void cancel()
     {
         // Stop the population
         if ( storeScan != null )
         {
             cancelled = true;
             storeScan.stop();
+            jobHandle.cancel();
             monitor.populationCancelled();
         }
-
-        return latchGuardedValue( Suppliers.singleton( null ), doneSignal, "Index population job cancel" );
     }
 
     void cancelPopulation( MultipleIndexPopulator.IndexPopulation population )
@@ -188,7 +189,7 @@ public class IndexPopulationJob implements Runnable
      */
     public void update( IndexEntryUpdate<?> update )
     {
-        multiPopulator.queueUpdate( update );
+        multiPopulator.queueConcurrentUpdate( update );
     }
 
     @Override
@@ -214,6 +215,14 @@ public class IndexPopulationJob implements Runnable
         }
         boolean completed = doneSignal.await( time, unit );
         return !completed;
+    }
+
+    /**
+     * Assign the job-handle that was created when this index population job was scheduled.
+     */
+    public void setHandle( JobHandle handle )
+    {
+        this.jobHandle = handle;
     }
 
     public ByteBufferFactory bufferFactory()

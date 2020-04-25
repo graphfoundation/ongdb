@@ -22,62 +22,58 @@
  */
 package org.neo4j.kernel.builtinprocs;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
-
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.LinkedList;
+import org.junit.jupiter.api.Test;
 
 import org.neo4j.collection.RawIterator;
-import org.neo4j.graphdb.Label;
-import org.neo4j.graphdb.Node;
-import org.neo4j.graphdb.Relationship;
 import org.neo4j.internal.kernel.api.Procedures;
 import org.neo4j.internal.kernel.api.SchemaWrite;
-import org.neo4j.internal.kernel.api.Transaction;
 import org.neo4j.internal.kernel.api.exceptions.ProcedureException;
 import org.neo4j.internal.kernel.api.procs.ProcedureCallContext;
-import org.neo4j.kernel.api.schema.SchemaDescriptorFactory;
+import org.neo4j.kernel.api.KernelTransaction;
 import org.neo4j.kernel.api.security.AnonymousContext;
 import org.neo4j.kernel.impl.api.integrationtest.KernelIntegrationTest;
+import org.neo4j.values.AnyValue;
 import org.neo4j.values.storable.Values;
+import org.neo4j.values.virtual.ListValue;
+import org.neo4j.values.virtual.NodeValue;
+import org.neo4j.values.virtual.RelationshipValue;
+import org.neo4j.values.virtual.VirtualValues;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.core.IsEqual.equalTo;
-import static org.junit.Assert.assertEquals;
-import static org.neo4j.helpers.collection.Iterators.asList;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.neo4j.internal.helpers.collection.Iterators.asList;
 import static org.neo4j.internal.kernel.api.procs.ProcedureSignature.procedureName;
+import static org.neo4j.internal.schema.IndexPrototype.uniqueForSchema;
+import static org.neo4j.internal.schema.SchemaDescriptor.forLabel;
+import static org.neo4j.values.storable.Values.stringValue;
+import static org.neo4j.values.virtual.VirtualValues.EMPTY_LIST;
 
-public class SchemaProcedureIT extends KernelIntegrationTest
+class SchemaProcedureIT extends KernelIntegrationTest
 {
-
-    @Rule
-    public ExpectedException exception = ExpectedException.none();
-
     @Test
-    public void testEmptyGraph() throws Throwable
+    void testEmptyGraph() throws Throwable
     {
         // Given the database is empty
 
         // When
         Procedures procs = procs();
-        RawIterator<Object[],ProcedureException> stream =
-               procs.procedureCallRead( procs.procedureGet( procedureName( "db", "schema" ) ).id(), new Object[0],
-                       ProcedureCallContext.EMPTY );
+
+        RawIterator<AnyValue[],ProcedureException> stream =
+                procs.procedureCallRead( procs.procedureGet( procedureName( "db", "schema", "visualization" ) ).id(), new AnyValue[0],
+                        ProcedureCallContext.EMPTY );
 
         // Then
-        assertThat( asList( stream ), contains( equalTo( new Object[]{new ArrayList<>(), new ArrayList<>()} ) ) );
-        commit();
+        assertThat( asList( stream ), contains( equalTo( new AnyValue[]{EMPTY_LIST, EMPTY_LIST} ) ) );
+
     }
 
     @Test
-    public void testLabelIndex() throws Throwable
+    void testLabelIndex() throws Throwable
     {
         // Given there is label with index and a constraint
-        Transaction transaction = newTransaction( AnonymousContext.writeToken() );
+        KernelTransaction transaction = newTransaction( AnonymousContext.writeToken() );
         long nodeId = transaction.dataWrite().nodeCreate();
         int labelId = transaction.tokenWrite().labelGetOrCreateForName( "Person" );
         transaction.dataWrite().nodeAddLabel( nodeId, labelId );
@@ -88,36 +84,36 @@ public class SchemaProcedureIT extends KernelIntegrationTest
         commit();
 
         SchemaWrite schemaOps = schemaWriteInNewTransaction();
-        schemaOps.indexCreate( SchemaDescriptorFactory.forLabel( labelId, propertyIdName ) );
-        schemaOps.uniquePropertyConstraintCreate( SchemaDescriptorFactory.forLabel( labelId, propertyIdAge ) );
+        schemaOps.indexCreate( forLabel( labelId, propertyIdName ), "my index" );
+        schemaOps.uniquePropertyConstraintCreate( uniqueForSchema( forLabel( labelId, propertyIdAge ) ).withName( "constraint name" ) );
         commit();
 
         // When
-        RawIterator<Object[],ProcedureException> stream =
-                procs().procedureCallRead( procs().procedureGet( procedureName( "db", "schema" ) ).id(),
-                        new Object[0], ProcedureCallContext.EMPTY );
+        RawIterator<AnyValue[],ProcedureException> stream =
+                procs().procedureCallRead( procs().procedureGet( procedureName( "db", "schema", "visualization" ) ).id(), new AnyValue[0],
+                        ProcedureCallContext.EMPTY );
 
         // Then
         while ( stream.hasNext() )
         {
-            Object[] next = stream.next();
+            AnyValue[] next = stream.next();
             assertEquals( 2, next.length );
-            ArrayList<Node> nodes = (ArrayList<Node>) next[0];
+            ListValue nodes = (ListValue) next[0];
             assertEquals( 1, nodes.size() );
-            assertThat( nodes.get( 0 ).getLabels(), contains( equalTo( Label.label( "Person" ) ) ) );
-            assertEquals( "Person", nodes.get( 0 ).getAllProperties().get( "name" ) );
-            assertEquals( Collections.singletonList( "name" ), nodes.get( 0 ).getAllProperties().get( "indexes" ) );
-            assertEquals( Collections.singletonList( "CONSTRAINT ON ( person:Person ) ASSERT person.age IS UNIQUE" ),
-                    nodes.get( 0 ).getAllProperties().get( "constraints" ) );
+            NodeValue node = (NodeValue) nodes.value( 0 );
+            assertThat( node.labels(), equalTo( Values.stringArray( "Person" ) ) );
+            assertEquals( stringValue( "Person" ), node.properties().get( "name" ) );
+            assertEquals( VirtualValues.list( stringValue( "name" ) ), node.properties().get( "indexes" ) );
+            assertEquals( VirtualValues.list( stringValue( "CONSTRAINT ON ( person:Person ) ASSERT (person.age) IS UNIQUE" ) ),
+                    node.properties().get( "constraints" ) );
         }
-        commit();
     }
 
     @Test
-    public void testRelationShip() throws Throwable
+    void testRelationShip() throws Throwable
     {
         // Given there ar
-        Transaction transaction = newTransaction( AnonymousContext.writeToken() );
+        KernelTransaction transaction = newTransaction( AnonymousContext.writeToken() );
         long nodeIdPerson = transaction.dataWrite().nodeCreate();
         int labelIdPerson = transaction.tokenWrite().labelGetOrCreateForName( "Person" );
         transaction.dataWrite().nodeAddLabel( nodeIdPerson, labelIdPerson );
@@ -128,24 +124,21 @@ public class SchemaProcedureIT extends KernelIntegrationTest
         transaction.dataWrite().relationshipCreate(  nodeIdPerson, relationshipTypeId, nodeIdLocation );
         commit();
 
-        // When
-        RawIterator<Object[],ProcedureException> stream =
-                procs().procedureCallRead( procs().procedureGet(  procedureName( "db", "schema" ) ).id(),
-                        new Object[0], ProcedureCallContext.EMPTY );
+        RawIterator<AnyValue[],ProcedureException> stream =
+                procs().procedureCallRead( procs().procedureGet( procedureName( "db", "schema", "visualization" ) ).id(), new AnyValue[0],
+                        ProcedureCallContext.EMPTY );
 
         // Then
         while ( stream.hasNext() )
         {
-            Object[] next = stream.next();
+            AnyValue[] next = stream.next();
             assertEquals( 2, next.length );
-            LinkedList<Relationship> relationships = (LinkedList<Relationship>) next[1];
+            ListValue relationships = (ListValue) next[1];
             assertEquals( 1, relationships.size() );
-            assertEquals( "LIVES_IN", relationships.get( 0 ).getType().name() );
-            assertThat( relationships.get( 0 ).getStartNode().getLabels(),
-                    contains( equalTo( Label.label( "Person" ) ) ) );
-            assertThat( relationships.get( 0 ).getEndNode().getLabels(),
-                    contains( equalTo( Label.label( "Location" ) ) ) );
+            RelationshipValue relationship = (RelationshipValue) relationships.value( 0 );
+            assertEquals( "LIVES_IN", relationship.type().stringValue() );
+            assertThat( relationship.startNode().labels(), equalTo( Values.stringArray( "Person" ) ) );
+            assertThat( relationship.endNode().labels(), equalTo( Values.stringArray( "Location" ) ) );
         }
-        commit();
     }
 }

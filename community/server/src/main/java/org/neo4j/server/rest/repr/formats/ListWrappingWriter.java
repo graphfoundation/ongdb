@@ -33,17 +33,10 @@ import org.neo4j.server.rest.repr.MappingWriter;
 public class ListWrappingWriter extends ListWriter
 {
     final List<Object> data;
-    private final boolean interactive;
 
     public ListWrappingWriter( List<Object> data )
     {
-        this( data, false );
-    }
-
-    ListWrappingWriter( List<Object> data, boolean interactive )
-    {
         this.data = data;
-        this.interactive = interactive;
     }
 
     @Override
@@ -51,7 +44,7 @@ public class ListWrappingWriter extends ListWriter
     {
         List<Object> list = new ArrayList<>();
         data.add( list );
-        return new ListWrappingWriter( list, interactive );
+        return new ListWrappingWriter( list );
     }
 
     @Override
@@ -59,7 +52,7 @@ public class ListWrappingWriter extends ListWriter
     {
         Map<String, Object> map = new HashMap<>();
         data.add( map );
-        return new MapWrappingWriter( map, interactive );
+        return new MapWrappingWriter( map );
     }
 
     @Override

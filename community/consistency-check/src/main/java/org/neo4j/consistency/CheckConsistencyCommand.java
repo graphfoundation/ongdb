@@ -22,256 +22,191 @@
  */
 package org.neo4j.consistency;
 
-import java.io.File;
+import picocli.CommandLine.Mixin;
+import picocli.CommandLine.Option;
+
+import java.io.Closeable;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
-import java.time.ZoneId;
 import java.util.Optional;
 
-import org.neo4j.commandline.admin.AdminCommand;
-import org.neo4j.commandline.admin.CommandFailed;
-import org.neo4j.commandline.admin.IncorrectUsage;
-import org.neo4j.commandline.arguments.Arguments;
-import org.neo4j.commandline.arguments.OptionalBooleanArg;
-import org.neo4j.commandline.arguments.common.OptionalCanonicalPath;
+import org.neo4j.cli.AbstractCommand;
+import org.neo4j.cli.CommandFailedException;
+import org.neo4j.cli.Converters.DatabaseNameConverter;
+import org.neo4j.cli.ExecutionContext;
+import org.neo4j.commandline.Util;
+import org.neo4j.commandline.dbms.CannotWriteException;
+import org.neo4j.commandline.dbms.LockChecker;
+import org.neo4j.configuration.Config;
+import org.neo4j.configuration.ConfigUtils;
+import org.neo4j.configuration.GraphDatabaseSettings;
+import org.neo4j.configuration.helpers.NormalizedDatabaseName;
 import org.neo4j.consistency.checking.full.ConsistencyCheckIncompleteException;
 import org.neo4j.consistency.checking.full.ConsistencyFlags;
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
-import org.neo4j.helpers.progress.ProgressMonitorFactory;
+import org.neo4j.internal.helpers.progress.ProgressMonitorFactory;
 import org.neo4j.io.fs.DefaultFileSystemAbstraction;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.layout.DatabaseLayout;
-import org.neo4j.io.pagecache.PageCache;
-import org.neo4j.kernel.configuration.Config;
-import org.neo4j.kernel.impl.pagecache.ConfigurableStandalonePageCacheFactory;
-import org.neo4j.kernel.impl.recovery.RecoveryRequiredException;
-import org.neo4j.kernel.monitoring.Monitors;
-import org.neo4j.logging.FormattedLogProvider;
-import org.neo4j.scheduler.JobScheduler;
+import org.neo4j.io.layout.Neo4jLayout;
+import org.neo4j.kernel.impl.util.Validators;
+import org.neo4j.kernel.internal.locker.FileLockException;
+import org.neo4j.logging.LogProvider;
+import org.neo4j.util.VisibleForTesting;
 
 import static java.lang.String.format;
-import static org.neo4j.commandline.arguments.common.Database.ARG_DATABASE;
-import static org.neo4j.graphdb.factory.GraphDatabaseSettings.database_path;
-import static org.neo4j.kernel.impl.recovery.RecoveryRequiredChecker.assertRecoveryIsNotRequired;
-import static org.neo4j.kernel.impl.scheduler.JobSchedulerFactory.createInitialisedScheduler;
+import static org.neo4j.internal.helpers.Strings.joinAsLines;
+import static org.neo4j.kernel.recovery.Recovery.isRecoveryRequired;
+import static picocli.CommandLine.ArgGroup;
+import static picocli.CommandLine.Command;
 
-public class CheckConsistencyCommand implements AdminCommand
+@Command(
+        name = "check-consistency",
+        header = "Check the consistency of a database.",
+        description = "This command allows for checking the consistency of a database or a backup thereof. It cannot " +
+                "be used with a database which is currently in use.%n" +
+                "%n" +
+                "All checks except 'check-graph' can be quite expensive so it may be useful to turn them off" +
+                " for very large databases. Increasing the heap size can also be a good idea." +
+                " See 'neo4j-admin help' for details."
+
+)
+public class CheckConsistencyCommand extends AbstractCommand
 {
-    public static final String CHECK_GRAPH = "check-graph";
-    public static final String CHECK_INDEXES = "check-indexes";
-    public static final String CHECK_INDEX_STRUCTURE = "check-index-structure";
-    public static final String CHECK_LABEL_SCAN_STORE = "check-label-scan-store";
-    public static final String CHECK_PROPERTY_OWNERS = "check-property-owners";
-    private static final Arguments arguments = new Arguments()
-            .withDatabase()
-            .withArgument( new OptionalCanonicalPath( "backup", "/path/to/backup", "",
-                    "Path to backup to check consistency of. Cannot be used together with --database." ) )
-            .withArgument( new OptionalBooleanArg( "verbose", false, "Enable verbose output." ) )
-            .withArgument( new OptionalCanonicalPath( "report-dir", "directory", ".",
-                    "Directory to write report file in." ) )
-            .withArgument( new OptionalCanonicalPath( "additional-config", "config-file-path", "",
-                    "Configuration file to supply additional configuration in. This argument is DEPRECATED." ) )
-            .withArgument( new OptionalBooleanArg( CHECK_GRAPH, true,
-                    "Perform checks between nodes, relationships, properties, types and tokens." ) )
-            .withArgument( new OptionalBooleanArg( CHECK_INDEXES, true,
-                    "Perform checks on indexes." ) )
-            .withArgument( new OptionalBooleanArg( CHECK_INDEX_STRUCTURE, false,
-                    "Perform structure checks on indexes." ) )
-            .withArgument( new OptionalBooleanArg( CHECK_LABEL_SCAN_STORE, true,
-                    "Perform checks on the label scan store." ) )
-            .withArgument( new OptionalBooleanArg( CHECK_PROPERTY_OWNERS, false,
-                    "Perform additional checks on property ownership. This check is *very* expensive in time and " +
-                            "memory." ) );
+    @ArgGroup( multiplicity = "1" )
+    private TargetOption target = new TargetOption();
 
-    private final Path homeDir;
-    private final Path configDir;
-    private final ConsistencyCheckService consistencyCheckService;
-
-    public CheckConsistencyCommand( Path homeDir, Path configDir )
+    private static class TargetOption
     {
-        this( homeDir, configDir, new ConsistencyCheckService() );
+        @Option( names = "--database", description = "Name of the database to check.", converter = DatabaseNameConverter.class )
+        private NormalizedDatabaseName database;
+
+        @Option( names = "--backup", paramLabel = "<path>", description = "Path to backup to check consistency of. Cannot be used together with --database." )
+        private Path backup;
     }
 
-    public CheckConsistencyCommand( Path homeDir, Path configDir, ConsistencyCheckService consistencyCheckService )
+    @Option( names = "--additional-config", paramLabel = "<path>", description = "Configuration file to supply additional configuration in." )
+    private Path additionalConfig;
+
+    @Mixin
+    private ConsistencyCheckOptions options;
+
+    private final ConsistencyCheckService consistencyCheckService;
+
+    public CheckConsistencyCommand( ExecutionContext ctx )
     {
-        this.homeDir = homeDir;
-        this.configDir = configDir;
+        this( ctx, new ConsistencyCheckService() );
+    }
+
+    @VisibleForTesting
+    public CheckConsistencyCommand( ExecutionContext ctx, ConsistencyCheckService consistencyCheckService )
+    {
+        super( ctx );
         this.consistencyCheckService = consistencyCheckService;
     }
 
     @Override
-    public void execute( String[] args ) throws IncorrectUsage, CommandFailed
+    public void execute()
     {
-        final String database;
-        final boolean verbose;
-        final Optional<Path> additionalConfigFile;
-        final Path reportDir;
-        final Optional<Path> backupPath;
-        final boolean checkGraph;
-        final boolean checkIndexes;
-        final boolean checkIndexStructure;
-        final boolean checkLabelScanStore;
-        final boolean checkPropertyOwners;
-
-        try
+        if ( target.backup != null )
         {
-            database = arguments.parse( args ).get( ARG_DATABASE );
-            backupPath = arguments.getOptionalPath( "backup" );
-            verbose = arguments.getBoolean( "verbose" );
-            additionalConfigFile = arguments.getOptionalPath( "additional-config" );
-            reportDir = arguments.getOptionalPath( "report-dir" )
-                    .orElseThrow( () -> new IllegalArgumentException( "report-dir must be a valid path" ) );
-        }
-        catch ( IllegalArgumentException e )
-        {
-            throw new IncorrectUsage( e.getMessage() );
-        }
-
-        if ( backupPath.isPresent() )
-        {
-            if ( arguments.has( ARG_DATABASE ) )
+            target.backup = target.backup.toAbsolutePath();
+            if ( !Files.isDirectory( target.backup ) )
             {
-                throw new IncorrectUsage( "Only one of '--" + ARG_DATABASE + "' and '--backup' can be specified." );
-            }
-            if ( !backupPath.get().toFile().isDirectory() )
-            {
-                throw new CommandFailed( format( "Specified backup should be a directory: %s", backupPath.get() ) );
+                throw new CommandFailedException( "Report directory path doesn't exist or not a directory: " + target.backup );
             }
         }
 
-        Config config = loadNeo4jConfig( homeDir, configDir, database, loadAdditionalConfig( additionalConfigFile ) );
-
-        try
-        {
-            // We can remove the loading from config file in 4.0
-            if ( arguments.has( CHECK_GRAPH ) )
-            {
-                checkGraph = arguments.getBoolean( CHECK_GRAPH );
-            }
-            else
-            {
-                checkGraph = config.get( ConsistencyCheckSettings.consistency_check_graph );
-            }
-            if ( arguments.has( CHECK_INDEXES ) )
-            {
-                checkIndexes = arguments.getBoolean( CHECK_INDEXES );
-            }
-            else
-            {
-                checkIndexes = config.get( ConsistencyCheckSettings.consistency_check_indexes );
-            }
-            if ( arguments.has( CHECK_INDEX_STRUCTURE ) )
-            {
-                checkIndexStructure = arguments.getBoolean( CHECK_INDEX_STRUCTURE );
-            }
-            else
-            {
-                checkIndexStructure = config.get( ConsistencyCheckSettings.consistency_check_index_structure );
-            }
-            if ( arguments.has( CHECK_LABEL_SCAN_STORE ) )
-            {
-                checkLabelScanStore = arguments.getBoolean( CHECK_LABEL_SCAN_STORE );
-            }
-            else
-            {
-                checkLabelScanStore = config.get( ConsistencyCheckSettings.consistency_check_label_scan_store );
-            }
-            if ( arguments.has( CHECK_PROPERTY_OWNERS ) )
-            {
-                checkPropertyOwners = arguments.getBoolean( CHECK_PROPERTY_OWNERS );
-            }
-            else
-            {
-                checkPropertyOwners = config.get( ConsistencyCheckSettings.consistency_check_property_owners );
-            }
-        }
-        catch ( IllegalArgumentException e )
-        {
-            throw new IncorrectUsage( e.getMessage() );
-        }
+        Config config = loadNeo4jConfig( ctx.homeDir(), ctx.confDir(), additionalConfig );
 
         try ( FileSystemAbstraction fileSystem = new DefaultFileSystemAbstraction() )
         {
-            File databaseDirectory = backupPath.map( Path::toFile ).orElse( config.get( database_path ) );
-            DatabaseLayout databaseLayout = DatabaseLayout.of( databaseDirectory );
-            checkDbState( databaseLayout, config );
-            ZoneId logTimeZone = config.get( GraphDatabaseSettings.db_timezone ).getZoneId();
-            // Only output progress indicator if a console receives the output
-            ProgressMonitorFactory progressMonitorFactory = ProgressMonitorFactory.NONE;
-            if ( System.console() != null )
+
+            DatabaseLayout databaseLayout = Optional.ofNullable( target.backup )
+                    .map( Path::toFile ).map( DatabaseLayout::ofFlat )
+                    .orElseGet( () -> Neo4jLayout.of( config ).databaseLayout( target.database.name() ) );
+
+            checkDatabaseExistence( databaseLayout );
+            try ( Closeable ignored = LockChecker.checkDatabaseLock( databaseLayout ) )
             {
-                progressMonitorFactory = ProgressMonitorFactory.textual( System.out );
+                checkDbState( databaseLayout, config );
+                // Only output progress indicator if a console receives the output
+                ProgressMonitorFactory progressMonitorFactory = ProgressMonitorFactory.NONE;
+                if ( System.console() != null )
+                {
+                    progressMonitorFactory = ProgressMonitorFactory.textual( System.out );
+                }
+
+                LogProvider logProvider = Util.configuredLogProvider( config, System.out );
+                ConsistencyCheckService.Result consistencyCheckResult = consistencyCheckService
+                        .runFullConsistencyCheck( databaseLayout, config, progressMonitorFactory, logProvider, fileSystem,
+                            verbose, options.getReportDir().toFile().getCanonicalFile(),
+                                new ConsistencyFlags( options.isCheckGraph(), options.isCheckIndexes(), options.isCheckIndexStructure(),
+                                        options.isCheckLabelScanStore(), options.isCheckPropertyOwners() ) );
+
+                if ( !consistencyCheckResult.isSuccessful() )
+                {
+                    throw new CommandFailedException( format( "Inconsistencies found. See '%s' for details.",
+                            consistencyCheckResult.reportFile() ) );
+                }
             }
-
-            ConsistencyCheckService.Result consistencyCheckResult = consistencyCheckService
-                    .runFullConsistencyCheck( databaseLayout, config, progressMonitorFactory,
-                            FormattedLogProvider.withZoneId( logTimeZone ).toOutputStream( System.out ), fileSystem,
-                            verbose, reportDir.toFile(),
-                            new ConsistencyFlags( checkGraph, checkIndexes, checkIndexStructure, checkLabelScanStore, checkPropertyOwners ) );
-
-            if ( !consistencyCheckResult.isSuccessful() )
+            catch ( FileLockException e )
             {
-                throw new CommandFailed( format( "Inconsistencies found. See '%s' for details.",
-                        consistencyCheckResult.reportFile() ) );
+                throw new CommandFailedException( "The database is in use. Stop database '" + databaseLayout.getDatabaseName() + "' and try again.", e );
+            }
+            catch ( CannotWriteException e )
+            {
+                throw new CommandFailedException( "You do not have permission to check database consistency.", e );
             }
         }
         catch ( ConsistencyCheckIncompleteException | IOException e )
         {
-            throw new CommandFailed( "Consistency checking failed." + e.getMessage(), e );
+            throw new CommandFailedException( "Consistency checking failed." + e.getMessage(), e );
         }
     }
 
-    private static Config loadAdditionalConfig( Optional<Path> additionalConfigFile )
+    private void checkDatabaseExistence( DatabaseLayout databaseLayout )
     {
-        if ( additionalConfigFile.isPresent() )
+        try
         {
-            try
-            {
-                return Config.fromFile( additionalConfigFile.get() ).build();
-            }
-            catch ( Exception e )
-            {
-                throw new IllegalArgumentException(
-                        String.format( "Could not read configuration file [%s]", additionalConfigFile ), e );
-            }
+            Validators.CONTAINS_EXISTING_DATABASE.validate( databaseLayout.databaseDirectory() );
         }
-
-        return Config.defaults();
+        catch ( IllegalArgumentException e )
+        {
+            throw new CommandFailedException( "Database does not exist: " + databaseLayout.getDatabaseName(), e );
+        }
     }
 
-    private static void checkDbState( DatabaseLayout databaseLayout, Config additionalConfiguration ) throws CommandFailed
+    private static void checkDbState( DatabaseLayout databaseLayout, Config additionalConfiguration )
     {
-        try ( FileSystemAbstraction fileSystem = new DefaultFileSystemAbstraction();
-              JobScheduler jobScheduler = createInitialisedScheduler();
-              PageCache pageCache = ConfigurableStandalonePageCacheFactory
-                      .createPageCache( fileSystem, additionalConfiguration, jobScheduler ) )
+        if ( checkRecoveryState( databaseLayout, additionalConfiguration ) )
         {
-            assertRecoveryIsNotRequired( fileSystem, pageCache, additionalConfiguration, databaseLayout, new Monitors() );
+            throw new CommandFailedException( joinAsLines( "Active logical log detected, this might be a source of inconsistencies.",
+                    "Please recover database before running the consistency check.",
+                    "To perform recovery please start database and perform clean shutdown." ) );
         }
-        catch ( RecoveryRequiredException rre )
+    }
+
+    private static boolean checkRecoveryState( DatabaseLayout databaseLayout, Config additionalConfiguration )
+    {
+        try
         {
-            throw new CommandFailed( rre.getMessage() );
+            return isRecoveryRequired( databaseLayout, additionalConfiguration );
         }
         catch ( Exception e )
         {
-            throw new CommandFailed( "Failure when checking for recovery state: '%s'." + e.getMessage(), e );
+            throw new CommandFailedException( "Failure when checking for recovery state: " + e.getMessage(), e );
         }
     }
 
-    private static Config loadNeo4jConfig( Path homeDir, Path configDir, String databaseName, Config additionalConfig )
+    private static Config loadNeo4jConfig( Path homeDir, Path configDir, Path additionalConfig )
     {
-        Config config = Config.fromFile( configDir.resolve( Config.DEFAULT_CONFIG_FILE_NAME ) )
-                .withHome( homeDir )
-                .withConnectorsDisabled()
-                .withNoThrowOnFileLoadFailure()
+        Config cfg = Config.newBuilder()
+                .fromFileNoThrow( configDir.resolve( Config.DEFAULT_CONFIG_FILE_NAME ) )
+                .fromFileNoThrow( additionalConfig )
+                .set( GraphDatabaseSettings.neo4j_home, homeDir )
                 .build();
-        config.augment( additionalConfig );
-        config.augment( GraphDatabaseSettings.active_database, databaseName );
-        return config;
-    }
-
-    public static Arguments arguments()
-    {
-        return arguments;
+        ConfigUtils.disableAllConnectors( cfg );
+        return cfg;
     }
 }

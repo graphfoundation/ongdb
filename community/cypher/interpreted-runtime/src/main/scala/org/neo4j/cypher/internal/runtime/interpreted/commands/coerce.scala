@@ -22,10 +22,11 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.commands
 
-import org.neo4j.cypher.internal.runtime.QueryContext
-import org.neo4j.cypher.internal.runtime.interpreted.{IsList, IsMap}
-import org.neo4j.cypher.internal.v3_6.util.CypherTypeException
-import org.neo4j.cypher.internal.v3_6.util.symbols._
+import org.neo4j.cypher.internal.runtime.IsList
+import org.neo4j.cypher.internal.runtime.interpreted.IsMap
+import org.neo4j.cypher.internal.runtime.interpreted.pipes.QueryState
+import org.neo4j.cypher.internal.v4_0.util.symbols._
+import org.neo4j.exceptions.CypherTypeException
 import org.neo4j.values._
 import org.neo4j.values.storable._
 import org.neo4j.values.virtual._
@@ -34,8 +35,8 @@ import scala.collection.JavaConverters._
 
 object coerce {
 
-  def apply(value: AnyValue, typ: CypherType)(implicit context: QueryContext): AnyValue = {
-    val result = if (value == Values.NO_VALUE) Values.NO_VALUE else try {
+  def apply(value: AnyValue, state: QueryState, typ: CypherType): AnyValue = {
+    val result = if (value eq Values.NO_VALUE) Values.NO_VALUE else try {
       typ match {
         case CTAny => value
         case CTString => value.asInstanceOf[TextValue]
@@ -45,15 +46,15 @@ object coerce {
         case CTInteger => Values.longValue(value.asInstanceOf[NumberValue].longValue())
         case CTFloat => Values.doubleValue(value.asInstanceOf[NumberValue].doubleValue())
         case CTMap => value match {
-          case IsMap(m) => m(context)
+          case IsMap(m) => m(state)
           case _ => throw cantCoerce(value, typ)
         }
         case t: ListType => value match {
-          case p: PathValue if t.innerType == CTNode => throw cantCoerce(value, typ)
-          case p: PathValue if t.innerType == CTRelationship => throw cantCoerce(value, typ)
+          case _: PathValue if t.innerType == CTNode => throw cantCoerce(value, typ)
+          case _: PathValue if t.innerType == CTRelationship => throw cantCoerce(value, typ)
           case p: PathValue => p.asList
           case IsList(coll) if t.innerType == CTAny => coll
-          case IsList(coll) => VirtualValues.list(coll.iterator().asScala.map(coerce(_, t.innerType)).toArray:_*)
+          case IsList(coll) => VirtualValues.list(coll.iterator().asScala.map(coerce(_, state, t.innerType)).toArray:_*)
           case _ => throw cantCoerce(value, typ)
         }
         case CTBoolean => value.asInstanceOf[BooleanValue]

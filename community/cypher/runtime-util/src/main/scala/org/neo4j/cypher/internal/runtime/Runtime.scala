@@ -22,14 +22,14 @@
  */
 package org.neo4j.cypher.internal.runtime
 
-import org.neo4j.cypher.internal.planner.v3_6.spi.TokenContext
-import org.neo4j.cypher.internal.v3_6.logical.plans.LogicalPlan
-import org.neo4j.internal.kernel.api.Transaction
+import org.neo4j.cypher.internal.logical.plans.LogicalPlan
+import org.neo4j.cypher.internal.planner.spi.TokenContext
+import org.neo4j.cypher.internal.v4_0.ast.semantics.SemanticTable
+import org.neo4j.cypher.internal.v4_0.expressions.Expression
+import org.neo4j.cypher.internal.v4_0.util.symbols.CypherType
+import org.neo4j.kernel.api.KernelTransaction
 import org.neo4j.kernel.impl.query.{QueryExecution, ResultBuffer}
 import org.neo4j.values.virtual.MapValue
-import org.neo4j.cypher.internal.v3_6.ast.semantics.SemanticTable
-import org.neo4j.cypher.internal.v3_6.expressions.Expression
-import org.neo4j.cypher.internal.v3_6.util.symbols.CypherType
 
 // =============================================== /
 // RUNTIME INTERFACES, implemented by each runtime /
@@ -65,7 +65,7 @@ trait ExecutableQuery {
     */
   def execute( params: MapValue,
                resultBuffer: ResultBuffer,
-               transaction: Option[Transaction]
+               transaction: Option[KernelTransaction]
              ): QueryExecution
 }
 

@@ -22,134 +22,87 @@
  */
 package org.neo4j.consistency.checking.full;
 
+import java.io.IOException;
 import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.neo4j.annotations.documented.ReporterFactory;
+import org.neo4j.configuration.Config;
 import org.neo4j.consistency.RecordType;
-import org.neo4j.consistency.checking.ByteArrayBitsManipulator;
 import org.neo4j.consistency.checking.CheckDecorator;
 import org.neo4j.consistency.checking.cache.CacheAccess;
 import org.neo4j.consistency.checking.cache.DefaultCacheAccess;
 import org.neo4j.consistency.checking.index.IndexAccessors;
+import org.neo4j.consistency.newchecker.NodeBasedMemoryLimiter;
+import org.neo4j.consistency.newchecker.RecordStorageConsistencyChecker;
 import org.neo4j.consistency.report.ConsistencyReporter;
-import org.neo4j.consistency.report.ConsistencyReporter.Monitor;
 import org.neo4j.consistency.report.ConsistencySummaryStatistics;
 import org.neo4j.consistency.report.InconsistencyMessageLogger;
 import org.neo4j.consistency.report.InconsistencyReport;
 import org.neo4j.consistency.statistics.Statistics;
 import org.neo4j.consistency.store.CacheSmallStoresRecordAccess;
 import org.neo4j.consistency.store.DirectRecordAccess;
+import org.neo4j.consistency.store.DirectStoreAccess;
 import org.neo4j.consistency.store.RecordAccess;
-import org.neo4j.helpers.collection.Iterables;
-import org.neo4j.helpers.progress.ProgressListener;
-import org.neo4j.helpers.progress.ProgressMonitorFactory;
-import org.neo4j.kernel.api.direct.DirectStoreAccess;
+import org.neo4j.counts.CountsStore;
+import org.neo4j.function.ThrowingSupplier;
+import org.neo4j.internal.helpers.collection.Iterables;
+import org.neo4j.internal.helpers.progress.ProgressListener;
+import org.neo4j.internal.helpers.progress.ProgressMonitorFactory;
+import org.neo4j.internal.id.IdGenerator;
+import org.neo4j.internal.index.label.LabelScanStore;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.kernel.api.index.IndexAccessor;
-import org.neo4j.kernel.api.labelscan.LabelScanStore;
-import org.neo4j.kernel.configuration.Config;
-import org.neo4j.kernel.impl.annotations.ReporterFactory;
-import org.neo4j.kernel.impl.api.CountsAccessor;
-import org.neo4j.kernel.impl.api.index.sampling.IndexSamplingConfig;
+import org.neo4j.kernel.impl.api.index.IndexSamplingConfig;
+import org.neo4j.kernel.impl.api.index.stats.IndexStatisticsStore;
+import org.neo4j.kernel.impl.index.schema.ConsistencyCheckable;
 import org.neo4j.kernel.impl.store.RecordStore;
 import org.neo4j.kernel.impl.store.StoreAccess;
-import org.neo4j.kernel.impl.store.counts.CountsTracker;
-import org.neo4j.kernel.impl.store.kvstore.DataInitializer;
 import org.neo4j.kernel.impl.store.record.AbstractBaseRecord;
 import org.neo4j.kernel.impl.store.record.LabelTokenRecord;
 import org.neo4j.kernel.impl.store.record.PropertyKeyTokenRecord;
 import org.neo4j.kernel.impl.store.record.RelationshipTypeTokenRecord;
 import org.neo4j.logging.Log;
-import org.neo4j.storageengine.api.schema.StoreIndexDescriptor;
 
+import static org.neo4j.configuration.GraphDatabaseSettings.experimental_consistency_checker;
 import static org.neo4j.consistency.report.ConsistencyReporter.NO_MONITOR;
 import static org.neo4j.kernel.impl.store.record.RecordLoad.FORCE;
-import static org.neo4j.unsafe.impl.batchimport.cache.NumberArrayFactory.AUTO_WITHOUT_PAGECACHE;
 
 public class FullCheck
 {
-    private final boolean checkPropertyOwners;
-    private final boolean checkLabelScanStore;
-    private final boolean checkIndexes;
-    private final boolean checkIndexStructure;
+    private final boolean useExperimentalChecker;
+    private final Config config;
+    private final boolean verbose;
+    private final NodeBasedMemoryLimiter.Factory memoryLimit;
     private final ProgressMonitorFactory progressFactory;
+    private final ConsistencyFlags flags;
     private final IndexSamplingConfig samplingConfig;
-    private final boolean checkGraph;
     private final int threads;
     private final Statistics statistics;
-    private final boolean startCountsStore;
-
-    public FullCheck( Config config, ProgressMonitorFactory progressFactory,
-            Statistics statistics, int threads, boolean startCountsStore )
-    {
-        this( progressFactory, statistics, threads, new ConsistencyFlags( config ), config, startCountsStore );
-    }
 
     public FullCheck( ProgressMonitorFactory progressFactory, Statistics statistics, int threads,
-                      ConsistencyFlags consistencyFlags, Config config, boolean startCountsStore )
+                      ConsistencyFlags consistencyFlags, Config config, boolean verbose, NodeBasedMemoryLimiter.Factory memoryLimit )
     {
         this.statistics = statistics;
         this.threads = threads;
         this.progressFactory = progressFactory;
+        this.flags = consistencyFlags;
         this.samplingConfig = new IndexSamplingConfig( config );
-        this.checkGraph = consistencyFlags.isCheckGraph();
-        this.checkIndexes = consistencyFlags.isCheckIndexes();
-        this.checkIndexStructure = consistencyFlags.isCheckIndexStructure();
-        this.checkLabelScanStore = consistencyFlags.isCheckLabelScanStore();
-        this.checkPropertyOwners = consistencyFlags.isCheckPropertyOwners();
-        this.startCountsStore = startCountsStore;
+        this.config = config;
+        this.useExperimentalChecker = config.get( experimental_consistency_checker );
+        this.verbose = verbose;
+        this.memoryLimit = memoryLimit;
     }
 
-    public ConsistencySummaryStatistics execute( DirectStoreAccess stores, Log log )
-            throws ConsistencyCheckIncompleteException
-    {
-        return execute( stores, log, NO_MONITOR );
-    }
-
-    ConsistencySummaryStatistics execute( DirectStoreAccess stores, Log log, Monitor reportMonitor )
-            throws ConsistencyCheckIncompleteException
+    public ConsistencySummaryStatistics execute( PageCache pageCache, DirectStoreAccess stores, ThrowingSupplier<CountsStore,IOException> countsSupplier,
+            Log log ) throws ConsistencyCheckIncompleteException
     {
         ConsistencySummaryStatistics summary = new ConsistencySummaryStatistics();
         InconsistencyReport report = new InconsistencyReport( new InconsistencyMessageLogger( log ), summary );
-
-        OwnerCheck ownerCheck = new OwnerCheck( checkPropertyOwners );
-        CountsBuilderDecorator countsBuilder =
-                new CountsBuilderDecorator( stores.nativeStores() );
-        CheckDecorator decorator = new CheckDecorator.ChainCheckDecorator( ownerCheck, countsBuilder );
-        CacheAccess cacheAccess = new DefaultCacheAccess(
-                AUTO_WITHOUT_PAGECACHE.newByteArray( stores.nativeStores().getNodeStore().getHighId(), new byte[ByteArrayBitsManipulator.MAX_BYTES] ),
-                statistics.getCounts(), threads );
-        RecordAccess records = recordAccess( stores.nativeStores(), cacheAccess );
-        execute( stores, decorator, records, report, cacheAccess, reportMonitor );
-        ownerCheck.scanForOrphanChains( progressFactory );
-
-        if ( checkGraph )
-        {
-            CountsAccessor countsAccessor = stores.nativeStores().getCounts();
-            boolean checkCounts = true;
-            if ( startCountsStore && countsAccessor instanceof CountsTracker )
-            {
-                CountsTracker tracker = (CountsTracker) countsAccessor;
-                // Perhaps other read-only use cases thinks it's fine to just rebuild an in-memory counts store,
-                // but the consistency checker should instead prevent rebuild and report that the counts store is broken or missing
-                tracker.setInitializer( new RebuildPreventingCountsInitializer() );
-                try
-                {
-                    tracker.start();
-                }
-                catch ( Exception e )
-                {
-                    log.error( "Counts store is missing, broken or of an older format and will not be consistency checked", e );
-                    summary.update( RecordType.COUNTS, 1, 0 );
-                    checkCounts = false;
-                }
-            }
-
-            if ( checkCounts )
-            {
-                countsBuilder.checkCounts( countsAccessor, new ConsistencyReporter( records, report ), progressFactory );
-            }
-        }
+        CountsStore countsStore = getCountsStore( countsSupplier, log, summary );
+        execute( pageCache, stores, report, countsStore );
 
         if ( !summary.isConsistent() )
         {
@@ -158,34 +111,78 @@ public class FullCheck
         return summary;
     }
 
-    void execute( final DirectStoreAccess directStoreAccess, final CheckDecorator decorator,
-                  final RecordAccess recordAccess, final InconsistencyReport report,
-                  CacheAccess cacheAccess, Monitor reportMonitor )
+    private void checkCountsStoreConsistency( InconsistencyReport report, CountsBuilderDecorator countsBuilder, RecordAccess records, CountsStore countsStore )
+    {
+        if ( flags.isCheckGraph() && countsStore != CountsStore.nullInstance )
+        {
+            countsBuilder.checkCounts( countsStore, new ConsistencyReporter( records, report ), progressFactory );
+        }
+    }
+
+    private CountsStore getCountsStore( ThrowingSupplier<CountsStore,IOException> countsSupplier, Log log, ConsistencySummaryStatistics summary )
+    {
+        // Perhaps other read-only use cases thinks it's fine to just rebuild an in-memory counts store,
+        // but the consistency checker should instead prevent rebuild and report that the counts store is broken or missing
+        CountsStore countsStore = CountsStore.nullInstance;
+        if ( flags.isCheckGraph() || flags.isCheckIndexStructure() )
+        {
+            try
+            {
+                countsStore = countsSupplier.get();
+            }
+            catch ( Exception e )
+            {
+                log.error( "Counts store is missing, broken or of an older format and will not be consistency checked", e );
+                summary.update( RecordType.COUNTS, 1, 0 );
+            }
+        }
+        return countsStore;
+    }
+
+    void execute( PageCache pageCache, final DirectStoreAccess directStoreAccess, final InconsistencyReport report, CountsStore countsStore )
             throws ConsistencyCheckIncompleteException
     {
-        final ConsistencyReporter reporter = new ConsistencyReporter( recordAccess, report, reportMonitor );
-        StoreProcessor processEverything = new StoreProcessor( decorator, reporter, Stage.SEQUENTIAL_FORWARD, cacheAccess );
-        ProgressMonitorFactory.MultiPartBuilder progress = progressFactory.multipleParts(
-                "Full Consistency Check" );
-        final StoreAccess nativeStores = directStoreAccess.nativeStores();
-        try ( IndexAccessors indexes =
-                      new IndexAccessors( directStoreAccess.indexes(), nativeStores.getSchemaStore(), samplingConfig ) )
+        try ( IndexAccessors indexes = new IndexAccessors( directStoreAccess.indexes(), directStoreAccess.nativeStores().getRawNeoStores(), samplingConfig ) )
         {
-            MultiPassStore.Factory multiPass = new MultiPassStore.Factory(
-                    decorator, recordAccess, cacheAccess, report, reportMonitor );
-            ConsistencyCheckTasks taskCreator = new ConsistencyCheckTasks( progress, processEverything,
-                    nativeStores, statistics, cacheAccess, directStoreAccess.labelScanStore(), indexes, directStoreAccess.tokenHolders(),
-                    multiPass, reporter, threads );
-
-            if ( checkIndexStructure )
+            if ( flags.isCheckIndexStructure() )
             {
-                consistencyCheckIndexStructure( directStoreAccess.labelScanStore(), indexes, report, progressFactory );
+                consistencyCheckIndexStructure( directStoreAccess.labelScanStore(), directStoreAccess.indexStatisticsStore(), countsStore, indexes,
+                        allIdGenerators( directStoreAccess ), report, progressFactory );
             }
 
-            List<ConsistencyCheckerTask> tasks =
-                    taskCreator.createTasksForFullCheck( checkLabelScanStore, checkIndexes, checkGraph );
-            progress.build();
-            TaskExecutor.execute( tasks, decorator::prepare );
+            if ( !useExperimentalChecker )
+            {
+                CacheAccess cacheAccess =
+                        new DefaultCacheAccess( DefaultCacheAccess.defaultByteArray( directStoreAccess.nativeStores().getNodeStore().getHighId() ),
+                                statistics.getCounts(), threads );
+                RecordAccess recordAccess = recordAccess( directStoreAccess.nativeStores(), cacheAccess );
+                OwnerCheck ownerCheck = new OwnerCheck( flags.isCheckPropertyOwners() );
+                CountsBuilderDecorator countsBuilder = new CountsBuilderDecorator( directStoreAccess.nativeStores() );
+                CheckDecorator decorator = new CheckDecorator.ChainCheckDecorator( ownerCheck, countsBuilder );
+                final ConsistencyReporter reporter = new ConsistencyReporter( recordAccess, report, NO_MONITOR );
+                final StoreAccess nativeStores = directStoreAccess.nativeStores();
+                StoreProcessor processEverything = new StoreProcessor( decorator, reporter, Stage.SEQUENTIAL_FORWARD, cacheAccess );
+                ProgressMonitorFactory.MultiPartBuilder progress = progressFactory.multipleParts( "Full Consistency Check" );
+                MultiPassStore.Factory multiPass = new MultiPassStore.Factory( decorator, recordAccess, cacheAccess, report, NO_MONITOR );
+                ConsistencyCheckTasks taskCreator =
+                        new ConsistencyCheckTasks( progress, processEverything, nativeStores, statistics, cacheAccess, directStoreAccess.labelScanStore(),
+                                indexes, multiPass, reporter, threads );
+                List<ConsistencyCheckerTask> tasks = taskCreator.createTasksForFullCheck( flags.isCheckLabelScanStore(), flags.isCheckIndexes(),
+                        flags.isCheckGraph() );
+                progress.build();
+                TaskExecutor.execute( tasks, decorator::prepare );
+                checkCountsStoreConsistency( report, countsBuilder, recordAccess, countsStore );
+                ownerCheck.scanForOrphanChains( progressFactory );
+            }
+            else
+            {
+                try ( RecordStorageConsistencyChecker checker = new RecordStorageConsistencyChecker( pageCache,
+                        directStoreAccess.nativeStores().getRawNeoStores(), countsStore, directStoreAccess.labelScanStore(), indexes, report, progressFactory,
+                        config, threads, verbose, flags, memoryLimit ) )
+                {
+                    checker.check();
+                }
+            }
         }
         catch ( Exception e )
         {
@@ -193,7 +190,14 @@ public class FullCheck
         }
     }
 
-    static RecordAccess recordAccess( StoreAccess store, CacheAccess cacheAccess )
+    private List<IdGenerator> allIdGenerators( DirectStoreAccess directStoreAccess )
+    {
+        List<IdGenerator> idGenerators = new ArrayList<>();
+        directStoreAccess.idGeneratorFactory().visit( idGenerators::add );
+        return idGenerators;
+    }
+
+    private static RecordAccess recordAccess( StoreAccess store, CacheAccess cacheAccess )
     {
         return new CacheSmallStoresRecordAccess(
                 new DirectRecordAccess( store, cacheAccess ),
@@ -202,34 +206,50 @@ public class FullCheck
                 readAllRecords( LabelTokenRecord.class, store.getLabelTokenStore() ) );
     }
 
-    private static void consistencyCheckIndexStructure( LabelScanStore labelScanStore, IndexAccessors indexes,
-            InconsistencyReport report, ProgressMonitorFactory progressMonitorFactory )
+    private static void consistencyCheckIndexStructure( LabelScanStore labelScanStore,
+            IndexStatisticsStore indexStatisticsStore, CountsStore countsStore, IndexAccessors indexes,
+            List<IdGenerator> idGenerators, InconsistencyReport report, ProgressMonitorFactory progressMonitorFactory )
     {
         final long schemaIndexCount = Iterables.count( indexes.onlineRules() );
-        final long additionalCount = 1; // LabelScanStore
-        final long totalCount = schemaIndexCount + additionalCount;
+        final long additionalCount = 1 /*LabelScanStore*/ + 1 /*IndexStatisticsStore*/ + 1 /*countsStore*/;
+        final long idGeneratorsCount = idGenerators.size();
+        final long totalCount = schemaIndexCount + additionalCount + idGeneratorsCount;
         final ProgressListener listener = progressMonitorFactory.singlePart( "Index structure consistency check", totalCount );
         listener.started();
 
-        consistencyCheckLabelScanStore( labelScanStore, report, listener );
+        consistencyCheckNonSchemaIndexes( report, listener, labelScanStore, indexStatisticsStore, countsStore, idGenerators );
         consistencyCheckSchemaIndexes( indexes, report, listener );
 
         listener.done();
     }
 
-    private static void consistencyCheckLabelScanStore( LabelScanStore labelScanStore, InconsistencyReport report, ProgressListener listener )
+    private static void consistencyCheckNonSchemaIndexes( InconsistencyReport report, ProgressListener listener,
+            LabelScanStore labelScanStore, IndexStatisticsStore indexStatisticsStore, CountsStore countsStore, List<IdGenerator> idGenerators )
     {
-        ConsistencyReporter.FormattingDocumentedHandler handler = ConsistencyReporter.formattingHandler( report, RecordType.LABEL_SCAN_DOCUMENT );
+        consistencyCheckSingleCheckable( report, listener, labelScanStore, RecordType.LABEL_SCAN_DOCUMENT );
+        consistencyCheckSingleCheckable( report, listener, indexStatisticsStore, RecordType.INDEX_STATISTICS );
+        consistencyCheckSingleCheckable( report, listener, countsStore, RecordType.COUNTS );
+        for ( IdGenerator idGenerator : idGenerators )
+        {
+            consistencyCheckSingleCheckable( report, listener, idGenerator, RecordType.ID_STORE );
+        }
+    }
+
+    private static void consistencyCheckSingleCheckable( InconsistencyReport report, ProgressListener listener, ConsistencyCheckable checkable,
+            RecordType recordType )
+    {
+        ConsistencyReporter.FormattingDocumentedHandler handler = ConsistencyReporter.formattingHandler( report, recordType );
         ReporterFactory proxyFactory = new ReporterFactory( handler );
-        labelScanStore.consistencyCheck( proxyFactory );
+
+        checkable.consistencyCheck( proxyFactory );
         handler.updateSummary();
         listener.add( 1 );
     }
 
     private static void consistencyCheckSchemaIndexes( IndexAccessors indexes, InconsistencyReport report, ProgressListener listener )
     {
-        List<StoreIndexDescriptor> rulesToRemove = new ArrayList<>();
-        for ( StoreIndexDescriptor onlineRule : indexes.onlineRules() )
+        List<IndexDescriptor> rulesToRemove = new ArrayList<>();
+        for ( IndexDescriptor onlineRule : indexes.onlineRules() )
         {
             ConsistencyReporter.FormattingDocumentedHandler handler = ConsistencyReporter.formattingHandler( report, RecordType.INDEX );
             ReporterFactory reporterFactory = new ReporterFactory( handler );
@@ -241,7 +261,7 @@ public class FullCheck
             handler.updateSummary();
             listener.add( 1 );
         }
-        for ( StoreIndexDescriptor toRemove : rulesToRemove )
+        for ( IndexDescriptor toRemove : rulesToRemove )
         {
             indexes.remove( toRemove );
         }
@@ -256,20 +276,5 @@ public class FullCheck
             records[i] = store.getRecord( i, store.newRecord(), FORCE );
         }
         return records;
-    }
-
-    private class RebuildPreventingCountsInitializer implements DataInitializer<CountsAccessor.Updater>
-    {
-        @Override
-        public void initialize( CountsAccessor.Updater updater )
-        {
-            throw new UnsupportedOperationException( "Counts store needed rebuild, consistency checker will instead report broken or missing counts store" );
-        }
-
-        @Override
-        public long initialVersion()
-        {
-            return 0;
-        }
     }
 }

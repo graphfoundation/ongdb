@@ -22,8 +22,7 @@
  */
 package org.neo4j.kernel.impl.locking;
 
-import org.junit.Ignore;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.File;
 import java.util.Random;
@@ -31,71 +30,38 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Future;
 
 import org.neo4j.kernel.DeadlockDetectedException;
-import org.neo4j.storageengine.api.lock.LockTracer;
+import org.neo4j.lock.LockTracer;
 
 import static java.lang.System.currentTimeMillis;
-import static java.util.concurrent.TimeUnit.SECONDS;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-import static org.neo4j.kernel.impl.locking.ResourceTypes.NODE;
+import static java.util.concurrent.TimeUnit.MINUTES;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.neo4j.lock.ResourceTypes.NODE;
 
 /**
  * This is the test suite that tested the original (from 2007) lock manager.
  * It has been ported to test {@link org.neo4j.kernel.impl.locking.Locks}
  * to ensure implementors of that API don't fall in any of the traps this test suite sets for them.
  */
-@Ignore( "Not a test. This is a compatibility suite, run from LockingCompatibilityTestSuite." )
-public class RWLockCompatibility extends LockingCompatibilityTestSuite.Compatibility
+abstract class RWLockCompatibility extends LockCompatibilityTestSupport
 {
-    public RWLockCompatibility( LockingCompatibilityTestSuite suite )
+    RWLockCompatibility( LockingCompatibilityTestSuite suite )
     {
         super( suite );
     }
 
     @Test
-    public void testSingleThread()
+    void testSingleThread()
     {
-        try
-        {
-            clientA.releaseExclusive( NODE, 1L );
-            fail( "Invalid release should throw exception" );
-        }
-        catch ( Exception e )
-        {
-            // good
-        }
-        try
-        {
-            clientA.releaseShared( NODE, 1L );
-            fail( "Invalid release should throw exception" );
-        }
-        catch ( Exception e )
-        {
-            // good
-        }
+        assertThrows( Exception.class, () -> clientA.releaseExclusive( NODE, 1L ), "Invalid release should throw exception" );
+        assertThrows( Exception.class, () -> clientA.releaseShared( NODE, 1L ), "Invalid release should throw exception" );
 
         clientA.acquireShared( LockTracer.NONE, NODE, 1L );
-        try
-        {
-            clientA.releaseExclusive( NODE, 1L );
-            fail( "Invalid release should throw exception" );
-        }
-        catch ( Exception e )
-        {
-            // good
-        }
-
+        assertThrows( Exception.class, () -> clientA.releaseExclusive( NODE, 1L ), "Invalid release should throw exception" );
         clientA.releaseShared( NODE, 1L );
+
         clientA.acquireExclusive( LockTracer.NONE, NODE, 1L );
-        try
-        {
-            clientA.releaseShared( NODE, 1L );
-            fail( "Invalid release should throw exception" );
-        }
-        catch ( Exception e )
-        {
-            // good
-        }
+        assertThrows( Exception.class, () -> clientA.releaseShared( NODE, 1L ), "Invalid release should throw exception" );
         clientA.releaseExclusive( NODE, 1L );
 
         clientA.acquireShared( LockTracer.NONE, NODE, 1L );
@@ -133,7 +99,7 @@ public class RWLockCompatibility extends LockingCompatibilityTestSuite.Compatibi
     }
 
     @Test
-    public void testMultipleThreads() throws Exception
+    void testMultipleThreads() throws Exception
     {
         LockWorker t1 = new LockWorker( "T1", locks );
         LockWorker t2 = new LockWorker( "T2", locks );
@@ -148,7 +114,7 @@ public class RWLockCompatibility extends LockingCompatibilityTestSuite.Compatibi
             Future<Void> t4Wait = t4.getWriteLock( r1, false );
             t3.releaseReadLock( r1 );
             t2.releaseReadLock( r1 );
-            assertTrue( !t4Wait.isDone() );
+            assertFalse( t4Wait.isDone() );
             t1.releaseReadLock( r1 );
             // now we can wait for write lock since it can be acquired
             // get write lock
@@ -161,7 +127,7 @@ public class RWLockCompatibility extends LockingCompatibilityTestSuite.Compatibi
             t4.releaseReadLock( r1 );
             t4.getWriteLock( r1, true );
             t4.releaseWriteLock( r1 );
-            assertTrue( !t1Wait.isDone() );
+            assertFalse( t1Wait.isDone() );
             t4.releaseWriteLock( r1 );
             // get read lock
             t1.awaitFuture( t1Wait );
@@ -314,22 +280,23 @@ public class RWLockCompatibility extends LockingCompatibilityTestSuite.Compatibi
     }
 
     @Test
-    public void testStressMultipleThreads() throws Exception
+    void testStressMultipleThreads() throws Exception
     {
         long r1 = 1L;
-        StressThread[] stressThreads = new StressThread[100];
+        int numThreads = 25;
+        StressThread[] stressThreads = new StressThread[numThreads];
         CountDownLatch startSignal = new CountDownLatch( 1 );
-        for ( int i = 0; i < 100; i++ )
+        for ( int i = 0; i < numThreads; i++ )
         {
-            stressThreads[i] = new StressThread( "Thread" + i, 100, 9, 0.50f, r1, startSignal );
+            stressThreads[i] = new StressThread( "Thread" + i, 75, 9, 0.50f, r1, startSignal );
         }
-        for ( int i = 0; i < 100; i++ )
+        for ( int i = 0; i < numThreads; i++ )
         {
             stressThreads[i].start();
         }
         startSignal.countDown();
 
-        long end = currentTimeMillis() + SECONDS.toMillis( 2000 );
+        long end = currentTimeMillis() + MINUTES.toMillis( 5 );
         boolean anyAlive;
         while ( (anyAlive = anyAliveAndAllWell( stressThreads )) && currentTimeMillis() < end )
         {
@@ -363,9 +330,8 @@ public class RWLockCompatibility extends LockingCompatibilityTestSuite.Compatibi
         {
             Thread.sleep( 100 );
         }
-        catch ( InterruptedException e )
+        catch ( InterruptedException ignore )
         {
-            Thread.interrupted();
         }
     }
 

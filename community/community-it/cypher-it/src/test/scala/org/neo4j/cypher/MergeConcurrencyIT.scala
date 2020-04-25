@@ -34,8 +34,8 @@ class MergeConcurrencyIT extends ExecutionEngineFunSuite {
     execute("CREATE CONSTRAINT ON (n:Label) ASSERT n.id IS UNIQUE")
 
     var exceptionsThrown = List.empty[Throwable]
-    val q = "MERGE (a:Label {id:{id}}) " +
-      "MERGE (b:Label {id:{id}+1}) " +
+    val q = "MERGE (a:Label {id:$id}) " +
+      "MERGE (b:Label {id:$id+1}) " +
       "MERGE (a)-[r:TYPE]->(b) " +
       "RETURN a, b, r"
 
@@ -63,7 +63,7 @@ class MergeConcurrencyIT extends ExecutionEngineFunSuite {
     execute("match (a:Label) with a.id as id, count(*) as c where c > 1 return *") shouldBe empty
     execute("match (a)-[r1]->(b)<-[r2]-(a) where r1 <> r2 return *") shouldBe empty
 
-    val details = "\n" + graph.execute("match (a)-[r]->(b) return a.id, b.id, id(a), id(r), id(b)").resultAsString()
+    val details = "\n" + graph.withTx( tx => tx.execute("match (a)-[r]->(b) return a.id, b.id, id(a), id(r), id(b)").resultAsString())
 
     assert(execute(s"match p=(:Label {id:1})-[*..1000]->({id:$nodeCount}) return 1").size === 1, details)
   }
@@ -76,7 +76,7 @@ class MergeConcurrencyIT extends ExecutionEngineFunSuite {
       def run() {
         try {
           (0 until nodeCount) foreach {
-            x => execute("MERGE (a:Label {id:{id}})", "id" -> x)
+            x => execute("MERGE (a:Label {id:$id})", "id" -> x)
           }
         } catch {
           case e: Throwable => exceptionsThrown = exceptionsThrown :+ e
@@ -108,7 +108,7 @@ class MergeConcurrencyIT extends ExecutionEngineFunSuite {
       def run() {
         try {
           (0 until nodeCount) foreach {
-            x => execute("MERGE (a:Label {id:{id}})", "id" -> x)
+            x => execute("MERGE (a:Label {id:$id})", "id" -> x)
           }
         } catch {
           case e: Throwable => exceptionsThrown = exceptionsThrown :+ e
@@ -136,7 +136,7 @@ class MergeConcurrencyIT extends ExecutionEngineFunSuite {
   test("merge relationship - one bound end node") {
     val n1 = createNode()
     val n2 = createNode()
-    val query = "MATCH (n) WHERE ID(n) = {id1} MERGE (n)-[r:TEST]-(m)"
+    val query = "MATCH (n) WHERE ID(n) = $id1 MERGE (n)-[r:TEST]-(m)"
     val compileFirst = execute(s"EXPLAIN $query", "id1" -> n1.getId, "id2" -> n2.getId)
     var exceptionsThrown = List.empty[Throwable]
 
@@ -161,16 +161,16 @@ class MergeConcurrencyIT extends ExecutionEngineFunSuite {
     threads.foreach(_.join())
     exceptionsThrown.foreach(throw _)
 
-    graph.inTx {
-      n1.getRelationships.asScala.size should equal(1)
-      n2.getRelationships.asScala.size should equal(1)
-    }
+    graph.withTx( tx => {
+      tx.getNodeById(n1.getId).getRelationships.asScala.size should equal(1)
+      tx.getNodeById(n2.getId).getRelationships.asScala.size should equal(1)
+    } )
   }
 
   test("merge relationship - both end nodes matched") {
     val n1 = createNode()
     val n2 = createNode()
-    val query = "MATCH (n), (m) WHERE ID(n) = {id1} AND ID(m) = {id2} MERGE (n)-[r:TEST]-(m)"
+    val query = "MATCH (n), (m) WHERE ID(n) = $id1 AND ID(m) = $id2 MERGE (n)-[r:TEST]-(m)"
     val compileFirst = execute(s"EXPLAIN $query", "id1" -> n1.getId, "id2" -> n2.getId)
 
     var exceptionsThrown = List.empty[Throwable]
@@ -196,9 +196,9 @@ class MergeConcurrencyIT extends ExecutionEngineFunSuite {
     threads.foreach(_.join())
     exceptionsThrown.foreach(throw _)
 
-    graph.inTx {
-      n1.getRelationships.asScala.size should equal(1)
-      n2.getRelationships.asScala.size should equal(1)
-    }
+    graph.withTx( tx =>  {
+      tx.getNodeById(n1.getId).getRelationships.asScala.size should equal(1)
+      tx.getNodeById(n2.getId).getRelationships.asScala.size should equal(1)
+    } )
   }
 }

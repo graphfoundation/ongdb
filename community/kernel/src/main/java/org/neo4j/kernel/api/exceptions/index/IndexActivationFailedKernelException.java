@@ -22,7 +22,7 @@
  */
 package org.neo4j.kernel.api.exceptions.index;
 
-import org.neo4j.internal.kernel.api.exceptions.KernelException;
+import org.neo4j.exceptions.KernelException;
 import org.neo4j.kernel.api.exceptions.Status;
 
 public class IndexActivationFailedKernelException extends KernelException

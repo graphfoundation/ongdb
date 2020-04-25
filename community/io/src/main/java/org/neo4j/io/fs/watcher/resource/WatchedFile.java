@@ -22,7 +22,6 @@
  */
 package org.neo4j.io.fs.watcher.resource;
 
-import java.io.IOException;
 import java.nio.file.WatchKey;
 
 /**
@@ -35,6 +34,12 @@ public class WatchedFile implements WatchedResource
     public WatchedFile( WatchKey watchKey )
     {
         this.watchKey = watchKey;
+    }
+
+    @Override
+    public WatchKey getWatchKey()
+    {
+        return watchKey;
     }
 
     @Override

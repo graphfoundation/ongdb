@@ -28,11 +28,13 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Stream;
 
+import org.neo4j.internal.kernel.api.connectioninfo.ClientConnectionInfo;
 import org.neo4j.internal.kernel.api.security.AuthSubject;
 import org.neo4j.kernel.api.KernelTransaction;
 import org.neo4j.kernel.api.KernelTransactionHandle;
 import org.neo4j.kernel.api.exceptions.Status;
 import org.neo4j.kernel.api.query.ExecutingQuery;
+import org.neo4j.kernel.impl.api.transaction.trace.TransactionInitializationTrace;
 import org.neo4j.kernel.impl.locking.ActiveLock;
 
 /**
@@ -46,12 +48,6 @@ public class TestKernelTransactionHandle implements KernelTransactionHandle
     public TestKernelTransactionHandle( KernelTransaction tx )
     {
         this.tx = Objects.requireNonNull( tx );
-    }
-
-    @Override
-    public long lastTransactionIdWhenStarted()
-    {
-        return tx.lastTransactionIdWhenStarted();
     }
 
     @Override
@@ -82,6 +78,12 @@ public class TestKernelTransactionHandle implements KernelTransactionHandle
     public boolean isOpen()
     {
         return tx.isOpen();
+    }
+
+    @Override
+    public boolean isClosing()
+    {
+        return tx.isClosing();
     }
 
     @Override
@@ -128,7 +130,7 @@ public class TestKernelTransactionHandle implements KernelTransactionHandle
     }
 
     @Override
-    public Stream<ExecutingQuery> executingQueries()
+    public Optional<ExecutingQuery> executingQuery()
     {
         throw new UnsupportedOperationException();
     }
@@ -143,6 +145,18 @@ public class TestKernelTransactionHandle implements KernelTransactionHandle
     public TransactionExecutionStatistic transactionStatistic()
     {
         return TransactionExecutionStatistic.NOT_AVAILABLE;
+    }
+
+    @Override
+    public TransactionInitializationTrace transactionInitialisationTrace()
+    {
+        return TransactionInitializationTrace.NONE;
+    }
+
+    @Override
+    public ClientConnectionInfo clientInfo()
+    {
+        return tx.clientInfo();
     }
 
     @Override

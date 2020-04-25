@@ -22,34 +22,12 @@
  */
 package org.neo4j.kernel.api.impl.fulltext;
 
-import org.apache.lucene.queryparser.classic.ParseException;
-
-import java.io.IOException;
-import java.util.Map;
-import java.util.Properties;
 import java.util.stream.Stream;
 
-import org.neo4j.graphdb.index.fulltext.AnalyzerProvider;
-import org.neo4j.internal.kernel.api.exceptions.schema.IndexNotFoundKernelException;
-import org.neo4j.internal.kernel.api.schema.SchemaDescriptor;
-import org.neo4j.kernel.api.KernelTransaction;
-import org.neo4j.storageengine.api.EntityType;
+import org.neo4j.graphdb.schema.AnalyzerProvider;
 
 public interface FulltextAdapter
 {
-    SchemaDescriptor schemaFor( EntityType type, String[] entityTokens, Properties indexConfiguration, String... properties );
-
-    SchemaDescriptor schemaSortFor( EntityType type, String[] entityTokens, Properties indexConfiguration, String[] properties, String[] sortProperties,
-                                    Map<String,String> sortTypes );
-
-    ScoreEntityIterator query( KernelTransaction tx, String indexName, String queryString ) throws IOException, IndexNotFoundKernelException, ParseException;
-
-    ScoreEntityIterator queryWithSort( KernelTransaction ktx, String indexName, String queryString, String sortProperty, String sortDirection )
-            throws IndexNotFoundKernelException, ParseException;
-
-    CountResult queryForCount( KernelTransaction ktx, String indexName, String queryString )
-            throws IndexNotFoundKernelException, ParseException;
-
     void awaitRefresh();
 
     Stream<AnalyzerProvider> listAvailableAnalyzers();

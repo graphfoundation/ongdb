@@ -22,8 +22,8 @@
  */
 package org.neo4j.consistency.checking;
 
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.io.File;
 import java.io.IOException;
@@ -31,41 +31,50 @@ import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.neo4j.configuration.Config;
 import org.neo4j.consistency.ConsistencyCheckService;
 import org.neo4j.consistency.checking.full.ConsistencyCheckIncompleteException;
 import org.neo4j.consistency.checking.full.ConsistencyFlags;
+import org.neo4j.dbms.api.DatabaseManagementService;
 import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Transaction;
-import org.neo4j.helpers.collection.Pair;
-import org.neo4j.io.fs.DefaultFileSystemAbstraction;
+import org.neo4j.internal.helpers.collection.Pair;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.layout.DatabaseLayout;
-import org.neo4j.kernel.configuration.Config;
+import org.neo4j.kernel.database.Database;
 import org.neo4j.kernel.impl.transaction.log.checkpoint.CheckPointer;
 import org.neo4j.kernel.impl.transaction.log.checkpoint.SimpleTriggerInfo;
+import org.neo4j.kernel.internal.GraphDatabaseAPI;
 import org.neo4j.logging.AssertableLogProvider;
-import org.neo4j.test.rule.EmbeddedDatabaseRule;
+import org.neo4j.test.extension.DbmsExtension;
+import org.neo4j.test.extension.Inject;
+import org.neo4j.test.extension.RandomExtension;
 import org.neo4j.test.rule.RandomRule;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.Matchers.hasItem;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.neo4j.helpers.progress.ProgressMonitorFactory.NONE;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.neo4j.configuration.GraphDatabaseSettings.logs_directory;
+import static org.neo4j.internal.helpers.progress.ProgressMonitorFactory.NONE;
 import static org.neo4j.io.fs.FileUtils.copyFile;
 import static org.neo4j.test.TestLabels.LABEL_ONE;
 import static org.neo4j.test.TestLabels.LABEL_THREE;
 import static org.neo4j.test.TestLabels.LABEL_TWO;
 
-public class AllNodesInStoreExistInLabelIndexTest
+@DbmsExtension
+@ExtendWith( RandomExtension.class )
+class AllNodesInStoreExistInLabelIndexTest
 {
-    @Rule
-    public final EmbeddedDatabaseRule db = new EmbeddedDatabaseRule();
-
-    @Rule
-    public final RandomRule random = new RandomRule();
+    @Inject
+    private FileSystemAbstraction fs;
+    @Inject
+    private DatabaseManagementService managementService;
+    @Inject
+    private GraphDatabaseAPI db;
+    @Inject
+    private RandomRule random;
 
     private final AssertableLogProvider log = new AssertableLogProvider();
     private static final Label[] LABEL_ALPHABET = new Label[]{LABEL_ONE, LABEL_TWO, LABEL_THREE};
@@ -75,65 +84,63 @@ public class AllNodesInStoreExistInLabelIndexTest
     private static final int NODE_COUNT_BASELINE = 10;
 
     @Test
-    public void mustReportSuccessfulForConsistentLabelScanStore() throws Exception
+    void mustReportSuccessfulForConsistentLabelScanStore() throws Exception
     {
         // given
         someData();
-        db.shutdownAndKeepStore();
+        managementService.shutdown();
 
         // when
         ConsistencyCheckService.Result result = fullConsistencyCheck();
 
         // then
-        assertTrue( "Expected consistency check to succeed", result.isSuccessful() );
+        assertTrue( result.isSuccessful(), "Expected consistency check to succeed" );
     }
 
     @Test
-    public void reportNotCleanLabelIndex() throws IOException, ConsistencyCheckIncompleteException
+    void reportNotCleanLabelIndex() throws IOException, ConsistencyCheckIncompleteException
     {
         DatabaseLayout databaseLayout = db.databaseLayout();
         someData();
-        db.resolveDependency( CheckPointer.class ).forceCheckPoint( new SimpleTriggerInfo( "forcedCheckpoint" ) );
+        db.getDependencyResolver().resolveDependency( CheckPointer.class ).forceCheckPoint( new SimpleTriggerInfo( "forcedCheckpoint" ) );
         File labelIndexFileCopy = databaseLayout.file( "label_index_copy" );
         copyFile( databaseLayout.labelScanStore(), labelIndexFileCopy );
 
         try ( Transaction tx = db.beginTx() )
         {
-            db.createNode( LABEL_ONE );
-            tx.success();
+            tx.createNode( LABEL_ONE );
+            tx.commit();
         }
 
-        db.shutdownAndKeepStore();
+        managementService.shutdown();
 
         copyFile( labelIndexFileCopy, databaseLayout.labelScanStore() );
 
         ConsistencyCheckService.Result result = fullConsistencyCheck();
-        assertFalse( "Expected consistency check to fail", result.isSuccessful() );
-        assertThat( readReport( result ),
-                hasItem( containsString("WARN : Label index was not properly shutdown and rebuild is required.") ) );
+        assertFalse( result.isSuccessful(), "Expected consistency check to fail" );
+        assertThat( readReport( result ), containsString("WARN : Label index was not properly shutdown and rebuild is required.") );
     }
 
     @Test
-    public void reportNotCleanLabelIndexWithCorrectData() throws IOException, ConsistencyCheckIncompleteException
+    void reportNotCleanLabelIndexWithCorrectData() throws IOException, ConsistencyCheckIncompleteException
     {
         DatabaseLayout databaseLayout = db.databaseLayout();
         someData();
-        db.resolveDependency( CheckPointer.class ).forceCheckPoint( new SimpleTriggerInfo( "forcedCheckpoint" ) );
+        db.getDependencyResolver().resolveDependency( CheckPointer.class ).forceCheckPoint( new SimpleTriggerInfo( "forcedCheckpoint" ) );
         File labelIndexFileCopy = databaseLayout.file( "label_index_copy" );
         copyFile( databaseLayout.labelScanStore(), labelIndexFileCopy );
 
-        db.shutdownAndKeepStore();
+        managementService.shutdown();
 
         copyFile( labelIndexFileCopy, databaseLayout.labelScanStore() );
 
         ConsistencyCheckService.Result result = fullConsistencyCheck();
-        assertTrue( "Expected consistency check to fail", result.isSuccessful() );
-        assertThat( readReport( result ),
-                hasItem( containsString("WARN : Label index was not properly shutdown and rebuild is required.") ) );
+        assertTrue( result.isSuccessful(), "Expected consistency check to fail" );
+        assertThat( readReport( result ), containsString("WARN : Label index was not properly shutdown and rebuild is required.") );
     }
 
     @Test
-    public void mustReportMissingNode() throws Exception
+    void mustReportMissingNode() throws Exception
     {
         // given
         someData();
@@ -142,21 +149,20 @@ public class AllNodesInStoreExistInLabelIndexTest
         // when
         try ( Transaction tx = db.beginTx() )
         {
-            db.createNode( LABEL_ONE );
-            tx.success();
+            tx.createNode( LABEL_ONE );
+            tx.commit();
         }
 
         // and
         replaceLabelIndexWithCopy( labelIndexFileCopy );
-        db.shutdownAndKeepStore();
 
         // then
         ConsistencyCheckService.Result result = fullConsistencyCheck();
-        assertFalse( "Expected consistency check to fail", result.isSuccessful() );
+        assertFalse( result.isSuccessful(), "Expected consistency check to fail" );
     }
 
     @Test
-    public void mustReportMissingLabel() throws Exception
+    void mustReportMissingLabel() throws Exception
     {
         // given
         List<Pair<Long,Label[]>> nodesInStore = someData();
@@ -165,21 +171,20 @@ public class AllNodesInStoreExistInLabelIndexTest
         // when
         try ( Transaction tx = db.beginTx() )
         {
-            addLabelToExistingNode( nodesInStore );
-            tx.success();
+            addLabelToExistingNode( tx, nodesInStore );
+            tx.commit();
         }
 
         // and
         replaceLabelIndexWithCopy( labelIndexFileCopy );
-        db.shutdownAndKeepStore();
 
         // then
         ConsistencyCheckService.Result result = fullConsistencyCheck();
-        assertFalse( "Expected consistency check to fail", result.isSuccessful() );
+        assertFalse( result.isSuccessful(), "Expected consistency check to fail" );
     }
 
     @Test
-    public void mustReportExtraLabelsOnExistingNode() throws Exception
+    void mustReportExtraLabelsOnExistingNode() throws Exception
     {
         // given
         List<Pair<Long,Label[]>> nodesInStore = someData();
@@ -188,21 +193,20 @@ public class AllNodesInStoreExistInLabelIndexTest
         // when
         try ( Transaction tx = db.beginTx() )
         {
-            removeLabelFromExistingNode( nodesInStore );
-            tx.success();
+            removeLabelFromExistingNode( tx, nodesInStore );
+            tx.commit();
         }
 
         // and
         replaceLabelIndexWithCopy( labelIndexFileCopy );
-        db.shutdownAndKeepStore();
 
         // then
         ConsistencyCheckService.Result result = fullConsistencyCheck();
-        assertFalse( "Expected consistency check to fail", result.isSuccessful() );
+        assertFalse( result.isSuccessful(), "Expected consistency check to fail" );
     }
 
     @Test
-    public void mustReportExtraNode() throws Exception
+    void mustReportExtraNode() throws Exception
     {
         // given
         List<Pair<Long,Label[]>> nodesInStore = someData();
@@ -211,26 +215,24 @@ public class AllNodesInStoreExistInLabelIndexTest
         // when
         try ( Transaction tx = db.beginTx() )
         {
-            removeExistingNode( nodesInStore );
-            tx.success();
+            removeExistingNode( tx, nodesInStore );
+            tx.commit();
         }
 
         // and
         replaceLabelIndexWithCopy( labelIndexFileCopy );
-        db.shutdownAndKeepStore();
 
         // then
         ConsistencyCheckService.Result result = fullConsistencyCheck();
-        assertFalse( "Expected consistency check to fail", result.isSuccessful() );
+        assertFalse( result.isSuccessful(), "Expected consistency check to fail" );
     }
 
-    private List<String> readReport( ConsistencyCheckService.Result result )
-            throws IOException
+    private String readReport( ConsistencyCheckService.Result result ) throws IOException
     {
-        return Files.readAllLines( result.reportFile().toPath() );
+        return Files.readString( result.reportFile().toPath() );
     }
 
-    private void removeExistingNode( List<Pair<Long,Label[]>> nodesInStore )
+    private void removeExistingNode( Transaction transaction, List<Pair<Long,Label[]>> nodesInStore )
     {
         Node node;
         Label[] labels;
@@ -238,22 +240,22 @@ public class AllNodesInStoreExistInLabelIndexTest
         {
             int targetIndex = random.nextInt( nodesInStore.size() );
             Pair<Long,Label[]> existingNode = nodesInStore.get( targetIndex );
-            node = db.getNodeById( existingNode.first() );
+            node = transaction.getNodeById( existingNode.first() );
             labels = existingNode.other();
         }
         while ( labels.length == 0 );
         node.delete();
     }
 
-    private void addLabelToExistingNode( List<Pair<Long,Label[]>> nodesInStore )
+    private void addLabelToExistingNode( Transaction transaction, List<Pair<Long,Label[]>> nodesInStore )
     {
         int targetIndex = random.nextInt( nodesInStore.size() );
         Pair<Long,Label[]> existingNode = nodesInStore.get( targetIndex );
-        Node node = db.getNodeById( existingNode.first() );
+        Node node = transaction.getNodeById( existingNode.first() );
         node.addLabel( EXTRA_LABEL );
     }
 
-    private void removeLabelFromExistingNode( List<Pair<Long,Label[]>> nodesInStore )
+    private void removeLabelFromExistingNode( Transaction transaction, List<Pair<Long,Label[]>> nodesInStore )
     {
         Pair<Long,Label[]> existingNode;
         Node node;
@@ -261,7 +263,7 @@ public class AllNodesInStoreExistInLabelIndexTest
         {
             int targetIndex = random.nextInt( nodesInStore.size() );
             existingNode = nodesInStore.get( targetIndex );
-            node = db.getNodeById( existingNode.first() );
+            node = transaction.getNodeById( existingNode.first() );
         }
         while ( existingNode.other().length == 0 );
         node.removeLabel( existingNode.other()[0] );
@@ -269,20 +271,21 @@ public class AllNodesInStoreExistInLabelIndexTest
 
     private void replaceLabelIndexWithCopy( File labelIndexFileCopy ) throws IOException
     {
-        db.restartDatabase( ( fs, directory ) ->
-        {
-            DatabaseLayout databaseLayout = db.databaseLayout();
-            fs.deleteFile( databaseLayout.labelScanStore() );
-            fs.copyFile( labelIndexFileCopy, databaseLayout.labelScanStore() );
-        } );
+        managementService.shutdown();
+
+        DatabaseLayout databaseLayout = db.databaseLayout();
+        fs.deleteFile( databaseLayout.labelScanStore() );
+        fs.copyFile( labelIndexFileCopy, databaseLayout.labelScanStore() );
     }
 
     private File copyLabelIndexFile() throws IOException
     {
         DatabaseLayout databaseLayout = db.databaseLayout();
         File labelIndexFileCopy = databaseLayout.file( "label_index_copy" );
-        db.restartDatabase( ( fs, directory ) ->
-                fs.copyFile( databaseLayout.labelScanStore(), labelIndexFileCopy ) );
+        var database = db.getDependencyResolver().resolveDependency( Database.class );
+        database.stop();
+        fs.copyFile( databaseLayout.labelScanStore(), labelIndexFileCopy );
+        database.start();
         return labelIndexFileCopy;
     }
 
@@ -297,46 +300,45 @@ public class AllNodesInStoreExistInLabelIndexTest
         existingNodes = new ArrayList<>();
         try ( Transaction tx = db.beginTx() )
         {
-            randomModifications( existingNodes, numberOfModifications );
-            tx.success();
+            randomModifications( tx, existingNodes, numberOfModifications );
+            tx.commit();
         }
         return existingNodes;
     }
 
-    private void randomModifications( List<Pair<Long,Label[]>> existingNodes,
-            int numberOfModifications )
+    private void randomModifications( Transaction tx, List<Pair<Long,Label[]>> existingNodes, int numberOfModifications )
     {
         for ( int i = 0; i < numberOfModifications; i++ )
         {
             double selectModification = random.nextDouble();
             if ( existingNodes.size() < NODE_COUNT_BASELINE || selectModification >= DELETE_RATIO + UPDATE_RATIO )
             {
-                createNewNode( existingNodes );
+                createNewNode( tx, existingNodes );
             }
             else if ( selectModification < DELETE_RATIO )
             {
-                deleteExistingNode( existingNodes );
+                deleteExistingNode( tx, existingNodes );
             }
             else
             {
-                modifyLabelsOnExistingNode( existingNodes );
+                modifyLabelsOnExistingNode( tx, existingNodes );
             }
         }
     }
 
-    private void createNewNode( List<Pair<Long,Label[]>> existingNodes )
+    private void createNewNode( Transaction tx, List<Pair<Long,Label[]>> existingNodes )
     {
         Label[] labels = randomLabels();
-        Node node = db.createNode( labels );
+        Node node = tx.createNode( labels );
         existingNodes.add( Pair.of( node.getId(), labels ) );
     }
 
-    private void modifyLabelsOnExistingNode( List<Pair<Long,Label[]>> existingNodes )
+    private void modifyLabelsOnExistingNode( Transaction transaction, List<Pair<Long,Label[]>> existingNodes )
     {
         int targetIndex = random.nextInt( existingNodes.size() );
         Pair<Long,Label[]> existingPair = existingNodes.get( targetIndex );
         long nodeId = existingPair.first();
-        Node node = db.getNodeById( nodeId );
+        Node node = transaction.getNodeById( nodeId );
         node.getLabels().forEach( node::removeLabel );
         Label[] newLabels = randomLabels();
         for ( Label label : newLabels )
@@ -347,11 +349,11 @@ public class AllNodesInStoreExistInLabelIndexTest
         existingNodes.add( Pair.of( nodeId, newLabels ) );
     }
 
-    private void deleteExistingNode( List<Pair<Long,Label[]>> existingNodes )
+    private void deleteExistingNode( Transaction transaction, List<Pair<Long,Label[]>> existingNodes )
     {
         int targetIndex = random.nextInt( existingNodes.size() );
         Pair<Long,Label[]> existingPair = existingNodes.get( targetIndex );
-        Node node = db.getNodeById( existingPair.first() );
+        Node node = transaction.getNodeById( existingPair.first() );
         node.delete();
         existingNodes.remove( targetIndex );
     }
@@ -366,18 +368,14 @@ public class AllNodesInStoreExistInLabelIndexTest
                 labels.add( label );
             }
         }
-        return labels.toArray( new Label[labels.size()] );
+        return labels.toArray( new Label[0] );
     }
 
-    private ConsistencyCheckService.Result fullConsistencyCheck()
-            throws ConsistencyCheckIncompleteException, IOException
+    private ConsistencyCheckService.Result fullConsistencyCheck() throws ConsistencyCheckIncompleteException
     {
-        try ( FileSystemAbstraction fsa = new DefaultFileSystemAbstraction() )
-        {
-            ConsistencyCheckService service = new ConsistencyCheckService();
-            Config config = Config.defaults();
-            return service.runFullConsistencyCheck( db.databaseLayout(), config, NONE, log, fsa, true,
-                    new ConsistencyFlags( config ) );
-        }
+        ConsistencyCheckService service = new ConsistencyCheckService();
+        DatabaseLayout databaseLayout = db.databaseLayout();
+        Config config = Config.defaults( logs_directory, databaseLayout.databaseDirectory().toPath() );
+        return service.runFullConsistencyCheck( databaseLayout, config, NONE, log, true, ConsistencyFlags.DEFAULT );
     }
 }

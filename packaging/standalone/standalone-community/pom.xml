@@ -63,9 +63,6 @@
                             <descriptors>
                                 <descriptor>src/main/assemblies/community-unix-dist.xml</descriptor>
                             </descriptors>
-                            <filters>
-                                <filter>${project.parent.basedir}/tarball.properties</filter>
-                            </filters>
                         </configuration>
                     </execution>
                     <execution>
@@ -78,9 +75,6 @@
                             <descriptors>
                                 <descriptor>src/main/assemblies/community-windows-dist.xml</descriptor>
                             </descriptors>
-                            <filters>
-                                <filter>${project.parent.basedir}/zip.properties</filter>
-                            </filters>
                         </configuration>
                     </execution>
                 </executions>
@@ -120,15 +114,25 @@
             <artifactId>ongdb-server</artifactId>
             <version>${project.version}</version>
         </dependency>
+
+        <!-- Test dependencies -->
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-cypher-expression-evaluator</artifactId>
-            <version>${project.version}</version>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-push-to-cloud</artifactId>
+            <artifactId>test-utils</artifactId>
             <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.graphfoundation.ongdb</groupId>
+            <artifactId>io-test-utils</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
         </dependency>
     </dependencies>
+
 </project>

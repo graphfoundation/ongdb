@@ -25,12 +25,14 @@ package org.neo4j.kernel.impl.index.schema.fusion;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.neo4j.helpers.Exceptions;
+import org.neo4j.internal.helpers.Exceptions;
 import org.neo4j.internal.kernel.api.exceptions.schema.IndexNotFoundKernelException;
-import org.neo4j.storageengine.api.schema.IndexSample;
-import org.neo4j.storageengine.api.schema.IndexSampler;
+import org.neo4j.kernel.api.index.IndexSample;
+import org.neo4j.kernel.api.index.IndexSampler;
 
-import static org.neo4j.helpers.collection.Iterables.asCollection;
+import static org.neo4j.internal.helpers.Exceptions.throwIfInstanceOf;
+import static org.neo4j.internal.helpers.Exceptions.throwIfUnchecked;
+import static org.neo4j.internal.helpers.collection.Iterables.asCollection;
 import static org.neo4j.io.IOUtils.closeAllSilently;
 
 public class FusionIndexSampler implements IndexSampler
@@ -60,8 +62,9 @@ public class FusionIndexSampler implements IndexSampler
         }
         if ( exception != null )
         {
-            Exceptions.throwIfUnchecked( exception );
-            throw (IndexNotFoundKernelException)exception;
+            throwIfUnchecked( exception );
+            throwIfInstanceOf( exception, IndexNotFoundKernelException.class );
+            throw new RuntimeException( exception );
         }
         return combineSamples( samples );
     }

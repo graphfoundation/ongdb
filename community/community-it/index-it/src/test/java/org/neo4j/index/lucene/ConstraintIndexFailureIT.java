@@ -22,11 +22,12 @@
  */
 package org.neo4j.index.lucene;
 
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.io.File;
 
+import org.neo4j.dbms.api.DatabaseManagementService;
 import org.neo4j.graphdb.ConstraintViolationException;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Transaction;
@@ -34,59 +35,62 @@ import org.neo4j.io.fs.FileUtils;
 import org.neo4j.kernel.api.exceptions.schema.UnableToValidateConstraintException;
 import org.neo4j.kernel.api.index.IndexDirectoryStructure;
 import org.neo4j.kernel.impl.index.schema.FailingGenericNativeIndexProviderFactory;
-import org.neo4j.test.TestGraphDatabaseFactory;
+import org.neo4j.test.TestDatabaseManagementServiceBuilder;
+import org.neo4j.test.extension.Inject;
+import org.neo4j.test.extension.RandomExtension;
+import org.neo4j.test.extension.testdirectory.TestDirectoryExtension;
 import org.neo4j.test.rule.RandomRule;
 import org.neo4j.test.rule.TestDirectory;
 
 import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.instanceOf;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
 import static org.neo4j.graphdb.Label.label;
 import static org.neo4j.kernel.impl.index.schema.FailingGenericNativeIndexProviderFactory.FailureType.INITIAL_STATE;
 import static org.neo4j.kernel.impl.index.schema.FailingGenericNativeIndexProviderFactory.INITIAL_STATE_FAILURE_MESSAGE;
-import static org.neo4j.test.TestGraphDatabaseFactory.INDEX_PROVIDERS_FILTER;
+import static org.neo4j.test.TestDatabaseManagementServiceBuilder.INDEX_PROVIDERS_FILTER;
 
-public class ConstraintIndexFailureIT
+@TestDirectoryExtension
+@ExtendWith( RandomExtension.class )
+class ConstraintIndexFailureIT
 {
-    @Rule
-    public final RandomRule random = new RandomRule();
-
-    @Rule
-    public final TestDirectory directory = TestDirectory.testDirectory();
+    @Inject
+    private RandomRule random;
+    @Inject
+    private TestDirectory directory;
 
     @Test
-    public void shouldFailToValidateConstraintsIfUnderlyingIndexIsFailed() throws Exception
+    void shouldFailToValidateConstraintsIfUnderlyingIndexIsFailed() throws Exception
     {
         // given a perfectly normal constraint
-        File dir = directory.databaseDir();
-        GraphDatabaseService db = new TestGraphDatabaseFactory().newEmbeddedDatabase( dir );
+        File dir = directory.homeDir();
+        DatabaseManagementService managementService = new TestDatabaseManagementServiceBuilder( dir ).build();
+        GraphDatabaseService db = managementService.database( DEFAULT_DATABASE_NAME );
         try ( Transaction tx = db.beginTx() )
         {
-            db.schema().constraintFor( label( "Label1" ) ).assertPropertyIsUnique( "key1" ).create();
-            tx.success();
+            tx.schema().constraintFor( label( "Label1" ) ).assertPropertyIsUnique( "key1" ).create();
+            tx.commit();
         }
         finally
         {
-            db.shutdown();
+            managementService.shutdown();
         }
 
         // Remove the indexes offline and start up with an index provider which reports FAILED as initial state. An ordeal, I know right...
         FileUtils.deleteRecursively( IndexDirectoryStructure.baseSchemaIndexFolder( dir ) );
-        db = new TestGraphDatabaseFactory()
-                .removeKernelExtensions( INDEX_PROVIDERS_FILTER )
-                .addKernelExtension( new FailingGenericNativeIndexProviderFactory( INITIAL_STATE ) )
-                .newEmbeddedDatabase( dir );
+        managementService = new TestDatabaseManagementServiceBuilder( dir )
+                .removeExtensions( INDEX_PROVIDERS_FILTER )
+                .addExtension( new FailingGenericNativeIndexProviderFactory( INITIAL_STATE ) )
+                .noOpSystemGraphInitializer()
+                .build();
+        db = managementService.database( DEFAULT_DATABASE_NAME );
         // when
         try ( Transaction tx = db.beginTx() )
         {
-            db.createNode( label( "Label1" ) ).setProperty( "key1", "value1" );
-            fail( "expected exception" );
-        }
-        // then
-        catch ( ConstraintViolationException e )
-        {
+            var e = assertThrows( ConstraintViolationException.class, () -> tx.createNode( label( "Label1" ) ).setProperty( "key1", "value1" ) );
             assertThat( e.getCause(), instanceOf( UnableToValidateConstraintException.class ) );
             assertThat( e.getCause().getCause().getMessage(), allOf(
                     containsString( "The index is in a failed state:" ),
@@ -94,7 +98,7 @@ public class ConstraintIndexFailureIT
         }
         finally
         {
-            db.shutdown();
+            managementService.shutdown();
         }
     }
 }

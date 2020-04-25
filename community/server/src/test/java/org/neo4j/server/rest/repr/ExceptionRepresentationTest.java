@@ -29,7 +29,7 @@ import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.neo4j.internal.kernel.api.exceptions.KernelException;
+import org.neo4j.exceptions.KernelException;
 import org.neo4j.server.rest.domain.JsonHelper;
 import org.neo4j.server.rest.domain.JsonParseException;
 import org.neo4j.server.rest.repr.formats.MapWrappingWriter;
@@ -37,7 +37,6 @@ import org.neo4j.server.rest.repr.formats.MapWrappingWriter;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
-import static org.mockito.Mockito.mock;
 import static org.neo4j.kernel.api.exceptions.Status.General.UnknownError;
 
 public class ExceptionRepresentationTest
@@ -94,8 +93,7 @@ public class ExceptionRepresentationTest
     private JsonNode serialize( ExceptionRepresentation rep ) throws JsonParseException
     {
         Map<String, Object> output = new HashMap<>();
-        MappingSerializer serializer = new MappingSerializer( new MapWrappingWriter( output ), URI.create( "" ),
-                mock(ExtensionInjector.class ) );
+        MappingSerializer serializer = new MappingSerializer( new MapWrappingWriter( output ), URI.create( "" ) );
 
         // When
         rep.serialize( serializer );

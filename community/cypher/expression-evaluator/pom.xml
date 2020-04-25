@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <parent>
@@ -11,16 +11,19 @@
     <modelVersion>4.0.0</modelVersion>
     <artifactId>ongdb-cypher-expression-evaluator</artifactId>
     <packaging>jar</packaging>
+<<<<<<< HEAD
     <version>4.0.4-SNAPSHOT</version>
+=======
+>>>>>>> 4.0-firstPass
     <name>ONgDB - Cypher Expression Evaluator</name>
 
     <description>Cypher Expression Evaluator</description>
-    <url>https://ongdb.graphfoundation.org/${project.artifactId}/${project.version}</url>
+    <url>http://components.neo4j.org/${project.artifactId}/${project.version}</url>
 
     <scm>
-        <connection>scm:git:git://github.com/graphfoundation/ongdb.git</connection>
-        <developerConnection>scm:git:git@github.com:graphfoundation/ongdb.git</developerConnection>
-        <url>https://github.com/graphfoundation/ongdb</url>
+        <connection>scm:git:git://github.com/neo4j/neo4j.git</connection>
+        <developerConnection>scm:git:git@github.com:neo4j/neo4j.git</developerConnection>
+        <url>https://github.com/neo4j/neo4j</url>
     </scm>
 
     <properties>
@@ -48,19 +51,19 @@
 
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-parser-3.6</artifactId>
+            <artifactId>ongdb-parser-4.0</artifactId>
             <version>${project.version}</version>
         </dependency>
 
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-ast-3.6</artifactId>
+            <artifactId>ongdb-ast-4.0</artifactId>
             <version>${project.version}</version>
         </dependency>
 
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-expressions-3.6</artifactId>
+            <artifactId>ongdb-expressions-4.0</artifactId>
             <version>${project.version}</version>
         </dependency>
 
@@ -103,6 +106,23 @@
 
 
         <!-- test dependencies -->
+
+
+        <!--<dependency>-->
+        <!--<groupId>org.graphfoundation.ongdb</groupId>-->
+        <!--<artifactId>ongdb-expressions-4.0</artifactId>-->
+        <!--<version>${project.version}</version>-->
+        <!--<type>test-jar</type>-->
+        <!--<scope>test</scope>-->
+        <!--</dependency>-->
+
+        <!--<dependency>-->
+        <!--<groupId>org.graphfoundation.ongdb</groupId>-->
+        <!--<artifactId>ongdb-ast-4.0</artifactId>-->
+        <!--<version>${project.version}</version>-->
+        <!--<type>test-jar</type>-->
+        <!--<scope>test</scope>-->
+        <!--</dependency>-->
 
 
     </dependencies>

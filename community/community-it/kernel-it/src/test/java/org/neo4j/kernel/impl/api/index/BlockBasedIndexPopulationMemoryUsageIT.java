@@ -22,10 +22,9 @@
  */
 package org.neo4j.kernel.impl.api.index;
 
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -36,30 +35,33 @@ import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Transaction;
 import org.neo4j.kernel.impl.index.schema.BlockBasedIndexPopulator;
 import org.neo4j.kernel.impl.index.schema.GenericNativeIndexPopulator;
-import org.neo4j.kernel.monitoring.Monitors;
-import org.neo4j.test.rule.EmbeddedDatabaseRule;
+import org.neo4j.kernel.internal.GraphDatabaseAPI;
+import org.neo4j.monitoring.Monitors;
+import org.neo4j.test.extension.DbmsExtension;
+import org.neo4j.test.extension.Inject;
 import org.neo4j.util.FeatureToggles;
 
 import static java.lang.String.format;
 import static java.util.concurrent.TimeUnit.SECONDS;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.lessThan;
-import static org.junit.Assert.assertThat;
 import static org.neo4j.graphdb.Label.label;
 import static org.neo4j.io.ByteUnit.kibiBytes;
 import static org.neo4j.kernel.impl.index.schema.BlockBasedIndexPopulator.BLOCK_SIZE_NAME;
 import static org.neo4j.kernel.impl.index.schema.GenericNativeIndexProvider.BLOCK_BASED_POPULATION_NAME;
 
-public class BlockBasedIndexPopulationMemoryUsageIT
+@DbmsExtension
+class BlockBasedIndexPopulationMemoryUsageIT
 {
     private static final long TEST_BLOCK_SIZE = kibiBytes( 64 );
     private static final String[] KEYS = {"key1", "key2", "key3", "key4"};
     private static final Label[] LABELS = {label( "Label1" ), label( "Label2" ), label( "Label3" ), label( "Label4" )};
 
-    @Rule
-    public final EmbeddedDatabaseRule db = new EmbeddedDatabaseRule();
+    @Inject
+    private GraphDatabaseAPI db;
 
-    @BeforeClass
-    public static void setUpFeatureToggles()
+    @BeforeAll
+    static void setUpFeatureToggles()
     {
         // Configure populator so that it will use block-based population and reduce batch size and increase number of workers
         // so that population will very likely create more batches in more threads (affecting number of buffers used)
@@ -67,15 +69,15 @@ public class BlockBasedIndexPopulationMemoryUsageIT
         FeatureToggles.set( BlockBasedIndexPopulator.class, BLOCK_SIZE_NAME, TEST_BLOCK_SIZE );
     }
 
-    @AfterClass
-    public static void restoreFeatureToggles()
+    @AfterAll
+    static void restoreFeatureToggles()
     {
         FeatureToggles.clear( GenericNativeIndexPopulator.class, BLOCK_BASED_POPULATION_NAME );
         FeatureToggles.clear( BlockBasedIndexPopulator.class, BLOCK_SIZE_NAME );
     }
 
     @Test
-    public void shouldKeepMemoryConsumptionLowDuringPopulation() throws InterruptedException
+    void shouldKeepMemoryConsumptionLowDuringPopulation() throws InterruptedException
     {
         // given
         IndexPopulationMemoryUsageMonitor monitor = new IndexPopulationMemoryUsageMonitor();
@@ -90,27 +92,28 @@ public class BlockBasedIndexPopulationMemoryUsageIT
         // given all parameters of data size, number of workers and number of indexes will amount
         // to a maximum of 10 MiB. Previously this would easily be 10-fold of that for this scenario.
         long targetMemoryConsumption = TEST_BLOCK_SIZE * (8 /*mergeFactor*/ + 1 /*write buffer*/) * 8 /*numberOfWorkers*/;
-        assertThat( monitor.peakDirectMemoryUsage, lessThan( targetMemoryConsumption + 1 ) );
+        assertThat( monitor.peakDirectMemoryUsage, lessThan( targetMemoryConsumption * 2 + 1 ) );
     }
 
     private void createLotsOfIndexesInOneTransaction()
     {
         try ( Transaction tx = db.beginTx() )
         {
+            var schema = tx.schema();
             for ( Label label : LABELS )
             {
                 for ( String key : KEYS )
                 {
-                    db.schema().indexFor( label ).on( key ).create();
+                    schema.indexFor( label ).on( key ).create();
                 }
             }
-            tx.success();
+            tx.commit();
         }
         while ( true )
         {
             try ( Transaction tx = db.beginTx() )
             {
-                db.schema().awaitIndexesOnline( 1, SECONDS );
+                tx.schema().awaitIndexesOnline( 1, SECONDS );
                 break;
             }
             catch ( IllegalStateException e )
@@ -143,13 +146,13 @@ public class BlockBasedIndexPopulationMemoryUsageIT
                     {
                         for ( int n = 0; n < 100; n++ )
                         {
-                            Node node = db.createNode( LABELS );
+                            Node node = tx.createNode( LABELS );
                             for ( String key : KEYS )
                             {
                                 node.setProperty( key, format( "some value %d", n ) );
                             }
                         }
-                        tx.success();
+                        tx.commit();
                     }
                 }
             } );

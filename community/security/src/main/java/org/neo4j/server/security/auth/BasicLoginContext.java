@@ -22,18 +22,20 @@
  */
 package org.neo4j.server.security.auth;
 
-import java.util.function.ToIntFunction;
-
+import org.neo4j.graphdb.security.AuthorizationViolationException;
 import org.neo4j.internal.kernel.api.security.AccessMode;
 import org.neo4j.internal.kernel.api.security.AuthSubject;
 import org.neo4j.internal.kernel.api.security.AuthenticationResult;
 import org.neo4j.internal.kernel.api.security.LoginContext;
 import org.neo4j.internal.kernel.api.security.SecurityContext;
+import org.neo4j.kernel.api.exceptions.Status;
 import org.neo4j.kernel.impl.security.User;
 
+import static org.neo4j.configuration.GraphDatabaseSettings.SYSTEM_DATABASE_NAME;
 import static org.neo4j.internal.kernel.api.security.AuthenticationResult.FAILURE;
 import static org.neo4j.internal.kernel.api.security.AuthenticationResult.PASSWORD_CHANGE_REQUIRED;
 import static org.neo4j.internal.kernel.api.security.AuthenticationResult.SUCCESS;
+import static org.neo4j.internal.kernel.api.security.AuthenticationResult.TOO_MANY_ATTEMPTS;
 
 public class BasicLoginContext implements LoginContext
 {
@@ -53,7 +55,7 @@ public class BasicLoginContext implements LoginContext
             accessMode = AccessMode.Static.CREDENTIALS_EXPIRED;
             break;
         default:
-            accessMode = AccessMode.Static.NONE;
+            accessMode = AccessMode.Static.ACCESS;
         }
     }
 
@@ -111,8 +113,16 @@ public class BasicLoginContext implements LoginContext
     }
 
     @Override
-    public SecurityContext authorize( ToIntFunction<String> propertyIdLookup, String dbName )
+    public SecurityContext authorize( IdLookup idLookup, String dbName )
     {
+        if ( authSubject.authenticationResult.equals( FAILURE ) || authSubject.authenticationResult.equals( TOO_MANY_ATTEMPTS ) )
+        {
+            throw new AuthorizationViolationException( AuthorizationViolationException.PERMISSION_DENIED, Status.Security.Unauthorized );
+        }
+        else if ( !dbName.equals( SYSTEM_DATABASE_NAME ) && authSubject.authenticationResult.equals( PASSWORD_CHANGE_REQUIRED ) )
+        {
+            throw AccessMode.Static.CREDENTIALS_EXPIRED.onViolation( AuthorizationViolationException.PERMISSION_DENIED );
+        }
         return new SecurityContext( authSubject, accessMode );
     }
 }

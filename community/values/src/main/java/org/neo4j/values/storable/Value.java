@@ -30,28 +30,29 @@ import java.time.ZonedDateTime;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.neo4j.exceptions.InvalidArgumentException;
 import org.neo4j.graphdb.spatial.Geometry;
 import org.neo4j.hashing.HashFunction;
 import org.neo4j.values.AnyValue;
 import org.neo4j.values.AnyValueWriter;
 import org.neo4j.values.Comparison;
+import org.neo4j.values.Equality;
 import org.neo4j.values.SequenceValue;
-import org.neo4j.values.utils.InvalidValuesArgumentException;
 
 import static java.lang.String.format;
 import static org.neo4j.values.storable.Values.NO_VALUE;
 
 public abstract class Value extends AnyValue
 {
-    static final Pattern mapPattern = Pattern.compile( "\\{(.*)\\}" );
+    private static final Pattern MAP_PATTERN = Pattern.compile( "\\{(.*)}" );
 
-    static final Pattern keyValuePattern =
+    private static final Pattern KEY_VALUE_PATTERN =
             Pattern.compile( "(?:\\A|,)\\s*+(?<k>[a-z_A-Z]\\w*+)\\s*:\\s*(?<v>[^\\s,]+)" );
 
-    static final Pattern quotesPattern = Pattern.compile( "^[\"']|[\"']$" );
+    static final Pattern QUOTES_PATTERN = Pattern.compile( "^[\"']|[\"']$" );
 
     @Override
-    public boolean eq( Object other )
+    public boolean equalTo( Object other )
     {
         return other instanceof Value && equals( (Value) other );
     }
@@ -164,37 +165,51 @@ public abstract class Value extends AnyValue
     }
 
     @Override
-    public Boolean ternaryEquals( AnyValue other )
+    public Equality ternaryEquals( AnyValue other )
     {
-        if ( other == null || other == NO_VALUE )
+        assert other != null : "null values are not supported, use NoValue.NO_VALUE instead";
+        if ( other == NO_VALUE )
         {
-            return null;
+            return Equality.UNDEFINED;
         }
         if ( other.isSequenceValue() && this.isSequenceValue() )
         {
             return ((SequenceValue) this).ternaryEquality( (SequenceValue) other );
         }
+        if ( hasNaNOperand( this, other ) )
+        {
+            return Equality.FALSE;
+        }
         if ( other instanceof Value && ((Value) other).valueGroup() == valueGroup() )
         {
             Value otherValue = (Value) other;
-            if ( this.isNaN() || otherValue.isNaN() )
+            if ( this.ternaryUndefined() || otherValue.ternaryUndefined() )
             {
-                return null;
+                return Equality.UNDEFINED;
             }
-            return equals( otherValue );
+            return equals( otherValue ) ? Equality.TRUE : Equality.FALSE;
         }
-        return Boolean.FALSE;
+        return Equality.FALSE;
     }
 
     abstract int unsafeCompareTo( Value other );
 
     /**
-     * Should return {@code null} for values that cannot be compared
+     * Should return {@code Comparison.UNDEFINED} for values that cannot be compared
      * under Comparability semantics.
      */
     Comparison unsafeTernaryCompareTo( Value other )
     {
+        if ( ternaryUndefined() || other.ternaryUndefined() )
+        {
+            return Comparison.UNDEFINED;
+        }
         return Comparison.from( unsafeCompareTo( other ) );
+    }
+
+    boolean ternaryUndefined()
+    {
+        return false;
     }
 
     @Override
@@ -233,6 +248,19 @@ public abstract class Value extends AnyValue
 
     public abstract NumberType numberType();
 
+    /**
+     * Returns whether or not the type of this value is the same as the type of the given value. Value type is more specific than
+     * what {@link #valueGroup()} returns, but less granular than, say specific class. For example there are specific classes for
+     * representing string values for various scenarios, but they're all strings... same type.
+     *
+     * @param value {@link Value} to compare type against.
+     * @return {@code true} if the given {@code value} is of the same value type as this value.
+     */
+    public boolean isSameValueTypeAs( Value value )
+    {
+        return getClass() == value.getClass();
+    }
+
     public final long hashCode64()
     {
         HashFunction xxh64 = HashFunction.incrementalXXH64();
@@ -242,30 +270,25 @@ public abstract class Value extends AnyValue
 
     public abstract long updateHash( HashFunction hashFunction, long hash );
 
-    public boolean isNaN()
-    {
-        return false;
-    }
-
     static void parseHeaderInformation( CharSequence text, String type, CSVHeaderInformation info )
     {
-        Matcher mapMatcher = mapPattern.matcher( text );
+        Matcher mapMatcher = MAP_PATTERN.matcher( text );
         String errorMessage = format( "Failed to parse %s value: '%s'", type, text );
         if ( !(mapMatcher.find() && mapMatcher.groupCount() == 1) )
         {
-            throw new InvalidValuesArgumentException( errorMessage );
+            throw new InvalidArgumentException( errorMessage );
         }
 
         String mapContents = mapMatcher.group( 1 );
         if ( mapContents.isEmpty() )
         {
-            throw new InvalidValuesArgumentException( errorMessage );
+            throw new InvalidArgumentException( errorMessage );
         }
 
-        Matcher matcher = keyValuePattern.matcher( mapContents );
+        Matcher matcher = KEY_VALUE_PATTERN.matcher( mapContents );
         if ( !(matcher.find()) )
         {
-            throw new InvalidValuesArgumentException( errorMessage );
+            throw new InvalidArgumentException( errorMessage );
         }
 
         do

@@ -28,15 +28,15 @@ import java.util.concurrent.TimeUnit;
 
 import org.neo4j.graphdb.ResourceIterator;
 import org.neo4j.internal.kernel.api.InternalIndexState;
-import org.neo4j.storageengine.api.schema.CapableIndexDescriptor;
-import org.neo4j.storageengine.api.schema.PopulationProgress;
+import org.neo4j.internal.kernel.api.PopulationProgress;
+import org.neo4j.internal.schema.IndexDescriptor;
 import org.neo4j.values.storable.Value;
 
 public class RecoveringIndexProxy extends AbstractSwallowingIndexProxy
 {
-    RecoveringIndexProxy( CapableIndexDescriptor capableIndexDescriptor )
+    RecoveringIndexProxy( IndexDescriptor descriptor )
     {
-        super( capableIndexDescriptor, null );
+        super( descriptor, null );
     }
 
     @Override

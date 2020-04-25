@@ -35,7 +35,6 @@ import javax.lang.model.util.Elements;
 import javax.lang.model.util.SimpleElementVisitor8;
 import javax.lang.model.util.Types;
 
-import org.neo4j.procedure.PerformsWrites;
 import org.neo4j.tooling.procedure.compilerutils.TypeMirrorUtils;
 import org.neo4j.tooling.procedure.messages.CompilationMessage;
 import org.neo4j.tooling.procedure.messages.ReturnTypeError;
@@ -48,7 +47,6 @@ public class ProcedureVisitor extends SimpleElementVisitor8<Stream<CompilationMe
     private final ElementVisitor<Stream<CompilationMessage>,Void> classVisitor;
     private final TypeVisitor<Stream<CompilationMessage>,Void> recordVisitor;
     private final ElementVisitor<Stream<CompilationMessage>,Void> parameterVisitor;
-    private final ElementVisitor<Stream<CompilationMessage>,Void> performsWriteVisitor;
 
     public ProcedureVisitor( Types typeUtils, Elements elementUtils, boolean ignoresWarnings )
     {
@@ -59,7 +57,6 @@ public class ProcedureVisitor extends SimpleElementVisitor8<Stream<CompilationMe
         this.classVisitor = new ExtensionClassVisitor( typeUtils, elementUtils, ignoresWarnings );
         this.recordVisitor = new RecordTypeVisitor( typeUtils, typeMirrors );
         this.parameterVisitor = new ParameterVisitor( new ParameterTypeVisitor( typeUtils, typeMirrors ) );
-        this.performsWriteVisitor = new PerformsWriteMethodVisitor();
     }
 
     /**
@@ -70,7 +67,7 @@ public class ProcedureVisitor extends SimpleElementVisitor8<Stream<CompilationMe
     {
         return Stream.of( classVisitor.visit( executableElement.getEnclosingElement() ),
                 validateParameters( executableElement.getParameters() ),
-                validateReturnType( executableElement ), validatePerformsWriteUsage( executableElement ) )
+                validateReturnType( executableElement ) )
                 .flatMap( Function.identity() );
     }
 
@@ -101,14 +98,4 @@ public class ProcedureVisitor extends SimpleElementVisitor8<Stream<CompilationMe
 
         return recordVisitor.visit( returnType );
     }
-
-    private Stream<CompilationMessage> validatePerformsWriteUsage( ExecutableElement executableElement )
-    {
-        if ( executableElement.getAnnotation( PerformsWrites.class ) != null )
-        {
-            return performsWriteVisitor.visit( executableElement );
-        }
-        return Stream.empty();
-    }
-
 }

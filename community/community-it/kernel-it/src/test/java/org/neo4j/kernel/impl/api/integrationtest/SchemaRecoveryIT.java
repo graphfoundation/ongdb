@@ -22,93 +22,146 @@
  */
 package org.neo4j.kernel.impl.api.integrationtest;
 
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Test;
 
-import java.io.File;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
+import org.neo4j.dbms.api.DatabaseManagementService;
 import org.neo4j.graphdb.GraphDatabaseService;
+import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.Transaction;
 import org.neo4j.graphdb.schema.ConstraintDefinition;
 import org.neo4j.graphdb.schema.IndexDefinition;
-import org.neo4j.helpers.collection.Iterables;
-import org.neo4j.test.TestGraphDatabaseFactory;
+import org.neo4j.internal.helpers.collection.Iterables;
+import org.neo4j.internal.recordstorage.RecordStorageEngine;
+import org.neo4j.io.fs.EphemeralFileSystemAbstraction;
+import org.neo4j.kernel.internal.GraphDatabaseAPI;
+import org.neo4j.test.TestDatabaseManagementServiceBuilder;
+import org.neo4j.test.extension.Inject;
+import org.neo4j.test.extension.testdirectory.EphemeralTestDirectoryExtension;
 import org.neo4j.test.rule.TestDirectory;
-import org.neo4j.test.subprocess.SubProcess;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
 import static org.neo4j.graphdb.Label.label;
 
-public class SchemaRecoveryIT
+@EphemeralTestDirectoryExtension
+class SchemaRecoveryIT
 {
-    @Test
-    public void schemaTransactionsShouldSurviveRecovery() throws Exception
+    @Inject
+    private volatile EphemeralFileSystemAbstraction fs;
+    @Inject
+    private TestDirectory testDirectory;
+    private GraphDatabaseAPI db;
+    private DatabaseManagementService managementService;
+
+    @AfterEach
+    void shutdownDatabase()
     {
-        // given
-        File storeDir = testDirectory.absolutePath();
-        Process process = new CreateConstraintButDoNotShutDown().start( storeDir );
-        process.waitForSchemaTransactionCommitted();
-        SubProcess.kill( process );
-
-        // when
-        GraphDatabaseService recoveredDatabase = new TestGraphDatabaseFactory().newEmbeddedDatabase( storeDir );
-
-        // then
-        assertEquals(1, constraints( recoveredDatabase ).size());
-        assertEquals(1, indexes( recoveredDatabase ).size());
-
-        recoveredDatabase.shutdown();
+        if ( db != null )
+        {
+            managementService.shutdown();
+            db = null;
+        }
     }
 
-    @Rule
-    public TestDirectory testDirectory = TestDirectory.testDirectory();
+    @Test
+    void schemaTransactionsShouldSurviveRecovery()
+    {
+        // given
+        Label label = label( "User" );
+        String property = "email";
+        startDb();
+        try ( Transaction tx = db.beginTx() )
+        {
+            tx.schema().constraintFor( label ).assertPropertyIsUnique( property ).create();
+            tx.commit();
+        }
+        try ( Transaction tx = db.beginTx() )
+        {
+            tx.createNode( label ).setProperty( property, "neo4j@neo4j.com" );
+            tx.commit();
+        }
+        try ( Transaction tx = db.beginTx() )
+        {
+            tx.schema().awaitIndexesOnline( 1, TimeUnit.HOURS );
+            tx.commit();
+        }
+        killDb();
+
+        // when
+        startDb();
+
+        // then
+        assertEquals( 1, constraints( db ).size() );
+        assertEquals( 1, indexes( db ).size() );
+    }
+
+    @Test
+    void inconsistentlyFlushedTokensShouldBeRecovered()
+    {
+        // given
+        Label label = label( "User" );
+        String property = "email";
+        startDb();
+        try ( Transaction tx = db.beginTx() )
+        {
+            tx.schema().constraintFor( label ).assertPropertyIsUnique( property ).create();
+            tx.commit();
+        }
+
+        // Flush the property token store, but NOT the property token ~name~ store. This means tokens will refer to unused dynamic records for their names.
+        RecordStorageEngine storageEngine = db.getDependencyResolver().resolveDependency( RecordStorageEngine.class );
+        storageEngine.testAccessNeoStores().getPropertyKeyTokenStore().flush();
+
+        killDb();
+
+        // when
+        startDb();
+
+        // then assert that we can still read the schema correctly.
+        assertEquals( 1, constraints( db ).size() );
+        assertEquals( 1, indexes( db ).size() );
+    }
+
+    private void startDb()
+    {
+        if ( db != null )
+        {
+            managementService.shutdown();
+        }
+
+        managementService = new TestDatabaseManagementServiceBuilder( testDirectory.homeDir() )
+                .setFileSystem( fs )
+                .impermanent()
+                .build();
+        db = (GraphDatabaseAPI) managementService.database( DEFAULT_DATABASE_NAME );
+    }
+
+    private void killDb()
+    {
+        if ( db != null )
+        {
+            fs = fs.snapshot();
+            managementService.shutdown();
+        }
+    }
 
     private List<ConstraintDefinition> constraints( GraphDatabaseService database )
     {
-        try ( Transaction ignored = database.beginTx() )
+        try ( Transaction tx = database.beginTx() )
         {
-            return Iterables.asList( database.schema().getConstraints() );
+            return Iterables.asList( tx.schema().getConstraints() );
         }
     }
 
     private List<IndexDefinition> indexes( GraphDatabaseService database )
     {
-        try ( Transaction ignored = database.beginTx() )
+        try ( Transaction tx = database.beginTx() )
         {
-            return Iterables.asList( database.schema().getIndexes() );
-        }
-    }
-
-    public interface Process
-    {
-        void waitForSchemaTransactionCommitted() throws InterruptedException;
-    }
-
-    static class CreateConstraintButDoNotShutDown extends SubProcess<Process, File> implements Process
-    {
-        // Would use a CountDownLatch but fields of this class need to be serializable.
-        private volatile boolean started;
-
-        @Override
-        protected void startup( File storeDir )
-        {
-            GraphDatabaseService database = new TestGraphDatabaseFactory().newEmbeddedDatabase( storeDir );
-            try ( Transaction transaction = database.beginTx() )
-            {
-                database.schema().constraintFor( label("User") ).assertPropertyIsUnique( "uuid" ).create();
-                transaction.success();
-            }
-            started = true;
-        }
-
-        @Override
-        public void waitForSchemaTransactionCommitted() throws InterruptedException
-        {
-            while ( !started )
-            {
-                Thread.sleep( 10 );
-            }
+            return Iterables.asList( tx.schema().getIndexes() );
         }
     }
 }

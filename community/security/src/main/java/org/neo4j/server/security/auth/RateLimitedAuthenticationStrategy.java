@@ -28,12 +28,12 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.neo4j.configuration.Config;
 import org.neo4j.internal.kernel.api.security.AuthenticationResult;
-import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.impl.security.User;
 
-import static org.neo4j.graphdb.factory.GraphDatabaseSettings.auth_lock_time;
-import static org.neo4j.graphdb.factory.GraphDatabaseSettings.auth_max_failed_attempts;
+import static org.neo4j.configuration.GraphDatabaseSettings.auth_lock_time;
+import static org.neo4j.configuration.GraphDatabaseSettings.auth_max_failed_attempts;
 
 public class RateLimitedAuthenticationStrategy implements AuthenticationStrategy
 {
@@ -46,19 +46,19 @@ public class RateLimitedAuthenticationStrategy implements AuthenticationStrategy
         private final AtomicInteger failedAuthAttempts = new AtomicInteger();
         private long lastFailedAttemptTime;
 
-        public boolean authenticationPermitted()
+        boolean authenticationPermitted()
         {
             return maxFailedAttempts <= 0 || // amount of attempts is not limited
                    failedAuthAttempts.get() < maxFailedAttempts || // less failed attempts than configured
                    clock.millis() >= lastFailedAttemptTime + lockDurationMs; // auth lock duration expired
         }
 
-        public void authSuccess()
+        void authSuccess()
         {
             failedAuthAttempts.set( 0 );
         }
 
-        public void authFailed()
+        void authFailed()
         {
             failedAuthAttempts.incrementAndGet();
             lastFailedAttemptTime = clock.millis();

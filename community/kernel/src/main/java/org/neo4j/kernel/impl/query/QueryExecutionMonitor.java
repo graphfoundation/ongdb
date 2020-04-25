@@ -26,9 +26,34 @@ import org.neo4j.kernel.api.query.ExecutingQuery;
 
 public interface QueryExecutionMonitor
 {
+    void start( ExecutingQuery query );
+
     void endFailure( ExecutingQuery query , Throwable failure );
 
     void endFailure( ExecutingQuery query , String reason );
 
     void endSuccess( ExecutingQuery query  );
+
+    QueryExecutionMonitor NO_OP = new QueryExecutionMonitor()
+    {
+        @Override
+        public void start( ExecutingQuery query )
+        {
+        }
+
+        @Override
+        public void endFailure( ExecutingQuery query, Throwable failure )
+        {
+        }
+
+        @Override
+        public void endFailure( ExecutingQuery query, String reason )
+        {
+        }
+
+        @Override
+        public void endSuccess( ExecutingQuery query )
+        {
+        }
+    };
 }

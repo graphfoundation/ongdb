@@ -22,13 +22,14 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.commands.expressions
 
-import org.neo4j.cypher.internal.runtime.interpreted.{ExecutionContext, IsMap}
+import org.neo4j.cypher.internal.runtime.{ExecutionContext, IsNoValue}
+import org.neo4j.cypher.internal.runtime.interpreted.IsMap
 import org.neo4j.cypher.internal.runtime.interpreted.commands.values.KeyToken
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.QueryState
+import org.neo4j.exceptions.{CypherTypeException, InvalidArgumentException}
 import org.neo4j.values.AnyValue
 import org.neo4j.values.storable.{DurationValue, PointValue, TemporalValue, Values}
 import org.neo4j.values.virtual.{VirtualNodeValue, VirtualRelationshipValue}
-import org.neo4j.cypher.internal.v3_6.util.{CypherTypeException, InvalidArgumentException}
 
 import scala.util.{Failure, Success, Try}
 
@@ -36,18 +37,19 @@ case class Property(mapExpr: Expression, propertyKey: KeyToken)
   extends Expression with Product with Serializable
 {
   def apply(ctx: ExecutionContext, state: QueryState): AnyValue = mapExpr(ctx, state) match {
-    case Values.NO_VALUE => Values.NO_VALUE
+    case IsNoValue() => Values.NO_VALUE
     case n: VirtualNodeValue =>
       propertyKey.getOptId(state.query) match {
         case None => Values.NO_VALUE
-        case Some(propId) => state.query.nodeOps.getProperty(n.id(), propId)
+        case Some(propId) => state.query.nodeOps.getProperty(n.id(), propId, state.cursors.nodeCursor, state.cursors.propertyCursor, throwOnDeleted = true)
       }
     case r: VirtualRelationshipValue =>
       propertyKey.getOptId(state.query) match {
         case None => Values.NO_VALUE
-        case Some(propId) => state.query.relationshipOps.getProperty(r.id(), propId)
+        case Some(propId) =>
+          state.query.relationshipOps.getProperty(r.id(), propId, state.cursors.relationshipScanCursor, state.cursors.propertyCursor, throwOnDeleted = true)
       }
-    case IsMap(mapFunc) => mapFunc(state.query).get(propertyKey.name)
+    case IsMap(mapFunc) => mapFunc(state).get(propertyKey.name)
     case t: TemporalValue[_,_] => t.get(propertyKey.name)
     case d: DurationValue => d.get(propertyKey.name)
     case p: PointValue => Try(p.get(propertyKey.name)) match {
@@ -62,8 +64,6 @@ case class Property(mapExpr: Expression, propertyKey: KeyToken)
   override def children = Seq(mapExpr, propertyKey)
 
   override def arguments: Seq[Expression] = Seq(mapExpr)
-
-  override def symbolTableDependencies: Set[String] = mapExpr.symbolTableDependencies
 
   override def toString = s"$mapExpr.${propertyKey.name}"
 }

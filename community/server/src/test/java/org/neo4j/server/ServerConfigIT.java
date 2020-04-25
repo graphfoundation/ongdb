@@ -25,23 +25,33 @@ package org.neo4j.server;
 import org.junit.After;
 import org.junit.Test;
 
-import java.io.IOException;
-import javax.ws.rs.core.MediaType;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
 
-import org.neo4j.helpers.HostnamePort;
-import org.neo4j.helpers.ListenSocketAddress;
-import org.neo4j.kernel.configuration.ConnectorPortRegister;
-import org.neo4j.kernel.configuration.HttpConnector;
+import org.neo4j.configuration.GraphDatabaseSettings;
+import org.neo4j.configuration.connectors.HttpConnector;
+import org.neo4j.configuration.helpers.SocketAddress;
 import org.neo4j.server.configuration.ServerSettings;
-import org.neo4j.server.rest.JaxRsResponse;
-import org.neo4j.server.rest.RestRequest;
+import org.neo4j.test.PortUtils;
 import org.neo4j.test.server.ExclusiveServerTestBase;
 
+import static java.net.http.HttpClient.newBuilder;
+import static java.net.http.HttpClient.newHttpClient;
+import static java.net.http.HttpResponse.BodyHandlers.discarding;
+import static java.net.http.HttpResponse.BodyHandlers.ofString;
+import static javax.ws.rs.core.HttpHeaders.ACCEPT;
+import static javax.ws.rs.core.HttpHeaders.CONTENT_TYPE;
+import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
+import static javax.ws.rs.core.MediaType.WILDCARD;
+import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertThat;
+import static org.neo4j.configuration.SettingValueParsers.FALSE;
+import static org.neo4j.configuration.SettingValueParsers.TRUE;
 import static org.neo4j.server.helpers.CommunityServerBuilder.server;
 import static org.neo4j.server.helpers.CommunityServerBuilder.serverOnRandomPorts;
 
@@ -56,117 +66,169 @@ public class ServerConfigIT extends ExclusiveServerTestBase
     }
 
     @Test
+    public void shouldRequireAuth() throws Exception
+    {
+        server = serverOnRandomPorts()
+                .usingDataDir( folder.directory( name.getMethodName() ).getAbsolutePath() )
+                .withProperty( ServerSettings.http_auth_whitelist.name(), "" )
+                .withProperty( GraphDatabaseSettings.auth_enabled.name(), TRUE )
+                .build();
+        server.start();
+
+        var request = HttpRequest.newBuilder( server.baseUri() ).GET().build();
+        var response = newHttpClient().send( request, discarding() );
+
+        assertThat( response.statusCode(), is( 401 ) );
+    }
+
+    @Test
+    public void shouldWhitelist() throws Exception
+    {
+        server = serverOnRandomPorts()
+                .usingDataDir( folder.directory( name.getMethodName() ).getAbsolutePath() )
+                .withProperty( ServerSettings.http_auth_whitelist.name(), "/" )
+                .withProperty( GraphDatabaseSettings.auth_enabled.name(), TRUE )
+                .build();
+        server.start();
+
+        var request = HttpRequest.newBuilder( server.baseUri() ).GET().build();
+        var response = newHttpClient().send( request, discarding() );
+
+        assertThat( response.statusCode(), is( 200 ) );
+    }
+
+    @Test
+    public void shouldBlacklistPaths() throws Exception
+    {
+        server = serverOnRandomPorts()
+                .usingDataDir( folder.directory( name.getMethodName() ).getAbsolutePath() )
+                .withProperty( ServerSettings.http_paths_blacklist.name(), "/*" )
+                .build();
+        server.start();
+
+        var request = HttpRequest.newBuilder( server.baseUri() ).GET().build();
+        var response = newHttpClient().send( request, discarding() );
+
+        assertThat( response.statusCode(), is( 403 ) );
+    }
+
+    @Test
     public void shouldPickUpAddressFromConfig() throws Exception
     {
-        ListenSocketAddress nonDefaultAddress = new ListenSocketAddress( "0.0.0.0", 0 );
+        var nonDefaultAddress = new SocketAddress( "0.0.0.0", 0 );
         server = server().onAddress( nonDefaultAddress )
                 .usingDataDir( folder.directory( name.getMethodName() ).getAbsolutePath() )
                 .build();
         server.start();
 
-        HostnamePort localHttpAddress = getLocalHttpAddress();
-        assertNotEquals( HttpConnector.Encryption.NONE.defaultPort, localHttpAddress.getPort() );
+        var localHttpAddress = PortUtils.getConnectorAddress( server.getDatabaseService().getDatabase(), "http" );
+        assertNotEquals( HttpConnector.DEFAULT_PORT, localHttpAddress.getPort() );
         assertEquals( nonDefaultAddress.getHostname(), localHttpAddress.getHost() );
 
-        JaxRsResponse response = new RestRequest( server.baseUri() ).get();
+        var request = HttpRequest.newBuilder( server.baseUri() ).GET().build();
+        var response = newHttpClient().send( request, discarding() );
 
-        assertThat( response.getStatus(), is( 200 ) );
-        response.close();
+        assertThat( response.statusCode(), is( 200 ) );
     }
 
     @Test
-    public void shouldPickupRelativeUrisForManagementApiAndRestApi() throws IOException
+    public void shouldPickupRelativeUrisForDatabaseApi() throws Exception
     {
-        String dataUri = "a/different/data/uri/";
-        String managementUri = "a/different/management/uri/";
+        var dbUri = "a/different/db/uri";
 
-        server = serverOnRandomPorts().withRelativeRestApiUriPath( "/" + dataUri )
+        server = serverOnRandomPorts()
                 .usingDataDir( folder.directory( name.getMethodName() ).getAbsolutePath() )
-                .withRelativeManagementApiUriPath( "/" + managementUri )
+                .withRelativeDatabaseApiPath( "/" + dbUri )
                 .build();
         server.start();
 
-        JaxRsResponse response = new RestRequest().get( server.baseUri().toString() + dataUri,
-                MediaType.TEXT_HTML_TYPE );
-        assertEquals( 200, response.getStatus() );
+        var uri = server.baseUri() + dbUri + "/neo4j/tx/commit";
+        var txRequest = HttpRequest.newBuilder( URI.create( uri ) )
+                .header( ACCEPT, APPLICATION_JSON )
+                .header( CONTENT_TYPE, APPLICATION_JSON )
+                .POST( HttpRequest.BodyPublishers.ofString( "{ 'statements': [ { 'statement': 'CREATE ()' } ] }" ) )
+                .build();
+        var txResponse = newHttpClient().send( txRequest, discarding() );
+        assertEquals( 200, txResponse.statusCode() );
 
-        response = new RestRequest().get( server.baseUri().toString() + managementUri );
-        assertEquals( 200, response.getStatus() );
-        response.close();
+        var discoveryRequest = HttpRequest.newBuilder( server.baseUri() ).GET().build();
+        var discoveryResponse = newHttpClient().send( discoveryRequest, ofString() );
+        assertEquals( 200, txResponse.statusCode() );
+        assertThat( discoveryResponse.body(), containsString( dbUri ) );
     }
 
     @Test
-    public void shouldGenerateWADLWhenExplicitlyEnabledInConfig() throws IOException
+    public void shouldPickupRelativeUrisForRestApi() throws Exception
     {
-        server = serverOnRandomPorts().withProperty( ServerSettings.wadl_enabled.name(), "true" )
+        var dbUri = "a/different/rest/api/path";
+
+        server = serverOnRandomPorts()
+                .usingDataDir( folder.directory( name.getMethodName() ).getAbsolutePath() )
+                .withRelativeRestApiPath( "/" + dbUri )
+                .build();
+        server.start();
+
+        var uri = server.baseUri() + dbUri + "/transaction/commit";
+        var txRequest = HttpRequest.newBuilder( URI.create( uri ) )
+                .header( ACCEPT, APPLICATION_JSON )
+                .header( CONTENT_TYPE, APPLICATION_JSON )
+                .POST( HttpRequest.BodyPublishers.ofString( "{ 'statements': [ { 'statement': 'CREATE ()' } ] }" ) )
+                .build();
+        var txResponse = newBuilder().followRedirects( HttpClient.Redirect.NORMAL ).build().send( txRequest, discarding() );
+        System.out.println( txResponse );
+        assertEquals( 200, txResponse.statusCode() );
+
+        // however this legacy url should not be inside the discovery service.
+        var discoveryRequest = HttpRequest.newBuilder( server.baseUri() ).GET().build();
+        var discoveryResponse = newHttpClient().send( discoveryRequest, ofString() );
+        assertEquals( 200, txResponse.statusCode() );
+        assertThat( discoveryResponse.body(), not( containsString( dbUri ) ) );
+    }
+
+    @Test
+    public void shouldGenerateWADLWhenExplicitlyEnabledInConfig() throws Exception
+    {
+        server = serverOnRandomPorts().withProperty( ServerSettings.wadl_enabled.name(), TRUE )
                 .usingDataDir( folder.directory( name.getMethodName() ).getAbsolutePath() )
                 .build();
         server.start();
-        JaxRsResponse response = new RestRequest().get( server.baseUri().toString() + "application.wadl",
-                MediaType.WILDCARD_TYPE );
 
-        assertEquals( 200, response.getStatus() );
-        assertEquals( "application/vnd.sun.wadl+xml", response.getHeaders().get( "Content-Type" ).iterator().next() );
-        assertThat( response.getEntity(), containsString( "<application xmlns=\"http://wadl.dev.java" +
-                ".net/2009/02\">" ) );
+        var wadlUri = URI.create( server.baseUri() + "application.wadl" );
+        var request = HttpRequest.newBuilder( wadlUri ).GET().header( CONTENT_TYPE, WILDCARD ).build();
+        var response = newHttpClient().send( request, ofString() );
+
+        assertEquals( 200, response.statusCode() );
+        assertEquals( "application/vnd.sun.wadl+xml", response.headers().allValues( "Content-Type" ).iterator().next() );
+        assertThat( response.body(), containsString( "<application xmlns=\"http://wadl.dev.java.net/2009/02\">" ) );
     }
 
     @Test
-    public void shouldNotGenerateWADLWhenNotExplicitlyEnabledInConfig() throws IOException
+    public void shouldNotGenerateWADLWhenNotExplicitlyEnabledInConfig() throws Exception
     {
         server = serverOnRandomPorts()
                 .usingDataDir( folder.directory( name.getMethodName() ).getAbsolutePath() )
                 .build();
         server.start();
-        JaxRsResponse response = new RestRequest().get( server.baseUri().toString() + "application.wadl",
-                MediaType.WILDCARD_TYPE );
 
-        assertEquals( 404, response.getStatus() );
+        var uri = URI.create( server.baseUri() + "application.wadl" );
+        var request = HttpRequest.newBuilder( uri ).GET().header( CONTENT_TYPE, WILDCARD ).build();
+        var response = newHttpClient().send( request, ofString() );
+
+        assertEquals( 404, response.statusCode() );
     }
 
     @Test
-    public void shouldNotGenerateWADLWhenExplicitlyDisabledInConfig() throws IOException
+    public void shouldNotGenerateWADLWhenExplicitlyDisabledInConfig() throws Exception
     {
-        server = serverOnRandomPorts().withProperty( ServerSettings.wadl_enabled.name(), "false" )
-                .usingDataDir( folder.directory( name.getMethodName() ).getAbsolutePath() )
-                .build();
-        server.start();
-        JaxRsResponse response = new RestRequest().get( server.baseUri().toString() + "application.wadl",
-                MediaType.WILDCARD_TYPE );
-
-        assertEquals( 404, response.getStatus() );
-    }
-
-    @Test
-    public void shouldEnableConsoleServiceByDefault() throws IOException
-    {
-        // Given
-        server = serverOnRandomPorts()
+        server = serverOnRandomPorts().withProperty( ServerSettings.wadl_enabled.name(), FALSE )
                 .usingDataDir( folder.directory( name.getMethodName() ).getAbsolutePath() )
                 .build();
         server.start();
 
-        // When & then
-        assertEquals( 200, new RestRequest().get( server.baseUri().toString() + "db/manage/server/console" ).getStatus() );
-    }
+        var warlUri = URI.create( server.baseUri() + "application.wadl" );
+        var request = HttpRequest.newBuilder( warlUri ).GET().header( CONTENT_TYPE, WILDCARD ).build();
+        var response = newHttpClient().send( request, ofString() );
 
-    @Test
-    public void shouldDisableConsoleServiceWhenAskedTo() throws IOException
-    {
-        // Given
-        server = serverOnRandomPorts().withProperty( ServerSettings.console_module_enabled.name(), "false" )
-                .usingDataDir( folder.directory( name.getMethodName() ).getAbsolutePath() )
-                .build();
-        server.start();
-
-        // When & then
-        assertEquals( 404, new RestRequest().get( server.baseUri().toString() + "db/manage/server/console" ).getStatus() );
-    }
-
-    private HostnamePort getLocalHttpAddress()
-    {
-        ConnectorPortRegister connectorPortRegister = server.getDatabase().getGraph().getDependencyResolver()
-                .resolveDependency( ConnectorPortRegister.class );
-        return connectorPortRegister.getLocalAddress( "http" );
+        assertEquals( 404, response.statusCode() );
     }
 }

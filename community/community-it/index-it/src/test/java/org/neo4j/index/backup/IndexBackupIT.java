@@ -35,17 +35,17 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.LongStream;
 
-import org.neo4j.graphdb.DependencyResolver;
+import org.neo4j.common.DependencyResolver;
+import org.neo4j.configuration.GraphDatabaseSettings;
 import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.ResourceIterator;
 import org.neo4j.graphdb.Transaction;
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.kernel.impl.api.index.IndexingService;
 import org.neo4j.kernel.impl.transaction.log.checkpoint.CheckPointer;
 import org.neo4j.kernel.impl.transaction.log.checkpoint.SimpleTriggerInfo;
-import org.neo4j.test.rule.EmbeddedDatabaseRule;
+import org.neo4j.test.rule.EmbeddedDbmsRule;
 import org.neo4j.test.rule.RandomRule;
 
 import static java.lang.String.format;
@@ -62,7 +62,7 @@ public class IndexBackupIT
     @Rule
     public RandomRule randomRule = new RandomRule();
     @Rule
-    public EmbeddedDatabaseRule database = new EmbeddedDatabaseRule().startLazily();
+    public EmbeddedDbmsRule database = new EmbeddedDbmsRule().startLazily();
     private CheckPointer checkPointer;
     private IndexingService indexingService;
     private FileSystemAbstraction fileSystem;
@@ -71,7 +71,7 @@ public class IndexBackupIT
     public void concurrentLuceneIndexSnapshotUseDifferentSnapshots() throws Exception
     {
         Label label = Label.label( "testLabel" );
-        database.withSetting( GraphDatabaseSettings.default_schema_provider, GraphDatabaseSettings.SchemaIndex.NATIVE20.providerName() );
+        database.withSetting( GraphDatabaseSettings.default_schema_provider, GraphDatabaseSettings.SchemaIndex.NATIVE30.providerName() );
         prepareDatabase( label );
 
         forceCheckpoint( checkPointer );
@@ -162,8 +162,8 @@ public class IndexBackupIT
     {
         try ( Transaction transaction = database.beginTx() )
         {
-            idRange.mapToObj( id -> database.getNodeById( id ) ).forEach( Node::delete );
-            transaction.success();
+            idRange.mapToObj( transaction::getNodeById ).forEach( Node::delete );
+            transaction.commit();
         }
     }
 
@@ -171,13 +171,13 @@ public class IndexBackupIT
     {
         try ( Transaction transaction = database.beginTx() )
         {
-            List<Node> nodes = idRange.mapToObj( id -> database.getNodeById( id ) ).collect( Collectors.toList() );
+            List<Node> nodes = idRange.mapToObj( transaction::getNodeById ).collect( Collectors.toList() );
             for ( int i = 0; i < NUMBER_OF_INDEXES; i++ )
             {
                 String propertyName = PROPERTY_PREFIX + i;
                 nodes.forEach( node -> node.setProperty( propertyName, randomRule.nextLong() ) );
             }
-            transaction.success();
+            transaction.commit();
         }
     }
 
@@ -207,14 +207,14 @@ public class IndexBackupIT
         {
             for ( int i = 0; i < 10; i++ )
             {
-                database.schema().indexFor( label ).on( PROPERTY_PREFIX + i ).create();
+                transaction.schema().indexFor( label ).on( PROPERTY_PREFIX + i ).create();
             }
-            transaction.success();
+            transaction.commit();
         }
 
-        try ( Transaction ignored = database.beginTx() )
+        try ( Transaction tx = database.beginTx() )
         {
-            database.schema().awaitIndexesOnline( 1, TimeUnit.MINUTES );
+            tx.schema().awaitIndexesOnline( 1, TimeUnit.MINUTES );
         }
 
         checkPointer = resolveDependency( CheckPointer.class );
@@ -234,9 +234,9 @@ public class IndexBackupIT
     {
         try ( Transaction transaction = database.beginTx() )
         {
-            Node node = database.createNode( label );
+            Node node = transaction.createNode( label );
             node.setProperty( "property" + i, i );
-            transaction.success();
+            transaction.commit();
         }
     }
 

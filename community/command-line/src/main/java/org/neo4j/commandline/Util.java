@@ -24,21 +24,17 @@ package org.neo4j.commandline;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
+import java.io.OutputStream;
 import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.Properties;
-import javax.annotation.Nonnull;
 
-import org.neo4j.commandline.admin.CommandFailed;
-import org.neo4j.io.fs.DefaultFileSystemAbstraction;
-import org.neo4j.io.fs.FileSystemAbstraction;
-import org.neo4j.io.layout.StoreLayout;
-import org.neo4j.kernel.StoreLockException;
-import org.neo4j.kernel.internal.locker.GlobalStoreLocker;
-import org.neo4j.kernel.internal.locker.StoreLocker;
+import org.neo4j.cli.CommandFailedException;
+import org.neo4j.configuration.Config;
+import org.neo4j.configuration.GraphDatabaseSettings;
+import org.neo4j.logging.FormattedLogProvider;
+import org.neo4j.logging.LogProvider;
 
 import static java.lang.String.format;
+import static org.neo4j.io.fs.FileUtils.getCanonicalFile;
 
 public class Util
 {
@@ -46,32 +42,10 @@ public class Util
     {
     }
 
-    public static Path canonicalPath( Path path ) throws IllegalArgumentException
-    {
-        return canonicalPath( path.toFile() );
-    }
-
-    public static Path canonicalPath( String path ) throws IllegalArgumentException
-    {
-        return canonicalPath( new File( path ) );
-    }
-
-    public static Path canonicalPath( File file ) throws IllegalArgumentException
-    {
-        try
-        {
-            return Paths.get( file.getCanonicalPath() );
-        }
-        catch ( IOException e )
-        {
-            throw new IllegalArgumentException( "Unable to parse path: " + file, e );
-        }
-    }
-
     public static boolean isSameOrChildFile( File parent, File candidate )
     {
-        Path canonicalCandidate = canonicalPath( candidate );
-        Path canonicalParentPath = canonicalPath( parent );
+        Path canonicalCandidate = getCanonicalFile( candidate ).toPath();
+        Path canonicalParentPath = getCanonicalFile( parent ).toPath();
         return canonicalCandidate.startsWith( canonicalParentPath );
     }
 
@@ -82,53 +56,17 @@ public class Util
         return normalizedCandidate.startsWith( normalizedParent );
     }
 
-    public static void checkLock( StoreLayout storeLayout ) throws CommandFailed
+    public static void wrapIOException( IOException e ) throws CommandFailedException
     {
-        try ( FileSystemAbstraction fileSystem = new DefaultFileSystemAbstraction();
-                StoreLocker storeLocker = new GlobalStoreLocker( fileSystem, storeLayout ) )
-        {
-            storeLocker.checkLock();
-        }
-        catch ( StoreLockException e )
-        {
-            throw new CommandFailed( "the database is in use -- stop Neo4j and try again", e );
-        }
-        catch ( IOException e )
-        {
-            wrapIOException( e );
-        }
+        throw new CommandFailedException(
+                format( "Unable to load database: %s: %s", e.getClass().getSimpleName(), e.getMessage() ), e );
     }
 
-    public static void wrapIOException( IOException e ) throws CommandFailed
+    public static LogProvider configuredLogProvider( Config config, OutputStream out )
     {
-        throw new CommandFailed(
-                format( "unable to load database: %s: %s", e.getClass().getSimpleName(), e.getMessage() ), e );
-    }
-
-    /**
-     * @return the version of Neo4j as defined during the build
-     */
-    @Nonnull
-    public static String neo4jVersion()
-    {
-        Properties props = new Properties();
-        try
-        {
-            loadProperties( props );
-            return props.getProperty( "neo4jVersion" );
-        }
-        catch ( IOException e )
-        {
-            // This should never happen
-            throw new RuntimeException( e );
-        }
-    }
-
-    private static void loadProperties( Properties props ) throws IOException
-    {
-        try ( InputStream resource = Util.class.getResourceAsStream( "/org/neo4j/commandline/build.properties" ) )
-        {
-            props.load( resource );
-        }
+        return FormattedLogProvider
+                .withZoneId( config.get( GraphDatabaseSettings.db_timezone ).getZoneId() )
+                .withDefaultLogLevel( config.get( GraphDatabaseSettings.store_internal_log_level ) )
+                .toOutputStream( out );
     }
 }

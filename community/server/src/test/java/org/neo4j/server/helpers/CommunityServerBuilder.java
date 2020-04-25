@@ -25,46 +25,51 @@ package org.neo4j.server.helpers;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
+import java.util.function.Consumer;
 
+import org.neo4j.common.DependencyResolver;
+import org.neo4j.configuration.Config;
+import org.neo4j.configuration.GraphDatabaseSettings;
+import org.neo4j.configuration.SettingValueParsers;
+import org.neo4j.configuration.connectors.HttpConnector;
+import org.neo4j.configuration.connectors.HttpsConnector;
+import org.neo4j.configuration.helpers.SocketAddress;
+import org.neo4j.configuration.ssl.ClientAuth;
+import org.neo4j.configuration.ssl.SslPolicyConfig;
+import org.neo4j.configuration.ssl.SslPolicyScope;
+import org.neo4j.graphdb.facade.ExternalDependencies;
 import org.neo4j.graphdb.facade.GraphDatabaseDependencies;
-import org.neo4j.graphdb.facade.GraphDatabaseFacadeFactory;
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
-import org.neo4j.helpers.ListenSocketAddress;
-import org.neo4j.kernel.configuration.Config;
-import org.neo4j.kernel.configuration.HttpConnector;
-import org.neo4j.kernel.configuration.HttpConnector.Encryption;
-import org.neo4j.kernel.configuration.ssl.LegacySslPolicyConfig;
-import org.neo4j.kernel.monitoring.Monitors;
 import org.neo4j.logging.Log;
 import org.neo4j.logging.LogProvider;
 import org.neo4j.logging.NullLogProvider;
+import org.neo4j.monitoring.Monitors;
 import org.neo4j.server.CommunityNeoServer;
 import org.neo4j.server.ServerTestUtils;
 import org.neo4j.server.configuration.ServerSettings;
 import org.neo4j.server.database.CommunityGraphFactory;
-import org.neo4j.server.database.Database;
 import org.neo4j.server.database.InMemoryGraphFactory;
 import org.neo4j.server.preflight.PreFlightTasks;
-import org.neo4j.server.rest.web.DatabaseActions;
+import org.neo4j.server.web.WebServer;
+import org.neo4j.test.ssl.SelfSignedCertificateFactory;
 
-import static org.neo4j.helpers.collection.MapUtil.stringMap;
+import static org.neo4j.configuration.SettingValueParsers.FALSE;
+import static org.neo4j.internal.helpers.collection.MapUtil.stringMap;
 import static org.neo4j.server.ServerTestUtils.asOneLine;
 
 public class CommunityServerBuilder
 {
-    private static final ListenSocketAddress ANY_ADDRESS = new ListenSocketAddress( "localhost", 0 );
+    private static final SocketAddress ANY_ADDRESS = new SocketAddress( "localhost", 0 );
 
     protected final LogProvider logProvider;
-    private ListenSocketAddress address = new ListenSocketAddress( "localhost", Encryption.NONE.defaultPort );
-    private ListenSocketAddress httpsAddress = new ListenSocketAddress( "localhost", Encryption.TLS.defaultPort );
+    private SocketAddress address = new SocketAddress( "localhost", HttpConnector.DEFAULT_PORT );
+    private SocketAddress httpsAddress = new SocketAddress( "localhost", HttpsConnector.DEFAULT_PORT );
     private String maxThreads;
     private String dataDir;
-    private String managementUri = "/db/manage/";
-    private String restUri = "/db/data/";
+    private String dbUri = "/db";
+    private String restUri = "/db/data";
     private PreFlightTasks preflightTasks;
     private final HashMap<String, String> thirdPartyPackages = new HashMap<>();
     private final Properties arbitraryProperties = new Properties();
@@ -74,12 +79,11 @@ public class CommunityServerBuilder
         System.setProperty( "sun.net.http.allowRestrictedHeaders", "true" );
     }
 
-    private String[] autoIndexedNodeKeys;
-    private final String[] autoIndexedRelationshipKeys = null;
-    private String[] securityRuleClassNames;
     private boolean persistent;
     private boolean httpEnabled = true;
     private boolean httpsEnabled;
+    private GraphDatabaseDependencies dependencies = GraphDatabaseDependencies.newDependencies();
+    private Consumer<WebServer> afterWebServerStart;
 
     public static CommunityServerBuilder server( LogProvider logProvider )
     {
@@ -105,33 +109,44 @@ public class CommunityServerBuilder
         final File configFile = buildBefore();
 
         Log log = logProvider.getLog( getClass() );
-        Config config = Config.fromFile( configFile ).withServerDefaults().build();
+        Config config = Config.newBuilder()
+                .setDefaults( GraphDatabaseSettings.SERVER_DEFAULTS )
+                .fromFile( configFile )
+                .build();
         config.setLogger( log );
-        return build( configFile, config, GraphDatabaseDependencies.newDependencies().userLogProvider( logProvider )
-                .monitors( new Monitors() ) );
+        ExternalDependencies dependencies = this.dependencies
+                .userLogProvider( logProvider )
+                .monitors( new Monitors() );
+        return build( configFile, config, dependencies );
     }
 
     protected CommunityNeoServer build( File configFile, Config config,
-            GraphDatabaseFacadeFactory.Dependencies dependencies )
+            ExternalDependencies dependencies )
     {
-        return new TestCommunityNeoServer( config, configFile, dependencies );
+        return new TestCommunityNeoServer( config, configFile, dependencies, afterWebServerStart );
     }
 
     public File createConfigFiles() throws IOException
     {
-        File temporaryConfigFile = ServerTestUtils.createTempConfigFile();
-        File temporaryFolder = ServerTestUtils.createTempDir();
+        File testFolder = persistent ? new File( dataDir ) : ServerTestUtils.createTempDir();
+        File temporaryConfigFile = ServerTestUtils.createTempConfigFile( testFolder );
 
-        ServerTestUtils.writeConfigToFile( createConfiguration( temporaryFolder ), temporaryConfigFile );
+        ServerTestUtils.writeConfigToFile( createConfiguration( testFolder ), temporaryConfigFile );
 
         return temporaryConfigFile;
+    }
+
+    public boolean isPersistent()
+    {
+        return persistent;
     }
 
     public Map<String, String> createConfiguration( File temporaryFolder )
     {
         Map<String, String> properties = stringMap(
-                ServerSettings.management_api_path.name(), managementUri,
-                ServerSettings.rest_api_path.name(), restUri );
+                ServerSettings.db_api_path.name(), dbUri,
+                ServerSettings.rest_api_path.name(), restUri
+        );
 
         ServerTestUtils.addDefaultRelativeProperties( properties, temporaryFolder );
 
@@ -150,45 +165,30 @@ public class CommunityServerBuilder
             properties.put( ServerSettings.third_party_packages.name(), asOneLine( thirdPartyPackages ) );
         }
 
-        if ( autoIndexedNodeKeys != null && autoIndexedNodeKeys.length > 0 )
+        properties.put( HttpConnector.enabled.name(), String.valueOf( httpEnabled ) );
+        properties.put( HttpConnector.listen_address.name(), address.toString() );
+
+        properties.put( HttpsConnector.enabled.name(), String.valueOf( httpsEnabled ) );
+        properties.put( HttpsConnector.listen_address.name(), httpsAddress.toString() );
+
+        properties.put( GraphDatabaseSettings.neo4j_home.name(), temporaryFolder.getAbsolutePath() );
+
+        properties.put( GraphDatabaseSettings.auth_enabled.name(), FALSE );
+
+        if ( httpsEnabled )
         {
-            properties.put( "dbms.auto_index.nodes.enabled", "true" );
-            String propertyKeys = org.apache.commons.lang.StringUtils.join( autoIndexedNodeKeys, "," );
-            properties.put( "dbms.auto_index.nodes.keys", propertyKeys );
+            var certificates = new File( temporaryFolder, "certificates" );
+            SelfSignedCertificateFactory.create( certificates );
+            SslPolicyConfig policy = SslPolicyConfig.forScope( SslPolicyScope.HTTPS );
+            properties.put( policy.enabled.name(), Boolean.TRUE.toString() );
+            properties.put( policy.base_directory.name(), certificates.getAbsolutePath() );
+            properties.put( policy.trust_all.name(), SettingValueParsers.TRUE );
+            properties.put( policy.client_auth.name(), ClientAuth.NONE.name() );
         }
 
-        if ( autoIndexedRelationshipKeys != null && autoIndexedRelationshipKeys.length > 0 )
-        {
-            properties.put( "dbms.auto_index.relationships.enabled", "true" );
-            String propertyKeys = org.apache.commons.lang.StringUtils.join( autoIndexedRelationshipKeys, "," );
-            properties.put( "dbms.auto_index.relationships.keys", propertyKeys );
-        }
-
-        if ( securityRuleClassNames != null && securityRuleClassNames.length > 0 )
-        {
-            String propertyKeys = org.apache.commons.lang.StringUtils.join( securityRuleClassNames, "," );
-            properties.put( ServerSettings.security_rules.name(), propertyKeys );
-        }
-
-        HttpConnector httpConnector = new HttpConnector( "http", Encryption.NONE );
-        HttpConnector httpsConnector = new HttpConnector( "https", Encryption.TLS );
-
-        properties.put( httpConnector.type.name(), "HTTP" );
-        properties.put( httpConnector.enabled.name(), String.valueOf( httpEnabled ) );
-        properties.put( httpConnector.address.name(), address.toString() );
-        properties.put( httpConnector.encryption.name(), "NONE" );
-
-        properties.put( httpsConnector.type.name(), "HTTP" );
-        properties.put( httpsConnector.enabled.name(), String.valueOf( httpsEnabled ) );
-        properties.put( httpsConnector.address.name(), httpsAddress.toString() );
-        properties.put( httpsConnector.encryption.name(), "TLS" );
-
-        properties.put( GraphDatabaseSettings.auth_enabled.name(), "false" );
-        properties.put( LegacySslPolicyConfig.certificates_directory.name(),
-                new File( temporaryFolder, "certificates" ).getAbsolutePath() );
         properties.put( GraphDatabaseSettings.logs_directory.name(),
                 new File( temporaryFolder, "logs" ).getAbsolutePath() );
-        properties.put( GraphDatabaseSettings.logical_logs_location.name(),
+        properties.put( GraphDatabaseSettings.transaction_logs_root_path.name(),
                 new File( temporaryFolder, "transaction-logs" ).getAbsolutePath() );
         properties.put( GraphDatabaseSettings.pagecache_memory.name(), "8m" );
         properties.put( GraphDatabaseSettings.shutdown_transaction_end_timeout.name(), "0s" );
@@ -203,6 +203,12 @@ public class CommunityServerBuilder
     protected CommunityServerBuilder( LogProvider logProvider )
     {
         this.logProvider = logProvider;
+    }
+
+    public CommunityServerBuilder withDependencies( DependencyResolver dependencyResolver )
+    {
+        this.dependencies = this.dependencies.dependencies( dependencyResolver );
+        return this;
     }
 
     public CommunityServerBuilder persistent()
@@ -223,45 +229,15 @@ public class CommunityServerBuilder
         return this;
     }
 
-    public CommunityServerBuilder withRelativeManagementApiUriPath( String uri )
+    public CommunityServerBuilder withRelativeDatabaseApiPath( String uri )
     {
-        try
-        {
-            URI theUri = new URI( uri );
-            if ( theUri.isAbsolute() )
-            {
-                this.managementUri = theUri.getPath();
-            }
-            else
-            {
-                this.managementUri = theUri.toString();
-            }
-        }
-        catch ( URISyntaxException e )
-        {
-            throw new RuntimeException( e );
-        }
+        this.dbUri = getPath( uri );
         return this;
     }
 
-    public CommunityServerBuilder withRelativeRestApiUriPath( String uri )
+    public CommunityServerBuilder withRelativeRestApiPath( String uri )
     {
-        try
-        {
-            URI theUri = new URI( uri );
-            if ( theUri.isAbsolute() )
-            {
-                this.restUri = theUri.getPath();
-            }
-            else
-            {
-                this.restUri = theUri.toString();
-            }
-        }
-        catch ( URISyntaxException e )
-        {
-            throw new RuntimeException( e );
-        }
+        this.restUri = getPath( uri );
         return this;
     }
 
@@ -276,12 +252,6 @@ public class CommunityServerBuilder
         return this;
     }
 
-    public CommunityServerBuilder withAutoIndexingEnabledForNodes( String... keys )
-    {
-        autoIndexedNodeKeys = keys;
-        return this;
-    }
-
     public CommunityServerBuilder onRandomPorts()
     {
         this.onHttpsAddress( ANY_ADDRESS );
@@ -289,21 +259,15 @@ public class CommunityServerBuilder
         return this;
     }
 
-    public CommunityServerBuilder onAddress( ListenSocketAddress address )
+    public CommunityServerBuilder onAddress( SocketAddress address )
     {
         this.address = address;
         return this;
     }
 
-    public CommunityServerBuilder onHttpsAddress( ListenSocketAddress address )
+    public CommunityServerBuilder onHttpsAddress( SocketAddress address )
     {
         this.httpsAddress = address;
-        return this;
-    }
-
-    public CommunityServerBuilder withSecurityRules( String... securityRuleClassNames )
-    {
-        this.securityRuleClassNames = securityRuleClassNames;
         return this;
     }
 
@@ -325,9 +289,23 @@ public class CommunityServerBuilder
         return this;
     }
 
-    protected DatabaseActions createDatabaseActionsObject( Database database )
+    public CommunityServerBuilder withAfterWebServerStartCallback( Consumer<WebServer> callback )
     {
-        return new DatabaseActions( database.getGraph() );
+        this.afterWebServerStart = callback;
+        return this;
+    }
+
+    private static String getPath( String uri )
+    {
+        URI theUri = URI.create( uri );
+        if ( theUri.isAbsolute() )
+        {
+            return theUri.getPath();
+        }
+        else
+        {
+            return theUri.toString();
+        }
     }
 
     private File buildBefore() throws IOException
@@ -351,17 +329,25 @@ public class CommunityServerBuilder
     private class TestCommunityNeoServer extends CommunityNeoServer
     {
         private final File configFile;
+        private final Consumer<WebServer> afterWebServerStart;
 
-        private TestCommunityNeoServer( Config config, File configFile, GraphDatabaseFacadeFactory.Dependencies dependencies )
+        private TestCommunityNeoServer( Config config, File configFile, ExternalDependencies dependencies,
+                Consumer<WebServer> afterWebServerStart )
         {
             super( config, persistent ? new CommunityGraphFactory() : new InMemoryGraphFactory(), dependencies );
             this.configFile = configFile;
+            this.afterWebServerStart = afterWebServerStart;
         }
 
         @Override
-        protected DatabaseActions createDatabaseActions()
+        protected WebServer createWebServer()
         {
-            return createDatabaseActionsObject( database );
+            WebServer webServer = super.createWebServer();
+            if ( afterWebServerStart != null )
+            {
+                afterWebServerStart.accept( webServer );
+            }
+            return webServer;
         }
 
         @Override

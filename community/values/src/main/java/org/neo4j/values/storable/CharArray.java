@@ -30,7 +30,7 @@ import org.neo4j.values.ValueMapper;
 
 import static java.lang.String.format;
 
-public class CharArray extends TextArray
+public final class CharArray extends TextArray
 {
     private final char[] value;
 
@@ -45,13 +45,6 @@ public class CharArray extends TextArray
     {
         return other.equals( value );
     }
-
-    // TODO: should we support this?
-//    @Override
-//    boolean equals( String x )
-//    {
-//        return false;
-//    }
 
     @Override
     public boolean equals( char[] x )
@@ -141,5 +134,11 @@ public class CharArray extends TextArray
     public String getTypeName()
     {
         return "CharArray";
+    }
+
+    @Override
+    long sizePerItem()
+    {
+        return Character.BYTES;
     }
 }

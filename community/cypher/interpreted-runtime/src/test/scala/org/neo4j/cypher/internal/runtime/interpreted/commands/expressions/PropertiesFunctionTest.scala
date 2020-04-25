@@ -25,22 +25,21 @@ package org.neo4j.cypher.internal.runtime.interpreted.commands.expressions
 import java.util
 
 import org.mockito.Mockito
-import org.neo4j.cypher.internal.runtime.interpreted.{ExecutionContext, QueryStateHelper}
-import org.neo4j.cypher.internal.runtime.{Operations, QueryContext}
+import org.neo4j.cypher.internal.runtime.interpreted.QueryStateHelper
+import org.neo4j.cypher.internal.runtime.{ExecutionContext, NodeOperations, QueryContext, RelationshipOperations}
+import org.neo4j.cypher.internal.v4_0.util.test_helpers.CypherFunSuite
+import org.neo4j.exceptions.CypherTypeException
 import org.neo4j.graphdb.{Node, Relationship}
 import org.neo4j.values.storable.Values.{NO_VALUE, stringValue}
 import org.neo4j.values.virtual.VirtualValues.map
-import org.neo4j.values.virtual.{NodeValue, RelationshipValue}
-import org.neo4j.cypher.internal.v3_6.util.CypherTypeException
-import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
 
 class PropertiesFunctionTest extends CypherFunSuite {
 
   import Mockito._
 
   val query = mock[QueryContext]
-  val nodeOps = mock[Operations[NodeValue]]
-  val relOps = mock[Operations[RelationshipValue]]
+  val nodeOps = mock[NodeOperations]
+  val relOps = mock[RelationshipOperations]
 
   when(query.nodeOps).thenReturn(nodeOps)
   when(query.relationshipOps).thenReturn(relOps)
@@ -67,7 +66,7 @@ class PropertiesFunctionTest extends CypherFunSuite {
     val node = mock[Node]
     when(node.getId).thenReturn(0)
     val value = map(Array("a", "b"), Array(stringValue("x"), stringValue("y")))
-    when(query.nodeAsMap(0)).thenReturn(value)
+    when(query.nodeAsMap(0, null, null)).thenReturn(value)
 
     properties(node) should equal(value)
   }
@@ -76,7 +75,7 @@ class PropertiesFunctionTest extends CypherFunSuite {
     val rel = mock[Relationship]
     when(rel.getId).thenReturn(0)
     val value = map(Array("a", "b"), Array(stringValue("x"), stringValue("y")))
-    when(query.relationshipAsMap(0)).thenReturn(value)
+    when(query.relationshipAsMap(0, null, null)).thenReturn(value)
 
     properties(rel) should equal(value)
   }

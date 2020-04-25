@@ -31,7 +31,7 @@ import static org.neo4j.collection.PrimitiveLongCollections.resourceIterator;
 
 public class PrimitiveLongResourceCollections
 {
-    private static final PrimitiveLongResourceIterator EMPTY = new PrimitiveLongBaseResourceIterator( null )
+    private static final PrimitiveLongResourceIterator EMPTY = new AbstractPrimitiveLongBaseResourceIterator( null )
     {
         @Override
         protected boolean fetchNext()
@@ -60,12 +60,12 @@ public class PrimitiveLongResourceCollections
         return new PrimitiveLongConcatingResourceIterator( primitiveLongResourceIterators );
     }
 
-    public abstract static class PrimitiveLongBaseResourceIterator extends PrimitiveLongCollections.PrimitiveLongBaseIterator
+    public abstract static class AbstractPrimitiveLongBaseResourceIterator extends PrimitiveLongCollections.AbstractPrimitiveLongBaseIterator
             implements PrimitiveLongResourceIterator
     {
         private Resource resource;
 
-        public PrimitiveLongBaseResourceIterator( Resource resource )
+        public AbstractPrimitiveLongBaseResourceIterator( Resource resource )
         {
             this.resource = resource;
         }
@@ -81,7 +81,7 @@ public class PrimitiveLongResourceCollections
         }
     }
 
-    private static class PrimitiveLongConcatingResourceIterator extends PrimitiveLongCollections.PrimitiveLongConcatingIterator
+    private static final class PrimitiveLongConcatingResourceIterator extends PrimitiveLongCollections.PrimitiveLongConcatingIterator
             implements PrimitiveLongResourceIterator
     {
         private final Iterable<PrimitiveLongResourceIterator> iterators;

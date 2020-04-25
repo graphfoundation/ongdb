@@ -22,17 +22,19 @@
  */
 package org.neo4j.graphdb;
 
+import org.neo4j.annotations.api.PublicApi;
+
 /**
  * Thrown when attempting to access or modify the graph outside of a transaction.
  *
  * @see Transaction
  */
+@PublicApi
 public class NotInTransactionException extends RuntimeException
 {
     public NotInTransactionException()
     {
-        super( "The requested operation cannot be performed, because it has to be performed in a transaction. " +
-                "Ensure you are wrapping your operation in the appropriate transaction boilerplate and try again." );
+        super( "The requested operation cannot be performed, because it has to be performed in a transaction." );
     }
 
     public NotInTransactionException( String message )

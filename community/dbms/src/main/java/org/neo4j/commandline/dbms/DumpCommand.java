@@ -25,72 +25,69 @@ package org.neo4j.commandline.dbms;
 import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
-import java.io.PrintStream;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Objects;
-import java.util.function.Predicate;
 
-import org.neo4j.commandline.admin.AdminCommand;
-import org.neo4j.commandline.admin.CommandFailed;
-import org.neo4j.commandline.admin.IncorrectUsage;
-import org.neo4j.commandline.arguments.Arguments;
+import org.neo4j.cli.AbstractCommand;
+import org.neo4j.cli.CommandFailedException;
+import org.neo4j.cli.Converters.DatabaseNameConverter;
+import org.neo4j.cli.ExecutionContext;
+import org.neo4j.configuration.Config;
+import org.neo4j.configuration.ConfigUtils;
+import org.neo4j.configuration.GraphDatabaseSettings;
+import org.neo4j.configuration.helpers.NormalizedDatabaseName;
 import org.neo4j.dbms.archive.CompressionFormat;
 import org.neo4j.dbms.archive.Dumper;
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
-import org.neo4j.io.fs.DefaultFileSystemAbstraction;
-import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.layout.DatabaseLayout;
-import org.neo4j.io.pagecache.PageCache;
-import org.neo4j.kernel.StoreLockException;
-import org.neo4j.kernel.configuration.Config;
-import org.neo4j.kernel.impl.pagecache.ConfigurableStandalonePageCacheFactory;
-import org.neo4j.kernel.impl.recovery.RecoveryRequiredChecker;
-import org.neo4j.kernel.impl.recovery.RecoveryRequiredException;
+import org.neo4j.io.layout.Neo4jLayout;
 import org.neo4j.kernel.impl.util.Validators;
-import org.neo4j.kernel.monitoring.Monitors;
-import org.neo4j.scheduler.JobScheduler;
+import org.neo4j.kernel.internal.locker.FileLockException;
 
 import static java.lang.String.format;
-import static org.neo4j.commandline.Util.canonicalPath;
-import static org.neo4j.commandline.arguments.common.Database.ARG_DATABASE;
+import static java.util.Objects.requireNonNull;
+import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
+import static org.neo4j.configuration.GraphDatabaseSettings.databases_root_path;
 import static org.neo4j.dbms.archive.CompressionFormat.selectCompressionFormat;
-import static org.neo4j.graphdb.factory.GraphDatabaseSettings.database_path;
-import static org.neo4j.graphdb.factory.GraphDatabaseSettings.logical_logs_location;
-import static org.neo4j.kernel.impl.scheduler.JobSchedulerFactory.createInitialisedScheduler;
+import static org.neo4j.internal.helpers.Strings.joinAsLines;
+import static org.neo4j.kernel.recovery.Recovery.isRecoveryRequired;
+import static picocli.CommandLine.Command;
+import static picocli.CommandLine.Option;
 
-public class DumpCommand implements AdminCommand
+@Command(
+        name = "dump",
+        header = "Dump a database into a single-file archive.",
+        description = "Dump a database into a single-file archive. The archive can be used by the load command. " +
+                "<destination-path> can be a file or directory (in which case a file called <database>.dump will " +
+                "be created). It is not possible to dump a database that is mounted in a running Neo4j server."
+)
+public class DumpCommand extends AbstractCommand
 {
-    private static final Arguments arguments = new Arguments()
-            .withDatabase()
-            .withTo( "Destination (file or folder) of database dump." );
+    @Option( names = "--database", description = "Name of the database to dump.", defaultValue = DEFAULT_DATABASE_NAME,
+            converter = DatabaseNameConverter.class )
+    private NormalizedDatabaseName database;
+    @Option( names = "--to", paramLabel = "<path>", required = true, description = "Destination (file or folder) of database dump." )
+    private Path to;
 
-    private final Path homeDir;
-    private final Path configDir;
     private final Dumper dumper;
-    private final PrintStream output;
 
-    public DumpCommand( Path homeDir, Path configDir, Dumper dumper, PrintStream output )
+    public DumpCommand( ExecutionContext ctx, Dumper dumper )
     {
-        this.homeDir = homeDir;
-        this.configDir = configDir;
-        this.dumper = dumper;
-        this.output = output;
+        super( ctx );
+        this.dumper = requireNonNull( dumper );
     }
 
     @Override
-    public void execute( String[] args ) throws IncorrectUsage, CommandFailed
+    public void execute()
     {
-        String database = arguments.parse( args ).get( ARG_DATABASE );
-        Path archive = calculateArchive( database, arguments.getMandatoryPath( "to" ) );
+        var databaseName = database.name();
+        Path archive = calculateArchive( databaseName, to.toAbsolutePath() );
 
-        Config config = buildConfig( database );
-        Path databaseDirectory = canonicalPath( getDatabaseDirectory( config ) );
-        DatabaseLayout databaseLayout = DatabaseLayout.of( databaseDirectory.toFile() );
-        Path transactionLogsDirectory = canonicalPath( getTransactionalLogsDirectory( config ) );
+        Config config = buildConfig();
+        DatabaseLayout databaseLayout = Neo4jLayout.of( config ).databaseLayout( databaseName );
 
         try
         {
@@ -98,17 +95,17 @@ public class DumpCommand implements AdminCommand
         }
         catch ( IllegalArgumentException e )
         {
-            throw new CommandFailed( "database does not exist: " + database, e );
+            throw new CommandFailedException( "Database does not exist: " + databaseName, e );
         }
 
-        try ( Closeable ignored = StoreLockChecker.check( databaseLayout.getStoreLayout() ) )
+        try ( Closeable ignored = LockChecker.checkDatabaseLock( databaseLayout ) )
         {
             checkDbState( databaseLayout, config );
-            dump( database, databaseLayout, transactionLogsDirectory, archive );
+            dump( databaseLayout, archive );
         }
-        catch ( StoreLockException e )
+        catch ( FileLockException e )
         {
-            throw new CommandFailed( "the database is in use -- stop Neo4j and try again", e );
+            throw new CommandFailedException( "The database is in use. Stop database '" + databaseName + "' and try again.", e );
         }
         catch ( IOException e )
         {
@@ -116,28 +113,17 @@ public class DumpCommand implements AdminCommand
         }
         catch ( CannotWriteException e )
         {
-            throw new CommandFailed( "you do not have permission to dump the database -- is Neo4j running as a different user?", e );
+            throw new CommandFailedException( "You do not have permission to dump the database.", e );
         }
     }
 
-    private static Path getDatabaseDirectory( Config config )
+    private Config buildConfig()
     {
-        return config.get( database_path ).toPath();
-    }
-
-    private static Path getTransactionalLogsDirectory( Config config )
-    {
-        return config.get( logical_logs_location ).toPath();
-    }
-
-    private Config buildConfig( String databaseName )
-    {
-        return Config.fromFile( configDir.resolve( Config.DEFAULT_CONFIG_FILE_NAME ) )
-                .withHome( homeDir )
-                .withConnectorsDisabled()
-                .withNoThrowOnFileLoadFailure()
-                .withSetting( GraphDatabaseSettings.active_database, databaseName )
-                .build();
+        Config cfg = Config.newBuilder()
+                .fromFileNoThrow( ctx.confDir().resolve( Config.DEFAULT_CONFIG_FILE_NAME ) )
+                .set( GraphDatabaseSettings.neo4j_home, ctx.homeDir() ).build();
+        ConfigUtils.disableAllConnectors( cfg );
+        return cfg;
     }
 
     private static Path calculateArchive( String database, Path to )
@@ -145,26 +131,25 @@ public class DumpCommand implements AdminCommand
         return Files.isDirectory( to ) ? to.resolve( database + ".dump" ) : to;
     }
 
-    private void dump( String database, DatabaseLayout databaseLayout, Path transactionalLogsDirectory, Path archive )
-            throws CommandFailed
+    private void dump( DatabaseLayout databaseLayout, Path archive )
     {
         Path databasePath = databaseLayout.databaseDirectory().toPath();
         try
         {
-            CompressionFormat format = selectCompressionFormat( output );
-            File storeLockFile = databaseLayout.getStoreLayout().storeLockFile();
-            Predicate<Path> pathPredicate = path -> Objects.equals( path.getFileName().toString(), storeLockFile.getName() );
-            dumper.dump( databasePath, transactionalLogsDirectory, archive, format, pathPredicate );
+            CompressionFormat format = selectCompressionFormat( ctx.err() );
+            File lockFile = databaseLayout.databaseLockFile();
+            dumper.dump( databasePath, databaseLayout.getTransactionLogsDirectory().toPath(), archive,
+                    format, path -> Objects.equals( path.getFileName().toString(), lockFile.getName() ) );
         }
         catch ( FileAlreadyExistsException e )
         {
-            throw new CommandFailed( "archive already exists: " + e.getMessage(), e );
+            throw new CommandFailedException( "Archive already exists: " + e.getMessage(), e );
         }
         catch ( NoSuchFileException e )
         {
             if ( Paths.get( e.getMessage() ).toAbsolutePath().equals( databasePath ) )
             {
-                throw new CommandFailed( "database does not exist: " + database, e );
+                throw new CommandFailedException( "Database does not exist: " + databaseLayout.getDatabaseName(), e );
             }
             wrapIOException( e );
         }
@@ -174,32 +159,31 @@ public class DumpCommand implements AdminCommand
         }
     }
 
-    private static void checkDbState( DatabaseLayout databaseLayout, Config additionalConfiguration ) throws CommandFailed
+    private static void checkDbState( DatabaseLayout databaseLayout, Config additionalConfiguration )
     {
-        try ( FileSystemAbstraction fileSystem = new DefaultFileSystemAbstraction();
-                JobScheduler jobScheduler = createInitialisedScheduler();
-                PageCache pageCache = ConfigurableStandalonePageCacheFactory.createPageCache( fileSystem, additionalConfiguration, jobScheduler ) )
+        if ( checkRecoveryState( databaseLayout, additionalConfiguration ) )
         {
-            RecoveryRequiredChecker.assertRecoveryIsNotRequired( fileSystem, pageCache, additionalConfiguration, databaseLayout, new Monitors() );
+            throw new CommandFailedException( joinAsLines( "Active logical log detected, this might be a source of inconsistencies.",
+                    "Please recover database before running the dump.",
+                    "To perform recovery please start database and perform clean shutdown." ) );
         }
-        catch ( RecoveryRequiredException rre )
+    }
+
+    private static boolean checkRecoveryState( DatabaseLayout databaseLayout, Config additionalConfiguration )
+    {
+        try
         {
-            throw new CommandFailed( rre.getMessage() );
+            return isRecoveryRequired( databaseLayout, additionalConfiguration );
         }
         catch ( Exception e )
         {
-            throw new CommandFailed( "Failure when checking for recovery state: '%s'." + e.getMessage(), e );
+            throw new CommandFailedException( "Failure when checking for recovery state: '%s'." + e.getMessage(), e );
         }
     }
 
-    private static void wrapIOException( IOException e ) throws CommandFailed
+    private static void wrapIOException( IOException e )
     {
-        throw new CommandFailed(
-                format( "unable to dump database: %s: %s", e.getClass().getSimpleName(), e.getMessage() ), e );
-    }
-
-    public static Arguments arguments()
-    {
-        return arguments;
+        throw new CommandFailedException(
+                format( "Unable to dump database: %s: %s", e.getClass().getSimpleName(), e.getMessage() ), e );
     }
 }

@@ -40,15 +40,15 @@ import org.neo4j.consistency.report.ConsistencyReport.RelationshipConsistencyRep
 import org.neo4j.consistency.report.ConsistencyReporter;
 import org.neo4j.consistency.store.RecordAccess;
 import org.neo4j.consistency.store.synthetic.CountsEntry;
-import org.neo4j.helpers.progress.ProgressListener;
-import org.neo4j.helpers.progress.ProgressMonitorFactory;
-import org.neo4j.kernel.impl.api.CountsAccessor;
-import org.neo4j.kernel.impl.api.CountsVisitor;
+import org.neo4j.counts.CountsAccessor;
+import org.neo4j.counts.CountsVisitor;
+import org.neo4j.internal.counts.CountsKey;
+import org.neo4j.internal.helpers.progress.ProgressListener;
+import org.neo4j.internal.helpers.progress.ProgressMonitorFactory;
 import org.neo4j.kernel.impl.store.NodeLabelsField;
 import org.neo4j.kernel.impl.store.NodeStore;
 import org.neo4j.kernel.impl.store.RecordStore;
 import org.neo4j.kernel.impl.store.StoreAccess;
-import org.neo4j.kernel.impl.store.counts.keys.CountsKey;
 import org.neo4j.kernel.impl.store.record.AbstractBaseRecord;
 import org.neo4j.kernel.impl.store.record.NodeRecord;
 import org.neo4j.kernel.impl.store.record.PrimitiveRecord;
@@ -57,8 +57,8 @@ import org.neo4j.kernel.impl.store.record.RelationshipRecord;
 import static org.neo4j.consistency.checking.cache.CacheSlots.NodeLabel.SLOT_IN_USE;
 import static org.neo4j.consistency.checking.cache.CacheSlots.NodeLabel.SLOT_LABEL_FIELD;
 import static org.neo4j.consistency.checking.full.NodeLabelReader.getListOfLabels;
-import static org.neo4j.kernel.impl.store.counts.keys.CountsKeyFactory.nodeKey;
-import static org.neo4j.kernel.impl.store.counts.keys.CountsKeyFactory.relationshipKey;
+import static org.neo4j.internal.counts.CountsKey.nodeKey;
+import static org.neo4j.internal.counts.CountsKey.relationshipKey;
 import static org.neo4j.kernel.impl.store.record.RecordLoad.FORCE;
 
 class CountsBuilderDecorator extends CheckDecorator.Adapter
@@ -77,7 +77,7 @@ class CountsBuilderDecorator extends CheckDecorator.Adapter
                            CheckerEngine<CountsEntry,ConsistencyReport.CountsConsistencyReport> engine,
                            RecordAccess records )
         {
-            final long expectedCount = nodeCounts.get( record.getCountsKey() );
+            final long expectedCount = nodeCounts.removeKeyIfAbsent( record.getCountsKey(), 0 );
             if ( expectedCount != record.getCount() )
             {
                 engine.report().inconsistentNodeCount( expectedCount );
@@ -91,38 +91,10 @@ class CountsBuilderDecorator extends CheckDecorator.Adapter
                            CheckerEngine<CountsEntry,ConsistencyReport.CountsConsistencyReport> engine,
                            RecordAccess records )
         {
-            final long expectedCount = relationshipCounts.get( record.getCountsKey() );
+            final long expectedCount = relationshipCounts.removeKeyIfAbsent( record.getCountsKey(), 0 );
             if ( expectedCount != record.getCount() )
             {
                 engine.report().inconsistentRelationshipCount( expectedCount );
-            }
-        }
-    };
-    private final CountsEntry.CheckAdapter CHECK_NODE_KEY_COUNT = new CountsEntry.CheckAdapter()
-    {
-        @Override
-        public void check( CountsEntry record,
-                           CheckerEngine<CountsEntry,ConsistencyReport.CountsConsistencyReport> engine,
-                           RecordAccess records )
-        {
-            final int expectedCount = nodeCounts.size();
-            if ( record.getCount() != expectedCount )
-            {
-                engine.report().inconsistentNumberOfNodeKeys( expectedCount );
-            }
-        }
-    };
-    private final CountsEntry.CheckAdapter CHECK_RELATIONSHIP_KEY_COUNT = new CountsEntry.CheckAdapter()
-    {
-        @Override
-        public void check( CountsEntry record,
-                           CheckerEngine<CountsEntry,ConsistencyReport.CountsConsistencyReport> engine,
-                           RecordAccess records )
-        {
-            final int expectedCount = relationshipCounts.size();
-            if ( record.getCount() != expectedCount )
-            {
-                engine.report().inconsistentNumberOfRelationshipKeys( expectedCount );
             }
         }
     };
@@ -186,11 +158,8 @@ class CountsBuilderDecorator extends CheckDecorator.Adapter
                 listener.add( 1 );
             }
         } );
-        reporter.forCounts(
-                new CountsEntry( nodeKey( WILDCARD ), nodeEntries.get() ), CHECK_NODE_KEY_COUNT );
-        reporter.forCounts(
-                new CountsEntry( relationshipKey( WILDCARD, WILDCARD, WILDCARD ),
-                        relationshipEntries.get() ), CHECK_RELATIONSHIP_KEY_COUNT );
+        nodeCounts.forEachKeyValue( ( key, count ) -> reporter.forCounts( new CountsEntry( key, 0 ), CHECK_NODE_COUNT ) );
+        relationshipCounts.forEachKeyValue( ( key, count ) -> reporter.forCounts( new CountsEntry( key, 0 ), CHECK_RELATIONSHIP_COUNT ) );
         listener.done();
     }
 

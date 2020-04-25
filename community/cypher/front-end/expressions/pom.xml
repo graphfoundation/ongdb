@@ -1,17 +1,30 @@
+<<<<<<< HEAD
 <?xml version="1.0" encoding="UTF-8"?>
+=======
+<?xml version="1.0"?>
+>>>>>>> 4.0-firstPass
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <parent>
         <groupId>org.graphfoundation.ongdb</groupId>
+<<<<<<< HEAD
         <artifactId>ongdb-front-end-parent-3.6</artifactId>
+=======
+        <artifactId>ongdb-front-end-parent-4.0</artifactId>
+>>>>>>> 4.0-firstPass
         <version>4.0.4-SNAPSHOT</version>
         <relativePath>../</relativePath>
     </parent>
 
     <modelVersion>4.0.0</modelVersion>
+<<<<<<< HEAD
     <artifactId>ongdb-expressions-3.6</artifactId>
     <packaging>jar</packaging>
     <version>4.0.4-SNAPSHOT</version>
+=======
+    <artifactId>ongdb-expressions-4.0</artifactId>
+    <packaging>jar</packaging>
+>>>>>>> 4.0-firstPass
     <name>openCypher Expressions</name>
 
     <description>Cypher expressions</description>
@@ -22,6 +35,7 @@
         <url>https://github.com/openCypher/front-end</url>
     </scm>
 
+<<<<<<< HEAD
     <licenses>
         <license>
             <name>Apache License, Version 2.0</name>
@@ -66,6 +80,55 @@
 
         <!-- scala -->
 
+=======
+    <properties>
+        <moduleName>org.neo4j.cypher.internal.v4_0.expressions</moduleName>
+    </properties>
+
+    <licenses>
+        <license>
+            <name>Apache License, Version 2.0</name>
+            <url>http://www.apache.org/licenses/LICENSE-2.0</url>
+        </license>
+    </licenses>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>test-jar</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
+    <dependencies>
+
+        <!-- shared versions are defined in the parent pom -->
+
+        <dependency>
+            <groupId>org.graphfoundation.ongdb</groupId>
+            <artifactId>ongdb-util-4.0</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.graphfoundation.ongdb</groupId>
+            <artifactId>ongdb-util-4.0</artifactId>
+            <version>${project.version}</version>
+            <type>test-jar</type>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- scala -->
+
+>>>>>>> 4.0-firstPass
     </dependencies>
 
 </project>

@@ -27,6 +27,8 @@ import java.util.function.Function;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
+import org.neo4j.annotations.api.PublicApi;
+
 import static java.util.Spliterators.spliteratorUnknownSize;
 
 /**
@@ -40,6 +42,7 @@ import static java.util.Spliterators.spliteratorUnknownSize;
  *
  * @see ResourceIterable
  */
+@PublicApi
 public interface ResourceIterator<T> extends Iterator<T>, Resource
 {
     /**
@@ -62,7 +65,7 @@ public interface ResourceIterator<T> extends Iterator<T>, Resource
 
     default <R> ResourceIterator<R> map( Function<T,R> map )
     {
-        return new ResourceIterator<R>()
+        return new ResourceIterator<>()
         {
             @Override
             public void close()

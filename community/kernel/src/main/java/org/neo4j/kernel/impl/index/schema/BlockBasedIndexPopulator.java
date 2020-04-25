@@ -39,35 +39,33 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
-import org.neo4j.cursor.RawCursor;
-import org.neo4j.index.internal.gbptree.Hit;
+import org.neo4j.index.internal.gbptree.Seeker;
 import org.neo4j.index.internal.gbptree.Writer;
+import org.neo4j.internal.helpers.Exceptions;
+import org.neo4j.internal.kernel.api.PopulationProgress;
+import org.neo4j.internal.schema.IndexDescriptor;
 import org.neo4j.io.ByteUnit;
 import org.neo4j.io.IOUtils;
 import org.neo4j.io.fs.FileSystemAbstraction;
+import org.neo4j.io.memory.ByteBufferFactory;
+import org.neo4j.io.memory.ByteBufferFactory.Allocator;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.kernel.api.exceptions.index.IndexEntryConflictException;
-import org.neo4j.kernel.api.index.IndexDirectoryStructure;
-import org.neo4j.kernel.api.index.IndexEntryUpdate;
 import org.neo4j.kernel.api.index.IndexPopulator;
 import org.neo4j.kernel.api.index.IndexProvider;
 import org.neo4j.kernel.api.index.IndexUpdater;
 import org.neo4j.kernel.impl.api.index.BatchingMultipleIndexPopulator;
 import org.neo4j.kernel.impl.api.index.PhaseTracker;
-import org.neo4j.kernel.impl.index.schema.ByteBufferFactory.Allocator;
-import org.neo4j.kernel.impl.index.schema.config.IndexSpecificSpaceFillingCurveSettingsCache;
-import org.neo4j.kernel.impl.index.schema.config.SpaceFillingCurveSettingsWriter;
-import org.neo4j.storageengine.api.schema.PopulationProgress;
-import org.neo4j.storageengine.api.schema.StoreIndexDescriptor;
+import org.neo4j.storageengine.api.IndexEntryUpdate;
 import org.neo4j.util.FeatureToggles;
 import org.neo4j.util.Preconditions;
 import org.neo4j.values.storable.Value;
 
-import static org.neo4j.helpers.collection.Iterables.first;
+import static org.neo4j.index.internal.gbptree.GBPTree.NO_HEADER_WRITER;
+import static org.neo4j.internal.helpers.collection.Iterables.first;
 import static org.neo4j.io.ByteUnit.kibiBytes;
 import static org.neo4j.kernel.impl.index.schema.BlockStorage.Monitor.NO_MONITOR;
 import static org.neo4j.kernel.impl.index.schema.NativeIndexUpdater.initializeKeyFromUpdate;
-import static org.neo4j.kernel.impl.index.schema.NativeIndexes.deleteIndex;
 import static org.neo4j.util.concurrent.Runnables.runAll;
 
 /**
@@ -88,8 +86,6 @@ public abstract class BlockBasedIndexPopulator<KEY extends NativeIndexKey<KEY>,V
 {
     public static final String BLOCK_SIZE_NAME = "blockSize";
 
-    private final IndexDirectoryStructure directoryStructure;
-    private final IndexDropAction dropAction;
     private final boolean archiveFailedIndex;
     /**
      * When merging all blocks together the algorithm does multiple passes over the block storage, until the number of blocks reaches 1.
@@ -113,22 +109,19 @@ public abstract class BlockBasedIndexPopulator<KEY extends NativeIndexKey<KEY>,V
     private volatile long numberOfAppliedScanUpdates;
     private volatile long numberOfAppliedExternalUpdates;
 
-    BlockBasedIndexPopulator( PageCache pageCache, FileSystemAbstraction fs, File file, IndexLayout<KEY,VALUE> layout, IndexProvider.Monitor monitor,
-            StoreIndexDescriptor descriptor, IndexSpecificSpaceFillingCurveSettingsCache spatialSettings,
-            IndexDirectoryStructure directoryStructure, IndexDropAction dropAction, boolean archiveFailedIndex, ByteBufferFactory bufferFactory )
+    BlockBasedIndexPopulator( PageCache pageCache, FileSystemAbstraction fs, IndexFiles indexFiles, IndexLayout<KEY,VALUE> layout,
+                              IndexProvider.Monitor monitor, IndexDescriptor descriptor,
+                              boolean archiveFailedIndex, ByteBufferFactory bufferFactory )
     {
-        this( pageCache, fs, file, layout, monitor, descriptor, spatialSettings, directoryStructure, dropAction, archiveFailedIndex, bufferFactory,
-                FeatureToggles.getInteger( BlockBasedIndexPopulator.class, "mergeFactor", 8 ), NO_MONITOR );
+        this( pageCache, fs, indexFiles, layout, monitor, descriptor, archiveFailedIndex, bufferFactory,
+              FeatureToggles.getInteger( BlockBasedIndexPopulator.class, "mergeFactor", 8 ), NO_MONITOR );
     }
 
-    BlockBasedIndexPopulator( PageCache pageCache, FileSystemAbstraction fs, File file, IndexLayout<KEY,VALUE> layout, IndexProvider.Monitor monitor,
-            StoreIndexDescriptor descriptor, IndexSpecificSpaceFillingCurveSettingsCache spatialSettings,
-            IndexDirectoryStructure directoryStructure, IndexDropAction dropAction, boolean archiveFailedIndex, ByteBufferFactory bufferFactory,
-            int mergeFactor, BlockStorage.Monitor blockStorageMonitor )
+    BlockBasedIndexPopulator( PageCache pageCache, FileSystemAbstraction fs, IndexFiles indexFiles, IndexLayout<KEY,VALUE> layout,
+                              IndexProvider.Monitor monitor, IndexDescriptor descriptor,
+                              boolean archiveFailedIndex, ByteBufferFactory bufferFactory, int mergeFactor, BlockStorage.Monitor blockStorageMonitor )
     {
-        super( pageCache, fs, file, layout, monitor, descriptor, new SpaceFillingCurveSettingsWriter( spatialSettings ) );
-        this.directoryStructure = directoryStructure;
-        this.dropAction = dropAction;
+        super( pageCache, fs, indexFiles, layout, monitor, descriptor, NO_HEADER_WRITER );
         this.archiveFailedIndex = archiveFailedIndex;
         this.mergeFactor = mergeFactor;
         this.blockStorageMonitor = blockStorageMonitor;
@@ -175,17 +168,14 @@ public abstract class BlockBasedIndexPopulator<KEY extends NativeIndexKey<KEY>,V
     @Override
     public void create()
     {
-        try
+        if ( archiveFailedIndex )
         {
-            deleteIndex( fileSystem, directoryStructure, descriptor.getId(), archiveFailedIndex );
-        }
-        catch ( IOException e )
-        {
-            throw new UncheckedIOException( e );
+            indexFiles.archiveIndex();
         }
         super.create();
         try
         {
+            File storeFile = indexFiles.getStoreFile();
             File externalUpdatesFile = new File( storeFile.getParent(), storeFile.getName() + ".ext" );
             externalUpdates = new IndexUpdateStorage<>( fileSystem, externalUpdatesFile, bufferFactory.globalAllocator(), smallerBufferSize(), layout );
         }
@@ -273,6 +263,7 @@ public abstract class BlockBasedIndexPopulator<KEY extends NativeIndexKey<KEY>,V
                 return;
             }
             phaseTracker.enterPhase( PhaseTracker.Phase.BUILD );
+            File storeFile = indexFiles.getStoreFile();
             File duplicatesFile = new File( storeFile.getParentFile(), storeFile.getName() + ".dup" );
             int readBufferSize = smallerBufferSize();
             try ( Allocator allocator = bufferFactory.newLocalAllocator();
@@ -308,10 +299,7 @@ public abstract class BlockBasedIndexPopulator<KEY extends NativeIndexKey<KEY>,V
         {
             // Propagating merge exception from other thread
             Throwable executionException = e.getCause();
-            if ( executionException instanceof RuntimeException )
-            {
-                throw (RuntimeException) executionException;
-            }
+            Exceptions.throwIfUnchecked( executionException );
             throw new RuntimeException( executionException );
         }
         finally
@@ -391,17 +379,18 @@ public abstract class BlockBasedIndexPopulator<KEY extends NativeIndexKey<KEY>,V
         }
     }
 
-    private void verifyUniqueSeek( RawCursor<Hit<KEY,VALUE>,IOException> seek ) throws IOException, IndexEntryConflictException
+    private void verifyUniqueSeek( Seeker<KEY,VALUE> seek ) throws IOException, IndexEntryConflictException
     {
         if ( seek != null )
         {
             if ( seek.next() )
             {
-                long firstEntityId = seek.get().key().getEntityId();
+                KEY key = seek.key();
+                long firstEntityId = key.getEntityId();
                 if ( seek.next() )
                 {
-                    long secondEntityId = seek.get().key().getEntityId();
-                    throw new IndexEntryConflictException( firstEntityId, secondEntityId, seek.get().key().asValues() );
+                    long secondEntityId = key.getEntityId();
+                    throw new IndexEntryConflictException( firstEntityId, secondEntityId, key.asValues() );
                 }
             }
         }
@@ -491,8 +480,7 @@ public abstract class BlockBasedIndexPopulator<KEY extends NativeIndexKey<KEY>,V
     {
         runAll( "Failed while trying to drop index",
                 this::closeBlockStorage /* Close internal resources */,
-                super::drop /* Super drop will close inherited resources */,
-                () -> dropAction.drop( descriptor.getId(), archiveFailedIndex ) /* Cleanup files */
+                super::drop /* Super drop will close inherited resources */
         );
     }
 
@@ -633,6 +621,7 @@ public abstract class BlockBasedIndexPopulator<KEY extends NativeIndexKey<KEY>,V
         ThreadLocalBlockStorage( int id ) throws IOException
         {
             super( blockStorageMonitor );
+            File storeFile = indexFiles.getStoreFile();
             File blockFile = new File( storeFile.getParentFile(), storeFile.getName() + ".scan-" + id );
             this.blockStorage = new BlockStorage<>( layout, bufferFactory, fileSystem, blockFile, this );
         }

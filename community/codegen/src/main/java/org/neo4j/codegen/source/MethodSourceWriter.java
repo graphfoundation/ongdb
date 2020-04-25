@@ -43,12 +43,14 @@ class MethodSourceWriter implements MethodEmitter, ExpressionVisitor
     private static final String INDENTATION = "    ";
     private final StringBuilder target;
     private final ClassSourceWriter classSourceWriter;
+    private final boolean isStatic;
     private final Deque<Runnable> levels = new LinkedList<>();
 
-    MethodSourceWriter( StringBuilder target, ClassSourceWriter classSourceWriter )
+    MethodSourceWriter( StringBuilder target, ClassSourceWriter classSourceWriter, boolean isStatic )
     {
         this.target = target;
         this.classSourceWriter = classSourceWriter;
+        this.isStatic = isStatic;
         this.levels.push( BOTTOM );
         this.levels.push( LEVEL );
     }
@@ -68,6 +70,12 @@ class MethodSourceWriter implements MethodEmitter, ExpressionVisitor
     }
 
     @Override
+    public boolean isStatic()
+    {
+        return isStatic;
+    }
+
+    @Override
     public void done()
     {
         if ( levels.size() != 1 )
@@ -80,6 +88,10 @@ class MethodSourceWriter implements MethodEmitter, ExpressionVisitor
     @Override
     public void expression( Expression expression )
     {
+        if ( expression == Expression.EMPTY )
+        {
+            return;
+        }
         indent();
         expression.accept( this );
         target.append( ";\n" );
@@ -90,6 +102,18 @@ class MethodSourceWriter implements MethodEmitter, ExpressionVisitor
     {
         indent();
         target.accept( this );
+        append( "." );
+        append( field.name() );
+        append( " = " );
+        value.accept( this );
+        append( ";\n" );
+    }
+
+    @Override
+    public void putStatic( FieldReference field, Expression value )
+    {
+        indent();
+        append( field.owner().fullName() );
         append( "." );
         append( field.name() );
         append( " = " );
@@ -118,6 +142,12 @@ class MethodSourceWriter implements MethodEmitter, ExpressionVisitor
     }
 
     @Override
+    public void breaks( String labelName )
+    {
+        indent().append( "break " + labelName + ";\n" );
+    }
+
+    @Override
     public void declare( LocalVariable local )
     {
         indent().append( local.type().fullName() ).append( ' ' ).append( local.name() ).append( ";\n" );
@@ -140,8 +170,12 @@ class MethodSourceWriter implements MethodEmitter, ExpressionVisitor
     }
 
     @Override
-    public void beginWhile( Expression test )
+    public void beginWhile( Expression test, String labelName )
     {
+        if ( labelName != null && !labelName.isEmpty() )
+        {
+            indent().append( labelName + ":\n" );
+        }
         indent().append( "while( " );
         test.accept( this );
         append( " )\n" );
@@ -157,6 +191,20 @@ class MethodSourceWriter implements MethodEmitter, ExpressionVisitor
         append( " )\n" );
         indent().append( "{\n" );
         levels.push( LEVEL );
+    }
+
+    @Override
+    public <T> void ifElseStatement( Expression test, Consumer<T> onTrue, Consumer<T> onFalse, T block )
+    {
+        beginIf( test );
+        onTrue.accept( block );
+        levels.pop();
+        indent().append( "}\n" );
+        indent().append( "else {\n" );
+        levels.push( LEVEL );
+        onFalse.accept( block );
+        levels.pop();
+        indent().append( "}\n" );
     }
 
     @Override
@@ -242,6 +290,32 @@ class MethodSourceWriter implements MethodEmitter, ExpressionVisitor
     public void load( LocalVariable variable )
     {
         append( variable.name() );
+    }
+
+    @Override
+    public void arrayLoad( Expression array, Expression index )
+    {
+        array.accept( this );
+        append( "[" );
+        index.accept( this );
+        append( "]" );
+    }
+
+    @Override
+    public void arraySet( Expression array, Expression index, Expression value )
+    {
+        array.accept( this );
+        append( "[" );
+        index.accept( this );
+        append( "] = " );
+        value.accept( this );
+    }
+
+    @Override
+    public void arrayLength( Expression array )
+    {
+        array.accept( this );
+        append( ".length" );
     }
 
     @Override
@@ -382,7 +456,9 @@ class MethodSourceWriter implements MethodEmitter, ExpressionVisitor
         for ( Expression expression : expressions )
         {
             append( sep );
+            append("(");
             expression.accept( this );
+            append(")");
             sep = op;
         }
     }
@@ -420,33 +496,36 @@ class MethodSourceWriter implements MethodEmitter, ExpressionVisitor
     @Override
     public void subtract( Expression lhs, Expression rhs )
     {
-        lhs.accept( this );
-        append( " - " );
-        rhs.accept( this );
+        binaryOperation( lhs, rhs, " - " );
     }
 
     @Override
     public void multiply( Expression lhs, Expression rhs )
     {
-        lhs.accept( this );
-        append( " * " );
-        rhs.accept( this );
+        binaryOperation( lhs, rhs, " * " );
     }
 
     private void div( Expression lhs, Expression rhs )
     {
-        lhs.accept( this );
-        append( " / " );
-        rhs.accept( this );
+        binaryOperation( lhs, rhs, " / " );
     }
 
     @Override
     public void cast( TypeReference type, Expression expression )
     {
-        append( "(" );
-        append( "(" ).append( type.fullName() ).append( ") " );
-        expression.accept( this );
-        append( ")" );
+        if ( !type.equals( expression.type() ) )
+        {
+            append( "(" );
+            append( "(" ).append( type.fullName() ).append( ") " );
+            append( "(" );
+            expression.accept( this );
+            append( ")" );
+            append( ")" );
+        }
+        else
+        {
+            expression.accept( this );
+        }
     }
 
     @Override
@@ -457,7 +536,7 @@ class MethodSourceWriter implements MethodEmitter, ExpressionVisitor
     }
 
     @Override
-    public void newArray( TypeReference type, Expression... constants )
+    public void newInitializedArray( TypeReference type, Expression... constants )
     {
         append( "new " ).append( type.fullName() ).append( "[]{" );
         String sep = "";
@@ -468,6 +547,12 @@ class MethodSourceWriter implements MethodEmitter, ExpressionVisitor
             sep = ", ";
         }
         append( "}" );
+    }
+
+    @Override
+    public void newArray( TypeReference type, int size )
+    {
+        append( "new " ).append( type.fullName() ).append( "[" ).append( size ).append( "]" );
     }
 
     @Override
@@ -500,8 +585,12 @@ class MethodSourceWriter implements MethodEmitter, ExpressionVisitor
 
     private void binaryOperation( Expression lhs, Expression rhs, String operator )
     {
+        append( "(" );
         lhs.accept( this );
+        append( ")" );
         append( operator );
+        append( "(" );
         rhs.accept( this );
+        append( ")" );
     }
 }

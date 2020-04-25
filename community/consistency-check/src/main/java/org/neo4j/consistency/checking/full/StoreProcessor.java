@@ -35,7 +35,7 @@ import org.neo4j.consistency.report.ConsistencyReport.RelationshipGroupConsisten
 import org.neo4j.consistency.statistics.Counts;
 import org.neo4j.graphdb.ResourceIterable;
 import org.neo4j.graphdb.ResourceIterator;
-import org.neo4j.helpers.progress.ProgressListener;
+import org.neo4j.internal.helpers.progress.ProgressListener;
 import org.neo4j.kernel.impl.store.RecordStore;
 import org.neo4j.kernel.impl.store.record.AbstractBaseRecord;
 import org.neo4j.kernel.impl.store.record.DynamicRecord;
@@ -46,6 +46,7 @@ import org.neo4j.kernel.impl.store.record.PropertyRecord;
 import org.neo4j.kernel.impl.store.record.RelationshipGroupRecord;
 import org.neo4j.kernel.impl.store.record.RelationshipRecord;
 import org.neo4j.kernel.impl.store.record.RelationshipTypeTokenRecord;
+import org.neo4j.kernel.impl.store.record.SchemaRecord;
 
 import static org.neo4j.consistency.checking.cache.DefaultCacheAccess.DEFAULT_QUEUE_SIZE;
 import static org.neo4j.consistency.checking.full.CloningRecordIterator.cloned;
@@ -58,7 +59,6 @@ import static org.neo4j.kernel.impl.store.Scanner.scan;
  */
 public class StoreProcessor extends AbstractStoreProcessor
 {
-    private final int qSize = DEFAULT_QUEUE_SIZE;
     protected final CacheAccess cacheAccess;
     private final ConsistencyReport.Reporter report;
     private SchemaRecordCheck schemaRecordCheck;
@@ -86,12 +86,6 @@ public class StoreProcessor extends AbstractStoreProcessor
         super.processNode( store, node );
     }
 
-    protected void checkSchema( RecordType type, RecordStore<DynamicRecord> store, DynamicRecord schema,
-            RecordCheck<DynamicRecord,ConsistencyReport.SchemaConsistencyReport> checker )
-    {
-        report.forSchema( schema, checker );
-    }
-
     @Override
     protected void checkNode( RecordStore<NodeRecord> store, NodeRecord node,
             RecordCheck<NodeRecord,ConsistencyReport.NodeConsistencyReport> checker )
@@ -99,9 +93,9 @@ public class StoreProcessor extends AbstractStoreProcessor
         report.forNode( node, checker );
     }
 
-    public void countLinks( long id1, long id2, CacheAccess.Client client )
+    private void countLinks( long id1, long id2, CacheAccess.Client client )
     {
-        Counts.Type type = null;
+        Counts.Type type;
         if ( id2 == -1 )
         {
             type = Counts.Type.nullLinks;
@@ -192,7 +186,7 @@ public class StoreProcessor extends AbstractStoreProcessor
     }
 
     @Override
-    public void processSchema( RecordStore<DynamicRecord> store, DynamicRecord schema )
+    public void processSchema( RecordStore<SchemaRecord> store, SchemaRecord schema )
     {
         if ( null == schemaRecordCheck )
         {
@@ -200,16 +194,15 @@ public class StoreProcessor extends AbstractStoreProcessor
         }
         else
         {
-            checkSchema( RecordType.SCHEMA, store, schema, schemaRecordCheck );
+            report.forSchema( schema, schemaRecordCheck );
         }
     }
 
-    public <R extends AbstractBaseRecord> void applyFilteredParallel( final RecordStore<R> store,
-            final ProgressListener progressListener, int numberOfThreads, long recordsPerCpu,
-            final QueueDistributor<R> distributor )
+    <R extends AbstractBaseRecord> void applyFilteredParallel( RecordStore<R> store, ProgressListener progressListener, int numberOfThreads,
+            long recordsPerCpu, final QueueDistributor<R> distributor )
     {
         cacheAccess.prepareForProcessingOfSingleStore( recordsPerCpu );
-        RecordProcessor<R> processor = new RecordProcessor.Adapter<R>()
+        RecordProcessor<R> processor = new RecordProcessor.Adapter<>()
         {
             @Override
             public void init( int id )
@@ -229,7 +222,7 @@ public class StoreProcessor extends AbstractStoreProcessor
         ResourceIterable<R> scan = scan( store, stage.isForward() );
         try ( ResourceIterator<R> records = scan.iterator() )
         {
-            distributeRecords( numberOfThreads, getClass().getSimpleName(), qSize,
+            distributeRecords( numberOfThreads, getClass().getSimpleName(), DEFAULT_QUEUE_SIZE,
                     cloned( records ), progressListener, processor, distributor );
         }
     }

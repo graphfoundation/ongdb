@@ -23,14 +23,14 @@
 package org.neo4j.cypher.internal.runtime.interpreted.commands.expressions
 
 import org.mockito.Mockito._
-import org.neo4j.cypher.internal.runtime.QueryContext
-import org.neo4j.cypher.internal.runtime.interpreted.{ExecutionContext, QueryStateHelper}
+import org.neo4j.cypher.internal.runtime.interpreted.QueryStateHelper
+import org.neo4j.cypher.internal.runtime.{ExecutionContext, QueryContext}
+import org.neo4j.cypher.internal.v4_0.util.test_helpers.CypherFunSuite
+import org.neo4j.exceptions.{CypherTypeException, InvalidArgumentException}
 import org.neo4j.graphdb.{Node, Relationship}
 import org.neo4j.values.AnyValue
 import org.neo4j.values.storable.Values
 import org.neo4j.values.storable.Values.longValue
-import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
-import org.neo4j.cypher.internal.v3_6.util.{CypherTypeException, InvalidArgumentException}
 
 import scala.collection.JavaConverters._
 
@@ -90,8 +90,8 @@ class ContainerIndexTest extends CypherFunSuite {
     when(qtx.propertyKey("v")).thenReturn(42)
     when(qtx.propertyKey("c")).thenReturn(43)
 
-    when(qtx.nodeProperty(0, 42)).thenReturn(longValue(1))
-    when(qtx.nodeProperty(0, 43)).thenReturn(Values.NO_VALUE)
+    when(qtx.nodeProperty(0, 42, null, null, throwOnDeleted = true)).thenReturn(longValue(1))
+    when(qtx.nodeProperty(0, 43, null, null, throwOnDeleted = true)).thenReturn(Values.NO_VALUE)
     idx("v") should equal(longValue(1))
     idx("c") should equal(expectedNull)
   }
@@ -103,8 +103,8 @@ class ContainerIndexTest extends CypherFunSuite {
 
     when(qtx.propertyKey("v")).thenReturn(42)
     when(qtx.propertyKey("c")).thenReturn(43)
-    when(qtx.relationshipProperty(0, 42)).thenReturn(longValue(1))
-    when(qtx.relationshipProperty(0, 43)).thenReturn(Values.NO_VALUE)
+    when(qtx.relationshipProperty(0, 42, null, null, throwOnDeleted = true)).thenReturn(longValue(1))
+    when(qtx.relationshipProperty(0, 43, null, null, throwOnDeleted = true)).thenReturn(Values.NO_VALUE)
     idx("v") should equal(longValue(1))
     idx("c") should equal(expectedNull)
   }

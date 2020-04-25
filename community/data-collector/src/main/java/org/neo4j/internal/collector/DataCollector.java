@@ -24,30 +24,23 @@ package org.neo4j.internal.collector;
 
 import java.util.Collections;
 
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
-import org.neo4j.internal.kernel.api.Kernel;
+import org.neo4j.configuration.Config;
+import org.neo4j.configuration.GraphDatabaseSettings;
+import org.neo4j.kernel.api.Kernel;
 import org.neo4j.kernel.api.exceptions.InvalidArgumentsException;
-import org.neo4j.kernel.configuration.Config;
-import org.neo4j.kernel.monitoring.Monitors;
+import org.neo4j.kernel.database.Database;
+import org.neo4j.kernel.lifecycle.LifecycleAdapter;
+import org.neo4j.monitoring.Monitors;
 import org.neo4j.scheduler.JobScheduler;
-import org.neo4j.values.ValueMapper;
 
-public class DataCollector implements AutoCloseable
+public class DataCollector extends LifecycleAdapter
 {
-    final Kernel kernel;
-    final JobScheduler jobScheduler;
-    final ValueMapper.JavaMapper valueMapper;
-    final QueryCollector queryCollector;
+    private final Database database;
+    private final QueryCollector queryCollector;
 
-    DataCollector( Kernel kernel,
-                   JobScheduler jobScheduler,
-                   Monitors monitors,
-                   ValueMapper.JavaMapper valueMapper,
-                   Config config )
+    public DataCollector( Database database, JobScheduler jobScheduler, Monitors monitors, Config config )
     {
-        this.kernel = kernel;
-        this.jobScheduler = jobScheduler;
-        this.valueMapper = valueMapper;
+        this.database = database;
         this.queryCollector = new QueryCollector( jobScheduler,
                                                   config.get( GraphDatabaseSettings.data_collector_max_recent_query_count ),
                                                   config.get( GraphDatabaseSettings.data_collector_max_query_text_size ) );
@@ -63,8 +56,18 @@ public class DataCollector implements AutoCloseable
     }
 
     @Override
-    public void close()
+    public void stop()
     {
-        // intended to eventually be used to stop any ongoing collection
+        queryCollector.doStop();
+    }
+
+    public Kernel getKernel()
+    {
+        return database.getKernel();
+    }
+
+    QueryCollector getQueryCollector()
+    {
+        return queryCollector;
     }
 }

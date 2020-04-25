@@ -24,18 +24,17 @@ package org.neo4j.kernel.impl.transaction.log;
 
 import java.io.IOException;
 
+import org.neo4j.configuration.Config;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.io.pagecache.PageCache;
-import org.neo4j.kernel.configuration.Config;
-import org.neo4j.kernel.impl.transaction.log.TransactionMetadataCache.TransactionMetadata;
 import org.neo4j.kernel.impl.transaction.log.entry.LogEntryReader;
 import org.neo4j.kernel.impl.transaction.log.entry.VersionAwareLogEntryReader;
 import org.neo4j.kernel.impl.transaction.log.files.LogFiles;
 import org.neo4j.kernel.impl.transaction.log.files.LogFilesBuilder;
 import org.neo4j.kernel.lifecycle.LifeSupport;
 import org.neo4j.kernel.lifecycle.Lifecycle;
-import org.neo4j.kernel.monitoring.Monitors;
+import org.neo4j.monitoring.Monitors;
 
 /**
  * Used for reading transactions off of file.
@@ -49,7 +48,7 @@ public class ReadOnlyTransactionStore implements Lifecycle, LogicalTransactionSt
             Monitors monitors ) throws IOException
     {
         TransactionMetadataCache transactionMetadataCache = new TransactionMetadataCache();
-        LogEntryReader<ReadableClosablePositionAwareChannel> logEntryReader = new VersionAwareLogEntryReader<>();
+        LogEntryReader logEntryReader = new VersionAwareLogEntryReader();
         LogFiles logFiles = LogFilesBuilder
                 .activeFilesBuilder( fromDatabaseLayout, fs, pageCache ).withLogEntryReader( logEntryReader )
                 .withConfig( config )
@@ -75,18 +74,6 @@ public class ReadOnlyTransactionStore implements Lifecycle, LogicalTransactionSt
     public TransactionCursor getTransactionsInReverseOrder( LogPosition backToPosition ) throws IOException
     {
         return physicalStore.getTransactionsInReverseOrder( backToPosition );
-    }
-
-    @Override
-    public TransactionMetadata getMetadataFor( long transactionId ) throws IOException
-    {
-        return physicalStore.getMetadataFor( transactionId );
-    }
-
-    @Override
-    public boolean existsOnDisk( long transactionId ) throws IOException
-    {
-        return physicalStore.existsOnDisk( transactionId );
     }
 
     @Override

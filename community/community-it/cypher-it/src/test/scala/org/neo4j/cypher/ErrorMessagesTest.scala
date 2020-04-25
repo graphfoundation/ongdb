@@ -22,9 +22,12 @@
  */
 package org.neo4j.cypher
 
+import java.util.Optional
+
 import org.hamcrest.CoreMatchers._
 import org.junit.Assert._
-import org.neo4j.cypher.internal.v3_6.util.helpers.StringHelper._
+import org.neo4j.cypher.internal.v4_0.util.helpers.StringHelper._
+import org.neo4j.exceptions.{Neo4jException, SyntaxException}
 
 class ErrorMessagesTest extends ExecutionEngineFunSuite {
 
@@ -85,19 +88,27 @@ class ErrorMessagesTest extends ExecutionEngineFunSuite {
     )
   }
 
+  test("noSuchProcedure") {
+    expectError(
+      "CALL no.such.procedure YIELD foo RETURN foo",
+      "There is no procedure with the name `no.such.procedure` registered for this database instance. " +
+        "Please ensure you've spelled the procedure name correctly and that the procedure is properly deployed."
+    )
+  }
+
+  test("noSuchProcedure - standalone") {
+    expectError(
+      "CALL no.such.procedure",
+      "There is no procedure with the name `no.such.procedure` registered for this database instance. " +
+      "Please ensure you've spelled the procedure name correctly and that the procedure is properly deployed."
+    )
+  }
+
   test("noIndexName") {
     expectSyntaxError(
       "start a = node(name=\"sebastian\") match (a)-[:WORKED_ON]-b return b",
       "Invalid input 'n': expected whitespace, an unsigned integer, a parameter, a parameter (old syntax) or '*' (line 1, column 16 (offset: 15))",
       15
-    )
-  }
-
-  test("twoIndexQueriesInSameStart") {
-    expectSyntaxError(
-      "start a = node:node_auto_index(name=\"sebastian\",name=\"magnus\") return a",
-      "Invalid input ',': expected whitespace or ')' (line 1, column 48 (offset: 47))",
-      47
     )
   }
 
@@ -129,7 +140,7 @@ class ErrorMessagesTest extends ExecutionEngineFunSuite {
     expectSyntaxError(
       "match (p) where id(p) = 2 match p[:likes]->dude return dude.name",
       "Invalid input '[': expected an identifier character, whitespace, '='," +
-        " node labels, a property map, a relationship pattern, ',', USING, WHERE, FROM GRAPH," +
+        " node labels, a property map, a relationship pattern, ',', USING, WHERE, FROM GRAPH, USE GRAPH," +
         " CONSTRUCT, LOAD CSV, START, MATCH, UNWIND, MERGE, CREATE UNIQUE, CREATE, SET, DELETE," +
         " REMOVE, FOREACH, WITH, CALL, RETURN, UNION, ';' or end of input (line 1, column 34 (offset: 33))",
       33
@@ -146,7 +157,7 @@ class ErrorMessagesTest extends ExecutionEngineFunSuite {
 
   test("noEqualsSignInStart") {
     expectSyntaxError(
-      "start r:relationship:rels() return r",
+      "start r:relationship:relationships() return r",
       "Invalid input ':': expected an identifier character, whitespace or '=' (line 1, column 8 (offset: 7))",
       7
     )
@@ -169,14 +180,6 @@ class ErrorMessagesTest extends ExecutionEngineFunSuite {
     )
   }
 
-  test("start expression without variable") {
-    expectSyntaxError(
-      "start a = node:node_auto_index(name=\"magnus\"),node:node_auto_index(name=\"sebastian) return b,c",
-      "Invalid input ':': expected an identifier character, whitespace or '=' (line 1, column 51 (offset: 50))",
-      50
-    )
-  }
-
   test("fail when using exclamation mark") {
     expectError(
       "match (n) where id(n) = 0 and n.foo != 2 return n",
@@ -185,18 +188,18 @@ class ErrorMessagesTest extends ExecutionEngineFunSuite {
   }
 
   test("trying to drop constraint index should return sensible error") {
-    graph.createConstraint("LabelName", "Prop")
+    graph.createUniqueConstraint("LabelName", "Prop")
 
     expectError(
       "DROP INDEX ON :LabelName(Prop)",
-      "Unable to drop index on :LabelName(Prop): Index belongs to constraint: :LabelName(Prop)"
+      "Unable to drop index: Index belongs to constraint: :LabelName(Prop)"
     )
   }
 
   test("trying to drop non existent index") {
     expectError(
       "DROP INDEX ON :Person(name)",
-      "Unable to drop index on :Person(name): No such INDEX ON :Person(name)."
+      "Unable to drop index on :Person(name). There is no such index."
     )
   }
 
@@ -206,7 +209,7 @@ class ErrorMessagesTest extends ExecutionEngineFunSuite {
 
     expectError(
       "CREATE CONSTRAINT ON (person:Person) ASSERT person.name IS UNIQUE",
-      String.format("Unable to create CONSTRAINT ON ( person:Person ) ASSERT person.name IS UNIQUE:%n" +
+      String.format("Unable to create CONSTRAINT ON ( person:Person ) ASSERT (person.name) IS UNIQUE:%n" +
         "Both Node(" + node1 + ") and Node(" + node2 + ") have the label `Person` and property `name` = 'A'")
     )
   }
@@ -219,7 +222,7 @@ class ErrorMessagesTest extends ExecutionEngineFunSuite {
   }
 
   test("report wrong usage of index hint") {
-    graph.createConstraint("Person", "id")
+    graph.createUniqueConstraint("Person", "id")
     expectError(
       "MATCH (n:Person) USING INDEX n:Person(id) WHERE n.name = 'Andres' RETURN n",
       "Cannot use index hint in this context. Index hints are only supported for the following predicates in WHERE (either directly or as part of a top-level AND or OR): equality comparison, inequality (range) comparison, STARTS WITH, IN condition or checking property existence. The comparison cannot be performed between two property values. Note that the label and property comparison must be specified on a non-optional node (line 1, column 18 (offset: 17))"
@@ -234,7 +237,7 @@ class ErrorMessagesTest extends ExecutionEngineFunSuite {
 
   test("should forbid bound relationship list in shortestPath pattern parts") {
     expectError(
-      "WITH [] AS r LIMIT 1 MATCH p = shortestPath(src-[r*]->dst) RETURN src, dst",
+      "WITH [] AS r LIMIT 1 MATCH p = shortestPath((src)-[r*]->(dst)) RETURN src, dst",
       "Bound relationships not allowed in shortestPath(...)"
     )
   }
@@ -248,7 +251,7 @@ class ErrorMessagesTest extends ExecutionEngineFunSuite {
   test("should give proper error message when trying to use Node Key constraint on community") {
     expectError("CREATE CONSTRAINT ON (n:Person) ASSERT (n.firstname) IS NODE KEY",
                 String.format("Unable to create CONSTRAINT ON ( person:Person ) ASSERT exists(person.firstname):%n" +
-                  "Node Key constraint requires ONgDB Enterprise Edition"))
+                  "Node Key constraint requires Neo4j Enterprise Edition"))
   }
 
   test("trying to store mixed type array") {
@@ -258,15 +261,49 @@ class ErrorMessagesTest extends ExecutionEngineFunSuite {
     )
   }
 
+  test("should render caret correctly in parser errors for queries without prefix") {
+    testSyntaxErrorWithCaret(
+      "Invalid input '1': expected whitespace, comment or a pattern (line 1, column 7 (offset: 6))",
+      "MATCH 123",
+      "      ^")
+  }
+
+  test("should render caret correctly in parser errors for queries with prefix") {
+    testSyntaxErrorWithCaret(
+      "Invalid input '1': expected whitespace, comment or a pattern (line 1, column 15 (offset: 14))",
+      "EXPLAIN MATCH 123",
+      "              ^")
+  }
+
+  test("should render caret correctly in planner errors for queries without prefix") {
+    testSyntaxErrorWithCaret(
+      "Type mismatch: expected Integer but was String (line 1, column 22 (offset: 21))",
+      "CALL db.awaitIndexes('wrong')",
+      "                     ^")
+  }
+
+  test("should render caret correctly in planner errors for queries with prefix") {
+    testSyntaxErrorWithCaret(
+      "Type mismatch: expected Integer but was String (line 1, column 30 (offset: 29))",
+      "EXPLAIN CALL db.awaitIndexes('wrong')",
+      "                             ^")
+  }
+
   private def expectError(query: String, expectedError: String) {
-    val error = intercept[CypherException](executeQuery(query))
+    val error = intercept[Neo4jException](executeQuery(query))
     assertThat(error.getMessage, containsString(expectedError))
   }
 
   private def expectSyntaxError(query: String, expectedError: String, expectedOffset: Int) {
     val error = intercept[SyntaxException](executeQuery(query))
-    assertThat(error.getMessage(), containsString(expectedError))
-    assertThat(error.offset, equalTo(Some(expectedOffset): Option[Int]))
+    assertThat(error.getMessage, containsString(expectedError))
+    assertThat(error.getOffset, equalTo(Optional.of(expectedOffset.asInstanceOf[java.lang.Integer])))
+  }
+
+  private def testSyntaxErrorWithCaret(expectedError: String, query: String, expectedCaret: String) {
+    val error = intercept[SyntaxException](executeQuery(query))
+    val expected = String.format("%s\n\"%s\"\n %s", expectedError, query, expectedCaret)
+    error.getMessage.linesIterator.mkString("\n") should equal(expected)
   }
 
   private def executeQuery(query: String) {

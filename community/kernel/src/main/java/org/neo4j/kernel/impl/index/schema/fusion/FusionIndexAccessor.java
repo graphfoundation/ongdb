@@ -25,46 +25,50 @@ package org.neo4j.kernel.impl.index.schema.fusion;
 import java.io.File;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 
+import org.neo4j.annotations.documented.ReporterFactory;
 import org.neo4j.graphdb.ResourceIterator;
-import org.neo4j.helpers.collection.BoundedIterable;
-import org.neo4j.helpers.collection.Iterables;
+import org.neo4j.internal.helpers.collection.BoundedIterable;
+import org.neo4j.internal.helpers.collection.Iterables;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.pagecache.IOLimiter;
 import org.neo4j.kernel.api.exceptions.index.IndexEntryConflictException;
 import org.neo4j.kernel.api.index.IndexAccessor;
 import org.neo4j.kernel.api.index.IndexConfigProvider;
+import org.neo4j.kernel.api.index.IndexDirectoryStructure;
+import org.neo4j.kernel.api.index.IndexReader;
 import org.neo4j.kernel.api.index.IndexUpdater;
-import org.neo4j.kernel.impl.annotations.ReporterFactory;
 import org.neo4j.kernel.impl.api.index.IndexUpdateMode;
-import org.neo4j.kernel.impl.index.schema.IndexDropAction;
+import org.neo4j.kernel.impl.index.schema.IndexFiles;
 import org.neo4j.storageengine.api.NodePropertyAccessor;
-import org.neo4j.storageengine.api.schema.IndexReader;
-import org.neo4j.storageengine.api.schema.StoreIndexDescriptor;
 import org.neo4j.values.storable.Value;
 
-import static org.neo4j.helpers.collection.Iterators.concatResourceIterators;
+import static org.neo4j.internal.helpers.collection.Iterators.concatResourceIterators;
 
 class FusionIndexAccessor extends FusionIndexBase<IndexAccessor> implements IndexAccessor
 {
-    private final StoreIndexDescriptor descriptor;
-    private final IndexDropAction dropAction;
+    private final IndexDescriptor descriptor;
+    private final IndexFiles indexFiles;
 
     FusionIndexAccessor( SlotSelector slotSelector,
             InstanceSelector<IndexAccessor> instanceSelector,
-            StoreIndexDescriptor descriptor,
-            IndexDropAction dropAction )
+            IndexDescriptor descriptor,
+            FileSystemAbstraction fs,
+            IndexDirectoryStructure directoryStructure )
     {
         super( slotSelector, instanceSelector );
         this.descriptor = descriptor;
-        this.dropAction = dropAction;
+        this.indexFiles = new IndexFiles.Directory( fs, directoryStructure, descriptor.getId() );
     }
 
     @Override
     public void drop()
     {
         instanceSelector.forAll( IndexAccessor::drop );
-        dropAction.drop( descriptor.getId() );
+        indexFiles.clear();
     }
 
     @Override
@@ -100,10 +104,11 @@ class FusionIndexAccessor extends FusionIndexBase<IndexAccessor> implements Inde
     }
 
     @Override
-    public BoundedIterable<Long> newAllEntriesReader()
+    public BoundedIterable<Long> newAllEntriesReader( long fromIdInclusive, long toIdExclusive )
     {
-        Iterable<BoundedIterable<Long>> entries = instanceSelector.transform( IndexAccessor::newAllEntriesReader );
-        return new BoundedIterable<Long>()
+        Iterable<BoundedIterable<Long>> entries =
+                instanceSelector.transform( indexAccessor -> indexAccessor.newAllEntriesReader( fromIdInclusive, toIdExclusive ) );
+        return new BoundedIterable<>()
         {
             @Override
             public long maxCount()
@@ -121,7 +126,6 @@ class FusionIndexAccessor extends FusionIndexBase<IndexAccessor> implements Inde
                 return sum;
             }
 
-            @SuppressWarnings( "unchecked" )
             @Override
             public void close() throws Exception
             {
@@ -168,12 +172,21 @@ class FusionIndexAccessor extends FusionIndexBase<IndexAccessor> implements Inde
     @Override
     public void validateBeforeCommit( Value[] tuple )
     {
-        instanceSelector.select( slotSelector.selectSlot( tuple, GROUP_OF ) ).validateBeforeCommit( tuple );
+        instanceSelector.select( slotSelector.selectSlot( tuple, CATEGORY_OF ) ).validateBeforeCommit( tuple );
     }
 
     @Override
     public boolean consistencyCheck( ReporterFactory reporterFactory )
     {
         return FusionIndexBase.consistencyCheck( instanceSelector.instances.values(), reporterFactory );
+    }
+
+    @Override
+    public long estimateNumberOfEntries()
+    {
+        List<Long> counts = instanceSelector.transform( IndexAccessor::estimateNumberOfEntries );
+        return counts.stream().anyMatch( count -> count == UNKNOWN_NUMBER_OF_ENTRIES )
+               ? UNKNOWN_NUMBER_OF_ENTRIES
+               : counts.stream().mapToLong( Long::longValue ).sum();
     }
 }

@@ -24,54 +24,55 @@ package org.neo4j.kernel.impl.newapi;
 
 import java.io.File;
 
-import org.neo4j.graphdb.DependencyResolver;
+import org.neo4j.common.DependencyResolver;
+import org.neo4j.dbms.api.DatabaseManagementService;
+import org.neo4j.exceptions.KernelException;
 import org.neo4j.graphdb.GraphDatabaseService;
-import org.neo4j.graphdb.PropertyContainer;
-import org.neo4j.graphdb.Transaction;
-import org.neo4j.internal.kernel.api.Kernel;
-import org.neo4j.internal.kernel.api.KernelAPIWriteTestSupport;
-import org.neo4j.kernel.impl.core.EmbeddedProxySPI;
+import org.neo4j.internal.kernel.api.TokenWrite;
+import org.neo4j.internal.kernel.api.exceptions.TransactionFailureException;
+import org.neo4j.internal.kernel.api.security.LoginContext;
+import org.neo4j.kernel.api.Kernel;
+import org.neo4j.kernel.api.KernelTransaction;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
 import org.neo4j.test.GraphDatabaseServiceCleaner;
-import org.neo4j.test.TestGraphDatabaseFactory;
+import org.neo4j.test.TestDatabaseManagementServiceBuilder;
 
-class WriteTestSupport implements KernelAPIWriteTestSupport
+import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
+
+public class WriteTestSupport implements KernelAPIWriteTestSupport
 {
     private GraphDatabaseService db;
+    protected DatabaseManagementService managementService;
 
     @Override
     public void setup( File storeDir )
     {
         db = newDb( storeDir );
+        try ( KernelTransaction tx = beginTransaction() )
+        {
+            //We are creating these dummy tokens so that that the ones that we actually use don't get
+            //the value 0. Using 0 may hide bugs that are caused by default the initialization of ints
+            TokenWrite tokenWrite = tx.tokenWrite();
+            tokenWrite.propertyKeyCreateForName( "DO_NOT_USE", false );
+            tokenWrite.labelCreateForName( "DO_NOT_USE", false );
+            tokenWrite.relationshipTypeCreateForName( "DO_NOT_USE", false );
+        }
+        catch ( KernelException e )
+        {
+            throw new AssertionError( "Failed to setup database", e );
+        }
     }
 
     protected GraphDatabaseService newDb( File storeDir )
     {
-        return new TestGraphDatabaseFactory().newImpermanentDatabaseBuilder( storeDir ).newGraphDatabase();
+        managementService = new TestDatabaseManagementServiceBuilder( storeDir ).impermanent().build();
+        return managementService.database( DEFAULT_DATABASE_NAME );
     }
 
     @Override
     public void clearGraph()
     {
         GraphDatabaseServiceCleaner.cleanDatabaseContent( db );
-        try ( Transaction tx = db.beginTx() )
-        {
-            PropertyContainer graphProperties = graphProperties();
-            for ( String key : graphProperties.getPropertyKeys() )
-            {
-                graphProperties.removeProperty( key );
-            }
-            tx.success();
-        }
-    }
-
-    @Override
-    public PropertyContainer graphProperties()
-    {
-        return ((GraphDatabaseAPI) db)
-                .getDependencyResolver()
-                .resolveDependency( EmbeddedProxySPI.class )
-                .newGraphPropertiesProxy();
     }
 
     @Override
@@ -79,6 +80,11 @@ class WriteTestSupport implements KernelAPIWriteTestSupport
     {
         DependencyResolver resolver = ((GraphDatabaseAPI) this.db).getDependencyResolver();
         return resolver.resolveDependency( Kernel.class );
+    }
+
+    private KernelTransaction beginTransaction() throws TransactionFailureException
+    {
+        return kernelToTest().beginTransaction( KernelTransaction.Type.implicit, LoginContext.AUTH_DISABLED );
     }
 
     @Override
@@ -90,7 +96,7 @@ class WriteTestSupport implements KernelAPIWriteTestSupport
     @Override
     public void tearDown()
     {
-        db.shutdown();
+        managementService.shutdown();
         db = null;
     }
 }

@@ -94,12 +94,12 @@ class MarshlandPoolTest
         pool.close();
 
         // Then
-        verify( delegatePool, times( 1 ) ).acquire();
-        verify( delegatePool, times( 1 ) ).release( any() );
+        verify( delegatePool ).acquire();
+        verify( delegatePool ).release( any() );
         verifyNoMoreInteractions( delegatePool );
     }
 
-    private void assertPoolEventuallyReturns( Pool<Object> pool, int expected )
+    private static void assertPoolEventuallyReturns( Pool<Object> pool, int expected )
     {
         long maxTime = System.currentTimeMillis() + TimeUnit.SECONDS.toMillis( 100 );
         while ( System.currentTimeMillis() < maxTime )
@@ -113,7 +113,7 @@ class MarshlandPoolTest
         fail( "Waited 100 seconds for pool to return object from dead thread, but it was never returned." );
     }
 
-    private void claimAndReleaseInSeparateThread( final MarshlandPool<Object> pool ) throws InterruptedException
+    private static void claimAndReleaseInSeparateThread( final MarshlandPool<Object> pool ) throws InterruptedException
     {
         Thread thread = new Thread( () ->
         {

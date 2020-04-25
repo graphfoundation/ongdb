@@ -24,6 +24,7 @@ package org.neo4j.io.pagecache.impl.muninn;
 
 import java.io.IOException;
 
+import org.neo4j.internal.unsafe.UnsafeUtil;
 import org.neo4j.io.mem.MemoryAllocator;
 import org.neo4j.io.pagecache.PageCursor;
 import org.neo4j.io.pagecache.PageSwapper;
@@ -31,7 +32,6 @@ import org.neo4j.io.pagecache.tracing.EvictionEvent;
 import org.neo4j.io.pagecache.tracing.EvictionEventOpportunity;
 import org.neo4j.io.pagecache.tracing.FlushEvent;
 import org.neo4j.io.pagecache.tracing.PageFaultEvent;
-import org.neo4j.unsafe.impl.internal.dragons.UnsafeUtil;
 
 import static java.lang.String.format;
 import static org.neo4j.util.FeatureToggles.flag;
@@ -434,7 +434,7 @@ class PageList
         // the file page, so any subsequent thread that finds the page in their
         // translation table will re-do the page fault.
         setFilePageId( pageRef, filePageId ); // Page now considered isLoaded()
-        long bytesRead = swapper.read( filePageId, getAddress( pageRef ), cachePageSize );
+        long bytesRead = swapper.read( filePageId, getAddress( pageRef ) );
         event.addBytesRead( bytesRead );
         event.setCachePageId( toId( pageRef ) );
         setSwapperId( pageRef, swapperId ); // Page now considered isBoundTo( swapper, filePageId )

@@ -22,23 +22,30 @@
  */
 package org.neo4j.kernel.impl.index.schema;
 
+import java.util.HashMap;
 import java.util.Map;
 
+import org.neo4j.gis.spatial.index.Envelope;
+import org.neo4j.graphdb.schema.IndexSettingImpl;
+import org.neo4j.internal.schema.IndexConfig;
 import org.neo4j.kernel.impl.index.schema.config.SpaceFillingCurveSettings;
 import org.neo4j.values.storable.CoordinateReferenceSystem;
+import org.neo4j.values.storable.DoubleArray;
 import org.neo4j.values.storable.Value;
 import org.neo4j.values.storable.Values;
 
+import static org.neo4j.values.storable.CoordinateReferenceSystem.Cartesian;
+import static org.neo4j.values.storable.CoordinateReferenceSystem.Cartesian_3D;
+import static org.neo4j.values.storable.CoordinateReferenceSystem.WGS84;
+import static org.neo4j.values.storable.CoordinateReferenceSystem.WGS84_3D;
+
 /**
  * Utility class with static method for extracting relevant spatial index configurations from {@link CoordinateReferenceSystem} and
- * {@link SpaceFillingCurveSettings}. Configurations will be put into a map, prefixed by {@link #SPATIAL_CONFIG_PREFIX} and
- * {@link CoordinateReferenceSystem#getName()}.
+ * {@link SpaceFillingCurveSettings}. Configurations will be put into a map, with keys from {@link IndexSettingImpl}.
  * By using this class when extracting configurations we make sure that the same name and format is used for the same configuration.
  */
-final class SpatialIndexConfig
+public final class SpatialIndexConfig
 {
-    private static final String SPATIAL_CONFIG_PREFIX = "spatial";
-
     private SpatialIndexConfig()
     {
     }
@@ -52,25 +59,72 @@ final class SpatialIndexConfig
      */
     static void addSpatialConfig( Map<String,Value> map, CoordinateReferenceSystem crs, SpaceFillingCurveSettings settings )
     {
-        String crsName = crs.getName();
-        int tableId = crs.getTable().getTableId();
-        int code = crs.getCode();
-        int dimensions = settings.getDimensions();
-        int maxLevels = settings.getMaxLevels();
         double[] min = settings.indexExtents().getMin();
         double[] max = settings.indexExtents().getMax();
-
-        String prefix = prefix( crsName );
-        map.put( prefix + ".tableId", Values.intValue( tableId ) );
-        map.put( prefix + ".code", Values.intValue( code ) );
-        map.put( prefix + ".dimensions", Values.intValue( dimensions ) );
-        map.put( prefix + ".maxLevels", Values.intValue( maxLevels ) );
-        map.put( prefix + ".min", Values.doubleArray( min ) );
-        map.put( prefix + ".max", Values.doubleArray( max ) );
+        addSpatialConfig( map, crs, min, max );
     }
 
-    private static String prefix( String crsName )
+    public static void addSpatialConfig( Map<String,Value> map, CoordinateReferenceSystem crs, double[] min, double[] max )
     {
-        return SPATIAL_CONFIG_PREFIX + "." + crsName;
+        String crsName = crs.getName();
+        String minKey = IndexConfig.spatialMinSettingForCrs( crs ).getSettingName();
+        String maxKey = IndexConfig.spatialMaxSettingForCrs( crs ).getSettingName();
+        map.put( minKey, Values.doubleArray( min ) );
+        map.put( maxKey, Values.doubleArray( max ) );
+    }
+
+    /**
+     * Throws an {@link IllegalArgumentException} if the spatial settings in the given {@link IndexConfig} are invalid.
+     */
+    static void validateSpatialConfig( IndexConfig indexConfig )
+    {
+       extractSpatialConfig( indexConfig );
+    }
+
+    static IndexConfig addSpatialConfig( IndexConfig indexConfig, CoordinateReferenceSystem crs, SpaceFillingCurveSettings settings )
+    {
+        Map<String,Value> spatialConfig = new HashMap<>();
+        addSpatialConfig( spatialConfig, crs, settings );
+        for ( String key : spatialConfig.keySet() )
+        {
+            indexConfig = indexConfig.withIfAbsent( key, spatialConfig.get( key ) );
+        }
+        return indexConfig;
+    }
+
+    /**
+     * Translate {@link IndexConfig index config}, into {@link SpaceFillingCurveSettings settings} for each {@link CoordinateReferenceSystem crs}.
+     *
+     * @param indexConfig {@link IndexConfig} the index config to translate into space filling curve settings.
+     * @return {@link Map} map containing space filling curve settings for every supported crs, derived from provided index config .
+     * @throws NullPointerException if index config is missing configuration for any crs.
+     */
+    static Map<CoordinateReferenceSystem,SpaceFillingCurveSettings> extractSpatialConfig( IndexConfig indexConfig )
+    {
+        Map<CoordinateReferenceSystem,SpaceFillingCurveSettings> result = new HashMap<>();
+
+        result.put( Cartesian, settingFromIndexConfig( indexConfig, Cartesian ) );
+        result.put( Cartesian_3D, settingFromIndexConfig( indexConfig, Cartesian_3D ) );
+        result.put( WGS84, settingFromIndexConfig( indexConfig, WGS84 ) );
+        result.put( WGS84_3D, settingFromIndexConfig( indexConfig, WGS84_3D ) );
+
+        return result;
+    }
+
+    private static SpaceFillingCurveSettings settingFromIndexConfig( IndexConfig indexConfig, CoordinateReferenceSystem crs )
+    {
+        final double[] min = asDoubleArray( indexConfig.get( IndexConfig.spatialMinSettingForCrs( crs ) ) );
+        final double[] max = asDoubleArray( indexConfig.get( IndexConfig.spatialMaxSettingForCrs( crs ) ) );
+        final Envelope envelope = new Envelope( min, max );
+        return new SpaceFillingCurveSettings( crs.getDimension(), envelope );
+    }
+
+    private static double[] asDoubleArray( Value value )
+    {
+        if ( value instanceof DoubleArray )
+        {
+            return ((DoubleArray) value).asObjectCopy();
+        }
+        throw new IllegalStateException( String.format( "Expected value to be of type %s but was %s.", DoubleArray.class, value ) );
     }
 }

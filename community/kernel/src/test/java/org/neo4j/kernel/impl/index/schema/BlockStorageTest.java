@@ -44,7 +44,7 @@ import org.neo4j.test.Barrier;
 import org.neo4j.test.OtherThreadExecutor;
 import org.neo4j.test.extension.Inject;
 import org.neo4j.test.extension.RandomExtension;
-import org.neo4j.test.extension.TestDirectoryExtension;
+import org.neo4j.test.extension.testdirectory.TestDirectoryExtension;
 import org.neo4j.test.rule.RandomRule;
 import org.neo4j.test.rule.TestDirectory;
 
@@ -59,13 +59,14 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.neo4j.io.memory.ByteBufferFactory.HEAP_ALLOCATOR;
+import static org.neo4j.io.memory.ByteBufferFactory.heapBufferFactory;
 import static org.neo4j.kernel.impl.index.schema.BlockStorage.Monitor.NO_MONITOR;
 import static org.neo4j.kernel.impl.index.schema.BlockStorage.NOT_CANCELLABLE;
-import static org.neo4j.kernel.impl.index.schema.ByteBufferFactory.HEAP_ALLOCATOR;
-import static org.neo4j.kernel.impl.index.schema.ByteBufferFactory.heapBufferFactory;
 import static org.neo4j.test.OtherThreadExecutor.command;
 
-@ExtendWith( {TestDirectoryExtension.class, RandomExtension.class} )
+@TestDirectoryExtension
+@ExtendWith( RandomExtension.class )
 class BlockStorageTest
 {
     @Inject
@@ -240,7 +241,7 @@ class BlockStorageTest
             storage.merge( 2, NOT_CANCELLABLE );
 
             // then
-            File[] files = fileSystem.listFiles( directory.directory() );
+            File[] files = fileSystem.listFiles( directory.homeDir() );
             assertEquals( 1, files.length, "Expected only a single file to exist after merge." );
         }
     }

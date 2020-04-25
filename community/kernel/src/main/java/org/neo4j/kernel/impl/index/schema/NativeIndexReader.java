@@ -24,23 +24,22 @@ package org.neo4j.kernel.impl.index.schema;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
-import java.util.HashSet;
-import java.util.Set;
 
-import org.neo4j.collection.PrimitiveLongResourceIterator;
-import org.neo4j.cursor.RawCursor;
 import org.neo4j.index.internal.gbptree.GBPTree;
-import org.neo4j.index.internal.gbptree.Hit;
-import org.neo4j.internal.kernel.api.IndexOrder;
+import org.neo4j.index.internal.gbptree.Seeker;
 import org.neo4j.internal.kernel.api.IndexQuery;
-import org.neo4j.io.IOUtils;
+import org.neo4j.internal.kernel.api.QueryContext;
+import org.neo4j.internal.kernel.api.exceptions.schema.IndexNotFoundKernelException;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.internal.schema.IndexOrder;
+import org.neo4j.io.pagecache.impl.FileIsNotMappedException;
+import org.neo4j.kernel.api.index.IndexProgressor;
+import org.neo4j.kernel.api.index.IndexReader;
+import org.neo4j.kernel.api.index.IndexSampler;
 import org.neo4j.storageengine.api.NodePropertyAccessor;
-import org.neo4j.storageengine.api.schema.IndexDescriptor;
-import org.neo4j.storageengine.api.schema.IndexProgressor;
-import org.neo4j.storageengine.api.schema.IndexReader;
-import org.neo4j.storageengine.api.schema.IndexSampler;
 import org.neo4j.values.storable.Value;
 
+import static org.apache.commons.lang3.exception.ExceptionUtils.getRootCause;
 import static org.neo4j.kernel.impl.index.schema.NativeIndexKey.Inclusion.NEUTRAL;
 
 abstract class NativeIndexReader<KEY extends NativeIndexKey<KEY>, VALUE extends NativeIndexValue>
@@ -48,7 +47,6 @@ abstract class NativeIndexReader<KEY extends NativeIndexKey<KEY>, VALUE extends 
 {
     protected final IndexDescriptor descriptor;
     final IndexLayout<KEY,VALUE> layout;
-    final Set<RawCursor<Hit<KEY,VALUE>,IOException>> openSeekers;
     final GBPTree<KEY,VALUE> tree;
 
     NativeIndexReader( GBPTree<KEY,VALUE> tree, IndexLayout<KEY,VALUE> layout, IndexDescriptor descriptor )
@@ -56,13 +54,11 @@ abstract class NativeIndexReader<KEY extends NativeIndexKey<KEY>, VALUE extends 
         this.tree = tree;
         this.layout = layout;
         this.descriptor = descriptor;
-        this.openSeekers = new HashSet<>();
     }
 
     @Override
     public void close()
     {
-        ensureOpenSeekersClosed();
     }
 
     @Override
@@ -76,7 +72,23 @@ abstract class NativeIndexReader<KEY extends NativeIndexKey<KEY>, VALUE extends 
         // be none in a unique index).
 
         FullScanNonUniqueIndexSampler<KEY,VALUE> sampler = new FullScanNonUniqueIndexSampler<>( tree, layout );
-        return sampler::result;
+        return () ->
+        {
+            try
+            {
+                return sampler.result();
+            }
+            catch ( UncheckedIOException e )
+            {
+                if ( getRootCause( e ) instanceof FileIsNotMappedException )
+                {
+                    IndexNotFoundKernelException exception = new IndexNotFoundKernelException( "Index dropped while sampling." );
+                    exception.addSuppressed( e );
+                    throw exception;
+                }
+                throw e;
+            }
+        };
     }
 
     @Override
@@ -91,12 +103,12 @@ abstract class NativeIndexReader<KEY extends NativeIndexKey<KEY>, VALUE extends 
             treeKeyFrom.initFromValue( i, propertyValues[i], NEUTRAL );
             treeKeyTo.initFromValue( i, propertyValues[i], NEUTRAL );
         }
-        try ( RawCursor<Hit<KEY,VALUE>,IOException> seeker = tree.seek( treeKeyFrom, treeKeyTo ) )
+        try ( Seeker<KEY,VALUE> seeker = tree.seek( treeKeyFrom, treeKeyTo ) )
         {
             long count = 0;
             while ( seeker.next() )
             {
-                if ( seeker.get().key().getEntityId() == nodeId )
+                if ( seeker.key().getEntityId() == nodeId )
                 {
                     count++;
                 }
@@ -110,16 +122,7 @@ abstract class NativeIndexReader<KEY extends NativeIndexKey<KEY>, VALUE extends 
     }
 
     @Override
-    public PrimitiveLongResourceIterator query( IndexQuery... predicates )
-    {
-        // This method isn't called from main product code anymore so it can might as well delegate to the "real" method
-        NodeValueIterator nodeValueIterator = new NodeValueIterator();
-        query( nodeValueIterator, IndexOrder.NONE, nodeValueIterator.needsValues(), predicates );
-        return nodeValueIterator;
-    }
-
-    @Override
-    public void query( IndexProgressor.NodeValueClient cursor, IndexOrder indexOrder, boolean needsValues, IndexQuery... predicates )
+    public void query( QueryContext context, IndexProgressor.EntityValueClient cursor, IndexOrder indexOrder, boolean needsValues, IndexQuery... predicates )
     {
         validateQuery( indexOrder, predicates );
 
@@ -141,7 +144,7 @@ abstract class NativeIndexReader<KEY extends NativeIndexKey<KEY>, VALUE extends 
     public abstract boolean hasFullValuePrecision( IndexQuery... predicates );
 
     @Override
-    public void distinctValues( IndexProgressor.NodeValueClient client, NodePropertyAccessor propertyAccessor, boolean needsValues )
+    public void distinctValues( IndexProgressor.EntityValueClient client, NodePropertyAccessor ignore, boolean needsValues )
     {
         KEY lowest = layout.newKey();
         lowest.initialize( Long.MIN_VALUE );
@@ -151,9 +154,9 @@ abstract class NativeIndexReader<KEY extends NativeIndexKey<KEY>, VALUE extends 
         highest.initValuesAsHighest();
         try
         {
-            RawCursor<Hit<KEY,VALUE>,IOException> seeker = tree.seek( lowest, highest );
-            client.initialize( descriptor, new NativeDistinctValuesProgressor<>( seeker, client, openSeekers, layout, layout::compareValue ),
-                    new IndexQuery[0], IndexOrder.NONE, needsValues );
+            Seeker<KEY,VALUE> seeker = tree.seek( lowest, highest );
+            client.initialize( descriptor, new NativeDistinctValuesProgressor<>( seeker, client, layout, layout::compareValue ),
+                    new IndexQuery[0], IndexOrder.NONE, needsValues, false );
         }
         catch ( IOException e )
         {
@@ -168,19 +171,19 @@ abstract class NativeIndexReader<KEY extends NativeIndexKey<KEY>, VALUE extends 
      */
     abstract boolean initializeRangeForQuery( KEY treeKeyFrom, KEY treeKeyTo, IndexQuery[] predicates );
 
-    void startSeekForInitializedRange( IndexProgressor.NodeValueClient client, KEY treeKeyFrom, KEY treeKeyTo, IndexQuery[] query,
+    void startSeekForInitializedRange( IndexProgressor.EntityValueClient client, KEY treeKeyFrom, KEY treeKeyTo, IndexQuery[] query,
             IndexOrder indexOrder, boolean needFilter, boolean needsValues )
     {
         if ( isEmptyRange( treeKeyFrom, treeKeyTo ) )
         {
-            client.initialize( descriptor, IndexProgressor.EMPTY, query, indexOrder, needsValues );
+            client.initialize( descriptor, IndexProgressor.EMPTY, query, indexOrder, needsValues, false );
             return;
         }
         try
         {
-            RawCursor<Hit<KEY,VALUE>,IOException> seeker = makeIndexSeeker( treeKeyFrom, treeKeyTo, indexOrder );
+            Seeker<KEY,VALUE> seeker = makeIndexSeeker( treeKeyFrom, treeKeyTo, indexOrder );
             IndexProgressor hitProgressor = getIndexProgressor( seeker, client, needFilter, query );
-            client.initialize( descriptor, hitProgressor, query, indexOrder, needsValues );
+            client.initialize( descriptor, hitProgressor, query, indexOrder, needsValues, false );
         }
         catch ( IOException e )
         {
@@ -188,7 +191,7 @@ abstract class NativeIndexReader<KEY extends NativeIndexKey<KEY>, VALUE extends 
         }
     }
 
-    RawCursor<Hit<KEY,VALUE>,IOException> makeIndexSeeker( KEY treeKeyFrom, KEY treeKeyTo, IndexOrder indexOrder ) throws IOException
+    Seeker<KEY,VALUE> makeIndexSeeker( KEY treeKeyFrom, KEY treeKeyTo, IndexOrder indexOrder ) throws IOException
     {
         if ( indexOrder == IndexOrder.DESCENDING )
         {
@@ -196,33 +199,17 @@ abstract class NativeIndexReader<KEY extends NativeIndexKey<KEY>, VALUE extends 
             treeKeyFrom = treeKeyTo;
             treeKeyTo = tmpKey;
         }
-        RawCursor<Hit<KEY,VALUE>,IOException> seeker = tree.seek( treeKeyFrom, treeKeyTo );
-        openSeekers.add( seeker );
-        return seeker;
+        return tree.seek( treeKeyFrom, treeKeyTo );
     }
 
-    private IndexProgressor getIndexProgressor( RawCursor<Hit<KEY,VALUE>,IOException> seeker, IndexProgressor.NodeValueClient client, boolean needFilter,
-            IndexQuery[] query )
+    private IndexProgressor getIndexProgressor( Seeker<KEY,VALUE> seeker, IndexProgressor.EntityValueClient client, boolean needFilter, IndexQuery[] query )
     {
-        return needFilter ? new FilteringNativeHitIndexProgressor<>( seeker, client, openSeekers, query )
-                          : new NativeHitIndexProgressor<>( seeker, client, openSeekers );
+        return needFilter ? new FilteringNativeHitIndexProgressor<>( seeker, client, query )
+                          : new NativeHitIndexProgressor<>( seeker, client );
     }
 
     private boolean isEmptyRange( KEY treeKeyFrom, KEY treeKeyTo )
     {
         return layout.compare( treeKeyFrom, treeKeyTo ) > 0;
-    }
-
-    private void ensureOpenSeekersClosed()
-    {
-        try
-        {
-            IOUtils.closeAll( openSeekers );
-            openSeekers.clear();
-        }
-        catch ( IOException e )
-        {
-            throw new UncheckedIOException( e );
-        }
     }
 }

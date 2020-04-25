@@ -22,7 +22,7 @@
  */
 package org.neo4j.kernel.impl.api;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Collection;
 import java.util.Iterator;
@@ -33,21 +33,22 @@ import org.neo4j.kernel.impl.util.diffsets.MutableDiffSetsImpl;
 import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.core.IsCollectionContaining.hasItems;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.neo4j.helpers.collection.Iterators.asCollection;
-import static org.neo4j.helpers.collection.Iterators.asSet;
-import static org.neo4j.helpers.collection.Iterators.iterator;
+import static org.hamcrest.core.IsIterableContaining.hasItems;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.neo4j.internal.helpers.collection.Iterators.asCollection;
+import static org.neo4j.internal.helpers.collection.Iterators.asSet;
+import static org.neo4j.internal.helpers.collection.Iterators.iterator;
 
-public class MutableDiffSetsImplTest
+class MutableDiffSetsImplTest
 {
     private static final Predicate<Long> ODD_FILTER = item -> item % 2 != 0;
 
     private final MutableDiffSetsImpl<Long> diffSets = new MutableDiffSetsImpl<>();
 
     @Test
-    public void testAdd()
+    void testAdd()
     {
         // WHEN
         diffSets.add( 1L );
@@ -59,7 +60,7 @@ public class MutableDiffSetsImplTest
     }
 
     @Test
-    public void testRemove()
+    void testRemove()
     {
         // WHEN
         diffSets.add( 1L );
@@ -71,7 +72,7 @@ public class MutableDiffSetsImplTest
     }
 
     @Test
-    public void testAddRemove()
+    void testAddRemove()
     {
         // WHEN
         diffSets.add( 1L );
@@ -83,7 +84,7 @@ public class MutableDiffSetsImplTest
     }
 
     @Test
-    public void testRemoveAdd()
+    void testRemoveAdd()
     {
         // WHEN
         diffSets.remove( 1L );
@@ -95,7 +96,7 @@ public class MutableDiffSetsImplTest
     }
 
     @Test
-    public void testIsAddedOrRemoved()
+    void testIsAddedOrRemoved()
     {
         // WHEN
         diffSets.add( 1L );
@@ -103,13 +104,13 @@ public class MutableDiffSetsImplTest
 
         // THEN
         assertTrue( diffSets.isAdded( 1L ) );
-        assertTrue( !diffSets.isAdded( 2L ) );
+        assertFalse( diffSets.isAdded( 2L ) );
         assertTrue( diffSets.isRemoved( 10L ) );
-        assertTrue( !diffSets.isRemoved( 2L ) );
+        assertFalse( diffSets.isRemoved( 2L ) );
     }
 
     @Test
-    public void testAddRemoveAll()
+    void testAddRemoveAll()
     {
         // WHEN
         diffSets.addAll( iterator( 1L, 2L ) );
@@ -121,7 +122,7 @@ public class MutableDiffSetsImplTest
     }
 
     @Test
-    public void testFilterAdded()
+    void testFilterAdded()
     {
         // GIVEN
         diffSets.addAll( iterator( 1L, 2L ) );
@@ -136,7 +137,7 @@ public class MutableDiffSetsImplTest
     }
 
     @Test
-    public void testReturnSourceFromApplyWithEmptyDiffSets()
+    void testReturnSourceFromApplyWithEmptyDiffSets()
     {
         // WHEN
         Iterator<Long> result = diffSets.apply( singletonList( 18L ).iterator() );
@@ -147,7 +148,7 @@ public class MutableDiffSetsImplTest
     }
 
     @Test
-    public void testAppendAddedToSourceInApply()
+    void testAppendAddedToSourceInApply()
     {
         // GIVEN
         diffSets.add( 52L );
@@ -162,7 +163,7 @@ public class MutableDiffSetsImplTest
     }
 
     @Test
-    public void testFilterRemovedFromSourceInApply()
+    void testFilterRemovedFromSourceInApply()
     {
         // GIVEN
         diffSets.remove( 43L );
@@ -176,7 +177,7 @@ public class MutableDiffSetsImplTest
     }
 
     @Test
-    public void testFilterAddedFromSourceInApply()
+    void testFilterAddedFromSourceInApply()
     {
         // GIVEN
         diffSets.add( 42L );

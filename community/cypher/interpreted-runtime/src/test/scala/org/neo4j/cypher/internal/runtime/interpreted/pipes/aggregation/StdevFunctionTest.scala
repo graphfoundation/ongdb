@@ -22,10 +22,10 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.pipes.aggregation
 
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
+import org.neo4j.cypher.internal.runtime.ExecutionContext
 import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.{Expression, NumericHelper, Variable}
 import org.neo4j.cypher.internal.runtime.interpreted.QueryStateHelper
-import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.v4_0.util.test_helpers.CypherFunSuite
 import org.neo4j.kernel.impl.util.ValueUtils
 import org.neo4j.values.storable.DoubleValue
 
@@ -85,7 +85,7 @@ class StdevSampleTest extends CypherFunSuite with StdevTest {
   }
 }
 
-class StdevPopulationTest extends CypherFunSuite with StdevTest with NumericHelper {
+class StdevPopulationTest extends CypherFunSuite with StdevTest {
   def createAggregator(inner: Expression) = new StdevFunction(inner, true)
 
   test("singleOne") {

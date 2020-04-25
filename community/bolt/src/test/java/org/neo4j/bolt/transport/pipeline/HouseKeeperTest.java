@@ -33,8 +33,8 @@ import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.util.concurrent.EventExecutor;
-import org.junit.After;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.net.ServerSocket;
@@ -57,7 +57,7 @@ public class HouseKeeperTest
 {
     private EmbeddedChannel channel;
 
-    @After
+    @AfterEach
     public void cleanup()
     {
         if ( channel != null )
@@ -67,7 +67,7 @@ public class HouseKeeperTest
     }
 
     @Test
-    public void shouldStopConnectionOnChannelInactive()
+    void shouldStopConnectionOnChannelInactive()
     {
         BoltConnection connection = mock( BoltConnection.class );
         channel = new EmbeddedChannel( new HouseKeeper( connection, NullLog.getInstance() ) );
@@ -78,7 +78,7 @@ public class HouseKeeperTest
     }
 
     @Test
-    public void shouldNotPropagateChannelInactive() throws Exception
+    void shouldNotPropagateChannelInactive() throws Exception
     {
         ChannelInboundHandler next = mock( ChannelInboundHandler.class );
         BoltConnection connection = mock( BoltConnection.class );
@@ -90,7 +90,7 @@ public class HouseKeeperTest
     }
 
     @Test
-    public void shouldStopConnectionOnExceptionCaught()
+    void shouldStopConnectionOnExceptionCaught()
     {
         BoltConnection connection = mock( BoltConnection.class );
         channel = new EmbeddedChannel( new HouseKeeper( connection, NullLog.getInstance() ) );
@@ -101,7 +101,7 @@ public class HouseKeeperTest
     }
 
     @Test
-    public void shouldLogExceptionOnExceptionCaught()
+    void shouldLogExceptionOnExceptionCaught()
     {
         AssertableLogProvider logProvider = new AssertableLogProvider();
         BoltConnection connection = mock( BoltConnection.class );
@@ -116,7 +116,7 @@ public class HouseKeeperTest
     }
 
     @Test
-    public void shouldNotPropagateExceptionCaught() throws Exception
+    void shouldNotPropagateExceptionCaught() throws Exception
     {
         ChannelInboundHandler next = mock( ChannelInboundHandler.class );
         BoltConnection connection = mock( BoltConnection.class );
@@ -128,7 +128,7 @@ public class HouseKeeperTest
     }
 
     @Test
-    public void shouldNotLogExceptionsWhenEvenLoopIsShuttingDown() throws Exception
+    void shouldNotLogExceptionsWhenEvenLoopIsShuttingDown() throws Exception
     {
         AssertableLogProvider logProvider = new AssertableLogProvider();
         BoltConnection connection = mock( BoltConnection.class );
@@ -162,7 +162,7 @@ public class HouseKeeperTest
     }
 
     @Test
-    public void shouldLogOnlyTheFirstCaughtException() throws Exception
+    void shouldLogOnlyTheFirstCaughtException() throws Exception
     {
         AssertableLogProvider logProvider = new AssertableLogProvider();
         BoltConnection connection = mock( BoltConnection.class );
@@ -197,7 +197,7 @@ public class HouseKeeperTest
     }
 
     @Test
-    public void shouldNotLogConnectionResetErrors() throws Exception
+    void shouldNotLogConnectionResetErrors() throws Exception
     {
         // Given
         AssertableLogProvider logProvider = new AssertableLogProvider();

@@ -24,10 +24,10 @@ package org.neo4j.server.exception;
 
 import org.junit.Test;
 
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
-import org.neo4j.kernel.impl.storemigration.UpgradeNotAllowedByConfigurationException;
+import org.neo4j.configuration.GraphDatabaseSettings;
 import org.neo4j.kernel.lifecycle.LifecycleException;
 import org.neo4j.logging.AssertableLogProvider;
+import org.neo4j.storageengine.migration.UpgradeNotAllowedException;
 
 import static org.neo4j.kernel.lifecycle.LifecycleStatus.STARTED;
 import static org.neo4j.kernel.lifecycle.LifecycleStatus.STARTING;
@@ -42,10 +42,10 @@ public class ServerStartupErrorsTest
         // given
         AssertableLogProvider logging = new AssertableLogProvider();
         LifecycleException error = new LifecycleException( new Object(), STARTING, STARTED,
-                new RuntimeException( "Error starting org.neo4j.kernel.ha.factory.EnterpriseFacadeFactory",
+                new RuntimeException( "Error starting org.neo4j.kernel.factory.EnterpriseFacadeFactory",
                         new LifecycleException( new Object(), STARTING, STARTED,
                                 new LifecycleException( new Object(), STARTING, STARTED,
-                                        new UpgradeNotAllowedByConfigurationException() ) ) ) );
+                                        new UpgradeNotAllowedException() ) ) ) );
 
         // when
         translateToServerStartupError( error ).describeTo( logging.getLog( "console" ) );

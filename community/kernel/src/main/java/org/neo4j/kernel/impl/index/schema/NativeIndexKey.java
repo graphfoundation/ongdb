@@ -23,19 +23,19 @@
 package org.neo4j.kernel.impl.index.schema;
 
 import org.neo4j.index.internal.gbptree.GBPTree;
-import org.neo4j.kernel.impl.store.TemporalValueWriterAdapter;
 import org.neo4j.values.storable.Value;
 import org.neo4j.values.storable.ValueGroup;
+import org.neo4j.values.utils.TemporalValueWriterAdapter;
 
 abstract class NativeIndexKey<SELF extends NativeIndexKey<SELF>> extends TemporalValueWriterAdapter<RuntimeException>
 {
-    static final int ENTITY_ID_SIZE = Long.BYTES;
+    public static final int ENTITY_ID_SIZE = Long.BYTES;
 
     enum Inclusion
     {
         LOW,
         NEUTRAL,
-        HIGH;
+        HIGH
     }
 
     private static final boolean DEFAULT_COMPARE_ID = true;

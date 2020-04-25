@@ -22,31 +22,40 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
+import java.util.UUID
+
+import org.mockito.ArgumentMatchers.any
+import org.mockito.Mockito
+import org.mockito.invocation.InvocationOnMock
+import org.mockito.stubbing.Answer
+import org.neo4j.cypher.internal.logical.plans._
 import org.neo4j.cypher.internal.runtime.ImplicitValueConversion._
 import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.Variable
-import org.neo4j.cypher.internal.runtime.interpreted.{ExecutionContext, ImplicitDummyPos, QueryContextAdaptation, QueryStateHelper}
-import org.neo4j.cypher.internal.runtime.{EagerReadWriteCallMode, LazyReadOnlyCallMode, QueryContext}
-import org.neo4j.cypher.internal.v3_6.logical.plans._
-import org.neo4j.cypher.internal.v3_6.util.symbols._
-import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.runtime.interpreted.{ImplicitDummyPos, QueryStateHelper}
+import org.neo4j.cypher.internal.runtime._
+import org.neo4j.cypher.internal.v4_0.util.symbols._
+import org.neo4j.cypher.internal.v4_0.util.test_helpers.CypherFunSuite
 import org.neo4j.internal.kernel.api.procs.ProcedureCallContext
+import org.neo4j.kernel.database.DatabaseIdFactory
 import org.neo4j.values.AnyValue
-import org.neo4j.values.storable.{IntValue, LongValue}
+import org.neo4j.values.storable.{IntValue, LongValue, NumberValue, Values}
+import org.scalatest.mock.MockitoSugar
 
 class ProcedureCallPipeTest
   extends CypherFunSuite
     with PipeTestSupport
-    with ImplicitDummyPos {
+    with ImplicitDummyPos
+    with MockitoSugar {
 
   val ID = 42
   val procedureName = QualifiedName(List.empty, "foo")
   val signature = ProcedureSignature(procedureName, IndexedSeq.empty, Some(IndexedSeq(FieldSignature("foo", CTAny))),
-                                     None, ProcedureReadOnlyAccess(Array.empty), id = Some(ID))
+                                     None, ProcedureReadOnlyAccess(Array.empty), id = ID)
   val emptyStringArray = Array.empty[String]
 
   test("should execute read-only procedure calls") {
     val lhsData = List(Map("a" -> 1), Map("a" -> 2))
-    val lhs = new FakePipe(lhsData.iterator, "a" -> CTNumber) {}
+    val lhs = new FakePipe(lhsData.iterator)
 
     val pipe = ProcedureCallPipe(
       source = lhs,
@@ -58,7 +67,7 @@ class ProcedureCallPipeTest
       resultIndices = Seq(0 -> ("r", "r"))
     )()
 
-    val qtx = new FakeQueryContext(ID, resultsTransformer, ProcedureReadOnlyAccess(emptyStringArray))
+    val qtx = fakeQueryContext(ID, resultsTransformer, ProcedureReadOnlyAccess(emptyStringArray))
 
     pipe.createResults(QueryStateHelper.emptyWith(query = qtx)).toList should equal(List(
       ExecutionContext.from("a" ->1, "r" -> "take 1/1"),
@@ -69,7 +78,7 @@ class ProcedureCallPipeTest
 
   test("should execute read-write procedure calls") {
     val lhsData = List(Map("a" -> 1), Map("a" -> 2))
-    val lhs = new FakePipe(lhsData.iterator, "a" -> CTNumber)
+    val lhs = new FakePipe(lhsData.iterator)
 
     val pipe = ProcedureCallPipe(
       source = lhs,
@@ -81,7 +90,7 @@ class ProcedureCallPipeTest
       resultIndices = Seq(0 -> ("r", "r"))
     )()
 
-    val qtx = new FakeQueryContext(ID, resultsTransformer, ProcedureReadWriteAccess(emptyStringArray))
+    val qtx = fakeQueryContext(ID, resultsTransformer, ProcedureReadWriteAccess(emptyStringArray))
     pipe.createResults(QueryStateHelper.emptyWith(query = qtx)).toList should equal(List(
       ExecutionContext.from("a" -> 1, "r" -> "take 1/1"),
       ExecutionContext.from("a" -> 2, "r" -> "take 1/2"),
@@ -91,7 +100,7 @@ class ProcedureCallPipeTest
 
   test("should execute void procedure calls") {
     val lhsData = List(Map("a" -> 1), Map("a" -> 2))
-    val lhs = new FakePipe(lhsData.iterator, "a" -> CTNumber)
+    val lhs = new FakePipe(lhsData.iterator)
 
     val pipe = ProcedureCallPipe(
       source = lhs,
@@ -103,44 +112,67 @@ class ProcedureCallPipeTest
       resultIndices = Seq.empty
     )()
 
-    val qtx = new FakeQueryContext(ID, _ => Iterator.empty, ProcedureReadWriteAccess(emptyStringArray))
+    val qtx = fakeQueryContext(ID, _ => Iterator.empty, ProcedureReadWriteAccess(emptyStringArray))
     pipe.createResults(QueryStateHelper.emptyWith(query = qtx)).toList should equal(List(
       ExecutionContext.from("a" -> 1),
       ExecutionContext.from("a" -> 2)
     ))
   }
 
-  private def resultsTransformer(args: Seq[Any]): Iterator[Array[AnyRef]] = {
-    val count = args.head.asInstanceOf[Number].intValue()
+  private def resultsTransformer(args: Seq[AnyValue]): Iterator[Array[AnyValue]] = {
+    val count = args.head.asInstanceOf[NumberValue].longValue().intValue()
     1.to(count).map { i =>
-      Array[AnyRef](s"take $i/$count")
+      Array[AnyValue](Values.stringValue(s"take $i/$count"))
     }
 
   }.toIterator
 
+  private def fakeQueryContext(id: Int,
+                               result: Seq[AnyValue] => Iterator[Array[AnyValue]],
+                               expectedAccessMode: ProcedureAccessMode): QueryContext = {
 
-  class FakeQueryContext(id: Int, result: Seq[Any] => Iterator[Array[AnyRef]],
-                         expectedAccessMode: ProcedureAccessMode) extends QueryContext with QueryContextAdaptation {
-    override def callReadOnlyProcedure(id: Int, args: Seq[Any], allowed: Array[String], procedureCallContext: ProcedureCallContext) = {
-      expectedAccessMode should equal(ProcedureReadOnlyAccess(emptyStringArray))
-      doIt(id, args, allowed)
-    }
-
-    override def callReadWriteProcedure(id: Int, args: Seq[Any], allowed: Array[String], procedureCallContext: ProcedureCallContext): Iterator[Array[AnyRef]] = {
-      expectedAccessMode should equal(ProcedureReadWriteAccess(emptyStringArray))
-      doIt(id, args, allowed)
-    }
-
-    override def asObject(value: AnyValue): AnyRef = value match {
-      case i: IntValue => Int.box(i.value())
-      case l: LongValue => Long.box(l.value())
-      case _ => throw new IllegalStateException()
-    }
-
-    private def doIt(id: Int, args: Seq[Any], allowed: Array[String]): Iterator[Array[AnyRef]] = {
+    def doIt(id: Int, args: Seq[AnyValue], allowed: Array[String]): Iterator[Array[AnyValue]] = {
       id should equal(ID)
       args.length should be(1)
       result(args)
     }
+
+    val transactionalContext = mock[QueryTransactionalContext]
+    val databaseID = DatabaseIdFactory.from("neo4j", UUID.randomUUID())
+
+    Mockito.when(transactionalContext.databaseId).thenReturn(databaseID)
+
+    val queryContext = mock[QueryContext]
+    Mockito.when(queryContext.callReadOnlyProcedure(any[Int](), any[Seq[AnyValue]](), any[Array[String]](), any[ProcedureCallContext])).thenAnswer(
+      new Answer[Iterator[Array[AnyValue]]] {
+        override def answer(invocationOnMock: InvocationOnMock): Iterator[Array[AnyValue]] = {
+          expectedAccessMode should equal(ProcedureReadOnlyAccess(emptyStringArray))
+          doIt(invocationOnMock.getArgument(0), invocationOnMock.getArgument(1), invocationOnMock.getArgument(2))
+        }
+      }
+    )
+
+    Mockito.when(queryContext.callReadWriteProcedure(any[Int](), any[Seq[AnyValue]](), any[Array[String]](), any[ProcedureCallContext])).thenAnswer(
+      new Answer[Iterator[Array[AnyValue]]] {
+        override def answer(invocationOnMock: InvocationOnMock): Iterator[Array[AnyValue]] = {
+          expectedAccessMode should equal(ProcedureReadWriteAccess(emptyStringArray))
+          doIt(invocationOnMock.getArgument(0), invocationOnMock.getArgument(1), invocationOnMock.getArgument(2))
+        }
+      }
+    )
+    Mockito.when(queryContext.transactionalContext).thenReturn(transactionalContext)
+
+    Mockito.when(queryContext.asObject(any[AnyValue]())).thenAnswer(
+      new Answer[AnyRef] {
+        override def answer(invocationOnMock: InvocationOnMock): AnyRef =
+          invocationOnMock.getArgument[AnyValue](0) match {
+            case i: IntValue => Int.box(i.value())
+            case l: LongValue => Long.box(l.value())
+            case _ => throw new IllegalStateException()
+          }
+      }
+    )
+
+    queryContext
   }
 }

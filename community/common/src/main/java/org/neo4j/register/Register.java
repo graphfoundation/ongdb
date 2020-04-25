@@ -47,8 +47,6 @@ public interface Register
         interface Copyable
         {
             void copyTo( DoubleLong.Out target );
-
-            boolean hasValues( long first, long second );
         }
 
         interface Out
@@ -57,49 +55,5 @@ public interface Register
 
             void increment( long firstDelta, long secondDelta );
         }
-    }
-
-    interface Long
-    {
-        interface In
-        {
-            long read();
-        }
-
-        interface Out
-        {
-            void write( long value );
-
-            long increment( long delta );
-        }
-    }
-
-    interface Int
-    {
-        interface In
-        {
-            int read();
-        }
-
-        interface Out
-        {
-            void write( int value );
-
-            int increment( int delta );
-        }
-    }
-
-    interface Object
-    {
-        interface In<T>
-        {
-            T read();
-        }
-
-        interface Out<T>
-        {
-            void write( T value );
-        }
-
     }
 }

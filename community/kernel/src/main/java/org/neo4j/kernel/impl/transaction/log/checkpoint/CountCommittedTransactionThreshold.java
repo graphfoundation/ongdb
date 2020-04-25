@@ -30,7 +30,7 @@ class CountCommittedTransactionThreshold extends AbstractCheckPointThreshold
 
     CountCommittedTransactionThreshold( int notificationThreshold )
     {
-        super( "tx count threshold" );
+        super( "every " + notificationThreshold + " transactions threshold" );
         this.notificationThreshold = notificationThreshold;
     }
 

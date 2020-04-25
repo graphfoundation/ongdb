@@ -52,4 +52,10 @@ public final class FileSizeThreshold implements Threshold
         currentSize += fileSystem.getFileSize( file );
         return currentSize >= maxSize;
     }
+
+    @Override
+    public String toString()
+    {
+        return maxSize + " size";
+    }
 }

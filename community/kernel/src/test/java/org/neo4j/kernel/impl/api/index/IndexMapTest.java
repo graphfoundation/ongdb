@@ -22,228 +22,71 @@
  */
 package org.neo4j.kernel.impl.api.index;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
-import java.util.Set;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.internal.schema.LabelSchemaDescriptor;
+import org.neo4j.internal.schema.SchemaDescriptor;
 
-import org.neo4j.internal.kernel.api.schema.LabelSchemaDescriptor;
-import org.neo4j.internal.kernel.api.schema.SchemaDescriptor;
-import org.neo4j.internal.kernel.api.schema.SchemaDescriptorSupplier;
-import org.neo4j.kernel.api.schema.SchemaDescriptorFactory;
-import org.neo4j.kernel.api.schema.constraints.ConstraintDescriptorFactory;
-import org.neo4j.kernel.impl.store.record.ConstraintRule;
-import org.neo4j.storageengine.api.EntityType;
-import org.neo4j.storageengine.api.schema.CapableIndexDescriptor;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.neo4j.common.EntityType.NODE;
+import static org.neo4j.common.EntityType.RELATIONSHIP;
+import static org.neo4j.internal.schema.IndexPrototype.forSchema;
 
-import static java.util.stream.Collectors.toSet;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.hamcrest.Matchers.emptyIterableOf;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.neo4j.helpers.collection.Iterators.asSet;
-import static org.neo4j.storageengine.api.EntityType.NODE;
-import static org.neo4j.storageengine.api.EntityType.RELATIONSHIP;
-import static org.neo4j.storageengine.api.schema.IndexDescriptorFactory.forSchema;
-
-public class IndexMapTest
+class IndexMapTest
 {
-    private static final long[] noEntityToken = {};
     private IndexMap indexMap;
 
-    private LabelSchemaDescriptor schema3_4 = SchemaDescriptorFactory.forLabel( 3, 4 );
-    private LabelSchemaDescriptor schema5_6_7 = SchemaDescriptorFactory.forLabel( 5, 6, 7 );
-    private LabelSchemaDescriptor schema5_8 = SchemaDescriptorFactory.forLabel( 5, 8 );
-    private SchemaDescriptor node35_8 = SchemaDescriptorFactory.multiToken( new int[] {3,5}, NODE, 8 );
-    private SchemaDescriptor rel35_8 = SchemaDescriptorFactory.multiToken( new int[] {3,5}, RELATIONSHIP, 8 );
+    private final LabelSchemaDescriptor schema3_4 = SchemaDescriptor.forLabel( 3, 4 );
+    private final IndexDescriptor index3_4 = forSchema( schema3_4 ).withName( "index_1" ).materialise( 1 );
+    private final LabelSchemaDescriptor schema5_6_7 = SchemaDescriptor.forLabel( 5, 6, 7 );
+    private final IndexDescriptor index5_6_7 = forSchema( schema5_6_7 ).withName( "index_2" ).materialise( 2 );
+    private final LabelSchemaDescriptor schema5_8 = SchemaDescriptor.forLabel( 5, 8 );
+    private final IndexDescriptor index5_8 = forSchema( schema5_8 ).withName( "index_3" ).materialise( 3 );
+    private final SchemaDescriptor node35_8 = SchemaDescriptor.fulltext( NODE, new int[]{3, 5}, new int[]{8} );
+    private final IndexDescriptor index_node35_8 = forSchema( node35_8 ).withName( "index_4" ).materialise( 4 );
+    private final SchemaDescriptor rel35_8 = SchemaDescriptor.fulltext( RELATIONSHIP, new int[]{3, 5}, new int[]{8} );
+    private final IndexDescriptor index_rel35_8 = forSchema( rel35_8 ).withName( "index_5" ).materialise( 5 );
 
-    @Before
-    public void setup()
+    @BeforeEach
+    void setup()
     {
         indexMap = new IndexMap();
-        indexMap.putIndexProxy( new TestIndexProxy( forSchema( schema3_4 ).withId( 1 ).withoutCapabilities() ) );
-        indexMap.putIndexProxy( new TestIndexProxy( forSchema( schema5_6_7 ).withId( 2 ).withoutCapabilities() ) );
-        indexMap.putIndexProxy( new TestIndexProxy( forSchema( schema5_8 ).withId( 3 ).withoutCapabilities() ) );
-        indexMap.putIndexProxy( new TestIndexProxy( forSchema( node35_8 ).withId( 4 ).withoutCapabilities() ) );
-        indexMap.putIndexProxy( new TestIndexProxy( forSchema( rel35_8 ).withId( 5 ).withoutCapabilities() ) );
+        indexMap.putIndexProxy( new TestIndexProxy( index3_4 ) );
+        indexMap.putIndexProxy( new TestIndexProxy( index5_6_7 ) );
+        indexMap.putIndexProxy( new TestIndexProxy( index5_8 ) );
+        indexMap.putIndexProxy( new TestIndexProxy( index_node35_8 ) );
+        indexMap.putIndexProxy( new TestIndexProxy( index_rel35_8 ) );
     }
 
     @Test
-    public void shouldGetRelatedIndexForLabel()
+    void shouldGetById()
     {
-        assertThat( getRelatedIndexes( entityTokens( 3 ), noEntityToken, properties(), false, NODE ),
-                containsInAnyOrder( schema3_4, node35_8 ) );
-    }
-
-    private Set<SchemaDescriptor> getRelatedIndexes( long[] changedEntityTokens, long[] unchangedEntityTokens, int[] properties, boolean propertyListIsComplete,
-            EntityType type )
-    {
-        return indexMap.getRelatedIndexes( changedEntityTokens, unchangedEntityTokens, properties, propertyListIsComplete, type ).stream().map(
-                SchemaDescriptorSupplier::schema ).collect( toSet() );
+        assertEquals( schema3_4, indexMap.getIndexProxy( 1L ).getDescriptor().schema() );
+        assertEquals( schema5_6_7, indexMap.getIndexProxy( 2L ).getDescriptor().schema() );
     }
 
     @Test
-    public void shouldGetRelatedIndexForProperty()
+    void shouldGetByDescriptor()
     {
-        assertThat(
-                getRelatedIndexes( noEntityToken, entityTokens( 3, 4, 5 ), properties( 4 ), false, NODE ),
-                containsInAnyOrder( schema3_4 ) );
-    }
-
-    @Test
-    public void shouldGetRelatedIndexesForLabel()
-    {
-        assertThat( getRelatedIndexes( entityTokens( 5 ), entityTokens( 3, 4 ), properties(), false, NODE ),
-                containsInAnyOrder( schema5_6_7, schema5_8, node35_8 ) );
-    }
-
-    @Test
-    public void shouldGetRelatedIndexes()
-    {
-        assertThat(
-                getRelatedIndexes( entityTokens( 3 ), entityTokens( 4, 5 ), properties( 7 ), false, NODE ),
-                containsInAnyOrder( schema3_4, schema5_6_7, node35_8 ) );
-    }
-
-    @Test
-    public void shouldGetRelatedIndexOnce()
-    {
-        assertThat(
-                getRelatedIndexes( entityTokens( 3 ), noEntityToken, properties( 4 ), false, NODE ),
-                containsInAnyOrder( schema3_4, node35_8 ) );
-
-        assertThat(
-                getRelatedIndexes( noEntityToken, entityTokens( 5 ), properties( 6, 7 ), false, NODE ),
-                containsInAnyOrder( schema5_6_7 ) );
-    }
-
-    @Test
-    public void shouldHandleUnrelated()
-    {
-        assertThat( getRelatedIndexes( noEntityToken, noEntityToken, properties(), false, NODE ),
-                emptyIterableOf( SchemaDescriptor.class ) );
-
-        assertTrue( getRelatedIndexes( entityTokens( 2 ), noEntityToken, properties(), false, NODE ).isEmpty() );
-
-        assertThat(
-                getRelatedIndexes( noEntityToken, entityTokens( 2 ), properties( 1 ), false, NODE ),
-                emptyIterableOf( SchemaDescriptor.class ) );
-
-        assertTrue( getRelatedIndexes( entityTokens( 2 ), entityTokens( 2 ), properties( 1 ), false, NODE ).isEmpty() );
-    }
-
-    @Test
-    public void shouldGetMultiLabelForAnyOfTheLabels()
-    {
-        assertThat( getRelatedIndexes( entityTokens( 3 ), noEntityToken, properties(), false, NODE ),
-                containsInAnyOrder( schema3_4, node35_8 ) );
-
-        assertThat( getRelatedIndexes( entityTokens( 5 ), noEntityToken, properties(), false, NODE ),
-                containsInAnyOrder( schema5_8, schema5_6_7, node35_8 ) );
-    }
-
-    @Test
-    public void shouldOnlyGetRelIndexesForRelUpdates()
-    {
-        assertThat( getRelatedIndexes( entityTokens( 3 ), noEntityToken, properties(), false, RELATIONSHIP ),
-                containsInAnyOrder( rel35_8 ) );
-
-        assertThat( getRelatedIndexes( entityTokens( 5 ), noEntityToken, properties(), false, RELATIONSHIP ),
-                containsInAnyOrder( rel35_8 ) );
-    }
-
-    @Test
-    public void removalsShouldOnlyRemoveCorrectProxy()
-    {
-        indexMap.removeIndexProxy( 4 );
-        assertThat( getRelatedIndexes( entityTokens( 3 ), noEntityToken, properties(), false, NODE ),
-                containsInAnyOrder( schema3_4 ) );
-        assertThat( getRelatedIndexes( entityTokens( 3 ), noEntityToken, properties(), false, RELATIONSHIP ),
-                containsInAnyOrder( rel35_8 ) );
-
-        indexMap.removeIndexProxy( 7 );
-        assertThat( getRelatedIndexes( entityTokens( 5 ), noEntityToken, properties(), false, NODE ),
-                containsInAnyOrder( schema5_8, schema5_6_7 ) );
-        assertThat( getRelatedIndexes( entityTokens( 5 ), noEntityToken, properties(), false, RELATIONSHIP ),
-                containsInAnyOrder( rel35_8 ) );
-    }
-
-    @Test
-    public void shouldGetRelatedNodeConstraints()
-    {
-        // given
-        ConstraintRule constraint1 = ConstraintRule.constraintRule( 1L, ConstraintDescriptorFactory.uniqueForLabel( 1, 5, 6 ), null );
-        ConstraintRule constraint2 = ConstraintRule.constraintRule( 2L, ConstraintDescriptorFactory.uniqueForLabel( 1, 5 ), null );
-        ConstraintRule constraint3 = ConstraintRule.constraintRule( 3L, ConstraintDescriptorFactory.uniqueForLabel( 2, 5 ), null );
-        indexMap.putUniquenessConstraint( constraint1 );
-        indexMap.putUniquenessConstraint( constraint2 );
-        indexMap.putUniquenessConstraint( constraint3 );
-
-        // when/then
-        assertEquals(
-                asSet( constraint2.getConstraintDescriptor() ),
-                indexMap.getRelatedConstraints( entityTokens( 1 ), entityTokens(), properties( 5 ), true, NODE ) );
-        assertEquals(
-                asSet( constraint1.getConstraintDescriptor(), constraint2.getConstraintDescriptor() ),
-                indexMap.getRelatedConstraints( entityTokens( 1 ), entityTokens(), properties( 5 ), false, NODE ) );
-        assertEquals(
-                asSet( constraint1.getConstraintDescriptor(), constraint2.getConstraintDescriptor() ),
-                indexMap.getRelatedConstraints( entityTokens( 1 ), entityTokens(), properties( 5, 6 ), true, NODE ) );
-        assertEquals(
-                asSet( constraint1.getConstraintDescriptor(), constraint2.getConstraintDescriptor() ),
-                indexMap.getRelatedConstraints( entityTokens(), entityTokens( 1 ), properties( 5 ), false, NODE ) );
-        assertEquals(
-                asSet( constraint1.getConstraintDescriptor(), constraint2.getConstraintDescriptor(), constraint3.getConstraintDescriptor() ),
-                indexMap.getRelatedConstraints( entityTokens( 1, 2 ), entityTokens(), properties(), false, NODE ) );
-    }
-
-    @Test
-    public void shouldRemoveNodeConstraints()
-    {
-        // given
-        ConstraintRule constraint1 = ConstraintRule.constraintRule( 1L, ConstraintDescriptorFactory.uniqueForLabel( 1, 5, 6 ), null );
-        ConstraintRule constraint2 = ConstraintRule.constraintRule( 2L, ConstraintDescriptorFactory.uniqueForLabel( 1, 5 ), null );
-        ConstraintRule constraint3 = ConstraintRule.constraintRule( 3L, ConstraintDescriptorFactory.uniqueForLabel( 2, 5 ), null );
-        indexMap.putUniquenessConstraint( constraint1 );
-        indexMap.putUniquenessConstraint( constraint2 );
-        indexMap.putUniquenessConstraint( constraint3 );
-        assertEquals(
-                asSet( constraint2.getConstraintDescriptor() ),
-                indexMap.getRelatedConstraints( entityTokens( 1 ), entityTokens(), properties( 5 ), true, NODE ) );
-
-        // and when
-        indexMap.removeUniquenessConstraint( constraint1.getId() );
-        indexMap.removeUniquenessConstraint( constraint2.getId() );
-        indexMap.removeUniquenessConstraint( constraint3.getId() );
-
-        // then
-        assertTrue( indexMap.getRelatedConstraints( entityTokens( 1 ), entityTokens(), properties( 5 ), true, NODE ).isEmpty() );
+        assertEquals( schema5_8, indexMap.getIndexProxy( index5_8 ).getDescriptor().schema() );
+        assertEquals( node35_8, indexMap.getIndexProxy( index_node35_8 ).getDescriptor().schema() );
     }
 
     // HELPERS
 
-    private long[] entityTokens( long... entityTokenIds )
+    private static class TestIndexProxy extends IndexProxyAdapter
     {
-        return entityTokenIds;
-    }
+        private final IndexDescriptor descriptor;
 
-    private int[] properties( int... propertyIds )
-    {
-        return propertyIds;
-    }
-
-    private class TestIndexProxy extends IndexProxyAdapter
-    {
-        private final CapableIndexDescriptor descriptor;
-
-        private TestIndexProxy( CapableIndexDescriptor descriptor )
+        private TestIndexProxy( IndexDescriptor descriptor )
         {
             this.descriptor = descriptor;
         }
 
         @Override
-        public CapableIndexDescriptor getDescriptor()
+        public IndexDescriptor getDescriptor()
         {
             return descriptor;
         }

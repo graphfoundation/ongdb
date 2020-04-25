@@ -22,9 +22,6 @@
  */
 package cypher.features
 
-import java.io.File
-import java.net.{URI, URL}
-
 import org.junit.Assert.fail
 import org.junit.jupiter.api.Test
 import org.opencypher.tools.tck.api.Scenario
@@ -36,7 +33,7 @@ abstract class BaseAcceptanceTest extends BaseFeatureTest {
   val featureToRun = ""
   val scenarioToRun = ""
 
-  val scenarios: Seq[Scenario] =  filterScenarios(allAcceptanceScenarios, featureToRun, scenarioToRun)
+  lazy val scenarios: Seq[Scenario] =  filterScenarios(BaseFeatureTestHolder.allAcceptanceScenarios, featureToRun, scenarioToRun)
 
   @Test
   def debugTokensNeedToBeEmpty(): Unit = {

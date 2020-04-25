@@ -27,15 +27,16 @@ import java.util.List;
 import org.neo4j.gis.spatial.index.curves.SpaceFillingCurve;
 import org.neo4j.gis.spatial.index.curves.SpaceFillingCurveConfiguration;
 import org.neo4j.index.internal.gbptree.GBPTree;
-import org.neo4j.internal.kernel.api.IndexOrder;
 import org.neo4j.internal.kernel.api.IndexQuery;
 import org.neo4j.internal.kernel.api.IndexQuery.ExactPredicate;
 import org.neo4j.internal.kernel.api.IndexQuery.RangePredicate;
 import org.neo4j.internal.kernel.api.IndexQuery.StringPrefixPredicate;
-import org.neo4j.kernel.impl.api.schema.BridgingIndexProgressor;
-import org.neo4j.kernel.impl.index.schema.config.IndexSpecificSpaceFillingCurveSettingsCache;
-import org.neo4j.storageengine.api.schema.IndexDescriptor;
-import org.neo4j.storageengine.api.schema.IndexProgressor;
+import org.neo4j.internal.kernel.api.QueryContext;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.internal.schema.IndexOrder;
+import org.neo4j.kernel.api.index.IndexProgressor;
+import org.neo4j.kernel.api.index.BridgingIndexProgressor;
+import org.neo4j.kernel.impl.index.schema.config.IndexSpecificSpaceFillingCurveSettings;
 import org.neo4j.values.storable.CoordinateReferenceSystem;
 import org.neo4j.values.storable.Value;
 import org.neo4j.values.storable.ValueGroup;
@@ -47,11 +48,11 @@ import static org.neo4j.kernel.impl.index.schema.NativeIndexKey.Inclusion.NEUTRA
 
 class GenericNativeIndexReader extends NativeIndexReader<GenericKey,NativeIndexValue>
 {
-    private final IndexSpecificSpaceFillingCurveSettingsCache spaceFillingCurveSettings;
+    private final IndexSpecificSpaceFillingCurveSettings spaceFillingCurveSettings;
     private final SpaceFillingCurveConfiguration configuration;
 
     GenericNativeIndexReader( GBPTree<GenericKey,NativeIndexValue> tree, IndexLayout<GenericKey,NativeIndexValue> layout,
-            IndexDescriptor descriptor, IndexSpecificSpaceFillingCurveSettingsCache spaceFillingCurveSettings,
+            IndexDescriptor descriptor, IndexSpecificSpaceFillingCurveSettings spaceFillingCurveSettings,
             SpaceFillingCurveConfiguration configuration )
     {
         super( tree, layout, descriptor );
@@ -76,11 +77,12 @@ class GenericNativeIndexReader extends NativeIndexReader<GenericKey,NativeIndexV
     @Override
     void validateQuery( IndexOrder indexOrder, IndexQuery[] predicates )
     {
-        CapabilityValidator.validateQuery( GenericNativeIndexProvider.CAPABILITY, indexOrder, predicates );
+        QueryValidator.validateOrder( GenericNativeIndexProvider.CAPABILITY, indexOrder, predicates );
+        QueryValidator.validateCompositeQuery( predicates );
     }
 
     @Override
-    public void query( IndexProgressor.NodeValueClient client, IndexOrder indexOrder, boolean needsValues, IndexQuery... query )
+    public void query( QueryContext context, IndexProgressor.EntityValueClient client, IndexOrder indexOrder, boolean needsValues, IndexQuery... query )
     {
         IndexQuery.GeometryRangePredicate geometryRangePredicate = getGeometryRangePredicateIfAny( query );
         if ( geometryRangePredicate != null )
@@ -91,11 +93,11 @@ class GenericNativeIndexReader extends NativeIndexReader<GenericKey,NativeIndexV
                 // If there's a GeometryRangeQuery among the predicates then this query changes from a straight-forward: build from/to and seek...
                 // into a query that is split into multiple sub-queries. Predicates both before and after will have to be accompanied each sub-query.
                 BridgingIndexProgressor multiProgressor = new BridgingIndexProgressor( client, descriptor.schema().getPropertyIds() );
-                client.initialize( descriptor, multiProgressor, query, indexOrder, needsValues );
+                client.initialize( descriptor, multiProgressor, query, indexOrder, needsValues, false );
                 double[] from = geometryRangePredicate.from() == null ? null : geometryRangePredicate.from().coordinate();
                 double[] to = geometryRangePredicate.to() == null ? null : geometryRangePredicate.to().coordinate();
                 CoordinateReferenceSystem crs = geometryRangePredicate.crs();
-                SpaceFillingCurve curve = spaceFillingCurveSettings.forCrs( crs, false );
+                SpaceFillingCurve curve = spaceFillingCurveSettings.forCrs( crs );
                 List<SpaceFillingCurve.LongRange> ranges = curve.getTilesIntersectingEnvelope( from, to, configuration );
                 for ( SpaceFillingCurve.LongRange range : ranges )
                 {
@@ -111,12 +113,12 @@ class GenericNativeIndexReader extends NativeIndexReader<GenericKey,NativeIndexV
             catch ( IllegalArgumentException e )
             {
                 // Invalid query ranges will cause this state (eg. min>max)
-                client.initialize( descriptor, IndexProgressor.EMPTY, query, indexOrder, needsValues );
+                client.initialize( descriptor, IndexProgressor.EMPTY, query, indexOrder, needsValues, false );
             }
         }
         else
         {
-            super.query( client, indexOrder, needsValues, query );
+            super.query( context, client, indexOrder, needsValues, query );
         }
     }
 

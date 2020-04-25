@@ -22,27 +22,21 @@
  */
 package org.neo4j.values.utils;
 
-import java.util.function.Supplier;
-
 import org.neo4j.values.AnyValue;
+import org.neo4j.values.Equality;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
 public class AnyValueTestUtil
 {
     public static void assertEqual( AnyValue a, AnyValue b )
     {
-        assertEquals( formatMessage( "should be equivalent to", a, b ), a, b );
-        assertEquals( formatMessage( "should be equivalent to", b, a ), b, a );
-        assertTrue( formatMessage( "should be equal to", a, b ),
-                a.ternaryEquals( b ) );
-        assertTrue( formatMessage( "should be equal to", b, a ),
-                b.ternaryEquals( a ) );
-        assertEquals( formatMessage( "should have same hashcode as", a, b ), a.hashCode(), b.hashCode() );
+        assertEquals( a, b, formatMessage( "should be equivalent to", a, b ) );
+        assertEquals( b, a, formatMessage( "should be equivalent to", b, a ) );
+        assertEquals( a.ternaryEquals( b ), Equality.TRUE, formatMessage( "should be equal to", a, b ) );
+        assertEquals( b.ternaryEquals( a ), Equality.TRUE, formatMessage( "should be equal to", b, a ) );
+        assertEquals( a.hashCode(), b.hashCode(), formatMessage( "should have same hashcode as", a, b ) );
     }
 
     private static String formatMessage( String should, AnyValue a, AnyValue b )
@@ -52,46 +46,25 @@ public class AnyValueTestUtil
 
     public static void assertEqualValues( AnyValue a, AnyValue b )
     {
-        assertEquals( a + " should be equivalent to " + b, a, b );
-        assertEquals( a + " should be equivalent to " + b, b, a );
-        assertTrue( a + " should be equal to " + b, a.ternaryEquals( b ) );
-        assertTrue( a + " should be equal to " + b, b.ternaryEquals( a ) );
+        assertEquals( a, b, a + " should be equivalent to " + b );
+        assertEquals( b, a, a + " should be equivalent to " + b );
+        assertEquals( Equality.TRUE, a.ternaryEquals( b ), a + " should be equal to " + b );
+        assertEquals( Equality.TRUE, b.ternaryEquals( a ), a + " should be equal to " + b );
     }
 
     public static void assertNotEqual( AnyValue a, AnyValue b )
     {
-        assertNotEquals( a + " should not be equivalent to " + b, a, b );
-        assertNotEquals( b + " should not be equivalent to " + a, b, a );
-        assertFalse( a + " should not equal " + b, a.ternaryEquals( b ) );
-        assertFalse( b + " should not equal " + a, b.ternaryEquals( a ) );
+        assertNotEquals( a, b, a + " should not be equivalent to " + b );
+        assertNotEquals( b, a, b + " should not be equivalent to " + a );
+        assertEquals( Equality.FALSE, a.ternaryEquals( b ), a + " should not equal " + b );
+        assertEquals( Equality.FALSE, b.ternaryEquals( a ), b + " should not equal " + a );
     }
 
     public static void assertIncomparable( AnyValue a, AnyValue b )
     {
-        assertNotEquals( a + " should not be equivalent to " + b, a, b );
-        assertNotEquals( b + " should not be equivalent to " + a, b, a );
-        assertNull( a + " should be incomparable to " + b, a.ternaryEquals( b ) );
-        assertNull( b + " should be incomparable to " + a, b.ternaryEquals( a ) );
-    }
-
-    public static <X extends Exception, T> X assertThrows( Class<X> exception, Supplier<T> thunk )
-    {
-        T value;
-        try
-        {
-            value = thunk.get();
-        }
-        catch ( Exception e )
-        {
-            if ( exception.isInstance( e ) )
-            {
-                return exception.cast( e );
-            }
-            else
-            {
-                throw new AssertionError( "Expected " + exception.getName(), e );
-            }
-        }
-        throw new AssertionError( "Expected " + exception.getName() + " but returned: " + value );
+        assertNotEquals( a, b, a + " should not be equivalent to " + b );
+        assertNotEquals( b, a, b + " should not be equivalent to " + a );
+        assertEquals( Equality.UNDEFINED, a.ternaryEquals( b ), a + " should be incomparable to " + b );
+        assertEquals( Equality.UNDEFINED, b.ternaryEquals( a ), b + " should be incomparable to " + a );
     }
 }

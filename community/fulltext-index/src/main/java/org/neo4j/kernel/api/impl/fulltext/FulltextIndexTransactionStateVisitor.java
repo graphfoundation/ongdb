@@ -32,27 +32,28 @@ import java.io.UncheckedIOException;
 import java.util.Arrays;
 import java.util.Iterator;
 
+import org.neo4j.common.EntityType;
 import org.neo4j.internal.kernel.api.LabelSet;
 import org.neo4j.internal.kernel.api.NodeCursor;
 import org.neo4j.internal.kernel.api.PropertyCursor;
+import org.neo4j.internal.kernel.api.Read;
 import org.neo4j.internal.kernel.api.RelationshipScanCursor;
-import org.neo4j.internal.kernel.api.schema.SchemaDescriptor;
-import org.neo4j.kernel.impl.newapi.AllStoreHolder;
-import org.neo4j.storageengine.api.EntityType;
+import org.neo4j.internal.schema.FulltextSchemaDescriptor;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.internal.schema.SchemaDescriptor;
 import org.neo4j.storageengine.api.StorageProperty;
 import org.neo4j.storageengine.api.txstate.TxStateVisitor;
 import org.neo4j.values.storable.Value;
 
 import static org.neo4j.kernel.api.impl.fulltext.LuceneFulltextDocumentStructure.documentRepresentingProperties;
-import static org.neo4j.kernel.api.impl.fulltext.LuceneFulltextDocumentStructure.documentRepresentingPropertiesWithSort;
 
 /**
  * A {@link TxStateVisitor} that adds all entities to a {@link TransactionStateLuceneIndexWriter}, that matches the index according to the
- * {@link FulltextIndexDescriptor}.
+ * {@link FulltextSchemaDescriptor}.
  */
 class FulltextIndexTransactionStateVisitor extends TxStateVisitor.Adapter
 {
-    private final FulltextIndexDescriptor descriptor;
+    private final String[] propertyNames;
     private final SchemaDescriptor schema;
     private final boolean visitingNodes;
     private final int[] entityTokenIds;
@@ -60,15 +61,15 @@ class FulltextIndexTransactionStateVisitor extends TxStateVisitor.Adapter
     private final IntIntHashMap propKeyToIndex;
     private final MutableLongSet modifiedEntityIdsInThisTransaction;
     private final TransactionStateLuceneIndexWriter writer;
-    private AllStoreHolder read;
+    private Read read;
     private NodeCursor nodeCursor;
     private PropertyCursor propertyCursor;
     private RelationshipScanCursor relationshipCursor;
 
-    FulltextIndexTransactionStateVisitor( FulltextIndexDescriptor descriptor, MutableLongSet modifiedEntityIdsInThisTransaction,
+    FulltextIndexTransactionStateVisitor( IndexDescriptor descriptor, String[] propertyNames, MutableLongSet modifiedEntityIdsInThisTransaction,
             TransactionStateLuceneIndexWriter writer )
     {
-        this.descriptor = descriptor;
+        this.propertyNames = propertyNames;
         this.schema = descriptor.schema();
         this.modifiedEntityIdsInThisTransaction = modifiedEntityIdsInThisTransaction;
         this.writer = writer;
@@ -83,7 +84,7 @@ class FulltextIndexTransactionStateVisitor extends TxStateVisitor.Adapter
         }
     }
 
-    FulltextIndexTransactionStateVisitor init( AllStoreHolder read, NodeCursor nodeCursor, RelationshipScanCursor relationshipCursor,
+    FulltextIndexTransactionStateVisitor init( Read read, NodeCursor nodeCursor, RelationshipScanCursor relationshipCursor,
             PropertyCursor propertyCursor )
     {
         this.read = read;
@@ -181,15 +182,7 @@ class FulltextIndexTransactionStateVisitor extends TxStateVisitor.Adapter
         {
             try
             {
-                if ( descriptor.sortPropertyNames() == null || descriptor.sortPropertyNames().isEmpty() )
-                {
-                    writer.addDocument( documentRepresentingProperties( id, descriptor.propertyNames(), propertyValues ) );
-                }
-                else
-                {
-                    writer.addDocument( documentRepresentingPropertiesWithSort( id, descriptor.propertyNames(), propertyValues, descriptor.sortPropertyNames(),
-                                                                                descriptor.sortTypes() ) );
-                }
+                writer.addDocument( documentRepresentingProperties( id, propertyNames, propertyValues ) );
             }
             catch ( IOException e )
             {

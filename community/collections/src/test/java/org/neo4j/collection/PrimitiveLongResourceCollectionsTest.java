@@ -77,7 +77,7 @@ class PrimitiveLongResourceCollectionsTest
         assertEquals( 2, resource.closeCount(), "all concatenated iterators are closed" );
     }
 
-    private void assertContent( PrimitiveLongResourceIterator iterator, long... expected )
+    private static void assertContent( PrimitiveLongResourceIterator iterator, long... expected )
     {
         int i = 0;
         while ( iterator.hasNext() )
@@ -89,7 +89,7 @@ class PrimitiveLongResourceCollectionsTest
 
     private static class CountingResource implements Resource
     {
-        private AtomicInteger closed = new AtomicInteger();
+        private final AtomicInteger closed = new AtomicInteger();
 
         @Override
         public void close()

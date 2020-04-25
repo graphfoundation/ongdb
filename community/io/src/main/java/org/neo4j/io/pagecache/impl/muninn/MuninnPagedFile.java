@@ -28,6 +28,7 @@ import java.io.IOException;
 import java.nio.channels.ClosedChannelException;
 import java.util.Arrays;
 
+import org.neo4j.internal.unsafe.UnsafeUtil;
 import org.neo4j.io.pagecache.IOLimiter;
 import org.neo4j.io.pagecache.PageCursor;
 import org.neo4j.io.pagecache.PageEvictionCallback;
@@ -42,11 +43,13 @@ import org.neo4j.io.pagecache.tracing.PageCacheTracer;
 import org.neo4j.io.pagecache.tracing.PageFaultEvent;
 import org.neo4j.io.pagecache.tracing.cursor.PageCursorTracerSupplier;
 import org.neo4j.io.pagecache.tracing.cursor.context.VersionContextSupplier;
-import org.neo4j.unsafe.impl.internal.dragons.UnsafeUtil;
+
+import static org.neo4j.util.FeatureToggles.flag;
 
 final class MuninnPagedFile extends PageList implements PagedFile, Flushable
 {
     static final int UNMAPPED_TTE = -1;
+    private static final boolean USE_DIRECT_IO = flag( MuninnPagedFile.class, "useDirectIO", false );
     private static final int translationTableChunkSizePower = Integer.getInteger(
             "org.neo4j.io.pagecache.impl.muninn.MuninnPagedFile.translationTableChunkSizePower", 12 );
     private static final int translationTableChunkSize = 1 << translationTableChunkSizePower;
@@ -75,8 +78,7 @@ final class MuninnPagedFile extends PageList implements PagedFile, Flushable
     final int swapperId;
     private final CursorFactory cursorFactory;
 
-    // Guarded by the monitor lock on MuninnPageCache (map and unmap)
-    private boolean deleteOnClose;
+    private volatile boolean deleteOnClose;
 
     // Used to trace the causes of any exceptions from getLastPageId.
     private volatile Exception closeStackTrace;
@@ -149,7 +151,7 @@ final class MuninnPagedFile extends PageList implements PagedFile, Flushable
         // filled with UNMAPPED_TTE values, and then finally assigns the new outer array to the translationTable field
         // and releases the resize lock.
         PageEvictionCallback onEviction = this::evictPage;
-        swapper = swapperFactory.createPageSwapper( file, filePageSize, onEviction, createIfNotExists, noChannelStriping );
+        swapper = swapperFactory.createPageSwapper( file, filePageSize, onEviction, createIfNotExists, noChannelStriping, USE_DIRECT_IO );
         if ( truncateExisting )
         {
             swapper.truncate();
@@ -171,7 +173,7 @@ final class MuninnPagedFile extends PageList implements PagedFile, Flushable
     @Override
     public String toString()
     {
-        return getClass().getSimpleName() + "[" + swapper.file() + "]";
+        return getClass().getSimpleName() + "[" + swapper.file() + ", reference count = " + getRefCount() + "]";
     }
 
     @Override
@@ -288,7 +290,6 @@ final class MuninnPagedFile extends PageList implements PagedFile, Flushable
         try ( MajorFlushEvent flushEvent = pageCacheTracer.beginFileFlush( swapper ) )
         {
             flushAndForceInternal( flushEvent.flushEventOpportunity(), false, limiter );
-            syncDevice();
         }
         pageCache.clearEvictorException();
     }
@@ -306,7 +307,6 @@ final class MuninnPagedFile extends PageList implements PagedFile, Flushable
         try ( MajorFlushEvent flushEvent = pageCacheTracer.beginFileFlush( swapper ) )
         {
             flushAndForceInternal( flushEvent.flushEventOpportunity(), true, IOLimiter.UNLIMITED );
-            syncDevice();
         }
         pageCache.clearEvictorException();
     }
@@ -367,8 +367,17 @@ final class MuninnPagedFile extends PageList implements PagedFile, Flushable
         }
         catch ( ClosedChannelException e )
         {
-            e.addSuppressed( closeStackTrace );
-            throw e;
+            if ( getRefCount() > 0 )
+            {
+                // The file is not supposed to be closed, since we have a positive ref-count, yet we got a
+                // ClosedChannelException anyway? It's an odd situation, so let's tell the outside world about
+                // this failure.
+                e.addSuppressed( closeStackTrace );
+                throw e;
+            }
+            // Otherwise: The file was closed while we were trying to flush it. Since unmapping implies a flush
+            // anyway, we can safely assume that this is not a problem. The file was flushed, and it doesn't
+            // really matter how that happened. We'll ignore this exception.
         }
     }
 
@@ -533,11 +542,6 @@ final class MuninnPagedFile extends PageList implements PagedFile, Flushable
         return success;
     }
 
-    private void syncDevice()
-    {
-        pageCache.syncDevice();
-    }
-
     @Override
     public void flush() throws IOException
     {
@@ -662,9 +666,16 @@ final class MuninnPagedFile extends PageList implements PagedFile, Flushable
         return (int) refCountOf( getHeaderState() );
     }
 
-    void markDeleteOnClose( boolean deleteOnClose )
+    @Override
+    public void setDeleteOnClose( boolean deleteOnClose )
     {
-        this.deleteOnClose |= deleteOnClose;
+        this.deleteOnClose = deleteOnClose;
+    }
+
+    @Override
+    public boolean isDeleteOnClose()
+    {
+        return deleteOnClose;
     }
 
     /**

@@ -22,8 +22,8 @@
  */
 package org.neo4j.kernel.impl.newapi;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -34,12 +34,14 @@ import java.util.Set;
 import org.neo4j.internal.kernel.api.exceptions.schema.IndexNotFoundKernelException;
 import org.neo4j.internal.kernel.api.helpers.StubNodeCursor;
 import org.neo4j.internal.kernel.api.helpers.StubPropertyCursor;
-import org.neo4j.internal.kernel.api.schema.SchemaDescriptor;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.internal.schema.PropertySchemaType;
+import org.neo4j.internal.schema.SchemaDescriptor;
 import org.neo4j.kernel.api.schema.index.TestIndexDescriptorFactory;
 import org.neo4j.kernel.api.txstate.TransactionState;
 import org.neo4j.kernel.impl.api.index.IndexProxy;
 import org.neo4j.kernel.impl.api.index.IndexingService;
-import org.neo4j.storageengine.api.schema.IndexDescriptor;
+import org.neo4j.storageengine.api.StorageReader;
 import org.neo4j.values.storable.Value;
 import org.neo4j.values.storable.ValueTuple;
 import org.neo4j.values.storable.Values;
@@ -55,10 +57,12 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.neo4j.internal.helpers.collection.Iterators.filter;
+import static org.neo4j.internal.schema.SchemaDescriptorPredicates.hasLabel;
 import static org.neo4j.kernel.impl.newapi.IndexTxStateUpdater.LabelChangeType.ADDED_LABEL;
 import static org.neo4j.kernel.impl.newapi.IndexTxStateUpdater.LabelChangeType.REMOVED_LABEL;
 
-public class IndexTxStateUpdaterTest
+class IndexTxStateUpdaterTest
 {
     private static final int labelId1 = 10;
     private static final int labelId2 = 11;
@@ -68,7 +72,7 @@ public class IndexTxStateUpdaterTest
     private static final int propId3 = 22;
     private static final int newPropId = 23;
     private static final int unIndexedPropId = 24;
-    private static final int[] props = new int[]{propId1, propId2, propId3};
+    private static final int[] props = {propId1, propId2, propId3};
 
     private TransactionState txState;
     private IndexTxStateUpdater indexTxUpdater;
@@ -84,10 +88,59 @@ public class IndexTxStateUpdaterTest
     private StubNodeCursor node;
     private StubPropertyCursor propertyCursor;
 
-    @Before
-    public void setup() throws IndexNotFoundKernelException
+    @BeforeEach
+    void setup() throws IndexNotFoundKernelException
     {
         txState = mock( TransactionState.class );
+
+        StorageReader storageReader = mock( StorageReader.class );
+        when( storageReader.indexesGetAll() ).thenAnswer( x -> indexes.iterator() );
+        when( storageReader.indexesGetForLabel( anyInt() ) )
+                .thenAnswer( x ->
+                {
+                    Integer argument = x.getArgument( 0 );
+                    return filter( hasLabel( argument ), indexes.iterator() );
+                } );
+        when( storageReader.indexesGetRelated( any(), anyInt(), any() ) ).thenAnswer( invocationOnMock ->
+        {
+            long[] labels = invocationOnMock.getArgument( 0 );
+            int propertyKeyId = invocationOnMock.getArgument( 1 );
+            Set<IndexDescriptor> descriptors = new HashSet<>();
+            for ( IndexDescriptor index : indexes )
+            {
+                SchemaDescriptor schema = index.schema();
+                if ( schema.isAffected( labels ) && contains( schema.getPropertyIds(), propertyKeyId ) )
+                {
+                    if ( schema.propertySchemaType() == PropertySchemaType.COMPLETE_ALL_TOKENS )
+                    {
+                        descriptors.add( index );
+                    }
+                }
+            }
+            return descriptors;
+        } );
+        when( storageReader.indexesGetRelated( any(), any( int[].class ), any() ) ).thenAnswer( invocationOnMock ->
+        {
+            long[] labels = invocationOnMock.getArgument( 0 );
+            int[] propertyKeyIds = invocationOnMock.getArgument( 1 );
+            Set<IndexDescriptor> descriptors = new HashSet<>();
+            for ( IndexDescriptor index : indexes )
+            {
+                if ( index.schema().isAffected( labels ) )
+                {
+                    boolean containsAll = true;
+                    for ( int propertyId : index.schema().getPropertyIds() )
+                    {
+                        containsAll &= contains( propertyKeyIds, propertyId );
+                    }
+                    if ( containsAll )
+                    {
+                        descriptors.add( index );
+                    }
+                }
+            }
+            return descriptors;
+        } );
 
         HashMap<Integer,Value> map = new HashMap<>();
         map.put( propId1, Values.of( "hi1" ) );
@@ -103,51 +156,15 @@ public class IndexTxStateUpdaterTest
 
         IndexingService indexingService = mock( IndexingService.class );
         IndexProxy indexProxy = mock( IndexProxy.class );
-        when( indexingService.getIndexProxy( any( SchemaDescriptor.class ) ) ).thenReturn( indexProxy );
-        when( indexingService.getRelatedIndexes( any(), anyInt(), any() ) ).thenAnswer( invocationOnMock ->
-        {
-            long[] labels = invocationOnMock.getArgument( 0 );
-            int propertyKeyId = invocationOnMock.getArgument( 1 );
-            Set<SchemaDescriptor> descriptors = new HashSet<>();
-            for ( IndexDescriptor index : indexes )
-            {
-                if ( contains( labels, index.schema().keyId() ) && contains( index.schema().getPropertyIds(), propertyKeyId ) )
-                {
-                    descriptors.add( index.schema() );
-                }
-            }
-            return descriptors;
-        } );
-        when( indexingService.getRelatedIndexes( any(), any( int[].class ), any() ) ).thenAnswer( invocationOnMock ->
-        {
-            long[] labels = invocationOnMock.getArgument( 0 );
-            int[] propertyKeyIds = invocationOnMock.getArgument( 1 );
-            Set<SchemaDescriptor> descriptors = new HashSet<>();
-            for ( IndexDescriptor index : indexes )
-            {
-                if ( contains( labels, index.schema().keyId() ) )
-                {
-                    boolean containsAll = true;
-                    for ( int propertyId : index.schema().getPropertyIds() )
-                    {
-                        containsAll &= contains( propertyKeyIds, propertyId );
-                    }
-                    if ( containsAll )
-                    {
-                        descriptors.add( index.schema() );
-                    }
-                }
-            }
-            return descriptors;
-        } );
+        when( indexingService.getIndexProxy( any( IndexDescriptor.class ) ) ).thenReturn( indexProxy );
 
-        indexTxUpdater = new IndexTxStateUpdater( readOps, indexingService );
+        indexTxUpdater = new IndexTxStateUpdater( storageReader, readOps, indexingService );
     }
 
     // LABELS
 
     @Test
-    public void shouldNotUpdateIndexesOnChangedIrrelevantLabel()
+    void shouldNotUpdateIndexesOnChangedIrrelevantLabel()
     {
         // WHEN
         indexTxUpdater.onLabelChange( unIndexedLabelId, props, node, propertyCursor, ADDED_LABEL );
@@ -158,7 +175,7 @@ public class IndexTxStateUpdaterTest
     }
 
     @Test
-    public void shouldUpdateIndexesOnAddedLabel()
+    void shouldUpdateIndexesOnAddedLabel()
     {
         // WHEN
         indexTxUpdater.onLabelChange( labelId1, props, node, propertyCursor, ADDED_LABEL );
@@ -170,18 +187,18 @@ public class IndexTxStateUpdaterTest
     }
 
     @Test
-    public void shouldUpdateIndexesOnRemovedLabel()
+    void shouldUpdateIndexesOnRemovedLabel()
     {
         // WHEN
         indexTxUpdater.onLabelChange( labelId2, props, node, propertyCursor, REMOVED_LABEL );
 
         // THEN
         verifyIndexUpdate( uniqueOn2_2_3.schema(), node.nodeReference(), values( "hi2", "hi3" ), null );
-        verify( txState, times( 1 ) ).indexDoUpdateEntry( any(), anyLong(), any(), isNull() );
+        verify( txState ).indexDoUpdateEntry( any(), anyLong(), any(), isNull() );
     }
 
     @Test
-    public void shouldNotUpdateIndexesOnChangedIrrelevantProperty()
+    void shouldNotUpdateIndexesOnChangedIrrelevantProperty()
     {
         // WHEN
         indexTxUpdater.onPropertyAdd( node, propertyCursor, node.labels().all(), unIndexedPropId, props, Values.of( "whAt" ) );
@@ -193,7 +210,7 @@ public class IndexTxStateUpdaterTest
     }
 
     @Test
-    public void shouldUpdateIndexesOnAddedProperty()
+    void shouldUpdateIndexesOnAddedProperty()
     {
         // WHEN
         indexTxUpdater.onPropertyAdd( node, propertyCursor, node.labels().all(), newPropId, props, Values.of( "newHi" ) );
@@ -205,7 +222,7 @@ public class IndexTxStateUpdaterTest
     }
 
     @Test
-    public void shouldUpdateIndexesOnRemovedProperty()
+    void shouldUpdateIndexesOnRemovedProperty()
     {
         // WHEN
         indexTxUpdater.onPropertyRemove( node, propertyCursor, node.labels().all(), propId2, props, Values.of( "hi2" ) );
@@ -217,7 +234,7 @@ public class IndexTxStateUpdaterTest
     }
 
     @Test
-    public void shouldUpdateIndexesOnChangesProperty()
+    void shouldUpdateIndexesOnChangesProperty()
     {
         // WHEN
         indexTxUpdater.onPropertyChange( node, propertyCursor, node.labels().all(), propId2, props, Values.of( "hi2" ), Values.of( "new2" ) );
@@ -228,7 +245,7 @@ public class IndexTxStateUpdaterTest
         verify( txState, times( 2 ) ).indexDoUpdateEntry( any(), anyLong(), any(), any() );
     }
 
-    private ValueTuple values( Object... values )
+    private static ValueTuple values( Object... values )
     {
         return ValueTuple.of( values );
     }

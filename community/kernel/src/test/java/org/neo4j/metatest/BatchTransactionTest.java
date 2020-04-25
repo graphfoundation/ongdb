@@ -26,7 +26,7 @@ import org.junit.jupiter.api.Test;
 
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Transaction;
-import org.neo4j.helpers.progress.ProgressListener;
+import org.neo4j.internal.helpers.progress.ProgressListener;
 import org.neo4j.test.BatchTransaction;
 
 import static org.mockito.Mockito.mock;
@@ -53,8 +53,8 @@ class BatchTransactionTest
 
         // THEN
         verify( db, times( 2 ) ).beginTx();
-        verify( transaction, times( 1 ) ).close();
-        verify( progress, times( 1 ) ).add( 1 );
-        verify( progress, times( 1 ) ).add( 9 );
+        verify( transaction ).commit();
+        verify( progress ).add( 1 );
+        verify( progress ).add( 9 );
     }
 }

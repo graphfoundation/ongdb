@@ -25,25 +25,33 @@ package org.neo4j.kernel.impl.newapi;
 import org.neo4j.internal.kernel.api.NodeCursor;
 import org.neo4j.internal.kernel.api.PropertyCursor;
 import org.neo4j.internal.kernel.api.RelationshipDataAccessor;
+import org.neo4j.storageengine.api.RelationshipVisitor;
 import org.neo4j.storageengine.api.StorageRelationshipCursor;
 
-abstract class DefaultRelationshipCursor<STORECURSOR extends StorageRelationshipCursor> implements RelationshipDataAccessor
+import static org.neo4j.kernel.impl.newapi.Read.NO_ID;
+
+abstract class DefaultRelationshipCursor<STORECURSOR extends StorageRelationshipCursor> extends TraceableCursor implements RelationshipDataAccessor
 {
-    private boolean hasChanges;
-    private boolean checkHasChanges;
-    final DefaultCursors pool;
+    protected boolean hasChanges;
+    boolean checkHasChanges;
     Read read;
 
     final STORECURSOR storeCursor;
+    RelationshipVisitor<RuntimeException> relationshipTxStateDataVisitor = new TxStateDataVisitor();
+    // The visitor above will update the fields below
+    long currentAddedInTx = NO_ID;
+    private int txStateTypeId;
+    long txStateSourceNodeReference;
+    long txStateTargetNodeReference;
 
-    DefaultRelationshipCursor( DefaultCursors pool, STORECURSOR storeCursor )
+    DefaultRelationshipCursor( STORECURSOR storeCursor )
     {
-        this.pool = pool;
         this.storeCursor = storeCursor;
     }
 
     protected void init( Read read )
     {
+        this.currentAddedInTx = NO_ID;
         this.read = read;
         this.checkHasChanges = true;
     }
@@ -51,13 +59,13 @@ abstract class DefaultRelationshipCursor<STORECURSOR extends StorageRelationship
     @Override
     public long relationshipReference()
     {
-        return storeCursor.entityReference();
+        return currentAddedInTx != NO_ID ? currentAddedInTx : storeCursor.entityReference();
     }
 
     @Override
     public int type()
     {
-        return storeCursor.type();
+        return currentAddedInTx != NO_ID ? txStateTypeId : storeCursor.type();
     }
 
     @Override
@@ -81,19 +89,19 @@ abstract class DefaultRelationshipCursor<STORECURSOR extends StorageRelationship
     @Override
     public long sourceNodeReference()
     {
-        return storeCursor.sourceNodeReference();
+        return currentAddedInTx != NO_ID ? txStateSourceNodeReference : storeCursor.sourceNodeReference();
     }
 
     @Override
     public long targetNodeReference()
     {
-        return storeCursor.targetNodeReference();
+        return currentAddedInTx != NO_ID ? txStateTargetNodeReference : storeCursor.targetNodeReference();
     }
 
     @Override
     public long propertiesReference()
     {
-        return storeCursor.propertiesReference();
+        return currentAddedInTx != NO_ID ? NO_ID : storeCursor.propertiesReference();
     }
 
     protected abstract void collectAddedTxStateSnapshot();
@@ -115,5 +123,17 @@ abstract class DefaultRelationshipCursor<STORECURSOR extends StorageRelationship
         }
 
         return hasChanges;
+    }
+
+    private class TxStateDataVisitor implements RelationshipVisitor<RuntimeException>
+    {
+        @Override
+        public void visit( long relationshipId, int typeId, long sourceNodeReference, long targetNodeReference ) throws RuntimeException
+        {
+            currentAddedInTx = relationshipId;
+            txStateTypeId = typeId;
+            txStateSourceNodeReference = sourceNodeReference;
+            txStateTargetNodeReference = targetNodeReference;
+        }
     }
 }

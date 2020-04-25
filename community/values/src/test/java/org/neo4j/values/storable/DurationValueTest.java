@@ -22,7 +22,6 @@
  */
 package org.neo4j.values.storable;
 
-import org.hamcrest.Matchers;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDate;
@@ -31,9 +30,9 @@ import java.time.temporal.Temporal;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.neo4j.helpers.collection.Pair;
-import org.neo4j.values.utils.InvalidValuesArgumentException;
-import org.neo4j.values.utils.TemporalParseException;
+import org.neo4j.exceptions.InvalidArgumentException;
+import org.neo4j.internal.helpers.collection.Pair;
+import org.neo4j.exceptions.TemporalParseException;
 import org.neo4j.values.utils.TemporalUtil;
 
 import static java.time.ZoneOffset.UTC;
@@ -43,11 +42,13 @@ import static java.time.temporal.ChronoUnit.MONTHS;
 import static java.time.temporal.ChronoUnit.NANOS;
 import static java.time.temporal.ChronoUnit.SECONDS;
 import static java.util.Collections.singletonList;
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.allOf;
+import static org.hamcrest.Matchers.containsString;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.neo4j.helpers.collection.Pair.pair;
+import static org.neo4j.internal.helpers.collection.Pair.pair;
 import static org.neo4j.values.storable.DateTimeValue.datetime;
 import static org.neo4j.values.storable.DateValue.date;
 import static org.neo4j.values.storable.DurationValue.between;
@@ -377,8 +378,8 @@ class DurationValueTest
         DurationValue duration1 = duration( 0, 0, Long.MAX_VALUE, 500_000_000 );
         DurationValue duration2 = duration( 0, 0, 1, 0 );
         DurationValue duration3 = duration( 0, 0, 0, 500_000_000 );
-        assertThrows( InvalidValuesArgumentException.class, () -> duration1.add( duration2 ) );
-        assertThrows( InvalidValuesArgumentException.class, () -> duration1.add( duration3 ) );
+        assertThrows( InvalidArgumentException.class, () -> duration1.add( duration2 ) );
+        assertThrows( InvalidArgumentException.class, () -> duration1.add( duration3 ) );
     }
 
     @Test
@@ -386,22 +387,22 @@ class DurationValueTest
     {
         DurationValue duration1 = duration( 0, 0, Long.MIN_VALUE, 0 );
         DurationValue duration2 = duration( 0, 0, 1, 0 );
-        assertThrows( InvalidValuesArgumentException.class, () -> duration1.sub( duration2 ) );
+        assertThrows( InvalidArgumentException.class, () -> duration1.sub( duration2 ) );
     }
 
     @Test
     void shouldThrowExceptionOnMultiplyOverflow()
     {
         DurationValue duration = duration( 0, 0, Long.MAX_VALUE, 0 );
-        assertThrows( InvalidValuesArgumentException.class, () -> duration.mul( Values.intValue( 2 ) ) );
-        assertThrows( InvalidValuesArgumentException.class, () -> duration.mul( Values.floatValue( 2 ) ) );
+        assertThrows( InvalidArgumentException.class, () -> duration.mul( Values.intValue( 2 ) ) );
+        assertThrows( InvalidArgumentException.class, () -> duration.mul( Values.floatValue( 2 ) ) );
     }
 
     @Test
     void shouldThrowExceptionOnDivideOverflow()
     {
         DurationValue duration = duration( 0, 0, Long.MAX_VALUE, 0 );
-        assertThrows( InvalidValuesArgumentException.class, () -> duration.div( Values.floatValue( 0.5f ) ) );
+        assertThrows( InvalidArgumentException.class, () -> duration.div( Values.floatValue( 0.5f ) ) );
     }
 
     @Test
@@ -669,14 +670,14 @@ class DurationValueTest
 
     private void assertConstructorThrows( long months, long days, long seconds, int nanos )
     {
-        InvalidValuesArgumentException e = assertThrows( InvalidValuesArgumentException.class, () -> duration( months, days, seconds, nanos ) );
+        InvalidArgumentException e = assertThrows( InvalidArgumentException.class, () -> duration( months, days, seconds, nanos ) );
 
-        assertThat( e.getMessage(), Matchers.allOf(
-                Matchers.containsString( "Invalid value for duration" ),
-                Matchers.containsString( "months=" + months ),
-                Matchers.containsString( "days=" + days ),
-                Matchers.containsString( "seconds=" + seconds ),
-                Matchers.containsString( "nanos=" + nanos )
+        assertThat( e.getMessage(), allOf(
+                containsString( "Invalid value for duration" ),
+                containsString( "months=" + months ),
+                containsString( "days=" + days ),
+                containsString( "seconds=" + seconds ),
+                containsString( "nanos=" + nanos )
         ) );
     }
 }

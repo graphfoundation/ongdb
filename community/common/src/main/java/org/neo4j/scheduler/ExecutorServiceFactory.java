@@ -22,9 +22,16 @@
  */
 package org.neo4j.scheduler;
 
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.ForkJoinTask;
+import java.util.concurrent.Future;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.TimeUnit;
 
 import static java.lang.Runtime.getRuntime;
 import static java.util.concurrent.Executors.newCachedThreadPool;
@@ -32,20 +39,19 @@ import static java.util.concurrent.Executors.newFixedThreadPool;
 import static java.util.concurrent.Executors.newSingleThreadExecutor;
 
 /**
- * Implementations of this interface are used by the {@link JobHandle} implememtation to create the underlying {@link ExecutorService}s that actually run the
+ * Implementations of this interface are used by the {@link JobHandle} implementation to create the underlying {@link ExecutorService}s that actually run the
  * scheduled jobs. The choice of implementation is decided by the scheduling {@link Group}, which can thereby influence how jobs in the particular group are
  * executed.
  */
 interface ExecutorServiceFactory
 {
     /**
-     * Create an {@link ExecutorService} with a default thread count.
-     */
-    ExecutorService build( Group group, SchedulerThreadFactory factory );
-
-    /**
      * Create an {@link ExecutorService}, ideally with the desired thread count if possible.
      * Implementations are allowed to ignore the given thread count.
+     *
+     * @param group the group the executor service will handle.
+     * @param factory the thread factory to use.
+     * @param threadCount the desired thread count, 0 implies unlimited.
      */
     ExecutorService build( Group group, SchedulerThreadFactory factory, int threadCount );
 
@@ -54,25 +60,7 @@ interface ExecutorServiceFactory
      */
     static ExecutorServiceFactory unschedulable()
     {
-        return new ExecutorServiceFactory()
-        {
-            @Override
-            public ExecutorService build( Group group, SchedulerThreadFactory factory )
-            {
-                throw newUnschedulableException( group );
-            }
-
-            @Override
-            public ExecutorService build( Group group, SchedulerThreadFactory factory, int threadCount )
-            {
-                throw newUnschedulableException( group );
-            }
-
-            private IllegalArgumentException newUnschedulableException( Group group )
-            {
-                return new IllegalArgumentException( "Tasks cannot be scheduled directly to the " + group.groupName() + " group." );
-            }
-        };
+        return ( group, factory, threadCount ) -> new ThrowingExecutorService( group );
     }
 
     /**
@@ -80,19 +68,9 @@ interface ExecutorServiceFactory
      */
     static ExecutorServiceFactory singleThread()
     {
-        return new ExecutorServiceFactory()
+        return ( group, factory, threadCount ) ->
         {
-            @Override
-            public ExecutorService build( Group group, SchedulerThreadFactory factory )
-            {
-                return newSingleThreadExecutor( factory );
-            }
-
-            @Override
-            public ExecutorService build( Group group, SchedulerThreadFactory factory, int threadCount )
-            {
-                return build( group, factory ); // Just ignore the thread count.
-            }
+            return newSingleThreadExecutor( factory ); // Just ignore the thread count.
         };
     }
 
@@ -102,19 +80,13 @@ interface ExecutorServiceFactory
      */
     static ExecutorServiceFactory cached()
     {
-        return new ExecutorServiceFactory()
+        return ( group, factory, threadCount ) ->
         {
-            @Override
-            public ExecutorService build( Group group, SchedulerThreadFactory factory )
+            if ( threadCount == 0 )
             {
                 return newCachedThreadPool( factory );
             }
-
-            @Override
-            public ExecutorService build( Group group, SchedulerThreadFactory factory, int threadCount )
-            {
-                return newFixedThreadPool( threadCount, factory );
-            }
+            return newFixedThreadPool( threadCount, factory );
         };
     }
 
@@ -124,19 +96,131 @@ interface ExecutorServiceFactory
      */
     static ExecutorServiceFactory workStealing()
     {
-        return new ExecutorServiceFactory()
+        return ( group, factory, threadCount ) ->
         {
-            @Override
-            public ExecutorService build( Group group, SchedulerThreadFactory factory )
+            if ( threadCount == 0 )
             {
-                return new ForkJoinPool( getRuntime().availableProcessors(), factory, null, false );
+                threadCount = getRuntime().availableProcessors();
             }
-
-            @Override
-            public ExecutorService build( Group group, SchedulerThreadFactory factory, int threadCount )
-            {
-                return new ForkJoinPool( threadCount, factory, null, false );
-            }
+            return new ForkJoinPool( threadCount, factory, null, false );
         };
+    }
+
+    /**
+     * Schedules jobs in a work-stealing (ForkJoin) thread pool, configuring to be in an "asynchronous" mode, which is more suitable for event-processing.
+     * <p>
+     * You can read more about asynchronous mode in the {@link ForkJoinPool} documentation.
+     * <p>
+     * {@link java.util.stream.Stream#parallel Parallel streams} and {@link ForkJoinTask}s started from within the scheduled jobs will also run inside the
+     * same {@link ForkJoinPool}.
+     */
+    static ExecutorServiceFactory workStealingAsync()
+    {
+        return ( group, factory, threadCount ) ->
+        {
+            if ( threadCount == 0 )
+            {
+                threadCount = getRuntime().availableProcessors();
+            }
+            return new ForkJoinPool( threadCount, factory, null, true );
+        };
+    }
+
+    /**
+     * An executor service that does not allow any submissions.
+     */
+    @SuppressWarnings( "NullableProblems" )
+    class ThrowingExecutorService implements ExecutorService
+    {
+        private final Group group;
+        private volatile boolean shutodwn;
+
+        private ThrowingExecutorService( Group group )
+        {
+            this.group = group;
+        }
+
+        @Override
+        public void shutdown()
+        {
+            shutodwn = true;
+        }
+
+        @Override
+        public List<Runnable> shutdownNow()
+        {
+            return Collections.emptyList();
+        }
+
+        @Override
+        public boolean isShutdown()
+        {
+            return shutodwn;
+        }
+
+        @Override
+        public boolean isTerminated()
+        {
+            return shutodwn;
+        }
+
+        @Override
+        public boolean awaitTermination( long timeout, TimeUnit unit )
+        {
+            return true;
+        }
+
+        @Override
+        public <T> Future<T> submit( Callable<T> task )
+        {
+            throw newUnschedulableException( group );
+        }
+
+        @Override
+        public <T> Future<T> submit( Runnable task, T result )
+        {
+            throw newUnschedulableException( group );
+        }
+
+        @Override
+        public Future<?> submit( Runnable task )
+        {
+            throw newUnschedulableException( group );
+        }
+
+        @Override
+        public <T> List<Future<T>> invokeAll( Collection<? extends Callable<T>> tasks )
+        {
+            throw newUnschedulableException( group );
+        }
+
+        @Override
+        public <T> List<Future<T>> invokeAll( Collection<? extends Callable<T>> tasks, long timeout, TimeUnit unit )
+        {
+            throw newUnschedulableException( group );
+        }
+
+        @Override
+        public <T> T invokeAny( Collection<? extends Callable<T>> tasks )
+        {
+            throw newUnschedulableException( group );
+        }
+
+        @Override
+        public <T> T invokeAny( Collection<? extends Callable<T>> tasks, long timeout, TimeUnit unit )
+        {
+            throw newUnschedulableException( group );
+        }
+
+        @Override
+        public void execute( Runnable command )
+        {
+            throw newUnschedulableException( group );
+        }
+
+        private static RejectedExecutionException newUnschedulableException( Group group )
+        {
+            return new RejectedExecutionException( "Tasks cannot be scheduled directly to the " + group.groupName() + " group." );
+        }
     }
 }

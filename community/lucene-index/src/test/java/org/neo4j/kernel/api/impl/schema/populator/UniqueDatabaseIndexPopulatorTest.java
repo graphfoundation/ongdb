@@ -23,73 +23,71 @@
 package org.neo4j.kernel.api.impl.schema.populator;
 
 import org.apache.lucene.store.Directory;
-import org.eclipse.collections.api.iterator.LongIterator;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.RuleChain;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.Executors;
 
 import org.neo4j.collection.PrimitiveLongCollections;
+import org.neo4j.configuration.Config;
 import org.neo4j.internal.kernel.api.IndexQuery;
-import org.neo4j.internal.kernel.api.schema.LabelSchemaDescriptor;
-import org.neo4j.internal.kernel.api.schema.SchemaDescriptor;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.internal.schema.IndexOrder;
+import org.neo4j.internal.schema.IndexPrototype;
+import org.neo4j.internal.schema.LabelSchemaDescriptor;
+import org.neo4j.internal.schema.SchemaDescriptor;
 import org.neo4j.io.IOUtils;
+import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.kernel.api.exceptions.index.IndexEntryConflictException;
 import org.neo4j.kernel.api.impl.index.storage.DirectoryFactory;
 import org.neo4j.kernel.api.impl.index.storage.PartitionedIndexStorage;
 import org.neo4j.kernel.api.impl.schema.AllNodesCollector;
 import org.neo4j.kernel.api.impl.schema.LuceneSchemaIndexBuilder;
 import org.neo4j.kernel.api.impl.schema.SchemaIndex;
-import org.neo4j.kernel.api.index.IndexEntryUpdate;
+import org.neo4j.kernel.api.index.IndexReader;
+import org.neo4j.kernel.api.index.IndexSample;
 import org.neo4j.kernel.api.index.IndexUpdater;
+import org.neo4j.kernel.impl.index.schema.NodeValueIterator;
+import org.neo4j.storageengine.api.IndexEntryUpdate;
 import org.neo4j.storageengine.api.NodePropertyAccessor;
-import org.neo4j.kernel.api.schema.SchemaDescriptorFactory;
-import org.neo4j.kernel.api.schema.index.TestIndexDescriptorFactory;
-import org.neo4j.kernel.configuration.Config;
-import org.neo4j.storageengine.api.schema.IndexDescriptor;
-import org.neo4j.storageengine.api.schema.IndexReader;
-import org.neo4j.storageengine.api.schema.IndexSample;
-import org.neo4j.test.OtherThreadExecutor;
-import org.neo4j.test.OtherThreadExecutor.WorkerCommand;
-import org.neo4j.test.rule.CleanupRule;
+import org.neo4j.test.extension.Inject;
+import org.neo4j.test.extension.testdirectory.TestDirectoryExtension;
 import org.neo4j.test.rule.TestDirectory;
-import org.neo4j.test.rule.fs.DefaultFileSystemRule;
 import org.neo4j.values.storable.Value;
 import org.neo4j.values.storable.Values;
 
 import static java.util.Arrays.asList;
 import static java.util.concurrent.TimeUnit.SECONDS;
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.neo4j.internal.kernel.api.QueryContext.NULL_CONTEXT;
+import static org.neo4j.internal.schema.SchemaDescriptor.forLabel;
 import static org.neo4j.kernel.api.index.IndexQueryHelper.add;
 import static org.neo4j.kernel.api.index.IndexQueryHelper.change;
 import static org.neo4j.kernel.api.index.IndexQueryHelper.remove;
 
-public class UniqueDatabaseIndexPopulatorTest
+@TestDirectoryExtension
+class UniqueDatabaseIndexPopulatorTest
 {
-    private final CleanupRule cleanup = new CleanupRule();
-    private final TestDirectory testDir = TestDirectory.testDirectory();
-    private final DefaultFileSystemRule fileSystemRule = new DefaultFileSystemRule();
-
-    @Rule
-    public final RuleChain ruleChain = RuleChain.outerRule( testDir ).around( cleanup ).around( fileSystemRule );
-
     private static final int LABEL_ID = 1;
     private static final int PROPERTY_KEY_ID = 2;
+    private static final IndexDescriptor descriptor = IndexPrototype.forSchema( forLabel( LABEL_ID, PROPERTY_KEY_ID ) ).withName( "index" ).materialise( 0 );
+
+    @Inject
+    private TestDirectory testDir;
+    @Inject
+    private FileSystemAbstraction fs;
 
     private final DirectoryFactory directoryFactory = new DirectoryFactory.InMemoryDirectoryFactory();
-    private static final IndexDescriptor descriptor = TestIndexDescriptorFactory.forLabel( LABEL_ID, PROPERTY_KEY_ID );
-
     private final NodePropertyAccessor nodePropertyAccessor = mock( NodePropertyAccessor.class );
 
     private PartitionedIndexStorage indexStorage;
@@ -97,19 +95,19 @@ public class UniqueDatabaseIndexPopulatorTest
     private UniqueLuceneIndexPopulator populator;
     private SchemaDescriptor schemaDescriptor;
 
-    @Before
-    public void setUp()
+    @BeforeEach
+    void setUp()
     {
         File folder = testDir.directory( "folder" );
-        indexStorage = new PartitionedIndexStorage( directoryFactory, fileSystemRule.get(), folder );
+        indexStorage = new PartitionedIndexStorage( directoryFactory, fs, folder );
         index = LuceneSchemaIndexBuilder.create( descriptor, Config.defaults() )
                 .withIndexStorage( indexStorage )
                 .build();
         schemaDescriptor = descriptor.schema();
     }
 
-    @After
-    public void tearDown() throws Exception
+    @AfterEach
+    void tearDown() throws Exception
     {
         if ( populator != null )
         {
@@ -119,7 +117,7 @@ public class UniqueDatabaseIndexPopulatorTest
     }
 
     @Test
-    public void shouldVerifyThatThereAreNoDuplicates() throws Exception
+    void shouldVerifyThatThereAreNoDuplicates() throws Exception
     {
         // given
         populator = newPopulator();
@@ -145,7 +143,7 @@ public class UniqueDatabaseIndexPopulatorTest
     }
 
     @Test
-    public void shouldUpdateEntryForNodeThatHasAlreadyBeenIndexed() throws Exception
+    void shouldUpdateEntryForNodeThatHasAlreadyBeenIndexed() throws Exception
     {
         // given
         populator = newPopulator();
@@ -165,7 +163,7 @@ public class UniqueDatabaseIndexPopulatorTest
     }
 
     @Test
-    public void shouldUpdateEntryForNodeThatHasPropertyRemovedAndThenAddedAgain() throws Exception
+    void shouldUpdateEntryForNodeThatHasPropertyRemovedAndThenAddedAgain() throws Exception
     {
         // given
         populator = newPopulator();
@@ -185,7 +183,7 @@ public class UniqueDatabaseIndexPopulatorTest
     }
 
     @Test
-    public void shouldRemoveEntryForNodeThatHasAlreadyBeenIndexed() throws Exception
+    void shouldRemoveEntryForNodeThatHasAlreadyBeenIndexed() throws Exception
     {
         // given
         populator = newPopulator();
@@ -204,7 +202,7 @@ public class UniqueDatabaseIndexPopulatorTest
     }
 
     @Test
-    public void shouldBeAbleToHandleSwappingOfIndexValues() throws Exception
+    void shouldBeAbleToHandleSwappingOfIndexValues() throws Exception
     {
         // given
         populator = newPopulator();
@@ -226,7 +224,7 @@ public class UniqueDatabaseIndexPopulatorTest
     }
 
     @Test
-    public void shouldFailAtVerificationStageWithAlreadyIndexedStringValue() throws Exception
+    void shouldFailAtVerificationStageWithAlreadyIndexedStringValue() throws Exception
     {
         // given
         populator = newPopulator();
@@ -239,53 +237,14 @@ public class UniqueDatabaseIndexPopulatorTest
         when( nodePropertyAccessor.getNodePropertyValue( 1, PROPERTY_KEY_ID ) ).thenReturn( Values.of( value ) );
         when( nodePropertyAccessor.getNodePropertyValue( 3, PROPERTY_KEY_ID ) ).thenReturn( Values.of( value ) );
 
-        // when
-        try
-        {
-            populator.verifyDeferredConstraints( nodePropertyAccessor );
-
-            fail( "should have thrown exception" );
-        }
-        // then
-        catch ( IndexEntryConflictException conflict )
-        {
-            assertEquals( 1, conflict.getExistingNodeId() );
-            assertEquals( Values.of( value ), conflict.getSinglePropertyValue() );
-            assertEquals( 3, conflict.getAddedNodeId() );
-        }
+        var conflict = assertThrows( IndexEntryConflictException.class, () -> populator.verifyDeferredConstraints( nodePropertyAccessor ) );
+        assertEquals( 1, conflict.getExistingNodeId() );
+        assertEquals( Values.of( value ), conflict.getSinglePropertyValue() );
+        assertEquals( 3, conflict.getAddedNodeId() );
     }
 
     @Test
-    public void shouldFailAtVerificationStageWithAlreadyIndexedNumberValue() throws Exception
-    {
-        // given
-        populator = newPopulator();
-
-        addUpdate( populator, 1, 1 );
-        addUpdate( populator, 2, 2 );
-        addUpdate( populator, 3, 1 );
-
-        when( nodePropertyAccessor.getNodePropertyValue( 1, PROPERTY_KEY_ID ) ).thenReturn( Values.of( 1 ) );
-        when( nodePropertyAccessor.getNodePropertyValue( 3, PROPERTY_KEY_ID ) ).thenReturn( Values.of( 1 ) );
-
-        // when
-        try
-        {
-            populator.verifyDeferredConstraints( nodePropertyAccessor );
-
-            fail( "should have thrown exception" );
-        }
-        // then
-        catch ( IndexEntryConflictException conflict )
-        {
-            assertEquals( 1, conflict.getExistingNodeId() );
-            assertEquals( Values.of( 1 ), conflict.getSinglePropertyValue() );
-            assertEquals( 3, conflict.getAddedNodeId() );
-        }
-    }
-
-    @Test
-    public void shouldRejectDuplicateEntryWhenUsingPopulatingUpdater() throws Exception
+    void shouldRejectDuplicateEntryWhenUsingPopulatingUpdater() throws Exception
     {
         // given
         populator = newPopulator();
@@ -298,25 +257,19 @@ public class UniqueDatabaseIndexPopulatorTest
         when( nodePropertyAccessor.getNodePropertyValue( 3, PROPERTY_KEY_ID ) ).thenReturn( value );
 
         // when
-        try
+        var conflict = assertThrows( IndexEntryConflictException.class, () ->
         {
             IndexUpdater updater = populator.newPopulatingUpdater( nodePropertyAccessor );
             updater.process( add( 3, schemaDescriptor, "value1" ) );
             updater.close();
-
-            fail( "should have thrown exception" );
-        }
-        // then
-        catch ( IndexEntryConflictException conflict )
-        {
-            assertEquals( 1, conflict.getExistingNodeId() );
-            assertEquals( value, conflict.getSinglePropertyValue() );
-            assertEquals( 3, conflict.getAddedNodeId() );
-        }
+        } );
+        assertEquals( 1, conflict.getExistingNodeId() );
+        assertEquals( value, conflict.getSinglePropertyValue() );
+        assertEquals( 3, conflict.getAddedNodeId() );
     }
 
     @Test
-    public void shouldRejectDuplicateEntryAfterUsingPopulatingUpdater() throws Exception
+    void shouldRejectDuplicateEntryAfterUsingPopulatingUpdater() throws Exception
     {
         // given
         populator = newPopulator();
@@ -331,23 +284,14 @@ public class UniqueDatabaseIndexPopulatorTest
         when( nodePropertyAccessor.getNodePropertyValue( 2, PROPERTY_KEY_ID ) ).thenReturn( value );
 
         // when
-        try
-        {
-            populator.verifyDeferredConstraints( nodePropertyAccessor );
-
-            fail( "should have thrown exception" );
-        }
-        // then
-        catch ( IndexEntryConflictException conflict )
-        {
-            assertEquals( 1, conflict.getExistingNodeId() );
-            assertEquals( value, conflict.getSinglePropertyValue() );
-            assertEquals( 2, conflict.getAddedNodeId() );
-        }
+        var conflict = assertThrows( IndexEntryConflictException.class, () -> populator.verifyDeferredConstraints( nodePropertyAccessor ) );
+        assertEquals( 1, conflict.getExistingNodeId() );
+        assertEquals( value, conflict.getSinglePropertyValue() );
+        assertEquals( 2, conflict.getAddedNodeId() );
     }
 
     @Test
-    public void shouldNotRejectDuplicateEntryOnSameNodeIdAfterUsingPopulatingUpdater() throws Exception
+    void shouldNotRejectDuplicateEntryOnSameNodeIdAfterUsingPopulatingUpdater() throws Exception
     {
         // given
         populator = newPopulator();
@@ -373,26 +317,7 @@ public class UniqueDatabaseIndexPopulatorTest
     }
 
     @Test
-    public void shouldNotRejectIndexCollisionsCausedByPrecisionLossAsDuplicates() throws Exception
-    {
-        // given
-        populator = newPopulator();
-
-        // Given we have a collision in our index...
-        addUpdate( populator, 1, 1000000000000000001L );
-        addUpdate( populator, 2, 2 );
-        addUpdate( populator, 3, 1000000000000000001L );
-
-        // ... but the actual data in the store does not collide
-        when( nodePropertyAccessor.getNodePropertyValue( 1, PROPERTY_KEY_ID ) ).thenReturn( Values.of( 1000000000000000001L ) );
-        when( nodePropertyAccessor.getNodePropertyValue( 3, PROPERTY_KEY_ID ) ).thenReturn( Values.of( 1000000000000000002L ) );
-
-        // Then our verification should NOT fail:
-        populator.verifyDeferredConstraints( nodePropertyAccessor );
-    }
-
-    @Test
-    public void shouldCheckAllCollisionsFromPopulatorAdd() throws Exception
+    void shouldCheckAllCollisionsFromPopulatorAdd() throws Exception
     {
         // given
         populator = newPopulator();
@@ -402,33 +327,25 @@ public class UniqueDatabaseIndexPopulatorTest
 
         for ( int nodeId = 0; nodeId < iterations; nodeId++ )
         {
-            updater.process( add( nodeId, schemaDescriptor, 1 ) );
+            updater.process( add( nodeId, schemaDescriptor, "1" ) );
             when( nodePropertyAccessor.getNodePropertyValue( nodeId, PROPERTY_KEY_ID ) ).thenReturn(
                     Values.of( nodeId ) );
         }
 
         // ... and the actual conflicting property:
-        updater.process( add( iterations, schemaDescriptor, 1 ) );
+        updater.process( add( iterations, schemaDescriptor, "1" ) );
         when( nodePropertyAccessor.getNodePropertyValue( iterations, PROPERTY_KEY_ID ) ).thenReturn(
                 Values.of( 1 ) ); // This collision is real!!!
 
         // when
-        try
-        {
-            updater.close();
-            fail( "should have thrown exception" );
-        }
-        // then
-        catch ( IndexEntryConflictException conflict )
-        {
-            assertEquals( 1, conflict.getExistingNodeId() );
-            assertEquals( Values.of( 1 ), conflict.getSinglePropertyValue() );
-            assertEquals( iterations, conflict.getAddedNodeId() );
-        }
+        var conflict = assertThrows( IndexEntryConflictException.class, updater::close );
+        assertEquals( 1, conflict.getExistingNodeId() );
+        assertEquals( Values.of( 1 ), conflict.getSinglePropertyValue() );
+        assertEquals( iterations, conflict.getAddedNodeId() );
     }
 
     @Test
-    public void shouldCheckAllCollisionsFromUpdaterClose() throws Exception
+    void shouldCheckAllCollisionsFromUpdaterClose() throws Exception
     {
         // given
         populator = newPopulator();
@@ -437,33 +354,25 @@ public class UniqueDatabaseIndexPopulatorTest
 
         for ( int nodeId = 0; nodeId < iterations; nodeId++ )
         {
-            addUpdate( populator, nodeId, 1 );
+            addUpdate( populator, nodeId, "1" );
             when( nodePropertyAccessor.getNodePropertyValue( nodeId, PROPERTY_KEY_ID ) ).thenReturn(
                     Values.of( nodeId ) );
         }
 
         // ... and the actual conflicting property:
-        addUpdate( populator, iterations, 1 );
+        addUpdate( populator, iterations, "1" );
         when( nodePropertyAccessor.getNodePropertyValue( iterations, PROPERTY_KEY_ID ) ).thenReturn(
                 Values.of( 1 ) ); // This collision is real!!!
 
         // when
-        try
-        {
-            populator.verifyDeferredConstraints( nodePropertyAccessor );
-            fail( "should have thrown exception" );
-        }
-        // then
-        catch ( IndexEntryConflictException conflict )
-        {
-            assertEquals( 1, conflict.getExistingNodeId() );
-            assertEquals( Values.of( 1 ), conflict.getSinglePropertyValue() );
-            assertEquals( iterations, conflict.getAddedNodeId() );
-        }
+        var conflict = assertThrows( IndexEntryConflictException.class, () -> populator.verifyDeferredConstraints( nodePropertyAccessor ) );
+        assertEquals( 1, conflict.getExistingNodeId() );
+        assertEquals( Values.of( 1 ), conflict.getSinglePropertyValue() );
+        assertEquals( iterations, conflict.getAddedNodeId() );
     }
 
     @Test
-    public void shouldReleaseSearcherProperlyAfterVerifyingDeferredConstraints() throws Exception
+    void shouldReleaseSearcherProperlyAfterVerifyingDeferredConstraints() throws Exception
     {
         // given
         populator = newPopulator();
@@ -474,34 +383,43 @@ public class UniqueDatabaseIndexPopulatorTest
          */
 
         // GIVEN an index updater that we close
-        OtherThreadExecutor<Void> executor = cleanup.add( new OtherThreadExecutor<>( "Deferred", null ) );
-        executor.execute( (WorkerCommand<Void,Void>) state ->
+        var executor = Executors.newCachedThreadPool();
+        executor.submit( () ->
         {
             try ( IndexUpdater updater = populator.newPopulatingUpdater( nodePropertyAccessor ) )
             {   // Just open it and let it be closed
             }
-            return null;
+            catch ( IndexEntryConflictException e )
+            {
+                throw new RuntimeException( e );
+            }
         } );
         // ... and where we verify deferred constraints after
-        executor.execute( (WorkerCommand<Void,Void>) state ->
+        executor.submit( () ->
         {
-            populator.verifyDeferredConstraints( nodePropertyAccessor );
-            return null;
+            try
+            {
+                populator.verifyDeferredConstraints( nodePropertyAccessor );
+            }
+            catch ( IndexEntryConflictException e )
+            {
+                throw new RuntimeException( e );
+            }
         } );
 
         // WHEN doing more index updating after that
         // THEN it should be able to complete within a very reasonable time
-        executor.execute( (WorkerCommand<Void,Void>) state ->
+        executor.submit( () ->
         {
             try ( IndexUpdater secondUpdater = populator.newPopulatingUpdater( nodePropertyAccessor ) )
             {   // Just open it and let it be closed
             }
             return null;
-        }, 5, SECONDS );
+        } ).get( 5, SECONDS );
     }
 
     @Test
-    public void sampleEmptyIndex() throws Exception
+    void sampleEmptyIndex() throws Exception
     {
         populator = newPopulator();
 
@@ -511,9 +429,9 @@ public class UniqueDatabaseIndexPopulatorTest
     }
 
     @Test
-    public void sampleIncludedUpdates() throws Exception
+    void sampleIncludedUpdates() throws Exception
     {
-        LabelSchemaDescriptor schemaDescriptor = SchemaDescriptorFactory.forLabel( 1, 1 );
+        LabelSchemaDescriptor schemaDescriptor = forLabel( 1, 1 );
         populator = newPopulator();
         List<IndexEntryUpdate<?>> updates = Arrays.asList(
                 add( 1, schemaDescriptor, "foo" ),
@@ -529,7 +447,7 @@ public class UniqueDatabaseIndexPopulatorTest
     }
 
     @Test
-    public void addUpdates() throws Exception
+    void addUpdates() throws Exception
     {
         populator = newPopulator();
 
@@ -541,9 +459,10 @@ public class UniqueDatabaseIndexPopulatorTest
         populator.add( updates );
 
         index.maybeRefreshBlocking();
-        try ( IndexReader reader = index.getIndexReader() )
+        try ( IndexReader reader = index.getIndexReader();
+              NodeValueIterator allEntities = new NodeValueIterator() )
         {
-            LongIterator allEntities = reader.query( IndexQuery.exists( 1 ) );
+            reader.query( NULL_CONTEXT, allEntities, IndexOrder.NONE, false, IndexQuery.exists( 1 ) );
             assertArrayEquals( new long[]{1, 2, 3}, PrimitiveLongCollections.asArray( allEntities ) );
         }
     }

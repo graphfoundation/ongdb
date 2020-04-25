@@ -26,15 +26,15 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
+import org.neo4j.graphdb.Entity;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Path;
-import org.neo4j.graphdb.PropertyContainer;
 import org.neo4j.graphdb.Relationship;
 import org.neo4j.graphdb.traversal.Paths;
-import org.neo4j.helpers.collection.ArrayIterator;
-import org.neo4j.helpers.collection.ReverseArrayIterator;
+import org.neo4j.internal.helpers.collection.ArrayIterator;
+import org.neo4j.internal.helpers.collection.ReverseArrayIterator;
 
-import static org.neo4j.helpers.collection.Iterators.iteratorsEqual;
+import static org.neo4j.internal.helpers.collection.Iterators.iteratorsEqual;
 
 public final class PathImpl implements Path
 {
@@ -186,7 +186,7 @@ public final class PathImpl implements Path
 
     private Iterable<Node> nodeIterator( final Node start, final Iterable<Relationship> relationships )
     {
-        return () -> new Iterator<Node>()
+        return () -> new Iterator<>()
         {
             Node current = start;
             int index;
@@ -210,8 +210,8 @@ public final class PathImpl implements Path
                 {
                     if ( !relationshipIterator.hasNext() )
                     {
-                        throw new IllegalStateException( String.format( "Number of relationships: %d does not" +
-                                              " match with path length: %d.", index, path.length ) );
+                        throw new IllegalStateException(
+                                String.format( "Number of relationships: %d does not" + " match with path length: %d.", index, path.length ) );
                     }
                     next = relationshipIterator.next().getOtherNode( current );
                 }
@@ -247,12 +247,12 @@ public final class PathImpl implements Path
     }
 
     @Override
-    public Iterator<PropertyContainer> iterator()
+    public Iterator<Entity> iterator()
     {
-        return new Iterator<PropertyContainer>()
+        return new Iterator<>()
         {
-            Iterator<? extends PropertyContainer> current = nodes().iterator();
-            Iterator<? extends PropertyContainer> next = relationships().iterator();
+            Iterator<? extends Entity> current = nodes().iterator();
+            Iterator<? extends Entity> next = relationships().iterator();
 
             @Override
             public boolean hasNext()
@@ -261,7 +261,7 @@ public final class PathImpl implements Path
             }
 
             @Override
-            public PropertyContainer next()
+            public Entity next()
             {
                 try
                 {
@@ -269,7 +269,7 @@ public final class PathImpl implements Path
                 }
                 finally
                 {
-                    Iterator<? extends PropertyContainer> temp = current;
+                    Iterator<? extends Entity> temp = current;
                     current = next;
                     next = temp;
                 }

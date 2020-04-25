@@ -22,6 +22,10 @@
  */
 package org.neo4j.internal.kernel.api.helpers;
 
+import org.neo4j.internal.kernel.api.KernelReadTracer;
+import org.neo4j.internal.kernel.api.RelationshipGroupCursor;
+import org.neo4j.internal.kernel.api.RelationshipTraversalCursor;
+
 /**
  * Helper cursor for traversing specific types and directions of a dense node.
  */
@@ -73,5 +77,52 @@ public final class RelationshipDenseSelectionCursor extends RelationshipDenseSel
     public long propertiesReference()
     {
         return relationshipCursor.propertiesReference();
+    }
+
+    @Override
+    public boolean isClosed()
+    {
+        return relationshipCursor == null || relationshipCursor.isClosed();
+    }
+
+    @Override
+    public void setTracer( KernelReadTracer tracer )
+    {
+        groupCursor.setTracer( tracer );
+        relationshipCursor.setTracer( tracer );
+    }
+
+    public RelationshipGroupCursor groupCursor()
+    {
+        return groupCursor;
+    }
+
+    public RelationshipTraversalCursor traversalCursor()
+    {
+        return relationshipCursor;
+    }
+
+    @Override
+    public String toString()
+    {
+        if ( isClosed() )
+        {
+            return "RelationshipDenseSelectionCursor[closed state]";
+        }
+        else
+        {
+            return "RelationshipDenseSelectionCursor[relCursor=" + relationshipCursor.toString() + "]";
+        }
+    }
+
+    @Override
+    public void close()
+    {
+        closeInternal();
+        var listener = closeListener;
+        if ( listener != null )
+        {
+            listener.onClosed( this );
+        }
     }
 }

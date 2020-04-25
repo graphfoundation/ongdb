@@ -22,7 +22,7 @@
  */
 package org.neo4j.graphdb;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import org.neo4j.graphdb.schema.IndexCreator;
 
@@ -30,22 +30,20 @@ public class MandatoryTransactionsForIndexCreatorTest
     extends AbstractMandatoryTransactionsTest<IndexCreator>
 {
     @Test
-    public void shouldRequireTransactionsWhenCallingMethodsOnIndexCreators()
+    void shouldRequireTransactionsWhenCallingMethodsOnIndexCreators()
     {
         assertFacadeMethodsThrowNotInTransaction( obtainEntity(), IndexCreatorFacadeMethods.values() );
     }
 
     @Test
-    public void shouldTerminateWhenCallingMethodsOnIndexCreators()
+    void shouldTerminateWhenCallingMethodsOnIndexCreators()
     {
         assertFacadeMethodsThrowAfterTerminate( IndexCreatorFacadeMethods.values() );
     }
 
     @Override
-    protected IndexCreator obtainEntityInTransaction( GraphDatabaseService graphDatabaseService )
+    protected IndexCreator obtainEntityInTransaction( Transaction transaction )
     {
-        return graphDatabaseService
-               .schema()
-               .indexFor( Label.label( "Label" ) );
+        return transaction.schema().indexFor( Label.label( "Label" ) );
     }
 }

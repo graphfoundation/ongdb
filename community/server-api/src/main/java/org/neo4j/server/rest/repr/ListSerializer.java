@@ -28,9 +28,9 @@ public class ListSerializer extends Serializer
 {
     final ListWriter writer;
 
-    ListSerializer( ListWriter writer, URI baseUri, ExtensionInjector extensions )
+    ListSerializer( ListWriter writer, URI baseUri )
     {
-        super( baseUri, extensions );
+        super( baseUri );
         this.writer = writer;
     }
 

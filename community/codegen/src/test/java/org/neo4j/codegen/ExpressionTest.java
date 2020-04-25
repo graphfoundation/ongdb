@@ -22,9 +22,10 @@
  */
 package org.neo4j.codegen;
 
-import org.junit.Test;
 
-import static org.junit.Assert.assertSame;
+import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.verify;
@@ -46,21 +47,21 @@ import static org.neo4j.codegen.MethodReference.methodReference;
 public class ExpressionTest
 {
     @Test
-    public void shouldNegateTrueToFalse()
+    void shouldNegateTrueToFalse()
     {
         assertSame( FALSE, not( TRUE ) );
         assertSame( TRUE, not( FALSE ) );
     }
 
     @Test
-    public void shouldRemoveDoubleNegation()
+    void shouldRemoveDoubleNegation()
     {
         Expression expression = invoke( methodReference( getClass(), boolean.class, "TRUE" ) );
         assertSame( expression, not( not( expression ) ) );
     }
 
     @Test
-    public void shouldOptimizeNullChecks()
+    void shouldOptimizeNullChecks()
     {
         // given
         ExpressionVisitor visitor = mock( ExpressionVisitor.class );
@@ -98,7 +99,7 @@ public class ExpressionTest
     }
 
     @Test
-    public void shouldOptimizeNegatedInequalities()
+    void shouldOptimizeNegatedInequalities()
     {
         // given
         ExpressionVisitor visitor = mock( ExpressionVisitor.class );
@@ -152,7 +153,7 @@ public class ExpressionTest
     }
 
     @Test
-    public void shouldOptimizeBooleanCombinationsWithConstants()
+    void shouldOptimizeBooleanCombinationsWithConstants()
     {
         // given
         Expression expression = invoke( methodReference( getClass(), boolean.class, "TRUE" ) );

@@ -90,8 +90,6 @@ import org.neo4j.function.Factory;
  *
  * An enormous improvement in readability. The only reflection used is in the {@link #values()} {@link Factory},
  * however that's just a convenience as well. Any {@link Factory} can be supplied instead.
- *
- * @author Mattias Persson
  */
 public class AutoCreatingHashMap<K,V> extends HashMap<K,V>
 {
@@ -138,7 +136,7 @@ public class AutoCreatingHashMap<K,V> extends HashMap<K,V>
      * @return a {@link Factory} that creates {@link AutoCreatingHashMap} instances as values, and where the
      * created maps have the supplied {@code nested} {@link Factory} as value factory.
      */
-    public static <K,V> Factory<Map<K,V>> nested( Class<K> keyClass, final Factory<V> nested )
+    public static <K,V> Factory<Map<K,V>> nested( final Factory<V> nested )
     {
         return () -> new AutoCreatingHashMap<>( nested );
     }

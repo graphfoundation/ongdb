@@ -22,22 +22,24 @@
  */
 package org.neo4j.cypher.internal.codegen;
 
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import org.neo4j.graphdb.DependencyResolver;
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
+import org.neo4j.common.DependencyResolver;
+import org.neo4j.configuration.GraphDatabaseSettings;
 import org.neo4j.internal.kernel.api.CursorFactory;
-import org.neo4j.internal.kernel.api.Kernel;
 import org.neo4j.internal.kernel.api.NodeCursor;
 import org.neo4j.internal.kernel.api.Read;
 import org.neo4j.internal.kernel.api.TokenWrite;
-import org.neo4j.internal.kernel.api.Transaction;
 import org.neo4j.internal.kernel.api.Write;
 import org.neo4j.internal.kernel.api.exceptions.TransactionFailureException;
 import org.neo4j.internal.kernel.api.security.LoginContext;
-import org.neo4j.test.rule.DatabaseRule;
-import org.neo4j.test.rule.EmbeddedDatabaseRule;
+import org.neo4j.kernel.api.Kernel;
+import org.neo4j.kernel.api.KernelTransaction;
+import org.neo4j.kernel.internal.GraphDatabaseAPI;
+import org.neo4j.test.TestDatabaseManagementServiceBuilder;
+import org.neo4j.test.extension.DbmsExtension;
+import org.neo4j.test.extension.ExtensionCallback;
+import org.neo4j.test.extension.Inject;
 
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -45,26 +47,32 @@ import static org.neo4j.cypher.internal.codegen.CompiledExpandUtils.nodeGetDegre
 import static org.neo4j.graphdb.Direction.BOTH;
 import static org.neo4j.graphdb.Direction.INCOMING;
 import static org.neo4j.graphdb.Direction.OUTGOING;
-import static org.neo4j.internal.kernel.api.Transaction.Type.implicit;
+import static org.neo4j.kernel.api.KernelTransaction.Type.implicit;
 
-public class CompiledExpandUtilsTest
+@DbmsExtension( configurationCallback = "config" )
+class CompiledExpandUtilsTest
 {
-    @Rule
-    public DatabaseRule db = new EmbeddedDatabaseRule()
-            .withSetting( GraphDatabaseSettings.dense_node_threshold, "1" );
+    @Inject
+    private GraphDatabaseAPI db;
 
-    private Transaction transaction() throws TransactionFailureException
+    @ExtensionCallback
+    void config( TestDatabaseManagementServiceBuilder builder )
     {
-        DependencyResolver resolver = this.db.getDependencyResolver();
+        builder.setConfig( GraphDatabaseSettings.dense_node_threshold, 1 );
+    }
+
+    private KernelTransaction transaction() throws TransactionFailureException
+    {
+        DependencyResolver resolver = db.getDependencyResolver();
         return resolver.resolveDependency( Kernel.class ).beginTransaction( implicit, LoginContext.AUTH_DISABLED );
     }
 
     @Test
-    public void shouldComputeDegreeWithoutType() throws Exception
+    void shouldComputeDegreeWithoutType() throws Exception
     {
         // GIVEN
         long node;
-        try ( Transaction tx = transaction() )
+        try ( KernelTransaction tx = transaction() )
         {
             Write write = tx.dataWrite();
             node = write.nodeCreate();
@@ -80,10 +88,10 @@ public class CompiledExpandUtilsTest
             write.relationshipCreate( node,
                     tx.tokenWrite().relationshipTypeGetOrCreateForName( "R4" ), node );
 
-            tx.success();
+            tx.commit();
         }
 
-        try ( Transaction tx = transaction() )
+        try ( KernelTransaction tx = transaction() )
         {
             Read read = tx.dataRead();
             CursorFactory cursors = tx.cursors();
@@ -97,12 +105,12 @@ public class CompiledExpandUtilsTest
     }
 
     @Test
-    public void shouldComputeDegreeWithType() throws Exception
+    void shouldComputeDegreeWithType() throws Exception
     {
         // GIVEN
         long node;
         int in, out, loop;
-        try ( Transaction tx = transaction() )
+        try ( KernelTransaction tx = transaction() )
         {
             Write write = tx.dataWrite();
             node = write.nodeCreate();
@@ -117,10 +125,10 @@ public class CompiledExpandUtilsTest
             write.relationshipCreate( write.nodeCreate(), in, node );
             write.relationshipCreate( node, loop, node );
 
-            tx.success();
+            tx.commit();
         }
 
-        try ( Transaction tx = transaction() )
+        try ( KernelTransaction tx = transaction() )
         {
             Read read = tx.dataRead();
             CursorFactory cursors = tx.cursors();

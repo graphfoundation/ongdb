@@ -22,8 +22,8 @@
  */
 package org.neo4j.kernel.impl.transaction;
 
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Test;
 
 import java.io.File;
 import java.util.Iterator;
@@ -33,84 +33,76 @@ import java.util.concurrent.CountDownLatch;
 import org.neo4j.adversaries.ClassGuardedAdversary;
 import org.neo4j.adversaries.CountingAdversary;
 import org.neo4j.adversaries.fs.AdversarialFileSystemAbstraction;
+import org.neo4j.configuration.GraphDatabaseSettings;
+import org.neo4j.dbms.api.DatabaseManagementService;
+import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Relationship;
 import org.neo4j.graphdb.RelationshipType;
 import org.neo4j.graphdb.Transaction;
-import org.neo4j.graphdb.facade.GraphDatabaseFacadeFactory;
-import org.neo4j.graphdb.facade.embedded.EmbeddedGraphDatabase;
-import org.neo4j.graphdb.factory.GraphDatabaseFactoryState;
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
-import org.neo4j.graphdb.factory.module.PlatformModule;
-import org.neo4j.graphdb.factory.module.edition.CommunityEditionModule;
-import org.neo4j.io.fs.FileSystemAbstraction;
-import org.neo4j.kernel.configuration.Config;
-import org.neo4j.kernel.impl.factory.DatabaseInfo;
-import org.neo4j.kernel.impl.transaction.command.Command;
+import org.neo4j.graphdb.config.Setting;
+import org.neo4j.internal.recordstorage.Command;
 import org.neo4j.kernel.impl.transaction.log.checkpoint.CheckPointer;
 import org.neo4j.kernel.impl.transaction.log.checkpoint.SimpleTriggerInfo;
 import org.neo4j.kernel.impl.transaction.log.rotation.LogRotation;
+import org.neo4j.kernel.impl.transaction.tracing.LogAppendEvent;
+import org.neo4j.kernel.internal.GraphDatabaseAPI;
+import org.neo4j.test.TestDatabaseManagementServiceBuilder;
+import org.neo4j.test.extension.Inject;
+import org.neo4j.test.extension.testdirectory.TestDirectoryExtension;
 import org.neo4j.test.rule.TestDirectory;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.fail;
-import static org.neo4j.helpers.collection.MapUtil.stringMap;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.fail;
+import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
 
 /**
  * Here we are verifying that even if we get an exception from the storage layer during commit,
  * we should still be able to recover to a consistent state.
  */
-public class PartialTransactionFailureIT
+@TestDirectoryExtension
+class PartialTransactionFailureIT
 {
-    @Rule
-    public final TestDirectory dir = TestDirectory.testDirectory();
+    @Inject
+    private TestDirectory testDirectory;
+    private DatabaseManagementService managementService;
+
+    @AfterEach
+    void tearDown()
+    {
+        if ( managementService != null )
+        {
+            managementService.shutdown();
+        }
+    }
 
     @Test
-    public void concurrentlyCommittingTransactionsMustNotRotateOutLoggedCommandsOfFailingTransaction()
-            throws Exception
+    void concurrentlyCommittingTransactionsMustNotRotateOutLoggedCommandsOfFailingTransaction() throws Exception
     {
         final ClassGuardedAdversary adversary = new ClassGuardedAdversary(
                 new CountingAdversary( 1, false ),
                 Command.RelationshipCommand.class );
         adversary.disable();
 
-        File storeDir = dir.storeDir();
-        final Map<String,String> params = stringMap( GraphDatabaseSettings.pagecache_memory.name(), "8m" );
-        final EmbeddedGraphDatabase db = new TestEmbeddedGraphDatabase( storeDir, params )
-        {
-            @Override
-            protected void create( File storeDir, Map<String, String> params, GraphDatabaseFacadeFactory.Dependencies dependencies )
-            {
-                new GraphDatabaseFacadeFactory( DatabaseInfo.COMMUNITY, CommunityEditionModule::new )
-                {
-                    @Override
-                    protected PlatformModule createPlatform( File storeDir, Config config, Dependencies dependencies )
-                    {
-                        return new PlatformModule( storeDir, config, databaseInfo, dependencies )
-                        {
-                            @Override
-                            protected FileSystemAbstraction createFileSystemAbstraction()
-                            {
-                                return new AdversarialFileSystemAbstraction( adversary );
-                            }
-                        };
-                    }
-                }.initFacade( storeDir, params, dependencies, this );
-            }
-        };
-
+        File storeDir = testDirectory.homeDir();
+        final Map<Setting<?>,Object> params = Map.of( GraphDatabaseSettings.pagecache_memory, "8m" );
+        managementService = new TestDatabaseManagementServiceBuilder( storeDir )
+                .setFileSystem( new AdversarialFileSystemAbstraction( adversary ) )
+                .setConfig( params )
+                .build();
+        GraphDatabaseAPI db = (GraphDatabaseAPI) managementService.database( DEFAULT_DATABASE_NAME );
         Node a;
         Node b;
         Node c;
         Node d;
         try ( Transaction tx = db.beginTx() )
         {
-            a = db.createNode();
-            b = db.createNode();
-            c = db.createNode();
-            d = db.createNode();
-            tx.success();
+            a = tx.createNode();
+            b = tx.createNode();
+            c = tx.createNode();
+            d = tx.createNode();
+            tx.commit();
         }
 
         adversary.enable();
@@ -127,16 +119,17 @@ public class PartialTransactionFailureIT
         // Wait for the transactions to finish
         t1.join( 25000 );
         t2.join( 25000 );
-        db.shutdown();
+        managementService.shutdown();
 
         // We should observe the store in a consistent state
-        EmbeddedGraphDatabase db2 = new TestEmbeddedGraphDatabase( storeDir, params );
-        try ( Transaction tx = db2.beginTx() )
+        managementService = new TestDatabaseManagementServiceBuilder( storeDir ).setConfig( params ).build();
+        GraphDatabaseService database = managementService.database( DEFAULT_DATABASE_NAME );
+        try ( Transaction tx = database.beginTx() )
         {
-            Node x = db2.getNodeById( a.getId() );
-            Node y = db2.getNodeById( b.getId() );
-            Node z = db2.getNodeById( c.getId() );
-            Node w = db2.getNodeById( d.getId() );
+            Node x = tx.getNodeById( a.getId() );
+            Node y = tx.getNodeById( b.getId() );
+            Node z = tx.getNodeById( c.getId() );
+            Node w = tx.getNodeById( d.getId() );
             Iterator<Relationship> itrRelX = x.getRelationships().iterator();
             Iterator<Relationship> itrRelY = y.getRelationships().iterator();
             Iterator<Relationship> itrRelZ = z.getRelationships().iterator();
@@ -166,26 +159,18 @@ public class PartialTransactionFailureIT
                 assertFalse( itrRelW.hasNext() );
             }
         }
-        finally
-        {
-            db2.shutdown();
-        }
     }
 
-    private Runnable createRelationship(
-            final EmbeddedGraphDatabase db,
-            final Node x,
-            final Node y,
-            final CountDownLatch latch )
+    private static Runnable createRelationship( GraphDatabaseAPI db, final Node x, final Node y, final CountDownLatch latch )
     {
         return () ->
         {
             try ( Transaction tx = db.beginTx() )
             {
                 x.createRelationshipTo( y, RelationshipType.withName( "r" ) );
-                tx.success();
+                tx.commit();
                 latch.await();
-                db.getDependencyResolver().resolveDependency( LogRotation.class ).rotateLogFile();
+                db.getDependencyResolver().resolveDependency( LogRotation.class ).rotateLogFile( LogAppendEvent.NULL );
                 db.getDependencyResolver().resolveDependency( CheckPointer.class ).forceCheckPoint(
                         new SimpleTriggerInfo( "test" )
                 );
@@ -196,21 +181,5 @@ public class PartialTransactionFailureIT
                 // can recover our database to a consistent state.
             }
         };
-    }
-
-    private static class TestEmbeddedGraphDatabase extends EmbeddedGraphDatabase
-    {
-        TestEmbeddedGraphDatabase( File storeDir, Map<String,String> params )
-        {
-            super( storeDir,
-                    params,
-                    dependencies() );
-        }
-
-        private static GraphDatabaseFacadeFactory.Dependencies dependencies()
-        {
-            GraphDatabaseFactoryState state = new GraphDatabaseFactoryState();
-            return state.databaseDependencies();
-        }
     }
 }

@@ -22,46 +22,46 @@
  */
 package org.neo4j.values.virtual;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.util.Arrays;
+import java.util.stream.Stream;
 
 import org.neo4j.values.AnyValue;
 import org.neo4j.values.BufferAnyValueWriter;
 import org.neo4j.values.storable.BufferValueWriter.Specials;
 
+import static org.junit.jupiter.params.provider.Arguments.of;
 import static org.neo4j.values.BufferAnyValueWriter.Specials.beginList;
 import static org.neo4j.values.BufferAnyValueWriter.Specials.beginMap;
 import static org.neo4j.values.BufferAnyValueWriter.Specials.endList;
 import static org.neo4j.values.BufferAnyValueWriter.Specials.endMap;
-import static org.neo4j.values.BufferAnyValueWriter.Specials.writeRelationship;
-import static org.neo4j.values.BufferAnyValueWriter.Specials.writeRelationshipReference;
 import static org.neo4j.values.BufferAnyValueWriter.Specials.writeNode;
 import static org.neo4j.values.BufferAnyValueWriter.Specials.writeNodeReference;
 import static org.neo4j.values.BufferAnyValueWriter.Specials.writePath;
+import static org.neo4j.values.BufferAnyValueWriter.Specials.writeRelationship;
+import static org.neo4j.values.BufferAnyValueWriter.Specials.writeRelationshipReference;
 import static org.neo4j.values.storable.Values.booleanValue;
 import static org.neo4j.values.storable.Values.byteArray;
 import static org.neo4j.values.storable.Values.charValue;
 import static org.neo4j.values.storable.Values.intValue;
 import static org.neo4j.values.storable.Values.stringArray;
 import static org.neo4j.values.storable.Values.stringValue;
-import static org.neo4j.values.virtual.VirtualValues.relationship;
-import static org.neo4j.values.virtual.VirtualValues.relationshipValue;
-import static org.neo4j.values.virtual.VirtualValues.emptyMap;
+import static org.neo4j.values.virtual.VirtualValues.EMPTY_MAP;
 import static org.neo4j.values.virtual.VirtualValues.map;
 import static org.neo4j.values.virtual.VirtualValues.nodeValue;
+import static org.neo4j.values.virtual.VirtualValues.relationship;
+import static org.neo4j.values.virtual.VirtualValues.relationshipValue;
 
-@RunWith( value = Parameterized.class )
-public class VirtualValueWriteToTest
+@SuppressWarnings( "ReferenceEquality" )
+class VirtualValueWriteToTest
 {
-
-    @Parameterized.Parameters( name = "{0}" )
-    public static Iterable<WriteTest> data()
+    private static Stream<Arguments> parameters()
     {
-        return Arrays.asList(
-                shouldWrite(
+        return Stream.of(
+                of(shouldWrite(
                         VirtualValues.list(
                                 booleanValue( false ),
                                 byteArray( new byte[]{3, 4, 5} ),
@@ -72,8 +72,8 @@ public class VirtualValueWriteToTest
                         Specials.byteArray( new byte[]{3, 4, 5} ),
                         "yo",
                         endList()
-                ),
-                shouldWrite(
+                ) ),
+                of(shouldWrite(
                         VirtualValues.map(
                                 new String[]{"foo", "bar"},
                                 new AnyValue[]{intValue( 100 ), charValue( 'c' )}
@@ -82,33 +82,33 @@ public class VirtualValueWriteToTest
                         "bar", 'c',
                         "foo", 100,
                         endMap()
-                ),
-                shouldWrite(
+                ) ),
+                of(shouldWrite(
                         VirtualValues.node( 1L ),
                         writeNodeReference( 1L )
-                ),
-                shouldWrite(
+                ) ),
+                of(shouldWrite(
                         relationship( 2L ),
                         writeRelationshipReference( 2L )
-                ),
-                shouldWrite(
+                ) ),
+                of(shouldWrite(
                         VirtualValues.path(
-                                new NodeValue[]{nodeValue( 20L, stringArray( "L" ), emptyMap() ),
-                                        nodeValue( 40L, stringArray( "L" ), emptyMap() )},
+                                new NodeValue[]{nodeValue( 20L, stringArray( "L" ), EMPTY_MAP ),
+                                        nodeValue( 40L, stringArray( "L" ), EMPTY_MAP )},
                                 new RelationshipValue[]{
-                                        relationshipValue( 100L, nodeValue( 40L, stringArray( "L" ), emptyMap() ),
-                                                nodeValue( 20L, stringArray( "L" ), emptyMap() ),
-                                                stringValue( "T" ), emptyMap() )} ),
+                                        relationshipValue( 100L, nodeValue( 40L, stringArray( "L" ), EMPTY_MAP ),
+                                                nodeValue( 20L, stringArray( "L" ), EMPTY_MAP ),
+                                                stringValue( "T" ), EMPTY_MAP )} ),
                         writePath(
-                                new NodeValue[]{nodeValue( 20L, stringArray( "L" ), emptyMap() ),
-                                        nodeValue( 40L, stringArray( "L" ), emptyMap() )},
+                                new NodeValue[]{nodeValue( 20L, stringArray( "L" ), EMPTY_MAP ),
+                                        nodeValue( 40L, stringArray( "L" ), EMPTY_MAP )},
                                 new RelationshipValue[]{
-                                        relationshipValue( 100L, nodeValue( 40L, stringArray( "L" ), emptyMap() ),
-                                                nodeValue( 20L, stringArray( "L" ), emptyMap() ),
-                                                stringValue( "T" ), emptyMap() )} )
-                ),
+                                        relationshipValue( 100L, nodeValue( 40L, stringArray( "L" ), EMPTY_MAP ),
+                                                nodeValue( 20L, stringArray( "L" ), EMPTY_MAP ),
+                                                stringValue( "T" ), EMPTY_MAP )} )
+                ) ),
                 // map( list( map( list() ) ) )
-                shouldWrite(
+                of(shouldWrite(
                         VirtualValues.map(
                                 new String[]{"foo"},
                                 new AnyValue[]{
@@ -130,31 +130,24 @@ public class VirtualValueWriteToTest
                         endMap(),
                         endList(),
                         endMap()
-                ),
-                shouldWrite(
+                ) ) ,
+                of(shouldWrite(
                         nodeValue( 1337L,
                                 stringArray( "L1", "L2" ),
                                 map( new String[]{"foo"}, new AnyValue[]{stringValue( "foo" )} ) ),
                         writeNode( 1337L,
                                 stringArray( "L1", "L2" ) ,
                                 map( new String[]{"foo"}, new AnyValue[]{stringValue( "foo" )} ) )
-                ),
-                shouldWrite(
-                        relationshipValue( 1337L, nodeValue( 42L, stringArray( "L" ), emptyMap() ),
-                                nodeValue( 43L, stringArray( "L" ), emptyMap() ),
+                ) ),
+                of(shouldWrite(
+                        relationshipValue( 1337L, nodeValue( 42L, stringArray( "L" ), EMPTY_MAP ),
+                                nodeValue( 43L, stringArray( "L" ), EMPTY_MAP ),
                                 stringValue( "T" ),
                                 map( new String[]{"foo"}, new AnyValue[]{stringValue( "foo" )} ) ),
                         writeRelationship( 1337L, 42L, 43L,
                                 stringValue( "T" ),
-                                map( new String[]{"foo"}, new AnyValue[]{stringValue( "foo" )} ) ) )
+                                map( new String[]{"foo"}, new AnyValue[]{stringValue( "foo" )} ) ) ) )
         );
-    }
-
-    private WriteTest currentTest;
-
-    public VirtualValueWriteToTest( WriteTest currentTest )
-    {
-        this.currentTest = currentTest;
     }
 
     private static WriteTest shouldWrite( AnyValue value, Object... expected )
@@ -162,10 +155,11 @@ public class VirtualValueWriteToTest
         return new WriteTest( value, expected );
     }
 
-    @Test
-    public void runTest()
+    @ParameterizedTest
+    @MethodSource( "parameters" )
+    void runTest( WriteTest test )
     {
-        currentTest.verifyWriteTo();
+        test.verifyWriteTo();
     }
 
     private static class WriteTest

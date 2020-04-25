@@ -22,7 +22,7 @@
  */
 package org.neo4j.values.storable;
 
-import org.neo4j.values.utils.InvalidValuesArgumentException;
+import org.neo4j.exceptions.InvalidArgumentException;
 
 /**
  * Defines all valid field accessors for points
@@ -94,7 +94,7 @@ public enum PointFields
                 }
             };
 
-    public String propertyKey;
+    public final String propertyKey;
 
     PointFields( String propertyKey )
     {
@@ -122,7 +122,7 @@ public enum PointFields
         case "srid":
             return SRID;
         default:
-            throw new InvalidValuesArgumentException( "No such field: " + fieldName );
+            throw new InvalidArgumentException( "No such field: " + fieldName );
         }
     }
 

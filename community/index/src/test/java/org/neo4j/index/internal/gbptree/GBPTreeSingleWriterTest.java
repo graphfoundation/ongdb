@@ -26,35 +26,36 @@ import org.apache.commons.lang3.mutable.MutableLong;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.neo4j.graphdb.config.Configuration;
-import org.neo4j.io.fs.DefaultFileSystemAbstraction;
+import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.mem.MemoryAllocator;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.io.pagecache.impl.SingleFilePageSwapperFactory;
 import org.neo4j.io.pagecache.impl.muninn.MuninnPageCache;
 import org.neo4j.io.pagecache.tracing.PageCacheTracer;
-import org.neo4j.io.pagecache.tracing.cursor.PageCursorTracerSupplier;
 import org.neo4j.memory.LocalMemoryTracker;
-import org.neo4j.scheduler.ThreadPoolJobScheduler;
 import org.neo4j.test.extension.Inject;
-import org.neo4j.test.extension.TestDirectoryExtension;
+import org.neo4j.test.extension.testdirectory.EphemeralTestDirectoryExtension;
 import org.neo4j.test.rule.TestDirectory;
+import org.neo4j.test.scheduler.ThreadPoolJobScheduler;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.neo4j.io.IOUtils.closeAll;
+import static org.neo4j.io.pagecache.tracing.cursor.PageCursorTracerSupplier.NULL;
 import static org.neo4j.io.pagecache.tracing.cursor.context.EmptyVersionContextSupplier.EMPTY;
 
-@ExtendWith( TestDirectoryExtension.class )
+@EphemeralTestDirectoryExtension
 class GBPTreeSingleWriterTest
 {
     @Inject
     TestDirectory directory;
+    @Inject
+    FileSystemAbstraction fileSystem;
     private PageCache pageCache;
     private SimpleLongLayout layout;
     private ThreadPoolJobScheduler jobScheduler;
@@ -63,20 +64,20 @@ class GBPTreeSingleWriterTest
     void createPageCache()
     {
         SingleFilePageSwapperFactory factory = new SingleFilePageSwapperFactory();
-        factory.open( new DefaultFileSystemAbstraction(), Configuration.EMPTY );
+        factory.open( fileSystem );
         MemoryAllocator mman = MemoryAllocator.createAllocator( "8 MiB", new LocalMemoryTracker() );
         jobScheduler = new ThreadPoolJobScheduler();
-        pageCache = new MuninnPageCache( factory, mman, 256, PageCacheTracer.NULL, PageCursorTracerSupplier.NULL, EMPTY, jobScheduler );
+        pageCache =
+                new MuninnPageCache( factory, mman, 256, PageCacheTracer.NULL, NULL, EMPTY, jobScheduler );
         layout = SimpleLongLayout.longLayout()
                 .withFixedSize( true )
                 .build();
     }
 
     @AfterEach
-    void tearDownPageCache()
+    void tearDownPageCache() throws Exception
     {
-        pageCache.close();
-        jobScheduler.close();
+        closeAll( pageCache, jobScheduler );
     }
 
     @Test
@@ -135,11 +136,11 @@ class GBPTreeSingleWriterTest
         }
     }
 
-    private class KeyCountingVisitor extends GBPTreeVisitor.Adaptor<MutableLong,MutableLong>
+    private static class KeyCountingVisitor extends GBPTreeVisitor.Adaptor<MutableLong,MutableLong>
     {
         private boolean newLevel;
-        private List<Integer> keyCountOnLeftmostPerLevel = new ArrayList<>();
-        private List<Integer> keyCountOnRightmostPerLevel = new ArrayList<>();
+        private final List<Integer> keyCountOnLeftmostPerLevel = new ArrayList<>();
+        private final List<Integer> keyCountOnRightmostPerLevel = new ArrayList<>();
         private int rightmostKeyCountOnLevelSoFar;
 
         @Override
@@ -167,7 +168,7 @@ class GBPTreeSingleWriterTest
         }
     }
 
-    private class TreeHeightTracker extends GBPTree.Monitor.Adaptor
+    private static class TreeHeightTracker extends GBPTree.Monitor.Adaptor
     {
         int treeHeight;
 

@@ -242,7 +242,7 @@ public class PriorityMap<E, K, P>
     public Entry<E, P> pop()
     {
         Node<E, P> node = queue.peek();
-        Entry<E, P> result = null;
+        Entry<E, P> result;
         if ( node == null )
         {
             // Queue is empty
@@ -260,16 +260,12 @@ public class PriorityMap<E, K, P>
         {
             result = new Entry<>( node );
             node.head = node.head.next;
-            if ( order.compare( result.priority, node.head.priority ) == 0 )
-            {
-                // Can leave at front of queue as priority is the same
-                // Do nothing
-            }
-            else
+            if ( order.compare( result.priority, node.head.priority ) != 0 )
             {
                 // node needs to be reinserted into queue
                 reinsert( node );
             }
+            // Otherwise we can leave at front of queue as priority is the same
 
         }
         return result;
@@ -288,7 +284,7 @@ public class PriorityMap<E, K, P>
     // Naive implementation
 
     private final Map<K, Node<E, P>> map = new HashMap<>();
-    private final PriorityQueue<Node<E, P>> queue = new PriorityQueue<>( 11, new Comparator<Node<E,P>>()
+    private final PriorityQueue<Node<E, P>> queue = new PriorityQueue<>( 11, new Comparator<>()
     {
         @Override
         public int compare( Node<E,P> o1, Node<E,P> o2 )

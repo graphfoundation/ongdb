@@ -23,11 +23,12 @@
 package org.neo4j.kernel.api.impl.fulltext.analyzer.providers;
 
 import org.apache.lucene.analysis.Analyzer;
-import org.neo4j.graphdb.index.fulltext.AnalyzerProvider;
-import org.neo4j.helpers.Service;
-import org.neo4j.index.impl.lucene.explicit.StandardFoldingAnalyzer;
 
-@Service.Implementation( AnalyzerProvider.class )
+import org.neo4j.annotations.service.ServiceProvider;
+import org.neo4j.graphdb.schema.AnalyzerProvider;
+import org.neo4j.kernel.api.impl.fulltext.analyzer.StandardFoldingAnalyzer;
+
+@ServiceProvider
 public class StandardFolding extends AnalyzerProvider
 {
     public static final String STANDARD_FOLDING_ANALYZER_NAME = "standard-folding";

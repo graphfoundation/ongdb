@@ -22,42 +22,35 @@
  */
 package org.neo4j.kernel.impl.api.index;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.Test;
 import org.mockito.Answers;
-import org.mockito.Mock;
 import org.mockito.Mockito;
-import org.mockito.junit.MockitoJUnitRunner;
 
-import java.io.IOException;
 import java.util.function.IntPredicate;
+import java.util.function.Supplier;
 
-import org.neo4j.helpers.collection.Visitor;
-import org.neo4j.internal.kernel.api.schema.LabelSchemaDescriptor;
+import org.neo4j.common.EntityType;
+import org.neo4j.internal.helpers.collection.Visitor;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.internal.schema.IndexPrototype;
+import org.neo4j.internal.schema.LabelSchemaDescriptor;
+import org.neo4j.internal.schema.SchemaDescriptor;
+import org.neo4j.internal.schema.SchemaState;
 import org.neo4j.kernel.api.exceptions.index.IndexEntryConflictException;
 import org.neo4j.kernel.api.exceptions.index.IndexPopulationFailedKernelException;
-import org.neo4j.kernel.api.index.IndexEntryUpdate;
 import org.neo4j.kernel.api.index.IndexPopulator;
 import org.neo4j.kernel.api.index.IndexUpdater;
-import org.neo4j.kernel.api.labelscan.NodeLabelUpdate;
-import org.neo4j.kernel.api.schema.SchemaDescriptorFactory;
-import org.neo4j.kernel.api.schema.index.TestIndexDescriptorFactory;
-import org.neo4j.kernel.impl.api.SchemaState;
-import org.neo4j.kernel.impl.locking.LockService;
-import org.neo4j.kernel.impl.storageengine.impl.recordstorage.RecordStorageReader;
-import org.neo4j.kernel.impl.store.InlineNodeLabels;
-import org.neo4j.kernel.impl.store.NeoStores;
-import org.neo4j.kernel.impl.store.NodeStore;
-import org.neo4j.kernel.impl.store.record.NodeRecord;
+import org.neo4j.kernel.impl.api.index.stats.IndexStatisticsStore;
 import org.neo4j.kernel.impl.transaction.state.storeview.NeoStoreIndexStoreView;
 import org.neo4j.kernel.impl.transaction.state.storeview.StoreViewNodeStoreScan;
 import org.neo4j.kernel.impl.util.Listener;
+import org.neo4j.lock.LockService;
 import org.neo4j.logging.LogProvider;
-import org.neo4j.storageengine.api.EntityType;
+import org.neo4j.storageengine.api.EntityUpdates;
+import org.neo4j.storageengine.api.IndexEntryUpdate;
+import org.neo4j.storageengine.api.NodeLabelUpdate;
 import org.neo4j.storageengine.api.StorageNodeCursor;
 import org.neo4j.storageengine.api.StorageReader;
-import org.neo4j.storageengine.api.schema.IndexDescriptor;
-import org.neo4j.storageengine.api.schema.StoreIndexDescriptor;
 import org.neo4j.values.storable.Values;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -65,32 +58,29 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.when;
 
-@RunWith( MockitoJUnitRunner.class )
-public class MultipleIndexPopulatorUpdatesTest
+class MultipleIndexPopulatorUpdatesTest
 {
-    @Mock( answer = Answers.RETURNS_MOCKS )
-    private LogProvider logProvider;
+    private final LogProvider logProvider = mock( LogProvider.class, Answers.RETURNS_MOCKS );
 
     @Test
-    public void updateForHigherNodeIgnoredWhenUsingFullNodeStoreScan()
-            throws IndexPopulationFailedKernelException, IOException, IndexEntryConflictException
+    void updateForHigherNodeIgnoredWhenUsingFullNodeStoreScan()
+            throws IndexPopulationFailedKernelException, IndexEntryConflictException
     {
-        NeoStores neoStores = Mockito.mock( NeoStores.class );
-        NodeStore nodeStore = mock( NodeStore.class );
+        IndexStatisticsStore indexStatisticsStore = mock( IndexStatisticsStore.class );
 
-        when( neoStores.getNodeStore() ).thenReturn( nodeStore );
-
+        StorageReader reader = mock( StorageReader.class );
+        when( reader.allocateNodeCursor() ).thenReturn( mock( StorageNodeCursor.class ) );
         ProcessListenableNeoStoreIndexView
-                storeView = new ProcessListenableNeoStoreIndexView( LockService.NO_LOCK_SERVICE, neoStores );
+                storeView = new ProcessListenableNeoStoreIndexView( LockService.NO_LOCK_SERVICE, () -> reader );
         MultipleIndexPopulator indexPopulator =
-                new MultipleIndexPopulator( storeView, logProvider, EntityType.NODE, mock( SchemaState.class ) );
+                new MultipleIndexPopulator( storeView, logProvider, EntityType.NODE, mock( SchemaState.class ), indexStatisticsStore );
 
         storeView.setProcessListener( new NodeUpdateProcessListener( indexPopulator ) );
 
         IndexPopulator populator = createIndexPopulator();
         IndexUpdater indexUpdater = mock( IndexUpdater.class );
 
-        addPopulator( indexPopulator, populator, 1, TestIndexDescriptorFactory.forLabel( 1, 1 ) );
+        addPopulator( indexPopulator, populator, 1, IndexPrototype.forSchema( SchemaDescriptor.forLabel( 1, 1 ) ) );
 
         indexPopulator.create();
         StoreScan<IndexPopulationFailedKernelException> storeScan = indexPopulator.indexAllEntities();
@@ -99,31 +89,22 @@ public class MultipleIndexPopulatorUpdatesTest
         Mockito.verify( indexUpdater, never() ).process( any(IndexEntryUpdate.class) );
     }
 
-    private NodeRecord getNodeRecord()
-    {
-        NodeRecord nodeRecord = new NodeRecord( 1L );
-        nodeRecord.initialize( true, 0, false, 1, 0x0000000001L );
-        InlineNodeLabels.putSorted( nodeRecord, new long[]{1}, null, null );
-        return nodeRecord;
-    }
-
-    private IndexPopulator createIndexPopulator()
+    private static IndexPopulator createIndexPopulator()
     {
         return mock( IndexPopulator.class );
     }
 
-    private MultipleIndexPopulator.IndexPopulation addPopulator( MultipleIndexPopulator multipleIndexPopulator,
-            IndexPopulator indexPopulator, long indexId, IndexDescriptor descriptor )
+    private static void addPopulator( MultipleIndexPopulator multipleIndexPopulator,
+        IndexPopulator indexPopulator, long indexId, IndexPrototype prototype )
     {
-        return addPopulator( multipleIndexPopulator, descriptor.withId( indexId ), indexPopulator,
-                             mock( FlippableIndexProxy.class ), mock( FailedIndexProxyFactory.class ) );
+        IndexDescriptor descriptor = prototype.withName( "index_" + indexId ).materialise( indexId );
+        addPopulator( multipleIndexPopulator, descriptor, indexPopulator, mock( FlippableIndexProxy.class ), mock( FailedIndexProxyFactory.class ) );
     }
 
-    private MultipleIndexPopulator.IndexPopulation addPopulator( MultipleIndexPopulator multipleIndexPopulator, StoreIndexDescriptor descriptor,
-            IndexPopulator indexPopulator, FlippableIndexProxy flippableIndexProxy, FailedIndexProxyFactory failedIndexProxyFactory )
+    private static void addPopulator( MultipleIndexPopulator multipleIndexPopulator, IndexDescriptor descriptor,
+        IndexPopulator indexPopulator, FlippableIndexProxy flippableIndexProxy, FailedIndexProxyFactory failedIndexProxyFactory )
     {
-        return multipleIndexPopulator.addPopulator( indexPopulator, descriptor.withoutCapabilities(),
-                flippableIndexProxy, failedIndexProxyFactory, "userIndexDescription" );
+        multipleIndexPopulator.addPopulator( indexPopulator, descriptor, flippableIndexProxy, failedIndexProxyFactory, "userIndexDescription" );
     }
 
     private static class NodeUpdateProcessListener implements Listener<StorageNodeCursor>
@@ -134,7 +115,7 @@ public class MultipleIndexPopulatorUpdatesTest
         NodeUpdateProcessListener( MultipleIndexPopulator indexPopulator )
         {
             this.indexPopulator = indexPopulator;
-            this.index = SchemaDescriptorFactory.forLabel( 1, 1 );
+            this.index = SchemaDescriptor.forLabel( 1, 1 );
         }
 
         @Override
@@ -142,20 +123,18 @@ public class MultipleIndexPopulatorUpdatesTest
         {
             if ( node.entityReference() == 7 )
             {
-                indexPopulator.queueUpdate( IndexEntryUpdate.change( 8L, index, Values.of( "a" ), Values.of( "b" ) ) );
+                indexPopulator.queueConcurrentUpdate( IndexEntryUpdate.change( 8L, index, Values.of( "a" ), Values.of( "b" ) ) );
             }
         }
     }
 
-    private class ProcessListenableNeoStoreIndexView extends NeoStoreIndexStoreView
+    private static class ProcessListenableNeoStoreIndexView extends NeoStoreIndexStoreView
     {
         private Listener<StorageNodeCursor> processListener;
-        private NeoStores neoStores;
 
-        ProcessListenableNeoStoreIndexView( LockService locks, NeoStores neoStores )
+        ProcessListenableNeoStoreIndexView( LockService locks, Supplier<StorageReader> storageReaderSupplier )
         {
-            super( locks, neoStores );
-            this.neoStores = neoStores;
+            super( locks, storageReaderSupplier );
         }
 
         @Override
@@ -166,8 +145,8 @@ public class MultipleIndexPopulatorUpdatesTest
                 boolean forceStoreScan )
         {
 
-            return new ListenableNodeScanViewNodeStoreScan<>( new RecordStorageReader( neoStores ), locks, labelUpdateVisitor,
-                    propertyUpdatesVisitor, labelIds, propertyKeyIdFilter, processListener );
+            return new ListenableNodeScanViewNodeStoreScan<>( storageEngine.get(), locks, labelUpdateVisitor,
+                propertyUpdatesVisitor, labelIds, propertyKeyIdFilter, processListener );
         }
 
         void setProcessListener( Listener<StorageNodeCursor> processListener )
@@ -176,7 +155,7 @@ public class MultipleIndexPopulatorUpdatesTest
         }
     }
 
-    private class ListenableNodeScanViewNodeStoreScan<FAILURE extends Exception> extends StoreViewNodeStoreScan<FAILURE>
+    private static class ListenableNodeScanViewNodeStoreScan<FAILURE extends Exception> extends StoreViewNodeStoreScan<FAILURE>
     {
         private final Listener<StorageNodeCursor> processListener;
 

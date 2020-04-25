@@ -26,27 +26,27 @@ import java.io.Closeable;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.neo4j.internal.kernel.api.IndexReference;
 import org.neo4j.internal.kernel.api.exceptions.schema.IndexNotFoundKernelException;
-import org.neo4j.storageengine.api.schema.IndexReader;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.kernel.api.index.IndexReader;
 
 import static org.neo4j.io.IOUtils.closeAllUnchecked;
 
 class IndexReaders implements Closeable
 {
     private final List<IndexReader> indexReaders = new ArrayList<>();
-    private final IndexReference indexReference;
+    private final IndexDescriptor descriptor;
     private final Read read;
 
-    IndexReaders( IndexReference indexReference, Read read )
+    IndexReaders( IndexDescriptor descriptor, Read read )
     {
-        this.indexReference = indexReference;
+        this.descriptor = descriptor;
         this.read = read;
     }
 
     IndexReader createReader() throws IndexNotFoundKernelException
     {
-        IndexReader indexReader = read.indexReader( indexReference, true );
+        IndexReader indexReader = read.indexReader( descriptor, true );
         indexReaders.add( indexReader );
         return indexReader;
     }

@@ -37,7 +37,7 @@ public interface RecoveryMonitor
         //noop
     }
 
-    default void recoveryCompleted( int numberOfRecoveredTransactions )
+    default void recoveryCompleted( int numberOfRecoveredTransactions, long recoveryTimeInMilliseconds )
     {
         //noop
     }

@@ -30,6 +30,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.LongSupplier;
 
+import static java.time.Duration.ofMillis;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -41,17 +43,17 @@ class LinkedQueuePoolTest
     {
         FakeClock clock = new FakeClock();
 
-        LinkedQueuePool.CheckStrategy timeStrategy = new LinkedQueuePool.CheckStrategy.TimeoutCheckStrategy( 100, clock );
+        LinkedQueuePool.CheckStrategy timeStrategy = new LinkedQueuePool.CheckStrategy.TimeoutCheckStrategy( ofMillis( 10 ), clock );
 
-        while ( clock.getAsLong() <= 100 )
+        while ( clock.getAsLong() <= MILLISECONDS.toNanos( 10 ) )
         {
             assertFalse( timeStrategy.shouldCheck() );
-            clock.forward( 10, TimeUnit.MILLISECONDS );
+            clock.forward( 1, MILLISECONDS );
         }
 
         assertTrue( timeStrategy.shouldCheck() );
 
-        clock.forward( 1, TimeUnit.MILLISECONDS );
+        clock.forward( 1, MILLISECONDS );
         assertFalse( timeStrategy.shouldCheck() );
     }
 
@@ -115,7 +117,7 @@ class LinkedQueuePoolTest
         final LinkedQueuePool<Object> pool = getLinkedQueuePool( stateMonitor, clock, MIN_SIZE );
         // when
         List<FlyweightHolder<Object>> holders = acquireFromPool( pool, MAX_SIZE );
-        clock.forward( 110, TimeUnit.MILLISECONDS );
+        clock.forward( 110, MILLISECONDS );
         holders.addAll( acquireFromPool( pool, 1 ) ); // Needed to trigger the alarm
 
         // then
@@ -164,7 +166,7 @@ class LinkedQueuePoolTest
 
         // when
         // After the peak, stay below MIN_SIZE concurrent usage, using up all already present Flyweights.
-        clock.forward( 110, TimeUnit.MILLISECONDS );
+        clock.forward( 110, MILLISECONDS );
         for ( int i = 0; i < MAX_SIZE; i++ )
         {
             acquireFromPool( pool, 1 ).get( 0 ).release();
@@ -210,12 +212,12 @@ class LinkedQueuePoolTest
          */
         for ( int i = 0; i < 2; i++ )
         {
-            clock.forward( 110, TimeUnit.MILLISECONDS );
+            clock.forward( 110, MILLISECONDS );
             for ( FlyweightHolder holder : acquireFromPool( pool, MID_SIZE ) )
             {
                 holder.release();
             }
-            clock.forward( 110, TimeUnit.MILLISECONDS );
+            clock.forward( 110, MILLISECONDS );
             for ( FlyweightHolder holder : acquireFromPool( pool, MID_SIZE ) )
             {
                 holder.release();
@@ -248,7 +250,7 @@ class LinkedQueuePoolTest
 
         // when
         // After the peak, stay well below concurrent usage, using up all already present Flyweights in the process
-        clock.forward( 110, TimeUnit.MILLISECONDS );
+        clock.forward( 110, MILLISECONDS );
         // Requires some rounds to happen, since there is constant racing between releasing and acquiring which does
         // not always result in reaping of Flyweights, as there is reuse
         for ( int i = 0; i < 30; i++ )
@@ -258,7 +260,7 @@ class LinkedQueuePoolTest
             {
                 holder.release( );
             }
-            clock.forward( 110, TimeUnit.MILLISECONDS );
+            clock.forward( 110, MILLISECONDS );
         }
 
         // then
@@ -282,13 +284,12 @@ class LinkedQueuePoolTest
         assertEquals( 0, stateMonitor.disposed.get() );
     }
 
-    private void buildAPeakOfAcquiredFlyweightsAndTriggerAlarmWithSideEffects( int MAX_SIZE, FakeClock clock,
-            LinkedQueuePool<Object> pool,
+    private static void buildAPeakOfAcquiredFlyweightsAndTriggerAlarmWithSideEffects( int MAX_SIZE, FakeClock clock, LinkedQueuePool<Object> pool,
             List<FlyweightHolder<Object>> holders )
     {
         holders.addAll( acquireFromPool( pool, MAX_SIZE ) );
 
-        clock.forward( 110, TimeUnit.MILLISECONDS );
+        clock.forward( 110, MILLISECONDS );
 
         // "Ring the bell" only on acquisition, of course.
         holders.addAll( acquireFromPool( pool, 1 ) );
@@ -299,13 +300,13 @@ class LinkedQueuePoolTest
         }
     }
 
-    private LinkedQueuePool<Object> getLinkedQueuePool( StatefulMonitor stateMonitor, FakeClock clock, int minSize )
+    private static LinkedQueuePool<Object> getLinkedQueuePool( StatefulMonitor stateMonitor, FakeClock clock, int minSize )
     {
         return new LinkedQueuePool<>( minSize, Object::new,
-                new LinkedQueuePool.CheckStrategy.TimeoutCheckStrategy( 100, clock ), stateMonitor );
+                new LinkedQueuePool.CheckStrategy.TimeoutCheckStrategy( ofMillis( 100 ), clock ), stateMonitor );
     }
 
-    private <R> List<FlyweightHolder<R>>  acquireFromPool( final LinkedQueuePool<R> pool, int times )
+    private static <R> List<FlyweightHolder<R>>  acquireFromPool( final LinkedQueuePool<R> pool, int times )
     {
         List<FlyweightHolder<R>> acquirers = new LinkedList<>();
         for ( int i = 0; i < times; i++ )
@@ -390,7 +391,7 @@ class LinkedQueuePoolTest
 
         public void forward( long amount, TimeUnit timeUnit )
         {
-            time = time + timeUnit.toMillis( amount );
+            time = time + timeUnit.toNanos( amount );
         }
     }
 }

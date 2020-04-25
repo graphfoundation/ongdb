@@ -36,19 +36,4 @@ public interface Credential
     }
 
     String serialize();
-
-    Credential INACCESSIBLE = new Credential()
-    {
-        @Override
-        public boolean matchesPassword( byte[] password )
-        {
-            return false;
-        }
-
-        @Override
-        public String serialize()
-        {
-            return ",,,";
-        }
-    };
 }

@@ -25,21 +25,33 @@ package org.neo4j.kernel.impl.storemigration;
 import java.io.File;
 import java.io.IOException;
 import java.io.UncheckedIOException;
-import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.regex.Pattern;
 
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
+import org.neo4j.common.ProgressReporter;
+import org.neo4j.configuration.Config;
+import org.neo4j.configuration.GraphDatabaseSettings;
+import org.neo4j.exceptions.KernelException;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.layout.DatabaseLayout;
-import org.neo4j.io.pagecache.PageCache;
-import org.neo4j.kernel.configuration.Config;
-import org.neo4j.kernel.impl.store.format.RecordFormatSelector;
-import org.neo4j.kernel.impl.storemigration.monitoring.MigrationProgressMonitor;
-import org.neo4j.kernel.impl.util.monitoring.ProgressReporter;
+import org.neo4j.kernel.impl.transaction.log.files.LogFilesBuilder;
 import org.neo4j.kernel.internal.Version;
+import org.neo4j.kernel.recovery.LogTailScanner;
 import org.neo4j.logging.Log;
 import org.neo4j.logging.LogProvider;
+import org.neo4j.storageengine.api.IndexCapabilities;
+import org.neo4j.storageengine.api.StoreVersion;
+import org.neo4j.storageengine.api.StoreVersionCheck;
+import org.neo4j.storageengine.migration.MigrationProgressMonitor;
+import org.neo4j.storageengine.migration.StoreMigrationParticipant;
+import org.neo4j.storageengine.migration.UpgradeNotAllowedException;
+
+import static org.neo4j.io.fs.FileSystemAbstraction.EMPTY_COPY_OPTIONS;
+import static org.neo4j.storageengine.migration.StoreMigrationParticipant.NOT_PARTICIPATING;
+import static org.neo4j.util.Preconditions.checkState;
 
 /**
  * A migration process to migrate {@link StoreMigrationParticipant migration participants}, if there's
@@ -60,7 +72,6 @@ import org.neo4j.logging.LogProvider;
  * <li>Migration is completed and participant resources are closed</li>
  * </ol>
  * <p/>
- * TODO walk through crash scenarios and how they are handled.
  *
  * @see StoreMigrationParticipant
  */
@@ -71,25 +82,29 @@ public class StoreUpgrader
     public static final String MIGRATION_LEFT_OVERS_DIRECTORY = "upgrade_backup";
     private static final String MIGRATION_STATUS_FILE = "_status";
 
-    private final UpgradableDatabase upgradableDatabase;
+    private final StoreVersionCheck storeVersionCheck;
     private final MigrationProgressMonitor progressMonitor;
-    private final List<StoreMigrationParticipant> participants = new ArrayList<>();
+    private final LinkedHashMap<String, StoreMigrationParticipant> participants = new LinkedHashMap<>();
     private final Config config;
     private final FileSystemAbstraction fileSystem;
-    private final PageCache pageCache;
     private final Log log;
-    private final LogProvider logProvider;
+    private final LogTailScanner logTailScanner;
+    private final LegacyTransactionLogsLocator legacyLogsLocator;
 
-    public StoreUpgrader( UpgradableDatabase upgradableDatabase, MigrationProgressMonitor progressMonitor, Config
-            config, FileSystemAbstraction fileSystem, PageCache pageCache, LogProvider logProvider )
+    private final String configuredFormat;
+
+    public StoreUpgrader( StoreVersionCheck storeVersionCheck, MigrationProgressMonitor progressMonitor, Config
+            config, FileSystemAbstraction fileSystem, LogProvider logProvider, LogTailScanner logTailScanner,
+            LegacyTransactionLogsLocator legacyLogsLocator )
     {
-        this.upgradableDatabase = upgradableDatabase;
+        this.storeVersionCheck = storeVersionCheck;
         this.progressMonitor = progressMonitor;
         this.fileSystem = fileSystem;
         this.config = config;
-        this.pageCache = pageCache;
-        this.logProvider = logProvider;
+        this.legacyLogsLocator = legacyLogsLocator;
         this.log = logProvider.getLog( getClass() );
+        this.logTailScanner = logTailScanner;
+        this.configuredFormat = storeVersionCheck.configuredVersion();
     }
 
     /**
@@ -100,21 +115,30 @@ public class StoreUpgrader
     public void addParticipant( StoreMigrationParticipant participant )
     {
         assert participant != null;
-        if ( !StoreMigrationParticipant.NOT_PARTICIPATING.equals( participant ) )
+        if ( !NOT_PARTICIPATING.equals( participant ) )
         {
-            this.participants.add( participant );
+            var newParticipantName = participant.getName();
+            checkState( !participants.containsKey( newParticipantName ),
+                    "Migration participants should have unique names. Participant with name: `%s` is already registered.", newParticipantName );
+            this.participants.put( newParticipantName, participant );
         }
     }
 
-    public void migrateIfNeeded( DatabaseLayout layout )
+    public void migrateIfNeeded( DatabaseLayout layout ) throws IOException
     {
-        DatabaseLayout migrationStructure = DatabaseLayout.of( layout.databaseDirectory(), MIGRATION_DIRECTORY );
+        if ( layout.getDatabaseName().equals( GraphDatabaseSettings.SYSTEM_DATABASE_NAME ) )
+        {
+            // TODO: System database does not (yet) support migration, remove this when it does!
+            return;
+        }
+
+        DatabaseLayout migrationStructure = DatabaseLayout.ofFlat( layout.file( MIGRATION_DIRECTORY ) );
 
         cleanupLegacyLeftOverDirsIn( layout.databaseDirectory() );
 
         File migrationStateFile = migrationStructure.file( MIGRATION_STATUS_FILE );
         // if migration directory exists than we might have failed to move files into the store dir so do it again
-        if ( upgradableDatabase.hasCurrentVersion( layout ) && !fileSystem.fileExists( migrationStateFile ) )
+        if ( hasCurrentVersion( storeVersionCheck ) && !fileSystem.fileExists( migrationStateFile ) )
         {
             // No migration needed
             return;
@@ -122,15 +146,43 @@ public class StoreUpgrader
 
         if ( isUpgradeAllowed() )
         {
-            migrateStore( layout, migrationStructure, migrationStateFile );
+            migrate( layout, migrationStructure, migrationStateFile );
         }
-        else if ( !RecordFormatSelector.isStoreAndConfigFormatsCompatible( config, layout, fileSystem, pageCache, logProvider ) )
+        else
         {
-            throw new UpgradeNotAllowedByConfigurationException();
+            Optional<String> storeVersion = storeVersionCheck.storeVersion();
+            if ( storeVersion.isPresent() )
+            {
+                StoreVersion version = storeVersionCheck.versionInformation( storeVersion.get() );
+                if ( version.hasCapability( IndexCapabilities.LuceneCapability.LUCENE_5 ) )
+                {
+                    throw new UpgradeNotAllowedException( "Upgrade is required to migrate store to new major version." );
+                }
+                else
+                {
+                    String configuredVersion = storeVersionCheck.configuredVersion();
+                    if ( configuredVersion != null && !version.isCompatibleWith( storeVersionCheck.versionInformation( configuredVersion ) ) )
+                    {
+                        throw new UpgradeNotAllowedException();
+                    }
+                }
+            }
         }
     }
 
-    private void migrateStore( DatabaseLayout dbDirectoryLayout, DatabaseLayout migrationLayout, File migrationStateFile )
+    private boolean hasCurrentVersion( StoreVersionCheck storeVersionCheck )
+    {
+        String configuredVersion = storeVersionCheck.configuredVersion();
+        StoreVersionCheck.Result versionResult = storeVersionCheck.checkUpgrade( configuredVersion );
+        if ( versionResult.outcome == StoreVersionCheck.Outcome.missingStoreFile )
+        {
+            // New store so will be of the current version
+            return true;
+        }
+        return versionResult.outcome.isSuccessful() && versionResult.actualVersion.equals( configuredVersion );
+    }
+
+    private void migrate( DatabaseLayout dbDirectoryLayout, DatabaseLayout migrationLayout, File migrationStateFile ) throws IOException
     {
         // One or more participants would like to do migration
         progressMonitor.started( participants.size() );
@@ -141,7 +193,9 @@ public class StoreUpgrader
         // and it's just a matter of moving over the files to the storeDir.
         if ( MigrationStatus.migrating.isNeededFor( migrationStatus ) )
         {
-            versionToMigrateFrom = upgradableDatabase.checkUpgradable( dbDirectoryLayout ).storeVersion();
+            StoreVersionCheck.Result upgradeCheck = storeVersionCheck.checkUpgrade( storeVersionCheck.configuredVersion() );
+            versionToMigrateFrom = getVersionFromResult( upgradeCheck );
+            assertCleanlyShutDownByCheckPoint();
             cleanMigrationDirectory( migrationLayout.databaseDirectory() );
             MigrationStatus.migrating.setMigrationStatus( fileSystem, migrationStateFile, versionToMigrateFrom );
             migrateToIsolatedDirectory( dbDirectoryLayout, migrationLayout, versionToMigrateFrom );
@@ -150,20 +204,100 @@ public class StoreUpgrader
 
         if ( MigrationStatus.moving.isNeededFor( migrationStatus ) )
         {
-            versionToMigrateFrom =
-                    MigrationStatus.moving.maybeReadInfo( fileSystem, migrationStateFile, versionToMigrateFrom );
-            moveMigratedFilesToStoreDirectory( participants, migrationLayout, dbDirectoryLayout,
-                    versionToMigrateFrom, upgradableDatabase.currentVersion() );
+            versionToMigrateFrom = MigrationStatus.moving.maybeReadInfo( fileSystem, migrationStateFile, versionToMigrateFrom );
+            String versionToMigrateTo = storeVersionCheck.configuredVersion();
+            moveMigratedFilesToStoreDirectory( participants.values(), migrationLayout, dbDirectoryLayout, versionToMigrateFrom, versionToMigrateTo );
         }
 
-        cleanup( participants, migrationLayout );
+        progressMonitor.startTransactionLogsMigration();
+        migrateTransactionLogs( dbDirectoryLayout, legacyLogsLocator );
+        progressMonitor.completeTransactionLogsMigration();
+
+        cleanup( participants.values(), migrationLayout );
 
         progressMonitor.completed();
     }
 
+    private void migrateTransactionLogs( DatabaseLayout dbDirectoryLayout, LegacyTransactionLogsLocator transactionLogsLocator )
+    {
+        try
+        {
+            File transactionLogsDirectory = dbDirectoryLayout.getTransactionLogsDirectory();
+            File legacyLogsDirectory = transactionLogsLocator.getTransactionLogsDirectory();
+            if ( transactionLogsDirectory.equals( legacyLogsDirectory ) )
+            {
+                // directories are the same - no need to move log files
+                return;
+            }
+            File[] legacyFiles = LogFilesBuilder.logFilesBasedOnlyBuilder( legacyLogsDirectory, fileSystem ).build().logFiles();
+            if ( legacyFiles != null )
+            {
+                for ( File legacyFile : legacyFiles )
+                {
+                    fileSystem.copyFile( legacyFile, new File( transactionLogsDirectory, legacyFile.getName() ), EMPTY_COPY_OPTIONS );
+                }
+                for ( File legacyFile : legacyFiles )
+                {
+                    fileSystem.deleteFile( legacyFile );
+                }
+            }
+        }
+        catch ( IOException ioException )
+        {
+            throw new TransactionLogsRelocationException( "Failure on attempt to move transaction logs into new location.", ioException );
+        }
+    }
+
+    private String getVersionFromResult( StoreVersionCheck.Result result )
+    {
+        switch ( result.outcome )
+        {
+        case ok:
+            return result.actualVersion;
+        case missingStoreFile:
+            throw new StoreUpgrader.UpgradeMissingStoreFilesException( result.storeFilename );
+        case storeVersionNotFound:
+            throw new StoreUpgrader.UpgradingStoreVersionNotFoundException( result.storeFilename );
+        case attemptedStoreDowngrade:
+            throw new StoreUpgrader.AttemptedDowngradeException();
+        case unexpectedStoreVersion:
+            throw new StoreUpgrader.UnexpectedUpgradingStoreVersionException( result.actualVersion, configuredFormat );
+        case storeNotCleanlyShutDown:
+            throw new StoreUpgrader.DatabaseNotCleanlyShutDownException();
+        case unexpectedUpgradingVersion:
+            throw new StoreUpgrader.UnexpectedUpgradingStoreFormatException();
+        default:
+            throw new IllegalArgumentException( "Unexpected outcome: " + result.outcome.name() );
+        }
+    }
+
+    private void assertCleanlyShutDownByCheckPoint()
+    {
+        Throwable suppressibleException = null;
+        try
+        {
+            if ( !logTailScanner.getTailInformation().commitsAfterLastCheckpoint() )
+            {
+                // All good
+                return;
+            }
+        }
+        catch ( Throwable throwable )
+        {
+            // ignore exception and throw db not cleanly shutdown
+            suppressibleException = throwable;
+        }
+        DatabaseNotCleanlyShutDownException exception = new DatabaseNotCleanlyShutDownException();
+        if ( suppressibleException != null )
+        {
+            exception.addSuppressed( suppressibleException );
+        }
+        throw exception;
+    }
+
     List<StoreMigrationParticipant> getParticipants()
     {
-        return participants;
+        return List.copyOf( participants.values() );
     }
 
     private boolean isUpgradeAllowed()
@@ -220,15 +354,15 @@ public class StoreUpgrader
     {
         try
         {
-            for ( StoreMigrationParticipant participant : participants )
+            for ( Map.Entry<String, StoreMigrationParticipant> participantEntry : participants.entrySet() )
             {
-                ProgressReporter progressReporter = progressMonitor.startSection( participant.getName() );
-                participant.migrate( directoryLayout, migrationLayout, progressReporter, versionToMigrateFrom,
-                        upgradableDatabase.currentVersion() );
+                ProgressReporter progressReporter = progressMonitor.startSection( participantEntry.getKey() );
+                String versionToMigrateTo = storeVersionCheck.configuredVersion();
+                participantEntry.getValue().migrate( directoryLayout, migrationLayout, progressReporter, versionToMigrateFrom, versionToMigrateTo );
                 progressReporter.completed();
             }
         }
-        catch ( IOException | UncheckedIOException e )
+        catch ( IOException | UncheckedIOException | KernelException e )
         {
             throw new UnableToUpgradeException( "Failure doing migration", e );
         }
@@ -259,6 +393,14 @@ public class StoreUpgrader
         catch ( IOException e )
         {
             log.error( "Unable to delete directory: " + dir, e );
+        }
+    }
+
+    static class TransactionLogsRelocationException extends RuntimeException
+    {
+        TransactionLogsRelocationException( String message, Throwable cause )
+        {
+            super( message, cause );
         }
     }
 
@@ -320,7 +462,7 @@ public class StoreUpgrader
 
     public static class UnexpectedUpgradingStoreFormatException extends UnableToUpgradeException
     {
-        protected static final String MESSAGE =
+        static final String MESSAGE =
                 "This is an enterprise-only store. Please configure '%s' to open.";
 
         UnexpectedUpgradingStoreFormatException()

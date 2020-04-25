@@ -22,94 +22,77 @@
  */
 package org.neo4j.kernel.api.impl.index;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
-import java.util.ArrayList;
-import java.util.Collection;
+import java.util.stream.Stream;
 
+import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.NotFoundException;
 import org.neo4j.graphdb.Transaction;
-import org.neo4j.test.rule.DatabaseRule;
-import org.neo4j.test.rule.ImpermanentDatabaseRule;
+import org.neo4j.test.extension.ImpermanentDbmsExtension;
+import org.neo4j.test.extension.Inject;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.fail;
-import static org.neo4j.helpers.ArrayUtil.array;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
-@RunWith( Parameterized.class )
-public class AccidentalUniquenessConstraintViolationIT
+@ImpermanentDbmsExtension
+class AccidentalUniquenessConstraintViolationIT
 {
     private static final Label Foo = Label.label( "Foo" );
     private static final String BAR = "bar";
 
-    @Parameterized.Parameters
-    public static Collection<Object[]> data()
+    private static Stream<Arguments> parameters()
     {
-        Collection<Object[]> data = new ArrayList<>();
-        data.add( array( 42, 41 ) );
-        data.add( array( "a", "b" ) );
-        return data;
+        return Stream.of( Arguments.of( 42, 41 ), Arguments.of( "a", "b" ) );
     }
 
-    @Parameterized.Parameter
-    public Object value1;
-    @Parameterized.Parameter( 1 )
-    public Object value2;
+    @Inject
+    private GraphDatabaseService db;
 
-    @Rule
-    public final DatabaseRule db = new ImpermanentDatabaseRule();
-
-    @Test
-    public void shouldApplyChangesWithIntermediateConstraintViolations() throws Exception
+    @ParameterizedTest
+    @MethodSource( "parameters" )
+    void shouldApplyChangesWithIntermediateConstraintViolations( Object value1, Object value2 )
     {
         // given
         try ( Transaction tx = db.beginTx() )
         {
-            db.schema().constraintFor( Foo ).assertPropertyIsUnique( BAR ).create();
-            tx.success();
+            tx.schema().constraintFor( Foo ).assertPropertyIsUnique( BAR ).create();
+            tx.commit();
         }
         Node fourtyTwo;
         Node fourtyOne;
         try ( Transaction tx = db.beginTx() )
         {
-            fourtyTwo = db.createNode( Foo );
+            fourtyTwo = tx.createNode( Foo );
             fourtyTwo.setProperty( BAR, value1 );
-            fourtyOne = db.createNode( Foo );
+            fourtyOne = tx.createNode( Foo );
             fourtyOne.setProperty( BAR, value2 );
-            tx.success();
+            tx.commit();
         }
 
         // when
         try ( Transaction tx = db.beginTx() )
         {
-            fourtyOne.delete();
-            fourtyTwo.setProperty( BAR, value2 );
-            tx.success();
+            tx.getNodeById( fourtyOne.getId() ).delete();
+            tx.getNodeById( fourtyTwo.getId() ).setProperty( BAR, value2 );
+            tx.commit();
         }
 
         // then
         try ( Transaction tx = db.beginTx() )
         {
+            fourtyTwo = tx.getNodeById( fourtyTwo.getId() );
             assertEquals( value2, fourtyTwo.getProperty( BAR ) );
-            try
-            {
-                fourtyOne.getProperty( BAR );
-                fail( "Should be deleted" );
-            }
-            catch ( NotFoundException e )
-            {
-                // good
-            }
-            tx.success();
+            assertThrows( NotFoundException.class, () -> tx.getNodeById( fourtyOne.getId() ).getProperty( BAR ) );
 
-            assertEquals( fourtyTwo, db.findNode( Foo, BAR, value2 ) );
-            assertNull( db.findNode( Foo, BAR, value1 ) );
+            assertEquals( fourtyTwo, tx.findNode( Foo, BAR, value2 ) );
+            assertNull( tx.findNode( Foo, BAR, value1 ) );
+            tx.commit();
         }
     }
 }

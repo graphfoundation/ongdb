@@ -22,7 +22,6 @@
  */
 package org.neo4j.kernel.api.impl.schema.verification;
 
-import org.apache.lucene.index.Fields;
 import org.apache.lucene.index.LeafReader;
 import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.index.MultiTerms;
@@ -41,9 +40,9 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import org.neo4j.helpers.collection.Iterables;
 import org.neo4j.io.IOUtils;
 import org.neo4j.kernel.api.exceptions.index.IndexEntryConflictException;
+import org.neo4j.kernel.api.impl.index.SearcherReference;
 import org.neo4j.kernel.api.impl.index.partition.PartitionSearcher;
 import org.neo4j.kernel.api.impl.schema.LuceneDocumentStructure;
 import org.neo4j.storageengine.api.NodePropertyAccessor;
@@ -64,9 +63,9 @@ import static java.util.stream.Collectors.toList;
  */
 public class PartitionedUniquenessVerifier implements UniquenessVerifier
 {
-    private final List<PartitionSearcher> searchers;
+    private final List<SearcherReference> searchers;
 
-    public PartitionedUniquenessVerifier( List<PartitionSearcher> searchers )
+    public PartitionedUniquenessVerifier( List<SearcherReference> searchers )
     {
         this.searchers = searchers;
     }
@@ -78,7 +77,7 @@ public class PartitionedUniquenessVerifier implements UniquenessVerifier
         {
             if ( LuceneDocumentStructure.useFieldForUniquenessVerification( field ) )
             {
-                TermsEnum terms = LuceneDocumentStructure.originalTerms( termsForField( field ), field );
+                TermsEnum terms = termsForField( field ).iterator();
                 BytesRef termsRef;
                 while ( (termsRef = terms.next()) != null )
                 {
@@ -114,11 +113,10 @@ public class PartitionedUniquenessVerifier implements UniquenessVerifier
         List<Terms> terms = new ArrayList<>();
         List<ReaderSlice> readerSlices = new ArrayList<>();
 
-        for ( LeafReader leafReader : allLeafReaders() )
+        List<LeafReader> leafReaders = allLeafReaders();
+        for ( LeafReader leafReader : leafReaders )
         {
-            Fields fields = leafReader.fields();
-
-            Terms leafTerms = fields.terms( fieldName );
+            Terms leafTerms = leafReader.terms( fieldName );
             if ( leafTerms != null )
             {
                 ReaderSlice readerSlice = new ReaderSlice( 0, Math.toIntExact( leafTerms.size() ), 0 );
@@ -127,8 +125,8 @@ public class PartitionedUniquenessVerifier implements UniquenessVerifier
             }
         }
 
-        Terms[] termsArray = terms.toArray( new Terms[terms.size()] );
-        ReaderSlice[] readerSlicesArray = readerSlices.toArray( new ReaderSlice[readerSlices.size()] );
+        Terms[] termsArray = terms.toArray( new Terms[0] );
+        ReaderSlice[] readerSlicesArray = readerSlices.toArray( new ReaderSlice[0] );
 
         return new MultiTerms( termsArray, readerSlicesArray );
     }
@@ -177,7 +175,7 @@ public class PartitionedUniquenessVerifier implements UniquenessVerifier
     {
         try
         {
-            for ( PartitionSearcher searcher : searchers )
+            for ( SearcherReference searcher : searchers )
             {
                     /*
                      * Here {@link DuplicateCheckingCollector#init()} is deliberately not called to preserve accumulated
@@ -197,12 +195,12 @@ public class PartitionedUniquenessVerifier implements UniquenessVerifier
         }
     }
 
-    private Set<String> allFields() throws IOException
+    private Set<String> allFields()
     {
         Set<String> allFields = new HashSet<>();
         for ( LeafReader leafReader : allLeafReaders() )
         {
-            Iterables.addAll( allFields, leafReader.fields() );
+            leafReader.getFieldInfos().forEach( info -> allFields.add( info.name ) );
         }
         return allFields;
     }
@@ -210,7 +208,7 @@ public class PartitionedUniquenessVerifier implements UniquenessVerifier
     private List<LeafReader> allLeafReaders()
     {
         return searchers.stream()
-                .map( PartitionSearcher::getIndexSearcher )
+                .map( SearcherReference::getIndexSearcher )
                 .map( IndexSearcher::getIndexReader )
                 .flatMap( indexReader -> indexReader.leaves().stream() )
                 .map( LeafReaderContext::reader )

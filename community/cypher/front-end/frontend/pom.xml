@@ -1,17 +1,24 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <parent>
         <groupId>org.graphfoundation.ongdb</groupId>
+<<<<<<< HEAD
         <artifactId>ongdb-front-end-parent-3.6</artifactId>
+=======
+        <artifactId>ongdb-front-end-parent-4.0</artifactId>
+>>>>>>> 4.0-firstPass
         <version>4.0.4-SNAPSHOT</version>
         <relativePath>../</relativePath>
     </parent>
 
     <modelVersion>4.0.0</modelVersion>
-    <artifactId>ongdb-front-end-3.6</artifactId>
+    <artifactId>ongdb-front-end-4.0</artifactId>
     <packaging>jar</packaging>
+<<<<<<< HEAD
     <version>4.0.4-SNAPSHOT</version>
+=======
+>>>>>>> 4.0-firstPass
     <name>openCypher Front End</name>
 
     <description>
@@ -27,16 +34,16 @@
         See https://www.opencypher.org for more information on the openCypher project and query language.
     </description>
 
-    <url>https://ongdb.graphfoundation.org/${project.artifactId}/${project.version}</url>
+    <url>http://components.neo4j.org/${project.artifactId}/${project.version}</url>
 
     <scm>
-        <connection>scm:git:git://github.com/graphfoundation/ongdb.git</connection>
-        <developerConnection>scm:git:git@github.com:graphfoundation/ongdb.git</developerConnection>
-        <url>https://github.com/graphfoundation/ongdb</url>
+        <connection>scm:git:git://github.com/neo4j/neo4j.git</connection>
+        <developerConnection>scm:git:git@github.com:neo4j/neo4j.git</developerConnection>
+        <url>https://github.com/neo4j/neo4j</url>
     </scm>
 
     <properties>
-        <moduleName>org.neo4j.cypher.internal.frontend.v3_6</moduleName>
+        <moduleName>org.neo4j.cypher.internal.frontend.v3_5</moduleName>
     </properties>
 
     <licenses>
@@ -54,25 +61,25 @@
 
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-util-3.6</artifactId>
+            <artifactId>ongdb-util-4.0</artifactId>
             <version>${project.version}</version>
         </dependency>
 
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-expressions-3.6</artifactId>
+            <artifactId>ongdb-expressions-4.0</artifactId>
             <version>${project.version}</version>
         </dependency>
 
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-rewriting-3.6</artifactId>
+            <artifactId>ongdb-rewriting-4.0</artifactId>
             <version>${project.version}</version>
         </dependency>
 
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-rewriting-3.6</artifactId>
+            <artifactId>ongdb-rewriting-4.0</artifactId>
             <version>${project.version}</version>
             <type>test-jar</type>
             <scope>test</scope>
@@ -80,7 +87,7 @@
 
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-parser-3.6</artifactId>
+            <artifactId>ongdb-parser-4.0</artifactId>
             <version>${project.version}</version>
         </dependency>
 
@@ -88,7 +95,7 @@
 
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-util-3.6</artifactId>
+            <artifactId>ongdb-util-4.0</artifactId>
             <version>${project.version}</version>
             <type>test-jar</type>
             <scope>test</scope>
@@ -96,7 +103,7 @@
 
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-expressions-3.6</artifactId>
+            <artifactId>ongdb-expressions-4.0</artifactId>
             <version>${project.version}</version>
             <type>test-jar</type>
             <scope>test</scope>
@@ -104,7 +111,7 @@
 
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-ast-3.6</artifactId>
+            <artifactId>ongdb-ast-4.0</artifactId>
             <version>${project.version}</version>
             <type>test-jar</type>
             <scope>test</scope>
@@ -112,51 +119,40 @@
 
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-parser-3.6</artifactId>
+            <artifactId>ongdb-parser-4.0</artifactId>
             <version>${project.version}</version>
             <type>test-jar</type>
             <scope>test</scope>
         </dependency>
 
         <!-- scala -->
-
-        <dependency>
-            <groupId>org.scala-lang</groupId>
-            <artifactId>scala-library</artifactId>
-            <version>2.11.12</version>
-        </dependency>
-
         <dependency>
             <groupId>org.scala-lang</groupId>
             <artifactId>scala-reflect</artifactId>
-            <version>2.11.12</version>
+            <version>${scala.version}</version>
         </dependency>
 
         <!-- scala test dependencies -->
-
-        <dependency>
-            <groupId>org.scalatest</groupId>
-            <artifactId>scalatest_2.11</artifactId>
-            <version>2.2.5</version>
-        </dependency>
         <dependency>
             <groupId>org.scalacheck</groupId>
-            <artifactId>scalacheck_2.11</artifactId>
-            <version>1.12.5</version>
+            <artifactId>scalacheck_${scala.binary.version}</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>com.lihaoyi</groupId>
+            <artifactId>pprint_${scala.binary.version}</artifactId>
         </dependency>
 
         <!-- other -->
 
         <dependency>
             <groupId>org.parboiled</groupId>
-            <artifactId>parboiled-scala_2.11</artifactId>
-            <version>1.1.7</version>
+            <artifactId>parboiled-scala_${scala.binary.version}</artifactId>
         </dependency>
 
         <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-lang3</artifactId>
-            <version>3.8.1</version>
         </dependency>
 
     </dependencies>

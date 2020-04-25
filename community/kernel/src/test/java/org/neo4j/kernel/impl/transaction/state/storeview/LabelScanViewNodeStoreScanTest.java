@@ -23,8 +23,8 @@
 package org.neo4j.kernel.impl.transaction.state.storeview;
 
 import org.hamcrest.Matchers;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.function.IntPredicate;
@@ -32,43 +32,43 @@ import java.util.function.IntPredicate;
 import org.neo4j.collection.PrimitiveLongCollections;
 import org.neo4j.collection.PrimitiveLongResourceCollections;
 import org.neo4j.collection.PrimitiveLongResourceIterator;
-import org.neo4j.helpers.collection.Visitor;
-import org.neo4j.kernel.api.labelscan.LabelScanStore;
-import org.neo4j.kernel.api.labelscan.NodeLabelUpdate;
-import org.neo4j.kernel.impl.api.index.EntityUpdates;
-import org.neo4j.kernel.impl.locking.LockService;
-import org.neo4j.kernel.impl.storageengine.impl.recordstorage.RecordStorageReader;
-import org.neo4j.kernel.impl.store.NeoStores;
-import org.neo4j.kernel.impl.store.NodeStore;
-import org.neo4j.storageengine.api.schema.LabelScanReader;
+import org.neo4j.internal.helpers.collection.Visitor;
+import org.neo4j.internal.index.label.LabelScanReader;
+import org.neo4j.internal.index.label.LabelScanStore;
+import org.neo4j.lock.LockService;
+import org.neo4j.storageengine.api.EntityUpdates;
+import org.neo4j.storageengine.api.NodeLabelUpdate;
+import org.neo4j.storageengine.api.StubStorageCursors;
 
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-public class LabelScanViewNodeStoreScanTest
+class LabelScanViewNodeStoreScanTest
 {
-    private NodeStore nodeStore = mock( NodeStore.class );
-    private NeoStores neoStores = mock( NeoStores.class );
-    private LabelScanStore labelScanStore = mock( LabelScanStore.class );
-    private LabelScanReader labelScanReader = mock( LabelScanReader.class );
-    private IntPredicate propertyKeyIdFilter = mock( IntPredicate.class );
-    private Visitor<NodeLabelUpdate,Exception> labelUpdateVisitor = mock( Visitor.class );
-    private Visitor<EntityUpdates,Exception> propertyUpdateVisitor = mock( Visitor.class );
+    private final StubStorageCursors cursors = new StubStorageCursors();
+    private final LabelScanStore labelScanStore = mock( LabelScanStore.class );
+    private final LabelScanReader labelScanReader = mock( LabelScanReader.class );
+    private final IntPredicate propertyKeyIdFilter = mock( IntPredicate.class );
+    private final Visitor<NodeLabelUpdate,Exception> labelUpdateVisitor = mock( Visitor.class );
+    private final Visitor<EntityUpdates,Exception> propertyUpdateVisitor = mock( Visitor.class );
 
-    @Before
-    public void setUp()
+    @BeforeEach
+    void setUp()
     {
         when( labelScanStore.newReader() ).thenReturn( labelScanReader );
-        when( neoStores.getNodeStore() ).thenReturn( nodeStore );
     }
 
     @Test
-    public void iterateOverLabeledNodeIds()
+    void iterateOverLabeledNodeIds()
     {
         PrimitiveLongResourceIterator labeledNodes = PrimitiveLongResourceCollections.iterator( null, 1, 2, 4, 8 );
 
-        when( nodeStore.getHighId() ).thenReturn( 15L );
+        long highId = 15L;
+        for ( long i = 0; i < highId; i++ )
+        {
+            cursors.withNode( i );
+        }
         int[] labelIds = new int[]{1, 2};
         when( labelScanReader.nodesWithAnyOfLabels( labelIds ) ).thenReturn( labeledNodes );
 
@@ -82,7 +82,7 @@ public class LabelScanViewNodeStoreScanTest
 
     private LabelScanViewNodeStoreScan<Exception> getLabelScanViewStoreScan( int[] labelIds )
     {
-        return new LabelScanViewNodeStoreScan<>( new RecordStorageReader( neoStores ), LockService.NO_LOCK_SERVICE,
+        return new LabelScanViewNodeStoreScan<>( cursors, LockService.NO_LOCK_SERVICE,
                 labelScanStore, labelUpdateVisitor, propertyUpdateVisitor, labelIds, propertyKeyIdFilter );
     }
 }

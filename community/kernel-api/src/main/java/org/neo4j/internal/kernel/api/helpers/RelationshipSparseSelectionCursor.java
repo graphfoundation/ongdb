@@ -22,6 +22,9 @@
  */
 package org.neo4j.internal.kernel.api.helpers;
 
+import org.neo4j.internal.kernel.api.KernelReadTracer;
+import org.neo4j.internal.kernel.api.RelationshipTraversalCursor;
+
 /**
  * Helper cursor for traversing specific types and directions of a dense node.
  */
@@ -36,6 +39,17 @@ public final class RelationshipSparseSelectionCursor extends RelationshipSparseS
             return false;
         }
         return true;
+    }
+
+    @Override
+    public void close()
+    {
+        closeInternal();
+        final var listener = closeListener;
+        if ( listener != null )
+        {
+            listener.onClosed( this );
+        }
     }
 
     @Override
@@ -73,5 +87,35 @@ public final class RelationshipSparseSelectionCursor extends RelationshipSparseS
     public long propertiesReference()
     {
         return cursor.propertiesReference();
+    }
+
+    @Override
+    public boolean isClosed()
+    {
+        return cursor == null || cursor.isClosed();
+    }
+
+    @Override
+    public void setTracer( KernelReadTracer tracer )
+    {
+        cursor.setTracer( tracer );
+    }
+
+    @Override
+    public String toString()
+    {
+        if ( isClosed() )
+        {
+            return "RelationshipSparseSelectionCursor[closed state]";
+        }
+        else
+        {
+            return "RelationshipSparseSelectionCursor[cursor=" + cursor.toString() + "]";
+        }
+    }
+
+    public RelationshipTraversalCursor traversalCursor()
+    {
+        return cursor;
     }
 }

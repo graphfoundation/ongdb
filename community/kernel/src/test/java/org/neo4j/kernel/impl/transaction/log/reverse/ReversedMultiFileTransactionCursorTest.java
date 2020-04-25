@@ -22,36 +22,48 @@
  */
 package org.neo4j.kernel.impl.transaction.log.reverse;
 
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.neo4j.function.ThrowingFunction;
-import org.neo4j.helpers.ArrayUtil;
+import org.neo4j.internal.helpers.ArrayUtil;
 import org.neo4j.kernel.impl.transaction.CommittedTransactionRepresentation;
 import org.neo4j.kernel.impl.transaction.log.LogPosition;
 import org.neo4j.kernel.impl.transaction.log.TransactionCursor;
 import org.neo4j.kernel.impl.transaction.log.entry.LogEntryCommit;
+import org.neo4j.kernel.impl.transaction.log.entry.LogHeader;
+import org.neo4j.kernel.impl.transaction.log.files.LogFiles;
 
 import static java.lang.Math.toIntExact;
 import static java.util.Arrays.copyOfRange;
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.neo4j.kernel.impl.transaction.log.GivenTransactionCursor.exhaust;
 import static org.neo4j.kernel.impl.transaction.log.GivenTransactionCursor.given;
-import static org.neo4j.kernel.impl.transaction.log.LogPosition.start;
-import static org.neo4j.kernel.impl.transaction.log.entry.LogHeader.LOG_HEADER_SIZE;
+import static org.neo4j.kernel.impl.transaction.log.entry.LogVersions.CURRENT_FORMAT_LOG_HEADER_SIZE;
+import static org.neo4j.storageengine.api.StoreId.UNKNOWN;
 
-public class ReversedMultiFileTransactionCursorTest
+class ReversedMultiFileTransactionCursorTest
 {
+    private final LogFiles logFiles = mock( LogFiles.class );
+
+    @BeforeEach
+    void setUp() throws IOException
+    {
+        when( logFiles.extractHeader( anyLong() ) ).thenAnswer( invocation -> new LogHeader( invocation.getArgument( 0 ), 1, UNKNOWN ) );
+    }
+
     @Test
-    public void shouldReadSingleVersionReversed() throws Exception
+    void shouldReadSingleVersionReversed() throws Exception
     {
         // GIVEN
-        TransactionCursor cursor = new ReversedMultiFileTransactionCursor( log( 5 ), 0, start( 0 ) );
+        TransactionCursor cursor = new ReversedMultiFileTransactionCursor( logFiles, log( 5 ), 0, start() );
 
         // WHEN
         CommittedTransactionRepresentation[] reversed = exhaust( cursor );
@@ -61,10 +73,10 @@ public class ReversedMultiFileTransactionCursorTest
     }
 
     @Test
-    public void shouldReadMultipleVersionsReversed() throws Exception
+    void shouldReadMultipleVersionsReversed() throws Exception
     {
         // GIVEN
-        TransactionCursor cursor = new ReversedMultiFileTransactionCursor( log( 5, 3, 8 ), 2, start( 0 ) );
+        TransactionCursor cursor = new ReversedMultiFileTransactionCursor( logFiles, log( 5, 3, 8 ), 2, start() );
 
         // WHEN
         CommittedTransactionRepresentation[] reversed = exhaust( cursor );
@@ -74,10 +86,11 @@ public class ReversedMultiFileTransactionCursorTest
     }
 
     @Test
-    public void shouldRespectStartLogPosition() throws Exception
+    void shouldRespectStartLogPosition() throws Exception
     {
         // GIVEN
-        TransactionCursor cursor = new ReversedMultiFileTransactionCursor( log( 5, 6, 8 ), 2, new LogPosition( 1, LOG_HEADER_SIZE + 3 ) );
+        TransactionCursor cursor =
+                new ReversedMultiFileTransactionCursor( logFiles, log( 5, 6, 8 ), 2, new LogPosition( 1, CURRENT_FORMAT_LOG_HEADER_SIZE + 3 ) );
 
         // WHEN
         CommittedTransactionRepresentation[] reversed = exhaust( cursor );
@@ -87,10 +100,10 @@ public class ReversedMultiFileTransactionCursorTest
     }
 
     @Test
-    public void shouldHandleEmptyLogsMidStream() throws Exception
+    void shouldHandleEmptyLogsMidStream() throws Exception
     {
         // GIVEN
-        TransactionCursor cursor = new ReversedMultiFileTransactionCursor( log( 5, 0, 2, 0, 3 ), 4, start( 0 ) );
+        TransactionCursor cursor = new ReversedMultiFileTransactionCursor( logFiles, log( 5, 0, 2, 0, 3 ), 4, start() );
 
         // WHEN
         CommittedTransactionRepresentation[] reversed = exhaust( cursor );
@@ -100,10 +113,10 @@ public class ReversedMultiFileTransactionCursorTest
     }
 
     @Test
-    public void shouldHandleEmptySingleLogVersion() throws Exception
+    void shouldHandleEmptySingleLogVersion() throws Exception
     {
         // GIVEN
-        TransactionCursor cursor = new ReversedMultiFileTransactionCursor( log( 0 ), 0, start( 0 ) );
+        TransactionCursor cursor = new ReversedMultiFileTransactionCursor( logFiles, log( 0 ), 0, start() );
 
         // WHEN
         CommittedTransactionRepresentation[] reversed = exhaust( cursor );
@@ -125,7 +138,7 @@ public class ReversedMultiFileTransactionCursorTest
 
     private ThrowingFunction<LogPosition,TransactionCursor,IOException> log( int... transactionCounts ) throws IOException
     {
-        long baseOffset = LogPosition.start( 0 ).getByteOffset();
+        long baseOffset = start().getByteOffset();
 
         @SuppressWarnings( "unchecked" )
         ThrowingFunction<LogPosition,TransactionCursor,IOException> result = mock( ThrowingFunction.class );
@@ -153,6 +166,11 @@ public class ReversedMultiFileTransactionCursorTest
             return given( subset );
         } );
         return result;
+    }
+
+    private LogPosition start()
+    {
+        return new LogPosition( 0, CURRENT_FORMAT_LOG_HEADER_SIZE );
     }
 
     private CommittedTransactionRepresentation[] transactions( int count, AtomicLong txId )

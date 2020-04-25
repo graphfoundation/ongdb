@@ -19,51 +19,17 @@
  */
 package org.neo4j.pushtocloud;
 
-import java.nio.file.Path;
+import org.neo4j.annotations.service.ServiceProvider;
+import org.neo4j.cli.CommandProvider;
+import org.neo4j.cli.ExecutionContext;
 
-import org.neo4j.commandline.admin.AdminCommand;
-import org.neo4j.commandline.admin.AdminCommandSection;
-import org.neo4j.commandline.admin.OutsideWorld;
-import org.neo4j.commandline.arguments.Arguments;
-
-public class PushToCloudCommandProvider extends AdminCommand.Provider
+@ServiceProvider
+public class PushToCloudCommandProvider implements CommandProvider<PushToCloudCommand>
 {
-    public PushToCloudCommandProvider()
-    {
-        super( "push-to-cloud" );
-    }
-
     @Override
-    public Arguments allArguments()
+    public PushToCloudCommand createCommand( ExecutionContext ctx )
     {
-        return PushToCloudCommand.arguments;
-    }
-
-    @Override
-    public String summary()
-    {
-        return "Push database to Neo4j cloud";
-    }
-
-    @Override
-    public AdminCommandSection commandSection()
-    {
-        return AdminCommandSection.general();
-
-    }
-
-    @Override
-    public String description()
-    {
-        return "Push your local database to a Neo4j Aura instance. The database must be shutdown in order to take a dump to upload. " +
-                "The target location is your Neo4j Aura Bolt URI. You will be asked your Neo4j Cloud username and password during " +
-                "the push-to-cloud operation.";
-    }
-
-    @Override
-    public AdminCommand create( Path homeDir, Path configDir, OutsideWorld outsideWorld )
-    {
-        return new PushToCloudCommand( homeDir, configDir, outsideWorld, new HttpCopier( outsideWorld ),
-                new RealDumpCreator( homeDir, configDir, outsideWorld ) );
+        return new PushToCloudCommand( ctx, new HttpCopier( ctx ),
+                                       new RealDumpCreator( ctx ), PushToCloudConsole.realConsole() );
     }
 }

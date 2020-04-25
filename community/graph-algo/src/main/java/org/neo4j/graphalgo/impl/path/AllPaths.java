@@ -22,7 +22,7 @@
  */
 package org.neo4j.graphalgo.impl.path;
 
-import org.neo4j.graphdb.GraphDatabaseService;
+import org.neo4j.graphalgo.EvaluationContext;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.PathExpander;
 import org.neo4j.graphdb.traversal.TraversalDescription;
@@ -34,10 +34,12 @@ import static org.neo4j.graphdb.traversal.Evaluators.toDepth;
 public class AllPaths extends TraversalPathFinder
 {
     private final PathExpander expander;
+    private final EvaluationContext context;
     private final int maxDepth;
 
-    public AllPaths( int maxDepth, PathExpander expander )
+    public AllPaths( EvaluationContext context, int maxDepth, PathExpander expander )
     {
+        this.context = context;
         this.maxDepth = maxDepth;
         this.expander = expander;
     }
@@ -51,9 +53,9 @@ public class AllPaths extends TraversalPathFinder
     protected Traverser instantiateTraverser( Node start, Node end )
     {
         // Bidirectional traversal
-        GraphDatabaseService db = start.getGraphDatabase();
-        TraversalDescription base = db.traversalDescription().depthFirst().uniqueness( uniqueness() );
-        return db.bidirectionalTraversalDescription()
+        var transaction = context.transaction();
+        TraversalDescription base = transaction.traversalDescription().depthFirst().uniqueness( uniqueness() );
+        return transaction.bidirectionalTraversalDescription()
                 .startSide( base.expand( expander ).evaluator( toDepth( maxDepth / 2 ) ) )
                 .endSide( base.expand( expander.reverse() ).evaluator( toDepth( maxDepth - maxDepth / 2 ) ) )
                 .traverse( start, end );

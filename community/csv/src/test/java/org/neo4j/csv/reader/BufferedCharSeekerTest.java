@@ -23,34 +23,30 @@
 package org.neo4j.csv.reader;
 
 import org.apache.commons.lang3.StringUtils;
-import org.junit.After;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameters;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.io.IOException;
 import java.io.Reader;
 import java.io.StringReader;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Random;
 
 import static java.lang.String.format;
 import static java.util.Arrays.asList;
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.neo4j.csv.reader.CharSeekers.charSeeker;
 import static org.neo4j.csv.reader.Readables.wrap;
-import static org.neo4j.helpers.collection.Iterators.array;
+import static org.neo4j.internal.helpers.collection.Iterators.array;
 
-@RunWith( Parameterized.class )
-public class BufferedCharSeekerTest
+class BufferedCharSeekerTest
 {
     private static final char[] WHITESPACE_CHARS = {
             Character.SPACE_SEPARATOR,
@@ -72,7 +68,6 @@ public class BufferedCharSeekerTest
     };
 
     private static final String TEST_SOURCE = "TestSource";
-    private final boolean useThreadAhead;
     private static final int TAB = '\t';
     private static final int COMMA = ',';
     private static final Random random = new Random();
@@ -81,16 +76,8 @@ public class BufferedCharSeekerTest
 
     private CharSeeker seeker;
 
-    @Parameters( name = "{1}" )
-    public static Collection<Object[]> data()
-    {
-        return asList(
-                new Object[] {Boolean.FALSE, "without thread-ahead"},
-                new Object[] {Boolean.TRUE, "with thread-ahead"} );
-    }
-
-    @After
-    public void closeSeeker() throws IOException
+    @AfterEach
+    void closeSeeker() throws IOException
     {
         if ( seeker != null )
         {
@@ -98,20 +85,12 @@ public class BufferedCharSeekerTest
         }
     }
 
-    /**
-     * @param description used to provider a better description of what the boolean values means,
-     * which shows up in the junit results.
-     */
-    public BufferedCharSeekerTest( boolean useThreadAhead, String description )
-    {
-        this.useThreadAhead = useThreadAhead;
-    }
-
-    @Test
-    public void shouldFindCertainCharacter() throws Exception
+    @ParameterizedTest( name = "thread-ahead: {0}" )
+    @ValueSource( booleans = {false, true} )
+    void shouldFindCertainCharacter( boolean threadAhead ) throws Exception
     {
         // GIVEN
-        seeker = seeker( "abcdefg\thijklmnop\tqrstuvxyz" );
+        seeker = seeker( "abcdefg\thijklmnop\tqrstuvxyz", threadAhead );
 
         // WHEN/THEN
         // first value
@@ -136,13 +115,14 @@ public class BufferedCharSeekerTest
         assertFalse( seeker.seek( mark, TAB ) );
     }
 
-    @Test
-    public void shouldReadMultipleLines() throws Exception
+    @ParameterizedTest( name = "thread-ahead: {0}" )
+    @ValueSource( booleans = {false, true} )
+    void shouldReadMultipleLines( boolean threadAhead ) throws Exception
     {
         // GIVEN
         seeker = seeker(
-                "1\t2\t3\n" +
-                "4\t5\t6\n" );
+            "1\t2\t3\n" +
+                "4\t5\t6\n", threadAhead );
 
         // WHEN/THEN
         assertTrue( seeker.seek( mark, TAB ) );
@@ -168,11 +148,12 @@ public class BufferedCharSeekerTest
         assertFalse( seeker.seek( mark, TAB ) );
     }
 
-    @Test
-    public void shouldSeekThroughAdditionalBufferRead() throws Exception
+    @ParameterizedTest( name = "thread-ahead: {0}" )
+    @ValueSource( booleans = {false, true} )
+    void shouldSeekThroughAdditionalBufferRead( boolean threadAhead ) throws Exception
     {
         // GIVEN
-        seeker = seeker( "1234,5678,9012,3456", config( 12 ) );
+        seeker = seeker( "1234,5678,9012,3456", config( 12 ), threadAhead );
         // read more here             ^
 
         // WHEN/THEN
@@ -187,14 +168,15 @@ public class BufferedCharSeekerTest
         assertFalse( seeker.seek( mark, COMMA ) );
     }
 
-    @Test
-    public void shouldHandleWindowsEndOfLineCharacters() throws Exception
+    @ParameterizedTest( name = "thread-ahead: {0}" )
+    @ValueSource( booleans = {false, true} )
+    void shouldHandleWindowsEndOfLineCharacters( boolean threadAhead ) throws Exception
     {
         // GIVEN
         seeker = seeker(
-                "here,comes,Windows\r\n" +
+            "here,comes,Windows\r\n" +
                 "and,it,has\r" +
-                "other,line,endings" );
+                "other,line,endings", threadAhead );
 
         // WHEN/THEN
         assertEquals( "here", seeker.seek( mark, COMMA ) ? seeker.extract( mark, extractors.string() ).value() : "" );
@@ -211,15 +193,16 @@ public class BufferedCharSeekerTest
         assertTrue( mark.isEndOfLine() );
     }
 
-    @Test
-    public void shouldHandleReallyWeirdChars() throws Exception
+    @ParameterizedTest( name = "thread-ahead: {0}" )
+    @ValueSource( booleans = {false, true} )
+    void shouldHandleReallyWeirdChars( boolean threadAhead ) throws Exception
     {
         // GIVEN
         int cols = 3;
         int rows = 3;
         char delimiter = '\t';
         String[][] data = randomWeirdValues( cols, rows, delimiter, '\n', '\r' );
-        seeker = seeker( join( data, delimiter ) );
+        seeker = seeker( join( data, delimiter ), threadAhead );
 
         // WHEN/THEN
         for ( int row = 0; row < rows; row++ )
@@ -234,11 +217,12 @@ public class BufferedCharSeekerTest
         assertFalse( seeker.seek( mark, TAB ) );
     }
 
-    @Test
-    public void shouldHandleEmptyValues() throws Exception
+    @ParameterizedTest( name = "thread-ahead: {0}" )
+    @ValueSource( booleans = {false, true} )
+    void shouldHandleEmptyValues( boolean threadAhead ) throws Exception
     {
         // GIVEN
-        seeker = seeker( "1,,3,4" );
+        seeker = seeker( "1,,3,4", threadAhead );
 
         // WHEN
         assertTrue( seeker.seek( mark, COMMA ) );
@@ -253,11 +237,12 @@ public class BufferedCharSeekerTest
         assertEquals( 4, seeker.extract( mark, extractors.int_() ).intValue() );
     }
 
-    @Test
-    public void shouldNotLetEolCharSkippingMessUpPositionsInMark() throws Exception
+    @ParameterizedTest( name = "thread-ahead: {0}" )
+    @ValueSource( booleans = {false, true} )
+    void shouldNotLetEolCharSkippingMessUpPositionsInMark( boolean threadAhead ) throws Exception
     {
         // GIVEN
-        seeker = seeker( "12,34,56\n789,901,23", config( 9 ) );
+        seeker = seeker( "12,34,56\n789,901,23", config( 9 ), threadAhead );
         // read more here          ^        ^
 
         // WHEN
@@ -278,11 +263,12 @@ public class BufferedCharSeekerTest
         assertFalse( seeker.seek( mark, COMMA ) );
     }
 
-    @Test
-    public void shouldSeeEofEvenIfBufferAlignsWithEnd() throws Exception
+    @ParameterizedTest( name = "thread-ahead: {0}" )
+    @ValueSource( booleans = {false, true} )
+    void shouldSeeEofEvenIfBufferAlignsWithEnd( boolean threadAhead ) throws Exception
     {
         // GIVEN
-        seeker = seeker( "123,56", config( 6 ) );
+        seeker = seeker( "123,56", config( 6 ), threadAhead );
 
         // WHEN
         assertTrue( seeker.seek( mark, COMMA ) );
@@ -295,13 +281,14 @@ public class BufferedCharSeekerTest
         assertFalse( seeker.seek( mark, COMMA ) );
     }
 
-    @Test
-    public void shouldSkipEmptyLastValue() throws Exception
+    @ParameterizedTest( name = "thread-ahead: {0}" )
+    @ValueSource( booleans = {false, true} )
+    void shouldSkipEmptyLastValue( boolean threadAhead ) throws Exception
     {
         // GIVEN
         seeker = seeker(
-                "one,two,three,\n" +
-                "uno,dos,tres," );
+            "one,two,three,\n" +
+                "uno,dos,tres,", threadAhead );
 
         // WHEN
         assertNextValue( seeker, mark, COMMA, "one" );
@@ -317,11 +304,12 @@ public class BufferedCharSeekerTest
         assertEnd( seeker, mark, COMMA );
     }
 
-    @Test
-    public void shouldExtractEmptyStringForEmptyQuotedString() throws Exception
+    @ParameterizedTest( name = "thread-ahead: {0}" )
+    @ValueSource( booleans = {false, true} )
+    void shouldExtractEmptyStringForEmptyQuotedString( boolean threadAhead ) throws Exception
     {
         // GIVEN
-        seeker = seeker( "\"\",,\"\"" );
+        seeker = seeker( "\"\",,\"\"", threadAhead );
 
         // WHEN
         assertNextValue( seeker, mark, COMMA, "" );
@@ -332,11 +320,12 @@ public class BufferedCharSeekerTest
         assertFalse( seeker.seek( mark, COMMA ) );
     }
 
-    @Test
-    public void shouldExtractNullForEmptyFieldWhenWeSkipEOLChars() throws Exception
+    @ParameterizedTest( name = "thread-ahead: {0}" )
+    @ValueSource( booleans = {false, true} )
+    void shouldExtractNullForEmptyFieldWhenWeSkipEOLChars( boolean threadAhead ) throws Exception
     {
         // GIVEN
-        seeker = seeker( "\"\",\r\n" );
+        seeker = seeker( "\"\",\r\n", threadAhead );
 
         // WHEN
         assertNextValue( seeker, mark, COMMA, "" );
@@ -346,21 +335,23 @@ public class BufferedCharSeekerTest
         assertFalse( seeker.seek( mark, COMMA ) );
     }
 
-    @Test
-    public void shouldContinueThroughCompletelyEmptyLines() throws Exception
+    @ParameterizedTest( name = "thread-ahead: {0}" )
+    @ValueSource( booleans = {false, true} )
+    void shouldContinueThroughCompletelyEmptyLines( boolean threadAhead ) throws Exception
     {
         // GIVEN
-        seeker = seeker( "one,two,three\n\n\nfour,five,six" );
+        seeker = seeker( "one,two,three\n\n\nfour,five,six", threadAhead );
 
         // WHEN/THEN
-        assertArrayEquals( new String[] {"one", "two", "three"}, nextLineOfAllStrings( seeker, mark ) );
-        assertArrayEquals( new String[] {"four", "five", "six"}, nextLineOfAllStrings( seeker, mark ) );
+        assertArrayEquals( new String[]{"one", "two", "three"}, nextLineOfAllStrings( seeker, mark ) );
+        assertArrayEquals( new String[]{"four", "five", "six"}, nextLineOfAllStrings( seeker, mark ) );
     }
 
-    @Test
-    public void shouldHandleDoubleCharValues() throws IOException
+    @ParameterizedTest( name = "thread-ahead: {0}" )
+    @ValueSource( booleans = {false, true} )
+    void shouldHandleDoubleCharValues( boolean threadAhead ) throws IOException
     {
-        seeker = seeker( "v\uD800\uDC00lue one\t\"v\uD801\uDC01lue two\"\tv\uD804\uDC03lue three" );
+        seeker = seeker( "v\uD800\uDC00lue one\t\"v\uD801\uDC01lue two\"\tv\uD804\uDC03lue three", threadAhead );
         assertTrue( seeker.seek( mark, TAB ) );
         assertEquals( "v𐀀lue one", seeker.extract( mark, extractors.string() ).value() );
         assertTrue( seeker.seek( mark, TAB ) );
@@ -369,11 +360,12 @@ public class BufferedCharSeekerTest
         assertEquals( "v𑀃lue three", seeker.extract( mark, extractors.string() ).value() );
     }
 
-    @Test
-    public void shouldReadQuotes() throws Exception
+    @ParameterizedTest( name = "thread-ahead: {0}" )
+    @ValueSource( booleans = {false, true} )
+    void shouldReadQuotes( boolean threadAhead ) throws Exception
     {
         // GIVEN
-        seeker = seeker( "value one\t\"value two\"\tvalue three" );
+        seeker = seeker( "value one\t\"value two\"\tvalue three", threadAhead );
 
         // WHEN/THEN
         assertTrue( seeker.seek( mark, TAB ) );
@@ -386,11 +378,12 @@ public class BufferedCharSeekerTest
         assertEquals( "value three", seeker.extract( mark, extractors.string() ).value() );
     }
 
-    @Test
-    public void shouldReadQuotedValuesWithDelimiterInside() throws Exception
+    @ParameterizedTest( name = "thread-ahead: {0}" )
+    @ValueSource( booleans = {false, true} )
+    void shouldReadQuotedValuesWithDelimiterInside( boolean threadAhead ) throws Exception
     {
         // GIVEN
-        seeker = seeker( "value one\t\"value\ttwo\"\tvalue three" );
+        seeker = seeker( "value one\t\"value\ttwo\"\tvalue three", threadAhead );
 
         // WHEN/THEN
         assertTrue( seeker.seek( mark, TAB ) );
@@ -403,11 +396,12 @@ public class BufferedCharSeekerTest
         assertEquals( "value three", seeker.extract( mark, extractors.string() ).value() );
     }
 
-    @Test
-    public void shouldReadQuotedValuesWithNewLinesInside() throws Exception
+    @ParameterizedTest( name = "thread-ahead: {0}" )
+    @ValueSource( booleans = {false, true} )
+    void shouldReadQuotedValuesWithNewLinesInside( boolean threadAhead ) throws Exception
     {
         // GIVEN
-        seeker = seeker( "value one\t\"value\ntwo\"\tvalue three", withMultilineFields( config(), true ) );
+        seeker = seeker( "value one\t\"value\ntwo\"\tvalue three", withMultilineFields( config(), true ), threadAhead );
 
         // WHEN/THEN
         assertTrue( seeker.seek( mark, TAB ) );
@@ -420,11 +414,12 @@ public class BufferedCharSeekerTest
         assertEquals( "value three", seeker.extract( mark, extractors.string() ).value() );
     }
 
-    @Test
-    public void shouldHandleDoubleQuotes() throws Exception
+    @ParameterizedTest( name = "thread-ahead: {0}" )
+    @ValueSource( booleans = {false, true} )
+    void shouldHandleDoubleQuotes( boolean threadAhead ) throws Exception
     {
         // GIVEN
-        seeker = seeker( "\"value \"\"one\"\"\"\t\"\"\"value\"\" two\"\t\"va\"\"lue\"\" three\"" );
+        seeker = seeker( "\"value \"\"one\"\"\"\t\"\"\"value\"\" two\"\t\"va\"\"lue\"\" three\"", threadAhead );
 
         // "value ""one"""
         // """value"" two"
@@ -441,12 +436,13 @@ public class BufferedCharSeekerTest
         assertEquals( "va\"lue\" three", seeker.extract( mark, extractors.string() ).value() );
     }
 
-    @Test
-    public void shouldHandleSlashEncodedQuotesIfConfiguredWithLegacyStyleQuoting() throws Exception
+    @ParameterizedTest( name = "thread-ahead: {0}" )
+    @ValueSource( booleans = {false, true} )
+    void shouldHandleSlashEncodedQuotesIfConfiguredWithLegacyStyleQuoting( boolean threadAhead ) throws Exception
     {
         // GIVEN
         seeker = seeker( "\"value \\\"one\\\"\"\t\"\\\"value\\\" two\"\t\"va\\\"lue\\\" three\"",
-                withLegacyStyleQuoting( config(), true ) );
+            withLegacyStyleQuoting( config(), true ), threadAhead );
 
         // WHEN/THEN
         assertTrue( seeker.seek( mark, TAB ) );
@@ -459,13 +455,14 @@ public class BufferedCharSeekerTest
         assertEquals( "va\"lue\" three", seeker.extract( mark, extractors.string() ).value() );
     }
 
-    @Test
-    public void shouldRecognizeStrayQuoteCharacters() throws Exception
+    @ParameterizedTest( name = "thread-ahead: {0}" )
+    @ValueSource( booleans = {false, true} )
+    void shouldRecognizeStrayQuoteCharacters( boolean threadAhead ) throws Exception
     {
         // GIVEN
         seeker = seeker(
-                "one,two\",th\"ree\n" +
-                "four,five,s\"ix" );
+            "one,two\",th\"ree\n" +
+                "four,five,s\"ix", threadAhead );
 
         // THEN
         assertNextValue( seeker, mark, COMMA, "one" );
@@ -478,14 +475,15 @@ public class BufferedCharSeekerTest
         assertEnd( seeker, mark, COMMA );
     }
 
-    @Test
-    public void shouldNotMisinterpretUnfilledRead() throws Exception
+    @ParameterizedTest( name = "thread-ahead: {0}" )
+    @ValueSource( booleans = {false, true} )
+    void shouldNotMisinterpretUnfilledRead( boolean threadAhead ) throws Exception
     {
         // GIVEN
         CharReadable readable = new ControlledCharReadable(
-                "123,456,789\n" +
+            "123,456,789\n" +
                 "abc,def,ghi", 5 );
-        seeker = seeker( readable );
+        seeker = seeker( readable, threadAhead );
 
         // WHEN/THEN
         assertNextValue( seeker, mark, COMMA, "123" );
@@ -498,22 +496,24 @@ public class BufferedCharSeekerTest
         assertEnd( seeker, mark, COMMA );
     }
 
-    @Test
-    public void shouldNotFindAnyValuesForEmptySource() throws Exception
+    @ParameterizedTest( name = "thread-ahead: {0}" )
+    @ValueSource( booleans = {false, true} )
+    void shouldNotFindAnyValuesForEmptySource( boolean threadAhead ) throws Exception
     {
         // GIVEN
-        seeker = seeker( "" );
+        seeker = seeker( "", threadAhead );
 
         // WHEN/THEN
         assertFalse( seeker.seek( mark, COMMA ) );
     }
 
-    @Test
-    public void shouldSeeQuotesInQuotes() throws Exception
+    @ParameterizedTest( name = "thread-ahead: {0}" )
+    @ValueSource( booleans = {false, true} )
+    void shouldSeeQuotesInQuotes( boolean threadAhead ) throws Exception
     {
         // GIVEN
         //                4,     """",   "f\oo"
-        seeker = seeker( "4,\"\"\"\",\"f\\oo\"" );
+        seeker = seeker( "4,\"\"\"\",\"f\\oo\"", threadAhead );
 
         // WHEN/THEN
         assertNextValue( seeker, mark, COMMA, "4" );
@@ -522,12 +522,13 @@ public class BufferedCharSeekerTest
         assertFalse( seeker.seek( mark, COMMA ) );
     }
 
-    @Test
-    public void shouldEscapeBackslashesInQuotesIfConfiguredWithLegacyStyleQuoting() throws Exception
+    @ParameterizedTest( name = "thread-ahead: {0}" )
+    @ValueSource( booleans = {false, true} )
+    void shouldEscapeBackslashesInQuotesIfConfiguredWithLegacyStyleQuoting( boolean threadAhead ) throws Exception
     {
         // GIVEN
         //                4,    "\\\"",   "f\oo"
-        seeker = seeker( "4,\"\\\\\\\"\",\"f\\oo\"", withLegacyStyleQuoting( config(), true ) );
+        seeker = seeker( "4,\"\\\\\\\"\",\"f\\oo\"", withLegacyStyleQuoting( config(), true ), threadAhead );
 
         // WHEN/THEN
         assertNextValue( seeker, mark, COMMA, "4" );
@@ -536,16 +537,17 @@ public class BufferedCharSeekerTest
         assertFalse( seeker.seek( mark, COMMA ) );
     }
 
-    @Test
-    public void shouldListenToMusic() throws Exception
+    @ParameterizedTest( name = "thread-ahead: {0}" )
+    @ValueSource( booleans = {false, true} )
+    void shouldListenToMusic( boolean threadAhead ) throws Exception
     {
         // GIVEN
         String data =
-                "\"1\",\"ABBA\",\"1992\"\n" +
+            "\"1\",\"ABBA\",\"1992\"\n" +
                 "\"2\",\"Roxette\",\"1986\"\n" +
                 "\"3\",\"Europe\",\"1979\"\n" +
                 "\"4\",\"The Cardigans\",\"1992\"";
-        seeker = seeker( data );
+        seeker = seeker( data, threadAhead );
 
         // WHEN
         assertNextValue( seeker, mark, COMMA, "1" );
@@ -566,49 +568,45 @@ public class BufferedCharSeekerTest
         assertEnd( seeker, mark, COMMA );
     }
 
-    @Test
-    public void shouldFailOnCharactersAfterEndQuote() throws Exception
+    @ParameterizedTest( name = "thread-ahead: {0}" )
+    @ValueSource( booleans = {false, true} )
+    void shouldFailOnCharactersAfterEndQuote( boolean threadAhead ) throws Exception
     {
         // GIVEN
         String data = "abc,\"def\"ghi,jkl";
-        seeker = seeker( data );
+        seeker = seeker( data, threadAhead );
 
         // WHEN
         assertNextValue( seeker, mark, COMMA, "abc" );
-        try
-        {
-            seeker.seek( mark, COMMA );
-            fail( "Should've failed" );
-        }
-        catch ( DataAfterQuoteException e )
-        {
-            // THEN good
-            assertEquals( TEST_SOURCE, e.source().sourceDescription() );
-        }
+        DataAfterQuoteException quoteException = assertThrows( DataAfterQuoteException.class, () -> seeker.seek( mark, COMMA ) );
+        assertEquals( TEST_SOURCE, quoteException.source().sourceDescription() );
     }
 
-    @Test
-    public void shouldParseMultilineFieldWhereEndQuoteIsOnItsOwnLineSingleCharNewline() throws Exception
+    @ParameterizedTest( name = "thread-ahead: {0}" )
+    @ValueSource( booleans = {false, true} )
+    void shouldParseMultilineFieldWhereEndQuoteIsOnItsOwnLineSingleCharNewline( boolean threadAhead ) throws Exception
     {
-        shouldParseMultilineFieldWhereEndQuoteIsOnItsOwnLine( "\n" );
+        shouldParseMultilineFieldWhereEndQuoteIsOnItsOwnLine( "\n", threadAhead );
     }
 
-    @Test
-    public void shouldParseMultilineFieldWhereEndQuoteIsOnItsOwnLinePlatformNewline() throws Exception
+    @ParameterizedTest( name = "thread-ahead: {0}" )
+    @ValueSource( booleans = {false, true} )
+    void shouldParseMultilineFieldWhereEndQuoteIsOnItsOwnLinePlatformNewline( boolean threadAhead ) throws Exception
     {
-        shouldParseMultilineFieldWhereEndQuoteIsOnItsOwnLine( "%n" );
+        shouldParseMultilineFieldWhereEndQuoteIsOnItsOwnLine( "%n", threadAhead );
     }
 
-    @Test
-    public void shouldFailOnReadingFieldLargerThanBufferSize() throws Exception
+    @ParameterizedTest( name = "thread-ahead: {0}" )
+    @ValueSource( booleans = {false, true} )
+    void shouldFailOnReadingFieldLargerThanBufferSize( boolean threadAhead ) throws Exception
     {
         // GIVEN
         String data = lines( "\n",
-                "a,b,c",
-                "d,e,f",
-                "\"g,h,i",
-                "abcdefghijlkmopqrstuvwxyz,l,m" );
-        seeker = seeker( data, withMultilineFields( config( 20 ), true ) );
+            "a,b,c",
+            "d,e,f",
+            "\"g,h,i",
+            "abcdefghijlkmopqrstuvwxyz,l,m" );
+        seeker = seeker( data, withMultilineFields( config( 20 ), true ), threadAhead );
 
         // WHEN
         assertNextValue( seeker, mark, COMMA, "a" );
@@ -621,34 +619,27 @@ public class BufferedCharSeekerTest
         assertTrue( mark.isEndOfLine() );
 
         // THEN
-        try
-        {
-            seeker.seek( mark, COMMA );
-            fail( "Should have failed" );
-        }
-        catch ( IllegalStateException e )
-        {
-            // Good
-            String source = seeker.sourceDescription();
-            assertTrue( e.getMessage().contains( "Tried to read" ) );
-            assertTrue( e.getMessage().contains( source + ":3" ) );
-        }
+        IllegalStateException stateException = assertThrows( IllegalStateException.class, () -> seeker.seek( mark, COMMA ) );
+        String source = seeker.sourceDescription();
+        assertTrue( stateException.getMessage().contains( "Tried to read" ) );
+        assertTrue( stateException.getMessage().contains( source + ":3" ) );
     }
 
-    @Test
-    public void shouldNotInterpretBackslashQuoteDifferentlyIfDisabledLegacyStyleQuoting() throws Exception
+    @ParameterizedTest( name = "thread-ahead: {0}" )
+    @ValueSource( booleans = {false, true} )
+    void shouldNotInterpretBackslashQuoteDifferentlyIfDisabledLegacyStyleQuoting( boolean threadAhead ) throws Exception
     {
         // GIVEN data with the quote character ' for easier readability
         char slash = '\\';
         String data = lines( "\n", "'abc''def" + slash + "''ghi'" );
-        seeker = seeker( data, withLegacyStyleQuoting( withQuoteCharacter( config(), '\'' ), false ) );
+        seeker = seeker( data, withLegacyStyleQuoting( withQuoteCharacter( config(), '\'' ), false ), threadAhead );
 
         // WHEN/THEN
         assertNextValue( seeker, mark, COMMA, "abc'def" + slash + "'ghi" );
         assertFalse( seeker.seek( mark, COMMA ) );
     }
 
-    private void shouldParseMultilineFieldWhereEndQuoteIsOnItsOwnLine( String newline ) throws Exception
+    private void shouldParseMultilineFieldWhereEndQuoteIsOnItsOwnLine( String newline, boolean threadAhead ) throws Exception
     {
         // GIVEN
         String data = lines( newline,
@@ -661,7 +652,7 @@ public class BufferedCharSeekerTest
                 "",
                 "Quux\"",
                 "" );
-        seeker = seeker( data, withMultilineFields( config(), true ) );
+        seeker = seeker( data, withMultilineFields( config(), true ), threadAhead );
 
         // THEN
         assertNextValue( seeker, mark, COMMA, "1" );
@@ -679,15 +670,16 @@ public class BufferedCharSeekerTest
                 "Quux" ) );
     }
 
-    @Test
-    public void shouldTrimWhitespace() throws Exception
+    @ParameterizedTest( name = "thread-ahead: {0}" )
+    @ValueSource( booleans = {false, true} )
+    void shouldTrimWhitespace( boolean threadAhead ) throws Exception
     {
         // given
         String data = lines( "\n",
-                "Foo, Bar,  Twobar , \"Baz\" , \" Quux \",\"Wiii \" , Waaaa  " );
+            "Foo, Bar,  Twobar , \"Baz\" , \" Quux \",\"Wiii \" , Waaaa  " );
 
         // when
-        seeker = seeker( data, withTrimStrings( config(), true ) );
+        seeker = seeker( data, withTrimStrings( config(), true ), threadAhead );
 
         // then
         assertNextValue( seeker, mark, COMMA, "Foo" );
@@ -699,12 +691,13 @@ public class BufferedCharSeekerTest
         assertNextValue( seeker, mark, COMMA, "Waaaa" );
     }
 
-    @Test
-    public void shouldTrimStringsWithFirstLineCharacterSpace() throws IOException
+    @ParameterizedTest( name = "thread-ahead: {0}" )
+    @ValueSource( booleans = {false, true} )
+    void shouldTrimStringsWithFirstLineCharacterSpace( boolean threadAhead ) throws IOException
     {
         // given
         String line = " ,a, ,b, ";
-        seeker = seeker( line, withTrimStrings( config(), true ) );
+        seeker = seeker( line, withTrimStrings( config(), true ), threadAhead );
 
         // when/then
         assertNextValueNotExtracted( seeker, mark, COMMA );
@@ -715,8 +708,9 @@ public class BufferedCharSeekerTest
         assertEnd( seeker, mark, COMMA );
     }
 
-    @Test
-    public void shouldParseAndTrimRandomStrings() throws IOException
+    @ParameterizedTest( name = "thread-ahead: {0}" )
+    @ValueSource( booleans = {false, true} )
+    void shouldParseAndTrimRandomStrings( boolean threadAhead ) throws IOException
     {
         // given
         StringBuilder builder = new StringBuilder();
@@ -776,7 +770,7 @@ public class BufferedCharSeekerTest
             builder.append( format( "%n" ) );
         }
         String data = builder.toString();
-        seeker = seeker( data, withTrimStrings( config(), true ) );
+        seeker = seeker( data, withTrimStrings( config(), true ), threadAhead );
 
         // when
         Iterator<String> next = expected.iterator();
@@ -815,8 +809,9 @@ public class BufferedCharSeekerTest
         return ch;
     }
 
-    @Test
-    public void shouldParseNonLatinCharacters() throws IOException
+    @ParameterizedTest( name = "thread-ahead: {0}" )
+    @ValueSource( booleans = {false, true} )
+    void shouldParseNonLatinCharacters( boolean threadAhead ) throws IOException
     {
         // given
         List<String[]> expected = asList(
@@ -827,7 +822,7 @@ public class BufferedCharSeekerTest
         String data = lines( format( "%n" ), expected );
 
         // when
-        seeker = seeker( data );
+        seeker = seeker( data, threadAhead );
 
         // then
         for ( String[] line : expected )
@@ -958,27 +953,27 @@ public class BufferedCharSeekerTest
                 break;
             }
         }
-        return line.toArray( new String[line.size()] );
+        return line.toArray( new String[0] );
     }
 
-    private CharSeeker seeker( CharReadable readable )
+    private CharSeeker seeker( CharReadable readable, boolean threadAhead )
     {
-        return seeker( readable, config() );
+        return seeker( readable, config(), threadAhead );
     }
 
-    private CharSeeker seeker( CharReadable readable, Configuration config )
+    private CharSeeker seeker( CharReadable readable, Configuration config, boolean threadAhead )
     {
-        return charSeeker( readable, config, useThreadAhead );
+        return charSeeker( readable, config, threadAhead );
     }
 
-    private CharSeeker seeker( String data )
+    private CharSeeker seeker( String data, boolean threadAhead )
     {
-        return seeker( data, config() );
+        return seeker( data, config(), threadAhead );
     }
 
-    private CharSeeker seeker( String data, Configuration config )
+    private CharSeeker seeker( String data, Configuration config, boolean threadAhead )
     {
-        return seeker( wrap( stringReaderWithName( data, TEST_SOURCE ), data.length() * 2 ), config );
+        return seeker( wrap( stringReaderWithName( data, TEST_SOURCE ), data.length() * 2 ), config, threadAhead );
     }
 
     private Reader stringReaderWithName( String data, final String name )
@@ -1000,62 +995,27 @@ public class BufferedCharSeekerTest
 
     private static Configuration config( final int bufferSize )
     {
-        return new Configuration.Overridden( Configuration.DEFAULT )
-        {
-            @Override
-            public int bufferSize()
-            {
-                return bufferSize;
-            }
-        };
+        return Configuration.newBuilder().withBufferSize( bufferSize ).build();
     }
 
     private static Configuration withMultilineFields( Configuration config, boolean multiline )
     {
-        return new Configuration.Overridden( config )
-        {
-            @Override
-            public boolean multilineFields()
-            {
-                return multiline;
-            }
-        };
+        return config.toBuilder().withMultilineFields( multiline ).build();
     }
 
     private static Configuration withLegacyStyleQuoting( Configuration config, boolean legacyStyleQuoting )
     {
-        return new Configuration.Overridden( config )
-        {
-            @Override
-            public boolean legacyStyleQuoting()
-            {
-                return legacyStyleQuoting;
-            }
-        };
+        return config.toBuilder().withLegacyStyleQuoting( legacyStyleQuoting ).build();
     }
 
     private static Configuration withQuoteCharacter( Configuration config, char quoteCharacter )
     {
-        return new Configuration.Overridden( config )
-        {
-            @Override
-            public char quotationCharacter()
-            {
-                return quoteCharacter;
-            }
-        };
+        return config.toBuilder().withQuotationCharacter( quoteCharacter ).build();
     }
 
     private static Configuration withTrimStrings( Configuration config, boolean trimStrings )
     {
-        return new Configuration.Overridden( config )
-        {
-            @Override
-            public boolean trimStrings()
-            {
-                return trimStrings;
-            }
-        };
+        return config.toBuilder().withTrimStrings( trimStrings ).build();
     }
 
     private static class ControlledCharReadable extends CharReadable.Adapter

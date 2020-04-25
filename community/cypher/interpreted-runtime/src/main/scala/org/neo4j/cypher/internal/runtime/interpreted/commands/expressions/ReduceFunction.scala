@@ -22,34 +22,43 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.commands.expressions
 
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
-import org.neo4j.cypher.internal.runtime.interpreted.ListSupport
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.QueryState
-import org.neo4j.cypher.internal.v3_6.util.symbols._
+import org.neo4j.cypher.internal.runtime.{ExecutionContext, ListSupport}
 import org.neo4j.values.AnyValue
 
-case class ReduceFunction(collection: Expression, id: String, expression: Expression, acc: String, init: Expression)
+case class ReduceFunction(collection: Expression,
+                          innerVariableName: String,
+                          innerVariableOffset: Int,
+                          expression: Expression,
+                          accVariableName: String,
+                          accVariableOffset: Int,
+                          init: Expression)
   extends NullInNullOutExpression(collection) with ListSupport {
 
-  override def compute(value: AnyValue, m: ExecutionContext, state: QueryState) = {
+  override def compute(value: AnyValue, m: ExecutionContext, state: QueryState): AnyValue = {
     val list = makeTraversable(value)
     val iterator = list.iterator()
-    val contextWithAcc = m.copyWith(acc, init(m, state))
+    val initialAcc = init(m, state)
+
+    state.expressionVariables(accVariableOffset) = initialAcc
     while(iterator.hasNext) {
-      contextWithAcc.set(id, iterator.next())
-      contextWithAcc.set(acc, expression(contextWithAcc, state))
+      state.expressionVariables(innerVariableOffset) = iterator.next()
+      state.expressionVariables(accVariableOffset) = expression(m, state)
     }
-    contextWithAcc(acc)
+    state.expressionVariables(accVariableOffset)
   }
 
-  def rewrite(f: (Expression) => Expression) =
-    f(ReduceFunction(collection.rewrite(f), id, expression.rewrite(f), acc, init.rewrite(f)))
+  override def rewrite(f: Expression => Expression): Expression =
+    f(ReduceFunction(collection.rewrite(f),
+                     innerVariableName,
+                     innerVariableOffset,
+                     expression.rewrite(f),
+                     accVariableName,
+                     accVariableOffset,
+                     init.rewrite(f)))
 
   override def arguments: Seq[Expression] = Seq(collection, init)
 
-  override def children = Seq(collection, expression, init)
+  override def children: Seq[Expression] = Seq(collection, expression, init)
 
-  def variableDependencies(expectedType: CypherType) = AnyType
-
-  def symbolTableDependencies = (collection.symbolTableDependencies ++ expression.symbolTableDependencies ++ init.symbolTableDependencies) - id - acc
 }

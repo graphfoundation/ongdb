@@ -33,6 +33,7 @@ import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
+import org.neo4j.dbms.api.DatabaseManagementService;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Transaction;
@@ -63,11 +64,12 @@ public class DummyThirdPartyWebService
     @GET
     @Path( "inject-test" )
     @Produces( MediaType.TEXT_PLAIN )
-    public Response countNodes( @Context GraphDatabaseService db )
+    public Response countNodes( @Context DatabaseManagementService dbms )
     {
+        GraphDatabaseService db = dbms.database( "neo4j" );
         try ( Transaction transaction = db.beginTx() )
         {
-            return Response.ok().entity( String.valueOf( countNodesIn( db ) ) ).build();
+            return Response.ok().entity( String.valueOf( countNodesIn( transaction ) ) ).build();
         }
     }
 
@@ -96,10 +98,10 @@ public class DummyThirdPartyWebService
         return Response.ok().entity( theEntity.toString() ).build();
     }
 
-    private int countNodesIn( GraphDatabaseService db )
+    private int countNodesIn( Transaction tx )
     {
         int count = 0;
-        for ( Node ignore : db.getAllNodes() )
+        for ( Node ignore : tx.getAllNodes() )
         {
             count++;
         }

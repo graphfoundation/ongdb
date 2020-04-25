@@ -23,67 +23,63 @@
 package org.neo4j.kernel.api.impl.schema;
 
 import org.apache.commons.lang3.mutable.MutableBoolean;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnitRunner;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.InvocationHandler;
 
-import org.neo4j.kernel.impl.annotations.ReporterFactories;
-import org.neo4j.kernel.impl.annotations.ReporterFactory;
-import org.neo4j.storageengine.api.schema.IndexDescriptor;
+import org.neo4j.annotations.documented.ReporterFactories;
+import org.neo4j.annotations.documented.ReporterFactory;
+import org.neo4j.internal.schema.IndexPrototype;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.neo4j.internal.schema.SchemaDescriptor.forLabel;
 
-@RunWith( MockitoJUnitRunner.class )
-public class LuceneIndexAccessorTest
+class LuceneIndexAccessorTest
 {
-    @Mock
-    private SchemaIndex schemaIndex;
-    @Mock
-    private IndexDescriptor schemaIndexDescriptor;
+    private final SchemaIndex schemaIndex = mock( SchemaIndex.class );
+
     private LuceneIndexAccessor accessor;
 
-    @Before
-    public void setUp()
+    @BeforeEach
+    void setUp()
     {
-        accessor = new LuceneIndexAccessor( schemaIndex, schemaIndexDescriptor );
+        accessor = new LuceneIndexAccessor( schemaIndex, IndexPrototype.forSchema( forLabel( 1, 2 ) ).withName( "a" ).materialise( 1 ) );
     }
 
     @Test
-    public void indexIsDirtyWhenLuceneIndexIsNotValid()
+    void indexIsDirtyWhenLuceneIndexIsNotValid()
     {
         when( schemaIndex.isValid() ).thenReturn( false );
         assertTrue( accessor.isDirty() );
     }
 
     @Test
-    public void indexIsCleanWhenLuceneIndexIsValid()
+    void indexIsCleanWhenLuceneIndexIsValid()
     {
         when( schemaIndex.isValid() ).thenReturn( true );
         assertFalse( accessor.isDirty() );
     }
 
     @Test
-    public void indexIsNotConsistentWhenIndexIsNotValid()
+    void indexIsNotConsistentWhenIndexIsNotValid()
     {
         when( schemaIndex.isValid() ).thenReturn( false );
         assertFalse( accessor.consistencyCheck( ReporterFactories.noopReporterFactory() ) );
     }
 
     @Test
-    public void indexIsConsistentWhenIndexIsValid()
+    void indexIsConsistentWhenIndexIsValid()
     {
         when( schemaIndex.isValid() ).thenReturn( true );
         assertTrue( accessor.consistencyCheck( ReporterFactories.noopReporterFactory() ) );
     }
 
     @Test
-    public void indexReportInconsistencyToVisitor()
+    void indexReportInconsistencyToVisitor()
     {
         when( schemaIndex.isValid() ).thenReturn( false );
         MutableBoolean called = new MutableBoolean();
@@ -91,7 +87,7 @@ public class LuceneIndexAccessorTest
             called.setTrue();
             return null;
         };
-        assertFalse( "Expected index to be inconsistent", accessor.consistencyCheck( new ReporterFactory( handler ) ) );
-        assertTrue( "Expected visitor to be called", called.booleanValue() );
+        assertFalse( accessor.consistencyCheck( new ReporterFactory( handler ) ), "Expected index to be inconsistent" );
+        assertTrue( called.booleanValue(), "Expected visitor to be called" );
     }
 }

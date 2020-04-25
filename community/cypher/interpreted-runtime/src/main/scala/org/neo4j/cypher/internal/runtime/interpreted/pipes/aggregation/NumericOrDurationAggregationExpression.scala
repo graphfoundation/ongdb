@@ -22,10 +22,11 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.pipes.aggregation
 
+import org.neo4j.cypher.internal.runtime.IsNoValue
 import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.Expression
+import org.neo4j.exceptions.CypherTypeException
 import org.neo4j.values.AnyValue
 import org.neo4j.values.storable.{DurationValue, NumberValue, Values}
-import org.neo4j.cypher.internal.v3_6.util.CypherTypeException
 
 trait NumericOrDurationAggregationExpression {
   trait AggregatingType
@@ -40,15 +41,15 @@ trait NumericOrDurationAggregationExpression {
 
   def value: Expression
 
-  protected def actOnNumberOrDuration(vl: AnyValue, aggNumber: NumberValue => Unit, aggDuration: DurationValue => Unit) = {
+  protected def actOnNumberOrDuration(vl: AnyValue, aggNumber: NumberValue => Unit, aggDuration: DurationValue => Unit): Unit = {
     vl match {
-      case Values.NO_VALUE =>
+      case IsNoValue() =>
       case number: NumberValue =>
         aggregatingType match {
           case None =>
             aggregatingType = Some(AggregatingNumbers)
           case Some(AggregatingDurations) =>
-            throw new CypherTypeException("%s(%s) cannot mix number and durations".format(name, value))
+            throw new CypherTypeException("%s(%s) cannot mix number and duration".format(name, value))
           case _ =>
         }
         aggNumber(number)
@@ -57,7 +58,7 @@ trait NumericOrDurationAggregationExpression {
           case None =>
             aggregatingType = Some(AggregatingDurations)
           case Some(AggregatingNumbers) =>
-            throw new CypherTypeException("%s(%s) cannot mix number and durations".format(name, value))
+            throw new CypherTypeException("%s(%s) cannot mix number and duration".format(name, value))
           case _ =>
         }
         aggDuration(dur)

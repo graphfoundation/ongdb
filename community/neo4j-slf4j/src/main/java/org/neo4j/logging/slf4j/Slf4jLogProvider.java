@@ -46,7 +46,7 @@ public class Slf4jLogProvider implements LogProvider
     }
 
     @Override
-    public Log getLog( Class loggingClass )
+    public Log getLog( Class<?> loggingClass )
     {
         return new Slf4jLog( loggerFactory.getLogger( loggingClass.getName() ) );
     }

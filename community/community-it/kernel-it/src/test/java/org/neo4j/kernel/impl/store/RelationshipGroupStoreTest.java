@@ -22,91 +22,90 @@
  */
 package org.neo4j.kernel.impl.store;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
-import java.io.IOException;
-import java.util.HashMap;
+import java.util.Collections;
 import java.util.HashSet;
-import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.neo4j.configuration.Config;
+import org.neo4j.dbms.api.DatabaseManagementService;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Relationship;
 import org.neo4j.graphdb.Transaction;
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
-import org.neo4j.helpers.collection.MapUtil;
-import org.neo4j.io.fs.DefaultFileSystemAbstraction;
+import org.neo4j.internal.id.DefaultIdGeneratorFactory;
+import org.neo4j.internal.recordstorage.RecordStorageEngine;
 import org.neo4j.io.fs.FileSystemAbstraction;
+import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.io.pagecache.PageCache;
-import org.neo4j.io.pagecache.tracing.cursor.context.EmptyVersionContextSupplier;
-import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.impl.MyRelTypes;
-import org.neo4j.kernel.impl.storageengine.impl.recordstorage.RecordStorageEngine;
-import org.neo4j.kernel.impl.store.id.DefaultIdGeneratorFactory;
 import org.neo4j.kernel.impl.store.record.NodeRecord;
 import org.neo4j.kernel.impl.store.record.Record;
 import org.neo4j.kernel.impl.store.record.RelationshipGroupRecord;
 import org.neo4j.kernel.impl.store.record.RelationshipRecord;
+import org.neo4j.kernel.internal.GraphDatabaseAPI;
 import org.neo4j.logging.NullLogProvider;
-import org.neo4j.test.ImpermanentGraphDatabase;
-import org.neo4j.test.rule.PageCacheRule;
-import org.neo4j.test.rule.TestDirectory;
+import org.neo4j.test.TestDatabaseManagementServiceBuilder;
+import org.neo4j.test.extension.Inject;
+import org.neo4j.test.extension.Neo4jLayoutExtension;
+import org.neo4j.test.extension.pagecache.PageCacheSupportExtension;
 
-import static java.lang.Integer.parseInt;
-import static java.util.Arrays.asList;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertThat;
-import static org.neo4j.kernel.impl.store.RecordStore.getRecord;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
+import static org.neo4j.configuration.GraphDatabaseSettings.dense_node_threshold;
+import static org.neo4j.index.internal.gbptree.RecoveryCleanupWorkCollector.immediate;
 import static org.neo4j.kernel.impl.store.record.RecordLoad.NORMAL;
-import static org.neo4j.test.rule.PageCacheRule.config;
+import static org.neo4j.test.rule.PageCacheConfig.config;
 
-public class RelationshipGroupStoreTest
+@Neo4jLayoutExtension
+class RelationshipGroupStoreTest
 {
-    @Rule
-    public PageCacheRule pageCacheRule = new PageCacheRule( config().withInconsistentReads( false ) );
-    @Rule
-    public TestDirectory testDir = TestDirectory.testDirectory();
-    private int defaultThreshold;
+    @RegisterExtension
+    static final PageCacheSupportExtension pageCacheExtension = new PageCacheSupportExtension( config().withInconsistentReads( false ) );
+    @Inject
     private FileSystemAbstraction fs;
-    private ImpermanentGraphDatabase db;
+    @Inject
+    private DatabaseLayout databaseLayout;
+    private int defaultThreshold;
+    private GraphDatabaseAPI db;
+    private DatabaseManagementService managementService;
 
-    @Before
-    public void before()
+    @BeforeEach
+    void before()
     {
-        fs = new DefaultFileSystemAbstraction();
-        defaultThreshold = parseInt( GraphDatabaseSettings.dense_node_threshold.getDefaultValue() );
+        defaultThreshold = dense_node_threshold.defaultValue();
     }
 
-    @After
-    public void after() throws IOException
+    @AfterEach
+    void after()
     {
         if ( db != null )
         {
-            db.shutdown();
+            managementService.shutdown();
         }
-        fs.close();
     }
 
     @Test
-    public void createWithDefaultThreshold()
+    void createWithDefaultThreshold()
     {
         createAndVerify( null );
     }
 
     @Test
-    public void createWithCustomThreshold()
+    void createWithCustomThreshold()
     {
         createAndVerify( defaultThreshold * 2 );
     }
 
     @Test
-    public void createDenseNodeWithLowThreshold()
+    void createDenseNodeWithLowThreshold()
     {
         newDb( 2 );
 
@@ -114,27 +113,29 @@ public class RelationshipGroupStoreTest
         Node node;
         try ( Transaction tx = db.beginTx() )
         {
-            node = db.createNode();
-            node.createRelationshipTo( db.createNode(), MyRelTypes.TEST );
-            node.createRelationshipTo( db.createNode(), MyRelTypes.TEST2 );
+            node = tx.createNode();
+            node.createRelationshipTo( tx.createNode(), MyRelTypes.TEST );
+            node.createRelationshipTo( tx.createNode(), MyRelTypes.TEST2 );
             assertEquals( 2, node.getDegree() );
             assertEquals( 1, node.getDegree( MyRelTypes.TEST ) );
             assertEquals( 1, node.getDegree( MyRelTypes.TEST2 ) );
-            tx.success();
+            tx.commit();
         }
 
         try ( Transaction tx = db.beginTx() )
         {
-            node.createRelationshipTo( db.createNode(), MyRelTypes.TEST );
-            tx.success();
+            tx.getNodeById( node.getId() ).createRelationshipTo( tx.createNode(), MyRelTypes.TEST );
+            tx.commit();
         }
 
-        db.shutdown();
+        managementService.shutdown();
     }
 
     private void newDb( int denseNodeThreshold )
     {
-        db = new ImpermanentGraphDatabase( MapUtil.stringMap( "dbms.relationship_grouping_threshold", "" + denseNodeThreshold ) );
+        managementService = new TestDatabaseManagementServiceBuilder().impermanent()
+                .setConfig( dense_node_threshold, denseNodeThreshold ).build();
+        db = (GraphDatabaseAPI) managementService.database( DEFAULT_DATABASE_NAME );
         fs = db.getDependencyResolver().resolveDependency( FileSystemAbstraction.class );
     }
 
@@ -160,30 +161,30 @@ public class RelationshipGroupStoreTest
 
     private StoreFactory factory( Integer customThreshold )
     {
-        return factory( customThreshold, pageCacheRule.getPageCache( fs ) );
+        return factory( customThreshold, pageCacheExtension.getPageCache( fs ) );
     }
 
     private StoreFactory factory( Integer customThreshold, PageCache pageCache )
     {
-        Map<String, String> customConfig = new HashMap<>();
+        Config.Builder config = Config.newBuilder();
         if ( customThreshold != null )
         {
-            customConfig.put( GraphDatabaseSettings.dense_node_threshold.name(), "" + customThreshold );
+            config.set( dense_node_threshold, customThreshold );
         }
-        return new StoreFactory( testDir.databaseLayout(), Config.defaults( customConfig ), new DefaultIdGeneratorFactory( fs ), pageCache,
-                fs, NullLogProvider.getInstance(), EmptyVersionContextSupplier.EMPTY );
+        return new StoreFactory( databaseLayout, config.build(), new DefaultIdGeneratorFactory( fs, immediate() ),
+                pageCache, fs, NullLogProvider.getInstance() );
     }
 
     @Test
-    public void makeSureRelationshipGroupsNextAndPrevGetsAssignedCorrectly()
+    void makeSureRelationshipGroupsNextAndPrevGetsAssignedCorrectly()
     {
         newDb( 1 );
 
         try ( Transaction tx = db.beginTx() )
         {
-            Node node = db.createNode();
-            Node node0 = db.createNode();
-            Node node2 = db.createNode();
+            Node node = tx.createNode();
+            Node node0 = tx.createNode();
+            Node node2 = tx.createNode();
             node0.createRelationshipTo( node, MyRelTypes.TEST );
             node.createRelationshipTo( node2, MyRelTypes.TEST2 );
 
@@ -192,14 +193,14 @@ public class RelationshipGroupStoreTest
                 rel.delete();
             }
             node.delete();
-            tx.success();
+            tx.commit();
         }
 
-        db.shutdown();
+        managementService.shutdown();
     }
 
     @Test
-    public void verifyRecordsForDenseNodeWithOneRelType()
+    void verifyRecordsForDenseNodeWithOneRelType()
     {
         newDb( 2 );
 
@@ -212,22 +213,22 @@ public class RelationshipGroupStoreTest
         Relationship rel6;
         try ( Transaction tx = db.beginTx() )
         {
-            node = db.createNode();
-            rel1 = node.createRelationshipTo( db.createNode(), MyRelTypes.TEST );
-            rel2 = db.createNode().createRelationshipTo( node, MyRelTypes.TEST );
+            node = tx.createNode();
+            rel1 = node.createRelationshipTo( tx.createNode(), MyRelTypes.TEST );
+            rel2 = tx.createNode().createRelationshipTo( node, MyRelTypes.TEST );
             rel3 = node.createRelationshipTo( node, MyRelTypes.TEST );
-            rel4 = node.createRelationshipTo( db.createNode(), MyRelTypes.TEST );
-            rel5 = db.createNode().createRelationshipTo( node, MyRelTypes.TEST );
+            rel4 = node.createRelationshipTo( tx.createNode(), MyRelTypes.TEST );
+            rel5 = tx.createNode().createRelationshipTo( node, MyRelTypes.TEST );
             rel6 = node.createRelationshipTo( node, MyRelTypes.TEST );
-            tx.success();
+            tx.commit();
         }
 
         NeoStores neoStores = db.getDependencyResolver().resolveDependency( RecordStorageEngine.class ).testAccessNeoStores();
         NodeStore nodeStore = neoStores.getNodeStore();
-        NodeRecord nodeRecord = getRecord( nodeStore, node.getId() );
+        NodeRecord nodeRecord = nodeStore.getRecord( node.getId(), nodeStore.newRecord(), NORMAL );
         long group = nodeRecord.getNextRel();
         RecordStore<RelationshipGroupRecord> groupStore = neoStores.getRelationshipGroupStore();
-        RelationshipGroupRecord groupRecord = getRecord( groupStore, group );
+        RelationshipGroupRecord groupRecord = groupStore.getRecord( group, groupStore.newRecord(), NORMAL );
         assertEquals( -1, groupRecord.getNext() );
         assertEquals( -1, groupRecord.getPrev() );
         assertRelationshipChain( neoStores.getRelationshipStore(), node, groupRecord.getFirstOut(), rel1.getId(), rel4.getId() );
@@ -236,7 +237,7 @@ public class RelationshipGroupStoreTest
     }
 
     @Test
-    public void verifyRecordsForDenseNodeWithTwoRelTypes()
+    void verifyRecordsForDenseNodeWithTwoRelTypes()
     {
         newDb( 2 );
 
@@ -249,58 +250,57 @@ public class RelationshipGroupStoreTest
         Relationship rel6;
         try ( Transaction tx = db.beginTx() )
         {
-            node = db.createNode();
-            rel1 = node.createRelationshipTo( db.createNode(), MyRelTypes.TEST );
-            rel2 = node.createRelationshipTo( db.createNode(), MyRelTypes.TEST );
-            rel3 = node.createRelationshipTo( db.createNode(), MyRelTypes.TEST );
-            rel4 = node.createRelationshipTo( db.createNode(), MyRelTypes.TEST2 );
-            rel5 = node.createRelationshipTo( db.createNode(), MyRelTypes.TEST2 );
-            rel6 = node.createRelationshipTo( db.createNode(), MyRelTypes.TEST2 );
-            tx.success();
+            node = tx.createNode();
+            rel1 = node.createRelationshipTo( tx.createNode(), MyRelTypes.TEST );
+            rel2 = node.createRelationshipTo( tx.createNode(), MyRelTypes.TEST );
+            rel3 = node.createRelationshipTo( tx.createNode(), MyRelTypes.TEST );
+            rel4 = node.createRelationshipTo( tx.createNode(), MyRelTypes.TEST2 );
+            rel5 = node.createRelationshipTo( tx.createNode(), MyRelTypes.TEST2 );
+            rel6 = node.createRelationshipTo( tx.createNode(), MyRelTypes.TEST2 );
+            tx.commit();
         }
 
         NeoStores neoStores = db.getDependencyResolver().resolveDependency( RecordStorageEngine.class ).testAccessNeoStores();
         NodeStore nodeStore = neoStores.getNodeStore();
-        NodeRecord nodeRecord = getRecord( nodeStore, node.getId() );
+        NodeRecord nodeRecord = nodeStore.getRecord( node.getId(), nodeStore.newRecord(), NORMAL );
         long group = nodeRecord.getNextRel();
 
         RecordStore<RelationshipGroupRecord> groupStore = neoStores.getRelationshipGroupStore();
-        RelationshipGroupRecord groupRecord = getRecord( groupStore, group );
+        RelationshipGroupRecord groupRecord = groupStore.getRecord( group, groupStore.newRecord(), NORMAL );
         assertNotEquals( groupRecord.getNext(), -1 );
         assertRelationshipChain( neoStores.getRelationshipStore(), node, groupRecord.getFirstOut(), rel1.getId(),
                 rel2.getId(), rel3.getId() );
 
-        RelationshipGroupRecord otherGroupRecord = RecordStore.getRecord( groupStore, groupRecord.getNext() );
+        RelationshipGroupRecord otherGroupRecord = groupStore.getRecord( groupRecord.getNext(), groupStore.newRecord(), NORMAL );
         assertEquals( -1, otherGroupRecord.getNext() );
         assertRelationshipChain( neoStores.getRelationshipStore(), node, otherGroupRecord.getFirstOut(), rel4.getId(),
                 rel5.getId(), rel6.getId() );
     }
 
     @Test
-    public void verifyGroupIsDeletedWhenNeeded()
+    void verifyGroupIsDeletedWhenNeeded()
     {
         // TODO test on a lower level instead
 
         newDb( 2 );
 
         Transaction tx = db.beginTx();
-        Node node = db.createNode();
-        Relationship rel1 = node.createRelationshipTo( db.createNode(), MyRelTypes.TEST );
-        Relationship rel2 = node.createRelationshipTo( db.createNode(), MyRelTypes.TEST );
-        Relationship rel3 = node.createRelationshipTo( db.createNode(), MyRelTypes.TEST );
-        Relationship rel4 = node.createRelationshipTo( db.createNode(), MyRelTypes.TEST2 );
-        Relationship rel5 = node.createRelationshipTo( db.createNode(), MyRelTypes.TEST2 );
-        Relationship rel6 = node.createRelationshipTo( db.createNode(), MyRelTypes.TEST2 );
-        tx.success();
-        tx.close();
+        Node node = tx.createNode();
+        Relationship rel1 = node.createRelationshipTo( tx.createNode(), MyRelTypes.TEST );
+        Relationship rel2 = node.createRelationshipTo( tx.createNode(), MyRelTypes.TEST );
+        Relationship rel3 = node.createRelationshipTo( tx.createNode(), MyRelTypes.TEST );
+        Relationship rel4 = node.createRelationshipTo( tx.createNode(), MyRelTypes.TEST2 );
+        Relationship rel5 = node.createRelationshipTo( tx.createNode(), MyRelTypes.TEST2 );
+        Relationship rel6 = node.createRelationshipTo( tx.createNode(), MyRelTypes.TEST2 );
+        tx.commit();
 
         NeoStores neoStores = db.getDependencyResolver().resolveDependency( RecordStorageEngine.class ).testAccessNeoStores();
         NodeStore nodeStore = neoStores.getNodeStore();
-        NodeRecord nodeRecord = getRecord( nodeStore, node.getId() );
+        NodeRecord nodeRecord = nodeStore.getRecord( node.getId(), nodeStore.newRecord(), NORMAL );
         long group = nodeRecord.getNextRel();
 
         RecordStore<RelationshipGroupRecord> groupStore = neoStores.getRelationshipGroupStore();
-        RelationshipGroupRecord groupRecord = getRecord( groupStore, group );
+        RelationshipGroupRecord groupRecord = groupStore.getRecord( group, groupStore.newRecord(), NORMAL );
         assertNotEquals( groupRecord.getNext(), -1 );
         RelationshipGroupRecord otherGroupRecord = groupStore.getRecord( groupRecord.getNext(), groupStore.newRecord(),
                 NORMAL );
@@ -310,10 +310,10 @@ public class RelationshipGroupStoreTest
     }
 
     @Test
-    public void checkingIfRecordIsInUseMustHappenAfterConsistentRead()
+    void checkingIfRecordIsInUseMustHappenAfterConsistentRead()
     {
         AtomicBoolean nextReadIsInconsistent = new AtomicBoolean( false );
-        PageCache pageCache = pageCacheRule.getPageCache( fs,
+        PageCache pageCache = pageCacheExtension.getPageCache( fs,
                 config().withInconsistentReads( nextReadIsInconsistent ) );
         StoreFactory factory = factory( null, pageCache );
 
@@ -330,7 +330,7 @@ public class RelationshipGroupStoreTest
         }
     }
 
-    private void assertRelationshipChain( RelationshipStore relationshipStore, Node node, long firstId, long... chainedIds )
+    private static void assertRelationshipChain( RelationshipStore relationshipStore, Node node, long firstId, long... chainedIds )
     {
         long nodeId = node.getId();
         RelationshipRecord record = relationshipStore.getRecord( firstId, relationshipStore.newRecord(), NORMAL );
@@ -350,7 +350,7 @@ public class RelationshipGroupStoreTest
             relationshipStore.getRecord( nextId, record, NORMAL );
         }
 
-        Set<Long> expectedChain = new HashSet<>( asList( firstId ) );
+        Set<Long> expectedChain = new HashSet<>( Collections.singletonList( firstId ) );
         for ( long id : chainedIds )
         {
             expectedChain.add( id );

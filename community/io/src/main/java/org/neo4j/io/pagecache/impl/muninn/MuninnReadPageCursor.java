@@ -54,7 +54,7 @@ final class MuninnReadPageCursor extends MuninnPageCursor
     {
         unpinCurrentPage();
         long lastPageId = assertPagedFileStillMappedAndGetIdOfLastPage();
-        if ( nextPageId > lastPageId | nextPageId < 0 )
+        if ( nextPageId > lastPageId || nextPageId < 0 )
         {
             return false;
         }

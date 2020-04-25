@@ -32,22 +32,22 @@ import java.util.function.IntFunction;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import org.neo4j.helpers.collection.Iterators;
-import org.neo4j.internal.kernel.api.IndexReference;
-import org.neo4j.internal.kernel.api.Kernel;
-import org.neo4j.internal.kernel.api.NamedToken;
+import org.neo4j.common.EntityType;
+import org.neo4j.internal.helpers.collection.Iterators;
 import org.neo4j.internal.kernel.api.Read;
 import org.neo4j.internal.kernel.api.SchemaRead;
 import org.neo4j.internal.kernel.api.TokenRead;
-import org.neo4j.internal.kernel.api.Transaction;
 import org.neo4j.internal.kernel.api.exceptions.TransactionFailureException;
 import org.neo4j.internal.kernel.api.exceptions.schema.IndexNotFoundKernelException;
-import org.neo4j.internal.kernel.api.schema.constraints.ConstraintDescriptor;
 import org.neo4j.internal.kernel.api.security.LoginContext;
+import org.neo4j.internal.schema.ConstraintDescriptor;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.kernel.api.Kernel;
+import org.neo4j.kernel.api.KernelTransaction;
 import org.neo4j.kernel.api.SilentTokenNameLookup;
 import org.neo4j.register.Register;
 import org.neo4j.register.Registers;
-import org.neo4j.storageengine.api.EntityType;
+import org.neo4j.token.api.NamedToken;
 
 /**
  * The Graph Counts section holds all data that is available form the counts store, plus metadata
@@ -64,7 +64,7 @@ final class GraphCountsSection
     static Stream<RetrieveResult> retrieve( Kernel kernel, Anonymizer anonymizer )
             throws TransactionFailureException, IndexNotFoundKernelException
     {
-        try ( Transaction tx = kernel.beginTransaction( Transaction.Type.explicit, LoginContext.AUTH_DISABLED ) )
+        try ( KernelTransaction tx = kernel.beginTransaction( KernelTransaction.Type.explicit, LoginContext.AUTH_DISABLED ) )
         {
             TokenRead tokens = tx.tokenRead();
             Read read = tx.dataRead();
@@ -147,10 +147,10 @@ final class GraphCountsSection
 
         SilentTokenNameLookup tokenLookup = new SilentTokenNameLookup( tokens );
 
-        Iterator<IndexReference> iterator = schemaRead.indexesGetAll();
+        Iterator<IndexDescriptor> iterator = schemaRead.indexesGetAll();
         while ( iterator.hasNext() )
         {
-            IndexReference index = iterator.next();
+            IndexDescriptor index = iterator.next();
 
             Map<String,Object> data = new HashMap<>();
             data.put( "labels", map( index.schema().getEntityTokenIds(),

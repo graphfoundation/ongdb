@@ -22,6 +22,8 @@
  */
 package org.neo4j.graphdb;
 
+import org.neo4j.annotations.api.PublicApi;
+
 /**
  * Defines relationship directions used when getting relationships from a node
  * or when creating traversers.
@@ -34,6 +36,7 @@ package org.neo4j.graphdb;
  * as "give me all" or "traverse all" relationships that are either
  * {@link #OUTGOING} or {@link #INCOMING}.
  */
+@PublicApi
 public enum Direction
 {
     /**

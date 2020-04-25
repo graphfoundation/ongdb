@@ -28,20 +28,22 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
 
-import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.RelationshipType;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
 import org.neo4j.server.helpers.CommunityServerBuilder;
 import org.neo4j.server.helpers.FunctionalTestHelper;
 import org.neo4j.server.helpers.ServerHelper;
 import org.neo4j.server.helpers.Transactor;
-import org.neo4j.server.rest.JaxRsResponse;
-import org.neo4j.server.rest.RestRequest;
 import org.neo4j.test.server.ExclusiveServerTestBase;
 
+import static java.net.http.HttpClient.Redirect.NORMAL;
+import static java.net.http.HttpClient.newBuilder;
+import static java.net.http.HttpResponse.BodyHandlers.discarding;
+import static java.net.http.HttpResponse.BodyHandlers.ofString;
 import static org.junit.Assert.assertEquals;
-import static org.neo4j.server.helpers.FunctionalTestHelper.CLIENT;
 
 public class NeoServerJAXRSIT extends ExclusiveServerTestBase
 {
@@ -65,13 +67,14 @@ public class NeoServerJAXRSIT extends ExclusiveServerTestBase
     @Test
     public void shouldMakeJAXRSClassesAvailableViaHTTP() throws Exception
     {
-        CommunityServerBuilder builder = CommunityServerBuilder.server();
-        server = ServerHelper.createNonPersistentServer( builder );
-        FunctionalTestHelper functionalTestHelper = new FunctionalTestHelper( server );
+        var serverBuilder = CommunityServerBuilder.server();
+        server = ServerHelper.createNonPersistentServer( serverBuilder );
+        var functionalTestHelper = new FunctionalTestHelper( server );
 
-        JaxRsResponse response = new RestRequest().get( functionalTestHelper.managementUri() );
-        assertEquals( 200, response.getStatus() );
-        response.close();
+        var request = HttpRequest.newBuilder( functionalTestHelper.baseUri() ).GET().build();
+        var httpClient = HttpClient.newBuilder().followRedirects( NORMAL ).build();
+        var response = httpClient.send( request, discarding() );
+        assertEquals( 200, response.statusCode() );
     }
 
     @Test
@@ -84,41 +87,42 @@ public class NeoServerJAXRSIT extends ExclusiveServerTestBase
                 .build();
         server.start();
 
-        URI thirdPartyServiceUri = new URI( server.baseUri()
-                .toString() + DummyThirdPartyWebService.DUMMY_WEB_SERVICE_MOUNT_POINT ).normalize();
-        String response = CLIENT.resource( thirdPartyServiceUri.toString() )
-                .get( String.class );
+        var httpClient = newBuilder().followRedirects( NORMAL ).build();
+
+        var thirdPartyServiceUri = new URI( server.baseUri() + DummyThirdPartyWebService.DUMMY_WEB_SERVICE_MOUNT_POINT ).normalize();
+
+        var request = HttpRequest.newBuilder( thirdPartyServiceUri ).GET().build();
+        var response = httpClient.send( request, ofString() ).body();
         assertEquals( "hello", response );
 
         // Assert that extensions gets initialized
-        int nodesCreated = createSimpleDatabase( server.getDatabase().getGraph() );
-        thirdPartyServiceUri = new URI( server.baseUri()
-                .toString() + DummyThirdPartyWebService.DUMMY_WEB_SERVICE_MOUNT_POINT + "/inject-test" ).normalize();
-        response = CLIENT.resource( thirdPartyServiceUri.toString() )
-                .get( String.class );
-        assertEquals( String.valueOf( nodesCreated ), response );
+        var nodesCreated = createSimpleDatabase( server.getDatabaseService().getDatabase() );
+        thirdPartyServiceUri = new URI( server.baseUri() + DummyThirdPartyWebService.DUMMY_WEB_SERVICE_MOUNT_POINT + "/inject-test" ).normalize();
+        request = HttpRequest.newBuilder( thirdPartyServiceUri ).GET().build();
+        response = httpClient.send( request, ofString() ).body();
+        assertEquals( response, String.valueOf( nodesCreated ), response );
     }
 
-    private int createSimpleDatabase( final GraphDatabaseAPI graph )
+    private static int createSimpleDatabase( final GraphDatabaseAPI graph )
     {
-        final int numberOfNodes = 10;
-        new Transactor( graph, () ->
+        final var numberOfNodes = 10;
+        new Transactor( graph, tx ->
         {
-            for ( int i = 0; i < numberOfNodes; i++ )
+            for ( var i = 0; i < numberOfNodes; i++ )
             {
-                graph.createNode();
+                tx.createNode();
             }
 
-            for ( Node n1 : graph.getAllNodes() )
+            for ( var node1 : tx.getAllNodes() )
             {
-                for ( Node n2 : graph.getAllNodes() )
+                for ( var node2 : tx.getAllNodes() )
                 {
-                    if ( n1.equals( n2 ) )
+                    if ( node1.equals( node2 ) )
                     {
                         continue;
                     }
 
-                    n1.createRelationshipTo( n2, RelationshipType.withName( "REL" ) );
+                    node1.createRelationshipTo( node2, RelationshipType.withName( "REL" ) );
                 }
             }
         } ).execute();

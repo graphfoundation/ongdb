@@ -23,8 +23,8 @@
 package org.neo4j.kernel.impl.transaction.state.storeview;
 
 import org.neo4j.collection.PrimitiveLongResourceIterator;
+import org.neo4j.internal.index.label.LabelScanReader;
 import org.neo4j.storageengine.api.StorageEntityScanCursor;
-import org.neo4j.storageengine.api.schema.LabelScanReader;
 
 /**
  * Node id iterator used during index population when we go over node ids indexed in label scan store.
@@ -49,7 +49,7 @@ class LabelScanViewIdIterator<CURSOR extends StorageEntityScanCursor> implements
     @Override
     public void close()
     {
-        labelScanReader.close();
+       idIterator.close();
     }
 
     @Override

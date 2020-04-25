@@ -84,4 +84,11 @@ public class LocalTimeArray extends TemporalArray<LocalTime, LocalTimeValue>
     {
         return "LocalTimeArray";
     }
+
+    @Override
+    long sizePerItem()
+    {
+        //reference + size of LocalTime
+        return 4 + 24;
+    }
 }

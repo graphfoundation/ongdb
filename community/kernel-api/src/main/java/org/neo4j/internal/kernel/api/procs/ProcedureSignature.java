@@ -24,12 +24,12 @@ package org.neo4j.internal.kernel.api.procs;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Optional;
 
-import org.neo4j.helpers.collection.Iterables;
+import org.neo4j.internal.helpers.collection.Iterables;
 import org.neo4j.procedure.Mode;
+
 import static java.util.Collections.unmodifiableList;
 
 /**
@@ -51,6 +51,7 @@ public class ProcedureSignature
     private final String warning;
     private final boolean eager;
     private final boolean caseInsensitive;
+    private final boolean systemProcedure;
 
     public ProcedureSignature(
             QualifiedName name,
@@ -63,7 +64,8 @@ public class ProcedureSignature
             String description,
             String warning,
             boolean eager,
-            boolean caseInsensitive )
+            boolean caseInsensitive,
+            boolean systemProcedure )
     {
         this.name = name;
         this.inputSignature = unmodifiableList( inputSignature );
@@ -76,6 +78,7 @@ public class ProcedureSignature
         this.warning = warning;
         this.eager = eager;
         this.caseInsensitive = caseInsensitive;
+        this.systemProcedure = systemProcedure;
     }
 
     public QualifiedName name()
@@ -138,6 +141,11 @@ public class ProcedureSignature
         return eager;
     }
 
+    public boolean systemProcedure()
+    {
+        return systemProcedure;
+    }
+
     @Override
     public boolean equals( Object o )
     {
@@ -179,8 +187,8 @@ public class ProcedureSignature
     public static class Builder
     {
         private final QualifiedName name;
-        private final List<FieldSignature> inputSignature = new LinkedList<>();
-        private List<FieldSignature> outputSignature = new LinkedList<>();
+        private final List<FieldSignature> inputSignature = new ArrayList<>();
+        private List<FieldSignature> outputSignature = new ArrayList<>();
         private Mode mode = Mode.READ;
         private String deprecated;
         private String[] allowed = new String[0];
@@ -188,6 +196,7 @@ public class ProcedureSignature
         private String warning;
         private boolean eager;
         private boolean admin;
+        private boolean systemProcedure;
 
         public Builder( String[] namespace, String name )
         {
@@ -216,6 +225,12 @@ public class ProcedureSignature
         public Builder in( String name, Neo4jTypes.AnyType type )
         {
             inputSignature.add( FieldSignature.inputField( name, type ) );
+            return this;
+        }
+
+        public Builder in( String name, Neo4jTypes.AnyType type, DefaultParameterValue defaultValue )
+        {
+            inputSignature.add( FieldSignature.inputField( name, type, defaultValue ) );
             return this;
         }
 
@@ -256,10 +271,16 @@ public class ProcedureSignature
             return this;
         }
 
+        public Builder systemProcedure()
+        {
+            this.systemProcedure = true;
+            return this;
+        }
+
         public ProcedureSignature build()
         {
             return new ProcedureSignature( name, inputSignature, outputSignature, mode, admin, deprecated, allowed,
-                    description, warning, eager, false );
+                    description, warning, eager, false, systemProcedure );
         }
     }
 

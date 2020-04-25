@@ -71,13 +71,12 @@ public interface NodeValueIndexCursor extends NodeIndexCursor
 
     Value propertyValue( int offset );
 
-    class Empty implements NodeValueIndexCursor
+    class Empty extends DefaultCloseListenable implements NodeValueIndexCursor
     {
 
         @Override
         public void node( NodeCursor cursor )
         {
-
         }
 
         @Override
@@ -94,6 +93,12 @@ public interface NodeValueIndexCursor extends NodeIndexCursor
 
         @Override
         public void close()
+        {
+            //do nothing
+        }
+
+        @Override
+        public void closeInternal()
         {
 
         }
@@ -123,9 +128,26 @@ public interface NodeValueIndexCursor extends NodeIndexCursor
         }
 
         @Override
+        public float score()
+        {
+            return Float.NaN;
+        }
+
+        @Override
         public Value propertyValue( int offset )
         {
             return NO_VALUE;
+        }
+
+        @Override
+        public void setTracer( KernelReadTracer tracer )
+        {
+        }
+
+        @Override
+        public void removeTracer()
+        {
+
         }
     }
 

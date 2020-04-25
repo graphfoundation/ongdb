@@ -24,7 +24,7 @@ package org.neo4j.server;
 
 import java.io.IOException;
 
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
+import org.neo4j.configuration.GraphDatabaseSettings;
 import org.neo4j.server.helpers.CommunityServerBuilder;
 
 public class NeoServerRestartTestCommunityIT extends NeoServerRestartTestIT

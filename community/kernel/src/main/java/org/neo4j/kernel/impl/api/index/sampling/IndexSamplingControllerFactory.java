@@ -22,33 +22,34 @@
  */
 package org.neo4j.kernel.impl.api.index.sampling;
 
-import java.util.function.Predicate;
+import java.util.function.LongPredicate;
 
-import org.neo4j.internal.kernel.api.TokenNameLookup;
+import org.neo4j.common.TokenNameLookup;
+import org.neo4j.internal.schema.IndexDescriptor;
 import org.neo4j.kernel.impl.api.index.IndexMapSnapshotProvider;
-import org.neo4j.kernel.impl.api.index.IndexStoreView;
+import org.neo4j.kernel.impl.api.index.IndexSamplingConfig;
+import org.neo4j.kernel.impl.api.index.stats.IndexStatisticsStore;
 import org.neo4j.logging.Log;
 import org.neo4j.logging.LogProvider;
 import org.neo4j.register.Register.DoubleLongRegister;
 import org.neo4j.scheduler.JobScheduler;
-import org.neo4j.storageengine.api.schema.StoreIndexDescriptor;
 
 import static org.neo4j.register.Registers.newDoubleLongRegister;
 
 public class IndexSamplingControllerFactory
 {
     private final IndexSamplingConfig config;
-    private final IndexStoreView storeView;
+    private final IndexStatisticsStore indexStatisticsStore;
     private final JobScheduler scheduler;
     private final TokenNameLookup tokenNameLookup;
     private final LogProvider logProvider;
 
-    public IndexSamplingControllerFactory( IndexSamplingConfig config, IndexStoreView storeView,
+    public IndexSamplingControllerFactory( IndexSamplingConfig config, IndexStatisticsStore indexStatisticsStore,
                                            JobScheduler scheduler, TokenNameLookup tokenNameLookup,
                                            LogProvider logProvider )
     {
         this.config = config;
-        this.storeView = storeView;
+        this.indexStatisticsStore = indexStatisticsStore;
         this.scheduler = scheduler;
         this.tokenNameLookup = tokenNameLookup;
         this.logProvider = logProvider;
@@ -56,52 +57,44 @@ public class IndexSamplingControllerFactory
 
     public IndexSamplingController create( IndexMapSnapshotProvider snapshotProvider )
     {
-        OnlineIndexSamplingJobFactory jobFactory =
-                new OnlineIndexSamplingJobFactory( storeView, tokenNameLookup, logProvider );
-        Predicate<Long> samplingUpdatePredicate = createSamplingPredicate();
-        IndexSamplingJobQueue<Long> jobQueue = new IndexSamplingJobQueue<>( samplingUpdatePredicate );
+        OnlineIndexSamplingJobFactory jobFactory = new OnlineIndexSamplingJobFactory( indexStatisticsStore, tokenNameLookup, logProvider );
+        LongPredicate samplingUpdatePredicate = createSamplingPredicate();
         IndexSamplingJobTracker jobTracker = new IndexSamplingJobTracker( config, scheduler );
-        IndexSamplingController.RecoveryCondition
-                indexRecoveryCondition = createIndexRecoveryCondition( logProvider, tokenNameLookup );
+        RecoveryCondition indexRecoveryCondition = createIndexRecoveryCondition( logProvider, tokenNameLookup );
         return new IndexSamplingController(
-                config, jobFactory, jobQueue, jobTracker, snapshotProvider, scheduler, indexRecoveryCondition,
+                config, jobFactory, samplingUpdatePredicate, jobTracker, snapshotProvider, scheduler, indexRecoveryCondition,
                 logProvider );
     }
 
-    private Predicate<Long> createSamplingPredicate()
+    private LongPredicate createSamplingPredicate()
     {
-        return new Predicate<Long>()
-        {
-            private final DoubleLongRegister output = newDoubleLongRegister();
-
-            @Override
-            public boolean test( Long indexId )
-            {
-                storeView.indexUpdatesAndSize( indexId, output );
-                long updates = output.readFirst();
-                long size = output.readSecond();
-                long threshold = Math.round( config.updateRatio() * size );
-                return updates > threshold;
-            }
+        return indexId -> {
+            DoubleLongRegister output = newDoubleLongRegister();
+            indexStatisticsStore.indexUpdatesAndSize( indexId, output );
+            long updates = output.readFirst();
+            long size = output.readSecond();
+            long threshold = Math.round( config.updateRatio() * size );
+            return updates > threshold;
         };
     }
 
-    private IndexSamplingController.RecoveryCondition createIndexRecoveryCondition( final LogProvider logProvider,
+    private RecoveryCondition createIndexRecoveryCondition( final LogProvider logProvider,
                                                                      final TokenNameLookup tokenNameLookup )
     {
-        return new IndexSamplingController.RecoveryCondition()
+        return new RecoveryCondition()
         {
             private final Log log = logProvider.getLog( IndexSamplingController.class );
             private final DoubleLongRegister register = newDoubleLongRegister();
 
             @Override
-            public boolean test( StoreIndexDescriptor descriptor )
+            public boolean test( IndexDescriptor descriptor )
             {
-                boolean result = storeView.indexSample( descriptor.getId(), register ).readSecond() == 0;
+                final long samples = indexStatisticsStore.indexSample( descriptor.getId(), register ).readSecond();
+                final long size = indexStatisticsStore.indexUpdatesAndSize( descriptor.getId(), register ).readSecond();
+                final boolean result = samples == 0 || size == 0;
                 if ( result )
                 {
-                    log.debug( "Recovering index sampling for index %s",
-                            descriptor.schema().userDescription( tokenNameLookup ) );
+                    log.debug( "Recovering index sampling for index %s", descriptor.schema().userDescription( tokenNameLookup ) );
                 }
                 return result;
             }

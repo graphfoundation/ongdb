@@ -41,7 +41,7 @@ public class FileSystemLifecycleAdapter extends LifecycleAdapter
     }
 
     @Override
-    public void shutdown() throws Throwable
+    public void shutdown() throws Exception
     {
         fileSystemAbstraction.close();
     }

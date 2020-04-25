@@ -22,25 +22,25 @@
  */
 package org.neo4j.kernel.impl.api.integrationtest;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Iterator;
 
-import org.neo4j.internal.kernel.api.NamedToken;
-import org.neo4j.internal.kernel.api.Transaction;
+import org.neo4j.kernel.api.KernelTransaction;
 import org.neo4j.kernel.api.security.AnonymousContext;
+import org.neo4j.token.api.NamedToken;
 
-import static org.hamcrest.core.IsCollectionContaining.hasItems;
-import static org.junit.Assert.assertThat;
-import static org.neo4j.helpers.collection.Iterators.asCollection;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.core.IsIterableContaining.hasItems;
+import static org.neo4j.internal.helpers.collection.Iterators.asCollection;
 
-public class LabelIT extends KernelIntegrationTest
+class LabelIT extends KernelIntegrationTest
 {
     @Test
-    public void shouldListAllLabels() throws Exception
+    void shouldListAllLabels() throws Exception
     {
         // given
-        Transaction transaction = newTransaction( AnonymousContext.writeToken() );
+        KernelTransaction transaction = newTransaction( AnonymousContext.writeToken() );
         int label1Id = transaction.tokenWrite().labelGetOrCreateForName( "label1" );
         int label2Id = transaction.tokenWrite().labelGetOrCreateForName( "label2" );
 

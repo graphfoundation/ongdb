@@ -25,7 +25,7 @@ package org.neo4j.cypher.internal.codegen;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.neo4j.kernel.impl.core.EmbeddedProxySPI;
+import org.neo4j.kernel.impl.core.TransactionalEntityFactory;
 import org.neo4j.kernel.impl.util.ValueUtils;
 import org.neo4j.values.AnyValue;
 import org.neo4j.values.SequenceValue;
@@ -54,7 +54,7 @@ import org.neo4j.values.virtual.VirtualValues;
 
 public final class CompiledMaterializeValueMapper
 {
-    public static AnyValue mapAnyValue( EmbeddedProxySPI proxySPI, AnyValue value )
+    public static AnyValue mapAnyValue( TransactionalEntityFactory proxySPI, AnyValue value )
     {
         // First do a dry run to determine if any conversion will actually be needed,
         // because if it isn't we can just return the value as it is without having
@@ -74,9 +74,9 @@ public final class CompiledMaterializeValueMapper
 
     private static final class WritingMaterializeValueMapper extends AbstractMaterializeValueMapper
     {
-        private EmbeddedProxySPI proxySpi;
+        private final TransactionalEntityFactory proxySpi;
 
-        WritingMaterializeValueMapper( EmbeddedProxySPI proxySpi )
+        WritingMaterializeValueMapper( TransactionalEntityFactory proxySpi )
         {
             this.proxySpi = proxySpi;
         }
@@ -90,7 +90,7 @@ public final class CompiledMaterializeValueMapper
             {
                 return value;
             }
-            return ValueUtils.fromNodeProxy( proxySpi.newNodeProxy( value.id() ) );
+            return ValueUtils.fromNodeEntity( proxySpi.newNodeEntity( value.id() ) );
         }
 
         @Override
@@ -100,7 +100,7 @@ public final class CompiledMaterializeValueMapper
             {
                 return value;
             }
-            return ValueUtils.fromRelationshipProxy( proxySpi.newRelationshipProxy( value.id() ) );
+            return ValueUtils.fromRelationshipEntity( proxySpi.newRelationshipEntity( value.id() ) );
         }
 
         // Recurse through maps and sequences

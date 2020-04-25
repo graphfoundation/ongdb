@@ -22,11 +22,10 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.commands.predicates
 
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
-import org.neo4j.cypher.internal.runtime.interpreted.ListSupport
 import org.neo4j.cypher.internal.runtime.interpreted.commands.AstNode
 import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.Expression
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.QueryState
+import org.neo4j.cypher.internal.runtime.{ExecutionContext, ListSupport}
 import org.neo4j.values.AnyValue
 import org.neo4j.values.storable.Values
 
@@ -44,7 +43,7 @@ case class ConstantCachedIn(value: Expression, list: Expression) extends Predica
   override def isMatch(ctx: ExecutionContext, state: QueryState): Option[Boolean] = {
     val inChecker = state.cachedIn.getOrElseUpdate(list, {
       val listValue = list(ctx, state)
-      val checker = if (listValue == Values.NO_VALUE)
+      val checker = if (listValue eq Values.NO_VALUE)
         NullListChecker
       else {
         val input = makeTraversable(listValue)
@@ -62,8 +61,6 @@ case class ConstantCachedIn(value: Expression, list: Expression) extends Predica
 
   override def arguments: Seq[Expression] = Seq(list)
 
-  override def symbolTableDependencies: Set[String] = list.symbolTableDependencies ++ value.symbolTableDependencies
-
   override def rewrite(f: Expression => Expression): Expression = f(ConstantCachedIn(value.rewrite(f), list.rewrite(f)))
 }
 
@@ -78,7 +75,7 @@ case class DynamicCachedIn(value: Expression, list: Expression) extends Predicat
   override def isMatch(ctx: ExecutionContext, state: QueryState): Option[Boolean] = {
     val listValue: AnyValue = list(ctx, state)
 
-    if(listValue == Values.NO_VALUE)
+    if(listValue eq Values.NO_VALUE)
       return None
 
     val traversable = makeTraversable(listValue)
@@ -100,7 +97,6 @@ case class DynamicCachedIn(value: Expression, list: Expression) extends Predicat
 
   override def children: Seq[AstNode[_]] = Seq(value, list)
 
-  override def symbolTableDependencies: Set[String] = list.symbolTableDependencies ++ value.symbolTableDependencies
 
   override def rewrite(f: Expression => Expression): Expression = f(DynamicCachedIn(value.rewrite(f), list.rewrite(f)))
 }

@@ -22,8 +22,8 @@
  */
 package org.neo4j.graphdb.event;
 
+import org.neo4j.annotations.api.PublicApi;
 import org.neo4j.graphdb.Node;
-import org.neo4j.graphdb.PropertyContainer;
 import org.neo4j.graphdb.Relationship;
 
 /**
@@ -39,7 +39,8 @@ import org.neo4j.graphdb.Relationship;
  * @param <T> The type of the entity the property belongs to, either
  *            {@link Node} or {@link Relationship}.
  */
-public interface PropertyEntry<T extends PropertyContainer>
+@PublicApi
+public interface PropertyEntry<T>
 {
     /**
      * Get the entity that this property was modified on. The entity is either a
@@ -76,7 +77,7 @@ public interface PropertyEntry<T extends PropertyContainer>
      * @return The value of the property as it was before the transaction
      * started.
      */
-    Object previouslyCommitedValue();
+    Object previouslyCommittedValue();
 
     /**
      * Get the value of the modified property. If this {@link PropertyEntry}

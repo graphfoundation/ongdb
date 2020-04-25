@@ -22,30 +22,28 @@
  */
 package org.neo4j.kernel.impl.index.schema;
 
-import java.io.File;
 import java.util.HashMap;
 import java.util.Map;
 
 import org.neo4j.gis.spatial.index.curves.SpaceFillingCurveConfiguration;
+import org.neo4j.internal.schema.IndexDescriptor;
 import org.neo4j.io.fs.FileSystemAbstraction;
+import org.neo4j.io.memory.ByteBufferFactory;
 import org.neo4j.io.pagecache.PageCache;
-import org.neo4j.kernel.api.index.IndexDirectoryStructure;
 import org.neo4j.kernel.api.index.IndexProvider;
-import org.neo4j.kernel.impl.index.schema.config.IndexSpecificSpaceFillingCurveSettingsCache;
-import org.neo4j.storageengine.api.schema.StoreIndexDescriptor;
+import org.neo4j.kernel.impl.index.schema.config.IndexSpecificSpaceFillingCurveSettings;
 import org.neo4j.values.storable.Value;
 
 class GenericBlockBasedIndexPopulator extends BlockBasedIndexPopulator<GenericKey,NativeIndexValue>
 {
-    private final IndexSpecificSpaceFillingCurveSettingsCache spatialSettings;
+    private final IndexSpecificSpaceFillingCurveSettings spatialSettings;
     private final SpaceFillingCurveConfiguration configuration;
 
-    GenericBlockBasedIndexPopulator( PageCache pageCache, FileSystemAbstraction fs, File file, IndexLayout<GenericKey,NativeIndexValue> layout,
-            IndexProvider.Monitor monitor, StoreIndexDescriptor descriptor, IndexSpecificSpaceFillingCurveSettingsCache spatialSettings,
-            IndexDirectoryStructure directoryStructure, SpaceFillingCurveConfiguration configuration,
-            IndexDropAction dropAction, boolean archiveFailedIndex, ByteBufferFactory bufferFactory )
+    GenericBlockBasedIndexPopulator( PageCache pageCache, FileSystemAbstraction fs, IndexFiles indexFiles, IndexLayout<GenericKey,NativeIndexValue> layout,
+            IndexProvider.Monitor monitor, IndexDescriptor descriptor, IndexSpecificSpaceFillingCurveSettings spatialSettings,
+            SpaceFillingCurveConfiguration configuration, boolean archiveFailedIndex, ByteBufferFactory bufferFactory )
     {
-        super( pageCache, fs, file, layout, monitor, descriptor, spatialSettings, directoryStructure, dropAction, archiveFailedIndex, bufferFactory );
+        super( pageCache, fs, indexFiles, layout, monitor, descriptor, archiveFailedIndex, bufferFactory );
         this.spatialSettings = spatialSettings;
         this.configuration = configuration;
     }
@@ -60,7 +58,7 @@ class GenericBlockBasedIndexPopulator extends BlockBasedIndexPopulator<GenericKe
     public Map<String,Value> indexConfig()
     {
         Map<String,Value> map = new HashMap<>();
-        spatialSettings.visitIndexSpecificSettings( new SpatialConfigExtractor( map ) );
+        spatialSettings.visitIndexSpecificSettings( new SpatialConfigVisitor( map ) );
         return map;
     }
 }

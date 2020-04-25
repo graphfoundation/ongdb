@@ -22,7 +22,7 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.commands.expressions
 
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
+import org.neo4j.cypher.internal.runtime.ExecutionContext
 import org.neo4j.cypher.internal.runtime.interpreted.commands.AstNode
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.QueryState
 import org.neo4j.cypher.operations.CypherFunctions
@@ -37,7 +37,4 @@ case class ReverseFunction(argument: Expression) extends NullInNullOutExpression
   override def arguments: Seq[Expression] = Seq(argument)
 
   override def children: Seq[AstNode[_]] = Seq(argument)
-
-  override def symbolTableDependencies: Set[String] = argument.symbolTableDependencies
-
 }

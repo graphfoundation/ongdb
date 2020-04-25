@@ -22,94 +22,126 @@
  */
 package org.neo4j.kernel.impl.api.integrationtest;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import java.util.Collections;
+import java.io.File;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.neo4j.collection.RawIterator;
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
-import org.neo4j.helpers.collection.MapUtil;
-import org.neo4j.internal.kernel.api.Transaction;
 import org.neo4j.internal.kernel.api.exceptions.ProcedureException;
 import org.neo4j.internal.kernel.api.procs.ProcedureCallContext;
-import org.neo4j.kernel.api.schema.LabelSchemaDescriptor;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.internal.schema.LabelSchemaDescriptor;
+import org.neo4j.kernel.api.KernelTransaction;
 import org.neo4j.kernel.impl.index.schema.FailingGenericNativeIndexProviderFactory;
-import org.neo4j.test.TestGraphDatabaseFactory;
+import org.neo4j.test.TestDatabaseManagementServiceBuilder;
+import org.neo4j.values.AnyValue;
+import org.neo4j.values.storable.TextValue;
+import org.neo4j.values.storable.Value;
+import org.neo4j.values.virtual.MapValue;
+import org.neo4j.values.virtual.VirtualValues;
 
 import static java.util.concurrent.TimeUnit.MINUTES;
+import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.containsString;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.neo4j.configuration.GraphDatabaseSettings.SchemaIndex.NATIVE_BTREE10;
 import static org.neo4j.internal.kernel.api.procs.ProcedureSignature.procedureName;
 import static org.neo4j.internal.kernel.api.security.LoginContext.AUTH_DISABLED;
-import static org.neo4j.kernel.api.schema.SchemaDescriptorFactory.forLabel;
+import static org.neo4j.internal.schema.SchemaDescriptor.forLabel;
 import static org.neo4j.kernel.impl.index.schema.FailingGenericNativeIndexProviderFactory.FailureType.POPULATION;
-import static org.neo4j.test.TestGraphDatabaseFactory.INDEX_PROVIDERS_FILTER;
+import static org.neo4j.test.TestDatabaseManagementServiceBuilder.INDEX_PROVIDERS_FILTER;
+import static org.neo4j.values.storable.Values.doubleValue;
+import static org.neo4j.values.storable.Values.longValue;
+import static org.neo4j.values.storable.Values.stringValue;
 
-public class DbIndexesFailureMessageIT extends KernelIntegrationTest
+class DbIndexesFailureMessageIT extends KernelIntegrationTest
 {
-    private AtomicBoolean failNextIndexPopulation = new AtomicBoolean();
+    private final AtomicBoolean failNextIndexPopulation = new AtomicBoolean();
 
     @Test
-    public void listAllIndexesWithFailedIndex() throws Throwable
+    void listAllIndexesWithFailedIndex() throws Throwable
     {
         // Given
-        Transaction transaction = newTransaction( AUTH_DISABLED );
+        KernelTransaction transaction = newTransaction( AUTH_DISABLED );
         int failedLabel = transaction.tokenWrite().labelGetOrCreateForName( "Fail" );
         int propertyKeyId1 = transaction.tokenWrite().propertyKeyGetOrCreateForName( "foo" );
         failNextIndexPopulation.set( true );
-        LabelSchemaDescriptor descriptor = forLabel( failedLabel, propertyKeyId1 );
-        transaction.schemaWrite().indexCreate( descriptor );
+        LabelSchemaDescriptor schema = forLabel( failedLabel, propertyKeyId1 );
+        IndexDescriptor index = transaction.schemaWrite().indexCreate( schema, "fail foo index" );
         commit();
 
-        //let indexes come online
-        try ( org.neo4j.graphdb.Transaction ignored = db.beginTx() )
+        try ( org.neo4j.graphdb.Transaction tx = db.beginTx() )
         {
-            db.schema().awaitIndexesOnline( 2, MINUTES );
-            fail( "Expected to fail when awaiting for index to come online" );
-        }
-        catch ( IllegalStateException e )
-        {
-            // expected
+            assertThrows( IllegalStateException.class, () -> tx.schema().awaitIndexesOnline( 2, MINUTES ) );
         }
 
         // When
-        RawIterator<Object[],ProcedureException> stream =
-                procs().procedureCallRead( procs().procedureGet( procedureName( "db", "indexes" ) ).id(),
-                        new Object[0], ProcedureCallContext.EMPTY );
+        RawIterator<AnyValue[],ProcedureException> stream =
+                procs().procedureCallRead( procs().procedureGet( procedureName( "db", "indexDetails" ) ).id(),
+                        new TextValue[]{stringValue( index.getName() )},
+                        ProcedureCallContext.EMPTY );
         assertTrue( stream.hasNext() );
-        Object[] result = stream.next();
+        AnyValue[] result = stream.next();
         assertFalse( stream.hasNext() );
+        commit(); // Commit procedure transaction
 
         // Then
-        assertEquals( "INDEX ON :Fail(foo)", result[0] );
-        assertEquals( "Unnamed index", result[1] );
-        assertEquals( Collections.singletonList( "Fail" ), result[2] );
-        assertEquals( Collections.singletonList( "foo" ), result[3] );
-        assertEquals( Collections.emptyList(), result[4] );
-        assertEquals( "FAILED", result[5] );
-        assertEquals( "node_label_property", result[6] );
-        assertEquals( 0.0, result[7] );
-        Map<String,String> providerDescriptionMap = MapUtil.stringMap(
-                "key", GraphDatabaseSettings.SchemaIndex.NATIVE_BTREE10.providerKey(),
-                "version", GraphDatabaseSettings.SchemaIndex.NATIVE_BTREE10.providerVersion() );
-        assertEquals( providerDescriptionMap, result[8] );
-        assertEquals( indexingService.getIndexId( descriptor ), result[9] );
-        assertThat( (String) result[10], containsString( "java.lang.RuntimeException: Fail on update during population" ) );
+        assertEquals( longValue( index.getId() ), result[0] );
+        assertEquals( stringValue( "fail foo index" ), result[1] );
+        assertEquals( stringValue( "FAILED" ), result[2] );
+        assertEquals( doubleValue( 0.0 ), result[3] );
+        assertEquals( stringValue( "NONUNIQUE" ), result[4] );
+        assertEquals( stringValue( "BTREE" ), result[5] );
+        assertEquals( stringValue( "NODE" ), result[6] );
+        assertEquals( VirtualValues.list( stringValue( "Fail" ) ), result[7] );
+        assertEquals( VirtualValues.list( stringValue( "foo" ) ), result[8] );
+        assertEquals( stringValue( NATIVE_BTREE10.providerName() ), result[9] );
+        assertMapsEqual( index.getIndexConfig().asMap(), (MapValue)result[10] );
+        assertThat( ((TextValue) result[11]).stringValue(),
+                containsString( "java.lang.RuntimeException: Fail on update during population" ) );
+        assertEquals( 12, result.length );
+    }
 
-        commit();
+    @Test
+    void indexDetailsWithNonExistingIndex()
+    {
+        ProcedureException exception = assertThrows( ProcedureException.class, () -> {
+            procs().procedureCallRead( procs().procedureGet( procedureName( "db", "indexDetails" ) ).id(),
+                    new TextValue[]{stringValue( "MyIndex" )},
+                    ProcedureCallContext.EMPTY );
+        } );
+        assertEquals( exception.getMessage(), "Could not find index with name \"MyIndex\"" );
+    }
+
+    private void assertMapsEqual( Map<String,Value> expected, MapValue actual )
+    {
+        assertEquals( expected.size(), actual.size() );
+        expected.forEach( ( k, v ) ->
+        {
+            final AnyValue value = actual.get( k );
+            assertNotNull( value );
+            assertEquals( v, value );
+        } );
+        actual.foreach( ( k, v ) ->
+        {
+            final Value value = expected.get( k );
+            assertNotNull( value );
+            assertEquals( v, value );
+        } );
     }
 
     @Override
-    protected TestGraphDatabaseFactory createGraphDatabaseFactory()
+    protected TestDatabaseManagementServiceBuilder createGraphDatabaseFactory( File databaseRootDir )
     {
-        return super.createGraphDatabaseFactory()
-                .removeKernelExtensions( INDEX_PROVIDERS_FILTER )
-                .addKernelExtension( new FailingGenericNativeIndexProviderFactory( POPULATION ) );
+        return super.createGraphDatabaseFactory( databaseRootDir )
+                .removeExtensions( INDEX_PROVIDERS_FILTER )
+                .noOpSystemGraphInitializer()
+                .addExtension( new FailingGenericNativeIndexProviderFactory( POPULATION ) );
     }
 }

@@ -22,165 +22,218 @@
  */
 package org.neo4j.kernel.impl.api;
 
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.function.Function;
 
-import org.neo4j.graphdb.GraphDatabaseService;
+import org.neo4j.graphdb.Entity;
 import org.neo4j.graphdb.Node;
-import org.neo4j.graphdb.PropertyContainer;
 import org.neo4j.graphdb.Relationship;
-import org.neo4j.helpers.collection.Pair;
-import org.neo4j.test.rule.DatabaseRule;
-import org.neo4j.test.rule.ImpermanentDatabaseRule;
+import org.neo4j.graphdb.Transaction;
+import org.neo4j.internal.helpers.collection.Pair;
+import org.neo4j.kernel.internal.GraphDatabaseAPI;
+import org.neo4j.test.extension.ImpermanentDbmsExtension;
+import org.neo4j.test.extension.Inject;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.neo4j.graphdb.Label.label;
 import static org.neo4j.graphdb.RelationshipType.withName;
 
-public class DataAndSchemaTransactionSeparationIT
+@ImpermanentDbmsExtension
+class DataAndSchemaTransactionSeparationIT
 {
-    @Rule
-    public final DatabaseRule db = new ImpermanentDatabaseRule();
+    @Inject
+    private GraphDatabaseAPI db;
 
-    private static Function<GraphDatabaseService, Void> expectFailureAfterSchemaOperation(
-            final Function<GraphDatabaseService, ?> function )
+    private Function<Transaction, Void> expectFailureAfterSchemaOperation(
+            final Function<Transaction, ?> function )
     {
-        return graphDb ->
+        return transaction ->
         {
             // given
-            graphDb.schema().indexFor( label( "Label1" ) ).on( "key1" ).create();
+            transaction.schema().indexFor( label( "Label1" ) ).on( "key1" ).create();
 
             // when
-            try
-            {
-                function.apply( graphDb );
-
-                fail( "expected exception" );
-            }
-            // then
-            catch ( Exception e )
-            {
-                assertEquals( "Cannot perform data updates in a transaction that has performed schema updates.",
-                        e.getMessage() );
-            }
+            var exception = assertThrows( Exception.class, () -> function.apply( transaction ) );
+            assertEquals( "Cannot perform data updates in a transaction that has performed schema updates.", exception.getMessage() );
             return null;
         };
     }
 
-    private static Function<GraphDatabaseService, Void> succeedAfterSchemaOperation(
-            final Function<GraphDatabaseService, ?> function )
+    private Function<Transaction, Void> succeedAfterSchemaOperation(
+            final Function<Transaction, ?> function )
     {
-        return graphDb ->
+        return transaction ->
         {
             // given
-            graphDb.schema().indexFor( label( "Label1" ) ).on( "key1" ).create();
+            transaction.schema().indexFor( label( "Label1" ) ).on( "key1" ).create();
 
             // when/then
-            function.apply( graphDb );
+            function.apply( transaction );
             return null;
         };
     }
 
     @Test
-    public void shouldNotAllowNodeCreationInSchemaTransaction()
+    void shouldNotAllowNodeCreationInSchemaTransaction()
     {
-        db.executeAndRollback( expectFailureAfterSchemaOperation( createNode() ) );
+        try ( Transaction transaction = db.beginTx() )
+        {
+            expectFailureAfterSchemaOperation( createNode() ).apply( transaction );
+            transaction.commit();
+        }
     }
 
     @Test
-    public void shouldNotAllowRelationshipCreationInSchemaTransaction()
+    void shouldNotAllowRelationshipCreationInSchemaTransaction()
     {
         // given
-        final Pair<Node, Node> nodes = db.executeAndCommit( aPairOfNodes() );
+        Pair<Node,Node> nodes;
+        try ( var transaction = db.beginTx() )
+        {
+            nodes = aPairOfNodes().apply( transaction );
+            transaction.commit();
+        }
         // then
-        db.executeAndRollback( expectFailureAfterSchemaOperation( relate( nodes ) ) );
+        try ( var transaction = db.beginTx() )
+        {
+            expectFailureAfterSchemaOperation( relate( nodes ) ).apply( transaction );
+        }
     }
 
     @Test
     @SuppressWarnings( "unchecked" )
-    public void shouldNotAllowPropertyWritesInSchemaTransaction()
+    void shouldNotAllowPropertyWritesInSchemaTransaction()
     {
         // given
-        Pair<Node, Node> nodes = db.executeAndCommit( aPairOfNodes() );
-        Relationship relationship = db.executeAndCommit( relate( nodes ) );
+        Pair<Node,Node> nodes;
+        try ( var transaction = db.beginTx() )
+        {
+            nodes = aPairOfNodes().apply( transaction );
+            transaction.commit();
+        }
+        Relationship relationship;
+        try ( var tx = db.beginTx() )
+        {
+            relationship = relate( nodes ).apply( tx );
+            tx.commit();
+        }
         // when
-        for ( Function<GraphDatabaseService, ?> operation : new Function[]{
+        for ( Function<Transaction, ?> operation : new Function[]{
                 propertyWrite( Node.class, nodes.first(), "key1", "value1" ),
                 propertyWrite( Relationship.class, relationship, "key1", "value1" ),
         } )
         {
             // then
-            db.executeAndRollback( expectFailureAfterSchemaOperation( operation ) );
+            try ( var transaction = db.beginTx() )
+            {
+                expectFailureAfterSchemaOperation( operation ).apply( transaction );
+            }
         }
     }
 
     @Test
     @SuppressWarnings( "unchecked" )
-    public void shouldAllowPropertyReadsInSchemaTransaction()
+    void shouldAllowPropertyReadsInSchemaTransaction()
     {
         // given
-        Pair<Node, Node> nodes = db.executeAndCommit( aPairOfNodes() );
-        Relationship relationship = db.executeAndCommit( relate( nodes ) );
-        db.executeAndCommit( propertyWrite( Node.class, nodes.first(), "key1", "value1" ) );
-        db.executeAndCommit( propertyWrite( Relationship.class, relationship, "key1", "value1" ) );
+        Pair<Node,Node> nodes;
+        try ( var transaction = db.beginTx() )
+        {
+            nodes = aPairOfNodes().apply( transaction );
+            transaction.commit();
+        }
+        Relationship relationship;
+        try ( var tx = db.beginTx() )
+        {
+            relationship = relate( nodes ).apply( tx );
+            tx.commit();
+        }
+        try ( var tx = db.beginTx() )
+        {
+            var node = tx.getNodeById( nodes.first().getId() );
+            propertyWrite( Node.class, node, "key1", "value1" ).apply( tx );
+            tx.commit();
+        }
+        try ( var tx = db.beginTx() )
+        {
+            propertyWrite( Relationship.class,
+                    tx.getRelationshipById( relationship.getId() ), "key1", "value1" ).apply( tx );
+            tx.commit();
+        }
 
         // when
-        for ( Function<GraphDatabaseService, ?> operation : new Function[]{
+        for ( Function<Transaction, ?> operation : new Function[]{
                 propertyRead( Node.class, nodes.first(), "key1" ),
                 propertyRead( Relationship.class, relationship, "key1" ),
         } )
         {
             // then
-            db.executeAndRollback( succeedAfterSchemaOperation( operation ) );
+            try ( var transaction = db.beginTx() )
+            {
+                succeedAfterSchemaOperation( operation ).apply( transaction );
+            }
         }
     }
 
-    private static Function<GraphDatabaseService, Node> createNode()
+    private static Function<Transaction, Node> createNode()
     {
-        return GraphDatabaseService::createNode;
+        return Transaction::createNode;
     }
 
-    private static <T extends PropertyContainer> Function<GraphDatabaseService, Object> propertyRead(
+    private static <T extends Entity> Function<Transaction, Object> propertyRead(
             Class<T> type, final T entity, final String key )
     {
-        return new FailureRewrite<Object>( type.getSimpleName() + ".getProperty()" )
+        return new FailureRewrite<>( type.getSimpleName() + ".getProperty()" )
         {
             @Override
-            Object perform( GraphDatabaseService graphDb )
+            Object perform( Transaction transaction )
             {
-                return entity.getProperty( key );
+                if ( entity instanceof Node )
+                {
+                    return transaction.getNodeById( entity.getId() ).getProperty( key );
+                }
+                else
+                {
+                    return transaction.getRelationshipById( entity.getId() ).getProperty( key );
+                }
             }
         };
     }
 
-    private static <T extends PropertyContainer> Function<GraphDatabaseService, Void> propertyWrite(
+    private static <T extends Entity> Function<Transaction, Void> propertyWrite(
             Class<T> type, final T entity, final String key, final Object value )
     {
-        return new FailureRewrite<Void>( type.getSimpleName() + ".setProperty()" )
+        return new FailureRewrite<>( type.getSimpleName() + ".setProperty()" )
         {
             @Override
-            Void perform( GraphDatabaseService graphDb )
+            Void perform( Transaction transaction )
             {
-                entity.setProperty( key, value );
+                if ( entity instanceof Node )
+                {
+                    transaction.getNodeById( entity.getId() ).setProperty( key, value );
+                }
+                else
+                {
+                    transaction.getRelationshipById( entity.getId() ).setProperty( key, value );
+                }
                 return null;
             }
         };
     }
 
-    private static Function<GraphDatabaseService, Pair<Node, Node>> aPairOfNodes()
+    private static Function<Transaction, Pair<Node, Node>> aPairOfNodes()
     {
-        return graphDb -> Pair.of( graphDb.createNode(), graphDb.createNode() );
+        return tx -> Pair.of( tx.createNode(), tx.createNode() );
     }
 
-    private static Function<GraphDatabaseService, Relationship> relate( final Pair<Node, Node> nodes )
+    private static Function<Transaction, Relationship> relate( final Pair<Node, Node> nodes )
     {
-        return graphDb -> nodes.first().createRelationshipTo( nodes.other(), withName( "RELATED" ) );
+        return tx -> tx.getNodeById( nodes.first().getId() ).createRelationshipTo( nodes.other(), withName( "RELATED" ) );
     }
 
-    private abstract static class FailureRewrite<T> implements Function<GraphDatabaseService, T>
+    private abstract static class FailureRewrite<T> implements Function<Transaction, T>
     {
         private final String message;
 
@@ -190,20 +243,18 @@ public class DataAndSchemaTransactionSeparationIT
         }
 
         @Override
-        public T apply( GraphDatabaseService graphDb )
+        public T apply( Transaction transaction )
         {
             try
             {
-                return perform( graphDb );
+                return perform( transaction );
             }
             catch ( AssertionError e )
             {
-                AssertionError error = new AssertionError( message + ": " + e.getMessage() );
-                error.setStackTrace( e.getStackTrace() );
-                throw error;
+                throw new AssertionError( message + ": " + e.getMessage(), e );
             }
         }
 
-        abstract T perform( GraphDatabaseService graphDb );
+        abstract T perform( Transaction transaction );
     }
 }

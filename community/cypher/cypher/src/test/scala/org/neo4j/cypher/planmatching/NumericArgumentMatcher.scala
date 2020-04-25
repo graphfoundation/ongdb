@@ -22,8 +22,8 @@
  */
 package org.neo4j.cypher.planmatching
 
-import org.neo4j.cypher.internal.runtime.planDescription.InternalPlanDescription
-import org.neo4j.cypher.internal.runtime.planDescription.InternalPlanDescription.Arguments.{DbHits, EstimatedRows, Rows}
+import org.neo4j.cypher.internal.plandescription.InternalPlanDescription
+import org.neo4j.cypher.internal.plandescription.Arguments.{DbHits, EstimatedRows, Rows, Time}
 import org.scalatest.matchers.{MatchResult, Matcher}
 
 /**
@@ -137,5 +137,17 @@ trait DBHitsMatcher extends NumericArgumentMatcher {
   override def maybeMatchingArgument(plan: InternalPlanDescription): Option[Long] =
     plan.arguments.collectFirst {
       case DbHits(value) => value
+    }
+}
+
+/**
+  * Matches the Time from profiling
+  */
+trait TimeMatcher extends NumericArgumentMatcher {
+  override val argString: String = "Time"
+
+  override def maybeMatchingArgument(plan: InternalPlanDescription): Option[Long] =
+    plan.arguments.collectFirst {
+      case Time(value) => value
     }
 }

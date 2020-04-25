@@ -26,19 +26,19 @@ import java.io.IOException;
 import java.util.Iterator;
 import java.util.function.LongConsumer;
 
-import org.neo4j.helpers.collection.Visitor;
+import org.neo4j.common.HexPrinter;
+import org.neo4j.internal.helpers.collection.Visitor;
 import org.neo4j.io.pagecache.tracing.cursor.context.EmptyVersionContext;
 import org.neo4j.io.pagecache.tracing.cursor.context.VersionContext;
 import org.neo4j.kernel.impl.transaction.TransactionRepresentation;
 import org.neo4j.kernel.impl.transaction.log.Commitment;
 import org.neo4j.kernel.impl.transaction.log.LogPosition;
 import org.neo4j.kernel.impl.transaction.tracing.CommitEvent;
-import org.neo4j.kernel.impl.util.HexPrinter;
 import org.neo4j.storageengine.api.CommandsToApply;
 import org.neo4j.storageengine.api.StorageCommand;
 import org.neo4j.storageengine.api.TransactionApplicationMode;
 
-import static org.neo4j.helpers.Format.date;
+import static org.neo4j.internal.helpers.Format.date;
 
 /**
  * A chain of transactions to apply. Transactions form a linked list, each pointing to the {@link #next()}
@@ -138,12 +138,6 @@ public class TransactionToApply implements CommandsToApply, AutoCloseable
         return transactionRepresentation;
     }
 
-    @Override
-    public boolean requiresApplicationOrdering()
-    {
-        return commitment.hasExplicitIndexChanges();
-    }
-
     public void commitment( Commitment commitment, long transactionId )
     {
         this.commitment = commitment;
@@ -185,9 +179,7 @@ public class TransactionToApply implements CommandsToApply, AutoCloseable
                " {started " + date( tr.getTimeStarted() ) +
                ", committed " + date( tr.getTimeCommitted() ) +
                ", with " + countCommands() + " commands in this transaction" +
-               ", authored by " + tr.getAuthorId() +
-               ", with master id " + tr.getMasterId() +
-               ", lock session " + tr.getLockSessionId() +
+               ", lease " + tr.getLeaseId() +
                ", latest committed transaction id when started was " + tr.getLatestCommittedTxWhenStarted() +
                ", additional header bytes: " + HexPrinter.hex( tr.additionalHeader(), Integer.MAX_VALUE, "" ) + "}";
     }

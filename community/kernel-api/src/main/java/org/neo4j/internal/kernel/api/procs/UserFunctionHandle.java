@@ -27,11 +27,13 @@ public class UserFunctionHandle
 {
     private final UserFunctionSignature signature;
     private final int id;
+    private final boolean threadSafe;
 
-    public UserFunctionHandle( UserFunctionSignature signature, int id )
+    public UserFunctionHandle( UserFunctionSignature signature, int id, boolean threadSafe )
     {
         this.signature = signature;
         this.id = id;
+        this.threadSafe = threadSafe;
     }
 
     public UserFunctionSignature signature()
@@ -42,5 +44,10 @@ public class UserFunctionHandle
     public int id()
     {
         return id;
+    }
+
+    public boolean threadSafe()
+    {
+        return threadSafe;
     }
 }

@@ -22,6 +22,7 @@
  */
 package org.neo4j.graphdb;
 
+import org.neo4j.annotations.api.PublicApi;
 import org.neo4j.graphdb.traversal.TraversalDescription;
 
 /**
@@ -93,6 +94,7 @@ import org.neo4j.graphdb.traversal.TraversalDescription;
  * </code>
  * </pre>
  */
+@PublicApi
 public interface RelationshipType
 {
     /**

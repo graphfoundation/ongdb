@@ -27,13 +27,13 @@ import java.util.Collection;
 import java.util.Map;
 import java.util.Optional;
 
-import org.neo4j.helpers.Args;
-import org.neo4j.helpers.collection.Pair;
-import org.neo4j.kernel.configuration.Config;
+import org.neo4j.configuration.Config;
+import org.neo4j.internal.helpers.Args;
+import org.neo4j.internal.helpers.collection.Pair;
 import org.neo4j.kernel.impl.util.Converters;
 
-import static org.neo4j.helpers.collection.MapUtil.stringMap;
-import static org.neo4j.helpers.collection.Pair.pair;
+import static org.neo4j.internal.helpers.collection.MapUtil.stringMap;
+import static org.neo4j.internal.helpers.collection.Pair.pair;
 
 /**
  * Parses command line arguments for the server bootstrappers. Format is as follows:
@@ -41,7 +41,7 @@ import static org.neo4j.helpers.collection.Pair.pair;
  * <li>Configuration file can be specified by <strong>--config=path/to/config.properties</strong> or
  * <strong>-C=path/to/config.properties</strong></li>
  * <li>Specific overridden configuration options, directly specified as arguments can be specified with
- * <strong>-c key=value</strong>, for example <strong>-c dbms.active_database=foo.db</strong>
+ * <strong>-c key=value</strong>, for example <strong>-c dbms.default_database=foo.db</strong>
  * or enabled boolean properties with <strong>-c key</strong>, f.ex <strong>-c dbms.readonly</strong>
  * </ul>
  */

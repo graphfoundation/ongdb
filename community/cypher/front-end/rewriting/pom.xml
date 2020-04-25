@@ -1,17 +1,30 @@
+<<<<<<< HEAD
 <?xml version="1.0" encoding="UTF-8"?>
+=======
+<?xml version="1.0"?>
+>>>>>>> 4.0-firstPass
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <parent>
         <groupId>org.graphfoundation.ongdb</groupId>
+<<<<<<< HEAD
         <artifactId>ongdb-front-end-parent-3.6</artifactId>
+=======
+        <artifactId>ongdb-front-end-parent-4.0</artifactId>
+>>>>>>> 4.0-firstPass
         <version>4.0.4-SNAPSHOT</version>
         <relativePath>../</relativePath>
     </parent>
 
     <modelVersion>4.0.0</modelVersion>
+<<<<<<< HEAD
     <artifactId>ongdb-rewriting-3.6</artifactId>
     <packaging>jar</packaging>
     <version>4.0.4-SNAPSHOT</version>
+=======
+    <artifactId>ongdb-rewriting-4.0</artifactId>
+    <packaging>jar</packaging>
+>>>>>>> 4.0-firstPass
     <name>openCypher Rewriting</name>
 
     <description>Tree rewriting support, and AST rewriters for the Cypher query language</description>
@@ -22,6 +35,13 @@
         <url>https://github.com/openCypher/front-end</url>
     </scm>
 
+<<<<<<< HEAD
+=======
+    <properties>
+        <moduleName>org.neo4j.cypher.internal.v4_0.rewriting</moduleName>
+    </properties>
+
+>>>>>>> 4.0-firstPass
     <licenses>
         <license>
             <name>Apache License, Version 2.0</name>
@@ -34,7 +54,10 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-jar-plugin</artifactId>
+<<<<<<< HEAD
                 <version>2.2</version>
+=======
+>>>>>>> 4.0-firstPass
                 <executions>
                     <execution>
                         <goals>
@@ -52,13 +75,21 @@
 
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
+<<<<<<< HEAD
             <artifactId>ongdb-util-3.6</artifactId>
+=======
+            <artifactId>ongdb-util-4.0</artifactId>
+>>>>>>> 4.0-firstPass
             <version>${project.version}</version>
         </dependency>
 
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
+<<<<<<< HEAD
             <artifactId>ongdb-util-3.6</artifactId>
+=======
+            <artifactId>ongdb-util-4.0</artifactId>
+>>>>>>> 4.0-firstPass
             <version>${project.version}</version>
             <type>test-jar</type>
             <scope>test</scope>
@@ -66,13 +97,21 @@
 
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
+<<<<<<< HEAD
             <artifactId>ongdb-ast-3.6</artifactId>
+=======
+            <artifactId>ongdb-ast-4.0</artifactId>
+>>>>>>> 4.0-firstPass
             <version>${project.version}</version>
         </dependency>
 
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
+<<<<<<< HEAD
             <artifactId>ongdb-ast-3.6</artifactId>
+=======
+            <artifactId>ongdb-ast-4.0</artifactId>
+>>>>>>> 4.0-firstPass
             <version>${project.version}</version>
             <type>test-jar</type>
             <scope>test</scope>
@@ -80,13 +119,21 @@
 
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
+<<<<<<< HEAD
             <artifactId>ongdb-expressions-3.6</artifactId>
+=======
+            <artifactId>ongdb-expressions-4.0</artifactId>
+>>>>>>> 4.0-firstPass
             <version>${project.version}</version>
         </dependency>
 
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
+<<<<<<< HEAD
             <artifactId>ongdb-parser-3.6</artifactId>
+=======
+            <artifactId>ongdb-parser-4.0</artifactId>
+>>>>>>> 4.0-firstPass
             <version>${project.version}</version>
             <type>test-jar</type>
             <scope>test</scope>
@@ -94,7 +141,11 @@
 
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
+<<<<<<< HEAD
             <artifactId>ongdb-parser-3.6</artifactId>
+=======
+            <artifactId>ongdb-parser-4.0</artifactId>
+>>>>>>> 4.0-firstPass
             <version>${project.version}</version>
             <scope>test</scope>
         </dependency>

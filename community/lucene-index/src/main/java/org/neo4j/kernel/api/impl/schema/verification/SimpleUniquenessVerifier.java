@@ -22,7 +22,8 @@
  */
 package org.neo4j.kernel.api.impl.schema.verification;
 
-import org.apache.lucene.index.Fields;
+import org.apache.lucene.index.FieldInfo;
+import org.apache.lucene.index.LeafReader;
 import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.index.TermsEnum;
@@ -35,6 +36,7 @@ import java.io.IOException;
 import java.util.List;
 
 import org.neo4j.kernel.api.exceptions.index.IndexEntryConflictException;
+import org.neo4j.kernel.api.impl.index.SearcherReference;
 import org.neo4j.kernel.api.impl.index.partition.PartitionSearcher;
 import org.neo4j.kernel.api.impl.schema.LuceneDocumentStructure;
 import org.neo4j.storageengine.api.NodePropertyAccessor;
@@ -52,11 +54,11 @@ import org.neo4j.values.storable.Value;
  */
 public class SimpleUniquenessVerifier implements UniquenessVerifier
 {
-    private final PartitionSearcher partitionSearcher;
+    private final SearcherReference searcherReference;
 
-    public SimpleUniquenessVerifier( PartitionSearcher partitionSearcher )
+    public SimpleUniquenessVerifier( SearcherReference searcherReference )
     {
-        this.partitionSearcher = partitionSearcher;
+        this.searcherReference = searcherReference;
     }
 
     @Override
@@ -68,12 +70,13 @@ public class SimpleUniquenessVerifier implements UniquenessVerifier
             IndexSearcher searcher = indexSearcher();
             for ( LeafReaderContext leafReaderContext : searcher.getIndexReader().leaves() )
             {
-                Fields fields = leafReaderContext.reader().fields();
-                for ( String field : fields )
+                LeafReader leafReader = leafReaderContext.reader();
+                for ( FieldInfo fieldInfo : leafReader.getFieldInfos() )
                 {
+                    String field = fieldInfo.name;
                     if ( LuceneDocumentStructure.useFieldForUniquenessVerification( field ) )
                     {
-                        TermsEnum terms = LuceneDocumentStructure.originalTerms( fields.terms( field ), field );
+                        TermsEnum terms = leafReader.terms( field ).iterator();
                         BytesRef termsRef;
                         while ( (termsRef = terms.next()) != null )
                         {
@@ -126,11 +129,11 @@ public class SimpleUniquenessVerifier implements UniquenessVerifier
     @Override
     public void close() throws IOException
     {
-        partitionSearcher.close();
+        searcherReference.close();
     }
 
     private IndexSearcher indexSearcher()
     {
-        return partitionSearcher.getIndexSearcher();
+        return searcherReference.getIndexSearcher();
     }
 }

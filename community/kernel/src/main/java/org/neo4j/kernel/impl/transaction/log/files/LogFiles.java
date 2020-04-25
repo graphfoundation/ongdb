@@ -24,6 +24,7 @@ package org.neo4j.kernel.impl.transaction.log.files;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.function.LongSupplier;
 
 import org.neo4j.kernel.impl.transaction.log.PhysicalLogVersionedStoreChannel;
 import org.neo4j.kernel.impl.transaction.log.entry.LogHeader;
@@ -37,8 +38,6 @@ import org.neo4j.kernel.lifecycle.Lifecycle;
 public interface LogFiles extends Lifecycle
 {
     long getLogVersion( File historyLogFile );
-
-    long getLogVersion( String historyLogFilename );
 
     File[] logFiles();
 
@@ -69,4 +68,8 @@ public interface LogFiles extends Lifecycle
     LogFile getLogFile();
 
     TransactionLogFileInformation getLogFileInformation();
+
+    LogFileChannelNativeAccessor getChannelNativeAccessor();
+
+    PhysicalLogVersionedStoreChannel createLogChannelForVersion( long versionUsed, LongSupplier lastCommittedTransactionId ) throws IOException;
 }

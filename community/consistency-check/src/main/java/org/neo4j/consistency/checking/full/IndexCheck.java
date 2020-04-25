@@ -22,23 +22,24 @@
  */
 package org.neo4j.consistency.checking.full;
 
+import org.neo4j.common.EntityType;
 import org.neo4j.consistency.checking.CheckerEngine;
 import org.neo4j.consistency.checking.RecordCheck;
 import org.neo4j.consistency.report.ConsistencyReport;
 import org.neo4j.consistency.store.RecordAccess;
 import org.neo4j.consistency.store.synthetic.IndexEntry;
-import org.neo4j.internal.kernel.api.schema.SchemaDescriptor;
-import org.neo4j.storageengine.api.EntityType;
-import org.neo4j.storageengine.api.schema.StoreIndexDescriptor;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.internal.schema.PropertySchemaType;
+import org.neo4j.internal.schema.SchemaDescriptor;
 
 public class IndexCheck implements RecordCheck<IndexEntry,ConsistencyReport.IndexConsistencyReport>
 {
     private final EntityType entityType;
-    private final StoreIndexDescriptor indexRule;
+    private final IndexDescriptor indexRule;
     private NodeInUseWithCorrectLabelsCheck<IndexEntry,ConsistencyReport.IndexConsistencyReport> nodeChecker;
     private RelationshipInUseWithCorrectRelationshipTypeCheck<IndexEntry,ConsistencyReport.IndexConsistencyReport> relationshipChecker;
 
-    IndexCheck( StoreIndexDescriptor indexRule )
+    IndexCheck( IndexDescriptor indexRule )
     {
         this.indexRule = indexRule;
         SchemaDescriptor schema = indexRule.schema();
@@ -48,7 +49,7 @@ public class IndexCheck implements RecordCheck<IndexEntry,ConsistencyReport.Inde
         {
             entityTokenLongIds[i] = entityTokenIntIds[i];
         }
-        SchemaDescriptor.PropertySchemaType propertySchemaType = schema.propertySchemaType();
+        PropertySchemaType propertySchemaType = schema.propertySchemaType();
         entityType = schema.entityType();
         if ( entityType == EntityType.NODE )
         {
@@ -70,7 +71,7 @@ public class IndexCheck implements RecordCheck<IndexEntry,ConsistencyReport.Inde
             engine.comparativeCheck( records.node( id ), nodeChecker );
             break;
         case RELATIONSHIP:
-            if ( indexRule.canSupportUniqueConstraint() )
+            if ( indexRule.isUnique() )
             {
                 engine.report().relationshipConstraintIndex();
             }

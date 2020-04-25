@@ -22,6 +22,8 @@
  */
 package org.neo4j.server;
 
+import static org.neo4j.internal.unsafe.UnsafeUtil.disableIllegalAccessLogger;
+
 public class CommunityEntryPoint
 {
     private static Bootstrapper bootstrapper;
@@ -32,6 +34,7 @@ public class CommunityEntryPoint
 
     public static void main( String[] args )
     {
+        disableIllegalAccessLogger();
         int status = ServerBootstrapper.start( new CommunityBootstrapper(), args );
         if ( status != 0 )
         {

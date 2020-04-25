@@ -33,12 +33,12 @@ import org.neo4j.consistency.checking.RecordCheck;
 import org.neo4j.consistency.checking.index.IndexAccessors;
 import org.neo4j.consistency.report.ConsistencyReport;
 import org.neo4j.consistency.store.RecordAccess;
-import org.neo4j.internal.kernel.api.schema.SchemaDescriptor;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.internal.schema.SchemaDescriptor;
+import org.neo4j.kernel.api.index.IndexReader;
 import org.neo4j.kernel.impl.store.record.PropertyBlock;
 import org.neo4j.kernel.impl.store.record.PropertyRecord;
 import org.neo4j.kernel.impl.store.record.RelationshipRecord;
-import org.neo4j.storageengine.api.schema.IndexReader;
-import org.neo4j.storageengine.api.schema.StoreIndexDescriptor;
 import org.neo4j.values.storable.Value;
 import org.neo4j.values.storable.Values;
 
@@ -49,12 +49,12 @@ import static org.neo4j.consistency.checking.full.PropertyAndNodeIndexedCheck.pr
 public class RelationshipToIndexCheck implements RecordCheck<RelationshipRecord, ConsistencyReport.RelationshipConsistencyReport>
 {
     private final IndexAccessors indexes;
-    private final StoreIndexDescriptor[] relationshipIndexes;
+    private final IndexDescriptor[] relationshipIndexes;
     private final PropertyReader propertyReader;
 
-    RelationshipToIndexCheck( List<StoreIndexDescriptor> relationshipIndexes, IndexAccessors indexes, PropertyReader propertyReader )
+    RelationshipToIndexCheck( List<IndexDescriptor> relationshipIndexes, IndexAccessors indexes, PropertyReader propertyReader )
     {
-        this.relationshipIndexes = relationshipIndexes.toArray( new StoreIndexDescriptor[0] );
+        this.relationshipIndexes = relationshipIndexes.toArray( new IndexDescriptor[0] );
         this.indexes = indexes;
         this.propertyReader = propertyReader;
     }
@@ -66,7 +66,7 @@ public class RelationshipToIndexCheck implements RecordCheck<RelationshipRecord,
         try
         {
             IntObjectMap<PropertyBlock> propertyMap = null;
-            for ( StoreIndexDescriptor index : relationshipIndexes )
+            for ( IndexDescriptor index : relationshipIndexes )
             {
                 SchemaDescriptor schema = index.schema();
                 if ( ArrayUtils.contains( schema.getEntityTokenIds(), record.getType() ) )
@@ -98,7 +98,7 @@ public class RelationshipToIndexCheck implements RecordCheck<RelationshipRecord,
     }
 
     private void reportIncorrectIndexCount( Value[] values, CheckerEngine<RelationshipRecord,ConsistencyReport.RelationshipConsistencyReport> engine,
-            StoreIndexDescriptor index, long count )
+            IndexDescriptor index, long count )
     {
         if ( count == 0 )
         {

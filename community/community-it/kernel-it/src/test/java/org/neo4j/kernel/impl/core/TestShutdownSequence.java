@@ -22,113 +22,78 @@
  */
 package org.neo4j.kernel.impl.core;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.apache.commons.lang3.mutable.MutableInt;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
-import java.util.concurrent.atomic.AtomicInteger;
 
-import org.neo4j.graphdb.GraphDatabaseService;
-import org.neo4j.graphdb.event.ErrorState;
-import org.neo4j.graphdb.event.KernelEventHandler;
+import org.neo4j.dbms.api.DatabaseManagementService;
+import org.neo4j.graphdb.event.DatabaseEventContext;
+import org.neo4j.graphdb.event.DatabaseEventListenerAdapter;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
-import org.neo4j.test.TestGraphDatabaseFactory;
+import org.neo4j.test.TestDatabaseManagementServiceBuilder;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
 
-public class TestShutdownSequence
+class TestShutdownSequence
 {
-    private GraphDatabaseService graphDb;
+    private DatabaseManagementService managementService;
 
-    @Before
-    public void createGraphDb()
+    @BeforeEach
+    void createGraphDb()
     {
-        graphDb = new TestGraphDatabaseFactory().newImpermanentDatabase();
+        managementService = new TestDatabaseManagementServiceBuilder().impermanent().build();
     }
 
     @Test
-    public void canInvokeShutdownMultipleTimes()
+    void canInvokeShutdownMultipleTimes()
     {
-        graphDb.shutdown();
-        graphDb.shutdown();
+        managementService.shutdown();
+        managementService.shutdown();
     }
 
     @Test
-    public void eventHandlersAreOnlyInvokedOnceDuringShutdown()
+    void notifyEventListenersOnShutdown()
     {
-        final AtomicInteger counter = new AtomicInteger();
-        graphDb.registerKernelEventHandler( new KernelEventHandler()
+        MutableInt counter = new MutableInt();
+        managementService.registerDatabaseEventListener( new DatabaseEventListenerAdapter()
         {
             @Override
-            public void beforeShutdown()
+            public void databaseShutdown( DatabaseEventContext eventContext )
             {
                 counter.incrementAndGet();
             }
-
-            @Override
-            public Object getResource()
-            {
-                return null;
-            }
-
-            @Override
-            public void kernelPanic( ErrorState error )
-            {
-                // do nothing
-            }
-
-            @Override
-            public ExecutionOrder orderComparedTo( KernelEventHandler other )
-            {
-                return ExecutionOrder.DOESNT_MATTER;
-            }
         } );
-        graphDb.shutdown();
-        graphDb.shutdown();
-        assertEquals( 1, counter.get() );
+        managementService.shutdown();
+        managementService.shutdown();
+        assertEquals( 2, counter.intValue() );
     }
 
     @Test
-    public void canRemoveFilesAndReinvokeShutdown() throws IOException
+    void canRemoveFilesAndReinvokeShutdown() throws IOException
     {
-        GraphDatabaseAPI databaseAPI = (GraphDatabaseAPI) this.graphDb;
+        GraphDatabaseAPI databaseAPI = (GraphDatabaseAPI) managementService.database( DEFAULT_DATABASE_NAME );
         FileSystemAbstraction fileSystemAbstraction = getDatabaseFileSystem( databaseAPI );
-        graphDb.shutdown();
+        managementService.shutdown();
         fileSystemAbstraction.deleteRecursively( databaseAPI.databaseLayout().databaseDirectory() );
-        graphDb.shutdown();
+        managementService.shutdown();
     }
 
     @Test
-    public void canInvokeShutdownFromShutdownHandler()
+    void canInvokeShutdownFromShutdownListener()
     {
-        graphDb.registerKernelEventHandler( new KernelEventHandler()
+        managementService.registerDatabaseEventListener( new DatabaseEventListenerAdapter()
         {
             @Override
-            public void beforeShutdown()
+            public void databaseShutdown( DatabaseEventContext eventContext )
             {
-                graphDb.shutdown();
-            }
-
-            @Override
-            public Object getResource()
-            {
-                return null;
-            }
-
-            @Override
-            public void kernelPanic( ErrorState error )
-            {
-                // do nothing
-            }
-
-            @Override
-            public ExecutionOrder orderComparedTo( KernelEventHandler other )
-            {
-                return ExecutionOrder.DOESNT_MATTER;
+                managementService.shutdown();
             }
         } );
-        graphDb.shutdown();
+        managementService.shutdown();
     }
 
     private static FileSystemAbstraction getDatabaseFileSystem( GraphDatabaseAPI databaseAPI )

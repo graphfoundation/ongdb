@@ -22,9 +22,8 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
-import org.neo4j.cypher.internal.v3_6.util.Unchangeable
-import org.neo4j.cypher.internal.v3_6.util.attribution.Id
+import org.neo4j.cypher.internal.runtime.ExecutionContext
+import org.neo4j.cypher.internal.v4_0.util.attribution.Id
 
 /**
   * Pipe is a central part of Cypher. Most pipes are decorators - they
@@ -40,13 +39,12 @@ import org.neo4j.cypher.internal.v3_6.util.attribution.Id
 trait Pipe {
   self: Pipe =>
 
-  val readTransactionLayer: Unchangeable[Int] = new Unchangeable[Int]
-
   def createResults(state: QueryState) : Iterator[ExecutionContext] = {
     val decoratedState = state.decorator.decorate(self, state)
     decoratedState.setExecutionContextFactory(executionContextFactory)
     val innerResult = internalCreateResults(decoratedState)
-    state.decorator.decorate(self, innerResult)
+    state.decorator.afterCreateResults(self, decoratedState)
+    state.decorator.decorate(self, innerResult, () => state.initialContext)
   }
 
   protected def internalCreateResults(state: QueryState): Iterator[ExecutionContext]
@@ -57,11 +55,7 @@ trait Pipe {
   // TODO: Alternatively we could pass the logicalPlanId when we create contexts, and in the SlottedQueryState use the
   // SlotConfigurations map to get the slot configuration needed for the context creation,
   // but then we would get an extra map lookup at runtime every time we create a new context.
-  protected var executionContextFactory: ExecutionContextFactory = CommunityExecutionContextFactory()
-
-  def setExecutionContextFactory(factory: ExecutionContextFactory) = {
-    executionContextFactory = factory
-  }
+  var executionContextFactory: ExecutionContextFactory = CommunityExecutionContextFactory()
 }
 
 case class ArgumentPipe()(val id: Id = Id.INVALID_ID) extends Pipe {
@@ -77,7 +71,8 @@ abstract class PipeWithSource(source: Pipe) extends Pipe {
     val decoratedState = state.decorator.decorate(this, state)
     decoratedState.setExecutionContextFactory(executionContextFactory)
     val result = internalCreateResults(sourceResult, decoratedState)
-    state.decorator.decorate(this, result)
+    state.decorator.afterCreateResults(this, decoratedState)
+    state.decorator.decorate(this, result, sourceResult)
   }
 
   protected def internalCreateResults(state: QueryState): Iterator[ExecutionContext] =
@@ -86,4 +81,6 @@ abstract class PipeWithSource(source: Pipe) extends Pipe {
   protected def internalCreateResults(input:Iterator[ExecutionContext], state: QueryState): Iterator[ExecutionContext]
   private[pipes] def testCreateResults(input:Iterator[ExecutionContext], state: QueryState): Iterator[ExecutionContext] =
     internalCreateResults(input, state)
+
+  def getSource: Pipe = source
 }

@@ -22,8 +22,8 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
-import org.neo4j.cypher.internal.v3_6.util.attribution.Id
+import org.neo4j.cypher.internal.runtime.ExecutionContext
+import org.neo4j.cypher.internal.v4_0.util.attribution.Id
 import org.neo4j.values.storable.Values
 
 case class OptionalPipe(nullableVariables: Set[String], source: Pipe)
@@ -32,7 +32,7 @@ case class OptionalPipe(nullableVariables: Set[String], source: Pipe)
 
   private def notFoundExecutionContext(initialContext: Option[ExecutionContext]): ExecutionContext = {
     val context = initialContext.getOrElse(ExecutionContext.empty)
-    nullableVariables.foreach(v => context += v -> Values.NO_VALUE)
+    nullableVariables.foreach(v => context.set(v, Values.NO_VALUE))
     context
   }
 

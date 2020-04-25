@@ -22,7 +22,12 @@
  */
 package org.neo4j.kernel.impl.api.security;
 
+import java.util.function.IntSupplier;
+import java.util.function.Supplier;
+
+import org.neo4j.internal.kernel.api.LabelSet;
 import org.neo4j.internal.kernel.api.security.AccessMode;
+import org.neo4j.internal.kernel.api.security.PrivilegeAction;
 
 /**
  * Access mode that restricts the original access mode with the restricting mode. Allows things that both the
@@ -36,21 +41,15 @@ public class RestrictedAccessMode extends WrappedAccessMode
     }
 
     @Override
-    public boolean allowsReads()
-    {
-        return original.allowsReads() && wrapping.allowsReads();
-    }
-
-    @Override
     public boolean allowsWrites()
     {
         return original.allowsWrites() && wrapping.allowsWrites();
     }
 
     @Override
-    public boolean allowsTokenCreates()
+    public boolean allowsTokenCreates( PrivilegeAction action )
     {
-        return original.allowsTokenCreates() && wrapping.allowsTokenCreates();
+        return original.allowsTokenCreates( action ) && wrapping.allowsTokenCreates( action );
     }
 
     @Override
@@ -60,9 +59,81 @@ public class RestrictedAccessMode extends WrappedAccessMode
     }
 
     @Override
-    public boolean allowsPropertyReads( int propertyKey )
+    public boolean allowsSchemaWrites( PrivilegeAction action )
     {
-        return original.allowsPropertyReads( propertyKey ) && wrapping.allowsPropertyReads( propertyKey );
+        return original.allowsSchemaWrites( action ) && wrapping.allowsSchemaWrites( action );
+    }
+
+    @Override
+    public boolean allowsTraverseAllLabels()
+    {
+        return original.allowsTraverseAllLabels() && wrapping.allowsTraverseAllLabels();
+    }
+
+    @Override
+    public boolean allowsTraverseAllNodesWithLabel( long label )
+    {
+        return original.allowsTraverseAllNodesWithLabel( label ) && wrapping.allowsTraverseAllNodesWithLabel( label );
+    }
+
+    @Override
+    public boolean disallowsTraverseLabel( long label )
+    {
+        return original.disallowsTraverseLabel( label ) || wrapping.disallowsTraverseLabel( label );
+    }
+
+    @Override
+    public boolean allowsTraverseNode( long... labels )
+    {
+        return original.allowsTraverseNode( labels ) && wrapping.allowsTraverseNode( labels );
+    }
+
+    @Override
+    public boolean allowsTraverseAllRelTypes()
+    {
+        return original.allowsTraverseAllRelTypes() && wrapping.allowsTraverseAllRelTypes();
+    }
+
+    @Override
+    public boolean allowsTraverseRelType( int relType )
+    {
+        return original.allowsTraverseRelType( relType ) && wrapping.allowsTraverseRelType( relType );
+    }
+
+    @Override
+    public boolean allowsReadPropertyAllLabels( int propertyKey )
+    {
+        return original.allowsReadPropertyAllLabels( propertyKey ) && wrapping.allowsReadPropertyAllLabels( propertyKey );
+    }
+
+    @Override
+    public boolean disallowsReadPropertyForSomeLabel( int propertyKey )
+    {
+        return original.disallowsReadPropertyForSomeLabel( propertyKey ) && wrapping.disallowsReadPropertyForSomeLabel( propertyKey );
+    }
+
+    @Override
+    public boolean allowsReadNodeProperty( Supplier<LabelSet> labels, int propertyKey )
+    {
+        return original.allowsReadNodeProperty( labels, propertyKey ) && wrapping.allowsReadNodeProperty( labels, propertyKey );
+    }
+
+    @Override
+    public boolean allowsReadPropertyAllRelTypes( int propertyKey )
+    {
+        return original.allowsReadPropertyAllRelTypes( propertyKey ) && wrapping.allowsReadPropertyAllRelTypes( propertyKey );
+    }
+
+    @Override
+    public boolean allowsReadRelationshipProperty( IntSupplier relType, int propertyKey )
+    {
+        return original.allowsReadRelationshipProperty( relType, propertyKey ) && wrapping.allowsReadRelationshipProperty( relType, propertyKey );
+    }
+
+    @Override
+    public boolean allowsSeePropertyKeyToken( int propertyKey )
+    {
+        return original.allowsSeePropertyKeyToken( propertyKey ) && wrapping.allowsSeePropertyKeyToken( propertyKey );
     }
 
     @Override

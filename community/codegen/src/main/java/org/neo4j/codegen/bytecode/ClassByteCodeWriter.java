@@ -44,6 +44,7 @@ import static org.neo4j.codegen.ByteCodeUtils.byteCodeName;
 import static org.neo4j.codegen.ByteCodeUtils.outerName;
 import static org.neo4j.codegen.ByteCodeUtils.signature;
 import static org.neo4j.codegen.ByteCodeUtils.typeName;
+import static org.objectweb.asm.Opcodes.ACC_FINAL;
 import static org.objectweb.asm.Opcodes.ACC_PUBLIC;
 import static org.objectweb.asm.Opcodes.ACC_STATIC;
 import static org.objectweb.asm.Opcodes.ACC_SUPER;
@@ -68,7 +69,7 @@ class ClassByteCodeWriter implements ClassEmitter
         {
             iNames[i] = byteCodeName( interfaces[i] );
         }
-        classVisitor.visit( V1_8, ACC_PUBLIC + ACC_SUPER, byteCodeName( type ), signature( type ),
+        classVisitor.visit( V1_8, ACC_PUBLIC + ACC_FINAL + ACC_SUPER, byteCodeName( type ), signature( type ),
                 byteCodeName( base ), iNames.length != 0 ? iNames : null );
         if ( base.isInnerClass() )
         {
@@ -82,6 +83,7 @@ class ClassByteCodeWriter implements ClassEmitter
     @Override
     public MethodEmitter method( MethodDeclaration signature )
     {
+
         return new MethodByteCodeEmitter( classVisitor, signature, base );
     }
 

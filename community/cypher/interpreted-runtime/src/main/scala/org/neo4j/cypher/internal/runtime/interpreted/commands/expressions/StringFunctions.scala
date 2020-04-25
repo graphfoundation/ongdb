@@ -22,12 +22,12 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.commands.expressions
 
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
+import org.neo4j.cypher.internal.runtime.ExecutionContext
 import org.neo4j.cypher.internal.runtime.interpreted.commands.AstNode
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.QueryState
-import org.neo4j.cypher.internal.v3_6.util.CypherTypeException
-import org.neo4j.cypher.internal.v3_6.util.symbols._
+import org.neo4j.cypher.internal.v4_0.util.symbols._
 import org.neo4j.cypher.operations.CypherFunctions
+import org.neo4j.exceptions.CypherTypeException
 import org.neo4j.values._
 import org.neo4j.values.storable.Values.NO_VALUE
 import org.neo4j.values.storable._
@@ -38,7 +38,6 @@ abstract class StringFunction(arg: Expression) extends NullInNullOutExpression(a
 
   override def arguments: Seq[Expression] = Seq(arg)
 
-  override def symbolTableDependencies: Set[String] = arg.symbolTableDependencies
 }
 
 object StringFunction {
@@ -50,7 +49,7 @@ object StringFunction {
 case object asString extends (AnyValue => String) {
 
   override def apply(a: AnyValue): String = a match {
-    case NO_VALUE => null
+    case x if x eq NO_VALUE => null
     case x: TextValue => x.stringValue()
     case _ => StringFunction.notAString(a)
   }
@@ -129,14 +128,6 @@ case class SubstringFunction(orig: Expression, start: Expression, length: Option
   override def rewrite(f: Expression => Expression): Expression = f(
     SubstringFunction(orig.rewrite(f), start.rewrite(f), length.map(_.rewrite(f))))
 
-  override def symbolTableDependencies: Set[String] = {
-    val a = orig.symbolTableDependencies ++
-      start.symbolTableDependencies
-
-    val b = length.toIndexedSeq.flatMap(_.symbolTableDependencies.toIndexedSeq).toSet
-
-    a ++ b
-  }
 }
 
 case class ReplaceFunction(orig: Expression, search: Expression, replaceWith: Expression)
@@ -145,7 +136,7 @@ case class ReplaceFunction(orig: Expression, search: Expression, replaceWith: Ex
   override def compute(value: AnyValue, m: ExecutionContext, state: QueryState): AnyValue = {
       val searchVal = search(m, state)
       val replaceWithVal = replaceWith(m, state)
-      if (searchVal == NO_VALUE || replaceWithVal == NO_VALUE) NO_VALUE
+      if ((searchVal eq NO_VALUE) || (replaceWithVal eq NO_VALUE)) NO_VALUE
       else CypherFunctions.replace(value, searchVal, replaceWithVal)
   }
 
@@ -156,9 +147,6 @@ case class ReplaceFunction(orig: Expression, search: Expression, replaceWith: Ex
   override def rewrite(f: Expression => Expression): Expression = f(
     ReplaceFunction(orig.rewrite(f), search.rewrite(f), replaceWith.rewrite(f)))
 
-  override def symbolTableDependencies: Set[String] = orig.symbolTableDependencies ++
-    search.symbolTableDependencies ++
-    replaceWith.symbolTableDependencies
 }
 
 case class SplitFunction(orig: Expression, separator: Expression)
@@ -166,7 +154,7 @@ case class SplitFunction(orig: Expression, separator: Expression)
 
   override def compute(value: AnyValue, m: ExecutionContext, state: QueryState): AnyValue = {
     val sep = separator(m, state)
-    if (sep == NO_VALUE) NO_VALUE else CypherFunctions.split(value, sep)
+    if (sep eq NO_VALUE) NO_VALUE else CypherFunctions.split(value, sep)
   }
 
   override def arguments: Seq[Expression] = Seq(orig, separator)
@@ -174,12 +162,10 @@ case class SplitFunction(orig: Expression, separator: Expression)
   override def children: Seq[AstNode[_]] = arguments
 
   override def rewrite(f: Expression => Expression): Expression = f(SplitFunction(orig.rewrite(f), separator.rewrite(f)))
-
-  override def symbolTableDependencies: Set[String] = orig.symbolTableDependencies ++ separator.symbolTableDependencies
 }
 
 case class LeftFunction(orig: Expression, length: Expression)
-  extends NullInNullOutExpression(orig) with NumericHelper {
+  extends NullInNullOutExpression(orig) {
 
   override def compute(value: AnyValue, m: ExecutionContext, state: QueryState): AnyValue =
     CypherFunctions.left(value, length(m, state))
@@ -190,12 +176,10 @@ case class LeftFunction(orig: Expression, length: Expression)
 
   override def rewrite(f: Expression => Expression): Expression = f(LeftFunction(orig.rewrite(f), length.rewrite(f)))
 
-  override def symbolTableDependencies: Set[String] = orig.symbolTableDependencies ++
-    length.symbolTableDependencies
 }
 
 case class RightFunction(orig: Expression, length: Expression)
-  extends NullInNullOutExpression(orig) with NumericHelper {
+  extends NullInNullOutExpression(orig) {
 
   override def compute(value: AnyValue, m: ExecutionContext, state: QueryState): AnyValue =
     CypherFunctions.right(value, length(m, state))
@@ -206,6 +190,4 @@ case class RightFunction(orig: Expression, length: Expression)
 
   override def rewrite(f: Expression => Expression): Expression = f(RightFunction(orig.rewrite(f), length.rewrite(f)))
 
-  override def symbolTableDependencies: Set[String] = orig.symbolTableDependencies ++
-    length.symbolTableDependencies
 }

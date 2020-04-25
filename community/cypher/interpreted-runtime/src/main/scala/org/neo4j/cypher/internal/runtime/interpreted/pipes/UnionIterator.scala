@@ -22,7 +22,7 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
+import org.neo4j.cypher.internal.runtime.ExecutionContext
 
 class UnionIterator(in: Seq[Pipe], state: QueryState) extends Iterator[ExecutionContext] {
 
@@ -32,13 +32,13 @@ class UnionIterator(in: Seq[Pipe], state: QueryState) extends Iterator[Execution
     None    -> this iterator has been emptied
     Some(x) -> the next value has been fetched, but not yet seen by next()
   */
-  var currentValue: Option[ExecutionContext] = null
+  var currentValue: Option[ExecutionContext] = _
 
   /*
   Before the first pipe has been applied, currentIterator will have null in it. After that it will have an
   iterator in it always.
    */
-  var currentIterator: Iterator[ExecutionContext] = null
+  var currentIterator: Iterator[ExecutionContext] = _
   var pipesLeft: List[Pipe] = in.toList
 
   def hasNext: Boolean = {

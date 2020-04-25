@@ -28,7 +28,8 @@ import java.io.IOException;
  * Interface defining simple encoders for each defined
  * Bolt response message.
  */
-public interface BoltResponseMessageWriter
+public interface BoltResponseMessageWriter extends BoltRecordConsumer
 {
     void write( ResponseMessage message ) throws IOException;
+    void flush() throws IOException;
 }

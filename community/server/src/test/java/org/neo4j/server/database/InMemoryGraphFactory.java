@@ -24,24 +24,34 @@ package org.neo4j.server.database;
 
 import java.io.File;
 
-import org.neo4j.graphdb.facade.GraphDatabaseDependencies;
-import org.neo4j.graphdb.facade.GraphDatabaseFacadeFactory;
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
-import org.neo4j.kernel.configuration.BoltConnector;
-import org.neo4j.kernel.configuration.Config;
-import org.neo4j.kernel.impl.factory.GraphDatabaseFacade;
-import org.neo4j.test.ImpermanentGraphDatabase;
+import org.neo4j.collection.Dependencies;
+import org.neo4j.common.DependencyResolver;
+import org.neo4j.configuration.Config;
+import org.neo4j.configuration.GraphDatabaseSettings;
+import org.neo4j.configuration.connectors.BoltConnector;
+import org.neo4j.configuration.helpers.SocketAddress;
+import org.neo4j.dbms.api.DatabaseManagementService;
+import org.neo4j.graphdb.facade.ExternalDependencies;
+import org.neo4j.test.TestDatabaseManagementServiceBuilder;
 
-import static org.neo4j.helpers.collection.MapUtil.stringMap;
+import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
 
 public class InMemoryGraphFactory implements GraphFactory
 {
     @Override
-    public GraphDatabaseFacade newGraphDatabase( Config config, GraphDatabaseFacadeFactory.Dependencies dependencies )
+    public DatabaseManagementService newDatabaseManagementService( Config config, ExternalDependencies dependencies )
     {
-        File storeDir = config.get( GraphDatabaseSettings.database_path );
-        config.augment( stringMap( GraphDatabaseSettings.ephemeral.name(), "true",
-                new BoltConnector( "bolt" ).listen_address.name(), "localhost:0" ) );
-        return new ImpermanentGraphDatabase( storeDir, config, GraphDatabaseDependencies.newDependencies( dependencies ) );
+        File storeDir = new File( config.get( GraphDatabaseSettings.databases_root_path ).toFile(), DEFAULT_DATABASE_NAME );
+        DependencyResolver externalDependencies = dependencies.dependencies() != null ? dependencies.dependencies() : new Dependencies();
+        return new TestDatabaseManagementServiceBuilder( storeDir )
+                .setExtensions( dependencies.extensions() )
+                .setMonitors( dependencies.monitors() )
+                .noOpSystemGraphInitializer()
+                .setExternalDependencies( externalDependencies )
+                .impermanent()
+                .setConfig( BoltConnector.listen_address, new SocketAddress( "localhost", 0 ) )
+                .setConfig( BoltConnector.enabled, true )
+                .setConfig( config )
+                .build();
     }
 }

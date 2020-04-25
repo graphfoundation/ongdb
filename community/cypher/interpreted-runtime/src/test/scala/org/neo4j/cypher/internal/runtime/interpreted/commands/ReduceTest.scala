@@ -22,11 +22,11 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.commands
 
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
+import org.neo4j.cypher.internal.runtime.ExecutionContext
 import org.neo4j.cypher.internal.runtime.ImplicitValueConversion._
 import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions._
 import org.neo4j.cypher.internal.runtime.interpreted.QueryStateHelper
-import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.v4_0.util.test_helpers.CypherFunSuite
 import org.neo4j.values.storable.Values
 import org.neo4j.values.storable.Values.longValue
 
@@ -34,23 +34,23 @@ class ReduceTest extends CypherFunSuite {
 
   test("canReturnSomethingFromAnIterable") {
     val l = Seq("x", "xxx", "xx")
-    val expression = Add(Variable("acc"), LengthFunction(Variable("n")))
+    val expression = Add(ExpressionVariable(0, "acc"), SizeFunction(ExpressionVariable(1, "n")))
     val collection = Variable("l")
     val m = ExecutionContext.from("l" -> l)
-    val s = QueryStateHelper.empty
+    val s = QueryStateHelper.emptyWith(expressionVariables = new Array(2))
 
-    val reduce = ReduceFunction(collection, "n", expression, "acc", Literal(0))
+    val reduce = ReduceFunction(collection, "n", 1, expression, "acc", 0, Literal(0))
 
     reduce.apply(m, s) should equal(longValue(6))
   }
 
   test("returns_null_from_null_collection") {
-    val expression = Add(Variable("acc"), LengthFunction(Variable("n")))
+    val expression = Add(ExpressionVariable(0, "acc"), LengthFunction(ExpressionVariable(1, "n")))
     val collection = Literal(null)
     val m = ExecutionContext.empty
-    val s = QueryStateHelper.empty
+    val s = QueryStateHelper.emptyWith(expressionVariables = new Array(2))
 
-    val reduce = ReduceFunction(collection, "n", expression, "acc", Literal(0))
+    val reduce = ReduceFunction(collection, "n", 1, expression, "acc", 0, Literal(0))
 
     reduce(m, s) should equal(Values.NO_VALUE)
   }

@@ -22,37 +22,37 @@
  */
 package org.neo4j.kernel.impl.index.schema.fusion;
 
+import org.eclipse.collections.api.tuple.Pair;
+
 import java.io.IOException;
 import java.util.EnumMap;
 import java.util.List;
 
-import org.neo4j.helpers.collection.Iterables;
-import org.neo4j.internal.kernel.api.IndexCapability;
-import org.neo4j.internal.kernel.api.IndexOrder;
+import org.neo4j.internal.helpers.collection.Iterables;
 import org.neo4j.internal.kernel.api.InternalIndexState;
-import org.neo4j.internal.kernel.api.schema.IndexProviderDescriptor;
+import org.neo4j.internal.schema.IndexCapability;
+import org.neo4j.internal.schema.IndexConfig;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.internal.schema.IndexPrototype;
+import org.neo4j.internal.schema.IndexProviderDescriptor;
 import org.neo4j.io.fs.FileSystemAbstraction;
+import org.neo4j.io.memory.ByteBufferFactory;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.kernel.api.index.IndexAccessor;
 import org.neo4j.kernel.api.index.IndexDirectoryStructure;
 import org.neo4j.kernel.api.index.IndexPopulator;
 import org.neo4j.kernel.api.index.IndexProvider;
-import org.neo4j.kernel.impl.api.index.sampling.IndexSamplingConfig;
-import org.neo4j.kernel.impl.index.schema.ByteBufferFactory;
-import org.neo4j.kernel.impl.index.schema.FileSystemIndexDropAction;
-import org.neo4j.kernel.impl.index.schema.IndexDropAction;
-import org.neo4j.kernel.impl.newapi.UnionIndexCapability;
-import org.neo4j.kernel.impl.storemigration.StoreMigrationParticipant;
-import org.neo4j.storageengine.api.schema.StoreIndexDescriptor;
-import org.neo4j.values.storable.ValueCategory;
+import org.neo4j.kernel.impl.api.index.IndexSamplingConfig;
+import org.neo4j.storageengine.api.StorageEngineFactory;
+import org.neo4j.storageengine.migration.SchemaIndexMigrator;
+import org.neo4j.storageengine.migration.StoreMigrationParticipant;
+import org.neo4j.values.storable.Value;
 
+import static org.apache.commons.lang3.StringUtils.isNotEmpty;
 import static org.neo4j.internal.kernel.api.InternalIndexState.FAILED;
 import static org.neo4j.internal.kernel.api.InternalIndexState.POPULATING;
+import static org.neo4j.kernel.impl.index.schema.fusion.IndexSlot.GENERIC;
 import static org.neo4j.kernel.impl.index.schema.fusion.IndexSlot.LUCENE;
-import static org.neo4j.kernel.impl.index.schema.fusion.IndexSlot.NUMBER;
-import static org.neo4j.kernel.impl.index.schema.fusion.IndexSlot.SPATIAL;
-import static org.neo4j.kernel.impl.index.schema.fusion.IndexSlot.STRING;
-import static org.neo4j.kernel.impl.index.schema.fusion.IndexSlot.TEMPORAL;
 
 /**
  * This {@link IndexProvider index provider} act as one logical index but is backed by four physical
@@ -63,14 +63,11 @@ public class FusionIndexProvider extends IndexProvider
     private final boolean archiveFailedIndex;
     private final InstanceSelector<IndexProvider> providers;
     private final SlotSelector slotSelector;
-    private final IndexDropAction dropAction;
+    private final FileSystemAbstraction fs;
 
     public FusionIndexProvider(
             // good to be strict with specific providers here since this is dev facing
-            IndexProvider stringProvider,
-            IndexProvider numberProvider,
-            IndexProvider spatialProvider,
-            IndexProvider temporalProvider,
+            IndexProvider genericProvider,
             IndexProvider luceneProvider,
             SlotSelector slotSelector,
             IndexProviderDescriptor descriptor,
@@ -82,66 +79,83 @@ public class FusionIndexProvider extends IndexProvider
         this.archiveFailedIndex = archiveFailedIndex;
         this.slotSelector = slotSelector;
         this.providers = new InstanceSelector<>();
-        this.dropAction = new FileSystemIndexDropAction( fs, directoryStructure() );
-        fillProvidersSelector( stringProvider, numberProvider, spatialProvider, temporalProvider, luceneProvider );
+        this.fs = fs;
+        fillProvidersSelector( genericProvider, luceneProvider );
         slotSelector.validateSatisfied( providers );
     }
 
-    private void fillProvidersSelector(
-            IndexProvider stringProvider, IndexProvider numberProvider, IndexProvider spatialProvider,
-            IndexProvider temporalProvider, IndexProvider luceneProvider )
+    private void fillProvidersSelector( IndexProvider genericProvider,
+            IndexProvider luceneProvider )
     {
-        providers.put( STRING, stringProvider );
-        providers.put( NUMBER, numberProvider );
-        providers.put( SPATIAL, spatialProvider );
-        providers.put( TEMPORAL, temporalProvider );
+        providers.put( GENERIC, genericProvider );
         providers.put( LUCENE, luceneProvider );
     }
 
     @Override
-    public IndexPopulator getPopulator( StoreIndexDescriptor descriptor, IndexSamplingConfig samplingConfig, ByteBufferFactory bufferFactory )
+    public IndexDescriptor completeConfiguration( IndexDescriptor index )
+    {
+        EnumMap<IndexSlot,IndexDescriptor> descriptors = new EnumMap<>( IndexSlot.class );
+        EnumMap<IndexSlot,IndexCapability> capabilities = new EnumMap<>( IndexSlot.class );
+        for ( IndexSlot slot : IndexSlot.values() )
+        {
+            IndexDescriptor result = providers.select( slot ).completeConfiguration( index );
+            descriptors.put( slot, result );
+            capabilities.put( slot, result.getCapability() );
+        }
+        IndexConfig config = index.getIndexConfig();
+        for ( IndexDescriptor result : descriptors.values() )
+        {
+            IndexConfig resultConfig = result.getIndexConfig();
+            for ( Pair<String,Value> entry : resultConfig.entries() )
+            {
+                config = config.withIfAbsent( entry.getOne(), entry.getTwo() );
+            }
+        }
+        index = index.withIndexConfig( config );
+        if ( index.getCapability().equals( IndexCapability.NO_CAPABILITY ) )
+        {
+            index = index.withIndexCapability( new FusionIndexCapability( slotSelector, new InstanceSelector<>( capabilities ) ) );
+        }
+        return index;
+    }
+
+    @Override
+    public IndexPopulator getPopulator( IndexDescriptor descriptor, IndexSamplingConfig samplingConfig, ByteBufferFactory bufferFactory )
     {
         EnumMap<IndexSlot,IndexPopulator> populators = providers.map( provider -> provider.getPopulator( descriptor, samplingConfig, bufferFactory ) );
-        return new FusionIndexPopulator( slotSelector, new InstanceSelector<>( populators ), descriptor.getId(), dropAction, archiveFailedIndex );
+        return new FusionIndexPopulator( slotSelector, new InstanceSelector<>( populators ), descriptor.getId(), fs, directoryStructure(),
+                archiveFailedIndex );
     }
 
     @Override
-    public IndexAccessor getOnlineAccessor( StoreIndexDescriptor descriptor, IndexSamplingConfig samplingConfig ) throws IOException
+    public IndexAccessor getOnlineAccessor( IndexDescriptor descriptor, IndexSamplingConfig samplingConfig ) throws IOException
     {
         EnumMap<IndexSlot,IndexAccessor> accessors = providers.map( provider -> provider.getOnlineAccessor( descriptor, samplingConfig ) );
-        return new FusionIndexAccessor( slotSelector, new InstanceSelector<>( accessors ), descriptor, dropAction );
+        return new FusionIndexAccessor( slotSelector, new InstanceSelector<>( accessors ), descriptor, fs, directoryStructure() );
     }
 
     @Override
-    public String getPopulationFailure( StoreIndexDescriptor descriptor ) throws IllegalStateException
+    public String getPopulationFailure( IndexDescriptor descriptor )
     {
         StringBuilder builder = new StringBuilder();
         providers.forAll( p -> writeFailure( p.getClass().getSimpleName(), builder, p, descriptor ) );
-        String failure = builder.toString();
-        if ( !failure.isEmpty() )
-        {
-            return failure;
-        }
-        throw new IllegalStateException( "None of the indexes were in a failed state" );
+        return builder.toString();
     }
 
-    private void writeFailure( String indexName, StringBuilder builder, IndexProvider provider, StoreIndexDescriptor descriptor )
+    private void writeFailure( String indexName, StringBuilder builder, IndexProvider provider, IndexDescriptor descriptor )
     {
-        try
+        String failure = provider.getPopulationFailure( descriptor );
+        if ( isNotEmpty( failure ) )
         {
-            String failure = provider.getPopulationFailure( descriptor );
             builder.append( indexName );
             builder.append( ": " );
             builder.append( failure );
             builder.append( ' ' );
         }
-        catch ( IllegalStateException e )
-        {   // Just catch
-        }
     }
 
     @Override
-    public InternalIndexState getInitialState( StoreIndexDescriptor descriptor )
+    public InternalIndexState getInitialState( IndexDescriptor descriptor )
     {
         Iterable<InternalIndexState> statesIterable = providers.transform( p -> p.getInitialState( descriptor ) );
         List<InternalIndexState> states = Iterables.asList( statesIterable );
@@ -160,29 +174,18 @@ public class FusionIndexProvider extends IndexProvider
     }
 
     @Override
-    public IndexCapability getCapability( StoreIndexDescriptor descriptor )
+    public void validatePrototype( IndexPrototype prototype )
     {
-        Iterable<IndexCapability> capabilities = providers.transform( indexProvider -> indexProvider.getCapability( descriptor ) );
-        return new UnionIndexCapability( capabilities )
+        super.validatePrototype( prototype );
+        for ( IndexSlot slot : IndexSlot.values() )
         {
-            @Override
-            public IndexOrder[] orderCapability( ValueCategory... valueCategories )
-            {
-                // No order capability when combining results from different indexes
-                if ( valueCategories.length == 1 && valueCategories[0] == ValueCategory.UNKNOWN )
-                {
-                    return ORDER_NONE;
-                }
-                // Otherwise union of capabilities
-                return super.orderCapability( valueCategories );
-            }
-        };
+            providers.select( slot ).validatePrototype( prototype );
+        }
     }
 
     @Override
-    public StoreMigrationParticipant storeMigrationParticipant( FileSystemAbstraction fs, PageCache pageCache )
+    public StoreMigrationParticipant storeMigrationParticipant( FileSystemAbstraction fs, PageCache pageCache, StorageEngineFactory storageEngineFactory )
     {
-        return StoreMigrationParticipant.NOT_PARTICIPATING;
+        return new SchemaIndexMigrator( "Schema indexes", fs, this.directoryStructure(), storageEngineFactory );
     }
-
 }

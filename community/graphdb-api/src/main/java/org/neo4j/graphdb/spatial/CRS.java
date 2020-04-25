@@ -22,6 +22,7 @@
  */
 package org.neo4j.graphdb.spatial;
 
+import org.neo4j.annotations.api.PublicApi;
 
 /**
  * A coordinate reference system (CRS) determines how a ${@link Coordinate} should be interpreted
@@ -36,6 +37,7 @@ package org.neo4j.graphdb.spatial;
  * }
  * </code>
  */
+@PublicApi
 public interface CRS
 {
 

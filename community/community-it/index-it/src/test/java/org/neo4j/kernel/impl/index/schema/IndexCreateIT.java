@@ -22,153 +22,104 @@
  */
 package org.neo4j.kernel.impl.index.schema;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import java.util.Optional;
-
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
+import org.neo4j.common.EntityType;
+import org.neo4j.configuration.GraphDatabaseSettings;
+import org.neo4j.exceptions.KernelException;
 import org.neo4j.internal.kernel.api.SchemaWrite;
-import org.neo4j.internal.kernel.api.exceptions.KernelException;
-import org.neo4j.internal.kernel.api.exceptions.schema.SchemaKernelException;
-import org.neo4j.internal.kernel.api.schema.LabelSchemaDescriptor;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.internal.schema.FulltextSchemaDescriptor;
+import org.neo4j.internal.schema.IndexPrototype;
+import org.neo4j.internal.schema.LabelSchemaDescriptor;
+import org.neo4j.internal.schema.SchemaDescriptor;
 import org.neo4j.kernel.api.exceptions.schema.RepeatedLabelInSchemaException;
 import org.neo4j.kernel.api.exceptions.schema.RepeatedPropertyInSchemaException;
 import org.neo4j.kernel.api.exceptions.schema.RepeatedRelationshipTypeInSchemaException;
-import org.neo4j.kernel.api.schema.MultiTokenSchemaDescriptor;
-import org.neo4j.kernel.api.schema.SchemaDescriptorFactory;
 import org.neo4j.kernel.impl.api.index.IndexProviderNotFoundException;
 import org.neo4j.kernel.impl.api.integrationtest.KernelIntegrationTest;
-import org.neo4j.storageengine.api.EntityType;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
-import static org.neo4j.kernel.api.schema.SchemaDescriptorFactory.forLabel;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.neo4j.internal.schema.SchemaDescriptor.forLabel;
 
 public class IndexCreateIT extends KernelIntegrationTest
 {
-
-    private static final IndexCreator INDEX_CREATOR =
-            ( schemaWrite, descriptor, providerName ) -> schemaWrite.indexCreate( descriptor, providerName, Optional.empty() );
-    private static final IndexCreator UNIQUE_CONSTRAINT_CREATOR = SchemaWrite::uniquePropertyConstraintCreate;
+    private static final IndexCreator INDEX_CREATOR = SchemaWrite::indexCreate;
+    private static final IndexCreator UNIQUE_CONSTRAINT_CREATOR = ( schemaWrite, schema, provider, name ) -> schemaWrite.uniquePropertyConstraintCreate(
+            IndexPrototype.uniqueForSchema( schema, schemaWrite.indexProviderByName( provider ) ).withName( name ) );
 
     @Test
-    public void shouldCreateIndexWithSpecificExistingProviderName() throws KernelException
+    void shouldCreateIndexWithSpecificExistingProviderName() throws KernelException
     {
         shouldCreateWithSpecificExistingProviderName( INDEX_CREATOR );
     }
 
     @Test
-    public void shouldCreateUniquePropertyConstraintWithSpecificExistingProviderName() throws KernelException
+    void shouldCreateUniquePropertyConstraintWithSpecificExistingProviderName() throws KernelException
     {
         shouldCreateWithSpecificExistingProviderName( UNIQUE_CONSTRAINT_CREATOR );
     }
 
     @Test
-    public void shouldFailCreateIndexWithNonExistentProviderName() throws KernelException
+    void shouldFailCreateIndexWithNonExistentProviderName() throws KernelException
     {
         shouldFailWithNonExistentProviderName( INDEX_CREATOR );
     }
 
     @Test
-    public void shouldFailCreateUniquePropertyConstraintWithNonExistentProviderName() throws KernelException
+    void shouldFailCreateUniquePropertyConstraintWithNonExistentProviderName() throws KernelException
     {
         shouldFailWithNonExistentProviderName( UNIQUE_CONSTRAINT_CREATOR );
     }
 
     @Test
-    public void shouldNotBePossibleToCreateIndexWithDuplicateLabel() throws KernelException
+    void shouldFailCreateIndexWithDuplicateLabels() throws KernelException
     {
         // given
         SchemaWrite schemaWrite = schemaWriteInNewTransaction();
 
         // when
-        try
-        {
-            final MultiTokenSchemaDescriptor descriptor = SchemaDescriptorFactory.multiToken( new int[]{0, 0}, EntityType.NODE, 1 );
-            schemaWrite.indexCreate( descriptor );
-            fail( "Should have failed" );
-        }
-        catch ( RepeatedLabelInSchemaException e )
-        {
-            // then good
-        }
+        final FulltextSchemaDescriptor descriptor = SchemaDescriptor.fulltext( EntityType.NODE, new int[]{0, 0}, new int[]{1} );
+        // then
+        assertThrows( RepeatedLabelInSchemaException.class, () -> schemaWrite.indexCreate( descriptor, null ) );
     }
 
     @Test
-    public void shouldNotBePossibleToCreateIndexWithDuplicateRelationshipTypes() throws KernelException
+    void shouldFailCreateIndexWithDuplicateRelationshipTypes() throws KernelException
     {
         // given
         SchemaWrite schemaWrite = schemaWriteInNewTransaction();
 
         // when
-        try
-        {
-            final MultiTokenSchemaDescriptor descriptor = SchemaDescriptorFactory.multiToken( new int[]{0, 0}, EntityType.RELATIONSHIP, 1 );
-            schemaWrite.indexCreate( descriptor );
-            fail( "Should have failed" );
-        }
-        catch ( RepeatedRelationshipTypeInSchemaException e )
-        {
-            // then good
-        }
+        final FulltextSchemaDescriptor descriptor = SchemaDescriptor.fulltext( EntityType.RELATIONSHIP, new int[]{0, 0}, new int[]{1} );
+        // then
+        assertThrows( RepeatedRelationshipTypeInSchemaException.class, () -> schemaWrite.indexCreate( descriptor, null ) );
     }
 
     @Test
-    public void shouldNotBePossibleToCreateIndexWithDuplicateProperties() throws KernelException
+    void shouldFailCreateIndexWithDuplicateProperties() throws KernelException
     {
         // given
         SchemaWrite schemaWrite = schemaWriteInNewTransaction();
 
         // when
-        try
-        {
-            LabelSchemaDescriptor descriptor = forLabel( 0, 1, 1 );
-            schemaWrite.indexCreate( descriptor );
-            fail( "Should have failed" );
-        }
-        catch ( RepeatedPropertyInSchemaException e )
-        {
-            // then good
-        }
+        final FulltextSchemaDescriptor descriptor = SchemaDescriptor.fulltext( EntityType.NODE, new int[]{0}, new int[]{1, 1} );
+        // then
+        assertThrows( RepeatedPropertyInSchemaException.class, () -> schemaWrite.indexCreate( descriptor, null ) );
     }
 
-    @Test
-    public void shouldNotBePossibleToCreateConstraintWithDuplicateProperties() throws KernelException
+    protected void shouldFailWithNonExistentProviderName( IndexCreator creator ) throws KernelException
     {
         // given
         SchemaWrite schemaWrite = schemaWriteInNewTransaction();
 
         // when
-        try
-        {
-            LabelSchemaDescriptor descriptor = forLabel( 0, 1, 1 );
-            schemaWrite.uniquePropertyConstraintCreate( descriptor );
-            fail( "Should have failed" );
-        }
-        catch ( RepeatedPropertyInSchemaException e )
-        {
-            // then good
-        }
+        assertThrows( IndexProviderNotFoundException.class,
+            () -> creator.create( schemaWrite, forLabel( 0, 0 ), "something-completely-different", "index name" ) );
     }
 
-    void shouldFailWithNonExistentProviderName( IndexCreator creator ) throws KernelException
-    {
-        // given
-        SchemaWrite schemaWrite = schemaWriteInNewTransaction();
-
-        // when
-        try
-        {
-            creator.create( schemaWrite, forLabel( 0, 0 ), "something-completely-different" );
-            fail( "Should have failed" );
-        }
-        catch ( IndexProviderNotFoundException e )
-        {
-            // then good
-        }
-    }
-
-    void shouldCreateWithSpecificExistingProviderName( IndexCreator creator ) throws KernelException
+    protected void shouldCreateWithSpecificExistingProviderName( IndexCreator creator ) throws KernelException
     {
         int labelId = 0;
         for ( GraphDatabaseSettings.SchemaIndex indexSetting : GraphDatabaseSettings.SchemaIndex.values() )
@@ -177,18 +128,20 @@ public class IndexCreateIT extends KernelIntegrationTest
             SchemaWrite schemaWrite = schemaWriteInNewTransaction();
             String provider = indexSetting.providerName();
             LabelSchemaDescriptor descriptor = forLabel( labelId++, 0 );
-            creator.create( schemaWrite, descriptor, provider );
+            String indexName = "index-" + labelId;
+            creator.create( schemaWrite, descriptor, provider, indexName );
+            IndexDescriptor index = transaction.kernelTransaction().schemaRead().indexGetForName( indexName );
 
             // when
             commit();
 
             // then
-            assertEquals( provider, indexingService.getIndexProxy( descriptor ).getDescriptor().providerDescriptor().name() );
+            assertEquals( provider, indexingService.getIndexProxy( index ).getDescriptor().getIndexProvider().name() );
         }
     }
 
-    interface IndexCreator
+    protected interface IndexCreator
     {
-        void create( SchemaWrite schemaWrite, LabelSchemaDescriptor descriptor, String providerName ) throws SchemaKernelException;
+        void create( SchemaWrite schemaWrite, LabelSchemaDescriptor descriptor, String providerName, String indexName ) throws KernelException;
     }
 }

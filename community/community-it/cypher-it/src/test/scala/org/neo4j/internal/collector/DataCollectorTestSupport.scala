@@ -23,6 +23,7 @@
 package org.neo4j.internal.collector
 
 import org.neo4j.cypher._
+import org.neo4j.exceptions.CypherExecutionException
 
 class DataCollectorTestSupport extends ExecutionEngineFunSuite {
 

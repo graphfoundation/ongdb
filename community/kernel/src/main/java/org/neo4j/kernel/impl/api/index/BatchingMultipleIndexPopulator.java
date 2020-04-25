@@ -34,23 +34,24 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BooleanSupplier;
 
+import org.neo4j.common.EntityType;
 import org.neo4j.function.Predicates;
-import org.neo4j.helpers.Exceptions;
+import org.neo4j.internal.helpers.Exceptions;
+import org.neo4j.internal.schema.SchemaState;
 import org.neo4j.kernel.api.exceptions.index.IndexPopulationFailedKernelException;
-import org.neo4j.kernel.api.index.IndexEntryUpdate;
-import org.neo4j.kernel.impl.api.SchemaState;
+import org.neo4j.kernel.impl.api.index.stats.IndexStatisticsStore;
 import org.neo4j.logging.LogProvider;
-import org.neo4j.storageengine.api.EntityType;
+import org.neo4j.storageengine.api.IndexEntryUpdate;
 import org.neo4j.util.FeatureToggles;
 
 import static java.lang.Integer.min;
 import static java.lang.String.format;
 import static java.util.stream.Collectors.joining;
-import static org.neo4j.helpers.NamedThreadFactory.daemon;
+import static org.neo4j.internal.helpers.NamedThreadFactory.daemon;
 
 /**
  * A {@link MultipleIndexPopulator} that gathers all incoming updates from the {@link IndexStoreView} in batches of
- * size {@link #BATCH_SIZE} and then flushes each batch from different thread using {@link ExecutorService executor}.
+ * size {@link #BATCH_SIZE_SCAN} and then flushes each batch from different thread using {@link ExecutorService executor}.
  * <p>
  * It is possible for concurrent updates from transactions to arrive while index population is in progress. Such
  * updates are inserted in the queue. When store scan notices that queue size has reached {@link #QUEUE_THRESHOLD} than
@@ -82,15 +83,16 @@ public class BatchingMultipleIndexPopulator extends MultipleIndexPopulator
 
     /**
      * Creates a new multi-threaded populator for the given store view.
-     *  @param storeView the view of the store as a visitable of nodes
+     *
+     * @param storeView the view of the store as a visitable of nodes
      * @param logProvider the log provider
      * @param type entity type to populate
      * @param schemaState the schema state
      */
-    BatchingMultipleIndexPopulator( IndexStoreView storeView, LogProvider logProvider, EntityType type,
-                                    SchemaState schemaState )
+    BatchingMultipleIndexPopulator( IndexStoreView storeView, LogProvider logProvider, EntityType type, SchemaState schemaState,
+            IndexStatisticsStore indexStatisticsStore )
     {
-        super( storeView, logProvider, type, schemaState );
+        super( storeView, logProvider, type, schemaState, indexStatisticsStore );
         this.executor = createThreadPool();
     }
 
@@ -104,10 +106,10 @@ public class BatchingMultipleIndexPopulator extends MultipleIndexPopulator
      * @param logProvider the log provider
      * @param schemaState the schema state
      */
-    BatchingMultipleIndexPopulator( IndexStoreView storeView, ExecutorService executor, LogProvider logProvider,
-                                    SchemaState schemaState )
+    BatchingMultipleIndexPopulator( IndexStoreView storeView, ExecutorService executor, LogProvider logProvider, SchemaState schemaState,
+            IndexStatisticsStore indexStatisticsStore )
     {
-        super( storeView, logProvider, EntityType.NODE, schemaState );
+        super( storeView, logProvider, EntityType.NODE, schemaState, indexStatisticsStore );
         this.executor = executor;
     }
 
@@ -130,11 +132,11 @@ public class BatchingMultipleIndexPopulator extends MultipleIndexPopulator
     {
         String updatesString = populations
                 .stream()
-                .map( population -> population.batchedUpdates.size() + " updates" )
+                .map( population -> population.batchedUpdatesFromScan.size() + " updates" )
                 .collect( joining( ", ", "[", "]" ) );
 
         return "BatchingMultipleIndexPopulator{activeTasks=" + activeTasks + ", executor=" + executor + ", " +
-               "batchedUpdates = " + updatesString + ", queuedUpdates = " + updatesQueue.size() + "}";
+               "batchedUpdatesFromScan = " + updatesString + ", concurrentUpdateQueue = " + concurrentUpdateQueue.size() + "}";
     }
 
     /**
@@ -169,7 +171,7 @@ public class BatchingMultipleIndexPopulator extends MultipleIndexPopulator
     void doFlush( IndexPopulation population )
     {
         activeTasks.incrementAndGet();
-        List<IndexEntryUpdate<?>> batch = population.takeCurrentBatch();
+        List<IndexEntryUpdate<?>> batch = population.takeCurrentBatchFromScan();
 
         executor.execute( () ->
         {

@@ -22,46 +22,39 @@
  */
 package org.neo4j.kernel.monitoring.tracing;
 
+import java.time.Clock;
+
+import org.neo4j.annotations.service.ServiceProvider;
 import org.neo4j.io.pagecache.tracing.DefaultPageCacheTracer;
 import org.neo4j.io.pagecache.tracing.PageCacheTracer;
-import org.neo4j.kernel.impl.api.DefaultTransactionTracer;
-import org.neo4j.kernel.impl.transaction.log.checkpoint.DefaultCheckPointerTracer;
-import org.neo4j.kernel.impl.transaction.tracing.CheckPointTracer;
-import org.neo4j.kernel.impl.transaction.tracing.TransactionTracer;
-import org.neo4j.scheduler.JobScheduler;
-import org.neo4j.kernel.monitoring.Monitors;
+import org.neo4j.kernel.impl.api.tracer.DefaultTracer;
+import org.neo4j.kernel.impl.transaction.tracing.DatabaseTracer;
 import org.neo4j.logging.Log;
+import org.neo4j.monitoring.Monitors;
+import org.neo4j.scheduler.JobScheduler;
 import org.neo4j.time.SystemNanoClock;
 
 /**
  * The default TracerFactory, when nothing else is otherwise configured.
  */
+@ServiceProvider
 public class DefaultTracerFactory implements TracerFactory
 {
     @Override
-    public String getImplementationName()
+    public String getName()
     {
         return "default";
     }
 
     @Override
-    public PageCacheTracer createPageCacheTracer( Monitors monitors, JobScheduler jobScheduler, SystemNanoClock clock,
-            Log log )
+    public PageCacheTracer createPageCacheTracer( Monitors monitors, JobScheduler jobScheduler, SystemNanoClock clock, Log log )
     {
         return new DefaultPageCacheTracer();
     }
 
     @Override
-    public TransactionTracer createTransactionTracer( Monitors monitors, JobScheduler jobScheduler )
+    public DatabaseTracer createDatabaseTracer( Clock clock )
     {
-        DefaultTransactionTracer.Monitor monitor = monitors.newMonitor( DefaultTransactionTracer.Monitor.class );
-        return new DefaultTransactionTracer( monitor, jobScheduler );
-    }
-
-    @Override
-    public CheckPointTracer createCheckPointTracer( Monitors monitors, JobScheduler jobScheduler )
-    {
-        DefaultCheckPointerTracer.Monitor monitor = monitors.newMonitor( DefaultCheckPointerTracer.Monitor.class );
-        return new DefaultCheckPointerTracer( monitor, jobScheduler );
+        return new DefaultTracer();
     }
 }

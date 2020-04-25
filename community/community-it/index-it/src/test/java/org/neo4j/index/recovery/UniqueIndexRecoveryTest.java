@@ -33,26 +33,30 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Random;
 
+import org.neo4j.common.DependencyResolver;
+import org.neo4j.configuration.GraphDatabaseSettings.SchemaIndex;
+import org.neo4j.dbms.api.DatabaseManagementService;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Transaction;
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
-import org.neo4j.graphdb.factory.GraphDatabaseSettings.SchemaIndex;
 import org.neo4j.graphdb.schema.ConstraintDefinition;
 import org.neo4j.io.fs.FileUtils;
 import org.neo4j.io.pagecache.IOLimiter;
 import org.neo4j.kernel.impl.transaction.log.checkpoint.CheckPointer;
+import org.neo4j.kernel.impl.transaction.log.checkpoint.CheckPointerImpl;
 import org.neo4j.kernel.impl.transaction.log.checkpoint.SimpleTriggerInfo;
 import org.neo4j.kernel.impl.transaction.log.rotation.LogRotation;
+import org.neo4j.kernel.impl.transaction.tracing.LogAppendEvent;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
-import org.neo4j.storageengine.api.StorageEngine;
-import org.neo4j.test.TestGraphDatabaseFactory;
+import org.neo4j.test.TestDatabaseManagementServiceBuilder;
 import org.neo4j.test.rule.TestDirectory;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.IsEqual.equalTo;
 import static org.junit.Assert.assertFalse;
+import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
+import static org.neo4j.configuration.GraphDatabaseSettings.default_schema_provider;
 import static org.neo4j.graphdb.Label.label;
 
 @RunWith( Parameterized.class )
@@ -65,8 +69,8 @@ public class UniqueIndexRecoveryTest
     private static final String PROPERTY_VALUE = "value";
     private static final Label LABEL = label( "label" );
 
-    private final TestGraphDatabaseFactory factory = new TestGraphDatabaseFactory();
     private GraphDatabaseAPI db;
+    private DatabaseManagementService managementService;
 
     @Parameterized.Parameters( name = "{0}" )
     public static SchemaIndex[] parameters()
@@ -86,7 +90,7 @@ public class UniqueIndexRecoveryTest
     @After
     public void after()
     {
-        db.shutdown();
+        managementService.shutdown();
     }
 
     @Test
@@ -102,8 +106,8 @@ public class UniqueIndexRecoveryTest
         // then - just make sure the constraint is gone
         try ( Transaction tx = db.beginTx() )
         {
-            assertFalse( db.schema().getConstraints( LABEL ).iterator().hasNext() );
-            tx.success();
+            assertFalse( tx.schema().getConstraints( LABEL ).iterator().hasNext() );
+            tx.commit();
         }
     }
 
@@ -128,22 +132,24 @@ public class UniqueIndexRecoveryTest
         try ( Transaction tx = db.beginTx() )
         {
             assertThat(
-                    db.findNode( LABEL, PROPERTY_KEY, PROPERTY_VALUE ),
+                    tx.findNode( LABEL, PROPERTY_KEY, PROPERTY_VALUE ),
                     equalTo( unLabeledNode ) );
-            tx.success();
+            tx.commit();
         }
     }
 
     private void restart( File newStore )
     {
-        db.shutdown();
+        managementService.shutdown();
         db = (GraphDatabaseAPI) newDb();
     }
 
     private GraphDatabaseService newDb()
     {
-        return factory.newEmbeddedDatabaseBuilder( storeDir.absolutePath() ).setConfig( GraphDatabaseSettings.default_schema_provider,
-                schemaIndex.providerName() ).newGraphDatabase();
+        managementService = new TestDatabaseManagementServiceBuilder( storeDir.absolutePath() )
+                .setConfig( default_schema_provider, schemaIndex.providerName() )
+                .build();
+        return managementService.database( DEFAULT_DATABASE_NAME );
     }
 
     private static File snapshot( final File path ) throws IOException
@@ -162,8 +168,8 @@ public class UniqueIndexRecoveryTest
     {
         try ( Transaction tx = db.beginTx() )
         {
-            unLabeledNode.addLabel( LABEL );
-            tx.success();
+            tx.getNodeById( unLabeledNode.getId() ).addLabel( LABEL );
+            tx.commit();
         }
     }
 
@@ -171,8 +177,8 @@ public class UniqueIndexRecoveryTest
     {
         try ( Transaction tx = db.beginTx() )
         {
-            labeledNode.setProperty( PROPERTY_KEY, PROPERTY_VALUE );
-            tx.success();
+            tx.getNodeById( labeledNode.getId() ).setProperty( PROPERTY_KEY, PROPERTY_VALUE );
+            tx.commit();
         }
     }
 
@@ -180,8 +186,8 @@ public class UniqueIndexRecoveryTest
     {
         try ( Transaction tx = db.beginTx() )
         {
-            labeledNode.removeProperty( PROPERTY_KEY );
-            tx.success();
+            tx.getNodeById( labeledNode.getId() ).removeProperty( PROPERTY_KEY );
+            tx.commit();
         }
     }
 
@@ -189,8 +195,8 @@ public class UniqueIndexRecoveryTest
     {
         try ( Transaction tx = db.beginTx() )
         {
-            db.schema().constraintFor( LABEL ).assertPropertyIsUnique( PROPERTY_KEY ).create();
-            tx.success();
+            tx.schema().constraintFor( LABEL ).assertPropertyIsUnique( PROPERTY_KEY ).create();
+            tx.commit();
         }
     }
 
@@ -198,8 +204,8 @@ public class UniqueIndexRecoveryTest
     {
         try ( Transaction tx = db.beginTx() )
         {
-            Node node = db.createNode( LABEL );
-            tx.success();
+            Node node = tx.createNode( LABEL );
+            tx.commit();
             return node;
         }
     }
@@ -208,9 +214,9 @@ public class UniqueIndexRecoveryTest
     {
         try ( Transaction tx = db.beginTx() )
         {
-            Node node = db.createNode();
+            Node node = tx.createNode();
             node.setProperty( PROPERTY_KEY, PROPERTY_VALUE );
-            tx.success();
+            tx.commit();
             return node;
         }
     }
@@ -219,24 +225,23 @@ public class UniqueIndexRecoveryTest
     {
         try ( Transaction tx = db.beginTx() )
         {
-            for ( ConstraintDefinition constraint : db.schema().getConstraints( LABEL ) )
+            for ( ConstraintDefinition constraint : tx.schema().getConstraints( LABEL ) )
             {
                 constraint.drop();
             }
-            tx.success();
+            tx.commit();
         }
     }
 
     private void rotateLogAndCheckPoint() throws IOException
     {
-        db.getDependencyResolver().resolveDependency( LogRotation.class ).rotateLogFile();
-        db.getDependencyResolver().resolveDependency( CheckPointer.class ).forceCheckPoint(
-                new SimpleTriggerInfo( "test" )
-        );
+        DependencyResolver resolver = db.getDependencyResolver();
+        resolver.resolveDependency( LogRotation.class ).rotateLogFile( LogAppendEvent.NULL );
+        resolver.resolveDependency( CheckPointer.class ).forceCheckPoint( new SimpleTriggerInfo( "test" ) );
     }
 
-    private void flushAll()
+    private void flushAll() throws IOException
     {
-        db.getDependencyResolver().resolveDependency( StorageEngine.class ).flushAndForce( IOLimiter.UNLIMITED );
+        db.getDependencyResolver().resolveDependency( CheckPointerImpl.ForceOperation.class ).flushAndForce( IOLimiter.UNLIMITED );
     }
 }

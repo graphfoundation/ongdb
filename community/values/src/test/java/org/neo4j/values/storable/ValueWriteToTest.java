@@ -22,16 +22,21 @@
  */
 package org.neo4j.values.storable;
 
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Arrays;
+import java.util.stream.Stream;
 
+import static org.junit.jupiter.params.provider.Arguments.of;
 import static org.neo4j.values.storable.BufferValueWriter.Specials.beginArray;
 import static org.neo4j.values.storable.BufferValueWriter.Specials.byteArray;
 import static org.neo4j.values.storable.BufferValueWriter.Specials.endArray;
+import static org.neo4j.values.storable.CoordinateReferenceSystem.Cartesian;
+import static org.neo4j.values.storable.CoordinateReferenceSystem.WGS84;
 import static org.neo4j.values.storable.ValueWriter.ArrayType.BOOLEAN;
 import static org.neo4j.values.storable.ValueWriter.ArrayType.CHAR;
 import static org.neo4j.values.storable.ValueWriter.ArrayType.DOUBLE;
@@ -42,55 +47,47 @@ import static org.neo4j.values.storable.ValueWriter.ArrayType.LONG;
 import static org.neo4j.values.storable.ValueWriter.ArrayType.SHORT;
 import static org.neo4j.values.storable.ValueWriter.ArrayType.STRING;
 
-@RunWith( value = Parameterized.class )
-public class ValueWriteToTest
+class ValueWriteToTest
 {
-
-    @Parameterized.Parameters( name = "{0}" )
-    public static Iterable<WriteTest> data()
+    private static Stream<Arguments> parameters()
     {
-        return Arrays.asList(
-                // scalar properties
-                shouldWrite( true, true ),
-                shouldWrite( false, false ),
-                shouldWrite( (byte) 0, (byte) 0 ),
-                shouldWrite( (byte) 42, (byte) 42 ),
-                shouldWrite( (short) 42, (short) 42 ),
-                shouldWrite( 42, 42 ),
-                shouldWrite( 42L, 42L ),
-                shouldWrite( 42.0f, 42.0f ),
-                shouldWrite( 42.0, 42.0 ),
-                shouldWrite( 'x', 'x' ),
-                shouldWrite( "Hi", "Hi" ),
-                shouldWrite( Values.NO_VALUE, (Object) null ),
-                shouldWrite( Values.pointValue( CoordinateReferenceSystem.Cartesian, 1, 2 ), Values.pointValue( CoordinateReferenceSystem.Cartesian, 1, 2 ) ),
-                shouldWrite( Values.pointValue( CoordinateReferenceSystem.WGS84, 1, 2 ), Values.pointValue( CoordinateReferenceSystem.WGS84, 1, 2 ) ),
-                shouldWrite( LocalDate.of( 1991, 10, 18 ), DateValue.date( 1991, 10, 18 ) ),
+        return Stream.of(
+            of( shouldWrite( true, true ) ),
+            of( shouldWrite( false, false ) ),
+            of( shouldWrite( (byte) 0, (byte) 0 ) ),
+            of( shouldWrite( (byte) 42, (byte) 42 ) ),
+            of( shouldWrite( (short) 42, (short) 42 ) ),
+            of( shouldWrite( 42, 42 ) ),
+            of( shouldWrite( 42L, 42L ) ),
+            of( shouldWrite( 42.0f, 42.0f ) ),
+            of( shouldWrite( 42.0, 42.0 ) ),
+            of( shouldWrite( 'x', 'x' ) ),
+            of( shouldWrite( "Hi", "Hi" ) ),
+            of( shouldWrite( Values.NO_VALUE, (Object) null ) ),
+            of( shouldWrite( Values.pointValue( Cartesian, 1, 2 ), Values.pointValue( Cartesian, 1, 2 ) ) ),
+            of( shouldWrite( Values.pointValue( WGS84, 1, 2 ), Values.pointValue( WGS84, 1, 2 ) ) ),
+            of( shouldWrite( LocalDate.of( 1991, 10, 18 ), DateValue.date( 1991, 10, 18 ) ) ),
 
-                // array properties
-                shouldWrite( new byte[]{1, 2, 3}, byteArray( new byte[]{1, 2, 3} ) ),
-                shouldWrite( new short[]{1, 2, 3}, beginArray( 3, SHORT ), (short) 1, (short) 2, (short) 3,
-                        endArray() ),
-                shouldWrite( new int[]{1, 2, 3}, beginArray( 3, INT ), 1, 2, 3, endArray() ),
-                shouldWrite( new long[]{1, 2, 3}, beginArray( 3, LONG ), 1L, 2L, 3L, endArray() ),
-                shouldWrite( new float[]{1, 2, 3}, beginArray( 3, FLOAT ), 1.0f, 2.0f, 3.0f, endArray() ),
-                shouldWrite( new double[]{1, 2, 3}, beginArray( 3, DOUBLE ), 1.0, 2.0, 3.0, endArray() ),
-                shouldWrite( new char[]{'a', 'b'}, beginArray( 2, CHAR ), 'a', 'b', endArray() ),
-                shouldWrite( new String[]{"a", "b"}, beginArray( 2, STRING ), "a", "b", endArray() ),
-                shouldWrite( new boolean[]{true, false}, beginArray( 2, BOOLEAN ), true, false, endArray() ),
-                shouldWrite( new LocalDateTime[]{LocalDateTime.of( 1991, 10, 18, 6, 37, 0, 0 ), LocalDateTime.of( 1992, 10, 18, 6, 37, 0, 0 )},
-                        beginArray( 2, LOCAL_DATE_TIME ), LocalDateTimeValue.localDateTime( 1991, 10, 18, 6, 37, 0, 0 ),
-                        LocalDateTimeValue.localDateTime( 1992, 10, 18, 6, 37, 0, 0 ), endArray() ),
+            of( shouldWrite( new byte[]{1, 2, 3}, byteArray( new byte[]{1, 2, 3} ) ) ),
+            of( shouldWrite( new short[]{1, 2, 3}, beginArray( 3, SHORT ), (short) 1, (short) 2, (short) 3, endArray() ) ),
+            of( shouldWrite( new int[]{1, 2, 3}, beginArray( 3, INT ), 1, 2, 3, endArray() ) ),
+            of( shouldWrite( new long[]{1, 2, 3}, beginArray( 3, LONG ), 1L, 2L, 3L, endArray() ) ),
+            of( shouldWrite( new float[]{1, 2, 3}, beginArray( 3, FLOAT ), 1.0f, 2.0f, 3.0f, endArray() ) ),
+            of( shouldWrite( new double[]{1, 2, 3}, beginArray( 3, DOUBLE ), 1.0, 2.0, 3.0, endArray() ) ),
+            of( shouldWrite( new char[]{'a', 'b'}, beginArray( 2, CHAR ), 'a', 'b', endArray() ) ),
+            of( shouldWrite( new String[]{"a", "b"}, beginArray( 2, STRING ), "a", "b", endArray() ) ),
+            of( shouldWrite( new boolean[]{true, false}, beginArray( 2, BOOLEAN ), true, false, endArray() ) ),
+            of( shouldWrite( new LocalDateTime[]{
+                    LocalDateTime.of( 1991, 10, 18, 6, 37, 0, 0 ),
+                    LocalDateTime.of( 1992, 10, 18, 6, 37, 0, 0 )
+                },
+                beginArray( 2, LOCAL_DATE_TIME ),
+                LocalDateTimeValue.localDateTime( 1991, 10, 18, 6, 37, 0, 0 ),
+                LocalDateTimeValue.localDateTime( 1992, 10, 18, 6, 37, 0, 0 ),
+                endArray() ) ),
 
-                shouldWrite( new byte[]{1, 2, 3}, byteArray( new byte[]{1, 2, 3} ) )
+            of( shouldWrite( new byte[]{1, 2, 3}, byteArray( new byte[]{1, 2, 3} ) ) )
         );
-    }
-
-    private WriteTest currentTest;
-
-    public ValueWriteToTest( WriteTest currentTest )
-    {
-        this.currentTest = currentTest;
     }
 
     private static WriteTest shouldWrite( Object value, Object... expected )
@@ -103,10 +100,11 @@ public class ValueWriteToTest
         return new WriteTest( value, expected );
     }
 
-    @org.junit.Test
-    public void runTest()
+    @ParameterizedTest
+    @MethodSource( "parameters" )
+    void runTest( WriteTest test )
     {
-        currentTest.verifyWriteTo();
+        test.verifyWriteTo();
     }
 
     private static class WriteTest

@@ -22,6 +22,9 @@
  */
 package org.neo4j.values;
 
+import org.neo4j.values.storable.FloatingPointValue;
+import org.neo4j.values.storable.NumberValue;
+
 public abstract class AnyValue
 {
     private int hash;
@@ -31,7 +34,7 @@ public abstract class AnyValue
     @Override
     public boolean equals( Object other )
     {
-        return this == other || other != null && eq( other );
+        return this == other || other != null && equalTo( other );
     }
 
     @Override
@@ -47,7 +50,7 @@ public abstract class AnyValue
         return hash;
     }
 
-    protected abstract boolean eq( Object other );
+    protected abstract boolean equalTo( Object other );
 
     protected abstract int computeHash();
 
@@ -58,9 +61,61 @@ public abstract class AnyValue
         return false; // per default Values are no SequenceValues
     }
 
-    public abstract Boolean ternaryEquals( AnyValue other );
+    public abstract Equality ternaryEquals( AnyValue other );
 
     public abstract <T> T map( ValueMapper<T> mapper );
 
     public abstract String getTypeName();
+
+    /**
+     * Estimation of the bytes used for whatever payload the AnyValue is wrapping.
+     *<p>
+     *For example a <code>LongValue</code> wraps a long that consumes 4 bytes.
+     * @return The number of bytes the internal value consumes.
+     */
+    protected abstract long estimatedPayloadSize();
+
+    /**
+     * Gives an estimation of the heap usage in bytes for the given value.
+     * <p>
+     * The estimation assumes a 64bit JVM with 32 bit references (-XX:+UseCompressedOops) but is fairly accurate
+     * for simple values even without these assumptions. However for complicated types such as lists and maps these
+     * values are very crude estimates, typically something like <code>size * NUMBER</code> since we don't want to pay the
+     * price of (potentially recursively) iterate over the individual elements.
+     *
+     * @return an estimation of how many bytes this value consumes.
+     */
+    public long estimatedHeapUsage()
+    {
+        //Each AnyValue has a 12 bit header and stores a 4 byte int for the hash
+        return pad( 16 + estimatedPayloadSize() );
+    }
+
+    /**
+     * pads the value to nearest next multiple of 8
+     * @param value the value to pad
+     * @return the value padded to the nearest multiple of 8
+     */
+    public static long pad( long value )
+    {
+        return ((value + 7) / 8) * 8;
+    }
+
+    /**
+     * @return {@code true} if at least one operand is NaN and the other is a number
+     */
+    public static boolean isNanAndNumber( AnyValue value1, AnyValue value2 )
+    {
+        return (value1 instanceof FloatingPointValue && ((FloatingPointValue) value1).isNaN() && value2 instanceof NumberValue)
+               || (value2 instanceof FloatingPointValue && ((FloatingPointValue) value2).isNaN() && value1 instanceof NumberValue);
+    }
+
+    /**
+     * @return {@code true} if at least one operand is NaN
+     */
+    public static boolean hasNaNOperand( AnyValue value1, AnyValue value2 )
+    {
+        return (value1 instanceof FloatingPointValue && ((FloatingPointValue) value1).isNaN())
+               || (value2 instanceof FloatingPointValue && ((FloatingPointValue) value2).isNaN());
+    }
 }

@@ -23,12 +23,11 @@
 package org.neo4j.server.configuration;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.Map;
 
+import org.neo4j.configuration.GraphDatabaseSettings;
 import org.neo4j.graphdb.config.Setting;
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
-import org.neo4j.helpers.collection.MapUtil;
+import org.neo4j.internal.helpers.collection.MapUtil;
 import org.neo4j.server.ServerTestUtils;
 
 public class ConfigFileBuilder
@@ -49,8 +48,7 @@ public class ConfigFileBuilder
         //workspace with generated data
         this.config = MapUtil.stringMap(
                 GraphDatabaseSettings.data_directory.name(), directory.getAbsolutePath() + "/data",
-                ServerSettings.management_api_path.name(), "http://localhost:7474/db/manage/",
-                ServerSettings.rest_api_path.name(), "http://localhost:7474/db/data/" );
+                ServerSettings.db_api_path.name(), "http://localhost:7474/db/data/" );
     }
 
     public File build()

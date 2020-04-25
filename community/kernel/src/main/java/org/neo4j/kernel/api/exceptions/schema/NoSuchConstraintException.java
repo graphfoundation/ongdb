@@ -22,27 +22,43 @@
  */
 package org.neo4j.kernel.api.exceptions.schema;
 
-import org.neo4j.internal.kernel.api.TokenNameLookup;
+import org.neo4j.common.TokenNameLookup;
 import org.neo4j.internal.kernel.api.exceptions.schema.SchemaKernelException;
-import org.neo4j.internal.kernel.api.schema.constraints.ConstraintDescriptor;
+import org.neo4j.internal.schema.SchemaDescriptorSupplier;
 import org.neo4j.kernel.api.exceptions.Status;
 
 import static java.lang.String.format;
 
 public class NoSuchConstraintException extends SchemaKernelException
 {
-    private final ConstraintDescriptor constraint;
+    private final SchemaDescriptorSupplier constraint;
+    private final String name;
     private static final String message = "No such constraint %s.";
 
-    public NoSuchConstraintException( ConstraintDescriptor constraint )
+    public NoSuchConstraintException( SchemaDescriptorSupplier constraint, TokenNameLookup lookup )
     {
-        super( Status.Schema.ConstraintNotFound, format( message, constraint ) );
+        super( Status.Schema.ConstraintNotFound, format( message, constraint.userDescription( lookup ) ) );
         this.constraint = constraint;
+        this.name = "";
+    }
+
+    public NoSuchConstraintException( String name )
+    {
+        super( Status.Schema.ConstraintNotFound, format( message, name ) );
+        this.constraint = null;
+        this.name = name;
     }
 
     @Override
     public String getUserMessage( TokenNameLookup tokenNameLookup )
     {
-        return format( message, constraint.userDescription( tokenNameLookup ) );
+        if ( constraint == null )
+        {
+            return format( message, name );
+        }
+        else
+        {
+            return format( message, constraint.userDescription( tokenNameLookup ) );
+        }
     }
 }

@@ -27,18 +27,16 @@ import org.eclipse.collections.api.set.primitive.LongSet;
 import org.eclipse.collections.impl.set.mutable.primitive.LongHashSet;
 import org.junit.jupiter.api.Test;
 
-import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.ThreadLocalRandom;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
 
-import org.neo4j.collection.PrimitiveLongCollections.PrimitiveLongBaseIterator;
+import org.neo4j.collection.PrimitiveLongCollections.AbstractPrimitiveLongBaseIterator;
 
 import static java.util.Arrays.asList;
 import static org.eclipse.collections.impl.set.mutable.primitive.LongHashSet.newSetWith;
@@ -48,8 +46,8 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.fail;
 import static org.neo4j.collection.PrimitiveLongCollections.mergeToSet;
 
 class PrimitiveLongCollectionsTest
@@ -78,36 +76,6 @@ class PrimitiveLongCollectionsTest
 
         // THEN
         assertItems( filtered, 1, 3 );
-    }
-
-    private static final class CountingPrimitiveLongIteratorResource implements LongIterator, AutoCloseable
-    {
-        private final LongIterator delegate;
-        private final AtomicInteger closeCounter;
-
-        private CountingPrimitiveLongIteratorResource( LongIterator delegate, AtomicInteger closeCounter )
-        {
-            this.delegate = delegate;
-            this.closeCounter = closeCounter;
-        }
-
-        @Override
-        public void close()
-        {
-            closeCounter.incrementAndGet();
-        }
-
-        @Override
-        public boolean hasNext()
-        {
-            return delegate.hasNext();
-        }
-
-        @Override
-        public long next()
-        {
-            return delegate.next();
-        }
     }
 
     @Test
@@ -146,7 +114,7 @@ class PrimitiveLongCollectionsTest
         long[] array = PrimitiveLongCollections.asArray( items );
 
         // THEN
-        assertTrue( Arrays.equals( new long[] { 1, 2, 3 }, array ) );
+        assertArrayEquals( new long[]{1, 2, 3}, array );
     }
 
     @Test
@@ -192,7 +160,7 @@ class PrimitiveLongCollectionsTest
     {
         // GIVEN
         AtomicLong count = new AtomicLong( 2 );
-        LongIterator iterator = new PrimitiveLongBaseIterator()
+        LongIterator iterator = new AbstractPrimitiveLongBaseIterator()
         {
             @Override
             protected boolean fetchNext()
@@ -241,27 +209,19 @@ class PrimitiveLongCollectionsTest
         assertThat( mergeToSet( newSetWith( 1, 2, 3 ), newSetWith( 4, 5, 6 ) ), equalTo( newSetWith( 1, 2, 3, 4, 5, 6 ) ) );
     }
 
-    private void assertNoMoreItems( LongIterator iterator )
+    private static void assertNoMoreItems( LongIterator iterator )
     {
         assertFalse( iterator.hasNext(), iterator + " should have no more items" );
-        try
-        {
-            iterator.next();
-            fail( "Invoking next() on " + iterator +
-                    " which has no items left should have thrown NoSuchElementException" );
-        }
-        catch ( NoSuchElementException e )
-        {   // Good
-        }
+        assertThrows( NoSuchElementException.class, iterator::next );
     }
 
-    private void assertNextEquals( long expected, LongIterator iterator )
+    private static void assertNextEquals( long expected, LongIterator iterator )
     {
         assertTrue( iterator.hasNext(), iterator + " should have had more items" );
         assertEquals( expected, iterator.next() );
     }
 
-    private void assertItems( LongIterator iterator, long... expectedItems )
+    private static void assertItems( LongIterator iterator, long... expectedItems )
     {
         for ( long expectedItem : expectedItems )
         {

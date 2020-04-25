@@ -29,24 +29,25 @@ import java.util.concurrent.TimeUnit;
 
 import org.neo4j.graphdb.ResourceIterator;
 import org.neo4j.internal.kernel.api.InternalIndexState;
+import org.neo4j.internal.kernel.api.PopulationProgress;
+import org.neo4j.internal.schema.IndexDescriptor;
 import org.neo4j.io.pagecache.IOLimiter;
 import org.neo4j.kernel.api.exceptions.index.IndexEntryConflictException;
 import org.neo4j.kernel.api.index.IndexAccessor;
+import org.neo4j.kernel.api.index.IndexReader;
 import org.neo4j.kernel.api.index.IndexUpdater;
+import org.neo4j.kernel.impl.api.index.stats.IndexStatisticsStore;
 import org.neo4j.kernel.impl.api.index.updater.UpdateCountingIndexUpdater;
 import org.neo4j.storageengine.api.NodePropertyAccessor;
-import org.neo4j.storageengine.api.schema.CapableIndexDescriptor;
-import org.neo4j.storageengine.api.schema.IndexReader;
-import org.neo4j.storageengine.api.schema.PopulationProgress;
+import org.neo4j.util.VisibleForTesting;
 import org.neo4j.values.storable.Value;
 
 public class OnlineIndexProxy implements IndexProxy
 {
     private final long indexId;
-    private final CapableIndexDescriptor capableIndexDescriptor;
+    private final IndexDescriptor descriptor;
     final IndexAccessor accessor;
-    private final IndexStoreView storeView;
-    private final IndexCountsRemover indexCountsRemover;
+    private final IndexStatisticsStore indexStatisticsStore;
     private boolean started;
 
     // About this flag: there are two online "modes", you might say...
@@ -75,15 +76,15 @@ public class OnlineIndexProxy implements IndexProxy
     //   slightly more costly, but shouldn't make that big of a difference hopefully.
     private final boolean forcedIdempotentMode;
 
-    OnlineIndexProxy( CapableIndexDescriptor capableIndexDescriptor, IndexAccessor accessor, IndexStoreView storeView, boolean forcedIdempotentMode )
+    OnlineIndexProxy( IndexDescriptor descriptor, IndexAccessor accessor, IndexStatisticsStore indexStatisticsStore,
+            boolean forcedIdempotentMode )
     {
         assert accessor != null;
-        this.indexId = capableIndexDescriptor.getId();
-        this.capableIndexDescriptor = capableIndexDescriptor;
+        this.indexId = descriptor.getId();
+        this.descriptor = descriptor;
         this.accessor = accessor;
-        this.storeView = storeView;
+        this.indexStatisticsStore = indexStatisticsStore;
         this.forcedIdempotentMode = forcedIdempotentMode;
-        this.indexCountsRemover = new IndexCountsRemover( storeView, indexId );
     }
 
     @Override
@@ -116,20 +117,20 @@ public class OnlineIndexProxy implements IndexProxy
 
     private IndexUpdater updateCountingUpdater( final IndexUpdater indexUpdater )
     {
-        return new UpdateCountingIndexUpdater( storeView, indexId, indexUpdater );
+        return new UpdateCountingIndexUpdater( indexStatisticsStore, indexId, indexUpdater );
     }
 
     @Override
     public void drop()
     {
-        indexCountsRemover.remove();
+        indexStatisticsStore.removeIndex( getDescriptor().getId() );
         accessor.drop();
     }
 
     @Override
-    public CapableIndexDescriptor getDescriptor()
+    public IndexDescriptor getDescriptor()
     {
-        return capableIndexDescriptor;
+        return descriptor;
     }
 
     @Override
@@ -213,12 +214,18 @@ public class OnlineIndexProxy implements IndexProxy
     @Override
     public String toString()
     {
-        return getClass().getSimpleName() + "[accessor:" + accessor + ", descriptor:" + capableIndexDescriptor + "]";
+        return getClass().getSimpleName() + "[accessor:" + accessor + ", descriptor:" + descriptor + "]";
     }
 
     @Override
     public void verifyDeferredConstraints( NodePropertyAccessor nodePropertyAccessor ) throws IndexEntryConflictException
     {
         accessor.verifyDeferredConstraints( nodePropertyAccessor );
+    }
+
+    @VisibleForTesting
+    public IndexAccessor accessor()
+    {
+        return accessor;
     }
 }

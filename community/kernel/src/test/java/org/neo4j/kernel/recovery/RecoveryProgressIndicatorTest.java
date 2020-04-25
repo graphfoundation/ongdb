@@ -22,28 +22,31 @@
  */
 package org.neo4j.kernel.recovery;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.mockito.Answers;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
+import org.neo4j.common.ProgressReporter;
 import org.neo4j.kernel.impl.transaction.CommittedTransactionRepresentation;
 import org.neo4j.kernel.impl.transaction.log.LogPosition;
 import org.neo4j.kernel.impl.transaction.log.TransactionCursor;
 import org.neo4j.kernel.impl.transaction.log.entry.LogEntryCommit;
-import org.neo4j.kernel.impl.util.monitoring.ProgressReporter;
 import org.neo4j.kernel.lifecycle.LifecycleAdapter;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.neo4j.kernel.impl.transaction.log.entry.LogVersions.CURRENT_FORMAT_LOG_HEADER_SIZE;
+import static org.neo4j.kernel.recovery.RecoveryStartupChecker.EMPTY_CHECKER;
+import static org.neo4j.storageengine.api.TransactionIdStore.BASE_TX_CHECKSUM;
 
-public class RecoveryProgressIndicatorTest
+class RecoveryProgressIndicatorTest
 {
 
     @Test
-    public void reportProgressOnRecovery() throws Throwable
+    void reportProgressOnRecovery() throws Throwable
     {
         RecoveryService recoveryService = mock( RecoveryService.class, Answers.RETURNS_MOCKS );
         CorruptedLogsTruncator logsTruncator = mock( CorruptedLogsTruncator.class );
@@ -55,7 +58,7 @@ public class RecoveryProgressIndicatorTest
         int transactionsToRecover = 5;
         int expectedMax = transactionsToRecover * 2;
         int lastCommittedTransactionId = 14;
-        LogPosition recoveryStartPosition = LogPosition.start( 0 );
+        LogPosition recoveryStartPosition = new LogPosition( 0, CURRENT_FORMAT_LOG_HEADER_SIZE );
         int firstTxIdAfterLastCheckPoint = 10;
         RecoveryStartInformation startInformation = new RecoveryStartInformation( recoveryStartPosition, firstTxIdAfterLastCheckPoint );
 
@@ -63,15 +66,15 @@ public class RecoveryProgressIndicatorTest
         when( transactionCursor.next() ).thenAnswer( new NextTransactionAnswer( transactionsToRecover ) );
         when( reverseTransactionCursor.get() ).thenReturn( transactionRepresentation );
         when( transactionCursor.get() ).thenReturn( transactionRepresentation );
-        when( transactionRepresentation.getCommitEntry() ).thenReturn( new LogEntryCommit( lastCommittedTransactionId, 1L ) );
+        when( transactionRepresentation.getCommitEntry() ).thenReturn( new LogEntryCommit( lastCommittedTransactionId, 1L, BASE_TX_CHECKSUM ) );
 
         when( recoveryService.getRecoveryStartInformation() ).thenReturn( startInformation );
         when( recoveryService.getTransactionsInReverseOrder( recoveryStartPosition ) ).thenReturn( reverseTransactionCursor );
         when( recoveryService.getTransactions( recoveryStartPosition ) ).thenReturn( transactionCursor );
 
         AssertableProgressReporter progressReporter = new AssertableProgressReporter( expectedMax );
-        Recovery recovery = new Recovery( recoveryService, logsTruncator, new LifecycleAdapter(), recoveryMonitor,
-                progressReporter, true );
+        TransactionLogsRecovery recovery = new TransactionLogsRecovery(
+                recoveryService, logsTruncator, new LifecycleAdapter(), recoveryMonitor, progressReporter, true, EMPTY_CHECKER );
         recovery.init();
 
         progressReporter.verify();
@@ -109,9 +112,9 @@ public class RecoveryProgressIndicatorTest
 
         public void verify()
         {
-            assertTrue( "Progress reporting was not completed.", completed );
-            assertEquals( "Number of max recovered transactions is different.", expectedMax, max );
-            assertEquals( "Number of recovered transactions is different.", expectedMax, recoveredTransactions );
+            assertTrue( completed, "Progress reporting was not completed." );
+            assertEquals( expectedMax, max, "Number of max recovered transactions is different." );
+            assertEquals( expectedMax, recoveredTransactions, "Number of recovered transactions is different." );
         }
     }
 

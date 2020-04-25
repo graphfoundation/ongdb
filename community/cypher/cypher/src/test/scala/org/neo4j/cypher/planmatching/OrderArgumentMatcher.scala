@@ -22,10 +22,11 @@
  */
 package org.neo4j.cypher.planmatching
 
-import org.neo4j.cypher.internal.ir.v3_6.ProvidedOrder
-import org.neo4j.cypher.internal.runtime.planDescription.InternalPlanDescription
-import org.neo4j.cypher.internal.runtime.planDescription.InternalPlanDescription.Arguments.Order
-import org.neo4j.cypher.internal.runtime.planDescription.PlanDescriptionArgumentSerializer.removeGeneratedNames
+import org.neo4j.cypher.internal.ir.ProvidedOrder
+import org.neo4j.cypher.internal.plandescription.InternalPlanDescription
+import org.neo4j.cypher.internal.plandescription.Arguments.Order
+import org.neo4j.cypher.internal.plandescription.PlanDescriptionArgumentSerializer.removeGeneratedNames
+import org.neo4j.cypher.internal.v4_0.expressions._
 import org.scalatest.matchers.{MatchResult, Matcher}
 
 /**
@@ -35,7 +36,11 @@ case class OrderArgumentMatcher(expected: ProvidedOrder) extends Matcher[Interna
   override def apply(plan: InternalPlanDescription): MatchResult = {
     val args = plan.arguments.collect { case Order(providedOrder) => providedOrder }
     val anonArgs = args.map(arg => ProvidedOrder(arg.columns.map(col => {
-      ProvidedOrder.Column(removeGeneratedNames(col.id), col.isAscending)
+      col.expression match {
+        case variable@Variable(varName) => ProvidedOrder.Column(Variable(removeGeneratedNames(varName))(variable.position), col.isAscending)
+        case prop@Property(v@Variable(varName), p@PropertyKeyName(propName)) =>
+          ProvidedOrder.Column(Property(Variable(removeGeneratedNames(varName))(v.position), PropertyKeyName(propName)(p.position))(prop.position), col.isAscending)
+      }
     })))
     MatchResult(
       matches = anonArgs.contains(expected),

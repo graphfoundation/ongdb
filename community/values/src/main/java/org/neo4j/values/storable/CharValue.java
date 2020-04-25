@@ -22,6 +22,7 @@
  */
 package org.neo4j.values.storable;
 
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -42,7 +43,7 @@ public final class CharValue extends TextValue
     }
 
     @Override
-    public boolean eq( Object other )
+    public boolean equalTo( Object other )
     {
         return other instanceof Value && equals( (Value) other );
     }
@@ -171,7 +172,20 @@ public final class CharValue extends TextValue
         }
         else
         {
-            return list( Values.stringValue( stringValue() ) );
+            return list( this );
+        }
+    }
+
+    @Override
+    public ListValue split( List<String> separators )
+    {
+        if ( separators.stream().anyMatch( sep -> sep.equals( stringValue() ) ) )
+        {
+            return EMPTY_SPLIT;
+        }
+        else
+        {
+            return list( this );
         }
     }
 
@@ -253,5 +267,11 @@ public final class CharValue extends TextValue
     public String getTypeName()
     {
         return "Char";
+    }
+
+    @Override
+    protected long estimatedPayloadSize()
+    {
+        return Character.BYTES;
     }
 }

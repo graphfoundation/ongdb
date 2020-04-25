@@ -29,9 +29,10 @@ import java.util.regex.Pattern;
 import org.neo4j.values.storable.TextValue;
 import org.neo4j.values.virtual.MapValue;
 
+import static java.util.regex.Pattern.CASE_INSENSITIVE;
 import static org.neo4j.values.storable.Values.stringValue;
 
-public class QueryObfuscation
+class QueryObfuscation
 {
     private static final Pattern PASSWORD_PATTERN = Pattern.compile(
             // call signature
@@ -41,10 +42,10 @@ public class QueryObfuscation
             // password parameter, in single, double quotes, or parametrized
             "\\s*('(?:(?<=\\\\)'|[^'])*'|\"(?:(?<=\\\\)\"|[^\"])*\"|\\$\\w*|\\{\\w*})" );
 
-    static final TextValue OBFUSCATED = stringValue( "******" );
-    static final String OBFUSCATED_LITERAL = "'******'";
+    private static final TextValue OBFUSCATED = stringValue( "******" );
+    private static final String OBFUSCATED_LITERAL = "'******'";
 
-    public static String obfuscateText( String queryText, Set<String> passwordParams )
+    static String obfuscateText( String queryText, Set<String> passwordParams )
     {
         Matcher matcher = PASSWORD_PATTERN.matcher( queryText );
 
@@ -55,10 +56,6 @@ public class QueryObfuscation
             {
                 passwordParams.add( password.substring( 1 ) );
             }
-            else if ( password.charAt( 0 ) == '{' )
-            {
-                passwordParams.add( password.substring( 1, password.length() - 1 ) );
-            }
             else
             {
                 queryText = queryText.replace( password, OBFUSCATED_LITERAL );
@@ -68,7 +65,51 @@ public class QueryObfuscation
         return queryText;
     }
 
-    public static MapValue obfuscateParams( MapValue queryParameters, Set<String> passwordParams )
+    private static final Pattern SYSTEM_PASSWORD_PATTERN = Pattern.compile(
+            // CREATE USER user SET PASSWORD
+            // CREATE OR REPLACE USER user SET PASSWORD
+            // CREATE USER user IF NOT EXISTS SET PASSWORD
+            // ALTER USER user SET PASSWORD
+            // ALTER CURRENT USER SET PASSWORD
+            "^(?:(?:ALTER|CREATE)\\s+(?:CURRENT\\s+)?(?:OR\\s+REPLACE\\s+)?USER\\s+(?:(?:`)?\\w+(?:`)?\\s+)?(?:IF\\s+NOT\\s+EXISTS\\s+)?SET\\s+PASSWORD\\s+)" +
+            // password can be in single, double quotes, or parametrized
+            // FROM password TO password
+            "(?:FROM\\s+)?((?:\\$\\w+)|(?:\"[^\"]*\")|(?:'[^']*'))(?:\\s+TO\\s+)?((?:\\$\\w+)|(?:\"[^\"]*\")|(?:'[^']*'))?",
+            CASE_INSENSITIVE
+        );
+
+    static String obfuscateSystemCommand( String queryText, Set<String> passwordParams )
+    {
+        Matcher matcher = SYSTEM_PASSWORD_PATTERN.matcher( queryText );
+
+        while ( matcher.find() )
+        {
+            String password = matcher.group( 1 ).trim();
+            if ( password.charAt( 0 ) == '$' )
+            {
+                passwordParams.add( password.substring( 1 ) );
+            }
+            else
+            {
+                queryText = queryText.replace( password, OBFUSCATED_LITERAL );
+            }
+            String toPassword = matcher.group( 2 );
+            if ( toPassword != null )
+            {
+                if ( toPassword.charAt( 0 ) == '$' )
+                {
+                    passwordParams.add( toPassword.substring( 1 ) );
+                }
+                else
+                {
+                    queryText = queryText.replace( toPassword, OBFUSCATED_LITERAL );
+                }
+            }
+        }
+        return queryText;
+    }
+
+    static MapValue obfuscateParams( MapValue queryParameters, Set<String> passwordParams )
     {
         for ( String passwordKey : passwordParams )
         {

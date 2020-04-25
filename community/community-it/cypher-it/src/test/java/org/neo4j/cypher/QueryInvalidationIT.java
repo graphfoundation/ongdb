@@ -25,22 +25,23 @@ package org.neo4j.cypher;
 import org.junit.Rule;
 import org.junit.Test;
 
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
-import org.neo4j.cypher.internal.compatibility.CypherCacheHitMonitor;
+import org.neo4j.configuration.Config;
+import org.neo4j.configuration.GraphDatabaseSettings;
+import org.neo4j.cypher.internal.planning.CypherCacheHitMonitor;
 import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.Result;
 import org.neo4j.graphdb.Transaction;
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
-import org.neo4j.helpers.collection.Pair;
-import org.neo4j.kernel.configuration.Config;
-import org.neo4j.kernel.monitoring.Monitors;
-import org.neo4j.test.rule.DatabaseRule;
-import org.neo4j.test.rule.ImpermanentDatabaseRule;
+import org.neo4j.internal.helpers.collection.Pair;
+import org.neo4j.monitoring.Monitors;
+import org.neo4j.test.rule.DbmsRule;
+import org.neo4j.test.rule.ImpermanentDbmsRule;
 
 import static java.util.Collections.singletonMap;
 import static java.util.concurrent.TimeUnit.SECONDS;
@@ -51,13 +52,13 @@ import static org.junit.Assert.assertTrue;
 
 public class QueryInvalidationIT
 {
-    private static final int USERS = 10;
+    private static final int USERS = 100;
     private static final int CONNECTIONS = 100;
 
     @Rule
-    public final DatabaseRule db = new ImpermanentDatabaseRule()
-            .withSetting( GraphDatabaseSettings.query_statistics_divergence_threshold, "0.5" )
-            .withSetting( GraphDatabaseSettings.cypher_min_replan_interval, "1s" );
+    public final DbmsRule db = new ImpermanentDbmsRule()
+            .withSetting( GraphDatabaseSettings.query_statistics_divergence_threshold, 0.1 )
+            .withSetting( GraphDatabaseSettings.cypher_min_replan_interval, Duration.ofSeconds( 1 ) );
 
     @Test
     public void shouldRePlanAfterDataChangesFromAnEmptyDatabase() throws Exception
@@ -137,51 +138,57 @@ public class QueryInvalidationIT
     {
         try ( Transaction tx = db.beginTx() )
         {
-            db.schema().indexFor( Label.label( "User" ) ).on( "userId" ).create();
-            tx.success();
+            tx.schema().indexFor( Label.label( "User" ) ).on( "userId" ).create();
+            tx.commit();
         }
         try ( Transaction tx = db.beginTx() )
         {
-            db.schema().awaitIndexesOnline( 10, SECONDS );
-            tx.success();
+            tx.schema().awaitIndexesOnline( 10, SECONDS );
+            tx.commit();
         }
     }
 
     private void createData( long startingUserId, int numUsers, int numConnections )
     {
-        for ( long userId = startingUserId; userId < numUsers + startingUserId; userId++ )
+        try ( Transaction transaction = db.beginTx() )
         {
-            db.execute( "CREATE (newUser:User {userId: {userId}})", singletonMap( "userId", userId ) );
-        }
-        Map<String,Object> params = new HashMap<>();
-        for ( int i = 0; i < numConnections; i++ )
-        {
-            long user1 = startingUserId + randomInt( numUsers );
-            long user2;
-            do
+            for ( long userId = startingUserId; userId < numUsers + startingUserId; userId++ )
             {
-                user2 = startingUserId + randomInt( numUsers );
+                transaction.execute( "CREATE (newUser:User {userId: $userId})", singletonMap( "userId", userId ) );
             }
-            while ( user1 == user2 );
-            params.put( "user1", user1 );
-            params.put( "user2", user2 );
-            db.execute( "MATCH (user1:User { userId: {user1} }), (user2:User { userId: {user2} }) " +
-                        "MERGE (user1) -[:FRIEND]- (user2)", params );
+            Map<String,Object> params = new HashMap<>();
+            for ( int i = 0; i < numConnections; i++ )
+            {
+                long user1 = startingUserId + randomInt( numUsers );
+                long user2;
+                do
+                {
+                    user2 = startingUserId + randomInt( numUsers );
+                }
+                while ( user1 == user2 );
+                params.put( "user1", user1 );
+                params.put( "user2", user2 );
+                transaction.execute( "MATCH (user1:User { userId: $user1 }), (user2:User { userId: $user2 }) " + "MERGE (user1) -[:FRIEND]- (user2)", params );
+            }
+            transaction.commit();
         }
     }
 
     private void executeDistantFriendsCountQuery( int userId )
     {
-        Map<String,Object> params = singletonMap( "userId", (long) randomInt( userId ) );
-
-        try ( Result result = db.execute(
-                "MATCH (user:User { userId: {userId} } ) -[:FRIEND]- () -[:FRIEND]- (distantFriend) " +
-                "RETURN COUNT(distinct distantFriend)", params ) )
+        try ( Transaction transaction = db.beginTx() )
         {
-            while ( result.hasNext() )
+            Map<String,Object> params = singletonMap( "userId", (long) randomInt( userId ) );
+
+            try ( Result result = transaction.execute(
+                    "MATCH (user:User { userId: $userId } ) -[:FRIEND]- () -[:FRIEND]- (distantFriend) " + "RETURN COUNT(distinct distantFriend)", params ) )
             {
-                result.next();
+                while ( result.hasNext() )
+                {
+                    result.next();
+                }
             }
+            transaction.commit();
         }
     }
 

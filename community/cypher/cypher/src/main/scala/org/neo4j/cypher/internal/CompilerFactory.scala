@@ -31,5 +31,6 @@ trait CompilerFactory {
   def createCompiler(cypherVersion: CypherVersion,
                      cypherPlanner: CypherPlannerOption,
                      cypherRuntime: CypherRuntimeOption,
-                     cypherUpdateStrategy: CypherUpdateStrategy): Compiler
+                     cypherUpdateStrategy: CypherUpdateStrategy,
+                     executionEngineProvider: () => ExecutionEngine): Compiler
 }

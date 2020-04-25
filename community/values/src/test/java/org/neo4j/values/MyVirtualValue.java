@@ -48,9 +48,15 @@ public class MyVirtualValue extends VirtualValue
     }
 
     @Override
-    public int compareTo( VirtualValue other, Comparator<AnyValue> comparator )
+    public int unsafeCompareTo( VirtualValue other, Comparator<AnyValue> comparator )
     {
         return 0;
+    }
+
+    @Override
+    public Comparison unsafeTernaryCompareTo( VirtualValue other, TernaryComparator<AnyValue> comparator )
+    {
+        return Comparison.EQUAL;
     }
 
     @Override
@@ -74,5 +80,11 @@ public class MyVirtualValue extends VirtualValue
     @Override
     public void writeTo( AnyValueWriter writer )
     {
+    }
+
+    @Override
+    protected long estimatedPayloadSize()
+    {
+        return Integer.BYTES;
     }
 }

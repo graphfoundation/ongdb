@@ -22,17 +22,17 @@
  */
 package org.neo4j.kernel.impl.transaction.log.pruning;
 
-import org.junit.After;
-import org.junit.Test;
-
 import java.io.IOException;
 
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Test;
+import org.neo4j.dbms.api.DatabaseManagementService;
+import org.neo4j.dbms.api.DatabaseManagementServiceBuilder;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Transaction;
-import org.neo4j.graphdb.factory.GraphDatabaseBuilder;
-import org.neo4j.graphdb.mockfs.EphemeralFileSystemAbstraction;
-import org.neo4j.graphdb.mockfs.UncloseableDelegatingFileSystemAbstraction;
+import org.neo4j.io.fs.EphemeralFileSystemAbstraction;
 import org.neo4j.io.fs.FileSystemAbstraction;
+import org.neo4j.io.fs.UncloseableDelegatingFileSystemAbstraction;
 import org.neo4j.kernel.impl.transaction.log.LogVersionBridge;
 import org.neo4j.kernel.impl.transaction.log.LogVersionedStoreChannel;
 import org.neo4j.kernel.impl.transaction.log.PhysicalTransactionCursor;
@@ -44,17 +44,22 @@ import org.neo4j.kernel.impl.transaction.log.checkpoint.TriggerInfo;
 import org.neo4j.kernel.impl.transaction.log.entry.VersionAwareLogEntryReader;
 import org.neo4j.kernel.impl.transaction.log.files.LogFiles;
 import org.neo4j.kernel.impl.transaction.log.rotation.LogRotation;
+import org.neo4j.kernel.impl.transaction.tracing.LogAppendEvent;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
-import org.neo4j.test.TestGraphDatabaseFactory;
+import org.neo4j.test.TestDatabaseManagementServiceBuilder;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.neo4j.graphdb.factory.GraphDatabaseSettings.keep_logical_logs;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
+import static org.neo4j.configuration.GraphDatabaseSettings.keep_logical_logs;
 
-public class TestLogPruning
+class TestLogPruning
 {
+
+    private DatabaseManagementService managementService;
+
     private interface Extractor
     {
         int extract( long fromVersion ) throws IOException;
@@ -66,18 +71,18 @@ public class TestLogPruning
     private int rotateEveryNTransactions;
     private int performedTransactions;
 
-    @After
-    public void after() throws Exception
+    @AfterEach
+    void after() throws Exception
     {
         if ( db != null )
         {
-            db.shutdown();
+            managementService.shutdown();
         }
         fs.close();
     }
 
     @Test
-    public void noPruning() throws Exception
+    void noPruning() throws Exception
     {
         newDb( "true", 2 );
 
@@ -89,13 +94,12 @@ public class TestLogPruning
         long currentVersion = files.getHighestLogVersion();
         for ( long version = 0; version < currentVersion; version++ )
         {
-            assertTrue( "Version " + version + " has been unexpectedly pruned",
-                    fs.fileExists( files.getLogFileForVersion( version ) ) );
+            assertTrue( fs.fileExists( files.getLogFileForVersion( version ) ), "Version " + version + " has been unexpectedly pruned" );
         }
     }
 
     @Test
-    public void pruneByFileSize() throws Exception
+    void pruneByFileSize() throws Exception
     {
         // Given
         int transactionByteSize = figureOutSampleTransactionSizeBytes();
@@ -115,7 +119,7 @@ public class TestLogPruning
     }
 
     @Test
-    public void pruneByFileCount() throws Exception
+    void pruneByFileCount() throws Exception
     {
         int logsToKeep = 5;
         newDb( logsToKeep + " files", 3 );
@@ -126,11 +130,10 @@ public class TestLogPruning
         }
 
         assertEquals( logsToKeep, logCount() );
-        // TODO we could verify, after the db has been shut down, that the file count is n.
     }
 
     @Test
-    public void pruneByTransactionCount() throws Exception
+    void pruneByTransactionCount() throws Exception
     {
         int transactionsToKeep = 100;
         int transactionsPerLog = 3;
@@ -142,15 +145,14 @@ public class TestLogPruning
         }
 
         int transactionCount = transactionCount();
-        assertTrue( "Transaction count expected to be within " + transactionsToKeep + " <= txs <= " +
-                    (transactionsToKeep + transactionsPerLog) + ", but was " + transactionCount,
-
-                transactionCount >= transactionsToKeep &&
-                transactionCount <= (transactionsToKeep + transactionsPerLog) );
+        assertTrue( transactionCount >= transactionsToKeep &&
+                             transactionCount <= (transactionsToKeep + transactionsPerLog),
+                "Transaction count expected to be within " + transactionsToKeep + " <= txs <= " + (transactionsToKeep + transactionsPerLog) +
+                        ", but was " + transactionCount );
     }
 
     @Test
-    public void shouldKeepAtLeastOneTransactionAfterRotate() throws Exception
+    void shouldKeepAtLeastOneTransactionAfterRotate() throws Exception
     {
         // Given
         // a database configured to keep 1 byte worth of logs, which means prune everything on rotate
@@ -163,7 +165,7 @@ public class TestLogPruning
             doTransaction();
         }
         // and the log gets rotated, which means we have a new one with no txs in it
-        db.getDependencyResolver().resolveDependency( LogRotation.class ).rotateLogFile();
+        db.getDependencyResolver().resolveDependency( LogRotation.class ).rotateLogFile( LogAppendEvent.NULL );
         /*
          * if we hadn't rotated after the txs went through, we would need to change the assertion to be at least 1 tx
          * instead of exactly one.
@@ -178,11 +180,12 @@ public class TestLogPruning
     {
         this.rotateEveryNTransactions = rotateEveryNTransactions;
         fs = new EphemeralFileSystemAbstraction();
-        TestGraphDatabaseFactory gdf = new TestGraphDatabaseFactory();
+        TestDatabaseManagementServiceBuilder gdf = new TestDatabaseManagementServiceBuilder();
         gdf.setFileSystem( new UncloseableDelegatingFileSystemAbstraction( fs ) );
-        GraphDatabaseBuilder builder = gdf.newImpermanentDatabaseBuilder();
+        DatabaseManagementServiceBuilder builder = gdf.impermanent();
         builder.setConfig( keep_logical_logs, logPruning );
-        this.db = (GraphDatabaseAPI) builder.newGraphDatabase();
+        managementService = builder.build();
+        this.db = (GraphDatabaseAPI) managementService.database( DEFAULT_DATABASE_NAME );
         files = db.getDependencyResolver().resolveDependency( LogFiles.class );
         return db;
     }
@@ -191,15 +194,15 @@ public class TestLogPruning
     {
         if ( ++performedTransactions >= rotateEveryNTransactions )
         {
-            db.getDependencyResolver().resolveDependency( LogRotation.class ).rotateLogFile();
+            db.getDependencyResolver().resolveDependency( LogRotation.class ).rotateLogFile( LogAppendEvent.NULL );
             performedTransactions = 0;
         }
 
         try ( Transaction tx = db.beginTx() )
         {
-            Node node = db.createNode();
+            Node node = tx.createNode();
             node.setProperty( "name", "a somewhat lengthy string of some sort, right?" );
-            tx.success();
+            tx.commit();
         }
         checkPoint();
     }
@@ -214,7 +217,7 @@ public class TestLogPruning
     {
         db = newDb( "true", 5 );
         doTransaction();
-        db.shutdown();
+        managementService.shutdown();
         return (int) fs.getFileSize( files.getLogFileForVersion( 0 ) );
     }
 
@@ -252,10 +255,9 @@ public class TestLogPruning
             int counter = 0;
             LogVersionBridge bridge = channel -> channel;
             LogVersionedStoreChannel versionedStoreChannel = files.openForVersion( version );
-            try ( ReadableLogChannel channel = new ReadAheadLogChannel( versionedStoreChannel, bridge, 1000 ) )
+            try ( ReadableLogChannel channel = new ReadAheadLogChannel( versionedStoreChannel, bridge ) )
             {
-                try ( PhysicalTransactionCursor<ReadableLogChannel> physicalTransactionCursor =
-                        new PhysicalTransactionCursor<>( channel, new VersionAwareLogEntryReader<>() ) )
+                try ( PhysicalTransactionCursor physicalTransactionCursor = new PhysicalTransactionCursor( channel, new VersionAwareLogEntryReader() ) )
                 {
                     while ( physicalTransactionCursor.next() )
                     {

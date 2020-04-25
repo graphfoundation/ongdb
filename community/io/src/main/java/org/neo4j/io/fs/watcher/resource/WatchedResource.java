@@ -23,6 +23,7 @@
 package org.neo4j.io.fs.watcher.resource;
 
 import java.io.Closeable;
+import java.nio.file.WatchKey;
 
 import org.neo4j.io.fs.watcher.FileWatcher;
 
@@ -34,8 +35,20 @@ import org.neo4j.io.fs.watcher.FileWatcher;
 public interface WatchedResource extends Closeable
 {
 
-    WatchedResource EMPTY = () ->
+    WatchedResource EMPTY = new WatchedResource()
     {
+        @Override
+        public WatchKey getWatchKey()
+        {
+            return null;
+        }
+
+        @Override
+        public void close()
+        {
+
+        }
     };
 
+    WatchKey getWatchKey();
 }

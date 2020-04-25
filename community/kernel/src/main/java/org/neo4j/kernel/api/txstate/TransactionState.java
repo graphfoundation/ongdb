@@ -22,10 +22,10 @@
  */
 package org.neo4j.kernel.api.txstate;
 
-import org.neo4j.internal.kernel.api.schema.SchemaDescriptor;
-import org.neo4j.internal.kernel.api.schema.constraints.ConstraintDescriptor;
-import org.neo4j.kernel.api.schema.constraints.IndexBackedConstraintDescriptor;
-import org.neo4j.storageengine.api.schema.IndexDescriptor;
+import org.neo4j.internal.schema.ConstraintDescriptor;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.internal.schema.SchemaDescriptor;
+import org.neo4j.internal.schema.constraints.IndexBackedConstraintDescriptor;
 import org.neo4j.storageengine.api.txstate.ReadableTransactionState;
 import org.neo4j.values.storable.Value;
 import org.neo4j.values.storable.ValueTuple;
@@ -58,13 +58,9 @@ public interface TransactionState extends ReadableTransactionState
 
     void relationshipDoReplaceProperty( long relationshipId, int propertyKeyId, Value replacedValue, Value newValue );
 
-    void graphDoReplaceProperty( int propertyKeyId, Value replacedValue, Value newValue );
-
     void nodeDoRemoveProperty( long nodeId, int propertyKeyId );
 
     void relationshipDoRemoveProperty( long relationshipId, int propertyKeyId );
-
-    void graphDoRemoveProperty( int propertyKeyId );
 
     void nodeDoAddLabel( long labelId, long nodeId );
 
@@ -72,28 +68,27 @@ public interface TransactionState extends ReadableTransactionState
 
     // TOKEN RELATED
 
-    void labelDoCreateForName( String labelName, long id );
+    void labelDoCreateForName( String labelName, boolean internal, long id );
 
-    void propertyKeyDoCreateForName( String propertyKeyName, int id );
+    void propertyKeyDoCreateForName( String propertyKeyName, boolean internal, int id );
 
-    void relationshipTypeDoCreateForName( String relationshipTypeName, int id );
+    void relationshipTypeDoCreateForName( String relationshipTypeName, boolean internal, int id );
 
     // SCHEMA RELATED
 
-    void indexDoAdd( IndexDescriptor descriptor );
+    void indexDoAdd( IndexDescriptor index );
 
-    void indexDoDrop( IndexDescriptor descriptor );
+    void indexDoDrop( IndexDescriptor index );
 
-    boolean indexDoUnRemove( IndexDescriptor constraint );
+    boolean indexDoUnRemove( IndexDescriptor index );
 
     void constraintDoAdd( ConstraintDescriptor constraint );
 
-    void constraintDoAdd( IndexBackedConstraintDescriptor constraint, long indexId );
+    void constraintDoAdd( IndexBackedConstraintDescriptor constraint, IndexDescriptor index );
 
     void constraintDoDrop( ConstraintDescriptor constraint );
 
     boolean constraintDoUnRemove( ConstraintDescriptor constraint );
 
     void indexDoUpdateEntry( SchemaDescriptor descriptor, long nodeId, ValueTuple before, ValueTuple after );
-
 }

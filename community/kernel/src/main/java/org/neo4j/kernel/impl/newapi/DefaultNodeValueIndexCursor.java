@@ -27,25 +27,27 @@ import org.eclipse.collections.api.set.primitive.LongSet;
 import org.eclipse.collections.impl.factory.primitive.LongSets;
 import org.eclipse.collections.impl.iterator.ImmutableEmptyLongIterator;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
 
-import org.neo4j.graphdb.Resource;
-import org.neo4j.internal.kernel.api.IndexOrder;
 import org.neo4j.internal.kernel.api.IndexQuery;
 import org.neo4j.internal.kernel.api.NodeCursor;
 import org.neo4j.internal.kernel.api.NodeValueIndexCursor;
+import org.neo4j.internal.kernel.api.security.AccessMode;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.internal.schema.IndexOrder;
+import org.neo4j.kernel.api.index.IndexProgressor;
 import org.neo4j.kernel.api.txstate.TransactionState;
 import org.neo4j.kernel.impl.newapi.TxStateIndexChanges.AddedAndRemoved;
 import org.neo4j.kernel.impl.newapi.TxStateIndexChanges.AddedWithValuesAndRemoved;
-import org.neo4j.storageengine.api.schema.IndexDescriptor;
-import org.neo4j.storageengine.api.schema.IndexProgressor;
-import org.neo4j.storageengine.api.schema.IndexProgressor.NodeValueClient;
 import org.neo4j.values.storable.Value;
+import org.neo4j.values.storable.ValueTuple;
 
 import static java.util.Arrays.stream;
 import static org.neo4j.collection.PrimitiveLongCollections.mergeToSet;
+import static org.neo4j.kernel.impl.newapi.Read.NO_ID;
 import static org.neo4j.kernel.impl.newapi.TxStateIndexChanges.indexUpdatesForRangeSeek;
 import static org.neo4j.kernel.impl.newapi.TxStateIndexChanges.indexUpdatesForRangeSeekByPrefix;
 import static org.neo4j.kernel.impl.newapi.TxStateIndexChanges.indexUpdatesForScan;
@@ -55,13 +57,13 @@ import static org.neo4j.kernel.impl.newapi.TxStateIndexChanges.indexUpdatesWithV
 import static org.neo4j.kernel.impl.newapi.TxStateIndexChanges.indexUpdatesWithValuesForRangeSeekByPrefix;
 import static org.neo4j.kernel.impl.newapi.TxStateIndexChanges.indexUpdatesWithValuesForScan;
 import static org.neo4j.kernel.impl.newapi.TxStateIndexChanges.indexUpdatesWithValuesForSuffixOrContains;
-import static org.neo4j.kernel.impl.store.record.AbstractBaseRecord.NO_ID;
 
-final class DefaultNodeValueIndexCursor extends IndexCursor<IndexProgressor>
-        implements NodeValueIndexCursor, NodeValueClient, SortedMergeJoin.Sink
+class DefaultNodeValueIndexCursor extends IndexCursor<IndexProgressor>
+        implements NodeValueIndexCursor, EntityIndexSeekClient, SortedMergeJoin.Sink
 {
     private Read read;
     private long node;
+    private float score;
     private IndexQuery[] query;
     private Value[] values;
     private LongIterator added = ImmutableEmptyLongIterator.INSTANCE;
@@ -69,13 +71,20 @@ final class DefaultNodeValueIndexCursor extends IndexCursor<IndexProgressor>
     private LongSet removed = LongSets.immutable.empty();
     private boolean needsValues;
     private IndexOrder indexOrder;
-    private final DefaultCursors pool;
+    private final CursorPool<DefaultNodeValueIndexCursor> pool;
+    private final DefaultNodeCursor nodeCursor;
     private SortedMergeJoin sortedMergeJoin = new SortedMergeJoin();
+    private AccessMode accessMode;
+    private boolean shortcutSecurity;
+    private boolean disableSecurity;
+    private int[] propertyIds;
 
-    DefaultNodeValueIndexCursor( DefaultCursors pool )
+    DefaultNodeValueIndexCursor( CursorPool<DefaultNodeValueIndexCursor> pool, DefaultNodeCursor nodeCursor )
     {
         this.pool = pool;
+        this.nodeCursor = nodeCursor;
         node = NO_ID;
+        score = Float.NaN;
         indexOrder = IndexOrder.NONE;
     }
 
@@ -84,7 +93,8 @@ final class DefaultNodeValueIndexCursor extends IndexCursor<IndexProgressor>
                             IndexProgressor progressor,
                             IndexQuery[] query,
                             IndexOrder indexOrder,
-                            boolean needsValues )
+                            boolean needsValues,
+                            boolean indexIncludesTransactionState )
     {
         assert query != null;
         super.initialize( progressor );
@@ -94,44 +104,109 @@ final class DefaultNodeValueIndexCursor extends IndexCursor<IndexProgressor>
         this.needsValues = needsValues;
         this.query = query;
 
-        if ( read.hasTxStateWithChanges() && query.length > 0 )
+        if ( tracer != null )
         {
-            IndexQuery firstPredicate = query[0];
-            switch ( firstPredicate.type() )
+            tracer.onIndexSeek( );
+        }
+
+        shortcutSecurity = setupSecurity( descriptor );
+
+        if ( !indexIncludesTransactionState && read.hasTxStateWithChanges() && query.length > 0 )
+        {
+           // Extract out the equality queries
+            ArrayList<Value> exactQueryValues = new ArrayList<>( query.length );
+            int i = 0;
+            while ( i < query.length && query[i] instanceof IndexQuery.ExactPredicate )
             {
-            case exact:
+                exactQueryValues.add( ((IndexQuery.ExactPredicate) query[i]).value() );
+                i++;
+            }
+            Value[] exactValues = exactQueryValues.toArray( new Value[0] );
+
+            if ( i == query.length )
+            {
+                // Only exact queries
                 // No need to order, all values are the same
                 this.indexOrder = IndexOrder.NONE;
-                seekQuery( descriptor, query );
-                break;
+                seekQuery( descriptor, exactValues );
+            }
+            else
+            {
+                IndexQuery nextQuery = query[i];
+                switch ( nextQuery.type() )
+                {
+                case exists:
+                    // This also covers the rewritten suffix/contains for composite index
+                    // If composite index all following will be exists as well so no need to consider those
+                    setNeedsValuesIfRequiresOrder();
+                    if ( exactQueryValues.isEmpty() )
+                    {
+                        // First query is exists, use scan
+                        scanQuery( descriptor );
+                    }
+                    else
+                    {
+                        rangeQuery( descriptor, exactValues, null );
+                    }
+                    break;
 
-            case exists:
-                setNeedsValuesIfRequiresOrder();
-                scanQuery( descriptor );
-                break;
+                case range:
+                    // This case covers first query to be range or exact followed by range
+                    // If composite index all following will be exists as well so no need to consider those
+                    setNeedsValuesIfRequiresOrder();
+                    rangeQuery( descriptor, exactValues, (IndexQuery.RangePredicate) nextQuery );
+                    break;
 
-            case range:
-                assert query.length == 1;
-                setNeedsValuesIfRequiresOrder();
-                rangeQuery( descriptor, (IndexQuery.RangePredicate) firstPredicate );
-                break;
+                case stringPrefix:
+                    // This case covers first query to be prefix or exact followed by prefix
+                    // If composite index all following will be exists as well so no need to consider those
+                    setNeedsValuesIfRequiresOrder();
+                    prefixQuery( descriptor, exactValues, (IndexQuery.StringPrefixPredicate) nextQuery );
+                    break;
 
-            case stringPrefix:
-                assert query.length == 1;
-                setNeedsValuesIfRequiresOrder();
-                prefixQuery( descriptor, (IndexQuery.StringPrefixPredicate) firstPredicate );
-                break;
+                case stringSuffix:
+                case stringContains:
+                    // This case covers suffix/contains for singular indexes
+                    // for composite index, the suffix/contains should already
+                    // have been rewritten as exists + filter, so no need to consider it here
+                    assert query.length == 1;
+                    suffixOrContainsQuery( descriptor, nextQuery );
+                    break;
 
-            case stringSuffix:
-            case stringContains:
-                assert query.length == 1;
-                suffixOrContainsQuery( descriptor, firstPredicate );
-                break;
-
-            default:
-                throw new UnsupportedOperationException( "Query not supported: " + Arrays.toString( query ) );
+                default:
+                    throw new UnsupportedOperationException( "Query not supported: " + Arrays.toString( query ) );
+                }
             }
         }
+    }
+
+    /**
+     * If the current user is allowed to traverse all labels used in this index and read the properties no matter what label
+     * the node has, we can skip checking on every node we get back.
+     */
+    private boolean setupSecurity( IndexDescriptor descriptor )
+    {
+        if ( accessMode == null )
+        {
+            accessMode = read.ktx.securityContext().mode();
+        }
+        propertyIds = descriptor.schema().getPropertyIds();
+
+        for ( int label : descriptor.schema().getEntityTokenIds() )
+        {
+            if ( !accessMode.allowsTraverseAllNodesWithLabel( label ) )
+            {
+                return false;
+            }
+        }
+        for ( int propId : propertyIds )
+        {
+             if ( !accessMode.allowsReadPropertyAllLabels( propId ) )
+             {
+                 return false;
+             }
+        }
+        return true;
     }
 
     /**
@@ -152,18 +227,53 @@ final class DefaultNodeValueIndexCursor extends IndexCursor<IndexProgressor>
     }
 
     @Override
-    public boolean acceptNode( long reference, Value[] values )
+    public boolean acceptEntity( long reference, float score, Value[] values )
     {
-        if ( isRemoved( reference ) )
+        if ( isRemoved( reference ) || !allowed( reference ) )
         {
             return false;
         }
         else
         {
             this.node = reference;
+            this.score = score;
             this.values = values;
             return true;
         }
+    }
+
+    protected boolean allowed( long reference )
+    {
+        if ( disableSecurity || shortcutSecurity )
+        {
+            return true;
+        }
+        read.singleNode( reference, nodeCursor );
+        if ( !nodeCursor.next() )
+        {
+            // This node is not visible to this security context
+            return false;
+        }
+
+        boolean allowed = true;
+        long[] labels = nodeCursor.labelsIgnoringTxStateSetRemove().all();
+        for ( int prop : propertyIds )
+        {
+            allowed &= accessMode.allowsReadNodeProperty( () -> Labels.from( labels ), prop );
+        }
+
+        return allowed;
+    }
+
+    /**
+     * This is to let {@link Read#nodeIndexDistinctValues(IndexDescriptor, NodeValueIndexCursor, boolean)} work.
+     * The security checks in {@link DefaultNodeValueIndexCursor#allowed(long)} expect the reference to be a node,
+     * but when it comes from the mentioned method it is the count of value in the index, thus we must ignore the
+     * security check here.
+     */
+    void disableSecurity()
+    {
+        disableSecurity = true;
     }
 
     @Override
@@ -191,6 +301,10 @@ final class DefaultNodeValueIndexCursor extends IndexCursor<IndexProgressor>
         {
             this.node = added.next();
             this.values = null;
+            if ( tracer != null )
+            {
+                tracer.onNode( node );
+            }
             return true;
         }
         else if ( needsValues && addedWithValues.hasNext() )
@@ -198,6 +312,10 @@ final class DefaultNodeValueIndexCursor extends IndexCursor<IndexProgressor>
             NodeWithPropertyValues nodeWithPropertyValues = addedWithValues.next();
             this.node = nodeWithPropertyValues.getNodeId();
             this.values = nodeWithPropertyValues.getValues();
+            if ( tracer != null )
+            {
+                tracer.onNode( node );
+            }
             return true;
         }
         else if ( added.hasNext() || addedWithValues.hasNext() )
@@ -206,7 +324,12 @@ final class DefaultNodeValueIndexCursor extends IndexCursor<IndexProgressor>
         }
         else
         {
-            return innerNext();
+            boolean next = innerNext();
+            if ( tracer != null && next )
+            {
+               tracer.onNode( node );
+            }
+            return next;
         }
     }
 
@@ -224,7 +347,12 @@ final class DefaultNodeValueIndexCursor extends IndexCursor<IndexProgressor>
         }
 
         sortedMergeJoin.next( this );
-        return node != -1;
+        boolean next = node != -1;
+        if ( tracer != null && next )
+        {
+            tracer.onNode( node );
+        }
+        return next;
     }
 
     @Override
@@ -234,6 +362,7 @@ final class DefaultNodeValueIndexCursor extends IndexCursor<IndexProgressor>
         this.values = values;
     }
 
+    @Override
     public void setRead( Read read )
     {
         this.read = read;
@@ -270,18 +399,25 @@ final class DefaultNodeValueIndexCursor extends IndexCursor<IndexProgressor>
     }
 
     @Override
+    public float score()
+    {
+        return score;
+    }
+
+    @Override
     public Value propertyValue( int offset )
     {
         return values[offset];
     }
 
     @Override
-    public void close()
+    public void closeInternal()
     {
         if ( !isClosed() )
         {
-            super.close();
+            closeProgressor();
             this.node = NO_ID;
+            this.score = Float.NaN;
             this.query = null;
             this.values = null;
             this.read = null;
@@ -296,7 +432,7 @@ final class DefaultNodeValueIndexCursor extends IndexCursor<IndexProgressor>
     @Override
     public boolean isClosed()
     {
-        return super.isClosed();
+        return isProgressorClosed();
     }
 
     @Override
@@ -315,37 +451,38 @@ final class DefaultNodeValueIndexCursor extends IndexCursor<IndexProgressor>
         }
     }
 
-    private void prefixQuery( IndexDescriptor descriptor, IndexQuery.StringPrefixPredicate predicate )
+    private void prefixQuery( IndexDescriptor descriptor, Value[] equalityPrefix, IndexQuery.StringPrefixPredicate predicate )
     {
         TransactionState txState = read.txState();
 
         if ( needsValues )
         {
-            AddedWithValuesAndRemoved changes = indexUpdatesWithValuesForRangeSeekByPrefix( txState, descriptor, predicate.prefix(), indexOrder );
+            AddedWithValuesAndRemoved changes =
+                    indexUpdatesWithValuesForRangeSeekByPrefix( txState, descriptor, equalityPrefix, predicate.prefix(), indexOrder );
             addedWithValues = changes.getAdded().iterator();
             removed = removed( txState, changes.getRemoved() );
         }
         else
         {
-            AddedAndRemoved changes = indexUpdatesForRangeSeekByPrefix( txState, descriptor, predicate.prefix(), indexOrder );
+            AddedAndRemoved changes = indexUpdatesForRangeSeekByPrefix( txState, descriptor, equalityPrefix, predicate.prefix(), indexOrder );
             added = changes.getAdded().longIterator();
             removed = removed( txState, changes.getRemoved() );
         }
     }
 
-    private void rangeQuery( IndexDescriptor descriptor, IndexQuery.RangePredicate<?> predicate )
+    private void rangeQuery( IndexDescriptor descriptor, Value[] equalityPrefix, IndexQuery.RangePredicate<?> predicate )
     {
         TransactionState txState = read.txState();
 
         if ( needsValues )
         {
-            AddedWithValuesAndRemoved changes = indexUpdatesWithValuesForRangeSeek( txState, descriptor, predicate, indexOrder );
+            AddedWithValuesAndRemoved changes = indexUpdatesWithValuesForRangeSeek( txState, descriptor, equalityPrefix, predicate, indexOrder );
             addedWithValues = changes.getAdded().iterator();
             removed = removed( txState, changes.getRemoved() );
         }
         else
         {
-            AddedAndRemoved changes = indexUpdatesForRangeSeek( txState, descriptor, predicate, indexOrder );
+            AddedAndRemoved changes = indexUpdatesForRangeSeek( txState, descriptor, equalityPrefix, predicate, indexOrder );
             added = changes.getAdded().longIterator();
             removed = removed( txState, changes.getRemoved() );
         }
@@ -387,12 +524,11 @@ final class DefaultNodeValueIndexCursor extends IndexCursor<IndexProgressor>
         }
     }
 
-    private void seekQuery( IndexDescriptor descriptor, IndexQuery[] query )
+    private void seekQuery( IndexDescriptor descriptor, Value[] values )
     {
-        IndexQuery.ExactPredicate[] exactPreds = assertOnlyExactPredicates( query );
         TransactionState txState = read.txState();
 
-        AddedAndRemoved changes = indexUpdatesForSeek( txState, descriptor, IndexQuery.asValueTuple( exactPreds ) );
+        AddedAndRemoved changes = indexUpdatesForSeek( txState, descriptor, ValueTuple.of( values ) );
         added = changes.getAdded().longIterator();
         removed = removed( txState, changes.getRemoved() );
     }
@@ -402,34 +538,9 @@ final class DefaultNodeValueIndexCursor extends IndexCursor<IndexProgressor>
         return mergeToSet( txState.addedAndRemovedNodes().getRemoved(), removedFromIndex );
     }
 
-    private static IndexQuery.ExactPredicate[] assertOnlyExactPredicates( IndexQuery[] predicates )
-    {
-        IndexQuery.ExactPredicate[] exactPredicates;
-        if ( predicates.getClass() == IndexQuery.ExactPredicate[].class )
-        {
-            exactPredicates = (IndexQuery.ExactPredicate[]) predicates;
-        }
-        else
-        {
-            exactPredicates = new IndexQuery.ExactPredicate[predicates.length];
-            for ( int i = 0; i < predicates.length; i++ )
-            {
-                if ( predicates[i] instanceof IndexQuery.ExactPredicate )
-                {
-                    exactPredicates[i] = (IndexQuery.ExactPredicate) predicates[i];
-                }
-                else
-                {
-                    // TODO: what to throw?
-                    throw new IllegalArgumentException( "Query not supported: " + Arrays.toString( predicates ) );
-                }
-            }
-        }
-        return exactPredicates;
-    }
-
     public void release()
     {
-        // nothing to do
+        nodeCursor.close();
+        nodeCursor.release();
     }
 }

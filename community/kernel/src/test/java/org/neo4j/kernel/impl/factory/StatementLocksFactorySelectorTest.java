@@ -22,12 +22,12 @@
  */
 package org.neo4j.kernel.impl.factory;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.List;
 
-import org.neo4j.kernel.configuration.Config;
+import org.neo4j.configuration.Config;
 import org.neo4j.kernel.impl.locking.Locks;
 import org.neo4j.kernel.impl.locking.Locks.Client;
 import org.neo4j.kernel.impl.locking.SimpleStatementLocks;
@@ -37,19 +37,19 @@ import org.neo4j.kernel.impl.locking.StatementLocksFactory;
 import org.neo4j.logging.internal.LogService;
 import org.neo4j.logging.internal.NullLogService;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.instanceOf;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.mockito.ArgumentMatchers.same;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-public class StatementLocksFactorySelectorTest
+class StatementLocksFactorySelectorTest
 {
     @Test
-    public void loadSimpleStatementLocksFactoryWhenNoServices()
+    void loadSimpleStatementLocksFactoryWhenNoServices()
     {
         Locks locks = mock( Locks.class );
         Locks.Client locksClient = mock( Client.class );
@@ -68,7 +68,7 @@ public class StatementLocksFactorySelectorTest
     }
 
     @Test
-    public void loadSingleAvailableFactory()
+    void loadSingleAvailableFactory()
     {
         Locks locks = mock( Locks.class );
         StatementLocksFactory factory = mock( StatementLocksFactory.class );
@@ -82,7 +82,7 @@ public class StatementLocksFactorySelectorTest
     }
 
     @Test
-    public void throwWhenMultipleFactoriesLoaded()
+    void throwWhenMultipleFactoriesLoaded()
     {
         TestStatementLocksFactorySelector loader = newLoader( mock( Locks.class ),
                 mock( StatementLocksFactory.class ),

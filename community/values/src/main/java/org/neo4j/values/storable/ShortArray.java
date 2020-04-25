@@ -147,4 +147,10 @@ public class ShortArray extends IntegralArray
     {
         return "ShortArray";
     }
+
+    @Override
+    long sizePerItem()
+    {
+        return Short.BYTES;
+    }
 }

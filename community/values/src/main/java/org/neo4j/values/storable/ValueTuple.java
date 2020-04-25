@@ -24,6 +24,9 @@ package org.neo4j.values.storable;
 
 import java.util.Comparator;
 
+import static org.neo4j.util.Preconditions.requireNoNullElements;
+import static org.neo4j.util.Preconditions.requireNonEmpty;
+
 /**
  * A tuple of n values.
  */
@@ -31,15 +34,15 @@ public class ValueTuple
 {
     public static ValueTuple of( Value... values )
     {
-        assert values.length > 0 : "Empty ValueTuple is not allowed";
-        assert noNulls( values );
+        requireNonEmpty( values );
+        requireNoNullElements( values );
         return new ValueTuple( values );
     }
 
     public static ValueTuple of( Object... objects )
     {
-        assert objects.length > 0 : "Empty ValueTuple is not allowed";
-        assert noNulls( objects );
+        requireNonEmpty( objects );
+        requireNoNullElements( objects );
         Value[] values = new Value[objects.length];
         for ( int i = 0; i < values.length; i++ )
         {
@@ -132,18 +135,6 @@ public class ValueTuple
         }
         sb.append( " )" );
         return sb.toString();
-    }
-
-    private static boolean noNulls( Object[] values )
-    {
-        for ( Object v : values )
-        {
-            if ( v == null )
-            {
-                return false;
-            }
-        }
-        return true;
     }
 
     public static final Comparator<ValueTuple> COMPARATOR = ( left, right ) ->

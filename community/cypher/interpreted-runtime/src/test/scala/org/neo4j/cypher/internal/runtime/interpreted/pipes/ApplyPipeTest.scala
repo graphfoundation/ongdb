@@ -22,17 +22,16 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
-import org.neo4j.cypher.internal.runtime.interpreted.ValueComparisonHelper._
 import org.neo4j.cypher.internal.runtime.interpreted.QueryStateHelper
-import org.neo4j.cypher.internal.v3_6.util.symbols.CTNumber
-import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.runtime.interpreted.ValueComparisonHelper._
+import org.neo4j.cypher.internal.v4_0.util.test_helpers.CypherFunSuite
 import org.neo4j.values.storable.Values
 
 class ApplyPipeTest extends CypherFunSuite with PipeTestSupport {
 
   test("should work by applying the identity operator on the rhs") {
     val lhsData = List(Map("a" -> 1), Map("a" -> 2))
-    val lhs = new FakePipe(lhsData.iterator, "a" -> CTNumber)
+    val lhs = new FakePipe(lhsData.iterator)
     val rhs = pipeWithResults { state => Iterator(state.initialContext.get) }
 
     val result = ApplyPipe(lhs, rhs)().createResults(QueryStateHelper.empty).toList
@@ -42,9 +41,12 @@ class ApplyPipeTest extends CypherFunSuite with PipeTestSupport {
 
   test("should work by applying a  on the rhs") {
     val lhsData = List(Map("a" -> 1, "b" -> 3), Map("a" -> 2, "b" -> 4))
-    val lhs = new FakePipe(lhsData.iterator, "a" -> CTNumber, "b" -> CTNumber)
+    val lhs = new FakePipe(lhsData.iterator)
     val rhsData = "c" -> Values.intValue(36)
-    val rhs = pipeWithResults { state => Iterator(state.initialContext.get += rhsData) }
+    val rhs = pipeWithResults { state =>
+      state.initialContext.get.set(rhsData._1, rhsData._2)
+      Iterator(state.initialContext.get)
+    }
 
     val result = ApplyPipe(lhs, rhs)().createResults(QueryStateHelper.empty).toList
 

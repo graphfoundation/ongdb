@@ -22,6 +22,7 @@
  */
 package org.neo4j.index.internal.gbptree;
 
+import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.commons.lang3.tuple.Pair;
 
 import java.io.Closeable;
@@ -30,23 +31,28 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
 import java.nio.file.NoSuchFileException;
+import java.nio.file.OpenOption;
 import java.nio.file.StandardOpenOption;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.function.LongSupplier;
 import java.util.function.Supplier;
 
-import org.neo4j.cursor.RawCursor;
-import org.neo4j.helpers.Exceptions;
+import org.neo4j.index.internal.gbptree.TreeNode.Type;
+import org.neo4j.internal.helpers.Exceptions;
+import org.neo4j.io.IOUtils;
 import org.neo4j.io.pagecache.CursorException;
 import org.neo4j.io.pagecache.IOLimiter;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.io.pagecache.PageCursor;
 import org.neo4j.io.pagecache.PagedFile;
+import org.neo4j.util.Preconditions;
 import org.neo4j.util.VisibleForTesting;
 
 import static java.lang.String.format;
-import static org.neo4j.helpers.Exceptions.withMessage;
 import static org.neo4j.index.internal.gbptree.Generation.generation;
 import static org.neo4j.index.internal.gbptree.Generation.stableGeneration;
 import static org.neo4j.index.internal.gbptree.Generation.unstableGeneration;
@@ -55,6 +61,8 @@ import static org.neo4j.index.internal.gbptree.Header.CARRY_OVER_PREVIOUS_HEADER
 import static org.neo4j.index.internal.gbptree.Header.replace;
 import static org.neo4j.index.internal.gbptree.PageCursorUtil.checkOutOfBounds;
 import static org.neo4j.index.internal.gbptree.PointerChecking.assertNoSuccessor;
+import static org.neo4j.internal.helpers.ArrayUtil.concat;
+import static org.neo4j.internal.helpers.Exceptions.withMessage;
 
 /**
  * A generation-aware B+tree (GB+Tree) implementation directly atop a {@link PageCache} with no caching in between.
@@ -124,7 +132,7 @@ import static org.neo4j.index.internal.gbptree.PointerChecking.assertNoSuccessor
  * @param <KEY> type of keys
  * @param <VALUE> type of values
  */
-public class GBPTree<KEY,VALUE> implements Closeable
+public class GBPTree<KEY,VALUE> implements Closeable, Seeker.Factory<KEY,VALUE>
 {
     /**
      * For monitoring {@link GBPTree}.
@@ -157,7 +165,7 @@ public class GBPTree<KEY,VALUE> implements Closeable
             }
 
             @Override
-            public void cleanupFinished( long numberOfPagesVisited, long numberOfCleanedCrashPointers, long durationMillis )
+            public void cleanupFinished( long numberOfPagesVisited, long numberOfTreeNodes, long numberOfCleanedCrashPointers, long durationMillis )
             {   // no-op
             }
 
@@ -210,12 +218,12 @@ public class GBPTree<KEY,VALUE> implements Closeable
 
         /**
          * Called after recovery has completed and cleaning has been done.
-         *
          * @param numberOfPagesVisited number of pages visited by the cleaner.
+         * @param numberOfTreeNodes number of tree nodes visited by the cleaner.
          * @param numberOfCleanedCrashPointers number of cleaned crashed pointers.
          * @param durationMillis time spent cleaning.
          */
-        void cleanupFinished( long numberOfPagesVisited, long numberOfCleanedCrashPointers, long durationMillis );
+        void cleanupFinished( long numberOfPagesVisited, long numberOfTreeNodes, long numberOfCleanedCrashPointers, long durationMillis );
 
         /**
          * Called when cleanup job is closed and lock is released
@@ -380,6 +388,13 @@ public class GBPTree<KEY,VALUE> implements Closeable
     private final boolean readOnly;
 
     /**
+     * Array of {@link OpenOption} which is passed to calls to {@link PageCache#map(File, int, OpenOption...)}
+     * at open/create. When initially creating the file an array consisting of {@link StandardOpenOption#CREATE}
+     * concatenated with the contents of this array is passed into the map call.
+     */
+    private final OpenOption[] openOptions;
+
+    /**
      * Whether or not this tree has been closed. Accessed and changed solely in
      * {@link #close()} to be able to close tree multiple times gracefully.
      */
@@ -474,11 +489,13 @@ public class GBPTree<KEY,VALUE> implements Closeable
      */
     public GBPTree( PageCache pageCache, File indexFile, Layout<KEY,VALUE> layout, int tentativePageSize,
             Monitor monitor, Header.Reader headerReader, Consumer<PageCursor> headerWriter,
-            RecoveryCleanupWorkCollector recoveryCleanupWorkCollector, boolean readOnly ) throws MetadataMismatchException
+            RecoveryCleanupWorkCollector recoveryCleanupWorkCollector, boolean readOnly, OpenOption... openOptions )
+            throws MetadataMismatchException
     {
         this.indexFile = indexFile;
         this.monitor = monitor;
         this.readOnly = readOnly;
+        this.openOptions = openOptions;
         this.generation = Generation.generation( MIN_GENERATION, MIN_GENERATION + 1 );
         long rootId = IdSpace.MIN_TREE_NODE_ID;
         setRoot( rootId, Generation.unstableGeneration( generation ) );
@@ -486,7 +503,7 @@ public class GBPTree<KEY,VALUE> implements Closeable
 
         try
         {
-            this.pagedFile = openOrCreate( pageCache, indexFile, tentativePageSize );
+            this.pagedFile = openOrCreate( pageCache, indexFile, tentativePageSize, openOptions );
             this.pageSize = pagedFile.pageSize();
             closed = false;
             TreeNodeSelector.Factory format;
@@ -501,8 +518,9 @@ public class GBPTree<KEY,VALUE> implements Closeable
                 meta.verify( layout );
                 format = TreeNodeSelector.selectByFormat( meta.getFormatIdentifier(), meta.getFormatVersion() );
             }
-            this.bTreeNode = format.create( pageSize, layout );
             this.freeList = new FreeListIdProvider( pagedFile, pageSize, rootId, FreeListIdProvider.NO_MONITOR );
+            OffloadStoreImpl<KEY,VALUE> offloadStore = buildOffload( layout, freeList, pagedFile, pageSize );
+            this.bTreeNode = format.create( pageSize, layout, offloadStore );
             this.writer = new SingleWriter( new InternalTreeLogic<>( freeList, bTreeNode, layout, monitor ) );
 
             // Create or load state
@@ -582,12 +600,12 @@ public class GBPTree<KEY,VALUE> implements Closeable
         clean = true;
     }
 
-    private PagedFile openOrCreate( PageCache pageCache, File indexFile,
-            int pageSizeForCreation ) throws IOException, MetadataMismatchException
+    private PagedFile openOrCreate( PageCache pageCache, File indexFile, int pageSizeForCreation, OpenOption... openOptions )
+            throws IOException, MetadataMismatchException
     {
         try
         {
-            return openExistingIndexFile( pageCache, indexFile );
+            return openExistingIndexFile( pageCache, indexFile, openOptions );
         }
         catch ( NoSuchFileException e )
         {
@@ -599,18 +617,19 @@ public class GBPTree<KEY,VALUE> implements Closeable
         }
     }
 
-    private static PagedFile openExistingIndexFile( PageCache pageCache, File indexFile )
+    private static PagedFile openExistingIndexFile( PageCache pageCache, File indexFile, OpenOption... openOptions )
             throws IOException, MetadataMismatchException
     {
-        PagedFile pagedFile = pageCache.map( indexFile, pageCache.pageSize() );
+        PagedFile pagedFile = pageCache.map( indexFile, pageCache.pageSize(), openOptions );
         // This index already exists, verify meta data aligns with expectations
 
+        MutableBoolean pagedFileOpen = new MutableBoolean( true );
         boolean success = false;
         try
         {
             // We're only interested in the page size really, so don't involve layout at this point
             Meta meta = readMeta( null, pagedFile );
-            pagedFile = mapWithCorrectPageSize( pageCache, indexFile, pagedFile, meta.getPageSize() );
+            pagedFile = mapWithCorrectPageSize( pageCache, indexFile, pagedFile, meta.getPageSize(), pagedFileOpen, openOptions );
             success = true;
             return pagedFile;
         }
@@ -620,7 +639,7 @@ public class GBPTree<KEY,VALUE> implements Closeable
         }
         finally
         {
-            if ( !success )
+            if ( !success && pagedFileOpen.booleanValue() )
             {
                 pagedFile.close();
             }
@@ -634,14 +653,14 @@ public class GBPTree<KEY,VALUE> implements Closeable
         int pageSize = pageSizeForCreation == 0 ? pageCache.pageSize() : pageSizeForCreation;
         if ( pageSize > pageCache.pageSize() )
         {
-            throw new MetadataMismatchException(
+            throw new MetadataMismatchException( format(
                     "Tried to create tree with page size %d" +
                     ", but page cache used to create it has a smaller page size %d" +
-                    " so cannot be created", pageSize, pageCache.pageSize() );
+                    " so cannot be created", pageSize, pageCache.pageSize() ) );
         }
 
         // We need to create this index
-        PagedFile pagedFile = pageCache.map( indexFile, pageSize, StandardOpenOption.CREATE );
+        PagedFile pagedFile = pageCache.map( indexFile, pageSize, concat( StandardOpenOption.CREATE, openOptions ) );
         created = true;
         return pagedFile;
     }
@@ -748,7 +767,7 @@ public class GBPTree<KEY,VALUE> implements Closeable
     {
         // Write/carry over header
         int headerOffset = cursor.getOffset();
-        int headerDataOffset = headerOffset + Integer.BYTES; // will contain length of written header data (below)
+        int headerDataOffset = getHeaderDataOffset( headerOffset );
         if ( otherState.isValid() || headerWriter != CARRY_OVER_PREVIOUS_HEADER )
         {
             PageCursor previousCursor = pagedFile.io( otherState.pageId(), PagedFile.PF_SHARED_READ_LOCK );
@@ -774,6 +793,44 @@ public class GBPTree<KEY,VALUE> implements Closeable
             int length = cursor.getOffset() - headerDataOffset;
             cursor.putInt( headerOffset, length );
         }
+    }
+
+    @VisibleForTesting
+    public static void overwriteHeader( PageCache pageCache, File indexFile, Consumer<PageCursor> headerWriter ) throws IOException
+    {
+        Header.Writer writer = replace( headerWriter );
+        try ( PagedFile pagedFile = openExistingIndexFile( pageCache, indexFile ) )
+        {
+            Pair<TreeState,TreeState> states = readStatePages( pagedFile );
+            TreeState newestValidState = TreeStatePair.selectNewestValidState( states );
+            long pageToOverwrite = newestValidState.pageId();
+            try ( PageCursor cursor = pagedFile.io( pageToOverwrite, PagedFile.PF_SHARED_WRITE_LOCK ) )
+            {
+                PageCursorUtil.goTo( cursor, "state page", pageToOverwrite );
+
+                // Place cursor after state data
+                TreeState.read( cursor );
+
+                // Note offset to header
+                int headerOffset = cursor.getOffset();
+                int headerDataOffset = getHeaderDataOffset( headerOffset );
+
+                // Reserve space to store length
+                cursor.setOffset( headerDataOffset );
+                // Write data
+                writer.write( null, 0, cursor );
+                // Write length
+                int length = cursor.getOffset() - headerDataOffset;
+                cursor.putInt( headerOffset, length );
+                checkOutOfBounds( cursor );
+            }
+        }
+    }
+
+    private static int getHeaderDataOffset( int headerOffset )
+    {
+        // Int reserved to store length of header
+        return headerOffset + Integer.BYTES;
     }
 
     private static TreeState other( Pair<TreeState,TreeState> states, TreeState state )
@@ -843,7 +900,8 @@ public class GBPTree<KEY,VALUE> implements Closeable
         }
     }
 
-    private static PagedFile mapWithCorrectPageSize( PageCache pageCache, File indexFile, PagedFile pagedFile, int pageSize )
+    private static PagedFile mapWithCorrectPageSize( PageCache pageCache, File indexFile, PagedFile pagedFile, int pageSize, MutableBoolean pagedFileOpen,
+            OpenOption... openOptions )
             throws IOException
     {
         // This index was created with another page size, re-open with that actual page size
@@ -851,13 +909,16 @@ public class GBPTree<KEY,VALUE> implements Closeable
         {
             if ( pageSize > pageCache.pageSize() || pageSize < 0 )
             {
-                throw new MetadataMismatchException(
+                throw new MetadataMismatchException( format(
                         "Tried to create tree with page size %d, but page cache used to open it this time " +
                         "has a smaller page size %d so cannot be opened",
-                        pageSize, pageCache.pageSize() );
+                        pageSize, pageCache.pageSize() ) );
             }
             pagedFile.close();
-            return pageCache.map( indexFile, pageSize );
+            pagedFileOpen.setFalse();
+            PagedFile remappedFile = pageCache.map( indexFile, pageSize, openOptions );
+            pagedFileOpen.setTrue();
+            return remappedFile;
         }
         return pagedFile;
     }
@@ -878,28 +939,13 @@ public class GBPTree<KEY,VALUE> implements Closeable
         return cursor;
     }
 
-    /**
-     * Seeks hits in this tree, given a key range. Hits are iterated over using the returned {@link RawCursor}.
-     * There's no guarantee that neither the {@link Hit} nor key/value instances are immutable and so
-     * if caller wants to cache the results it's safest to copy the instances, or rather their contents,
-     * into its own result cache.
-     * <p>
-     * Seeks can go either forwards or backwards depending on the values of the key arguments.
-     * <ul>
-     * <li>
-     * A {@code fromInclusive} that is smaller than the {@code toExclusive} results in results in ascending order.
-     * </li>
-     * <li>
-     * A {@code fromInclusive} that is bigger than the {@code toExclusive} results in results in descending order.
-     * </li>
-     * </ul>
-     *
-     * @param fromInclusive lower bound of the range to seek (inclusive).
-     * @param toExclusive higher bound of the range to seek (exclusive).
-     * @return a {@link RawCursor} used to iterate over the hits within the specified key range.
-     * @throws IOException on error reading from index.
-     */
-    public RawCursor<Hit<KEY,VALUE>,IOException> seek( KEY fromInclusive, KEY toExclusive ) throws IOException
+    @Override
+    public Seeker<KEY,VALUE> seek( KEY fromInclusive, KEY toExclusive ) throws IOException
+    {
+        return seekInternal( fromInclusive, toExclusive, SeekCursor.DEFAULT_MAX_READ_AHEAD, SeekCursor.NO_MONITOR );
+    }
+
+    private Seeker<KEY,VALUE> seekInternal( KEY fromInclusive, KEY toExclusive, int readAheadLength, SeekCursor.Monitor monitor ) throws IOException
     {
         long generation = this.generation;
         long stableGeneration = stableGeneration( generation );
@@ -911,7 +957,126 @@ public class GBPTree<KEY,VALUE> implements Closeable
         // Returns cursor which is now initiated with left-most leaf node for the specified range
         return new SeekCursor<>( cursor, bTreeNode, fromInclusive, toExclusive, layout,
                 stableGeneration, unstableGeneration, generationSupplier, rootCatchupSupplier.get(), rootGeneration,
-                exceptionDecorator, SeekCursor.DEFAULT_MAX_READ_AHEAD );
+                exceptionDecorator, readAheadLength, monitor );
+    }
+
+    /**
+     * Partitions the provided key range into {@code numberOfPartitions} partitions and instantiates a {@link Seeker} for each.
+     * Caller can seek through the partitions in parallel. Caller is responsible for closing the returned {@link Seeker seekers}.
+     *
+     * To keep implementation (much) simpler the partitioning is done on the root only, which means that the partitioning will be less granular
+     * the bigger keys there are in the root. There can only be returned max numberOfRootKeys+1 partitions from this method.
+     *
+     * @param fromInclusive lower bound of the range to seek (inclusive).
+     * @param toExclusive higher bound of the range to seek (exclusive).
+     * @param numberOfPartitions number of partitions desired by the caller. If the tree is small a lower number of partitions may be returned.
+     * The number of partitions will never be higher than the provided {@code numberOfPartitions}.
+     * @return a {@link Collection} of {@link Seeker seekers}, each having their own distinct partition to seek. Collectively they
+     * seek across the whole provided range.
+     * @throws IOException on error reading from index.
+     */
+    public Collection<Seeker<KEY,VALUE>> partitionedSeek( KEY fromInclusive, KEY toExclusive, int numberOfPartitions ) throws IOException
+    {
+        return partitionedSeekInternal( fromInclusive, toExclusive, numberOfPartitions, this );
+    }
+
+    private Collection<Seeker<KEY,VALUE>> partitionedSeekInternal( KEY fromInclusive, KEY toExclusive, int numberOfPartitions,
+            Seeker.Factory<KEY,VALUE> seekerFactory )
+            throws IOException
+    {
+        Preconditions.checkArgument( layout.compare( fromInclusive, toExclusive ) <= 0, "Partitioned seek only supports forward seeking for the time being" );
+
+        // Read the root w/ all its keys
+        List<KEY> rootKeys;
+        try ( PageCursor cursor = pagedFile.io( 0L /*ignored*/, PagedFile.PF_SHARED_READ_LOCK ) )
+        {
+            boolean goodRead;
+            RootCatchup rootCatchup = rootCatchupSupplier.get();
+            Root root = this.root;
+            boolean didRetry = true;
+            do
+            {
+                goodRead = false;
+                if ( !didRetry )
+                {
+                    // Only do a new root catchup if we made a clean and uninterrupted read from the page cursor
+                    root = rootCatchup.catchupFrom( root.id() );
+                }
+                rootKeys = new ArrayList<>();
+                root.goTo( cursor );
+                byte nodeType = TreeNode.nodeType( cursor );
+                boolean isLeaf = TreeNode.isLeaf( cursor );
+                boolean isInternal = TreeNode.isInternal( cursor );
+                int keyCount = TreeNode.keyCount( cursor );
+                if ( nodeType != TreeNode.NODE_TYPE_TREE_NODE || (!isLeaf && !isInternal) || !bTreeNode.reasonableKeyCount( keyCount ) )
+                {
+                    // We've read something in the midst of changing, most likely... just retry the whole read
+                    continue;
+                }
+                if ( isLeaf )
+                {
+                    // The root is a leaf, not much to split on... so just exit the read w/o rootKeys, i.e. this will result in only one seeker for all keys
+                    break;
+                }
+
+                // Read the internal keys from the root into rootKeys list
+                for ( int pos = 0; pos < keyCount; pos++ )
+                {
+                    rootKeys.add( bTreeNode.keyAt( cursor, layout.newKey(), pos, Type.INTERNAL ) );
+                }
+                goodRead = true;
+            }
+            while ( (didRetry = cursor.shouldRetry()) || !goodRead );
+        }
+
+        KeyPartitioning<KEY> partitioning = new KeyPartitioning<>( layout );
+        List<Seeker<KEY,VALUE>> seekers = new ArrayList<>();
+        boolean success = false;
+        try
+        {
+            for ( Pair<KEY,KEY> partition : partitioning.partition( rootKeys, fromInclusive, toExclusive, numberOfPartitions ) )
+            {
+                seekers.add( seekerFactory.seek( partition.getLeft(), partition.getRight() ) );
+            }
+            success = true;
+        }
+        finally
+        {
+            if ( !success )
+            {
+                IOUtils.closeAll( seekers );
+            }
+        }
+
+        return seekers;
+    }
+
+    /**
+     * Calculates an estimate of number of keys in this tree in O(log(n)) time. The number is only an estimate and may make its decision on a
+     * concurrently changing tree, but should usually be correct within a couple of percents margin.
+     *
+     * @return an estimate of number of keys in the tree.
+     */
+    public long estimateNumberOfEntriesInTree() throws IOException
+    {
+        KEY low = layout.newKey();
+        layout.initializeAsLowest( low );
+        KEY high = layout.newKey();
+        layout.initializeAsHighest( high );
+        int sampleSize = 100;
+        SizeEstimationMonitor monitor = new SizeEstimationMonitor();
+        do
+        {
+            monitor.clear();
+            Seeker.Factory<KEY,VALUE> monitoredSeeks = ( fromInclusive, toExclusive ) -> seekInternal( fromInclusive, toExclusive, 1, monitor );
+            for ( Seeker<KEY,VALUE> partition : partitionedSeekInternal( low, high, sampleSize, monitoredSeeks ) )
+            {
+                // Simply make sure the first one is found so that the supplied monitor have been notified about the path down to it
+                partition.next();
+            }
+        }
+        while ( !monitor.isConsistent() );
+        return monitor.estimateNumberOfKeys();
     }
 
     /**
@@ -1050,7 +1215,10 @@ public class GBPTree<KEY,VALUE> implements Closeable
         {
             try
             {
-                pagedFile.flushAndForce();
+                if ( !pagedFile.isDeleteOnClose() )
+                {
+                    pagedFile.flushAndForce();
+                }
                 maybeForceCleanState();
                 doClose();
             }
@@ -1071,7 +1239,10 @@ public class GBPTree<KEY,VALUE> implements Closeable
         if ( cleaning != null && !changesSinceLastCheckpoint && !cleaning.needed() )
         {
             clean = true;
-            forceState();
+            if ( !pagedFile.isDeleteOnClose() )
+            {
+                forceState();
+            }
         }
     }
 
@@ -1170,6 +1341,7 @@ public class GBPTree<KEY,VALUE> implements Closeable
         }
     }
 
+    @VisibleForTesting
     public <VISITOR extends GBPTreeVisitor<KEY,VALUE>> VISITOR visit( VISITOR visitor ) throws IOException
     {
         try ( PageCursor cursor = openRootCursor( PagedFile.PF_SHARED_READ_LOCK ) )
@@ -1388,9 +1560,20 @@ public class GBPTree<KEY,VALUE> implements Closeable
         @Override
         public void merge( KEY key, VALUE value, ValueMerger<KEY,VALUE> valueMerger )
         {
+            internalMerge( key, value, valueMerger, true );
+        }
+
+        @Override
+        public void mergeIfExists( KEY key, VALUE value, ValueMerger<KEY,VALUE> valueMerger )
+        {
+            internalMerge( key, value, valueMerger, false );
+        }
+
+        private void internalMerge( KEY key, VALUE value, ValueMerger<KEY,VALUE> valueMerger, boolean createIfNotExists )
+        {
             try
             {
-                treeLogic.insert( cursor, structurePropagation, key, value, valueMerger,
+                treeLogic.insert( cursor, structurePropagation, key, value, valueMerger, createIfNotExists,
                         stableGeneration, unstableGeneration );
 
                 handleStructureChanges();
@@ -1501,5 +1684,17 @@ public class GBPTree<KEY,VALUE> implements Closeable
     public int keyValueSizeCap()
     {
         return bTreeNode.keyValueSizeCap();
+    }
+
+    int inlineKeyValueSizeCap()
+    {
+        return bTreeNode.inlineKeyValueSizeCap();
+    }
+
+    private static <KEY, VALUE> OffloadStoreImpl<KEY,VALUE> buildOffload( Layout<KEY,VALUE> layout, IdProvider idProvider, PagedFile pagedFile, int pageSize )
+    {
+        OffloadPageCursorFactory pcFactory = pagedFile::io;
+        OffloadIdValidator idValidator = id -> id >= IdSpace.MIN_TREE_NODE_ID && id <= pagedFile.getLastPageId();
+        return new OffloadStoreImpl<>( layout, idProvider, pcFactory, idValidator, pageSize );
     }
 }

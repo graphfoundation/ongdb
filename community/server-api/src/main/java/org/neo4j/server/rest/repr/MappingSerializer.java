@@ -28,24 +28,10 @@ public class MappingSerializer extends Serializer
 {
     final MappingWriter writer;
 
-    MappingSerializer( MappingWriter writer, URI baseUri, ExtensionInjector extensions )
+    MappingSerializer( MappingWriter writer, URI baseUri )
     {
-        super( baseUri, extensions );
+        super( baseUri );
         this.writer = writer;
-    }
-
-    /**
-     * @deprecated please use {@link #putAbsoluteUri(String, URI)}
-     */
-    @Deprecated
-    void putAbsoluteUri( String key, String path )
-    {
-        writer.writeValue( RepresentationType.URI, key, path );
-    }
-
-    void putAbsoluteUri( String key, URI path )
-    {
-        writer.writeValue( RepresentationType.URI, key, path.toASCIIString() );
     }
 
     public void putRelativeUri( String key, String path )
@@ -89,5 +75,10 @@ public class MappingSerializer extends Serializer
             checkThatItIsBuiltInType( value );
             writer.writeInteger( RepresentationType.valueOf( value.getClass() ), key, value.longValue() );
         }
+    }
+
+    public MappingWriter getWriter()
+    {
+        return writer;
     }
 }

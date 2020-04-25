@@ -24,7 +24,8 @@ package org.neo4j.kernel.api.impl.index;
 
 import org.apache.lucene.document.Document;
 import org.apache.lucene.index.IndexReader;
-import org.apache.lucene.index.MultiFields;
+import org.apache.lucene.index.LeafReader;
+import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.search.DocIdSetIterator;
 import org.apache.lucene.search.FilteredDocIdSetIterator;
 import org.apache.lucene.search.IndexSearcher;
@@ -32,24 +33,24 @@ import org.apache.lucene.util.Bits;
 
 import java.io.IOException;
 import java.util.Iterator;
+import java.util.List;
 
-import org.neo4j.helpers.collection.BoundedIterable;
-import org.neo4j.helpers.collection.PrefetchingIterator;
-import org.neo4j.kernel.api.impl.index.partition.PartitionSearcher;
+import org.neo4j.internal.helpers.collection.BoundedIterable;
+import org.neo4j.internal.helpers.collection.PrefetchingIterator;
 
 /**
  * Provides a view of all {@link Document}s in a single partition.
  */
 public class LucenePartitionAllDocumentsReader implements BoundedIterable<Document>
 {
-    private final PartitionSearcher partitionSearcher;
+    private final SearcherReference searcherReference;
     private final IndexSearcher searcher;
     private final IndexReader reader;
 
-    public LucenePartitionAllDocumentsReader( PartitionSearcher partitionSearcher )
+    public LucenePartitionAllDocumentsReader( SearcherReference searcherReference )
     {
-        this.partitionSearcher = partitionSearcher;
-        this.searcher = partitionSearcher.getIndexSearcher();
+        this.searcherReference = searcherReference;
+        this.searcher = searcherReference.getIndexSearcher();
         this.reader = searcher.getIndexReader();
     }
 
@@ -62,7 +63,7 @@ public class LucenePartitionAllDocumentsReader implements BoundedIterable<Docume
     @Override
     public Iterator<Document> iterator()
     {
-        return new PrefetchingIterator<Document>()
+        return new PrefetchingIterator<>()
         {
             DocIdSetIterator idIterator = iterateAllDocs();
 
@@ -89,7 +90,7 @@ public class LucenePartitionAllDocumentsReader implements BoundedIterable<Docume
     @Override
     public void close() throws IOException
     {
-        partitionSearcher.close();
+        searcherReference.close();
     }
 
     private Document getDocument( int docId )
@@ -106,19 +107,29 @@ public class LucenePartitionAllDocumentsReader implements BoundedIterable<Docume
 
     private DocIdSetIterator iterateAllDocs()
     {
-        Bits liveDocs = MultiFields.getLiveDocs( reader );
         DocIdSetIterator allDocs = DocIdSetIterator.all( reader.maxDoc() );
-        if ( liveDocs == null )
+        if ( !reader.hasDeletions() )
         {
             return allDocs;
         }
 
         return new FilteredDocIdSetIterator( allDocs )
         {
+            List<LeafReaderContext> leaves = reader.leaves();
+            Bits currentLiveDocs;
+            int currentMaxDoc = -1;
+
             @Override
             protected boolean match( int doc )
             {
-                return liveDocs.get( doc );
+                if ( doc > currentMaxDoc && !leaves.isEmpty() )
+                {
+                    LeafReaderContext leaf = leaves.remove( 0 );
+                    LeafReader reader = leaf.reader();
+                    currentLiveDocs = reader.getLiveDocs();
+                    currentMaxDoc = reader.maxDoc();
+                }
+                return currentLiveDocs.get( doc );
             }
         };
     }

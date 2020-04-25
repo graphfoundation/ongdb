@@ -22,8 +22,9 @@
  */
 package org.neo4j.kernel.impl.core;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
+import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.NotFoundException;
 import org.neo4j.graphdb.Relationship;
@@ -31,528 +32,347 @@ import org.neo4j.graphdb.Transaction;
 import org.neo4j.kernel.impl.AbstractNeo4jTestCase;
 import org.neo4j.kernel.impl.MyRelTypes;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
-public class Neo4jConstraintsTest extends AbstractNeo4jTestCase
+class Neo4jConstraintsTest extends AbstractNeo4jTestCase
 {
     private final String key = "testproperty";
 
     @Test
-    public void testDeleteReferenceNodeOrLastNodeIsOk()
+    void testDeleteReferenceNodeOrLastNodeIsOk()
     {
-        Transaction tx = getTransaction();
         for ( int i = 0; i < 10; i++ )
         {
-            getGraphDb().createNode();
+            createNode();
         }
-        // long numNodesPre = getNodeManager().getNumberOfIdsInUse( Node.class
-        // );
-        // empty the DB instance
-        for ( Node node : getGraphDb().getAllNodes() )
+        try ( Transaction transaction = getGraphDb().beginTx() )
         {
-            for ( Relationship rel : node.getRelationships() )
+            for ( Node node : transaction.getAllNodes() )
             {
-                rel.delete();
+                for ( Relationship rel : node.getRelationships() )
+                {
+                    rel.delete();
+                }
+                node.delete();
             }
-            node.delete();
+            transaction.commit();
         }
-        tx.success();
-        tx.close();
-        tx = getGraphDb().beginTx();
-        assertFalse( getGraphDb().getAllNodes().iterator().hasNext() );
-        // TODO: this should be valid, fails right now!
-        // assertEquals( 0, numNodesPost );
-        tx.success();
-        tx.close();
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            assertFalse( transaction.getAllNodes().iterator().hasNext() );
+            transaction.commit();
+        }
     }
 
     @Test
-    public void testDeleteNodeWithRel1()
+    void testDeleteNodeWithRel1()
     {
-        Node node1 = getGraphDb().createNode();
-        Node node2 = getGraphDb().createNode();
-        node1.createRelationshipTo( node2, MyRelTypes.TEST );
-        node1.delete();
-        try
+        Node node1 = createNode();
+        Node node2 = createNode();
+        try ( Transaction transaction = getGraphDb().beginTx() )
         {
-            Transaction tx = getTransaction();
-            tx.success();
-            tx.close();
-            fail( "Should not validate" );
+            var txNode1 = transaction.getNodeById( node1.getId() );
+            var txNode2 = transaction.getNodeById( node2.getId() );
+
+            txNode1.createRelationshipTo( txNode2, MyRelTypes.TEST );
+            txNode1.delete();
+            assertThrows( Exception.class, transaction::commit );
         }
-        catch ( Exception e )
-        {
-            // good
-        }
-        setTransaction( getGraphDb().beginTx() );
     }
 
     @Test
-    public void testDeleteNodeWithRel2()
+    void testDeleteNodeWithRel2()
     {
-        Node node1 = getGraphDb().createNode();
-        Node node2 = getGraphDb().createNode();
-        node1.createRelationshipTo( node2, MyRelTypes.TEST );
-        node2.delete();
-        node1.delete();
-        try
+        Node node1 = createNode();
+        Node node2 = createNode();
+        try ( Transaction transaction = getGraphDb().beginTx() )
         {
-            Transaction tx = getTransaction();
-            tx.success();
-            tx.close();
-            fail( "Should not validate" );
+            var txNode1 = transaction.getNodeById( node1.getId() );
+            var txNode2 = transaction.getNodeById( node2.getId() );
+
+            txNode1.createRelationshipTo( txNode2, MyRelTypes.TEST );
+            txNode2.delete();
+            txNode1.delete();
+            assertThrows( Exception.class, transaction::commit );
         }
-        catch ( Exception e )
-        {
-            // good
-        }
-        setTransaction( getGraphDb().beginTx() );
     }
 
     @Test
-    public void testDeleteNodeWithRel3()
+    void testDeleteNodeWithRel3()
     {
         // make sure we can delete in wrong order
-        Node node0 = getGraphDb().createNode();
-        Node node1 = getGraphDb().createNode();
-        Node node2 = getGraphDb().createNode();
-        Relationship rel0 = node0.createRelationshipTo( node1, MyRelTypes.TEST );
-        Relationship rel1 = node0.createRelationshipTo( node2, MyRelTypes.TEST );
-        node1.delete();
-        rel0.delete();
-        Transaction tx = getTransaction();
-        tx.success();
-        tx.close();
-        setTransaction( getGraphDb().beginTx() );
-        node2.delete();
-        rel1.delete();
-        node0.delete();
+        Node node0 = createNode();
+        Node node1 = createNode();
+        Node node2 = createNode();
+        Relationship rel1;
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            var txNode0 = transaction.getNodeById( node0.getId() );
+            var txNode1 = transaction.getNodeById( node1.getId() );
+            var txNode2 = transaction.getNodeById( node2.getId() );
+
+            Relationship rel0 = txNode0.createRelationshipTo( txNode1, MyRelTypes.TEST );
+            rel1 = txNode0.createRelationshipTo( txNode2, MyRelTypes.TEST );
+            txNode1.delete();
+            rel0.delete();
+            transaction.commit();
+        }
+
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            var txNode0 = transaction.getNodeById( node0.getId() );
+            var txNode2 = transaction.getNodeById( node2.getId() );
+            var txRel1 = transaction.getRelationshipById( rel1.getId() );
+
+            txNode2.delete();
+            txRel1.delete();
+            txNode0.delete();
+            transaction.commit();
+        }
     }
 
     @Test
-    public void testCreateRelOnDeletedNode()
+    void testCreateRelOnDeletedNode()
     {
-        Node node1 = getGraphDb().createNode();
-        Node node2 = getGraphDb().createNode();
-        Transaction tx = getTransaction();
-        tx.success();
-        tx.close();
-        tx = getGraphDb().beginTx();
-        node1.delete();
-        try
+        Node node1 = createNode();
+        Node node2 = createNode();
+        try ( Transaction transaction = getGraphDb().beginTx() )
         {
-            node1.createRelationshipTo( node2, MyRelTypes.TEST );
-            fail( "Create of rel on deleted node should fail fast" );
+            var txNode = transaction.getNodeById( node1.getId() );
+            txNode.delete();
+            assertThrows( Exception.class, () -> txNode.createRelationshipTo( node2, MyRelTypes.TEST ) );
         }
-        catch ( Exception e )
-        { // ok
-        }
-        try
+        try ( Transaction transaction = getGraphDb().beginTx() )
         {
-            tx.failure();
-            tx.close();
-            // fail( "Transaction should be marked rollback" );
+            transaction.getNodeById( node2.getId() ).delete();
+            transaction.getNodeById( node1.getId() ).delete();
+            transaction.commit();
         }
-        catch ( Exception e )
-        { // good
-        }
-        setTransaction( getGraphDb().beginTx() );
-        node2.delete();
-        node1.delete();
     }
 
     @Test
-    public void testAddPropertyDeletedNode()
+    void testAddPropertyDeletedNode()
     {
-        Node node = getGraphDb().createNode();
-        node.delete();
-        try
+        Node node = createNode();
+        try ( Transaction transaction = getGraphDb().beginTx() )
         {
+            var txNode = transaction.getNodeById( node.getId() );
+
+            txNode.delete();
+            assertThrows( Exception.class, () -> txNode.setProperty( key, 1 ) );
+        }
+    }
+
+    @Test
+    void testRemovePropertyDeletedNode()
+    {
+        GraphDatabaseService database = getGraphDb();
+        try ( Transaction transaction = database.beginTx() )
+        {
+            Node node = transaction.createNode();
             node.setProperty( key, 1 );
-            fail( "Add property on deleted node should not validate" );
-        }
-        catch ( Exception e )
-        {
-            // good
-        }
-    }
-
-    @Test
-    public void testRemovePropertyDeletedNode()
-    {
-        Node node = getGraphDb().createNode();
-        node.setProperty( key, 1 );
-        node.delete();
-        try
-        {
-            node.removeProperty( key );
-            Transaction tx = getTransaction();
-            tx.success();
-            tx.close();
-            fail( "Change property on deleted node should not validate" );
-        }
-        catch ( Exception e )
-        {
-            // ok
+            node.delete();
+            assertThrows( Exception.class, () ->
+            {
+                node.removeProperty( key );
+                transaction.commit();
+            } );
         }
     }
 
     @Test
-    public void testChangePropertyDeletedNode()
+    void testChangePropertyDeletedNode()
     {
-        Node node = getGraphDb().createNode();
-        node.setProperty( key, 1 );
-        node.delete();
-        try
+        Node node = createNode();
+        try ( Transaction transaction = getGraphDb().beginTx() )
         {
-            node.setProperty( key, 2 );
-            Transaction tx = getTransaction();
-            tx.success();
-            tx.close();
-            fail( "Change property on deleted node should not validate" );
-        }
-        catch ( Exception e )
-        {
-            // ok
+            var txNode = transaction.getNodeById( node.getId() );
+            txNode.setProperty( key, 1 );
+            txNode.delete();
+            assertThrows( Exception.class, () ->
+            {
+                txNode.setProperty( key, 2 );
+                transaction.commit();
+            } );
         }
     }
 
     @Test
-    public void testAddPropertyDeletedRelationship()
+    void testAddPropertyDeletedRelationship()
     {
-        Node node1 = getGraphDb().createNode();
-        Node node2 = getGraphDb().createNode();
-        Relationship rel = node1.createRelationshipTo( node2, MyRelTypes.TEST );
-        rel.delete();
-        try
+        Node node1 = createNode();
+        Node node2 = createNode();
+        try ( Transaction transaction = getGraphDb().beginTx() )
         {
-            rel.setProperty( key, 1 );
-            Transaction tx = getTransaction();
-            tx.success();
-            tx.close();
-            fail( "Add property on deleted rel should not validate" );
-        }
-        catch ( Exception e )
-        { // good
-        }
-        node1.delete();
-        node2.delete();
-    }
+            var txNode1 = transaction.getNodeById( node1.getId() );
+            var txNode2 = transaction.getNodeById( node2.getId() );
 
-    @Test
-    public void testRemovePropertyDeletedRelationship()
-    {
-        Node node1 = getGraphDb().createNode();
-        Node node2 = getGraphDb().createNode();
-        Relationship rel = node1.createRelationshipTo( node2, MyRelTypes.TEST );
-        rel.setProperty( key, 1 );
-        rel.delete();
-        try
-        {
-            rel.removeProperty( key );
-            Transaction tx = getTransaction();
-            tx.success();
-            tx.close();
-            fail( "Remove property on deleted rel should not validate" );
-        }
-        catch ( Exception e )
-        {
-            // ok
-        }
-        node1.delete();
-        node2.delete();
-    }
-
-    @Test
-    public void testChangePropertyDeletedRelationship()
-    {
-        Node node1 = getGraphDb().createNode();
-        Node node2 = getGraphDb().createNode();
-        Relationship rel = node1.createRelationshipTo( node2, MyRelTypes.TEST );
-        rel.setProperty( key, 1 );
-        rel.delete();
-        try
-        {
-            rel.setProperty( key, 2 );
-            Transaction tx = getTransaction();
-            tx.success();
-            tx.close();
-            fail( "Change property on deleted rel should not validate" );
-        }
-        catch ( Exception e )
-        {
-            // ok
-        }
-        node1.delete();
-        node2.delete();
-    }
-
-    @Test
-    public void testMultipleDeleteNode()
-    {
-        Node node1 = getGraphDb().createNode();
-        node1.delete();
-        try
-        {
-            node1.delete();
-            Transaction tx = getTransaction();
-            tx.success();
-            tx.close();
-            fail( "Should not validate" );
-        }
-        catch ( Exception e )
-        {
-            // ok
-        }
-    }
-
-    @Test
-    public void testMultipleDeleteRelationship()
-    {
-        Node node1 = getGraphDb().createNode();
-        Node node2 = getGraphDb().createNode();
-        Relationship rel = node1.createRelationshipTo( node2, MyRelTypes.TEST );
-        rel.delete();
-        node1.delete();
-        node2.delete();
-        try
-        {
+            Relationship rel = txNode1.createRelationshipTo( txNode2, MyRelTypes.TEST );
             rel.delete();
-            Transaction tx = getTransaction();
-            tx.success();
-            tx.close();
-            fail( "Should not validate" );
-        }
-        catch ( Exception e )
-        {
-            // ok
-        }
-    }
-
-    @Test
-    public void testIllegalPropertyType()
-    {
-        Node node1 = getGraphDb().createNode();
-        try
-        {
-            node1.setProperty( key, new Object() );
-            fail( "Shouldn't validate" );
-        }
-        catch ( Exception e )
-        { // good
-        }
-        {
-            Transaction tx = getTransaction();
-            tx.failure();
-            tx.close();
-        }
-        setTransaction( getGraphDb().beginTx() );
-        try
-        {
-            getGraphDb().getNodeById( node1.getId() );
-            fail( "Node should not exist, previous tx didn't rollback" );
-        }
-        catch ( NotFoundException e )
-        {
-            // good
-        }
-        node1 = getGraphDb().createNode();
-        Node node2 = getGraphDb().createNode();
-        Relationship rel = node1.createRelationshipTo( node2,
-                MyRelTypes.TEST );
-        try
-        {
-            rel.setProperty( key, new Object() );
-            fail( "Shouldn't validate" );
-        }
-        catch ( Exception e )
-        { // good
-        }
-        try
-        {
-            Transaction tx = getTransaction();
-            tx.success();
-            tx.close();
-            fail( "Shouldn't validate" );
-        }
-        catch ( Exception e )
-        { // good
-        }
-        setTransaction( getGraphDb().beginTx() );
-        try
-        {
-            getGraphDb().getNodeById( node1.getId() );
-            fail( "Node should not exist, previous tx didn't rollback" );
-        }
-        catch ( NotFoundException e )
-        {
-            // good
-        }
-        try
-        {
-            getGraphDb().getNodeById( node2.getId() );
-            fail( "Node should not exist, previous tx didn't rollback" );
-        }
-        catch ( NotFoundException e )
-        {
-            // good
+            assertThrows( Exception.class, () ->
+            {
+                rel.setProperty( key, 1 );
+                transaction.commit();
+            } );
+            txNode1.delete();
+            txNode2.delete();
+            transaction.commit();
         }
     }
 
     @Test
-    public void testNodeRelDeleteSemantics()
+    void testRemovePropertyDeletedRelationship()
     {
-        Node node1 = getGraphDb().createNode();
-        Node node2 = getGraphDb().createNode();
-        Relationship rel1 = node1.createRelationshipTo( node2, MyRelTypes.TEST );
-        Relationship rel2 = node1.createRelationshipTo( node2, MyRelTypes.TEST );
-        node1.setProperty( "key1", "value1" );
-        rel1.setProperty( "key1", "value1" );
+        Node node1 = createNode();
+        Node node2 = createNode();
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            var txNode1 = transaction.getNodeById( node1.getId() );
+            var txNode2 = transaction.getNodeById( node2.getId() );
 
-        newTransaction();
-        node1.delete();
-        try
+            Relationship rel = txNode1.createRelationshipTo( txNode2, MyRelTypes.TEST );
+            rel.setProperty( key, 1 );
+            rel.delete();
+            assertThrows( Exception.class, () ->
+            {
+                rel.removeProperty( key );
+                transaction.commit();
+            } );
+            txNode1.delete();
+            txNode2.delete();
+            transaction.commit();
+        }
+    }
+
+    @Test
+    void testChangePropertyDeletedRelationship()
+    {
+        Node node1 = createNode();
+        Node node2 = createNode();
+        try ( Transaction transaction = getGraphDb().beginTx() )
         {
-            node1.getProperty( "key1" );
-            fail( "Should throw exception" );
+            var txNode = transaction.getNodeById( node1.getId() );
+            var txNode2 = transaction.getNodeById( node2.getId() );
+
+            Relationship rel = txNode.createRelationshipTo( txNode2, MyRelTypes.TEST );
+            rel.setProperty( key, 1 );
+            rel.delete();
+            assertThrows( Exception.class, () ->
+            {
+                rel.setProperty( key, 2 );
+                transaction.commit();
+            } );
+            txNode.delete();
+            txNode2.delete();
+            transaction.commit();
         }
-        catch ( NotFoundException e )
-        { // good
-        }
-        try
+    }
+
+    @Test
+    void testMultipleDeleteNode()
+    {
+        Node node1 = createNode();
+        try ( Transaction transaction = getGraphDb().beginTx() )
         {
-            node1.setProperty( "key1", "value2" );
-            fail( "Should throw exception" );
+            var txNode = transaction.getNodeById( node1.getId() );
+            txNode.delete();
+            assertThrows( Exception.class, () ->
+            {
+                txNode.delete();
+                transaction.commit();
+            } );
         }
-        catch ( NotFoundException e )
-        { // good
-        }
-        try
+    }
+
+    @Test
+    void testMultipleDeleteRelationship()
+    {
+        Node node1 = createNode();
+        Node node2 = createNode();
+        try ( Transaction transaction = getGraphDb().beginTx() )
         {
-            node1.removeProperty( "key1" );
-            fail( "Should throw exception" );
+            var txNode1 = transaction.getNodeById( node1.getId() );
+            var txNode2 = transaction.getNodeById( node2.getId() );
+
+            Relationship rel = txNode1.createRelationshipTo( txNode2, MyRelTypes.TEST );
+            rel.delete();
+            txNode1.delete();
+            txNode2.delete();
+            assertThrows( Exception.class, () ->
+            {
+                rel.delete();
+                transaction.commit();
+            } );
+            transaction.commit();
         }
-        catch ( NotFoundException e )
-        { // good
-        }
-        node2.delete();
-        try
+    }
+
+    @Test
+    void testIllegalPropertyType()
+    {
+        Node node1;
+        try ( Transaction tx = getGraphDb().beginTx() )
         {
-            node2.delete();
-            fail( "Should throw exception" );
+            node1 = tx.createNode();
+            assertThrows( Exception.class, () -> node1.setProperty( key, new Object() ) );
         }
-        catch ( NotFoundException e )
-        { // good
-        }
-        try
+    }
+
+    @Test
+    void testNodeRelDeleteSemantics()
+    {
+        Node node1 = createNode();
+        Node node2 = createNode();
+        Relationship rel1;
+        Relationship rel2;
+        try ( Transaction transaction = getGraphDb().beginTx() )
         {
-            node1.getProperty( "key1" );
-            fail( "Should throw exception" );
-        }
-        catch ( NotFoundException e )
-        { // good
-        }
-        try
-        {
-            node1.setProperty( "key1", "value2" );
-            fail( "Should throw exception" );
-        }
-        catch ( NotFoundException e )
-        { // good
-        }
-        try
-        {
-            node1.removeProperty( "key1" );
-            fail( "Should throw exception" );
-        }
-        catch ( NotFoundException e )
-        { // good
-        }
-        assertEquals( "value1", rel1.getProperty( "key1" ) );
-        rel1.delete();
-        try
-        {
-            rel1.delete();
-            fail( "Should throw exception" );
-        }
-        catch ( NotFoundException e )
-        { // good
-        }
-        try
-        {
-            rel1.getProperty( "key1" );
-            fail( "Should throw exception" );
-        }
-        catch ( NotFoundException e )
-        { // good
-        }
-        try
-        {
-            rel1.setProperty( "key1", "value2" );
-            fail( "Should throw exception" );
-        }
-        catch ( NotFoundException e )
-        { // good
-        }
-        try
-        {
-            rel1.removeProperty( "key1" );
-            fail( "Should throw exception" );
-        }
-        catch ( NotFoundException e )
-        { // good
-        }
-        try
-        {
-            rel1.getProperty( "key1" );
-            fail( "Should throw exception" );
-        }
-        catch ( NotFoundException e )
-        { // good
-        }
-        try
-        {
-            rel1.setProperty( "key1", "value2" );
-            fail( "Should throw exception" );
-        }
-        catch ( NotFoundException e )
-        { // good
-        }
-        try
-        {
-            rel1.removeProperty( "key1" );
-            fail( "Should throw exception" );
-        }
-        catch ( NotFoundException e )
-        { // good
-        }
-        try
-        {
-            node2.createRelationshipTo( node1, MyRelTypes.TEST );
-            fail( "Should throw exception" );
-        }
-        catch ( NotFoundException e )
-        { // good
-        }
-        try
-        {
-            node2.createRelationshipTo( node1, MyRelTypes.TEST );
-            fail( "Should throw exception" );
-        }
-        catch ( NotFoundException e )
-        { // good
+            var txNode = transaction.getNodeById( node1.getId() );
+            var txNode2 = transaction.getNodeById( node2.getId() );
+
+            rel1 = txNode.createRelationshipTo( txNode2, MyRelTypes.TEST );
+            rel2 = txNode.createRelationshipTo( txNode2, MyRelTypes.TEST );
+            txNode.setProperty( "key1", "value1" );
+            rel1.setProperty( "key1", "value1" );
+            transaction.commit();
         }
 
-        assertEquals( node1, rel1.getStartNode() );
-        assertEquals( node2, rel2.getEndNode() );
-        Node[] nodes = rel1.getNodes();
-        assertEquals( node1, nodes[0] );
-        assertEquals( node2, nodes[1] );
-        assertEquals( node2, rel1.getOtherNode( node1 ) );
-        rel2.delete();
-        // will be marked for rollback so commit will throw exception
-        rollback();
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            var node = transaction.getNodeById( node1.getId() );
+            var secondNode = transaction.getNodeById( node2.getId() );
+            var relationshipOne = transaction.getRelationshipById( rel1.getId() );
+            var relationshipTwo = transaction.getRelationshipById( rel2.getId() );
+            node.delete();
+            assertThrows( NotFoundException.class, () -> node.getProperty( "key1" ) );
+            assertThrows( NotFoundException.class, () -> node.setProperty( "key1", "value2" ) );
+            assertThrows( NotFoundException.class, () -> node.removeProperty( "key1" ) );
+            secondNode.delete();
+            assertThrows( NotFoundException.class, secondNode::delete );
+            assertThrows( NotFoundException.class, () -> node.getProperty( "key1" ) );
+            assertThrows( NotFoundException.class, () -> node.setProperty( "key1", "value2" ) );
+            assertThrows( NotFoundException.class, () -> node.removeProperty( "key1" ) );
+            assertEquals( "value1", relationshipOne.getProperty( "key1" ) );
+            relationshipOne.delete();
+            assertThrows( NotFoundException.class, relationshipOne::delete );
+            assertThrows( NotFoundException.class, () -> relationshipOne.getProperty( "key1" ) );
+            assertThrows( NotFoundException.class, () -> relationshipOne.setProperty( "key1", "value2" ) );
+            assertThrows( NotFoundException.class, () -> relationshipOne.removeProperty( "key1" ) );
+            assertThrows( NotFoundException.class, () -> relationshipOne.getProperty( "key1" ) );
+            assertThrows( NotFoundException.class, () -> relationshipOne.setProperty( "key1", "value2" ) );
+            assertThrows( NotFoundException.class, () -> relationshipOne.removeProperty( "key1" ) );
+            assertThrows( NotFoundException.class, () -> secondNode.createRelationshipTo( node, MyRelTypes.TEST ) );
+            assertThrows( NotFoundException.class, () -> secondNode.createRelationshipTo( node, MyRelTypes.TEST ) );
+
+            assertEquals( node, relationshipOne.getStartNode() );
+            assertEquals( secondNode, relationshipTwo.getEndNode() );
+            Node[] nodes = relationshipOne.getNodes();
+            assertEquals( node, nodes[0] );
+            assertEquals( secondNode, nodes[1] );
+            assertEquals( secondNode, relationshipOne.getOtherNode( node ) );
+            relationshipTwo.delete();
+        }
     }
 }

@@ -22,11 +22,11 @@
  */
 package org.neo4j.server.exception;
 
-import org.neo4j.helpers.Exceptions;
-import org.neo4j.kernel.impl.storemigration.UpgradeNotAllowedException;
 import org.neo4j.server.ServerStartupException;
+import org.neo4j.storageengine.migration.UpgradeNotAllowedException;
 
 import static java.lang.String.format;
+import static org.apache.commons.lang3.exception.ExceptionUtils.getRootCause;
 
 /**
  * Helps translate known common user errors to avoid long java stack traces and other bulk logging that obscures
@@ -40,7 +40,7 @@ public class ServerStartupErrors
 
     public static ServerStartupException translateToServerStartupError( Throwable cause )
     {
-        Throwable rootCause = Exceptions.rootCause( cause );
+        Throwable rootCause = getRootCause( cause );
         if ( rootCause instanceof UpgradeNotAllowedException )
         {
             return new UpgradeDisallowedStartupException( (UpgradeNotAllowedException) rootCause );

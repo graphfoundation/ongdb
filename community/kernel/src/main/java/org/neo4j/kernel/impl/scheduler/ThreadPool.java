@@ -22,32 +22,48 @@
  */
 package org.neo4j.kernel.impl.scheduler;
 
+import java.util.Arrays;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Stream;
 
 import org.neo4j.scheduler.Group;
 import org.neo4j.scheduler.JobHandle;
+import org.neo4j.scheduler.SchedulerThreadFactory;
+import org.neo4j.scheduler.SchedulerThreadFactoryFactory;
 
 final class ThreadPool
 {
-    private final GroupedDaemonThreadFactory threadFactory;
+    private final SchedulerThreadFactory threadFactory;
     private final ExecutorService executor;
     private final ConcurrentHashMap<Object,Future<?>> registry;
     private InterruptedException shutdownInterrupted;
 
-    ThreadPool( Group group, ThreadGroup parentThreadGroup )
+    static class ThreadPoolParameters
     {
-        threadFactory = new GroupedDaemonThreadFactory( group, parentThreadGroup );
-        executor = group.buildExecutorService( threadFactory );
+        volatile int desiredParallelism;
+        volatile SchedulerThreadFactoryFactory providedThreadFactory = GroupedDaemonThreadFactory::new;
+    }
+
+    ThreadPool( Group group, ThreadGroup parentThreadGroup, ThreadPoolParameters parameters )
+    {
+        threadFactory = parameters.providedThreadFactory.newSchedulerThreadFactory( group, parentThreadGroup );
+        executor = group.buildExecutorService( threadFactory, parameters.desiredParallelism );
         registry = new ConcurrentHashMap<>();
     }
 
-    public ThreadFactory getThreadFactory()
+    ThreadFactory getThreadFactory()
     {
         return threadFactory;
+    }
+
+    public ExecutorService getExecutorService()
+    {
+        return executor;
     }
 
     public JobHandle submit( Runnable job )
@@ -67,6 +83,21 @@ final class ThreadPool
         Future<?> future = executor.submit( registeredJob );
         registry.put( registryKey, future );
         return new PooledJobHandle( future, registryKey, registry );
+    }
+
+    int activeThreadCount()
+    {
+        return threadFactory.getThreadGroup().activeCount();
+    }
+
+    Stream<Thread> activeThreads()
+    {
+        ThreadGroup threadGroup = threadFactory.getThreadGroup();
+        int activeCountEstimate = threadGroup.activeCount();
+        int activeCountFudge = Math.max( (int) Math.sqrt( activeCountEstimate ), 10 );
+        Thread[] snapshot = new Thread[activeCountEstimate + activeCountFudge];
+        threadGroup.enumerate( snapshot );
+        return Arrays.stream( snapshot ).filter( Objects::nonNull );
     }
 
     void cancelAllJobs()

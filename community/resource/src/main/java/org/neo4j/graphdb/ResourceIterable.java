@@ -24,6 +24,8 @@ package org.neo4j.graphdb;
 
 import java.util.stream.Stream;
 
+import org.neo4j.annotations.api.PublicApi;
+
 /**
  * {@link Iterable} whose {@link ResourceIterator iterators} have associated resources
  * that need to be released.
@@ -76,6 +78,7 @@ import java.util.stream.Stream;
  *
  * @see ResourceIterator
  */
+@PublicApi
 public interface ResourceIterable<T> extends Iterable<T>
 {
     /**

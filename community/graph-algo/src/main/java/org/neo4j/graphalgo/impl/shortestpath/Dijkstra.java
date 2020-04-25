@@ -35,13 +35,13 @@ import java.util.Set;
 import org.neo4j.graphalgo.CostAccumulator;
 import org.neo4j.graphalgo.CostEvaluator;
 import org.neo4j.graphdb.Direction;
+import org.neo4j.graphdb.Entity;
 import org.neo4j.graphdb.Node;
-import org.neo4j.graphdb.PropertyContainer;
 import org.neo4j.graphdb.Relationship;
 import org.neo4j.graphdb.RelationshipType;
 import org.neo4j.graphdb.ResourceIterable;
 import org.neo4j.graphdb.ResourceIterator;
-import org.neo4j.helpers.collection.Iterables;
+import org.neo4j.internal.helpers.collection.Iterables;
 
 /**
  * Dijkstra class. This class can be used to perform shortest path computations
@@ -57,7 +57,6 @@ import org.neo4j.helpers.collection.Iterables;
  *             cost comparator will all be called once for every relationship
  *             traversed. Assuming they run in constant time, the time
  *             complexity for this algorithm is O(m + n * log(n)).
- * @author Patrik Larsson
  * @param <CostType> The datatype the edge weights will be represented by.
  */
 public class Dijkstra<CostType> implements
@@ -160,8 +159,6 @@ public class Dijkstra<CostType> implements
     /**
      * A DijkstraIterator computes the distances to nodes from a specified
      * starting node, one at a time, following the dijkstra algorithm.
-     *
-     * @author Patrik Larsson
      */
     protected class DijkstraIterator implements Iterator<Node>
     {
@@ -323,7 +320,7 @@ public class Dijkstra<CostType> implements
                 for ( RelationshipType costRelationType : costRelationTypes )
                 {
                     ResourceIterable<Relationship> relationships = Iterables.asResourceIterable(
-                            currentNode.getRelationships( costRelationType, getDirection() ) );
+                            currentNode.getRelationships( getDirection(), costRelationType ) );
                     try ( ResourceIterator<Relationship> iterator = relationships.iterator() )
                     {
                         while ( iterator.hasNext() )
@@ -554,7 +551,7 @@ public class Dijkstra<CostType> implements
      * @return All the found paths or null.
      */
     @Override
-    public List<List<PropertyContainer>> getPaths()
+    public List<List<Entity>> getPaths()
     {
         if ( startNode == null || endNode == null )
         {
@@ -566,20 +563,20 @@ public class Dijkstra<CostType> implements
             return Collections.emptyList();
         }
 
-        List<List<PropertyContainer>> paths = new LinkedList<>();
+        List<List<Entity>> paths = new LinkedList<>();
         for ( Node middleNode : foundPathsMiddleNodes )
         {
-            List<List<PropertyContainer>> paths1 = Util.constructAllPathsToNode(
+            List<List<Entity>> paths1 = Util.constructAllPathsToNode(
                     middleNode, predecessors1, true, false );
-            List<List<PropertyContainer>> paths2 = Util.constructAllPathsToNode(
+            List<List<Entity>> paths2 = Util.constructAllPathsToNode(
                     middleNode, predecessors2, false, true );
             // For all combinations...
-            for ( List<PropertyContainer> part1 : paths1 )
+            for ( List<Entity> part1 : paths1 )
             {
-                for ( List<PropertyContainer> part2 : paths2 )
+                for ( List<Entity> part2 : paths2 )
                 {
                     // Combine them
-                    LinkedList<PropertyContainer> path = new LinkedList<>();
+                    LinkedList<Entity> path = new LinkedList<>();
                     path.addAll( part1 );
                     path.addAll( part2 );
                     // Add to collection
@@ -677,7 +674,7 @@ public class Dijkstra<CostType> implements
      * @return One of the shortest paths found or null.
      */
     @Override
-    public List<PropertyContainer> getPath()
+    public List<Entity> getPath()
     {
         if ( startNode == null || endNode == null )
         {
@@ -689,7 +686,7 @@ public class Dijkstra<CostType> implements
             return null;
         }
         Node middleNode = foundPathsMiddleNodes.iterator().next();
-        LinkedList<PropertyContainer> path = new LinkedList<>();
+        LinkedList<Entity> path = new LinkedList<>();
         path.addAll( Util.constructSinglePathToNode( middleNode, predecessors1,
                 true, false ) );
         path.addAll( Util.constructSinglePathToNode( middleNode, predecessors2,

@@ -26,10 +26,10 @@ import org.mockito.ArgumentMatchers._
 import org.mockito.Mockito._
 import org.mockito.invocation.InvocationOnMock
 import org.mockito.stubbing.Answer
+import org.neo4j.cypher.internal.runtime.ExecutionContext
+import org.neo4j.cypher.internal.runtime.interpreted.QueryStateHelper
 import org.neo4j.cypher.internal.runtime.interpreted.ValueComparisonHelper.beEquivalentTo
-import org.neo4j.cypher.internal.runtime.interpreted.{ExecutionContext, QueryStateHelper}
-import org.neo4j.cypher.internal.v3_6.util.symbols._
-import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.v4_0.util.test_helpers.CypherFunSuite
 import org.neo4j.values.storable.Values
 import org.neo4j.values.storable.Values.NO_VALUE
 import org.neo4j.values.virtual.VirtualValues
@@ -38,7 +38,7 @@ class RollUpApplyPipeTest extends CypherFunSuite with PipeTestSupport {
   test("when rhs returns nothing, an empty collection should be produced") {
     // given
     val lhs = createLhs(1)
-    val rhs = pipeWithResults { (state) => Iterator() }
+    val rhs = pipeWithResults { state => Iterator() }
     val pipe = RollUpApplyPipe(lhs, rhs, collectionName = "x", identifierToCollect = "y", nullableIdentifiers = Set("a"))()
 
     // when
@@ -51,14 +51,14 @@ class RollUpApplyPipeTest extends CypherFunSuite with PipeTestSupport {
   test("when rhs has null values on nullableIdentifiers, a null value should be produced") {
     // given
     val lhs = createLhs(null, 1)
-    val rhs = pipeWithResults { (state) => Iterator() }
+    val rhs = pipeWithResults { state => Iterator() }
     val pipe = RollUpApplyPipe(lhs, rhs, collectionName = "x", identifierToCollect = "y", nullableIdentifiers = Set("a"))()
 
     // when
     val result = pipe.createResults(QueryStateHelper.empty).toList
 
     // then
-    result should equal(List(
+    result should beEquivalentTo(List(
       Map("a" -> NO_VALUE, "x" -> NO_VALUE),
       Map("a" -> Values.intValue(1), "x" -> VirtualValues.EMPTY_LIST)))
   }
@@ -97,12 +97,12 @@ class RollUpApplyPipeTest extends CypherFunSuite with PipeTestSupport {
   }
 
   private def createRhs(data: Any*) = {
-    val rhsData = data.map { case v => Map("y" -> v) }
-    new FakePipe(rhsData.iterator, "a" -> CTAny)
+    val rhsData = data.map(v => Map("y" -> v))
+    new FakePipe(rhsData.iterator)
   }
 
   private def createLhs(data: Any*) = {
-    val lhsData = data.map { case v => Map("a" -> v) }
-    new FakePipe(lhsData.iterator, "a" -> CTNumber)
+    val lhsData = data.map(v => Map("a" -> v))
+    new FakePipe(lhsData.iterator)
   }
 }

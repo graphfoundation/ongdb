@@ -33,12 +33,18 @@ import java.io.Writer;
 import java.nio.charset.Charset;
 import java.nio.file.CopyOption;
 import java.nio.file.NoSuchFileException;
+import java.nio.file.OpenOption;
+import java.nio.file.StandardCopyOption;
+import java.nio.file.StandardOpenOption;
+import java.util.Set;
 import java.util.stream.Stream;
 
 import org.neo4j.io.fs.watcher.FileWatcher;
 
 public interface FileSystemAbstraction extends Closeable
 {
+    int INVALID_FILE_DESCRIPTOR = -1;
+    CopyOption[] EMPTY_COPY_OPTIONS = new CopyOption[0];
 
     /**
      * Create file watcher that provides possibilities to monitor directories on underlying file system
@@ -49,7 +55,7 @@ public interface FileSystemAbstraction extends Closeable
      */
     FileWatcher fileWatcher() throws IOException;
 
-    StoreChannel open( File fileName, OpenMode openMode ) throws IOException;
+    StoreChannel open( File fileName, Set<OpenOption> options ) throws IOException;
 
     OutputStream openAsOutputStream( File fileName, boolean append ) throws IOException;
 
@@ -59,7 +65,24 @@ public interface FileSystemAbstraction extends Closeable
 
     Writer openAsWriter( File fileName, Charset charset, boolean append ) throws IOException;
 
-    StoreChannel create( File fileName ) throws IOException;
+    /**
+     * Open channel for user provided file in a write mode.
+     * Write mode means that channel will be opened with following set of options: {@link StandardOpenOption#READ}, {@link StandardOpenOption#WRITE}
+     * and {@link StandardOpenOption#CREATE}
+     * @param fileName file name to open write channel for.
+     * @return write channel for requested file
+     * @throws IOException
+     */
+    StoreChannel write( File fileName ) throws IOException;
+
+    /**
+     * Open channel for user provided file in a read mode.
+     * Read mode means that channel will be opened with {@link StandardOpenOption#READ} only.
+     * @param fileName file name to open readchannel for.
+     * @return read channel for requested file
+     * @throws IOException
+     */
+    StoreChannel read( File fileName ) throws IOException;
 
     boolean fileExists( File file );
 
@@ -68,6 +91,8 @@ public interface FileSystemAbstraction extends Closeable
     void mkdirs( File fileName ) throws IOException;
 
     long getFileSize( File fileName );
+
+    long getBlockSize( File file ) throws IOException;
 
     boolean deleteFile( File fileName );
 
@@ -85,7 +110,26 @@ public interface FileSystemAbstraction extends Closeable
 
     void copyToDirectory( File file, File toDirectory ) throws IOException;
 
-    void copyFile( File from, File to ) throws IOException;
+    /**
+     * Copies file, allowing overwrite.
+     *
+     * @param from File to copy.
+     * @param to File location to copy file to, overwritten if exists.
+     * @throws IOException on I/O error.
+     */
+    default void copyFile( File from, File to ) throws IOException
+    {
+        copyFile( from, to, StandardCopyOption.REPLACE_EXISTING );
+    }
+
+    /**
+     * Copies file, configurable behaviour by passing copy options explicitly.
+     *
+     * @param from File to copy.
+     * @param to File location to copy file to.
+     * @throws IOException on I/O error.
+     */
+    void copyFile( File from, File to, CopyOption... copyOptions ) throws IOException;
 
     void copyRecursively( File fromDirectory, File toDirectory ) throws IOException;
 
@@ -116,4 +160,11 @@ public interface FileSystemAbstraction extends Closeable
      * @throws IOException If an I/O error occurs, possibly with the canonicalisation of the paths.
      */
     Stream<FileHandle> streamFilesRecursive( File directory ) throws IOException;
+
+    /**
+     * Get underlying store channel file descriptor.
+     * @param channel channel to get descriptor from
+     * @return {@link #INVALID_FILE_DESCRIPTOR} when can't get descriptor from provided channel or underlying channel id otherwise.
+     */
+    int getFileDescriptor( StoreChannel channel );
 }

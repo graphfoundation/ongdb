@@ -38,16 +38,16 @@ import java.util.stream.IntStream;
 import java.util.stream.LongStream;
 import java.util.stream.Stream;
 
-import org.neo4j.cypher.internal.v3_6.util.CypherTypeException;
-import org.neo4j.cypher.internal.v3_6.util.IncomparableValuesException;
+import org.neo4j.exceptions.CypherTypeException;
+import org.neo4j.graphdb.Entity;
 import org.neo4j.graphdb.Node;
-import org.neo4j.graphdb.PropertyContainer;
 import org.neo4j.graphdb.Relationship;
-import org.neo4j.kernel.impl.core.EmbeddedProxySPI;
-import org.neo4j.kernel.impl.util.NodeProxyWrappingNodeValue;
-import org.neo4j.kernel.impl.util.RelationshipProxyWrappingValue;
+import org.neo4j.kernel.impl.core.TransactionalEntityFactory;
+import org.neo4j.kernel.impl.util.NodeEntityWrappingNodeValue;
+import org.neo4j.kernel.impl.util.RelationshipEntityWrappingValue;
 import org.neo4j.kernel.impl.util.ValueUtils;
 import org.neo4j.values.AnyValue;
+import org.neo4j.values.Equality;
 import org.neo4j.values.SequenceValue;
 import org.neo4j.values.storable.ArrayValue;
 import org.neo4j.values.storable.BooleanValue;
@@ -213,24 +213,21 @@ public abstract class CompiledConversionUtils
             return null;
         }
 
-        boolean lhsVirtualNodeValue = lhs instanceof VirtualNodeValue;
-        if ( lhsVirtualNodeValue || rhs instanceof VirtualNodeValue || lhs instanceof VirtualRelationshipValue ||
-             rhs instanceof VirtualRelationshipValue )
-        {
-            if ( (lhsVirtualNodeValue && !(rhs instanceof VirtualNodeValue)) ||
-                 (rhs instanceof VirtualNodeValue && !lhsVirtualNodeValue) ||
-                 (lhs instanceof VirtualRelationshipValue && !(rhs instanceof VirtualRelationshipValue)) ||
-                 (rhs instanceof VirtualRelationshipValue && !(lhs instanceof VirtualRelationshipValue)) )
-            {
-                throw new IncomparableValuesException( lhs.getClass().getSimpleName(), rhs.getClass().getSimpleName() );
-            }
-            return lhs.equals( rhs );
-        }
-
         AnyValue lhsValue = lhs instanceof AnyValue ? (AnyValue) lhs : ValueUtils.of( lhs );
         AnyValue rhsValue = rhs instanceof AnyValue ? (AnyValue) rhs : ValueUtils.of( rhs );
 
-        return lhsValue.ternaryEquals( rhsValue );
+        Equality equality = lhsValue.ternaryEquals( rhsValue );
+        switch ( equality )
+        {
+        case TRUE:
+            return Boolean.TRUE;
+        case FALSE:
+            return Boolean.FALSE;
+        case UNDEFINED:
+            return null;
+        default:
+            throw new IllegalStateException( format( "%s = %s -> %s is not an expected outcome", lhsValue, rhsValue, equality ) );
+        }
     }
 
     // Ternary OR
@@ -283,7 +280,7 @@ public abstract class CompiledConversionUtils
     }
 
     @SuppressWarnings( {"unchecked", "WeakerAccess"} )
-    public static AnyValue materializeAnyResult( EmbeddedProxySPI proxySpi, Object anyValue )
+    public static AnyValue materializeAnyResult( TransactionalEntityFactory proxySpi, Object anyValue )
     {
         if ( anyValue == null || anyValue == NO_VALUE )
         {
@@ -311,13 +308,13 @@ public abstract class CompiledConversionUtils
         else if ( anyValue instanceof PrimitiveNodeStream )
         {
             return VirtualValues.fromList( ((PrimitiveNodeStream) anyValue).longStream()
-                    .mapToObj( id -> (AnyValue) ValueUtils.fromNodeProxy( proxySpi.newNodeProxy( id ) ) )
+                    .mapToObj( id -> (AnyValue) ValueUtils.fromNodeEntity( proxySpi.newNodeEntity( id ) ) )
                     .collect( Collectors.toList() ) );
         }
         else if ( anyValue instanceof PrimitiveRelationshipStream )
         {
             return VirtualValues.fromList( ((PrimitiveRelationshipStream) anyValue).longStream()
-                    .mapToObj( id -> (AnyValue) ValueUtils.fromRelationshipProxy( proxySpi.newRelationshipProxy( id ) ) )
+                    .mapToObj( id -> (AnyValue) ValueUtils.fromRelationshipEntity( proxySpi.newRelationshipEntity( id ) ) )
                     .collect( Collectors.toList() ) );
         }
         else if ( anyValue instanceof LongStream )
@@ -368,7 +365,7 @@ public abstract class CompiledConversionUtils
     }
 
     // NOTE: This assumes anyValue is an instance of AnyValue
-    public static AnyValue materializeAnyValueResult( EmbeddedProxySPI proxySpi, Object anyValue )
+    public static AnyValue materializeAnyValueResult( TransactionalEntityFactory proxySpi, Object anyValue )
     {
         if ( anyValue instanceof VirtualNodeValue )
         {
@@ -376,7 +373,7 @@ public abstract class CompiledConversionUtils
             {
                 return (AnyValue) anyValue;
             }
-            return ValueUtils.fromNodeProxy( proxySpi.newNodeProxy( ((VirtualNodeValue) anyValue).id() ) );
+            return ValueUtils.fromNodeEntity( proxySpi.newNodeEntity( ((VirtualNodeValue) anyValue).id() ) );
         }
         if ( anyValue instanceof VirtualRelationshipValue )
         {
@@ -384,7 +381,7 @@ public abstract class CompiledConversionUtils
             {
                 return (AnyValue) anyValue;
             }
-            return ValueUtils.fromRelationshipProxy( proxySpi.newRelationshipProxy( ((VirtualRelationshipValue) anyValue).id() ) );
+            return ValueUtils.fromRelationshipEntity( proxySpi.newRelationshipEntity( ((VirtualRelationshipValue) anyValue).id() ) );
         }
         // If it is a list or map, run it through a ValueMapper that will create proxy objects for entities if needed.
         // This will first do a dry run and return as it is if no conversion is needed.
@@ -399,7 +396,7 @@ public abstract class CompiledConversionUtils
         return (AnyValue) anyValue;
     }
 
-    public static NodeValue materializeNodeValue( EmbeddedProxySPI proxySpi, Object anyValue )
+    public static NodeValue materializeNodeValue( TransactionalEntityFactory proxySpi, Object anyValue )
     {
         // Null check has to be done outside by the generated code
         if ( anyValue instanceof NodeValue )
@@ -408,16 +405,16 @@ public abstract class CompiledConversionUtils
         }
         else if ( anyValue instanceof VirtualNodeValue )
         {
-            return ValueUtils.fromNodeProxy( proxySpi.newNodeProxy( ((VirtualNodeValue) anyValue).id() ) );
+            return ValueUtils.fromNodeEntity( proxySpi.newNodeEntity( ((VirtualNodeValue) anyValue).id() ) );
         }
         else if ( anyValue instanceof Node )
         {
-            return ValueUtils.fromNodeProxy( (Node) anyValue );
+            return ValueUtils.fromNodeEntity( (Node) anyValue );
         }
         throw new IllegalArgumentException( "Do not know how to materialize node value from type " + anyValue.getClass().getName() );
     }
 
-    public static RelationshipValue materializeRelationshipValue( EmbeddedProxySPI proxySpi, Object anyValue )
+    public static RelationshipValue materializeRelationshipValue( TransactionalEntityFactory proxySpi, Object anyValue )
     {
         // Null check has to be done outside by the generated code
         if ( anyValue instanceof RelationshipValue )
@@ -426,11 +423,11 @@ public abstract class CompiledConversionUtils
         }
         else if ( anyValue instanceof VirtualRelationshipValue )
         {
-            return ValueUtils.fromRelationshipProxy( proxySpi.newRelationshipProxy( ((VirtualRelationshipValue) anyValue).id() ) );
+            return ValueUtils.fromRelationshipEntity( proxySpi.newRelationshipEntity( ((VirtualRelationshipValue) anyValue).id() ) );
         }
         else if ( anyValue instanceof Relationship )
         {
-            return ValueUtils.fromRelationshipProxy( (Relationship) anyValue );
+            return ValueUtils.fromRelationshipEntity( (Relationship) anyValue );
         }
         throw new IllegalArgumentException( "Do not know how to materialize relationship value from type " + anyValue.getClass().getName() );
     }
@@ -621,7 +618,7 @@ public abstract class CompiledConversionUtils
     public static Object makeValueNeoSafe( Object object )
     {
         AnyValue value = object instanceof AnyValue ? ((AnyValue) object) : ValueUtils.of( object );
-        return org.neo4j.cypher.internal.runtime.interpreted.makeValueNeoSafe.apply( value );
+        return org.neo4j.cypher.internal.runtime.makeValueNeoSafe.apply( value );
     }
 
     @SuppressWarnings( "unchecked" )
@@ -636,17 +633,17 @@ public abstract class CompiledConversionUtils
             MapValue map = (MapValue) object;
             return map.get( key );
         }
-        if ( object instanceof NodeProxyWrappingNodeValue )
+        if ( object instanceof NodeEntityWrappingNodeValue )
         {
-            return Values.of( ((NodeProxyWrappingNodeValue) object).nodeProxy().getProperty( key ) );
+            return Values.of( ((NodeEntityWrappingNodeValue) object).nodeEntity().getProperty( key ) );
         }
-        if ( object instanceof RelationshipProxyWrappingValue )
+        if ( object instanceof RelationshipEntityWrappingValue )
         {
-            return Values.of( ((RelationshipProxyWrappingValue) object).relationshipProxy().getProperty( key ) );
+            return Values.of( ((RelationshipEntityWrappingValue) object).relationshipEntity().getProperty( key ) );
         }
-        if ( object instanceof PropertyContainer ) // Entity that is not wrapped by an AnyValue
+        if ( object instanceof Entity ) // Entity that is not wrapped by an AnyValue
         {
-            return Values.of( ((PropertyContainer) object).getProperty( key ) );
+            return Values.of( ((Entity) object).getProperty( key ) );
         }
         if ( object instanceof NodeValue )
         {
@@ -676,7 +673,7 @@ public abstract class CompiledConversionUtils
 
         // NOTE: VirtualNodeValue and VirtualRelationshipValue will fall through to here
         // To handle these we would need specialized cursor code
-        throw new CypherTypeException( String.format( "Type mismatch: expected a map but was %s", object ), null );
+        throw new CypherTypeException( format( "Type mismatch: expected a map but was %s", object ), null );
     }
 
     static class ArrayIterator implements Iterator

@@ -22,125 +22,147 @@
  */
 package org.neo4j.kernel.impl.core;
 
-import org.junit.ClassRule;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Relationship;
-import org.neo4j.test.rule.DatabaseRule;
-import org.neo4j.test.rule.GraphTransactionRule;
-import org.neo4j.test.rule.ImpermanentDatabaseRule;
+import org.neo4j.graphdb.Transaction;
+import org.neo4j.test.extension.ImpermanentDbmsExtension;
+import org.neo4j.test.extension.Inject;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.not;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.neo4j.graphdb.RelationshipType.withName;
 import static org.neo4j.test.mockito.matcher.Neo4jMatchers.hasProperty;
 import static org.neo4j.test.mockito.matcher.Neo4jMatchers.inTx;
 
-public class TestShortStringProperties
+@ImpermanentDbmsExtension
+class TestShortStringProperties
 {
-    @ClassRule
-    public static DatabaseRule graphdb = new ImpermanentDatabaseRule();
-
-    @Rule
-    public GraphTransactionRule tx = new GraphTransactionRule( graphdb );
-
-    public void commit()
-    {
-        tx.success();
-    }
-
-    private void newTx()
-    {
-        tx.success();
-        tx.begin();
-    }
-
     private static final String LONG_STRING = "this is a really long string, believe me!";
 
+    @Inject
+    private GraphDatabaseService graphdb;
+
     @Test
-    public void canAddMultipleShortStringsToTheSameNode()
+    void canAddMultipleShortStringsToTheSameNode()
     {
-        Node node = graphdb.getGraphDatabaseAPI().createNode();
-        node.setProperty( "key", "value" );
-        node.setProperty( "reverse", "esrever" );
-        commit();
-        assertThat( node, inTx( graphdb.getGraphDatabaseAPI(), hasProperty( "key" ).withValue( "value" )  ) );
-        assertThat( node, inTx( graphdb.getGraphDatabaseAPI(), hasProperty( "reverse" ).withValue( "esrever" )  ) );
+        Node node;
+        try ( Transaction transaction = graphdb.beginTx() )
+        {
+            node = transaction.createNode();
+            node.setProperty( "key", "value" );
+            node.setProperty( "reverse", "esrever" );
+            transaction.commit();
+        }
+        assertThat( node, inTx( graphdb, hasProperty( "key" ).withValue( "value" )  ) );
+        assertThat( node, inTx( graphdb, hasProperty( "reverse" ).withValue( "esrever" )  ) );
     }
 
     @Test
-    public void canAddShortStringToRelationship()
+    void canAddShortStringToRelationship()
     {
-        GraphDatabaseService db = graphdb.getGraphDatabaseAPI();
-        Relationship rel = db.createNode().createRelationshipTo( db.createNode(), withName( "REL_TYPE" ) );
-        rel.setProperty( "type", "dimsedut" );
-        commit();
-        assertThat( rel, inTx( db, hasProperty( "type" ).withValue( "dimsedut" ) ) );
+        Relationship rel;
+        try ( Transaction transaction = graphdb.beginTx() )
+        {
+            rel = transaction.createNode().createRelationshipTo( transaction.createNode(), withName( "REL_TYPE" ) );
+            rel.setProperty( "type", "dimsedut" );
+            transaction.commit();
+        }
+        assertThat( rel, inTx( graphdb, hasProperty( "type" ).withValue( "dimsedut" ) ) );
     }
 
     @Test
-    public void canUpdateShortStringInplace()
+    void canUpdateShortStringInplace()
     {
-        Node node = graphdb.getGraphDatabaseAPI().createNode();
-        node.setProperty( "key", "value" );
+        Node node;
+        try ( Transaction transaction = graphdb.beginTx() )
+        {
+            node = transaction.createNode();
+            node.setProperty( "key", "value" );
+            transaction.commit();
+        }
 
-        newTx();
+        try ( Transaction transaction = graphdb.beginTx() )
+        {
+            var n = transaction.getNodeById( node.getId() );
+            assertEquals( "value", n.getProperty( "key" ) );
+            n.setProperty( "key", "other" );
+            transaction.commit();
+        }
 
-        assertEquals( "value", node.getProperty( "key" ) );
-
-        node.setProperty( "key", "other" );
-        commit();
-
-        assertThat( node, inTx( graphdb.getGraphDatabaseAPI(), hasProperty( "key" ).withValue( "other" )  ) );
+        assertThat( node, inTx( graphdb, hasProperty( "key" ).withValue( "other" )  ) );
     }
 
     @Test
-    public void canReplaceLongStringWithShortString()
+    void canReplaceLongStringWithShortString()
     {
-        Node node = graphdb.getGraphDatabaseAPI().createNode();
-        node.setProperty( "key", LONG_STRING );
-        newTx();
+        Node node;
+        try ( Transaction transaction = graphdb.beginTx() )
+        {
+            node = transaction.createNode();
+            node.setProperty( "key", LONG_STRING );
+            transaction.commit();
+        }
 
-        assertEquals( LONG_STRING, node.getProperty( "key" ) );
+        try ( Transaction transaction = graphdb.beginTx() )
+        {
+            node = transaction.getNodeById( node.getId() );
+            assertEquals( LONG_STRING, node.getProperty( "key" ) );
+            node.setProperty( "key", "value" );
+            transaction.commit();
+        }
 
-        node.setProperty( "key", "value" );
-        commit();
-
-        assertThat( node, inTx( graphdb.getGraphDatabaseAPI(), hasProperty( "key" ).withValue( "value" )  ) );
+        assertThat( node, inTx( graphdb, hasProperty( "key" ).withValue( "value" )  ) );
     }
 
     @Test
-    public void canReplaceShortStringWithLongString()
+    void canReplaceShortStringWithLongString()
     {
-        Node node = graphdb.getGraphDatabaseAPI().createNode();
-        node.setProperty( "key", "value" );
-        newTx();
+        Node node;
+        try ( Transaction transaction = graphdb.beginTx() )
+        {
+            node = transaction.createNode();
+            node.setProperty( "key", "value" );
+            transaction.commit();
+        }
 
-        assertEquals( "value", node.getProperty( "key" ) );
+        try ( Transaction transaction = graphdb.beginTx() )
+        {
+            node = transaction.getNodeById( node.getId() );
+            assertEquals( "value", node.getProperty( "key" ) );
+            node.setProperty( "key", LONG_STRING );
+            transaction.commit();
+        }
 
-        node.setProperty( "key", LONG_STRING );
-        commit();
-
-        assertThat( node, inTx( graphdb.getGraphDatabaseAPI(), hasProperty( "key" ).withValue( LONG_STRING )  ) );
+        assertThat( node, inTx( graphdb, hasProperty( "key" ).withValue( LONG_STRING )  ) );
     }
 
     @Test
-    public void canRemoveShortStringProperty()
+    void canRemoveShortStringProperty()
     {
-        GraphDatabaseService db = graphdb.getGraphDatabaseAPI();
-        Node node = db.createNode();
-        node.setProperty( "key", "value" );
-        newTx();
+        Node node;
+        try ( Transaction transaction = graphdb.beginTx() )
+        {
+            node = transaction.createNode();
+            node.setProperty( "key", "value" );
+            transaction.commit();
+        }
 
-        assertEquals( "value", node.getProperty( "key" ) );
+        try ( Transaction transaction = graphdb.beginTx() )
+        {
+            node = transaction.getNodeById( node.getId() );
+            assertEquals( "value", node.getProperty( "key" ) );
 
-        node.removeProperty( "key" );
-        commit();
+            node.removeProperty( "key" );
+            transaction.commit();
+        }
 
-        assertThat( node, inTx( db, not( hasProperty( "key" ) ) ) );
+        try ( Transaction transaction = graphdb.beginTx() )
+        {
+            assertThat( transaction.getNodeById( node.getId() ), not( hasProperty( "key" ) ) );
+        }
     }
 }

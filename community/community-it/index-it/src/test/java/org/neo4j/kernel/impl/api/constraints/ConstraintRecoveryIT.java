@@ -22,52 +22,56 @@
  */
 package org.neo4j.kernel.impl.api.constraints;
 
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.File;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.neo4j.dbms.api.DatabaseManagementService;
 import org.neo4j.graphdb.ConstraintViolationException;
 import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.Transaction;
-import org.neo4j.graphdb.mockfs.EphemeralFileSystemAbstraction;
 import org.neo4j.graphdb.schema.IndexDefinition;
-import org.neo4j.helpers.collection.Iterables;
+import org.neo4j.internal.helpers.collection.Iterables;
+import org.neo4j.internal.recordstorage.RecordStorageEngine;
+import org.neo4j.io.fs.EphemeralFileSystemAbstraction;
 import org.neo4j.kernel.impl.api.index.IndexingService;
-import org.neo4j.kernel.impl.storageengine.impl.recordstorage.RecordStorageEngine;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
-import org.neo4j.kernel.monitoring.Monitors;
-import org.neo4j.test.TestGraphDatabaseFactory;
-import org.neo4j.test.rule.fs.EphemeralFileSystemRule;
+import org.neo4j.monitoring.Monitors;
+import org.neo4j.test.TestDatabaseManagementServiceBuilder;
+import org.neo4j.test.extension.Inject;
+import org.neo4j.test.extension.testdirectory.EphemeralTestDirectoryExtension;
+import org.neo4j.test.rule.TestDirectory;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-import static org.neo4j.graphdb.factory.GraphDatabaseSettings.SchemaIndex.NATIVE20;
-import static org.neo4j.graphdb.factory.GraphDatabaseSettings.default_schema_provider;
-import static org.neo4j.helpers.collection.Iterables.single;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
+import static org.neo4j.configuration.GraphDatabaseSettings.SchemaIndex.NATIVE30;
+import static org.neo4j.configuration.GraphDatabaseSettings.default_schema_provider;
+import static org.neo4j.internal.helpers.collection.Iterables.single;
 
-public class ConstraintRecoveryIT
+@EphemeralTestDirectoryExtension
+class ConstraintRecoveryIT
 {
     private static final String KEY = "prop";
     private static final Label LABEL = Label.label( "label1" );
 
-    @Rule
-    public EphemeralFileSystemRule fileSystemRule = new EphemeralFileSystemRule();
+    @Inject
+    private EphemeralFileSystemAbstraction fs;
+    @Inject
+    private TestDirectory testDirectory;
 
     private GraphDatabaseAPI db;
 
     @Test
-    public void shouldHaveAvailableOrphanedConstraintIndexIfUniqueConstraintCreationFails()
+    void shouldHaveAvailableOrphanedConstraintIndexIfUniqueConstraintCreationFails()
     {
         // given
-        final EphemeralFileSystemAbstraction fs = fileSystemRule.get();
-        fs.mkdir( new File( "/tmp" ) );
-        File pathToDb = new File( "/tmp/bar2" );
+        File pathToDb = testDirectory.homeDir();
 
-        TestGraphDatabaseFactory dbFactory = new TestGraphDatabaseFactory();
+        TestDatabaseManagementServiceBuilder dbFactory = new TestDatabaseManagementServiceBuilder( pathToDb );
         dbFactory.setFileSystem( fs );
 
         final EphemeralFileSystemAbstraction[] storeInNeedOfRecovery = new EphemeralFileSystemAbstraction[1];
@@ -89,62 +93,60 @@ public class ConstraintRecoveryIT
 
         // This test relies on behaviour that is specific to the Lucene populator, where uniqueness is controlled
         // after index has been populated, which is why we're using NATIVE20 and index booleans (they end up in Lucene)
-        db = (GraphDatabaseAPI) dbFactory.newImpermanentDatabaseBuilder( pathToDb )
-                .setConfig( default_schema_provider, NATIVE20.providerName() )
-                .newGraphDatabase();
+        DatabaseManagementService managementService = dbFactory.impermanent()
+                .setConfig( default_schema_provider, NATIVE30.providerName() ).build();
+        db = (GraphDatabaseAPI) managementService.database( DEFAULT_DATABASE_NAME );
 
         try ( Transaction tx = db.beginTx() )
         {
             for ( int i = 0; i < 2; i++ )
             {
-                db.createNode( LABEL ).setProperty( KEY, true );
+                tx.createNode( LABEL ).setProperty( KEY, "true" );
             }
 
-            tx.success();
+            tx.commit();
         }
 
-        try ( Transaction tx = db.beginTx() )
+        assertThrows( ConstraintViolationException.class, () ->
         {
-            db.schema().constraintFor( LABEL ).assertPropertyIsUnique( KEY ).create();
-            fail( "Should have failed with ConstraintViolationException" );
-            tx.success();
-        }
-        catch ( ConstraintViolationException ignored )
-        {
-        }
-
-        db.shutdown();
+            try ( Transaction tx = db.beginTx() )
+            {
+                tx.schema().constraintFor( LABEL ).assertPropertyIsUnique( KEY ).create();
+            }
+        } );
+        managementService.shutdown();
 
         assertTrue( monitorCalled.get() );
 
         // when
-        dbFactory = new TestGraphDatabaseFactory();
+        dbFactory = new TestDatabaseManagementServiceBuilder( pathToDb );
         dbFactory.setFileSystem( storeInNeedOfRecovery[0] );
-        db = (GraphDatabaseAPI) dbFactory.newImpermanentDatabase( pathToDb );
+        DatabaseManagementService secondManagementService = dbFactory.impermanent().build();
+        db = (GraphDatabaseAPI) secondManagementService.database( DEFAULT_DATABASE_NAME );
 
         // then
-        try ( Transaction ignore = db.beginTx() )
+        try ( Transaction tx = db.beginTx() )
         {
-            db.schema().awaitIndexesOnline( 10, TimeUnit.SECONDS );
+            tx.schema().awaitIndexesOnline( 10, TimeUnit.SECONDS );
         }
 
-        try ( Transaction ignore = db.beginTx() )
+        try ( Transaction transaction = db.beginTx() )
         {
-            assertEquals( 2, Iterables.count( db.getAllNodes() ) );
+            assertEquals( 2, Iterables.count( transaction.getAllNodes() ) );
         }
 
-        try ( Transaction ignore = db.beginTx() )
+        try ( Transaction tx = db.beginTx() )
         {
-            assertEquals( 0, Iterables.count( Iterables.asList( db.schema().getConstraints() ) ) );
+            assertEquals( 0, Iterables.count( Iterables.asList( tx.schema().getConstraints() ) ) );
         }
 
-        try ( Transaction ignore = db.beginTx() )
+        try ( Transaction tx = db.beginTx() )
         {
-            IndexDefinition orphanedConstraintIndex = single( db.schema().getIndexes() );
+            IndexDefinition orphanedConstraintIndex = single( tx.schema().getIndexes() );
             assertEquals( LABEL.name(), single( orphanedConstraintIndex.getLabels() ).name() );
             assertEquals( KEY, single( orphanedConstraintIndex.getPropertyKeys() ) );
         }
 
-        db.shutdown();
+        secondManagementService.shutdown();
     }
 }
