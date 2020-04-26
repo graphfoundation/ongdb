@@ -22,32 +22,32 @@
  */
 package org.neo4j.kernel.impl.api.integrationtest;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Iterator;
 
-import org.neo4j.internal.kernel.api.NamedToken;
-import org.neo4j.internal.kernel.api.Transaction;
 import org.neo4j.internal.kernel.api.Write;
 import org.neo4j.internal.kernel.api.exceptions.EntityNotFoundException;
+import org.neo4j.kernel.api.KernelTransaction;
 import org.neo4j.kernel.api.security.AnonymousContext;
+import org.neo4j.token.api.NamedToken;
 import org.neo4j.values.storable.Values;
 
 import static org.hamcrest.CoreMatchers.equalTo;
-import static org.hamcrest.core.IsCollectionContaining.hasItems;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
-import static org.neo4j.helpers.collection.Iterators.asCollection;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.core.IsIterableContaining.hasItems;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.neo4j.internal.helpers.collection.Iterators.asCollection;
 
-public class PropertyIT extends KernelIntegrationTest
+class PropertyIT extends KernelIntegrationTest
 {
     @Test
-    public void shouldListAllPropertyKeys() throws Exception
+    void shouldListAllPropertyKeys() throws Exception
     {
         // given
         dbWithNoCache();
 
-        Transaction transaction = newTransaction( AnonymousContext.writeToken() );
+        KernelTransaction transaction = newTransaction( AnonymousContext.writeToken() );
         int prop1 = transaction.tokenWrite().propertyKeyGetOrCreateForName( "prop1" );
         int prop2 = transaction.tokenWrite().propertyKeyGetOrCreateForName( "prop2" );
 
@@ -70,10 +70,10 @@ public class PropertyIT extends KernelIntegrationTest
     }
 
     @Test
-    public void shouldNotAllowModifyingPropertiesOnDeletedRelationship() throws Exception
+    void shouldNotAllowModifyingPropertiesOnDeletedRelationship() throws Exception
     {
         // given
-        Transaction transaction = newTransaction( AnonymousContext.writeToken() );
+        KernelTransaction transaction = newTransaction( AnonymousContext.writeToken() );
         int prop1 = transaction.tokenWrite().propertyKeyGetOrCreateForName( "prop1" );
         int type = transaction.tokenWrite().relationshipTypeGetOrCreateForName( "RELATED" );
         long startNodeId = transaction.dataWrite().nodeCreate();
@@ -84,23 +84,16 @@ public class PropertyIT extends KernelIntegrationTest
         transaction.dataWrite().relationshipDelete( rel );
 
         // When
-        try
-        {
-            transaction.dataWrite().relationshipRemoveProperty( rel, prop1 );
-            fail( "Should have failed." );
-        }
-        catch ( EntityNotFoundException e )
-        {
-            assertThat( e.getMessage(), equalTo( "Unable to load RELATIONSHIP with id " + rel + "." ) );
-        }
+        var e = assertThrows( EntityNotFoundException.class, () -> transaction.dataWrite().relationshipRemoveProperty( rel, prop1 ) );
+        assertThat( e.getMessage(), equalTo( "Unable to load RELATIONSHIP with id " + rel + "." ) );
         commit();
     }
 
     @Test
-    public void shouldBeAbleToRemoveResetAndTwiceRemovePropertyOnRelationship() throws Exception
+    void shouldBeAbleToRemoveResetAndTwiceRemovePropertyOnRelationship() throws Exception
     {
         // given
-        Transaction transaction = newTransaction( AnonymousContext.writeToken() );
+        KernelTransaction transaction = newTransaction( AnonymousContext.writeToken() );
         int prop = transaction.tokenWrite().propertyKeyGetOrCreateForName( "foo" );
         int type = transaction.tokenWrite().relationshipTypeGetOrCreateForName( "RELATED" );
 

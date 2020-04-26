@@ -140,9 +140,28 @@ public class Readables
         }, length );
     }
 
+    public static CharReadable wrap( String sourceDescription, String data )
+    {
+        return wrap( sourceDescription, new StringReader( data ), data.length() );
+    }
+
     public static CharReadable wrap( String data )
     {
         return wrap( new StringReader( data ), data.length() );
+    }
+
+    /**
+     * Wraps a {@link Reader} in a {@link CharReadable}.
+     * Remember that the {@link Reader#toString()} must provide a description of the data source.
+     * Uses {@link Reader#toString()} as the source description.
+     *
+     * @param reader {@link Reader} to wrap.
+     * @param length total number of bytes provided by the reader.
+     * @return a {@link CharReadable} for the {@link Reader}.
+     */
+    public static CharReadable wrap( Reader reader, long length )
+    {
+        return wrap( reader.toString(), reader, length );
     }
 
     /**
@@ -153,9 +172,9 @@ public class Readables
      * @param length total number of bytes provided by the reader.
      * @return a {@link CharReadable} for the {@link Reader}.
      */
-    public static CharReadable wrap( final Reader reader, long length )
+    public static CharReadable wrap( String sourceDescription, Reader reader, long length )
     {
-        return new WrappedCharReadable( length, reader );
+        return new WrappedCharReadable( length, reader, sourceDescription );
     }
 
     private static class FromFile implements IOFunction<File,CharReadable>
@@ -207,7 +226,11 @@ public class Readables
                 if ( magic.impliesEncoding() )
                 {
                     // Read (and skip) the magic (BOM in this case) from the file we're returning out
-                    in.skip( magic.length() );
+                    long skip = in.skip( magic.length() );
+                    if ( skip != magic.length() )
+                    {
+                        throw new IOException( "Unable to skip " + magic.length() + " bytes, only able to skip " + skip + " bytes." );
+                    }
                     usedCharset = magic.encoding();
                 }
                 return wrap( new InputStreamReader( in, usedCharset )
@@ -221,7 +244,7 @@ public class Readables
             }
         }
 
-        private ZipEntry getSingleSuitableEntry( ZipFile zipFile ) throws IOException
+        private static ZipEntry getSingleSuitableEntry( ZipFile zipFile ) throws IOException
         {
             List<String> unsuitableEntries = new ArrayList<>();
             Enumeration<? extends ZipEntry> enumeration = zipFile.entries();
@@ -285,7 +308,7 @@ public class Readables
             throw new IllegalStateException( "No source items specified" );
         }
 
-        return new RawIterator<OUT,IOException>()
+        return new RawIterator<>()
         {
             private int cursor;
 

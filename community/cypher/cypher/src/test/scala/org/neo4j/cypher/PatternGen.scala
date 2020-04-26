@@ -24,8 +24,8 @@ package org.neo4j.cypher
 
 import java.util.concurrent.atomic.AtomicInteger
 
-import org.neo4j.cypher.internal.v3_6.expressions.SemanticDirection
-import org.neo4j.cypher.internal.v3_6.expressions.SemanticDirection.{BOTH, INCOMING, OUTGOING}
+import org.neo4j.cypher.internal.v4_0.expressions.SemanticDirection
+import org.neo4j.cypher.internal.v4_0.expressions.SemanticDirection.{BOTH, INCOMING, OUTGOING}
 import org.scalacheck.Gen._
 import org.scalacheck.{Gen, Shrink}
 import org.scalatest.prop.PropertyChecks
@@ -37,7 +37,7 @@ trait PatternGen extends PropertyChecks {
   protected def maxDiscardedInputs = 500
   protected def maxSize = 10
 
-  override implicit val generatorDrivenConfig = PropertyCheckConfig(
+  override implicit val generatorDrivenConfig: PropertyCheckConfiguration = PropertyCheckConfig(
     minSuccessful = numberOfTestRuns, maxDiscarded = maxDiscardedInputs, maxSize = maxSize
   )
 

@@ -1,4 +1,4 @@
-# Copyright (c) 2002-2018 "Neo4j"
+# Copyright (c) 2002-2020 "Neo4j"
 # Neo4j Sweden AB [http://neo4j.com]
 #
 # This file is part of ONgDB.
@@ -41,14 +41,14 @@ Get-Neo4jSetting -Neo4jServer $ServerObject | Format-Table
 Retrieves all settings for the Neo4j installation at $ServerObject
 
 .EXAMPLE
-Get-Neo4jSetting -Neo4jServer $ServerObject -Name 'dbms.active_database'
+Get-Neo4jSetting -Neo4jServer $ServerObject -Name 'dbms.default_database'
 
-Retrieves all settings with the name 'dbms.active_database' from the Neo4j installation at $ServerObject
+Retrieves all settings with the name 'dbms.default_database' from the Neo4j installation at $ServerObject
 
 .EXAMPLE
-Get-Neo4jSetting -Neo4jServer $ServerObject -Name 'dbms.active_database' -ConfigurationFile 'neo4j.conf'
+Get-Neo4jSetting -Neo4jServer $ServerObject -Name 'dbms.default_database' -ConfigurationFile 'neo4j.conf'
 
-Retrieves all settings with the name 'dbms.active_database' from the Neo4j installation at $ServerObject in 'neo4j.conf'
+Retrieves all settings with the name 'dbms.default_database' from the Neo4j installation at $ServerObject in 'neo4j.conf'
 
 .OUTPUTS
 System.Management.Automation.PSCustomObject

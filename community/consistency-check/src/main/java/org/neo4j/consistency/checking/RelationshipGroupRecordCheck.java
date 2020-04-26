@@ -205,7 +205,7 @@ public class RelationshipGroupRecordCheck implements
             @Override
             protected void relationshipOfOtherType( RelationshipGroupConsistencyReport report )
             {
-                report.firstOutgoingRelationshipOfOfOtherType();
+                report.firstOutgoingRelationshipOfOtherType();
             }
         },
         IN
@@ -237,7 +237,7 @@ public class RelationshipGroupRecordCheck implements
             @Override
             protected void relationshipOfOtherType( RelationshipGroupConsistencyReport report )
             {
-                report.firstIncomingRelationshipOfOfOtherType();
+                report.firstIncomingRelationshipOfOtherType();
             }
         },
         LOOP
@@ -269,7 +269,7 @@ public class RelationshipGroupRecordCheck implements
             @Override
             protected void relationshipOfOtherType( RelationshipGroupConsistencyReport report )
             {
-                report.firstLoopRelationshipOfOfOtherType();
+                report.firstLoopRelationshipOfOtherType();
             }
         };
 

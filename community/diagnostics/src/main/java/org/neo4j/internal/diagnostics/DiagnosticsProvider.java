@@ -37,7 +37,7 @@ public interface DiagnosticsProvider
      * sane default, given that the implementing class has a sensible name:
      *
      * <code><pre>
-     * public String getDiagnosticsIdentifier()
+     * public String getDiagnosticsName()
      * {
      *     return getClass().getName();
      * }
@@ -45,42 +45,12 @@ public interface DiagnosticsProvider
      *
      * @return the identifier of this diagnostics provider.
      */
-    String getDiagnosticsIdentifier();
+    String getDiagnosticsName();
 
     /**
-     * Accept a visitor that may or may not be capable of visiting this object.
+     * Dump the diagnostic information of this {@link DiagnosticsProvider} to the provided {@link Logger logger}.
      *
-     * Typical example:
-     *
-     * <code><pre>
-     * class OperationalStatistics implements {@link DiagnosticsProvider}
-     * {
-     *     public void {@link #acceptDiagnosticsVisitor(Object) acceptDiagnosticsVisitor}( {@link Object} visitor )
-     *     {
-     *         if ( visitor instanceof OperationalStatisticsVisitor )
-     *         {
-     *              ((OperationalStatisticsVisitor)visitor).visitOperationalStatistics( this );
-     *         }
-     *     }
-     * }
-     *
-     * interface OperationalStatisticsVisitor
-     * {
-     *     void visitOperationalStatistics( OperationalStatistics statistics );
-     * }
-     * </pre></code>
-     *
-     * @param visitor the visitor visiting this {@link DiagnosticsProvider}.
-     */
-    void acceptDiagnosticsVisitor( Object visitor );
-
-    /**
-     * Dump the diagnostic information of this {@link DiagnosticsProvider} for
-     * the specified {@link DiagnosticsPhase phase} to the provided
-     * {@link Logger logger}.
-     *
-     * @param phase the {@link DiagnosticsPhase phase} to dump information for.
      * @param logger the {@link Logger logger} to dump information to.
      */
-    void dump( DiagnosticsPhase phase, Logger logger );
+    void dump( Logger logger );
 }

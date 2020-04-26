@@ -27,7 +27,7 @@ import java.io.PrintWriter;
 
 public class ConsistencyCheckIncompleteException extends Exception
 {
-    public ConsistencyCheckIncompleteException( Exception cause )
+    public ConsistencyCheckIncompleteException( Throwable cause )
     {
         super( "Full consistency check did not complete", cause );
     }

@@ -25,8 +25,8 @@ package org.neo4j.consistency.checking.full;
 import org.neo4j.consistency.checking.cache.CacheAccess;
 import org.neo4j.consistency.checking.full.QueueDistribution.QueueDistributor;
 import org.neo4j.consistency.statistics.Statistics;
-import org.neo4j.helpers.progress.ProgressListener;
-import org.neo4j.helpers.progress.ProgressMonitorFactory;
+import org.neo4j.internal.helpers.progress.ProgressListener;
+import org.neo4j.internal.helpers.progress.ProgressMonitorFactory;
 import org.neo4j.kernel.impl.store.RecordStore;
 import org.neo4j.kernel.impl.store.StoreAccess;
 import org.neo4j.kernel.impl.store.record.AbstractBaseRecord;
@@ -58,7 +58,7 @@ public class StoreProcessorTask<R extends AbstractBaseRecord> extends Consistenc
 
     private String indexedPartName( String storeFileName, String prefix )
     {
-        return prefix.length() != 0 ? "_" : format( "%s_pass_%s", storeFileName, prefix );
+        return prefix.isEmpty() ? format( "%s_pass_%s", storeFileName, prefix ) : "_";
     }
 
     @Override

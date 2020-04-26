@@ -22,11 +22,10 @@
  */
 package org.neo4j.kernel.impl.index.schema.fusion;
 
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.ArrayList;
@@ -35,14 +34,16 @@ import java.util.Collections;
 import java.util.EnumMap;
 import java.util.List;
 
-import org.neo4j.internal.kernel.api.schema.LabelSchemaDescriptor;
+import org.neo4j.internal.schema.LabelSchemaDescriptor;
+import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.kernel.api.exceptions.index.IndexEntryConflictException;
-import org.neo4j.kernel.api.index.IndexEntryUpdate;
+import org.neo4j.kernel.api.index.IndexDirectoryStructure;
 import org.neo4j.kernel.api.index.IndexPopulator;
-import org.neo4j.kernel.impl.index.schema.IndexDropAction;
+import org.neo4j.storageengine.api.IndexEntryUpdate;
 import org.neo4j.values.storable.Value;
 
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -51,43 +52,33 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.reset;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.neo4j.internal.schema.IndexProviderDescriptor.UNDECIDED;
+import static org.neo4j.kernel.api.index.IndexDirectoryStructure.directoriesByProvider;
 import static org.neo4j.kernel.impl.index.schema.fusion.FusionIndexTestHelp.add;
 import static org.neo4j.kernel.impl.index.schema.fusion.FusionIndexTestHelp.fill;
 import static org.neo4j.kernel.impl.index.schema.fusion.FusionIndexTestHelp.verifyCallFail;
-import static org.neo4j.kernel.impl.index.schema.fusion.FusionVersion.v00;
-import static org.neo4j.kernel.impl.index.schema.fusion.FusionVersion.v10;
-import static org.neo4j.kernel.impl.index.schema.fusion.FusionVersion.v20;
+import static org.neo4j.kernel.impl.index.schema.fusion.IndexSlot.GENERIC;
 import static org.neo4j.kernel.impl.index.schema.fusion.IndexSlot.LUCENE;
-import static org.neo4j.kernel.impl.index.schema.fusion.IndexSlot.NUMBER;
-import static org.neo4j.kernel.impl.index.schema.fusion.IndexSlot.SPATIAL;
-import static org.neo4j.kernel.impl.index.schema.fusion.IndexSlot.STRING;
-import static org.neo4j.kernel.impl.index.schema.fusion.IndexSlot.TEMPORAL;
 
-@RunWith( Parameterized.class )
-public class FusionIndexPopulatorTest
+abstract class FusionIndexPopulatorTest
 {
+    private static final long indexId = 8;
     private IndexPopulator[] alivePopulators;
     private EnumMap<IndexSlot,IndexPopulator> populators;
     private FusionIndexPopulator fusionIndexPopulator;
-    private final long indexId = 8;
-    private final IndexDropAction dropAction = mock( IndexDropAction.class );
+    private FileSystemAbstraction fs;
+    private IndexDirectoryStructure directoryStructure;
 
-    @Parameterized.Parameters( name = "{0}" )
-    public static FusionVersion[] versions()
+    private final FusionVersion fusionVersion;
+
+    FusionIndexPopulatorTest( FusionVersion fusionVersion )
     {
-        return new FusionVersion[]
-                {
-                        v00, v10, v20
-                };
+        this.fusionVersion = fusionVersion;
     }
 
-    @Parameterized.Parameter
-    public static FusionVersion fusionVersion;
-
-    @Before
-    public void setup()
+    @BeforeEach
+    void setup()
     {
         initiateMocks();
     }
@@ -104,17 +95,8 @@ public class FusionIndexPopulatorTest
             alivePopulators[i] = mock;
             switch ( aliveSlots[i] )
             {
-            case STRING:
-                populators.put( STRING, mock );
-                break;
-            case NUMBER:
-                populators.put( NUMBER, mock );
-                break;
-            case SPATIAL:
-                populators.put( SPATIAL, mock );
-                break;
-            case TEMPORAL:
-                populators.put( TEMPORAL, mock );
+            case GENERIC:
+                populators.put( GENERIC, mock );
                 break;
             case LUCENE:
                 populators.put( LUCENE, mock );
@@ -123,21 +105,17 @@ public class FusionIndexPopulatorTest
                 throw new RuntimeException();
             }
         }
-        fusionIndexPopulator = new FusionIndexPopulator( fusionVersion.slotSelector(), new InstanceSelector<>( populators ), indexId, dropAction, false );
-    }
-
-    private void resetMocks()
-    {
-        for ( IndexPopulator alivePopulator : alivePopulators )
-        {
-            reset( alivePopulator );
-        }
+        SlotSelector slotSelector = fusionVersion.slotSelector();
+        InstanceSelector<IndexPopulator> instanceSelector = new InstanceSelector<>( populators );
+        fs = mock( FileSystemAbstraction.class );
+        directoryStructure = directoriesByProvider( new File( "storeDir" ) ).forProvider( UNDECIDED );
+        fusionIndexPopulator = new FusionIndexPopulator( slotSelector, instanceSelector, indexId, fs, directoryStructure, false );
     }
 
     /* create */
 
     @Test
-    public void createMustCreateAll() throws Exception
+    void createMustCreateAll()
     {
         // when
         fusionIndexPopulator.create();
@@ -145,20 +123,20 @@ public class FusionIndexPopulatorTest
         // then
         for ( IndexPopulator alivePopulator : alivePopulators )
         {
-            verify( alivePopulator, times( 1 ) ).create();
+            verify( alivePopulator ).create();
         }
     }
 
     @Test
-    public void createRemoveAnyLeftOversThatWasThereInIndexDirectoryBeforePopulation() throws IOException
+    void createRemoveAnyLeftOversThatWasThereInIndexDirectoryBeforePopulation() throws IOException
     {
         fusionIndexPopulator.create();
 
-        verify( dropAction ).drop( indexId, false );
+        verify( fs ).deleteRecursively( directoryStructure.directoryForIndex( indexId ) );
     }
 
     @Test
-    public void createMustThrowIfAnyThrow() throws Exception
+    void createMustThrowIfAnyThrow()
     {
         for ( IndexPopulator alivePopulator : alivePopulators )
         {
@@ -180,7 +158,7 @@ public class FusionIndexPopulatorTest
     /* drop */
 
     @Test
-    public void dropMustDropAll()
+    void dropMustDropAll() throws IOException
     {
         // when
         fusionIndexPopulator.drop();
@@ -188,13 +166,13 @@ public class FusionIndexPopulatorTest
         // then
         for ( IndexPopulator alivePopulator : alivePopulators )
         {
-            verify( alivePopulator, times( 1 ) ).drop();
+            verify( alivePopulator ).drop();
         }
-        verify( dropAction ).drop( indexId );
+        verify( fs ).deleteRecursively( directoryStructure.directoryForIndex( indexId ) );
     }
 
     @Test
-    public void dropMustThrowIfAnyDropThrow()
+    void dropMustThrowIfAnyDropThrow()
     {
         for ( IndexPopulator alivePopulator : alivePopulators )
         {
@@ -216,7 +194,7 @@ public class FusionIndexPopulatorTest
     /* add */
 
     @Test
-    public void addMustSelectCorrectPopulator() throws Exception
+    void addMustSelectCorrectPopulator() throws Exception
     {
         // given
         EnumMap<IndexSlot,Value[]> values = FusionIndexTestHelp.valuesByGroup();
@@ -230,22 +208,22 @@ public class FusionIndexPopulatorTest
             }
         }
 
-        // All composite values should go to lucene
+        // All composite values should go to generic
         for ( Value firstValue : allValues )
         {
             for ( Value secondValue : allValues )
             {
-                verifyAddWithCorrectPopulator( populators.get( LUCENE ), firstValue, secondValue );
+                verifyAddWithCorrectPopulator( populators.get( GENERIC ), firstValue, secondValue );
             }
         }
     }
 
     private void verifyAddWithCorrectPopulator( IndexPopulator correctPopulator, Value... numberValues )
-            throws IndexEntryConflictException, IOException
+            throws IndexEntryConflictException
     {
         Collection<IndexEntryUpdate<LabelSchemaDescriptor>> update = Collections.singletonList( add( numberValues ) );
         fusionIndexPopulator.add( update );
-        verify( correctPopulator, times( 1 ) ).add( update );
+        verify( correctPopulator ).add( update );
         for ( IndexPopulator alivePopulator : alivePopulators )
         {
             if ( alivePopulator != correctPopulator )
@@ -257,7 +235,7 @@ public class FusionIndexPopulatorTest
 
     /* verifyDeferredConstraints */
     @Test
-    public void verifyDeferredConstraintsMustThrowIfAnyThrow() throws Exception
+    void verifyDeferredConstraintsMustThrowIfAnyThrow() throws Exception
     {
         for ( IndexPopulator alivePopulator : alivePopulators )
         {
@@ -278,32 +256,32 @@ public class FusionIndexPopulatorTest
 
     /* close */
     @Test
-    public void successfulCloseMustCloseAll() throws Exception
+    void successfulCloseMustCloseAll()
     {
         // when
         closeAndVerifyPropagation( true );
     }
 
     @Test
-    public void unsuccessfulCloseMustCloseAll() throws Exception
+    void unsuccessfulCloseMustCloseAll()
     {
         // when
         closeAndVerifyPropagation( false );
     }
 
-    private void closeAndVerifyPropagation( boolean populationCompletedSuccessfully ) throws IOException
+    private void closeAndVerifyPropagation( boolean populationCompletedSuccessfully )
     {
         fusionIndexPopulator.close( populationCompletedSuccessfully );
 
         // then
         for ( IndexPopulator alivePopulator : alivePopulators )
         {
-            verify( alivePopulator, times( 1 ) ).close( populationCompletedSuccessfully );
+            verify( alivePopulator ).close( populationCompletedSuccessfully );
         }
     }
 
     @Test
-    public void closeMustThrowIfCloseAnyThrow() throws Exception
+    void closeMustThrowIfCloseAnyThrow()
     {
         for ( IndexSlot aliveSlot : fusionVersion.aliveSlots() )
         {
@@ -321,31 +299,23 @@ public class FusionIndexPopulatorTest
         }
     }
 
-    private void verifyOtherCloseOnThrow( IndexPopulator throwingPopulator ) throws Exception
+    private void verifyOtherCloseOnThrow( IndexPopulator throwingPopulator )
     {
         // given
         UncheckedIOException failure = new UncheckedIOException( new IOException( "fail" ) );
         doThrow( failure ).when( throwingPopulator ).close( anyBoolean() );
 
-        // when
-        try
-        {
-            fusionIndexPopulator.close( true );
-            fail( "Should have failed" );
-        }
-        catch ( UncheckedIOException ignore )
-        {
-        }
+        assertThrows( UncheckedIOException.class, () -> fusionIndexPopulator.close( true ) );
 
         // then
         for ( IndexPopulator alivePopulator : alivePopulators )
         {
-            verify( alivePopulator, times( 1 ) ).close( true );
+            verify( alivePopulator ).close( true );
         }
     }
 
     @Test
-    public void closeMustCloseOthersIfAnyThrow() throws Exception
+    void closeMustCloseOthersIfAnyThrow()
     {
         for ( IndexSlot throwingSlot : fusionVersion.aliveSlots() )
         {
@@ -355,7 +325,7 @@ public class FusionIndexPopulatorTest
     }
 
     @Test
-    public void closeMustThrowIfAllThrow() throws Exception
+    void closeMustThrowIfAllThrow()
     {
         // given
         List<UncheckedIOException> failures = new ArrayList<>();
@@ -366,25 +336,16 @@ public class FusionIndexPopulatorTest
             doThrow( failure ).when( alivePopulator ).close( anyBoolean() );
         }
 
-        try
+        var e = assertThrows( UncheckedIOException.class, () -> fusionIndexPopulator.close( anyBoolean() ) );
+        if ( !failures.contains( e ) )
         {
-            // when
-            fusionIndexPopulator.close( anyBoolean() );
-            fail( "Should have failed" );
-        }
-        catch ( UncheckedIOException e )
-        {
-            // then
-            if ( !failures.contains( e ) )
-            {
-                fail( "Thrown exception didn't match any of the expected failures: " + failures );
-            }
+            fail( "Thrown exception didn't match any of the expected failures: " + failures );
         }
     }
 
     /* markAsFailed */
     @Test
-    public void markAsFailedMustMarkAll() throws Exception
+    void markAsFailedMustMarkAll()
     {
         // when
         String failureMessage = "failure";
@@ -393,12 +354,12 @@ public class FusionIndexPopulatorTest
         // then
         for ( IndexPopulator alivePopulator : alivePopulators )
         {
-            verify( alivePopulator, times( 1 ) ).markAsFailed( failureMessage );
+            verify( alivePopulator ).markAsFailed( failureMessage );
         }
     }
 
     @Test
-    public void markAsFailedMustThrowIfAnyThrow() throws Exception
+    void markAsFailedMustThrowIfAnyThrow()
     {
         for ( IndexPopulator alivePopulator : alivePopulators )
         {
@@ -419,7 +380,7 @@ public class FusionIndexPopulatorTest
     }
 
     @Test
-    public void shouldIncludeSampleOnCorrectPopulator()
+    void shouldIncludeSampleOnCorrectPopulator()
     {
         // given
         EnumMap<IndexSlot,Value[]> values = FusionIndexTestHelp.valuesByGroup();

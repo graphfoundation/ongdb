@@ -10,7 +10,6 @@
     </parent>
 
     <artifactId>ongdb-community</artifactId>
-    <version>4.0.4-SNAPSHOT</version>
 
     <name>ONgDB - Community (Bill of Materials)</name>
     <packaging>pom</packaging>

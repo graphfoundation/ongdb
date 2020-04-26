@@ -28,11 +28,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
 
-import org.neo4j.internal.kernel.api.Kernel;
 import org.neo4j.internal.kernel.api.TokenRead;
-import org.neo4j.internal.kernel.api.Transaction;
 import org.neo4j.internal.kernel.api.exceptions.TransactionFailureException;
 import org.neo4j.internal.kernel.api.security.LoginContext;
+import org.neo4j.kernel.api.Kernel;
+import org.neo4j.kernel.api.KernelTransaction;
 
 /**
  * Data collector section that simply return all tokens (propertyKeys, labels and relationship types) that
@@ -46,7 +46,7 @@ final class TokensSection
 
     static Stream<RetrieveResult> retrieve( Kernel kernel ) throws TransactionFailureException
     {
-        try ( Transaction tx = kernel.beginTransaction( Transaction.Type.explicit, LoginContext.AUTH_DISABLED ) )
+        try ( KernelTransaction tx = kernel.beginTransaction( KernelTransaction.Type.explicit, LoginContext.AUTH_DISABLED ) )
         {
             TokenRead tokens = tx.tokenRead();
 
@@ -69,13 +69,13 @@ final class TokensSection
 
     static void putTokenCounts( Map<String,Object> metaData, Kernel kernel ) throws TransactionFailureException
     {
-        try ( Transaction tx = kernel.beginTransaction( Transaction.Type.explicit, LoginContext.AUTH_DISABLED ) )
+        try ( KernelTransaction tx = kernel.beginTransaction( KernelTransaction.Type.explicit, LoginContext.AUTH_DISABLED ) )
         {
             TokenRead tokens = tx.tokenRead();
             metaData.put( "labelCount", tokens.labelCount() );
             metaData.put( "relationshipTypeCount", tokens.relationshipTypeCount() );
             metaData.put( "propertyKeyCount", tokens.propertyKeyCount() );
-            tx.success();
+            tx.commit();
         }
     }
 }

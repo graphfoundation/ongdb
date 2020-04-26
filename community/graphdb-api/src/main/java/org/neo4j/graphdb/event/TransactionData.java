@@ -24,6 +24,7 @@ package org.neo4j.graphdb.event;
 
 import java.util.Map;
 
+import org.neo4j.annotations.api.PublicApi;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Relationship;
 
@@ -33,13 +34,10 @@ import org.neo4j.graphdb.Relationship;
  * it was before the transaction started. This implies f.ex. that a node which
  * is created, modified and then deleted in the same transaction won't be seen
  * in the transaction data at all.
- *
- * @author Tobias Ivarsson
- * @author Mattias Persson
  */
+@PublicApi
 public interface TransactionData
 {
-
     /**
      * Get the nodes that were created during the transaction.
      *

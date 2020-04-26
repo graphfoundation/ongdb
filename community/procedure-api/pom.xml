@@ -11,12 +11,11 @@
     <properties>
         <license-text.header>headers/GPL-3-header.txt</license-text.header>
         <licensing.prepend.text>licensing/notice-gpl-prefix.txt</licensing.prepend.text>
-        <moduleName>org.neo4j.graphdb</moduleName>
+        <moduleName>org.neo4j.procedure.api</moduleName>
     </properties>
 
     <modelVersion>4.0.0</modelVersion>
     <artifactId>ongdb-procedure-api</artifactId>
-    <version>4.0.4-SNAPSHOT</version>
 
     <packaging>jar</packaging>
     <name>ONgDB - Procedure API</name>
@@ -35,19 +34,6 @@
             <url>http://www.gnu.org/licenses/gpl-3.0-standalone.html</url>
         </license>
     </licenses>
-
-    <build>
-        <plugins>
-            <!-- This module contains public API, run javadoc and revapi -->
-            <plugin>
-                <artifactId>maven-javadoc-plugin</artifactId>
-            </plugin>
-            <plugin>
-                <groupId>org.revapi</groupId>
-                <artifactId>revapi-maven-plugin</artifactId>
-            </plugin>
-        </plugins>
-    </build>
 
     <dependencies>
         <dependency>

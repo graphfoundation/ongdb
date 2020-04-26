@@ -22,35 +22,32 @@
  */
 package org.neo4j.kernel.impl.api.index;
 
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnitRunner;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
-import org.neo4j.storageengine.api.schema.CapableIndexDescriptor;
+import org.neo4j.kernel.impl.api.index.MultipleIndexPopulator.IndexPopulation;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.internal.schema.IndexPrototype;
+import org.neo4j.internal.schema.SchemaDescriptor;
 
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
-@RunWith( MockitoJUnitRunner.class )
-public class PopulatingIndexProxyTest
+class PopulatingIndexProxyTest
 {
-    @Mock
-    private CapableIndexDescriptor capableIndexDescriptor;
-    @Mock
-    private IndexPopulationJob indexPopulationJob;
-    @Mock
-    private MultipleIndexPopulator.IndexPopulation indexPopulation;
+    private final IndexDescriptor index = IndexPrototype.forSchema( SchemaDescriptor.forLabel( 1, 2 ) ).withName( "index" ).materialise( 13 );
+    private final IndexPopulationJob indexPopulationJob = mock( IndexPopulationJob.class );
+    private final IndexPopulation indexPopulation = mock( IndexPopulation.class );
     private PopulatingIndexProxy populatingIndexProxy;
 
-    @Before
-    public void setUp()
+    @BeforeEach
+    void setUp()
     {
-        populatingIndexProxy = new PopulatingIndexProxy( capableIndexDescriptor, indexPopulationJob, indexPopulation );
+        populatingIndexProxy = new PopulatingIndexProxy( index, indexPopulationJob, indexPopulation );
     }
 
     @Test
-    public void cancelPopulationJobOnClose()
+    void cancelPopulationJobOnClose()
     {
         populatingIndexProxy.close();
 
@@ -58,7 +55,7 @@ public class PopulatingIndexProxyTest
     }
 
     @Test
-    public void cancelPopulationJobOnDrop()
+    void cancelPopulationJobOnDrop()
     {
         populatingIndexProxy.drop();
 

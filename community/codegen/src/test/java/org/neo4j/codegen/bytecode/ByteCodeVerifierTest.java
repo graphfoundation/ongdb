@@ -22,7 +22,8 @@
  */
 package org.neo4j.codegen.bytecode;
 
-import org.junit.Test;
+
+import org.junit.jupiter.api.Test;
 
 import org.neo4j.codegen.ClassGenerator;
 import org.neo4j.codegen.ClassHandle;
@@ -31,18 +32,18 @@ import org.neo4j.codegen.CodeGenerator;
 import org.neo4j.codegen.CompilationFailureException;
 
 import static org.hamcrest.CoreMatchers.containsString;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.neo4j.codegen.CodeGenerationTest.PACKAGE;
 import static org.neo4j.codegen.CodeGenerator.generateCode;
 import static org.neo4j.codegen.Parameter.param;
 import static org.neo4j.codegen.bytecode.ByteCode.BYTECODE;
 import static org.neo4j.codegen.bytecode.ByteCode.VERIFY_GENERATED_BYTECODE;
 
-public class ByteCodeVerifierTest
+class ByteCodeVerifierTest
 {
     @Test
-    public void shouldVerifyBytecode() throws Throwable
+    void shouldVerifyBytecode() throws Throwable
     {
         // given
         CodeGenerator generator = generateCode( BYTECODE, VERIFY_GENERATED_BYTECODE );
@@ -55,16 +56,8 @@ public class ByteCodeVerifierTest
             code.returns( code.load( "value" ) );
         }
 
-        // when
-        try
-        {
-            handle.loadClass();
-            fail( "Should have thrown exception" );
-        }
-        // then
-        catch ( CompilationFailureException expected )
-        {
-            assertThat( expected.toString(), containsString( "box(I)" ) );
-        }
+        CompilationFailureException exception =
+                assertThrows( CompilationFailureException.class, handle::loadClass );
+        assertThat( exception.toString(), containsString( "box(I)" )  );
     }
 }

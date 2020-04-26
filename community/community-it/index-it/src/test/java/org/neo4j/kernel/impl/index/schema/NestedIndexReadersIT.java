@@ -33,8 +33,8 @@ import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.ResourceIterator;
 import org.neo4j.graphdb.Transaction;
 import org.neo4j.test.OtherThreadExecutor.WorkerCommand;
-import org.neo4j.test.rule.ImpermanentDatabaseRule;
-import org.neo4j.test.rule.concurrent.OtherThreadRule;
+import org.neo4j.test.rule.ImpermanentDbmsRule;
+import org.neo4j.test.rule.OtherThreadRule;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.Assert.assertEquals;
@@ -49,7 +49,7 @@ public class NestedIndexReadersIT
     private static final String KEY = "key";
 
     @Rule
-    public final ImpermanentDatabaseRule db = new ImpermanentDatabaseRule();
+    public final ImpermanentDbmsRule db = new ImpermanentDbmsRule();
     @Rule
     public final OtherThreadRule<Void> t2 = new OtherThreadRule<>();
 
@@ -62,9 +62,9 @@ public class NestedIndexReadersIT
         {
             for ( int i = 0; i < NODE_PER_ID; i++ )
             {
-                createRoundOfNodes();
+                createRoundOfNodes( tx );
             }
-            tx.success();
+            tx.commit();
         }
 
         // when
@@ -74,7 +74,7 @@ public class NestedIndexReadersIT
             List<ResourceIterator<Node>> iterators = new ArrayList<>();
             for ( int id = 0; id < IDS; id++ )
             {
-                iterators.add( db.findNodes( LABEL, KEY, id ) );
+                iterators.add( tx.findNodes( LABEL, KEY, id ) );
             }
 
             // then iterating over them interleaved should yield all the expected results each
@@ -89,7 +89,7 @@ public class NestedIndexReadersIT
                 reader.close();
             }
 
-            tx.success();
+            tx.commit();
         }
     }
 
@@ -104,10 +104,10 @@ public class NestedIndexReadersIT
             {
                 for ( int i = 0; i < NODE_PER_ID; i++ )
                 {
-                    db.createNode( LABEL ).setProperty( KEY, id );
+                    tx.createNode( LABEL ).setProperty( KEY, id );
                 }
             }
-            tx.success();
+            tx.commit();
         }
 
         // when
@@ -117,7 +117,7 @@ public class NestedIndexReadersIT
             List<ResourceIterator<Node>> iterators = new ArrayList<>();
             for ( int id = 0; id < IDS; id++ )
             {
-                iterators.add( db.findNodes( LABEL, KEY, id ) );
+                iterators.add( tx.findNodes( LABEL, KEY, id ) );
             }
 
             // then iterating over them interleaved should yield all the expected results each
@@ -140,15 +140,15 @@ public class NestedIndexReadersIT
                 reader.close();
             }
 
-            tx.success();
+            tx.commit();
         }
     }
 
-    private void createRoundOfNodes()
+    private void createRoundOfNodes( Transaction tx )
     {
         for ( int id = 0; id < IDS; id++ )
         {
-            db.createNode( LABEL ).setProperty( KEY, id );
+            tx.createNode( LABEL ).setProperty( KEY, id );
         }
     }
 
@@ -166,8 +166,8 @@ public class NestedIndexReadersIT
         {
             try ( Transaction tx = db.beginTx() )
             {
-                createRoundOfNodes();
-                tx.success();
+                createRoundOfNodes( tx );
+                tx.commit();
             }
             return null;
         };
@@ -186,13 +186,13 @@ public class NestedIndexReadersIT
     {
         try ( Transaction tx = db.beginTx() )
         {
-            db.schema().indexFor( LABEL ).on( KEY ).create();
-            tx.success();
+            tx.schema().indexFor( LABEL ).on( KEY ).create();
+            tx.commit();
         }
         try ( Transaction tx = db.beginTx() )
         {
-            db.schema().awaitIndexesOnline( 10, SECONDS );
-            tx.success();
+            tx.schema().awaitIndexesOnline( 10, SECONDS );
+            tx.commit();
         }
     }
 }

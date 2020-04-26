@@ -22,43 +22,36 @@
  */
 package org.neo4j.kernel.impl.transaction.log.entry;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 
-import org.neo4j.kernel.impl.storageengine.impl.recordstorage.RecordStorageCommandReaderFactory;
-import org.neo4j.kernel.impl.store.record.NodeRecord;
-import org.neo4j.kernel.impl.transaction.command.Command;
-import org.neo4j.kernel.impl.transaction.command.NeoCommandType;
+import org.neo4j.kernel.impl.api.TestCommand;
+import org.neo4j.kernel.impl.api.TestCommandReaderFactory;
 import org.neo4j.kernel.impl.transaction.log.InMemoryClosableChannel;
 import org.neo4j.kernel.impl.transaction.log.LogPosition;
-import org.neo4j.kernel.impl.transaction.log.ReadableClosablePositionAwareChannel;
+import org.neo4j.storageengine.api.CommandReader;
 
-import static java.lang.System.currentTimeMillis;
-import static java.util.Collections.singletonList;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.neo4j.kernel.impl.transaction.log.entry.LogEntryVersion.LATEST_VERSION;
+import static org.neo4j.storageengine.api.TransactionIdStore.BASE_TX_CHECKSUM;
 
-public class VersionAwareLogEntryReaderTest
+class VersionAwareLogEntryReaderTest
 {
-    private final LogEntryReader<ReadableClosablePositionAwareChannel> logEntryReader = new VersionAwareLogEntryReader<>();
+    private final LogEntryReader logEntryReader = new VersionAwareLogEntryReader( new TestCommandReaderFactory() );
 
     @Test
-    public void shouldReadAStartLogEntry() throws IOException
+    void shouldReadAStartLogEntry() throws IOException
     {
         // given
-        LogEntryVersion version = LogEntryVersion.CURRENT;
-        final LogEntryStart start = new LogEntryStart( version, 1, 2, 3, 4, new byte[]{5}, new LogPosition( 0, 31 ) );
+        final LogEntryStart start = new LogEntryStart( LATEST_VERSION, 1, 2, BASE_TX_CHECKSUM, new byte[]{4}, new LogPosition( 0, 27 ) );
         final InMemoryClosableChannel channel = new InMemoryClosableChannel();
 
-        channel.put( version.byteCode() ); // version
-        channel.put( LogEntryByteCodes.TX_START ); // type
-        channel.putInt( start.getMasterId() );
-        channel.putInt( start.getLocalId() );
-        channel.putLong( start.getTimeWritten() );
-        channel.putLong( start.getLastCommittedTxWhenTransactionStarted() );
-        channel.putInt( start.getAdditionalHeader().length );
-        channel.put( start.getAdditionalHeader(), start.getAdditionalHeader().length );
+        writeStartEntry( channel, start );
 
         // when
         final LogEntry logEntry = logEntryReader.readLogEntry( channel );
@@ -68,17 +61,13 @@ public class VersionAwareLogEntryReaderTest
     }
 
     @Test
-    public void shouldReadACommitLogEntry() throws IOException
+    void shouldReadACommitLogEntry() throws IOException
     {
         // given
-        LogEntryVersion version = LogEntryVersion.CURRENT;
-        final LogEntryCommit commit = new LogEntryCommit( version, 42, 21 );
+        final LogEntryCommit commit = new LogEntryCommit( LATEST_VERSION, 42, 21, 2039335142 );
         final InMemoryClosableChannel channel = new InMemoryClosableChannel();
 
-        channel.put( version.byteCode() );
-        channel.put( LogEntryByteCodes.TX_COMMIT );
-        channel.putLong( commit.getTxId() );
-        channel.putLong( commit.getTimeWritten() );
+        writeCommitEntry( channel, commit );
 
         // when
         final LogEntry logEntry = logEntryReader.readLogEntry( channel );
@@ -88,17 +77,17 @@ public class VersionAwareLogEntryReaderTest
     }
 
     @Test
-    public void shouldReadACommandLogEntry() throws IOException
+    void shouldReadACommandLogEntry() throws IOException
     {
         // given
-        LogEntryVersion version = LogEntryVersion.CURRENT;
-        Command.NodeCommand nodeCommand = new Command.NodeCommand( new NodeRecord( 11 ), new NodeRecord( 11 ) );
-        final LogEntryCommand command = new LogEntryCommand( version, nodeCommand );
+        LogEntryVersion version = LATEST_VERSION;
+        TestCommand testCommand = new TestCommand( new byte[] {100, 101, 102} );
+        final LogEntryCommand command = new LogEntryCommand( version, testCommand );
         final InMemoryClosableChannel channel = new InMemoryClosableChannel();
 
-        channel.put( version.byteCode() );
+        channel.put( version.version() );
         channel.put( LogEntryByteCodes.COMMAND );
-        nodeCommand.serialize( channel );
+        testCommand.serialize( channel );
 
         // when
         final LogEntry logEntry = logEntryReader.readLogEntry( channel );
@@ -108,18 +97,17 @@ public class VersionAwareLogEntryReaderTest
     }
 
     @Test
-    public void shouldReadACheckPointLogEntry() throws IOException
+    void shouldReadACheckPointLogEntry() throws IOException
     {
         // given
-        LogEntryVersion version = LogEntryVersion.CURRENT;
-        final LogPosition logPosition = new LogPosition( 42, 43 );
-        final CheckPoint checkPoint = new CheckPoint( version, logPosition );
+        final CheckPoint checkPoint = new CheckPoint( LATEST_VERSION, new LogPosition( 42, 43 ) );
         final InMemoryClosableChannel channel = new InMemoryClosableChannel();
 
-        channel.put( version.byteCode() );
+        channel.put( checkPoint.getVersion().version() );
         channel.put( LogEntryByteCodes.CHECK_POINT );
-        channel.putLong( logPosition.getLogVersion() );
-        channel.putLong( logPosition.getByteOffset() );
+        channel.putLong( checkPoint.getLogPosition().getLogVersion() );
+        channel.putLong( checkPoint.getLogPosition().getByteOffset() );
+        channel.putChecksum();
 
         // when
         final LogEntry logEntry = logEntryReader.readLogEntry( channel );
@@ -129,15 +117,14 @@ public class VersionAwareLogEntryReaderTest
     }
 
     @Test
-    public void shouldReturnNullWhenThereIsNoCommand() throws IOException
+    void shouldReturnNullWhenThereIsNoCommand() throws IOException
     {
         // given
-        LogEntryVersion version = LogEntryVersion.CURRENT;
         final InMemoryClosableChannel channel = new InMemoryClosableChannel();
 
-        channel.put( version.byteCode() );
+        channel.put( LATEST_VERSION.version() );
         channel.put( LogEntryByteCodes.COMMAND );
-        channel.put( NeoCommandType.NONE );
+        channel.put( CommandReader.NONE );
 
         // when
         final LogEntry logEntry = logEntryReader.readLogEntry( channel );
@@ -147,7 +134,7 @@ public class VersionAwareLogEntryReaderTest
     }
 
     @Test
-    public void shouldReturnNullWhenNotEnoughDataInTheChannel() throws IOException
+    void shouldReturnNullWhenNotEnoughDataInTheChannel() throws IOException
     {
         // given
         final InMemoryClosableChannel channel = new InMemoryClosableChannel();
@@ -159,116 +146,65 @@ public class VersionAwareLogEntryReaderTest
         assertNull( logEntry );
     }
 
+    @Disabled // TODO it's not clear what the benefit verifying the chain will give us, so it's disable for now
     @Test
-    public void shouldBeAbleToSkipBadVersionAndTypeBytesInBetweenLogEntries() throws Exception
+    void shouldValidateChecksumChain() throws IOException
     {
-        // GIVEN
-        AcceptingInvalidLogEntryHandler invalidLogEntryHandler = new AcceptingInvalidLogEntryHandler();
-        VersionAwareLogEntryReader<ReadableClosablePositionAwareChannel> reader = new VersionAwareLogEntryReader<>(
-                new RecordStorageCommandReaderFactory(), invalidLogEntryHandler );
-        InMemoryClosableChannel channel = new InMemoryClosableChannel( 1_000 );
-        LogEntryWriter writer = new LogEntryWriter( channel.writer() );
-        long startTime = currentTimeMillis();
-        long commitTime = startTime + 10;
-        writer.writeStartEntry( 1, 2, startTime, 3, new byte[0] );
-        writer.writeCommitEntry( 4, commitTime );
-        channel.put( (byte) 127 );
-        channel.put( (byte) 126 );
-        channel.put( (byte) 125 );
-        long secondStartTime = startTime + 100;
-        writer.writeStartEntry( 1, 2, secondStartTime, 4, new byte[0] );
+        // given
+        final InMemoryClosableChannel channel = new InMemoryClosableChannel();
+        LogPosition startPosition = new LogPosition( 0, 174 );
 
-        // WHEN
-        LogEntryStart readStartEntry = reader.readLogEntry( channel.reader() ).as();
-        LogEntryCommit readCommitEntry = reader.readLogEntry( channel.reader() ).as();
-        LogEntryStart readSecondStartEntry = reader.readLogEntry( channel.reader() ).as();
+        int checksum1 = 1021763356;
+        final LogEntryStart start1 = new LogEntryStart( LATEST_VERSION, 1, 2, BASE_TX_CHECKSUM, new byte[]{4}, startPosition );
+        final LogEntryCommit commit1 = new LogEntryCommit( LATEST_VERSION, 42, 21, checksum1 );
 
-        // THEN
-        assertEquals( 1, readStartEntry.getMasterId() );
-        assertEquals( 2, readStartEntry.getLocalId() );
-        assertEquals( startTime, readStartEntry.getTimeWritten() );
+        int checksum2 = 2120750830;
+        final LogEntryStart start2 = new LogEntryStart( LATEST_VERSION, 35,  30, checksum1, new byte[]{5}, startPosition );
+        final LogEntryCommit commit2 = new LogEntryCommit( LATEST_VERSION, 76, 35, checksum2 );
 
-        assertEquals( 4, readCommitEntry.getTxId() );
-        assertEquals( commitTime, readCommitEntry.getTimeWritten() );
+        int checksum3 = -1462443939;
+        final LogEntryStart start3 = new LogEntryStart( LATEST_VERSION, 58,  80, checksum2, new byte[]{6}, startPosition );
+        final LogEntryCommit commit3 = new LogEntryCommit( LATEST_VERSION, 83, 47, checksum3 );
 
-        assertEquals( 3, invalidLogEntryHandler.bytesSkipped );
-        assertEquals( 3, invalidLogEntryHandler.invalidEntryCalls );
+        int notChecksum3 = checksum3 + 1;
+        final LogEntryStart start4 = new LogEntryStart( LATEST_VERSION, 68,  83, notChecksum3, new byte[]{7}, startPosition );
 
-        assertEquals( 1, readSecondStartEntry.getMasterId() );
-        assertEquals( 2, readSecondStartEntry.getLocalId() );
-        assertEquals( secondStartTime, readSecondStartEntry.getTimeWritten() );
+        writeStartEntry( channel, start1 );
+        writeCommitEntry( channel, commit1 );
+        writeStartEntry( channel, start2 );
+        writeCommitEntry( channel, commit2 );
+        writeStartEntry( channel, start3 );
+        writeCommitEntry( channel, commit3 );
+        writeStartEntry( channel, start4 );
+
+        assertEquals( start1, logEntryReader.readLogEntry( channel ) );
+        assertEquals( commit1, logEntryReader.readLogEntry( channel ) );
+        assertEquals( start2, logEntryReader.readLogEntry( channel ) );
+        assertEquals( commit2, logEntryReader.readLogEntry( channel ) );
+        assertEquals( start3, logEntryReader.readLogEntry( channel ) );
+        assertEquals( commit3, logEntryReader.readLogEntry( channel ) );
+        IllegalStateException e = assertThrows( IllegalStateException.class, () -> logEntryReader.readLogEntry( channel ) );
+        assertTrue( e.getMessage().contains( "The checksum chain is broken" ) );
     }
 
-    @Test
-    public void shouldBeAbleToSkipBadLogEntries() throws Exception
+    private static void writeStartEntry( InMemoryClosableChannel channel, LogEntryStart start )
     {
-        // GIVEN
-        AcceptingInvalidLogEntryHandler invalidLogEntryHandler = new AcceptingInvalidLogEntryHandler();
-        VersionAwareLogEntryReader<ReadableClosablePositionAwareChannel> reader = new VersionAwareLogEntryReader<>(
-                new RecordStorageCommandReaderFactory(), invalidLogEntryHandler );
-        InMemoryClosableChannel channel = new InMemoryClosableChannel( 1_000 );
-        LogEntryWriter writer = new LogEntryWriter( channel.writer() );
-        long startTime = currentTimeMillis();
-        long commitTime = startTime + 10;
-        writer.writeStartEntry( 1, 2, startTime, 3, new byte[0] );
-
-        // Write command ...
-        int posBefore = channel.writerPosition();
-        writer.serialize( singletonList( new Command.NodeCommand( new NodeRecord( 1 ),
-                new NodeRecord( 1 ).initialize( true, 1, false, 2, 0 ) ) ) );
-        int posAfter = channel.writerPosition();
-        // ... which then gets overwritten with invalid data
-        channel.positionWriter( posBefore );
-        while ( channel.writerPosition() < posAfter )
-        {
-            channel.put( (byte) 0xFF );
-        }
-
-        writer.writeCommitEntry( 4, commitTime );
-        long secondStartTime = startTime + 100;
-        writer.writeStartEntry( 1, 2, secondStartTime, 4, new byte[0] );
-
-        // WHEN
-        LogEntryStart readStartEntry = reader.readLogEntry( channel.reader() ).as();
-        LogEntryCommit readCommitEntry = reader.readLogEntry( channel.reader() ).as();
-        LogEntryStart readSecondStartEntry = reader.readLogEntry( channel.reader() ).as();
-
-        // THEN
-        assertEquals( 1, readStartEntry.getMasterId() );
-        assertEquals( 2, readStartEntry.getLocalId() );
-        assertEquals( startTime, readStartEntry.getTimeWritten() );
-
-        assertEquals( 4, readCommitEntry.getTxId() );
-        assertEquals( commitTime, readCommitEntry.getTimeWritten() );
-
-        assertEquals( posAfter - posBefore, invalidLogEntryHandler.bytesSkipped );
-        assertEquals( posAfter - posBefore, invalidLogEntryHandler.invalidEntryCalls );
-
-        assertEquals( 1, readSecondStartEntry.getMasterId() );
-        assertEquals( 2, readSecondStartEntry.getLocalId() );
-        assertEquals( secondStartTime, readSecondStartEntry.getTimeWritten() );
+        channel.beginChecksum();
+        channel.put( start.getVersion().version() ); // version
+        channel.put( LogEntryByteCodes.TX_START ); // type
+        channel.putLong( start.getTimeWritten() );
+        channel.putLong( start.getLastCommittedTxWhenTransactionStarted() );
+        channel.putInt( start.getPreviousChecksum() );
+        channel.putInt( start.getAdditionalHeader().length );
+        channel.put( start.getAdditionalHeader(), start.getAdditionalHeader().length );
     }
 
-    static class AcceptingInvalidLogEntryHandler extends InvalidLogEntryHandler
+    private static void writeCommitEntry( InMemoryClosableChannel channel, LogEntryCommit commit )
     {
-        long bytesSkipped;
-        Exception e;
-        LogPosition position;
-        int invalidEntryCalls;
-
-        @Override
-        public boolean handleInvalidEntry( Exception e, LogPosition position )
-        {
-            this.e = e;
-            this.position = position;
-            invalidEntryCalls++;
-            return true;
-        }
-
-        @Override
-        public void bytesSkipped( long bytesSkipped )
-        {
-            this.bytesSkipped += bytesSkipped;
-        }
+        channel.put( commit.getVersion().version() );
+        channel.put( LogEntryByteCodes.TX_COMMIT );
+        channel.putLong( commit.getTxId() );
+        channel.putLong( commit.getTimeWritten() );
+        channel.putChecksum();
     }
 }

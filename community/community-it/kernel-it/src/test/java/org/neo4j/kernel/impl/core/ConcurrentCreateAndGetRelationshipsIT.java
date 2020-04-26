@@ -22,8 +22,7 @@
  */
 package org.neo4j.kernel.impl.core;
 
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -31,14 +30,15 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
+import org.neo4j.cypher.internal.runtime.RelationshipIterator;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.RelationshipType;
 import org.neo4j.graphdb.Transaction;
-import org.neo4j.helpers.collection.Iterables;
+import org.neo4j.internal.helpers.collection.Iterables;
 import org.neo4j.kernel.impl.MyRelTypes;
-import org.neo4j.kernel.impl.api.store.RelationshipIterator;
-import org.neo4j.test.rule.ImpermanentDatabaseRule;
+import org.neo4j.test.extension.ImpermanentDbmsExtension;
+import org.neo4j.test.extension.Inject;
 
 import static java.lang.Thread.sleep;
 import static java.util.concurrent.TimeUnit.SECONDS;
@@ -55,17 +55,18 @@ import static org.neo4j.graphdb.Direction.OUTGOING;
  * the full 0.5 seconds to try to reproduce it.
  *
  */
-public class ConcurrentCreateAndGetRelationshipsIT
+@ImpermanentDbmsExtension
+class ConcurrentCreateAndGetRelationshipsIT
 {
-    @Rule
-    public final ImpermanentDatabaseRule dbRule = new ImpermanentDatabaseRule();
+    @Inject
+    private GraphDatabaseService db;
+
     private static final RelationshipType RELTYPE = MyRelTypes.TEST;
 
     @Test
-    public void tryToReproduceTheIssue() throws Exception
+    void tryToReproduceTheIssue() throws Exception
     {
         // GIVEN
-        GraphDatabaseService db = dbRule.getGraphDatabaseAPI();
         CountDownLatch startSignal = new CountDownLatch( 1 );
         AtomicBoolean stopSignal = new AtomicBoolean();
         AtomicReference<Exception> failure = new AtomicReference<>();
@@ -116,8 +117,8 @@ public class ConcurrentCreateAndGetRelationshipsIT
     {
         try ( Transaction tx = db.beginTx() )
         {
-            Node node = db.createNode();
-            tx.success();
+            Node node = tx.createNode();
+            tx.commit();
             return node;
         }
     }
@@ -148,11 +149,12 @@ public class ConcurrentCreateAndGetRelationshipsIT
             {
                 try ( Transaction tx = db.beginTx() )
                 {
+                    var node = tx.getNodeById( parentNode.getId() );
                     // ArrayIndexOutOfBoundsException happens here
-                    Iterables.count( parentNode.getRelationships( RELTYPE, OUTGOING ) );
+                    Iterables.count( node.getRelationships( OUTGOING, RELTYPE ) );
 
-                    parentNode.createRelationshipTo( db.createNode(), RELTYPE );
-                    tx.success();
+                    node.createRelationshipTo( tx.createNode(), RELTYPE );
+                    tx.commit();
                 }
                 catch ( Exception e )
                 {

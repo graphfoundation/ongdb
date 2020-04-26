@@ -22,56 +22,60 @@
  */
 package synchronization;
 
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.RuleChain;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.parallel.ResourceLock;
+import org.junit.jupiter.api.parallel.Resources;
 
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
+import org.neo4j.configuration.Config;
 import org.neo4j.consistency.ConsistencyCheckService;
-import org.neo4j.consistency.checking.full.ConsistencyCheckIncompleteException;
+import org.neo4j.dbms.api.DatabaseManagementService;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Relationship;
 import org.neo4j.graphdb.RelationshipType;
 import org.neo4j.graphdb.Transaction;
-import org.neo4j.helpers.progress.ProgressMonitorFactory;
-import org.neo4j.kernel.configuration.Config;
+import org.neo4j.internal.helpers.progress.ProgressMonitorFactory;
+import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.logging.FormattedLogProvider;
 import org.neo4j.logging.LogProvider;
-import org.neo4j.test.TestGraphDatabaseFactory;
-import org.neo4j.test.rule.SuppressOutput;
-import org.neo4j.test.rule.TestDirectory;
+import org.neo4j.test.TestDatabaseManagementServiceBuilder;
+import org.neo4j.test.extension.Inject;
+import org.neo4j.test.extension.Neo4jLayoutExtension;
+import org.neo4j.test.extension.SuppressOutputExtension;
 
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
 
-public class ConcurrentChangesOnEntitiesTest
+@Neo4jLayoutExtension
+@ExtendWith( SuppressOutputExtension.class )
+@ResourceLock( Resources.SYSTEM_OUT )
+class ConcurrentChangesOnEntitiesTest
 {
-    private final SuppressOutput suppressOutput = SuppressOutput.suppressAll();
-    private final TestDirectory testDirectory = TestDirectory.testDirectory();
-
-    @Rule
-    public RuleChain ruleChain = RuleChain.outerRule( suppressOutput ).around( testDirectory );
+    @Inject
+    private DatabaseLayout databaseLayout;
 
     private final CyclicBarrier barrier = new CyclicBarrier( 2 );
     private final AtomicReference<Exception> ex = new AtomicReference<>();
     private GraphDatabaseService db;
+    private DatabaseManagementService managementService;
 
-    @Before
-    public void setup()
+    @BeforeEach
+    void setup()
     {
-        db = new TestGraphDatabaseFactory()
-                .newEmbeddedDatabaseBuilder( testDirectory.databaseDir() )
-                .newGraphDatabase();
+        managementService = new TestDatabaseManagementServiceBuilder( databaseLayout ).build();
+        db = managementService.database( DEFAULT_DATABASE_NAME );
     }
 
     @Test
-    public void addConcurrentlySameLabelToANode() throws Throwable
+    void addConcurrentlySameLabelToANode() throws Throwable
     {
 
         final long nodeId = initWithNode( db );
@@ -82,13 +86,13 @@ public class ConcurrentChangesOnEntitiesTest
 
         startAndWait( t1, t2 );
 
-        db.shutdown();
+        managementService.shutdown();
 
         assertDatabaseConsistent();
     }
 
     @Test
-    public void setConcurrentlySamePropertyWithDifferentValuesOnANode() throws Throwable
+    void setConcurrentlySamePropertyWithDifferentValuesOnANode() throws Throwable
     {
         final long nodeId = initWithNode( db );
 
@@ -98,13 +102,13 @@ public class ConcurrentChangesOnEntitiesTest
 
         startAndWait( t1, t2 );
 
-        db.shutdown();
+        managementService.shutdown();
 
         assertDatabaseConsistent();
     }
 
     @Test
-    public void setConcurrentlySamePropertyWithDifferentValuesOnARelationship() throws Throwable
+    void setConcurrentlySamePropertyWithDifferentValuesOnARelationship() throws Throwable
     {
         final long relId = initWithRel( db );
 
@@ -115,7 +119,7 @@ public class ConcurrentChangesOnEntitiesTest
 
         startAndWait( t1, t2 );
 
-        db.shutdown();
+        managementService.shutdown();
 
         assertDatabaseConsistent();
     }
@@ -124,9 +128,9 @@ public class ConcurrentChangesOnEntitiesTest
     {
         try ( Transaction tx = db.beginTx() )
         {
-            Node theNode = db.createNode();
+            Node theNode = tx.createNode();
             long id = theNode.getId();
-            tx.success();
+            tx.commit();
             return id;
         }
 
@@ -136,11 +140,11 @@ public class ConcurrentChangesOnEntitiesTest
     {
         try ( Transaction tx = db.beginTx() )
         {
-            Node node = db.createNode();
+            Node node = tx.createNode();
             node.setProperty( "a", "prop" );
-            Relationship rel = node.createRelationshipTo( db.createNode(), RelationshipType.withName( "T" ) );
+            Relationship rel = node.createRelationshipTo( tx.createNode(), RelationshipType.withName( "T" ) );
             long id = rel.getId();
-            tx.success();
+            tx.commit();
             return id;
         }
     }
@@ -150,10 +154,10 @@ public class ConcurrentChangesOnEntitiesTest
         return new Thread( () -> {
             try ( Transaction tx = db.beginTx() )
             {
-                Node node = db.getNodeById( nodeId );
+                Node node = tx.getNodeById( nodeId );
                 barrier.await();
                 nodeConsumer.accept( node );
-                tx.success();
+                tx.commit();
             }
             catch ( Exception e )
             {
@@ -167,10 +171,10 @@ public class ConcurrentChangesOnEntitiesTest
         return new Thread( () -> {
             try ( Transaction tx = db.beginTx() )
             {
-                Relationship relationship = db.getRelationshipById( relationshipId );
+                Relationship relationship = tx.getRelationshipById( relationshipId );
                 barrier.await();
                 relConsumer.accept( relationship );
-                tx.success();
+                tx.commit();
             }
             catch ( Exception e )
             {
@@ -196,16 +200,11 @@ public class ConcurrentChangesOnEntitiesTest
     private void assertDatabaseConsistent()
     {
         LogProvider logProvider = FormattedLogProvider.toOutputStream( System.out );
-        try
+        assertDoesNotThrow( () ->
         {
-            ConsistencyCheckService.Result result = new ConsistencyCheckService().runFullConsistencyCheck(
-                    testDirectory.databaseLayout(), Config.defaults(), ProgressMonitorFactory.textual( System.err ),
-                    logProvider, false );
-            assertTrue( result.isSuccessful() );
-        }
-        catch ( ConsistencyCheckIncompleteException e )
-        {
-            fail( e.getMessage() );
-        }
+            ConsistencyCheckService.Result result = new ConsistencyCheckService().runFullConsistencyCheck( databaseLayout, Config.defaults(),
+                    ProgressMonitorFactory.textual( System.err ), logProvider, false );
+            Assertions.assertTrue( result.isSuccessful() );
+        } );
     }
 }

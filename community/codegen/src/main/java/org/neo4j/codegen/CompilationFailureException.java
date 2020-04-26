@@ -68,7 +68,7 @@ public class CompilationFailureException extends Exception
                 {
                     if ( sources == null )
                     {
-                        sources = Collections.newSetFromMap( new IdentityHashMap<JavaFileObject,Boolean>() );
+                        sources = Collections.newSetFromMap( new IdentityHashMap<>() );
                     }
                     sources.add( file );
                 }

@@ -22,9 +22,10 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.commands.convert
 
+import org.neo4j.cypher.internal.runtime.ExecutionContext
+import org.neo4j.cypher.internal.runtime.interpreted.CommandProjection
 import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.Expression
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.{Pipe, QueryState}
-import org.neo4j.cypher.internal.runtime.interpreted.{CommandProjection, ExecutionContext}
 
 case class InterpretedCommandProjection(expressions: Map[String, Expression]) extends CommandProjection {
 
@@ -35,6 +36,6 @@ case class InterpretedCommandProjection(expressions: Map[String, Expression]) ex
   override def project(ctx: ExecutionContext, state: QueryState): Unit = expressions.foreach {
     case (name, expression) =>
       val result = expression(ctx, state)
-      ctx.put(name, result)
+      ctx.set(name, result)
   }
 }

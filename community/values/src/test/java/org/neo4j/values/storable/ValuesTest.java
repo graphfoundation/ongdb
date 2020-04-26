@@ -24,7 +24,18 @@ package org.neo4j.values.storable;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.Arrays;
+import java.util.List;
+
+import org.neo4j.string.UTF8;
+
+import static java.time.ZoneOffset.UTC;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.neo4j.values.storable.DurationValue.duration;
+import static org.neo4j.values.storable.LocalTimeValue.localTime;
+import static org.neo4j.values.storable.TimeValue.time;
 import static org.neo4j.values.storable.Values.booleanArray;
 import static org.neo4j.values.storable.Values.booleanValue;
 import static org.neo4j.values.storable.Values.byteArray;
@@ -43,7 +54,9 @@ import static org.neo4j.values.storable.Values.shortArray;
 import static org.neo4j.values.storable.Values.shortValue;
 import static org.neo4j.values.storable.Values.stringArray;
 import static org.neo4j.values.storable.Values.stringValue;
+import static org.neo4j.values.storable.Values.utf8Value;
 import static org.neo4j.values.utils.AnyValueTestUtil.assertEqual;
+import static org.neo4j.values.utils.AnyValueTestUtil.assertNotEqual;
 
 class ValuesTest
 {
@@ -97,5 +110,47 @@ class ValuesTest
         assertThrows( IllegalArgumentException.class, () -> Values.pointValue( CoordinateReferenceSystem.Cartesian_3D, 1, 2 ) );
         assertThrows( IllegalArgumentException.class, () -> Values.pointValue( CoordinateReferenceSystem.WGS84, 1, 2, 3 ) );
         assertThrows( IllegalArgumentException.class, () -> Values.pointValue( CoordinateReferenceSystem.WGS84_3D, 1, 2 ) );
+    }
+
+    @Test
+    void differentStringSubClassesShouldBeSeenAsOfSameValueType()
+    {
+        // given
+        TextValue stringValue = stringValue( "abc" );
+        TextValue utf8Value = utf8Value( UTF8.encode( "def" ) );
+
+        // when
+        boolean areOfSameClasses = stringValue.getClass().equals( utf8Value );
+        boolean areOfSameValueType = stringValue.isSameValueTypeAs( utf8Value );
+
+        // then
+        assertFalse( areOfSameClasses );
+        assertTrue( areOfSameValueType );
+    }
+
+    @Test
+    void differentTypesShouldNotBeEqual()
+    {
+        // This includes NaN
+        List<Value> items = Arrays.asList(
+                stringValue( "foo" ),
+                intValue( 42 ),
+                booleanValue( false ),
+                doubleValue( Double.NaN ),
+                time( 14, 0, 0, 0, UTC ),
+                localTime( 14, 0, 0, 0 ),
+                duration( 0, 0, 0, 1_000_000_000 ),
+                byteArray( new byte[]{} ),
+                charArray( new char[]{'x'} ) );
+        for ( int i = 0; i < items.size(); i++ )
+        {
+            for ( int j = 0; j < items.size(); j++ )
+            {
+                if ( i != j )
+                {
+                    assertNotEqual( items.get( i ), items.get( j ) );
+                }
+            }
+        }
     }
 }

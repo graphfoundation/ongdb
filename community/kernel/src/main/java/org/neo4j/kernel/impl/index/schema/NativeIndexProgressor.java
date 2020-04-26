@@ -24,26 +24,21 @@ package org.neo4j.kernel.impl.index.schema;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
-import java.util.Collection;
 
-import org.neo4j.cursor.RawCursor;
-import org.neo4j.index.internal.gbptree.Hit;
-import org.neo4j.storageengine.api.schema.IndexProgressor;
+import org.neo4j.index.internal.gbptree.Seeker;
+import org.neo4j.kernel.api.index.IndexProgressor;
 import org.neo4j.values.storable.Value;
 
 abstract class NativeIndexProgressor<KEY extends NativeIndexKey<KEY>, VALUE extends NativeIndexValue> implements IndexProgressor
 {
-    final RawCursor<Hit<KEY,VALUE>,IOException> seeker;
-    final NodeValueClient client;
-    private final Collection<RawCursor<Hit<KEY,VALUE>,IOException>> toRemoveFromOnClose;
+    final Seeker<KEY,VALUE> seeker;
+    final EntityValueClient client;
     private boolean closed;
 
-    NativeIndexProgressor( RawCursor<Hit<KEY,VALUE>,IOException> seeker, NodeValueClient client,
-            Collection<RawCursor<Hit<KEY,VALUE>,IOException>> toRemoveFromOnClose )
+    NativeIndexProgressor( Seeker<KEY,VALUE> seeker, EntityValueClient client )
     {
         this.seeker = seeker;
         this.client = client;
-        this.toRemoveFromOnClose = toRemoveFromOnClose;
     }
 
     @Override
@@ -55,7 +50,6 @@ abstract class NativeIndexProgressor<KEY extends NativeIndexKey<KEY>, VALUE exte
             try
             {
                 seeker.close();
-                toRemoveFromOnClose.remove( seeker );
             }
             catch ( IOException e )
             {

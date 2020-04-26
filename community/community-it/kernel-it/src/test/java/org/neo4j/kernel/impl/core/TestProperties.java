@@ -22,136 +22,186 @@
  */
 package org.neo4j.kernel.impl.core;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.NotFoundException;
 import org.neo4j.graphdb.Transaction;
 import org.neo4j.kernel.impl.AbstractNeo4jTestCase;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
-public class TestProperties extends AbstractNeo4jTestCase
+class TestProperties extends AbstractNeo4jTestCase
 {
     private static final int VALUE_RANGE_SPLIT = 20;
 
     @Test
-    public void addAndRemovePropertiesWithinOneTransaction()
+    void addAndRemovePropertiesWithinOneTransaction()
     {
-        Node node = getGraphDb().createNode();
+        Node node = createNode();
 
-        node.setProperty( "name", "oscar" );
-        node.setProperty( "favourite_numbers", new Long[] { 1L, 2L, 3L } );
-        node.setProperty( "favourite_colors", new String[] { "blue", "red" } );
-        node.removeProperty( "favourite_colors" );
-        newTransaction();
-
-        assertNotNull( node.getProperty( "favourite_numbers", null ) );
-    }
-
-    @Test
-    public void addAndRemovePropertiesWithinOneTransaction2()
-    {
-        Node node = getGraphDb().createNode();
-        node.setProperty( "foo", "bar" );
-
-        newTransaction();
-        node.setProperty( "foo2", "bar" );
-        node.removeProperty( "foo" );
-
-        newTransaction();
-
-        try
+        try ( Transaction transaction = getGraphDb().beginTx() )
         {
-            node.getProperty( "foo" );
-            fail( "property should not exist" );
+            var txNode = transaction.getNodeById( node.getId() );
+            txNode.setProperty( "name", "oscar" );
+            txNode.setProperty( "favourite_numbers", new Long[] { 1L, 2L, 3L } );
+            txNode.setProperty( "favourite_colors", new String[] { "blue", "red" } );
+            txNode.removeProperty( "favourite_colors" );
+            transaction.commit();
         }
-        catch ( NotFoundException e )
+
+        try ( Transaction transaction = getGraphDb().beginTx() )
         {
-            // good
+            assertNotNull( transaction.getNodeById( node.getId() ).getProperty( "favourite_numbers", null ) );
         }
     }
 
     @Test
-    public void removeAndAddSameProperty()
+    void addAndRemovePropertiesWithinOneTransaction2()
     {
-        Node node = getGraphDb().createNode();
-        node.setProperty( "foo", "bar" );
-        newTransaction();
+        Node node = createNode();
 
-        node.removeProperty( "foo" );
-        node.setProperty( "foo", "bar" );
-        newTransaction();
-        assertEquals( "bar", node.getProperty( "foo" ) );
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            transaction.getNodeById( node.getId() ).setProperty( "foo", "bar" );
+            transaction.commit();
+        }
 
-        node.setProperty( "foo", "bar" );
-        node.removeProperty( "foo" );
-        newTransaction();
-        assertNull( node.getProperty( "foo", null ) );
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            var txNode = transaction.getNodeById( node.getId() );
+            txNode.setProperty( "foo2", "bar" );
+            txNode.removeProperty( "foo" );
+            transaction.commit();
+        }
+
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            assertThrows( NotFoundException.class, () -> transaction.getNodeById( node.getId() ).getProperty( "foo" ) );
+        }
     }
 
     @Test
-    public void removeSomeAndSetSome()
+    void removeAndAddSameProperty()
     {
-        Node node = getGraphDb().createNode();
-        node.setProperty( "remove me", "trash" );
-        newTransaction();
+        Node node = createNode();
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            transaction.getNodeById( node.getId() ).setProperty( "foo", "bar" );
+            transaction.commit();
+        }
 
-        node.removeProperty( "remove me" );
-        node.setProperty( "foo", "bar" );
-        node.setProperty( "baz", 17 );
-        newTransaction();
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            var txNode = transaction.getNodeById( node.getId() );
+            txNode.removeProperty( "foo" );
+            txNode.setProperty( "foo", "bar" );
+            transaction.commit();
+        }
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            assertEquals( "bar", transaction.getNodeById( node.getId() ).getProperty( "foo" ) );
+            transaction.commit();
+        }
 
-        assertEquals( "bar", node.getProperty( "foo" ) );
-        assertEquals( 17, node.getProperty( "baz" ) );
-        assertNull( node.getProperty( "remove me", null ) );
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            var txNode = transaction.getNodeById( node.getId() );
+            txNode.setProperty( "foo", "bar" );
+            txNode.removeProperty( "foo" );
+            transaction.commit();
+        }
+
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            assertNull(transaction.getNodeById( node.getId() ).getProperty( "foo", null ) );
+        }
     }
 
     @Test
-    public void removeOneOfThree()
+    void removeSomeAndSetSome()
     {
-        Node node = getGraphDb().createNode();
-        node.setProperty( "1", 1 );
-        node.setProperty( "2", 2 );
-        node.setProperty( "3", 3 );
-        newTransaction();
+        Node node = createNode();
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            transaction.getNodeById( node.getId() ).setProperty( "remove me", "trash" );
+            transaction.commit();
+        }
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            var txNode = transaction.getNodeById( node.getId() );
+            txNode.removeProperty( "remove me" );
+            txNode.setProperty( "foo", "bar" );
+            txNode.setProperty( "baz", 17 );
+            transaction.commit();
+        }
 
-        node.removeProperty( "2" );
-        newTransaction();
-        assertNull( node.getProperty( "2", null ) );
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            var txNode = transaction.getNodeById( node.getId() );
+            assertEquals( "bar", txNode.getProperty( "foo" ) );
+            assertEquals( 17, txNode.getProperty( "baz" ) );
+            assertNull( txNode.getProperty( "remove me", null ) );
+            transaction.commit();
+        }
     }
 
     @Test
-    public void testLongPropertyValues()
+    void removeOneOfThree()
     {
-        Node n = getGraphDb().createNode();
+        Node node = createNode();
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            var txNode = transaction.getNodeById( node.getId() );
+            txNode.setProperty( "1", 1 );
+            txNode.setProperty( "2", 2 );
+            txNode.setProperty( "3", 3 );
+            transaction.commit();
+        }
+
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            transaction.getNodeById( node.getId() ).removeProperty( "2" );
+            transaction.commit();
+        }
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            assertNull( transaction.getNodeById( node.getId() ).getProperty( "2", null ) );
+            transaction.commit();
+        }
+    }
+
+    @Test
+    void testLongPropertyValues()
+    {
+        Node n = createNode();
         setPropertyAndAssertIt( n, -134217728L );
         setPropertyAndAssertIt( n, -134217729L );
     }
 
     @Test
-    public void testIntPropertyValues()
+    void testIntPropertyValues()
     {
-        Node n = getGraphDb().createNode();
+        Node n = createNode();
         setPropertyAndAssertIt( n, -134217728 );
         setPropertyAndAssertIt( n, -134217729 );
     }
 
     @Test
-    public void booleanRange()
+    void booleanRange()
     {
-        Node node = getGraphDb().createNode();
+        Node node = createNode();
         setPropertyAndAssertIt( node, false );
         setPropertyAndAssertIt( node, true );
     }
 
     @Test
-    public void byteRange()
+    void byteRange()
     {
-        Node node = getGraphDb().createNode();
+        Node node = createNode();
         byte stride = Byte.MAX_VALUE / VALUE_RANGE_SPLIT;
         for ( byte i = Byte.MIN_VALUE; i < Byte.MAX_VALUE; )
         {
@@ -161,9 +211,9 @@ public class TestProperties extends AbstractNeo4jTestCase
     }
 
     @Test
-    public void charRange()
+    void charRange()
     {
-        Node node = getGraphDb().createNode();
+        Node node = createNode();
         char stride = Character.MAX_VALUE / VALUE_RANGE_SPLIT;
         for ( char i = Character.MIN_VALUE; i < Character.MAX_VALUE; )
         {
@@ -173,9 +223,9 @@ public class TestProperties extends AbstractNeo4jTestCase
     }
 
     @Test
-    public void shortRange()
+    void shortRange()
     {
-        Node node = getGraphDb().createNode();
+        Node node = createNode();
         short stride = Short.MAX_VALUE / VALUE_RANGE_SPLIT;
         for ( short i = Short.MIN_VALUE; i < Short.MAX_VALUE; )
         {
@@ -185,9 +235,9 @@ public class TestProperties extends AbstractNeo4jTestCase
     }
 
     @Test
-    public void intRange()
+    void intRange()
     {
-        Node node = getGraphDb().createNode();
+        Node node = createNode();
         int stride = Integer.MAX_VALUE / VALUE_RANGE_SPLIT;
         for ( int i = Integer.MIN_VALUE; i < Integer.MAX_VALUE; )
         {
@@ -197,9 +247,9 @@ public class TestProperties extends AbstractNeo4jTestCase
     }
 
     @Test
-    public void longRange()
+    void longRange()
     {
-        Node node = getGraphDb().createNode();
+        Node node = createNode();
         long stride = Long.MAX_VALUE / VALUE_RANGE_SPLIT;
         for ( long i = Long.MIN_VALUE; i < Long.MAX_VALUE; )
         {
@@ -209,9 +259,9 @@ public class TestProperties extends AbstractNeo4jTestCase
     }
 
     @Test
-    public void floatRange()
+    void floatRange()
     {
-        Node node = getGraphDb().createNode();
+        Node node = createNode();
         float stride = 16f;
         for ( float i = Float.MIN_VALUE; i < Float.MAX_VALUE; )
         {
@@ -222,9 +272,9 @@ public class TestProperties extends AbstractNeo4jTestCase
     }
 
     @Test
-    public void doubleRange()
+    void doubleRange()
     {
-        Node node = getGraphDb().createNode();
+        Node node = createNode();
         double stride = 4194304d; // 2^23
         for ( double i = Double.MIN_VALUE; i < Double.MAX_VALUE; )
         {
@@ -236,34 +286,51 @@ public class TestProperties extends AbstractNeo4jTestCase
 
     private void setPropertyAndAssertIt( Node node, Object value )
     {
-        node.setProperty( "key", value );
-        assertEquals( value, node.getProperty( "key" ) );
-    }
-
-    @Test
-    public void loadManyProperties()
-    {
-        Node node = getGraphDb().createNode();
-        for ( int i = 0; i < 200; i++ )
+        try ( Transaction transaction = getGraphDb().beginTx() )
         {
-            node.setProperty( "property " + i, "value" );
+            var txNode = transaction.getNodeById( node.getId() );
+            txNode.setProperty( "key", value );
+            assertEquals( value, txNode.getProperty( "key" ) );
+            transaction.commit();
         }
-        newTransaction();
-        assertEquals( "value", node.getProperty( "property 0" ) );
     }
 
     @Test
-    public void name()
+    void loadManyProperties()
     {
-        Node node = getGraphDb().createNode();
-        node.setProperty( "name", "yo" );
-        node.getProperty( "name" );
-        commit();
+        Node node = createNode();
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            var txNode = transaction.getNodeById( node.getId() );
+            for ( int i = 0; i < 200; i++ )
+            {
+                txNode.setProperty( "property " + i, "value" );
+            }
+            transaction.commit();
+        }
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            assertEquals( "value", transaction.getNodeById( node.getId() ).getProperty( "property 0" ) );
+            transaction.commit();
+        }
+    }
+
+    @Test
+    void name()
+    {
+        Node node = createNode();
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            var txNode = transaction.getNodeById( node.getId() );
+            txNode.setProperty( "name", "yo" );
+            txNode.getProperty( "name" );
+            transaction.commit();
+        }
 
         try ( Transaction tx = getGraphDb().beginTx() )
         {
-            node.getProperty( "name" );
-            tx.success();
+            tx.getNodeById( node.getId() ).getProperty( "name" );
+            tx.commit();
         }
     }
 }

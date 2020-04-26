@@ -22,12 +22,11 @@
  */
 package org.neo4j.consistency.checking.full;
 
-import java.io.IOException;
 import java.util.Iterator;
 
 import org.neo4j.graphdb.ResourceIterable;
 import org.neo4j.graphdb.ResourceIterator;
-import org.neo4j.helpers.collection.BoundedIterable;
+import org.neo4j.internal.helpers.collection.BoundedIterable;
 import org.neo4j.kernel.impl.store.RecordStore;
 import org.neo4j.kernel.impl.store.record.AbstractBaseRecord;
 

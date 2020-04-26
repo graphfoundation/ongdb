@@ -49,7 +49,7 @@ abstract class ConflictDetectingValueMerger<KEY extends NativeIndexKey<KEY>, VAL
     }
 
     @Override
-    public VALUE merge( KEY existingKey, KEY newKey, VALUE existingValue, VALUE newValue )
+    public MergeResult merge( KEY existingKey, KEY newKey, VALUE existingValue, VALUE newValue )
     {
         if ( existingKey.getEntityId() != newKey.getEntityId() )
         {
@@ -57,7 +57,7 @@ abstract class ConflictDetectingValueMerger<KEY extends NativeIndexKey<KEY>, VAL
             existingNodeId = existingKey.getEntityId();
             addedNodeId = newKey.getEntityId();
         }
-        return null;
+        return MergeResult.UNCHANGED;
     }
 
     /**

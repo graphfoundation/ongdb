@@ -27,20 +27,21 @@ import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.TimeUnit;
 
-import org.neo4j.helpers.Exceptions;
-import org.neo4j.internal.kernel.api.IndexReference;
+import org.neo4j.internal.helpers.Exceptions;
 import org.neo4j.internal.kernel.api.InternalIndexState;
 import org.neo4j.internal.kernel.api.SchemaRead;
 import org.neo4j.internal.kernel.api.TokenRead;
 import org.neo4j.internal.kernel.api.exceptions.schema.IndexNotFoundKernelException;
+import org.neo4j.internal.schema.IndexDescriptor;
 import org.neo4j.kernel.api.KernelTransaction;
-import org.neo4j.kernel.api.Statement;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.neo4j.internal.schema.IndexPrototype.forSchema;
+import static org.neo4j.internal.schema.SchemaDescriptor.forLabel;
 
 class SchemaImplMockTest
 {
@@ -53,34 +54,32 @@ class SchemaImplMockTest
         IndexDefinitionImpl indexDefinition = mockIndexDefinition();
         when( indexDefinition.toString() ).thenReturn( "IndexDefinition( of-some-sort )" );
         KernelTransaction kernelTransaction = mockKernelTransaction();
-        SchemaImpl schema = new SchemaImpl( () -> kernelTransaction );
+        SchemaImpl schema = new SchemaImpl( kernelTransaction );
 
         // when
         IllegalStateException e = assertThrows( IllegalStateException.class, () -> schema.awaitIndexOnline( indexDefinition, 1, TimeUnit.MINUTES ) );
 
         // then
-        assertThat( e.getMessage(), Matchers.containsString( indexDefinition.toString() ) );
         assertThat( e.getMessage(), Matchers.containsString( Exceptions.stringify( cause ) ) );
     }
 
     private static IndexDefinitionImpl mockIndexDefinition()
     {
         IndexDefinitionImpl indexDefinition = mock( IndexDefinitionImpl.class );
-        when( indexDefinition.getIndexReference() ).thenReturn( IndexReference.NO_INDEX );
+        when( indexDefinition.getIndexReference() ).thenReturn( forSchema( forLabel( 1, 1 ) ).withName( "index" ).materialise( 13 ) );
         return indexDefinition;
     }
 
     private static KernelTransaction mockKernelTransaction() throws IndexNotFoundKernelException
     {
         SchemaRead schemaRead = mock( SchemaRead.class );
-        when( schemaRead.indexGetState( any( IndexReference.class ) ) ).thenReturn( InternalIndexState.FAILED );
-        when( schemaRead.indexGetFailure( any( IndexReference.class ) ) ).thenReturn( Exceptions.stringify( cause ) );
+        when( schemaRead.indexGetState( any( IndexDescriptor.class ) ) ).thenReturn( InternalIndexState.FAILED );
+        when( schemaRead.indexGetFailure( any( IndexDescriptor.class ) ) ).thenReturn( Exceptions.stringify( cause ) );
 
         KernelTransaction kt = mock( KernelTransaction.class );
         when( kt.tokenRead() ).thenReturn( mock( TokenRead.class ) );
         when( kt.schemaRead() ).thenReturn( schemaRead );
         when( kt.isTerminated() ).thenReturn( false );
-        when( kt.acquireStatement() ).thenReturn( mock( Statement.class ) );
         return kt;
     }
 }

@@ -22,35 +22,40 @@
  */
 package org.neo4j.kernel.impl.coreapi.schema;
 
+import org.eclipse.collections.api.tuple.Pair;
+import org.eclipse.collections.impl.factory.Maps;
+
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.Map;
 
 import org.neo4j.graphdb.ConstraintViolationException;
 import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.RelationshipType;
 import org.neo4j.graphdb.schema.IndexDefinition;
+import org.neo4j.graphdb.schema.IndexSetting;
+import org.neo4j.graphdb.schema.IndexSettingUtil;
+import org.neo4j.graphdb.schema.IndexType;
 import org.neo4j.hashing.HashFunction;
-import org.neo4j.internal.kernel.api.IndexReference;
-import org.neo4j.internal.kernel.api.TokenRead;
-import org.neo4j.internal.kernel.api.exceptions.KernelException;
-import org.neo4j.internal.kernel.api.schema.SchemaDescriptor;
+import org.neo4j.internal.schema.IndexConfig;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.values.storable.Value;
 
 import static java.util.Arrays.asList;
 import static java.util.stream.Collectors.joining;
-import static org.neo4j.graphdb.Label.label;
-import static org.neo4j.graphdb.RelationshipType.withName;
-import static org.neo4j.helpers.collection.Iterables.stream;
+import static org.neo4j.internal.helpers.collection.Iterables.stream;
 
 public class IndexDefinitionImpl implements IndexDefinition
 {
     private final InternalSchemaActions actions;
 
-    private final IndexReference indexReference;
+    private final IndexDescriptor indexReference;
     private final Label[] labels;
     private final RelationshipType[] relTypes;
     private final String[] propertyKeys;
     private final boolean constraintIndex;
 
-    public IndexDefinitionImpl( InternalSchemaActions actions, IndexReference ref, Label[] labels, String[] propertyKeys, boolean constraintIndex )
+    public IndexDefinitionImpl( InternalSchemaActions actions, IndexDescriptor ref, Label[] labels, String[] propertyKeys, boolean constraintIndex )
     {
         this.actions = actions;
         this.indexReference = ref;
@@ -62,7 +67,8 @@ public class IndexDefinitionImpl implements IndexDefinition
         assertInUnterminatedTransaction();
     }
 
-    public IndexDefinitionImpl( InternalSchemaActions actions, IndexReference ref, RelationshipType[] relTypes, String[] propertyKeys, boolean constraintIndex )
+    public IndexDefinitionImpl( InternalSchemaActions actions, IndexDescriptor ref, RelationshipType[] relTypes, String[] propertyKeys,
+            boolean constraintIndex )
     {
         this.actions = actions;
         this.indexReference = ref;
@@ -74,21 +80,9 @@ public class IndexDefinitionImpl implements IndexDefinition
         assertInUnterminatedTransaction();
     }
 
-    public IndexReference getIndexReference()
+    public IndexDescriptor getIndexReference()
     {
         return indexReference;
-    }
-
-    @Override
-    public Label getLabel()
-    {
-        assertInUnterminatedTransaction();
-        assertIsNodeIndex();
-        if ( labels.length > 1 )
-        {
-            throw new IllegalStateException( "This is a multi-token index, which has more than one label. Call the getLabels() method instead." );
-        }
-        return labels[0];
     }
 
     @Override
@@ -97,19 +91,6 @@ public class IndexDefinitionImpl implements IndexDefinition
         assertInUnterminatedTransaction();
         assertIsNodeIndex();
         return Arrays.asList( labels );
-    }
-
-    @Override
-    public RelationshipType getRelationshipType()
-    {
-        assertInUnterminatedTransaction();
-        assertIsRelationshipIndex();
-        if ( relTypes.length > 1 )
-        {
-            throw new IllegalStateException(
-                    "This is a multi-token index, which has more than one relationship type. " + "Call the getRelationshipTypes() method instead." );
-        }
-        return relTypes[0];
     }
 
     @Override
@@ -125,6 +106,12 @@ public class IndexDefinitionImpl implements IndexDefinition
     {
         assertInUnterminatedTransaction();
         return asList( propertyKeys );
+    }
+
+    @Override
+    public IndexType getIndexType()
+    {
+        return indexReference.getIndexType().toPublicApi();
     }
 
     /**
@@ -175,7 +162,7 @@ public class IndexDefinitionImpl implements IndexDefinition
         {
             if ( this.isConstraintIndex() )
             {
-                throw new IllegalStateException( "Constraint indexes cannot be dropped directly, " + "instead drop the owning uniqueness constraint.", e );
+                throw new IllegalStateException( "Constraint indexes cannot be dropped directly, instead drop the owning uniqueness constraint.", e );
             }
             throw e;
         }
@@ -224,7 +211,25 @@ public class IndexDefinitionImpl implements IndexDefinition
     @Override
     public String getName()
     {
-        return indexReference == null ? IndexReference.UNNAMED_INDEX : indexReference.name();
+        IndexDescriptor descriptor = indexReference == null ? IndexDescriptor.NO_INDEX : indexReference;
+        return descriptor.getName();
+    }
+
+    @Override
+    public Map<IndexSetting,Object> getIndexConfiguration()
+    {
+        IndexConfig indexConfig = indexReference.getIndexConfig();
+        Map<IndexSetting,Object> asMap = Maps.mutable.of();
+        for ( Pair<String,Value> entry : indexConfig.entries() )
+        {
+            IndexSetting key = IndexSettingUtil.fromString( entry.getOne() );
+            if ( key != null )
+            {
+                Object value = entry.getTwo().asObjectCopy();
+                asMap.put( key, value );
+            }
+        }
+        return Collections.unmodifiableMap( asMap );
     }
 
     @Override
@@ -312,7 +317,7 @@ public class IndexDefinitionImpl implements IndexDefinition
                 (indexReference == null ? "" : " (" + indexReference + ")");
     }
 
-    public static String labelNameList( Iterable<Label> labels, String prefix, String postfix )
+    static String labelNameList( Iterable<Label> labels, String prefix, String postfix )
     {
         return stream( labels ).map( Label::name ).collect( joining( ", ", prefix, postfix ) );
     }

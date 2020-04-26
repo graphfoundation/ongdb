@@ -15,11 +15,11 @@
             -Dorg.neo4j.kernel.impl.api.KernelStatement.trackStatements=false
         </test.runner.jvm.settings.additional>
         <moduleName>org.neo4j.graphalgo</moduleName>
+        <default.jupiter.test.mode>concurrent</default.jupiter.test.mode>
     </properties>
 
     <modelVersion>4.0.0</modelVersion>
     <artifactId>ongdb-graph-algo</artifactId>
-    <version>4.0.4-SNAPSHOT</version>
 
     <packaging>jar</packaging>
     <name>ONgDB - Graph Algorithms</name>
@@ -39,39 +39,19 @@
         </license>
     </licenses>
 
-    <build>
-        <plugins>
-            <!-- This module contains public API, run revapi -->
-            <plugin>
-                <groupId>org.revapi</groupId>
-                <artifactId>revapi-maven-plugin</artifactId>
-            </plugin>
-        </plugins>
-    </build>
-
     <dependencies>
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-kernel</artifactId>
-            <version>${project.version}</version>
+            <artifactId>annotations</artifactId>
         </dependency>
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
             <artifactId>ongdb-kernel</artifactId>
             <version>${project.version}</version>
-            <type>test-jar</type>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-io</artifactId>
-            <version>${project.version}</version>
-            <type>test-jar</type>
-            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter-engine</artifactId>
+            <artifactId>junit-jupiter</artifactId>
         </dependency>
         <dependency>
             <groupId>org.mockito</groupId>
@@ -79,7 +59,7 @@
         </dependency>
         <dependency>
             <groupId>org.hamcrest</groupId>
-            <artifactId>hamcrest-library</artifactId>
+            <artifactId>hamcrest</artifactId>
         </dependency>
     </dependencies>
 </project>

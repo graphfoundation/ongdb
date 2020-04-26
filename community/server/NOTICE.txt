@@ -26,15 +26,26 @@ Third-party licenses
 --------------------
 
 Apache Software License, Version 2.0
+  Apache Commons BeanUtils
+  Apache Commons Collections
   Apache Commons Compress
   Apache Commons Configuration
   Apache Commons IO
   Apache Commons Lang
+  Apache Commons Logging
   Apache Commons Text
+  Apache Shiro :: Cache
+  Apache Shiro :: Configuration :: Core
+  Apache Shiro :: Configuration :: OGDL
+  Apache Shiro :: Core
+  Apache Shiro :: Cryptography :: Ciphers
+  Apache Shiro :: Cryptography :: Core
+  Apache Shiro :: Cryptography :: Hashing
+  Apache Shiro :: Event
+  Apache Shiro :: Lang
+  Bean Validation API
   Caffeine cache
   Commons Lang
-  Commons Logging
-  ConcurrentLinkedHashMap
   fastinfoset
   Jackson module: JAXB Annotations
   Jackson-annotations
@@ -42,6 +53,15 @@ Apache Software License, Version 2.0
   jackson-databind
   Jackson-JAXRS-base
   Jackson-JAXRS-JSON
+  Java Concurrency Tools Core Library
+  Javassist
+  jersey-container-servlet
+  jersey-container-servlet-core
+  jersey-core-client
+  jersey-core-common
+  jersey-core-server
+  jersey-inject-hk2
+  jersey-media-jaxb
   Jetty :: Http Utility
   Jetty :: IO Utility
   Jetty :: Security
@@ -56,13 +76,10 @@ Apache Software License, Version 2.0
   Lucene Common Analyzers
   Lucene Core
   Lucene QueryParsers
-  Neo4j - Cypher Expressions 3.4
-  Neo4j - Cypher Util 3.4
   Netty/All-in-One
-  opencsv
-  openCypher Frontend
   parboiled-core
   parboiled-scala
+  picocli - a mighty tiny Command Line Interface
   WMI4Java
 
 BSD - Scala License
@@ -89,10 +106,6 @@ Common Development and Distribution License Version 1.0
 Common Development and Distribution License Version 1.1
   Java Servlet API
   jaxb-api
-  jersey-core
-  jersey-server
-  jersey-servlet
-  jsr311-api
 
 Eclipse Distribution License - v 1.0
   Eclipse Collections API
@@ -101,16 +114,57 @@ Eclipse Distribution License - v 1.0
   fastinfoset
   istack common utility code runtime
   jakarta.xml.bind-api
+  JavaBeans Activation Framework
   JavaBeans Activation Framework API jar
   JAXB Runtime
+  jersey-container-servlet
+  jersey-container-servlet-core
+  jersey-core-client
+  jersey-inject-hk2
+  jersey-media-jaxb
   TXW2 Runtime
 
 Eclipse Public License - v 1.0
   Eclipse Collections API
   Eclipse Collections Main Library
 
+Eclipse Public License v2.0
+  HK2 API module
+  HK2 Implementation Utilities
+  jakarta.annotation API
+  javax.inject:1 as OSGi bundle
+  javax.ws.rs-api
+  jersey-container-servlet
+  jersey-container-servlet-core
+  jersey-core-client
+  jersey-core-common
+  jersey-core-server
+  jersey-inject-hk2
+  jersey-media-jaxb
+  ServiceLocator Default Implementation
+
 GNU General Public License, version 2 with the Classpath Exception
   Java Servlet API
+
+GNU Lesser General Public License, Version 2.1
+  Java Native Access
+
+MIT License
+  jersey-container-servlet
+  jersey-container-servlet-core
+  jersey-core-client
+  jersey-inject-hk2
+  jersey-media-jaxb
+  SLF4J API Module
+  SLF4J NOP Binding
+
+Unlicense
+  jersey-container-servlet
+  jersey-container-servlet-core
+  jersey-core-client
+  jersey-core-common
+  jersey-inject-hk2
+  jersey-media-jaxb
 
 Dependencies with multiple licenses
 -----------------------------------
@@ -130,4 +184,48 @@ Java Servlet API
 fastinfoset
   Apache Software License, Version 2.0
   Eclipse Distribution License - v 1.0
+
+jersey-container-servlet
+  Apache Software License, Version 2.0
+  Eclipse Distribution License - v 1.0
+  Eclipse Public License v2.0
+  MIT License
+  Unlicense
+
+jersey-container-servlet-core
+  Apache Software License, Version 2.0
+  Eclipse Distribution License - v 1.0
+  Eclipse Public License v2.0
+  MIT License
+  Unlicense
+
+jersey-core-client
+  Apache Software License, Version 2.0
+  Eclipse Distribution License - v 1.0
+  Eclipse Public License v2.0
+  MIT License
+  Unlicense
+
+jersey-core-common
+  Apache Software License, Version 2.0
+  Eclipse Public License v2.0
+  Unlicense
+
+jersey-core-server
+  Apache Software License, Version 2.0
+  Eclipse Public License v2.0
+
+jersey-inject-hk2
+  Apache Software License, Version 2.0
+  Eclipse Distribution License - v 1.0
+  Eclipse Public License v2.0
+  MIT License
+  Unlicense
+
+jersey-media-jaxb
+  Apache Software License, Version 2.0
+  Eclipse Distribution License - v 1.0
+  Eclipse Public License v2.0
+  MIT License
+  Unlicense
 

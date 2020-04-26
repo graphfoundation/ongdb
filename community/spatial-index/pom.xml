@@ -16,7 +16,6 @@
 
     <modelVersion>4.0.0</modelVersion>
     <artifactId>ongdb-spatial-index</artifactId>
-    <version>4.0.4-SNAPSHOT</version>
 
     <packaging>jar</packaging>
     <name>ONgDB - Native Spatial Index</name>
@@ -45,7 +44,7 @@
         </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter-engine</artifactId>
+            <artifactId>junit-jupiter</artifactId>
         </dependency>
         <dependency>
             <groupId>org.mockito</groupId>
@@ -53,7 +52,7 @@
         </dependency>
         <dependency>
             <groupId>org.hamcrest</groupId>
-            <artifactId>hamcrest-all</artifactId>
+            <artifactId>hamcrest</artifactId>
         </dependency>
     </dependencies>
 </project>

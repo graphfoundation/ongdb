@@ -33,10 +33,10 @@ import java.util.List;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Path;
 import org.neo4j.graphdb.Relationship;
-import org.neo4j.helpers.collection.Iterables;
-import org.neo4j.kernel.impl.core.EmbeddedProxySPI;
-import org.neo4j.kernel.impl.core.NodeProxy;
-import org.neo4j.kernel.impl.core.RelationshipProxy;
+import org.neo4j.internal.helpers.collection.Iterables;
+import org.neo4j.kernel.impl.core.NodeEntity;
+import org.neo4j.kernel.impl.core.RelationshipEntity;
+import org.neo4j.kernel.impl.coreapi.InternalTransaction;
 
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.not;
@@ -44,12 +44,13 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Answers.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 class PathImplTest
 {
-    private final EmbeddedProxySPI spi = mock( EmbeddedProxySPI.class );
+    private final InternalTransaction transaction = mock( InternalTransaction.class, RETURNS_DEEP_STUBS );
 
     @Test
     void singularNodeWorksForwardsAndBackwards()
@@ -106,12 +107,12 @@ class PathImplTest
     @Test
     void testPathReverseNodes()
     {
-        when( spi.newNodeProxy( Mockito.anyLong() ) ).thenAnswer( new NodeProxyAnswer() );
+        when( transaction.newNodeEntity( Mockito.anyLong() ) ).thenAnswer( new NodeAnswer() );
 
-        Path path = new PathImpl.Builder( createNodeProxy( 1 ) )
-                                .push( createRelationshipProxy( 1, 2 ) )
-                                .push( createRelationshipProxy( 2, 3 ) )
-                                .build( new PathImpl.Builder( createNodeProxy( 3 ) ) );
+        Path path = new PathImpl.Builder( createNodeEntity( 1 ) )
+                                .push( createRelationshipEntity( 1, 2 ) )
+                                .push( createRelationshipEntity( 2, 3 ) )
+                                .build( new PathImpl.Builder( createNodeEntity( 3 ) ) );
 
         Iterable<Node> nodes = path.reverseNodes();
         List<Node> nodeList = Iterables.asList( nodes );
@@ -125,12 +126,12 @@ class PathImplTest
     @Test
     void testPathNodes()
     {
-        when( spi.newNodeProxy( Mockito.anyLong() ) ).thenAnswer( new NodeProxyAnswer() );
+        when( transaction.newNodeEntity( Mockito.anyLong() ) ).thenAnswer( new NodeAnswer() );
 
-        Path path = new PathImpl.Builder( createNodeProxy( 1 ) )
-                .push( createRelationshipProxy( 1, 2 ) )
-                .push( createRelationshipProxy( 2, 3 ) )
-                .build( new PathImpl.Builder( createNodeProxy( 3 ) ) );
+        Path path = new PathImpl.Builder( createNodeEntity( 1 ) )
+                .push( createRelationshipEntity( 1, 2 ) )
+                .push( createRelationshipEntity( 2, 3 ) )
+                .build( new PathImpl.Builder( createNodeEntity( 3 ) ) );
 
         Iterable<Node> nodes = path.nodes();
         List<Node> nodeList = Iterables.asList( nodes );
@@ -141,14 +142,14 @@ class PathImplTest
         assertEquals( 3, nodeList.get( 2 ).getId() );
     }
 
-    private RelationshipProxy createRelationshipProxy( int startNodeId, int endNodeId )
+    private RelationshipEntity createRelationshipEntity( int startNodeId, int endNodeId )
     {
-        return new RelationshipProxy( spi, 1L, startNodeId, 1, endNodeId );
+        return new RelationshipEntity( transaction, 1L, startNodeId, 1, endNodeId );
     }
 
-    private NodeProxy createNodeProxy( int nodeId )
+    private NodeEntity createNodeEntity( int nodeId )
     {
-        return new NodeProxy( spi, nodeId );
+        return new NodeEntity( transaction, nodeId );
     }
 
     private static Node createNode( long nodeId )
@@ -168,12 +169,12 @@ class PathImplTest
         return relationship;
     }
 
-    private class NodeProxyAnswer implements Answer<NodeProxy>
+    private class NodeAnswer implements Answer<NodeEntity>
     {
         @Override
-        public NodeProxy answer( InvocationOnMock invocation )
+        public NodeEntity answer( InvocationOnMock invocation )
         {
-            return createNodeProxy( ((Number) invocation.getArgument( 0 )).intValue() );
+            return createNodeEntity( ((Number) invocation.getArgument( 0 )).intValue() );
         }
     }
 }

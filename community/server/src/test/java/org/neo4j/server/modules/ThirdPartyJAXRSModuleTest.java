@@ -28,16 +28,15 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.neo4j.kernel.configuration.Config;
+import org.neo4j.configuration.Config;
 import org.neo4j.logging.NullLogProvider;
 import org.neo4j.server.CommunityNeoServer;
 import org.neo4j.server.configuration.ServerSettings;
 import org.neo4j.server.configuration.ThirdPartyJaxRsPackage;
-import org.neo4j.server.database.Database;
+import org.neo4j.server.database.DatabaseService;
 import org.neo4j.server.web.WebServer;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -54,8 +53,8 @@ public class ThirdPartyJAXRSModuleTest
         CommunityNeoServer neoServer = mock( CommunityNeoServer.class );
         when( neoServer.baseUri() ).thenReturn( new URI( "http://localhost:7575" ) );
         when( neoServer.getWebServer() ).thenReturn( webServer );
-        Database database = mock( Database.class );
-        when( neoServer.getDatabase() ).thenReturn( database );
+        DatabaseService database = mock( DatabaseService.class );
+        when( neoServer.getDatabaseService() ).thenReturn( database );
 
         Config config = mock( Config.class );
         List<ThirdPartyJaxRsPackage> jaxRsPackages = new ArrayList<>();
@@ -65,10 +64,10 @@ public class ThirdPartyJAXRSModuleTest
 
         // When
         ThirdPartyJAXRSModule module =
-                new ThirdPartyJAXRSModule( webServer, config, NullLogProvider.getInstance(), neoServer );
+                new ThirdPartyJAXRSModule( webServer, config, NullLogProvider.getInstance() );
         module.start();
 
         // Then
-        verify( webServer ).addJAXRSPackages( any( List.class ), anyString(), anyCollection() );
+        verify( webServer ).addJAXRSPackages( any( List.class ), anyString(), any() );
     }
 }

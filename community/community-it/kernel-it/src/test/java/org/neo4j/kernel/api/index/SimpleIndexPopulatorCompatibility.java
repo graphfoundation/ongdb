@@ -22,7 +22,6 @@
  */
 package org.neo4j.kernel.api.index;
 
-import org.eclipse.collections.api.iterator.LongIterator;
 import org.junit.Ignore;
 import org.junit.Test;
 
@@ -34,36 +33,36 @@ import java.util.List;
 import java.util.StringJoiner;
 
 import org.neo4j.collection.PrimitiveLongCollections;
-import org.neo4j.helpers.Exceptions;
-import org.neo4j.helpers.collection.Iterables;
-import org.neo4j.internal.kernel.api.IndexOrder;
+import org.neo4j.configuration.Config;
+import org.neo4j.internal.helpers.collection.Iterables;
 import org.neo4j.internal.kernel.api.IndexQuery;
 import org.neo4j.internal.kernel.api.exceptions.schema.IndexNotApplicableKernelException;
-import org.neo4j.internal.kernel.api.schema.SchemaDescriptor;
+import org.neo4j.internal.schema.IndexOrder;
+import org.neo4j.internal.schema.IndexPrototype;
+import org.neo4j.internal.schema.SchemaDescriptor;
 import org.neo4j.kernel.api.exceptions.index.IndexEntryConflictException;
-import org.neo4j.kernel.api.schema.index.TestIndexDescriptorFactory;
-import org.neo4j.kernel.configuration.Config;
+import org.neo4j.kernel.impl.api.index.IndexSamplingConfig;
 import org.neo4j.kernel.impl.api.index.IndexUpdateMode;
 import org.neo4j.kernel.impl.api.index.PhaseTracker;
-import org.neo4j.kernel.impl.api.index.sampling.IndexSamplingConfig;
 import org.neo4j.kernel.impl.index.schema.NodeValueIterator;
-import org.neo4j.storageengine.api.schema.IndexDescriptor;
-import org.neo4j.storageengine.api.schema.IndexReader;
-import org.neo4j.storageengine.api.schema.QueryResultComparingIndexReader;
+import org.neo4j.storageengine.api.IndexEntryUpdate;
 import org.neo4j.values.storable.Value;
 import org.neo4j.values.storable.ValueTuple;
 import org.neo4j.values.storable.Values;
 
 import static java.util.Collections.singletonList;
+import static org.apache.commons.lang3.exception.ExceptionUtils.getRootCause;
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
-import static org.neo4j.helpers.collection.Iterators.asSet;
+import static org.neo4j.internal.helpers.collection.Iterators.asSet;
 import static org.neo4j.internal.kernel.api.InternalIndexState.FAILED;
-import static org.neo4j.kernel.api.index.IndexEntryUpdate.add;
-import static org.neo4j.kernel.impl.index.schema.ByteBufferFactory.heapBufferFactory;
+import static org.neo4j.internal.kernel.api.QueryContext.NULL_CONTEXT;
+import static org.neo4j.internal.schema.SchemaDescriptor.forLabel;
+import static org.neo4j.io.memory.ByteBufferFactory.heapBufferFactory;
+import static org.neo4j.storageengine.api.IndexEntryUpdate.add;
 import static org.neo4j.values.storable.Values.stringValue;
 
 @Ignore( "Not a test. This is a compatibility suite that provides test cases for verifying" +
@@ -73,9 +72,9 @@ import static org.neo4j.values.storable.Values.stringValue;
         " errors or warnings in some IDEs about test classes needing a public zero-arg constructor." )
 public class SimpleIndexPopulatorCompatibility extends IndexProviderCompatibilityTestSuite.Compatibility
 {
-    public SimpleIndexPopulatorCompatibility( IndexProviderCompatibilityTestSuite testSuite, IndexDescriptor descriptor )
+    public SimpleIndexPopulatorCompatibility( IndexProviderCompatibilityTestSuite testSuite, IndexPrototype prototype )
     {
-        super( testSuite, descriptor );
+        super( testSuite, prototype );
     }
 
     final IndexSamplingConfig indexSamplingConfig = new IndexSamplingConfig( Config.defaults() );
@@ -111,7 +110,7 @@ public class SimpleIndexPopulatorCompatibility extends IndexProviderCompatibilit
     }
 
     @Test
-    public void shouldBeAbleToDropAClosedIndexPopulator() throws Exception
+    public void shouldBeAbleToDropAClosedIndexPopulator()
     {
         // GIVEN
         IndexSamplingConfig indexSamplingConfig = new IndexSamplingConfig( Config.defaults() );
@@ -147,10 +146,11 @@ public class SimpleIndexPopulatorCompatibility extends IndexProviderCompatibilit
         // THEN
         try ( IndexAccessor accessor = indexProvider.getOnlineAccessor( descriptor, indexSamplingConfig ) )
         {
-            try ( IndexReader reader = new QueryResultComparingIndexReader( accessor.newReader() ) )
+            try ( IndexReader reader = accessor.newReader();
+                  NodeValueIterator nodes = new NodeValueIterator() )
             {
                 int propertyKeyId = descriptor.schema().getPropertyId();
-                LongIterator nodes = reader.query( IndexQuery.exact( propertyKeyId, propertyValue ) );
+                reader.query( NULL_CONTEXT, nodes, IndexOrder.NONE, false, IndexQuery.exact( propertyKeyId, propertyValue ) );
                 assertEquals( asSet( 1L ), PrimitiveLongCollections.toSet( nodes ) );
             }
         }
@@ -204,15 +204,17 @@ public class SimpleIndexPopulatorCompatibility extends IndexProviderCompatibilit
             }
 
             // THEN
-            try ( IndexReader reader = new QueryResultComparingIndexReader( accessor.newReader() ) )
+            try ( IndexReader reader = accessor.newReader() )
             {
                 int propertyKeyId = descriptor.schema().getPropertyId();
                 for ( NodeAndValue entry : Iterables.concat( valueSet1, valueSet2 ) )
                 {
-                    NodeValueIterator nodes = new NodeValueIterator();
-                    reader.query( nodes, IndexOrder.NONE, false , IndexQuery.exact( propertyKeyId, entry.value ) );
-                    assertEquals( entry.nodeId, nodes.next() );
-                    assertFalse( nodes.hasNext() );
+                    try ( NodeValueIterator nodes = new NodeValueIterator() )
+                    {
+                        reader.query( NULL_CONTEXT, nodes, IndexOrder.NONE, false, IndexQuery.exact( propertyKeyId, entry.value ) );
+                        assertEquals( entry.nodeId, nodes.next() );
+                        assertFalse( nodes.hasNext() );
+                    }
                 }
             }
         }
@@ -285,13 +287,13 @@ public class SimpleIndexPopulatorCompatibility extends IndexProviderCompatibilit
             }
 
             // THEN
-            try ( IndexReader reader = new QueryResultComparingIndexReader( accessor.newReader() ) )
+            try ( IndexReader reader = accessor.newReader() )
             {
                 int propertyKeyId = descriptor.schema().getPropertyId();
                 for ( NodeAndValue nodeAndValue : toRemove )
                 {
                     NodeValueIterator nodes = new NodeValueIterator();
-                    reader.query( nodes, IndexOrder.NONE, false, IndexQuery.exact( propertyKeyId, nodeAndValue.value ) );
+                    reader.query( NULL_CONTEXT, nodes, IndexOrder.NONE, false, IndexQuery.exact( propertyKeyId, nodeAndValue.value ) );
                     boolean anyHits = false;
 
                     StringJoiner nodesStillLeft = new StringJoiner( ", ", "[", "]" );
@@ -306,7 +308,7 @@ public class SimpleIndexPopulatorCompatibility extends IndexProviderCompatibilit
         }
     }
 
-    private Value valueSet1Lookup( long nodeId, int propertyId )
+    private Value valueSet1Lookup( long nodeId, @SuppressWarnings( "unused" ) int propertyId )
     {
         for ( NodeAndValue x : valueSet1 )
         {
@@ -322,15 +324,17 @@ public class SimpleIndexPopulatorCompatibility extends IndexProviderCompatibilit
     {
         try ( IndexAccessor accessor = indexProvider.getOnlineAccessor( descriptor, indexSamplingConfig ) )
         {
-            try ( IndexReader reader = new QueryResultComparingIndexReader( accessor.newReader() ) )
+            try ( IndexReader reader = accessor.newReader() )
             {
                 int propertyKeyId = descriptor.schema().getPropertyId();
                 for ( NodeAndValue entry : values )
                 {
-                    NodeValueIterator nodes = new NodeValueIterator();
-                    reader.query( nodes, IndexOrder.NONE, false, IndexQuery.exact( propertyKeyId, entry.value ) );
-                    assertEquals( entry.nodeId, nodes.next() );
-                    assertFalse( nodes.hasNext() );
+                    try ( NodeValueIterator nodes = new NodeValueIterator() )
+                    {
+                        reader.query( NULL_CONTEXT, nodes, IndexOrder.NONE, false, IndexQuery.exact( propertyKeyId, entry.value ) );
+                        assertEquals( entry.nodeId, nodes.next() );
+                        assertFalse( nodes.hasNext() );
+                    }
                 }
             }
         }
@@ -341,7 +345,7 @@ public class SimpleIndexPopulatorCompatibility extends IndexProviderCompatibilit
     {
         public General( IndexProviderCompatibilityTestSuite testSuite )
         {
-            super( testSuite, TestIndexDescriptorFactory.forLabel( 1000, 100 ) );
+            super( testSuite, IndexPrototype.forSchema( forLabel( 1000, 100 ) ) );
         }
 
         @Test
@@ -358,14 +362,16 @@ public class SimpleIndexPopulatorCompatibility extends IndexProviderCompatibilit
             // then
             try ( IndexAccessor accessor = indexProvider.getOnlineAccessor( descriptor, indexSamplingConfig ) )
             {
-                try ( IndexReader reader = new QueryResultComparingIndexReader( accessor.newReader() ) )
+                try ( IndexReader reader = accessor.newReader() )
                 {
                     int propertyKeyId = descriptor.schema().getPropertyId();
                     for ( NodeAndValue entry : valueSet1 )
                     {
-                        NodeValueIterator nodes = new NodeValueIterator();
-                        reader.query( nodes, IndexOrder.NONE, false, IndexQuery.exact( propertyKeyId, entry.value ) );
-                        assertEquals( entry.value.toString(), asSet( entry.nodeId, entry.nodeId + offset ), PrimitiveLongCollections.toSet( nodes ) );
+                        try ( NodeValueIterator nodes = new NodeValueIterator() )
+                        {
+                            reader.query( NULL_CONTEXT, nodes, IndexOrder.NONE, false, IndexQuery.exact( propertyKeyId, entry.value ) );
+                            assertEquals( entry.value.toString(), asSet( entry.nodeId, entry.nodeId + offset ), PrimitiveLongCollections.toSet( nodes ) );
+                        }
                     }
                 }
             }
@@ -377,7 +383,7 @@ public class SimpleIndexPopulatorCompatibility extends IndexProviderCompatibilit
     {
         public Unique( IndexProviderCompatibilityTestSuite testSuite )
         {
-            super( testSuite, TestIndexDescriptorFactory.uniqueForLabel( 1000, 100 ) );
+            super( testSuite, IndexPrototype.uniqueForSchema( forLabel( 1000, 100 ) ) );
         }
 
         /**
@@ -409,7 +415,7 @@ public class SimpleIndexPopulatorCompatibility extends IndexProviderCompatibilit
                 // then
                 catch ( Exception e )
                 {
-                    Throwable root = Exceptions.rootCause( e );
+                    Throwable root = getRootCause( e );
                     if ( root instanceof IndexEntryConflictException )
                     {
                         IndexEntryConflictException conflict = (IndexEntryConflictException)root;

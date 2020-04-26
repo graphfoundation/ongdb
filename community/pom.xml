@@ -11,7 +11,6 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.graphfoundation.ongdb.build</groupId>
     <artifactId>community-build</artifactId>
-    <version>4.0.4-SNAPSHOT</version>
 
     <name>ONgDB - Community Build</name>
     <packaging>pom</packaging>
@@ -23,8 +22,16 @@
     </properties>
 
     <modules>
-        <module>annotation-processors</module>
         <module>zstd-proxy</module>
+        <module>token-api</module>
+        <module>schema</module>
+        <module>import-util</module>
+        <module>id-generator</module>
+        <module>lock</module>
+        <module>monitoring</module>
+        <module>label-index</module>
+        <module>wal</module>
+        <module>record-storage-engine</module>
         <module>common</module>
         <module>configuration</module>
         <module>resource</module>
@@ -32,9 +39,13 @@
         <module>concurrent</module>
         <module>graphdb-api</module>
         <module>procedure-api</module>
+        <module>procedure-compiler</module>
+        <module>procedure</module>
         <module>unsafe</module>
         <module>io</module>
+        <module>native</module>
         <module>diagnostics</module>
+        <module>storage-engine-api</module>
         <module>kernel-api</module>
         <module>csv</module>
         <module>logging</module>
@@ -43,11 +54,8 @@
         <module>codegen</module>
         <module>index</module>
         <module>kernel</module>
-        <module>jmx</module>
-        <module>udc</module>
-        <module>legacy</module>
+        <module>batch-insert</module>
         <module>lucene-index</module>
-        <module>lucene-index-upgrade</module>
         <module>fulltext-index</module>
         <module>graph-algo</module>
         <module>neo4j</module>
@@ -56,18 +64,19 @@
         <module>server-api</module>
         <module>bolt</module>
         <module>server</module>
-        <module>server-plugin-test</module>
         <module>consistency-check</module>
         <module>neo4j-harness</module>
         <module>dbms</module>
         <module>command-line</module>
-        <module>procedure-compiler</module>
         <module>random-values</module>
         <module>values</module>
         <module>ssl</module>
         <module>spatial-index</module>
         <module>community-it</module>
         <module>data-collector</module>
+        <module>testing</module>
+        <module>neo4j-exceptions</module>
+        <module>layout</module>
         <module>push-to-cloud</module>
     </modules>
 

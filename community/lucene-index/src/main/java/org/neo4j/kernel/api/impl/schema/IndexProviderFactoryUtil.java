@@ -22,58 +22,27 @@
  */
 package org.neo4j.kernel.api.impl.schema;
 
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
-import org.neo4j.index.internal.gbptree.RecoveryCleanupWorkCollector;
+import org.neo4j.configuration.Config;
+import org.neo4j.configuration.GraphDatabaseSettings;
 import org.neo4j.io.fs.FileSystemAbstraction;
-import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.kernel.api.impl.index.storage.DirectoryFactory;
 import org.neo4j.kernel.api.index.IndexDirectoryStructure;
 import org.neo4j.kernel.api.index.IndexProvider;
-import org.neo4j.kernel.configuration.Config;
-import org.neo4j.kernel.impl.factory.OperationalMode;
-import org.neo4j.kernel.impl.index.schema.NumberIndexProvider;
-import org.neo4j.kernel.impl.index.schema.SpatialIndexProvider;
-import org.neo4j.kernel.impl.index.schema.StringIndexProvider;
-import org.neo4j.kernel.impl.index.schema.TemporalIndexProvider;
 
 import static org.neo4j.kernel.api.impl.index.storage.DirectoryFactory.directoryFactory;
 
-class IndexProviderFactoryUtil
+public class IndexProviderFactoryUtil
 {
-    static boolean isReadOnly( Config config, OperationalMode operationalMode )
+    public static boolean isReadOnly( Config config, boolean isSingleInstance )
     {
-        return config.get( GraphDatabaseSettings.read_only ) && (OperationalMode.single == operationalMode);
+        return config.get( GraphDatabaseSettings.read_only ) && isSingleInstance;
     }
 
-    static StringIndexProvider stringProvider( PageCache pageCache, FileSystemAbstraction fs, IndexDirectoryStructure.Factory childDirectoryStructure,
-            IndexProvider.Monitor monitor, RecoveryCleanupWorkCollector recoveryCleanupWorkCollector, boolean readOnly )
+    public static LuceneIndexProvider luceneProvider( FileSystemAbstraction fs, IndexDirectoryStructure.Factory directoryStructure,
+            IndexProvider.Monitor monitor, Config config, boolean isSingleInstance )
     {
-        return new StringIndexProvider( pageCache, fs, childDirectoryStructure, monitor, recoveryCleanupWorkCollector, readOnly );
-    }
-
-    static NumberIndexProvider numberProvider( PageCache pageCache, FileSystemAbstraction fs, IndexDirectoryStructure.Factory childDirectoryStructure,
-            IndexProvider.Monitor monitor, RecoveryCleanupWorkCollector recoveryCleanupWorkCollector, boolean readOnly )
-    {
-        return new NumberIndexProvider( pageCache, fs, childDirectoryStructure, monitor, recoveryCleanupWorkCollector, readOnly );
-    }
-
-    static SpatialIndexProvider spatialProvider( PageCache pageCache, FileSystemAbstraction fs, IndexDirectoryStructure.Factory directoryStructure,
-            IndexProvider.Monitor monitor, RecoveryCleanupWorkCollector recoveryCleanupWorkCollector, boolean readOnly, Config config )
-    {
-        return new SpatialIndexProvider( pageCache, fs, directoryStructure, monitor, recoveryCleanupWorkCollector, readOnly, config );
-    }
-
-    static TemporalIndexProvider temporalProvider( PageCache pageCache, FileSystemAbstraction fs, IndexDirectoryStructure.Factory directoryStructure,
-            IndexProvider.Monitor monitor, RecoveryCleanupWorkCollector recoveryCleanupWorkCollector, boolean readOnly )
-    {
-        return new TemporalIndexProvider( pageCache, fs, directoryStructure, monitor, recoveryCleanupWorkCollector, readOnly );
-    }
-
-    static LuceneIndexProvider luceneProvider( FileSystemAbstraction fs, IndexDirectoryStructure.Factory directoryStructure, IndexProvider.Monitor monitor,
-            Config config, OperationalMode operationalMode )
-    {
-        boolean ephemeral = config.get( GraphDatabaseSettings.ephemeral );
+        boolean ephemeral = config.get( GraphDatabaseSettings.ephemeral_lucene );
         DirectoryFactory directoryFactory = directoryFactory( ephemeral );
-        return new LuceneIndexProvider( fs, directoryFactory, directoryStructure, monitor, config, operationalMode );
+        return new LuceneIndexProvider( fs, directoryFactory, directoryStructure, monitor, config, isSingleInstance );
     }
 }

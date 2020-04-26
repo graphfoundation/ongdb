@@ -22,12 +22,16 @@
  */
 package org.neo4j.kernel.api.impl.schema;
 
-import java.io.File;
+import org.apache.commons.lang3.StringUtils;
+
 import java.io.IOException;
 
-import org.neo4j.internal.kernel.api.IndexCapability;
+import org.neo4j.configuration.Config;
 import org.neo4j.internal.kernel.api.InternalIndexState;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.internal.schema.IndexProviderDescriptor;
 import org.neo4j.io.fs.FileSystemAbstraction;
+import org.neo4j.io.memory.ByteBufferFactory;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.kernel.api.impl.index.IndexWriterConfigs;
 import org.neo4j.kernel.api.impl.index.storage.DirectoryFactory;
@@ -39,40 +43,32 @@ import org.neo4j.kernel.api.index.IndexAccessor;
 import org.neo4j.kernel.api.index.IndexDirectoryStructure;
 import org.neo4j.kernel.api.index.IndexPopulator;
 import org.neo4j.kernel.api.index.IndexProvider;
-import org.neo4j.kernel.configuration.Config;
-import org.neo4j.kernel.impl.api.index.sampling.IndexSamplingConfig;
-import org.neo4j.kernel.impl.factory.OperationalMode;
-import org.neo4j.kernel.impl.index.schema.ByteBufferFactory;
-import org.neo4j.kernel.impl.storemigration.StoreMigrationParticipant;
-import org.neo4j.kernel.impl.storemigration.participant.SchemaIndexMigrator;
-import org.neo4j.storageengine.api.schema.IndexDescriptor;
-import org.neo4j.storageengine.api.schema.StoreIndexDescriptor;
+import org.neo4j.kernel.impl.api.index.IndexSamplingConfig;
+import org.neo4j.storageengine.api.StorageEngineFactory;
+import org.neo4j.storageengine.migration.SchemaIndexMigrator;
+import org.neo4j.storageengine.migration.StoreMigrationParticipant;
 
-import static org.neo4j.storageengine.api.schema.IndexDescriptor.Type.UNIQUE;
+import static org.apache.commons.lang3.StringUtils.defaultIfEmpty;
 
 public class LuceneIndexProvider extends IndexProvider
 {
+    public static final IndexProviderDescriptor DESCRIPTOR = new IndexProviderDescriptor( "lucene", "2.0" );
     private final IndexStorageFactory indexStorageFactory;
     private final Config config;
-    private final OperationalMode operationalMode;
+    private final boolean isSingleInstance;
     private final FileSystemAbstraction fileSystem;
     private final Monitor monitor;
 
     public LuceneIndexProvider( FileSystemAbstraction fileSystem, DirectoryFactory directoryFactory,
                                 IndexDirectoryStructure.Factory directoryStructureFactory, Monitor monitor, Config config,
-                                OperationalMode operationalMode )
+                                boolean isSingleInstance )
     {
-        super( LuceneIndexProviderFactory.PROVIDER_DESCRIPTOR, directoryStructureFactory );
+        super( DESCRIPTOR, directoryStructureFactory );
         this.monitor = monitor;
         this.indexStorageFactory = buildIndexStorageFactory( fileSystem, directoryFactory );
         this.fileSystem = fileSystem;
         this.config = config;
-        this.operationalMode = operationalMode;
-    }
-
-    public static IndexDirectoryStructure.Factory defaultDirectoryStructure( File storeDir )
-    {
-        return IndexDirectoryStructure.directoriesByProviderKey( storeDir );
+        this.isSingleInstance = isSingleInstance;
     }
 
     /**
@@ -84,11 +80,11 @@ public class LuceneIndexProvider extends IndexProvider
     }
 
     @Override
-    public IndexPopulator getPopulator( StoreIndexDescriptor descriptor, IndexSamplingConfig samplingConfig, ByteBufferFactory bufferFactory )
+    public IndexPopulator getPopulator( IndexDescriptor descriptor, IndexSamplingConfig samplingConfig, ByteBufferFactory bufferFactory )
     {
         SchemaIndex luceneIndex = LuceneSchemaIndexBuilder.create( descriptor, config )
                                         .withFileSystem( fileSystem )
-                                        .withOperationalMode( operationalMode )
+                                        .withOperationalMode( isSingleInstance )
                                         .withSamplingConfig( samplingConfig )
                                         .withIndexStorage( getIndexStorage( descriptor.getId() ) )
                                         .withWriterConfig( IndexWriterConfigs::population )
@@ -97,21 +93,16 @@ public class LuceneIndexProvider extends IndexProvider
         {
             throw new UnsupportedOperationException( "Can't create populator for read only index" );
         }
-        if ( descriptor.type() == UNIQUE )
-        {
-            return new UniqueLuceneIndexPopulator( luceneIndex, descriptor );
-        }
-        else
-        {
-            return new NonUniqueLuceneIndexPopulator( luceneIndex, samplingConfig );
-        }
+        return descriptor.isUnique()
+               ? new UniqueLuceneIndexPopulator( luceneIndex, descriptor )
+               : new NonUniqueLuceneIndexPopulator( luceneIndex, samplingConfig );
     }
 
     @Override
-    public IndexAccessor getOnlineAccessor( StoreIndexDescriptor descriptor, IndexSamplingConfig samplingConfig ) throws IOException
+    public IndexAccessor getOnlineAccessor( IndexDescriptor descriptor, IndexSamplingConfig samplingConfig ) throws IOException
     {
         SchemaIndex luceneIndex = LuceneSchemaIndexBuilder.create( descriptor, config )
-                                            .withOperationalMode( operationalMode )
+                                            .withOperationalMode( isSingleInstance )
                                             .withSamplingConfig( samplingConfig )
                                             .withIndexStorage( getIndexStorage( descriptor.getId() ) )
                                             .build();
@@ -120,7 +111,7 @@ public class LuceneIndexProvider extends IndexProvider
     }
 
     @Override
-    public InternalIndexState getInitialState( StoreIndexDescriptor descriptor )
+    public InternalIndexState getInitialState( IndexDescriptor descriptor )
     {
         PartitionedIndexStorage indexStorage = getIndexStorage( descriptor.getId() );
         String failure = indexStorage.getStoredIndexFailure();
@@ -140,26 +131,15 @@ public class LuceneIndexProvider extends IndexProvider
     }
 
     @Override
-    public IndexCapability getCapability( StoreIndexDescriptor descriptor )
+    public StoreMigrationParticipant storeMigrationParticipant( final FileSystemAbstraction fs, PageCache pageCache, StorageEngineFactory storageEngineFactory )
     {
-        return IndexCapability.NO_CAPABILITY;
+        return new SchemaIndexMigrator( "Lucene indexes", fs, this.directoryStructure(), storageEngineFactory );
     }
 
     @Override
-    public StoreMigrationParticipant storeMigrationParticipant( final FileSystemAbstraction fs, PageCache pageCache )
+    public String getPopulationFailure( IndexDescriptor descriptor ) throws IllegalStateException
     {
-        return new SchemaIndexMigrator( fs, this );
-    }
-
-    @Override
-    public String getPopulationFailure( StoreIndexDescriptor descriptor ) throws IllegalStateException
-    {
-        String failure = getIndexStorage( descriptor.getId() ).getStoredIndexFailure();
-        if ( failure == null )
-        {
-            throw new IllegalStateException( "Index " + descriptor.getId() + " isn't failed" );
-        }
-        return failure;
+        return defaultIfEmpty( getIndexStorage( descriptor.getId() ).getStoredIndexFailure(), StringUtils.EMPTY );
     }
 
     private PartitionedIndexStorage getIndexStorage( long indexId )
@@ -178,5 +158,11 @@ public class LuceneIndexProvider extends IndexProvider
             }
             return false;
         }
+    }
+
+    @Override
+    public IndexDescriptor completeConfiguration( IndexDescriptor index )
+    {
+        return index;
     }
 }

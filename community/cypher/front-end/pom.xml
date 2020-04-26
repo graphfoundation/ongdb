@@ -11,8 +11,7 @@
 
     <modelVersion>4.0.0</modelVersion>
 
-    <artifactId>ongdb-front-end-parent-3.6</artifactId>
-    <version>4.0.4-SNAPSHOT</version>
+    <artifactId>ongdb-front-end-parent-4.0</artifactId>
     <packaging>pom</packaging>
     <name>openCypher Front End Parent</name>
     <description>Project that builds the openCypher front end modules</description>
@@ -43,11 +42,12 @@
         <dependency>
             <groupId>org.scala-lang</groupId>
             <artifactId>scala-library</artifactId>
+            <version>${scala.version}</version>
         </dependency>
 
         <dependency>
             <groupId>org.scalatest</groupId>
-            <artifactId>scalatest_2.11</artifactId>
+            <artifactId>scalatest_${scala.binary.version}</artifactId>
             <scope>test</scope>
         </dependency>
 

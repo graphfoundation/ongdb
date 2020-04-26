@@ -26,7 +26,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
-import org.neo4j.helpers.collection.Pair;
+import org.neo4j.internal.helpers.collection.Pair;
 
 import static java.lang.Math.asin;
 import static java.lang.Math.atan2;
@@ -156,7 +156,6 @@ public abstract class CRSCalculator
             // with rounding errors taken into account
             double extendedDistance = distance * EXTENSION_FACTOR;
 
-            CoordinateReferenceSystem crs = center.getCoordinateReferenceSystem();
             double lat = center.coordinate()[1];
             double lon = center.coordinate()[0];
 

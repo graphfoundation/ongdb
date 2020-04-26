@@ -27,12 +27,12 @@ import org.junit.Test;
 import java.io.File;
 import java.util.Optional;
 
-import org.neo4j.kernel.configuration.Config;
+import org.neo4j.configuration.Config;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
-import static org.neo4j.helpers.ArrayUtil.array;
-import static org.neo4j.helpers.collection.MapUtil.stringMap;
+import static org.neo4j.internal.helpers.ArrayUtil.array;
+import static org.neo4j.internal.helpers.collection.MapUtil.stringMap;
 
 public class ServerCommandLineArgsTest
 {

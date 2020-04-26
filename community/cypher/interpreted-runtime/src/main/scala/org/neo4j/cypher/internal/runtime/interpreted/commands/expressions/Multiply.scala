@@ -22,7 +22,7 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.commands.expressions
 
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
+import org.neo4j.cypher.internal.runtime.ExecutionContext
 import org.neo4j.cypher.internal.runtime.interpreted.commands.AstNode
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.QueryState
 import org.neo4j.cypher.operations.CypherMath
@@ -36,11 +36,9 @@ case class Multiply(a: Expression, b: Expression) extends Expression  {
     case (x,y) => CypherMath.multiply(x, y)
   }
 
-  override def rewrite(f: (Expression) => Expression): Expression = f(Multiply(a.rewrite(f), b.rewrite(f)))
+  override def rewrite(f: Expression => Expression): Expression = f(Multiply(a.rewrite(f), b.rewrite(f)))
 
   override def arguments: Seq[Expression] = Seq(a, b)
 
   override def children: Seq[AstNode[_]] = Seq(a, b)
-
-  override def symbolTableDependencies: Set[String] = a.symbolTableDependencies ++ b.symbolTableDependencies
 }

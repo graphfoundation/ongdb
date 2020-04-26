@@ -23,7 +23,6 @@
 package org.neo4j.kernel.impl.index.schema.fusion;
 
 import org.hamcrest.Matcher;
-import org.mockito.Mockito;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -33,9 +32,9 @@ import java.util.EnumMap;
 import java.util.List;
 import java.util.concurrent.Callable;
 
-import org.neo4j.internal.kernel.api.schema.LabelSchemaDescriptor;
-import org.neo4j.kernel.api.index.IndexEntryUpdate;
-import org.neo4j.kernel.api.schema.SchemaDescriptorFactory;
+import org.neo4j.internal.schema.LabelSchemaDescriptor;
+import org.neo4j.internal.schema.SchemaDescriptor;
+import org.neo4j.storageengine.api.IndexEntryUpdate;
 import org.neo4j.values.storable.CoordinateReferenceSystem;
 import org.neo4j.values.storable.DateValue;
 import org.neo4j.values.storable.Value;
@@ -48,16 +47,13 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
+import static org.neo4j.kernel.impl.index.schema.fusion.IndexSlot.GENERIC;
 import static org.neo4j.kernel.impl.index.schema.fusion.IndexSlot.LUCENE;
-import static org.neo4j.kernel.impl.index.schema.fusion.IndexSlot.NUMBER;
-import static org.neo4j.kernel.impl.index.schema.fusion.IndexSlot.SPATIAL;
-import static org.neo4j.kernel.impl.index.schema.fusion.IndexSlot.STRING;
-import static org.neo4j.kernel.impl.index.schema.fusion.IndexSlot.TEMPORAL;
 
 class FusionIndexTestHelp
 {
-    private static LabelSchemaDescriptor indexKey = SchemaDescriptorFactory.forLabel( 0, 0 );
-    private static LabelSchemaDescriptor compositeIndexKey = SchemaDescriptorFactory.forLabel( 0, 0, 1 );
+    private static final LabelSchemaDescriptor INDEX_KEY = SchemaDescriptor.forLabel( 0, 0 );
+    private static final LabelSchemaDescriptor COMPOSITE_INDEX_KEY = SchemaDescriptor.forLabel( 0, 0, 1 );
 
     private static final Value[] stringValues = new Value[]
             {
@@ -65,28 +61,19 @@ class FusionIndexTestHelp
                     Values.stringValue( "abcdefghijklmnopqrstuvwxyzåäö" ),
                     Values.charValue( 'S' ),
             };
-    private static final Value[] numberValues = new Value[]
+    private static final Value[] otherValues = new Value[]
             {
                     Values.byteValue( (byte) 1 ),
                     Values.shortValue( (short) 2 ),
                     Values.intValue( 3 ),
                     Values.longValue( 4 ),
                     Values.floatValue( 5.6f ),
-                    Values.doubleValue( 7.8 )
-            };
-    private static final Value[] pointValues = new Value[]
-            {
+                    Values.doubleValue( 7.8 ),
                     Values.pointValue( CoordinateReferenceSystem.Cartesian, 123.0, 456.0 ),
                     Values.pointValue( CoordinateReferenceSystem.Cartesian_3D, 123.0, 456.0, 789.0 ),
-                    Values.pointValue( CoordinateReferenceSystem.WGS84, 13.2, 56.8 )
-            };
-    private static final Value[] temporalValues = new Value[]
-            {
+                    Values.pointValue( CoordinateReferenceSystem.WGS84, 13.2, 56.8 ),
                     DateValue.epochDate( 1 ),
-                    DateValue.epochDate( 10000 )
-            };
-    private static final Value[] otherValues = new Value[]
-            {
+                    DateValue.epochDate( 10000 ),
                     Values.booleanValue( true ),
                     Values.booleanArray( new boolean[2] ),
                     Values.byteArray( new byte[]{1, 2} ),
@@ -97,28 +84,17 @@ class FusionIndexTestHelp
                     Values.doubleArray( new double[]{13.14, 15.16} ),
                     Values.charArray( new char[2] ),
                     Values.stringArray( "a", "b" ),
-                    Values.pointArray( pointValues ),
+                    Values.pointArray( new Value[]{
+                            Values.pointValue( CoordinateReferenceSystem.Cartesian, 123.0, 456.0 ),
+                            Values.pointValue( CoordinateReferenceSystem.Cartesian_3D, 123.0, 456.0, 789.0 ),
+                            Values.pointValue( CoordinateReferenceSystem.WGS84, 13.2, 56.8 )
+                    } ),
                     Values.NO_VALUE
             };
 
-    static Value[] valuesSupportedByString()
+    static Value[] valuesSupportedByLucene()
     {
         return stringValues;
-    }
-
-    static Value[] valuesSupportedByNumber()
-    {
-        return numberValues;
-    }
-
-    static Value[] valuesSupportedBySpatial()
-    {
-        return pointValues;
-    }
-
-    static Value[] valuesSupportedByTemporal()
-    {
-        return temporalValues;
     }
 
     static Value[] valuesNotSupportedBySpecificIndex()
@@ -139,11 +115,8 @@ class FusionIndexTestHelp
     static EnumMap<IndexSlot,Value[]> valuesByGroup()
     {
         EnumMap<IndexSlot,Value[]> values = new EnumMap<>( IndexSlot.class );
-        values.put( STRING, FusionIndexTestHelp.valuesSupportedByString() );
-        values.put( NUMBER, FusionIndexTestHelp.valuesSupportedByNumber() );
-        values.put( SPATIAL, FusionIndexTestHelp.valuesSupportedBySpatial() );
-        values.put( TEMPORAL, FusionIndexTestHelp.valuesSupportedByTemporal() );
-        values.put( LUCENE, FusionIndexTestHelp.valuesNotSupportedBySpecificIndex() );
+        values.put( GENERIC, FusionIndexTestHelp.valuesNotSupportedBySpecificIndex() );
+        values.put( LUCENE, FusionIndexTestHelp.valuesSupportedByLucene() );
         return values;
     }
 
@@ -165,9 +138,9 @@ class FusionIndexTestHelp
         switch ( value.length )
         {
         case 1:
-            return IndexEntryUpdate.add( 0, indexKey, value );
+            return IndexEntryUpdate.add( 0, INDEX_KEY, value );
         case 2:
-            return IndexEntryUpdate.add( 0, compositeIndexKey, value );
+            return IndexEntryUpdate.add( 0, COMPOSITE_INDEX_KEY, value );
         default:
             return null;
         }
@@ -178,9 +151,9 @@ class FusionIndexTestHelp
         switch ( value.length )
         {
         case 1:
-            return IndexEntryUpdate.remove( 0, indexKey, value );
+            return IndexEntryUpdate.remove( 0, INDEX_KEY, value );
         case 2:
-            return IndexEntryUpdate.remove( 0, compositeIndexKey, value );
+            return IndexEntryUpdate.remove( 0, COMPOSITE_INDEX_KEY, value );
         default:
             return null;
         }
@@ -188,12 +161,12 @@ class FusionIndexTestHelp
 
     static IndexEntryUpdate<LabelSchemaDescriptor> change( Value[] before, Value[] after )
     {
-        return IndexEntryUpdate.change( 0, compositeIndexKey, before, after );
+        return IndexEntryUpdate.change( 0, COMPOSITE_INDEX_KEY, before, after );
     }
 
     static IndexEntryUpdate<LabelSchemaDescriptor> change( Value before, Value after )
     {
-        return IndexEntryUpdate.change( 0, indexKey, before, after );
+        return IndexEntryUpdate.change( 0, INDEX_KEY, before, after );
     }
 
     static void verifyOtherIsClosedOnSingleThrow( AutoCloseable failingCloseable, AutoCloseable fusionCloseable, AutoCloseable... successfulCloseables )
@@ -215,7 +188,7 @@ class FusionIndexTestHelp
         // then
         for ( AutoCloseable successfulCloseable : successfulCloseables )
         {
-            verify( successfulCloseable, Mockito.times( 1 ) ).close();
+            verify( successfulCloseable ).close();
         }
     }
 

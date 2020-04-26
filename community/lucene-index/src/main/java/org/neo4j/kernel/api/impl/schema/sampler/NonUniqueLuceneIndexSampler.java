@@ -22,8 +22,8 @@
  */
 package org.neo4j.kernel.api.impl.schema.sampler;
 
-import org.apache.lucene.index.Fields;
 import org.apache.lucene.index.IndexReader;
+import org.apache.lucene.index.LeafReader;
 import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.index.Terms;
 import org.apache.lucene.index.TermsEnum;
@@ -34,13 +34,13 @@ import java.io.IOException;
 import java.util.HashSet;
 import java.util.Set;
 
-import org.neo4j.helpers.TaskControl;
+import org.neo4j.internal.helpers.TaskControl;
 import org.neo4j.internal.kernel.api.exceptions.schema.IndexNotFoundKernelException;
 import org.neo4j.kernel.api.impl.schema.LuceneDocumentStructure;
-import org.neo4j.kernel.impl.api.index.sampling.DefaultNonUniqueIndexSampler;
-import org.neo4j.kernel.impl.api.index.sampling.IndexSamplingConfig;
-import org.neo4j.kernel.impl.api.index.sampling.NonUniqueIndexSampler;
-import org.neo4j.storageengine.api.schema.IndexSample;
+import org.neo4j.kernel.api.index.DefaultNonUniqueIndexSampler;
+import org.neo4j.kernel.api.index.IndexSample;
+import org.neo4j.kernel.api.index.NonUniqueIndexSampler;
+import org.neo4j.kernel.impl.api.index.IndexSamplingConfig;
 
 /**
  * Sampler for non-unique Lucene schema index.
@@ -74,7 +74,7 @@ public class NonUniqueLuceneIndexSampler extends LuceneIndexSampler
                     Terms terms = readerContext.reader().terms( fieldName );
                     if ( terms != null )
                     {
-                        TermsEnum termsEnum = LuceneDocumentStructure.originalTerms( terms, fieldName );
+                        TermsEnum termsEnum = terms.iterator();
                         BytesRef termsRef;
                         while ( (termsRef = termsEnum.next()) != null )
                         {
@@ -93,17 +93,18 @@ public class NonUniqueLuceneIndexSampler extends LuceneIndexSampler
         return sampler.result( indexReader.numDocs() );
     }
 
-    private static Set<String> getFieldNamesToSample( LeafReaderContext readerContext ) throws IOException
+    private static Set<String> getFieldNamesToSample( LeafReaderContext readerContext )
     {
-        Fields fields = readerContext.reader().fields();
         Set<String> fieldNames = new HashSet<>();
-        for ( String field : fields )
+        LeafReader reader = readerContext.reader();
+        reader.getFieldInfos().forEach( info ->
         {
-            if ( !LuceneDocumentStructure.NODE_ID_KEY.equals( field ) )
+            String name = info.name;
+            if ( !LuceneDocumentStructure.NODE_ID_KEY.equals( name ) )
             {
-                fieldNames.add( field );
+                fieldNames.add( name );
             }
-        }
+        });
         return fieldNames;
     }
 }

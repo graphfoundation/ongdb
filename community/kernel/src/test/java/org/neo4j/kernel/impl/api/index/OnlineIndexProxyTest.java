@@ -22,41 +22,38 @@
  */
 package org.neo4j.kernel.impl.api.index;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import java.io.IOException;
-
-import org.neo4j.internal.kernel.api.schema.IndexProviderDescriptor;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.internal.schema.IndexPrototype;
+import org.neo4j.internal.schema.SchemaDescriptor;
 import org.neo4j.kernel.api.index.IndexAccessor;
-import org.neo4j.kernel.api.schema.index.TestIndexDescriptorFactory;
-import org.neo4j.storageengine.api.schema.CapableIndexDescriptor;
-import org.neo4j.storageengine.api.schema.IndexDescriptor;
+import org.neo4j.kernel.impl.api.index.stats.IndexStatisticsStore;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 
-public class OnlineIndexProxyTest
+class OnlineIndexProxyTest
 {
     private final long indexId = 1;
-    private final IndexDescriptor descriptor = TestIndexDescriptorFactory.forLabel( 1, 2 );
-    private final IndexProviderDescriptor providerDescriptor = mock( IndexProviderDescriptor.class );
+    private final IndexDescriptor descriptor = IndexPrototype.forSchema( SchemaDescriptor.forLabel( 1, 2 ) ).withName( "index" ).materialise( indexId );
     private final IndexAccessor accessor = mock( IndexAccessor.class );
     private final IndexStoreView storeView = mock( IndexStoreView.class );
+    private final IndexStatisticsStore indexStatisticsStore = mock( IndexStatisticsStore.class );
 
     @Test
-    public void shouldRemoveIndexCountsWhenTheIndexItselfIsDropped() throws IOException
+    void shouldRemoveIndexCountsWhenTheIndexItselfIsDropped()
     {
         // given
-        CapableIndexDescriptor capableIndexDescriptor = descriptor.withId( indexId ).withoutCapabilities();
-        OnlineIndexProxy index = new OnlineIndexProxy( capableIndexDescriptor, accessor, storeView, false );
+        OnlineIndexProxy index = new OnlineIndexProxy( descriptor, accessor, indexStatisticsStore, false );
 
         // when
         index.drop();
 
         // then
         verify( accessor ).drop();
-        verify( storeView ).replaceIndexCounts( indexId, 0L, 0L, 0L );
+        verify( indexStatisticsStore ).removeIndex( indexId );
         verifyNoMoreInteractions( accessor, storeView );
     }
 }

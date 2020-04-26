@@ -52,7 +52,7 @@ public abstract class FloatingPointValue extends NumberValue
     }
 
     @Override
-    public boolean eq( Object other )
+    public boolean equalTo( Object other )
     {
         return other instanceof Value && equals( (Value) other );
     }
@@ -94,10 +94,15 @@ public abstract class FloatingPointValue extends NumberValue
         return Double.compare( doubleValue(), other.doubleValue() );
     }
 
-    @Override
     public boolean isNaN()
     {
         return Double.isNaN( this.doubleValue() );
+    }
+
+    @Override
+    boolean ternaryUndefined()
+    {
+        return isNaN();
     }
 
     @Override

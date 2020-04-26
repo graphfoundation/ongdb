@@ -35,14 +35,14 @@ import java.util.Random;
 
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Transaction;
-import org.neo4j.test.rule.DatabaseRule;
-import org.neo4j.test.rule.ImpermanentDatabaseRule;
+import org.neo4j.test.rule.DbmsRule;
+import org.neo4j.test.rule.ImpermanentDbmsRule;
 
 import static java.util.Arrays.asList;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.Assert.assertEquals;
 import static org.neo4j.graphdb.Label.label;
-import static org.neo4j.helpers.collection.Iterators.count;
+import static org.neo4j.internal.helpers.collection.Iterators.count;
 
 @RunWith( Parameterized.class )
 public class IndexTxStateLookupTest
@@ -187,7 +187,7 @@ public class IndexTxStateLookupTest
     }
 
     @ClassRule
-    public static final DatabaseRule db = new ImpermanentDatabaseRule();
+    public static final DbmsRule db = new ImpermanentDbmsRule();
 
     private final Object store;
     private final Object lookup;
@@ -209,13 +209,13 @@ public class IndexTxStateLookupTest
         // database with an index on `(:Node).prop`
         try ( Transaction tx = db.beginTx() )
         {
-            db.schema().indexFor( label( "Node" ) ).on( "prop" ).create();
-            tx.success();
+            tx.schema().indexFor( label( "Node" ) ).on( "prop" ).create();
+            tx.commit();
         }
         try ( Transaction tx = db.beginTx() )
         {
-            db.schema().awaitIndexesOnline( 10, SECONDS );
-            tx.success();
+            tx.schema().awaitIndexesOnline( 10, SECONDS );
+            tx.commit();
         }
     }
 
@@ -225,10 +225,10 @@ public class IndexTxStateLookupTest
         try ( Transaction tx = db.beginTx() )
         {
             // when
-            db.createNode( label( "Node" ) ).setProperty( "prop", store );
+            tx.createNode( label( "Node" ) ).setProperty( "prop", store );
 
             // then
-            assertEquals( 1, count( db.findNodes( label( "Node" ), "prop", lookup ) ) );
+            assertEquals( 1, count( tx.findNodes( label( "Node" ), "prop", lookup ) ) );
 
             // no need to actually commit this node
         }
@@ -240,10 +240,10 @@ public class IndexTxStateLookupTest
         try ( Transaction tx = db.beginTx() )
         {
             // when
-            db.createNode( label( "Node" ) ).setProperty( "prop", store );
+            tx.createNode( label( "Node" ) ).setProperty( "prop", store );
 
             // then
-            assertEquals( 1, count( db.findNodes( label( "Node" ), "prop", lookup ) ) );
+            assertEquals( 1, count( tx.findNodes( label( "Node" ), "prop", lookup ) ) );
 
             // no need to actually commit this node
         }
@@ -256,14 +256,14 @@ public class IndexTxStateLookupTest
         Node node;
         try ( Transaction tx = db.beginTx() )
         {
-            (node = db.createNode( label( "Node" ) )).setProperty( "prop", store );
-            tx.success();
+            (node = tx.createNode( label( "Node" ) )).setProperty( "prop", store );
+            tx.commit();
         }
         // then
         try ( Transaction tx = db.beginTx() )
         {
-            assertEquals( 1, count( db.findNodes( label( "Node" ), "prop", lookup ) ) );
-            tx.success();
+            assertEquals( 1, count( tx.findNodes( label( "Node" ), "prop", lookup ) ) );
+            tx.commit();
         }
         deleteNode( node );
     }
@@ -272,8 +272,8 @@ public class IndexTxStateLookupTest
     {
         try ( Transaction tx = db.beginTx() )
         {
-            node.delete();
-            tx.success();
+            tx.getNodeById( node.getId() ).delete();
+            tx.commit();
         }
     }
 
@@ -284,14 +284,14 @@ public class IndexTxStateLookupTest
         Node node;
         try ( Transaction tx = db.beginTx() )
         {
-            (node = db.createNode( label( "Node" ) )).setProperty( "prop", store );
-            tx.success();
+            (node = tx.createNode( label( "Node" ) )).setProperty( "prop", store );
+            tx.commit();
         }
         // then
         try ( Transaction tx = db.beginTx() )
         {
-            assertEquals( 1, count( db.findNodes( label( "Node" ), "prop", lookup ) ) );
-            tx.success();
+            assertEquals( 1, count( tx.findNodes( label( "Node" ), "prop", lookup ) ) );
+            tx.commit();
         }
         deleteNode( node );
     }

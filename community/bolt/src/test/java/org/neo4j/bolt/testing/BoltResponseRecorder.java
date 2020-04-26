@@ -28,14 +28,14 @@ import java.util.concurrent.LinkedBlockingQueue;
 import org.neo4j.bolt.runtime.BoltResponseHandler;
 import org.neo4j.bolt.runtime.BoltResult;
 import org.neo4j.bolt.runtime.Neo4jError;
-import org.neo4j.cypher.result.QueryResult;
 import org.neo4j.values.AnyValue;
+import org.neo4j.values.storable.BooleanValue;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.Assert.assertNotNull;
-import static org.neo4j.bolt.v1.messaging.BoltResponseMessage.FAILURE;
-import static org.neo4j.bolt.v1.messaging.BoltResponseMessage.IGNORED;
-import static org.neo4j.bolt.v1.messaging.BoltResponseMessage.SUCCESS;
+import static org.neo4j.bolt.messaging.BoltResponseMessage.FAILURE;
+import static org.neo4j.bolt.messaging.BoltResponseMessage.IGNORED;
+import static org.neo4j.bolt.messaging.BoltResponseMessage.SUCCESS;
 import static org.neo4j.values.storable.Values.stringOrNoValue;
 import static org.neo4j.values.storable.Values.stringValue;
 
@@ -56,22 +56,15 @@ public class BoltResponseRecorder implements BoltResponseHandler
     }
 
     @Override
-    public void onRecords( BoltResult result, boolean pull ) throws Exception
+    public boolean onPullRecords( BoltResult result, long size ) throws Throwable
     {
-        result.accept( new BoltResult.Visitor()
-        {
-            @Override
-            public void visit( QueryResult.Record record )
-            {
-                currentResponse.addRecord( record );
-            }
+        return hasMore( result.handleRecords( new RecordingBoltResultRecordConsumer(), size ) );
+    }
 
-            @Override
-            public void addMetadata( String key, AnyValue value )
-            {
-                currentResponse.addMetadata( key, value );
-            }
-        } );
+    @Override
+    public boolean onDiscardRecords( BoltResult result, long size ) throws Throwable
+    {
+        return hasMore( result.handleRecords( new DiscardingBoltResultVisitor(), size ) );
     }
 
     @Override
@@ -117,4 +110,59 @@ public class BoltResponseRecorder implements BoltResponseHandler
         return response;
     }
 
+    private boolean hasMore( boolean hasMore )
+    {
+        if ( hasMore )
+        {
+            onMetadata( "has_more", BooleanValue.TRUE );
+        }
+        return hasMore;
+    }
+
+    private class DiscardingBoltResultVisitor extends BoltResult.DiscardingRecordConsumer
+    {
+        @Override
+        public void addMetadata( String key, AnyValue value )
+        {
+            currentResponse.addMetadata( key, value );
+        }
+    }
+
+    private class RecordingBoltResultRecordConsumer implements BoltResult.RecordConsumer
+    {
+        private AnyValue[] anyValues;
+        private int currentOffset = -1;
+
+        @Override
+        public void addMetadata( String key, AnyValue value )
+        {
+            currentResponse.addMetadata( key, value );
+        }
+
+        @Override
+        public void beginRecord( int numberOfFields )
+        {
+            currentOffset = 0;
+            anyValues = new AnyValue[numberOfFields];
+        }
+
+        @Override
+        public void consumeField( AnyValue value )
+        {
+            anyValues[currentOffset++] = value;
+        }
+
+        @Override
+        public void endRecord()
+        {
+            currentOffset = -1;
+            currentResponse.addFields( anyValues );
+        }
+
+        @Override
+        public void onError()
+        {
+            //IGNORE
+        }
+    }
 }

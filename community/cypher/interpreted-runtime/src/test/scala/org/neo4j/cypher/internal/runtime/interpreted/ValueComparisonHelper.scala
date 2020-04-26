@@ -22,6 +22,7 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted
 
+import org.neo4j.cypher.internal.runtime.ExecutionContext
 import org.neo4j.graphdb.{Node, Relationship}
 import org.neo4j.values.AnyValue
 import org.neo4j.values.storable.Values.stringValue
@@ -32,18 +33,22 @@ import org.scalatest.matchers.{MatchResult, Matcher}
 
 object ValueComparisonHelper {
 
-  def beEquivalentTo(result: Seq[Map[String, Any]]) = new Matcher[Seq[ExecutionContext]] {
+  def beEquivalentTo(result: Seq[Map[String, Any]]): Matcher[Seq[ExecutionContext]] = new Matcher[Seq[ExecutionContext]] {
     override def apply(left: Seq[ExecutionContext]): MatchResult = MatchResult(
-      matches = left.indices.forall(i =>
-                                      left(i).keySet == result(i).keySet &&
-                                        left(i).forall{
-                                          case (k,v) => check(v, result(i)(k))
-                                        }),
+      matches = result.size == left.size && left.indices.forall(i => {
+        val res = result(i)
+        val row = left(i)
+        res.size == row.numberOfColumns &&
+        res.keySet.forall(row.containsName) &&
+         res.forall {
+           case (k,v) => check(row.getByName(k), v)
+         }
+      }),
       rawFailureMessage = s"$left != $result",
       rawNegatedFailureMessage = s"$left == $result")
   }
 
-  def beEquivalentTo(value: Any) = new Matcher[AnyValue] {
+  def beEquivalentTo(value: Any): Matcher[AnyValue] = new Matcher[AnyValue] {
     override def apply(left: AnyValue): MatchResult = MatchResult(
       matches = check(left, value),
       rawFailureMessage = s"$left != $value",

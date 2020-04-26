@@ -23,128 +23,107 @@
 package org.neo4j.kernel.impl.newapi;
 
 import java.util.Iterator;
+import java.util.function.IntSupplier;
 
-import org.neo4j.graphdb.TransactionFailureException;
-import org.neo4j.helpers.collection.Iterators;
-import org.neo4j.internal.kernel.api.NamedToken;
+import org.neo4j.exceptions.KernelException;
+import org.neo4j.internal.helpers.collection.Iterators;
+import org.neo4j.internal.id.IdCapacityExceededException;
 import org.neo4j.internal.kernel.api.Token;
 import org.neo4j.internal.kernel.api.exceptions.LabelNotFoundKernelException;
 import org.neo4j.internal.kernel.api.exceptions.PropertyKeyIdNotFoundKernelException;
+import org.neo4j.internal.kernel.api.exceptions.RelationshipTypeIdNotFoundKernelException;
 import org.neo4j.internal.kernel.api.exceptions.schema.IllegalTokenNameException;
-import org.neo4j.internal.kernel.api.exceptions.schema.TooManyLabelsException;
+import org.neo4j.internal.kernel.api.exceptions.schema.TokenCapacityExceededKernelException;
 import org.neo4j.internal.kernel.api.security.AccessMode;
-import org.neo4j.kernel.api.exceptions.RelationshipTypeIdNotFoundKernelException;
+import org.neo4j.internal.kernel.api.security.PrivilegeAction;
+import org.neo4j.kernel.api.txstate.TransactionState;
 import org.neo4j.kernel.impl.api.KernelTransactionImplementation;
-import org.neo4j.kernel.impl.core.TokenHolder;
-import org.neo4j.kernel.impl.core.TokenHolders;
-import org.neo4j.kernel.impl.core.TokenNotFoundException;
-import org.neo4j.kernel.impl.store.UnderlyingStorageException;
+import org.neo4j.storageengine.api.CommandCreationContext;
 import org.neo4j.storageengine.api.StorageReader;
+import org.neo4j.token.TokenHolders;
+import org.neo4j.token.api.NamedToken;
+import org.neo4j.token.api.TokenHolder;
+import org.neo4j.token.api.TokenNotFoundException;
 
 public class KernelToken implements Token
 {
     private final StorageReader store;
+    private final CommandCreationContext commandCreationContext;
     private final KernelTransactionImplementation ktx;
     private final TokenHolders tokenHolders;
 
-    public KernelToken( StorageReader store, KernelTransactionImplementation ktx, TokenHolders tokenHolders )
+    public KernelToken( StorageReader store, CommandCreationContext commandCreationContext, KernelTransactionImplementation ktx, TokenHolders tokenHolders )
     {
         this.store = store;
+        this.commandCreationContext = commandCreationContext;
         this.ktx = ktx;
         this.tokenHolders = tokenHolders;
     }
 
     @Override
-    public int labelGetOrCreateForName( String labelName ) throws IllegalTokenNameException, TooManyLabelsException
+    public int labelGetOrCreateForName( String labelName ) throws KernelException
     {
-        try
-        {
-            return getOrCreateForName( tokenHolders.labelTokens(), labelName );
-        }
-        catch ( TransactionFailureException e )
-        {
-            // Temporary workaround for the property store based label implementation.
-            // Actual implementation should not depend on internal kernel exception messages like this.
-            if ( e.getCause() instanceof UnderlyingStorageException &&
-                    e.getCause().getMessage().equals( "Id capacity exceeded" ) )
-            {
-                throw new TooManyLabelsException( e );
-            }
-            throw e;
-        }
+        return getOrCreateForName( tokenHolders.labelTokens(), PrivilegeAction.CREATE_LABEL, labelName );
     }
 
     @Override
-    public void labelGetOrCreateForNames( String[] labelNames, int[] labelIds )
-            throws IllegalTokenNameException, TooManyLabelsException
+    public void labelGetOrCreateForNames( String[] labelNames, int[] labelIds ) throws KernelException
     {
-        try
-        {
-            getOrCreateForNames( tokenHolders.labelTokens(), labelNames, labelIds );
-        }
-        catch ( TransactionFailureException e )
-        {
-            // Temporary workaround for the property store based label implementation.
-            // Actual implementation should not depend on internal kernel exception messages like this.
-            if ( e.getCause() instanceof UnderlyingStorageException &&
-                    e.getCause().getMessage().equals( "Id capacity exceeded" ) )
-            {
-                throw new TooManyLabelsException( e );
-            }
-            throw e;
-        }
+        getOrCreateForNames( tokenHolders.labelTokens(), PrivilegeAction.CREATE_LABEL, labelNames, labelIds );
     }
 
     @Override
-    public int labelCreateForName( String labelName ) throws IllegalTokenNameException, TooManyLabelsException
+    public int labelCreateForName( String labelName, boolean internal ) throws KernelException
     {
         ktx.assertOpen();
-        int id = store.reserveLabelTokenId();
-        ktx.txState().labelDoCreateForName( labelName, id );
+        TransactionState txState = ktx.txState();
+        int id = reserveTokenId( commandCreationContext::reserveLabelTokenId, tokenHolders.labelTokens() );
+        txState.labelDoCreateForName( labelName, internal, id );
         return id;
     }
 
     @Override
-    public int relationshipTypeCreateForName( String relationshipTypeName ) throws IllegalTokenNameException
+    public int relationshipTypeCreateForName( String relationshipTypeName, boolean internal ) throws KernelException
     {
         ktx.assertOpen();
-        int id = store.reserveRelationshipTypeTokenId();
-        ktx.txState().relationshipTypeDoCreateForName( relationshipTypeName, id );
+        TransactionState txState = ktx.txState();
+        int id = reserveTokenId( commandCreationContext::reserveRelationshipTypeTokenId, tokenHolders.relationshipTypeTokens() );
+        txState.relationshipTypeDoCreateForName( relationshipTypeName, internal, id );
         return id;
     }
 
     @Override
-    public int propertyKeyCreateForName( String propertyKeyName ) throws IllegalTokenNameException
+    public int propertyKeyCreateForName( String propertyKeyName, boolean internal ) throws KernelException
     {
         ktx.assertOpen();
-        int id = store.reservePropertyKeyTokenId();
-        ktx.txState().propertyKeyDoCreateForName( propertyKeyName, id );
+        TransactionState txState = ktx.txState();
+        int id = reserveTokenId( commandCreationContext::reservePropertyKeyTokenId, tokenHolders.propertyKeyTokens() );
+        txState.propertyKeyDoCreateForName( propertyKeyName, internal, id );
         return id;
     }
 
     @Override
-    public int propertyKeyGetOrCreateForName( String propertyKeyName ) throws IllegalTokenNameException
+    public int propertyKeyGetOrCreateForName( String propertyKeyName ) throws KernelException
     {
-        return getOrCreateForName( tokenHolders.propertyKeyTokens(), propertyKeyName );
+        return getOrCreateForName( tokenHolders.propertyKeyTokens(), PrivilegeAction.CREATE_PROPERTYKEY, propertyKeyName );
     }
 
     @Override
-    public void propertyKeyGetOrCreateForNames( String[] propertyKeys, int[] ids ) throws IllegalTokenNameException
+    public void propertyKeyGetOrCreateForNames( String[] propertyKeys, int[] ids ) throws KernelException
     {
-        getOrCreateForNames( tokenHolders.propertyKeyTokens(), propertyKeys, ids );
+        getOrCreateForNames( tokenHolders.propertyKeyTokens(), PrivilegeAction.CREATE_PROPERTYKEY, propertyKeys, ids );
     }
 
     @Override
-    public int relationshipTypeGetOrCreateForName( String relationshipTypeName ) throws IllegalTokenNameException
+    public int relationshipTypeGetOrCreateForName( String relationshipTypeName ) throws KernelException
     {
-        return getOrCreateForName( tokenHolders.relationshipTypeTokens(), relationshipTypeName );
+        return getOrCreateForName( tokenHolders.relationshipTypeTokens(), PrivilegeAction.CREATE_RELTYPE, relationshipTypeName );
     }
 
     @Override
-    public void relationshipTypeGetOrCreateForNames( String[] relationshipTypes, int[] ids )
-            throws IllegalTokenNameException
+    public void relationshipTypeGetOrCreateForNames( String[] relationshipTypes, int[] ids ) throws KernelException
     {
-        getOrCreateForNames( tokenHolders.relationshipTypeTokens(), relationshipTypes, ids );
+        getOrCreateForNames( tokenHolders.relationshipTypeTokens(), PrivilegeAction.CREATE_RELTYPE, relationshipTypes, ids );
     }
 
     @Override
@@ -214,7 +193,10 @@ public class KernelToken implements Token
     public Iterator<NamedToken> labelsGetAllTokens()
     {
         ktx.assertOpen();
-        return tokenHolders.labelTokens().getAllTokens().iterator();
+        AccessMode mode = ktx.securityContext().mode();
+        return Iterators.stream( tokenHolders.labelTokens().getAllTokens().iterator() )
+                .filter( label -> mode.allowsTraverseNode( label.id() ) )
+                .iterator();
     }
 
     @Override
@@ -223,7 +205,7 @@ public class KernelToken implements Token
         ktx.assertOpen();
         AccessMode mode = ktx.securityContext().mode();
         return Iterators.stream( tokenHolders.propertyKeyTokens().getAllTokens().iterator() )
-                .filter( propKey -> mode.allowsPropertyReads( propKey.id() ) )
+                .filter( propKey -> mode.allowsSeePropertyKeyToken( propKey.id() ) )
                 .iterator();
     }
 
@@ -231,7 +213,10 @@ public class KernelToken implements Token
     public Iterator<NamedToken> relationshipTypesGetAllTokens()
     {
         ktx.assertOpen();
-        return tokenHolders.relationshipTypeTokens().getAllTokens().iterator();
+        AccessMode mode = ktx.securityContext().mode();
+        return Iterators.stream( tokenHolders.relationshipTypeTokens().getAllTokens().iterator() )
+                .filter( relType -> mode.allowsTraverseRelType( relType.id() ) )
+                .iterator();
     }
 
     @Override
@@ -255,16 +240,16 @@ public class KernelToken implements Token
         return store.relationshipTypeCount();
     }
 
-    private String checkValidTokenName( String name ) throws IllegalTokenNameException
+    private static String checkValidTokenName( String name ) throws IllegalTokenNameException
     {
-        if ( name == null || name.isEmpty() )
+        if ( name == null || name.isEmpty() || name.contains( "\0" ) || name.contains( "`" ) )
         {
             throw new IllegalTokenNameException( name );
         }
         return name;
     }
 
-    private int getOrCreateForName( TokenHolder tokens, String name ) throws IllegalTokenNameException
+    private int getOrCreateForName( TokenHolder tokens, PrivilegeAction action, String name ) throws KernelException
     {
         ktx.assertOpen();
         int id = tokens.getIdByName( checkValidTokenName( name ) );
@@ -272,11 +257,11 @@ public class KernelToken implements Token
         {
             return id;
         }
-        ktx.assertAllows( AccessMode::allowsTokenCreates, "Token create" );
+        ktx.assertAllowsTokenCreates( action );
         return tokens.getOrCreateId( name );
     }
 
-    private void getOrCreateForNames( TokenHolder tokenHolder, String[] names, int[] ids ) throws IllegalTokenNameException
+    private void getOrCreateForNames( TokenHolder tokenHolder, PrivilegeAction action, String[] names, int[] ids ) throws KernelException
     {
         ktx.assertOpen();
         assertSameLength( names, ids );
@@ -285,18 +270,36 @@ public class KernelToken implements Token
             ids[i] = tokenHolder.getIdByName( checkValidTokenName( names[i] ) );
             if ( ids[i] == NO_TOKEN )
             {
-                ktx.assertAllows( AccessMode::allowsTokenCreates, "Token create" );
+                ktx.assertAllowsTokenCreates( action );
                 tokenHolder.getOrCreateIds( names, ids );
                 return;
             }
         }
     }
 
-    private void assertSameLength( String[] names, int[] ids )
+    private static void assertSameLength( String[] names, int[] ids )
     {
         if ( names.length != ids.length )
         {
             throw new IllegalArgumentException( "Name and id arrays have different length." );
+        }
+    }
+
+    private static int reserveTokenId( IntSupplier generator, TokenHolder holder ) throws KernelException
+    {
+        try
+        {
+            int id;
+            do
+            {
+                id = generator.getAsInt();
+            }
+            while ( holder.hasToken( id ) ); // Retry if id is already taken.
+            return id;
+        }
+        catch ( IdCapacityExceededException e )
+        {
+            throw new TokenCapacityExceededKernelException( e, holder.getTokenType() );
         }
     }
 }

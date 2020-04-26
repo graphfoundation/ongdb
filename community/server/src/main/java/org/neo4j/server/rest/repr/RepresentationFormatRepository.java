@@ -29,10 +29,9 @@ import java.util.Map;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.MultivaluedMap;
 
-import org.neo4j.helpers.Service;
 import org.neo4j.server.AbstractNeoServer;
-import org.neo4j.server.plugins.PluginManager;
 import org.neo4j.server.rest.repr.formats.JsonFormat;
+import org.neo4j.service.Services;
 
 public final class RepresentationFormatRepository
 {
@@ -43,7 +42,7 @@ public final class RepresentationFormatRepository
     {
         this.injectorProvider = injectorProvider;
         this.formats = new HashMap<>();
-        for ( RepresentationFormat format : Service.load( RepresentationFormat.class ) )
+        for ( RepresentationFormat format : Services.loadAll( RepresentationFormat.class ) )
         {
             formats.put( format.mediaType, format );
         }
@@ -61,12 +60,7 @@ public final class RepresentationFormatRepository
         {
             format = useDefault( acceptable );
         }
-        return new OutputFormat( format, baseUri, getExtensionManager() );
-    }
-
-    private PluginManager getExtensionManager()
-    {
-        return injectorProvider == null ? null : injectorProvider.getExtensionManager();
+        return new OutputFormat( format, baseUri );
     }
 
     private RepresentationFormat forHeaders( List<MediaType> acceptable, MultivaluedMap<String,String> requestHeaders )
@@ -136,7 +130,7 @@ public final class RepresentationFormatRepository
 
     private DefaultFormat useDefault( final List<MediaType> acceptable )
     {
-        return useDefault( acceptable.toArray( new MediaType[acceptable.size()] ) );
+        return useDefault( acceptable.toArray( new MediaType[0] ) );
     }
 
     private DefaultFormat useDefault( final MediaType... type )

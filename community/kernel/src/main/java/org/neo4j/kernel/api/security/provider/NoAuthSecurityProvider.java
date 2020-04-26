@@ -23,7 +23,6 @@
 package org.neo4j.kernel.api.security.provider;
 
 import org.neo4j.kernel.api.security.AuthManager;
-import org.neo4j.kernel.api.security.UserManagerSupplier;
 import org.neo4j.kernel.lifecycle.LifecycleAdapter;
 
 public class NoAuthSecurityProvider extends LifecycleAdapter implements SecurityProvider
@@ -38,11 +37,5 @@ public class NoAuthSecurityProvider extends LifecycleAdapter implements Security
     public AuthManager authManager()
     {
         return AuthManager.NO_AUTH;
-    }
-
-    @Override
-    public UserManagerSupplier userManagerSupplier()
-    {
-        return UserManagerSupplier.NO_AUTH;
     }
 }

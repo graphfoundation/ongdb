@@ -23,10 +23,10 @@
 package org.neo4j.tracers;
 
 import org.apache.commons.lang3.RandomStringUtils;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.RepeatedTest;
+import org.junit.jupiter.api.Timeout;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -38,51 +38,58 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.function.ToLongFunction;
 
+import org.neo4j.dbms.api.DatabaseManagementService;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Transaction;
-import org.neo4j.helpers.Cancelable;
+import org.neo4j.internal.helpers.Cancelable;
 import org.neo4j.io.pagecache.tracing.PageCacheTracer;
 import org.neo4j.io.pagecache.tracing.cursor.PageCursorCounters;
-import org.neo4j.kernel.impl.api.KernelStatement;
-import org.neo4j.kernel.impl.core.ThreadToStatementContextBridge;
+import org.neo4j.kernel.impl.coreapi.InternalTransaction;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
 import org.neo4j.kernel.monitoring.tracing.Tracers;
-import org.neo4j.test.TestGraphDatabaseFactory;
-import org.neo4j.test.rule.RepeatRule;
+import org.neo4j.test.TestDatabaseManagementServiceBuilder;
+import org.neo4j.test.extension.Inject;
+import org.neo4j.test.extension.testdirectory.TestDirectoryExtension;
 import org.neo4j.test.rule.TestDirectory;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
-import static org.junit.Assert.assertThat;
+import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
 
-public class PageCacheCountersIT
+@TestDirectoryExtension
+class PageCacheCountersIT
 {
-    @Rule
-    public TestDirectory testDirectory = TestDirectory.testDirectory();
+    @Inject
+    private TestDirectory testDirectory;
+
     private GraphDatabaseService db;
     private ExecutorService executors;
     private int numberOfWorkers;
+    private DatabaseManagementService managementService;
 
-    @Before
-    public void setUp()
+    @BeforeEach
+    void setUp()
     {
-        db = new TestGraphDatabaseFactory().newEmbeddedDatabase( testDirectory.storeDir() );
+        managementService = new TestDatabaseManagementServiceBuilder( testDirectory.homeDir() ).build();
+        db = managementService.database( DEFAULT_DATABASE_NAME );
         numberOfWorkers = Runtime.getRuntime().availableProcessors();
         executors = Executors.newFixedThreadPool( numberOfWorkers );
     }
 
-    @After
-    public void tearDown() throws InterruptedException
+    @AfterEach
+    void tearDown() throws InterruptedException
     {
         executors.shutdown();
         executors.awaitTermination( 5, TimeUnit.SECONDS );
-        db.shutdown();
+        managementService.shutdown();
     }
 
-    @Test( timeout = 60_000 )
-    @RepeatRule.Repeat( times = 5 )
-    public void pageCacheCountersAreSumOfPageCursorCounters() throws Exception
+    @RepeatedTest( 5 )
+    @Timeout( 60 )
+    void pageCacheCountersAreSumOfPageCursorCounters() throws Exception
     {
+
         List<NodeCreator> nodeCreators = new ArrayList<>( numberOfWorkers );
         List<Future> nodeCreatorFutures = new ArrayList<>( numberOfWorkers );
         PageCacheTracer pageCacheTracer = getPageCacheTracer( db );
@@ -103,35 +110,30 @@ public class PageCacheCountersIT
         }
         stopNodeCreators( nodeCreators, nodeCreatorFutures );
 
-        assertThat( "Number of pins events in page cache tracer should equal to the sum of pin events in " +
-                        "page cursor tracers.",
-                    pageCacheTracer.pins(), greaterThanOrEqualTo( sumCounters( nodeCreators, NodeCreator::getPins, initialPins ) ) );
-        assertThat( "Number of unpins events in page cache tracer should equal to the sum of unpin events in " +
-                        "page cursor tracers.",
-                pageCacheTracer.unpins(), greaterThanOrEqualTo( sumCounters( nodeCreators, NodeCreator::getUnpins, initialUnpins ) ) );
-        assertThat( "Number of initialBytesRead in page cache tracer should equal to the sum of initialBytesRead " +
-                        "in page cursor tracers.",
-                pageCacheTracer.bytesRead(),
-                greaterThanOrEqualTo( sumCounters( nodeCreators, NodeCreator::getBytesRead, initialBytesRead ) ) );
-        assertThat( "Number of bytesWritten in page cache tracer should equal to the sum of bytesWritten in " +
-                        "page cursor tracers.",
-                pageCacheTracer.bytesWritten(),
-                greaterThanOrEqualTo( sumCounters( nodeCreators, NodeCreator::getBytesWritten, initialBytesWritten ) ) );
-        assertThat( "Number of evictions in page cache tracer should equal to the sum of evictions in " +
-                        "page cursor tracers.",
-                pageCacheTracer.evictions(),
-                greaterThanOrEqualTo( sumCounters( nodeCreators, NodeCreator::getEvictions, initialEvictions ) ) );
+        assertThat( "Number of pins events in page cache tracer should equal to the sum of pin events in page cursor tracers.",
+            pageCacheTracer.pins(), greaterThanOrEqualTo( sumCounters( nodeCreators, NodeCreator::getPins, initialPins ) ) );
+        assertThat( "Number of unpins events in page cache tracer should equal to the sum of unpin events in page cursor tracers.",
+            pageCacheTracer.unpins(), greaterThanOrEqualTo( sumCounters( nodeCreators, NodeCreator::getUnpins, initialUnpins ) ) );
+        assertThat( "Number of initialBytesRead in page cache tracer should equal to the sum of initialBytesRead in page cursor tracers.",
+            pageCacheTracer.bytesRead(),
+            greaterThanOrEqualTo( sumCounters( nodeCreators, NodeCreator::getBytesRead, initialBytesRead ) ) );
+        assertThat( "Number of bytesWritten in page cache tracer should equal to the sum of bytesWritten in page cursor tracers.",
+            pageCacheTracer.bytesWritten(),
+            greaterThanOrEqualTo( sumCounters( nodeCreators, NodeCreator::getBytesWritten, initialBytesWritten ) ) );
+        assertThat( "Number of evictions in page cache tracer should equal to the sum of evictions in page cursor tracers.",
+            pageCacheTracer.evictions(),
+            greaterThanOrEqualTo( sumCounters( nodeCreators, NodeCreator::getEvictions, initialEvictions ) ) );
         assertThat( "Number of faults in page cache tracer should equal to the sum of faults in page cursor tracers.",
-                pageCacheTracer.faults(),
-                greaterThanOrEqualTo( sumCounters( nodeCreators, NodeCreator::getFaults, initialFaults ) ) );
+            pageCacheTracer.faults(),
+            greaterThanOrEqualTo( sumCounters( nodeCreators, NodeCreator::getFaults, initialFaults ) ) );
         assertThat( "Number of flushes in page cache tracer should equal to the sum of flushes in page cursor tracers.",
-                pageCacheTracer.flushes(),
-                greaterThanOrEqualTo( sumCounters( nodeCreators, NodeCreator::getFlushes, initialFlushes ) ) );
+            pageCacheTracer.flushes(),
+            greaterThanOrEqualTo( sumCounters( nodeCreators, NodeCreator::getFlushes, initialFlushes ) ) );
         assertThat( "Number of hits in page cache tracer should equal to the sum of hits in page cursor tracers.",
-                pageCacheTracer.hits(), greaterThanOrEqualTo( sumCounters( nodeCreators, NodeCreator::getHits, initialHits ) ) );
+            pageCacheTracer.hits(), greaterThanOrEqualTo( sumCounters( nodeCreators, NodeCreator::getHits, initialHits ) ) );
     }
 
-    private void stopNodeCreators( List<NodeCreator> nodeCreators, List<Future> nodeCreatorFutures )
+    private static void stopNodeCreators( List<NodeCreator> nodeCreators, List<Future> nodeCreatorFutures )
             throws InterruptedException, java.util.concurrent.ExecutionException
     {
         nodeCreators.forEach( NodeCreator::cancel );
@@ -151,18 +153,18 @@ public class PageCacheCountersIT
         }
     }
 
-    private long sumCounters(  List<NodeCreator> nodeCreators, ToLongFunction<NodeCreator> mapper, long initialValue )
+    private static long sumCounters( List<NodeCreator> nodeCreators, ToLongFunction<NodeCreator> mapper, long initialValue )
     {
         return nodeCreators.stream().mapToLong( mapper ).sum() + initialValue;
     }
 
-    private PageCacheTracer getPageCacheTracer( GraphDatabaseService db )
+    private static PageCacheTracer getPageCacheTracer( GraphDatabaseService db )
     {
         Tracers tracers = ((GraphDatabaseAPI) db).getDependencyResolver().resolveDependency( Tracers.class );
-        return tracers.pageCacheTracer;
+        return tracers.getPageCacheTracer();
     }
 
-    private class NodeCreator implements Runnable, Cancelable
+    private static class NodeCreator implements Runnable, Cancelable
     {
         private volatile boolean canceled;
 
@@ -186,17 +188,14 @@ public class PageCacheCountersIT
             ThreadLocalRandom localRandom = ThreadLocalRandom.current();
             while ( !canceled )
             {
-                PageCursorCounters pageCursorCounters;
-                try ( Transaction transaction = db.beginTx();
-                      KernelStatement kernelStatement = getKernelStatement( (GraphDatabaseAPI) db ) )
+                try ( Transaction transaction = db.beginTx() )
                 {
-                    pageCursorCounters = kernelStatement.getPageCursorTracer();
-                    Node node = db.createNode();
+                    Node node = transaction.createNode();
                     node.setProperty( "name", RandomStringUtils.random( localRandom.nextInt( 100 ) ) );
                     node.setProperty( "surname", RandomStringUtils.random( localRandom.nextInt( 100 ) ) );
                     node.setProperty( "age", localRandom.nextInt( 100 ) );
-                    transaction.success();
-                    storeCounters( pageCursorCounters );
+                    storeCounters( ((InternalTransaction) transaction).kernelTransaction().pageCursorTracer() );
+                    transaction.commit();
                 }
             }
         }
@@ -258,13 +257,6 @@ public class PageCacheCountersIT
         long getFlushes()
         {
             return flushes;
-        }
-
-        private KernelStatement getKernelStatement( GraphDatabaseAPI db )
-        {
-            ThreadToStatementContextBridge statementBridge =
-                    db.getDependencyResolver().resolveDependency( ThreadToStatementContextBridge.class );
-            return (KernelStatement) statementBridge.get();
         }
     }
 }

@@ -2,7 +2,7 @@
 # Copyright (c) 2018-2020 "Graph Foundation"
 # Graph Foundation, Inc. [https://graphfoundation.org]
 #
-# Copyright (c) 2002-2019 "Neo4j,"
+# Copyright (c) 2002-2020 "Neo4j,"
 # Neo4j Sweden AB [http://neo4j.com]
 #
 # This file is part of ONgDB.
@@ -27,10 +27,6 @@
 #  * NEO4J_HOME
 #  * NEO4J_CONF
 #  * NEO4J_START_WAIT
-
-#############################################################
-#      File content is generated based on .m4 template      #
-#############################################################
 
 set -o errexit -o nounset -o pipefail
 [[ "${TRACE:-}" ]] && set -o xtrace
@@ -64,21 +60,11 @@ setup_heap() {
 
 build_classpath() {
   CLASSPATH="${NEO4J_PLUGINS}:${NEO4J_CONF}:${NEO4J_LIB}/*:${NEO4J_PLUGINS}/*"
-
-  # augment with tools.jar, will need JDK
-  if [ "${JAVA_HOME:-}" ]; then
-    JAVA_TOOLS="${JAVA_HOME}/lib/tools.jar"
-    if [[ -e $JAVA_TOOLS ]]; then
-      CLASSPATH="${CLASSPATH}:${JAVA_TOOLS}"
-    fi
-  fi
 }
 
 detect_os() {
   if uname -s | grep -q Darwin; then
     DIST_OS="macosx"
-  elif [[ -e /etc/gentoo-release ]]; then
-    DIST_OS="gentoo"
   else
     DIST_OS="other"
   fi
@@ -126,21 +112,16 @@ check_java() {
   version_command=("${JAVA_CMD}" "-version" ${JAVA_MEMORY_OPTS_XMS-} ${JAVA_MEMORY_OPTS_XMX-})
 
   JAVA_VERSION=$("${version_command[@]}" 2>&1 | awk -F '"' '/version/ {print $2}')
-  if [[ $JAVA_VERSION = "1."* ]]; then
-    if [[ "${JAVA_VERSION}" < "1.8" ]]; then
+  if [[ $JAVA_VERSION = "1."* ]] || [[ $JAVA_VERSION = "9"* ]] || [[ $JAVA_VERSION = "10"* ]]; then
       echo "ERROR! Neo4j cannot be started using java version ${JAVA_VERSION}. "
       _show_java_help
       exit 1
-    fi
-    if ! ("${version_command[@]}" 2>&1 | egrep -q "(Java HotSpot\\(TM\\)|OpenJDK|IBM) (64-Bit Server|Server|Client|J9) VM"); then
-      unsupported_runtime_warning
-    fi
-  elif [[ $JAVA_VERSION = "11"* ]]; then
-    if ! ("${version_command[@]}" 2>&1 | egrep -q "(Java HotSpot\\(TM\\)|OpenJDK|IBM) (64-Bit Server|Server|Client|J9) VM"); then
-       unsupported_runtime_warning
-    fi
+  elif [[ $JAVA_VERSION != "11"* ]] ; then
+    unsupported_runtime_warning
   else
+    if ! ("${version_command[@]}" 2>&1 | egrep -q "(Java HotSpot\\(TM\\)|OpenJDK|IBM) (64-Bit Server|Server|Client|J9) VM"); then
       unsupported_runtime_warning
+    fi
   fi
 }
 
@@ -207,16 +188,13 @@ _find_java_home() {
 
   case "${DIST_OS}" in
     "macosx")
-      JAVA_HOME="$(/usr/libexec/java_home -v 1.8)"
-      ;;
-    "gentoo")
-      JAVA_HOME="$(java-config --jre-home)"
+      JAVA_HOME="$(/usr/libexec/java_home -v 11)"
       ;;
   esac
 }
 
 _show_java_help() {
-  echo "* Please use Oracle(R) Java(TM) 8, OpenJDK(TM) or IBM J9 to run Neo4j."
+  echo "* Please use Oracle(R) Java(TM) 11, OpenJDK(TM) 11 to run Neo4j."
   echo "* Please see https://neo4j.com/docs/ for Neo4j installation instructions."
 }
 
@@ -301,68 +279,42 @@ Directories in use:
 EOF
 }
 
-print_active_database() {
-  echo "Active database: ${dbms_active_database:-graph.db}"
-}
+setup_options() {
+  SHUTDOWN_TIMEOUT="${NEO4J_SHUTDOWN_TIMEOUT:-120}"
+  MIN_ALLOWED_OPEN_FILES=40000
+  MAIN_CLASS="#{neo4j.mainClass}"
 
+  print_start_message() {
+    # Global default
+    NEO4J_DEFAULT_ADDRESS="${dbms_connectors_default_listen_address:-localhost}"
 
-setup_arbiter_options() {
-  is_arbiter() {
-    compgen -G "${NEO4J_LIB}/neo4j-server-enterprise-*.jar" >/dev/null && \
-      [[ "$(echo "${dbms_mode:-}" | tr [:lower:] [:upper:])" == "ARBITER" ]]
+    if [[ "${dbms_connector_http_enabled:-true}" == "false" ]]; then
+      # Only HTTPS connector enabled
+      # First read deprecated 'address' setting
+      NEO4J_SERVER_ADDRESS="${dbms_connector_https_address:-:7473}"
+      # Overridden by newer 'listen_address' if specified
+      NEO4J_SERVER_ADDRESS="${dbms_connector_https_listen_address:-${NEO4J_SERVER_ADDRESS}}"
+      # If it's only a port we need to add the address (it starts with a colon in that case)
+      case ${NEO4J_SERVER_ADDRESS} in
+        :*)
+          NEO4J_SERVER_ADDRESS="${NEO4J_DEFAULT_ADDRESS}${NEO4J_SERVER_ADDRESS}";;
+      esac
+      # Add protocol
+      NEO4J_SERVER_ADDRESS="https://${NEO4J_SERVER_ADDRESS}"
+    else
+      # HTTP connector enabled - same as https but different settings
+      NEO4J_SERVER_ADDRESS="${dbms_connector_http_address:-:7474}"
+      NEO4J_SERVER_ADDRESS="${dbms_connector_http_listen_address:-${NEO4J_SERVER_ADDRESS}}"
+      case ${NEO4J_SERVER_ADDRESS} in
+        :*)
+          NEO4J_SERVER_ADDRESS="${NEO4J_DEFAULT_ADDRESS}${NEO4J_SERVER_ADDRESS}";;
+      esac
+      NEO4J_SERVER_ADDRESS="http://${NEO4J_SERVER_ADDRESS}"
+    fi
+
+    echo "Started neo4j (pid ${NEO4J_PID}). It is available at ${NEO4J_SERVER_ADDRESS}/"
+    echo "There may be a short delay until the server is ready."
   }
-
-  if is_arbiter; then
-    SHUTDOWN_TIMEOUT=20
-    MIN_ALLOWED_OPEN_FILES=1
-    MAIN_CLASS="org.neo4j.server.enterprise.ArbiterEntryPoint"
-
-    print_start_message() {
-      echo "Started in ARBITER mode."
-      echo "This instance is now joining the cluster."
-    }
-  else
-    SHUTDOWN_TIMEOUT="${NEO4J_SHUTDOWN_TIMEOUT:-120}"
-    MIN_ALLOWED_OPEN_FILES=40000
-    MAIN_CLASS="#{neo4j.mainClass}"
-
-    print_start_message() {
-      # Global default
-      NEO4J_DEFAULT_ADDRESS="${dbms_connectors_default_listen_address:-localhost}"
-
-      if [[ "${dbms_connector_http_enabled:-true}" == "false" ]]; then
-        # Only HTTPS connector enabled
-        # First read deprecated 'address' setting
-        NEO4J_SERVER_ADDRESS="${dbms_connector_https_address:-:7473}"
-        # Overridden by newer 'listen_address' if specified
-        NEO4J_SERVER_ADDRESS="${dbms_connector_https_listen_address:-${NEO4J_SERVER_ADDRESS}}"
-        # If it's only a port we need to add the address (it starts with a colon in that case)
-        case ${NEO4J_SERVER_ADDRESS} in
-          :*)
-            NEO4J_SERVER_ADDRESS="${NEO4J_DEFAULT_ADDRESS}${NEO4J_SERVER_ADDRESS}";;
-        esac
-        # Add protocol
-        NEO4J_SERVER_ADDRESS="https://${NEO4J_SERVER_ADDRESS}"
-      else
-        # HTTP connector enabled - same as https but different settings
-        NEO4J_SERVER_ADDRESS="${dbms_connector_http_address:-:7474}"
-        NEO4J_SERVER_ADDRESS="${dbms_connector_http_listen_address:-${NEO4J_SERVER_ADDRESS}}"
-        case ${NEO4J_SERVER_ADDRESS} in
-          :*)
-            NEO4J_SERVER_ADDRESS="${NEO4J_DEFAULT_ADDRESS}${NEO4J_SERVER_ADDRESS}";;
-        esac
-        NEO4J_SERVER_ADDRESS="http://${NEO4J_SERVER_ADDRESS}"
-      fi
-
-      echo "Started neo4j (pid ${NEO4J_PID}). It is available at ${NEO4J_SERVER_ADDRESS}/"
-
-      if [[ "$(echo "${dbms_mode:-}" | tr [:lower:] [:upper:])" == "HA" ]]; then
-        echo "This HA instance will be operational once it has joined the cluster."
-      else
-        echo "There may be a short delay until the server is ready."
-      fi
-    }
-  fi
 }
 
 check_status() {
@@ -387,20 +339,6 @@ setup_java_opts() {
   JAVA_OPTS=("-server" ${JAVA_MEMORY_OPTS_XMS-} ${JAVA_MEMORY_OPTS_XMX-})
 
   if [[ "${dbms_logs_gc_enabled:-}" = "true" ]]; then
-    if [[ "${JAVA_VERSION}" = "1.8"* ]]; then
-      # JAVA 8 GC logging setup
-      JAVA_OPTS+=("-Xloggc:${NEO4J_LOGS}/gc.log" \
-                  "-XX:+UseGCLogFileRotation" \
-                  "-XX:NumberOfGCLogFiles=${dbms_logs_gc_rotation_keep_number:-5}" \
-                  "-XX:GCLogFileSize=${dbms_logs_gc_rotation_size:-20m}")
-      if [[ -n "${dbms_logs_gc_options:-}" ]]; then
-        JAVA_OPTS+=(${dbms_logs_gc_options}) # unquoted to split on spaces
-      else
-        JAVA_OPTS+=("-XX:+PrintGCDetails" "-XX:+PrintGCDateStamps" "-XX:+PrintGCApplicationStoppedTime" \
-                    "-XX:+PrintPromotionFailure" "-XX:+PrintTenuringDistribution")
-      fi
-    else
-      # JAVA 9 and newer GC logging setup
       local gc_options
       if [[ -n "${dbms_logs_gc_options:-}" ]]; then
         gc_options="${dbms_logs_gc_options}"
@@ -409,7 +347,6 @@ setup_java_opts() {
       fi
       gc_options+=":file=${NEO4J_LOGS}/gc.log::filecount=${dbms_logs_gc_rotation_keep_number:-5},filesize=${dbms_logs_gc_rotation_size:-20m}"
       JAVA_OPTS+=(${gc_options})
-    fi
   fi
 
   if [[ -n "${dbms_jvm_additional:-}" ]]; then
@@ -537,7 +474,7 @@ do_version() {
 setup_java () {
   check_java
   setup_java_opts
-  setup_arbiter_options
+  setup_options
 }
 
 main() {
@@ -549,20 +486,18 @@ main() {
   case "${1:-}" in
     console)
       setup_java
-      print_active_database
       print_configurable_paths
       do_console
       ;;
 
     start)
       setup_java
-      print_active_database
       print_configurable_paths
       do_start
       ;;
 
     stop)
-      setup_arbiter_options
+      setup_options
       do_stop
       ;;
 

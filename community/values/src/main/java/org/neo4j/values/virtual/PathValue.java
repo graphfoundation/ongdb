@@ -27,6 +27,8 @@ import java.util.Comparator;
 
 import org.neo4j.values.AnyValue;
 import org.neo4j.values.AnyValueWriter;
+import org.neo4j.values.Comparison;
+import org.neo4j.values.TernaryComparator;
 import org.neo4j.values.ValueMapper;
 import org.neo4j.values.VirtualValue;
 
@@ -45,7 +47,7 @@ public abstract class PathValue extends VirtualValue
     @Override
     public boolean equals( VirtualValue other )
     {
-        if ( other == null || !(other instanceof PathValue) )
+        if ( !(other instanceof PathValue) )
         {
             return false;
         }
@@ -88,20 +90,15 @@ public abstract class PathValue extends VirtualValue
     }
 
     @Override
-    public int compareTo( VirtualValue other, Comparator<AnyValue> comparator )
+    public int unsafeCompareTo( VirtualValue other, Comparator<AnyValue> comparator )
     {
-        if ( other == null || !(other instanceof PathValue) )
-        {
-            throw new IllegalArgumentException( "Cannot compare different virtual values" );
-        }
-
         PathValue otherPath = (PathValue) other;
         NodeValue[] nodes = nodes();
         RelationshipValue[] relationships = relationships();
         NodeValue[] otherNodes = otherPath.nodes();
         RelationshipValue[] otherRelationships = otherPath.relationships();
 
-        int x = nodes[0].compareTo( otherNodes[0], comparator );
+        int x = nodes[0].unsafeCompareTo( otherNodes[0], comparator );
         if ( x == 0 )
         {
             int i = 0;
@@ -109,7 +106,7 @@ public abstract class PathValue extends VirtualValue
 
             while ( x == 0 && i < length )
             {
-                x = relationships[i].compareTo( otherRelationships[i], comparator );
+                x = relationships[i].unsafeCompareTo( otherRelationships[i], comparator );
                 ++i;
             }
 
@@ -120,6 +117,12 @@ public abstract class PathValue extends VirtualValue
         }
 
         return x;
+    }
+
+    @Override
+    public Comparison unsafeTernaryCompareTo( VirtualValue other, TernaryComparator<AnyValue> comparator )
+    {
+        return Comparison.from( unsafeCompareTo( other, comparator ) );
     }
 
     @Override
@@ -143,6 +146,14 @@ public abstract class PathValue extends VirtualValue
     public String getTypeName()
     {
         return "Path";
+    }
+
+    @Override
+    protected long estimatedPayloadSize()
+    {
+        int length = size();
+        //nodes are assumed to be 32 bytes and relationships 48
+        return 4 + length * 48 + (length + 1) * 32;
     }
 
     public ListValue asList()
@@ -215,6 +226,5 @@ public abstract class PathValue extends VirtualValue
         {
             return edges;
         }
-
     }
 }

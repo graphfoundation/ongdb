@@ -30,10 +30,8 @@ import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpVersion;
-import org.junit.After;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.NoSuchElementException;
 
@@ -42,31 +40,29 @@ import org.neo4j.bolt.BoltProtocol;
 import org.neo4j.bolt.transport.BoltProtocolFactory;
 import org.neo4j.logging.AssertableLogProvider;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.neo4j.bolt.testing.BoltTestUtil.assertByteBufEquals;
 
-public class ProtocolHandshakerTest
+class ProtocolHandshakerTest
 {
     private final BoltChannel boltChannel = newBoltChannel();
     private final AssertableLogProvider logProvider = new AssertableLogProvider();
 
-    @Rule
-    public ExpectedException thrown = ExpectedException.none();
-
-    @After
-    public void tearDown() throws Exception
+    @AfterEach
+    void tearDown() throws Exception
     {
         boltChannel.close();
     }
 
     @Test
-    public void shouldChooseFirstAvailableProtocol()
+    void shouldChooseFirstAvailableProtocol()
     {
         // Given
         BoltProtocol protocol = newBoltProtocol( 1 );
@@ -86,15 +82,14 @@ public class ProtocolHandshakerTest
         assertEquals( 1, channel.outboundMessages().size() );
         assertByteBufEquals( Unpooled.buffer().writeInt( 1 ), channel.readOutbound() );
 
-        thrown.expect( NoSuchElementException.class );
-        channel.pipeline().remove( ProtocolHandshaker.class );
+        assertThrows( NoSuchElementException.class, () -> channel.pipeline().remove( ProtocolHandshaker.class ) );
 
         assertTrue( channel.isActive() );
         verify( protocol ).install();
     }
 
     @Test
-    public void shouldHandleFragmentedMessage()
+    void shouldHandleFragmentedMessage()
     {
         // Given
         BoltProtocol protocol = newBoltProtocol( 1 );
@@ -118,15 +113,14 @@ public class ProtocolHandshakerTest
         assertEquals( 1, channel.outboundMessages().size() );
         assertByteBufEquals( Unpooled.buffer().writeInt( 1 ), channel.readOutbound() );
 
-        thrown.expect( NoSuchElementException.class );
-        channel.pipeline().remove( ProtocolHandshaker.class );
+        assertThrows( NoSuchElementException.class, () -> channel.pipeline().remove( ProtocolHandshaker.class ) );
 
         assertTrue( channel.isActive() );
         verify( protocol ).install();
     }
 
     @Test
-    public void shouldHandleHandshakeFollowedImmediatelyByMessage()
+    void shouldHandleHandshakeFollowedImmediatelyByMessage()
     {
         // Given
         BoltProtocol protocol = newBoltProtocol( 1 );
@@ -150,15 +144,14 @@ public class ProtocolHandshakerTest
         assertEquals( 1, channel.inboundMessages().size() );
         assertByteBufEquals( Unpooled.wrappedBuffer( new byte[]{1, 2, 3, 4} ), channel.readInbound() );
 
-        thrown.expect( NoSuchElementException.class );
-        channel.pipeline().remove( ProtocolHandshaker.class );
+        assertThrows( NoSuchElementException.class, () -> channel.pipeline().remove( ProtocolHandshaker.class ) );
 
         assertTrue( channel.isActive() );
         verify( protocol ).install();
     }
 
     @Test
-    public void shouldHandleMaxVersionNumber()
+    void shouldHandleMaxVersionNumber()
     {
         long maxVersionNumber = 4_294_967_295L;
 
@@ -180,15 +173,14 @@ public class ProtocolHandshakerTest
         assertEquals( 1, channel.outboundMessages().size() );
         assertByteBufEquals( Unpooled.buffer().writeInt( (int) maxVersionNumber ), channel.readOutbound() );
 
-        thrown.expect( NoSuchElementException.class );
-        channel.pipeline().remove( ProtocolHandshaker.class );
+        assertThrows( NoSuchElementException.class, () -> channel.pipeline().remove( ProtocolHandshaker.class ) );
 
         assertTrue( channel.isActive() );
         verify( protocol ).install();
     }
 
     @Test
-    public void shouldFallbackToNoProtocolIfNoMatch()
+    void shouldFallbackToNoProtocolIfNoMatch()
     {
         // Given
         BoltProtocol protocol = newBoltProtocol( 1 );
@@ -213,7 +205,7 @@ public class ProtocolHandshakerTest
     }
 
     @Test
-    public void shouldRejectIfWrongPreamble()
+    void shouldRejectIfWrongPreamble()
     {
         // Given
         BoltProtocol protocol = newBoltProtocol( 1 );
@@ -236,7 +228,7 @@ public class ProtocolHandshakerTest
     }
 
     @Test
-    public void shouldRejectIfInsecureWhenEncryptionRequired()
+    void shouldRejectIfInsecureWhenEncryptionRequired()
     {
         // Given
         BoltProtocol protocol = newBoltProtocol( 1 );
@@ -259,7 +251,7 @@ public class ProtocolHandshakerTest
     }
 
     @Test
-    public void shouldRejectIfHttp()
+    void shouldRejectIfHttp()
     {
         // Given
         BoltProtocol protocol = newBoltProtocol( 1 );

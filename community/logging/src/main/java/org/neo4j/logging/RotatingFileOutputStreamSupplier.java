@@ -40,7 +40,7 @@ import java.util.function.Supplier;
 import org.neo4j.io.NullOutputStream;
 import org.neo4j.io.fs.FileSystemAbstraction;
 
-import static org.neo4j.io.file.Files.createOrOpenAsOutputStream;
+import static org.neo4j.io.fs.FileSystemUtils.createOrOpenAsOutputStream;
 
 /**
  * A {@link Supplier} of {@link OutputStream}s backed by on-disk files, which
@@ -87,7 +87,7 @@ public class RotatingFileOutputStreamSupplier implements Supplier<OutputStream>,
     private final AtomicBoolean closed = new AtomicBoolean( false );
     private final AtomicBoolean rotating = new AtomicBoolean( false );
     private final AtomicLong earliestRotationTimeRef = new AtomicLong( 0 );
-    private OutputStream outRef = nullStream;
+    private OutputStream outRef;
 
     /**
      * @param fileSystem The filesystem to use

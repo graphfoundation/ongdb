@@ -23,7 +23,6 @@
 package org.neo4j.consistency.checking;
 
 import org.neo4j.consistency.report.ConsistencyReport.LabelTokenConsistencyReport;
-import org.neo4j.consistency.report.ConsistencyReport.NeoStoreConsistencyReport;
 import org.neo4j.consistency.report.ConsistencyReport.NodeConsistencyReport;
 import org.neo4j.consistency.report.ConsistencyReport.PropertyConsistencyReport;
 import org.neo4j.consistency.report.ConsistencyReport.PropertyKeyTokenConsistencyReport;
@@ -31,7 +30,6 @@ import org.neo4j.consistency.report.ConsistencyReport.RelationshipConsistencyRep
 import org.neo4j.consistency.report.ConsistencyReport.RelationshipGroupConsistencyReport;
 import org.neo4j.consistency.report.ConsistencyReport.RelationshipTypeConsistencyReport;
 import org.neo4j.kernel.impl.store.record.LabelTokenRecord;
-import org.neo4j.kernel.impl.store.record.NeoStoreRecord;
 import org.neo4j.kernel.impl.store.record.NodeRecord;
 import org.neo4j.kernel.impl.store.record.PropertyKeyTokenRecord;
 import org.neo4j.kernel.impl.store.record.PropertyRecord;
@@ -45,9 +43,6 @@ public interface CheckDecorator
      * Called before each pass over the store(s) to check.
      */
     void prepare();
-
-    OwningRecordCheck<NeoStoreRecord, NeoStoreConsistencyReport> decorateNeoStoreChecker(
-            OwningRecordCheck<NeoStoreRecord, NeoStoreConsistencyReport> checker );
 
     OwningRecordCheck<NodeRecord, NodeConsistencyReport> decorateNodeChecker(
             OwningRecordCheck<NodeRecord, NodeConsistencyReport> checker );
@@ -77,13 +72,6 @@ public interface CheckDecorator
         @Override
         public void prepare()
         {
-        }
-
-        @Override
-        public OwningRecordCheck<NeoStoreRecord, NeoStoreConsistencyReport> decorateNeoStoreChecker(
-                OwningRecordCheck<NeoStoreRecord, NeoStoreConsistencyReport> checker )
-        {
-            return checker;
         }
 
         @Override
@@ -152,17 +140,6 @@ public interface CheckDecorator
             {
                 decorator.prepare();
             }
-        }
-
-        @Override
-        public OwningRecordCheck<NeoStoreRecord,NeoStoreConsistencyReport> decorateNeoStoreChecker(
-                OwningRecordCheck<NeoStoreRecord,NeoStoreConsistencyReport> checker )
-        {
-            for ( CheckDecorator decorator : decorators )
-            {
-                checker = decorator.decorateNeoStoreChecker( checker );
-            }
-            return checker;
         }
 
         @Override

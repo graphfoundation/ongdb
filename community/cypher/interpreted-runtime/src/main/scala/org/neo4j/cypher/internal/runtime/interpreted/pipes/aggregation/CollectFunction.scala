@@ -22,11 +22,10 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.pipes.aggregation
 
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
+import org.neo4j.cypher.internal.runtime.{ExecutionContext, IsNoValue}
 import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.Expression
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.QueryState
 import org.neo4j.values.AnyValue
-import org.neo4j.values.storable.Values
 import org.neo4j.values.virtual.VirtualValues
 
 import scala.collection.mutable.ArrayBuffer
@@ -34,10 +33,12 @@ import scala.collection.mutable.ArrayBuffer
 class CollectFunction(value:Expression) extends AggregationFunction {
   val collection = new ArrayBuffer[AnyValue]()
 
-  override def apply(data: ExecutionContext, state:QueryState) {
+  override def apply(data: ExecutionContext, state:QueryState): Unit = {
     value(data, state) match {
-      case Values.NO_VALUE =>
-      case v    => collection += v
+      case IsNoValue() =>
+      case v    =>
+        collection += v
+        state.memoryTracker.allocated(v)
     }
   }
 

@@ -25,14 +25,11 @@ package org.neo4j.graphalgo.impl.util;
 import java.util.Comparator;
 import java.util.function.BiFunction;
 
-import org.neo4j.kernel.impl.util.NoneStrictMath;
+import org.neo4j.internal.helpers.MathUtil;
 
 import static org.neo4j.graphalgo.impl.util.PathInterest.PriorityBasedPathInterest;
 import static org.neo4j.graphalgo.impl.util.PathInterest.VisitCountBasedPathInterest;
 
-/**
- * @author Anton Persson
- */
 public class PathInterestFactory
 {
     public static final Comparator<Comparable> STANDARD_COMPARATOR = Comparable::compareTo;
@@ -56,7 +53,7 @@ public class PathInterestFactory
         return ALL;
     }
 
-    private static final PathInterest<? extends Comparable> SINGLE = new PathInterest<Comparable>()
+    private static final PathInterest<? extends Comparable> SINGLE = new PathInterest<>()
     {
         @Override
         public Comparator<Comparable> comparator()
@@ -84,7 +81,7 @@ public class PathInterestFactory
     };
 
     private static final PathInterest<? extends Comparable> ALL_SHORTEST =
-            new PriorityBasedPathInterest<Comparable>()
+            new PriorityBasedPathInterest<>()
             {
                 private BiFunction<Comparable,Comparable,Boolean> interestFunction;
 
@@ -105,7 +102,7 @@ public class PathInterestFactory
                 }
             };
 
-    private static final PathInterest<? extends Comparable> ALL = new PathInterest<Comparable>()
+    private static final PathInterest<? extends Comparable> ALL = new PathInterest<>()
     {
         @Override
         public Comparator<Comparable> comparator()
@@ -139,7 +136,7 @@ public class PathInterestFactory
             throw new IllegalArgumentException( "Can not create PathInterest with interested in less than 1 path." );
         }
 
-        return new VisitCountBasedPathInterest<P>()
+        return new VisitCountBasedPathInterest<>()
         {
             private Comparator<P> comparator = Comparable::compareTo;
 
@@ -179,22 +176,13 @@ public class PathInterestFactory
 
     private static class PriorityBasedTolerancePathInterest extends PriorityBasedPathInterest<Double>
     {
-        private final double epsilon;
-        private BiFunction<Double,Double,Boolean> interestFunction =
-                new BiFunction<Double,Double,Boolean>()
-                {
-                    @Override
-                    public Boolean apply( Double newValue, Double oldValue )
-                    {
-                        return NoneStrictMath.compare( newValue, oldValue, epsilon ) <= 0;
-                    }
-                };
+        private final BiFunction<Double,Double,Boolean> interestFunction;
         private final Comparator<Double> comparator;
 
         PriorityBasedTolerancePathInterest( final double epsilon )
         {
-            this.epsilon = epsilon;
-            this.comparator = new NoneStrictMath.CommonToleranceComparator( epsilon );
+            interestFunction = ( Double newValue, Double oldValue ) -> MathUtil.compare( newValue, oldValue, epsilon ) <= 0;
+            comparator = new MathUtil.CommonToleranceComparator( epsilon );
         }
 
         @Override
@@ -212,15 +200,13 @@ public class PathInterestFactory
 
     private static class VisitCountBasedTolerancePathInterest extends VisitCountBasedPathInterest<Double>
     {
-        private final double epsilon;
         private final int numberOfWantedPaths;
         private final Comparator<Double> comparator;
 
         VisitCountBasedTolerancePathInterest( double epsilon, int numberOfWantedPaths )
         {
-            this.epsilon = epsilon;
             this.numberOfWantedPaths = numberOfWantedPaths;
-            this.comparator = new NoneStrictMath.CommonToleranceComparator( epsilon );
+            this.comparator = new MathUtil.CommonToleranceComparator( epsilon );
         }
 
         @Override
@@ -244,7 +230,7 @@ public class PathInterestFactory
         SingleTolerancePathInterest( double epsilon )
         {
             this.epsilon = epsilon;
-            this.comparator = new NoneStrictMath.CommonToleranceComparator( epsilon );
+            this.comparator = new MathUtil.CommonToleranceComparator( epsilon );
         }
 
         @Override
@@ -256,7 +242,7 @@ public class PathInterestFactory
         @Override
         public boolean canBeRuledOut( int numberOfVisits, Double pathPriority, Double oldPriority )
         {
-            return numberOfVisits > 0 || NoneStrictMath.compare( pathPriority, oldPriority, epsilon ) >= 0;
+            return numberOfVisits > 0 || MathUtil.compare( pathPriority, oldPriority, epsilon ) >= 0;
         }
 
         @Override
@@ -278,7 +264,7 @@ public class PathInterestFactory
 
         AllTolerancePathInterest( double epsilon )
         {
-            this.comparator = new NoneStrictMath.CommonToleranceComparator( epsilon );
+            this.comparator = new MathUtil.CommonToleranceComparator( epsilon );
         }
 
         @Override

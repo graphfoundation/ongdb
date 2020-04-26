@@ -31,15 +31,15 @@ import java.util.Arrays;
 import java.util.Collection;
 
 import org.neo4j.graphdb.Direction;
+import org.neo4j.graphdb.Entity;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Path;
-import org.neo4j.graphdb.PropertyContainer;
 import org.neo4j.graphdb.traversal.Evaluation;
 import org.neo4j.graphdb.traversal.Evaluator;
 import org.neo4j.graphdb.traversal.TraversalBranch;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -48,8 +48,8 @@ class StandardBranchCollisionDetectorTest
     @Test
     void testFilteredPathEvaluation()
     {
-        final PropertyContainer endNode = mock( Node.class );
-        final PropertyContainer alternativeEndNode = mock( Node.class );
+        final Entity endNode = mock( Node.class );
+        final Entity alternativeEndNode = mock( Node.class );
         final Node startNode = mock( Node.class );
         Evaluator evaluator = mock( Evaluator.class );
         TraversalBranch branch = mock( TraversalBranch.class );
@@ -75,9 +75,9 @@ class StandardBranchCollisionDetectorTest
 
     private static class IteratorAnswer implements Answer<Object>
     {
-        private final PropertyContainer endNode;
+        private final Entity endNode;
 
-        IteratorAnswer( PropertyContainer endNode )
+        IteratorAnswer( Entity endNode )
         {
             this.endNode = endNode;
         }

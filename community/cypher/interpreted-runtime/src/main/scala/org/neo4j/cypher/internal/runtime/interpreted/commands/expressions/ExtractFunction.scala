@@ -22,37 +22,37 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.commands.expressions
 
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
-import org.neo4j.cypher.internal.runtime.interpreted.ListSupport
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.QueryState
+import org.neo4j.cypher.internal.runtime.{ExecutionContext, ListSupport}
 import org.neo4j.values.AnyValue
 import org.neo4j.values.virtual.{ListValue, VirtualValues}
 
-case class ExtractFunction(collection: Expression, id: String, expression: Expression)
+case class ExtractFunction(collection: Expression,
+                           innerVariableName: String,
+                           innerVariableOffset: Int,
+                           expression: Expression)
   extends NullInNullOutExpression(collection)
   with ListSupport
   with Closure {
-  override def compute(value: AnyValue, m: ExecutionContext, state: QueryState): ListValue = {
+  override def compute(value: AnyValue, row: ExecutionContext, state: QueryState): ListValue = {
     val list = makeTraversable(value)
-    val innerContext = m.createClone()
     val extracted = new Array[AnyValue](list.size())
     val values = list.iterator()
     var i = 0
     while (values.hasNext) {
       val value = values.next()
-      innerContext.set(id, value)
-      extracted(i) = expression(innerContext, state)
+      state.expressionVariables(innerVariableOffset) = value
+      extracted(i) = expression(row, state)
       i += 1
     }
     VirtualValues.list(extracted:_*)
   }
 
-  def rewrite(f: (Expression) => Expression) = f(ExtractFunction(collection.rewrite(f), id, expression.rewrite(f)))
+  def rewrite(f: Expression => Expression): Expression =
+    f(ExtractFunction(collection.rewrite(f), innerVariableName, innerVariableOffset, expression.rewrite(f)))
 
-  override def children = Seq(collection, expression)
-
+  override def children: Seq[Expression] = Seq(collection, expression)
 
   def arguments: Seq[Expression] = Seq(collection)
 
-  def symbolTableDependencies = symbolTableDependencies(collection, expression, id)
 }

@@ -29,13 +29,13 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 
-import org.neo4j.helpers.collection.Pair;
-import org.neo4j.helpers.collection.PrefetchingIterator;
-import org.neo4j.internal.kernel.api.schema.SchemaDescriptor;
+import org.neo4j.exceptions.UnderlyingStorageException;
+import org.neo4j.internal.helpers.collection.Pair;
+import org.neo4j.internal.helpers.collection.PrefetchingIterator;
+import org.neo4j.internal.schema.IndexDescriptor;
 import org.neo4j.kernel.api.exceptions.index.IndexEntryConflictException;
 import org.neo4j.kernel.api.index.IndexUpdater;
 import org.neo4j.kernel.impl.store.MultipleUnderlyingStorageExceptions;
-import org.neo4j.kernel.impl.store.UnderlyingStorageException;
 
 /**
  * Holds currently open index updaters that are created dynamically when requested for any existing index in
@@ -50,7 +50,7 @@ class IndexUpdaterMap implements AutoCloseable, Iterable<IndexUpdater>
 {
     private final IndexUpdateMode indexUpdateMode;
     private final IndexMap indexMap;
-    private final Map<SchemaDescriptor,IndexUpdater> updaterMap;
+    private final Map<IndexDescriptor,IndexUpdater> updaterMap;
 
     IndexUpdaterMap( IndexMap indexMap, IndexUpdateMode indexUpdateMode )
     {
@@ -59,7 +59,7 @@ class IndexUpdaterMap implements AutoCloseable, Iterable<IndexUpdater>
         this.updaterMap = new HashMap<>();
     }
 
-    IndexUpdater getUpdater( SchemaDescriptor descriptor )
+    IndexUpdater getUpdater( IndexDescriptor descriptor )
     {
         IndexUpdater updater = updaterMap.get( descriptor );
         if ( null == updater )
@@ -74,12 +74,23 @@ class IndexUpdaterMap implements AutoCloseable, Iterable<IndexUpdater>
         return updater;
     }
 
+    private IndexUpdater getUpdater( IndexProxy proxy )
+    {
+        IndexUpdater updater = updaterMap.get( proxy.getDescriptor() );
+        if ( null == updater )
+        {
+            updater = proxy.newUpdater( indexUpdateMode );
+            updaterMap.put( proxy.getDescriptor(), updater );
+        }
+        return updater;
+    }
+
     @Override
     public void close() throws UnderlyingStorageException
     {
-        Set<Pair<SchemaDescriptor,UnderlyingStorageException>> exceptions = null;
+        Set<Pair<IndexDescriptor,UnderlyingStorageException>> exceptions = null;
 
-        for ( Map.Entry<SchemaDescriptor,IndexUpdater> updaterEntry : updaterMap.entrySet() )
+        for ( Map.Entry<IndexDescriptor,IndexUpdater> updaterEntry : updaterMap.entrySet() )
         {
             IndexUpdater updater = updaterEntry.getValue();
             try
@@ -122,15 +133,16 @@ class IndexUpdaterMap implements AutoCloseable, Iterable<IndexUpdater>
     @Override
     public Iterator<IndexUpdater> iterator()
     {
-        return new PrefetchingIterator<IndexUpdater>()
+        return new PrefetchingIterator<>()
         {
-            private Iterator<SchemaDescriptor> descriptors = indexMap.descriptors();
+            private Iterator<IndexProxy> proxies = indexMap.getAllIndexProxies().iterator();
+
             @Override
             protected IndexUpdater fetchNextOrNull()
             {
-                if ( descriptors.hasNext() )
+                if ( proxies.hasNext() )
                 {
-                    return getUpdater( descriptors.next() );
+                    return getUpdater( proxies.next() );
                 }
                 return null;
             }

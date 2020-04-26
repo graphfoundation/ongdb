@@ -22,45 +22,54 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.commands.expressions
 
-import org.neo4j.cypher.internal.planner.v3_6.spi.TokenContext
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
+import org.neo4j.cypher.internal.planner.spi.TokenContext
+import org.neo4j.cypher.internal.runtime.{ExecutionContext, IsNoValue}
 import org.neo4j.cypher.internal.runtime.interpreted.commands.AstNode
 import org.neo4j.cypher.internal.runtime.interpreted.commands.values.KeyToken
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.QueryState
-import org.neo4j.cypher.internal.v3_6.logical.plans
+import org.neo4j.cypher.internal.v4_0.expressions.ASTCachedProperty
+import org.neo4j.exceptions.CypherTypeException
 import org.neo4j.kernel.api.StatementConstants
 import org.neo4j.values.AnyValue
-import org.neo4j.values.storable.Values
-import org.neo4j.values.virtual.VirtualNodeValue
-import org.neo4j.cypher.internal.v3_6.util.CypherTypeException
+import org.neo4j.values.storable.{Value, Values}
+import org.neo4j.values.virtual.{VirtualNodeValue, VirtualRelationshipValue}
 
-abstract class AbstractCachedNodeProperty extends Expression {
+abstract class AbstractCachedProperty extends Expression {
 
   // abstract stuff
 
-  def getNodeId(ctx: ExecutionContext): Long
+  def getId(ctx: ExecutionContext): Long
   def getPropertyKey(tokenContext: TokenContext): Int
-  def getCachedProperty(ctx: ExecutionContext): AnyValue
+  def getCachedProperty(ctx: ExecutionContext): Value
+  def setCachedProperty(ctx: ExecutionContext, value: Value): Unit
 
-  // encapsulated cached-node-property logic
+  def getTxStateProperty(state: QueryState, id: Long, propId: Int): Value
+  def property(state: QueryState, id: Long, propId: Int): Value
+
+  // encapsulated cached-property logic
 
   def apply(ctx: ExecutionContext, state: QueryState): AnyValue = {
-    val nodeId = getNodeId(ctx)
-    if (nodeId == StatementConstants.NO_SUCH_NODE)
+    val id = getId(ctx)
+    if (id == StatementConstants.NO_SUCH_ENTITY)
       Values.NO_VALUE
     else {
       getPropertyKey(state.query) match {
         case StatementConstants.NO_SUCH_PROPERTY_KEY => Values.NO_VALUE
         case propId =>
-          val maybeTxStateValue = state.query.nodeOps.getTxStateProperty(nodeId, propId)
+          val maybeTxStateValue = getTxStateProperty(state, id, propId)
           maybeTxStateValue match {
-            case Some(txStateValue) => txStateValue
-            case None =>
+            case null =>
               val cached = getCachedProperty(ctx)
-              if (cached == null) // if the cached node property has been invalidated
-                state.query.nodeProperty(nodeId, propId)
-              else
+              if (cached == null) {
+                // if the cached node property has been invalidated
+                val value = property(state, id, propId)
+                // Re-cache the value
+                setCachedProperty(ctx, value)
+                value
+              } else {
                 cached
+              }
+            case txStateValue => txStateValue
           }
       }
     }
@@ -71,21 +80,58 @@ abstract class AbstractCachedNodeProperty extends Expression {
   override def arguments: Seq[Expression] = Seq()
 }
 
-case class CachedNodeProperty(nodeName: String, propertyKey: KeyToken, key: plans.CachedNodeProperty)
+abstract class AbstractCachedNodeProperty extends AbstractCachedProperty {
+  override def getTxStateProperty(state: QueryState, id: Long, propId: Int): Value = state.query.nodeOps.getTxStateProperty(id, propId)
+
+  override def property(state: QueryState,
+                        id: Long,
+                        propId: Int): Value = state.query.nodeProperty(id, propId, state.cursors.nodeCursor, state.cursors.propertyCursor, throwOnDeleted = true)
+}
+
+abstract class AbstractCachedRelationshipProperty extends AbstractCachedProperty {
+  override def getTxStateProperty(state: QueryState, id: Long, propId: Int): Value = state.query.relationshipOps.getTxStateProperty(id, propId)
+
+  override def property(state: QueryState,
+                        id: Long,
+                        propId: Int): Value = state.query.relationshipProperty(id, propId, state.cursors.relationshipScanCursor, state.cursors.propertyCursor, throwOnDeleted = true)
+}
+
+case class CachedNodeProperty(nodeName: String, propertyKey: KeyToken, key: ASTCachedProperty)
   extends AbstractCachedNodeProperty
 {
-  override def symbolTableDependencies: Set[String] = Set(nodeName, key.cacheKey)
+  override def toString: String = key.propertyAccessString
 
-  override def toString: String = key.cacheKey
-
-  override def getNodeId(ctx: ExecutionContext): Long =
-    ctx(nodeName) match {
-      case Values.NO_VALUE => StatementConstants.NO_SUCH_NODE
+  override def getId(ctx: ExecutionContext): Long =
+    ctx.getByName(nodeName) match {
+      case IsNoValue() => StatementConstants.NO_SUCH_NODE
       case n: VirtualNodeValue => n.id()
       case other => throw new CypherTypeException(s"Type mismatch: expected a node but was $other")
     }
 
-  override def getCachedProperty(ctx: ExecutionContext): AnyValue = ctx.getCachedProperty(key)
+  override def getCachedProperty(ctx: ExecutionContext): Value = ctx.getCachedProperty(key)
+
+  override def setCachedProperty(ctx: ExecutionContext, value: Value): Unit = ctx.setCachedProperty(key, value)
+
+  override def getPropertyKey(tokenContext: TokenContext): Int = propertyKey.getOptId(tokenContext).getOrElse(StatementConstants.NO_SUCH_PROPERTY_KEY)
+
+  override def children: Seq[AstNode[_]] = Seq(propertyKey)
+}
+
+case class CachedRelationshipProperty(nodeName: String, propertyKey: KeyToken, key: ASTCachedProperty)
+  extends AbstractCachedRelationshipProperty
+{
+  override def toString: String = key.propertyAccessString
+
+  override def getId(ctx: ExecutionContext): Long =
+    ctx.getByName(nodeName) match {
+      case IsNoValue() => StatementConstants.NO_SUCH_RELATIONSHIP
+      case r: VirtualRelationshipValue => r.id()
+      case other => throw new CypherTypeException(s"Type mismatch: expected a relationship but was $other")
+    }
+
+  override def getCachedProperty(ctx: ExecutionContext): Value = ctx.getCachedProperty(key)
+
+  override def setCachedProperty(ctx: ExecutionContext, value: Value): Unit = ctx.setCachedProperty(key, value)
 
   override def getPropertyKey(tokenContext: TokenContext): Int = propertyKey.getOptId(tokenContext).getOrElse(StatementConstants.NO_SUCH_PROPERTY_KEY)
 

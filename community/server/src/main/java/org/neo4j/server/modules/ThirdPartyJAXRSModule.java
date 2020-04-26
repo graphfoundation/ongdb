@@ -22,36 +22,29 @@
  */
 package org.neo4j.server.modules;
 
-import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 
-import org.neo4j.kernel.configuration.Config;
+import org.neo4j.configuration.Config;
 import org.neo4j.logging.Log;
 import org.neo4j.logging.LogProvider;
-import org.neo4j.server.NeoServer;
 import org.neo4j.server.configuration.ServerSettings;
 import org.neo4j.server.configuration.ThirdPartyJaxRsPackage;
-import org.neo4j.server.plugins.Injectable;
 import org.neo4j.server.web.WebServer;
-
-import static java.util.Arrays.asList;
 
 public class ThirdPartyJAXRSModule implements ServerModule
 {
     private final Config config;
     private final WebServer webServer;
 
-    private final ExtensionInitializer extensionInitializer;
     private List<ThirdPartyJaxRsPackage> packages;
     private final Log log;
 
-    public ThirdPartyJAXRSModule( WebServer webServer, Config config, LogProvider logProvider,
-            NeoServer neoServer )
+    public ThirdPartyJAXRSModule( WebServer webServer, Config config, LogProvider logProvider )
     {
         this.webServer = webServer;
         this.config = config;
         this.log = logProvider.getLog( getClass() );
-        extensionInitializer = new ExtensionInitializer( neoServer );
     }
 
     @Override
@@ -61,15 +54,14 @@ public class ThirdPartyJAXRSModule implements ServerModule
         for ( ThirdPartyJaxRsPackage tpp : packages )
         {
             List<String> packageNames = packagesFor( tpp );
-            Collection<Injectable<?>> injectables = extensionInitializer.initializePackages( packageNames );
-            webServer.addJAXRSPackages( packageNames, tpp.getMountPoint(), injectables );
+            webServer.addJAXRSPackages( packageNames, tpp.getMountPoint(), null );
             log.info( "Mounted unmanaged extension [%s] at [%s]", tpp.getPackageName(), tpp.getMountPoint() );
         }
     }
 
     private List<String> packagesFor( ThirdPartyJaxRsPackage tpp )
     {
-        return asList( tpp.getPackageName() );
+        return Collections.singletonList( tpp.getPackageName() );
     }
 
     @Override
@@ -84,7 +76,5 @@ public class ThirdPartyJAXRSModule implements ServerModule
         {
             webServer.removeJAXRSPackages( packagesFor( tpp ), tpp.getMountPoint() );
         }
-
-        extensionInitializer.stop();
     }
 }

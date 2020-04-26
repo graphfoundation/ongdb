@@ -27,9 +27,9 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 
+import org.neo4j.graphdb.Entity;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.PathExpander;
-import org.neo4j.graphdb.PropertyContainer;
 import org.neo4j.graphdb.Relationship;
 import org.neo4j.graphdb.traversal.BranchSelector;
 import org.neo4j.graphdb.traversal.Evaluation;
@@ -46,8 +46,6 @@ import org.neo4j.graphdb.traversal.UniquenessFactory;
  * one starting {@link Node} and for implementation simplicity a
  * {@link BranchSelector} starts from one {@link TraversalBranch}.
  * This class bridges that gap.
- *
- * @author Mattias Persson
  */
 class AsOneStartBranch implements TraversalBranch
 {
@@ -177,7 +175,7 @@ class AsOneStartBranch implements TraversalBranch
     }
 
     @Override
-    public Iterator<PropertyContainer> iterator()
+    public Iterator<Entity> iterator()
     {
         throw new UnsupportedOperationException();
     }

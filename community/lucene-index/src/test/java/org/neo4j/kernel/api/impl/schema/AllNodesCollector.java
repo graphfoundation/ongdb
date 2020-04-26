@@ -26,6 +26,7 @@ import org.apache.lucene.index.LeafReader;
 import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
+import org.apache.lucene.search.ScoreMode;
 import org.apache.lucene.search.SearcherFactory;
 import org.apache.lucene.search.SearcherManager;
 import org.apache.lucene.search.SimpleCollector;
@@ -61,9 +62,9 @@ public class AllNodesCollector extends SimpleCollector
     }
 
     @Override
-    public boolean needsScores()
+    public ScoreMode scoreMode()
     {
-        return false;
+        return ScoreMode.COMPLETE_NO_SCORES;
     }
 
     @Override

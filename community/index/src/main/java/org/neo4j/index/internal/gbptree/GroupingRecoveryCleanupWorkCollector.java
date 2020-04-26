@@ -22,7 +22,6 @@
  */
 package org.neo4j.index.internal.gbptree;
 
-import java.util.StringJoiner;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -32,6 +31,7 @@ import java.util.function.Consumer;
 import org.neo4j.scheduler.Group;
 import org.neo4j.scheduler.JobHandle;
 import org.neo4j.scheduler.JobScheduler;
+import org.neo4j.util.Preconditions;
 
 /**
  * Runs cleanup work as they're added in {@link #add(CleanupJob)}, but the thread that calls {@link #add(CleanupJob)} will not execute them itself.
@@ -54,29 +54,20 @@ public class GroupingRecoveryCleanupWorkCollector extends RecoveryCleanupWorkCol
     @Override
     public void init()
     {
-        started = false;
-        if ( !jobs.isEmpty() )
-        {
-            StringJoiner joiner = new StringJoiner( String.format( "%n  " ), "Did not expect there to be any cleanup jobs still here. Jobs[", "]" );
-            consumeAndCloseJobs( cj -> joiner.add( cj.toString() ) );
-            throw new IllegalStateException( joiner.toString() );
-        }
         scheduleJobs();
     }
 
     @Override
     public void add( CleanupJob job )
     {
-        if ( started )
-        {
-            throw new IllegalStateException( "Index clean jobs can't be added after collector start." );
-        }
+        Preconditions.checkState( !started, "Index clean jobs can't be added after collector start." );
         jobs.add( job );
     }
 
     @Override
     public void start()
     {
+        Preconditions.checkState( !started, "Already started" );
         started = true;
     }
 

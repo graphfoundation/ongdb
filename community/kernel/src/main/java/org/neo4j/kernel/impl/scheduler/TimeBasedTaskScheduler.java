@@ -23,6 +23,7 @@
 package org.neo4j.kernel.impl.scheduler;
 
 import java.util.Comparator;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.PriorityBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.LockSupport;
@@ -30,6 +31,7 @@ import java.util.concurrent.locks.LockSupport;
 import org.neo4j.scheduler.Group;
 import org.neo4j.scheduler.JobHandle;
 import org.neo4j.time.SystemNanoClock;
+import org.neo4j.util.VisibleForTesting;
 
 final class TimeBasedTaskScheduler implements Runnable
 {
@@ -40,6 +42,7 @@ final class TimeBasedTaskScheduler implements Runnable
     private final SystemNanoClock clock;
     private final ThreadPoolManager pools;
     private final PriorityBlockingQueue<ScheduledJobHandle> delayedTasks;
+    private final ConcurrentLinkedQueue<ScheduledJobHandle> canceledTasks;
     private volatile Thread timeKeeper;
     private volatile boolean stopped;
 
@@ -48,6 +51,7 @@ final class TimeBasedTaskScheduler implements Runnable
         this.clock = clock;
         this.pools = pools;
         delayedTasks = new PriorityBlockingQueue<>( 42, DEADLINE_COMPARATOR );
+        canceledTasks = new ConcurrentLinkedQueue<>();
     }
 
     public JobHandle submit( Group group, Runnable job, long initialDelayNanos, long reschedulingDelayNanos )
@@ -95,6 +99,11 @@ final class TimeBasedTaskScheduler implements Runnable
             // We have no tasks to run. Park until we're woken up by an enqueueTask() call.
             return NO_TASKS_PARK;
         }
+        while ( !canceledTasks.isEmpty() )
+        {
+            ScheduledJobHandle canceled = canceledTasks.poll();
+            delayedTasks.remove( canceled );
+        }
         while ( !stopped && !delayedTasks.isEmpty() && delayedTasks.peek().nextDeadlineNanos <= now )
         {
             ScheduledJobHandle task = delayedTasks.poll();
@@ -103,9 +112,20 @@ final class TimeBasedTaskScheduler implements Runnable
         return delayedTasks.isEmpty() ? NO_TASKS_PARK : delayedTasks.peek().nextDeadlineNanos - now;
     }
 
+    @VisibleForTesting
+    int tasksLeft()
+    {
+        return delayedTasks.size();
+    }
+
     public void stop()
     {
         stopped = true;
         LockSupport.unpark( timeKeeper );
+    }
+
+    void cancelTask( ScheduledJobHandle job )
+    {
+        canceledTasks.add( job );
     }
 }

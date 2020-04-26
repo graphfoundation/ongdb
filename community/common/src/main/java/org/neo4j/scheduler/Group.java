@@ -57,6 +57,10 @@ public enum Group
     FILE_IO_HELPER( "FileIOHelper" ),
     NATIVE_SECURITY( "NativeSecurity" ),
     METRICS_EVENT( "MetricsEvent" ),
+    /** Threads that perform database manager operations necessary to bring databases to their desired states. */
+    DATABASE_RECONCILER( "DatabaseReconciler" ),
+    /** Ensures DatabaseId lookup is not run from an outer transaction that will be tied to a database */
+    DATABASE_ID_REPOSITORY( "DatabaseIdRepository" ),
 
     // CYPHER.
     /** Thread pool for parallel Cypher query execution. */
@@ -67,36 +71,33 @@ public enum Group
 
     // BOLT.
     /** Network IO threads for the Bolt protocol. */
-    BOLT_NETWORK_IO( "BoltNetworkIO" ),
+    BOLT_NETWORK_IO( "BoltNetworkIO", ExecutorServiceFactory.unschedulable() ),
     /** Transaction processing threads for Bolt. */
-    BOLT_WORKER( "BoltWorker" ),
+    BOLT_WORKER( "BoltWorker", ExecutorServiceFactory.unschedulable() ),
 
     // CAUSAL CLUSTER, TOPOLOGY & BACKUP.
+    RAFT_CLIENT( "RaftClient" ),
+    RAFT_SERVER( "RaftServer" ),
     RAFT_TIMER( "RaftTimer" ),
     RAFT_LOG_PRUNING( "RaftLogPruning" ),
     RAFT_BATCH_HANDLER( "RaftBatchHandler" ),
     RAFT_READER_POOL_PRUNER( "RaftReaderPoolPruner" ),
-    HZ_TOPOLOGY_HEALTH( "HazelcastHealth" ),
-    HZ_TOPOLOGY_KEEP_ALIVE( "KeepAlive" ),
-    HZ_TOPOLOGY_REFRESH( "TopologyRefresh" ),
-    AKKA_TOPOLOGY_WORKER( "AkkaTopologyWorkers", ExecutorServiceFactory.workStealing() ),
-    MEMBERSHIP_WAITER( "MembershipWaiter" ),
+    AKKA_TOPOLOGY_WORKER( "AkkaTopologyWorkers", ExecutorServiceFactory.workStealingAsync() ),
     DOWNLOAD_SNAPSHOT( "DownloadSnapshot" ),
+    CATCHUP_CLIENT( "CatchupClient" ),
+    CATCHUP_SERVER( "CatchupServer" ),
+    THROUGHPUT_MONITOR( "ThroughputMonitor" ),
+    PANIC_SERVICE( "PanicService" ),
+    CORE_STATE_APPLIER( "CoreStateApplier" ),
 
-    // HA.
-    /** Push transactions from master to slaves */
-    MASTER_TRANSACTION_PUSHING( "TransactionPushing" ),
     /** Rolls back idle transactions on the server. */
     SERVER_TRANSACTION_TIMEOUT( "ServerTransactionTimeout" ),
-    /** Aborts idle slave lock sessions on the master. */
-    SLAVE_LOCKS_TIMEOUT( "SlaveLocksTimeout" ),
-    /** Pulls updates from the master. */
+    /** Pulls updates from the leader. */
     PULL_UPDATES( "PullUpdates" ),
 
-    // MISC.
-    /** UDC timed events. */
-    UDC( "UsageDataCollector" )
-    ;
+    // FABRIC
+    FABRIC_IDLE_DRIVER_MONITOR( "FabricIdleDriverMonitor" ),
+    FABRIC_WORKER( "FabricWorker" );
 
     private final String name;
     private final ExecutorServiceFactory executorServiceFactory;
@@ -132,8 +133,8 @@ public enum Group
         return "neo4j." + groupName() + "-" + threadCounter.incrementAndGet();
     }
 
-    public ExecutorService buildExecutorService( SchedulerThreadFactory factory )
+    public ExecutorService buildExecutorService( SchedulerThreadFactory factory, int parallelism )
     {
-        return executorServiceFactory.build( this, factory );
+        return executorServiceFactory.build( this, factory, parallelism );
     }
 }

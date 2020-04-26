@@ -23,12 +23,12 @@
 package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
 import org.mockito.Mockito
+import org.neo4j.cypher.internal.runtime.interpreted.QueryStateHelper
 import org.neo4j.cypher.internal.runtime.interpreted.ValueComparisonHelper._
 import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.{ListLiteral, Literal}
-import org.neo4j.cypher.internal.runtime.interpreted.{ExecutionContext, QueryStateHelper}
-import org.neo4j.cypher.internal.runtime.{Operations, QueryContext}
-import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
-import org.neo4j.values.virtual.{RelationshipValue, NodeValue}
+import org.neo4j.cypher.internal.runtime.{ExecutionContext, QueryContext, RelationshipOperations}
+import org.neo4j.cypher.internal.v4_0.util.test_helpers.CypherFunSuite
+import org.neo4j.values.virtual.{NodeValue, RelationshipValue}
 
 class DirectedDirectedRelationshipByIdSeekPipeTest extends CypherFunSuite {
 
@@ -37,7 +37,7 @@ class DirectedDirectedRelationshipByIdSeekPipeTest extends CypherFunSuite {
   test("should seek relationship by id") {
     // given
     val (startNode, rel, endNode) = getRelWithNodes
-    val relOps= mock[Operations[RelationshipValue]]
+    val relOps= mock[RelationshipOperations]
     when(relOps.getByIdIfExists(17)).thenReturn(Some(rel))
 
     val to = "to"
@@ -58,7 +58,7 @@ class DirectedDirectedRelationshipByIdSeekPipeTest extends CypherFunSuite {
     // given
     val (s1, r1, e1) = getRelWithNodes
     val (s2, r2, e2) = getRelWithNodes
-    val relationshipOps = mock[Operations[RelationshipValue]]
+    val relationshipOps = mock[RelationshipOperations]
     val to = "to"
     val from = "from"
 
@@ -84,7 +84,7 @@ class DirectedDirectedRelationshipByIdSeekPipeTest extends CypherFunSuite {
     // given
     val to = "to"
     val from = "from"
-    val relationshipOps = mock[Operations[RelationshipValue]]
+    val relationshipOps = mock[RelationshipOperations]
     val queryContext = mock[QueryContext]
     when(queryContext.relationshipOps).thenReturn(relationshipOps)
     val queryState = QueryStateHelper.emptyWith(query = queryContext)

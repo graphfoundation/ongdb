@@ -22,14 +22,17 @@
  */
 package org.neo4j.cypher.planmatching
 
-import org.neo4j.cypher.internal.runtime.planDescription.InternalPlanDescription
+import org.neo4j.cypher.internal.plandescription.{InternalPlanDescription, PlanDescriptionArgumentSerializer}
 import org.scalatest.matchers.{MatchResult, Matcher}
+
+import scala.util.matching.Regex
 
 /**
   * Asserts that a plan has certain variables
   */
 trait VariablesMatcher extends Matcher[InternalPlanDescription] {
   val expected: Set[String]
+  def planVars(plan: InternalPlanDescription): Set[String] = plan.variables.map(PlanDescriptionArgumentSerializer.removeGeneratedNames)
 }
 
 /**
@@ -37,9 +40,10 @@ trait VariablesMatcher extends Matcher[InternalPlanDescription] {
   */
 case class ExactVariablesMatcher(expected: Set[String]) extends VariablesMatcher {
   override def apply(plan: InternalPlanDescription): MatchResult = {
+    val vars = planVars(plan)
     MatchResult(
-      matches = plan.variables == expected,
-      rawFailureMessage = s"Expected ${plan.name} to have variables $expected but got ${plan.variables}.",
+      matches = vars == expected,
+      rawFailureMessage = s"Expected ${plan.name} to have variables $expected but got ${vars}.",
       rawNegatedFailureMessage = s"Expected ${plan.name} not to have variables $expected."
     )
   }
@@ -50,10 +54,27 @@ case class ExactVariablesMatcher(expected: Set[String]) extends VariablesMatcher
   */
 case class ContainsVariablesMatcher(expected: Set[String]) extends VariablesMatcher {
   override def apply(plan: InternalPlanDescription): MatchResult = {
+    val vars = planVars(plan)
     MatchResult(
-      matches = expected.subsetOf(plan.variables),
-      rawFailureMessage = s"Expected ${plan.name} to contain variables $expected but got ${plan.variables}.",
+      matches = expected.subsetOf(vars),
+      rawFailureMessage = s"Expected ${plan.name} to contain variables $expected but got ${vars}.",
       rawNegatedFailureMessage = s"Expected ${plan.name} not to contain variables $expected."
+    )
+  }
+}
+
+/**
+  * Asserts that a plan contains variables matching the provided regex (among others).
+  */
+case class ContainsRegexVariablesMatcher(expectedRegexes: Set[Regex]) extends VariablesMatcher {
+  override val expected: Set[String] = expectedRegexes.map(_.toString())
+
+  override def apply(plan: InternalPlanDescription): MatchResult = {
+    val vars = planVars(plan)
+    MatchResult(
+      matches = expectedRegexes.forall(regex => vars.exists(variable => regex.pattern.matcher(variable).matches())),
+      rawFailureMessage = s"Expected ${plan.name} to contain variables matching $expected but got ${vars}.",
+      rawNegatedFailureMessage = s"Expected ${plan.name} not to contain variables matching $expected."
     )
   }
 }

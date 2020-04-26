@@ -27,17 +27,17 @@ import org.apache.commons.lang3.ArrayUtils;
 import java.util.function.IntPredicate;
 import java.util.function.LongFunction;
 
+import org.neo4j.internal.kernel.api.PopulationProgress;
 import org.neo4j.io.IOUtils;
-import org.neo4j.kernel.api.index.IndexEntryUpdate;
-import org.neo4j.kernel.impl.api.index.EntityUpdates;
 import org.neo4j.kernel.impl.api.index.MultipleIndexPopulator;
 import org.neo4j.kernel.impl.api.index.PhaseTracker;
 import org.neo4j.kernel.impl.api.index.StoreScan;
-import org.neo4j.kernel.impl.locking.Lock;
+import org.neo4j.lock.Lock;
+import org.neo4j.storageengine.api.EntityUpdates;
+import org.neo4j.storageengine.api.IndexEntryUpdate;
 import org.neo4j.storageengine.api.StorageEntityScanCursor;
 import org.neo4j.storageengine.api.StoragePropertyCursor;
 import org.neo4j.storageengine.api.StorageReader;
-import org.neo4j.storageengine.api.schema.PopulationProgress;
 import org.neo4j.values.storable.Value;
 
 public abstract class PropertyAwareEntityStoreScan<CURSOR extends StorageEntityScanCursor, FAILURE extends Exception> implements StoreScan<FAILURE>
@@ -85,7 +85,7 @@ public abstract class PropertyAwareEntityStoreScan<CURSOR extends StorageEntityS
             return false;
         }
         boolean hasRelevantProperty = false;
-        propertyCursor.init( cursor.propertiesReference() );
+        cursor.properties( propertyCursor );
         while ( propertyCursor.next() )
         {
             int propertyKeyId = propertyCursor.propertyKey();

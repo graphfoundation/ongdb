@@ -19,23 +19,23 @@
  */
 package org.neo4j.pushtocloud;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.mockito.InOrder;
 
 import java.io.IOException;
 import java.io.OutputStream;
 
-import org.neo4j.helpers.progress.ProgressListener;
+import org.neo4j.internal.helpers.progress.ProgressListener;
 
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 
-public class ProgressTrackingOutputStreamTest
+class ProgressTrackingOutputStreamTest
 {
     @Test
-    public void shouldTrackSingleByteWrites() throws IOException
+    void shouldTrackSingleByteWrites() throws IOException
     {
         // given
         OutputStream actual = mock( OutputStream.class );
@@ -55,7 +55,7 @@ public class ProgressTrackingOutputStreamTest
     }
 
     @Test
-    public void shouldTrackByteArrayWrites() throws IOException
+    void shouldTrackByteArrayWrites() throws IOException
     {
         // given
         OutputStream actual = mock( OutputStream.class );
@@ -76,7 +76,7 @@ public class ProgressTrackingOutputStreamTest
     }
 
     @Test
-    public void shouldTrackOffsetByteArrayWrites() throws IOException
+    void shouldTrackOffsetByteArrayWrites() throws IOException
     {
         // given
         OutputStream actual = mock( OutputStream.class );
@@ -97,7 +97,7 @@ public class ProgressTrackingOutputStreamTest
     }
 
     @Test
-    public void shouldTrackOffsetAfterRewind() throws IOException
+    void shouldTrackOffsetAfterRewind() throws IOException
     {
         // given
         OutputStream actual = mock( OutputStream.class );
@@ -123,7 +123,7 @@ public class ProgressTrackingOutputStreamTest
     }
 
     @Test
-    public void shouldNoteInitialPosition()
+    void shouldNoteInitialPosition()
     {
         // given
         ProgressListener progressListener = mock( ProgressListener.class );

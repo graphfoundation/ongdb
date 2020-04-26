@@ -22,7 +22,7 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted
 
-import org.neo4j.cypher.internal.planner.v3_6.spi.TokenContext
+import org.neo4j.cypher.internal.planner.spi.TokenContext
 import org.neo4j.internal.kernel.api.TokenRead
 import org.neo4j.internal.kernel.api.exceptions.LabelNotFoundKernelException
 import org.neo4j.kernel.api.KernelTransaction
@@ -35,7 +35,7 @@ abstract class TransactionBoundTokenContext(transaction: => KernelTransaction) e
     else Some(propertyId)
   }
 
-  def getPropertyKeyId(propertyKeyName: String) = {
+  def getPropertyKeyId(propertyKeyName: String): Int = {
     val propertyId: Int = transaction.tokenRead().propertyKey(propertyKeyName)
     if (propertyId ==TokenRead.NO_TOKEN)
       throw new PropertyKeyNotFoundException("No such property.", null)

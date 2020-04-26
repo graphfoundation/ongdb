@@ -23,8 +23,7 @@
 package org.neo4j.locking;
 
 import org.apache.commons.lang3.RandomStringUtils;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -34,16 +33,12 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
+import org.neo4j.exceptions.KernelException;
 import org.neo4j.graphdb.Label;
-import org.neo4j.graphdb.Lock;
 import org.neo4j.graphdb.Node;
-import org.neo4j.graphdb.PropertyContainer;
 import org.neo4j.graphdb.Transaction;
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.internal.kernel.api.CursorFactory;
 import org.neo4j.internal.kernel.api.ExecutionStatistics;
-import org.neo4j.internal.kernel.api.ExplicitIndexRead;
-import org.neo4j.internal.kernel.api.ExplicitIndexWrite;
 import org.neo4j.internal.kernel.api.Locks;
 import org.neo4j.internal.kernel.api.NodeCursor;
 import org.neo4j.internal.kernel.api.Procedures;
@@ -55,13 +50,16 @@ import org.neo4j.internal.kernel.api.SchemaWrite;
 import org.neo4j.internal.kernel.api.TokenRead;
 import org.neo4j.internal.kernel.api.TokenWrite;
 import org.neo4j.internal.kernel.api.Write;
+import org.neo4j.internal.kernel.api.connectioninfo.ClientConnectionInfo;
 import org.neo4j.internal.kernel.api.exceptions.InvalidTransactionTypeKernelException;
+import org.neo4j.internal.kernel.api.exceptions.LocksNotFrozenException;
 import org.neo4j.internal.kernel.api.exceptions.TransactionFailureException;
-import org.neo4j.internal.kernel.api.exceptions.schema.SchemaKernelException;
-import org.neo4j.internal.kernel.api.schema.SchemaDescriptor;
 import org.neo4j.internal.kernel.api.security.AuthSubject;
 import org.neo4j.internal.kernel.api.security.LoginContext;
 import org.neo4j.internal.kernel.api.security.SecurityContext;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.internal.schema.IndexPrototype;
+import org.neo4j.io.pagecache.tracing.cursor.PageCursorTracer;
 import org.neo4j.kernel.GraphDatabaseQueryService;
 import org.neo4j.kernel.api.KernelTransaction;
 import org.neo4j.kernel.api.ResourceTracker;
@@ -69,70 +67,65 @@ import org.neo4j.kernel.api.Statement;
 import org.neo4j.kernel.api.dbms.DbmsOperations;
 import org.neo4j.kernel.api.exceptions.Status;
 import org.neo4j.kernel.api.query.ExecutingQuery;
-import org.neo4j.kernel.api.txstate.TxStateHolder;
-import org.neo4j.kernel.configuration.Config;
+import org.neo4j.kernel.database.NamedDatabaseId;
 import org.neo4j.kernel.impl.api.ClockContext;
-import org.neo4j.kernel.impl.core.ThreadToStatementContextBridge;
 import org.neo4j.kernel.impl.coreapi.InternalTransaction;
-import org.neo4j.kernel.impl.coreapi.PropertyContainerLocker;
-import org.neo4j.kernel.impl.locking.ResourceTypes;
 import org.neo4j.kernel.impl.query.Neo4jTransactionalContextFactory;
 import org.neo4j.kernel.impl.query.QueryExecutionEngine;
 import org.neo4j.kernel.impl.query.QueryExecutionKernelException;
 import org.neo4j.kernel.impl.query.TransactionalContext;
 import org.neo4j.kernel.impl.query.TransactionalContextFactory;
-import org.neo4j.kernel.impl.query.clientconnection.ClientConnectionInfo;
 import org.neo4j.kernel.impl.query.statistic.StatisticProvider;
-import org.neo4j.storageengine.api.lock.ResourceType;
-import org.neo4j.storageengine.api.schema.IndexDescriptor;
-import org.neo4j.test.rule.EmbeddedDatabaseRule;
-import org.neo4j.values.virtual.VirtualValues;
+import org.neo4j.kernel.internal.GraphDatabaseAPI;
+import org.neo4j.lock.ResourceType;
+import org.neo4j.lock.ResourceTypes;
+import org.neo4j.test.extension.ImpermanentDbmsExtension;
+import org.neo4j.test.extension.Inject;
+import org.neo4j.values.ValueMapper;
 
 import static java.util.Arrays.asList;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.neo4j.values.virtual.VirtualValues.EMPTY_MAP;
 
-public class QueryExecutionLocksIT
+@ImpermanentDbmsExtension
+class QueryExecutionLocksIT
 {
-
-    @Rule
-    public EmbeddedDatabaseRule databaseRule = new EmbeddedDatabaseRule();
+    @Inject
+    private GraphDatabaseAPI db;
 
     @Test
-    public void noLocksTakenForQueryWithoutAnyIndexesUsage() throws Exception
+    void noLocksTakenForQueryWithoutAnyIndexesUsage() throws Exception
     {
         String query = "MATCH (n) return count(n)";
         List<LockOperationRecord> lockOperationRecords = traceQueryLocks( query );
-        assertThat( "Observed list of lock operations is: " + lockOperationRecords,
-                lockOperationRecords, is( empty() ) );
+        assertThat( "Observed list of lock operations is: " + lockOperationRecords, lockOperationRecords, is( empty() ) );
     }
 
     @Test
-    public void takeLabelLockForQueryWithIndexUsages() throws Exception
+    void takeLabelLockForQueryWithIndexUsages() throws Exception
     {
         String labelName = "Human";
         Label human = Label.label( labelName );
         String propertyKey = "name";
         createIndex( human, propertyKey );
 
-        try ( Transaction transaction = databaseRule.beginTx() )
+        try ( Transaction transaction = db.beginTx() )
         {
-            Node node = databaseRule.createNode( human );
+            Node node = transaction.createNode( human );
             node.setProperty( propertyKey, RandomStringUtils.randomAscii( 10 ) );
-            transaction.success();
+            transaction.commit();
         }
 
         String query = "MATCH (n:" + labelName + ") where n." + propertyKey + " = \"Fry\" RETURN n ";
 
         List<LockOperationRecord> lockOperationRecords = traceQueryLocks( query );
-        assertThat( "Observed list of lock operations is: " + lockOperationRecords,
-                lockOperationRecords, hasSize( 1 ) );
+        assertThat( "Observed list of lock operations is: " + lockOperationRecords, lockOperationRecords, hasSize( 1 ) );
 
         LockOperationRecord operationRecord = lockOperationRecords.get( 0 );
         assertTrue( operationRecord.acquisition );
@@ -141,26 +134,25 @@ public class QueryExecutionLocksIT
     }
 
     @Test
-    public void reTakeLabelLockForQueryWithIndexUsagesWhenSchemaStateWasUpdatedDuringLockOperations() throws Exception
+    void reTakeLabelLockForQueryWithIndexUsagesWhenSchemaStateWasUpdatedDuringLockOperations() throws Exception
     {
         String labelName = "Robot";
         Label robot = Label.label( labelName );
         String propertyKey = "name";
         createIndex( robot, propertyKey );
 
-        try ( Transaction transaction = databaseRule.beginTx() )
+        try ( Transaction transaction = db.beginTx() )
         {
-            Node node = databaseRule.createNode( robot );
+            Node node = transaction.createNode( robot );
             node.setProperty( propertyKey, RandomStringUtils.randomAscii( 10 ) );
-            transaction.success();
+            transaction.commit();
         }
 
         String query = "MATCH (n:" + labelName + ") where n." + propertyKey + " = \"Bender\" RETURN n ";
 
         LockOperationListener lockOperationListener = new OnceSchemaFlushListener();
         List<LockOperationRecord> lockOperationRecords = traceQueryLocks( query, lockOperationListener );
-        assertThat( "Observed list of lock operations is: " + lockOperationRecords,
-                lockOperationRecords, hasSize( 3 ) );
+        assertThat( "Observed list of lock operations is: " + lockOperationRecords, lockOperationRecords, hasSize( 3 ) );
 
         LockOperationRecord operationRecord = lockOperationRecords.get( 0 );
         assertTrue( operationRecord.acquisition );
@@ -180,38 +172,33 @@ public class QueryExecutionLocksIT
 
     private void createIndex( Label label, String propertyKey )
     {
-        try ( Transaction transaction = databaseRule.beginTx() )
+        try ( Transaction transaction = db.beginTx() )
         {
-            databaseRule.schema().indexFor( label ).on( propertyKey ).create();
-            transaction.success();
+            transaction.schema().indexFor( label ).on( propertyKey ).create();
+            transaction.commit();
         }
-        try ( Transaction ignored = databaseRule.beginTx() )
+        try ( Transaction tx = db.beginTx() )
         {
-            databaseRule.schema().awaitIndexesOnline( 1, TimeUnit.MINUTES );
+            tx.schema().awaitIndexesOnline( 1, TimeUnit.MINUTES );
         }
     }
 
-    private List<LockOperationRecord> traceQueryLocks( String query, LockOperationListener... listeners )
-            throws QueryExecutionKernelException
+    private List<LockOperationRecord> traceQueryLocks( String query, LockOperationListener... listeners ) throws QueryExecutionKernelException
     {
-        GraphDatabaseQueryService graph = databaseRule.resolveDependency( GraphDatabaseQueryService.class );
-        QueryExecutionEngine executionEngine = databaseRule.resolveDependency( QueryExecutionEngine.class );
-        try ( InternalTransaction tx = graph
-                .beginTransaction( KernelTransaction.Type.implicit, LoginContext.AUTH_DISABLED ) )
+        GraphDatabaseQueryService graph = db.getDependencyResolver().resolveDependency( GraphDatabaseQueryService.class );
+        QueryExecutionEngine executionEngine = db.getDependencyResolver().resolveDependency( QueryExecutionEngine.class );
+        try ( InternalTransaction tx = graph.beginTransaction( KernelTransaction.Type.implicit, LoginContext.AUTH_DISABLED ) )
         {
-            TransactionalContextWrapper context =
-                    new TransactionalContextWrapper( createTransactionContext( graph, tx, query ), listeners );
-            executionEngine.executeQuery( query, VirtualValues.emptyMap(), context );
+            TransactionalContextWrapper context = new TransactionalContextWrapper( createTransactionContext( graph, tx, query ), listeners );
+            executionEngine.executeQuery( query, EMPTY_MAP, context, false );
             return new ArrayList<>( context.recordingLocks.getLockOperationRecords() );
         }
     }
 
-    private TransactionalContext createTransactionContext( GraphDatabaseQueryService graph, InternalTransaction tx,
-            String query )
+    private static TransactionalContext createTransactionContext( GraphDatabaseQueryService graph, InternalTransaction tx, String query )
     {
-        PropertyContainerLocker locker = new PropertyContainerLocker();
-        TransactionalContextFactory contextFactory = Neo4jTransactionalContextFactory.create( graph, locker );
-        return contextFactory.newContext( ClientConnectionInfo.EMBEDDED_CONNECTION, tx, query, EMPTY_MAP );
+        TransactionalContextFactory contextFactory = Neo4jTransactionalContextFactory.create( graph );
+        return contextFactory.newContext( tx, query, EMPTY_MAP );
     }
 
     private static class TransactionalContextWrapper implements TransactionalContext
@@ -235,6 +222,12 @@ public class QueryExecutionLocksIT
         }
 
         @Override
+        public ValueMapper<Object> valueMapper()
+        {
+            return delegate.valueMapper();
+        }
+
+        @Override
         public ExecutingQuery executingQuery()
         {
             return delegate.executingQuery();
@@ -251,10 +244,15 @@ public class QueryExecutionLocksIT
         {
             if ( recordingLocks == null )
             {
-                recordingLocks =
-                        new RecordingLocks( delegate.kernelTransaction().locks(), asList( listeners ), recordedLocks );
+                recordingLocks = new RecordingLocks( delegate.transaction(), asList( listeners ), recordedLocks );
             }
             return new DelegatingTransaction( delegate.kernelTransaction(), recordingLocks );
+        }
+
+        @Override
+        public InternalTransaction transaction()
+        {
+            return delegate.transaction();
         }
 
         @Override
@@ -264,9 +262,15 @@ public class QueryExecutionLocksIT
         }
 
         @Override
-        public void close( boolean success )
+        public void close()
         {
-            delegate.close( success );
+            delegate.close();
+        }
+
+        @Override
+        public void rollback()
+        {
+            delegate.rollback();
         }
 
         @Override
@@ -279,12 +283,6 @@ public class QueryExecutionLocksIT
         public void commitAndRestartTx()
         {
             delegate.commitAndRestartTx();
-        }
-
-        @Override
-        public void cleanForReuse()
-        {
-            delegate.cleanForReuse();
         }
 
         @Override
@@ -313,6 +311,12 @@ public class QueryExecutionLocksIT
         }
 
         @Override
+        public NamedDatabaseId databaseId()
+        {
+            return delegate.databaseId();
+        }
+
+        @Override
         public Statement statement()
         {
             return delegate.statement();
@@ -322,18 +326,6 @@ public class QueryExecutionLocksIT
         public void check()
         {
             delegate.check();
-        }
-
-        @Override
-        public TxStateHolder stateView()
-        {
-            return delegate.stateView();
-        }
-
-        @Override
-        public Lock acquireWriteLock( PropertyContainer p )
-        {
-            return delegate.acquireWriteLock( p );
         }
 
         @Override
@@ -366,14 +358,14 @@ public class QueryExecutionLocksIT
         private final Locks delegate;
         private final List<LockOperationListener> listeners;
         private final List<LockOperationRecord> lockOperationRecords;
+        private final InternalTransaction transaction;
 
-        private RecordingLocks( Locks delegate,
-                List<LockOperationListener> listeners,
-                List<LockOperationRecord> lockOperationRecords )
+        private RecordingLocks( InternalTransaction transaction, List<LockOperationListener> listeners, List<LockOperationRecord> lockOperationRecords )
         {
-            this.delegate = delegate;
             this.listeners = listeners;
             this.lockOperationRecords = lockOperationRecords;
+            this.transaction = transaction;
+            this.delegate = transaction.kernelTransaction().locks();
         }
 
         List<LockOperationRecord> getLockOperationRecords()
@@ -387,7 +379,7 @@ public class QueryExecutionLocksIT
             {
                 for ( LockOperationListener listener : listeners )
                 {
-                    listener.lockAcquired( exclusive, type, ids );
+                    listener.lockAcquired( transaction, exclusive, type, ids );
                 }
             }
             lockOperationRecords.add( new LockOperationRecord( exclusive, acquisition, type, ids ) );
@@ -405,13 +397,6 @@ public class QueryExecutionLocksIT
         {
             record( true, true, ResourceTypes.RELATIONSHIP, ids );
             delegate.acquireExclusiveRelationshipLock( ids );
-        }
-
-        @Override
-        public void acquireExclusiveExplicitIndexLock( long... ids )
-        {
-            record( true, true, ResourceTypes.EXPLICIT_INDEX, ids );
-            delegate.acquireExclusiveExplicitIndexLock( ids );
         }
 
         @Override
@@ -436,13 +421,6 @@ public class QueryExecutionLocksIT
         }
 
         @Override
-        public void releaseExclusiveExplicitIndexLock( long... ids )
-        {
-            record( true, false, ResourceTypes.EXPLICIT_INDEX, ids );
-            delegate.releaseExclusiveExplicitIndexLock( ids );
-        }
-
-        @Override
         public void releaseExclusiveLabelLock( long... ids )
         {
             record( true, false, ResourceTypes.LABEL, ids );
@@ -461,13 +439,6 @@ public class QueryExecutionLocksIT
         {
             record( false, true, ResourceTypes.RELATIONSHIP, ids );
             delegate.acquireSharedRelationshipLock( ids );
-        }
-
-        @Override
-        public void acquireSharedExplicitIndexLock( long... ids )
-        {
-            record( false, true, ResourceTypes.EXPLICIT_INDEX, ids );
-            delegate.acquireSharedExplicitIndexLock( ids );
         }
 
         @Override
@@ -492,13 +463,6 @@ public class QueryExecutionLocksIT
         }
 
         @Override
-        public void releaseSharedExplicitIndexLock( long... ids )
-        {
-            record( false, false, ResourceTypes.EXPLICIT_INDEX, ids );
-            delegate.releaseSharedExplicitIndexLock( ids );
-        }
-
-        @Override
         public void releaseSharedLabelLock( long... ids )
         {
             record( false, false, ResourceTypes.LABEL, ids );
@@ -508,7 +472,7 @@ public class QueryExecutionLocksIT
 
     private static class LockOperationListener implements EventListener
     {
-        void lockAcquired( boolean exclusive, ResourceType resourceType, long... ids )
+        void lockAcquired( Transaction tx, boolean exclusive, ResourceType resourceType, long... ids )
         {
             // empty operation
         }
@@ -537,19 +501,16 @@ public class QueryExecutionLocksIT
         }
     }
 
-    private class OnceSchemaFlushListener extends LockOperationListener
+    private static class OnceSchemaFlushListener extends LockOperationListener
     {
         private boolean executed;
 
         @Override
-        void lockAcquired( boolean exclusive, ResourceType resourceType, long... ids )
+        void lockAcquired( Transaction tx, boolean exclusive, ResourceType resourceType, long... ids )
         {
             if ( !executed )
             {
-                ThreadToStatementContextBridge bridge =
-                        databaseRule.resolveDependency( ThreadToStatementContextBridge.class );
-                KernelTransaction ktx =
-                        bridge.getKernelTransactionBoundToThisThread( true );
+                KernelTransaction ktx = ((InternalTransaction) tx).kernelTransaction();
                 ktx.schemaRead().schemaStateFlush();
             }
             executed = true;
@@ -568,15 +529,15 @@ public class QueryExecutionLocksIT
         }
 
         @Override
-        public void success()
+        public long commit() throws TransactionFailureException
         {
-            internal.success();
+            return internal.commit();
         }
 
         @Override
-        public void failure()
+        public void rollback() throws TransactionFailureException
         {
-            internal.failure();
+            internal.rollback();
         }
 
         @Override
@@ -589,18 +550,6 @@ public class QueryExecutionLocksIT
         public Write dataWrite() throws InvalidTransactionTypeKernelException
         {
             return internal.dataWrite();
-        }
-
-        @Override
-        public ExplicitIndexRead indexRead()
-        {
-            return internal.indexRead();
-        }
-
-        @Override
-        public ExplicitIndexWrite indexWrite() throws InvalidTransactionTypeKernelException
-        {
-            return internal.indexWrite();
         }
 
         @Override
@@ -640,6 +589,18 @@ public class QueryExecutionLocksIT
         }
 
         @Override
+        public void freezeLocks()
+        {
+            internal.freezeLocks();
+        }
+
+        @Override
+        public void thawLocks() throws LocksNotFrozenException
+        {
+            internal.thawLocks();
+        }
+
+        @Override
         public CursorFactory cursors()
         {
             return internal.cursors();
@@ -664,10 +625,9 @@ public class QueryExecutionLocksIT
         }
 
         @Override
-        public IndexDescriptor indexUniqueCreate( SchemaDescriptor schema, String provider ) throws SchemaKernelException
+        public IndexDescriptor indexUniqueCreate( IndexPrototype prototype ) throws KernelException
         {
-            String defaultProvider = Config.defaults().get( GraphDatabaseSettings.default_schema_provider );
-            return internal.indexUniqueCreate( schema, defaultProvider );
+            return internal.indexUniqueCreate( prototype );
         }
 
         @Override
@@ -689,9 +649,21 @@ public class QueryExecutionLocksIT
         }
 
         @Override
+        public boolean isClosing()
+        {
+            return internal.isClosing();
+        }
+
+        @Override
         public SecurityContext securityContext()
         {
             return internal.securityContext();
+        }
+
+        @Override
+        public ClientConnectionInfo clientInfo()
+        {
+            return internal.clientInfo();
         }
 
         @Override
@@ -731,6 +703,18 @@ public class QueryExecutionLocksIT
         }
 
         @Override
+        public void bindToUserTransaction( InternalTransaction internalTransaction )
+        {
+            internal.bindToUserTransaction( internalTransaction );
+        }
+
+        @Override
+        public InternalTransaction internalTransaction()
+        {
+            return internal.internalTransaction();
+        }
+
+        @Override
         public long startTime()
         {
             return internal.startTime();
@@ -746,12 +730,6 @@ public class QueryExecutionLocksIT
         public long timeout()
         {
             return internal.timeout();
-        }
-
-        @Override
-        public void registerCloseListener( CloseListener listener )
-        {
-            internal.registerCloseListener( listener );
         }
 
         @Override
@@ -824,6 +802,12 @@ public class QueryExecutionLocksIT
         public boolean isSchemaTransaction()
         {
             return internal.isSchemaTransaction();
+        }
+
+        @Override
+        public PageCursorTracer pageCursorTracer()
+        {
+            return null;
         }
     }
 }

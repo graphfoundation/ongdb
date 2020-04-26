@@ -22,32 +22,18 @@
  */
 package org.neo4j.graphdb.schema;
 
-import java.util.Optional;
+import java.util.Map;
 
+import org.neo4j.annotations.api.PublicApi;
 import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.RelationshipType;
-import org.neo4j.graphdb.index.IndexManager;
 
 /**
  * Definition for an index.
- * <p>
- * NOTE: This is part of the index API introduced in Neo4j 2.0.
- * The explicit index API lives in {@link IndexManager}.
  */
+@PublicApi
 public interface IndexDefinition
 {
-    /**
-     * Return the node label that this index applies to. Nodes with this label are indexed by this index.
-     * <p>
-     * Note that this assumes that this is a node index (that {@link #isNodeIndex()} returns {@code true}) and not a multi-token index
-     * (that {@link #isMultiTokenIndex()} returns {@code false}). If this is not the case, then an {@link IllegalStateException} is thrown.
-     *
-     * @return the {@link Label label} this index definition is associated with.
-     * @deprecated This method is deprecated and will be removed in next major release. Please consider using {@link #getLabels()} instead.
-     */
-    @Deprecated
-    Label getLabel();
-
     /**
      * Return the set of node labels (in no particular order) that this index applies to. This method works for both {@link #isMultiTokenIndex() multi-token}
      * indexes, and "single-token" indexes.
@@ -58,18 +44,6 @@ public interface IndexDefinition
      * @return the set of {@link Label labels} this index definition is associated with.
      */
     Iterable<Label> getLabels();
-
-    /**
-     * Return the relationship type that this index applies to. Relationships with this type are indexed by this index.
-     * <p>
-     * Note that this assumes that this is a relationship index (that {@link #isRelationshipIndex()} returns {@code true}) and not a multi-token index
-     * (that {@link #isMultiTokenIndex()} returns {@code false}). If this is not the case, then an {@link IllegalStateException} is thrown.
-     *
-     * @return the {@link RelationshipType relationship type} this index definition is associated with.
-     * @deprecated This method is deprecated and will be removed in next major release. Please consider using {@link #getRelationshipTypes()} instead.
-     */
-    @Deprecated
-    RelationshipType getRelationshipType();
 
     /**
      * Return the set of relationship types (in no particular order) that this index applies to. This method works for both
@@ -91,6 +65,12 @@ public interface IndexDefinition
      * @see #isCompositeIndex()
      */
     Iterable<String> getPropertyKeys();
+
+    /**
+     * Get the {@linkplain IndexType index type} of this index.
+     * @return The {@link IndexType} this index was defined with.
+     */
+    IndexType getIndexType();
 
     /**
      * Drops this index. {@link Schema#getIndexes(Label)} will no longer include this index
@@ -140,8 +120,15 @@ public interface IndexDefinition
     boolean isCompositeIndex();
 
     /**
-     * Get the name given to this index when it was created, if any.
-     * If the index was not given any name, then the string {@code "Unnamed index"} is returned instead.
+     * Get the name given to this index when it was created.
+     * Indexes that were not explicitly given a name at creation, will have an auto-generated name.
+     * @return the unique name of the index.
      */
     String getName();
+
+    /**
+     * Get the index configuration that this index was created with.
+     * @return The index configuration as a read-only map.
+     */
+    Map<IndexSetting,Object> getIndexConfiguration();
 }

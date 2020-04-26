@@ -92,18 +92,23 @@ public abstract class CodeGenerator
 
     synchronized Class<?> loadClass( String name, long generation ) throws CompilationFailureException
     {
-        if ( generation == this.generation )
-        {
-            if ( classes != 0 )
-            {
-                throw new IllegalStateException( "Compilation has not completed." );
-            }
-            this.generation++;
-            loader.addSources( compile( loader.getParent() ), byteCodeVisitor );
-        }
+        addSources( generation );
         try
         {
             return loader.findClass( name );
+        }
+        catch ( ClassNotFoundException e )
+        {
+            throw new IllegalStateException( "Could not find defined class.", e );
+        }
+    }
+
+    synchronized Class<?> loadAnonymousClass( String name, long generation ) throws CompilationFailureException
+    {
+        addSources( generation );
+        try
+        {
+            return loader.defineAnonymousClass( name );
         }
         catch ( ClassNotFoundException e )
         {
@@ -119,5 +124,18 @@ public abstract class CodeGenerator
     void setByteCodeVisitor( ByteCodeVisitor visitor )
     {
         this.byteCodeVisitor = visitor;
+    }
+
+    private void addSources( long generation ) throws CompilationFailureException
+    {
+        if ( generation == this.generation )
+        {
+            if ( classes != 0 )
+            {
+                throw new IllegalStateException( "Compilation has not completed." );
+            }
+            this.generation++;
+            loader.addSources( compile( loader.getParent() ), byteCodeVisitor );
+        }
     }
 }

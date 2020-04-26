@@ -38,7 +38,6 @@ import org.neo4j.kernel.impl.store.record.RecordLoad;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -53,19 +52,20 @@ class CheckNextRelTaskTest
         StoreProcessor storeProcessor = mock( StoreProcessor.class );
 
         when( neoStores.getNodeStore() ).thenReturn( nodeStore );
-        when( nodeStore.getHighId() ).thenReturn( 10L );
+        long highNodeId = 10L;
+        when( nodeStore.getHighId() ).thenReturn( highNodeId );
         when( nodeStore.getRecord( anyLong(), any( NodeRecord.class ), any( RecordLoad.class ) ) ).thenReturn( nodeRecord );
         when( nodeStore.newRecord() ).thenReturn( nodeRecord );
 
         StoreAccess storeAccess = new StoreAccess( neoStores );
         storeAccess.initialize();
 
-        DefaultCacheAccess cacheAccess = new DefaultCacheAccess( Counts.NONE, 1 );
+        DefaultCacheAccess cacheAccess = new DefaultCacheAccess( DefaultCacheAccess.defaultByteArray( highNodeId ), Counts.NONE, 1 );
         CacheTask.CheckNextRel cacheTask = new CacheTask.CheckNextRel( Stage.SEQUENTIAL_FORWARD, cacheAccess, storeAccess, storeProcessor );
 
         cacheAccess.setCacheSlotSizes( CheckStage.Stage5_Check_NextRel.getCacheSlotSizes() );
         cacheTask.processCache();
 
-        verify( nodeStore, times( 1 ) ).getHighId();
+        verify( nodeStore ).getHighId();
     }
 }

@@ -22,12 +22,11 @@
  */
 package org.neo4j.server.rest.dbms;
 
-import com.sun.jersey.api.core.HttpContext;
-import com.sun.jersey.api.core.HttpRequestContext;
-
 import java.security.Principal;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletRequestWrapper;
+import javax.ws.rs.container.ContainerRequestContext;
+import javax.ws.rs.core.SecurityContext;
 
 import org.neo4j.internal.kernel.api.security.LoginContext;
 import org.neo4j.kernel.api.security.AnonymousContext;
@@ -40,10 +39,10 @@ public class AuthorizedRequestWrapper extends HttpServletRequestWrapper
         return getLoginContextFromUserPrincipal( principal );
     }
 
-    public static LoginContext getLoginContextFromHttpContext( HttpContext httpContext )
+    public static LoginContext getLoginContextFromContainerRequestContext( ContainerRequestContext requestContext )
     {
-        HttpRequestContext requestContext = httpContext.getRequest();
-        Principal principal = requestContext.getUserPrincipal();
+        SecurityContext securityContext = requestContext.getSecurityContext();
+        Principal principal = securityContext.getUserPrincipal();
         return getLoginContextFromUserPrincipal( principal );
     }
 
@@ -55,7 +54,7 @@ public class AuthorizedRequestWrapper extends HttpServletRequestWrapper
         }
         // If whitelisted uris can start transactions we cannot throw exception here
         //throw new IllegalArgumentException( "Tried to get access mode on illegal user principal" );
-        return AnonymousContext.none();
+        return AnonymousContext.access();
     }
 
     private final String authType;

@@ -23,26 +23,35 @@
 package org.neo4j.kernel.recovery;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.nio.channels.ClosedByInterruptException;
+import java.util.Arrays;
 
-import org.neo4j.kernel.impl.store.UnderlyingStorageException;
+import org.neo4j.exceptions.UnderlyingStorageException;
+import org.neo4j.io.memory.ByteBuffers;
 import org.neo4j.kernel.impl.transaction.log.LogEntryCursor;
 import org.neo4j.kernel.impl.transaction.log.LogPosition;
 import org.neo4j.kernel.impl.transaction.log.LogVersionedStoreChannel;
-import org.neo4j.kernel.impl.transaction.log.PhysicalLogVersionedStoreChannel;
 import org.neo4j.kernel.impl.transaction.log.ReadAheadLogChannel;
-import org.neo4j.kernel.impl.transaction.log.ReadableClosablePositionAwareChannel;
 import org.neo4j.kernel.impl.transaction.log.entry.CheckPoint;
 import org.neo4j.kernel.impl.transaction.log.entry.LogEntry;
 import org.neo4j.kernel.impl.transaction.log.entry.LogEntryCommit;
 import org.neo4j.kernel.impl.transaction.log.entry.LogEntryReader;
 import org.neo4j.kernel.impl.transaction.log.entry.LogEntryStart;
 import org.neo4j.kernel.impl.transaction.log.entry.LogEntryVersion;
+import org.neo4j.kernel.impl.transaction.log.entry.LogHeader;
 import org.neo4j.kernel.impl.transaction.log.files.LogFiles;
-import org.neo4j.kernel.monitoring.Monitors;
+import org.neo4j.monitoring.Monitors;
+import org.neo4j.storageengine.api.StoreId;
 
-import static org.neo4j.kernel.impl.transaction.log.LogVersionRepository.INITIAL_LOG_VERSION;
+import static java.lang.Math.min;
+import static java.lang.Math.subtractExact;
+import static java.lang.String.format;
+import static org.neo4j.internal.helpers.Numbers.safeCastLongToInt;
+import static org.neo4j.io.ByteUnit.kibiBytes;
+import static org.neo4j.io.fs.FileUtils.getCanonicalFile;
 import static org.neo4j.kernel.recovery.Recovery.throwUnableToCleanRecover;
+import static org.neo4j.storageengine.api.LogVersionRepository.INITIAL_LOG_VERSION;
 
 /**
  * This class collects information about the latest entries in the transaction log. Since the only way we have to collect
@@ -54,21 +63,20 @@ import static org.neo4j.kernel.recovery.Recovery.throwUnableToCleanRecover;
  */
 public class LogTailScanner
 {
-    static long NO_TRANSACTION_ID = -1;
+    static final long NO_TRANSACTION_ID = -1;
     private final LogFiles logFiles;
-    private final LogEntryReader<ReadableClosablePositionAwareChannel> logEntryReader;
+    private final LogEntryReader logEntryReader;
     private LogTailInformation logTailInformation;
     private final LogTailScannerMonitor monitor;
     private final boolean failOnCorruptedLogFiles;
 
-    public LogTailScanner( LogFiles logFiles,
-            LogEntryReader<ReadableClosablePositionAwareChannel> logEntryReader, Monitors monitors )
+    public LogTailScanner( LogFiles logFiles, LogEntryReader logEntryReader, Monitors monitors )
     {
         this( logFiles, logEntryReader, monitors, false );
     }
 
     public LogTailScanner( LogFiles logFiles,
-            LogEntryReader<ReadableClosablePositionAwareChannel> logEntryReader, Monitors monitors,
+            LogEntryReader logEntryReader, Monitors monitors,
             boolean failOnCorruptedLogFiles )
     {
         this.logFiles = logFiles;
@@ -83,7 +91,7 @@ public class LogTailScanner
         long version = highestLogVersion;
         long versionToSearchForCommits = highestLogVersion;
         LogEntryStart latestStartEntry = null;
-        long oldestStartEntryTransaction = -1;
+        long oldestStartEntryTransaction = NO_TRANSACTION_ID;
         long oldestVersionFound = -1;
         LogEntryVersion latestLogEntryVersion = null;
         boolean startRecordAfterCheckpoint = false;
@@ -93,12 +101,13 @@ public class LogTailScanner
         {
             oldestVersionFound = version;
             CheckPoint latestCheckPoint = null;
+            StoreId storeId = StoreId.UNKNOWN;
             try ( LogVersionedStoreChannel channel = logFiles.openForVersion( version );
-                  ReadAheadLogChannel readAheadLogChannel = new ReadAheadLogChannel( channel );
-                  LogEntryCursor cursor = new LogEntryCursor( logEntryReader, readAheadLogChannel ) )
+                  LogEntryCursor cursor = new LogEntryCursor( logEntryReader, new ReadAheadLogChannel( channel ) ) )
             {
+                LogHeader logHeader = logFiles.extractHeader( version );
+                storeId = logHeader.getStoreId();
                 LogEntry entry;
-                long maxEntryReadPosition = 0;
                 while ( cursor.next() )
                 {
                     entry = cursor.get();
@@ -106,7 +115,7 @@ public class LogTailScanner
                     // Collect data about latest checkpoint
                     if ( entry instanceof CheckPoint )
                     {
-                        latestCheckPoint = entry.as();
+                        latestCheckPoint = (CheckPoint) entry;
                     }
                     else if ( entry instanceof LogEntryCommit )
                     {
@@ -117,7 +126,7 @@ public class LogTailScanner
                     }
                     else if ( entry instanceof LogEntryStart )
                     {
-                        LogEntryStart startEntry = entry.as();
+                        LogEntryStart startEntry = (LogEntryStart) entry;
                         if ( version == versionToSearchForCommits )
                         {
                             latestStartEntry = startEntry;
@@ -130,12 +139,9 @@ public class LogTailScanner
                     {
                         latestLogEntryVersion = entry.getVersion();
                     }
-                    maxEntryReadPosition = readAheadLogChannel.position();
                 }
-                if ( hasUnreadableBytes( channel, maxEntryReadPosition ) )
-                {
-                    corruptedTransactionLogs = true;
-                }
+
+                verifyReaderPosition( highestLogVersion, version, channel );
             }
              catch ( Error | ClosedByInterruptException e )
             {
@@ -155,7 +161,7 @@ public class LogTailScanner
             if ( latestCheckPoint != null )
             {
                 return checkpointTailInformation( highestLogVersion, latestStartEntry, oldestVersionFound,
-                        latestLogEntryVersion, latestCheckPoint, corruptedTransactionLogs );
+                        latestLogEntryVersion, latestCheckPoint, corruptedTransactionLogs, storeId );
             }
 
             version--;
@@ -171,14 +177,73 @@ public class LogTailScanner
                 oldestStartEntryTransaction, oldestVersionFound, highestLogVersion, latestLogEntryVersion );
     }
 
-    private boolean hasUnreadableBytes( LogVersionedStoreChannel channel, long maxEntryReadEndPosition ) throws IOException
+    private void verifyReaderPosition( long highestLogVersion, long version, LogVersionedStoreChannel channel ) throws IOException
     {
-        return channel.position() > maxEntryReadEndPosition;
+        LogPosition logPosition = logEntryReader.lastPosition();
+
+        verifyLogVersion( version, logPosition );
+        long logFileSize = channel.size();
+        long channelLeftovers = subtractExact( logFileSize, logPosition.getByteOffset() );
+        if ( channelLeftovers != 0 )
+        {
+            // channel has more data than entry reader can read. Only one valid case for this kind of situation is
+            // pre-allocated log file that has some space left
+
+            // if this log file is not the last one and we have some unreadable bytes in the end its an indication of corrupted log files
+            verifyLastFile( highestLogVersion, version, logPosition, logFileSize, channelLeftovers );
+
+            // to double check that even when we encountered end of records position we do not have anything after that
+            // we will try to read some data (up to 12K) in advance to check that only zero's are available there
+            verifyNoMoreReadableDataAvailable( version, channel, logPosition, channelLeftovers );
+        }
     }
 
-    protected LogTailInformation checkpointTailInformation( long highestLogVersion, LogEntryStart latestStartEntry,
+    private void verifyLogVersion( long version, LogPosition logPosition )
+    {
+        if ( logPosition.getLogVersion() != version )
+        {
+            throw new IllegalStateException( format( "Expected to observe log positions only for log file with version %d but encountered " +
+                            "version %d while reading %s.", version, logPosition.getLogVersion(),
+                    getCanonicalFile( logFiles.getLogFileForVersion( version ) ) ) );
+        }
+    }
+
+    private void verifyLastFile( long highestLogVersion, long version, LogPosition logPosition, long logFileSize, long channelLeftovers )
+    {
+        if ( version != highestLogVersion )
+        {
+            throw new RuntimeException(
+                    format( "Transaction log files with version %d has %d unreadable bytes. Was able to read upto %d but %d is available.",
+                            version, channelLeftovers, logPosition.getByteOffset(), logFileSize ) );
+        }
+    }
+
+    private void verifyNoMoreReadableDataAvailable( long version, LogVersionedStoreChannel channel, LogPosition logPosition, long channelLeftovers )
+            throws IOException
+    {
+        long initialPosition = channel.position();
+        try
+        {
+            channel.position( logPosition.getByteOffset() );
+            ByteBuffer byteBuffer = ByteBuffers.allocate( safeCastLongToInt( min( kibiBytes( 12 ), channelLeftovers ) ) );
+            channel.readAll( byteBuffer );
+            byteBuffer.flip();
+            if ( !isAllZerosBuffer( byteBuffer ) )
+            {
+                throw new RuntimeException( format( "Transaction log files with version %d has some data available after last readable log entry. " +
+                                "Last readable position %d, read ahead buffer content: %s.", version, logPosition.getByteOffset(),
+                        dumpBufferToString( byteBuffer ) ) );
+            }
+        }
+        finally
+        {
+            channel.position( initialPosition );
+        }
+    }
+
+    LogTailInformation checkpointTailInformation( long highestLogVersion, LogEntryStart latestStartEntry,
             long oldestVersionFound, LogEntryVersion latestLogEntryVersion, CheckPoint latestCheckPoint,
-            boolean corruptedTransactionLogs ) throws IOException
+            boolean corruptedTransactionLogs, StoreId storeId ) throws IOException
     {
         LogPosition checkPointLogPosition = latestCheckPoint.getLogPosition();
         ExtractedTransactionRecord transactionRecord = extractFirstTxIdAfterPosition( checkPointLogPosition, highestLogVersion );
@@ -188,7 +253,7 @@ public class LogTailScanner
                         (latestStartEntry.getStartPosition().compareTo( latestCheckPoint.getLogPosition() ) >= 0));
         boolean corruptedLogs = transactionRecord.isFailure() || corruptedTransactionLogs;
         return new LogTailInformation( latestCheckPoint, corruptedLogs || startRecordAfterCheckpoint,
-                firstTxIdAfterPosition, oldestVersionFound, highestLogVersion, latestLogEntryVersion );
+                firstTxIdAfterPosition, oldestVersionFound, highestLogVersion, latestLogEntryVersion, storeId );
     }
 
     /**
@@ -205,17 +270,17 @@ public class LogTailScanner
      */
     protected ExtractedTransactionRecord extractFirstTxIdAfterPosition( LogPosition initialPosition, long maxLogVersion ) throws IOException
     {
-        LogPosition currentPosition = initialPosition;
-        while ( currentPosition.getLogVersion() <= maxLogVersion )
+        long initialVersion = initialPosition.getLogVersion();
+        long logVersion = initialVersion;
+        while ( logVersion <= maxLogVersion )
         {
-            LogVersionedStoreChannel storeChannel = tryOpenStoreChannel( currentPosition );
-            if ( storeChannel != null )
+            if ( logFiles.versionExists( logVersion ) )
             {
-                try
+                LogPosition currentPosition = logVersion != initialVersion ? logFiles.extractHeader( logVersion ).getStartPosition() : initialPosition;
+                try ( LogVersionedStoreChannel storeChannel = logFiles.openForVersion( logVersion ) )
                 {
                     storeChannel.position( currentPosition.getByteOffset() );
-                    try ( ReadAheadLogChannel logChannel = new ReadAheadLogChannel( storeChannel );
-                            LogEntryCursor cursor = new LogEntryCursor( logEntryReader, logChannel ) )
+                    try ( LogEntryCursor cursor = new LogEntryCursor( logEntryReader, new ReadAheadLogChannel( storeChannel ) ) )
                     {
                         while ( cursor.next() )
                         {
@@ -232,13 +297,12 @@ public class LogTailScanner
                     monitor.corruptedLogFile( currentPosition.getLogVersion(), t );
                     return new ExtractedTransactionRecord( true );
                 }
-                finally
-                {
-                    storeChannel.close();
-                }
+                logVersion = currentPosition.getLogVersion() + 1;
             }
-
-            currentPosition = LogPosition.start( currentPosition.getLogVersion() + 1 );
+            else
+            {
+                logVersion += 1;
+            }
         }
         return new ExtractedTransactionRecord();
     }
@@ -271,16 +335,37 @@ public class LogTailScanner
         return logTailInformation;
     }
 
-    private PhysicalLogVersionedStoreChannel tryOpenStoreChannel( LogPosition currentPosition )
+    private static String dumpBufferToString( ByteBuffer byteBuffer )
     {
-        try
+        byte[] data = new byte[byteBuffer.limit()];
+        byteBuffer.get( data );
+        return Arrays.toString( data );
+    }
+
+    private static boolean isAllZerosBuffer( ByteBuffer byteBuffer )
+    {
+        if ( byteBuffer.hasArray() )
         {
-            return logFiles.openForVersion( currentPosition.getLogVersion() );
+            byte[] array = byteBuffer.array();
+            for ( byte b : array )
+            {
+                if ( b != 0 )
+                {
+                    return false;
+                }
+            }
         }
-        catch ( IOException e )
+        else
         {
-            return null;
+            while ( byteBuffer.hasRemaining() )
+            {
+                if ( byteBuffer.get() != 0 )
+                {
+                    return false;
+                }
+            }
         }
+        return true;
     }
 
     static class ExtractedTransactionRecord
@@ -322,24 +407,24 @@ public class LogTailScanner
 
     public static class LogTailInformation
     {
-
         public final CheckPoint lastCheckPoint;
         public final long firstTxIdAfterLastCheckPoint;
         public final long oldestLogVersionFound;
         public final long currentLogVersion;
         public final LogEntryVersion latestLogEntryVersion;
         private final boolean recordAfterCheckpoint;
+        public final StoreId lastStoreId; // StoreId of the transaction log that contains the checkpoint entry
 
         public LogTailInformation( boolean recordAfterCheckpoint, long firstTxIdAfterLastCheckPoint,
                 long oldestLogVersionFound, long currentLogVersion,
                 LogEntryVersion latestLogEntryVersion )
         {
             this( null, recordAfterCheckpoint, firstTxIdAfterLastCheckPoint, oldestLogVersionFound, currentLogVersion,
-                    latestLogEntryVersion );
+                    latestLogEntryVersion, StoreId.UNKNOWN );
         }
 
         LogTailInformation( CheckPoint lastCheckPoint, boolean recordAfterCheckpoint, long firstTxIdAfterLastCheckPoint,
-                long oldestLogVersionFound, long currentLogVersion, LogEntryVersion latestLogEntryVersion )
+                long oldestLogVersionFound, long currentLogVersion, LogEntryVersion latestLogEntryVersion, StoreId lastStoreId )
         {
             this.lastCheckPoint = lastCheckPoint;
             this.firstTxIdAfterLastCheckPoint = firstTxIdAfterLastCheckPoint;
@@ -347,12 +432,31 @@ public class LogTailScanner
             this.currentLogVersion = currentLogVersion;
             this.latestLogEntryVersion = latestLogEntryVersion;
             this.recordAfterCheckpoint = recordAfterCheckpoint;
+            this.lastStoreId = lastStoreId;
         }
 
         public boolean commitsAfterLastCheckpoint()
         {
             return recordAfterCheckpoint;
         }
-    }
 
+        boolean logsMissing()
+        {
+            return lastCheckPoint == null && oldestLogVersionFound == -1;
+        }
+
+        public boolean isRecoveryRequired()
+        {
+            return recordAfterCheckpoint || logsMissing();
+        }
+
+        @Override
+        public String toString()
+        {
+            return "LogTailInformation{" + "lastCheckPoint=" + lastCheckPoint + ", firstTxIdAfterLastCheckPoint=" + firstTxIdAfterLastCheckPoint +
+                    ", oldestLogVersionFound=" + oldestLogVersionFound + ", currentLogVersion=" + currentLogVersion + ", latestLogEntryVersion=" +
+                    latestLogEntryVersion + ", recordAfterCheckpoint=" + recordAfterCheckpoint + '}';
+        }
+
+    }
 }

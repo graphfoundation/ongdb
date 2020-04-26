@@ -22,7 +22,9 @@
  */
 package org.neo4j.server.helpers;
 
+import org.neo4j.graphdb.Transaction;
+
 public interface UnitOfWork
 {
-    void doWork();
+    void doWork( Transaction transaction );
 }

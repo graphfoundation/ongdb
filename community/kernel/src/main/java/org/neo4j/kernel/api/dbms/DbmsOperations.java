@@ -23,12 +23,13 @@
 package org.neo4j.kernel.api.dbms;
 
 import org.neo4j.collection.RawIterator;
-import org.neo4j.graphdb.DependencyResolver;
+import org.neo4j.common.DependencyResolver;
 import org.neo4j.internal.kernel.api.exceptions.ProcedureException;
-import org.neo4j.internal.kernel.api.procs.ProcedureCallContext;
-import org.neo4j.internal.kernel.api.procs.QualifiedName;
 import org.neo4j.internal.kernel.api.security.SecurityContext;
 import org.neo4j.kernel.api.ResourceTracker;
+import org.neo4j.kernel.impl.coreapi.InternalTransaction;
+import org.neo4j.values.AnyValue;
+import org.neo4j.values.ValueMapper;
 
 /**
  * Defines all types of system-oriented operations - i.e. those which do not read from or
@@ -37,11 +38,9 @@ import org.neo4j.kernel.api.ResourceTracker;
  */
 public interface DbmsOperations
 {
-    /** Invoke a DBMS procedure by name */
-    RawIterator<Object[],ProcedureException> procedureCallDbms( QualifiedName name, Object[] input, DependencyResolver dependencyResolver,
-            SecurityContext securityContext, ResourceTracker resourceTracker, ProcedureCallContext context ) throws ProcedureException;
-
     /** Invoke a DBMS procedure by id */
-    RawIterator<Object[],ProcedureException> procedureCallDbms( int id, Object[] input, DependencyResolver dependencyResolver, SecurityContext securityContext,
-            ResourceTracker resourceTracker, ProcedureCallContext context ) throws ProcedureException;
+    RawIterator<AnyValue[],ProcedureException> procedureCallDbms( int id, AnyValue[] input,
+            InternalTransaction internalTransaction,
+            DependencyResolver dependencyResolver, SecurityContext securityContext,
+            ResourceTracker resourceTracker, ValueMapper<Object> valueMapper ) throws ProcedureException;
 }

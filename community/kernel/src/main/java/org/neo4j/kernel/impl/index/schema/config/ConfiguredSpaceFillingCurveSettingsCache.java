@@ -25,7 +25,7 @@ package org.neo4j.kernel.impl.index.schema.config;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.neo4j.kernel.configuration.Config;
+import org.neo4j.configuration.Config;
 import org.neo4j.values.storable.CoordinateReferenceSystem;
 
 /**
@@ -36,17 +36,15 @@ import org.neo4j.values.storable.CoordinateReferenceSystem;
  */
 public class ConfiguredSpaceFillingCurveSettingsCache
 {
-    private final int maxBits;
     private final HashMap<CoordinateReferenceSystem,SpaceFillingCurveSettings> settings = new HashMap<>();
 
     public ConfiguredSpaceFillingCurveSettingsCache( Config config )
     {
-        this.maxBits = config.get( SpatialIndexSettings.space_filling_curve_max_bits );
         HashMap<CoordinateReferenceSystem,EnvelopeSettings> env = EnvelopeSettings.envelopeSettingsFromConfig( config );
         for ( Map.Entry<CoordinateReferenceSystem,EnvelopeSettings> entry : env.entrySet() )
         {
             CoordinateReferenceSystem crs = entry.getKey();
-            settings.put( crs, SpaceFillingCurveSettingsFactory.fromConfig( this.maxBits, entry.getValue() ) );
+            settings.put( crs, SpaceFillingCurveSettingsFactory.fromConfig( entry.getValue() ) );
         }
     }
 
@@ -66,7 +64,7 @@ public class ConfiguredSpaceFillingCurveSettingsCache
         }
         else
         {
-            return SpaceFillingCurveSettingsFactory.fromConfig( maxBits, new EnvelopeSettings( crs ) );
+            return SpaceFillingCurveSettingsFactory.fromConfig( new EnvelopeSettings( crs ) );
         }
     }
 }

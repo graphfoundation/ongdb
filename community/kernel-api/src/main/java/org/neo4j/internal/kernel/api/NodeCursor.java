@@ -31,6 +31,8 @@ public interface NodeCursor extends Cursor
 
     LabelSet labels();
 
+    LabelSet labelsIgnoringTxStateSetRemove();
+
     boolean hasLabel( int label );
 
     void relationships( RelationshipGroupCursor cursor );

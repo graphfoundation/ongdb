@@ -22,39 +22,41 @@
  */
 package org.neo4j.kernel.impl.index.schema;
 
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.Arrays;
-import java.util.HashMap;
 
+import org.neo4j.configuration.Config;
 import org.neo4j.index.internal.gbptree.Layout;
-import org.neo4j.kernel.configuration.Config;
-import org.neo4j.kernel.impl.index.schema.config.ConfiguredSpaceFillingCurveSettingsCache;
-import org.neo4j.kernel.impl.index.schema.config.IndexSpecificSpaceFillingCurveSettingsCache;
+import org.neo4j.kernel.impl.index.schema.config.IndexSpecificSpaceFillingCurveSettings;
+import org.neo4j.test.extension.Inject;
+import org.neo4j.test.extension.RandomExtension;
 import org.neo4j.test.rule.RandomRule;
 import org.neo4j.values.storable.Value;
 
 import static java.lang.String.format;
 import static org.hamcrest.CoreMatchers.containsString;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.neo4j.values.storable.DateValue.epochDate;
 import static org.neo4j.values.storable.Values.intValue;
 import static org.neo4j.values.storable.Values.stringValue;
 
-public class GenericIndexKeyValidatorTest
+
+@ExtendWith( RandomExtension.class )
+class GenericIndexKeyValidatorTest
 {
-    @Rule
-    public final RandomRule random = new RandomRule();
+    @Inject
+    private RandomRule random;
 
     @Test
-    public void shouldNotBotherSerializingToRealBytesIfFarFromThreshold()
+    void shouldNotBotherSerializingToRealBytesIfFarFromThreshold()
     {
         // given
         Layout<GenericKey,NativeIndexValue> layout = mock( Layout.class );
@@ -68,7 +70,7 @@ public class GenericIndexKeyValidatorTest
     }
 
     @Test
-    public void shouldInvolveSerializingToRealBytesIfMayCrossThreshold()
+    void shouldInvolveSerializingToRealBytesIfMayCrossThreshold()
     {
         // given
         Layout<GenericKey,NativeIndexValue> layout = mock( Layout.class );
@@ -76,21 +78,14 @@ public class GenericIndexKeyValidatorTest
         GenericIndexKeyValidator validator = new GenericIndexKeyValidator( 48, layout );
 
         // when
-        try
-        {
-            validator.validate( new Value[]{intValue( 10 ), epochDate( 100 ), stringValue( "abcdefghijklmnopqrstuvw" )} );
-            fail( "Should have failed" );
-        }
-        catch ( IllegalArgumentException e )
-        {
-            // then good
-            assertThat( e.getMessage(), containsString( "abcdefghijklmnopqrstuvw" ) );
-            verify( layout, times( 1 ) ).newKey();
-        }
+        var e = assertThrows( IllegalArgumentException.class,
+                () -> validator.validate( new Value[]{intValue( 10 ), epochDate( 100 ), stringValue( "abcdefghijklmnopqrstuvw" )} ) );
+        assertThat( e.getMessage(), containsString( "abcdefghijklmnopqrstuvw" ) );
+        verify( layout ).newKey();
     }
 
     @Test
-    public void shouldReportCorrectValidationErrorsOnRandomlyGeneratedValues()
+    void shouldReportCorrectValidationErrorsOnRandomlyGeneratedValues()
     {
         // given
         int slots = random.nextInt( 1, 6 );
@@ -129,10 +124,9 @@ public class GenericIndexKeyValidatorTest
         }
     }
 
-    private IndexSpecificSpaceFillingCurveSettingsCache spatialSettings()
+    private static IndexSpecificSpaceFillingCurveSettings spatialSettings()
     {
-        return new IndexSpecificSpaceFillingCurveSettingsCache(
-                new ConfiguredSpaceFillingCurveSettingsCache( Config.defaults() ), new HashMap<>() );
+        return IndexSpecificSpaceFillingCurveSettings.fromConfig( Config.defaults() );
     }
 
     private static int actualSize( Value[] tuple, GenericKey key )

@@ -30,22 +30,20 @@ import org.junit.runners.Suite;
 import org.neo4j.consistency.report.ConsistencyReport;
 import org.neo4j.kernel.impl.store.PropertyType;
 import org.neo4j.kernel.impl.store.RecordStore;
-import org.neo4j.kernel.impl.store.SchemaStore;
 import org.neo4j.kernel.impl.store.format.standard.DynamicRecordFormat;
 import org.neo4j.kernel.impl.store.record.DynamicRecord;
 
 import static org.junit.Assert.assertEquals;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
-import static org.neo4j.consistency.store.RecordAccessStub.SCHEMA_RECORD_TYPE;
 
 @RunWith( Suite.class )
 @Suite.SuiteClasses( {
         DynamicRecordCheckTest.StringDynamicRecordCheckTest.class,
         DynamicRecordCheckTest.ArrayDynamicRecordCheckTest.class,
-        DynamicRecordCheckTest.SchemaDynamicRecordCheckTest.class
 } )
 public abstract class DynamicRecordCheckTest
         extends RecordCheckTestBase<DynamicRecord,ConsistencyReport.DynamicConsistencyReport,DynamicRecordCheck>
@@ -126,7 +124,7 @@ public abstract class DynamicRecordCheckTest
         ConsistencyReport.DynamicConsistencyReport report = check( property );
 
         // then
-        verify( report ).selfReferentialNext();
+        verify( report ).circularReferenceNext( any() );
         verifyNoMoreInteractions( report );
     }
 
@@ -257,31 +255,6 @@ public abstract class DynamicRecordCheckTest
         DynamicRecord record( long id )
         {
             return array( new DynamicRecord( id ) );
-        }
-
-        @Override
-        DynamicRecord fill( DynamicRecord record, int size )
-        {
-            record.setLength( size );
-            return record;
-        }
-    }
-
-    @RunWith( JUnit4.class )
-    public static class SchemaDynamicRecordCheckTest extends DynamicRecordCheckTest
-    {
-        public SchemaDynamicRecordCheckTest()
-        {
-            super( new DynamicRecordCheck( configureDynamicStore( SchemaStore.BLOCK_SIZE ), DynamicStore.SCHEMA ),
-                   SchemaStore.BLOCK_SIZE );
-        }
-
-        @Override
-        DynamicRecord record( long id )
-        {
-            DynamicRecord result = new DynamicRecord( id );
-            result.setType( SCHEMA_RECORD_TYPE );
-            return result;
         }
 
         @Override

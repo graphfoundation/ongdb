@@ -22,11 +22,10 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
-import org.neo4j.cypher.InternalException
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
-import org.neo4j.cypher.internal.v3_6.util.attribution.Id
-import org.neo4j.cypher.internal.v3_6.expressions.SemanticDirection
-import org.neo4j.values.storable.Values
+import org.neo4j.cypher.internal.runtime.{ExecutionContext, IsNoValue}
+import org.neo4j.cypher.internal.v4_0.expressions.SemanticDirection
+import org.neo4j.cypher.internal.v4_0.util.attribution.Id
+import org.neo4j.exceptions.{InternalException, ParameterWrongTypeException}
 import org.neo4j.values.virtual.NodeValue
 
 /**
@@ -43,7 +42,7 @@ case class ExpandIntoPipe(source: Pipe,
                           relName: String,
                           toName: String,
                           dir: SemanticDirection,
-                          lazyTypes: LazyTypes)
+                          lazyTypes: RelationshipTypes)
                           (val id: Id = Id.INVALID_ID)
   extends PipeWithSource(source) with CachingExpandInto {
   self =>
@@ -51,7 +50,7 @@ case class ExpandIntoPipe(source: Pipe,
 
   protected def internalCreateResults(input: Iterator[ExecutionContext], state: QueryState): Iterator[ExecutionContext] = {
     //cache of known connected nodes
-    val relCache = new RelationshipsCache(CACHE_SIZE)
+    val relCache = new RelationshipsCache(CACHE_SIZE, state.memoryTracker)
 
     input.flatMap {
       row =>
@@ -60,18 +59,18 @@ case class ExpandIntoPipe(source: Pipe,
           case fromNode: NodeValue =>
             val toNode = getRowNode(row, toName)
             toNode match {
-              case Values.NO_VALUE => Iterator.empty
+              case IsNoValue() => Iterator.empty
               case n: NodeValue =>
 
                 val relationships = relCache.get(fromNode, n, dir)
-                  .getOrElse(findRelationships(state.query, fromNode, n, relCache, dir, lazyTypes.types(state.query)))
+                  .getOrElse(findRelationships(state, fromNode, n, relCache, dir, lazyTypes.types(state.query)))
 
                 if (relationships.isEmpty) Iterator.empty
                 else relationships.map(r => executionContextFactory.copyWith(row, relName, r))
-              case _ => throw new InternalException(s"$toNode must be node or null")
+              case value => throw new ParameterWrongTypeException(s"Expected to find a node at '$fromName' but found $value instead")
             }
 
-          case Values.NO_VALUE => Iterator.empty
+          case IsNoValue() => Iterator.empty
         }
     }
   }

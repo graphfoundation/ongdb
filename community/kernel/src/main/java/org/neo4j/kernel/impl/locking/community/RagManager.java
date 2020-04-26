@@ -101,7 +101,7 @@ public class RagManager
         {
             throw new LockException( tx + "not found in locking tx list" );
         }
-        if ( lockingTxList.size() == 0 )
+        if ( lockingTxList.isEmpty() )
         {
             resourceMap.remove( resource );
         }

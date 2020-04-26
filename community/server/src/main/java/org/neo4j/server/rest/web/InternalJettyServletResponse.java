@@ -42,7 +42,7 @@ import javax.servlet.http.Cookie;
 public class InternalJettyServletResponse extends Response
 {
 
-    private class Output extends ServletOutputStream
+    private static class Output extends ServletOutputStream
     {
 
         private final ByteArrayOutputStream baos = new ByteArrayOutputStream();

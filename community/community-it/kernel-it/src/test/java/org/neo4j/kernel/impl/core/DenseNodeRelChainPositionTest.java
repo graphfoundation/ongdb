@@ -22,25 +22,26 @@
  */
 package org.neo4j.kernel.impl.core;
 
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
+import org.neo4j.configuration.GraphDatabaseSettings;
 import org.neo4j.graphdb.Direction;
+import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Relationship;
 import org.neo4j.graphdb.RelationshipType;
 import org.neo4j.graphdb.Transaction;
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
-import org.neo4j.helpers.collection.Iterables;
-import org.neo4j.test.rule.DatabaseRule;
-import org.neo4j.test.rule.ImpermanentDatabaseRule;
+import org.neo4j.internal.helpers.collection.Iterables;
+import org.neo4j.test.extension.ImpermanentDbmsExtension;
+import org.neo4j.test.extension.Inject;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
-public class DenseNodeRelChainPositionTest
+@ImpermanentDbmsExtension
+class DenseNodeRelChainPositionTest
 {
-    @Rule
-    public final DatabaseRule db = new ImpermanentDatabaseRule();
+    @Inject
+    private GraphDatabaseService db;
 
     /*
      * Tests for a particular bug with dense nodes. It used to be that if a dense node had relationships
@@ -48,31 +49,30 @@ public class DenseNodeRelChainPositionTest
      * would be returned, ever.
      */
     @Test
-    public void givenDenseNodeWhenAskForWrongDirectionThenIncorrectNrOfRelsReturned()
+    void givenDenseNodeWhenAskForWrongDirectionThenIncorrectNrOfRelsReturned()
     {
         // Given
         final int denseNodeThreshold =
-                Integer.parseInt( GraphDatabaseSettings.dense_node_threshold.getDefaultValue() )
-                + 1 // We must be over the dense node threshold for the bug to manifest
-                ;
+                GraphDatabaseSettings.dense_node_threshold.defaultValue()
+                + 1; // We must be over the dense node threshold for the bug to manifest
 
         Node node1;
         try ( Transaction tx = db.beginTx() )
         {
-            node1 = db.createNode();
-            Node node2 = db.createNode();
+            node1 = tx.createNode();
+            Node node2 = tx.createNode();
 
             for ( int i = 0; i < denseNodeThreshold; i++ )
             {
                 node1.createRelationshipTo( node2, RelationshipType.withName( "FOO" ) );
             }
-            tx.success();
+            tx.commit();
         }
 
         // When/Then
-        try ( Transaction ignored = db.beginTx() )
+        try ( Transaction tx = db.beginTx() )
         {
-            Node node1b = db.getNodeById( node1.getId() );
+            Node node1b = tx.getNodeById( node1.getId() );
 
             Iterable<Relationship> rels = node1b.getRelationships( Direction.INCOMING );
             assertEquals( 0, Iterables.count( rels ) );

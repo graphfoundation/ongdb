@@ -25,53 +25,55 @@ package org.neo4j.kernel.impl.api;
 import org.eclipse.collections.api.map.primitive.MutableLongObjectMap;
 import org.eclipse.collections.api.set.primitive.MutableLongSet;
 import org.eclipse.collections.impl.map.mutable.primitive.LongObjectHashMap;
-import org.junit.Before;
+import org.junit.jupiter.api.BeforeEach;
 import org.mockito.Mockito;
 
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
+import org.neo4j.collection.Dependencies;
 import org.neo4j.collection.pool.Pool;
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
-import org.neo4j.internal.kernel.api.Transaction.Type;
+import org.neo4j.configuration.Config;
+import org.neo4j.configuration.GraphDatabaseSettings;
+import org.neo4j.internal.index.label.LabelScanStore;
 import org.neo4j.internal.kernel.api.security.LoginContext;
 import org.neo4j.internal.kernel.api.security.SecurityContext;
+import org.neo4j.internal.schema.SchemaState;
 import org.neo4j.io.pagecache.tracing.cursor.PageCursorTracerSupplier;
 import org.neo4j.io.pagecache.tracing.cursor.context.EmptyVersionContextSupplier;
-import org.neo4j.kernel.api.explicitindex.AutoIndexing;
-import org.neo4j.kernel.api.txstate.ExplicitIndexTransactionState;
-import org.neo4j.kernel.api.txstate.auxiliary.AuxiliaryTransactionStateManager;
-import org.neo4j.kernel.configuration.Config;
+import org.neo4j.kernel.api.KernelTransaction;
+import org.neo4j.kernel.availability.AvailabilityGuard;
+import org.neo4j.kernel.database.TestDatabaseIdRepository;
 import org.neo4j.kernel.impl.api.index.IndexingService;
+import org.neo4j.kernel.impl.api.index.stats.IndexStatisticsStore;
 import org.neo4j.kernel.impl.constraints.StandardConstraintSemantics;
 import org.neo4j.kernel.impl.factory.CanWrite;
-import org.neo4j.kernel.impl.index.ExplicitIndexStore;
+import org.neo4j.kernel.impl.factory.GraphDatabaseFacade;
 import org.neo4j.kernel.impl.locking.Locks;
 import org.neo4j.kernel.impl.locking.NoOpClient;
 import org.neo4j.kernel.impl.locking.SimpleStatementLocks;
 import org.neo4j.kernel.impl.locking.StatementLocks;
-import org.neo4j.kernel.impl.store.MetaDataStore;
-import org.neo4j.kernel.impl.store.NeoStores;
-import org.neo4j.kernel.impl.transaction.TransactionHeaderInformationFactory;
 import org.neo4j.kernel.impl.transaction.TransactionMonitor;
 import org.neo4j.kernel.impl.transaction.TransactionRepresentation;
-import org.neo4j.kernel.impl.transaction.command.Command;
-import org.neo4j.kernel.impl.transaction.log.TransactionIdStore;
 import org.neo4j.kernel.impl.transaction.tracing.CommitEvent;
 import org.neo4j.kernel.impl.transaction.tracing.TransactionTracer;
-import org.neo4j.kernel.impl.util.Dependencies;
 import org.neo4j.kernel.impl.util.collection.CollectionsFactory;
 import org.neo4j.kernel.impl.util.collection.OnHeapCollectionsFactory;
 import org.neo4j.kernel.impl.util.diffsets.MutableLongDiffSetsImpl;
+import org.neo4j.kernel.internal.event.DatabaseTransactionEventListeners;
+import org.neo4j.lock.LockTracer;
+import org.neo4j.lock.ResourceLocker;
 import org.neo4j.memory.MemoryTracker;
 import org.neo4j.resources.CpuClock;
 import org.neo4j.resources.HeapAllocation;
+import org.neo4j.storageengine.api.CommandCreationContext;
 import org.neo4j.storageengine.api.StorageCommand;
 import org.neo4j.storageengine.api.StorageEngine;
 import org.neo4j.storageengine.api.StorageReader;
 import org.neo4j.storageengine.api.TransactionApplicationMode;
-import org.neo4j.storageengine.api.lock.LockTracer;
-import org.neo4j.storageengine.api.lock.ResourceLocker;
+import org.neo4j.storageengine.api.TransactionIdStore;
 import org.neo4j.storageengine.api.txstate.ReadableTransactionState;
 import org.neo4j.storageengine.api.txstate.TxStateVisitor;
 import org.neo4j.time.Clocks;
@@ -84,45 +86,44 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
+import static org.neo4j.internal.kernel.api.connectioninfo.ClientConnectionInfo.EMBEDDED_CONNECTION;
 import static org.neo4j.internal.kernel.api.security.LoginContext.AUTH_DISABLED;
-import static org.neo4j.kernel.impl.transaction.log.TransactionIdStore.BASE_TX_COMMIT_TIMESTAMP;
-import static org.neo4j.test.MockedNeoStores.mockedTokenHolders;
+import static org.neo4j.storageengine.api.TransactionIdStore.BASE_TX_COMMIT_TIMESTAMP;
+import static org.neo4j.test.rule.DatabaseRule.mockedTokenHolders;
 
-public class KernelTransactionTestBase
+class KernelTransactionTestBase
 {
     protected final StorageEngine storageEngine = mock( StorageEngine.class );
-    protected final NeoStores neoStores = mock( NeoStores.class );
-    protected final MetaDataStore metaDataStore = mock( MetaDataStore.class );
-    protected final StorageReader readLayer = mock( StorageReader.class );
-    protected final TransactionHooks hooks = new TransactionHooks();
-    protected final AuxiliaryTransactionStateManager auxTxStateManager = new KernelAuxTransactionStateManager();
-    protected final ExplicitIndexTransactionState explicitIndexState = mock( ExplicitIndexTransactionState.class );
+    protected final StorageReader storageReader = mock( StorageReader.class );
+    protected final TransactionIdStore transactionIdStore = mock( TransactionIdStore.class );
+    protected final CommandCreationContext commandCreationContext = mock( CommandCreationContext.class );
     protected final TransactionMonitor transactionMonitor = mock( TransactionMonitor.class );
     protected final CapturingCommitProcess commitProcess = new CapturingCommitProcess();
     protected final TransactionHeaderInformation headerInformation = mock( TransactionHeaderInformation.class );
-    protected final TransactionHeaderInformationFactory headerInformationFactory =  mock( TransactionHeaderInformationFactory.class );
-    protected final SchemaWriteGuard schemaWriteGuard = mock( SchemaWriteGuard.class );
+    protected final AvailabilityGuard availabilityGuard = mock( AvailabilityGuard.class );
     protected final FakeClock clock = Clocks.fakeClock();
     protected final Pool<KernelTransactionImplementation> txPool = mock( Pool.class );
-    protected final StatementOperationParts statementOperations = mock( StatementOperationParts.class );
     protected CollectionsFactory collectionsFactory;
 
-    private final long defaultTransactionTimeoutMillis = Config.defaults().get( GraphDatabaseSettings.transaction_timeout ).toMillis();
+    protected final Config config = Config.defaults();
+    private final long defaultTransactionTimeoutMillis = config.get( GraphDatabaseSettings.transaction_timeout ).toMillis();
 
-    @Before
+    @BeforeEach
     public void before() throws Exception
     {
         collectionsFactory = Mockito.spy( new TestCollectionsFactory() );
         when( headerInformation.getAdditionalHeader() ).thenReturn( new byte[0] );
-        when( headerInformationFactory.create() ).thenReturn( headerInformation );
-        when( neoStores.getMetaDataStore() ).thenReturn( metaDataStore );
-        when( storageEngine.newReader() ).thenReturn( readLayer );
-        doAnswer( invocation -> ((Collection<StorageCommand>) invocation.getArgument(0) ).add( new Command
-                .RelationshipCountsCommand( 1, 2,3, 4L ) ) )
+        when( storageEngine.newReader() ).thenReturn( storageReader );
+        when( storageEngine.newCommandCreationContext() ).thenReturn( commandCreationContext );
+        when( storageEngine.transactionIdStore() ).thenReturn( transactionIdStore );
+        doAnswer( invocation -> ((Collection<StorageCommand>) invocation.getArgument(0) ).add( new TestCommand() ) )
             .when( storageEngine ).createCommands(
                     anyCollection(),
                     any( ReadableTransactionState.class ),
-                    any( StorageReader.class ), any( ResourceLocker.class ),
+                    any( StorageReader.class ),
+                    any( CommandCreationContext.class ),
+                    any( ResourceLocker.class ),
                     anyLong(),
                     any( TxStateVisitor.Decorator.class ) );
     }
@@ -158,38 +159,46 @@ public class KernelTransactionTestBase
     {
         KernelTransactionImplementation tx = newNotInitializedTransaction();
         StatementLocks statementLocks = new SimpleStatementLocks( locks );
-        SecurityContext securityContext = loginContext.authorize( s -> -1, GraphDatabaseSettings.DEFAULT_DATABASE_NAME );
-        tx.initialize( lastTransactionIdWhenStarted, BASE_TX_COMMIT_TIMESTAMP,statementLocks, Type.implicit,
-                securityContext, transactionTimeout, 1L );
+        SecurityContext securityContext = loginContext.authorize( LoginContext.IdLookup.EMPTY, DEFAULT_DATABASE_NAME );
+        tx.initialize( lastTransactionIdWhenStarted, BASE_TX_COMMIT_TIMESTAMP, statementLocks, KernelTransaction.Type.explicit,
+                securityContext, transactionTimeout, 1L, EMBEDDED_CONNECTION );
         return tx;
     }
 
-    public KernelTransactionImplementation newNotInitializedTransaction()
+    KernelTransactionImplementation newNotInitializedTransaction()
     {
-        return new KernelTransactionImplementation( Config.defaults(), statementOperations, schemaWriteGuard, hooks, null, null, headerInformationFactory,
-                commitProcess, transactionMonitor, auxTxStateManager, txPool, clock, new AtomicReference<>( CpuClock.NOT_AVAILABLE ),
-                new AtomicReference<>( HeapAllocation.NOT_AVAILABLE ), TransactionTracer.NULL, LockTracer.NONE, PageCursorTracerSupplier.NULL, storageEngine,
-                new CanWrite(), AutoIndexing.UNSUPPORTED, mock( ExplicitIndexStore.class ), EmptyVersionContextSupplier.EMPTY, () -> collectionsFactory,
-                new StandardConstraintSemantics(), mock( SchemaState.class ), mock( IndexingService.class ), mockedTokenHolders(), new Dependencies() );
+        return newNotInitializedTransaction( LeaseService.NO_LEASES );
     }
 
-    public class CapturingCommitProcess implements TransactionCommitProcess
+    KernelTransactionImplementation newNotInitializedTransaction( LeaseService leaseService )
+    {
+        Dependencies dependencies = new Dependencies();
+        dependencies.satisfyDependency( mock( GraphDatabaseFacade.class ) );
+        return new KernelTransactionImplementation( config, mock( DatabaseTransactionEventListeners.class ),
+                null, null,
+                commitProcess, transactionMonitor, txPool, clock, new AtomicReference<>( CpuClock.NOT_AVAILABLE ),
+                new AtomicReference<>( HeapAllocation.NOT_AVAILABLE ), TransactionTracer.NULL, LockTracer.NONE, PageCursorTracerSupplier.NULL, storageEngine,
+                new CanWrite(), EmptyVersionContextSupplier.EMPTY, () -> collectionsFactory,
+                new StandardConstraintSemantics(), mock( SchemaState.class ), mockedTokenHolders(),
+                mock( IndexingService.class ), mock( LabelScanStore.class ), mock( IndexStatisticsStore.class ), dependencies,
+                new TestDatabaseIdRepository().defaultDatabase(), leaseService );
+    }
+
+    public static class CapturingCommitProcess implements TransactionCommitProcess
     {
         private long txId = TransactionIdStore.BASE_TX_ID;
-        public TransactionRepresentation transaction;
+        public List<TransactionRepresentation> transactions = new ArrayList<>();
 
         @Override
         public long commit( TransactionToApply batch, CommitEvent commitEvent,
                             TransactionApplicationMode mode )
         {
-            assert transaction == null : "Designed to only allow one transaction";
-            assert batch.next() == null : "Designed to only allow one transaction";
-            transaction = batch.transactionRepresentation();
+            transactions.add( batch.transactionRepresentation() );
             return ++txId;
         }
     }
 
-    private class TestCollectionsFactory implements CollectionsFactory
+    private static class TestCollectionsFactory implements CollectionsFactory
     {
 
         @Override

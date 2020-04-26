@@ -22,7 +22,7 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.commands.values
 
-import org.neo4j.cypher.internal.planner.v3_6.spi.TokenContext
+import org.neo4j.cypher.internal.planner.spi.TokenContext
 import org.neo4j.cypher.internal.runtime.QueryContext
 
 object TokenType extends Enumeration {

@@ -22,6 +22,9 @@
  */
 package org.neo4j.graphdb.schema;
 
+import java.util.Map;
+
+import org.neo4j.annotations.api.PublicApi;
 import org.neo4j.graphdb.ConstraintViolationException;
 import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.Node;
@@ -36,6 +39,7 @@ import org.neo4j.graphdb.Node;
  *
  * @see Schema
  */
+@PublicApi
 public interface IndexCreator
 {
     /**
@@ -57,6 +61,27 @@ public interface IndexCreator
      * @return an {@link IndexCreator} instance to be used for further interaction.
      */
     IndexCreator withName( String indexName );
+
+    /**
+     * Specify the type of index to be created.
+     * <p>
+     * By default, the {@link IndexType#BTREE} will be used.
+     * See the documentation on {@link IndexType} for more information about the different index types.
+     *
+     * @param type the desired index type.
+     * @return an {@link IndexCreator} instance to be used for further interaction.
+     */
+    IndexCreator withIndexType( IndexType type );
+
+    /**
+     * Set index-specific index configurations.
+     * <p>
+     * This call will override the settings from any previous call to this method.
+     *
+     * @param indexConfiguration The index settings in the index configuration that differ from their defaults.
+     * @return an {@link IndexCreator} instance to be used for further interaction.
+     */
+    IndexCreator withIndexConfiguration( Map<IndexSetting,Object> indexConfiguration );
 
     /**
      * Creates an index with the details specified by the other methods in this interface.

@@ -23,7 +23,6 @@
 package org.neo4j.kernel.api.index;
 
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 
 import java.util.ArrayList;
@@ -35,15 +34,15 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
-import org.neo4j.internal.kernel.api.IndexOrder;
+import org.neo4j.annotations.documented.ReporterFactories;
+import org.neo4j.configuration.Config;
 import org.neo4j.internal.kernel.api.IndexQuery;
+import org.neo4j.internal.schema.IndexOrder;
+import org.neo4j.internal.schema.IndexPrototype;
 import org.neo4j.kernel.api.exceptions.index.IndexEntryConflictException;
-import org.neo4j.kernel.configuration.Config;
-import org.neo4j.kernel.impl.annotations.ReporterFactories;
+import org.neo4j.kernel.impl.api.index.IndexSamplingConfig;
 import org.neo4j.kernel.impl.api.index.IndexUpdateMode;
-import org.neo4j.kernel.impl.api.index.sampling.IndexSamplingConfig;
-import org.neo4j.storageengine.api.schema.IndexDescriptor;
-import org.neo4j.storageengine.api.schema.IndexReader;
+import org.neo4j.storageengine.api.IndexEntryUpdate;
 import org.neo4j.storageengine.api.schema.SimpleNodeValueClient;
 import org.neo4j.values.storable.RandomValues;
 import org.neo4j.values.storable.Value;
@@ -54,17 +53,19 @@ import org.neo4j.values.storable.Values;
 
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.junit.Assert.assertThat;
-import static org.neo4j.kernel.impl.index.schema.ByteBufferFactory.heapBufferFactory;
+import static org.junit.Assert.fail;
+import static org.neo4j.internal.kernel.api.QueryContext.NULL_CONTEXT;
+import static org.neo4j.io.memory.ByteBufferFactory.heapBufferFactory;
 
 public abstract class IndexAccessorCompatibility extends IndexProviderCompatibilityTestSuite.Compatibility
 {
-    protected IndexAccessor accessor;
+    IndexAccessor accessor;
     // This map is for spatial values, so that the #query method can lookup the values for the results and filter properly
     private Map<Long,Value[]> committedValues = new HashMap<>();
 
-    public IndexAccessorCompatibility( IndexProviderCompatibilityTestSuite testSuite, IndexDescriptor descriptor )
+    IndexAccessorCompatibility( IndexProviderCompatibilityTestSuite testSuite, IndexPrototype prototype )
     {
-        super( testSuite, descriptor );
+        super( testSuite, prototype );
     }
 
     @Before
@@ -115,10 +116,10 @@ public abstract class IndexAccessorCompatibility extends IndexProviderCompatibil
 
     protected List<Long> query( IndexQuery... predicates ) throws Exception
     {
-        try ( IndexReader reader = accessor.newReader(); )
+        try ( IndexReader reader = accessor.newReader() )
         {
             SimpleNodeValueClient nodeValueClient = new SimpleNodeValueClient();
-            reader.query( nodeValueClient, IndexOrder.NONE, false, predicates );
+            reader.query( NULL_CONTEXT, nodeValueClient, IndexOrder.NONE, false, predicates );
             List<Long> list = new LinkedList<>();
             while ( nodeValueClient.next() )
             {
@@ -136,7 +137,7 @@ public abstract class IndexAccessorCompatibility extends IndexProviderCompatibil
     protected AutoCloseable query( SimpleNodeValueClient client, IndexOrder order, IndexQuery... predicates ) throws Exception
     {
         IndexReader reader = accessor.newReader();
-        reader.query( client, order, false, predicates );
+        reader.query( NULL_CONTEXT, client, order, false, predicates );
         return reader;
     }
 
@@ -179,7 +180,7 @@ public abstract class IndexAccessorCompatibility extends IndexProviderCompatibil
             }
             else
             {
-                Assert.fail( "Unexpected order " + order );
+                fail( "Unexpected order " + order + " (count = " + count + ")" );
             }
             prevValues = values;
         }
@@ -193,7 +194,7 @@ public abstract class IndexAccessorCompatibility extends IndexProviderCompatibil
         {
             categories[i] = predicates[i].valueGroup().category();
         }
-        return indexProvider.getCapability( descriptor ).orderCapability( categories );
+        return descriptor.getCapability().orderCapability( categories );
     }
 
     private void assertLessThanOrEqualTo( Value[] o1, Value[] o2 )

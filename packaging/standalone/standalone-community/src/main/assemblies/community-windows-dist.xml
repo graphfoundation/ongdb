@@ -51,7 +51,6 @@
       <outputDirectory/>
       <includes>
         <include>**/*.exe</include>
-        <include>**/2.x-config-migrator.jar</include>
       </includes>
     </fileSet>
     <!-- filter text files -->
@@ -66,7 +65,6 @@
         <include>**/*.ps1</include>
       </includes>
       <excludes>
-        <exclude>**/ongdb-backup*</exclude>
         <exclude>**/*.m4</exclude>
       </excludes>
       <filtered>true</filtered>
@@ -87,6 +85,18 @@
         <include>**/*.jar</include>
       </includes>
     </fileSet>
+    <!-- TODO: temporary workaround for browser dependency -->
+    <fileSet>
+      <directory>${project.parent.basedir}/src/main/distribution/neo4j-browser-flat</directory>
+      <outputDirectory>./lib</outputDirectory>
+      <includes>
+        <include>**/*.jar</include>
+      </includes>
+      <excludes>
+        <exclude>**/*-sources.jar</exclude>
+        <exclude>**/*-tests.jar</exclude>
+      </excludes>
+    </fileSet>
   </fileSets>
 
   <dependencySets>
@@ -96,7 +106,6 @@
       <useProjectArtifact>false</useProjectArtifact>
       <useStrictFiltering>true</useStrictFiltering>
       <includes>
-        <include>org.graphfoundation.ongdb:*</include>
         <include>org.neo4j:*</include>
         <include>org.apache.lucene:lucene-core</include>
         <include>org.apache.lucene:lucene-analyzers-common</include>
@@ -104,8 +113,6 @@
         <include>org.apache.lucene:lucene-codecs</include>
         <include>org.scala-lang:*</include>
         <include>org.parboiled:*</include>
-        <include>com.googlecode.concurrentlinkedhashmap:concurrentlinkedhashmap-lru</include>
-        <include>net.sf.opencsv:opencsv</include>
         <include>org.apache.commons:commons-lang3</include>
       </includes>
       <excludes>
@@ -118,13 +125,10 @@
       <useProjectArtifact>false</useProjectArtifact>
       <useStrictFiltering>true</useStrictFiltering>
       <excludes>
-        <exclude>org.graphfoundation.ongdb:*</exclude>
         <exclude>org.neo4j:*</exclude>
         <exclude>org.apache.lucene:*</exclude>
         <exclude>org.scala-lang:*</exclude>
         <exclude>org.parboiled:*</exclude>
-        <exclude>com.googlecode.concurrentlinkedhashmap:concurrentlinkedhashmap-lru</exclude>
-        <exclude>net.sf.opencsv:opencsv</exclude>
         <exclude>org.apache.commons:commons-lang3</exclude>
         <exclude>org.ow2.asm:*</exclude>
       </excludes>

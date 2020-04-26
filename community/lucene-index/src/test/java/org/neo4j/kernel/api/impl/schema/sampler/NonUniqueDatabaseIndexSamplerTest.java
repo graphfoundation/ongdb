@@ -22,34 +22,26 @@
  */
 package org.neo4j.kernel.api.impl.schema.sampler;
 
-import org.apache.lucene.document.Document;
 import org.apache.lucene.index.Fields;
 import org.apache.lucene.index.Terms;
 import org.apache.lucene.index.TermsEnum;
 import org.apache.lucene.search.IndexSearcher;
-import org.apache.lucene.store.RAMDirectory;
 import org.apache.lucene.util.BytesRef;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-import org.neo4j.helpers.TaskCoordinator;
-import org.neo4j.helpers.collection.MapUtil;
+import org.neo4j.configuration.Config;
+import org.neo4j.internal.helpers.collection.MapUtil;
 import org.neo4j.internal.kernel.api.exceptions.schema.IndexNotFoundKernelException;
 import org.neo4j.kernel.api.impl.index.IndexReaderStub;
-import org.neo4j.kernel.api.impl.index.IndexWriterConfigs;
-import org.neo4j.kernel.api.impl.index.partition.PartitionSearcher;
-import org.neo4j.kernel.api.impl.index.partition.WritableIndexPartition;
-import org.neo4j.kernel.api.impl.schema.LuceneDocumentStructure;
-import org.neo4j.kernel.configuration.Config;
-import org.neo4j.kernel.impl.api.index.sampling.IndexSamplingConfig;
-import org.neo4j.storageengine.api.schema.IndexSample;
-import org.neo4j.values.storable.Values;
+import org.neo4j.kernel.api.impl.schema.TaskCoordinator;
+import org.neo4j.kernel.api.index.IndexSample;
+import org.neo4j.kernel.impl.api.index.IndexSamplingConfig;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -90,28 +82,6 @@ class NonUniqueDatabaseIndexSamplerTest
         assertEquals( new IndexSample( 4, 2, 4 ), createSampler().sampleIndex() );
     }
 
-    @Test
-    void samplingOfLargeNumericValues() throws Exception
-    {
-        try ( RAMDirectory dir = new RAMDirectory();
-              WritableIndexPartition indexPartition = new WritableIndexPartition( new File( "testPartition" ), dir,
-                      IndexWriterConfigs.standard() ) )
-        {
-            insertDocument( indexPartition, 1, Long.MAX_VALUE );
-            insertDocument( indexPartition, 2, Integer.MAX_VALUE );
-
-            indexPartition.maybeRefreshBlocking();
-
-            try ( PartitionSearcher searcher = indexPartition.acquireSearcher() )
-            {
-                NonUniqueLuceneIndexSampler sampler = new NonUniqueLuceneIndexSampler( searcher.getIndexSearcher(),
-                        taskControl.newInstance(), new IndexSamplingConfig( Config.defaults() ) );
-
-                assertEquals( new IndexSample( 2, 2, 2 ), sampler.sampleIndex() );
-            }
-        }
-    }
-
     private NonUniqueLuceneIndexSampler createSampler()
     {
         return new NonUniqueLuceneIndexSampler( indexSearcher, taskControl.newInstance(), indexSamplingConfig );
@@ -125,13 +95,6 @@ class NonUniqueDatabaseIndexSamplerTest
         when( termsEnum.next() ).thenReturn( new BytesRef( value.getBytes() ) ).thenReturn( null );
         when( termsEnum.docFreq() ).thenReturn( frequency );
         return terms;
-    }
-
-    private static void insertDocument( WritableIndexPartition partition, long nodeId, Object propertyValue )
-            throws IOException
-    {
-        Document doc = LuceneDocumentStructure.documentRepresentingProperties( nodeId, Values.of( propertyValue ) );
-        partition.getIndexWriter().addDocument( doc );
     }
 
     private static class SamplingFields extends Fields

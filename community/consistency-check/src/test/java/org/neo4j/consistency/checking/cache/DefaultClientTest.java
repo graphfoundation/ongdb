@@ -38,7 +38,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class DefaultClientTest
 {
-
     private static ExecutorService executor;
 
     @BeforeAll
@@ -58,7 +57,7 @@ class DefaultClientTest
     {
         int threads = 2;
         DefaultCounts counts = new DefaultCounts( threads );
-        DefaultCacheAccess cacheAccess = new DefaultCacheAccess( counts, threads );
+        DefaultCacheAccess cacheAccess = new DefaultCacheAccess( DefaultCacheAccess.defaultByteArray( (long) 100 ), counts, threads );
         cacheAccess.prepareForProcessingOfSingleStore( 34 );
 
         CacheAccess.Client client1 = cacheAccess.client();

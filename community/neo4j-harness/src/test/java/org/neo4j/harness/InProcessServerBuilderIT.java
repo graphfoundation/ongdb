@@ -22,9 +22,10 @@
  */
 package org.neo4j.harness;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.parallel.ResourceLock;
+import org.junit.jupiter.api.parallel.Resources;
 
 import java.io.File;
 import java.io.IOException;
@@ -34,67 +35,79 @@ import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.security.cert.X509Certificate;
 import java.util.Arrays;
-import java.util.NoSuchElementException;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicLong;
 import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLServerSocketFactory;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
 
-import org.neo4j.bolt.v1.transport.socket.client.SocketConnection;
+import org.neo4j.bolt.testing.client.SocketConnection;
+import org.neo4j.configuration.Config;
+import org.neo4j.configuration.GraphDatabaseSettings;
+import org.neo4j.configuration.connectors.BoltConnector;
+import org.neo4j.configuration.connectors.HttpConnector;
+import org.neo4j.configuration.connectors.HttpsConnector;
+import org.neo4j.configuration.helpers.SocketAddress;
+import org.neo4j.configuration.ssl.ClientAuth;
+import org.neo4j.configuration.ssl.SslPolicyConfig;
+import org.neo4j.dbms.api.DatabaseManagementService;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.ResourceIterable;
 import org.neo4j.graphdb.Transaction;
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.harness.extensionpackage.MyUnmanagedExtension;
-import org.neo4j.helpers.HostnamePort;
-import org.neo4j.helpers.collection.Iterables;
-import org.neo4j.kernel.configuration.Config;
-import org.neo4j.kernel.configuration.HttpConnector;
-import org.neo4j.kernel.configuration.HttpConnector.Encryption;
-import org.neo4j.server.rest.domain.JsonParseException;
-import org.neo4j.ssl.ClientAuth;
-import org.neo4j.test.TestGraphDatabaseFactory;
-import org.neo4j.test.rule.SuppressOutput;
+import org.neo4j.internal.helpers.HostnamePort;
+import org.neo4j.internal.helpers.collection.Iterables;
+import org.neo4j.kernel.extension.ExtensionFactory;
+import org.neo4j.kernel.extension.context.ExtensionContext;
+import org.neo4j.kernel.internal.GraphDatabaseAPI;
+import org.neo4j.kernel.lifecycle.Lifecycle;
+import org.neo4j.kernel.lifecycle.LifecycleAdapter;
+import org.neo4j.test.TestDatabaseManagementServiceBuilder;
+import org.neo4j.test.extension.Inject;
+import org.neo4j.test.extension.SuppressOutputExtension;
+import org.neo4j.test.extension.testdirectory.TestDirectoryExtension;
 import org.neo4j.test.rule.TestDirectory;
 import org.neo4j.test.server.HTTP;
+import org.neo4j.test.ssl.SelfSignedCertificateFactory;
 
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-import static org.neo4j.harness.TestServerBuilders.newInProcessBuilder;
-import static org.neo4j.helpers.collection.Iterators.single;
-import static org.neo4j.server.ServerTestUtils.connectorAddress;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
+import static org.neo4j.configuration.ssl.SslPolicyScope.HTTPS;
+import static org.neo4j.harness.Neo4jBuilders.newInProcessBuilder;
+import static org.neo4j.internal.helpers.collection.Iterables.asIterable;
+import static org.neo4j.internal.helpers.collection.Iterators.single;
 import static org.neo4j.server.ServerTestUtils.verifyConnector;
 
-public class InProcessServerBuilderIT
+@TestDirectoryExtension
+@ExtendWith( SuppressOutputExtension.class )
+@ResourceLock( Resources.SYSTEM_OUT )
+class InProcessServerBuilderIT
 {
-    @Rule
-    public TestDirectory testDir = TestDirectory.testDirectory();
-
-    @Rule
-    public SuppressOutput suppressOutput = SuppressOutput.suppressAll();
+    @Inject
+    private TestDirectory directory;
 
     @Test
-    public void shouldLaunchAServerInSpecifiedDirectory()
+    void shouldLaunchAServerInSpecifiedDirectory()
     {
         // Given
-        File workDir = testDir.directory( "specific" );
+        File workDir = directory.directory( "specific" );
 
         // When
-        try ( ServerControls server = getTestServerBuilder( workDir ).newServer() )
+        try ( Neo4j neo4j = getTestBuilder( workDir ).build() )
         {
             // Then
-            assertThat( HTTP.GET( server.httpURI().toString() ).status(), equalTo( 200 ) );
+            assertThat( HTTP.GET( neo4j.httpURI().toString() ).status(), equalTo( 200 ) );
             assertThat( workDir.list().length, equalTo( 1 ) );
         }
 
@@ -102,87 +115,114 @@ public class InProcessServerBuilderIT
         assertThat( Arrays.toString( workDir.list() ), workDir.list().length, equalTo( 0 ) );
     }
 
-    private TestServerBuilder getTestServerBuilder( File workDir )
-    {
-        return newInProcessBuilder( workDir );
-    }
-
     @Test
-    public void shouldAllowCustomServerAndDbConfig() throws Exception
+    void shouldAllowCustomServerAndDbConfig() throws Exception
     {
         // Given
         trustAllSSLCerts();
 
         // Get default trusted cypher suites
         SSLServerSocketFactory ssf = (SSLServerSocketFactory) SSLServerSocketFactory.getDefault();
-        String[] defaultCiphers = ssf.getDefaultCipherSuites();
+        List<String> defaultCiphers = Arrays.asList( ssf.getDefaultCipherSuites() );
 
         // When
-        HttpConnector httpConnector = new HttpConnector( "0", Encryption.NONE );
-        HttpConnector httpsConnector = new HttpConnector( "1", Encryption.TLS );
-        try ( ServerControls server = getTestServerBuilder( testDir.directory() )
-                .withConfig( httpConnector.type, "HTTP" )
-                .withConfig( httpConnector.enabled, "true" )
-                .withConfig( httpConnector.encryption, "NONE" )
-                .withConfig( httpConnector.listen_address, "localhost:0" )
-                .withConfig( httpsConnector.type, "HTTP" )
-                .withConfig( httpsConnector.enabled, "true" )
-                .withConfig( httpsConnector.encryption, "TLS" )
-                .withConfig( httpsConnector.listen_address, "localhost:0" )
-                .withConfig( GraphDatabaseSettings.dense_node_threshold, "20" )
+        SslPolicyConfig pem = SslPolicyConfig.forScope( HTTPS );
+
+        var certificates = directory.directory( "certificates" );
+        SelfSignedCertificateFactory.create( certificates, "private.key", "public.crt" );
+        new File( certificates, "trusted" ).mkdir();
+        new File( certificates, "revoked" ).mkdir();
+
+        try ( Neo4j neo4j = getTestBuilder( directory.homeDir() )
+                .withConfig( HttpConnector.enabled, true )
+                .withConfig( HttpConnector.listen_address, new SocketAddress( "localhost", 0 ) )
+                .withConfig( HttpsConnector.enabled, true )
+                .withConfig( HttpsConnector.listen_address, new SocketAddress( "localhost", 0 ) )
+                .withConfig( GraphDatabaseSettings.dense_node_threshold, 20 )
                 // override legacy policy
-                .withConfig( "https.ssl_policy", "test" )
-                .withConfig( "dbms.ssl.policy.test.base_directory", testDir.directory( "certificates" ).getAbsolutePath() )
-                .withConfig( "dbms.ssl.policy.test.allow_key_generation", "true" )
-                .withConfig( "dbms.ssl.policy.test.ciphers", String.join( ",", defaultCiphers ) )
-                .withConfig( "dbms.ssl.policy.test.tls_versions", "TLSv1.2, TLSv1.1, TLSv1" )
-                .withConfig( "dbms.ssl.policy.test.client_auth", ClientAuth.NONE.name() )
-                .withConfig( "dbms.ssl.policy.test.trust_all", "true" )
-                .newServer() )
+                .withConfig( pem.enabled, Boolean.TRUE )
+                .withConfig( pem.base_directory, certificates.toPath() )
+                .withConfig( pem.ciphers, defaultCiphers )
+                .withConfig( pem.tls_versions, List.of( "TLSv1.2", "TLSv1.1", "TLSv1" ) )
+                .withConfig( pem.client_auth, ClientAuth.NONE )
+                .withConfig( pem.trust_all, true )
+                .build() )
         {
             // Then
-            assertThat( HTTP.GET( server.httpURI().toString() ).status(), equalTo( 200 ) );
-            assertThat( HTTP.GET( server.httpsURI().get().toString() ).status(), equalTo( 200 ) );
-            assertDBConfig( server, "20", GraphDatabaseSettings.dense_node_threshold.name() );
+            assertThat( HTTP.GET( neo4j.httpURI().toString() ).status(), equalTo( 200 ) );
+            assertThat( HTTP.GET( neo4j.httpsURI().toString() ).status(), equalTo( 200 ) );
+            Config config = ((GraphDatabaseAPI) neo4j.defaultDatabaseService()).getDependencyResolver().resolveDependency( Config.class );
+            assertEquals( 20, config.get( GraphDatabaseSettings.dense_node_threshold ) );
         }
     }
 
     @Test
-    public void shouldMountUnmanagedExtensionsByClass()
+    void shouldMountUnmanagedExtensionsByClass()
     {
         // When
-        try ( ServerControls server = getTestServerBuilder( testDir.directory() )
-                .withExtension( "/path/to/my/extension", MyUnmanagedExtension.class )
-                .newServer() )
+        try ( Neo4j neo4j = getTestBuilder( directory.homeDir() )
+                .withUnmanagedExtension( "/path/to/my/extension", MyUnmanagedExtension.class )
+                .build() )
         {
             // Then
-            assertThat( HTTP.GET( server.httpURI().toString() + "path/to/my/extension/myExtension" ).status(),
+            assertThat( HTTP.GET( neo4j.httpURI().toString() + "path/to/my/extension/myExtension" ).status(),
                     equalTo( 234 ) );
         }
     }
 
     @Test
-    public void shouldMountUnmanagedExtensionsByPackage()
+    void shouldMountUnmanagedExtensionsByPackage()
     {
         // When
-        try ( ServerControls server = getTestServerBuilder( testDir.directory() )
-                .withExtension( "/path/to/my/extension", "org.neo4j.harness.extensionpackage" )
-                .newServer() )
+        try ( Neo4j neo4j = getTestBuilder( directory.homeDir() )
+                .withUnmanagedExtension( "/path/to/my/extension", "org.neo4j.harness.extensionpackage" )
+                .build() )
         {
             // Then
-            assertThat( HTTP.GET( server.httpURI().toString() + "path/to/my/extension/myExtension" ).status(),
+            assertThat( HTTP.GET( neo4j.httpURI().toString() + "path/to/my/extension/myExtension" ).status(),
                     equalTo( 234 ) );
         }
     }
 
     @Test
-    public void shouldFindFreePort()
+    void startWithCustomExtension()
+    {
+        try ( Neo4j neo4j = getTestBuilder( directory.homeDir() )
+                .withExtensionFactories( asIterable( new TestExtensionFactory() ) ).build() )
+        {
+            assertThat( HTTP.GET( neo4j.httpURI().toString() ).status(), equalTo( 200 ) );
+            assertEquals( 1, TestExtension.getStartCounter() );
+        }
+    }
+
+    @Test
+    void startWithDisabledServer()
+    {
+        try ( Neo4j neo4j = getTestBuilder( directory.homeDir() ).withDisabledServer().build() )
+        {
+            assertThrows( IllegalStateException.class, neo4j::httpURI );
+            assertThrows( IllegalStateException.class, neo4j::httpsURI );
+
+            assertDoesNotThrow( () ->
+            {
+                GraphDatabaseService service = neo4j.defaultDatabaseService();
+                try ( Transaction transaction = service.beginTx() )
+                {
+                    transaction.createNode();
+                    transaction.commit();
+                }
+            } );
+        }
+    }
+
+    @Test
+    void shouldFindFreePort()
     {
         // Given one server is running
-        try ( ServerControls firstServer = getTestServerBuilder( testDir.directory() ).newServer() )
+        try ( Neo4j firstServer = getTestBuilder( directory.homeDir() ).build() )
         {
-            // When I start a second server
-            try ( ServerControls secondServer = getTestServerBuilder( testDir.directory() ).newServer() )
+            // When I build a second server
+            try ( Neo4j secondServer = getTestBuilder( directory.homeDir() ).build() )
             {
                 // Then
                 assertThat( secondServer.httpURI().getPort(), not( firstServer.httpURI().getPort() ) );
@@ -191,196 +231,147 @@ public class InProcessServerBuilderIT
     }
 
     @Test
-    public void shouldRunBuilderOnExistingStoreDir() throws Exception
+    void shouldRunBuilderOnExistingStoreDir()
     {
         // When
         // create graph db with one node upfront
-        File existingStoreDir = testDir.directory( "existingStore" );
-        File storeDir = Config.defaults( GraphDatabaseSettings.data_directory, existingStoreDir.toPath().toString() )
-                .get( GraphDatabaseSettings.database_path );
-        GraphDatabaseService db = new TestGraphDatabaseFactory().newEmbeddedDatabase( storeDir );
-        try
+        File existingHomeDir = directory.homeDir( "existingStore" );
+
+        DatabaseManagementService managementService = new TestDatabaseManagementServiceBuilder( existingHomeDir ).build();
+        GraphDatabaseService db = managementService.database( DEFAULT_DATABASE_NAME );
+        try ( Transaction transaction = db.beginTx() )
         {
-            db.execute( "create ()" );
+            transaction.execute( "create ()" );
+            transaction.commit();
         }
         finally
         {
-            db.shutdown();
+            managementService.shutdown();
         }
 
-        try ( ServerControls server = getTestServerBuilder( testDir.databaseDir() ).copyFrom( existingStoreDir )
-                .newServer() )
+        try ( Neo4j neo4j = getTestBuilder( existingHomeDir ).copyFrom( existingHomeDir ).build() )
         {
             // Then
-            try ( Transaction tx = server.graph().beginTx() )
+            GraphDatabaseService graphDatabaseService = neo4j.defaultDatabaseService();
+            try ( Transaction tx = graphDatabaseService.beginTx() )
             {
-                ResourceIterable<Node> allNodes = Iterables.asResourceIterable( server.graph().getAllNodes() );
+                ResourceIterable<Node> allNodes = Iterables.asResourceIterable( tx.getAllNodes() );
 
                 assertTrue( Iterables.count( allNodes ) > 0 );
 
                 // When: create another node
-                server.graph().createNode();
-                tx.success();
+                tx.createNode();
+                tx.commit();
             }
         }
 
         // Then: we still only have one node since the server is supposed to work on a copy
-        db = new TestGraphDatabaseFactory().newEmbeddedDatabase( storeDir );
+        managementService = new TestDatabaseManagementServiceBuilder( existingHomeDir ).build();
+        db = managementService.database( DEFAULT_DATABASE_NAME );
         try
         {
             try ( Transaction tx = db.beginTx() )
             {
-                assertEquals( 1, Iterables.count( db.getAllNodes() ) );
-                tx.success();
+                assertEquals( 1, Iterables.count( tx.getAllNodes() ) );
+                tx.commit();
             }
         }
         finally
         {
-            db.shutdown();
+            managementService.shutdown();
         }
     }
 
     @Test
-    public void shouldOpenBoltPort() throws Throwable
+    void shouldOpenBoltPort()
     {
         // given
-        try ( ServerControls controls = getTestServerBuilder( testDir.directory() ).newServer() )
+        try ( Neo4j neo4j = getTestBuilder( directory.homeDir() ).build() )
         {
-            URI uri = controls.boltURI();
+            URI uri = neo4j.boltURI();
 
             // when
-            new SocketConnection().connect( new HostnamePort( uri.getHost(), uri.getPort() ) );
-
-            // then no exception
+            assertDoesNotThrow( () -> new SocketConnection().connect( new HostnamePort( uri.getHost(), uri.getPort() ) ) );
         }
     }
 
     @Test
-    public void shouldFailWhenProvidingANonDirectoryAsSource() throws IOException
+    void shouldFailWhenProvidingANonDirectoryAsSource() throws IOException
     {
 
         File notADirectory = File.createTempFile( "prefix", "suffix" );
         assertFalse( notADirectory.isDirectory() );
 
-        try ( ServerControls ignored = getTestServerBuilder( testDir.directory() )
-                .copyFrom( notADirectory ).newServer() )
-        {
-            fail( "server should not start" );
-        }
-        catch ( RuntimeException rte )
-        {
-            Throwable cause = rte.getCause();
-            assertTrue( cause instanceof IOException );
-            assertTrue( cause.getMessage().contains( "exists but is not a directory" ) );
-        }
-
+        RuntimeException exception =
+                assertThrows( RuntimeException.class, () -> getTestBuilder( directory.homeDir() ).copyFrom( notADirectory ).build() );
+        Throwable cause = exception.getCause();
+        assertTrue( cause instanceof IOException );
+        assertTrue( cause.getMessage().contains( "exists but is not a directory" ) );
     }
 
     @Test
-    public void shouldReturnBoltUriWhenMultipleBoltConnectorsConfigured()
-    {
-        TestServerBuilder serverBuilder = newInProcessBuilder( testDir.directory() )
-                .withConfig( "dbms.connector.another_bolt.type", "BOLT" )
-                .withConfig( "dbms.connector.another_bolt.enabled", "true" )
-                .withConfig( "dbms.connector.another_bolt.listen_address", ":0" )
-                .withConfig( "dbms.connector.bolt.enabled", "true" )
-                .withConfig( "dbms.connector.bolt.listen_address", ":0" );
-
-        try ( ServerControls server = serverBuilder.newServer() )
-        {
-            HostnamePort boltHostPort = connectorAddress( server.graph(), "bolt" );
-            HostnamePort anotherBoltHostPort = connectorAddress( server.graph(), "another_bolt" );
-
-            assertNotNull( boltHostPort );
-            assertNotNull( anotherBoltHostPort );
-            assertNotEquals( boltHostPort, anotherBoltHostPort );
-
-            URI boltUri = server.boltURI();
-            assertEquals( "bolt", boltUri.getScheme() );
-            assertEquals( boltHostPort.getHost(), boltUri.getHost() );
-            assertEquals( boltHostPort.getPort(), boltUri.getPort() );
-        }
-    }
-
-    @Test
-    public void shouldReturnBoltUriWhenDefaultBoltConnectorOffAndOtherConnectorConfigured()
-    {
-        TestServerBuilder serverBuilder = newInProcessBuilder( testDir.directory() )
-                .withConfig( "dbms.connector.bolt.enabled", "false" )
-                .withConfig( "dbms.connector.another_bolt.type", "BOLT" )
-                .withConfig( "dbms.connector.another_bolt.enabled", "true" )
-                .withConfig( "dbms.connector.another_bolt.listen_address", ":0" );
-
-        try ( ServerControls server = serverBuilder.newServer() )
-        {
-            HostnamePort boltHostPort = connectorAddress( server.graph(), "bolt" );
-            HostnamePort anotherBoltHostPort = connectorAddress( server.graph(), "another_bolt" );
-
-            assertNull( boltHostPort );
-            assertNotNull( anotherBoltHostPort );
-
-            URI boltUri = server.boltURI();
-            assertEquals( "bolt", boltUri.getScheme() );
-            assertEquals( anotherBoltHostPort.getHost(), boltUri.getHost() );
-            assertEquals( anotherBoltHostPort.getPort(), boltUri.getPort() );
-        }
-    }
-
-    @Test
-    public void shouldStartServerWithHttpHttpsAndBoltDisabled()
+    void shouldStartServerWithHttpHttpsAndBoltDisabled()
     {
         testStartupWithConnectors( false, false, false );
     }
 
     @Test
-    public void shouldStartServerWithHttpEnabledAndHttpsBoltDisabled()
+    void shouldStartServerWithHttpEnabledAndHttpsBoltDisabled()
     {
         testStartupWithConnectors( true, false, false );
     }
 
     @Test
-    public void shouldStartServerWithHttpsEnabledAndHttpBoltDisabled()
+    void shouldStartServerWithHttpsEnabledAndHttpBoltDisabled()
     {
         testStartupWithConnectors( false, true, false );
     }
 
     @Test
-    public void shouldStartServerWithBoltEnabledAndHttpHttpsDisabled()
+    void shouldStartServerWithBoltEnabledAndHttpHttpsDisabled()
     {
         testStartupWithConnectors( false, false, true );
     }
 
     @Test
-    public void shouldStartServerWithHttpHttpsEnabledAndBoltDisabled()
+    void shouldStartServerWithHttpHttpsEnabledAndBoltDisabled()
     {
         testStartupWithConnectors( true, true, false );
     }
 
     @Test
-    public void shouldStartServerWithHttpBoltEnabledAndHttpsDisabled()
+    void shouldStartServerWithHttpBoltEnabledAndHttpsDisabled()
     {
         testStartupWithConnectors( true, false, true );
     }
 
     @Test
-    public void shouldStartServerWithHttpsBoltEnabledAndHttpDisabled()
+    void shouldStartServerWithHttpsBoltEnabledAndHttpDisabled()
     {
         testStartupWithConnectors( false, true, true );
     }
 
     private void testStartupWithConnectors( boolean httpEnabled, boolean httpsEnabled, boolean boltEnabled )
     {
-        TestServerBuilder serverBuilder = newInProcessBuilder( testDir.directory() )
-                .withConfig( "dbms.connector.http.enabled", Boolean.toString( httpEnabled ) )
-                .withConfig( "dbms.connector.http.listen_address", ":0" )
-                .withConfig( "dbms.connector.https.enabled", Boolean.toString( httpsEnabled ) )
-                .withConfig( "dbms.connector.https.listen_address", ":0" )
-                .withConfig( "dbms.connector.bolt.enabled", Boolean.toString( boltEnabled ) )
-                .withConfig( "dbms.connector.bolt.listen_address", ":0" );
+        var certificates = directory.directory( "certificates" );
+        Neo4jBuilder serverBuilder = newInProcessBuilder( directory.homeDir() )
+                .withConfig( HttpConnector.enabled, httpEnabled )
+                .withConfig( HttpConnector.listen_address, new SocketAddress( 0 ) )
+                .withConfig( HttpsConnector.enabled, httpsEnabled )
+                .withConfig( HttpsConnector.listen_address, new SocketAddress( 0 ) )
+                .withConfig( BoltConnector.enabled, boltEnabled )
+                .withConfig( BoltConnector.listen_address, new SocketAddress( 0 ) );
 
-        try ( ServerControls server = serverBuilder.newServer() )
+        if ( httpsEnabled )
         {
-            GraphDatabaseService db = server.graph();
+            SelfSignedCertificateFactory.create( certificates );
+            serverBuilder.withConfig( SslPolicyConfig.forScope( HTTPS ).enabled, Boolean.TRUE );
+            serverBuilder.withConfig( SslPolicyConfig.forScope( HTTPS ).base_directory, certificates.toPath() );
+        }
+
+        try ( Neo4j neo4j = serverBuilder.build() )
+        {
+            GraphDatabaseService db = neo4j.defaultDatabaseService();
 
             assertDbAccessible( db );
             verifyConnector( db, "http", httpEnabled );
@@ -397,49 +388,15 @@ public class InProcessServerBuilderIT
 
         try ( Transaction tx = db.beginTx() )
         {
-            db.createNode( label ).setProperty( propertyKey, propertyValue );
-            tx.success();
+            tx.createNode( label ).setProperty( propertyKey, propertyValue );
+            tx.commit();
         }
         try ( Transaction tx = db.beginTx() )
         {
-            Node node = single( db.findNodes( label ) );
+            Node node = single( tx.findNodes( label ) );
             assertEquals( propertyValue, node.getProperty( propertyKey ) );
-            tx.success();
+            tx.commit();
         }
-    }
-
-    private void assertDBConfig( ServerControls server, String expected, String key ) throws JsonParseException
-    {
-        JsonNode beans = HTTP.GET(
-                server.httpURI().toString() + "db/manage/server/jmx/domain/org.neo4j/" ).get( "beans" );
-        JsonNode configurationBean = findNamedBean( beans, "Configuration" ).get( "attributes" );
-        boolean foundKey = false;
-        for ( JsonNode attribute : configurationBean )
-        {
-            if ( attribute.get( "name" ).asText().equals( key ) )
-            {
-                assertThat( attribute.get( "value" ).asText(), equalTo( expected ) );
-                foundKey = true;
-                break;
-            }
-        }
-        if ( !foundKey )
-        {
-            fail( "No config key '" + key + "'." );
-        }
-    }
-
-    private JsonNode findNamedBean( JsonNode beans, String beanName )
-    {
-        for ( JsonNode bean : beans )
-        {
-            JsonNode name = bean.get( "name" );
-            if ( name != null && name.asText().endsWith( ",name=" + beanName ) )
-            {
-                return bean;
-            }
-        }
-        throw new NoSuchElementException();
     }
 
     private void trustAllSSLCerts() throws NoSuchAlgorithmException, KeyManagementException
@@ -470,4 +427,45 @@ public class InProcessServerBuilderIT
         sc.init( null, trustAllCerts, new SecureRandom() );
         HttpsURLConnection.setDefaultSSLSocketFactory( sc.getSocketFactory() );
     }
+
+    private static Neo4jBuilder getTestBuilder( File workDir )
+    {
+        return newInProcessBuilder( workDir );
+    }
+
+    private static class TestExtensionFactory extends ExtensionFactory<TestExtensionFactory.Dependencies>
+    {
+        interface Dependencies
+        {
+        }
+
+        TestExtensionFactory()
+        {
+            super( "testExtension" );
+        }
+
+        @Override
+        public Lifecycle newInstance( ExtensionContext context, Dependencies dependencies )
+        {
+            return new TestExtension();
+        }
+    }
+
+    private static class TestExtension extends LifecycleAdapter
+    {
+
+        static final AtomicLong startCounter = new AtomicLong();
+
+        @Override
+        public void start()
+        {
+            startCounter.incrementAndGet();
+        }
+
+        static long getStartCounter()
+        {
+            return startCounter.get();
+        }
+    }
+
 }

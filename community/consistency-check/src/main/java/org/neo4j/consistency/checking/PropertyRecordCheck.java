@@ -50,11 +50,11 @@ public class PropertyRecordCheck
         }
         for ( PropertyBlock block : record )
         {
-            checkDataBlock( block, engine, records );
+            checkDataBlock( record.getId(), block, engine, records );
         }
     }
 
-    public static void checkDataBlock( PropertyBlock block,
+    public static void checkDataBlock( long propertyRecordId, PropertyBlock block,
                                  CheckerEngine<PropertyRecord, ConsistencyReport.PropertyConsistencyReport> engine,
                                  RecordAccess records )
     {
@@ -89,7 +89,7 @@ public class PropertyRecordCheck
                 }
                 catch ( Exception e )
                 {
-                    engine.report().invalidPropertyValue( block );
+                    engine.report().invalidPropertyValue( propertyRecordId, block.getKeyIndexId() );
                 }
                 break;
             }
@@ -206,11 +206,11 @@ public class PropertyRecordCheck
     private static ComparativeRecordChecker<PropertyRecord, PropertyKeyTokenRecord, ConsistencyReport.PropertyConsistencyReport>
     propertyKey( final PropertyBlock block )
     {
-        return new ComparativeRecordChecker<PropertyRecord, PropertyKeyTokenRecord, ConsistencyReport.PropertyConsistencyReport>()
+        return new ComparativeRecordChecker<>()
         {
             @Override
             public void checkReference( PropertyRecord record, PropertyKeyTokenRecord referred,
-                                        CheckerEngine<PropertyRecord, ConsistencyReport.PropertyConsistencyReport> engine,
+                                        CheckerEngine<PropertyRecord,ConsistencyReport.PropertyConsistencyReport> engine,
                                         RecordAccess records )
             {
                 if ( !referred.inUse() )

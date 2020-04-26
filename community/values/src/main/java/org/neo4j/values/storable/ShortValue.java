@@ -85,4 +85,10 @@ public final class ShortValue extends IntegralValue
     {
         return "Short";
     }
+
+    @Override
+    protected long estimatedPayloadSize()
+    {
+        return Short.BYTES;
+    }
 }

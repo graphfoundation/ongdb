@@ -22,7 +22,6 @@
  */
 package org.neo4j.codegen.source;
 
-import java.io.IOException;
 import java.net.URI;
 import javax.tools.SimpleJavaFileObject;
 

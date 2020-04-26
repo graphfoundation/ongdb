@@ -22,9 +22,10 @@
  */
 package org.neo4j.kernel.impl.api.index;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.EnumMap;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import org.neo4j.logging.AssertableLogProvider;
@@ -32,19 +33,19 @@ import org.neo4j.logging.Log;
 import org.neo4j.logging.NullLog;
 import org.neo4j.time.FakeClock;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.neo4j.kernel.impl.api.index.LoggingPhaseTracker.PERIOD_INTERVAL;
 
-public class LoggingPhaseTrackerTest
+class LoggingPhaseTrackerTest
 {
     private FakeClock clock = new FakeClock();
 
     @Test
-    public void shouldLogSingleTime()
+    void shouldLogSingleTime()
     {
         LoggingPhaseTracker phaseTracker = getPhaseTracker();
 
@@ -53,10 +54,10 @@ public class LoggingPhaseTrackerTest
         phaseTracker.stop();
 
         EnumMap<PhaseTracker.Phase,LoggingPhaseTracker.Logger> times = phaseTracker.times();
-        for ( PhaseTracker.Phase phase : times.keySet() )
+        for ( Map.Entry<PhaseTracker.Phase,LoggingPhaseTracker.Logger> phaseEntry : times.entrySet() )
         {
-            LoggingPhaseTracker.Logger logger = times.get( phase );
-            if ( phase == PhaseTracker.Phase.SCAN )
+            LoggingPhaseTracker.Logger logger = phaseEntry.getValue();
+            if ( phaseEntry.getKey() == PhaseTracker.Phase.SCAN )
             {
                 assertTrue( logger.totalTime >= 100 );
                 assertTrue( logger.totalTime < 500 );
@@ -69,7 +70,7 @@ public class LoggingPhaseTrackerTest
     }
 
     @Test
-    public void shouldLogMultipleTimes()
+    void shouldLogMultipleTimes()
     {
         LoggingPhaseTracker phaseTracker = getPhaseTracker();
 
@@ -80,11 +81,11 @@ public class LoggingPhaseTrackerTest
         phaseTracker.stop();
 
         EnumMap<PhaseTracker.Phase,LoggingPhaseTracker.Logger> times = phaseTracker.times();
-        for ( PhaseTracker.Phase phase : times.keySet() )
+        for ( Map.Entry<PhaseTracker.Phase,LoggingPhaseTracker.Logger> phaseEntry : times.entrySet() )
         {
-            LoggingPhaseTracker.Logger logger = times.get( phase );
-            if ( phase == PhaseTracker.Phase.SCAN ||
-                    phase == PhaseTracker.Phase.WRITE )
+            LoggingPhaseTracker.Logger logger = phaseEntry.getValue();
+            PhaseTracker.Phase phase = phaseEntry.getKey();
+            if ( phase == PhaseTracker.Phase.SCAN || phase == PhaseTracker.Phase.WRITE )
             {
                 assertTrue( logger.totalTime >= 100 );
                 assertTrue( logger.totalTime < 500 );
@@ -97,7 +98,7 @@ public class LoggingPhaseTrackerTest
     }
 
     @Test
-    public void shouldAccumulateTimes()
+    void shouldAccumulateTimes()
     {
         LoggingPhaseTracker phaseTracker = getPhaseTracker();
 
@@ -114,23 +115,16 @@ public class LoggingPhaseTrackerTest
     }
 
     @Test
-    public void throwIfEnterAfterStop()
+    void throwIfEnterAfterStop()
     {
         PhaseTracker phaseTracker = getPhaseTracker();
         phaseTracker.stop();
-        try
-        {
-            phaseTracker.enterPhase( PhaseTracker.Phase.SCAN );
-            fail( "Should have failed" );
-        }
-        catch ( IllegalStateException e )
-        {
-            assertThat( e.getMessage(), containsString( "Trying to report a new phase after phase tracker has been stopped." ) );
-        }
+        IllegalStateException exception = assertThrows( IllegalStateException.class, () -> phaseTracker.enterPhase( PhaseTracker.Phase.SCAN ) );
+        assertThat( exception.getMessage(), containsString( "Trying to report a new phase after phase tracker has been stopped." ) );
     }
 
     @Test
-    public void mustReportMain()
+    void mustReportMain()
     {
         // given
         AssertableLogProvider logProvider = new AssertableLogProvider( true );
@@ -166,7 +160,7 @@ public class LoggingPhaseTrackerTest
     }
 
     @Test
-    public void mustReportPeriod()
+    void mustReportPeriod()
     {
         // given
         AssertableLogProvider logProvider = new AssertableLogProvider( true );

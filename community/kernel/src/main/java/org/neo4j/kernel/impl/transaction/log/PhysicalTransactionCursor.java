@@ -35,21 +35,19 @@ import org.neo4j.kernel.impl.transaction.log.entry.LogEntryReader;
 import org.neo4j.kernel.impl.transaction.log.entry.LogEntryStart;
 import org.neo4j.storageengine.api.StorageCommand;
 
-public class PhysicalTransactionCursor<T extends ReadableClosablePositionAwareChannel>
-        implements TransactionCursor
+public class PhysicalTransactionCursor implements TransactionCursor
 {
-    private final T channel;
+    private final ReadableClosablePositionAwareChecksumChannel channel;
     private final LogEntryCursor logEntryCursor;
     private final LogPositionMarker lastGoodPositionMarker = new LogPositionMarker();
 
     private CommittedTransactionRepresentation current;
 
-    public PhysicalTransactionCursor( T channel, LogEntryReader<T> entryReader ) throws IOException
+    public PhysicalTransactionCursor( ReadableClosablePositionAwareChecksumChannel channel, LogEntryReader entryReader ) throws IOException
     {
         this.channel = channel;
         channel.getCurrentPosition( lastGoodPositionMarker );
-        this.logEntryCursor =
-                new LogEntryCursor( (LogEntryReader<ReadableClosablePositionAwareChannel>) entryReader, channel );
+        this.logEntryCursor = new LogEntryCursor( entryReader, channel );
     }
 
     @Override
@@ -81,7 +79,7 @@ public class PhysicalTransactionCursor<T extends ReadableClosablePositionAwareCh
             }
 
             assert entry instanceof LogEntryStart : "Expected Start entry, read " + entry + " instead";
-            LogEntryStart startEntry = entry.as();
+            LogEntryStart startEntry = (LogEntryStart) entry;
             LogEntryCommit commitEntry;
 
             List<StorageCommand> entries = new ArrayList<>();
@@ -95,17 +93,16 @@ public class PhysicalTransactionCursor<T extends ReadableClosablePositionAwareCh
                 entry = logEntryCursor.get();
                 if ( entry instanceof LogEntryCommit )
                 {
-                    commitEntry = entry.as();
+                    commitEntry = (LogEntryCommit) entry;
                     break;
                 }
 
-                LogEntryCommand command = entry.as();
+                LogEntryCommand command = (LogEntryCommand) entry;
                 entries.add( command.getCommand() );
             }
 
             PhysicalTransactionRepresentation transaction = new PhysicalTransactionRepresentation( entries );
-            transaction.setHeader( startEntry.getAdditionalHeader(), startEntry.getMasterId(),
-                    startEntry.getLocalId(), startEntry.getTimeWritten(),
+            transaction.setHeader( startEntry.getAdditionalHeader(), startEntry.getTimeWritten(),
                     startEntry.getLastCommittedTxWhenTransactionStarted(), commitEntry.getTimeWritten(), -1 );
             current = new CommittedTransactionRepresentation( startEntry, transaction, commitEntry );
             channel.getCurrentPosition( lastGoodPositionMarker );

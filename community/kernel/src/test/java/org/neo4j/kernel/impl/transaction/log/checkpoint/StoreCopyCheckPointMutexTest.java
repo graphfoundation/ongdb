@@ -22,8 +22,9 @@
  */
 package org.neo4j.kernel.impl.transaction.log.checkpoint;
 
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.concurrent.ExecutionException;
@@ -37,36 +38,47 @@ import org.neo4j.function.ThrowingAction;
 import org.neo4j.graphdb.Resource;
 import org.neo4j.test.Barrier;
 import org.neo4j.test.Race;
-import org.neo4j.test.rule.concurrent.OtherThreadRule;
+import org.neo4j.test.rule.OtherThreadRule;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.lessThan;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.neo4j.function.ThrowingAction.noop;
 import static org.neo4j.test.Race.throwing;
 
-public class StoreCopyCheckPointMutexTest
+class StoreCopyCheckPointMutexTest
 {
     private static final ThrowingAction<IOException> ASSERT_NOT_CALLED = () -> fail( "Should not be called" );
 
-    @Rule
-    public final OtherThreadRule<Void> t2 = new OtherThreadRule<>( "T2" );
-    @Rule
-    public final OtherThreadRule<Void> t3 = new OtherThreadRule<>( "T3" );
+    private final OtherThreadRule<Void> t2 = new OtherThreadRule<>();
+    private final OtherThreadRule<Void> t3 = new OtherThreadRule<>();
 
     private final StoreCopyCheckPointMutex mutex = new StoreCopyCheckPointMutex();
 
+    @BeforeEach
+    void setUp()
+    {
+        t2.init( "T2" );
+        t3.init( "T3" );
+    }
+
+    @AfterEach
+    void tearDown()
+    {
+        t2.close();
+        t3.close();
+    }
+
     @Test
-    public void checkPointShouldBlockStoreCopy() throws Exception
+    void checkPointShouldBlockStoreCopy() throws Exception
     {
         // GIVEN
         try ( Resource lock = mutex.checkPoint() )
@@ -80,7 +92,7 @@ public class StoreCopyCheckPointMutexTest
     }
 
     @Test
-    public void checkPointShouldBlockAnotherCheckPoint() throws Exception
+    void checkPointShouldBlockAnotherCheckPoint() throws Exception
     {
         // GIVEN
         try ( Resource lock = mutex.checkPoint() )
@@ -94,7 +106,7 @@ public class StoreCopyCheckPointMutexTest
     }
 
     @Test
-    public void storeCopyShouldBlockCheckPoint() throws Exception
+    void storeCopyShouldBlockCheckPoint() throws Exception
     {
         // GIVEN
         try ( Resource lock = mutex.storeCopy( noop() ) )
@@ -108,7 +120,7 @@ public class StoreCopyCheckPointMutexTest
     }
 
     @Test
-    public void storeCopyShouldHaveTryCheckPointBackOff() throws Exception
+    void storeCopyShouldHaveTryCheckPointBackOff() throws Exception
     {
         // GIVEN
         try ( Resource lock = mutex.storeCopy( noop() ) )
@@ -119,7 +131,7 @@ public class StoreCopyCheckPointMutexTest
     }
 
     @Test
-    public void storeCopyShouldAllowAnotherStoreCopy() throws Exception
+    void storeCopyShouldAllowAnotherStoreCopy() throws Exception
     {
         // GIVEN
         try ( Resource lock = mutex.storeCopy( noop() ) )
@@ -133,26 +145,26 @@ public class StoreCopyCheckPointMutexTest
     }
 
     @Test
-    public void storeCopyShouldAllowAnotherStoreCopyButOnlyFirstShouldPerformBeforeAction() throws Exception
+    void storeCopyShouldAllowAnotherStoreCopyButOnlyFirstShouldPerformBeforeAction() throws Exception
     {
         // GIVEN
         @SuppressWarnings( "unchecked" )
         ThrowingAction<IOException> action = mock( ThrowingAction.class );
         try ( Resource lock = mutex.storeCopy( action ) )
         {
-            verify( action, times( 1 ) ).apply();
+            verify( action ).apply();
 
             // WHEN
             try ( Resource otherLock = mutex.storeCopy( action ) )
             {
                 // THEN good
-                verify( action, times( 1 ) ).apply();
+                verify( action ).apply();
             }
         }
     }
 
     @Test
-    public void shouldHandleMultipleConcurrentStoreCopyWhenBeforeActionPerformsCheckPoint() throws Throwable
+    void shouldHandleMultipleConcurrentStoreCopyWhenBeforeActionPerformsCheckPoint() throws Throwable
     {
         // GIVEN a check-point action which asserts calls to it along the way
         CheckPointingAction checkPointingAction = new CheckPointingAction( mutex );
@@ -182,7 +194,7 @@ public class StoreCopyCheckPointMutexTest
     }
 
     @Test
-    public void shouldHandleMultipleConcurrentStoreCopyRequests() throws Throwable
+    void shouldHandleMultipleConcurrentStoreCopyRequests() throws Throwable
     {
         // GIVEN
         Race race = new Race();
@@ -205,7 +217,7 @@ public class StoreCopyCheckPointMutexTest
     }
 
     @Test
-    public void shouldPropagateStoreCopyActionFailureToOtherStoreCopyRequests() throws Exception
+    void shouldPropagateStoreCopyActionFailureToOtherStoreCopyRequests() throws Exception
     {
         // GIVEN
         Barrier.Control barrier = new Barrier.Control();

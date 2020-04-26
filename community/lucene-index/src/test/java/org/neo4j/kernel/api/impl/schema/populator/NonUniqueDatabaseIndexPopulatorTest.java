@@ -22,44 +22,42 @@
  */
 package org.neo4j.kernel.api.impl.schema.populator;
 
-import org.eclipse.collections.api.iterator.LongIterator;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 
 import org.neo4j.collection.PrimitiveLongCollections;
+import org.neo4j.configuration.Config;
 import org.neo4j.internal.kernel.api.IndexQuery;
-import org.neo4j.internal.kernel.api.schema.SchemaDescriptor;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.internal.schema.IndexOrder;
+import org.neo4j.internal.schema.IndexPrototype;
+import org.neo4j.internal.schema.SchemaDescriptor;
 import org.neo4j.io.IOUtils;
 import org.neo4j.io.fs.DefaultFileSystemAbstraction;
 import org.neo4j.kernel.api.impl.index.storage.DirectoryFactory;
 import org.neo4j.kernel.api.impl.index.storage.PartitionedIndexStorage;
 import org.neo4j.kernel.api.impl.schema.LuceneSchemaIndexBuilder;
 import org.neo4j.kernel.api.impl.schema.SchemaIndex;
-import org.neo4j.kernel.api.index.IndexEntryUpdate;
-import org.neo4j.kernel.api.schema.SchemaDescriptorFactory;
-import org.neo4j.kernel.configuration.Config;
-import org.neo4j.kernel.impl.api.index.sampling.IndexSamplingConfig;
-import org.neo4j.storageengine.api.schema.IndexDescriptor;
-import org.neo4j.storageengine.api.schema.IndexDescriptorFactory;
-import org.neo4j.storageengine.api.schema.IndexReader;
-import org.neo4j.storageengine.api.schema.IndexSample;
-import org.neo4j.test.extension.DefaultFileSystemExtension;
+import org.neo4j.kernel.api.index.IndexReader;
+import org.neo4j.kernel.api.index.IndexSample;
+import org.neo4j.kernel.impl.api.index.IndexSamplingConfig;
+import org.neo4j.kernel.impl.index.schema.NodeValueIterator;
+import org.neo4j.storageengine.api.IndexEntryUpdate;
 import org.neo4j.test.extension.Inject;
-import org.neo4j.test.extension.TestDirectoryExtension;
+import org.neo4j.test.extension.testdirectory.TestDirectoryExtension;
 import org.neo4j.test.rule.TestDirectory;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.neo4j.internal.kernel.api.QueryContext.NULL_CONTEXT;
 import static org.neo4j.kernel.api.index.IndexQueryHelper.add;
 
-@ExtendWith( {DefaultFileSystemExtension.class, TestDirectoryExtension.class} )
+@TestDirectoryExtension
 class NonUniqueDatabaseIndexPopulatorTest
 {
     private final DirectoryFactory dirFactory = new DirectoryFactory.InMemoryDirectoryFactory();
@@ -70,7 +68,7 @@ class NonUniqueDatabaseIndexPopulatorTest
 
     private SchemaIndex index;
     private NonUniqueLuceneIndexPopulator populator;
-    private final SchemaDescriptor labelSchemaDescriptor = SchemaDescriptorFactory.forLabel( 0, 0 );
+    private final SchemaDescriptor labelSchemaDescriptor = SchemaDescriptor.forLabel( 0, 0 );
 
     @BeforeEach
     void setUp()
@@ -78,7 +76,7 @@ class NonUniqueDatabaseIndexPopulatorTest
         File folder = testDir.directory( "folder" );
         PartitionedIndexStorage indexStorage = new PartitionedIndexStorage( dirFactory, fileSystem, folder );
 
-        IndexDescriptor descriptor = IndexDescriptorFactory.forSchema( labelSchemaDescriptor );
+        IndexDescriptor descriptor = IndexPrototype.forSchema( labelSchemaDescriptor ).withName( "index" ).materialise( 13 );
         index = LuceneSchemaIndexBuilder.create( descriptor, Config.defaults() )
                                         .withIndexStorage( indexStorage )
                                         .build();
@@ -95,7 +93,7 @@ class NonUniqueDatabaseIndexPopulatorTest
     }
 
     @Test
-    void sampleEmptyIndex() throws IOException
+    void sampleEmptyIndex()
     {
         populator = newPopulator();
 
@@ -105,7 +103,7 @@ class NonUniqueDatabaseIndexPopulatorTest
     }
 
     @Test
-    void sampleIncludedUpdates() throws Exception
+    void sampleIncludedUpdates()
     {
         populator = newPopulator();
 
@@ -122,7 +120,7 @@ class NonUniqueDatabaseIndexPopulatorTest
     }
 
     @Test
-    void sampleIncludedUpdatesWithDuplicates() throws Exception
+    void sampleIncludedUpdatesWithDuplicates()
     {
         populator = newPopulator();
 
@@ -151,15 +149,16 @@ class NonUniqueDatabaseIndexPopulatorTest
         populator.add( updates );
 
         index.maybeRefreshBlocking();
-        try ( IndexReader reader = index.getIndexReader() )
+        try ( IndexReader reader = index.getIndexReader();
+              NodeValueIterator allEntities = new NodeValueIterator() )
         {
             int propertyKeyId = labelSchemaDescriptor.getPropertyId();
-            LongIterator allEntities = reader.query( IndexQuery.exists( propertyKeyId ) );
+            reader.query( NULL_CONTEXT, allEntities, IndexOrder.NONE, false, IndexQuery.exists( propertyKeyId ) );
             assertArrayEquals( new long[]{1, 2, 42}, PrimitiveLongCollections.asArray( allEntities ) );
         }
     }
 
-    private NonUniqueLuceneIndexPopulator newPopulator() throws IOException
+    private NonUniqueLuceneIndexPopulator newPopulator()
     {
         IndexSamplingConfig samplingConfig = new IndexSamplingConfig( Config.defaults() );
         NonUniqueLuceneIndexPopulator populator = new NonUniqueLuceneIndexPopulator( index, samplingConfig );

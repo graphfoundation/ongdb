@@ -22,77 +22,71 @@
  */
 package org.neo4j.kernel.impl.index.schema;
 
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.rules.RuleChain;
+import org.apache.commons.lang3.tuple.Pair;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.extension.ExtendWith;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 
-import org.neo4j.cursor.RawCursor;
 import org.neo4j.index.internal.gbptree.GBPTree;
 import org.neo4j.index.internal.gbptree.GBPTreeBuilder;
-import org.neo4j.index.internal.gbptree.Hit;
 import org.neo4j.index.internal.gbptree.Layout;
+import org.neo4j.index.internal.gbptree.Seeker;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.io.fs.DefaultFileSystemAbstraction;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.kernel.api.index.IndexDirectoryStructure;
-import org.neo4j.kernel.api.index.IndexEntryUpdate;
 import org.neo4j.kernel.api.index.IndexProvider;
-import org.neo4j.storageengine.api.schema.IndexDescriptor;
-import org.neo4j.storageengine.api.schema.StoreIndexDescriptor;
-import org.neo4j.test.rule.PageCacheRule;
+import org.neo4j.storageengine.api.IndexEntryUpdate;
+import org.neo4j.test.extension.Inject;
+import org.neo4j.test.extension.RandomExtension;
+import org.neo4j.test.extension.pagecache.PageCacheExtension;
 import org.neo4j.test.rule.RandomRule;
 import org.neo4j.test.rule.TestDirectory;
-import org.neo4j.test.rule.fs.DefaultFileSystemRule;
 import org.neo4j.values.storable.ValueGroup;
 
 import static java.lang.String.format;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import static org.junit.rules.RuleChain.outerRule;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.neo4j.kernel.api.index.IndexDirectoryStructure.directoriesByProvider;
 import static org.neo4j.kernel.impl.index.schema.NativeIndexKey.Inclusion.NEUTRAL;
-import static org.neo4j.test.rule.PageCacheRule.config;
 
+@PageCacheExtension
+@ExtendWith( RandomExtension.class )
 public abstract class NativeIndexTestUtil<KEY extends NativeIndexKey<KEY>,VALUE extends NativeIndexValue>
 {
     static final long NON_EXISTENT_ENTITY_ID = 1_000_000_000;
 
-    final DefaultFileSystemRule fs = new DefaultFileSystemRule();
-    private final TestDirectory directory = TestDirectory.testDirectory( getClass(), fs.get() );
-    private final PageCacheRule pageCacheRule = new PageCacheRule( config().withAccessChecks( true ) );
-    protected final RandomRule random = new RandomRule();
-    @Rule
-    public final RuleChain rules = outerRule( random ).around( fs ).around( directory ).around( pageCacheRule );
+    @Inject
+    protected DefaultFileSystemAbstraction fs;
+    @Inject
+    private TestDirectory directory;
+    @Inject
+    protected PageCache pageCache;
+    @Inject
+    protected RandomRule random;
 
-    StoreIndexDescriptor indexDescriptor;
+    IndexDescriptor indexDescriptor;
     ValueCreatorUtil<KEY,VALUE> valueCreatorUtil;
     IndexLayout<KEY,VALUE> layout;
-    IndexDirectoryStructure indexDirectoryStructure;
-    private File indexFile;
-    PageCache pageCache;
+    private IndexDirectoryStructure indexDirectoryStructure;
+    IndexFiles indexFiles;
     IndexProvider.Monitor monitor = IndexProvider.Monitor.EMPTY;
 
-    @Before
+    @BeforeEach
     public void setup() throws IOException
     {
         valueCreatorUtil = createValueCreatorUtil();
         indexDescriptor = valueCreatorUtil.indexDescriptor();
         layout = createLayout();
-        indexDirectoryStructure = directoriesByProvider( directory.directory( "root" ) ).forProvider( indexDescriptor.providerDescriptor() );
-        indexFile = indexDirectoryStructure.directoryForIndex( indexDescriptor.getId() );
-        fs.mkdirs( indexFile.getParentFile() );
-        pageCache = pageCacheRule.getPageCache( fs );
-    }
-
-    public File getIndexFile()
-    {
-        return indexFile;
+        indexDirectoryStructure = directoriesByProvider( directory.directory( "root" ) ).forProvider( indexDescriptor.getIndexProvider() );
+        this.indexFiles = new IndexFiles.Directory( fs, indexDirectoryStructure, indexDescriptor.getId() );
+        fs.mkdirs( indexFiles.getStoreFile().getParentFile() );
     }
 
     abstract ValueCreatorUtil<KEY,VALUE> createValueCreatorUtil();
@@ -107,38 +101,38 @@ public abstract class NativeIndexTestUtil<KEY extends NativeIndexKey<KEY>,VALUE 
     void verifyUpdates( IndexEntryUpdate<IndexDescriptor>[] updates )
             throws IOException
     {
-        Hit<KEY,VALUE>[] expectedHits = convertToHits( updates, layout );
-        List<Hit<KEY,VALUE>> actualHits = new ArrayList<>();
+        Pair<KEY,VALUE>[] expectedHits = convertToHits( updates, layout );
+        List<Pair<KEY,VALUE>> actualHits = new ArrayList<>();
         try ( GBPTree<KEY,VALUE> tree = getTree();
-              RawCursor<Hit<KEY,VALUE>,IOException> scan = scan( tree ) )
+              Seeker<KEY,VALUE> scan = scan( tree ) )
         {
             while ( scan.next() )
             {
-                actualHits.add( deepCopy( scan.get() ) );
+                actualHits.add( deepCopy( scan ) );
             }
         }
 
-        Comparator<Hit<KEY,VALUE>> hitComparator = ( h1, h2 ) ->
+        Comparator<Pair<KEY,VALUE>> hitComparator = ( h1, h2 ) ->
         {
-            int keyCompare = layout.compare( h1.key(), h2.key() );
+            int keyCompare = layout.compare( h1.getKey(), h2.getKey() );
             if ( keyCompare == 0 )
             {
-                return valueCreatorUtil.compareIndexedPropertyValue( h1.key(), h2.key() );
+                return valueCreatorUtil.compareIndexedPropertyValue( h1.getKey(), h2.getKey() );
             }
             else
             {
                 return keyCompare;
             }
         };
-        assertSameHits( expectedHits, actualHits.toArray( new Hit[0] ), hitComparator );
+        assertSameHits( expectedHits, actualHits.toArray( new Pair[0] ), hitComparator );
     }
 
     GBPTree<KEY,VALUE> getTree()
     {
-        return new GBPTreeBuilder<>( pageCache, getIndexFile(), layout ).build();
+        return new GBPTreeBuilder<>( pageCache, indexFiles.getStoreFile(), layout ).build();
     }
 
-    private RawCursor<Hit<KEY,VALUE>, IOException> scan( GBPTree<KEY,VALUE> tree ) throws IOException
+    private Seeker<KEY,VALUE> scan( GBPTree<KEY,VALUE> tree ) throws IOException
     {
         KEY lowest = layout.newKey();
         lowest.initialize( Long.MIN_VALUE );
@@ -149,36 +143,37 @@ public abstract class NativeIndexTestUtil<KEY extends NativeIndexKey<KEY>,VALUE 
         return tree.seek( lowest, highest );
     }
 
-    private void assertSameHits( Hit<KEY, VALUE>[] expectedHits, Hit<KEY, VALUE>[] actualHits,
-            Comparator<Hit<KEY, VALUE>> comparator )
+    private void assertSameHits( Pair<KEY, VALUE>[] expectedHits, Pair<KEY, VALUE>[] actualHits,
+            Comparator<Pair<KEY, VALUE>> comparator )
     {
         Arrays.sort( expectedHits, comparator );
         Arrays.sort( actualHits, comparator );
-        assertEquals( format( "Array length differ%nExpected:%d, Actual:%d",
-                expectedHits.length, actualHits.length ),
-                expectedHits.length, actualHits.length );
+        assertEquals(
+            expectedHits.length, actualHits.length, format( "Array length differ%nExpected:%d, Actual:%d",
+                    expectedHits.length, actualHits.length ) );
 
         for ( int i = 0; i < expectedHits.length; i++ )
         {
-            Hit<KEY,VALUE> expected = expectedHits[i];
-            Hit<KEY,VALUE> actual = actualHits[i];
-            assertEquals( "Hits differ on item number " + i + ". Expected " + expected + " but was " + actual, 0, comparator.compare( expected, actual ) );
+            Pair<KEY,VALUE> expected = expectedHits[i];
+            Pair<KEY,VALUE> actual = actualHits[i];
+            assertEquals( 0, comparator.compare( expected, actual ),
+                "Hits differ on item number " + i + ". Expected " + expected + " but was " + actual );
         }
     }
 
-    private Hit<KEY,VALUE> deepCopy( Hit<KEY,VALUE> from )
+    private Pair<KEY,VALUE> deepCopy( Seeker<KEY,VALUE> from )
     {
         KEY intoKey = layout.newKey();
         VALUE intoValue = layout.newValue();
         layout.copyKey( from.key(), intoKey );
         copyValue( from.value(), intoValue );
-        return new SimpleHit<>( intoKey, intoValue );
+        return Pair.of( intoKey, intoValue );
     }
 
-    private Hit<KEY,VALUE>[] convertToHits( IndexEntryUpdate<IndexDescriptor>[] updates,
+    private Pair<KEY,VALUE>[] convertToHits( IndexEntryUpdate<IndexDescriptor>[] updates,
             Layout<KEY,VALUE> layout )
     {
-        List<Hit<KEY,VALUE>> hits = new ArrayList<>( updates.length );
+        List<Pair<KEY,VALUE>> hits = new ArrayList<>( updates.length );
         for ( IndexEntryUpdate<IndexDescriptor> u : updates )
         {
             KEY key = layout.newKey();
@@ -189,24 +184,19 @@ public abstract class NativeIndexTestUtil<KEY extends NativeIndexKey<KEY>,VALUE 
             }
             VALUE value = layout.newValue();
             value.from( u.values() );
-            hits.add( hit( key, value ) );
+            hits.add( Pair.of( key, value ) );
         }
-        return hits.toArray( new Hit[0] );
-    }
-
-    private Hit<KEY,VALUE> hit( final KEY key, final VALUE value )
-    {
-        return new SimpleHit<>( key, value );
+        return hits.toArray( new Pair[0] );
     }
 
     void assertFilePresent()
     {
-        assertTrue( fs.fileExists( getIndexFile() ) );
+        assertTrue( fs.fileExists( indexFiles.getStoreFile() ) );
     }
 
     void assertFileNotPresent()
     {
-        assertFalse( fs.fileExists( getIndexFile() ) );
+        assertFalse( fs.fileExists( indexFiles.getStoreFile() ) );
     }
 
     // Useful when debugging

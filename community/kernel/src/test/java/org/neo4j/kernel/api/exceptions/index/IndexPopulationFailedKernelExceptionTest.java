@@ -22,26 +22,25 @@
  */
 package org.neo4j.kernel.api.exceptions.index;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import org.neo4j.internal.kernel.api.TokenNameLookup;
-import org.neo4j.internal.kernel.api.schema.SchemaUtil;
-import org.neo4j.kernel.api.schema.LabelSchemaDescriptor;
-import org.neo4j.kernel.api.schema.SchemaDescriptorFactory;
+import org.neo4j.common.TokenNameLookup;
+import org.neo4j.internal.schema.LabelSchemaDescriptor;
+import org.neo4j.internal.schema.SchemaDescriptor;
 
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.neo4j.common.TokenNameLookup.idTokenNameLookup;
 
-public class IndexPopulationFailedKernelExceptionTest
+class IndexPopulationFailedKernelExceptionTest
 {
-
-    private static final TokenNameLookup TOKEN_NAME_LOOKUP = SchemaUtil.idTokenNameLookup;
+    private static final TokenNameLookup TOKEN_NAME_LOOKUP = idTokenNameLookup;
 
     @Test
-    public void shouldHandleMultiplePropertiesInConstructor1()
+    void shouldHandleMultiplePropertiesInConstructor1()
     {
         // Given
-        LabelSchemaDescriptor descriptor = SchemaDescriptorFactory.forLabel( 0, 42, 43, 44 );
+        LabelSchemaDescriptor descriptor = SchemaDescriptor.forLabel( 0, 42, 43, 44 );
 
         // When
         IndexPopulationFailedKernelException index = new IndexPopulationFailedKernelException(
@@ -53,10 +52,10 @@ public class IndexPopulationFailedKernelExceptionTest
     }
 
     @Test
-    public void shouldHandleMultiplePropertiesInConstructor2()
+    void shouldHandleMultiplePropertiesInConstructor2()
     {
         // Given
-        LabelSchemaDescriptor descriptor = SchemaDescriptorFactory.forLabel( 0, 42, 43, 44 );
+        LabelSchemaDescriptor descriptor = SchemaDescriptor.forLabel( 0, 42, 43, 44 );
 
         // When
         IndexPopulationFailedKernelException index = new IndexPopulationFailedKernelException(

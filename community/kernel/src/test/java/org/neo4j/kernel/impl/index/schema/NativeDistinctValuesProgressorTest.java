@@ -23,10 +23,10 @@
 package org.neo4j.kernel.impl.index.schema;
 
 import org.apache.commons.lang3.mutable.MutableInt;
-import org.junit.Rule;
-import org.junit.Test;
+import org.apache.commons.lang3.tuple.Pair;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -34,30 +34,36 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 
-import org.neo4j.cursor.RawCursor;
-import org.neo4j.index.internal.gbptree.Hit;
-import org.neo4j.internal.kernel.api.IndexOrder;
+import org.neo4j.configuration.Config;
+import org.neo4j.index.internal.gbptree.Seeker;
+import org.neo4j.internal.schema.IndexOrder;
 import org.neo4j.internal.kernel.api.IndexQuery;
+import org.neo4j.kernel.impl.index.schema.config.IndexSpecificSpaceFillingCurveSettings;
+import org.neo4j.test.extension.Inject;
+import org.neo4j.test.extension.RandomExtension;
 import org.neo4j.test.rule.RandomRule;
 import org.neo4j.values.storable.Value;
 import org.neo4j.values.storable.Values;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.neo4j.kernel.impl.index.schema.NativeIndexKey.Inclusion.NEUTRAL;
 import static org.neo4j.kernel.impl.index.schema.NativeIndexValue.INSTANCE;
 import static org.neo4j.values.storable.Values.stringValue;
 
-public class NativeDistinctValuesProgressorTest
+@ExtendWith( RandomExtension.class )
+class NativeDistinctValuesProgressorTest
 {
-    private final StringLayout layout = new StringLayout();
+    private static final Config config = Config.defaults();
+    private static final IndexSpecificSpaceFillingCurveSettings specificSettings = IndexSpecificSpaceFillingCurveSettings.fromConfig( config );
+    private final GenericLayout layout = new GenericLayout( 1, specificSettings );
 
-    @Rule
-    public final RandomRule random = new RandomRule();
+    @Inject
+    private RandomRule random;
 
     @Test
-    public void shouldCountDistinctValues()
+    void shouldCountDistinctValues()
     {
         // given
         Value[] strings = generateRandomStrings();
@@ -65,9 +71,9 @@ public class NativeDistinctValuesProgressorTest
         GatheringNodeValueClient client = new GatheringNodeValueClient();
 
         // when
-        NativeDistinctValuesProgressor<StringIndexKey,NativeIndexValue> progressor =
-                new NativeDistinctValuesProgressor<>( source, client, new ArrayList<>(), layout, layout::compareValue );
-        client.initialize( null, progressor, new IndexQuery[0], IndexOrder.NONE, true );
+        NativeDistinctValuesProgressor<GenericKey,NativeIndexValue> progressor =
+                new NativeDistinctValuesProgressor<>( source, client, layout, layout::compareValue );
+        client.initialize( null, progressor, new IndexQuery[0], IndexOrder.NONE, true, false );
         Map<Value,MutableInt> expectedCounts = asDistinctCounts( strings );
 
         // then
@@ -94,7 +100,7 @@ public class NativeDistinctValuesProgressorTest
         assertTrue( nonUniqueValues > 0 );
     }
 
-    private Map<Value,MutableInt> asDistinctCounts( Value[] strings )
+    private static Map<Value, MutableInt> asDistinctCounts( Value[] strings )
     {
         Map<Value,MutableInt> map = new HashMap<>();
         for ( Value string : strings )
@@ -116,25 +122,25 @@ public class NativeDistinctValuesProgressorTest
         return strings;
     }
 
-    private Collection<Hit<StringIndexKey,NativeIndexValue>> asHitData( Value[] strings )
+    private Collection<Pair<GenericKey,NativeIndexValue>> asHitData( Value[] strings )
     {
-        Collection<Hit<StringIndexKey,NativeIndexValue>> data = new ArrayList<>( strings.length );
+        Collection<Pair<GenericKey,NativeIndexValue>> data = new ArrayList<>( strings.length );
         for ( int i = 0; i < strings.length; i++ )
         {
-            StringIndexKey key = layout.newKey();
+            GenericKey key = layout.newKey();
             key.initialize( i );
             key.initFromValue( 0, strings[i], NEUTRAL );
-            data.add( new SimpleHit<>( key, INSTANCE ) );
+            data.add( Pair.of( key, INSTANCE ) );
         }
         return data;
     }
 
-    private static class DataCursor implements RawCursor<Hit<StringIndexKey,NativeIndexValue>,IOException>
+    private static class DataCursor implements Seeker<GenericKey,NativeIndexValue>
     {
-        private final Iterator<Hit<StringIndexKey,NativeIndexValue>> iterator;
-        private Hit<StringIndexKey,NativeIndexValue> current;
+        private final Iterator<Pair<GenericKey,NativeIndexValue>> iterator;
+        private Pair<GenericKey,NativeIndexValue> current;
 
-        DataCursor( Collection<Hit<StringIndexKey,NativeIndexValue>> data )
+        DataCursor( Collection<Pair<GenericKey,NativeIndexValue>> data )
         {
             this.iterator = data.iterator();
         }
@@ -157,9 +163,15 @@ public class NativeDistinctValuesProgressorTest
         }
 
         @Override
-        public Hit<StringIndexKey,NativeIndexValue> get()
+        public GenericKey key()
         {
-            return current;
+            return current.getKey();
+        }
+
+        @Override
+        public NativeIndexValue value()
+        {
+            return current.getValue();
         }
     }
 }

@@ -22,39 +22,46 @@
  */
 package org.neo4j.kernel.impl.index.schema;
 
-import org.junit.Rule;
-import org.junit.Test;
-
 import java.io.File;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 
+import org.junit.jupiter.api.Test;
+import org.neo4j.dbms.api.DatabaseManagementService;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Transaction;
 import org.neo4j.graphdb.schema.IndexDefinition;
-import org.neo4j.io.fs.OpenMode;
+import org.neo4j.io.fs.DefaultFileSystemAbstraction;
+import org.neo4j.io.fs.PhysicalFlushableChecksumChannel;
 import org.neo4j.io.fs.StoreChannel;
+import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.kernel.impl.api.index.IndexMap;
 import org.neo4j.kernel.impl.api.index.IndexProxy;
 import org.neo4j.kernel.impl.api.index.IndexingService;
 import org.neo4j.kernel.impl.transaction.CommittedTransactionRepresentation;
 import org.neo4j.kernel.impl.transaction.log.LogPosition;
 import org.neo4j.kernel.impl.transaction.log.LogicalTransactionStore;
-import org.neo4j.kernel.impl.transaction.log.PhysicalFlushableChannel;
+import org.neo4j.kernel.impl.transaction.log.ReadableLogChannel;
 import org.neo4j.kernel.impl.transaction.log.TransactionCursor;
-import org.neo4j.kernel.impl.transaction.log.TransactionIdStore;
+import org.neo4j.kernel.impl.transaction.log.entry.LogEntryReader;
 import org.neo4j.kernel.impl.transaction.log.entry.LogEntryWriter;
+import org.neo4j.kernel.impl.transaction.log.entry.VersionAwareLogEntryReader;
+import org.neo4j.kernel.impl.transaction.log.files.LogFile;
 import org.neo4j.kernel.impl.transaction.log.files.LogFiles;
 import org.neo4j.kernel.impl.transaction.log.files.LogFilesBuilder;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
-import org.neo4j.kernel.monitoring.Monitors;
 import org.neo4j.kernel.recovery.RecoveryMonitor;
-import org.neo4j.test.TestGraphDatabaseFactory;
+import org.neo4j.monitoring.Monitors;
+import org.neo4j.storageengine.api.TransactionIdStore;
+import org.neo4j.test.TestDatabaseManagementServiceBuilder;
+import org.neo4j.test.extension.Inject;
+import org.neo4j.test.extension.Neo4jLayoutExtension;
 import org.neo4j.test.rule.TestDirectory;
-import org.neo4j.test.rule.fs.DefaultFileSystemRule;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.neo4j.helpers.collection.Iterables.count;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
+import static org.neo4j.internal.helpers.collection.Iterables.count;
 import static org.neo4j.test.TestLabels.LABEL_ONE;
 
 /**
@@ -67,31 +74,36 @@ import static org.neo4j.test.TestLabels.LABEL_ONE;
  * before the command had been applied and so the files would still remain, and not be dropped either when that command
  * was recovered.
  */
-public class RecoverIndexDropIT
+@Neo4jLayoutExtension
+class RecoverIndexDropIT
 {
     private static final String KEY = "key";
 
-    @Rule
-    public final DefaultFileSystemRule fs = new DefaultFileSystemRule();
-    @Rule
-    public final TestDirectory directory = TestDirectory.testDirectory( fs );
+    @Inject
+    private DefaultFileSystemAbstraction fs;
+    @Inject
+    private TestDirectory directory;
+    @Inject
+    private DatabaseLayout databaseLayout;
 
     @Test
-    public void shouldDropIndexOnRecovery() throws IOException
+    void shouldDropIndexOnRecovery() throws IOException
     {
         // given a transaction stream ending in an INDEX DROP command.
         CommittedTransactionRepresentation dropTransaction = prepareDropTransaction();
-        File storeDir = directory.databaseDir();
-        GraphDatabaseService db = new TestGraphDatabaseFactory().newEmbeddedDatabase( storeDir );
+        DatabaseManagementService managementService = new TestDatabaseManagementServiceBuilder( databaseLayout ).build();
+        GraphDatabaseService db = managementService.database( DEFAULT_DATABASE_NAME );
         createIndex( db );
-        db.shutdown();
-        appendDropTransactionToTransactionLog( directory.databaseDir(), dropTransaction );
+        managementService.shutdown();
+        appendDropTransactionToTransactionLog( databaseLayout.getTransactionLogsDirectory(), dropTransaction );
 
         // when recovering this (the drop transaction with the index file intact)
         Monitors monitors = new Monitors();
         AssertRecoveryIsPerformed recoveryMonitor = new AssertRecoveryIsPerformed();
         monitors.addMonitorListener( recoveryMonitor );
-        db = new TestGraphDatabaseFactory().setMonitors( monitors ).newEmbeddedDatabase( storeDir );
+        managementService = new TestDatabaseManagementServiceBuilder( databaseLayout ).setMonitors( monitors )
+                .build();
+        db = managementService.database( DEFAULT_DATABASE_NAME );
         try
         {
             assertTrue( recoveryMonitor.recoveryWasPerformed );
@@ -99,14 +111,14 @@ public class RecoverIndexDropIT
             // then
             try ( Transaction tx = db.beginTx() )
             {
-                assertEquals( 0, count( db.schema().getIndexes() ) );
-                tx.success();
+                assertEquals( 0, count( tx.schema().getIndexes() ) );
+                tx.commit();
             }
         }
         finally
         {
             // and the ability to shut down w/o failing on still open files
-            db.shutdown();
+            managementService.shutdown();
         }
     }
 
@@ -114,27 +126,39 @@ public class RecoverIndexDropIT
     {
         try ( Transaction tx = db.beginTx() )
         {
-            IndexDefinition index = db.schema().indexFor( LABEL_ONE ).on( KEY ).create();
-            tx.success();
+            IndexDefinition index = tx.schema().indexFor( LABEL_ONE ).on( KEY ).create();
+            tx.commit();
             return index;
         }
     }
 
-    private void appendDropTransactionToTransactionLog( File databaseDirectory, CommittedTransactionRepresentation dropTransaction ) throws IOException
+    private void appendDropTransactionToTransactionLog( File transactionLogsDirectory, CommittedTransactionRepresentation dropTransaction ) throws IOException
     {
-        LogFiles logFiles = LogFilesBuilder.logFilesBasedOnlyBuilder( databaseDirectory, fs ).build();
-        File logFile = logFiles.getLogFileForVersion( logFiles.getHighestLogVersion() );
-        StoreChannel writeStoreChannel = fs.open( logFile, OpenMode.READ_WRITE );
-        writeStoreChannel.position( writeStoreChannel.size() );
-        try ( PhysicalFlushableChannel writeChannel = new PhysicalFlushableChannel( writeStoreChannel ) )
+        LogFiles logFiles = LogFilesBuilder.logFilesBasedOnlyBuilder( transactionLogsDirectory, fs ).build();
+        LogFile logFile = logFiles.getLogFile();
+
+        try ( ReadableLogChannel reader = logFile.getReader( logFiles.extractHeader( 0 ).getStartPosition() ) )
         {
-            new LogEntryWriter( writeChannel ).serialize( dropTransaction );
+            LogEntryReader logEntryReader = new VersionAwareLogEntryReader();
+            while ( logEntryReader.readLogEntry( reader ) != null )
+            {
+            }
+            LogPosition position = logEntryReader.lastPosition();
+            StoreChannel storeChannel = fs.write( logFiles.getLogFileForVersion( logFiles.getHighestLogVersion() ) );
+            storeChannel.position( position.getByteOffset() );
+            ByteBuffer buf = ByteBuffer.allocate( 1000 );
+            try ( PhysicalFlushableChecksumChannel writeChannel = new PhysicalFlushableChecksumChannel( storeChannel, buf ) )
+            {
+                new LogEntryWriter( writeChannel ).serialize( dropTransaction );
+            }
         }
     }
 
     private CommittedTransactionRepresentation prepareDropTransaction() throws IOException
     {
-        GraphDatabaseAPI db = (GraphDatabaseAPI) new TestGraphDatabaseFactory().newEmbeddedDatabase( directory.directory( "preparation" ) );
+        DatabaseManagementService managementService =
+                new TestDatabaseManagementServiceBuilder( directory.directory( "preparation" ) ).build();
+        GraphDatabaseAPI db = (GraphDatabaseAPI) managementService.database( DEFAULT_DATABASE_NAME );
         try
         {
             // Create index
@@ -142,14 +166,14 @@ public class RecoverIndexDropIT
             index = createIndex( db );
             try ( Transaction tx = db.beginTx() )
             {
-                index.drop();
-                tx.success();
+                tx.schema().getIndexByName( index.getName() ).drop();
+                tx.commit();
             }
             return extractLastTransaction( db );
         }
         finally
         {
-            db.shutdown();
+            managementService.shutdown();
         }
     }
 

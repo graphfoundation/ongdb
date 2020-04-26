@@ -26,14 +26,14 @@ import java.lang.{Iterable => JavaIterable}
 import java.util.{Iterator => JavaIterator}
 
 import org.neo4j.graphdb.traversal.Paths
-import org.neo4j.graphdb.{Node, Path, PropertyContainer, Relationship}
+import org.neo4j.graphdb.{Entity, Node, Path, Relationship}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 
-case class PathImpl(pathEntities: PropertyContainer*)
+case class PathImpl(pathEntities: Entity*)
   extends org.neo4j.graphdb.Path
-  with Traversable[PropertyContainer] {
+  with Traversable[Entity] {
 
   val sz = pathEntities.size
 
@@ -61,7 +61,7 @@ case class PathImpl(pathEntities: PropertyContainer*)
   require(isProperPath, s"Tried to construct a path that is not built like a path: $pathEntities")
 
   def isProperPath: Boolean = {
-    val atLeastOneNode = nodeList.length > 0
+    val atLeastOneNode = nodeList.nonEmpty
     val relsLengthEqualsToNodesLengthMinusOne = relList.length == nodeList.length - 1
     atLeastOneNode && relsLengthEqualsToNodesLengthMinusOne
   }
@@ -78,9 +78,9 @@ case class PathImpl(pathEntities: PropertyContainer*)
 
   def length(): Int = relList.size
 
-  def iterator(): JavaIterator[PropertyContainer] = pathEntities.asJava.iterator()
+  def iterator(): JavaIterator[Entity] = pathEntities.asJava.iterator()
 
-  def foreach[U](f: (PropertyContainer) => U) {
+  def foreach[U](f: Entity => U) {
     pathEntities.foreach(f)
   }
 

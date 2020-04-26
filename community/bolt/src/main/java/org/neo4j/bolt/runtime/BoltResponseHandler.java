@@ -31,7 +31,9 @@ import org.neo4j.values.AnyValue;
  */
 public interface BoltResponseHandler
 {
-    void onRecords( BoltResult result, boolean pull ) throws Exception;
+    boolean onPullRecords( BoltResult result, long size ) throws Throwable;
+
+    boolean onDiscardRecords( BoltResult result, long size ) throws Throwable;
 
     void onMetadata( String key, AnyValue value );
 

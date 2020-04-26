@@ -24,13 +24,12 @@ package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
 import org.neo4j.cypher.internal.runtime.interpreted._
 import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.Expression
-import org.neo4j.cypher.internal.runtime.{LenientCreateRelationship, Operations, QueryContext}
-import org.neo4j.function.ThrowingBiConsumer
+import org.neo4j.cypher.internal.runtime.{ExecutionContext, IsNoValue, LenientCreateRelationship, Operations, QueryContext, _}
+import org.neo4j.cypher.internal.v4_0.util.attribution.Id
+import org.neo4j.exceptions.{CypherTypeException, InternalException, InvalidSemanticsException}
 import org.neo4j.values.AnyValue
-import org.neo4j.values.storable.{Value, Values}
+import org.neo4j.values.storable.Values
 import org.neo4j.values.virtual.{NodeValue, RelationshipValue}
-import org.neo4j.cypher.internal.v3_6.util.attribution.Id
-import org.neo4j.cypher.internal.v3_6.util.{CypherTypeException, InternalException, InvalidSemanticsException}
 
 /**
   * Extends PipeWithSource with methods for setting properties and labels on entities.
@@ -44,18 +43,18 @@ abstract class BaseCreatePipe(src: Pipe) extends PipeWithSource(src) {
                               state: QueryState,
                               entityId: Long,
                               properties: Expression,
-                              ops: Operations[_]): Unit =
-    properties(context, state) match {
+                              ops: Operations[_, _]): Unit = {
+    val value = properties(context, state)
+    value match {
       case _: NodeValue | _: RelationshipValue =>
-        throw new CypherTypeException("Parameter provided for node creation is not a Map")
+        throw new CypherTypeException(s"Parameter provided for node creation is not a Map, instead got $value")
       case IsMap(map) =>
-        map(state.query).foreach(new ThrowingBiConsumer[String, AnyValue, RuntimeException] {
-          override def accept(k: String, v: AnyValue): Unit = setProperty(entityId, k, v, state.query, ops)
-        })
+        map(state).foreach((k: String, v: AnyValue) => setProperty(entityId, k, v, state.query, ops))
 
       case _ =>
-        throw new CypherTypeException("Parameter provided for node creation is not a Map")
+        throw new CypherTypeException(s"Parameter provided for node creation is not a Map, instead got $value")
     }
+  }
 
   /**
     * Set property on node, or call `handleNoValue` if value is `NO_VALUE`.
@@ -64,9 +63,9 @@ abstract class BaseCreatePipe(src: Pipe) extends PipeWithSource(src) {
                             key: String,
                             value: AnyValue,
                             qtx: QueryContext,
-                            ops: Operations[_]): Unit = {
+                            ops: Operations[_, _]): Unit = {
     //do not set properties for null values
-    if (value == Values.NO_VALUE) {
+    if (value eq Values.NO_VALUE) {
       handleNoValue(key)
     } else {
       val propertyKeyId = qtx.getOrCreatePropertyKeyId(key)
@@ -93,7 +92,7 @@ abstract class EntityCreatePipe(src: Pipe) extends BaseCreatePipe(src) {
   protected def createNode(context: ExecutionContext,
                            state: QueryState,
                            data: CreateNodeCommand): (String, NodeValue) = {
-    val labelIds = data.labels.map(_.getOrCreateId(state.query).id).toArray
+    val labelIds = data.labels.map(_.getOrCreateId(state.query)).toArray
     val node = state.query.createNode(labelIds)
     data.properties.foreach(setProperties(context, state, node.id(), _, state.query.nodeOps))
     data.idName -> node
@@ -121,13 +120,12 @@ abstract class EntityCreatePipe(src: Pipe) extends BaseCreatePipe(src) {
   }
 
   private def getNode(row: ExecutionContext, relName: String, name: String, lenient: Boolean): NodeValue =
-    row.get(name) match {
-      case Some(n: NodeValue) => n
-      case Some(Values.NO_VALUE) =>
+    row.getByName(name) match {
+      case n: NodeValue => n
+      case IsNoValue() =>
         if (lenient) null
         else throw new InternalException(LenientCreateRelationship.errorMsg(relName, name))
-      case Some(x) => throw new InternalException(s"Expected to find a node at '$name' but found instead: $x")
-      case None => throw new InternalException(s"Expected to find a node at '$name' but found instead: null")
+      case x => throw new InternalException(s"Expected to find a node at '$name' but found instead: $x")
     }
 }
 

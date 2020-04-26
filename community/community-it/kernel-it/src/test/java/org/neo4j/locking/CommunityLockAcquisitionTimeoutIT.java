@@ -22,169 +22,157 @@
  */
 package org.neo4j.locking;
 
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.ClassRule;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
-import java.io.File;
+import java.time.Duration;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 
-import org.neo4j.graphdb.DependencyResolver;
+import org.neo4j.common.DependencyResolver;
+import org.neo4j.configuration.GraphDatabaseSettings;
+import org.neo4j.dbms.api.DatabaseManagementService;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.ResourceIterator;
 import org.neo4j.graphdb.Transaction;
-import org.neo4j.graphdb.facade.GraphDatabaseDependencies;
-import org.neo4j.graphdb.facade.GraphDatabaseFacadeFactory;
-import org.neo4j.graphdb.factory.GraphDatabaseBuilder;
-import org.neo4j.graphdb.factory.GraphDatabaseFactoryState;
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
-import org.neo4j.graphdb.factory.module.PlatformModule;
-import org.neo4j.graphdb.factory.module.edition.CommunityEditionModule;
-import org.neo4j.kernel.configuration.Config;
-import org.neo4j.kernel.impl.factory.DatabaseInfo;
 import org.neo4j.kernel.impl.locking.LockAcquisitionTimeoutException;
 import org.neo4j.kernel.impl.locking.Locks;
-import org.neo4j.kernel.impl.locking.ResourceTypes;
 import org.neo4j.kernel.impl.locking.community.CommunityLockClient;
 import org.neo4j.kernel.impl.locking.community.CommunityLockManger;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
-import org.neo4j.storageengine.api.lock.LockTracer;
+import org.neo4j.lock.LockTracer;
+import org.neo4j.lock.ResourceTypes;
 import org.neo4j.test.OtherThreadExecutor;
-import org.neo4j.test.TestGraphDatabaseFactory;
+import org.neo4j.test.TestDatabaseManagementServiceBuilder;
+import org.neo4j.test.extension.Inject;
+import org.neo4j.test.extension.testdirectory.TestDirectoryExtension;
 import org.neo4j.test.mockito.matcher.RootCauseMatcher;
 import org.neo4j.test.rule.TestDirectory;
 import org.neo4j.time.Clocks;
 import org.neo4j.time.FakeClock;
-import org.neo4j.time.SystemNanoClock;
 
-import static org.junit.Assert.fail;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
 
+@TestDirectoryExtension
 public class CommunityLockAcquisitionTimeoutIT
 {
-
-    @ClassRule
-    public static final TestDirectory directory = TestDirectory.testDirectory();
-    @Rule
-    public final ExpectedException expectedException = ExpectedException.none();
-
-    private final OtherThreadExecutor<Void> secondTransactionExecutor =
-            new OtherThreadExecutor<>( "transactionExecutor", null );
+    private final OtherThreadExecutor<Void> secondTransactionExecutor = new OtherThreadExecutor<>( "transactionExecutor", null );
     private final OtherThreadExecutor<Void> clockExecutor = new OtherThreadExecutor<>( "clockExecutor", null );
 
-    private static final int TEST_TIMEOUT = 5000;
     private static final String TEST_PROPERTY_NAME = "a";
     private static final Label marker = Label.label( "marker" );
     private static final FakeClock fakeClock = Clocks.fakeClock();
 
-    private static GraphDatabaseService database;
+    @Inject
+    private TestDirectory testDirectory;
 
-    @BeforeClass
-    public static void setUp()
+    private GraphDatabaseService database;
+    private DatabaseManagementService managementService;
+
+    @BeforeEach
+    void setUp()
     {
-        CustomClockFacadeFactory facadeFactory = new CustomClockFacadeFactory();
-        database = new CustomClockTestGraphDatabaseFactory( facadeFactory )
-                .newEmbeddedDatabaseBuilder( directory.storeDir() )
-                .setConfig( GraphDatabaseSettings.lock_acquisition_timeout, "2s" )
-                .setConfig( "dbms.backup.enabled", "false" )
-                .newGraphDatabase();
+        managementService = getDbmsb( testDirectory )
+                .setClock( fakeClock )
+                .setConfig( GraphDatabaseSettings.lock_acquisition_timeout, Duration.ofSeconds( 2 ) )
+                .build();
+        database = managementService.database( DEFAULT_DATABASE_NAME );
 
         createTestNode( marker );
     }
 
-    @AfterClass
-    public static void tearDownClass()
+    protected TestDatabaseManagementServiceBuilder getDbmsb( TestDirectory directory )
     {
-        database.shutdown();
+        return new TestDatabaseManagementServiceBuilder( directory.homeDir() );
     }
 
-    @After
-    public void tearDown()
+    @AfterEach
+    void tearDown()
     {
+        managementService.shutdown();
         secondTransactionExecutor.close();
         clockExecutor.close();
     }
 
-    @Test( timeout = TEST_TIMEOUT )
-    public void timeoutOnAcquiringExclusiveLock() throws Exception
+    @Test
+    void timeoutOnAcquiringExclusiveLock()
     {
-        expectedException.expect( new RootCauseMatcher<>( LockAcquisitionTimeoutException.class,
-                "The transaction has been terminated. " +
-                        "Retry your operation in a new transaction, and you should see a successful result. " +
-                        "Unable to acquire lock within configured timeout (dbms.lock.acquisition.timeout). " +
-                        "Unable to acquire lock for resource: NODE with id: 0 within 2000 millis." ) );
-
-        try ( Transaction ignored = database.beginTx() )
+        var e = assertThrows( Exception.class, () ->
         {
-            ResourceIterator<Node> nodes = database.findNodes( marker );
-            Node node = nodes.next();
-            node.setProperty( TEST_PROPERTY_NAME, "b" );
-
-            Future<Void> propertySetFuture = secondTransactionExecutor.executeDontWait( state ->
+            try ( Transaction tx = database.beginTx() )
             {
-                try ( Transaction transaction1 = database.beginTx() )
+                ResourceIterator<Node> nodes = tx.findNodes( marker );
+                Node node = nodes.next();
+                node.setProperty( TEST_PROPERTY_NAME, "b" );
+
+                Future<Void> propertySetFuture = secondTransactionExecutor.executeDontWait( state ->
                 {
-                    node.setProperty( TEST_PROPERTY_NAME, "b" );
-                    transaction1.success();
-                }
-                return null;
-            } );
+                    try ( Transaction transaction1 = database.beginTx() )
+                    {
+                        transaction1.getNodeById( node.getId() ).setProperty( TEST_PROPERTY_NAME, "b" );
+                        transaction1.commit();
+                    }
+                    return null;
+                } );
 
-            secondTransactionExecutor.waitUntilWaiting( exclusiveLockWaitingPredicate() );
-            clockExecutor.execute( (OtherThreadExecutor.WorkerCommand<Void,Void>) state ->
-            {
-                fakeClock.forward( 3, TimeUnit.SECONDS );
-                return null;
-            } );
-            propertySetFuture.get();
-
-            fail( "Should throw termination exception." );
-        }
+                secondTransactionExecutor.waitUntilWaiting( exclusiveLockWaitingPredicate() );
+                clockExecutor.execute( (OtherThreadExecutor.WorkerCommand<Void, Void>) state ->
+                {
+                    fakeClock.forward( 3, TimeUnit.SECONDS );
+                    return null;
+                } );
+                propertySetFuture.get();
+            }
+        } );
+        assertThat( e, new RootCauseMatcher<>( LockAcquisitionTimeoutException.class,
+            "The transaction has been terminated. " +
+                "Retry your operation in a new transaction, and you should see a successful result. " +
+                "Unable to acquire lock within configured timeout (dbms.lock.acquisition.timeout). " +
+                "Unable to acquire lock for resource: NODE with id: 0 within 2000 millis." ) );
     }
 
-    @Test( timeout = TEST_TIMEOUT )
-    public void timeoutOnAcquiringSharedLock() throws Exception
+    @Test
+    void timeoutOnAcquiringSharedLock()
     {
-        expectedException.expect( new RootCauseMatcher<>( LockAcquisitionTimeoutException.class,
-                "The transaction has been terminated. " +
-                        "Retry your operation in a new transaction, and you should see a successful result. " +
-                        "Unable to acquire lock within configured timeout (dbms.lock.acquisition.timeout). " +
-                        "Unable to acquire lock for resource: LABEL with id: 1 within 2000 millis." ) );
-
-        try ( Transaction ignored = database.beginTx() )
+        var e = assertThrows( Exception.class, () ->
         {
-            Locks lockManger = getLockManager();
-            lockManger.newClient().acquireExclusive( LockTracer.NONE, ResourceTypes.LABEL, 1 );
-
-            Future<Void> propertySetFuture = secondTransactionExecutor.executeDontWait( state ->
+            try ( Transaction tx = database.beginTx() )
             {
-                try ( Transaction nestedTransaction = database.beginTx() )
+                Locks lockManger = getLockManager();
+                lockManger.newClient().acquireExclusive( LockTracer.NONE, ResourceTypes.LABEL, 1 );
+
+                Future<Void> propertySetFuture = secondTransactionExecutor.executeDontWait( state ->
                 {
-                    ResourceIterator<Node> nodes = database.findNodes( marker );
-                    Node node = nodes.next();
-                    node.addLabel( Label.label( "anotherLabel" ) );
-                    nestedTransaction.success();
-                }
-                return null;
-            } );
+                    try ( Transaction nestedTransaction = database.beginTx() )
+                    {
+                        ResourceIterator<Node> nodes = nestedTransaction.findNodes( marker );
+                        Node node = nodes.next();
+                        node.addLabel( Label.label( "anotherLabel" ) );
+                        nestedTransaction.commit();
+                    }
+                    return null;
+                } );
 
-            secondTransactionExecutor.waitUntilWaiting( sharedLockWaitingPredicate() );
-            clockExecutor.execute( (OtherThreadExecutor.WorkerCommand<Void,Void>) state ->
-            {
-                fakeClock.forward( 3, TimeUnit.SECONDS );
-                return null;
-            } );
-            propertySetFuture.get();
-
-            fail( "Should throw termination exception." );
-        }
+                secondTransactionExecutor.waitUntilWaiting( sharedLockWaitingPredicate() );
+                clockExecutor.execute( (OtherThreadExecutor.WorkerCommand<Void, Void>) state ->
+                {
+                    fakeClock.forward( 3, TimeUnit.SECONDS );
+                    return null;
+                } );
+                propertySetFuture.get();
+            }
+        } );
+        assertThat( e, new RootCauseMatcher<>( LockAcquisitionTimeoutException.class,
+            "The transaction has been terminated. " +
+                "Retry your operation in a new transaction, and you should see a successful result. " +
+                "Unable to acquire lock within configured timeout (dbms.lock.acquisition.timeout). " +
+                "Unable to acquire lock for resource: LABEL with id: 1 within 2000 millis." ) );
     }
 
     protected Locks getLockManager()
@@ -207,60 +195,12 @@ public class CommunityLockAcquisitionTimeoutIT
         return waitDetails -> waitDetails.isAt( CommunityLockClient.class, "acquireShared" );
     }
 
-    private static void createTestNode( Label marker )
+    private void createTestNode( Label marker )
     {
         try ( Transaction transaction = database.beginTx() )
         {
-            database.createNode( marker );
-            transaction.success();
+            transaction.createNode( marker );
+            transaction.commit();
         }
-    }
-
-    private static class CustomClockTestGraphDatabaseFactory extends TestGraphDatabaseFactory
-    {
-        private GraphDatabaseFacadeFactory customFacadeFactory;
-
-        CustomClockTestGraphDatabaseFactory( GraphDatabaseFacadeFactory customFacadeFactory )
-        {
-            this.customFacadeFactory = customFacadeFactory;
-        }
-
-        @Override
-        protected GraphDatabaseBuilder.DatabaseCreator createDatabaseCreator( File storeDir,
-                GraphDatabaseFactoryState state )
-        {
-            return new GraphDatabaseBuilder.DatabaseCreator()
-            {
-                @Override
-                public GraphDatabaseService newDatabase( Config config )
-                {
-                    return customFacadeFactory.newFacade( storeDir, config,
-                            GraphDatabaseDependencies.newDependencies( state.databaseDependencies() ) );
-                }
-            };
-        }
-    }
-
-    private static class CustomClockFacadeFactory extends GraphDatabaseFacadeFactory
-    {
-
-        CustomClockFacadeFactory()
-        {
-            super( DatabaseInfo.COMMUNITY, CommunityEditionModule::new );
-        }
-
-        @Override
-        protected PlatformModule createPlatform( File storeDir, Config config, Dependencies dependencies )
-        {
-            return new PlatformModule( storeDir, config, databaseInfo, dependencies )
-            {
-                @Override
-                protected SystemNanoClock createClock()
-                {
-                    return fakeClock;
-                }
-            };
-        }
-
     }
 }

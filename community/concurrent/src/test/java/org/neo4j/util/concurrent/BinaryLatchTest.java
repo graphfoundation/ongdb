@@ -30,7 +30,6 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static java.time.Duration.ofSeconds;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTimeout;
 import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 
 class BinaryLatchTest
@@ -38,7 +37,7 @@ class BinaryLatchTest
     @Test
     void releaseThenAwaitDoesNotBlock()
     {
-        assertTimeout( ofSeconds( 3 ), () ->
+        assertTimeoutPreemptively( ofSeconds( 30 ), () ->
         {
             BinaryLatch latch = new BinaryLatch();
             latch.release();
@@ -49,7 +48,7 @@ class BinaryLatchTest
     @Test
     void releaseMustUnblockAwaiters()
     {
-        assertTimeout( ofSeconds( 10 ), () ->
+        assertTimeoutPreemptively( ofSeconds( 30 ), () ->
         {
             final BinaryLatch latch = new BinaryLatch();
             Runnable awaiter = latch::await;

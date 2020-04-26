@@ -22,69 +22,48 @@
  */
 package org.neo4j.kernel.impl.index.schema;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.UncheckedIOException;
 import java.util.HashMap;
 import java.util.Map;
 
 import org.neo4j.gis.spatial.index.curves.SpaceFillingCurveConfiguration;
+import org.neo4j.internal.schema.IndexDescriptor;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.pagecache.PageCache;
-import org.neo4j.kernel.api.index.IndexDirectoryStructure;
 import org.neo4j.kernel.api.index.IndexProvider;
-import org.neo4j.kernel.impl.index.schema.config.IndexSpecificSpaceFillingCurveSettingsCache;
-import org.neo4j.kernel.impl.index.schema.config.SpaceFillingCurveSettingsWriter;
-import org.neo4j.storageengine.api.schema.StoreIndexDescriptor;
+import org.neo4j.kernel.impl.index.schema.config.IndexSpecificSpaceFillingCurveSettings;
 import org.neo4j.values.storable.Value;
 
-import static org.neo4j.kernel.impl.index.schema.NativeIndexes.deleteIndex;
+import static org.neo4j.index.internal.gbptree.GBPTree.NO_HEADER_WRITER;
 
 public class GenericNativeIndexPopulator extends NativeIndexPopulator<GenericKey,NativeIndexValue>
 {
-    private final IndexSpecificSpaceFillingCurveSettingsCache spatialSettings;
-    private final IndexDirectoryStructure directoryStructure;
+    private final IndexSpecificSpaceFillingCurveSettings spatialSettings;
     private final SpaceFillingCurveConfiguration configuration;
-    private final IndexDropAction dropAction;
     private final boolean archiveFailedIndex;
 
-    GenericNativeIndexPopulator( PageCache pageCache, FileSystemAbstraction fs, File storeFile, IndexLayout<GenericKey,NativeIndexValue> layout,
-            IndexProvider.Monitor monitor, StoreIndexDescriptor descriptor, IndexSpecificSpaceFillingCurveSettingsCache spatialSettings,
-            IndexDirectoryStructure directoryStructure, SpaceFillingCurveConfiguration configuration, IndexDropAction dropAction, boolean archiveFailedIndex )
+    GenericNativeIndexPopulator( PageCache pageCache, FileSystemAbstraction fs, IndexFiles indexFiles, IndexLayout<GenericKey,NativeIndexValue> layout,
+            IndexProvider.Monitor monitor, IndexDescriptor descriptor, IndexSpecificSpaceFillingCurveSettings spatialSettings,
+            SpaceFillingCurveConfiguration configuration, boolean archiveFailedIndex )
     {
-        super( pageCache, fs, storeFile, layout, monitor, descriptor, new SpaceFillingCurveSettingsWriter( spatialSettings ) );
+        super( pageCache, fs, indexFiles, layout, monitor, descriptor, NO_HEADER_WRITER );
         this.spatialSettings = spatialSettings;
-        this.directoryStructure = directoryStructure;
         this.configuration = configuration;
-        this.dropAction = dropAction;
         this.archiveFailedIndex = archiveFailedIndex;
     }
 
     @Override
     public void create()
     {
-        try
+        // Archive index if it exists. The reason why this isn't done in the generic implementation is that for all other cases a
+        // native index populator lives under a fusion umbrella and the archive function sits on the top-level fusion folder, not every single sub-folder.
+        if ( archiveFailedIndex )
         {
-            // Archive and delete the index, if it exists. The reason why this isn't done in the generic implementation is that for all other cases a
-            // native index populator lives under a fusion umbrella and the archive function sits on the top-level fusion folder, not every single sub-folder.
-            deleteIndex( fileSystem, directoryStructure, descriptor.getId(), archiveFailedIndex );
-
-            // Now move on to do the actual creation.
-            super.create();
+            indexFiles.archiveIndex();
         }
-        catch ( IOException e )
-        {
-            throw new UncheckedIOException( e );
-        }
-    }
+        indexFiles.clear();
 
-    @Override
-    public synchronized void drop()
-    {
-        // Close resources
-        super.drop();
-        // Cleanup directory
-        dropAction.drop( descriptor.getId(), archiveFailedIndex );
+        // Now move on to do the actual creation.
+        super.create();
     }
 
     @Override
@@ -97,7 +76,7 @@ public class GenericNativeIndexPopulator extends NativeIndexPopulator<GenericKey
     public Map<String,Value> indexConfig()
     {
         Map<String,Value> map = new HashMap<>();
-        spatialSettings.visitIndexSpecificSettings( new SpatialConfigExtractor( map ) );
+        spatialSettings.visitIndexSpecificSettings( new SpatialConfigVisitor( map ) );
         return map;
     }
 }

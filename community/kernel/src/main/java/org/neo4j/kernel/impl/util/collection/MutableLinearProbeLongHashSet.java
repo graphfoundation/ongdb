@@ -36,9 +36,8 @@ import org.eclipse.collections.impl.set.mutable.primitive.UnmodifiableLongSet;
 import org.neo4j.graphdb.Resource;
 import org.neo4j.util.VisibleForTesting;
 
-import static java.lang.Integer.bitCount;
 import static java.util.Objects.requireNonNull;
-import static org.neo4j.util.Preconditions.checkArgument;
+import static org.neo4j.util.Preconditions.requirePowerOfTwo;
 
 /**
  * Off heap implementation of long hash set.
@@ -330,7 +329,7 @@ class MutableLinearProbeLongHashSet extends AbstractLinearProbeLongHashSet imple
 
     private void allocateMemory( int newCapacity )
     {
-        checkArgument( newCapacity > 1 && bitCount( newCapacity ) == 1, "Capacity must be power of 2" );
+        requirePowerOfTwo( newCapacity );
         capacity = newCapacity;
         resizeOccupancyThreshold = (int) (newCapacity * LOAD_FACTOR);
         resizeRemovalsThreshold = newCapacity / REMOVALS_RATIO;

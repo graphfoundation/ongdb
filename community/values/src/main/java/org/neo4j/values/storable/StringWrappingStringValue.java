@@ -121,7 +121,7 @@ final class StringWrappingStringValue extends StringValue
     public TextValue ltrim()
     {
         int start = ltrimIndex( value );
-        return Values.stringValue( value.substring( start, value.length() ) );
+        return Values.stringValue( value.substring( start ) );
     }
 
     @Override
@@ -166,6 +166,13 @@ final class StringWrappingStringValue extends StringValue
     Matcher matcher( Pattern pattern )
     {
         return pattern.matcher( value );
+    }
+
+    @Override
+    protected long estimatedPayloadSize()
+    {
+        // we leverage the fact that Character.BYTES is always 2 to speed up this computation.
+        return 48 + value.length() << 1;
     }
 
     private int ltrimIndex( String value )

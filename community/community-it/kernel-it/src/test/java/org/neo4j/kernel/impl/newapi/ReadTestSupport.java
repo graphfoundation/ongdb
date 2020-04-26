@@ -27,32 +27,44 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Consumer;
 
-import org.neo4j.graphdb.DependencyResolver;
+import org.neo4j.common.DependencyResolver;
+import org.neo4j.dbms.api.DatabaseManagementService;
+import org.neo4j.dbms.api.DatabaseManagementServiceBuilder;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.config.Setting;
-import org.neo4j.graphdb.factory.GraphDatabaseBuilder;
-import org.neo4j.internal.kernel.api.Kernel;
-import org.neo4j.internal.kernel.api.KernelAPIReadTestSupport;
+import org.neo4j.kernel.api.Kernel;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
-import org.neo4j.test.TestGraphDatabaseFactory;
+import org.neo4j.test.TestDatabaseManagementServiceBuilder;
 
-class ReadTestSupport implements KernelAPIReadTestSupport
+import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
+import static org.neo4j.configuration.GraphDatabaseSettings.SYSTEM_DATABASE_NAME;
+
+public class ReadTestSupport implements KernelAPIReadTestSupport
 {
-    private final Map<Setting,String> settings = new HashMap<>();
+    private final Map<Setting<?>,Object> settings = new HashMap<>();
     private GraphDatabaseService db;
+    private DatabaseManagementService managementService;
 
-    void addSetting( Setting setting, String value )
+    <T> void addSetting( Setting<T> setting, T value )
     {
         settings.put( setting, value );
     }
 
     @Override
-    public void setup( File storeDir, Consumer<GraphDatabaseService> create )
+    public void setup( File storeDir, Consumer<GraphDatabaseService> create, Consumer<GraphDatabaseService> sysCreate )
     {
-        GraphDatabaseBuilder graphDatabaseBuilder = new TestGraphDatabaseFactory().newImpermanentDatabaseBuilder( storeDir );
-        settings.forEach( graphDatabaseBuilder::setConfig );
-        db = graphDatabaseBuilder.newGraphDatabase();
+        DatabaseManagementServiceBuilder databaseManagementServiceBuilder = newManagementServiceBuilder( storeDir );
+        databaseManagementServiceBuilder.setConfig( settings );
+        managementService = databaseManagementServiceBuilder.build();
+        db = managementService.database( DEFAULT_DATABASE_NAME );
+        GraphDatabaseService sysDb = managementService.database( SYSTEM_DATABASE_NAME );
         create.accept( db );
+        sysCreate.accept( sysDb );
+    }
+
+    protected DatabaseManagementServiceBuilder newManagementServiceBuilder( File storeDir )
+    {
+        return new TestDatabaseManagementServiceBuilder( storeDir ).impermanent();
     }
 
     @Override
@@ -65,7 +77,7 @@ class ReadTestSupport implements KernelAPIReadTestSupport
     @Override
     public void tearDown()
     {
-        db.shutdown();
+        managementService.shutdown();
         db = null;
     }
 }

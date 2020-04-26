@@ -22,6 +22,7 @@
  */
 package org.neo4j.commandline.dbms;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.nio.file.AccessDeniedException;
 import java.nio.file.FileAlreadyExistsException;
@@ -29,99 +30,129 @@ import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
-import org.neo4j.commandline.admin.AdminCommand;
-import org.neo4j.commandline.admin.CommandFailed;
-import org.neo4j.commandline.admin.IncorrectUsage;
-import org.neo4j.commandline.arguments.Arguments;
-import org.neo4j.commandline.arguments.OptionalBooleanArg;
-import org.neo4j.commandline.arguments.common.MandatoryCanonicalPath;
+import org.neo4j.cli.AbstractCommand;
+import org.neo4j.cli.CommandFailedException;
+import org.neo4j.cli.Converters;
+import org.neo4j.cli.ExecutionContext;
+import org.neo4j.configuration.Config;
+import org.neo4j.configuration.ConfigUtils;
+import org.neo4j.configuration.GraphDatabaseSettings;
+import org.neo4j.configuration.helpers.NormalizedDatabaseName;
 import org.neo4j.dbms.archive.IncorrectFormat;
 import org.neo4j.dbms.archive.Loader;
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
-import org.neo4j.io.fs.FileUtils;
 import org.neo4j.io.layout.DatabaseLayout;
-import org.neo4j.kernel.configuration.Config;
+import org.neo4j.io.layout.Neo4jLayout;
+import org.neo4j.kernel.internal.locker.FileLockException;
 
 import static java.util.Objects.requireNonNull;
-import static org.neo4j.commandline.Util.canonicalPath;
-import static org.neo4j.commandline.Util.checkLock;
-import static org.neo4j.commandline.Util.isSameOrChildPath;
 import static org.neo4j.commandline.Util.wrapIOException;
-import static org.neo4j.commandline.arguments.common.Database.ARG_DATABASE;
-import static org.neo4j.graphdb.factory.GraphDatabaseSettings.database_path;
-import static org.neo4j.graphdb.factory.GraphDatabaseSettings.logical_logs_location;
+import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
+import static org.neo4j.io.fs.FileUtils.deletePathRecursively;
+import static org.neo4j.io.fs.FileUtils.deleteRecursively;
+import static picocli.CommandLine.Command;
+import static picocli.CommandLine.Option;
 
-public class LoadCommand implements AdminCommand
+@Command(
+        name = "load",
+        header = "Load a database from an archive created with the dump command.",
+        description = "Load a database from an archive. <archive-path> must be an archive created with the dump " +
+                "command. <database> is the name of the database to create. Existing databases can be replaced " +
+                "by specifying --force. It is not possible to replace a database that is mounted in a running " +
+                "Neo4j server. If --info is specified, then the database is not loaded, but information " +
+                "(i.e. file count, byte count, and format of load file) about the archive is printed instead."
+
+)
+public class LoadCommand extends AbstractCommand
 {
+    @Option( names = "--from", required = true, paramLabel = "<path>", description = "Path to archive created with the dump command." )
+    private Path from;
+    @Option( names = "--database", description = "Name of the database to load.", defaultValue = DEFAULT_DATABASE_NAME,
+            converter = Converters.DatabaseNameConverter.class )
+    private NormalizedDatabaseName database;
+    @Option( names = "--force", arity = "0", description = "If an existing database should be replaced." )
+    private boolean force;
+    @Option( names = "--info", description = "Print meta-data information about the archive file, instead of loading the contained database." )
+    private boolean info;
 
-    private static final Arguments arguments = new Arguments()
-            .withArgument( new MandatoryCanonicalPath( "from", "archive-path", "Path to archive created with the " +
-                    "dump command." ) )
-            .withDatabase()
-            .withArgument( new OptionalBooleanArg( "force", false, "If an existing database should be replaced." ) );
-
-    private final Path homeDir;
-    private final Path configDir;
     private final Loader loader;
-    public LoadCommand( Path homeDir, Path configDir, Loader loader )
+
+    public LoadCommand( ExecutionContext ctx, Loader loader )
     {
-        requireNonNull(homeDir);
-        requireNonNull( configDir );
-        requireNonNull( loader );
-        this.homeDir = homeDir;
-        this.configDir = configDir;
-        this.loader = loader;
+        super( ctx );
+        this.loader = requireNonNull( loader );
     }
 
     @Override
-    public void execute( String[] args ) throws IncorrectUsage, CommandFailed
+    public void execute()
     {
-        arguments.parse( args );
-        Path archive = arguments.getMandatoryPath( "from" );
-        String database = arguments.get( ARG_DATABASE );
-        boolean force = arguments.getBoolean( "force" );
-
-        Config config = buildConfig( database );
-
-        Path databaseDirectory = canonicalPath( getDatabaseDirectory( config ) );
-        Path transactionLogsDirectory = canonicalPath( getTransactionalLogsDirectory( config ) );
-
-        deleteIfNecessary( databaseDirectory, transactionLogsDirectory, force );
-        load( archive, database, databaseDirectory, transactionLogsDirectory );
+        if ( info )
+        {
+            inspectDump();
+        }
+        else
+        {
+            loadDump();
+        }
     }
 
-    private Path getDatabaseDirectory( Config config )
+    private void inspectDump()
     {
-        return config.get( database_path ).toPath();
+        try
+        {
+            Loader.DumpMetaData metaData = loader.getMetaData( from );
+            ctx.out().println( "Format: " + metaData.format );
+            ctx.out().println( "Files: " + metaData.fileCount );
+            ctx.out().println( "Bytes: " + metaData.byteCount );
+        }
+        catch ( IOException e )
+        {
+            wrapIOException( e );
+        }
     }
 
-    private Path getTransactionalLogsDirectory( Config config )
+    private void loadDump()
     {
-        return config.get( logical_logs_location ).toPath();
+        Config config = buildConfig();
+
+        DatabaseLayout databaseLayout = Neo4jLayout.of( config ).databaseLayout( database.name() );
+        databaseLayout.databaseDirectory().mkdirs();
+        try ( Closeable ignore = LockChecker.checkDatabaseLock( databaseLayout ) )
+        {
+            deleteIfNecessary( databaseLayout, force );
+            load( from, databaseLayout );
+        }
+        catch ( FileLockException e )
+        {
+            throw new CommandFailedException( "The database is in use. Stop database '" + database.name() + "' and try again.", e );
+        }
+        catch ( IOException e )
+        {
+            wrapIOException( e );
+        }
+        catch ( CannotWriteException e )
+        {
+            throw new CommandFailedException( "You do not have permission to load the database.", e );
+        }
     }
 
-    private Config buildConfig( String databaseName )
+    private Config buildConfig()
     {
-        return Config.fromFile( configDir.resolve( Config.DEFAULT_CONFIG_FILE_NAME ) )
-                .withHome( homeDir )
-                .withConnectorsDisabled()
-                .withNoThrowOnFileLoadFailure()
-                .withSetting( GraphDatabaseSettings.active_database, databaseName )
-                .build();
+        Config cfg = Config.newBuilder()
+                .fromFileNoThrow( ctx.confDir().resolve( Config.DEFAULT_CONFIG_FILE_NAME ) )
+                .set( GraphDatabaseSettings.neo4j_home, ctx.homeDir() ).build();
+        ConfigUtils.disableAllConnectors( cfg );
+        return cfg;
     }
 
-    private void deleteIfNecessary( Path databaseDirectory, Path transactionLogsDirectory, boolean force ) throws CommandFailed
+    private static void deleteIfNecessary( DatabaseLayout databaseLayout, boolean force )
     {
         try
         {
             if ( force )
             {
-                checkLock( DatabaseLayout.of( databaseDirectory.toFile() ).getStoreLayout() );
-                FileUtils.deletePathRecursively( databaseDirectory );
-                if ( !isSameOrChildPath( databaseDirectory, transactionLogsDirectory ) )
-                {
-                    FileUtils.deletePathRecursively( transactionLogsDirectory );
-                }
+                // we remove everything except our database lock
+                deletePathRecursively( databaseLayout.databaseDirectory().toPath(), path -> !path.equals( databaseLayout.databaseLockFile().toPath() ) );
+                deleteRecursively( databaseLayout.getTransactionLogsDirectory() );
             }
         }
         catch ( IOException e )
@@ -130,28 +161,27 @@ public class LoadCommand implements AdminCommand
         }
     }
 
-    private void load( Path archive, String database, Path databaseDirectory, Path transactionLogsDirectory ) throws CommandFailed
+    private void load( Path archive, DatabaseLayout databaseLayout )
     {
         try
         {
-            loader.load( archive, databaseDirectory, transactionLogsDirectory );
+            loader.load( archive, databaseLayout );
         }
         catch ( NoSuchFileException e )
         {
             if ( Paths.get( e.getMessage() ).toAbsolutePath().equals( archive.toAbsolutePath() ) )
             {
-                throw new CommandFailed( "archive does not exist: " + archive, e );
+                throw new CommandFailedException( "Archive does not exist: " + archive, e );
             }
             wrapIOException( e );
         }
         catch ( FileAlreadyExistsException e )
         {
-            throw new CommandFailed( "database already exists: " + database, e );
+            throw new CommandFailedException( "Database already exists: " + databaseLayout.getDatabaseName(), e );
         }
         catch ( AccessDeniedException e )
         {
-            throw new CommandFailed(
-                    "you do not have permission to load a database -- is Neo4j running as a " + "different user?", e );
+            throw new CommandFailedException( "You do not have permission to load the database.", e );
         }
         catch ( IOException e )
         {
@@ -159,12 +189,7 @@ public class LoadCommand implements AdminCommand
         }
         catch ( IncorrectFormat incorrectFormat )
         {
-            throw new CommandFailed( "Not a valid Neo4j archive: " + archive, incorrectFormat );
+            throw new CommandFailedException( "Not a valid Neo4j archive: " + archive, incorrectFormat );
         }
-    }
-
-    public static Arguments arguments()
-    {
-        return arguments;
     }
 }

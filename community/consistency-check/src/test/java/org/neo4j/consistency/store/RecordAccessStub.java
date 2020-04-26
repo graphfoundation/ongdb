@@ -42,9 +42,9 @@ import org.neo4j.consistency.checking.full.Stage;
 import org.neo4j.consistency.report.ConsistencyReport;
 import org.neo4j.consistency.report.PendingReferenceCheck;
 import org.neo4j.consistency.statistics.Counts;
-import org.neo4j.helpers.ArrayUtil;
-import org.neo4j.helpers.collection.IterableWrapper;
-import org.neo4j.helpers.collection.PrefetchingIterator;
+import org.neo4j.internal.helpers.ArrayUtil;
+import org.neo4j.internal.helpers.collection.IterableWrapper;
+import org.neo4j.internal.helpers.collection.PrefetchingIterator;
 import org.neo4j.kernel.impl.store.PropertyType;
 import org.neo4j.kernel.impl.store.record.AbstractBaseRecord;
 import org.neo4j.kernel.impl.store.record.DynamicRecord;
@@ -57,18 +57,17 @@ import org.neo4j.kernel.impl.store.record.Record;
 import org.neo4j.kernel.impl.store.record.RelationshipGroupRecord;
 import org.neo4j.kernel.impl.store.record.RelationshipRecord;
 import org.neo4j.kernel.impl.store.record.RelationshipTypeTokenRecord;
+import org.neo4j.kernel.impl.store.record.SchemaRecord;
 
-import static java.util.Collections.singletonMap;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
-import static org.neo4j.helpers.collection.Iterables.resourceIterable;
+import static org.neo4j.consistency.checking.cache.DefaultCacheAccess.defaultByteArray;
+import static org.neo4j.internal.helpers.collection.Iterables.resourceIterable;
 
 public class RecordAccessStub implements RecordAccess
 {
-    public static final int SCHEMA_RECORD_TYPE = 255;
-
     public <RECORD extends AbstractBaseRecord, REPORT extends ConsistencyReport>
     CheckerEngine<RECORD, REPORT> engine( final RECORD record, final REPORT report )
     {
@@ -178,7 +177,7 @@ public class RecordAccessStub implements RecordAccess
         }
     }
 
-    private final Map<Long, Delta<DynamicRecord>> schemata = new HashMap<>();
+    private final Map<Long, Delta<SchemaRecord>> schemata = new HashMap<>();
     private final Map<Long, Delta<NodeRecord>> nodes = new HashMap<>();
     private final Map<Long, Delta<RelationshipRecord>> relationships = new HashMap<>();
     private final Map<Long, Delta<PropertyRecord>> properties = new HashMap<>();
@@ -193,7 +192,7 @@ public class RecordAccessStub implements RecordAccess
     private final Map<Long, Delta<DynamicRecord>> propertyKeyNames = new HashMap<>();
     private final Map<Long, Delta<RelationshipGroupRecord>> relationshipGroups = new HashMap<>();
     private Delta<NeoStoreRecord> graph;
-    private final CacheAccess cacheAccess = new DefaultCacheAccess( Counts.NONE, 1 );
+    private final CacheAccess cacheAccess = new DefaultCacheAccess( defaultByteArray( (long) 1_000 ), Counts.NONE, 1 );
     private final MultiPassStore[] storesToCheck;
 
     public RecordAccessStub()
@@ -283,7 +282,7 @@ public class RecordAccessStub implements RecordAccess
         records.put( newRecord.getId(), new Delta<>( oldRecord, newRecord ) );
     }
 
-    public DynamicRecord addSchema( DynamicRecord schema )
+    public SchemaRecord addSchema( SchemaRecord schema )
     {
         return add( schemata, schema);
     }
@@ -343,10 +342,6 @@ public class RecordAccessStub implements RecordAccess
             {
                 add( arrays, (DynamicRecord) oldRecord, dyn );
             }
-            else if ( dyn.getTypeAsInt() == SCHEMA_RECORD_TYPE )
-            {
-                add( schemata, (DynamicRecord) oldRecord, dyn );
-            }
             else
             {
                 throw new IllegalArgumentException( "Invalid dynamic record type" );
@@ -363,6 +358,10 @@ public class RecordAccessStub implements RecordAccess
         else if ( newRecord instanceof NeoStoreRecord )
         {
             this.graph = new Delta<>( (NeoStoreRecord) oldRecord, (NeoStoreRecord) newRecord );
+        }
+        else if ( newRecord instanceof SchemaRecord )
+        {
+            add( schemata, (SchemaRecord) oldRecord, (SchemaRecord) newRecord );
         }
         else
         {
@@ -396,10 +395,6 @@ public class RecordAccessStub implements RecordAccess
             {
                 addArray( dyn );
             }
-            else if ( dyn.getTypeAsInt() == SCHEMA_RECORD_TYPE )
-            {
-                addSchema( dyn );
-            }
             else
             {
                 throw new IllegalArgumentException( "Invalid dynamic record type" );
@@ -425,6 +420,10 @@ public class RecordAccessStub implements RecordAccess
         {
             add( relationshipGroups, (RelationshipGroupRecord) record );
         }
+        else if ( record instanceof SchemaRecord )
+        {
+            addSchema( (SchemaRecord) record );
+        }
         else
         {
             throw new IllegalArgumentException( "Invalid record type" );
@@ -432,8 +431,7 @@ public class RecordAccessStub implements RecordAccess
         return record;
     }
 
-    private <R extends AbstractBaseRecord> DirectRecordReference<R> reference( Map<Long, Delta<R>> records,
-                                                                               long id, Version version )
+    private <R extends AbstractBaseRecord> DirectRecordReference<R> reference( Map<Long, Delta<R>> records,long id, Version version )
     {
         return new DirectRecordReference<>( record( records, id, version ), this );
     }
@@ -454,7 +452,7 @@ public class RecordAccessStub implements RecordAccess
     }
 
     @Override
-    public RecordReference<DynamicRecord> schema( long id )
+    public RecordReference<SchemaRecord> schema( long id )
     {
         return reference( schemata, id, Version.LATEST );
     }
@@ -550,12 +548,6 @@ public class RecordAccessStub implements RecordAccess
     public RecordReference<DynamicRecord> propertyKeyName( int id )
     {
         return reference( propertyKeyNames, id, Version.LATEST );
-    }
-
-    @Override
-    public RecordReference<NeoStoreRecord> graph()
-    {
-        return reference( singletonMap( -1L, graph ), -1, Version.LATEST );
     }
 
     @Override

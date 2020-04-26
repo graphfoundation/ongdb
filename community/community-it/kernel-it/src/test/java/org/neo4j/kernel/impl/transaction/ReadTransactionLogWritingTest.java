@@ -22,63 +22,63 @@
  */
 package org.neo4j.kernel.impl.transaction;
 
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
+import java.util.function.Consumer;
 
+import org.neo4j.graphdb.Entity;
 import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.Node;
-import org.neo4j.graphdb.PropertyContainer;
 import org.neo4j.graphdb.Relationship;
 import org.neo4j.graphdb.Transaction;
-import org.neo4j.helpers.collection.Iterables;
+import org.neo4j.internal.helpers.collection.Iterables;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.kernel.impl.MyRelTypes;
 import org.neo4j.kernel.impl.transaction.log.entry.LogEntry;
 import org.neo4j.kernel.impl.transaction.log.files.LogFiles;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
 import org.neo4j.test.LogTestUtils.CountingLogHook;
-import org.neo4j.test.rule.DatabaseRule;
-import org.neo4j.test.rule.ImpermanentDatabaseRule;
+import org.neo4j.test.extension.ImpermanentDbmsExtension;
+import org.neo4j.test.extension.Inject;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.neo4j.graphdb.Label.label;
 import static org.neo4j.test.LogTestUtils.filterNeostoreLogicalLog;
 
 /**
  * Asserts that pure read operations does not write records to logical or transaction logs.
  */
-public class ReadTransactionLogWritingTest
+@ImpermanentDbmsExtension
+class ReadTransactionLogWritingTest
 {
-    @Rule
-    public final DatabaseRule dbr = new ImpermanentDatabaseRule();
+    @Inject
+    private GraphDatabaseAPI db;
 
     private final Label label = label( "Test" );
     private Node node;
     private Relationship relationship;
     private long logEntriesWrittenBeforeReadOperations;
 
-    @Before
-    public void createDataset()
+    @BeforeEach
+    void createDataset()
     {
-        GraphDatabaseAPI db = dbr.getGraphDatabaseAPI();
         try ( Transaction tx = db.beginTx() )
         {
-            node = db.createNode( label );
+            node = tx.createNode( label );
             node.setProperty( "short", 123 );
             node.setProperty( "long", longString( 300 ) );
-            relationship = node.createRelationshipTo( db.createNode(), MyRelTypes.TEST );
+            relationship = node.createRelationshipTo( tx.createNode(), MyRelTypes.TEST );
             relationship.setProperty( "short", 123 );
             relationship.setProperty( "long", longString( 300 ) );
-            tx.success();
+            tx.commit();
         }
         logEntriesWrittenBeforeReadOperations = countLogEntries();
     }
 
     @Test
-    public void shouldNotWriteAnyLogCommandInPureReadTransaction()
+    void shouldNotWriteAnyLogCommandInPureReadTransaction()
     {
         // WHEN
         executeTransaction( getRelationships() );
@@ -88,14 +88,13 @@ public class ReadTransactionLogWritingTest
 
         // THEN
         long actualCount = countLogEntries();
-        assertEquals( "There were " + (actualCount - logEntriesWrittenBeforeReadOperations) +
-                        " log entries written during one or more pure read transactions", logEntriesWrittenBeforeReadOperations,
-                actualCount );
+        assertEquals( logEntriesWrittenBeforeReadOperations,
+                actualCount, "There were " + (actualCount - logEntriesWrittenBeforeReadOperations) +
+                                " log entries written during one or more pure read transactions" );
     }
 
     private long countLogEntries()
     {
-        GraphDatabaseAPI db = dbr.getGraphDatabaseAPI();
         FileSystemAbstraction fs = db.getDependencyResolver().resolveDependency( FileSystemAbstraction.class );
         LogFiles logFiles = db.getDependencyResolver().resolveDependency( LogFiles.class );
         try
@@ -123,61 +122,62 @@ public class ReadTransactionLogWritingTest
         return new String( characters );
     }
 
-    private void executeTransaction( Runnable runnable )
+    private void executeTransaction( Consumer<Transaction> consumer )
     {
-        executeTransaction( runnable, true );
-        executeTransaction( runnable, false );
+        executeTransaction( consumer, true );
+        executeTransaction( consumer, false );
     }
 
-    private void executeTransaction( Runnable runnable, boolean success )
+    private void executeTransaction( Consumer<Transaction> consumer, boolean success )
     {
-        try ( Transaction tx = dbr.getGraphDatabaseAPI().beginTx() )
+        try ( Transaction tx = db.beginTx() )
         {
-            runnable.run();
+            consumer.accept( tx );
             if ( success )
             {
-                tx.success();
+                tx.commit();
             }
         }
     }
 
-    private Runnable getRelationships()
+    private Consumer<Transaction> getRelationships()
     {
-        return () -> assertEquals( 1, Iterables.count( node.getRelationships() ) );
+        return tx -> assertEquals( 1, Iterables.count( tx.getNodeById( node.getId() ).getRelationships() ) );
     }
 
-    private Runnable getNodesFromRelationship()
+    private Consumer<Transaction> getNodesFromRelationship()
     {
-        return () ->
+        return tx ->
         {
-            relationship.getEndNode();
-            relationship.getStartNode();
-            relationship.getNodes();
-            relationship.getOtherNode( node );
+            var rel = tx.getRelationshipById( relationship.getId() );
+            rel.getEndNode();
+            rel.getStartNode();
+            rel.getNodes();
+            rel.getOtherNode( node );
         };
     }
 
-    private Runnable getById()
+    private Consumer<Transaction> getById()
     {
-        return () ->
+        return tx ->
         {
-            dbr.getGraphDatabaseAPI().getNodeById( node.getId() );
-            dbr.getGraphDatabaseAPI().getRelationshipById( relationship.getId() );
+            tx.getNodeById( node.getId() );
+            tx.getRelationshipById( relationship.getId() );
         };
     }
 
-    private Runnable getProperties()
+    private Consumer<Transaction> getProperties()
     {
-        return new Runnable()
+        return new Consumer<>()
         {
             @Override
-            public void run()
+            public void accept( Transaction tx )
             {
-                getAllProperties( node );
-                getAllProperties( relationship );
+                getAllProperties( tx.getNodeById( node.getId() ) );
+                getAllProperties( tx.getRelationshipById( relationship.getId() ) );
             }
 
-            private void getAllProperties( PropertyContainer entity )
+            private void getAllProperties( Entity entity )
             {
                 for ( String key : entity.getPropertyKeys() )
                 {

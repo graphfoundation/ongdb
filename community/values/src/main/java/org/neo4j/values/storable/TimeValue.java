@@ -37,12 +37,12 @@ import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.neo4j.exceptions.InvalidArgumentException;
+import org.neo4j.exceptions.UnsupportedTemporalUnitException;
 import org.neo4j.values.AnyValue;
 import org.neo4j.values.StructureBuilder;
 import org.neo4j.values.ValueMapper;
-import org.neo4j.values.utils.InvalidValuesArgumentException;
 import org.neo4j.values.utils.TemporalUtil;
-import org.neo4j.values.utils.UnsupportedTemporalUnitException;
 import org.neo4j.values.virtual.MapValue;
 
 import static java.lang.Integer.parseInt;
@@ -194,7 +194,7 @@ public final class TimeValue extends TemporalValue<OffsetTime,TimeValue>
 
     static TimeBuilder<TimeValue> builder( Supplier<ZoneId> defaultZone )
     {
-        return new TimeBuilder<TimeValue>( defaultZone )
+        return new TimeBuilder<>( defaultZone )
         {
             @Override
             protected boolean supportsTimeZone()
@@ -213,7 +213,7 @@ public final class TimeValue extends TemporalValue<OffsetTime,TimeValue>
                     AnyValue time = fields.get( TemporalFields.time );
                     if ( !(time instanceof TemporalValue) )
                     {
-                        throw new InvalidValuesArgumentException( String.format( "Cannot construct time from: %s", time ) );
+                        throw new InvalidArgumentException( String.format( "Cannot construct time from: %s", time ) );
                     }
                     TemporalValue t = (TemporalValue) time;
                     result = t.getTimePart( defaultZone );
@@ -246,16 +246,17 @@ public final class TimeValue extends TemporalValue<OffsetTime,TimeValue>
                 }
                 return time( result );
             }
+
             @Override
             protected TimeValue selectTime(
                     AnyValue temporal )
             {
                 if ( !(temporal instanceof TemporalValue) )
                 {
-                    throw new InvalidValuesArgumentException( String.format( "Cannot construct time from: %s", temporal ) );
+                    throw new InvalidArgumentException( String.format( "Cannot construct time from: %s", temporal ) );
                 }
                 if ( temporal instanceof TimeValue &&
-                        timezone == null )
+                     timezone == null )
                 {
                     return (TimeValue) temporal;
                 }
@@ -395,6 +396,13 @@ public final class TimeValue extends TemporalValue<OffsetTime,TimeValue>
         return time == value ? this : new TimeValue( time );
     }
 
+    @Override
+    protected long estimatedPayloadSize()
+    {
+        //rough estimate
+        return 50;
+    }
+
     private static final String OFFSET_PATTERN = "(?<zone>Z|[+-](?<zoneHour>[0-9]{2})(?::?(?<zoneMinute>[0-9]{2}))?)";
     static final String TIME_PATTERN = LocalTimeValue.TIME_PATTERN + "(?:" + OFFSET_PATTERN + ")?";
     private static final Pattern PATTERN = Pattern.compile( "(?:T)?" + TIME_PATTERN );
@@ -407,7 +415,7 @@ public final class TimeValue extends TemporalValue<OffsetTime,TimeValue>
         {
             return parseOffset( matcher );
         }
-        throw new InvalidValuesArgumentException( "Not a valid offset: " + offset );
+        throw new InvalidArgumentException( "Not a valid offset: " + offset );
     }
 
     static ZoneOffset parseOffset( Matcher matcher )

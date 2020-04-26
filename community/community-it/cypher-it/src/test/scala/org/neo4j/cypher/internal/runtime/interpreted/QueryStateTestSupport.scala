@@ -24,9 +24,8 @@ package org.neo4j.cypher.internal.runtime.interpreted
 
 import org.neo4j.cypher.GraphDatabaseTestSupport
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.{CommunityExecutionContextFactory, QueryState}
-import org.neo4j.internal.kernel.api.Transaction.Type
 import org.neo4j.internal.kernel.api.security.LoginContext.AUTH_DISABLED
-import org.neo4j.values.virtual.VirtualValues.EMPTY_MAP
+import org.neo4j.kernel.api.KernelTransaction.Type
 
 trait QueryStateTestSupport {
   self: GraphDatabaseTestSupport =>
@@ -34,7 +33,7 @@ trait QueryStateTestSupport {
   def withQueryState[T](f: QueryState => T) = {
     val tx = graph.beginTransaction(Type.explicit, AUTH_DISABLED)
     try {
-      QueryStateHelper.withQueryState(graph, tx, EMPTY_MAP, queryState => {
+      QueryStateHelper.withQueryState(graph, tx, Array.empty, queryState => {
         queryState.setExecutionContextFactory(CommunityExecutionContextFactory())
         f(queryState)
       })
@@ -46,7 +45,7 @@ trait QueryStateTestSupport {
   def withCountsQueryState[T](f: QueryState => T) = {
     val tx = graph.beginTransaction(Type.explicit, AUTH_DISABLED)
     try {
-      QueryStateHelper.withQueryState(graph, tx, EMPTY_MAP, queryState =>
+      QueryStateHelper.withQueryState(graph, tx, Array.empty, queryState =>
         {
           val state = QueryStateHelper.countStats(queryState)
           state.setExecutionContextFactory(CommunityExecutionContextFactory())

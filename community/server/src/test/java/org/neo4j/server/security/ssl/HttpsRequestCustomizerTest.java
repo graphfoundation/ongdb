@@ -31,7 +31,7 @@ import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Response;
 import org.junit.Test;
 
-import org.neo4j.kernel.configuration.Config;
+import org.neo4j.configuration.Config;
 import org.neo4j.server.configuration.ServerSettings;
 
 import static org.eclipse.jetty.http.HttpHeader.STRICT_TRANSPORT_SECURITY;
@@ -98,7 +98,7 @@ public class HttpsRequestCustomizerTest
 
     private static Customizer newCustomizer()
     {
-        return newCustomizer( null );
+        return new HttpsRequestCustomizer( Config.defaults() );
     }
 
     private static Customizer newCustomizer( String hstsValue )

@@ -22,32 +22,32 @@
  */
 package org.neo4j.kernel.internal;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 
-import org.neo4j.kernel.impl.core.DatabasePanicEventGenerator;
 import org.neo4j.logging.AssertableLogProvider;
 import org.neo4j.logging.NullLogProvider;
+import org.neo4j.monitoring.DatabaseHealth;
+import org.neo4j.monitoring.DatabasePanicEventGenerator;
+import org.neo4j.monitoring.Health;
 
 import static org.hamcrest.Matchers.sameInstance;
 import static org.hamcrest.core.Is.is;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.neo4j.graphdb.event.ErrorState.TX_MANAGER_NOT_OK;
 import static org.neo4j.logging.AssertableLogProvider.inLog;
 
-public class DatabaseHealthTest
+class DatabaseHealthTest
 {
     @Test
-    public void shouldGenerateDatabasePanicEvents()
+    void shouldGenerateDatabasePanicEvents()
     {
         // GIVEN
         DatabasePanicEventGenerator generator = mock( DatabasePanicEventGenerator.class );
-        DatabaseHealth databaseHealth = new DatabaseHealth( generator, NullLogProvider.getInstance().getLog( DatabaseHealth.class ) );
+        Health databaseHealth = new DatabaseHealth( generator, NullLogProvider.getInstance().getLog( DatabaseHealth.class ) );
         databaseHealth.healed();
 
         // WHEN
@@ -56,15 +56,15 @@ public class DatabaseHealthTest
         databaseHealth.panic( cause );
 
         // THEN
-        verify( generator, times( 1 ) ).generateEvent( TX_MANAGER_NOT_OK, cause );
+        verify( generator ).panic();
     }
 
     @Test
-    public void shouldLogDatabasePanicEvent()
+    void shouldLogDatabasePanicEvent()
     {
         // GIVEN
         AssertableLogProvider logProvider = new AssertableLogProvider();
-        DatabaseHealth databaseHealth = new DatabaseHealth( mock( DatabasePanicEventGenerator.class ),
+        Health databaseHealth = new DatabaseHealth( mock( DatabasePanicEventGenerator.class ),
                 logProvider.getLog( DatabaseHealth.class ) );
         databaseHealth.healed();
 
@@ -84,10 +84,10 @@ public class DatabaseHealthTest
     }
 
     @Test
-    public void healDatabaseWithoutCriticalErrors()
+    void healDatabaseWithoutCriticalErrors()
     {
         AssertableLogProvider logProvider = new AssertableLogProvider();
-        DatabaseHealth databaseHealth = new DatabaseHealth( mock( DatabasePanicEventGenerator.class ),
+        Health databaseHealth = new DatabaseHealth( mock( DatabasePanicEventGenerator.class ),
                 logProvider.getLog( DatabaseHealth.class ) );
 
         assertTrue( databaseHealth.isHealthy() );
@@ -101,10 +101,10 @@ public class DatabaseHealthTest
     }
 
     @Test
-    public void databaseWithCriticalErrorsCanNotBeHealed()
+    void databaseWithCriticalErrorsCanNotBeHealed()
     {
         AssertableLogProvider logProvider = new AssertableLogProvider();
-        DatabaseHealth databaseHealth = new DatabaseHealth( mock( DatabasePanicEventGenerator.class ),
+        Health databaseHealth = new DatabaseHealth( mock( DatabasePanicEventGenerator.class ),
                 logProvider.getLog( DatabaseHealth.class ) );
 
         assertTrue( databaseHealth.isHealthy() );

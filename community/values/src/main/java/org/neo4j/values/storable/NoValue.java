@@ -24,6 +24,7 @@ package org.neo4j.values.storable;
 
 import org.neo4j.hashing.HashFunction;
 import org.neo4j.values.AnyValue;
+import org.neo4j.values.Equality;
 import org.neo4j.values.ValueMapper;
 
 /**
@@ -34,7 +35,6 @@ import org.neo4j.values.ValueMapper;
  */
 public final class NoValue extends Value
 {
-    @SuppressWarnings( "WeakerAccess" )
     public static final NoValue NO_VALUE = new NoValue();
 
     private NoValue()
@@ -42,15 +42,21 @@ public final class NoValue extends Value
     }
 
     @Override
-    public boolean eq( Object other )
+    public boolean equalTo( Object other )
     {
         return this == other;
     }
 
     @Override
-    public Boolean ternaryEquals( AnyValue other )
+    public Equality ternaryEquals( AnyValue other )
     {
-        return null;
+        return Equality.UNDEFINED;
+    }
+
+    @Override
+    boolean ternaryUndefined()
+    {
+        return true;
     }
 
     @Override
@@ -123,5 +129,18 @@ public final class NoValue extends Value
     int unsafeCompareTo( Value other )
     {
         return 0;
+    }
+
+    @Override
+    protected long estimatedPayloadSize()
+    {
+        return 0L;
+    }
+
+    @Override
+    public long estimatedHeapUsage()
+    {
+        //NO_VALUE is a singleton and doesn't add to heap usage
+        return 0L;
     }
 }

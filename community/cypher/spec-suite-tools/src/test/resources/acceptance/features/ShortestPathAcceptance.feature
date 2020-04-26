@@ -41,7 +41,7 @@ Feature: ShortestPathAcceptance
       """
       MATCH p = shortestPath((src:A)-[*]->(dst:D))
       WHERE NONE(n in nodes(p) WHERE n:X)
-      UNWIND extract(n IN nodes(p) | n.name) AS node
+      UNWIND [n IN nodes(p) | n.name] AS node
       RETURN node
       """
     Then the result should be, in order:
@@ -52,7 +52,7 @@ Feature: ShortestPathAcceptance
       | 'D'  |
     And no side effects
 
-  Scenario: Find a shortest path among paths that fulfill a predicate on all relationships
+  Scenario: Find a shortest path among paths that fulfill a predicate on none relationships
     And having executed:
       """
       CREATE (a:A {name: 'A'}), (b:B {name: 'B'}),
@@ -67,8 +67,8 @@ Feature: ShortestPathAcceptance
     When executing query:
       """
       MATCH p = shortestPath((src:A)-[*]->(dst:D))
-      WHERE NONE(r in rels(p) WHERE exists(r.blocked))
-      UNWIND extract(n IN nodes(p) | n.name) AS node
+      WHERE NONE(r in relationships(p) WHERE exists(r.blocked))
+      UNWIND [n IN nodes(p) | n.name] AS node
       RETURN node
       """
     Then the result should be, in order:
@@ -79,7 +79,7 @@ Feature: ShortestPathAcceptance
       | 'D'  |
     And no side effects
 
-  Scenario: Find a shortest path among paths that fulfill a predicate on all relationships 2
+  Scenario: Find a shortest path among paths that fulfill a predicate on none relationships 2
     And having executed:
       """
       CREATE (a:A {name: 'A'}), (b:B {name: 'B'}),
@@ -94,8 +94,8 @@ Feature: ShortestPathAcceptance
     When executing query:
       """
       MATCH p = shortestPath((src:A)-[*]->(dst:D))
-      WHERE NONE(r in rels(p) WHERE r.blocked)
-      UNWIND extract(n IN nodes(p) | n.name) AS node
+      WHERE NONE(r in relationships(p) WHERE r.blocked)
+      UNWIND [n IN nodes(p) | n.name] AS node
       RETURN node
       """
     Then the result should be, in order:
@@ -122,7 +122,7 @@ Feature: ShortestPathAcceptance
       """
       MATCH p = shortestPath((src:A)-[rs*]->(dst:D))
       WHERE length(p) % 2 = 1 // Only uneven paths wanted!
-      UNWIND extract(n IN nodes(p) | n.name) AS node
+      UNWIND [n IN nodes(p) | n.name] AS node
       RETURN node
       """
     Then the result should be, in order:
@@ -152,7 +152,7 @@ Feature: ShortestPathAcceptance
       WHERE ALL(r in rs WHERE type(rs[0]) = type(r)) AND ALL(r in rs WHERE NOT EXISTS(r.blocked) OR r.blocked <> true)
       RETURN p AS path
       """
-    Then the result should be:
+    Then the result should be, in any order:
       | path                                                                       |
       | <(:A {name: 'A'})-[:REL {}]->(:X {name: 'X'})-[:REL {}]->(:D {name: 'D'})> |
     And no side effects
@@ -195,7 +195,7 @@ Feature: ShortestPathAcceptance
       """
       MATCH p = shortestPath((src:A)-[rs*]->(dst:D))
       WHERE ALL(r in rs WHERE type(rs[0]) = type(r) )
-      UNWIND extract(n IN nodes(p) | n.name) AS node
+      UNWIND [n IN nodes(p) | n.name] AS node
       RETURN node
       """
     Then the result should be, in order:
@@ -219,7 +219,7 @@ Feature: ShortestPathAcceptance
     When executing query:
       """
       MATCH p = shortestPath((src:A)-[*]->(dst:D))
-      UNWIND extract(n IN nodes(p) | n.name) AS node
+      UNWIND [n IN nodes(p) | n.name] AS node
       RETURN node
       """
     Then the result should be, in order:
@@ -242,7 +242,7 @@ Feature: ShortestPathAcceptance
     When executing query:
       """
       OPTIONAL MATCH p = shortestPath((src:A)-[*]->(dst:D))
-      UNWIND extract(n IN nodes(p) | n.name) AS node
+      UNWIND [n IN nodes(p) | n.name] AS node
       RETURN node
       """
     Then the result should be, in order:
@@ -266,7 +266,7 @@ Feature: ShortestPathAcceptance
       """
       MATCH (a:A), (d:D)
       OPTIONAL MATCH p = shortestPath((a)-[*]->(d))
-      UNWIND extract(n IN nodes(p) | n.name) AS node
+      UNWIND [n IN nodes(p) | n.name] AS node
       RETURN node
       """
     Then the result should be, in order:
@@ -307,7 +307,7 @@ Feature: ShortestPathAcceptance
     When executing query:
       """
       MATCH p = shortestPath((src:A)-[r*]->(dst:D))
-      UNWIND extract(r IN rels(p) | r.id) AS rel
+      UNWIND [r IN relationships(p) | r.id] AS rel
       RETURN rel
       """
     Then the result should be, in order:
@@ -328,7 +328,7 @@ Feature: ShortestPathAcceptance
     When executing query:
       """
       MATCH p = shortestPath((src:A)-[*..1]->(dst:D))
-      UNWIND extract(n IN nodes(p) | n.name) AS node
+      UNWIND [n IN nodes(p) | n.name] AS node
       RETURN node
       """
     Then the result should be, in order:
@@ -349,7 +349,7 @@ Feature: ShortestPathAcceptance
       OPTIONAL MATCH (src:Y)
       WITH src
       MATCH p = shortestPath((src)-[*]->(dst:D))
-      UNWIND extract(n IN nodes(p) | n.name) AS node
+      UNWIND [n IN nodes(p) | n.name] AS node
       RETURN node
       """
     Then the result should be, in order:
@@ -369,9 +369,9 @@ Feature: ShortestPathAcceptance
     When executing query:
       """
       MATCH p = allShortestPaths((src:A)-[*]->(dst:C))
-      RETURN extract(n IN nodes(p) | n.name) AS nodes
+      RETURN [n IN nodes(p) | n.name] AS nodes
       """
-    Then the result should be:
+    Then the result should be, in any order:
       | nodes           |
       | ['A', 'B', 'C'] |
       | ['A', 'D', 'C'] |
@@ -393,11 +393,11 @@ Feature: ShortestPathAcceptance
     MATCH path = allShortestPaths((a:A)-[:REL*0..100]-(c:C))
     WITH nodes(path) AS pathNodes
     WITH pathNodes[0] AS p, pathNodes[3] as c
-    RETURN length((c)-[:REL]-(:B)-[:REL]-(:B)-[:REL]-(p)) AS length
+    RETURN size((c)-[:REL]-(:B)-[:REL]-(:B)-[:REL]-(p)) AS size
     """
-    Then the result should be:
-      | length |
-      | 1      |
+    Then the result should be, in any order:
+      | size |
+      | 1    |
     And no side effects
 
 

@@ -36,21 +36,22 @@ import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+import org.neo4j.exceptions.KernelException;
 import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Transaction;
-import org.neo4j.internal.kernel.api.IndexOrder;
+import org.neo4j.graphdb.schema.IndexDefinition;
 import org.neo4j.internal.kernel.api.IndexQuery;
+import org.neo4j.internal.kernel.api.IndexReadSession;
 import org.neo4j.internal.kernel.api.NodeValueIndexCursor;
 import org.neo4j.internal.kernel.api.TokenRead;
-import org.neo4j.internal.kernel.api.exceptions.KernelException;
-import org.neo4j.internal.kernel.api.exceptions.schema.IndexNotApplicableKernelException;
-import org.neo4j.internal.kernel.api.exceptions.schema.IndexNotFoundKernelException;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.internal.schema.IndexOrder;
 import org.neo4j.kernel.api.KernelTransaction;
-import org.neo4j.kernel.api.schema.index.TestIndexDescriptorFactory;
-import org.neo4j.storageengine.api.schema.IndexDescriptor;
-import org.neo4j.test.rule.DatabaseRule;
-import org.neo4j.test.rule.EmbeddedDatabaseRule;
+import org.neo4j.kernel.impl.coreapi.schema.IndexDefinitionImpl;
+import org.neo4j.kernel.impl.coreapi.InternalTransaction;
+import org.neo4j.test.rule.DbmsRule;
+import org.neo4j.test.rule.EmbeddedDbmsRule;
 import org.neo4j.test.rule.RandomRule;
 import org.neo4j.values.storable.TextValue;
 
@@ -87,7 +88,7 @@ import static org.junit.Assert.assertThat;
  * <li>Single property unique number index</li>
  * <li>Single property unique string index</li>
  * <li>Composite property mixed index</li>
- * <li>{@link IndexQuery#stringSuffix(int, TextValue)}</li>
+ * <li>{@link IndexQuery#stringPrefix(int, TextValue)}</li>
  * <li>{@link IndexQuery#stringSuffix(int, TextValue)}</li>
  * <li>{@link IndexQuery#stringContains(int, TextValue)}</li>
  * <li>Composite property node key index (due to it being enterprise feature)</li>
@@ -108,7 +109,7 @@ public class MultipleOpenCursorsTest
                 String numberProp2, String stringProp1, String stringProp2 );
     }
 
-    private final DatabaseRule db = new EmbeddedDatabaseRule();
+    private final DbmsRule db = new EmbeddedDbmsRule();
 
     private static final RandomRule rnd = new RandomRule();
     @Rule
@@ -157,7 +158,7 @@ public class MultipleOpenCursorsTest
 
         try ( Transaction tx = db.beginTx() )
         {
-            KernelTransaction ktx = db.transaction();
+            KernelTransaction ktx = ((InternalTransaction) tx).kernelTransaction();
             // when
             try ( NodeValueIndexCursor cursor1 = indexCoordinator.queryExists( ktx );
                   NodeValueIndexCursor cursor2 = indexCoordinator.queryExists( ktx ) )
@@ -170,7 +171,7 @@ public class MultipleOpenCursorsTest
                 indexCoordinator.assertExistsResult( actual2 );
             }
 
-            tx.success();
+            tx.commit();
         }
     }
 
@@ -190,7 +191,7 @@ public class MultipleOpenCursorsTest
         try ( Transaction tx = db.beginTx() )
         {
             // when
-            KernelTransaction ktx = db.transaction();
+            KernelTransaction ktx = ((InternalTransaction) tx).kernelTransaction();
             try ( NodeValueIndexCursor cursor1 = indexCoordinator.queryExact( ktx );
                   NodeValueIndexCursor cursor2 = indexCoordinator.queryExact( ktx ) )
             {
@@ -201,7 +202,7 @@ public class MultipleOpenCursorsTest
                 indexCoordinator.assertExactResult( actual1 );
                 indexCoordinator.assertExactResult( actual2 );
             }
-            tx.success();
+            tx.commit();
         }
     }
 
@@ -212,7 +213,7 @@ public class MultipleOpenCursorsTest
         try ( Transaction tx = db.beginTx() )
         {
             // when
-            KernelTransaction ktx = db.transaction();
+            KernelTransaction ktx = ((InternalTransaction) tx).kernelTransaction();
             try ( NodeValueIndexCursor cursor1 = indexCoordinator.queryRange( ktx );
                   NodeValueIndexCursor cursor2 = indexCoordinator.queryRange( ktx ) )
             {
@@ -223,7 +224,7 @@ public class MultipleOpenCursorsTest
                 indexCoordinator.assertRangeResult( actual1 );
                 indexCoordinator.assertRangeResult( actual2 );
             }
-            tx.success();
+            tx.commit();
         }
     }
 
@@ -233,7 +234,7 @@ public class MultipleOpenCursorsTest
         try ( Transaction tx = db.beginTx() )
         {
             // when
-            KernelTransaction ktx = db.transaction();
+            KernelTransaction ktx = ((InternalTransaction) tx).kernelTransaction();
             try ( NodeValueIndexCursor cursor1 = indexCoordinator.queryExists( ktx ) )
             {
                 List<Long> actual1 = new ArrayList<>();
@@ -250,7 +251,7 @@ public class MultipleOpenCursorsTest
                 // then
                 indexCoordinator.assertExistsResult( actual1 );
             }
-            tx.success();
+            tx.commit();
         }
     }
 
@@ -260,7 +261,7 @@ public class MultipleOpenCursorsTest
         try ( Transaction tx = db.beginTx() )
         {
             // when
-            KernelTransaction ktx = db.transaction();
+            KernelTransaction ktx = ((InternalTransaction) tx).kernelTransaction();
             try ( NodeValueIndexCursor cursor1 = indexCoordinator.queryExact( ktx ) )
             {
                 List<Long> actual1 = new ArrayList<>();
@@ -276,7 +277,7 @@ public class MultipleOpenCursorsTest
                 // then
                 indexCoordinator.assertExactResult( actual1 );
             }
-            tx.success();
+            tx.commit();
         }
     }
 
@@ -287,7 +288,7 @@ public class MultipleOpenCursorsTest
         try ( Transaction tx = db.beginTx() )
         {
             // when
-            KernelTransaction ktx = db.transaction();
+            KernelTransaction ktx = ((InternalTransaction) tx).kernelTransaction();
             try ( NodeValueIndexCursor cursor1 = indexCoordinator.queryRange( ktx ) )
             {
                 List<Long> actual1 = new ArrayList<>();
@@ -303,7 +304,7 @@ public class MultipleOpenCursorsTest
                 // then
                 indexCoordinator.assertRangeResult( actual1 );
             }
-            tx.success();
+            tx.commit();
         }
     }
 
@@ -313,7 +314,7 @@ public class MultipleOpenCursorsTest
         try ( Transaction tx = db.beginTx() )
         {
             // when
-            KernelTransaction ktx = db.transaction();
+            KernelTransaction ktx = ((InternalTransaction) tx).kernelTransaction();
             try ( NodeValueIndexCursor cursor1 = indexCoordinator.queryExists( ktx ) )
             {
                 List<Long> actual1 = new ArrayList<>();
@@ -329,7 +330,7 @@ public class MultipleOpenCursorsTest
                     indexCoordinator.assertExistsResult( actual2 );
                 }
             }
-            tx.success();
+            tx.commit();
         }
     }
 
@@ -339,7 +340,7 @@ public class MultipleOpenCursorsTest
         try ( Transaction tx = db.beginTx() )
         {
             // when
-            KernelTransaction ktx = db.transaction();
+            KernelTransaction ktx = ((InternalTransaction) tx).kernelTransaction();
             try ( NodeValueIndexCursor cursor1 = indexCoordinator.queryExact( ktx ) )
             {
                 List<Long> actual1 = new ArrayList<>();
@@ -355,7 +356,7 @@ public class MultipleOpenCursorsTest
                     indexCoordinator.assertExactResult( actual2 );
                 }
             }
-            tx.success();
+            tx.commit();
         }
     }
 
@@ -366,7 +367,7 @@ public class MultipleOpenCursorsTest
         try ( Transaction tx = db.beginTx() )
         {
             // when
-            KernelTransaction ktx = db.transaction();
+            KernelTransaction ktx = ((InternalTransaction) tx).kernelTransaction();
             try ( NodeValueIndexCursor cursor1 = indexCoordinator.queryRange( ktx );
                   NodeValueIndexCursor cursor2 = indexCoordinator.queryRange( ktx ) )
             {
@@ -381,7 +382,7 @@ public class MultipleOpenCursorsTest
                 indexCoordinator.assertRangeResult( actual1 );
                 indexCoordinator.assertRangeResult( actual2 );
             }
-            tx.success();
+            tx.commit();
         }
     }
 
@@ -430,12 +431,6 @@ public class MultipleOpenCursorsTest
         }
 
         @Override
-        protected IndexDescriptor extractIndexDescriptor()
-        {
-            return TestIndexDescriptorFactory.forLabel( indexedLabelId, stringPropId1, stringPropId2 );
-        }
-
-        @Override
         boolean supportRangeQuery()
         {
             return false;
@@ -443,7 +438,6 @@ public class MultipleOpenCursorsTest
 
         @Override
         NodeValueIndexCursor queryRange( KernelTransaction ktx )
-                throws IndexNotApplicableKernelException, IndexNotFoundKernelException
         {
             throw new UnsupportedOperationException();
         }
@@ -480,9 +474,9 @@ public class MultipleOpenCursorsTest
         }
 
         @Override
-        void doCreateIndex( DatabaseRule db )
+        IndexDefinition doCreateIndex( Transaction tx )
         {
-            db.schema().indexFor( indexLabel ).on( stringProp1 ).on( stringProp2 ).create();
+            return tx.schema().indexFor( indexLabel ).on( stringProp1 ).on( stringProp2 ).create();
         }
     }
 
@@ -495,12 +489,6 @@ public class MultipleOpenCursorsTest
         }
 
         @Override
-        protected IndexDescriptor extractIndexDescriptor()
-        {
-            return TestIndexDescriptorFactory.forLabel( indexedLabelId, numberPropId1, numberPropId2 );
-        }
-
-        @Override
         boolean supportRangeQuery()
         {
             return false;
@@ -508,7 +496,6 @@ public class MultipleOpenCursorsTest
 
         @Override
         NodeValueIndexCursor queryRange( KernelTransaction ktx )
-                throws IndexNotApplicableKernelException, IndexNotFoundKernelException
         {
             throw new UnsupportedOperationException();
         }
@@ -544,9 +531,9 @@ public class MultipleOpenCursorsTest
         }
 
         @Override
-        void doCreateIndex( DatabaseRule db )
+        IndexDefinition doCreateIndex( Transaction tx )
         {
-            db.schema().indexFor( indexLabel ).on( numberProp1 ).on( numberProp2 ).create();
+            return tx.schema().indexFor( indexLabel ).on( numberProp1 ).on( numberProp2 ).create();
         }
     }
 
@@ -556,12 +543,6 @@ public class MultipleOpenCursorsTest
                 String stringProp2 )
         {
             super( indexLabel, numberProp1, numberProp2, stringProp1, stringProp2 );
-        }
-
-        @Override
-        protected IndexDescriptor extractIndexDescriptor()
-        {
-            return TestIndexDescriptorFactory.forLabel( indexedLabelId, stringPropId1 );
         }
 
         @Override
@@ -615,9 +596,9 @@ public class MultipleOpenCursorsTest
         }
 
         @Override
-        void doCreateIndex( DatabaseRule db )
+        IndexDefinition doCreateIndex( Transaction tx )
         {
-            db.schema().indexFor( indexLabel ).on( stringProp1 ).create();
+            return tx.schema().indexFor( indexLabel ).on( stringProp1 ).create();
         }
     }
 
@@ -627,12 +608,6 @@ public class MultipleOpenCursorsTest
                 String stringProp2 )
         {
             super( indexLabel, numberProp1, numberProp2, stringProp1, stringProp2 );
-        }
-
-        @Override
-        protected IndexDescriptor extractIndexDescriptor()
-        {
-            return TestIndexDescriptorFactory.forLabel( indexedLabelId, numberPropId1 );
         }
 
         @Override
@@ -686,9 +661,9 @@ public class MultipleOpenCursorsTest
         }
 
         @Override
-        void doCreateIndex( DatabaseRule db )
+        IndexDefinition doCreateIndex( Transaction tx )
         {
-            db.schema().indexFor( indexLabel ).on( numberProp1 ).create();
+            return tx.schema().indexFor( indexLabel ).on( numberProp1 ).create();
         }
     }
 
@@ -743,47 +718,45 @@ public class MultipleOpenCursorsTest
             }
         }
 
-        void init( DatabaseRule db )
+        void init( DbmsRule db )
         {
             try ( Transaction tx = db.beginTx() )
             {
                 for ( int i = 0; i < numberOfNodes; i++ )
                 {
-                    Node node = db.createNode( indexLabel );
+                    Node node = tx.createNode( indexLabel );
                     node.setProperty( numberProp1, numberProp1Values[i] );
                     node.setProperty( numberProp2, numberProp2Values[i] );
                     node.setProperty( stringProp1, stringProp1Values[i] );
                     node.setProperty( stringProp2, stringProp2Values[i] );
                 }
-                tx.success();
+                tx.commit();
             }
 
             try ( Transaction tx = db.beginTx() )
             {
-                TokenRead tokenRead = db.transaction().tokenRead();
+                TokenRead tokenRead = ((InternalTransaction) tx).kernelTransaction().tokenRead();
                 indexedLabelId = tokenRead.nodeLabel( indexLabel.name() );
                 numberPropId1 = tokenRead.propertyKey( numberProp1 );
                 numberPropId2 = tokenRead.propertyKey( numberProp2 );
                 stringPropId1 = tokenRead.propertyKey( stringProp1 );
                 stringPropId2 = tokenRead.propertyKey( stringProp2 );
-                tx.success();
+                tx.commit();
             }
-            indexDescriptor = extractIndexDescriptor();
         }
 
-        protected abstract IndexDescriptor extractIndexDescriptor();
-
-        void createIndex( DatabaseRule db )
+        void createIndex( DbmsRule db )
         {
             try ( Transaction tx = db.beginTx() )
             {
-                doCreateIndex( db );
-                tx.success();
+                IndexDefinitionImpl indexDefinition = (IndexDefinitionImpl) doCreateIndex( tx );
+                indexDescriptor = indexDefinition.getIndexReference();
+                tx.commit();
             }
             try ( Transaction tx = db.beginTx() )
             {
-                db.schema().awaitIndexesOnline( 1, TimeUnit.MINUTES );
-                tx.success();
+                tx.schema().awaitIndexesOnline( 1, TimeUnit.MINUTES );
+                tx.commit();
             }
         }
 
@@ -817,12 +790,13 @@ public class MultipleOpenCursorsTest
 
         abstract void assertExactResult( List<Long> result );
 
-        abstract void doCreateIndex( DatabaseRule db );
+        abstract IndexDefinition doCreateIndex( Transaction tx );
 
         NodeValueIndexCursor indexQuery( KernelTransaction ktx, IndexDescriptor indexDescriptor, IndexQuery... indexQueries ) throws KernelException
         {
             NodeValueIndexCursor cursor = ktx.cursors().allocateNodeValueIndexCursor();
-            ktx.dataRead().nodeIndexSeek( indexDescriptor, cursor, IndexOrder.NONE, false, indexQueries );
+            IndexReadSession index = ktx.dataRead().indexReadSession( indexDescriptor );
+            ktx.dataRead().nodeIndexSeek( index, cursor, IndexOrder.NONE, false, indexQueries );
             return cursor;
         }
     }

@@ -42,7 +42,7 @@ Please note that we do not support building Debian packages on macOS.
 
 === With apt-get on Ubuntu ===
 
-  apt install maven openjdk-8-jdk
+  sudo apt install maven openjdk-11-jdk
 
 On top of that, to build Debian packages:
 

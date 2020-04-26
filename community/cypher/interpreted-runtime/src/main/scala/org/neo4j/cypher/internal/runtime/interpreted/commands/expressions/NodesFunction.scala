@@ -22,7 +22,7 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.commands.expressions
 
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
+import org.neo4j.cypher.internal.runtime.ExecutionContext
 import org.neo4j.cypher.internal.runtime.interpreted.commands.AstNode
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.QueryState
 import org.neo4j.cypher.operations.CypherFunctions
@@ -38,6 +38,4 @@ case class NodesFunction(path: Expression) extends NullInNullOutExpression(path)
   override def arguments: Seq[Expression] = Seq(path)
 
   override def children: Seq[AstNode[_]] = Seq(path)
-
-  override def symbolTableDependencies: Set[String] = path.symbolTableDependencies
 }

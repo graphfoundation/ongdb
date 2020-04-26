@@ -33,6 +33,9 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 
+import org.neo4j.collection.PrimitiveLongResourceCollections;
+import org.neo4j.collection.PrimitiveLongResourceIterator;
+import org.neo4j.common.EntityType;
 import org.neo4j.consistency.checking.ChainCheck;
 import org.neo4j.consistency.checking.CheckerEngine;
 import org.neo4j.consistency.checking.RecordCheck;
@@ -42,19 +45,22 @@ import org.neo4j.consistency.report.ConsistencyReport;
 import org.neo4j.consistency.store.RecordAccess;
 import org.neo4j.internal.kernel.api.IndexQuery;
 import org.neo4j.internal.kernel.api.exceptions.schema.IndexNotApplicableKernelException;
-import org.neo4j.internal.kernel.api.schema.SchemaDescriptor;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.internal.schema.IndexOrder;
+import org.neo4j.internal.schema.PropertySchemaType;
+import org.neo4j.internal.schema.SchemaDescriptor;
+import org.neo4j.kernel.api.index.IndexReader;
 import org.neo4j.kernel.impl.api.LookupFilter;
+import org.neo4j.kernel.impl.index.schema.NodeValueIterator;
 import org.neo4j.kernel.impl.store.record.NodeRecord;
 import org.neo4j.kernel.impl.store.record.PropertyBlock;
 import org.neo4j.kernel.impl.store.record.PropertyRecord;
 import org.neo4j.kernel.impl.store.record.Record;
-import org.neo4j.storageengine.api.EntityType;
-import org.neo4j.storageengine.api.schema.IndexReader;
-import org.neo4j.storageengine.api.schema.StoreIndexDescriptor;
 import org.neo4j.values.storable.Value;
 import org.neo4j.values.storable.Values;
 
 import static java.lang.String.format;
+import static org.neo4j.internal.kernel.api.QueryContext.NULL_CONTEXT;
 import static org.neo4j.values.storable.NoValue.NO_VALUE;
 
 /**
@@ -81,7 +87,7 @@ public class PropertyAndNodeIndexedCheck implements RecordCheck<NodeRecord, Cons
         try
         {
             Collection<PropertyRecord> properties = propertyReader.getPropertyRecordChain( record.getNextProp() );
-            cacheAccess.client().putPropertiesToCache(properties);
+            cacheAccess.client().putPropertiesToCache( properties );
             if ( indexes != null )
             {
                 matchIndexesToNode( record, engine, records, properties );
@@ -106,7 +112,7 @@ public class PropertyAndNodeIndexedCheck implements RecordCheck<NodeRecord, Cons
     {
         long[] labels = NodeLabelReader.getListOfLabels( record, records, engine ).stream().mapToLong( Long::longValue ).toArray();
         IntObjectMap<PropertyBlock> nodePropertyMap = null;
-        for ( StoreIndexDescriptor indexRule : indexes.onlineRules() )
+        for ( IndexDescriptor indexRule : indexes.onlineRules() )
         {
             SchemaDescriptor schema = indexRule.schema();
             if ( schema.entityType() == EntityType.NODE && schema.isAffected( labels ) )
@@ -123,7 +129,7 @@ public class PropertyAndNodeIndexedCheck implements RecordCheck<NodeRecord, Cons
                     {
                         long nodeId = record.getId();
 
-                        if ( indexRule.canSupportUniqueConstraint() )
+                        if ( indexRule.isUnique() )
                         {
                             verifyNodeCorrectlyIndexedUniquely( nodeId, values, engine, indexRule, reader );
                         }
@@ -139,35 +145,34 @@ public class PropertyAndNodeIndexedCheck implements RecordCheck<NodeRecord, Cons
     }
 
     private void verifyNodeCorrectlyIndexedUniquely( long nodeId, Value[] propertyValues,
-            CheckerEngine<NodeRecord,ConsistencyReport.NodeConsistencyReport> engine, StoreIndexDescriptor indexRule,
+            CheckerEngine<NodeRecord,ConsistencyReport.NodeConsistencyReport> engine, IndexDescriptor descriptor,
             IndexReader reader )
     {
-        IndexQuery[] query = seek( indexRule.schema(), propertyValues );
+        IndexQuery[] query = seek( descriptor.schema(), propertyValues );
 
-        final LongIterator indexedNodeIds = queryIndexOrEmpty( reader, query );
-
-        long count = 0;
-        while ( indexedNodeIds.hasNext() )
+        try ( PrimitiveLongResourceIterator indexedNodeIds = queryIndexOrEmpty( reader, query ) )
         {
-            long indexedNodeId = indexedNodeIds.next();
+            long count = 0;
+            while ( indexedNodeIds.hasNext() )
+            {
+                long indexedNodeId = indexedNodeIds.next();
 
-            if ( nodeId == indexedNodeId )
-            {
-                count++;
+                if ( nodeId == indexedNodeId )
+                {
+                    count++;
+                }
+                else
+                {
+                    engine.report().uniqueIndexNotUnique( descriptor, Values.asObjects( propertyValues ), indexedNodeId );
+                }
             }
-            else
-            {
-                engine.report().uniqueIndexNotUnique( indexRule, Values.asObjects( propertyValues ), indexedNodeId );
-            }
+
+            reportIncorrectIndexCount( propertyValues, engine, descriptor, count );
         }
-
-        reportIncorrectIndexCount( propertyValues, engine, indexRule, count );
     }
 
-    private void reportIncorrectIndexCount( Value[] propertyValues,
-                                            CheckerEngine<NodeRecord,ConsistencyReport.NodeConsistencyReport> engine,
-                                            StoreIndexDescriptor indexRule,
-                                            long count )
+    private void reportIncorrectIndexCount(
+            Value[] propertyValues, CheckerEngine<NodeRecord,ConsistencyReport.NodeConsistencyReport> engine, IndexDescriptor indexRule, long count )
     {
         if ( count == 0 )
         {
@@ -245,12 +250,14 @@ public class PropertyAndNodeIndexedCheck implements RecordCheck<NodeRecord, Cons
         return query;
     }
 
-    private LongIterator queryIndexOrEmpty( IndexReader reader, IndexQuery[] query )
+    private PrimitiveLongResourceIterator queryIndexOrEmpty( IndexReader reader, IndexQuery[] query )
     {
-        final LongIterator indexedNodeIds;
+        final PrimitiveLongResourceIterator indexedNodeIds;
         try
         {
-            indexedNodeIds = reader.query( query );
+            NodeValueIterator iterator = new NodeValueIterator();
+            reader.query( NULL_CONTEXT, iterator, IndexOrder.NONE, false, query );
+            indexedNodeIds = iterator;
         }
         catch ( IndexNotApplicableKernelException e )
         {
@@ -259,13 +266,24 @@ public class PropertyAndNodeIndexedCheck implements RecordCheck<NodeRecord, Cons
                     Arrays.toString( query ) ), e );
         }
 
-        return reader.hasFullValuePrecision( query )
-                ? indexedNodeIds : LookupFilter.exactIndexMatches( propertyReader, indexedNodeIds, query );
+        if ( reader.hasFullValuePrecision( query ) )
+        {
+            return indexedNodeIds;
+        }
+        LongIterator filtered = LookupFilter.exactIndexMatches( propertyReader, indexedNodeIds, query );
+        return new PrimitiveLongResourceCollections.AbstractPrimitiveLongBaseResourceIterator( indexedNodeIds )
+        {
+            @Override
+            protected boolean fetchNext()
+            {
+                return filtered.hasNext() && next( filtered.next() );
+            }
+        };
     }
 
     static boolean entityIntersectsSchema( IntObjectMap<PropertyBlock> entityPropertyMap, SchemaDescriptor schema )
     {
-        boolean requireAllTokens = schema.propertySchemaType() == SchemaDescriptor.PropertySchemaType.COMPLETE_ALL_TOKENS;
+        boolean requireAllTokens = schema.propertySchemaType() == PropertySchemaType.COMPLETE_ALL_TOKENS;
         if ( requireAllTokens )
         {
             return hasAllProperties( entityPropertyMap, schema.getPropertyIds() );

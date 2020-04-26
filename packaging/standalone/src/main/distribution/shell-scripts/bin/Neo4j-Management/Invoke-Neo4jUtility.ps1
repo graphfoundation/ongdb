@@ -1,4 +1,4 @@
-# Copyright (c) 2002-2018 "Neo4j"
+# Copyright (c) 2002-2020 "Neo4j"
 # Neo4j Sweden AB [http://neo4j.com]
 #
 # This file is part of ONgDB.
@@ -22,7 +22,7 @@
 Invokes various Neo4j Utilities
 
 .DESCRIPTION
-Invokes various Neo4j Utilities.  This is a generic utility function called by the external functions e.g. Shell, Import
+Invokes various Neo4j Utilities.  This is a generic utility function called by the external functions e.g. Admin
 
 .PARAMETER Command
 A string of the command to run.
@@ -33,10 +33,10 @@ Command line arguments to pass to the utility
 .OUTPUTS
 System.Int32
 0 = Success
-non-zero = an error occured
+non-zero = an error occurred
 
 .NOTES
-Only supported on version 3.x ONgDB Community and Enterprise Edition databases
+Only supported on version 4.x ONgDB Community and Enterprise Edition databases
 
 .NOTES
 This function is private to the powershell module
@@ -79,7 +79,7 @@ function Invoke-Neo4jUtility
       "admintool" {
         Write-Verbose "Admintool command specified"
         $GetJavaParams = @{
-          StartingClass = 'org.neo4j.commandline.admin.AdminTool';
+          StartingClass = 'org.neo4j.cli.AdminTool';
         }
         break
       }

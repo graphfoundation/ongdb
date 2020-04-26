@@ -25,14 +25,13 @@ package org.neo4j.harness.internal;
 import java.io.File;
 import java.io.FileFilter;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.function.Function;
 
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Transaction;
-import org.neo4j.io.fs.FileUtils;
 
 /**
  * Manages user-defined cypher fixtures that can be exercised against the server.
@@ -61,13 +60,17 @@ public class Fixtures
         {
             if ( fixturePath.isDirectory() )
             {
-                for ( File file : fixturePath.listFiles( cypherFileOrDirectoryFilter ) )
+                File[] fixtureFiles = fixturePath.listFiles( cypherFileOrDirectoryFilter );
+                if ( fixtureFiles != null )
                 {
-                    add( file );
+                    for ( File file : fixtureFiles )
+                    {
+                        add( file );
+                    }
                 }
                 return;
             }
-            add( FileUtils.readTextFile( fixturePath, StandardCharsets.UTF_8 ) );
+            add( Files.readString( fixturePath.toPath() ) );
         }
         catch ( IOException e )
         {
@@ -78,7 +81,7 @@ public class Fixtures
 
     public void add( String statement )
     {
-        if ( statement.trim().length() > 0 )
+        if ( !statement.trim().isEmpty() )
         {
             fixtureStatements.add( statement );
         }
@@ -89,15 +92,15 @@ public class Fixtures
         fixtureFunctions.add( fixtureFunction );
     }
 
-    public void applyTo( InProcessServerControls controls )
+    void applyTo( InProcessNeo4j controls )
     {
-        GraphDatabaseService db = controls.graph();
+        GraphDatabaseService db = controls.defaultDatabaseService();
         for ( String fixtureStatement : fixtureStatements )
         {
             try ( Transaction tx = db.beginTx() )
             {
-                db.execute( fixtureStatement );
-                tx.success();
+                tx.execute( fixtureStatement );
+                tx.commit();
             }
         }
         for ( Function<GraphDatabaseService,Void> fixtureFunction : fixtureFunctions )

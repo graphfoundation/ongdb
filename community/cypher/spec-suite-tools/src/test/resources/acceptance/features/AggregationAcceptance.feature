@@ -37,141 +37,9 @@ Feature: AggregationAcceptance
       OPTIONAL MATCH (z:Z)-[IS_A]->()
       RETURN aCount, count(distinct z.key) as zCount
       """
-    Then the result should be:
+    Then the result should be, in any order:
       | aCount | zCount |
       | 1      | 1      |
-    And no side effects
-
-  Scenario: max() over strings
-    When executing query:
-      """
-      UNWIND ['a', 'b', 'B', null, 'abc', 'abc1'] AS i
-      RETURN max(i)
-      """
-    Then the result should be:
-      | max(i) |
-      | 'b'    |
-    And no side effects
-
-  Scenario: min() over strings
-    When executing query:
-      """
-      UNWIND ['a', 'b', 'B', null, 'abc', 'abc1'] AS i
-      RETURN min(i)
-      """
-    Then the result should be:
-      | min(i) |
-      | 'B'    |
-    And no side effects
-
-  Scenario: max() over integers
-    When executing query:
-      """
-      UNWIND [1, 2, 0, null, -1] AS x
-      RETURN max(x)
-      """
-    Then the result should be:
-      | max(x) |
-      | 2      |
-    And no side effects
-
-  Scenario: min() over integers
-    When executing query:
-      """
-      UNWIND [1, 2, 0, null, -1] AS x
-      RETURN min(x)
-      """
-    Then the result should be:
-      | min(x) |
-      | -1     |
-    And no side effects
-
-  Scenario: max() over floats
-    When executing query:
-      """
-      UNWIND [1.0, 2.0, 0.5, null] AS x
-      RETURN max(x)
-      """
-    Then the result should be:
-      | max(x) |
-      | 2.0    |
-    And no side effects
-
-  Scenario: min() over floats
-    When executing query:
-      """
-      UNWIND [1.0, 2.0, 0.5, null] AS x
-      RETURN min(x)
-      """
-    Then the result should be:
-      | min(x) |
-      | 0.5    |
-    And no side effects
-
-  Scenario: max() over mixed numeric values
-    When executing query:
-      """
-      UNWIND [1, 2.0, 5, null, 3.2, 0.1] AS x
-      RETURN max(x)
-      """
-    Then the result should be:
-      | max(x) |
-      | 5      |
-    And no side effects
-
-  Scenario: min() over mixed numeric values
-    When executing query:
-      """
-      UNWIND [1, 2.0, 5, null, 3.2, 0.1] AS x
-      RETURN min(x)
-      """
-    Then the result should be:
-      | min(x) |
-      | 0.1    |
-    And no side effects
-
-  Scenario: max() over mixed values
-    When executing query:
-      """
-      UNWIND [1, 'a', null, [1, 2], 0.2, 'b'] AS x
-      RETURN max(x)
-      """
-    Then the result should be:
-      | max(x) |
-      | 1      |
-    And no side effects
-
-  Scenario: min() over mixed values
-    When executing query:
-      """
-      UNWIND [1, 'a', null, [1, 2], 0.2, 'b'] AS x
-      RETURN min(x)
-      """
-    Then the result should be:
-      | min(x) |
-      | [1, 2] |
-    And no side effects
-
-  Scenario: max() over list values
-    When executing query:
-      """
-      UNWIND [[1], [2], [2, 1]] AS x
-      RETURN max(x)
-      """
-    Then the result should be:
-      | max(x) |
-      | [2, 1] |
-    And no side effects
-
-  Scenario: min() over list values
-    When executing query:
-      """
-      UNWIND [[1], [2], [2, 1]] AS x
-      RETURN min(x)
-      """
-    Then the result should be:
-      | min(x) |
-      | [1]    |
     And no side effects
 
   Scenario: Multiple aggregations should work
@@ -190,7 +58,7 @@ Feature: AggregationAcceptance
      RETURN b.book as book, count(r), count(distinct a)
      ORDER BY book
      """
-    Then the result should be:
+    Then the result should be, in any order:
       | book                | count(r) | count(distinct a) |
       | 'NW'                | 1        | 1                 |
       | 'On Beauty'         | 1        | 1                 |
@@ -219,7 +87,7 @@ Feature: AggregationAcceptance
         node.prop8 as p8,
         node.prop9 as p9
       """
-    Then the result should be:
+    Then the result should be, in any order:
       | p1      | p2      | p3      | p4      | p5      | p6  | p7      | p8      | p9      |
       | 'prop1' | 'prop2' | 'prop3' | 'prop4' | 'prop5' | '1' | 'prop7' | 'prop8' | 'prop9' |
       | 'prop1' | 'prop2' | 'prop3' | 'prop4' | 'prop5' | '2' | 'prop7' | 'prop8' | 'prop9' |
@@ -237,7 +105,31 @@ Feature: AggregationAcceptance
       """
        MATCH (n:FAKE) RETURN percentileDisc(n.x, 0.9) AS result
       """
-    Then the result should be:
+    Then the result should be, in any order:
       | result |
       | null   |
+    And no side effects
+
+  Scenario: optional match followed by aggregation
+    Given an empty graph
+    When executing query:
+    """
+   OPTIONAL MATCH (n)
+   UNWIND [n] AS m
+   RETURN collect(m) AS c
+    """
+    Then the result should be, in any order:
+      | c  |
+      | [] |
+    And no side effects
+
+  Scenario: aggregation on function with null argument
+    Given an empty graph
+    When executing query:
+    """
+    RETURN collect(sin(null)) AS c
+    """
+    Then the result should be, in any order:
+      | c  |
+      | [] |
     And no side effects

@@ -24,8 +24,8 @@ package org.neo4j.consistency.checking;
 
 import java.util.Arrays;
 
-import org.neo4j.kernel.impl.util.Bits;
-import org.neo4j.unsafe.impl.batchimport.cache.ByteArray;
+import org.neo4j.internal.batchimport.cache.ByteArray;
+import org.neo4j.util.Bits;
 
 /**
  * Uses a {@link ByteArray} and can conveniently split up an index into slots, not only per byte, but arbitrary bit-sizes,
@@ -66,6 +66,11 @@ public class ByteArrayBitsManipulator
                 boolean bitIsSet = (field & fbMask) != 0;
                 return bitIsSet ? -1 : 0; // the -1 here is a bit weird, but for the time being this is what the rest of the code expects
             }
+            else if ( bitCount == Short.SIZE )
+            {
+                long raw = array.getShort( index, byteOffset ) & mask;
+                return raw == mask ? -1 : raw;
+            }
             else // we know that this larger field starts at the beginning of a byte
             {
                 long field = array.get5ByteLong( index, byteOffset );
@@ -86,6 +91,10 @@ public class ByteArrayBitsManipulator
                 int field = array.getByte( index, byteOffset ) & 0xFF;
                 int otherBits = field & ~fbMask;
                 array.setByte( index, byteOffset, (byte) (otherBits | (value << bitOffset)) );
+            }
+            else if ( bitCount == Short.SIZE )
+            {
+                array.setShort( index, byteOffset, (short) value );
             }
             else
             {

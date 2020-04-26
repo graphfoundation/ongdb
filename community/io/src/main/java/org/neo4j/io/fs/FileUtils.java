@@ -26,6 +26,7 @@ import org.apache.commons.lang3.SystemUtils;
 
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileDescriptor;
 import java.io.FileFilter;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
@@ -34,22 +35,23 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
-import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.io.RandomAccessFile;
 import java.io.UncheckedIOException;
 import java.io.Writer;
+import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.channels.SeekableByteChannel;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.CopyOption;
-import java.nio.file.DirectoryStream;
+import java.nio.file.DirectoryNotEmptyException;
 import java.nio.file.FileStore;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.NotDirectoryException;
 import java.nio.file.OpenOption;
 import java.nio.file.Path;
@@ -58,23 +60,85 @@ import java.nio.file.SimpleFileVisitor;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.BasicFileAttributes;
-import java.util.Objects;
+import java.util.Set;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static java.lang.String.format;
 import static java.nio.file.StandardOpenOption.APPEND;
 import static java.nio.file.StandardOpenOption.CREATE;
-import static java.nio.file.StandardOpenOption.DSYNC;
 import static java.nio.file.StandardOpenOption.READ;
-import static java.nio.file.StandardOpenOption.SYNC;
 import static java.nio.file.StandardOpenOption.WRITE;
+import static java.util.Collections.singleton;
+import static java.util.Objects.requireNonNull;
+import static org.apache.commons.lang3.reflect.FieldUtils.getDeclaredField;
+import static org.neo4j.function.Predicates.alwaysTrue;
+import static org.neo4j.io.fs.FileSystemAbstraction.INVALID_FILE_DESCRIPTOR;
+import static org.neo4j.util.FeatureToggles.flag;
 
+/**
+ * Set of utility methods to work with {@link File} and {@link Path} using the {@link DefaultFileSystemAbstraction default file system}.
+ * This class is used by {@link DefaultFileSystemAbstraction} and its methods should not take {@link FileSystemAbstraction} as a parameter.
+ * Consider using {@link FileSystemUtils} when a helper method needs to work with different file systems.
+ *
+ * @see FileSystemUtils
+ */
 public class FileUtils
 {
+    private static final boolean PRINT_REFLECTION_EXCEPTIONS = flag( FileUtils.class, "printReflectionExceptions", false );
     private static final int NUMBER_OF_RETRIES = 5;
+
+    private static final Field CHANNEL_FILE_DESCRIPTOR;
+    private static final Field FILE_DESCRIPTOR_FIELD;
+
+    static
+    {
+        Field channelFileDescriptor = null;
+        Field fileDescriptorField = null;
+        try
+        {
+            Class<?> fileChannelClass = Class.forName( "sun.nio.ch.FileChannelImpl" );
+            channelFileDescriptor = requireNonNull( getDeclaredField( fileChannelClass, "fd", true ) );
+            fileDescriptorField = getDeclaredField( FileDescriptor.class, "fd", true );
+        }
+        catch ( Exception e )
+        {
+            if ( PRINT_REFLECTION_EXCEPTIONS )
+            {
+                e.printStackTrace();
+            }
+
+        }
+        CHANNEL_FILE_DESCRIPTOR = channelFileDescriptor;
+        FILE_DESCRIPTOR_FIELD = fileDescriptorField;
+    }
 
     private FileUtils()
     {
         throw new AssertionError();
+    }
+
+    static int getFileDescriptor( FileChannel fileChannel )
+    {
+        requireNonNull( fileChannel );
+        try
+        {
+            if ( (FILE_DESCRIPTOR_FIELD == null) || (CHANNEL_FILE_DESCRIPTOR == null) )
+            {
+                return INVALID_FILE_DESCRIPTOR;
+            }
+            FileDescriptor fileDescriptor = (FileDescriptor) CHANNEL_FILE_DESCRIPTOR.get( fileChannel );
+            return FILE_DESCRIPTOR_FIELD.getInt( fileDescriptor );
+        }
+        catch ( IllegalAccessException | IllegalArgumentException e )
+        {
+            if ( PRINT_REFLECTION_EXCEPTIONS )
+            {
+                e.printStackTrace();
+            }
+            return INVALID_FILE_DESCRIPTOR;
+        }
     }
 
     public static void deleteRecursively( File directory ) throws IOException
@@ -89,12 +153,32 @@ public class FileUtils
 
     public static void deletePathRecursively( Path path ) throws IOException
     {
-        Files.walkFileTree( path, new SimpleFileVisitor<Path>()
+        deletePathRecursively( path, alwaysTrue() );
+    }
+
+    public static long blockSize( File file ) throws IOException
+    {
+        return Files.getFileStore( file.toPath() ).getBlockSize();
+    }
+
+    public static void deletePathRecursively( Path path, Predicate<Path> removeFilePredicate ) throws IOException
+    {
+
+        Files.walkFileTree( path, new SimpleFileVisitor<>()
         {
+            private int skippedFiles;
+
             @Override
             public FileVisitResult visitFile( Path file, BasicFileAttributes attrs ) throws IOException
             {
-                deleteFile( file );
+                if ( removeFilePredicate.test( file ) )
+                {
+                    deleteFile( file );
+                }
+                else
+                {
+                    skippedFiles++;
+                }
                 return FileVisitResult.CONTINUE;
             }
 
@@ -105,8 +189,45 @@ public class FileUtils
                 {
                     throw e;
                 }
-                Files.delete( dir );
-                return FileVisitResult.CONTINUE;
+                try
+                {
+                    if ( skippedFiles == 0 )
+                    {
+                        Files.delete( dir );
+                        return FileVisitResult.CONTINUE;
+                    }
+                    if ( isDirectoryEmpty( dir ) )
+                    {
+                        Files.delete( dir );
+                    }
+                    return FileVisitResult.CONTINUE;
+                }
+                catch ( DirectoryNotEmptyException notEmpty )
+                {
+                    String reason = notEmptyReason( dir, notEmpty );
+                    throw new IOException( notEmpty.getMessage() + ": " + reason, notEmpty );
+                }
+            }
+
+            private boolean isDirectoryEmpty( Path dir ) throws IOException
+            {
+                try ( Stream<Path> list = Files.list( dir ) )
+                {
+                    return list.noneMatch( alwaysTrue() );
+                }
+            }
+
+            private String notEmptyReason( Path dir, DirectoryNotEmptyException notEmpty )
+            {
+                try ( Stream<Path> list = Files.list( dir ) )
+                {
+                    return list.map( p -> String.valueOf( p.getFileName() ) ).collect( Collectors.joining( "', '", "'", "'." ) );
+                }
+                catch ( Exception e )
+                {
+                    notEmpty.addSuppressed( e );
+                    return "(could not list directory: " + e.getMessage() + ")";
+                }
             }
         } );
     }
@@ -116,6 +237,19 @@ public class FileUtils
         if ( !file.exists() )
         {
             return true;
+        }
+        else if ( file.isDirectory() )
+        {
+            File[] files = file.listFiles();
+            if ( files == null )
+            {
+                // should typically mean IOException because we already confirmed existence, however code is not thread-safe
+                return false;
+            }
+            else if ( files.length > 0 )
+            {
+                return false;
+            }
         }
         int count = 0;
         boolean deleted;
@@ -271,9 +405,14 @@ public class FileUtils
 
     public static void copyFile( File srcFile, File dstFile ) throws IOException
     {
+        copyFile( srcFile, dstFile, StandardCopyOption.REPLACE_EXISTING );
+    }
+
+    public static void copyFile( File srcFile, File dstFile, CopyOption... copyOptions ) throws IOException
+    {
         //noinspection ResultOfMethodCallIgnored
         dstFile.getParentFile().mkdirs();
-        Files.copy( srcFile.toPath(), dstFile.toPath(), StandardCopyOption.REPLACE_EXISTING );
+        Files.copy( srcFile.toPath(), dstFile.toPath(), copyOptions );
     }
 
     public static void copyRecursively( File fromDirectory, File toDirectory ) throws IOException
@@ -344,20 +483,11 @@ public class FileUtils
      *
      * @param pathOnDevice Any path, hypothetical or real, that once fully resolved, would exist on a storage device
      * that either supports high IO, or not.
-     * @param defaultHunch The default hunch for whether the device supports high IO or not. This will be returned if
-     * we otherwise have no clue about the nature of the storage device.
      * @return Our best-effort estimate for whether or not this device supports a high IO workload.
      */
-    public static boolean highIODevice( Path pathOnDevice, boolean defaultHunch )
+    public static boolean highIODevice( Path pathOnDevice )
     {
-        // This method has been manually tested and correctly identifies the high IO volumes on our test servers.
-        if ( SystemUtils.IS_OS_MAC )
-        {
-            // Most macs have flash storage, so let's assume true for them.
-            return true;
-        }
-
-        if ( SystemUtils.IS_OS_LINUX )
+       if ( SystemUtils.IS_OS_LINUX )
         {
             try
             {
@@ -399,13 +529,18 @@ public class FileUtils
                     }
                 }
             }
-            catch ( Exception e )
+            catch ( Exception ignored )
             {
-                return defaultHunch;
+                // This Linux system apparently has an unfamiliar storage configuration.
+                // Let's just assume that whatever is going on here, it's probably fast.
+                return true;
             }
         }
 
-        return defaultHunch;
+        // Most systems that are not running Linux, will be either MacOS or Windows, and those are likely to be laptops.
+        // Nearly all modern laptops have SSDs as their primary storage, and in any case won't be doing performance critical work.
+        // So we just assume that all non-Linux systems have high IO.
+        return true;
     }
 
     private static Path rotationalPathFor( Path deviceName )
@@ -514,17 +649,12 @@ public class FileUtils
                 waitAndThenTriggerGC();
             }
         }
-        throw Objects.requireNonNull( storedIoe );
+        throw requireNonNull( storedIoe );
     }
 
     public interface LineListener
     {
         void line( String line );
-    }
-
-    public static LineListener echo( final PrintStream target )
-    {
-        return target::println;
     }
 
     public static void readTextFile( File file, LineListener listener ) throws IOException
@@ -537,16 +667,6 @@ public class FileUtils
                 listener.line( line );
             }
         }
-    }
-
-    public static String readTextFile( File file, Charset charset ) throws IOException
-    {
-        StringBuilder out = new StringBuilder();
-        for ( String s : Files.readAllLines( file.toPath(), charset ) )
-        {
-            out.append( s ).append( "\n" );
-        }
-        return out.toString();
     }
 
     private static void deleteFile( Path path ) throws IOException
@@ -631,64 +751,14 @@ public class FileUtils
         }
     }
 
-    public static OpenOption[] convertOpenMode( OpenMode mode )
+    public static FileChannel open( Path path, Set<OpenOption> options ) throws IOException
     {
-        OpenOption[] options;
-        switch ( mode )
-        {
-        case READ:
-            options = new OpenOption[]{READ};
-            break;
-        case READ_WRITE:
-            options = new OpenOption[]{CREATE, READ, WRITE};
-            break;
-        case SYNC:
-            options = new OpenOption[]{CREATE, READ, WRITE, SYNC};
-            break;
-        case DSYNC:
-            options = new OpenOption[]{CREATE, READ, WRITE, DSYNC};
-            break;
-        default:
-            throw new IllegalArgumentException( "Unsupported mode: " + mode );
-        }
-        return options;
-    }
-
-    public static FileChannel open( Path path, OpenMode openMode ) throws IOException
-    {
-        return FileChannel.open( path, convertOpenMode( openMode ) );
+        return FileChannel.open( path, options );
     }
 
     public static InputStream openAsInputStream( Path path ) throws IOException
     {
         return Files.newInputStream( path, READ );
-    }
-
-    /**
-     * Check if directory is empty.
-     *
-     * @param directory - directory to check
-     * @return false if directory exists and empty, true otherwise.
-     * @throws IllegalArgumentException if specified directory represent a file
-     * @throws IOException if some problem encountered during reading directory content
-     */
-    public static boolean isEmptyDirectory( File directory ) throws IOException
-    {
-        if ( directory.exists() )
-        {
-            if ( !directory.isDirectory() )
-            {
-                throw new IllegalArgumentException( "Expected directory, but was file: " + directory );
-            }
-            else
-            {
-                try ( DirectoryStream<Path> directoryStream = Files.newDirectoryStream( directory.toPath() ) )
-                {
-                    return !directoryStream.iterator().hasNext();
-                }
-            }
-        }
-        return true;
     }
 
     public static OutputStream openAsOutputStream( Path path, boolean append ) throws IOException
@@ -706,32 +776,45 @@ public class FileUtils
     }
 
     /**
-     * Calculates the size of a given directory or file given the provided abstract filesystem.
-     *
-     * @param fs the filesystem abstraction to use
-     * @param file to the file or directory.
-     * @return the size, in bytes, of the file or the total size of the content in the directory, including
-     * subdirectories.
+     * Get type of file store where provided file is located.
+     * @param file file to get file store type for.
+     * @return name of file store or "Unknown file store type: " + exception message,
+     *         in case if exception occur during file store type retrieval.
      */
-    public static long size( FileSystemAbstraction fs, File file )
+    public static String getFileStoreType( File file )
     {
-        if ( fs.isDirectory( file ) )
+        try
         {
-            long size = 0L;
-            File[] files = fs.listFiles( file );
-            if ( files == null )
-            {
-                return 0L;
-            }
-            for ( File child : files )
-            {
-                size += size( fs, child );
-            }
-            return size;
+            return Files.getFileStore( file.toPath() ).type();
         }
-        else
+        catch ( IOException e )
         {
-            return fs.getFileSize( file );
+            return "Unknown file store type: " + e.getMessage();
         }
     }
+
+    public static void tryForceDirectory( File directory ) throws IOException
+    {
+        if ( !directory.exists() )
+        {
+            throw new NoSuchFileException( format( "The directory %s does not exist!", directory.getAbsolutePath() ) );
+        }
+        else if ( !directory.isDirectory() )
+        {
+            throw new IllegalArgumentException( format( "The path %s must refer to a directory!", directory.getAbsolutePath() ) );
+        }
+
+        if ( SystemUtils.IS_OS_WINDOWS )
+        {
+            // Windows doesn't allow us to open a FileChannel against a directory for reading, so we can't attempt to "fsync" there
+            return;
+        }
+
+        // Attempts to fsync the directory, guaranting e.g. file creation/deletion/rename events are durable
+        // See http://mail.openjdk.java.net/pipermail/nio-dev/2015-May/003140.html
+        // See also https://github.com/apache/lucene-solr/commit/7bea628bf3961a10581833935e4c1b61ad708c5c
+        FileChannel directoryChannel = FileChannel.open( directory.toPath(), singleton( READ ) );
+        directoryChannel.force( true );
+    }
+
 }

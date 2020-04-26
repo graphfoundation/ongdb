@@ -22,124 +22,154 @@
  */
 package org.neo4j.cypher.internal.javacompat;
 
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
 
+import org.neo4j.configuration.Config;
 import org.neo4j.cypher.internal.CompilerFactory;
+import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.QueryStatistics;
 import org.neo4j.graphdb.Result;
 import org.neo4j.io.pagecache.tracing.cursor.context.VersionContext;
 import org.neo4j.kernel.GraphDatabaseQueryService;
-import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.impl.api.KernelStatement;
+import org.neo4j.kernel.impl.query.QueryExecution;
 import org.neo4j.kernel.impl.query.QueryExecutionKernelException;
 import org.neo4j.kernel.impl.query.TransactionalContext;
 import org.neo4j.logging.LogProvider;
 import org.neo4j.logging.NullLogProvider;
-import org.neo4j.test.rule.DatabaseRule;
-import org.neo4j.test.rule.ImpermanentDatabaseRule;
+import org.neo4j.test.extension.ImpermanentDbmsExtension;
+import org.neo4j.test.extension.Inject;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyMap;
+import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-public class SnapshotExecutionEngineTest
+@SuppressWarnings( "unchecked" )
+@ImpermanentDbmsExtension
+class SnapshotExecutionEngineTest
 {
-    @Rule
-    public final DatabaseRule database = new ImpermanentDatabaseRule();
+    @Inject
+    private GraphDatabaseService db;
 
+    private GraphDatabaseQueryService cypherService;
     private CompilerFactory compilerFactory;
-    private TestSnapshotExecutionEngine executionEngine;
+    private SnapshotExecutionEngine executionEngine;
     private VersionContext versionContext;
     private SnapshotExecutionEngine.ParametrizedQueryExecutor executor;
     private TransactionalContext transactionalContext;
     private final Config config = Config.defaults();
 
-    @Before
-    public void setUp() throws Exception
+    @BeforeEach
+    void setUp() throws Exception
     {
-        GraphDatabaseQueryService cypherService = new GraphDatabaseCypherService( this.database.getGraphDatabaseAPI() );
-
+        cypherService = new GraphDatabaseCypherService( db );
         compilerFactory = mock( CompilerFactory.class );
-        transactionalContext = mock( TransactionalContext.class );
+        transactionalContext = mock( TransactionalContext.class, RETURNS_DEEP_STUBS );
         KernelStatement kernelStatement = mock( KernelStatement.class );
         executor = mock( SnapshotExecutionEngine.ParametrizedQueryExecutor.class );
         versionContext = mock( VersionContext.class );
 
-        executionEngine = createExecutionEngine(cypherService);
+        executionEngine = createExecutionEngine( cypherService, false );
         when( kernelStatement.getVersionContext() ).thenReturn( versionContext );
         when( transactionalContext.statement() ).thenReturn( kernelStatement );
-        Result result = mock( Result.class );
+        Result originalResult = mock( Result.class );
         QueryStatistics statistics = mock( QueryStatistics.class );
-        when( result.getQueryStatistics() ).thenReturn( statistics );
-        when( executor.execute( any(), anyMap(), any() ) ).thenReturn( result );
+        when( originalResult.getQueryStatistics() ).thenReturn( statistics );
+
+        var innerExecution = mock( QueryExecution.class );
+        when( executor.execute( any(), anyMap(), any(), anyBoolean(), any() ) ).thenReturn( innerExecution );
     }
 
     @Test
-    public void executeQueryWithoutRetries() throws QueryExecutionKernelException
+    void executeQueryWithoutRetries() throws QueryExecutionKernelException
     {
-        executionEngine.executeWithRetries( "query", Collections.emptyMap(), transactionalContext, executor );
+        executionEngine.executeWithRetries( "query", Collections.emptyMap(), transactionalContext, executor, false );
 
-        verify( executor, times( 1 ) ).execute( any(), anyMap(), any() );
-        verify( versionContext, times( 1 ) ).initRead();
+        verify( executor ).execute( any(), anyMap(), any(), anyBoolean(), any() );
+        verify( versionContext ).initRead();
     }
 
     @Test
-    public void executeQueryAfterSeveralRetries() throws QueryExecutionKernelException
+    void executeQueryAfterSeveralRetries() throws QueryExecutionKernelException
     {
         when( versionContext.isDirty() ).thenReturn( true, true, false );
 
-        executionEngine.executeWithRetries( "query", Collections.emptyMap(), transactionalContext, executor );
+        executionEngine.executeWithRetries( "query", Collections.emptyMap(), transactionalContext, executor, false );
 
-        verify( executor, times( 3 ) ).execute( any(), anyMap(), any() );
+        verify( executor, times( 3 ) ).execute( any(), anyMap(), any(), anyBoolean(), any() );
         verify( versionContext, times( 3 ) ).initRead();
     }
 
     @Test
-    public void failQueryAfterMaxRetriesReached() throws QueryExecutionKernelException
+    void failWriteQueryAfterFirstRetry() throws QueryExecutionKernelException
+    {
+        executionEngine = createExecutionEngine( cypherService, true );
+
+        when( versionContext.isDirty() ).thenReturn( true, true, false );
+
+        QueryExecutionKernelException e = assertThrows( QueryExecutionKernelException.class, () ->
+                executionEngine.executeWithRetries( "query", Collections.emptyMap(), transactionalContext, executor, false ) );
+        assertEquals( "Unable to get clean data snapshot for query 'query' that performs updates.", e.getMessage() );
+
+        verify( executor, times( 1 ) ).execute( any(), anyMap(), any(), anyBoolean(), any() );
+        verify( versionContext, times( 1 ) ).initRead();
+    }
+
+    @Test
+    void failQueryAfterMaxRetriesReached() throws QueryExecutionKernelException
     {
         when( versionContext.isDirty() ).thenReturn( true );
 
-        try
-        {
-            executionEngine.executeWithRetries( "query", Collections.emptyMap(), transactionalContext, executor );
-        }
-        catch ( QueryExecutionKernelException e )
-        {
-            assertEquals( "Unable to get clean data snapshot for query 'query' after 5 attempts.", e.getMessage() );
-        }
+        QueryExecutionKernelException e = assertThrows( QueryExecutionKernelException.class, () ->
+                executionEngine.executeWithRetries( "query", Collections.emptyMap(), transactionalContext, executor, false ) );
+        assertEquals( "Unable to get clean data snapshot for query 'query' after 5 attempts.", e.getMessage() );
 
-        verify( executor, times( 5 ) ).execute( any(), anyMap(), any() );
+        verify( executor, times( 5 ) ).execute( any(), anyMap(), any(), anyBoolean(), any() );
         verify( versionContext, times( 5 ) ).initRead();
     }
 
-    private class TestSnapshotExecutionEngine extends SnapshotExecutionEngine
+    private SnapshotExecutionEngine createExecutionEngine( GraphDatabaseQueryService cypherService, boolean containsUpdates )
     {
+        return new MockingSnapshotExecutionEngine( cypherService, config, NullLogProvider.getInstance(),
+                                                   compilerFactory, containsUpdates );
+    }
 
-        TestSnapshotExecutionEngine( GraphDatabaseQueryService queryService, Config config, LogProvider logProvider,
-                                     CompilerFactory compatibilityFactory )
+    private static class MockingSnapshotExecutionEngine extends SnapshotExecutionEngine
+    {
+        private final boolean containsUpdates;
+
+        MockingSnapshotExecutionEngine( GraphDatabaseQueryService queryService,
+                                        Config config,
+                                        LogProvider logProvider,
+                                        CompilerFactory compilerFactory,
+                                        boolean containsUpdates )
         {
-            super( queryService, config, logProvider, compatibilityFactory );
+            super( queryService, config, logProvider, compilerFactory );
+            this.containsUpdates = containsUpdates;
         }
 
         @Override
-        public <T> Result executeWithRetries( String query, T parameters, TransactionalContext context,
-                ParametrizedQueryExecutor<T> executor ) throws QueryExecutionKernelException
+        protected EagerResult getEagerResult( VersionContext versionContext, ResultSubscriber resultSubscriber )
         {
-            return super.executeWithRetries( query, parameters, context, executor );
+            return mock( EagerResult.class );
         }
-    }
 
-    private TestSnapshotExecutionEngine createExecutionEngine( GraphDatabaseQueryService cypherService )
-    {
-        return new TestSnapshotExecutionEngine( cypherService, config, NullLogProvider.getInstance(),
-                                                compilerFactory );
+        @Override
+        protected ResultSubscriber getResultSubscriber( TransactionalContext context )
+        {
+            ResultSubscriber mock = mock( ResultSubscriber.class, RETURNS_DEEP_STUBS );
+            when( mock.getQueryStatistics().containsUpdates() ).thenReturn( containsUpdates );
+            return mock;
+        }
     }
 }

@@ -22,12 +22,14 @@
  */
 package org.neo4j.graphdb;
 
+import org.neo4j.annotations.api.PublicApi;
+
 /**
  * This exception will be thrown if a request is made to a node, relationship or
  * property that does not exist. As an example, using
- * {@link GraphDatabaseService#getNodeById} passing in an id that does not exist
+ * {@link Transaction#getNodeById} passing in an id that does not exist
  * will cause this exception to be thrown.
- * {@link PropertyContainer#getProperty(String)} will also throw this exception
+ * {@link Entity#getProperty(String)} will also throw this exception
  * if the given key does not exist.
  * <p>
  * Another scenario involves multiple concurrent transactions which obtain a reference to the same node or
@@ -37,6 +39,7 @@ package org.neo4j.graphdb;
  *
  * @see GraphDatabaseService
  */
+@PublicApi
 public class NotFoundException extends RuntimeException
 {
     public NotFoundException()

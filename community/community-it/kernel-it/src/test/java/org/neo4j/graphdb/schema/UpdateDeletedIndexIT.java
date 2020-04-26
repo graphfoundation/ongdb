@@ -22,54 +22,54 @@
  */
 package org.neo4j.graphdb.schema;
 
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.TimeUnit;
 
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Transaction;
-import org.neo4j.kernel.impl.core.ThreadToStatementContextBridge;
+import org.neo4j.kernel.impl.coreapi.InternalTransaction;
+import org.neo4j.kernel.internal.GraphDatabaseAPI;
 import org.neo4j.test.Race;
-import org.neo4j.test.TestLabels;
-import org.neo4j.test.rule.DatabaseRule;
-import org.neo4j.test.rule.ImpermanentDatabaseRule;
+import org.neo4j.test.extension.ImpermanentDbmsExtension;
+import org.neo4j.test.extension.Inject;
 
 import static org.neo4j.test.Race.throwing;
+import static org.neo4j.test.TestLabels.LABEL_ONE;
 
-public class UpdateDeletedIndexIT
+@ImpermanentDbmsExtension
+class UpdateDeletedIndexIT
 {
-    private static final TestLabels LABEL = TestLabels.LABEL_ONE;
+    @Inject
+    private GraphDatabaseAPI db;
+
     private static final String KEY = "key";
     private static final int NODES = 100;
-    @Rule
-    public final DatabaseRule db = new ImpermanentDatabaseRule();
 
     @Test
-    public void shouldHandleUpdateRemovalOfLabelConcurrentlyWithIndexDrop() throws Throwable
+    void shouldHandleUpdateRemovalOfLabelConcurrentlyWithIndexDrop() throws Throwable
     {
-        shouldHandleIndexDropConcurrentlyWithOperation( nodeId -> db.getNodeById( nodeId ).removeLabel( LABEL ) );
+        shouldHandleIndexDropConcurrentlyWithOperation( ( tx, nodeId ) -> tx.getNodeById( nodeId ).removeLabel( LABEL_ONE ) );
     }
 
     @Test
-    public void shouldHandleDeleteNodeConcurrentlyWithIndexDrop() throws Throwable
+    void shouldHandleDeleteNodeConcurrentlyWithIndexDrop() throws Throwable
     {
-        shouldHandleIndexDropConcurrentlyWithOperation( nodeId -> db.getNodeById( nodeId ).delete() );
+        shouldHandleIndexDropConcurrentlyWithOperation( ( tx, nodeId ) -> tx.getNodeById( nodeId ).delete() );
     }
 
     @Test
-    public void shouldHandleRemovePropertyConcurrentlyWithIndexDrop() throws Throwable
+    void shouldHandleRemovePropertyConcurrentlyWithIndexDrop() throws Throwable
     {
-        shouldHandleIndexDropConcurrentlyWithOperation( nodeId -> db.getNodeById( nodeId ).removeProperty( KEY ) );
+        shouldHandleIndexDropConcurrentlyWithOperation( ( tx, nodeId ) -> tx.getNodeById( nodeId ).removeProperty( KEY ) );
     }
 
     @Test
-    public void shouldHandleNodeDetachDeleteConcurrentlyWithIndexDrop() throws Throwable
+    void shouldHandleNodeDetachDeleteConcurrentlyWithIndexDrop() throws Throwable
     {
-        shouldHandleIndexDropConcurrentlyWithOperation( nodeId ->
+        shouldHandleIndexDropConcurrentlyWithOperation( ( tx, nodeId ) ->
         {
-            ThreadToStatementContextBridge txBridge = db.getDependencyResolver().resolveDependency( ThreadToStatementContextBridge.class );
-            txBridge.getKernelTransactionBoundToThisThread( true ).dataWrite().nodeDetachDelete( nodeId );
+            ((InternalTransaction) tx).kernelTransaction().dataWrite().nodeDetachDelete( nodeId );
         } );
     }
 
@@ -85,8 +85,8 @@ public class UpdateDeletedIndexIT
         {
             try ( Transaction tx = db.beginTx() )
             {
-                indexDefinition.drop();
-                tx.success();
+                tx.schema().getIndexByName( indexDefinition.getName() ).drop();
+                tx.commit();
             }
         }, 1 );
         for ( int i = 0; i < NODES; i++ )
@@ -96,8 +96,8 @@ public class UpdateDeletedIndexIT
             {
                 try ( Transaction tx = db.beginTx() )
                 {
-                    operation.run( nodeId );
-                    tx.success();
+                    operation.run( tx, nodeId );
+                    tx.commit();
                 }
             } ) );
         }
@@ -113,11 +113,11 @@ public class UpdateDeletedIndexIT
         {
             for ( int i = 0; i < NODES; i++ )
             {
-                Node node = db.createNode( LABEL );
+                Node node = tx.createNode( LABEL_ONE );
                 node.setProperty( KEY, i );
                 nodes[i] = node.getId();
             }
-            tx.success();
+            tx.commit();
         }
         return nodes;
     }
@@ -128,26 +128,26 @@ public class UpdateDeletedIndexIT
         {
             for ( int i = 0; i < NODES; i++ )
             {
-                db.createNode( LABEL ).setProperty( KEY, i );
+                tx.createNode( LABEL_ONE ).setProperty( KEY, i );
             }
-            tx.success();
+            tx.commit();
         }
         IndexDefinition indexDefinition;
         try ( Transaction tx = db.beginTx() )
         {
-            indexDefinition = db.schema().indexFor( LABEL ).on( KEY ).create();
-            tx.success();
+            indexDefinition = tx.schema().indexFor( LABEL_ONE ).on( KEY ).create();
+            tx.commit();
         }
         try ( Transaction tx = db.beginTx() )
         {
-            db.schema().awaitIndexesOnline( 10, TimeUnit.SECONDS );
-            tx.success();
+            tx.schema().awaitIndexesOnline( 1, TimeUnit.MINUTES );
+            tx.commit();
         }
         return indexDefinition;
     }
 
     private interface NodeOperation
     {
-        void run( long nodeId ) throws Exception;
+        void run( Transaction tx, long nodeId ) throws Exception;
     }
 }

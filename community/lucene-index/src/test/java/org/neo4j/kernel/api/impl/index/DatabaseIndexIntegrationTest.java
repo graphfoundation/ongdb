@@ -24,7 +24,7 @@ package org.neo4j.kernel.api.impl.index;
 
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
-import org.apache.lucene.document.LongField;
+import org.apache.lucene.document.LongPoint;
 import org.apache.lucene.document.TextField;
 import org.apache.lucene.index.IndexFileNames;
 import org.apache.lucene.index.IndexWriter;
@@ -39,13 +39,13 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.RepeatedTest;
-import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -58,18 +58,17 @@ import org.neo4j.kernel.api.impl.index.partition.IndexPartitionFactory;
 import org.neo4j.kernel.api.impl.index.partition.WritableIndexPartitionFactory;
 import org.neo4j.kernel.api.impl.index.storage.DirectoryFactory;
 import org.neo4j.kernel.api.impl.index.storage.PartitionedIndexStorage;
-import org.neo4j.storageengine.api.schema.AbstractIndexReader;
-import org.neo4j.test.extension.DefaultFileSystemExtension;
+import org.neo4j.kernel.api.index.AbstractIndexReader;
 import org.neo4j.test.extension.Inject;
-import org.neo4j.test.extension.TestDirectoryExtension;
+import org.neo4j.test.extension.testdirectory.TestDirectoryExtension;
 import org.neo4j.test.rule.TestDirectory;
 
 import static java.time.Duration.ofSeconds;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTimeout;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 
-@ExtendWith( {DefaultFileSystemExtension.class, TestDirectoryExtension.class} )
+@TestDirectoryExtension
 class DatabaseIndexIntegrationTest
 {
     private static final int THREAD_NUMBER = 5;
@@ -100,7 +99,7 @@ class DatabaseIndexIntegrationTest
     void setUp() throws IOException
     {
         directoryFactory = new SyncNotifierDirectoryFactory( raceSignal );
-        luceneIndex = createTestLuceneIndex( directoryFactory, testDirectory.directory() );
+        luceneIndex = createTestLuceneIndex( directoryFactory, testDirectory.homeDir() );
     }
 
     @AfterEach
@@ -112,7 +111,7 @@ class DatabaseIndexIntegrationTest
     @RepeatedTest( 2 )
     void testSaveCallCommitAndCloseFromMultipleThreads()
     {
-        assertTimeout( ofSeconds( 60 ), () ->
+        assertTimeoutPreemptively( ofSeconds( 60 ), () ->
         {
             generateInitialData();
             Supplier<Runnable> closeTaskSupplier = () -> createConcurrentCloseTask( raceSignal );
@@ -130,7 +129,7 @@ class DatabaseIndexIntegrationTest
     @RepeatedTest( 2 )
     void saveCallCloseAndDropFromMultipleThreads()
     {
-        assertTimeout( ofSeconds( 60 ), () ->
+        assertTimeoutPreemptively( ofSeconds( 60 ), () ->
         {
             generateInitialData();
             Supplier<Runnable> dropTaskSupplier = () -> createConcurrentDropTask( raceSignal );
@@ -228,7 +227,7 @@ class DatabaseIndexIntegrationTest
     {
         Document document = new Document();
         document.add( new TextField( "text", "textValue", Field.Store.YES ) );
-        document.add( new LongField( "long", 1, Field.Store.YES ) );
+        document.add( new LongPoint( "long", 1 ) );
         return document;
     }
 
@@ -258,13 +257,13 @@ class DatabaseIndexIntegrationTest
         }
 
         @Override
-        protected AbstractIndexReader createSimpleReader( List<AbstractIndexPartition> partitions ) throws IOException
+        protected AbstractIndexReader createSimpleReader( List<AbstractIndexPartition> partitions )
         {
             return null;
         }
 
         @Override
-        protected AbstractIndexReader createPartitionedReader( List<AbstractIndexPartition> partitions ) throws IOException
+        protected AbstractIndexReader createPartitionedReader( List<AbstractIndexPartition> partitions )
         {
             return null;
         }
@@ -334,6 +333,12 @@ class DatabaseIndexIntegrationTest
             }
 
             @Override
+            public IndexOutput createTempOutput( String prefix, String suffix, IOContext context ) throws IOException
+            {
+                return delegate.createTempOutput( prefix, suffix, context );
+            }
+
+            @Override
             public void sync( Collection<String> names ) throws IOException
             {
                 // where are waiting for a specific sync during index commit process inside lucene
@@ -355,9 +360,15 @@ class DatabaseIndexIntegrationTest
             }
 
             @Override
-            public void renameFile( String source, String dest ) throws IOException
+            public void syncMetaData() throws IOException
             {
-                delegate.renameFile( source, dest );
+                delegate.syncMetaData();
+            }
+
+            @Override
+            public void rename( String source, String dest ) throws IOException
+            {
+                delegate.rename( source, dest );
             }
 
             @Override
@@ -376,6 +387,12 @@ class DatabaseIndexIntegrationTest
             public void close() throws IOException
             {
                 delegate.close();
+            }
+
+            @Override
+            public Set<String> getPendingDeletions() throws IOException
+            {
+                return delegate.getPendingDeletions();
             }
         }
     }

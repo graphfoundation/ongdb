@@ -27,19 +27,19 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.neo4j.bolt.v1.messaging.BoltResponseMessage;
-import org.neo4j.cypher.result.QueryResult;
+import org.neo4j.bolt.messaging.BoltResponseMessage;
 import org.neo4j.values.AnyValue;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.lessThan;
 import static org.junit.Assert.assertArrayEquals;
 
 public class RecordedBoltResponse
 {
-    private List<QueryResult.Record> records;
+    private List<AnyValue[]> records;
     private BoltResponseMessage response;
-    private Map<String, AnyValue> metadata;
+    private Map<String,AnyValue> metadata;
 
     public RecordedBoltResponse()
     {
@@ -48,9 +48,9 @@ public class RecordedBoltResponse
         metadata = new HashMap<>();
     }
 
-    public void addRecord( QueryResult.Record record )
+    public void addFields( AnyValue[] fields )
     {
-        records.add( record );
+        records.add( fields  );
     }
 
     public void addMetadata( String key, AnyValue value )
@@ -78,16 +78,24 @@ public class RecordedBoltResponse
         return metadata.get( key );
     }
 
-    public void assertRecord( int index, Object... values )
+    public void assertRecord( int index, AnyValue... values )
     {
         assertThat( index, lessThan( records.size() ) );
-        assertArrayEquals( records.get( index ).fields(), values );
+        assertArrayEquals( records.get( index ), values );
     }
 
-    public QueryResult.Record[] records()
+    public List<AnyValue[]> records()
     {
-        QueryResult.Record[] recordArray = new QueryResult.Record[records.size()];
-        return records.toArray( recordArray );
+        return new ArrayList<>( records );
+    }
+
+    public AnyValue singleValueRecord()
+    {
+        var records = records();
+        assertThat( records.size(), equalTo( 1 ) );
+        var values = records.get( 0 );
+        assertThat( values.length, equalTo( 1 ) );
+        return values[0];
     }
 
     @Override

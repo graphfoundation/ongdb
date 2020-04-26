@@ -27,7 +27,7 @@ import org.hamcrest.TypeSafeMatcher;
 
 import java.util.Iterator;
 
-import org.neo4j.helpers.collection.Iterables;
+import org.neo4j.internal.helpers.collection.Iterables;
 
 /**
  * An org.hamcrest Matcher that matches Iterables.

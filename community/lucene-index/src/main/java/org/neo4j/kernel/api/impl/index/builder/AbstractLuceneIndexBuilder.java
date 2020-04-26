@@ -25,13 +25,12 @@ package org.neo4j.kernel.api.impl.index.builder;
 import java.io.File;
 import java.util.Objects;
 
+import org.neo4j.configuration.Config;
+import org.neo4j.configuration.GraphDatabaseSettings;
 import org.neo4j.graphdb.config.Setting;
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.kernel.api.impl.index.storage.DirectoryFactory;
 import org.neo4j.kernel.api.impl.index.storage.PartitionedIndexStorage;
-import org.neo4j.kernel.configuration.Config;
-import org.neo4j.kernel.impl.factory.OperationalMode;
 
 /**
  * Base class for lucene index builders.
@@ -42,7 +41,7 @@ public abstract class AbstractLuceneIndexBuilder<T extends AbstractLuceneIndexBu
 {
     protected LuceneIndexStorageBuilder storageBuilder = LuceneIndexStorageBuilder.create();
     private final Config config;
-    private OperationalMode operationalMode = OperationalMode.single;
+    private boolean isSingleInstance = true;
 
     public AbstractLuceneIndexBuilder( Config config )
     {
@@ -98,13 +97,13 @@ public abstract class AbstractLuceneIndexBuilder<T extends AbstractLuceneIndexBu
     }
 
     /**
-     * Specify db operational mode
-     * @param operationalMode operational mode
+     * Specify if the db is in a SINGLE INSTANCE operational mode.
+     * @param isSingleInstance operational mode
      * @return index builder
      */
-    public T withOperationalMode( OperationalMode operationalMode )
+    public T withOperationalMode( boolean isSingleInstance )
     {
-        this.operationalMode = operationalMode;
+        this.isSingleInstance = isSingleInstance;
         return (T) this;
     }
 
@@ -114,7 +113,7 @@ public abstract class AbstractLuceneIndexBuilder<T extends AbstractLuceneIndexBu
      */
     protected boolean isReadOnly()
     {
-        return getConfig( GraphDatabaseSettings.read_only ) && (OperationalMode.single == operationalMode);
+        return getConfig( GraphDatabaseSettings.read_only ) && isSingleInstance;
     }
 
     /**

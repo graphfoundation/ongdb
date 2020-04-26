@@ -85,11 +85,11 @@ public class DefaultFileSystemWatcher implements FileWatcher
                     WatchEvent.Kind<?> kind = watchEvent.kind();
                     if ( StandardWatchEventKinds.ENTRY_MODIFY == kind )
                     {
-                        notifyAboutModification( watchEvent );
+                        notifyAboutModification( key, watchEvent );
                     }
                     if ( StandardWatchEventKinds.ENTRY_DELETE == kind )
                     {
-                        notifyAboutDeletion( watchEvent );
+                        notifyAboutDeletion( key, watchEvent );
                     }
                 }
                 key.reset();
@@ -122,26 +122,26 @@ public class DefaultFileSystemWatcher implements FileWatcher
         watchService.close();
     }
 
-    private void notifyAboutModification( WatchEvent<?> watchEvent )
+    private void notifyAboutModification( WatchKey key, WatchEvent<?> watchEvent )
     {
         String context = getContext( watchEvent );
         if ( StringUtils.isNotEmpty( context ) )
         {
             for ( FileWatchEventListener listener : listeners )
             {
-                listener.fileModified( context );
+                listener.fileModified( key, context );
             }
         }
     }
 
-    private void notifyAboutDeletion( WatchEvent<?> watchEvent )
+    private void notifyAboutDeletion( WatchKey key, WatchEvent<?> watchEvent )
     {
         String context = getContext( watchEvent );
         if ( StringUtils.isNotEmpty( context ) )
         {
             for ( FileWatchEventListener listener : listeners )
             {
-                listener.fileDeleted( context );
+                listener.fileDeleted( key, context );
             }
         }
     }

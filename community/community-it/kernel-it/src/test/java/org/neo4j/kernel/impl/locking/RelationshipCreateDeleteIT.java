@@ -22,20 +22,22 @@
  */
 package org.neo4j.kernel.impl.locking;
 
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
+import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.NotFoundException;
 import org.neo4j.graphdb.Relationship;
 import org.neo4j.graphdb.Transaction;
 import org.neo4j.kernel.impl.MyRelTypes;
 import org.neo4j.test.Race;
-import org.neo4j.test.rule.DatabaseRule;
-import org.neo4j.test.rule.ImpermanentDatabaseRule;
+import org.neo4j.test.extension.ImpermanentDbmsExtension;
+import org.neo4j.test.extension.Inject;
+import org.neo4j.test.extension.RandomExtension;
 import org.neo4j.test.rule.RandomRule;
 
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Testing on database level that creating and deleting relationships over the the same two nodes
@@ -43,23 +45,25 @@ import static org.junit.Assert.assertTrue;
  *
  * Also test that relationship chains are consistently read during concurrent updates.
  */
-public class RelationshipCreateDeleteIT
+@ExtendWith( RandomExtension.class )
+@ImpermanentDbmsExtension
+class RelationshipCreateDeleteIT
 {
-    @Rule
-    public final DatabaseRule db = new ImpermanentDatabaseRule();
-    @Rule
-    public final RandomRule random = new RandomRule();
+    @Inject
+    private GraphDatabaseService db;
+    @Inject
+    private static RandomRule random;
 
     @Test
-    public void shouldNotDeadlockOrCrashFromInconsistency() throws Throwable
+    void shouldNotDeadlockOrCrashFromInconsistency() throws Throwable
     {
         // GIVEN (A) -[R]-> (B)
         final Node a;
         final Node b;
         try ( Transaction tx = db.beginTx() )
         {
-            (a = db.createNode()).createRelationshipTo( b = db.createNode(), MyRelTypes.TEST );
-            tx.success();
+            (a = tx.createNode()).createRelationshipTo( b = tx.createNode(), MyRelTypes.TEST );
+            tx.commit();
         }
 
         // WHEN
@@ -74,6 +78,7 @@ public class RelationshipCreateDeleteIT
                     try ( Transaction tx = db.beginTx() )
                     {
                         Node node = random.nextBoolean() ? a : b;
+                        node = tx.getNodeById( node.getId() );
                         for ( Relationship relationship : node.getRelationships() )
                         {
                             try
@@ -86,7 +91,7 @@ public class RelationshipCreateDeleteIT
                                 assertTrue( e.getMessage().contains( "already deleted" ) );
                             }
                         }
-                        tx.success();
+                        tx.commit();
                     }
                 }
             } );
@@ -102,10 +107,10 @@ public class RelationshipCreateDeleteIT
                     try ( Transaction tx = db.beginTx() )
                     {
                         boolean order = random.nextBoolean();
-                        Node start = order ? a : b;
-                        Node end = order ? b : a;
+                        Node start = tx.getNodeById( (order ? a : b).getId() );
+                        Node end = tx.getNodeById( (order ? b : a).getId() );
                         start.createRelationshipTo( end, MyRelTypes.TEST );
-                        tx.success();
+                        tx.commit();
                     }
                 }
             } );

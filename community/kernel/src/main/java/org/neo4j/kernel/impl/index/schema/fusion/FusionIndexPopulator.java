@@ -27,37 +27,42 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.kernel.api.exceptions.index.IndexEntryConflictException;
 import org.neo4j.kernel.api.index.IndexConfigProvider;
-import org.neo4j.kernel.api.index.IndexEntryUpdate;
+import org.neo4j.kernel.api.index.IndexDirectoryStructure;
 import org.neo4j.kernel.api.index.IndexPopulator;
+import org.neo4j.kernel.api.index.IndexSample;
 import org.neo4j.kernel.api.index.IndexUpdater;
-import org.neo4j.kernel.impl.index.schema.IndexDropAction;
+import org.neo4j.kernel.impl.api.index.PhaseTracker;
+import org.neo4j.kernel.impl.index.schema.IndexFiles;
+import org.neo4j.storageengine.api.IndexEntryUpdate;
 import org.neo4j.storageengine.api.NodePropertyAccessor;
-import org.neo4j.storageengine.api.schema.IndexSample;
 import org.neo4j.values.storable.Value;
 
 import static org.neo4j.kernel.impl.index.schema.fusion.FusionIndexSampler.combineSamples;
 
 class FusionIndexPopulator extends FusionIndexBase<IndexPopulator> implements IndexPopulator
 {
-    private final long indexId;
-    private final IndexDropAction dropAction;
     private final boolean archiveFailedIndex;
+    private final IndexFiles indexFiles;
 
-    FusionIndexPopulator( SlotSelector slotSelector, InstanceSelector<IndexPopulator> instanceSelector, long indexId, IndexDropAction dropAction,
-            boolean archiveFailedIndex )
+    FusionIndexPopulator( SlotSelector slotSelector, InstanceSelector<IndexPopulator> instanceSelector, long indexId, FileSystemAbstraction fs,
+            IndexDirectoryStructure directoryStructure, boolean archiveFailedIndex )
     {
         super( slotSelector, instanceSelector );
-        this.indexId = indexId;
-        this.dropAction = dropAction;
         this.archiveFailedIndex = archiveFailedIndex;
+        this.indexFiles = new IndexFiles.Directory( fs, directoryStructure, indexId );
     }
 
     @Override
     public void create()
     {
-        dropAction.drop( indexId, archiveFailedIndex );
+        if ( archiveFailedIndex )
+        {
+            indexFiles.archiveIndex();
+        }
+        indexFiles.clear();
         instanceSelector.forAll( IndexPopulator::create );
     }
 
@@ -65,7 +70,7 @@ class FusionIndexPopulator extends FusionIndexBase<IndexPopulator> implements In
     public void drop()
     {
         instanceSelector.forAll( IndexPopulator::drop );
-        dropAction.drop( indexId );
+        indexFiles.clear();
     }
 
     @Override
@@ -74,7 +79,7 @@ class FusionIndexPopulator extends FusionIndexBase<IndexPopulator> implements In
         LazyInstanceSelector<Collection<IndexEntryUpdate<?>>> batchSelector = new LazyInstanceSelector<>( slot -> new ArrayList<>() );
         for ( IndexEntryUpdate<?> update : updates )
         {
-            batchSelector.select( slotSelector.selectSlot( update.values(), GROUP_OF ) ).add( update );
+            batchSelector.select( slotSelector.selectSlot( update.values(), CATEGORY_OF ) ).add( update );
         }
 
         // Manual loop due do multiple exception types
@@ -121,13 +126,19 @@ class FusionIndexPopulator extends FusionIndexBase<IndexPopulator> implements In
     @Override
     public void includeSample( IndexEntryUpdate<?> update )
     {
-        instanceSelector.select( slotSelector.selectSlot( update.values(), GROUP_OF ) ).includeSample( update );
+        instanceSelector.select( slotSelector.selectSlot( update.values(), CATEGORY_OF ) ).includeSample( update );
     }
 
     @Override
     public IndexSample sampleResult()
     {
         return combineSamples( instanceSelector.transform( IndexPopulator::sampleResult ) );
+    }
+
+    @Override
+    public void scanCompleted( PhaseTracker phaseTracker ) throws IndexEntryConflictException
+    {
+        instanceSelector.throwingForAll( ip -> ip.scanCompleted( phaseTracker ) );
     }
 
     @Override

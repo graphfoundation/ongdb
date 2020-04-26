@@ -25,13 +25,13 @@ package org.neo4j.kernel.impl.coreapi.schema;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.neo4j.common.TokenNameLookup;
+import org.neo4j.exceptions.KernelException;
 import org.neo4j.graphdb.schema.IndexDefinition;
-import org.neo4j.internal.kernel.api.TokenNameLookup;
 import org.neo4j.internal.kernel.api.TokenRead;
 import org.neo4j.internal.kernel.api.TokenWrite;
 import org.neo4j.internal.kernel.api.exceptions.PropertyKeyIdNotFoundKernelException;
-import org.neo4j.internal.kernel.api.exceptions.schema.IllegalTokenNameException;
-import org.neo4j.internal.kernel.api.schema.LabelSchemaDescriptor;
+import org.neo4j.internal.schema.LabelSchemaDescriptor;
 
 public class PropertyNameUtils
 {
@@ -72,7 +72,7 @@ public class PropertyNameUtils
     }
 
     public static int[] getOrCreatePropertyKeyIds( TokenWrite tokenWrite, String... propertyKeys )
-            throws IllegalTokenNameException
+            throws KernelException
     {
         int[] propertyKeyIds = new int[propertyKeys.length];
         tokenWrite.propertyKeyGetOrCreateForNames( propertyKeys, propertyKeyIds );
@@ -80,7 +80,7 @@ public class PropertyNameUtils
     }
 
     public static int[] getOrCreatePropertyKeyIds( TokenWrite tokenWrite, IndexDefinition indexDefinition )
-            throws IllegalTokenNameException
+            throws KernelException
     {
         return getOrCreatePropertyKeyIds( tokenWrite, getPropertyKeysArrayOf( indexDefinition ) );
     }

@@ -42,36 +42,30 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
-import org.neo4j.graphdb.DependencyResolver;
-import org.neo4j.graphdb.GraphDatabaseService;
+import org.neo4j.common.DependencyResolver;
+import org.neo4j.configuration.GraphDatabaseSettings;
+import org.neo4j.exceptions.KernelException;
 import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.NotFoundException;
 import org.neo4j.graphdb.Transaction;
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
-import org.neo4j.internal.kernel.api.IndexOrder;
 import org.neo4j.internal.kernel.api.IndexQuery;
-import org.neo4j.internal.kernel.api.IndexReference;
+import org.neo4j.internal.kernel.api.IndexReadSession;
 import org.neo4j.internal.kernel.api.NodeValueIndexCursor;
-import org.neo4j.internal.kernel.api.exceptions.KernelException;
 import org.neo4j.internal.kernel.api.exceptions.schema.IndexNotFoundKernelException;
-import org.neo4j.internal.kernel.api.schema.LabelSchemaDescriptor;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.internal.schema.IndexOrder;
+import org.neo4j.internal.schema.LabelSchemaDescriptor;
 import org.neo4j.kernel.api.KernelTransaction;
-import org.neo4j.kernel.api.Statement;
-import org.neo4j.kernel.impl.core.ThreadToStatementContextBridge;
-import org.neo4j.kernel.impl.storageengine.impl.recordstorage.RecordStorageEngine;
-import org.neo4j.kernel.impl.store.NeoStores;
-import org.neo4j.kernel.impl.store.SchemaStorage;
-import org.neo4j.kernel.impl.store.counts.CountsTracker;
+import org.neo4j.kernel.impl.api.index.stats.IndexStatisticsStore;
+import org.neo4j.kernel.impl.coreapi.InternalTransaction;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
-import org.neo4j.kernel.monitoring.Monitors;
+import org.neo4j.monitoring.Monitors;
 import org.neo4j.register.Register.DoubleLongRegister;
 import org.neo4j.register.Registers;
-import org.neo4j.storageengine.api.schema.IndexDescriptor;
-import org.neo4j.storageengine.api.schema.StoreIndexDescriptor;
 import org.neo4j.test.Barrier;
-import org.neo4j.test.rule.DatabaseRule;
-import org.neo4j.test.rule.EmbeddedDatabaseRule;
+import org.neo4j.test.rule.DbmsRule;
+import org.neo4j.test.rule.EmbeddedDbmsRule;
 import org.neo4j.test.rule.RandomRule;
 import org.neo4j.util.FeatureToggles;
 import org.neo4j.values.storable.Values;
@@ -83,8 +77,8 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.junit.runners.Parameterized.Parameter;
 import static org.junit.runners.Parameterized.Parameters;
-import static org.neo4j.helpers.collection.Iterables.filter;
-import static org.neo4j.kernel.api.schema.SchemaDescriptorFactory.forLabel;
+import static org.neo4j.internal.helpers.collection.Iterables.filter;
+import static org.neo4j.internal.schema.SchemaDescriptor.forLabel;
 
 /**
  * This test validates that we count the correct amount of index updates. In the process it also verifies that the populated index has
@@ -115,14 +109,13 @@ public class IndexStatisticsTest
     public boolean multiThreadedPopulationEnabled;
 
     @Rule
-    public final DatabaseRule dbRule = new EmbeddedDatabaseRule()
-            .withSetting( GraphDatabaseSettings.index_background_sampling_enabled, "false" )
+    public final DbmsRule dbRule = new EmbeddedDbmsRule()
+            .withSetting( GraphDatabaseSettings.index_background_sampling_enabled, false )
             .startLazily();
     @Rule
     public final RandomRule random = new RandomRule();
 
-    private GraphDatabaseService db;
-    private ThreadToStatementContextBridge bridge;
+    private GraphDatabaseAPI db;
     private final IndexOnlineMonitor indexOnlineMonitor = new IndexOnlineMonitor();
 
     @Parameters( name = "multiThreadedIndexPopulationEnabled = {0}" )
@@ -134,7 +127,7 @@ public class IndexStatisticsTest
     @Before
     public void before()
     {
-        dbRule.withSetting( GraphDatabaseSettings.multi_threaded_schema_index_population_enabled, multiThreadedPopulationEnabled + "" );
+        dbRule.withSetting( GraphDatabaseSettings.multi_threaded_schema_index_population_enabled, multiThreadedPopulationEnabled );
 
         int batchSize = random.nextInt( 1, 5 );
         FeatureToggles.set( MultipleIndexPopulator.class, MultipleIndexPopulator.QUEUE_THRESHOLD_NAME, batchSize );
@@ -144,7 +137,6 @@ public class IndexStatisticsTest
         GraphDatabaseAPI graphDatabaseAPI = dbRule.getGraphDatabaseAPI();
         this.db = graphDatabaseAPI;
         DependencyResolver dependencyResolver = graphDatabaseAPI.getDependencyResolver();
-        this.bridge = dependencyResolver.resolveDependency( ThreadToStatementContextBridge.class );
         graphDatabaseAPI.getDependencyResolver()
                 .resolveDependency( Monitors.class )
                 .addMonitorListener( indexOnlineMonitor );
@@ -166,7 +158,7 @@ public class IndexStatisticsTest
         createSomePersons();
 
         // when
-        IndexReference index = createPersonNameIndex();
+        IndexDescriptor index = createPersonNameIndex();
         awaitIndexesOnline();
 
         // then
@@ -180,7 +172,7 @@ public class IndexStatisticsTest
     {
         // given
         indexOnlineMonitor.initialize( 0 );
-        IndexReference index = createPersonNameIndex();
+        IndexDescriptor index = createPersonNameIndex();
         awaitIndexesOnline();
 
         // when
@@ -199,7 +191,7 @@ public class IndexStatisticsTest
         // given
         indexOnlineMonitor.initialize( 0 );
         createSomePersons();
-        IndexReference index = createPersonNameIndex();
+        IndexDescriptor index = createPersonNameIndex();
         awaitIndexesOnline();
 
         // when
@@ -217,11 +209,8 @@ public class IndexStatisticsTest
         // given
         indexOnlineMonitor.initialize( 0 );
         createSomePersons();
-        IndexReference index = createPersonNameIndex();
+        IndexDescriptor index = createPersonNameIndex();
         awaitIndexesOnline();
-
-        SchemaStorage storage = new SchemaStorage( neoStores().getSchemaStore() );
-        long indexId = storage.indexGetForSchema( (IndexDescriptor) index ).getId();
 
         // when
         dropIndex( index );
@@ -234,12 +223,12 @@ public class IndexStatisticsTest
         }
         catch ( IndexNotFoundKernelException e )
         {
-            DoubleLongRegister actual = getTracker().indexSample( indexId, Registers.newDoubleLongRegister() );
+            DoubleLongRegister actual = getIndexingStatisticsStore().indexSample( index.getId(), Registers.newDoubleLongRegister() );
             assertDoubleLongEquals( 0L, 0L, actual );
         }
 
         // and then index size and index updates are zero on disk
-        DoubleLongRegister actual = getTracker().indexUpdatesAndSize( indexId, Registers.newDoubleLongRegister() );
+        DoubleLongRegister actual = getIndexingStatisticsStore().indexUpdatesAndSize( index.getId(), Registers.newDoubleLongRegister() );
         assertDoubleLongEquals( 0L, 0L, actual );
     }
 
@@ -251,7 +240,7 @@ public class IndexStatisticsTest
         int created = repeatCreateNamedPeopleFor( NAMES.length * CREATION_MULTIPLIER ).length;
 
         // when
-        IndexReference index = createPersonNameIndex();
+        IndexDescriptor index = createPersonNameIndex();
         awaitIndexesOnline();
 
         // then
@@ -269,7 +258,7 @@ public class IndexStatisticsTest
         int initialNodes = repeatCreateNamedPeopleFor( NAMES.length * CREATION_MULTIPLIER ).length;
 
         // when populating while creating
-        IndexReference index = createPersonNameIndex();
+        IndexDescriptor index = createPersonNameIndex();
         final UpdatesTracker updatesTracker = executeCreations( CREATION_MULTIPLIER );
         awaitIndexesOnline();
 
@@ -290,12 +279,12 @@ public class IndexStatisticsTest
         int initialNodes = nodes.length;
 
         // when populating while creating
-        IndexReference index = createPersonNameIndex();
+        IndexDescriptor index = createPersonNameIndex();
         UpdatesTracker updatesTracker = executeCreationsAndDeletions( nodes, CREATION_MULTIPLIER );
         awaitIndexesOnline();
 
         // then
-        assertIndexedNodesMatchesStoreNodes();
+        assertIndexedNodesMatchesStoreNodes( index );
         int seenWhilePopulating = initialNodes + updatesTracker.createdDuringPopulation() - updatesTracker.deletedDuringPopulation();
         double expectedSelectivity = UNIQUE_NAMES / seenWhilePopulating;
         assertCorrectIndexSelectivity( expectedSelectivity, indexSelectivity( index ) );
@@ -313,12 +302,12 @@ public class IndexStatisticsTest
         int initialNodes = nodes.length;
 
         // when populating while creating
-        IndexReference index = createPersonNameIndex();
+        IndexDescriptor index = createPersonNameIndex();
         UpdatesTracker updatesTracker = executeCreationsAndUpdates( nodes, CREATION_MULTIPLIER );
         awaitIndexesOnline();
 
         // then
-        assertIndexedNodesMatchesStoreNodes();
+        assertIndexedNodesMatchesStoreNodes( index );
         int seenWhilePopulating = initialNodes + updatesTracker.createdDuringPopulation();
         double expectedSelectivity = UNIQUE_NAMES / seenWhilePopulating;
         assertCorrectIndexSelectivity( expectedSelectivity, indexSelectivity( index ) );
@@ -336,12 +325,12 @@ public class IndexStatisticsTest
         int initialNodes = nodes.length;
 
         // when populating while creating
-        IndexReference index = createPersonNameIndex();
+        IndexDescriptor index = createPersonNameIndex();
         UpdatesTracker updatesTracker = executeCreationsDeletionsAndUpdates( nodes, CREATION_MULTIPLIER );
         awaitIndexesOnline();
 
         // then
-        assertIndexedNodesMatchesStoreNodes();
+        assertIndexedNodesMatchesStoreNodes( index );
         int seenWhilePopulating = initialNodes + updatesTracker.createdDuringPopulation() - updatesTracker.deletedDuringPopulation();
         double expectedSelectivity = UNIQUE_NAMES / seenWhilePopulating;
         int expectedIndexUpdates = updatesTracker.deletedAfterPopulation() + updatesTracker.createdAfterPopulation() + updatesTracker.updatedAfterPopulation();
@@ -361,7 +350,7 @@ public class IndexStatisticsTest
         ExecutorService executorService = Executors.newFixedThreadPool( threads );
 
         // when populating while creating
-        final IndexReference index = createPersonNameIndex();
+        final IndexDescriptor index = createPersonNameIndex();
 
         final Collection<Callable<UpdatesTracker>> jobs = new ArrayList<>( threads );
         for ( int i = 0; i < threads; i++ )
@@ -383,7 +372,7 @@ public class IndexStatisticsTest
         assertTrue( executorService.awaitTermination( 1, TimeUnit.MINUTES ) );
 
         // then
-        assertIndexedNodesMatchesStoreNodes();
+        assertIndexedNodesMatchesStoreNodes( index );
         int seenWhilePopulating = initialNodes + result.createdDuringPopulation() - result.deletedDuringPopulation();
         double expectedSelectivity = UNIQUE_NAMES / seenWhilePopulating;
         assertCorrectIndexSelectivity( expectedSelectivity, indexSelectivity( index ) );
@@ -392,26 +381,24 @@ public class IndexStatisticsTest
         assertCorrectIndexUpdates( "Tracker had " + result, expectedIndexUpdates, indexUpdates( index ) );
     }
 
-    private void assertIndexedNodesMatchesStoreNodes() throws Exception
+    private void assertIndexedNodesMatchesStoreNodes( IndexDescriptor index ) throws Exception
     {
         int nodesInStore = 0;
         Label label = Label.label( PERSON_LABEL );
-        try ( Transaction tx = db.beginTx() )
+        try ( Transaction transaction = db.beginTx() )
         {
-            KernelTransaction ktx = ((GraphDatabaseAPI) db).getDependencyResolver().resolveDependency(
-                    ThreadToStatementContextBridge.class ).getKernelTransactionBoundToThisThread( true );
+            KernelTransaction ktx = ((InternalTransaction) transaction).kernelTransaction();
             List<String> mismatches = new ArrayList<>();
-            int labelId = ktx.tokenRead().nodeLabel( PERSON_LABEL );
             int propertyKeyId = ktx.tokenRead().propertyKey( NAME_PROPERTY );
-            IndexReference index = ktx.schemaRead().index( labelId, propertyKeyId );
+            IndexReadSession indexSession = ktx.dataRead().indexReadSession( index );
             try ( NodeValueIndexCursor cursor = ktx.cursors().allocateNodeValueIndexCursor() )
             {
                 // Node --> Index
-                for ( Node node : filter( n -> n.hasLabel( label ) && n.hasProperty( NAME_PROPERTY ), db.getAllNodes() ) )
+                for ( Node node : filter( n -> n.hasLabel( label ) && n.hasProperty( NAME_PROPERTY ), transaction.getAllNodes() ) )
                 {
                     nodesInStore++;
                     String name = (String) node.getProperty( NAME_PROPERTY );
-                    ktx.dataRead().nodeIndexSeek( index, cursor, IndexOrder.NONE, false, IndexQuery.exact( propertyKeyId, name ) );
+                    ktx.dataRead().nodeIndexSeek( indexSession, cursor, IndexOrder.NONE, false, IndexQuery.exact( propertyKeyId, name ) );
                     boolean found = false;
                     while ( cursor.next() )
                     {
@@ -435,7 +422,7 @@ public class IndexStatisticsTest
                     fail( join( mismatches.toArray(), format( "%n" ) ) );
                 }
                 // Node count == indexed node count
-                ktx.dataRead().nodeIndexSeek( index, cursor, IndexOrder.NONE, false, IndexQuery.exists( propertyKeyId ) );
+                ktx.dataRead().nodeIndexSeek( indexSession, cursor, IndexOrder.NONE, false, IndexQuery.exists( propertyKeyId ) );
                 int nodesInIndex = 0;
                 while ( cursor.next() )
                 {
@@ -450,8 +437,8 @@ public class IndexStatisticsTest
     {
         try ( Transaction tx = db.beginTx() )
         {
-            db.getNodeById( nodeId ).delete();
-            tx.success();
+            tx.getNodeById( nodeId ).delete();
+            tx.commit();
         }
     }
 
@@ -460,7 +447,7 @@ public class IndexStatisticsTest
         boolean changeIndexedNode = false;
         try ( Transaction tx = db.beginTx() )
         {
-            Node node = db.getNodeById( nodeId );
+            Node node = tx.getNodeById( nodeId );
             Object oldValue = node.getProperty( NAME_PROPERTY );
             if ( !oldValue.equals( newValue ) )
             {
@@ -468,7 +455,7 @@ public class IndexStatisticsTest
                 changeIndexedNode = true;
             }
             node.setProperty( NAME_PROPERTY, newValue );
-            tx.success();
+            tx.commit();
         }
         return changeIndexedNode;
     }
@@ -477,7 +464,7 @@ public class IndexStatisticsTest
     {
         try ( Transaction tx = db.beginTx() )
         {
-            KernelTransaction ktx = bridge.getKernelTransactionBoundToThisThread( true );
+            KernelTransaction ktx = ((InternalTransaction) tx).kernelTransaction();
             for ( String name : NAMES )
             {
                 long nodeId = createPersonNode( ktx, name );
@@ -486,7 +473,7 @@ public class IndexStatisticsTest
                     nodes[offset++] = nodeId;
                 }
             }
-            tx.success();
+            tx.commit();
         }
         return NAMES.length;
     }
@@ -544,65 +531,56 @@ public class IndexStatisticsTest
         return nodes;
     }
 
-    private void dropIndex( IndexReference index ) throws KernelException
+    private void dropIndex( IndexDescriptor index ) throws KernelException
     {
         try ( Transaction tx = db.beginTx() )
         {
-            KernelTransaction ktx = bridge.getKernelTransactionBoundToThisThread( true );
-            try ( Statement ignore = ktx.acquireStatement() )
-            {
-                ktx.schemaWrite().indexDrop( index );
-            }
-            tx.success();
+            KernelTransaction ktx = ((InternalTransaction) tx).kernelTransaction();
+            ktx.schemaWrite().indexDrop( index );
+            tx.commit();
         }
     }
 
-    private long indexSize( IndexReference reference ) throws KernelException
+    private long indexSize( IndexDescriptor reference ) throws IndexNotFoundKernelException
     {
-        return ((GraphDatabaseAPI) db).getDependencyResolver()
-                                      .resolveDependency( IndexingService.class )
-                                      .indexUpdatesAndSize( reference.schema() ).readSecond();
+        return resolveDependency( IndexingService.class ).indexUpdatesAndSize( reference ).readSecond();
     }
 
-    private long indexUpdates( IndexReference reference  ) throws KernelException
+    private long indexUpdates( IndexDescriptor reference ) throws IndexNotFoundKernelException
     {
-        return ((GraphDatabaseAPI) db).getDependencyResolver()
-                                      .resolveDependency( IndexingService.class )
-                                      .indexUpdatesAndSize( reference.schema() ).readFirst();
+        return resolveDependency( IndexingService.class ).indexUpdatesAndSize( reference ).readFirst();
     }
 
-    private double indexSelectivity( IndexReference reference ) throws KernelException
+    private double indexSelectivity( IndexDescriptor reference ) throws KernelException
     {
         try ( Transaction tx = db.beginTx() )
         {
-            double selectivity = getSelectivity( reference );
-            tx.success();
+            double selectivity = getSelectivity( tx, reference );
+            tx.commit();
             return selectivity;
         }
     }
 
-    private double getSelectivity( IndexReference reference ) throws IndexNotFoundKernelException
+    private double getSelectivity( Transaction tx, IndexDescriptor reference ) throws IndexNotFoundKernelException
     {
-
-        return bridge.getKernelTransactionBoundToThisThread( true ).schemaRead().indexUniqueValuesSelectivity( reference );
+        return ((InternalTransaction) tx).kernelTransaction().schemaRead().indexUniqueValuesSelectivity( reference );
     }
 
-    private CountsTracker getTracker()
+    private IndexStatisticsStore getIndexingStatisticsStore()
     {
-        return ((GraphDatabaseAPI) db).getDependencyResolver().resolveDependency( RecordStorageEngine.class )
-                .testAccessNeoStores().getCounts();
+        return resolveDependency( IndexStatisticsStore.class );
     }
 
     private void createSomePersons() throws KernelException
     {
         try ( Transaction tx = db.beginTx() )
         {
-            KernelTransaction ktx = bridge.getKernelTransactionBoundToThisThread( true );
+            KernelTransaction ktx = ((InternalTransaction) tx).kernelTransaction();
             createPersonNode( ktx, "Davide" );
             createPersonNode( ktx, "Stefan" );
             createPersonNode( ktx, "John" );
             createPersonNode( ktx, "John" );
-            tx.success();
+            tx.commit();
         }
     }
 
@@ -617,35 +595,30 @@ public class IndexStatisticsTest
         return nodeId;
     }
 
-    private IndexReference createPersonNameIndex() throws KernelException
+    private IndexDescriptor createPersonNameIndex() throws KernelException
     {
         try ( Transaction tx = db.beginTx() )
         {
-            IndexReference index;
-            KernelTransaction ktx = bridge.getKernelTransactionBoundToThisThread( true );
-            try ( Statement ignore = ktx.acquireStatement() )
-            {
-                int labelId = ktx.tokenWrite().labelGetOrCreateForName( PERSON_LABEL );
-                int propertyKeyId = ktx.tokenWrite().propertyKeyGetOrCreateForName( NAME_PROPERTY );
-                LabelSchemaDescriptor descriptor = forLabel( labelId, propertyKeyId );
-                index = ktx.schemaWrite().indexCreate( descriptor );
-            }
-            tx.success();
+            KernelTransaction ktx = ((InternalTransaction) tx).kernelTransaction();
+            int labelId = ktx.tokenWrite().labelGetOrCreateForName( PERSON_LABEL );
+            int propertyKeyId = ktx.tokenWrite().propertyKeyGetOrCreateForName( NAME_PROPERTY );
+            LabelSchemaDescriptor schema = forLabel( labelId, propertyKeyId );
+            var index = ktx.schemaWrite().indexCreate( schema, "my index" );
+            tx.commit();
             return index;
         }
     }
 
-    private NeoStores neoStores()
+    private <T> T resolveDependency( Class<T> clazz )
     {
-        return ( (GraphDatabaseAPI) db ).getDependencyResolver().resolveDependency( RecordStorageEngine.class )
-                .testAccessNeoStores();
+        return db.getDependencyResolver().resolveDependency( clazz );
     }
 
     private void awaitIndexesOnline()
     {
-        try ( Transaction ignored = db.beginTx() )
+        try ( Transaction tx = db.beginTx() )
         {
-            db.schema().awaitIndexesOnline(3, TimeUnit.MINUTES );
+            tx.schema().awaitIndexesOnline(3, TimeUnit.MINUTES );
         }
     }
 
@@ -855,7 +828,7 @@ public class IndexStatisticsTest
         }
 
         @Override
-        public void populationCompleteOn( StoreIndexDescriptor descriptor )
+        public void populationCompleteOn( IndexDescriptor descriptor )
         {
             if ( barrier != null )
             {

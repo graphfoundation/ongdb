@@ -22,6 +22,8 @@
  */
 package org.neo4j.function;
 
+import org.neo4j.internal.helpers.Exceptions;
+
 /**
  * An action that takes no parameters and returns no values, but may have a side-effect and may throw an exception.
  *
@@ -41,5 +43,25 @@ public interface ThrowingAction<E extends Exception>
         return () ->
         {
         };
+    }
+
+    static void executeAll( ThrowingAction<?>... actions ) throws Exception
+    {
+        Exception error = null;
+        for ( final ThrowingAction<?> action : actions )
+        {
+            try
+            {
+                action.apply();
+            }
+            catch ( Exception e )
+            {
+                error = Exceptions.chain( error, e );
+            }
+        }
+        if ( error != null )
+        {
+            throw error;
+        }
     }
 }

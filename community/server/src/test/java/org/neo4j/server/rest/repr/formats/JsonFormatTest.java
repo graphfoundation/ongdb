@@ -51,7 +51,7 @@ public class JsonFormatTest
     @Before
     public void createOutputFormat() throws Exception
     {
-        json = new OutputFormat( new JsonFormat(), new URI( "http://localhost/" ), null );
+        json = new OutputFormat( new JsonFormat(), new URI( "http://localhost/" ) );
     }
 
     @Test

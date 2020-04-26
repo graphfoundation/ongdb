@@ -22,103 +22,104 @@
  */
 package org.neo4j.kernel.impl.api;
 
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 
+import java.time.Duration;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import org.neo4j.graphdb.Node;
+import org.neo4j.configuration.GraphDatabaseSettings;
 import org.neo4j.graphdb.Transaction;
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
-import org.neo4j.graphdb.index.Index;
-import org.neo4j.graphdb.index.IndexManager;
-import org.neo4j.kernel.impl.index.DummyIndexExtensionFactory;
-import org.neo4j.kernel.impl.storageengine.impl.recordstorage.RecordStorageEngine;
-import org.neo4j.kernel.impl.store.NeoStores;
-import org.neo4j.kernel.impl.transaction.log.TransactionIdStore;
+import org.neo4j.internal.batchimport.cache.idmapping.string.Workers;
+import org.neo4j.internal.counts.GBPTreeCountsStore;
 import org.neo4j.kernel.impl.transaction.log.checkpoint.CheckPointer;
 import org.neo4j.kernel.impl.transaction.log.checkpoint.SimpleTriggerInfo;
-import org.neo4j.test.rule.DatabaseRule;
-import org.neo4j.test.rule.ImpermanentDatabaseRule;
-import org.neo4j.unsafe.impl.batchimport.cache.idmapping.string.Workers;
+import org.neo4j.kernel.internal.GraphDatabaseAPI;
+import org.neo4j.storageengine.api.TransactionIdStore;
+import org.neo4j.test.TestDatabaseManagementServiceBuilder;
+import org.neo4j.test.extension.ExtensionCallback;
+import org.neo4j.test.extension.ImpermanentDbmsExtension;
+import org.neo4j.test.extension.Inject;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.greaterThan;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
-import static org.neo4j.helpers.collection.MapUtil.stringMap;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
-public class TransactionRepresentationCommitProcessIT
+@ImpermanentDbmsExtension( configurationCallback = "configure" )
+class TransactionRepresentationCommitProcessIT
 {
-    private static final String INDEX_NAME = "index";
     private static final int TOTAL_ACTIVE_THREADS = 6;
 
-    @Rule
-    public final DatabaseRule db = new ImpermanentDatabaseRule()
-            .withSetting( GraphDatabaseSettings.check_point_interval_time, "10ms" );
+    @Inject
+    private GraphDatabaseAPI db;
 
-    @Test( timeout = 15000 )
-    public void commitDuringContinuousCheckpointing() throws Exception
+    @ExtensionCallback
+    static void configure( TestDatabaseManagementServiceBuilder builder )
     {
-        final Index<Node> index;
-        try ( Transaction tx = db.beginTx() )
-        {
-            index = db.index().forNodes( INDEX_NAME, stringMap(
-                    IndexManager.PROVIDER, DummyIndexExtensionFactory.IDENTIFIER ) );
-            tx.success();
-        }
+        builder.setConfig( GraphDatabaseSettings.check_point_interval_time, Duration.ofMillis( 10 ) );
+    }
 
+    @Test
+    @Timeout( value = 5, unit = TimeUnit.MINUTES )
+    void commitDuringContinuousCheckpointing() throws Exception
+    {
         final AtomicBoolean done = new AtomicBoolean();
         Workers<Runnable> workers = new Workers<>( getClass().getSimpleName() );
-        for ( int i = 0; i < TOTAL_ACTIVE_THREADS; i++ )
+        try
         {
-            workers.start( new Runnable()
+            for ( int i = 0; i < TOTAL_ACTIVE_THREADS; i++ )
             {
-                private final ThreadLocalRandom random = ThreadLocalRandom.current();
-
-                @Override
-                public void run()
+                workers.start( new Runnable()
                 {
-                    while ( !done.get() )
+                    private final ThreadLocalRandom random = ThreadLocalRandom.current();
+
+                    @Override
+                    public void run()
                     {
-                        try ( Transaction tx = db.beginTx() )
+                        while ( !done.get() )
                         {
-                            Node node = db.createNode();
-                            index.add( node, "key", node.getId() );
-                            tx.success();
+                            try ( Transaction tx = db.beginTx() )
+                            {
+                                tx.createNode();
+                                tx.commit();
+                            }
+                            randomSleep();
                         }
-                        randomSleep();
                     }
-                }
 
-                private void randomSleep()
-                {
-                    try
+                    private void randomSleep()
                     {
-                        Thread.sleep( random.nextInt( 50 ) );
+                        try
+                        {
+                            Thread.sleep( random.nextInt( 50 ) );
+                        }
+                        catch ( InterruptedException e )
+                        {
+                            throw new RuntimeException( e );
+                        }
                     }
-                    catch ( InterruptedException e )
-                    {
-                        throw new RuntimeException( e );
-                    }
-                }
-            } );
+                } );
+            }
+
+            Thread.sleep( SECONDS.toMillis( 2 ) );
         }
-
-        Thread.sleep( SECONDS.toMillis( 2 ) );
-        done.set( true );
+        finally
+        {
+            done.set( true );
+        }
         workers.awaitAndThrowOnError();
 
-        NeoStores neoStores = getDependency( RecordStorageEngine.class ).testAccessNeoStores();
-        assertThat( "Count store should be rotated once at least", neoStores.getCounts().txId(), greaterThan( 0L ) );
+        GBPTreeCountsStore counts = getDependency( GBPTreeCountsStore.class );
+        assertThat( "Count store should be rotated once at least", counts.txId(), greaterThan( 0L ) );
 
         long lastRotationTx = getDependency( CheckPointer.class ).forceCheckPoint( new SimpleTriggerInfo( "test" ) );
         TransactionIdStore txIdStore = getDependency( TransactionIdStore.class );
-        assertEquals( "NeoStore last closed transaction id should be equal last count store rotation transaction id.",
-                txIdStore.getLastClosedTransactionId(), lastRotationTx );
-        assertEquals( "Last closed transaction should be last rotated tx in count store",
-                txIdStore.getLastClosedTransactionId(), neoStores.getCounts().txId() );
+        assertEquals( txIdStore.getLastClosedTransactionId(), lastRotationTx,
+                "NeoStore last closed transaction id should be equal last count store rotation transaction id." );
+        assertEquals( txIdStore.getLastClosedTransactionId(), counts.txId(), "Last closed transaction should be last rotated tx in count store" );
     }
 
     private <T> T getDependency( Class<T> clazz )

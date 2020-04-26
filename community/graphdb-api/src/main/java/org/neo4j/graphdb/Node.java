@@ -22,15 +22,17 @@
  */
 package org.neo4j.graphdb;
 
+import org.neo4j.annotations.api.PublicApi;
+
 /**
  * A node in the graph with properties and relationships to other entities.
  * Along with {@link Relationship relationships}, nodes are the core building
  * blocks of the Neo4j data representation model. Nodes are created by invoking
- * the {@link GraphDatabaseService#createNode} method.
+ * the {@link Transaction#createNode} method.
  * <p>
  * Node has three major groups of operations: operations that deal with
  * relationships, operations that deal with properties (see
- * {@link PropertyContainer}) and operations that deal with {@link Label labels}.
+ * {@link Entity}) and operations that deal with {@link Label labels}.
  * <p>
  * The relationship operations provide a number of overloaded accessors (such as
  * <code>getRelationships(...)</code> with "filters" for type, direction, etc),
@@ -49,25 +51,15 @@ package org.neo4j.graphdb;
  * values. {@link #setProperty(String, Object) setProperty()} takes a
  * <code>java.lang.Object</code> only to avoid an explosion of overloaded
  * <code>setProperty()</code> methods. For further documentation see
- * {@link PropertyContainer}.
+ * {@link Entity}.
  * <p>
  * A node's id is unique, but note the following: Neo4j reuses its internal ids
  * when nodes and relationships are deleted, which means it's bad practice to
  * refer to them this way. Instead, use application generated ids.
  */
+@PublicApi
 public interface Node extends Entity
 {
-    /**
-     * Returns the unique id of this node. Ids are garbage collected over time
-     * so they are only guaranteed to be unique during a specific time span: if
-     * the node is deleted, it's likely that a new node at some point will get
-     * the old id. <b>Note</b>: This makes node ids brittle as public APIs.
-     *
-     * @return the id of this node
-     */
-    @Override
-    long getId();
-
     /**
      * Deletes this node if it has no relationships attached to it. If
      * <code>delete()</code> is invoked on a node with relationships, an
@@ -180,41 +172,6 @@ public interface Node extends Entity
      *         direction attached to this node, <code>false</code> otherwise
      */
     boolean hasRelationship( Direction dir );
-
-    /**
-     * Returns all relationships with the given type and direction that are
-     * attached to this node. If there are no matching relationships, an empty
-     * iterable will be returned.
-     *
-     * @param type the given type
-     * @param dir the given direction, where <code>Direction.OUTGOING</code>
-     *            means all relationships that have this node as
-     *            {@link Relationship#getStartNode() start node} and <code>
-     * Direction.INCOMING</code>
-     *            means all relationships that have this node as
-     *            {@link Relationship#getEndNode() end node}
-     * @return all relationships attached to this node that match the given type
-     *         and direction
-     */
-    Iterable<Relationship> getRelationships( RelationshipType type, Direction dir );
-
-    /**
-     * Returns <code>true</code> if there are any relationships of the given
-     * relationship type and direction attached to this node, <code>false</code>
-     * otherwise.
-     *
-     * @param type the given type
-     * @param dir the given direction, where <code>Direction.OUTGOING</code>
-     *            means all relationships that have this node as
-     *            {@link Relationship#getStartNode() start node} and <code>
-     * Direction.INCOMING</code>
-     *            means all relationships that have this node as
-     *            {@link Relationship#getEndNode() end node}
-     * @return <code>true</code> if there are any relationships of the given
-     *         relationship type and direction attached to this node,
-     *         <code>false</code> otherwise
-     */
-    boolean hasRelationship( RelationshipType type, Direction dir );
 
     /**
      * Returns the only relationship of a given type and direction that is

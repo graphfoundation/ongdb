@@ -22,45 +22,36 @@
  */
 package org.neo4j.server;
 
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
 import java.util.function.Supplier;
 
+import org.neo4j.configuration.Config;
+import org.neo4j.configuration.connectors.ConnectorPortRegister;
+import org.neo4j.graphdb.facade.ExternalDependencies;
 import org.neo4j.kernel.api.net.NetworkConnectionTracker;
-import org.neo4j.kernel.configuration.Config;
-import org.neo4j.kernel.configuration.ConnectorPortRegister;
-import org.neo4j.logging.LogProvider;
 import org.neo4j.server.database.CommunityGraphFactory;
 import org.neo4j.server.database.GraphFactory;
 import org.neo4j.server.modules.AuthorizationModule;
-import org.neo4j.server.modules.ConsoleModule;
 import org.neo4j.server.modules.DBMSModule;
-import org.neo4j.server.modules.ManagementApiModule;
+import org.neo4j.server.modules.DatabaseModule;
+import org.neo4j.server.modules.LegacyTransactionModule;
 import org.neo4j.server.modules.Neo4jBrowserModule;
-import org.neo4j.server.modules.RESTApiModule;
-import org.neo4j.server.modules.SecurityRulesModule;
 import org.neo4j.server.modules.ServerModule;
 import org.neo4j.server.modules.ThirdPartyJAXRSModule;
 import org.neo4j.server.rest.discovery.DiscoverableURIs;
-import org.neo4j.server.rest.management.AdvertisableService;
-import org.neo4j.server.rest.management.JmxService;
-import org.neo4j.server.rest.management.console.ConsoleService;
 import org.neo4j.server.web.Jetty9WebServer;
 import org.neo4j.server.web.WebServer;
-import org.neo4j.udc.UsageData;
 
-import static org.neo4j.graphdb.facade.GraphDatabaseFacadeFactory.Dependencies;
 import static org.neo4j.server.rest.discovery.CommunityDiscoverableURIs.communityDiscoverableURIs;
 
 public class CommunityNeoServer extends AbstractNeoServer
 {
-    public CommunityNeoServer( Config config, Dependencies dependencies )
+    public CommunityNeoServer( Config config, ExternalDependencies dependencies )
     {
         this( config, new CommunityGraphFactory(), dependencies );
     }
 
-    public CommunityNeoServer( Config config, GraphFactory graphFactory, Dependencies dependencies )
+    public CommunityNeoServer( Config config, GraphFactory graphFactory, ExternalDependencies dependencies )
     {
         super( config, graphFactory, dependencies );
     }
@@ -70,38 +61,26 @@ public class CommunityNeoServer extends AbstractNeoServer
     {
         return Arrays.asList(
                 createDBMSModule(),
-                new RESTApiModule( webServer, getConfig(), getDependencyResolver().provideDependency( UsageData.class ), userLogProvider ),
-                new ManagementApiModule( webServer, getConfig() ),
-                new ThirdPartyJAXRSModule( webServer, getConfig(), userLogProvider, this ),
-                new ConsoleModule( webServer, getConfig() ),
+                new DatabaseModule( webServer, getConfig() ),
+                new LegacyTransactionModule( webServer, getConfig() ),
+                new ThirdPartyJAXRSModule( webServer, getConfig(), userLogProvider ),
                 new Neo4jBrowserModule( webServer ),
-                createAuthorizationModule(),
-                new SecurityRulesModule( webServer, getConfig(), userLogProvider ) );
+                createAuthorizationModule() );
     }
 
     @Override
     protected WebServer createWebServer()
     {
-        NetworkConnectionTracker connectionTracker = getDependencyResolver().resolveDependency( NetworkConnectionTracker.class );
+        NetworkConnectionTracker connectionTracker = getSystemDatabaseDependencyResolver().resolveDependency( NetworkConnectionTracker.class );
         return new Jetty9WebServer( userLogProvider, getConfig(), connectionTracker );
-    }
-
-    @Override
-    public Iterable<AdvertisableService> getServices()
-    {
-        List<AdvertisableService> toReturn = new ArrayList<>( 3 );
-        toReturn.add( new ConsoleService( null, null, userLogProvider, null ) );
-        toReturn.add( new JmxService( null, null ) );
-
-        return toReturn;
     }
 
     protected DBMSModule createDBMSModule()
     {
         // ConnectorPortRegister isn't available until runtime, so defer loading until then
         Supplier<DiscoverableURIs> discoverableURIs  = () -> communityDiscoverableURIs( getConfig(),
-                getDependencyResolver().resolveDependency( ConnectorPortRegister.class ) );
-        return new DBMSModule( webServer, getConfig(), discoverableURIs );
+                getSystemDatabaseDependencyResolver().resolveDependency( ConnectorPortRegister.class ) );
+        return new DBMSModule( webServer, getConfig(), discoverableURIs, userLogProvider );
     }
 
     protected AuthorizationModule createAuthorizationModule()

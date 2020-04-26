@@ -22,42 +22,42 @@
  */
 package org.neo4j.graphdb;
 
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
-import org.neo4j.kernel.configuration.Config;
+import org.neo4j.configuration.Config;
+import org.neo4j.configuration.GraphDatabaseSettings;
 import org.neo4j.kernel.impl.MyRelTypes;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
-import org.neo4j.test.rule.ImpermanentDatabaseRule;
+import org.neo4j.test.extension.ImpermanentDbmsExtension;
+import org.neo4j.test.extension.Inject;
 
-import static org.junit.Assert.assertEquals;
-import static org.neo4j.helpers.collection.Iterables.single;
-import static org.neo4j.helpers.collection.Iterators.asResourceIterator;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.neo4j.internal.helpers.collection.Iterables.single;
+import static org.neo4j.internal.helpers.collection.Iterators.asResourceIterator;
 
-public class DenseNodeIT
+@ImpermanentDbmsExtension
+class DenseNodeIT
 {
-    @Rule
-    public ImpermanentDatabaseRule databaseRule = new ImpermanentDatabaseRule();
+    @Inject
+    private GraphDatabaseAPI db;
 
     @Test
-    public void testBringingNodeOverDenseThresholdIsConsistent()
+    void testBringingNodeOverDenseThresholdIsConsistent()
     {
         // GIVEN
-        GraphDatabaseService db = databaseRule.getGraphDatabaseAPI();
-
         Node root;
         try ( Transaction tx = db.beginTx() )
         {
-            root = db.createNode();
-            createRelationshipsOnNode( db, root, 40 );
-            tx.success();
+            root = tx.createNode();
+            createRelationshipsOnNode( tx, root, 40 );
+            tx.commit();
         }
 
         // WHEN
         try ( Transaction tx = db.beginTx() )
         {
-            createRelationshipsOnNode( db, root, 60 );
+            root = tx.getNodeById( root.getId() );
+            createRelationshipsOnNode( tx, root, 60 );
 
             // THEN
             assertEquals( 100, root.getDegree() );
@@ -67,11 +67,13 @@ public class DenseNodeIT
             assertEquals( 25, root.getDegree( RelationshipType.withName( "Type1" ) ) );
             assertEquals( 25, root.getDegree( RelationshipType.withName( "Type2" ) ) );
             assertEquals( 25, root.getDegree( RelationshipType.withName( "Type3" ) ) );
-            tx.success();
+            tx.commit();
         }
 
         try ( Transaction tx = db.beginTx() )
         {
+            root = tx.getNodeById( root.getId() );
+
             assertEquals( 100, root.getDegree() );
             assertEquals( 100, root.getDegree( Direction.OUTGOING ) );
             assertEquals( 0, root.getDegree( Direction.INCOMING ) );
@@ -79,93 +81,92 @@ public class DenseNodeIT
             assertEquals( 25, root.getDegree( RelationshipType.withName( "Type1" ) ) );
             assertEquals( 25, root.getDegree( RelationshipType.withName( "Type2" ) ) );
             assertEquals( 25, root.getDegree( RelationshipType.withName( "Type3" ) ) );
-            tx.success();
+            tx.commit();
         }
     }
 
     @Test
-    public void deletingRelationshipsFromDenseNodeIsConsistent()
+    void deletingRelationshipsFromDenseNodeIsConsistent()
     {
         // GIVEN
-        GraphDatabaseService db = databaseRule.getGraphDatabaseAPI();
-
         Node root;
         try ( Transaction tx = db.beginTx() )
         {
-            root = db.createNode();
-            createRelationshipsOnNode( db, root, 100 );
-            tx.success();
+            root = tx.createNode();
+            createRelationshipsOnNode( tx, root, 100 );
+            tx.commit();
         }
 
         try ( Transaction tx = db.beginTx() )
         {
+            root = tx.getNodeById( root.getId() );
             deleteRelationshipsFromNode( root, 80 );
 
             assertEquals( 20, root.getDegree() );
             assertEquals( 20, root.getDegree( Direction.OUTGOING ) );
             assertEquals( 0, root.getDegree( Direction.INCOMING ) );
-            tx.success();
+            tx.commit();
         }
 
         try ( Transaction tx = db.beginTx() )
         {
+            root = tx.getNodeById( root.getId() );
             assertEquals( 20, root.getDegree() );
             assertEquals( 20, root.getDegree( Direction.OUTGOING ) );
             assertEquals( 0, root.getDegree( Direction.INCOMING ) );
-            tx.success();
+            tx.commit();
         }
     }
 
     @Test
-    public void movingBilaterallyOfTheDenseNodeThresholdIsConsistent()
+    void movingBilaterallyOfTheDenseNodeThresholdIsConsistent()
     {
         // GIVEN
-        GraphDatabaseService db = databaseRule.getGraphDatabaseAPI();
-
         Node root;
         // WHEN
         try ( Transaction tx = db.beginTx() )
         {
-            root = db.createNode();
-            createRelationshipsOnNode( db, root, 100 );
+            root = tx.createNode();
+            createRelationshipsOnNode( tx, root, 100 );
             deleteRelationshipsFromNode( root, 80 );
 
             assertEquals( 20, root.getDegree() );
             assertEquals( 20, root.getDegree( Direction.OUTGOING ) );
             assertEquals( 0, root.getDegree( Direction.INCOMING ) );
 
-            tx.success();
+            tx.commit();
         }
 
         // THEN
         try ( Transaction tx = db.beginTx() )
         {
+            root = tx.getNodeById( root.getId() );
             assertEquals( 20, root.getDegree() );
             assertEquals( 20, root.getDegree( Direction.OUTGOING ) );
             assertEquals( 0, root.getDegree( Direction.INCOMING ) );
-            tx.success();
+            tx.commit();
         }
     }
 
     @Test
-    public void testBringingTwoConnectedNodesOverDenseThresholdIsConsistent()
+    void testBringingTwoConnectedNodesOverDenseThresholdIsConsistent()
     {
         // GIVEN
-        GraphDatabaseService db = databaseRule.getGraphDatabaseAPI();
-
         Node source;
         Node sink;
         try ( Transaction tx = db.beginTx() )
         {
-            source = db.createNode();
-            sink = db.createNode();
+            source = tx.createNode();
+            sink = tx.createNode();
             createRelationshipsBetweenNodes( source, sink, 40 );
-            tx.success();
+            tx.commit();
         }
 
         // WHEN
         try ( Transaction tx = db.beginTx() )
         {
+            source = tx.getNodeById( source.getId() );
+            sink = tx.getNodeById( sink.getId() );
             createRelationshipsBetweenNodes( source, sink, 60 );
 
             // THEN
@@ -184,11 +185,14 @@ public class DenseNodeIT
             assertEquals( 25, sink.getDegree( RelationshipType.withName( "Type1" ) ) );
             assertEquals( 25, sink.getDegree( RelationshipType.withName( "Type2" ) ) );
             assertEquals( 25, sink.getDegree( RelationshipType.withName( "Type3" ) ) );
-            tx.success();
+            tx.commit();
         }
 
         try ( Transaction tx = db.beginTx() )
         {
+            source = tx.getNodeById( source.getId() );
+            sink = tx.getNodeById( sink.getId() );
+
             assertEquals( 100, source.getDegree() );
             assertEquals( 100, source.getDegree( Direction.OUTGOING ) );
             assertEquals( 0, source.getDegree( Direction.INCOMING ) );
@@ -204,40 +208,42 @@ public class DenseNodeIT
             assertEquals( 25, sink.getDegree( RelationshipType.withName( "Type1" ) ) );
             assertEquals( 25, sink.getDegree( RelationshipType.withName( "Type2" ) ) );
             assertEquals( 25, sink.getDegree( RelationshipType.withName( "Type3" ) ) );
-            tx.success();
+            tx.commit();
         }
     }
 
     @Test
-    public void shouldBeAbleToCreateRelationshipsInEmptyDenseNode()
+    void shouldBeAbleToCreateRelationshipsInEmptyDenseNode()
     {
         // GIVEN
         Node node;
-        try ( Transaction tx = databaseRule.beginTx() )
+        try ( Transaction tx = db.beginTx() )
         {
-            node = databaseRule.createNode();
-            createRelationshipsBetweenNodes( node, databaseRule.createNode(), denseNodeThreshold( databaseRule ) + 1 );
-            tx.success();
+            node = tx.createNode();
+            createRelationshipsBetweenNodes( node, tx.createNode(), denseNodeThreshold( db ) + 1 );
+            tx.commit();
         }
-        try ( Transaction tx = databaseRule.beginTx() )
+        try ( Transaction tx = db.beginTx() )
         {
-            node.getRelationships().forEach( Relationship::delete );
-            tx.success();
+            tx.getNodeById( node.getId() ).getRelationships().forEach( Relationship::delete );
+            tx.commit();
         }
 
         // WHEN
         Relationship rel;
-        try ( Transaction tx = databaseRule.beginTx() )
+        try ( Transaction tx = db.beginTx() )
         {
-            rel = node.createRelationshipTo( databaseRule.createNode(), MyRelTypes.TEST );
-            tx.success();
+            rel = tx.getNodeById( node.getId() ).createRelationshipTo( tx.createNode(), MyRelTypes.TEST );
+            tx.commit();
         }
 
-        try ( Transaction tx = databaseRule.beginTx() )
+        try ( Transaction tx = db.beginTx() )
         {
             // THEN
+            node = tx.getNodeById( node.getId() );
+            rel = tx.getRelationshipById( rel.getId() );
             assertEquals( rel, single( node.getRelationships() ) );
-            tx.success();
+            tx.commit();
         }
     }
 
@@ -265,11 +271,11 @@ public class DenseNodeIT
         }
     }
 
-    private void createRelationshipsOnNode( GraphDatabaseService db, Node root, int numberOfRelationships )
+    private void createRelationshipsOnNode( Transaction tx, Node root, int numberOfRelationships )
     {
         for ( int i = 0; i < numberOfRelationships; i++ )
         {
-            root.createRelationshipTo( db.createNode(), RelationshipType.withName( "Type" + (i % 4) ) )
+            root.createRelationshipTo( tx.createNode(), RelationshipType.withName( "Type" + (i % 4) ) )
                     .setProperty( "" + i, i );
 
         }

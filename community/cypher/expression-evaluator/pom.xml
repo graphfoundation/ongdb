@@ -11,7 +11,6 @@
     <modelVersion>4.0.0</modelVersion>
     <artifactId>ongdb-cypher-expression-evaluator</artifactId>
     <packaging>jar</packaging>
-    <version>4.0.4-SNAPSHOT</version>
     <name>ONgDB - Cypher Expression Evaluator</name>
 
     <description>Cypher Expression Evaluator</description>
@@ -48,19 +47,19 @@
 
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-parser-3.6</artifactId>
+            <artifactId>ongdb-parser-4.0</artifactId>
             <version>${project.version}</version>
         </dependency>
 
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-ast-3.6</artifactId>
+            <artifactId>ongdb-ast-4.0</artifactId>
             <version>${project.version}</version>
         </dependency>
 
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-expressions-3.6</artifactId>
+            <artifactId>ongdb-expressions-4.0</artifactId>
             <version>${project.version}</version>
         </dependency>
 
@@ -98,13 +97,6 @@
             <groupId>org.scalacheck</groupId>
             <artifactId>scalacheck_${scala.binary.version}</artifactId>
         </dependency>
-
-        <!-- other -->
-
-
-        <!-- test dependencies -->
-
-
     </dependencies>
 
 </project>

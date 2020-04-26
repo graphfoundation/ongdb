@@ -29,10 +29,10 @@ import java.nio.file.Paths
 import java.util.zip.{GZIPInputStream, InflaterInputStream}
 
 import org.neo4j.csv.reader._
-import org.neo4j.cypher.internal.runtime.interpreted.pipes.ExternalCSVResource
-import org.neo4j.cypher.internal.v3_6.util.{LoadExternalResourceException, TaskCloser}
-import org.neo4j.cypher.CypherExecutionException
 import org.neo4j.cypher.internal.runtime.ResourceManager
+import org.neo4j.cypher.internal.runtime.interpreted.pipes.{ExternalCSVResource, LoadCsvIterator}
+import org.neo4j.exceptions.{CypherExecutionException, LoadExternalResourceException}
+import org.neo4j.internal.kernel.api.{AutoCloseablePlus, DefaultCloseListenable}
 import sun.net.www.protocol.http.HttpURLConnection
 
 import scala.collection.mutable.ArrayBuffer
@@ -43,29 +43,35 @@ object CSVResources {
   val DEFAULT_BUFFER_SIZE: Int = 2 * 1024 * 1024
   val DEFAULT_QUOTE_CHAR: Char = '"'
 
-  private def config(legacyCsvQuoteEscaping: Boolean, csvBufferSize: Int) = new Configuration {
-    override def quotationCharacter(): Char = DEFAULT_QUOTE_CHAR
-
-    override def bufferSize(): Int = csvBufferSize
-
-    override def multilineFields(): Boolean = true
-
-    override def emptyQuotedStringsAsNull(): Boolean = true
-
-    override def trimStrings(): Boolean = false
-
-    override def legacyStyleQuoting(): Boolean = legacyCsvQuoteEscaping
-  }
+  private def config(legacyCsvQuoteEscaping: Boolean, csvBufferSize: Int) = Configuration.newBuilder()
+    .withQuotationCharacter(DEFAULT_QUOTE_CHAR)
+    .withBufferSize(csvBufferSize)
+    .withMultilineFields(true)
+    .withTrimStrings(false)
+    .withEmptyQuotedStringsAsNull(true)
+    .withLegacyStyleQuoting(legacyCsvQuoteEscaping)
+    .build()
 }
 
-case class CSVResource(url: URL, resource: AutoCloseable) extends AutoCloseable {
-  override def close(): Unit = resource.close()
+case class CSVResource(url: URL, resource: AutoCloseable) extends DefaultCloseListenable with AutoCloseablePlus {
+  override def closeInternal(): Unit = resource.close()
+
+  override def close(): Unit = {
+    closeInternal()
+    val listener = closeListener
+    if (listener != null) listener.onClosed(this)
+  }
+
+  // This is not correct, but hopefully the defensive answer. We don't expect this to be called,
+  // but splitting isClosed and setCloseListener into different interfaces leads to
+  // multiple inheritance problems instead.
+  override def isClosed = false
 }
 
 class CSVResources(resourceManager: ResourceManager) extends ExternalCSVResource {
 
   def getCsvIterator(url: URL, fieldTerminator: Option[String], legacyCsvQuoteEscaping: Boolean, bufferSize: Int,
-                     headers: Boolean = false): Iterator[Array[String]] = {
+                     headers: Boolean = false): LoadCsvIterator = {
 
     val reader: CharReadable = getReader(url)
     val delimiter: Char = fieldTerminator.map(_.charAt(0)).getOrElse(CSVResources.DEFAULT_FIELD_TERMINATOR)
@@ -76,7 +82,10 @@ class CSVResources(resourceManager: ResourceManager) extends ExternalCSVResource
 
     resourceManager.trace(CSVResource(url, seeker))
 
-    new Iterator[Array[String]] {
+    new LoadCsvIterator {
+      var lastProcessed = 0L
+      var readAll = false
+
       private def readNextRow: Array[String] = {
         val buffer = new ArrayBuffer[String]
 
@@ -87,7 +96,7 @@ class CSVResources(resourceManager: ResourceManager) extends ExternalCSVResource
             if (mark.isEndOfLine) return if (buffer.isEmpty) null else buffer.toArray
           }
         } catch {
-          //TODO change to error message mentioning `dbms.import.csv.buffer_size` in 3.5
+          //TODO change to error message mentioning `dbms.import.csv.buffer_size` in 4.0
           case e: BufferOverflowException => throw new CypherExecutionException(e.getMessage, e)
         }
 
@@ -100,12 +109,14 @@ class CSVResources(resourceManager: ResourceManager) extends ExternalCSVResource
 
       var nextRow: Array[String] = readNextRow
 
-      def hasNext: Boolean = nextRow != null
+      override def hasNext: Boolean = nextRow != null
 
-      def next(): Array[String] = {
+      override def next(): Array[String] = {
         if (!hasNext) Iterator.empty.next()
         val row = nextRow
         nextRow = readNextRow
+        lastProcessed += 1
+        readAll = !hasNext
         row
       }
     }

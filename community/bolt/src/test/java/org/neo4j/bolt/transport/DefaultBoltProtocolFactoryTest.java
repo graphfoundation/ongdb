@@ -23,24 +23,25 @@
 package org.neo4j.bolt.transport;
 
 import io.netty.channel.embedded.EmbeddedChannel;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
 import org.neo4j.bolt.BoltChannel;
 import org.neo4j.bolt.BoltProtocol;
+import org.neo4j.bolt.dbapi.CustomBookmarkFormatParser;
 import org.neo4j.bolt.runtime.BoltConnection;
 import org.neo4j.bolt.runtime.BoltConnectionFactory;
-import org.neo4j.bolt.runtime.BoltStateMachine;
-import org.neo4j.bolt.runtime.BoltStateMachineFactory;
+import org.neo4j.bolt.runtime.statemachine.BoltStateMachine;
+import org.neo4j.bolt.runtime.statemachine.BoltStateMachineFactory;
 import org.neo4j.bolt.testing.BoltTestUtil;
-import org.neo4j.bolt.v1.BoltProtocolV1;
-import org.neo4j.bolt.v2.BoltProtocolV2;
 import org.neo4j.bolt.v3.BoltProtocolV3;
+import org.neo4j.bolt.v4.BoltProtocolV4;
+import org.neo4j.kernel.database.TestDatabaseIdRepository;
 import org.neo4j.logging.internal.NullLogService;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -57,7 +58,7 @@ class DefaultBoltProtocolFactoryTest
         BoltChannel channel = BoltTestUtil.newTestBoltChannel();
         BoltProtocolFactory factory =
                 new DefaultBoltProtocolFactory( mock( BoltConnectionFactory.class ), mock( BoltStateMachineFactory.class ),
-                        NullLogService.getInstance() );
+                        NullLogService.getInstance(), new TestDatabaseIdRepository(), CustomBookmarkFormatParser.DEFAULT );
 
         BoltProtocol protocol = factory.create( protocolVersion, channel );
 
@@ -66,7 +67,7 @@ class DefaultBoltProtocolFactoryTest
     }
 
     @ParameterizedTest( name = "V{0}" )
-    @ValueSource( longs = {BoltProtocolV1.VERSION, BoltProtocolV2.VERSION, BoltProtocolV3.VERSION} )
+    @ValueSource( longs = {BoltProtocolV3.VERSION, BoltProtocolV4.VERSION} )
     void shouldCreateBoltProtocol( long protocolVersion ) throws Throwable
     {
         EmbeddedChannel channel = new EmbeddedChannel();
@@ -80,8 +81,8 @@ class DefaultBoltProtocolFactoryTest
         BoltConnection connection = mock( BoltConnection.class );
         when( connectionFactory.newConnection( boltChannel, stateMachine ) ).thenReturn( connection );
 
-        BoltProtocolFactory factory =
-                new DefaultBoltProtocolFactory( connectionFactory, stateMachineFactory, NullLogService.getInstance() );
+        BoltProtocolFactory factory = new DefaultBoltProtocolFactory( connectionFactory, stateMachineFactory, NullLogService.getInstance(),
+                new TestDatabaseIdRepository(), CustomBookmarkFormatParser.DEFAULT );
 
         BoltProtocol protocol = factory.create( protocolVersion, boltChannel );
 

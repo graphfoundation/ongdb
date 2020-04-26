@@ -22,9 +22,9 @@
  */
 package org.neo4j.server.rest;
 
-import org.neo4j.graphdb.Transaction;
-
 import org.junit.Before;
+
+import org.neo4j.graphdb.Transaction;
 
 /**
  * Remove nodes and relationships between tests.
@@ -36,8 +36,8 @@ public class AbstractRestFunctionalDocTestBase extends AbstractRestFunctionalTes
     {
         try ( Transaction tx = graphdb().beginTx() )
         {
-            graphdb().execute( "MATCH (n) DETACH DELETE n" );
-            tx.success();
+            tx.execute( "MATCH (n) DETACH DELETE n" );
+            tx.commit();
         }
     }
 }

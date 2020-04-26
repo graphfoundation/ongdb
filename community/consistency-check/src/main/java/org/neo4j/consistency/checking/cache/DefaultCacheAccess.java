@@ -28,8 +28,10 @@ import org.neo4j.consistency.checking.ByteArrayBitsManipulator;
 import org.neo4j.consistency.checking.full.IdAssigningThreadLocal;
 import org.neo4j.consistency.statistics.Counts;
 import org.neo4j.consistency.statistics.Counts.Type;
+import org.neo4j.internal.batchimport.cache.ByteArray;
 import org.neo4j.kernel.impl.store.record.PropertyRecord;
-import org.neo4j.unsafe.impl.batchimport.cache.ByteArray;
+
+import static org.neo4j.internal.batchimport.cache.NumberArrayFactory.AUTO_WITHOUT_PAGECACHE;
 
 /**
  * {@link CacheAccess} that uses {@link PackedMultiFieldCache} for cache.
@@ -38,7 +40,7 @@ public class DefaultCacheAccess implements CacheAccess
 {
     public static final int DEFAULT_QUEUE_SIZE = 1_000;
 
-    private final IdAssigningThreadLocal<Client> clients = new IdAssigningThreadLocal<Client>()
+    private final IdAssigningThreadLocal<Client> clients = new IdAssigningThreadLocal<>()
     {
         @Override
         protected Client initialValue( int id )
@@ -52,10 +54,11 @@ public class DefaultCacheAccess implements CacheAccess
     private final PackedMultiFieldCache cache;
     private long recordsPerCPU;
     private final Counts counts;
+    private long pivotId;
 
-    public DefaultCacheAccess( Counts counts, int threads )
+    public static ByteArray defaultByteArray( long highNodeId )
     {
-        this( PackedMultiFieldCache.defaultArray(), counts, threads );
+        return AUTO_WITHOUT_PAGECACHE.newByteArray( highNodeId, new byte[ByteArrayBitsManipulator.MAX_BYTES] );
     }
 
     public DefaultCacheAccess( ByteArray array, Counts counts, int threads )
@@ -81,6 +84,24 @@ public class DefaultCacheAccess implements CacheAccess
     public void setCacheSlotSizes( int... slotSizes )
     {
         cache.setSlotSizes( slotSizes );
+    }
+
+    @Override
+    public void setCacheSlotSizesAndClear( int... slotSizes )
+    {
+        cache.setSlotSizes( slotSizes );
+        cache.clear();
+    }
+
+    @Override
+    public void setPivotId( long pivotId )
+    {
+        this.pivotId = pivotId;
+    }
+
+    private long translate( long id )
+    {
+        return id - pivotId;
     }
 
     @Override
@@ -114,25 +135,25 @@ public class DefaultCacheAccess implements CacheAccess
         @Override
         public long getFromCache( long id, int slot )
         {
-            return cache.get( id, slot );
+            return cache.get( translate( id ), slot );
         }
 
         @Override
         public boolean getBooleanFromCache( long id, int slot )
         {
-            return cache.get( id, slot ) != 0;
+            return cache.get( translate( id ), slot ) != 0;
         }
 
         @Override
         public void putToCache( long id, long... values )
         {
-            cache.put( id, values );
+            cache.put( translate( id ), values );
         }
 
         @Override
         public void putToCacheSingle( long id, int slot, long value )
         {
-            cache.put( id, slot, value );
+            cache.put( translate( id ), slot, value );
         }
 
         @Override

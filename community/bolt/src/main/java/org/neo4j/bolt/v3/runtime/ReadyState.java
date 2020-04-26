@@ -22,16 +22,19 @@
  */
 package org.neo4j.bolt.v3.runtime;
 
+import org.neo4j.bolt.messaging.BoltIOException;
 import org.neo4j.bolt.messaging.RequestMessage;
-import org.neo4j.bolt.runtime.BoltStateMachineState;
-import org.neo4j.bolt.runtime.StateMachineContext;
-import org.neo4j.bolt.runtime.StatementMetadata;
-import org.neo4j.bolt.runtime.StatementProcessor;
+import org.neo4j.bolt.runtime.BoltProtocolBreachFatality;
+import org.neo4j.bolt.runtime.statemachine.BoltStateMachineState;
+import org.neo4j.bolt.runtime.statemachine.StateMachineContext;
+import org.neo4j.bolt.runtime.statemachine.StatementMetadata;
+import org.neo4j.bolt.runtime.statemachine.StatementProcessor;
 import org.neo4j.bolt.v3.messaging.request.BeginMessage;
 import org.neo4j.bolt.v3.messaging.request.RunMessage;
-import org.neo4j.internal.kernel.api.exceptions.KernelException;
+import org.neo4j.bolt.v3.messaging.request.TransactionInitiatingMessage;
 import org.neo4j.values.storable.Values;
 
+import static org.neo4j.bolt.v4.messaging.MessageMetadataParser.ABSENT_DB_NAME;
 import static org.neo4j.util.Preconditions.checkState;
 import static org.neo4j.values.storable.Values.stringArray;
 
@@ -48,8 +51,8 @@ public class ReadyState extends FailSafeBoltStateMachineState
     private BoltStateMachineState streamingState;
     private BoltStateMachineState txReadyState;
 
-    static final String FIELDS_KEY = "fields";
-    static final String FIRST_RECORD_AVAILABLE_KEY = "t_first";
+    public static final String FIELDS_KEY = "fields";
+    public static final String FIRST_RECORD_AVAILABLE_KEY = "t_first";
 
     @Override
     public BoltStateMachineState processUnsafe( RequestMessage message, StateMachineContext context ) throws Exception
@@ -81,12 +84,12 @@ public class ReadyState extends FailSafeBoltStateMachineState
         this.txReadyState = txReadyState;
     }
 
-    private BoltStateMachineState processRunMessage( RunMessage message, StateMachineContext context ) throws KernelException
+    private BoltStateMachineState processRunMessage( RunMessage message, StateMachineContext context ) throws Exception
     {
         long start = context.clock().millis();
-        StatementProcessor statementProcessor = context.connectionState().getStatementProcessor();
-        StatementMetadata statementMetadata = statementProcessor.run( message.statement(), message.params(), message.bookmark(), message.transactionTimeout(),
-                message.transactionMetadata() );
+        StatementProcessor statementProcessor = getStatementProcessor( message, context );
+        StatementMetadata statementMetadata = statementProcessor.run( message.statement(), message.params(), message.bookmarks(), message.transactionTimeout(),
+                message.getAccessMode(), message.transactionMetadata() );
         long end = context.clock().millis();
 
         context.connectionState().onMetadata( FIELDS_KEY, stringArray( statementMetadata.fieldNames() ) );
@@ -97,8 +100,8 @@ public class ReadyState extends FailSafeBoltStateMachineState
 
     private BoltStateMachineState processBeginMessage( BeginMessage message, StateMachineContext context ) throws Exception
     {
-        StatementProcessor statementProcessor = context.connectionState().getStatementProcessor();
-        statementProcessor.beginTransaction( message.bookmark(), message.transactionTimeout(), message.transactionMetadata() );
+        StatementProcessor statementProcessor = getStatementProcessor( message, context );
+        statementProcessor.beginTransaction( message.bookmarks(), message.transactionTimeout(), message.getAccessMode(), message.transactionMetadata() );
         return txReadyState;
     }
 
@@ -110,4 +113,9 @@ public class ReadyState extends FailSafeBoltStateMachineState
         super.assertInitialized();
     }
 
+    protected StatementProcessor getStatementProcessor( TransactionInitiatingMessage message, StateMachineContext context )
+            throws BoltProtocolBreachFatality, BoltIOException
+    {
+        return context.setCurrentStatementProcessorForDatabase( ABSENT_DB_NAME );
+    }
 }

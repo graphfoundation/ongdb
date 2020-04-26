@@ -81,7 +81,7 @@ public abstract class Representation
         return this.type;
     }
 
-    abstract String serialize( RepresentationFormat format, URI baseUri, ExtensionInjector extensions );
+    abstract String serialize( RepresentationFormat format, URI baseUri );
 
     abstract void addTo( ListSerializer serializer );
 
@@ -103,7 +103,7 @@ public abstract class Representation
             }
 
             @Override
-            String serialize( RepresentationFormat format, URI baseUri, ExtensionInjector extensions )
+            String serialize( RepresentationFormat format, URI baseUri )
             {
                 return "";
             }

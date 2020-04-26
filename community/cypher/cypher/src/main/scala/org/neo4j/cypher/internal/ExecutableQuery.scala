@@ -22,26 +22,37 @@
  */
 package org.neo4j.cypher.internal
 
-import org.neo4j.cypher.internal.runtime.planDescription.InternalPlanDescription
-import org.neo4j.graphdb.Result
+import org.neo4j.cypher.internal.plandescription.InternalPlanDescription
+import org.neo4j.cypher.internal.runtime.InputDataStream
+import org.neo4j.graphdb.QueryExecutionType.QueryType
 import org.neo4j.kernel.api.query.CompilerInfo
-import org.neo4j.kernel.impl.query.TransactionalContext
+import org.neo4j.kernel.impl.query.{QueryExecution, QuerySubscriber, TransactionalContext}
 import org.neo4j.values.virtual.MapValue
 
 /**
   * A fully compiled query in executable form.
   */
-trait ExecutableQuery {
+trait ExecutableQuery extends CacheabilityInfo {
 
   /**
     * Execute this executable query.
     *
-    * @param transactionalContext the transaction in which to execute
-    * @param preParsedQuery the preparsed query to execute
-    * @param params the parameters
-    * @return the query result
+    * @param transactionalContext           the transaction in which to execute
+    * @param isOutermostQuery               provide `true` if this is the outer-most query and should close the transaction when finished or error
+    * @param queryOptions                   execution options
+    * @param params                         the parameters
+    * @param prePopulateResults             if false, nodes and relationships might be returned as references in the results
+    * @param input                          stream of existing records as input
+    * @param subscriber                     The subscriber where results should be streamed to.
+    * @return the QueryExecution that controls the demand to the subscriber
     */
-  def execute(transactionalContext: TransactionalContext, preParsedQuery: PreParsedQuery, params: MapValue): Result
+  def execute(transactionalContext: TransactionalContext,
+              isOutermostQuery: Boolean,
+              queryOptions: QueryOptions,
+              params: MapValue,
+              prePopulateResults: Boolean,
+              input: InputDataStream,
+              subscriber: QuerySubscriber): QueryExecution
 
   /**
     * The reusability state of this executable query.
@@ -61,10 +72,15 @@ trait ExecutableQuery {
   /**
     * Names of all parameters for this query, explicit and auto-parametrized.
     */
-  val paramNames: Seq[String]
+  val paramNames: Array[String]
 
   /**
     * The names and values of the auto-parametrized parameters for this query.
     */
   val extractedParams: MapValue
+
+  /**
+    * Type of this query.
+    */
+  def queryType: QueryType
 }

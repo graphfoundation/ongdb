@@ -24,13 +24,14 @@ package org.neo4j.internal.kernel.api.helpers;
 
 import org.apache.commons.lang3.ArrayUtils;
 
+import org.neo4j.internal.kernel.api.DefaultCloseListenable;
 import org.neo4j.internal.kernel.api.RelationshipGroupCursor;
 import org.neo4j.internal.kernel.api.RelationshipTraversalCursor;
 
 /**
  * Helper for traversing specific types and directions of a dense node.
  */
-abstract class RelationshipDenseSelection
+abstract class RelationshipDenseSelection extends DefaultCloseListenable
 {
     private enum Dir
     {
@@ -39,7 +40,7 @@ abstract class RelationshipDenseSelection
         LOOP
     }
 
-    private RelationshipGroupCursor groupCursor;
+    protected RelationshipGroupCursor groupCursor;
     protected RelationshipTraversalCursor relationshipCursor;
     private int[] types;
     private Dir[] directions;
@@ -248,7 +249,7 @@ abstract class RelationshipDenseSelection
         return types == null || ArrayUtils.contains( types, groupCursor.type() );
     }
 
-    public void close()
+    public void closeInternal()
     {
         Throwable closeGroupError = null;
         try

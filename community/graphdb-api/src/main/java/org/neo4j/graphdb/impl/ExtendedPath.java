@@ -24,11 +24,11 @@ package org.neo4j.graphdb.impl;
 
 import java.util.Iterator;
 
+import org.neo4j.graphdb.Entity;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Path;
-import org.neo4j.graphdb.PropertyContainer;
 import org.neo4j.graphdb.Relationship;
-import org.neo4j.helpers.collection.PrefetchingIterator;
+import org.neo4j.internal.helpers.collection.PrefetchingIterator;
 
 public class ExtendedPath implements Path
 {
@@ -64,7 +64,7 @@ public class ExtendedPath implements Path
     @Override
     public Iterable<Relationship> relationships()
     {
-        return () -> new PrefetchingIterator<Relationship>()
+        return () -> new PrefetchingIterator<>()
         {
             final Iterator<Relationship> startRelationships = start.relationships().iterator();
             boolean lastReturned;
@@ -89,7 +89,7 @@ public class ExtendedPath implements Path
     @Override
     public Iterable<Relationship> reverseRelationships()
     {
-        return () -> new PrefetchingIterator<Relationship>()
+        return () -> new PrefetchingIterator<>()
         {
             final Iterator<Relationship> startRelationships = start.reverseRelationships().iterator();
             boolean endReturned;
@@ -110,7 +110,7 @@ public class ExtendedPath implements Path
     @Override
     public Iterable<Node> nodes()
     {
-        return () -> new PrefetchingIterator<Node>()
+        return () -> new PrefetchingIterator<>()
         {
             final Iterator<Node> startNodes = start.nodes().iterator();
             boolean lastReturned;
@@ -135,7 +135,7 @@ public class ExtendedPath implements Path
     @Override
     public Iterable<Node> reverseNodes()
     {
-        return () -> new PrefetchingIterator<Node>()
+        return () -> new PrefetchingIterator<>()
         {
             final Iterator<Node> startNodes = start.reverseNodes().iterator();
             boolean endReturned;
@@ -160,15 +160,15 @@ public class ExtendedPath implements Path
     }
 
     @Override
-    public Iterator<PropertyContainer> iterator()
+    public Iterator<Entity> iterator()
     {
-        return new PrefetchingIterator<PropertyContainer>()
+        return new PrefetchingIterator<>()
         {
-            final Iterator<PropertyContainer> startEntities = start.iterator();
+            final Iterator<Entity> startEntities = start.iterator();
             int lastReturned = 2;
 
             @Override
-            protected PropertyContainer fetchNextOrNull()
+            protected Entity fetchNextOrNull()
             {
                 if ( startEntities.hasNext() )
                 {
@@ -176,9 +176,12 @@ public class ExtendedPath implements Path
                 }
                 switch ( lastReturned-- )
                 {
-                case 2: return endNode;
-                case 1: return lastRelationship;
-                default: return null;
+                case 2:
+                    return endNode;
+                case 1:
+                    return lastRelationship;
+                default:
+                    return null;
                 }
             }
         };

@@ -26,6 +26,7 @@ import org.junit.jupiter.api.Test;
 
 import org.neo4j.bolt.messaging.RequestMessageDecoder;
 import org.neo4j.bolt.runtime.BoltResponseHandler;
+import org.neo4j.bolt.v3.runtime.bookmarking.BookmarksParserV3;
 import org.neo4j.bolt.v3.messaging.request.RunMessage;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -35,7 +36,7 @@ import static org.neo4j.bolt.v3.messaging.decoder.HelloMessageDecoderTest.assert
 class RunMessageDecoderTest
 {
     private final BoltResponseHandler responseHandler = mock( BoltResponseHandler.class );
-    private final RequestMessageDecoder decoder = new RunMessageDecoder( responseHandler );
+    private final RequestMessageDecoder decoder = new RunMessageDecoder( responseHandler, BookmarksParserV3.INSTANCE );
 
     @Test
     void shouldReturnCorrectSignature()

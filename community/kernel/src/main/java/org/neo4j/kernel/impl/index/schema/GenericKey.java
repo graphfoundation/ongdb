@@ -24,7 +24,7 @@ package org.neo4j.kernel.impl.index.schema;
 
 import org.neo4j.gis.spatial.index.curves.SpaceFillingCurve;
 import org.neo4j.io.pagecache.PageCursor;
-import org.neo4j.kernel.impl.index.schema.config.IndexSpecificSpaceFillingCurveSettingsCache;
+import org.neo4j.kernel.impl.index.schema.config.IndexSpecificSpaceFillingCurveSettings;
 import org.neo4j.string.UTF8;
 import org.neo4j.values.storable.CoordinateReferenceSystem;
 import org.neo4j.values.storable.PrimitiveArrayWriting;
@@ -35,8 +35,6 @@ import org.neo4j.values.storable.ValueGroup;
 
 import static java.lang.String.format;
 import static org.neo4j.io.pagecache.PageCache.PAGE_SIZE;
-import static org.neo4j.kernel.impl.index.schema.DurationIndexKey.AVG_DAY_SECONDS;
-import static org.neo4j.kernel.impl.index.schema.DurationIndexKey.AVG_MONTH_SECONDS;
 import static org.neo4j.kernel.impl.index.schema.NativeIndexKey.Inclusion.HIGH;
 import static org.neo4j.kernel.impl.index.schema.NativeIndexKey.Inclusion.LOW;
 import static org.neo4j.kernel.impl.index.schema.NativeIndexKey.Inclusion.NEUTRAL;
@@ -91,16 +89,22 @@ public class GenericKey extends NativeIndexKey<GenericKey>
     public static final int SIZE_NUMBER_FLOAT =    Integer.BYTES;  /* raw value bits */
     public static final int SIZE_NUMBER_DOUBLE =   Long.BYTES;     /* raw value bits */
     public static final int SIZE_ARRAY_LENGTH =    Short.BYTES;
-    static final int BIGGEST_REASONABLE_ARRAY_LENGTH = PAGE_SIZE / 2 / SIZE_NUMBER_BYTE;
+    static final int BIGGEST_REASONABLE_ARRAY_LENGTH = PAGE_SIZE / SIZE_NUMBER_BYTE;
 
     static final long TRUE = 1;
     static final long FALSE = 0;
     static final int NO_ENTITY_ID = -1;
-    private static final int TYPE_ID_SIZE = Byte.BYTES;
+    public static final int TYPE_ID_SIZE = Byte.BYTES;
+    /**
+     * An average month is 30 days, 10 hours and 30 minutes.
+     * In seconds this is (((30 * 24) + 10) * 60 + 30) * 60 = 2629800
+     */
+    static final long AVG_MONTH_SECONDS = 2_629_800;
+    static final long AVG_DAY_SECONDS = 86_400;
     private static final double[] NO_COORDINATES = new double[0];
 
     // Immutable
-    private final IndexSpecificSpaceFillingCurveSettingsCache settings;
+    private final IndexSpecificSpaceFillingCurveSettings settings;
 
     // Mutable, meta-state
     Type type;
@@ -130,7 +134,7 @@ public class GenericKey extends NativeIndexKey<GenericKey>
      */
     SpaceFillingCurve spaceFillingCurve;
 
-    GenericKey( IndexSpecificSpaceFillingCurveSettingsCache settings )
+    GenericKey( IndexSpecificSpaceFillingCurveSettings settings )
     {
         this.settings = settings;
     }
@@ -644,7 +648,7 @@ public class GenericKey extends NativeIndexKey<GenericKey>
         {
             long1 = tableId;
             long2 = code;
-            spaceFillingCurve = settings.forCrs( tableId, code, true );
+            spaceFillingCurve = settings.forCrs( tableId, code );
         }
     }
 

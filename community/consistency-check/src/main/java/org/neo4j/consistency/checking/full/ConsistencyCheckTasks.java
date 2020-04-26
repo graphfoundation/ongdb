@@ -26,6 +26,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.neo4j.common.EntityType;
+import org.neo4j.common.TokenNameLookup;
 import org.neo4j.consistency.RecordType;
 import org.neo4j.consistency.checking.NodeRecordCheck;
 import org.neo4j.consistency.checking.PropertyChain;
@@ -43,21 +45,20 @@ import org.neo4j.consistency.report.ConsistencyReporter;
 import org.neo4j.consistency.statistics.Statistics;
 import org.neo4j.consistency.store.synthetic.IndexRecord;
 import org.neo4j.consistency.store.synthetic.LabelScanIndex;
-import org.neo4j.helpers.collection.BoundedIterable;
-import org.neo4j.helpers.collection.Iterables;
-import org.neo4j.helpers.progress.ProgressMonitorFactory;
-import org.neo4j.internal.kernel.api.TokenNameLookup;
-import org.neo4j.kernel.api.labelscan.LabelScanStore;
-import org.neo4j.kernel.impl.api.NonTransactionalTokenNameLookup;
-import org.neo4j.kernel.impl.core.TokenHolders;
-import org.neo4j.kernel.impl.index.labelscan.NativeLabelScanStore;
+import org.neo4j.internal.helpers.collection.BoundedIterable;
+import org.neo4j.internal.helpers.collection.Iterables;
+import org.neo4j.internal.helpers.progress.ProgressMonitorFactory;
+import org.neo4j.internal.index.label.LabelScanStore;
+import org.neo4j.internal.index.label.NativeLabelScanStore;
+import org.neo4j.internal.recordstorage.SchemaRuleAccess;
+import org.neo4j.internal.recordstorage.StoreTokens;
+import org.neo4j.internal.schema.IndexDescriptor;
 import org.neo4j.kernel.impl.store.RecordStore;
 import org.neo4j.kernel.impl.store.Scanner;
-import org.neo4j.kernel.impl.store.SchemaStorage;
 import org.neo4j.kernel.impl.store.StoreAccess;
 import org.neo4j.kernel.impl.store.record.AbstractBaseRecord;
-import org.neo4j.storageengine.api.EntityType;
-import org.neo4j.storageengine.api.schema.StoreIndexDescriptor;
+import org.neo4j.token.NonTransactionalTokenNameLookup;
+import org.neo4j.token.TokenHolders;
 
 import static java.lang.String.format;
 import static org.neo4j.consistency.checking.full.MultiPassStore.ARRAYS;
@@ -75,7 +76,6 @@ public class ConsistencyCheckTasks
     private final StoreProcessor defaultProcessor;
     private final StoreAccess nativeStores;
     private final Statistics statistics;
-    private final TokenHolders tokenHolders;
     private final MultiPassStore.Factory multiPass;
     private final ConsistencyReporter reporter;
     private final LabelScanStore labelScanStore;
@@ -86,14 +86,13 @@ public class ConsistencyCheckTasks
     ConsistencyCheckTasks( ProgressMonitorFactory.MultiPartBuilder multiPartBuilder,
             StoreProcessor defaultProcessor, StoreAccess nativeStores, Statistics statistics,
             CacheAccess cacheAccess, LabelScanStore labelScanStore,
-            IndexAccessors indexes, TokenHolders tokenHolders, MultiPassStore.Factory multiPass, ConsistencyReporter reporter, int numberOfThreads )
+            IndexAccessors indexes, MultiPassStore.Factory multiPass, ConsistencyReporter reporter, int numberOfThreads )
     {
         this.multiPartBuilder = multiPartBuilder;
         this.defaultProcessor = defaultProcessor;
         this.nativeStores = nativeStores;
         this.statistics = statistics;
         this.cacheAccess = cacheAccess;
-        this.tokenHolders = tokenHolders;
         this.multiPass = multiPass;
         this.reporter = reporter;
         this.labelScanStore = labelScanStore;
@@ -158,7 +157,7 @@ public class ConsistencyCheckTasks
                     new IterableStore<>( nativeStores.getPropertyStore(), true ) ) );
 
             // Checking that relationships are in their expected relationship indexes.
-            List<StoreIndexDescriptor> relationshipIndexes = Iterables.stream( indexes.onlineRules() )
+            List<IndexDescriptor> relationshipIndexes = Iterables.stream( indexes.onlineRules() )
                     .filter( rule -> rule.schema().entityType() == EntityType.RELATIONSHIP )
                     .collect( Collectors.toList() );
             if ( checkIndexes && !relationshipIndexes.isEmpty() )
@@ -181,8 +180,9 @@ public class ConsistencyCheckTasks
         // PASS 1: Dynamic record chains
         tasks.add( create( "SchemaStore", nativeStores.getSchemaStore(), ROUND_ROBIN ) );
         // PASS 2: Rule integrity and obligation build up
+        TokenHolders tokenHolders = StoreTokens.readOnlyTokenHolders( nativeStores.getRawNeoStores() );
         final SchemaRecordCheck schemaCheck =
-                new SchemaRecordCheck( new SchemaStorage( nativeStores.getSchemaStore() ), indexes );
+                new SchemaRecordCheck( SchemaRuleAccess.getSchemaRuleAccess( nativeStores.getSchemaStore(), tokenHolders ), indexes );
         tasks.add( new SchemaStoreProcessorTask<>( "SchemaStoreProcessor-check_rules", statistics, numberOfThreads,
                 nativeStores.getSchemaStore(), nativeStores, "check_rules",
                 schemaCheck, multiPartBuilder, cacheAccess, defaultProcessor, ROUND_ROBIN ) );
@@ -216,7 +216,7 @@ public class ConsistencyCheckTasks
         {
             tasks.add( new IndexDirtyCheckTask() );
             TokenNameLookup tokenNameLookup = new NonTransactionalTokenNameLookup( tokenHolders, true /*include token ids too*/ );
-            for ( StoreIndexDescriptor indexRule : indexes.onlineRules() )
+            for ( IndexDescriptor indexRule : indexes.onlineRules() )
             {
                 tasks.add( recordScanner( format( "Index_%d", indexRule.getId() ),
                         new IndexIterator( indexes.accessorFor( indexRule ) ),
@@ -265,7 +265,7 @@ public class ConsistencyCheckTasks
         {
             if ( labelScanStore instanceof NativeLabelScanStore )
             {
-                if ( ((NativeLabelScanStore)labelScanStore).isDirty() )
+                if ( labelScanStore.isDirty() )
                 {
                     reporter.report( new LabelScanIndex( labelScanStore.getLabelScanStoreFile() ), ConsistencyReport.LabelScanConsistencyReport.class,
                             RecordType.LABEL_SCAN_DOCUMENT ).dirtyIndex();
@@ -284,7 +284,7 @@ public class ConsistencyCheckTasks
         @Override
         public void run()
         {
-            for ( StoreIndexDescriptor indexRule : indexes.onlineRules() )
+            for ( IndexDescriptor indexRule : indexes.onlineRules() )
             {
                 if ( indexes.accessorFor( indexRule ).isDirty() )
                 {
@@ -292,7 +292,6 @@ public class ConsistencyCheckTasks
                             RecordType.INDEX ).dirtyIndex();
                 }
             }
-
         }
     }
 }

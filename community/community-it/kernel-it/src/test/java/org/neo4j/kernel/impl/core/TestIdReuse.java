@@ -22,72 +22,83 @@
  */
 package org.neo4j.kernel.impl.core;
 
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.File;
 
+import org.neo4j.dbms.api.DatabaseManagementService;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Transaction;
-import org.neo4j.test.TestGraphDatabaseFactory;
-import org.neo4j.test.rule.fs.EphemeralFileSystemRule;
+import org.neo4j.io.fs.EphemeralFileSystemAbstraction;
+import org.neo4j.io.layout.DatabaseLayout;
+import org.neo4j.test.TestDatabaseManagementServiceBuilder;
+import org.neo4j.test.extension.EphemeralNeo4jLayoutExtension;
+import org.neo4j.test.extension.Inject;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
 
-public class TestIdReuse
+@EphemeralNeo4jLayoutExtension
+class TestIdReuse
 {
+    @Inject
+    private EphemeralFileSystemAbstraction fileSystem;
+    @Inject
+    private DatabaseLayout databaseLayout;
+
     @Test
-    public void makeSureIdsGetsReusedForPropertyStore()
+    void makeSureIdsGetsReusedForPropertyStore()
     {
-        makeSureIdsGetsReused( "neostore.propertystore.db", 10, 200 );
+        makeSureIdsGetsReused( databaseLayout.propertyStore(), 10, 200 );
     }
 
     @Test
-    public void makeSureIdsGetsReusedForArrayStore()
+    void makeSureIdsGetsReusedForArrayStore()
     {
         long[] array = new long[500];
         for ( int i = 0; i < array.length; i++ )
         {
             array[i] = 0xFFFFFFFFFFFFL + i;
         }
-        makeSureIdsGetsReused( "neostore.propertystore.db.arrays", array, 20 );
+        makeSureIdsGetsReused( databaseLayout.propertyArrayStore(), array, 20 );
     }
 
     @Test
-    public void makeSureIdsGetsReusedForStringStore()
+    void makeSureIdsGetsReusedForStringStore()
     {
         String string = "something";
         for ( int i = 0; i < 100; i++ )
         {
             string += "something else " + i;
         }
-        makeSureIdsGetsReused( "neostore.propertystore.db.strings", string, 20 );
+        makeSureIdsGetsReused( databaseLayout.propertyStringStore(), string, 20 );
     }
 
-    @Rule
-    public EphemeralFileSystemRule fs = new EphemeralFileSystemRule();
-
-    private void makeSureIdsGetsReused( String fileName, Object value, int iterations )
+    private void makeSureIdsGetsReused( File storeFile, Object value, int iterations )
     {
-        File storeDir = new File( "target/var/idreuse" );
-        File file = new File( storeDir, fileName );
-        GraphDatabaseService db = new TestGraphDatabaseFactory().setFileSystem( fs.get() ).
-            newImpermanentDatabaseBuilder( storeDir ).
-            newGraphDatabase();
+        DatabaseManagementService managementService = new TestDatabaseManagementServiceBuilder( databaseLayout )
+                .setFileSystem( fileSystem )
+                .impermanent()
+                .build();
+        GraphDatabaseService db = managementService.database( DEFAULT_DATABASE_NAME );
         for ( int i = 0; i < 5; i++ )
         {
             setAndRemoveSomeProperties( db, value );
         }
-        db.shutdown();
-        long sizeBefore = file.length();
-        db = new TestGraphDatabaseFactory().setFileSystem( fs.get() ).newImpermanentDatabase( storeDir );
+        managementService.shutdown();
+        long sizeBefore = storeFile.length();
+        DatabaseManagementService impermanentManagement = new TestDatabaseManagementServiceBuilder( databaseLayout )
+                .setFileSystem( fileSystem )
+                .impermanent()
+                .build();
+        db = impermanentManagement.database( DEFAULT_DATABASE_NAME );
         for ( int i = 0; i < iterations; i++ )
         {
             setAndRemoveSomeProperties( db, value );
         }
-        db.shutdown();
-        assertEquals( sizeBefore, file.length() );
+        impermanentManagement.shutdown();
+        assertEquals( sizeBefore, storeFile.length() );
     }
 
     private void setAndRemoveSomeProperties( GraphDatabaseService graphDatabaseService, Object value )
@@ -95,21 +106,22 @@ public class TestIdReuse
         Node commonNode;
         try ( Transaction transaction = graphDatabaseService.beginTx() )
         {
-            commonNode = graphDatabaseService.createNode();
+            commonNode = transaction.createNode();
             for ( int i = 0; i < 10; i++ )
             {
                 commonNode.setProperty( "key" + i, value );
             }
-            transaction.success();
+            transaction.commit();
         }
 
         try ( Transaction transaction = graphDatabaseService.beginTx() )
         {
+            var txNode = transaction.getNodeById( commonNode.getId() );
             for ( int i = 0; i < 10; i++ )
             {
-                commonNode.removeProperty( "key" + i );
+                txNode.removeProperty( "key" + i );
             }
-            transaction.success();
+            transaction.commit();
         }
     }
 }

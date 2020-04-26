@@ -23,36 +23,36 @@
 package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
 import org.mockito.Mockito._
-import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
-import org.neo4j.cypher.internal.v3_6.util.NameId._
-import org.neo4j.cypher.internal.v3_6.ast.semantics.SemanticTable
 import org.neo4j.cypher.internal.runtime.QueryContext
 import org.neo4j.cypher.internal.runtime.interpreted.{ImplicitDummyPos, QueryStateHelper}
-import org.neo4j.cypher.internal.v3_6.util.{LabelId, RelTypeId}
-import org.neo4j.cypher.internal.v3_6.expressions.{LabelName, RelTypeName}
+import org.neo4j.cypher.internal.v4_0.ast.semantics.SemanticTable
+import org.neo4j.cypher.internal.v4_0.expressions.{LabelName, RelTypeName}
+import org.neo4j.cypher.internal.v4_0.util.NameId._
+import org.neo4j.cypher.internal.v4_0.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.v4_0.util.{LabelId, RelTypeId}
 import org.neo4j.values.storable.Values.longValue
 
 class RelationshipCountFromCountStorePipeTest extends CypherFunSuite with ImplicitDummyPos {
 
   test("should return a count for relationships without a type or any labels") {
-    val pipe = RelationshipCountFromCountStorePipe("count(r)", None, LazyTypes.empty, None)()
+    val pipe = RelationshipCountFromCountStorePipe("count(r)", None, RelationshipTypes.empty, None)()
 
     val queryContext = mock[QueryContext]
     when(queryContext.relationshipCountByCountStore(WILDCARD, WILDCARD, WILDCARD)).thenReturn(42L)
     val queryState = QueryStateHelper.emptyWith(query = queryContext)
-    pipe.createResults(queryState).map(_("count(r)")).toSet should equal(Set(longValue(42L)))
+    pipe.createResults(queryState).map(_.getByName("count(r)")).toSet should equal(Set(longValue(42L)))
   }
 
   test("should return a count for relationships with a type but no labels") {
     implicit val table = new SemanticTable()
     table.resolvedRelTypeNames.put("X", RelTypeId(22))
 
-    val pipe = RelationshipCountFromCountStorePipe("count(r)", None, LazyTypes(Array(RelTypeName("X")(pos))), None)()
+    val pipe = RelationshipCountFromCountStorePipe("count(r)", None, RelationshipTypes(Array(RelTypeName("X")(pos))), None)()
 
     val queryContext = mock[QueryContext]
     when(queryContext.relationshipCountByCountStore(WILDCARD, 22, WILDCARD)).thenReturn(42L)
     val queryState = QueryStateHelper.emptyWith(query = queryContext)
-    pipe.createResults(queryState).map(_("count(r)")).toSet should equal(Set(longValue(42L)))
+    pipe.createResults(queryState).map(_.getByName("count(r)")).toSet should equal(Set(longValue(42L)))
   }
 
   test("should return a count for relationships with a type and start label") {
@@ -60,18 +60,18 @@ class RelationshipCountFromCountStorePipeTest extends CypherFunSuite with Implic
     table.resolvedRelTypeNames.put("X", RelTypeId(22))
     table.resolvedLabelNames.put("A", LabelId(12))
 
-    val pipe = RelationshipCountFromCountStorePipe("count(r)", Some(LazyLabel(LabelName("A") _)), LazyTypes(Array(RelTypeName("X")(pos))), None)()
+    val pipe = RelationshipCountFromCountStorePipe("count(r)", Some(LazyLabel(LabelName("A") _)), RelationshipTypes(Array(RelTypeName("X")(pos))), None)()
 
     val queryContext = mock[QueryContext]
     when(queryContext.relationshipCountByCountStore(12, 22, WILDCARD)).thenReturn(42L)
     val queryState = QueryStateHelper.emptyWith(query = queryContext)
-    pipe.createResults(queryState).map(_("count(r)")).toSet should equal(Set(longValue(42L)))
+    pipe.createResults(queryState).map(_.getByName("count(r)")).toSet should equal(Set(longValue(42L)))
   }
 
   test("should return zero if rel-type is missing") {
     implicit val table = new SemanticTable()
 
-    val pipe = RelationshipCountFromCountStorePipe("count(r)", None, new LazyTypes(Array("X")), Some(LazyLabel(LabelName("A") _)))()
+    val pipe = RelationshipCountFromCountStorePipe("count(r)", None, RelationshipTypes(Array("X")), Some(LazyLabel(LabelName("A") _)))()
 
     val mockedContext: QueryContext = mock[QueryContext]
     // try to guarantee that the mock won't be the reason for the exception
@@ -79,7 +79,7 @@ class RelationshipCountFromCountStorePipeTest extends CypherFunSuite with Implic
     when(mockedContext.getOptLabelId("A")).thenReturn(None)
     val queryState = QueryStateHelper.emptyWith(query = mockedContext)
 
-    pipe.createResults(queryState).map(_("count(r)")).toSet should equal(Set(longValue(0L)))
+    pipe.createResults(queryState).map(_.getByName("count(r)")).toSet should equal(Set(longValue(0L)))
   }
 
 }

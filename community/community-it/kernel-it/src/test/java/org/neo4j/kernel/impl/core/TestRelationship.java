@@ -22,7 +22,7 @@
  */
 package org.neo4j.kernel.impl.core;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -38,153 +38,224 @@ import org.neo4j.graphdb.RelationshipType;
 import org.neo4j.graphdb.ResourceIterable;
 import org.neo4j.graphdb.ResourceIterator;
 import org.neo4j.graphdb.Transaction;
-import org.neo4j.helpers.collection.Iterables;
+import org.neo4j.internal.helpers.collection.Iterables;
 import org.neo4j.kernel.impl.AbstractNeo4jTestCase;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 import static org.neo4j.graphdb.RelationshipType.withName;
+import static org.neo4j.internal.helpers.collection.Iterables.addAll;
 import static org.neo4j.kernel.impl.MyRelTypes.TEST;
 import static org.neo4j.kernel.impl.MyRelTypes.TEST2;
 import static org.neo4j.kernel.impl.MyRelTypes.TEST_TRAVERSAL;
 
-public class TestRelationship extends AbstractNeo4jTestCase
+class TestRelationship extends AbstractNeo4jTestCase
 {
-    private final String key1 = "key1";
-    private final String key2 = "key2";
-    private final String key3 = "key3";
+    private static final String key1 = "key1";
+    private static final String key2 = "key2";
+    private static final String key3 = "key3";
 
     @Test
-    public void testSimple()
+    void testSimple()
     {
-        Node node1 = getGraphDb().createNode();
-        Node node2 = getGraphDb().createNode();
-        Relationship rel1 = node1.createRelationshipTo( node2, TEST );
-        node1.createRelationshipTo( node2, TEST );
-        rel1.delete();
-        newTransaction();
-        assertHasNext( (ResourceIterable<Relationship>) node1.getRelationships() );
-        assertHasNext( (ResourceIterable<Relationship>) node2.getRelationships() );
-        assertHasNext( (ResourceIterable<Relationship>) node1.getRelationships( TEST ) );
-        assertHasNext( (ResourceIterable<Relationship>) node2.getRelationships( TEST ) );
-        assertHasNext( (ResourceIterable<Relationship>) node1.getRelationships( TEST, Direction.OUTGOING ) );
-        assertHasNext( (ResourceIterable<Relationship>) node2.getRelationships( TEST, Direction.INCOMING ) );
+        Node node1 = createNode();
+        Node node2 = createNode();
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            node1 = transaction.getNodeById( node1.getId() );
+            node2 = transaction.getNodeById( node2.getId() );
+            Relationship rel1 = node1.createRelationshipTo( node2, TEST );
+            node1.createRelationshipTo( node2, TEST );
+            rel1.delete();
+            transaction.commit();
+        }
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            node1 = transaction.getNodeById( node1.getId() );
+            node2 = transaction.getNodeById( node2.getId() );
+
+            assertHasNext( (ResourceIterable<Relationship>) node1.getRelationships() );
+            assertHasNext( (ResourceIterable<Relationship>) node2.getRelationships() );
+            assertHasNext( (ResourceIterable<Relationship>) node1.getRelationships( TEST ) );
+            assertHasNext( (ResourceIterable<Relationship>) node2.getRelationships( TEST ) );
+            assertHasNext( (ResourceIterable<Relationship>) node1.getRelationships( Direction.OUTGOING, TEST ) );
+            assertHasNext( (ResourceIterable<Relationship>) node2.getRelationships( Direction.INCOMING, TEST ) );
+            transaction.commit();
+        }
     }
 
     @Test
-    public void testSimple2()
+    void testSimple2()
     {
-        Node node1 = getGraphDb().createNode();
-        Node node2 = getGraphDb().createNode();
-        for ( int i = 0; i < 3; i++ )
+        Node node1 = createNode();
+        Node node2 = createNode();
+        try ( Transaction transaction = getGraphDb().beginTx() )
         {
-            node1.createRelationshipTo( node2, TEST );
-            node1.createRelationshipTo( node2, TEST_TRAVERSAL );
-            node1.createRelationshipTo( node2, TEST2 );
-        }
-        allGetRelationshipMethods( node1, Direction.OUTGOING );
-        allGetRelationshipMethods( node2, Direction.INCOMING );
-        newTransaction();
-        allGetRelationshipMethods( node1, Direction.OUTGOING );
-        allGetRelationshipMethods( node2, Direction.INCOMING );
-        deleteFirst( (ResourceIterable<Relationship>) node1.getRelationships( TEST, Direction.OUTGOING ) );
-        deleteFirst( (ResourceIterable<Relationship>) node1.getRelationships( TEST_TRAVERSAL, Direction.OUTGOING ) );
-        deleteFirst( (ResourceIterable<Relationship>) node1.getRelationships( TEST2, Direction.OUTGOING ) );
-        node1.createRelationshipTo( node2, TEST );
-        node1.createRelationshipTo( node2, TEST_TRAVERSAL );
-        node1.createRelationshipTo( node2, TEST2 );
-        allGetRelationshipMethods( node1, Direction.OUTGOING );
-        allGetRelationshipMethods( node2, Direction.INCOMING );
-        newTransaction();
-        allGetRelationshipMethods( node1, Direction.OUTGOING );
-        allGetRelationshipMethods( node2, Direction.INCOMING );
-        for ( Relationship rel : node1.getRelationships() )
-        {
-            rel.delete();
-        }
-        node1.delete();
-        node2.delete();
-    }
+            node1 = transaction.getNodeById( node1.getId() );
+            node2 = transaction.getNodeById( node2.getId() );
 
-    @Test
-    public void testSimple3()
-    {
-        Node node1 = getGraphDb().createNode();
-        Node node2 = getGraphDb().createNode();
-        for ( int i = 0; i < 1; i++ )
-        {
-            node1.createRelationshipTo( node2, TEST );
-            node1.createRelationshipTo( node2, TEST_TRAVERSAL );
-            node1.createRelationshipTo( node2, TEST2 );
+            for ( int i = 0; i < 3; i++ )
+            {
+                node1.createRelationshipTo( node2, TEST );
+                node1.createRelationshipTo( node2, TEST_TRAVERSAL );
+                node1.createRelationshipTo( node2, TEST2 );
+            }
+            allGetRelationshipMethods( node1, Direction.OUTGOING );
+            allGetRelationshipMethods( node2, Direction.INCOMING );
+            transaction.commit();
         }
-        allGetRelationshipMethods2( node1, Direction.OUTGOING );
-        allGetRelationshipMethods2( node2, Direction.INCOMING );
-        newTransaction();
-        allGetRelationshipMethods2( node1, Direction.OUTGOING );
-        allGetRelationshipMethods2( node2, Direction.INCOMING );
-        deleteFirst( (ResourceIterable<Relationship>) node1.getRelationships( TEST, Direction.OUTGOING ) );
-        deleteFirst( (ResourceIterable<Relationship>) node1.getRelationships( TEST_TRAVERSAL, Direction.OUTGOING ) );
-        deleteFirst( (ResourceIterable<Relationship>) node1.getRelationships( TEST2, Direction.OUTGOING ) );
-        node1.createRelationshipTo( node2, TEST );
-        node1.createRelationshipTo( node2, TEST_TRAVERSAL );
-        node1.createRelationshipTo( node2, TEST2 );
-        allGetRelationshipMethods2( node1, Direction.OUTGOING );
-        allGetRelationshipMethods2( node2, Direction.INCOMING );
-        newTransaction();
-        allGetRelationshipMethods2( node1, Direction.OUTGOING );
-        allGetRelationshipMethods2( node2, Direction.INCOMING );
-        for ( Relationship rel : node1.getRelationships() )
+        try ( Transaction transaction = getGraphDb().beginTx() )
         {
-            rel.delete();
-        }
-        node1.delete();
-        node2.delete();
-    }
+            node1 = transaction.getNodeById( node1.getId() );
+            node2 = transaction.getNodeById( node2.getId() );
 
-    @Test
-    public void testSimple4()
-    {
-        Node node1 = getGraphDb().createNode();
-        Node node2 = getGraphDb().createNode();
-        for ( int i = 0; i < 2; i++ )
-        {
+            allGetRelationshipMethods( node1, Direction.OUTGOING );
+            allGetRelationshipMethods( node2, Direction.INCOMING );
+            deleteFirst( (ResourceIterable<Relationship>) node1.getRelationships( Direction.OUTGOING, TEST ) );
+            deleteFirst( (ResourceIterable<Relationship>) node1.getRelationships( Direction.OUTGOING, TEST_TRAVERSAL ) );
+            deleteFirst( (ResourceIterable<Relationship>) node1.getRelationships( Direction.OUTGOING, TEST2 ) );
             node1.createRelationshipTo( node2, TEST );
             node1.createRelationshipTo( node2, TEST_TRAVERSAL );
             node1.createRelationshipTo( node2, TEST2 );
+            allGetRelationshipMethods( node1, Direction.OUTGOING );
+            allGetRelationshipMethods( node2, Direction.INCOMING );
+            transaction.commit();
         }
-        allGetRelationshipMethods3( node1, Direction.OUTGOING );
-        allGetRelationshipMethods3( node2, Direction.INCOMING );
-        newTransaction();
-        allGetRelationshipMethods3( node1, Direction.OUTGOING );
-        allGetRelationshipMethods3( node2, Direction.INCOMING );
-        deleteFirst( (ResourceIterable<Relationship>) node1.getRelationships( TEST, Direction.OUTGOING ) );
-        int count = 0;
-        for ( Relationship rel : node1.getRelationships( TEST_TRAVERSAL, Direction.OUTGOING ) )
+        try ( Transaction transaction = getGraphDb().beginTx() )
         {
-            if ( count == 1 )
+            node1 = transaction.getNodeById( node1.getId() );
+            node2 = transaction.getNodeById( node2.getId() );
+
+            allGetRelationshipMethods( node1, Direction.OUTGOING );
+            allGetRelationshipMethods( node2, Direction.INCOMING );
+            for ( Relationship rel : node1.getRelationships() )
             {
                 rel.delete();
             }
-            count++;
+            node1.delete();
+            node2.delete();
+            transaction.commit();
         }
-        deleteFirst( (ResourceIterable<Relationship>) node1.getRelationships( TEST2, Direction.OUTGOING ) );
-        node1.createRelationshipTo( node2, TEST );
-        node1.createRelationshipTo( node2, TEST_TRAVERSAL );
-        node1.createRelationshipTo( node2, TEST2 );
-        allGetRelationshipMethods3( node1, Direction.OUTGOING );
-        allGetRelationshipMethods3( node2, Direction.INCOMING );
-        newTransaction();
-        allGetRelationshipMethods3( node1, Direction.OUTGOING );
-        allGetRelationshipMethods3( node2, Direction.INCOMING );
-        for ( Relationship rel : node1.getRelationships() )
+    }
+
+    @Test
+    void testSimple3()
+    {
+        Node node1 = createNode();
+        Node node2 = createNode();
+        try ( Transaction transaction = getGraphDb().beginTx() )
         {
-            rel.delete();
+            node1 = transaction.getNodeById( node1.getId() );
+            node2 = transaction.getNodeById( node2.getId() );
+
+            for ( int i = 0; i < 1; i++ )
+            {
+                node1.createRelationshipTo( node2, TEST );
+                node1.createRelationshipTo( node2, TEST_TRAVERSAL );
+                node1.createRelationshipTo( node2, TEST2 );
+            }
+            allGetRelationshipMethods2( node1, Direction.OUTGOING );
+            allGetRelationshipMethods2( node2, Direction.INCOMING );
+            transaction.commit();
         }
-        node1.delete();
-        node2.delete();
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            node1 = transaction.getNodeById( node1.getId() );
+            node2 = transaction.getNodeById( node2.getId() );
+
+            allGetRelationshipMethods2( node1, Direction.OUTGOING );
+            allGetRelationshipMethods2( node2, Direction.INCOMING );
+            deleteFirst( (ResourceIterable<Relationship>) node1.getRelationships( Direction.OUTGOING, TEST ) );
+            deleteFirst( (ResourceIterable<Relationship>) node1.getRelationships( Direction.OUTGOING, TEST_TRAVERSAL ) );
+            deleteFirst( (ResourceIterable<Relationship>) node1.getRelationships( Direction.OUTGOING, TEST2 ) );
+            node1.createRelationshipTo( node2, TEST );
+            node1.createRelationshipTo( node2, TEST_TRAVERSAL );
+            node1.createRelationshipTo( node2, TEST2 );
+            allGetRelationshipMethods2( node1, Direction.OUTGOING );
+            allGetRelationshipMethods2( node2, Direction.INCOMING );
+            transaction.commit();
+        }
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            node1 = transaction.getNodeById( node1.getId() );
+            node2 = transaction.getNodeById( node2.getId() );
+
+            allGetRelationshipMethods2( node1, Direction.OUTGOING );
+            allGetRelationshipMethods2( node2, Direction.INCOMING );
+            for ( Relationship rel : node1.getRelationships() )
+            {
+                rel.delete();
+            }
+            node1.delete();
+            node2.delete();
+            transaction.commit();
+        }
+    }
+
+    @Test
+    void testSimple4()
+    {
+        Node node1 = createNode();
+        Node node2 = createNode();
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            node1 = transaction.getNodeById( node1.getId() );
+            node2 = transaction.getNodeById( node2.getId() );
+
+            for ( int i = 0; i < 2; i++ )
+            {
+                node1.createRelationshipTo( node2, TEST );
+                node1.createRelationshipTo( node2, TEST_TRAVERSAL );
+                node1.createRelationshipTo( node2, TEST2 );
+            }
+            allGetRelationshipMethods3( node1, Direction.OUTGOING );
+            allGetRelationshipMethods3( node2, Direction.INCOMING );
+            transaction.commit();
+        }
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            node1 = transaction.getNodeById( node1.getId() );
+            node2 = transaction.getNodeById( node2.getId() );
+
+            allGetRelationshipMethods3( node1, Direction.OUTGOING );
+            allGetRelationshipMethods3( node2, Direction.INCOMING );
+            deleteFirst( (ResourceIterable<Relationship>) node1.getRelationships( Direction.OUTGOING, TEST ) );
+            int count = 0;
+            for ( Relationship rel : node1.getRelationships( Direction.OUTGOING, TEST_TRAVERSAL ) )
+            {
+                if ( count == 1 )
+                {
+                    rel.delete();
+                }
+                count++;
+            }
+            deleteFirst( (ResourceIterable<Relationship>) node1.getRelationships( Direction.OUTGOING, TEST2 ) );
+            node1.createRelationshipTo( node2, TEST );
+            node1.createRelationshipTo( node2, TEST_TRAVERSAL );
+            node1.createRelationshipTo( node2, TEST2 );
+            allGetRelationshipMethods3( node1, Direction.OUTGOING );
+            allGetRelationshipMethods3( node2, Direction.INCOMING );
+            transaction.commit();
+        }
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            node1 = transaction.getNodeById( node1.getId() );
+            node2 = transaction.getNodeById( node2.getId() );
+
+            allGetRelationshipMethods3( node1, Direction.OUTGOING );
+            allGetRelationshipMethods3( node2, Direction.INCOMING );
+            for ( Relationship rel : node1.getRelationships() )
+            {
+                rel.delete();
+            }
+            node1.delete();
+            node2.delete();
+            transaction.commit();
+        }
     }
 
     private void allGetRelationshipMethods( Node node, Direction dir )
@@ -198,9 +269,9 @@ public class TestRelationship extends AbstractNeo4jTestCase
         countRelationships( 3, node.getRelationships( TEST ) );
         countRelationships( 3, node.getRelationships( TEST2 ) );
         countRelationships( 3, node.getRelationships( TEST_TRAVERSAL ) );
-        countRelationships( 3, node.getRelationships( TEST, dir ) );
-        countRelationships( 3, node.getRelationships( TEST2, dir ) );
-        countRelationships( 3, node.getRelationships( TEST_TRAVERSAL, dir ) );
+        countRelationships( 3, node.getRelationships( dir, TEST ) );
+        countRelationships( 3, node.getRelationships( dir, TEST2 ) );
+        countRelationships( 3, node.getRelationships( dir, TEST_TRAVERSAL ) );
     }
 
     private void allGetRelationshipMethods2( Node node, Direction dir )
@@ -214,9 +285,9 @@ public class TestRelationship extends AbstractNeo4jTestCase
         countRelationships( 1, node.getRelationships( TEST ) );
         countRelationships( 1, node.getRelationships( TEST2 ) );
         countRelationships( 1, node.getRelationships( TEST_TRAVERSAL ) );
-        countRelationships( 1, node.getRelationships( TEST, dir ) );
-        countRelationships( 1, node.getRelationships( TEST2, dir ) );
-        countRelationships( 1, node.getRelationships( TEST_TRAVERSAL, dir ) );
+        countRelationships( 1, node.getRelationships( dir, TEST ) );
+        countRelationships( 1, node.getRelationships( dir, TEST2 ) );
+        countRelationships( 1, node.getRelationships( dir, TEST_TRAVERSAL ) );
     }
 
     private void allGetRelationshipMethods3( Node node, Direction dir )
@@ -230,9 +301,9 @@ public class TestRelationship extends AbstractNeo4jTestCase
         countRelationships( 2, node.getRelationships( TEST ) );
         countRelationships( 2, node.getRelationships( TEST2 ) );
         countRelationships( 2, node.getRelationships( TEST_TRAVERSAL ) );
-        countRelationships( 2, node.getRelationships( TEST, dir ) );
-        countRelationships( 2, node.getRelationships( TEST2, dir ) );
-        countRelationships( 2, node.getRelationships( TEST_TRAVERSAL, dir ) );
+        countRelationships( 2, node.getRelationships( dir, TEST ) );
+        countRelationships( 2, node.getRelationships( dir, TEST2 ) );
+        countRelationships( 2, node.getRelationships( dir, TEST_TRAVERSAL ) );
     }
 
     private void countRelationships( int expectedCount, Iterable<Relationship> rels )
@@ -254,34 +325,41 @@ public class TestRelationship extends AbstractNeo4jTestCase
     }
 
     @Test
-    public void testRelationshipCreateAndDelete()
+    void testRelationshipCreateAndDelete()
     {
-        Node node1 = getGraphDb().createNode();
-        Node node2 = getGraphDb().createNode();
-        Relationship relationship = node1.createRelationshipTo( node2, TEST );
-        Relationship[] relArray1 = getRelationshipArray( node1.getRelationships() );
-        Relationship[] relArray2 = getRelationshipArray( node2.getRelationships() );
-        assertEquals( 1, relArray1.length );
-        assertEquals( relationship, relArray1[0] );
-        assertEquals( 1, relArray2.length );
-        assertEquals( relationship, relArray2[0] );
-        relArray1 = getRelationshipArray( node1.getRelationships( TEST ) );
-        assertEquals( 1, relArray1.length );
-        assertEquals( relationship, relArray1[0] );
-        relArray2 = getRelationshipArray( node2.getRelationships( TEST ) );
-        assertEquals( 1, relArray2.length );
-        assertEquals( relationship, relArray2[0] );
-        relArray1 = getRelationshipArray( node1.getRelationships( TEST, Direction.OUTGOING ) );
-        assertEquals( 1, relArray1.length );
-        relArray2 = getRelationshipArray( node2.getRelationships( TEST, Direction.INCOMING ) );
-        assertEquals( 1, relArray2.length );
-        relArray1 = getRelationshipArray( node1.getRelationships( TEST, Direction.INCOMING ) );
-        assertEquals( 0, relArray1.length );
-        relArray2 = getRelationshipArray( node2.getRelationships( TEST, Direction.OUTGOING ) );
-        assertEquals( 0, relArray2.length );
-        relationship.delete();
-        node2.delete();
-        node1.delete();
+        Node node1 = createNode();
+        Node node2 = createNode();
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            node1 = transaction.getNodeById( node1.getId() );
+            node2 = transaction.getNodeById( node2.getId() );
+
+            Relationship relationship = node1.createRelationshipTo( node2, TEST );
+            Relationship[] relArray1 = getRelationshipArray( node1.getRelationships() );
+            Relationship[] relArray2 = getRelationshipArray( node2.getRelationships() );
+            assertEquals( 1, relArray1.length );
+            assertEquals( relationship, relArray1[0] );
+            assertEquals( 1, relArray2.length );
+            assertEquals( relationship, relArray2[0] );
+            relArray1 = getRelationshipArray( node1.getRelationships( TEST ) );
+            assertEquals( 1, relArray1.length );
+            assertEquals( relationship, relArray1[0] );
+            relArray2 = getRelationshipArray( node2.getRelationships( TEST ) );
+            assertEquals( 1, relArray2.length );
+            assertEquals( relationship, relArray2[0] );
+            relArray1 = getRelationshipArray( node1.getRelationships( Direction.OUTGOING, TEST ) );
+            assertEquals( 1, relArray1.length );
+            relArray2 = getRelationshipArray( node2.getRelationships( Direction.INCOMING, TEST ) );
+            assertEquals( 1, relArray2.length );
+            relArray1 = getRelationshipArray( node1.getRelationships( Direction.INCOMING, TEST ) );
+            assertEquals( 0, relArray1.length );
+            relArray2 = getRelationshipArray( node2.getRelationships( Direction.OUTGOING, TEST ) );
+            assertEquals( 0, relArray2.length );
+            relationship.delete();
+            node2.delete();
+            node1.delete();
+            transaction.commit();
+        }
     }
 
     private Relationship[] getRelationshipArray( Iterable<Relationship> relsIterable )
@@ -291,722 +369,806 @@ public class TestRelationship extends AbstractNeo4jTestCase
         {
             relList.add( rel );
         }
-        return relList.toArray( new Relationship[relList.size()] );
+        return relList.toArray( new Relationship[0] );
     }
 
     @Test
-    public void testDeleteWithRelationship()
+    void testDeleteWithRelationship()
     {
         // do some evil stuff
-        Node node1 = getGraphDb().createNode();
-        Node node2 = getGraphDb().createNode();
-        node1.createRelationshipTo( node2, TEST );
-        node1.delete();
-        node2.delete();
-        try
+        Node node1 = createNode();
+        Node node2 = createNode();
+        try ( Transaction transaction = getGraphDb().beginTx() )
         {
-            getTransaction().success();
-            getTransaction().close();
-            fail( "deleting node with relationship should not commit." );
+            node1 = transaction.getNodeById( node1.getId() );
+            node2 = transaction.getNodeById( node2.getId() );
+
+            node1.createRelationshipTo( node2, TEST );
+            node1.delete();
+            node2.delete();
+            assertThrows( Exception.class, transaction::commit );
         }
-        catch ( Exception e )
-        {
-            // good
-        }
-        setTransaction( getGraphDb().beginTx() );
     }
 
     @Test
-    public void testDeletedRelationship()
+    void testDeletedRelationship()
     {
-        Node node1 = getGraphDb().createNode();
-        Node node2 = getGraphDb().createNode();
-        Relationship relationship = node1.createRelationshipTo( node2, TEST );
-        relationship.delete();
-        try
+        Node node1 = createNode();
+        Node node2 = createNode();
+        try ( Transaction transaction = getGraphDb().beginTx() )
         {
-            relationship.setProperty( "key1", 1 );
-            fail( "Adding property to deleted rel should throw exception." );
+            node1 = transaction.getNodeById( node1.getId() );
+            node2 = transaction.getNodeById( node2.getId() );
+            Relationship relationship = node1.createRelationshipTo( node2, TEST );
+            relationship.delete();
+            assertThrows( Exception.class, () -> relationship.setProperty( "key1", 1 ) );
+            node1.delete();
+            node2.delete();
+            transaction.commit();
         }
-        catch ( Exception e )
-        { // good
-        }
-        node1.delete();
-        node2.delete();
     }
 
     @Test
-    public void testRelationshipAddPropertyWithNullKey()
+    void testRelationshipAddPropertyWithNullKey()
     {
-        Node node1 = getGraphDb().createNode();
-        Node node2 = getGraphDb().createNode();
-        Relationship rel1 = node1.createRelationshipTo( node2, TEST );
-
-        try
+        Node node1 = createNode();
+        Node node2 = createNode();
+        try ( Transaction transaction = getGraphDb().beginTx() )
         {
-            rel1.setProperty( null, "bar" );
-            fail( "Null key should result in exception." );
+            node1 = transaction.getNodeById( node1.getId() );
+            Relationship rel1 = node1.createRelationshipTo( node2, TEST );
+            assertThrows( Exception.class, () -> rel1.setProperty( null, "bar" ) );
+            transaction.commit();
         }
-        catch ( IllegalArgumentException e )
-        {   // OK
-        }
-
     }
 
     @Test
-    public void testRelationshipAddPropertyWithNullValue()
+    void testRelationshipAddPropertyWithNullValue()
     {
-        Node node1 = getGraphDb().createNode();
-        Node node2 = getGraphDb().createNode();
-        Relationship rel1 = node1.createRelationshipTo( node2, TEST );
-
-        try
+        Node node1 = createNode();
+        Node node2 = createNode();
+        try ( Transaction transaction = getGraphDb().beginTx() )
         {
-            rel1.setProperty( "foo", null );
-            fail( "Null value should result in exception." );
-        }
-        catch ( IllegalArgumentException e )
-        {   // OK
-        }
+            node1 = transaction.getNodeById( node1.getId() );
 
-        getTransaction().failure();
+            Relationship rel1 = node1.createRelationshipTo( node2, TEST );
+            assertThrows( Exception.class, () -> rel1.setProperty( "foo", null ) );
+        }
     }
 
     @Test
-    public void testRelationshipAddProperty()
+    void testRelationshipAddProperty()
     {
-        Node node1 = getGraphDb().createNode();
-        Node node2 = getGraphDb().createNode();
-        Relationship rel1 = node1.createRelationshipTo( node2, TEST );
-        Relationship rel2 = node2.createRelationshipTo( node1, TEST );
+        Node node1 = createNode();
+        Node node2 = createNode();
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            node1 = transaction.getNodeById( node1.getId() );
+            node2 = transaction.getNodeById( node2.getId() );
 
-        Integer int1 = 1;
-        Integer int2 = 2;
-        String string1 = "1";
-        String string2 = "2";
+            Relationship rel1 = node1.createRelationshipTo( node2, TEST );
+            Relationship rel2 = node2.createRelationshipTo( node1, TEST );
 
-        // add property
-        rel1.setProperty( key1, int1 );
-        rel2.setProperty( key1, string1 );
-        rel1.setProperty( key2, string2 );
-        rel2.setProperty( key2, int2 );
-        assertTrue( rel1.hasProperty( key1 ) );
-        assertTrue( rel2.hasProperty( key1 ) );
-        assertTrue( rel1.hasProperty( key2 ) );
-        assertTrue( rel2.hasProperty( key2 ) );
-        assertTrue( !rel1.hasProperty( key3 ) );
-        assertTrue( !rel2.hasProperty( key3 ) );
-        assertEquals( int1, rel1.getProperty( key1 ) );
-        assertEquals( string1, rel2.getProperty( key1 ) );
-        assertEquals( string2, rel1.getProperty( key2 ) );
-        assertEquals( int2, rel2.getProperty( key2 ) );
+            Integer int1 = 1;
+            Integer int2 = 2;
+            String string1 = "1";
+            String string2 = "2";
 
-        getTransaction().failure();
+            // add property
+            rel1.setProperty( key1, int1 );
+            rel2.setProperty( key1, string1 );
+            rel1.setProperty( key2, string2 );
+            rel2.setProperty( key2, int2 );
+            assertTrue( rel1.hasProperty( key1 ) );
+            assertTrue( rel2.hasProperty( key1 ) );
+            assertTrue( rel1.hasProperty( key2 ) );
+            assertTrue( rel2.hasProperty( key2 ) );
+            assertFalse( rel1.hasProperty( key3 ) );
+            assertFalse( rel2.hasProperty( key3 ) );
+            assertEquals( int1, rel1.getProperty( key1 ) );
+            assertEquals( string1, rel2.getProperty( key1 ) );
+            assertEquals( string2, rel1.getProperty( key2 ) );
+            assertEquals( int2, rel2.getProperty( key2 ) );
+        }
     }
 
     @Test
-    public void testRelationshipRemoveProperty()
+    void testRelationshipRemoveProperty()
     {
         Integer int1 = 1;
         Integer int2 = 2;
         String string1 = "1";
         String string2 = "2";
 
-        Node node1 = getGraphDb().createNode();
-        Node node2 = getGraphDb().createNode();
-        Relationship rel1 = node1.createRelationshipTo( node2, TEST );
-        Relationship rel2 = node2.createRelationshipTo( node1, TEST );
-        // verify that we can rely on PL to remove non existing properties
-        try
+        Node node1 = createNode();
+        Node node2 = createNode();
+        try ( Transaction transaction = getGraphDb().beginTx() )
         {
+            node1 = transaction.getNodeById( node1.getId() );
+            node2 = transaction.getNodeById( node2.getId() );
+
+            Relationship rel1 = node1.createRelationshipTo( node2, TEST );
+            Relationship rel2 = node2.createRelationshipTo( node1, TEST );
+            // verify that we can rely on PL to remove non existing properties
             if ( rel1.removeProperty( key1 ) != null )
             {
                 fail( "Remove of non existing property should return null" );
             }
-        }
-        catch ( NotFoundException e )
-        {   // OK
-        }
-        try
-        {
-            rel1.removeProperty( null );
-            fail( "Remove null property should throw exception." );
-        }
-        catch ( IllegalArgumentException e )
-        {   // OK
-        }
 
-        rel1.setProperty( key1, int1 );
-        rel2.setProperty( key1, string1 );
-        rel1.setProperty( key2, string2 );
-        rel2.setProperty( key2, int2 );
-        try
-        {
-            rel1.removeProperty( null );
-            fail( "Null argument should result in exception." );
-        }
-        catch ( IllegalArgumentException e )
-        {   // OK
-        }
+            assertThrows( IllegalArgumentException.class, () -> rel1.removeProperty( null ) );
 
-        // test remove property
-        assertEquals( int1, rel1.removeProperty( key1 ) );
-        assertEquals( string1, rel2.removeProperty( key1 ) );
-        // test remove of non existing property
-        try
-        {
+            rel1.setProperty( key1, int1 );
+            rel2.setProperty( key1, string1 );
+            rel1.setProperty( key2, string2 );
+            rel2.setProperty( key2, int2 );
+            assertThrows( IllegalArgumentException.class, () -> rel1.removeProperty( null ) );
+
+            // test remove property
+            assertEquals( int1, rel1.removeProperty( key1 ) );
+            assertEquals( string1, rel2.removeProperty( key1 ) );
+            // test remove of non existing property
             if ( rel2.removeProperty( key1 ) != null )
             {
                 fail( "Remove of non existing property should return null" );
             }
+
+            rel1.delete();
+            rel2.delete();
+            node1.delete();
+            node2.delete();
+            transaction.commit();
         }
-        catch ( NotFoundException e )
-        {
-            // have to set rollback only here
-            getTransaction().failure();
-        }
-        rel1.delete();
-        rel2.delete();
-        node1.delete();
-        node2.delete();
     }
 
     @Test
-    public void testRelationshipChangeProperty()
+    void testRelationshipChangeProperty()
     {
         Integer int1 = 1;
         Integer int2 = 2;
         String string1 = "1";
         String string2 = "2";
 
-        Node node1 = getGraphDb().createNode();
-        Node node2 = getGraphDb().createNode();
-        Relationship rel1 = node1.createRelationshipTo( node2, TEST );
-        Relationship rel2 = node2.createRelationshipTo( node1, TEST );
-        rel1.setProperty( key1, int1 );
-        rel2.setProperty( key1, string1 );
-        rel1.setProperty( key2, string2 );
-        rel2.setProperty( key2, int2 );
-
-        try
+        Node node1 = createNode();
+        Node node2 = createNode();
+        try ( Transaction transaction = getGraphDb().beginTx() )
         {
-            rel1.setProperty( null, null );
-            fail( "Null argument should result in exception." );
-        }
-        catch ( IllegalArgumentException e )
-        {   // OK
-        }
-        catch ( NotFoundException e )
-        {
-            fail( "wrong exception" );
-        }
+            node1 = transaction.getNodeById( node1.getId() );
+            node2 = transaction.getNodeById( node2.getId() );
 
-        // test type change of existing property
-        // cannot test this for now because of exceptions in PL
-        rel2.setProperty( key1, int1 );
+            Relationship rel1 = node1.createRelationshipTo( node2, TEST );
+            Relationship rel2 = node2.createRelationshipTo( node1, TEST );
+            rel1.setProperty( key1, int1 );
+            rel2.setProperty( key1, string1 );
+            rel1.setProperty( key2, string2 );
+            rel2.setProperty( key2, int2 );
 
-        rel1.delete();
-        rel2.delete();
-        node2.delete();
-        node1.delete();
+            assertThrows( IllegalArgumentException.class, () -> rel1.setProperty( null, null ) );
+
+            // test type change of existing property
+            // cannot test this for now because of exceptions in PL
+            rel2.setProperty( key1, int1 );
+
+            rel1.delete();
+            rel2.delete();
+            node2.delete();
+            node1.delete();
+            transaction.commit();
+        }
     }
 
     @Test
-    public void testRelationshipChangeProperty2()
+    void testRelationshipChangeProperty2()
     {
         Integer int1 = 1;
         Integer int2 = 2;
         String string1 = "1";
         String string2 = "2";
 
-        Node node1 = getGraphDb().createNode();
-        Node node2 = getGraphDb().createNode();
-        Relationship rel1 = node1.createRelationshipTo( node2, TEST );
-        rel1.setProperty( key1, int1 );
-        rel1.setProperty( key1, int2 );
-        assertEquals( int2, rel1.getProperty( key1 ) );
-        rel1.removeProperty( key1 );
-        rel1.setProperty( key1, string1 );
-        rel1.setProperty( key1, string2 );
-        assertEquals( string2, rel1.getProperty( key1 ) );
-        rel1.removeProperty( key1 );
-        rel1.setProperty( key1, true );
-        rel1.setProperty( key1, false );
-        assertEquals( false, rel1.getProperty( key1 ) );
-        rel1.removeProperty( key1 );
+        Node node1 = createNode();
+        Node node2 = createNode();
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            node1 = transaction.getNodeById( node1.getId() );
+            node2 = transaction.getNodeById( node2.getId() );
+            Relationship rel1 = node1.createRelationshipTo( node2, TEST );
+            rel1.setProperty( key1, int1 );
+            rel1.setProperty( key1, int2 );
+            assertEquals( int2, rel1.getProperty( key1 ) );
+            rel1.removeProperty( key1 );
+            rel1.setProperty( key1, string1 );
+            rel1.setProperty( key1, string2 );
+            assertEquals( string2, rel1.getProperty( key1 ) );
+            rel1.removeProperty( key1 );
+            rel1.setProperty( key1, true );
+            rel1.setProperty( key1, false );
+            assertEquals( false, rel1.getProperty( key1 ) );
+            rel1.removeProperty( key1 );
 
-        rel1.delete();
-        node2.delete();
-        node1.delete();
+            rel1.delete();
+            node2.delete();
+            node1.delete();
+            transaction.commit();
+        }
     }
 
     @Test
-    public void testRelGetProperties()
+    void testRelGetProperties()
     {
         Integer int1 = 1;
         Integer int2 = 2;
         String string = "3";
 
-        Node node1 = getGraphDb().createNode();
-        Node node2 = getGraphDb().createNode();
-        Relationship rel1 = node1.createRelationshipTo( node2, TEST );
-        try
+        Node node = createNode();
+        Node node2 = createNode();
+        try ( Transaction transaction = getGraphDb().beginTx() )
         {
-            rel1.getProperty( key1 );
-            fail( "get non existing property didn't throw exception" );
-        }
-        catch ( NotFoundException e )
-        {   // OK
-        }
-        try
-        {
-            rel1.getProperty( null );
-            fail( "get of null key didn't throw exception" );
-        }
-        catch ( IllegalArgumentException e )
-        {   // OK
-        }
-        assertTrue( !rel1.hasProperty( key1 ) );
-        assertTrue( !rel1.hasProperty( null ) );
-        rel1.setProperty( key1, int1 );
-        rel1.setProperty( key2, int2 );
-        rel1.setProperty( key3, string );
-        assertTrue( rel1.hasProperty( key1 ) );
-        assertTrue( rel1.hasProperty( key2 ) );
-        assertTrue( rel1.hasProperty( key3 ) );
+            var node1 = transaction.getNodeById( node.getId() );
+            node2 = transaction.getNodeById( node2.getId() );
 
-        Map<String,Object> properties = rel1.getAllProperties();
-        assertEquals( properties.get( key1 ), int1 );
-        assertEquals( properties.get( key2 ), int2 );
-        assertEquals( properties.get( key3 ), string );
-        properties = rel1.getProperties( key1, key2 );
-        assertEquals( properties.get( key1 ), int1 );
-        assertEquals( properties.get( key2 ), int2 );
-        assertFalse( properties.containsKey( key3 ) );
+            Relationship rel1 = node1.createRelationshipTo( node2, TEST );
+            assertThrows( NotFoundException.class, () -> rel1.getProperty( key1 ) );
+            assertThrows( IllegalArgumentException.class, () -> rel1.getProperty( null ) );
 
-        properties = node1.getProperties();
-        assertTrue( properties.isEmpty() );
+            assertFalse( rel1.hasProperty( key1 ) );
+            assertFalse( rel1.hasProperty( null ) );
+            rel1.setProperty( key1, int1 );
+            rel1.setProperty( key2, int2 );
+            rel1.setProperty( key3, string );
+            assertTrue( rel1.hasProperty( key1 ) );
+            assertTrue( rel1.hasProperty( key2 ) );
+            assertTrue( rel1.hasProperty( key3 ) );
 
-        try
-        {
-            node1.getProperties( (String[]) null );
-            fail();
-        }
-        catch ( NullPointerException e )
-        {
-            // Ok
-        }
+            Map<String,Object> properties = rel1.getAllProperties();
+            assertEquals( properties.get( key1 ), int1 );
+            assertEquals( properties.get( key2 ), int2 );
+            assertEquals( properties.get( key3 ), string );
+            properties = rel1.getProperties( key1, key2 );
+            assertEquals( properties.get( key1 ), int1 );
+            assertEquals( properties.get( key2 ), int2 );
+            assertFalse( properties.containsKey( key3 ) );
 
-        try
-        {
-            String[] names = new String[]{null};
-            node1.getProperties( names );
-            fail();
-        }
-        catch ( NullPointerException e )
-        {
-            // Ok
-        }
+            properties = node1.getProperties();
+            assertTrue( properties.isEmpty() );
 
-        try
-        {
-            rel1.removeProperty( key3 );
+            assertThrows( NullPointerException.class, () -> node1.getProperties( (String[]) null ) );
+
+            assertThrows( NullPointerException.class, () ->
+            {
+                String[] names = new String[]{null};
+                node1.getProperties( names );
+                fail();
+            } );
+
+            assertDoesNotThrow( () -> rel1.removeProperty( key3 ), "Remove of property failed." );
+
+            assertFalse( rel1.hasProperty( key3 ) );
+            assertFalse( rel1.hasProperty( null ) );
+            rel1.delete();
+            node2.delete();
+            node1.delete();
+            transaction.commit();
         }
-        catch ( NotFoundException e )
-        {
-            fail( "Remove of property failed." );
-        }
-        assertTrue( !rel1.hasProperty( key3 ) );
-        assertTrue( !rel1.hasProperty( null ) );
-        rel1.delete();
-        node2.delete();
-        node1.delete();
     }
 
     @Test
-    public void testDirectedRelationship()
+    void testDirectedRelationship()
     {
-        Node node1 = getGraphDb().createNode();
-        Node node2 = getGraphDb().createNode();
-        Relationship rel2 = node1.createRelationshipTo( node2, TEST );
-        Relationship rel3 = node2.createRelationshipTo( node1, TEST );
-        Node[] nodes = rel2.getNodes();
-        assertEquals( 2, nodes.length );
-        assertTrue( nodes[0].equals( node1 ) && nodes[1].equals( node2 ) );
-        nodes = rel3.getNodes();
-        assertEquals( 2, nodes.length );
-        assertTrue( nodes[0].equals( node2 ) && nodes[1].equals( node1 ) );
-        assertEquals( node1, rel2.getStartNode() );
-        assertEquals( node2, rel2.getEndNode() );
-        assertEquals( node2, rel3.getStartNode() );
-        assertEquals( node1, rel3.getEndNode() );
+        Node node1 = createNode();
+        Node node2 = createNode();
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            node1 = transaction.getNodeById( node1.getId() );
+            node2 = transaction.getNodeById( node2.getId() );
 
-        Relationship[] relArray = getRelationshipArray( node1.getRelationships( TEST, Direction.OUTGOING ) );
-        assertEquals( 1, relArray.length );
-        assertEquals( rel2, relArray[0] );
-        relArray = getRelationshipArray( node1.getRelationships( TEST, Direction.INCOMING ) );
-        assertEquals( 1, relArray.length );
-        assertEquals( rel3, relArray[0] );
+            Relationship rel2 = node1.createRelationshipTo( node2, TEST );
+            Relationship rel3 = node2.createRelationshipTo( node1, TEST );
+            Node[] nodes = rel2.getNodes();
+            assertEquals( 2, nodes.length );
+            assertTrue( nodes[0].equals( node1 ) && nodes[1].equals( node2 ) );
+            nodes = rel3.getNodes();
+            assertEquals( 2, nodes.length );
+            assertTrue( nodes[0].equals( node2 ) && nodes[1].equals( node1 ) );
+            assertEquals( node1, rel2.getStartNode() );
+            assertEquals( node2, rel2.getEndNode() );
+            assertEquals( node2, rel3.getStartNode() );
+            assertEquals( node1, rel3.getEndNode() );
 
-        relArray = getRelationshipArray( node2.getRelationships( TEST, Direction.OUTGOING ) );
-        assertEquals( 1, relArray.length );
-        assertEquals( rel3, relArray[0] );
-        relArray = getRelationshipArray( node2.getRelationships( TEST, Direction.INCOMING ) );
-        assertEquals( 1, relArray.length );
-        assertEquals( rel2, relArray[0] );
+            Relationship[] relArray = getRelationshipArray( node1.getRelationships( Direction.OUTGOING, TEST ) );
+            assertEquals( 1, relArray.length );
+            assertEquals( rel2, relArray[0] );
+            relArray = getRelationshipArray( node1.getRelationships( Direction.INCOMING, TEST ) );
+            assertEquals( 1, relArray.length );
+            assertEquals( rel3, relArray[0] );
 
-        rel2.delete();
-        rel3.delete();
-        node1.delete();
-        node2.delete();
+            relArray = getRelationshipArray( node2.getRelationships( Direction.OUTGOING, TEST ) );
+            assertEquals( 1, relArray.length );
+            assertEquals( rel3, relArray[0] );
+            relArray = getRelationshipArray( node2.getRelationships( Direction.INCOMING, TEST ) );
+            assertEquals( 1, relArray.length );
+            assertEquals( rel2, relArray[0] );
+
+            rel2.delete();
+            rel3.delete();
+            node1.delete();
+            node2.delete();
+            transaction.commit();
+        }
     }
 
     @Test
-    public void testRollbackDeleteRelationship()
+    void testRollbackDeleteRelationship()
     {
-        Node node1 = getGraphDb().createNode();
-        Node node2 = getGraphDb().createNode();
-        Relationship rel1 = node1.createRelationshipTo( node2, TEST );
-        newTransaction();
-        node1.delete();
-        rel1.delete();
-        getTransaction().failure();
-        getTransaction().close();
-        setTransaction( getGraphDb().beginTx() );
-        node1.delete();
-        node2.delete();
-        rel1.delete();
+        Node node1 = createNode();
+        Node node2 = createNode();
+        Relationship rel1;
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            node1 = transaction.getNodeById( node1.getId() );
+
+            rel1 = node1.createRelationshipTo( node2, TEST );
+            transaction.commit();
+        }
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            transaction.getNodeById( node1.getId() ).delete();
+            transaction.getRelationshipById( rel1.getId() ).delete();
+        }
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            transaction.getNodeById( node1.getId() ).delete();
+            transaction.getNodeById( node2.getId() ).delete();
+            transaction.getRelationshipById( rel1.getId() ).delete();
+            transaction.commit();
+        }
     }
 
     @Test
-    public void testCreateRelationshipWithCommits()// throws NotFoundException
+    void testCreateRelationshipWithCommits()
     {
-        Node n1 = getGraphDb().createNode();
-        newTransaction();
-        n1 = getGraphDb().getNodeById( n1.getId() );
-        Node n2 = getGraphDb().createNode();
-        n1.createRelationshipTo( n2, TEST );
-        newTransaction();
-        Relationship[] relArray = getRelationshipArray( n1.getRelationships() );
-        assertEquals( 1, relArray.length );
-        relArray = getRelationshipArray( n1.getRelationships() );
-        relArray[0].delete();
-        n1.delete();
-        n2.delete();
+        Node n1 = createNode();
+        Node n2 = createNode();
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            n1 = transaction.getNodeById( n1.getId() );
+            n2 = transaction.getNodeById( n2.getId() );
+
+            n1.createRelationshipTo( n2, TEST );
+            transaction.commit();
+        }
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            n1 = transaction.getNodeById( n1.getId() );
+            n2 = transaction.getNodeById( n2.getId() );
+
+            Relationship[] relArray = getRelationshipArray( n1.getRelationships() );
+            assertEquals( 1, relArray.length );
+            relArray = getRelationshipArray( n1.getRelationships() );
+            relArray[0].delete();
+            n1.delete();
+            n2.delete();
+            transaction.commit();
+        }
     }
 
     @Test
-    public void testAddPropertyThenDelete()
+    void testAddPropertyThenDelete()
     {
-        Node node1 = getGraphDb().createNode();
-        Node node2 = getGraphDb().createNode();
-        Relationship rel = node1.createRelationshipTo( node2, TEST );
-        rel.setProperty( "test", "test" );
-        newTransaction();
-        rel.setProperty( "test2", "test2" );
-        rel.delete();
-        node1.delete();
-        node2.delete();
-        newTransaction();
+        Node node1 = createNode();
+        Node node2 = createNode();
+        Relationship rel;
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            node1 = transaction.getNodeById( node1.getId() );
+            rel = node1.createRelationshipTo( node2, TEST );
+            rel.setProperty( "test", "test" );
+            transaction.commit();
+        }
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            rel = transaction.getRelationshipById( rel.getId() );
+            rel.setProperty( "test2", "test2" );
+            rel.delete();
+            transaction.getNodeById( node1.getId() ).delete();
+            transaction.getNodeById( node2.getId() ).delete();
+            transaction.commit();
+        }
     }
 
     @Test
-    public void testRelationshipIsType()
+    void testRelationshipIsType()
     {
-        Node node1 = getGraphDb().createNode();
-        Node node2 = getGraphDb().createNode();
-        Relationship rel = node1.createRelationshipTo( node2, TEST );
-        assertTrue( rel.isType( TEST ) );
-        assertTrue( rel.isType( TEST::name ) );
-        assertFalse( rel.isType( TEST_TRAVERSAL ) );
-        rel.delete();
-        node1.delete();
-        node2.delete();
+        Node node1 = createNode();
+        Node node2 = createNode();
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            node1 = transaction.getNodeById( node1.getId() );
+            node2 = transaction.getNodeById( node2.getId() );
+            Relationship rel = node1.createRelationshipTo( node2, TEST );
+            assertTrue( rel.isType( TEST ) );
+            assertTrue( rel.isType( TEST::name ) );
+            assertFalse( rel.isType( TEST_TRAVERSAL ) );
+            rel.delete();
+            node1.delete();
+            node2.delete();
+            transaction.commit();
+        }
     }
 
     @Test
-    public void testChangeProperty()
+    void testChangeProperty()
     {
-        Node node1 = getGraphDb().createNode();
-        Node node2 = getGraphDb().createNode();
-        Relationship rel = node1.createRelationshipTo( node2, TEST );
-        rel.setProperty( "test", "test1" );
-        newTransaction();
-        rel.setProperty( "test", "test2" );
-        rel.removeProperty( "test" );
-        rel.setProperty( "test", "test3" );
-        assertEquals( "test3", rel.getProperty( "test" ) );
-        rel.removeProperty( "test" );
-        rel.setProperty( "test", "test4" );
-        newTransaction();
-        assertEquals( "test4", rel.getProperty( "test" ) );
+        Node node1 = createNode();
+        Node node2 = createNode();
+        Relationship rel;
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            node1 = transaction.getNodeById( node1.getId() );
+            node2 = transaction.getNodeById( node2.getId() );
+
+            rel = node1.createRelationshipTo( node2, TEST );
+            rel.setProperty( "test", "test1" );
+            transaction.commit();
+        }
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            rel = transaction.getRelationshipById( rel.getId() );
+            rel.setProperty( "test", "test2" );
+            rel.removeProperty( "test" );
+            rel.setProperty( "test", "test3" );
+            assertEquals( "test3", rel.getProperty( "test" ) );
+            rel.removeProperty( "test" );
+            rel.setProperty( "test", "test4" );
+            transaction.commit();
+        }
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            rel = transaction.getRelationshipById( rel.getId() );
+            assertEquals( "test4", rel.getProperty( "test" ) );
+            transaction.commit();
+        }
     }
 
     @Test
-    public void testChangeProperty2()
+    void testChangeProperty2()
     {
         // Create relationship with "test"="test1"
-        Node node1 = getGraphDb().createNode();
-        Node node2 = getGraphDb().createNode();
-        Relationship rel = node1.createRelationshipTo( node2, TEST );
-        rel.setProperty( "test", "test1" );
-        newTransaction(); // commit
+        Node node1 = createNode();
+        Node node2 = createNode();
+        Relationship rel;
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            node1 = transaction.getNodeById( node1.getId() );
+            node2 = transaction.getNodeById( node2.getId() );
+            rel = node1.createRelationshipTo( node2, TEST );
+            rel.setProperty( "test", "test1" );
+            transaction.commit();
+        }
 
-        // Remove "test" and set "test"="test3" instead
-        rel.removeProperty( "test" );
-        rel.setProperty( "test", "test3" );
-        assertEquals( "test3", rel.getProperty( "test" ) );
-        newTransaction(); // commit
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            rel = transaction.getRelationshipById( rel.getId() );
+            // Remove "test" and set "test"="test3" instead
+            rel.removeProperty( "test" );
+            rel.setProperty( "test", "test3" );
+            assertEquals( "test3", rel.getProperty( "test" ) );
+            transaction.commit();
+        }
 
-        // Remove "test" and set "test"="test4" instead
-        assertEquals( "test3", rel.getProperty( "test" ) );
-        rel.removeProperty( "test" );
-        rel.setProperty( "test", "test4" );
-        newTransaction(); // commit
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            rel = transaction.getRelationshipById( rel.getId() );
+            // Remove "test" and set "test"="test4" instead
+            assertEquals( "test3", rel.getProperty( "test" ) );
+            rel.removeProperty( "test" );
+            rel.setProperty( "test", "test4" );
+            transaction.commit();
+        }
 
-        // Should still be "test4"
-        assertEquals( "test4", rel.getProperty( "test" ) );
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            rel = transaction.getRelationshipById( rel.getId() );
+            // Should still be "test4"
+            assertEquals( "test4", rel.getProperty( "test" ) );
+            transaction.commit();
+        }
     }
 
     @Test
-    public void makeSureLazyLoadingRelationshipsWorksEvenIfOtherIteratorAlsoLoadsInTheSameIteration()
+    void makeSureLazyLoadingRelationshipsWorksEvenIfOtherIteratorAlsoLoadsInTheSameIteration()
     {
         int numEdges = 100;
 
         /* create 256 nodes */
         GraphDatabaseService graphDB = getGraphDb();
         Node[] nodes = new Node[256];
-        for ( int numNodes = 0; numNodes < nodes.length; numNodes += 1 )
+        try ( Transaction transaction = getGraphDb().beginTx() )
         {
-            nodes[numNodes] = graphDB.createNode();
+            for ( int numNodes = 0; numNodes < nodes.length; numNodes += 1 )
+            {
+                nodes[numNodes] = transaction.createNode();
+            }
+            transaction.commit();
         }
-        newTransaction();
 
-        /* create random outgoing relationships from node 5 */
-        Node hub = nodes[4];
         int nextID = 7;
-
-        RelationshipType outtie = withName( "outtie" );
-        RelationshipType innie = withName( "innie" );
-        for ( int k = 0; k < numEdges; k++ )
+        Node hub = nodes[4];
+        RelationshipType outtie;
+        RelationshipType innie;
+        try ( Transaction transaction = getGraphDb().beginTx() )
         {
-            Node neighbor = nodes[nextID];
-            nextID += 7;
-            nextID &= 255;
-            if ( nextID == 0 )
+            hub = transaction.getNodeById( hub.getId() );
+            /* create random outgoing relationships from node 5 */
+            outtie = withName( "outtie" );
+            innie = withName( "innie" );
+            for ( int k = 0; k < numEdges; k++ )
             {
-                nextID = 1;
+                Node neighbor = transaction.getNodeById( nodes[nextID].getId() );
+                nextID += 7;
+                nextID &= 255;
+                if ( nextID == 0 )
+                {
+                    nextID = 1;
+                }
+                hub.createRelationshipTo( neighbor, outtie );
             }
-            hub.createRelationshipTo( neighbor, outtie );
+            transaction.commit();
         }
-        newTransaction();
 
-        /* create random incoming relationships to node 5 */
-        for ( int k = 0; k < numEdges; k += 1 )
+        try ( Transaction transaction = getGraphDb().beginTx() )
         {
-            Node neighbor = nodes[nextID];
-            nextID += 7;
-            nextID &= 255;
-            if ( nextID == 0 )
+            hub = transaction.getNodeById( hub.getId() );
+
+            /* create random incoming relationships to node 5 */
+            for ( int k = 0; k < numEdges; k += 1 )
             {
-                nextID = 1;
+                Node neighbor = transaction.getNodeById( nodes[nextID].getId() );
+                nextID += 7;
+                nextID &= 255;
+                if ( nextID == 0 )
+                {
+                    nextID = 1;
+                }
+                neighbor.createRelationshipTo( hub, innie );
             }
-            neighbor.createRelationshipTo( hub, innie );
+            transaction.commit();
         }
-        commit();
 
-        newTransaction();
-        hub = graphDB.getNodeById( hub.getId() );
-
-        int count = 0;
-        for ( Relationship ignore : hub.getRelationships() )
+        try ( Transaction transaction = getGraphDb().beginTx() )
         {
-            count += Iterables.count( hub.getRelationships() );
-        }
-        assertEquals( 40000, count );
+            hub = transaction.getNodeById( hub.getId() );
 
-        count = 0;
-        for ( @SuppressWarnings( "unused" ) Relationship r1 : hub.getRelationships() )
-        {
-            count += Iterables.count( hub.getRelationships() );
+            int count = 0;
+            for ( Relationship ignore : hub.getRelationships() )
+            {
+                count += Iterables.count( hub.getRelationships() );
+            }
+            assertEquals( 40000, count );
+
+            count = 0;
+            for ( @SuppressWarnings( "unused" ) Relationship r1 : hub.getRelationships() )
+            {
+                count += Iterables.count( hub.getRelationships() );
+            }
+            assertEquals( 40000, count );
+            transaction.commit();
         }
-        assertEquals( 40000, count );
-        commit();
     }
 
     @Test
-    public void createRelationshipAfterClearedCache()
+    void createRelationshipAfterClearedCache()
     {
         // Assumes relationship grab size 100
-        Node node1 = getGraphDb().createNode();
-        Node node2 = getGraphDb().createNode();
+        Node node1 = createNode();
+        Node node2 = createNode();
         int expectedCount = 0;
-        for ( int i = 0; i < 150; i++ )
+        try ( Transaction transaction = getGraphDb().beginTx() )
         {
-            node1.createRelationshipTo( node2, TEST );
-            expectedCount++;
+            node1 = transaction.getNodeById( node1.getId() );
+
+            for ( int i = 0; i < 150; i++ )
+            {
+                node1.createRelationshipTo( node2, TEST );
+                expectedCount++;
+            }
+            transaction.commit();
         }
-        newTransaction();
-        for ( int i = 0; i < 50; i++ )
+        try ( Transaction transaction = getGraphDb().beginTx() )
         {
-            node1.createRelationshipTo( node2, TEST );
-            expectedCount++;
+            node1 = transaction.getNodeById( node1.getId() );
+
+            for ( int i = 0; i < 50; i++ )
+            {
+                node1.createRelationshipTo( node2, TEST );
+                expectedCount++;
+            }
+            assertEquals( expectedCount, Iterables.count( node1.getRelationships() ) );
+            transaction.commit();
         }
-        assertEquals( expectedCount, Iterables.count( node1.getRelationships() ) );
-        newTransaction();
-        assertEquals( expectedCount, Iterables.count( node1.getRelationships() ) );
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            node1 = transaction.getNodeById( node1.getId() );
+
+            assertEquals( expectedCount, Iterables.count( node1.getRelationships() ) );
+            transaction.commit();
+        }
     }
 
     @Test
-    public void getAllRelationships()
+    void getAllRelationships()
     {
-        Set<Relationship> existingRelationships =
-                Iterables.addToCollection( getGraphDb().getAllRelationships(), new HashSet<>() );
+        Set<Relationship> existingRelationships = new HashSet<>();
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            addAll( existingRelationships, transaction.getAllRelationships() );
+            transaction.commit();
+        }
 
         Set<Relationship> createdRelationships = new HashSet<>();
-        Node node = getGraphDb().createNode();
-        for ( int i = 0; i < 100; i++ )
+        Node node = createNode();
+        try ( Transaction transaction = getGraphDb().beginTx() )
         {
-            createdRelationships.add( node.createRelationshipTo( getGraphDb().createNode(), TEST ) );
+            node = transaction.getNodeById( node.getId() );
+            for ( int i = 0; i < 100; i++ )
+            {
+                createdRelationships.add( node.createRelationshipTo( transaction.createNode(), TEST ) );
+            }
+            transaction.commit();
         }
-        newTransaction();
 
-        Set<Relationship> allRelationships = new HashSet<>();
-        allRelationships.addAll( existingRelationships );
-        allRelationships.addAll( createdRelationships );
-
-        int count = 0;
-        for ( Relationship rel : getGraphDb().getAllRelationships() )
+        try ( Transaction transaction = getGraphDb().beginTx() )
         {
-            assertTrue( "Unexpected rel " + rel + ", expected one of " + allRelationships,
-                    allRelationships.contains( rel ) );
-            count++;
+            Set<Relationship> allRelationships = new HashSet<>();
+            allRelationships.addAll( existingRelationships );
+            allRelationships.addAll( createdRelationships );
+
+            int count = 0;
+            for ( Relationship rel : transaction.getAllRelationships() )
+            {
+                assertTrue( allRelationships.contains( rel ), "Unexpected rel " + rel + ", expected one of " + allRelationships );
+                count++;
+            }
+            assertEquals( allRelationships.size(), count );
+            transaction.commit();
         }
-        assertEquals( allRelationships.size(), count );
     }
 
     @Test
-    public void createAndClearCacheBeforeCommit()
+    void createAndClearCacheBeforeCommit()
     {
-        Node node = getGraphDb().createNode();
-        node.createRelationshipTo( getGraphDb().createNode(), TEST );
-        assertEquals( 1, Iterables.count( node.getRelationships() ) );
+        Node node = createNode();
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            node = transaction.getNodeById( node.getId() );
+            node.createRelationshipTo( transaction.createNode(), TEST );
+            assertEquals( 1, Iterables.count( node.getRelationships() ) );
+            transaction.commit();
+        }
     }
 
     @Test
-    public void setPropertyAndClearCacheBeforeCommit()
+    void setPropertyAndClearCacheBeforeCommit()
     {
-        Node node = getGraphDb().createNode();
-        node.setProperty( "name", "Test" );
-        assertEquals( "Test", node.getProperty( "name" ) );
+        Node node = createNode();
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            node = transaction.getNodeById( node.getId() );
+            node.setProperty( "name", "Test" );
+            assertEquals( "Test", node.getProperty( "name" ) );
+            transaction.commit();
+        }
     }
 
     @Test
-    public void shouldNotGetTheSameRelationshipMoreThanOnceWhenAskingForTheSameTypeMultipleTimes()
+    void shouldNotGetTheSameRelationshipMoreThanOnceWhenAskingForTheSameTypeMultipleTimes()
     {
         // given
-        Node node = getGraphDb().createNode();
-        node.createRelationshipTo( getGraphDb().createNode(), withName( "FOO" ) );
+        Node node = createNode();
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            node = transaction.getNodeById( node.getId() );
+            node.createRelationshipTo( transaction.createNode(), withName( "FOO" ) );
 
-        // when
-        long relationships = Iterables.count( node.getRelationships( withName( "FOO" ), withName( "FOO" ) ) );
+            // when
+            long relationships = Iterables.count( node.getRelationships( withName( "FOO" ), withName( "FOO" ) ) );
 
-        // then
-        assertEquals( 1, relationships );
+            // then
+            assertEquals( 1, relationships );
+            transaction.commit();
+        }
     }
 
     @Test
-    public void shouldLoadAllRelationships()
+    void shouldLoadAllRelationships()
     {
         // GIVEN
         GraphDatabaseService db = getGraphDbAPI();
         Node node;
         try ( Transaction tx = db.beginTx() )
         {
-            node = db.createNode();
+            node = tx.createNode();
             for ( int i = 0; i < 112; i++ )
             {
-                node.createRelationshipTo( db.createNode(), TEST );
-                db.createNode().createRelationshipTo( node, TEST );
+                node.createRelationshipTo( tx.createNode(), TEST );
+                tx.createNode().createRelationshipTo( node, TEST );
             }
-            tx.success();
+            tx.commit();
         }
         // WHEN
         long one;
         long two;
         try ( Transaction tx = db.beginTx() )
         {
-            one = Iterables.count( node.getRelationships( TEST, Direction.OUTGOING ) );
-            two = Iterables.count( node.getRelationships( TEST, Direction.OUTGOING ) );
-            tx.success();
+            node = tx.getNodeById( node.getId() );
+            one = Iterables.count( node.getRelationships( Direction.OUTGOING, TEST ) );
+            two = Iterables.count( node.getRelationships( Direction.OUTGOING, TEST ) );
+            tx.commit();
         }
 
         // THEN
         assertEquals( two, one );
     }
 
-    @Test( expected = NotFoundException.class )
-    public void deletionOfSameRelationshipTwiceInOneTransactionShouldNotRollbackIt()
+    @Test
+    void deletionOfSameRelationshipTwiceInOneTransactionShouldNotRollbackIt()
     {
         // Given
         GraphDatabaseService db = getGraphDb();
 
         // transaction is opened by test
-        Node node1 = db.createNode();
-        Node node2 = db.createNode();
-        Relationship relationship = node1.createRelationshipTo( node2, TEST );
-        commit();
-
-        // When
-        Exception exceptionThrownBySecondDelete = null;
-
-        try ( Transaction tx = db.beginTx() )
+        Node node1 = createNode();
+        Node node2 = createNode();
+        Relationship relationship;
+        try ( Transaction transaction = getGraphDb().beginTx() )
         {
-            relationship.delete();
-            try
-            {
-                relationship.delete();
-            }
-            catch ( IllegalStateException e )
-            {
-                exceptionThrownBySecondDelete = e;
-            }
-            tx.success();
+            node1 = transaction.getNodeById( node1.getId() );
+            node2 = transaction.getNodeById( node2.getId() );
+            relationship = node1.createRelationshipTo( node2, TEST );
+            transaction.commit();
         }
 
-        // Then
-        assertNotNull( exceptionThrownBySecondDelete );
+        try ( Transaction tx = db.beginTx() )
+        {
+            relationship = tx.getRelationshipById( relationship.getId() );
+            relationship.delete();
+            assertThrows( NotFoundException.class, relationship::delete );
+            tx.commit();
+        }
 
         try ( Transaction tx = db.beginTx() )
         {
-            db.getRelationshipById( relationship.getId() ); // should throw NotFoundException
-            tx.success();
+            var relId = relationship.getId();
+            assertThrows( NotFoundException.class, () -> tx.getRelationshipById( relId ) );
+            tx.commit();
         }
     }
 
-    @Test( expected = NotFoundException.class )
-    public void deletionOfAlreadyDeletedRelationshipShouldThrow()
+    @Test
+    void deletionOfAlreadyDeletedRelationshipShouldThrow()
     {
         // Given
         GraphDatabaseService db = getGraphDb();
 
         // transaction is opened by test
-        Node node1 = db.createNode();
-        Node node2 = db.createNode();
-        Relationship relationship = node1.createRelationshipTo( node2, TEST );
-        commit();
+        Node node1 = createNode();
+        Node node2 = createNode();
+        Relationship relationship;
+        try ( Transaction transaction = getGraphDb().beginTx() )
+        {
+            node1 = transaction.getNodeById( node1.getId() );
+            relationship = node1.createRelationshipTo( node2, TEST );
+            transaction.commit();
+        }
 
         try ( Transaction tx = db.beginTx() )
         {
-            relationship.delete();
-            tx.success();
+            tx.getRelationshipById( relationship.getId() ).delete();
+            tx.commit();
         }
 
         // When
         try ( Transaction tx = db.beginTx() )
         {
-            relationship.delete();
-            tx.success();
+            assertThrows( NotFoundException.class, () -> tx.getRelationshipById( relationship.getId() ).delete() );
         }
     }
 

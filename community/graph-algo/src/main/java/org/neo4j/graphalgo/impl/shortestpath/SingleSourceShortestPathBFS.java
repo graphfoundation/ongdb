@@ -28,8 +28,8 @@ import java.util.List;
 import java.util.Map;
 
 import org.neo4j.graphdb.Direction;
+import org.neo4j.graphdb.Entity;
 import org.neo4j.graphdb.Node;
-import org.neo4j.graphdb.PropertyContainer;
 import org.neo4j.graphdb.Relationship;
 import org.neo4j.graphdb.RelationshipType;
 
@@ -39,7 +39,6 @@ import org.neo4j.graphdb.RelationshipType;
  * Dijkstra with the right arguments, but this should be faster.
  * @complexity This algorithm runs in O(m) time (not including the case when m
  *             is zero).
- * @author Patrik Larsson
  */
 public class SingleSourceShortestPathBFS implements
     SingleSourceShortestPath<Integer>
@@ -111,7 +110,7 @@ public class SingleSourceShortestPathBFS implements
      * @see SingleSourceShortestPath
      */
     @Override
-    public List<PropertyContainer> getPath( Node targetNode )
+    public List<Entity> getPath( Node targetNode )
     {
         if ( targetNode == null )
         {
@@ -168,7 +167,7 @@ public class SingleSourceShortestPathBFS implements
      * @see SingleSourceShortestPath
      */
     @Override
-    public List<List<PropertyContainer>> getPaths( Node targetNode )
+    public List<List<Entity>> getPaths( Node targetNode )
     {
         if ( targetNode == null )
         {
@@ -251,8 +250,7 @@ public class SingleSourceShortestPathBFS implements
         // Follow all edges
         for ( RelationshipType relationshipType : relationShipTypes )
         {
-            for ( Relationship relationship : node.getRelationships(
-                relationshipType, relationShipDirection ) )
+            for ( Relationship relationship : node.getRelationships( relationShipDirection, relationshipType ) )
             {
                 Node targetNode = relationship.getOtherNode( node );
                 // Are we going back into the already finished area?

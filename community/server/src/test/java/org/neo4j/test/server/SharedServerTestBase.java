@@ -28,12 +28,13 @@ import org.junit.Rule;
 
 import java.util.concurrent.Callable;
 
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
+import org.neo4j.configuration.GraphDatabaseSettings;
 import org.neo4j.server.NeoServer;
 import org.neo4j.server.configuration.ServerSettings;
 import org.neo4j.server.helpers.ServerHelper;
 import org.neo4j.test.rule.SuppressOutput;
 
+import static org.neo4j.configuration.SettingValueParsers.TRUE;
 import static org.neo4j.test.rule.SuppressOutput.suppressAll;
 
 public class SharedServerTestBase
@@ -54,7 +55,7 @@ public class SharedServerTestBase
         System.setProperty( "org.neo4j.useInsecureCertificateGeneration", "true" );
         suppressAll().call( (Callable<Void>) () ->
         {
-            ServerHolder.setServerBuilderProperty( GraphDatabaseSettings.cypher_hints_error.name(), "true" );
+            ServerHolder.setServerBuilderProperty( GraphDatabaseSettings.cypher_hints_error.name(), TRUE );
             ServerHolder.setServerBuilderProperty( GraphDatabaseSettings.transaction_timeout.name(), "300s" );
             ServerHolder.setServerBuilderProperty( ServerSettings.transaction_idle_timeout.name(), "300s" );
             server = ServerHolder.allocate();

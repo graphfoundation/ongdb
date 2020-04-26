@@ -28,7 +28,7 @@ import io.netty.channel.ChannelInitializer;
 import io.netty.handler.ssl.SslContext;
 
 import org.neo4j.bolt.BoltChannel;
-import org.neo4j.helpers.ListenSocketAddress;
+import org.neo4j.configuration.helpers.SocketAddress;
 import org.neo4j.kernel.api.net.NetworkConnectionTracker;
 import org.neo4j.logging.LogProvider;
 
@@ -38,7 +38,7 @@ import org.neo4j.logging.LogProvider;
 public class SocketTransport implements NettyServer.ProtocolInitializer
 {
     private final String connector;
-    private final ListenSocketAddress address;
+    private final SocketAddress address;
     private final SslContext sslCtx;
     private final boolean encryptionRequired;
     private final LogProvider logging;
@@ -46,7 +46,7 @@ public class SocketTransport implements NettyServer.ProtocolInitializer
     private final BoltProtocolFactory boltProtocolFactory;
     private final NetworkConnectionTracker connectionTracker;
 
-    public SocketTransport( String connector, ListenSocketAddress address, SslContext sslCtx, boolean encryptionRequired,
+    public SocketTransport( String connector, SocketAddress address, SslContext sslCtx, boolean encryptionRequired,
             LogProvider logging, TransportThrottleGroup throttleGroup,
             BoltProtocolFactory boltProtocolFactory, NetworkConnectionTracker connectionTracker )
     {
@@ -63,7 +63,7 @@ public class SocketTransport implements NettyServer.ProtocolInitializer
     @Override
     public ChannelInitializer<Channel> channelInitializer()
     {
-        return new ChannelInitializer<Channel>()
+        return new ChannelInitializer<>()
         {
             @Override
             public void initChannel( Channel ch )
@@ -81,7 +81,7 @@ public class SocketTransport implements NettyServer.ProtocolInitializer
                 ch.closeFuture().addListener( future -> throttleGroup.uninstall( ch ) );
 
                 TransportSelectionHandler transportSelectionHandler = new TransportSelectionHandler( boltChannel, sslCtx,
-                        encryptionRequired, false, logging, boltProtocolFactory );
+                                                                                                     encryptionRequired, false, logging, boltProtocolFactory );
 
                 ch.pipeline().addLast( transportSelectionHandler );
             }
@@ -89,7 +89,7 @@ public class SocketTransport implements NettyServer.ProtocolInitializer
     }
 
     @Override
-    public ListenSocketAddress address()
+    public SocketAddress address()
     {
         return address;
     }

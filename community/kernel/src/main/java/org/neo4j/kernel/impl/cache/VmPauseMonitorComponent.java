@@ -22,11 +22,12 @@
  */
 package org.neo4j.kernel.impl.cache;
 
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
-import org.neo4j.kernel.configuration.Config;
+import org.neo4j.configuration.Config;
+import org.neo4j.configuration.GraphDatabaseSettings;
 import org.neo4j.kernel.lifecycle.LifecycleAdapter;
-import org.neo4j.kernel.monitoring.VmPauseMonitor;
+import org.neo4j.kernel.monitoring.LoggingVmPauseMonitor;
 import org.neo4j.logging.Log;
+import org.neo4j.monitoring.VmPauseMonitor;
 import org.neo4j.scheduler.JobScheduler;
 
 public class VmPauseMonitorComponent extends LifecycleAdapter
@@ -49,7 +50,7 @@ public class VmPauseMonitorComponent extends LifecycleAdapter
         vmPauseMonitor = new VmPauseMonitor(
                 config.get( GraphDatabaseSettings.vm_pause_monitor_measurement_duration ),
                 config.get( GraphDatabaseSettings.vm_pause_monitor_stall_alert_threshold ),
-                log, jobScheduler, vmPauseInfo -> log.warn( "Detected VM stop-the-world pause: %s", vmPauseInfo )
+                new LoggingVmPauseMonitor( log ), jobScheduler, vmPauseInfo -> log.warn( "Detected VM stop-the-world pause: %s", vmPauseInfo )
         );
         vmPauseMonitor.start();
     }
@@ -60,5 +61,4 @@ public class VmPauseMonitorComponent extends LifecycleAdapter
         vmPauseMonitor.stop();
         vmPauseMonitor = null;
     }
-
 }

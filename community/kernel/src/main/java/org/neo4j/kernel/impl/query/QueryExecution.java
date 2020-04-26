@@ -22,37 +22,54 @@
  */
 package org.neo4j.kernel.impl.query;
 
+import org.neo4j.graphdb.ExecutionPlanDescription;
+import org.neo4j.graphdb.Notification;
+import org.neo4j.graphdb.QueryExecutionType;
+import org.neo4j.graphdb.QueryStatistics;
+import org.neo4j.graphdb.Result;
+
 /**
- * The execution of a query.
+ * The execution of a query is a {@link QuerySubscription} with added methods describing the actual execution of a
+ * query.
  */
-public interface QueryExecution
+public interface QueryExecution extends QuerySubscription
 {
+    /**
+     * The {@link QueryExecutionType} of the query,
+     */
+    QueryExecutionType executionType();
 
     /**
-     * The names of the result columns
-     *
-     * @return Array containing the names of the result columns in order.
+     * @return The plan description of the query.
      */
-    String[] header();
+    ExecutionPlanDescription executionPlanDescription();
 
     /**
-     * Returns the result buffer of this execution.
-     *
-     * @return the result buffer of this execution.
+     * @return all notifications and warnings of the query.
      */
-    ResultBuffer resultBuffer();
+    Iterable<Notification> getNotifications();
 
     /**
-     * Wait for more results to be written to the resultBuffer.
+     * The name of the fields of each record
      *
-     * @return true if more results were written.
+     * @return an array of the field names of each record.
      */
-    boolean waitForResult();
+    String[] fieldNames();
 
     /**
-     * Terminate this execution, throwing away any buffered results, and releasing any other resources.
-     *
-     * TODO: what should this really be called... close? abort? terminate?
+     * @return <code>true</code> if results should be consumed via a visitor, otherwise <code>false</code>
+     * @deprecated will be removed once the compiled runtime is removed.
      */
-    void terminate();
+    boolean isVisitable();
+
+    /**
+     * A backdoor for handling results that are more efficiently handled via a ResultVisitor than via a QuerySubscriber.
+     *
+     * Should only be called after first checking that {@link #isVisitable} returs <code>true</code>
+     * @param visitor the provided visitor
+     * @param <VisitationException> the exception type declared by the visitor
+     * @deprecated will be removed once the compiled runtime is removed.
+     */
+    <VisitationException extends Exception> QueryStatistics accept( Result.ResultVisitor<VisitationException> visitor )
+            throws VisitationException;
 }

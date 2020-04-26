@@ -22,9 +22,7 @@
  */
 package org.neo4j.kernel.impl.util;
 
-
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 
@@ -34,10 +32,11 @@ import org.neo4j.graphdb.Path;
 import org.neo4j.graphdb.Relationship;
 import org.neo4j.graphdb.RelationshipType;
 import org.neo4j.graphdb.Transaction;
-import org.neo4j.helpers.collection.Iterables;
-import org.neo4j.helpers.collection.Iterators;
-import org.neo4j.kernel.impl.core.EmbeddedProxySPI;
-import org.neo4j.test.TestGraphDatabaseFactory;
+import org.neo4j.internal.helpers.collection.Iterables;
+import org.neo4j.internal.helpers.collection.Iterators;
+import org.neo4j.kernel.impl.coreapi.InternalTransaction;
+import org.neo4j.test.extension.ImpermanentDbmsExtension;
+import org.neo4j.test.extension.Inject;
 import org.neo4j.values.storable.Values;
 import org.neo4j.values.virtual.NodeValue;
 import org.neo4j.values.virtual.RelationshipValue;
@@ -53,35 +52,28 @@ import static org.neo4j.values.virtual.VirtualValues.EMPTY_MAP;
 import static org.neo4j.values.virtual.VirtualValues.nodeValue;
 import static org.neo4j.values.virtual.VirtualValues.path;
 
-public class DefaultValueMapperTest
+@ImpermanentDbmsExtension
+class DefaultValueMapperTest
 {
-    GraphDatabaseService db;
-    private DefaultValueMapper mapper;
-
-    @Before
-    public void setup()
-    {
-        db = new TestGraphDatabaseFactory().newImpermanentDatabase();
-        mapper = new DefaultValueMapper( (EmbeddedProxySPI) db );
-    }
+    @Inject
+    private GraphDatabaseService db;
 
     @Test
-    public void shouldHandleSingleNodePath()
+    void shouldHandleSingleNodePath()
     {
         // Given
         Node node;
         try ( Transaction tx = db.beginTx() )
         {
-            node = db.createNode();
-            tx.success();
+            node = tx.createNode();
+            tx.commit();
         }
 
-        // When
-        Path mapped = mapper.mapPath( path( asNodeValues( node ), asRelationshipsValues() ) );
-
         // Then
-        try ( Transaction ignore = db.beginTx() )
+        try ( Transaction tx = db.beginTx() )
         {
+            var mapper = new DefaultValueMapper( (InternalTransaction) tx );
+            Path mapped = mapper.mapPath( path( asNodeValues( node ), asRelationshipsValues() ) );
             assertThat( mapped.length(), equalTo( 0 ) );
             assertThat( mapped.startNode(), equalTo( node ) );
             assertThat( mapped.endNode(), equalTo( node ) );
@@ -95,25 +87,24 @@ public class DefaultValueMapperTest
     }
 
     @Test
-    public void shouldHandleSingleRelationshipPath()
+    void shouldHandleSingleRelationshipPath()
     {
         // Given
         Node start, end;
         Relationship relationship;
         try ( Transaction tx = db.beginTx() )
         {
-            start = db.createNode();
-            end = db.createNode();
+            start = tx.createNode();
+            end = tx.createNode();
             relationship = start.createRelationshipTo( end, RelationshipType.withName( "R" ) );
-            tx.success();
+            tx.commit();
         }
 
-        // When
-        Path mapped = mapper.mapPath( path( asNodeValues( start, end ), asRelationshipsValues( relationship ) ) );
-
         // Then
-        try ( Transaction ignore = db.beginTx() )
+        try ( Transaction tx = db.beginTx() )
         {
+            var mapper = new DefaultValueMapper( (InternalTransaction) tx );
+            Path mapped = mapper.mapPath( path( asNodeValues( start, end ), asRelationshipsValues( relationship ) ) );
             assertThat( mapped.length(), equalTo( 1 ) );
             assertThat( mapped.startNode(), equalTo( start ) );
             assertThat( mapped.endNode(), equalTo( end ) );
@@ -127,31 +118,30 @@ public class DefaultValueMapperTest
     }
 
     @Test
-    public void shouldHandleLongPath()
+    void shouldHandleLongPath()
     {
         // Given
         Node a, b, c, d, e;
         Relationship r1, r2, r3, r4;
         try ( Transaction tx = db.beginTx() )
         {
-            a = db.createNode();
-            b = db.createNode();
-            c = db.createNode();
-            d = db.createNode();
-            e = db.createNode();
+            a = tx.createNode();
+            b = tx.createNode();
+            c = tx.createNode();
+            d = tx.createNode();
+            e = tx.createNode();
             r1 = a.createRelationshipTo( b, RelationshipType.withName( "R" ) );
             r2 = b.createRelationshipTo( c, RelationshipType.withName( "R" ) );
             r3 = c.createRelationshipTo( d, RelationshipType.withName( "R" ) );
             r4 = d.createRelationshipTo( e, RelationshipType.withName( "R" ) );
-            tx.success();
+            tx.commit();
         }
 
-        // When
-        Path mapped = mapper.mapPath( path( asNodeValues( a, b, c, d, e ), asRelationshipsValues( r1, r2, r3, r4 ) ) );
-
         // Then
-        try ( Transaction ignore = db.beginTx() )
+        try ( Transaction tx = db.beginTx() )
         {
+            var mapper = new DefaultValueMapper( (InternalTransaction) tx );
+            Path mapped = mapper.mapPath( path( asNodeValues( a, b, c, d, e ), asRelationshipsValues( r1, r2, r3, r4 ) ) );
             assertThat( mapped.length(), equalTo( 4 ) );
             assertThat( mapped.startNode(), equalTo( a ) );
             assertThat( mapped.endNode(), equalTo( e ) );
@@ -166,29 +156,28 @@ public class DefaultValueMapperTest
     }
 
     @Test
-    public void shouldMapDirectRelationship()
+    void shouldMapDirectRelationship()
     {
         // Given
         Node start, end;
         Relationship relationship;
         try ( Transaction tx = db.beginTx() )
         {
-            start = db.createNode();
-            end = db.createNode();
+            start = tx.createNode();
+            end = tx.createNode();
             relationship = start.createRelationshipTo( end, RelationshipType.withName( "R" ) );
-            tx.success();
+            tx.commit();
         }
         RelationshipValue relationshipValue =
                 VirtualValues.relationshipValue( relationship.getId(), nodeValue( start.getId(),
                         Values.EMPTY_TEXT_ARRAY, EMPTY_MAP ), nodeValue( start.getId(),
                         Values.EMPTY_TEXT_ARRAY, EMPTY_MAP ), stringValue( "R" ), EMPTY_MAP );
 
-        // When
-        Relationship coreAPIRelationship = mapper.mapRelationship( relationshipValue );
-
         // Then
-        try ( Transaction ignore = db.beginTx() )
+        try ( Transaction tx = db.beginTx() )
         {
+            var mapper = new DefaultValueMapper( (InternalTransaction) tx );
+            Relationship coreAPIRelationship = mapper.mapRelationship( relationshipValue );
             assertThat( coreAPIRelationship.getId(), equalTo( relationship.getId() ) );
             assertThat( coreAPIRelationship.getStartNode(), equalTo( start ) );
             assertThat( coreAPIRelationship.getEndNode(), equalTo( end ) );
@@ -197,12 +186,12 @@ public class DefaultValueMapperTest
 
     private NodeValue[] asNodeValues( Node... nodes )
     {
-        return Arrays.stream( nodes ).map( ValueUtils::fromNodeProxy ).toArray( NodeValue[]::new );
+        return Arrays.stream( nodes ).map( ValueUtils::fromNodeEntity ).toArray( NodeValue[]::new );
     }
 
     private RelationshipValue[] asRelationshipsValues( Relationship... relationships )
     {
-        return Arrays.stream( relationships ).map( ValueUtils::fromRelationshipProxy )
+        return Arrays.stream( relationships ).map( ValueUtils::fromRelationshipEntity )
                 .toArray( RelationshipValue[]::new );
     }
 }

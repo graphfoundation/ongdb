@@ -22,14 +22,15 @@
  */
 package org.neo4j.cypher.internal
 
-import org.neo4j.cypher.internal.v3_6.parser.Base
-import org.neo4j.cypher.internal.v3_6.util.InputPosition
+import org.neo4j.cypher.internal.compiler.Neo4jCypherExceptionFactory
+import org.neo4j.cypher.internal.v4_0.parser.Base
+import org.neo4j.cypher.internal.v4_0.util.InputPosition
 import org.parboiled.scala._
 
 final case class PreParsedStatement(statement: String, options: Seq[PreParserOption], offset: InputPosition)
 
 case object CypherPreParser extends org.parboiled.scala.Parser with Base {
-  def apply(input: String): PreParsedStatement = parseOrThrow(input, None, QueryWithOptions)
+  def apply(input: String): PreParsedStatement = parseOrThrow(input, Neo4jCypherExceptionFactory(input, None), None, QueryWithOptions)
 
   def QueryWithOptions: Rule1[Seq[PreParsedStatement]] =
     WS ~ AllOptions ~ WS ~ AnySomething ~~>>
@@ -44,12 +45,11 @@ case object CypherPreParser extends org.parboiled.scala.Parser with Base {
   def Cypher: Rule1[ConfigurationOptions] = rule("CYPHER options") {
     keyword("CYPHER") ~~
       optional(VersionNumber) ~~
-      zeroOrMore(PlannerOption | RuntimeOption | ExpressionEngineOption | StrategyOption | DebugFlag, WS) ~~> ConfigurationOptions
+      zeroOrMore(PlannerOption | RuntimeOption | ExpressionEngineOption | OperatorEngine | InterpretedPipesFallback | StrategyOption | DebugFlag, WS) ~~> ConfigurationOptions
   }
 
   def PlannerOption: Rule1[PreParserOption] = rule("planner option") (
       option("planner", "cost") ~ push(CostPlannerOption)
-    | option("planner", "rule") ~ push(RulePlannerOption)
     | option("planner", "greedy") ~ push(GreedyPlannerOption)
     | option("planner", "idp") ~ push(IDPPlannerOption)
     | option("planner", "dp") ~ push(DPPlannerOption)
@@ -57,9 +57,10 @@ case object CypherPreParser extends org.parboiled.scala.Parser with Base {
 
   def RuntimeOption: Rule1[RuntimePreParserOption] = rule("runtime option")(
     option("runtime", "interpreted") ~ push(InterpretedRuntimeOption)
-      | option("runtime", "compiled") ~ push(CompiledRuntimeOption)
+      | option("runtime", "legacy_compiled") ~ push(CompiledRuntimeOption)
       | option("runtime", "slotted") ~ push(SlottedRuntimeOption)
-      | option("runtime", "morsel") ~ push(MorselRuntimeOption)
+      | option("runtime", "pipelined") ~ push(PipelinedRuntimeOption)
+      | option("runtime", "parallel") ~ push(ParallelRuntimeOption)
   )
 
   def StrategyOption: Rule1[UpdateStrategyOption] = rule("strategy option")(
@@ -77,6 +78,17 @@ case object CypherPreParser extends org.parboiled.scala.Parser with Base {
   def ExpressionEngineOption: Rule1[ExpressionEnginePreParserOption] = rule("expression engine option") (
     option("expressionEngine", "interpreted") ~ push(InterpretedExpressionOption)
       | option("expressionEngine", "compiled") ~ push(CompiledExpressionOption)
+  )
+
+  def OperatorEngine: Rule1[OperatorEnginePreParserOption] = rule("operator engine mode options") (
+    option("operatorEngine", "compiled") ~ push(CompiledOperatorEngineOption)
+    | option("operatorEngine", "interpreted") ~ push(InterpretedOperatorEngineOption)
+  )
+
+  def InterpretedPipesFallback: Rule1[InterpretedPipesFallbackPreParserOption] = rule("interpreted pipes fallback options") (
+    option("interpretedPipesFallback", "disabled") ~ push(DisabledInterpretedPipesFallbackOption)
+    | option("interpretedPipesFallback", "default") ~ push(DefaultInterpretedPipesFallbackOption)
+    | option("interpretedPipesFallback", "all") ~ push(AllInterpretedPipesFallbackOption)
   )
 
   def Digits: Rule0 = oneOrMore("0" - "9")

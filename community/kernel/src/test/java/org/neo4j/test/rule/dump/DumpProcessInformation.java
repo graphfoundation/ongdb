@@ -31,14 +31,15 @@ import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Collection;
 
-import org.neo4j.helpers.Args;
-import org.neo4j.helpers.collection.Pair;
+import org.neo4j.internal.helpers.Args;
+import org.neo4j.internal.helpers.collection.Pair;
 import org.neo4j.logging.FormattedLogProvider;
 import org.neo4j.logging.Log;
 import org.neo4j.logging.LogProvider;
 
-import static org.hamcrest.Matchers.isIn;
-import static org.neo4j.helpers.Format.time;
+import static org.hamcrest.Matchers.in;
+import static org.hamcrest.Matchers.is;
+import static org.neo4j.internal.helpers.Format.time;
 
 public class DumpProcessInformation
 {
@@ -49,7 +50,7 @@ public class DumpProcessInformation
     {
         Args arg = Args.withFlags( HEAP ).parse( args == null ? new String[0] : args );
         boolean doHeapDump = arg.getBoolean( HEAP, false, true );
-        String[] containing = arg.orphans().toArray( new String[arg.orphans().size()] );
+        String[] containing = arg.orphans().toArray( new String[0] );
         String dumpDir = arg.get( DIR, "data" );
         new DumpProcessInformation( FormattedLogProvider.toOutputStream( System.out ), new File( dumpDir ) ).dumpRunningProcesses(
                 doHeapDump, containing );
@@ -68,7 +69,7 @@ public class DumpProcessInformation
             throws Exception
     {
         outputDirectory.mkdirs();
-        for ( Pair<Long, String> pid : getJPids( isIn( javaPidsContainingClassNames ) ) )
+        for ( Pair<Long,String> pid : getJPids( is( in( javaPidsContainingClassNames ) ) ) )
         {
             doThreadDump( pid );
             if ( includeHeapDump )
@@ -108,7 +109,7 @@ public class DumpProcessInformation
     {
         Process process = Runtime.getRuntime().exec( new String[] { "jps", "-l" } );
         BufferedReader reader = new BufferedReader( new InputStreamReader( process.getInputStream() ) );
-        String line = null;
+        String line;
         Collection<Pair<Long, String>> jPids = new ArrayList<>();
         Collection<Pair<Long, String>> excludedJPids = new ArrayList<>();
         while ( (line = reader.readLine()) != null )
@@ -121,8 +122,7 @@ public class DumpProcessInformation
             // If that's the case then use the PID instead
             if ( name.contains( ":" ) )
             {
-                String pid = line.substring( 0, spaceIndex );
-                name = pid;
+                name = line.substring( 0, spaceIndex );
             }
 
             Pair<Long, String> pid = Pair.of( Long.parseLong( line.substring( 0, spaceIndex ) ), name );
@@ -146,7 +146,7 @@ public class DumpProcessInformation
     private void writeProcessOutputToFile( Process process, File outputFile ) throws Exception
     {
         BufferedReader reader = new BufferedReader( new InputStreamReader( process.getInputStream() ) );
-        String line = null;
+        String line;
         try ( PrintStream out = new PrintStream( outputFile ) )
         {
             while ( (line = reader.readLine()) != null )

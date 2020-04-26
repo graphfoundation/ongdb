@@ -24,74 +24,119 @@ package org.neo4j.commandline.dbms;
 
 import org.apache.commons.lang3.mutable.MutableLong;
 import org.hamcrest.Matcher;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import picocli.CommandLine;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
-import java.io.StringReader;
+import java.io.PrintStream;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
-import java.util.Map;
 
-import org.neo4j.commandline.admin.OutsideWorld;
-import org.neo4j.commandline.admin.RealOutsideWorld;
+import org.neo4j.cli.ExecutionContext;
+import org.neo4j.configuration.Config;
+import org.neo4j.configuration.GraphDatabaseSettings.TransactionStateMemoryAllocation;
+import org.neo4j.configuration.SettingImpl;
+import org.neo4j.dbms.api.DatabaseManagementService;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.Transaction;
-import org.neo4j.graphdb.config.Setting;
 import org.neo4j.io.layout.DatabaseLayout;
+import org.neo4j.io.layout.Neo4jLayout;
 import org.neo4j.kernel.api.impl.index.storage.FailureStorage;
 import org.neo4j.kernel.api.index.IndexDirectoryStructure;
 import org.neo4j.kernel.impl.store.StoreType;
-import org.neo4j.test.TestGraphDatabaseFactory;
+import org.neo4j.test.TestDatabaseManagementServiceBuilder;
+import org.neo4j.test.extension.Inject;
+import org.neo4j.test.extension.Neo4jLayoutExtension;
 import org.neo4j.test.rule.TestDirectory;
 import org.neo4j.values.storable.RandomValues;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.both;
-import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.lessThan;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
-import static org.junit.Assert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.ArgumentMatchers.contains;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.neo4j.commandline.dbms.MemoryRecommendationsCommand.bytesToString;
 import static org.neo4j.commandline.dbms.MemoryRecommendationsCommand.recommendHeapMemory;
 import static org.neo4j.commandline.dbms.MemoryRecommendationsCommand.recommendOsMemory;
 import static org.neo4j.commandline.dbms.MemoryRecommendationsCommand.recommendPageCacheMemory;
+import static org.neo4j.commandline.dbms.MemoryRecommendationsCommand.recommendTxStateMemory;
+import static org.neo4j.configuration.Config.DEFAULT_CONFIG_FILE_NAME;
 import static org.neo4j.configuration.ExternalSettings.initialHeapSize;
 import static org.neo4j.configuration.ExternalSettings.maxHeapSize;
-import static org.neo4j.graphdb.factory.GraphDatabaseSettings.SchemaIndex;
-import static org.neo4j.graphdb.factory.GraphDatabaseSettings.active_database;
-import static org.neo4j.graphdb.factory.GraphDatabaseSettings.data_directory;
-import static org.neo4j.graphdb.factory.GraphDatabaseSettings.database_path;
-import static org.neo4j.graphdb.factory.GraphDatabaseSettings.default_schema_provider;
-import static org.neo4j.graphdb.factory.GraphDatabaseSettings.pagecache_memory;
-import static org.neo4j.helpers.ArrayUtil.array;
-import static org.neo4j.helpers.collection.MapUtil.load;
-import static org.neo4j.helpers.collection.MapUtil.store;
-import static org.neo4j.helpers.collection.MapUtil.stringMap;
+import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
+import static org.neo4j.configuration.GraphDatabaseSettings.SYSTEM_DATABASE_NAME;
+import static org.neo4j.configuration.GraphDatabaseSettings.SchemaIndex;
+import static org.neo4j.configuration.GraphDatabaseSettings.data_directory;
+import static org.neo4j.configuration.GraphDatabaseSettings.default_schema_provider;
+import static org.neo4j.configuration.GraphDatabaseSettings.pagecache_memory;
+import static org.neo4j.configuration.GraphDatabaseSettings.tx_state_max_off_heap_memory;
+import static org.neo4j.configuration.GraphDatabaseSettings.tx_state_memory_allocation;
+import static org.neo4j.configuration.SettingValueParsers.BYTES;
+import static org.neo4j.internal.helpers.collection.MapUtil.store;
+import static org.neo4j.internal.helpers.collection.MapUtil.stringMap;
 import static org.neo4j.io.ByteUnit.exbiBytes;
 import static org.neo4j.io.ByteUnit.gibiBytes;
 import static org.neo4j.io.ByteUnit.mebiBytes;
 import static org.neo4j.io.ByteUnit.tebiBytes;
-import static org.neo4j.kernel.configuration.Config.DEFAULT_CONFIG_FILE_NAME;
-import static org.neo4j.kernel.configuration.Config.fromFile;
-import static org.neo4j.kernel.configuration.Settings.BYTES;
-import static org.neo4j.kernel.configuration.Settings.buildSetting;
 
-public class MemoryRecommendationsCommandTest
+@Neo4jLayoutExtension
+class MemoryRecommendationsCommandTest
 {
-    @Rule
-    public final TestDirectory directory = TestDirectory.testDirectory();
+    @Inject
+    private TestDirectory testDirectory;
+    @Inject
+    private Neo4jLayout neo4jLayout;
 
     @Test
-    public void mustRecommendOSMemory()
+    void printUsageHelp()
+    {
+        final var baos = new ByteArrayOutputStream();
+        final var command = new MemoryRecommendationsCommand( new ExecutionContext( Path.of( "." ), Path.of( "." ) ) );
+        try ( var out = new PrintStream( baos ) )
+        {
+            CommandLine.usage( command, new PrintStream( out ) );
+        }
+        assertThat( baos.toString().trim(), equalTo( String.format(
+                "Print Neo4j heap and pagecache memory settings recommendations.%n" +
+                "%n" +
+                "USAGE%n" +
+                "%n" +
+                "memrec [--verbose] [--memory=<size>]%n" +
+                "%n" +
+                "DESCRIPTION%n" +
+                "%n" +
+                "Print heuristic memory setting recommendations for the Neo4j JVM heap and%n" +
+                "pagecache. The heuristic is based on the total memory of the system the command%n" +
+                "is running on, or on the amount of memory specified with the --memory argument.%n" +
+                "The heuristic assumes that the system is dedicated to running Neo4j. If this is%n" +
+                "not the case, then use the --memory argument to specify how much memory can be%n" +
+                "expected to be dedicated to Neo4j. The output is formatted such that it can be%n" +
+                "copy-pasted into the neo4j.conf file.%n" +
+                "%n" +
+                "OPTIONS%n" +
+                "%n" +
+                "      --verbose         Enable verbose output.%n" +
+                "      --memory=<size>   Recommend memory settings with respect to the given%n" +
+                "                          amount of memory, instead of the total memory of the%n" +
+                "                          system running the command."
+        ) ) );
+    }
+
+    @Test
+    void mustRecommendOSMemory()
     {
         assertThat( recommendOsMemory( mebiBytes( 100 ) ), between( mebiBytes( 65 ), mebiBytes( 75 ) ) );
         assertThat( recommendOsMemory( gibiBytes( 1 ) ), between( mebiBytes( 650 ), mebiBytes( 750 ) ) );
@@ -101,7 +146,7 @@ public class MemoryRecommendationsCommandTest
     }
 
     @Test
-    public void mustRecommendHeapMemory()
+    void mustRecommendHeapMemory()
     {
         assertThat( recommendHeapMemory( mebiBytes( 100 ) ), between( mebiBytes( 25 ), mebiBytes( 35 ) ) );
         assertThat( recommendHeapMemory( gibiBytes( 1 ) ), between( mebiBytes( 300 ), mebiBytes( 350 ) ) );
@@ -112,29 +157,56 @@ public class MemoryRecommendationsCommandTest
     }
 
     @Test
-    public void mustRecommendPageCacheMemory()
+    void mustRecommendPageCacheMemoryWithOffHeapTxState()
     {
-        assertThat( recommendPageCacheMemory( mebiBytes( 100 ) ), between( mebiBytes( 7 ), mebiBytes( 12 ) ) );
-        assertThat( recommendPageCacheMemory( gibiBytes( 1 ) ), between( mebiBytes( 50 ), mebiBytes( 60 ) ) );
-        assertThat( recommendPageCacheMemory( gibiBytes( 3 ) ), between( mebiBytes( 470 ), mebiBytes( 530 ) ) );
-        assertThat( recommendPageCacheMemory( gibiBytes( 6 ) ), between( mebiBytes( 980 ), mebiBytes( 1048 ) ) );
-        assertThat( recommendPageCacheMemory( gibiBytes( 192 ) ), between( gibiBytes( 140 ), gibiBytes( 150 ) ) );
-        assertThat( recommendPageCacheMemory( gibiBytes( 1920 ) ), between( gibiBytes( 1850 ), gibiBytes( 1900 ) ) );
+        assertThat( recommendPageCacheMemory( mebiBytes( 100 ), mebiBytes( 130 ) ), between( mebiBytes( 7 ), mebiBytes( 12 ) ) );
+        assertThat( recommendPageCacheMemory( gibiBytes( 1 ), mebiBytes( 260 ) ), between( mebiBytes( 8 ), mebiBytes( 50 ) ) );
+        assertThat( recommendPageCacheMemory( gibiBytes( 3 ), mebiBytes( 368 ) ), between( mebiBytes( 100 ), mebiBytes( 256 ) ) );
+        assertThat( recommendPageCacheMemory( gibiBytes( 6 ), mebiBytes( 780 ) ), between( mebiBytes( 100 ), mebiBytes( 256 ) ) );
+        assertThat( recommendPageCacheMemory( gibiBytes( 192 ), gibiBytes( 10 ) ), between( gibiBytes( 75 ), gibiBytes( 202 ) ) );
+        assertThat( recommendPageCacheMemory( gibiBytes( 1920 ), gibiBytes( 10 ) ), between( gibiBytes( 978 ), gibiBytes( 1900 ) ) );
 
         // Also never recommend more than 16 TiB of page cache memory, regardless of how much is available.
-        assertThat( recommendPageCacheMemory( exbiBytes( 1 ) ), lessThan( tebiBytes( 17 ) ) );
+        assertThat( recommendPageCacheMemory( exbiBytes( 1 ), gibiBytes( 100 ) ), lessThanOrEqualTo( tebiBytes( 16 ) ) );
     }
 
     @Test
-    public void bytesToStringMustBeParseableBySettings()
+    void mustRecommendPageCacheMemoryWithOnHeapTxState()
     {
-        Setting<Long> setting = buildSetting( "arg", BYTES ).build();
+        assertThat( recommendPageCacheMemory( mebiBytes( 100 ), 0 ), between( mebiBytes( 7 ), mebiBytes( 12 ) ) );
+        assertThat( recommendPageCacheMemory( gibiBytes( 1 ), 0 ), between( mebiBytes( 20 ), mebiBytes( 60 ) ) );
+        assertThat( recommendPageCacheMemory( gibiBytes( 3 ), 0 ), between( mebiBytes( 256 ), mebiBytes( 728 ) ) );
+        assertThat( recommendPageCacheMemory( gibiBytes( 6 ), 0 ), between( mebiBytes( 728 ), mebiBytes( 1056 ) ) );
+        assertThat( recommendPageCacheMemory( gibiBytes( 192 ), 0 ), between( gibiBytes( 75 ), gibiBytes( 202 ) ) );
+        assertThat( recommendPageCacheMemory( gibiBytes( 1920 ), 0 ), between( gibiBytes( 978 ), gibiBytes( 1900 ) ) );
+
+        // Also never recommend more than 16 TiB of page cache memory, regardless of how much is available.
+        assertThat( recommendPageCacheMemory( exbiBytes( 1 ), gibiBytes( 100 ) ), lessThanOrEqualTo( tebiBytes( 16 ) ) );
+    }
+
+    @Test
+    void recommendTxStatMemory()
+    {
+        final Config config = Config.defaults();
+        assertEquals( mebiBytes( 128 ), recommendTxStateMemory( config, mebiBytes( 100 ) ) );
+        assertEquals( mebiBytes( 128 ), recommendTxStateMemory( config, mebiBytes( 512 ) ) );
+        assertEquals( mebiBytes( 192 ), recommendTxStateMemory( config, mebiBytes( 768 ) ) );
+        assertEquals( mebiBytes( 256 ), recommendTxStateMemory( config, gibiBytes( 1 ) ) );
+        assertEquals( gibiBytes( 4 ), recommendTxStateMemory( config, gibiBytes( 16 ) ) );
+        assertEquals( gibiBytes( 8 ), recommendTxStateMemory( config, gibiBytes( 32 ) ) );
+        assertEquals( gibiBytes( 8 ), recommendTxStateMemory( config, gibiBytes( 128 ) ) );
+    }
+
+    @Test
+    void bytesToStringMustBeParseableBySettings()
+    {
+        SettingImpl<Long> setting = (SettingImpl<Long>) SettingImpl.newBuilder( "arg", BYTES, null ).build();
         for ( int i = 1; i < 10_000; i++ )
         {
             int mebibytes = 75 * i;
             long expectedBytes = mebiBytes( mebibytes );
             String bytesToString = bytesToString( expectedBytes );
-            long actualBytes = setting.apply( s -> bytesToString );
+            long actualBytes = setting.parse( bytesToString );
             long tenPercent = (long) (expectedBytes * 0.1);
             assertThat( mebibytes + "m",
                     actualBytes,
@@ -143,33 +215,60 @@ public class MemoryRecommendationsCommandTest
     }
 
     @Test
-    public void mustPrintRecommendationsAsConfigReadableOutput() throws Exception
+    void mustPrintRecommendationsAsConfigReadableOutput() throws Exception
     {
-        StringBuilder output = new StringBuilder();
-        Path homeDir = Paths.get( "home" );
-        Path configDir = Paths.get( "home", "config" );
-        OutsideWorld outsideWorld = new RealOutsideWorld()
-        {
-            @Override
-            public void stdOutLine( String text )
-            {
-                output.append( text ).append( System.lineSeparator() );
-            }
-        };
-        MemoryRecommendationsCommand command = new MemoryRecommendationsCommand( homeDir, configDir, outsideWorld );
+        PrintStream output = mock( PrintStream.class );
+        Path homeDir = testDirectory.homeDir().toPath();
+        Path configDir = homeDir.resolve( "conf" );
+        Path configFile = configDir.resolve( DEFAULT_CONFIG_FILE_NAME );
+        configDir.toFile().mkdirs();
+        store( stringMap( data_directory.name(), homeDir.toString() ), configFile.toFile() );
+
+        MemoryRecommendationsCommand command = new MemoryRecommendationsCommand(
+                new ExecutionContext( homeDir, configDir, output, mock( PrintStream.class ), testDirectory.getFileSystem() ) );
+
+        CommandLine.populateCommand( command, "--memory=8g" );
         String heap = bytesToString( recommendHeapMemory( gibiBytes( 8 ) ) );
-        String pagecache = bytesToString( recommendPageCacheMemory( gibiBytes( 8 ) ) );
+        String pagecache = bytesToString( recommendPageCacheMemory( gibiBytes( 8 ), gibiBytes( 2 ) ) );
+        String offHeap = bytesToString( gibiBytes( 2 ) );
 
-        command.execute( new String[]{"--memory=8g"} );
+        command.execute();
 
-        Map<String,String> stringMap = load( new StringReader( output.toString() ) );
-        assertThat( stringMap.get( initialHeapSize.name() ), is( heap ) );
-        assertThat( stringMap.get( maxHeapSize.name() ), is( heap ) );
-        assertThat( stringMap.get( pagecache_memory.name() ), is( pagecache ) );
+        verify( output ).println( initialHeapSize.name() + "=" + heap );
+        verify( output ).println( maxHeapSize.name() + "=" + heap );
+        verify( output ).println( pagecache_memory.name() + "=" + pagecache );
+        verify( output ).println( tx_state_max_off_heap_memory.name() + "=" + offHeap );
     }
 
     @Test
-    public void shouldPrintKilobytesEvenForByteSizeBelowAKiloByte()
+    void doNotPrintRecommendationsForOffHeapWhenOnHeapIsConfigured() throws Exception
+    {
+        PrintStream output = mock( PrintStream.class );
+        Path homeDir = testDirectory.homeDir().toPath();
+        Path configDir = homeDir.resolve( "conf" );
+        Path configFile = configDir.resolve( DEFAULT_CONFIG_FILE_NAME );
+        configDir.toFile().mkdirs();
+        store( stringMap( data_directory.name(), homeDir.toString(),
+                tx_state_memory_allocation.name(), TransactionStateMemoryAllocation.ON_HEAP.name() ), configFile.toFile() );
+
+        MemoryRecommendationsCommand command = new MemoryRecommendationsCommand(
+                new ExecutionContext( homeDir, configDir, output, mock( PrintStream.class ), testDirectory.getFileSystem() ) );
+
+        CommandLine.populateCommand( command, "--memory=8g" );
+        String heap = bytesToString( recommendHeapMemory( gibiBytes( 8 ) ) );
+        String pagecache = bytesToString( recommendPageCacheMemory( gibiBytes( 8 ), 0 ) );
+        String offHeap = bytesToString( gibiBytes( 2 ) );
+
+        command.execute();
+
+        verify( output ).println( initialHeapSize.name() + "=" + heap );
+        verify( output ).println( maxHeapSize.name() + "=" + heap );
+        verify( output ).println( pagecache_memory.name() + "=" + pagecache );
+        verify( output, never() ).println( tx_state_max_off_heap_memory.name() + "=" + offHeap );
+    }
+
+    @Test
+    void shouldPrintKilobytesEvenForByteSizeBelowAKiloByte()
     {
         // given
         long bytesBelowK = 176;
@@ -188,38 +287,79 @@ public class MemoryRecommendationsCommandTest
     }
 
     @Test
-    public void mustPrintMinimalPageCacheMemorySettingForConfiguredDb() throws Exception
+    void mustPrintMinimalPageCacheMemorySettingForConfiguredDb() throws Exception
     {
         // given
-        StringBuilder output = new StringBuilder();
-        Path homeDir = directory.directory().toPath();
+        Path homeDir = testDirectory.homeDir().toPath();
         Path configDir = homeDir.resolve( "conf" );
         configDir.toFile().mkdirs();
         Path configFile = configDir.resolve( DEFAULT_CONFIG_FILE_NAME );
         String databaseName = "mydb";
         store( stringMap( data_directory.name(), homeDir.toString() ), configFile.toFile() );
-        File databaseDirectory = fromFile( configFile ).withHome( homeDir ).withSetting( active_database, databaseName ).build().get( database_path );
-        createDatabaseWithNativeIndexes( databaseDirectory );
-        OutsideWorld outsideWorld = new OutputCaptureOutsideWorld( output );
-        MemoryRecommendationsCommand command = new MemoryRecommendationsCommand( homeDir, configDir, outsideWorld );
+        DatabaseLayout databaseLayout = neo4jLayout.databaseLayout( databaseName );
+        DatabaseLayout systemLayout = neo4jLayout.databaseLayout( SYSTEM_DATABASE_NAME );
+        createDatabaseWithNativeIndexes( databaseLayout );
+        PrintStream output = mock( PrintStream.class );
+        MemoryRecommendationsCommand command = new MemoryRecommendationsCommand(
+                new ExecutionContext( homeDir, configDir, output, mock( PrintStream.class ), testDirectory.getFileSystem() ) );
         String heap = bytesToString( recommendHeapMemory( gibiBytes( 8 ) ) );
-        String pagecache = bytesToString( recommendPageCacheMemory( gibiBytes( 8 ) ) );
+        String pagecache = bytesToString( recommendPageCacheMemory( gibiBytes( 8 ), gibiBytes( 2 ) ) );
 
         // when
-        command.execute( array( "--database", databaseName, "--memory", "8g" ) );
+        CommandLine.populateCommand( command, "--memory=8g" );
+        command.execute();
 
         // then
-        String memrecString = output.toString();
-        Map<String,String> stringMap = load( new StringReader( memrecString ) );
-        assertThat( stringMap.get( initialHeapSize.name() ), is( heap ) );
-        assertThat( stringMap.get( maxHeapSize.name() ), is( heap ) );
-        assertThat( stringMap.get( pagecache_memory.name() ), is( pagecache ) );
+        verify( output ).println( contains( initialHeapSize.name() + "=" + heap ) );
+        verify( output ).println( contains( maxHeapSize.name() + "=" + heap ) );
+        verify( output ).println( contains( pagecache_memory.name() + "=" + pagecache ) );
 
-        long[] expectedSizes = calculatePageCacheFileSize( DatabaseLayout.of( databaseDirectory ) );
-        long expectedPageCacheSize = expectedSizes[0];
-        long expectedLuceneSize = expectedSizes[1];
-        assertThat( memrecString, containsString( "Lucene indexes: " + bytesToString( expectedLuceneSize ) ) );
-        assertThat( memrecString, containsString( "Data volume and native indexes: " + bytesToString( expectedPageCacheSize ) ) );
+        long[] expectedSizes = calculatePageCacheFileSize( databaseLayout );
+        long[] systemSizes = calculatePageCacheFileSize( systemLayout );
+        long expectedPageCacheSize = expectedSizes[0] + systemSizes[0];
+        long expectedLuceneSize = expectedSizes[1] + systemSizes[1];
+
+        verify( output ).println( contains( "Total size of lucene indexes in all databases: " + bytesToString( expectedLuceneSize ) ) );
+        verify( output ).println( contains( "Total size of data and native indexes in all databases: " + bytesToString( expectedPageCacheSize ) ) );
+    }
+
+    @Test
+    void includeAllDatabasesToMemoryRecommendations() throws IOException
+    {
+        PrintStream output = mock( PrintStream.class );
+        Path homeDir = testDirectory.homeDir().toPath();
+        Path configDir = homeDir.resolve( "conf" );
+        configDir.toFile().mkdirs();
+        Path configFile = configDir.resolve( DEFAULT_CONFIG_FILE_NAME );
+
+        store( stringMap( data_directory.name(), homeDir.toString() ), configFile.toFile() );
+
+        long totalPageCacheSize = 0;
+        long totalLuceneIndexesSize = 0;
+        for ( int i = 0; i < 5; i++ )
+        {
+            DatabaseLayout databaseLayout = neo4jLayout.databaseLayout( "db" + i );
+            createDatabaseWithNativeIndexes( databaseLayout );
+            long[] expectedSizes = calculatePageCacheFileSize( databaseLayout );
+            totalPageCacheSize += expectedSizes[0];
+            totalLuceneIndexesSize += expectedSizes[1];
+        }
+        DatabaseLayout systemLayout = neo4jLayout.databaseLayout( SYSTEM_DATABASE_NAME );
+        long[] expectedSizes = calculatePageCacheFileSize( systemLayout );
+        totalPageCacheSize += expectedSizes[0];
+        totalLuceneIndexesSize += expectedSizes[1];
+
+        MemoryRecommendationsCommand command = new MemoryRecommendationsCommand(
+                new ExecutionContext( homeDir, configDir, output, mock( PrintStream.class ), testDirectory.getFileSystem() ) );
+
+        CommandLine.populateCommand( command, "--memory=8g" );
+
+        command.execute();
+
+        final long expectedLuceneIndexesSize = totalLuceneIndexesSize;
+        final long expectedPageCacheSize = totalPageCacheSize;
+        verify( output ).println( contains( "Total size of lucene indexes in all databases: " + bytesToString( expectedLuceneIndexesSize ) ) );
+        verify( output ).println( contains( "Total size of data and native indexes in all databases: " + bytesToString( expectedPageCacheSize ) ) );
     }
 
     private static Matcher<Long> between( long lowerBound, long upperBound )
@@ -233,50 +373,50 @@ public class MemoryRecommendationsCommandTest
         MutableLong luceneTotal = new MutableLong();
         for ( StoreType storeType : StoreType.values() )
         {
-            if ( storeType.isRecordStore() )
-            {
-                long length = databaseLayout.file( storeType.getDatabaseFile() ).mapToLong( File::length ).sum();
-                pageCacheTotal.add( length );
-            }
+            long length = databaseLayout.file( storeType.getDatabaseFile() ).length();
+            pageCacheTotal.add( length );
         }
 
-        Files.walkFileTree( IndexDirectoryStructure.baseSchemaIndexFolder( databaseLayout.databaseDirectory() ).toPath(), new SimpleFileVisitor<Path>()
+        File indexFolder = IndexDirectoryStructure.baseSchemaIndexFolder( databaseLayout.databaseDirectory() );
+        if ( indexFolder.exists() )
         {
-            @Override
-            public FileVisitResult visitFile( Path path, BasicFileAttributes attrs )
+            Files.walkFileTree( indexFolder.toPath(), new SimpleFileVisitor<>()
             {
-                File file = path.toFile();
-                Path name = path.getName( path.getNameCount() - 3 );
-                boolean isLuceneFile = (path.getNameCount() >= 3 && name.toString().startsWith( "lucene-" )) ||
-                        (path.getNameCount() >= 4 && path.getName( path.getNameCount() - 4 ).toString().equals( "lucene" ));
-                if ( !FailureStorage.DEFAULT_FAILURE_FILE_NAME.equals( file.getName() ) )
+                @Override
+                public FileVisitResult visitFile( Path path, BasicFileAttributes attrs )
                 {
-                    (isLuceneFile ? luceneTotal : pageCacheTotal).add( file.length() );
+                    File file = path.toFile();
+                    Path name = path.getName( path.getNameCount() - 3 );
+                    boolean isLuceneFile = (path.getNameCount() >= 3 && name.toString().startsWith( "lucene-" )) ||
+                            (path.getNameCount() >= 4 && path.getName( path.getNameCount() - 4 ).toString().equals( "lucene" ));
+                    if ( !FailureStorage.DEFAULT_FAILURE_FILE_NAME.equals( file.getName() ) )
+                    {
+                        (isLuceneFile ? luceneTotal : pageCacheTotal).add( file.length() );
+                    }
+                    return FileVisitResult.CONTINUE;
                 }
-                return FileVisitResult.CONTINUE;
-            }
-        } );
+            } );
+        }
         pageCacheTotal.add( databaseLayout.labelScanStore().length() );
         return new long[]{pageCacheTotal.longValue(), luceneTotal.longValue()};
     }
 
-    private static void createDatabaseWithNativeIndexes( File databaseDirectory )
+    private static void createDatabaseWithNativeIndexes( DatabaseLayout databaseLayout )
     {
         // Create one index for every provider that we have
         for ( SchemaIndex schemaIndex : SchemaIndex.values() )
         {
-            GraphDatabaseService db =
-                    new TestGraphDatabaseFactory().newEmbeddedDatabaseBuilder( databaseDirectory )
-                            .setConfig( default_schema_provider, schemaIndex.providerName() )
-                            .newGraphDatabase();
+            DatabaseManagementService managementService = new TestDatabaseManagementServiceBuilder( databaseLayout.databaseDirectory() ).setConfig(
+                            default_schema_provider, schemaIndex.providerName() ).build();
+            GraphDatabaseService db = managementService.database( DEFAULT_DATABASE_NAME );
             String key = "key-" + schemaIndex.name();
             try
             {
                 Label labelOne = Label.label( "one" );
                 try ( Transaction tx = db.beginTx() )
                 {
-                    db.schema().indexFor( labelOne ).on( key ).create();
-                    tx.success();
+                    tx.schema().indexFor( labelOne ).on( key ).create();
+                    tx.commit();
                 }
 
                 try ( Transaction tx = db.beginTx() )
@@ -284,31 +424,15 @@ public class MemoryRecommendationsCommandTest
                     RandomValues randomValues = RandomValues.create();
                     for ( int i = 0; i < 10_000; i++ )
                     {
-                        db.createNode( labelOne ).setProperty( key, randomValues.nextValue().asObject() );
+                        tx.createNode( labelOne ).setProperty( key, randomValues.nextValue().asObject() );
                     }
-                    tx.success();
+                    tx.commit();
                 }
             }
             finally
             {
-                db.shutdown();
+                managementService.shutdown();
             }
-        }
-    }
-
-    private static class OutputCaptureOutsideWorld extends RealOutsideWorld
-    {
-        private final StringBuilder output;
-
-        OutputCaptureOutsideWorld( StringBuilder output )
-        {
-            this.output = output;
-        }
-
-        @Override
-        public void stdOutLine( String text )
-        {
-            output.append( text ).append( System.lineSeparator() );
         }
     }
 }

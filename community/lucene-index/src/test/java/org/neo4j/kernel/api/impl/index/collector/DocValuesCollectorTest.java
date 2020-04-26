@@ -22,28 +22,37 @@
  */
 package org.neo4j.kernel.api.impl.index.collector;
 
-import org.apache.lucene.document.Document;
+import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.index.NumericDocValues;
 import org.apache.lucene.search.ConstantScoreScorer;
+import org.apache.lucene.search.ConstantScoreWeight;
 import org.apache.lucene.search.DocIdSetIterator;
+import org.apache.lucene.search.ScoreMode;
 import org.apache.lucene.search.Scorer;
-import org.apache.lucene.search.Sort;
-import org.apache.lucene.search.SortField;
+import org.apache.lucene.search.Weight;
 import org.eclipse.collections.api.iterator.LongIterator;
 import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
 
-import org.neo4j.graphdb.index.IndexHits;
+import org.neo4j.internal.kernel.api.IndexQuery;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.internal.schema.IndexOrder;
 import org.neo4j.kernel.api.impl.index.IndexReaderStub;
+import org.neo4j.kernel.api.index.IndexProgressor;
+import org.neo4j.values.storable.Value;
 
 import static java.util.Collections.emptyList;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.is;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 final class DocValuesCollectorTest
 {
@@ -79,7 +88,7 @@ final class DocValuesCollectorTest
         DocValuesCollector.MatchingDocs matchingDocs = allMatchingDocs.get( 0 );
         assertSame( readerStub.getContext(), matchingDocs.context );
         assertEquals( 4, matchingDocs.totalHits );
-        DocIdSetIterator idIterator = matchingDocs.docIdSet.iterator();
+        DocIdSetIterator idIterator = matchingDocs.docIdSet;
         assertEquals( 1, idIterator.nextDoc() );
         assertEquals( 3, idIterator.nextDoc() );
         assertEquals( 5, idIterator.nextDoc() );
@@ -110,7 +119,7 @@ final class DocValuesCollectorTest
         DocValuesCollector.MatchingDocs matchingDocs = allMatchingDocs.get( 0 );
         assertSame( readerStub.getContext(), matchingDocs.context );
         assertEquals( 2, matchingDocs.totalHits );
-        DocIdSetIterator idIterator = matchingDocs.docIdSet.iterator();
+        DocIdSetIterator idIterator = matchingDocs.docIdSet;
         assertEquals( 1, idIterator.nextDoc() );
         assertEquals( 3, idIterator.nextDoc() );
         assertEquals( DocIdSetIterator.NO_MORE_DOCS, idIterator.nextDoc() );
@@ -118,7 +127,7 @@ final class DocValuesCollectorTest
         matchingDocs = allMatchingDocs.get( 1 );
         assertSame( readerStub.getContext(), matchingDocs.context );
         assertEquals( 2, matchingDocs.totalHits );
-        idIterator = matchingDocs.docIdSet.iterator();
+        idIterator = matchingDocs.docIdSet;
         assertEquals( 5, idIterator.nextDoc() );
         assertEquals( 9, idIterator.nextDoc() );
         assertEquals( DocIdSetIterator.NO_MORE_DOCS, idIterator.nextDoc() );
@@ -141,6 +150,29 @@ final class DocValuesCollectorTest
     }
 
     @Test
+    void shouldNotSaveScoresForIndexProgressorWhenNotRequired() throws Exception
+    {
+        // given
+        DocValuesCollector collector = new DocValuesCollector( false );
+        IndexReaderStub readerStub = indexReaderWithMaxDocs( 42 );
+
+        // when
+        collector.doSetNextReader( readerStub.getContext() );
+        collector.collect( 1 );
+
+        // then
+        AtomicReference<AcceptedEntity> ref = new AtomicReference<>();
+        IndexProgressor.EntityValueClient client = new EntityValueClientWritingToReference( ref );
+        IndexProgressor progressor = collector.getIndexProgressor( "field", client );
+        assertTrue( progressor.next() );
+        assertFalse( progressor.next() );
+        progressor.close();
+        AcceptedEntity entity = ref.get();
+        assertThat( entity.reference, is( 1L ) );
+        assertTrue( Float.isNaN( entity.score ) );
+    }
+
+    @Test
     void shouldSaveScoresWhenRequired() throws Exception
     {
         // given
@@ -155,6 +187,31 @@ final class DocValuesCollectorTest
         // then
         DocValuesCollector.MatchingDocs matchingDocs = collector.getMatchingDocs().get( 0 );
         assertArrayEquals( new float[]{13.42f}, matchingDocs.scores, 0.001f );
+    }
+
+    @Test
+    void shouldSaveScoresForIndexProgressorWhenRequired() throws Exception
+    {
+        // given
+        DocValuesCollector collector = new DocValuesCollector( true );
+        IndexReaderStub readerStub = indexReaderWithMaxDocs( 42 );
+        float score = 13.42f;
+
+        // when
+        collector.doSetNextReader( readerStub.getContext() );
+        collector.setScorer( constantScorer( score ) );
+        collector.collect( 1 );
+
+        // then
+        AtomicReference<AcceptedEntity> ref = new AtomicReference<>();
+        IndexProgressor.EntityValueClient client = new EntityValueClientWritingToReference( ref );
+        IndexProgressor progressor = collector.getIndexProgressor( "field", client );
+        assertTrue( progressor.next() );
+        assertFalse( progressor.next() );
+        progressor.close();
+        AcceptedEntity entity = ref.get();
+        assertThat( entity.reference, is( 1L ) );
+        assertThat( entity.score, is( score ) );
     }
 
     @Test
@@ -200,189 +257,6 @@ final class DocValuesCollectorTest
     }
 
     @Test
-    void shouldReturnIndexHitsInIndexOrderWhenNoSortIsGiven() throws Exception
-    {
-        // given
-        DocValuesCollector collector = new DocValuesCollector();
-        IndexReaderStub readerStub = indexReaderWithMaxDocs( 42 );
-
-        // when
-        collector.doSetNextReader( readerStub.getContext() );
-        collector.collect( 1 );
-        collector.collect( 2 );
-
-        // then
-        IndexHits<Document> indexHits = collector.getIndexHits( null );
-        assertEquals( 2, indexHits.size() );
-        assertEquals( "1", indexHits.next().get( "id" ) );
-        assertEquals( "2", indexHits.next().get( "id" ) );
-        assertFalse( indexHits.hasNext() );
-    }
-
-    @Test
-    void shouldReturnIndexHitsOrderedByRelevance() throws Exception
-    {
-        // given
-        DocValuesCollector collector = new DocValuesCollector( true );
-        IndexReaderStub readerStub = indexReaderWithMaxDocs( 42 );
-
-        // when
-        collector.doSetNextReader( readerStub.getContext() );
-        collector.setScorer( constantScorer( 1.0f ) );
-        collector.collect( 1 );
-        collector.setScorer( constantScorer( 2.0f ) );
-        collector.collect( 2 );
-
-        // then
-        IndexHits<Document> indexHits = collector.getIndexHits( Sort.RELEVANCE );
-        assertEquals( 2, indexHits.size() );
-        assertEquals( "2", indexHits.next().get( "id" ) );
-        assertEquals( 2.0f, indexHits.currentScore(), 0.001f );
-        assertEquals( "1", indexHits.next().get( "id" ) );
-        assertEquals( 1.0f, indexHits.currentScore(), 0.001f );
-        assertFalse( indexHits.hasNext() );
-    }
-
-    @Test
-    void shouldReturnIndexHitsInGivenSortOrder() throws Exception
-    {
-        // given
-        DocValuesCollector collector = new DocValuesCollector( false );
-        IndexReaderStub readerStub = indexReaderWithMaxDocs( 43 );
-
-        // when
-        collector.doSetNextReader( readerStub.getContext() );
-        collector.collect( 1 );
-        collector.collect( 3 );
-        collector.collect( 37 );
-        collector.collect( 42 );
-
-        // then
-        Sort byIdDescending = new Sort( new SortField( "id", SortField.Type.LONG, true ) );
-        IndexHits<Document> indexHits = collector.getIndexHits( byIdDescending );
-        assertEquals( 4, indexHits.size() );
-        assertEquals( "42", indexHits.next().get( "id" ) );
-        assertEquals( "37", indexHits.next().get( "id" ) );
-        assertEquals( "3", indexHits.next().get( "id" ) );
-        assertEquals( "1", indexHits.next().get( "id" ) );
-        assertFalse( indexHits.hasNext() );
-    }
-
-    @Test
-    void shouldSilentlyMergeAllSegments() throws Exception
-    {
-        // given
-        DocValuesCollector collector = new DocValuesCollector( false );
-        IndexReaderStub readerStub = indexReaderWithMaxDocs( 42 );
-
-        // when
-        collector.doSetNextReader( readerStub.getContext() );
-        collector.collect( 1 );
-        collector.doSetNextReader( readerStub.getContext() );
-        collector.collect( 2 );
-
-        // then
-        IndexHits<Document> indexHits = collector.getIndexHits( null );
-        assertEquals( 2, indexHits.size() );
-        assertEquals( "1", indexHits.next().get( "id" ) );
-        assertEquals( "2", indexHits.next().get( "id" ) );
-        assertFalse( indexHits.hasNext() );
-    }
-
-    @Test
-    void shouldReturnEmptyIteratorWhenNoHits() throws Exception
-    {
-        // given
-        DocValuesCollector collector = new DocValuesCollector( false );
-        IndexReaderStub readerStub = indexReaderWithMaxDocs( 42 );
-
-        // when
-        collector.doSetNextReader( readerStub.getContext() );
-
-        // then
-        IndexHits<Document> indexHits = collector.getIndexHits( null );
-        assertEquals( 0, indexHits.size() );
-        assertEquals( Float.NaN, indexHits.currentScore(), 0.001f );
-        assertFalse( indexHits.hasNext() );
-    }
-
-    @Test
-    void shouldReadDocValuesInIndexOrder() throws Exception
-    {
-        // given
-        DocValuesCollector collector = new DocValuesCollector( false );
-        IndexReaderStub readerStub = indexReaderWithMaxDocs( 42 );
-
-        // when
-        collector.doSetNextReader( readerStub.getContext() );
-        collector.collect( 1 );
-        collector.collect( 2 );
-
-        // then
-        DocValuesCollector.LongValuesIterator valuesIterator = collector.getValuesIterator( "id" );
-        assertEquals( 2, valuesIterator.remaining() );
-        assertEquals( 1, valuesIterator.next() );
-        assertEquals( 2, valuesIterator.next() );
-        assertFalse( valuesIterator.hasNext() );
-    }
-
-    @Test
-    void shouldSilentlyMergeSegmentsWhenReadingDocValues() throws Exception
-    {
-        // given
-        DocValuesCollector collector = new DocValuesCollector( false );
-        IndexReaderStub readerStub = indexReaderWithMaxDocs( 42 );
-
-        // when
-        collector.doSetNextReader( readerStub.getContext() );
-        collector.collect( 1 );
-        collector.doSetNextReader( readerStub.getContext() );
-        collector.collect( 2 );
-
-        // then
-        DocValuesCollector.LongValuesIterator valuesIterator = collector.getValuesIterator( "id" );
-        assertEquals( 2, valuesIterator.remaining() );
-        assertEquals( 1, valuesIterator.next() );
-        assertEquals( 2, valuesIterator.next() );
-        assertFalse( valuesIterator.hasNext() );
-    }
-
-    @Test
-    void shouldReturnEmptyIteratorWhenNoDocValues()
-    {
-        // given
-        DocValuesCollector collector = new DocValuesCollector( false );
-        IndexReaderStub readerStub = indexReaderWithMaxDocs( 42 );
-
-        // when
-        collector.doSetNextReader( readerStub.getContext() );
-
-        // then
-        DocValuesCollector.LongValuesIterator valuesIterator = collector.getValuesIterator( "id" );
-        assertEquals( 0, valuesIterator.remaining() );
-        assertFalse( valuesIterator.hasNext() );
-    }
-
-    @Test
-    void shouldReturnDocValuesInIndexOrderWhenNoSortIsGiven() throws Exception
-    {
-        // given
-        DocValuesCollector collector = new DocValuesCollector( false );
-        IndexReaderStub readerStub = indexReaderWithMaxDocs( 42 );
-
-        // when
-        collector.doSetNextReader( readerStub.getContext() );
-        collector.collect( 1 );
-        collector.collect( 2 );
-
-        // then
-        LongIterator valuesIterator = collector.getSortedValuesIterator( "id", null );
-        assertEquals( 1, valuesIterator.next() );
-        assertEquals( 2, valuesIterator.next() );
-        assertFalse( valuesIterator.hasNext() );
-    }
-
-    @Test
     void shouldReturnDocValuesInRelevanceOrder() throws Exception
     {
         // given
@@ -397,27 +271,7 @@ final class DocValuesCollectorTest
         collector.collect( 2 );
 
         // then
-        LongIterator valuesIterator = collector.getSortedValuesIterator( "id", Sort.RELEVANCE );
-        assertEquals( 2, valuesIterator.next() );
-        assertEquals( 1, valuesIterator.next() );
-        assertFalse( valuesIterator.hasNext() );
-    }
-
-    @Test
-    void shouldReturnDocValuesInGivenOrder() throws Exception
-    {
-        // given
-        DocValuesCollector collector = new DocValuesCollector( false );
-        IndexReaderStub readerStub = indexReaderWithMaxDocs( 42 );
-
-        // when
-        collector.doSetNextReader( readerStub.getContext() );
-        collector.collect( 1 );
-        collector.collect( 2 );
-
-        // then
-        Sort byIdDescending = new Sort( new SortField( "id", SortField.Type.LONG, true ) );
-        LongIterator valuesIterator = collector.getSortedValuesIterator( "id", byIdDescending );
+        LongIterator valuesIterator = collector.getValuesSortedByRelevance( "id" );
         assertEquals( 2, valuesIterator.next() );
         assertEquals( 1, valuesIterator.next() );
         assertFalse( valuesIterator.hasNext() );
@@ -439,7 +293,7 @@ final class DocValuesCollectorTest
         collector.collect( 2 );
 
         // then
-        LongIterator valuesIterator = collector.getSortedValuesIterator( "id", Sort.RELEVANCE );
+        LongIterator valuesIterator = collector.getValuesSortedByRelevance( "id" );
         assertEquals( 2, valuesIterator.next() );
         assertEquals( 1, valuesIterator.next() );
         assertFalse( valuesIterator.hasNext() );
@@ -456,7 +310,7 @@ final class DocValuesCollectorTest
         collector.doSetNextReader( readerStub.getContext() );
 
         // then
-        LongIterator valuesIterator = collector.getSortedValuesIterator( "id", Sort.RELEVANCE );
+        LongIterator valuesIterator = collector.getValuesSortedByRelevance( "id" );
         assertFalse( valuesIterator.hasNext() );
     }
 
@@ -465,9 +319,42 @@ final class DocValuesCollectorTest
         NumericDocValues identityValues = new NumericDocValues()
         {
             @Override
-            public long get( int docID )
+            public boolean advanceExact( int target )
             {
-                return docID;
+                advance( target );
+                return true;
+            }
+
+            private int next = -1;
+
+            @Override
+            public int docID()
+            {
+                return next;
+            }
+
+            @Override
+            public int nextDoc()
+            {
+                return advance( next + 1 );
+            }
+
+            @Override
+            public int advance( int target )
+            {
+                return next = target;
+            }
+
+            @Override
+            public long cost()
+            {
+                return 0;
+            }
+
+            @Override
+            public long longValue()
+            {
+                return next;
             }
         };
         IndexReaderStub stub = new IndexReaderStub( identityValues );
@@ -477,6 +364,61 @@ final class DocValuesCollectorTest
 
     private static Scorer constantScorer( float score )
     {
-        return new ConstantScoreScorer( null, score, (DocIdSetIterator) null );
+        Weight weight = new ConstantScoreWeight( null, score )
+        {
+            @Override
+            public Scorer scorer( LeafReaderContext context )
+            {
+                return null;
+            }
+
+            @Override
+            public boolean isCacheable( LeafReaderContext ctx )
+            {
+                return false;
+            }
+        };
+        return new ConstantScoreScorer( weight, score, ScoreMode.COMPLETE, (DocIdSetIterator) null );
+    }
+
+    private static final class AcceptedEntity
+    {
+        long reference;
+        float score;
+        Value[] values;
+    }
+
+    private static class EntityValueClientWritingToReference implements IndexProgressor.EntityValueClient
+    {
+        private final AtomicReference<AcceptedEntity> ref;
+
+        private EntityValueClientWritingToReference( AtomicReference<AcceptedEntity> ref )
+        {
+            this.ref = ref;
+        }
+
+        @Override
+        public void initialize( IndexDescriptor descriptor, IndexProgressor progressor, IndexQuery[] query, IndexOrder indexOrder, boolean needsValues,
+                boolean indexIncludesTransactionState )
+        {
+        }
+
+        @Override
+        public boolean acceptEntity( long reference, float score, Value... values )
+        {
+            assertNull( ref.get() );
+            AcceptedEntity entity = new AcceptedEntity();
+            entity.reference = reference;
+            entity.score = score;
+            entity.values = values;
+            ref.set( entity );
+            return true;
+        }
+
+        @Override
+        public boolean needsValues()
+        {
+            return false;
+        }
     }
 }

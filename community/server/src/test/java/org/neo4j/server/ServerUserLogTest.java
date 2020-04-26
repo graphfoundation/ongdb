@@ -22,8 +22,10 @@
  */
 package org.neo4j.server;
 
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.parallel.ResourceLock;
+import org.junit.jupiter.api.parallel.Resources;
 
 import java.io.File;
 import java.io.IOException;
@@ -32,67 +34,75 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import org.neo4j.configuration.Config;
+import org.neo4j.configuration.connectors.BoltConnector;
+import org.neo4j.configuration.connectors.HttpConnector;
+import org.neo4j.configuration.connectors.HttpsConnector;
 import org.neo4j.graphdb.facade.GraphDatabaseDependencies;
-import org.neo4j.kernel.configuration.Config;
 import org.neo4j.logging.Log;
 import org.neo4j.server.database.CommunityGraphFactory;
 import org.neo4j.server.database.GraphFactory;
 import org.neo4j.server.modules.ServerModule;
-import org.neo4j.server.rest.management.AdvertisableService;
 import org.neo4j.server.web.WebServer;
+import org.neo4j.test.extension.Inject;
+import org.neo4j.test.extension.SuppressOutputExtension;
+import org.neo4j.test.extension.testdirectory.TestDirectoryExtension;
 import org.neo4j.test.rule.SuppressOutput;
 import org.neo4j.test.rule.TestDirectory;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.sameInstance;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.neo4j.graphdb.factory.GraphDatabaseSettings.database_path;
-import static org.neo4j.graphdb.factory.GraphDatabaseSettings.store_user_log_max_archives;
-import static org.neo4j.graphdb.factory.GraphDatabaseSettings.store_user_log_rotation_delay;
-import static org.neo4j.graphdb.factory.GraphDatabaseSettings.store_user_log_rotation_threshold;
-import static org.neo4j.graphdb.factory.GraphDatabaseSettings.store_user_log_to_stdout;
-import static org.neo4j.helpers.collection.MapUtil.stringMap;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.neo4j.configuration.GraphDatabaseSettings.store_user_log_max_archives;
+import static org.neo4j.configuration.GraphDatabaseSettings.store_user_log_rotation_delay;
+import static org.neo4j.configuration.GraphDatabaseSettings.store_user_log_rotation_threshold;
+import static org.neo4j.configuration.GraphDatabaseSettings.store_user_log_to_stdout;
+import static org.neo4j.configuration.SettingValueParsers.FALSE;
+import static org.neo4j.internal.helpers.collection.MapUtil.stringMap;
 import static org.neo4j.server.ServerBootstrapper.OK;
 
-public class ServerUserLogTest
+@TestDirectoryExtension
+@ExtendWith( SuppressOutputExtension.class )
+@ResourceLock( Resources.SYSTEM_OUT )
+class ServerUserLogTest
 {
-    @Rule
-    public final SuppressOutput suppress = SuppressOutput.suppress( SuppressOutput.System.out );
-
-    @Rule
-    public TestDirectory homeDir = TestDirectory.testDirectory();
+    @Inject
+    private SuppressOutput suppress;
+    @Inject
+    private TestDirectory homeDir;
 
     @Test
-    public void shouldLogToStdOutByDefault()
+    void shouldLogToStdOutByDefault()
     {
         // given
         ServerBootstrapper serverBootstrapper = getServerBootstrapper();
-        File dir = homeDir.directory();
+        File dir = homeDir.homeDir();
         Log logBeforeStart = serverBootstrapper.getLog();
 
         // when
         try
         {
-            int returnCode = serverBootstrapper.start( dir, Optional.empty(),
-                    stringMap(
-                            database_path.name(), homeDir.absolutePath().getAbsolutePath()
-                    )
-            );
+            int returnCode = serverBootstrapper.start( dir, Optional.empty(), connectorsConfig() );
+
+            // then no exceptions are thrown and
+            assertThat( getStdOut(), not( empty() ) );
+            assertFalse( Files.exists( getUserLogFileLocation( dir ) ) );
 
             // then no exceptions are thrown and
             assertEquals( OK, returnCode );
-            assertTrue( serverBootstrapper.getServer().getDatabase().isRunning() );
+            assertTrue( serverBootstrapper.getServer().getDatabaseService().isRunning() );
             assertThat( serverBootstrapper.getLog(), not( sameInstance( logBeforeStart ) ) );
 
             assertThat( getStdOut(), not( empty() ) );
@@ -107,25 +117,22 @@ public class ServerUserLogTest
     }
 
     @Test
-    public void shouldLogToFileWhenConfigured() throws Exception
+    void shouldLogToFileWhenConfigured() throws Exception
     {
         // given
         ServerBootstrapper serverBootstrapper = getServerBootstrapper();
-        File dir = homeDir.directory();
+        File dir = homeDir.homeDir();
         Log logBeforeStart = serverBootstrapper.getLog();
 
         // when
         try
         {
-            int returnCode = serverBootstrapper.start( dir, Optional.empty(),
-                    stringMap(
-                            database_path.name(), homeDir.absolutePath().getAbsolutePath(),
-                            store_user_log_to_stdout.name(), "false"
-                    )
-            );
+            Map<String,String> configOverrides = stringMap( store_user_log_to_stdout.name(), FALSE );
+            configOverrides.putAll( connectorsConfig() );
+            int returnCode = serverBootstrapper.start( dir, Optional.empty(), configOverrides );
             // then no exceptions are thrown and
             assertEquals( OK, returnCode );
-            assertTrue( serverBootstrapper.getServer().getDatabase().isRunning() );
+            assertTrue( serverBootstrapper.getServer().getDatabaseService().isRunning() );
             assertThat( serverBootstrapper.getLog(), not( sameInstance( logBeforeStart ) ) );
 
         }
@@ -141,31 +148,30 @@ public class ServerUserLogTest
     }
 
     @Test
-    public void logShouldRotateWhenConfigured() throws Exception
+    void logShouldRotateWhenConfigured() throws Exception
     {
         // given
         ServerBootstrapper serverBootstrapper = getServerBootstrapper();
-        File dir = homeDir.directory();
+        File dir = homeDir.homeDir();
         Log logBeforeStart = serverBootstrapper.getLog();
         int maxArchives = 4;
 
         // when
         try
         {
-            int returnCode = serverBootstrapper.start( dir, Optional.empty(),
-                    stringMap(
-                            database_path.name(), homeDir.absolutePath().getAbsolutePath(),
-                            store_user_log_to_stdout.name(), "false",
+            Map<String,String> configOverrides = stringMap( store_user_log_to_stdout.name(), FALSE,
                             store_user_log_rotation_delay.name(), "0",
                             store_user_log_rotation_threshold.name(), "16",
-                            store_user_log_max_archives.name(), Integer.toString( maxArchives )
-                    )
+                            store_user_log_max_archives.name(), Integer.toString( maxArchives ) );
+            configOverrides.putAll( connectorsConfig() );
+            int returnCode = serverBootstrapper.start( dir, Optional.empty(),
+                    configOverrides
             );
 
             // then
             assertEquals( OK, returnCode );
             assertThat( serverBootstrapper.getLog(), not( sameInstance( logBeforeStart ) ) );
-            assertTrue( serverBootstrapper.getServer().getDatabase().isRunning() );
+            assertTrue( serverBootstrapper.getServer().getDatabaseService().isRunning() );
 
             // when we forcibly log some more stuff
             do
@@ -190,6 +196,13 @@ public class ServerUserLogTest
         assertEquals( maxArchives + 1, userLogFiles.size() );
     }
 
+    private static Map<String,String> connectorsConfig()
+    {
+        return Map.of( HttpConnector.listen_address.name(), "localhost:0" ,
+                BoltConnector.listen_address.name(), "localhost:0",
+                HttpsConnector.listen_address.name(), "localhost:0" );
+    }
+
     private List<String> getStdOut()
     {
         List<String> lines = suppress.getOutputVoice().lines();
@@ -197,7 +210,7 @@ public class ServerUserLogTest
         return lines.stream().filter( line -> !line.equals( "" ) ).collect( Collectors.toList() );
     }
 
-    private ServerBootstrapper getServerBootstrapper()
+    private static ServerBootstrapper getServerBootstrapper()
     {
         return new ServerBootstrapper()
         {
@@ -234,28 +247,22 @@ public class ServerUserLogTest
                     {
                         return null;
                     }
-
-                    @Override
-                    public Iterable<AdvertisableService> getServices()
-                    {
-                        return new ArrayList<>( 0 );
-                    }
                 };
             }
         };
     }
 
-    private List<String> readUserLogFile( File homeDir ) throws IOException
+    private static List<String> readUserLogFile( File homeDir ) throws IOException
     {
         return Files.readAllLines( getUserLogFileLocation( homeDir ) ).stream().filter( line -> !line.equals( "" ) ).collect( Collectors.toList() );
     }
 
-    private Path getUserLogFileLocation( File homeDir )
+    private static Path getUserLogFileLocation( File homeDir )
     {
         return Paths.get( homeDir.getAbsolutePath(), "logs", "neo4j.log" );
     }
 
-    private List<String> allUserLogFiles( File homeDir ) throws IOException
+    private static List<String> allUserLogFiles( File homeDir ) throws IOException
     {
         try ( Stream<String> stream = Files.list( Paths.get( homeDir.getAbsolutePath(), "logs" ) )
                 .map( x -> x.getFileName().toString() )

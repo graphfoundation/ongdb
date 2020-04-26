@@ -22,16 +22,17 @@
  */
 package org.neo4j.index.internal.gbptree;
 
-import org.hamcrest.CoreMatchers;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.CoreMatchers.containsString;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.neo4j.index.internal.gbptree.TreeNode.Type.INTERNAL;
 
-public class InternalTreeLogicDynamicSizeTest extends InternalTreeLogicTestBase<RawBytes,RawBytes>
+class InternalTreeLogicDynamicSizeTest extends InternalTreeLogicTestBase<RawBytes,RawBytes>
 {
     @Override
     protected ValueMerger<RawBytes,RawBytes> getAdder()
@@ -40,14 +41,16 @@ public class InternalTreeLogicDynamicSizeTest extends InternalTreeLogicTestBase<
         {
             long baseSeed = layout.keySeed( base );
             long addSeed = layout.keySeed( add );
-            return layout.value( baseSeed + addSeed );
+            RawBytes merged = layout.value( baseSeed + addSeed );
+            base.copyFrom( merged );
+            return ValueMerger.MergeResult.MERGED;
         };
     }
 
     @Override
-    protected TreeNode<RawBytes,RawBytes> getTreeNode( int pageSize, Layout<RawBytes,RawBytes> layout )
+    protected TreeNode<RawBytes,RawBytes> getTreeNode( int pageSize, Layout<RawBytes,RawBytes> layout, OffloadStore<RawBytes,RawBytes> offloadStore )
     {
-        return new TreeNodeDynamicSize<>( pageSize, layout );
+        return new TreeNodeDynamicSize<>( pageSize, layout, offloadStore );
     }
 
     @Override
@@ -57,7 +60,7 @@ public class InternalTreeLogicDynamicSizeTest extends InternalTreeLogicTestBase<
     }
 
     @Test
-    public void shouldFailToInsertTooLargeKeys() throws IOException
+    void shouldFailToInsertTooLargeKeys() throws IOException
     {
         RawBytes key = layout.newKey();
         RawBytes value = layout.newValue();
@@ -68,7 +71,7 @@ public class InternalTreeLogicDynamicSizeTest extends InternalTreeLogicTestBase<
     }
 
     @Test
-    public void shouldFailToInsertTooLargeKeyAndValueLargeKey() throws IOException
+    void shouldFailToInsertTooLargeKeyAndValueLargeKey() throws IOException
     {
         RawBytes key = layout.newKey();
         RawBytes value = layout.newValue();
@@ -79,7 +82,7 @@ public class InternalTreeLogicDynamicSizeTest extends InternalTreeLogicTestBase<
     }
 
     @Test
-    public void shouldFailToInsertTooLargeKeyAndValueLargeValue() throws IOException
+    void shouldFailToInsertTooLargeKeyAndValueLargeValue() throws IOException
     {
         RawBytes key = layout.newKey();
         RawBytes value = layout.newValue();
@@ -92,18 +95,12 @@ public class InternalTreeLogicDynamicSizeTest extends InternalTreeLogicTestBase<
     private void shouldFailToInsertTooLargeKeyAndValue( RawBytes key, RawBytes value ) throws IOException
     {
         initialize();
-        try
-        {
-            insert( key, value );
-        }
-        catch ( IllegalArgumentException e )
-        {
-            assertThat( e.getMessage(), CoreMatchers.containsString( "Index key-value size it to large. Please see index documentation for limitations." ) );
-        }
+        var e = assertThrows( IllegalArgumentException.class, () -> insert( key, value ) );
+        assertThat( e.getMessage(), containsString( "Index key-value size it to large. Please see index documentation for limitations." ) );
     }
 
     @Test
-    public void storeOnlyMinimalKeyDividerInInternal() throws IOException
+    void storeOnlyMinimalKeyDividerInInternal() throws IOException
     {
         // given
         initialize();
@@ -118,6 +115,6 @@ public class InternalTreeLogicDynamicSizeTest extends InternalTreeLogicTestBase<
         RawBytes rawBytes = keyAt( root.id(), 0, INTERNAL );
 
         // then
-        assertEquals( "expected no tail on internal key but was " + rawBytes.toString(), Long.BYTES, rawBytes.bytes.length );
+        assertEquals( Long.BYTES, rawBytes.bytes.length, "expected no tail on internal key but was " + rawBytes.toString() );
     }
 }

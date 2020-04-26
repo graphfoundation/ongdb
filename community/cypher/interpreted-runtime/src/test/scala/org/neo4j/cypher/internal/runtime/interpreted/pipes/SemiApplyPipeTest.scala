@@ -24,86 +24,85 @@ package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
 import org.neo4j.cypher.internal.runtime.interpreted.QueryStateHelper
 import org.neo4j.cypher.internal.runtime.interpreted.ValueComparisonHelper.beEquivalentTo
-import org.neo4j.cypher.internal.v3_6.util.symbols.CTNumber
-import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.v4_0.util.test_helpers.CypherFunSuite
 import org.neo4j.values.storable.Values.intValue
 
 class SemiApplyPipeTest extends CypherFunSuite with PipeTestSupport {
 
   test("should only let through the one that matches") {
     val lhsData = List(Map("a" -> 1), Map("a" -> 2))
-    val lhs = new FakePipe(lhsData.iterator, "a" -> CTNumber)
+    val lhs = new FakePipe(lhsData.iterator)
 
     val rhs = pipeWithResults((state: QueryState) => {
         val initialContext = state.initialContext.get
-        if (initialContext("a") == intValue(1)) Iterator(initialContext) else Iterator.empty
+        if (initialContext.getByName("a") == intValue(1)) Iterator(initialContext) else Iterator.empty
       })
 
-    val result = SemiApplyPipe(lhs, rhs, negated = false)().createResults(QueryStateHelper.empty).toList
+    val result = SemiApplyPipe(lhs, rhs)().createResults(QueryStateHelper.empty).toList
 
     result should beEquivalentTo(List(Map("a" -> 1)))
   }
 
   test("should only let through the one that not matches when negated") {
     val lhsData = List(Map("a" -> 1), Map("a" -> 2))
-    val lhs = new FakePipe(lhsData.iterator, "a" -> CTNumber)
+    val lhs = new FakePipe(lhsData.iterator)
 
     val rhs = pipeWithResults((state: QueryState) => {
         val initialContext = state.initialContext.get
-        if (initialContext("a") == intValue(1)) Iterator(initialContext) else Iterator.empty
+        if (initialContext.getByName("a") == intValue(1)) Iterator(initialContext) else Iterator.empty
       })
 
-    val result = SemiApplyPipe(lhs, rhs, negated = true)().createResults(QueryStateHelper.empty).toList
+    val result = AntiSemiApplyPipe(lhs, rhs)().createResults(QueryStateHelper.empty).toList
 
     result should beEquivalentTo(List(Map("a" -> 2)))
   }
 
   test("should not let anything through if rhs is empty") {
     val lhsData = List(Map("a" -> 1), Map("a" -> 2))
-    val lhs = new FakePipe(lhsData.iterator, "a" -> CTNumber)
+    val lhs = new FakePipe(lhsData.iterator)
     val rhs = new FakePipe(Iterator.empty)
 
-    val result = SemiApplyPipe(lhs, rhs, negated = false)().createResults(QueryStateHelper.empty).toList
+    val result = SemiApplyPipe(lhs, rhs)().createResults(QueryStateHelper.empty).toList
 
     result should be(empty)
   }
 
   test("should let everything through if rhs is empty and negated") {
     val lhsData = List(Map("a" -> 1), Map("a" -> 2))
-    val lhs = new FakePipe(lhsData.iterator, "a" -> CTNumber)
+    val lhs = new FakePipe(lhsData.iterator)
     val rhs = new FakePipe(Iterator.empty)
 
-    val result = SemiApplyPipe(lhs, rhs, negated = true)().createResults(QueryStateHelper.empty).toList
+    val result = AntiSemiApplyPipe(lhs, rhs)().createResults(QueryStateHelper.empty).toList
 
     result should beEquivalentTo(lhsData)
   }
 
   test("should let everything through if rhs is nonEmpty") {
     val lhsData = List(Map("a" -> 1), Map("a" -> 2))
-    val lhs = new FakePipe(lhsData.iterator, "a" -> CTNumber)
+    val lhs = new FakePipe(lhsData.iterator)
     val rhs = new FakePipe(Iterator(Map("a" -> 1)))
 
-    val result = SemiApplyPipe(lhs, rhs, negated = false)().createResults(QueryStateHelper.empty).toList
+    val result = SemiApplyPipe(lhs, rhs)().createResults(QueryStateHelper.empty).toList
 
     result should beEquivalentTo(lhsData)
   }
 
   test("should let nothing through if rhs is nonEmpty and negated") {
     val lhsData = List(Map("a" -> 1), Map("a" -> 2))
-    val lhs = new FakePipe(lhsData.iterator, "a" -> CTNumber)
+    val lhs = new FakePipe(lhsData.iterator)
     val rhs = new FakePipe(Iterator(Map("a" -> 1)))
 
-    val result = SemiApplyPipe(lhs, rhs, negated = true)().createResults(QueryStateHelper.empty).toList
+    val result = AntiSemiApplyPipe(lhs, rhs)().createResults(QueryStateHelper.empty).toList
 
     result should be(empty)
   }
 
   test("if lhs is empty, rhs should not be touched regardless if it is negated or not") {
-    val rhs = pipeWithResults((_) => fail("should not use this"))
+    val rhs = pipeWithResults(_ => fail("should not use this"))
 
     val lhs = new FakePipe(Iterator.empty)
 
     // Should not throw
-    SemiApplyPipe(lhs, rhs, negated = false)().createResults(QueryStateHelper.empty).toList
+    SemiApplyPipe(lhs, rhs)().createResults(QueryStateHelper.empty).toList
   }
 }

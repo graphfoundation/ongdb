@@ -36,6 +36,7 @@ import org.eclipse.collections.api.bag.primitive.MutableIntBag;
 import org.eclipse.collections.api.bag.primitive.MutableLongBag;
 import org.eclipse.collections.api.bag.primitive.MutableShortBag;
 import org.eclipse.collections.api.bag.sorted.MutableSortedBag;
+import org.eclipse.collections.api.bimap.MutableBiMap;
 import org.eclipse.collections.api.block.function.Function;
 import org.eclipse.collections.api.block.function.Function0;
 import org.eclipse.collections.api.block.function.Function2;
@@ -70,6 +71,7 @@ import org.eclipse.collections.api.collection.primitive.MutableLongCollection;
 import org.eclipse.collections.api.collection.primitive.MutableShortCollection;
 import org.eclipse.collections.api.list.MutableList;
 import org.eclipse.collections.api.map.MutableMap;
+import org.eclipse.collections.api.map.MutableMapIterable;
 import org.eclipse.collections.api.map.primitive.ImmutableLongObjectMap;
 import org.eclipse.collections.api.map.primitive.LongObjectMap;
 import org.eclipse.collections.api.map.primitive.MutableLongLongMap;
@@ -423,7 +425,7 @@ public class ValuesMap implements MutableLongObjectMap<Value>
     }
 
     @Override
-    public <V, R extends MutableMap<V, Value>> R groupByUniqueKey( Function<? super Value, ? extends V> function, R target )
+    public <V, R extends MutableMapIterable<V,Value>> R groupByUniqueKey( Function<? super Value,? extends V> function, R target )
     {
         throw new UnsupportedOperationException();
     }
@@ -767,6 +769,12 @@ public class ValuesMap implements MutableLongObjectMap<Value>
     }
 
     @Override
+    public <NK, NV> MutableBiMap<NK,NV> toBiMap( Function<? super Value,? extends NK> keyFunction, Function<? super Value,? extends NV> valueFunction )
+    {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     public LazyIterable<Value> asLazy()
     {
         return new LazyIterableAdapter<>( this );
@@ -1050,7 +1058,7 @@ public class ValuesMap implements MutableLongObjectMap<Value>
         public Iterator<LongObjectPair<Value>> iterator()
         {
             Iterator<LongLongPair> refsIterator = refs.keyValuesView().iterator();
-            return new Iterator<LongObjectPair<Value>>()
+            return new Iterator<>()
             {
                 @Override
                 public boolean hasNext()

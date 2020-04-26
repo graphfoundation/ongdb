@@ -22,32 +22,39 @@
  */
 package org.neo4j.kernel.impl.api;
 
-import org.junit.After;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
+import org.neo4j.dbms.api.DatabaseManagementService;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Transaction;
-import org.neo4j.graphdb.mockfs.EphemeralFileSystemAbstraction;
-import org.neo4j.test.TestGraphDatabaseFactory;
+import org.neo4j.io.fs.EphemeralFileSystemAbstraction;
+import org.neo4j.test.TestDatabaseManagementServiceBuilder;
+import org.neo4j.test.extension.EphemeralFileSystemExtension;
+import org.neo4j.test.extension.Inject;
 
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
 import static org.neo4j.graphdb.Label.label;
 
-public class LabelRecoveryTest
+@ExtendWith( EphemeralFileSystemExtension.class )
+class LabelRecoveryTest
 {
-    public final EphemeralFileSystemAbstraction fs = new EphemeralFileSystemAbstraction();
+    @Inject
+    private EphemeralFileSystemAbstraction filesystem;
     private GraphDatabaseService database;
+    private DatabaseManagementService managementService;
 
-    @After
-    public void tearDown() throws Exception
+    @AfterEach
+    void tearDown()
     {
-        if ( database != null )
+        if ( managementService != null )
         {
-            database.shutdown();
+            managementService.shutdown();
         }
-        fs.close();
     }
 
     /**
@@ -61,10 +68,11 @@ public class LabelRecoveryTest
      * next time that record would be ensured heavy.
      */
     @Test
-    public void shouldRecoverNodeWithDynamicLabelRecords()
+    void shouldRecoverNodeWithDynamicLabelRecords()
     {
         // GIVEN
-        database = new TestGraphDatabaseFactory().setFileSystem( fs ).newImpermanentDatabase();
+        managementService = new TestDatabaseManagementServiceBuilder().setFileSystem( filesystem ).impermanent().build();
+        database = managementService.database( DEFAULT_DATABASE_NAME );
         Node node;
         Label[] labels = new Label[] { label( "a" ),
                 label( "b" ),
@@ -79,24 +87,26 @@ public class LabelRecoveryTest
                 label( "k" ) };
         try ( Transaction tx = database.beginTx() )
         {
-            node = database.createNode( labels );
-            tx.success();
+            node = tx.createNode( labels );
+            tx.commit();
         }
 
         // WHEN
         try ( Transaction tx = database.beginTx() )
         {
+            node = tx.getNodeById( node.getId() );
             node.setProperty( "prop", "value" );
-            tx.success();
+            tx.commit();
         }
-        EphemeralFileSystemAbstraction snapshot = fs.snapshot();
-        database.shutdown();
-        database = new TestGraphDatabaseFactory().setFileSystem( snapshot ).newImpermanentDatabase();
+        EphemeralFileSystemAbstraction snapshot = filesystem.snapshot();
+        managementService.shutdown();
+        managementService = new TestDatabaseManagementServiceBuilder().setFileSystem( snapshot ).impermanent().build();
+        database = managementService.database( DEFAULT_DATABASE_NAME );
 
         // THEN
-        try ( Transaction ignored = database.beginTx() )
+        try ( Transaction tx = database.beginTx() )
         {
-            node = database.getNodeById( node.getId() );
+            node = tx.getNodeById( node.getId() );
             for ( Label label : labels )
             {
                 assertTrue( node.hasLabel( label ) );

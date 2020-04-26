@@ -11,12 +11,11 @@
     <properties>
         <license-text.header>headers/GPL-3-header.txt</license-text.header>
         <licensing.prepend.text>licensing/notice-gpl-prefix.txt</licensing.prepend.text>
-        <moduleName>org.neo4j.common</moduleName>
+        <moduleName>org.neo4j.data.collector</moduleName>
     </properties>
 
     <modelVersion>4.0.0</modelVersion>
     <artifactId>ongdb-data-collector</artifactId>
-    <version>4.0.4-SNAPSHOT</version>
 
     <packaging>jar</packaging>
     <name>ONgDB - Data Collector</name>
@@ -46,20 +45,10 @@
     </build>
 
     <dependencies>
-
-        <!-- scala -->
-
         <dependency>
-            <groupId>org.scala-lang</groupId>
-            <artifactId>scala-library</artifactId>
+            <groupId>org.graphfoundation.ongdb</groupId>
+            <artifactId>annotations</artifactId>
         </dependency>
-        <dependency>
-            <groupId>org.scala-lang</groupId>
-            <artifactId>scala-reflect</artifactId>
-        </dependency>
-
-        <!-- neo4j -->
-
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
             <artifactId>ongdb-procedure-api</artifactId>
@@ -70,14 +59,16 @@
             <artifactId>ongdb-kernel</artifactId>
             <version>${project.version}</version>
         </dependency>
+
+        <!-- Test are located with other IT tests to solve problems with depending of TestGraphDatabaseFactory et.c. -->
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-parser-3.6</artifactId>
+            <artifactId>ongdb-parser-4.0</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-rewriting-3.6</artifactId>
+            <artifactId>ongdb-rewriting-4.0</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
@@ -90,7 +81,7 @@
 
         <dependency>
             <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter-engine</artifactId>
+            <artifactId>junit-jupiter</artifactId>
         </dependency>
 
     </dependencies>

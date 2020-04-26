@@ -22,8 +22,8 @@
  */
 package org.neo4j.cypher.internal.codegen;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -37,10 +37,10 @@ import java.util.Map;
 
 import org.neo4j.graphdb.Path;
 import org.neo4j.graphdb.spatial.Point;
-import org.neo4j.helpers.collection.MapUtil;
-import org.neo4j.kernel.impl.core.EmbeddedProxySPI;
-import org.neo4j.kernel.impl.core.NodeProxy;
-import org.neo4j.kernel.impl.core.RelationshipProxy;
+import org.neo4j.internal.helpers.collection.MapUtil;
+import org.neo4j.kernel.impl.core.NodeEntity;
+import org.neo4j.kernel.impl.core.RelationshipEntity;
+import org.neo4j.kernel.impl.core.TransactionalEntityFactory;
 import org.neo4j.values.AnyValue;
 import org.neo4j.values.storable.CoordinateReferenceSystem;
 import org.neo4j.values.storable.DateTimeValue;
@@ -49,14 +49,14 @@ import org.neo4j.values.storable.DurationValue;
 import org.neo4j.values.storable.LocalDateTimeValue;
 import org.neo4j.values.storable.LocalTimeValue;
 import org.neo4j.values.storable.LongArray;
+import org.neo4j.values.storable.PointValue;
 import org.neo4j.values.storable.TimeValue;
 import org.neo4j.values.storable.Values;
-import org.neo4j.values.virtual.RelationshipValue;
 import org.neo4j.values.virtual.ListValue;
 import org.neo4j.values.virtual.MapValue;
 import org.neo4j.values.virtual.NodeValue;
 import org.neo4j.values.virtual.PathValue;
-import org.neo4j.values.storable.PointValue;
+import org.neo4j.values.virtual.RelationshipValue;
 import org.neo4j.values.virtual.VirtualValues;
 
 import static java.util.Collections.singletonList;
@@ -77,31 +77,31 @@ import static org.neo4j.values.storable.Values.shortValue;
 import static org.neo4j.values.storable.Values.stringArray;
 import static org.neo4j.values.storable.Values.stringValue;
 import static org.neo4j.values.virtual.VirtualValues.EMPTY_MAP;
-import static org.neo4j.values.virtual.VirtualValues.relationshipValue;
 import static org.neo4j.values.virtual.VirtualValues.list;
 import static org.neo4j.values.virtual.VirtualValues.map;
 import static org.neo4j.values.virtual.VirtualValues.nodeValue;
 import static org.neo4j.values.virtual.VirtualValues.path;
+import static org.neo4j.values.virtual.VirtualValues.relationshipValue;
 
-public class ParameterConverterTest
+class ParameterConverterTest
 {
-    private ParameterConverter converter = new ParameterConverter( mock( EmbeddedProxySPI.class ) );
+    private ParameterConverter converter;
 
-    @Before
-    public void setup()
+    @BeforeEach
+    void setup()
     {
-        EmbeddedProxySPI manager = mock( EmbeddedProxySPI.class );
-        when( manager.newNodeProxy( anyLong() ) ).thenAnswer( invocationOnMock ->
+        TransactionalEntityFactory manager = mock( TransactionalEntityFactory.class );
+        when( manager.newNodeEntity( anyLong() ) ).thenAnswer( invocationOnMock ->
         {
             long id = invocationOnMock.getArgument( 0 );
-            NodeProxy mock = mock( NodeProxy.class );
+            NodeEntity mock = mock( NodeEntity.class );
             when( mock.getId() ).thenReturn( id );
             return mock;
         } );
-        when( manager.newRelationshipProxy( anyLong() ) ).thenAnswer( invocationOnMock ->
+        when( manager.newRelationshipEntity( anyLong() ) ).thenAnswer( invocationOnMock ->
         {
             long id = invocationOnMock.getArgument( 0 );
-            RelationshipProxy mock = mock( RelationshipProxy.class );
+            RelationshipEntity mock = mock( RelationshipEntity.class );
             when( mock.getId() ).thenReturn( id );
             return mock;
         } );
@@ -109,7 +109,7 @@ public class ParameterConverterTest
     }
 
     @Test
-    public void shouldTurnAllIntegerTypesToLongs()
+    void shouldTurnAllIntegerTypesToLongs()
     {
         AnyValue[] values =
                 new AnyValue[]{byteValue( (byte) 13 ), shortValue( (short) 13 ), intValue( 13 ), longValue( 13L )};
@@ -124,7 +124,7 @@ public class ParameterConverterTest
     }
 
     @Test
-    public void shouldTurnAllFloatingTypesToDoubles()
+    void shouldTurnAllFloatingTypesToDoubles()
     {
         AnyValue[] values = new AnyValue[]{floatValue( 13f ), doubleValue( 13d )};
 
@@ -138,7 +138,7 @@ public class ParameterConverterTest
     }
 
     @Test
-    public void shouldHandleNodes()
+    void shouldHandleNodes()
     {
         // Given
         NodeValue nodeValue = nodeValue( 42L, stringArray( "L" ), EMPTY_MAP );
@@ -151,7 +151,7 @@ public class ParameterConverterTest
     }
 
     @Test
-    public void shouldHandleRelationships()
+    void shouldHandleRelationships()
     {
         // Given
         RelationshipValue relValue = relationshipValue( 1L, nodeValue( 42L, stringArray( "L" ), EMPTY_MAP ),
@@ -165,7 +165,7 @@ public class ParameterConverterTest
     }
 
     @Test
-    public void shouldHandleBooleans()
+    void shouldHandleBooleans()
     {
         TRUE.writeTo( converter );
         assertThat( converter.value(), equalTo( true ) );
@@ -174,7 +174,7 @@ public class ParameterConverterTest
     }
 
     @Test
-    public void shouldHandlePaths()
+    void shouldHandlePaths()
     {
         // Given
         NodeValue n1 = nodeValue( 42L, stringArray( "L" ), EMPTY_MAP );
@@ -197,7 +197,7 @@ public class ParameterConverterTest
     }
 
     @Test
-    public void shouldHandlePoints()
+    void shouldHandlePoints()
     {
         // Given
         PointValue pointValue = Values.pointValue( CoordinateReferenceSystem.WGS84, 1.0, 2.0 );
@@ -215,7 +215,7 @@ public class ParameterConverterTest
     }
 
     @Test
-    public void shouldHandleDateTimeWithZoneOffset()
+    void shouldHandleDateTimeWithZoneOffset()
     {
         // Given
         DateTimeValue dvalue = DateTimeValue.datetime( 1, 2, 3, 4, 5, 6, 7, "+00:00" );
@@ -230,7 +230,7 @@ public class ParameterConverterTest
     }
 
     @Test
-    public void shouldHandleDateTimeWithZoneId()
+    void shouldHandleDateTimeWithZoneId()
     {
         // Given
         DateTimeValue dvalue = DateTimeValue.datetime( 1, 2, 3, 4, 5, 6, 7, ZoneId.of( "Europe/Stockholm" ) );
@@ -245,7 +245,7 @@ public class ParameterConverterTest
     }
 
     @Test
-    public void shouldHandleLocalDateTime()
+    void shouldHandleLocalDateTime()
     {
         // Given
         LocalDateTimeValue dvalue = LocalDateTimeValue.localDateTime( 1, 2, 3, 4, 5, 6, 7 );
@@ -260,7 +260,7 @@ public class ParameterConverterTest
     }
 
     @Test
-    public void shouldHandleDate()
+    void shouldHandleDate()
     {
         // Given
         DateValue dvalue = DateValue.date( 1, 2, 3 );
@@ -275,7 +275,7 @@ public class ParameterConverterTest
     }
 
     @Test
-    public void shouldHandleTimeUTC()
+    void shouldHandleTimeUTC()
     {
         // Given
         TimeValue time = TimeValue.time( 1, 2, 3, 4, "+00:00" );
@@ -290,7 +290,7 @@ public class ParameterConverterTest
     }
 
     @Test
-    public void shouldHandleTimeWithOffset()
+    void shouldHandleTimeWithOffset()
     {
         // Given
         TimeValue time = TimeValue.time( 1, 2, 3, 4, "+01:00" );
@@ -305,7 +305,7 @@ public class ParameterConverterTest
     }
 
     @Test
-    public void shouldHandleLocalTime()
+    void shouldHandleLocalTime()
     {
         // Given
         LocalTimeValue dvalue = LocalTimeValue.localTime( 1, 2, 3, 4 );
@@ -320,7 +320,7 @@ public class ParameterConverterTest
     }
 
     @Test
-    public void shouldHandleDurations()
+    void shouldHandleDurations()
     {
         // Given
         DurationValue dvalue = DurationValue.duration( 1, 2, 3, 4 );
@@ -335,7 +335,7 @@ public class ParameterConverterTest
     }
 
     @Test
-    public void shouldHandleLists()
+    void shouldHandleLists()
     {
         // Given
         ListValue list = list( stringValue( "foo" ), longValue( 42L ), TRUE );
@@ -348,7 +348,7 @@ public class ParameterConverterTest
     }
 
     @Test
-    public void shouldHandleArrays()
+    void shouldHandleArrays()
     {
         // Given
         LongArray longArray = Values.longArray( new long[]{1L, 2L, 3L} );
@@ -361,7 +361,7 @@ public class ParameterConverterTest
     }
 
     @Test
-    public void shouldHandleMaps()
+    void shouldHandleMaps()
     {
         // Given
         MapValue map = map( new String[]{"foo", "bar"}, new AnyValue[]{longValue( 42L ), stringValue( "baz" )} );
@@ -374,7 +374,7 @@ public class ParameterConverterTest
     }
 
     @Test
-    public void shouldHandleListWithMaps()
+    void shouldHandleListWithMaps()
     {
         // Given
         ListValue list =
@@ -391,7 +391,7 @@ public class ParameterConverterTest
     }
 
     @Test
-    public void shouldHandleMapsWithLists()
+    void shouldHandleMapsWithLists()
     {
         // Given
         MapValue map =

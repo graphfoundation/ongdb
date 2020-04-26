@@ -22,44 +22,102 @@
  */
 package org.neo4j.kernel.impl.query;
 
-import java.util.Comparator;
-import java.util.List;
-
-import org.neo4j.helpers.Service;
-import org.neo4j.helpers.collection.Iterables;
-import org.neo4j.kernel.impl.util.Dependencies;
+import org.neo4j.collection.Dependencies;
+import org.neo4j.configuration.Config;
+import org.neo4j.kernel.api.Kernel;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
+import org.neo4j.kernel.lifecycle.LifeSupport;
+import org.neo4j.logging.LogProvider;
+import org.neo4j.monitoring.Monitors;
+import org.neo4j.scheduler.JobScheduler;
 
-import static org.neo4j.helpers.collection.Iterables.asList;
-
-public abstract class QueryEngineProvider extends Service
+public abstract class QueryEngineProvider
 {
-    public QueryEngineProvider( String name )
-    {
-        super( name );
-    }
-
-    protected abstract QueryExecutionEngine createEngine( Dependencies deps, GraphDatabaseAPI graphAPI );
+    protected abstract QueryExecutionEngine createEngine( Dependencies deps,
+                                                          GraphDatabaseAPI graphAPI,
+                                                          boolean isSystemDatabase,
+                                                          SPI spi );
 
     protected abstract int enginePriority();
 
-    public static QueryExecutionEngine initialize( Dependencies deps, GraphDatabaseAPI graphAPI,
-            Iterable<QueryEngineProvider> providers )
+    public static QueryExecutionEngine initialize( Dependencies deps,
+                                                   GraphDatabaseAPI graphAPI,
+                                                   QueryEngineProvider provider,
+                                                   boolean isSystemDatabase,
+                                                   SPI spi )
     {
-        List<QueryEngineProvider> engineProviders = asList( providers );
-        engineProviders.sort( Comparator.comparingInt( QueryEngineProvider::enginePriority ) );
-        QueryEngineProvider provider = Iterables.firstOrNull( engineProviders );
-
         if ( provider == null )
         {
             return noEngine();
         }
-        QueryExecutionEngine engine = provider.createEngine( deps, graphAPI );
+        QueryExecutionEngine engine = provider.createEngine( deps, graphAPI, isSystemDatabase, spi );
         return deps.satisfyDependency( engine );
     }
 
     public static QueryExecutionEngine noEngine()
     {
         return NoQueryEngine.INSTANCE;
+    }
+
+    public interface SPI
+    {
+        LogProvider logProvider();
+
+        Monitors monitors();
+
+        JobScheduler jobScheduler();
+
+        LifeSupport lifeSupport();
+
+        Kernel kernel();
+
+        Config config();
+    }
+
+    public static SPI spi( LogProvider logProvider,
+                           Monitors monitors,
+                           JobScheduler jobScheduler,
+                           LifeSupport lifeSupport,
+                           Kernel kernel,
+                           Config config )
+    {
+        return new SPI()
+        {
+            @Override
+            public LogProvider logProvider()
+            {
+                return logProvider;
+            }
+
+            @Override
+            public Monitors monitors()
+            {
+                return monitors;
+            }
+
+            @Override
+            public JobScheduler jobScheduler()
+            {
+                return jobScheduler;
+            }
+
+            @Override
+            public LifeSupport lifeSupport()
+            {
+                return lifeSupport;
+            }
+
+            @Override
+            public Kernel kernel()
+            {
+                return kernel;
+            }
+
+            @Override
+            public Config config()
+            {
+                return config;
+            }
+        };
     }
 }

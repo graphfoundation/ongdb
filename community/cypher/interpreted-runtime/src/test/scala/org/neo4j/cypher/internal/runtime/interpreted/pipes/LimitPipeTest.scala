@@ -24,10 +24,11 @@ package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
 import org.mockito.Mockito._
 import org.mockito.internal.stubbing.defaultanswers.ReturnsMocks
-import org.neo4j.cypher.internal.runtime.interpreted.{ExecutionContext, QueryStateHelper}
+import org.neo4j.cypher.internal.runtime.ExecutionContext
+import org.neo4j.cypher.internal.runtime.interpreted.QueryStateHelper
 import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.Literal
-import org.neo4j.cypher.internal.v3_6.util.attribution.Id
-import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.v4_0.util.attribution.Id
+import org.neo4j.cypher.internal.v4_0.util.test_helpers.CypherFunSuite
 
 class LimitPipeTest extends CypherFunSuite {
   test("limit 0 should not pull anything from the incoming iterator") {

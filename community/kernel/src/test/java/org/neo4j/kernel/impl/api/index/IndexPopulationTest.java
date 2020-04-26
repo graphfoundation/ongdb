@@ -22,69 +22,73 @@
  */
 package org.neo4j.kernel.impl.api.index;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.function.IntPredicate;
 
-import org.neo4j.helpers.collection.Visitor;
+import org.neo4j.common.EntityType;
+import org.neo4j.internal.helpers.collection.Visitor;
 import org.neo4j.internal.kernel.api.InternalIndexState;
+import org.neo4j.internal.kernel.api.PopulationProgress;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.internal.schema.LabelSchemaDescriptor;
+import org.neo4j.internal.schema.SchemaDescriptor;
+import org.neo4j.internal.schema.SchemaState;
 import org.neo4j.kernel.api.exceptions.index.IndexEntryConflictException;
 import org.neo4j.kernel.api.index.IndexAccessor;
-import org.neo4j.kernel.api.index.IndexEntryUpdate;
+import org.neo4j.kernel.api.index.IndexDropper;
 import org.neo4j.kernel.api.index.IndexPopulator;
 import org.neo4j.kernel.api.index.IndexUpdater;
-import org.neo4j.storageengine.api.NodePropertyAccessor;
-import org.neo4j.kernel.api.labelscan.NodeLabelUpdate;
-import org.neo4j.kernel.api.schema.LabelSchemaDescriptor;
-import org.neo4j.kernel.api.schema.SchemaDescriptorFactory;
 import org.neo4j.kernel.api.schema.index.TestIndexDescriptorFactory;
-import org.neo4j.kernel.impl.api.SchemaState;
+import org.neo4j.kernel.impl.api.index.stats.IndexStatisticsStore;
 import org.neo4j.logging.NullLogProvider;
-import org.neo4j.storageengine.api.EntityType;
-import org.neo4j.storageengine.api.schema.CapableIndexDescriptor;
-import org.neo4j.storageengine.api.schema.PopulationProgress;
+import org.neo4j.storageengine.api.EntityUpdates;
+import org.neo4j.storageengine.api.IndexEntryUpdate;
+import org.neo4j.storageengine.api.NodeLabelUpdate;
+import org.neo4j.storageengine.api.NodePropertyAccessor;
 import org.neo4j.values.storable.Values;
 
-import static org.junit.Assert.assertSame;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.mockito.Mockito.mock;
 
-public class IndexPopulationTest
+class IndexPopulationTest
 {
     @Test
-    public void mustFlipToFailedIfFailureToApplyLastBatchWhileFlipping() throws Exception
+    void mustFlipToFailedIfFailureToApplyLastBatchWhileFlipping() throws Exception
     {
         // given
         NullLogProvider logProvider = NullLogProvider.getInstance();
         IndexStoreView storeView = emptyIndexStoreViewThatProcessUpdates();
         IndexPopulator.Adapter populator = emptyPopulatorWithThrowingUpdater();
-        FailedIndexProxy failedProxy = failedIndexProxy( storeView, populator );
-        OnlineIndexProxy onlineProxy = onlineIndexProxy( storeView );
+        IndexStatisticsStore indexStatisticsStore = mock( IndexStatisticsStore.class );
+        FailedIndexProxy failedProxy = failedIndexProxy( populator, indexStatisticsStore );
+        OnlineIndexProxy onlineProxy = onlineIndexProxy( indexStatisticsStore );
         FlippableIndexProxy flipper = new FlippableIndexProxy();
         flipper.setFlipTarget( () -> onlineProxy );
         MultipleIndexPopulator multipleIndexPopulator =
-                new MultipleIndexPopulator( storeView, logProvider, EntityType.NODE, mock( SchemaState.class ) );
+                new MultipleIndexPopulator( storeView, logProvider, EntityType.NODE, mock( SchemaState.class ), indexStatisticsStore );
 
         MultipleIndexPopulator.IndexPopulation indexPopulation =
                 multipleIndexPopulator.addPopulator( populator, dummyMeta(), flipper, t -> failedProxy, "userDescription" );
-        multipleIndexPopulator.queueUpdate( someUpdate() );
+        multipleIndexPopulator.queueConcurrentUpdate( someUpdate() );
         multipleIndexPopulator.indexAllEntities().run();
 
         // when
         indexPopulation.flip( false );
 
         // then
-        assertSame( "flipper should have flipped to failing proxy", flipper.getState(), InternalIndexState.FAILED );
+        assertSame( flipper.getState(), InternalIndexState.FAILED, "flipper should have flipped to failing proxy" );
     }
 
-    private OnlineIndexProxy onlineIndexProxy( IndexStoreView storeView )
+    private OnlineIndexProxy onlineIndexProxy( IndexStatisticsStore indexStatisticsStore )
     {
-        return new OnlineIndexProxy( dummyMeta(), IndexAccessor.EMPTY, storeView, false );
+        return new OnlineIndexProxy( dummyMeta(), IndexAccessor.EMPTY, indexStatisticsStore, false );
     }
 
-    private FailedIndexProxy failedIndexProxy( IndexStoreView storeView, IndexPopulator.Adapter populator )
+    private FailedIndexProxy failedIndexProxy( IndexDropper dropper, IndexStatisticsStore indexStatisticsStore )
     {
-        return new FailedIndexProxy( dummyMeta(), "userDescription", populator, IndexPopulationFailure
-                .failure( "failure" ), new IndexCountsRemover( storeView, 0 ), NullLogProvider.getInstance() );
+        return new FailedIndexProxy( dummyMeta(), "userDescription", dropper, IndexPopulationFailure
+                .failure( "failure" ), indexStatisticsStore, NullLogProvider.getInstance() );
     }
 
     private IndexPopulator.Adapter emptyPopulatorWithThrowingUpdater()
@@ -152,13 +156,13 @@ public class IndexPopulationTest
         };
     }
 
-    private CapableIndexDescriptor dummyMeta()
+    private IndexDescriptor dummyMeta()
     {
-        return TestIndexDescriptorFactory.forLabel( 0, 0 ).withId( 0 ).withoutCapabilities();
+        return TestIndexDescriptorFactory.forLabel( 0, 0 );
     }
 
     private IndexEntryUpdate<LabelSchemaDescriptor> someUpdate()
     {
-        return IndexEntryUpdate.add( 0, SchemaDescriptorFactory.forLabel( 0, 0 ), Values.numberValue( 0 ) );
+        return IndexEntryUpdate.add( 0, SchemaDescriptor.forLabel( 0, 0 ), Values.numberValue( 0 ) );
     }
 }

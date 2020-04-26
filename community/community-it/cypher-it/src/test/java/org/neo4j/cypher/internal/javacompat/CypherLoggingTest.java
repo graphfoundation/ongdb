@@ -26,36 +26,43 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import org.neo4j.dbms.api.DatabaseManagementService;
 import org.neo4j.graphdb.GraphDatabaseService;
+import org.neo4j.graphdb.Transaction;
 import org.neo4j.logging.AssertableLogProvider;
-import org.neo4j.test.TestGraphDatabaseFactory;
+import org.neo4j.test.TestDatabaseManagementServiceBuilder;
 
+import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
 import static org.neo4j.logging.AssertableLogProvider.inLog;
 
 public class CypherLoggingTest
 {
-
     private final AssertableLogProvider logProvider = new AssertableLogProvider();
     private GraphDatabaseService database;
+    private DatabaseManagementService managementService;
 
     @Before
     public void setUp()
     {
-        database = new TestGraphDatabaseFactory().setUserLogProvider( logProvider ).newImpermanentDatabase();
+        managementService = new TestDatabaseManagementServiceBuilder().setUserLogProvider( logProvider ).impermanent().build();
+        database = managementService.database( DEFAULT_DATABASE_NAME );
     }
 
     @After
     public void tearDown()
     {
-        database.shutdown();
+        managementService.shutdown();
     }
 
     @Test
     public void shouldNotLogQueries()
     {
         // when
-        database.execute( "CREATE (n:Reference) CREATE (foo {test:'me'}) RETURN n" );
-        database.execute( "MATCH (n) RETURN n" );
+        try ( Transaction transaction = database.beginTx() )
+        {
+            transaction.execute( "CREATE (n:Reference) CREATE (foo {test:'me'}) RETURN n" ).close();
+            transaction.execute( "MATCH (n) RETURN n" ).close();
+        }
 
         // then
         inLog( org.neo4j.cypher.internal.ExecutionEngine.class );

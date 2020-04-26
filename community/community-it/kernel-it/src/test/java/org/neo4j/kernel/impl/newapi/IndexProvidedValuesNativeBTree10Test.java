@@ -22,20 +22,25 @@
  */
 package org.neo4j.kernel.impl.newapi;
 
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.ArrayList;
 import java.util.List;
 
+import org.neo4j.configuration.GraphDatabaseSettings;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Transaction;
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
-import org.neo4j.internal.kernel.api.IndexOrder;
-import org.neo4j.internal.kernel.api.IndexReference;
-import org.neo4j.internal.kernel.api.KernelAPIReadTestBase;
+import org.neo4j.graphdb.schema.IndexDefinition;
+import org.neo4j.internal.kernel.api.IndexReadSession;
 import org.neo4j.internal.kernel.api.NodeValueIndexCursor;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.internal.schema.IndexOrder;
+import org.neo4j.kernel.impl.coreapi.schema.IndexDefinitionImpl;
+import org.neo4j.test.extension.Inject;
+import org.neo4j.test.extension.RandomExtension;
 import org.neo4j.test.rule.RandomRule;
 import org.neo4j.values.storable.RandomValues;
 import org.neo4j.values.storable.Value;
@@ -44,19 +49,22 @@ import org.neo4j.values.storable.ValueType;
 import org.neo4j.values.storable.Values;
 
 import static java.util.concurrent.TimeUnit.MINUTES;
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.neo4j.graphdb.Label.label;
 
+@ExtendWith( RandomExtension.class )
+@TestInstance( TestInstance.Lifecycle.PER_CLASS )
 public class IndexProvidedValuesNativeBTree10Test extends KernelAPIReadTestBase<ReadTestSupport>
 {
-    @SuppressWarnings( "FieldCanBeLocal" )
-    private static int N_NODES = 10000;
+    private static final int N_NODES = 10000;
 
-    @Rule
-    public RandomRule randomRule = new RandomRule();
+    @Inject
+    private RandomRule randomRule;
 
     private List<Value> singlePropValues = new ArrayList<>();
     private List<ValueTuple> doublePropValues = new ArrayList<>();
+    private IndexDescriptor indexNodeProp;
+    private IndexDescriptor indexNodePropPrip;
 
     @Override
     public ReadTestSupport newTestSupport()
@@ -71,14 +79,14 @@ public class IndexProvidedValuesNativeBTree10Test extends KernelAPIReadTestBase<
     {
         try ( Transaction tx = graphDb.beginTx() )
         {
-            graphDb.schema().indexFor( label( "Node" ) ).on( "prop" ).create();
-            graphDb.schema().indexFor( label( "Node" ) ).on( "prop" ).on( "prip" ).create();
-            tx.success();
+            indexNodeProp = unwrap( tx.schema().indexFor( label( "Node" ) ).on( "prop" ).create() );
+            indexNodePropPrip = unwrap( tx.schema().indexFor( label( "Node" ) ).on( "prop" ).on( "prip" ).create() );
+            tx.commit();
         }
         try ( Transaction tx = graphDb.beginTx() )
         {
-            graphDb.schema().awaitIndexesOnline( 5, MINUTES );
-            tx.success();
+            tx.schema().awaitIndexesOnline( 5, MINUTES );
+            tx.commit();
         }
 
         try ( Transaction tx = graphDb.beginTx() )
@@ -89,7 +97,7 @@ public class IndexProvidedValuesNativeBTree10Test extends KernelAPIReadTestBase<
 
             for ( int i = 0; i < N_NODES; i++ )
             {
-                Node node = graphDb.createNode( label( "Node" ) );
+                Node node = tx.createNode( label( "Node" ) );
                 Value propValue = randomValues.nextValueOfTypes( allExceptNonSortable );
                 node.setProperty( "prop", propValue.asObject() );
                 Value pripValue = randomValues.nextValueOfTypes( allExceptNonSortable );
@@ -98,19 +106,22 @@ public class IndexProvidedValuesNativeBTree10Test extends KernelAPIReadTestBase<
                 singlePropValues.add( propValue );
                 doublePropValues.add( ValueTuple.of( propValue, pripValue ) );
             }
-            tx.success();
+            tx.commit();
         }
 
         singlePropValues.sort( Values.COMPARATOR );
         doublePropValues.sort( ValueTuple.COMPARATOR  );
     }
 
-    @Test
-    public void shouldGetAllSinglePropertyValues() throws Exception
+    private IndexDescriptor unwrap( IndexDefinition indexDefinition )
     {
-        int label = token.nodeLabel( "Node" );
-        int prop = token.propertyKey( "prop" );
-        IndexReference index = schemaRead.index( label, prop );
+        return ((IndexDefinitionImpl) indexDefinition).getIndexReference();
+    }
+
+    @Test
+    void shouldGetAllSinglePropertyValues() throws Exception
+    {
+        IndexReadSession index = read.indexReadSession( indexNodeProp );
         try ( NodeValueIndexCursor node = cursors.allocateNodeValueIndexCursor() )
         {
             read.nodeIndexScan( index, node, IndexOrder.NONE, true );
@@ -130,12 +141,9 @@ public class IndexProvidedValuesNativeBTree10Test extends KernelAPIReadTestBase<
     }
 
     @Test
-    public void shouldGetAllDoublePropertyValues() throws Exception
+    void shouldGetAllDoublePropertyValues() throws Exception
     {
-        int label = token.nodeLabel( "Node" );
-        int prop = token.propertyKey( "prop" );
-        int prip = token.propertyKey( "prip" );
-        IndexReference index = schemaRead.index( label, prop, prip );
+        IndexReadSession index = read.indexReadSession( indexNodePropPrip );
         try ( NodeValueIndexCursor node = cursors.allocateNodeValueIndexCursor() )
         {
             read.nodeIndexScan( index, node, IndexOrder.NONE, true );

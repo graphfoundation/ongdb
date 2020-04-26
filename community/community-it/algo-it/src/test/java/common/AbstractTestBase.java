@@ -29,35 +29,39 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 
+import org.neo4j.dbms.api.DatabaseManagementService;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Relationship;
 import org.neo4j.graphdb.Transaction;
-import org.neo4j.test.TestGraphDatabaseFactory;
+import org.neo4j.test.TestDatabaseManagementServiceBuilder;
 
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
 
 public abstract class AbstractTestBase
 {
     private static GraphDatabaseService graphdb;
+    private static DatabaseManagementService managementService;
 
     @BeforeClass
     public static void beforeSuite()
     {
-        graphdb = new TestGraphDatabaseFactory().newImpermanentDatabase();
+        managementService = new TestDatabaseManagementServiceBuilder().impermanent().build();
+        graphdb = managementService.database( DEFAULT_DATABASE_NAME );
     }
 
     @AfterClass
     public static void afterSuite()
     {
-        graphdb.shutdown();
+        managementService.shutdown();
         graphdb = null;
     }
 
-    protected static Node getNode( long id )
+    protected static Node getNode( Transaction tx, long id )
     {
-        return graphdb.getNodeById( id );
+        return tx.getNodeById( id );
     }
 
     protected static Transaction beginTx()
@@ -108,7 +112,7 @@ public abstract class AbstractTestBase
                 String repr = representation.represent( item );
                 assertTrue( repr + " not expected ", expected.remove( repr ) );
             }
-            tx.success();
+            tx.commit();
         }
 
         if ( !expected.isEmpty() )

@@ -23,49 +23,45 @@
 package org.neo4j.graphdb;
 
 import org.hamcrest.Matchers;
-import org.junit.Before;
-import org.junit.ClassRule;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TestName;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Set;
 
-import org.neo4j.helpers.collection.Iterables;
-import org.neo4j.helpers.collection.Iterators;
-import org.neo4j.test.rule.DatabaseRule;
-import org.neo4j.test.rule.ImpermanentDatabaseRule;
+import org.neo4j.internal.helpers.collection.Iterators;
+import org.neo4j.test.extension.ImpermanentDbmsExtension;
+import org.neo4j.test.extension.Inject;
 
 import static java.util.Collections.emptySet;
 import static org.hamcrest.CoreMatchers.equalTo;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.neo4j.graphdb.Label.label;
-import static org.neo4j.helpers.collection.Iterators.asSet;
-import static org.neo4j.helpers.collection.Iterators.single;
+import static org.neo4j.internal.helpers.collection.Iterables.asSet;
+import static org.neo4j.internal.helpers.collection.Iterators.asSet;
+import static org.neo4j.internal.helpers.collection.Iterators.single;
 
-public class NativeLabelScanStoreUpdateIT
+@ImpermanentDbmsExtension
+class NativeLabelScanStoreUpdateIT
 {
-    @ClassRule
-    public static final DatabaseRule dbRule = new ImpermanentDatabaseRule();
-    @Rule
-    public final TestName testName = new TestName();
+    @Inject
+    private GraphDatabaseService db;
 
     private Label First;
     private Label Second;
     private Label Third;
 
-    @Before
-    public void setupLabels()
+    @BeforeEach
+    void setupLabels()
     {
-        First = Label.label( "First-" + testName.getMethodName() );
-        Second = Label.label( "Second-" + testName.getMethodName() );
-        Third = Label.label( "Third-" + testName.getMethodName() );
+        First = Label.label( "First" );
+        Second = Label.label( "Second" );
+        Third = Label.label( "Third" );
     }
 
     @Test
-    public void shouldGetNodesWithCreatedLabel()
+    void shouldGetNodesWithCreatedLabel()
     {
         // GIVEN
         Node node1 = createLabeledNode( First );
@@ -77,17 +73,17 @@ public class NativeLabelScanStoreUpdateIT
         // THEN
         assertEquals(
                 asSet( node1, node4, node5 ),
-                Iterables.asSet( getAllNodesWithLabel( First ) ) );
+                asSet( getAllNodesWithLabel( First ) ) );
         assertEquals(
                 asSet( node2, node4 ),
-                Iterables.asSet( getAllNodesWithLabel( Second ) ) );
+                asSet( getAllNodesWithLabel( Second ) ) );
         assertEquals(
                 asSet( node3, node4, node5 ),
-                Iterables.asSet( getAllNodesWithLabel( Third ) ) );
+                asSet( getAllNodesWithLabel( Third ) ) );
     }
 
     @Test
-    public void shouldGetNodesWithAddedLabel()
+    void shouldGetNodesWithAddedLabel()
     {
         // GIVEN
         Node node1 = createLabeledNode( First );
@@ -103,17 +99,17 @@ public class NativeLabelScanStoreUpdateIT
         // THEN
         assertEquals(
                 asSet( node1, node4, node5 ),
-                Iterables.asSet( getAllNodesWithLabel( First ) ) );
+                asSet( getAllNodesWithLabel( First ) ) );
         assertEquals(
                 asSet( node2, node4 ),
-                Iterables.asSet( getAllNodesWithLabel( Second ) ) );
+                asSet( getAllNodesWithLabel( Second ) ) );
         assertEquals(
                 asSet( node3, node4, node5 ),
-                Iterables.asSet( getAllNodesWithLabel( Third ) ) );
+                asSet( getAllNodesWithLabel( Third ) ) );
     }
 
     @Test
-    public void shouldGetNodesAfterDeletedNodes()
+    void shouldGetNodesAfterDeletedNodes()
     {
         // GIVEN
         Node node1 = createLabeledNode( First, Second );
@@ -134,7 +130,7 @@ public class NativeLabelScanStoreUpdateIT
     }
 
     @Test
-    public void shouldGetNodesAfterRemovedLabels()
+    void shouldGetNodesAfterRemovedLabels()
     {
         // GIVEN
         Node node1 = createLabeledNode( First, Second );
@@ -156,7 +152,7 @@ public class NativeLabelScanStoreUpdateIT
     }
 
     @Test
-    public void retrieveNodeIdsInAscendingOrder()
+    void retrieveNodeIdsInAscendingOrder()
     {
         for ( int i = 0; i < 50; i++ )
         {
@@ -176,10 +172,9 @@ public class NativeLabelScanStoreUpdateIT
     }
 
     @Test
-    public void shouldHandleLargeAmountsOfNodesAddedAndRemovedInSameTx()
+    void shouldHandleLargeAmountsOfNodesAddedAndRemovedInSameTx()
     {
         // Given
-        GraphDatabaseService db = dbRule;
         int labelsToAdd = 80;
         int labelsToRemove = 40;
 
@@ -187,7 +182,7 @@ public class NativeLabelScanStoreUpdateIT
         Node node;
         try ( Transaction tx = db.beginTx() )
         {
-            node = db.createNode();
+            node = tx.createNode();
 
             // I create a lot of labels, enough to push the store to use two dynamic records
             for ( int l = 0; l < labelsToAdd; l++ )
@@ -201,27 +196,27 @@ public class NativeLabelScanStoreUpdateIT
                 node.removeLabel( label( "Label-" + l ) );
             }
 
-            tx.success();
+            tx.commit();
         }
 
         // Then
-        try ( Transaction ignore = db.beginTx() )
+        try ( Transaction tx = db.beginTx() )
         {
             // All the labels remaining should be in the label scan store
             for ( int l = labelsToAdd - 1; l >= labelsToRemove; l-- )
             {
                 Label label = label( "Label-" + l );
                 assertThat( "Should have found node when looking for label " + label,
-                        single( db.findNodes( label ) ), equalTo( node ) );
+                        single( tx.findNodes( label ) ), equalTo( node ) );
             }
         }
     }
 
     private void verifyFoundNodes( Label label, String sizeMismatchMessage, long... expectedNodeIds )
     {
-        try ( Transaction ignored = dbRule.beginTx() )
+        try ( Transaction tx = db.beginTx() )
         {
-            ResourceIterator<Node> nodes = dbRule.findNodes( label );
+            ResourceIterator<Node> nodes = tx.findNodes( label );
             List<Node> nodeList = Iterators.asList( nodes );
             assertThat( sizeMismatchMessage, nodeList, Matchers.hasSize( expectedNodeIds.length ) );
             int index = 0;
@@ -234,60 +229,62 @@ public class NativeLabelScanStoreUpdateIT
 
     private void removeLabels( Node node, Label... labels )
     {
-        try ( Transaction tx = dbRule.beginTx() )
+        try ( Transaction tx = db.beginTx() )
         {
+            var nodeById = tx.getNodeById( node.getId() );
             for ( Label label : labels )
             {
-                node.removeLabel( label );
+                nodeById.removeLabel( label );
             }
-            tx.success();
+            tx.commit();
         }
     }
 
     private void deleteNode( Node node )
     {
-        try ( Transaction tx = dbRule.beginTx() )
+        try ( Transaction tx = db.beginTx() )
         {
-            node.delete();
-            tx.success();
+            tx.getNodeById( node.getId() ).delete();
+            tx.commit();
         }
     }
 
     private Set<Node> getAllNodesWithLabel( Label label )
     {
-        try ( Transaction ignored = dbRule.beginTx() )
+        try ( Transaction tx = db.beginTx() )
         {
-            return asSet( dbRule.findNodes( label ) );
+            return asSet( tx.findNodes( label ) );
         }
     }
 
     private Node createLabeledNode( Label... labels )
     {
-        try ( Transaction tx = dbRule.beginTx() )
+        try ( Transaction tx = db.beginTx() )
         {
-            Node node = dbRule.createNode( labels );
-            tx.success();
+            Node node = tx.createNode( labels );
+            tx.commit();
             return node;
         }
     }
 
     private void addLabels( Node node, Label... labels )
     {
-        try ( Transaction tx = dbRule.beginTx() )
+        try ( Transaction tx = db.beginTx() )
         {
+            node = tx.getNodeById( node.getId() );
             for ( Label label : labels )
             {
                 node.addLabel( label );
             }
-            tx.success();
+            tx.commit();
         }
     }
 
     private Node getNodeById( long id )
     {
-        try ( Transaction ignored = dbRule.beginTx() )
+        try ( Transaction tx = db.beginTx() )
         {
-            return dbRule.getNodeById( id );
+            return tx.getNodeById( id );
         }
     }
 

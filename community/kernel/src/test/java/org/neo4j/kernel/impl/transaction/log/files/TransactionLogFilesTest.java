@@ -22,38 +22,49 @@
  */
 package org.neo4j.kernel.impl.transaction.log.files;
 
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.neo4j.io.fs.FileSystemAbstraction;
+import org.neo4j.io.fs.StoreChannel;
 import org.neo4j.io.layout.DatabaseLayout;
+import org.neo4j.io.memory.ByteBuffers;
+import org.neo4j.kernel.impl.api.TestCommandReaderFactory;
 import org.neo4j.kernel.impl.transaction.SimpleLogVersionRepository;
 import org.neo4j.kernel.impl.transaction.SimpleTransactionIdStore;
-import org.neo4j.test.rule.TestDirectory;
-import org.neo4j.test.rule.fs.DefaultFileSystemRule;
-import org.neo4j.test.rule.fs.FileSystemRule;
+import org.neo4j.kernel.impl.transaction.log.PhysicalLogVersionedStoreChannel;
+import org.neo4j.kernel.impl.transaction.log.entry.VersionAwareLogEntryReader;
+import org.neo4j.storageengine.api.StoreId;
+import org.neo4j.test.extension.Inject;
+import org.neo4j.test.extension.Neo4jLayoutExtension;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.hamcrest.Matchers.greaterThanOrEqualTo;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.neo4j.kernel.impl.transaction.log.entry.LogVersions.CURRENT_FORMAT_LOG_HEADER_SIZE;
+import static org.neo4j.kernel.impl.transaction.log.entry.LogVersions.LOG_HEADER_SIZE_3_5;
+import static org.neo4j.kernel.impl.transaction.log.entry.LogVersions.LOG_VERSION_3_5;
 
-public class TransactionLogFilesTest
+@Neo4jLayoutExtension
+class TransactionLogFilesTest
 {
-    @Rule
-    public final FileSystemRule fileSystemRule = new DefaultFileSystemRule();
-    @Rule
-    public final TestDirectory testDirectory = TestDirectory.testDirectory();
+    @Inject
+    private FileSystemAbstraction fileSystem;
+    @Inject
+    private DatabaseLayout databaseLayout;
     private final String filename = "filename";
 
     @Test
-    public void shouldGetTheFileNameForAGivenVersion() throws IOException
+    void shouldGetTheFileNameForAGivenVersion() throws IOException
     {
         // given
         final LogFiles files = createLogFiles();
@@ -63,22 +74,48 @@ public class TransactionLogFilesTest
         final File versionFileName = files.getLogFileForVersion( version );
 
         // then
-        DatabaseLayout databaseLayout = testDirectory.databaseLayout();
-        final File expected = databaseLayout.file( getVersionedLogFileName( version ) );
+        final File expected = createTransactionLogFile( databaseLayout, getVersionedLogFileName( version ) );
         assertEquals( expected, versionFileName );
     }
 
     @Test
-    public void shouldVisitEachLofFile() throws Throwable
+    void extractHeaderOf3_5Format() throws IOException
+    {
+        LogFiles files = createLogFiles();
+
+        create3_5FileWithHeader( databaseLayout, "0" );
+        create3_5FileWithHeader( databaseLayout, "1", 1 );
+        create3_5FileWithHeader( databaseLayout, "2", 2 );
+
+        var logHeader = files.extractHeader( 0 );
+        assertEquals( LOG_HEADER_SIZE_3_5, logHeader.getStartPosition().getByteOffset() );
+        assertEquals( LOG_VERSION_3_5, logHeader.getLogFormatVersion() );
+        assertEquals( LOG_HEADER_SIZE_3_5, files.extractHeader( 1 ).getStartPosition().getByteOffset() );
+        assertEquals( LOG_HEADER_SIZE_3_5, files.extractHeader( 2 ).getStartPosition().getByteOffset() );
+    }
+
+    @Test
+    void detectEntriesIn3_5Format() throws IOException
+    {
+        LogFiles files = createLogFiles();
+
+        create3_5FileWithHeader( databaseLayout, "0" );
+        create3_5FileWithHeader( databaseLayout, "1", 10 );
+
+        assertFalse( files.hasAnyEntries( 0 ) );
+        assertTrue( files.hasAnyEntries( 1 ) );
+    }
+
+    @Test
+    void shouldVisitEachLofFile() throws Throwable
     {
         // given
         LogFiles files = createLogFiles();
-        DatabaseLayout databaseLayout = testDirectory.databaseLayout();
 
-        fileSystemRule.create( databaseLayout.file( getVersionedLogFileName( "1" ) ) ).close();
-        fileSystemRule.create( databaseLayout.file( getVersionedLogFileName( "some", "2" ) ) ).close();
-        fileSystemRule.create( databaseLayout.file( getVersionedLogFileName( "3" ) ) ).close();
-        fileSystemRule.create( databaseLayout.file( filename ) ).close();
+        fileSystem.write( createTransactionLogFile( databaseLayout, getVersionedLogFileName( "1" ) ) ).close();
+        fileSystem.write( createTransactionLogFile( databaseLayout, getVersionedLogFileName( "some", "2" ) ) ).close();
+        fileSystem.write( createTransactionLogFile( databaseLayout, getVersionedLogFileName( "3" ) ) ).close();
+        fileSystem.write( createTransactionLogFile( databaseLayout, filename ) ).close();
 
         // when
         final List<File> seenFiles = new ArrayList<>();
@@ -92,23 +129,22 @@ public class TransactionLogFilesTest
 
         // then
         assertThat( seenFiles, containsInAnyOrder(
-                databaseLayout.file( getVersionedLogFileName( filename, "1" ) ),
-                databaseLayout.file( getVersionedLogFileName( filename, "3" ) ) )  );
+                createTransactionLogFile( databaseLayout, getVersionedLogFileName( filename, "1" ) ),
+                createTransactionLogFile( databaseLayout, getVersionedLogFileName( filename, "3" ) ) )  );
         assertThat( seenVersions, containsInAnyOrder( 1L, 3L ) );
         files.shutdown();
     }
 
     @Test
-    public void shouldBeAbleToRetrieveTheHighestLogVersion() throws Throwable
+    void shouldBeAbleToRetrieveTheHighestLogVersion() throws Throwable
     {
         // given
         LogFiles files = createLogFiles();
 
-        DatabaseLayout databaseLayout = testDirectory.databaseLayout();
-        fileSystemRule.create( databaseLayout.file( getVersionedLogFileName( "1" ) ) ).close();
-        fileSystemRule.create( databaseLayout.file( getVersionedLogFileName( "some", "4" ) ) ).close();
-        fileSystemRule.create( databaseLayout.file( getVersionedLogFileName( "3" ) ) ).close();
-        fileSystemRule.create( databaseLayout.file( filename ) ).close();
+        fileSystem.write( createTransactionLogFile( databaseLayout, getVersionedLogFileName( "1" ) ) ).close();
+        fileSystem.write( createTransactionLogFile( databaseLayout, getVersionedLogFileName( "some", "4" ) ) ).close();
+        fileSystem.write( createTransactionLogFile( databaseLayout, getVersionedLogFileName( "3" ) ) ).close();
+        fileSystem.write( createTransactionLogFile( databaseLayout, filename ) ).close();
 
         // when
         final long highestLogVersion = files.getHighestLogVersion();
@@ -119,14 +155,13 @@ public class TransactionLogFilesTest
     }
 
     @Test
-    public void shouldReturnANegativeValueIfThereAreNoLogFiles() throws Throwable
+    void shouldReturnANegativeValueIfThereAreNoLogFiles() throws Throwable
     {
         // given
         LogFiles files = createLogFiles();
-        DatabaseLayout databaseLayout = testDirectory.databaseLayout();
 
-        fileSystemRule.create( databaseLayout.file( getVersionedLogFileName( "some", "4" ) ) ).close();
-        fileSystemRule.create( databaseLayout.file( filename ) ).close();
+        fileSystem.write( databaseLayout.file( getVersionedLogFileName( "some", "4" ) ) ).close();
+        fileSystem.write( databaseLayout.file( filename ) ).close();
 
         // when
         final long highestLogVersion = files.getHighestLogVersion();
@@ -137,7 +172,7 @@ public class TransactionLogFilesTest
     }
 
     @Test
-    public void shouldFindTheVersionBasedOnTheFilename() throws Throwable
+    void shouldFindTheVersionBasedOnTheFilename() throws Throwable
     {
         // given
         LogFiles logFiles = createLogFiles();
@@ -152,36 +187,29 @@ public class TransactionLogFilesTest
     }
 
     @Test
-    public void shouldThrowIfThereIsNoVersionInTheFileName() throws IOException
+    void shouldThrowIfThereIsNoVersionInTheFileName() throws IOException
     {
         LogFiles logFiles = createLogFiles();
         final File file = new File( "wrong" );
 
         // when
-        try
-        {
-            logFiles.getLogVersion( file );
-            fail( "should have thrown" );
-        }
-        catch ( RuntimeException ex )
-        {
-            assertEquals( "Invalid log file '" + file.getName() + "'", ex.getMessage() );
-        }
+        RuntimeException exception = assertThrows( RuntimeException.class, () -> logFiles.getLogVersion( file ) );
+        assertEquals( "Invalid log file '" + file.getName() + "'", exception.getMessage() );
     }
 
-    @Test( expected = NumberFormatException.class )
-    public void shouldThrowIfVersionIsNotANumber() throws IOException
+    @Test
+    void shouldThrowIfVersionIsNotANumber() throws IOException
     {
         // given
         LogFiles logFiles = createLogFiles();
         final File file = new File( getVersionedLogFileName( "aa", "A" ) );
 
         // when
-        logFiles.getLogVersion( file );
+        assertThrows( NumberFormatException.class, () -> logFiles.getLogVersion( file ) );
     }
 
     @Test
-    public void isLogFile() throws IOException
+    void isLogFile() throws IOException
     {
         LogFiles logFiles = createLogFiles();
         assertFalse( logFiles.isLogFile( new File( "aaa.tx.log" ) ) );
@@ -189,13 +217,60 @@ public class TransactionLogFilesTest
         assertTrue( logFiles.isLogFile( new File( "filename.17" ) ) );
     }
 
+    @Test
+    void emptyFileWithoutEntriesDoesNotHaveThem() throws IOException
+    {
+        LogFiles logFiles = createLogFiles();
+        String file = getVersionedLogFileName( "1" );
+        fileSystem.write( createTransactionLogFile( databaseLayout, file ) ).close();
+        assertFalse( logFiles.hasAnyEntries( 1 ) );
+    }
+
+    @Test
+    void fileWithoutEntriesDoesNotHaveThemIndependentlyOfItsSize() throws IOException
+    {
+        LogFiles logFiles = createLogFiles();
+        try ( PhysicalLogVersionedStoreChannel channel = logFiles.createLogChannelForVersion( 1, () -> 1L ) )
+        {
+            assertThat( channel.size(), greaterThanOrEqualTo( (long) CURRENT_FORMAT_LOG_HEADER_SIZE ) );
+            assertFalse( logFiles.hasAnyEntries( 1 ) );
+        }
+    }
+
+    private void create3_5FileWithHeader( DatabaseLayout databaseLayout, String version, int bytesOfData ) throws IOException
+    {
+        try ( StoreChannel storeChannel = fileSystem.write( createTransactionLogFile( databaseLayout, getVersionedLogFileName( version ) ) ) )
+        {
+            ByteBuffer byteBuffer = ByteBuffers.allocate( LOG_HEADER_SIZE_3_5 + bytesOfData);
+            while ( byteBuffer.hasRemaining() )
+            {
+                byteBuffer.put( LOG_VERSION_3_5 );
+            }
+            byteBuffer.flip();
+            storeChannel.writeAll( byteBuffer );
+        }
+    }
+
+    private void create3_5FileWithHeader( DatabaseLayout databaseLayout, String version ) throws IOException
+    {
+        create3_5FileWithHeader( databaseLayout, version, 0 );
+    }
+
+    private File createTransactionLogFile( DatabaseLayout databaseLayout, String fileName )
+    {
+        File transactionLogsDirectory = databaseLayout.getTransactionLogsDirectory();
+        return new File( transactionLogsDirectory, fileName );
+    }
+
     private LogFiles createLogFiles() throws IOException
     {
         return LogFilesBuilder
-                .builder( testDirectory.databaseLayout(), fileSystemRule )
+                .builder( databaseLayout, fileSystem )
                 .withLogFileName( filename )
                 .withTransactionIdStore( new SimpleTransactionIdStore() )
                 .withLogVersionRepository( new SimpleLogVersionRepository() )
+                .withLogEntryReader( new VersionAwareLogEntryReader( new TestCommandReaderFactory() ) )
+                .withStoreId( StoreId.UNKNOWN )
                 .build();
     }
 

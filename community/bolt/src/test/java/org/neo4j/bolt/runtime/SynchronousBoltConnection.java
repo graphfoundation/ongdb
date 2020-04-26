@@ -25,18 +25,22 @@ package org.neo4j.bolt.runtime;
 import io.netty.channel.Channel;
 import io.netty.channel.embedded.EmbeddedChannel;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.net.SocketAddress;
 
+import org.neo4j.bolt.runtime.statemachine.BoltStateMachine;
 import org.neo4j.bolt.transport.TransportThrottleGroup;
-import org.neo4j.bolt.v1.packstream.PackOutput;
-import org.neo4j.bolt.v1.runtime.Job;
-import org.neo4j.bolt.v1.transport.ChunkedOutput;
+import org.neo4j.bolt.packstream.ChunkedOutput;
+import org.neo4j.bolt.packstream.PackOutput;
 
 public class SynchronousBoltConnection implements BoltConnection
 {
     private final EmbeddedChannel channel;
     private final PackOutput output;
     private final BoltStateMachine machine;
+
+    private boolean idle = true;
 
     public SynchronousBoltConnection( BoltStateMachine machine )
     {
@@ -49,6 +53,12 @@ public class SynchronousBoltConnection implements BoltConnection
     public String id()
     {
         return channel.id().asLongText();
+    }
+
+    @Override
+    public boolean idle()
+    {
+        return idle;
     }
 
     @Override
@@ -90,6 +100,8 @@ public class SynchronousBoltConnection implements BoltConnection
     @Override
     public void enqueue( Job job )
     {
+        idle = false;
+
         try
         {
             job.perform( machine );
@@ -97,6 +109,10 @@ public class SynchronousBoltConnection implements BoltConnection
         catch ( BoltConnectionFatality connectionFatality )
         {
             throw new RuntimeException( connectionFatality );
+        }
+        finally
+        {
+            idle = true;
         }
     }
 
@@ -121,7 +137,15 @@ public class SynchronousBoltConnection implements BoltConnection
     @Override
     public void stop()
     {
-        channel.finishAndReleaseAll();
-        machine.close();
+        try
+        {
+            channel.finishAndReleaseAll();
+            output.close();
+            machine.close();
+        }
+        catch ( IOException e )
+        {
+            throw new UncheckedIOException( e );
+        }
     }
 }

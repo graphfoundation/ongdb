@@ -10,7 +10,6 @@
     </parent>
 
     <artifactId>community-integration-tests</artifactId>
-    <version>4.0.4-SNAPSHOT</version>
     <packaging>pom</packaging>
 
     <name>ONgDB - Community Integration Tests</name>
@@ -18,6 +17,7 @@
 
     <properties>
         <license-text.header>headers/GPL-3-header.txt</license-text.header>
+        <licensing.prepend.text>licensing/notice-gpl-prefix.txt</licensing.prepend.text>
     </properties>
 
     <licenses>
@@ -29,7 +29,9 @@
 
     <modules>
         <module>it-test-support</module>
+        <module>record-storage-engine-it</module>
         <module>kernel-it</module>
+        <module>batch-insert-it</module>
         <module>index-it</module>
         <module>import-it</module>
         <module>dbms-it</module>

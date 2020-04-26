@@ -22,27 +22,6 @@
 
 Feature: ReturnAcceptance
 
-  Scenario: Filter should work
-    Given an empty graph
-    And having executed:
-      """
-      CREATE (a {foo: 1})-[:T]->({foo: 1}),
-        (a)-[:T]->({foo: 2}),
-        (a)-[:T]->({foo: 3})
-      """
-    When executing query:
-      """
-      MATCH (a {foo: 1})
-      MATCH p=(a)-->()
-      RETURN filter(x IN nodes(p) WHERE x.foo > 2) AS n
-      """
-    Then the result should be:
-      | n            |
-      | [({foo: 3})] |
-      | []           |
-      | []           |
-    And no side effects
-
   Scenario: LIMIT 0 should stop side effects
     Given an empty graph
     When executing query:
@@ -51,7 +30,7 @@ Feature: ReturnAcceptance
       RETURN n
       LIMIT 0
       """
-    Then the result should be:
+    Then the result should be, in any order:
       | n            |
     And no side effects
 
@@ -61,7 +40,7 @@ Feature: ReturnAcceptance
       """
       RETURN [1, 2, 3][null] AS result
       """
-    Then the result should be:
+    Then the result should be, in any order:
       | result |
       | null   |
     And no side effects
@@ -72,7 +51,7 @@ Feature: ReturnAcceptance
       """
       RETURN [1, 2, 3][null..5] AS result
       """
-    Then the result should be:
+    Then the result should be, in any order:
       | result |
       | null   |
     And no side effects
@@ -83,7 +62,7 @@ Feature: ReturnAcceptance
       """
       RETURN [1, 2, 3][1..null] AS result
       """
-    Then the result should be:
+    Then the result should be, in any order:
       | result |
       | null   |
     And no side effects
@@ -94,7 +73,7 @@ Feature: ReturnAcceptance
       """
       RETURN {key: 1337}[null] AS result
       """
-    Then the result should be:
+    Then the result should be, in any order:
       | result |
       | null   |
     And no side effects
@@ -105,7 +84,7 @@ Feature: ReturnAcceptance
       """
       RETURN [[1], [null], null] AS result
       """
-    Then the result should be:
+    Then the result should be, in any order:
       | result      |
       | [[1], [null], null] |
     And no side effects
@@ -116,7 +95,7 @@ Feature: ReturnAcceptance
       """
       RETURN {foo: null} AS result
       """
-    Then the result should be:
+    Then the result should be, in any order:
       | result      |
       | {foo: null} |
     And no side effects
@@ -127,7 +106,7 @@ Feature: ReturnAcceptance
       """
       RETURN [null, [null, {a: null}], {b: [null, {c: [null]}]}] AS result
       """
-    Then the result should be:
+    Then the result should be, in any order:
       | result      |
       | [null, [null, {a: null}], {b: [null, {c: [null]}]}] |
     And no side effects
@@ -138,7 +117,7 @@ Feature: ReturnAcceptance
       """
       RETURN {a: null, b: {c: null, d: {e: null}, f: [null, {g: null, h: [null], i: {j: null}}]}} as result
       """
-    Then the result should be:
+    Then the result should be, in any order:
       | result      |
       | {a: null, b: {c: null, d: {e: null}, f: [null, {g: null, h: [null], i: {j: null}}]}} |
 
@@ -153,7 +132,7 @@ Feature: ReturnAcceptance
       WITH 'prop' AS prop
       MATCH (n) RETURN n[prop] AS result
       """
-    Then the result should be:
+    Then the result should be, in any order:
       | result |
       | null   |
     And no side effects
@@ -168,7 +147,7 @@ Feature: ReturnAcceptance
       """
       MATCH (n) RETURN n['prop'] AS result
       """
-    Then the result should be:
+    Then the result should be, in any order:
       | result |
       | null   |
     And no side effects
@@ -181,7 +160,7 @@ Feature: ReturnAcceptance
       """
       RETURN true AND $list AS result
       """
-    Then the result should be:
+    Then the result should be, in any order:
       | result |
       | false  |
     And no side effects
@@ -194,7 +173,7 @@ Feature: ReturnAcceptance
       """
       RETURN true AND $list AS result
       """
-    Then the result should be:
+    Then the result should be, in any order:
       | result |
       | false   |
     And no side effects
@@ -205,7 +184,7 @@ Feature: ReturnAcceptance
       """
        WITH 2 AS number, 3 AS exponent RETURN number ^ exponent AS result
       """
-    Then the result should be:
+    Then the result should be, in any order:
       | result |
       | 8.0 |
     And no side effects
@@ -216,7 +195,7 @@ Feature: ReturnAcceptance
       """
       WITH 1.0 AS a, 1000 AS b RETURN a * (b / 10) AS result
       """
-    Then the result should be:
+    Then the result should be, in any order:
       | result |
       | 100.0  |
     And no side effects
@@ -227,7 +206,7 @@ Feature: ReturnAcceptance
       """
       RETURN range(2, 8, -1) AS result
       """
-    Then the result should be:
+    Then the result should be, in any order:
       | result |
       | []   |
     And no side effects
@@ -238,7 +217,7 @@ Feature: ReturnAcceptance
       """
       RETURN range(8, 2, 1) AS result
       """
-    Then the result should be:
+    Then the result should be, in any order:
       | result |
       | []   |
     And no side effects

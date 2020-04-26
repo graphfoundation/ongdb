@@ -22,7 +22,7 @@
  */
 package org.neo4j.bolt.testing;
 
-import org.neo4j.bolt.v1.runtime.Job;
+import org.neo4j.bolt.runtime.Job;
 
 public class Jobs
 {

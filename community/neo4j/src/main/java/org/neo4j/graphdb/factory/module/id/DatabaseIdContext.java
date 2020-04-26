@@ -22,8 +22,8 @@
  */
 package org.neo4j.graphdb.factory.module.id;
 
-import org.neo4j.kernel.impl.storageengine.impl.recordstorage.id.IdController;
-import org.neo4j.kernel.impl.store.id.IdGeneratorFactory;
+import org.neo4j.internal.id.IdController;
+import org.neo4j.internal.id.IdGeneratorFactory;
 
 public class DatabaseIdContext
 {

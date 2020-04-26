@@ -23,6 +23,9 @@
 package org.neo4j.index.internal.gbptree;
 
 import org.apache.commons.lang3.tuple.Pair;
+import org.eclipse.collections.api.iterator.LongIterator;
+import org.eclipse.collections.api.set.primitive.MutableLongSet;
+import org.eclipse.collections.impl.set.mutable.primitive.LongHashSet;
 
 import java.io.IOException;
 import java.util.LinkedList;
@@ -65,6 +68,13 @@ class SimpleIdProvider implements IdProvider
     public void releaseId( long stableGeneration, long unstableGeneration, long id )
     {
         releasedIds.add( Pair.of( unstableGeneration, id ) );
+    }
+
+    LongIterator unacquiredIds()
+    {
+        final MutableLongSet unacquiredIds = new LongHashSet();
+        releasedIds.forEach( pair -> unacquiredIds.add( pair.getValue() ) );
+        return unacquiredIds.longIterator();
     }
 
     @Override

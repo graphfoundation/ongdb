@@ -22,22 +22,21 @@
  */
 package org.neo4j.metatest;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.junit.runners.model.Statement;
 import org.mockito.InOrder;
 
 import org.neo4j.test.rule.CleanupRule;
 
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
-public class TestCleanupRule
+class TestCleanupRule
 {
     @Test
-    public void shouldCleanupAutoCloseable() throws Throwable
+    void shouldCleanupAutoCloseable() throws Throwable
     {
         // GIVEN
         CleanupRule rule = new CleanupRule();
@@ -51,7 +50,7 @@ public class TestCleanupRule
     }
 
     @Test
-    public void shouldCleanupObjectWithAppropriateCloseMethod() throws Throwable
+    void shouldCleanupObjectWithAppropriateCloseMethod() throws Throwable
     {
         // GIVEN
         CleanupRule rule = new CleanupRule();
@@ -65,7 +64,7 @@ public class TestCleanupRule
     }
 
     @Test
-    public void shouldCleanupMultipleObjectsInReverseAddedOrder() throws Throwable
+    void shouldCleanupMultipleObjectsInReverseAddedOrder() throws Throwable
     {
         // GIVEN
         CleanupRule rule = new CleanupRule();
@@ -77,26 +76,19 @@ public class TestCleanupRule
 
         // THEN
         InOrder inOrder = inOrder( dirt, closeable );
-        inOrder.verify( dirt, times( 1 ) ).shutdown();
-        inOrder.verify( closeable, times( 1 ) ).close();
+        inOrder.verify( dirt ).shutdown();
+        inOrder.verify( closeable ).close();
     }
 
     @Test
-    public void shouldTellUserIllegalArgumentIfSo()
+    void shouldTellUserIllegalArgumentIfSo()
     {
         // GIVEN
         CleanupRule rule = new CleanupRule();
-        try
-        {
-            rule.add( new Object() );
-            fail( "Should not accept this object" );
-        }
-        catch ( IllegalArgumentException e )
-        {   // OK, good
-        }
+        assertThrows( IllegalArgumentException.class, () -> rule.add( new Object() ) );
     }
 
-    private void simulateTestExecution( CleanupRule rule ) throws Throwable
+    private static void simulateTestExecution( CleanupRule rule ) throws Throwable
     {
         rule.apply( new Statement()
         {

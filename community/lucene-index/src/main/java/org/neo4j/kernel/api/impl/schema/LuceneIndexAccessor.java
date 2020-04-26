@@ -25,20 +25,19 @@ package org.neo4j.kernel.api.impl.schema;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 
-import org.neo4j.helpers.collection.BoundedIterable;
+import org.neo4j.internal.helpers.collection.BoundedIterable;
+import org.neo4j.internal.schema.IndexDescriptor;
 import org.neo4j.kernel.api.exceptions.index.IndexEntryConflictException;
 import org.neo4j.kernel.api.impl.index.AbstractLuceneIndexAccessor;
+import org.neo4j.kernel.api.index.IndexReader;
 import org.neo4j.kernel.api.index.IndexUpdater;
-import org.neo4j.storageengine.api.NodePropertyAccessor;
 import org.neo4j.kernel.impl.api.LuceneIndexValueValidator;
 import org.neo4j.kernel.impl.api.index.IndexUpdateMode;
-import org.neo4j.storageengine.api.schema.IndexDescriptor;
-import org.neo4j.storageengine.api.schema.IndexReader;
+import org.neo4j.storageengine.api.NodePropertyAccessor;
 import org.neo4j.values.storable.Value;
 
 public class LuceneIndexAccessor extends AbstractLuceneIndexAccessor<IndexReader,SchemaIndex>
 {
-
     public LuceneIndexAccessor( SchemaIndex luceneIndex, IndexDescriptor descriptor )
     {
         super( luceneIndex, descriptor );
@@ -51,9 +50,9 @@ public class LuceneIndexAccessor extends AbstractLuceneIndexAccessor<IndexReader
     }
 
     @Override
-    public BoundedIterable<Long> newAllEntriesReader()
+    public BoundedIterable<Long> newAllEntriesReader( long fromIdInclusive, long toIdExclusive )
     {
-        return super.newAllEntriesReader( LuceneDocumentStructure::getNodeId );
+        return super.newAllEntriesReader( LuceneDocumentStructure::getNodeId, fromIdInclusive, toIdExclusive );
     }
 
     @Override
@@ -83,7 +82,7 @@ public class LuceneIndexAccessor extends AbstractLuceneIndexAccessor<IndexReader
     private class LuceneSchemaIndexUpdater extends AbstractLuceneIndexUpdater
     {
 
-        protected LuceneSchemaIndexUpdater( boolean idempotent, boolean refresh )
+        LuceneSchemaIndexUpdater( boolean idempotent, boolean refresh )
         {
             super( idempotent, refresh );
         }

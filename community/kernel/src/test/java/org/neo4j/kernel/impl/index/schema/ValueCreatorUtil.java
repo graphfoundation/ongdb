@@ -35,11 +35,10 @@ import java.util.TreeSet;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import org.neo4j.helpers.collection.PrefetchingIterator;
+import org.neo4j.internal.helpers.collection.PrefetchingIterator;
 import org.neo4j.internal.kernel.api.IndexQuery;
-import org.neo4j.kernel.api.index.IndexEntryUpdate;
-import org.neo4j.storageengine.api.schema.IndexDescriptor;
-import org.neo4j.storageengine.api.schema.StoreIndexDescriptor;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.storageengine.api.IndexEntryUpdate;
 import org.neo4j.test.rule.RandomRule;
 import org.neo4j.values.storable.RandomValues;
 import org.neo4j.values.storable.Value;
@@ -55,7 +54,7 @@ class ValueCreatorUtil<KEY extends NativeIndexKey<KEY>, VALUE extends NativeInde
             Values.COMPARATOR.compare( u1.values()[0], u2.values()[0] );
     private static final int N_VALUES = 10;
 
-    final StoreIndexDescriptor indexDescriptor;
+    final IndexDescriptor indexDescriptor;
     private final ValueType[] supportedTypes;
     private final double fractionDuplicates;
 
@@ -64,7 +63,7 @@ class ValueCreatorUtil<KEY extends NativeIndexKey<KEY>, VALUE extends NativeInde
         this( delegate.indexDescriptor, delegate.supportedTypes, delegate.fractionDuplicates );
     }
 
-    ValueCreatorUtil( StoreIndexDescriptor indexDescriptor, ValueType[] supportedTypes, double fractionDuplicates )
+    ValueCreatorUtil( IndexDescriptor indexDescriptor, ValueType[] supportedTypes, double fractionDuplicates )
     {
         this.indexDescriptor = indexDescriptor;
         this.supportedTypes = supportedTypes;
@@ -91,7 +90,7 @@ class ValueCreatorUtil<KEY extends NativeIndexKey<KEY>, VALUE extends NativeInde
         return IndexQuery.range( 0, from, fromInclusive, to, toInclusive );
     }
 
-    StoreIndexDescriptor indexDescriptor()
+    IndexDescriptor indexDescriptor()
     {
         return indexDescriptor;
     }

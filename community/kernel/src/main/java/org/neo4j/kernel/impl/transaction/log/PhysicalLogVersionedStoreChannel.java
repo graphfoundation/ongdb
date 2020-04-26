@@ -25,15 +25,11 @@ package org.neo4j.kernel.impl.transaction.log;
 import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
 
-import org.neo4j.io.fs.FileSystemAbstraction;
-import org.neo4j.io.fs.OpenMode;
 import org.neo4j.io.fs.StoreChannel;
-import org.neo4j.kernel.impl.transaction.log.entry.LogHeader;
-
-import static org.neo4j.kernel.impl.transaction.log.entry.LogHeader.LOG_HEADER_SIZE;
-import static org.neo4j.kernel.impl.transaction.log.entry.LogHeaderReader.readLogHeader;
+import org.neo4j.kernel.impl.transaction.log.files.ChannelNativeAccessor;
 
 public class PhysicalLogVersionedStoreChannel implements LogVersionedStoreChannel
 {
@@ -41,14 +37,23 @@ public class PhysicalLogVersionedStoreChannel implements LogVersionedStoreChanne
     private final long version;
     private final byte formatVersion;
     private long position;
+    private final File file;
+    private final ChannelNativeAccessor nativeChannelAccessor;
 
-    public PhysicalLogVersionedStoreChannel( StoreChannel delegateChannel, long version, byte formatVersion )
-            throws IOException
+    public PhysicalLogVersionedStoreChannel( StoreChannel delegateChannel, long version, byte formatVersion, File file,
+            ChannelNativeAccessor nativeChannelAccessor ) throws IOException
     {
         this.delegateChannel = delegateChannel;
         this.version = version;
         this.formatVersion = formatVersion;
         this.position = delegateChannel.position();
+        this.file = file;
+        this.nativeChannelAccessor = nativeChannelAccessor;
+    }
+
+    public File getFile()
+    {
+        return file;
     }
 
     @Override
@@ -77,9 +82,9 @@ public class PhysicalLogVersionedStoreChannel implements LogVersionedStoreChanne
     }
 
     @Override
-    public void readAll( ByteBuffer dst )
+    public void readAll( ByteBuffer dst ) throws IOException
     {
-        throw new UnsupportedOperationException( "Not needed" );
+        delegateChannel.readAll( dst );
     }
 
     @Override
@@ -99,6 +104,12 @@ public class PhysicalLogVersionedStoreChannel implements LogVersionedStoreChanne
     public StoreChannel truncate( long size ) throws IOException
     {
         return delegateChannel.truncate( size );
+    }
+
+    @Override
+    public FileChannel fileChannel()
+    {
+        return delegateChannel.fileChannel();
     }
 
     @Override
@@ -143,13 +154,14 @@ public class PhysicalLogVersionedStoreChannel implements LogVersionedStoreChanne
     @Override
     public void close() throws IOException
     {
+        nativeChannelAccessor.evictFromSystemCache( delegateChannel, version );
         delegateChannel.close();
     }
 
     @Override
-    public long write( ByteBuffer[] srcs, int offset, int length ) throws IOException
+    public long write( ByteBuffer[] sources, int offset, int length ) throws IOException
     {
-        return advance( delegateChannel.write( srcs, offset, length ) );
+        return advance( delegateChannel.write( sources, offset, length ) );
     }
 
     @Override

@@ -42,17 +42,17 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import org.neo4j.graphdb.schema.IndexCreator;
-import org.neo4j.test.rule.ImpermanentDatabaseRule;
+import org.neo4j.test.rule.ImpermanentDbmsRule;
 
 import static org.hamcrest.core.IsEqual.equalTo;
 import static org.junit.Assert.assertThat;
-import static org.neo4j.helpers.collection.Iterators.array;
+import static org.neo4j.internal.helpers.collection.Iterators.array;
 
 @RunWith( Parameterized.class )
 public class IndexingCompositeQueryAcceptanceTest
 {
     @ClassRule
-    public static ImpermanentDatabaseRule dbRule = new ImpermanentDatabaseRule();
+    public static ImpermanentDbmsRule dbRule = new ImpermanentDbmsRule();
     @Rule
     public final TestName testName = new TestName();
 
@@ -80,7 +80,7 @@ public class IndexingCompositeQueryAcceptanceTest
     @Parameterized.Parameter( 4 )
     public boolean withIndex;
 
-    private static Label LABEL = Label.label( "LABEL1" );
+    private static final Label LABEL = Label.label( "LABEL1" );
     private GraphDatabaseService db;
 
     @Before
@@ -91,21 +91,21 @@ public class IndexingCompositeQueryAcceptanceTest
         {
             try ( org.neo4j.graphdb.Transaction tx = db.beginTx() )
             {
-                db.schema().indexFor( LABEL ).on( keys[0] ).create();
+                tx.schema().indexFor( LABEL ).on( keys[0] ).create();
 
-                IndexCreator indexCreator = db.schema().indexFor( LABEL );
+                IndexCreator indexCreator = tx.schema().indexFor( LABEL );
                 for ( String key : keys )
                 {
                     indexCreator = indexCreator.on( key );
                 }
                 indexCreator.create();
-                tx.success();
+                tx.commit();
             }
 
             try ( org.neo4j.graphdb.Transaction tx = db.beginTx() )
             {
-                db.schema().awaitIndexesOnline( 5, TimeUnit.MINUTES );
-                tx.success();
+                tx.schema().awaitIndexesOnline( 5, TimeUnit.MINUTES );
+                tx.commit();
             }
         }
     }
@@ -127,7 +127,7 @@ public class IndexingCompositeQueryAcceptanceTest
         MutableLongSet found = new LongHashSet();
         try ( Transaction tx = db.beginTx() )
         {
-            collectNodes( found, indexSeek.findNodes( keys, values, db ) );
+            collectNodes( found, indexSeek.findNodes( keys, values, db, tx ) );
         }
 
         // THEN
@@ -152,7 +152,7 @@ public class IndexingCompositeQueryAcceptanceTest
         }
         try ( Transaction tx = db.beginTx() )
         {
-            collectNodes( found, indexSeek.findNodes( reversedKeys, reversedValues, db ) );
+            collectNodes( found, indexSeek.findNodes( reversedKeys, reversedValues, db, tx ) );
         }
 
         // THEN
@@ -169,10 +169,10 @@ public class IndexingCompositeQueryAcceptanceTest
         MutableLongSet found = new LongHashSet();
         try ( Transaction tx = db.beginTx() )
         {
-            expected.add( createNode( db, propertyMap( keys, values ), LABEL ).getId() );
-            createNode( db, propertyMap( keys, nonMatching[2] ), LABEL );
+            expected.add( createNode( tx, propertyMap( keys, values ), LABEL ).getId() );
+            createNode( tx, propertyMap( keys, nonMatching[2] ), LABEL );
 
-            collectNodes( found, indexSeek.findNodes( keys, values, db ) );
+            collectNodes( found, indexSeek.findNodes( keys, values, db, tx ) );
         }
         // THEN
         assertThat( found, equalTo( expected ) );
@@ -193,11 +193,11 @@ public class IndexingCompositeQueryAcceptanceTest
             while ( deleting.hasNext() )
             {
                 long id = deleting.next();
-                db.getNodeById( id ).delete();
+                tx.getNodeById( id ).delete();
                 expected.remove( id );
             }
 
-            collectNodes( found, indexSeek.findNodes( keys, values, db ) );
+            collectNodes( found, indexSeek.findNodes( keys, values, db, tx ) );
         }
         // THEN
         assertThat( found, equalTo( expected ) );
@@ -219,38 +219,38 @@ public class IndexingCompositeQueryAcceptanceTest
             while ( toMatching.hasNext() )
             {
                 long id = toMatching.next();
-                setProperties( id, values );
+                setProperties( tx, id, values );
                 expected.add( id );
             }
             LongIterator toNotMatching = toChangeToNotMatch.longIterator();
             while ( toNotMatching.hasNext() )
             {
                 long id = toNotMatching.next();
-                setProperties( id, nonMatching[2] );
+                setProperties( tx, id, nonMatching[2] );
                 expected.remove( id );
             }
 
-            collectNodes( found, indexSeek.findNodes( keys, values, db ) );
+            collectNodes( found, indexSeek.findNodes( keys, values, db, tx ) );
         }
         // THEN
         assertThat( found, equalTo( expected ) );
     }
 
-    public MutableLongSet createNodes( GraphDatabaseService db, Label label, Object[]... propertyValueTuples )
+    private MutableLongSet createNodes( GraphDatabaseService db, Label label, Object[]... propertyValueTuples )
     {
         MutableLongSet expected = new LongHashSet();
         try ( Transaction tx = db.beginTx() )
         {
             for ( Object[] valueTuple : propertyValueTuples )
             {
-                expected.add( createNode( db, propertyMap( keys, valueTuple ), label ).getId() );
+                expected.add( createNode( tx, propertyMap( keys, valueTuple ), label ).getId() );
             }
-            tx.success();
+            tx.commit();
         }
         return expected;
     }
 
-    public static Map<String,Object> propertyMap( String[] keys, Object[] valueTuple )
+    private static Map<String,Object> propertyMap( String[] keys, Object[] valueTuple )
     {
         Map<String,Object> propertyValues = new HashMap<>();
         for ( int i = 0; i < keys.length; i++ )
@@ -260,7 +260,7 @@ public class IndexingCompositeQueryAcceptanceTest
         return propertyValues;
     }
 
-    public void collectNodes( MutableLongSet bucket, ResourceIterator<Node> toCollect )
+    private void collectNodes( MutableLongSet bucket, ResourceIterator<Node> toCollect )
     {
         while ( toCollect.hasNext() )
         {
@@ -268,28 +268,24 @@ public class IndexingCompositeQueryAcceptanceTest
         }
     }
 
-    public Node createNode( GraphDatabaseService beansAPI, Map<String, Object> properties, Label... labels )
+    public Node createNode( Transaction transaction, Map<String, Object> properties, Label... labels )
     {
-        try ( Transaction tx = beansAPI.beginTx() )
+        Node node = transaction.createNode( labels );
+        for ( Map.Entry<String,Object> property : properties.entrySet() )
         {
-            Node node = beansAPI.createNode( labels );
-            for ( Map.Entry<String,Object> property : properties.entrySet() )
-            {
-                node.setProperty( property.getKey(), property.getValue() );
-            }
-            tx.success();
-            return node;
+            node.setProperty( property.getKey(), property.getValue() );
         }
+        return node;
     }
 
-    public static Object[] testCase( Integer[] values, IndexSeek indexSeek, boolean withIndex )
+    private static Object[] testCase( Integer[] values, IndexSeek indexSeek, boolean withIndex )
     {
         Object[][] nonMatching = {plus( values, 1 ), plus( values, 2 ), plus( values, 3 )};
         String[] keys = Arrays.stream( values ).map( v -> "key" + v ).toArray( String[]::new );
         return new Object[]{keys, values, nonMatching, indexSeek, withIndex};
     }
 
-    public static <T> Object[] plus( Integer[] values, int offset )
+    private static <T> Object[] plus( Integer[] values, int offset )
     {
         Object[] result = new Object[values.length];
         for ( int i = 0; i < values.length; i++ )
@@ -299,9 +295,9 @@ public class IndexingCompositeQueryAcceptanceTest
         return result;
     }
 
-    private void setProperties( long id, Object[] values )
+    private void setProperties( Transaction tx, long id, Object[] values )
     {
-        Node node = db.getNodeById( id );
+        Node node = tx.getNodeById( id );
         for ( int i = 0; i < keys.length; i++ )
         {
             node.setProperty( keys[i], values[i] );
@@ -310,28 +306,25 @@ public class IndexingCompositeQueryAcceptanceTest
 
     private interface IndexSeek
     {
-        ResourceIterator<Node> findNodes( String[] keys, Object[] values, GraphDatabaseService db );
+        ResourceIterator<Node> findNodes( String[] keys, Object[] values, GraphDatabaseService db, Transaction tx );
     }
 
-    private static IndexSeek biIndexSeek =
-            ( keys, values, db ) ->
+    private static final IndexSeek biIndexSeek =
+            ( keys, values, db, tx ) ->
             {
                 assert keys.length == 2;
                 assert values.length == 2;
-                return db.findNodes( LABEL, keys[0], values[0], keys[1], values[1] );
+                return tx.findNodes( LABEL, keys[0], values[0], keys[1], values[1] );
             };
 
-    private static IndexSeek triIndexSeek =
-            ( keys, values, db ) ->
+    private static final IndexSeek triIndexSeek =
+            ( keys, values, db, tx ) ->
             {
                 assert keys.length == 3;
                 assert values.length == 3;
-                return db.findNodes( LABEL, keys[0], values[0], keys[1], values[1], keys[2], values[2] );
+                return tx.findNodes( LABEL, keys[0], values[0], keys[1], values[1], keys[2], values[2] );
             };
 
-    private static IndexSeek mapIndexSeek =
-            ( keys, values, db ) ->
-            {
-                return db.findNodes( LABEL, propertyMap( keys, values ) );
-            };
+    private static final IndexSeek mapIndexSeek =
+            ( keys, values, db, tx ) -> tx.findNodes( LABEL, propertyMap( keys, values ) );
 }

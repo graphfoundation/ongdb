@@ -81,4 +81,10 @@ public final class DoubleValue extends FloatingPointValue
     {
         return "Double";
     }
+
+    @Override
+    protected long estimatedPayloadSize()
+    {
+        return Double.BYTES;
+    }
 }

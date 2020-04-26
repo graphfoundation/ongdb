@@ -26,6 +26,7 @@ import org.eclipse.collections.api.list.MutableList;
 import org.eclipse.collections.api.list.primitive.MutableLongList;
 import org.eclipse.collections.impl.factory.Lists;
 import org.eclipse.collections.impl.factory.primitive.LongLists;
+import org.eclipse.collections.impl.list.mutable.primitive.LongArrayList;
 
 import java.io.File;
 import java.io.IOException;
@@ -40,6 +41,7 @@ import org.neo4j.io.pagecache.PageCursor;
 import static java.lang.Math.toIntExact;
 import static org.neo4j.index.internal.gbptree.GenerationSafePointerPair.pointer;
 import static org.neo4j.index.internal.gbptree.PageCursorUtil.checkOutOfBounds;
+import static org.neo4j.index.internal.gbptree.TreeNode.NO_OFFLOAD_ID;
 import static org.neo4j.index.internal.gbptree.TreeNode.Type.INTERNAL;
 import static org.neo4j.index.internal.gbptree.TreeNode.Type.LEAF;
 
@@ -64,6 +66,7 @@ class GBPTreeConsistencyChecker<KEY>
     private final long unstableGeneration;
     private final boolean reportCrashPointers;
     private final GenerationKeeper generationTarget = new GenerationKeeper();
+    private final MutableLongList offloadIds = new LongArrayList();
 
     GBPTreeConsistencyChecker( TreeNode<KEY,?> node, Layout<KEY,?> layout, IdProvider idProvider, long stableGeneration,
             long unstableGeneration, boolean reportCrashPointers )
@@ -78,10 +81,21 @@ class GBPTreeConsistencyChecker<KEY>
         this.reportCrashPointers = reportCrashPointers;
     }
 
+    /**
+     * Checks so that all pages between {@link IdSpace#MIN_TREE_NODE_ID} and highest allocated id
+     * are either in use in the tree, on the free-list or free-list nodes.
+     *
+     * @param file The file containing the gbptree
+     * @param cursor {@link PageCursor} to use for reading.
+     * @param root {@lin Root} the root of the gbptree.
+     * @param visitor {@link GBPTreeConsistencyCheckVisitor} visitor to report inconsistencies to.
+     * @throws IOException on {@link PageCursor} error.
+     */
     public void check( File file, PageCursor cursor, Root root, GBPTreeConsistencyCheckVisitor<KEY> visitor ) throws IOException
     {
+        // TODO: limitation, can't run on an index larger than Integer.MAX_VALUE pages (which is fairly large)
         long highId = lastId + 1;
-        BitSet seenIds = new BitSet( Math.toIntExact( highId ) );
+        BitSet seenIds = new BitSet( toIntExact( highId ) );
 
         // Log ids in freelist together with ids occupied by freelist pages.
         IdProvider.IdProviderVisitor freelistSeenIdsVisitor = new FreelistSeenIdsVisitor<>( file, seenIds, lastId, visitor );
@@ -131,7 +145,6 @@ class GBPTreeConsistencyChecker<KEY>
         }
         target.set( index );
     }
-
     private void checkSubtree( File file, PageCursor cursor, KeyRange<KEY> range, long parentNode, long pointerGeneration,
             GBPTreePointerType parentPointerType, int level, GBPTreeConsistencyCheckVisitor<KEY> visitor, BitSet seenIds ) throws IOException
     {
@@ -201,9 +214,11 @@ class GBPTreeConsistencyChecker<KEY>
             visitor.unreasonableKeyCount( pageId, keyCount, file );
         }
         else
+
         {
-            assertKeyOrder( file, cursor, range, keyCount, isLeaf ? LEAF : INTERNAL, visitor );
+            assertKeyOrder( file, cursor, range, keyCount, isLeaf ? LEAF : INTERNAL, offloadIds, visitor );
         }
+        offloadIds.forEach( id -> addToSeenList( file, seenIds, id, lastId, visitor ) );
 
         String nodeMetaReport;
         boolean consistentNodeMeta;
@@ -339,12 +354,13 @@ class GBPTreeConsistencyChecker<KEY>
     }
 
     private void assertKeyOrder( File file, PageCursor cursor, KeyRange<KEY> range, int keyCount, TreeNode.Type type,
-            GBPTreeConsistencyCheckVisitor<KEY> visitor ) throws IOException
+            MutableLongList offloadIds, GBPTreeConsistencyCheckVisitor<KEY> visitor ) throws IOException
     {
         DelayedVisitor<KEY> delayedVisitor = new DelayedVisitor<>( file );
         do
         {
             delayedVisitor.clear();
+            offloadIds.clear();
             KEY prev = layout.newKey();
             KEY readKey = layout.newKey();
             boolean first = true;
@@ -369,6 +385,11 @@ class GBPTreeConsistencyChecker<KEY>
                     first = false;
                 }
                 layout.copyKey( readKey, prev );
+                long offloadId = node.offloadIdAt( cursor, pos, type );
+                if ( offloadId != NO_OFFLOAD_ID )
+                {
+                    offloadIds.add( offloadId );
+                }
             }
         }
         while ( cursor.shouldRetry() );
@@ -422,14 +443,12 @@ class GBPTreeConsistencyChecker<KEY>
             if ( stateA == GenerationSafePointerPair.CRASH || stateB == GenerationSafePointerPair.CRASH )
             {
                 visitor.crashedPointer( currentNodeId, pointerType, generationA, readPointerA, pointerA, stateA, generationB, readPointerB, pointerB, stateB,
-                        file
-                );
+                        file );
             }
         }
         if ( stateA == GenerationSafePointerPair.BROKEN || stateB == GenerationSafePointerPair.BROKEN )
         {
-            visitor.brokenPointer( currentNodeId, pointerType, generationA, readPointerA, pointerA, stateA, generationB, readPointerB, pointerB, stateB, file
-            );
+            visitor.brokenPointer( currentNodeId, pointerType, generationA, readPointerA, pointerA, stateA, generationB, readPointerB, pointerB, stateB, file );
         }
     }
 

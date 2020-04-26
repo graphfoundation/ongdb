@@ -22,43 +22,49 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
-import org.neo4j.cypher.internal.v3_6.ast.semantics.SemanticTable
-import org.neo4j.cypher.internal.planner.v3_6.spi.TokenContext
+import org.neo4j.cypher.internal.v4_0.ast.semantics.SemanticTable
+import org.neo4j.cypher.internal.planner.spi.TokenContext
 import org.neo4j.cypher.internal.runtime.QueryContext
-import org.neo4j.cypher.internal.v3_6.util.LabelId
-import org.neo4j.cypher.internal.v3_6.expressions.LabelName
+import org.neo4j.cypher.internal.v4_0.expressions.LabelName
 
-case class LazyLabel(name: String) {
-  private var id: Option[LabelId] = None
+class LazyLabel(val name: String) {
 
-  def getOptId(context: TokenContext): Option[LabelId] = id match {
-    case None => {
-      id = context.getOptLabelId(name).map(LabelId)
-      id
+  private var id: Int = LazyLabel.UNKNOWN
+
+  def getId(context: TokenContext): Int = {
+    if (id == LazyLabel.UNKNOWN) {
+      id = context.getOptLabelId(name).getOrElse(LazyLabel.UNKNOWN)
     }
-    case x => x
+    id
   }
 
-  def getOrCreateId(context: QueryContext): LabelId = id match {
-    case None => {
-      val labelId = LabelId(context.getOrCreateLabelId(name))
-      id = Some(labelId)
-      labelId
+  def getOrCreateId(context: QueryContext): Int = {
+    if (id == LazyLabel.UNKNOWN) {
+      id = context.getOrCreateLabelId(name)
     }
-    case Some(x) => x
+    id
   }
 
-  // yuck! this is only used by tests...
-  def id(table: SemanticTable): Option[LabelId] = id match {
-    case None => {
-      id = table.resolvedLabelNames.get(name)
-      id
-    }
-    case x => x
+  def canEqual(other: Any): Boolean = other.isInstanceOf[LazyLabel]
+
+  override def equals(other: Any): Boolean = other match {
+    case that: LazyLabel =>
+      (that canEqual this) &&
+        name == that.name
+    case _ => false
+  }
+
+  override def hashCode(): Int = {
+    val state = Seq(name)
+    state.map(_.hashCode()).foldLeft(0)((a, b) => 31 * a + b)
   }
 }
 
 object LazyLabel {
+  val UNKNOWN: Int = -1
+
+  def apply(name: String): LazyLabel = new LazyLabel(name)
+
   def apply(name: LabelName)(implicit table: SemanticTable): LazyLabel = {
     val label = new LazyLabel(name.name)
     label.id = table.id(name)

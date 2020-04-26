@@ -41,8 +41,13 @@ public class NullLogProvider implements LogProvider
         return INSTANCE;
     }
 
+    public static NullLogProvider nullLogProvider()
+    {
+        return INSTANCE;
+    }
+
     @Override
-    public Log getLog( Class loggingClass )
+    public Log getLog( Class<?> loggingClass )
     {
         return NullLog.getInstance();
     }

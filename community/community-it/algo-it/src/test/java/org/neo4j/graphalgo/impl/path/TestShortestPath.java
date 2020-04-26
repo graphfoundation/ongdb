@@ -24,10 +24,9 @@ package org.neo4j.graphalgo.impl.path;
 
 import common.Neo4jAlgoTestCase;
 import org.apache.commons.lang3.mutable.MutableInt;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -35,9 +34,9 @@ import java.util.List;
 import java.util.Set;
 import java.util.function.Predicate;
 
-import org.neo4j.graphalgo.GraphAlgoFactory;
+import org.neo4j.graphalgo.BasicEvaluationContext;
+import org.neo4j.graphalgo.EvaluationContext;
 import org.neo4j.graphalgo.PathFinder;
-import org.neo4j.graphdb.Direction;
 import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Path;
@@ -47,119 +46,130 @@ import org.neo4j.graphdb.PathExpanders;
 import org.neo4j.graphdb.Relationship;
 import org.neo4j.graphdb.RelationshipType;
 import org.neo4j.graphdb.ResourceIterator;
+import org.neo4j.graphdb.Transaction;
 import org.neo4j.graphdb.impl.StandardExpander;
 import org.neo4j.graphdb.traversal.BranchState;
-import org.neo4j.helpers.collection.Iterables;
+import org.neo4j.internal.helpers.collection.Iterables;
 
 import static common.Neo4jAlgoTestCase.MyRelTypes.R1;
 import static java.util.Arrays.asList;
 import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.neo4j.graphalgo.GraphAlgoFactory.shortestPath;
 import static org.neo4j.graphdb.Direction.BOTH;
 import static org.neo4j.graphdb.Direction.INCOMING;
 import static org.neo4j.graphdb.Direction.OUTGOING;
 import static org.neo4j.graphdb.PathExpanders.allTypesAndDirections;
-import static org.neo4j.helpers.collection.Iterables.count;
+import static org.neo4j.graphdb.PathExpanders.forTypeAndDirection;
+import static org.neo4j.internal.helpers.collection.Iterables.count;
 
-public class TestShortestPath extends Neo4jAlgoTestCase
+class TestShortestPath extends Neo4jAlgoTestCase
 {
     // Attempt at recreating this issue without cypher
-    // https://github.com/graphfoundation/ongdb/issues/4160
+    // https://github.com/neo4j/neo4j/issues/4160
     @Test
-    public void shouldAbortAsSoonAsPossible()
+    void shouldAbortAsSoonAsPossible()
     {
-        final Label A = Label.label( "A" );
-        final Label B = Label.label( "B" );
-        final Label C = Label.label( "C" );
-        final Label D = Label.label( "D" );
-        final Label E = Label.label( "E" );
-        final Label F = Label.label( "F" );
-        final RelationshipType relType = RelationshipType.withName( "TO" );
-        recursiveSnowFlake( null, 0, 4, 5, new Label[]{A, B, C, D, E}, relType );
-        Node a = getNodeByLabel( A );
-        try ( ResourceIterator<Node> allE = graphDb.findNodes( E ) )
+        try ( Transaction transaction = graphDb.beginTx() )
         {
-            while ( allE.hasNext() )
+            final Label A = Label.label( "A" );
+            final Label B = Label.label( "B" );
+            final Label C = Label.label( "C" );
+            final Label D = Label.label( "D" );
+            final Label E = Label.label( "E" );
+            final Label F = Label.label( "F" );
+            final RelationshipType relType = RelationshipType.withName( "TO" );
+            recursiveSnowFlake( transaction, null, 0, 4, 5, new Label[]{A, B, C, D, E}, relType );
+            Node a = getNodeByLabel( transaction, A );
+            try ( ResourceIterator<Node> allE = transaction.findNodes( E ) )
             {
-                final Node e = allE.next();
-                final Node f = graphDb.createNode( F );
-                f.createRelationshipTo( e, relType );
+                while ( allE.hasNext() )
+                {
+                    final Node e = allE.next();
+                    final Node f = transaction.createNode( F );
+                    f.createRelationshipTo( e, relType );
+                }
             }
-        }
-        final CountingPathExpander countingPathExpander =
-                new CountingPathExpander( PathExpanders.forTypeAndDirection( relType, Direction.OUTGOING ) );
-        final ShortestPath shortestPath = new ShortestPath( Integer.MAX_VALUE, countingPathExpander, Integer.MAX_VALUE );
-        try ( ResourceIterator<Node> allF = graphDb.findNodes( F ) )
-        {
-            while ( allF.hasNext() )
+            final CountingPathExpander countingPathExpander = new CountingPathExpander( forTypeAndDirection( relType, OUTGOING ) );
+            var context = new BasicEvaluationContext( transaction, graphDb );
+            final ShortestPath shortestPath = new ShortestPath( context, Integer.MAX_VALUE, countingPathExpander, Integer.MAX_VALUE );
+            try ( ResourceIterator<Node> allF = transaction.findNodes( F ) )
             {
-                final Node f = allF.next();
-                shortestPath.findAllPaths( a, f );
+                while ( allF.hasNext() )
+                {
+                    final Node f = allF.next();
+                    shortestPath.findAllPaths( a, f );
+                }
             }
+            assertEquals( 1250, countingPathExpander.nodesVisited.intValue(),
+                    "There are 625 different end nodes. The algorithm should start one traversal for each such node. " +
+                            "That is 625*2 visited nodes if traversal is interrupted correctly." );
+            transaction.commit();
         }
-        assertEquals(
-                "There are 625 different end nodes. The algorithm should start one traversal for each such node. " +
-                        "That is 625*2 visited nodes if traversal is interrupted correctly.", 1250,
-                countingPathExpander.nodesVisited.intValue() );
     }
 
-    private Node getNodeByLabel( Label label )
+    private static Node getNodeByLabel( Transaction transaction, Label label )
     {
-        try ( ResourceIterator<Node> iterator = graphDb.findNodes( label ) )
+        try ( ResourceIterator<Node> iterator = transaction.findNodes( label ) )
         {
             return iterator.next();
         }
     }
 
-    private void recursiveSnowFlake( Node parent, int level, final int desiredLevel, final int branchingFactor,
-            final Label[] labels, final RelationshipType relType )
+    private static void recursiveSnowFlake( Transaction transaction, Node parent, int level, final int desiredLevel, final int branchingFactor,
+        final Label[] labels, final RelationshipType relType )
     {
         if ( level != 0 )
         {
             for ( int n = 0; n < branchingFactor; n++ )
             {
-                final Node node = graphDb.createNode( labels[level] );
+                final Node node = transaction.createNode( labels[level] );
                 if ( parent != null )
                 {
                     parent.createRelationshipTo( node, relType );
                 }
                 if ( level < desiredLevel )
                 {
-                    recursiveSnowFlake( node, level + 1, desiredLevel, branchingFactor, labels, relType );
+                    recursiveSnowFlake( transaction, node, level + 1, desiredLevel, branchingFactor, labels, relType );
                 }
             }
         }
         else
         {
-            final Node node = graphDb.createNode( labels[level] );
-            recursiveSnowFlake( node, level + 1, desiredLevel, branchingFactor, labels, relType );
+            final Node node = transaction.createNode( labels[level] );
+            recursiveSnowFlake( transaction, node, level + 1, desiredLevel, branchingFactor, labels, relType );
         }
     }
 
     @Test
-    public void testSimplestGraph()
+    void testSimplestGraph()
     {
         // Layout:
         //    __
         //   /  \
         // (s)  (t)
         //   \__/
-        graph.makeEdge( "s", "t" );
-        graph.makeEdge( "s", "t" );
-        testShortestPathFinder( finder ->
+        try ( Transaction transaction = graphDb.beginTx() )
         {
-            final Iterable<Path> paths = finder.findAllPaths( graph.getNode( "s" ), graph.getNode( "t" ) );
-            assertPaths( paths, "s,t", "s,t" );
-            assertPaths( asList( finder.findSinglePath( graph.getNode( "s" ), graph.getNode( "t" ) ) ), "s,t" );
-        }, PathExpanders.forTypeAndDirection( R1, BOTH ), 1 );
+            graph.makeEdge( transaction, "s", "t" );
+            graph.makeEdge( transaction, "s", "t" );
+            var context = new BasicEvaluationContext( transaction, graphDb );
+            testShortestPathFinder( context, finder ->
+            {
+                final Iterable<Path> paths = finder.findAllPaths( graph.getNode( transaction, "s" ), graph.getNode( transaction, "t" ) );
+                assertPaths( paths, "s,t", "s,t" );
+                assertPaths( asList( finder.findSinglePath( graph.getNode( transaction, "s" ),
+                        graph.getNode( transaction, "t" ) ) ), "s,t" );
+            }, forTypeAndDirection( R1, BOTH ), 1 );
+            transaction.commit();
+        }
     }
 
     @Test
-    public void testAnotherSimpleGraph()
+    void testAnotherSimpleGraph()
     {
         // Layout:
         //   (m)
@@ -167,23 +177,29 @@ public class TestShortestPath extends Neo4jAlgoTestCase
         // (s)  (o)---(t)
         //   \  /       \
         //   (n)---(p)---(q)
-        graph.makeEdge( "s", "m" );
-        graph.makeEdge( "m", "o" );
-        graph.makeEdge( "s", "n" );
-        graph.makeEdge( "n", "p" );
-        graph.makeEdge( "p", "q" );
-        graph.makeEdge( "q", "t" );
-        graph.makeEdge( "n", "o" );
-        graph.makeEdge( "o", "t" );
-        testShortestPathFinder( finder ->
+        try ( Transaction transaction = graphDb.beginTx() )
         {
-            final Iterable<Path> paths = finder.findAllPaths( graph.getNode( "s" ), graph.getNode( "t" ) );
-            assertPaths( paths, "s,m,o,t", "s,n,o,t" );
-        }, PathExpanders.forTypeAndDirection( R1, BOTH ), 6 );
+            graph.makeEdge( transaction, "s", "m" );
+            graph.makeEdge( transaction, "m", "o" );
+            graph.makeEdge( transaction, "s", "n" );
+            graph.makeEdge( transaction, "n", "p" );
+            graph.makeEdge( transaction, "p", "q" );
+            graph.makeEdge( transaction, "q", "t" );
+            graph.makeEdge( transaction, "n", "o" );
+            graph.makeEdge( transaction, "o", "t" );
+
+            var context = new BasicEvaluationContext( transaction, graphDb );
+            testShortestPathFinder( context, finder ->
+            {
+                final Iterable<Path> paths = finder.findAllPaths( graph.getNode( transaction, "s" ), graph.getNode( transaction, "t" ) );
+                assertPaths( paths, "s,m,o,t", "s,n,o,t" );
+            }, forTypeAndDirection( R1, BOTH ), 6 );
+            transaction.commit();
+        }
     }
 
     @Test
-    public void testCrossedCircle()
+    void testCrossedCircle()
     {
         // Layout:
         //    (s)
@@ -194,21 +210,27 @@ public class TestShortestPath extends Neo4jAlgoTestCase
         // (4)   (2)
         //   \   /
         //    (t)
-        graph.makeEdge( "s", "1" );
-        graph.makeEdge( "s", "3" );
-        graph.makeEdge( "1", "2" );
-        graph.makeEdge( "1", "4" );
-        graph.makeEdge( "3", "2" );
-        graph.makeEdge( "3", "4" );
-        graph.makeEdge( "2", "t" );
-        graph.makeEdge( "4", "t" );
-        testShortestPathFinder(
-                finder -> assertPaths( finder.findAllPaths( graph.getNode( "s" ), graph.getNode( "t" ) ), "s,1,2,t",
-                        "s,1,4,t", "s,3,2,t", "s,3,4,t" ), PathExpanders.forTypeAndDirection( R1, BOTH ), 3 );
+        try ( Transaction transaction = graphDb.beginTx() )
+        {
+            graph.makeEdge( transaction, "s", "1" );
+            graph.makeEdge( transaction, "s", "3" );
+            graph.makeEdge( transaction, "1", "2" );
+            graph.makeEdge( transaction, "1", "4" );
+            graph.makeEdge( transaction, "3", "2" );
+            graph.makeEdge( transaction, "3", "4" );
+            graph.makeEdge( transaction, "2", "t" );
+            graph.makeEdge( transaction, "4", "t" );
+            var context = new BasicEvaluationContext( transaction, graphDb );
+            testShortestPathFinder( context,
+                    finder -> assertPaths( finder.findAllPaths( graph.getNode( transaction, "s" ), graph.getNode( transaction, "t" ) ),
+                            "s,1,2,t", "s,1,4,t", "s,3,2,t", "s,3,4,t" ),
+                    forTypeAndDirection( R1, BOTH ), 3 );
+            transaction.commit();
+        }
     }
 
     @Test
-    public void testDirectedFinder()
+    void testDirectedFinder()
     {
         // Layout:
         //
@@ -216,15 +238,22 @@ public class TestShortestPath extends Neo4jAlgoTestCase
         //    \                                v
         //     >(g)->(h)->(i)->(j)->(k)->(l)->(m)
         //
-        graph.makeEdgeChain( "a,b,c,d,e,f,m" );
-        graph.makeEdgeChain( "a,g,h,i,j,k,l,m" );
-        testShortestPathFinder(
-                finder -> assertPaths( finder.findAllPaths( graph.getNode( "a" ), graph.getNode( "j" ) ), "a,g,h,i,j" ),
-                PathExpanders.forTypeAndDirection( R1, OUTGOING ), 4 );
+        try ( Transaction transaction = graphDb.beginTx() )
+        {
+            graph.makeEdgeChain( transaction, "a,b,c,d,e,f,m" );
+            graph.makeEdgeChain( transaction, "a,g,h,i,j,k,l,m" );
+            var context = new BasicEvaluationContext( transaction, graphDb );
+
+            testShortestPathFinder( context,
+                    finder -> assertPaths( finder.findAllPaths( graph.getNode( transaction, "a" ), graph.getNode( transaction, "j" ) ),
+                            "a,g,h,i,j" ),
+                    forTypeAndDirection( R1, OUTGOING ), 4 );
+            transaction.commit();
+        }
     }
 
     @Test
-    public void makeSureShortestPathsReturnsNoLoops()
+    void makeSureShortestPathsReturnsNoLoops()
     {
         // Layout:
         //
@@ -233,17 +262,22 @@ public class TestShortestPath extends Neo4jAlgoTestCase
         //         \  v
         //         (d)
         //
-        graph.makeEdgeChain( "a,b,c,d,b,c,e" );
-        testShortestPathFinder( finder ->
+        try ( Transaction transaction = graphDb.beginTx() )
         {
-            final Node a = graph.getNode( "a" );
-            final Node e = graph.getNode( "e" );
-            assertPaths( finder.findAllPaths( a, e ), "a,b,c,e", "a,b,c,e" );
-        }, PathExpanders.forTypeAndDirection( R1, BOTH ), 6 );
+            graph.makeEdgeChain( transaction, "a,b,c,d,b,c,e" );
+            var context = new BasicEvaluationContext( transaction, graphDb );
+            testShortestPathFinder( context, finder ->
+            {
+                final Node a = graph.getNode( transaction, "a" );
+                final Node e = graph.getNode( transaction, "e" );
+                assertPaths( finder.findAllPaths( a, e ), "a,b,c,e", "a,b,c,e" );
+            }, forTypeAndDirection( R1, BOTH ), 6 );
+            transaction.commit();
+        }
     }
 
     @Test
-    public void withFilters()
+    void withFilters()
     {
         // Layout:
         //
@@ -251,75 +285,89 @@ public class TestShortestPath extends Neo4jAlgoTestCase
         //   \               ^
         //    -->(g)-->(h)--/
         //
-        graph.makeEdgeChain( "a,b,c,d" );
-        graph.makeEdgeChain( "a,g,h,d" );
-        final Node a = graph.getNode( "a" );
-        final Node d = graph.getNode( "d" );
-        final Node b = graph.getNode( "b" );
-        b.setProperty( "skip", true );
-        final Predicate<Node> filter = item ->
+        try ( Transaction transaction = graphDb.beginTx() )
         {
-            final boolean skip = (Boolean) item.getProperty( "skip", false );
-            return !skip;
-        };
-        testShortestPathFinder( finder -> assertPaths( finder.findAllPaths( a, d ), "a,g,h,d" ),
-                ((StandardExpander) PathExpanders.allTypesAndDirections()).addNodeFilter( filter ), 10 );
+            graph.makeEdgeChain( transaction, "a,b,c,d" );
+            graph.makeEdgeChain( transaction, "a,g,h,d" );
+            final Node a = graph.getNode( transaction, "a" );
+            final Node d = graph.getNode( transaction, "d" );
+            final Node b = graph.getNode( transaction, "b" );
+            b.setProperty( "skip", true );
+            var context = new BasicEvaluationContext( transaction, graphDb );
+            final Predicate<Node> filter = item ->
+            {
+                final boolean skip = (Boolean) item.getProperty( "skip", false );
+                return !skip;
+            };
+            testShortestPathFinder( context, finder -> assertPaths( finder.findAllPaths( a, d ), "a,g,h,d" ),
+                    ((StandardExpander) allTypesAndDirections()).addNodeFilter( filter ), 10 );
+            transaction.commit();
+        }
     }
 
     @Test
-    public void filtersTouchesAllIntermediateNodes()
+    void filtersTouchesAllIntermediateNodes()
     {
         // Layout:
         //
         // (a)-->(b)-->(c)-->(d)
         //
-        graph.makeEdgeChain( "a,b,c,d" );
-        final Node a = graph.getNode( "a" );
-        final Node d = graph.getNode( "d" );
-        Collection<Node> touchedByFilter = new HashSet<>();
-        final Predicate<Node> filter = item ->
+        try ( Transaction transaction = graphDb.beginTx() )
         {
-            touchedByFilter.add( item );
-            return true;
-        };
-        final PathExpander expander =
-                PathExpanderBuilder.empty().add( R1, OUTGOING ).addNodeFilter( filter ).build();
-        //final PathExpander expander = ((StandardExpander) PathExpanders.forTypeAndDirection(R1, OUTGOING)).addNodeFilter( filter );
-        Path path = Iterables.single( GraphAlgoFactory.shortestPath( expander, 10 ).findAllPaths( a, d ) );
-        assertEquals( 3, path.length() );
+            graph.makeEdgeChain( transaction, "a,b,c,d" );
+            final Node a = graph.getNode( transaction, "a" );
+            final Node d = graph.getNode( transaction, "d" );
+            Collection<Node> touchedByFilter = new HashSet<>();
+            final Predicate<Node> filter = item ->
+            {
+                touchedByFilter.add( item );
+                return true;
+            };
+            final PathExpander expander = PathExpanderBuilder.empty().add( R1, OUTGOING ).addNodeFilter( filter ).build();
+            //final PathExpander expander = ((StandardExpander) PathExpanders.forTypeAndDirection(R1, OUTGOING)).addNodeFilter( filter );
+            var context = new BasicEvaluationContext( transaction, graphDb );
+            Path path = Iterables.single( shortestPath( context, expander, 10 ).findAllPaths( a, d ) );
+            assertEquals( 3, path.length() );
 
-        List<Node> nodes = Iterables.asList( path.nodes() );
-        List<Node> intermediateNodes = nodes.subList( 1, nodes.size() - 1 );
-        assertTrue( "touchedByFilter: " + touchedByFilter, touchedByFilter.containsAll( intermediateNodes ) );
-        assertTrue( "startNode was not filtered", !touchedByFilter.contains( a ) );
-        assertTrue( "endNode was not filtered", !touchedByFilter.contains( d ) );
+            List<Node> nodes = Iterables.asList( path.nodes() );
+            List<Node> intermediateNodes = nodes.subList( 1, nodes.size() - 1 );
+            assertTrue( touchedByFilter.containsAll( intermediateNodes ), "touchedByFilter: " + touchedByFilter );
+            assertFalse( touchedByFilter.contains( a ) );
+            assertFalse( touchedByFilter.contains( d ) );
+            transaction.commit();
+        }
     }
 
     @Test
-    public void testFinderShouldNotFindAnythingBeyondLimit()
+    void testFinderShouldNotFindAnythingBeyondLimit()
     {
         // Layout:
         //
         // (a)-->(b)-->(c)-->(d)-->(e)
         //
-        graph.makeEdgeChain( "a,b,c,d,e" );
-        testShortestPathFinder(
-                finder -> assertPaths( finder.findAllPaths( graph.getNode( "a" ), graph.getNode( "b" ) ) ),
-                PathExpanders.allTypesAndDirections(), 0 );
-        testShortestPathFinder( finder ->
+        try ( Transaction transaction = graphDb.beginTx() )
         {
-            assertPaths( finder.findAllPaths( graph.getNode( "a" ), graph.getNode( "c" ) ) );
-            assertPaths( finder.findAllPaths( graph.getNode( "a" ), graph.getNode( "d" ) ) );
-        }, PathExpanders.allTypesAndDirections(), 1 );
-        testShortestPathFinder( finder ->
-        {
-            assertPaths( finder.findAllPaths( graph.getNode( "a" ), graph.getNode( "d" ) ) );
-            assertPaths( finder.findAllPaths( graph.getNode( "a" ), graph.getNode( "e" ) ) );
-        }, PathExpanders.allTypesAndDirections(), 2 );
+            graph.makeEdgeChain( transaction, "a,b,c,d,e" );
+            var context = new BasicEvaluationContext( transaction, graphDb );
+            testShortestPathFinder( context, finder -> assertPaths( finder.findAllPaths( graph.getNode( transaction, "a" ),
+                    graph.getNode( transaction, "b" ) ) ),
+                    allTypesAndDirections(), 0 );
+            testShortestPathFinder( context, finder ->
+            {
+                assertPaths( finder.findAllPaths( graph.getNode( transaction, "a" ), graph.getNode( transaction, "c" ) ) );
+                assertPaths( finder.findAllPaths( graph.getNode( transaction, "a" ), graph.getNode( transaction, "d" ) ) );
+            }, allTypesAndDirections(), 1 );
+            testShortestPathFinder( context, finder ->
+            {
+                assertPaths( finder.findAllPaths( graph.getNode( transaction, "a" ), graph.getNode( transaction, "d" ) ) );
+                assertPaths( finder.findAllPaths( graph.getNode( transaction, "a" ), graph.getNode( transaction, "e" ) ) );
+            }, allTypesAndDirections(), 2 );
+            transaction.commit();
+        }
     }
 
     @Test
-    public void makeSureDescentStopsWhenPathIsFound()
+    void makeSureDescentStopsWhenPathIsFound()
     {
         /*
          * (a)==>(b)==>(c)==>(d)==>(e)
@@ -327,36 +375,41 @@ public class TestShortestPath extends Neo4jAlgoTestCase
          *    v
          *    (f)-->(g)-->(h)-->(i)
          */
-        graph.makeEdgeChain( "a,b,c,d,e" );
-        graph.makeEdgeChain( "a,b,c,d,e" );
-        graph.makeEdgeChain( "a,f,g,h,i" );
-        final Node a = graph.getNode( "a" );
-        final Node b = graph.getNode( "b" );
-        final Node c = graph.getNode( "c" );
-        final Set<Node> allowedNodes = new HashSet<>( Arrays.asList( a, b, c ) );
-        final PathFinder<Path> finder = new ShortestPath( 100, PathExpanders.forDirection( OUTGOING ) )
+        try ( Transaction transaction = graphDb.beginTx() )
         {
-            @Override
-            protected Node filterNextLevelNodes( Node nextNode )
+            graph.makeEdgeChain( transaction, "a,b,c,d,e" );
+            graph.makeEdgeChain( transaction, "a,b,c,d,e" );
+            graph.makeEdgeChain( transaction, "a,f,g,h,i" );
+            final Node a = graph.getNode( transaction, "a" );
+            final Node b = graph.getNode( transaction, "b" );
+            final Node c = graph.getNode( transaction, "c" );
+            final Set<Node> allowedNodes = new HashSet<>( asList( a, b, c ) );
+            var context = new BasicEvaluationContext( transaction, graphDb );
+            final PathFinder<Path> finder = new ShortestPath( context, 100, PathExpanders.forDirection( OUTGOING ) )
             {
-                if ( !allowedNodes.contains( nextNode ) )
+                @Override
+                protected Node filterNextLevelNodes( Node nextNode )
                 {
-                    return null;
+                    if ( !allowedNodes.contains( nextNode ) )
+                    {
+                        return null;
+                    }
+                    return nextNode;
                 }
-                return nextNode;
+            };
+            Iterator<Path> paths = finder.findAllPaths( a, c ).iterator();
+            for ( int i = 0; i < 4; i++ )
+            {
+                Path aToBToC = paths.next();
+                assertPath( aToBToC, a, b, c );
             }
-        };
-        Iterator<Path> paths = finder.findAllPaths( a, c ).iterator();
-        for ( int i = 0; i < 4; i++ )
-        {
-            Path aToBToC = paths.next();
-            assertPath( aToBToC, a, b, c );
+            assertFalse( paths.hasNext(), "should only have contained four paths" );
+            transaction.commit();
         }
-        assertFalse( "should only have contained four paths", paths.hasNext() );
     }
 
     @Test
-    public void makeSureRelationshipNotConnectedIssueNotThere()
+    void makeSureRelationshipNotConnectedIssueNotThere()
     {
         /*
          *                                  (g)
@@ -367,18 +420,23 @@ public class TestShortestPath extends Neo4jAlgoTestCase
          *                                  \ v
          *                                  (h)
          */
-        graph.makeEdgeChain( "i,g,f,e,d,c,b,a" );
-        graph.makeEdgeChain( "i,h,f" );
-        testShortestPathFinder( finder ->
+        try ( Transaction transaction = graphDb.beginTx() )
         {
-            final Node start = graph.getNode( "a" );
-            final Node end = graph.getNode( "i" );
-            assertPaths( finder.findAllPaths( start, end ), "a,b,c,d,e,f,g,i", "a,b,c,d,e,f,h,i" );
-        }, PathExpanders.forTypeAndDirection( R1, INCOMING ), 10 );
+            graph.makeEdgeChain( transaction, "i,g,f,e,d,c,b,a" );
+            graph.makeEdgeChain( transaction, "i,h,f" );
+            var context = new BasicEvaluationContext( transaction, graphDb );
+            testShortestPathFinder( context, finder ->
+            {
+                final Node start = graph.getNode( transaction, "a" );
+                final Node end = graph.getNode( transaction, "i" );
+                assertPaths( finder.findAllPaths( start, end ), "a,b,c,d,e,f,g,i", "a,b,c,d,e,f,h,i" );
+            }, forTypeAndDirection( R1, INCOMING ), 10 );
+            transaction.commit();
+        }
     }
 
     @Test
-    public void makeSureShortestPathCanBeFetchedEvenIfANodeHasLoops()
+    void makeSureShortestPathCanBeFetchedEvenIfANodeHasLoops()
     {
         // Layout:
         //
@@ -391,17 +449,22 @@ public class TestShortestPath extends Neo4jAlgoTestCase
         //   (n)=
         //    |
         //   (p)
-        graph.makeEdgeChain( "m,s,n,p" );
-        graph.makeEdgeChain( "m,o,n" );
-        graph.makeEdge( "o", "o" );
-        graph.makeEdge( "n", "n" );
-        testShortestPathFinder(
-                finder -> assertPaths( finder.findAllPaths( graph.getNode( "m" ), graph.getNode( "p" ) ), "m,s,n,p",
-                        "m,o,n,p" ), PathExpanders.forTypeAndDirection( R1, BOTH ), 3 );
+        try ( Transaction transaction = graphDb.beginTx() )
+        {
+            graph.makeEdgeChain( transaction, "m,s,n,p" );
+            graph.makeEdgeChain( transaction, "m,o,n" );
+            graph.makeEdge( transaction, "o", "o" );
+            graph.makeEdge( transaction, "n", "n" );
+            var context = new BasicEvaluationContext( transaction, graphDb );
+            testShortestPathFinder( context, finder -> assertPaths( finder.findAllPaths( graph.getNode( transaction, "m" ),
+                    graph.getNode( transaction, "p" ) ), "m,s,n,p", "m,o,n,p" ),
+                    forTypeAndDirection( R1, BOTH ), 3 );
+            transaction.commit();
+        }
     }
 
     @Test
-    public void makeSureAMaxResultCountIsObeyed()
+    void makeSureAMaxResultCountIsObeyed()
     {
         // Layout:
         //
@@ -413,25 +476,28 @@ public class TestShortestPath extends Neo4jAlgoTestCase
         //    |                       |
         //   (k)----------------------
         //
-        graph.makeEdgeChain( "a,b,c,d,e" );
-        graph.makeEdgeChain( "a,f,g,h,e" );
-        graph.makeEdgeChain( "f,i,j,e" );
-        graph.makeEdgeChain( "i,k,e" );
-        final Node a = graph.getNode( "a" );
-        final Node e = graph.getNode( "e" );
-        final PathExpander expander = PathExpanders.forTypeAndDirection( R1, OUTGOING );
-        testShortestPathFinder( finder -> assertEquals( 4, Iterables.count( finder.findAllPaths( a, e ) ) ), expander,
-                10, 10 );
-        for ( int i = 4; i >= 1; i-- )
+        try ( Transaction transaction = graphDb.beginTx() )
         {
-            final int count = i;
-            testShortestPathFinder( finder -> assertEquals( count, Iterables.count( finder.findAllPaths( a, e ) ) ),
-                    expander, 10, count );
+            graph.makeEdgeChain( transaction, "a,b,c,d,e" );
+            graph.makeEdgeChain( transaction, "a,f,g,h,e" );
+            graph.makeEdgeChain( transaction, "f,i,j,e" );
+            graph.makeEdgeChain( transaction, "i,k,e" );
+            final Node a = graph.getNode( transaction, "a" );
+            final Node e = graph.getNode( transaction, "e" );
+            final PathExpander expander = forTypeAndDirection( R1, OUTGOING );
+            var context = new BasicEvaluationContext( transaction, graphDb );
+            testShortestPathFinder( context, finder -> assertEquals( 4, count( finder.findAllPaths( a, e ) ) ), expander, 10, 10 );
+            for ( int i = 4; i >= 1; i-- )
+            {
+                final int count = i;
+                testShortestPathFinder( context, finder -> assertEquals( count, count( finder.findAllPaths( a, e ) ) ), expander, 10, count );
+            }
+            transaction.commit();
         }
     }
 
     @Test
-    public void unfortunateRelationshipOrderingInTriangle()
+    void unfortunateRelationshipOrderingInTriangle()
     {
         /*
          *            (b)
@@ -442,69 +508,85 @@ public class TestShortestPath extends Neo4jAlgoTestCase
          * Relationships are created in such a way that they are iterated in the worst order,
          * i.e. (S) a-->b, (E) c<--b, (S) a-->c
          */
-        graph.makeEdgeChain( "a,b,c" );
-        graph.makeEdgeChain( "a,c" );
-        final Node a = graph.getNode( "a" );
-        final Node c = graph.getNode( "c" );
-        testShortestPathFinder( finder -> assertPathDef( finder.findSinglePath( a, c ), "a", "c" ),
-                PathExpanders.forTypeAndDirection( R1, OUTGOING ), 2 );
-        testShortestPathFinder( finder -> assertPathDef( finder.findSinglePath( c, a ), "c", "a" ),
-                PathExpanders.forTypeAndDirection( R1, INCOMING ), 2 );
+        try ( Transaction transaction = graphDb.beginTx() )
+        {
+            graph.makeEdgeChain( transaction, "a,b,c" );
+            graph.makeEdgeChain( transaction, "a,c" );
+            final Node a = graph.getNode( transaction, "a" );
+            final Node c = graph.getNode( transaction, "c" );
+            var context = new BasicEvaluationContext( transaction, graphDb );
+            testShortestPathFinder( context, finder -> assertPathDef( finder.findSinglePath( a, c ), "a", "c" ),
+                    forTypeAndDirection( R1, OUTGOING ), 2 );
+            testShortestPathFinder( context, finder -> assertPathDef( finder.findSinglePath( c, a ), "c", "a" ),
+                    forTypeAndDirection( R1, INCOMING ), 2 );
+            transaction.commit();
+        }
     }
 
     @Test
-    public void shouldFindShortestPathWhenOneSideFindsLongerPathFirst()
+    void shouldFindShortestPathWhenOneSideFindsLongerPathFirst()
     {
         /*
         The order in which nodes are created matters when reproducing the original problem
          */
-        graph.makeEdge( "start", "c" );
-        graph.makeEdge( "start", "a" );
-        graph.makeEdge( "b", "end" );
-        graph.makeEdge( "d", "end" );
-        graph.makeEdge( "c", "e" );
-        graph.makeEdge( "f", "end" );
-        graph.makeEdge( "c", "b" );
-        graph.makeEdge( "e", "end" );
-        graph.makeEdge( "a", "end" );
-        final Node start = graph.getNode( "start" );
-        final Node end = graph.getNode( "end" );
-        assertThat( new ShortestPath( 2, allTypesAndDirections(), 42 ).findSinglePath( start, end ).length(), is( 2 ) );
-        assertThat( new ShortestPath( 3, allTypesAndDirections(), 42 ).findSinglePath( start, end ).length(), is( 2 ) );
+        try ( Transaction transaction = graphDb.beginTx() )
+        {
+            graph.makeEdge( transaction, "start", "c" );
+            graph.makeEdge( transaction, "start", "a" );
+            graph.makeEdge( transaction, "b", "end" );
+            graph.makeEdge( transaction, "d", "end" );
+            graph.makeEdge( transaction, "c", "e" );
+            graph.makeEdge( transaction, "f", "end" );
+            graph.makeEdge( transaction, "c", "b" );
+            graph.makeEdge( transaction, "e", "end" );
+            graph.makeEdge( transaction, "a", "end" );
+            final Node start = graph.getNode( transaction, "start" );
+            final Node end = graph.getNode( transaction, "end" );
+            var context = new BasicEvaluationContext( transaction, graphDb );
+            assertThat( new ShortestPath( context, 2, allTypesAndDirections(), 42 ).findSinglePath( start, end ).length(), is( 2 ) );
+            assertThat( new ShortestPath( context, 3, allTypesAndDirections(), 42 ).findSinglePath( start, end ).length(), is( 2 ) );
+            transaction.commit();
+        }
     }
 
     @Test
-    public void shouldMakeSureResultLimitIsRespectedForMultiPathHits()
+    void shouldMakeSureResultLimitIsRespectedForMultiPathHits()
     {
         /*       _____
          *      /     \
          *    (a)-----(b)
          *      \_____/
          */
-        for ( int i = 0; i < 3; i++ )
+        try ( Transaction transaction = graphDb.beginTx() )
         {
-            graph.makeEdge( "a", "b" );
+            for ( int i = 0; i < 3; i++ )
+            {
+                graph.makeEdge( transaction, "a", "b" );
+            }
+
+            Node a = graph.getNode( transaction, "a" );
+            Node b = graph.getNode( transaction, "b" );
+            var context = new BasicEvaluationContext( transaction, graphDb );
+            testShortestPathFinder( context, finder -> assertEquals( 1, count( finder.findAllPaths( a, b ) ) ),
+                    allTypesAndDirections(), 2, 1 );
+            transaction.commit();
         }
-
-        Node a = graph.getNode( "a" );
-        Node b = graph.getNode( "b" );
-        testShortestPathFinder( finder -> assertEquals( 1, count( finder.findAllPaths( a, b ) ) ), allTypesAndDirections(), 2, 1 );
     }
 
-    private void testShortestPathFinder( PathFinderTester tester, PathExpander expander, int maxDepth )
+    private void testShortestPathFinder( EvaluationContext context, PathFinderTester tester, PathExpander expander, int maxDepth )
     {
-        testShortestPathFinder( tester, expander, maxDepth, null );
+        testShortestPathFinder( context, tester, expander, maxDepth, null );
     }
 
-    private void testShortestPathFinder( PathFinderTester tester, PathExpander expander, int maxDepth,
+    private void testShortestPathFinder( EvaluationContext context, PathFinderTester tester, PathExpander expander, int maxDepth,
             Integer maxResultCount )
     {
         final LengthCheckingExpanderWrapper lengthChecker = new LengthCheckingExpanderWrapper( expander );
         final List<PathFinder<Path>> finders = new ArrayList<>();
-        finders.add( maxResultCount != null ? shortestPath( lengthChecker, maxDepth, maxResultCount )
-                                            : shortestPath( lengthChecker, maxDepth ) );
-        finders.add( maxResultCount != null ? new TraversalShortestPath( lengthChecker, maxDepth, maxResultCount )
-                                            : new TraversalShortestPath( lengthChecker, maxDepth ) );
+        finders.add( maxResultCount != null ? shortestPath( context, lengthChecker, maxDepth, maxResultCount )
+                                            : shortestPath( context, lengthChecker, maxDepth ) );
+        finders.add( maxResultCount != null ? new TraversalShortestPath( context, lengthChecker, maxDepth, maxResultCount )
+                                            : new TraversalShortestPath( context, lengthChecker, maxDepth ) );
         for ( final PathFinder<Path> finder : finders )
         {
             tester.test( finder );
@@ -531,11 +613,11 @@ public class TestShortestPath extends Neo4jAlgoTestCase
         {
             if ( path.startNode().equals( path.endNode() ) )
             {
-                assertEquals( "Path length must be zero", 0, path.length() );
+                assertEquals( 0, path.length(), "Path length must be zero" );
             }
             else
             {
-                assertTrue( "Path length must be positive", path.length() > 0 );
+                assertTrue( path.length() > 0, "Path length must be positive" );
             }
             return expander.expand( path, state );
         }
@@ -548,7 +630,7 @@ public class TestShortestPath extends Neo4jAlgoTestCase
     }
 
     // Used to count how many nodes are visited
-    private class CountingPathExpander implements PathExpander
+    private static class CountingPathExpander implements PathExpander
     {
         private MutableInt nodesVisited;
         private final PathExpander delegate;

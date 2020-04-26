@@ -22,11 +22,10 @@
  */
 package org.neo4j.kernel.impl.newapi;
 
-import org.neo4j.internal.kernel.api.ConstraintTestBase;
-import org.neo4j.internal.kernel.api.schema.LabelSchemaDescriptor;
-import org.neo4j.internal.kernel.api.schema.constraints.ConstraintDescriptor;
-import org.neo4j.kernel.api.schema.SchemaDescriptorFactory;
-import org.neo4j.kernel.api.schema.constraints.ConstraintDescriptorFactory;
+import org.neo4j.internal.schema.ConstraintDescriptor;
+import org.neo4j.internal.schema.LabelSchemaDescriptor;
+import org.neo4j.internal.schema.SchemaDescriptor;
+import org.neo4j.internal.schema.constraints.ConstraintDescriptorFactory;
 
 public class ConstraintTest extends ConstraintTestBase<WriteTestSupport>
 {
@@ -39,7 +38,7 @@ public class ConstraintTest extends ConstraintTestBase<WriteTestSupport>
     @Override
     protected LabelSchemaDescriptor labelSchemaDescriptor( int labelId, int... propertyIds )
     {
-        return SchemaDescriptorFactory.forLabel( labelId, propertyIds );
+        return SchemaDescriptor.forLabel( labelId, propertyIds );
     }
 
     @Override

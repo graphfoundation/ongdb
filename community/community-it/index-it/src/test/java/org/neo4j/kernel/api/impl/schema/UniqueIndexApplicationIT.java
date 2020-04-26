@@ -39,28 +39,26 @@ import java.util.function.Function;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.Node;
-import org.neo4j.test.rule.DatabaseRule;
-import org.neo4j.test.rule.ImpermanentDatabaseRule;
+import org.neo4j.graphdb.Transaction;
+import org.neo4j.test.rule.DbmsRule;
+import org.neo4j.test.rule.ImpermanentDbmsRule;
 
 import static java.util.Arrays.asList;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.Assert.assertThat;
 import static org.neo4j.graphdb.Label.label;
-import static org.neo4j.helpers.collection.Iterators.loop;
-import static org.neo4j.kernel.api.impl.schema.DatabaseFunctions.addLabel;
+import static org.neo4j.internal.helpers.collection.Iterators.loop;
 import static org.neo4j.kernel.api.impl.schema.DatabaseFunctions.awaitIndexesOnline;
-import static org.neo4j.kernel.api.impl.schema.DatabaseFunctions.createNode;
 import static org.neo4j.kernel.api.impl.schema.DatabaseFunctions.index;
-import static org.neo4j.kernel.api.impl.schema.DatabaseFunctions.setProperty;
 import static org.neo4j.kernel.api.impl.schema.DatabaseFunctions.uniquenessConstraint;
 
 @RunWith( Parameterized.class )
 public class UniqueIndexApplicationIT
 {
     @Rule
-    public final DatabaseRule db = new ImpermanentDatabaseRule();
+    public final DbmsRule db = new ImpermanentDbmsRule();
 
-    private final Function<GraphDatabaseService, ?> createIndex;
+    private final Function<Transaction, ?> createIndex;
 
     @Parameterized.Parameters( name = "{0}" )
     public static List<Object[]> indexTypes()
@@ -72,83 +70,120 @@ public class UniqueIndexApplicationIT
     @After
     public void then()
     {
-        assertThat( "Matching nodes from index lookup",
-                db.when( db.tx( listNodeIdsFromIndexLookup( label( "Label1" ), "key1", "value1" ) ) ),
-                hasSize( 1 ) );
+        try ( var transaction = db.beginTx() )
+        {
+            assertThat( "Matching nodes from index lookup",
+                    listNodeIdsFromIndexLookup( transaction, label( "Label1" ), "key1", "value1" ).apply( db ),
+                    hasSize( 1 ) );
+        }
     }
 
     @Before
     public void given()
     {
-        db.executeAndCommit( createIndex );
-        db.executeAndCommit( awaitIndexesOnline( 5, SECONDS ) );
+        db.executeAndCommit( createIndex::apply );
+        db.executeAndCommit( transaction ->
+        {
+            awaitIndexesOnline( 5, SECONDS ).apply( transaction );
+            return null;
+        } );
     }
 
     @Test
     public void tx_createNode_addLabel_setProperty()
     {
-        db.when( db.tx(
-                createNode().andThen( addLabel( label( "Label1" ) ).andThen( setProperty( "key1", "value1" ) ) )
-        ) );
+        try ( var transaction = db.beginTx() )
+        {
+            var node = transaction.createNode();
+            node.addLabel( label( "Label1" ) );
+            node.setProperty( "key1", "value1" );
+            transaction.commit();
+        }
     }
 
     @Test
     public void tx_createNode_tx_addLabel_setProperty()
     {
-        db.when( db.tx(
-                createNode()
-        ).andThen( db.tx(
-                addLabel( label( "Label1" ) ).andThen( setProperty( "key1", "value1" ) )
-        ) ) );
+        try ( var transaction = db.beginTx() )
+        {
+            var node = transaction.createNode();
+            node.addLabel( label( "Label1" ) );
+            node.setProperty( "key1", "value1" );
+            transaction.commit();
+        }
     }
 
     @Test
     public void tx_createNode_addLabel_tx_setProperty()
     {
-        db.when( db.tx(
-                createNode().andThen( addLabel( label( "Label1" ) ) )
-        ).andThen( db.tx(
-                setProperty( "key1", "value1" )
-        ) ) );
+        Node node;
+        try ( var transaction = db.beginTx() )
+        {
+            node = transaction.createNode();
+            node.addLabel( label( "Label1" ) );
+            transaction.commit();
+        }
+        try ( var transaction = db.beginTx() )
+        {
+            transaction.getNodeById( node.getId() ).setProperty( "key1", "value1" );
+            transaction.commit();
+        }
     }
 
     @Test
     public void tx_createNode_setProperty_tx_addLabel()
     {
-        db.when( db.tx(
-                createNode().andThen( setProperty( "key1", "value1" ) )
-        ).andThen( db.tx(
-                addLabel( label( "Label1" ) )
-        ) ) );
+        Node node;
+        try ( var transaction = db.beginTx() )
+        {
+            node = transaction.createNode();
+            node.addLabel( label( "Label1" ) );
+            node.setProperty( "key1", "value1" );
+            transaction.commit();
+        }
+        try ( var transaction = db.beginTx() )
+        {
+            transaction.getNodeById( node.getId() ).addLabel( label( "Label1" ) );
+            transaction.commit();
+        }
     }
 
     @Test
     public void tx_createNode_tx_addLabel_tx_setProperty()
     {
-        db.when( db.tx(
-                createNode()
-        ).andThen( db.tx(
-                addLabel( label( "Label1" ) )
-        ).andThen( db.tx(
-                setProperty( "key1", "value1" ) )
-        ) ) );
+        Node node;
+        try ( var transaction = db.beginTx() )
+        {
+            node = transaction.createNode();
+            transaction.commit();
+        }
+        try ( var transaction = db.beginTx() )
+        {
+            transaction.getNodeById( node.getId() ).addLabel( label( "Label1" ) );
+            transaction.commit();
+        }
+        try ( var transaction = db.beginTx() )
+        {
+            transaction.getNodeById( node.getId() ).setProperty( "key1", "value1" );
+            transaction.commit();
+        }
     }
 
     @Test
     public void tx_createNode_tx_setProperty_tx_addLabel()
     {
-        db.when( db.tx(
-                createNode()
-        ).andThen( db.tx(
-                setProperty( "key1", "value1" )
-        ).andThen( db.tx(
-                addLabel( label( "Label1" ) )
-        ) ) ) );
+        try ( var transaction = db.beginTx() )
+        {
+            var node = transaction.createNode();
+            node.setProperty( "key1", "value1" );
+            node.addLabel( label( "Label1" ) );
+            transaction.commit();
+        }
     }
 
     private static Matcher<List<?>> hasSize( final int size )
     {
-        return new TypeSafeMatcher<List<?>>()
+        return new TypeSafeMatcher<>()
         {
             @Override
             protected boolean matchesSafely( List<?> item )
@@ -164,13 +199,13 @@ public class UniqueIndexApplicationIT
         };
     }
 
-    private Function<GraphDatabaseService, List<Long>> listNodeIdsFromIndexLookup(
+    private Function<GraphDatabaseService, List<Long>> listNodeIdsFromIndexLookup( Transaction tx,
             final Label label, final String propertyKey, final Object value )
     {
         return graphDb ->
         {
             ArrayList<Long> ids = new ArrayList<>();
-            for ( Node node : loop( graphDb.findNodes( label, propertyKey, value ) ) )
+            for ( Node node : loop( tx.findNodes( label, propertyKey, value ) ) )
             {
                 ids.add( node.getId() );
             }
@@ -178,12 +213,12 @@ public class UniqueIndexApplicationIT
         };
     }
 
-    public UniqueIndexApplicationIT( Function<GraphDatabaseService, ?> createIndex )
+    public UniqueIndexApplicationIT( Function<Transaction, ?> createIndex )
     {
         this.createIndex = createIndex;
     }
 
-    private static Object[] createIndex( Function<GraphDatabaseService, Void> createIndex )
+    private static Object[] createIndex( Function<Transaction, Void> createIndex )
     {
         return new Object[]{createIndex};
     }

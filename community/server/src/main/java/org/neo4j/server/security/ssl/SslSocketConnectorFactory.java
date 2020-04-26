@@ -33,9 +33,9 @@ import org.eclipse.jetty.util.ssl.SslContextFactory;
 import java.util.List;
 import java.util.UUID;
 
-import org.neo4j.helpers.ListenSocketAddress;
+import org.neo4j.configuration.Config;
+import org.neo4j.configuration.helpers.SocketAddress;
 import org.neo4j.kernel.api.net.NetworkConnectionTracker;
-import org.neo4j.kernel.configuration.Config;
 import org.neo4j.server.web.HttpConnectorFactory;
 import org.neo4j.server.web.JettyThreadCalculator;
 import org.neo4j.ssl.SslPolicy;
@@ -60,7 +60,7 @@ public class SslSocketConnectorFactory extends HttpConnectorFactory
         return httpConfig;
     }
 
-    public ServerConnector createConnector( Server server, SslPolicy sslPolicy, ListenSocketAddress address,
+    public ServerConnector createConnector( Server server, SslPolicy sslPolicy, SocketAddress address,
             JettyThreadCalculator jettyThreadCalculator )
     {
         SslConnectionFactory sslConnectionFactory = createSslConnectionFactory( sslPolicy );
@@ -79,7 +79,7 @@ public class SslSocketConnectorFactory extends HttpConnectorFactory
         List<String> ciphers = sslPolicy.getCipherSuites();
         if ( ciphers != null )
         {
-            sslContextFactory.setIncludeCipherSuites( ciphers.toArray( new String[ciphers.size()] ) );
+            sslContextFactory.setIncludeCipherSuites( ciphers.toArray( new String[0] ) );
             sslContextFactory.setExcludeCipherSuites();
         }
 

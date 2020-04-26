@@ -24,22 +24,13 @@ package org.neo4j.server.rest;
 
 import org.junit.Rule;
 
-import java.io.UnsupportedEncodingException;
-import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Map;
-import java.util.stream.Collectors;
-import javax.ws.rs.core.Response.Status;
 
+import org.neo4j.configuration.connectors.ConnectorPortRegister;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Node;
-import org.neo4j.graphdb.Relationship;
-import org.neo4j.helpers.collection.Pair;
-import org.neo4j.kernel.configuration.ConnectorPortRegister;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
-import org.neo4j.server.rest.domain.JsonHelper;
 import org.neo4j.server.rest.domain.JsonParseException;
 import org.neo4j.test.GraphDescription;
 import org.neo4j.test.GraphHolder;
@@ -48,79 +39,25 @@ import org.neo4j.test.server.HTTP;
 import org.neo4j.test.server.SharedServerTestBase;
 
 import static java.lang.String.format;
-import static java.net.URLEncoder.encode;
 import static java.util.stream.Collectors.joining;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
-import static org.neo4j.server.rest.domain.JsonHelper.createJsonFrom;
-import static org.neo4j.server.rest.web.Surface.PATH_NODES;
-import static org.neo4j.server.rest.web.Surface.PATH_NODE_INDEX;
-import static org.neo4j.server.rest.web.Surface.PATH_RELATIONSHIPS;
-import static org.neo4j.server.rest.web.Surface.PATH_RELATIONSHIP_INDEX;
-import static org.neo4j.server.rest.web.Surface.PATH_SCHEMA_CONSTRAINT;
-import static org.neo4j.server.rest.web.Surface.PATH_SCHEMA_INDEX;
+import static org.neo4j.server.http.cypher.integration.TransactionMatchers.matches;
 import static org.neo4j.test.server.HTTP.POST;
 import static org.neo4j.test.server.HTTP.RawPayload.quotedJson;
 
 public class AbstractRestFunctionalTestBase extends SharedServerTestBase implements GraphHolder
 {
     @Rule
-    public TestData<Map<String,Node>> data = TestData.producedThrough( GraphDescription.createGraphFor( this, true ) );
+    public TestData<Map<String,Node>> data = TestData.producedThrough( GraphDescription.createGraphFor( this ) );
 
     @Rule
     public TestData<RESTRequestGenerator> gen = TestData.producedThrough( RESTRequestGenerator.PRODUCER );
 
-    @SafeVarargs
-    public final String doCypherRestCall( String endpoint, String scriptTemplate, Status status,
-            Pair<String, String>... params )
-    {
-        String parameterString = createParameterString( params );
-
-        return doCypherRestCall( endpoint, scriptTemplate, status, parameterString );
-    }
-
-    public String doCypherRestCall( String endpoint, String scriptTemplate, Status status, String parameterString )
-    {
-        data.get();
-
-        String script = createScript( scriptTemplate );
-        String queryString = "{\"query\": \"" + script + "\",\"params\":{" + parameterString + "}}";
-
-        gen().expectedStatus( status.getStatusCode() )
-                .payload( queryString );
-        return gen().post( endpoint ).entity();
-    }
-
-    private Long idFor( String name )
-    {
-        return data.get().get( name ).getId();
-    }
-
-    private String createParameterString( Pair<String, String>[] params )
-    {
-        String paramString = "";
-        for ( Pair<String, String> param : params )
-        {
-            String delimiter = paramString.isEmpty() || paramString.endsWith( "{" ) ? "" : ",";
-
-            paramString += delimiter + "\"" + param.first() + "\":\"" + param.other() + "\"";
-        }
-
-        return paramString;
-    }
-
-    protected String createScript( String template )
-    {
-        for ( String key : data.get().keySet() )
-        {
-            template = template.replace( "%" + key + "%", idFor( key ).toString() );
-        }
-        return template;
-    }
-
     @Override
     public GraphDatabaseService graphdb()
     {
-        return server().getDatabase().getGraph();
+        return server().getDatabaseService().getDatabase();
     }
 
     public <T> T resolveDependency( Class<T> cls )
@@ -128,54 +65,54 @@ public class AbstractRestFunctionalTestBase extends SharedServerTestBase impleme
         return ((GraphDatabaseAPI)graphdb()).getDependencyResolver().resolveDependency( cls );
     }
 
-    protected static String getDataUri()
+    protected static String defaultDatabaseUri()
     {
-        return "http://localhost:" + getLocalHttpPort() + "/db/data/";
+        return databaseUri( "neo4j" );
     }
 
-    protected String getDatabaseUri()
+    private static String databaseUri( String databaseName )
+    {
+        return databaseUri( getLocalHttpPort(), databaseName );
+    }
+
+    private static String databaseUri( int port, String databaseName )
+    {
+        return String.format( "http://localhost:%s/db/%s/", port, databaseName );
+    }
+
+    protected String dbUri()
     {
         return "http://localhost:" + getLocalHttpPort() + "/db/";
     }
 
-    protected String getNodeUri( Node node )
+    protected static String txUri()
     {
-        return getNodeUri(node.getId());
+        return defaultDatabaseUri() + "tx";
     }
 
-    protected String getNodeUri( long node )
+    protected static String txUri( String databaseName )
     {
-        return getDataUri() + PATH_NODES + "/" + node;
-    }
-
-    protected String getRelationshipUri( Relationship relationship )
-    {
-        return getDataUri() + PATH_RELATIONSHIPS + "/" + relationship.getId();
-    }
-
-    protected String postNodeIndexUri( String indexName )
-    {
-        return getDataUri() + PATH_NODE_INDEX + "/" + indexName;
-    }
-
-    protected String postRelationshipIndexUri( String indexName )
-    {
-        return getDataUri() + PATH_RELATIONSHIP_INDEX + "/" + indexName;
-    }
-
-    protected String txUri()
-    {
-        return getDataUri() + "transaction";
+        return databaseUri( databaseName ) + "tx";
     }
 
     protected static String txCommitUri()
     {
-        return getDataUri() + "transaction/commit";
+        return defaultDatabaseUri() + "tx/commit";
     }
 
-    protected String txUri( long txId )
+    public static String txCommitUri( String databaseName )
     {
-        return getDataUri() + "transaction/" + txId;
+        return databaseUri( databaseName ) + "tx/commit";
+    }
+
+    public static String txCommitUri( String databaseName, int port )
+    {
+        return databaseUri( port, databaseName ) + "tx/commit";
+    }
+
+    protected static String txUri( long txId )
+    {
+        return defaultDatabaseUri() + "tx/" + txId;
     }
 
     public static long extractTxId( HTTP.Response response )
@@ -185,111 +122,15 @@ public class AbstractRestFunctionalTestBase extends SharedServerTestBase impleme
         return Long.parseLong( txIdString );
     }
 
-    protected Node getNode( String name )
-    {
-        return data.get().get( name );
-    }
-
-    protected Node[] getNodes( String... names )
-    {
-        Node[] nodes = {};
-        ArrayList<Node> result = new ArrayList<>();
-        for ( String name : names )
-        {
-            result.add( getNode( name ) );
-        }
-        return result.toArray( nodes );
-    }
-
-    public void assertSize( int expectedSize, String entity )
-    {
-        Collection<?> hits;
-        try
-        {
-            hits = (Collection<?>) JsonHelper.readJson( entity );
-            assertEquals( expectedSize, hits.size() );
-        }
-        catch ( JsonParseException e )
-        {
-            throw new RuntimeException( e );
-        }
-    }
-
-    public String getPropertiesUri( Relationship rel )
-    {
-        return getRelationshipUri( rel ) + "/properties";
-    }
-
-    public String getPropertiesUri( Node node )
-    {
-        return getNodeUri( node ) + "/properties";
-    }
-
     public RESTRequestGenerator gen()
     {
         return gen.get();
     }
 
-    public String getLabelsUri()
-    {
-        return format( "%slabels", getDataUri() );
-    }
-
-    public String getPropertyKeysUri()
-    {
-        return format( "%spropertykeys", getDataUri() );
-    }
-
-    public String getNodesWithLabelUri( String label )
-    {
-        return format( "%slabel/%s/nodes", getDataUri(), label );
-    }
-
-    public String getNodesWithLabelAndPropertyUri( String label, String property, Object value ) throws UnsupportedEncodingException
-    {
-        return format( "%slabel/%s/nodes?%s=%s", getDataUri(), label, property,
-                encode( createJsonFrom( value ), StandardCharsets.UTF_8.name() ) );
-    }
-
-    public String getSchemaIndexUri()
-    {
-        return getDataUri() + PATH_SCHEMA_INDEX;
-    }
-
-    public String getSchemaIndexLabelUri( String label )
-    {
-        return getDataUri() + PATH_SCHEMA_INDEX + "/" + label;
-    }
-
-    public String getSchemaIndexLabelPropertyUri( String label, String property )
-    {
-        return getDataUri() + PATH_SCHEMA_INDEX + "/" + label + "/" + property;
-    }
-
-    public String getSchemaConstraintUri()
-    {
-        return getDataUri() + PATH_SCHEMA_CONSTRAINT;
-    }
-
-    public String getSchemaConstraintLabelUri( String label )
-    {
-        return getDataUri() + PATH_SCHEMA_CONSTRAINT + "/" + label;
-    }
-
-    public String getSchemaConstraintLabelUniquenessUri( String label )
-    {
-        return getDataUri() + PATH_SCHEMA_CONSTRAINT + "/" + label + "/uniqueness/";
-    }
-
-    public String getSchemaConstraintLabelUniquenessPropertyUri( String label, String property )
-    {
-        return getDataUri() + PATH_SCHEMA_CONSTRAINT + "/" + label + "/uniqueness/" + property;
-    }
-
     public static int getLocalHttpPort()
     {
         ConnectorPortRegister connectorPortRegister =
-                server().getDatabase().getGraph().getDependencyResolver().resolveDependency( ConnectorPortRegister.class );
+                server().getDatabaseService().getSystemDatabase().getDependencyResolver().resolveDependency( ConnectorPortRegister.class );
         return connectorPortRegister.getLocalAddress( "http" ).getPort();
     }
 
@@ -308,5 +149,15 @@ public class AbstractRestFunctionalTestBase extends SharedServerTestBase impleme
     {
         assertEquals( "[]", response.get( "errors" ).toString() );
         assertEquals( 0, response.get( "errors" ).size() );
+    }
+
+    public static void assertHasTxLocation( HTTP.Response begin )
+    {
+        assertThat( begin.location(), matches( txUri() + "/\\d+" ) );
+    }
+
+    public static void assertHasTxLocation( HTTP.Response begin, String txUri )
+    {
+        assertThat( begin.location(), matches( format( "http://localhost:\\d+/%s/\\d+", txUri ) ) );
     }
 }

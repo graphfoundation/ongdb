@@ -22,9 +22,9 @@
  */
 package org.neo4j.kernel.impl.newapi;
 
-import org.neo4j.storageengine.api.schema.IndexProgressor;
+import org.neo4j.kernel.api.index.IndexProgressor;
 
-abstract class IndexCursor<T extends IndexProgressor>
+abstract class IndexCursor<T extends IndexProgressor> extends TraceableCursor
 {
     private T progressor;
 
@@ -42,7 +42,7 @@ abstract class IndexCursor<T extends IndexProgressor>
         return progressor != null && progressor.next();
     }
 
-    void close()
+    void closeProgressor()
     {
         if ( progressor != null )
         {
@@ -51,7 +51,7 @@ abstract class IndexCursor<T extends IndexProgressor>
         progressor = null;
     }
 
-    boolean isClosed()
+    boolean isProgressorClosed()
     {
         return progressor == null;
     }

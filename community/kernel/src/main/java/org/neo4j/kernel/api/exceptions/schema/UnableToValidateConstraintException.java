@@ -22,12 +22,12 @@
  */
 package org.neo4j.kernel.api.exceptions.schema;
 
-import org.neo4j.internal.kernel.api.TokenNameLookup;
+import org.neo4j.common.TokenNameLookup;
 import org.neo4j.internal.kernel.api.exceptions.schema.ConstraintValidationException;
-import org.neo4j.internal.kernel.api.schema.SchemaUtil;
-import org.neo4j.internal.kernel.api.schema.constraints.ConstraintDescriptor;
+import org.neo4j.internal.schema.ConstraintDescriptor;
 
 import static java.lang.String.format;
+import static org.neo4j.common.TokenNameLookup.idTokenNameLookup;
 
 /**
  * Attempting to validate constraints but the apparatus for validation was not available. For example,
@@ -38,9 +38,7 @@ public class UnableToValidateConstraintException extends ConstraintValidationExc
     public UnableToValidateConstraintException( ConstraintDescriptor constraint, Throwable cause )
     {
         super( constraint, Phase.VERIFICATION,
-                format( "Unable to validate constraint %s",
-                        constraint.userDescription( SchemaUtil.idTokenNameLookup ) ),
-                cause );
+                format( "Unable to validate constraint %s", constraint.userDescription( idTokenNameLookup ) ), cause );
     }
 
     @Override

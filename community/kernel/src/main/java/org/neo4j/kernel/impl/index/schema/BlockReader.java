@@ -29,10 +29,9 @@ import java.nio.ByteBuffer;
 
 import org.neo4j.index.internal.gbptree.Layout;
 import org.neo4j.io.fs.FileSystemAbstraction;
-import org.neo4j.io.fs.OpenMode;
+import org.neo4j.io.fs.ReadAheadChannel;
 import org.neo4j.io.fs.StoreChannel;
 import org.neo4j.io.pagecache.PageCursor;
-import org.neo4j.kernel.impl.transaction.log.ReadAheadChannel;
 
 /**
  * Hands out {@link BlockEntryReader} for each Block in file in sequential order. The resulting readers have their own {@link StoreChannel} that they read
@@ -51,7 +50,7 @@ public class BlockReader<KEY,VALUE> implements Closeable
         this.fs = fs;
         this.file = file;
         this.layout = layout;
-        this.channel = fs.open( file, OpenMode.READ );
+        this.channel = fs.read( file );
     }
 
     BlockEntryReader<KEY,VALUE> nextBlock( ByteBuffer blockBuffer ) throws IOException
@@ -61,7 +60,7 @@ public class BlockReader<KEY,VALUE> implements Closeable
         {
             return null;
         }
-        StoreChannel blockChannel = fs.open( file, OpenMode.READ );
+        StoreChannel blockChannel = fs.read( file );
         blockChannel.position( position );
         PageCursor pageCursor = new ReadableChannelPageCursor( new ReadAheadChannel<>( blockChannel, blockBuffer ) );
         BlockEntryReader<KEY,VALUE> blockEntryReader = new BlockEntryReader<>( pageCursor, layout );

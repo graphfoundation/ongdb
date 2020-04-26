@@ -25,21 +25,16 @@ package org.neo4j.kernel.impl.api.index;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.neo4j.internal.kernel.api.IndexCapability;
 import org.neo4j.internal.kernel.api.InternalIndexState;
-import org.neo4j.internal.kernel.api.schema.IndexProviderDescriptor;
-import org.neo4j.io.fs.FileSystemAbstraction;
-import org.neo4j.io.pagecache.PageCache;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.internal.schema.IndexProviderDescriptor;
+import org.neo4j.io.memory.ByteBufferFactory;
 import org.neo4j.kernel.api.index.IndexAccessor;
 import org.neo4j.kernel.api.index.IndexDirectoryStructure;
 import org.neo4j.kernel.api.index.IndexPopulator;
 import org.neo4j.kernel.api.index.IndexProvider;
-import org.neo4j.kernel.impl.api.index.sampling.IndexSamplingConfig;
-import org.neo4j.kernel.impl.index.schema.ByteBufferFactory;
-import org.neo4j.kernel.impl.storemigration.StoreMigrationParticipant;
-import org.neo4j.storageengine.api.schema.IndexReader;
-import org.neo4j.storageengine.api.schema.IndexSample;
-import org.neo4j.storageengine.api.schema.StoreIndexDescriptor;
+import org.neo4j.kernel.api.index.IndexReader;
+import org.neo4j.kernel.api.index.IndexSample;
 import org.neo4j.test.DoubleLatch;
 
 import static org.mockito.Mockito.mock;
@@ -47,7 +42,7 @@ import static org.mockito.Mockito.when;
 import static org.neo4j.internal.kernel.api.InternalIndexState.POPULATING;
 import static org.neo4j.test.DoubleLatch.awaitLatch;
 
-public class ControlledPopulationIndexProvider extends IndexProvider
+public class ControlledPopulationIndexProvider extends IndexProvider.Adaptor
 {
     private IndexPopulator mockedPopulator = new IndexPopulator.Adapter();
     private final IndexAccessor mockedWriter = mock( IndexAccessor.class );
@@ -93,14 +88,14 @@ public class ControlledPopulationIndexProvider extends IndexProvider
     }
 
     @Override
-    public IndexPopulator getPopulator( StoreIndexDescriptor descriptor, IndexSamplingConfig samplingConfig, ByteBufferFactory bufferFactory )
+    public IndexPopulator getPopulator( IndexDescriptor descriptor, IndexSamplingConfig samplingConfig, ByteBufferFactory bufferFactory )
     {
         populatorCallCount.incrementAndGet();
         return mockedPopulator;
     }
 
     @Override
-    public IndexAccessor getOnlineAccessor( StoreIndexDescriptor indexConfig, IndexSamplingConfig samplingConfig )
+    public IndexAccessor getOnlineAccessor( IndexDescriptor indexConfig, IndexSamplingConfig samplingConfig )
     {
         writerCallCount.incrementAndGet();
         writerLatch.countDown();
@@ -108,31 +103,13 @@ public class ControlledPopulationIndexProvider extends IndexProvider
     }
 
     @Override
-    public InternalIndexState getInitialState( StoreIndexDescriptor descriptor )
+    public InternalIndexState getInitialState( IndexDescriptor descriptor )
     {
         return initialIndexState;
-    }
-
-    @Override
-    public IndexCapability getCapability( StoreIndexDescriptor descriptor )
-    {
-        return IndexCapability.NO_CAPABILITY;
     }
 
     public void setInitialIndexState( InternalIndexState initialIndexState )
     {
         this.initialIndexState = initialIndexState;
-    }
-
-    @Override
-    public String getPopulationFailure( StoreIndexDescriptor descriptor ) throws IllegalStateException
-    {
-        throw new IllegalStateException();
-    }
-
-    @Override
-    public StoreMigrationParticipant storeMigrationParticipant( FileSystemAbstraction fs, PageCache pageCache )
-    {
-        return StoreMigrationParticipant.NOT_PARTICIPATING;
     }
 }

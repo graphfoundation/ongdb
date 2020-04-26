@@ -26,28 +26,23 @@ import org.eclipse.collections.api.iterator.LongIterator;
 import org.eclipse.collections.api.set.primitive.LongSet;
 import org.eclipse.collections.api.set.primitive.MutableLongSet;
 import org.eclipse.collections.impl.set.mutable.primitive.LongHashSet;
-import org.junit.Before;
-import org.junit.ClassRule;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TestName;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInfo;
 
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-import org.neo4j.test.rule.ImpermanentDatabaseRule;
+import org.neo4j.test.extension.ImpermanentDbmsExtension;
+import org.neo4j.test.extension.Inject;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.IsEqual.equalTo;
-import static org.junit.Assert.assertThat;
-import static org.neo4j.helpers.collection.MapUtil.map;
+import static org.neo4j.internal.helpers.collection.MapUtil.map;
 
-public abstract class IndexingStringQueryAcceptanceTestBase
+@ImpermanentDbmsExtension
+abstract class IndexingStringQueryAcceptanceTestBase
 {
-    @ClassRule
-    public static ImpermanentDatabaseRule dbRule = new ImpermanentDatabaseRule();
-    @Rule
-    public final TestName testName = new TestName();
-
     private final String template;
     private final String[] matching;
     private final String[] nonMatching;
@@ -55,7 +50,8 @@ public abstract class IndexingStringQueryAcceptanceTestBase
     private final boolean withIndex;
 
     private Label LABEL;
-    private String KEY = "name";
+    private static final String KEY = "name";
+    @Inject
     private GraphDatabaseService db;
 
     IndexingStringQueryAcceptanceTestBase( String template, String[] matching,
@@ -68,29 +64,28 @@ public abstract class IndexingStringQueryAcceptanceTestBase
         this.withIndex = withIndex;
     }
 
-    @Before
-    public void setup()
+    @BeforeEach
+    void setup( TestInfo testInfo )
     {
-        LABEL = Label.label( "LABEL1-" + testName.getMethodName() );
-        db = dbRule.getGraphDatabaseAPI();
+        LABEL = Label.label( "LABEL1-" + testInfo.getDisplayName() );
         if ( withIndex )
         {
             try ( org.neo4j.graphdb.Transaction tx = db.beginTx() )
             {
-                db.schema().indexFor( LABEL ).on( KEY ).create();
-                tx.success();
+                tx.schema().indexFor( LABEL ).on( KEY ).create();
+                tx.commit();
             }
 
             try ( org.neo4j.graphdb.Transaction tx = db.beginTx() )
             {
-                db.schema().awaitIndexesOnline( 5, TimeUnit.MINUTES );
-                tx.success();
+                tx.schema().awaitIndexesOnline( 5, TimeUnit.MINUTES );
+                tx.commit();
             }
         }
     }
 
     @Test
-    public void shouldSupportIndexSeek()
+    void shouldSupportIndexSeek()
     {
         // GIVEN
         createNodes( db, LABEL, nonMatching );
@@ -100,7 +95,7 @@ public abstract class IndexingStringQueryAcceptanceTestBase
         MutableLongSet found = new LongHashSet();
         try ( Transaction tx = db.beginTx() )
         {
-            collectNodes( found, db.findNodes( LABEL, KEY, template, searchMode ) );
+            collectNodes( found, tx.findNodes( LABEL, KEY, template, searchMode ) );
         }
 
         // THEN
@@ -108,7 +103,7 @@ public abstract class IndexingStringQueryAcceptanceTestBase
     }
 
     @Test
-    public void shouldIncludeNodesCreatedInSameTxInIndexSeek()
+    void shouldIncludeNodesCreatedInSameTxInIndexSeek()
     {
         // GIVEN
         createNodes( db, LABEL, nonMatching[0], nonMatching[1] );
@@ -117,17 +112,17 @@ public abstract class IndexingStringQueryAcceptanceTestBase
         MutableLongSet found = new LongHashSet();
         try ( Transaction tx = db.beginTx() )
         {
-            expected.add( createNode( db, map( KEY, matching[2] ), LABEL ).getId() );
-            createNode( db, map( KEY, nonMatching[2] ), LABEL );
+            expected.add( createNode( tx, map( KEY, matching[2] ), LABEL ).getId() );
+            createNode( tx, map( KEY, nonMatching[2] ), LABEL );
 
-            collectNodes( found, db.findNodes( LABEL, KEY, template, searchMode ) );
+            collectNodes( found, tx.findNodes( LABEL, KEY, template, searchMode ) );
         }
         // THEN
         assertThat( found, equalTo( expected ) );
     }
 
     @Test
-    public void shouldNotIncludeNodesDeletedInSameTxInIndexSeek()
+    void shouldNotIncludeNodesDeletedInSameTxInIndexSeek()
     {
         // GIVEN
         createNodes( db, LABEL, nonMatching[0] );
@@ -141,18 +136,18 @@ public abstract class IndexingStringQueryAcceptanceTestBase
             while ( deleting.hasNext() )
             {
                 long id = deleting.next();
-                db.getNodeById( id ).delete();
+                tx.getNodeById( id ).delete();
                 expected.remove( id );
             }
 
-            collectNodes( found, db.findNodes( LABEL, KEY, template, searchMode ) );
+            collectNodes( found, tx.findNodes( LABEL, KEY, template, searchMode ) );
         }
         // THEN
         assertThat( found, equalTo( expected ) );
     }
 
     @Test
-    public void shouldConsiderNodesChangedInSameTxInIndexSeek()
+    void shouldConsiderNodesChangedInSameTxInIndexSeek()
     {
         // GIVEN
         createNodes( db, LABEL, nonMatching[0] );
@@ -167,126 +162,126 @@ public abstract class IndexingStringQueryAcceptanceTestBase
             while ( toMatching.hasNext() )
             {
                 long id = toMatching.next();
-                db.getNodeById( id ).setProperty( KEY, matching[2] );
+                tx.getNodeById( id ).setProperty( KEY, matching[2] );
                 expected.add( id );
             }
             LongIterator toNotMatching = toChangeToNotMatch.longIterator();
             while ( toNotMatching.hasNext() )
             {
                 long id = toNotMatching.next();
-                db.getNodeById( id ).setProperty( KEY, nonMatching[2] );
+                tx.getNodeById( id ).setProperty( KEY, nonMatching[2] );
                 expected.remove( id );
             }
 
-            collectNodes( found, db.findNodes( LABEL, KEY, template, searchMode ) );
+            collectNodes( found, tx.findNodes( LABEL, KEY, template, searchMode ) );
         }
         // THEN
         assertThat( found, equalTo( expected ) );
     }
 
-    public abstract static class EXACT extends IndexingStringQueryAcceptanceTestBase
+    abstract static class ExactIndexingStringQueryAcceptanceTest extends IndexingStringQueryAcceptanceTestBase
     {
-        static String[] matching = {"Johan", "Johan", "Johan"};
-        static String[] nonMatching = {"Johanna", "Olivia", "InteJohan"};
+        static final String[] MATCHING = {"Johan", "Johan", "Johan"};
+        static final String[] NON_MATCHING = {"Johanna", "Olivia", "InteJohan"};
 
-        EXACT( boolean withIndex )
+        ExactIndexingStringQueryAcceptanceTest( boolean withIndex )
         {
-            super( "Johan", matching, nonMatching, StringSearchMode.EXACT, withIndex );
+            super( "Johan", MATCHING, NON_MATCHING, StringSearchMode.EXACT, withIndex );
         }
     }
 
-    public static class EXACT_WITH_INDEX extends EXACT
+    static class ExactWithIndexIndexingStringQueryAcceptanceTest extends ExactIndexingStringQueryAcceptanceTest
     {
-        public EXACT_WITH_INDEX()
+        ExactWithIndexIndexingStringQueryAcceptanceTest()
         {
             super( true );
         }
     }
 
-    public static class EXACT_WITHOUT_INDEX extends EXACT
+    static class ExactWithoutIndexIndexingStringQueryAcceptanceTest extends ExactIndexingStringQueryAcceptanceTest
     {
-        public EXACT_WITHOUT_INDEX()
+        ExactWithoutIndexIndexingStringQueryAcceptanceTest()
         {
             super( false );
         }
     }
 
-    public abstract static class PREFIX extends IndexingStringQueryAcceptanceTestBase
+    abstract static class PrefixIndexingStringQueryAcceptanceTest extends IndexingStringQueryAcceptanceTestBase
     {
-        static String[] matching = {"Olivia", "Olivia2", "OliviaYtterbrink"};
-        static String[] nonMatching = {"Johan", "olivia", "InteOlivia"};
+        static final String[] MATCHING = {"Olivia", "Olivia2", "OliviaYtterbrink"};
+        static final String[] NON_MATCHING = {"Johan", "olivia", "InteOlivia"};
 
-        PREFIX( boolean withIndex )
+        PrefixIndexingStringQueryAcceptanceTest( boolean withIndex )
         {
-            super( "Olivia", matching, nonMatching, StringSearchMode.PREFIX, withIndex );
+            super( "Olivia", MATCHING, NON_MATCHING, StringSearchMode.PREFIX, withIndex );
         }
     }
 
-    public static class PREFIX_WITH_INDEX extends PREFIX
+    static class PrefixWithIndexIndexingStringQueryAcceptanceTest extends PrefixIndexingStringQueryAcceptanceTest
     {
-        public PREFIX_WITH_INDEX()
+        PrefixWithIndexIndexingStringQueryAcceptanceTest()
         {
             super( true );
         }
     }
 
-    public static class PREFIX_WITHOUT_INDEX extends PREFIX
+    static class PrefixWithoutIndexIndexingStringQueryAcceptanceTest extends PrefixIndexingStringQueryAcceptanceTest
     {
-        public PREFIX_WITHOUT_INDEX()
+        PrefixWithoutIndexIndexingStringQueryAcceptanceTest()
         {
             super( false );
         }
     }
 
-    public abstract static class SUFFIX extends IndexingStringQueryAcceptanceTestBase
+    abstract static class SuffixIndexingStringQueryAcceptanceTest extends IndexingStringQueryAcceptanceTestBase
     {
-        static String[] matching = {"Jansson", "Hansson", "Svensson"};
-        static String[] nonMatching = {"Taverner", "Svensson-Averbuch", "Taylor"};
+        static final String[] MATCHING = {"Jansson", "Hansson", "Svensson"};
+        static final String[] NON_MATCHING = {"Taverner", "Svensson-Averbuch", "Taylor"};
 
-        SUFFIX( boolean withIndex )
+        SuffixIndexingStringQueryAcceptanceTest( boolean withIndex )
         {
-            super( "sson", matching, nonMatching, StringSearchMode.SUFFIX, withIndex );
+            super( "sson", MATCHING, NON_MATCHING, StringSearchMode.SUFFIX, withIndex );
         }
     }
 
-    public static class SUFFIX_WITH_INDEX extends SUFFIX
+    static class SuffixWithIndexIndexingStringQueryAcceptanceTest extends SuffixIndexingStringQueryAcceptanceTest
     {
-        public SUFFIX_WITH_INDEX()
+        SuffixWithIndexIndexingStringQueryAcceptanceTest()
         {
             super( true );
         }
     }
 
-    public static class SUFFIX_WITHOUT_INDEX extends SUFFIX
+    static class SuffixWithoutIndexIndexingStringQueryAcceptanceTest extends SuffixIndexingStringQueryAcceptanceTest
     {
-        public SUFFIX_WITHOUT_INDEX()
+        SuffixWithoutIndexIndexingStringQueryAcceptanceTest()
         {
             super( false );
         }
     }
 
-    public abstract static class CONTAINS extends IndexingStringQueryAcceptanceTestBase
+    abstract static class ContainsIndexingStringQueryAcceptanceTest extends IndexingStringQueryAcceptanceTestBase
     {
-        static String[] matching = {"good", "fool", "fooooood"};
-        static String[] nonMatching = {"evil", "genius", "hungry"};
+        static final String[] MATCHING = {"good", "fool", "fooooood"};
+        static final String[] NON_MATCHING = {"evil", "genius", "hungry"};
 
-        public CONTAINS( boolean withIndex )
+        ContainsIndexingStringQueryAcceptanceTest( boolean withIndex )
         {
-            super( "oo", matching, nonMatching, StringSearchMode.CONTAINS, withIndex );
+            super( "oo", MATCHING, NON_MATCHING, StringSearchMode.CONTAINS, withIndex );
         }
     }
 
-    public static class CONTAINS_WITH_INDEX extends CONTAINS
+    static class ContainsWithIndexIndexingStringQueryAcceptanceTest extends ContainsIndexingStringQueryAcceptanceTest
     {
-        public CONTAINS_WITH_INDEX()
+        ContainsWithIndexIndexingStringQueryAcceptanceTest()
         {
             super( true );
         }
     }
 
-    public static class CONTAINS_WITHOUT_INDEX extends CONTAINS
+    static class ContainsWithoutIndexIndexingStringQueryAcceptanceTest extends ContainsIndexingStringQueryAcceptanceTest
     {
-        public CONTAINS_WITHOUT_INDEX()
+        ContainsWithoutIndexIndexingStringQueryAcceptanceTest()
         {
             super( false );
         }
@@ -299,14 +294,14 @@ public abstract class IndexingStringQueryAcceptanceTestBase
         {
             for ( String value : propertyValues )
             {
-                expected.add( createNode( db, map( KEY, value ), label ).getId() );
+                expected.add( createNode( tx, map( KEY, value ), label ).getId() );
             }
-            tx.success();
+            tx.commit();
         }
         return expected;
     }
 
-    private void collectNodes( MutableLongSet bucket, ResourceIterator<Node> toCollect )
+    private static void collectNodes( MutableLongSet bucket, ResourceIterator<Node> toCollect )
     {
         while ( toCollect.hasNext() )
         {
@@ -314,17 +309,13 @@ public abstract class IndexingStringQueryAcceptanceTestBase
         }
     }
 
-    private Node createNode( GraphDatabaseService beansAPI, Map<String, Object> properties, Label... labels )
+    private static Node createNode( Transaction tx, Map<String,Object> properties, Label... labels )
     {
-        try ( Transaction tx = beansAPI.beginTx() )
+        Node node = tx.createNode( labels );
+        for ( Map.Entry<String,Object> property : properties.entrySet() )
         {
-            Node node = beansAPI.createNode( labels );
-            for ( Map.Entry<String,Object> property : properties.entrySet() )
-            {
-                node.setProperty( property.getKey(), property.getValue() );
-            }
-            tx.success();
-            return node;
+            node.setProperty( property.getKey(), property.getValue() );
         }
+        return node;
     }
 }

@@ -22,10 +22,9 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
-import org.neo4j.cypher.internal.v3_6.util.CypherTypeException
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
-import org.neo4j.cypher.internal.v3_6.util.attribution.Id
-import org.neo4j.values.storable.Values
+import org.neo4j.cypher.internal.runtime.{ExecutionContext, IsNoValue}
+import org.neo4j.cypher.internal.v4_0.util.attribution.Id
+import org.neo4j.exceptions.CypherTypeException
 import org.neo4j.values.virtual.VirtualNodeValue
 
 import scala.collection.mutable
@@ -43,7 +42,7 @@ case class NodeHashJoinPipe(nodeVariables: Set[String], left: Pipe, right: Pipe)
     if (rhsIterator.isEmpty)
       return Iterator.empty
 
-    val table = buildProbeTable(input)
+    val table = buildProbeTable(state.memoryTracker.memoryTrackingIterator(input))
 
     if (table.isEmpty)
       return Iterator.empty
@@ -81,9 +80,9 @@ case class NodeHashJoinPipe(nodeVariables: Set[String], left: Pipe, right: Pipe)
     val key = new Array[Long](cachedVariables.length)
 
     for (idx <- cachedVariables.indices) {
-      key(idx) = context(cachedVariables(idx)) match {
+      key(idx) = context.getByName(cachedVariables(idx)) match {
         case n: VirtualNodeValue => n.id()
-        case Values.NO_VALUE => return None
+        case IsNoValue() => return None
         case _ => throw new CypherTypeException("Created a plan that uses non-nodes when expecting a node")
       }
     }

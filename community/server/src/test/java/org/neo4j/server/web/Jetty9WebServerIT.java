@@ -26,11 +26,11 @@ import org.junit.After;
 import org.junit.Rule;
 import org.junit.Test;
 
-import org.neo4j.helpers.ListenSocketAddress;
+import org.neo4j.configuration.Config;
+import org.neo4j.configuration.helpers.SocketAddress;
 import org.neo4j.kernel.api.net.NetworkConnectionTracker;
-import org.neo4j.kernel.configuration.Config;
 import org.neo4j.logging.NullLogProvider;
-import org.neo4j.test.rule.ImpermanentDatabaseRule;
+import org.neo4j.test.rule.ImpermanentDbmsRule;
 import org.neo4j.test.rule.SuppressOutput;
 import org.neo4j.test.server.ExclusiveServerTestBase;
 
@@ -41,7 +41,7 @@ public class Jetty9WebServerIT extends ExclusiveServerTestBase
     @Rule
     public SuppressOutput suppressOutput = suppressAll();
     @Rule
-    public ImpermanentDatabaseRule dbRule = new ImpermanentDatabaseRule();
+    public ImpermanentDbmsRule dbRule = new ImpermanentDbmsRule();
 
     private Jetty9WebServer webServer;
 
@@ -51,7 +51,7 @@ public class Jetty9WebServerIT extends ExclusiveServerTestBase
         // Given
         webServer = new Jetty9WebServer( NullLogProvider.getInstance(), Config.defaults(), NetworkConnectionTracker.NO_OP );
 
-        webServer.setHttpAddress( new ListenSocketAddress( "localhost", 0 ) );
+        webServer.setHttpAddress( new SocketAddress( "localhost", 0 ) );
 
         // When
         webServer.start();
@@ -64,7 +64,7 @@ public class Jetty9WebServerIT extends ExclusiveServerTestBase
     {
         // given
         webServer = new Jetty9WebServer( NullLogProvider.getInstance(), Config.defaults(), NetworkConnectionTracker.NO_OP );
-        webServer.setHttpAddress( new ListenSocketAddress( "127.0.0.1", 7878 ) );
+        webServer.setHttpAddress( new SocketAddress( "127.0.0.1", 7878 ) );
 
         // when
         webServer.start();

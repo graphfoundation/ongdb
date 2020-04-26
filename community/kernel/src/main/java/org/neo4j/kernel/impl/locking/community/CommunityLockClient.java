@@ -37,13 +37,14 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.LockSupport;
 import java.util.stream.Stream;
 
+import org.neo4j.kernel.impl.api.LeaseClient;
 import org.neo4j.kernel.impl.locking.ActiveLock;
 import org.neo4j.kernel.impl.locking.LockClientStateHolder;
 import org.neo4j.kernel.impl.locking.LockClientStoppedException;
 import org.neo4j.kernel.impl.locking.Locks;
-import org.neo4j.kernel.impl.locking.ResourceTypes;
-import org.neo4j.storageengine.api.lock.LockTracer;
-import org.neo4j.storageengine.api.lock.ResourceType;
+import org.neo4j.lock.LockTracer;
+import org.neo4j.lock.ResourceType;
+import org.neo4j.lock.ResourceTypes;
 
 import static java.lang.String.format;
 
@@ -79,6 +80,12 @@ public class CommunityLockClient implements Locks.Client
         writeReleaser = ( key, lockResource ) -> manager.releaseWriteLock( lockResource, lockTransaction );
         typeReadReleaser = value -> value.forEachKeyValue( readReleaser );
         typeWriteReleaser = value -> value.forEachKeyValue( writeReleaser );
+    }
+
+    @Override
+    public void initialize( LeaseClient leaseClient )
+    {
+        // we don't need lease here
     }
 
     @Override

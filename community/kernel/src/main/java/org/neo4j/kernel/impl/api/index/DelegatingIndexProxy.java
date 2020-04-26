@@ -32,7 +32,7 @@ public class DelegatingIndexProxy extends AbstractDelegatingIndexProxy
     }
 
     @Override
-    protected IndexProxy getDelegate()
+    public IndexProxy getDelegate()
     {
         return delegate;
     }

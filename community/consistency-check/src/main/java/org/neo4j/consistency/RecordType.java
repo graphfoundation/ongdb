@@ -24,7 +24,8 @@ package org.neo4j.consistency;
 
 public enum RecordType
 {
-    NEO_STORE, SCHEMA,
+    NEO_STORE,
+    SCHEMA,
     NODE,
 
     PROPERTY,
@@ -47,6 +48,8 @@ public enum RecordType
     // Below are non-native records
 
     LABEL_SCAN_DOCUMENT,
+    INDEX_STATISTICS,
+    ID_STORE,
     INDEX,
     COUNTS,
 }

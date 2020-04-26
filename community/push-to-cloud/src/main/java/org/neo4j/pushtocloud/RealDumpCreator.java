@@ -19,35 +19,32 @@
  */
 package org.neo4j.pushtocloud;
 
+import picocli.CommandLine;
+
 import java.nio.file.Path;
 
-import org.neo4j.commandline.admin.CommandFailed;
-import org.neo4j.commandline.admin.IncorrectUsage;
-import org.neo4j.commandline.admin.OutsideWorld;
+import org.neo4j.cli.CommandFailedException;
+import org.neo4j.cli.ExecutionContext;
 import org.neo4j.commandline.dbms.DumpCommandProvider;
 
-import static org.neo4j.helpers.collection.Iterators.array;
+import static org.neo4j.internal.helpers.collection.Iterators.array;
 
 class RealDumpCreator implements PushToCloudCommand.DumpCreator
 {
-    private final Path homeDir;
-    private final Path configDir;
-    private final OutsideWorld outsideWorld;
+    private ExecutionContext ctx;
 
-    RealDumpCreator( Path homeDir, Path configDir, OutsideWorld outsideWorld )
+    RealDumpCreator( ExecutionContext ctx )
     {
-        this.homeDir = homeDir;
-        this.configDir = configDir;
-        this.outsideWorld = outsideWorld;
+        this.ctx = ctx;
     }
 
     @Override
-    public void dumpDatabase( String database, Path targetDumpFile ) throws CommandFailed, IncorrectUsage
+    public void dumpDatabase( String database, Path targetDumpFile ) throws CommandFailedException
     {
         String[] args = array(
                 "--database", database,
                 "--to", targetDumpFile.toString() );
-        new DumpCommandProvider().create( homeDir, configDir, outsideWorld ).execute( args );
-        outsideWorld.outStream().printf( "Dumped contents of database '%s' into '%s'%n", database, targetDumpFile );
+        new CommandLine( new DumpCommandProvider().createCommand( ctx ) ).execute( args );
+        ctx.out().printf( "Dumped contents of database '%s' into '%s'%n", database, targetDumpFile );
     }
 }

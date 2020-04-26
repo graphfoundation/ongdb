@@ -30,7 +30,7 @@ import org.neo4j.values.TernaryComparator;
 /**
  * Comparator for values. Usable for sorting values, for example during index range scans.
  */
-public final class ValueComparator implements Comparator<Value>, TernaryComparator<Value>
+public final class ValueComparator implements TernaryComparator<Value>
 {
     private final Comparator<ValueGroup> valueGroupComparator;
 
@@ -71,7 +71,7 @@ public final class ValueComparator implements Comparator<Value>, TernaryComparat
         {
             return v1.unsafeTernaryCompareTo( v2 );
         }
-        return Comparison.from( x );
+        return Comparison.UNDEFINED;
     }
 
     @Override

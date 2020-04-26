@@ -22,39 +22,35 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.commands.predicates
 
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
+import org.neo4j.cypher.internal.runtime.{ExecutionContext, IsFalseValue, IsNoValue, IsTrueValue}
 import org.neo4j.cypher.internal.runtime.interpreted.commands.AstNode
 import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.{Expression, Literal, Variable}
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.QueryState
 import org.neo4j.cypher.operations.CypherBoolean
-import org.neo4j.values.AnyValue
 import org.neo4j.values.storable._
+import org.neo4j.values.{AnyValue, Equality}
 
 abstract sealed class ComparablePredicate(val left: Expression, val right: Expression) extends Predicate {
 
-  def comparator: ((AnyValue, AnyValue) => Value)
+  def comparator: (AnyValue, AnyValue) => Value
 
   override def isMatch(m: ExecutionContext, state: QueryState): Option[Boolean] = {
     val l = left(m, state)
     val r = right(m, state)
-
-    if (l == Values.NO_VALUE || r == Values.NO_VALUE) None
-    else comparator(l, r) match {
-      case Values.TRUE => Some(true)
-      case Values.FALSE => Some(false)
-      case Values.NO_VALUE => None
+    comparator(l, r) match {
+      case IsTrueValue() => Some(true)
+      case IsFalseValue() => Some(false)
+      case IsNoValue() => None
     }
   }
 
   def sign: String
 
-  override def toString = left.toString() + " " + sign + " " + right.toString()
+  override def toString: String = left.toString() + " " + sign + " " + right.toString()
 
   override def containsIsNull = false
 
   override def arguments: Seq[Expression] = Seq(left, right)
-
-  override def symbolTableDependencies: Set[String] = left.symbolTableDependencies ++ right.symbolTableDependencies
 
   def other(e: Expression): Expression = if (e != left) {
     assert(e == right, "This expression is neither LHS nor RHS")
@@ -77,8 +73,9 @@ case class Equals(a: Expression, b: Expression) extends Predicate {
     val r = b(m, state)
 
     l.ternaryEquals(r) match {
-      case null => None
-      case v => Some(v)
+      case Equality.UNDEFINED => None
+      case Equality.FALSE => Some(false)
+      case Equality.TRUE => Some(true)
     }
   }
 
@@ -94,8 +91,6 @@ case class Equals(a: Expression, b: Expression) extends Predicate {
   override def arguments: Seq[Expression] = Seq(a, b)
 
   override def children: Seq[AstNode[_]] = Seq(a, b)
-
-  override def symbolTableDependencies: Set[String] = a.symbolTableDependencies ++ b.symbolTableDependencies
 }
 
 case class LessThan(a: Expression, b: Expression) extends ComparablePredicate(a, b) {

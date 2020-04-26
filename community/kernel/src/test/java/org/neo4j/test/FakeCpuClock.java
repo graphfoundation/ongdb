@@ -24,24 +24,14 @@ package org.neo4j.test;
 
 import org.eclipse.collections.api.map.primitive.MutableLongLongMap;
 import org.eclipse.collections.impl.map.mutable.primitive.LongLongHashMap;
-import org.junit.rules.TestRule;
-import org.junit.runner.Description;
-import org.junit.runners.model.Statement;
 
 import java.util.concurrent.TimeUnit;
 
 import org.neo4j.resources.CpuClock;
 
-public class FakeCpuClock extends CpuClock implements TestRule
+public class FakeCpuClock implements CpuClock
 {
-    public static final CpuClock NOT_AVAILABLE = new CpuClock()
-    {
-        @Override
-        public long cpuTimeNanos( long threadId )
-        {
-            return -1;
-        }
-    };
+    public static final CpuClock NOT_AVAILABLE = threadId -> -1;
     private final MutableLongLongMap cpuTimes = new LongLongHashMap();
 
     @Override
@@ -64,18 +54,5 @@ public class FakeCpuClock extends CpuClock implements TestRule
     {
         cpuTimes.put( threadId, cpuTimeNanos( threadId ) + nanos );
         return this;
-    }
-
-    @Override
-    public Statement apply( Statement base, Description description )
-    {
-        return new Statement()
-        {
-            @Override
-            public void evaluate() throws Throwable
-            {
-                base.evaluate();
-            }
-        };
     }
 }

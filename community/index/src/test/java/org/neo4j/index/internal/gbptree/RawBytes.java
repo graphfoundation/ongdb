@@ -22,7 +22,7 @@
  */
 package org.neo4j.index.internal.gbptree;
 
-import java.util.Arrays;
+import java.util.StringJoiner;
 
 class RawBytes
 {
@@ -31,6 +31,52 @@ class RawBytes
     @Override
     public String toString()
     {
-        return Arrays.toString( bytes );
+        StringJoiner joiner = new StringJoiner( ", ", "[", "]" );
+        int index = 0;
+        int nbrOfAccumulatedZeroes = 0;
+        while ( index < bytes.length )
+        {
+            if ( bytes[index] != (byte) 0 )
+            {
+                if ( nbrOfAccumulatedZeroes > 0 )
+                {
+                    joiner.add( replaceZeroes( nbrOfAccumulatedZeroes ) );
+                    nbrOfAccumulatedZeroes = 0;
+                }
+                joiner.add( Byte.toString( bytes[index] ) );
+            }
+            else
+            {
+                nbrOfAccumulatedZeroes++;
+            }
+            index++;
+        }
+        if ( nbrOfAccumulatedZeroes > 0 )
+        {
+            joiner.add( replaceZeroes( nbrOfAccumulatedZeroes ) );
+        }
+        return joiner.toString();
+    }
+
+    private String replaceZeroes( int nbrOfZeroes )
+    {
+        if ( nbrOfZeroes > 3 )
+        {
+            return "0...>" + nbrOfZeroes;
+        }
+        else
+        {
+            StringJoiner joiner = new StringJoiner( ", " );
+            for ( int i = 0; i < nbrOfZeroes; i++ )
+            {
+                joiner.add( "0" );
+            }
+            return joiner.toString();
+        }
+    }
+
+    void copyFrom( RawBytes source )
+    {
+        bytes = source.bytes.clone();
     }
 }

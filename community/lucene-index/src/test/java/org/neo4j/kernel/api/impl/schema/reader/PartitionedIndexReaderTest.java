@@ -23,60 +23,58 @@
 package org.neo4j.kernel.api.impl.schema.reader;
 
 import org.eclipse.collections.api.set.primitive.LongSet;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnitRunner;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 
 import org.neo4j.collection.PrimitiveLongCollections;
-import org.neo4j.collection.PrimitiveLongResourceCollections;
-import org.neo4j.helpers.TaskCoordinator;
 import org.neo4j.internal.kernel.api.IndexQuery;
+import org.neo4j.internal.kernel.api.exceptions.schema.IndexNotApplicableKernelException;
 import org.neo4j.internal.kernel.api.exceptions.schema.IndexNotFoundKernelException;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.internal.schema.IndexOrder;
+import org.neo4j.internal.schema.IndexPrototype;
+import org.neo4j.kernel.api.impl.index.SearcherReference;
 import org.neo4j.kernel.api.impl.index.partition.PartitionSearcher;
-import org.neo4j.kernel.api.schema.index.TestIndexDescriptorFactory;
-import org.neo4j.kernel.impl.api.index.sampling.IndexSamplingConfig;
-import org.neo4j.storageengine.api.schema.IndexDescriptor;
-import org.neo4j.storageengine.api.schema.IndexSample;
-import org.neo4j.storageengine.api.schema.IndexSampler;
+import org.neo4j.kernel.api.impl.schema.TaskCoordinator;
+import org.neo4j.kernel.api.index.IndexSample;
+import org.neo4j.kernel.api.index.IndexSampler;
+import org.neo4j.kernel.impl.api.index.IndexSamplingConfig;
+import org.neo4j.kernel.impl.index.schema.NodeIdsIndexReaderQueryAnswer;
+import org.neo4j.kernel.impl.index.schema.NodeValueIterator;
 import org.neo4j.values.storable.Values;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.neo4j.internal.kernel.api.QueryContext.NULL_CONTEXT;
+import static org.neo4j.internal.schema.SchemaDescriptor.forLabel;
 import static org.neo4j.values.storable.Values.stringValue;
 
-@RunWith( MockitoJUnitRunner.class )
-public class PartitionedIndexReaderTest
+class PartitionedIndexReaderTest
 {
     private static final int PROP_KEY = 1;
     private static final int LABEL_ID = 0;
 
-    private IndexDescriptor schemaIndexDescriptor = TestIndexDescriptorFactory.forLabel( LABEL_ID, PROP_KEY );
-    @Mock
-    private IndexSamplingConfig samplingConfig;
-    @Mock
-    private TaskCoordinator taskCoordinator;
-    @Mock
-    private PartitionSearcher partitionSearcher1;
-    @Mock
-    private PartitionSearcher partitionSearcher2;
-    @Mock
-    private PartitionSearcher partitionSearcher3;
-    @Mock
-    private SimpleIndexReader indexReader1;
-    @Mock
-    private SimpleIndexReader indexReader2;
-    @Mock
-    private SimpleIndexReader indexReader3;
+    private final IndexDescriptor schemaIndexDescriptor = IndexPrototype.forSchema( forLabel( LABEL_ID, PROP_KEY ) ).withName( "index" ).materialise( 0 );
+    private final IndexSamplingConfig samplingConfig = mock( IndexSamplingConfig.class );
+    private final TaskCoordinator taskCoordinator = mock( TaskCoordinator.class );
+    private final PartitionSearcher partitionSearcher1 = mock( PartitionSearcher.class );
+    private final PartitionSearcher partitionSearcher2 = mock( PartitionSearcher.class );
+    private final PartitionSearcher partitionSearcher3 = mock( PartitionSearcher.class );
+    private final SimpleIndexReader indexReader1 = mock( SimpleIndexReader.class );
+    private final SimpleIndexReader indexReader2 = mock( SimpleIndexReader.class );
+    private final SimpleIndexReader indexReader3 = mock( SimpleIndexReader.class );
 
     @Test
-    public void partitionedReaderCloseAllSearchers() throws IOException
+    void partitionedReaderCloseAllSearchers() throws IOException
     {
         PartitionedIndexReader partitionedIndexReader = createPartitionedReader();
 
@@ -88,75 +86,75 @@ public class PartitionedIndexReaderTest
     }
 
     @Test
-    public void seekOverAllPartitions() throws Exception
+    void seekOverAllPartitions() throws Exception
     {
         PartitionedIndexReader indexReader = createPartitionedReaderFromReaders();
 
         IndexQuery.ExactPredicate query = IndexQuery.exact( 1, "Test" );
-        when( indexReader1.query( query ) ).thenReturn( PrimitiveLongResourceCollections.iterator( null, 1 ) );
-        when( indexReader2.query( query ) ).thenReturn( PrimitiveLongResourceCollections.iterator( null, 2 ) );
-        when( indexReader3.query( query ) ).thenReturn( PrimitiveLongResourceCollections.iterator( null, 3 ) );
+        doAnswer( new NodeIdsIndexReaderQueryAnswer( schemaIndexDescriptor, 1 ) ).when( indexReader1 ).query( any(), any(), any(), anyBoolean(), any() );
+        doAnswer( new NodeIdsIndexReaderQueryAnswer( schemaIndexDescriptor, 2 ) ).when( indexReader2 ).query( any(), any(), any(), anyBoolean(), any() );
+        doAnswer( new NodeIdsIndexReaderQueryAnswer( schemaIndexDescriptor, 3 ) ).when( indexReader3 ).query( any(), any(), any(), anyBoolean(), any() );
 
-        LongSet results = PrimitiveLongCollections.asSet( indexReader.query( query ) );
+        LongSet results = queryResultAsSet( indexReader, query );
         verifyResult( results );
     }
 
     @Test
-    public void rangeSeekByNumberOverPartitions() throws Exception
+    void rangeSeekByNumberOverPartitions() throws Exception
     {
         PartitionedIndexReader indexReader = createPartitionedReaderFromReaders();
 
         IndexQuery.RangePredicate<?> query = IndexQuery.range( 1, 1, true, 2, true );
-        when( indexReader1.query( query ) ).thenReturn( PrimitiveLongResourceCollections.iterator( null, 1 ) );
-        when( indexReader2.query( query ) ).thenReturn( PrimitiveLongResourceCollections.iterator( null, 2 ) );
-        when( indexReader3.query( query ) ).thenReturn( PrimitiveLongResourceCollections.iterator( null, 3 ) );
+        doAnswer( new NodeIdsIndexReaderQueryAnswer( schemaIndexDescriptor, 1 ) ).when( indexReader1 ).query( any(), any(), any(), anyBoolean(), any() );
+        doAnswer( new NodeIdsIndexReaderQueryAnswer( schemaIndexDescriptor, 2 ) ).when( indexReader2 ).query( any(), any(), any(), anyBoolean(), any() );
+        doAnswer( new NodeIdsIndexReaderQueryAnswer( schemaIndexDescriptor, 3 ) ).when( indexReader3 ).query( any(), any(), any(), anyBoolean(), any() );
 
-        LongSet results = PrimitiveLongCollections.asSet( indexReader.query( query ) );
+        LongSet results = queryResultAsSet( indexReader, query );
         verifyResult( results );
     }
 
     @Test
-    public void rangeSeekByStringOverPartitions() throws Exception
+    void rangeSeekByStringOverPartitions() throws Exception
     {
         PartitionedIndexReader indexReader = createPartitionedReaderFromReaders();
 
         IndexQuery.RangePredicate<?> query = IndexQuery.range( 1, "a", false, "b", true );
-        when( indexReader1.query( query ) ).thenReturn( PrimitiveLongResourceCollections.iterator( null, 1 ) );
-        when( indexReader2.query( query ) ).thenReturn( PrimitiveLongResourceCollections.iterator( null, 2 ) );
-        when( indexReader3.query( query ) ).thenReturn( PrimitiveLongResourceCollections.iterator( null, 3 ) );
+        doAnswer( new NodeIdsIndexReaderQueryAnswer( schemaIndexDescriptor, 1 ) ).when( indexReader1 ).query( any(), any(), any(), anyBoolean(), any() );
+        doAnswer( new NodeIdsIndexReaderQueryAnswer( schemaIndexDescriptor, 2 ) ).when( indexReader2 ).query( any(), any(), any(), anyBoolean(), any() );
+        doAnswer( new NodeIdsIndexReaderQueryAnswer( schemaIndexDescriptor, 3 ) ).when( indexReader3 ).query( any(), any(), any(), anyBoolean(), any() );
 
-        LongSet results = PrimitiveLongCollections.asSet( indexReader.query( query ) );
+        LongSet results = queryResultAsSet( indexReader, query );
         verifyResult( results );
     }
 
     @Test
-    public void rangeSeekByPrefixOverPartitions() throws Exception
+    void rangeSeekByPrefixOverPartitions() throws Exception
     {
         PartitionedIndexReader indexReader = createPartitionedReaderFromReaders();
-        IndexQuery.StringPrefixPredicate query = IndexQuery.stringPrefix( 1, stringValue( "prefix" ) );
-        when( indexReader1.query( query ) ).thenReturn( PrimitiveLongResourceCollections.iterator( null, 1 ) );
-        when( indexReader2.query( query ) ).thenReturn( PrimitiveLongResourceCollections.iterator( null, 2 ) );
-        when( indexReader3.query( query ) ).thenReturn( PrimitiveLongResourceCollections.iterator( null, 3 ) );
+        IndexQuery.StringPrefixPredicate query = IndexQuery.stringPrefix( 1,  stringValue( "prefix" ) );
+        doAnswer( new NodeIdsIndexReaderQueryAnswer( schemaIndexDescriptor, 1 ) ).when( indexReader1 ).query( any(), any(), any(), anyBoolean(), any() );
+        doAnswer( new NodeIdsIndexReaderQueryAnswer( schemaIndexDescriptor, 2 ) ).when( indexReader2 ).query( any(), any(), any(), anyBoolean(), any() );
+        doAnswer( new NodeIdsIndexReaderQueryAnswer( schemaIndexDescriptor, 3 ) ).when( indexReader3 ).query( any(), any(), any(), anyBoolean(), any() );
 
-        LongSet results = PrimitiveLongCollections.asSet( indexReader.query( query ) );
+        LongSet results = queryResultAsSet( indexReader, query );
         verifyResult( results );
     }
 
     @Test
-    public void scanOverPartitions() throws Exception
+    void scanOverPartitions() throws Exception
     {
         PartitionedIndexReader indexReader = createPartitionedReaderFromReaders();
         IndexQuery.ExistsPredicate query = IndexQuery.exists( 1 );
-        when( indexReader1.query( query ) ).thenReturn( PrimitiveLongResourceCollections.iterator( null, 1 ) );
-        when( indexReader2.query( query ) ).thenReturn( PrimitiveLongResourceCollections.iterator( null, 2 ) );
-        when( indexReader3.query( query ) ).thenReturn( PrimitiveLongResourceCollections.iterator( null, 3 ) );
+        doAnswer( new NodeIdsIndexReaderQueryAnswer( schemaIndexDescriptor, 1 ) ).when( indexReader1 ).query( any(), any(), any(), anyBoolean(), any() );
+        doAnswer( new NodeIdsIndexReaderQueryAnswer( schemaIndexDescriptor, 2 ) ).when( indexReader2 ).query( any(), any(), any(), anyBoolean(), any() );
+        doAnswer( new NodeIdsIndexReaderQueryAnswer( schemaIndexDescriptor, 3 ) ).when( indexReader3 ).query( any(), any(), any(), anyBoolean(), any() );
 
-        LongSet results = PrimitiveLongCollections.asSet( indexReader.query( query ) );
+        LongSet results = queryResultAsSet( indexReader, query );
         verifyResult( results );
     }
 
     @Test
-    public void countNodesOverPartitions()
+    void countNodesOverPartitions()
     {
         PartitionedIndexReader indexReader = createPartitionedReaderFromReaders();
         when( indexReader1.countIndexedNodes( 1, new int[] {PROP_KEY}, Values.of( "a" ) ) ).thenReturn( 1L );
@@ -167,7 +165,7 @@ public class PartitionedIndexReaderTest
     }
 
     @Test
-    public void samplingOverPartitions() throws IndexNotFoundKernelException
+    void samplingOverPartitions() throws IndexNotFoundKernelException
     {
         PartitionedIndexReader indexReader = createPartitionedReaderFromReaders();
         when( indexReader1.createSampler() ).thenReturn( new SimpleSampler( 1 ) );
@@ -176,6 +174,15 @@ public class PartitionedIndexReaderTest
 
         IndexSampler sampler = indexReader.createSampler();
         assertEquals( new IndexSample( 6, 6, 6 ), sampler.sampleIndex() );
+    }
+
+    private LongSet queryResultAsSet( PartitionedIndexReader indexReader, IndexQuery query ) throws IndexNotApplicableKernelException
+    {
+        try ( NodeValueIterator iterator = new NodeValueIterator() )
+        {
+            indexReader.query( NULL_CONTEXT, iterator, IndexOrder.NONE, false, query );
+            return PrimitiveLongCollections.asSet( iterator );
+        }
     }
 
     private void verifyResult( LongSet results )
@@ -201,14 +208,14 @@ public class PartitionedIndexReaderTest
         return new PartitionedIndexReader( getPartitionSearchers(), schemaIndexDescriptor, samplingConfig, taskCoordinator );
     }
 
-    private List<PartitionSearcher> getPartitionSearchers()
+    private List<SearcherReference> getPartitionSearchers()
     {
         return Arrays.asList( partitionSearcher1, partitionSearcher2, partitionSearcher3 );
     }
 
-    private class SimpleSampler implements IndexSampler
+    private static class SimpleSampler implements IndexSampler
     {
-        private long sampleValue;
+        private final long sampleValue;
 
         SimpleSampler( long sampleValue )
         {

@@ -26,26 +26,24 @@ import org.junit.Rule;
 import org.junit.Test;
 
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
 
 import org.neo4j.graphdb.ConstraintViolationException;
-import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Transaction;
 import org.neo4j.test.OtherThreadExecutor;
-import org.neo4j.test.rule.DatabaseRule;
-import org.neo4j.test.rule.ImpermanentDatabaseRule;
-import org.neo4j.test.rule.concurrent.OtherThreadRule;
+import org.neo4j.test.rule.DbmsRule;
+import org.neo4j.test.rule.ImpermanentDbmsRule;
+import org.neo4j.test.rule.OtherThreadRule;
 
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.neo4j.graphdb.Label.label;
-import static org.neo4j.test.rule.concurrent.OtherThreadRule.isWaiting;
 
 public class UniquenessConstraintValidationConcurrencyIT
 {
     @Rule
-    public final DatabaseRule database = new ImpermanentDatabaseRule();
+    public final DbmsRule database = new ImpermanentDbmsRule();
     @Rule
     public final OtherThreadRule<Void> otherThread = new OtherThreadRule<>();
 
@@ -56,10 +54,10 @@ public class UniquenessConstraintValidationConcurrencyIT
         database.executeAndCommit( createUniquenessConstraint( "Label1", "key1" ) );
 
         // when
-        Future<Boolean> created = database.executeAndCommit( db ->
+        Future<Boolean> created = database.executeAndCommit( tx ->
         {
-            db.createNode( label( "Label1" ) ).setProperty( "key1", "value1" );
-            return otherThread.execute( createNode( db, "Label1", "key1", "value2" ) );
+            tx.createNode( label( "Label1" ) ).setProperty( "key1", "value1" );
+            return otherThread.execute( createNode( tx, "Label1", "key1", "value2" ) );
         } );
 
         // then
@@ -73,16 +71,16 @@ public class UniquenessConstraintValidationConcurrencyIT
         database.executeAndCommit( createUniquenessConstraint( "Label1", "key1" ) );
 
         // when
-        Future<Boolean> created = database.executeAndCommit( db ->
+        Future<Boolean> created = database.executeAndCommit( tx ->
         {
-            db.createNode( label( "Label1" ) ).setProperty( "key1", "value1" );
+            tx.createNode( label( "Label1" ) ).setProperty( "key1", "value1" );
             try
             {
-                return otherThread.execute( createNode( db, "Label1", "key1", "value1" ) );
+                return otherThread.execute( createNode( tx, "Label1", "key1", "value1" ) );
             }
             finally
             {
-                assertThat( otherThread, isWaiting() );
+                waitUntilWaiting();
             }
         } );
 
@@ -97,16 +95,16 @@ public class UniquenessConstraintValidationConcurrencyIT
         database.executeAndCommit( createUniquenessConstraint( "Label1", "key1" ) );
 
         // when
-        Future<Boolean> created = database.executeAndRollback( db ->
+        Future<Boolean> created = database.executeAndRollback( tx ->
         {
-            db.createNode( label( "Label1" ) ).setProperty( "key1", "value1" );
+            tx.createNode( label( "Label1" ) ).setProperty( "key1", "value1" );
             try
             {
-                return otherThread.execute( createNode( db, "Label1", "key1", "value1" ) );
+                return otherThread.execute( createNode( tx, "Label1", "key1", "value1" ) );
             }
             finally
             {
-                assertThat( otherThread, isWaiting() );
+                waitUntilWaiting();
             }
         } );
 
@@ -114,26 +112,37 @@ public class UniquenessConstraintValidationConcurrencyIT
         assertTrue( "Node creation should succeed", created.get() );
     }
 
-    private static Function<GraphDatabaseService, Void> createUniquenessConstraint(
-            final String label, final String propertyKey )
+    private void waitUntilWaiting()
     {
-        return db ->
+        try
         {
-            db.schema().constraintFor( label( label ) ).assertPropertyIsUnique( propertyKey ).create();
+            otherThread.get().waitUntilWaiting();
+        }
+        catch ( TimeoutException e )
+        {
+            throw new RuntimeException( e );
+        }
+    }
+
+    private Function<Transaction, Void> createUniquenessConstraint( final String label, final String propertyKey )
+    {
+        return transaction ->
+        {
+            transaction.schema().constraintFor( label( label ) ).assertPropertyIsUnique( propertyKey ).create();
             return null;
         };
     }
 
-    public static OtherThreadExecutor.WorkerCommand<Void, Boolean> createNode(
-            final GraphDatabaseService db, final String label, final String propertyKey, final Object propertyValue )
+    public OtherThreadExecutor.WorkerCommand<Void, Boolean> createNode(
+            final Transaction transaction, final String label, final String propertyKey, final Object propertyValue )
     {
         return nothing ->
         {
-            try ( Transaction tx = db.beginTx() )
+            try ( Transaction tx = database.beginTx() )
             {
-                db.createNode( label( label ) ).setProperty( propertyKey, propertyValue );
+                tx.createNode( label( label ) ).setProperty( propertyKey, propertyValue );
 
-                tx.success();
+                tx.commit();
                 return true;
             }
             catch ( ConstraintViolationException e )

@@ -56,6 +56,12 @@ class InvalidState implements MethodEmitter
     }
 
     @Override
+    public boolean isStatic()
+    {
+        throw new IllegalStateException( reason );
+    }
+
+    @Override
     public void done()
     {
         throw new IllegalStateException( reason );
@@ -69,6 +75,12 @@ class InvalidState implements MethodEmitter
 
     @Override
     public void put( Expression target, FieldReference field, Expression value )
+    {
+        throw new IllegalStateException( reason );
+    }
+
+    @Override
+    public void putStatic( FieldReference field, Expression value )
     {
         throw new IllegalStateException( reason );
     }
@@ -92,13 +104,19 @@ class InvalidState implements MethodEmitter
     }
 
     @Override
+    public void breaks( String labelName )
+    {
+        throw new IllegalStateException( reason );
+    }
+
+    @Override
     public void assign( LocalVariable variable, Expression value )
     {
         throw new IllegalStateException( reason );
     }
 
     @Override
-    public void beginWhile( Expression test )
+    public void beginWhile( Expression test, String labelName )
     {
         throw new IllegalStateException( reason );
     }
@@ -117,6 +135,12 @@ class InvalidState implements MethodEmitter
 
     @Override
     public void endBlock()
+    {
+        throw new IllegalStateException( reason );
+    }
+
+    @Override
+    public <T> void ifElseStatement( Expression test, Consumer<T> onTrue, Consumer<T> onFalse, T block )
     {
         throw new IllegalStateException( reason );
     }

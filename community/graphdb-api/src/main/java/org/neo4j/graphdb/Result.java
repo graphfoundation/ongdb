@@ -26,8 +26,10 @@ import java.io.PrintWriter;
 import java.util.List;
 import java.util.Map;
 
+import org.neo4j.annotations.api.PublicApi;
+
 /**
- * Represents the result of {@link GraphDatabaseService#execute(String, java.util.Map) executing} a query.
+ * Represents the result of {@link Transaction#execute(String, java.util.Map) executing} a query.
  * <p>
  * The result is comprised of a number of rows, potentially computed lazily, with this result object being an iterator
  * over those rows. Each row is represented as a <code>{@link Map}&lt;{@link String}, {@link Object}&gt;</code>, the
@@ -80,6 +82,7 @@ import java.util.Map;
  * distinguish between these cases the {@link QueryExecutionType} {@linkplain #getQueryExecutionType() of this result}
  * can be queried.
  */
+@PublicApi
 public interface Result extends ResourceIterator<Map<String,Object>>
 {
     /**

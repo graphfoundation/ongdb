@@ -29,7 +29,7 @@ import org.neo4j.values.ValueMapper;
 
 import static java.lang.String.format;
 
-public class DoubleArray extends FloatingPointArray
+public final class DoubleArray extends FloatingPointArray
 {
     private final double[] value;
 
@@ -146,5 +146,11 @@ public class DoubleArray extends FloatingPointArray
     public String getTypeName()
     {
         return "DoubleArray";
+    }
+
+    @Override
+    long sizePerItem()
+    {
+        return Double.BYTES;
     }
 }

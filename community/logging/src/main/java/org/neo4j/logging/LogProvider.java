@@ -22,16 +22,19 @@
  */
 package org.neo4j.logging;
 
+import org.neo4j.annotations.api.PublicApi;
+
 /**
  * Used to obtain a {@link Log} for a specified context
  */
+@PublicApi
 public interface LogProvider
 {
     /**
      * @param loggingClass the context for the returned {@link Log}
      * @return a {@link Log} that logs messages with the {@code loggingClass} as the context
      */
-    Log getLog( Class loggingClass );
+    Log getLog( Class<?> loggingClass );
 
     /**
      * @param name the context for the returned {@link Log}

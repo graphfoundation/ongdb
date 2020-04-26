@@ -28,16 +28,18 @@ import org.neo4j.kernel.impl.api.TransactionToApply;
 import org.neo4j.kernel.impl.transaction.CommittedTransactionRepresentation;
 import org.neo4j.kernel.impl.transaction.TransactionRepresentation;
 import org.neo4j.kernel.impl.transaction.log.LogPosition;
-import org.neo4j.kernel.impl.transaction.log.LogVersionRepository;
 import org.neo4j.kernel.impl.transaction.log.LogicalTransactionStore;
 import org.neo4j.kernel.impl.transaction.log.TransactionCursor;
-import org.neo4j.kernel.impl.transaction.log.TransactionIdStore;
 import org.neo4j.kernel.impl.transaction.log.entry.LogEntryCommit;
-import org.neo4j.kernel.impl.transaction.log.entry.LogEntryStart;
+import org.neo4j.kernel.impl.transaction.log.files.LogFiles;
+import org.neo4j.logging.Log;
+import org.neo4j.storageengine.api.LogVersionRepository;
 import org.neo4j.storageengine.api.StorageEngine;
 import org.neo4j.storageengine.api.TransactionApplicationMode;
+import org.neo4j.storageengine.api.TransactionIdStore;
 
 import static org.neo4j.kernel.impl.transaction.log.Commitment.NO_COMMITMENT;
+import static org.neo4j.kernel.impl.transaction.log.entry.LogVersions.CURRENT_FORMAT_LOG_HEADER_SIZE;
 
 public class DefaultRecoveryService implements RecoveryService
 {
@@ -46,33 +48,24 @@ public class DefaultRecoveryService implements RecoveryService
     private final TransactionIdStore transactionIdStore;
     private final LogicalTransactionStore logicalTransactionStore;
     private final LogVersionRepository logVersionRepository;
+    private final Log log;
 
-    public DefaultRecoveryService( StorageEngine storageEngine, LogTailScanner logTailScanner,
-            TransactionIdStore transactionIdStore, LogicalTransactionStore logicalTransactionStore,
-            LogVersionRepository logVersionRepository, RecoveryStartInformationProvider.Monitor monitor )
+    DefaultRecoveryService( StorageEngine storageEngine, LogTailScanner logTailScanner, TransactionIdStore transactionIdStore,
+            LogicalTransactionStore logicalTransactionStore, LogVersionRepository logVersionRepository, LogFiles logFiles,
+            RecoveryStartInformationProvider.Monitor monitor, Log log )
     {
         this.storageEngine = storageEngine;
         this.transactionIdStore = transactionIdStore;
         this.logicalTransactionStore = logicalTransactionStore;
         this.logVersionRepository = logVersionRepository;
-        this.recoveryStartInformationProvider = new RecoveryStartInformationProvider( logTailScanner, monitor );
+        this.log = log;
+        this.recoveryStartInformationProvider = new RecoveryStartInformationProvider( logTailScanner, logFiles, monitor );
     }
 
     @Override
     public RecoveryStartInformation getRecoveryStartInformation()
     {
         return recoveryStartInformationProvider.get();
-    }
-
-    @Override
-    public void startRecovery()
-    {
-        // Calling this method means that recovery is required, tell storage engine about it
-        // This method will be called before recovery actually starts and so will ensure that
-        // each store is aware that recovery will be performed. At this point all the stores have
-        // already started btw.
-        // Go and read more at {@link CommonAbstractStore#deleteIdGenerator()}
-        storageEngine.prepareForRecoveryRequired();
     }
 
     @Override
@@ -94,22 +87,42 @@ public class DefaultRecoveryService implements RecoveryService
     }
 
     @Override
-    public void transactionsRecovered( CommittedTransactionRepresentation lastRecoveredTransaction,
-            LogPosition positionAfterLastRecoveredTransaction )
+    public void transactionsRecovered( CommittedTransactionRepresentation lastRecoveredTransaction, LogPosition lastRecoveredTransactionPosition,
+            LogPosition positionAfterLastRecoveredTransaction, boolean missingLogs )
     {
-        long recoveredTransactionLogVersion = positionAfterLastRecoveredTransaction.getLogVersion();
-        long recoveredTransactionOffset = positionAfterLastRecoveredTransaction.getByteOffset();
+        if ( missingLogs )
+        {
+            // in case if logs are missing we need to reset position of last committed transaction since
+            // this information influencing checkpoint that will be created and if we will not gonna do that
+            // it will still reference old offset from logs that are gone and as result log position in checkpoint record will be incorrect
+            // and that can cause partial next recovery.
+            long[] lastClosedTransaction = transactionIdStore.getLastClosedTransaction();
+            long logVersion = lastClosedTransaction[1];
+            log.warn( "Recovery detected that transaction logs were missing. " +
+                    "Resetting offset of last closed transaction to point to the head of %d transaction log file.", logVersion );
+            transactionIdStore.resetLastClosedTransaction( lastClosedTransaction[0], logVersion, CURRENT_FORMAT_LOG_HEADER_SIZE, true );
+            return;
+        }
         if ( lastRecoveredTransaction != null )
         {
             LogEntryCommit commitEntry = lastRecoveredTransaction.getCommitEntry();
-            transactionIdStore.setLastCommittedAndClosedTransactionId(
-                    commitEntry.getTxId(),
-                    LogEntryStart.checksum( lastRecoveredTransaction.getStartEntry() ),
-                    commitEntry.getTimeWritten(),
-                    recoveredTransactionOffset,
-                    recoveredTransactionLogVersion );
+            transactionIdStore
+                    .setLastCommittedAndClosedTransactionId( commitEntry.getTxId(), lastRecoveredTransaction.getChecksum(), commitEntry.getTimeWritten(),
+                            lastRecoveredTransactionPosition.getByteOffset(), lastRecoveredTransactionPosition.getLogVersion() );
         }
-        logVersionRepository.setCurrentLogVersion( recoveredTransactionLogVersion );
+        else
+        {
+            // we do not have last recovered transaction but recovery was still triggered
+            // this happens when we read past end of the log file or can't read it at all but recovery was enforced
+            // which means that log files after last recovered position can't be trusted and we need to reset last closed tx log info
+            long lastClosedTransactionId = transactionIdStore.getLastClosedTransactionId();
+            log.warn( "Recovery detected that transaction logs tail can't be trusted. " +
+                    "Resetting offset of last closed transaction to point to the last recoverable log position: " + positionAfterLastRecoveredTransaction );
+            transactionIdStore.resetLastClosedTransaction( lastClosedTransactionId, positionAfterLastRecoveredTransaction.getLogVersion(),
+                    positionAfterLastRecoveredTransaction.getByteOffset(), false );
+        }
+
+        logVersionRepository.setCurrentLogVersion( positionAfterLastRecoveredTransaction.getLogVersion() );
     }
 
     static class RecoveryVisitor implements RecoveryApplier

@@ -11,7 +11,6 @@
     <modelVersion>4.0.0</modelVersion>
     <artifactId>ongdb-cypher-acceptance-spec-suite</artifactId>
     <packaging>jar</packaging>
-    <version>4.0.4-SNAPSHOT</version>
     <name>ONgDB - Cypher Acceptance</name>
     <description>ONgDB Cypher Acceptance Specification Suite</description>
     <url>https://ongdb.graphfoundation.org/${project.artifactId}/${project.version}</url>
@@ -23,7 +22,7 @@
     </scm>
 
     <properties>
-        <moduleName>org.neo4j.cypher.internal.runtime.util</moduleName>
+        <moduleName>org.neo4j.cypher.internal.acceptance.spec.suite</moduleName>
         <license-text.header>headers/GPL-3-header.txt</license-text.header>
     </properties>
 
@@ -33,15 +32,6 @@
             <url>http://www.gnu.org/licenses/gpl-3.0-standalone.html</url>
         </license>
     </licenses>
-
-    <build>
-        <plugins>
-            <plugin>
-                <groupId>org.scalastyle</groupId>
-                <artifactId>scalastyle-maven-plugin</artifactId>
-            </plugin>
-        </plugins>
-    </build>
 
     <dependencies>
 
@@ -68,15 +58,11 @@
 
         <dependency>
             <groupId>org.scalatest</groupId>
-            <artifactId>scalatest_2.11</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.scalautils</groupId>
-            <artifactId>scalautils_2.11</artifactId>
+            <artifactId>scalatest_${scala.binary.version}</artifactId>
         </dependency>
         <dependency>
             <groupId>org.scalacheck</groupId>
-            <artifactId>scalacheck_2.11</artifactId>
+            <artifactId>scalacheck_${scala.binary.version}</artifactId>
         </dependency>
 
         <!-- neo4j -->
@@ -117,9 +103,8 @@
 
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-io</artifactId>
+            <artifactId>io-test-utils</artifactId>
             <version>${project.version}</version>
-            <type>test-jar</type>
             <scope>test</scope>
         </dependency>
 
@@ -132,9 +117,8 @@
 
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-logging</artifactId>
+            <artifactId>log-test-utils</artifactId>
             <version>${project.version}</version>
-            <type>test-jar</type>
         </dependency>
 
         <dependency>
@@ -149,7 +133,7 @@
 
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-cypher-planner-3.6</artifactId>
+            <artifactId>ongdb-cypher-planner</artifactId>
             <version>${project.version}</version>
         </dependency>
 
@@ -157,7 +141,7 @@
 
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-cypher-planner-3.6</artifactId>
+            <artifactId>ongdb-cypher-planner</artifactId>
             <version>${project.version}</version>
             <type>test-jar</type>
             <scope>test</scope>
@@ -165,7 +149,7 @@
 
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-ast-3.6</artifactId>
+            <artifactId>ongdb-ast-4.0</artifactId>
             <version>${project.version}</version>
             <type>test-jar</type>
             <scope>test</scope>
@@ -173,7 +157,7 @@
 
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-util-3.6</artifactId>
+            <artifactId>ongdb-util-4.0</artifactId>
             <version>${project.version}</version>
             <type>test-jar</type>
             <scope>test</scope>
@@ -201,8 +185,8 @@
         <!-- other -->
 
         <dependency>
-            <groupId>com.novus</groupId>
-            <artifactId>salat-core_2.11</artifactId>
+            <groupId>com.github.salat</groupId>
+            <artifactId>salat-core_${scala.binary.version}</artifactId>
         </dependency>
 
         <dependency>

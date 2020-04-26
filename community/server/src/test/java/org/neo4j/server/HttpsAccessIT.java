@@ -22,22 +22,19 @@
  */
 package org.neo4j.server;
 
-import org.apache.http.client.utils.URIBuilder;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.net.URI;
 import java.security.SecureRandom;
 import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSocketFactory;
 import javax.net.ssl.TrustManager;
 
-import org.neo4j.graphdb.DependencyResolver;
-import org.neo4j.helpers.HostnamePort;
-import org.neo4j.kernel.configuration.ConnectorPortRegister;
+import org.neo4j.internal.helpers.HostnamePort;
 import org.neo4j.server.helpers.CommunityServerBuilder;
+import org.neo4j.test.PortUtils;
 import org.neo4j.test.server.ExclusiveServerTestBase;
 import org.neo4j.test.server.HTTP;
 import org.neo4j.test.server.InsecureTrustManager;
@@ -45,7 +42,6 @@ import org.neo4j.test.server.InsecureTrustManager;
 import static org.hamcrest.CoreMatchers.startsWith;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 import static org.neo4j.server.helpers.CommunityServerBuilder.serverOnRandomPorts;
 import static org.neo4j.test.server.HTTP.GET;
@@ -75,8 +71,8 @@ public class HttpsAccessIT extends ExclusiveServerTestBase
     {
         startServer();
 
-        assertThat( GET( httpsUri() ).status(), is( 200 ) );
-        assertThat( GET(server.baseUri().toString()).status(), is( 200 ) );
+        assertThat( GET( server.httpsUri().get().toString() ).status(), is( 200 ) );
+        assertThat( GET( server.baseUri().toString() ).status(), is( 200 ) );
     }
 
     @Test
@@ -85,7 +81,7 @@ public class HttpsAccessIT extends ExclusiveServerTestBase
         startServer();
 
         String baseUri = server.baseUri().toString();
-        HTTP.Response response = POST( baseUri + "db/data/transaction", quotedJson( "{'statements':[]}" ) );
+        HTTP.Response response = POST( baseUri + txEndpoint(), quotedJson( "{'statements':[]}" ) );
 
         assertThat( response.location(), startsWith( baseUri ) );
         assertThat( response.get( "commit" ).asText(), startsWith( baseUri ) );
@@ -95,26 +91,33 @@ public class HttpsAccessIT extends ExclusiveServerTestBase
     public void shouldExposeBaseUriWhenHttpEnabledAndHttpsDisabled() throws Exception
     {
         startServer( true, false );
-
-        URI uri = server.baseUri();
-
-        assertEquals( "http", uri.getScheme() );
-        HostnamePort expectedHostPort = addressForConnector( "http" );
-        assertEquals( expectedHostPort.getHost(), uri.getHost() );
-        assertEquals( expectedHostPort.getPort(), uri.getPort() );
+        shouldInstallConnector( "http" );
+        shouldExposeCorrectSchemeInDiscoveryService( "http" );
     }
 
     @Test
     public void shouldExposeBaseUriWhenHttpDisabledAndHttpsEnabled() throws Exception
     {
         startServer( false, true );
+        shouldInstallConnector( "https" );
+        shouldExposeCorrectSchemeInDiscoveryService( "https" );
+    }
 
-        URI uri = server.baseUri();
-
-        assertEquals( "https", uri.getScheme() );
-        HostnamePort expectedHostPort = addressForConnector( "https" );
+    private void shouldInstallConnector( String scheme )
+    {
+        var uri = server.baseUri();
+        assertEquals( scheme, uri.getScheme() );
+        HostnamePort expectedHostPort = PortUtils.getConnectorAddress( server.databaseService.getDatabase(), scheme );
         assertEquals( expectedHostPort.getHost(), uri.getHost() );
         assertEquals( expectedHostPort.getPort(), uri.getPort() );
+    }
+
+    private void shouldExposeCorrectSchemeInDiscoveryService( String scheme ) throws Exception
+    {
+        var response = GET( server.baseUri().toString() );
+
+        assertThat( response.status(), is( 200 ) );
+        assertThat( response.stringFromContent( "transaction" ), startsWith( scheme + "://" ) );
     }
 
     private void startServer() throws Exception
@@ -145,25 +148,5 @@ public class HttpsAccessIT extends ExclusiveServerTestBase
         SSLContext sc = SSLContext.getInstance( "TLS" );
         sc.init( null, trustAllCerts, new SecureRandom() );
         HttpsURLConnection.setDefaultSSLSocketFactory( sc.getSocketFactory() );
-    }
-
-    private String httpsUri() throws Exception
-    {
-        HostnamePort hostPort = addressForConnector( "https" );
-        assertNotNull( hostPort );
-
-        return new URIBuilder()
-                .setScheme( "https" )
-                .setHost( hostPort.getHost() )
-                .setPort( hostPort.getPort() )
-                .build()
-                .toString();
-    }
-
-    private HostnamePort addressForConnector( String name )
-    {
-        DependencyResolver resolver = server.database.getGraph().getDependencyResolver();
-        ConnectorPortRegister portRegister = resolver.resolveDependency( ConnectorPortRegister.class );
-        return portRegister.getLocalAddress( name );
     }
 }

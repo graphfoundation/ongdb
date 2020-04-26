@@ -11,7 +11,6 @@
     </parent>
 
     <artifactId>cypher-parent</artifactId>
-    <version>4.0.4-SNAPSHOT</version>
     <packaging>pom</packaging>
     <name>ONgDB - Community Cypher Build</name>
     <description>Project that builds the Neo4j Cypher modules as part of the Community distribution.</description>
@@ -37,17 +36,19 @@
                 </property>
             </activation>
             <modules>
-                <module>ir-3.6</module>
-                <module>cypher-planner-3.6</module>
-                <module>planner-spi-3.6</module>
+                <module>ir</module>
+                <module>cypher-planner</module>
+                <module>planner-spi</module>
                 <module>cypher</module>
-                <module>cypher-logical-plans-3.6</module>
+                <module>cypher-logical-plans</module>
                 <module>front-end</module>
                 <module>runtime-util</module>
                 <module>interpreted-runtime</module>
                 <module>acceptance-spec-suite</module>
                 <module>compatibility-spec-suite</module>
                 <module>spec-suite-tools</module>
+                <module>logical-query-builder</module>
+                <module>runtime-spec-suite</module>
                 <module>expression-evaluator</module>
             </modules>
         </profile>
@@ -67,6 +68,10 @@
                     <rules combine.children="append">
                         <requireFilesDontExist>
                             <files>
+                                <file>cypher-planner-3.6</file>
+                                <file>cypher-planner-3.5</file>
+                                <file>cypher-compiler-3.4</file>
+                                <file>cypher-compiler-3.3</file>
                                 <file>cypher-compiler-3.2</file>
                                 <file>cypher-compiler-3.1</file>
                                 <file>cypher-compiler-3.0</file>
@@ -90,24 +95,16 @@
 
         <!-- shared java test dependencies -->
         <dependency>
-            <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter-migrationsupport</artifactId>
-        </dependency>
-        <dependency>
             <groupId>org.junit.vintage</groupId>
             <artifactId>junit-vintage-engine</artifactId>
         </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter-engine</artifactId>
+            <artifactId>junit-jupiter</artifactId>
         </dependency>
         <dependency>
             <groupId>org.hamcrest</groupId>
-            <artifactId>hamcrest-core</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.hamcrest</groupId>
-            <artifactId>hamcrest-library</artifactId>
+            <artifactId>hamcrest</artifactId>
         </dependency>
         <dependency>
             <groupId>org.mockito</groupId>
@@ -135,28 +132,20 @@
             </dependency>
             <dependency>
                 <groupId>org.graphfoundation.ongdb</groupId>
-                <artifactId>ongdb-common</artifactId>
+                <artifactId>test-utils</artifactId>
                 <version>${project.version}</version>
-                <type>test-jar</type>
                 <scope>test</scope>
             </dependency>
             <dependency>
                 <groupId>org.graphfoundation.ongdb</groupId>
-                <artifactId>ongdb-io</artifactId>
+                <artifactId>io-test-utils</artifactId>
                 <version>${project.version}</version>
-                <type>test-jar</type>
                 <scope>test</scope>
             </dependency>
             <dependency>
                 <groupId>org.graphfoundation.ongdb</groupId>
                 <artifactId>ongdb-lucene-index</artifactId>
                 <version>${project.version}</version>
-            </dependency>
-            <!-- graph matching is used in old cypher compilers 3.1 and 2.3 we can use the old component -->
-            <dependency>
-                <groupId>org.neo4j</groupId>
-                <artifactId>neo4j-graph-matching</artifactId>
-                <version>${cypher.compatibility.31}</version>
             </dependency>
             <dependency>
                 <groupId>org.graphfoundation.ongdb</groupId>
@@ -167,8 +156,8 @@
             <!-- other -->
             <dependency>
                 <groupId>org.parboiled</groupId>
-                <artifactId>parboiled-scala_2.11</artifactId>
-                <version>1.1.7</version>
+                <artifactId>parboiled-scala_${scala.binary.version}</artifactId>
+                <version>1.2.0</version>
                 <exclusions>
                     <exclusion>
                         <artifactId>scala-library</artifactId>

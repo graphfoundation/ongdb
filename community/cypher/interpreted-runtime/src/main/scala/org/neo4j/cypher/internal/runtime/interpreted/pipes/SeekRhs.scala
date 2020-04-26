@@ -22,8 +22,8 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
-import org.neo4j.cypher.internal.v3_6.logical.plans.{ManyQueryExpression, QueryExpression, SingleQueryExpression}
-import org.neo4j.cypher.internal.v3_6.expressions._
+import org.neo4j.cypher.internal.logical.plans.{ManyQueryExpression, QueryExpression, SingleQueryExpression}
+import org.neo4j.cypher.internal.v4_0.expressions._
 
 object Seek {
   def unapply(v: Any) = v match {

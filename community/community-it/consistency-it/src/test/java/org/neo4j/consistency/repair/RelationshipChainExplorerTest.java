@@ -23,62 +23,65 @@
 package org.neo4j.consistency.repair;
 
 import org.apache.commons.lang3.StringUtils;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.ClassRule;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.RuleChain;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
-import java.io.File;
+import java.util.Map;
 
+import org.neo4j.configuration.Config;
+import org.neo4j.configuration.GraphDatabaseSettings;
+import org.neo4j.dbms.api.DatabaseManagementService;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.RelationshipType;
 import org.neo4j.graphdb.Transaction;
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
+import org.neo4j.graphdb.config.Setting;
+import org.neo4j.io.fs.FileSystemAbstraction;
+import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.io.pagecache.PageCache;
-import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.impl.store.RecordStore;
 import org.neo4j.kernel.impl.store.StoreAccess;
 import org.neo4j.kernel.impl.store.record.RelationshipRecord;
-import org.neo4j.test.TestGraphDatabaseFactory;
-import org.neo4j.test.rule.PageCacheRule;
-import org.neo4j.test.rule.TestDirectory;
-import org.neo4j.test.rule.fs.DefaultFileSystemRule;
+import org.neo4j.test.TestDatabaseManagementServiceBuilder;
+import org.neo4j.test.extension.Inject;
+import org.neo4j.test.extension.Neo4jLayoutExtension;
+import org.neo4j.test.extension.pagecache.PageCacheExtension;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
 import static org.neo4j.kernel.impl.store.record.RecordLoad.FORCE;
 import static org.neo4j.kernel.impl.store.record.RecordLoad.NORMAL;
 
+@PageCacheExtension
+@Neo4jLayoutExtension
 public class RelationshipChainExplorerTest
 {
     private static final int degreeTwoNodes = 10;
 
-    private final TestDirectory testDirectory = TestDirectory.testDirectory();
-    private final DefaultFileSystemRule fileSystemRule = new DefaultFileSystemRule();
-
-    @ClassRule
-    public static PageCacheRule pageCacheRule = new PageCacheRule();
-    @Rule
-    public RuleChain ruleChain = RuleChain.outerRule( testDirectory ).around( fileSystemRule );
+    @Inject
+    private FileSystemAbstraction fileSystem;
+    @Inject
+    private PageCache pageCache;
+    @Inject
+    private DatabaseLayout databaseLayout;
 
     private StoreAccess store;
 
-    @Before
-    public void setupStoreAccess()
+    @BeforeEach
+    void setupStoreAccess()
     {
         store = createStoreWithOneHighDegreeNodeAndSeveralDegreeTwoNodes( degreeTwoNodes );
     }
 
-    @After
-    public void tearDownStoreAccess()
+    @AfterEach
+    void tearDownStoreAccess()
     {
         store.close();
     }
 
     @Test
-    public void shouldLoadAllConnectedRelationshipRecordsAndTheirFullChainsOfRelationshipRecords()
+    void shouldLoadAllConnectedRelationshipRecordsAndTheirFullChainsOfRelationshipRecords()
     {
         // given
         RecordStore<RelationshipRecord> relationshipStore = store.getRelationshipStore();
@@ -94,7 +97,7 @@ public class RelationshipChainExplorerTest
     }
 
     @Test
-    public void shouldCopeWithAChainThatReferencesNotInUseZeroValueRecords()
+    void shouldCopeWithAChainThatReferencesNotInUseZeroValueRecords()
     {
         // given
         RecordStore<RelationshipRecord> relationshipStore = store.getRelationshipStore();
@@ -131,20 +134,16 @@ public class RelationshipChainExplorerTest
 
     private StoreAccess createStoreWithOneHighDegreeNodeAndSeveralDegreeTwoNodes( int nDegreeTwoNodes )
     {
-        File storeDirectory = testDirectory.databaseDir();
-        GraphDatabaseService database = new TestGraphDatabaseFactory()
-                .newEmbeddedDatabaseBuilder( storeDirectory )
-                .setConfig( GraphDatabaseSettings.record_format, getRecordFormatName() )
-                .setConfig( "dbms.backup.enabled", "false" )
-                .newGraphDatabase();
+        DatabaseManagementService managementService = new TestDatabaseManagementServiceBuilder( databaseLayout ).setConfig( getConfig() ).build();
+        GraphDatabaseService database = managementService.database( DEFAULT_DATABASE_NAME );
 
         try ( Transaction transaction = database.beginTx() )
         {
-            Node denseNode = database.createNode();
+            Node denseNode = transaction.createNode();
             for ( int i = 0; i < nDegreeTwoNodes; i++ )
             {
-                Node degreeTwoNode = database.createNode();
-                Node leafNode = database.createNode();
+                Node degreeTwoNode = transaction.createNode();
+                Node leafNode = transaction.createNode();
                 if ( i % 2 == 0 )
                 {
                     denseNode.createRelationshipTo( degreeTwoNode, TestRelationshipType.CONNECTED );
@@ -155,13 +154,16 @@ public class RelationshipChainExplorerTest
                 }
                 degreeTwoNode.createRelationshipTo( leafNode, TestRelationshipType.CONNECTED );
             }
-            transaction.success();
+            transaction.commit();
         }
-        database.shutdown();
-        PageCache pageCache = pageCacheRule.getPageCache( fileSystemRule.get() );
-        StoreAccess storeAccess = new StoreAccess( fileSystemRule.get(), pageCache, testDirectory.databaseLayout(),
-                Config.defaults() );
+        managementService.shutdown();
+        StoreAccess storeAccess = new StoreAccess( fileSystem, pageCache, databaseLayout, Config.defaults() );
         return storeAccess.initialize();
+    }
+
+    protected Map<Setting<?>,Object> getConfig()
+    {
+        return Map.of( GraphDatabaseSettings.record_format, getRecordFormatName() );
     }
 
     protected String getRecordFormatName()

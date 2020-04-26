@@ -26,6 +26,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.neo4j.annotations.api.PublicApi;
+
 import static java.util.Arrays.stream;
 
 /**
@@ -42,6 +44,7 @@ import static java.util.Arrays.stream;
  * system
  * (see ${@link CRS})
  */
+@PublicApi
 public final class Coordinate
 {
     private final double[] coordinate;

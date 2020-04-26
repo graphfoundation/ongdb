@@ -22,144 +22,117 @@
  */
 package org.neo4j.graphdb.facade;
 
-import org.eclipse.collections.api.list.ImmutableList;
-import org.eclipse.collections.api.map.ImmutableMap;
-import org.eclipse.collections.impl.list.immutable.ImmutableListFactoryImpl;
-import org.eclipse.collections.impl.map.immutable.ImmutableMapFactoryImpl;
-
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
+import org.neo4j.common.DependencyResolver;
+import org.neo4j.graphdb.event.DatabaseEventListener;
 import org.neo4j.graphdb.security.URLAccessRule;
-import org.neo4j.helpers.Service;
-import org.neo4j.helpers.collection.Pair;
-import org.neo4j.kernel.extension.KernelExtensionFactory;
-import org.neo4j.kernel.impl.query.QueryEngineProvider;
+import org.neo4j.internal.helpers.collection.Iterators;
+import org.neo4j.internal.helpers.collection.Pair;
+import org.neo4j.kernel.extension.ExtensionFactory;
 import org.neo4j.kernel.impl.security.URLAccessRules;
-import org.neo4j.kernel.monitoring.Monitors;
 import org.neo4j.logging.LogProvider;
+import org.neo4j.monitoring.Monitors;
 import org.neo4j.scheduler.DeferredExecutor;
 import org.neo4j.scheduler.Group;
+import org.neo4j.service.Services;
 
-import static org.neo4j.helpers.collection.Iterables.concat;
-import static org.neo4j.helpers.collection.Iterables.asImmutableList;
-import static org.neo4j.helpers.collection.Iterables.asImmutableMap;
-import static org.neo4j.helpers.collection.Iterables.asIterable;
+import static org.neo4j.internal.helpers.collection.Iterables.asList;
+import static org.neo4j.internal.helpers.collection.Iterables.empty;
 
-public class GraphDatabaseDependencies implements GraphDatabaseFacadeFactory.Dependencies
+public class GraphDatabaseDependencies implements ExternalDependencies
 {
-    public static GraphDatabaseDependencies newDependencies( GraphDatabaseFacadeFactory.Dependencies deps )
+    public static GraphDatabaseDependencies newDependencies( ExternalDependencies deps )
     {
-        return new GraphDatabaseDependencies( deps.monitors(), deps.userLogProvider(),
-                asImmutableList( deps.settingsClasses() ), asImmutableList( deps.kernelExtensions() ),
-                asImmutableMap( deps.urlAccessRules() ), asImmutableList( deps.executionEngines() ),
-                asImmutableList( deps.deferredExecutors() ) );
+        return new GraphDatabaseDependencies( deps.monitors(), deps.userLogProvider(), deps.dependencies(), deps.extensions(),
+                deps.urlAccessRules(), deps.deferredExecutors(), deps.databaseEventListeners() );
     }
 
     public static GraphDatabaseDependencies newDependencies()
     {
-        ImmutableList<Class<?>> settingsClasses = ImmutableListFactoryImpl.INSTANCE.empty();
-        ImmutableList<KernelExtensionFactory<?>> kernelExtensions = asImmutableList(
-                getKernelExtensions(Service.load( KernelExtensionFactory.class ).iterator()));
+        Iterable<ExtensionFactory<?>> extensions = getExtensions( Services.loadAll( ExtensionFactory.class ).iterator() );
 
-        ImmutableMap<String,URLAccessRule> urlAccessRules = ImmutableMapFactoryImpl.INSTANCE.of(
-                "http", URLAccessRules.alwaysPermitted(),
-                "https", URLAccessRules.alwaysPermitted(),
-                "ftp", URLAccessRules.alwaysPermitted(),
-                "file", URLAccessRules.fileAccess()
-        );
+        Map<String,URLAccessRule> urlAccessRules = new HashMap<>();
+        urlAccessRules.put( "http", URLAccessRules.alwaysPermitted() );
+        urlAccessRules.put( "https", URLAccessRules.alwaysPermitted() );
+        urlAccessRules.put( "ftp", URLAccessRules.alwaysPermitted() );
+        urlAccessRules.put( "file", URLAccessRules.fileAccess() );
 
-        ImmutableList<QueryEngineProvider> queryEngineProviders = asImmutableList( Service.load( QueryEngineProvider.class ) );
-        ImmutableList<Pair<DeferredExecutor,Group>> deferredExecutors = ImmutableListFactoryImpl.INSTANCE.empty();
-
-        return new GraphDatabaseDependencies( null, null, settingsClasses, kernelExtensions,
-                urlAccessRules, queryEngineProviders, deferredExecutors );
+        return new GraphDatabaseDependencies( null, null, null, extensions,
+                urlAccessRules, empty(), empty() );
     }
 
-    private final Monitors monitors;
-    private final LogProvider userLogProvider;
-    private final ImmutableList<Class<?>> settingsClasses;
-    private final ImmutableList<KernelExtensionFactory<?>> kernelExtensions;
-    private final ImmutableMap<String,URLAccessRule> urlAccessRules;
-    private final ImmutableList<QueryEngineProvider> queryEngineProviders;
-    private final ImmutableList<Pair<DeferredExecutor, Group>> deferredExecutors;
+    private Monitors monitors;
+    private LogProvider userLogProvider;
+    private DependencyResolver dependencies;
+    private List<ExtensionFactory<?>> extensions;
+    private List<DatabaseEventListener> databaseEventListeners;
+    private final Map<String,URLAccessRule> urlAccessRules;
+    private final List<Pair<DeferredExecutor, Group>> deferredExecutors;
 
     private GraphDatabaseDependencies(
             Monitors monitors,
             LogProvider userLogProvider,
-            ImmutableList<Class<?>> settingsClasses,
-            ImmutableList<KernelExtensionFactory<?>> kernelExtensions,
-            ImmutableMap<String,URLAccessRule> urlAccessRules,
-            ImmutableList<QueryEngineProvider> queryEngineProviders,
-            ImmutableList<Pair<DeferredExecutor, Group>> deferredExecutors
-    )
+            DependencyResolver dependencies,
+            Iterable<ExtensionFactory<?>> extensions,
+            Map<String,URLAccessRule> urlAccessRules,
+            Iterable<Pair<DeferredExecutor, Group>> deferredExecutors,
+            Iterable<DatabaseEventListener> eventListeners
+            )
     {
         this.monitors = monitors;
         this.userLogProvider = userLogProvider;
-        this.settingsClasses = settingsClasses;
-        this.kernelExtensions = kernelExtensions;
+        this.dependencies = dependencies;
+        this.extensions = asList( extensions );
         this.urlAccessRules = urlAccessRules;
-        this.queryEngineProviders = queryEngineProviders;
-        this.deferredExecutors = deferredExecutors;
+        this.deferredExecutors = asList( deferredExecutors );
+        this.databaseEventListeners = asList( eventListeners );
     }
 
     // Builder DSL
     public GraphDatabaseDependencies monitors( Monitors monitors )
     {
-        return new GraphDatabaseDependencies( monitors, userLogProvider, settingsClasses, kernelExtensions,
-                urlAccessRules, queryEngineProviders, deferredExecutors );
+        this.monitors = monitors;
+        return this;
     }
 
     public GraphDatabaseDependencies userLogProvider( LogProvider userLogProvider )
     {
-        return new GraphDatabaseDependencies( monitors, userLogProvider, settingsClasses, kernelExtensions,
-                urlAccessRules, queryEngineProviders, deferredExecutors );
+        this.userLogProvider = userLogProvider;
+        return this;
+    }
+
+    public GraphDatabaseDependencies dependencies( DependencyResolver dependencies )
+    {
+        this.dependencies = dependencies;
+        return this;
+    }
+
+    public GraphDatabaseDependencies databaseEventListeners( Iterable<DatabaseEventListener> eventListeners )
+    {
+        this.databaseEventListeners = asList( eventListeners );
+        return this;
     }
 
     public GraphDatabaseDependencies withDeferredExecutor( DeferredExecutor executor, Group group )
     {
-        return new GraphDatabaseDependencies( monitors, userLogProvider, settingsClasses, kernelExtensions,
-                urlAccessRules, queryEngineProviders,
-                asImmutableList( concat( deferredExecutors, asIterable( Pair.of( executor, group ) ) ) ) );
+        this.deferredExecutors.add( Pair.of( executor, group ) );
+        return this;
     }
 
-    public GraphDatabaseDependencies settingsClasses( List<Class<?>> settingsClasses )
+    public GraphDatabaseDependencies extensions( Iterable<ExtensionFactory<?>> extensions )
     {
-        return new GraphDatabaseDependencies( monitors, userLogProvider, asImmutableList( settingsClasses ),
-                kernelExtensions, urlAccessRules, queryEngineProviders, deferredExecutors );
-    }
-
-    public GraphDatabaseDependencies settingsClasses( Class<?>... settingsClass )
-    {
-        return new GraphDatabaseDependencies( monitors, userLogProvider,
-                asImmutableList( concat( settingsClasses, Arrays.asList( settingsClass ) ) ),
-                kernelExtensions, urlAccessRules, queryEngineProviders, deferredExecutors );
-    }
-
-    public GraphDatabaseDependencies kernelExtensions( Iterable<KernelExtensionFactory<?>> kernelExtensions )
-    {
-        return new GraphDatabaseDependencies( monitors, userLogProvider, settingsClasses,
-                asImmutableList( kernelExtensions ),
-                urlAccessRules, queryEngineProviders, deferredExecutors );
+        this.extensions = asList( extensions );
+        return this;
     }
 
     public GraphDatabaseDependencies urlAccessRules( Map<String,URLAccessRule> urlAccessRules )
     {
-        final Map<String,URLAccessRule> newUrlAccessRules = this.urlAccessRules.toMap();
-        newUrlAccessRules.putAll( urlAccessRules );
-        return new GraphDatabaseDependencies( monitors, userLogProvider, settingsClasses, kernelExtensions,
-                asImmutableMap( newUrlAccessRules ), queryEngineProviders, deferredExecutors );
-    }
-
-    public GraphDatabaseDependencies queryEngineProviders( Iterable<QueryEngineProvider> queryEngineProviders )
-    {
-        return new GraphDatabaseDependencies( monitors, userLogProvider, settingsClasses, kernelExtensions,
-                urlAccessRules, asImmutableList( concat( this.queryEngineProviders, queryEngineProviders ) ),
-                deferredExecutors );
+        this.urlAccessRules.putAll( urlAccessRules );
+        return this;
     }
 
     // Dependencies implementation
@@ -176,27 +149,15 @@ public class GraphDatabaseDependencies implements GraphDatabaseFacadeFactory.Dep
     }
 
     @Override
-    public Iterable<Class<?>> settingsClasses()
+    public Iterable<ExtensionFactory<?>> extensions()
     {
-        return settingsClasses;
-    }
-
-    @Override
-    public Iterable<KernelExtensionFactory<?>> kernelExtensions()
-    {
-        return kernelExtensions;
+        return extensions;
     }
 
     @Override
     public Map<String,URLAccessRule> urlAccessRules()
     {
-        return urlAccessRules.castToMap();
-    }
-
-    @Override
-    public Iterable<QueryEngineProvider> executionEngines()
-    {
-        return queryEngineProviders;
+        return urlAccessRules;
     }
 
     @Override
@@ -205,11 +166,23 @@ public class GraphDatabaseDependencies implements GraphDatabaseFacadeFactory.Dep
         return deferredExecutors;
     }
 
-    // This method is needed to convert the non generic KernelExtensionFactory type returned from Service.load
-    // to KernelExtensionFactory<?> generic types
-    private static Iterator<KernelExtensionFactory<?>> getKernelExtensions( Iterator<KernelExtensionFactory> parent )
+    @Override
+    public Iterable<DatabaseEventListener> databaseEventListeners()
     {
-        return new Iterator<KernelExtensionFactory<?>>()
+        return databaseEventListeners;
+    }
+
+    @Override
+    public DependencyResolver dependencies()
+    {
+        return dependencies;
+    }
+
+    // This method is needed to convert the non generic ExtensionFactory type returned from Service.load
+    // to ExtensionFactory<?> generic types
+    private static Iterable<ExtensionFactory<?>> getExtensions( Iterator<ExtensionFactory> parent )
+    {
+        return Iterators.asList( new Iterator<>()
         {
             @Override
             public boolean hasNext()
@@ -218,10 +191,10 @@ public class GraphDatabaseDependencies implements GraphDatabaseFacadeFactory.Dep
             }
 
             @Override
-            public KernelExtensionFactory<?> next()
+            public ExtensionFactory<?> next()
             {
                 return parent.next();
             }
-        };
+        } );
     }
 }

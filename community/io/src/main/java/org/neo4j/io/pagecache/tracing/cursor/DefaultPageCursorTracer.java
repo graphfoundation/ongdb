@@ -24,7 +24,7 @@ package org.neo4j.io.pagecache.tracing.cursor;
 
 import java.io.IOException;
 
-import org.neo4j.helpers.MathUtil;
+import org.neo4j.internal.helpers.MathUtil;
 import org.neo4j.io.pagecache.PageSwapper;
 import org.neo4j.io.pagecache.tracing.EvictionEvent;
 import org.neo4j.io.pagecache.tracing.FlushEvent;
@@ -38,9 +38,7 @@ public class DefaultPageCursorTracer implements PageCursorTracer
     private long pins;
     private long unpins;
     private long hits;
-    private long historicalHits;
     private long faults;
-    private long historicalFaults;
     private long bytesRead;
     private long bytesWritten;
     private long evictions;
@@ -70,12 +68,10 @@ public class DefaultPageCursorTracer implements PageCursorTracer
         if ( hits > 0 )
         {
             pageCacheTracer.hits( hits );
-            historicalHits = historicalHits + hits;
         }
         if ( faults > 0 )
         {
             pageCacheTracer.faults( faults );
-            historicalFaults = historicalFaults + faults;
         }
         if ( bytesRead > 0 )
         {
@@ -98,18 +94,6 @@ public class DefaultPageCursorTracer implements PageCursorTracer
             pageCacheTracer.flushes( flushes );
         }
         reset();
-    }
-
-    @Override
-    public long accumulatedHits()
-    {
-        return historicalHits + hits;
-    }
-
-    @Override
-    public long accumulatedFaults()
-    {
-        return historicalFaults + faults;
     }
 
     private void reset()

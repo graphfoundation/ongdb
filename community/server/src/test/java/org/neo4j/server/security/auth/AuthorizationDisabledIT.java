@@ -25,15 +25,17 @@ package org.neo4j.server.security.auth;
 import org.junit.After;
 import org.junit.Test;
 
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
+import org.neo4j.configuration.GraphDatabaseSettings;
 import org.neo4j.server.CommunityNeoServer;
 import org.neo4j.server.helpers.CommunityServerBuilder;
 import org.neo4j.test.server.ExclusiveServerTestBase;
 import org.neo4j.test.server.HTTP;
 
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
-import static org.neo4j.test.server.HTTP.RawPayload.quotedJson;
+import static org.neo4j.configuration.SettingValueParsers.FALSE;
+import static org.neo4j.test.server.HTTP.RawPayload.rawPayload;
 
 public class AuthorizationDisabledIT extends ExclusiveServerTestBase
 {
@@ -45,18 +47,22 @@ public class AuthorizationDisabledIT extends ExclusiveServerTestBase
     {
         // Given
         server = CommunityServerBuilder.serverOnRandomPorts()
-                .withProperty( GraphDatabaseSettings.auth_enabled.name(), "false" ).build();
+                .withProperty( GraphDatabaseSettings.auth_enabled.name(), FALSE ).build();
 
         // When
         server.start();
 
         // Then I should have write access
-        HTTP.Response response = HTTP.POST( server.baseUri().resolve( "db/data/node" ).toString(), quotedJson( "{'name':'My Node'}" ) );
-        assertThat(response.status(), equalTo(201));
-        String node = response.location();
+        HTTP.Response response = HTTP.POST( server.baseUri().resolve( txCommitEndpoint() ).toString(),
+                rawPayload( "{\"statements\": [{\"statement\": \"CREATE ({name:'My Node'})\"}]}" ) );
+        assertThat( response.status(), equalTo( 200 ) );
 
         // Then I should have read access
-        assertThat( HTTP.GET( node ).status(), equalTo( 200 ) );
+        response = HTTP.POST( server.baseUri().resolve( txCommitEndpoint() ).toString(),
+                rawPayload( "{\"statements\": [{\"statement\": \"MATCH (n {name:'My Node'}) RETURN n\"}]}" ) );
+        assertThat( response.status(), equalTo( 200 ) );
+        String responseBody = response.rawContent();
+        assertThat( responseBody, containsString( "My Node" ) );
     }
 
     @After

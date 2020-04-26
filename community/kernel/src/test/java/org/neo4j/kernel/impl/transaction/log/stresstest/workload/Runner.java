@@ -23,6 +23,7 @@
 package org.neo4j.kernel.impl.transaction.log.stresstest.workload;
 
 import java.io.IOException;
+import java.time.Clock;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -32,23 +33,28 @@ import java.util.function.BooleanSupplier;
 import org.neo4j.io.fs.DefaultFileSystemAbstraction;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.layout.DatabaseLayout;
-import org.neo4j.kernel.impl.core.DatabasePanicEventGenerator;
+import org.neo4j.kernel.impl.api.TestCommandReaderFactory;
 import org.neo4j.kernel.impl.transaction.SimpleLogVersionRepository;
 import org.neo4j.kernel.impl.transaction.SimpleTransactionIdStore;
 import org.neo4j.kernel.impl.transaction.log.BatchingTransactionAppender;
 import org.neo4j.kernel.impl.transaction.log.TransactionAppender;
-import org.neo4j.kernel.impl.transaction.log.TransactionIdStore;
 import org.neo4j.kernel.impl.transaction.log.TransactionMetadataCache;
+import org.neo4j.kernel.impl.transaction.log.entry.VersionAwareLogEntryReader;
 import org.neo4j.kernel.impl.transaction.log.files.LogFiles;
 import org.neo4j.kernel.impl.transaction.log.files.LogFilesBuilder;
-import org.neo4j.kernel.impl.transaction.log.rotation.LogRotation;
 import org.neo4j.kernel.impl.transaction.log.rotation.LogRotationImpl;
-import org.neo4j.kernel.impl.util.IdOrderingQueue;
-import org.neo4j.kernel.internal.DatabaseHealth;
-import org.neo4j.kernel.internal.KernelEventHandlers;
+import org.neo4j.kernel.impl.transaction.log.rotation.monitor.LogRotationMonitorAdapter;
 import org.neo4j.kernel.lifecycle.Lifespan;
 import org.neo4j.logging.Log;
 import org.neo4j.logging.NullLog;
+import org.neo4j.monitoring.DatabaseEventListeners;
+import org.neo4j.monitoring.DatabaseHealth;
+import org.neo4j.monitoring.DatabasePanicEventGenerator;
+import org.neo4j.monitoring.Health;
+import org.neo4j.storageengine.api.StoreId;
+import org.neo4j.storageengine.api.TransactionIdStore;
+
+import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
 
 public class Runner implements Callable<Long>
 {
@@ -110,12 +116,12 @@ public class Runner implements Callable<Long>
             TransactionMetadataCache transactionMetadataCache, LogFiles logFiles )
     {
         Log log = NullLog.getInstance();
-        KernelEventHandlers kernelEventHandlers = new KernelEventHandlers( log );
-        DatabasePanicEventGenerator panicEventGenerator = new DatabasePanicEventGenerator( kernelEventHandlers );
-        DatabaseHealth databaseHealth = new DatabaseHealth( panicEventGenerator, log );
-        LogRotationImpl logRotation = new LogRotationImpl( NOOP_LOGROTATION_MONITOR, logFiles, databaseHealth );
+        DatabaseEventListeners databaseEventListeners = new DatabaseEventListeners( log );
+        DatabasePanicEventGenerator panicEventGenerator = new DatabasePanicEventGenerator( databaseEventListeners, DEFAULT_DATABASE_NAME );
+        Health databaseHealth = new DatabaseHealth( panicEventGenerator, log );
+        LogRotationImpl logRotation = new LogRotationImpl( logFiles, Clock.systemUTC(), databaseHealth, LogRotationMonitorAdapter.EMPTY );
         return new BatchingTransactionAppender( logFiles, logRotation,
-                transactionMetadataCache, transactionIdStore, IdOrderingQueue.BYPASS, databaseHealth );
+                transactionMetadataCache, transactionIdStore, databaseHealth );
     }
 
     private LogFiles createLogFiles( TransactionIdStore transactionIdStore,
@@ -123,24 +129,10 @@ public class Runner implements Callable<Long>
     {
         SimpleLogVersionRepository logVersionRepository = new SimpleLogVersionRepository();
         return LogFilesBuilder.builder( databaseLayout, fileSystemAbstraction )
-                                                      .withTransactionIdStore(transactionIdStore)
-                                                      .withLogVersionRepository( logVersionRepository )
-                                                      .build();
+                .withTransactionIdStore( transactionIdStore )
+                .withLogVersionRepository( logVersionRepository )
+                .withLogEntryReader( new VersionAwareLogEntryReader( new TestCommandReaderFactory() ) )
+                .withStoreId( StoreId.UNKNOWN )
+                .build();
     }
-
-    private static final LogRotation.Monitor NOOP_LOGROTATION_MONITOR = new LogRotation.Monitor()
-    {
-        @Override
-        public void startedRotating( long currentVersion )
-        {
-
-        }
-
-        @Override
-        public void finishedRotating( long currentVersion )
-        {
-
-        }
-    };
-
 }

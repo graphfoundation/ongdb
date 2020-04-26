@@ -27,10 +27,6 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 
-/**
- * {@link Clock} that support nano time resolution.
- * @see Clocks
- */
 public class SystemNanoClock extends Clock
 {
     static final SystemNanoClock INSTANCE = new SystemNanoClock();
@@ -72,5 +68,10 @@ public class SystemNanoClock extends Clock
     public long nanos()
     {
         return System.nanoTime();
+    }
+
+    public Stopwatch startStopWatch()
+    {
+        return new Stopwatch( System::nanoTime );
     }
 }

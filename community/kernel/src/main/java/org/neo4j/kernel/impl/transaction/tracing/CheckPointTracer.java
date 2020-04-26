@@ -22,9 +22,36 @@
  */
 package org.neo4j.kernel.impl.transaction.tracing;
 
-public interface CheckPointTracer
+import org.neo4j.kernel.impl.transaction.stats.CheckpointCounters;
+
+public interface CheckPointTracer extends CheckpointCounters
 {
-    CheckPointTracer NULL = () -> LogCheckPointEvent.NULL;
+    CheckPointTracer NULL = new CheckPointTracer()
+    {
+        @Override
+        public LogCheckPointEvent beginCheckPoint()
+        {
+            return LogCheckPointEvent.NULL;
+        }
+
+        @Override
+        public long numberOfCheckPoints()
+        {
+            return 0;
+        }
+
+        @Override
+        public long checkPointAccumulatedTotalTimeMillis()
+        {
+            return 0;
+        }
+
+        @Override
+        public long lastCheckpointTimeMillis()
+        {
+            return 0;
+        }
+    };
 
     /**
      * Begin a check point write to the log

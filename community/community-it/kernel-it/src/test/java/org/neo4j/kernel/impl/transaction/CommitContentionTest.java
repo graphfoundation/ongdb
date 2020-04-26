@@ -22,53 +22,60 @@
  */
 package org.neo4j.kernel.impl.transaction;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicReference;
 
+import org.neo4j.configuration.Config;
+import org.neo4j.configuration.GraphDatabaseSettings;
+import org.neo4j.dbms.api.DatabaseManagementService;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Transaction;
-import org.neo4j.graphdb.facade.GraphDatabaseFacadeFactory;
-import org.neo4j.graphdb.factory.GraphDatabaseFactoryState;
+import org.neo4j.graphdb.facade.DatabaseManagementServiceFactory;
+import org.neo4j.graphdb.facade.GraphDatabaseDependencies;
 import org.neo4j.graphdb.factory.module.edition.CommunityEditionModule;
-import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.impl.factory.DatabaseInfo;
 import org.neo4j.kernel.impl.transaction.stats.DatabaseTransactionStats;
+import org.neo4j.test.extension.Inject;
+import org.neo4j.test.extension.testdirectory.TestDirectoryExtension;
 import org.neo4j.test.rule.TestDirectory;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
+import static org.neo4j.configuration.GraphDatabaseSettings.neo4j_home;
+import static org.neo4j.kernel.database.TestDatabaseIdRepository.noOpSystemGraphInitializer;
 
-public class CommitContentionTest
+@TestDirectoryExtension
+class CommitContentionTest
 {
-    @Rule
-    public final TestDirectory storeLocation = TestDirectory.testDirectory();
+    @Inject
+    private TestDirectory testDirectory;
 
-    final Semaphore semaphore1 = new Semaphore( 1 );
-    final Semaphore semaphore2 = new Semaphore( 1 );
-    final AtomicReference<Exception> reference = new AtomicReference<>();
+    private final Semaphore semaphore1 = new Semaphore( 1 );
+    private final Semaphore semaphore2 = new Semaphore( 1 );
+    private final AtomicReference<Exception> reference = new AtomicReference<>();
 
     private GraphDatabaseService db;
+    private DatabaseManagementService managementService;
 
-    @Before
-    public void before() throws Exception
+    @BeforeEach
+    void before() throws Exception
     {
         semaphore1.acquire();
         semaphore2.acquire();
         db = createDb();
     }
 
-    @After
-    public void after()
+    @AfterEach
+    void after()
     {
-        db.shutdown();
+        managementService.shutdown();
     }
 
     @Test
-    public void shouldNotContendOnCommitWhenPushingUpdates() throws Exception
+    void shouldNotContendOnCommitWhenPushingUpdates() throws Exception
     {
         Thread thread = startFirstTransactionWhichBlocksDuringPushUntilSecondTransactionFinishes();
 
@@ -100,8 +107,8 @@ public class CommitContentionTest
     {
         try ( Transaction transaction = db.beginTx() )
         {
-            db.createNode();
-            transaction.success();
+            transaction.createNode();
+            transaction.commit();
         }
     }
 
@@ -119,15 +126,17 @@ public class CommitContentionTest
 
     private GraphDatabaseService createDb()
     {
-        GraphDatabaseFactoryState state = new GraphDatabaseFactoryState();
-        return new GraphDatabaseFacadeFactory( DatabaseInfo.COMMUNITY, platformModule -> new CommunityEditionModule( platformModule )
+        Config cfg = Config.defaults( neo4j_home, testDirectory.absolutePath().toPath() );
+        managementService = new DatabaseManagementServiceFactory( DatabaseInfo.COMMUNITY, globalModule -> new CommunityEditionModule( globalModule )
         {
             @Override
             public DatabaseTransactionStats createTransactionMonitor()
             {
                 return new SkipTransactionDatabaseStats();
             }
-        } ).newFacade( storeLocation.storeDir(), Config.defaults(), state.databaseDependencies() );
+        } ).build( cfg, GraphDatabaseDependencies.newDependencies().dependencies( noOpSystemGraphInitializer( cfg ) ) );
+        return managementService
+                .database( Config.defaults().get( GraphDatabaseSettings.default_database ));
     }
 
     private void waitForFirstTransactionToStartPushing() throws InterruptedException

@@ -28,7 +28,7 @@ import org.eclipse.collections.api.set.primitive.LongSet;
 import org.eclipse.collections.impl.factory.primitive.LongSets;
 import org.eclipse.collections.impl.iterator.ImmutableEmptyLongIterator;
 import org.eclipse.collections.impl.set.mutable.primitive.LongHashSet;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
 import java.util.Set;
@@ -36,19 +36,20 @@ import java.util.Set;
 import org.neo4j.collection.PrimitiveLongResourceIterator;
 import org.neo4j.graphdb.Resource;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.arrayContainingInAnyOrder;
 import static org.hamcrest.Matchers.arrayWithSize;
 import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.junit.Assert.assertThat;
+import static org.mockito.Mockito.verify;
 import static org.neo4j.collection.PrimitiveLongCollections.asArray;
 import static org.neo4j.collection.PrimitiveLongCollections.iterator;
 import static org.neo4j.collection.PrimitiveLongCollections.resourceIterator;
 import static org.neo4j.collection.PrimitiveLongCollections.toSet;
 
-public class DiffApplyingPrimitiveLongIteratorTest
+class DiffApplyingPrimitiveLongIteratorTest
 {
     @Test
-    public void iterateOnlyOverAddedElementsWhenSourceIsEmpty()
+    void iterateOnlyOverAddedElementsWhenSourceIsEmpty()
     {
         LongIterator emptySource = ImmutableEmptyLongIterator.INSTANCE;
         LongSet added = LongHashSet.newSetWith( 1L, 2L );
@@ -60,7 +61,7 @@ public class DiffApplyingPrimitiveLongIteratorTest
     }
 
     @Test
-    public void appendSourceElementsDuringIteration()
+    void appendSourceElementsDuringIteration()
     {
         LongIterator source = iterator( 4L, 5L );
         LongSet added = LongHashSet.newSetWith( 1L, 2L );
@@ -72,7 +73,7 @@ public class DiffApplyingPrimitiveLongIteratorTest
     }
 
     @Test
-    public void doNotIterateTwiceOverSameElementsWhenItsPartOfSourceAndAdded()
+    void doNotIterateTwiceOverSameElementsWhenItsPartOfSourceAndAdded()
     {
         LongIterator source = iterator( 4L, 5L );
         LongSet added = LongHashSet.newSetWith( 1L, 4L );
@@ -85,7 +86,7 @@ public class DiffApplyingPrimitiveLongIteratorTest
     }
 
     @Test
-    public void doNotIterateOverDeletedElement()
+    void doNotIterateOverDeletedElement()
     {
         LongIterator source = iterator( 3L, 5L );
         LongSet added = LongHashSet.newSetWith( 1L );
@@ -97,7 +98,7 @@ public class DiffApplyingPrimitiveLongIteratorTest
     }
 
     @Test
-    public void closeResource()
+    void closeResource()
     {
         Resource resource = Mockito.mock( Resource.class );
         PrimitiveLongResourceIterator source = resourceIterator( ImmutableEmptyLongIterator.INSTANCE, resource );
@@ -106,6 +107,6 @@ public class DiffApplyingPrimitiveLongIteratorTest
 
         iterator.close();
 
-        Mockito.verify( resource ).close();
+        verify( resource ).close();
     }
 }

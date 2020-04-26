@@ -22,57 +22,63 @@
  */
 package org.neo4j.kernel.impl.store;
 
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.neo4j.batchinsert.BatchInserter;
+import org.neo4j.batchinsert.BatchInserters;
+import org.neo4j.dbms.api.DatabaseManagementService;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Transaction;
-import org.neo4j.helpers.collection.Iterables;
-import org.neo4j.io.fs.FileSystemAbstraction;
-import org.neo4j.test.TestGraphDatabaseFactory;
-import org.neo4j.test.rule.TestDirectory;
-import org.neo4j.test.rule.fs.EphemeralFileSystemRule;
-import org.neo4j.unsafe.batchinsert.BatchInserter;
-import org.neo4j.unsafe.batchinsert.BatchInserters;
+import org.neo4j.internal.helpers.collection.Iterables;
+import org.neo4j.io.fs.EphemeralFileSystemAbstraction;
+import org.neo4j.io.layout.DatabaseLayout;
+import org.neo4j.test.TestDatabaseManagementServiceBuilder;
+import org.neo4j.test.extension.EphemeralNeo4jLayoutExtension;
+import org.neo4j.test.extension.Inject;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
 
-public class PropertyKeyTest
+@EphemeralNeo4jLayoutExtension
+class PropertyKeyTest
 {
-    @Rule
-    public final EphemeralFileSystemRule fs = new EphemeralFileSystemRule();
-    @Rule
-    public final TestDirectory testDirectory = TestDirectory.testDirectory();
+    @Inject
+    private EphemeralFileSystemAbstraction fs;
+    @Inject
+    private DatabaseLayout databaseLayout;
 
     @Test
-    public void lazyLoadWithinWriteTransaction() throws Exception
+    void lazyLoadWithinWriteTransaction() throws IOException
     {
-        // Given
-        FileSystemAbstraction fileSystem = fs.get();
-        BatchInserter inserter = BatchInserters.inserter( testDirectory.databaseDir(), fileSystem );
+        BatchInserter inserter = BatchInserters.inserter( databaseLayout, fs );
         int count = 3000;
         long nodeId = inserter.createNode( mapWithManyProperties( count /* larger than initial property index load threshold */ ) );
         inserter.shutdown();
 
-        GraphDatabaseService db = new TestGraphDatabaseFactory().setFileSystem( fileSystem ).newImpermanentDatabase( testDirectory.databaseDir() );
+        DatabaseManagementService managementService = new TestDatabaseManagementServiceBuilder( databaseLayout )
+                .setFileSystem( fs )
+                .impermanent()
+                .build();
+        GraphDatabaseService db = managementService.database( DEFAULT_DATABASE_NAME );
 
         // When
         try ( Transaction tx = db.beginTx() )
         {
-            db.createNode();
-            Node node = db.getNodeById( nodeId );
+            tx.createNode();
+            Node node = tx.getNodeById( nodeId );
 
             // Then
             assertEquals( count, Iterables.count( node.getPropertyKeys() ) );
-            tx.success();
+            tx.commit();
         }
         finally
         {
-            db.shutdown();
+            managementService.shutdown();
         }
     }
 

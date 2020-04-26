@@ -25,28 +25,29 @@ package org.neo4j.kernel.impl.transaction.log.entry;
 import java.io.IOException;
 import java.util.Collection;
 
-import org.neo4j.helpers.collection.Visitor;
+import org.neo4j.internal.helpers.collection.Visitor;
+import org.neo4j.io.fs.WritableChannel;
+import org.neo4j.io.fs.WritableChecksumChannel;
 import org.neo4j.kernel.impl.transaction.CommittedTransactionRepresentation;
 import org.neo4j.kernel.impl.transaction.TransactionRepresentation;
 import org.neo4j.kernel.impl.transaction.log.LogPosition;
 import org.neo4j.storageengine.api.StorageCommand;
-import org.neo4j.storageengine.api.WritableChannel;
 
 import static org.neo4j.kernel.impl.transaction.log.entry.LogEntryByteCodes.CHECK_POINT;
 import static org.neo4j.kernel.impl.transaction.log.entry.LogEntryByteCodes.TX_COMMIT;
 import static org.neo4j.kernel.impl.transaction.log.entry.LogEntryByteCodes.TX_START;
-import static org.neo4j.kernel.impl.transaction.log.entry.LogEntryVersion.CURRENT;
+import static org.neo4j.kernel.impl.transaction.log.entry.LogEntryVersion.LATEST_VERSION;
 
 public class LogEntryWriter
 {
-    protected final WritableChannel channel;
+    protected final WritableChecksumChannel channel;
     private final Visitor<StorageCommand,IOException> serializer;
 
     /**
-     * Create a writer that uses {@link LogEntryVersion#CURRENT} for versioning.
+     * Create a writer that uses {@link LogEntryVersion#LATEST_VERSION} for versioning.
      * @param channel underlying channel
      */
-    public LogEntryWriter( WritableChannel channel )
+    public LogEntryWriter( WritableChecksumChannel channel )
     {
         this.channel = channel;
         this.serializer = new StorageCommandSerializer( channel );
@@ -54,32 +55,38 @@ public class LogEntryWriter
 
     protected static void writeLogEntryHeader( byte type, WritableChannel channel ) throws IOException
     {
-        channel.put( CURRENT.byteCode() ).put( type );
+        channel.put( LATEST_VERSION.version() ).put( type );
     }
 
-    public void writeStartEntry( LogEntryStart entry ) throws IOException
+    private void writeStartEntry( LogEntryStart entry ) throws IOException
     {
-        writeStartEntry( entry.getMasterId(), entry.getLocalId(), entry.getTimeWritten(), entry.getLastCommittedTxWhenTransactionStarted(),
-                entry.getAdditionalHeader() );
+        writeStartEntry( entry.getTimeWritten(), entry.getLastCommittedTxWhenTransactionStarted(),
+                entry.getPreviousChecksum(), entry.getAdditionalHeader() );
     }
 
-    public void writeStartEntry( int masterId, int authorId, long timeWritten, long latestCommittedTxWhenStarted,
-                                 byte[] additionalHeaderData ) throws IOException
+    public void writeStartEntry( long timeWritten, long latestCommittedTxWhenStarted,
+            int previousChecksum, byte[] additionalHeaderData ) throws IOException
     {
+        channel.beginChecksum();
         writeLogEntryHeader( TX_START, channel );
-        channel.putInt( masterId ).putInt( authorId ).putLong( timeWritten ).putLong( latestCommittedTxWhenStarted )
-               .putInt( additionalHeaderData.length ).put( additionalHeaderData, additionalHeaderData.length );
+        channel.putLong( timeWritten )
+                .putLong( latestCommittedTxWhenStarted )
+                .putInt( previousChecksum )
+                .putInt( additionalHeaderData.length )
+                .put( additionalHeaderData, additionalHeaderData.length );
     }
 
-    public void writeCommitEntry( LogEntryCommit entry ) throws IOException
+    private int writeCommitEntry( LogEntryCommit entry ) throws IOException
     {
-        writeCommitEntry( entry.getTxId(), entry.getTimeWritten() );
+        return writeCommitEntry( entry.getTxId(), entry.getTimeWritten() );
     }
 
-    public void writeCommitEntry( long transactionId, long timeWritten ) throws IOException
+    public int writeCommitEntry( long transactionId, long timeWritten ) throws IOException
     {
         writeLogEntryHeader( TX_COMMIT, channel );
-        channel.putLong( transactionId ).putLong( timeWritten );
+        channel.putLong( transactionId )
+                .putLong( timeWritten );
+        return channel.putChecksum();
     }
 
     public void serialize( TransactionRepresentation tx ) throws IOException
@@ -104,8 +111,10 @@ public class LogEntryWriter
 
     public void writeCheckPointEntry( LogPosition logPosition ) throws IOException
     {
+        channel.beginChecksum();
         writeLogEntryHeader( CHECK_POINT, channel );
-        channel.putLong( logPosition.getLogVersion() ).
-                putLong( logPosition.getByteOffset() );
+        channel.putLong( logPosition.getLogVersion() )
+                .putLong( logPosition.getByteOffset() );
+        channel.putChecksum();
     }
 }

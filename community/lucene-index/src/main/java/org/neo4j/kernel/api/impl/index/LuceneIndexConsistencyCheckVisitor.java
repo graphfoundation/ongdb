@@ -22,8 +22,8 @@
  */
 package org.neo4j.kernel.api.impl.index;
 
-import org.neo4j.kernel.impl.annotations.Documented;
-import org.neo4j.storageengine.api.schema.IndexDescriptor;
+import org.neo4j.annotations.documented.Documented;
+import org.neo4j.internal.schema.IndexDescriptor;
 
 public interface LuceneIndexConsistencyCheckVisitor
 {

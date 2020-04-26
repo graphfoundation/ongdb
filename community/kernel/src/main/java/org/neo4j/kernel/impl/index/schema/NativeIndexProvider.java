@@ -22,6 +22,8 @@
  */
 package org.neo4j.kernel.impl.index.schema;
 
+import org.apache.commons.lang3.StringUtils;
+
 import java.io.File;
 import java.io.IOException;
 
@@ -30,16 +32,20 @@ import org.neo4j.index.internal.gbptree.Layout;
 import org.neo4j.index.internal.gbptree.MetadataMismatchException;
 import org.neo4j.index.internal.gbptree.RecoveryCleanupWorkCollector;
 import org.neo4j.internal.kernel.api.InternalIndexState;
-import org.neo4j.internal.kernel.api.schema.IndexProviderDescriptor;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.internal.schema.IndexProviderDescriptor;
 import org.neo4j.io.fs.FileSystemAbstraction;
+import org.neo4j.io.memory.ByteBufferFactory;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.kernel.api.index.IndexAccessor;
 import org.neo4j.kernel.api.index.IndexDirectoryStructure.Factory;
 import org.neo4j.kernel.api.index.IndexPopulator;
 import org.neo4j.kernel.api.index.IndexProvider;
-import org.neo4j.kernel.impl.api.index.sampling.IndexSamplingConfig;
-import org.neo4j.kernel.impl.storemigration.StoreMigrationParticipant;
-import org.neo4j.storageengine.api.schema.StoreIndexDescriptor;
+import org.neo4j.kernel.impl.api.index.IndexSamplingConfig;
+import org.neo4j.storageengine.api.StorageEngineFactory;
+import org.neo4j.storageengine.migration.StoreMigrationParticipant;
+
+import static org.apache.commons.lang3.StringUtils.defaultIfEmpty;
 
 /**
  * Base class for native indexes on top of {@link GBPTree}.
@@ -71,48 +77,45 @@ abstract class NativeIndexProvider<KEY extends NativeIndexKey<KEY>,VALUE extends
     /**
      * Instantiates the {@link Layout} which is used in the index backing this native index provider.
      *
-     * @param descriptor the {@link StoreIndexDescriptor} for this index.
+     * @param descriptor the {@link IndexDescriptor} for this index.
      * @param storeFile index store file, since some layouts may depend on contents of the header.
      * If {@code null} it means that nothing must be read from the file before or while instantiating the layout.
      * @return the correct {@link Layout} for the index.
      */
-    abstract LAYOUT layout( StoreIndexDescriptor descriptor, File storeFile );
+    abstract LAYOUT layout( IndexDescriptor descriptor, File storeFile );
 
     @Override
-    public IndexPopulator getPopulator( StoreIndexDescriptor descriptor, IndexSamplingConfig samplingConfig, ByteBufferFactory bufferFactory )
+    public IndexPopulator getPopulator( IndexDescriptor descriptor, IndexSamplingConfig samplingConfig, ByteBufferFactory bufferFactory )
     {
         if ( readOnly )
         {
             throw new UnsupportedOperationException( "Can't create populator for read only index" );
         }
 
-        File storeFile = nativeIndexFileFromIndexId( descriptor.getId() );
-        return newIndexPopulator( storeFile, layout( descriptor, null /*meaning don't read from this file since we're recreating it anyway*/ ), descriptor,
+        IndexFiles indexFiles = new IndexFiles.Directory( fs, directoryStructure(), descriptor.getId() );
+        return newIndexPopulator( indexFiles, layout( descriptor, null /*meaning don't read from this file since we're recreating it anyway*/ ), descriptor,
                 bufferFactory );
     }
 
-    protected abstract IndexPopulator newIndexPopulator( File storeFile, LAYOUT layout, StoreIndexDescriptor descriptor, ByteBufferFactory bufferFactory );
+    protected abstract IndexPopulator newIndexPopulator( IndexFiles indexFiles, LAYOUT layout, IndexDescriptor descriptor,
+            ByteBufferFactory bufferFactory );
 
     @Override
-    public IndexAccessor getOnlineAccessor( StoreIndexDescriptor descriptor, IndexSamplingConfig samplingConfig ) throws IOException
+    public IndexAccessor getOnlineAccessor( IndexDescriptor descriptor, IndexSamplingConfig samplingConfig ) throws IOException
     {
-        File storeFile = nativeIndexFileFromIndexId( descriptor.getId() );
-        return newIndexAccessor( storeFile, layout( descriptor, storeFile ), descriptor, readOnly );
+        IndexFiles indexFiles = new IndexFiles.Directory( fs, directoryStructure(), descriptor.getId() );
+        return newIndexAccessor( indexFiles, layout( descriptor, indexFiles.getStoreFile() ), descriptor, readOnly );
     }
 
-    protected abstract IndexAccessor newIndexAccessor( File storeFile, LAYOUT layout, StoreIndexDescriptor descriptor, boolean readOnly ) throws IOException;
+    protected abstract IndexAccessor newIndexAccessor( IndexFiles indexFiles, LAYOUT layout, IndexDescriptor descriptor, boolean readOnly ) throws IOException;
 
     @Override
-    public String getPopulationFailure( StoreIndexDescriptor descriptor ) throws IllegalStateException
+    public String getPopulationFailure( IndexDescriptor descriptor )
     {
         try
         {
-            String failureMessage = NativeIndexes.readFailureMessage( pageCache, nativeIndexFileFromIndexId( descriptor.getId() ) );
-            if ( failureMessage == null )
-            {
-                throw new IllegalStateException( "Index " + descriptor.getId() + " isn't failed" );
-            }
-            return failureMessage;
+            String failureMessage = NativeIndexes.readFailureMessage( pageCache, storeFile( descriptor ) );
+            return defaultIfEmpty( failureMessage, StringUtils.EMPTY );
         }
         catch ( IOException e )
         {
@@ -121,11 +124,11 @@ abstract class NativeIndexProvider<KEY extends NativeIndexKey<KEY>,VALUE extends
     }
 
     @Override
-    public InternalIndexState getInitialState( StoreIndexDescriptor descriptor )
+    public InternalIndexState getInitialState( IndexDescriptor descriptor )
     {
         try
         {
-            return NativeIndexes.readState( pageCache, nativeIndexFileFromIndexId( descriptor.getId() ) );
+            return NativeIndexes.readState( pageCache, storeFile( descriptor ) );
         }
         catch ( MetadataMismatchException | IOException e )
         {
@@ -135,20 +138,16 @@ abstract class NativeIndexProvider<KEY extends NativeIndexKey<KEY>,VALUE extends
     }
 
     @Override
-    public StoreMigrationParticipant storeMigrationParticipant( FileSystemAbstraction fs, PageCache pageCache )
+    public StoreMigrationParticipant storeMigrationParticipant( FileSystemAbstraction fs, PageCache pageCache, StorageEngineFactory storageEngineFactory )
     {
         // Since this native provider is a new one, there's no need for migration on this level.
         // Migration should happen in the combined layer for the time being.
         return StoreMigrationParticipant.NOT_PARTICIPATING;
     }
 
-    private File nativeIndexFileFromIndexId( long indexId )
+    private File storeFile( IndexDescriptor descriptor )
     {
-        return new File( directoryStructure().directoryForIndex( indexId ), indexFileName( indexId ) );
-    }
-
-    private static String indexFileName( long indexId )
-    {
-        return "index-" + indexId;
+        IndexFiles indexFiles = new IndexFiles.Directory( fs, directoryStructure(), descriptor.getId() );
+        return indexFiles.getStoreFile();
     }
 }

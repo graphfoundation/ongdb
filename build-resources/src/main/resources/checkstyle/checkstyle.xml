@@ -42,6 +42,7 @@
   </module>
 
   <module name="LineLength">
+    <property name="fileExtensions" value="java" />
     <property name="max" value="160"/>
     <property name="ignorePattern" value="a href|href|http://|https://"/>
   </module>

@@ -39,7 +39,7 @@ public class FileVisitors
 
     public static FileVisitor<Path> onlyMatching( Predicate<Path> predicate, FileVisitor<Path> wrapped )
     {
-        return new FileVisitor<Path>()
+        return new FileVisitor<>()
         {
             @Override
             public FileVisitResult preVisitDirectory( Path dir, BasicFileAttributes attrs ) throws IOException
@@ -69,7 +69,7 @@ public class FileVisitors
 
     public static FileVisitor<Path> throwExceptions( FileVisitor<Path> wrapped )
     {
-        return new Decorator<Path>( wrapped )
+        return new Decorator<>( wrapped )
         {
             @Override
             public FileVisitResult visitFileFailed( Path file, IOException e ) throws IOException
@@ -96,7 +96,7 @@ public class FileVisitors
     public static FileVisitor<Path> onDirectory( ThrowingConsumer<Path, IOException> operation,
                                                  FileVisitor<Path> wrapped )
     {
-        return new Decorator<Path>( wrapped )
+        return new Decorator<>( wrapped )
         {
             @Override
             public FileVisitResult preVisitDirectory( Path dir, BasicFileAttributes attrs ) throws IOException
@@ -109,7 +109,7 @@ public class FileVisitors
 
     public static FileVisitor<Path> onFile( ThrowingConsumer<Path, IOException> operation, FileVisitor<Path> wrapped )
     {
-        return new Decorator<Path>( wrapped )
+        return new Decorator<>( wrapped )
         {
             @Override
             public FileVisitResult visitFile( Path file, BasicFileAttributes attrs ) throws IOException
@@ -122,7 +122,7 @@ public class FileVisitors
 
     public static FileVisitor<Path> justContinue()
     {
-        return new FileVisitor<Path>()
+        return new FileVisitor<>()
         {
             @Override
             public FileVisitResult preVisitDirectory( Path dir, BasicFileAttributes attrs )

@@ -30,6 +30,7 @@ import org.neo4j.kernel.impl.transaction.CommittedTransactionRepresentation;
  */
 public interface TransactionCursor extends IOCursor<CommittedTransactionRepresentation>
 {
+
     /**
      * @return {@link LogPosition} representing position after most recent transaction, i.e. after
      * transaction read from most recent {@link #next()} (which returned true) call.

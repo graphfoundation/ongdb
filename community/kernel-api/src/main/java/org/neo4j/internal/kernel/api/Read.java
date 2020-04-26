@@ -22,8 +22,10 @@
  */
 package org.neo4j.internal.kernel.api;
 
-import org.neo4j.internal.kernel.api.exceptions.KernelException;
+import org.neo4j.exceptions.KernelException;
 import org.neo4j.internal.kernel.api.exceptions.schema.IndexNotFoundKernelException;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.internal.schema.IndexOrder;
 import org.neo4j.values.storable.Value;
 import org.neo4j.values.storable.Values;
 
@@ -32,20 +34,46 @@ import org.neo4j.values.storable.Values;
  */
 public interface Read
 {
-    int ANY_LABEL = -1;
-    int ANY_RELATIONSHIP_TYPE = -1;
+    long NO_ID = -1;
+
+    /**
+     * Ensure there is an IndexReadSession for the given index bound to this transaction, and return it. Not Thread-safe.
+     *
+     * @param index descriptor for the index to read from
+     * @return the IndexReadSession
+     */
+    IndexReadSession indexReadSession( IndexDescriptor index ) throws IndexNotFoundKernelException;
+
+    /**
+     * Ensure this transaction is prepared for node label scans. This avoids concurrency issues. Not Thread-safe.
+     */
+    void prepareForLabelScans();
 
     /**
      * Seek all nodes matching the provided index query in an index.
-     *  @param index {@link IndexReference} referencing index to query.
+     * @param index {@link IndexReadSession} referencing index to query.
      * @param cursor the cursor to use for consuming the results.
      * @param indexOrder requested {@link IndexOrder} of result. Must be among the capabilities of
-     * {@link IndexReference referenced index}, or {@link IndexOrder#NONE}.
+     * {@link IndexDescriptor referenced index}, or {@link IndexOrder#NONE}.
      * @param needsValues if the index should fetch property values together with node ids for index queries
      * @param query Combination of {@link IndexQuery index queries} to run against referenced index.
      */
-    void nodeIndexSeek( IndexReference index, NodeValueIndexCursor cursor, IndexOrder indexOrder, boolean needsValues, IndexQuery... query )
+    void nodeIndexSeek( IndexReadSession index, NodeValueIndexCursor cursor, IndexOrder indexOrder, boolean needsValues, IndexQuery... query )
             throws KernelException;
+
+    /**
+     * Seek all relationships matching the provided index query in an index.
+     *
+     * This is almost but not quite a relationship counterpart to
+     * {@link #nodeIndexSeek(IndexReadSession, NodeValueIndexCursor, IndexOrder, boolean, IndexQuery...)}, in that this method <em>currently</em> cannot return
+     * values from the index. This may be added in the future. When this happens, this method may be extended with parameters for {@code indexOrder} and
+     * {@code needsValues}, and the cursor parameter will likely require a "value" cursor instead of just an "index" cursor.
+     *
+     * @param index {@link IndexDescriptor} for the index to query. This must be an index of relationships.
+     * @param cursor the cursor to use for consuming the results.
+     * @param query Combination of {@link IndexQuery index queries} to run against referenced index.
+     */
+    void relationshipIndexSeek( IndexDescriptor index, RelationshipIndexCursor cursor, IndexQuery... query ) throws KernelException;
 
     /**
      * Access all distinct counts in an index. Entries fed to the {@code cursor} will be (count,Value[]),
@@ -59,11 +87,11 @@ public interface Read
      *
      * NOTE distinct values may not be 100% accurate for point values that are very close to each other. In those cases they can be
      * reported as a single distinct values with a higher count instead of several separate values.
-     * @param index {@link IndexReference} referencing index.
+     * @param index {@link IndexDescriptor} for the index.
      * @param cursor {@link NodeValueIndexCursor} receiving distinct count data.
      * @param needsValues whether or not values should be loaded and given to the cursor.
      */
-    void nodeIndexDistinctValues( IndexReference index, NodeValueIndexCursor cursor, boolean needsValues ) throws IndexNotFoundKernelException;
+    void nodeIndexDistinctValues( IndexDescriptor index, NodeValueIndexCursor cursor, boolean needsValues ) throws IndexNotFoundKernelException;
 
     /**
      * Returns node id of node found in unique index or -1 if no node was found.
@@ -72,37 +100,29 @@ public interface Read
      * order to facilitate unique creation of nodes. If a node is found; a shared lock for the index entry will be
      * held whereas if no node is found we will hold onto an exclusive lock until the close of the transaction.
      *
-     * @param index {@link IndexReference} referencing index to query.
-     *              {@link IndexReference referenced index}, or {@link IndexOrder#NONE}.
+     * Note: This method does not take an IndexReadSession, as it has to acquire a new index session internally to
+     * ensure node uniqueness.
+     *
+     * @param index {@link IndexDescriptor} for the index to query.
+     * @param cursor cursor to use for performing the index seek
      * @param predicates Combination of {@link IndexQuery.ExactPredicate index queries} to run against referenced index.
      */
-    long lockingNodeUniqueIndexSeek( IndexReference index, IndexQuery.ExactPredicate... predicates )
+    long lockingNodeUniqueIndexSeek( IndexDescriptor index,
+                                     NodeValueIndexCursor cursor,
+                                     IndexQuery.ExactPredicate... predicates )
             throws KernelException;
 
     /**
      * Scan all values in an index.
      *
-     * @param index {@link IndexReference} referencing index to query.
+     * @param index {@link IndexReadSession} index read session to query.
      * @param cursor the cursor to use for consuming the results.
-     * @param indexOrder requested {@link IndexOrder} of result. Must be among the capabilities of
-     * {@link IndexReference referenced index}, or {@link IndexOrder#NONE}.
+     * @param indexOrder requested {@link IndexOrder} of result. Must be among the capabilities of the index, or {@link IndexOrder#NONE}.
      * @param needsValues if the index should fetch property values together with node ids for index queries
      */
-    void nodeIndexScan( IndexReference index, NodeValueIndexCursor cursor, IndexOrder indexOrder, boolean needsValues ) throws KernelException;
+    void nodeIndexScan( IndexReadSession index, NodeValueIndexCursor cursor, IndexOrder indexOrder, boolean needsValues ) throws KernelException;
 
     void nodeLabelScan( int label, NodeLabelIndexCursor cursor );
-
-    /**
-     * Scan for nodes that have a <i>disjunction</i> of the specified labels.
-     * i.e. MATCH (n) WHERE n:Label1 OR n:Label2 OR ...
-     */
-    void nodeLabelUnionScan( NodeLabelIndexCursor cursor, int... labels );
-
-    /**
-     * Scan for nodes that have a <i>conjunction</i> of the specified labels.
-     * i.e. MATCH (n) WHERE n:Label1 AND n:Label2 AND ...
-     */
-    void nodeLabelIntersectionScan( NodeLabelIndexCursor cursor, int... labels );
 
     Scan<NodeLabelIndexCursor> nodeLabelScan( int label );
 
@@ -135,13 +155,13 @@ public interface Read
     /**
      * The number of nodes in the graph, including anything changed in the transaction state.
      *
-     * If the label parameter is {@link #ANY_LABEL}, this method returns the total number of nodes in the graph, i.e.
+     * If the label parameter is {@link TokenRead#ANY_LABEL}, this method returns the total number of nodes in the graph, i.e.
      * {@code MATCH (n) RETURN count(n)}.
      *
      * If the label parameter is set to any other value, this method returns the number of nodes that has that label,
      * i.e. {@code MATCH (n:LBL) RETURN count(n)}.
      *
-     * @param labelId the label to get the count for, or {@link #ANY_LABEL} to get the total number of nodes.
+     * @param labelId the label to get the count for, or {@link TokenRead#ANY_LABEL} to get the total number of nodes.
      * @return the number of matching nodes in the graph.
      */
     long countsForNode( int labelId );
@@ -149,13 +169,13 @@ public interface Read
     /**
      * The number of nodes in the graph, without taking into account anything in the transaction state.
      *
-     * If the label parameter is {@link #ANY_LABEL}, this method returns the total number of nodes in the graph, i.e.
+     * If the label parameter is {@link TokenRead#ANY_LABEL}, this method returns the total number of nodes in the graph, i.e.
      * {@code MATCH (n) RETURN count(n)}.
      *
      * If the label parameter is set to any other value, this method returns the number of nodes that has that label,
      * i.e. {@code MATCH (n:LBL) RETURN count(n)}.
      *
-     * @param labelId the label to get the count for, or {@link #ANY_LABEL} to get the total number of nodes.
+     * @param labelId the label to get the count for, or {@link TokenRead#ANY_LABEL} to get the total number of nodes.
      * @return the number of matching nodes in the graph.
      */
     long countsForNodeWithoutTxState( int labelId );
@@ -173,35 +193,35 @@ public interface Read
      * </thead>
      * <tdata>
      * <tr>
-     * <td>{@link #ANY_LABEL}</td>      <td>{@link #ANY_RELATIONSHIP_TYPE}</td>  <td>{@link #ANY_LABEL}</td>
+     * <td>{@link TokenRead#ANY_LABEL}</td>      <td>{@link TokenRead#ANY_RELATIONSHIP_TYPE}</td>  <td>{@link TokenRead#ANY_LABEL}</td>
      * <td>{@code MATCH}</td>    <td>{@code ()-[r]->()}</td>            <td>{@code RETURN count(r)}</td>
      * </tr>
      * <tr>
-     * <td>{@link #ANY_LABEL}</td>      <td>{@code REL}</td>                     <td>{@link #ANY_LABEL}</td>
+     * <td>{@link TokenRead#ANY_LABEL}</td>      <td>{@code REL}</td>                     <td>{@link TokenRead#ANY_LABEL}</td>
      * <td>{@code MATCH}</td>    <td>{@code ()-[r:REL]->()}</td>        <td>{@code RETURN count(r)}</td>
      * </tr>
      * <tr>
-     * <td>{@code LHS}</td>             <td>{@link #ANY_RELATIONSHIP_TYPE}</td>  <td>{@link #ANY_LABEL}</td>
+     * <td>{@code LHS}</td>             <td>{@link TokenRead#ANY_RELATIONSHIP_TYPE}</td>  <td>{@link TokenRead#ANY_LABEL}</td>
      * <td>{@code MATCH}</td>    <td>{@code (:LHS)-[r]->()}</td>        <td>{@code RETURN count(r)}</td>
      * </tr>
      * <tr>
-     * <td>{@link #ANY_LABEL}</td>      <td>{@link #ANY_RELATIONSHIP_TYPE}</td>  <td>{@code RHS}</td>
+     * <td>{@link TokenRead#ANY_LABEL}</td>      <td>{@link TokenRead#ANY_RELATIONSHIP_TYPE}</td>  <td>{@code RHS}</td>
      * <td>{@code MATCH}</td>    <td>{@code ()-[r]->(:RHS)}</td>        <td>{@code RETURN count(r)}</td>
      * </tr>
      * <tr>
-     * <td>{@code LHS}</td>             <td>{@code REL}</td>                     <td>{@link #ANY_LABEL}</td>
+     * <td>{@code LHS}</td>             <td>{@code REL}</td>                     <td>{@link TokenRead#ANY_LABEL}</td>
      * <td>{@code MATCH}</td>    <td>{@code (:LHS)-[r:REL]->()}</td>    <td>{@code RETURN count(r)}</td>
      * </tr>
      * <tr>
-     * <td>{@link #ANY_LABEL}</td>      <td>{@code REL}</td>                     <td>{@code RHS}</td>
+     * <td>{@link TokenRead#ANY_LABEL}</td>      <td>{@code REL}</td>                     <td>{@code RHS}</td>
      * <td>{@code MATCH}</td>    <td>{@code ()-[r:REL]->(:RHS)}</td>    <td>{@code RETURN count(r)}</td>
      * </tr>
      * </tdata>
      * </table>
      *
-     * @param startLabelId the label of the start node of relationships to get the count for, or {@link #ANY_LABEL}.
-     * @param typeId       the type of relationships to get a count for, or {@link #ANY_RELATIONSHIP_TYPE}.
-     * @param endLabelId   the label of the end node of relationships to get the count for, or {@link #ANY_LABEL}.
+     * @param startLabelId the label of the start node of relationships to get the count for, or {@link TokenRead#ANY_LABEL}.
+     * @param typeId       the type of relationships to get a count for, or {@link TokenRead#ANY_RELATIONSHIP_TYPE}.
+     * @param endLabelId   the label of the end node of relationships to get the count for, or {@link TokenRead#ANY_LABEL}.
      * @return the number of matching relationships in the graph.
      */
     long countsForRelationship( int startLabelId, int typeId, int endLabelId );
@@ -219,35 +239,35 @@ public interface Read
      * </thead>
      * <tdata>
      * <tr>
-     * <td>{@link #ANY_LABEL}</td>      <td>{@link #ANY_RELATIONSHIP_TYPE}</td>  <td>{@link #ANY_LABEL}</td>
+     * <td>{@link TokenRead#ANY_LABEL}</td>      <td>{@link TokenRead#ANY_RELATIONSHIP_TYPE}</td>  <td>{@link TokenRead#ANY_LABEL}</td>
      * <td>{@code MATCH}</td>    <td>{@code ()-[r]->()}</td>            <td>{@code RETURN count(r)}</td>
      * </tr>
      * <tr>
-     * <td>{@link #ANY_LABEL}</td>      <td>{@code REL}</td>                     <td>{@link #ANY_LABEL}</td>
+     * <td>{@link TokenRead#ANY_LABEL}</td>      <td>{@code REL}</td>                     <td>{@link TokenRead#ANY_LABEL}</td>
      * <td>{@code MATCH}</td>    <td>{@code ()-[r:REL]->()}</td>        <td>{@code RETURN count(r)}</td>
      * </tr>
      * <tr>
-     * <td>{@code LHS}</td>             <td>{@link #ANY_RELATIONSHIP_TYPE}</td>  <td>{@link #ANY_LABEL}</td>
+     * <td>{@code LHS}</td>             <td>{@link TokenRead#ANY_RELATIONSHIP_TYPE}</td>  <td>{@link TokenRead#ANY_LABEL}</td>
      * <td>{@code MATCH}</td>    <td>{@code (:LHS)-[r]->()}</td>        <td>{@code RETURN count(r)}</td>
      * </tr>
      * <tr>
-     * <td>{@link #ANY_LABEL}</td>      <td>{@link #ANY_RELATIONSHIP_TYPE}</td>  <td>{@code RHS}</td>
+     * <td>{@link TokenRead#ANY_LABEL}</td>      <td>{@link TokenRead#ANY_RELATIONSHIP_TYPE}</td>  <td>{@code RHS}</td>
      * <td>{@code MATCH}</td>    <td>{@code ()-[r]->(:RHS)}</td>        <td>{@code RETURN count(r)}</td>
      * </tr>
      * <tr>
-     * <td>{@code LHS}</td>             <td>{@code REL}</td>                     <td>{@link #ANY_LABEL}</td>
+     * <td>{@code LHS}</td>             <td>{@code REL}</td>                     <td>{@link TokenRead#ANY_LABEL}</td>
      * <td>{@code MATCH}</td>    <td>{@code (:LHS)-[r:REL]->()}</td>    <td>{@code RETURN count(r)}</td>
      * </tr>
      * <tr>
-     * <td>{@link #ANY_LABEL}</td>      <td>{@code REL}</td>                     <td>{@code RHS}</td>
+     * <td>{@link TokenRead#ANY_LABEL}</td>      <td>{@code REL}</td>                     <td>{@code RHS}</td>
      * <td>{@code MATCH}</td>    <td>{@code ()-[r:REL]->(:RHS)}</td>    <td>{@code RETURN count(r)}</td>
      * </tr>
      * </tdata>
      * </table>
      *
-     * @param startLabelId the label of the start node of relationships to get the count for, or {@link #ANY_LABEL}.
-     * @param typeId       the type of relationships to get a count for, or {@link #ANY_RELATIONSHIP_TYPE}.
-     * @param endLabelId   the label of the end node of relationships to get the count for, or {@link #ANY_LABEL}.
+     * @param startLabelId the label of the start node of relationships to get the count for, or {@link TokenRead#ANY_LABEL}.
+     * @param typeId       the type of relationships to get a count for, or {@link TokenRead#ANY_RELATIONSHIP_TYPE}.
+     * @param endLabelId   the label of the end node of relationships to get the count for, or {@link TokenRead#ANY_LABEL}.
      * @return the number of matching relationships in the graph.
      */
     long countsForRelationshipWithoutTxState( int startLabelId, int typeId, int endLabelId );
@@ -287,8 +307,6 @@ public interface Read
     Scan<RelationshipScanCursor> allRelationshipsScan();
 
     void relationshipTypeScan( int type, RelationshipScanCursor cursor );
-
-    Scan<RelationshipScanCursor> relationshipTypeScan( int type );
 
     /**
      * @param nodeReference
@@ -355,15 +373,17 @@ public interface Read
      */
     Value nodePropertyChangeInTransactionOrNull( long node, int propertyKeyId );
 
-    void graphProperties( PropertyCursor cursor );
+    /**
+     * Returns the value of a relationship property if set in this transaction.
+     * @param relationship the relationship
+     * @param propertyKeyId the property key id of interest
+     * @return <code>null</code> if the property has not been changed for the relationship in this transaction. Otherwise returns
+     *         the new property value, or {@link Values#NO_VALUE} if the property has been removed in this transaction.
+     */
+    Value relationshipPropertyChangeInTransactionOrNull( long relationship, int propertyKeyId );
 
-    // hints to the page cache about data we will be accessing in the future:
-
-    void futureNodeReferenceRead( long reference );
-
-    void futureRelationshipsReferenceRead( long reference );
-
-    void futureNodePropertyReferenceRead( long reference );
-
-    void futureRelationshipPropertyReferenceRead( long reference );
+    /**
+     * @return whether there are changes in the transaction state.
+     */
+    boolean transactionStateHasChanges();
 }

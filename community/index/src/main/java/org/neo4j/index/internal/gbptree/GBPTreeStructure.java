@@ -244,7 +244,7 @@ public class GBPTreeStructure<KEY, VALUE>
 
     private void visitLevel( PageCursor readCursor, PageCursor writeCursor, GBPTreeVisitor<KEY,VALUE> visitor ) throws IOException
     {
-        long rightSibling = -1;
+        long rightSibling;
         do
         {
             PageCursor cursor = select( readCursor, writeCursor );

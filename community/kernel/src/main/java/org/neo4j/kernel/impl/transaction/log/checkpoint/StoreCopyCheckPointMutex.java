@@ -23,7 +23,6 @@
 package org.neo4j.kernel.impl.transaction.log.checkpoint;
 
 import java.io.IOException;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.LockSupport;
 import java.util.concurrent.locks.ReadWriteLock;
@@ -202,15 +201,17 @@ public class StoreCopyCheckPointMutex
     public Resource tryCheckPoint( BooleanSupplier timeoutPredicate )
     {
         Lock writeLock = lock.writeLock();
+        long waitTimeMillis = 0; // Don't do any waiting on the first iteration. We want to consult the predicate first.
 
         try
         {
-            while ( !writeLock.tryLock( 100, MILLISECONDS ) )
+            while ( !writeLock.tryLock( waitTimeMillis, MILLISECONDS ) )
             {
                 if ( timeoutPredicate.getAsBoolean() )
                 {
                     return null;
                 }
+                waitTimeMillis = 100;
             }
         }
         catch ( InterruptedException e )

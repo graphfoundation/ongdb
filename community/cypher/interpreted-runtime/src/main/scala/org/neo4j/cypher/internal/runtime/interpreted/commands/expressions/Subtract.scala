@@ -22,7 +22,7 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.commands.expressions
 
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
+import org.neo4j.cypher.internal.runtime.ExecutionContext
 import org.neo4j.cypher.internal.runtime.interpreted.commands.AstNode
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.QueryState
 import org.neo4j.cypher.operations.CypherMath
@@ -32,7 +32,7 @@ import org.neo4j.values.storable.Values
 case class Subtract(a: Expression, b: Expression) extends Expression {
 
   override def apply(ctx: ExecutionContext, state: QueryState): AnyValue = (a(ctx, state), b(ctx, state)) match {
-    case (x, y) if x == Values.NO_VALUE || y == Values.NO_VALUE => Values.NO_VALUE
+    case (x, y) if (x eq Values.NO_VALUE) || (y eq Values.NO_VALUE) => Values.NO_VALUE
     case (x, y) => CypherMath.subtract(x, y)
   }
 
@@ -41,6 +41,4 @@ case class Subtract(a: Expression, b: Expression) extends Expression {
   override def arguments: Seq[Expression] = Seq(a, b)
 
   override def children: Seq[AstNode[_]] = Seq(a, b)
-
-  override def symbolTableDependencies: Set[String] = a.symbolTableDependencies ++ b.symbolTableDependencies
 }

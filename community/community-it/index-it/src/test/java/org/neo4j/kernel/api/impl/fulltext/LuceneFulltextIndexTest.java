@@ -24,17 +24,39 @@ package org.neo4j.kernel.api.impl.fulltext;
 
 import org.junit.Test;
 
-import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 
 import org.neo4j.graphdb.Node;
+import org.neo4j.graphdb.ResourceIterator;
 import org.neo4j.graphdb.Transaction;
-import org.neo4j.internal.kernel.api.IndexReference;
-import org.neo4j.internal.kernel.api.schema.SchemaDescriptor;
+import org.neo4j.graphdb.schema.IndexType;
+import org.neo4j.internal.schema.FulltextSchemaDescriptor;
+import org.neo4j.internal.schema.IndexCapability;
+import org.neo4j.internal.schema.IndexConfig;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.internal.schema.IndexLimitation;
+import org.neo4j.internal.schema.IndexOrder;
+import org.neo4j.internal.schema.IndexPrototype;
+import org.neo4j.internal.schema.IndexProviderDescriptor;
+import org.neo4j.internal.schema.IndexValueCapability;
+import org.neo4j.internal.schema.SchemaDescriptor;
 import org.neo4j.kernel.api.KernelTransaction;
 import org.neo4j.kernel.impl.api.KernelTransactionImplementation;
+import org.neo4j.values.storable.ValueCategory;
+import org.neo4j.values.storable.Values;
 
-import static org.neo4j.storageengine.api.EntityType.NODE;
-import static org.neo4j.storageengine.api.EntityType.RELATIONSHIP;
+import static java.util.Arrays.asList;
+import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
+import static org.neo4j.common.EntityType.NODE;
+import static org.neo4j.kernel.api.impl.fulltext.FulltextIndexSettingsKeys.ANALYZER;
+import static org.neo4j.kernel.api.impl.fulltext.FulltextIndexSettingsKeys.EVENTUALLY_CONSISTENT;
 
 public class LuceneFulltextIndexTest extends LuceneFulltextTestSupport
 {
@@ -44,358 +66,367 @@ public class LuceneFulltextIndexTest extends LuceneFulltextTestSupport
     @Test
     public void shouldFindNodeWithString() throws Exception
     {
-        IndexReference index;
-        try ( KernelTransactionImplementation tx = getKernelTransaction() )
+        try ( Transaction tx = db.beginTx() )
         {
-            SchemaDescriptor descriptor = fulltextAdapter.schemaFor( NODE, new String[]{LABEL.name()}, settings, PROP );
-            index = tx.schemaWrite().indexCreate( descriptor, FulltextIndexProviderFactory.DESCRIPTOR.name(), Optional.of( NODE_INDEX_NAME ) );
-            tx.success();
+            tx.schema().indexFor( LABEL ).on( PROP ).withIndexType( IndexType.FULLTEXT ).withName( NODE_INDEX_NAME ).create();
+            tx.commit();
         }
-        await( index );
+        try ( Transaction tx = db.beginTx() )
+        {
+            tx.schema().awaitIndexOnline( NODE_INDEX_NAME, 30, TimeUnit.SECONDS );
+        }
         long firstID;
         long secondID;
         try ( Transaction tx = db.beginTx() )
         {
-            firstID = createNodeIndexableByPropertyValue( LABEL, "Hello. Hello again." );
-            secondID = createNodeIndexableByPropertyValue( LABEL, "A zebroid (also zedonk, zorse, zebra mule, zonkey, and zebmule) is the offspring of any " +
-                    "cross between a zebra and any other equine: essentially, a zebra hybrid." );
+            firstID = createNodeIndexableByPropertyValue( tx, LABEL, "Hello. Hello again." );
+            secondID = createNodeIndexableByPropertyValue( tx, LABEL,
+                    "A zebroid (also zedonk, zorse, zebra mule, zonkey, and zebmule) is the offspring of any " +
+                            "cross between a zebra and any other equine: essentially, a zebra hybrid." );
 
-            tx.success();
+            tx.commit();
         }
 
         try ( Transaction tx = db.beginTx() )
         {
             KernelTransaction ktx = kernelTransaction( tx );
-            assertQueryFindsIds( ktx, NODE_INDEX_NAME, "hello", firstID );
-            assertQueryFindsIds( ktx, NODE_INDEX_NAME, "zebra", secondID );
-            assertQueryFindsIds( ktx, NODE_INDEX_NAME, "zedonk", secondID );
-            assertQueryFindsIds( ktx, NODE_INDEX_NAME, "cross", secondID );
+            assertQueryFindsIds( ktx, true, NODE_INDEX_NAME, "hello", firstID );
+            assertQueryFindsIds( ktx, true, NODE_INDEX_NAME, "zebra", secondID );
+            assertQueryFindsIds( ktx, true, NODE_INDEX_NAME, "zedonk", secondID );
+            assertQueryFindsIds( ktx, true, NODE_INDEX_NAME, "cross", secondID );
         }
     }
 
     @Test
     public void shouldRepresentPropertyChanges() throws Exception
     {
-        IndexReference index;
-        try ( KernelTransactionImplementation tx = getKernelTransaction() )
+        try ( Transaction tx = db.beginTx() )
         {
-            SchemaDescriptor descriptor = fulltextAdapter.schemaFor( NODE, new String[]{LABEL.name()}, settings, PROP );
-            index = tx.schemaWrite().indexCreate( descriptor, FulltextIndexProviderFactory.DESCRIPTOR.name(), Optional.of( NODE_INDEX_NAME ) );
-            tx.success();
+            tx.schema().indexFor( LABEL ).on( PROP ).withIndexType( IndexType.FULLTEXT ).withName( NODE_INDEX_NAME ).create();
+            tx.commit();
         }
-        await( index );
+        try ( Transaction tx = db.beginTx() )
+        {
+            tx.schema().awaitIndexOnline( NODE_INDEX_NAME, 30, TimeUnit.SECONDS );
+        }
 
         long firstID;
         long secondID;
         try ( Transaction tx = db.beginTx() )
         {
-            firstID = createNodeIndexableByPropertyValue( LABEL, "Hello. Hello again." );
-            secondID = createNodeIndexableByPropertyValue( LABEL, "A zebroid (also zedonk, zorse, zebra mule, zonkey, and zebmule) is the offspring of any " +
-                    "cross between a zebra and any other equine: essentially, a zebra hybrid." );
+            firstID = createNodeIndexableByPropertyValue( tx, LABEL, "Hello. Hello again." );
+            secondID = createNodeIndexableByPropertyValue( tx, LABEL,
+                    "A zebroid (also zedonk, zorse, zebra mule, zonkey, and zebmule) is the offspring of any " +
+                            "cross between a zebra and any other equine: essentially, a zebra hybrid." );
 
-            tx.success();
+            tx.commit();
         }
         try ( Transaction tx = db.beginTx() )
         {
-            setNodeProp( firstID, "Finally! Potato!" );
-            setNodeProp( secondID, "This one is a potato farmer." );
+            setNodeProp( tx, firstID, "Finally! Potato!" );
+            setNodeProp( tx, secondID, "This one is a potato farmer." );
 
-            tx.success();
+            tx.commit();
         }
 
         try ( Transaction tx = db.beginTx() )
         {
             KernelTransaction ktx = kernelTransaction( tx );
-            assertQueryFindsNothing( ktx, NODE_INDEX_NAME, "hello" );
-            assertQueryFindsNothing( ktx, NODE_INDEX_NAME, "zebra" );
-            assertQueryFindsNothing( ktx, NODE_INDEX_NAME, "zedonk" );
-            assertQueryFindsNothing( ktx, NODE_INDEX_NAME, "cross" );
-            assertQueryFindsIds( ktx, NODE_INDEX_NAME, "finally", firstID );
-            assertQueryFindsIds( ktx, NODE_INDEX_NAME, "farmer", secondID );
-            assertQueryFindsIds( ktx, NODE_INDEX_NAME, "potato", firstID, secondID );
+            assertQueryFindsNothing( ktx, true, NODE_INDEX_NAME, "hello" );
+            assertQueryFindsNothing( ktx, true, NODE_INDEX_NAME, "zebra" );
+            assertQueryFindsNothing( ktx, true, NODE_INDEX_NAME, "zedonk" );
+            assertQueryFindsNothing( ktx, true, NODE_INDEX_NAME, "cross" );
+            assertQueryFindsIds( ktx, true, NODE_INDEX_NAME, "finally", firstID );
+            assertQueryFindsIds( ktx, true, NODE_INDEX_NAME, "farmer", secondID );
+            assertQueryFindsIds( ktx, true, NODE_INDEX_NAME, "potato", firstID, secondID );
         }
     }
 
     @Test
     public void shouldNotFindRemovedNodes() throws Exception
     {
-        IndexReference index;
-        try ( KernelTransactionImplementation tx = getKernelTransaction() )
+        try ( Transaction tx = db.beginTx() )
         {
-            SchemaDescriptor descriptor = fulltextAdapter.schemaFor( NODE, new String[]{LABEL.name()}, settings, PROP );
-            index = tx.schemaWrite().indexCreate( descriptor, FulltextIndexProviderFactory.DESCRIPTOR.name(), Optional.of( NODE_INDEX_NAME ) );
-            tx.success();
+            tx.schema().indexFor( LABEL ).on( PROP ).withIndexType( IndexType.FULLTEXT ).withName( NODE_INDEX_NAME ).create();
+            tx.commit();
         }
-        await( index );
+        try ( Transaction tx = db.beginTx() )
+        {
+            tx.schema().awaitIndexOnline( NODE_INDEX_NAME, 30, TimeUnit.SECONDS );
+        }
 
         long firstID;
         long secondID;
         try ( Transaction tx = db.beginTx() )
         {
-            firstID = createNodeIndexableByPropertyValue( LABEL, "Hello. Hello again." );
-            secondID = createNodeIndexableByPropertyValue( LABEL, "A zebroid (also zedonk, zorse, zebra mule, zonkey, and zebmule) is the offspring of any " +
-                    "cross between a zebra and any other equine: essentially, a zebra hybrid." );
+            firstID = createNodeIndexableByPropertyValue( tx, LABEL, "Hello. Hello again." );
+            secondID = createNodeIndexableByPropertyValue( tx, LABEL,
+                    "A zebroid (also zedonk, zorse, zebra mule, zonkey, and zebmule) is the offspring of any " +
+                            "cross between a zebra and any other equine: essentially, a zebra hybrid." );
 
-            tx.success();
+            tx.commit();
         }
 
         try ( Transaction tx = db.beginTx() )
         {
-            db.getNodeById( firstID ).delete();
-            db.getNodeById( secondID ).delete();
+            tx.getNodeById( firstID ).delete();
+            tx.getNodeById( secondID ).delete();
 
-            tx.success();
+            tx.commit();
         }
 
         try ( Transaction tx = db.beginTx() )
         {
             KernelTransaction ktx = kernelTransaction( tx );
-            assertQueryFindsNothing( ktx, NODE_INDEX_NAME, "hello" );
-            assertQueryFindsNothing( ktx, NODE_INDEX_NAME, "zebra" );
-            assertQueryFindsNothing( ktx, NODE_INDEX_NAME, "zedonk" );
-            assertQueryFindsNothing( ktx, NODE_INDEX_NAME, "cross" );
+            assertQueryFindsNothing( ktx, true, NODE_INDEX_NAME, "hello" );
+            assertQueryFindsNothing( ktx, true, NODE_INDEX_NAME, "zebra" );
+            assertQueryFindsNothing( ktx, true, NODE_INDEX_NAME, "zedonk" );
+            assertQueryFindsNothing( ktx, true, NODE_INDEX_NAME, "cross" );
         }
     }
 
     @Test
     public void shouldNotFindRemovedProperties() throws Exception
     {
-        IndexReference index;
-        try ( KernelTransactionImplementation tx = getKernelTransaction() )
+        try ( Transaction tx = db.beginTx() )
         {
-            SchemaDescriptor descriptor = fulltextAdapter.schemaFor( NODE, new String[]{LABEL.name()}, settings, "prop", "prop2" );
-            index = tx.schemaWrite().indexCreate( descriptor, FulltextIndexProviderFactory.DESCRIPTOR.name(), Optional.of( NODE_INDEX_NAME ) );
-            tx.success();
+            tx.schema().indexFor( LABEL ).on( PROP ).on( PROP2 ).withIndexType( IndexType.FULLTEXT ).withName( NODE_INDEX_NAME ).create();
+            tx.commit();
         }
-        await( index );
+        try ( Transaction tx = db.beginTx() )
+        {
+            tx.schema().awaitIndexOnline( NODE_INDEX_NAME, 30, TimeUnit.SECONDS );
+        }
         long firstID;
         long secondID;
         long thirdID;
         try ( Transaction tx = db.beginTx() )
         {
-            firstID = createNodeIndexableByPropertyValue( LABEL, "Hello. Hello again." );
-            secondID = createNodeIndexableByPropertyValue( LABEL, "A zebroid (also zedonk, zorse, zebra mule, zonkey, and zebmule) is the offspring of any " +
-                    "cross between a zebra and any other equine: essentially, a zebra hybrid." );
-            thirdID = createNodeIndexableByPropertyValue( LABEL, "Hello. Hello again." );
+            firstID = createNodeIndexableByPropertyValue( tx, LABEL, "Hello. Hello again." );
+            secondID = createNodeIndexableByPropertyValue( tx, LABEL,
+                    "A zebroid (also zedonk, zorse, zebra mule, zonkey, and zebmule) is the offspring of any " +
+                            "cross between a zebra and any other equine: essentially, a zebra hybrid." );
+            thirdID = createNodeIndexableByPropertyValue( tx, LABEL, "Hello. Hello again." );
 
-            setNodeProp( firstID, "zebra" );
-            setNodeProp( secondID, "Hello. Hello again." );
+            setNodeProp( tx, firstID, "zebra" );
+            setNodeProp( tx, secondID, "Hello. Hello again." );
 
-            tx.success();
+            tx.commit();
         }
 
         try ( Transaction tx = db.beginTx() )
         {
-            Node node = db.getNodeById( firstID );
-            Node node2 = db.getNodeById( secondID );
-            Node node3 = db.getNodeById( thirdID );
+            Node node = tx.getNodeById( firstID );
+            Node node2 = tx.getNodeById( secondID );
+            Node node3 = tx.getNodeById( thirdID );
 
-            node.setProperty( "prop", "tomtar" );
-            node.setProperty( "prop2", "tomtar" );
+            node.setProperty( PROP, "tomtar" );
+            node.setProperty( PROP2, "tomtar" );
 
-            node2.setProperty( "prop", "tomtar" );
-            node2.setProperty( "prop2", "Hello" );
+            node2.setProperty( PROP, "tomtar" );
+            node2.setProperty( PROP2, "Hello" );
 
-            node3.removeProperty( "prop" );
+            node3.removeProperty( PROP );
 
-            tx.success();
+            tx.commit();
         }
 
         try ( Transaction tx = db.beginTx() )
         {
             KernelTransaction ktx = kernelTransaction( tx );
-            assertQueryFindsIds( ktx, NODE_INDEX_NAME, "hello", secondID );
-            assertQueryFindsNothing( ktx, NODE_INDEX_NAME, "zebra" );
-            assertQueryFindsNothing( ktx, NODE_INDEX_NAME, "zedonk" );
-            assertQueryFindsNothing( ktx, NODE_INDEX_NAME, "cross" );
+            assertQueryFindsIds( ktx, true, NODE_INDEX_NAME, "hello", secondID );
+            assertQueryFindsNothing( ktx, true, NODE_INDEX_NAME, "zebra" );
+            assertQueryFindsNothing( ktx, true, NODE_INDEX_NAME, "zedonk" );
+            assertQueryFindsNothing( ktx, true, NODE_INDEX_NAME, "cross" );
         }
     }
 
     @Test
     public void shouldOnlyIndexIndexedProperties() throws Exception
     {
-        IndexReference index;
-        try ( KernelTransactionImplementation tx = getKernelTransaction() )
+        try ( Transaction tx = db.beginTx() )
         {
-            SchemaDescriptor descriptor = fulltextAdapter.schemaFor( NODE, new String[]{LABEL.name()}, settings, PROP );
-            index = tx.schemaWrite().indexCreate( descriptor, FulltextIndexProviderFactory.DESCRIPTOR.name(), Optional.of( NODE_INDEX_NAME ) );
-            tx.success();
+            tx.schema().indexFor( LABEL ).on( PROP ).withIndexType( IndexType.FULLTEXT ).withName( NODE_INDEX_NAME ).create();
+            tx.commit();
         }
-        await( index );
+        try ( Transaction tx = db.beginTx() )
+        {
+            tx.schema().awaitIndexOnline( NODE_INDEX_NAME, 30, TimeUnit.SECONDS );
+        }
 
         long firstID;
         try ( Transaction tx = db.beginTx() )
         {
-            firstID = createNodeIndexableByPropertyValue( LABEL, "Hello. Hello again." );
-            setNodeProp( firstID, "prop2", "zebra" );
+            firstID = createNodeIndexableByPropertyValue( tx, LABEL, "Hello. Hello again." );
+            setNodeProp( tx, firstID, PROP2, "zebra" );
 
-            Node node2 = db.createNode( LABEL );
-            node2.setProperty( "prop2", "zebra" );
-            node2.setProperty( "prop3", "hello" );
+            Node node2 = tx.createNode( LABEL );
+            node2.setProperty( PROP2, "zebra" );
+            node2.setProperty( PROP3, "hello" );
 
-            tx.success();
+            tx.commit();
         }
 
         try ( Transaction tx = db.beginTx() )
         {
             KernelTransaction ktx = kernelTransaction( tx );
-            assertQueryFindsIds( ktx, NODE_INDEX_NAME, "hello", firstID );
-            assertQueryFindsNothing( ktx, NODE_INDEX_NAME, "zebra" );
+            assertQueryFindsIds( ktx, true, NODE_INDEX_NAME, "hello", firstID );
+            assertQueryFindsNothing( ktx, true, NODE_INDEX_NAME, "zebra" );
         }
     }
 
     @Test
     public void shouldSearchAcrossMultipleProperties() throws Exception
     {
-        IndexReference index;
-        try ( KernelTransactionImplementation tx = getKernelTransaction() )
+        try ( Transaction tx = db.beginTx() )
         {
-            SchemaDescriptor descriptor = fulltextAdapter.schemaFor( NODE, new String[]{LABEL.name()}, settings, "prop", "prop2" );
-            index = tx.schemaWrite().indexCreate( descriptor, FulltextIndexProviderFactory.DESCRIPTOR.name(), Optional.of( NODE_INDEX_NAME ) );
-            tx.success();
+            tx.schema().indexFor( LABEL ).on( PROP ).on( PROP2 ).withIndexType( IndexType.FULLTEXT ).withName( NODE_INDEX_NAME ).create();
+            tx.commit();
         }
-        await( index );
+        try ( Transaction tx = db.beginTx() )
+        {
+            tx.schema().awaitIndexOnline( NODE_INDEX_NAME, 30, TimeUnit.SECONDS );
+        }
 
         long firstID;
         long secondID;
         long thirdID;
         try ( Transaction tx = db.beginTx() )
         {
-            firstID = createNodeIndexableByPropertyValue( LABEL, "Tomtar tomtar oftsat i tomteutstyrsel." );
-            secondID = createNodeIndexableByPropertyValue( LABEL, "Olof och Hans" );
-            setNodeProp( secondID, "prop2", "och karl" );
+            firstID = createNodeIndexableByPropertyValue( tx, LABEL, "Tomtar tomtar oftsat i tomteutstyrsel." );
+            secondID = createNodeIndexableByPropertyValue( tx, LABEL, "Olof och Hans" );
+            setNodeProp( tx, secondID, PROP2, "och karl" );
 
-            Node node3 = db.createNode( LABEL );
+            Node node3 = tx.createNode( LABEL );
             thirdID = node3.getId();
-            node3.setProperty( "prop2", "Tomtar som inte tomtar ser upp till tomtar som tomtar." );
+            node3.setProperty( PROP2, "Tomtar som inte tomtar ser upp till tomtar som tomtar." );
 
-            tx.success();
+            tx.commit();
         }
 
         try ( Transaction tx = db.beginTx() )
         {
             KernelTransaction ktx = kernelTransaction( tx );
-            assertQueryFindsIds( ktx, NODE_INDEX_NAME, "tomtar Karl", firstID, secondID, thirdID );
+            assertQueryFindsIds( ktx, true, NODE_INDEX_NAME, "tomtar Karl", firstID, secondID, thirdID );
         }
     }
 
     @Test
     public void shouldOrderResultsBasedOnRelevance() throws Exception
     {
-        IndexReference index;
-        try ( KernelTransactionImplementation tx = getKernelTransaction() )
+        try ( Transaction tx = db.beginTx() )
         {
-            SchemaDescriptor descriptor = fulltextAdapter.schemaFor( NODE, new String[]{LABEL.name()}, settings, "first", "last" );
-            index = tx.schemaWrite().indexCreate( descriptor, FulltextIndexProviderFactory.DESCRIPTOR.name(), Optional.of( NODE_INDEX_NAME ) );
-            tx.success();
+            tx.schema().indexFor( LABEL ).on( "first" ).on( "last" ).withIndexType( IndexType.FULLTEXT ).withName( NODE_INDEX_NAME ).create();
+            tx.commit();
         }
-        await( index );
+        try ( Transaction tx = db.beginTx() )
+        {
+            tx.schema().awaitIndexOnline( NODE_INDEX_NAME, 30, TimeUnit.SECONDS );
+        }
         long firstID;
         long secondID;
         long thirdID;
         long fourthID;
         try ( Transaction tx = db.beginTx() )
         {
-            firstID = db.createNode( LABEL ).getId();
-            secondID = db.createNode( LABEL ).getId();
-            thirdID = db.createNode( LABEL ).getId();
-            fourthID = db.createNode( LABEL ).getId();
-            setNodeProp( firstID, "first", "Full" );
-            setNodeProp( firstID, "last", "Hanks" );
-            setNodeProp( secondID, "first", "Tom" );
-            setNodeProp( secondID, "last", "Hunk" );
-            setNodeProp( thirdID, "first", "Tom" );
-            setNodeProp( thirdID, "last", "Hanks" );
-            setNodeProp( fourthID, "first", "Tom Hanks" );
-            setNodeProp( fourthID, "last", "Tom Hanks" );
+            firstID = tx.createNode( LABEL ).getId();
+            secondID = tx.createNode( LABEL ).getId();
+            thirdID = tx.createNode( LABEL ).getId();
+            fourthID = tx.createNode( LABEL ).getId();
+            setNodeProp( tx, firstID, "first", "Full" );
+            setNodeProp( tx, firstID, "last", "Hanks" );
+            setNodeProp( tx, secondID, "first", "Tom" );
+            setNodeProp( tx, secondID, "last", "Hunk" );
+            setNodeProp( tx, thirdID, "first", "Tom" );
+            setNodeProp( tx, thirdID, "last", "Hanks" );
+            setNodeProp( tx, fourthID, "first", "Tom Hanks" );
+            setNodeProp( tx, fourthID, "last", "Tom Hanks" );
 
-            tx.success();
+            tx.commit();
         }
 
         try ( Transaction tx = db.beginTx() )
         {
             KernelTransaction ktx = kernelTransaction( tx );
-            assertQueryFindsIdsInOrder( ktx, NODE_INDEX_NAME, "Tom Hanks", fourthID, thirdID, firstID, secondID );
+            assertQueryFindsNodeIdsInOrder( ktx, NODE_INDEX_NAME, "Tom Hanks", fourthID, thirdID, firstID, secondID );
         }
     }
 
     @Test
     public void shouldDifferentiateNodesAndRelationships() throws Exception
     {
-        SchemaDescriptor nodes = fulltextAdapter.schemaFor( NODE, new String[]{LABEL.name()}, settings, PROP );
-        SchemaDescriptor rels = fulltextAdapter.schemaFor( RELATIONSHIP, new String[]{RELTYPE.name()}, settings, PROP );
-        IndexReference nodesIndex;
-        IndexReference relsIndex;
-        try ( KernelTransactionImplementation tx = getKernelTransaction() )
+        try ( Transaction tx = db.beginTx() )
         {
-            nodesIndex = tx.schemaWrite().indexCreate( nodes, FulltextIndexProviderFactory.DESCRIPTOR.name(), Optional.of( NODE_INDEX_NAME ) );
-            relsIndex = tx.schemaWrite().indexCreate( rels, FulltextIndexProviderFactory.DESCRIPTOR.name(), Optional.of( REL_INDEX_NAME ) );
-            tx.success();
+            tx.schema().indexFor( LABEL ).on( PROP ).withIndexType( IndexType.FULLTEXT ).withName( NODE_INDEX_NAME ).create();
+            tx.schema().indexFor( RELTYPE ).on( PROP ).withIndexType( IndexType.FULLTEXT ).withName( REL_INDEX_NAME ).create();
+            tx.commit();
         }
-        await( nodesIndex );
-        await( relsIndex );
+        try ( Transaction tx = db.beginTx() )
+        {
+            tx.schema().awaitIndexOnline( NODE_INDEX_NAME, 30, TimeUnit.SECONDS );
+            tx.schema().awaitIndexOnline( REL_INDEX_NAME, 30, TimeUnit.SECONDS );
+        }
         long firstNodeID;
         long secondNodeID;
         long firstRelID;
         long secondRelID;
         try ( Transaction tx = db.beginTx() )
         {
-            firstNodeID = createNodeIndexableByPropertyValue( LABEL, "Hello. Hello again." );
-            secondNodeID = createNodeIndexableByPropertyValue( LABEL,
+            firstNodeID = createNodeIndexableByPropertyValue( tx, LABEL, "Hello. Hello again." );
+            secondNodeID = createNodeIndexableByPropertyValue( tx, LABEL,
                     "A zebroid (also zedonk, zorse, zebra mule, zonkey, and zebmule) is the offspring of any " +
                             "cross between a zebra and any other equine: essentially, a zebra hybrid." );
-            firstRelID = createRelationshipIndexableByPropertyValue( firstNodeID, secondNodeID, "Hello. Hello again." );
-            secondRelID = createRelationshipIndexableByPropertyValue( secondNodeID, firstNodeID, "And now, something completely different" );
+            firstRelID = createRelationshipIndexableByPropertyValue( tx, firstNodeID, secondNodeID, "Hello. Hello again." );
+            secondRelID = createRelationshipIndexableByPropertyValue( tx, secondNodeID, firstNodeID, "And now, something completely different" );
 
-            tx.success();
+            tx.commit();
         }
 
         try ( Transaction tx = db.beginTx() )
         {
             KernelTransaction ktx = kernelTransaction( tx );
-            assertQueryFindsIds( ktx, NODE_INDEX_NAME, "hello", firstNodeID );
-            assertQueryFindsIds( ktx, NODE_INDEX_NAME, "zebra", secondNodeID );
-            assertQueryFindsNothing( ktx, NODE_INDEX_NAME, "different" );
+            assertQueryFindsIds( ktx, true, NODE_INDEX_NAME, "hello", firstNodeID );
+            assertQueryFindsIds( ktx, true, NODE_INDEX_NAME, "zebra", secondNodeID );
+            assertQueryFindsNothing( ktx, true, NODE_INDEX_NAME, "different" );
 
-            assertQueryFindsIds( ktx, REL_INDEX_NAME, "hello", firstRelID );
-            assertQueryFindsNothing( ktx, REL_INDEX_NAME, "zebra" );
-            assertQueryFindsIds( ktx, REL_INDEX_NAME, "different", secondRelID );
+            assertQueryFindsIds( ktx, false, REL_INDEX_NAME, "hello", firstRelID );
+            assertQueryFindsNothing( ktx, false, REL_INDEX_NAME, "zebra" );
+            assertQueryFindsIds( ktx, false, REL_INDEX_NAME, "different", secondRelID );
         }
     }
 
     @Test
     public void shouldNotReturnNonMatches() throws Exception
     {
-        SchemaDescriptor nodes = fulltextAdapter.schemaFor( NODE, new String[]{LABEL.name()}, settings, PROP );
-        SchemaDescriptor rels = fulltextAdapter.schemaFor( RELATIONSHIP, new String[]{RELTYPE.name()}, settings, PROP );
-        IndexReference nodesIndex;
-        IndexReference relsIndex;
-        try ( KernelTransactionImplementation tx = getKernelTransaction() )
-        {
-            nodesIndex = tx.schemaWrite().indexCreate( nodes, FulltextIndexProviderFactory.DESCRIPTOR.name(), Optional.of( NODE_INDEX_NAME ) );
-            relsIndex = tx.schemaWrite().indexCreate( rels, FulltextIndexProviderFactory.DESCRIPTOR.name(), Optional.of( REL_INDEX_NAME ) );
-            tx.success();
-        }
-        await( nodesIndex );
-        await( relsIndex );
         try ( Transaction tx = db.beginTx() )
         {
-            long firstNode = createNodeIndexableByPropertyValue( LABEL, "Hello. Hello again." );
-            long secondNode = createNodeWithProperty( LABEL, "prop2",
+            tx.schema().indexFor( LABEL ).on( PROP ).withIndexType( IndexType.FULLTEXT ).withName( NODE_INDEX_NAME ).create();
+            tx.schema().indexFor( RELTYPE ).on( PROP ).withIndexType( IndexType.FULLTEXT ).withName( REL_INDEX_NAME ).create();
+            tx.commit();
+        }
+        try ( Transaction tx = db.beginTx() )
+        {
+            tx.schema().awaitIndexOnline( NODE_INDEX_NAME, 30, TimeUnit.SECONDS );
+            tx.schema().awaitIndexOnline( REL_INDEX_NAME, 30, TimeUnit.SECONDS );
+        }
+        try ( Transaction tx = db.beginTx() )
+        {
+            long firstNode = createNodeIndexableByPropertyValue( tx, LABEL, "Hello. Hello again." );
+            long secondNode = createNodeWithProperty( tx, LABEL, PROP2,
                     "A zebroid (also zedonk, zorse, zebra mule, zonkey, and zebmule) is the offspring of any " +
                             "cross between a zebra and any other equine: essentially, a zebra hybrid." );
-            createRelationshipIndexableByPropertyValue( firstNode, secondNode, "Hello. Hello again." );
-            createRelationshipWithProperty( secondNode, firstNode, "prop2",
+            createRelationshipIndexableByPropertyValue( tx, firstNode, secondNode, "Hello. Hello again." );
+            createRelationshipWithProperty( tx, secondNode, firstNode, PROP2,
                     "A zebroid (also zedonk, zorse, zebra mule, zonkey, and zebmule) is the offspring of any " +
                             "cross between a zebra and any other equine: essentially, a zebra hybrid." );
 
-            tx.success();
+            tx.commit();
         }
         try ( Transaction tx = db.beginTx() )
         {
             KernelTransaction ktx = kernelTransaction( tx );
-            assertQueryFindsNothing( ktx, NODE_INDEX_NAME, "zebra" );
-            assertQueryFindsNothing( ktx, REL_INDEX_NAME, "zebra" );
+            assertQueryFindsNothing( ktx, true, NODE_INDEX_NAME, "zebra" );
+            assertQueryFindsNothing( ktx, false, REL_INDEX_NAME, "zebra" );
         }
     }
 
@@ -409,57 +440,58 @@ public class LuceneFulltextIndexTest extends LuceneFulltextTestSupport
         try ( Transaction tx = db.beginTx() )
         {
             // skip a few rel ids, so the ones we work with are different from the node ids, just in case.
-            Node node = db.createNode();
+            Node node = tx.createNode();
             node.createRelationshipTo( node, RELTYPE );
             node.createRelationshipTo( node, RELTYPE );
             node.createRelationshipTo( node, RELTYPE );
 
-            firstNodeID = createNodeIndexableByPropertyValue( LABEL, "Hello. Hello again." );
-            secondNodeID = createNodeIndexableByPropertyValue( LABEL, "This string is slightly shorter than the zebra one" );
-            firstRelID = createRelationshipIndexableByPropertyValue( firstNodeID, secondNodeID, "Goodbye" );
-            secondRelID = createRelationshipIndexableByPropertyValue( secondNodeID, firstNodeID, "And now, something completely different" );
+            firstNodeID = createNodeIndexableByPropertyValue( tx, LABEL, "Hello. Hello again." );
+            secondNodeID = createNodeIndexableByPropertyValue( tx, LABEL, "This string is slightly shorter than the zebra one" );
+            firstRelID = createRelationshipIndexableByPropertyValue( tx, firstNodeID, secondNodeID, "Goodbye" );
+            secondRelID = createRelationshipIndexableByPropertyValue( tx, secondNodeID, firstNodeID, "And now, something completely different" );
 
-            tx.success();
+            tx.commit();
         }
 
-        SchemaDescriptor nodes = fulltextAdapter.schemaFor( NODE, new String[]{LABEL.name()}, settings, PROP );
-        SchemaDescriptor rels = fulltextAdapter.schemaFor( RELATIONSHIP, new String[]{RELTYPE.name()}, settings, PROP );
-        IndexReference nodesIndex;
-        IndexReference relsIndex;
-        try ( KernelTransactionImplementation tx = getKernelTransaction() )
+        try ( Transaction tx = db.beginTx() )
         {
-            nodesIndex = tx.schemaWrite().indexCreate( nodes, FulltextIndexProviderFactory.DESCRIPTOR.name(), Optional.of( NODE_INDEX_NAME ) );
-            relsIndex = tx.schemaWrite().indexCreate( rels, FulltextIndexProviderFactory.DESCRIPTOR.name(), Optional.of( REL_INDEX_NAME ) );
-            tx.success();
+            tx.schema().indexFor( LABEL ).on( PROP ).withIndexType( IndexType.FULLTEXT ).withName( NODE_INDEX_NAME ).create();
+            tx.schema().indexFor( RELTYPE ).on( PROP ).withIndexType( IndexType.FULLTEXT ).withName( REL_INDEX_NAME ).create();
+            tx.commit();
         }
-        await( nodesIndex );
-        await( relsIndex );
+        try ( Transaction tx = db.beginTx() )
+        {
+            tx.schema().awaitIndexOnline( NODE_INDEX_NAME, 30, TimeUnit.SECONDS );
+            tx.schema().awaitIndexOnline( REL_INDEX_NAME, 30, TimeUnit.SECONDS );
+        }
+
         try ( Transaction tx = db.beginTx() )
         {
             KernelTransaction ktx = kernelTransaction( tx );
-            assertQueryFindsIds( ktx, NODE_INDEX_NAME, "hello", firstNodeID );
-            assertQueryFindsIds( ktx, NODE_INDEX_NAME, "string", secondNodeID );
-            assertQueryFindsNothing( ktx, NODE_INDEX_NAME, "goodbye" );
-            assertQueryFindsNothing( ktx, NODE_INDEX_NAME, "different" );
+            assertQueryFindsIds( ktx, true, NODE_INDEX_NAME, "hello", firstNodeID );
+            assertQueryFindsIds( ktx, true, NODE_INDEX_NAME, "string", secondNodeID );
+            assertQueryFindsNothing( ktx, true, NODE_INDEX_NAME, "goodbye" );
+            assertQueryFindsNothing( ktx, true, NODE_INDEX_NAME, "different" );
 
-            assertQueryFindsNothing( ktx, REL_INDEX_NAME, "hello" );
-            assertQueryFindsNothing( ktx, REL_INDEX_NAME, "string" );
-            assertQueryFindsIds( ktx, REL_INDEX_NAME, "goodbye", firstRelID );
-            assertQueryFindsIds( ktx, REL_INDEX_NAME, "different", secondRelID );
+            assertQueryFindsNothing( ktx, false, REL_INDEX_NAME, "hello" );
+            assertQueryFindsNothing( ktx, false, REL_INDEX_NAME, "string" );
+            assertQueryFindsIds( ktx, false, REL_INDEX_NAME, "goodbye", firstRelID );
+            assertQueryFindsIds( ktx, false, REL_INDEX_NAME, "different", secondRelID );
         }
     }
 
     @Test
     public void shouldBeAbleToUpdateAndQueryAfterIndexChange() throws Exception
     {
-        IndexReference index;
-        try ( KernelTransactionImplementation tx = getKernelTransaction() )
+        try ( Transaction tx = db.beginTx() )
         {
-            SchemaDescriptor descriptor = fulltextAdapter.schemaFor( NODE, new String[]{LABEL.name()}, settings, PROP );
-            index = tx.schemaWrite().indexCreate( descriptor, FulltextIndexProviderFactory.DESCRIPTOR.name(), Optional.of( NODE_INDEX_NAME ) );
-            tx.success();
+            tx.schema().indexFor( LABEL ).on( PROP ).withIndexType( IndexType.FULLTEXT ).withName( NODE_INDEX_NAME ).create();
+            tx.commit();
         }
-        await( index );
+        try ( Transaction tx = db.beginTx() )
+        {
+            tx.schema().awaitIndexOnline( NODE_INDEX_NAME, 30, TimeUnit.SECONDS );
+        }
 
         long firstID;
         long secondID;
@@ -467,85 +499,264 @@ public class LuceneFulltextIndexTest extends LuceneFulltextTestSupport
         long fourthID;
         try ( Transaction tx = db.beginTx() )
         {
-            firstID = createNodeIndexableByPropertyValue( LABEL, "thing" );
+            firstID = createNodeIndexableByPropertyValue( tx, LABEL, "thing" );
 
-            secondID = db.createNode( LABEL ).getId();
-            setNodeProp( secondID, "prop2", "zebra" );
+            secondID = tx.createNode( LABEL ).getId();
+            setNodeProp( tx, secondID, PROP2, "zebra" );
 
-            thirdID = createNodeIndexableByPropertyValue( LABEL, "zebra" );
-            tx.success();
+            thirdID = createNodeIndexableByPropertyValue( tx, LABEL, "zebra" );
+            tx.commit();
         }
 
         try ( Transaction tx = db.beginTx() )
         {
             KernelTransaction ktx = kernelTransaction( tx );
-            assertQueryFindsIds( ktx, NODE_INDEX_NAME, "thing zebra", firstID, thirdID );
+            assertQueryFindsIds( ktx, true, NODE_INDEX_NAME, "thing zebra", firstID, thirdID );
         }
-
-        try ( KernelTransactionImplementation tx = getKernelTransaction() )
-        {
-            SchemaDescriptor descriptor = fulltextAdapter.schemaFor( NODE, new String[]{LABEL.name()}, settings, "prop2" );
-            tx.schemaWrite().indexDrop( index );
-            index = tx.schemaWrite().indexCreate( descriptor, FulltextIndexProviderFactory.DESCRIPTOR.name(), Optional.of( NODE_INDEX_NAME ) );
-            tx.success();
-        }
-        await( index );
 
         try ( Transaction tx = db.beginTx() )
         {
-            setNodeProp( firstID, "prop2", "thing" );
+            tx.schema().getIndexByName( NODE_INDEX_NAME ).drop();
+            tx.schema().indexFor( LABEL ).on( PROP2 ).withIndexType( IndexType.FULLTEXT ).withName( NODE_INDEX_NAME ).create();
+            tx.commit();
+        }
+        try ( Transaction tx = db.beginTx() )
+        {
+            tx.schema().awaitIndexOnline( NODE_INDEX_NAME, 30, TimeUnit.SECONDS );
+        }
 
-            fourthID = db.createNode( LABEL ).getId();
-            setNodeProp( fourthID, "prop2", "zebra" );
-            tx.success();
+        try ( Transaction tx = db.beginTx() )
+        {
+            setNodeProp( tx, firstID, PROP2, "thing" );
+
+            fourthID = tx.createNode( LABEL ).getId();
+            setNodeProp( tx, fourthID, PROP2, "zebra" );
+            tx.commit();
         }
 
         try ( Transaction tx = db.beginTx() )
         {
             KernelTransaction ktx = kernelTransaction( tx );
-            assertQueryFindsIds( ktx, NODE_INDEX_NAME, "thing zebra", firstID, secondID, fourthID );
+            assertQueryFindsIds( ktx, true, NODE_INDEX_NAME, "thing zebra", firstID, secondID, fourthID );
         }
     }
 
     @Test
     public void shouldBeAbleToDropAndReadIndex() throws Exception
     {
-        SchemaDescriptor descriptor = fulltextAdapter.schemaFor( NODE, new String[]{LABEL.name()}, settings, PROP );
-        IndexReference index;
-        try ( KernelTransactionImplementation tx = getKernelTransaction() )
+        try ( Transaction tx = db.beginTx() )
         {
-            index = tx.schemaWrite().indexCreate( descriptor, FulltextIndexProviderFactory.DESCRIPTOR.name(), Optional.of( NODE_INDEX_NAME ) );
-            tx.success();
+            tx.schema().indexFor( LABEL ).on( PROP ).withIndexType( IndexType.FULLTEXT ).withName( NODE_INDEX_NAME ).create();
+            tx.commit();
         }
-        await( index );
+        try ( Transaction tx = db.beginTx() )
+        {
+            tx.schema().awaitIndexOnline( NODE_INDEX_NAME, 30, TimeUnit.SECONDS );
+        }
 
         long firstID;
         long secondID;
 
         try ( Transaction tx = db.beginTx() )
         {
-            firstID = createNodeIndexableByPropertyValue( LABEL, "thing" );
+            firstID = createNodeIndexableByPropertyValue( tx, LABEL, "thing" );
 
-            secondID = createNodeIndexableByPropertyValue( LABEL, "zebra" );
-            tx.success();
+            secondID = createNodeIndexableByPropertyValue( tx, LABEL, "zebra" );
+            tx.commit();
         }
 
-        try ( KernelTransactionImplementation tx = getKernelTransaction() )
+        try ( Transaction tx = db.beginTx() )
         {
-            tx.schemaWrite().indexDrop( index );
-            tx.success();
+            tx.schema().getIndexByName( NODE_INDEX_NAME ).drop();
+            tx.commit();
         }
-        try ( KernelTransactionImplementation tx = getKernelTransaction() )
+        try ( Transaction tx = db.beginTx() )
         {
-            index = tx.schemaWrite().indexCreate( descriptor, FulltextIndexProviderFactory.DESCRIPTOR.name(), Optional.of( NODE_INDEX_NAME ) );
-            tx.success();
+            tx.schema().indexFor( LABEL ).on( PROP ).withIndexType( IndexType.FULLTEXT ).withName( NODE_INDEX_NAME ).create();
+            tx.commit();
         }
-        await( index );
+        try ( Transaction tx = db.beginTx() )
+        {
+            tx.schema().awaitIndexOnline( NODE_INDEX_NAME, 30, TimeUnit.SECONDS );
+        }
 
         try ( Transaction tx = db.beginTx() )
         {
             KernelTransaction ktx = kernelTransaction( tx );
-            assertQueryFindsIds( ktx, NODE_INDEX_NAME, "thing zebra", firstID, secondID );
+            assertQueryFindsIds( ktx, true, NODE_INDEX_NAME, "thing zebra", firstID, secondID );
+        }
+    }
+
+    @Test
+    public void completeConfigurationMustInjectMissingConfigurations() throws Exception
+    {
+        int label;
+        int propertyKey;
+        try ( Transaction tx = db.beginTx() )
+        {
+            createNodeIndexableByPropertyValue( tx, LABEL, "bla" );
+            tx.commit();
+        }
+        try ( KernelTransactionImplementation tx = getKernelTransaction() )
+        {
+            label = tx.tokenRead().nodeLabel( LABEL.name() );
+            propertyKey = tx.tokenRead().propertyKey( PROP );
+            tx.success();
+        }
+
+        IndexConfig indexConfig = IndexConfig.with( EVENTUALLY_CONSISTENT, Values.booleanValue( true ) );
+        FulltextSchemaDescriptor schema = SchemaDescriptor.fulltext( NODE, new int[]{label}, new int[]{propertyKey} );
+
+        IndexProviderDescriptor providerDescriptor = indexProvider.getProviderDescriptor();
+        IndexDescriptor descriptor = indexProvider.completeConfiguration( IndexPrototype.forSchema( schema, providerDescriptor )
+                .withName( "index_1" ).withIndexConfig( indexConfig ).materialise( 1 ) );
+
+        assertThat( descriptor.getIndexConfig().get( ANALYZER ), is( Values.stringValue( "standard-no-stop-words" ) ) );
+        assertThat( descriptor.getIndexConfig().get( EVENTUALLY_CONSISTENT ), is( Values.booleanValue( true ) ) );
+        assertThat( asList( descriptor.getCapability().limitations() ), contains( IndexLimitation.EVENTUALLY_CONSISTENT ) );
+    }
+
+    @Test
+    public void completeConfigurationMustNotOverwriteExistingConfiguration()
+    {
+        IndexConfig indexConfig = IndexConfig.with( "A", Values.stringValue( "B" ) );
+        FulltextSchemaDescriptor schema = SchemaDescriptor.fulltext( NODE, new int[]{1}, new int[]{1} );
+        IndexProviderDescriptor providerDescriptor = indexProvider.getProviderDescriptor();
+        IndexDescriptor descriptor = indexProvider.completeConfiguration( IndexPrototype.forSchema( schema, providerDescriptor )
+                .withName( "index_1" ).materialise( 1 ) ).withIndexConfig( indexConfig );
+        assertEquals( Values.stringValue( "B" ), descriptor.getIndexConfig().get( "A" ) );
+    }
+
+    @Test
+    public void completeConfigurationMustBeIdempotent()
+    {
+        FulltextSchemaDescriptor schema = SchemaDescriptor.fulltext( NODE, new int[]{1}, new int[]{1} );
+        IndexProviderDescriptor providerDescriptor = indexProvider.getProviderDescriptor();
+        IndexDescriptor onceCompleted = indexProvider.completeConfiguration( IndexPrototype.forSchema( schema, providerDescriptor )
+                .withName( "index_1" ).materialise( 1 ) );
+        IndexDescriptor twiceCompleted = indexProvider.completeConfiguration( onceCompleted );
+        assertEquals( onceCompleted.getIndexConfig(), twiceCompleted.getIndexConfig() );
+    }
+
+    @Test
+    public void mustAssignCapabilitiesToDescriptorsThatHaveNone()
+    {
+        FulltextSchemaDescriptor schema = SchemaDescriptor.fulltext( NODE, new int[]{1}, new int[]{1} );
+        IndexProviderDescriptor providerDescriptor = indexProvider.getProviderDescriptor();
+        IndexDescriptor completed = indexProvider.completeConfiguration( IndexPrototype.forSchema( schema, providerDescriptor )
+                .withName( "index_1" ).materialise( 1 ) );
+        assertNotEquals( completed.getCapability(), IndexCapability.NO_CAPABILITY );
+        completed = completed.withIndexCapability( IndexCapability.NO_CAPABILITY );
+        completed = indexProvider.completeConfiguration( completed );
+        assertNotEquals( completed.getCapability(), IndexCapability.NO_CAPABILITY );
+    }
+
+    @Test
+    public void mustNotOverwriteExistingCapabilities()
+    {
+        IndexCapability capability = new IndexCapability()
+        {
+            @Override
+            public IndexOrder[] orderCapability( ValueCategory... valueCategories )
+            {
+                return new IndexOrder[0];
+            }
+
+            @Override
+            public IndexValueCapability valueCapability( ValueCategory... valueCategories )
+            {
+                return IndexValueCapability.NO;
+            }
+        };
+        FulltextSchemaDescriptor schema = SchemaDescriptor.fulltext( NODE, new int[]{1}, new int[]{1} );
+        IndexProviderDescriptor providerDescriptor = indexProvider.getProviderDescriptor();
+        IndexDescriptor index = IndexPrototype.forSchema( schema, providerDescriptor )
+                .withName( "index_1" ).materialise( 1 ).withIndexCapability( capability );
+        IndexDescriptor completed = indexProvider.completeConfiguration( index );
+        assertSame( capability, completed.getCapability() );
+    }
+
+    @Test
+    public void fulltextIndexMustNotAnswerCoreApiIndexQueries()
+    {
+        try ( Transaction tx = db.beginTx() )
+        {
+            tx.schema().indexFor( LABEL ).on( PROP ).withIndexType( IndexType.FULLTEXT ).withName( NODE_INDEX_NAME ).create();
+            tx.commit();
+        }
+        try ( Transaction tx = db.beginTx() )
+        {
+            tx.schema().awaitIndexOnline( NODE_INDEX_NAME, 30, TimeUnit.SECONDS );
+        }
+        long nodeId;
+        try ( Transaction tx = db.beginTx() )
+        {
+            nodeId = createNodeIndexableByPropertyValue( tx, LABEL, 1 );
+            tx.commit();
+        }
+
+        try ( Transaction tx = db.beginTx() )
+        {
+            Node node = tx.findNode( LABEL, PROP, 1 );
+            assertThat( node.getId(), is( nodeId ) );
+        }
+    }
+
+    @Test
+    public void fulltextIndexMustNotAnswerCoreApiCompositeIndexQueries()
+    {
+        try ( Transaction tx = db.beginTx() )
+        {
+            tx.schema().indexFor( LABEL ).on( PROP ).on( PROP2 ).withIndexType( IndexType.FULLTEXT ).withName( NODE_INDEX_NAME ).create();
+            tx.commit();
+        }
+        try ( Transaction tx = db.beginTx() )
+        {
+            tx.schema().awaitIndexOnline( NODE_INDEX_NAME, 30, TimeUnit.SECONDS );
+        }
+        long nodeId;
+        try ( Transaction tx = db.beginTx() )
+        {
+            Node node = tx.createNode( LABEL );
+            node.setProperty( PROP, 1 );
+            node.setProperty( PROP2, 2 );
+            nodeId = node.getId();
+            tx.commit();
+        }
+
+        try ( Transaction tx = db.beginTx() )
+        {
+            try ( ResourceIterator<Node> nodes = tx.findNodes( LABEL, PROP, 1, PROP2, 2 ) )
+            {
+                assertTrue( nodes.hasNext() );
+                Node node = nodes.next();
+                assertThat( node.getId(), is( nodeId ) );
+                assertFalse( nodes.hasNext() );
+            }
+
+            try ( ResourceIterator<Node> nodes = tx.findNodes( LABEL, PROP2, 2, PROP, 1 ) )
+            {
+                assertTrue( nodes.hasNext() );
+                Node node = nodes.next();
+                assertThat( node.getId(), is( nodeId ) );
+                assertFalse( nodes.hasNext() );
+            }
+
+            try ( ResourceIterator<Node> nodes = tx.findNodes( LABEL, PROP, 1 ) )
+            {
+                assertTrue( nodes.hasNext() );
+                Node node = nodes.next();
+                assertThat( node.getId(), is( nodeId ) );
+                assertFalse( nodes.hasNext() );
+            }
+
+            try ( ResourceIterator<Node> nodes = tx.findNodes( LABEL, PROP2, 2 ) )
+            {
+                assertTrue( nodes.hasNext() );
+                Node node = nodes.next();
+                assertThat( node.getId(), is( nodeId ) );
+                assertFalse( nodes.hasNext() );
+            }
         }
     }
 }

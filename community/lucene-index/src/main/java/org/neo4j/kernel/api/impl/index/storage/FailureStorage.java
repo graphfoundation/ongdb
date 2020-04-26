@@ -27,7 +27,6 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 
 import org.neo4j.io.fs.FileSystemAbstraction;
-import org.neo4j.io.fs.OpenMode;
 import org.neo4j.io.fs.StoreChannel;
 import org.neo4j.kernel.api.impl.index.storage.layout.FolderLayout;
 import org.neo4j.string.UTF8;
@@ -72,7 +71,7 @@ public class FailureStorage
     {
         fs.mkdirs( folderLayout.getIndexFolder() );
         File failureFile = failureFile();
-        try ( StoreChannel channel = fs.create( failureFile ) )
+        try ( StoreChannel channel = fs.write( failureFile ) )
         {
             channel.writeAll( ByteBuffer.wrap( new byte[MAX_FAILURE_SIZE] ) );
             channel.force( true );
@@ -117,7 +116,7 @@ public class FailureStorage
     public synchronized void storeIndexFailure( String failure ) throws IOException
     {
         File failureFile = failureFile();
-        try ( StoreChannel channel = fs.open( failureFile, OpenMode.READ_WRITE ) )
+        try ( StoreChannel channel = fs.write( failureFile ) )
         {
             byte[] existingData = new byte[(int) channel.size()];
             channel.readAll( ByteBuffer.wrap( existingData ) );
@@ -127,7 +126,6 @@ public class FailureStorage
             channel.writeAll( ByteBuffer.wrap( data, 0, Math.min( data.length, MAX_FAILURE_SIZE ) ) );
 
             channel.force( true );
-            channel.close();
         }
     }
 
@@ -139,7 +137,7 @@ public class FailureStorage
 
     private String readFailure( File failureFile ) throws IOException
     {
-        try ( StoreChannel channel = fs.open( failureFile, OpenMode.READ ) )
+        try ( StoreChannel channel = fs.read( failureFile ) )
         {
             byte[] data = new byte[(int) channel.size()];
             channel.readAll( ByteBuffer.wrap( data ) );
@@ -168,7 +166,7 @@ public class FailureStorage
 
     private boolean isFailed( File failureFile ) throws IOException
     {
-        try ( StoreChannel channel = fs.open( failureFile, OpenMode.READ ) )
+        try ( StoreChannel channel = fs.read( failureFile ) )
         {
             byte[] data = new byte[(int) channel.size()];
             channel.readAll( ByteBuffer.wrap( data ) );

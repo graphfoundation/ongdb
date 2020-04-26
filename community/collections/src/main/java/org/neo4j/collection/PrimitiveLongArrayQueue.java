@@ -60,11 +60,6 @@ public class PrimitiveLongArrayQueue
         return head == tail;
     }
 
-    public void clear()
-    {
-        initValues( DEFAULT_CAPACITY );
-    }
-
     public int size()
     {
         return (tail - head) & (values.length - 1);

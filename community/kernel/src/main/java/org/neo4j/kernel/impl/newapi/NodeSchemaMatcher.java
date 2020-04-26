@@ -26,10 +26,8 @@ import java.util.Arrays;
 import java.util.Iterator;
 
 import org.neo4j.function.ThrowingConsumer;
-import org.neo4j.internal.kernel.api.schema.SchemaDescriptor;
-import org.neo4j.internal.kernel.api.schema.SchemaDescriptorSupplier;
-
-import static org.neo4j.collection.PrimitiveArrays.isSortedSet;
+import org.neo4j.internal.schema.SchemaDescriptor;
+import org.neo4j.internal.schema.SchemaDescriptorSupplier;
 
 /**
  * This class holds functionality to match LabelSchemaDescriptors to nodes
@@ -54,7 +52,6 @@ public class NodeSchemaMatcher
      * @param schemaSuppliers The suppliers to match
      * @param specialPropertyId This property id will always count as a match for the descriptor, regardless of
      * whether the node has this property or not
-     * @param existingPropertyIds sorted array of property ids for the entity to match schema for.
      * @param callback The action to take on match
      * @throws EXCEPTION This exception is propagated from the action
      */
@@ -65,7 +62,6 @@ public class NodeSchemaMatcher
             ThrowingConsumer<SUPPLIER,EXCEPTION> callback
     ) throws EXCEPTION
     {
-        assert isSortedSet( existingPropertyIds );
         while ( schemaSuppliers.hasNext() )
         {
             SUPPLIER schemaSupplier = schemaSuppliers.next();
@@ -86,12 +82,12 @@ public class NodeSchemaMatcher
      * To avoid unnecessary store lookups, this implementation only gets propertyKeyIds for the node if some
      * descriptor has a valid label.
      *
+     *
      * @param <SUPPLIER> the type to match. Must implement SchemaDescriptorSupplier
      * @param <EXCEPTION> The type of exception that can be thrown when taking the action
      * @param schemaSuppliers The suppliers to match
      * @param specialPropertyId This property id will always count as a match for the descriptor, regardless of
      * whether the node has this property or not
-     * @param existingPropertyIds sorted array of property ids for the entity to match schema for.
      * @param callback The action to take on match
      * @throws EXCEPTION This exception is propagated from the action
      */
@@ -103,8 +99,6 @@ public class NodeSchemaMatcher
             ThrowingConsumer<SUPPLIER,EXCEPTION> callback
     ) throws EXCEPTION
     {
-        assert isSortedSet( existingPropertyIds );
-        assert isSortedSet( labels );
         while ( schemaSuppliers.hasNext() )
         {
             SUPPLIER schemaSupplier = schemaSuppliers.next();

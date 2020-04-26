@@ -22,11 +22,12 @@
  */
 package org.neo4j.kernel.impl.transaction.log;
 
-import org.neo4j.helpers.collection.LruCache;
+import org.neo4j.internal.helpers.collection.LruCache;
+import org.neo4j.kernel.impl.transaction.log.entry.LogHeader;
 
 public class LogHeaderCache
 {
-    private final LruCache<Long /*log version*/, Long /*last committed tx*/> logHeaderCache;
+    private final LruCache<Long,LogHeader> logHeaderCache;
 
     public LogHeaderCache( int headerCacheSize )
     {
@@ -38,12 +39,12 @@ public class LogHeaderCache
         logHeaderCache.clear();
     }
 
-    public void putHeader( long logVersion, long previousLogLastCommittedTx )
+    public void putHeader( long logVersion, LogHeader logHeader )
     {
-        logHeaderCache.put( logVersion, previousLogLastCommittedTx );
+        logHeaderCache.put( logVersion, logHeader );
     }
 
-    public Long getLogHeader( long logVersion )
+    public LogHeader getLogHeader( long logVersion )
     {
         return logHeaderCache.get( logVersion );
     }

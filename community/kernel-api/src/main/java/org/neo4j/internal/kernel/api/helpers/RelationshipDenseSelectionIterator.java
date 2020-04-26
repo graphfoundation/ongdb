@@ -81,4 +81,10 @@ public final class RelationshipDenseSelectionIterator<R> extends RelationshipDen
 
         return current;
     }
+
+    @Override
+    public void close()
+    {
+        closeInternal();
+    }
 }

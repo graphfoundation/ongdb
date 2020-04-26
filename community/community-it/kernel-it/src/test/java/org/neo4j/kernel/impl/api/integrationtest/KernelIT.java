@@ -22,65 +22,65 @@
  */
 package org.neo4j.kernel.impl.api.integrationtest;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.neo4j.exceptions.KernelException;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Transaction;
-import org.neo4j.internal.kernel.api.IndexReference;
 import org.neo4j.internal.kernel.api.NodeCursor;
 import org.neo4j.internal.kernel.api.SchemaWrite;
 import org.neo4j.internal.kernel.api.TokenWrite;
-import org.neo4j.internal.kernel.api.exceptions.InvalidTransactionTypeKernelException;
-import org.neo4j.internal.kernel.api.exceptions.schema.SchemaKernelException;
-import org.neo4j.internal.kernel.api.schema.LabelSchemaDescriptor;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.internal.schema.LabelSchemaDescriptor;
 import org.neo4j.kernel.api.KernelTransaction;
 import org.neo4j.kernel.api.exceptions.Status;
-import org.neo4j.kernel.impl.transaction.log.TransactionIdStore;
+import org.neo4j.kernel.impl.coreapi.InternalTransaction;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
+import org.neo4j.storageengine.api.TransactionIdStore;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.neo4j.internal.kernel.api.security.LoginContext.AUTH_DISABLED;
-import static org.neo4j.kernel.api.schema.SchemaDescriptorFactory.forLabel;
+import static org.neo4j.internal.schema.SchemaDescriptor.forLabel;
 import static org.neo4j.test.assertion.Assert.assertEventually;
 
-public class KernelIT extends KernelIntegrationTest
+class KernelIT extends KernelIntegrationTest
 {
-
     @Test
-    public void mixingBeansApiWithKernelAPI() throws Exception
+    void mixingBeansApiWithKernelAPI() throws Exception
     {
         // 1: Start your transactions through the Beans API
         Transaction transaction = db.beginTx();
 
         // 2: Get a hold of a KernelAPI transaction this way:
-        KernelTransaction ktx = statementContextSupplier.getKernelTransactionBoundToThisThread( true );
+        KernelTransaction ktx = ((InternalTransaction) transaction).kernelTransaction();
 
         // 3: Now you can interact through both the statement context and the kernel API to manipulate the
         //    same transaction.
-        Node node = db.createNode();
+        Node node = transaction.createNode();
 
         int labelId = ktx.tokenWrite().labelGetOrCreateForName( "labello" );
         ktx.dataWrite().nodeAddLabel( node.getId(), labelId );
 
         // 4: Commit through the beans API
-        transaction.success();
-        transaction.close();
+        transaction.commit();
     }
 
     @Test
-    public void schemaStateShouldBeEvictedOnIndexComingOnline() throws Exception
+    void schemaStateShouldBeEvictedOnIndexComingOnline() throws Exception
     {
         // GIVEN
-        schemaWriteInNewTransaction();
-        getOrCreateSchemaState( "my key", "my state" );
-        commit();
+        try ( Transaction tx = db.beginTx() )
+        {
+            getOrCreateSchemaState( tx, "my key", "my state" );
+            tx.commit();
+        }
 
         // WHEN
         createIndex( newTransaction( AUTH_DISABLED ) );
@@ -88,8 +88,8 @@ public class KernelIT extends KernelIntegrationTest
 
         try ( Transaction tx = db.beginTx() )
         {
-            db.schema().awaitIndexesOnline( 20, SECONDS );
-            tx.success();
+            tx.schema().awaitIndexesOnline( 20, SECONDS );
+            tx.commit();
         }
         // THEN schema state is eventually updated (clearing the schema cache is not atomic with respect to flipping
         // the new index to the ONLINE state, but happens as soon as possible *after* the index becomes ONLINE).
@@ -98,17 +98,17 @@ public class KernelIT extends KernelIntegrationTest
     }
 
     @Test
-    public void schemaStateShouldBeEvictedOnIndexDropped() throws Exception
+    void schemaStateShouldBeEvictedOnIndexDropped() throws Exception
     {
         // GIVEN
-        IndexReference idx = createIndex( newTransaction( AUTH_DISABLED ) );
+        IndexDescriptor idx = createIndex( newTransaction( AUTH_DISABLED ) );
         commit();
 
         try ( Transaction tx = db.beginTx() )
         {
-            db.schema().awaitIndexesOnline( 20, SECONDS );
-            getOrCreateSchemaState( "my key", "some state" );
-            tx.success();
+            tx.schema().awaitIndexesOnline( 20, SECONDS );
+            getOrCreateSchemaState( tx, "my key", "some state" );
+            tx.commit();
         }
         // WHEN
         schemaWriteInNewTransaction().indexDrop( idx );
@@ -120,39 +120,37 @@ public class KernelIT extends KernelIntegrationTest
     }
 
     @Test
-    public void txReturnsCorrectIdWhenCommitted() throws Exception
+    void txReturnsCorrectIdWhenCommitted() throws Exception
     {
         executeDummyTxs( db, 42 );
 
-        org.neo4j.internal.kernel.api.Transaction tx = newTransaction( AUTH_DISABLED );
+        KernelTransaction tx = newTransaction( AUTH_DISABLED );
         tx.dataWrite().nodeCreate();
-        tx.success();
 
         long previousCommittedTxId = lastCommittedTxId( db );
 
-        assertEquals( previousCommittedTxId + 1, tx.closeTransaction() );
+        assertEquals( previousCommittedTxId + 1, tx.commit() );
         assertFalse( tx.isOpen() );
     }
 
     @Test
-    public void txReturnsCorrectIdWhenRolledBack() throws Exception
+    void txReturnsCorrectIdWhenRolledBack() throws Exception
     {
         executeDummyTxs( db, 42 );
 
-        org.neo4j.internal.kernel.api.Transaction tx = newTransaction( AUTH_DISABLED );
+        KernelTransaction tx = newTransaction( AUTH_DISABLED );
         tx.dataWrite().nodeCreate();
-        tx.failure();
 
         assertEquals( KernelTransaction.ROLLBACK, tx.closeTransaction() );
         assertFalse( tx.isOpen() );
     }
 
     @Test
-    public void txReturnsCorrectIdWhenMarkedForTermination() throws Exception
+    void txReturnsCorrectIdWhenMarkedForTermination() throws Exception
     {
         executeDummyTxs( db, 42 );
 
-        org.neo4j.internal.kernel.api.Transaction tx = newTransaction( AUTH_DISABLED );
+        KernelTransaction tx = newTransaction( AUTH_DISABLED );
         tx.dataWrite().nodeCreate();
         tx.markForTermination( Status.Transaction.Terminated );
 
@@ -161,13 +159,12 @@ public class KernelIT extends KernelIntegrationTest
     }
 
     @Test
-    public void txReturnsCorrectIdWhenFailedAndMarkedForTermination() throws Exception
+    void txReturnsCorrectIdWhenFailedAndMarkedForTermination() throws Exception
     {
         executeDummyTxs( db, 42 );
 
-        org.neo4j.internal.kernel.api.Transaction tx = newTransaction( AUTH_DISABLED );
+        KernelTransaction tx = newTransaction( AUTH_DISABLED );
         tx.dataWrite().nodeCreate();
-        tx.failure();
         tx.markForTermination( Status.Transaction.Terminated );
 
         assertEquals( KernelTransaction.ROLLBACK, tx.closeTransaction() );
@@ -175,19 +172,18 @@ public class KernelIT extends KernelIntegrationTest
     }
 
     @Test
-    public void txReturnsCorrectIdWhenReadOnly() throws Exception
+    void txReturnsCorrectIdWhenReadOnly() throws Exception
     {
         executeDummyTxs( db, 42 );
 
-        org.neo4j.internal.kernel.api.Transaction tx = newTransaction();
+        KernelTransaction tx = newTransaction();
         try ( NodeCursor node = tx.cursors().allocateNodeCursor() )
         {
             tx.dataRead().singleNode( 1, node );
             node.next();
         }
-        tx.success();
 
-        assertEquals( KernelTransaction.READ_ONLY, tx.closeTransaction() );
+        assertEquals( KernelTransaction.READ_ONLY, tx.commit() );
         assertFalse( tx.isOpen() );
     }
 
@@ -197,8 +193,8 @@ public class KernelIT extends KernelIntegrationTest
         {
             try ( Transaction tx = db.beginTx() )
             {
-                db.createNode();
-                tx.success();
+                tx.createNode();
+                tx.commit();
             }
         }
     }
@@ -209,40 +205,34 @@ public class KernelIT extends KernelIntegrationTest
         return txIdStore.getLastCommittedTransactionId();
     }
 
-    private IndexReference createIndex( org.neo4j.internal.kernel.api.Transaction transaction )
-            throws SchemaKernelException, InvalidTransactionTypeKernelException
+    private static IndexDescriptor createIndex( KernelTransaction transaction )
+            throws KernelException
     {
         TokenWrite tokenWrite = transaction.tokenWrite();
         SchemaWrite schemaWrite = transaction.schemaWrite();
-        LabelSchemaDescriptor schemaDescriptor = forLabel( tokenWrite.labelGetOrCreateForName( "hello" ),
+        LabelSchemaDescriptor schema = forLabel( tokenWrite.labelGetOrCreateForName( "hello" ),
                 tokenWrite.propertyKeyGetOrCreateForName( "hepp" ) );
-        return schemaWrite.indexCreate( schemaDescriptor );
+        return schemaWrite.indexCreate( schema, null );
     }
 
-    private String getOrCreateSchemaState( String key, final String maybeSetThisState )
+    private void getOrCreateSchemaState( Transaction tx, String key, final String maybeSetThisState )
     {
-        try ( Transaction tx = db.beginTx() )
-        {
-            KernelTransaction ktx =
-                    statementContextSupplier.getKernelTransactionBoundToThisThread( true );
-            String state = ktx.schemaRead().schemaStateGetOrCreate( key, s -> maybeSetThisState );
-            tx.success();
-            return state;
-        }
+        KernelTransaction ktx = ((InternalTransaction) tx).kernelTransaction();
+        ktx.schemaRead().schemaStateGetOrCreate( key, s -> maybeSetThisState );
     }
 
     private boolean schemaStateContains( String key )
     {
         try ( Transaction tx = db.beginTx() )
         {
-            KernelTransaction ktx = statementContextSupplier.getKernelTransactionBoundToThisThread( true );
+            KernelTransaction ktx = ((InternalTransaction) tx).kernelTransaction();
             final AtomicBoolean result = new AtomicBoolean( true );
             ktx.schemaRead().schemaStateGetOrCreate( key, s ->
             {
                 result.set( false );
                 return null;
             } );
-            tx.success();
+            tx.commit();
             return result.get();
         }
     }

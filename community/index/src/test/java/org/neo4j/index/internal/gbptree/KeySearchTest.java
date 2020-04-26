@@ -26,6 +26,7 @@ import org.apache.commons.lang3.mutable.MutableLong;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -88,7 +89,7 @@ class KeySearchTest
     }
 
     @Test
-    void searchNoHitLessThanWithOneKeyInLeaf()
+    void searchNoHitLessThanWithOneKeyInLeaf() throws IOException
     {
         // given
         node.initializeLeaf( cursor, STABLE_GENERATION, UNSTABLE_GENERATION );
@@ -100,7 +101,7 @@ class KeySearchTest
     }
 
     @Test
-    void searchNoHitLessThanWithOneKeyInInternal()
+    void searchNoHitLessThanWithOneKeyInInternal() throws IOException
     {
         // given
         node.initializeInternal( cursor, STABLE_GENERATION, UNSTABLE_GENERATION );
@@ -112,7 +113,7 @@ class KeySearchTest
     }
 
     @Test
-    void searchHitWithOneKeyInLeaf()
+    void searchHitWithOneKeyInLeaf() throws IOException
     {
         // given
         long key = 1L;
@@ -125,7 +126,7 @@ class KeySearchTest
     }
 
     @Test
-    void searchHitWithOneKeyInInternal()
+    void searchHitWithOneKeyInInternal() throws IOException
     {
         // given
         long key = 1L;
@@ -138,7 +139,7 @@ class KeySearchTest
     }
 
     @Test
-    void searchNoHitGreaterThanWithOneKeyInLeaf()
+    void searchNoHitGreaterThanWithOneKeyInLeaf() throws IOException
     {
         // given
         node.initializeLeaf( cursor, STABLE_GENERATION, UNSTABLE_GENERATION );
@@ -150,7 +151,7 @@ class KeySearchTest
     }
 
     @Test
-    void searchNoHitGreaterThanWithOneKeyInInternal()
+    void searchNoHitGreaterThanWithOneKeyInInternal() throws IOException
     {
         // given
         node.initializeInternal( cursor, STABLE_GENERATION, UNSTABLE_GENERATION );
@@ -162,7 +163,7 @@ class KeySearchTest
     }
 
     @Test
-    void searchNoHitGreaterThanWithFullLeaf()
+    void searchNoHitGreaterThanWithFullLeaf() throws IOException
     {
         // given
         node.initializeLeaf( cursor, STABLE_GENERATION, UNSTABLE_GENERATION );
@@ -177,7 +178,7 @@ class KeySearchTest
     }
 
     @Test
-    void searchNoHitGreaterThanWithFullInternal()
+    void searchNoHitGreaterThanWithFullInternal() throws IOException
     {
         // given
         node.initializeInternal( cursor, STABLE_GENERATION, UNSTABLE_GENERATION );
@@ -192,7 +193,7 @@ class KeySearchTest
     }
 
     @Test
-    void searchHitOnLastWithFullLeaf()
+    void searchHitOnLastWithFullLeaf() throws IOException
     {
         // given
         node.initializeLeaf( cursor, STABLE_GENERATION, UNSTABLE_GENERATION );
@@ -207,7 +208,7 @@ class KeySearchTest
     }
 
     @Test
-    void searchHitOnLastWithFullInternal()
+    void searchHitOnLastWithFullInternal() throws IOException
     {
         // given
         node.initializeInternal( cursor, STABLE_GENERATION, UNSTABLE_GENERATION );
@@ -222,7 +223,7 @@ class KeySearchTest
     }
 
     @Test
-    void searchHitOnFirstWithFullLeaf()
+    void searchHitOnFirstWithFullLeaf() throws IOException
     {
         // given
         node.initializeLeaf( cursor, STABLE_GENERATION, UNSTABLE_GENERATION );
@@ -237,7 +238,7 @@ class KeySearchTest
     }
 
     @Test
-    void searchHitOnFirstWithFullInternal()
+    void searchHitOnFirstWithFullInternal() throws IOException
     {
         // given
         node.initializeInternal( cursor, STABLE_GENERATION, UNSTABLE_GENERATION );
@@ -252,7 +253,7 @@ class KeySearchTest
     }
 
     @Test
-    void searchNoHitLessThanWithFullLeaf()
+    void searchNoHitLessThanWithFullLeaf() throws IOException
     {
         // given
         node.initializeLeaf( cursor, STABLE_GENERATION, UNSTABLE_GENERATION );
@@ -267,7 +268,7 @@ class KeySearchTest
     }
 
     @Test
-    void searchNoHitLessThanWithFullInternal()
+    void searchNoHitLessThanWithFullInternal() throws IOException
     {
         // given
         node.initializeInternal( cursor, STABLE_GENERATION, UNSTABLE_GENERATION );
@@ -282,7 +283,7 @@ class KeySearchTest
     }
 
     @Test
-    void searchHitOnMiddleWithFullLeaf()
+    void searchHitOnMiddleWithFullLeaf() throws IOException
     {
         // given
         node.initializeLeaf( cursor, STABLE_GENERATION, UNSTABLE_GENERATION );
@@ -298,7 +299,7 @@ class KeySearchTest
     }
 
     @Test
-    void searchHitOnMiddleWithFullInternal()
+    void searchHitOnMiddleWithFullInternal() throws IOException
     {
         // given
         node.initializeInternal( cursor, STABLE_GENERATION, UNSTABLE_GENERATION );
@@ -314,7 +315,7 @@ class KeySearchTest
     }
 
     @Test
-    void searchNoHitInMiddleWithFullLeaf()
+    void searchNoHitInMiddleWithFullLeaf() throws IOException
     {
         // given
         node.initializeLeaf( cursor, STABLE_GENERATION, UNSTABLE_GENERATION );
@@ -330,7 +331,7 @@ class KeySearchTest
     }
 
     @Test
-    void searchNoHitInMiddleWithFullInternal()
+    void searchNoHitInMiddleWithFullInternal() throws IOException
     {
         // given
         node.initializeInternal( cursor, STABLE_GENERATION, UNSTABLE_GENERATION );
@@ -346,7 +347,7 @@ class KeySearchTest
     }
 
     @Test
-    void searchHitOnFirstNonUniqueKeysLeaf()
+    void searchHitOnFirstNonUniqueKeysLeaf() throws IOException
     {
         // given
         long first = 1L;
@@ -364,7 +365,7 @@ class KeySearchTest
     }
 
     @Test
-    void searchHitOnFirstNonUniqueKeysInternal()
+    void searchHitOnFirstNonUniqueKeysInternal() throws IOException
     {
         // given
         long first = 1L;
@@ -382,7 +383,7 @@ class KeySearchTest
     }
 
     @Test
-    void searchHitOnMiddleNonUniqueKeysLeaf()
+    void searchHitOnMiddleNonUniqueKeysLeaf() throws IOException
     {
         // given
         long first = 1L;
@@ -401,7 +402,7 @@ class KeySearchTest
     }
 
     @Test
-    void searchHitOnMiddleNonUniqueKeysInternal()
+    void searchHitOnMiddleNonUniqueKeysInternal() throws IOException
     {
         // given
         long first = 1L;
@@ -422,7 +423,7 @@ class KeySearchTest
     /* Below are more thorough tests that look at all keys in node */
 
     @Test
-    void shouldFindExistingKey()
+    void shouldFindExistingKey() throws IOException
     {
         // GIVEN
         fullLeafWithUniqueKeys();
@@ -440,7 +441,7 @@ class KeySearchTest
     }
 
     @Test
-    void shouldReturnCorrectIndexesForKeysInBetweenExisting()
+    void shouldReturnCorrectIndexesForKeysInBetweenExisting() throws IOException
     {
         // GIVEN
         fullLeafWithUniqueKeys();
@@ -458,7 +459,7 @@ class KeySearchTest
     }
 
     @Test
-    void shouldSearchAndFindOnRandomData()
+    void shouldSearchAndFindOnRandomData() throws IOException
     {
         // GIVEN a leaf node with random, although sorted (as of course it must be to binary-search), data
         node.initializeLeaf( cursor, STABLE_GENERATION, UNSTABLE_GENERATION );
@@ -477,7 +478,7 @@ class KeySearchTest
             }
             layout.copyKey( key, expectedKey );
             keys.add( keyCount, expectedKey );
-            node.insertKeyValueAt( cursor, key, dummyValue, keyCount, keyCount );
+            node.insertKeyValueAt( cursor, key, dummyValue, keyCount, keyCount, STABLE_GENERATION, UNSTABLE_GENERATION );
             currentKey += random.nextInt( 100 ) + 10;
             keyCount++;
         }
@@ -526,7 +527,7 @@ class KeySearchTest
         return search( cursor, node, type, searchKey, readKey, keyCount );
     }
 
-    private void appendKey( long key )
+    private void appendKey( long key ) throws IOException
     {
         insertKey.setValue( key );
         int keyCount = TreeNode.keyCount( cursor );
@@ -537,7 +538,7 @@ class KeySearchTest
         }
         else
         {
-            node.insertKeyValueAt( cursor, insertKey, dummyValue, keyCount, keyCount );
+            node.insertKeyValueAt( cursor, insertKey, dummyValue, keyCount, keyCount, STABLE_GENERATION, UNSTABLE_GENERATION );
         }
         TreeNode.setKeyCount( cursor, keyCount + 1 );
     }
@@ -548,7 +549,7 @@ class KeySearchTest
         assertEquals( position, KeySearch.positionOf( searchResult ) );
     }
 
-    private void fullLeafWithUniqueKeys()
+    private void fullLeafWithUniqueKeys() throws IOException
     {
         // [2,4,8,16,32,64,128,512,1024,2048]
         node.initializeLeaf( cursor, STABLE_GENERATION, UNSTABLE_GENERATION );
@@ -556,7 +557,7 @@ class KeySearchTest
         for ( int i = 0; i < KEY_COUNT; i++ )
         {
             key.setValue( key( i ) );
-            node.insertKeyValueAt( cursor, key, dummyValue, i, i );
+            node.insertKeyValueAt( cursor, key, dummyValue, i, i, STABLE_GENERATION, UNSTABLE_GENERATION );
         }
         TreeNode.setKeyCount( cursor, KEY_COUNT );
     }

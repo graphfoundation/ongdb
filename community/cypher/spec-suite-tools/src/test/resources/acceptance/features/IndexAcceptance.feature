@@ -26,12 +26,16 @@ Feature: IndexAcceptance
     Given an empty graph
     And having executed:
       """
+      CREATE (:Product {unitsInStock: 8})
+      CREATE (:Product {unitsInStock: 12})
+      """
+    And having executed:
+      """
       CREATE INDEX ON :Product(unitsInStock)
       """
     And having executed:
       """
-      CREATE (:Product {unitsInStock: 8})
-      CREATE (:Product {unitsInStock: 12})
+      CALL db.awaitIndexes()
       """
     When executing query:
       """
@@ -39,7 +43,7 @@ Feature: IndexAcceptance
       WHERE 10 < p.unitsInStock
       RETURN p
       """
-    Then the result should be:
+    Then the result should be, in any order:
       | p                             |
       | (:Product {unitsInStock: 12}) |
     And no side effects
@@ -48,12 +52,16 @@ Feature: IndexAcceptance
     Given an empty graph
     And having executed:
       """
+      CREATE (:Product {unitsInStock: 8})
+      CREATE (:Product {unitsInStock: 12})
+      """
+    And having executed:
+      """
       CREATE INDEX ON :Product(unitsInStock)
       """
     And having executed:
       """
-      CREATE (:Product {unitsInStock: 8})
-      CREATE (:Product {unitsInStock: 12})
+      CALL db.awaitIndexes()
       """
     When executing query:
       """
@@ -61,7 +69,7 @@ Feature: IndexAcceptance
       WHERE p.unitsInStock > 10
       RETURN p
       """
-    Then the result should be:
+    Then the result should be, in any order:
       | p                             |
       | (:Product {unitsInStock: 12}) |
     And no side effects
@@ -72,12 +80,16 @@ Feature: IndexAcceptance
       """
       CREATE INDEX ON :Person(name)
       """
+    And having executed:
+      """
+      CALL db.awaitIndexes()
+      """
     When executing query:
       """
       MERGE (person:Person {name: 'Lasse'})
       RETURN person.name
       """
-    Then the result should be:
+    Then the result should be, in any order:
       | person.name |
       | 'Lasse'     |
     And the side effects should be:
@@ -90,6 +102,10 @@ Feature: IndexAcceptance
     And having executed:
       """
       CREATE INDEX ON :Person(name)
+      """
+    And having executed:
+      """
+      CALL db.awaitIndexes()
       """
     When executing query:
       """
@@ -111,6 +127,10 @@ Feature: IndexAcceptance
       """
       CREATE INDEX ON :Person(id)
       """
+    And having executed:
+      """
+      CALL db.awaitIndexes()
+      """
     When executing query:
       """
       MERGE (person:Person {name: 'Lasse', id: 42})
@@ -125,16 +145,20 @@ Feature: IndexAcceptance
     Given an empty graph
     And having executed:
       """
-      CREATE INDEX ON :City(name)
-      """
-    And having executed:
-      """
       CREATE (:Person {name: 'A', bornIn: 'New York'})
       CREATE (:Person {name: 'B', bornIn: 'Ohio'})
       CREATE (:Person {name: 'C', bornIn: 'New Jersey'})
       CREATE (:Person {name: 'D', bornIn: 'New York'})
       CREATE (:Person {name: 'E', bornIn: 'Ohio'})
       CREATE (:Person {name: 'F', bornIn: 'New Jersey'})
+      """
+    And having executed:
+      """
+      CREATE INDEX ON :City(name)
+      """
+    And having executed:
+      """
+      CALL db.awaitIndexes()
       """
     When executing query:
       """
@@ -151,11 +175,15 @@ Feature: IndexAcceptance
     Given an empty graph
     And having executed:
       """
+      CREATE (:L:A {prop: 42})
+      """
+    And having executed:
+      """
       CREATE INDEX ON :L(prop)
       """
     And having executed:
       """
-      CREATE (:L:A {prop: 42})
+      CALL db.awaitIndexes()
       """
     When executing query:
       """
@@ -174,6 +202,10 @@ Feature: IndexAcceptance
     Given an empty graph
     And having executed:
       """
+      UNWIND range(1, 100) AS x CREATE (u:User {prop1: x, prop2: x})
+      """
+    And having executed:
+      """
       CREATE INDEX ON :User(prop1)
       """
     And having executed:
@@ -182,7 +214,7 @@ Feature: IndexAcceptance
       """
     And having executed:
       """
-      UNWIND range(1, 100) AS x CREATE (u:User {prop1: x, prop2: x})
+      CALL db.awaitIndexes()
       """
     When executing query:
       """
@@ -191,7 +223,7 @@ Feature: IndexAcceptance
       OR (c.prop1 = 11 AND c.prop2 = 11))
       RETURN c
       """
-    Then the result should be:
+    Then the result should be, in any order:
       | c                               |
       | (:User {prop1: 1, prop2: 1})    |
       | (:User {prop1: 11, prop2: 11})  |
@@ -202,6 +234,10 @@ Feature: IndexAcceptance
     Given an empty graph
     And having executed:
       """
+      UNWIND range(1, 100) AS x CREATE (:User {prop1: x, prop2: x})
+      """
+    And having executed:
+      """
       CREATE INDEX ON :User(prop1)
       """
     And having executed:
@@ -210,7 +246,7 @@ Feature: IndexAcceptance
       """
     And having executed:
       """
-      UNWIND range(1, 100) AS x CREATE (:User {prop1: x, prop2: x})
+      CALL db.awaitIndexes()
       """
     When executing query:
       """
@@ -219,7 +255,7 @@ Feature: IndexAcceptance
       OR (c.prop1 > 10 AND c.prop2 <= 11))
       RETURN c
       """
-    Then the result should be:
+    Then the result should be, in any order:
       | c                               |
       | (:User {prop1: 1, prop2: 1})    |
       | (:User {prop1: 11, prop2: 11})  |
@@ -229,6 +265,10 @@ Feature: IndexAcceptance
     Given an empty graph
     And having executed:
       """
+      UNWIND range(1, 100) AS x CREATE (:User {prop1: x+'_val', prop2: x+'_val'})
+      """
+    And having executed:
+      """
       CREATE INDEX ON :User(prop1)
       """
     And having executed:
@@ -237,7 +277,7 @@ Feature: IndexAcceptance
       """
     And having executed:
       """
-      UNWIND range(1, 100) AS x CREATE (:User {prop1: x+'_val', prop2: x+'_val'})
+      CALL db.awaitIndexes()
       """
     When executing query:
       """
@@ -246,7 +286,7 @@ Feature: IndexAcceptance
       OR (c.prop1 STARTS WITH '11_' AND c.prop2 STARTS WITH '11_'))
       RETURN c
       """
-    Then the result should be:
+    Then the result should be, in any order:
       | c                                           |
       | (:User {prop1: '1_val', prop2: '1_val'})    |
       | (:User {prop1: '11_val', prop2: '11_val'})  |
@@ -256,6 +296,10 @@ Feature: IndexAcceptance
     Given an empty graph
     And having executed:
       """
+      UNWIND range(1, 100) AS x CREATE (:User {prop1: x+'_val', prop2: x+'_val'})
+      """
+    And having executed:
+      """
       CREATE INDEX ON :User(prop1)
       """
     And having executed:
@@ -264,7 +308,7 @@ Feature: IndexAcceptance
       """
     And having executed:
       """
-      UNWIND range(1, 100) AS x CREATE (:User {prop1: x+'_val', prop2: x+'_val'})
+      CALL db.awaitIndexes()
       """
     When executing query:
       """
@@ -273,7 +317,7 @@ Feature: IndexAcceptance
       OR (c.prop1 =~ '11_.*' AND c.prop2 =~ '11_.*'))
       RETURN c
       """
-    Then the result should be:
+    Then the result should be, in any order:
       | c                                           |
       | (:User {prop1: '1_val', prop2: '1_val'})    |
       | (:User {prop1: '11_val', prop2: '11_val'})  |
@@ -283,11 +327,15 @@ Feature: IndexAcceptance
     Given an empty graph
     And having executed:
       """
+      UNWIND range(1, 100) AS x CREATE (u:User {prop: x+'_val'})
+      """
+    And having executed:
+      """
       CREATE INDEX ON :User(prop)
       """
     And having executed:
       """
-      UNWIND range(1, 100) AS x CREATE (u:User {prop: x+'_val'})
+      CALL db.awaitIndexes()
       """
     When executing query:
       """
@@ -295,7 +343,7 @@ Feature: IndexAcceptance
       WHERE c.prop =~ '1_.*' OR c.prop =~ '11_.*'
       RETURN c
       """
-    Then the result should be:
+    Then the result should be, in any order:
       | c                         |
       | (:User {prop: '1_val'})   |
       | (:User {prop: '11_val'})  |
@@ -303,6 +351,12 @@ Feature: IndexAcceptance
 
   Scenario: Should allow OR with index and incoming scope
     Given an empty graph
+    And having executed:
+      """
+      CREATE (:Person   {name: 'x', number: 0}),
+             (:Person   {name: 'y', number: 1}),
+             (:Person   {name: 'z', number: 2})
+      """
     And having executed:
       """
       CREATE INDEX ON :Person(name)
@@ -313,9 +367,7 @@ Feature: IndexAcceptance
       """
     And having executed:
       """
-      CREATE (:Person   {name: 'x', number: 0}),
-             (:Person   {name: 'y', number: 1}),
-             (:Person   {name: 'z', number: 2})
+      CALL db.awaitIndexes()
       """
     When executing query:
       """
@@ -324,7 +376,7 @@ Feature: IndexAcceptance
       WHERE n.name STARTS WITH 'x' OR n.number = 1
       RETURN variable, n.name, n.number
       """
-    Then the result should be:
+    Then the result should be, in any order:
       | variable | n.name | n.number |
       | 100      | 'x'    | 0        |
       | 100      | 'y'    | 1        |
@@ -338,6 +390,18 @@ Feature: IndexAcceptance
              (:Person   {name: 'y', number: 1}),
              (:Person   {name: 'z', number: 2})
       """
+    And having executed:
+      """
+      CREATE INDEX ON :Person(name)
+      """
+    And having executed:
+      """
+      CREATE INDEX ON :Person(number)
+      """
+    And having executed:
+      """
+      CALL db.awaitIndexes()
+      """
     When executing query:
       """
       WITH 100 as variable
@@ -345,7 +409,7 @@ Feature: IndexAcceptance
       WHERE n.name STARTS WITH 'x' OR n.number = 1
       RETURN variable, n.name, n.number
       """
-    Then the result should be:
+    Then the result should be, in any order:
       | variable | n.name | n.number |
       | 100      | 'x'    | 0        |
       | 100      | 'y'    | 1        |
@@ -355,12 +419,16 @@ Feature: IndexAcceptance
     Given an empty graph
     And having executed:
       """
+      CREATE (:Person {name: 'Jack'})
+      CREATE (:Person {name: 'Jill'})
+      """
+    And having executed:
+      """
       CREATE INDEX ON :Person(name)
       """
     And having executed:
       """
-      CREATE (:Person {name: 'Jack'})
-      CREATE (:Person {name: 'Jill'})
+      CALL db.awaitIndexes()
       """
     When executing query:
       """
@@ -368,7 +436,7 @@ Feature: IndexAcceptance
       WHERE p.name STARTS WITH null
       RETURN p
       """
-    Then the result should be:
+    Then the result should be, in any order:
       | p |
     And no side effects
 
@@ -376,12 +444,16 @@ Feature: IndexAcceptance
     Given an empty graph
     And having executed:
       """
+      CREATE (:Person {name: 'Jack'})
+      CREATE (:Person {name: 'Jill'})
+      """
+    And having executed:
+      """
       CREATE INDEX ON :Person(name)
       """
     And having executed:
       """
-      CREATE (:Person {name: 'Jack'})
-      CREATE (:Person {name: 'Jill'})
+      CALL db.awaitIndexes()
       """
     When executing query:
       """
@@ -389,7 +461,7 @@ Feature: IndexAcceptance
       WHERE p.name = null
       RETURN p
       """
-    Then the result should be:
+    Then the result should be, in any order:
       | p                             |
     And no side effects
 

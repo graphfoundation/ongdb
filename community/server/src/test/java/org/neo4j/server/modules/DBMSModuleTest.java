@@ -24,26 +24,23 @@ package org.neo4j.server.modules;
 
 import org.junit.Rule;
 import org.junit.Test;
-import org.mockito.ArgumentMatcher;
 
 import java.net.URI;
-import java.util.List;
 
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
-import org.neo4j.kernel.configuration.Config;
+import org.neo4j.configuration.Config;
+import org.neo4j.configuration.GraphDatabaseSettings;
+import org.neo4j.logging.NullLogProvider;
 import org.neo4j.server.CommunityNeoServer;
-import org.neo4j.server.rest.dbms.UserService;
+import org.neo4j.server.configuration.ServerSettings;
 import org.neo4j.server.rest.discovery.DiscoverableURIs;
 import org.neo4j.server.web.WebServer;
 import org.neo4j.test.rule.SuppressOutput;
 
-import static org.mockito.ArgumentMatchers.anyCollection;
+import static java.util.Collections.emptyList;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -53,7 +50,6 @@ public class DBMSModuleTest
     public SuppressOutput suppressOutput = SuppressOutput.suppress( SuppressOutput.System.err,
             SuppressOutput.System.out );
 
-    @SuppressWarnings( "unchecked" )
     @Test
     public void shouldRegisterAtRootByDefault() throws Exception
     {
@@ -64,43 +60,12 @@ public class DBMSModuleTest
         when( neoServer.baseUri() ).thenReturn( new URI( "http://localhost:7575" ) );
         when( neoServer.getWebServer() ).thenReturn( webServer );
         when( config.get( GraphDatabaseSettings.auth_enabled ) ).thenReturn( true );
+        when( config.get( ServerSettings.http_paths_blacklist ) ).thenReturn( emptyList() );
 
-        DBMSModule module = new DBMSModule( webServer, config, () -> new DiscoverableURIs.Builder().build() );
-
-        module.start();
-
-        verify( webServer ).addJAXRSClasses( anyList(), anyString(), isNull() );
-    }
-
-    @SuppressWarnings( "unchecked" )
-    @Test
-    public void shouldNotRegisterUserServiceWhenAuthDisabled() throws Exception
-    {
-        WebServer webServer = mock( WebServer.class );
-        Config config = mock( Config.class );
-
-        CommunityNeoServer neoServer = mock( CommunityNeoServer.class );
-        when( neoServer.baseUri() ).thenReturn( new URI( "http://localhost:7575" ) );
-        when( neoServer.getWebServer() ).thenReturn( webServer );
-        when( config.get( GraphDatabaseSettings.auth_enabled ) ).thenReturn( false );
-
-        DBMSModule module = new DBMSModule( webServer, config, () -> new DiscoverableURIs.Builder().build() );
+        DBMSModule module = new DBMSModule( webServer, config, () -> new DiscoverableURIs.Builder().build(), NullLogProvider.getInstance() );
 
         module.start();
 
         verify( webServer ).addJAXRSClasses( anyList(), anyString(), isNull() );
-        verify( webServer, never() ).addJAXRSClasses( argThat( new ArgumentMatcher<List<String>>()
-        {
-            @Override
-            public boolean matches( List<String> argument )
-            {
-                return argument.contains( UserService.class.getName() );
-            }
-
-            public String toString()
-            {
-                return "<List containing " + UserService.class.getName() + ">";
-            }
-        } ), anyString(), anyCollection() );
     }
 }

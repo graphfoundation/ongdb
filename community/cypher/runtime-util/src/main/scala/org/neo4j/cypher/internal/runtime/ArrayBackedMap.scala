@@ -31,7 +31,7 @@ import scala.reflect._
  * @param keyToIndexMap the mapping from keys to array indexes
  */
 class ArrayBackedMap[K, V](keyToIndexMap: Map[K, Int])(implicit val tag: ClassTag[V]) extends Map[K, V] {
-  private var valueArray: Array[V] = null
+  private var valueArray: Array[V] = _
 
   /**
    * Writes values by reference straight into the map.
@@ -89,7 +89,7 @@ class ArrayBackedMap[K, V](keyToIndexMap: Map[K, Int])(implicit val tag: ClassTa
         newMap.putValues(newArray)
         newMap
       //key was not in map, create new map and add new key-value pair at the end of the its valueArray
-      case None => {
+      case None =>
         val newHeadersMap = keyToIndexMap.updated(key, valueArray.length)
         val newMap = new ArrayBackedMap[K, V](newHeadersMap)
         val newArray = new Array[V](valueArray.length + 1)
@@ -97,7 +97,6 @@ class ArrayBackedMap[K, V](keyToIndexMap: Map[K, Int])(implicit val tag: ClassTa
         newArray(valueArray.length) = value.asInstanceOf[V]
         newMap.putValues(newArray)
         newMap
-      }
     }
   }
 
@@ -108,7 +107,7 @@ class ArrayBackedMap[K, V](keyToIndexMap: Map[K, Int])(implicit val tag: ClassTa
   override def -(key: K): Map[K, V] = {
     val index = keyToIndexMap.get(key)
     index match {
-      case Some(indexToRemove) => {
+      case Some(indexToRemove) =>
         // Create a new headerToIndex map without the key to be removed
         // Note: We need to update the indexes of the new headers map to match the smaller array
         val newHeadersMap = (keyToIndexMap - key).mapValues(i => if (i >= indexToRemove) i - 1 else i)
@@ -119,7 +118,6 @@ class ArrayBackedMap[K, V](keyToIndexMap: Map[K, Int])(implicit val tag: ClassTa
         val newMap = new ArrayBackedMap[K, V](newHeadersMap)
         newMap.putValues(newArray)
         newMap
-      }
       case None => this
     }
   }

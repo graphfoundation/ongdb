@@ -24,9 +24,9 @@ package org.neo4j.kernel.impl.transaction.state.storeview;
 
 import java.util.function.IntPredicate;
 
-import org.neo4j.helpers.collection.Visitor;
-import org.neo4j.kernel.impl.api.index.EntityUpdates;
-import org.neo4j.kernel.impl.locking.LockService;
+import org.neo4j.internal.helpers.collection.Visitor;
+import org.neo4j.lock.LockService;
+import org.neo4j.storageengine.api.EntityUpdates;
 import org.neo4j.storageengine.api.StorageReader;
 import org.neo4j.storageengine.api.StorageRelationshipScanCursor;
 

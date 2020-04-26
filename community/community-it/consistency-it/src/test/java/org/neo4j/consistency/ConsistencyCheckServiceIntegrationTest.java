@@ -23,39 +23,42 @@
 package org.neo4j.consistency;
 
 import org.apache.commons.lang3.StringUtils;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.RuleChain;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
+import org.neo4j.configuration.Config;
+import org.neo4j.configuration.GraphDatabaseSettings;
 import org.neo4j.consistency.ConsistencyCheckService.Result;
 import org.neo4j.consistency.checking.GraphStoreFixture;
 import org.neo4j.consistency.checking.full.ConsistencyCheckIncompleteException;
+import org.neo4j.dbms.api.DatabaseManagementService;
+import org.neo4j.exceptions.KernelException;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.RelationshipType;
 import org.neo4j.graphdb.Transaction;
-import org.neo4j.graphdb.factory.GraphDatabaseBuilder;
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
+import org.neo4j.graphdb.config.Setting;
 import org.neo4j.graphdb.schema.IndexDefinition;
-import org.neo4j.helpers.Strings;
-import org.neo4j.helpers.progress.ProgressMonitorFactory;
-import org.neo4j.internal.kernel.api.exceptions.TransactionFailureException;
-import org.neo4j.io.fs.DefaultFileSystemAbstraction;
+import org.neo4j.internal.helpers.Strings;
+import org.neo4j.internal.helpers.progress.ProgressMonitorFactory;
+import org.neo4j.internal.recordstorage.RecordStorageEngine;
+import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.fs.FileUtils;
 import org.neo4j.io.layout.DatabaseLayout;
-import org.neo4j.kernel.configuration.Config;
-import org.neo4j.kernel.configuration.Settings;
-import org.neo4j.kernel.impl.storageengine.impl.recordstorage.RecordStorageEngine;
+import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.kernel.impl.store.NeoStores;
 import org.neo4j.kernel.impl.store.RelationshipStore;
 import org.neo4j.kernel.impl.store.record.NodeRecord;
@@ -64,47 +67,78 @@ import org.neo4j.kernel.impl.store.record.RelationshipRecord;
 import org.neo4j.kernel.impl.transaction.log.files.LogFilesBuilder;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
 import org.neo4j.logging.NullLogProvider;
-import org.neo4j.test.TestGraphDatabaseFactory;
+import org.neo4j.test.TestDatabaseManagementServiceBuilder;
+import org.neo4j.test.extension.Inject;
+import org.neo4j.test.extension.Neo4jLayoutExtension;
+import org.neo4j.test.extension.SuppressOutputExtension;
+import org.neo4j.test.extension.pagecache.PageCacheExtension;
 import org.neo4j.test.rule.TestDirectory;
 
 import static java.lang.String.format;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.containsString;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-import static org.neo4j.graphdb.factory.GraphDatabaseSettings.SchemaIndex.LUCENE10;
-import static org.neo4j.graphdb.factory.GraphDatabaseSettings.SchemaIndex.NATIVE20;
-import static org.neo4j.helpers.collection.MapUtil.stringMap;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
+import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
+import static org.neo4j.configuration.GraphDatabaseSettings.SchemaIndex.NATIVE30;
+import static org.neo4j.configuration.GraphDatabaseSettings.SchemaIndex.NATIVE_BTREE10;
+import static org.neo4j.configuration.GraphDatabaseSettings.record_format;
 import static org.neo4j.test.Property.property;
 import static org.neo4j.test.Property.set;
 
+@PageCacheExtension
+@Neo4jLayoutExtension
+@ExtendWith( SuppressOutputExtension.class )
 public class ConsistencyCheckServiceIntegrationTest
 {
-    private final GraphStoreFixture fixture = new GraphStoreFixture( getRecordFormatName() )
-    {
-        @Override
-        protected void generateInitialData( GraphDatabaseService graphDb )
-        {
-            try ( org.neo4j.graphdb.Transaction tx = graphDb.beginTx() )
-            {
-                Node node1 = set( graphDb.createNode() );
-                Node node2 = set( graphDb.createNode(), property( "key", "exampleValue" ) );
-                node1.createRelationshipTo( node2, RelationshipType.withName( "C" ) );
-                tx.success();
-            }
-        }
-    };
+    @Inject
+    private TestDirectory testDirectory;
+    @Inject
+    private PageCache pageCache;
+    @Inject
+    private FileSystemAbstraction fs;
+    @Inject
+    private DatabaseLayout databaseLayout;
 
-    private final DefaultFileSystemAbstraction fs = new DefaultFileSystemAbstraction();
-    private final TestDirectory testDirectory = TestDirectory.testDirectory( fs );
-    @Rule
-    public final RuleChain chain = RuleChain.outerRule( testDirectory ).around( fixture );
+    private GraphStoreFixture fixture;
+    private DatabaseManagementService managementService;
+
+    @BeforeEach
+    void setUp()
+    {
+        fixture = new GraphStoreFixture( getRecordFormatName(), pageCache, testDirectory )
+        {
+            @Override
+            protected void generateInitialData( GraphDatabaseService graphDb )
+            {
+                try ( org.neo4j.graphdb.Transaction tx = graphDb.beginTx() )
+                {
+                    Node node1 = set( tx.createNode() );
+                    Node node2 = set( tx.createNode(), property( "key", "exampleValue" ) );
+                    node1.createRelationshipTo( node2, RelationshipType.withName( "C" ) );
+                    tx.commit();
+                }
+            }
+
+            @Override
+            protected Map<Setting<?>,Object> getConfig()
+            {
+                return settings();
+            }
+        };
+    }
+
+    @AfterEach
+    void tearDown() throws Exception
+    {
+        fixture.close();
+    }
 
     @Test
-    public void reportNotUsedRelationshipReferencedInChain() throws Exception
+    void reportNotUsedRelationshipReferencedInChain() throws Exception
     {
         prepareDbWithDeletedRelationshipPartOfTheChain();
 
@@ -117,21 +151,20 @@ public class ConsistencyCheckServiceIntegrationTest
         assertFalse( result.isSuccessful() );
 
         File reportFile = result.reportFile();
-        assertTrue( "Consistency check report file should be generated.", reportFile.exists() );
+        assertTrue( reportFile.exists(), "Consistency check report file should be generated." );
         assertThat( "Expected to see report about not deleted relationship record present as part of a chain",
-                Files.readAllLines( reportFile.toPath() ).toString(),
+                Files.readString( reportFile.toPath() ),
                 containsString( "The relationship record is not in use, but referenced from relationships chain.") );
     }
 
     @Test
-    public void shouldFailOnDatabaseInNeedOfRecovery() throws IOException
+    void shouldFailOnDatabaseInNeedOfRecovery() throws IOException
     {
         nonRecoveredDatabase();
         ConsistencyCheckService service = new ConsistencyCheckService();
         try
         {
-            Map<String,String> settings = settings();
-            Config defaults = Config.defaults( settings );
+            Config defaults = Config.defaults( settings() );
             runFullConsistencyCheck( service, defaults );
             fail();
         }
@@ -144,7 +177,7 @@ public class ConsistencyCheckServiceIntegrationTest
     }
 
     @Test
-    public void ableToDeleteDatabaseDirectoryAfterConsistencyCheckRun() throws ConsistencyCheckIncompleteException, IOException
+    void ableToDeleteDatabaseDirectoryAfterConsistencyCheckRun() throws ConsistencyCheckIncompleteException, IOException
     {
         prepareDbWithDeletedRelationshipPartOfTheChain();
         ConsistencyCheckService service = new ConsistencyCheckService();
@@ -155,7 +188,7 @@ public class ConsistencyCheckServiceIntegrationTest
     }
 
     @Test
-    public void shouldSucceedIfStoreIsConsistent() throws Exception
+    void shouldSucceedIfStoreIsConsistent() throws Exception
     {
         // given
         Date timestamp = new Date();
@@ -168,19 +201,21 @@ public class ConsistencyCheckServiceIntegrationTest
         // then
         assertTrue( result.isSuccessful() );
         File reportFile = result.reportFile();
-        assertFalse( "Unexpected generation of consistency check report file: " + reportFile, reportFile.exists() );
+        assertFalse( reportFile.exists(), "Unexpected generation of consistency check report file: " + reportFile );
     }
 
     @Test
-    public void shouldFailIfTheStoreInNotConsistent() throws Exception
+    void shouldFailIfTheStoreInNotConsistent() throws Exception
     {
         // given
         breakNodeStore();
         Date timestamp = new Date();
         ConsistencyCheckService service = new ConsistencyCheckService( timestamp );
-        String logsDir = testDirectory.directory().getPath();
-        Config configuration = Config.defaults(
-                settings( GraphDatabaseSettings.logs_directory.name(), logsDir ) );
+        Path logsDir = testDirectory.homeDir().toPath();
+        Config configuration = Config.newBuilder()
+                .set( settings() )
+                .set( GraphDatabaseSettings.logs_directory, logsDir )
+                .build();
 
         // when
         ConsistencyCheckService.Result result = runFullConsistencyCheck( service, configuration );
@@ -189,35 +224,33 @@ public class ConsistencyCheckServiceIntegrationTest
         assertFalse( result.isSuccessful() );
         String reportFile = format( "inconsistencies-%s.report",
                 new SimpleDateFormat( "yyyy-MM-dd.HH.mm.ss" ).format( timestamp ) );
-        assertEquals( new File( logsDir, reportFile ), result.reportFile() );
-        assertTrue( "Inconsistency report file not generated", result.reportFile().exists() );
+        assertEquals( new File( logsDir.toString(), reportFile ), result.reportFile() );
+        assertTrue( result.reportFile().exists(), "Inconsistency report file not generated" );
     }
 
     @Test
-    public void shouldNotReportDuplicateForHugeLongValues() throws Exception
+    void shouldNotReportDuplicateForHugeLongValues() throws Exception
     {
         // given
         ConsistencyCheckService service = new ConsistencyCheckService();
         Config configuration = Config.defaults( settings() );
-        GraphDatabaseService db = new TestGraphDatabaseFactory().newEmbeddedDatabaseBuilder( testDirectory.storeDir() )
-                .setConfig( GraphDatabaseSettings.record_format, getRecordFormatName() )
-                .setConfig( "dbms.backup.enabled", "false" )
-                .newGraphDatabase();
+        DatabaseManagementService managementService = new TestDatabaseManagementServiceBuilder( testDirectory.homeDir() ).setConfig( settings() ).build();
+        GraphDatabaseService db = managementService.database( DEFAULT_DATABASE_NAME );
 
         String propertyKey = "itemId";
         Label label = Label.label( "Item" );
         try ( Transaction tx = db.beginTx() )
         {
-            db.schema().constraintFor( label ).assertPropertyIsUnique( propertyKey ).create();
-            tx.success();
+            tx.schema().constraintFor( label ).assertPropertyIsUnique( propertyKey ).create();
+            tx.commit();
         }
         try ( Transaction tx = db.beginTx() )
         {
-            set( db.createNode( label ), property( propertyKey, 973305894188596880L ) );
-            set( db.createNode( label ), property( propertyKey, 973305894188596864L ) );
-            tx.success();
+            set( tx.createNode( label ), property( propertyKey, 973305894188596880L ) );
+            set( tx.createNode( label ), property( propertyKey, 973305894188596864L ) );
+            tx.commit();
         }
-        db.shutdown();
+        managementService.shutdown();
 
         // when
         Result result = runFullConsistencyCheck( service, configuration );
@@ -227,41 +260,17 @@ public class ConsistencyCheckServiceIntegrationTest
     }
 
     @Test
-    public void shouldAllowGraphCheckDisabled() throws ConsistencyCheckIncompleteException
-    {
-        GraphDatabaseService gds = getGraphDatabaseService();
-
-        try ( Transaction tx = gds.beginTx() )
-        {
-            gds.createNode();
-            tx.success();
-        }
-
-        gds.shutdown();
-
-        ConsistencyCheckService service = new ConsistencyCheckService();
-        Config configuration = Config.defaults(
-                settings( ConsistencyCheckSettings.consistency_check_graph.name(), Settings.FALSE ) );
-
-        // when
-        Result result = runFullConsistencyCheck( service, configuration );
-
-        // then
-        assertTrue( result.isSuccessful() );
-    }
-
-    @Test
-    public void shouldReportMissingSchemaIndex() throws Exception
+    void shouldReportMissingSchemaIndex() throws Exception
     {
         // given
-        DatabaseLayout databaseLayout = testDirectory.databaseLayout();
-        GraphDatabaseService gds = getGraphDatabaseService( databaseLayout.databaseDirectory() );
+
+        GraphDatabaseService gds = getGraphDatabaseService( testDirectory.homeDir() );
 
         Label label = Label.label( "label" );
         String propKey = "propKey";
         createIndex( gds, label, propKey );
 
-        gds.shutdown();
+        managementService.shutdown();
 
         // when
         File schemaDir = findFile( databaseLayout, "schema" );
@@ -274,36 +283,37 @@ public class ConsistencyCheckServiceIntegrationTest
         // then
         assertTrue( result.isSuccessful() );
         File reportFile = result.reportFile();
-        assertTrue( "Consistency check report file should be generated.", reportFile.exists() );
+        assertTrue( reportFile.exists(), "Consistency check report file should be generated." );
         assertThat( "Expected to see report about schema index not being online",
-                Files.readAllLines( reportFile.toPath() ).toString(), allOf(
+                Files.readString( reportFile.toPath() ), allOf(
                         containsString( "schema rule" ),
                         containsString( "not online" )
                 ) );
     }
 
     @Test
-    public void oldLuceneSchemaIndexShouldBeConsideredConsistentWithFusionProvider() throws Exception
+    void oldLuceneSchemaIndexShouldBeConsideredConsistentWithFusionProvider() throws Exception
     {
-        DatabaseLayout databaseLayout = testDirectory.databaseLayout();
-        String defaultSchemaProvider = GraphDatabaseSettings.default_schema_provider.name();
         Label label = Label.label( "label" );
         String propKey = "propKey";
 
         // Given a lucene index
-        GraphDatabaseService db = getGraphDatabaseService( databaseLayout.databaseDirectory(), defaultSchemaProvider, LUCENE10.providerName() );
+        GraphDatabaseService db =
+                getGraphDatabaseService( databaseLayout.databaseDirectory(), Map.of( GraphDatabaseSettings.default_schema_provider, NATIVE30.providerName() ) );
         createIndex( db, label, propKey );
         try ( Transaction tx = db.beginTx() )
         {
-            db.createNode( label ).setProperty( propKey, 1 );
-            db.createNode( label ).setProperty( propKey, "string" );
-            tx.success();
+            tx.createNode( label ).setProperty( propKey, 1 );
+            tx.createNode( label ).setProperty( propKey, "string" );
+            tx.commit();
         }
-        db.shutdown();
+        managementService.shutdown();
 
         ConsistencyCheckService service = new ConsistencyCheckService();
-        Config configuration =
-                Config.defaults( settings( defaultSchemaProvider, NATIVE20.providerName() ) );
+        Config configuration = Config.newBuilder()
+                .set( settings() )
+                .set( GraphDatabaseSettings.default_schema_provider, NATIVE_BTREE10.providerName() )
+                .build();
         Result result = runFullConsistencyCheck( service, configuration, databaseLayout );
         assertTrue( result.isSuccessful() );
     }
@@ -314,14 +324,14 @@ public class ConsistencyCheckServiceIntegrationTest
 
         try ( Transaction tx = gds.beginTx() )
         {
-            indexDefinition = gds.schema().indexFor( label ).on( propKey ).create();
-            tx.success();
+            indexDefinition = tx.schema().indexFor( label ).on( propKey ).create();
+            tx.commit();
         }
 
         try ( Transaction tx = gds.beginTx() )
         {
-            gds.schema().awaitIndexOnline( indexDefinition, 1, TimeUnit.MINUTES );
-            tx.success();
+            tx.schema().awaitIndexOnline( indexDefinition, 1, TimeUnit.MINUTES );
+            tx.commit();
         }
     }
 
@@ -335,45 +345,41 @@ public class ConsistencyCheckServiceIntegrationTest
         return file;
     }
 
-    private GraphDatabaseService getGraphDatabaseService()
+    private GraphDatabaseService getGraphDatabaseService( File homeDir )
     {
-        return getGraphDatabaseService( testDirectory.absolutePath() );
+        return getGraphDatabaseService( homeDir, Map.of() );
     }
 
-    private GraphDatabaseService getGraphDatabaseService( File storeDir )
+    private GraphDatabaseService getGraphDatabaseService( File homeDir, Map<Setting<?>, Object> settings )
     {
-        return getGraphDatabaseService( storeDir, new String[0] );
-    }
+        TestDatabaseManagementServiceBuilder builder = new TestDatabaseManagementServiceBuilder( homeDir );
+        builder.setConfig( settings() );
+        builder.setConfig( settings );
 
-    private GraphDatabaseService getGraphDatabaseService( File storeDir, String... settings )
-    {
-        GraphDatabaseBuilder builder = new TestGraphDatabaseFactory().newEmbeddedDatabaseBuilder( storeDir );
-        builder.setConfig( settings( settings ) );
-
-        return builder.newGraphDatabase();
+        managementService = builder.build();
+        return managementService.database( DEFAULT_DATABASE_NAME );
     }
 
     private void prepareDbWithDeletedRelationshipPartOfTheChain()
     {
-        GraphDatabaseAPI db = (GraphDatabaseAPI) new TestGraphDatabaseFactory().newEmbeddedDatabaseBuilder( testDirectory.databaseDir() )
-                .setConfig( GraphDatabaseSettings.record_format, getRecordFormatName() )
-                .setConfig( "dbms.backup.enabled", "false" )
-                .newGraphDatabase();
+        DatabaseManagementService managementService =
+                new TestDatabaseManagementServiceBuilder( testDirectory.homeDir() ).setConfig( record_format, getRecordFormatName() ).build();
+        GraphDatabaseAPI db = (GraphDatabaseAPI) managementService.database( DEFAULT_DATABASE_NAME );
         try
         {
 
             RelationshipType relationshipType = RelationshipType.withName( "testRelationshipType" );
             try ( Transaction tx = db.beginTx() )
             {
-                Node node1 = set( db.createNode() );
-                Node node2 = set( db.createNode(), property( "key", "value" ) );
+                Node node1 = set( tx.createNode() );
+                Node node2 = set( tx.createNode(), property( "key", "value" ) );
                 node1.createRelationshipTo( node2, relationshipType );
                 node1.createRelationshipTo( node2, relationshipType );
                 node1.createRelationshipTo( node2, relationshipType );
                 node1.createRelationshipTo( node2, relationshipType );
                 node1.createRelationshipTo( node2, relationshipType );
                 node1.createRelationshipTo( node2, relationshipType );
-                tx.success();
+                tx.commit();
             }
 
             RecordStorageEngine recordStorageEngine = db.getDependencyResolver().resolveDependency( RecordStorageEngine.class );
@@ -387,35 +393,32 @@ public class ConsistencyCheckServiceIntegrationTest
         }
         finally
         {
-            db.shutdown();
+            managementService.shutdown();
         }
     }
 
     private void nonRecoveredDatabase() throws IOException
     {
-        File tmpLogDir = new File( testDirectory.directory(), "logs" );
+        File tmpLogDir = new File( testDirectory.homeDir(), "logs" );
         fs.mkdir( tmpLogDir );
-        File storeDir = testDirectory.databaseDir();
-        GraphDatabaseAPI db = (GraphDatabaseAPI) new TestGraphDatabaseFactory()
-                .newEmbeddedDatabaseBuilder( storeDir )
-                .setConfig( GraphDatabaseSettings.record_format, getRecordFormatName() )
-                .setConfig( "dbms.backup.enabled", "false" )
-                .newGraphDatabase();
+        DatabaseManagementService managementService =
+                new TestDatabaseManagementServiceBuilder( testDirectory.homeDir() ).setConfig( settings() ).build();
+        GraphDatabaseAPI db = (GraphDatabaseAPI) managementService.database( DEFAULT_DATABASE_NAME );
 
         RelationshipType relationshipType = RelationshipType.withName( "testRelationshipType" );
         try ( Transaction tx = db.beginTx() )
         {
-            Node node1 = set( db.createNode() );
-            Node node2 = set( db.createNode(), property( "key", "value" ) );
+            Node node1 = set( tx.createNode() );
+            Node node2 = set( tx.createNode(), property( "key", "value" ) );
             node1.createRelationshipTo( node2, relationshipType );
-            tx.success();
+            tx.commit();
         }
-        File[] txLogs = LogFilesBuilder.logFilesBasedOnlyBuilder( storeDir, fs ).build().logFiles();
+        File[] txLogs = LogFilesBuilder.logFilesBasedOnlyBuilder( databaseLayout.getTransactionLogsDirectory(), fs ).build().logFiles();
         for ( File file : txLogs )
         {
             fs.copyToDirectory( file, tmpLogDir );
         }
-        db.shutdown();
+        managementService.shutdown();
         for ( File txLog : txLogs )
         {
             fs.deleteFile( txLog );
@@ -423,20 +426,20 @@ public class ConsistencyCheckServiceIntegrationTest
 
         for ( File file : LogFilesBuilder.logFilesBasedOnlyBuilder( tmpLogDir, fs ).build().logFiles() )
         {
-            fs.moveToDirectory( file, storeDir );
+            fs.moveToDirectory( file, databaseLayout.getTransactionLogsDirectory() );
         }
     }
 
-    protected Map<String,String> settings( String... strings )
+    protected Map<Setting<?>,Object> settings()
     {
-        Map<String, String> defaults = new HashMap<>();
-        defaults.put( GraphDatabaseSettings.pagecache_memory.name(), "8m" );
-        defaults.put( GraphDatabaseSettings.record_format.name(), getRecordFormatName() );
-        defaults.put( "dbms.backup.enabled", "false" );
-        return stringMap( defaults, strings );
+        Map<Setting<?>, Object> defaults = new HashMap<>();
+        defaults.put( GraphDatabaseSettings.pagecache_memory, "8m" );
+        defaults.put( GraphDatabaseSettings.logs_directory, databaseLayout.databaseDirectory().toPath() );
+        defaults.put( record_format, getRecordFormatName() );
+        return defaults;
     }
 
-    private void breakNodeStore() throws TransactionFailureException
+    private void breakNodeStore() throws KernelException
     {
         fixture.apply( new GraphStoreFixture.Transaction()
         {

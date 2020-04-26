@@ -22,7 +22,7 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.commands.predicates
 
-import org.neo4j.cypher.internal.v3_6.util.NonEmptyList
+import org.neo4j.cypher.internal.v4_0.util.NonEmptyList
 import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.{Property, Variable}
 
 // This transforms
@@ -76,7 +76,7 @@ object groupInequalityPredicatesForLegacy extends (NonEmptyList[Predicate] => No
   }
 
   private def groupedComparablePredicates(comparables: NonEmptyList[ComparablePredicate]) = {
-    comparables.groupBy { (input: ComparablePredicate) =>
+    comparables.groupBy { input: ComparablePredicate =>
       input.left match {
         case prop@Property(ident: Variable, _) => Some(ident -> prop)
         case _ => None

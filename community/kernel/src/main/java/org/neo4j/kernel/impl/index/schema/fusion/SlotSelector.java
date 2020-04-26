@@ -26,7 +26,7 @@ import java.util.Arrays;
 import java.util.function.Function;
 
 import org.neo4j.kernel.api.index.IndexProvider;
-import org.neo4j.values.storable.ValueGroup;
+import org.neo4j.values.storable.ValueCategory;
 
 import static org.apache.commons.lang3.ArrayUtils.contains;
 
@@ -40,15 +40,15 @@ public interface SlotSelector
     void validateSatisfied( InstanceSelector<IndexProvider> instances );
 
     /**
-     * Selects a slot to use based on the given values. The values can be anything that can yield a {@link ValueGroup value group},
+     * Selects a slot to use based on the given values. The values can be anything that can yield a {@link ValueCategory value category},
      * which is what the {@code groupOf} function extracts from each value.
      *
-     * @param <V> type of value to extract {@link ValueGroup} from.
-     * @param values values, something which can yield a {@link ValueGroup}.
-     * @param groupOf {@link Function} to get {@link ValueGroup} for the given values.
+     * @param <V> type of value to extract {@link ValueCategory} from.
+     * @param values values, something which can yield a {@link ValueCategory}.
+     * @param categoryOf {@link Function} to get {@link ValueCategory} for the given values.
      * @return {@link IndexSlot} or {@code null} if no single slot could be selected. This means that all slots are needed.
      */
-    <V> IndexSlot selectSlot( V[] values, Function<V,ValueGroup> groupOf );
+    <V> IndexSlot selectSlot( V[] values, Function<V,ValueCategory> categoryOf );
 
     /**
      * Standard utility method for typical implementation of {@link SlotSelector#validateSatisfied(InstanceSelector)}.
@@ -79,7 +79,7 @@ public interface SlotSelector
         }
 
         @Override
-        public <V> IndexSlot selectSlot( V[] values, Function<V,ValueGroup> groupOf )
+        public <V> IndexSlot selectSlot( V[] values, Function<V,ValueCategory> categoryOf )
         {
             throw new UnsupportedOperationException( "NullInstance cannot select a slot for you. Please use the real deal." );
         }

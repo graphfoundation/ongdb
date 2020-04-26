@@ -22,9 +22,8 @@
  */
 package org.neo4j.kernel.impl.event;
 
-import org.neo4j.graphdb.PropertyContainer;
 import org.neo4j.graphdb.event.PropertyEntry;
-import org.neo4j.helpers.Strings;
+import org.neo4j.internal.helpers.Strings;
 import org.neo4j.values.storable.Values;
 
 import static org.junit.Assert.assertEquals;
@@ -32,7 +31,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.fail;
 
-class PropertyEntryImpl<T extends PropertyContainer> implements PropertyEntry<T>
+class PropertyEntryImpl<T> implements PropertyEntry<T>
 {
     private final T entity;
     private final String key;
@@ -66,7 +65,7 @@ class PropertyEntryImpl<T extends PropertyContainer> implements PropertyEntry<T>
     }
 
     @Override
-    public Object previouslyCommitedValue()
+    public Object previouslyCommittedValue()
     {
         return this.valueBeforeTx;
     }
@@ -96,7 +95,7 @@ class PropertyEntryImpl<T extends PropertyContainer> implements PropertyEntry<T>
     {
         assertEquals( entry.entity(), entity() );
         assertEquals( entry.key(), key() );
-        assertEqualsMaybeNull( entry.previouslyCommitedValue(), previouslyCommitedValue(),
+        assertEqualsMaybeNull( entry.previouslyCommittedValue(), previouslyCommittedValue(),
                 entry.entity(), entry.key() );
     }
 
@@ -107,7 +106,7 @@ class PropertyEntryImpl<T extends PropertyContainer> implements PropertyEntry<T>
                 + valueBeforeTx + "]";
     }
 
-    public static <T extends PropertyContainer> void assertEqualsMaybeNull( Object o1, Object o2, T entity, String key )
+    public static <T> void assertEqualsMaybeNull( Object o1, Object o2, T entity, String key )
     {
         String entityDescription = "For " + entity + " and " + key;
         if ( o1 == null || o2 == null )

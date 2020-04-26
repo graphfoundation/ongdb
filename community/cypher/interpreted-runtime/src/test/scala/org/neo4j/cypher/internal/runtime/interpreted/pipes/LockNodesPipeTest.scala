@@ -22,13 +22,12 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
-import org.neo4j.cypher.internal.runtime.QueryContext
-import org.neo4j.cypher.internal.runtime.interpreted.{ExecutionContext, MapExecutionContext}
+import org.neo4j.cypher.internal.runtime.{ExecutionContext, MapExecutionContext, QueryContext}
+import org.neo4j.cypher.internal.v4_0.util.test_helpers.CypherFunSuite
+import org.neo4j.exceptions.CypherTypeException
 import org.neo4j.values.AnyValue
 import org.neo4j.values.storable.Values
 import org.neo4j.values.virtual.VirtualValues
-import org.neo4j.cypher.internal.v3_6.util.CypherTypeException
-import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
 
 import scala.collection.mutable
 
@@ -50,16 +49,16 @@ class LockNodesPipeTest extends CypherFunSuite {
 
     // then
     result.next()
-    verify(queryContext, times(1)).lockNodes(1)
+    verify(queryContext).lockNodes(1)
 
     result.next()
-    verify(queryContext, times(1)).lockNodes(1)
+    verify(queryContext).lockNodes(1)
 
     result.next()
-    verify(queryContext, times(1)).lockNodes(2)
+    verify(queryContext).lockNodes(2)
 
     result.next()
-    verify(queryContext, times(1)).lockNodes(2)
+    verify(queryContext).lockNodes(2)
   }
 
   test("should crash with CypherTypeException on illegal value types") {

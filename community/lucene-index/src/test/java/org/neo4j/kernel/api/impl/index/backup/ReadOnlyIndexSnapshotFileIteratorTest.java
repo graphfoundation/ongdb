@@ -30,7 +30,6 @@ import org.apache.lucene.store.Directory;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.io.File;
 import java.io.IOException;
@@ -42,14 +41,14 @@ import org.neo4j.io.IOUtils;
 import org.neo4j.kernel.api.impl.index.IndexWriterConfigs;
 import org.neo4j.kernel.api.impl.index.storage.DirectoryFactory;
 import org.neo4j.test.extension.Inject;
-import org.neo4j.test.extension.TestDirectoryExtension;
+import org.neo4j.test.extension.testdirectory.TestDirectoryExtension;
 import org.neo4j.test.rule.TestDirectory;
 
 import static java.util.stream.Collectors.toSet;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 
-@ExtendWith( TestDirectoryExtension.class )
+@TestDirectoryExtension
 public class ReadOnlyIndexSnapshotFileIteratorTest
 {
     @Inject
@@ -61,7 +60,7 @@ public class ReadOnlyIndexSnapshotFileIteratorTest
     @BeforeEach
     void setUp() throws IOException
     {
-        indexDir = testDir.databaseDir();
+        indexDir = testDir.homeDir();
         dir = DirectoryFactory.PERSISTENT.open( indexDir );
     }
 

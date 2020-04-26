@@ -24,7 +24,7 @@ package org.neo4j.kernel.api.net;
 
 import java.net.SocketAddress;
 
-public interface TrackedNetworkConnection
+public interface TrackedNetworkConnection extends AutoCloseable
 {
     String id();
 
@@ -42,5 +42,6 @@ public interface TrackedNetworkConnection
 
     void updateUser( String username, String userAgent );
 
+    @Override
     void close();
 }

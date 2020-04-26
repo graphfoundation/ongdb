@@ -22,84 +22,62 @@
  */
 package org.neo4j.server;
 
-import org.apache.commons.configuration.Configuration;
-
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.time.Clock;
+import java.time.Duration;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
 
-import org.neo4j.graphdb.DependencyResolver;
-import org.neo4j.graphdb.facade.GraphDatabaseFacadeFactory.Dependencies;
-import org.neo4j.helpers.AdvertisedSocketAddress;
-import org.neo4j.helpers.ListenSocketAddress;
-import org.neo4j.helpers.RunCarefully;
-import org.neo4j.internal.diagnostics.DiagnosticsManager;
+import org.neo4j.common.DependencyResolver;
+import org.neo4j.configuration.Config;
+import org.neo4j.configuration.connectors.ConnectorPortRegister;
+import org.neo4j.configuration.connectors.HttpConnector;
+import org.neo4j.configuration.connectors.HttpsConnector;
+import org.neo4j.configuration.helpers.SocketAddress;
+import org.neo4j.dbms.DatabaseStateService;
+import org.neo4j.dbms.api.DatabaseManagementService;
+import org.neo4j.graphdb.facade.ExternalDependencies;
 import org.neo4j.io.fs.FileSystemAbstraction;
-import org.neo4j.kernel.GraphDatabaseQueryService;
 import org.neo4j.kernel.api.security.AuthManager;
-import org.neo4j.kernel.api.security.UserManagerSupplier;
-import org.neo4j.kernel.availability.AvailabilityGuard;
-import org.neo4j.kernel.configuration.Config;
-import org.neo4j.kernel.configuration.ConnectorPortRegister;
-import org.neo4j.kernel.configuration.HttpConnector;
-import org.neo4j.kernel.configuration.HttpConnector.Encryption;
-import org.neo4j.kernel.configuration.ssl.SslPolicyLoader;
-import org.neo4j.kernel.impl.query.QueryExecutionEngine;
+import org.neo4j.kernel.availability.CompositeDatabaseAvailabilityGuard;
 import org.neo4j.kernel.internal.Version;
 import org.neo4j.kernel.lifecycle.LifeSupport;
 import org.neo4j.kernel.lifecycle.LifecycleAdapter;
 import org.neo4j.logging.Log;
 import org.neo4j.logging.LogProvider;
-import org.neo4j.scheduler.Group;
+import org.neo4j.logging.internal.LogService;
 import org.neo4j.scheduler.JobScheduler;
+import org.neo4j.server.bind.ComponentsBinder;
 import org.neo4j.server.configuration.ServerSettings;
-import org.neo4j.server.database.CypherExecutor;
-import org.neo4j.server.database.CypherExecutorProvider;
-import org.neo4j.server.database.Database;
-import org.neo4j.server.database.DatabaseProvider;
-import org.neo4j.server.database.GraphDatabaseServiceProvider;
+import org.neo4j.server.database.DatabaseService;
 import org.neo4j.server.database.GraphFactory;
-import org.neo4j.server.database.InjectableProvider;
-import org.neo4j.server.database.LifecycleManagingDatabase;
-import org.neo4j.server.modules.RESTApiModule;
+import org.neo4j.server.database.LifecycleManagingDatabaseService;
+import org.neo4j.server.http.cypher.HttpTransactionManager;
+import org.neo4j.server.http.cypher.TransactionRegistry;
 import org.neo4j.server.modules.ServerModule;
-import org.neo4j.server.plugins.ConfigAdapter;
-import org.neo4j.server.plugins.PluginInvocatorProvider;
-import org.neo4j.server.plugins.PluginManager;
+import org.neo4j.server.rest.repr.InputFormat;
 import org.neo4j.server.rest.repr.InputFormatProvider;
+import org.neo4j.server.rest.repr.OutputFormat;
 import org.neo4j.server.rest.repr.OutputFormatProvider;
 import org.neo4j.server.rest.repr.RepresentationFormatRepository;
-import org.neo4j.server.rest.transactional.TransactionFacade;
-import org.neo4j.server.rest.transactional.TransactionFilter;
-import org.neo4j.server.rest.transactional.TransactionHandleRegistry;
-import org.neo4j.server.rest.transactional.TransactionRegistry;
-import org.neo4j.server.rest.transactional.TransitionalPeriodTransactionMessContainer;
-import org.neo4j.server.rest.web.DatabaseActions;
-import org.neo4j.server.web.AsyncRequestLog;
+import org.neo4j.server.web.RotatingRequestLog;
 import org.neo4j.server.web.SimpleUriBuilder;
 import org.neo4j.server.web.WebServer;
-import org.neo4j.server.web.WebServerProvider;
-import org.neo4j.ssl.SslPolicy;
+import org.neo4j.ssl.config.SslPolicyLoader;
 import org.neo4j.time.Clocks;
-import org.neo4j.udc.UsageData;
 
-import static java.lang.Math.round;
-import static java.util.concurrent.TimeUnit.MILLISECONDS;
-import static org.neo4j.graphdb.factory.GraphDatabaseSettings.db_timezone;
-import static org.neo4j.helpers.collection.Iterables.map;
+import static java.util.stream.Collectors.toUnmodifiableList;
+import static org.neo4j.configuration.GraphDatabaseSettings.db_timezone;
+import static org.neo4j.configuration.ssl.SslPolicyScope.HTTPS;
 import static org.neo4j.server.configuration.ServerSettings.http_log_path;
 import static org.neo4j.server.configuration.ServerSettings.http_logging_enabled;
 import static org.neo4j.server.configuration.ServerSettings.http_logging_rotation_keep_number;
 import static org.neo4j.server.configuration.ServerSettings.http_logging_rotation_size;
-import static org.neo4j.server.database.InjectableProvider.providerForSingleton;
-import static org.neo4j.server.database.InjectableProvider.providerFromSupplier;
 import static org.neo4j.server.exception.ServerStartupErrors.translateToServerStartupError;
 
 public abstract class AbstractNeoServer implements NeoServer
@@ -112,46 +90,38 @@ public abstract class AbstractNeoServer implements NeoServer
      */
     private static final long ROUNDING_SECOND = 1000L;
 
-    private static final Pattern[] DEFAULT_URI_WHITELIST = new Pattern[]{
-            Pattern.compile( "/browser.*" ),
-            Pattern.compile( "/" )
-    };
-    public static final String NEO4J_IS_STARTING_MESSAGE = "======== Neo4j " + Version.getNeo4jVersion() + " ========";
+    static final String NEO4J_IS_STARTING_MESSAGE = "======== Neo4j " + Version.getNeo4jVersion() + " ========";
 
     protected final LogProvider userLogProvider;
     private final Log log;
 
     private final List<ServerModule> serverModules = new ArrayList<>();
     private final SimpleUriBuilder uriBuilder = new SimpleUriBuilder();
+    private final List<Pattern> authWhitelist;
     private final Config config;
     private final LifeSupport life = new LifeSupport();
-    private final ListenSocketAddress httpListenAddress;
-    private final ListenSocketAddress httpsListenAddress;
-    private AdvertisedSocketAddress httpAdvertisedAddress;
-    private AdvertisedSocketAddress httpsAdvertisedAddress;
+    private final boolean httpEnabled;
+    private final boolean httpsEnabled;
+    private SocketAddress httpListenAddress;
+    private SocketAddress httpsListenAddress;
+    private SocketAddress httpAdvertisedAddress;
+    private SocketAddress httpsAdvertisedAddress;
 
-    protected final Database database;
-    private DependencyResolver dependencyResolver;
-    protected CypherExecutor cypherExecutor;
+    protected final DatabaseService databaseService;
     protected WebServer webServer;
     protected Supplier<AuthManager> authManagerSupplier;
-    protected Supplier<UserManagerSupplier> userManagerSupplier;
-    protected Supplier<SslPolicyLoader> sslPolicyFactorySupplier;
-    private DatabaseActions databaseActions;
-    private TransactionFacade transactionFacade;
+    private Supplier<SslPolicyLoader> sslPolicyFactorySupplier;
+    private HttpTransactionManager httpTransactionManager;
+    private CompositeDatabaseAvailabilityGuard globalAvailabilityGuard;
 
-    private TransactionHandleRegistry transactionRegistry;
     private ConnectorPortRegister connectorPortRegister;
-    private HttpConnector httpConnector;
-    private HttpConnector httpsConnector;
-    private AsyncRequestLog requestLog;
-    private final Supplier<AvailabilityGuard> availabilityGuardSupplier;
+    private RotatingRequestLog requestLog;
 
     protected abstract Iterable<ServerModule> createServerModules();
 
     protected abstract WebServer createWebServer();
 
-    public AbstractNeoServer( Config config, GraphFactory graphFactory, Dependencies dependencies )
+    public AbstractNeoServer( Config config, GraphFactory graphFactory, ExternalDependencies dependencies )
     {
         this.config = config;
         this.userLogProvider = dependencies.userLogProvider();
@@ -160,17 +130,24 @@ public abstract class AbstractNeoServer implements NeoServer
 
         verifyConnectorsConfiguration( config );
 
-        httpConnector = findConnector( config, Encryption.NONE );
-        httpListenAddress = listenAddressFor( config, httpConnector );
-        httpAdvertisedAddress = advertisedAddressFor( config, httpConnector );
+        httpEnabled = config.get( HttpConnector.enabled );
+        if ( httpEnabled )
+        {
+            httpListenAddress = config.get( HttpConnector.listen_address );
+            httpAdvertisedAddress = config.get( HttpConnector.advertised_address );
+        }
 
-        httpsConnector = findConnector( config, Encryption.TLS );
-        httpsListenAddress = listenAddressFor( config, httpsConnector );
-        httpsAdvertisedAddress = advertisedAddressFor( config, httpsConnector );
+        httpsEnabled = config.get( HttpsConnector.enabled );
+        if ( httpsEnabled )
+        {
+            httpsListenAddress = config.get( HttpsConnector.listen_address );
+            httpsAdvertisedAddress = config.get( HttpsConnector.advertised_address );
+        }
 
-        database = new LifecycleManagingDatabase( config, graphFactory, dependencies );
-        this.availabilityGuardSupplier = ((LifecycleManagingDatabase) database)::getAvailabilityGuard;
-        life.add( database );
+        this.authWhitelist = parseAuthWhitelist( config );
+
+        databaseService = new LifecycleManagingDatabaseService( config, graphFactory, dependencies );
+        life.add( databaseService );
         life.add( new ServerDependenciesLifeCycleAdapter() );
         life.add( new ServerComponentsLifecycleAdapter() );
     }
@@ -191,39 +168,13 @@ public abstract class AbstractNeoServer implements NeoServer
         }
     }
 
-    public DependencyResolver getDependencyResolver()
+    private HttpTransactionManager createHttpTransactionManager()
     {
-        return dependencyResolver;
-    }
-
-    protected DatabaseActions createDatabaseActions()
-    {
-        return new DatabaseActions( database.getGraph() );
-    }
-
-    private TransactionFacade createTransactionalActions()
-    {
-        final long timeoutMillis = getTransactionTimeoutMillis();
-        final Clock clock = Clocks.systemClock();
-
-        transactionRegistry = new TransactionHandleRegistry( clock, timeoutMillis, userLogProvider );
-
-        // ensure that this is > 0
-        long runEvery = round( timeoutMillis / 2.0 );
-
-        resolveDependency( JobScheduler.class ).scheduleRecurring( Group.SERVER_TRANSACTION_TIMEOUT, () ->
-        {
-            long maxAge = clock.millis() - timeoutMillis;
-            transactionRegistry.rollbackSuspendedTransactionsIdleSince( maxAge );
-        }, runEvery, MILLISECONDS );
-
-        return new TransactionFacade(
-                new TransitionalPeriodTransactionMessContainer( database.getGraph() ),
-                resolveDependency( QueryExecutionEngine.class ),
-                resolveDependency( GraphDatabaseQueryService.class ),
-                transactionRegistry,
-                userLogProvider
-        );
+        DependencyResolver dependencyResolver = getSystemDatabaseDependencyResolver();
+        JobScheduler jobScheduler = dependencyResolver.resolveDependency( JobScheduler.class );
+        Clock clock = Clocks.systemClock();
+        Duration transactionTimeout = getTransactionTimeout();
+        return new HttpTransactionManager( databaseService, jobScheduler, clock, transactionTimeout, userLogProvider );
     }
 
     /**
@@ -231,16 +182,16 @@ public abstract class AbstractNeoServer implements NeoServer
      * seconds rounded down, meaning if a user set a 1 second timeout, he would be told there was less than 1 second
      * remaining before he would need to renew the timeout.
      */
-    private long getTransactionTimeoutMillis()
+    private Duration getTransactionTimeout()
     {
         final long timeout = config.get( ServerSettings.transaction_idle_timeout ).toMillis();
-        return Math.max( timeout, MINIMUM_TIMEOUT + ROUNDING_SECOND );
+        return Duration.ofMillis( Math.max( timeout, MINIMUM_TIMEOUT + ROUNDING_SECOND ) );
     }
 
     /**
      * Use this method to register server modules from subclasses
      */
-    protected final void registerModule( ServerModule module )
+    private void registerModule( ServerModule module )
     {
         serverModules.add( module );
     }
@@ -255,7 +206,24 @@ public abstract class AbstractNeoServer implements NeoServer
 
     private void stopModules()
     {
-        new RunCarefully( map( module -> module::stop, serverModules ) ).run();
+        final List<Exception> errors = new ArrayList<>();
+        for ( final ServerModule module : serverModules )
+        {
+            try
+            {
+                module.stop();
+            }
+            catch ( Exception e )
+            {
+                errors.add( e );
+            }
+        }
+        if ( !errors.isEmpty() )
+        {
+            final RuntimeException e = new RuntimeException();
+            errors.forEach( e::addSuppressed );
+            throw e;
+        }
     }
 
     private void clearModules()
@@ -275,13 +243,15 @@ public abstract class AbstractNeoServer implements NeoServer
         webServer.setHttpsAddress( httpsListenAddress );
         webServer.setMaxThreads( config.get( ServerSettings.webserver_max_threads ) );
         webServer.setWadlEnabled( config.get( ServerSettings.wadl_enabled ) );
-        webServer.setDefaultInjectables( createDefaultInjectables() );
+        webServer.setComponentsBinder( createComponentsBinder() );
 
-        String sslPolicyName = config.get( ServerSettings.ssl_policy );
-        if ( sslPolicyName != null )
+        if ( httpsEnabled ) // only load sslPolicy when encryption is enabled
         {
-            SslPolicy sslPolicy = sslPolicyFactorySupplier.get().getPolicy( sslPolicyName );
-            webServer.setSslPolicy( sslPolicy );
+            SslPolicyLoader sslPolicyLoader = sslPolicyFactorySupplier.get();
+            if ( sslPolicyLoader.hasPolicyForSource( HTTPS ) )
+            {
+                webServer.setSslPolicy( sslPolicyLoader.getPolicy( HTTPS ) );
+            }
         }
     }
 
@@ -297,7 +267,7 @@ public abstract class AbstractNeoServer implements NeoServer
         }
         catch ( Exception e )
         {
-            ListenSocketAddress address = httpListenAddress != null ? httpListenAddress : httpsListenAddress;
+            SocketAddress address = httpListenAddress != null ? httpListenAddress : httpsListenAddress;
             log.error( "Failed to start Neo4j on %s: %s", address, e.getMessage() );
             throw e;
         }
@@ -305,26 +275,26 @@ public abstract class AbstractNeoServer implements NeoServer
 
     private void registerHttpAddressAfterStartup()
     {
-        if ( httpConnector != null )
+        if ( httpEnabled )
         {
             InetSocketAddress localHttpAddress = webServer.getLocalHttpAddress();
-            connectorPortRegister.register( httpConnector.key(), localHttpAddress );
+            connectorPortRegister.register( HttpConnector.NAME, localHttpAddress );
             if ( httpAdvertisedAddress.getPort() == 0 )
             {
-                httpAdvertisedAddress = new AdvertisedSocketAddress( localHttpAddress.getHostString(), localHttpAddress.getPort() );
+                httpAdvertisedAddress = new SocketAddress( localHttpAddress.getHostString(), localHttpAddress.getPort() );
             }
         }
     }
 
     private void registerHttpsAddressAfterStartup()
     {
-        if ( httpsConnector != null )
+        if ( httpsEnabled )
         {
             InetSocketAddress localHttpsAddress = webServer.getLocalHttpsAddress();
-            connectorPortRegister.register( httpsConnector.key(), localHttpsAddress );
+            connectorPortRegister.register( HttpsConnector.NAME, localHttpsAddress );
             if ( httpsAdvertisedAddress.getPort() == 0 )
             {
-                httpsAdvertisedAddress = new AdvertisedSocketAddress( localHttpsAddress.getHostString(), localHttpsAddress.getPort() );
+                httpsAdvertisedAddress = new SocketAddress( localHttpsAddress.getHostString(), localHttpsAddress.getPort() );
             }
         }
     }
@@ -336,8 +306,10 @@ public abstract class AbstractNeoServer implements NeoServer
             return;
         }
 
-        requestLog = new AsyncRequestLog(
+        DependencyResolver dependencyResolver = getSystemDatabaseDependencyResolver();
+        requestLog = new RotatingRequestLog(
                 dependencyResolver.resolveDependency( FileSystemAbstraction.class ),
+                dependencyResolver.resolveDependency( JobScheduler.class ),
                 config.get( db_timezone ).getZoneId(),
                 config.get( http_log_path ).toString(),
                 config.get( http_logging_rotation_size ),
@@ -345,24 +317,38 @@ public abstract class AbstractNeoServer implements NeoServer
         webServer.setRequestLog( requestLog );
     }
 
-    protected Pattern[] getUriWhitelist()
+    protected DependencyResolver getSystemDatabaseDependencyResolver()
     {
-        return DEFAULT_URI_WHITELIST;
+        return databaseService.getSystemDatabase().getDependencyResolver();
+    }
+
+    protected List<Pattern> getUriWhitelist()
+    {
+        return authWhitelist;
     }
 
     @Override
     public void stop()
     {
-        tryShutdownAvailabiltyGuard();
+        shutdownGlobalAvailabilityGuard();
         life.stop();
     }
 
-    private void tryShutdownAvailabiltyGuard()
+    private void shutdownGlobalAvailabilityGuard()
     {
-        AvailabilityGuard guard = availabilityGuardSupplier.get();
-        if ( guard != null )
+        try
         {
-            guard.shutdown();
+            // Although the globalGuard availability guard is shutdown as part of LifeSupport#stop(), we never hit that if we're
+            // blocking in LifeSupport#start() and the blocked starting components may be using this guard as a bail out signal
+            if ( globalAvailabilityGuard != null )
+            {
+                globalAvailabilityGuard.shutdown();
+            }
+        }
+        catch ( Throwable t )
+        {
+            // Not much we can do other than log - we're trying to shutdown anyway
+            log.error( "Failed to set the global availability guard to shutdown in the process of stopping the Neo4j server", t );
         }
     }
 
@@ -379,15 +365,15 @@ public abstract class AbstractNeoServer implements NeoServer
     }
 
     @Override
-    public Database getDatabase()
+    public DatabaseService getDatabaseService()
     {
-        return database;
+        return databaseService;
     }
 
     @Override
     public TransactionRegistry getTransactionRegistry()
     {
-        return transactionRegistry;
+        return httpTransactionManager.getTransactionHandleRegistry();
     }
 
     @Override
@@ -409,98 +395,45 @@ public abstract class AbstractNeoServer implements NeoServer
         return webServer;
     }
 
-    @Override
-    public PluginManager getExtensionManager()
+    private ComponentsBinder createComponentsBinder()
     {
-        RESTApiModule module = getModule( RESTApiModule.class );
-        if ( module != null )
-        {
-            return module.getPlugins();
-        }
-        return null;
-    }
+        DatabaseService database = getDatabaseService();
+        var databaseStateService = getSystemDatabaseDependencyResolver().resolveDependency( DatabaseStateService.class );
 
-    protected Collection<InjectableProvider<?>> createDefaultInjectables()
-    {
-        Collection<InjectableProvider<?>> singletons = new ArrayList<>();
+        ComponentsBinder binder = new ComponentsBinder();
 
-        Database database = getDatabase();
+        binder.addSingletonBinding( database, DatabaseService.class );
+        binder.addSingletonBinding( databaseStateService, DatabaseStateService.class );
+        binder.addSingletonBinding( database.getDatabaseManagementService(), DatabaseManagementService.class );
+        binder.addSingletonBinding( this, NeoServer.class );
+        binder.addSingletonBinding( getConfig(), Config.class );
+        binder.addSingletonBinding( getWebServer(), WebServer.class );
+        binder.addSingletonBinding( new RepresentationFormatRepository( this ), RepresentationFormatRepository.class );
+        binder.addLazyBinding( InputFormatProvider.class, InputFormat.class );
+        binder.addLazyBinding( OutputFormatProvider.class, OutputFormat.class );
+        binder.addSingletonBinding( httpTransactionManager, HttpTransactionManager.class );
+        binder.addLazyBinding( authManagerSupplier, AuthManager.class );
+        binder.addSingletonBinding( userLogProvider, LogProvider.class );
+        binder.addSingletonBinding( userLogProvider.getLog( NeoServer.class ), Log.class );
 
-        singletons.add( new DatabaseProvider( database ) );
-        singletons.add( new DatabaseActions.Provider( databaseActions ) );
-        singletons.add( new GraphDatabaseServiceProvider( database ) );
-        singletons.add( new NeoServerProvider( this ) );
-        singletons.add( providerForSingleton( new ConfigAdapter( getConfig() ), Configuration.class ) );
-        singletons.add( providerForSingleton( getConfig(), Config.class ) );
-
-        singletons.add( new WebServerProvider( getWebServer() ) );
-
-        PluginInvocatorProvider pluginInvocatorProvider = new PluginInvocatorProvider( this );
-        singletons.add( pluginInvocatorProvider );
-        RepresentationFormatRepository repository = new RepresentationFormatRepository( this );
-
-        singletons.add( new InputFormatProvider( repository ) );
-        singletons.add( new OutputFormatProvider( repository ) );
-        singletons.add( new CypherExecutorProvider( cypherExecutor ) );
-
-        singletons.add( providerForSingleton( transactionFacade, TransactionFacade.class ) );
-        singletons.add( providerFromSupplier( authManagerSupplier, AuthManager.class ) );
-        singletons.add( providerFromSupplier( userManagerSupplier, UserManagerSupplier.class ) );
-        singletons.add( new TransactionFilter( database ) );
-        singletons.add( new LoggingProvider( userLogProvider ) );
-        singletons.add( providerForSingleton( userLogProvider.getLog( NeoServer.class ), Log.class ) );
-        singletons.add( providerForSingleton( resolveDependency( UsageData.class ), UsageData.class ) );
-
-        return singletons;
-    }
-
-    @SuppressWarnings( "unchecked" )
-    private <T extends ServerModule> T getModule( Class<T> clazz )
-    {
-        for ( ServerModule sm : serverModules )
-        {
-            if ( sm.getClass() == clazz )
-            {
-                return (T) sm;
-            }
-        }
-
-        return null;
-    }
-
-    protected <T> T resolveDependency( Class<T> type )
-    {
-        return dependencyResolver.resolveDependency( type );
+        return binder;
     }
 
     private static void verifyConnectorsConfiguration( Config config )
     {
-        HttpConnector httpConnector = findConnector( config, Encryption.NONE );
-        HttpConnector httpsConnector = findConnector( config, Encryption.TLS );
-
-        if ( httpConnector == null && httpsConnector == null )
+        boolean httpAndHttpsDisabled = !config.get( HttpConnector.enabled ) && !config.get( HttpsConnector.enabled );
+        if ( httpAndHttpsDisabled )
         {
             throw new IllegalArgumentException( "Either HTTP or HTTPS connector must be configured to run the server" );
         }
     }
 
-    private static HttpConnector findConnector( Config config, Encryption encryption )
+    private static List<Pattern> parseAuthWhitelist( Config config )
     {
-        return config.enabledHttpConnectors()
+        return config.get( ServerSettings.http_auth_whitelist )
                 .stream()
-                .filter( connector -> connector.encryptionLevel() == encryption )
-                .findFirst()
-                .orElse( null );
-    }
-
-    private static ListenSocketAddress listenAddressFor( Config config, HttpConnector connector )
-    {
-        return connector == null ? null : config.get( connector.listen_address );
-    }
-
-    private static AdvertisedSocketAddress advertisedAddressFor( Config config, HttpConnector connector )
-    {
-        return connector == null ? null : config.get( connector.advertised_address );
+                .map( Pattern::compile )
+                .collect( toUnmodifiableList() );
     }
 
     private class ServerDependenciesLifeCycleAdapter extends LifecycleAdapter
@@ -508,10 +441,9 @@ public abstract class AbstractNeoServer implements NeoServer
         @Override
         public void start()
         {
-            dependencyResolver = database.getGraph().getDependencyResolver();
+            DependencyResolver dependencyResolver = getSystemDatabaseDependencyResolver();
 
             authManagerSupplier = dependencyResolver.provideDependency( AuthManager.class );
-            userManagerSupplier = dependencyResolver.provideDependency( UserManagerSupplier.class );
             sslPolicyFactorySupplier = dependencyResolver.provideDependency( SslPolicyLoader.class );
             webServer = createWebServer();
 
@@ -525,27 +457,25 @@ public abstract class AbstractNeoServer implements NeoServer
     private class ServerComponentsLifecycleAdapter extends LifecycleAdapter
     {
         @Override
-        public void start() throws Throwable
+        public void start() throws Exception
         {
-            DiagnosticsManager diagnosticsManager = resolveDependency( DiagnosticsManager.class );
-            Log diagnosticsLog = diagnosticsManager.getTargetLog();
-            diagnosticsLog.info( "--- SERVER STARTED START ---" );
+            DependencyResolver dependencyResolver = getSystemDatabaseDependencyResolver();
+
+            LogService logService = dependencyResolver.resolveDependency( LogService.class );
+            Log serverLog = logService.getInternalLog( ServerComponentsLifecycleAdapter.class );
+            serverLog.info( "Starting web server" );
+
             connectorPortRegister = dependencyResolver.resolveDependency( ConnectorPortRegister.class );
-            databaseActions = createDatabaseActions();
-
-            transactionFacade = createTransactionalActions();
-
-            cypherExecutor = new CypherExecutor( database, userLogProvider );
+            httpTransactionManager = createHttpTransactionManager();
+            globalAvailabilityGuard = dependencyResolver.resolveDependency( CompositeDatabaseAvailabilityGuard.class );
 
             configureWebServer();
-
-            cypherExecutor.start();
 
             startModules();
 
             startWebServer();
 
-            diagnosticsLog.info( "--- SERVER STARTED END ---" );
+            serverLog.info( "Web server started." );
         }
 
         @Override

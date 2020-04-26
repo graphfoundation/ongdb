@@ -22,7 +22,7 @@
  */
 package org.neo4j.cypher.internal.runtime.interpreted.commands.expressions
 
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
+import org.neo4j.cypher.internal.runtime.ExecutionContext
 import org.neo4j.cypher.internal.runtime.interpreted.commands.AstNode
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.QueryState
 import org.neo4j.values.AnyValue
@@ -31,11 +31,9 @@ import org.neo4j.values.storable.Values
 case class Null() extends Expression {
   override def apply(v1: ExecutionContext, state: QueryState): AnyValue = Values.NO_VALUE
 
-  def rewrite(f: (Expression) => Expression): Expression = f(this)
+  def rewrite(f: Expression => Expression): Expression = f(this)
 
   override def arguments: Seq[Expression] = Seq.empty
 
   override def children: Seq[AstNode[_]] = Seq.empty
-
-  override def symbolTableDependencies: Set[String] = Set()
 }

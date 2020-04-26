@@ -22,30 +22,29 @@
  */
 package org.neo4j.kernel.impl.storageengine.impl.recordstorage;
 
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
+import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Transaction;
-import org.neo4j.kernel.impl.transaction.state.DataSourceManager;
+import org.neo4j.kernel.database.Database;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
-import org.neo4j.test.rule.ImpermanentDatabaseRule;
+import org.neo4j.test.extension.ImpermanentDbmsExtension;
+import org.neo4j.test.extension.Inject;
 
 /**
  * This test ensures that lazy properties
  */
-public class TestReferenceDangling
+@ImpermanentDbmsExtension
+class TestReferenceDangling
 {
-    @Rule
-    public ImpermanentDatabaseRule dbRule = new ImpermanentDatabaseRule( );
+    @Inject
+    private GraphDatabaseAPI db;
 
     @Test
-    public void testPropertyStoreReferencesOnRead() throws Throwable
+    void testPropertyStoreReferencesOnRead() throws Throwable
     {
-        // Given
-        GraphDatabaseAPI db = dbRule.getGraphDatabaseAPI();
-
-        // and Given the cache contains a LazyProperty
+        // Given the cache contains a LazyProperty
         long nId = ensurePropertyIsCachedLazyProperty( db, "some" );
 
         // When
@@ -54,18 +53,15 @@ public class TestReferenceDangling
         // Then reading the property is still possible
         try ( Transaction tx = db.beginTx() )
         {
-            db.getNodeById( nId ).getProperty( "some" );
-            tx.success();
+            tx.getNodeById( nId ).getProperty( "some" );
+            tx.commit();
         }
     }
 
     @Test
-    public void testPropertyStoreReferencesOnWrite() throws Throwable
+    void testPropertyStoreReferencesOnWrite() throws Throwable
     {
-        // Given
-        GraphDatabaseAPI db = dbRule.getGraphDatabaseAPI();
-
-        // and Given the cache contains a LazyProperty
+        // Given the cache contains a LazyProperty
         long nId = ensurePropertyIsCachedLazyProperty( db, "some" );
 
         // When
@@ -74,33 +70,34 @@ public class TestReferenceDangling
         // Then it should still be possible to manipulate properties on this node
         try ( Transaction tx = db.beginTx() )
         {
-            db.getNodeById( nId ).setProperty( "some", new long[]{-1, 2, 2, 3, 4, 5, 5} );
-            tx.success();
+            tx.getNodeById( nId ).setProperty( "some", new long[]{-1, 2, 2, 3, 4, 5, 5} );
+            tx.commit();
         }
     }
 
-    private long ensurePropertyIsCachedLazyProperty( GraphDatabaseAPI slave, String key )
+    private long ensurePropertyIsCachedLazyProperty( GraphDatabaseService slave, String key )
     {
         long nId;
         try ( Transaction tx = slave.beginTx() )
         {
-            Node n = slave.createNode();
+            Node n = tx.createNode();
             nId = n.getId();
             n.setProperty( key, new long[]{-1, 2, 2, 3, 4, 5, 5} );
-            tx.success();
+            tx.commit();
         }
 
         try ( Transaction tx = slave.beginTx() )
         {
-            slave.getNodeById( nId ).hasProperty( key );
-            tx.success();
+            tx.getNodeById( nId ).hasProperty( key );
+            tx.commit();
         }
         return nId;
     }
 
-    private void restartNeoDataSource( GraphDatabaseAPI slave ) throws Throwable
+    private void restartNeoDataSource( GraphDatabaseAPI databaseAPI ) throws Throwable
     {
-        slave.getDependencyResolver().resolveDependency( DataSourceManager.class ).getDataSource().stop();
-        slave.getDependencyResolver().resolveDependency( DataSourceManager.class ).getDataSource().start();
+        Database database = databaseAPI.getDependencyResolver().resolveDependency( Database.class );
+        database.stop();
+        database.start();
     }
 }

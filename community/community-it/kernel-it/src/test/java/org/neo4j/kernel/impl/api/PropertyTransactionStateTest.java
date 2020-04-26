@@ -22,47 +22,52 @@
  */
 package org.neo4j.kernel.impl.api;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
+import org.neo4j.dbms.api.DatabaseManagementService;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Transaction;
-import org.neo4j.test.TestGraphDatabaseFactory;
+import org.neo4j.test.TestDatabaseManagementServiceBuilder;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
 
-public class PropertyTransactionStateTest
+class PropertyTransactionStateTest
 {
     private GraphDatabaseService db;
+    private DatabaseManagementService managementService;
 
-    @Before
-    public void setUp()
+    @BeforeEach
+    void setUp()
     {
-        db = new TestGraphDatabaseFactory().newImpermanentDatabase();
+        managementService = new TestDatabaseManagementServiceBuilder().impermanent().build();
+        db = managementService.database( DEFAULT_DATABASE_NAME );
     }
 
-    @After
-    public void shutDown()
+    @AfterEach
+    void shutDown()
     {
-        db.shutdown();
+        managementService.shutdown();
     }
 
     @Test
-    public void testUpdateDoubleArrayProperty()
+    void testUpdateDoubleArrayProperty()
     {
         Node node;
         try ( Transaction tx = db.beginTx() )
         {
-            node = db.createNode();
+            node = tx.createNode();
             node.setProperty( "foo", new double[] { 0, 0, 0, 0 } );
-            tx.success();
+            tx.commit();
         }
 
-        try ( Transaction ignore = db.beginTx() )
+        try ( Transaction tx = db.beginTx() )
         {
+            node = tx.getNodeById( node.getId() );
             for ( int i = 0; i < 100; i++ )
             {
                 double[] data = (double[]) node.getProperty( "foo" );
@@ -75,19 +80,20 @@ public class PropertyTransactionStateTest
     }
 
     @Test
-    public void testStringPropertyUpdate()
+    void testStringPropertyUpdate()
     {
         String key = "foo";
         Node node;
         try ( Transaction tx = db.beginTx() )
         {
-            node = db.createNode();
+            node = tx.createNode();
             node.setProperty( key, "one" );
-            tx.success();
+            tx.commit();
         }
 
-        try ( Transaction ignore = db.beginTx() )
+        try ( Transaction tx = db.beginTx() )
         {
+            node = tx.getNodeById( node.getId() );
             node.setProperty( key, "one" );
             node.setProperty( key, "two" );
             assertEquals( "two", node.getProperty( key ) );
@@ -95,11 +101,11 @@ public class PropertyTransactionStateTest
     }
 
     @Test
-    public void testSetDoubleArrayProperty()
+    void testSetDoubleArrayProperty()
     {
-        try ( Transaction ignore = db.beginTx() )
+        try ( Transaction tx = db.beginTx() )
         {
-            Node node = db.createNode();
+            Node node = tx.createNode();
             for ( int i = 0; i < 100; i++ )
             {
                 node.setProperty( "foo", new double[] { 0, 0, i, i } );

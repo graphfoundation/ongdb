@@ -23,91 +23,30 @@
 package org.neo4j.bolt.v3.messaging.request;
 
 import java.time.Duration;
+import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 
-import org.neo4j.bolt.messaging.BoltIOException;
-import org.neo4j.bolt.messaging.RequestMessage;
-import org.neo4j.bolt.v1.runtime.bookmarking.Bookmark;
+import org.neo4j.bolt.runtime.AccessMode;
+import org.neo4j.bolt.runtime.Bookmark;
 import org.neo4j.values.virtual.MapValue;
-import org.neo4j.values.virtual.VirtualValues;
 
-import static java.util.Objects.requireNonNull;
-import static org.neo4j.bolt.v3.messaging.request.MessageMetadataParser.parseTransactionMetadata;
-import static org.neo4j.bolt.v3.messaging.request.MessageMetadataParser.parseTransactionTimeout;
-
-public class BeginMessage implements RequestMessage
+public class BeginMessage extends TransactionInitiatingMessage
 {
     public static final byte SIGNATURE = 0x11;
 
-    private final MapValue meta;
-    private final Bookmark bookmark;
-    private final Duration txTimeout;
-    private final Map<String,Object> txMetadata;
-
-    public BeginMessage() throws BoltIOException
+    public BeginMessage()
     {
-        this( VirtualValues.EMPTY_MAP );
+        super();
     }
 
-    public BeginMessage( MapValue meta ) throws BoltIOException
+    public BeginMessage( MapValue meta, List<Bookmark> bookmarks, Duration txTimeout, AccessMode accessMode, Map<String,Object> txMetadata )
     {
-        this.meta = requireNonNull( meta );
-        this.bookmark = Bookmark.fromParamsOrNull( meta );
-        this.txTimeout = parseTransactionTimeout( meta );
-        this.txMetadata = parseTransactionMetadata( meta );
-    }
-
-    public Bookmark bookmark()
-    {
-        return this.bookmark;
-    }
-
-    public Duration transactionTimeout()
-    {
-        return this.txTimeout;
-    }
-
-    @Override
-    public boolean safeToProcessInAnyState()
-    {
-        return false;
-    }
-
-    @Override
-    public boolean equals( Object o )
-    {
-        if ( this == o )
-        {
-            return true;
-        }
-        if ( o == null || getClass() != o.getClass() )
-        {
-            return false;
-        }
-        BeginMessage that = (BeginMessage) o;
-        return Objects.equals( meta, that.meta );
-    }
-
-    @Override
-    public int hashCode()
-    {
-        return Objects.hash( meta );
+        super( meta, bookmarks, txTimeout, accessMode, txMetadata );
     }
 
     @Override
     public String toString()
     {
-        return "BEGIN " + meta;
-    }
-
-    public MapValue meta()
-    {
-        return meta;
-    }
-
-    public Map<String,Object> transactionMetadata()
-    {
-        return txMetadata;
+        return "BEGIN " + meta();
     }
 }

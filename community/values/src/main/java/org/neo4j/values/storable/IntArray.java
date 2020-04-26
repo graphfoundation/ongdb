@@ -29,7 +29,7 @@ import org.neo4j.values.ValueMapper;
 
 import static java.lang.String.format;
 
-public class IntArray extends IntegralArray
+public final class IntArray extends IntegralArray
 {
     private final int[] value;
 
@@ -146,5 +146,11 @@ public class IntArray extends IntegralArray
     public String getTypeName()
     {
         return "IntegerArray";
+    }
+
+    @Override
+    long sizePerItem()
+    {
+        return Integer.BYTES;
     }
 }

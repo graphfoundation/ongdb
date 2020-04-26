@@ -27,9 +27,9 @@ import java.util.Arrays;
 import org.neo4j.values.storable.BufferValueWriter;
 import org.neo4j.values.storable.TextArray;
 import org.neo4j.values.storable.TextValue;
-import org.neo4j.values.virtual.RelationshipValue;
 import org.neo4j.values.virtual.MapValue;
 import org.neo4j.values.virtual.NodeValue;
+import org.neo4j.values.virtual.RelationshipValue;
 
 import static java.lang.String.format;
 
@@ -75,12 +75,6 @@ public class BufferAnyValueWriter extends BufferValueWriter implements AnyValueW
         public int hashCode()
         {
             return 31 * kind.hashCode() + key.hashCode();
-        }
-
-        Special( SpecialKind kind, String key )
-        {
-            this.kind = kind;
-            this.key = key;
         }
 
         Special( SpecialKind kind, int key )
@@ -151,7 +145,6 @@ public class BufferAnyValueWriter extends BufferValueWriter implements AnyValueW
         buffer.add( Specials.writePath( nodes, relationships ) );
     }
 
-    @SuppressWarnings( "WeakerAccess" )
     public static class Specials
     {
 

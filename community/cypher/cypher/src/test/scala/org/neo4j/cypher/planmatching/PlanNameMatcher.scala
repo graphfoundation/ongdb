@@ -22,7 +22,7 @@
  */
 package org.neo4j.cypher.planmatching
 
-import org.neo4j.cypher.internal.runtime.planDescription.InternalPlanDescription
+import org.neo4j.cypher.internal.plandescription.InternalPlanDescription
 import org.scalatest.matchers.{MatchResult, Matcher}
 
 import scala.util.matching.Regex

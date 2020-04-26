@@ -55,15 +55,9 @@ public interface ValuesIterator extends DocValuesAccess, LongIterator
         {
             return 0;
         }
-
-        @Override
-        public long getValue( String field )
-        {
-            return 0;
-        }
     };
 
-    abstract class Adapter extends PrimitiveLongCollections.PrimitiveLongBaseIterator implements ValuesIterator
+    abstract class Adapter extends PrimitiveLongCollections.AbstractPrimitiveLongBaseIterator implements ValuesIterator
     {
         protected final int size;
         protected int index;

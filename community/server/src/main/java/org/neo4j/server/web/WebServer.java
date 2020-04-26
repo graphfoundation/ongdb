@@ -35,16 +35,15 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import org.neo4j.helpers.ListenSocketAddress;
-import org.neo4j.server.database.InjectableProvider;
-import org.neo4j.server.plugins.Injectable;
+import org.neo4j.configuration.helpers.SocketAddress;
+import org.neo4j.server.bind.ComponentsBinder;
 import org.neo4j.ssl.SslPolicy;
 
 public interface WebServer
 {
-    void setHttpAddress( ListenSocketAddress address );
+    void setHttpAddress( SocketAddress address );
 
-    void setHttpsAddress( ListenSocketAddress address );
+    void setHttpsAddress( SocketAddress address );
 
     void setSslPolicy( SslPolicy sslPolicy );
 
@@ -59,8 +58,9 @@ public interface WebServer
     void addJAXRSPackages( List<String> packageNames, String serverMountPoint, Collection<Injectable<?>> injectables );
     void removeJAXRSPackages( List<String> packageNames, String serverMountPoint );
 
-    void addJAXRSClasses( List<String> classNames, String serverMountPoint, Collection<Injectable<?>> injectables );
-    void removeJAXRSClasses( List<String> classNames, String serverMountPoint );
+    void addJAXRSClasses( List<Class<?>> classes, String serverMountPoint, Collection<Injectable<?>> injectables );
+
+    void removeJAXRSClasses( List<Class<?>> classes, String serverMountPoint );
 
     void addFilter( Filter filter, String pathSpec );
 
@@ -74,7 +74,7 @@ public interface WebServer
 
     void setWadlEnabled( boolean wadlEnabled );
 
-    void setDefaultInjectables( Collection<InjectableProvider<?>> defaultInjectables );
+    void setComponentsBinder( ComponentsBinder binder );
 
     void setJettyCreatedCallback( Consumer<Server> callback );
 

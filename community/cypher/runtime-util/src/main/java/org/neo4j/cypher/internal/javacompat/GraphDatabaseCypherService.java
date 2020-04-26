@@ -25,9 +25,12 @@ package org.neo4j.cypher.internal.javacompat;
 import java.net.URL;
 import java.util.concurrent.TimeUnit;
 
-import org.neo4j.graphdb.DependencyResolver;
+import org.neo4j.common.DependencyResolver;
+import org.neo4j.configuration.Config;
 import org.neo4j.graphdb.GraphDatabaseService;
+import org.neo4j.graphdb.security.URLAccessRule;
 import org.neo4j.graphdb.security.URLAccessValidationError;
+import org.neo4j.internal.kernel.api.connectioninfo.ClientConnectionInfo;
 import org.neo4j.internal.kernel.api.security.LoginContext;
 import org.neo4j.kernel.GraphDatabaseQueryService;
 import org.neo4j.kernel.api.KernelTransaction;
@@ -39,11 +42,16 @@ public class GraphDatabaseCypherService implements GraphDatabaseQueryService
 {
     private final GraphDatabaseFacade graph;
     private final DbmsOperations dbmsOperations;
+    private final URLAccessRule urlAccessRule;
+    private final Config config;
 
     public GraphDatabaseCypherService( GraphDatabaseService graph )
     {
         this.graph = (GraphDatabaseFacade) graph;
-        this.dbmsOperations = getDependencyResolver().resolveDependency( DbmsOperations.class );
+        DependencyResolver dependencyResolver = getDependencyResolver();
+        this.dbmsOperations = dependencyResolver.resolveDependency( DbmsOperations.class );
+        this.urlAccessRule = dependencyResolver.resolveDependency( URLAccessRule.class );
+        this.config = dependencyResolver.resolveDependency( Config.class );
     }
 
     @Override
@@ -59,16 +67,22 @@ public class GraphDatabaseCypherService implements GraphDatabaseQueryService
     }
 
     @Override
-    public InternalTransaction beginTransaction( KernelTransaction.Type type, LoginContext loginContext,
+    public InternalTransaction beginTransaction( KernelTransaction.Type type, LoginContext loginContext, ClientConnectionInfo connectionInfo )
+    {
+        return graph.beginTransaction( type, loginContext, connectionInfo );
+    }
+
+    @Override
+    public InternalTransaction beginTransaction( KernelTransaction.Type type, LoginContext loginContext, ClientConnectionInfo connectionInfo,
             long timeout, TimeUnit unit )
     {
-        return graph.beginTransaction( type, loginContext, timeout, unit );
+        return graph.beginTransaction( type, loginContext, connectionInfo, timeout, unit );
     }
 
     @Override
     public URL validateURLAccess( URL url ) throws URLAccessValidationError
     {
-        return graph.validateURLAccess( url );
+        return urlAccessRule.validate( config, url );
     }
 
     @Override

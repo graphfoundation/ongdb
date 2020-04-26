@@ -22,7 +22,7 @@
  */
 package org.neo4j.bolt.runtime;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import org.neo4j.graphdb.DatabaseShutdownException;
 import org.neo4j.kernel.DeadlockDetectedException;
@@ -30,12 +30,12 @@ import org.neo4j.kernel.api.exceptions.Status;
 
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
-public class Neo4jErrorTest
+class Neo4jErrorTest
 {
     @Test
-    public void shouldAssignUnknownStatusToUnpredictedException()
+    void shouldAssignUnknownStatusToUnpredictedException()
     {
         // Given
         Throwable cause = new Throwable( "This is not an error we know how to handle." );
@@ -46,7 +46,7 @@ public class Neo4jErrorTest
     }
 
     @Test
-    public void shouldConvertDeadlockException()
+    void shouldConvertDeadlockException()
     {
         // When
         Neo4jError error = Neo4jError.from( new DeadlockDetectedException( null ) );
@@ -56,7 +56,7 @@ public class Neo4jErrorTest
     }
 
     @Test
-    public void shouldSetStatusToDatabaseUnavailableOnDatabaseShutdownException()
+    void shouldSetStatusToDatabaseUnavailableOnDatabaseShutdownException()
     {
         // Given
         DatabaseShutdownException ex = new DatabaseShutdownException();
@@ -65,7 +65,7 @@ public class Neo4jErrorTest
         Neo4jError error = Neo4jError.from( ex );
 
         // Then
-        assertThat( error.status(), equalTo( Status.General.DatabaseUnavailable ) );
+        assertThat( error.status(), equalTo( Status.Database.DatabaseUnavailable ) );
         assertThat( error.cause(), equalTo( ex ) );
     }
 }

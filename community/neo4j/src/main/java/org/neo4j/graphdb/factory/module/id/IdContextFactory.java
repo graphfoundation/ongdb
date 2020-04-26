@@ -24,13 +24,12 @@ package org.neo4j.graphdb.factory.module.id;
 
 import java.util.function.Function;
 
-import org.neo4j.kernel.impl.storageengine.impl.recordstorage.id.BufferedIdController;
-import org.neo4j.kernel.impl.storageengine.impl.recordstorage.id.DefaultIdController;
-import org.neo4j.kernel.impl.storageengine.impl.recordstorage.id.IdController;
-import org.neo4j.kernel.impl.store.id.BufferingIdGeneratorFactory;
-import org.neo4j.kernel.impl.store.id.IdGeneratorFactory;
-import org.neo4j.kernel.impl.store.id.IdReuseEligibility;
-import org.neo4j.kernel.impl.store.id.configuration.IdTypeConfigurationProvider;
+import org.neo4j.internal.id.BufferedIdController;
+import org.neo4j.internal.id.BufferingIdGeneratorFactory;
+import org.neo4j.internal.id.DefaultIdController;
+import org.neo4j.internal.id.IdController;
+import org.neo4j.internal.id.IdGeneratorFactory;
+import org.neo4j.kernel.database.NamedDatabaseId;
 import org.neo4j.scheduler.JobScheduler;
 import org.neo4j.util.FeatureToggles;
 
@@ -39,40 +38,34 @@ public class IdContextFactory
      private static final boolean ID_BUFFERING_FLAG = FeatureToggles.flag( IdContextFactory.class, "safeIdBuffering", true );
 
     private final JobScheduler jobScheduler;
-    private final Function<String,IdGeneratorFactory> idFactoryProvider;
-    private final IdTypeConfigurationProvider idTypeConfigurationProvider;
-    private final IdReuseEligibility eligibleForIdReuse;
+    private final Function<NamedDatabaseId,IdGeneratorFactory> idFactoryProvider;
     private final Function<IdGeneratorFactory,IdGeneratorFactory> factoryWrapper;
 
-    IdContextFactory( JobScheduler jobScheduler, Function<String,IdGeneratorFactory> idFactoryProvider,
-            IdTypeConfigurationProvider idTypeConfigurationProvider, IdReuseEligibility eligibleForIdReuse,
+    IdContextFactory( JobScheduler jobScheduler, Function<NamedDatabaseId,IdGeneratorFactory> idFactoryProvider,
             Function<IdGeneratorFactory,IdGeneratorFactory> factoryWrapper )
     {
         this.jobScheduler = jobScheduler;
         this.idFactoryProvider = idFactoryProvider;
-        this.idTypeConfigurationProvider = idTypeConfigurationProvider;
-        this.eligibleForIdReuse = eligibleForIdReuse;
         this.factoryWrapper = factoryWrapper;
     }
 
-    public DatabaseIdContext createIdContext( String databaseName )
+    public DatabaseIdContext createIdContext( NamedDatabaseId namedDatabaseId )
     {
-        return ID_BUFFERING_FLAG ? createBufferingIdContext( idFactoryProvider, jobScheduler, databaseName )
-                                 : createDefaultIdContext( idFactoryProvider, databaseName );
+        return ID_BUFFERING_FLAG ? createBufferingIdContext( idFactoryProvider, jobScheduler, namedDatabaseId )
+                                 : createDefaultIdContext( idFactoryProvider, namedDatabaseId );
     }
 
-    private DatabaseIdContext createDefaultIdContext( Function<String,? extends IdGeneratorFactory> idGeneratorFactoryProvider,
-            String databaseName )
+    private DatabaseIdContext createDefaultIdContext( Function<NamedDatabaseId,? extends IdGeneratorFactory> idGeneratorFactoryProvider,
+            NamedDatabaseId namedDatabaseId )
     {
-        return createIdContext( idGeneratorFactoryProvider.apply( databaseName ), createDefaultIdController() );
+        return createIdContext( idGeneratorFactoryProvider.apply( namedDatabaseId ), createDefaultIdController() );
     }
 
-    private DatabaseIdContext createBufferingIdContext( Function<String,? extends IdGeneratorFactory> idGeneratorFactoryProvider, JobScheduler jobScheduler,
-            String databaseName )
+    private DatabaseIdContext createBufferingIdContext( Function<NamedDatabaseId,? extends IdGeneratorFactory> idGeneratorFactoryProvider,
+            JobScheduler jobScheduler, NamedDatabaseId namedDatabaseId )
     {
-        IdGeneratorFactory idGeneratorFactory = idGeneratorFactoryProvider.apply( databaseName );
-        BufferingIdGeneratorFactory bufferingIdGeneratorFactory =
-                new BufferingIdGeneratorFactory( idGeneratorFactory, eligibleForIdReuse, idTypeConfigurationProvider );
+        IdGeneratorFactory idGeneratorFactory = idGeneratorFactoryProvider.apply( namedDatabaseId );
+        BufferingIdGeneratorFactory bufferingIdGeneratorFactory = new BufferingIdGeneratorFactory( idGeneratorFactory );
         BufferedIdController bufferingController = createBufferedIdController( bufferingIdGeneratorFactory, jobScheduler );
         return createIdContext( bufferingIdGeneratorFactory, bufferingController );
     }

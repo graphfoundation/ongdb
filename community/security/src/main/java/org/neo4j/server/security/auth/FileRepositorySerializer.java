@@ -31,10 +31,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
-import java.util.Random;
 
+import org.neo4j.cypher.internal.security.FormatException;
 import org.neo4j.io.fs.FileSystemAbstraction;
-import org.neo4j.server.security.auth.exception.FormatException;
 import org.neo4j.string.UTF8;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -43,7 +42,7 @@ import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
 
 public abstract class FileRepositorySerializer<S>
 {
-    private Random random = new SecureRandom();
+    private SecureRandom random = new SecureRandom();
 
     public static void writeToFile( FileSystemAbstraction fs, File file, byte[] bytes ) throws IOException
     {
@@ -53,7 +52,7 @@ public abstract class FileRepositorySerializer<S>
         }
     }
 
-    public static List<String> readFromFile( FileSystemAbstraction fs, File file ) throws IOException
+    private static List<String> readFromFile( FileSystemAbstraction fs, File file ) throws IOException
     {
         ArrayList<String> lines = new ArrayList<>();
 
@@ -90,7 +89,7 @@ public abstract class FileRepositorySerializer<S>
         }
     }
 
-    protected File getTempFile( FileSystemAbstraction fileSystem, File recordsFile ) throws IOException
+    private File getTempFile( FileSystemAbstraction fileSystem, File recordsFile ) throws IOException
     {
         File directory = recordsFile.getParentFile();
         if ( !fileSystem.fileExists( directory ) )
@@ -123,7 +122,7 @@ public abstract class FileRepositorySerializer<S>
         return deserializeRecords( Arrays.asList( UTF8.decode( bytes ).split( "\n" ) ) );
     }
 
-    public List<S> deserializeRecords( List<String> lines ) throws FormatException
+    private List<S> deserializeRecords( List<String> lines ) throws FormatException
     {
         List<S> out = new ArrayList<>();
         int lineNumber = 1;

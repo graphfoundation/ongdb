@@ -22,16 +22,13 @@
  */
 package org.neo4j.cypher.internal.codegen;
 
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.stubbing.Answer;
 
-import org.neo4j.graphdb.GraphDatabaseService;
-import org.neo4j.graphdb.RelationshipType;
-import org.neo4j.kernel.api.KernelTransaction;
-import org.neo4j.kernel.api.Statement;
-import org.neo4j.kernel.impl.core.EmbeddedProxySPI;
-import org.neo4j.kernel.impl.core.GraphPropertiesProxy;
-import org.neo4j.kernel.impl.core.NodeProxy;
-import org.neo4j.kernel.impl.core.RelationshipProxy;
+import org.neo4j.kernel.impl.core.NodeEntity;
+import org.neo4j.kernel.impl.core.RelationshipEntity;
+import org.neo4j.kernel.impl.coreapi.InternalTransaction;
 import org.neo4j.kernel.impl.util.ValueUtils;
 import org.neo4j.values.AnyValue;
 import org.neo4j.values.storable.Values;
@@ -43,95 +40,47 @@ import org.neo4j.values.virtual.RelationshipReference;
 import org.neo4j.values.virtual.RelationshipValue;
 import org.neo4j.values.virtual.VirtualValues;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertSame;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
-public class CompiledMaterializeValueMapperTest
+class CompiledMaterializeValueMapperTest
 {
-    private EmbeddedProxySPI spi = new EmbeddedProxySPI()
+    private static final InternalTransaction transaction = mock( InternalTransaction.class );
+
+    private static final NodeValue nodeEntityValue = ValueUtils.fromNodeEntity( new NodeEntity( transaction, 1L ) );
+    private static final NodeValue directNodeValue = VirtualValues.nodeValue( 2L, Values.stringArray(), VirtualValues.EMPTY_MAP );
+    private static final NodeReference nodeReference = VirtualValues.node( 1L ); // Should equal nodeEntityValue when converted
+
+    private static final RelationshipValue relationshipEntityValue = ValueUtils.fromRelationshipEntity( new RelationshipEntity( transaction, 11L ) );
+    private static final RelationshipValue directRelationshipValue =
+            VirtualValues.relationshipValue( 12L, nodeEntityValue, directNodeValue, Values.stringValue( "TYPE" ), VirtualValues.EMPTY_MAP );
+    private static final RelationshipReference relationshipReference = VirtualValues.relationship( 11L ); // Should equal relationshipEntityValue when converted
+
+    @BeforeEach
+    void setUp()
     {
-        @Override
-        public RelationshipProxy newRelationshipProxy( long id )
-        {
-            return new RelationshipProxy( this, id );
-        }
-
-        @Override
-        public NodeProxy newNodeProxy( long nodeId )
-        {
-            return new NodeProxy( this, nodeId );
-        }
-
-        @Override
-        public Statement statement()
-        {
-            throw new IllegalStateException( "Should not be used" );
-        }
-
-        @Override
-        public KernelTransaction kernelTransaction()
-        {
-            throw new IllegalStateException( "Should not be used" );
-        }
-
-        @Override
-        public GraphDatabaseService getGraphDatabase()
-        {
-            throw new IllegalStateException( "Should not be used" );
-        }
-
-        @Override
-        public void assertInUnterminatedTransaction()
-        {
-            throw new IllegalStateException( "Should not be used" );
-        }
-
-        @Override
-        public void failTransaction()
-        {
-            throw new IllegalStateException( "Should not be used" );
-        }
-
-        @Override
-        public RelationshipProxy newRelationshipProxy( long id, long startNodeId, int typeId, long endNodeId )
-        {
-            throw new IllegalStateException( "Should not be used" );
-        }
-
-        @Override
-        public GraphPropertiesProxy newGraphPropertiesProxy()
-        {
-            throw new IllegalStateException( "Should not be used" );
-        }
-
-        @Override
-        public RelationshipType getRelationshipTypeById( int type )
-        {
-            throw new IllegalStateException( "Should not be used" );
-        }
-    };
-
-    NodeValue nodeProxyValue = ValueUtils.fromNodeProxy( new NodeProxy( spi, 1L ) );
-    NodeValue directNodeValue = VirtualValues.nodeValue( 2L, Values.stringArray(), VirtualValues.emptyMap() );
-    NodeReference nodeReference = VirtualValues.node( 1L ); // Should equal nodeProxyValue when converted
-
-    RelationshipValue relationshipProxyValue = ValueUtils.fromRelationshipProxy( new RelationshipProxy( spi, 11L ) );
-    RelationshipValue directRelationshipValue =
-            VirtualValues.relationshipValue( 12L, nodeProxyValue, directNodeValue, Values.stringValue( "TYPE" ), VirtualValues.emptyMap() );
-    RelationshipReference relationshipReference = VirtualValues.relationship( 11L ); // Should equal relationshipProxyValue when converted
+        when( transaction.newNodeEntity( anyLong() ) )
+                .thenAnswer( (Answer<NodeEntity>) invocation -> new NodeEntity( transaction, invocation.getArgument( 0 ) ) );
+        when( transaction.newRelationshipEntity( anyLong() ) )
+                .thenAnswer( (Answer<RelationshipEntity>) invocation ->
+                        new RelationshipEntity( transaction, invocation.getArgument( 0 ) ) );
+    }
 
     @Test
-    public void shouldNotTouchValuesThatDoNotNeedConversion()
+    void shouldNotTouchValuesThatDoNotNeedConversion()
     {
         // Given
-        ListValue nodeList = VirtualValues.list( nodeProxyValue, directNodeValue );
-        ListValue relationshipList = VirtualValues.list( relationshipProxyValue, directRelationshipValue );
-        MapValue nodeMap = VirtualValues.map( new String[]{"a", "b"}, new AnyValue[]{nodeProxyValue, directNodeValue} );
-        MapValue relationshipMap = VirtualValues.map( new String[]{"a", "b"}, new AnyValue[]{relationshipProxyValue, directRelationshipValue} );
+        ListValue nodeList = VirtualValues.list( nodeEntityValue, directNodeValue );
+        ListValue relationshipList = VirtualValues.list( relationshipEntityValue, directRelationshipValue );
+        MapValue nodeMap = VirtualValues.map( new String[]{"a", "b"}, new AnyValue[]{nodeEntityValue, directNodeValue} );
+        MapValue relationshipMap = VirtualValues.map( new String[]{"a", "b"}, new AnyValue[]{relationshipEntityValue, directRelationshipValue} );
 
         // Verify
-        verifyDoesNotTouchValue( nodeProxyValue );
-        verifyDoesNotTouchValue( relationshipProxyValue );
+        verifyDoesNotTouchValue( nodeEntityValue );
+        verifyDoesNotTouchValue( relationshipEntityValue );
         verifyDoesNotTouchValue( directNodeValue );
         verifyDoesNotTouchValue( directRelationshipValue );
         verifyDoesNotTouchValue( nodeList );
@@ -143,32 +92,31 @@ public class CompiledMaterializeValueMapperTest
         verifyDoesNotTouchValue( Values.booleanValue( false ) );
         verifyDoesNotTouchValue( Values.stringValue( "Hello" ) );
         verifyDoesNotTouchValue( Values.longValue( 42L ) );
-        // ...
     }
 
     @Test
-    public void shouldConvertValuesWithVirtualEntities()
+    void shouldConvertValuesWithVirtualEntities()
     {
         // Given
-        ListValue nodeList = VirtualValues.list( nodeProxyValue, directNodeValue, nodeReference );
-        ListValue expectedNodeList = VirtualValues.list( nodeProxyValue, directNodeValue, nodeProxyValue );
+        ListValue nodeList = VirtualValues.list( nodeEntityValue, directNodeValue, nodeReference );
+        ListValue expectedNodeList = VirtualValues.list( nodeEntityValue, directNodeValue, nodeEntityValue );
 
-        ListValue relationshipList = VirtualValues.list( relationshipProxyValue, directRelationshipValue, relationshipReference );
-        ListValue expectedRelationshipList = VirtualValues.list( relationshipProxyValue, directRelationshipValue, relationshipProxyValue );
+        ListValue relationshipList = VirtualValues.list( relationshipEntityValue, directRelationshipValue, relationshipReference );
+        ListValue expectedRelationshipList = VirtualValues.list( relationshipEntityValue, directRelationshipValue, relationshipEntityValue );
 
-        MapValue nodeMap = VirtualValues.map( new String[]{"a", "b", "c"}, new AnyValue[]{nodeProxyValue, directNodeValue, nodeReference} );
-        MapValue expectedNodeMap = VirtualValues.map( new String[]{"a", "b", "c"}, new AnyValue[]{nodeProxyValue, directNodeValue, nodeProxyValue} );
+        MapValue nodeMap = VirtualValues.map( new String[]{"a", "b", "c"}, new AnyValue[]{nodeEntityValue, directNodeValue, nodeReference} );
+        MapValue expectedNodeMap = VirtualValues.map( new String[]{"a", "b", "c"}, new AnyValue[]{nodeEntityValue, directNodeValue, nodeEntityValue} );
 
         MapValue relationshipMap =
-                VirtualValues.map( new String[]{"a", "b", "c"}, new AnyValue[]{relationshipProxyValue, directRelationshipValue, relationshipReference} );
+                VirtualValues.map( new String[]{"a", "b", "c"}, new AnyValue[]{relationshipEntityValue, directRelationshipValue, relationshipReference} );
         MapValue expectedRelationshipMap =
-                VirtualValues.map( new String[]{"a", "b", "c"}, new AnyValue[]{relationshipProxyValue, directRelationshipValue, relationshipProxyValue} );
+                VirtualValues.map( new String[]{"a", "b", "c"}, new AnyValue[]{relationshipEntityValue, directRelationshipValue, relationshipEntityValue} );
 
         ListValue nestedNodeList = VirtualValues.list( nodeList, nodeMap, nodeReference );
-        ListValue expectedNestedNodeList = VirtualValues.list( expectedNodeList, expectedNodeMap, nodeProxyValue );
+        ListValue expectedNestedNodeList = VirtualValues.list( expectedNodeList, expectedNodeMap, nodeEntityValue );
 
         ListValue nestedRelationshipList = VirtualValues.list( relationshipList, relationshipMap, relationshipReference );
-        ListValue expectedNestedRelationshipList = VirtualValues.list( expectedRelationshipList, expectedRelationshipMap, relationshipProxyValue );
+        ListValue expectedNestedRelationshipList = VirtualValues.list( expectedRelationshipList, expectedRelationshipMap, relationshipEntityValue );
 
         MapValue nestedNodeMap = VirtualValues.map( new String[]{"a", "b", "c"}, new AnyValue[]{nodeList, nodeMap, nestedNodeList} );
         MapValue expectedNestedNodeMap =
@@ -195,13 +143,13 @@ public class CompiledMaterializeValueMapperTest
 
     private void verifyConvertsValue( AnyValue expected, AnyValue valueToTest )
     {
-        AnyValue actual = CompiledMaterializeValueMapper.mapAnyValue( spi, valueToTest );
+        AnyValue actual = CompiledMaterializeValueMapper.mapAnyValue( transaction, valueToTest );
         assertEquals( expected, actual );
     }
 
     private void verifyDoesNotTouchValue( AnyValue value )
     {
-        AnyValue mappedValue = CompiledMaterializeValueMapper.mapAnyValue( spi, value );
+        AnyValue mappedValue = CompiledMaterializeValueMapper.mapAnyValue( transaction, value );
         assertSame( value, mappedValue ); // Test with reference equality since we should get the same reference back
     }
 }

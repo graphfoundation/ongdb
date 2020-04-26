@@ -22,31 +22,31 @@
  */
 package org.neo4j.kernel.api.index;
 
-import org.eclipse.collections.api.iterator.LongIterator;
 import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.Arrays;
 
 import org.neo4j.collection.PrimitiveLongCollections;
+import org.neo4j.configuration.Config;
 import org.neo4j.internal.kernel.api.IndexQuery;
+import org.neo4j.internal.schema.IndexOrder;
+import org.neo4j.internal.schema.IndexPrototype;
 import org.neo4j.kernel.api.exceptions.index.IndexEntryConflictException;
-import org.neo4j.kernel.api.schema.index.TestIndexDescriptorFactory;
-import org.neo4j.kernel.configuration.Config;
+import org.neo4j.kernel.impl.api.index.IndexSamplingConfig;
 import org.neo4j.kernel.impl.api.index.PhaseTracker;
-import org.neo4j.kernel.impl.api.index.sampling.IndexSamplingConfig;
-import org.neo4j.storageengine.api.schema.IndexDescriptor;
-import org.neo4j.storageengine.api.schema.IndexReader;
-import org.neo4j.storageengine.api.schema.QueryResultComparingIndexReader;
+import org.neo4j.kernel.impl.index.schema.NodeValueIterator;
 import org.neo4j.values.storable.Value;
 import org.neo4j.values.storable.ValueTuple;
 import org.neo4j.values.storable.Values;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
-import static org.neo4j.helpers.collection.Iterators.asSet;
-import static org.neo4j.kernel.api.index.IndexQueryHelper.add;
-import static org.neo4j.kernel.impl.index.schema.ByteBufferFactory.heapBufferFactory;
+import static org.neo4j.internal.helpers.collection.Iterators.asSet;
+import static org.neo4j.internal.kernel.api.QueryContext.NULL_CONTEXT;
+import static org.neo4j.internal.schema.SchemaDescriptor.forLabel;
+import static org.neo4j.io.memory.ByteBufferFactory.heapBufferFactory;
+import static org.neo4j.storageengine.api.IndexEntryUpdate.add;
 
 @Ignore( "Not a test. This is a compatibility suite that provides test cases for verifying" +
         " IndexProvider implementations. Each index provider that is to be tested by this suite" +
@@ -55,9 +55,9 @@ import static org.neo4j.kernel.impl.index.schema.ByteBufferFactory.heapBufferFac
         " errors or warnings in some IDEs about test classes needing a public zero-arg constructor." )
 public class CompositeIndexPopulatorCompatibility extends IndexProviderCompatibilityTestSuite.Compatibility
 {
-    public CompositeIndexPopulatorCompatibility( IndexProviderCompatibilityTestSuite testSuite, IndexDescriptor descriptor )
+    CompositeIndexPopulatorCompatibility( IndexProviderCompatibilityTestSuite testSuite, IndexPrototype prototype )
     {
-        super( testSuite, descriptor );
+        super( testSuite, prototype );
     }
 
     @Ignore( "Not a test. This is a compatibility suite" )
@@ -65,7 +65,7 @@ public class CompositeIndexPopulatorCompatibility extends IndexProviderCompatibi
     {
         public General( IndexProviderCompatibilityTestSuite testSuite )
         {
-            super( testSuite, TestIndexDescriptorFactory.forLabel( 1000, 100, 200 ) );
+            super( testSuite, IndexPrototype.forSchema( forLabel( 1000, 100, 200 ) ) );
         }
 
         @Test
@@ -74,15 +74,16 @@ public class CompositeIndexPopulatorCompatibility extends IndexProviderCompatibi
             // when
             IndexSamplingConfig indexSamplingConfig = new IndexSamplingConfig( Config.defaults() );
             withPopulator( indexProvider.getPopulator( descriptor, indexSamplingConfig, heapBufferFactory( 1024 ) ), p -> p.add( Arrays.asList(
-                    add( 1, descriptor.schema(), "v1", "v2" ),
-                    add( 2, descriptor.schema(), "v1", "v2" ) ) ) );
+                    add( 1, descriptor.schema(), Values.of( "v1" ), Values.of( "v2" ) ),
+                    add( 2, descriptor.schema(), Values.of( "v1" ), Values.of( "v2" ) ) ) ) );
 
             // then
             try ( IndexAccessor accessor = indexProvider.getOnlineAccessor( descriptor, indexSamplingConfig ) )
             {
-                try ( IndexReader reader = new QueryResultComparingIndexReader( accessor.newReader() ) )
+                try ( IndexReader reader = accessor.newReader();
+                      NodeValueIterator nodes = new NodeValueIterator() )
                 {
-                    LongIterator nodes = reader.query( IndexQuery.exact( 1, "v1" ), IndexQuery.exact( 1, "v2" ) );
+                    reader.query( NULL_CONTEXT, nodes, IndexOrder.NONE, false, IndexQuery.exact( 1, "v1" ), IndexQuery.exact( 1, "v2" ) );
                     assertEquals( asSet( 1L, 2L ), PrimitiveLongCollections.toSet( nodes ) );
                 }
             }
@@ -100,7 +101,7 @@ public class CompositeIndexPopulatorCompatibility extends IndexProviderCompatibi
 
         public Unique( IndexProviderCompatibilityTestSuite testSuite )
         {
-            super( testSuite, TestIndexDescriptorFactory.uniqueForLabel( 1000, 100, 200 ) );
+            super( testSuite, IndexPrototype.uniqueForSchema( forLabel( 1000, 100, 200 ) ) );
         }
 
         @Test
@@ -113,8 +114,8 @@ public class CompositeIndexPopulatorCompatibility extends IndexProviderCompatibi
                 try
                 {
                     p.add( Arrays.asList(
-                            IndexEntryUpdate.add( nodeId1, descriptor.schema(), value1, value2 ),
-                            IndexEntryUpdate.add( nodeId2, descriptor.schema(), value1, value2 ) ) );
+                            add( nodeId1, descriptor.schema(), value1, value2 ),
+                            add( nodeId2, descriptor.schema(), value1, value2 ) ) );
                     TestNodePropertyAccessor propertyAccessor =
                             new TestNodePropertyAccessor( nodeId1, descriptor.schema(), value1, value2 );
                     propertyAccessor.addNode( nodeId2, descriptor.schema(), value1, value2 );
@@ -142,8 +143,8 @@ public class CompositeIndexPopulatorCompatibility extends IndexProviderCompatibi
             {
                 // when
                 p.add( Arrays.asList(
-                        IndexEntryUpdate.add( nodeId1, descriptor.schema(), value1, value2 ),
-                        IndexEntryUpdate.add( nodeId2, descriptor.schema(), value1, value3 ) ) );
+                        add( nodeId1, descriptor.schema(), value1, value2 ),
+                        add( nodeId2, descriptor.schema(), value1, value3 ) ) );
 
                 TestNodePropertyAccessor propertyAccessor =
                         new TestNodePropertyAccessor( nodeId1, descriptor.schema(), value1, value2 );

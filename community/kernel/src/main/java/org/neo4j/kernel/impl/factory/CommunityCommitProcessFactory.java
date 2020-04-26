@@ -22,8 +22,8 @@
  */
 package org.neo4j.kernel.impl.factory;
 
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
-import org.neo4j.kernel.configuration.Config;
+import org.neo4j.configuration.Config;
+import org.neo4j.configuration.GraphDatabaseSettings;
 import org.neo4j.kernel.impl.api.CommitProcessFactory;
 import org.neo4j.kernel.impl.api.ReadOnlyTransactionCommitProcess;
 import org.neo4j.kernel.impl.api.TransactionCommitProcess;
@@ -34,8 +34,7 @@ import org.neo4j.storageengine.api.StorageEngine;
 public class CommunityCommitProcessFactory implements CommitProcessFactory
 {
     @Override
-    public TransactionCommitProcess create( TransactionAppender appender, StorageEngine storageEngine,
-            Config config )
+    public TransactionCommitProcess create( TransactionAppender appender, StorageEngine storageEngine, Config config )
     {
         if ( config.get( GraphDatabaseSettings.read_only ) )
         {

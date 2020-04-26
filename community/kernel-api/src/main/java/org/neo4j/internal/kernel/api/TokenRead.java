@@ -24,16 +24,28 @@ package org.neo4j.internal.kernel.api;
 
 import java.util.Iterator;
 
-import org.neo4j.internal.kernel.api.exceptions.KernelException;
+import org.neo4j.exceptions.KernelException;
 import org.neo4j.internal.kernel.api.exceptions.LabelNotFoundKernelException;
 import org.neo4j.internal.kernel.api.exceptions.PropertyKeyIdNotFoundKernelException;
+import org.neo4j.token.api.NamedToken;
+import org.neo4j.token.api.TokenConstants;
 
 public interface TokenRead
 {
     /**
      * Value indicating the a token does not exist in the graph.
      */
-    int NO_TOKEN = -1;
+    int NO_TOKEN = TokenConstants.NO_TOKEN;
+
+    /**
+     * Value indicating the a relationship type token does not exist in the graph.
+     */
+    int ANY_RELATIONSHIP_TYPE = TokenConstants.ANY_RELATIONSHIP_TYPE;
+
+    /**
+     * Value indicating the a label token does not exist in the graph.
+     */
+    int ANY_LABEL = TokenConstants.ANY_LABEL;
 
     /**
      * Return the id of the provided label, or NO_TOKEN if the label isn't known to the graph.

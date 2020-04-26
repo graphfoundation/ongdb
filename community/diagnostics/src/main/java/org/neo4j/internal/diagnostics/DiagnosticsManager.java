@@ -22,266 +22,63 @@
  */
 package org.neo4j.internal.diagnostics;
 
-import java.util.Iterator;
 import java.util.List;
-import java.util.concurrent.CopyOnWriteArrayList;
 
-import org.neo4j.internal.diagnostics.DiagnosticsExtractor.VisitableDiagnostics;
-import org.neo4j.helpers.collection.Visitor;
-import org.neo4j.kernel.lifecycle.Lifecycle;
 import org.neo4j.logging.Log;
-import org.neo4j.logging.Logger;
 import org.neo4j.logging.NullLog;
 
+import static org.apache.commons.lang3.StringUtils.EMPTY;
+import static org.apache.commons.lang3.StringUtils.center;
+import static org.apache.commons.lang3.StringUtils.repeat;
+
 /**
- * Collects and manages all {@link DiagnosticsProvider}.
+ * Manager that dumps information from independent available {@link DiagnosticsProvider}s.
+ * Each independent diagnostics provider will be logged as table with caption and body, where caption will contain provider name
+ * and body - information provided by diagnostic provider.
  */
-public class DiagnosticsManager implements Iterable<DiagnosticsProvider>, Lifecycle
+public class DiagnosticsManager
 {
-    private final List<DiagnosticsProvider> providers = new CopyOnWriteArrayList<>();
-    private final Log targetLog;
-    private volatile State state = State.INITIAL;
+    private static final int CAPTION_WIDTH = 80;
+    private static final String NAME_START = "[ ";
+    private static final String NAME_END = " ]";
 
-    public DiagnosticsManager( Log targetLog )
+    private final Log log;
+
+    public DiagnosticsManager( Log log )
     {
-        this.targetLog = targetLog;
-
-        providers.add( new DiagnosticsProvider()
-        {
-            @Override
-            public String getDiagnosticsIdentifier()
-            {
-                return DiagnosticsManager.this.getClass().getName();
-            }
-
-            @Override
-            public void dump( DiagnosticsPhase phase, final Logger logger )
-            {
-                if ( phase.isInitialization() || phase.isExplicitlyRequested() )
-                {
-                    logger.log( "Diagnostics providers:" );
-                    for ( DiagnosticsProvider provider : providers )
-                    {
-                        logger.log( provider.getDiagnosticsIdentifier() );
-                    }
-                }
-            }
-
-            @Override
-            public void acceptDiagnosticsVisitor( Object visitor )
-            {
-                Visitor<? super DiagnosticsProvider, ? extends RuntimeException> target =
-                        Visitor.SafeGenerics.castOrNull( DiagnosticsProvider.class, RuntimeException.class, visitor );
-                if ( target != null )
-                {
-                    for ( DiagnosticsProvider provider : providers )
-                    {
-                        target.visit( provider );
-                    }
-                }
-            }
-        } );
+        this.log = log;
     }
 
-    @Override
-    public void init()
+    public void dump( DiagnosticsProvider provider )
     {
-        synchronized ( providers )
-        {
-            @SuppressWarnings( "hiding" )
-            State state = this.state;
-            if ( !state.startup( this ) )
-            {
-                return;
-            }
-        }
-        dumpAll( DiagnosticsPhase.INITIALIZED, getTargetLog() );
+        dump( provider, log );
     }
 
-    @Override
-    public void start()
+    public void dump( List<DiagnosticsProvider> providers, Log dumpLog )
     {
-        synchronized ( providers )
-        {
-            @SuppressWarnings( "hiding" )
-            State state = this.state;
-            if ( !state.startup( this ) )
-            {
-                return;
-            }
-        }
-        dumpAll( DiagnosticsPhase.STARTED, getTargetLog() );
-    }
-
-    @Override
-    public void stop()
-    {
-        synchronized ( providers )
-        {
-            @SuppressWarnings( "hiding" )
-            State state = this.state;
-            if ( !state.shutdown( this ) )
-            {
-                return;
-            }
-        }
-        dumpAll( DiagnosticsPhase.STOPPING, getTargetLog() );
-        providers.clear();
-    }
-
-    @Override
-    public void shutdown()
-    {
-        synchronized ( providers )
-        {
-            @SuppressWarnings( "hiding" )
-            State state = this.state;
-            if ( !state.shutdown( this ) )
-            {
-                return;
-            }
-        }
-        dumpAll( DiagnosticsPhase.SHUTDOWN, getTargetLog() );
-        providers.clear();
-    }
-
-    private enum State
-    {
-        INITIAL
-        {
-            @Override
-            boolean startup( DiagnosticsManager manager )
-            {
-                manager.state = STARTED;
-                return true;
-            }
-        },
-        STARTED,
-        STOPPED
-        {
-            @Override
-            boolean shutdown( DiagnosticsManager manager )
-            {
-                return false;
-            }
-        };
-
-        boolean startup( DiagnosticsManager manager )
-        {
-            return false;
-        }
-
-        boolean shutdown( DiagnosticsManager manager )
-        {
-            manager.state = STOPPED;
-            return true;
-        }
-    }
-
-    public Log getTargetLog()
-    {
-        return targetLog;
-    }
-
-    public void dumpAll()
-    {
-        dumpAll( DiagnosticsPhase.REQUESTED, getTargetLog() );
-    }
-
-    public void dump( String identifier )
-    {
-        extract( identifier, getTargetLog() );
-    }
-
-    public void dumpAll( Log log )
-    {
-        log.bulk( bulkLog ->
+        dumpLog.bulk( bulkLog ->
         {
             for ( DiagnosticsProvider provider : providers )
             {
-                dump( provider, DiagnosticsPhase.EXPLICIT, bulkLog );
+                dump( provider, bulkLog );
             }
         } );
     }
 
-    public void extract( final String identifier, Log log )
+    public <E extends Enum & DiagnosticsProvider> void dump( Class<E> enumProvider )
     {
-        log.bulk( bulkLog ->
-        {
-            for ( DiagnosticsProvider provider : providers )
-            {
-                if ( identifier.equals( provider.getDiagnosticsIdentifier() ) )
-                {
-                    dump( provider, DiagnosticsPhase.EXPLICIT, bulkLog );
-                    return;
-                }
-            }
-        } );
+        dump( enumProvider, log );
     }
 
-    private void dumpAll( final DiagnosticsPhase phase, Log log )
+    public <E extends Enum & DiagnosticsProvider> void dump( Class<E> enumProvider, Log log )
     {
-        log.bulk( bulkLog ->
+        for ( E provider : enumProvider.getEnumConstants() )
         {
-            phase.emitStart( bulkLog );
-            for ( DiagnosticsProvider provider : providers )
-            {
-                dump( provider, phase, bulkLog );
-            }
-            phase.emitDone( bulkLog );
-        } );
-    }
-
-    public <T> void register( DiagnosticsExtractor<T> extractor, T source )
-    {
-        appendProvider( extractedProvider( extractor, source ) );
-    }
-
-    public <T, E extends Enum<E> & DiagnosticsExtractor<T>> void registerAll( Class<E> extractorEnum, T source )
-    {
-        for ( DiagnosticsExtractor<T> extractor : extractorEnum.getEnumConstants() )
-        {
-            register( extractor, source );
+            dump( provider, log );
         }
     }
 
-    public void prependProvider( DiagnosticsProvider provider )
-    {
-        State state = this.state;
-        if ( state == State.STOPPED )
-        {
-            return;
-        }
-        providers.add( 0, provider );
-        if ( state == State.STARTED )
-        {
-            dump( DiagnosticsPhase.STARTED, provider, getTargetLog() );
-        }
-    }
-
-    public void appendProvider( DiagnosticsProvider provider )
-    {
-        @SuppressWarnings( "hiding" )
-        State state = this.state;
-        if ( state == State.STOPPED )
-        {
-            return;
-        }
-        providers.add( provider );
-        if ( state == State.STARTED )
-        {
-            dump( DiagnosticsPhase.STARTED, provider, getTargetLog() );
-        }
-    }
-
-    private void dump( DiagnosticsPhase phase, DiagnosticsProvider provider, Log log )
-    {
-        phase.emitStart( log, provider );
-        dump( provider, phase, log );
-        phase.emitDone( log, provider );
-    }
-
-    private static void dump( DiagnosticsProvider provider, DiagnosticsPhase phase, Log log )
+    public void dump( DiagnosticsProvider provider, Log log )
     {
         // Optimization to skip diagnostics dumping (which is time consuming) if there's no log anyway.
         // This is first and foremost useful for speeding up testing.
@@ -289,10 +86,11 @@ public class DiagnosticsManager implements Iterable<DiagnosticsProvider>, Lifecy
         {
             return;
         }
-
         try
         {
-            provider.dump( phase, log.infoLogger() );
+            header( log, provider.getDiagnosticsName() );
+            provider.dump( log.infoLogger() );
+            log.info( EMPTY );
         }
         catch ( Exception cause )
         {
@@ -300,66 +98,22 @@ public class DiagnosticsManager implements Iterable<DiagnosticsProvider>, Lifecy
         }
     }
 
-    @Override
-    public Iterator<DiagnosticsProvider> iterator()
+    public void section( Log log, String sectionName )
     {
-        return providers.iterator();
+        log.info( repeat( "*", CAPTION_WIDTH ) );
+        log.info( center( title( sectionName ), CAPTION_WIDTH ) );
+        log.info( repeat( "*", CAPTION_WIDTH ) );
     }
 
-    static <T> DiagnosticsProvider extractedProvider( DiagnosticsExtractor<T> extractor, T source )
+    private static void header( Log log, String caption )
     {
-        if ( extractor instanceof DiagnosticsExtractor.VisitableDiagnostics<?> )
-        {
-            return new ExtractedVisitableDiagnosticsProvider<>(
-                    (DiagnosticsExtractor.VisitableDiagnostics<T>) extractor, source );
-        }
-        else
-        {
-            return new ExtractedDiagnosticsProvider<>( extractor, source );
-        }
+        log.info( repeat( "-", CAPTION_WIDTH ) );
+        log.info( center( title( caption ), CAPTION_WIDTH ) );
+        log.info( repeat( "-", CAPTION_WIDTH ) );
     }
 
-    private static class ExtractedDiagnosticsProvider<T> implements DiagnosticsProvider
+    private static String title( String name )
     {
-        final DiagnosticsExtractor<T> extractor;
-        final T source;
-
-        ExtractedDiagnosticsProvider( DiagnosticsExtractor<T> extractor, T source )
-        {
-            this.extractor = extractor;
-            this.source = source;
-        }
-
-        @Override
-        public String getDiagnosticsIdentifier()
-        {
-            return extractor.toString();
-        }
-
-        @Override
-        public void acceptDiagnosticsVisitor( Object visitor )
-        {
-            // nobody visits the source of this
-        }
-
-        @Override
-        public void dump( DiagnosticsPhase phase, Logger logger )
-        {
-            extractor.dumpDiagnostics( source, phase, logger );
-        }
-    }
-
-    private static class ExtractedVisitableDiagnosticsProvider<T> extends ExtractedDiagnosticsProvider<T>
-    {
-        ExtractedVisitableDiagnosticsProvider( VisitableDiagnostics<T> extractor, T source )
-        {
-            super( extractor, source );
-        }
-
-        @Override
-        public void acceptDiagnosticsVisitor( Object visitor )
-        {
-            ( (DiagnosticsExtractor.VisitableDiagnostics<T>) extractor ).dispatchDiagnosticsVisitor( source, visitor );
-        }
+        return NAME_START + name + NAME_END;
     }
 }

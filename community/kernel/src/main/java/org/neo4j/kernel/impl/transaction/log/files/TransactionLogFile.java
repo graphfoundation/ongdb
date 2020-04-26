@@ -22,23 +22,31 @@
  */
 package org.neo4j.kernel.impl.transaction.log.files;
 
+import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicLong;
 
+import org.neo4j.io.ByteUnit;
+import org.neo4j.io.IOUtils;
 import org.neo4j.io.fs.FileSystemAbstraction;
-import org.neo4j.io.fs.OpenMode;
-import org.neo4j.kernel.impl.transaction.log.FlushablePositionAwareChannel;
+import org.neo4j.io.memory.BufferScope;
+import org.neo4j.kernel.impl.transaction.log.FlushablePositionAwareChecksumChannel;
 import org.neo4j.kernel.impl.transaction.log.LogPosition;
 import org.neo4j.kernel.impl.transaction.log.LogVersionBridge;
-import org.neo4j.kernel.impl.transaction.log.LogVersionRepository;
 import org.neo4j.kernel.impl.transaction.log.LogVersionedStoreChannel;
 import org.neo4j.kernel.impl.transaction.log.PhysicalLogVersionedStoreChannel;
-import org.neo4j.kernel.impl.transaction.log.PositionAwarePhysicalFlushableChannel;
+import org.neo4j.kernel.impl.transaction.log.PositionAwarePhysicalFlushableChecksumChannel;
 import org.neo4j.kernel.impl.transaction.log.ReadAheadLogChannel;
 import org.neo4j.kernel.impl.transaction.log.ReadableLogChannel;
 import org.neo4j.kernel.impl.transaction.log.ReaderLogVersionBridge;
+import org.neo4j.kernel.impl.transaction.log.entry.LogEntry;
+import org.neo4j.kernel.impl.transaction.log.entry.LogEntryReader;
 import org.neo4j.kernel.lifecycle.LifecycleAdapter;
+import org.neo4j.storageengine.api.LogVersionRepository;
+
+import static java.lang.Math.min;
+import static java.lang.Runtime.getRuntime;
 
 /**
  * {@link LogFile} backed by one or more files in a {@link FileSystemAbstraction}.
@@ -46,15 +54,16 @@ import org.neo4j.kernel.lifecycle.LifecycleAdapter;
 class TransactionLogFile extends LifecycleAdapter implements LogFile
 {
     private final AtomicLong rotateAtSize;
-    private final TransactionLogFiles logFiles;
+    private final LogFiles logFiles;
     private final TransactionLogFilesContext context;
     private final LogVersionBridge readerLogVersionBridge;
-    private PositionAwarePhysicalFlushableChannel writer;
+    private BufferScope bufferScope;
+    private PositionAwarePhysicalFlushableChecksumChannel writer;
     private LogVersionRepository logVersionRepository;
 
     private volatile PhysicalLogVersionedStoreChannel channel;
 
-    TransactionLogFile( TransactionLogFiles logFiles, TransactionLogFilesContext context )
+    TransactionLogFile( LogFiles logFiles, TransactionLogFilesContext context )
     {
         this.rotateAtSize = context.getRotationThreshold();
         this.context = context;
@@ -66,22 +75,57 @@ class TransactionLogFile extends LifecycleAdapter implements LogFile
     public void init() throws IOException
     {
         logVersionRepository = context.getLogVersionRepository();
-        // Make sure at least a bare bones log file is available before recovery
-        long lastLogVersionUsed = this.logVersionRepository.getCurrentLogVersion();
-        channel = logFiles.createLogChannelForVersion( lastLogVersionUsed, OpenMode.READ_WRITE, context::getLastCommittedTransactionId );
-        channel.close();
     }
 
     @Override
     public void start() throws IOException
     {
-        // Recovery has taken place before this, so the log file has been truncated to last known good tx
-        // Just read header and move to the end
-        long lastLogVersionUsed = logVersionRepository.getCurrentLogVersion();
-        channel = logFiles.createLogChannelForVersion( lastLogVersionUsed, OpenMode.READ_WRITE, context::getLastCommittedTransactionId );
-        // Move to the end
-        channel.position( channel.size() );
-        writer = new PositionAwarePhysicalFlushableChannel( channel );
+        long currentLogVersion = logVersionRepository.getCurrentLogVersion();
+        channel = logFiles.createLogChannelForVersion( currentLogVersion, context::getLastCommittedTransactionId );
+
+        //try to set position
+        seekChannelPosition( currentLogVersion );
+
+        bufferScope = new BufferScope( calculateLogBufferSize() );
+        writer = new PositionAwarePhysicalFlushableChecksumChannel( channel, bufferScope.buffer );
+    }
+
+    private void seekChannelPosition( long currentLogVersion ) throws IOException
+    {
+        scrollToTheLastClosedTxPosition( currentLogVersion );
+        LogPosition position = scrollOverCheckpointRecords();
+        channel.position( position.getByteOffset() );
+    }
+
+    private LogPosition scrollOverCheckpointRecords() throws IOException
+    {
+        // scroll all over possible checkpoints
+        ReadAheadLogChannel readAheadLogChannel = new ReadAheadLogChannel( channel );
+        LogEntryReader logEntryReader = context.getLogEntryReader();
+        LogEntry entry;
+        do
+        {
+            // seek to the end the records.
+            entry = logEntryReader.readLogEntry( readAheadLogChannel );
+        }
+        while ( entry != null );
+        return logEntryReader.lastPosition();
+    }
+
+    private void scrollToTheLastClosedTxPosition( long currentLogVersion ) throws IOException
+    {
+        LogPosition logPosition = context.getLastClosedTransactionPosition();
+        long lastTxOffset = logPosition.getByteOffset();
+        long lastTxLogVersion = logPosition.getLogVersion();
+        final long headerSize = logFiles.extractHeader( currentLogVersion ).getStartPosition().getByteOffset();
+        if ( lastTxOffset < headerSize || channel.size() < lastTxOffset )
+        {
+            return;
+        }
+        if ( lastTxLogVersion == currentLogVersion )
+        {
+            channel.position( lastTxOffset );
+        }
     }
 
     // In order to be able to write into a logfile after life.stop during shutdown sequence
@@ -90,14 +134,7 @@ class TransactionLogFile extends LifecycleAdapter implements LogFile
     @Override
     public void shutdown() throws IOException
     {
-        if ( writer != null )
-        {
-            writer.close();
-        }
-        if ( channel != null )
-        {
-            channel.close();
-        }
+        IOUtils.closeAll( writer, bufferScope );
     }
 
     @Override
@@ -111,10 +148,11 @@ class TransactionLogFile extends LifecycleAdapter implements LogFile
     }
 
     @Override
-    public synchronized void rotate() throws IOException
+    public synchronized File rotate() throws IOException
     {
         channel = rotate( channel );
         writer.setChannel( channel );
+        return channel.getFile();
     }
 
     /**
@@ -173,6 +211,8 @@ class TransactionLogFile extends LifecycleAdapter implements LogFile
          * transaction complete in the log we're rotating away. Awesome.
          */
         writer.prepareForFlush().flush();
+        currentLog.truncate( currentLog.position() );
+
         /*
          * The log version is now in the store, flushed and persistent. If we crash
          * now, on recovery we'll attempt to open the version we're about to create
@@ -182,14 +222,13 @@ class TransactionLogFile extends LifecycleAdapter implements LogFile
          * we can have transactions that are not yet published as committed but were already stored
          * into transaction log that was just rotated.
          */
-        PhysicalLogVersionedStoreChannel newLog = logFiles.createLogChannelForVersion( newLogVersion,
-                OpenMode.READ_WRITE, context::committingTransactionId );
+        PhysicalLogVersionedStoreChannel newLog = logFiles.createLogChannelForVersion( newLogVersion, context::committingTransactionId );
         currentLog.close();
         return newLog;
     }
 
     @Override
-    public FlushablePositionAwareChannel getWriter()
+    public FlushablePositionAwareChecksumChannel getWriter()
     {
         return writer;
     }
@@ -215,5 +254,22 @@ class TransactionLogFile extends LifecycleAdapter implements LogFile
         {
             visitor.visit( reader );
         }
+    }
+
+    /**
+     * Calculate size of byte buffer for transaction log file based on number of available cpu's.
+     * Minimal buffer size is 512KB. Every another 4 cpu's will add another 512KB into the buffer size.
+     * Maximal buffer size is 4MB taking into account that we can have more then one transaction log writer in multi-database env.
+     * <p/>
+     * Examples:
+     * runtime with 4 cpus will have buffer size of 1MB
+     * runtime with 8 cpus will have buffer size of 1MB 512KB
+     * runtime with 12 cpus will have buffer size of 2MB
+     *
+     * @return transaction log writer buffer size.
+     */
+    private static int calculateLogBufferSize()
+    {
+        return (int) ByteUnit.kibiBytes( min( (getRuntime().availableProcessors() / 4) + 1, 8 ) * 512 );
     }
 }

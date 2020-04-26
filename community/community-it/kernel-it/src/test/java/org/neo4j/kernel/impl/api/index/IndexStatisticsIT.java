@@ -22,66 +22,70 @@
  */
 package org.neo4j.kernel.impl.api.index;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.concurrent.TimeUnit;
 
+import org.neo4j.dbms.api.DatabaseManagementService;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Transaction;
-import org.neo4j.graphdb.mockfs.EphemeralFileSystemAbstraction;
-import org.neo4j.graphdb.mockfs.UncloseableDelegatingFileSystemAbstraction;
 import org.neo4j.graphdb.schema.IndexDefinition;
-import org.neo4j.kernel.api.KernelTransaction;
+import org.neo4j.internal.recordstorage.RecordStorageEngine;
+import org.neo4j.internal.recordstorage.SchemaRuleAccess;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.io.fs.EphemeralFileSystemAbstraction;
+import org.neo4j.io.fs.UncloseableDelegatingFileSystemAbstraction;
 import org.neo4j.kernel.api.schema.index.TestIndexDescriptorFactory;
-import org.neo4j.kernel.impl.api.CountsAccessor;
 import org.neo4j.kernel.impl.api.index.sampling.IndexSamplingController;
-import org.neo4j.kernel.impl.core.ThreadToStatementContextBridge;
-import org.neo4j.kernel.impl.storageengine.impl.recordstorage.RecordStorageEngine;
+import org.neo4j.kernel.impl.api.index.stats.IndexStatisticsStore;
+import org.neo4j.kernel.impl.coreapi.InternalTransaction;
 import org.neo4j.kernel.impl.store.NeoStores;
-import org.neo4j.kernel.impl.store.SchemaStorage;
-import org.neo4j.kernel.impl.store.counts.CountsTracker;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
 import org.neo4j.logging.AssertableLogProvider;
 import org.neo4j.register.Register.DoubleLongRegister;
-import org.neo4j.storageengine.api.schema.IndexDescriptor;
-import org.neo4j.test.TestGraphDatabaseFactory;
-import org.neo4j.test.rule.fs.EphemeralFileSystemRule;
+import org.neo4j.test.TestDatabaseManagementServiceBuilder;
+import org.neo4j.test.extension.EphemeralFileSystemExtension;
+import org.neo4j.test.extension.Inject;
+import org.neo4j.token.TokenHolders;
 
-import static org.junit.Assert.assertEquals;
+import static org.hamcrest.Matchers.containsString;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
+import static org.neo4j.configuration.GraphDatabaseSettings.index_background_sampling_enabled;
 import static org.neo4j.graphdb.Label.label;
-import static org.neo4j.graphdb.factory.GraphDatabaseSettings.index_background_sampling_enabled;
+import static org.neo4j.internal.helpers.ArrayUtil.single;
 import static org.neo4j.logging.AssertableLogProvider.inLog;
 import static org.neo4j.register.Registers.newDoubleLongRegister;
 
-public class IndexStatisticsIT
+@ExtendWith( EphemeralFileSystemExtension.class )
+class IndexStatisticsIT
 {
     private static final Label ALIEN = label( "Alien" );
     private static final String SPECIMEN = "specimen";
 
-    @Rule
-    public final EphemeralFileSystemRule fsRule = new EphemeralFileSystemRule();
-    private final AssertableLogProvider logProvider = new AssertableLogProvider();
+    @Inject
+    private EphemeralFileSystemAbstraction fs;
+    private final AssertableLogProvider logProvider = new AssertableLogProvider( true );
     private GraphDatabaseService db;
-    private EphemeralFileSystemAbstraction fileSystem;
+    private DatabaseManagementService managementService;
 
-    @Before
-    public void before()
+    @BeforeEach
+    void before()
     {
-        fileSystem = fsRule.get();
         startDb();
     }
 
-    @After
-    public void after()
+    @AfterEach
+    void after()
     {
         try
         {
-            db.shutdown();
+            managementService.shutdown();
         }
         finally
         {
@@ -90,7 +94,7 @@ public class IndexStatisticsIT
     }
 
     @Test
-    public void shouldRecoverIndexCountsBySamplingThemOnStartup()
+    void shouldRecoverIndexCountsBySamplingThemOnStartup()
     {
         // given some aliens in a database
         createAliens();
@@ -100,8 +104,9 @@ public class IndexStatisticsIT
 
         // where ALIEN and SPECIMEN are both the first ids of their kind
         IndexDescriptor index = TestIndexDescriptorFactory.forLabel( labelId( ALIEN ), pkId( SPECIMEN ) );
-        SchemaStorage storage = new SchemaStorage( neoStores().getSchemaStore() );
-        long indexId = storage.indexGetForSchema( index ).getId();
+        SchemaRuleAccess schemaRuleAccess =
+                SchemaRuleAccess.getSchemaRuleAccess( neoStores().getSchemaStore(), resolveDependency( TokenHolders.class ) );
+        long indexId = single( schemaRuleAccess.indexGetForSchema( index ) ).getId();
 
         // for which we don't have index counts
         resetIndexCounts( indexId );
@@ -110,15 +115,15 @@ public class IndexStatisticsIT
         restart();
 
         // then we should have re-sampled the index
-        CountsTracker tracker = neoStores().getCounts();
+        IndexStatisticsStore indexStatisticsStore = indexStatistics();
         assertEqualRegisters(
                 "Unexpected updates and size for the index",
                 newDoubleLongRegister( 0, 32 ),
-                tracker.indexUpdatesAndSize( indexId, newDoubleLongRegister() ) );
+                indexStatisticsStore.indexUpdatesAndSize( indexId, newDoubleLongRegister() ) );
         assertEqualRegisters(
             "Unexpected sampling result",
             newDoubleLongRegister( 16, 32 ),
-            tracker.indexSample( indexId, newDoubleLongRegister() )
+            indexStatisticsStore.indexSample( indexId, newDoubleLongRegister() )
         );
 
         // and also
@@ -127,38 +132,31 @@ public class IndexStatisticsIT
 
     private void assertEqualRegisters( String message, DoubleLongRegister expected, DoubleLongRegister actual )
     {
-        assertEquals( message + " (first part of register)", expected.readFirst(), actual.readFirst() );
-        assertEquals( message + " (second part of register)", expected.readSecond(), actual.readSecond() );
+        assertEquals( expected.readFirst(), actual.readFirst(), message + " (first part of register)" );
+        assertEquals( expected.readSecond(), actual.readSecond(), message + " (second part of register)" );
     }
 
     private void assertLogExistsForRecoveryOn( String labelAndProperty )
     {
         logProvider.assertAtLeastOnce(
-                inLog( IndexSamplingController.class ).debug( "Recovering index sampling for index %s", labelAndProperty )
+                inLog( IndexSamplingController.class ).debug( containsString( "Recovering index sampling for index %s" ), labelAndProperty )
         );
     }
 
     private int labelId( Label alien )
     {
-        try ( Transaction ignore = db.beginTx() )
+        try ( Transaction tx = db.beginTx() )
         {
-            return ktx().tokenRead().nodeLabel( alien.name() );
+            return ((InternalTransaction) tx).kernelTransaction().tokenRead().nodeLabel( alien.name() );
         }
     }
 
     private int pkId( String propertyName )
     {
-        try ( Transaction ignore = db.beginTx() )
+        try ( Transaction tx = db.beginTx() )
         {
-            return ktx().tokenRead().propertyKey( propertyName );
+            return ((InternalTransaction) tx).kernelTransaction().tokenRead().propertyKey( propertyName );
         }
-    }
-
-    private KernelTransaction ktx()
-    {
-        return ((GraphDatabaseAPI) db).getDependencyResolver()
-                .resolveDependency( ThreadToStatementContextBridge.class )
-                .getKernelTransactionBoundToThisThread( true );
     }
 
     private void createAliens()
@@ -167,10 +165,10 @@ public class IndexStatisticsIT
         {
             for ( int i = 0; i < 32; i++ )
             {
-                Node alien = db.createNode( ALIEN );
+                Node alien = tx.createNode( ALIEN );
                 alien.setProperty( SPECIMEN, i / 2 );
             }
-            tx.success();
+            tx.commit();
         }
     }
 
@@ -178,8 +176,8 @@ public class IndexStatisticsIT
     {
         try ( Transaction tx = db.beginTx() )
         {
-            db.schema().awaitIndexOnline( definition, 10, TimeUnit.SECONDS );
-            tx.success();
+            tx.schema().awaitIndexOnline( definition, 10, TimeUnit.SECONDS );
+            tx.commit();
         }
     }
 
@@ -187,39 +185,46 @@ public class IndexStatisticsIT
     {
         try ( Transaction tx = db.beginTx() )
         {
-            IndexDefinition definition = db.schema().indexFor( ALIEN ).on( SPECIMEN ).create();
-            tx.success();
+            IndexDefinition definition = tx.schema().indexFor( ALIEN ).on( SPECIMEN ).create();
+            tx.commit();
             return definition;
         }
     }
 
     private void resetIndexCounts( long indexId )
     {
-        try ( CountsAccessor.IndexStatsUpdater updater = neoStores().getCounts().updateIndexCounts() )
-        {
-            updater.replaceIndexSample( indexId, 0, 0 );
-            updater.replaceIndexUpdateAndSize( indexId, 0, 0 );
-        }
+        indexStatistics().replaceStats( indexId, 0, 0, 0 );
+    }
+
+    private <T> T resolveDependency( Class<T> clazz )
+    {
+        return ((GraphDatabaseAPI) db).getDependencyResolver().resolveDependency( clazz );
     }
 
     private NeoStores neoStores()
     {
-        return ( (GraphDatabaseAPI) db ).getDependencyResolver().resolveDependency( RecordStorageEngine.class )
-                .testAccessNeoStores();
+        return resolveDependency( RecordStorageEngine.class ).testAccessNeoStores();
+    }
+
+    private IndexStatisticsStore indexStatistics()
+    {
+        return ((GraphDatabaseAPI) db).getDependencyResolver().resolveDependency( IndexStatisticsStore.class );
     }
 
     private void startDb()
     {
-        db = new TestGraphDatabaseFactory().setInternalLogProvider( logProvider )
-                                           .setFileSystem( new UncloseableDelegatingFileSystemAbstraction( fileSystem ) )
-                                           .newImpermanentDatabaseBuilder()
-                                           .setConfig( index_background_sampling_enabled, "false" )
-                                           .newGraphDatabase();
+        managementService = new TestDatabaseManagementServiceBuilder()
+                .setInternalLogProvider( logProvider )
+                .setFileSystem( new UncloseableDelegatingFileSystemAbstraction( fs ) )
+                .impermanent()
+                .setConfig( index_background_sampling_enabled, false )
+                .build();
+        db = managementService.database( DEFAULT_DATABASE_NAME );
     }
 
-    void restart()
+    private void restart()
     {
-        db.shutdown();
+        managementService.shutdown();
         startDb();
     }
 }

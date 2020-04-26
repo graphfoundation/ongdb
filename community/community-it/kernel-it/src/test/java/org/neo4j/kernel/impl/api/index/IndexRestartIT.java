@@ -23,30 +23,33 @@
 package org.neo4j.kernel.impl.api.index;
 
 import org.hamcrest.CoreMatchers;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
-import java.util.Collections;
+import java.util.List;
 
+import org.neo4j.dbms.api.DatabaseManagementService;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.NotFoundException;
 import org.neo4j.graphdb.Transaction;
-import org.neo4j.graphdb.mockfs.UncloseableDelegatingFileSystemAbstraction;
 import org.neo4j.graphdb.schema.IndexDefinition;
 import org.neo4j.graphdb.schema.Schema;
+import org.neo4j.io.fs.FileSystemAbstraction;
+import org.neo4j.io.fs.UncloseableDelegatingFileSystemAbstraction;
 import org.neo4j.test.DoubleLatch;
-import org.neo4j.test.TestGraphDatabaseFactory;
-import org.neo4j.test.rule.fs.EphemeralFileSystemRule;
+import org.neo4j.test.TestDatabaseManagementServiceBuilder;
+import org.neo4j.test.extension.Inject;
+import org.neo4j.test.extension.testdirectory.EphemeralTestDirectoryExtension;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.not;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
+import static org.neo4j.configuration.GraphDatabaseSettings.default_schema_provider;
 import static org.neo4j.graphdb.Label.label;
-import static org.neo4j.graphdb.factory.GraphDatabaseSettings.default_schema_provider;
 import static org.neo4j.internal.kernel.api.InternalIndexState.ONLINE;
 import static org.neo4j.internal.kernel.api.InternalIndexState.POPULATING;
 import static org.neo4j.kernel.impl.api.index.SchemaIndexTestHelper.singleInstanceIndexProviderFactory;
@@ -54,32 +57,31 @@ import static org.neo4j.test.mockito.matcher.Neo4jMatchers.getIndexState;
 import static org.neo4j.test.mockito.matcher.Neo4jMatchers.getIndexes;
 import static org.neo4j.test.mockito.matcher.Neo4jMatchers.hasSize;
 import static org.neo4j.test.mockito.matcher.Neo4jMatchers.haveState;
-import static org.neo4j.test.mockito.matcher.Neo4jMatchers.inTx;
 
-public class IndexRestartIT
+@EphemeralTestDirectoryExtension
+class IndexRestartIT
 {
-    @Rule
-    public final EphemeralFileSystemRule fs = new EphemeralFileSystemRule();
+    @Inject
+    private FileSystemAbstraction fs;
 
     private GraphDatabaseService db;
-    private TestGraphDatabaseFactory factory;
+    private TestDatabaseManagementServiceBuilder factory;
     private final ControlledPopulationIndexProvider provider = new ControlledPopulationIndexProvider();
     private final Label myLabel = label( "MyLabel" );
+    private DatabaseManagementService managementService;
 
-    @Before
-    public void before()
+    @BeforeEach
+    void before()
     {
-        factory = new TestGraphDatabaseFactory();
-        factory.setFileSystem( new UncloseableDelegatingFileSystemAbstraction( fs.get() ) );
-        factory.setKernelExtensions( Collections.singletonList(
-            singleInstanceIndexProviderFactory( "test", provider )
-        ) );
+        factory = new TestDatabaseManagementServiceBuilder();
+        factory.setFileSystem( new UncloseableDelegatingFileSystemAbstraction( fs ) );
+        factory.setExtensions( List.of( singleInstanceIndexProviderFactory( "test", provider ) ) );
     }
 
-    @After
-    public void after()
+    @AfterEach
+    void after()
     {
-        db.shutdown();
+        managementService.shutdown();
     }
 
     /* This is somewhat difficult to test since dropping an index while it's populating forces it to be cancelled
@@ -87,7 +89,7 @@ public class IndexRestartIT
      * as possible. If this proves to be flaky, remove it right away.
      */
     @Test
-    public void shouldBeAbleToDropIndexWhileItIsPopulating()
+    void shouldBeAbleToDropIndexWhileItIsPopulating()
     {
         // GIVEN
         startDb();
@@ -97,22 +99,17 @@ public class IndexRestartIT
 
         // WHEN
         dropIndex( index, populationCompletionLatch );
-
-        // THEN
-        assertThat( getIndexes( db, myLabel ), inTx( db, hasSize( 0 ) ) );
-        try
+        try ( Transaction transaction = db.beginTx() )
         {
-            getIndexState( db, index );
-            fail( "This index should have been deleted" );
-        }
-        catch ( NotFoundException e )
-        {
+            // THEN
+            assertThat( getIndexes( transaction, myLabel ), hasSize( 0 ) );
+            var e = assertThrows( NotFoundException.class, () -> getIndexState( transaction, index ) );
             assertThat( e.getMessage(), CoreMatchers.containsString( myLabel.name() ) );
         }
     }
 
     @Test
-    public void shouldHandleRestartOfOnlineIndex()
+    void shouldHandleRestartOfOnlineIndex()
     {
         // Given
         startDb();
@@ -127,13 +124,16 @@ public class IndexRestartIT
         startDb();
 
         // Then
-        assertThat( getIndexes( db, myLabel ), inTx( db, haveState( db, Schema.IndexState.ONLINE ) ) );
+        try ( Transaction transaction = db.beginTx() )
+        {
+            assertThat( getIndexes( transaction, myLabel ), haveState( transaction, Schema.IndexState.ONLINE ) );
+        }
         assertEquals( 1, provider.populatorCallCount.get() );
         assertEquals( 2, provider.writerCallCount.get() );
     }
 
     @Test
-    public void shouldHandleRestartIndexThatHasNotComeOnlineYet()
+    void shouldHandleRestartIndexThatHasNotComeOnlineYet()
     {
         // Given
         startDb();
@@ -146,7 +146,10 @@ public class IndexRestartIT
         // When
         startDb();
 
-        assertThat( getIndexes( db, myLabel ), inTx( db, not( haveState( db, Schema.IndexState.FAILED ) ) ) );
+        try ( Transaction transaction = db.beginTx() )
+        {
+            assertThat( getIndexes( transaction, myLabel ), not( haveState( transaction, Schema.IndexState.FAILED ) ) );
+        }
         assertEquals( 2, provider.populatorCallCount.get() );
     }
 
@@ -154,8 +157,8 @@ public class IndexRestartIT
     {
         try ( Transaction tx = db.beginTx() )
         {
-            IndexDefinition index = db.schema().indexFor( myLabel ).on( "number_of_bananas_owned" ).create();
-            tx.success();
+            IndexDefinition index = tx.schema().indexFor( myLabel ).on( "number_of_bananas_owned" ).create();
+            tx.commit();
             return index;
         }
     }
@@ -164,28 +167,32 @@ public class IndexRestartIT
     {
         try ( Transaction tx = db.beginTx() )
         {
-            index.drop();
+            tx.schema().getIndexByName( index.getName() ).drop();
             populationCompletionLatch.finish();
-            tx.success();
+            tx.commit();
         }
     }
 
     private void startDb()
     {
-        if ( db != null )
+        if ( managementService != null )
         {
-            db.shutdown();
+            managementService.shutdown();
         }
 
-        db = factory.newImpermanentDatabaseBuilder()
-                    .setConfig( default_schema_provider, provider.getProviderDescriptor().name() ).newGraphDatabase();
+        managementService = factory
+                .impermanent()
+                .noOpSystemGraphInitializer()
+                .setConfig( default_schema_provider, provider.getProviderDescriptor().name() )
+                .build();
+        db = managementService.database( DEFAULT_DATABASE_NAME );
     }
 
     private void stopDb()
     {
-        if ( db != null )
+        if ( managementService != null )
         {
-            db.shutdown();
+            managementService.shutdown();
         }
     }
 }

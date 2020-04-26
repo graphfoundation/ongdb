@@ -22,8 +22,8 @@
  */
 package org.neo4j.kernel.impl.newapi;
 
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -32,30 +32,33 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 
-import org.neo4j.internal.kernel.api.IndexOrder;
 import org.neo4j.internal.kernel.api.IndexQuery;
 import org.neo4j.internal.kernel.api.Read;
 import org.neo4j.internal.kernel.api.helpers.StubNodeCursor;
 import org.neo4j.internal.kernel.api.helpers.StubPropertyCursor;
+import org.neo4j.internal.schema.IndexDescriptor;
+import org.neo4j.internal.schema.IndexOrder;
+import org.neo4j.kernel.api.index.IndexProgressor;
+import org.neo4j.kernel.api.index.IndexProgressor.EntityValueClient;
 import org.neo4j.kernel.api.schema.index.TestIndexDescriptorFactory;
-import org.neo4j.storageengine.api.schema.IndexDescriptor;
-import org.neo4j.storageengine.api.schema.IndexProgressor;
-import org.neo4j.storageengine.api.schema.IndexProgressor.NodeValueClient;
+import org.neo4j.test.extension.Inject;
+import org.neo4j.test.extension.RandomExtension;
 import org.neo4j.test.rule.RandomRule;
 import org.neo4j.values.storable.Value;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
-import static org.neo4j.helpers.collection.MapUtil.genericMap;
+import static org.neo4j.internal.helpers.collection.MapUtil.genericMap;
 import static org.neo4j.values.storable.Values.NO_VALUE;
 import static org.neo4j.values.storable.Values.stringValue;
 
-public class NodeValueClientFilterTest implements IndexProgressor, NodeValueClient
+@ExtendWith( RandomExtension.class )
+class NodeValueClientFilterTest implements IndexProgressor, EntityValueClient
 {
-    @Rule
-    public final RandomRule random = new RandomRule();
+    @Inject
+    private RandomRule random;
 
     private final Read read = mock( Read.class );
     private final List<Event> events = new ArrayList<>();
@@ -63,38 +66,39 @@ public class NodeValueClientFilterTest implements IndexProgressor, NodeValueClie
     private final StubPropertyCursor property = new StubPropertyCursor();
 
     @Test
-    public void shouldAcceptAllNodesOnNoFilters()
+    void shouldAcceptAllNodesOnNoFilters()
     {
         // given
+        float score = 0.42f;
         node.withNode( 17 );
         NodeValueClientFilter filter = initializeFilter();
 
         // when
         filter.next();
-        assertTrue( filter.acceptNode( 17, null ) );
+        assertTrue( filter.acceptEntity( 17, score, null ) );
         filter.close();
 
         // then
-        assertEvents( initialize(), Event.NEXT, new Event.Node( 17, null ), Event.CLOSE );
+        assertEvents( initialize( 0 ), Event.NEXT, new Event.Node( 17, score, null ), Event.CLOSE );
     }
 
     @Test
-    public void shouldRejectNodeNotInUse()
+    void shouldRejectNodeNotInUse()
     {
         // given
         NodeValueClientFilter filter = initializeFilter( IndexQuery.exists( 12 ) );
 
         // when
         filter.next();
-        assertFalse( filter.acceptNode( 17, null ) );
+        assertFalse( filter.acceptEntity( 17, 0.42f, null ) );
         filter.close();
 
         // then
-        assertEvents( initialize(), Event.NEXT, Event.CLOSE );
+        assertEvents( initialize( 12 ), Event.NEXT, Event.CLOSE );
     }
 
     @Test
-    public void shouldRejectNodeWithNoProperties()
+    void shouldRejectNodeWithNoProperties()
     {
         // given
         node.withNode( 17 );
@@ -102,31 +106,32 @@ public class NodeValueClientFilterTest implements IndexProgressor, NodeValueClie
 
         // when
         filter.next();
-        assertFalse( filter.acceptNode( 17, null ) );
+        assertFalse( filter.acceptEntity( 17, 0.42f, null ) );
         filter.close();
 
         // then
-        assertEvents( initialize(), Event.NEXT, Event.CLOSE );
+        assertEvents( initialize( 12 ), Event.NEXT, Event.CLOSE );
     }
 
     @Test
-    public void shouldAcceptNodeWithMatchingProperty()
+    void shouldAcceptNodeWithMatchingProperty()
     {
         // given
+        float score = 0.42f;
         node.withNode( 17, new long[0], genericMap( 12, stringValue( "hello" ) ) );
         NodeValueClientFilter filter = initializeFilter( IndexQuery.exists( 12 ) );
 
         // when
         filter.next();
-        assertTrue( filter.acceptNode( 17, null ) );
+        assertTrue( filter.acceptEntity( 17, score, null ) );
         filter.close();
 
         // then
-        assertEvents( initialize(), Event.NEXT, new Event.Node( 17, null ), Event.CLOSE );
+        assertEvents( initialize( 12 ), Event.NEXT, new Event.Node( 17, score, null ), Event.CLOSE );
     }
 
     @Test
-    public void shouldNotAcceptNodeWithoutMatchingProperty()
+    void shouldNotAcceptNodeWithoutMatchingProperty()
     {
         // given
         node.withNode( 17, new long[0], genericMap( 7, stringValue( "wrong" ) ) );
@@ -134,33 +139,33 @@ public class NodeValueClientFilterTest implements IndexProgressor, NodeValueClie
 
         // when
         filter.next();
-        assertFalse( filter.acceptNode( 17, null ) );
+        assertFalse( filter.acceptEntity( 17, 0.42f, null ) );
         filter.close();
 
         // then
-        assertEvents( initialize(), Event.NEXT, Event.CLOSE );
+        assertEvents( initialize( 12 ), Event.NEXT, Event.CLOSE );
     }
 
     @Test
-    public void shouldConsultProvidedAcceptingFiltersForMixOfValuesAndNoValues()
+    void shouldConsultProvidedAcceptingFiltersForMixOfValuesAndNoValues()
     {
         shouldConsultProvidedFilters( Function.identity(), true );
     }
 
     @Test
-    public void shouldConsultProvidedAcceptingFiltersForNullValues()
+    void shouldConsultProvidedAcceptingFiltersForNullValues()
     {
         shouldConsultProvidedFilters( v -> null, true );
     }
 
     @Test
-    public void shouldConsultProvidedDenyingFiltersForMixOfValuesAndNoValues()
+    void shouldConsultProvidedDenyingFiltersForMixOfValuesAndNoValues()
     {
         shouldConsultProvidedFilters( Function.identity(), false );
     }
 
     @Test
-    public void shouldConsultProvidedDenyingFiltersForNullValues()
+    void shouldConsultProvidedDenyingFiltersForNullValues()
     {
         shouldConsultProvidedFilters( v -> null, false );
     }
@@ -169,6 +174,7 @@ public class NodeValueClientFilterTest implements IndexProgressor, NodeValueClie
     {
         // given
         long nodeReference = 123;
+        float score = 0.42f;
         int labelId = 10;
         int slots = random.nextInt( 3, 8 );
         IndexQuery[] filters = new IndexQuery[slots];
@@ -196,8 +202,8 @@ public class NodeValueClientFilterTest implements IndexProgressor, NodeValueClie
 
         // when
         NodeValueClientFilter filter = new NodeValueClientFilter( this, node, property, read, filters );
-        filter.initialize( TestIndexDescriptorFactory.forLabel( labelId, propertyKeyIds ), this, null, IndexOrder.NONE, true );
-        boolean accepted = filter.acceptNode( nodeReference, filterValues.apply( values ) );
+        filter.initialize( TestIndexDescriptorFactory.forLabel( labelId, propertyKeyIds ), this, null, IndexOrder.NONE, true, false );
+        boolean accepted = filter.acceptEntity( nodeReference, score, filterValues.apply( values ) );
 
         // then
         assertEquals( filterAcceptsValue, accepted );
@@ -210,21 +216,32 @@ public class NodeValueClientFilterTest implements IndexProgressor, NodeValueClie
         {
             candidate = random.nextValue();
         }
-        while ( candidate.eq( valueToNotReturn ) );
+        while ( candidate.equalTo( valueToNotReturn ) );
         return candidate;
     }
 
     private NodeValueClientFilter initializeFilter( IndexQuery... filters )
     {
-        NodeValueClientFilter filter = new NodeValueClientFilter(
-                this, node, property, read, filters );
-        filter.initialize( TestIndexDescriptorFactory.forLabel( 11), this, null, IndexOrder.NONE, true );
+        NodeValueClientFilter filter = new NodeValueClientFilter( this, node, property, read, filters );
+        int[] propKeyIds = new int[filters.length];
+        for ( int i = 0; i < filters.length; i++ )
+        {
+            propKeyIds[i] = filters[i].propertyKeyId();
+        }
+        filter.initialize( TestIndexDescriptorFactory.forLabel( 11, propKeyIds ), this, null, IndexOrder.NONE, true, false );
+        return filter;
+    }
+
+    private NodeValueClientFilter initializeFilter()
+    {
+        NodeValueClientFilter filter = new NodeValueClientFilter( this, node, property, read );
+        filter.initialize( TestIndexDescriptorFactory.forLabel( 11, 0 ), this, null, IndexOrder.NONE, true, false );
         return filter;
     }
 
     private void assertEvents( Event... expected )
     {
-        assertEquals( Arrays.asList( expected ), events );
+        assertEquals( new ArrayList<>( Arrays.asList( expected ) ), events );
     }
 
     private Event.Initialize initialize( int... keys )
@@ -233,15 +250,16 @@ public class NodeValueClientFilterTest implements IndexProgressor, NodeValueClie
     }
 
     @Override
-    public void initialize( IndexDescriptor descriptor, IndexProgressor progressor, IndexQuery[] queries, IndexOrder indexOrder, boolean needsValues )
+    public void initialize( IndexDescriptor descriptor, IndexProgressor progressor, IndexQuery[] queries, IndexOrder indexOrder, boolean needsValues,
+            boolean indexIncludesTransactionState )
     {
         events.add( new Event.Initialize( progressor, descriptor.schema().getPropertyIds() ) );
     }
 
     @Override
-    public boolean acceptNode( long reference, Value[] values )
+    public boolean acceptEntity( long reference, float score, Value[] values )
     {
-        events.add( new Event.Node( reference, values ) );
+        events.add( new Event.Node( reference, score, values ) );
         return true;
     }
 
@@ -305,18 +323,21 @@ public class NodeValueClientFilterTest implements IndexProgressor, NodeValueClie
         static class Node extends Event
         {
             final long reference;
+            final float score;
             final Value[] values;
 
-            Node( long reference, Value[] values )
+            Node( long reference, float score, Value[] values )
             {
                 this.reference = reference;
+                this.score = score;
                 this.values = values;
             }
 
             @Override
             public String toString()
             {
-                return "Node(" + reference + "," + Arrays.toString( values ) + ")";
+                String scoreHex = Integer.toHexString( Float.floatToRawIntBits( score ) );
+                return "Node(" + reference + ", " + score + " (" + scoreHex + ")" + "," + Arrays.toString( values ) + ")";
             }
         }
 

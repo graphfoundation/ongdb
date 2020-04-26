@@ -22,16 +22,21 @@
  */
 package org.neo4j.kernel.impl.scheduler;
 
-import org.junit.After;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 
+import java.io.ByteArrayOutputStream;
+import java.io.PrintStream;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -39,89 +44,92 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.LockSupport;
 
 import org.neo4j.kernel.lifecycle.LifeSupport;
+import org.neo4j.resources.Profiler;
 import org.neo4j.scheduler.Group;
 import org.neo4j.scheduler.JobHandle;
+import org.neo4j.scheduler.SchedulerThreadFactory;
+import org.neo4j.time.Clocks;
 import org.neo4j.util.concurrent.BinaryLatch;
 
 import static java.lang.Thread.sleep;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static java.util.concurrent.TimeUnit.SECONDS;
+import static java.util.stream.Collectors.toList;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.both;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
+import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.hamcrest.Matchers.sameInstance;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
+import static org.mockito.Mockito.mock;
 
-public class CentralJobSchedulerTest
+class CentralJobSchedulerTest
 {
-    @Rule
-    public final ExpectedException expectedException = ExpectedException.none();
-
     private final AtomicInteger invocations = new AtomicInteger();
     private final LifeSupport life = new LifeSupport();
-    private final CentralJobScheduler scheduler = life.add( new CentralJobScheduler() );
+    private final CentralJobScheduler scheduler = life.add( new CentralJobScheduler( Clocks.nanoClock() ) );
 
     private final Runnable countInvocationsJob = invocations::incrementAndGet;
 
-    @After
-    public void stopScheduler()
+    @AfterEach
+    void stopScheduler()
     {
         life.shutdown();
     }
 
     @Test
-    public void taskSchedulerGroupMustNotBeDirectlySchedulable()
+    void taskSchedulerGroupMustNotBeDirectlySchedulable()
     {
         life.start();
-        expectedException.expect( IllegalArgumentException.class );
-        scheduler.schedule( Group.TASK_SCHEDULER, () -> fail( "This task should not have been executed." ) );
+        assertThrows( RejectedExecutionException.class,
+                () -> scheduler.schedule( Group.TASK_SCHEDULER, () -> fail( "This task should not have been executed." ) ) );
     }
 
     // Tests schedules a recurring job to run 5 times with 100ms in between.
     // The timeout of 10s should be enough.
-    @Test( timeout = 10_000 )
-    public void shouldRunRecurringJob() throws Throwable
+    @Test
+    void shouldRunRecurringJob()
     {
-        // Given
-        long period = 10;
-        int count = 5;
-        life.start();
+        assertTimeoutPreemptively( Duration.ofSeconds( 10 ), () ->
+        {
+            // Given
+            long period = 10;
+            int count = 5;
+            life.start();
 
-        // When
-        scheduler.scheduleRecurring( Group.INDEX_POPULATION, countInvocationsJob, period, MILLISECONDS );
-        awaitInvocationCount( count );
-        scheduler.shutdown();
+            // When
+            scheduler.scheduleRecurring( Group.INDEX_POPULATION, countInvocationsJob, period, MILLISECONDS );
+            awaitInvocationCount( count );
+            scheduler.shutdown();
 
-        // Then assert that the recurring job was stopped (when the scheduler was shut down)
-        int actualInvocations = invocations.get();
-        sleep( period * 5 );
-        assertThat( invocations.get(), equalTo( actualInvocations ) );
+            // Then assert that the recurring job was stopped (when the scheduler was shut down)
+            int actualInvocations = invocations.get();
+            sleep( period * 5 );
+            assertThat( invocations.get(), equalTo( actualInvocations ) );
+        } );
     }
 
     @Test
-    public void shouldCancelRecurringJob() throws Exception
+    void shouldCancelRecurringJob() throws Exception
     {
         // Given
         long period = 2;
         life.start();
-        JobHandle jobHandle =
-                scheduler.scheduleRecurring( Group.INDEX_POPULATION, countInvocationsJob, period, MILLISECONDS );
+        JobHandle jobHandle = scheduler.scheduleRecurring( Group.INDEX_POPULATION, countInvocationsJob, period, MILLISECONDS );
         awaitFirstInvocation();
 
         // When
-        jobHandle.cancel( false );
+        jobHandle.cancel();
 
-        try
-        {
-            jobHandle.waitTermination();
-            fail( "Task should be terminated" );
-        }
-        catch ( CancellationException ignored )
-        {
-            // task should be canceled
-        }
+        assertThrows( CancellationException.class, jobHandle::waitTermination );
 
         // Then
         int recorded = invocations.get();
@@ -132,7 +140,7 @@ public class CentralJobSchedulerTest
     }
 
     @Test
-    public void shouldRunWithDelay() throws Throwable
+    void shouldRunWithDelay() throws Throwable
     {
         // Given
         life.start();
@@ -154,7 +162,7 @@ public class CentralJobSchedulerTest
     }
 
     @Test
-    public void longRunningScheduledJobsMustNotDelayOtherLongRunningJobs()
+    void longRunningScheduledJobsMustNotDelayOtherLongRunningJobs()
     {
         life.start();
 
@@ -189,7 +197,7 @@ public class CentralJobSchedulerTest
                 blockLatch.release();
                 for ( JobHandle handle : handles )
                 {
-                    handle.cancel( false );
+                    handle.cancel();
                 }
                 return;
             }
@@ -200,11 +208,10 @@ public class CentralJobSchedulerTest
     }
 
     @Test
-    public void shouldNotifyCancelListeners()
+    void shouldNotifyCancelListeners()
     {
         // GIVEN
-        CentralJobScheduler centralJobScheduler = new CentralJobScheduler();
-        centralJobScheduler.init();
+        life.start();
 
         // WHEN
         AtomicBoolean halted = new AtomicBoolean();
@@ -215,89 +222,157 @@ public class CentralJobSchedulerTest
                 LockSupport.parkNanos( MILLISECONDS.toNanos( 10 ) );
             }
         };
-        JobHandle handle = centralJobScheduler.schedule( Group.INDEX_POPULATION, job );
-        handle.registerCancelListener( mayBeInterrupted -> halted.set( true ) );
-        handle.cancel( false );
+        JobHandle handle = scheduler.schedule( Group.INDEX_POPULATION, job );
+        handle.registerCancelListener( () -> halted.set( true ) );
+        handle.cancel();
 
         // THEN
         assertTrue( halted.get() );
-        centralJobScheduler.shutdown();
     }
 
-    @Test( timeout = 10_000 )
-    public void waitTerminationOnDelayedJobMustWaitUntilJobCompletion() throws Exception
+    @Test
+    void waitTerminationOnDelayedJobMustWaitUntilJobCompletion()
     {
-        CentralJobScheduler scheduler = new CentralJobScheduler();
-        scheduler.init();
-
-        AtomicBoolean triggered = new AtomicBoolean();
-        Runnable job = () ->
+        assertTimeoutPreemptively( Duration.ofSeconds( 10 ), () ->
         {
-            LockSupport.parkNanos( TimeUnit.MILLISECONDS.toNanos( 10 ) );
-            triggered.set( true );
-        };
+            life.start();
 
-        JobHandle handle = scheduler.schedule( Group.INDEX_POPULATION, job, 10, TimeUnit.MILLISECONDS );
+            AtomicBoolean triggered = new AtomicBoolean();
+            Runnable job = () ->
+            {
+                LockSupport.parkNanos( TimeUnit.MILLISECONDS.toNanos( 10 ) );
+                triggered.set( true );
+            };
 
-        handle.waitTermination();
-        assertTrue( triggered.get() );
+            JobHandle handle = scheduler.schedule( Group.INDEX_POPULATION, job, 10, TimeUnit.MILLISECONDS );
+
+            handle.waitTermination();
+            assertTrue( triggered.get() );
+        } );
     }
 
-    @Test( timeout = 10_000 )
-    public void scheduledTasksThatThrowsMustPropagateException() throws Exception
+    @Test
+    @Timeout( 60 )
+    void scheduledTasksThatThrowsPropagateLastException() throws InterruptedException
     {
-        CentralJobScheduler scheduler = new CentralJobScheduler();
-        scheduler.init();
+        life.start();
 
         RuntimeException boom = new RuntimeException( "boom" );
-        AtomicInteger triggerCounter = new AtomicInteger();
+        CountDownLatch latch = new CountDownLatch( 1 );
+        AtomicBoolean throwException = new AtomicBoolean();
+        AtomicBoolean canceled = new AtomicBoolean();
         Runnable job = () ->
         {
-            triggerCounter.incrementAndGet();
-            throw boom;
+            try
+            {
+                if ( throwException.get() )
+                {
+                    latch.countDown();
+                    throw boom;
+                }
+            }
+            finally
+            {
+                throwException.set( true );
+            }
         };
 
         JobHandle handle = scheduler.scheduleRecurring( Group.INDEX_POPULATION, job, 1, TimeUnit.MILLISECONDS );
-        try
-        {
-            handle.waitTermination();
-            fail( "waitTermination should have failed." );
-        }
-        catch ( ExecutionException e )
+        handle.registerCancelListener( () -> canceled.set( true ) );
+
+        latch.await();
+
+        handle.cancel();
+
+        assertTrue( canceled.get() );
+        var e = assertThrows( Exception.class, handle::waitTermination );
+        if ( e instanceof ExecutionException )
         {
             assertThat( e.getCause(), is( boom ) );
         }
+        else
+        {
+            assertThat( e, instanceOf( CancellationException.class ) );
+        }
     }
 
-    @Test( timeout = 10_000 )
-    public void scheduledTasksThatThrowsShouldStop() throws Exception
+    @Test
+    @Timeout( 60 )
+    void scheduledTasksThatThrowsPropagateDoNotPropagateExceptionAfterSubsequentExecution() throws InterruptedException
     {
-        CentralJobScheduler scheduler = new CentralJobScheduler();
-        scheduler.init();
+        life.start();
+
+        RuntimeException boom = new RuntimeException( "boom" );
+        AtomicBoolean throwException = new AtomicBoolean();
+        CountDownLatch startCounter = new CountDownLatch( 10 );
+        AtomicBoolean canceled = new AtomicBoolean();
+        Runnable job = () ->
+        {
+            try
+            {
+                if ( throwException.compareAndSet( false, true ) )
+                {
+                    throw boom;
+                }
+            }
+            finally
+            {
+                startCounter.countDown();
+            }
+        };
+
+        JobHandle handle = scheduler.scheduleRecurring( Group.INDEX_POPULATION, job, 1, TimeUnit.MILLISECONDS );
+        handle.registerCancelListener( () -> canceled.set( true ) );
+
+        startCounter.await();
+
+        handle.cancel();
+
+        assertTrue( canceled.get() );
+
+        assertThrows( CancellationException.class, handle::waitTermination );
+    }
+
+    @Test
+    @Timeout( value = 60 )
+    void scheduledTasksThatThrowsShouldStop()
+    {
+        life.start();
 
         BinaryLatch triggerLatch = new BinaryLatch();
+        AtomicBoolean canceled = new AtomicBoolean();
         RuntimeException boom = new RuntimeException( "boom" );
         AtomicInteger triggerCounter = new AtomicInteger();
         Runnable job = () ->
         {
-            triggerCounter.incrementAndGet();
-            triggerLatch.release();
-            throw boom;
+            try
+            {
+                triggerCounter.incrementAndGet();
+                throw boom;
+            }
+            finally
+            {
+                triggerLatch.release();
+            }
         };
 
-        scheduler.scheduleRecurring( Group.INDEX_POPULATION, job, 1, TimeUnit.MILLISECONDS );
+        final JobHandle jobHandle = scheduler.scheduleRecurring( Group.INDEX_POPULATION, job, 1, MILLISECONDS );
+        jobHandle.registerCancelListener( () -> canceled.set( true ) );
 
         triggerLatch.await();
-        Thread.sleep( 50 );
 
-        assertThat( triggerCounter.get(), is( 1 ) );
+        assertThat( triggerCounter.get(), greaterThanOrEqualTo( 1 ) );
+        assertFalse( canceled.get() );
+
+        jobHandle.cancel();
+        assertTrue( canceled.get() );
     }
 
-    @Test( timeout = 10_000 )
-    public void shutDownMustKillCancelledJobs()
+    @Test
+    @Timeout( value = 60 )
+    void shutDownMustKillCancelledJobs()
     {
-        CentralJobScheduler scheduler = new CentralJobScheduler();
-        scheduler.init();
+        life.start();
 
         BinaryLatch startLatch = new BinaryLatch();
         BinaryLatch stopLatch = new BinaryLatch();
@@ -317,6 +392,111 @@ public class CentralJobSchedulerTest
         startLatch.await();
         scheduler.shutdown();
         stopLatch.await();
+    }
+
+    @Test
+    void schedulerExecutorMustBeOfTypeDefinedByGroup()
+    {
+        life.start();
+        Executor executor = scheduler.executor( Group.CYPHER_WORKER );
+        // The CYPHER_WORKER group configures a ForkJoin pool, so that's what we should get.
+        assertThat( executor, instanceOf( ForkJoinPool.class ) );
+    }
+
+    @Test
+    void mustRespectDesiredParallelismSetPriorToPoolCreation() throws Exception
+    {
+        life.start();
+        AtomicInteger counter = new AtomicInteger();
+        AtomicInteger max = new AtomicInteger();
+
+        scheduler.setParallelism( Group.CYPHER_WORKER, 3 );
+
+        Runnable runnable = () ->
+        {
+            counter.getAndIncrement();
+            LockSupport.parkNanos( MILLISECONDS.toNanos( 50 ) );
+            int currentMax;
+            int currentVal;
+            do
+            {
+                currentVal = counter.get();
+                currentMax = max.get();
+            }
+            while ( !max.compareAndSet( currentMax, Math.max( currentMax, currentVal ) ) );
+            LockSupport.parkNanos( MILLISECONDS.toNanos( 50 ) );
+            counter.getAndDecrement();
+        };
+
+        List<JobHandle> handles = new ArrayList<>();
+        for ( int i = 0; i < 10; i++ )
+        {
+            handles.add( scheduler.schedule( Group.CYPHER_WORKER, runnable ) );
+        }
+        for ( JobHandle handle : handles )
+        {
+            handle.waitTermination();
+        }
+
+        assertThat( max.get(), is( 3 ) );
+    }
+
+    @Test
+    void shouldUseProvidedThreadFactory()
+    {
+        life.start();
+
+        SchedulerThreadFactory schedulerThreadFactory = mock( SchedulerThreadFactory.class );
+
+        scheduler.setThreadFactory( Group.BOLT_WORKER, ( group, parentThreadGroup ) -> schedulerThreadFactory );
+        assertThat( scheduler.threadFactory( Group.BOLT_WORKER ), sameInstance( schedulerThreadFactory ) );
+    }
+
+    @Test
+    void shouldThrowIfModifyingParametersAfterStart()
+    {
+        life.start();
+
+        scheduler.threadFactory( Group.BOLT_WORKER );
+        assertThrows( IllegalStateException.class, () -> scheduler.setParallelism( Group.BOLT_WORKER, 2 ) );
+        assertThrows( IllegalStateException.class, () -> scheduler.setThreadFactory( Group.BOLT_WORKER, ( a, b ) -> mock( SchedulerThreadFactory.class ) ) );
+    }
+
+    @Test
+    void shouldListActiveGroups()
+    {
+        life.start();
+        assertEquals( List.of(), scheduler.activeGroups().map( ag -> ag.group ).collect( toList() ) );
+
+        BinaryLatch firstLatch = new BinaryLatch();
+        scheduler.schedule( Group.CHECKPOINT, firstLatch::release );
+        firstLatch.await();
+        assertEquals( List.of( Group.CHECKPOINT ), scheduler.activeGroups().map( ag -> ag.group ).collect( toList() ) );
+    }
+
+    @Timeout( value = 20, unit = SECONDS )
+    @Test
+    void shouldProfileGroup() throws InterruptedException
+    {
+        life.start();
+        BinaryLatch checkpointLatch = new BinaryLatch();
+        scheduler.schedule( Group.CHECKPOINT, checkpointLatch::await );
+        Profiler profiler = Profiler.profiler();
+        scheduler.profileGroup( Group.CHECKPOINT, profiler );
+
+        String printedProfile;
+        do
+        {
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            PrintStream out = new PrintStream( baos );
+            profiler.printProfile( out, "Test Title" );
+            out.flush();
+            printedProfile = baos.toString();
+        }
+        while ( !printedProfile.contains( "BinaryLatch.await" ) );
+
+        checkpointLatch.release();
+        profiler.finish();
     }
 
     private void awaitFirstInvocation() throws InterruptedException

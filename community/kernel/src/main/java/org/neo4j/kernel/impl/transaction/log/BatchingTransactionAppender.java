@@ -43,12 +43,12 @@ import org.neo4j.kernel.impl.transaction.tracing.LogForceEvent;
 import org.neo4j.kernel.impl.transaction.tracing.LogForceEvents;
 import org.neo4j.kernel.impl.transaction.tracing.LogForceWaitEvent;
 import org.neo4j.kernel.impl.transaction.tracing.SerializeTransactionEvent;
-import org.neo4j.kernel.impl.util.IdOrderingQueue;
-import org.neo4j.kernel.internal.DatabaseHealth;
 import org.neo4j.kernel.lifecycle.LifecycleAdapter;
+import org.neo4j.monitoring.Health;
+import org.neo4j.storageengine.api.TransactionIdStore;
+import org.neo4j.util.VisibleForTesting;
 
 import static org.neo4j.kernel.impl.api.TransactionToApply.TRANSACTION_ID_NOT_SPECIFIED;
-import static org.neo4j.kernel.impl.transaction.log.entry.LogEntryStart.checksum;
 
 /**
  * Concurrently appends transactions to the transaction log, while coordinating with the log rotation and forcing the
@@ -56,42 +56,46 @@ import static org.neo4j.kernel.impl.transaction.log.entry.LogEntryStart.checksum
  */
 public class BatchingTransactionAppender extends LifecycleAdapter implements TransactionAppender
 {
-    // For the graph store and schema indexes order-of-updates are managed by the high level entity locks
-    // such that changes are applied to the affected records in the same order that they are written to the
-    // log. For the explicit indexes there are no such locks, and hence no such ordering. This queue below
-    // is introduced to manage just that and is only used for transactions that contain any explicit index changes.
-    private final IdOrderingQueue explicitIndexTransactionOrdering;
-
     private final AtomicReference<ThreadLink> threadLinkHead = new AtomicReference<>( ThreadLink.END );
     private final TransactionMetadataCache transactionMetadataCache;
     private final LogFile logFile;
     private final LogRotation logRotation;
     private final TransactionIdStore transactionIdStore;
     private final LogPositionMarker positionMarker = new LogPositionMarker();
-    private final DatabaseHealth databaseHealth;
+    private final Health databaseHealth;
     private final Lock forceLock = new ReentrantLock();
 
-    private FlushablePositionAwareChannel writer;
+    private FlushablePositionAwareChecksumChannel writer;
     private TransactionLogWriter transactionLogWriter;
-    private IndexCommandDetector indexCommandDetector;
+    private int previousChecksum;
 
-    public BatchingTransactionAppender( LogFiles logFiles, LogRotation logRotation,
-            TransactionMetadataCache transactionMetadataCache, TransactionIdStore transactionIdStore,
-            IdOrderingQueue explicitIndexTransactionOrdering, DatabaseHealth databaseHealth )
+    public BatchingTransactionAppender( LogFiles logFiles, LogRotation logRotation, TransactionMetadataCache transactionMetadataCache,
+            TransactionIdStore transactionIdStore, Health databaseHealth )
     {
         this.logFile = logFiles.getLogFile();
         this.logRotation = logRotation;
         this.transactionIdStore = transactionIdStore;
-        this.explicitIndexTransactionOrdering = explicitIndexTransactionOrdering;
         this.databaseHealth = databaseHealth;
         this.transactionMetadataCache = transactionMetadataCache;
+        this.previousChecksum = transactionIdStore.getLastCommittedTransaction().checksum();
+    }
+
+    @VisibleForTesting
+    public BatchingTransactionAppender( LogFiles logFiles, LogRotation logRotation, TransactionMetadataCache transactionMetadataCache,
+            TransactionIdStore transactionIdStore, Health databaseHealth, int previousChecksum )
+    {
+        this.logFile = logFiles.getLogFile();
+        this.logRotation = logRotation;
+        this.transactionIdStore = transactionIdStore;
+        this.databaseHealth = databaseHealth;
+        this.transactionMetadataCache = transactionMetadataCache;
+        this.previousChecksum = previousChecksum;
     }
 
     @Override
     public void start()
     {
         this.writer = logFile.getWriter();
-        this.indexCommandDetector = new IndexCommandDetector();
         this.transactionLogWriter = new TransactionLogWriter( new LogEntryWriter( writer ) );
     }
 
@@ -119,7 +123,8 @@ public class BatchingTransactionAppender extends LifecycleAdapter implements Tra
                     // really recover from and would point to a bug somewhere.
                     matchAgainstExpectedTransactionIdIfAny( transactionId, tx );
 
-                    TransactionCommitment commitment = appendToLog( tx.transactionRepresentation(), transactionId );
+                    TransactionCommitment commitment = appendToLog( tx.transactionRepresentation(), transactionId, logAppendEvent, previousChecksum );
+                    previousChecksum = commitment.getTransactionChecksum();
                     tx.commitment( commitment, transactionId );
                     tx.logPosition( commitment.logPosition() );
                     tx = tx.next();
@@ -180,7 +185,10 @@ public class BatchingTransactionAppender extends LifecycleAdapter implements Tra
         {
             try
             {
+                LogPosition logPositionBeforeCheckpoint = writer.getCurrentPosition( positionMarker ).newPosition();
                 transactionLogWriter.checkPoint( logPosition );
+                LogPosition logPositionAfterCheckpoint = writer.getCurrentPosition( positionMarker ).newPosition();
+                logCheckPointEvent.appendToLogFile( logPositionBeforeCheckpoint, logPositionAfterCheckpoint );
             }
             catch ( Throwable cause )
             {
@@ -195,13 +203,9 @@ public class BatchingTransactionAppender extends LifecycleAdapter implements Tra
      * @return A TransactionCommitment instance with metadata about the committed transaction, such as whether or not
      * this transaction contains any explicit index changes.
      */
-    private TransactionCommitment appendToLog( TransactionRepresentation transaction, long transactionId )
+    private TransactionCommitment appendToLog( TransactionRepresentation transaction, long transactionId, LogAppendEvent logAppendEvent, int previousChecksum )
             throws IOException
     {
-        // Reset command writer so that we, after we've written the transaction, can ask it whether or
-        // not any explicit index command was written. If so then there's additional ordering to care about below.
-        indexCommandDetector.reset();
-
         // The outcome of this try block is either of:
         // a) transaction successfully appended, at which point we return a Commitment to be used after force
         // b) transaction failed to be appended, at which point a kernel panic is issued
@@ -211,24 +215,13 @@ public class BatchingTransactionAppender extends LifecycleAdapter implements Tra
         try
         {
             LogPosition logPositionBeforeCommit = writer.getCurrentPosition( positionMarker ).newPosition();
-            transactionLogWriter.append( transaction, transactionId );
+            int checksum = transactionLogWriter.append( transaction, transactionId, previousChecksum );
             LogPosition logPositionAfterCommit = writer.getCurrentPosition( positionMarker ).newPosition();
+            logAppendEvent.appendToLogFile( logPositionBeforeCommit, logPositionAfterCommit );
 
-            long transactionChecksum =
-                    checksum( transaction.additionalHeader(), transaction.getMasterId(), transaction.getAuthorId() );
-            transactionMetadataCache
-                    .cacheTransactionMetadata( transactionId, logPositionBeforeCommit, transaction.getMasterId(),
-                            transaction.getAuthorId(), transactionChecksum, transaction.getTimeCommitted() );
+            transactionMetadataCache.cacheTransactionMetadata( transactionId, logPositionBeforeCommit, checksum, transaction.getTimeCommitted() );
 
-            transaction.accept( indexCommandDetector );
-            boolean hasExplicitIndexChanges = indexCommandDetector.hasWrittenAnyExplicitIndexCommand();
-            if ( hasExplicitIndexChanges )
-            {
-                // Offer this transaction id to the queue so that the explicit index applier can take part in the ordering
-                explicitIndexTransactionOrdering.offer( transactionId );
-            }
-            return new TransactionCommitment( hasExplicitIndexChanges, transactionId, transactionChecksum,
-                    transaction.getTimeCommitted(), logPositionAfterCommit, transactionIdStore );
+            return new TransactionCommitment( transactionId, checksum, transaction.getTimeCommitted(), logPositionAfterCommit, transactionIdStore );
         }
         catch ( final Throwable panic )
         {

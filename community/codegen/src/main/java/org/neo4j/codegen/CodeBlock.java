@@ -38,14 +38,14 @@ public class CodeBlock implements AutoCloseable
     private boolean done;
     private boolean continuableBlock;
 
-    protected LocalVariables localVariables = new LocalVariables();
+    private LocalVariables localVariables = new LocalVariables();
 
-    CodeBlock( CodeBlock parent )
+    private CodeBlock( CodeBlock parent )
     {
         this( parent, parent.continuableBlock );
     }
 
-    CodeBlock( CodeBlock parent, boolean continuableBlock )
+    private CodeBlock( CodeBlock parent, boolean continuableBlock )
     {
         this.clazz = parent.clazz;
         this.emitter = parent.emitter;
@@ -62,7 +62,10 @@ public class CodeBlock implements AutoCloseable
         this.emitter = emitter;
         this.parent = null;
         this.continuableBlock = false;
-        localVariables.createNew( clazz.handle(), "this" );
+        if ( !emitter.isStatic() )
+        {
+            localVariables.createNew( clazz.handle(), "this" );
+        }
         for ( Parameter parameter : parameters )
         {
             localVariables.createNew( parameter.type(), parameter.name() );
@@ -94,7 +97,7 @@ public class CodeBlock implements AutoCloseable
         this.emitter = InvalidState.BLOCK_CLOSED;
     }
 
-    protected void endBlock()
+    private void endBlock()
     {
         if ( !done )
         {
@@ -141,6 +144,11 @@ public class CodeBlock implements AutoCloseable
         emitter.put( target, field, value );
     }
 
+    public void putStatic( FieldReference field, Expression value )
+    {
+        emitter.putStatic( field, value );
+    }
+
     public Expression self()
     {
         return load( "this" );
@@ -172,7 +180,13 @@ public class CodeBlock implements AutoCloseable
 
     public CodeBlock whileLoop( Expression test )
     {
-        emitter.beginWhile( test );
+        emitter.beginWhile( test, null );
+        return new CodeBlock( this, true );
+    }
+
+    public CodeBlock whileLoop( Expression test, String labelName )
+    {
+        emitter.beginWhile( test, labelName );
         return new CodeBlock( this, true );
     }
 
@@ -180,6 +194,11 @@ public class CodeBlock implements AutoCloseable
     {
         emitter.beginIf( test );
         return new CodeBlock( this );
+    }
+
+    public void ifElseStatement( Expression test, Consumer<CodeBlock> onTrue, Consumer<CodeBlock> onFalse )
+    {
+        emitter.ifElseStatement( test, onTrue, onFalse, this );
     }
 
     public CodeBlock block()
@@ -209,6 +228,11 @@ public class CodeBlock implements AutoCloseable
         {
             emitter.continues();
         }
+    }
+
+    public void breaks( String labelName )
+    {
+        emitter.breaks( labelName );
     }
 
     public void throwException( Expression exception )

@@ -1,4 +1,4 @@
-# Copyright (c) 2002-2018 "Neo4j"
+# Copyright (c) 2002-2020 "Neo4j"
 # Neo4j Sweden AB [http://neo4j.com]
 #
 # This file is part of ONgDB.
@@ -42,10 +42,10 @@ Gets the status of the Neo4j Windows Service and outputs verbose information to 
 .OUTPUTS
 System.Int32
 0 = Success
-non-zero = an error occured
+non-zero = an error occurred
 
 .NOTES
-Only supported on version 3.x ONgDB Community and Enterprise Edition databases
+Only supported on version 4.x ONgDB Community and Enterprise Edition databases
 
 #>
 function Invoke-Neo4j

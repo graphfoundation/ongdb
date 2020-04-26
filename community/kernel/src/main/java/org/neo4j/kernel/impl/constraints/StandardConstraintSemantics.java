@@ -22,6 +22,7 @@
  */
 package org.neo4j.kernel.impl.constraints;
 
+import org.neo4j.annotations.service.ServiceProvider;
 import org.neo4j.internal.kernel.api.CursorFactory;
 import org.neo4j.internal.kernel.api.NodeCursor;
 import org.neo4j.internal.kernel.api.NodeLabelIndexCursor;
@@ -29,31 +30,40 @@ import org.neo4j.internal.kernel.api.PropertyCursor;
 import org.neo4j.internal.kernel.api.Read;
 import org.neo4j.internal.kernel.api.RelationshipScanCursor;
 import org.neo4j.internal.kernel.api.exceptions.schema.CreateConstraintFailureException;
-import org.neo4j.internal.kernel.api.schema.LabelSchemaDescriptor;
-import org.neo4j.internal.kernel.api.schema.RelationTypeSchemaDescriptor;
-import org.neo4j.internal.kernel.api.schema.SchemaDescriptor;
-import org.neo4j.internal.kernel.api.schema.constraints.ConstraintDescriptor;
-import org.neo4j.kernel.api.schema.constraints.ConstraintDescriptorFactory;
-import org.neo4j.kernel.api.schema.constraints.NodeKeyConstraintDescriptor;
-import org.neo4j.kernel.api.schema.constraints.UniquenessConstraintDescriptor;
-import org.neo4j.kernel.impl.store.record.ConstraintRule;
+import org.neo4j.internal.schema.ConstraintDescriptor;
+import org.neo4j.internal.schema.LabelSchemaDescriptor;
+import org.neo4j.internal.schema.RelationTypeSchemaDescriptor;
+import org.neo4j.internal.schema.SchemaDescriptor;
+import org.neo4j.internal.schema.constraints.ConstraintDescriptorFactory;
+import org.neo4j.internal.schema.constraints.NodeKeyConstraintDescriptor;
+import org.neo4j.internal.schema.constraints.UniquenessConstraintDescriptor;
+import org.neo4j.storageengine.api.StandardConstraintRuleAccessor;
 import org.neo4j.storageengine.api.StorageReader;
 import org.neo4j.storageengine.api.txstate.ReadableTransactionState;
 import org.neo4j.storageengine.api.txstate.TxStateVisitor;
 
+@ServiceProvider
 public class StandardConstraintSemantics extends ConstraintSemantics
 {
-    public static final String ERROR_MESSAGE_EXISTS = "Property existence constraint requires ONgDB Enterprise Edition";
-    public static final String ERROR_MESSAGE_NODE_KEY = "Node Key constraint requires ONgDB Enterprise Edition";
+    public static final String ERROR_MESSAGE_EXISTS = "Property existence constraint requires Neo4j Enterprise Edition";
+    public static final String ERROR_MESSAGE_NODE_KEY = "Node Key constraint requires Neo4j Enterprise Edition";
+
+    protected final StandardConstraintRuleAccessor accessor = new StandardConstraintRuleAccessor();
 
     public StandardConstraintSemantics()
     {
-        this( "standardConstraints", 1 );
+        this( 1 );
     }
 
-    protected StandardConstraintSemantics( String key, int priority )
+    protected StandardConstraintSemantics( int priority )
     {
-        super( key, priority );
+        super( priority );
+    }
+
+    @Override
+    public String getName()
+    {
+        return "standardConstraints";
     }
 
     @Override
@@ -78,21 +88,20 @@ public class StandardConstraintSemantics extends ConstraintSemantics
     }
 
     @Override
-    public ConstraintDescriptor readConstraint( ConstraintRule rule )
+    public ConstraintDescriptor readConstraint( ConstraintDescriptor constraint )
     {
-        ConstraintDescriptor desc = rule.getConstraintDescriptor();
-        switch ( desc.type() )
+        switch ( constraint.type() )
         {
         case EXISTS:
-            return readNonStandardConstraint( rule, ERROR_MESSAGE_EXISTS );
+            return readNonStandardConstraint( constraint, ERROR_MESSAGE_EXISTS );
         case UNIQUE_EXISTS:
-            return readNonStandardConstraint( rule, ERROR_MESSAGE_NODE_KEY );
+            return readNonStandardConstraint( constraint, ERROR_MESSAGE_NODE_KEY );
         default:
-            return desc;
+            return constraint;
         }
     }
 
-    protected ConstraintDescriptor readNonStandardConstraint( ConstraintRule rule, String errorMessage )
+    protected ConstraintDescriptor readNonStandardConstraint( ConstraintDescriptor constraint, String errorMessage )
     {
         // When opening a store in Community Edition that contains a Property Existence Constraint
         throw new IllegalStateException( errorMessage );
@@ -113,21 +122,21 @@ public class StandardConstraintSemantics extends ConstraintSemantics
     }
 
     @Override
-    public ConstraintRule createUniquenessConstraintRule(
+    public ConstraintDescriptor createUniquenessConstraintRule(
             long ruleId, UniquenessConstraintDescriptor descriptor, long indexId )
     {
-        return ConstraintRule.constraintRule( ruleId, descriptor, indexId );
+        return accessor.createUniquenessConstraintRule( ruleId, descriptor, indexId );
     }
 
     @Override
-    public ConstraintRule createNodeKeyConstraintRule(
+    public ConstraintDescriptor createNodeKeyConstraintRule(
             long ruleId, NodeKeyConstraintDescriptor descriptor, long indexId ) throws CreateConstraintFailureException
     {
         throw nodeKeyConstraintsNotAllowed( descriptor.schema() );
     }
 
     @Override
-    public ConstraintRule createExistenceConstraint( long ruleId, ConstraintDescriptor descriptor )
+    public ConstraintDescriptor createExistenceConstraint( long ruleId, ConstraintDescriptor descriptor )
             throws CreateConstraintFailureException
     {
         throw propertyExistenceConstraintsNotAllowed( descriptor.schema() );

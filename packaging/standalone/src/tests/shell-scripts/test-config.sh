@@ -78,12 +78,6 @@ test_expect_success "https: should read port and address from config and priorit
   test_expect_stdout_matching 'It is available at https://a.b.c.d:333/' run_daemon
 "
 
-test_expect_success "should write a specific message in HA mode" "
-  clear_config &&
-  set_config 'dbms.mode' 'HA' neo4j.conf &&
-  test_expect_stdout_matching 'This HA instance will be operational once it has joined the cluster' run_daemon
-"
-
 test_expect_success "should respect log directory configuration" "
   clear_config &&
   mkdir -p '$(neo4j_home)/other-log-dir' &&
@@ -118,12 +112,6 @@ test_expect_success "should write paths in use" "
   test_expect_stdout_matching '  certificates: /certs/bob' run_daemon &&
   test_expect_stdout_matching '  logs:         $(neo4j_home)/loogs' run_daemon &&
   test_expect_stdout_matching '  run:          $(neo4j_home)/ruun' run_daemon
-"
-
-test_expect_success "should write active database" "
-  clear_config &&
-  set_config 'dbms.active_database' 'bigdata' neo4j.conf &&
-  test_expect_stdout_matching 'Active database: bigdata' run_daemon
 "
 
 test_done

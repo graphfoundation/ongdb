@@ -33,28 +33,32 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.neo4j.configuration.GraphDatabaseSettings;
+import org.neo4j.dbms.api.DatabaseManagementServiceBuilder;
 import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.Transaction;
-import org.neo4j.graphdb.factory.GraphDatabaseBuilder;
-import org.neo4j.graphdb.factory.GraphDatabaseFactory;
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
+import org.neo4j.io.ByteUnit;
 import org.neo4j.kernel.impl.transaction.log.rotation.LogRotation;
+import org.neo4j.kernel.impl.transaction.log.rotation.monitor.LogRotationMonitor;
+import org.neo4j.kernel.impl.transaction.log.rotation.monitor.LogRotationMonitorAdapter;
+import org.neo4j.kernel.impl.transaction.tracing.LogAppendEvent;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
-import org.neo4j.kernel.monitoring.Monitors;
+import org.neo4j.monitoring.Monitors;
 import org.neo4j.test.OtherThreadExecutor.WorkerCommand;
-import org.neo4j.test.rule.DatabaseRule;
-import org.neo4j.test.rule.EmbeddedDatabaseRule;
-import org.neo4j.test.rule.concurrent.OtherThreadRule;
+import org.neo4j.test.rule.DbmsRule;
+import org.neo4j.test.rule.EmbeddedDbmsRule;
+import org.neo4j.test.rule.OtherThreadRule;
 
 public class TestStartTransactionDuringLogRotation
 {
     @Rule
-    public DatabaseRule db = new EmbeddedDatabaseRule()
+    public DbmsRule db = new EmbeddedDbmsRule()
     {
         @Override
-        protected GraphDatabaseBuilder newBuilder( GraphDatabaseFactory factory )
+        protected void configure( DatabaseManagementServiceBuilder databaseFactory )
         {
-            return super.newBuilder( factory ).setConfig( GraphDatabaseSettings.logical_log_rotation_threshold, "1M" );
+            super.configure( databaseFactory );
+            databaseFactory.setConfig( GraphDatabaseSettings.logical_log_rotation_threshold, ByteUnit.mebiBytes( 1 ) );
         }
     };
     @Rule
@@ -65,7 +69,7 @@ public class TestStartTransactionDuringLogRotation
     private CountDownLatch completeLogRotationLatch;
     private AtomicBoolean writerStopped;
     private Monitors monitors;
-    private LogRotation.Monitor rotationListener;
+    private LogRotationMonitor rotationListener;
     private Label label;
     private Future<Void> rotationFuture;
 
@@ -78,10 +82,10 @@ public class TestStartTransactionDuringLogRotation
         writerStopped = new AtomicBoolean();
         monitors = db.getDependencyResolver().resolveDependency( Monitors.class );
 
-        rotationListener = new LogRotation.Monitor()
+        rotationListener = new LogRotationMonitorAdapter()
         {
             @Override
-            public void startedRotating( long currentVersion )
+            public void startRotation( long currentLogVersion )
             {
                 startLogRotationLatch.countDown();
                 try
@@ -92,11 +96,6 @@ public class TestStartTransactionDuringLogRotation
                 {
                     throw new RuntimeException( e );
                 }
-            }
-
-            @Override
-            public void finishedRotating( long currentVersion )
-            {
             }
         };
 
@@ -119,11 +118,11 @@ public class TestStartTransactionDuringLogRotation
         {
             try ( Transaction tx = db.beginTx() )
             {
-                db.createNode( label ).setProperty( "a", 1 );
-                tx.success();
+                tx.createNode( label ).setProperty( "a", 1 );
+                tx.commit();
             }
 
-            db.getDependencyResolver().resolveDependency( LogRotation.class ).rotateLogFile();
+            db.getDependencyResolver().resolveDependency( LogRotation.class ).rotateLogFile( LogAppendEvent.NULL );
             return null;
         };
     }
@@ -141,9 +140,9 @@ public class TestStartTransactionDuringLogRotation
     {
         try ( Transaction tx = db.beginTx() )
         {
-            db.getNodeById( 0 );
-            tx.success();
+            tx.getNodeById( 0 );
             completeLogRotationLatch.countDown();
+            tx.commit();
         }
     }
 
@@ -152,9 +151,9 @@ public class TestStartTransactionDuringLogRotation
     {
         try ( Transaction tx = db.beginTx() )
         {
-            db.createNode();
-            tx.success();
+            tx.createNode();
             completeLogRotationLatch.countDown();
+            tx.commit();
         }
     }
 }

@@ -22,16 +22,18 @@
  */
 package org.neo4j.kernel.impl.query;
 
+import java.util.List;
+
 import org.neo4j.graphdb.Result;
 import org.neo4j.values.virtual.MapValue;
 
 public interface QueryExecutionEngine
 {
-    Result executeQuery( String query, MapValue parameters, TransactionalContext context )
+    Result executeQuery( String query, MapValue parameters, TransactionalContext context, boolean prePopulate )
             throws QueryExecutionKernelException;
 
-    Result profileQuery( String query, MapValue parameters, TransactionalContext context )
-            throws QueryExecutionKernelException;
+    QueryExecution executeQuery( String query, MapValue parameters, TransactionalContext context, boolean prePopulate,
+            QuerySubscriber subscriber ) throws QueryExecutionKernelException;
 
     /**
      * @return {@code true} if the query is a PERIODIC COMMIT query and not an EXPLAIN query
@@ -39,5 +41,7 @@ public interface QueryExecutionEngine
     boolean isPeriodicCommit( String query );
 
     long clearQueryCaches();
+
+    List<FunctionInformation> getProvidedLanguageFunctions();
 }
 

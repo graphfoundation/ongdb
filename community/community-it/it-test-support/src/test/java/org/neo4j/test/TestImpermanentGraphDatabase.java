@@ -22,72 +22,76 @@
  */
 package org.neo4j.test;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
+import org.neo4j.dbms.api.DatabaseManagementService;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Relationship;
 import org.neo4j.graphdb.RelationshipType;
 import org.neo4j.graphdb.Transaction;
-import org.neo4j.helpers.collection.Iterables;
+import org.neo4j.internal.helpers.collection.Iterables;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
 
-public class TestImpermanentGraphDatabase
+class TestImpermanentGraphDatabase
 {
     private GraphDatabaseService db;
+    private DatabaseManagementService managementService;
 
-    @Before
-    public void createDb()
+    @BeforeEach
+    void createDb()
     {
-        db = new TestGraphDatabaseFactory().newImpermanentDatabase();
+        managementService = new TestDatabaseManagementServiceBuilder().impermanent().build();
+        db = managementService.database( DEFAULT_DATABASE_NAME );
     }
 
-    @After
-    public void tearDown()
+    @AfterEach
+    void tearDown()
     {
-        db.shutdown();
-    }
-
-    @Test
-    public void should_keep_data_between_start_and_shutdown()
-    {
-        createNode();
-
-        assertEquals( "Expected one new node", 1, nodeCount() );
+        managementService.shutdown();
     }
 
     @Test
-    public void data_should_not_survive_shutdown()
+    void shouldKeepDataBetweenStartAndShutdown()
     {
         createNode();
-        db.shutdown();
+
+        assertEquals( 1, nodeCount(), "Expected one new node" );
+    }
+
+    @Test
+    void dataShouldNotSurviveShutdown()
+    {
+        createNode();
+        managementService.shutdown();
 
         createDb();
 
-        assertEquals( "Should not see anything.", 0, nodeCount() );
+        assertEquals( 0, nodeCount(), "Should not see anything." );
     }
 
     @Test
-    public void should_remove_all_data()
+    void shouldRemoveAllData()
     {
         try ( Transaction tx = db.beginTx() )
         {
             RelationshipType relationshipType = RelationshipType.withName( "R" );
 
-            Node n1 = db.createNode();
-            Node n2 = db.createNode();
-            Node n3 = db.createNode();
+            Node n1 = tx.createNode();
+            Node n2 = tx.createNode();
+            Node n3 = tx.createNode();
 
             n1.createRelationshipTo(n2, relationshipType);
             n2.createRelationshipTo(n1, relationshipType);
             n3.createRelationshipTo(n1, relationshipType);
 
-            tx.success();
+            tx.commit();
         }
 
         cleanDatabaseContent( db );
@@ -95,30 +99,30 @@ public class TestImpermanentGraphDatabase
         assertThat( nodeCount(), is( 0L ) );
     }
 
-    private void cleanDatabaseContent( GraphDatabaseService db )
+    private static void cleanDatabaseContent( GraphDatabaseService db )
     {
         try ( Transaction tx = db.beginTx() )
         {
-            db.getAllRelationships().forEach( Relationship::delete );
-            db.getAllNodes().forEach( Node::delete );
-            tx.success();
+            tx.getAllRelationships().forEach( Relationship::delete );
+            tx.getAllNodes().forEach( Node::delete );
+            tx.commit();
         }
     }
 
     private long nodeCount()
     {
-        Transaction transaction = db.beginTx();
-        long count = Iterables.count( db.getAllNodes() );
-        transaction.close();
-        return count;
+        try ( Transaction transaction = db.beginTx() )
+        {
+            return Iterables.count( transaction.getAllNodes() );
+        }
     }
 
     private void createNode()
     {
         try ( Transaction tx = db.beginTx() )
         {
-            db.createNode();
-            tx.success();
+            tx.createNode();
+            tx.commit();
         }
     }
 }

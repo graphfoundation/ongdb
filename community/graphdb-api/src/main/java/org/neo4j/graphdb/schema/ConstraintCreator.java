@@ -22,6 +22,9 @@
  */
 package org.neo4j.graphdb.schema;
 
+import java.util.Map;
+
+import org.neo4j.annotations.api.PublicApi;
 import org.neo4j.graphdb.ConstraintViolationException;
 
 /**
@@ -38,16 +41,65 @@ import org.neo4j.graphdb.ConstraintViolationException;
  *
  * @see Schema
  */
+@PublicApi
 public interface ConstraintCreator
 {
     /**
-     * Imposes a uniqueness constraint for the given property, such that
-     * there can be at most one node, having the given label, for any set value of that property key.
+     * Imposes a uniqueness constraint for the given property.
+     * This means that there can be at most one node, having the given label, for any set value of that property key.
      *
-     * @param propertyKey property to impose the uniqueness constraint for
+     * @param propertyKey property to impose the uniqueness constraint for.
      * @return a {@link ConstraintCreator} instance to be used for further interaction.
      */
     ConstraintCreator assertPropertyIsUnique( String propertyKey );
+
+    /**
+     * Imposes an existence constraint for the given property.
+     * This means that all nodes with the given label must have a value for this property.
+     *
+     * @param propertyKey property to impose the existence constraint for.
+     * @return a {@link ConstraintCreator}  instance to be used for further interaction.
+     */
+    ConstraintCreator assertPropertyExists( String propertyKey );
+
+    /**
+     * Imposes both a uniqueness constraint, and a property existence constraint, for the given property.
+     * This means that all nodes with the given label must have this property, and they must all have different values for the property.
+     *
+     * @param propertyKey property to use as the node key.
+     * @return a {@link ConstraintCreator} instance to be used for further interaction.
+     */
+    ConstraintCreator assertPropertyIsNodeKey( String propertyKey );
+
+    /**
+     * Assign a name to the constraint, which will then be returned from {@link ConstraintDefinition#getName()}, and can be used for finding the constraint
+     * with {@link Schema#getConstraintByName(String)}, or the associated index with {@link Schema#getIndexByName(String)} for index backed constraints.
+     *
+     * @param name the name to give the constraint.
+     * @return a {@link ConstraintCreator} instance to be used for further interaction.
+     */
+    ConstraintCreator withName( String name );
+
+    /**
+     * Assign an index type to the constraint. If the constraint is not backed by an index, then the presence of an index type will cause {@link #create()} to
+     * throw an exception.
+     *
+     * @param indexType the type of index wanted for backing the constraint.
+     * @return a {@link ConstraintCreator} instance to be used for further interaction.
+     * @see IndexType
+     */
+    ConstraintCreator withIndexType( IndexType indexType );
+
+    /**
+     * Set index-specific index configurations. If the constraint is not backed by an index, then the presence of an index configuration will cause
+     * {@link #create()} to throw an exception.
+     * <p>
+     * This call will override the settings from any previous call to this method.
+     *
+     * @param indexConfiguration The index settings in the index configuration that differ from their defaults.
+     * @return a {@link ConstraintCreator} instance to be used for further interaction.
+     */
+    ConstraintCreator withIndexConfiguration( Map<IndexSetting,Object> indexConfiguration );
 
     /**
      * Creates a constraint with the details specified by the other methods in this interface.

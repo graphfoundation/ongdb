@@ -24,25 +24,24 @@ package org.neo4j.kernel.impl.core;
 
 import java.util.Arrays;
 import java.util.Iterator;
+import java.util.NoSuchElementException;
 
+import org.neo4j.graphdb.Entity;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Path;
-import org.neo4j.graphdb.PropertyContainer;
 import org.neo4j.graphdb.Relationship;
-import org.neo4j.graphdb.traversal.Paths;
+import org.neo4j.kernel.impl.coreapi.InternalTransaction;
 
-import static org.neo4j.helpers.collection.Iterators.iteratorsEqual;
+import static org.neo4j.internal.helpers.collection.Iterators.iteratorsEqual;
 
 public class PathProxy implements Path
 {
-    private final EmbeddedProxySPI proxySPI;
     private final long[] nodes;
     private final long[] relationships;
     private final int[] directedTypes;
+    private final InternalTransaction internalTransaction;
 
     /**
-     * @param proxySPI
-     *         the API into the kernel.
      * @param nodes
      *         the ids of the nodes in the path, in order.
      * @param relationships
@@ -53,11 +52,11 @@ public class PathProxy implements Path
      *         has its start node at {@code i} and its end node at {@code i + 1}, and should be {@code ~typeId} if the
      *         relationship at {@code i} has its start node at {@code i + 1} and its end node at {@code i}.
      */
-    public PathProxy( EmbeddedProxySPI proxySPI, long[] nodes, long[] relationships, int[] directedTypes )
+    public PathProxy( InternalTransaction internalTransaction, long[] nodes, long[] relationships, int[] directedTypes )
     {
+        this.internalTransaction = internalTransaction;
         assert nodes.length == relationships.length + 1;
         assert relationships.length == directedTypes.length;
-        this.proxySPI = proxySPI;
         this.nodes = nodes;
         this.relationships = relationships;
         this.directedTypes = directedTypes;
@@ -78,7 +77,7 @@ public class PathProxy implements Path
             {
                 try
                 {
-                    String name = proxySPI.getRelationshipTypeById( type < 0 ? ~type : type ).name();
+                    String name = internalTransaction.getRelationshipTypeById( type < 0 ? ~type : type ).name();
                     string.append( ':' ).append( name );
                 }
                 catch ( Exception e )
@@ -134,13 +133,13 @@ public class PathProxy implements Path
     @Override
     public Node startNode()
     {
-        return new NodeProxy( proxySPI, nodes[0] );
+        return new NodeEntity( internalTransaction, nodes[0] );
     }
 
     @Override
     public Node endNode()
     {
-        return new NodeProxy( proxySPI, nodes[nodes.length - 1] );
+        return new NodeEntity( internalTransaction, nodes[nodes.length - 1] );
     }
 
     @Override
@@ -151,23 +150,23 @@ public class PathProxy implements Path
                 : relationship( relationships.length - 1 );
     }
 
-    private RelationshipProxy relationship( int offset )
+    private RelationshipEntity relationship( int offset )
     {
         int type = directedTypes[offset];
         if ( type >= 0 )
         {
-            return new RelationshipProxy( proxySPI, relationships[offset], nodes[offset], type, nodes[offset + 1] );
+            return new RelationshipEntity( internalTransaction, relationships[offset], nodes[offset], type, nodes[offset + 1] );
         }
         else
         {
-            return new RelationshipProxy( proxySPI, relationships[offset], nodes[offset + 1], ~type, nodes[offset] );
+            return new RelationshipEntity( internalTransaction, relationships[offset], nodes[offset + 1], ~type, nodes[offset] );
         }
     }
 
     @Override
     public Iterable<Relationship> relationships()
     {
-        return () -> new Iterator<Relationship>()
+        return () -> new Iterator<>()
         {
             int i;
 
@@ -188,7 +187,7 @@ public class PathProxy implements Path
     @Override
     public Iterable<Relationship> reverseRelationships()
     {
-        return () -> new Iterator<Relationship>()
+        return () -> new Iterator<>()
         {
             int i = relationships.length;
 
@@ -201,6 +200,10 @@ public class PathProxy implements Path
             @Override
             public Relationship next()
             {
+                if ( !hasNext() )
+                {
+                    throw new NoSuchElementException();
+                }
                 return relationship( --i );
             }
         };
@@ -209,7 +212,7 @@ public class PathProxy implements Path
     @Override
     public Iterable<Node> nodes()
     {
-        return () -> new Iterator<Node>()
+        return () -> new Iterator<>()
         {
             int i;
 
@@ -222,7 +225,11 @@ public class PathProxy implements Path
             @Override
             public Node next()
             {
-                return new NodeProxy( proxySPI, nodes[i++] );
+                if ( !hasNext() )
+                {
+                    throw new NoSuchElementException();
+                }
+                return new NodeEntity( internalTransaction, nodes[i++] );
             }
         };
     }
@@ -230,7 +237,7 @@ public class PathProxy implements Path
     @Override
     public Iterable<Node> reverseNodes()
     {
-        return () -> new Iterator<Node>()
+        return () -> new Iterator<>()
         {
             int i = nodes.length;
 
@@ -243,7 +250,11 @@ public class PathProxy implements Path
             @Override
             public Node next()
             {
-                return new NodeProxy( proxySPI, nodes[--i] );
+                if ( !hasNext() )
+                {
+                    throw new NoSuchElementException();
+                }
+                return new NodeEntity( internalTransaction, nodes[--i] );
             }
         };
     }
@@ -255,9 +266,9 @@ public class PathProxy implements Path
     }
 
     @Override
-    public Iterator<PropertyContainer> iterator()
+    public Iterator<Entity> iterator()
     {
-        return new Iterator<PropertyContainer>()
+        return new Iterator<>()
         {
             int i;
             boolean relationship;
@@ -269,8 +280,12 @@ public class PathProxy implements Path
             }
 
             @Override
-            public PropertyContainer next()
+            public Entity next()
             {
+                if ( !hasNext() )
+                {
+                    throw new NoSuchElementException();
+                }
                 if ( relationship )
                 {
                     relationship = false;
@@ -279,7 +294,7 @@ public class PathProxy implements Path
                 else
                 {
                     relationship = true;
-                    return new NodeProxy( proxySPI, nodes[i] );
+                    return new NodeEntity( internalTransaction, nodes[i] );
                 }
             }
         };

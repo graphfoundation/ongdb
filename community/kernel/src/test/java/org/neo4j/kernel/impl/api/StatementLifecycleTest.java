@@ -22,64 +22,61 @@
  */
 package org.neo4j.kernel.impl.api;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.neo4j.io.pagecache.tracing.cursor.context.EmptyVersionContextSupplier;
-import org.neo4j.storageengine.api.StorageReader;
-import org.neo4j.storageengine.api.lock.LockTracer;
+import org.neo4j.kernel.database.TestDatabaseIdRepository;
+import org.neo4j.lock.LockTracer;
+import org.neo4j.resources.CpuClock;
 
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoMoreInteractions;
+import static org.mockito.Mockito.when;
 
-public class StatementLifecycleTest
+class StatementLifecycleTest
 {
     @Test
-    public void shouldReleaseStoreStatementOnlyWhenReferenceCountDownToZero()
+    void shouldReleaseStoreStatementOnlyWhenReferenceCountDownToZero()
     {
         // given
         KernelTransactionImplementation transaction = mock( KernelTransactionImplementation.class );
-        StorageReader storageReader = mock( StorageReader.class );
-        KernelStatement statement = getKernelStatement( transaction, storageReader );
+        KernelStatement statement = createStatement( transaction );
         statement.acquire();
-        verify( storageReader ).acquire();
         statement.acquire();
 
         // when
         statement.close();
-        verifyNoMoreInteractions( storageReader );
+        verify( transaction, never() ).releaseStatementResources();
 
         // then
         statement.close();
-        verify( storageReader ).release();
+        verify( transaction ).releaseStatementResources();
     }
 
     @Test
-    public void shouldReleaseStoreStatementWhenForceClosingStatements()
+    void shouldReleaseStoreStatementWhenForceClosingStatements()
     {
         // given
         KernelTransactionImplementation transaction = mock( KernelTransactionImplementation.class );
-        StorageReader storageReader = mock( StorageReader.class );
-        KernelStatement statement = getKernelStatement( transaction, storageReader );
+        when( transaction.isSuccess() ).thenReturn( true );
+        KernelStatement statement = createStatement( transaction );
         statement.acquire();
 
         // when
-        try
-        {
-            statement.forceClose();
-        }
-        catch ( KernelStatement.StatementNotClosedException ignored )
-        {
-            //ignored
-        }
+        assertThrows( KernelStatement.StatementNotClosedException.class, statement::forceClose );
 
         // then
-        verify( storageReader ).release();
+        verify( transaction ).releaseStatementResources();
     }
 
-    private KernelStatement getKernelStatement( KernelTransactionImplementation transaction, StorageReader storageReader )
+    private static KernelStatement createStatement( KernelTransactionImplementation transaction )
     {
-        return new KernelStatement( transaction, null, storageReader,
-                LockTracer.NONE, mock( StatementOperationParts.class ), new ClockContext(), EmptyVersionContextSupplier.EMPTY );
+        return new KernelStatement( transaction, LockTracer.NONE, new ClockContext(), EmptyVersionContextSupplier.EMPTY,
+                new AtomicReference<>( CpuClock.NOT_AVAILABLE ), new TestDatabaseIdRepository().defaultDatabase() );
     }
+
 }

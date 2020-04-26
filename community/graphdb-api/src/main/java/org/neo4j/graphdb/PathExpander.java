@@ -22,6 +22,7 @@
  */
 package org.neo4j.graphdb;
 
+import org.neo4j.annotations.api.PublicApi;
 import org.neo4j.graphdb.traversal.BranchState;
 
 /**
@@ -29,6 +30,7 @@ import org.neo4j.graphdb.traversal.BranchState;
  * from a {@link Path}. Given a path, which relationships should be expanded
  * from it to traverse further.
  */
+@PublicApi
 public interface PathExpander<STATE>
 {
     /**

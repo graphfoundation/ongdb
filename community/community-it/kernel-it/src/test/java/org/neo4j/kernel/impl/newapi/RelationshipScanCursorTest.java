@@ -22,8 +22,6 @@
  */
 package org.neo4j.kernel.impl.newapi;
 
-import org.neo4j.internal.kernel.api.RelationshipScanCursorTestBase;
-
 public class RelationshipScanCursorTest extends RelationshipScanCursorTestBase<ReadTestSupport>
 {
     @Override

@@ -22,24 +22,24 @@
  */
 package org.neo4j.kernel.impl.transaction.log.pruning;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.File;
 
 import org.neo4j.kernel.impl.transaction.log.LogFileInformation;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 
-public class FileCountThresholdTest
+class FileCountThresholdTest
 {
     private final File file = mock( File.class );
     private final long version = 1L;
     private final LogFileInformation source = mock( LogFileInformation.class );
 
     @Test
-    public void shouldReturnFalseWhenTheMaxNonEmptyLogCountIsNotReached()
+    void shouldReturnFalseWhenTheMaxNonEmptyLogCountIsNotReached()
     {
         // given
         final int maxNonEmptyLogCount = 2;
@@ -54,7 +54,7 @@ public class FileCountThresholdTest
     }
 
     @Test
-    public void shouldReturnTrueWhenTheMaxNonEmptyLogCountIsReached()
+    void shouldReturnTrueWhenTheMaxNonEmptyLogCountIsReached()
     {
         // given
         final int maxNonEmptyLogCount = 2;
@@ -70,7 +70,7 @@ public class FileCountThresholdTest
     }
 
     @Test
-    public void shouldResetTheCounterWhenInitIsCalled()
+    void shouldResetTheCounterWhenInitIsCalled()
     {
         // given
         final int maxNonEmptyLogCount = 2;

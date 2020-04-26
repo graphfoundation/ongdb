@@ -23,9 +23,9 @@
 package cypher.features
 
 import cypher.features
-import org.neo4j.cypher.internal.v3_6.parser.{Base, Expressions, Literals}
-import org.neo4j.cypher.internal.v3_6.util.SyntaxException
-import org.neo4j.cypher.internal.v3_6.util.symbols._
+import org.neo4j.cypher.internal.v4_0.parser.{Base, Expressions, Literals}
+import org.neo4j.cypher.internal.v4_0.util.symbols._
+import org.neo4j.exceptions.SyntaxException
 import org.parboiled.scala._
 
 /**
@@ -84,7 +84,7 @@ class ProcedureSignatureParser extends Parser with Base with Expressions with Li
     group("RELATIONSHIP?" ~ push(CTRelationship)) |
     group("POINT?" ~ push(CTPoint)) |
     group("PATH?" ~ push(CTPath)) |
-    group("LIST?" ~~ "OF" ~~ ProcedureFieldType ~~> { (tpe: CypherType) => CTList(tpe) }) |
+    group("LIST?" ~~ "OF" ~~ ProcedureFieldType ~~> { tpe: CypherType => CTList(tpe) }) |
     group("STRING?" ~ push(CTString)) |
     group("BOOLEAN?" ~ push(CTBoolean)) |
     group("NUMBER?" ~ push(CTNumber)) |

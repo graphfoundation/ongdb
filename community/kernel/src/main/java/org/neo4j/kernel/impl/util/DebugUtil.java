@@ -38,8 +38,8 @@ import static java.lang.String.format;
 import static java.lang.System.currentTimeMillis;
 import static java.lang.System.lineSeparator;
 import static java.lang.System.nanoTime;
-import static org.neo4j.helpers.Exceptions.stringify;
-import static org.neo4j.helpers.Format.duration;
+import static org.neo4j.internal.helpers.Exceptions.stringify;
+import static org.neo4j.internal.helpers.Format.duration;
 
 public class DebugUtil
 {
@@ -63,6 +63,14 @@ public class DebugUtil
             String message = "[" + threadName + groupPart + "] " + String.format( fmt, args );
             TraceLog traceLog = new TraceLog( message );
             printLimitedStackTrace( System.err, traceLog, skip, limit );
+        }
+    }
+
+    private static class TraceLog extends Exception
+    {
+        TraceLog( String message )
+        {
+            super( message );
         }
     }
 
@@ -111,7 +119,7 @@ public class DebugUtil
         {
             try ( BufferedReader reader = new BufferedReader( new StringReader( string ) ) )
             {
-                String line = null;
+                String line;
                 for ( int count = 0; (line = reader.readLine()) != null && count < maxNumberOfLines;
                       count++ )
                 {

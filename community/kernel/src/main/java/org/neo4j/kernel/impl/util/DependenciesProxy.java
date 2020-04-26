@@ -28,7 +28,8 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Proxy;
 import java.util.function.Supplier;
 
-import org.neo4j.graphdb.DependencyResolver;
+import org.neo4j.common.DependencyResolver;
+import org.neo4j.exceptions.UnsatisfiedDependencyException;
 
 /**
  * Used to create dynamic proxies that implement dependency interfaces. Each method should have no arguments

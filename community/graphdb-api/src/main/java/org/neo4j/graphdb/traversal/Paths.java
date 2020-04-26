@@ -28,10 +28,10 @@ import java.util.Iterator;
 
 import org.neo4j.graphdb.DatabaseShutdownException;
 import org.neo4j.graphdb.Direction;
+import org.neo4j.graphdb.Entity;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.NotInTransactionException;
 import org.neo4j.graphdb.Path;
-import org.neo4j.graphdb.PropertyContainer;
 import org.neo4j.graphdb.Relationship;
 
 /**
@@ -151,7 +151,7 @@ public class Paths
      */
     public static String simplePathToString( Path path )
     {
-        return pathToString( path, new DefaultPathDescriptor<Path>()
+        return pathToString( path, new DefaultPathDescriptor<>()
         {
             @Override
             public String relationshipRepresentation( Path path, Node from,
@@ -174,7 +174,7 @@ public class Paths
      */
     public static String simplePathToString( Path path, final String nodePropertyKey )
     {
-        return pathToString( path, new DefaultPathDescriptor<Path>()
+        return pathToString( path, new DefaultPathDescriptor<>()
         {
             @Override
             public String nodeRepresentation( Path path, Node node )
@@ -203,18 +203,18 @@ public class Paths
     public static <T extends Path> PathDescriptor<T> descriptorForIdAndProperties( final boolean nodeId,
     final boolean relId, final String... propertyKeys )
     {
-        return new Paths.PathDescriptor<T>()
+        return new Paths.PathDescriptor<>()
         {
             @Override
             public String nodeRepresentation( T path, Node node )
             {
                 String representation = representation( node );
-                return "(" + (nodeId ? node.getId() : "" ) +
-                       ( nodeId && !representation.equals( "" ) ? "," : "" ) +
+                return "(" + (nodeId ? node.getId() : "") +
+                       (nodeId && !representation.equals( "" ) ? "," : "") +
                        representation + ")";
             }
 
-            private String representation( PropertyContainer entity )
+            private String representation( Entity entity )
             {
                 StringBuilder builder = new StringBuilder();
                 for ( String key : propertyKeys )
@@ -322,9 +322,9 @@ public class Paths
         }
 
         @Override
-        public Iterator<PropertyContainer> iterator()
+        public Iterator<Entity> iterator()
         {
-            return Arrays.<PropertyContainer>asList( node ).iterator();
+            return Arrays.<Entity>asList( node ).iterator();
         }
     }
 

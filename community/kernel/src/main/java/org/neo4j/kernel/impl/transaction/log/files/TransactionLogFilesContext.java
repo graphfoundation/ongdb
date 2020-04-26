@@ -22,36 +22,52 @@
  */
 package org.neo4j.kernel.impl.transaction.log.files;
 
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.LongSupplier;
 import java.util.function.Supplier;
 
+import org.neo4j.internal.nativeimpl.NativeAccess;
 import org.neo4j.io.fs.FileSystemAbstraction;
-import org.neo4j.kernel.impl.transaction.log.LogVersionRepository;
+import org.neo4j.kernel.impl.transaction.log.LogPosition;
 import org.neo4j.kernel.impl.transaction.log.entry.LogEntryReader;
+import org.neo4j.kernel.impl.transaction.tracing.DatabaseTracer;
+import org.neo4j.logging.LogProvider;
+import org.neo4j.storageengine.api.LogVersionRepository;
+import org.neo4j.storageengine.api.StoreId;
 
 class TransactionLogFilesContext
 {
     private final AtomicLong rotationThreshold;
+    private final AtomicBoolean tryPreallocateTransactionLogs;
     private final LogEntryReader logEntryReader;
     private final LongSupplier lastCommittedTransactionIdSupplier;
     private final LongSupplier committingTransactionIdSupplier;
+    private final Supplier<LogPosition> lastClosedPositionSupplier;
     private final Supplier<LogVersionRepository> logVersionRepositorySupplier;
-    private final LogFileCreationMonitor logFileCreationMonitor;
     private final FileSystemAbstraction fileSystem;
+    private final LogProvider logProvider;
+    private final DatabaseTracer databaseTracer;
+    private final Supplier<StoreId> storeId;
+    private final NativeAccess nativeAccess;
 
-    TransactionLogFilesContext( AtomicLong rotationThreshold, LogEntryReader logEntryReader,
-            LongSupplier lastCommittedTransactionIdSupplier, LongSupplier committingTransactionIdSupplier,
-            LogFileCreationMonitor logFileCreationMonitor, Supplier<LogVersionRepository> logVersionRepositorySupplier,
-            FileSystemAbstraction fileSystem )
+    TransactionLogFilesContext( AtomicLong rotationThreshold, AtomicBoolean tryPreallocateTransactionLogs, LogEntryReader logEntryReader,
+            LongSupplier lastCommittedTransactionIdSupplier, LongSupplier committingTransactionIdSupplier, Supplier<LogPosition> lastClosedPositionSupplier,
+            Supplier<LogVersionRepository> logVersionRepositorySupplier, FileSystemAbstraction fileSystem,
+            LogProvider logProvider, DatabaseTracer databaseTracer, Supplier<StoreId> storeId, NativeAccess nativeAccess )
     {
         this.rotationThreshold = rotationThreshold;
+        this.tryPreallocateTransactionLogs = tryPreallocateTransactionLogs;
         this.logEntryReader = logEntryReader;
         this.lastCommittedTransactionIdSupplier = lastCommittedTransactionIdSupplier;
         this.committingTransactionIdSupplier = committingTransactionIdSupplier;
+        this.lastClosedPositionSupplier = lastClosedPositionSupplier;
         this.logVersionRepositorySupplier = logVersionRepositorySupplier;
-        this.logFileCreationMonitor = logFileCreationMonitor;
         this.fileSystem = fileSystem;
+        this.logProvider = logProvider;
+        this.databaseTracer = databaseTracer;
+        this.storeId = storeId;
+        this.nativeAccess = nativeAccess;
     }
 
     AtomicLong getRotationThreshold()
@@ -79,13 +95,38 @@ class TransactionLogFilesContext
         return committingTransactionIdSupplier.getAsLong();
     }
 
-    LogFileCreationMonitor getLogFileCreationMonitor()
+    LogPosition getLastClosedTransactionPosition()
     {
-        return logFileCreationMonitor;
+        return lastClosedPositionSupplier.get();
     }
 
     FileSystemAbstraction getFileSystem()
     {
         return fileSystem;
+    }
+
+    public LogProvider getLogProvider()
+    {
+        return logProvider;
+    }
+
+    AtomicBoolean getTryPreallocateTransactionLogs()
+    {
+        return tryPreallocateTransactionLogs;
+    }
+
+    NativeAccess getNativeAccess()
+    {
+        return nativeAccess;
+    }
+
+    DatabaseTracer getDatabaseTracer()
+    {
+        return databaseTracer;
+    }
+
+    public StoreId getStoreId()
+    {
+        return storeId.get();
     }
 }

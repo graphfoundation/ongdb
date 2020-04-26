@@ -22,21 +22,20 @@
  */
 package org.neo4j.kernel.impl.api.index;
 
+import org.neo4j.internal.kernel.api.PopulationProgress;
+import org.neo4j.internal.schema.IndexDescriptor;
 import org.neo4j.io.pagecache.IOLimiter;
+import org.neo4j.kernel.api.index.IndexReader;
 import org.neo4j.kernel.api.index.IndexUpdater;
-import org.neo4j.kernel.impl.api.index.updater.SwallowingIndexUpdater;
-import org.neo4j.storageengine.api.schema.CapableIndexDescriptor;
-import org.neo4j.storageengine.api.schema.IndexReader;
-import org.neo4j.storageengine.api.schema.PopulationProgress;
 
 public abstract class AbstractSwallowingIndexProxy implements IndexProxy
 {
-    private final CapableIndexDescriptor capableIndexDescriptor;
+    private final IndexDescriptor descriptor;
     private final IndexPopulationFailure populationFailure;
 
-    AbstractSwallowingIndexProxy( CapableIndexDescriptor capableIndexDescriptor, IndexPopulationFailure populationFailure )
+    AbstractSwallowingIndexProxy( IndexDescriptor descriptor, IndexPopulationFailure populationFailure )
     {
-        this.capableIndexDescriptor = capableIndexDescriptor;
+        this.descriptor = descriptor;
         this.populationFailure = populationFailure;
     }
 
@@ -76,9 +75,9 @@ public abstract class AbstractSwallowingIndexProxy implements IndexProxy
     }
 
     @Override
-    public CapableIndexDescriptor getDescriptor()
+    public IndexDescriptor getDescriptor()
     {
-        return capableIndexDescriptor;
+        return descriptor;
     }
 
     @Override

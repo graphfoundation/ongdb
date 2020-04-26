@@ -22,7 +22,7 @@
  */
 package org.neo4j.kernel.impl.pagecache;
 
-import org.neo4j.helpers.Service;
+import org.neo4j.configuration.Config;
 import org.neo4j.io.ByteUnit;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.mem.MemoryAllocator;
@@ -34,15 +34,15 @@ import org.neo4j.io.pagecache.impl.muninn.MuninnPageCache;
 import org.neo4j.io.pagecache.tracing.PageCacheTracer;
 import org.neo4j.io.pagecache.tracing.cursor.PageCursorTracerSupplier;
 import org.neo4j.io.pagecache.tracing.cursor.context.VersionContextSupplier;
-import org.neo4j.kernel.configuration.Config;
 import org.neo4j.logging.Log;
-import org.neo4j.memory.GlobalMemoryTracker;
+import org.neo4j.memory.EmptyMemoryTracker;
 import org.neo4j.scheduler.JobScheduler;
+import org.neo4j.service.Services;
 
-import static org.neo4j.graphdb.factory.GraphDatabaseSettings.mapped_memory_page_size;
-import static org.neo4j.graphdb.factory.GraphDatabaseSettings.pagecache_memory;
-import static org.neo4j.graphdb.factory.GraphDatabaseSettings.pagecache_swapper;
-import static org.neo4j.kernel.configuration.Settings.BYTES;
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.neo4j.configuration.GraphDatabaseSettings.pagecache_memory;
+import static org.neo4j.configuration.GraphDatabaseSettings.pagecache_swapper;
+import static org.neo4j.configuration.SettingValueParsers.BYTES;
 
 public class ConfiguringPageCacheFactory
 {
@@ -92,7 +92,6 @@ public class ConfiguringPageCacheFactory
 
     protected PageCache createPageCache()
     {
-        checkPageSize( config );
         MemoryAllocator memoryAllocator = buildMemoryAllocator( config );
         return new MuninnPageCache( swapperFactory, memoryAllocator, pageCacheTracer, pageCursorTracerSupplier,
                 versionContextSupplier, scheduler );
@@ -111,7 +110,7 @@ public class ConfiguringPageCacheFactory
             pageCacheMemorySetting = "" + heuristic;
         }
 
-        return MemoryAllocator.createAllocator( pageCacheMemorySetting, GlobalMemoryTracker.INSTANCE );
+        return MemoryAllocator.createAllocator( pageCacheMemorySetting, EmptyMemoryTracker.INSTANCE );
     }
 
     public static long defaultHeuristicPageCacheMemory()
@@ -120,7 +119,7 @@ public class ConfiguringPageCacheFactory
         String defaultMemoryOverride = System.getProperty( "dbms.pagecache.memory.default.override" );
         if ( defaultMemoryOverride != null )
         {
-            return BYTES.apply( defaultMemoryOverride );
+            return BYTES.parse( defaultMemoryOverride );
         }
 
         double ratioOfFreeMem = 0.50;
@@ -160,18 +159,8 @@ public class ConfiguringPageCacheFactory
         return ByteUnit.gibiBytes( 2 );
     }
 
-    public void checkPageSize( Config config )
-    {
-        if ( config.get( mapped_memory_page_size ).intValue() != 0 )
-        {
-            log.warn( "The setting unsupported.dbms.memory.pagecache.pagesize does not have any effect. It is " +
-                    "deprecated and will be removed in a future version." );
-        }
-    }
-
     public void dumpConfiguration()
     {
-        checkPageSize( config );
         String pageCacheMemory = config.get( pagecache_memory );
         long totalPhysicalMemory = OsBeanUtil.getTotalPhysicalMemory();
         String totalPhysicalMemMb = (totalPhysicalMemory == OsBeanUtil.VALUE_UNAVAILABLE)
@@ -187,24 +176,20 @@ public class ConfiguringPageCacheFactory
     private static PageSwapperFactory createAndConfigureSwapperFactory( FileSystemAbstraction fs, Config config, Log log )
     {
         PageSwapperFactory factory = getPageSwapperFactory( config, log );
-        factory.open( fs, config );
+        factory.open( fs );
         return factory;
     }
 
     private static PageSwapperFactory getPageSwapperFactory( Config config, Log log )
     {
         String desiredImplementation = config.get( pagecache_swapper );
-        if ( desiredImplementation != null )
+        if ( isNotBlank( desiredImplementation ) )
         {
-            for ( PageSwapperFactory factory : Service.load( PageSwapperFactory.class ) )
-            {
-                if ( factory.implementationName().equals( desiredImplementation ) )
-                {
-                    log.info( "Configured " + pagecache_swapper.name() + ": " + desiredImplementation );
-                    return factory;
-                }
-            }
-            throw new IllegalArgumentException( "Cannot find PageSwapperFactory: " + desiredImplementation );
+
+            final PageSwapperFactory factory = Services.load( PageSwapperFactory.class, desiredImplementation )
+                    .orElseThrow( () -> new IllegalArgumentException( "Cannot find PageSwapperFactory: " + desiredImplementation ) );
+            log.info( "Configured " + pagecache_swapper.name() + ": " + desiredImplementation );
+            return factory;
         }
         return new SingleFilePageSwapperFactory();
     }

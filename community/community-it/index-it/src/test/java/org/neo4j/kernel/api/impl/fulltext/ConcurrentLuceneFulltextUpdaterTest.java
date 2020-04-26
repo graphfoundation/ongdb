@@ -25,24 +25,22 @@ package org.neo4j.kernel.api.impl.fulltext;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
-import java.util.stream.Collectors;
+import java.util.concurrent.TimeUnit;
 
 import org.neo4j.function.ThrowingAction;
+import org.neo4j.function.ThrowingConsumer;
 import org.neo4j.graphdb.Transaction;
-import org.neo4j.internal.kernel.api.IndexReference;
-import org.neo4j.internal.kernel.api.SchemaWrite;
-import org.neo4j.internal.kernel.api.schema.SchemaDescriptor;
+import org.neo4j.internal.kernel.api.IndexQuery;
+import org.neo4j.internal.kernel.api.IndexReadSession;
+import org.neo4j.internal.kernel.api.NodeValueIndexCursor;
+import org.neo4j.internal.schema.IndexOrder;
 import org.neo4j.kernel.api.KernelTransaction;
-import org.neo4j.kernel.impl.api.KernelTransactionImplementation;
-import org.neo4j.storageengine.api.schema.IndexDescriptorFactory;
 import org.neo4j.test.Race;
 import org.neo4j.test.rule.RepeatRule;
 
 import static org.junit.Assert.assertEquals;
-import static org.neo4j.storageengine.api.EntityType.NODE;
+import static org.neo4j.graphdb.schema.IndexType.FULLTEXT;
 
 /**
  * Concurrent updates and index changes should result in valid state, and not create conflicts or exceptions during
@@ -69,60 +67,53 @@ public class ConcurrentLuceneFulltextUpdaterTest extends LuceneFulltextTestSuppo
         race = new Race();
     }
 
-    private SchemaDescriptor getNewDescriptor( String[] entityTokens )
+    private void createInitialIndex()
     {
-        return fulltextAdapter.schemaFor( NODE, entityTokens, settings, "otherProp" );
-    }
-
-    private SchemaDescriptor getExistingDescriptor( String[] entityTokens )
-    {
-        return fulltextAdapter.schemaFor( NODE, entityTokens, settings, PROP );
-    }
-
-    private IndexReference createInitialIndex( SchemaDescriptor descriptor ) throws Exception
-    {
-        IndexReference index;
-        try ( KernelTransactionImplementation transaction = getKernelTransaction() )
+        try ( Transaction tx = db.beginTx() )
         {
-            SchemaWrite schemaWrite = transaction.schemaWrite();
-            index = schemaWrite.indexCreate( descriptor, FulltextIndexProviderFactory.DESCRIPTOR.name(), Optional.of( "nodes" ) );
-            transaction.success();
+            tx.schema().indexFor( LABEL ).on( PROP ).withIndexType( FULLTEXT ).withName( "nodes" ).create();
+            tx.commit();
         }
-        await( index );
-        return index;
     }
 
-    private void raceContestantsAndVerifyResults( SchemaDescriptor newDescriptor, Runnable aliceWork, Runnable changeConfig, Runnable bobWork ) throws Throwable
+    private void raceContestantsAndVerifyResults( Runnable aliceWork, Runnable changeConfig, Runnable bobWork ) throws Throwable
     {
         race.addContestants( aliceThreads, aliceWork );
         race.addContestant( changeConfig );
         race.addContestants( bobThreads, bobWork );
         race.go();
-        await( IndexDescriptorFactory.forSchema( newDescriptor, Optional.of( "nodes" ), FulltextIndexProviderFactory.DESCRIPTOR ) );
+        try ( Transaction tx = db.beginTx() )
+        {
+            tx.schema().awaitIndexOnline( "nodes", 30, TimeUnit.SECONDS );
+        }
         try ( Transaction tx = db.beginTx() )
         {
             KernelTransaction ktx = kernelTransaction( tx );
-            ScoreEntityIterator bob = fulltextAdapter.query( ktx, "nodes", "bob" );
-            List<ScoreEntityIterator.ScoreEntry> list = bob.stream().collect( Collectors.toList() );
-            try
+            IndexReadSession index = ktx.dataRead().indexReadSession( ktx.schemaRead().indexGetForName( "nodes" ) );
+            try ( NodeValueIndexCursor bobCursor = ktx.cursors().allocateNodeValueIndexCursor() )
             {
-                assertEquals( bobThreads * nodesCreatedPerThread, list.size() );
-            }
-            catch ( Throwable e )
-            {
-                StringBuilder sb = new StringBuilder( e.getMessage() ).append( System.lineSeparator() ).append( "Nodes found in query for bob:" );
-                for ( ScoreEntityIterator.ScoreEntry entry : list )
+                ktx.dataRead().nodeIndexSeek( index, bobCursor, IndexOrder.NONE, false, IndexQuery.fulltextSearch( "bob" ) );
+                int bobCount = 0;
+                while ( bobCursor.next() )
                 {
-                    sb.append( System.lineSeparator() ).append( "\t" ).append( db.getNodeById( entry.entityId() ) );
+                    bobCount += 1;
                 }
-                throw e;
+                assertEquals( bobThreads * nodesCreatedPerThread, bobCount );
             }
-            ScoreEntityIterator alice = fulltextAdapter.query( ktx, "nodes", "alice" );
-            assertEquals( 0, alice.stream().count() );
+            try ( NodeValueIndexCursor aliceCursor = ktx.cursors().allocateNodeValueIndexCursor() )
+            {
+                ktx.dataRead().nodeIndexSeek( index, aliceCursor, IndexOrder.NONE, false, IndexQuery.fulltextSearch( "alice" ) );
+                int aliceCount = 0;
+                while ( aliceCursor.next() )
+                {
+                    aliceCount += 1;
+                }
+                assertEquals( 0, aliceCount );
+            }
         }
     }
 
-    private Runnable work( int iterations, ThrowingAction<Exception> work )
+    private Runnable work( int iterations, ThrowingConsumer<Transaction, Exception> work )
     {
         return () ->
         {
@@ -134,9 +125,9 @@ public class ConcurrentLuceneFulltextUpdaterTest extends LuceneFulltextTestSuppo
                     try ( Transaction tx = db.beginTx() )
                     {
                         Thread.yield();
-                        work.apply();
+                        work.accept( tx );
                         Thread.yield();
-                        tx.success();
+                        tx.commit();
                     }
                 }
             }
@@ -147,18 +138,17 @@ public class ConcurrentLuceneFulltextUpdaterTest extends LuceneFulltextTestSuppo
         };
     }
 
-    private ThrowingAction<Exception> dropAndReCreateIndex( IndexReference descriptor, SchemaDescriptor newDescriptor )
+    private ThrowingAction<Exception> dropAndReCreateIndex()
     {
         return () ->
         {
             aliceLatch.await();
             bobLatch.await();
-            try ( KernelTransactionImplementation transaction = getKernelTransaction() )
+            try ( Transaction tx = db.beginTx() )
             {
-                SchemaWrite schemaWrite = transaction.schemaWrite();
-                schemaWrite.indexDrop( descriptor );
-                schemaWrite.indexCreate( newDescriptor, FulltextIndexProviderFactory.DESCRIPTOR.name(), Optional.of( "nodes" ) );
-                transaction.success();
+                tx.schema().getIndexByName( "nodes" ).drop();
+                tx.schema().indexFor( LABEL ).on( "otherProp" ).withIndexType( FULLTEXT ).withName( "nodes" ).create();
+                tx.commit();
             }
         };
     }
@@ -166,110 +156,38 @@ public class ConcurrentLuceneFulltextUpdaterTest extends LuceneFulltextTestSuppo
     @Test
     public void labelledNodesCoreAPI() throws Throwable
     {
-        String[] entityTokens = {LABEL.name()};
-        SchemaDescriptor descriptor = getExistingDescriptor( entityTokens );
-        SchemaDescriptor newDescriptor = getNewDescriptor( entityTokens );
-        IndexReference initialIndex = createInitialIndex( descriptor );
+        createInitialIndex();
 
-        Runnable aliceWork = work( nodesCreatedPerThread, () ->
+        Runnable aliceWork = work( nodesCreatedPerThread, tx ->
         {
-            db.getNodeById( createNodeIndexableByPropertyValue( LABEL, "alice" ) );
+            tx.getNodeById( createNodeIndexableByPropertyValue( tx, LABEL, "alice" ) );
             aliceLatch.countDown();
         } );
-        Runnable bobWork = work( nodesCreatedPerThread, () ->
+        Runnable bobWork = work( nodesCreatedPerThread, tx ->
         {
-            db.getNodeById( createNodeWithProperty( LABEL, "otherProp", "bob" ) );
+            tx.getNodeById( createNodeWithProperty( tx, LABEL, "otherProp", "bob" ) );
             bobLatch.countDown();
         } );
-        Runnable changeConfig = work( 1, dropAndReCreateIndex( initialIndex, newDescriptor ) );
-        raceContestantsAndVerifyResults( newDescriptor, aliceWork, changeConfig, bobWork );
+        Runnable changeConfig = work( 1, tx -> dropAndReCreateIndex().apply() );
+        raceContestantsAndVerifyResults( aliceWork, changeConfig, bobWork );
     }
 
     @Test
     public void labelledNodesCypherCurrent() throws Throwable
     {
-        String[] entityTokens = {LABEL.name()};
-        SchemaDescriptor descriptor = getExistingDescriptor( entityTokens );
-        SchemaDescriptor newDescriptor = getNewDescriptor( entityTokens );
-        IndexReference initialIndex = createInitialIndex( descriptor );
+        createInitialIndex();
 
-        Runnable aliceWork = work( nodesCreatedPerThread, () ->
+        Runnable aliceWork = work( nodesCreatedPerThread, tx ->
         {
-            db.execute( "create (:LABEL {" + PROP + ": \"alice\"})" ).close();
+            tx.execute( "create (:LABEL {" + PROP + ": \"alice\"})" ).close();
             aliceLatch.countDown();
         } );
-        Runnable bobWork = work( nodesCreatedPerThread, () ->
+        Runnable bobWork = work( nodesCreatedPerThread, tx ->
         {
-            db.execute( "create (:LABEL {otherProp: \"bob\"})" ).close();
+            tx.execute( "create (:LABEL {otherProp: \"bob\"})" ).close();
             bobLatch.countDown();
         } );
-        Runnable changeConfig = work( 1, dropAndReCreateIndex( initialIndex, newDescriptor ) );
-        raceContestantsAndVerifyResults( newDescriptor, aliceWork, changeConfig, bobWork );
-    }
-
-    @Test
-    public void labelledNodesCypher31() throws Throwable
-    {
-        String[] entityTokens = {LABEL.name()};
-        SchemaDescriptor descriptor = getExistingDescriptor( entityTokens );
-        SchemaDescriptor newDescriptor = getNewDescriptor( entityTokens );
-        IndexReference initialIndex = createInitialIndex( descriptor );
-
-        Runnable aliceWork = work( nodesCreatedPerThread, () ->
-        {
-            db.execute( "CYPHER 3.1 create (:LABEL {" + PROP + ": \"alice\"})" ).close();
-            aliceLatch.countDown();
-        } );
-        Runnable bobWork = work( nodesCreatedPerThread, () ->
-        {
-            db.execute( "CYPHER 3.1 create (:LABEL {otherProp: \"bob\"})" ).close();
-            bobLatch.countDown();
-        } );
-        Runnable changeConfig = work( 1, dropAndReCreateIndex( initialIndex, newDescriptor ) );
-        raceContestantsAndVerifyResults( newDescriptor, aliceWork, changeConfig, bobWork );
-    }
-
-    @Test
-    public void labelledNodesCypher23() throws Throwable
-    {
-        String[] entityTokens = {LABEL.name()};
-        SchemaDescriptor descriptor = getExistingDescriptor( entityTokens );
-        SchemaDescriptor newDescriptor = getNewDescriptor( entityTokens );
-        IndexReference initialIndex = createInitialIndex( descriptor );
-
-        Runnable aliceWork = work( nodesCreatedPerThread, () ->
-        {
-            db.execute( "CYPHER 2.3 create (:LABEL {" + PROP + ": \"alice\"})" ).close();
-            aliceLatch.countDown();
-        } );
-        Runnable bobWork = work( nodesCreatedPerThread, () ->
-        {
-            db.execute( "CYPHER 2.3 create (:LABEL {otherProp: \"bob\"})" ).close();
-            bobLatch.countDown();
-        } );
-        Runnable changeConfig = work( 1, dropAndReCreateIndex( initialIndex, newDescriptor ) );
-        raceContestantsAndVerifyResults( newDescriptor, aliceWork, changeConfig, bobWork );
-    }
-
-    @Test
-    public void labelledNodesCypherRule() throws Throwable
-    {
-        String[] entityTokens = {LABEL.name()};
-        SchemaDescriptor descriptor = getExistingDescriptor( entityTokens );
-        SchemaDescriptor newDescriptor = getNewDescriptor( entityTokens );
-        IndexReference initialIndex = createInitialIndex( descriptor );
-
-        Runnable aliceWork = work( nodesCreatedPerThread, () ->
-        {
-            db.execute( "CYPHER planner=rule create (:LABEL {" + PROP + ": \"alice\"})" ).close();
-            aliceLatch.countDown();
-        } );
-        Runnable bobWork = work( nodesCreatedPerThread, () ->
-        {
-            db.execute( "CYPHER planner=rule create (:LABEL {otherProp: \"bob\"})" ).close();
-            bobLatch.countDown();
-        } );
-        Runnable changeConfig = work( 1, dropAndReCreateIndex( initialIndex, newDescriptor ) );
-        raceContestantsAndVerifyResults( newDescriptor, aliceWork, changeConfig, bobWork );
+        Runnable changeConfig = work( 1, tx -> dropAndReCreateIndex().apply() );
+        raceContestantsAndVerifyResults( aliceWork, changeConfig, bobWork );
     }
 }
