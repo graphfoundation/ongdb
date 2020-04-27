@@ -3,13 +3,13 @@
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <parent>
-        <groupId>org.graphfoundation.ongdb</groupId>
+        <groupId>org.neo4j</groupId>
         <artifactId>parent</artifactId>
         <version>4.0.4-SNAPSHOT</version>
         <relativePath>../..</relativePath>
     </parent>
     <modelVersion>4.0.0</modelVersion>
-    <artifactId>ongdb-layout</artifactId>
+    <artifactId>neo4j-layout</artifactId>
 
     <properties>
         <license-text.header>headers/GPL-3-header.txt</license-text.header>
@@ -19,7 +19,7 @@
     </properties>
 
     <packaging>jar</packaging>
-    <name>ONgDB - Layout</name>
+    <name>Neo4j - Layout</name>
     <description>Code responsible for managing the file/directory structure of Neo4j.</description>
     <url>http://components.neo4j.org/${project.artifactId}/${project.version}</url>
 
@@ -51,8 +51,8 @@
 
     <dependencies>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-configuration</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-configuration</artifactId>
             <version>${project.version}</version>
         </dependency>
     </dependencies>

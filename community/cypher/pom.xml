@@ -4,7 +4,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>org.graphfoundation.ongdb</groupId>
+        <groupId>org.neo4j</groupId>
         <artifactId>parent</artifactId>
         <version>4.0.4-SNAPSHOT</version>
         <relativePath>../..</relativePath>
@@ -12,9 +12,9 @@
 
     <artifactId>cypher-parent</artifactId>
     <packaging>pom</packaging>
-    <name>ONgDB - Community Cypher Build</name>
+    <name>Neo4j - Community Cypher Build</name>
     <description>Project that builds the Neo4j Cypher modules as part of the Community distribution.</description>
-    <url>https://ongdb.graphfoundation.org/${project.artifactId}/${project.version}</url>
+    <url>http://components.neo4j.org/${project.artifactId}/${project.version}</url>
 
     <properties>
         <licensing.prepend.text>licensing/notice-gpl-prefix.txt</licensing.prepend.text>
@@ -22,9 +22,9 @@
     </properties>
 
     <scm>
-        <connection>scm:git:git://github.com/graphfoundation/ongdb.git</connection>
-        <developerConnection>scm:git:git@github.com:graphfoundation/ongdb.git</developerConnection>
-        <url>https://github.com/graphfoundation/ongdb</url>
+        <connection>scm:git:git://github.com/neo4j/neo4j.git</connection>
+        <developerConnection>scm:git:git@github.com:neo4j/neo4j.git</developerConnection>
+        <url>https://github.com/neo4j/neo4j</url>
     </scm>
 
     <profiles>
@@ -119,37 +119,37 @@
         <dependencies>
             <!-- neo4j -->
             <dependency>
-                <groupId>org.graphfoundation.ongdb</groupId>
-                <artifactId>ongdb-kernel</artifactId>
+                <groupId>org.neo4j</groupId>
+                <artifactId>neo4j-kernel</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>org.graphfoundation.ongdb</groupId>
-                <artifactId>ongdb-kernel</artifactId>
+                <groupId>org.neo4j</groupId>
+                <artifactId>neo4j-kernel</artifactId>
                 <version>${project.version}</version>
                 <type>test-jar</type>
                 <scope>test</scope>
             </dependency>
             <dependency>
-                <groupId>org.graphfoundation.ongdb</groupId>
+                <groupId>org.neo4j</groupId>
                 <artifactId>test-utils</artifactId>
                 <version>${project.version}</version>
                 <scope>test</scope>
             </dependency>
             <dependency>
-                <groupId>org.graphfoundation.ongdb</groupId>
+                <groupId>org.neo4j</groupId>
                 <artifactId>io-test-utils</artifactId>
                 <version>${project.version}</version>
                 <scope>test</scope>
             </dependency>
             <dependency>
-                <groupId>org.graphfoundation.ongdb</groupId>
-                <artifactId>ongdb-lucene-index</artifactId>
+                <groupId>org.neo4j</groupId>
+                <artifactId>neo4j-lucene-index</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>org.graphfoundation.ongdb</groupId>
-                <artifactId>ongdb-graph-algo</artifactId>
+                <groupId>org.neo4j</groupId>
+                <artifactId>neo4j-graph-algo</artifactId>
                 <version>${project.version}</version>
             </dependency>
 

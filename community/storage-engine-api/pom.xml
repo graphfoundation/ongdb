@@ -2,7 +2,7 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <parent>
-        <groupId>org.graphfoundation.ongdb</groupId>
+        <groupId>org.neo4j</groupId>
         <artifactId>parent</artifactId>
         <version>4.0.4-SNAPSHOT</version>
         <relativePath>../..</relativePath>
@@ -16,10 +16,10 @@
     </properties>
 
     <modelVersion>4.0.0</modelVersion>
-    <artifactId>ongdb-storage-engine-api</artifactId>
+    <artifactId>neo4j-storage-engine-api</artifactId>
 
     <packaging>jar</packaging>
-    <name>ONgDB - Storage Engine API</name>
+    <name>Neo4j - Storage Engine API</name>
     <description>Internal Storage Engine API of Neo4j</description>
     <url>http://components.neo4j.org/${project.artifactId}/${project.version}</url>
 
@@ -51,7 +51,7 @@
 
     <dependencies>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
+            <groupId>org.neo4j</groupId>
             <artifactId>annotations</artifactId>
         </dependency>
         <dependency>
@@ -59,58 +59,58 @@
             <artifactId>annotations</artifactId>
         </dependency>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-collections</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-collections</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-configuration</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-configuration</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-layout</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-layout</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-lock</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-lock</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-values</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-values</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-diagnostics</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-diagnostics</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-token-api</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-token-api</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-schema</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-schema</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-id-generator</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-id-generator</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-monitoring</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-monitoring</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-index</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-index</artifactId>
             <version>${project.version}</version>
         </dependency>
 

@@ -1,15 +1,15 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <parent>
-        <groupId>org.graphfoundation.ongdb</groupId>
-        <artifactId>ongdb-front-end-parent-4.0</artifactId>
+        <groupId>org.neo4j</groupId>
+        <artifactId>neo4j-front-end-parent-4.0</artifactId>
         <version>4.0.4-SNAPSHOT</version>
         <relativePath>../</relativePath>
     </parent>
 
     <modelVersion>4.0.0</modelVersion>
-    <artifactId>ongdb-ast-4.0</artifactId>
+    <artifactId>neo4j-ast-4.0</artifactId>
     <packaging>jar</packaging>
     <name>openCypher AST for the Cypher Query Language</name>
 
@@ -53,28 +53,28 @@
         <!-- shared versions are defined in the parent pom -->
 
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-util-4.0</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-util-4.0</artifactId>
             <version>${project.version}</version>
         </dependency>
 
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-util-4.0</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-util-4.0</artifactId>
             <version>${project.version}</version>
             <type>test-jar</type>
             <scope>test</scope>
         </dependency>
 
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-expressions-4.0</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-expressions-4.0</artifactId>
             <version>${project.version}</version>
         </dependency>
 
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-expressions-4.0</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-expressions-4.0</artifactId>
             <version>${project.version}</version>
             <type>test-jar</type>
             <scope>test</scope>

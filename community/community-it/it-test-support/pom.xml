@@ -3,17 +3,17 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <parent>
-        <groupId>org.graphfoundation.ongdb</groupId>
+        <groupId>org.neo4j</groupId>
         <artifactId>community-integration-tests</artifactId>
         <version>4.0.4-SNAPSHOT</version>
     </parent>
 
-    <groupId>org.graphfoundation.ongdb.community</groupId>
+    <groupId>org.neo4j.community</groupId>
     <artifactId>it-test-support</artifactId>
 
-    <name>ONgDB - Community Integration Test Support</name>
+    <name>Neo4j - Community Integration Test Support</name>
     <packaging>jar</packaging>
-    <description>ONgDB Community Edition integration tests support.</description>
+    <description>Neo4j community edition integration tests support.</description>
 
     <properties>
         <license-text.header>headers/GPL-3-header.txt</license-text.header>
@@ -23,21 +23,34 @@
     </properties>
 
     <scm>
-        <connection>scm:git:git://github.com/graphfoundation/ongdb.git</connection>
-        <developerConnection>scm:git:git@github.com:graphfoundation/ongdb.git</developerConnection>
-        <url>https://github.com/graphfoundation/ongdb</url>
+        <connection>scm:git:git://github.com/neo4j/neo4j.git</connection>
+        <developerConnection>scm:git:git@github.com:neo4j/neo4j.git</developerConnection>
+        <url>https://github.com/neo4j/neo4j</url>
     </scm>
 
     <licenses>
         <license>
             <name>GNU General Public License, Version 3</name>
             <url>http://www.gnu.org/licenses/gpl-3.0-standalone.html</url>
+            <comments>
+                The software ("Software") developed and owned by Neo4j Sweden AB (referred to in this notice as "Neo4j") is
+                licensed under the GNU GENERAL PUBLIC LICENSE Version 3 to all third
+                parties and that license is included below.
+
+                However, if you have executed an End User Software License and Services
+                Agreement or an OEM Software License and Support Services Agreement, or
+                another commercial license agreement with Neo4j or one of its
+                affiliates (each, a "Commercial Agreement"), the terms of the license in
+                such Commercial Agreement will supersede the GNU GENERAL PUBLIC LICENSE
+                Version 3 and you may use the Software solely pursuant to the terms of
+                the relevant Commercial Agreement.
+            </comments>
         </license>
     </licenses>
 
     <dependencies>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
+            <groupId>org.neo4j</groupId>
             <artifactId>io-test-utils</artifactId>
             <version>${project.version}</version>
         </dependency>
@@ -46,7 +59,7 @@
             <artifactId>annotations</artifactId>
         </dependency>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
+            <groupId>org.neo4j</groupId>
             <artifactId>test-utils</artifactId>
             <version>${project.version}</version>
         </dependency>
@@ -78,28 +91,28 @@
             <artifactId>commons-codec</artifactId>
         </dependency>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-fulltext-index</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-fulltext-index</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-procedure</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-procedure</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-kernel</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-kernel</artifactId>
             <version>${project.version}</version>
             <type>test-jar</type>
         </dependency>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
+            <groupId>org.neo4j</groupId>
             <artifactId>layout-test-utils</artifactId>
             <version>${project.version}</version>
         </dependency>

@@ -2,16 +2,16 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <parent>
-        <groupId>org.graphfoundation.ongdb</groupId>
+        <groupId>org.neo4j</groupId>
         <artifactId>cypher-parent</artifactId>
         <version>4.0.4-SNAPSHOT</version>
         <relativePath>../</relativePath>
     </parent>
 
     <modelVersion>4.0.0</modelVersion>
-    <artifactId>ongdb-cypher-logical-plans</artifactId>
+    <artifactId>neo4j-cypher-logical-plans</artifactId>
     <packaging>jar</packaging>
-    <name>ONgDB - Cypher Logical Plans</name>
+    <name>Neo4j - Cypher Logical Plans</name>
 
     <description>Cypher logical plans</description>
     <url>http://components.neo4j.org/${project.artifactId}/${project.version}</url>
@@ -55,34 +55,34 @@
         <!-- neo4j -->
 
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-exceptions</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-exceptions</artifactId>
             <version>${project.version}</version>
         </dependency>
 
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-cypher-ir</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-cypher-ir</artifactId>
             <version>${project.version}</version>
         </dependency>
 
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-values</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-values</artifactId>
             <version>${project.version}</version>
         </dependency>
 
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-configuration</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-configuration</artifactId>
             <version>${project.version}</version>
         </dependency>
 
         <!-- neo4j testing -->
 
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-util-4.0</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-util-4.0</artifactId>
             <version>${project.version}</version>
             <type>test-jar</type>
             <scope>test</scope>
