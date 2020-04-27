@@ -91,7 +91,7 @@
         </dependency>
         <dependency>
             <groupId>org.hamcrest</groupId>
-          <artifactId>hamcrest</artifactId>
+            <artifactId>hamcrest</artifactId>
             <scope>compile</scope>
         </dependency>
         <dependency>
