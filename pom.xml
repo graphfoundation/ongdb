@@ -808,17 +808,10 @@
                             <compilerArgs>
                                 <arg>-XDcompilePolicy=simple</arg>
                                 <arg>-Xplugin:ErrorProne
-                                    <dependency>
-                                        <groupId>-Xep</groupId>
-                                        <artifactId>ReturnValueIgnored</artifactId>
-                                        <version>WARN</version>
-                                    </dependency>
-                                    <dependency>
-                                        <groupId>-Xep</groupId>
-                                        <artifactId>InvalidZoneId</artifactId>
-                                        <version>WARN</version>
-                                    </dependency>
+                                    -Xep:ReturnValueIgnored:WARN
+                                    -Xep:InvalidZoneId:WARN
                                 </arg>
+                                <arg>-Xpkginfo:always</arg><!-- Prevents recompilation due to missing package-info.class, see MCOMPILER-368,-205 -->
                             </compilerArgs>
                             <annotationProcessorPaths>
                                 <path>
