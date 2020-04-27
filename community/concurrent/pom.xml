@@ -2,7 +2,7 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <parent>
-        <groupId>org.neo4j</groupId>
+        <groupId>org.graphfoundation.ongdb</groupId>
         <artifactId>parent</artifactId>
         <version>4.0.4-SNAPSHOT</version>
         <relativePath>../..</relativePath>
@@ -16,10 +16,10 @@
     </properties>
 
     <modelVersion>4.0.0</modelVersion>
-    <artifactId>neo4j-concurrent</artifactId>
+    <artifactId>ongdb-concurrent</artifactId>
 
     <packaging>jar</packaging>
-    <name>Neo4j - Concurrent</name>
+    <name>ONgDB - Concurrent</name>
     <description>A set of assorted utilities for concurrent computing.</description>
     <url>http://components.neo4j.org/${project.artifactId}/${project.version}</url>
 
@@ -52,8 +52,8 @@
 
     <dependencies>
         <dependency>
-            <groupId>org.neo4j</groupId>
-            <artifactId>neo4j-unsafe</artifactId>
+            <groupId>org.graphfoundation.ongdb</groupId>
+            <artifactId>ongdb-unsafe</artifactId>
             <version>${project.version}</version>
         </dependency>
 
