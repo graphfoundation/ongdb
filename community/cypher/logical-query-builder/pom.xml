@@ -12,7 +12,7 @@
     <artifactId>ongdb-cypher-logical-query-builder</artifactId>
     <packaging>jar</packaging>
     <name>ONgDB - Cypher logical query builder</name>
-    <description>Neo4j - Cypher logical query builder</description>
+    <description>ONgDB - Cypher logical query builder</description>
     <url>https://ongdb.graphfoundation.org/${project.artifactId}/${project.version}</url>
 
     <scm>
