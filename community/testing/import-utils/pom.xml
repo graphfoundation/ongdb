@@ -23,7 +23,7 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <parent>
-        <groupId>org.graphfoundation.ongdb</groupId>
+        <groupId>org.neo4j</groupId>
         <artifactId>testing-parent</artifactId>
         <version>4.0.4-SNAPSHOT</version>
     </parent>
@@ -38,7 +38,7 @@
         <default.jupiter.test.mode>concurrent</default.jupiter.test.mode>
     </properties>
 
-    <name>ONgDB - Test Batch Import utilities</name>
+    <name>Neo4j - Test Batch Import utilities</name>
     <description>A set of batch import utilities used by tests.</description>
     <url>http://components.neo4j.org/${project.artifactId}/${project.version}</url>
 
@@ -69,8 +69,8 @@
 
     <dependencies>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-import-util</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-import-util</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
@@ -95,8 +95,8 @@
             <scope>compile</scope>
         </dependency>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-random-values</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-random-values</artifactId>
             <version>${project.version}</version>
         </dependency>
     </dependencies>

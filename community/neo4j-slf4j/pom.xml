@@ -2,7 +2,7 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <parent>
-        <groupId>org.graphfoundation.ongdb</groupId>
+        <groupId>org.neo4j</groupId>
         <artifactId>parent</artifactId>
         <version>4.0.4-SNAPSHOT</version>
         <relativePath>../..</relativePath>
@@ -16,10 +16,10 @@
     </properties>
 
     <modelVersion>4.0.0</modelVersion>
-    <artifactId>ongdb-slf4j</artifactId>
+    <artifactId>neo4j-slf4j</artifactId>
 
     <packaging>jar</packaging>
-    <name>ONgDB - SLF4J Neo4j Binding</name>
+    <name>Neo4j - SLF4J Neo4j Binding</name>
     <description>SLF4J binding for Neo4j Logging.</description>
     <url>http://components.neo4j.org/${project.artifactId}/${project.version}</url>
 
@@ -51,8 +51,8 @@
 
     <dependencies>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-logging</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-logging</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>

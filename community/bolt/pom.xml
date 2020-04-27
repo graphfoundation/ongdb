@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>org.graphfoundation.ongdb</groupId>
+        <groupId>org.neo4j</groupId>
         <artifactId>parent</artifactId>
         <version>4.0.4-SNAPSHOT</version>
         <relativePath>../..</relativePath>
@@ -18,10 +18,10 @@
         <default.jupiter.test.mode>concurrent</default.jupiter.test.mode>
     </properties>
 
-    <artifactId>ongdb-bolt</artifactId>
+    <artifactId>neo4j-bolt</artifactId>
 
     <packaging>jar</packaging>
-    <name>ONgDB - Bolt Protocol Version 1</name>
+    <name>Neo4j - Bolt Protocol Version 1</name>
     <description>The core of Neo4j Bolt Protocol, this contains the state machine for Bolt sessions.</description>
 
     <licenses>
@@ -46,26 +46,26 @@
 
     <dependencies>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-cypher</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-cypher</artifactId>
             <version>${project.version}</version>
         </dependency>
 
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-values</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-values</artifactId>
             <version>${project.version}</version>
         </dependency>
 
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-kernel</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-kernel</artifactId>
             <version>${project.version}</version>
         </dependency>
 
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-ssl</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-ssl</artifactId>
             <version>${project.version}</version>
         </dependency>
 
@@ -98,40 +98,40 @@
         </dependency>
 
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-kernel</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-kernel</artifactId>
             <version>${project.version}</version>
             <type>test-jar</type>
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-security</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-security</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-security</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-security</artifactId>
             <version>${project.version}</version>
             <type>test-jar</type>
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
+            <groupId>org.neo4j</groupId>
             <artifactId>log-test-utils</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
+            <groupId>org.neo4j</groupId>
             <artifactId>test-utils</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-random-values</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-random-values</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
         </dependency>

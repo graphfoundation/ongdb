@@ -2,14 +2,14 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <parent>
-        <groupId>org.graphfoundation.ongdb</groupId>
-        <artifactId>ongdb-front-end-parent-4.0</artifactId>
+        <groupId>org.neo4j</groupId>
+        <artifactId>neo4j-front-end-parent-4.0</artifactId>
         <version>4.0.4-SNAPSHOT</version>
         <relativePath>../</relativePath>
     </parent>
 
     <modelVersion>4.0.0</modelVersion>
-    <artifactId>ongdb-util-4.0</artifactId>
+    <artifactId>neo4j-util-4.0</artifactId>
     <packaging>jar</packaging>
     <name>openCypher Utils</name>
 

@@ -6,15 +6,15 @@
 
     <parent>
         <artifactId>parent</artifactId>
-        <groupId>org.graphfoundation.ongdb</groupId>
+        <groupId>org.neo4j</groupId>
         <version>4.0.4-SNAPSHOT</version>
     </parent>
 
     <artifactId>annotations</artifactId>
     <packaging>jar</packaging>
 
-    <name>ONgDB - Annotation processors</name>
-    <description>Annotations and annotation processors used to build ONgDB project.</description>
+    <name>Neo4j - Annotation processors</name>
+    <description>Annotations and annotation processors used to build Neo4j project.</description>
     <url>http://components.neo4j.org/${project.artifactId}/${project.version}</url>
 
     <scm>

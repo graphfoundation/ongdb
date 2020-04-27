@@ -2,14 +2,14 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <parent>
-        <groupId>org.graphfoundation.ongdb</groupId>
+        <groupId>org.neo4j</groupId>
         <artifactId>parent</artifactId>
         <version>4.0.4-SNAPSHOT</version>
         <relativePath>../..</relativePath>
     </parent>
-    <artifactId>ongdb-lucene-index</artifactId>
+    <artifactId>neo4j-lucene-index</artifactId>
 
-    <name>ONgDB - Lucene Index</name>
+    <name>Neo4j - Lucene Index</name>
     <description>
         Integration layer between Neo4j and Lucene, providing one possible implementation of the Index API.
     </description>
@@ -51,39 +51,39 @@
 
     <dependencies>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
+            <groupId>org.neo4j</groupId>
             <artifactId>annotations</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-resource</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-resource</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-collections</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-collections</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-kernel-api</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-kernel-api</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
+            <groupId>org.neo4j</groupId>
             <artifactId>log-test-utils</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
+            <groupId>org.neo4j</groupId>
             <artifactId>io-test-utils</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
+            <groupId>org.neo4j</groupId>
             <artifactId>test-utils</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
@@ -125,13 +125,13 @@
             <artifactId>mockito-core</artifactId>
         </dependency>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-random-values</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-random-values</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
+            <groupId>org.neo4j</groupId>
             <artifactId>layout-test-utils</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>

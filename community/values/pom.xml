@@ -2,7 +2,7 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <parent>
-        <groupId>org.graphfoundation.ongdb</groupId>
+        <groupId>org.neo4j</groupId>
         <artifactId>parent</artifactId>
         <version>4.0.4-SNAPSHOT</version>
         <relativePath>../..</relativePath>
@@ -15,11 +15,11 @@
     </properties>
 
     <modelVersion>4.0.0</modelVersion>
-    <artifactId>ongdb-values</artifactId>
+    <artifactId>neo4j-values</artifactId>
 
     <packaging>jar</packaging>
-    <name>ONgDB - Value</name>
-    <description>ONgDB property value system.</description>
+    <name>Neo4j - Value</name>
+    <description>Neo4j property value system.</description>
     <url>http://components.neo4j.org/${project.artifactId}/${project.version}</url>
 
     <scm>
@@ -50,13 +50,13 @@
 
     <dependencies>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-graphdb-api</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-graphdb-api</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-exceptions</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-exceptions</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>

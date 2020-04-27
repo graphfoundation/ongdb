@@ -4,17 +4,17 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <parent>
-        <groupId>org.graphfoundation.ongdb</groupId>
+        <groupId>org.neo4j</groupId>
         <artifactId>community-integration-tests</artifactId>
         <version>4.0.4-SNAPSHOT</version>
     </parent>
 
-    <groupId>org.graphfoundation.ongdb.community</groupId>
+    <groupId>org.neo4j.community</groupId>
     <artifactId>cypher-it</artifactId>
 
-    <name>ONgDB - Community Cypher Integration Tests</name>
+    <name>Neo4j - Community Cypher Integration Tests</name>
     <packaging>jar</packaging>
-    <description>ONgDB community edition cypher integration tests.</description>
+    <description>Neo4j community edition cypher integration tests.</description>
 
     <properties>
         <license-text.header>headers/GPL-3-header.txt</license-text.header>
@@ -59,39 +59,39 @@
 
     <dependencies>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
+            <groupId>org.neo4j</groupId>
             <artifactId>neo4j</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.graphfoundation.ongdb.community</groupId>
+            <groupId>org.neo4j.community</groupId>
             <artifactId>it-test-support</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
+            <groupId>org.neo4j</groupId>
             <artifactId>log-test-utils</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-kernel</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-kernel</artifactId>
             <version>${project.version}</version>
             <type>test-jar</type>
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-security</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-security</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
             <type>test-jar</type>
         </dependency>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-security</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-security</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
         </dependency>
@@ -138,36 +138,36 @@
             <artifactId>scalacheck_${scala.binary.version}</artifactId>
         </dependency>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-cypher</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-cypher</artifactId>
             <version>${project.version}</version>
             <type>test-jar</type>
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-cypher-planner-spi</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-cypher-planner-spi</artifactId>
             <version>${project.version}</version>
             <type>test-jar</type>
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-util-4.0</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-util-4.0</artifactId>
             <version>${project.version}</version>
             <type>test-jar</type>
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-cypher-runtime-util</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-cypher-runtime-util</artifactId>
             <version>${project.version}</version>
             <type>test-jar</type>
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-cypher-interpreted-runtime</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-cypher-interpreted-runtime</artifactId>
             <version>${project.version}</version>
             <type>test-jar</type>
             <scope>test</scope>

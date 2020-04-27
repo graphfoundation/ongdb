@@ -4,15 +4,15 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>org.graphfoundation.ongdb</groupId>
+        <groupId>org.neo4j</groupId>
         <artifactId>parent</artifactId>
         <version>4.0.4-SNAPSHOT</version>
         <relativePath>../..</relativePath>
     </parent>
 
-    <artifactId>ongdb-fulltext-index</artifactId>
+    <artifactId>neo4j-fulltext-index</artifactId>
 
-    <name>ONgDB - Fulltext index</name>
+    <name>Neo4j - Fulltext index</name>
     <description>Fulltext index for neo4j</description>
     <packaging>jar</packaging>
 
@@ -51,13 +51,13 @@
 
     <dependencies>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
+            <groupId>org.neo4j</groupId>
             <artifactId>annotations</artifactId>
         </dependency>
 
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-lucene-index</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-lucene-index</artifactId>
             <version>${project.version}</version>
         </dependency>
 

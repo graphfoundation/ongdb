@@ -2,7 +2,7 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <parent>
-        <groupId>org.graphfoundation.ongdb</groupId>
+        <groupId>org.neo4j</groupId>
         <artifactId>parent</artifactId>
         <version>4.0.4-SNAPSHOT</version>
         <relativePath>../..</relativePath>
@@ -16,11 +16,11 @@
     </properties>
 
     <modelVersion>4.0.0</modelVersion>
-    <artifactId>ongdb-native</artifactId>
+    <artifactId>neo4j-native</artifactId>
 
     <packaging>jar</packaging>
-    <name>ONgDB - Native</name>
-    <description>ONgDB native platform integration module.</description>
+    <name>Neo4j - Native</name>
+    <description>Neo4j native platform integration module.</description>
     <url>http://components.neo4j.org/${project.artifactId}/${project.version}</url>
 
     <scm>

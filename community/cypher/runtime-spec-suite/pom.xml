@@ -4,17 +4,17 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <parent>
-    <groupId>org.graphfoundation.ongdb</groupId>
+    <groupId>org.neo4j</groupId>
     <artifactId>cypher-parent</artifactId>
     <version>4.0.4-SNAPSHOT</version>
     <relativePath>../</relativePath>
   </parent>
 
   <modelVersion>4.0.0</modelVersion>
-  <artifactId>ongdb-cypher-runtime-spec-suite</artifactId>
+  <artifactId>neo4j-cypher-runtime-spec-suite</artifactId>
   <packaging>jar</packaging>
-  <name>ONgDB - Cypher Runtime Acceptance</name>
-  <description>ONgDB - Cypher Runtime Specification Suite</description>
+  <name>Neo4j - Cypher Runtime Acceptance</name>
+  <description>Neo4j - Cypher Runtime Specification Suite</description>
   <url>http://components.neo4j.org/${project.artifactId}/${project.version}</url>
 
   <scm>
@@ -83,96 +83,96 @@
     <!-- neo4j -->
 
     <dependency>
-      <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>ongdb-exceptions</artifactId>
+      <groupId>org.neo4j</groupId>
+      <artifactId>neo4j-exceptions</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
-      <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>ongdb-kernel</artifactId>
+      <groupId>org.neo4j</groupId>
+      <artifactId>neo4j-kernel</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
-      <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>ongdb-cypher</artifactId>
+      <groupId>org.neo4j</groupId>
+      <artifactId>neo4j-cypher</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
-      <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>ongdb-ast-4.0</artifactId>
+      <groupId>org.neo4j</groupId>
+      <artifactId>neo4j-ast-4.0</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
-      <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>ongdb-values</artifactId>
+      <groupId>org.neo4j</groupId>
+      <artifactId>neo4j-values</artifactId>
       <version>${project.version}</version>
     </dependency>
 
     <!-- neo4j testing -->
 
     <dependency>
-      <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>ongdb-cypher-logical-query-builder</artifactId>
+      <groupId>org.neo4j</groupId>
+      <artifactId>neo4j-cypher-logical-query-builder</artifactId>
       <version>${project.version}</version>
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>ongdb-cypher-runtime-util</artifactId>
+      <groupId>org.neo4j</groupId>
+      <artifactId>neo4j-cypher-runtime-util</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>org.graphfoundation.ongdb.community</groupId>
+      <groupId>org.neo4j.community</groupId>
       <artifactId>it-test-support</artifactId>
       <version>${project.version}</version>
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>ongdb-util-4.0</artifactId>
+      <groupId>org.neo4j</groupId>
+      <artifactId>neo4j-util-4.0</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>ongdb-common</artifactId>
+      <groupId>org.neo4j</groupId>
+      <artifactId>neo4j-common</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>ongdb-io</artifactId>
+      <groupId>org.neo4j</groupId>
+      <artifactId>neo4j-io</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>ongdb-logging</artifactId>
+      <groupId>org.neo4j</groupId>
+      <artifactId>neo4j-logging</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>org.graphfoundation.ongdb</groupId>
+      <groupId>org.neo4j</groupId>
       <artifactId>log-test-utils</artifactId>
       <version>${project.version}</version>
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>ongdb-kernel</artifactId>
+      <groupId>org.neo4j</groupId>
+      <artifactId>neo4j-kernel</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>ongdb-ast-4.0</artifactId>
+      <groupId>org.neo4j</groupId>
+      <artifactId>neo4j-ast-4.0</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>

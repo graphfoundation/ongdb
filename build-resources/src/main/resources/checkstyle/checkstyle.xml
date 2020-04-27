@@ -8,14 +8,14 @@
   <property name="charset" value="UTF-8"/>
   <property name="fileExtensions" value="java"/>
 
-  <!-- Require license headers (GPL, AGPL or Apache 2.0) with either Neo4j or GraphFoundation -->
-  <!--<module name="RegexpSingleline">
+  <!-- Require license headers (GPL, AGPL or Apache 2.0) -->
+  <module name="RegexpSingleline">
     <property name="format"
               value="^(\s|\*)*Copyright \(c\) 2002-[0-9]{4} &quot;Neo4j,&quot;"/>
     <property name="minimum" value="1"/>
     <property name="maximum" value="1"/>
     <property name="message" value="Missing, wrong or duplicated license header"/>
-  </module>-->
+  </module>
 
   <!-- Prohibit tabs -->
   <module name="FileTabCharacter">

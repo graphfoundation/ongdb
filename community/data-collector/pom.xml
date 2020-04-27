@@ -2,7 +2,7 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <parent>
-        <groupId>org.graphfoundation.ongdb</groupId>
+        <groupId>org.neo4j</groupId>
         <artifactId>parent</artifactId>
         <version>4.0.4-SNAPSHOT</version>
         <relativePath>../..</relativePath>
@@ -15,10 +15,10 @@
     </properties>
 
     <modelVersion>4.0.0</modelVersion>
-    <artifactId>ongdb-data-collector</artifactId>
+    <artifactId>neo4j-data-collector</artifactId>
 
     <packaging>jar</packaging>
-    <name>ONgDB - Data Collector</name>
+    <name>Neo4j - Data Collector</name>
     <description>The Neo4j data collector daemon.</description>
     <url>http://components.neo4j.org/${project.artifactId}/${project.version}</url>
 
@@ -59,34 +59,34 @@
 
     <dependencies>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
+            <groupId>org.neo4j</groupId>
             <artifactId>annotations</artifactId>
         </dependency>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-procedure-api</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-procedure-api</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-kernel</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-kernel</artifactId>
             <version>${project.version}</version>
         </dependency>
 
         <!-- Test are located with other IT tests to solve problems with depending of TestGraphDatabaseFactory et.c. -->
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-parser-4.0</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-parser-4.0</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-rewriting-4.0</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-rewriting-4.0</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-cypher</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-cypher</artifactId>
             <version>${project.version}</version>
         </dependency>
 

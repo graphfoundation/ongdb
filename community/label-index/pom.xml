@@ -2,7 +2,7 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <parent>
-        <groupId>org.graphfoundation.ongdb</groupId>
+        <groupId>org.neo4j</groupId>
         <artifactId>parent</artifactId>
         <version>4.0.4-SNAPSHOT</version>
         <relativePath>../..</relativePath>
@@ -16,10 +16,10 @@
     </properties>
 
     <modelVersion>4.0.0</modelVersion>
-    <artifactId>ongdb-label-index</artifactId>
+    <artifactId>neo4j-label-index</artifactId>
 
     <packaging>jar</packaging>
-    <name>ONgDB - Label index</name>
+    <name>Neo4j - Label index</name>
     <description>Label index for Neo4j.</description>
     <url>http://components.neo4j.org/${project.artifactId}/${project.version}</url>
 
@@ -51,61 +51,61 @@
 
     <dependencies>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-storage-engine-api</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-storage-engine-api</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-kernel-api</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-kernel-api</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-io</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-io</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-index</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-index</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-collections</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-collections</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-monitoring</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-monitoring</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
+            <groupId>org.neo4j</groupId>
             <artifactId>annotations</artifactId>
             <version>${project.version}</version>
         </dependency>
 
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
+            <groupId>org.neo4j</groupId>
             <artifactId>test-utils</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-random-values</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-random-values</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
+            <groupId>org.neo4j</groupId>
             <artifactId>io-test-utils</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
         </dependency><dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-index</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-index</artifactId>
             <version>${project.version}</version>
             <type>test-jar</type>
             <scope>test</scope>
@@ -115,7 +115,7 @@
             <artifactId>junit-jupiter</artifactId>
         </dependency>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
+            <groupId>org.neo4j</groupId>
             <artifactId>layout-test-utils</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>

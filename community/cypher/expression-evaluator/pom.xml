@@ -2,16 +2,16 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <parent>
-        <groupId>org.graphfoundation.ongdb</groupId>
+        <groupId>org.neo4j</groupId>
         <artifactId>cypher-parent</artifactId>
         <version>4.0.4-SNAPSHOT</version>
         <relativePath>../</relativePath>
     </parent>
 
     <modelVersion>4.0.0</modelVersion>
-    <artifactId>ongdb-cypher-expression-evaluator</artifactId>
+    <artifactId>neo4j-cypher-expression-evaluator</artifactId>
     <packaging>jar</packaging>
-    <name>ONgDB - Cypher Expression Evaluator</name>
+    <name>Neo4j - Cypher Expression Evaluator</name>
 
     <description>Cypher Expression Evaluator</description>
     <url>http://components.neo4j.org/${project.artifactId}/${project.version}</url>
@@ -53,38 +53,38 @@
 
         <!-- neo4j -->
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-values</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-values</artifactId>
             <version>${project.version}</version>
         </dependency>
 
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-parser-4.0</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-parser-4.0</artifactId>
             <version>${project.version}</version>
         </dependency>
 
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-ast-4.0</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-ast-4.0</artifactId>
             <version>${project.version}</version>
         </dependency>
 
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-expressions-4.0</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-expressions-4.0</artifactId>
             <version>${project.version}</version>
         </dependency>
 
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-cypher-runtime-util</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-cypher-runtime-util</artifactId>
             <version>${project.version}</version>
         </dependency>
 
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-cypher-interpreted-runtime</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-cypher-interpreted-runtime</artifactId>
             <version>${project.version}</version>
         </dependency>
 
@@ -119,16 +119,16 @@
 
 
         <!--<dependency>-->
-            <!--<groupId>org.graphfoundation.ongdb</groupId>-->
-            <!--<artifactId>ongdb-expressions-4.0</artifactId>-->
+            <!--<groupId>org.neo4j</groupId>-->
+            <!--<artifactId>neo4j-expressions-4.0</artifactId>-->
             <!--<version>${project.version}</version>-->
             <!--<type>test-jar</type>-->
             <!--<scope>test</scope>-->
         <!--</dependency>-->
 
         <!--<dependency>-->
-            <!--<groupId>org.graphfoundation.ongdb</groupId>-->
-            <!--<artifactId>ongdb-ast-4.0</artifactId>-->
+            <!--<groupId>org.neo4j</groupId>-->
+            <!--<artifactId>neo4j-ast-4.0</artifactId>-->
             <!--<version>${project.version}</version>-->
             <!--<type>test-jar</type>-->
             <!--<scope>test</scope>-->

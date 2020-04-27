@@ -2,16 +2,16 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <parent>
-        <groupId>org.graphfoundation.ongdb</groupId>
+        <groupId>org.neo4j</groupId>
         <artifactId>cypher-parent</artifactId>
         <version>4.0.4-SNAPSHOT</version>
         <relativePath>../</relativePath>
     </parent>
 
     <modelVersion>4.0.0</modelVersion>
-    <artifactId>ongdb-cypher-ir</artifactId>
+    <artifactId>neo4j-cypher-ir</artifactId>
     <packaging>jar</packaging>
-    <name>ONgDB - Cypher Intermediate Representation</name>
+    <name>Neo4j - Cypher Intermediate Representation</name>
 
     <description>The intermediate representations, such as the query graph</description>
     <url>http://components.neo4j.org/${project.artifactId}/${project.version}</url>
@@ -53,40 +53,40 @@
         <!-- shared versions are defined in the parent pom -->
 
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-util-4.0</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-util-4.0</artifactId>
             <version>${project.version}</version>
             <type>test-jar</type>
             <scope>test</scope>
         </dependency>
 
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-expressions-4.0</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-expressions-4.0</artifactId>
             <version>${project.version}</version>
         </dependency>
 
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-ast-4.0</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-ast-4.0</artifactId>
             <version>${project.version}</version>
         </dependency>
 
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-front-end-4.0</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-front-end-4.0</artifactId>
             <version>${project.version}</version>
         </dependency>
 
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-rewriting-4.0</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-rewriting-4.0</artifactId>
             <version>${project.version}</version>
         </dependency>
 
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-exceptions</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-exceptions</artifactId>
             <version>${project.version}</version>
         </dependency>
 

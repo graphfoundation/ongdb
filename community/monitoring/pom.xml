@@ -2,7 +2,7 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <parent>
-        <groupId>org.graphfoundation.ongdb</groupId>
+        <groupId>org.neo4j</groupId>
         <artifactId>parent</artifactId>
         <version>4.0.4-SNAPSHOT</version>
         <relativePath>../..</relativePath>
@@ -16,10 +16,10 @@
     </properties>
 
     <modelVersion>4.0.0</modelVersion>
-    <artifactId>ongdb-monitoring</artifactId>
+    <artifactId>neo4j-monitoring</artifactId>
 
     <packaging>jar</packaging>
-    <name>ONgDB - Monitoring</name>
+    <name>Neo4j - Monitoring</name>
     <description>Internal utilities for monitoring aspects of Neo4j.</description>
     <url>http://components.neo4j.org/${project.artifactId}/${project.version}</url>
 
@@ -59,18 +59,18 @@
             <artifactId>commons-lang3</artifactId>
         </dependency>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-common</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-common</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-graphdb-api</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-graphdb-api</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-logging</artifactId>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-logging</artifactId>
             <version>${project.version}</version>
         </dependency>
 

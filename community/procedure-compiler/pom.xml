@@ -1,7 +1,7 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <parent>
-        <groupId>org.graphfoundation.ongdb</groupId>
+        <groupId>org.neo4j</groupId>
         <artifactId>parent</artifactId>
         <version>4.0.4-SNAPSHOT</version>
         <relativePath>../..</relativePath>
@@ -16,8 +16,8 @@
     <artifactId>procedure-compiler-parent</artifactId>
     <packaging>pom</packaging>
 
-    <name>ONgDB - Procedure Compiler Parent POM</name>
-    <description>ONgDB Stored Procedure compile-time annotation processor</description>
+    <name>Neo4j - Procedure Compiler Parent POM</name>
+    <description>Neo4j Stored Procedure compile-time annotation processor</description>
     <url>http://components.neo4j.org/${project.artifactId}/${project.version}</url>
 
     <scm>

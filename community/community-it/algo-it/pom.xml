@@ -4,17 +4,17 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <parent>
-        <groupId>org.graphfoundation.ongdb</groupId>
+        <groupId>org.neo4j</groupId>
         <artifactId>community-integration-tests</artifactId>
         <version>4.0.4-SNAPSHOT</version>
     </parent>
 
-    <groupId>org.graphfoundation.ongdb.community</groupId>
+    <groupId>org.neo4j.community</groupId>
     <artifactId>algo-it</artifactId>
 
-    <name>ONgDB - Community Graph Algorithms Integration Tests</name>
+    <name>Neo4j - Community Graph Algorithms Integration Tests</name>
     <packaging>jar</packaging>
-    <description>ONgDB community edition graph algorithms integration tests.</description>
+    <description>Neo4j community edition graph algorithms integration tests.</description>
 
     <properties>
         <license-text.header>headers/GPL-3-header.txt</license-text.header>
@@ -59,12 +59,12 @@
 
     <dependencies>
         <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
+            <groupId>org.neo4j</groupId>
             <artifactId>neo4j</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.graphfoundation.ongdb.community</groupId>
+            <groupId>org.neo4j.community</groupId>
             <artifactId>it-test-support</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
