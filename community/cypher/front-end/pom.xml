@@ -2,7 +2,7 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
                       http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <parent>
-        <groupId>org.neo4j</groupId>
+        <groupId>org.graphfoundation.ongdb</groupId>
         <artifactId>cypher-parent</artifactId>
         <version>4.0.4-SNAPSHOT</version>
         <relativePath>../</relativePath>
@@ -10,7 +10,7 @@
 
     <modelVersion>4.0.0</modelVersion>
 
-    <artifactId>neo4j-front-end-parent-4.0</artifactId>
+    <artifactId>ongdb-front-end-parent-4.0</artifactId>
     <packaging>pom</packaging>
     <name>openCypher Front End Parent</name>
     <description>Project that builds the openCypher front end modules</description>

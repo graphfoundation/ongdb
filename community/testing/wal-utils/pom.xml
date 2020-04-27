@@ -23,7 +23,7 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <parent>
-        <groupId>org.neo4j</groupId>
+        <groupId>org.graphfoundation.ongdb</groupId>
         <artifactId>testing-parent</artifactId>
         <version>4.0.4-SNAPSHOT</version>
     </parent>
@@ -38,7 +38,7 @@
         <default.jupiter.test.mode>concurrent</default.jupiter.test.mode>
     </properties>
 
-    <name>Neo4j - Write-Ahead Logging Test Utilities</name>
+    <name>ONgDB - Write-Ahead Logging Test Utilities</name>
     <description>A set of write-ahead logging utilities used by tests.</description>
     <url>http://components.neo4j.org/${project.artifactId}/${project.version}</url>
 
@@ -69,12 +69,12 @@
 
     <dependencies>
         <dependency>
-            <groupId>org.neo4j</groupId>
-            <artifactId>neo4j-wal</artifactId>
+            <groupId>org.graphfoundation.ongdb</groupId>
+            <artifactId>ongdb-wal</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.neo4j</groupId>
+            <groupId>org.graphfoundation.ongdb</groupId>
             <artifactId>storage-engine-test-utils</artifactId>
             <version>${project.version}</version>
         </dependency>

@@ -3,7 +3,7 @@
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <parent>
-    <groupId>org.neo4j</groupId>
+    <groupId>org.graphfoundation.ongdb</groupId>
     <artifactId>parent</artifactId>
     <version>4.0.4-SNAPSHOT</version>
     <relativePath>../..</relativePath>
@@ -16,7 +16,7 @@
   <modelVersion>4.0.0</modelVersion>
 
   <artifactId>zstd-proxy</artifactId>
-  <groupId>org.neo4j.licensing-proxy</groupId>
+  <groupId>org.graphfoundation.ongdb.licensing-proxy</groupId>
 
   <name>Zstandard</name>
   <description>
