@@ -402,12 +402,13 @@ public final class UnsafeUtil
         {
             throw new NativeMemoryAllocationRefusedError( bytes, GlobalMemoryTracker.INSTANCE.usedDirectMemory(), e );
         }
+
+        addAllocatedPointer( pointer, bytes );
+        GlobalMemoryTracker.INSTANCE.allocated( bytes );
         if ( DIRTY_MEMORY )
         {
             setMemory( pointer, bytes, (byte) 0xA5 );
         }
-        addAllocatedPointer( pointer, bytes );
-        GlobalMemoryTracker.INSTANCE.allocated( bytes );
         return pointer;
     }
 
@@ -501,7 +502,7 @@ public final class UnsafeUtil
         freeTraces[idx] = new FreeTrace( pointer, allocation, count );
     }
 
-    private static void checkAccess( long pointer, int size )
+    private static void checkAccess( long pointer, long size )
     {
         if ( CHECK_NATIVE_ACCESS && nativeAccessCheckEnabled )
         {
@@ -509,7 +510,7 @@ public final class UnsafeUtil
         }
     }
 
-    private static void doCheckAccess( long pointer, int size )
+    private static void doCheckAccess( long pointer, long size )
     {
         long boundary = pointer + size;
         Allocation allocation = lastUsedAllocation.get();
@@ -533,7 +534,7 @@ public final class UnsafeUtil
         lastUsedAllocation.set( fentry.getValue() );
     }
 
-    private static void throwBadAccess( long pointer, int size, Map.Entry<Long,Allocation> fentry,
+    private static void throwBadAccess( long pointer, long size, Map.Entry<Long,Allocation> fentry,
                                         Map.Entry<Long,Allocation> centry )
     {
         long now = System.nanoTime();
@@ -946,6 +947,7 @@ public final class UnsafeUtil
      */
     public static void setMemory( long address, long bytes, byte value )
     {
+        checkAccess( address, bytes );
         if ( 0 == (address & 1) && bytes > 64 )
         {
             unsafe.putByte( address, value );
@@ -962,6 +964,7 @@ public final class UnsafeUtil
      */
     public static void copyMemory( long srcAddress, long destAddress, long bytes )
     {
+        checkAccess( srcAddress, bytes );
         unsafe.copyMemory( srcAddress, destAddress, bytes );
     }
 
@@ -972,6 +975,7 @@ public final class UnsafeUtil
      */
     public static ByteBuffer newDirectByteBuffer( long addr, int cap ) throws Exception
     {
+        checkAccess( addr, cap );
         if ( directByteBufferCtor == null )
         {
             // Simulate the JNI NewDirectByteBuffer(void*, long) invocation.
@@ -988,6 +992,7 @@ public final class UnsafeUtil
      */
     public static void initDirectByteBuffer( Object dbb, long addr, int cap )
     {
+        checkAccess( addr, cap );
         unsafe.putInt( dbb, directByteBufferMarkOffset, -1 );
         unsafe.putInt( dbb, directByteBufferPositionOffset, 0 );
         unsafe.putInt( dbb, directByteBufferLimitOffset, cap );
@@ -1152,6 +1157,13 @@ public final class UnsafeUtil
             this.sizeInBytes = sizeInBytes;
             this.freeCounter = freeCounter;
             this.boundary = pointer + sizeInBytes;
+        }
+
+        @Override
+        public String toString()
+        {
+            return format( "Allocation[pointer=%s (%x), size=%s, boundary=%s (%x), free counter=%s]",
+                    pointer, pointer, sizeInBytes, boundary, boundary, freeCounter );
         }
     }
 
