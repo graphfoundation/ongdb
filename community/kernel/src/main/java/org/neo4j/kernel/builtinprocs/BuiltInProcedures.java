@@ -25,6 +25,7 @@ package org.neo4j.kernel.builtinprocs;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -141,7 +142,7 @@ public class BuiltInProcedures
                 long indexId = getIndexId( indexingService, schema );
                 List<String> tokenNames = Arrays.asList( tokens.entityTokensGetNames( schema.entityType(), schema.getEntityTokenIds() ) );
                 List<String> propertyNames = propertyNames( tokens, index );
-                List<String> sortNames = sortNames( tokens, index );
+                Map<String,Object> sortInformation = sortInformation( tokens, index );
                 String description = "INDEX ON " + schema.userDescription( tokens );
                 IndexStatus status = getIndexStatus( schemaRead, index );
                 Map<String,String> providerDescriptorMap = indexProviderDescriptorMap( schemaRead.index( schema ) );
@@ -150,7 +151,7 @@ public class BuiltInProcedures
                         index.name(),
                         tokenNames,
                         propertyNames,
-                        sortNames,
+                        sortInformation,
                         status.state,
                         type.typeName(),
                         status.populationProgress,
@@ -722,15 +723,20 @@ public class BuiltInProcedures
         return propertyNames;
     }
 
-    private static List<String> sortNames( TokenNameLookup tokens, IndexReference index )
+    private static Map<String,Object> sortInformation( TokenNameLookup tokens, IndexReference index )
     {
         int[] sortIds = index.schema().getSortIds();
-        List<String> sortNames = new ArrayList<>( sortIds.length );
-        for ( int sortId : sortIds )
+        int[] sortTypes = index.schema().getSortTypes();
+
+        Map<String,Object> sortInformation = new HashMap<>();
+
+        for ( int i = 0; i < sortIds.length; i++ )
         {
-            sortNames.add( tokens.propertyKeyGetName( sortId ) );
+            String sortName = tokens.propertyKeyGetName( sortIds[i] );
+            String sortType = FulltextSortType.intToType( sortTypes[i] );
+            sortInformation.put( sortName, sortType );
         }
-        return sortNames;
+        return sortInformation;
     }
 
     private static <T> Stream<T> toStream( NodeExplicitIndexCursor cursor, LongFunction<T> mapper )
@@ -916,7 +922,7 @@ public class BuiltInProcedures
         public final String indexName;
         public final List<String> tokenNames;
         public final List<String> properties;
-        public final List<String> sortProperties;
+        public final Map<String,Object> sortProperties;
         public final String state;
         public final String type;
         public final Double progress;
@@ -929,7 +935,7 @@ public class BuiltInProcedures
                              String indexName,
                              List<String> tokenNames,
                              List<String> properties,
-                             List<String> sortProperties,
+                             Map<String,Object> sortProperties,
                              String state,
                              String type,
                              Float progress,
@@ -1085,6 +1091,38 @@ public class BuiltInProcedures
         public String typeName()
         {
             return typeName;
+        }
+    }
+
+    /**
+     * Local version of class from {@link org.neo4j.kernel.api.impl.fulltext}
+     */
+    private enum FulltextSortType
+    {
+        LONG( 0 ),
+        DOUBLE( 1 ),
+        STRING( 2 );
+
+        int neoStoreByte;
+
+        FulltextSortType( final Integer neoStoreByte )
+        {
+            this.neoStoreByte = neoStoreByte;
+        }
+
+        public static String intToType( int i )
+        {
+            switch ( i )
+            {
+            case 0:
+                return LONG.name();
+            case 1:
+                return DOUBLE.name();
+            case 2:
+                return STRING.name();
+            default:
+                return null;
+            }
         }
     }
 }

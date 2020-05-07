@@ -28,7 +28,6 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -114,7 +113,7 @@ public class SortStoreFormatTest
         indexesResult = database.execute( DB_INDEXES );
         Map<String,Object> testIndexMap = indexesResult.stream().filter( m -> m.get( "indexName" ).equals( "testIndex" ) ).findFirst().get();
         Assert.assertTrue( "The fulltext 'testIndex' is missing 'sortProperties' after migration", testIndexMap.containsKey( "sortProperties" ));
-        Assert.assertTrue( ((List<String>) testIndexMap.get( "sortProperties" )).isEmpty() );
+        Assert.assertTrue( ((Map<String,Object>) testIndexMap.get( "sortProperties" )).isEmpty() );
 
         // Try dropping a fulltext index
         database.execute( "CALL db.index.fulltext.drop(\"testIndex\")" );
@@ -127,7 +126,7 @@ public class SortStoreFormatTest
 
         indexesResult = database.execute( DB_INDEXES );
         Map<String,Object> sortIndex = indexesResult.stream().filter( m -> m.get( "indexName" ).equals( "sortIndex" ) ).findFirst().get();
-        Assert.assertTrue( ((List<String>) sortIndex.get( "sortProperties" )).contains( "name" ) );
+        Assert.assertTrue( ((Map<String,Object>) sortIndex.get( "sortProperties" )).keySet().contains( "name" ) );
 
         indexesResult.close();
         database.shutdown();

@@ -91,7 +91,7 @@ public class DbIndexesFailureMessageIT extends KernelIntegrationTest
         assertEquals( "Unnamed index", result[1] );
         assertEquals( Collections.singletonList( "Fail" ), result[2] );
         assertEquals( Collections.singletonList( "foo" ), result[3] );
-        assertEquals( Collections.emptyList(), result[4] );
+        assertEquals( Collections.emptyMap(), result[4] );
         assertEquals( "FAILED", result[5] );
         assertEquals( "node_label_property", result[6] );
         assertEquals( 0.0, result[7] );
