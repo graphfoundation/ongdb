@@ -63,6 +63,7 @@ import org.neo4j.kernel.api.Statement;
 import org.neo4j.kernel.api.exceptions.Status;
 import org.neo4j.kernel.impl.api.TokenAccess;
 import org.neo4j.kernel.impl.api.index.IndexingService;
+import org.neo4j.kernel.impl.util.FulltextSortType;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
 import org.neo4j.procedure.Context;
 import org.neo4j.procedure.Description;
@@ -1091,38 +1092,6 @@ public class BuiltInProcedures
         public String typeName()
         {
             return typeName;
-        }
-    }
-
-    /**
-     * Local version of class from {@link org.neo4j.kernel.api.impl.fulltext}
-     */
-    private enum FulltextSortType
-    {
-        LONG( 0 ),
-        DOUBLE( 1 ),
-        STRING( 2 );
-
-        int neoStoreByte;
-
-        FulltextSortType( final Integer neoStoreByte )
-        {
-            this.neoStoreByte = neoStoreByte;
-        }
-
-        public static String intToType( int i )
-        {
-            switch ( i )
-            {
-            case 0:
-                return LONG.name();
-            case 1:
-                return DOUBLE.name();
-            case 2:
-                return STRING.name();
-            default:
-                return null;
-            }
         }
     }
 }

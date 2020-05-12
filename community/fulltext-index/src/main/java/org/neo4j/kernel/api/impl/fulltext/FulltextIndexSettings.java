@@ -47,6 +47,7 @@ import org.neo4j.io.fs.StoreChannel;
 import org.neo4j.kernel.impl.core.TokenHolder;
 import org.neo4j.kernel.impl.core.TokenNotFoundException;
 import org.neo4j.kernel.impl.core.UnknownSortTypeException;
+import org.neo4j.kernel.impl.util.FulltextSortType;
 import org.neo4j.storageengine.api.schema.StoreIndexDescriptor;
 
 public class FulltextIndexSettings

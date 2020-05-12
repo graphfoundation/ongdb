@@ -68,6 +68,7 @@ import org.neo4j.kernel.impl.index.schema.ByteBufferFactory;
 import org.neo4j.kernel.impl.newapi.AllStoreHolder;
 import org.neo4j.kernel.impl.storemigration.StoreMigrationParticipant;
 import org.neo4j.kernel.impl.storemigration.participant.SchemaIndexMigrator;
+import org.neo4j.kernel.impl.util.FulltextSortType;
 import org.neo4j.logging.Log;
 import org.neo4j.scheduler.JobScheduler;
 import org.neo4j.storageengine.api.EntityType;
@@ -476,7 +477,7 @@ class FulltextIndexProvider extends IndexProvider implements FulltextAdapter, Au
         {
             if ( sortMap.containsKey( sortProperty ) )
             {
-                sortTypesArray[i] = FulltextSortType.valueOfIgnoreCase( sortMap.get( sortProperty ) ).neoStoreByte;
+                sortTypesArray[i] = FulltextSortType.valueOfIgnoreCase( sortMap.get( sortProperty ) ).getNeoStoreByte();
                 i++;
             }
             else

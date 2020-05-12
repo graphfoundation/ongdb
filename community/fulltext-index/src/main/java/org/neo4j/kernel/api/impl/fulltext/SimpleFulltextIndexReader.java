@@ -40,6 +40,7 @@ import org.neo4j.kernel.api.impl.index.collector.DocValuesCollector;
 import org.neo4j.kernel.api.impl.index.collector.ValuesIterator;
 import org.neo4j.kernel.api.impl.schema.reader.IndexReaderCloseException;
 import org.neo4j.kernel.impl.core.TokenHolder;
+import org.neo4j.kernel.impl.util.FulltextSortType;
 import org.neo4j.values.storable.Value;
 
 /**
