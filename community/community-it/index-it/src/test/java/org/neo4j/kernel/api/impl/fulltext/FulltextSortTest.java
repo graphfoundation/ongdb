@@ -28,6 +28,7 @@ import org.junit.rules.RuleChain;
 import org.junit.rules.Timeout;
 
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -116,7 +117,10 @@ public class FulltextSortTest
             assertEquals( "INDEX ON NODE:Label1(prop1)", row.get( "description" ) );
             assertEquals( asList( "Label1" ), row.get( "tokenNames" ) );
             assertEquals( asList( "prop1" ), row.get( "properties" ) );
-            assertEquals( asList( "sortProp" ), row.get( "sortProperties" ) );
+            assertEquals( new HashMap<String,Object>()
+            {{
+                put( "sortProp", "LONG" );
+            }}, row.get( "sortProperties" ) );
             assertEquals( "sort-index", row.get( "indexName" ) );
             assertEquals( "node_fulltext", row.get( "type" ) );
             assertFalse( result.hasNext() );
@@ -142,7 +146,10 @@ public class FulltextSortTest
             assertEquals( "INDEX ON NODE:Label1(prop1)", row.get( "description" ) );
             assertEquals( "ONLINE", row.get( "state" ) );
             assertEquals( asList( "prop1" ), row.get( "properties" ) );
-            assertEquals( asList( "sortProp" ), row.get( "sortProperties" ) );
+            assertEquals( new HashMap<String,Object>()
+            {{
+                put( "sortProp", "LONG" );
+            }}, row.get( "sortProperties" ) );
             assertFalse( result.hasNext() );
             //noinspection ConstantConditions
             assertFalse( result.hasNext() );
@@ -167,7 +174,11 @@ public class FulltextSortTest
             assertEquals( "INDEX ON RELATIONSHIP:Reltype1(prop1)", row.get( "description" ) );
             assertEquals( asList( "Reltype1" ), row.get( "tokenNames" ) );
             assertEquals( asList( "prop1" ), row.get( "properties" ) );
-            assertEquals( asList( "prop1", "sortProp" ), row.get( "sortProperties" ) );
+            assertEquals( new HashMap<String,Object>()
+            {{
+                put( "prop1", "STRING" );
+                put( "sortProp", "LONG" );
+            }}, row.get( "sortProperties" ) );
             assertEquals( "sort-index", row.get( "indexName" ) );
             assertEquals( "relationship_fulltext", row.get( "type" ) );
             assertFalse( result.hasNext() );
@@ -191,7 +202,11 @@ public class FulltextSortTest
             assertEquals( "INDEX ON RELATIONSHIP:Reltype1(prop1)", row.get( "description" ) );
             assertEquals( "ONLINE", row.get( "state" ) );
             assertEquals( asList( "prop1" ), row.get( "properties" ) );
-            assertEquals( asList( "prop1", "sortProp" ), row.get( "sortProperties" ) );
+            assertEquals( new HashMap<String,Object>()
+            {{
+                put( "prop1", "STRING" );
+                put( "sortProp", "LONG" );
+            }}, row.get( "sortProperties" ) );
             assertFalse( result.hasNext() );
             //noinspection ConstantConditions
             assertFalse( result.hasNext() );

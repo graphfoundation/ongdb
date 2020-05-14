@@ -196,7 +196,7 @@ public class BuiltInProceduresIT extends KernelIntegrationTest
                       "List the currently active config of Neo4j.", "DBMS" ),
                 proc( "db.constraints", "() :: (description :: STRING?)", "List all constraints in the database.", "READ" ),
                 proc( "db.indexes", "() :: (description :: STRING?, indexName :: STRING?, tokenNames :: LIST? OF STRING?, properties :: " +
-                                    "LIST? OF STRING?, sortProperties :: LIST? OF STRING?, state :: STRING?, type :: STRING?, progress :: FLOAT?, " +
+                                    "LIST? OF STRING?, sortProperties :: MAP?, state :: STRING?, type :: STRING?, progress :: FLOAT?, " +
                                     "provider :: MAP?, id :: INTEGER?, failureMessage :: STRING?)",
                       "List all indexes in the database.", "READ" ),
                 proc( "db.awaitIndex", "(index :: STRING?, timeOutSeconds = 300 :: INTEGER?) :: VOID",
@@ -425,13 +425,13 @@ public class BuiltInProceduresIT extends KernelIntegrationTest
                                                     "key", provider.getProviderDescriptor().getKey(), "version",
                                                     provider.getProviderDescriptor().getVersion() );
         assertThat( result, containsInAnyOrder(
-                new Object[]{"INDEX ON :Age(foo)", "index_1", singletonList( "Age" ), singletonList( "foo" ), Collections.emptyList(), "ONLINE",
+                new Object[]{"INDEX ON :Age(foo)", "index_1", singletonList( "Age" ), singletonList( "foo" ), Collections.emptyMap(), "ONLINE",
                              "node_unique_property", 100D, pdm, indexingService.getIndexId( ageFooDescriptor ), ""},
                 new Object[]{"INDEX ON :Person(foo)", "Unnamed index", singletonList( "Person" ),
-                             singletonList( "foo" ), Collections.emptyList(), "ONLINE", "node_label_property", 100D, pdm,
+                             singletonList( "foo" ), Collections.emptyMap(), "ONLINE", "node_label_property", 100D, pdm,
                              indexingService.getIndexId( personFooDescriptor ), ""},
                 new Object[]{"INDEX ON :Person(foo, bar)", "Unnamed index", singletonList( "Person" ),
-                             Arrays.asList( "foo", "bar" ), Collections.emptyList(), "ONLINE", "node_label_property", 100D, pdm,
+                             Arrays.asList( "foo", "bar" ), Collections.emptyMap(), "ONLINE", "node_label_property", 100D, pdm,
                              indexingService.getIndexId( personFooBarDescriptor ), ""}
         ) );
         commit();
@@ -505,16 +505,16 @@ public class BuiltInProceduresIT extends KernelIntegrationTest
                                                         "key", provider.getProviderDescriptor().getKey(), "version",
                                                         provider.getProviderDescriptor().getVersion() );
             assertThat( result, containsInAnyOrder(
-                    new Object[]{"INDEX ON :Age(foo)", "index_1", singletonList( "Age" ), singletonList( "foo" ), Collections.emptyList(), "ONLINE",
+                    new Object[]{"INDEX ON :Age(foo)", "index_1", singletonList( "Age" ), singletonList( "foo" ), Collections.emptyMap(), "ONLINE",
                                  "node_unique_property", 100D, pdm, indexing.getIndexId( ageFooDescriptor ), ""},
                     new Object[]{"INDEX ON :Person(foo)", "Unnamed index", singletonList( "Person" ),
-                                 singletonList( "foo" ), Collections.emptyList(), "ONLINE", "node_label_property", 100D, pdm,
+                                 singletonList( "foo" ), Collections.emptyMap(), "ONLINE", "node_label_property", 100D, pdm,
                                  indexing.getIndexId( personFooDescriptor ), ""},
                     new Object[]{"INDEX ON :Person(foo, bar)", "Unnamed index", singletonList( "Person" ),
-                                 Arrays.asList( "foo", "bar" ), Collections.emptyList(), "ONLINE", "node_label_property", 100D, pdm,
+                                 Arrays.asList( "foo", "bar" ), Collections.emptyMap(), "ONLINE", "node_label_property", 100D, pdm,
                                  indexing.getIndexId( personFooBarDescriptor ), ""},
                     new Object[]{"INDEX ON :Person(baz)", "Unnamed index", singletonList( "Person" ),
-                                 singletonList( "baz" ), Collections.emptyList(), "POPULATING", "node_unique_property", 100D, pdm,
+                                 singletonList( "baz" ), Collections.emptyMap(), "POPULATING", "node_unique_property", 100D, pdm,
                                  indexing.getIndexId( personBazDescriptor ), ""}
             ) );
             commit();
