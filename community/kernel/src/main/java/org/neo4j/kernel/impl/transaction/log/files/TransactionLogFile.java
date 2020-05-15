@@ -89,12 +89,31 @@ class TransactionLogFile extends LifecycleAdapter implements LogFile
 
     private void seekChannelPosition( long currentLogVersion ) throws IOException
     {
-        scrollToTheLastClosedTxPosition( currentLogVersion );
-        LogPosition position = scrollOverCheckpointRecords();
+        jumpToTheLastClosedTxPosition( currentLogVersion );
+        LogPosition position;
+        try
+        {
+            position = scanToEndOfLastLogEntry();
+        }
+        catch ( Exception e )
+        {
+            // If we can't read the log, it could be that the last-closed-transaction position in the meta-data store is wrong.
+            // We can try again by scanning the log file from the start.
+            jumpToLogStart( currentLogVersion );
+            try
+            {
+                position = scanToEndOfLastLogEntry();
+            }
+            catch ( Exception exception )
+            {
+                exception.addSuppressed( e );
+                throw exception;
+            }
+        }
         channel.position( position.getByteOffset() );
     }
 
-    private LogPosition scrollOverCheckpointRecords() throws IOException
+    private LogPosition scanToEndOfLastLogEntry() throws IOException
     {
         // scroll all over possible checkpoints
         ReadAheadLogChannel readAheadLogChannel = new ReadAheadLogChannel( channel );
@@ -109,12 +128,12 @@ class TransactionLogFile extends LifecycleAdapter implements LogFile
         return logEntryReader.lastPosition();
     }
 
-    private void scrollToTheLastClosedTxPosition( long currentLogVersion ) throws IOException
+    private void jumpToTheLastClosedTxPosition( long currentLogVersion ) throws IOException
     {
         LogPosition logPosition = context.getLastClosedTransactionPosition();
         long lastTxOffset = logPosition.getByteOffset();
         long lastTxLogVersion = logPosition.getLogVersion();
-        final long headerSize = logFiles.extractHeader( currentLogVersion ).getStartPosition().getByteOffset();
+        long headerSize = logFiles.extractHeader( currentLogVersion ).getStartPosition().getByteOffset();
         if ( lastTxOffset < headerSize || channel.size() < lastTxOffset )
         {
             return;
@@ -123,6 +142,12 @@ class TransactionLogFile extends LifecycleAdapter implements LogFile
         {
             channel.position( lastTxOffset );
         }
+    }
+
+    private void jumpToLogStart( long currentLogVersion ) throws IOException
+    {
+        long headerSize = logFiles.extractHeader( currentLogVersion ).getStartPosition().getByteOffset();
+        channel.position( headerSize );
     }
 
     // In order to be able to write into a logfile after life.stop during shutdown sequence

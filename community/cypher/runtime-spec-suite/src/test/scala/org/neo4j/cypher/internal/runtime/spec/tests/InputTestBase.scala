@@ -83,4 +83,41 @@ abstract class InputTestBase[CONTEXT <: RuntimeContext](
     // then
     runtimeResult should beColumns("x", "y", "z").withNoRows()
   }
+
+  test("should input all kinds of input at once") {
+    val (nodes, rels) =
+      given {
+        circleGraph(2)
+      }
+
+    // when
+    val logicalQuery = new LogicalQueryBuilder(this)
+      .produceResults("n1", "n2", "r1", "r2", "v1", "v2")
+      .input(nodes = Seq("n1", "n2"), relationships = Seq("r1", "r2"), variables = Seq("v1", "v2"))
+      .build()
+
+    val input = inputValues(Array[Any](nodes(0), nodes(1), rels(0), rels(1), "hi", "ho"))
+    val runtimeResult = execute(logicalQuery, runtime, input)
+
+    // then
+    runtimeResult should beColumns("n1", "n2", "r1", "r2", "v1", "v2").withSingleRow(nodes(0), nodes(1), rels(0), rels(1), "hi", "ho")
+  }
+
+  test("should work under non-fused limit") {
+    // given
+    val input = for (i <- 1 to sizeHint) yield Array[Any](i)
+
+    // when
+    val logicalQuery = new LogicalQueryBuilder(this)
+      .produceResults("y")
+      .limit(1)
+      .unwind("range(x, x + 10) as y")
+      .input(variables = Seq("x"))
+      .build()
+
+    val runtimeResult = execute(logicalQuery, runtime, inputValues(input:_*))
+
+    // then
+    runtimeResult should beColumns("y").withRows(input.take(1))
+  }
 }

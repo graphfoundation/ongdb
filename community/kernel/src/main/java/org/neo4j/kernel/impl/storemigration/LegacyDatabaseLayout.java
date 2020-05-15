@@ -17,24 +17,26 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.internal.batchimport;
+package org.neo4j.kernel.impl.storemigration;
 
-import org.neo4j.configuration.Config;
-import org.neo4j.io.fs.FileSystemAbstraction;
+import java.io.File;
+
 import org.neo4j.io.layout.DatabaseLayout;
-import org.neo4j.kernel.impl.store.NeoStores;
+import org.neo4j.io.layout.Neo4jLayout;
 
-public class EmptyLogFilesInitializer implements LogFilesInitializer
+class LegacyDatabaseLayout extends DatabaseLayout
 {
-    public static final LogFilesInitializer INSTANCE = new EmptyLogFilesInitializer();
+    private final LegacyTransactionLogsLocator logsLocator;
 
-    private EmptyLogFilesInitializer()
+    LegacyDatabaseLayout( Neo4jLayout storeLayout, String databaseName, LegacyTransactionLogsLocator logsLocator )
     {
+        super( storeLayout, databaseName );
+        this.logsLocator = logsLocator;
     }
 
     @Override
-    public void initializeLogFiles( Config config, DatabaseLayout databaseLayout, NeoStores neoStores, FileSystemAbstraction fileSystem )
+    public File getTransactionLogsDirectory()
     {
-        // empty
+        return logsLocator.getTransactionLogsDirectory();
     }
 }
