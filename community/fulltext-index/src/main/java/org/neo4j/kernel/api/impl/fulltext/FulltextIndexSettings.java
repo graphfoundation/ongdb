@@ -134,7 +134,7 @@ public class FulltextIndexSettings
         }
     }
 
-    private static Analyzer createAnalyzer( String analyzerName )
+    public static Analyzer createAnalyzer( String analyzerName )
     {
         try
         {
