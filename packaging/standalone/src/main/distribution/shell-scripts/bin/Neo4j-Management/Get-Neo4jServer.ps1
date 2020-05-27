@@ -111,14 +111,14 @@ function Get-Neo4jServer
     }
 
     # Scan the lib dir...
-    Get-ChildItem (Join-Path -Path $Neo4jHome -ChildPath 'lib') | Where-Object { $_.Name -like 'neo4j-server-*.jar' } | ForEach-Object -Process `
+    Get-ChildItem (Join-Path -Path $Neo4jHome -ChildPath 'lib') | Where-Object { $_.Name -like 'ongdb-server-*.jar' } | ForEach-Object -Process `
        {
-      # if neo4j-server-enterprise-<version>.jar exists then this is the enterprise version
-      if ($_.Name -like 'neo4j-server-enterprise-*.jar') { $serverProperties.ServerType = 'Enterprise' }
+      # if ongdb-server-enterprise-<version>.jar exists then this is the enterprise version
+      if ($_.Name -like 'ongdb-server-enterprise-*.jar') { $serverProperties.ServerType = 'Enterprise' }
 
-      # Get the server version from the name of the neo4j-server-<version>.jar file
+      # Get the server version from the name of the ongdb-server-<version>.jar file
       if ($matches -ne $null) { $matches.Clear() }
-      if ($_.Name -match '^neo4j-server-(\d.+)\.jar$') { $serverProperties.ServerVersion = $matches[1] }
+      if ($_.Name -match '^ongdb-server-(\d.+)\.jar$') { $serverProperties.ServerVersion = $matches[1] }
     }
     $serverObject = New-Object -TypeName PSCustomObject -Property $serverProperties
 
