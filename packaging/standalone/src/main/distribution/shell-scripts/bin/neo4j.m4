@@ -32,7 +32,7 @@ include(src/main/distribution/shell-scripts/bin/neo4j-shared.m4)
 
 setup_arbiter_options() {
   is_arbiter() {
-    compgen -G "${NEO4J_LIB}/neo4j-server-enterprise-*.jar" >/dev/null && \
+    compgen -G "${NEO4J_LIB}/ongdb-server-enterprise-*.jar" >/dev/null && \
       [[ "$(echo "${dbms_mode:-}" | tr [:lower:] [:upper:])" == "ARBITER" ]]
   }
 
