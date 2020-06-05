@@ -4,14 +4,14 @@
     <parent>
         <groupId>org.graphfoundation.ongdb</groupId>
         <artifactId>cypher-enterprise-parent</artifactId>
-        <version>3.6.0-SNAPSHOT</version>
+        <version>3.6.1-SNAPSHOT</version>
         <relativePath>../</relativePath>
     </parent>
 
     <modelVersion>4.0.0</modelVersion>
     <artifactId>ongdb-enterprise-cypher-compatibility-spec-suite</artifactId>
     <packaging>jar</packaging>
-    <version>3.6.0-SNAPSHOT</version>
+    <version>3.6.1-SNAPSHOT</version>
     <name>ONgDB - Cypher Compatibility Specification Suite, enterprise edition</name>
     <description>ONgDB query language compatibility suite, enterprise edition</description>
     <url>https://ongdb.graphfoundation.org/${project.artifactId}/${project.version}</url>

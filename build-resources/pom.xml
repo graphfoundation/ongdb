@@ -6,7 +6,7 @@
 
     <groupId>org.graphfoundation.ongdb.build</groupId>
     <artifactId>build-resources</artifactId>
-    <version>3.6.0-SNAPSHOT</version>
+    <version>3.6.1-SNAPSHOT</version>
 
     <name>ONgDB - Build resources</name>
     <description>Build resources for community build.</description>
