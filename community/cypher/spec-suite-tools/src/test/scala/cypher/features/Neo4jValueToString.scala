@@ -76,7 +76,8 @@ object Neo4jValueToString extends (Any => String) {
         }
         s"<$string>"
 
-      case s: String => s"'$s'"
+      //  TCK values parser expects escaped backslashes or single quotes so we have to mirror that here
+      case s: String => s"'${s.replaceAllLiterally("\\", "\\\\").replaceAllLiterally("'", "\\'")}'"
       case l: Long => l.toString
       case i: Integer => i.toString
       case d: Double => d.toString

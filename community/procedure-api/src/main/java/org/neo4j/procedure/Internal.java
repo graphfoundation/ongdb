@@ -17,11 +17,18 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.kernel.impl.store.format;
+package org.neo4j.procedure;
 
-import org.neo4j.kernel.impl.store.record.AbstractBaseRecord;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
-public interface RecordKey<RECORD extends AbstractBaseRecord>
+/**
+ * This annotation marks a {@link Procedure} as being hidden, i.e. not listed in dbms.procedures() and not documented.
+ */
+@Target( ElementType.METHOD )
+@Retention( RetentionPolicy.RUNTIME )
+public @interface Internal
 {
-    void assertRecordsEquals( RECORD written, RECORD read );
 }

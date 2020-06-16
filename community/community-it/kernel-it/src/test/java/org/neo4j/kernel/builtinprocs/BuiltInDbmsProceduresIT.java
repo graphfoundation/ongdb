@@ -88,6 +88,25 @@ class BuiltInDbmsProceduresIT extends KernelIntegrationTest
     }
 
     @Test
+    void listClientConfig() throws Exception
+    {
+        QualifiedName procedureName = procedureName( "dbms", "clientConfig" );
+        int procedureId = procs().procedureGet( procedureName ).id();
+        RawIterator<AnyValue[],ProcedureException> callResult =
+                dbmsOperations()
+                        .procedureCallDbms( procedureId, new AnyValue[]{}, transaction, dependencyResolver,
+                                            AUTH_DISABLED, EMPTY_RESOURCE_TRACKER, new DefaultValueMapper( transaction ) );
+        List<AnyValue[]> config = asList( callResult );
+        assertEquals( 4, config.size());
+
+        assertEquals( config.get( 0 )[0], stringValue( "browser.post_connect_cmd" ));
+        assertEquals( config.get( 1 )[0], stringValue( "browser.remote_content_hostname_whitelist" ));
+        assertEquals( config.get( 2 )[0], stringValue( "dbms.default_database" ));
+        assertEquals( config.get( 3 )[0], stringValue( "dbms.security.auth_enabled" ));
+
+    }
+
+    @Test
     void durationAlwaysListedWithUnit() throws Exception
     {
         // When
@@ -96,7 +115,7 @@ class BuiltInDbmsProceduresIT extends KernelIntegrationTest
         assertEquals( 1, config.size() );
         assertArrayEquals( new AnyValue[]{ stringValue( "dbms.transaction.timeout" ),
                 stringValue( "The maximum time interval of a transaction within which it should be completed." ),
-                stringValue( "0ns" ), Values.TRUE }, config.get( 0 ) );
+                stringValue( "0s" ), Values.TRUE }, config.get( 0 ) );
     }
 
     @Test

@@ -17,11 +17,27 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.kernel.impl.store.format;
+package org.neo4j.server.http.cypher.format;
 
-import org.neo4j.kernel.impl.store.record.AbstractBaseRecord;
+import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.core.JsonGenerator;
 
-public interface RecordKey<RECORD extends AbstractBaseRecord>
+public enum DefaultJsonFactory
 {
-    void assertRecordsEquals( RECORD written, RECORD read );
+    INSTANCE( new JsonFactory().disable( JsonGenerator.Feature.FLUSH_PASSED_TO_STREAM ) );
+
+    private final JsonFactory value;
+
+    DefaultJsonFactory( JsonFactory value )
+    {
+        this.value = value;
+    }
+
+    /**
+     * @return A blueprint of the {@link JsonFactory} to be used by both the JSON input and output.
+     */
+    public JsonFactory get()
+    {
+        return value;
+    }
 }

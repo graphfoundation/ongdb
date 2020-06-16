@@ -25,14 +25,17 @@ import scala.collection.Iterator
 
 abstract class IndexIteratorBase[T](val cursor: NodeValueIndexCursor) extends Iterator[T] {
   private var _next: T = fetchNext()
+  if (!hasNext) {
+    close()
+  }
 
   protected def fetchNext(): T
 
   protected def close(): Unit = cursor.close()
 
-  override def hasNext: Boolean = _next != null
+  override final def hasNext: Boolean = _next != null
 
-  override def next(): T = {
+  override final def next(): T = {
     if (!hasNext) {
       close()
       Iterator.empty.next()

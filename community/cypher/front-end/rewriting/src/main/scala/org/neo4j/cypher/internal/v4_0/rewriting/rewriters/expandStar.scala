@@ -18,8 +18,10 @@ package org.neo4j.cypher.internal.v4_0.rewriting.rewriters
 
 import org.neo4j.cypher.internal.v4_0.ast._
 import org.neo4j.cypher.internal.v4_0.ast.semantics.SemanticState
-import org.neo4j.cypher.internal.v4_0.expressions.{Expression, Variable}
-import org.neo4j.cypher.internal.v4_0.util.{Rewriter, bottomUp}
+import org.neo4j.cypher.internal.v4_0.expressions.Expression
+import org.neo4j.cypher.internal.v4_0.expressions.Variable
+import org.neo4j.cypher.internal.v4_0.util.Rewriter
+import org.neo4j.cypher.internal.v4_0.util.bottomUp
 
 case class expandStar(state: SemanticState) extends Rewriter {
 
@@ -49,8 +51,9 @@ case class expandStar(state: SemanticState) extends Rewriter {
     val clausePos = clause.position
     val symbolNames = scope.symbolNames -- excludedNames -- listedItems.map(returnItem => returnItem.name)
     val expandedItems = symbolNames.toIndexedSeq.sorted.map { id =>
-      val idPos = scope.symbolTable(id).definition.position
-      val expr = Variable(id)(idPos)
+      // We use the position of the clause for variables in new return items.
+      // If the position was one of previous declaration, that could destroy scoping.
+      val expr = Variable(id)(clausePos)
       val alias = expr.copyId
       AliasedReturnItem(expr, alias)(clausePos)
     }

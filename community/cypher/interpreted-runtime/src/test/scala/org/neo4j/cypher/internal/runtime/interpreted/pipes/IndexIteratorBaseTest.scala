@@ -17,11 +17,23 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.kernel.impl.store.format;
+package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
-import org.neo4j.kernel.impl.store.record.AbstractBaseRecord;
+import org.mockito.Mockito
+import org.neo4j.cypher.internal.v4_0.util.test_helpers.CypherFunSuite
+import org.neo4j.internal.kernel.api.NodeValueIndexCursor
 
-public interface RecordKey<RECORD extends AbstractBaseRecord>
-{
-    void assertRecordsEquals( RECORD written, RECORD read );
+class IndexIteratorBaseTest extends CypherFunSuite {
+
+  test("should close if empty") {
+    val cursor = mock[NodeValueIndexCursor]
+
+    new IndexIteratorBase[String](cursor) {
+      override protected def fetchNext(): String = null
+    }
+
+    Mockito.verify(cursor).close()
+  }
+
+
 }
