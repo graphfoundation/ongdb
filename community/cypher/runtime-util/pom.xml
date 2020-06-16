@@ -90,7 +90,7 @@
         </dependency>
 
         <dependency>
-            <groupId>org.neo4j</groupId>
+            <groupId>org.graphfoundation.ongdb</groupId>
             <artifactId>kernel-api-test-utils</artifactId>
             <scope>test</scope>
             <version>${project.version}</version>
