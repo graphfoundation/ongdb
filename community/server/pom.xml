@@ -84,7 +84,7 @@
         </dependency>
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>neo4j</artifactId>
+            <artifactId>ongdb</artifactId>
             <version>${project.version}</version>
             <type>pom</type>
         </dependency>
@@ -93,7 +93,7 @@
             <!-- We need this one, or transitive dependencies of kernel
         will end up in the test scope. -->
             <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>neo4j</artifactId>
+            <artifactId>ongdb</artifactId>
             <version>${project.version}</version>
         </dependency>
 
