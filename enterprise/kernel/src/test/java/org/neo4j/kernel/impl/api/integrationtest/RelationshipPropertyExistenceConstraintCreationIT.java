@@ -36,6 +36,7 @@ import static org.neo4j.graphdb.RelationshipType.withName;
 public class RelationshipPropertyExistenceConstraintCreationIT
         extends AbstractConstraintCreationIT<ConstraintDescriptor,RelationTypeSchemaDescriptor>
 {
+
     @Override
     int initializeLabelOrRelType( TokenWrite tokenWrite, String name ) throws KernelException
     {
@@ -44,7 +45,7 @@ public class RelationshipPropertyExistenceConstraintCreationIT
 
     @Override
     ConstraintDescriptor createConstraint( SchemaWrite writeOps,
-            RelationTypeSchemaDescriptor descriptor ) throws Exception
+                                           RelationTypeSchemaDescriptor descriptor ) throws Exception
     {
         return writeOps.relationshipPropertyExistenceConstraintCreate( descriptor );
     }

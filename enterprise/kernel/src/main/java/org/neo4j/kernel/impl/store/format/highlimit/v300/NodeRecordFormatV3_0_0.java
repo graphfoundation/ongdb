@@ -23,26 +23,22 @@ import org.neo4j.kernel.impl.store.record.NodeRecord;
 import org.neo4j.kernel.impl.store.record.Record;
 
 /**
- * LEGEND:
- * V: variable between 3B-8B
- *
- * Record format:
- * 1B   header
- * VB   first relationship
- * VB   first property
- * 5B   labels
- *
+ * LEGEND: V: variable between 3B-8B
+ * <p>
+ * Record format: 1B   header VB   first relationship VB   first property 5B   labels
+ * <p>
  * => 12B-22B
  */
 public class NodeRecordFormatV3_0_0 extends BaseHighLimitRecordFormatV3_0_0<NodeRecord>
 {
+
     public static final int RECORD_SIZE = 16;
 
     private static final long NULL_LABELS = Record.NO_LABELS_FIELD.intValue();
-    private static final int DENSE_NODE_BIT       = 0b0000_1000;
+    private static final int DENSE_NODE_BIT = 0b0000_1000;
     private static final int HAS_RELATIONSHIP_BIT = 0b0001_0000;
-    private static final int HAS_PROPERTY_BIT     = 0b0010_0000;
-    private static final int HAS_LABELS_BIT       = 0b0100_0000;
+    private static final int HAS_PROPERTY_BIT = 0b0010_0000;
+    private static final int HAS_LABELS_BIT = 0b0100_0000;
 
     public NodeRecordFormatV3_0_0()
     {
@@ -61,8 +57,9 @@ public class NodeRecordFormatV3_0_0 extends BaseHighLimitRecordFormatV3_0_0<Node
     }
 
     @Override
-    protected void doReadInternal( NodeRecord record, PageCursor cursor, int recordSize, long headerByte,
-            boolean inUse )
+    protected void doReadInternal( NodeRecord record, PageCursor cursor, int recordSize,
+                                   long headerByte,
+                                   boolean inUse )
     {
         // Interpret the header byte
         boolean dense = has( headerByte, DENSE_NODE_BIT );
@@ -78,9 +75,9 @@ public class NodeRecordFormatV3_0_0 extends BaseHighLimitRecordFormatV3_0_0<Node
     @Override
     public int requiredDataLength( NodeRecord record )
     {
-        return  length( record.getNextRel(), NULL ) +
-                length( record.getNextProp(), NULL ) +
-                length( record.getLabelField(), NULL_LABELS );
+        return length( record.getNextRel(), NULL ) +
+               length( record.getNextProp(), NULL ) +
+               length( record.getLabelField(), NULL_LABELS );
     }
 
     @Override

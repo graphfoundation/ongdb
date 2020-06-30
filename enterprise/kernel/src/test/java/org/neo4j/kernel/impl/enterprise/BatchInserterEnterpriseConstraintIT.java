@@ -36,6 +36,7 @@ import org.neo4j.unsafe.batchinsert.BatchInserters;
 @ExtendWith( TestDirectoryExtension.class )
 class BatchInserterEnterpriseConstraintIT
 {
+
     @Inject
     private TestDirectory testDirectory;
 
@@ -43,10 +44,12 @@ class BatchInserterEnterpriseConstraintIT
     void startBatchInserterOnTopOfEnterpriseDatabase() throws IOException
     {
         File databaseDir = testDirectory.databaseDir();
-        GraphDatabaseService database = new EnterpriseGraphDatabaseFactory().newEmbeddedDatabase( databaseDir );
+        GraphDatabaseService database = new EnterpriseGraphDatabaseFactory()
+                .newEmbeddedDatabase( databaseDir );
         try ( Transaction transaction = database.beginTx() )
         {
-            database.execute( "CREATE CONSTRAINT ON (n:Person) ASSERT (n.firstname, n.surname) IS NODE KEY" );
+            database
+                    .execute( "CREATE CONSTRAINT ON (n:Person) ASSERT (n.firstname, n.surname) IS NODE KEY" );
             transaction.success();
         }
         database.shutdown();

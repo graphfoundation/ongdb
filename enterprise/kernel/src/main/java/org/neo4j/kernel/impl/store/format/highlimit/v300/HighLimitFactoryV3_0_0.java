@@ -18,15 +18,18 @@
  */
 package org.neo4j.kernel.impl.store.format.highlimit.v300;
 
-import org.neo4j.helpers.Service;
+import org.neo4j.annotations.service.Service;
 import org.neo4j.kernel.impl.store.format.RecordFormats;
+import org.neo4j.kernel.impl.store.format.RecordFormats.Factory;
 
-@Service.Implementation( RecordFormats.Factory.class )
-public class HighLimitFactoryV3_0_0 extends RecordFormats.Factory
+@Service
+public class HighLimitFactoryV3_0_0 implements Factory
 {
-    public HighLimitFactoryV3_0_0()
+
+    @Override
+    public String getName()
     {
-        super( HighLimitV3_0_0.NAME, HighLimitV3_0_0.STORE_VERSION );
+        return HighLimitV3_0_0.NAME;
     }
 
     @Override

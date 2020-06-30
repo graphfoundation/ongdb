@@ -24,13 +24,14 @@ import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.locks.LockSupport;
 import java.util.function.ObjLongConsumer;
 
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
+import org.neo4j.configuration.Config;
+import org.neo4j.configuration.GraphDatabaseSettings;
 import org.neo4j.io.pagecache.IOLimiter;
-import org.neo4j.kernel.configuration.Config;
 import org.neo4j.util.VisibleForTesting;
 
 public class ConfigurableIOLimiter implements IOLimiter
 {
+
     private static final AtomicLongFieldUpdater<ConfigurableIOLimiter> stateUpdater =
             AtomicLongFieldUpdater.newUpdater( ConfigurableIOLimiter.class, "state" );
 
@@ -38,14 +39,14 @@ public class ConfigurableIOLimiter implements IOLimiter
     private static final int QUANTUM_MILLIS = 100;
     private static final int TIME_BITS = 32;
     private static final long TIME_MASK = (1L << TIME_BITS) - 1;
-    private static final int QUANTUMS_PER_SECOND = (int) (TimeUnit.SECONDS.toMillis( 1 ) / QUANTUM_MILLIS);
+    private static final int QUANTUMS_PER_SECOND = (int) (TimeUnit.SECONDS.toMillis( 1 )
+                                                          / QUANTUM_MILLIS);
 
     private final ObjLongConsumer<Object> pauseNanos;
 
     /**
-     * Upper 32 bits is the "disabled counter", lower 32 bits is the "IOs per quantum" field.
-     * The "disabled counter" is modified online in 2-increments, leaving the lowest bit for signalling when
-     * the limiter disabled by configuration.
+     * Upper 32 bits is the "disabled counter", lower 32 bits is the "IOs per quantum" field. The "disabled counter" is modified online in 2-increments, leaving
+     * the lowest bit for signalling when the limiter disabled by configuration.
      */
     @SuppressWarnings( "unused" ) // Updated via stateUpdater
     private volatile long state;
@@ -58,11 +59,12 @@ public class ConfigurableIOLimiter implements IOLimiter
     @VisibleForTesting
     ConfigurableIOLimiter( Config config, ObjLongConsumer<Object> pauseNanos )
     {
+
         this.pauseNanos = pauseNanos;
         Integer iops = config.get( GraphDatabaseSettings.check_point_iops_limit );
         updateConfiguration( iops );
-        config.registerDynamicUpdateListener( GraphDatabaseSettings.check_point_iops_limit,
-                ( prev, update ) -> updateConfiguration( update ) );
+        config.addListener( GraphDatabaseSettings.check_point_iops_limit,
+                            ( prev, update ) -> updateConfiguration( update ) );
     }
 
     private void updateConfiguration( Integer iops )

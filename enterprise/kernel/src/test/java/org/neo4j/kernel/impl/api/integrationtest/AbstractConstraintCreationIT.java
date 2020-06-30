@@ -65,6 +65,7 @@ import static org.neo4j.internal.kernel.api.security.LoginContext.AUTH_DISABLED;
 public abstract class AbstractConstraintCreationIT<Constraint extends ConstraintDescriptor, DESCRIPTOR extends SchemaDescriptor>
         extends KernelIntegrationTest
 {
+
     static final String KEY = "Foo";
     static final String PROP = "bar";
 
@@ -72,10 +73,21 @@ public abstract class AbstractConstraintCreationIT<Constraint extends Constraint
     int propertyKeyId;
     DESCRIPTOR descriptor;
 
+    private static Map<IndexDefinition,Schema.IndexState> indexesWithState( Schema schema )
+    {
+        Map<IndexDefinition,Schema.IndexState> result = new HashMap<>();
+        for ( IndexDefinition definition : schema.getIndexes() )
+        {
+            result.put( definition, schema.getIndexState( definition ) );
+        }
+        return result;
+    }
+
     abstract int initializeLabelOrRelType( TokenWrite tokenWrite, String name )
             throws KernelException;
 
-    abstract Constraint createConstraint( SchemaWrite writeOps, DESCRIPTOR descriptor ) throws Exception;
+    abstract Constraint createConstraint( SchemaWrite writeOps, DESCRIPTOR descriptor )
+            throws Exception;
 
     abstract void createConstraintInRunningTx( GraphDatabaseService db, String type, String property );
 
@@ -103,7 +115,7 @@ public abstract class AbstractConstraintCreationIT<Constraint extends Constraint
     protected GraphDatabaseService createGraphDatabase()
     {
         return new TestEnterpriseGraphDatabaseFactory().setFileSystem( fileSystemRule.get() )
-                .newEmbeddedDatabase( testDir.storeDir() );
+                                                       .newEmbeddedDatabase( testDir.storeDir() );
     }
 
     @Test
@@ -167,7 +179,7 @@ public abstract class AbstractConstraintCreationIT<Constraint extends Constraint
         // when
         rollback();
 
-       Transaction transaction = newTransaction();
+        Transaction transaction = newTransaction();
 
         // then
         Iterator<?> constraints = transaction.schemaRead().constraintsGetAll();
@@ -187,15 +199,17 @@ public abstract class AbstractConstraintCreationIT<Constraint extends Constraint
         dropConstraint( transaction.schemaWrite(), constraint );
 
         // then
-        assertFalse( "should not have any constraints", transaction.schemaRead().constraintsGetAll().hasNext() );
+        assertFalse( "should not have any constraints",
+                     transaction.schemaRead().constraintsGetAll().hasNext() );
 
         // when
         commit();
 
-       transaction = newTransaction();
+        transaction = newTransaction();
 
         // then
-        assertFalse( "should not have any constraints", transaction.schemaRead().constraintsGetAll().hasNext() );
+        assertFalse( "should not have any constraints",
+                     transaction.schemaRead().constraintsGetAll().hasNext() );
         commit();
     }
 
@@ -222,7 +236,8 @@ public abstract class AbstractConstraintCreationIT<Constraint extends Constraint
             Transaction transaction = newTransaction();
 
             // then
-            assertFalse( "should not have any constraints", transaction.schemaRead().constraintsGetAll().hasNext() );
+            assertFalse( "should not have any constraints",
+                         transaction.schemaRead().constraintsGetAll().hasNext() );
             commit();
         }
     }
@@ -279,10 +294,11 @@ public abstract class AbstractConstraintCreationIT<Constraint extends Constraint
             commit();
         }
         {
-           Transaction transaction = newTransaction();
+            Transaction transaction = newTransaction();
 
             // then
-            assertEquals( singletonList( constraint ), asCollection( transaction.schemaRead().constraintsGetAll() ) );
+            assertEquals( singletonList( constraint ),
+                          asCollection( transaction.schemaRead().constraintsGetAll() ) );
             schemaState.assertNotCleared( transaction );
             commit();
         }
@@ -388,9 +404,10 @@ public abstract class AbstractConstraintCreationIT<Constraint extends Constraint
         // then
         try ( org.neo4j.graphdb.Transaction tx = db.beginTx() )
         {
-            assertEquals( Collections.<ConstraintDefinition>emptyList(), Iterables.asList( db.schema().getConstraints() ) );
+            assertEquals( Collections.<ConstraintDefinition>emptyList(),
+                          Iterables.asList( db.schema().getConstraints() ) );
             assertEquals( Collections.<IndexDefinition,Schema.IndexState>emptyMap(),
-                    indexesWithState( db.schema() ) );
+                          indexesWithState( db.schema() ) );
             tx.success();
         }
     }
@@ -465,18 +482,9 @@ public abstract class AbstractConstraintCreationIT<Constraint extends Constraint
         }
     }
 
-    private static Map<IndexDefinition,Schema.IndexState> indexesWithState( Schema schema )
-    {
-        Map<IndexDefinition,Schema.IndexState> result = new HashMap<>();
-        for ( IndexDefinition definition : schema.getIndexes() )
-        {
-            result.put( definition, schema.getIndexState( definition ) );
-        }
-        return result;
-    }
-
     private class SchemaStateCheck implements Function<String,Integer>
     {
+
         int invocationCount;
 
         @Override

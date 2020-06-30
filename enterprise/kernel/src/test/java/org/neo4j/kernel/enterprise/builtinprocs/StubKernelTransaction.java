@@ -19,10 +19,11 @@
  */
 package org.neo4j.kernel.enterprise.builtinprocs;
 
+import org.mockito.Answers;
+
 import java.util.Map;
 import java.util.Optional;
 
-import org.mockito.Answers;
 import org.neo4j.internal.kernel.api.CursorFactory;
 import org.neo4j.internal.kernel.api.ExecutionStatistics;
 import org.neo4j.internal.kernel.api.ExplicitIndexRead;
@@ -82,9 +83,14 @@ public class StubKernelTransaction implements KernelTransaction
     }
 
     @Override
-    public Map<String, Object> getMetaData()
+    public Map<String,Object> getMetaData()
     {
         return null;
+    }
+
+    @Override
+    public void setMetaData( Map<String,Object> metaData )
+    {
     }
 
     @Override
@@ -180,16 +186,16 @@ public class StubKernelTransaction implements KernelTransaction
     @Override
     public SecurityContext securityContext()
     {
-        SecurityContext securityContext = mock(SecurityContext.class, Answers.RETURNS_DEEP_STUBS);
-        when(securityContext.subject().username()).thenReturn( "testUser" );
+        SecurityContext securityContext = mock( SecurityContext.class, Answers.RETURNS_DEEP_STUBS );
+        when( securityContext.subject().username() ).thenReturn( "testUser" );
         return securityContext;
     }
 
     @Override
     public AuthSubject subjectOrAnonymous()
     {
-        AuthSubject subject = mock(AuthSubject.class);
-        when(subject.username()).thenReturn( "testUser" );
+        AuthSubject subject = mock( AuthSubject.class );
+        when( subject.username() ).thenReturn( "testUser" );
         return subject;
     }
 
@@ -288,11 +294,6 @@ public class StubKernelTransaction implements KernelTransaction
     }
 
     @Override
-    public void setMetaData( Map<String, Object> metaData )
-    {
-    }
-
-    @Override
     public ClockContext clocks()
     {
         throw new UnsupportedOperationException( "not implemented" );
@@ -309,5 +310,4 @@ public class StubKernelTransaction implements KernelTransaction
     {
         return false;
     }
-
 }

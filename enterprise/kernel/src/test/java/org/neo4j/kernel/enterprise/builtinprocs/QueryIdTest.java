@@ -31,6 +31,7 @@ import static org.neo4j.kernel.enterprise.builtinprocs.QueryId.ofInternalId;
 
 public class QueryIdTest
 {
+
     @Rule
     public ExpectedException thrown = ExpectedException.none();
 

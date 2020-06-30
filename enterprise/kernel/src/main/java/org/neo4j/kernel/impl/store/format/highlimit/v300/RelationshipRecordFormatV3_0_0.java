@@ -25,24 +25,17 @@ import static org.neo4j.kernel.impl.store.format.highlimit.Reference.toAbsolute;
 import static org.neo4j.kernel.impl.store.format.highlimit.Reference.toRelative;
 
 /**
- * LEGEND:
- * V: variable between 3B-8B
- *
- * Record format:
- * 1B   header
- * 2B   relationship type
- * VB   first property
- * VB   start node
- * VB   end node
- * VB   start node chain previous relationship
- * VB   start node chain next relationship
- * VB   end node chain previous relationship
- * VB   end node chain next relationship
- *
+ * LEGEND: V: variable between 3B-8B
+ * <p>
+ * Record format: 1B   header 2B   relationship type VB   first property VB   start node VB   end node VB   start node chain previous relationship VB   start
+ * node chain next relationship VB   end node chain previous relationship VB   end node chain next relationship
+ * <p>
  * => 24B-59B
  */
-public class RelationshipRecordFormatV3_0_0 extends BaseHighLimitRecordFormatV3_0_0<RelationshipRecord>
+public class RelationshipRecordFormatV3_0_0 extends
+                                            BaseHighLimitRecordFormatV3_0_0<RelationshipRecord>
 {
+
     public static final int RECORD_SIZE = 32;
 
     private static final int FIRST_IN_FIRST_CHAIN_BIT = 0b0000_1000;
@@ -69,24 +62,26 @@ public class RelationshipRecordFormatV3_0_0 extends BaseHighLimitRecordFormatV3_
 
     @Override
     protected void doReadInternal(
-            RelationshipRecord record, PageCursor cursor, int recordSize, long headerByte, boolean inUse )
+            RelationshipRecord record, PageCursor cursor, int recordSize, long headerByte,
+            boolean inUse )
     {
         int type = cursor.getShort() & 0xFFFF;
         long recordId = record.getId();
         record.initialize( inUse,
-                decodeCompressedReference( cursor, headerByte, HAS_PROPERTY_BIT, NULL ),
-                decodeCompressedReference( cursor ),
-                decodeCompressedReference( cursor ),
-                type,
-                decodeAbsoluteOrRelative( cursor, headerByte, FIRST_IN_FIRST_CHAIN_BIT, recordId ),
-                decodeAbsoluteIfPresent( cursor, headerByte, HAS_FIRST_CHAIN_NEXT_BIT, recordId ),
-                decodeAbsoluteOrRelative( cursor, headerByte, FIRST_IN_SECOND_CHAIN_BIT, recordId ),
-                decodeAbsoluteIfPresent( cursor, headerByte, HAS_SECOND_CHAIN_NEXT_BIT, recordId ),
-                has( headerByte, FIRST_IN_FIRST_CHAIN_BIT ),
-                has( headerByte, FIRST_IN_SECOND_CHAIN_BIT ) );
+                           decodeCompressedReference( cursor, headerByte, HAS_PROPERTY_BIT, NULL ),
+                           decodeCompressedReference( cursor ),
+                           decodeCompressedReference( cursor ),
+                           type,
+                           decodeAbsoluteOrRelative( cursor, headerByte, FIRST_IN_FIRST_CHAIN_BIT, recordId ),
+                           decodeAbsoluteIfPresent( cursor, headerByte, HAS_FIRST_CHAIN_NEXT_BIT, recordId ),
+                           decodeAbsoluteOrRelative( cursor, headerByte, FIRST_IN_SECOND_CHAIN_BIT, recordId ),
+                           decodeAbsoluteIfPresent( cursor, headerByte, HAS_SECOND_CHAIN_NEXT_BIT, recordId ),
+                           has( headerByte, FIRST_IN_FIRST_CHAIN_BIT ),
+                           has( headerByte, FIRST_IN_SECOND_CHAIN_BIT ) );
     }
 
-    private long decodeAbsoluteOrRelative( PageCursor cursor, long headerByte, int firstInStartBit, long recordId )
+    private long decodeAbsoluteOrRelative( PageCursor cursor, long headerByte, int firstInStartBit,
+                                           long recordId )
     {
         return has( headerByte, firstInStartBit ) ?
                decodeCompressedReference( cursor ) :
@@ -157,8 +152,10 @@ public class RelationshipRecordFormatV3_0_0 extends BaseHighLimitRecordFormatV3_
         return absoluteReference != NULL ? length( toRelative( absoluteReference, recordId ) ) : 0;
     }
 
-    private long decodeAbsoluteIfPresent( PageCursor cursor, long headerByte, int conditionBit, long recordId )
+    private long decodeAbsoluteIfPresent( PageCursor cursor, long headerByte, int conditionBit,
+                                          long recordId )
     {
-        return has( headerByte, conditionBit ) ? toAbsolute( decodeCompressedReference( cursor ), recordId ) : NULL;
+        return has( headerByte, conditionBit ) ? toAbsolute( decodeCompressedReference( cursor ), recordId )
+                                               : NULL;
     }
 }

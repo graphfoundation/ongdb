@@ -39,6 +39,7 @@ import static org.junit.Assert.assertTrue;
 
 public class PropertyRecordFormatTest
 {
+
     private static final int DATA_SIZE = 100;
     private static final long TOO_BIG_REFERENCE = 1L << (Integer.SIZE + (Byte.SIZE * 3));
 
@@ -71,7 +72,7 @@ public class PropertyRecordFormatTest
         recordFormat.write( record, pageCursor, recordSize );
 
         PropertyRecord recordFromStore = recordFormat.newRecord();
-        recordFromStore.setId( recordId  );
+        recordFromStore.setId( recordId );
         resetCursor( pageCursor, recordOffset );
         recordFormat.read( recordFromStore, pageCursor, RecordLoad.NORMAL, recordSize );
 
@@ -82,10 +83,10 @@ public class PropertyRecordFormatTest
         // now lets try to read same data into a record with different id - we should get different absolute references
         resetCursor( pageCursor, recordOffset );
         PropertyRecord recordWithOtherId = recordFormat.newRecord();
-        recordWithOtherId.setId( 1L  );
+        recordWithOtherId.setId( 1L );
         recordFormat.read( recordWithOtherId, pageCursor, RecordLoad.NORMAL, recordSize );
 
-        verifyDifferentReferences(record, recordWithOtherId);
+        verifyDifferentReferences( record, recordWithOtherId );
     }
 
     @Test
@@ -136,7 +137,8 @@ public class PropertyRecordFormatTest
 
         writeReadRecord( source, target );
 
-        assertFalse( "Record should use variable length reference format.", target.isUseFixedReferences() );
+        assertFalse( "Record should use variable length reference format.",
+                     target.isUseFixedReferences() );
         verifySameReferences( source, target );
     }
 
@@ -149,7 +151,8 @@ public class PropertyRecordFormatTest
 
         writeReadRecord( source, target );
 
-        assertFalse( "Record should use variable length reference format.", target.isUseFixedReferences() );
+        assertFalse( "Record should use variable length reference format.",
+                     target.isUseFixedReferences() );
         verifySameReferences( source, target );
     }
 
@@ -162,8 +165,9 @@ public class PropertyRecordFormatTest
 
         writeReadRecord( source, target, PropertyRecordFormat.FIXED_FORMAT_RECORD_SIZE - 1 );
 
-        assertFalse( "Record should use variable length reference if format record is too small.", target.isUseFixedReferences() );
-        verifySameReferences( source, target);
+        assertFalse( "Record should use variable length reference if format record is too small.",
+                     target.isUseFixedReferences() );
+        verifySameReferences( source, target );
     }
 
     @Test
@@ -175,8 +179,9 @@ public class PropertyRecordFormatTest
 
         writeReadRecord( source, target, PropertyRecordFormat.FIXED_FORMAT_RECORD_SIZE );
 
-        assertTrue( "Record should use fixed reference if can fit in format record.", target.isUseFixedReferences() );
-        verifySameReferences( source, target);
+        assertTrue( "Record should use fixed reference if can fit in format record.",
+                    target.isUseFixedReferences() );
+        verifySameReferences( source, target );
     }
 
     @Test
@@ -189,9 +194,11 @@ public class PropertyRecordFormatTest
         writeRecordWithOldFormat( oldFormatRecord );
 
         assertFalse( "This should be single unit record.", oldFormatRecord.hasSecondaryUnitId() );
-        assertFalse( "Old format is not aware about fixed references.", oldFormatRecord.isUseFixedReferences() );
+        assertFalse( "Old format is not aware about fixed references.",
+                     oldFormatRecord.isUseFixedReferences() );
 
-        recordFormat.read( newFormatRecord, pageCursor, RecordLoad.NORMAL, PropertyRecordFormat.RECORD_SIZE );
+        recordFormat
+                .read( newFormatRecord, pageCursor, RecordLoad.NORMAL, PropertyRecordFormat.RECORD_SIZE );
         verifySameReferences( oldFormatRecord, newFormatRecord );
     }
 

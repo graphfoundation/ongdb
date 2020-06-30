@@ -18,47 +18,56 @@
  */
 package org.neo4j.kernel.enterprise.builtinprocs;
 
+import java.util.List;
+import java.util.Map;
 import java.util.stream.Stream;
 
-import org.neo4j.graphdb.DependencyResolver;
+import org.neo4j.common.DependencyResolver;
 import org.neo4j.internal.kernel.api.exceptions.ProcedureException;
+import org.neo4j.internal.schema.IndexProviderDescriptor;
 import org.neo4j.kernel.api.KernelTransaction;
-import org.neo4j.kernel.builtinprocs.BuiltInProcedures;
-import org.neo4j.kernel.builtinprocs.IndexProcedures;
 import org.neo4j.kernel.impl.api.index.IndexingService;
 import org.neo4j.procedure.Context;
 import org.neo4j.procedure.Description;
+import org.neo4j.procedure.Mode;
 import org.neo4j.procedure.Name;
 import org.neo4j.procedure.Procedure;
-
-import static org.neo4j.procedure.Mode.SCHEMA;
+import org.neo4j.procedure.builtin.BuiltInProcedures.SchemaIndexInfo;
+import org.neo4j.procedure.builtin.IndexProcedures;
 
 @SuppressWarnings( "unused" )
 public class EnterpriseBuiltInProcedures
 {
+
     @Context
     public KernelTransaction tx;
 
     @Context
     public DependencyResolver resolver;
 
-    @Description( "Create a node key constraint with index backed by specified index provider " +
-            "(for example: CALL db.createNodeKey(\":Person(name)\", \"lucene+native-2.0\")) - " +
-            "YIELD index, providerName, status" )
-    @Procedure( name = "db.createNodeKey", mode = SCHEMA )
-    public Stream<BuiltInProcedures.SchemaIndexInfo> createNodeKey(
-            @Name( "index" ) String index,
-            @Name( "providerName" ) String providerName )
+    @Description( "Create a named node key constraint. Backing index will use specified index provider and configuration (optional). Yield: name, labels, properties, providerName, status" )
+    @Procedure( name = "db.createNodeKey", mode = Mode.SCHEMA )
+    public Stream<SchemaIndexInfo> createNodeKey( @Name( "constraintName" ) String constraintName,
+                                                  @Name( "labels" ) List<String> labels,
+                                                  @Name( "properties" ) List<String> properties, @Name( "providerName" ) String providerName,
+                                                  @Name( value = "config", defaultValue = "{}" ) Map<String,Object> config )
             throws ProcedureException
     {
-        try ( IndexProcedures indexProcedures = indexProcedures() )
-        {
-            return indexProcedures.createNodeKey( index, providerName );
-        }
+        IndexProcedures indexProcedures = this.indexProcedures();
+        IndexProviderDescriptor indexProviderDescriptor = this.getIndexProviderDescriptor( providerName );
+        return indexProcedures
+                .createNodeKey( constraintName, labels, properties, indexProviderDescriptor, config );
+    }
+
+    private IndexProviderDescriptor getIndexProviderDescriptor( String providerName )
+    {
+        return ((IndexingService) this.resolver.resolveDependency( IndexingService.class ))
+                .indexProviderByName( providerName );
     }
 
     private IndexProcedures indexProcedures()
     {
-        return new IndexProcedures( tx, resolver.resolveDependency( IndexingService.class ) );
+        return new IndexProcedures( this.tx,
+                                    (IndexingService) this.resolver.resolveDependency( IndexingService.class ) );
     }
 }

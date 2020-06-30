@@ -28,19 +28,19 @@ import org.neo4j.kernel.impl.store.record.RelationshipTypeTokenRecord;
 
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verifyNoMoreInteractions;
-
 import static org.neo4j.io.ByteUnit.kibiBytes;
 import static org.neo4j.kernel.impl.store.NoStoreHeader.NO_STORE_HEADER;
 import static org.neo4j.kernel.impl.store.record.RecordLoad.NORMAL;
 
 public class RelationshipTypeTokenRecordFormatTest
 {
+
     @Test
     public void shouldHandleRelationshipTypesBeyond2Bytes() throws Exception
     {
         // given
-        RecordFormat<RelationshipTypeTokenRecord> format = HighLimit.RECORD_FORMATS.relationshipTypeToken();
+        RecordFormat<RelationshipTypeTokenRecord> format = HighLimit.RECORD_FORMATS
+                .relationshipTypeToken();
         int typeId = 1 << (Short.SIZE + Byte.SIZE) - 1;
         RelationshipTypeTokenRecord record = new RelationshipTypeTokenRecord( typeId );
         int recordSize = format.getRecordSize( NO_STORE_HEADER );
@@ -63,7 +63,8 @@ public class RelationshipTypeTokenRecordFormatTest
     public void shouldReport3BytesMaxIdForRelationshipTypes()
     {
         // given
-        RecordFormat<RelationshipTypeTokenRecord> format = HighLimit.RECORD_FORMATS.relationshipTypeToken();
+        RecordFormat<RelationshipTypeTokenRecord> format = HighLimit.RECORD_FORMATS
+                .relationshipTypeToken();
 
         // when
         long maxId = format.getMaxId();

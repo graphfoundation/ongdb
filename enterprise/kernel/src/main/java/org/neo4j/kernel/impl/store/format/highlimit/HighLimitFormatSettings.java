@@ -27,6 +27,7 @@ import org.neo4j.kernel.impl.store.format.standard.StandardFormatSettings;
  */
 public class HighLimitFormatSettings
 {
+
     /**
      * Default maximum number of bits that can be used to represent id
      */

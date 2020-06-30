@@ -59,11 +59,12 @@ import static org.neo4j.kernel.impl.store.format.highlimit.v310.BaseHighLimitRec
  * => 48B
  *
  * </pre>
- * Unlike other high limit records {@link BaseHighLimitRecordFormatV3_1_0} fixed reference marker in property record
- * format header is not inverted: 1 - fixed reference format used; 0 - variable length format used.
+ * Unlike other high limit records {@link BaseHighLimitRecordFormatV3_1_0} fixed reference marker in property record format header is not inverted: 1 - fixed
+ * reference format used; 0 - variable length format used.
  */
 class PropertyRecordFormatV3_1_0 extends BaseOneByteHeaderRecordFormat<PropertyRecord>
 {
+
     static final int RECORD_SIZE = 48;
     private static final int PROPERTY_BLOCKS_PADDING = 3;
     static final int FIXED_FORMAT_RECORD_SIZE = HEADER_BYTE +
@@ -107,13 +108,15 @@ class PropertyRecordFormatV3_1_0 extends BaseOneByteHeaderRecordFormat<PropertyR
             else
             {
                 record.initialize( inUse,
-                        toAbsolute( Reference.decode( cursor ), recordId ),
-                        toAbsolute( Reference.decode( cursor ), recordId ) );
+                                   toAbsolute( Reference.decode( cursor ), recordId ),
+                                   toAbsolute( Reference.decode( cursor ), recordId ) );
             }
             record.setUseFixedReferences( useFixedReferences );
-            if ( (blockCount > record.getBlockCapacity()) | (RECORD_SIZE - (cursor.getOffset() - offset) < blockCount * Long.BYTES) )
+            if ( (blockCount > record.getBlockCapacity()) | (RECORD_SIZE - (cursor.getOffset() - offset)
+                                                             < blockCount * Long.BYTES) )
             {
-                cursor.setCursorException( "PropertyRecord claims to contain more blocks than can fit in a record" );
+                cursor.setCursorException(
+                        "PropertyRecord claims to contain more blocks than can fit in a record" );
                 return;
             }
             while ( blockCount-- > 0 )
@@ -179,8 +182,10 @@ class PropertyRecordFormatV3_1_0 extends BaseOneByteHeaderRecordFormat<PropertyR
     private boolean canUseFixedReferences( PropertyRecord record, int recordSize )
     {
         return isRecordBigEnoughForFixedReferences( recordSize ) &&
-                (record.getNextProp() == NULL || (record.getNextProp() & HIGH_DWORD_LOWER_WORD_CHECK_MASK) == 0) &&
-                (record.getPrevProp() == NULL || (record.getPrevProp() & HIGH_DWORD_LOWER_WORD_CHECK_MASK) == 0);
+               (record.getNextProp() == NULL
+                || (record.getNextProp() & HIGH_DWORD_LOWER_WORD_CHECK_MASK) == 0) &&
+               (record.getPrevProp() == NULL
+                || (record.getPrevProp() & HIGH_DWORD_LOWER_WORD_CHECK_MASK) == 0);
     }
 
     private boolean isRecordBigEnoughForFixedReferences( int recordSize )
@@ -196,8 +201,8 @@ class PropertyRecordFormatV3_1_0 extends BaseOneByteHeaderRecordFormat<PropertyR
         long nextMod = cursor.getShort() & 0xFFFFL;
         long nextProp = cursor.getInt() & 0xFFFFFFFFL;
         record.initialize( true,
-                BaseRecordFormat.longFromIntAndMod( prevProp, prevMod << 32 ),
-                BaseRecordFormat.longFromIntAndMod( nextProp, nextMod << 32 ) );
+                           BaseRecordFormat.longFromIntAndMod( prevProp, prevMod << 32 ),
+                           BaseRecordFormat.longFromIntAndMod( nextProp, nextMod << 32 ) );
         // skip padding bytes
         cursor.setOffset( cursor.getOffset() + PROPERTY_BLOCKS_PADDING );
     }
@@ -205,8 +210,10 @@ class PropertyRecordFormatV3_1_0 extends BaseOneByteHeaderRecordFormat<PropertyR
     private void writeFixedReferencesRecord( PropertyRecord record, PageCursor cursor )
     {
         // Set up the record header
-        short prevModifier = record.getPrevProp() == NULL ? 0 : (short) ((record.getPrevProp() & HIGH_DWORD_LOWER_WORD_MASK) >> 32);
-        short nextModifier = record.getNextProp() == NULL ? 0 : (short) ((record.getNextProp() & HIGH_DWORD_LOWER_WORD_MASK) >> 32);
+        short prevModifier = record.getPrevProp() == NULL ? 0
+                                                          : (short) ((record.getPrevProp() & HIGH_DWORD_LOWER_WORD_MASK) >> 32);
+        short nextModifier = record.getNextProp() == NULL ? 0
+                                                          : (short) ((record.getNextProp() & HIGH_DWORD_LOWER_WORD_MASK) >> 32);
         cursor.putShort( prevModifier );
         cursor.putInt( (int) record.getPrevProp() );
         cursor.putShort( nextModifier );

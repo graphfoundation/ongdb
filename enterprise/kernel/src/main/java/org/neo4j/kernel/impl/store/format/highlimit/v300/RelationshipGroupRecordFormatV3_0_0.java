@@ -22,28 +22,23 @@ import org.neo4j.io.pagecache.PageCursor;
 import org.neo4j.kernel.impl.store.record.RelationshipGroupRecord;
 
 /**
- * LEGEND:
- * V: variable between 3B-8B
- *
- * Record format:
- * 1B   header
- * 2B   relationship type
- * VB   first outgoing relationships
- * VB   first incoming relationships
- * VB   first loop relationships
- * VB   owning node
- * VB   next relationship group record
- *
+ * LEGEND: V: variable between 3B-8B
+ * <p>
+ * Record format: 1B   header 2B   relationship type VB   first outgoing relationships VB   first incoming relationships VB   first loop relationships VB owning
+ * node VB   next relationship group record
+ * <p>
  * => 18B-43B
  */
-public class RelationshipGroupRecordFormatV3_0_0 extends BaseHighLimitRecordFormatV3_0_0<RelationshipGroupRecord>
+public class RelationshipGroupRecordFormatV3_0_0 extends
+                                                 BaseHighLimitRecordFormatV3_0_0<RelationshipGroupRecord>
 {
+
     public static final int RECORD_SIZE = 32;
 
     private static final int HAS_OUTGOING_BIT = 0b0000_1000;
     private static final int HAS_INCOMING_BIT = 0b0001_0000;
-    private static final int HAS_LOOP_BIT     = 0b0010_0000;
-    private static final int HAS_NEXT_BIT     = 0b0100_0000;
+    private static final int HAS_LOOP_BIT = 0b0010_0000;
+    private static final int HAS_NEXT_BIT = 0b0100_0000;
 
     public RelationshipGroupRecordFormatV3_0_0()
     {
@@ -62,16 +57,17 @@ public class RelationshipGroupRecordFormatV3_0_0 extends BaseHighLimitRecordForm
     }
 
     @Override
-    protected void doReadInternal( RelationshipGroupRecord record, PageCursor cursor, int recordSize, long headerByte,
-            boolean inUse )
+    protected void doReadInternal( RelationshipGroupRecord record, PageCursor cursor, int recordSize,
+                                   long headerByte,
+                                   boolean inUse )
     {
         record.initialize( inUse,
-                cursor.getShort() & 0xFFFF,
-                decodeCompressedReference( cursor, headerByte, HAS_OUTGOING_BIT, NULL ),
-                decodeCompressedReference( cursor, headerByte, HAS_INCOMING_BIT, NULL ),
-                decodeCompressedReference( cursor, headerByte, HAS_LOOP_BIT, NULL ),
-                decodeCompressedReference( cursor ),
-                decodeCompressedReference( cursor, headerByte, HAS_NEXT_BIT, NULL ) );
+                           cursor.getShort() & 0xFFFF,
+                           decodeCompressedReference( cursor, headerByte, HAS_OUTGOING_BIT, NULL ),
+                           decodeCompressedReference( cursor, headerByte, HAS_INCOMING_BIT, NULL ),
+                           decodeCompressedReference( cursor, headerByte, HAS_LOOP_BIT, NULL ),
+                           decodeCompressedReference( cursor ),
+                           decodeCompressedReference( cursor, headerByte, HAS_NEXT_BIT, NULL ) );
     }
 
     @Override
@@ -88,12 +84,12 @@ public class RelationshipGroupRecordFormatV3_0_0 extends BaseHighLimitRecordForm
     @Override
     protected int requiredDataLength( RelationshipGroupRecord record )
     {
-        return  2 + // type
-                length( record.getFirstOut(), NULL ) +
-                length( record.getFirstIn(), NULL ) +
-                length( record.getFirstLoop(), NULL ) +
-                length( record.getOwningNode() ) +
-                length( record.getNext(), NULL );
+        return 2 + // type
+               length( record.getFirstOut(), NULL ) +
+               length( record.getFirstIn(), NULL ) +
+               length( record.getFirstLoop(), NULL ) +
+               length( record.getOwningNode() ) +
+               length( record.getNext(), NULL );
     }
 
     @Override

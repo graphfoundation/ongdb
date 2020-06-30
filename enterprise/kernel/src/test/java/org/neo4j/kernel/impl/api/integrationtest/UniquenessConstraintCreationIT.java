@@ -65,6 +65,7 @@ import static org.neo4j.helpers.collection.Iterators.single;
 public class UniquenessConstraintCreationIT
         extends AbstractConstraintCreationIT<ConstraintDescriptor,LabelSchemaDescriptor>
 {
+
     private static final String DUPLICATED_VALUE = "apa";
     private IndexDescriptor uniqueIndex;
 
@@ -163,7 +164,8 @@ public class UniquenessConstraintCreationIT
             assertThat( cause, instanceOf( ConstraintValidationException.class ) );
 
             String expectedMessage = String.format(
-                    "Both Node(%d) and Node(%d) have the label `Foo` and property `name` = 'foo'", node1, node2 );
+                    "Both Node(%d) and Node(%d) have the label `Foo` and property `name` = 'foo'", node1,
+                    node2 );
             String actualMessage = userMessage( (ConstraintValidationException) cause );
             assertEquals( expectedMessage, actualMessage );
         }
@@ -231,7 +233,8 @@ public class UniquenessConstraintCreationIT
         {
             Transaction transaction = newTransaction();
 
-            Iterator<ConstraintDescriptor> constraints = transaction.schemaRead().constraintsGetForSchema( descriptor );
+            Iterator<ConstraintDescriptor> constraints = transaction.schemaRead()
+                                                                    .constraintsGetForSchema( descriptor );
 
             assertEquals( ConstraintDescriptorFactory.existsForSchema( descriptor ), single( constraints ) );
             commit();
@@ -239,7 +242,8 @@ public class UniquenessConstraintCreationIT
     }
 
     @Test
-    public void committedConstraintRuleShouldCrossReferenceTheCorrespondingIndexRule() throws Exception
+    public void committedConstraintRuleShouldCrossReferenceTheCorrespondingIndexRule()
+            throws Exception
     {
         // when
         SchemaWrite statement = schemaWriteInNewTransaction();
@@ -249,7 +253,7 @@ public class UniquenessConstraintCreationIT
         // then
         SchemaStorage schema = new SchemaStorage( neoStores().getSchemaStore() );
         StoreIndexDescriptor indexRule = schema.indexGetForSchema( TestIndexDescriptorFactory
-                .uniqueForLabel( typeId, propertyKeyId ) );
+                                                                           .uniqueForLabel( typeId, propertyKeyId ) );
         ConstraintRule constraintRule = schema.constraintsGetSingle(
                 ConstraintDescriptorFactory.uniqueForLabel( typeId, propertyKeyId ) );
         assertEquals( constraintRule.getId(), indexRule.getOwningConstraint().longValue() );
@@ -258,7 +262,8 @@ public class UniquenessConstraintCreationIT
 
     private NeoStores neoStores()
     {
-        return db.getDependencyResolver().resolveDependency( RecordStorageEngine.class ).testAccessNeoStores();
+        return db.getDependencyResolver().resolveDependency( RecordStorageEngine.class )
+                 .testAccessNeoStores();
     }
 
     @Test

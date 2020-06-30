@@ -41,6 +41,7 @@ import org.neo4j.logging.internal.SimpleLogService;
  */
 public class TestEnterpriseGraphDatabaseFactory extends TestGraphDatabaseFactory
 {
+
     public TestEnterpriseGraphDatabaseFactory()
     {
         super();
@@ -69,10 +70,12 @@ public class TestEnterpriseGraphDatabaseFactory extends TestGraphDatabaseFactory
                 config.augment( GraphDatabaseSettings.ephemeral, Settings.FALSE );
                 config.augment( GraphDatabaseSettings.active_database, absoluteStoreDir.getName() );
                 config.augment( GraphDatabaseSettings.databases_root_path, databasesRoot.getAbsolutePath() );
-                return new GraphDatabaseFacadeFactory( DatabaseInfo.ENTERPRISE, EnterpriseEditionModule::new )
+                return new GraphDatabaseFacadeFactory( DatabaseInfo.ENTERPRISE,
+                                                       EnterpriseEditionModule::new )
                 {
                     @Override
-                    protected PlatformModule createPlatform( File storeDir, Config config, Dependencies dependencies )
+                    protected PlatformModule createPlatform( File storeDir, Config config,
+                                                             Dependencies dependencies )
                     {
                         return new PlatformModule( storeDir, config, databaseInfo, dependencies )
                         {
@@ -81,7 +84,8 @@ public class TestEnterpriseGraphDatabaseFactory extends TestGraphDatabaseFactory
                             {
                                 if ( state instanceof TestGraphDatabaseFactoryState )
                                 {
-                                    LogProvider logProvider = ((TestGraphDatabaseFactoryState) state).getInternalLogProvider();
+                                    LogProvider logProvider = ((TestGraphDatabaseFactoryState) state)
+                                            .getInternalLogProvider();
                                     if ( logProvider != null )
                                     {
                                         return new SimpleLogService( logProvider );
@@ -91,13 +95,15 @@ public class TestEnterpriseGraphDatabaseFactory extends TestGraphDatabaseFactory
                             }
                         };
                     }
-                }.newFacade( databasesRoot, config, GraphDatabaseDependencies.newDependencies( state.databaseDependencies() ) );
+                }.newFacade( databasesRoot, config,
+                             GraphDatabaseDependencies.newDependencies( state.databaseDependencies() ) );
             }
         };
     }
 
     @Override
-    protected GraphDatabaseBuilder.DatabaseCreator createImpermanentDatabaseCreator( final File storeDir,
+    protected GraphDatabaseBuilder.DatabaseCreator createImpermanentDatabaseCreator(
+            final File storeDir,
             final TestGraphDatabaseFactoryState state )
     {
         return new GraphDatabaseBuilder.DatabaseCreator()
@@ -106,23 +112,25 @@ public class TestEnterpriseGraphDatabaseFactory extends TestGraphDatabaseFactory
             public GraphDatabaseService newDatabase( Config config )
             {
                 return new TestEnterpriseGraphDatabaseFacadeFactory( state, true ).newFacade( storeDir, config,
-                        GraphDatabaseDependencies.newDependencies( state.databaseDependencies() ) );
+                                                                                              GraphDatabaseDependencies
+                                                                                                      .newDependencies( state.databaseDependencies() ) );
             }
         };
-    }
-
-    static class TestEnterpriseGraphDatabaseFacadeFactory extends TestGraphDatabaseFacadeFactory
-    {
-
-        TestEnterpriseGraphDatabaseFacadeFactory( TestGraphDatabaseFactoryState state, boolean impermanent )
-        {
-            super( state, impermanent, DatabaseInfo.ENTERPRISE, EnterpriseEditionModule::new );
-        }
     }
 
     @Override
     public String getEdition()
     {
         return Edition.enterprise.toString();
+    }
+
+    static class TestEnterpriseGraphDatabaseFacadeFactory extends TestGraphDatabaseFacadeFactory
+    {
+
+        TestEnterpriseGraphDatabaseFacadeFactory( TestGraphDatabaseFactoryState state,
+                                                  boolean impermanent )
+        {
+            super( state, impermanent, DatabaseInfo.ENTERPRISE, EnterpriseEditionModule::new );
+        }
     }
 }

@@ -19,10 +19,10 @@
 package org.neo4j.kernel.impl.store.format.highlimit.v320;
 
 import org.neo4j.kernel.impl.store.format.BaseRecordFormats;
-import org.neo4j.kernel.impl.store.format.Capability;
 import org.neo4j.kernel.impl.store.format.FormatFamily;
 import org.neo4j.kernel.impl.store.format.RecordFormat;
 import org.neo4j.kernel.impl.store.format.RecordFormats;
+import org.neo4j.kernel.impl.store.format.RecordStorageCapability;
 import org.neo4j.kernel.impl.store.format.StoreVersion;
 import org.neo4j.kernel.impl.store.format.highlimit.DynamicRecordFormat;
 import org.neo4j.kernel.impl.store.format.highlimit.HighLimitFormatFamily;
@@ -37,6 +37,8 @@ import org.neo4j.kernel.impl.store.record.PropertyRecord;
 import org.neo4j.kernel.impl.store.record.RelationshipGroupRecord;
 import org.neo4j.kernel.impl.store.record.RelationshipRecord;
 import org.neo4j.kernel.impl.store.record.RelationshipTypeTokenRecord;
+import org.neo4j.storageengine.api.IndexCapabilities;
+import org.neo4j.storageengine.api.format.Capability;
 
 /**
  * Record format with very high limits, 50-bit per ID, while at the same time keeping store size small.
@@ -45,6 +47,7 @@ import org.neo4j.kernel.impl.store.record.RelationshipTypeTokenRecord;
  */
 public class HighLimitV3_2_0 extends BaseRecordFormats
 {
+
     public static final String STORE_VERSION = StoreVersion.HIGH_LIMIT_V3_2_0.versionString();
 
     public static final RecordFormats RECORD_FORMATS = new HighLimitV3_2_0();
@@ -52,8 +55,11 @@ public class HighLimitV3_2_0 extends BaseRecordFormats
 
     public HighLimitV3_2_0()
     {
-        super( STORE_VERSION, StoreVersion.HIGH_LIMIT_V3_2_0.introductionVersion(), 4, Capability.DENSE_NODES,
-                Capability.RELATIONSHIP_TYPE_3BYTES, Capability.SCHEMA, Capability.LUCENE_5, Capability.SECONDARY_RECORD_UNITS );
+        super( STORE_VERSION, StoreVersion.HIGH_LIMIT_V3_2_0.introductionVersion(), 4,
+               new Capability[]{RecordStorageCapability.DENSE_NODES,
+                                RecordStorageCapability.RELATIONSHIP_TYPE_3BYTES, RecordStorageCapability.SCHEMA,
+                                RecordStorageCapability.SECONDARY_RECORD_UNITS,
+                                IndexCapabilities.LuceneCapability.LUCENE_5} );
     }
 
     @Override

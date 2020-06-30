@@ -59,11 +59,13 @@ import static org.neo4j.test.rule.concurrent.ThreadingRule.waitingWhileIn;
 } )
 public class PropertyExistenceConstraintVerificationIT
 {
+
     private static final int WAIT_TIMEOUT_SECONDS = 200;
 
     public static class NodePropertyExistenceExistenceConstrainVerificationIT
             extends AbstractPropertyExistenceConstraintVerificationIT
     {
+
         @Override
         void createConstraint( DatabaseRule db, String label, String property )
         {
@@ -95,12 +97,12 @@ public class PropertyExistenceConstraintVerificationIT
         {
             return Operations.class;
         }
-
     }
 
     public static class RelationshipPropertyExistenceExistenceConstrainVerificationIT
             extends AbstractPropertyExistenceConstraintVerificationIT
     {
+
         @Override
         public void createConstraint( DatabaseRule db, String relType, String property )
         {
@@ -133,11 +135,11 @@ public class PropertyExistenceConstraintVerificationIT
         {
             return Operations.class;
         }
-
     }
 
     public abstract static class AbstractPropertyExistenceConstraintVerificationIT
     {
+
         private static final String KEY = "Foo";
         private static final String PROPERTY = "bar";
 
@@ -153,6 +155,7 @@ public class PropertyExistenceConstraintVerificationIT
         abstract long createOffender( DatabaseRule db, String key );
 
         abstract String offenderCreationMethodName();
+
         abstract Class<?> getOwner();
 
         @Test
@@ -183,7 +186,8 @@ public class PropertyExistenceConstraintVerificationIT
         }
 
         @Test
-        public void shouldFailToCreateConstraintIfConcurrentlyCreatedEntityLacksTheMandatoryProperty() throws Exception
+        public void shouldFailToCreateConstraintIfConcurrentlyCreatedEntityLacksTheMandatoryProperty()
+                throws Exception
         {
             // when
             try
@@ -194,8 +198,8 @@ public class PropertyExistenceConstraintVerificationIT
                     createConstraint( db, KEY, PROPERTY );
 
                     nodeCreation = thread.executeAndAwait( createOffender(), null,
-                            waitingWhileIn( getOwner(), offenderCreationMethodName() ),
-                            WAIT_TIMEOUT_SECONDS, SECONDS );
+                                                           waitingWhileIn( getOwner(), offenderCreationMethodName() ),
+                                                           WAIT_TIMEOUT_SECONDS, SECONDS );
 
                     tx.success();
                 }
@@ -212,7 +216,7 @@ public class PropertyExistenceConstraintVerificationIT
             {
                 assertThat( e.getCause(), instanceOf( ConstraintViolationException.class ) );
                 assertThat( e.getCause().getCause(),
-                        instanceOf( ConstraintViolationTransactionFailureException.class ) );
+                            instanceOf( ConstraintViolationTransactionFailureException.class ) );
             }
         }
 
@@ -229,8 +233,8 @@ public class PropertyExistenceConstraintVerificationIT
                     createOffender( db, KEY );
 
                     constraintCreation = thread.executeAndAwait( createConstraint(), null,
-                            waitingWhileIn( Operations.class, constraintCreationMethodName() ),
-                            WAIT_TIMEOUT_SECONDS, SECONDS );
+                                                                 waitingWhileIn( Operations.class, constraintCreationMethodName() ),
+                                                                 WAIT_TIMEOUT_SECONDS, SECONDS );
 
                     tx.success();
                 }

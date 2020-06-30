@@ -71,16 +71,21 @@ import static org.neo4j.kernel.impl.store.format.RecordFormatSelector.selectNewe
 
 public class RecordFormatSelectorTest
 {
+
     private static final LogProvider LOG = NullLogProvider.getInstance();
 
     private final PageCacheRule pageCacheRule = new PageCacheRule();
     private final EphemeralFileSystemRule fileSystemRule = new EphemeralFileSystemRule();
     private final TestDirectory testDirectory = TestDirectory.testDirectory( fileSystemRule );
-
-    @Rule
-    public RuleChain ruleChain = RuleChain.outerRule( pageCacheRule ).around( fileSystemRule ).around( testDirectory );
-
     private final FileSystemAbstraction fs = fileSystemRule.get();
+    @Rule
+    public RuleChain ruleChain = RuleChain.outerRule( pageCacheRule ).around( fileSystemRule )
+                                          .around( testDirectory );
+
+    private static Config config( String recordFormatName )
+    {
+        return Config.defaults( GraphDatabaseSettings.record_format, recordFormatName );
+    }
 
     @Test
     public void defaultFormatTest()
@@ -187,18 +192,21 @@ public class RecordFormatSelectorTest
 
         Config config = config( Standard.LATEST_NAME );
 
-        assertSame( Standard.LATEST_RECORD_FORMATS, selectForStoreOrConfig( config, testDirectory.databaseLayout(), fs, pageCache, LOG ) );
+        assertSame( Standard.LATEST_RECORD_FORMATS,
+                    selectForStoreOrConfig( config, testDirectory.databaseLayout(), fs, pageCache, LOG ) );
     }
 
     @Test
-    public void selectForStoreOrConfigWithSameHighLimitConfiguredAndStoredFormat() throws IOException
+    public void selectForStoreOrConfigWithSameHighLimitConfiguredAndStoredFormat()
+            throws IOException
     {
         PageCache pageCache = getPageCache();
         prepareNeoStoreFile( HighLimit.STORE_VERSION, pageCache );
 
         Config config = config( HighLimit.NAME );
 
-        assertSame( HighLimit.RECORD_FORMATS, selectForStoreOrConfig( config, testDirectory.databaseLayout(), fs, pageCache, LOG ) );
+        assertSame( HighLimit.RECORD_FORMATS,
+                    selectForStoreOrConfig( config, testDirectory.databaseLayout(), fs, pageCache, LOG ) );
     }
 
     @Test
@@ -228,7 +236,8 @@ public class RecordFormatSelectorTest
 
         Config config = Config.defaults();
 
-        assertSame( Standard.LATEST_RECORD_FORMATS, selectForStoreOrConfig( config, testDirectory.databaseLayout(), fs, pageCache, LOG ) );
+        assertSame( Standard.LATEST_RECORD_FORMATS,
+                    selectForStoreOrConfig( config, testDirectory.databaseLayout(), fs, pageCache, LOG ) );
     }
 
     @Test
@@ -239,7 +248,8 @@ public class RecordFormatSelectorTest
 
         Config config = Config.defaults();
 
-        assertSame( HighLimit.RECORD_FORMATS, selectForStoreOrConfig( config, testDirectory.databaseLayout(), fs, pageCache, LOG ) );
+        assertSame( HighLimit.RECORD_FORMATS,
+                    selectForStoreOrConfig( config, testDirectory.databaseLayout(), fs, pageCache, LOG ) );
     }
 
     @Test
@@ -249,7 +259,8 @@ public class RecordFormatSelectorTest
 
         Config config = config( Standard.LATEST_NAME );
 
-        assertSame( Standard.LATEST_RECORD_FORMATS, selectForStoreOrConfig( config, testDirectory.databaseLayout(), fs, pageCache, LOG ) );
+        assertSame( Standard.LATEST_RECORD_FORMATS,
+                    selectForStoreOrConfig( config, testDirectory.databaseLayout(), fs, pageCache, LOG ) );
     }
 
     @Test
@@ -259,7 +270,8 @@ public class RecordFormatSelectorTest
 
         Config config = config( HighLimit.NAME );
 
-        assertSame( HighLimit.RECORD_FORMATS, selectForStoreOrConfig( config, testDirectory.databaseLayout(), fs, pageCache, LOG ) );
+        assertSame( HighLimit.RECORD_FORMATS,
+                    selectForStoreOrConfig( config, testDirectory.databaseLayout(), fs, pageCache, LOG ) );
     }
 
     @Test
@@ -282,21 +294,25 @@ public class RecordFormatSelectorTest
     @Test
     public void selectForStoreOrConfigWithoutConfiguredAndStoredFormats()
     {
-        assertSame( defaultFormat(), selectForStoreOrConfig( Config.defaults(), testDirectory.databaseLayout(), fs, getPageCache(), LOG ) );
+        assertSame( defaultFormat(),
+                    selectForStoreOrConfig( Config.defaults(), testDirectory.databaseLayout(), fs,
+                                            getPageCache(), LOG ) );
     }
 
     @Test
     public void selectNewestFormatWithConfiguredStandardFormat()
     {
         assertSame( Standard.LATEST_RECORD_FORMATS,
-                selectNewestFormat( config( Standard.LATEST_NAME ), testDirectory.databaseLayout(), fs, getPageCache(), LOG ) );
+                    selectNewestFormat( config( Standard.LATEST_NAME ), testDirectory.databaseLayout(), fs,
+                                        getPageCache(), LOG ) );
     }
 
     @Test
     public void selectNewestFormatWithConfiguredHighLimitFormat()
     {
         assertSame( HighLimit.RECORD_FORMATS,
-                selectNewestFormat( config( HighLimit.NAME ), testDirectory.databaseLayout(), fs, getPageCache(), LOG ) );
+                    selectNewestFormat( config( HighLimit.NAME ), testDirectory.databaseLayout(), fs,
+                                        getPageCache(), LOG ) );
     }
 
     @Test
@@ -304,7 +320,8 @@ public class RecordFormatSelectorTest
     {
         try
         {
-            selectNewestFormat( config( "unknown_format" ), testDirectory.databaseLayout(), fs, getPageCache(), LOG );
+            selectNewestFormat( config( "unknown_format" ), testDirectory.databaseLayout(), fs,
+                                getPageCache(), LOG );
         }
         catch ( Exception e )
         {
@@ -315,7 +332,9 @@ public class RecordFormatSelectorTest
     @Test
     public void selectNewestFormatWithoutConfigAndStore()
     {
-        assertSame( defaultFormat(), selectNewestFormat( Config.defaults(), testDirectory.databaseLayout(), fs, getPageCache(), LOG ) );
+        assertSame( defaultFormat(),
+                    selectNewestFormat( Config.defaults(), testDirectory.databaseLayout(), fs, getPageCache(),
+                                        LOG ) );
     }
 
     @Test
@@ -326,7 +345,8 @@ public class RecordFormatSelectorTest
 
         Config config = Config.defaults();
 
-        assertSame( Standard.LATEST_RECORD_FORMATS, selectNewestFormat( config, testDirectory.databaseLayout(), fs, getPageCache(), LOG ) );
+        assertSame( Standard.LATEST_RECORD_FORMATS,
+                    selectNewestFormat( config, testDirectory.databaseLayout(), fs, getPageCache(), LOG ) );
     }
 
     @Test
@@ -337,7 +357,8 @@ public class RecordFormatSelectorTest
 
         Config config = Config.defaults();
 
-        assertSame( HighLimit.RECORD_FORMATS, selectNewestFormat( config, testDirectory.databaseLayout(), fs, getPageCache(), LOG ) );
+        assertSame( HighLimit.RECORD_FORMATS,
+                    selectNewestFormat( config, testDirectory.databaseLayout(), fs, getPageCache(), LOG ) );
     }
 
     @Test
@@ -348,7 +369,8 @@ public class RecordFormatSelectorTest
 
         Config config = Config.defaults();
 
-        assertSame( defaultFormat(), selectNewestFormat( config, testDirectory.databaseLayout(), fs, getPageCache(), LOG ) );
+        assertSame( defaultFormat(),
+                    selectNewestFormat( config, testDirectory.databaseLayout(), fs, getPageCache(), LOG ) );
     }
 
     @Test
@@ -365,10 +387,14 @@ public class RecordFormatSelectorTest
         assertEquals( StandardV3_4.RECORD_FORMATS, findSuccessor( StandardV3_2.RECORD_FORMATS ).get() );
         assertEquals( StandardV3_6.RECORD_FORMATS, findSuccessor( StandardV3_4.RECORD_FORMATS ).get() );
 
-        assertEquals( HighLimitV3_0_6.RECORD_FORMATS, findSuccessor( HighLimitV3_0_0.RECORD_FORMATS ).get() );
-        assertEquals( HighLimitV3_1_0.RECORD_FORMATS, findSuccessor( HighLimitV3_0_6.RECORD_FORMATS ).get() );
-        assertEquals( HighLimitV3_2_0.RECORD_FORMATS, findSuccessor( HighLimitV3_1_0.RECORD_FORMATS ).get() );
-        assertEquals( HighLimitV3_4_0.RECORD_FORMATS, findSuccessor( HighLimitV3_2_0.RECORD_FORMATS ).get() );
+        assertEquals( HighLimitV3_0_6.RECORD_FORMATS,
+                      findSuccessor( HighLimitV3_0_0.RECORD_FORMATS ).get() );
+        assertEquals( HighLimitV3_1_0.RECORD_FORMATS,
+                      findSuccessor( HighLimitV3_0_6.RECORD_FORMATS ).get() );
+        assertEquals( HighLimitV3_2_0.RECORD_FORMATS,
+                      findSuccessor( HighLimitV3_1_0.RECORD_FORMATS ).get() );
+        assertEquals( HighLimitV3_4_0.RECORD_FORMATS,
+                      findSuccessor( HighLimitV3_2_0.RECORD_FORMATS ).get() );
         assertEquals( HighLimit.RECORD_FORMATS, findSuccessor( HighLimitV3_4_0.RECORD_FORMATS ).get() );
     }
 
@@ -395,10 +421,5 @@ public class RecordFormatSelectorTest
         File neoStoreFile = testDirectory.databaseLayout().metadataStore();
         fs.create( neoStoreFile ).close();
         return neoStoreFile;
-    }
-
-    private static Config config( String recordFormatName )
-    {
-        return Config.defaults( GraphDatabaseSettings.record_format, recordFormatName );
     }
 }

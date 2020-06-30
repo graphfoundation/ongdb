@@ -27,6 +27,7 @@ import static org.junit.Assert.assertTrue;
 
 public class ContinuousCheckPointThresholdTest
 {
+
     @Test
     public void continuousCheckPointMustReachThresholdOnEveryCommit()
     {

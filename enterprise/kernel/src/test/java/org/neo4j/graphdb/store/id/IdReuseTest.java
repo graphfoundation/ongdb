@@ -45,9 +45,11 @@ import static org.junit.Assert.assertThat;
 
 public class IdReuseTest
 {
+
     @Rule
     public DatabaseRule dbRule = new EnterpriseDatabaseRule()
-            .withSetting( EnterpriseEditionSettings.idTypesToReuse, IdType.NODE + "," + IdType.RELATIONSHIP )
+            .withSetting( EnterpriseEditionSettings.idTypesToReuse,
+                          IdType.NODE + "," + IdType.RELATIONSHIP )
             .withSetting( GraphDatabaseSettings.record_id_batch_size, "1" );
 
     @Test
@@ -167,7 +169,8 @@ public class IdReuseTest
 
             Relationship relationshipTo = node1.createRelationshipTo( node2, TestRelationshipType.MARKER );
 
-            assertNotEquals( "Relationships should have different ids.", relationshipId, relationshipTo.getId() );
+            assertNotEquals( "Relationships should have different ids.", relationshipId,
+                             relationshipTo.getId() );
             transaction.success();
         }
     }

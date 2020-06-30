@@ -65,12 +65,12 @@ public class RelationshipGroupRecordFormatTest
         RelationshipGroupRecord source = new RelationshipGroupRecord( 1 );
         RelationshipGroupRecord target = new RelationshipGroupRecord( 1 );
         source.initialize( true, randomType(), randomFixedReference(), randomFixedReference(),
-                randomFixedReference(), randomFixedReference(), randomFixedReference());
+                           randomFixedReference(), randomFixedReference(), randomFixedReference() );
 
         writeReadRecord( source, target );
 
         assertTrue( "Record should use fixed reference format.", target.isUseFixedReferences() );
-        verifySame( source, target);
+        verifySame( source, target );
     }
 
     @Test
@@ -97,12 +97,13 @@ public class RelationshipGroupRecordFormatTest
         RelationshipGroupRecord source = new RelationshipGroupRecord( 1 );
         RelationshipGroupRecord target = new RelationshipGroupRecord( 1 );
         source.initialize( true, randomType(), randomFixedReference(), randomFixedReference(),
-                randomFixedReference(), randomFixedReference(), randomFixedReference());
+                           randomFixedReference(), randomFixedReference(), randomFixedReference() );
 
         writeReadRecord( source, target, RelationshipGroupRecordFormat.FIXED_FORMAT_RECORD_SIZE - 1 );
 
-        assertFalse( "Record should use variable length reference if format record is too small.", target.isUseFixedReferences() );
-        verifySame( source, target);
+        assertFalse( "Record should use variable length reference if format record is too small.",
+                     target.isUseFixedReferences() );
+        verifySame( source, target );
     }
 
     @Test
@@ -111,16 +112,18 @@ public class RelationshipGroupRecordFormatTest
         RelationshipGroupRecord source = new RelationshipGroupRecord( 1 );
         RelationshipGroupRecord target = new RelationshipGroupRecord( 1 );
         source.initialize( true, randomType(), randomFixedReference(), randomFixedReference(),
-                randomFixedReference(), randomFixedReference(), randomFixedReference());
+                           randomFixedReference(), randomFixedReference(), randomFixedReference() );
 
         writeReadRecord( source, target, RelationshipGroupRecordFormat.FIXED_FORMAT_RECORD_SIZE );
 
-        assertTrue( "Record should use fixed reference if can fit in format record.", target.isUseFixedReferences() );
-        verifySame( source, target);
+        assertTrue( "Record should use fixed reference if can fit in format record.",
+                    target.isUseFixedReferences() );
+        verifySame( source, target );
     }
 
-    private void verifyRecordsWithPoisonedReference( RelationshipGroupRecord source, RelationshipGroupRecord target,
-            long poisonedReference ) throws IOException
+    private void verifyRecordsWithPoisonedReference( RelationshipGroupRecord source,
+                                                     RelationshipGroupRecord target,
+                                                     long poisonedReference ) throws IOException
     {
         boolean nullPoisoned = poisonedReference == BaseHighLimitRecordFormat.NULL;
         int differentReferences = 5;
@@ -131,7 +134,7 @@ public class RelationshipGroupRecordFormatTest
             Iterator<Long> iterator = references.iterator();
 
             source.initialize( true, 0, iterator.next(), iterator.next(), iterator.next(), iterator.next(),
-                    iterator.next() );
+                               iterator.next() );
 
             writeReadRecord( source, target );
 
@@ -141,7 +144,8 @@ public class RelationshipGroupRecordFormatTest
             }
             else
             {
-                assertFalse( "Record should use variable length reference format.", target.isUseFixedReferences() );
+                assertFalse( "Record should use variable length reference format.",
+                             target.isUseFixedReferences() );
             }
             verifySame( source, target );
             Collections.rotate( references, 1 );
@@ -162,20 +166,26 @@ public class RelationshipGroupRecordFormatTest
     private void verifySame( RelationshipGroupRecord recordA, RelationshipGroupRecord recordB )
     {
         assertEquals( "Types should be equal.", recordA.getType(), recordB.getType() );
-        assertEquals( "First In references should be equal.", recordA.getFirstIn(), recordB.getFirstIn() );
-        assertEquals( "First Loop references should be equal.", recordA.getFirstLoop(), recordB.getFirstLoop() );
-        assertEquals( "First Out references should be equal.", recordA.getFirstOut(), recordB.getFirstOut() );
+        assertEquals( "First In references should be equal.", recordA.getFirstIn(),
+                      recordB.getFirstIn() );
+        assertEquals( "First Loop references should be equal.", recordA.getFirstLoop(),
+                      recordB.getFirstLoop() );
+        assertEquals( "First Out references should be equal.", recordA.getFirstOut(),
+                      recordB.getFirstOut() );
         assertEquals( "Next references should be equal.", recordA.getNext(), recordB.getNext() );
         assertEquals( "Prev references should be equal.", recordA.getPrev(), recordB.getPrev() );
-        assertEquals( "Owning node references should be equal.", recordA.getOwningNode(), recordB.getOwningNode() );
+        assertEquals( "Owning node references should be equal.", recordA.getOwningNode(),
+                      recordB.getOwningNode() );
     }
 
-    private void writeReadRecord( RelationshipGroupRecord source, RelationshipGroupRecord target ) throws java.io.IOException
+    private void writeReadRecord( RelationshipGroupRecord source, RelationshipGroupRecord target )
+            throws java.io.IOException
     {
         writeReadRecord( source, target, RelationshipGroupRecordFormat.RECORD_SIZE );
     }
 
-    private void writeReadRecord( RelationshipGroupRecord source, RelationshipGroupRecord target, int recordSize )
+    private void writeReadRecord( RelationshipGroupRecord source, RelationshipGroupRecord target,
+                                  int recordSize )
             throws IOException
     {
         recordFormat.prepare( source, recordSize, idSequence );
@@ -198,5 +208,4 @@ public class RelationshipGroupRecordFormatTest
     {
         return ThreadLocalRandom.current().nextLong( maxValue );
     }
-
 }

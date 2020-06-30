@@ -19,10 +19,10 @@
 package org.neo4j.kernel.impl.store.format.highlimit.v306;
 
 import org.neo4j.kernel.impl.store.format.BaseRecordFormats;
-import org.neo4j.kernel.impl.store.format.Capability;
 import org.neo4j.kernel.impl.store.format.FormatFamily;
 import org.neo4j.kernel.impl.store.format.RecordFormat;
 import org.neo4j.kernel.impl.store.format.RecordFormats;
+import org.neo4j.kernel.impl.store.format.RecordStorageCapability;
 import org.neo4j.kernel.impl.store.format.StoreVersion;
 import org.neo4j.kernel.impl.store.format.highlimit.DynamicRecordFormat;
 import org.neo4j.kernel.impl.store.format.highlimit.HighLimitFormatFamily;
@@ -37,28 +37,31 @@ import org.neo4j.kernel.impl.store.record.PropertyRecord;
 import org.neo4j.kernel.impl.store.record.RelationshipGroupRecord;
 import org.neo4j.kernel.impl.store.record.RelationshipRecord;
 import org.neo4j.kernel.impl.store.record.RelationshipTypeTokenRecord;
+import org.neo4j.storageengine.api.IndexCapabilities;
+import org.neo4j.storageengine.api.format.Capability;
 
 /**
- * Record format with very high limits, 50-bit per ID, while at the same time keeping store size small.
- * With fixed references ability.
+ * Record format with very high limits, 50-bit per ID, while at the same time keeping store size small. With fixed references ability.
  *
  * @see BaseHighLimitRecordFormatV3_0_6
  */
 public class HighLimitV3_0_6 extends BaseRecordFormats
 {
+
+    public static final String STORE_VERSION = StoreVersion.HIGH_LIMIT_V3_0_6.versionString();
+    public static final RecordFormats RECORD_FORMATS = new HighLimitV3_0_6();
+    public static final String NAME = "high_limitV3_0_6";
     /**
      * Default maximum number of bits that can be used to represent id
      */
     static final int DEFAULT_MAXIMUM_BITS_PER_ID = 50;
 
-    public static final String STORE_VERSION = StoreVersion.HIGH_LIMIT_V3_0_6.versionString();
-    public static final RecordFormats RECORD_FORMATS = new HighLimitV3_0_6();
-    public static final String NAME = "high_limitV3_0_6";
-
     public HighLimitV3_0_6()
     {
-        super( STORE_VERSION, StoreVersion.HIGH_LIMIT_V3_0_6.introductionVersion(), 2, Capability.DENSE_NODES,
-                Capability.SCHEMA, Capability.LUCENE_5, Capability.SECONDARY_RECORD_UNITS );
+        super( STORE_VERSION, StoreVersion.HIGH_LIMIT_V3_0_6.introductionVersion(), 2,
+               new Capability[]{RecordStorageCapability.DENSE_NODES, RecordStorageCapability.SCHEMA,
+                                RecordStorageCapability.SECONDARY_RECORD_UNITS,
+                                IndexCapabilities.LuceneCapability.LUCENE_5} );
     }
 
     @Override

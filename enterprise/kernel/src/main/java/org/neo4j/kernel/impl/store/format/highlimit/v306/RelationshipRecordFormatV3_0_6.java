@@ -25,35 +25,17 @@ import static org.neo4j.kernel.impl.store.format.highlimit.Reference.toAbsolute;
 import static org.neo4j.kernel.impl.store.format.highlimit.Reference.toRelative;
 
 /**
- * LEGEND:
- * V: variable between 3B-8B
- *
- * Record format:
- * 1B   header
- * 2B   relationship type
- * VB   first property
- * VB   start node
- * VB   end node
- * VB   start node chain previous relationship
- * VB   start node chain next relationship
- * VB   end node chain previous relationship
- * VB   end node chain next relationship
- * => 24B-59B
- *
- * Fixed reference format:
- * 1B   header
- * 2B   relationship type
- * 1B   modifiers
- * 4B   start node
- * 4B   end node
- * 4B   start node chain previous relationship
- * 4B   start node chain next relationship
- * 4B   end node chain previous relationship
- * 4B   end node chain next relationship
- * => 28B
+ * LEGEND: V: variable between 3B-8B
+ * <p>
+ * Record format: 1B   header 2B   relationship type VB   first property VB   start node VB   end node VB   start node chain previous relationship VB   start
+ * node chain next relationship VB   end node chain previous relationship VB   end node chain next relationship => 24B-59B
+ * <p>
+ * Fixed reference format: 1B   header 2B   relationship type 1B   modifiers 4B   start node 4B end node 4B   start node chain previous relationship 4B start
+ * node chain next relationship 4B end node chain previous relationship 4B   end node chain next relationship => 28B
  */
 class RelationshipRecordFormatV3_0_6 extends BaseHighLimitRecordFormatV3_0_6<RelationshipRecord>
 {
+
     static final int RECORD_SIZE = 32;
     static final int FIXED_FORMAT_RECORD_SIZE = HEADER_BYTE +
                                                 Short.BYTES /* type */ +
@@ -104,7 +86,8 @@ class RelationshipRecordFormatV3_0_6 extends BaseHighLimitRecordFormatV3_0_6<Rel
 
     @Override
     protected void doReadInternal(
-            RelationshipRecord record, PageCursor cursor, int recordSize, long headerByte, boolean inUse )
+            RelationshipRecord record, PageCursor cursor, int recordSize, long headerByte,
+            boolean inUse )
     {
         int type = cursor.getShort() & 0xFFFF;
         if ( record.isUseFixedReferences() )
@@ -117,16 +100,16 @@ class RelationshipRecordFormatV3_0_6 extends BaseHighLimitRecordFormatV3_0_6<Rel
         {
             long recordId = record.getId();
             record.initialize( inUse,
-                    decodeCompressedReference( cursor, headerByte, HAS_PROPERTY_BIT, NULL ),
-                    decodeCompressedReference( cursor ),
-                    decodeCompressedReference( cursor ),
-                    type,
-                    decodeAbsoluteOrRelative( cursor, headerByte, FIRST_IN_FIRST_CHAIN_BIT, recordId ),
-                    decodeAbsoluteIfPresent( cursor, headerByte, HAS_FIRST_CHAIN_NEXT_BIT, recordId ),
-                    decodeAbsoluteOrRelative( cursor, headerByte, FIRST_IN_SECOND_CHAIN_BIT, recordId ),
-                    decodeAbsoluteIfPresent( cursor, headerByte, HAS_SECOND_CHAIN_NEXT_BIT, recordId ),
-                    has( headerByte, FIRST_IN_FIRST_CHAIN_BIT ),
-                    has( headerByte, FIRST_IN_SECOND_CHAIN_BIT ) );
+                               decodeCompressedReference( cursor, headerByte, HAS_PROPERTY_BIT, NULL ),
+                               decodeCompressedReference( cursor ),
+                               decodeCompressedReference( cursor ),
+                               type,
+                               decodeAbsoluteOrRelative( cursor, headerByte, FIRST_IN_FIRST_CHAIN_BIT, recordId ),
+                               decodeAbsoluteIfPresent( cursor, headerByte, HAS_FIRST_CHAIN_NEXT_BIT, recordId ),
+                               decodeAbsoluteOrRelative( cursor, headerByte, FIRST_IN_SECOND_CHAIN_BIT, recordId ),
+                               decodeAbsoluteIfPresent( cursor, headerByte, HAS_SECOND_CHAIN_NEXT_BIT, recordId ),
+                               has( headerByte, FIRST_IN_FIRST_CHAIN_BIT ),
+                               has( headerByte, FIRST_IN_SECOND_CHAIN_BIT ) );
         }
     }
 
@@ -191,11 +174,16 @@ class RelationshipRecordFormatV3_0_6 extends BaseHighLimitRecordFormatV3_0_6<Rel
         return (isRecordBigEnoughForFixedReferences( recordSize ) &&
                 (record.getFirstNode() & ONE_BIT_OVERFLOW_BIT_MASK) == 0) &&
                ((record.getSecondNode() & ONE_BIT_OVERFLOW_BIT_MASK) == 0) &&
-               ((record.getFirstPrevRel() == NULL) || ((record.getFirstPrevRel() & ONE_BIT_OVERFLOW_BIT_MASK) == 0)) &&
-               ((record.getFirstNextRel() == NULL) || ((record.getFirstNextRel() & ONE_BIT_OVERFLOW_BIT_MASK) == 0)) &&
-               ((record.getSecondPrevRel() == NULL) || ((record.getSecondPrevRel() & ONE_BIT_OVERFLOW_BIT_MASK) == 0)) &&
-               ((record.getSecondNextRel() == NULL) || ((record.getSecondNextRel() & ONE_BIT_OVERFLOW_BIT_MASK) == 0)) &&
-               ((record.getNextProp() == NULL) || ((record.getNextProp() & THREE_BITS_OVERFLOW_BIT_MASK) == 0));
+               ((record.getFirstPrevRel() == NULL) || (
+                       (record.getFirstPrevRel() & ONE_BIT_OVERFLOW_BIT_MASK) == 0)) &&
+               ((record.getFirstNextRel() == NULL) || (
+                       (record.getFirstNextRel() & ONE_BIT_OVERFLOW_BIT_MASK) == 0)) &&
+               ((record.getSecondPrevRel() == NULL) || (
+                       (record.getSecondPrevRel() & ONE_BIT_OVERFLOW_BIT_MASK) == 0)) &&
+               ((record.getSecondNextRel() == NULL) || (
+                       (record.getSecondNextRel() & ONE_BIT_OVERFLOW_BIT_MASK) == 0)) &&
+               ((record.getNextProp() == NULL) || ((record.getNextProp() & THREE_BITS_OVERFLOW_BIT_MASK)
+                                                   == 0));
     }
 
     private boolean isRecordBigEnoughForFixedReferences( int recordSize )
@@ -203,7 +191,8 @@ class RelationshipRecordFormatV3_0_6 extends BaseHighLimitRecordFormatV3_0_6<Rel
         return FIXED_FORMAT_RECORD_SIZE <= recordSize;
     }
 
-    private long decodeAbsoluteOrRelative( PageCursor cursor, long headerByte, int firstInStartBit, long recordId )
+    private long decodeAbsoluteOrRelative( PageCursor cursor, long headerByte, int firstInStartBit,
+                                           long recordId )
     {
         return has( headerByte, firstInStartBit ) ?
                decodeCompressedReference( cursor ) :
@@ -227,13 +216,16 @@ class RelationshipRecordFormatV3_0_6 extends BaseHighLimitRecordFormatV3_0_6<Rel
         return absoluteReference != NULL ? length( toRelative( absoluteReference, recordId ) ) : 0;
     }
 
-    private long decodeAbsoluteIfPresent( PageCursor cursor, long headerByte, int conditionBit, long recordId )
+    private long decodeAbsoluteIfPresent( PageCursor cursor, long headerByte, int conditionBit,
+                                          long recordId )
     {
-        return has( headerByte, conditionBit ) ? toAbsolute( decodeCompressedReference( cursor ), recordId ) : NULL;
+        return has( headerByte, conditionBit ) ? toAbsolute( decodeCompressedReference( cursor ), recordId )
+                                               : NULL;
     }
 
-    private void readFixedReferencesRecord( RelationshipRecord record, PageCursor cursor, long headerByte,
-            boolean inUse, int type )
+    private void readFixedReferencesRecord( RelationshipRecord record, PageCursor cursor,
+                                            long headerByte,
+                                            boolean inUse, int type )
     {
         // [    ,   x] first node higher order bits
         // [    ,  x ] second node high order bits
@@ -266,37 +258,41 @@ class RelationshipRecordFormatV3_0_6 extends BaseHighLimitRecordFormatV3_0_6<Rel
         long nextPropMod = (modifiers & NEXT_PROP_BIT) << 26;
 
         record.initialize( inUse,
-                BaseHighLimitRecordFormatV3_0_6.longFromIntAndMod( nextProp, nextPropMod ),
-                BaseHighLimitRecordFormatV3_0_6.longFromIntAndMod( firstNode, firstNodeMod ),
-                BaseHighLimitRecordFormatV3_0_6.longFromIntAndMod( secondNode, secondNodeMod ),
-                type,
-                BaseHighLimitRecordFormatV3_0_6.longFromIntAndMod( firstPrevRel, firstPrevRelMod ),
-                BaseHighLimitRecordFormatV3_0_6.longFromIntAndMod( firstNextRel, firstNextRelMod ),
-                BaseHighLimitRecordFormatV3_0_6.longFromIntAndMod( secondPrevRel, secondPrevRelMod ),
-                BaseHighLimitRecordFormatV3_0_6.longFromIntAndMod( secondNextRel, secondNextRelMod ),
-                has( headerByte, FIRST_IN_FIRST_CHAIN_BIT ),
-                has( headerByte, FIRST_IN_SECOND_CHAIN_BIT ) );
+                           BaseHighLimitRecordFormatV3_0_6.longFromIntAndMod( nextProp, nextPropMod ),
+                           BaseHighLimitRecordFormatV3_0_6.longFromIntAndMod( firstNode, firstNodeMod ),
+                           BaseHighLimitRecordFormatV3_0_6.longFromIntAndMod( secondNode, secondNodeMod ),
+                           type,
+                           BaseHighLimitRecordFormatV3_0_6.longFromIntAndMod( firstPrevRel, firstPrevRelMod ),
+                           BaseHighLimitRecordFormatV3_0_6.longFromIntAndMod( firstNextRel, firstNextRelMod ),
+                           BaseHighLimitRecordFormatV3_0_6.longFromIntAndMod( secondPrevRel, secondPrevRelMod ),
+                           BaseHighLimitRecordFormatV3_0_6.longFromIntAndMod( secondNextRel, secondNextRelMod ),
+                           has( headerByte, FIRST_IN_FIRST_CHAIN_BIT ),
+                           has( headerByte, FIRST_IN_SECOND_CHAIN_BIT ) );
     }
 
     private void writeFixedReferencesRecord( RelationshipRecord record, PageCursor cursor )
     {
         long firstNode = record.getFirstNode();
-        short firstNodeMod = (short)((firstNode & HIGH_DWORD_LAST_BIT_MASK) >> 32);
+        short firstNodeMod = (short) ((firstNode & HIGH_DWORD_LAST_BIT_MASK) >> 32);
 
         long secondNode = record.getSecondNode();
         long secondNodeMod = (secondNode & HIGH_DWORD_LAST_BIT_MASK) >> 31;
 
         long firstPrevRel = record.getFirstPrevRel();
-        long firstPrevRelMod = firstPrevRel == NULL ? 0 : (firstPrevRel & HIGH_DWORD_LAST_BIT_MASK) >> 30;
+        long firstPrevRelMod =
+                firstPrevRel == NULL ? 0 : (firstPrevRel & HIGH_DWORD_LAST_BIT_MASK) >> 30;
 
         long firstNextRel = record.getFirstNextRel();
-        long firstNextRelMod = firstNextRel == NULL ? 0 : (firstNextRel & HIGH_DWORD_LAST_BIT_MASK) >> 29;
+        long firstNextRelMod =
+                firstNextRel == NULL ? 0 : (firstNextRel & HIGH_DWORD_LAST_BIT_MASK) >> 29;
 
         long secondPrevRel = record.getSecondPrevRel();
-        long secondPrevRelMod = secondPrevRel == NULL ? 0 : (secondPrevRel & HIGH_DWORD_LAST_BIT_MASK) >> 28;
+        long secondPrevRelMod =
+                secondPrevRel == NULL ? 0 : (secondPrevRel & HIGH_DWORD_LAST_BIT_MASK) >> 28;
 
         long secondNextRel = record.getSecondNextRel();
-        long secondNextRelMod = secondNextRel == NULL ? 0 : (secondNextRel & HIGH_DWORD_LAST_BIT_MASK) >> 27;
+        long secondNextRelMod =
+                secondNextRel == NULL ? 0 : (secondNextRel & HIGH_DWORD_LAST_BIT_MASK) >> 27;
 
         long nextProp = record.getNextProp();
         long nextPropMod = nextProp == NULL ? 0 : (nextProp & TWO_BIT_FIXED_REFERENCE_BIT_MASK) >> 26;

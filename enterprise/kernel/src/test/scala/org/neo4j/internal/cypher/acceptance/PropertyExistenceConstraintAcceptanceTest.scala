@@ -18,15 +18,13 @@
  */
 package org.neo4j.internal.cypher.acceptance
 
-import org.neo4j.cypher._
-import org.neo4j.cypher.internal.compiler.v3_6.helpers.ListSupport
 import org.neo4j.kernel.api.exceptions.Status
 
 class PropertyExistenceConstraintAcceptanceTest
   extends ExecutionEngineFunSuite
-    with QueryStatisticsTestSupport
-    with ListSupport
-    with EnterpriseGraphDatabaseTestSupport {
+  with QueryStatisticsTestSupport
+  with ListSupport
+  with EnterpriseGraphDatabaseTestSupport {
 
   test("node: should enforce constraints on creation") {
     // GIVEN

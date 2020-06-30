@@ -40,6 +40,7 @@ import static org.neo4j.test.mockito.matcher.Neo4jMatchers.getConstraints;
 
 public class SchemaWithPECAcceptanceTest
 {
+
     @Rule
     public EnterpriseDatabaseRule dbRule = new EnterpriseDatabaseRule();
 
@@ -48,18 +49,6 @@ public class SchemaWithPECAcceptanceTest
     private Label label2 = Labels.MY_OTHER_LABEL;
     private String propertyKey = "my_property_key";
     private String propertyKey2 = "my_other_property";
-
-    private enum Labels implements Label
-    {
-        MY_LABEL,
-        MY_OTHER_LABEL
-    }
-
-    private enum Types implements RelationshipType
-    {
-        MY_TYPE,
-        MY_OTHER_TYPE
-    }
 
     @Before
     public void init()
@@ -81,7 +70,8 @@ public class SchemaWithPECAcceptanceTest
     public void shouldCreateRelationshipPropertyExistenceConstraint()
     {
         // When
-        ConstraintDefinition constraint = createRelationshipPropertyExistenceConstraint( Types.MY_TYPE, propertyKey );
+        ConstraintDefinition constraint = createRelationshipPropertyExistenceConstraint( Types.MY_TYPE,
+                                                                                         propertyKey );
 
         // Then
         assertThat( getConstraints( db ), containsOnly( constraint ) );
@@ -105,7 +95,8 @@ public class SchemaWithPECAcceptanceTest
     public void shouldListAddedConstraintsByRelationshipType()
     {
         // GIVEN
-        ConstraintDefinition constraint1 = createRelationshipPropertyExistenceConstraint( Types.MY_TYPE, propertyKey );
+        ConstraintDefinition constraint1 = createRelationshipPropertyExistenceConstraint( Types.MY_TYPE,
+                                                                                          propertyKey );
         createRelationshipPropertyExistenceConstraint( Types.MY_OTHER_TYPE, propertyKey );
 
         // WHEN THEN
@@ -118,11 +109,13 @@ public class SchemaWithPECAcceptanceTest
         // GIVEN
         ConstraintDefinition constraint1 = createUniquenessConstraint( label, propertyKey );
         ConstraintDefinition constraint2 = createNodePropertyExistenceConstraint( label, propertyKey );
-        ConstraintDefinition constraint3 = createRelationshipPropertyExistenceConstraint( Types.MY_TYPE, propertyKey );
+        ConstraintDefinition constraint3 = createRelationshipPropertyExistenceConstraint( Types.MY_TYPE,
+                                                                                          propertyKey );
         ConstraintDefinition constraint4 = createNodeKeyConstraint( label, propertyKey2 );
 
         // WHEN THEN
-        assertThat( getConstraints( db ), containsOnly( constraint1, constraint2, constraint3, constraint4 ) );
+        assertThat( getConstraints( db ),
+                    containsOnly( constraint1, constraint2, constraint3, constraint4 ) );
     }
 
     private ConstraintDefinition createUniquenessConstraint( Label label, String propertyKey )
@@ -130,7 +123,8 @@ public class SchemaWithPECAcceptanceTest
         SchemaHelper.createUniquenessConstraint( db, label, propertyKey );
         SchemaHelper.awaitIndexes( db );
         InternalSchemaActions actions = mock( InternalSchemaActions.class );
-        IndexDefinition index = new IndexDefinitionImpl( actions, null, new Label[]{label}, new String[]{propertyKey}, true );
+        IndexDefinition index = new IndexDefinitionImpl( actions, null, new Label[]{label},
+                                                         new String[]{propertyKey}, true );
         return new UniquenessConstraintDefinition( actions, index );
     }
 
@@ -139,21 +133,37 @@ public class SchemaWithPECAcceptanceTest
         SchemaHelper.createNodeKeyConstraint( db, label, propertyKey );
         SchemaHelper.awaitIndexes( db );
         InternalSchemaActions actions = mock( InternalSchemaActions.class );
-        IndexDefinition index = new IndexDefinitionImpl( actions, null, new Label[]{label}, new String[]{propertyKey}, true );
+        IndexDefinition index = new IndexDefinitionImpl( actions, null, new Label[]{label},
+                                                         new String[]{propertyKey}, true );
         return new NodeKeyConstraintDefinition( actions, index );
     }
 
-    private ConstraintDefinition createNodePropertyExistenceConstraint( Label label, String propertyKey )
+    private ConstraintDefinition createNodePropertyExistenceConstraint( Label label,
+                                                                        String propertyKey )
     {
         SchemaHelper.createNodePropertyExistenceConstraint( db, label, propertyKey );
         return new NodePropertyExistenceConstraintDefinition( mock( InternalSchemaActions.class ), label,
-                new String[]{propertyKey} );
+                                                              new String[]{propertyKey} );
     }
 
-    private ConstraintDefinition createRelationshipPropertyExistenceConstraint( Types type, String propertyKey )
+    private ConstraintDefinition createRelationshipPropertyExistenceConstraint( Types type,
+                                                                                String propertyKey )
     {
         SchemaHelper.createRelPropertyExistenceConstraint( db, type, propertyKey );
-        return new RelationshipPropertyExistenceConstraintDefinition( mock( InternalSchemaActions.class ), type,
-                propertyKey );
+        return new RelationshipPropertyExistenceConstraintDefinition( mock( InternalSchemaActions.class ),
+                                                                      type,
+                                                                      propertyKey );
+    }
+
+    private enum Labels implements Label
+    {
+        MY_LABEL,
+        MY_OTHER_LABEL
+    }
+
+    private enum Types implements RelationshipType
+    {
+        MY_TYPE,
+        MY_OTHER_TYPE
     }
 }

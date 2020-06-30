@@ -31,6 +31,7 @@ import static java.util.stream.Collectors.joining;
 
 public final class SchemaHelper
 {
+
     private SchemaHelper()
     {
         throw new AssertionError( "Not for instantiation!" );
@@ -46,46 +47,55 @@ public final class SchemaHelper
         db.execute( format( "CREATE INDEX ON :`%s`(`%s`)", label, property ) );
     }
 
-    public static void createUniquenessConstraint( GraphDatabaseService db, Label label, String property )
+    public static void createUniquenessConstraint( GraphDatabaseService db, Label label,
+                                                   String property )
     {
         createUniquenessConstraint( db, label.name(), property );
     }
 
-    public static void createUniquenessConstraint( GraphDatabaseService db, String label, String property )
+    public static void createUniquenessConstraint( GraphDatabaseService db, String label,
+                                                   String property )
     {
         db.execute( format( "CREATE CONSTRAINT ON (n:`%s`) ASSERT n.`%s` IS UNIQUE", label, property ) );
     }
 
-    public static void createNodeKeyConstraint( GraphDatabaseService db, Label label, String... properties )
+    public static void createNodeKeyConstraint( GraphDatabaseService db, Label label,
+                                                String... properties )
     {
         createNodeKeyConstraint( db, label.name(), properties );
     }
 
-    public static void createNodeKeyConstraint( GraphDatabaseService db, String label, String... properties )
+    public static void createNodeKeyConstraint( GraphDatabaseService db, String label,
+                                                String... properties )
     {
         String keyProperties = Arrays.stream( properties )
-                .map( property -> format("n.`%s`", property))
-                .collect( joining( "," ) );
-        db.execute( format( "CREATE CONSTRAINT ON (n:`%s`) ASSERT (%s) IS NODE KEY", label, keyProperties ) );
+                                     .map( property -> format( "n.`%s`", property ) )
+                                     .collect( joining( "," ) );
+        db.execute(
+                format( "CREATE CONSTRAINT ON (n:`%s`) ASSERT (%s) IS NODE KEY", label, keyProperties ) );
     }
 
-    public static void createNodePropertyExistenceConstraint( GraphDatabaseService db, Label label, String property )
+    public static void createNodePropertyExistenceConstraint( GraphDatabaseService db, Label label,
+                                                              String property )
     {
         createNodePropertyExistenceConstraint( db, label.name(), property );
     }
 
-    public static void createNodePropertyExistenceConstraint( GraphDatabaseService db, String label, String property )
+    public static void createNodePropertyExistenceConstraint( GraphDatabaseService db, String label,
+                                                              String property )
     {
         db.execute( format( "CREATE CONSTRAINT ON (n:`%s`) ASSERT exists(n.`%s`)", label, property ) );
     }
 
-    public static void createRelPropertyExistenceConstraint( GraphDatabaseService db, RelationshipType type,
-            String property )
+    public static void createRelPropertyExistenceConstraint( GraphDatabaseService db,
+                                                             RelationshipType type,
+                                                             String property )
     {
         createRelPropertyExistenceConstraint( db, type.name(), property );
     }
 
-    public static void createRelPropertyExistenceConstraint( GraphDatabaseService db, String type, String property )
+    public static void createRelPropertyExistenceConstraint( GraphDatabaseService db, String type,
+                                                             String property )
     {
         db.execute( format( "CREATE CONSTRAINT ON ()-[r:`%s`]-() ASSERT exists(r.`%s`)", type, property ) );
     }

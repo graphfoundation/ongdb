@@ -18,15 +18,19 @@
  */
 package org.neo4j.kernel.impl.pagecache.monitor;
 
-import org.neo4j.logging.Log;
+import java.util.concurrent.TimeUnit;
 
-import static java.lang.System.currentTimeMillis;
-import static org.neo4j.helpers.Format.duration;
+import org.neo4j.kernel.database.NamedDatabaseId;
+import org.neo4j.logging.Log;
+import org.neo4j.time.Stopwatch;
+
+import static org.neo4j.internal.helpers.Format.duration;
 
 public class PageCacheWarmerLoggingMonitor extends PageCacheWarmerMonitorAdapter
 {
+
     private final Log log;
-    private long warmupStartMillis;
+    private Stopwatch warmupStart;
 
     public PageCacheWarmerLoggingMonitor( Log log )
     {
@@ -34,20 +38,20 @@ public class PageCacheWarmerLoggingMonitor extends PageCacheWarmerMonitorAdapter
     }
 
     @Override
-    public void warmupStarted()
+    public void warmupStarted( NamedDatabaseId namedDatabaseId )
     {
-        warmupStartMillis = currentTimeMillis();
-        log.info( "Page cache warmup started." );
+        this.warmupStart = Stopwatch.start();
+        this.log.info( "Page cache warmup started." );
     }
 
-    @Override
-    public void warmupCompleted( long pagesLoaded )
+    public void warmupCompleted( NamedDatabaseId namedDatabaseId, long pagesLoaded )
     {
-        log.info( "Page cache warmup completed. %d pages loaded. Duration: %s.", pagesLoaded, getDuration( warmupStartMillis ) );
+        log.info( "Page cache warmup completed. %d pages loaded. Duration: %s.", pagesLoaded,
+                  getDuration() );
     }
 
-    private static String getDuration( long startTimeMillis )
+    private String getDuration()
     {
-        return duration( currentTimeMillis() - startTimeMillis );
+        return duration( warmupStart.elapsed( TimeUnit.MILLISECONDS ) );
     }
 }

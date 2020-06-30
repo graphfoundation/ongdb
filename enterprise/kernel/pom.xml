@@ -1,23 +1,193 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xmlns="http://maven.apache.org/POM/4.0.0"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-    <modelVersion>4.0.0</modelVersion>
-    <parent>
-        <groupId>org.graphfoundation.ongdb</groupId>
-        <artifactId>parent</artifactId>
-        <version>4.0.4-SNAPSHOT</version>
-        <relativePath>../..</relativePath>
-    </parent>
-
     <artifactId>ongdb-enterprise-kernel</artifactId>
-    <version>4.0.4-SNAPSHOT</version>
+    <build>
+        <plugins>
+            <plugin>
+                <artifactId>revapi-maven-plugin</artifactId>
+                <configuration>
+                    <checkDependencies>false</checkDependencies>
+                    <oldArtifacts>
+                        <oldArtifact>
+                            org.neo4j:ongdb-enterprise-kernel:jar:LATEST
+                        </oldArtifact>
+                    </oldArtifacts>
+                </configuration>
+                <groupId>org.revapi</groupId>
+            </plugin>
+        </plugins>
+    </build>
 
-    <name>ONgDB - Enterprise Graph Database Kernel Features</name>
+    <dependencies>
+        <!-- Neo4j dependencies -->
+        <dependency>
+            <artifactId>ongdb</artifactId>
+            <groupId>org.graphfoundation.ongdb</groupId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <artifactId>it-test-support</artifactId>
+            <groupId>org.graphfoundation.ongdb.community</groupId>
+            <scope>test</scope>
+            <version>${project.version}</version>
+        </dependency>
+
+
+        <dependency>
+            <artifactId>ongdb-kernel</artifactId>
+            <groupId>org.graphfoundation.ongdb</groupId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <!-- Neo4j test dependencies -->
+        <dependency>
+            <artifactId>ongdb-consistency-check</artifactId>
+            <groupId>org.graphfoundation.ongdb</groupId>
+            <scope>test</scope>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <artifactId>ongdb-kernel</artifactId>
+            <groupId>org.graphfoundation.ongdb</groupId>
+            <scope>test</scope>
+            <type>test-jar</type>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <artifactId>kernel-it</artifactId>
+            <groupId>org.graphfoundation.ongdb.community</groupId>
+            <scope>test</scope>
+            <type>test-jar</type>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <artifactId>cypher-it</artifactId>
+            <groupId>org.graphfoundation.ongdb.community</groupId>
+            <scope>test</scope>
+            <type>test-jar</type>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <artifactId>ongdb-cypher</artifactId>
+            <groupId>org.graphfoundation.ongdb</groupId>
+            <scope>test</scope>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <artifactId>ongdb-cypher-runtime-util</artifactId>
+            <groupId>org.graphfoundation.ongdb</groupId>
+            <scope>test</scope>
+            <type>test-jar</type>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <artifactId>ongdb-cypher</artifactId>
+            <groupId>org.graphfoundation.ongdb</groupId>
+            <scope>test</scope>
+            <type>test-jar</type>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <artifactId>ongdb-io</artifactId>
+            <groupId>org.graphfoundation.ongdb</groupId>
+            <scope>test</scope>
+            <type>test-jar</type>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <artifactId>ongdb-common</artifactId>
+            <groupId>org.graphfoundation.ongdb</groupId>
+            <scope>test</scope>
+            <type>test-jar</type>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <artifactId>ongdb-logging</artifactId>
+            <groupId>org.graphfoundation.ongdb</groupId>
+            <scope>test</scope>
+            <type>test-jar</type>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <artifactId>ongdb-kernel-api</artifactId>
+            <groupId>org.graphfoundation.ongdb</groupId>
+            <scope>test</scope>
+            <type>test-jar</type>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <artifactId>util-9.0</artifactId>
+            <groupId>org.opencypher</groupId>
+            <scope>test</scope>
+            <type>test-jar</type>
+            <version>1.0.0</version>
+        </dependency>
+
+        <dependency>
+            <artifactId>ongdb-random-values</artifactId>
+            <groupId>org.graphfoundation.ongdb</groupId>
+            <scope>test</scope>
+            <version>${project.version}</version>
+        </dependency>
+
+        <!-- Test dependencies -->
+
+        <dependency>
+            <artifactId>junit-vintage-engine</artifactId>
+            <groupId>org.junit.vintage</groupId>
+        </dependency>
+        <dependency>
+            <artifactId>junit-jupiter-engine</artifactId>
+            <groupId>org.junit.jupiter</groupId>
+        </dependency>
+        <dependency>
+            <artifactId>commons-codec</artifactId>
+            <groupId>commons-codec</groupId>
+        </dependency>
+        <dependency>
+            <artifactId>hamcrest</artifactId>
+            <groupId>org.hamcrest</groupId>
+        </dependency>
+        <dependency>
+            <artifactId>mockito-core</artifactId>
+            <groupId>org.mockito</groupId>
+        </dependency>
+
+
+        <dependency>
+            <artifactId>test-utils</artifactId>
+            <groupId>org.graphfoundation.ongdb</groupId>
+            <scope>test</scope>
+            <version>${project.version}</version>
+        </dependency>
+    </dependencies>
     <description>Enterprise features for Neo4j</description>
+
+    <licenses>
+        <license>
+            <name>GNU Affero General Public License, Version 3</name>
+            <url>http://www.gnu.org/licenses/agpl-3.0-standalone.html</url>
+        </license>
+    </licenses>
+    <modelVersion>4.0.0</modelVersion>
+    <name>ONgDB - Enterprise Graph Database Kernel Features</name>
+
     <packaging>jar</packaging>
+
+    <parent>
+        <artifactId>parent</artifactId>
+        <groupId>org.graphfoundation.ongdb</groupId>
+        <relativePath>../..</relativePath>
+        <version>4.0.7-SNAPSHOT</version>
+    </parent>
 
     <properties>
         <license-text.header>headers/AGPL-3-header.txt</license-text.header>
+        <maven.test.skip>true</maven.test.skip>
+
+        <!-- Added to skip test compilation and running temporarily in enterprise as we upgrade 4.x -->
         <moduleName>org.neo4j.kernel.enterprise</moduleName>
     </properties>
 
@@ -27,202 +197,6 @@
         <url>https://github.com/graphfoundation/ongdb</url>
     </scm>
 
-    <licenses>
-        <license>
-            <name>GNU Affero General Public License, Version 3</name>
-            <url>http://www.gnu.org/licenses/agpl-3.0-standalone.html</url>
-        </license>
-    </licenses>
-
-    <build>
-        <plugins>
-            <!-- This module contains public API, run javadoc and revapi -->
-            <plugin>
-                <artifactId>maven-javadoc-plugin</artifactId>
-            </plugin>
-            <!--<plugin>
-              <groupId>org.revapi</groupId>
-              <artifactId>revapi-maven-plugin</artifactId>
-            </plugin>-->
-            <plugin>
-                <groupId>net.alchim31.maven</groupId>
-                <artifactId>scala-maven-plugin</artifactId>
-            </plugin>
-        </plugins>
-    </build>
-
-    <dependencies>
-        <!-- Neo4j dependencies -->
-        <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.graphfoundation.ongdb.community</groupId>
-            <artifactId>it-test-support</artifactId>
-            <version>${project.version}</version>
-            <scope>test</scope>
-        </dependency>
-
-
-        <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-kernel</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-
-        <!-- Neo4j test dependencies -->
-        <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-consistency-check</artifactId>
-            <version>${project.version}</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-kernel</artifactId>
-            <version>${project.version}</version>
-            <type>test-jar</type>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.graphfoundation.ongdb.community</groupId>
-            <artifactId>kernel-it</artifactId>
-            <version>${project.version}</version>
-            <type>test-jar</type>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.graphfoundation.ongdb.community</groupId>
-            <artifactId>cypher-it</artifactId>
-            <version>${project.version}</version>
-            <type>test-jar</type>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-cypher</artifactId>
-            <version>${project.version}</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-cypher-runtime-util</artifactId>
-            <version>${project.version}</version>
-            <type>test-jar</type>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-cypher</artifactId>
-            <version>${project.version}</version>
-            <type>test-jar</type>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-cypher-planner-3.6</artifactId>
-            <version>${project.version}</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-cypher-planner-3.6</artifactId>
-            <version>${project.version}</version>
-            <type>test-jar</type>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-jmx</artifactId>
-            <version>${project.version}</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-io</artifactId>
-            <version>${project.version}</version>
-            <type>test-jar</type>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-common</artifactId>
-            <version>${project.version}</version>
-            <type>test-jar</type>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-logging</artifactId>
-            <version>${project.version}</version>
-            <type>test-jar</type>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-kernel-api</artifactId>
-            <version>${project.version}</version>
-            <type>test-jar</type>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.opencypher</groupId>
-            <artifactId>util-9.0</artifactId>
-            <version>1.0.0</version>
-            <type>test-jar</type>
-            <scope>test</scope>
-        </dependency>
-
-        <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-random-values</artifactId>
-            <version>${project.version}</version>
-            <scope>test</scope>
-        </dependency>
-
-        <!-- Test dependencies -->
-        <dependency>
-            <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter-migrationsupport</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.junit.vintage</groupId>
-            <artifactId>junit-vintage-engine</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter-engine</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>commons-codec</groupId>
-            <artifactId>commons-codec</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.hamcrest</groupId>
-            <artifactId>hamcrest-core</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.hamcrest</groupId>
-            <artifactId>hamcrest-library</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.mockito</groupId>
-            <artifactId>mockito-core</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.scalatest</groupId>
-            <artifactId>scalatest_2.11</artifactId>
-        </dependency>
-
-        <dependency>
-            <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-util-3.6</artifactId>
-            <version>${project.version}</version>
-            <type>test-jar</type>
-            <scope>test</scope>
-        </dependency>
-    </dependencies>
+    <version>4.0.7-SNAPSHOT</version>
 
 </project>

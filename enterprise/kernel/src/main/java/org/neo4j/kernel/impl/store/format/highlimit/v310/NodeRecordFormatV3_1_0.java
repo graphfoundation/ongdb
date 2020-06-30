@@ -24,26 +24,15 @@ import org.neo4j.kernel.impl.store.record.NodeRecord;
 import org.neo4j.kernel.impl.store.record.Record;
 
 /**
- * LEGEND:
- * V: variable between 3B-8B
- *
- * Record format:
- * 1B   header
- * VB   first relationship
- * VB   first property
- * 5B   labels
- * => 12B-22B
- *
- * Fixed reference record format:
- * 1B   header
- * 1B   modifiers
- * 4B   first relationship
- * 4B   first property
- * 5B   labels
- * => 15B
+ * LEGEND: V: variable between 3B-8B
+ * <p>
+ * Record format: 1B   header VB   first relationship VB   first property 5B   labels => 12B-22B
+ * <p>
+ * Fixed reference record format: 1B   header 1B   modifiers 4B   first relationship 4B   first property 5B   labels => 15B
  */
 class NodeRecordFormatV3_1_0 extends BaseHighLimitRecordFormatV3_1_0<NodeRecord>
 {
+
     static final int RECORD_SIZE = 16;
     // size of the record in fixed references format;
     static final int FIXED_FORMAT_RECORD_SIZE = HEADER_BYTE +
@@ -54,10 +43,10 @@ class NodeRecordFormatV3_1_0 extends BaseHighLimitRecordFormatV3_1_0<NodeRecord>
                                                 Byte.BYTES /* labels */;
 
     private static final long NULL_LABELS = Record.NO_LABELS_FIELD.intValue();
-    private static final int DENSE_NODE_BIT       = 0b0000_1000;
+    private static final int DENSE_NODE_BIT = 0b0000_1000;
     private static final int HAS_RELATIONSHIP_BIT = 0b0001_0000;
-    private static final int HAS_PROPERTY_BIT     = 0b0010_0000;
-    private static final int HAS_LABELS_BIT       = 0b0100_0000;
+    private static final int HAS_PROPERTY_BIT = 0b0010_0000;
+    private static final int HAS_LABELS_BIT = 0b0100_0000;
 
     private static final long HIGH_DWORD_LOWER_NIBBLE_CHECK_MASK = 0xF_0000_0000L;
     private static final long HIGH_DWORD_LOWER_NIBBLE_MASK = 0xFFFF_FFF0_0000_0000L;
@@ -81,7 +70,8 @@ class NodeRecordFormatV3_1_0 extends BaseHighLimitRecordFormatV3_1_0<NodeRecord>
     }
 
     @Override
-    protected void doReadInternal( NodeRecord record, PageCursor cursor, int recordSize, long headerByte,
+    protected void doReadInternal( NodeRecord record, PageCursor cursor, int recordSize,
+                                   long headerByte,
                                    boolean inUse )
     {
         // Interpret the header byte
@@ -106,9 +96,9 @@ class NodeRecordFormatV3_1_0 extends BaseHighLimitRecordFormatV3_1_0<NodeRecord>
     @Override
     public int requiredDataLength( NodeRecord record )
     {
-        return  length( record.getNextRel(), NULL ) +
-                length( record.getNextProp(), NULL ) +
-                length( record.getLabelField(), NULL_LABELS );
+        return length( record.getNextRel(), NULL ) +
+               length( record.getNextProp(), NULL ) +
+               length( record.getLabelField(), NULL_LABELS );
     }
 
     @Override
@@ -126,8 +116,9 @@ class NodeRecordFormatV3_1_0 extends BaseHighLimitRecordFormatV3_1_0<NodeRecord>
     protected boolean canUseFixedReferences( NodeRecord record, int recordSize )
     {
         return isRecordBigEnoughForFixedReferences( recordSize ) &&
-                (record.getNextProp() == NULL || (record.getNextProp() & HIGH_DWORD_LOWER_NIBBLE_MASK) == 0) &&
-                (record.getNextRel() == NULL || (record.getNextRel() & HIGH_DWORD_LOWER_NIBBLE_MASK) == 0);
+               (record.getNextProp() == NULL || (record.getNextProp() & HIGH_DWORD_LOWER_NIBBLE_MASK) == 0)
+               &&
+               (record.getNextRel() == NULL || (record.getNextRel() & HIGH_DWORD_LOWER_NIBBLE_MASK) == 0);
     }
 
     private boolean isRecordBigEnoughForFixedReferences( int recordSize )
@@ -151,7 +142,8 @@ class NodeRecordFormatV3_1_0 extends BaseHighLimitRecordFormatV3_1_0<NodeRecord>
         }
     }
 
-    private void readFixedReferencesRecord( NodeRecord record, PageCursor cursor, boolean inUse, boolean dense )
+    private void readFixedReferencesRecord( NodeRecord record, PageCursor cursor, boolean inUse,
+                                            boolean dense )
     {
         byte modifiers = cursor.getByte();
         long relModifier = (modifiers & LOWER_NIBBLE_READ_MASK) << 32;
@@ -161,12 +153,13 @@ class NodeRecordFormatV3_1_0 extends BaseHighLimitRecordFormatV3_1_0<NodeRecord>
         long nextProp = cursor.getInt() & 0xFFFFFFFFL;
 
         long lsbLabels = cursor.getInt() & 0xFFFFFFFFL;
-        long hsbLabels = cursor.getByte() & 0xFF; // so that a negative byte won't fill the "extended" bits with ones.
+        long hsbLabels = cursor.getByte()
+                         & 0xFF; // so that a negative byte won't fill the "extended" bits with ones.
         long labels = lsbLabels | (hsbLabels << 32);
 
         record.initialize( inUse,
-                BaseRecordFormat.longFromIntAndMod( nextProp, propModifier ), dense,
-                BaseRecordFormat.longFromIntAndMod( nextRel, relModifier ), labels );
+                           BaseRecordFormat.longFromIntAndMod( nextProp, propModifier ), dense,
+                           BaseRecordFormat.longFromIntAndMod( nextRel, relModifier ), labels );
     }
 
     private void writeFixedReferencesRecord( NodeRecord record, PageCursor cursor )
@@ -174,12 +167,14 @@ class NodeRecordFormatV3_1_0 extends BaseHighLimitRecordFormatV3_1_0<NodeRecord>
         long nextRel = record.getNextRel();
         long nextProp = record.getNextProp();
 
-        short relModifier = nextRel == NULL ? 0 : (short)((nextRel & HIGH_DWORD_LOWER_NIBBLE_CHECK_MASK) >> 32);
-        short propModifier = nextProp == NULL ? 0 : (short) ((nextProp & HIGH_DWORD_LOWER_NIBBLE_CHECK_MASK) >> 28);
+        short relModifier =
+                nextRel == NULL ? 0 : (short) ((nextRel & HIGH_DWORD_LOWER_NIBBLE_CHECK_MASK) >> 32);
+        short propModifier =
+                nextProp == NULL ? 0 : (short) ((nextProp & HIGH_DWORD_LOWER_NIBBLE_CHECK_MASK) >> 28);
 
         // [    ,xxxx] higher bits for rel id
         // [xxxx,    ] higher bits for prop id
-        short modifiers = (short) ( relModifier | propModifier );
+        short modifiers = (short) (relModifier | propModifier);
 
         cursor.putByte( (byte) modifiers );
         cursor.putInt( (int) nextRel );

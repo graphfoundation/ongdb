@@ -23,14 +23,13 @@ import org.neo4j.io.pagecache.PageCursor;
 import static java.lang.String.format;
 
 /**
- * {@link #encode(long, PageCursor) Encoding} and {@link #decode(PageCursor) decoding} of {@code long}
- * references, max 58-bit, into an as compact format as possible. Format is close to how utf-8 does similar encoding.
- *
- * Basically one or more header bits are used to note the number of bytes required to represent a
- * particular {@code long} value followed by the value itself. Number of bytes used for any long ranges from
- * 3 up to the full 8 bytes. The header bits sits in the most significant bit(s) of the most significant byte,
- * so for that the bytes that make up a value is written (and of course read) in big-endian order.
- *
+ * {@link #encode(long, PageCursor) Encoding} and {@link #decode(PageCursor) decoding} of {@code long} references, max 58-bit, into an as compact format as
+ * possible. Format is close to how utf-8 does similar encoding.
+ * <p>
+ * Basically one or more header bits are used to note the number of bytes required to represent a particular {@code long} value followed by the value itself.
+ * Number of bytes used for any long ranges from 3 up to the full 8 bytes. The header bits sits in the most significant bit(s) of the most significant byte, so
+ * for that the bytes that make up a value is written (and of course read) in big-endian order.
+ * <p>
  * Negative values are also supported, in order to handle relative references.
  *
  * @author Mattias Persson
@@ -57,11 +56,9 @@ public enum Reference
     // 8-byte, 59-bit addr space: 1111 1sxx xxxx xxxx xxxx xxxx xxxx xxxx xxxx xxxx xxxx xxxx xxxx xxxx xxxx xxxx
     BYTE_8( 8, (byte) 0b1111_1, 5 );
 
+    static final int MAX_BITS = 58;
     // Take one copy here since Enum#values() does an unnecessary defensive copy every time.
     private static final Reference[] ENCODINGS = Reference.values();
-
-    static final int MAX_BITS = 58;
-
     private final int numberOfBytes;
     private final short highHeader;
     private final int headerShift;
@@ -73,44 +70,6 @@ public enum Reference
         this.headerShift = Byte.SIZE - headerBits;
         this.highHeader = (short) (((byte) (header << headerShift)) & 0xFF);
         this.valueOverflowMask = ~valueMask( numberOfBytes, headerShift - 1 /*sign bit uses one bit*/ );
-    }
-
-    private long valueMask( int numberOfBytes, int headerShift )
-    {
-        long mask = ( 1L << headerShift ) - 1;
-        for ( int i = 0; i < numberOfBytes - 1; i++ )
-        {
-            mask <<= 8;
-            mask |= 0xFF;
-        }
-        return mask;
-    }
-
-    private boolean canEncode( long absoluteReference )
-    {
-        return (absoluteReference & valueOverflowMask) == 0;
-    }
-
-    private void encode( long absoluteReference, boolean positive, PageCursor source )
-    {
-        // use big-endianness, most significant byte written first, since it contains encoding information
-        int shift = (numberOfBytes - 1) << 3;
-        byte signBit = (byte) ((positive ? 0 : 1) << (headerShift - 1));
-
-        // first (most significant) byte
-        source.putByte( (byte) (highHeader | signBit | (byte) (absoluteReference >>> shift)) );
-
-        do // rest of the bytes
-        {
-            shift -= 8;
-            source.putByte( (byte) (absoluteReference >>> shift) );
-        }
-        while ( shift > 0 );
-    }
-
-    private int maxBitsSupported()
-    {
-        return Long.SIZE - Long.numberOfLeadingZeros( ~valueOverflowMask );
     }
 
     public static void encode( long reference, PageCursor target )
@@ -130,10 +89,12 @@ public enum Reference
         throw unsupportedOperationDueToTooBigReference( reference );
     }
 
-    private static UnsupportedOperationException unsupportedOperationDueToTooBigReference( long reference )
+    private static UnsupportedOperationException unsupportedOperationDueToTooBigReference(
+            long reference )
     {
-        return new UnsupportedOperationException( format( "Reference %d uses too many bits to be encoded by "
-                + "current compression scheme, max %d bits allowed", reference, maxBits() ) );
+        return new UnsupportedOperationException(
+                format( "Reference %d uses too many bits to be encoded by "
+                        + "current compression scheme, max %d bits allowed", reference, maxBits() ) );
     }
 
     public static int length( long reference )
@@ -249,23 +210,63 @@ public enum Reference
 
     /**
      * Convert provided reference to be relative to basisReference
-     * @param reference reference that will be converter to relative
+     *
+     * @param reference      reference that will be converter to relative
      * @param basisReference conversion basis
      * @return reference relative to basisReference
      */
     public static long toRelative( long reference, long basisReference )
     {
-        return Math.subtractExact( reference , basisReference );
+        return Math.subtractExact( reference, basisReference );
     }
 
     /**
      * Convert provided relative to basis reference into absolute
+     *
      * @param relativeReference relative reference to convert
-     * @param basisReference basis reference
+     * @param basisReference    basis reference
      * @return absolute reference
      */
     public static long toAbsolute( long relativeReference, long basisReference )
     {
         return Math.addExact( relativeReference, basisReference );
+    }
+
+    private long valueMask( int numberOfBytes, int headerShift )
+    {
+        long mask = (1L << headerShift) - 1;
+        for ( int i = 0; i < numberOfBytes - 1; i++ )
+        {
+            mask <<= 8;
+            mask |= 0xFF;
+        }
+        return mask;
+    }
+
+    private boolean canEncode( long absoluteReference )
+    {
+        return (absoluteReference & valueOverflowMask) == 0;
+    }
+
+    private void encode( long absoluteReference, boolean positive, PageCursor source )
+    {
+        // use big-endianness, most significant byte written first, since it contains encoding information
+        int shift = (numberOfBytes - 1) << 3;
+        byte signBit = (byte) ((positive ? 0 : 1) << (headerShift - 1));
+
+        // first (most significant) byte
+        source.putByte( (byte) (highHeader | signBit | (byte) (absoluteReference >>> shift)) );
+
+        do // rest of the bytes
+        {
+            shift -= 8;
+            source.putByte( (byte) (absoluteReference >>> shift) );
+        }
+        while ( shift > 0 );
+    }
+
+    private int maxBitsSupported()
+    {
+        return Long.SIZE - Long.numberOfLeadingZeros( ~valueOverflowMask );
     }
 }

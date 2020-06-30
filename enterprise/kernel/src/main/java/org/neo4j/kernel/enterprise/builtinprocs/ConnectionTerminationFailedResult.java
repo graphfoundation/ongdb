@@ -20,6 +20,7 @@ package org.neo4j.kernel.enterprise.builtinprocs;
 
 public class ConnectionTerminationFailedResult extends ConnectionTerminationResult
 {
+
     private static final String UNKNOWN_USER = "n/a";
     private static final String FAILURE_MESSAGE = "No connection found with this id";
 

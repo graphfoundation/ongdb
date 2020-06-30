@@ -35,11 +35,19 @@ import static org.mockito.Mockito.when;
 
 class DefaultNetworkConnectionTrackerTest
 {
+
     private final TrackedNetworkConnection connection1 = connectionMock( "1" );
     private final TrackedNetworkConnection connection2 = connectionMock( "2" );
     private final TrackedNetworkConnection connection3 = connectionMock( "3" );
 
     private final NetworkConnectionTracker tracker = new DefaultNetworkConnectionTracker();
+
+    private static TrackedNetworkConnection connectionMock( String id )
+    {
+        TrackedNetworkConnection connection = mock( TrackedNetworkConnection.class );
+        when( connection.id() ).thenReturn( id );
+        return connection;
+    }
 
     @Test
     void shouldCreateIds()
@@ -63,7 +71,8 @@ class DefaultNetworkConnectionTrackerTest
         tracker.add( connection2 );
         tracker.add( connection3 );
 
-        assertThat( tracker.activeConnections(), containsInAnyOrder( connection1, connection2, connection3 ) );
+        assertThat( tracker.activeConnections(),
+                    containsInAnyOrder( connection1, connection2, connection3 ) );
     }
 
     @Test
@@ -124,12 +133,5 @@ class DefaultNetworkConnectionTrackerTest
     void shouldListActiveConnectionsWhenEmpty()
     {
         assertThat( tracker.activeConnections(), empty() );
-    }
-
-    private static TrackedNetworkConnection connectionMock( String id )
-    {
-        TrackedNetworkConnection connection = mock( TrackedNetworkConnection.class );
-        when( connection.id() ).thenReturn( id );
-        return connection;
     }
 }

@@ -50,16 +50,45 @@ import org.neo4j.test.rule.fs.DefaultFileSystemRule;
 
 public class SortStoreFormatTest
 {
-    private static final LogProvider LOG = NullLogProvider.getInstance();
 
+    public static final String CREATE_QUERY = readQuery();
+    public static final String DB_INDEXES = "CALL db.indexes()";
+    private static final LogProvider LOG = NullLogProvider.getInstance();
     private static final PageCacheRule pageCacheRule = new PageCacheRule();
     private static final DefaultFileSystemRule fileSystemRule = new DefaultFileSystemRule();
     private static final TestDirectory testDir = TestDirectory.testDirectory( fileSystemRule );
     @ClassRule
-    public static final RuleChain ruleChain = RuleChain.outerRule( fileSystemRule ).around( pageCacheRule ).around( testDir );
+    public static final RuleChain ruleChain = RuleChain.outerRule( fileSystemRule )
+                                                       .around( pageCacheRule ).around( testDir );
 
-    public static final String CREATE_QUERY = readQuery();
-    public static final String DB_INDEXES = "CALL db.indexes()";
+    private static String baseDirName( RecordFormats toFormat, RecordFormats fromFormat )
+    {
+        return fromFormat.storeVersion() + toFormat.storeVersion();
+    }
+
+    protected static GraphDatabaseService getGraphDatabaseService( File db, String storeVersion )
+    {
+        return new EnterpriseGraphDatabaseFactory().newEmbeddedDatabaseBuilder( db )
+                                                   .setConfig( GraphDatabaseSettings.allow_upgrade, Settings.TRUE )
+                                                   .setConfig( GraphDatabaseSettings.record_format, storeVersion ).newGraphDatabase();
+    }
+
+    private static String readQuery()
+    {
+        InputStream in = SortStoreFormatTest.class.getClassLoader()
+                                                  .getResourceAsStream( "store-migration-data.txt" );
+        String result = new BufferedReader( new InputStreamReader( in ) ).lines()
+                                                                         .collect( Collectors.joining( "\n" ) );
+        try
+        {
+            in.close();
+        }
+        catch ( IOException e )
+        {
+            e.printStackTrace();
+        }
+        return result;
+    }
 
     @Test
     public void sortMigrate34To36()
@@ -84,18 +113,21 @@ public class SortStoreFormatTest
         RecordFormats to = new StandardV3_6();
 
         DatabaseLayout databaseLayout = testDir.databaseLayout( baseDirName( to, from ) );
-        GraphDatabaseService database = getGraphDatabaseService( databaseLayout.databaseDirectory(), from.storeVersion() );
+        GraphDatabaseService database = getGraphDatabaseService( databaseLayout.databaseDirectory(),
+                                                                 from.storeVersion() );
 
         database.execute( "CREATE INDEX ON :Person(name)" );
         database.execute( "CREATE INDEX ON :Person(born)" );
-        database.execute( "CALL db.index.fulltext.createNodeIndex(\"testIndex\",[\"Person\"],[\"name\"])");
+        database
+                .execute( "CALL db.index.fulltext.createNodeIndex(\"testIndex\",[\"Person\"],[\"name\"])" );
         database.execute( CREATE_QUERY );
 
         Result indexesResult = database.execute( DB_INDEXES );
-        Assert.assertEquals( 3, indexesResult.stream().count());
+        Assert.assertEquals( 3, indexesResult.stream().count() );
 
         indexesResult = database.execute( DB_INDEXES );
-        Assert.assertTrue( "Unable to find fulltext 'testIndex'.", indexesResult.stream().anyMatch( m -> !m.get( "indexName" ).equals( "Unnamed index" ) ) );
+        Assert.assertTrue( "Unable to find fulltext 'testIndex'.",
+                           indexesResult.stream().anyMatch( m -> !m.get( "indexName" ).equals( "Unnamed index" ) ) );
 
         // Close and shutdown
         indexesResult.close();
@@ -106,58 +138,35 @@ public class SortStoreFormatTest
 
         // Ensure the db has been started up with the right number of indexes already created
         indexesResult = database.execute( DB_INDEXES );
-        Assert.assertEquals( 3, indexesResult.stream().count());
+        Assert.assertEquals( 3, indexesResult.stream().count() );
 
         indexesResult = database.execute( DB_INDEXES );
-        Assert.assertTrue( "Unable to find fulltext 'testIndex'.", indexesResult.stream().anyMatch( m -> !m.get( "indexName" ).equals( "Unnamed index" ) ) );
+        Assert.assertTrue( "Unable to find fulltext 'testIndex'.",
+                           indexesResult.stream().anyMatch( m -> !m.get( "indexName" ).equals( "Unnamed index" ) ) );
 
         indexesResult = database.execute( DB_INDEXES );
-        Map<String,Object> testIndexMap = indexesResult.stream().filter( m -> m.get( "indexName" ).equals( "testIndex" ) ).findFirst().get();
-        Assert.assertTrue( "The fulltext 'testIndex' is missing 'sortProperties' after migration", testIndexMap.containsKey( "sortProperties" ));
+        Map<String,Object> testIndexMap = indexesResult.stream()
+                                                       .filter( m -> m.get( "indexName" ).equals( "testIndex" ) ).findFirst().get();
+        Assert.assertTrue( "The fulltext 'testIndex' is missing 'sortProperties' after migration",
+                           testIndexMap.containsKey( "sortProperties" ) );
         Assert.assertTrue( ((List<String>) testIndexMap.get( "sortProperties" )).isEmpty() );
 
         // Try dropping a fulltext index
         database.execute( "CALL db.index.fulltext.drop(\"testIndex\")" );
 
         indexesResult = database.execute( DB_INDEXES );
-        Assert.assertEquals( 2, indexesResult.stream().count());
+        Assert.assertEquals( 2, indexesResult.stream().count() );
 
         // Add a FT index with sort
-        database.execute( "CALL db.index.fulltext.createNodeIndex(\"sortIndex\",[\"Person\"],[\"name\"], {}, {name: \"STRING\"})");
+        database.execute(
+                "CALL db.index.fulltext.createNodeIndex(\"sortIndex\",[\"Person\"],[\"name\"], {}, {name: \"STRING\"})" );
 
         indexesResult = database.execute( DB_INDEXES );
-        Map<String,Object> sortIndex = indexesResult.stream().filter( m -> m.get( "indexName" ).equals( "sortIndex" ) ).findFirst().get();
+        Map<String,Object> sortIndex = indexesResult.stream()
+                                                    .filter( m -> m.get( "indexName" ).equals( "sortIndex" ) ).findFirst().get();
         Assert.assertTrue( ((List<String>) sortIndex.get( "sortProperties" )).contains( "name" ) );
 
         indexesResult.close();
         database.shutdown();
     }
-
-    private static String baseDirName( RecordFormats toFormat, RecordFormats fromFormat )
-    {
-        return fromFormat.storeVersion() + toFormat.storeVersion();
-    }
-
-    protected static GraphDatabaseService getGraphDatabaseService( File db, String storeVersion )
-    {
-        return new EnterpriseGraphDatabaseFactory().newEmbeddedDatabaseBuilder( db )
-                                                   .setConfig( GraphDatabaseSettings.allow_upgrade, Settings.TRUE )
-                                                   .setConfig( GraphDatabaseSettings.record_format, storeVersion ).newGraphDatabase();
-    }
-
-    private static String readQuery()
-    {
-        InputStream in = SortStoreFormatTest.class.getClassLoader().getResourceAsStream( "store-migration-data.txt" );
-        String result = new BufferedReader( new InputStreamReader( in ) ).lines().collect( Collectors.joining( "\n" ) );
-        try
-        {
-            in.close();
-        }
-        catch ( IOException e )
-        {
-            e.printStackTrace();
-        }
-        return result;
-    }
-
 }

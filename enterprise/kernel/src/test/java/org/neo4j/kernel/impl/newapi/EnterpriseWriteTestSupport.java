@@ -25,9 +25,11 @@ import org.neo4j.test.TestEnterpriseGraphDatabaseFactory;
 
 public class EnterpriseWriteTestSupport extends WriteTestSupport
 {
+
     @Override
     protected GraphDatabaseService newDb( File storeDir )
     {
-        return new TestEnterpriseGraphDatabaseFactory().newImpermanentDatabaseBuilder( storeDir ).newGraphDatabase();
+        return new TestEnterpriseGraphDatabaseFactory().newImpermanentDatabaseBuilder( storeDir )
+                                                       .newGraphDatabase();
     }
 }

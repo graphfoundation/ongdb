@@ -24,6 +24,7 @@ import org.neo4j.kernel.impl.util.collection.SimpleBitSet;
 
 class ExclusiveLock implements ForsetiLockManager.Lock
 {
+
     private final ForsetiClient owner;
 
     ExclusiveLock( ForsetiClient owner )

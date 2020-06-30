@@ -42,7 +42,7 @@ public class VerboseTracerFactoryTest
     {
         BufferingLog msgLog = new BufferingLog();
         PageCacheTracer pageCacheTracer = tracerFactory().createPageCacheTracer( new Monitors(),
-                new OnDemandJobScheduler(), Clocks.nanoClock(), msgLog );
+                                                                                 new OnDemandJobScheduler(), Clocks.nanoClock(), msgLog );
         pageCacheTracer.beginCacheFlush();
         assertEquals( "Start whole page cache flush.", msgLog.toString().trim() );
     }

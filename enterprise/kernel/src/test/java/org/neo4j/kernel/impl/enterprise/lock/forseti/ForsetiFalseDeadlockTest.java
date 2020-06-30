@@ -45,25 +45,19 @@ import org.neo4j.util.concurrent.BinaryLatch;
 
 class ForsetiFalseDeadlockTest
 {
+
     private static final int TEST_RUNS = 10;
     private static ExecutorService executor = Executors.newCachedThreadPool( r ->
-    {
-        Thread thread = new Thread( r );
-        thread.setDaemon( true );
-        return thread;
-    } );
+                                                                             {
+                                                                                 Thread thread = new Thread( r );
+                                                                                 thread.setDaemon( true );
+                                                                                 return thread;
+                                                                             } );
 
     @AfterAll
     static void tearDown()
     {
         executor.shutdown();
-    }
-
-    @TestFactory
-    Stream<DynamicTest> testMildlyForFalseDeadlocks()
-    {
-        ThrowingConsumer<Fixture> fixtureConsumer = fixture -> loopRunTest( fixture, TEST_RUNS );
-        return DynamicTest.stream( fixtures(), Fixture::toString, fixtureConsumer );
     }
 
     private static Iterator<Fixture> fixtures()
@@ -147,7 +141,8 @@ class ForsetiFalseDeadlockTest
         }
     }
 
-    private static void runTest( Fixture fixture ) throws InterruptedException, java.util.concurrent.ExecutionException
+    private static void runTest( Fixture fixture )
+            throws InterruptedException, java.util.concurrent.ExecutionException
     {
         int iterations = fixture.iterations();
         ResourceType resourceType = fixture.createResourceType();
@@ -157,9 +152,9 @@ class ForsetiFalseDeadlockTest
         {
             BinaryLatch startLatch = new BinaryLatch();
             BlockedCallable callA = new BlockedCallable( startLatch,
-                    () -> workloadA( fixture, a, resourceType, iterations ) );
+                                                         () -> workloadA( fixture, a, resourceType, iterations ) );
             BlockedCallable callB = new BlockedCallable( startLatch,
-                    () -> workloadB( fixture, b, resourceType, iterations ) );
+                                                         () -> workloadB( fixture, b, resourceType, iterations ) );
 
             Future<Void> futureA = executor.submit( callA );
             Future<Void> futureB = executor.submit( callB );
@@ -178,7 +173,8 @@ class ForsetiFalseDeadlockTest
         }
     }
 
-    private static void workloadA( Fixture fixture, Locks.Client a, ResourceType resourceType, int iterations )
+    private static void workloadA( Fixture fixture, Locks.Client a, ResourceType resourceType,
+                                   int iterations )
     {
         for ( int i = 0; i < iterations; i++ )
         {
@@ -189,7 +185,8 @@ class ForsetiFalseDeadlockTest
         }
     }
 
-    private static void workloadB( Fixture fixture, Locks.Client b, ResourceType resourceType, int iterations )
+    private static void workloadB( Fixture fixture, Locks.Client b, ResourceType resourceType,
+                                   int iterations )
     {
         for ( int i = 0; i < iterations; i++ )
         {
@@ -200,8 +197,74 @@ class ForsetiFalseDeadlockTest
         }
     }
 
+    @TestFactory
+    Stream<DynamicTest> testMildlyForFalseDeadlocks()
+    {
+        ThrowingConsumer<Fixture> fixtureConsumer = fixture -> loopRunTest( fixture, TEST_RUNS );
+        return DynamicTest.stream( fixtures(), Fixture::toString, fixtureConsumer );
+    }
+
+    public enum LockType
+    {
+        EXCLUSIVE
+                {
+                    @Override
+                    public void acquire( Locks.Client client, ResourceType resourceType, int resource )
+                    {
+                        client.acquireExclusive( LockTracer.NONE, resourceType, resource );
+                    }
+
+                    @Override
+                    public void release( Locks.Client client, ResourceType resourceType, int resource )
+                    {
+                        client.releaseExclusive( resourceType, resource );
+                    }
+                },
+        SHARED
+                {
+                    @Override
+                    public void acquire( Locks.Client client, ResourceType resourceType, int resource )
+                    {
+                        client.acquireShared( LockTracer.NONE, resourceType, resource );
+                    }
+
+                    @Override
+                    public void release( Locks.Client client, ResourceType resourceType, int resource )
+                    {
+                        client.releaseShared( resourceType, resource );
+                    }
+                };
+
+        public abstract void acquire( Locks.Client client, ResourceType resourceType, int resource );
+
+        public abstract void release( Locks.Client client, ResourceType resourceType, int resource );
+    }
+
+    public enum LockManager
+    {
+        COMMUNITY
+                {
+                    @Override
+                    public Locks create( ResourceType resourceType )
+                    {
+                        return new CommunityLockManger( Config.defaults(), Clock.systemDefaultZone() );
+                    }
+                },
+        FORSETI
+                {
+                    @Override
+                    public Locks create( ResourceType resourceType )
+                    {
+                        return new ForsetiLockManager( Config.defaults(), Clock.systemDefaultZone(), resourceType );
+                    }
+                };
+
+        public abstract Locks create( ResourceType resourceType );
+    }
+
     private static class BlockedCallable implements Callable<Void>
     {
+
         private final BinaryLatch startLatch;
         private final ThrowingAction<Exception> delegate;
         private volatile Thread runner;
@@ -234,6 +297,7 @@ class ForsetiFalseDeadlockTest
 
     private static class Fixture
     {
+
         private final int iterations;
         private final LockManager lockManager;
         private final WaitStrategy waitStrategy;
@@ -243,12 +307,12 @@ class ForsetiFalseDeadlockTest
         private final LockType lockTypeBY;
 
         Fixture( int iterations,
-                LockManager lockManager,
-                WaitStrategy waitStrategy,
-                LockType lockTypeAX,
-                LockType lockTypeAY,
-                LockType lockTypeBX,
-                LockType lockTypeBY )
+                 LockManager lockManager,
+                 WaitStrategy waitStrategy,
+                 LockType lockTypeAX,
+                 LockType lockTypeAY,
+                 LockType lockTypeBX,
+                 LockType lockTypeBY )
         {
             this.iterations = iterations;
             this.lockManager = lockManager;
@@ -337,70 +401,12 @@ class ForsetiFalseDeadlockTest
         public String toString()
         {
             return "iterations=" + iterations +
-                    ", lockManager=" + lockManager +
-                    ", waitStrategy=" + waitStrategy +
-                    ", lockTypeAX=" + lockTypeAX +
-                    ", lockTypeAY=" + lockTypeAY +
-                    ", lockTypeBX=" + lockTypeBX +
-                    ", lockTypeBY=" + lockTypeBY;
+                   ", lockManager=" + lockManager +
+                   ", waitStrategy=" + waitStrategy +
+                   ", lockTypeAX=" + lockTypeAX +
+                   ", lockTypeAY=" + lockTypeAY +
+                   ", lockTypeBX=" + lockTypeBX +
+                   ", lockTypeBY=" + lockTypeBY;
         }
-    }
-
-    public enum LockType
-    {
-        EXCLUSIVE
-                {
-                    @Override
-                    public void acquire( Locks.Client client, ResourceType resourceType, int resource )
-                    {
-                        client.acquireExclusive( LockTracer.NONE, resourceType, resource );
-                    }
-
-                    @Override
-                    public void release( Locks.Client client, ResourceType resourceType, int resource )
-                    {
-                        client.releaseExclusive( resourceType, resource );
-                    }
-                },
-        SHARED
-                {
-                    @Override
-                    public void acquire( Locks.Client client, ResourceType resourceType, int resource )
-                    {
-                        client.acquireShared( LockTracer.NONE, resourceType, resource );
-                    }
-
-                    @Override
-                    public void release( Locks.Client client, ResourceType resourceType, int resource )
-                    {
-                        client.releaseShared( resourceType, resource );
-                    }
-                };
-
-        public abstract void acquire( Locks.Client client, ResourceType resourceType, int resource );
-
-        public abstract void release( Locks.Client client, ResourceType resourceType, int resource );
-    }
-
-    public enum LockManager
-    {
-        COMMUNITY
-                {
-                    @Override
-                    public Locks create( ResourceType resourceType )
-                    {
-                        return new CommunityLockManger( Config.defaults(), Clock.systemDefaultZone() );
-                    }
-                },
-        FORSETI
-                {
-                    @Override
-                    public Locks create( ResourceType resourceType )
-                    {
-                        return new ForsetiLockManager( Config.defaults(), Clock.systemDefaultZone(), resourceType );
-                    }
-                };
-
-        public abstract Locks create( ResourceType resourceType );
     }
 }

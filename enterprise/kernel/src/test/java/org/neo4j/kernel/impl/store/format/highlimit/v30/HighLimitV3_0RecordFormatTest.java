@@ -23,6 +23,7 @@ import org.neo4j.kernel.impl.store.format.highlimit.v300.HighLimitV3_0_0;
 
 public class HighLimitV3_0RecordFormatTest extends AbstractRecordFormatTest
 {
+
     public HighLimitV3_0RecordFormatTest()
     {
         super( HighLimitV3_0_0.RECORD_FORMATS, 50, 50 );

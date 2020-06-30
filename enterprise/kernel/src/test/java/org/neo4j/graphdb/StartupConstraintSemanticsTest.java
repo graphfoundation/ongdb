@@ -34,33 +34,38 @@ import static org.junit.Assert.fail;
 
 public class StartupConstraintSemanticsTest
 {
+
     @Rule
     public final TestDirectory dir = TestDirectory.testDirectory();
 
     @Test
     public void shouldNotAllowOpeningADatabaseWithPECInCommunityEdition()
     {
-        assertThatCommunityCannotStartOnEnterpriseOnlyConstraint( "CREATE CONSTRAINT ON (n:Draconian) ASSERT exists(n.required)",
+        assertThatCommunityCannotStartOnEnterpriseOnlyConstraint(
+                "CREATE CONSTRAINT ON (n:Draconian) ASSERT exists(n.required)",
                 StandardConstraintSemantics.ERROR_MESSAGE_EXISTS );
     }
 
     @Test
     public void shouldNotAllowOpeningADatabaseWithNodeKeyInCommunityEdition()
     {
-        assertThatCommunityCannotStartOnEnterpriseOnlyConstraint( "CREATE CONSTRAINT ON (n:Draconian) ASSERT (n.required) IS NODE KEY",
+        assertThatCommunityCannotStartOnEnterpriseOnlyConstraint(
+                "CREATE CONSTRAINT ON (n:Draconian) ASSERT (n.required) IS NODE KEY",
                 StandardConstraintSemantics.ERROR_MESSAGE_NODE_KEY );
     }
 
     @Test
     public void shouldAllowOpeningADatabaseWithUniqueConstraintInCommunityEdition()
     {
-        assertThatCommunityCanStartOnNormalConstraint( "CREATE CONSTRAINT ON (n:Draconian) ASSERT (n.required) IS UNIQUE" );
+        assertThatCommunityCanStartOnNormalConstraint(
+                "CREATE CONSTRAINT ON (n:Draconian) ASSERT (n.required) IS UNIQUE" );
     }
 
     private void assertThatCommunityCanStartOnNormalConstraint( String constraintCreationQuery )
     {
         // given
-        GraphDatabaseService graphDb = new EnterpriseGraphDatabaseFactory().newEmbeddedDatabase( dir.storeDir() );
+        GraphDatabaseService graphDb = new EnterpriseGraphDatabaseFactory()
+                .newEmbeddedDatabase( dir.storeDir() );
         try
         {
             graphDb.execute( constraintCreationQuery );
@@ -86,10 +91,12 @@ public class StartupConstraintSemanticsTest
         }
     }
 
-    private void assertThatCommunityCannotStartOnEnterpriseOnlyConstraint( String constraintCreationQuery, String errorMessage )
+    private void assertThatCommunityCannotStartOnEnterpriseOnlyConstraint(
+            String constraintCreationQuery, String errorMessage )
     {
         // given
-        GraphDatabaseService graphDb = new EnterpriseGraphDatabaseFactory().newEmbeddedDatabase( dir.storeDir() );
+        GraphDatabaseService graphDb = new EnterpriseGraphDatabaseFactory()
+                .newEmbeddedDatabase( dir.storeDir() );
         try
         {
             graphDb.execute( constraintCreationQuery );

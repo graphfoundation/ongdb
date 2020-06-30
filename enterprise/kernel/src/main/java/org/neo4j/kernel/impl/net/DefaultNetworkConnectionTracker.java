@@ -32,6 +32,7 @@ import org.neo4j.kernel.api.net.TrackedNetworkConnection;
  */
 public class DefaultNetworkConnectionTracker implements NetworkConnectionTracker
 {
+
     private final NetworkConnectionIdGenerator idGenerator = new NetworkConnectionIdGenerator();
     private final Map<String,TrackedNetworkConnection> connectionsById = new ConcurrentHashMap<>();
 
@@ -47,8 +48,9 @@ public class DefaultNetworkConnectionTracker implements NetworkConnectionTracker
         TrackedNetworkConnection previousConnection = connectionsById.put( connection.id(), connection );
         if ( previousConnection != null )
         {
-            throw new IllegalArgumentException( "Attempt to register a connection with an existing id " + connection.id() + ". " +
-                                                "Existing connection: " + previousConnection + ", new connection: " + connection );
+            throw new IllegalArgumentException(
+                    "Attempt to register a connection with an existing id " + connection.id() + ". " +
+                    "Existing connection: " + previousConnection + ", new connection: " + connection );
         }
     }
 

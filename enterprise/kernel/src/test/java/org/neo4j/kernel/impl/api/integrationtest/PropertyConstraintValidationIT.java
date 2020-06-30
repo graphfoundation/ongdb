@@ -62,8 +62,11 @@ import static org.neo4j.test.assertion.Assert.assertException;
 } )
 public class PropertyConstraintValidationIT
 {
-    public static class NodeKeyConstraintValidationIT extends NodePropertyExistenceConstraintValidationIT
+
+    public static class NodeKeyConstraintValidationIT extends
+                                                      NodePropertyExistenceConstraintValidationIT
     {
+
         @Override
         void createConstraint( String key, String property ) throws KernelException
         {
@@ -81,40 +84,41 @@ public class PropertyConstraintValidationIT
         public void requirePropertyFromMultipleNodeKeys()
         {
             Label label = Label.label( "multiNodeKeyLabel" );
-            SchemaHelper.createNodeKeyConstraint( db, label,  "property1", "property2" );
-            SchemaHelper.createNodeKeyConstraint( db, label,  "property2", "property3" );
-            SchemaHelper.createNodeKeyConstraint( db, label,  "property3", "property4" );
+            SchemaHelper.createNodeKeyConstraint( db, label, "property1", "property2" );
+            SchemaHelper.createNodeKeyConstraint( db, label, "property2", "property3" );
+            SchemaHelper.createNodeKeyConstraint( db, label, "property3", "property4" );
 
             assertException( () ->
-            {
-                try ( org.neo4j.graphdb.Transaction transaction = db.beginTx() )
-                {
-                    Node node = db.createNode( label );
-                    node.setProperty( "property1", "1" );
-                    node.setProperty( "property2", "2" );
-                    transaction.success();
-                }
-            }, ConstraintViolationException.class,
-                    "Node(0) with label `multiNodeKeyLabel` must have the properties `property2, property3`" );
+                             {
+                                 try ( org.neo4j.graphdb.Transaction transaction = db.beginTx() )
+                                 {
+                                     Node node = db.createNode( label );
+                                     node.setProperty( "property1", "1" );
+                                     node.setProperty( "property2", "2" );
+                                     transaction.success();
+                                 }
+                             }, ConstraintViolationException.class,
+                             "Node(0) with label `multiNodeKeyLabel` must have the properties `property2, property3`" );
 
             assertException( () ->
-            {
-                try ( org.neo4j.graphdb.Transaction transaction = db.beginTx() )
-                {
-                    Node node = db.createNode( label );
-                    node.setProperty( "property1", "1" );
-                    node.setProperty( "property2", "2" );
-                    node.setProperty( "property3", "3" );
-                    transaction.success();
-                }
-            }, ConstraintViolationException.class,
-                    "Node(1) with label `multiNodeKeyLabel` must have the properties `property3, property4`" );
+                             {
+                                 try ( org.neo4j.graphdb.Transaction transaction = db.beginTx() )
+                                 {
+                                     Node node = db.createNode( label );
+                                     node.setProperty( "property1", "1" );
+                                     node.setProperty( "property2", "2" );
+                                     node.setProperty( "property3", "3" );
+                                     transaction.success();
+                                 }
+                             }, ConstraintViolationException.class,
+                             "Node(1) with label `multiNodeKeyLabel` must have the properties `property3, property4`" );
         }
     }
 
     public static class NodePropertyExistenceConstraintValidationIT
             extends AbstractPropertyExistenceConstraintValidationIT
     {
+
         @Test
         public void shouldAllowNoopLabelUpdate() throws Exception
         {
@@ -162,7 +166,8 @@ public class PropertyConstraintValidationIT
         }
 
         @Override
-        long createEntity( Transaction transaction, String type, String property, String value ) throws Exception
+        long createEntity( Transaction transaction, String type, String property, String value )
+                throws Exception
         {
             long node = createEntity( transaction, type );
             int propertyKey = transaction.tokenWrite().propertyKeyGetOrCreateForName( property );
@@ -187,7 +192,8 @@ public class PropertyConstraintValidationIT
         }
 
         @Override
-        void setProperty( Write writeOps, long entityId, int propertyKeyId, Value value ) throws Exception
+        void setProperty( Write writeOps, long entityId, int propertyKeyId, Value value )
+                throws Exception
         {
             writeOps.nodeSetProperty( entityId, propertyKeyId, value );
         }
@@ -201,7 +207,7 @@ public class PropertyConstraintValidationIT
         @Override
         int entityCount() throws TransactionFailureException
         {
-           Transaction transaction = newTransaction();
+            Transaction transaction = newTransaction();
             int result = countNodes( transaction );
             rollback();
             return result;
@@ -211,6 +217,7 @@ public class PropertyConstraintValidationIT
     public static class RelationshipPropertyExistenceConstraintValidationIT
             extends AbstractPropertyExistenceConstraintValidationIT
     {
+
         @Override
         void createConstraint( String key, String property ) throws KernelException
         {
@@ -220,7 +227,8 @@ public class PropertyConstraintValidationIT
             commit();
 
             SchemaWrite schemaWrite = schemaWriteInNewTransaction();
-            schemaWrite.relationshipPropertyExistenceConstraintCreate( forRelType( relTypeId, propertyKeyId ) );
+            schemaWrite
+                    .relationshipPropertyExistenceConstraintCreate( forRelType( relTypeId, propertyKeyId ) );
             commit();
         }
 
@@ -230,7 +238,7 @@ public class PropertyConstraintValidationIT
             long start = transaction.dataWrite().nodeCreate();
             long end = transaction.dataWrite().nodeCreate();
             int relType = transaction.tokenWrite().relationshipTypeGetOrCreateForName( type );
-            return transaction.dataWrite().relationshipCreate(  start, relType, end );
+            return transaction.dataWrite().relationshipCreate( start, relType, end );
         }
 
         @Override
@@ -239,7 +247,8 @@ public class PropertyConstraintValidationIT
             long start = transaction.dataWrite().nodeCreate();
             long end = transaction.dataWrite().nodeCreate();
             String relationshipTypeName = UUID.randomUUID().toString();
-            int relType = transaction.tokenWrite().relationshipTypeGetOrCreateForName( relationshipTypeName );
+            int relType = transaction.tokenWrite()
+                                     .relationshipTypeGetOrCreateForName( relationshipTypeName );
             long relationship = transaction.dataWrite().relationshipCreate( start, relType, end );
 
             int propertyKey = transaction.tokenWrite().propertyKeyGetOrCreateForName( property );
@@ -248,7 +257,8 @@ public class PropertyConstraintValidationIT
         }
 
         @Override
-        long createEntity( Transaction transaction, String type, String property, String value ) throws Exception
+        long createEntity( Transaction transaction, String type, String property, String value )
+                throws Exception
         {
             long relationship = createEntity( transaction, type );
             int propertyKey = transaction.tokenWrite().propertyKeyGetOrCreateForName( property );
@@ -274,7 +284,8 @@ public class PropertyConstraintValidationIT
         }
 
         @Override
-        void setProperty( Write writeOps, long entityId, int propertyKeyId, Value value ) throws Exception
+        void setProperty( Write writeOps, long entityId, int propertyKeyId, Value value )
+                throws Exception
         {
             writeOps.relationshipSetProperty( entityId, propertyKeyId, value );
         }
@@ -295,18 +306,22 @@ public class PropertyConstraintValidationIT
         }
     }
 
-    public abstract static class AbstractPropertyExistenceConstraintValidationIT extends KernelIntegrationTest
+    public abstract static class AbstractPropertyExistenceConstraintValidationIT extends
+                                                                                 KernelIntegrationTest
     {
+
         abstract void createConstraint( String key, String property ) throws KernelException;
 
         abstract long createEntity( Transaction transaction, String type ) throws Exception;
 
-        abstract long createEntity( Transaction transaction, String property, String value ) throws Exception;
+        abstract long createEntity( Transaction transaction, String property, String value )
+                throws Exception;
 
         abstract long createEntity( Transaction transaction, String type, String property, String value )
                 throws Exception;
 
-        abstract long createConstraintAndEntity( String type, String property, String value ) throws Exception;
+        abstract long createConstraintAndEntity( String type, String property, String value )
+                throws Exception;
 
         abstract void setProperty( Write writeOps, long entityId, int propertyKeyId, Value value )
                 throws Exception;
@@ -319,12 +334,13 @@ public class PropertyConstraintValidationIT
         protected GraphDatabaseService createGraphDatabase()
         {
             return new TestEnterpriseGraphDatabaseFactory().setFileSystem( fileSystemRule.get() )
-                    .newEmbeddedDatabaseBuilder( testDir.storeDir() )
-                    .newGraphDatabase();
+                                                           .newEmbeddedDatabaseBuilder( testDir.storeDir() )
+                                                           .newGraphDatabase();
         }
 
         @Test
-        public void shouldEnforcePropertyExistenceConstraintWhenCreatingEntityWithoutProperty() throws Exception
+        public void shouldEnforcePropertyExistenceConstraintWhenCreatingEntityWithoutProperty()
+                throws Exception
         {
             // given
             createConstraint( "Type1", "key1" );

@@ -18,281 +18,247 @@
  */
 package org.neo4j.kernel.enterprise.builtinprocs;
 
+import org.apache.commons.lang3.StringUtils;
+
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.PrintStream;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
-import java.util.function.Function;
+import java.util.concurrent.TimeUnit;
+import java.util.function.BooleanSupplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import org.neo4j.function.UncaughtCheckedException;
-import org.neo4j.graphdb.DependencyResolver;
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
+import org.neo4j.common.DependencyResolver;
+import org.neo4j.configuration.Config;
+import org.neo4j.configuration.GraphDatabaseSettings;
+import org.neo4j.configuration.SettingImpl;
+import org.neo4j.dbms.database.DatabaseContext;
+import org.neo4j.dbms.database.DatabaseManager;
+import org.neo4j.graphdb.Transaction;
 import org.neo4j.graphdb.security.AuthorizationViolationException;
-import org.neo4j.helpers.collection.Pair;
+import org.neo4j.internal.helpers.TimeUtil;
 import org.neo4j.internal.kernel.api.procs.ProcedureSignature;
 import org.neo4j.internal.kernel.api.procs.UserFunctionSignature;
 import org.neo4j.internal.kernel.api.security.SecurityContext;
 import org.neo4j.kernel.api.KernelTransaction;
 import org.neo4j.kernel.api.KernelTransactionHandle;
-import org.neo4j.kernel.api.Statement;
 import org.neo4j.kernel.api.exceptions.InvalidArgumentsException;
-import org.neo4j.kernel.api.exceptions.Status;
 import org.neo4j.kernel.api.net.NetworkConnectionTracker;
 import org.neo4j.kernel.api.net.TrackedNetworkConnection;
+import org.neo4j.kernel.api.procedure.GlobalProcedures;
+import org.neo4j.kernel.api.procedure.SystemProcedure;
 import org.neo4j.kernel.api.query.ExecutingQuery;
 import org.neo4j.kernel.api.query.QuerySnapshot;
-import org.neo4j.kernel.configuration.Config;
+import org.neo4j.kernel.database.DatabaseIdRepository;
+import org.neo4j.kernel.database.NamedDatabaseId;
+import org.neo4j.kernel.enterprise.builtinprocs.dbms.DbmsSettingsWhitelist;
+import org.neo4j.kernel.enterprise.builtinprocs.dbms.QueryId;
+import org.neo4j.kernel.enterprise.builtinprocs.dbms.TransactionId;
 import org.neo4j.kernel.impl.api.KernelTransactions;
-import org.neo4j.kernel.impl.core.EmbeddedProxySPI;
-import org.neo4j.kernel.impl.core.ThreadToStatementContextBridge;
-import org.neo4j.kernel.impl.proc.Procedures;
-import org.neo4j.kernel.internal.GraphDatabaseAPI;
+import org.neo4j.kernel.impl.coreapi.InternalTransaction;
+import org.neo4j.kernel.impl.query.FunctionInformation;
+import org.neo4j.kernel.impl.query.QueryExecutionEngine;
+import org.neo4j.kernel.impl.transaction.log.checkpoint.CheckPointer;
+import org.neo4j.kernel.impl.transaction.log.checkpoint.SimpleTriggerInfo;
+import org.neo4j.logging.Log;
+import org.neo4j.logging.LogTimeZone;
 import org.neo4j.procedure.Admin;
 import org.neo4j.procedure.Context;
 import org.neo4j.procedure.Description;
+import org.neo4j.procedure.Mode;
 import org.neo4j.procedure.Name;
 import org.neo4j.procedure.Procedure;
-
-import static java.lang.String.format;
-import static java.util.Collections.singletonList;
-import static java.util.function.Function.identity;
-import static java.util.stream.Collectors.toList;
-import static java.util.stream.Collectors.toMap;
-import static java.util.stream.Collectors.toSet;
-import static org.neo4j.function.ThrowingFunction.catchThrown;
-import static org.neo4j.function.ThrowingFunction.throwIfPresent;
-import static org.neo4j.graphdb.security.AuthorizationViolationException.PERMISSION_DENIED;
-import static org.neo4j.kernel.enterprise.builtinprocs.QueryId.fromExternalString;
-import static org.neo4j.kernel.enterprise.builtinprocs.QueryId.ofInternalId;
-import static org.neo4j.procedure.Mode.DBMS;
+import org.neo4j.resources.Profiler;
+import org.neo4j.scheduler.ActiveGroup;
+import org.neo4j.scheduler.Group;
+import org.neo4j.scheduler.JobScheduler;
 
 @SuppressWarnings( "unused" )
 public class EnterpriseBuiltInDbmsProcedures
 {
-    private static final int HARD_CHAR_LIMIT = 2048;
 
+    @Context
+    public Log log;
     @Context
     public DependencyResolver resolver;
-
     @Context
-    public GraphDatabaseAPI graph;
-
+    public Transaction transaction;
     @Context
     public SecurityContext securityContext;
+    @Context
+    public KernelTransaction kernelTransaction;
 
-    @Description( "Attaches a map of data to the transaction. The data will be printed when listing queries, and " +
-                  "inserted into the query log." )
-    @Procedure( name = "dbms.setTXMetaData", mode = DBMS )
-    public void setTXMetaData( @Name( value = "data" ) Map<String,Object> data )
+    private static Set<KernelTransactionHandle> getExecutingTransactions(
+            DatabaseContext databaseContext )
     {
-        securityContext.assertCredentialsNotExpired();
-        int totalCharSize = data.entrySet().stream()
-                .mapToInt( e -> e.getKey().length() + e.getValue().toString().length() )
-                .sum();
-
-        if ( totalCharSize >= HARD_CHAR_LIMIT )
-        {
-            throw new IllegalArgumentException(
-                    format( "Invalid transaction meta-data, expected the total number of chars for " +
-                            "keys and values to be less than %d, got %d", HARD_CHAR_LIMIT, totalCharSize ) );
-        }
-
-        getCurrentTx().setMetaData( data );
+        return ((KernelTransactions) databaseContext.dependencies()
+                                                    .resolveDependency( KernelTransactions.class )).executingTransactions();
     }
 
-    @Description( "Provides attached transaction metadata." )
-    @Procedure( name = "dbms.getTXMetaData", mode = DBMS )
-    public Stream<MetadataResult> getTXMetaData()
-    {
-        securityContext.assertCredentialsNotExpired();
-        try ( Statement statement = getCurrentTx().acquireStatement() )
-        {
-            return Stream.of( statement.queryRegistration().getMetaData() ).map( MetadataResult::new );
-        }
-    }
-
-    private KernelTransaction getCurrentTx()
-    {
-        return graph.getDependencyResolver().resolveDependency( ThreadToStatementContextBridge.class )
-                .getKernelTransactionBoundToThisThread( true );
-    }
-
+    @SystemProcedure
     @Description( "List all accepted network connections at this instance that are visible to the user." )
-    @Procedure( name = "dbms.listConnections", mode = DBMS )
+    @Procedure( name = "dbms.listConnections", mode = Mode.DBMS )
     public Stream<ListConnectionResult> listConnections()
     {
-        securityContext.assertCredentialsNotExpired();
-
-        NetworkConnectionTracker connectionTracker = getConnectionTracker();
-        ZoneId timeZone = getConfiguredTimeZone();
-
-        return connectionTracker.activeConnections()
-                .stream()
-                .filter( connection -> isAdminOrSelf( connection.username() ) )
-                .map( connection -> new ListConnectionResult( connection, timeZone ) );
+        this.securityContext.assertCredentialsNotExpired();
+        NetworkConnectionTracker connectionTracker = this.getConnectionTracker();
+        ZoneId timeZone = this.getConfiguredTimeZone();
+        return connectionTracker.activeConnections().stream().filter( ( connection ) ->
+                                                                      {
+                                                                          return this.isAdminOrSelf( connection.username() );
+                                                                      } ).map( ( connection ) ->
+                                                                               {
+                                                                                   return new ListConnectionResult( connection, timeZone );
+                                                                               } );
     }
 
+    @SystemProcedure
     @Description( "Kill network connection with the given connection id." )
-    @Procedure( name = "dbms.killConnection", mode = DBMS )
+    @Procedure( name = "dbms.killConnection", mode = Mode.DBMS )
     public Stream<ConnectionTerminationResult> killConnection( @Name( "id" ) String id )
     {
-        return killConnections( singletonList( id ) );
+        return this.killConnections( Collections.singletonList( id ) );
     }
 
+    @SystemProcedure
     @Description( "Kill all network connections with the given connection ids." )
-    @Procedure( name = "dbms.killConnections", mode = DBMS )
+    @Procedure( name = "dbms.killConnections", mode = Mode.DBMS )
     public Stream<ConnectionTerminationResult> killConnections( @Name( "ids" ) List<String> ids )
     {
-        securityContext.assertCredentialsNotExpired();
-
-        NetworkConnectionTracker connectionTracker = getConnectionTracker();
-
-        return ids.stream().map( id -> killConnection( id, connectionTracker ) );
+        this.securityContext.assertCredentialsNotExpired();
+        NetworkConnectionTracker connectionTracker = this.getConnectionTracker();
+        return ids.stream().map( ( id ) ->
+                                 {
+                                     return this.killConnection( id, connectionTracker );
+                                 } );
     }
 
     private NetworkConnectionTracker getConnectionTracker()
     {
-        return graph.getDependencyResolver().resolveDependency( NetworkConnectionTracker.class );
+        return (NetworkConnectionTracker) this.resolver
+                .resolveDependency( NetworkConnectionTracker.class );
     }
 
-    private ConnectionTerminationResult killConnection( String id, NetworkConnectionTracker connectionTracker )
+    private ConnectionTerminationResult killConnection( String id,
+                                                        NetworkConnectionTracker connectionTracker )
     {
         TrackedNetworkConnection connection = connectionTracker.get( id );
         if ( connection != null )
         {
-            if ( isAdminOrSelf( connection.username() ) )
+            if ( this.isAdminOrSelf( connection.username() ) )
             {
                 connection.close();
                 return new ConnectionTerminationResult( id, connection.username() );
             }
-            throw new AuthorizationViolationException( PERMISSION_DENIED );
-        }
-        return new ConnectionTerminationFailedResult( id );
-    }
-
-    @Description( "List all user functions in the DBMS." )
-    @Procedure( name = "dbms.functions", mode = DBMS )
-    public Stream<FunctionResult> listFunctions()
-    {
-        securityContext.assertCredentialsNotExpired();
-        return graph.getDependencyResolver().resolveDependency( Procedures.class ).getAllFunctions().stream()
-                .sorted( Comparator.comparing( a -> a.name().toString() ) )
-                .map( FunctionResult::new );
-    }
-
-    public static class FunctionResult
-    {
-        public final String name;
-        public final String signature;
-        public final String description;
-        public final List<String> roles;
-
-        private FunctionResult( UserFunctionSignature signature )
-        {
-            this.name = signature.name().toString();
-            this.signature = signature.toString();
-            this.description = signature.description().orElse( "" );
-            roles = Stream.of( "admin", "reader", "editor", "publisher", "architect" ).collect( toList() );
-            roles.addAll( Arrays.asList( signature.allowed() ) );
-        }
-    }
-
-    @Description( "List all procedures in the DBMS." )
-    @Procedure( name = "dbms.procedures", mode = DBMS )
-    public Stream<ProcedureResult> listProcedures()
-    {
-        securityContext.assertCredentialsNotExpired();
-        Procedures procedures = graph.getDependencyResolver().resolveDependency( Procedures.class );
-        return procedures.getAllProcedures().stream()
-                .sorted( Comparator.comparing( a -> a.name().toString() ) )
-                .map( ProcedureResult::new );
-    }
-
-    @SuppressWarnings( "WeakerAccess" )
-    public static class ProcedureResult
-    {
-        // These two procedures are admin procedures but may be executed for your own user,
-        // this is not documented anywhere but we cannot change the behaviour in a point release
-        private static final List<String> ADMIN_PROCEDURES =
-                Arrays.asList( "changeUserPassword", "listRolesForUser" );
-
-        public final String name;
-        public final String signature;
-        public final String description;
-        public final List<String> roles;
-        public final String mode;
-
-        public ProcedureResult( ProcedureSignature signature )
-        {
-            this.name = signature.name().toString();
-            this.signature = signature.toString();
-            this.description = signature.description().orElse( "" );
-            this.mode = signature.mode().toString();
-            roles = new ArrayList<>();
-            switch ( signature.mode() )
+            else
             {
-            case DBMS:
-                if ( signature.admin() || isAdminProcedure( signature.name().name() ) )
-                {
-                    roles.add( "admin" );
-                }
-                else
-                {
-                    roles.add( "reader" );
-                    roles.add( "editor" );
-                    roles.add( "publisher" );
-                    roles.add( "architect" );
-                    roles.add( "admin" );
-                    roles.addAll( Arrays.asList( signature.allowed() ) );
-                }
-                break;
-            case DEFAULT:
-            case READ:
-                roles.add( "reader" );
-            case WRITE:
-                roles.add( "editor" );
-                roles.add( "publisher" );
-            case SCHEMA:
-                roles.add( "architect" );
-            default:
-                roles.add( "admin" );
-                roles.addAll( Arrays.asList( signature.allowed() ) );
+                throw new AuthorizationViolationException( "Permission denied." );
             }
         }
-
-        private boolean isAdminProcedure( String procedureName )
+        else
         {
-            return name.startsWith( "dbms.security." ) && ADMIN_PROCEDURES.contains( procedureName );
+            return new ConnectionTerminationFailedResult( id );
         }
+    }
+
+    @SystemProcedure
+    @Description( "List all functions in the DBMS." )
+    @Procedure( name = "dbms.functions", mode = Mode.DBMS )
+    public Stream<EnterpriseBuiltInDbmsProcedures.FunctionResult> listFunctions()
+    {
+        this.securityContext.assertCredentialsNotExpired();
+        QueryExecutionEngine queryExecutionEngine = this.resolver
+                .resolveDependency( QueryExecutionEngine.class );
+        List<FunctionInformation> providedLanguageFunctions = queryExecutionEngine
+                .getProvidedLanguageFunctions();
+        Stream<EnterpriseBuiltInDbmsProcedures.FunctionResult> languageFunctions = providedLanguageFunctions
+                .stream().map( ( f ) ->
+                               {
+                                   return new EnterpriseBuiltInDbmsProcedures.FunctionResult(
+                                           f );
+                               } );
+        Stream<EnterpriseBuiltInDbmsProcedures.FunctionResult> loadedFunctions =
+                ((GlobalProcedures) this.resolver.resolveDependency( GlobalProcedures.class ))
+                        .getAllNonAggregatingFunctions().map( ( f ) ->
+                                                              {
+                                                                  return new EnterpriseBuiltInDbmsProcedures.FunctionResult(
+                                                                          f, false );
+                                                              } );
+        Stream<EnterpriseBuiltInDbmsProcedures.FunctionResult> loadedAggregationFunctions =
+                ((GlobalProcedures) this.resolver.resolveDependency( GlobalProcedures.class ))
+                        .getAllAggregatingFunctions().map( ( f ) ->
+                                                           {
+                                                               return new EnterpriseBuiltInDbmsProcedures.FunctionResult(
+                                                                       f, true );
+                                                           } );
+        return Stream
+                .concat( Stream.concat( languageFunctions, loadedFunctions ), loadedAggregationFunctions )
+                .sorted( Comparator.comparing( ( a ) ->
+                                               {
+                                                   return a.name;
+                                               } ) );
+    }
+
+    @SystemProcedure
+    @Description( "List all procedures in the DBMS." )
+    @Procedure( name = "dbms.procedures", mode = Mode.DBMS )
+    public Stream<EnterpriseBuiltInDbmsProcedures.ProcedureResult> listProcedures()
+    {
+        this.securityContext.assertCredentialsNotExpired();
+        GlobalProcedures globalProcedures = (GlobalProcedures) this.resolver
+                .resolveDependency( GlobalProcedures.class );
+        return globalProcedures.getAllProcedures().stream().sorted( Comparator.comparing( ( a ) ->
+                                                                                          {
+                                                                                              return a.name().toString();
+                                                                                          } ) ).map( EnterpriseBuiltInDbmsProcedures.ProcedureResult::new );
     }
 
     @Admin
-    @Description( "Updates a given setting value. Passing an empty value will result in removing the configured value " +
-            "and falling back to the default value. Changes will not persist and will be lost if the server is restarted." )
-    @Procedure( name = "dbms.setConfigValue", mode = DBMS )
+    @SystemProcedure
+    @Description( "Updates a given setting value. Passing an empty value will result in removing the configured value and falling back to the default value. Changes will not persist and will be lost if the server is restarted." )
+    @Procedure( name = "dbms.setConfigValue", mode = Mode.DBMS )
     public void setConfigValue( @Name( "setting" ) String setting, @Name( "value" ) String value )
     {
-        Config config = resolver.resolveDependency( Config.class );
-        config.updateDynamicSetting( setting, value, "dbms.setConfigValue" ); // throws if something goes wrong
+        Config config = (Config) this.resolver.resolveDependency( Config.class );
+        SettingImpl<Object> settingObj = (SettingImpl) config.getSetting( setting );
+        DbmsSettingsWhitelist dbmsSettingsWhiteList = (DbmsSettingsWhitelist) this.resolver
+                .resolveDependency( DbmsSettingsWhitelist.class );
+        if ( dbmsSettingsWhiteList.isWhiteListed( setting ) )
+        {
+            config.setDynamic( settingObj, settingObj.parse( StringUtils.isNotEmpty( value ) ? value : null ),
+                               "dbms.setConfigValue" );
+        }
+        else
+        {
+            throw new AuthorizationViolationException( "Failed to set value for `" + setting
+                                                       + "` using procedure `dbms.setConfigValue`: access denied." );
+        }
     }
 
-    /*
-    ==================================================================================
-     */
-
+    @SystemProcedure
     @Description( "List all queries currently executing at this instance that are visible to the user." )
-    @Procedure( name = "dbms.listQueries", mode = DBMS )
+    @Procedure( name = "dbms.listQueries", mode = Mode.DBMS )
     public Stream<QueryStatusResult> listQueries() throws InvalidArgumentsException
     {
-        securityContext.assertCredentialsNotExpired();
+        this.securityContext.assertCredentialsNotExpired();
+        ZoneId zoneId = this.getConfiguredTimeZone();
 
-        EmbeddedProxySPI nodeManager = resolver.resolveDependency( EmbeddedProxySPI.class );
-        ZoneId zoneId = getConfiguredTimeZone();
+
+        /*
         try
         {
             return getKernelTransactions().activeTransactions().stream()
@@ -306,276 +272,599 @@ public class EnterpriseBuiltInDbmsProcedures
             throwIfPresent( uncaught.getCauseIfOfType( InvalidArgumentsException.class ) );
             throw uncaught;
         }
-    }
+         */
+        // TODO: Use stream
+        List<QueryStatusResult> result = new ArrayList();
+        Iterator iterator = this.getDatabaseManager().registeredDatabases().values().iterator();
 
-    @Description( "List all transactions currently executing at this instance that are visible to the user." )
-    @Procedure( name = "dbms.listTransactions", mode = DBMS )
-    public Stream<TransactionStatusResult> listTransactions() throws InvalidArgumentsException
-    {
-        securityContext.assertCredentialsNotExpired();
-        try
+        while ( iterator.hasNext() )
         {
-            Set<KernelTransactionHandle> handles = getKernelTransactions().activeTransactions().stream()
-                    .filter( transaction -> isAdminOrSelf( transaction.subject().username() ) )
-                    .collect( toSet() );
+            DatabaseContext databaseContext = (DatabaseContext) iterator.next();
+            Iterator executingTransactionsIterator = getExecutingTransactions( databaseContext ).iterator();
 
-            Map<KernelTransactionHandle,List<QuerySnapshot>> handleQuerySnapshotsMap = handles.stream()
-                    .collect( toMap( identity(), getTransactionQueries() ) );
-
-            TransactionDependenciesResolver transactionBlockerResolvers =
-                    new TransactionDependenciesResolver( handleQuerySnapshotsMap );
-
-            ZoneId zoneId = getConfiguredTimeZone();
-
-            return handles.stream()
-                    .map( catchThrown( InvalidArgumentsException.class,
-                            tx -> new TransactionStatusResult( tx, transactionBlockerResolvers,
-                                    handleQuerySnapshotsMap, zoneId ) ) );
-        }
-        catch ( UncaughtCheckedException uncaught )
-        {
-            throwIfPresent( uncaught.getCauseIfOfType( InvalidArgumentsException.class ) );
-            throw uncaught;
-        }
-    }
-
-    private static Function<KernelTransactionHandle,List<QuerySnapshot>> getTransactionQueries()
-    {
-        return transactionHandle -> transactionHandle.executingQueries()
-                                              .map( ExecutingQuery::snapshot )
-                                              .collect( toList() );
-    }
-
-    @Description( "List the active lock requests granted for the transaction executing the query with the given query id." )
-    @Procedure( name = "dbms.listActiveLocks", mode = DBMS )
-    public Stream<ActiveLocksResult> listActiveLocks( @Name( "queryId" ) String queryId )
-            throws InvalidArgumentsException
-    {
-        securityContext.assertCredentialsNotExpired();
-        try
-        {
-            long id = fromExternalString( queryId ).kernelQueryId();
-            return getActiveTransactions( tx -> executingQueriesWithId( id, tx ) )
-                    .flatMap( this::getActiveLocksForQuery );
-        }
-        catch ( UncaughtCheckedException uncaught )
-        {
-            throwIfPresent( uncaught.getCauseIfOfType( InvalidArgumentsException.class ) );
-            throw uncaught;
-        }
-    }
-
-    @Description( "Kill all transactions executing the query with the given query id." )
-    @Procedure( name = "dbms.killQuery", mode = DBMS )
-    public Stream<QueryTerminationResult> killQuery( @Name( "id" ) String idText ) throws InvalidArgumentsException
-    {
-        securityContext.assertCredentialsNotExpired();
-        try
-        {
-            long queryId = fromExternalString( idText ).kernelQueryId();
-
-            Set<Pair<KernelTransactionHandle,ExecutingQuery>> querys = getActiveTransactions( tx -> executingQueriesWithId( queryId, tx ) ).collect( toSet() );
-            boolean killQueryVerbose = resolver.resolveDependency( Config.class ).get( GraphDatabaseSettings.kill_query_verbose );
-            if ( killQueryVerbose && querys.isEmpty() )
+            while ( executingTransactionsIterator.hasNext() )
             {
-                return Stream.<QueryTerminationResult>builder().add( new QueryFailedTerminationResult( fromExternalString( idText ) ) ).build();
-            }
-            return querys.stream().map( catchThrown( InvalidArgumentsException.class, this::killQueryTransaction ) );
-        }
-        catch ( UncaughtCheckedException uncaught )
-        {
-            throwIfPresent( uncaught.getCauseIfOfType( InvalidArgumentsException.class ) );
-            throw uncaught;
-        }
-    }
-
-    @Description( "Kill all transactions executing a query with any of the given query ids." )
-    @Procedure( name = "dbms.killQueries", mode = DBMS )
-    public Stream<QueryTerminationResult> killQueries( @Name( "ids" ) List<String> idTexts ) throws InvalidArgumentsException
-    {
-        securityContext.assertCredentialsNotExpired();
-        try
-        {
-
-            Set<Long> queryIds = idTexts.stream().map( catchThrown( InvalidArgumentsException.class, QueryId::fromExternalString ) ).map(
-                    catchThrown( InvalidArgumentsException.class, QueryId::kernelQueryId ) ).collect( toSet() );
-
-            Set<QueryTerminationResult> terminatedQuerys = getActiveTransactions( tx -> executingQueriesWithIds( queryIds, tx ) ).map(
-                    catchThrown( InvalidArgumentsException.class, this::killQueryTransaction ) ).collect( toSet() );
-            boolean killQueryVerbose = resolver.resolveDependency( Config.class ).get( GraphDatabaseSettings.kill_query_verbose );
-            if ( killQueryVerbose && terminatedQuerys.size() != idTexts.size() )
-            {
-                for ( String id : idTexts )
+                KernelTransactionHandle tx = (KernelTransactionHandle) executingTransactionsIterator.next();
+                if ( tx.executingQuery().isPresent() )
                 {
-                    if ( terminatedQuerys.stream().noneMatch( query -> query.queryId.equals( id ) ) )
+                    ExecutingQuery query = (ExecutingQuery) tx.executingQuery().get();
+                    if ( this.isAdminOrSelf( query.username() ) )
                     {
-                        terminatedQuerys.add( new QueryFailedTerminationResult( fromExternalString( id ) ) );
+                        result.add( new QueryStatusResult( query, (InternalTransaction) this.transaction, zoneId,
+                                                           databaseContext.databaseFacade().databaseName() ) );
                     }
                 }
             }
-            return terminatedQuerys.stream();
         }
-        catch ( UncaughtCheckedException uncaught )
+
+        return result.stream();
+    }
+
+    @SystemProcedure
+    @Description( "List all transactions currently executing at this instance that are visible to the user." )
+    @Procedure( name = "dbms.listTransactions", mode = Mode.DBMS )
+    public Stream<TransactionStatusResult> listTransactions() throws InvalidArgumentsException
+    {
+        this.securityContext.assertCredentialsNotExpired();
+        ZoneId zoneId = this.getConfiguredTimeZone();
+        List<TransactionStatusResult> result = new ArrayList();
+        Iterator iterator = this.getDatabaseManager().registeredDatabases().values().iterator();
+
+        while ( iterator.hasNext() )
         {
-            throwIfPresent( uncaught.getCauseIfOfType( InvalidArgumentsException.class ) );
-            throw uncaught;
+            DatabaseContext databaseContext = (DatabaseContext) iterator.next();
+            Map<KernelTransactionHandle,Optional<QuerySnapshot>> handleQuerySnapshotsMap = new HashMap();
+            Iterator executingTransactionsIterator = getExecutingTransactions( databaseContext ).iterator();
+
+            while ( executingTransactionsIterator.hasNext() )
+            {
+                KernelTransactionHandle tx = (KernelTransactionHandle) executingTransactionsIterator.next();
+                if ( this.isAdminOrSelf( tx.subject().username() ) )
+                {
+                    handleQuerySnapshotsMap.put( tx, tx.executingQuery().map( ExecutingQuery::snapshot ) );
+                }
+            }
+
+            TransactionDependenciesResolver transactionBlockerResolvers = new TransactionDependenciesResolver(
+                    handleQuerySnapshotsMap );
+            Iterator qIterator = handleQuerySnapshotsMap.keySet().iterator();
+
+            while ( qIterator.hasNext() )
+            {
+                KernelTransactionHandle tx = (KernelTransactionHandle) qIterator.next();
+                result.add(
+                        new TransactionStatusResult( databaseContext.databaseFacade().databaseName(), tx,
+                                                     transactionBlockerResolvers, handleQuerySnapshotsMap,
+                                                     zoneId ) );
+            }
+        }
+
+        return result.stream();
+    }
+
+    @SystemProcedure
+    @Description( "Kill transaction with provided id." )
+    @Procedure( name = "dbms.killTransaction", mode = Mode.DBMS )
+    public Stream<TransactionMarkedForTerminationResult> killTransaction(
+            @Name( "id" ) String transactionId ) throws InvalidArgumentsException
+    {
+        Objects.requireNonNull( transactionId );
+        return this.killTransactions( Collections.singletonList( transactionId ) );
+    }
+
+    @SystemProcedure
+    @Description( "Kill transactions with provided ids." )
+    @Procedure( name = "dbms.killTransactions", mode = Mode.DBMS )
+    public Stream<TransactionMarkedForTerminationResult> killTransactions(
+            @Name( "ids" ) List<String> transactionIds ) throws InvalidArgumentsException
+    {
+        Objects.requireNonNull( transactionIds );
+        this.securityContext.assertCredentialsNotExpired();
+        this.log.warn( "User %s trying to kill transactions: %s.",
+                       new Object[]{this.securityContext.subject().username(), transactionIds.toString()} );
+        DatabaseManager<DatabaseContext> databaseManager = this.getDatabaseManager();
+        DatabaseIdRepository databaseIdRepository = databaseManager.databaseIdRepository();
+        Map<NamedDatabaseId,Set<TransactionId>> byDatabase = new HashMap();
+        Iterator transactionIdIterator = transactionIds.iterator();
+
+        while ( transactionIdIterator.hasNext() )
+        {
+            String idText = (String) transactionIdIterator.next();
+            TransactionId id = new TransactionId( idText );
+            Optional<NamedDatabaseId> namedDatabaseId = databaseIdRepository.getByName( id.getDatabase() );
+            namedDatabaseId.ifPresent( ( databaseIdx ) ->
+                                       {
+                                           ((Set) byDatabase.computeIfAbsent( databaseIdx, ( ignore ) ->
+                                           {
+                                               return new HashSet();
+                                           } )).add( id );
+                                       } );
+        }
+
+        Map<String,KernelTransactionHandle> handles = new HashMap( transactionIds.size() );
+        Iterator iterator = byDatabase.entrySet().iterator();
+
+        while ( true )
+        {
+            Optional maybeDatabaseContext;
+            Entry entry;
+            NamedDatabaseId databaseId;
+            do
+            {
+                if ( !iterator.hasNext() )
+                {
+                    return transactionIds.stream().map( ( idx ) ->
+                                                        {
+                                                            return this.terminateTransaction( handles, idx );
+                                                        } );
+                }
+
+                entry = (Entry) iterator.next();
+                databaseId = (NamedDatabaseId) entry.getKey();
+                maybeDatabaseContext = databaseManager.getDatabaseContext( databaseId );
+            }
+            while ( !maybeDatabaseContext.isPresent() );
+
+            Set<TransactionId> txIds = (Set) entry.getValue();
+            DatabaseContext databaseContext = (DatabaseContext) maybeDatabaseContext.get();
+            Iterator etIterator = getExecutingTransactions( databaseContext ).iterator();
+
+            while ( etIterator.hasNext() )
+            {
+                KernelTransactionHandle tx = (KernelTransactionHandle) etIterator.next();
+                if ( this.isAdminOrSelf( tx.subject().username() ) )
+                {
+                    TransactionId txIdRepresentation = new TransactionId( databaseId.name(),
+                                                                          tx.getUserTransactionId() );
+                    if ( txIds.contains( txIdRepresentation ) )
+                    {
+                        handles.put( txIdRepresentation.toString(), tx );
+                    }
+                }
+            }
         }
     }
 
-    private <T> Stream<Pair<KernelTransactionHandle, T>> getActiveTransactions(
-            Function<KernelTransactionHandle,Stream<T>> selector
-    )
+    private TransactionMarkedForTerminationResult terminateTransaction(
+            Map<String,KernelTransactionHandle> handles, String transactionId )
     {
-        return getActiveTransactions( graph.getDependencyResolver() )
-            .stream()
-            .flatMap( tx -> selector.apply( tx ).map( data -> Pair.of( tx, data ) ) );
+        KernelTransactionHandle handle = (KernelTransactionHandle) handles.get( transactionId );
+        String currentUser = this.securityContext.subject().username();
+        if ( handle == null )
+        {
+            return new TransactionMarkedForTerminationFailedResult( transactionId, currentUser );
+        }
+        else if ( handle.isClosing() )
+        {
+            return new TransactionMarkedForTerminationFailedResult( transactionId, currentUser,
+                                                                    "Unable to kill closing transactions." );
+        }
+        else
+        {
+            this.log
+                    .debug( "User %s terminated transaction %d.", new Object[]{currentUser, transactionId} );
+            handle.markForTermination( org.neo4j.kernel.api.exceptions.Status.Transaction.Terminated );
+            return new TransactionMarkedForTerminationResult( transactionId, handle.subject().username() );
+        }
     }
 
-    private static Stream<ExecutingQuery> executingQueriesWithIds( Set<Long> ids, KernelTransactionHandle txHandle )
-    {
-        return txHandle.executingQueries().filter( q -> ids.contains( q.internalQueryId() ) );
-    }
-
-    private static Stream<ExecutingQuery> executingQueriesWithId( long id, KernelTransactionHandle txHandle )
-    {
-        return txHandle.executingQueries().filter( q -> q.internalQueryId() == id );
-    }
-
-    private QueryTerminationResult killQueryTransaction( Pair<KernelTransactionHandle, ExecutingQuery> pair )
+    @SystemProcedure
+    @Description( "List the active lock requests granted for the transaction executing the query with the given query id." )
+    @Procedure( name = "dbms.listActiveLocks", mode = Mode.DBMS )
+    public Stream<ActiveLocksResult> listActiveLocks( @Name( "queryId" ) String queryIdText )
             throws InvalidArgumentsException
     {
-        ExecutingQuery query = pair.other();
-        if ( isAdminOrSelf( query.username() ) )
+        this.securityContext.assertCredentialsNotExpired();
+        QueryId dbmsQueryId = new QueryId( queryIdText );
+        DatabaseManager<DatabaseContext> databaseManager = this.getDatabaseManager();
+        DatabaseIdRepository databaseIdRepository = databaseManager.databaseIdRepository();
+        Optional<NamedDatabaseId> maybeNamedDatabaseId = databaseIdRepository
+                .getByName( dbmsQueryId.getDatabase() );
+        if ( maybeNamedDatabaseId.isPresent() )
         {
-            pair.first().markForTermination( Status.Transaction.Terminated );
-            return new QueryTerminationResult( ofInternalId( query.internalQueryId() ), query.username() );
+            NamedDatabaseId namedDatabaseId = (NamedDatabaseId) maybeNamedDatabaseId.get();
+            Optional<DatabaseContext> maybeDatabaseContext = databaseManager
+                    .getDatabaseContext( namedDatabaseId );
+            if ( maybeDatabaseContext.isPresent() )
+            {
+                DatabaseContext databaseContext = (DatabaseContext) maybeDatabaseContext.get();
+                Iterator iterator = getExecutingTransactions( databaseContext ).iterator();
+
+                while ( iterator.hasNext() )
+                {
+                    KernelTransactionHandle tx = (KernelTransactionHandle) iterator.next();
+                    if ( tx.executingQuery().isPresent() )
+                    {
+                        ExecutingQuery query = (ExecutingQuery) tx.executingQuery().get();
+                        if ( query.internalQueryId() == dbmsQueryId.getInternalId() )
+                        {
+                            if ( this.isAdminOrSelf( query.username() ) )
+                            {
+                                return tx.activeLocks().map( ActiveLocksResult::new );
+                            }
+
+                            throw new AuthorizationViolationException( "Permission denied." );
+                        }
+                    }
+                }
+            }
+        }
+
+        return Stream.empty();
+    }
+
+    @SystemProcedure
+    @Description( "Kill all transactions executing the query with the given query id." )
+    @Procedure( name = "dbms.killQuery", mode = Mode.DBMS )
+    public Stream<EnterpriseBuiltInDbmsProcedures.QueryTerminationResult> killQuery(
+            @Name( "id" ) String idText ) throws InvalidArgumentsException
+    {
+        return this.killQueries( Collections.singletonList( idText ) );
+    }
+
+    @SystemProcedure
+    @Description( "Kill all transactions executing a query with any of the given query ids." )
+    @Procedure( name = "dbms.killQueries", mode = Mode.DBMS )
+    public Stream<EnterpriseBuiltInDbmsProcedures.QueryTerminationResult> killQueries(
+            @Name( "ids" ) List<String> idTexts ) throws InvalidArgumentsException
+    {
+        this.securityContext.assertCredentialsNotExpired();
+        DatabaseManager<DatabaseContext> databaseManager = this.getDatabaseManager();
+        DatabaseIdRepository databaseIdRepository = databaseManager.databaseIdRepository();
+        Set<NamedDatabaseId> affectedDatabases = new HashSet();
+        Set<QueryId> dbmsQueryIds = new HashSet( idTexts.size() );
+        Iterator iterator = idTexts.iterator();
+
+        QueryId dbmsQueryId;
+        while ( iterator.hasNext() )
+        {
+            String idText = (String) iterator.next();
+            dbmsQueryId = new QueryId( idText );
+            dbmsQueryIds.add( dbmsQueryId );
+            Optional<NamedDatabaseId> namedDatabaseId = databaseIdRepository
+                    .getByName( dbmsQueryId.getDatabase() );
+            Objects.requireNonNull( affectedDatabases );
+            namedDatabaseId.ifPresent( affectedDatabases::add );
+        }
+
+        List<EnterpriseBuiltInDbmsProcedures.QueryTerminationResult> result = new ArrayList(
+                dbmsQueryIds.size() );
+        Iterator adIterator = affectedDatabases.iterator();
+
+        while ( true )
+        {
+            Optional maybeDatabaseContext;
+            do
+            {
+                if ( !adIterator.hasNext() )
+                {
+                    adIterator = dbmsQueryIds.iterator();
+
+                    while ( adIterator.hasNext() )
+                    {
+                        dbmsQueryId = (QueryId) adIterator.next();
+                        result.add(
+                                new EnterpriseBuiltInDbmsProcedures.QueryFailedTerminationResult( dbmsQueryId, "n/a",
+                                                                                                  "No Query found with this id" ) );
+                    }
+
+                    return result.stream();
+                }
+
+                NamedDatabaseId databaseId = (NamedDatabaseId) adIterator.next();
+                maybeDatabaseContext = databaseManager.getDatabaseContext( databaseId );
+            }
+            while ( !maybeDatabaseContext.isPresent() );
+
+            DatabaseContext databaseContext = (DatabaseContext) maybeDatabaseContext.get();
+            Iterator etIterator = getExecutingTransactions( databaseContext ).iterator();
+
+            while ( etIterator.hasNext() )
+            {
+                KernelTransactionHandle tx = (KernelTransactionHandle) etIterator.next();
+                QueryId internalDbmsQueryId = new QueryId( databaseContext.databaseFacade().databaseName(),
+                                                           (Long) tx.executingQuery().map( ExecutingQuery::internalQueryId ).orElse( -1L ) );
+                if ( dbmsQueryIds.remove( internalDbmsQueryId ) )
+                {
+                    result.add( this.killQueryTransaction( internalDbmsQueryId, tx ) );
+                }
+            }
+        }
+    }
+
+    @Admin
+    @SystemProcedure
+    @Description( "List the job groups that are active in the db internal job scheduler." )
+    @Procedure( name = "dbms.scheduler.groups", mode = Mode.DBMS )
+    public Stream<EnterpriseBuiltInDbmsProcedures.ActiveSchedulingGroup> schedulerActiveGroups()
+    {
+        JobScheduler scheduler = (JobScheduler) this.resolver.resolveDependency( JobScheduler.class );
+        return scheduler.activeGroups().map( EnterpriseBuiltInDbmsProcedures.ActiveSchedulingGroup::new );
+    }
+
+    @Admin
+    @SystemProcedure
+    @Description( "Begin profiling all threads within the given job group, for the specified duration. Note that profiling incurs overhead to a system, and will slow it down." )
+    @Procedure( name = "dbms.scheduler.profile", mode = Mode.DBMS )
+    public Stream<EnterpriseBuiltInDbmsProcedures.ProfileResult> schedulerProfileGroup(
+            @Name( "method" ) String method, @Name( "group" ) String groupName,
+            @Name( "duration" ) String duration ) throws InterruptedException
+    {
+        if ( !"sample".equals( method ) )
+        {
+            throw new IllegalArgumentException(
+                    "No such profiling method: '" + method + "'. Valid methods are: 'sample'." );
         }
         else
         {
-            throw new AuthorizationViolationException( PERMISSION_DENIED );
+            Profiler profiler = Profiler.profiler();
+            Group group = null;
+            Group[] groupValues = Group.values();
+
+            for ( int i = 0; i < groupValues.length; ++i )
+            {
+                Group value = groupValues[i];
+                if ( value.groupName().equals( groupName ) )
+                {
+                    group = value;
+                    break;
+                }
+            }
+
+            if ( group == null )
+            {
+                throw new IllegalArgumentException( "No such scheduling group: '" + groupName + "'." );
+            }
+            else
+            {
+                long durationNanos = TimeUnit.MILLISECONDS
+                        .toNanos( (Long) TimeUtil.parseTimeMillis.apply( duration ) );
+                JobScheduler scheduler = (JobScheduler) this.resolver.resolveDependency( JobScheduler.class );
+                long deadline = System.nanoTime() + durationNanos;
+
+                try
+                {
+                    scheduler.profileGroup( group, profiler );
+
+                    while ( System.nanoTime() < deadline )
+                    {
+                        this.kernelTransaction.assertOpen();
+                        Thread.sleep( 100L );
+                    }
+                }
+                finally
+                {
+                    profiler.finish();
+                }
+
+                ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                PrintStream out = new PrintStream( baos );
+                profiler.printProfile( out, "Profiled group '" + group + "'." );
+                out.flush();
+                return Stream.of( new EnterpriseBuiltInDbmsProcedures.ProfileResult( baos.toString() ) );
+            }
         }
     }
 
-    private Stream<ActiveLocksResult> getActiveLocksForQuery( Pair<KernelTransactionHandle, ExecutingQuery> pair )
+    @SystemProcedure
+    @Description( "Initiate and wait for a new check point, or wait any already on-going check point to complete. Note that this temporarily disables the `dbms.checkpoint.iops.limit` setting in order to make the check point complete faster. This might cause transaction throughput to degrade slightly, due to increased IO load." )
+    @Procedure( name = "db.checkpoint", mode = Mode.DBMS )
+    public Stream<EnterpriseBuiltInDbmsProcedures.CheckpointResult> checkpoint() throws IOException
     {
-        ExecutingQuery query = pair.other();
-        if ( isAdminOrSelf( query.username() ) )
+        CheckPointer checkPointer = (CheckPointer) this.resolver.resolveDependency( CheckPointer.class );
+
+        Objects.requireNonNull( kernelTransaction );
+        BooleanSupplier timeoutPredicate = kernelTransaction::isTerminated;
+        long transactionId = checkPointer
+                .tryCheckPoint( new SimpleTriggerInfo( "Call to db.checkpoint() procedure" ),
+                                timeoutPredicate );
+        return Stream.of(
+                transactionId == -1L ? EnterpriseBuiltInDbmsProcedures.CheckpointResult.TERMINATED
+                                     : EnterpriseBuiltInDbmsProcedures.CheckpointResult.SUCCESS );
+    }
+
+    private DatabaseManager<DatabaseContext> getDatabaseManager()
+    {
+        return (DatabaseManager) this.resolver.resolveDependency( DatabaseManager.class );
+    }
+
+    private EnterpriseBuiltInDbmsProcedures.QueryTerminationResult killQueryTransaction(
+            QueryId dbmsQueryId, KernelTransactionHandle handle )
+    {
+        Optional<ExecutingQuery> query = handle.executingQuery();
+        ExecutingQuery executingQuery = (ExecutingQuery) query.orElseThrow( () ->
+                                                                            {
+                                                                                return new IllegalStateException(
+                                                                                        "Query should exist since we filtered based on query ids" );
+                                                                            } );
+        if ( this.isAdminOrSelf( executingQuery.username() ) )
         {
-            return pair.first().activeLocks().map( ActiveLocksResult::new );
+            if ( handle.isClosing() )
+            {
+                return new EnterpriseBuiltInDbmsProcedures.QueryFailedTerminationResult( dbmsQueryId,
+                                                                                         executingQuery.username(),
+                                                                                         "Unable to kill queries when underlying transaction is closing." );
+            }
+            else
+            {
+                handle.markForTermination( org.neo4j.kernel.api.exceptions.Status.Transaction.Terminated );
+                return new EnterpriseBuiltInDbmsProcedures.QueryTerminationResult( dbmsQueryId,
+                                                                                   executingQuery.username(), "Query found" );
+            }
         }
         else
         {
-            throw new AuthorizationViolationException( PERMISSION_DENIED );
+            throw new AuthorizationViolationException( "Permission denied." );
         }
-    }
-
-    private KernelTransactions getKernelTransactions()
-    {
-        return resolver.resolveDependency( KernelTransactions.class );
-    }
-
-    // ----------------- helpers ---------------------
-
-    public static Stream<TransactionTerminationResult> terminateTransactionsForValidUser(
-            DependencyResolver dependencyResolver, String username, KernelTransaction currentTx )
-    {
-        long terminatedCount = getActiveTransactions( dependencyResolver )
-            .stream()
-            .filter( tx -> tx.subject().hasUsername( username ) &&
-                            !tx.isUnderlyingTransaction( currentTx ) )
-            .map( tx -> tx.markForTermination( Status.Transaction.Terminated ) )
-            .filter( marked -> marked )
-            .count();
-        return Stream.of( new TransactionTerminationResult( username, terminatedCount ) );
-    }
-
-    public static Set<KernelTransactionHandle> getActiveTransactions( DependencyResolver dependencyResolver )
-    {
-        return dependencyResolver.resolveDependency( KernelTransactions.class ).activeTransactions();
-    }
-
-    public static Stream<TransactionResult> countTransactionByUsername( Stream<String> usernames )
-    {
-        return usernames
-            .collect( Collectors.groupingBy( identity(), Collectors.counting() ) )
-            .entrySet()
-            .stream()
-            .map( entry -> new TransactionResult( entry.getKey(), entry.getValue() )
-        );
     }
 
     private ZoneId getConfiguredTimeZone()
     {
-        Config config = resolver.resolveDependency( Config.class );
-        return config.get( GraphDatabaseSettings.db_timezone ).getZoneId();
+        Config config = (Config) this.resolver.resolveDependency( Config.class );
+        return ((LogTimeZone) config.get( GraphDatabaseSettings.db_timezone )).getZoneId();
     }
 
     private boolean isAdminOrSelf( String username )
     {
-        return securityContext.isAdmin() || securityContext.subject().hasUsername( username );
+        return this.securityContext.isAdmin() || this.securityContext.subject().hasUsername( username );
     }
 
-    private void assertAdminOrSelf( String username )
+    public static enum CheckpointResult
     {
-        if ( !isAdminOrSelf( username ) )
+        SUCCESS( true, "Checkpoint completed." ),
+        TERMINATED( false,
+                    "Transaction terminated while waiting for the requested checkpoint operation to finish." );
+
+        public final boolean success;
+        public final String message;
+
+        private CheckpointResult( boolean success, String message )
         {
-            throw new AuthorizationViolationException( PERMISSION_DENIED );
+            this.success = success;
+            this.message = message;
+        }
+    }
+
+    public static class ProfileResult
+    {
+
+        public final String profile;
+
+        public ProfileResult( String profile )
+        {
+            this.profile = profile;
+        }
+    }
+
+    public static class ActiveSchedulingGroup
+    {
+
+        public final String group;
+        public final long threads;
+
+        ActiveSchedulingGroup( ActiveGroup activeGroup )
+        {
+            this.group = activeGroup.group.groupName();
+            this.threads = (long) activeGroup.threads;
+        }
+    }
+
+    public static class QueryFailedTerminationResult extends
+                                                     EnterpriseBuiltInDbmsProcedures.QueryTerminationResult
+    {
+
+        public QueryFailedTerminationResult( QueryId dbmsQueryId, String username, String message )
+        {
+            super( dbmsQueryId, username, message );
         }
     }
 
     public static class QueryTerminationResult
     {
+
         public final String queryId;
         public final String username;
-        public String message = "Query found";
+        public final String message;
 
-        public QueryTerminationResult( QueryId queryId, String username )
+        public QueryTerminationResult( QueryId dbmsQueryId, String username, String message )
         {
-            this.queryId = queryId.toString();
+            this.queryId = dbmsQueryId.toString();
             this.username = username;
+            this.message = message;
         }
     }
 
-    public static class QueryFailedTerminationResult extends QueryTerminationResult
+    public static class ProcedureResult
     {
-        public QueryFailedTerminationResult( QueryId queryId )
+
+        private static final List<String> ADMIN_PROCEDURES = Arrays
+                .asList( "changeUserPassword", "listRolesForUser" );
+        private static final List<String> NON_EDITOR_PROCEDURES = Arrays
+                .asList( "createLabel", "createProperty", "createRelationshipType" );
+        public final String name;
+        public final String signature;
+        public final String description;
+        public final String mode;
+        public final List<String> defaultBuiltInRoles;
+        public final boolean worksOnSystem;
+
+        public ProcedureResult( ProcedureSignature signature )
         {
-            super( queryId, "n/a" );
-            super.message = "No Query found with this id";
+            this.name = signature.name().toString();
+            this.signature = signature.toString();
+            this.description = (String) signature.description().orElse( "" );
+            this.mode = signature.mode().toString();
+            this.worksOnSystem = signature.systemProcedure();
+            this.defaultBuiltInRoles = new ArrayList();
+            switch ( signature.mode() )
+            {
+            case DBMS:
+                if ( !signature.admin() && !this.isAdminProcedure( signature.name().name() ) )
+                {
+                    this.defaultBuiltInRoles.add( "reader" );
+                    this.defaultBuiltInRoles.add( "editor" );
+                    this.defaultBuiltInRoles.add( "publisher" );
+                    this.defaultBuiltInRoles.add( "architect" );
+                    this.defaultBuiltInRoles.add( "admin" );
+                    this.defaultBuiltInRoles.addAll( Arrays.asList( signature.allowed() ) );
+                }
+                else
+                {
+                    this.defaultBuiltInRoles.add( "admin" );
+                }
+                break;
+            case DEFAULT:
+            case READ:
+                this.defaultBuiltInRoles.add( "reader" );
+            case WRITE:
+                if ( !NON_EDITOR_PROCEDURES.contains( signature.name().name() ) )
+                {
+                    this.defaultBuiltInRoles.add( "editor" );
+                }
+
+                this.defaultBuiltInRoles.add( "publisher" );
+            case SCHEMA:
+                this.defaultBuiltInRoles.add( "architect" );
+            default:
+                this.defaultBuiltInRoles.add( "admin" );
+                this.defaultBuiltInRoles.addAll( Arrays.asList( signature.allowed() ) );
+            }
+        }
+
+        private boolean isAdminProcedure( String procedureName )
+        {
+            return this.name.startsWith( "dbms.security." ) && ADMIN_PROCEDURES.contains( procedureName );
         }
     }
 
-    public static class TransactionResult
+    public static class FunctionResult
     {
-        public final String username;
-        public final Long activeTransactions;
 
-        TransactionResult( String username, Long activeTransactions )
+        public final String name;
+        public final String signature;
+        public final String description;
+        public final boolean aggregating;
+        public final List<String> defaultBuiltInRoles;
+
+        private FunctionResult( UserFunctionSignature signature, boolean isAggregation )
         {
-            this.username = username;
-            this.activeTransactions = activeTransactions;
+            this.name = signature.name().toString();
+            this.signature = signature.toString();
+            this.description = (String) signature.description().orElse( "" );
+            this.defaultBuiltInRoles = (List) Stream
+                    .of( "admin", "reader", "editor", "publisher", "architect" ).collect( Collectors.toList() );
+            this.defaultBuiltInRoles.addAll( Arrays.asList( signature.allowed() ) );
+            this.aggregating = isAggregation;
         }
-    }
 
-    public static class TransactionTerminationResult
-    {
-        public final String username;
-        public final Long transactionsTerminated;
-
-        TransactionTerminationResult( String username, Long transactionsTerminated )
+        private FunctionResult( FunctionInformation info )
         {
-            this.username = username;
-            this.transactionsTerminated = transactionsTerminated;
-        }
-    }
-
-    public static class MetadataResult
-    {
-        public final Map<String,Object> metadata;
-
-        MetadataResult( Map<String,Object> metadata )
-        {
-            this.metadata = metadata;
+            this.name = info.getFunctionName();
+            this.signature = info.getSignature();
+            this.description = info.getDescription();
+            this.aggregating = info.isAggregationFunction();
+            this.defaultBuiltInRoles = (List) Stream
+                    .of( "admin", "reader", "editor", "publisher", "architect" ).collect( Collectors.toList() );
         }
     }
 }

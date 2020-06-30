@@ -23,20 +23,6 @@ import java.util.Map;
 
 class ProfileRefCounts
 {
-    private static class Counter
-    {
-        private int count;
-
-        void increment()
-        {
-            count++;
-        }
-
-        int decrementAndGet()
-        {
-            return --count;
-        }
-    }
 
     private final Map<Profile,Counter> bag;
 
@@ -64,5 +50,21 @@ class ProfileRefCounts
     synchronized boolean contains( Profile profile )
     {
         return bag.containsKey( profile );
+    }
+
+    private static class Counter
+    {
+
+        private int count;
+
+        void increment()
+        {
+            count++;
+        }
+
+        int decrementAndGet()
+        {
+            return --count;
+        }
     }
 }

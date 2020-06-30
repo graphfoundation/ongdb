@@ -35,6 +35,7 @@ import static org.neo4j.graphdb.factory.GraphDatabaseSettings.plugin_dir;
 
 public class SetConfigValueProcedureTest
 {
+
     @Rule
     public final DatabaseRule db = new ImpermanentEnterpriseDatabaseRule();
 
@@ -76,7 +77,8 @@ public class SetConfigValueProcedureTest
     public void failIfInvalidValue()
     {
         expect.expect( new NestedThrowableMatcher( InvalidSettingException.class ) );
-        expect.expectMessage( "Bad value 'invalid' for setting 'dbms.logs.query.enabled': must be 'true' or 'false'" );
+        expect.expectMessage(
+                "Bad value 'invalid' for setting 'dbms.logs.query.enabled': must be 'true' or 'false'" );
 
         db.execute( "CALL dbms.setConfigValue('" + log_queries.name() + "', 'invalid')" );
     }

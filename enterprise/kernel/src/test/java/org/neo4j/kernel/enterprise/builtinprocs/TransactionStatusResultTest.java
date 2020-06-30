@@ -86,14 +86,16 @@ public class TransactionStatusResultTest
     private TestKernelTransactionHandle transactionHandle =
             new TransactionHandleWithLocks( new StubKernelTransaction() );
     private HashMap<KernelTransactionHandle,List<QuerySnapshot>> snapshotsMap = new HashMap<>();
-    private TransactionDependenciesResolver blockerResolver = new TransactionDependenciesResolver( snapshotsMap );
+    private TransactionDependenciesResolver blockerResolver = new TransactionDependenciesResolver(
+            snapshotsMap );
 
     @Test
     public void statusOfTransactionWithSingleQuery() throws InvalidArgumentsException
     {
         snapshotsMap.put( transactionHandle, singletonList( createQuerySnapshot( 7L ) ) );
         TransactionStatusResult statusResult =
-                new TransactionStatusResult( transactionHandle, blockerResolver, snapshotsMap, ZoneId.of( "UTC" ) );
+                new TransactionStatusResult( transactionHandle, blockerResolver, snapshotsMap,
+                                             ZoneId.of( "UTC" ) );
 
         checkTransactionStatus( statusResult, "testQuery", "query-7", "1970-01-01T00:00:01.984Z" );
     }
@@ -103,7 +105,8 @@ public class TransactionStatusResultTest
     {
         snapshotsMap.put( transactionHandle, emptyList() );
         TransactionStatusResult statusResult =
-                new TransactionStatusResult( transactionHandle, blockerResolver, snapshotsMap, ZoneId.of( "UTC" ) );
+                new TransactionStatusResult( transactionHandle, blockerResolver, snapshotsMap,
+                                             ZoneId.of( "UTC" ) );
 
         checkTransactionStatusWithoutQueries( statusResult );
     }
@@ -113,7 +116,8 @@ public class TransactionStatusResultTest
     {
         snapshotsMap.put( transactionHandle, asList( createQuerySnapshot( 7L ), createQuerySnapshot( 8L ) ) );
         TransactionStatusResult statusResult =
-                new TransactionStatusResult( transactionHandle, blockerResolver, snapshotsMap, ZoneId.of( "UTC" ) );
+                new TransactionStatusResult( transactionHandle, blockerResolver, snapshotsMap,
+                                             ZoneId.of( "UTC" ) );
 
         checkTransactionStatus( statusResult, "testQuery", "query-7", "1970-01-01T00:00:01.984Z" );
     }
@@ -123,7 +127,8 @@ public class TransactionStatusResultTest
     {
         snapshotsMap.put( transactionHandle, singletonList( createQuerySnapshot( 7L ) ) );
         TransactionStatusResult statusResult =
-                new TransactionStatusResult( transactionHandle, blockerResolver, snapshotsMap, ZoneId.of( "UTC+1" ) );
+                new TransactionStatusResult( transactionHandle, blockerResolver, snapshotsMap,
+                                             ZoneId.of( "UTC+1" ) );
 
         checkTransactionStatus( statusResult, "testQuery", "query-7", "1970-01-01T01:00:01.984+01:00" );
     }
@@ -187,7 +192,8 @@ public class TransactionStatusResultTest
 
     private ExecutingQuery createExecutingQuery( long queryId )
     {
-        return new ExecutingQuery( queryId, getTestConnectionInfo(), "testUser", "testQuery", VirtualValues.EMPTY_MAP,
+        return new ExecutingQuery( queryId, getTestConnectionInfo(), "testUser", "testQuery",
+                                   VirtualValues.EMPTY_MAP,
                                    Collections.emptyMap(), () -> 1L, PageCursorTracer.NULL,
                                    Thread.currentThread().getId(), Thread.currentThread().getName(),
                                    new CountingNanoClock(), new CountingCpuClock(), new CountingHeapAllocation() );
@@ -216,42 +222,47 @@ public class TransactionStatusResultTest
         @Override
         public TransactionExecutionStatistic transactionStatistic()
         {
-            KernelTransactionImplementation transaction = new KernelTransactionImplementation( Config.defaults(),
-                                                                                               mock( StatementOperationParts.class ),
-                                                                                               mock( SchemaWriteGuard.class ), new TransactionHooks(),
-                                                                                               mock( ConstraintIndexCreator.class ), new Procedures(),
-                                                                                               TransactionHeaderInformationFactory.DEFAULT,
-                                                                                               mock( TransactionCommitProcess.class ),
-                                                                                               new DatabaseTransactionStats(),
-                                                                                               mock( AuxiliaryTransactionStateManager.class ),
-                                                                                               mock( Pool.class ), Clocks.fakeClock(),
-                                                                                               new AtomicReference<>( CpuClock.NOT_AVAILABLE ),
-                                                                                               new AtomicReference<>( HeapAllocation.NOT_AVAILABLE ),
-                                                                                               TransactionTracer.NULL,
-                                                                                               LockTracer.NONE, PageCursorTracerSupplier.NULL,
-                                                                                               mock( StorageEngine.class, RETURNS_MOCKS ), new CanWrite(),
-                                                                                               AutoIndexing.UNSUPPORTED, mock( ExplicitIndexStore.class ),
-                                                                                               EmptyVersionContextSupplier.EMPTY, ON_HEAP,
-                                                                                               new StandardConstraintSemantics(), mock( SchemaState.class ),
-                                                                                               mock( IndexingService.class ), mockedTokenHolders(),
-                                                                                               new Dependencies() )
+            KernelTransactionImplementation transaction = new KernelTransactionImplementation(
+                    Config.defaults(),
+                    mock( StatementOperationParts.class ),
+                    mock( SchemaWriteGuard.class ), new TransactionHooks(),
+                    mock( ConstraintIndexCreator.class ), new Procedures(),
+                    TransactionHeaderInformationFactory.DEFAULT,
+                    mock( TransactionCommitProcess.class ),
+                    new DatabaseTransactionStats(),
+                    mock( AuxiliaryTransactionStateManager.class ),
+                    mock( Pool.class ), Clocks.fakeClock(),
+                    new AtomicReference<>( CpuClock.NOT_AVAILABLE ),
+                    new AtomicReference<>( HeapAllocation.NOT_AVAILABLE ),
+                    TransactionTracer.NULL,
+                    LockTracer.NONE, PageCursorTracerSupplier.NULL,
+                    mock( StorageEngine.class, RETURNS_MOCKS ), new CanWrite(),
+                    AutoIndexing.UNSUPPORTED, mock( ExplicitIndexStore.class ),
+                    EmptyVersionContextSupplier.EMPTY, ON_HEAP,
+                    new StandardConstraintSemantics(), mock( SchemaState.class ),
+                    mock( IndexingService.class ), mockedTokenHolders(),
+                    new Dependencies() )
             {
                 @Override
                 public Statistics getStatistics()
                 {
-                    TestStatistics statistics = new TestStatistics( this, new AtomicReference<>( new CountingCpuClock() ),
+                    TestStatistics statistics = new TestStatistics( this,
+                                                                    new AtomicReference<>( new CountingCpuClock() ),
                                                                     new AtomicReference<>( new CountingHeapAllocation() ) );
                     statistics.init( Thread.currentThread().getId(), PageCursorTracer.NULL );
                     return statistics;
                 }
             };
-            return new TransactionExecutionStatistic( transaction, Clocks.fakeClock().forward( 2010, MILLISECONDS ), 200 );
+            return new TransactionExecutionStatistic( transaction,
+                                                      Clocks.fakeClock().forward( 2010, MILLISECONDS ), 200 );
         }
     }
 
     private static class TestStatistics extends KernelTransactionImplementation.Statistics
     {
-        TestStatistics( KernelTransactionImplementation transaction, AtomicReference<CpuClock> cpuClockRef,
+
+        TestStatistics( KernelTransactionImplementation transaction,
+                        AtomicReference<CpuClock> cpuClockRef,
                         AtomicReference<HeapAllocation> heapAllocationRef )
         {
             super( transaction, cpuClockRef, heapAllocationRef );
@@ -266,6 +277,7 @@ public class TransactionStatusResultTest
 
     private static class CountingNanoClock extends SystemNanoClock
     {
+
         private long time;
 
         @Override
@@ -278,6 +290,7 @@ public class TransactionStatusResultTest
 
     private static class CountingCpuClock extends CpuClock
     {
+
         private long cpuTime;
 
         @Override
@@ -290,6 +303,7 @@ public class TransactionStatusResultTest
 
     private static class CountingHeapAllocation extends HeapAllocation
     {
+
         private long allocatedBytes;
 
         @Override

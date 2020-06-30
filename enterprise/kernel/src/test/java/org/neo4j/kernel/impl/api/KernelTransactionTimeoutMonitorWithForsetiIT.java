@@ -23,8 +23,10 @@ import org.neo4j.test.rule.DatabaseRule;
 
 import static org.neo4j.graphdb.factory.GraphDatabaseSettings.lock_manager;
 
-public class KernelTransactionTimeoutMonitorWithForsetiIT extends KernelTransactionTimeoutMonitorIT
+public class KernelTransactionTimeoutMonitorWithForsetiIT extends
+                                                          KernelTransactionTimeoutMonitorIT
 {
+
     @Override
     protected DatabaseRule createDatabaseRule()
     {

@@ -33,20 +33,24 @@ import static org.neo4j.test.proc.ProcessUtil.getJavaExecutable;
 
 public class TestHelpers
 {
-    public static int runBackupToolFromOtherJvmToGetExitCode( File neo4jHome, String... args ) throws Exception
+
+    public static int runBackupToolFromOtherJvmToGetExitCode( File neo4jHome, String... args )
+            throws Exception
     {
         return runBackupToolFromOtherJvmToGetExitCode( neo4jHome, System.out, System.err, true, args );
     }
 
-    public static int runBackupToolFromOtherJvmToGetExitCode( File neo4jHome, PrintStream outPrintStream, PrintStream errPrintStream,
-            boolean debug, String... args ) throws Exception
+    public static int runBackupToolFromOtherJvmToGetExitCode( File neo4jHome,
+                                                              PrintStream outPrintStream, PrintStream errPrintStream,
+                                                              boolean debug, String... args ) throws Exception
     {
         List<String> allArgs =
-                new ArrayList<>( Arrays.asList( getJavaExecutable().toString(), "-cp", getClassPath(), AdminTool.class.getName() ) );
+                new ArrayList<>( Arrays.asList( getJavaExecutable().toString(), "-cp", getClassPath(),
+                                                AdminTool.class.getName() ) );
         allArgs.add( "backup" );
         allArgs.addAll( Arrays.asList( args ) );
 
-        ProcessBuilder processBuilder = new ProcessBuilder().command( allArgs.toArray( new String[0] ));
+        ProcessBuilder processBuilder = new ProcessBuilder().command( allArgs.toArray( new String[0] ) );
         processBuilder.environment().put( "NEO4J_HOME", neo4jHome.getAbsolutePath() );
         if ( debug )
         {
@@ -54,7 +58,8 @@ public class TestHelpers
         }
         Process process = processBuilder.start();
         ProcessStreamHandler processStreamHandler =
-                new ProcessStreamHandler( process, false, "", StreamConsumer.IGNORE_FAILURES, outPrintStream, errPrintStream );
+                new ProcessStreamHandler( process, false, "", StreamConsumer.IGNORE_FAILURES, outPrintStream,
+                                          errPrintStream );
         return processStreamHandler.waitForResult();
     }
 }

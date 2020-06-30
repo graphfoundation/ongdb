@@ -23,7 +23,7 @@ import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
-import org.neo4j.helpers.TimeUtil;
+import org.neo4j.internal.helpers.TimeUtil;
 import org.neo4j.io.ByteUnit;
 import org.neo4j.io.pagecache.PageSwapper;
 import org.neo4j.io.pagecache.tracing.DefaultPageCacheTracer;
@@ -31,23 +31,47 @@ import org.neo4j.io.pagecache.tracing.FlushEvent;
 import org.neo4j.io.pagecache.tracing.FlushEventOpportunity;
 import org.neo4j.io.pagecache.tracing.MajorFlushEvent;
 import org.neo4j.logging.Log;
+import org.neo4j.time.Stopwatch;
 import org.neo4j.time.SystemNanoClock;
 
-import static java.lang.String.format;
 import static org.neo4j.util.FeatureToggles.flag;
 import static org.neo4j.util.FeatureToggles.getInteger;
 
 public class VerbosePageCacheTracer extends DefaultPageCacheTracer
 {
+
     private static final boolean USE_RAW_REPORTING_UNITS =
             flag( VerbosePageCacheTracer.class, "reportInRawUnits", false );
     private static final int SPEED_REPORTING_TIME_THRESHOLD = getInteger( VerbosePageCacheTracer.class,
-            "speedReportingThresholdSeconds", 10 );
+                                                                          "speedReportingThresholdSeconds", 10 );
 
     private final Log log;
     private final SystemNanoClock clock;
     private final AtomicLong flushedPages = new AtomicLong();
     private final AtomicLong flushBytesWritten = new AtomicLong();
+    private final FlushEvent flushEvent = new FlushEvent()
+    {
+        public void addBytesWritten( long bytes )
+        {
+            VerbosePageCacheTracer.this.bytesWritten.add( bytes );
+            VerbosePageCacheTracer.this.flushBytesWritten.getAndAdd( bytes );
+        }
+
+        public void done()
+        {
+            VerbosePageCacheTracer.this.flushes.increment();
+        }
+
+        public void done( IOException exception )
+        {
+            this.done();
+        }
+
+        public void addPagesFlushed( int pageCount )
+        {
+            VerbosePageCacheTracer.this.flushedPages.getAndAdd( (long) pageCount );
+        }
+    };
 
     VerbosePageCacheTracer( Log log, SystemNanoClock clock )
     {
@@ -55,42 +79,9 @@ public class VerbosePageCacheTracer extends DefaultPageCacheTracer
         this.clock = clock;
     }
 
-    @Override
-    public void mappedFile( File file )
-    {
-        log.info( format( "Map file: '%s'.", file.getName() ) );
-        super.mappedFile( file );
-    }
-
-    @Override
-    public void unmappedFile( File file )
-    {
-        log.info( format( "Unmap file: '%s'.", file.getName() ) );
-        super.unmappedFile( file );
-    }
-
-    @Override
-    public MajorFlushEvent beginCacheFlush()
-    {
-        log.info( "Start whole page cache flush." );
-        return new PageCacheMajorFlushEvent( flushedPages.get(), flushBytesWritten.get(), clock.nanos() );
-    }
-
-    @Override
-    public MajorFlushEvent beginFileFlush( PageSwapper swapper )
-    {
-        String fileName = swapper.file().getName();
-        log.info( format( "Flushing file: '%s'.", fileName ) );
-        return new FileFlushEvent( fileName, flushedPages.get(), flushBytesWritten.get(), clock.nanos() );
-    }
-
     private static String nanosToString( long nanos )
     {
-        if ( USE_RAW_REPORTING_UNITS )
-        {
-            return nanos + "ns";
-        }
-        return TimeUtil.nanosToString( nanos );
+        return USE_RAW_REPORTING_UNITS ? nanos + "ns" : TimeUtil.nanosToString( nanos );
     }
 
     private static String flushSpeed( long bytesWrittenInTotal, long flushTimeNanos )
@@ -99,153 +90,159 @@ public class VerbosePageCacheTracer extends DefaultPageCacheTracer
         {
             return bytesInNanoSeconds( bytesWrittenInTotal, flushTimeNanos );
         }
-        long seconds = TimeUnit.NANOSECONDS.toSeconds( flushTimeNanos );
-        if ( seconds > 0 )
-        {
-            return bytesToString( bytesWrittenInTotal / seconds ) + "/s";
-        }
         else
         {
-            return bytesInNanoSeconds( bytesWrittenInTotal, flushTimeNanos );
+            long seconds = TimeUnit.NANOSECONDS.toSeconds( flushTimeNanos );
+            return seconds > 0L ? bytesToString( bytesWrittenInTotal / seconds ) + "/s"
+                                : bytesInNanoSeconds( bytesWrittenInTotal, flushTimeNanos );
         }
     }
 
     private static String bytesInNanoSeconds( long bytesWrittenInTotal, long flushTimeNanos )
     {
-        long bytesInNanoSecond = flushTimeNanos > 0 ? (bytesWrittenInTotal / flushTimeNanos) : bytesWrittenInTotal;
+        long bytesInNanoSecond =
+                flushTimeNanos > 0L ? bytesWrittenInTotal / flushTimeNanos : bytesWrittenInTotal;
         return bytesInNanoSecond + "bytes/ns";
     }
 
     private static String bytesToString( long bytes )
     {
-        if ( USE_RAW_REPORTING_UNITS )
-        {
-            return bytes + "bytes";
-        }
-        return ByteUnit.bytesToString( bytes );
+        return USE_RAW_REPORTING_UNITS ? bytes + "bytes" : ByteUnit.bytesToString( bytes );
     }
 
-    private final FlushEvent flushEvent = new FlushEvent()
+    public void mappedFile( File file )
     {
-        @Override
-        public void addBytesWritten( long bytes )
-        {
-            bytesWritten.add( bytes );
-            flushBytesWritten.getAndAdd( bytes );
-        }
+        this.log.info( String.format( "Map file: '%s'.", file.getName() ) );
+        super.mappedFile( file );
+    }
 
-        @Override
-        public void done()
-        {
-            flushes.increment();
-        }
-
-        @Override
-        public void done( IOException exception )
-        {
-            done();
-        }
-
-        @Override
-        public void addPagesFlushed( int pageCount )
-        {
-            flushedPages.getAndAdd( pageCount );
-        }
-    };
-
-    private class FileFlushEvent implements MajorFlushEvent
+    public void unmappedFile( File file )
     {
-        private final long startTimeNanos;
+        this.log.info( String.format( "Unmap file: '%s'.", file.getName() ) );
+        super.unmappedFile( file );
+    }
+
+    public MajorFlushEvent beginCacheFlush()
+    {
+        this.log.info( "Start whole page cache flush." );
+        return new VerbosePageCacheTracer.PageCacheMajorFlushEvent( this.flushedPages.get(),
+                                                                    this.flushBytesWritten.get(), this.clock.startStopWatch() );
+    }
+
+    public MajorFlushEvent beginFileFlush( PageSwapper swapper )
+    {
+        String fileName = swapper.file().getName();
+        this.log.info( String.format( "Flushing file: '%s'.", fileName ) );
+        return new VerbosePageCacheTracer.FileFlushEvent( fileName, this.flushedPages.get(),
+                                                          this.flushBytesWritten.get(), this.clock.startStopWatch() );
+    }
+
+    private class VerboseFlushOpportunity implements FlushEventOpportunity
+    {
+
         private final String fileName;
-        private long flushesOnStart;
-        private long bytesWrittenOnStart;
+        private Stopwatch lastReportingTime;
+        private long lastReportedBytesWritten;
 
-        FileFlushEvent( String fileName, long flushesOnStart, long bytesWrittenOnStart, long startTimeNanos )
+        VerboseFlushOpportunity( String fileName, Stopwatch startTime, long bytesWrittenOnStart )
         {
             this.fileName = fileName;
-            this.flushesOnStart = flushesOnStart;
-            this.bytesWrittenOnStart = bytesWrittenOnStart;
-            this.startTimeNanos = startTimeNanos;
+            this.lastReportingTime = startTime;
+            this.lastReportedBytesWritten = bytesWrittenOnStart;
         }
 
-        @Override
-        public FlushEventOpportunity flushEventOpportunity()
+        public FlushEvent beginFlush( long filePageId, long cachePageId, PageSwapper swapper )
         {
-            return new VerboseFlushOpportunity( fileName, startTimeNanos, bytesWrittenOnStart );
-        }
+            if ( this.lastReportingTime
+                    .hasTimedOut( (long) VerbosePageCacheTracer.SPEED_REPORTING_TIME_THRESHOLD,
+                                  TimeUnit.SECONDS ) )
+            {
+                long writtenBytes = VerbosePageCacheTracer.this.flushBytesWritten.get();
+                VerbosePageCacheTracer.this.log
+                        .info( String.format( "'%s' flushing speed: %s.", this.fileName,
+                                              VerbosePageCacheTracer.flushSpeed( writtenBytes - this.lastReportedBytesWritten,
+                                                                                 this.lastReportingTime
+                                                                                         .elapsed( TimeUnit.NANOSECONDS ) ) ) );
+                this.lastReportingTime = VerbosePageCacheTracer.this.clock.startStopWatch();
+                this.lastReportedBytesWritten = writtenBytes;
+            }
 
-        @Override
-        public void close()
-        {
-            long fileFlushNanos = clock.nanos() - startTimeNanos;
-            long bytesWrittenInTotal = flushBytesWritten.get() - bytesWrittenOnStart;
-            long flushedPagesInTotal = flushedPages.get() - flushesOnStart;
-            log.info( "'%s' flush completed. Flushed %s in %d pages. Flush took: %s. Average speed: %s.",
-                    fileName,
-                    bytesToString( bytesWrittenInTotal ), flushedPagesInTotal,
-                    nanosToString( fileFlushNanos ), flushSpeed( bytesWrittenInTotal, fileFlushNanos ) );
+            return VerbosePageCacheTracer.this.flushEvent;
         }
     }
 
     private class PageCacheMajorFlushEvent implements MajorFlushEvent
     {
+
         private final long flushesOnStart;
         private final long bytesWrittenOnStart;
-        private final long startTimeNanos;
+        private final Stopwatch startTime;
 
-        PageCacheMajorFlushEvent( long flushesOnStart, long bytesWrittenOnStart, long startTimeNanos )
+        PageCacheMajorFlushEvent( long flushesOnStart, long bytesWrittenOnStart, Stopwatch startTime )
         {
             this.flushesOnStart = flushesOnStart;
             this.bytesWrittenOnStart = bytesWrittenOnStart;
-            this.startTimeNanos = startTimeNanos;
+            this.startTime = startTime;
         }
 
-        @Override
         public FlushEventOpportunity flushEventOpportunity()
         {
-            return new VerboseFlushOpportunity( "Page Cache", startTimeNanos, bytesWrittenOnStart );
+            return VerbosePageCacheTracer.this.new VerboseFlushOpportunity( "Page Cache", this.startTime,
+                                                                            this.bytesWrittenOnStart );
         }
 
-        @Override
         public void close()
         {
-            long pageCacheFlushNanos = clock.nanos() - startTimeNanos;
-            long bytesWrittenInTotal = flushBytesWritten.get() - bytesWrittenOnStart;
-            long flushedPagesInTotal = flushedPages.get() - flushesOnStart;
-            log.info( "Page cache flush completed. Flushed %s in %d pages. Flush took: %s. Average speed: %s.",
-                    bytesToString( bytesWrittenInTotal ), flushedPagesInTotal,
-                    nanosToString(pageCacheFlushNanos),
-                    flushSpeed( bytesWrittenInTotal, pageCacheFlushNanos ) );
+            long pageCacheFlushNanos = this.startTime.elapsed( TimeUnit.NANOSECONDS );
+            long bytesWrittenInTotal =
+                    VerbosePageCacheTracer.this.flushBytesWritten.get() - this.bytesWrittenOnStart;
+            long flushedPagesInTotal =
+                    VerbosePageCacheTracer.this.flushedPages.get() - this.flushesOnStart;
+            VerbosePageCacheTracer.this.log.info(
+                    "Page cache flush completed. Flushed %s in %d pages. Flush took: %s. Average speed: %s.",
+                    new Object[]{VerbosePageCacheTracer.bytesToString( bytesWrittenInTotal ),
+                                 flushedPagesInTotal,
+                                 VerbosePageCacheTracer.nanosToString( pageCacheFlushNanos ),
+                                 VerbosePageCacheTracer.flushSpeed( bytesWrittenInTotal, pageCacheFlushNanos )} );
         }
     }
 
-    private class VerboseFlushOpportunity implements FlushEventOpportunity
+    private class FileFlushEvent implements MajorFlushEvent
     {
-        private final String fileName;
-        private long lastReportingTime;
-        private long lastReportedBytesWritten;
 
-        VerboseFlushOpportunity( String fileName, long nanoStartTime, long bytesWrittenOnStart )
+        private final Stopwatch startTime;
+        private final String fileName;
+        private long flushesOnStart;
+        private long bytesWrittenOnStart;
+
+        FileFlushEvent( String fileName, long flushesOnStart, long bytesWrittenOnStart,
+                        Stopwatch startTime )
         {
             this.fileName = fileName;
-            this.lastReportingTime = nanoStartTime;
-            this.lastReportedBytesWritten = bytesWrittenOnStart;
+            this.flushesOnStart = flushesOnStart;
+            this.bytesWrittenOnStart = bytesWrittenOnStart;
+            this.startTime = startTime;
         }
 
-        @Override
-        public FlushEvent beginFlush( long filePageId, long cachePageId, PageSwapper swapper )
+        public FlushEventOpportunity flushEventOpportunity()
         {
-            long now = clock.nanos();
-            long opportunityIntervalNanos = now - lastReportingTime;
-            if ( TimeUnit.NANOSECONDS.toSeconds( opportunityIntervalNanos ) > SPEED_REPORTING_TIME_THRESHOLD )
-            {
-                long writtenBytes = flushBytesWritten.get();
-                log.info( format("'%s' flushing speed: %s.", fileName,
-                        flushSpeed( writtenBytes - lastReportedBytesWritten, opportunityIntervalNanos ) ) );
-                lastReportingTime = now;
-                lastReportedBytesWritten = writtenBytes;
-            }
-            return flushEvent;
+            return VerbosePageCacheTracer.this.new VerboseFlushOpportunity( this.fileName, this.startTime,
+                                                                            this.bytesWrittenOnStart );
+        }
+
+        public void close()
+        {
+            long fileFlushNanos = this.startTime.elapsed( TimeUnit.NANOSECONDS );
+            long bytesWrittenInTotal =
+                    VerbosePageCacheTracer.this.flushBytesWritten.get() - this.bytesWrittenOnStart;
+            long flushedPagesInTotal =
+                    VerbosePageCacheTracer.this.flushedPages.get() - this.flushesOnStart;
+            VerbosePageCacheTracer.this.log
+                    .info( "'%s' flush completed. Flushed %s in %d pages. Flush took: %s. Average speed: %s.",
+                           new Object[]{this.fileName, VerbosePageCacheTracer.bytesToString( bytesWrittenInTotal ),
+                                        flushedPagesInTotal,
+                                        VerbosePageCacheTracer.nanosToString( fileFlushNanos ),
+                                        VerbosePageCacheTracer.flushSpeed( bytesWrittenInTotal, fileFlushNanos )} );
         }
     }
 }

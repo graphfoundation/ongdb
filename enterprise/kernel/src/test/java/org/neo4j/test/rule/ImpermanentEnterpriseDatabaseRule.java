@@ -23,9 +23,11 @@ import org.neo4j.test.TestEnterpriseGraphDatabaseFactory;
 
 public class ImpermanentEnterpriseDatabaseRule extends ImpermanentDatabaseRule
 {
+
     @Override
     protected GraphDatabaseFactory newFactory()
     {
-        return maybeSetInternalLogProvider( maybeSetUserLogProvider( new TestEnterpriseGraphDatabaseFactory() ) );
+        return maybeSetInternalLogProvider(
+                maybeSetUserLogProvider( new TestEnterpriseGraphDatabaseFactory() ) );
     }
 }

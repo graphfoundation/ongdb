@@ -51,12 +51,12 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.neo4j.graphdb.factory.GraphDatabaseSettings.pagecache_memory;
 import static org.neo4j.io.pagecache.tracing.PageCacheTracer.NULL;
 
 public class StoreMigratorTest
 {
+
     @Rule
     public final TestDirectory directory = TestDirectory.testDirectory();
 
@@ -66,17 +66,18 @@ public class StoreMigratorTest
         // GIVEN a store in vE.H.0 format
         DatabaseLayout databaseLayout = directory.databaseLayout();
         new TestGraphDatabaseFactory().newEmbeddedDatabaseBuilder( databaseLayout.databaseDirectory() )
-                // The format should be vE.H.0, HighLimit.NAME may point to a different version in future versions
-                .setConfig( GraphDatabaseSettings.record_format, HighLimitV3_0_0.NAME )
-                .newGraphDatabase()
-                .shutdown();
+                                      // The format should be vE.H.0, HighLimit.NAME may point to a different version in future versions
+                                      .setConfig( GraphDatabaseSettings.record_format, HighLimitV3_0_0.NAME )
+                                      .newGraphDatabase()
+                                      .shutdown();
         Config config = Config.defaults( pagecache_memory, "8m" );
 
         try ( FileSystemAbstraction fs = new DefaultFileSystemAbstraction();
               JobScheduler jobScheduler = new ThreadPoolJobScheduler();
               PageCache pageCache = new ConfiguringPageCacheFactory( fs, config, NULL,
-                      PageCursorTracerSupplier.NULL, NullLog.getInstance(), EmptyVersionContextSupplier.EMPTY, jobScheduler )
-                     .getOrCreatePageCache() )
+                                                                     PageCursorTracerSupplier.NULL, NullLog.getInstance(), EmptyVersionContextSupplier.EMPTY,
+                                                                     jobScheduler )
+                      .getOrCreatePageCache() )
         {
             // For test code sanity
             String fromStoreVersion = StoreVersion.HIGH_LIMIT_V3_0_0.versionString();
@@ -85,11 +86,12 @@ public class StoreMigratorTest
             assertTrue( hasVersionResult.actualVersion, hasVersionResult.outcome.isSuccessful() );
 
             // WHEN
-            StoreMigrator migrator = new StoreMigrator( fs, pageCache, config, NullLogService.getInstance(), jobScheduler );
+            StoreMigrator migrator = new StoreMigrator( fs, pageCache, config,
+                                                        NullLogService.getInstance(), jobScheduler );
             ProgressReporter monitor = mock( ProgressReporter.class );
             DatabaseLayout migrationLayout = directory.databaseLayout( "migration" );
             migrator.migrate( directory.databaseLayout(), migrationLayout, monitor, fromStoreVersion,
-                    StoreVersion.HIGH_LIMIT_V3_0_6.versionString() );
+                              StoreVersion.HIGH_LIMIT_V3_0_6.versionString() );
 
             // THEN
             verifyNoMoreInteractions( monitor );
@@ -104,34 +106,45 @@ public class StoreMigratorTest
         Config config = Config.defaults();
         CountsMigrator storeMigrator = new CountsMigrator( fileSystem, pageCache, config );
         Set<String> actualVersions = new HashSet<>();
-        Set<String> expectedVersions = Arrays.stream( StoreVersion.values() ).map( StoreVersion::versionString )
-                        .collect( Collectors.toSet() );
+        Set<String> expectedVersions = Arrays.stream( StoreVersion.values() )
+                                             .map( StoreVersion::versionString )
+                                             .collect( Collectors.toSet() );
 
-        assertTrue( CountsMigrator.countStoreRebuildRequired( StoreVersion.STANDARD_V2_3.versionString() ) );
+        assertTrue(
+                CountsMigrator.countStoreRebuildRequired( StoreVersion.STANDARD_V2_3.versionString() ) );
         actualVersions.add( StoreVersion.STANDARD_V2_3.versionString() );
-        assertTrue( CountsMigrator.countStoreRebuildRequired( StoreVersion.STANDARD_V3_0.versionString() ) );
+        assertTrue(
+                CountsMigrator.countStoreRebuildRequired( StoreVersion.STANDARD_V3_0.versionString() ) );
         actualVersions.add( StoreVersion.STANDARD_V3_0.versionString() );
-        assertFalse( CountsMigrator.countStoreRebuildRequired( StoreVersion.STANDARD_V3_2.versionString() ) );
+        assertFalse(
+                CountsMigrator.countStoreRebuildRequired( StoreVersion.STANDARD_V3_2.versionString() ) );
         actualVersions.add( StoreVersion.STANDARD_V3_2.versionString() );
-        assertFalse( CountsMigrator.countStoreRebuildRequired( StoreVersion.STANDARD_V3_4.versionString() ) );
+        assertFalse(
+                CountsMigrator.countStoreRebuildRequired( StoreVersion.STANDARD_V3_4.versionString() ) );
         actualVersions.add( StoreVersion.STANDARD_V3_4.versionString() );
-        assertFalse( CountsMigrator.countStoreRebuildRequired( StoreVersion.STANDARD_V3_6.versionString() ) );
+        assertFalse(
+                CountsMigrator.countStoreRebuildRequired( StoreVersion.STANDARD_V3_6.versionString() ) );
         actualVersions.add( StoreVersion.STANDARD_V3_6.versionString() );
 
-        assertTrue( CountsMigrator.countStoreRebuildRequired( StoreVersion.HIGH_LIMIT_V3_0_0.versionString() ) );
+        assertTrue(
+                CountsMigrator.countStoreRebuildRequired( StoreVersion.HIGH_LIMIT_V3_0_0.versionString() ) );
         actualVersions.add( StoreVersion.HIGH_LIMIT_V3_0_0.versionString() );
-        assertTrue( CountsMigrator.countStoreRebuildRequired( StoreVersion.HIGH_LIMIT_V3_0_6.versionString() ) );
+        assertTrue(
+                CountsMigrator.countStoreRebuildRequired( StoreVersion.HIGH_LIMIT_V3_0_6.versionString() ) );
         actualVersions.add( StoreVersion.HIGH_LIMIT_V3_0_6.versionString() );
-        assertTrue( CountsMigrator.countStoreRebuildRequired( StoreVersion.HIGH_LIMIT_V3_1_0.versionString() ) );
+        assertTrue(
+                CountsMigrator.countStoreRebuildRequired( StoreVersion.HIGH_LIMIT_V3_1_0.versionString() ) );
         actualVersions.add( StoreVersion.HIGH_LIMIT_V3_1_0.versionString() );
-        assertFalse( CountsMigrator.countStoreRebuildRequired( StoreVersion.HIGH_LIMIT_V3_2_0.versionString() ) );
+        assertFalse(
+                CountsMigrator.countStoreRebuildRequired( StoreVersion.HIGH_LIMIT_V3_2_0.versionString() ) );
         actualVersions.add( StoreVersion.HIGH_LIMIT_V3_2_0.versionString() );
-        assertFalse( CountsMigrator.countStoreRebuildRequired( StoreVersion.HIGH_LIMIT_V3_4_0.versionString() ) );
+        assertFalse(
+                CountsMigrator.countStoreRebuildRequired( StoreVersion.HIGH_LIMIT_V3_4_0.versionString() ) );
         actualVersions.add( StoreVersion.HIGH_LIMIT_V3_4_0.versionString() );
-        assertFalse( CountsMigrator.countStoreRebuildRequired( StoreVersion.HIGH_LIMIT_V3_6_0.versionString() ) );
+        assertFalse(
+                CountsMigrator.countStoreRebuildRequired( StoreVersion.HIGH_LIMIT_V3_6_0.versionString() ) );
         actualVersions.add( StoreVersion.HIGH_LIMIT_V3_6_0.versionString() );
 
         assertEquals( expectedVersions, actualVersions );
     }
-
 }

@@ -18,7 +18,6 @@
  */
 package org.neo4j.kernel.impl.newapi;
 
-import org.neo4j.internal.kernel.api.SchemaReadWriteTestBase;
 import org.neo4j.internal.kernel.api.schema.LabelSchemaDescriptor;
 import org.neo4j.internal.kernel.api.schema.RelationTypeSchemaDescriptor;
 import org.neo4j.kernel.api.schema.SchemaDescriptorFactory;
@@ -27,6 +26,7 @@ import static org.neo4j.kernel.api.schema.SchemaDescriptorFactory.forRelType;
 
 public class SchemaReadWriteTest extends SchemaReadWriteTestBase<EnterpriseWriteTestSupport>
 {
+
     @Override
     public EnterpriseWriteTestSupport newTestSupport()
     {
@@ -40,7 +40,7 @@ public class SchemaReadWriteTest extends SchemaReadWriteTestBase<EnterpriseWrite
     }
 
     @Override
-    protected RelationTypeSchemaDescriptor typeDescriptor( int label, int...props )
+    protected RelationTypeSchemaDescriptor typeDescriptor( int label, int... props )
     {
         return forRelType( label, props );
     }

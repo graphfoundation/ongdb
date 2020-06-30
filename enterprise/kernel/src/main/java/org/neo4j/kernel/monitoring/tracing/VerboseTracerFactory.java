@@ -18,25 +18,27 @@
  */
 package org.neo4j.kernel.monitoring.tracing;
 
-import org.neo4j.helpers.Service;
+import org.neo4j.annotations.service.Service;
 import org.neo4j.io.pagecache.tracing.PageCacheTracer;
-import org.neo4j.kernel.monitoring.Monitors;
 import org.neo4j.logging.Log;
+import org.neo4j.monitoring.Monitors;
 import org.neo4j.scheduler.JobScheduler;
 import org.neo4j.time.SystemNanoClock;
 
-@Service.Implementation( TracerFactory.class )
+@Service
 public class VerboseTracerFactory extends DefaultTracerFactory
 {
+
     @Override
-    public String getImplementationName()
+    public String getName()
     {
         return "verbose";
     }
 
     @Override
-    public PageCacheTracer createPageCacheTracer( Monitors monitors, JobScheduler jobScheduler, SystemNanoClock clock,
-            Log msgLog )
+    public PageCacheTracer createPageCacheTracer( Monitors monitors, JobScheduler jobScheduler,
+                                                  SystemNanoClock clock,
+                                                  Log msgLog )
     {
         return new VerbosePageCacheTracer( msgLog, clock );
     }

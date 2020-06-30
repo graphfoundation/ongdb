@@ -39,7 +39,6 @@ import org.neo4j.kernel.api.schema.constraints.ConstraintDescriptorFactory;
 import org.neo4j.kernel.api.schema.constraints.NodeExistenceConstraintDescriptor;
 
 import static org.hamcrest.CoreMatchers.instanceOf;
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 import static org.neo4j.graphdb.Label.label;
@@ -48,6 +47,7 @@ import static org.neo4j.helpers.collection.Iterators.single;
 public class NodePropertyExistenceConstraintCreationIT
         extends AbstractConstraintCreationIT<ConstraintDescriptor,LabelSchemaDescriptor>
 {
+
     @Override
     int initializeLabelOrRelType( TokenWrite tokenWrite, String name ) throws KernelException
     {
@@ -138,7 +138,8 @@ public class NodePropertyExistenceConstraintCreationIT
         {
             Transaction transaction = newTransaction();
 
-            Iterator<ConstraintDescriptor> constraints = transaction.schemaRead().constraintsGetForSchema( descriptor );
+            Iterator<ConstraintDescriptor> constraints = transaction.schemaRead()
+                                                                    .constraintsGetForSchema( descriptor );
 
             assertEquals( constraint, single( constraints ) );
             commit();

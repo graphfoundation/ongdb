@@ -23,6 +23,7 @@ import org.neo4j.io.pagecache.StubPageCursor;
 
 class FixedLinkedStubPageCursor extends StubPageCursor
 {
+
     FixedLinkedStubPageCursor( int initialPageId, int size )
     {
         super( initialPageId, size );

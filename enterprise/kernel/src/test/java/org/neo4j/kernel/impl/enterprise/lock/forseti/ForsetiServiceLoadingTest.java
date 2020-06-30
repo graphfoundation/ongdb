@@ -32,6 +32,7 @@ import static org.hamcrest.core.IsInstanceOf.instanceOf;
 
 public class ForsetiServiceLoadingTest
 {
+
     @Rule
     public EmbeddedDatabaseRule dbRule = new EmbeddedDatabaseRule().startLazily();
 
@@ -42,7 +43,8 @@ public class ForsetiServiceLoadingTest
         GraphDatabaseAPI db = dbRule.getGraphDatabaseAPI();
 
         // Then
-        assertThat( db.getDependencyResolver().resolveDependency( Locks.class ), instanceOf( ForsetiLockManager.class ) );
+        assertThat( db.getDependencyResolver().resolveDependency( Locks.class ),
+                    instanceOf( ForsetiLockManager.class ) );
     }
 
     @Test
@@ -53,6 +55,7 @@ public class ForsetiServiceLoadingTest
         GraphDatabaseAPI db = dbRule.getGraphDatabaseAPI();
 
         // Then
-        assertThat( db.getDependencyResolver().resolveDependency( Locks.class ), instanceOf( CommunityLockManger.class ) );
+        assertThat( db.getDependencyResolver().resolveDependency( Locks.class ),
+                    instanceOf( CommunityLockManger.class ) );
     }
 }

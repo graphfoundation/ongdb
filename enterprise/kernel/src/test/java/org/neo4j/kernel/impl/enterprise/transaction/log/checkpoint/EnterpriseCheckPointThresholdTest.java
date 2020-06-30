@@ -25,7 +25,6 @@ import org.neo4j.kernel.impl.transaction.log.checkpoint.CheckPointThreshold;
 import org.neo4j.kernel.impl.transaction.log.checkpoint.CheckPointThresholdTestSupport;
 import org.neo4j.kernel.impl.transaction.log.pruning.LogPruning;
 
-import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.lessThan;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
@@ -34,6 +33,7 @@ import static org.junit.Assert.fail;
 
 public class EnterpriseCheckPointThresholdTest extends CheckPointThresholdTestSupport
 {
+
     private boolean haveLogsToPrune;
 
     @Before
@@ -88,7 +88,8 @@ public class EnterpriseCheckPointThresholdTest extends CheckPointThresholdTestSu
         CheckPointThreshold threshold = createThreshold();
         threshold.initialize( 2 );
 
-        assertThat( threshold.checkFrequencyMillis(), lessThan( CheckPointThreshold.DEFAULT_CHECKING_FREQUENCY_MILLIS ) );
+        assertThat( threshold.checkFrequencyMillis(),
+                    lessThan( CheckPointThreshold.DEFAULT_CHECKING_FREQUENCY_MILLIS ) );
 
         assertFalse( threshold.isCheckPointingNeeded( 2, triggered ) );
         threshold.checkPointHappened( 3 );

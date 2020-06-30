@@ -75,21 +75,19 @@ import static org.neo4j.test.rule.concurrent.ThreadingRule.waitingWhileIn;
 
 public class ListQueriesProcedureTest
 {
+
+    private static final int SECONDS_TIMEOUT = 240;
     private final DatabaseRule db = new ImpermanentEnterpriseDatabaseRule()
             .withSetting( cypher_hints_error, Settings.TRUE )
             .withSetting( GraphDatabaseSettings.track_query_allocation, Settings.TRUE )
             .withSetting( track_query_cpu_time, Settings.TRUE )
             .startLazily();
-
     private final ThreadingRule threads = new ThreadingRule();
-
     @Rule
     public final RuleChain chain = RuleChain.outerRule( db ).around( threads );
-
-    private static final int SECONDS_TIMEOUT = 240;
-
     @Rule
-    public VerboseTimeout timeout = VerboseTimeout.builder().withTimeout( SECONDS_TIMEOUT - 2, TimeUnit.SECONDS ).build();
+    public VerboseTimeout timeout = VerboseTimeout.builder()
+                                                  .withTimeout( SECONDS_TIMEOUT - 2, TimeUnit.SECONDS ).build();
 
     @Test
     public void shouldContainTheQueryItself()
@@ -119,7 +117,8 @@ public class ListQueriesProcedureTest
     }
 
     @Test
-    public void shouldProvideElapsedCpuTimePlannerConnectionDetailsPageHitsAndFaults() throws Exception
+    public void shouldProvideElapsedCpuTimePlannerConnectionDetailsPageHitsAndFaults()
+            throws Exception
     {
         // given
         String query = "MATCH (n) SET n.v = n.v + 1";
@@ -143,7 +142,8 @@ public class ListQueriesProcedureTest
             assertEquals( "waiting", data.get( "status" ) );
             assertEquals( "EXCLUSIVE", resourceInformation.get( "lockMode" ) );
             assertEquals( "NODE", resourceInformation.get( "resourceType" ) );
-            assertArrayEquals( new long[] {test.resource().getId()}, (long[]) resourceInformation.get( "resourceIds" ) );
+            assertArrayEquals( new long[]{test.resource().getId()},
+                               (long[]) resourceInformation.get( "resourceIds" ) );
             assertThat( data, hasKey( "waitTimeMillis" ) );
             Object waitTime1 = data.get( "waitTimeMillis" );
             assertThat( waitTime1, instanceOf( Long.class ) );
@@ -206,7 +206,7 @@ public class ListQueriesProcedureTest
             assertThat( data, hasKey( "allocatedBytes" ) );
             Object allocatedBytes = data.get( "allocatedBytes" );
             assertThat( allocatedBytes,
-                    anyOf( nullValue(), (Matcher) allOf( instanceOf( Long.class ), greaterThan( 0L ) ) ) );
+                        anyOf( nullValue(), (Matcher) allOf( instanceOf( Long.class ), greaterThan( 0L ) ) ) );
             assertSame( node, test.resource() );
         }
     }
@@ -218,20 +218,20 @@ public class ListQueriesProcedureTest
         String query = "MATCH (x:X) SET x.v = 5 WITH count(x) AS num MATCH (y:Y) SET y.c = num";
         Set<Long> locked = new HashSet<>();
         try ( Resource<Node> test = test( () ->
-        {
-            for ( int i = 0; i < 5; i++ )
-            {
-                locked.add( db.createNode( label( "X" ) ).getId() );
-            }
-            return db.createNode( label( "Y" ) );
-        }, query ) )
+                                          {
+                                              for ( int i = 0; i < 5; i++ )
+                                              {
+                                                  locked.add( db.createNode( label( "X" ) ).getId() );
+                                              }
+                                              return db.createNode( label( "Y" ) );
+                                          }, query ) )
         {
             // when
             try ( Result rows = db.execute( "CALL dbms.listQueries() "
-                    + "YIELD query AS queryText, queryId, activeLockCount "
-                    + "WHERE queryText = $queryText "
-                    + "CALL dbms.listActiveLocks(queryId) YIELD mode, resourceType, resourceId "
-                    + "RETURN *", singletonMap( "queryText", query ) ) )
+                                            + "YIELD query AS queryText, queryId, activeLockCount "
+                                            + "WHERE queryText = $queryText "
+                                            + "CALL dbms.listActiveLocks(queryId) YIELD mode, resourceType, resourceId "
+                                            + "RETURN *", singletonMap( "queryText", query ) ) )
             {
                 // then
                 Set<Long> ids = new HashSet<>();
@@ -278,22 +278,22 @@ public class ListQueriesProcedureTest
         String query1 = "MATCH (x:X) SET x.v = 1";
         String query2 = "MATCH (y:Y) SET y.v = 2 WITH count(y) AS y MATCH (z:Z) SET z.v = y";
         try ( Resource<Node> test = test( () ->
-        {
-            for ( int i = 0; i < 5; i++ )
-            {
-                db.createNode( label( "X" ) );
-            }
-            db.createNode( label( "Y" ) );
-            return db.createNode( label( "Z" ) );
-        }, query1, query2 ) )
+                                          {
+                                              for ( int i = 0; i < 5; i++ )
+                                              {
+                                                  db.createNode( label( "X" ) );
+                                              }
+                                              db.createNode( label( "Y" ) );
+                                              return db.createNode( label( "Z" ) );
+                                          }, query1, query2 ) )
         {
             // when
             try ( Result rows = db.execute( "CALL dbms.listQueries() "
-                    + "YIELD query AS queryText, queryId, activeLockCount "
-                    + "WHERE queryText = $queryText "
-                    + "CALL dbms.listActiveLocks(queryId) YIELD resourceId "
-                    + "WITH queryText, queryId, activeLockCount, count(resourceId) AS allLocks "
-                    + "RETURN *", singletonMap( "queryText", query2 ) ) )
+                                            + "YIELD query AS queryText, queryId, activeLockCount "
+                                            + "WHERE queryText = $queryText "
+                                            + "CALL dbms.listActiveLocks(queryId) YIELD resourceId "
+                                            + "WITH queryText, queryId, activeLockCount, count(resourceId) AS allLocks "
+                                            + "RETURN *", singletonMap( "queryText", query2 ) ) )
             {
                 assertTrue( "should have at least one row", rows.hasNext() );
                 Map<String,Object> row = rows.next();
@@ -387,11 +387,11 @@ public class ListQueriesProcedureTest
         }
         ensureIndexesAreOnline();
         try ( Resource<Node> test = test( () ->
-        {
-            Node node = db.createNode( label( "Node" ) );
-            node.setProperty( "value", 5L );
-            return node;
-        }, QUERY ) )
+                                          {
+                                              Node node = db.createNode( label( "Node" ) );
+                                              node.setProperty( "value", 5L );
+                                              return node;
+                                          }, QUERY ) )
         {
             // when
             Map<String,Object> data = getQueryListing( QUERY );
@@ -517,14 +517,15 @@ public class ListQueriesProcedureTest
     private void shouldListUsedIndexes( String label, String property ) throws Exception
     {
         // given
-        final String QUERY1 = "MATCH (n:" + label + "{" + property + ":5}) USING INDEX n:" + label + "(" + property +
+        final String QUERY1 =
+                "MATCH (n:" + label + "{" + property + ":5}) USING INDEX n:" + label + "(" + property +
                 ") SET n." + property + " = 3";
         try ( Resource<Node> test = test( () ->
-        {
-            Node node = db.createNode( label( label ) );
-            node.setProperty( property, 5L );
-            return node;
-        }, QUERY1 ) )
+                                          {
+                                              Node node = db.createNode( label( label ) );
+                                              node.setProperty( property, 5L );
+                                              return node;
+                                          }, QUERY1 ) )
         {
             // when
             Map<String,Object> data = getQueryListing( QUERY1 );
@@ -541,15 +542,17 @@ public class ListQueriesProcedureTest
         }
 
         // given
-        final String QUERY2 = "MATCH (n:" + label + "{" + property + ":3}) USING INDEX n:" + label + "(" + property +
-                ") MATCH (u:" + label + "{" + property + ":4}) USING INDEX u:" + label + "(" + property +
+        final String QUERY2 =
+                "MATCH (n:" + label + "{" + property + ":3}) USING INDEX n:" + label + "(" + property +
+                ") MATCH (u:" + label + "{" + property + ":4}) USING INDEX u:" + label + "(" + property
+                +
                 ") CREATE (n)-[:KNOWS]->(u)";
         try ( Resource<Node> test = test( () ->
-        {
-            Node node = db.createNode( label( label ) );
-            node.setProperty( property, 4L );
-            return node;
-        }, QUERY2 ) )
+                                          {
+                                              Node node = db.createNode( label( label ) );
+                                              node.setProperty( property, 4L );
+                                              return node;
+                                          }, QUERY2 ) )
         {
             // when
             Map<String,Object> data = getQueryListing( QUERY2 );
@@ -588,8 +591,58 @@ public class ListQueriesProcedureTest
         throw new AssertionError( "query not active: " + query );
     }
 
+    private <T extends PropertyContainer> Resource<T> test( Supplier<T> setup, String... queries )
+            throws InterruptedException, ExecutionException
+    {
+        CountDownLatch resourceLocked = new CountDownLatch( 1 );
+        CountDownLatch listQueriesLatch = new CountDownLatch( 1 );
+        CountDownLatch finishQueriesLatch = new CountDownLatch( 1 );
+        T resource;
+        try ( Transaction tx = db.beginTx() )
+        {
+            resource = setup.get();
+            tx.success();
+        }
+        threads.execute( parameter ->
+                         {
+                             try ( Transaction tx = db.beginTx() )
+                             {
+                                 tx.acquireWriteLock( resource );
+                                 resourceLocked.countDown();
+                                 listQueriesLatch.await();
+                             }
+                             return null;
+                         }, null );
+        resourceLocked.await();
+
+        threads.executeAndAwait( parameter ->
+                                 {
+                                     try ( Transaction tx = db.beginTx() )
+                                     {
+                                         for ( String query : queries )
+                                         {
+                                             db.execute( query ).close();
+                                         }
+                                         tx.success();
+                                     }
+                                     catch ( Throwable t )
+                                     {
+                                         t.printStackTrace();
+                                         throw new RuntimeException( t );
+                                     }
+                                     finally
+                                     {
+                                         finishQueriesLatch.countDown();
+                                     }
+                                     return null;
+                                 }, null, waitingWhileIn( GraphDatabaseFacade.class, "execute" ), SECONDS_TIMEOUT, SECONDS );
+
+        return new Resource<>( listQueriesLatch, finishQueriesLatch, resource );
+    }
+
     private static class Resource<T> implements AutoCloseable
     {
+
         private final CountDownLatch latch;
         private final CountDownLatch finishLatch;
         private final T resource;
@@ -612,54 +665,5 @@ public class ListQueriesProcedureTest
         {
             return resource;
         }
-    }
-
-    private <T extends PropertyContainer> Resource<T> test( Supplier<T> setup, String... queries )
-            throws InterruptedException, ExecutionException
-    {
-        CountDownLatch resourceLocked = new CountDownLatch( 1 );
-        CountDownLatch listQueriesLatch = new CountDownLatch( 1 );
-        CountDownLatch finishQueriesLatch = new CountDownLatch( 1 );
-        T resource;
-        try ( Transaction tx = db.beginTx() )
-        {
-            resource = setup.get();
-            tx.success();
-        }
-        threads.execute( parameter ->
-        {
-            try ( Transaction tx = db.beginTx() )
-            {
-                tx.acquireWriteLock( resource );
-                resourceLocked.countDown();
-                listQueriesLatch.await();
-            }
-            return null;
-        }, null );
-        resourceLocked.await();
-
-        threads.executeAndAwait( parameter ->
-        {
-            try ( Transaction tx = db.beginTx() )
-            {
-                for ( String query : queries )
-                {
-                    db.execute( query ).close();
-                }
-                tx.success();
-            }
-            catch ( Throwable t )
-            {
-                t.printStackTrace();
-                throw new RuntimeException( t );
-            }
-            finally
-            {
-                finishQueriesLatch.countDown();
-            }
-            return null;
-        }, null, waitingWhileIn( GraphDatabaseFacade.class, "execute" ), SECONDS_TIMEOUT, SECONDS );
-
-        return new Resource<>( listQueriesLatch, finishQueriesLatch, resource );
     }
 }

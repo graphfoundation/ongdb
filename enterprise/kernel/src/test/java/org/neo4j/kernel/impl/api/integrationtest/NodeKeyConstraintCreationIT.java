@@ -32,8 +32,10 @@ import org.neo4j.kernel.api.schema.SchemaDescriptorFactory;
 import org.neo4j.kernel.api.schema.constraints.ConstraintDescriptorFactory;
 import org.neo4j.kernel.api.schema.constraints.NodeKeyConstraintDescriptor;
 
-public class NodeKeyConstraintCreationIT extends AbstractConstraintCreationIT<ConstraintDescriptor,LabelSchemaDescriptor>
+public class NodeKeyConstraintCreationIT extends
+                                         AbstractConstraintCreationIT<ConstraintDescriptor,LabelSchemaDescriptor>
 {
+
     @Override
     int initializeLabelOrRelType( TokenWrite tokenWrite, String name ) throws KernelException
     {

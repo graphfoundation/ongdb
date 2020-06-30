@@ -37,6 +37,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 @ExtendWith( TestDirectoryExtension.class )
 class EnterpriseEditionModuleTest
 {
+
     @Inject
     private TestDirectory testDirectory;
 
@@ -44,7 +45,8 @@ class EnterpriseEditionModuleTest
     void fileWatcherFileNameFilter()
     {
         DatabaseLayout layout = testDirectory.databaseLayout();
-        Predicate<String> filter = EnterpriseEditionModule.enterpriseNonClusterFileWatcherFileNameFilter();
+        Predicate<String> filter = EnterpriseEditionModule
+                .enterpriseNonClusterFileWatcherFileNameFilter();
         String metadataStoreName = layout.metadataStore().getName();
 
         assertFalse( filter.test( metadataStoreName ) );

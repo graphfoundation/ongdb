@@ -30,6 +30,7 @@ import static org.neo4j.io.pagecache.PagedFile.PF_SHARED_READ_LOCK;
 
 class ParallelPageLoader implements PageLoader
 {
+
     private final PagedFile file;
     private final Executor executor;
     private final PageCache pageCache;
@@ -50,23 +51,23 @@ class ParallelPageLoader implements PageLoader
     {
         received.getAndIncrement();
         executor.execute( () ->
-        {
-            try
-            {
-                try ( PageCursor cursor = file.io( pageId, PF_SHARED_READ_LOCK ) )
-                {
-                    cursor.next();
-                }
-                catch ( IOException ignore )
-                {
-                }
-            }
-            finally
-            {
-                pageCache.reportEvents();
-                processed.getAndIncrement();
-            }
-        } );
+                          {
+                              try
+                              {
+                                  try ( PageCursor cursor = file.io( pageId, PF_SHARED_READ_LOCK ) )
+                                  {
+                                      cursor.next();
+                                  }
+                                  catch ( IOException ignore )
+                                  {
+                                  }
+                              }
+                              finally
+                              {
+                                  pageCache.reportEvents();
+                                  processed.getAndIncrement();
+                              }
+                          } );
     }
 
     @Override

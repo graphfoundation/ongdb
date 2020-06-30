@@ -37,6 +37,7 @@ import org.neo4j.time.FakeClock;
 
 public class VerbosePageCacheTracerTest
 {
+
     private AssertableLogProvider logProvider = new AssertableLogProvider( true );
     private Log log = logProvider.getLog( getClass() );
     private FakeClock clock = Clocks.fakeClock();
@@ -64,14 +65,16 @@ public class VerbosePageCacheTracerTest
         try ( MajorFlushEvent majorFlushEvent = tracer.beginCacheFlush() )
         {
             FlushEventOpportunity flushEventOpportunity = majorFlushEvent.flushEventOpportunity();
-            FlushEvent flushEvent = flushEventOpportunity.beginFlush( 1, 2, new DummyPageSwapper( "testFile", 1 ) );
+            FlushEvent flushEvent = flushEventOpportunity
+                    .beginFlush( 1, 2, new DummyPageSwapper( "testFile", 1 ) );
             flushEvent.addBytesWritten( 2 );
             flushEvent.addPagesFlushed( 7 );
             flushEvent.done();
         }
         logProvider.formattedMessageMatcher().assertContains( "Start whole page cache flush." );
-        logProvider.formattedMessageMatcher().assertContains( "Page cache flush completed. Flushed 2B in 7 pages. Flush took: 0ns. " +
-                "Average speed: 2bytes/ns." );
+        logProvider.formattedMessageMatcher()
+                   .assertContains( "Page cache flush completed. Flushed 2B in 7 pages. Flush took: 0ns. " +
+                                    "Average speed: 2bytes/ns." );
     }
 
     @Test
@@ -81,7 +84,8 @@ public class VerbosePageCacheTracerTest
         try ( MajorFlushEvent majorFlushEvent = tracer.beginCacheFlush() )
         {
             FlushEventOpportunity flushEventOpportunity = majorFlushEvent.flushEventOpportunity();
-            FlushEvent flushEvent = flushEventOpportunity.beginFlush( 1, 2, new DummyPageSwapper( "testFile", 1 ) );
+            FlushEvent flushEvent = flushEventOpportunity
+                    .beginFlush( 1, 2, new DummyPageSwapper( "testFile", 1 ) );
             clock.forward( 2, TimeUnit.MILLISECONDS );
 
             try ( EvictionRunEvent evictionRunEvent = tracer.beginPageEvictions( 5 ) )
@@ -90,7 +94,7 @@ public class VerbosePageCacheTracerTest
                 {
                     FlushEventOpportunity evictionEventOpportunity = evictionEvent.flushEventOpportunity();
                     FlushEvent evictionFlush = evictionEventOpportunity.beginFlush( 2, 3,
-                            new DummyPageSwapper( "evictionFile", 1 ) );
+                                                                                    new DummyPageSwapper( "evictionFile", 1 ) );
                     evictionFlush.addPagesFlushed( 10 );
                     evictionFlush.addPagesFlushed( 100 );
                 }
@@ -100,8 +104,9 @@ public class VerbosePageCacheTracerTest
             flushEvent.done();
         }
         logProvider.formattedMessageMatcher().assertContains( "Start whole page cache flush." );
-        logProvider.formattedMessageMatcher().assertContains( "Page cache flush completed. Flushed 2B in 7 pages. Flush took: 2ms. " +
-                "Average speed: 0bytes/ns." );
+        logProvider.formattedMessageMatcher()
+                   .assertContains( "Page cache flush completed. Flushed 2B in 7 pages. Flush took: 2ms. " +
+                                    "Average speed: 0bytes/ns." );
     }
 
     @Test
@@ -124,7 +129,7 @@ public class VerbosePageCacheTracerTest
         }
         logProvider.formattedMessageMatcher().assertContains( "Flushing file: 'fileToFlush'." );
         logProvider.formattedMessageMatcher().assertContains( "'fileToFlush' flush completed. " +
-            "Flushed 2.000MiB in 110 pages. Flush took: 1s. Average speed: 2.000MiB/s." );
+                                                              "Flushed 2.000MiB in 110 pages. Flush took: 1s. Average speed: 2.000MiB/s." );
     }
 
     private VerbosePageCacheTracer createTracer()

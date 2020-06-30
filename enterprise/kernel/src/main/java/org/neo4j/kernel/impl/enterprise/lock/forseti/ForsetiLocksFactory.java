@@ -20,21 +20,29 @@ package org.neo4j.kernel.impl.enterprise.lock.forseti;
 
 import java.time.Clock;
 
-import org.neo4j.helpers.Service;
-import org.neo4j.kernel.configuration.Config;
-import org.neo4j.kernel.impl.locking.DynamicLocksFactory;
+import org.neo4j.annotations.service.Service;
+import org.neo4j.configuration.Config;
 import org.neo4j.kernel.impl.locking.Locks;
-import org.neo4j.kernel.impl.locking.ResourceTypes;
-import org.neo4j.storageengine.api.lock.ResourceType;
+import org.neo4j.kernel.impl.locking.LocksFactory;
+import org.neo4j.lock.ResourceType;
+import org.neo4j.lock.ResourceTypes;
 
-@Service.Implementation( DynamicLocksFactory.class )
-public class ForsetiLocksFactory extends DynamicLocksFactory
+@Service
+public class ForsetiLocksFactory implements LocksFactory
 {
+
     public static final String KEY = "forseti";
 
-    public ForsetiLocksFactory()
+    @Override
+    public String getName()
     {
-        super( KEY );
+        return KEY;
+    }
+
+    @Override
+    public int getPriority()
+    {
+        return 10;
     }
 
     @Override

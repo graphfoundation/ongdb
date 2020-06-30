@@ -33,29 +33,29 @@ import org.neo4j.kernel.impl.store.id.IdType;
 import org.neo4j.kernel.impl.store.id.configuration.IdTypeConfiguration;
 import org.neo4j.kernel.impl.store.id.configuration.IdTypeConfigurationProvider;
 
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 @RunWith( Parameterized.class )
 public class EnterpriseIdTypeConfigurationProviderTest
 {
+
     private final IdType reusableType;
+
+    public EnterpriseIdTypeConfigurationProviderTest( IdType reusableType )
+    {
+        this.reusableType = reusableType;
+    }
 
     @Parameterized.Parameters
     public static List<IdType> data()
     {
         return Arrays.asList( IdType.PROPERTY,
-                IdType.STRING_BLOCK,
-                IdType.ARRAY_BLOCK,
-                IdType.NODE,
-                IdType.RELATIONSHIP,
-                IdType.NODE_LABELS );
-    }
-
-    public EnterpriseIdTypeConfigurationProviderTest( IdType reusableType )
-    {
-        this.reusableType = reusableType;
+                              IdType.STRING_BLOCK,
+                              IdType.ARRAY_BLOCK,
+                              IdType.NODE,
+                              IdType.RELATIONSHIP,
+                              IdType.NODE_LABELS );
     }
 
     @Test
@@ -79,7 +79,7 @@ public class EnterpriseIdTypeConfigurationProviderTest
     private IdTypeConfigurationProvider createIdTypeProvider()
     {
         Map<String,String> params = MapUtil.stringMap( EnterpriseEditionSettings.idTypesToReuse.name(),
-                IdType.NODE + "," + IdType.RELATIONSHIP );
+                                                       IdType.NODE + "," + IdType.RELATIONSHIP );
         Config config = Config.defaults( params );
         return new EnterpriseIdTypeConfigurationProvider( config );
     }

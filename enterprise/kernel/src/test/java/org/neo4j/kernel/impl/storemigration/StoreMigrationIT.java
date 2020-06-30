@@ -73,18 +73,29 @@ import static org.junit.Assert.fail;
 @RunWith( Parameterized.class )
 public class StoreMigrationIT
 {
+
+    public static final String CREATE_QUERY = readQuery();
     private static final PageCacheRule pageCacheRule = new PageCacheRule();
     private static final DefaultFileSystemRule fileSystemRule = new DefaultFileSystemRule();
     private static final TestDirectory testDir = TestDirectory.testDirectory( fileSystemRule );
     @ClassRule
-    public static final RuleChain ruleChain = RuleChain.outerRule( fileSystemRule ).around( pageCacheRule ).around( testDir );
+    public static final RuleChain ruleChain = RuleChain.outerRule( fileSystemRule )
+                                                       .around( pageCacheRule ).around( testDir );
+    protected final RecordFormats from;
+    protected final RecordFormats to;
 
-    public static final String CREATE_QUERY = readQuery();
+    public StoreMigrationIT( RecordFormats from, RecordFormats to )
+    {
+        this.from = from;
+        this.to = to;
+    }
 
     private static String readQuery()
     {
-        InputStream in = StoreMigrationIT.class.getClassLoader().getResourceAsStream( "store-migration-data.txt" );
-        String result = new BufferedReader( new InputStreamReader( in ) ).lines().collect( Collectors.joining( "\n" ) );
+        InputStream in = StoreMigrationIT.class.getClassLoader()
+                                               .getResourceAsStream( "store-migration-data.txt" );
+        String result = new BufferedReader( new InputStreamReader( in ) ).lines()
+                                                                         .collect( Collectors.joining( "\n" ) );
         try
         {
             in.close();
@@ -96,9 +107,6 @@ public class StoreMigrationIT
         return result;
     }
 
-    protected final RecordFormats from;
-    protected final RecordFormats to;
-
     @Parameterized.Parameters( name = "Migrate: {0}->{1}" )
     public static Iterable<Object[]> data() throws IOException
     {
@@ -109,7 +117,9 @@ public class StoreMigrationIT
         DatabaseLayout databaseLayout = testDirectory.databaseLayout();
         StoreVersionCheck storeVersionCheck = new StoreVersionCheck( pageCache );
         VersionAwareLogEntryReader<ReadableClosablePositionAwareChannel> logEntryReader = new VersionAwareLogEntryReader<>();
-        LogFiles logFiles = LogFilesBuilder.logFilesBasedOnlyBuilder( databaseLayout.databaseDirectory(), fs ).withLogEntryReader( logEntryReader ).build();
+        LogFiles logFiles = LogFilesBuilder
+                .logFilesBasedOnlyBuilder( databaseLayout.databaseDirectory(), fs )
+                .withLogEntryReader( logEntryReader ).build();
         LogTailScanner tailScanner = new LogTailScanner( logFiles, logEntryReader, new Monitors() );
         List<Object[]> data = new ArrayList<>();
         ArrayList<RecordFormats> recordFormats = new ArrayList<>();
@@ -157,100 +167,39 @@ public class StoreMigrationIT
         recordFormats.add( f );
     }
 
-    @Service.Implementation( RecordFormats.Factory.class )
-    public static class Standard23Factory extends RecordFormats.Factory
-    {
-        public Standard23Factory()
-        {
-            super( StandardV2_3.STORE_VERSION );
-        }
-
-        @Override
-        public RecordFormats newInstance()
-        {
-            return StandardV2_3.RECORD_FORMATS;
-        }
-    }
-
-    @Service.Implementation( RecordFormats.Factory.class )
-    public static class Standard30Factory extends RecordFormats.Factory
-    {
-        public Standard30Factory()
-        {
-            super( StandardV3_0.STORE_VERSION );
-        }
-
-        @Override
-        public RecordFormats newInstance()
-        {
-            return StandardV3_0.RECORD_FORMATS;
-        }
-    }
-
-    @Service.Implementation( RecordFormats.Factory.class )
-    public static class Standard32Factory extends RecordFormats.Factory
-    {
-        public Standard32Factory()
-        {
-            super( StandardV3_2.STORE_VERSION );
-        }
-
-        @Override
-        public RecordFormats newInstance()
-        {
-            return StandardV3_2.RECORD_FORMATS;
-        }
-    }
-
-    @Service.Implementation( RecordFormats.Factory.class )
-    public static class Standard34Factory extends RecordFormats.Factory
-    {
-        public Standard34Factory()
-        {
-            super( StandardV3_4.STORE_VERSION );
-        }
-
-        @Override
-        public RecordFormats newInstance()
-        {
-            return StandardV3_4.RECORD_FORMATS;
-        }
-    }
-
-    @Service.Implementation( RecordFormats.Factory.class )
-    public static class Standard36Factory extends RecordFormats.Factory
-    {
-        public Standard36Factory()
-        {
-            super( StandardV3_6.STORE_VERSION );
-        }
-
-        @Override
-        public RecordFormats newInstance()
-        {
-            return StandardV3_6.RECORD_FORMATS;
-        }
-    }
-
     private static void createDb( RecordFormats recordFormat, File storeDir )
     {
         GraphDatabaseService database = new GraphDatabaseFactory().newEmbeddedDatabaseBuilder( storeDir )
-                .setConfig( GraphDatabaseSettings.allow_upgrade, Settings.TRUE )
-                .setConfig( GraphDatabaseSettings.record_format, recordFormat.storeVersion() ).newGraphDatabase();
+                                                                  .setConfig( GraphDatabaseSettings.allow_upgrade, Settings.TRUE )
+                                                                  .setConfig( GraphDatabaseSettings.record_format, recordFormat.storeVersion() )
+                                                                  .newGraphDatabase();
         database.shutdown();
     }
 
-    public StoreMigrationIT( RecordFormats from, RecordFormats to )
+    protected static ConsistencyCheckService.Result runConsistencyChecker(
+            DatabaseLayout databaseLayout, FileSystemAbstraction fs,
+            ConsistencyCheckService consistencyCheckService, String storeVersion )
+            throws ConsistencyCheckIncompleteException
     {
-        this.from = from;
-        this.to = to;
+        Config config = Config.defaults( GraphDatabaseSettings.record_format, storeVersion );
+        return consistencyCheckService
+                .runFullConsistencyCheck( databaseLayout, config, ProgressMonitorFactory.NONE,
+                                          NullLogProvider.getInstance(), fs, false );
+    }
+
+    protected static GraphDatabaseService getGraphDatabaseService( File db, String storeVersion )
+    {
+        return new EnterpriseGraphDatabaseFactory().newEmbeddedDatabaseBuilder( db )
+                                                   .setConfig( GraphDatabaseSettings.allow_upgrade, Settings.TRUE )
+                                                   .setConfig( GraphDatabaseSettings.record_format, storeVersion ).newGraphDatabase();
     }
 
     @Test
     public void shouldMigrate() throws Exception
     {
         DatabaseLayout databaseLayout = testDir.databaseLayout( baseDirName( to, from ) );
-        GraphDatabaseService database = getGraphDatabaseService( databaseLayout.databaseDirectory(), from.storeVersion() );
+        GraphDatabaseService database = getGraphDatabaseService( databaseLayout.databaseDirectory(),
+                                                                 from.storeVersion() );
 
         database.execute( "CREATE INDEX ON :Person(name)" );
         database.execute( "CREATE INDEX ON :Person(born)" );
@@ -302,9 +251,10 @@ public class StoreMigrationIT
         assertEquals( beforeRelTypes, afterRelTypes ); //6
         assertEquals( beforeIndexes, afterIndexes ); //2
         assertEquals( beforeConstraints, afterConstraints ); //1
-        ConsistencyCheckService consistencyCheckService = new ConsistencyCheckService( );
+        ConsistencyCheckService consistencyCheckService = new ConsistencyCheckService();
         ConsistencyCheckService.Result result =
-                runConsistencyChecker( databaseLayout, fileSystemRule.get(), consistencyCheckService, to.storeVersion() );
+                runConsistencyChecker( databaseLayout, fileSystemRule.get(), consistencyCheckService,
+                                       to.storeVersion() );
         if ( !result.isSuccessful() )
         {
             fail( "Database is inconsistent after migration." );
@@ -316,19 +266,83 @@ public class StoreMigrationIT
         return StreamSupport.stream( iterable.spliterator(), false );
     }
 
-    protected static ConsistencyCheckService.Result runConsistencyChecker( DatabaseLayout databaseLayout, FileSystemAbstraction fs,
-            ConsistencyCheckService consistencyCheckService, String storeVersion )
-            throws ConsistencyCheckIncompleteException
+    @Service.Implementation( RecordFormats.Factory.class )
+    public static class Standard23Factory extends RecordFormats.Factory
     {
-        Config config = Config.defaults( GraphDatabaseSettings.record_format, storeVersion );
-        return consistencyCheckService.runFullConsistencyCheck( databaseLayout, config, ProgressMonitorFactory.NONE,
-                NullLogProvider.getInstance(), fs, false );
+
+        public Standard23Factory()
+        {
+            super( StandardV2_3.STORE_VERSION );
+        }
+
+        @Override
+        public RecordFormats newInstance()
+        {
+            return StandardV2_3.RECORD_FORMATS;
+        }
     }
 
-    protected static GraphDatabaseService getGraphDatabaseService( File db, String storeVersion )
+    @Service.Implementation( RecordFormats.Factory.class )
+    public static class Standard30Factory extends RecordFormats.Factory
     {
-        return new EnterpriseGraphDatabaseFactory().newEmbeddedDatabaseBuilder( db )
-                .setConfig( GraphDatabaseSettings.allow_upgrade, Settings.TRUE )
-                .setConfig( GraphDatabaseSettings.record_format, storeVersion ).newGraphDatabase();
+
+        public Standard30Factory()
+        {
+            super( StandardV3_0.STORE_VERSION );
+        }
+
+        @Override
+        public RecordFormats newInstance()
+        {
+            return StandardV3_0.RECORD_FORMATS;
+        }
+    }
+
+    @Service.Implementation( RecordFormats.Factory.class )
+    public static class Standard32Factory extends RecordFormats.Factory
+    {
+
+        public Standard32Factory()
+        {
+            super( StandardV3_2.STORE_VERSION );
+        }
+
+        @Override
+        public RecordFormats newInstance()
+        {
+            return StandardV3_2.RECORD_FORMATS;
+        }
+    }
+
+    @Service.Implementation( RecordFormats.Factory.class )
+    public static class Standard34Factory extends RecordFormats.Factory
+    {
+
+        public Standard34Factory()
+        {
+            super( StandardV3_4.STORE_VERSION );
+        }
+
+        @Override
+        public RecordFormats newInstance()
+        {
+            return StandardV3_4.RECORD_FORMATS;
+        }
+    }
+
+    @Service.Implementation( RecordFormats.Factory.class )
+    public static class Standard36Factory extends RecordFormats.Factory
+    {
+
+        public Standard36Factory()
+        {
+            super( StandardV3_6.STORE_VERSION );
+        }
+
+        @Override
+        public RecordFormats newInstance()
+        {
+            return StandardV3_6.RECORD_FORMATS;
+        }
     }
 }

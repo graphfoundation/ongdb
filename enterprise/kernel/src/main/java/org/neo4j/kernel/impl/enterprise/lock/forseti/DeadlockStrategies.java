@@ -23,18 +23,17 @@ import org.neo4j.util.FeatureToggles;
 public enum DeadlockStrategies implements ForsetiLockManager.DeadlockResolutionStrategy
 {
     /**
-     * When a deadlock occurs, the client with the fewest number of held locks is aborted. If both clients hold the same
-     * number of
-     * locks, the client with the lowest client id is aborted.
+     * When a deadlock occurs, the client with the fewest number of held locks is aborted. If both clients hold the same number of locks, the client with the
+     * lowest client id is aborted.
      * <p/>
-     * This is one side of a long academic argument, where the other says to abort the one with the most locks held,
-     * since it's old and monolithic and holding up
-     * the line.
+     * This is one side of a long academic argument, where the other says to abort the one with the most locks held, since it's old and monolithic and holding
+     * up the line.
      */
     ABORT_YOUNG
             {
                 @Override
-                public boolean shouldAbort( ForsetiClient clientThatsAsking, ForsetiClient clientWereDeadlockedWith )
+                public boolean shouldAbort( ForsetiClient clientThatsAsking,
+                                            ForsetiClient clientWereDeadlockedWith )
                 {
                     if ( isSameClient( clientThatsAsking, clientWereDeadlockedWith ) )
                     {
@@ -62,14 +61,14 @@ public enum DeadlockStrategies implements ForsetiLockManager.DeadlockResolutionS
             },
 
     /**
-     * When a deadlock occurs, the client with the highest number of held locks is aborted. If both clients hold the
-     * same number of
-     * locks, the client with the highest client id is aborted.
+     * When a deadlock occurs, the client with the highest number of held locks is aborted. If both clients hold the same number of locks, the client with the
+     * highest client id is aborted.
      */
     ABORT_OLD
             {
                 @Override
-                public boolean shouldAbort( ForsetiClient clientThatsAsking, ForsetiClient clientWereDeadlockedWith )
+                public boolean shouldAbort( ForsetiClient clientThatsAsking,
+                                            ForsetiClient clientWereDeadlockedWith )
                 {
                     if ( isSameClient( clientThatsAsking, clientWereDeadlockedWith ) )
                     {
@@ -81,13 +80,14 @@ public enum DeadlockStrategies implements ForsetiLockManager.DeadlockResolutionS
             },
 
     /**
-     * When a deadlock occurs, the client that is blocking the lowest number of other clients aborts.
-     * If both clients have the same sized wait lists, the one with the lowest client id is aborted.
+     * When a deadlock occurs, the client that is blocking the lowest number of other clients aborts. If both clients have the same sized wait lists, the one
+     * with the lowest client id is aborted.
      */
     ABORT_SHORT_WAIT_LIST
             {
                 @Override
-                public boolean shouldAbort( ForsetiClient clientThatsAsking, ForsetiClient clientWereDeadlockedWith )
+                public boolean shouldAbort( ForsetiClient clientThatsAsking,
+                                            ForsetiClient clientWereDeadlockedWith )
                 {
                     if ( isSameClient( clientThatsAsking, clientWereDeadlockedWith ) )
                     {
@@ -114,13 +114,14 @@ public enum DeadlockStrategies implements ForsetiLockManager.DeadlockResolutionS
             },
 
     /**
-     * When a deadlock occurs, the client that is blocking the highest number of other clients aborts.
-     * If both clients have the same sized wait lists, the one with the highest client id is aborted.
+     * When a deadlock occurs, the client that is blocking the highest number of other clients aborts. If both clients have the same sized wait lists, the one
+     * with the highest client id is aborted.
      */
     ABORT_LONG_WAIT_LIST
             {
                 @Override
-                public boolean shouldAbort( ForsetiClient clientThatsAsking, ForsetiClient clientWereDeadlockedWith )
+                public boolean shouldAbort( ForsetiClient clientThatsAsking,
+                                            ForsetiClient clientWereDeadlockedWith )
                 {
                     if ( isSameClient( clientThatsAsking, clientWereDeadlockedWith ) )
                     {
@@ -129,9 +130,6 @@ public enum DeadlockStrategies implements ForsetiLockManager.DeadlockResolutionS
                     return !ABORT_SHORT_WAIT_LIST.shouldAbort( clientThatsAsking, clientWereDeadlockedWith );
                 }
             };
-
-    @Override
-    public abstract boolean shouldAbort( ForsetiClient clientThatsAsking, ForsetiClient clientWereDeadlockedWith );
 
     /**
      * To aid in experimental testing of strategies on different real workloads, allow toggling which strategy to use.
@@ -145,4 +143,8 @@ public enum DeadlockStrategies implements ForsetiLockManager.DeadlockResolutionS
         // where a client thinks it's deadlocked with itself.
         return a.id() == b.id();
     }
+
+    @Override
+    public abstract boolean shouldAbort( ForsetiClient clientThatsAsking,
+                                         ForsetiClient clientWereDeadlockedWith );
 }

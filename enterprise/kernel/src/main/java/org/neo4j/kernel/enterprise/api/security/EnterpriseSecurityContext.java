@@ -20,9 +20,9 @@ package org.neo4j.kernel.enterprise.api.security;
 
 import java.util.Collections;
 import java.util.Set;
-import java.util.function.ToIntFunction;
 
 import org.neo4j.internal.kernel.api.security.AccessMode;
+import org.neo4j.internal.kernel.api.security.AdminActionOnResource;
 import org.neo4j.internal.kernel.api.security.AuthSubject;
 import org.neo4j.internal.kernel.api.security.SecurityContext;
 
@@ -31,24 +31,62 @@ import org.neo4j.internal.kernel.api.security.SecurityContext;
  */
 public class EnterpriseSecurityContext extends SecurityContext
 {
-    private final Set<String> roles;
-    private final boolean isAdmin;
 
-    public EnterpriseSecurityContext( AuthSubject subject, AccessMode mode, Set<String> roles, boolean isAdmin )
+    /**
+     * Allows all operations.
+     */
+    public static final EnterpriseSecurityContext AUTH_DISABLED = authDisabled(
+            AccessMode.Static.FULL );
+    private final Set<String> roles;
+    private final EnterpriseAdminAccessMode enterpriseAdminAccessMode;
+
+    public EnterpriseSecurityContext( AuthSubject subject, AccessMode mode, Set<String> roles,
+                                      EnterpriseAdminAccessMode enterpriseAdminAccessMode )
     {
         super( subject, mode );
         this.roles = roles;
-        this.isAdmin = isAdmin;
+        this.enterpriseAdminAccessMode = enterpriseAdminAccessMode;
+    }
+
+    private static EnterpriseSecurityContext authDisabled( AccessMode mode )
+    {
+        return new EnterpriseSecurityContext( AuthSubject.AUTH_DISABLED, mode, Collections.emptySet(),
+                                              EnterpriseAdminAccessMode.FULL )
+        {
+            @Override
+            public EnterpriseSecurityContext withMode( AccessMode mode )
+            {
+                return EnterpriseSecurityContext.authDisabled( mode );
+            }
+
+            @Override
+            public String description()
+            {
+                return "AUTH_DISABLED with " + this.mode().name();
+            }
+
+            @Override
+            public String toString()
+            {
+                return this.defaultString( "enterprise-auth-disabled" );
+            }
+        };
     }
 
     @Override
     public boolean isAdmin()
     {
-        return isAdmin;
+        return enterpriseAdminAccessMode.allows( AdminActionOnResource.ALL );
     }
 
     @Override
-    public EnterpriseSecurityContext authorize( ToIntFunction<String> propertyIdLookup, String dbName )
+    public boolean allowsAdminAction( AdminActionOnResource action )
+    {
+        return this.enterpriseAdminAccessMode.allows( action );
+    }
+
+    @Override
+    public EnterpriseSecurityContext authorize( IdLookup idLookup, String dbName )
     {
         return this;
     }
@@ -56,42 +94,15 @@ public class EnterpriseSecurityContext extends SecurityContext
     @Override
     public EnterpriseSecurityContext withMode( AccessMode mode )
     {
-        return new EnterpriseSecurityContext( subject, mode, roles, isAdmin );
+        return new EnterpriseSecurityContext( subject, mode, roles, enterpriseAdminAccessMode );
     }
 
     /**
      * Get the roles of the authenticated user.
      */
+    @Override
     public Set<String> roles()
     {
         return roles;
-    }
-
-    /** Allows all operations. */
-    public static final EnterpriseSecurityContext AUTH_DISABLED = authDisabled( AccessMode.Static.FULL );
-
-    private static EnterpriseSecurityContext authDisabled( AccessMode mode )
-    {
-        return new EnterpriseSecurityContext( AuthSubject.AUTH_DISABLED, mode, Collections.emptySet(), true )
-        {
-
-            @Override
-            public EnterpriseSecurityContext withMode( AccessMode mode )
-            {
-                return authDisabled( mode );
-            }
-
-            @Override
-            public String description()
-            {
-                return "AUTH_DISABLED with " + mode().name();
-            }
-
-            @Override
-            public String toString()
-            {
-                return defaultString( "enterprise-auth-disabled" );
-            }
-        };
     }
 }

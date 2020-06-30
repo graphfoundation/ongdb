@@ -20,9 +20,10 @@ package org.neo4j.kernel.impl.pagecache;
 
 import java.util.concurrent.TimeUnit;
 
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
+import org.neo4j.configuration.Config;
+import org.neo4j.configuration.GraphDatabaseSettings;
 import org.neo4j.kernel.availability.AvailabilityListener;
-import org.neo4j.kernel.configuration.Config;
+import org.neo4j.kernel.database.NamedDatabaseId;
 import org.neo4j.kernel.impl.pagecache.monitor.PageCacheWarmerMonitor;
 import org.neo4j.logging.Log;
 import org.neo4j.scheduler.Group;
@@ -31,11 +32,13 @@ import org.neo4j.scheduler.JobScheduler;
 
 class WarmupAvailabilityListener implements AvailabilityListener
 {
+
     private final JobScheduler scheduler;
     private final PageCacheWarmer pageCacheWarmer;
     private final Config config;
     private final Log log;
     private final PageCacheWarmerMonitor monitor;
+    private final NamedDatabaseId namedDatabaseId;
 
     // We use the monitor lock to guard the job handle. However, it could happen that a job has already started, ends
     // up waiting for the lock while it's being held by another thread calling `unavailable()`. In that case, we need
@@ -45,14 +48,16 @@ class WarmupAvailabilityListener implements AvailabilityListener
     private volatile boolean available;
     private JobHandle jobHandle; // Guarded by `this`.
 
-    WarmupAvailabilityListener( JobScheduler scheduler, PageCacheWarmer pageCacheWarmer,
-                                Config config, Log log, PageCacheWarmerMonitor monitor )
+    WarmupAvailabilityListener( JobScheduler scheduler, PageCacheWarmer pageCacheWarmer, Config config,
+                                Log log, PageCacheWarmerMonitor monitor,
+                                NamedDatabaseId namedDatabaseId )
     {
         this.scheduler = scheduler;
         this.pageCacheWarmer = pageCacheWarmer;
         this.config = config;
         this.log = log;
         this.monitor = monitor;
+        this.namedDatabaseId = namedDatabaseId;
     }
 
     @Override
@@ -70,8 +75,11 @@ class WarmupAvailabilityListener implements AvailabilityListener
         }
         try
         {
-            monitor.warmupStarted();
-            pageCacheWarmer.reheat().ifPresent( monitor::warmupCompleted );
+            this.monitor.warmupStarted( this.namedDatabaseId );
+            this.pageCacheWarmer.reheat().ifPresent( ( loadedPages ) ->
+                                                     {
+                                                         this.monitor.warmupCompleted( this.namedDatabaseId, loadedPages );
+                                                     } );
         }
         catch ( Exception e )
         {
@@ -88,31 +96,38 @@ class WarmupAvailabilityListener implements AvailabilityListener
         {
             return;
         }
-        long frequencyMillis = config.get( GraphDatabaseSettings.pagecache_warmup_profiling_interval ).toMillis();
-        jobHandle = scheduler.scheduleRecurring( Group.FILE_IO_HELPER, this::doProfile, frequencyMillis, TimeUnit.MILLISECONDS );
+        long frequencyMillis = config.get( GraphDatabaseSettings.pagecache_warmup_profiling_interval )
+                                     .toMillis();
+        jobHandle = scheduler.scheduleRecurring( Group.FILE_IO_HELPER, this::doProfile, frequencyMillis,
+                                                 TimeUnit.MILLISECONDS );
     }
 
     private void doProfile()
     {
         try
         {
-            pageCacheWarmer.profile().ifPresent( monitor::profileCompleted );
+            this.pageCacheWarmer.profile().ifPresent( ( pages ) ->
+                                                      {
+                                                          this.monitor.profileCompleted( this.namedDatabaseId, pages );
+                                                      } );
         }
         catch ( Exception e )
         {
-            log.debug( "Page cache profiling failed, so no new profile of what data is hot or not was produced. " +
-                       "This may reduce the effectiveness of a future page cache warmup process.", e );
+            log.debug(
+                    "Page cache profiling failed, so no new profile of what data is hot or not was produced. "
+                    +
+                    "This may reduce the effectiveness of a future page cache warmup process.", e );
         }
     }
 
     @Override
     public synchronized void unavailable()
     {
-        available = false;
-        if ( jobHandle != null )
+        this.available = false;
+        if ( this.jobHandle != null )
         {
-            jobHandle.cancel( false );
-            jobHandle = null;
+            this.jobHandle.cancel();
+            this.jobHandle = null;
         }
     }
 }

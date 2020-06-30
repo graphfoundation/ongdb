@@ -21,14 +21,14 @@ package org.neo4j.kernel.impl.store.format.highlimit.v306;
 import java.io.IOException;
 import java.util.function.Function;
 
+import org.neo4j.exceptions.UnderlyingStorageException;
+import org.neo4j.internal.id.IdSequence;
 import org.neo4j.io.pagecache.PageCursor;
 import org.neo4j.io.pagecache.impl.CompositePageCursor;
 import org.neo4j.kernel.impl.store.StoreHeader;
-import org.neo4j.kernel.impl.store.UnderlyingStorageException;
 import org.neo4j.kernel.impl.store.format.BaseOneByteHeaderRecordFormat;
 import org.neo4j.kernel.impl.store.format.RecordFormat;
 import org.neo4j.kernel.impl.store.format.highlimit.Reference;
-import org.neo4j.kernel.impl.store.id.IdSequence;
 import org.neo4j.kernel.impl.store.record.AbstractBaseRecord;
 import org.neo4j.kernel.impl.store.record.Record;
 import org.neo4j.kernel.impl.store.record.RecordLoad;
@@ -37,13 +37,11 @@ import static org.neo4j.kernel.impl.store.RecordPageLocationCalculator.offsetFor
 import static org.neo4j.kernel.impl.store.RecordPageLocationCalculator.pageIdForRecord;
 
 /**
- * Base class for record format which utilizes dynamically sized references to other record IDs and with ability
- * to use record units, meaning that a record may span two physical records in the store. This to keep store size
- * low and only have records that have big references occupy double amount of space. This format supports up to
- * 58-bit IDs, which is roughly 280 quadrillion. With that size the ID limits can be considered highlimit,
- * hence the format name. The IDs take up between 3-8B depending on the size of the ID where relative ID
- * references are used as often as possible. See {@link Reference}.
- *
+ * Base class for record format which utilizes dynamically sized references to other record IDs and with ability to use record units, meaning that a record may
+ * span two physical records in the store. This to keep store size low and only have records that have big references occupy double amount of space. This format
+ * supports up to 58-bit IDs, which is roughly 280 quadrillion. With that size the ID limits can be considered highlimit, hence the format name. The IDs take up
+ * between 3-8B depending on the size of the ID where relative ID references are used as often as possible. See {@link Reference}.
+ * <p>
  * For consistency, all formats have a one-byte header specifying:
  *
  * <ol>
@@ -52,21 +50,21 @@ import static org.neo4j.kernel.impl.store.RecordPageLocationCalculator.pageIdFor
  * <li>0x4: record unit type [1=first, 0=consecutive]
  * <li>0x8 - 0x80 other flags for this record specific to each type</li>
  * </ol>
- *
+ * <p>
  * NOTE to the rest of the flags is that a good use of them is to denote whether or not an ID reference is
  * null (-1) as to save 3B (smallest compressed size) by not writing a reference at all.
- *
+ * <p>
  * For records that are the first out of multiple record units, then immediately following the header byte is
  * the reference (3-8B) to the secondary ID. After that the "statically sized" data and in the end the
  * dynamically sized data. The general thinking is that the break-off into the secondary record will happen in
  * the sequence of dynamically sized references and this will allow for crossing the record boundary
  * in between, but even in the middle of, references quite easily since the {@link CompositePageCursor}
  * handles the transition seamlessly.
- *
+ * <p>
  * Assigning secondary record unit IDs is done outside of this format implementation, it is just assumed
  * that records that gets {@link RecordFormat#write(AbstractBaseRecord, PageCursor, int) written} have already
  * been assigned all required such data.
- *
+ * <p>
  * Usually each records are written and read atomically, so this format requires additional logic to be able to
  * write and read multiple records together atomically. For writing then currently this is guarded by
  * higher level entity write locks and so the {@link PageCursor} can simply move from the first on to the second
@@ -79,6 +77,7 @@ import static org.neo4j.kernel.impl.store.RecordPageLocationCalculator.pageIdFor
 abstract class BaseHighLimitRecordFormatV3_0_6<RECORD extends AbstractBaseRecord>
         extends BaseOneByteHeaderRecordFormat<RECORD>
 {
+
     static final int HEADER_BYTE = Byte.BYTES;
 
     static final long NULL = Record.NULL_REFERENCE.intValue();
@@ -86,9 +85,49 @@ abstract class BaseHighLimitRecordFormatV3_0_6<RECORD extends AbstractBaseRecord
     static final int HEADER_BIT_FIRST_RECORD_UNIT = 0b0000_0100;
     static final int HEADER_BIT_FIXED_REFERENCE = 0b0000_0100;
 
-    protected BaseHighLimitRecordFormatV3_0_6( Function<StoreHeader,Integer> recordSize, int recordHeaderSize )
+    protected BaseHighLimitRecordFormatV3_0_6( Function<StoreHeader,Integer> recordSize,
+                                               int recordHeaderSize )
     {
         super( recordSize, recordHeaderSize, IN_USE_BIT, HighLimitV3_0_6.DEFAULT_MAXIMUM_BITS_PER_ID );
+    }
+
+    protected static int length( long reference )
+    {
+        return Reference.length( reference );
+    }
+
+    protected static int length( long reference, long nullValue )
+    {
+        return reference == nullValue ? 0 : length( reference );
+    }
+
+    protected static long decodeCompressedReference( PageCursor cursor )
+    {
+        return Reference.decode( cursor );
+    }
+
+    protected static long decodeCompressedReference( PageCursor cursor, long headerByte,
+                                                     int headerBitMask, long nullValue )
+    {
+        return has( headerByte, headerBitMask ) ? decodeCompressedReference( cursor ) : nullValue;
+    }
+
+    protected static void encode( PageCursor cursor, long reference )
+    {
+        Reference.encode( reference, cursor );
+    }
+
+    protected static void encode( PageCursor cursor, long reference, long nullValue )
+    {
+        if ( reference != nullValue )
+        {
+            Reference.encode( reference, cursor );
+        }
+    }
+
+    protected static byte set( byte header, int bitMask, long reference, long nullValue )
+    {
+        return set( header, bitMask, reference != nullValue );
     }
 
     @Override
@@ -129,7 +168,7 @@ abstract class BaseHighLimitRecordFormatV3_0_6<RECORD extends AbstractBaseRecord
                 primaryCursor.setCursorException( illegalSecondaryReferenceMessage( pageId ) );
                 return;
             }
-            secondaryCursor.setOffset( offset + HEADER_BYTE);
+            secondaryCursor.setOffset( offset + HEADER_BYTE );
             int primarySize = recordSize - (primaryCursor.getOffset() - primaryStartOffset);
             // We *could* sanity check the secondary record header byte here, but we won't. If it is wrong, then we most
             // likely did an inconsistent read, in which case we'll just retry. Otherwise, if the header byte is wrong,
@@ -139,8 +178,8 @@ abstract class BaseHighLimitRecordFormatV3_0_6<RECORD extends AbstractBaseRecord
             PageCursor composite = CompositePageCursor.compose(
                     primaryCursor, primarySize, secondaryCursor, secondarySize );
             doReadInternal( record, composite, recordSize, headerByte, inUse );
-            record.setSecondaryUnitId( secondaryId );
-            record.setRequiresSecondaryUnit(true); // Force override since we have secondaryUnitId
+            record.setSecondaryUnitIdOnLoad( secondaryId );
+            record.setRequiresSecondaryUnit( true ); // Force override since we have secondaryUnitId
         }
         else
         {
@@ -191,7 +230,8 @@ abstract class BaseHighLimitRecordFormatV3_0_6<RECORD extends AbstractBaseRecord
                 // Write using the normal adapter since the first reference we write cannot really overflow
                 // into the secondary record
                 long secondaryUnitId = record.getSecondaryUnitId();
-                long pageId = pageIdForRecord( secondaryUnitId, primaryCursor.getCurrentPageSize(), recordSize );
+                long pageId = pageIdForRecord( secondaryUnitId, primaryCursor.getCurrentPageSize(),
+                                               recordSize );
                 int offset = offsetForId( secondaryUnitId, primaryCursor.getCurrentPageSize(), recordSize );
                 PageCursor secondaryCursor = primaryCursor.openLinkedCursor( pageId );
                 if ( !secondaryCursor.next() )
@@ -231,11 +271,14 @@ abstract class BaseHighLimitRecordFormatV3_0_6<RECORD extends AbstractBaseRecord
         if ( record.hasSecondaryUnitId() )
         {
             long secondaryUnitId = record.getSecondaryUnitId();
-            long pageIdForSecondaryRecord = pageIdForRecord( secondaryUnitId, cursor.getCurrentPageSize(), recordSize );
-            int offsetForSecondaryId = offsetForId( secondaryUnitId, cursor.getCurrentPageSize(), recordSize );
+            long pageIdForSecondaryRecord = pageIdForRecord( secondaryUnitId, cursor.getCurrentPageSize(),
+                                                             recordSize );
+            int offsetForSecondaryId = offsetForId( secondaryUnitId, cursor.getCurrentPageSize(),
+                                                    recordSize );
             if ( !cursor.next( pageIdForSecondaryRecord ) )
             {
-                throw new UnderlyingStorageException( "Couldn't move to secondary page " + pageIdForSecondaryRecord );
+                throw new UnderlyingStorageException(
+                        "Couldn't move to secondary page " + pageIdForSecondaryRecord );
             }
             cursor.setOffset( offsetForSecondaryId );
             markAsUnused( cursor );
@@ -251,7 +294,7 @@ abstract class BaseHighLimitRecordFormatV3_0_6<RECORD extends AbstractBaseRecord
     {
         if ( record.inUse() )
         {
-            record.setUseFixedReferences( canUseFixedReferences( record, recordSize ));
+            record.setUseFixedReferences( canUseFixedReferences( record, recordSize ) );
             if ( !record.isUseFixedReferences() )
             {
                 int requiredLength = HEADER_BYTE + requiredDataLength( record );
@@ -261,7 +304,7 @@ abstract class BaseHighLimitRecordFormatV3_0_6<RECORD extends AbstractBaseRecord
                 {
                     // Allocate a new id at this point, but this is not the time to free this ID the the case where
                     // this record doesn't need this secondary unit anymore... that needs to be done when applying to store.
-                    record.setSecondaryUnitId( idSequence.nextId() );
+                    record.setSecondaryUnitIdOnLoad( idSequence.nextId() );
                 }
             }
         }
@@ -276,42 +319,4 @@ abstract class BaseHighLimitRecordFormatV3_0_6<RECORD extends AbstractBaseRecord
      * @return length required to store the data in the given record.
      */
     protected abstract int requiredDataLength( RECORD record );
-
-    protected static int length( long reference )
-    {
-        return Reference.length( reference );
-    }
-
-    protected static int length( long reference, long nullValue )
-    {
-        return reference == nullValue ? 0 : length( reference );
-    }
-
-    protected static long decodeCompressedReference( PageCursor cursor )
-    {
-        return Reference.decode( cursor );
-    }
-
-    protected static long decodeCompressedReference( PageCursor cursor, long headerByte, int headerBitMask, long nullValue )
-    {
-        return has( headerByte, headerBitMask ) ? decodeCompressedReference( cursor ) : nullValue;
-    }
-
-    protected static void encode( PageCursor cursor, long reference )
-    {
-        Reference.encode( reference, cursor );
-    }
-
-    protected static void encode( PageCursor cursor, long reference, long nullValue )
-    {
-        if ( reference != nullValue )
-        {
-            Reference.encode( reference, cursor );
-        }
-    }
-
-    protected static byte set( byte header, int bitMask, long reference, long nullValue )
-    {
-        return set( header, bitMask, reference != nullValue );
-    }
 }

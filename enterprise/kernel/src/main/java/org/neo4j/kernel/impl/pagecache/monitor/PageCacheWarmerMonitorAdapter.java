@@ -18,22 +18,25 @@
  */
 package org.neo4j.kernel.impl.pagecache.monitor;
 
+import org.neo4j.kernel.database.NamedDatabaseId;
+
 public class PageCacheWarmerMonitorAdapter implements PageCacheWarmerMonitor
 {
+
     @Override
-    public void warmupStarted()
+    public void warmupStarted( NamedDatabaseId namedDatabaseId )
     {
         //nothing
     }
 
     @Override
-    public void warmupCompleted( long pagesLoaded )
+    public void warmupCompleted( NamedDatabaseId namedDatabaseId, long pagesLoaded )
     {
         //nothing
     }
 
     @Override
-    public void profileCompleted( long pagesInMemory )
+    public void profileCompleted( NamedDatabaseId namedDatabaseId, long pagesInMemory )
     {
         //nothing
     }

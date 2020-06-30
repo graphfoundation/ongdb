@@ -23,5 +23,6 @@ import java.io.IOException;
 
 interface PageLoader extends Closeable
 {
+
     void load( long pageId ) throws IOException;
 }

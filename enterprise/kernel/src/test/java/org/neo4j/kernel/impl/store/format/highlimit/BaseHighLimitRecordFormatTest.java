@@ -20,7 +20,6 @@ package org.neo4j.kernel.impl.store.format.highlimit;
 
 import org.junit.Test;
 
-import java.io.IOException;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
@@ -37,6 +36,7 @@ import static org.neo4j.kernel.impl.store.format.highlimit.BaseHighLimitRecordFo
 
 public class BaseHighLimitRecordFormatTest
 {
+
     @Test
     public void mustNotCheckForOutOfBoundsWhenReadingSingleRecord() throws Exception
     {
@@ -92,6 +92,7 @@ public class BaseHighLimitRecordFormatTest
 
     private class MyRecordFormat extends BaseHighLimitRecordFormat<MyRecord>
     {
+
         private Queue<Integer> shortsPerRecord = new ConcurrentLinkedQueue<>();
 
         protected MyRecordFormat()
@@ -126,7 +127,7 @@ public class BaseHighLimitRecordFormatTest
             {
                 short v = record.value;
                 byte a = (byte) ((v & 0x0000FF00) >> 8);
-                byte b = (byte)  (v & 0x000000FF);
+                byte b = (byte) (v & 0x000000FF);
                 cursor.putByte( a );
                 cursor.putByte( b );
             }
@@ -159,6 +160,7 @@ public class BaseHighLimitRecordFormatTest
 
     private class MyRecord extends AbstractBaseRecord
     {
+
         public short value;
 
         protected MyRecord( long id )

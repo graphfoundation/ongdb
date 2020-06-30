@@ -22,10 +22,12 @@ import org.neo4j.kernel.impl.store.format.FormatFamily;
 
 /**
  * High limit format family.
+ *
  * @see FormatFamily
  */
 public class HighLimitFormatFamily extends FormatFamily
 {
+
     public static final FormatFamily INSTANCE = new HighLimitFormatFamily();
 
     private static final String HIGH_LIMIT_FORMAT_FAMILY_NAME = "High limit format family";
@@ -45,5 +47,4 @@ public class HighLimitFormatFamily extends FormatFamily
     {
         return 1;
     }
-
 }

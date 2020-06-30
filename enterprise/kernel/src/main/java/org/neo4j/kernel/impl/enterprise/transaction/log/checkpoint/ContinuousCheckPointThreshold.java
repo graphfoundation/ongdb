@@ -22,6 +22,7 @@ import org.neo4j.kernel.impl.transaction.log.checkpoint.AbstractCheckPointThresh
 
 class ContinuousCheckPointThreshold extends AbstractCheckPointThreshold
 {
+
     private volatile long nextTransactionIdTarget;
 
     ContinuousCheckPointThreshold()

@@ -23,6 +23,7 @@ import org.neo4j.kernel.impl.store.id.IdSequence;
 
 class ConstantIdSequence implements IdSequence
 {
+
     @Override
     public long nextId()
     {

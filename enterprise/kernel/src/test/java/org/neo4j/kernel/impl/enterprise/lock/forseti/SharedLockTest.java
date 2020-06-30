@@ -60,5 +60,4 @@ public class SharedLockTest
         assertThat( lock.numberOfHolders(), equalTo( 0 ) );
         assertThat( lock.isUpdateLock(), equalTo( false ) );
     }
-
 }

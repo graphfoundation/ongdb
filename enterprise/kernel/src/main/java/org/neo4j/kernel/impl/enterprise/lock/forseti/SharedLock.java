@@ -25,21 +25,20 @@ import java.util.concurrent.atomic.AtomicReferenceArray;
 import org.neo4j.kernel.impl.util.collection.SimpleBitSet;
 
 /**
- * A Forseti share lock. Can be upgraded to an update lock, which will block new attempts at acquiring shared lock,
- * but will allow existing holders to complete.
+ * A Forseti share lock. Can be upgraded to an update lock, which will block new attempts at acquiring shared lock, but will allow existing holders to
+ * complete.
  */
 class SharedLock implements ForsetiLockManager.Lock
 {
+
     /**
-     * The update lock flag is inlined into the ref count integer, in order to allow common CAS operations across
-     * both the update flag and the refCount simultaneously. This avoids a nasty series of race conditions, but
-     * makes the reference counting code much mode complicated. May be worth revisiting.
+     * The update lock flag is inlined into the ref count integer, in order to allow common CAS operations across both the update flag and the refCount
+     * simultaneously. This avoids a nasty series of race conditions, but makes the reference counting code much mode complicated. May be worth revisiting.
      */
     private static final int UPDATE_LOCK_FLAG = 1 << 31;
 
     /**
-     * No more holders than this allowed, don't change this without changing the sizing of
-     * {@link #clientsHoldingThisLock}.
+     * No more holders than this allowed, don't change this without changing the sizing of {@link #clientsHoldingThisLock}.
      */
     private static final int MAX_HOLDERS = 4680;
 
@@ -49,31 +48,29 @@ class SharedLock implements ForsetiLockManager.Lock
     private final AtomicInteger refCount = new AtomicInteger( 1 );
 
     /**
-     * When reading this, keep in mind the main design goals here: Releasing and acquiring this lock should not require
-     * synchronization, and the lock should have as low of a memory footprint as possible.
+     * When reading this, keep in mind the main design goals here: Releasing and acquiring this lock should not require synchronization, and the lock should
+     * have as low of a memory footprint as possible.
      * <p/>
-     * An array of arrays containing references to clients holding this lock. Each client can only show up once.
-     * When the lock is created only the first reference array is created (so the last three slots in the outer array
-     * are empty). The outer array is populated when the reference arrays are filled up, with exponentially larger
-     * reference arrays:
+     * An array of arrays containing references to clients holding this lock. Each client can only show up once. When the lock is created only the first
+     * reference array is created (so the last three slots in the outer array are empty). The outer array is populated when the reference arrays are filled up,
+     * with exponentially larger reference arrays:
      * <p/>
-     * clientsHoldingThisLock[0] = 8 slots
-     * clientsHoldingThisLock[1] = 64 slots
-     * clientsHoldingThisLock[2] = 512 slots
-     * clientsHoldingThisLock[3] = 4096 slots
+     * clientsHoldingThisLock[0] = 8 slots clientsHoldingThisLock[1] = 64 slots clientsHoldingThisLock[2] = 512 slots clientsHoldingThisLock[3] = 4096 slots
      * <p/>
      * Allowing a total of 4680 transactions holding the same shared lock simultaneously.
      * <p/>
-     * This data structure was chosen over using regular resizing of the array, because we need to be able to increase
-     * the size of the array without requiring synchronization between threads writing to the array and threads trying
-     * to resize (since the threads writing to the array are on one of the hottest code paths in the database).
+     * This data structure was chosen over using regular resizing of the array, because we need to be able to increase the size of the array without requiring
+     * synchronization between threads writing to the array and threads trying to resize (since the threads writing to the array are on one of the hottest code
+     * paths in the db).
      * <p/>
-     * This data structure is, however, not optimal, since it requires O(n) at worst to search for a slot and to remove
-     * a client from the array. This should be revisited in the future.
+     * This data structure is, however, not optimal, since it requires O(n) at worst to search for a slot and to remove a client from the array. This should be
+     * revisited in the future.
      */
     private final AtomicReferenceArray<ForsetiClient>[] clientsHoldingThisLock = new AtomicReferenceArray[4];
 
-    /** Client that holds the update lock, if any. */
+    /**
+     * Client that holds the update lock, if any.
+     */
     private ForsetiClient updateHolder;
 
     SharedLock( ForsetiClient client )
@@ -147,7 +144,8 @@ class SharedLock implements ForsetiLockManager.Lock
         while ( true )
         {
             int refs = refCount.get();
-            if ( refs > 0 /* UPDATE_LOCK flips the sign bit, so refs will be < 0 if it is an update lock. */ )
+            if ( refs
+                 > 0 /* UPDATE_LOCK flips the sign bit, so refs will be < 0 if it is an update lock. */ )
             {
                 if ( refCount.compareAndSet( refs, refs | UPDATE_LOCK_FLAG ) )
                 {
@@ -332,7 +330,8 @@ class SharedLock implements ForsetiLockManager.Lock
         {
             int refAndUpdateFlag = refCount.get();
             int newRefCount = (refAndUpdateFlag & ~UPDATE_LOCK_FLAG) - 1;
-            if ( refCount.compareAndSet( refAndUpdateFlag, newRefCount | (refAndUpdateFlag & UPDATE_LOCK_FLAG) ) )
+            if ( refCount
+                    .compareAndSet( refAndUpdateFlag, newRefCount | (refAndUpdateFlag & UPDATE_LOCK_FLAG) ) )
             {
                 return newRefCount == 0;
             }

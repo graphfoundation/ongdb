@@ -46,10 +46,11 @@ import static org.neo4j.kernel.impl.store.format.highlimit.BaseHighLimitRecordFo
 
 public class RelationshipRecordFormatTest
 {
+
     private final RelationshipRecordFormat format = new RelationshipRecordFormat();
     private final int recordSize = format.getRecordSize( NO_STORE_HEADER );
-    private ConstantIdSequence idSequence = new ConstantIdSequence();
-    private final FixedLinkedStubPageCursor cursor = new FixedLinkedStubPageCursor( 0, (int) ByteUnit.kibiBytes( 4 ) )
+    private final FixedLinkedStubPageCursor cursor = new FixedLinkedStubPageCursor( 0,
+                                                                                    (int) ByteUnit.kibiBytes( 4 ) )
     {
         @Override
         public boolean next( long pageId )
@@ -68,6 +69,7 @@ public class RelationshipRecordFormatTest
             return true;
         }
     };
+    private ConstantIdSequence idSequence = new ConstantIdSequence();
 
     @Test
     public void writeAndReadRecordWithRelativeReferences() throws IOException
@@ -91,15 +93,16 @@ public class RelationshipRecordFormatTest
      * the logic for marking both units as unused when deleting exists there.
      */
     @Test
-    public void shouldMarkBothUnitsAsUnusedWhenDeletingRecordWhichHasSecondaryUnit() throws Exception
+    public void shouldMarkBothUnitsAsUnusedWhenDeletingRecordWhichHasSecondaryUnit()
+            throws Exception
     {
         // GIVEN a record which requires two units
         PagedFile storeFile = mock( PagedFile.class );
         when( storeFile.pageSize() ).thenReturn( cursor.getCurrentPageSize() );
         long hugeValue = 1L << 48;
         RelationshipRecord record = new RelationshipRecord( 5 ).initialize( true,
-                hugeValue + 1, hugeValue + 2, hugeValue + 3, 4,
-                hugeValue + 5, hugeValue + 6, hugeValue + 7, hugeValue + 8, true, true );
+                                                                            hugeValue + 1, hugeValue + 2, hugeValue + 3, 4,
+                                                                            hugeValue + 5, hugeValue + 6, hugeValue + 7, hugeValue + 8, true, true );
         record.setSecondaryUnitId( 17 );
         record.setRequiresSecondaryUnit( true );
         cursor.setOffset( offsetForId( record.getId(), cursor.getCurrentPageSize(), recordSize ) );
@@ -113,7 +116,8 @@ public class RelationshipRecordFormatTest
         // THEN both units should have been marked as unused
         cursor.setOffset( offsetForId( record.getId(), cursor.getCurrentPageSize(), recordSize ) );
         assertFalse( recordInUse( cursor ) );
-        cursor.setOffset( offsetForId( record.getSecondaryUnitId(), cursor.getCurrentPageSize(), recordSize ) );
+        cursor.setOffset(
+                offsetForId( record.getSecondaryUnitId(), cursor.getCurrentPageSize(), recordSize ) );
         assertFalse( recordInUse( cursor ) );
     }
 
@@ -122,14 +126,16 @@ public class RelationshipRecordFormatTest
     {
         RelationshipRecord source = new RelationshipRecord( 1 );
         RelationshipRecord target = new RelationshipRecord( 1 );
-        source.initialize( true, randomFixedReference(), randomFixedReference(), randomFixedReference(), randomShortType(),
-                randomFixedReference(), randomFixedReference(), randomFixedReference(), randomFixedReference(),
-                true, true );
+        source.initialize( true, randomFixedReference(), randomFixedReference(), randomFixedReference(),
+                           randomShortType(),
+                           randomFixedReference(), randomFixedReference(), randomFixedReference(),
+                           randomFixedReference(),
+                           true, true );
 
         writeReadRecord( source, target );
 
         assertTrue( "Record should use fixed reference format.", target.isUseFixedReferences() );
-        verifySameReferences( source, target);
+        verifySameReferences( source, target );
     }
 
     @Test
@@ -137,14 +143,16 @@ public class RelationshipRecordFormatTest
     {
         RelationshipRecord source = new RelationshipRecord( 1 );
         RelationshipRecord target = new RelationshipRecord( 1 );
-        source.initialize( true, randomFixedReference(), randomFixedReference(), randomFixedReference(), 1 << 16,
-                randomFixedReference(), randomFixedReference(), randomFixedReference(), randomFixedReference(),
-                true, true );
+        source.initialize( true, randomFixedReference(), randomFixedReference(), randomFixedReference(),
+                           1 << 16,
+                           randomFixedReference(), randomFixedReference(), randomFixedReference(),
+                           randomFixedReference(),
+                           true, true );
 
         writeReadRecord( source, target );
 
         assertFalse( "Record should use variable length format.", target.isUseFixedReferences() );
-        verifySameReferences( source, target);
+        verifySameReferences( source, target );
     }
 
     @Test
@@ -152,14 +160,16 @@ public class RelationshipRecordFormatTest
     {
         RelationshipRecord source = new RelationshipRecord( 1 );
         RelationshipRecord target = new RelationshipRecord( 1 );
-        source.initialize( true, randomFixedReference(), randomFixedReference(), randomFixedReference(), (1 << 16) - 1,
-                randomFixedReference(), randomFixedReference(), randomFixedReference(), randomFixedReference(),
-                true, true );
+        source.initialize( true, randomFixedReference(), randomFixedReference(), randomFixedReference(),
+                           (1 << 16) - 1,
+                           randomFixedReference(), randomFixedReference(), randomFixedReference(),
+                           randomFixedReference(),
+                           true, true );
 
         writeReadRecord( source, target );
 
         assertTrue( "Record should use fixed reference format.", target.isUseFixedReferences() );
-        verifySameReferences( source, target);
+        verifySameReferences( source, target );
     }
 
     @Test
@@ -184,14 +194,17 @@ public class RelationshipRecordFormatTest
     {
         RelationshipRecord source = new RelationshipRecord( 1 );
         RelationshipRecord target = new RelationshipRecord( 1 );
-        source.initialize( true, randomFixedReference(), randomFixedReference(), randomFixedReference(), randomType(),
-                randomFixedReference(), randomFixedReference(), randomFixedReference(), randomFixedReference(),
-                true, true );
+        source.initialize( true, randomFixedReference(), randomFixedReference(), randomFixedReference(),
+                           randomType(),
+                           randomFixedReference(), randomFixedReference(), randomFixedReference(),
+                           randomFixedReference(),
+                           true, true );
 
         writeReadRecord( source, target, RelationshipRecordFormat.FIXED_FORMAT_RECORD_SIZE - 1 );
 
-        assertFalse( "Record should use variable length reference if format record is too small.", target.isUseFixedReferences() );
-        verifySameReferences( source, target);
+        assertFalse( "Record should use variable length reference if format record is too small.",
+                     target.isUseFixedReferences() );
+        verifySameReferences( source, target );
     }
 
     @Test
@@ -199,18 +212,22 @@ public class RelationshipRecordFormatTest
     {
         RelationshipRecord source = new RelationshipRecord( 1 );
         RelationshipRecord target = new RelationshipRecord( 1 );
-        source.initialize( true, randomFixedReference(), randomFixedReference(), randomFixedReference(), randomShortType(),
-                randomFixedReference(), randomFixedReference(), randomFixedReference(), randomFixedReference(),
-                true, true );
+        source.initialize( true, randomFixedReference(), randomFixedReference(), randomFixedReference(),
+                           randomShortType(),
+                           randomFixedReference(), randomFixedReference(), randomFixedReference(),
+                           randomFixedReference(),
+                           true, true );
 
         writeReadRecord( source, target, RelationshipRecordFormat.FIXED_FORMAT_RECORD_SIZE );
 
-        assertTrue( "Record should use fixed reference if can fit in format record.", target.isUseFixedReferences() );
-        verifySameReferences( source, target);
+        assertTrue( "Record should use fixed reference if can fit in format record.",
+                    target.isUseFixedReferences() );
+        verifySameReferences( source, target );
     }
 
-    private void verifyRecordsWithPoisonedReference( RelationshipRecord source, RelationshipRecord target,
-            long poisonedReference, int type ) throws IOException
+    private void verifyRecordsWithPoisonedReference( RelationshipRecord source,
+                                                     RelationshipRecord target,
+                                                     long poisonedReference, int type ) throws IOException
     {
         boolean nullPoison = poisonedReference == NULL;
         // first and second node can't be empty references so excluding them in case if poisoned reference is null
@@ -221,9 +238,9 @@ public class RelationshipRecordFormatTest
             cursor.setOffset( 0 );
             Iterator<Long> iterator = references.iterator();
             source.initialize( true, iterator.next(),
-                    nullPoison ? randomFixedReference() : iterator.next(),
-                    nullPoison ? randomFixedReference() : iterator.next(),
-                    type, iterator.next(), iterator.next(), iterator.next(), iterator.next(), true, true );
+                               nullPoison ? randomFixedReference() : iterator.next(),
+                               nullPoison ? randomFixedReference() : iterator.next(),
+                               type, iterator.next(), iterator.next(), iterator.next(), iterator.next(), true, true );
 
             writeReadRecord( source, target );
 
@@ -233,7 +250,8 @@ public class RelationshipRecordFormatTest
             }
             else
             {
-                assertFalse( "Record should use variable length reference format.", target.isUseFixedReferences() );
+                assertFalse( "Record should use variable length reference format.",
+                             target.isUseFixedReferences() );
             }
             verifySameReferences( source, target );
             Collections.rotate( references, 1 );
@@ -251,12 +269,14 @@ public class RelationshipRecordFormatTest
         return references;
     }
 
-    private void writeReadRecord( RelationshipRecord source, RelationshipRecord target ) throws java.io.IOException
+    private void writeReadRecord( RelationshipRecord source, RelationshipRecord target )
+            throws java.io.IOException
     {
         writeReadRecord( source, target, recordSize );
     }
 
-    private void writeReadRecord( RelationshipRecord source, RelationshipRecord target, int recordSize ) throws java.io.IOException
+    private void writeReadRecord( RelationshipRecord source, RelationshipRecord target, int recordSize )
+            throws java.io.IOException
     {
         format.prepare( source, recordSize, idSequence );
         format.write( source, cursor, recordSize );
@@ -271,12 +291,12 @@ public class RelationshipRecordFormatTest
     }
 
     private void checkRecord( RelationshipRecordFormat format, int recordSize, StubPageCursor cursor,
-            long recordId, int recordOffset, RelationshipRecord record ) throws IOException
+                              long recordId, int recordOffset, RelationshipRecord record ) throws IOException
     {
         format.write( record, cursor, recordSize );
 
         RelationshipRecord recordFromStore = format.newRecord();
-        recordFromStore.setId( recordId  );
+        recordFromStore.setId( recordId );
         resetCursor( cursor, recordOffset );
         format.read( recordFromStore, cursor, RecordLoad.NORMAL, recordSize );
 
@@ -286,7 +306,7 @@ public class RelationshipRecordFormatTest
         // now lets try to read same data into a record with different id - we should get different absolute references
         resetCursor( cursor, recordOffset );
         RelationshipRecord recordWithOtherId = format.newRecord();
-        recordWithOtherId.setId( 1L  );
+        recordWithOtherId.setId( 1L );
         format.read( recordWithOtherId, cursor, RecordLoad.NORMAL, recordSize );
 
         assertNotEquals( record.getFirstNextRel(), recordWithOtherId.getFirstNextRel() );
@@ -298,13 +318,20 @@ public class RelationshipRecordFormatTest
     private void verifySameReferences( RelationshipRecord record, RelationshipRecord recordFromStore )
     {
         assertEquals( "Types should be equal.", record.getType(), recordFromStore.getType() );
-        assertEquals( "First Next references should be equal.", record.getFirstNextRel(), recordFromStore.getFirstNextRel() );
-        assertEquals( "First Node references should be equal.", record.getFirstNode(), recordFromStore.getFirstNode() );
-        assertEquals( "First Prev Rel references should be equal.", record.getFirstPrevRel(), recordFromStore.getFirstPrevRel() );
-        assertEquals( "Second Next Rel references should be equal.", record.getSecondNextRel(), recordFromStore.getSecondNextRel() );
-        assertEquals( "Second Node references should be equal.", record.getSecondNode(), recordFromStore.getSecondNode() );
-        assertEquals( "Second Prev Rel references should be equal.", record.getSecondPrevRel(), recordFromStore.getSecondPrevRel() );
-        assertEquals( "Next Prop references should be equal.", record.getNextProp(), recordFromStore.getNextProp() );
+        assertEquals( "First Next references should be equal.", record.getFirstNextRel(),
+                      recordFromStore.getFirstNextRel() );
+        assertEquals( "First Node references should be equal.", record.getFirstNode(),
+                      recordFromStore.getFirstNode() );
+        assertEquals( "First Prev Rel references should be equal.", record.getFirstPrevRel(),
+                      recordFromStore.getFirstPrevRel() );
+        assertEquals( "Second Next Rel references should be equal.", record.getSecondNextRel(),
+                      recordFromStore.getSecondNextRel() );
+        assertEquals( "Second Node references should be equal.", record.getSecondNode(),
+                      recordFromStore.getSecondNode() );
+        assertEquals( "Second Prev Rel references should be equal.", record.getSecondPrevRel(),
+                      recordFromStore.getSecondPrevRel() );
+        assertEquals( "Next Prop references should be equal.", record.getNextProp(),
+                      recordFromStore.getNextProp() );
     }
 
     private void resetCursor( StubPageCursor cursor, int recordOffset )
@@ -314,7 +341,7 @@ public class RelationshipRecordFormatTest
 
     // Create high-limit record which fits in one record
     private RelationshipRecord createCompactRecord( RelationshipRecordFormat format, long recordId,
-            boolean firstInFirstChain, boolean firstInSecondChain )
+                                                    boolean firstInFirstChain, boolean firstInSecondChain )
     {
         RelationshipRecord record = format.newRecord();
         record.setInUse( true );
@@ -343,7 +370,7 @@ public class RelationshipRecordFormatTest
 
     private long randomFixedReference()
     {
-        return randomReference( 1L << (Integer.SIZE + 1 ) );
+        return randomReference( 1L << (Integer.SIZE + 1) );
     }
 
     private long randomReference( long maxValue )

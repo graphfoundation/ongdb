@@ -20,6 +20,7 @@ package org.neo4j.kernel.enterprise.builtinprocs;
 
 public class ConnectionTerminationResult
 {
+
     private static final String SUCCESS_MESSAGE = "Connection found";
 
     public final String connectionId;

@@ -68,6 +68,12 @@ import static org.neo4j.kernel.impl.storemigration.StoreUpgrader.UnexpectedUpgra
 @RunWith( Enclosed.class )
 public class UpgradableDatabaseTest
 {
+
+    private static RecordFormats getRecordFormat()
+    {
+        return Standard.LATEST_RECORD_FORMATS;
+    }
+
     @RunWith( Parameterized.class )
     public static class SupportedVersions
     {
@@ -79,13 +85,11 @@ public class UpgradableDatabaseTest
         @Rule
         public RuleChain ruleChain = RuleChain.outerRule( testDirectory )
                                               .around( fileSystemRule ).around( pageCacheRule );
-
+        @Parameterized.Parameter( 0 )
+        public String version;
         private DatabaseLayout databaseLayout;
         private FileSystemAbstraction fileSystem;
         private LogTailScanner tailScanner;
-
-        @Parameterized.Parameter( 0 )
-        public String version;
 
         @Parameterized.Parameters( name = "{0}" )
         public static Collection<String> versions()
@@ -100,13 +104,16 @@ public class UpgradableDatabaseTest
         {
             fileSystem = fileSystemRule.get();
             databaseLayout = testDirectory.databaseLayout();
-            MigrationTestUtils.findFormatStoreDirectoryForVersion( version, databaseLayout.databaseDirectory() );
+            MigrationTestUtils
+                    .findFormatStoreDirectoryForVersion( version, databaseLayout.databaseDirectory() );
             VersionAwareLogEntryReader<ReadableClosablePositionAwareChannel> logEntryReader = new VersionAwareLogEntryReader<>();
-            LogFiles logFiles = LogFilesBuilder.logFilesBasedOnlyBuilder( databaseLayout.databaseDirectory(), fileSystem ).build();
+            LogFiles logFiles = LogFilesBuilder
+                    .logFilesBasedOnlyBuilder( databaseLayout.databaseDirectory(), fileSystem ).build();
             tailScanner = new LogTailScanner( logFiles, logEntryReader, new Monitors() );
         }
 
-        boolean storeFilesUpgradable( DatabaseLayout databaseLayout, UpgradableDatabase upgradableDatabase )
+        boolean storeFilesUpgradable( DatabaseLayout databaseLayout,
+                                      UpgradableDatabase upgradableDatabase )
         {
             try
             {
@@ -164,13 +171,14 @@ public class UpgradableDatabaseTest
         private UpgradableDatabase getUpgradableDatabase()
         {
             return new UpgradableDatabase( new StoreVersionCheck( pageCacheRule.getPageCache( fileSystem ) ),
-                    getRecordFormat(), tailScanner );
+                                           getRecordFormat(), tailScanner );
         }
     }
 
     @RunWith( Parameterized.class )
     public static class UnsupportedVersions
     {
+
         private static final String neostoreFilename = "neostore";
 
         private final TestDirectory testDirectory = TestDirectory.testDirectory();
@@ -179,14 +187,12 @@ public class UpgradableDatabaseTest
 
         @Rule
         public RuleChain ruleChain = RuleChain.outerRule( testDirectory )
-                .around( fileSystemRule ).around( pageCacheRule );
-
+                                              .around( fileSystemRule ).around( pageCacheRule );
+        @Parameterized.Parameter( 0 )
+        public String version;
         private DatabaseLayout databaseLayout;
         private FileSystemAbstraction fileSystem;
         private LogTailScanner tailScanner;
-
-        @Parameterized.Parameter( 0 )
-        public String version;
 
         @Parameterized.Parameters( name = "{0}" )
         public static Collection<String> versions()
@@ -200,13 +206,16 @@ public class UpgradableDatabaseTest
             fileSystem = fileSystemRule.get();
             databaseLayout = testDirectory.databaseLayout();
             // doesn't matter which version we pick we are changing it to the wrong one...
-            MigrationTestUtils.findFormatStoreDirectoryForVersion( StandardV2_3.STORE_VERSION, databaseLayout.databaseDirectory() );
+            MigrationTestUtils.findFormatStoreDirectoryForVersion( StandardV2_3.STORE_VERSION,
+                                                                   databaseLayout.databaseDirectory() );
             changeVersionNumber( fileSystem, databaseLayout.file( neostoreFilename ), version );
             File metadataStore = databaseLayout.metadataStore();
             PageCache pageCache = pageCacheRule.getPageCache( fileSystem );
-            MetaDataStore.setRecord( pageCache, metadataStore, STORE_VERSION, MetaDataStore.versionStringToLong( version ) );
+            MetaDataStore.setRecord( pageCache, metadataStore, STORE_VERSION,
+                                     MetaDataStore.versionStringToLong( version ) );
             VersionAwareLogEntryReader<ReadableClosablePositionAwareChannel> logEntryReader = new VersionAwareLogEntryReader<>();
-            LogFiles logFiles = LogFilesBuilder.logFilesBasedOnlyBuilder( databaseLayout.databaseDirectory(), fileSystem ).build();
+            LogFiles logFiles = LogFilesBuilder
+                    .logFilesBasedOnlyBuilder( databaseLayout.databaseDirectory(), fileSystem ).build();
             tailScanner = new LogTailScanner( logFiles, logEntryReader, new Monitors() );
         }
 
@@ -238,27 +247,22 @@ public class UpgradableDatabaseTest
             {
                 // then
                 assertEquals( String.format( MESSAGE, version, upgradableDatabase.currentVersion(),
-                        Version.getNeo4jVersion() ), e.getMessage() );
+                                             Version.getNeo4jVersion() ), e.getMessage() );
             }
             catch ( StoreUpgrader.UnexpectedUpgradingStoreFormatException e )
             {
                 // then
                 assertNotSame( StandardFormatFamily.INSTANCE,
-                        RecordFormatSelector.selectForVersion( version ).getFormatFamily());
+                               RecordFormatSelector.selectForVersion( version ).getFormatFamily() );
                 assertEquals( String.format( StoreUpgrader.UnexpectedUpgradingStoreFormatException.MESSAGE,
-                        GraphDatabaseSettings.record_format.name() ), e.getMessage() );
+                                             GraphDatabaseSettings.record_format.name() ), e.getMessage() );
             }
         }
 
         private UpgradableDatabase getUpgradableDatabase()
         {
             return new UpgradableDatabase( new StoreVersionCheck( pageCacheRule.getPageCache( fileSystem ) ),
-                    getRecordFormat(), tailScanner );
+                                           getRecordFormat(), tailScanner );
         }
-    }
-
-    private static RecordFormats getRecordFormat()
-    {
-        return Standard.LATEST_RECORD_FORMATS;
     }
 }

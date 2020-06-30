@@ -47,6 +47,7 @@ import static org.junit.Assert.assertThat;
 
 public class NodeIdReuseStressIT
 {
+
     private static final int CONTESTANTS_COUNT = 12;
     private static final int INITIAL_NODE_COUNT = 10_000;
     private static final int OPERATIONS_COUNT = 10_000;
@@ -54,6 +55,51 @@ public class NodeIdReuseStressIT
     @Rule
     public final DatabaseRule db = new EnterpriseDatabaseRule()
             .withSetting( EnterpriseEditionSettings.idTypesToReuse, IdType.NODE.name() );
+
+    private static void createInitialNodes( GraphDatabaseService db )
+    {
+        try ( Transaction tx = db.beginTx() )
+        {
+            for ( int i = 0; i < INITIAL_NODE_COUNT; i++ )
+            {
+                db.createNode();
+            }
+            tx.success();
+        }
+    }
+
+    private static long highestNodeId( GraphDatabaseService db )
+    {
+        DependencyResolver resolver = dependencyResolver( db );
+        NeoStores neoStores = resolver.resolveDependency( RecordStorageEngine.class )
+                                      .testAccessNeoStores();
+        NodeStore nodeStore = neoStores.getNodeStore();
+        return nodeStore.getHighestPossibleIdInUse();
+    }
+
+    private static void maybeRunIdMaintenance( GraphDatabaseService db, int iteration )
+    {
+        if ( iteration % 100 == 0 && ThreadLocalRandom.current().nextBoolean() )
+        {
+            DependencyResolver resolver = dependencyResolver( db );
+            IdController idController = resolver.resolveDependency( IdController.class );
+            if ( idController != null )
+            {
+                idController.maintenance();
+            }
+            else
+            {
+                System.out.println( "Id controller is null. Dumping resolver content." );
+                System.out.println( "Resolver: " + ReflectionToStringBuilder.toString( resolver ) );
+                throw new IllegalStateException( "Id controller not found" );
+            }
+        }
+    }
+
+    private static DependencyResolver dependencyResolver( GraphDatabaseService db )
+    {
+        return ((GraphDatabaseAPI) db).getDependencyResolver();
+    }
 
     @Before
     public void verifyParams()
@@ -95,52 +141,9 @@ public class NodeIdReuseStressIT
         assertThat( currentHighestNodeId, lessThan( highestNodeIdWithoutReuse ) );
     }
 
-    private static void createInitialNodes( GraphDatabaseService db )
-    {
-        try ( Transaction tx = db.beginTx() )
-        {
-            for ( int i = 0; i < INITIAL_NODE_COUNT; i++ )
-            {
-                db.createNode();
-            }
-            tx.success();
-        }
-    }
-
-    private static long highestNodeId( GraphDatabaseService db )
-    {
-        DependencyResolver resolver = dependencyResolver( db );
-        NeoStores neoStores = resolver.resolveDependency( RecordStorageEngine.class ).testAccessNeoStores();
-        NodeStore nodeStore = neoStores.getNodeStore();
-        return nodeStore.getHighestPossibleIdInUse();
-    }
-
-    private static void maybeRunIdMaintenance( GraphDatabaseService db, int iteration )
-    {
-        if ( iteration % 100 == 0 && ThreadLocalRandom.current().nextBoolean() )
-        {
-            DependencyResolver resolver = dependencyResolver( db );
-            IdController idController = resolver.resolveDependency( IdController.class );
-            if ( idController != null )
-            {
-                idController.maintenance();
-            }
-            else
-            {
-                System.out.println( "Id controller is null. Dumping resolver content." );
-                System.out.println( "Resolver: " + ReflectionToStringBuilder.toString( resolver ) );
-                throw new IllegalStateException( "Id controller not found" );
-            }
-        }
-    }
-
-    private static DependencyResolver dependencyResolver( GraphDatabaseService db )
-    {
-        return ((GraphDatabaseAPI) db).getDependencyResolver();
-    }
-
     private static class NodeCreator implements Runnable
     {
+
         final GraphDatabaseService db;
 
         NodeCreator( GraphDatabaseService db )
@@ -166,6 +169,7 @@ public class NodeIdReuseStressIT
 
     private static class NodeRemover implements Runnable
     {
+
         final GraphDatabaseService db;
 
         NodeRemover( GraphDatabaseService db )

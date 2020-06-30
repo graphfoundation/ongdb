@@ -26,14 +26,13 @@ import org.neo4j.internal.kernel.api.Read;
 import org.neo4j.internal.kernel.api.RelationshipScanCursor;
 import org.neo4j.internal.kernel.api.exceptions.schema.ConstraintValidationException;
 import org.neo4j.internal.kernel.api.exceptions.schema.CreateConstraintFailureException;
-import org.neo4j.internal.kernel.api.schema.LabelSchemaDescriptor;
-import org.neo4j.internal.kernel.api.schema.RelationTypeSchemaDescriptor;
-import org.neo4j.internal.kernel.api.schema.constraints.ConstraintDescriptor;
+import org.neo4j.internal.schema.ConstraintDescriptor;
+import org.neo4j.internal.schema.LabelSchemaDescriptor;
+import org.neo4j.internal.schema.RelationTypeSchemaDescriptor;
+import org.neo4j.internal.schema.constraints.NodeKeyConstraintDescriptor;
 import org.neo4j.kernel.api.exceptions.schema.NodePropertyExistenceException;
 import org.neo4j.kernel.api.exceptions.schema.RelationshipPropertyExistenceException;
-import org.neo4j.kernel.api.schema.constraints.NodeKeyConstraintDescriptor;
 import org.neo4j.kernel.impl.constraints.StandardConstraintSemantics;
-import org.neo4j.kernel.impl.store.record.ConstraintRule;
 import org.neo4j.storageengine.api.StorageReader;
 import org.neo4j.storageengine.api.txstate.ReadableTransactionState;
 import org.neo4j.storageengine.api.txstate.TxStateVisitor;
@@ -43,37 +42,50 @@ import static org.neo4j.kernel.impl.enterprise.PropertyExistenceEnforcer.getOrCr
 
 public class EnterpriseConstraintSemantics extends StandardConstraintSemantics
 {
+
     public EnterpriseConstraintSemantics()
     {
-        super( "enterpriseConstraints", 2 );
+        super( 2 );
     }
 
     @Override
-    protected ConstraintDescriptor readNonStandardConstraint( ConstraintRule rule, String errorMessage )
+    public String getName()
     {
-        if ( !rule.getConstraintDescriptor().enforcesPropertyExistence() )
+        return "enterpriseConstraints";
+    }
+
+    @Override
+    protected ConstraintDescriptor readNonStandardConstraint( ConstraintDescriptor constraint,
+                                                              String errorMessage )
+    {
+        if ( !constraint.enforcesPropertyExistence() )
         {
-            throw new IllegalStateException( "Unsupported constraint type: " + rule );
+            throw new IllegalStateException( "Unsupported constraint type: " + constraint );
         }
-        return rule.getConstraintDescriptor();
+        else
+        {
+            return constraint;
+        }
     }
 
     @Override
-    public ConstraintRule createNodeKeyConstraintRule(
-            long ruleId, NodeKeyConstraintDescriptor descriptor, long indexId )
+    public ConstraintDescriptor createNodeKeyConstraintRule( long ruleId,
+                                                             NodeKeyConstraintDescriptor descriptor, long indexId )
     {
-        return ConstraintRule.constraintRule( ruleId, descriptor, indexId );
+        return this.accessor.createNodeKeyConstraintRule( ruleId, descriptor, indexId );
     }
 
     @Override
-    public ConstraintRule createExistenceConstraint( long ruleId, ConstraintDescriptor descriptor )
+    public ConstraintDescriptor createExistenceConstraint( long ruleId,
+                                                           ConstraintDescriptor descriptor )
     {
-        return ConstraintRule.constraintRule( ruleId, descriptor );
+        return this.accessor.createExistenceConstraint( ruleId, descriptor );
     }
 
     @Override
-    public void validateNodePropertyExistenceConstraint( NodeLabelIndexCursor allNodes, NodeCursor nodeCursor,
-            PropertyCursor propertyCursor, LabelSchemaDescriptor descriptor )
+    public void validateNodePropertyExistenceConstraint( NodeLabelIndexCursor allNodes,
+                                                         NodeCursor nodeCursor,
+                                                         PropertyCursor propertyCursor, LabelSchemaDescriptor descriptor )
             throws CreateConstraintFailureException
     {
         while ( allNodes.next() )
@@ -88,7 +100,7 @@ public class EnterpriseConstraintSemantics extends StandardConstraintSemantics
                     {
                         throw createConstraintFailure(
                                 new NodePropertyExistenceException( descriptor, VERIFICATION,
-                                        nodeCursor.nodeReference() ) );
+                                                                    nodeCursor.nodeReference() ) );
                     }
                 }
             }
@@ -97,7 +109,8 @@ public class EnterpriseConstraintSemantics extends StandardConstraintSemantics
 
     @Override
     public void validateNodeKeyConstraint( NodeLabelIndexCursor allNodes, NodeCursor nodeCursor,
-            PropertyCursor propertyCursor, LabelSchemaDescriptor descriptor ) throws CreateConstraintFailureException
+                                           PropertyCursor propertyCursor, LabelSchemaDescriptor descriptor )
+            throws CreateConstraintFailureException
     {
         validateNodePropertyExistenceConstraint( allNodes, nodeCursor, propertyCursor, descriptor );
     }
@@ -115,7 +128,8 @@ public class EnterpriseConstraintSemantics extends StandardConstraintSemantics
     }
 
     @Override
-    public void validateRelationshipPropertyExistenceConstraint( RelationshipScanCursor relationshipCursor,
+    public void validateRelationshipPropertyExistenceConstraint(
+            RelationshipScanCursor relationshipCursor,
             PropertyCursor propertyCursor, RelationTypeSchemaDescriptor descriptor )
             throws CreateConstraintFailureException
     {
@@ -130,20 +144,22 @@ public class EnterpriseConstraintSemantics extends StandardConstraintSemantics
                 {
                     throw createConstraintFailure(
                             new RelationshipPropertyExistenceException( descriptor, VERIFICATION,
-                                    relationshipCursor.relationshipReference() ) );
+                                                                        relationshipCursor.relationshipReference() ) );
                 }
             }
         }
     }
 
-    private CreateConstraintFailureException createConstraintFailure( ConstraintValidationException it )
+    private CreateConstraintFailureException createConstraintFailure(
+            ConstraintValidationException it )
     {
         return new CreateConstraintFailureException( it.constraint(), it );
     }
 
     @Override
     public TxStateVisitor decorateTxStateVisitor( StorageReader storageReader,
-            Read read, CursorFactory cursorFactory, ReadableTransactionState txState, TxStateVisitor visitor )
+                                                  Read read, CursorFactory cursorFactory, ReadableTransactionState txState,
+                                                  TxStateVisitor visitor )
     {
         if ( !txState.hasDataChanges() )
         {

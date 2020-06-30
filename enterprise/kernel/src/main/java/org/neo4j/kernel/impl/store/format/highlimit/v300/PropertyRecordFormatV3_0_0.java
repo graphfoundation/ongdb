@@ -28,24 +28,16 @@ import org.neo4j.kernel.impl.store.record.RecordLoad;
 import static org.neo4j.kernel.impl.store.format.highlimit.Reference.toAbsolute;
 import static org.neo4j.kernel.impl.store.format.highlimit.Reference.toRelative;
 
-
 /**
- * LEGEND:
- * V: variable between 3B-8B
- *
- * Record format:
- * 1B   header
- * VB   previous property
- * VB   next property
- * 8B   property block
- * 8B   property block
- * 8B   property block
- * 8B   property block
- *
+ * LEGEND: V: variable between 3B-8B
+ * <p>
+ * Record format: 1B   header VB   previous property VB   next property 8B   property block 8B property block 8B   property block 8B   property block
+ * <p>
  * => 39B-49B
  */
 public class PropertyRecordFormatV3_0_0 extends BaseOneByteHeaderRecordFormat<PropertyRecord>
 {
+
     public static final int RECORD_SIZE = 48;
 
     public PropertyRecordFormatV3_0_0()
@@ -70,11 +62,13 @@ public class PropertyRecordFormatV3_0_0 extends BaseOneByteHeaderRecordFormat<Pr
             int blockCount = headerByte >>> 4;
             long recordId = record.getId();
             record.initialize( inUse,
-                    toAbsolute( Reference.decode( cursor ), recordId ),
-                    toAbsolute( Reference.decode( cursor ), recordId ) );
-            if ( (blockCount > record.getBlockCapacity()) | (RECORD_SIZE - (cursor.getOffset() - offset) < blockCount * Long.BYTES) )
+                               toAbsolute( Reference.decode( cursor ), recordId ),
+                               toAbsolute( Reference.decode( cursor ), recordId ) );
+            if ( (blockCount > record.getBlockCapacity()) | (RECORD_SIZE - (cursor.getOffset() - offset)
+                                                             < blockCount * Long.BYTES) )
             {
-                cursor.setCursorException( "PropertyRecord claims to contain more blocks than can fit in a record" );
+                cursor.setCursorException(
+                        "PropertyRecord claims to contain more blocks than can fit in a record" );
                 return;
             }
             while ( blockCount-- > 0 )
@@ -91,8 +85,8 @@ public class PropertyRecordFormatV3_0_0 extends BaseOneByteHeaderRecordFormat<Pr
         {
             cursor.putByte( (byte) (IN_USE_BIT | numberOfBlocks( record ) << 4) );
             long recordId = record.getId();
-            Reference.encode( toRelative( record.getPrevProp(), recordId), cursor );
-            Reference.encode( toRelative( record.getNextProp(), recordId), cursor );
+            Reference.encode( toRelative( record.getPrevProp(), recordId ), cursor );
+            Reference.encode( toRelative( record.getNextProp(), recordId ), cursor );
             for ( PropertyBlock block : record )
             {
                 for ( long propertyBlock : block.getValueBlocks() )

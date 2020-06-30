@@ -32,18 +32,20 @@ import org.neo4j.kernel.api.schema.constraints.RelExistenceConstraintDescriptor;
 import org.neo4j.kernel.api.schema.constraints.UniquenessConstraintDescriptor;
 import org.neo4j.storageengine.api.StorageReader;
 
-import static org.junit.Assert.assertArrayEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 public class PropertyExistenceEnforcerTest
 {
+
     @Test
     public void constraintPropertyIdsNotUpdatedByConstraintEnforcer()
     {
-        UniquenessConstraintDescriptor uniquenessConstraint = ConstraintDescriptorFactory.uniqueForLabel( 1, 1, 70, 8 );
-        NodeKeyConstraintDescriptor nodeKeyConstraint = ConstraintDescriptorFactory.nodeKeyForLabel( 2, 12, 7, 13 );
+        UniquenessConstraintDescriptor uniquenessConstraint = ConstraintDescriptorFactory
+                .uniqueForLabel( 1, 1, 70, 8 );
+        NodeKeyConstraintDescriptor nodeKeyConstraint = ConstraintDescriptorFactory
+                .nodeKeyForLabel( 2, 12, 7, 13 );
         RelExistenceConstraintDescriptor relTypeConstraint =
                 ConstraintDescriptorFactory.existsForRelType( 3, 5, 13, 8 );
         List<ConstraintDescriptor> descriptors =
@@ -54,11 +56,11 @@ public class PropertyExistenceEnforcerTest
         PropertyExistenceEnforcer.getOrCreatePropertyExistenceEnforcerFrom( storageReader );
 
         assertArrayEquals( "Property ids should remain untouched.", new int[]{1, 70, 8},
-                uniquenessConstraint.schema().getPropertyIds() );
+                           uniquenessConstraint.schema().getPropertyIds() );
         assertArrayEquals( "Property ids should remain untouched.", new int[]{12, 7, 13},
-                nodeKeyConstraint.schema().getPropertyIds() );
+                           nodeKeyConstraint.schema().getPropertyIds() );
         assertArrayEquals( "Property ids should remain untouched.", new int[]{5, 13, 8},
-                relTypeConstraint.schema().getPropertyIds() );
+                           relTypeConstraint.schema().getPropertyIds() );
     }
 
     @SuppressWarnings( "unchecked" )
@@ -67,11 +69,12 @@ public class PropertyExistenceEnforcerTest
         StorageReader storageReader = Mockito.mock( StorageReader.class );
         when( storageReader.constraintsGetAll() ).thenReturn( descriptors.iterator() );
         when( storageReader.getOrCreateSchemaDependantState( eq( PropertyExistenceEnforcer.class ),
-                any( Function.class) ) ).thenAnswer( invocation ->
-        {
-            Function<StorageReader,PropertyExistenceEnforcer> function = invocation.getArgument( 1 );
-            return function.apply( storageReader );
-        } );
+                                                             any( Function.class ) ) ).thenAnswer( invocation ->
+                                                                                                   {
+                                                                                                       Function<StorageReader,PropertyExistenceEnforcer>
+                                                                                                               function = invocation.getArgument( 1 );
+                                                                                                       return function.apply( storageReader );
+                                                                                                   } );
         return storageReader;
     }
 }

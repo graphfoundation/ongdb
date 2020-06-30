@@ -65,6 +65,7 @@ import static org.neo4j.kernel.impl.scheduler.JobSchedulerFactory.createSchedule
 
 public class PageCacheWarmerTest
 {
+
     private FileSystemRule fs = new EphemeralFileSystemRule();
     private TestDirectory testDirectory = TestDirectory.testDirectory( fs );
     private PageCacheRule pageCacheRule = new PageCacheRule();
@@ -77,6 +78,26 @@ public class PageCacheWarmerTest
     private DefaultPageCursorTracerSupplier cursorTracer;
     private PageCacheRule.PageCacheConfig cfg;
     private File file;
+
+    private static int[] randomSortedPageIds( int maxPagesInMemory )
+    {
+        MutableIntSet setIds = new IntHashSet();
+        ThreadLocalRandom rng = ThreadLocalRandom.current();
+        for ( int i = 0; i < maxPagesInMemory; i++ )
+        {
+            setIds.add( rng.nextInt( maxPagesInMemory * 7 ) );
+        }
+        int[] pageIds = new int[setIds.size()];
+        IntIterator itr = setIds.intIterator();
+        int i = 0;
+        while ( itr.hasNext() )
+        {
+            pageIds[i] = itr.next();
+            i++;
+        }
+        Arrays.sort( pageIds );
+        return pageIds;
+    }
 
     @Before
     public void setUp() throws IOException
@@ -111,7 +132,8 @@ public class PageCacheWarmerTest
         try ( PageCache pageCache = pageCacheRule.getPageCache( fs, cfg );
               PagedFile ignore = pageCache.map( file, pageCache.pageSize(), StandardOpenOption.CREATE ) )
         {
-            PageCacheWarmer warmer = new PageCacheWarmer( fs, pageCache, scheduler, testDirectory.databaseDir() );
+            PageCacheWarmer warmer = new PageCacheWarmer( fs, pageCache, scheduler,
+                                                          testDirectory.databaseDir() );
             warmer.start();
             warmer.stop();
             assertSame( OptionalLong.empty(), warmer.reheat() );
@@ -124,7 +146,8 @@ public class PageCacheWarmerTest
         try ( PageCache pageCache = pageCacheRule.getPageCache( fs, cfg );
               PagedFile ignore = pageCache.map( file, pageCache.pageSize(), StandardOpenOption.CREATE ) )
         {
-            PageCacheWarmer warmer = new PageCacheWarmer( fs, pageCache, scheduler, testDirectory.databaseDir() );
+            PageCacheWarmer warmer = new PageCacheWarmer( fs, pageCache, scheduler,
+                                                          testDirectory.databaseDir() );
             warmer.start();
             warmer.stop();
             assertSame( OptionalLong.empty(), warmer.profile() );
@@ -136,10 +159,12 @@ public class PageCacheWarmerTest
     {
         File ignoredFile = new File( testDirectory.storeDir(), "b" );
         try ( PageCache pageCache = pageCacheRule.getPageCache( fs, cfg );
-                PagedFile include = pageCache.map( file, pageCache.pageSize(), StandardOpenOption.CREATE );
-                PagedFile ignore = pageCache.map( ignoredFile, pageCache.pageSize(), StandardOpenOption.CREATE ) )
+              PagedFile include = pageCache.map( file, pageCache.pageSize(), StandardOpenOption.CREATE );
+              PagedFile ignore = pageCache
+                      .map( ignoredFile, pageCache.pageSize(), StandardOpenOption.CREATE ) )
         {
-            PageCacheWarmer warmer = new PageCacheWarmer( fs, pageCache, scheduler, testDirectory.databaseDir() );
+            PageCacheWarmer warmer = new PageCacheWarmer( fs, pageCache, scheduler,
+                                                          testDirectory.databaseDir() );
             warmer.start();
             warmer.profile();
 
@@ -160,7 +185,8 @@ public class PageCacheWarmerTest
         try ( PageCache pageCache = pageCacheRule.getPageCache( fs, cfg );
               PagedFile pf = pageCache.map( file, pageCache.pageSize(), StandardOpenOption.CREATE ) )
         {
-            PageCacheWarmer warmer = new PageCacheWarmer( fs, pageCache, scheduler, testDirectory.databaseDir() );
+            PageCacheWarmer warmer = new PageCacheWarmer( fs, pageCache, scheduler,
+                                                          testDirectory.databaseDir() );
             warmer.start();
             warmer.stop();
             warmer.start();
@@ -181,7 +207,8 @@ public class PageCacheWarmerTest
         try ( PageCache pageCache = pageCacheRule.getPageCache( fs, cfg );
               PagedFile ignore = pageCache.map( file, pageCache.pageSize(), StandardOpenOption.CREATE ) )
         {
-            PageCacheWarmer warmer = new PageCacheWarmer( fs, pageCache, scheduler, testDirectory.databaseDir() );
+            PageCacheWarmer warmer = new PageCacheWarmer( fs, pageCache, scheduler,
+                                                          testDirectory.databaseDir() );
             warmer.reheat();
         }
         cursorTracer.get().reportEvents();
@@ -200,7 +227,8 @@ public class PageCacheWarmerTest
                 assertTrue( writer.next( 3 ) );
             }
             pf.flushAndForce();
-            PageCacheWarmer warmer = new PageCacheWarmer( fs, pageCache, scheduler, testDirectory.databaseDir() );
+            PageCacheWarmer warmer = new PageCacheWarmer( fs, pageCache, scheduler,
+                                                          testDirectory.databaseDir() );
             warmer.start();
             warmer.profile();
         }
@@ -210,7 +238,8 @@ public class PageCacheWarmerTest
         try ( PageCache pageCache = pageCacheRule.getPageCache( fs, cfg );
               PagedFile pf = pageCache.map( file, pageCache.pageSize() ) )
         {
-            PageCacheWarmer warmer = new PageCacheWarmer( fs, pageCache, scheduler, testDirectory.databaseDir() );
+            PageCacheWarmer warmer = new PageCacheWarmer( fs, pageCache, scheduler,
+                                                          testDirectory.databaseDir() );
             warmer.start();
             warmer.reheat();
 
@@ -247,7 +276,8 @@ public class PageCacheWarmerTest
                 }
             }
             pf.flushAndForce();
-            PageCacheWarmer warmer = new PageCacheWarmer( fs, pageCache, scheduler, testDirectory.databaseDir() );
+            PageCacheWarmer warmer = new PageCacheWarmer( fs, pageCache, scheduler,
+                                                          testDirectory.databaseDir() );
             warmer.profile();
         }
 
@@ -256,7 +286,8 @@ public class PageCacheWarmerTest
         try ( PageCache pageCache = pageCacheRule.getPageCache( fs, cfg );
               PagedFile pf = pageCache.map( file, pageCache.pageSize() ) )
         {
-            PageCacheWarmer warmer = new PageCacheWarmer( fs, pageCache, scheduler, testDirectory.databaseDir() );
+            PageCacheWarmer warmer = new PageCacheWarmer( fs, pageCache, scheduler,
+                                                          testDirectory.databaseDir() );
             warmer.start();
             warmer.reheat();
 
@@ -290,7 +321,8 @@ public class PageCacheWarmerTest
                 assertTrue( writer.next( 3 ) );
             }
             pf.flushAndForce();
-            PageCacheWarmer warmer = new PageCacheWarmer( fs, pageCache, scheduler, testDirectory.databaseDir() );
+            PageCacheWarmer warmer = new PageCacheWarmer( fs, pageCache, scheduler,
+                                                          testDirectory.databaseDir() );
             warmer.start();
             warmer.profile();
             warmer.profile();
@@ -369,25 +401,5 @@ public class PageCacheWarmerTest
         {
             assertFalse( fs.fileExists( fileMetadata.file() ) );
         }
-    }
-
-    private static int[] randomSortedPageIds( int maxPagesInMemory )
-    {
-        MutableIntSet setIds = new IntHashSet();
-        ThreadLocalRandom rng = ThreadLocalRandom.current();
-        for ( int i = 0; i < maxPagesInMemory; i++ )
-        {
-            setIds.add( rng.nextInt( maxPagesInMemory * 7 ) );
-        }
-        int[] pageIds = new int[setIds.size()];
-        IntIterator itr = setIds.intIterator();
-        int i = 0;
-        while ( itr.hasNext() )
-        {
-            pageIds[i] = itr.next();
-            i++;
-        }
-        Arrays.sort( pageIds );
-        return pageIds;
     }
 }

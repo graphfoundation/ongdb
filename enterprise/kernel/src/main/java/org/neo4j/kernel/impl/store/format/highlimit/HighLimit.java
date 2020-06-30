@@ -19,14 +19,15 @@
 package org.neo4j.kernel.impl.store.format.highlimit;
 
 import org.neo4j.kernel.impl.store.format.BaseRecordFormats;
-import org.neo4j.kernel.impl.store.format.Capability;
 import org.neo4j.kernel.impl.store.format.FormatFamily;
 import org.neo4j.kernel.impl.store.format.RecordFormat;
 import org.neo4j.kernel.impl.store.format.RecordFormats;
+import org.neo4j.kernel.impl.store.format.RecordStorageCapability;
 import org.neo4j.kernel.impl.store.format.StoreVersion;
 import org.neo4j.kernel.impl.store.format.standard.LabelTokenRecordFormat;
 import org.neo4j.kernel.impl.store.format.standard.PropertyKeyTokenRecordFormat;
 import org.neo4j.kernel.impl.store.format.standard.RelationshipTypeTokenRecordFormat;
+import org.neo4j.kernel.impl.store.format.standard.SchemaRecordFormat;
 import org.neo4j.kernel.impl.store.record.DynamicRecord;
 import org.neo4j.kernel.impl.store.record.LabelTokenRecord;
 import org.neo4j.kernel.impl.store.record.NodeRecord;
@@ -35,8 +36,9 @@ import org.neo4j.kernel.impl.store.record.PropertyRecord;
 import org.neo4j.kernel.impl.store.record.RelationshipGroupRecord;
 import org.neo4j.kernel.impl.store.record.RelationshipRecord;
 import org.neo4j.kernel.impl.store.record.RelationshipTypeTokenRecord;
-
-import static org.neo4j.kernel.impl.store.format.highlimit.HighLimitFormatSettings.RELATIONSHIP_TYPE_TOKEN_MAXIMUM_ID_BITS;
+import org.neo4j.kernel.impl.store.record.SchemaRecord;
+import org.neo4j.storageengine.api.IndexCapabilities;
+import org.neo4j.storageengine.api.format.Capability;
 
 /**
  * Record format with very high limits, 50-bit per ID, while at the same time keeping store size small.
@@ -45,16 +47,25 @@ import static org.neo4j.kernel.impl.store.format.highlimit.HighLimitFormatSettin
  */
 public class HighLimit extends BaseRecordFormats
 {
-    public static final String STORE_VERSION = StoreVersion.HIGH_LIMIT_V3_6_0.versionString();
+
+    public static final String STORE_VERSION = StoreVersion.HIGH_LIMIT_V4_0_0.versionString();
 
     public static final RecordFormats RECORD_FORMATS = new HighLimit();
     public static final String NAME = "high_limit";
 
     protected HighLimit()
     {
-        super( STORE_VERSION, StoreVersion.HIGH_LIMIT_V3_6_0.introductionVersion(), 6, Capability.DENSE_NODES,
-                Capability.RELATIONSHIP_TYPE_3BYTES, Capability.SCHEMA, Capability.LUCENE_5, Capability.POINT_PROPERTIES, Capability.TEMPORAL_PROPERTIES,
-                Capability.SECONDARY_RECORD_UNITS, Capability.SORT );
+        super( STORE_VERSION, StoreVersion.HIGH_LIMIT_V4_0_0.introductionVersion(), 6,
+               new Capability[]{RecordStorageCapability.DENSE_NODES,
+                                RecordStorageCapability.RELATIONSHIP_TYPE_3BYTES, RecordStorageCapability.SCHEMA,
+                                RecordStorageCapability.POINT_PROPERTIES, RecordStorageCapability.TEMPORAL_PROPERTIES,
+                                RecordStorageCapability.SECONDARY_RECORD_UNITS,
+                                RecordStorageCapability.FLEXIBLE_SCHEMA_STORE, RecordStorageCapability.INTERNAL_TOKENS,
+                                RecordStorageCapability.GBPTREE_ID_FILES,
+                                IndexCapabilities.LuceneCapability.LUCENE_8,
+                                IndexCapabilities.IndexProviderCapability.INDEX_PROVIDERS_40,
+                                IndexCapabilities.ConfigCapability.SCHEMA_STORE_CONFIG,
+                                RecordStorageCapability.GBPTREE_COUNTS_STORE} );
     }
 
     @Override
@@ -96,7 +107,7 @@ public class HighLimit extends BaseRecordFormats
     @Override
     public RecordFormat<RelationshipTypeTokenRecord> relationshipTypeToken()
     {
-        return new RelationshipTypeTokenRecordFormat( RELATIONSHIP_TYPE_TOKEN_MAXIMUM_ID_BITS );
+        return new RelationshipTypeTokenRecordFormat( 24 );
     }
 
     @Override
@@ -109,6 +120,12 @@ public class HighLimit extends BaseRecordFormats
     public FormatFamily getFormatFamily()
     {
         return HighLimitFormatFamily.INSTANCE;
+    }
+
+    @Override
+    public RecordFormat<SchemaRecord> schema()
+    {
+        return new SchemaRecordFormat();
     }
 
     @Override

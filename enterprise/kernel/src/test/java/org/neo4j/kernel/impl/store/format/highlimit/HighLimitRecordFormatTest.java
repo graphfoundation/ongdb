@@ -22,6 +22,7 @@ import org.neo4j.kernel.impl.store.format.AbstractRecordFormatTest;
 
 public class HighLimitRecordFormatTest extends AbstractRecordFormatTest
 {
+
     public HighLimitRecordFormatTest()
     {
         super( HighLimit.RECORD_FORMATS, 50, 50 );

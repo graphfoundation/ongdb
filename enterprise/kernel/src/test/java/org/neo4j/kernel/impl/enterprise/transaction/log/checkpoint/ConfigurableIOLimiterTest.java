@@ -37,11 +37,37 @@ import static org.neo4j.helpers.collection.MapUtil.stringMap;
 
 public class ConfigurableIOLimiterTest
 {
+
     private static final String ORIGIN = "test";
+    private static final Flushable FLUSHABLE = () ->
+    {
+    };
     private ConfigurableIOLimiter limiter;
     private Config config;
     private AtomicLong pauseNanosCounter;
-    private static final Flushable FLUSHABLE = () -> {};
+
+    private static void multipleDisableShouldReportUnlimited( IOLimiter limiter )
+    {
+        limiter.disableLimit();
+        try
+        {
+            assertThat( limiter.isLimited(), is( false ) );
+            limiter.disableLimit();
+            try
+            {
+                assertThat( limiter.isLimited(), is( false ) );
+            }
+            finally
+            {
+                limiter.enableLimit();
+            }
+            assertThat( limiter.isLimited(), is( false ) );
+        }
+        finally
+        {
+            limiter.enableLimit();
+        }
+    }
 
     private void createIOLimiter( Config config )
     {
@@ -53,7 +79,8 @@ public class ConfigurableIOLimiterTest
 
     private void createIOLimiter( int limit )
     {
-        Map<String,String> settings = stringMap( GraphDatabaseSettings.check_point_iops_limit.name(), "" + limit );
+        Map<String,String> settings = stringMap( GraphDatabaseSettings.check_point_iops_limit.name(),
+                                                 "" + limit );
         createIOLimiter( Config.defaults( settings ) );
     }
 
@@ -263,29 +290,6 @@ public class ConfigurableIOLimiterTest
         finally
         {
             limiter.disableLimit();
-        }
-    }
-
-    private static void multipleDisableShouldReportUnlimited( IOLimiter limiter )
-    {
-        limiter.disableLimit();
-        try
-        {
-            assertThat( limiter.isLimited(), is( false ) );
-            limiter.disableLimit();
-            try
-            {
-                assertThat( limiter.isLimited(), is( false ) );
-            }
-            finally
-            {
-                limiter.enableLimit();
-            }
-            assertThat( limiter.isLimited(), is( false ) );
-        }
-        finally
-        {
-            limiter.enableLimit();
         }
     }
 }

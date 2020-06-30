@@ -28,6 +28,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.StringJoiner;
 import java.util.TreeSet;
@@ -36,7 +37,7 @@ import java.util.function.Function;
 import org.neo4j.kernel.api.KernelTransactionHandle;
 import org.neo4j.kernel.api.query.QuerySnapshot;
 import org.neo4j.kernel.impl.locking.ActiveLock;
-import org.neo4j.storageengine.api.lock.ResourceType;
+import org.neo4j.lock.ResourceType;
 
 import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.toList;
@@ -44,13 +45,30 @@ import static java.util.stream.Collectors.toMap;
 
 public class TransactionDependenciesResolver
 {
-    private final Map<KernelTransactionHandle,List<QuerySnapshot>> handleSnapshotsMap;
-    private Map<KernelTransactionHandle,Set<KernelTransactionHandle>> directDependencies;
 
-    TransactionDependenciesResolver( Map<KernelTransactionHandle,List<QuerySnapshot>> handleSnapshotsMap )
+    private final Map<KernelTransactionHandle,Optional<QuerySnapshot>> handleSnapshotsMap;
+    private final Map<KernelTransactionHandle,Set<KernelTransactionHandle>> directDependencies;
+
+    TransactionDependenciesResolver(
+            Map<KernelTransactionHandle,Optional<QuerySnapshot>> handleSnapshotsMap )
     {
         this.handleSnapshotsMap = handleSnapshotsMap;
-        this.directDependencies = initDirectDependencies();
+        this.directDependencies = this.initDirectDependencies();
+    }
+
+    private static boolean haveAnyLocking( List<ActiveLock> locks, ResourceType resourceType,
+                                           long resourceId )
+    {
+        return locks.stream()
+                    .anyMatch( lock -> lock.resourceId() == resourceId && lock.resourceType() == resourceType );
+    }
+
+    private static boolean haveExclusiveLocking( List<ActiveLock> locks, ResourceType resourceType,
+                                                 long resourceId )
+    {
+        return locks.stream().anyMatch( lock -> ActiveLock.EXCLUSIVE_MODE.equals( lock.mode() ) &&
+                                                lock.resourceId() == resourceId &&
+                                                lock.resourceType() == resourceType );
     }
 
     public boolean isBlocked( KernelTransactionHandle handle )
@@ -58,7 +76,7 @@ public class TransactionDependenciesResolver
         return directDependencies.get( handle ) != null;
     }
 
-    public String describeBlockingTransactions( KernelTransactionHandle handle  )
+    public String describeBlockingTransactions( KernelTransactionHandle handle )
     {
         Set<KernelTransactionHandle> allBlockers = new TreeSet<>(
                 Comparator.comparingLong( KernelTransactionHandle::getUserTransactionId ) );
@@ -71,7 +89,8 @@ public class TransactionDependenciesResolver
                 KernelTransactionHandle transactionHandle = blockerQueue.pop();
                 if ( allBlockers.add( transactionHandle ) )
                 {
-                    Set<KernelTransactionHandle> transactionHandleSet = directDependencies.get( transactionHandle );
+                    Set<KernelTransactionHandle> transactionHandleSet = directDependencies
+                            .get( transactionHandle );
                     if ( transactionHandleSet != null )
                     {
                         blockerQueue.addAll( transactionHandleSet );
@@ -84,28 +103,31 @@ public class TransactionDependenciesResolver
 
     public Map<String,Object> describeBlockingLocks( KernelTransactionHandle handle )
     {
-        List<QuerySnapshot> querySnapshots = handleSnapshotsMap.get( handle );
+        Optional<QuerySnapshot> querySnapshots = handleSnapshotsMap.get( handle );
         if ( !querySnapshots.isEmpty() )
         {
-            return querySnapshots.get( 0 ).resourceInformation();
+            return querySnapshots.get().resourceInformation();
         }
         return Collections.emptyMap();
     }
 
     private Map<KernelTransactionHandle,Set<KernelTransactionHandle>> initDirectDependencies()
     {
-        Map<KernelTransactionHandle, Set<KernelTransactionHandle>> directDependencies = new HashMap<>();
+        Map<KernelTransactionHandle,Set<KernelTransactionHandle>> directDependencies = new HashMap<>();
 
-        Map<KernelTransactionHandle,List<ActiveLock>> transactionLocksMap = handleSnapshotsMap.keySet().stream()
-                .collect( toMap( identity(), getTransactionLocks() ) );
+        Map<KernelTransactionHandle,List<ActiveLock>> transactionLocksMap = handleSnapshotsMap.keySet()
+                                                                                              .stream()
+                                                                                              .collect( toMap( identity(), getTransactionLocks() ) );
 
-        for ( Map.Entry<KernelTransactionHandle,List<QuerySnapshot>> entry : handleSnapshotsMap.entrySet() )
+        for ( Map.Entry<KernelTransactionHandle,Optional<QuerySnapshot>> entry : handleSnapshotsMap
+                .entrySet() )
         {
-            List<QuerySnapshot> querySnapshots = entry.getValue();
+            Optional<QuerySnapshot> querySnapshots = entry.getValue();
             if ( !querySnapshots.isEmpty() )
             {
                 KernelTransactionHandle txHandle = entry.getKey();
-                evaluateDirectDependencies( directDependencies, transactionLocksMap, txHandle, querySnapshots.get( 0 ) );
+                evaluateDirectDependencies( directDependencies, transactionLocksMap, txHandle,
+                                            querySnapshots.get() );
             }
         }
         return directDependencies;
@@ -116,14 +138,17 @@ public class TransactionDependenciesResolver
         return transactionHandle -> transactionHandle.activeLocks().collect( toList() );
     }
 
-    private void evaluateDirectDependencies( Map<KernelTransactionHandle,Set<KernelTransactionHandle>> directDependencies,
-            Map<KernelTransactionHandle,List<ActiveLock>> handleLocksMap, KernelTransactionHandle txHandle,
+    private void evaluateDirectDependencies(
+            Map<KernelTransactionHandle,Set<KernelTransactionHandle>> directDependencies,
+            Map<KernelTransactionHandle,List<ActiveLock>> handleLocksMap,
+            KernelTransactionHandle txHandle,
             QuerySnapshot querySnapshot )
     {
         List<ActiveLock> waitingOnLocks = querySnapshot.waitingLocks();
         for ( ActiveLock activeLock : waitingOnLocks )
         {
-            for ( Map.Entry<KernelTransactionHandle,List<ActiveLock>> handleListEntry : handleLocksMap.entrySet() )
+            for ( Map.Entry<KernelTransactionHandle,List<ActiveLock>> handleListEntry : handleLocksMap
+                    .entrySet() )
             {
                 KernelTransactionHandle kernelTransactionHandle = handleListEntry.getKey();
                 if ( !kernelTransactionHandle.equals( txHandle ) )
@@ -144,18 +169,6 @@ public class TransactionDependenciesResolver
         return ActiveLock.EXCLUSIVE_MODE.equals( activeLock.mode() ) ?
                haveAnyLocking( activeLocks, activeLock.resourceType(), activeLock.resourceId() ) :
                haveExclusiveLocking( activeLocks, activeLock.resourceType(), activeLock.resourceId() );
-    }
-
-    private static boolean haveAnyLocking( List<ActiveLock> locks, ResourceType resourceType, long resourceId )
-    {
-        return locks.stream().anyMatch( lock -> lock.resourceId() == resourceId && lock.resourceType() == resourceType );
-    }
-
-    private static boolean haveExclusiveLocking( List<ActiveLock> locks, ResourceType resourceType, long resourceId )
-    {
-        return locks.stream().anyMatch( lock -> ActiveLock.EXCLUSIVE_MODE.equals( lock.mode() ) &&
-                lock.resourceId() == resourceId &&
-                lock.resourceType() == resourceType );
     }
 
     private String describe( Set<KernelTransactionHandle> allBlockers )

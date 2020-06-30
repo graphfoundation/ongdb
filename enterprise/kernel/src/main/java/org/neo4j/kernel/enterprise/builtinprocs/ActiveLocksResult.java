@@ -22,6 +22,7 @@ import org.neo4j.kernel.impl.locking.ActiveLock;
 
 public class ActiveLocksResult
 {
+
     public final String mode;
     public final String resourceType;
     public final long resourceId;

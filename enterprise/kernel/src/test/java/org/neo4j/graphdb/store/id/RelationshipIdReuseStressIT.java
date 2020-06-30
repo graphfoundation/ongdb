@@ -18,7 +18,6 @@
  */
 package org.neo4j.graphdb.store.id;
 
-
 import org.hamcrest.Matchers;
 import org.junit.After;
 import org.junit.Rule;
@@ -53,22 +52,20 @@ import org.neo4j.kernel.impl.store.id.IdType;
 import org.neo4j.test.rule.DatabaseRule;
 import org.neo4j.test.rule.EnterpriseDatabaseRule;
 
+import static java.lang.System.currentTimeMillis;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 
-import static java.lang.System.currentTimeMillis;
-
 public class RelationshipIdReuseStressIT
 {
+
+    private static final int NUMBER_OF_BANDS = 3;
+    private static final int NUMBER_OF_CITIES = 10;
+    private final ExecutorService executorService = Executors.newCachedThreadPool();
+    private final String NAME_PROPERTY = "name";
     @Rule
     public DatabaseRule embeddedDatabase = new EnterpriseDatabaseRule()
             .withSetting( EnterpriseEditionSettings.idTypesToReuse, IdType.RELATIONSHIP.name() );
-
-    private final ExecutorService executorService = Executors.newCachedThreadPool();
-
-    private final String NAME_PROPERTY = "name";
-    private static final int NUMBER_OF_BANDS = 3;
-    private static final int NUMBER_OF_CITIES = 10;
 
     @After
     public void tearDown()
@@ -85,9 +82,12 @@ public class RelationshipIdReuseStressIT
         createCities( cityLabel );
 
         AtomicBoolean stopFlag = new AtomicBoolean( false );
-        RelationshipsCreator relationshipsCreator = new RelationshipsCreator( stopFlag, bandLabel, cityLabel );
-        RelationshipRemover relationshipRemover = new RelationshipRemover( bandLabel, cityLabel, stopFlag );
-        IdController idController = embeddedDatabase.getDependencyResolver().resolveDependency( IdController.class );
+        RelationshipsCreator relationshipsCreator = new RelationshipsCreator( stopFlag, bandLabel,
+                                                                              cityLabel );
+        RelationshipRemover relationshipRemover = new RelationshipRemover( bandLabel, cityLabel,
+                                                                           stopFlag );
+        IdController idController = embeddedDatabase.getDependencyResolver()
+                                                    .resolveDependency( IdController.class );
 
         assertNotNull( "idController was null for some reason", idController );
 
@@ -109,20 +109,24 @@ public class RelationshipIdReuseStressIT
             createdRelationships = relationshipsCreator.getCreatedRelationships();
             removedRelationships = relationshipRemover.getRemovedRelationships();
         }
-        while ( (currentTime - startTime) < 5_000 || createdRelationships < 1_000 || removedRelationships < 100 );
+        while ( (currentTime - startTime) < 5_000 || createdRelationships < 1_000
+                || removedRelationships < 100 );
         stopFlag.set( true );
         executorService.shutdown();
         completeFutures( futures );
 
         long highestPossibleIdInUse = getHighestUsedIdForRelationships();
-        assertThat( "Number of created relationships should be higher then highest possible id, since those are " +
-                    "reused.", relationshipsCreator.getCreatedRelationships(),
+        assertThat(
+                "Number of created relationships should be higher then highest possible id, since those are "
+                +
+                "reused.", relationshipsCreator.getCreatedRelationships(),
                 Matchers.greaterThan( highestPossibleIdInUse ) );
     }
 
     private long getHighestUsedIdForRelationships()
     {
-        IdGeneratorFactory idGeneratorFactory = embeddedDatabase.getDependencyResolver().resolveDependency( IdGeneratorFactory.class );
+        IdGeneratorFactory idGeneratorFactory = embeddedDatabase.getDependencyResolver()
+                                                                .resolveDependency( IdGeneratorFactory.class );
         return idGeneratorFactory.get( IdType.RELATIONSHIP ).getHighestPossibleIdInUse();
     }
 
@@ -159,12 +163,14 @@ public class RelationshipIdReuseStressIT
         }
     }
 
-    private Future<?> startRelationshipCalculator( final Label bandLabel, final AtomicBoolean stopFlag )
+    private Future<?> startRelationshipCalculator( final Label bandLabel,
+                                                   final AtomicBoolean stopFlag )
     {
         return executorService.submit( new RelationshipCalculator( stopFlag, bandLabel ) );
     }
 
-    private Future<?> startRelationshipTypesCalculator( final Label bandLabel, final AtomicBoolean stopFlag )
+    private Future<?> startRelationshipTypesCalculator( final Label bandLabel,
+                                                        final AtomicBoolean stopFlag )
     {
         return executorService.submit( new RelationshipTypeCalculator( stopFlag, bandLabel ) );
     }
@@ -176,19 +182,22 @@ public class RelationshipIdReuseStressIT
 
     private TestRelationshipTypes getRandomRelationshipType()
     {
-        return TestRelationshipTypes.values()[ThreadLocalRandom.current().nextInt( TestRelationshipTypes.values().length )];
+        return TestRelationshipTypes.values()[ThreadLocalRandom.current()
+                                                               .nextInt( TestRelationshipTypes.values().length )];
     }
 
     private Node getRandomCityNode( DatabaseRule embeddedDatabase, Label cityLabel )
     {
         return embeddedDatabase.
-                findNode( cityLabel, NAME_PROPERTY, "city" + (ThreadLocalRandom.current().nextInt( 1, NUMBER_OF_CITIES + 1 )) );
+                                       findNode( cityLabel, NAME_PROPERTY,
+                                                 "city" + (ThreadLocalRandom.current().nextInt( 1, NUMBER_OF_CITIES + 1 )) );
     }
 
     private Node getRandomBandNode( DatabaseRule embeddedDatabase, Label bandLabel )
     {
         return embeddedDatabase.
-                findNode( bandLabel, NAME_PROPERTY, "band" + (ThreadLocalRandom.current().nextInt( 1, NUMBER_OF_BANDS + 1 )) );
+                                       findNode( bandLabel, NAME_PROPERTY,
+                                                 "band" + (ThreadLocalRandom.current().nextInt( 1, NUMBER_OF_BANDS + 1 )) );
     }
 
     private void createLabeledNamedNode( Label label, String name )
@@ -206,6 +215,7 @@ public class RelationshipIdReuseStressIT
 
     private class RelationshipsCreator implements Runnable
     {
+
         private final AtomicBoolean stopFlag;
         private final Label bandLabel;
         private final Label cityLabel;
@@ -293,6 +303,7 @@ public class RelationshipIdReuseStressIT
 
     private class RelationshipCalculator implements Runnable
     {
+
         private final AtomicBoolean stopFlag;
         private final Label bandLabel;
         private int relationshipSize;
@@ -327,6 +338,7 @@ public class RelationshipIdReuseStressIT
 
     private class RelationshipTypeCalculator implements Runnable
     {
+
         private final AtomicBoolean stopFlag;
         private final Label bandLabel;
         private int relationshipSize;
@@ -345,7 +357,7 @@ public class RelationshipIdReuseStressIT
                 try ( Transaction transaction = embeddedDatabase.beginTx() )
                 {
                     Node randomBandNode = getRandomBandNode( embeddedDatabase, bandLabel );
-                    relationshipSize = Iterables.asList( randomBandNode.getRelationshipTypes()).size();
+                    relationshipSize = Iterables.asList( randomBandNode.getRelationshipTypes() ).size();
                     transaction.success();
                 }
                 long millisToWait = ThreadLocalRandom.current().nextLong( 10, 25 );
@@ -356,6 +368,7 @@ public class RelationshipIdReuseStressIT
 
     private class RelationshipRemover implements Runnable
     {
+
         private final Label bandLabel;
         private final Label cityLabel;
         private final AtomicBoolean stopFlag;
@@ -384,7 +397,6 @@ public class RelationshipIdReuseStressIT
                     else
                     {
                         deleteRelationshipOnRandomNode();
-
                     }
                     transaction.success();
                     removalCount++;

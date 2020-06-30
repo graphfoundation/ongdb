@@ -47,10 +47,16 @@ import static org.neo4j.test.rule.concurrent.ThreadingRule.await;
 @RunWith( Parameterized.class )
 public class MergeLockConcurrencyTest
 {
+
     @Rule
     public final DatabaseRule db = new ImpermanentDatabaseRule();
     @Rule
     public final ThreadingRule threads = new ThreadingRule();
+
+    public MergeLockConcurrencyTest( ConfigBuilder config )
+    {
+        db.withSettings( config.configuration() );
+    }
 
     @Parameterized.Parameters( name = "{0}" )
     public static Iterable<Object[]> configurations()
@@ -59,11 +65,6 @@ public class MergeLockConcurrencyTest
                 configure( lock_manager, "community" ).asParameters(),
                 configure( lock_manager, "forseti" ).asParameters()
         );
-    }
-
-    public MergeLockConcurrencyTest( ConfigBuilder config )
-    {
-        db.withSettings( config.configuration() );
     }
 
     @Test
@@ -78,7 +79,8 @@ public class MergeLockConcurrencyTest
         withConstraint( mergeThen( this::reassignLabels ) );
     }
 
-    private void withConstraint( ThrowingFunction<CyclicBarrier,Node,Exception> action ) throws Exception
+    private void withConstraint( ThrowingFunction<CyclicBarrier,Node,Exception> action )
+            throws Exception
     {
         // given
         db.execute( "CREATE CONSTRAINT ON (foo:Foo) ASSERT foo.bar IS UNIQUE" );

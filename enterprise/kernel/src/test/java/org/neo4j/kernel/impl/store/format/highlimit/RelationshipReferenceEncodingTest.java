@@ -28,6 +28,7 @@ import static org.junit.Assert.assertEquals;
 
 public class RelationshipReferenceEncodingTest
 {
+
     /**
      * The current scheme only allows us to use 58 bits for a reference. Adhere to that limit here.
      */
@@ -37,29 +38,6 @@ public class RelationshipReferenceEncodingTest
     @Rule
     public final RandomRule random = new RandomRule();
     private final StubPageCursor cursor = new StubPageCursor( 0, PAGE_SIZE );
-
-    @Test
-    public void shouldEncodeRandomLongs()
-    {
-        for ( int i = 0; i < 100_000_000; i++ )
-        {
-            long reference = limit( random.nextLong() );
-            assertDecodedMatchesEncoded( reference );
-        }
-    }
-
-    @Test
-    public void relativeReferenceConversion()
-    {
-        long basis = 0xBABE;
-        long absoluteReference = 0xCAFEBABE;
-
-        long relative = Reference.toRelative( absoluteReference, basis );
-        assertEquals( "Should be equal to difference of reference and base reference", 0xCAFE0000, relative );
-
-        long absoluteCandidate = Reference.toAbsolute( relative, basis );
-        assertEquals( "Converted reference should be equal to initial value", absoluteReference, absoluteCandidate );
-    }
 
     private static long numberOfBits( int count )
     {
@@ -87,6 +65,31 @@ public class RelationshipReferenceEncodingTest
             reference = ~reference;
         }
         return reference;
+    }
+
+    @Test
+    public void shouldEncodeRandomLongs()
+    {
+        for ( int i = 0; i < 100_000_000; i++ )
+        {
+            long reference = limit( random.nextLong() );
+            assertDecodedMatchesEncoded( reference );
+        }
+    }
+
+    @Test
+    public void relativeReferenceConversion()
+    {
+        long basis = 0xBABE;
+        long absoluteReference = 0xCAFEBABE;
+
+        long relative = Reference.toRelative( absoluteReference, basis );
+        assertEquals( "Should be equal to difference of reference and base reference", 0xCAFE0000,
+                      relative );
+
+        long absoluteCandidate = Reference.toAbsolute( relative, basis );
+        assertEquals( "Converted reference should be equal to initial value", absoluteReference,
+                      absoluteCandidate );
     }
 
     private void assertDecodedMatchesEncoded( long reference )

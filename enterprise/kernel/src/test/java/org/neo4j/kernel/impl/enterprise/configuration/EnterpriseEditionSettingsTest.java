@@ -37,37 +37,6 @@ import static org.neo4j.kernel.impl.enterprise.configuration.EnterpriseEditionSe
 
 public class EnterpriseEditionSettingsTest
 {
-    @Test
-    public void idTypesToReuseAllowedValues()
-    {
-        for ( IdType type : IdType.values() )
-        {
-            if ( type == IdType.NODE || type == IdType.RELATIONSHIP )
-            {
-                assertIdTypesToReuseAllows( type );
-            }
-            else
-            {
-                assertIdTypesToReuseDisallows( type );
-            }
-        }
-
-        assertIdTypesToReuseAllows( IdType.NODE, IdType.RELATIONSHIP );
-        assertIdTypesToReuseAllows( IdType.RELATIONSHIP, IdType.NODE );
-
-        assertIdTypesToReuseDisallows( IdType.NODE, IdType.RELATIONSHIP, IdType.RELATIONSHIP_GROUP );
-        assertIdTypesToReuseDisallows( IdType.SCHEMA, IdType.NEOSTORE_BLOCK );
-    }
-
-    @Test
-    public void idTypesToReuseCaseInsensitive()
-    {
-        Config config1 = Config.defaults( idTypesToReuse, "node, relationship" );
-        assertEquals( asList( IdType.NODE, IdType.RELATIONSHIP ), config1.get( idTypesToReuse ) );
-
-        Config config2 = Config.defaults( idTypesToReuse, "rElAtIoNshiP, NoDe" );
-        assertEquals( asList( IdType.RELATIONSHIP, IdType.NODE ), config2.get( idTypesToReuse ) );
-    }
 
     private static void assertIdTypesToReuseAllows( IdType type, IdType... otherTypes )
     {
@@ -109,5 +78,37 @@ public class EnterpriseEditionSettingsTest
         list.add( element );
         Collections.addAll( list, elements );
         return list;
+    }
+
+    @Test
+    public void idTypesToReuseAllowedValues()
+    {
+        for ( IdType type : IdType.values() )
+        {
+            if ( type == IdType.NODE || type == IdType.RELATIONSHIP )
+            {
+                assertIdTypesToReuseAllows( type );
+            }
+            else
+            {
+                assertIdTypesToReuseDisallows( type );
+            }
+        }
+
+        assertIdTypesToReuseAllows( IdType.NODE, IdType.RELATIONSHIP );
+        assertIdTypesToReuseAllows( IdType.RELATIONSHIP, IdType.NODE );
+
+        assertIdTypesToReuseDisallows( IdType.NODE, IdType.RELATIONSHIP, IdType.RELATIONSHIP_GROUP );
+        assertIdTypesToReuseDisallows( IdType.SCHEMA, IdType.NEOSTORE_BLOCK );
+    }
+
+    @Test
+    public void idTypesToReuseCaseInsensitive()
+    {
+        Config config1 = Config.defaults( idTypesToReuse, "node, relationship" );
+        assertEquals( asList( IdType.NODE, IdType.RELATIONSHIP ), config1.get( idTypesToReuse ) );
+
+        Config config2 = Config.defaults( idTypesToReuse, "rElAtIoNshiP, NoDe" );
+        assertEquals( asList( IdType.RELATIONSHIP, IdType.NODE ), config2.get( idTypesToReuse ) );
     }
 }
