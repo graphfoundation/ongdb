@@ -24,16 +24,29 @@ import com.codahale.metrics.MetricRegistry;
 import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryPoolMXBean;
 
-import static com.codahale.metrics.MetricRegistry.name;
+import org.neo4j.annotations.documented.Documented;
 
+@Documented( ".JVM memory pools metrics." )
 public class MemoryPoolMetrics extends JvmMetrics
 {
-    public static final String MEMORY_POOL = name( JvmMetrics.NAME_PREFIX, "memory.pool" );
+    private static final String MEMORY_POOL_PREFIX = MetricRegistry.name( "vm", "memory.pool" );
+    @Documented( "Estimated number of buffers in the pool." )
+    private static final String MEMORY_POOL_USAGE_TEMPLATE;
+
+    static
+    {
+        MEMORY_POOL_USAGE_TEMPLATE = MetricRegistry.name( MEMORY_POOL_PREFIX, "%s" );
+    }
+
+    private final String memoryPoolPrefix;
+    private final String memoryPool;
     private final MetricRegistry registry;
 
-    public MemoryPoolMetrics( MetricRegistry registry )
+    public MemoryPoolMetrics( String metricsPrefix, MetricRegistry registry )
     {
         this.registry = registry;
+        this.memoryPoolPrefix = MetricRegistry.name( metricsPrefix, MEMORY_POOL_PREFIX );
+        this.memoryPool = MetricRegistry.name( metricsPrefix, MEMORY_POOL_USAGE_TEMPLATE );
     }
 
     @Override
@@ -41,14 +54,16 @@ public class MemoryPoolMetrics extends JvmMetrics
     {
         for ( final MemoryPoolMXBean memPool : ManagementFactory.getMemoryPoolMXBeans() )
         {
-            registry.register( name( MEMORY_POOL, prettifyName( memPool.getName() ) ),
-                    (Gauge<Long>) () -> memPool.getUsage().getUsed() );
+            this.registry.register( String.format( this.memoryPool, prettifyName( memPool.getName() ) ), (Gauge<Long>) () ->
+            {
+                return memPool.getUsage().getUsed();
+            } );
         }
     }
 
     @Override
     public void stop()
     {
-        registry.removeMatching( ( name, metric ) -> name.startsWith( MEMORY_POOL ) );
+        registry.removeMatching( ( name, metric ) -> name.startsWith( memoryPoolPrefix ) );
     }
 }

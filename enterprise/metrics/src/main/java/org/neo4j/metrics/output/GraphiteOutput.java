@@ -28,11 +28,10 @@ import com.codahale.metrics.Timer;
 import com.codahale.metrics.graphite.Graphite;
 import com.codahale.metrics.graphite.GraphiteReporter;
 
-import java.io.IOException;
 import java.util.SortedMap;
 import java.util.concurrent.TimeUnit;
 
-import org.neo4j.helpers.HostnamePort;
+import org.neo4j.internal.helpers.HostnamePort;
 import org.neo4j.kernel.lifecycle.Lifecycle;
 import org.neo4j.logging.Log;
 
@@ -42,17 +41,14 @@ public class GraphiteOutput implements Lifecycle, EventReporter
     private final long period;
     private final MetricRegistry registry;
     private final Log logger;
-    private final String prefix;
-
     private GraphiteReporter graphiteReporter;
 
-    public GraphiteOutput( HostnamePort hostnamePort, long period, MetricRegistry registry, Log logger, String prefix )
+    GraphiteOutput( HostnamePort hostnamePort, long period, MetricRegistry registry, Log logger )
     {
         this.hostnamePort = hostnamePort;
         this.period = period;
         this.registry = registry;
         this.logger = logger;
-        this.prefix = prefix;
     }
 
     @Override
@@ -61,12 +57,9 @@ public class GraphiteOutput implements Lifecycle, EventReporter
         // Setup Graphite reporting
         final Graphite graphite = new Graphite( hostnamePort.getHost(), hostnamePort.getPort() );
 
-        graphiteReporter = GraphiteReporter.forRegistry( registry )
-                .prefixedWith( prefix )
-                .convertRatesTo( TimeUnit.SECONDS )
-                .convertDurationsTo( TimeUnit.MILLISECONDS )
-                .filter( MetricFilter.ALL )
-                .build( graphite );
+        this.graphiteReporter =
+                GraphiteReporter.forRegistry( this.registry ).convertRatesTo( TimeUnit.SECONDS ).convertDurationsTo( TimeUnit.MILLISECONDS ).filter(
+                        MetricFilter.ALL ).build( graphite );
     }
 
     @Override
@@ -90,7 +83,7 @@ public class GraphiteOutput implements Lifecycle, EventReporter
 
     @Override
     public void report( SortedMap<String,Gauge> gauges, SortedMap<String,Counter> counters,
-            SortedMap<String,Histogram> histograms, SortedMap<String,Meter> meters, SortedMap<String,Timer> timers )
+                        SortedMap<String,Histogram> histograms, SortedMap<String,Meter> meters, SortedMap<String,Timer> timers )
     {
         /*
          * The synchronized is needed here since the `report` method called below is also called by the recurring

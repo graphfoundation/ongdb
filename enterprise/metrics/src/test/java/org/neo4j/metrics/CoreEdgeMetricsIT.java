@@ -89,11 +89,11 @@ public class CoreEdgeMetricsIT
 
         // when
         CoreClusterMember coreMember = cluster.coreTx( ( db, tx ) ->
-        {
-            Node node = db.createNode( label( "boo" ) );
-            node.setProperty( "foobar", "baz_bat" );
-            tx.success();
-        } );
+                                                       {
+                                                           Node node = db.createNode( label( "boo" ) );
+                                                           node.setProperty( "foobar", "baz_bat" );
+                                                           tx.success();
+                                                       } );
 
         // then
         for ( CoreClusterMember db : cluster.coreMembers() )
@@ -109,21 +109,21 @@ public class CoreEdgeMetricsIT
         File coreMetricsDir = new File( coreMember.homeDir(), csvPath.getDefaultValue() );
 
         assertEventually( "append index eventually accurate",
-                () -> readLongValue( metricsCsv( coreMetricsDir, CoreMetrics.APPEND_INDEX ) ),
-                greaterThan( 0L ), TIMEOUT, TimeUnit.SECONDS );
+                          () -> readLongValue( metricsCsv( coreMetricsDir, CoreMetrics.APPEND_INDEX ) ),
+                          greaterThan( 0L ), TIMEOUT, TimeUnit.SECONDS );
 
         assertEventually( "commit index eventually accurate",
-                () -> readLongValue( metricsCsv( coreMetricsDir, CoreMetrics.COMMIT_INDEX ) ),
-                greaterThan( 0L ), TIMEOUT, TimeUnit.SECONDS );
+                          () -> readLongValue( metricsCsv( coreMetricsDir, CoreMetrics.COMMIT_INDEX ) ),
+                          greaterThan( 0L ), TIMEOUT, TimeUnit.SECONDS );
 
         assertEventually( "term eventually accurate",
-                () -> readLongValue( metricsCsv( coreMetricsDir, CoreMetrics.TERM ) ),
-                greaterThanOrEqualTo( 0L ), TIMEOUT, TimeUnit.SECONDS );
+                          () -> readLongValue( metricsCsv( coreMetricsDir, CoreMetrics.TERM ) ),
+                          greaterThanOrEqualTo( 0L ), TIMEOUT, TimeUnit.SECONDS );
 
         assertEventually( "tx pull requests received eventually accurate", () ->
         {
             long total = 0;
-            for ( final File homeDir : cluster.coreMembers().stream().map( CoreClusterMember::homeDir ).collect( Collectors.toList()) )
+            for ( final File homeDir : cluster.coreMembers().stream().map( CoreClusterMember::homeDir ).collect( Collectors.toList() ) )
             {
                 File metricsDir = new File( homeDir, "metrics" );
                 total += readLongValue( metricsCsv( metricsDir, CatchUpMetrics.TX_PULL_REQUESTS_RECEIVED ) );
@@ -132,38 +132,38 @@ public class CoreEdgeMetricsIT
         }, greaterThan( 0L ), TIMEOUT, TimeUnit.SECONDS );
 
         assertEventually( "tx retries eventually accurate",
-                () -> readLongValue( metricsCsv( coreMetricsDir, CoreMetrics.TX_RETRIES ) ), equalTo( 0L ),
-                TIMEOUT, TimeUnit.SECONDS );
+                          () -> readLongValue( metricsCsv( coreMetricsDir, CoreMetrics.TX_RETRIES ) ), equalTo( 0L ),
+                          TIMEOUT, TimeUnit.SECONDS );
 
         assertEventually( "is leader eventually accurate",
-                () -> readLongValue( metricsCsv( coreMetricsDir, CoreMetrics.IS_LEADER ) ),
-                greaterThanOrEqualTo( 0L ), TIMEOUT, TimeUnit.SECONDS );
+                          () -> readLongValue( metricsCsv( coreMetricsDir, CoreMetrics.IS_LEADER ) ),
+                          greaterThanOrEqualTo( 0L ), TIMEOUT, TimeUnit.SECONDS );
 
         File readReplicaMetricsDir = new File( cluster.getReadReplicaById( 0 ).homeDir(), "metrics" );
 
         assertEventually( "pull update request registered",
-                () -> readLongValue( metricsCsv( readReplicaMetricsDir, PULL_UPDATES ) ),
-                greaterThan( 0L ), TIMEOUT, TimeUnit.SECONDS );
+                          () -> readLongValue( metricsCsv( readReplicaMetricsDir, PULL_UPDATES ) ),
+                          greaterThan( 0L ), TIMEOUT, TimeUnit.SECONDS );
 
         assertEventually( "pull update request registered",
-                () -> readLongValue( metricsCsv( readReplicaMetricsDir, PULL_UPDATE_HIGHEST_TX_ID_REQUESTED ) ),
-                greaterThan( 0L ), TIMEOUT, TimeUnit.SECONDS );
+                          () -> readLongValue( metricsCsv( readReplicaMetricsDir, PULL_UPDATE_HIGHEST_TX_ID_REQUESTED ) ),
+                          greaterThan( 0L ), TIMEOUT, TimeUnit.SECONDS );
 
         assertEventually( "pull update response received",
-                () -> readLongValue( metricsCsv( readReplicaMetricsDir, PULL_UPDATE_HIGHEST_TX_ID_RECEIVED ) ),
-                greaterThan( 0L ), TIMEOUT, TimeUnit.SECONDS );
+                          () -> readLongValue( metricsCsv( readReplicaMetricsDir, PULL_UPDATE_HIGHEST_TX_ID_RECEIVED ) ),
+                          greaterThan( 0L ), TIMEOUT, TimeUnit.SECONDS );
     }
 
     private void assertAllNodesVisible( GraphDatabaseAPI db ) throws Exception
     {
         try ( Transaction tx = db.beginTx() )
         {
-            ThrowingSupplier<Long, Exception> nodeCount = () -> count( db.getAllNodes() );
+            ThrowingSupplier<Long,Exception> nodeCount = () -> count( db.getAllNodes() );
 
             Config config = db.getDependencyResolver().resolveDependency( Config.class );
 
             assertEventually( "node to appear on core server " + config.get( raft_advertised_address ), nodeCount,
-                    greaterThan( 0L ), TIMEOUT, SECONDS );
+                              greaterThan( 0L ), TIMEOUT, SECONDS );
 
             for ( Node node : db.getAllNodes() )
             {

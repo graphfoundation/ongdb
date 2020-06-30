@@ -29,18 +29,17 @@ import java.util.SortedMap;
 public interface EventReporter
 {
     /**
-     * To be called whenever an event occurs. Note that this call might be blocking, hence don't call it from
-     * time sensitive code or hot path code.
+     * To be called whenever an event occurs. Note that this call might be blocking, hence don't call it from time sensitive code or hot path code.
      *
-     * @param gauges all of the gauges in the registry
-     * @param counters all of the counters in the registry
+     * @param gauges     all of the gauges in the registry
+     * @param counters   all of the counters in the registry
      * @param histograms all of the histograms in the registry
-     * @param meters all of the meters in the registry
-     * @param timers all of the timers in the registry
+     * @param meters     all of the meters in the registry
+     * @param timers     all of the timers in the registry
      */
     void report( SortedMap<String,Gauge> gauges,
-            SortedMap<String,Counter> counters,
-            SortedMap<String,Histogram> histograms,
-            SortedMap<String,Meter> meters,
-            SortedMap<String,Timer> timers );
+                 SortedMap<String,Counter> counters,
+                 SortedMap<String,Histogram> histograms,
+                 SortedMap<String,Meter> meters,
+                 SortedMap<String,Timer> timers );
 }

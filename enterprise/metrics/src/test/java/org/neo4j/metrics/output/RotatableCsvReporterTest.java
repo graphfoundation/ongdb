@@ -52,8 +52,8 @@ public class RotatableCsvReporterTest
         when( fileOutputStreamSupplier.get() ).thenReturn( outputStream );
         RotatableCsvReporter reporter =
                 new RotatableCsvReporter( mock( MetricRegistry.class ), Locale.US, TimeUnit.SECONDS, TimeUnit.SECONDS,
-                        Clock.defaultClock(), testDirectory.directory(),
-                        ( file, rotationListener ) -> fileOutputStreamSupplier );
+                                          Clock.defaultClock(), testDirectory.directory(),
+                                          ( file, rotationListener ) -> fileOutputStreamSupplier );
         TreeMap<String,Gauge> gauges = new TreeMap<>();
         gauges.put( "a", () -> ThreadLocalRandom.current().nextLong() );
         gauges.put( "b", () -> ThreadLocalRandom.current().nextLong() );

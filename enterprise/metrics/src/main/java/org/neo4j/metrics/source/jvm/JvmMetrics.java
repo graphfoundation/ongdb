@@ -18,7 +18,7 @@
  */
 package org.neo4j.metrics.source.jvm;
 
-import org.neo4j.kernel.impl.annotations.Documented;
+import org.neo4j.annotations.documented.Documented;
 import org.neo4j.kernel.lifecycle.LifecycleAdapter;
 
 @Documented( "=== Java Virtual Machine Metrics\n\n" +

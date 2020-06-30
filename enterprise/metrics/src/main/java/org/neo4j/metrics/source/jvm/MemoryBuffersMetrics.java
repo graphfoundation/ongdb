@@ -18,43 +18,63 @@
  */
 package org.neo4j.metrics.source.jvm;
 
-import com.codahale.metrics.Gauge;
 import com.codahale.metrics.MetricRegistry;
 
 import java.lang.management.BufferPoolMXBean;
 import java.lang.management.ManagementFactory;
 
-import static com.codahale.metrics.MetricRegistry.name;
+import org.neo4j.annotations.documented.Documented;
+import org.neo4j.metrics.meter.MeterCounter;
 
+@Documented( ".JVM memory buffers metrics." )
 public class MemoryBuffersMetrics extends JvmMetrics
 {
-    public static final String MEMORY_BUFFER = name( JvmMetrics.NAME_PREFIX, "memory.buffer" );
+    private static final String MEMORY_BUFFER_PREFIX = MetricRegistry.name( "vm", "memory.buffer" );
+    @Documented( "Estimated number of buffers in the pool." )
+    private static final String MEMORY_BUFFER_COUNT_TEMPLATE;
+    @Documented( "Estimated amount of memory used by the pool." )
+    private static final String MEMORY_BUFFER_USED_TEMPLATE;
+    @Documented( "Estimated total capacity of buffers in the pool." )
+    private static final String MEMORY_BUFFER_CAPACITY_TEMPLATE;
+
+    static
+    {
+        MEMORY_BUFFER_COUNT_TEMPLATE = MetricRegistry.name( MEMORY_BUFFER_PREFIX, "%s", "count" );
+        MEMORY_BUFFER_USED_TEMPLATE = MetricRegistry.name( MEMORY_BUFFER_PREFIX, "%s", "used" );
+        MEMORY_BUFFER_CAPACITY_TEMPLATE = MetricRegistry.name( MEMORY_BUFFER_PREFIX, "%s", "capacity" );
+    }
 
     private final MetricRegistry registry;
+    private final String memoryBufferPrefix;
+    private final String memoryBufferCount;
+    private final String memoryBufferUsed;
+    private final String memoryBufferCapacity;
 
-    public MemoryBuffersMetrics( MetricRegistry registry )
+    public MemoryBuffersMetrics( String metricsPrefix, MetricRegistry registry )
     {
         this.registry = registry;
+        this.memoryBufferPrefix = MetricRegistry.name( metricsPrefix, MEMORY_BUFFER_PREFIX );
+        this.memoryBufferCount = MetricRegistry.name( metricsPrefix, MEMORY_BUFFER_COUNT_TEMPLATE );
+        this.memoryBufferUsed = MetricRegistry.name( metricsPrefix, MEMORY_BUFFER_USED_TEMPLATE );
+        this.memoryBufferCapacity = MetricRegistry.name( metricsPrefix, MEMORY_BUFFER_CAPACITY_TEMPLATE );
     }
 
     @Override
     public void start()
     {
+
         for ( final BufferPoolMXBean pool : ManagementFactory.getPlatformMXBeans( BufferPoolMXBean.class ) )
         {
-            registry.register(
-                    name( MEMORY_BUFFER, prettifyName( pool.getName() ), "count" ), (Gauge<Long>) pool::getCount );
-            registry.register(
-                    name( MEMORY_BUFFER, prettifyName( pool.getName() ), "used" ), (Gauge<Long>) pool::getMemoryUsed );
-            registry.register(
-                    name( MEMORY_BUFFER, prettifyName( pool.getName() ), "capacity" ),
-                    (Gauge<Long>) pool::getTotalCapacity );
+            String poolPrettyName = prettifyName( pool.getName() );
+            registry.register( memoryBufferCount + poolPrettyName, new MeterCounter( pool::getCount ) );
+            registry.register( memoryBufferUsed + poolPrettyName, new MeterCounter( pool::getMemoryUsed ) );
+            registry.register( memoryBufferCapacity + poolPrettyName, new MeterCounter( pool::getTotalCapacity ) );
         }
     }
 
     @Override
     public void stop()
     {
-        registry.removeMatching( ( name, metric ) -> name.startsWith( MEMORY_BUFFER ) );
+        registry.removeMatching( ( name, metric ) -> name.startsWith( memoryBufferPrefix ) );
     }
 }

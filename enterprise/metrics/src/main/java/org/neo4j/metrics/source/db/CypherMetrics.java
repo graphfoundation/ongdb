@@ -18,33 +18,34 @@
  */
 package org.neo4j.metrics.source.db;
 
-import com.codahale.metrics.Gauge;
 import com.codahale.metrics.MetricRegistry;
 
-import org.neo4j.cypher.PlanCacheMetricsMonitor;
-import org.neo4j.kernel.impl.annotations.Documented;
-import org.neo4j.kernel.lifecycle.LifecycleAdapter;
-import org.neo4j.kernel.monitoring.Monitors;
+import java.util.Objects;
 
-import static com.codahale.metrics.MetricRegistry.name;
+import org.neo4j.annotations.documented.Documented;
+import org.neo4j.cypher.PlanCacheMetricsMonitor;
+import org.neo4j.kernel.lifecycle.LifecycleAdapter;
+import org.neo4j.metrics.meter.MeterCounter;
+import org.neo4j.monitoring.Monitors;
 
 @Documented( ".Cypher metrics" )
 public class CypherMetrics extends LifecycleAdapter
 {
-    private static final String NAME_PREFIX = "neo4j.cypher";
-
-    @Documented( "The total number of times Cypher has decided to re-plan a query" )
-    public static final String REPLAN_EVENTS = name( NAME_PREFIX, "replan_events" );
-
-    @Documented( "The total number of seconds waited between query replans" )
-    public static final String REPLAN_WAIT_TIME = name( NAME_PREFIX, "replan_wait_time" );
-
+    private static final String CYPHER_PREFIX = "cypher";
+    @Documented( "The total number of times Cypher has decided to re-plan a query." )
+    private static final String REPLAN_EVENTS_TEMPLATE = MetricRegistry.name( CYPHER_PREFIX, "replan_events" );
+    @Documented( "The total number of seconds waited between query replans." )
+    private static final String REPLAN_WAIT_TIME_TEMPLATE = MetricRegistry.name( CYPHER_PREFIX, "replan_wait_time" );
+    private final String replanEvents;
+    private final String replanWaitTime;
     private final MetricRegistry registry;
     private final Monitors monitors;
     private final PlanCacheMetricsMonitor cacheMonitor = new PlanCacheMetricsMonitor();
 
-    public CypherMetrics( MetricRegistry registry, Monitors monitors )
+    public CypherMetrics( String metricsPrefix, MetricRegistry registry, Monitors monitors )
     {
+        this.replanEvents = MetricRegistry.name( metricsPrefix, REPLAN_EVENTS_TEMPLATE );
+        this.replanWaitTime = MetricRegistry.name( metricsPrefix, REPLAN_WAIT_TIME_TEMPLATE );
         this.registry = registry;
         this.monitors = monitors;
     }
@@ -52,16 +53,21 @@ public class CypherMetrics extends LifecycleAdapter
     @Override
     public void start()
     {
-        monitors.addMonitorListener( cacheMonitor );
-        registry.register( REPLAN_EVENTS, (Gauge<Long>) cacheMonitor::numberOfReplans );
-        registry.register( REPLAN_WAIT_TIME, (Gauge<Long>) cacheMonitor::replanWaitTime );
+        //monitors.addMonitorListener( cacheMonitor );
+        //registry.register( REPLAN_EVENTS, (Gauge<Long>) cacheMonitor::numberOfReplans );
+        //registry.register( REPLAN_WAIT_TIME, (Gauge<Long>) cacheMonitor::replanWaitTime );
+
+        monitors.addMonitorListener( this.cacheMonitor );
+        Objects.requireNonNull( cacheMonitor );
+        registry.register( replanEvents, new MeterCounter( cacheMonitor::numberOfReplans ) );
+        registry.register( replanWaitTime, new MeterCounter( cacheMonitor::replanWaitTime ) );
     }
 
     @Override
     public void stop()
     {
-        registry.remove( REPLAN_EVENTS );
-        registry.remove( REPLAN_WAIT_TIME );
+        registry.remove( replanWaitTime );
+        registry.remove( replanWaitTime );
         monitors.removeMonitorListener( cacheMonitor );
     }
 }

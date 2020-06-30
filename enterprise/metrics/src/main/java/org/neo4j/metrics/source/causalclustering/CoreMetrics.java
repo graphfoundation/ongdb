@@ -23,11 +23,11 @@ import com.codahale.metrics.MetricRegistry;
 
 import java.util.function.Supplier;
 
+import org.neo4j.annotations.documented.Documented;
 import org.neo4j.causalclustering.core.consensus.CoreMetaData;
 import org.neo4j.causalclustering.core.consensus.RaftMessages;
-import org.neo4j.kernel.impl.annotations.Documented;
 import org.neo4j.kernel.lifecycle.LifecycleAdapter;
-import org.neo4j.kernel.monitoring.Monitors;
+import org.neo4j.monitoring.Monitors;
 
 import static com.codahale.metrics.MetricRegistry.name;
 
@@ -71,9 +71,10 @@ public class CoreMetrics extends LifecycleAdapter
     @Documented( "Raft Replication fail count" )
     public static final String REPLICATION_FAIL = name( CAUSAL_CLUSTERING_PREFIX, "replication_fail" );
 
-    private Monitors monitors;
-    private MetricRegistry registry;
-    private Supplier<CoreMetaData> coreMetaData;
+    private final String metricsPrefix;
+    private final Monitors monitors;
+    private final MetricRegistry registry;
+    private final Supplier<CoreMetaData> coreMetaData;
 
     private final RaftLogCommitIndexMetric raftLogCommitIndexMetric = new RaftLogCommitIndexMetric();
     private final RaftLogAppendIndexMetric raftLogAppendIndexMetric = new RaftLogAppendIndexMetric();
@@ -84,8 +85,9 @@ public class CoreMetrics extends LifecycleAdapter
     private final RaftMessageProcessingMetric raftMessageProcessingMetric = RaftMessageProcessingMetric.create();
     private final ReplicationMetric replicationMetric = new ReplicationMetric();
 
-    public CoreMetrics( Monitors monitors, MetricRegistry registry, Supplier<CoreMetaData> coreMetaData )
+    public CoreMetrics( String metricsPrefix, Monitors monitors, MetricRegistry registry, Supplier<CoreMetaData> coreMetaData )
     {
+        this.metricsPrefix = metricsPrefix;
         this.monitors = monitors;
         this.registry = registry;
         this.coreMetaData = coreMetaData;

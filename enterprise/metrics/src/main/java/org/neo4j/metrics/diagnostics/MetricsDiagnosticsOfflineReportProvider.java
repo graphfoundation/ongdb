@@ -24,13 +24,12 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
-import org.neo4j.diagnostics.DiagnosticsOfflineReportProvider;
-import org.neo4j.diagnostics.DiagnosticsReportSource;
+import org.neo4j.configuration.Config;
 import org.neo4j.io.fs.FileSystemAbstraction;
-import org.neo4j.kernel.configuration.Config;
-import org.neo4j.metrics.MetricsSettings;
-
-import static org.neo4j.diagnostics.DiagnosticsReportSources.newDiagnosticsFile;
+import org.neo4j.kernel.diagnostics.DiagnosticsOfflineReportProvider;
+import org.neo4j.kernel.diagnostics.DiagnosticsReportSource;
+import org.neo4j.kernel.diagnostics.DiagnosticsReportSources;
+import org.neo4j.kernel.impl.enterprise.settings.metrics.MetricsSettings;
 
 public class MetricsDiagnosticsOfflineReportProvider extends DiagnosticsOfflineReportProvider
 {
@@ -43,7 +42,7 @@ public class MetricsDiagnosticsOfflineReportProvider extends DiagnosticsOfflineR
     }
 
     @Override
-    public void init( FileSystemAbstraction fs, Config config, File storeDirectory )
+    public void init( FileSystemAbstraction fs, String defaultDatabaseName, Config config, File storeDirectory )
     {
         this.fs = fs;
         this.config = config;
@@ -52,13 +51,13 @@ public class MetricsDiagnosticsOfflineReportProvider extends DiagnosticsOfflineR
     @Override
     protected List<DiagnosticsReportSource> provideSources( Set<String> classifiers )
     {
-        File metricsDirectory = config.get( MetricsSettings.csvPath );
+        File metricsDirectory = (this.config.get( MetricsSettings.csvPath )).toFile();
         if ( fs.fileExists( metricsDirectory ) && fs.isDirectory( metricsDirectory ) )
         {
             List<DiagnosticsReportSource> files = new ArrayList<>();
             for ( File file : fs.listFiles( metricsDirectory ) )
             {
-                files.add( newDiagnosticsFile( "metrics/" + file.getName(), fs, file ) );
+                files.add( DiagnosticsReportSources.newDiagnosticsFile( "metrics/" + file.getName(), this.fs, file ) );
             }
             return files;
         }

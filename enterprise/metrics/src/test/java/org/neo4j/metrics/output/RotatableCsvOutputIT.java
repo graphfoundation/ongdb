@@ -31,7 +31,7 @@ import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Transaction;
 import org.neo4j.graphdb.factory.EnterpriseGraphDatabaseFactory;
 import org.neo4j.kernel.configuration.Settings;
-import org.neo4j.kernel.impl.enterprise.configuration.OnlineBackupSettings;
+import org.neo4j.kernel.impl.enterprise.settings.backup.OnlineBackupSettings;
 import org.neo4j.metrics.source.db.TransactionMetrics;
 import org.neo4j.test.rule.TestDirectory;
 
@@ -47,24 +47,59 @@ import static org.neo4j.test.assertion.Assert.assertEventually;
 
 public class RotatableCsvOutputIT
 {
-    @Rule
-    public TestDirectory testDirectory = TestDirectory.testDirectory();
-
-    private File outputPath;
-    private GraphDatabaseService database;
     private static final BiPredicate<Long,Long> MONOTONIC = ( newValue, currentValue ) -> newValue >= currentValue;
     private static final int MAX_ARCHIVES = 20;
+    @Rule
+    public TestDirectory testDirectory = TestDirectory.testDirectory();
+    private File outputPath;
+    private GraphDatabaseService database;
+
+    private static void waitForRotation( File dbDir, String metric ) throws InterruptedException
+    {
+        // Find highest missing file
+        int i = 0;
+        while ( getMetricFile( dbDir, metric, i ).exists() )
+        {
+            i++;
+        }
+
+        if ( i >= MAX_ARCHIVES )
+        {
+            fail( "Test did not finish before " + MAX_ARCHIVES + " rotations, which means we have rotated away from the " +
+                  "file we want to assert on." );
+        }
+
+        // wait for file to exists
+        metricsCsv( dbDir, metric, i );
+    }
+
+    private static File metricsCsv( File dbDir, String metric ) throws InterruptedException
+    {
+        return metricsCsv( dbDir, metric, 0 );
+    }
+
+    private static File metricsCsv( File dbDir, String metric, long index ) throws InterruptedException
+    {
+        File csvFile = getMetricFile( dbDir, metric, index );
+        assertEventually( "Metrics file should exist", csvFile::exists, is( true ), 40, SECONDS );
+        return csvFile;
+    }
+
+    private static File getMetricFile( File dbDir, String metric, long index )
+    {
+        return new File( dbDir, index > 0 ? metric + ".csv." + index : metric + ".csv" );
+    }
 
     @Before
     public void setup()
     {
         outputPath = testDirectory.directory( "metrics" );
         database = new EnterpriseGraphDatabaseFactory().newEmbeddedDatabaseBuilder( testDirectory.storeDir() )
-                .setConfig( csvPath, outputPath.getAbsolutePath() )
-                .setConfig( csvRotationThreshold, "21" )
-                .setConfig( csvMaxArchives, String.valueOf( MAX_ARCHIVES ) )
-                .setConfig( OnlineBackupSettings.online_backup_enabled, Settings.FALSE )
-                .newGraphDatabase();
+                                                       .setConfig( csvPath, outputPath.getAbsolutePath() )
+                                                       .setConfig( csvRotationThreshold, "21" )
+                                                       .setConfig( csvMaxArchives, String.valueOf( MAX_ARCHIVES ) )
+                                                       .setConfig( OnlineBackupSettings.online_backup_enabled, Settings.FALSE )
+                                                       .newGraphDatabase();
     }
 
     @After
@@ -102,41 +137,5 @@ public class RotatableCsvOutputIT
             database.createNode();
             transaction.success();
         }
-    }
-
-    private static void waitForRotation( File dbDir, String metric ) throws InterruptedException
-    {
-        // Find highest missing file
-        int i = 0;
-        while ( getMetricFile( dbDir, metric, i ).exists() )
-        {
-            i++;
-        }
-
-        if ( i >= MAX_ARCHIVES )
-        {
-            fail( "Test did not finish before " + MAX_ARCHIVES + " rotations, which means we have rotated away from the " +
-                    "file we want to assert on." );
-        }
-
-        // wait for file to exists
-        metricsCsv( dbDir, metric, i );
-    }
-
-    private static File metricsCsv( File dbDir, String metric ) throws InterruptedException
-    {
-        return metricsCsv( dbDir, metric, 0 );
-    }
-
-    private static File metricsCsv( File dbDir, String metric, long index ) throws InterruptedException
-    {
-        File csvFile = getMetricFile( dbDir, metric, index );
-        assertEventually( "Metrics file should exist", csvFile::exists, is( true ), 40, SECONDS );
-        return csvFile;
-    }
-
-    private static File getMetricFile( File dbDir, String metric, long index )
-    {
-        return new File( dbDir, index > 0 ? metric + ".csv." + index : metric + ".csv" );
     }
 }

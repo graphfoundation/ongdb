@@ -22,10 +22,9 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import org.neo4j.causalclustering.catchup.tx.TxRetryMonitor;
 
-
 class TxRetryMetric implements TxRetryMonitor
 {
-    private AtomicLong count = new AtomicLong( 0 );
+    private final AtomicLong count = new AtomicLong( 0 );
 
     @Override
     public long transactionsRetries()

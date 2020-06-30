@@ -21,5 +21,6 @@ package org.neo4j.metrics.source.server;
 public interface ServerThreadView
 {
     int allThreads();
+
     int idleThreads();
 }

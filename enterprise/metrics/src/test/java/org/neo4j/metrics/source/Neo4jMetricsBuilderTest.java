@@ -40,7 +40,6 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.not;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.neo4j.kernel.impl.factory.DatabaseInfo.COMMUNITY;
 
@@ -49,6 +48,14 @@ class Neo4jMetricsBuilderTest
 {
     @Inject
     private TestDirectory testDir;
+
+    private static Config configWithServerMetrics( boolean enabled )
+    {
+        return Config.builder()
+                     .withSetting( new HttpConnector( "http" ).enabled, Boolean.toString( enabled ) )
+                     .withSetting( MetricsSettings.neoServerEnabled, "true" )
+                     .build();
+    }
 
     @Test
     void shouldAddServerMetricsWhenServerEnabled()
@@ -69,7 +76,7 @@ class Neo4jMetricsBuilderTest
         LifeSupport life = new LifeSupport();
 
         Neo4jMetricsBuilder builder = new Neo4jMetricsBuilder( new MetricRegistry(), mock( EventReporter.class ), config, NullLogService.getInstance(),
-                kernelContext, mock( Neo4jMetricsBuilder.Dependencies.class ), life );
+                                                               kernelContext, mock( Neo4jMetricsBuilder.Dependencies.class ), life );
 
         assertTrue( builder.build() );
 
@@ -81,13 +88,5 @@ class Neo4jMetricsBuilderTest
         {
             assertThat( life.getLifecycleInstances(), not( hasItem( instanceOf( ServerMetrics.class ) ) ) );
         }
-    }
-
-    private static Config configWithServerMetrics( boolean enabled )
-    {
-        return Config.builder()
-                .withSetting( new HttpConnector( "http" ).enabled, Boolean.toString( enabled ) )
-                .withSetting( MetricsSettings.neoServerEnabled, "true" )
-                .build();
     }
 }

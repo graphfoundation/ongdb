@@ -52,9 +52,9 @@ public class PrometheusOutputIT
     public void setUp()
     {
         database = new EnterpriseGraphDatabaseFactory().newEmbeddedDatabaseBuilder( testDirectory.storeDir() )
-                .setConfig( prometheusEnabled, Settings.TRUE )
-                .setConfig( prometheusEndpoint, "localhost:0" )
-                .newGraphDatabase();
+                                                       .setConfig( prometheusEnabled, Settings.TRUE )
+                                                       .setConfig( prometheusEndpoint, "localhost:0" )
+                                                       .newGraphDatabase();
     }
 
     @After

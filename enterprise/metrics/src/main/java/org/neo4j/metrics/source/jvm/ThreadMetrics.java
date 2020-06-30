@@ -18,39 +18,45 @@
  */
 package org.neo4j.metrics.source.jvm;
 
-import com.codahale.metrics.Gauge;
 import com.codahale.metrics.MetricRegistry;
 
 import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadMXBean;
 
-import static com.codahale.metrics.MetricRegistry.name;
+import org.neo4j.annotations.documented.Documented;
+import org.neo4j.metrics.meter.MeterCounter;
 
+@Documented( ".JVM threads metrics." )
 public class ThreadMetrics extends JvmMetrics
 {
-    public static final String THREAD_COUNT = name( JvmMetrics.NAME_PREFIX, "thread.count" );
-    public static final String THREAD_TOTAL = name( JvmMetrics.NAME_PREFIX, "thread.total" );
-
+    @Documented( "Estimated number of active threads in the current thread group." )
+    private static final String THREAD_COUNT_TEMPLATE = MetricRegistry.name( "vm", "thread.count" );
+    @Documented( "The total number of live threads including daemon and non-daemon threads." )
+    private static final String THREAD_TOTAL_TEMPLATE = MetricRegistry.name( "vm", "thread.total" );
+    private final String threadCount;
+    private final String threadTotal;
     private final MetricRegistry registry;
     private final ThreadMXBean threadMXBean = ManagementFactory.getThreadMXBean();
 
-    public ThreadMetrics( MetricRegistry registry )
+    public ThreadMetrics( String metricsPrefix, MetricRegistry registry )
     {
         this.registry = registry;
+        this.threadCount = MetricRegistry.name( metricsPrefix, THREAD_COUNT_TEMPLATE );
+        this.threadTotal = MetricRegistry.name( metricsPrefix, THREAD_TOTAL_TEMPLATE );
     }
 
     @Override
     public void start()
     {
-        registry.register( THREAD_COUNT, (Gauge<Integer>) Thread::activeCount );
-        registry.register( THREAD_TOTAL, (Gauge<Integer>) threadMXBean::getThreadCount );
+        registry.register( threadCount, new MeterCounter( Thread::activeCount ) );
+        registry.register( threadTotal, new MeterCounter( threadMXBean::getThreadCount ) );
     }
 
     @Override
     public void stop()
     {
-        registry.remove( THREAD_COUNT );
-        registry.remove( THREAD_TOTAL );
+        this.registry.remove( this.threadCount );
+        this.registry.remove( this.threadTotal );
     }
 }
 

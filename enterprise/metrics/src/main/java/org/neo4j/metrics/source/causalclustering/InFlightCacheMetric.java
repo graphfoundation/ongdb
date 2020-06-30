@@ -56,25 +56,15 @@ public class InFlightCacheMetric implements InFlightCacheMonitor
         return maxBytes;
     }
 
-    public long getTotalBytes()
-    {
-        return totalBytes;
-    }
-
-    public long getMaxElements()
-    {
-        return maxElements;
-    }
-
-    public long getElementCount()
-    {
-        return elementCount;
-    }
-
     @Override
     public void setMaxBytes( long maxBytes )
     {
         this.maxBytes = maxBytes;
+    }
+
+    public long getTotalBytes()
+    {
+        return totalBytes;
     }
 
     @Override
@@ -83,10 +73,20 @@ public class InFlightCacheMetric implements InFlightCacheMonitor
         this.totalBytes = totalBytes;
     }
 
+    public long getMaxElements()
+    {
+        return maxElements;
+    }
+
     @Override
     public void setMaxElements( int maxElements )
     {
         this.maxElements = maxElements;
+    }
+
+    public long getElementCount()
+    {
+        return elementCount;
     }
 
     @Override

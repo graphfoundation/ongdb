@@ -24,7 +24,7 @@ import org.neo4j.causalclustering.core.consensus.log.monitoring.RaftTermMonitor;
 
 public class RaftTermMetric implements RaftTermMonitor
 {
-    private AtomicLong term = new AtomicLong( 0 );
+    private final AtomicLong term = new AtomicLong( 0 );
 
     @Override
     public long term()

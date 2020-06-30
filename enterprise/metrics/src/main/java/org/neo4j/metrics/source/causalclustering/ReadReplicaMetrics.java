@@ -18,38 +18,37 @@
  */
 package org.neo4j.metrics.source.causalclustering;
 
-import com.codahale.metrics.Gauge;
 import com.codahale.metrics.MetricRegistry;
 
-import java.io.IOException;
-
-import org.neo4j.kernel.impl.annotations.Documented;
+import org.neo4j.annotations.documented.Documented;
 import org.neo4j.kernel.lifecycle.LifecycleAdapter;
-import org.neo4j.kernel.monitoring.Monitors;
-
-import static com.codahale.metrics.MetricRegistry.name;
+import org.neo4j.metrics.meter.MeterCounter;
+import org.neo4j.monitoring.Monitors;
 
 @Documented( ".Read Replica Metrics" )
 public class ReadReplicaMetrics extends LifecycleAdapter
 {
-    private static final String CAUSAL_CLUSTERING_PREFIX = "neo4j.causal_clustering.read_replica";
-
-    @Documented( "The total number of pull requests made by this instance" )
-    public static final String PULL_UPDATES = name( CAUSAL_CLUSTERING_PREFIX, "pull_updates" );
-    @Documented( "The highest transaction id requested in a pull update by this instance" )
-    public static final String PULL_UPDATE_HIGHEST_TX_ID_REQUESTED = name( CAUSAL_CLUSTERING_PREFIX,
-            "pull_update_highest_tx_id_requested" );
-    @Documented( "The highest transaction id that has been pulled in the last pull updates by this instance" )
-    public static final String PULL_UPDATE_HIGHEST_TX_ID_RECEIVED = name( CAUSAL_CLUSTERING_PREFIX,
-            "pull_update_highest_tx_id_received" );
-
-    private Monitors monitors;
-    private MetricRegistry registry;
-
+    private static final String CAUSAL_CLUSTERING_PREFIX = "causal_clustering.read_replica";
+    @Documented( "The total number of pull requests made by this instance." )
+    private static final String PULL_UPDATES_TEMPLATE = MetricRegistry.name( "causal_clustering.read_replica", "pull_updates" );
+    @Documented( "The highest transaction id requested in a pull update by this instance." )
+    private static final String PULL_UPDATE_HIGHEST_TX_ID_REQUESTED_TEMPLATE =
+            MetricRegistry.name( "causal_clustering.read_replica", "pull_update_highest_tx_id_requested" );
+    @Documented( "The highest transaction id that has been pulled in the last pull updates by this instance." )
+    private static final String PULL_UPDATE_HIGHEST_TX_ID_RECEIVED_TEMPLATE =
+            MetricRegistry.name( "causal_clustering.read_replica", "pull_update_highest_tx_id_received" );
+    private final String pullUpdates;
+    private final String pullUpdateHighestTxIdRequested;
+    private final String pullUpdateHighestTxIdReceived;
+    private final Monitors monitors;
+    private final MetricRegistry registry;
     private final PullRequestMetric pullRequestMetric = new PullRequestMetric();
 
-    public ReadReplicaMetrics( Monitors monitors, MetricRegistry registry )
+    public ReadReplicaMetrics( String metricsPrefix, Monitors monitors, MetricRegistry registry )
     {
+        this.pullUpdates = MetricRegistry.name( metricsPrefix, PULL_UPDATES_TEMPLATE );
+        this.pullUpdateHighestTxIdRequested = MetricRegistry.name( metricsPrefix, PULL_UPDATE_HIGHEST_TX_ID_REQUESTED_TEMPLATE );
+        this.pullUpdateHighestTxIdReceived = MetricRegistry.name( metricsPrefix, PULL_UPDATE_HIGHEST_TX_ID_RECEIVED_TEMPLATE );
         this.monitors = monitors;
         this.registry = registry;
     }
@@ -59,18 +58,17 @@ public class ReadReplicaMetrics extends LifecycleAdapter
     {
         monitors.addMonitorListener( pullRequestMetric );
 
-        registry.register( PULL_UPDATES, (Gauge<Long>) pullRequestMetric::numberOfRequests );
-        registry.register( PULL_UPDATE_HIGHEST_TX_ID_REQUESTED, (Gauge<Long>) pullRequestMetric::lastRequestedTxId );
-        registry.register( PULL_UPDATE_HIGHEST_TX_ID_RECEIVED, (Gauge<Long>) pullRequestMetric::lastReceivedTxId );
+        registry.register( pullUpdates, new MeterCounter( pullRequestMetric::numberOfRequests ) );
+        registry.register( pullUpdateHighestTxIdRequested, new MeterCounter( pullRequestMetric::lastRequestedTxId ) );
+        registry.register( pullUpdateHighestTxIdReceived, new MeterCounter( pullRequestMetric::lastReceivedTxId ) );
     }
 
     @Override
     public void stop()
     {
-        registry.remove( PULL_UPDATES );
-        registry.remove( PULL_UPDATE_HIGHEST_TX_ID_REQUESTED );
-        registry.remove( PULL_UPDATE_HIGHEST_TX_ID_RECEIVED );
-
-        monitors.removeMonitorListener( pullRequestMetric );
+        this.registry.remove( this.pullUpdates );
+        this.registry.remove( this.pullUpdateHighestTxIdRequested );
+        this.registry.remove( this.pullUpdateHighestTxIdReceived );
+        this.monitors.removeMonitorListener( this.pullRequestMetric );
     }
 }

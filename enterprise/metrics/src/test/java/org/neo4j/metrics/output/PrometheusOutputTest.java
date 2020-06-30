@@ -41,6 +41,21 @@ import static org.mockito.Mockito.mock;
 
 public class PrometheusOutputTest
 {
+    private static String getResponse( String serverAddress ) throws IOException
+    {
+        String url = "http://" + serverAddress + "/metrics";
+        URLConnection connection = new URL( url ).openConnection();
+        connection.setDoOutput( true );
+        connection.connect();
+        try ( Scanner s = new Scanner( connection.getInputStream(), "UTF-8" ).useDelimiter( "\\A" ) )
+        {
+            assertTrue( s.hasNext() );
+            String ret = s.next();
+            assertFalse( s.hasNext() );
+            return ret;
+        }
+    }
+
     @Test
     public void eventsShouldBeRedirectedToGauges() throws Throwable
     {
@@ -81,7 +96,7 @@ public class PrometheusOutputTest
             dynamicOutput.report( gauges, emptySortedMap(), emptySortedMap(), emptySortedMap(), emptySortedMap() );
         };
 
-        registry.register( "my.metric", (Gauge) () -> 10 );
+        registry.register( "my.meter", (Gauge) () -> 10 );
 
         dynamicOutput.init();
         dynamicOutput.start();
@@ -92,21 +107,6 @@ public class PrometheusOutputTest
         String response = getResponse( serverAddress );
         assertTrue( response.contains( "my_metric 10.0" ) );
         assertTrue( response.contains( "my_event 20.0" ) );
-    }
-
-    private static String getResponse( String serverAddress ) throws IOException
-    {
-        String url = "http://" + serverAddress + "/metrics";
-        URLConnection connection = new URL( url ).openConnection();
-        connection.setDoOutput( true );
-        connection.connect();
-        try ( Scanner s = new Scanner( connection.getInputStream(), "UTF-8" ).useDelimiter( "\\A" ) )
-        {
-            assertTrue( s.hasNext() );
-            String ret = s.next();
-            assertFalse( s.hasNext() );
-            return ret;
-        }
     }
 
     private static class DynamicAddressPrometheusOutput extends PrometheusOutput

@@ -36,7 +36,7 @@ import org.neo4j.graphdb.factory.GraphDatabaseBuilder;
 import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.kernel.configuration.Settings;
 import org.neo4j.kernel.ha.HighlyAvailableGraphDatabase;
-import org.neo4j.kernel.impl.enterprise.configuration.OnlineBackupSettings;
+import org.neo4j.kernel.impl.enterprise.settings.backup.OnlineBackupSettings;
 import org.neo4j.kernel.impl.transaction.log.TransactionIdStore;
 import org.neo4j.kernel.impl.transaction.log.checkpoint.CheckPointer;
 import org.neo4j.kernel.impl.transaction.log.checkpoint.SimpleTriggerInfo;
@@ -78,7 +78,7 @@ public class MetricsKernelExtensionFactoryIT
     public void setup()
     {
         outputPath = clusterRule.directory( "metrics" );
-        Map<String, String> config = stringMap(
+        Map<String,String> config = stringMap(
                 MetricsSettings.neoEnabled.name(), Settings.TRUE,
                 metricsEnabled.name(), Settings.TRUE,
                 csvEnabled.name(), Settings.TRUE,
@@ -97,7 +97,7 @@ public class MetricsKernelExtensionFactoryIT
     {
         // GIVEN
         long lastCommittedTransactionId = db.getDependencyResolver().resolveDependency( TransactionIdStore.class )
-                .getLastCommittedTransactionId();
+                                            .getLastCommittedTransactionId();
 
         // Create some activity that will show up in the metrics data.
         addNodes( 1000 );
@@ -106,7 +106,7 @@ public class MetricsKernelExtensionFactoryIT
         // WHEN
         // We should at least have a "timestamp" column, and a "neo4j.transaction.committed" column
         long committedTransactions = readLongValueAndAssert( metricsFile,
-                ( newValue, currentValue ) -> newValue >= currentValue );
+                                                             ( newValue, currentValue ) -> newValue >= currentValue );
 
         // THEN
         assertThat( committedTransactions, greaterThanOrEqualTo( lastCommittedTransactionId ) );
@@ -124,7 +124,7 @@ public class MetricsKernelExtensionFactoryIT
         // WHEN
         // We should at least have a "timestamp" column, and a "neo4j.transaction.committed" column
         long committedTransactions = readLongValueAndAssert( metricsFile,
-                ( newValue, currentValue ) -> newValue >= currentValue );
+                                                             ( newValue, currentValue ) -> newValue >= currentValue );
 
         // THEN
         assertThat( committedTransactions, lessThanOrEqualTo( 1001L ) );
@@ -141,7 +141,7 @@ public class MetricsKernelExtensionFactoryIT
         // WHEN
         // We should at least have a "timestamp" column, and a "neo4j.transaction.committed" column
         long committedTransactions = readLongValueAndAssert( metricsFile,
-                ( newValue, currentValue ) -> newValue >= currentValue );
+                                                             ( newValue, currentValue ) -> newValue >= currentValue );
 
         // THEN
         assertThat( committedTransactions, equalTo( 1L ) );
@@ -174,7 +174,7 @@ public class MetricsKernelExtensionFactoryIT
         File replanCountMetricFile = metricsCsv( outputPath, CypherMetrics.REPLAN_EVENTS );
         File replanWaitMetricFile = metricsCsv( outputPath, CypherMetrics.REPLAN_WAIT_TIME );
 
-        // THEN see that the replan metric have pickup up at least one replan event
+        // THEN see that the replan meter have pickup up at least one replan event
         // since reporting happens in an async fashion then give it some time and check now and then
         long endTime = currentTimeMillis() + TimeUnit.SECONDS.toMillis( 10 );
         long events = 0;
@@ -230,15 +230,15 @@ public class MetricsKernelExtensionFactoryIT
     @Test
     public void mustBeAbleToStartWithNullTracer()
     {
-        // Start the database
+        // Start the db
         File disabledTracerDb = clusterRule.directory( "disabledTracerDb" );
         GraphDatabaseBuilder builder = new EnterpriseGraphDatabaseFactory().newEmbeddedDatabaseBuilder( disabledTracerDb );
         GraphDatabaseService nullTracerDatabase =
                 builder.setConfig( MetricsSettings.neoEnabled, Settings.TRUE ).setConfig( csvEnabled, Settings.TRUE )
-                        .setConfig( csvPath, outputPath.getAbsolutePath() )
-                        .setConfig( GraphDatabaseSettings.tracer, "null" ) // key point!
-                        .setConfig( OnlineBackupSettings.online_backup_enabled, Settings.FALSE )
-                        .newGraphDatabase();
+                       .setConfig( csvPath, outputPath.getAbsolutePath() )
+                       .setConfig( GraphDatabaseSettings.tracer, "null" ) // key point!
+                       .setConfig( OnlineBackupSettings.online_backup_enabled, Settings.FALSE )
+                       .newGraphDatabase();
         try ( Transaction tx = nullTracerDatabase.beginTx() )
         {
             Node node = nullTracerDatabase.createNode();
@@ -249,7 +249,7 @@ public class MetricsKernelExtensionFactoryIT
         {
             nullTracerDatabase.shutdown();
         }
-        // We assert that no exception is thrown during startup or the operation of the database.
+        // We assert that no exception is thrown during startup or the operation of the db.
     }
 
     private void addNodes( int numberOfNodes )

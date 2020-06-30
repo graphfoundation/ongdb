@@ -1,0 +1,2 @@
+org.neo4j.metrics.db.GraphDbMetricsExtensionFactory
+org.neo4j.metrics.MetricsExtensionFactory

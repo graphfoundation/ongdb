@@ -33,7 +33,7 @@ import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.helpers.HostnamePort;
 import org.neo4j.kernel.configuration.BoltConnector;
 import org.neo4j.kernel.configuration.Settings;
-import org.neo4j.kernel.impl.enterprise.configuration.OnlineBackupSettings;
+import org.neo4j.kernel.impl.enterprise.settings.backup.OnlineBackupSettings;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
 import org.neo4j.test.TestGraphDatabaseFactory;
 import org.neo4j.test.rule.TestDirectory;
@@ -55,13 +55,11 @@ import static org.neo4j.test.assertion.Assert.assertEventually;
 
 public class BoltMetricsIT
 {
+    private final TransportTestUtil util = new TransportTestUtil( new Neo4jPackV1() );
     @Rule
     public TestDirectory testDirectory = TestDirectory.testDirectory();
-
     private GraphDatabaseAPI db;
     private TransportConnection conn;
-
-    private final TransportTestUtil util = new TransportTestUtil( new Neo4jPackV1() );
 
     @Test
     public void shouldMonitorBolt() throws Throwable
@@ -87,24 +85,24 @@ public class BoltMetricsIT
                 .connect( new HostnamePort( "localhost", getBoltPort( db ) ) )
                 .send( util.acceptedVersions( 1, 0, 0, 0 ) )
                 .send( util.chunk( new InitMessage( "TestClient",
-                        map("scheme", "basic", "principal", "neo4j", "credentials", "neo4j") ) ) );
+                                                    map( "scheme", "basic", "principal", "neo4j", "credentials", "neo4j" ) ) ) );
 
         // Then
         assertEventually( "session shows up as started",
-                () -> readLongValue( metricsCsv( metricsFolder, SESSIONS_STARTED ) ), equalTo( 1L ), 5, SECONDS );
+                          () -> readLongValue( metricsCsv( metricsFolder, SESSIONS_STARTED ) ), equalTo( 1L ), 5, SECONDS );
         assertEventually( "init request shows up as received",
-                () -> readLongValue( metricsCsv( metricsFolder, MESSAGES_RECEIVED ) ), equalTo( 1L ), 5, SECONDS );
+                          () -> readLongValue( metricsCsv( metricsFolder, MESSAGES_RECEIVED ) ), equalTo( 1L ), 5, SECONDS );
         assertEventually( "init request shows up as started",
-                () -> readLongValue( metricsCsv( metricsFolder, MESSAGES_STARTED ) ), equalTo( 1L ), 5, SECONDS );
+                          () -> readLongValue( metricsCsv( metricsFolder, MESSAGES_STARTED ) ), equalTo( 1L ), 5, SECONDS );
         assertEventually( "init request shows up as done",
-                () -> readLongValue( metricsCsv( metricsFolder, MESSAGES_DONE ) ), equalTo( 1L ), 5, SECONDS );
+                          () -> readLongValue( metricsCsv( metricsFolder, MESSAGES_DONE ) ), equalTo( 1L ), 5, SECONDS );
 
         assertEventually( "queue time shows up",
-                () -> readLongValue( metricsCsv( metricsFolder, TOTAL_QUEUE_TIME ) ),
-                greaterThanOrEqualTo( 0L ), 5, SECONDS );
+                          () -> readLongValue( metricsCsv( metricsFolder, TOTAL_QUEUE_TIME ) ),
+                          greaterThanOrEqualTo( 0L ), 5, SECONDS );
         assertEventually( "processing time shows up",
-                () -> readLongValue( metricsCsv( metricsFolder, TOTAL_PROCESSING_TIME ) ),
-                greaterThanOrEqualTo( 0L ), 5, SECONDS );
+                          () -> readLongValue( metricsCsv( metricsFolder, TOTAL_PROCESSING_TIME ) ),
+                          greaterThanOrEqualTo( 0L ), 5, SECONDS );
     }
 
     @After

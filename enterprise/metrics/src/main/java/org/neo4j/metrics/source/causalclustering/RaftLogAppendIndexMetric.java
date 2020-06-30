@@ -24,7 +24,7 @@ import org.neo4j.causalclustering.core.consensus.log.monitoring.RaftLogAppendInd
 
 public class RaftLogAppendIndexMetric implements RaftLogAppendIndexMonitor
 {
-    private AtomicLong appendIndex = new AtomicLong( 0 );
+    private final AtomicLong appendIndex = new AtomicLong( 0 );
 
     @Override
     public long appendIndex()

@@ -19,93 +19,120 @@
 package org.neo4j.metrics.output;
 
 import com.codahale.metrics.MetricRegistry;
+import com.codahale.metrics.jmx.JmxReporter;
+import com.codahale.metrics.jmx.ObjectNameFactory;
 
-import org.neo4j.cluster.ClusterSettings;
-import org.neo4j.helpers.HostnamePort;
+import javax.management.MalformedObjectNameException;
+import javax.management.ObjectName;
+
+import org.neo4j.configuration.Config;
+import org.neo4j.configuration.connectors.ConnectorPortRegister;
+import org.neo4j.internal.helpers.HostnamePort;
 import org.neo4j.io.fs.FileSystemAbstraction;
-import org.neo4j.kernel.configuration.Config;
-import org.neo4j.kernel.configuration.ConnectorPortRegister;
-import org.neo4j.kernel.impl.spi.KernelContext;
+import org.neo4j.kernel.extension.context.ExtensionContext;
+import org.neo4j.kernel.impl.enterprise.settings.metrics.MetricsSettings;
 import org.neo4j.kernel.lifecycle.LifeSupport;
 import org.neo4j.logging.Log;
-import org.neo4j.metrics.MetricsSettings;
 import org.neo4j.scheduler.JobScheduler;
-
-import static org.neo4j.metrics.MetricsSettings.csvEnabled;
-import static org.neo4j.metrics.MetricsSettings.graphiteEnabled;
-import static org.neo4j.metrics.MetricsSettings.graphiteInterval;
-import static org.neo4j.metrics.MetricsSettings.graphiteServer;
-import static org.neo4j.metrics.MetricsSettings.prometheusEnabled;
-import static org.neo4j.metrics.MetricsSettings.prometheusEndpoint;
 
 public class EventReporterBuilder
 {
+    private static final String METRICS_JMX_BEAN_SUFFIX = ".metrics";
     private final Config config;
     private final MetricRegistry registry;
     private final Log logger;
-    private final KernelContext kernelContext;
+    private final ExtensionContext extensionContext;
     private final LifeSupport life;
     private final ConnectorPortRegister portRegister;
-    private FileSystemAbstraction fileSystem;
-    private JobScheduler scheduler;
+    private final FileSystemAbstraction fileSystem;
+    private final JobScheduler scheduler;
 
-    public EventReporterBuilder( Config config, MetricRegistry registry, Log logger, KernelContext kernelContext,
-            LifeSupport life, FileSystemAbstraction fileSystem, JobScheduler scheduler, ConnectorPortRegister portRegister )
+    public EventReporterBuilder( Config config, MetricRegistry registry, Log logger, ExtensionContext extensionContext, LifeSupport life,
+                                 FileSystemAbstraction fileSystem, JobScheduler scheduler, ConnectorPortRegister portRegister )
     {
         this.config = config;
         this.registry = registry;
         this.logger = logger;
-        this.kernelContext = kernelContext;
+        this.extensionContext = extensionContext;
         this.life = life;
         this.fileSystem = fileSystem;
         this.scheduler = scheduler;
         this.portRegister = portRegister;
     }
 
+    /**
+     * @return
+     */
     public CompositeEventReporter build()
     {
         CompositeEventReporter reporter = new CompositeEventReporter();
-        final String prefix = createMetricsPrefix( config );
-        if ( config.get( csvEnabled ) )
+        if ( !this.config.get( MetricsSettings.metricsEnabled ) )
         {
-            CsvOutput csvOutput = new CsvOutput( config, registry, logger, kernelContext, fileSystem, scheduler );
-            reporter.add( csvOutput );
-            life.add( csvOutput );
+            return reporter;
         }
-
-        if ( config.get( graphiteEnabled ) )
+        else
         {
-            HostnamePort server = config.get( graphiteServer );
-            long period = config.get( graphiteInterval ).toMillis();
-            GraphiteOutput graphiteOutput = new GraphiteOutput( server, period, registry, logger, prefix );
-            reporter.add( graphiteOutput );
-            life.add( graphiteOutput );
-        }
+            if ( this.config.get( MetricsSettings.csvEnabled ) )
+            {
+                CsvOutput csvOutput = new CsvOutput( this.config, this.registry, this.logger, this.extensionContext, this.fileSystem, this.scheduler );
+                reporter.add( csvOutput );
+                this.life.add( csvOutput );
+            }
 
-        if ( config.get( prometheusEnabled ) )
-        {
-            HostnamePort server = config.get( prometheusEndpoint );
-            PrometheusOutput prometheusOutput = new PrometheusOutput( server, registry, logger, portRegister );
-            reporter.add( prometheusOutput );
-            life.add( prometheusOutput );
-        }
+            HostnamePort server;
+            if ( this.config.get( MetricsSettings.graphiteEnabled ) )
+            {
+                server = this.config.get( MetricsSettings.graphiteServer );
+                long period = (this.config.get( MetricsSettings.graphiteInterval )).toMillis();
+                GraphiteOutput graphiteOutput = new GraphiteOutput( server, period, this.registry, this.logger );
+                reporter.add( graphiteOutput );
+                this.life.add( graphiteOutput );
+            }
 
-        return reporter;
+            if ( this.config.get( MetricsSettings.prometheusEnabled ) )
+            {
+                server = this.config.get( MetricsSettings.prometheusEndpoint );
+                PrometheusOutput prometheusOutput = new PrometheusOutput( server, this.registry, this.logger, this.portRegister );
+                reporter.add( prometheusOutput );
+                this.life.add( prometheusOutput );
+            }
+
+            if ( this.config.get( MetricsSettings.jmxEnabled ) )
+            {
+                String domain = this.config.get( MetricsSettings.metricsPrefix ) + ".metrics";
+                JmxReporter jmxReporter = JmxReporter.forRegistry( this.registry ).inDomain( domain ).createsObjectNamesWith(
+                        new EventReporterBuilder.MetricsObjectNameFactory() ).build();
+                this.life.add( new JmxOutput( jmxReporter ) );
+            }
+
+            return reporter;
+        }
     }
 
-    private String createMetricsPrefix( Config config )
+    private static class MetricsObjectNameFactory implements ObjectNameFactory
     {
-        String prefix = config.get( MetricsSettings.metricsPrefix );
+        private static final String NAME = "name";
 
-        if ( prefix.equals( MetricsSettings.metricsPrefix.getDefaultValue() ) )
+        @Override
+        public ObjectName createName( String type, String domain, String name )
         {
-            // If default name and in HA, try to figure out a nicer name
-            if ( config.isConfigured( ClusterSettings.server_id ) )
+            try
             {
-                prefix += "." + config.get( ClusterSettings.cluster_name );
-                prefix += "." + config.get( ClusterSettings.server_id );
+                ObjectName objectName = new ObjectName( domain, NAME, name );
+                String validatedName = objectName.isPropertyValuePattern() ? ObjectName.quote( name ) : name;
+                return new ObjectName( domain, NAME, validatedName );
+            }
+            catch ( MalformedObjectNameException e )
+            {
+                try
+                {
+                    return new ObjectName( domain, NAME, ObjectName.quote( name ) );
+                }
+                catch ( MalformedObjectNameException e2 )
+                {
+                    throw new RuntimeException( e2 );
+                }
             }
         }
-        return prefix;
     }
 }

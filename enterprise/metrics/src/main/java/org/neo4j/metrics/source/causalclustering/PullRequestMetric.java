@@ -25,9 +25,9 @@ import org.neo4j.causalclustering.catchup.tx.PullRequestMonitor;
 
 class PullRequestMetric implements PullRequestMonitor
 {
-    private AtomicLong lastRequestedTxId = new AtomicLong( 0 );
-    private AtomicLong lastReceivedTxId = new AtomicLong( 0 );
-    private LongAdder events = new LongAdder(  );
+    private final AtomicLong lastRequestedTxId = new AtomicLong( 0 );
+    private final AtomicLong lastReceivedTxId = new AtomicLong( 0 );
+    private final LongAdder events = new LongAdder();
 
     @Override
     public void txPullRequest( long txId )

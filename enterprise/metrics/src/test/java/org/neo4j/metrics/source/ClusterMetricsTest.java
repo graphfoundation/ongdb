@@ -52,12 +52,22 @@ import static org.mockito.Mockito.when;
 
 public class ClusterMetricsTest
 {
-    @Rule
-    public ExpectedException thrown = ExpectedException.none();
-
     private final MetricRegistry metricRegistry = new MetricRegistry();
     private final Monitors monitors = new Monitors();
     private final LifeSupport life = new LifeSupport();
+    @Rule
+    public ExpectedException thrown = ExpectedException.none();
+
+    private static Supplier<ClusterMembers> getClusterMembers( String memberRole, HighAvailabilityMemberState memberState )
+    {
+        HighAvailabilityMemberStateMachine stateMachine = mock( HighAvailabilityMemberStateMachine.class );
+        when( stateMachine.getCurrentState() ).thenReturn( memberState );
+        ClusterMember clusterMember = spy( new ClusterMember( new InstanceId( 1 ) ) );
+        when( clusterMember.getHARole() ).thenReturn( memberRole );
+        ObservedClusterMembers observedClusterMembers = mock( ObservedClusterMembers.class );
+        when( observedClusterMembers.getCurrentMember() ).thenReturn( clusterMember );
+        return () -> new ClusterMembers( observedClusterMembers, stateMachine );
+    }
 
     @Test
     public void clusterMetricsReportMasterAvailable()
@@ -99,17 +109,6 @@ public class ClusterMetricsTest
         assertEquals( 1, reporter.isAvailableValue );
     }
 
-    private static Supplier<ClusterMembers> getClusterMembers( String memberRole, HighAvailabilityMemberState memberState )
-    {
-        HighAvailabilityMemberStateMachine stateMachine = mock( HighAvailabilityMemberStateMachine.class );
-        when( stateMachine.getCurrentState() ).thenReturn( memberState );
-        ClusterMember clusterMember = spy( new ClusterMember( new InstanceId( 1 ) ) );
-        when( clusterMember.getHARole() ).thenReturn( memberRole );
-        ObservedClusterMembers observedClusterMembers = mock( ObservedClusterMembers.class );
-        when( observedClusterMembers.getCurrentMember() ).thenReturn( clusterMember );
-        return () -> new ClusterMembers( observedClusterMembers, stateMachine );
-    }
-
     private class TestReporter extends ScheduledReporter
     {
         private int isMasterValue;
@@ -122,11 +121,10 @@ public class ClusterMetricsTest
 
         @Override
         public void report( SortedMap<String,Gauge> gauges, SortedMap<String,Counter> counters,
-                SortedMap<String,Histogram> histograms, SortedMap<String,Meter> meters, SortedMap<String,Timer> timers )
+                            SortedMap<String,Histogram> histograms, SortedMap<String,Meter> meters, SortedMap<String,Timer> timers )
         {
             isMasterValue = (Integer) gauges.get( ClusterMetrics.IS_MASTER ).getValue();
             isAvailableValue = (Integer) gauges.get( ClusterMetrics.IS_AVAILABLE ).getValue();
         }
     }
-
 }

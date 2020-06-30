@@ -76,16 +76,17 @@ public class RaftMessageProcessingMetricIT
         File coreMetricsDir = new File( leader.homeDir(), csvPath.getDefaultValue() );
 
         assertEventually( "message delay eventually recorded",
-                () -> readLongValue( metricsCsv( coreMetricsDir, CoreMetrics.DELAY ) ),
-                greaterThanOrEqualTo( 0L ), TIMEOUT, TimeUnit.SECONDS );
+                          () -> readLongValue( metricsCsv( coreMetricsDir, CoreMetrics.DELAY ) ),
+                          greaterThanOrEqualTo( 0L ), TIMEOUT, TimeUnit.SECONDS );
 
         assertEventually( "message timer count eventually recorded",
-                () -> readTimerLongValueAndAssert( metricsCsv( coreMetricsDir, CoreMetrics.TIMER ), ( newValue, currentValue ) -> newValue >= currentValue,
-                        MetricsTestHelper.TimerField.COUNT ),
-                greaterThan( 0L ), TIMEOUT, TimeUnit.SECONDS );
+                          () -> readTimerLongValueAndAssert( metricsCsv( coreMetricsDir, CoreMetrics.TIMER ),
+                                                             ( newValue, currentValue ) -> newValue >= currentValue,
+                                                             MetricsTestHelper.TimerField.COUNT ),
+                          greaterThan( 0L ), TIMEOUT, TimeUnit.SECONDS );
 
         assertEventually( "message timer max eventually recorded",
-                () -> readTimerDoubleValue( metricsCsv( coreMetricsDir, CoreMetrics.TIMER ), MetricsTestHelper.TimerField.MAX ),
-                greaterThanOrEqualTo( 0d ), TIMEOUT, TimeUnit.SECONDS );
+                          () -> readTimerDoubleValue( metricsCsv( coreMetricsDir, CoreMetrics.TIMER ), MetricsTestHelper.TimerField.MAX ),
+                          greaterThanOrEqualTo( 0d ), TIMEOUT, TimeUnit.SECONDS );
     }
 }

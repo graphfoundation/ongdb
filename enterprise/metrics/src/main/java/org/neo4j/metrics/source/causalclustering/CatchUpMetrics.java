@@ -18,14 +18,12 @@
  */
 package org.neo4j.metrics.source.causalclustering;
 
-import com.codahale.metrics.Gauge;
 import com.codahale.metrics.MetricRegistry;
 
-import java.io.IOException;
-
-import org.neo4j.kernel.impl.annotations.Documented;
+import org.neo4j.annotations.documented.Documented;
 import org.neo4j.kernel.lifecycle.LifecycleAdapter;
-import org.neo4j.kernel.monitoring.Monitors;
+import org.neo4j.metrics.meter.MeterCounter;
+import org.neo4j.monitoring.Monitors;
 
 import static com.codahale.metrics.MetricRegistry.name;
 
@@ -37,12 +35,17 @@ public class CatchUpMetrics extends LifecycleAdapter
     @Documented( "TX pull requests received from read replicas" )
     public static final String TX_PULL_REQUESTS_RECEIVED = name( CAUSAL_CLUSTERING_PREFIX, "tx_pull_requests_received" );
 
-    private Monitors monitors;
-    private MetricRegistry registry;
+    @Documented( "TX pull requests received from read replicas." )
+    private static final String TX_PULL_REQUESTS_RECEIVED_TEMPLATE =
+            MetricRegistry.name( "causal_clustering.catchup.tx_pull_requests_received" );
+    private final String txPullRequestsReceived;
+    private final Monitors monitors;
+    private final MetricRegistry registry;
     private final TxPullRequestsMetric txPullRequestsMetric = new TxPullRequestsMetric();
 
-    public CatchUpMetrics( Monitors monitors, MetricRegistry registry )
+    public CatchUpMetrics( String metricsPrefix, Monitors monitors, MetricRegistry registry )
     {
+        this.txPullRequestsReceived = MetricRegistry.name( metricsPrefix, TX_PULL_REQUESTS_RECEIVED_TEMPLATE );
         this.monitors = monitors;
         this.registry = registry;
     }
@@ -51,7 +54,7 @@ public class CatchUpMetrics extends LifecycleAdapter
     public void start()
     {
         monitors.addMonitorListener( txPullRequestsMetric );
-        registry.register( TX_PULL_REQUESTS_RECEIVED, (Gauge<Long>) txPullRequestsMetric::txPullRequestsReceived );
+        registry.register( TX_PULL_REQUESTS_RECEIVED, new MeterCounter( txPullRequestsMetric::txPullRequestsReceived ) );
     }
 
     @Override

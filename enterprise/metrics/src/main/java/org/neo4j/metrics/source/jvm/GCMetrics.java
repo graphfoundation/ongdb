@@ -18,25 +18,41 @@
  */
 package org.neo4j.metrics.source.jvm;
 
-import com.codahale.metrics.Gauge;
 import com.codahale.metrics.MetricRegistry;
 
 import java.lang.management.GarbageCollectorMXBean;
 import java.lang.management.ManagementFactory;
 
+import org.neo4j.annotations.documented.Documented;
+import org.neo4j.metrics.meter.MeterCounter;
+
 import static com.codahale.metrics.MetricRegistry.name;
 
 public class GCMetrics extends JvmMetrics
 {
-    public static final String GC_PREFIX = name( NAME_PREFIX, "gc" );
-    public static final String GC_TIME = name( GC_PREFIX, "time" );
-    public static final String GC_COUNT = name( GC_PREFIX, "count" );
+    private static final String GC_PREFIX = MetricRegistry.name( NAME_PREFIX, "gc" );
+    @Documented( "Accumulated garbage collection time in milliseconds." )
+    private static final String GC_TIME_TEMPLATE;
+    @Documented( "Total number of garbage collections." )
+    private static final String GC_COUNT_TEMPLATE;
 
+    static
+    {
+        GC_TIME_TEMPLATE = MetricRegistry.name( GC_PREFIX, "time", "%s" );
+        GC_COUNT_TEMPLATE = MetricRegistry.name( GC_PREFIX, "count", "%s" );
+    }
+
+    private final String gcPrefix;
+    private final String gcTime;
+    private final String gcCount;
     private final MetricRegistry registry;
 
-    public GCMetrics( MetricRegistry registry )
+    public GCMetrics( String metricsPrefix, MetricRegistry registry )
     {
         this.registry = registry;
+        this.gcPrefix = MetricRegistry.name( metricsPrefix, GC_PREFIX );
+        this.gcTime = MetricRegistry.name( metricsPrefix, GC_TIME_TEMPLATE );
+        this.gcCount = MetricRegistry.name( metricsPrefix, GC_COUNT_TEMPLATE );
     }
 
     @Override
@@ -44,10 +60,10 @@ public class GCMetrics extends JvmMetrics
     {
         for ( final GarbageCollectorMXBean gcBean : ManagementFactory.getGarbageCollectorMXBeans() )
         {
-            registry.register( name( GC_TIME, prettifyName( gcBean.getName() ) ),
-                    (Gauge<Long>) gcBean::getCollectionTime );
-            registry.register( name( GC_COUNT, prettifyName( gcBean.getName() ) ),
-                    (Gauge<Long>) gcBean::getCollectionCount );
+            registry.register( name( gcTime, prettifyName( gcBean.getName() ) ),
+                               new MeterCounter( gcBean::getCollectionTime ) );
+            registry.register( name( gcCount, prettifyName( gcBean.getName() ) ),
+                               new MeterCounter( gcBean::getCollectionCount ) );
         }
     }
 

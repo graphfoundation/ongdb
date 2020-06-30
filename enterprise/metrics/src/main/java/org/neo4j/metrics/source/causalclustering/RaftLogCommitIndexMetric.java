@@ -24,7 +24,7 @@ import org.neo4j.causalclustering.core.consensus.log.monitoring.RaftLogCommitInd
 
 public class RaftLogCommitIndexMetric implements RaftLogCommitIndexMonitor
 {
-    private AtomicLong commitIndex = new AtomicLong( 0 );
+    private final AtomicLong commitIndex = new AtomicLong( 0 );
 
     @Override
     public long commitIndex()

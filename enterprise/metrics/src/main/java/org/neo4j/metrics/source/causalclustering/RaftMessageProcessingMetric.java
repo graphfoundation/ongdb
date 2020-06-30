@@ -37,6 +37,15 @@ public class RaftMessageProcessingMetric implements RaftMessageProcessingMonitor
     private final Timer timer;
     private final Map<RaftMessages.Type,Timer> typeTimers = new EnumMap<>( RaftMessages.Type.class );
 
+    private RaftMessageProcessingMetric( Supplier<Timer> timerFactory )
+    {
+        for ( RaftMessages.Type type : RaftMessages.Type.values() )
+        {
+            typeTimers.put( type, timerFactory.get() );
+        }
+        this.timer = timerFactory.get();
+    }
+
     public static RaftMessageProcessingMetric create()
     {
         return new RaftMessageProcessingMetric( Timer::new );
@@ -45,15 +54,6 @@ public class RaftMessageProcessingMetric implements RaftMessageProcessingMonitor
     public static RaftMessageProcessingMetric createUsing( Supplier<Reservoir> reservoir )
     {
         return new RaftMessageProcessingMetric( () -> new Timer( reservoir.get() ) );
-    }
-
-    private RaftMessageProcessingMetric( Supplier<Timer> timerFactory )
-    {
-        for ( RaftMessages.Type type : RaftMessages.Type.values() )
-        {
-            typeTimers.put( type, timerFactory.get() );
-        }
-        this.timer = timerFactory.get();
     }
 
     public long delay()

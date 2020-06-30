@@ -54,8 +54,8 @@ public class RotatableCsvReporter extends ScheduledReporter
     private final BiFunction<File,RotatingFileOutputStreamSupplier.RotationListener,RotatingFileOutputStreamSupplier> fileSupplierStreamCreator;
 
     RotatableCsvReporter( MetricRegistry registry, Locale locale, TimeUnit rateUnit, TimeUnit durationUnit, Clock clock,
-            File directory,
-            BiFunction<File,RotatingFileOutputStreamSupplier.RotationListener,RotatingFileOutputStreamSupplier> fileSupplierStreamCreator )
+                          File directory,
+                          BiFunction<File,RotatingFileOutputStreamSupplier.RotationListener,RotatingFileOutputStreamSupplier> fileSupplierStreamCreator )
     {
         super( registry, "csv-reporter", MetricFilter.ALL, rateUnit, durationUnit );
         this.locale = locale;
@@ -79,7 +79,7 @@ public class RotatableCsvReporter extends ScheduledReporter
 
     @Override
     public void report( SortedMap<String,Gauge> gauges, SortedMap<String,Counter> counters,
-            SortedMap<String,Histogram> histograms, SortedMap<String,Meter> meters, SortedMap<String,Timer> timers )
+                        SortedMap<String,Histogram> histograms, SortedMap<String,Meter> meters, SortedMap<String,Timer> timers )
     {
         final long timestamp = TimeUnit.MILLISECONDS.toSeconds( clock.getTime() );
 
@@ -109,6 +109,11 @@ public class RotatableCsvReporter extends ScheduledReporter
         }
     }
 
+    /**
+     * @param timestamp
+     * @param name
+     * @param timer
+     */
     private void reportTimer( long timestamp, String name, Timer timer )
     {
         final Snapshot snapshot = timer.getSnapshot();
@@ -126,6 +131,11 @@ public class RotatableCsvReporter extends ScheduledReporter
                 getDurationUnit() );
     }
 
+    /**
+     * @param timestamp
+     * @param name
+     * @param meter
+     */
     private void reportMeter( long timestamp, String name, Meter meter )
     {
         report( timestamp, name, "count,mean_rate,m1_rate,m5_rate,m15_rate,rate_unit", "%d,%f,%f,%f,%f,events/%s",
@@ -133,6 +143,11 @@ public class RotatableCsvReporter extends ScheduledReporter
                 convertRate( meter.getFiveMinuteRate() ), convertRate( meter.getFifteenMinuteRate() ), getRateUnit() );
     }
 
+    /**
+     * @param timestamp
+     * @param name
+     * @param histogram
+     */
     private void reportHistogram( long timestamp, String name, Histogram histogram )
     {
         final Snapshot snapshot = histogram.getSnapshot();
@@ -158,7 +173,7 @@ public class RotatableCsvReporter extends ScheduledReporter
     {
         File file = new File( directory, name + ".csv" );
         CsvRotatableWriter csvRotatableWriter = writers.computeIfAbsent( file,
-                new RotatingCsvWriterSupplier( header, fileSupplierStreamCreator, writers ) );
+                                                                         new RotatingCsvWriterSupplier( header, fileSupplierStreamCreator, writers ) );
         //noinspection SynchronizationOnLocalVariableOrMethodParameter
         csvRotatableWriter.writeValues( locale, timestamp, line, values );
     }
@@ -169,7 +184,7 @@ public class RotatableCsvReporter extends ScheduledReporter
         private Locale locale;
         private TimeUnit rateUnit;
         private TimeUnit durationUnit;
-        private Clock clock;
+        private final Clock clock;
         private BiFunction<File,RotatingFileOutputStreamSupplier.RotationListener,RotatingFileOutputStreamSupplier>
                 outputStreamSupplierFactory;
 
@@ -208,8 +223,7 @@ public class RotatableCsvReporter extends ScheduledReporter
         }
 
         /**
-         * Builds a {@link RotatableCsvReporter} with the given properties, writing {@code .csv} files to the
-         * given directory.
+         * Builds a {@link RotatableCsvReporter} with the given properties, writing {@code .csv} files to the given directory.
          *
          * @param directory the directory in which the {@code .csv} files will be created
          * @return a {@link RotatableCsvReporter}
@@ -217,7 +231,7 @@ public class RotatableCsvReporter extends ScheduledReporter
         public RotatableCsvReporter build( File directory )
         {
             return new RotatableCsvReporter( registry, locale, rateUnit, durationUnit, clock, directory,
-                    outputStreamSupplierFactory );
+                                             outputStreamSupplierFactory );
         }
     }
 
@@ -228,12 +242,23 @@ public class RotatableCsvReporter extends ScheduledReporter
         private final Map<File,CsvRotatableWriter> writers;
 
         RotatingCsvWriterSupplier( String header,
-                BiFunction<File,RotatingFileOutputStreamSupplier.RotationListener,RotatingFileOutputStreamSupplier> fileSupplierStreamCreator,
-                Map<File,CsvRotatableWriter> writers )
+                                   BiFunction<File,RotatingFileOutputStreamSupplier.RotationListener,RotatingFileOutputStreamSupplier> fileSupplierStreamCreator,
+                                   Map<File,CsvRotatableWriter> writers )
         {
             this.header = header;
             this.fileSupplierStreamCreator = fileSupplierStreamCreator;
             this.writers = writers;
+        }
+
+        private static PrintWriter createWriter( OutputStream outputStream )
+        {
+            return new PrintWriter( new OutputStreamWriter( outputStream, StandardCharsets.UTF_8 ) );
+        }
+
+        private static void writeHeader( PrintWriter printWriter, String header )
+        {
+            printWriter.println( "t," + header );
+            printWriter.flush();
         }
 
         @Override
@@ -259,16 +284,6 @@ public class RotatableCsvReporter extends ScheduledReporter
                     writeHeader( writer, header );
                 }
             }
-        }
-        private static PrintWriter createWriter( OutputStream outputStream )
-        {
-            return new PrintWriter( new OutputStreamWriter( outputStream, StandardCharsets.UTF_8 ) );
-        }
-
-        private static void writeHeader( PrintWriter printWriter, String header )
-        {
-            printWriter.println( "t," + header );
-            printWriter.flush();
         }
     }
 

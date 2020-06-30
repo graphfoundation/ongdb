@@ -31,8 +31,8 @@ import java.util.Map;
 import java.util.SortedMap;
 import java.util.concurrent.ConcurrentHashMap;
 
-import org.neo4j.helpers.HostnamePort;
-import org.neo4j.kernel.configuration.ConnectorPortRegister;
+import org.neo4j.configuration.connectors.ConnectorPortRegister;
+import org.neo4j.internal.helpers.HostnamePort;
 import org.neo4j.kernel.lifecycle.Lifecycle;
 import org.neo4j.logging.Log;
 
@@ -41,13 +41,13 @@ import org.neo4j.logging.Log;
  */
 public class PrometheusOutput implements Lifecycle, EventReporter
 {
-    protected PrometheusHttpServer server;
     private final HostnamePort hostnamePort;
     private final MetricRegistry registry;
     private final Log logger;
     private final ConnectorPortRegister portRegister;
-    private final Map<String,Object> registeredEvents = new ConcurrentHashMap<>();
+    private final Map<String,Object> registeredEvents = new ConcurrentHashMap();
     private final MetricRegistry eventRegistry;
+    protected PrometheusHttpServer server;
 
     PrometheusOutput( HostnamePort hostnamePort, MetricRegistry registry, Log logger, ConnectorPortRegister portRegister )
     {
@@ -69,7 +69,7 @@ public class PrometheusOutput implements Lifecycle, EventReporter
     }
 
     @Override
-    public void start() throws Throwable
+    public void start() throws Exception
     {
         if ( server == null )
         {
@@ -99,15 +99,35 @@ public class PrometheusOutput implements Lifecycle, EventReporter
 
     @Override
     public void report( SortedMap<String,Gauge> gauges, SortedMap<String,Counter> counters,
-            SortedMap<String,Histogram> histograms, SortedMap<String,Meter> meters, SortedMap<String,Timer> timers )
+                        SortedMap<String,Histogram> histograms, SortedMap<String,Meter> meters, SortedMap<String,Timer> timers )
     {
         // Prometheus does not support events, just output the latest event that occurred
-        String metricKey = gauges.firstKey();
-        if ( !registeredEvents.containsKey( metricKey ) )
+        if ( !gauges.isEmpty() )
         {
-            eventRegistry.register( metricKey, (Gauge) () -> registeredEvents.get( metricKey ) );
+            String metricKey = gauges.firstKey();
+            if ( !registeredEvents.containsKey( metricKey ) )
+            {
+                eventRegistry.register( metricKey, (Gauge) () -> registeredEvents.get( metricKey ) );
+            }
+
+            registeredEvents.put( metricKey, gauges.get( metricKey ).getValue() );
         }
 
-        registeredEvents.put( metricKey, gauges.get( metricKey ).getValue() );
+        if ( !meters.isEmpty() )
+        {
+            String meterKey = meters.firstKey();
+            if ( !this.registeredEvents.containsKey( meterKey ) )
+            {
+                this.eventRegistry.register( meterKey, new Counter()
+                {
+                    public long getCount()
+                    {
+                        return ((Number) PrometheusOutput.this.registeredEvents.get( meterKey )).longValue();
+                    }
+                } );
+            }
+
+            this.registeredEvents.put( meterKey, (meters.get( meterKey )).getCount() );
+        }
     }
 }

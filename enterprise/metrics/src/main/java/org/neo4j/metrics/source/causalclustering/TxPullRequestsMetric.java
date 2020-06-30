@@ -24,7 +24,7 @@ import org.neo4j.causalclustering.catchup.tx.TxPullRequestsMonitor;
 
 class TxPullRequestsMetric implements TxPullRequestsMonitor
 {
-    private AtomicLong count = new AtomicLong( 0 );
+    private final AtomicLong count = new AtomicLong( 0 );
 
     @Override
     public long txPullRequestsReceived()

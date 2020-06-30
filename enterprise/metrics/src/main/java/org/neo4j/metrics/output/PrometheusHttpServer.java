@@ -25,12 +25,14 @@ import java.net.InetSocketAddress;
 
 class PrometheusHttpServer extends HTTPServer
 {
+    public final static boolean DAEMON = true;
+
     PrometheusHttpServer( String host, int port ) throws IOException
     {
-        super( host, port, true );
+        super( host, port, DAEMON );
     }
 
-    InetSocketAddress getAddress()
+    public InetSocketAddress getAddress()
     {
         return server.getAddress();
     }

@@ -24,10 +24,10 @@ import org.neo4j.causalclustering.core.replication.monitoring.ReplicationMonitor
 
 public class ReplicationMetric implements ReplicationMonitor
 {
-    private final AtomicLong  newReplication = new AtomicLong(  );
-    private final AtomicLong attempts = new AtomicLong(  );
-    private final AtomicLong success = new AtomicLong(  );
-    private final AtomicLong fail = new AtomicLong(  );
+    private final AtomicLong newReplication = new AtomicLong();
+    private final AtomicLong attempts = new AtomicLong();
+    private final AtomicLong success = new AtomicLong();
+    private final AtomicLong fail = new AtomicLong();
 
     @Override
     public void startReplication()

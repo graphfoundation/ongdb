@@ -33,46 +33,6 @@ import static org.neo4j.test.assertion.Assert.assertEventually;
 
 public class MetricsTestHelper
 {
-    interface CsvField
-    {
-        String header();
-    }
-
-    enum GaugeField implements CsvField
-    {
-        TIME_STAMP( "t" ),
-        METRICS_VALUE( "value" );
-
-        private final String header;
-
-        GaugeField( String header )
-        {
-            this.header = header;
-        }
-
-        @Override
-        public String header()
-        {
-            return header;
-        }
-    }
-
-    enum TimerField implements CsvField
-    {
-        T,
-        COUNT,
-        MAX,MEAN,MIN,STDDEV,
-        P50,P75,P95,P98,P99,P999,
-        MEAN_RATE,M1_RATE,M5_RATE,M15_RATE,
-        RATE_UNIT,DURATION_UNIT;
-
-        @Override
-        public String header()
-        {
-            return name().toLowerCase();
-        }
-    }
-
     private MetricsTestHelper()
     {
     }
@@ -91,7 +51,7 @@ public class MetricsTestHelper
     static double readDoubleValue( File metricFile ) throws IOException, InterruptedException
     {
         return readValueAndAssert( metricFile, 0d, GaugeField.TIME_STAMP, GaugeField.METRICS_VALUE,
-                Double::parseDouble, ( one, two ) -> true );
+                                   Double::parseDouble, ( one, two ) -> true );
     }
 
     static long readTimerLongValue( File metricFile, TimerField field ) throws IOException, InterruptedException
@@ -116,7 +76,8 @@ public class MetricsTestHelper
     }
 
     private static <T, FIELD extends Enum<FIELD> & CsvField> T readValueAndAssert( File metricFile, T startValue, FIELD timeStampField, FIELD metricsValue,
-            Function<String,T> parser, BiPredicate<T,T> assumption ) throws IOException, InterruptedException
+                                                                                   Function<String,T> parser, BiPredicate<T,T> assumption )
+            throws IOException, InterruptedException
     {
         // let's wait until the file is in place (since the reporting is async that might take a while)
         assertEventually( "Metrics file should exist", metricFile::exists, is( true ), 40, SECONDS );
@@ -149,7 +110,7 @@ public class MetricsTestHelper
                 String[] fields = line.split( "," );
                 T newValue = parser.apply( fields[metricsValue.ordinal()] );
                 assertTrue( "assertion failed on " + newValue + " " + currentValue,
-                        assumption.test( newValue, currentValue ) );
+                            assumption.test( newValue, currentValue ) );
                 currentValue = newValue;
             }
             while ( (line = reader.readLine()) != null );
@@ -162,5 +123,57 @@ public class MetricsTestHelper
         File csvFile = new File( dbDir, metric + ".csv" );
         assertEventually( "Metrics file should exist", csvFile::exists, is( true ), 40, SECONDS );
         return csvFile;
+    }
+
+    enum GaugeField implements CsvField
+    {
+        TIME_STAMP( "t" ),
+        METRICS_VALUE( "value" );
+
+        private final String header;
+
+        GaugeField( String header )
+        {
+            this.header = header;
+        }
+
+        @Override
+        public String header()
+        {
+            return header;
+        }
+    }
+
+    enum TimerField implements CsvField
+    {
+        T,
+        COUNT,
+        MAX,
+        MEAN,
+        MIN,
+        STDDEV,
+        P50,
+        P75,
+        P95,
+        P98,
+        P99,
+        P999,
+        MEAN_RATE,
+        M1_RATE,
+        M5_RATE,
+        M15_RATE,
+        RATE_UNIT,
+        DURATION_UNIT;
+
+        @Override
+        public String header()
+        {
+            return name().toLowerCase();
+        }
+    }
+
+    interface CsvField
+    {
+        String header();
     }
 }

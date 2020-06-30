@@ -18,70 +18,59 @@
  */
 package org.neo4j.metrics.source.db;
 
-import com.codahale.metrics.Gauge;
 import com.codahale.metrics.MetricRegistry;
 
-import java.util.TreeMap;
-import java.util.function.Supplier;
+import java.util.Objects;
 
-import org.neo4j.kernel.impl.annotations.Documented;
-import org.neo4j.kernel.impl.transaction.log.checkpoint.CheckPointerMonitor;
-import org.neo4j.kernel.impl.transaction.log.checkpoint.DefaultCheckPointerTracer;
+import org.neo4j.annotations.documented.Documented;
+import org.neo4j.kernel.impl.transaction.stats.CheckpointCounters;
 import org.neo4j.kernel.lifecycle.LifecycleAdapter;
-import org.neo4j.kernel.monitoring.Monitors;
-import org.neo4j.metrics.output.EventReporter;
-
-import static com.codahale.metrics.MetricRegistry.name;
-import static java.util.Collections.emptySortedMap;
+import org.neo4j.metrics.meter.MeterCounter;
 
 @Documented( ".Database checkpointing metrics" )
 public class CheckPointingMetrics extends LifecycleAdapter
 {
-    private static final String CHECK_POINT_PREFIX = "neo4j.check_point";
-
-    @Documented( "The total number of check point events executed so far" )
-    public static final String CHECK_POINT_EVENTS = name( CHECK_POINT_PREFIX, "events" );
-    @Documented( "The total time spent in check pointing so far" )
-    public static final String CHECK_POINT_TOTAL_TIME = name( CHECK_POINT_PREFIX, "total_time" );
-    @Documented( "The duration of the check point event" )
-    public static final String CHECK_POINT_DURATION = name( CHECK_POINT_PREFIX, "check_point_duration" );
-
+    private static final String CHECK_POINT_PREFIX = "check_point";
+    @Documented( "The total number of check point events executed so far." )
+    private static final String CHECK_POINT_EVENTS_TEMPLATE = MetricRegistry.name( "check_point", "events" );
+    @Documented( "The total time spent in check pointing so far." )
+    private static final String CHECK_POINT_TOTAL_TIME_TEMPLATE = MetricRegistry.name( "check_point", "total_time" );
+    @Documented( "The duration of the last check point event." )
+    private static final String CHECK_POINT_DURATION_TEMPLATE = MetricRegistry.name( "check_point", "duration" );
+    private final String checkPointEvents;
+    private final String checkPointTotalTime;
+    private final String checkPointDuration;
     private final MetricRegistry registry;
-    private final Monitors monitors;
-    private final Supplier<CheckPointerMonitor> checkPointerMonitorSupplier;
-    private final DefaultCheckPointerTracer.Monitor listener;
+    private final CheckpointCounters checkpointCounters;
 
-    public CheckPointingMetrics( EventReporter reporter, MetricRegistry registry,
-            Monitors monitors, Supplier<CheckPointerMonitor> checkPointerMonitorSupplier )
+    public CheckPointingMetrics( String metricsPrefix, MetricRegistry registry, CheckpointCounters checkpointCounters )
     {
+        this.checkPointEvents = MetricRegistry.name( metricsPrefix, CHECK_POINT_EVENTS_TEMPLATE );
+        this.checkPointTotalTime = MetricRegistry.name( metricsPrefix, CHECK_POINT_TOTAL_TIME_TEMPLATE );
+        this.checkPointDuration = MetricRegistry.name( metricsPrefix, CHECK_POINT_DURATION_TEMPLATE );
         this.registry = registry;
-        this.monitors = monitors;
-        this.checkPointerMonitorSupplier = checkPointerMonitorSupplier;
-        this.listener = durationMillis ->
-        {
-            TreeMap<String,Gauge> gauges = new TreeMap<>();
-            gauges.put( CHECK_POINT_DURATION, () -> durationMillis );
-            reporter.report( gauges, emptySortedMap(), emptySortedMap(), emptySortedMap(), emptySortedMap() );
-        };
+        this.checkpointCounters = checkpointCounters;
     }
 
     @Override
     public void start()
     {
-        monitors.addMonitorListener( listener );
 
-        CheckPointerMonitor checkPointerMonitor = checkPointerMonitorSupplier.get();
-        registry.register( CHECK_POINT_EVENTS, (Gauge<Long>) checkPointerMonitor::numberOfCheckPointEvents );
-        registry.register( CHECK_POINT_TOTAL_TIME,
-                (Gauge<Long>) checkPointerMonitor::checkPointAccumulatedTotalTimeMillis );
+        MetricRegistry registry = this.registry;
+
+        Objects.requireNonNull( checkpointCounters );
+        registry.register( checkPointEvents, new MeterCounter( checkpointCounters::numberOfCheckPoints ) );
+
+        registry.register( checkPointTotalTime, new MeterCounter( checkpointCounters::checkPointAccumulatedTotalTimeMillis ) );
+
+        registry.register( checkPointDuration, new MeterCounter( checkpointCounters::lastCheckpointTimeMillis ) );
     }
 
     @Override
     public void stop()
     {
-        monitors.removeMonitorListener( listener );
-
-        registry.remove( CHECK_POINT_EVENTS );
-        registry.remove( CHECK_POINT_TOTAL_TIME );
+        this.registry.remove( this.checkPointEvents );
+        this.registry.remove( this.checkPointTotalTime );
+        this.registry.remove( this.checkPointDuration );
     }
 }
