@@ -20,11 +20,10 @@ package org.neo4j.cypher.internal.runtime.compiled.codegen.ir.expressions
 
 import org.neo4j.cypher.internal.runtime.compiled.codegen.CodeGenContext
 import org.neo4j.cypher.internal.runtime.compiled.codegen.spi.MethodStructure
-import org.neo4j.cypher.internal.v3_6.util.symbols._
+//import org.neo4j.cypher.internal.v4_0.util.symbols._
+import org.neo4j.cypher.internal.v4_0.util.symbols._
 
 case class Addition(lhs: CodeGenExpression, rhs: CodeGenExpression) extends CodeGenExpression with BinaryOperator {
-
-  override protected def generator[E](structure: MethodStructure[E])(implicit context: CodeGenContext) = structure.addExpression
 
   override def nullable(implicit context: CodeGenContext) = lhs.nullable || rhs.nullable
 
@@ -54,4 +53,6 @@ case class Addition(lhs: CodeGenExpression, rhs: CodeGenExpression) extends Code
     // Runtime we'll figure it out
     case _ => CodeGenType.Any
   }
+
+  override protected def generator[E](structure: MethodStructure[E])(implicit context: CodeGenContext) = structure.addExpression
 }

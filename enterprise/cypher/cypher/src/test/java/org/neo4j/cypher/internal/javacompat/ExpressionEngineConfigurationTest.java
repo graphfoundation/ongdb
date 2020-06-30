@@ -85,14 +85,14 @@ class ExpressionEngineConfigurationTest
     void shouldUseCompiledExpressionsFirstTimeWhenExplicitlyAskedFor()
     {
         assertUsingCompiled( withEngineAndLimit( "ONLY_WHEN_HOT", 42 ),
-                "CYPHER expressionEngine=COMPILED RETURN sin(cos(sin(cos(rand()))))" );
+                             "CYPHER expressionEngine=COMPILED RETURN sin(cos(sin(cos(rand()))))" );
     }
 
     @Test
     void shouldNotUseCompiledExpressionsWhenExplicitlyAskingForInterpreted()
     {
         assertNotUsingCompiled( withEngineAndLimit( "COMPILED", 42 ),
-                "CYPHER expressionEngine=INTERPRETED RETURN sin(cos(sin(cos(rand()))))" );
+                                "CYPHER expressionEngine=INTERPRETED RETURN sin(cos(sin(cos(rand()))))" );
     }
 
     @Test
@@ -113,11 +113,11 @@ class ExpressionEngineConfigurationTest
     {
 
         return new TestGraphDatabaseFactory().
-                setInternalLogProvider( logProvider )
-                .newImpermanentDatabaseBuilder()
-                .setConfig( GraphDatabaseSettings.cypher_expression_engine, engine )
-                .setConfig( GraphDatabaseSettings.cypher_expression_recompilation_limit, Integer.toString( limit ) )
-                .newGraphDatabase();
+                                                     setInternalLogProvider( logProvider )
+                                             .newImpermanentDatabaseBuilder()
+                                             .setConfig( GraphDatabaseSettings.cypher_expression_engine, engine )
+                                             .setConfig( GraphDatabaseSettings.cypher_expression_recompilation_limit, Integer.toString( limit ) )
+                                             .newGraphDatabase();
     }
 
     private void assertUsingCompiled( GraphDatabaseService db, String query )
@@ -145,5 +145,4 @@ class ExpressionEngineConfigurationTest
                                 containsString( "Compiling projection:" )
                         ) ) );
     }
-
 }

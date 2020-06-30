@@ -18,8 +18,6 @@
  */
 package org.neo4j.cypher.internal.queryReduction
 
-import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
-
 class BTTest extends CypherFunSuite with ReductionTestHelper {
 
   class TestBTInput(array: Array[Int], withNewAssignments: Boolean) extends BTInput[Array[Int], Int] {
@@ -32,8 +30,11 @@ class BTTest extends CypherFunSuite with ReductionTestHelper {
     override def convertToInput(objects: Seq[Int]): Array[Int] = objects.toArray
 
     override def getNewAssignments(assignment: BTAssignment[Int]): Seq[BTAssignment[Int]] = {
-      if(withNewAssignments && assignment.obj == 0) Seq(BTAssignment(-1, assignment.gain + 1))
-      else Seq.empty
+      if (withNewAssignments && assignment.obj == 0) {
+        Seq(BTAssignment(-1, assignment.gain + 1))
+      } else {
+        Seq.empty
+      }
     }
   }
 

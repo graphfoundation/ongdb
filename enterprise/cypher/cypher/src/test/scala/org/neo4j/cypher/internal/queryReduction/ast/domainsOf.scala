@@ -18,10 +18,6 @@
  */
 package org.neo4j.cypher.internal.queryReduction.ast
 
-import org.neo4j.cypher.internal.v3_6.ast._
-import org.neo4j.cypher.internal.v3_6.expressions._
-import org.neo4j.cypher.internal.v3_6.util._
-
 object domainsOf {
 
   def apply[T](grandParent: ASTNode)(makeDomain: (ASTNode, Class[_]) => T): Seq[T] = {
@@ -120,7 +116,7 @@ object domainsOf {
 
       case Namespace(_) => Seq()
 
-      case With(_, returnItems,  orderBy, skip, limit, where) =>
+      case With(_, returnItems, orderBy, skip, limit, where) =>
         ofSingle(returnItems, classOf[ReturnItemsDef]) ++
           ofOption(orderBy, classOf[OrderBy]) ++
           ofOption(skip, classOf[Skip]) ++

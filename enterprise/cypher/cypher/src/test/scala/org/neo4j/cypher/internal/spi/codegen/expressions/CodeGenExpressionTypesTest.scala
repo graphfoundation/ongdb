@@ -19,9 +19,8 @@
 package org.neo4j.cypher.internal.compiled_runtime.v3_6.codegen.expressions
 
 import org.neo4j.cypher.internal.runtime.compiled.codegen.ir.expressions._
-import org.neo4j.cypher.internal.runtime.compiled.codegen.{CodeGenContext, Variable}
-import org.neo4j.cypher.internal.v3_6.util.symbols._
-import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
+import org.neo4j.cypher.internal.runtime.compiled.codegen.CodeGenContext
+import org.neo4j.cypher.internal.runtime.compiled.codegen.Variable
 
 class CodeGenExpressionTypesTest extends CypherFunSuite {
 
@@ -39,11 +38,11 @@ class CodeGenExpressionTypesTest extends CypherFunSuite {
   test("collection") {
     implicit val context: CodeGenContext = null
 
-                       ListLiteral(Seq(int)).codeGenType.ct should equal(CTList(CTInteger))
-                       ListLiteral(Seq(double)).codeGenType.ct should equal(CTList(CTFloat))
-                       ListLiteral(Seq(int, double)).codeGenType.ct should equal(CTList(CTNumber))
-                       ListLiteral(Seq(string, int)).codeGenType.ct should equal(CTList(CTAny))
-                       ListLiteral(Seq(node, rel)).codeGenType.ct should equal(CTList(CTMap))
+    ListLiteral(Seq(int)).codeGenType.ct should equal(CTList(CTInteger))
+    ListLiteral(Seq(double)).codeGenType.ct should equal(CTList(CTFloat))
+    ListLiteral(Seq(int, double)).codeGenType.ct should equal(CTList(CTNumber))
+    ListLiteral(Seq(string, int)).codeGenType.ct should equal(CTList(CTAny))
+    ListLiteral(Seq(node, rel)).codeGenType.ct should equal(CTList(CTMap))
   }
 
   test("add") {

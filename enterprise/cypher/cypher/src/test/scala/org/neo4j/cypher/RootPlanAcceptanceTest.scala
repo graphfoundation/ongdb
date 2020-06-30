@@ -18,10 +18,7 @@
  */
 package org.neo4j.cypher
 
-import org.neo4j.cypher.internal.compatibility.v3_6.runtime.{CompiledRuntimeName, InterpretedRuntimeName, RuntimeName, SlottedRuntimeName}
-import org.neo4j.cypher.internal.planner.v3_6.spi.{CostBasedPlannerName, DPPlannerName, IDPPlannerName}
 import org.neo4j.graphdb.ExecutionPlanDescription
-import org.neo4j.cypher.internal.v3_6.frontend.PlannerName
 
 class RootPlanAcceptanceTest extends ExecutionEngineFunSuite {
 
@@ -66,8 +63,8 @@ class RootPlanAcceptanceTest extends ExecutionEngineFunSuite {
       .planDescription.getArguments.get("Rows") should equal(0)
   }
 
-  for(planner <- Seq(IDPPlannerName, DPPlannerName);
-      runtime <- Seq(CompiledRuntimeName, InterpretedRuntimeName)) {
+  for (planner <- Seq(IDPPlannerName, DPPlannerName);
+       runtime <- Seq(CompiledRuntimeName, InterpretedRuntimeName)) {
 
     test(s"Should report correct planner and runtime used $planner + $runtime") {
       given("match (n) return n")
@@ -98,18 +95,20 @@ class RootPlanAcceptanceTest extends ExecutionEngineFunSuite {
     shouldContainByteCode(res.getExecutionPlanDescription)
   }
 
+  def given(query: String) = TestQuery(query)
+
   private def shouldContainSourceCode(planDescription: ExecutionPlanDescription) = {
     shouldContain("source", planDescription)
   }
+
+  import scala.collection.JavaConverters._
 
   private def shouldContainByteCode(planDescription: ExecutionPlanDescription) = {
     shouldContain("bytecode", planDescription)
   }
 
-  import scala.collection.JavaConverters._
-
-  private def shouldContain(argument:String, planDescription: ExecutionPlanDescription) = {
-    if(!planDescription.getArguments.asScala.exists {
+  private def shouldContain(argument: String, planDescription: ExecutionPlanDescription) = {
+    if (!planDescription.getArguments.asScala.exists {
       case (name: String, code: String) if name.startsWith(s"$argument:") =>
         !code.isEmpty
       case _ => false
@@ -117,8 +116,6 @@ class RootPlanAcceptanceTest extends ExecutionEngineFunSuite {
       fail(s"no $argument present: $planDescription")
     }
   }
-
-  def given(query: String) = TestQuery(query)
 
   case class TestQuery(query: String,
                        cypherVersion: Option[CypherVersion] = None,
@@ -164,4 +161,5 @@ class RootPlanAcceptanceTest extends ExecutionEngineFunSuite {
       result.getExecutionPlanDescription()
     }
   }
+
 }

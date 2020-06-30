@@ -23,8 +23,6 @@ import org.neo4j.cypher.internal.runtime.compiled.codegen.ir.expressions.CodeGen
 import org.neo4j.cypher.internal.runtime.compiled.codegen.spi.MethodStructure
 
 case class If(predicate: CodeGenExpression, block: Instruction) extends Instruction {
-  override protected def children: Seq[Instruction] = Seq(block)
-
   override def body[E](generator: MethodStructure[E])(implicit context: CodeGenContext): Unit = {
     generator.ifStatement(predicate.generateExpression(generator)) { inner =>
       inner.incrementRows()
@@ -36,4 +34,6 @@ case class If(predicate: CodeGenExpression, block: Instruction) extends Instruct
     super.init(generator)
     predicate.init(generator)
   }
+
+  override protected def children: Seq[Instruction] = Seq(block)
 }

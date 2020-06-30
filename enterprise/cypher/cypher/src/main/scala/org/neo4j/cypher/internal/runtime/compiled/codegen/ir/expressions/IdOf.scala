@@ -18,19 +18,23 @@
  */
 package org.neo4j.cypher.internal.runtime.compiled.codegen.ir.expressions
 
+import org.neo4j.cypher.internal.runtime.compiled.codegen.CodeGenContext
+import org.neo4j.cypher.internal.runtime.compiled.codegen.Variable
 import org.neo4j.cypher.internal.runtime.compiled.codegen.spi.MethodStructure
-import org.neo4j.cypher.internal.runtime.compiled.codegen.{CodeGenContext, Variable}
-import org.neo4j.cypher.internal.v3_6.util.symbols
+import org.neo4j.cypher.internal.v4_0.util.symbols
 
 case class IdOf(variable: Variable) extends CodeGenExpression {
 
   def init[E](generator: MethodStructure[E])(implicit context: CodeGenContext): Unit = {}
 
   def generateExpression[E](structure: MethodStructure[E])(implicit context: CodeGenContext): E =
-    if (nullable) structure.nullableReference(variable.name, variable.codeGenType,
-                                              structure.box(structure.loadVariable(variable.name),
-                                                            CypherCodeGenType(symbols.CTInteger, ReferenceType)))
-    else structure.loadVariable(variable.name)
+    if (nullable) {
+      structure.nullableReference(variable.name, variable.codeGenType,
+        structure.box(structure.loadVariable(variable.name),
+          CypherCodeGenType(symbols.CTInteger, ReferenceType)))
+    } else {
+      structure.loadVariable(variable.name)
+    }
 
   override def nullable(implicit context: CodeGenContext): Boolean = variable.nullable
 

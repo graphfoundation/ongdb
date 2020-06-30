@@ -18,8 +18,6 @@
  */
 package org.neo4j.cypher.internal.queryReduction
 
-import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
-
 class DDminTest extends CypherFunSuite with ReductionTestHelper {
 
   class TestDDInput(originalLength: Int) extends DDInput[Array[Int]](originalLength) {

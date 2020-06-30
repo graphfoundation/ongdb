@@ -18,104 +18,126 @@
  */
 package org.neo4j.cypher.internal
 
-import org.neo4j.cypher.internal.compatibility.CypherRuntime
-import org.neo4j.cypher.internal.compatibility.InterpretedRuntime.InterpretedExecutionPlan
-import org.neo4j.cypher.internal.compatibility.v3_6.runtime.SlotAllocation.PhysicalPlan
-import org.neo4j.cypher.internal.compatibility.v3_6.runtime._
-import org.neo4j.cypher.internal.compatibility.v3_6.runtime.executionplan.{PeriodicCommitInfo, ExecutionPlan => ExecutionPlan_V35}
-import org.neo4j.cypher.internal.compiler.v3_6.phases.LogicalPlanState
-import org.neo4j.cypher.internal.compiler.v3_6.planner.CantCompileQueryException
-import org.neo4j.cypher.internal.runtime.interpreted.commands.convert.{CommunityExpressionConverter, ExpressionConverters}
-import org.neo4j.cypher.internal.runtime.interpreted.pipes.PipeExecutionBuilderContext
-import org.neo4j.cypher.internal.runtime.slotted.expressions.{CompiledExpressionConverter, SlottedExpressionConverters}
-import org.neo4j.cypher.internal.runtime.slotted.{SlottedExecutionResultBuilderFactory, SlottedPipeBuilder}
-import org.neo4j.cypher.internal.v3_6.logical.plans.LogicalPlan
-import org.neo4j.cypher.internal.v3_6.ast.semantics.SemanticTable
-import org.neo4j.cypher.internal.v3_6.util.CypherException
+import org.neo4j.codegen.api.CodeGeneration.CodeGenerationMode
+import org.neo4j.cypher.internal.InterpretedRuntime.InterpretedExecutionPlan
+import org.neo4j.cypher.internal.logical.plans.LogicalPlan
+import org.neo4j.cypher.internal.physicalplanning.PhysicalPlan
+import org.neo4j.cypher.internal.physicalplanning.PhysicalPlanner
+import org.neo4j.cypher.internal.plandescription.Argument
+import org.neo4j.cypher.internal.runtime.QueryIndexRegistrator
+import org.neo4j.cypher.internal.runtime.interpreted.InterpretedPipeMapper
+import org.neo4j.cypher.internal.runtime.interpreted.commands.convert.CommunityExpressionConverter
+import org.neo4j.cypher.internal.runtime.interpreted.commands.convert.ExpressionConverter
+import org.neo4j.cypher.internal.runtime.interpreted.commands.convert.ExpressionConverters
+import org.neo4j.cypher.internal.runtime.interpreted.pipes.NestedPipeExpressions
+import org.neo4j.cypher.internal.runtime.interpreted.pipes.Pipe
+import org.neo4j.cypher.internal.runtime.interpreted.pipes.PipeTreeBuilder
+import org.neo4j.cypher.internal.runtime.slotted.SlottedExecutionResultBuilderFactory
+import org.neo4j.cypher.internal.runtime.slotted.SlottedPipeMapper
+import org.neo4j.cypher.internal.runtime.slotted.SlottedPipelineBreakingPolicy
+import org.neo4j.cypher.internal.runtime.slotted.expressions.CompiledExpressionConverter
+import org.neo4j.cypher.internal.runtime.slotted.expressions.MaterializedEntitiesExpressionConverter
+import org.neo4j.cypher.internal.runtime.slotted.expressions.SlottedExpressionConverters
+import org.neo4j.cypher.internal.util.CodeGenUtils
+import org.neo4j.cypher.internal.v4_0.util.CypherException
+import org.neo4j.exceptions.CantCompileQueryException
+import org.neo4j.internal.kernel.api.security.SecurityContext
 
 object SlottedRuntime extends CypherRuntime[EnterpriseRuntimeContext] with DebugPrettyPrinter {
-
-  val ENABLE_DEBUG_PRINTS = false // NOTE: false toggles all debug prints off, overriding the individual settings below
-
-  // Should we print query text and logical plan before we see any exceptions from execution plan building?
-  // Setting this to true is useful if you want to see the query and logical plan while debugging a failure
-  // Setting this to false is useful if you want to quickly spot the failure reason at the top of the output from tests
-  val PRINT_PLAN_INFO_EARLY = true
 
   override val PRINT_QUERY_TEXT = true
   override val PRINT_LOGICAL_PLAN = true
   override val PRINT_REWRITTEN_LOGICAL_PLAN = true
   override val PRINT_PIPELINE_INFO = true
   override val PRINT_FAILURE_STACK_TRACE = true
+  val ENABLE_DEBUG_PRINTS = false // NOTE: false toggles all debug prints off, overriding the individual settings below
+  // Should we print query text and logical plan before we see any exceptions from execution plan building?
+  // Setting this to true is useful if you want to see the query and logical plan while debugging a failure
+  // Setting this to false is useful if you want to quickly spot the failure reason at the top of the output from tests
+  val PRINT_PLAN_INFO_EARLY = true
 
+  /*
+
+   */
   @throws[CantCompileQueryException]
-  override def compileToExecutable(state: LogicalPlanState, context: EnterpriseRuntimeContext): ExecutionPlan_V35 = {
+  override def compileToExecutable(query: LogicalQuery, context: EnterpriseRuntimeContext, securityContext: SecurityContext): ExecutionPlan = {
     try {
       if (ENABLE_DEBUG_PRINTS && PRINT_PLAN_INFO_EARLY) {
-        printPlanInfo(state)
+        printPlanInfo(query)
       }
 
-      val (logicalPlan, physicalPlan) = rewritePlan(context, state.logicalPlan, state.semanticTable())
-
+      val physicalPlan: PhysicalPlan = PhysicalPlanner.plan(context.tokenContext, query.logicalPlan, query.semanticTable, SlottedPipelineBreakingPolicy,
+        false);
       if (ENABLE_DEBUG_PRINTS && PRINT_PLAN_INFO_EARLY) {
-        printRewrittenPlanInfo(logicalPlan)
+        printRewrittenPlanInfo(physicalPlan.logicalPlan)
       }
+      val codeGenerationMode: CodeGenerationMode = CodeGenerationMode.fromDebugOptions(context.debugOptions)
 
-      val converters = if (context.compileExpressions) {
-        new ExpressionConverters(
-          new CompiledExpressionConverter(context.log, physicalPlan, context.tokenContext),
-          SlottedExpressionConverters(physicalPlan),
-          CommunityExpressionConverter(context.tokenContext))
-      } else {
-        new ExpressionConverters(
-          SlottedExpressionConverters(physicalPlan),
-          CommunityExpressionConverter(context.tokenContext))
+      val baseConverters = new ExpressionConverters(
+        SlottedExpressionConverters(physicalPlan),
+        CommunityExpressionConverter(context.tokenContext))
+
+      val converter = if (context.materializedEntitiesMode) {
+        new MaterializedEntitiesExpressionConverter(context.tokenContext);
+
       }
-      val pipeBuilderFactory = SlottedPipeBuilder.Factory(physicalPlan)
-      val executionPlanBuilder = new PipeExecutionPlanBuilder(expressionConverters = converters, pipeBuilderFactory = pipeBuilderFactory)
-      val pipeBuildContext = PipeExecutionBuilderContext(state.semanticTable(), context.readOnly)
-      val pipe = executionPlanBuilder.build(logicalPlan)(pipeBuildContext, context.tokenContext)
-      val periodicCommitInfo = state.periodicCommit.map(x => PeriodicCommitInfo(x.batchSize))
-      val columns = state.statement().returnColumns
-      val resultBuilderFactory =
-        new SlottedExecutionResultBuilderFactory(pipe,
-                                                 context.readOnly,
-                                                 columns,
-                                                 logicalPlan,
-                                                 physicalPlan.slotConfigurations,
-                                                 context.config.lenientCreateRelationship)
+      else if (context.compileExpressions) {
+        new CompiledExpressionConverter(context.log, physicalPlan, context.tokenContext,
+          query.readOnly, codeGenerationMode,
+          false);
+      }
+      else {
+        baseConverters
+      }
+      val allConverters: ExpressionConverter = converter.asInstanceOf[ExpressionConverter];
 
-      if (ENABLE_DEBUG_PRINTS) {
-        if (!PRINT_PLAN_INFO_EARLY) {
-          // Print after execution plan building to see any occurring exceptions first
-          printPlanInfo(state)
-          printRewrittenPlanInfo(logicalPlan)
+      val converters = new ExpressionConverters(allConverters);
+      val queryIndexRegistrator: QueryIndexRegistrator = new QueryIndexRegistrator(context.schemaRead);
+      val fallback: InterpretedPipeMapper =
+        new InterpretedPipeMapper(query.readOnly, converters, context.tokenContext, queryIndexRegistrator)(query.semanticTable)
+
+      val pipeBuilder: SlottedPipeMapper =
+        new SlottedPipeMapper(fallback, converters, physicalPlan, query.readOnly, queryIndexRegistrator)(query.semanticTable)
+      val pipeTreeBuilder: PipeTreeBuilder = new PipeTreeBuilder(pipeBuilder);
+      val logicalPlanWithConvertedNestedPlans: LogicalPlan = NestedPipeExpressions.build(pipeTreeBuilder, physicalPlan.logicalPlan,
+        physicalPlan.availableExpressionVariables);
+      val pipe: Pipe = pipeTreeBuilder.build(logicalPlanWithConvertedNestedPlans);
+      val columns: Array[String] = query.resultColumns;
+
+      val resultBuilderFactory: SlottedExecutionResultBuilderFactory =
+        new SlottedExecutionResultBuilderFactory(pipe, queryIndexRegistrator.result(), physicalPlan.nExpressionSlots, query.readOnly,
+          columns, physicalPlan.
+            logicalPlan, physicalPlan.slotConfigurations, physicalPlan.parameterMapping,
+          context.config.lenientCreateRelationship, context.config.memoryTrackingController,
+          query.hasLoadCSV)
+
+      if (this.ENABLE_DEBUG_PRINTS) {
+        if (!this.PRINT_PLAN_INFO_EARLY) {
+          this.printPlanInfo(query);
+          this.printRewrittenPlanInfo(physicalPlan.logicalPlan);
         }
-        printPipe(physicalPlan.slotConfigurations, pipe)
+
+        this.printPipe(physicalPlan.slotConfigurations, pipe);
       }
 
-      new InterpretedExecutionPlan(
-        periodicCommitInfo,
-        resultBuilderFactory,
-        SlottedRuntimeName,
-        context.readOnly)
+      val metadata: Seq[Argument] = CodeGenUtils.metadata(codeGenerationMode.saver);
+
+      // Return
+      new InterpretedExecutionPlan(query.periodicCommitInfo, resultBuilderFactory, SlottedRuntimeName,
+        query.readOnly, metadata);
+
     }
     catch {
       case e: CypherException =>
         if (ENABLE_DEBUG_PRINTS) {
           printFailureStackTrace(e)
           if (!PRINT_PLAN_INFO_EARLY) {
-            printPlanInfo(state)
+            printPlanInfo(query)
           }
         }
         throw e
     }
   }
 
-  private def rewritePlan(context: EnterpriseRuntimeContext, beforeRewrite: LogicalPlan, semanticTable: SemanticTable): (LogicalPlan, PhysicalPlan) = {
-    val physicalPlan: PhysicalPlan = SlotAllocation.allocateSlots(beforeRewrite, semanticTable)
-    val slottedRewriter = new SlottedRewriter(context.tokenContext)
-    val logicalPlan = slottedRewriter(beforeRewrite, physicalPlan.slotConfigurations)
-    (logicalPlan, physicalPlan)
-  }
+  override def name: String = "slotted"
 }

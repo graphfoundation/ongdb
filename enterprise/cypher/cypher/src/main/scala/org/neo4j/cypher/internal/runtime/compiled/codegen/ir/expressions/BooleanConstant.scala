@@ -23,11 +23,11 @@ import org.neo4j.cypher.internal.runtime.compiled.codegen.spi.MethodStructure
 
 trait BooleanConstant extends CodeGenExpression {
 
+  override final def init[E](generator: MethodStructure[E])(implicit context: CodeGenContext) = {}
+
   override def nullable(implicit context: CodeGenContext) = false
 
   override def codeGenType(implicit context: CodeGenContext) = CodeGenType.primitiveBool
-
-  override final def init[E](generator: MethodStructure[E])(implicit context: CodeGenContext) = {}
 
 }
 

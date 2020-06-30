@@ -22,21 +22,17 @@ import java.util.ArrayList;
 
 /**
  * The default implementation of a table used for a full sort by the generated code
- *
+ * <p>
  * It accepts tuples as boxed objects that implements Comparable
- *
- * Implements the following interface:
- * (since the code is generated it does not actually need to declare it with implements)
- *
- * public interface SortTable<T extends Comparable<?>>
- * {
- *     boolean add( T e );
- *
- *     void sort();
- *
- *     Iterator<T> iterator();
- * }
- *
+ * <p>
+ * Implements the following interface: (since the code is generated it does not actually need to declare it with implements)
+ * <p>
+ * public interface SortTable<T extends Comparable<?>> { boolean add( T e );
+ * <p>
+ * void sort();
+ * <p>
+ * Iterator<T> iterator(); }
+ * <p>
  * This implementation just adapts Java's standard ArrayList
  */
 public class DefaultFullSortTable<T extends Comparable<?>> extends ArrayList<T> // implements SortTable<T>

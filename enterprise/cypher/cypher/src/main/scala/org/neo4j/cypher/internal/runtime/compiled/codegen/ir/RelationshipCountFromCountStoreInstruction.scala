@@ -18,12 +18,13 @@
  */
 package org.neo4j.cypher.internal.runtime.compiled.codegen.ir
 
+import org.neo4j.cypher.internal.runtime.compiled.codegen.CodeGenContext
+import org.neo4j.cypher.internal.runtime.compiled.codegen.Variable
 import org.neo4j.cypher.internal.runtime.compiled.codegen.ir.expressions.CodeGenType
 import org.neo4j.cypher.internal.runtime.compiled.codegen.spi.MethodStructure
-import org.neo4j.cypher.internal.runtime.compiled.codegen.{CodeGenContext, Variable}
 
-case class RelationshipCountFromCountStoreInstruction(opName: String, variable: Variable, startLabel: Option[(Option[Int],String)],
-                                                      relTypes: Seq[(Option[Int], String)], endLabel: Option[(Option[Int],String)],
+case class RelationshipCountFromCountStoreInstruction(opName: String, variable: Variable, startLabel: Option[(Option[Int], String)],
+                                                      relTypes: Seq[(Option[Int], String)], endLabel: Option[(Option[Int], String)],
                                                       inner: Instruction) extends Instruction {
   private val hasTokens = opName + "hasTokens"
 
@@ -50,9 +51,9 @@ case class RelationshipCountFromCountStoreInstruction(opName: String, variable: 
         val start = labelToken(startLabel, "StartOf")
         val end = labelToken(endLabel, "EndOf")
 
-        if (relTypes.isEmpty)
+        if (relTypes.isEmpty) {
           ifBody.incrementInteger(variable.name, ifBody.relCountFromCountStore(start, end, ifBody.wildCardToken))
-        else
+        } else {
           relTypes.foreach {
             case (Some(token), _) =>
               val relType = ifBody.constantPrimitiveExpression(token)
@@ -67,6 +68,7 @@ case class RelationshipCountFromCountStoreInstruction(opName: String, variable: 
                 inner.incrementInteger(variable.name, inner.relCountFromCountStore(start, end, relTypeToken))
               }
           }
+        }
       }
     }
     inner.body(generator)
@@ -75,7 +77,6 @@ case class RelationshipCountFromCountStoreInstruction(opName: String, variable: 
   override def operatorId: Set[String] = Set(opName)
 
   override def children = Seq(inner)
-
 
   override def init[E](generator: MethodStructure[E])(implicit context: CodeGenContext): Unit = {
     super.init(generator)

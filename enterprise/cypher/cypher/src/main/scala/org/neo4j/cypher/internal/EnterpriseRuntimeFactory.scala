@@ -19,16 +19,24 @@
 package org.neo4j.cypher.internal
 
 import org.neo4j.cypher.CypherRuntimeOption
-import org.neo4j.cypher.internal.compatibility.{CypherRuntime, FallbackRuntime, InterpretedRuntime, ProcedureCallOrSchemaCommandRuntime}
+
+// import org.neo4j.cypher.internal.compatibility.{CypherRuntime, FallbackRuntime, InterpretedRuntime, ProcedureCallOrSchemaCommandRuntime}
 // See: https://github.com/graphfoundation/ongdb/blob/e95e701325c53995a186b9222ff8cca022410286/community/cypher/cypher/src/main/scala/org/neo4j/cypher/internal/CommunityRuntimeFactory.scala
 object EnterpriseRuntimeFactory {
-  val interpreted = new FallbackRuntime[EnterpriseRuntimeContext](List(ProcedureCallOrSchemaCommandRuntime, InterpretedRuntime), CypherRuntimeOption.interpreted)
-  val slotted = new FallbackRuntime[EnterpriseRuntimeContext](List(ProcedureCallOrSchemaCommandRuntime,SlottedRuntime, InterpretedRuntime), CypherRuntimeOption.slotted)
-  val compiledWithoutFallback = new FallbackRuntime[EnterpriseRuntimeContext](List(ProcedureCallOrSchemaCommandRuntime,CompiledRuntime), CypherRuntimeOption.compiled)
-  val compiled = new FallbackRuntime[EnterpriseRuntimeContext](List(ProcedureCallOrSchemaCommandRuntime,CompiledRuntime, SlottedRuntime, InterpretedRuntime), CypherRuntimeOption.compiled)
-  val morselWithoutFallback = new FallbackRuntime[EnterpriseRuntimeContext](List(ProcedureCallOrSchemaCommandRuntime,MorselRuntime), CypherRuntimeOption.morsel)
-  val morsel = new FallbackRuntime[EnterpriseRuntimeContext](List(ProcedureCallOrSchemaCommandRuntime,MorselRuntime, CompiledRuntime, SlottedRuntime, InterpretedRuntime), CypherRuntimeOption.morsel)
-  val default = new FallbackRuntime[EnterpriseRuntimeContext](List(ProcedureCallOrSchemaCommandRuntime,CompiledRuntime, SlottedRuntime, InterpretedRuntime), CypherRuntimeOption.default)
+  val interpreted = new FallbackRuntime[EnterpriseRuntimeContext](List(SchemaCommandRuntime, InterpretedRuntime), CypherRuntimeOption.interpreted)
+  val slotted = new FallbackRuntime[EnterpriseRuntimeContext](List(SchemaCommandRuntime, SlottedRuntime, InterpretedRuntime), CypherRuntimeOption.slotted)
+  val compiledWithoutFallback = new FallbackRuntime[EnterpriseRuntimeContext](List(SchemaCommandRuntime, CompiledRuntime), CypherRuntimeOption.compiled)
+  val compiled = new FallbackRuntime[EnterpriseRuntimeContext](List(SchemaCommandRuntime, CompiledRuntime, SlottedRuntime, InterpretedRuntime), CypherRuntimeOption.compiled)
+
+  // Added pipelined using same naming conventions as others.
+  val pipelinedWithoutFallback = new FallbackRuntime[EnterpriseRuntimeContext](List(SchemaCommandRuntime, PipelinedRuntime.PIPELINED), CypherRuntimeOption.pipelined)
+  val pipelined = new FallbackRuntime[EnterpriseRuntimeContext](List(SchemaCommandRuntime, PipelinedRuntime.PIPELINED, CompiledRuntime, SlottedRuntime, InterpretedRuntime), CypherRuntimeOption.pipelined)
+
+  // TODO: Implement these in future.
+  // val parallel = new FallbackRuntime[EnterpriseRuntimeContext](List(SchemaCommandRuntime, PipelinedRuntime.PARALLEL, CompiledRuntime, SlottedRuntime, InterpretedRuntime), CypherRuntimeOption.pipelined)
+  //val parallelWithoutFallback = new FallbackRuntime[EnterpriseRuntimeContext](List(SchemaCommandRuntime, PipelinedRuntime.PARALLEL), CypherRuntimeOption.parallel)
+
+  val default = new FallbackRuntime[EnterpriseRuntimeContext](List(SchemaCommandRuntime, CompiledRuntime, SlottedRuntime, InterpretedRuntime), CypherRuntimeOption.default)
 
   def getRuntime(cypherRuntime: CypherRuntimeOption, disallowFallback: Boolean): CypherRuntime[EnterpriseRuntimeContext] =
     cypherRuntime match {
@@ -40,9 +48,11 @@ object EnterpriseRuntimeFactory {
 
       case CypherRuntimeOption.compiled => compiled
 
-      case CypherRuntimeOption.morsel if disallowFallback => morselWithoutFallback
+      case CypherRuntimeOption.pipelined if disallowFallback => pipelinedWithoutFallback
 
-      case CypherRuntimeOption.morsel => morsel
+      case CypherRuntimeOption.pipelined => pipelined
+
+      case CypherRuntimeOption.parallel => pipelinedWithoutFallback
 
       case CypherRuntimeOption.default => default
     }

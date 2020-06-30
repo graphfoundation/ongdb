@@ -20,12 +20,7 @@ package org.neo4j.cypher
 
 import org.neo4j.cypher.internal.javacompat.GraphDatabaseCypherService
 import org.neo4j.graphdb.QueryExecutionException
-import org.neo4j.graphdb.config.Setting
-import org.neo4j.graphdb.factory.GraphDatabaseSettings
 import org.neo4j.kernel.api.exceptions.Status
-import org.neo4j.test.{EnterpriseTestGraphDatabaseFactory, TestGraphDatabaseFactory}
-
-import scala.collection.JavaConverters._
 
 class CypherCompatibilityTest extends ExecutionEngineFunSuite with EnterpriseRunWithConfigTestSupport {
 
@@ -213,9 +208,9 @@ class CypherCompatibilityTest extends ExecutionEngineFunSuite with EnterpriseRun
 
     System.out.println(" ************** in assertVersionAndRuntime - version passed: " + version + " runtime passed: " + runtime)
 
-    System.out.println(" ************** version: " + result.getExecutionPlanDescription.getArguments )
-    System.out.println(" ************** runtime: " + result.getExecutionPlanDescription.getArguments )
-    result.getExecutionPlanDescription.getArguments.get("version") should be("CYPHER "+version)
+    System.out.println(" ************** version: " + result.getExecutionPlanDescription.getArguments)
+    System.out.println(" ************** runtime: " + result.getExecutionPlanDescription.getArguments)
+    result.getExecutionPlanDescription.getArguments.get("version") should be("CYPHER " + version)
     result.getExecutionPlanDescription.getArguments.get("runtime") should be(runtime.toUpperCase)
   }
 }

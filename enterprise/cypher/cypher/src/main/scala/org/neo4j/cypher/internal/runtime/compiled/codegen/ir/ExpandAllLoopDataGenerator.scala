@@ -18,25 +18,28 @@
  */
 package org.neo4j.cypher.internal.runtime.compiled.codegen.ir
 
+import org.neo4j.cypher.internal.runtime.compiled.codegen.CodeGenContext
+import org.neo4j.cypher.internal.runtime.compiled.codegen.Variable
 import org.neo4j.cypher.internal.runtime.compiled.codegen.spi.MethodStructure
-import org.neo4j.cypher.internal.runtime.compiled.codegen.{CodeGenContext, Variable}
-import org.neo4j.cypher.internal.v3_6.expressions.SemanticDirection
+//import org.neo4j.cypher.internal.v3_6.expressions.SemanticDirection
+import org.neo4j.cypher.internal.v4_0.expressions.SemanticDirection
 
 case class ExpandAllLoopDataGenerator(opName: String, fromVar: Variable, dir: SemanticDirection,
-                   types: Map[String, String], toVar: Variable, relVar: Variable)
+                                      types: Map[String, String], toVar: Variable, relVar: Variable)
   extends LoopDataGenerator {
 
   override def init[E](generator: MethodStructure[E])(implicit context: CodeGenContext) = {
     types.foreach {
-      case (typeVar,relType) => generator.lookupRelationshipTypeId(typeVar, relType)
+      case (typeVar, relType) => generator.lookupRelationshipTypeId(typeVar, relType)
     }
   }
 
   override def produceLoopData[E](cursorName: String, generator: MethodStructure[E])(implicit context: CodeGenContext) = {
-    if(types.isEmpty)
+    if (types.isEmpty) {
       generator.nodeGetRelationshipsWithDirection(cursorName, fromVar.name, fromVar.codeGenType, dir)
-    else
+    } else {
       generator.nodeGetRelationshipsWithDirectionAndTypes(cursorName, fromVar.name, fromVar.codeGenType, dir, types.keys.toIndexedSeq)
+    }
     generator.incrementDbHits()
   }
 
@@ -46,7 +49,7 @@ case class ExpandAllLoopDataGenerator(opName: String, fromVar: Variable, dir: Se
     generator.nextRelationshipAndNode(toVar.name, cursorName, dir, fromVar.name, relVar.name)
   }
 
-  override def checkNext[E](generator: MethodStructure[E], cursorName: String): E =  generator.advanceRelationshipSelectionCursor(cursorName)
+  override def checkNext[E](generator: MethodStructure[E], cursorName: String): E = generator.advanceRelationshipSelectionCursor(cursorName)
 
   override def close[E](cursorName: String,
                         generator: MethodStructure[E]): Unit = generator.closeRelationshipSelectionCursor(cursorName)

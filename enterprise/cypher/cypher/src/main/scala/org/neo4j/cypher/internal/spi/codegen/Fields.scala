@@ -21,17 +21,17 @@ package org.neo4j.cypher.internal.spi.codegen
 import org.neo4j.codegen.FieldReference
 
 case class Fields(entityAccessor: FieldReference,
-                  executionMode: FieldReference,
-                  description: FieldReference,
+
                   tracer: FieldReference,
                   params: FieldReference,
                   queryContext: FieldReference,
-                  skip: FieldReference,
+
                   cursors: FieldReference,
                   nodeCursor: FieldReference,
                   relationshipScanCursor: FieldReference,
                   propertyCursor: FieldReference,
                   dataRead: FieldReference,
                   tokenRead: FieldReference,
-                  schemaRead: FieldReference
+                  schemaRead: FieldReference,
+                  closeables: FieldReference
                  )

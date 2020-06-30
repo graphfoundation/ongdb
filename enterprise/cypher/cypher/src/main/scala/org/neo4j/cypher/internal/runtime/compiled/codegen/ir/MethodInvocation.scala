@@ -22,7 +22,7 @@ import org.neo4j.cypher.internal.runtime.compiled.codegen._
 import org.neo4j.cypher.internal.runtime.compiled.codegen.spi.MethodStructure
 
 case class MethodInvocation(override val operatorId: Set[String],
-                            symbol:JoinTableMethod,
+                            symbol: JoinTableMethod,
                             methodName: String,
                             statements: Seq[Instruction]) extends Instruction {
 

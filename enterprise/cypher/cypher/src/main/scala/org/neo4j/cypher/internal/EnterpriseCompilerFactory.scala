@@ -20,148 +20,115 @@ package org.neo4j.cypher.internal
 
 import java.time.Clock
 
-import org.neo4j.cypher.internal.compatibility.v3_4.Cypher34Planner
-import org.neo4j.cypher.internal.compatibility.v3_6.Cypher35Planner
-import org.neo4j.cypher.internal.compatibility.{CypherPlanner, _}
-import org.neo4j.cypher.internal.compiler.v3_6._
+import org.neo4j.common.DependencyResolver
+import org.neo4j.cypher._
+import org.neo4j.cypher.internal.compiler.CypherPlannerConfiguration
 import org.neo4j.cypher.internal.executionplan.GeneratedQuery
-import org.neo4j.cypher.internal.planner.v3_6.spi.TokenContext
+import org.neo4j.cypher.internal.planner.spi.TokenContext
+import org.neo4j.cypher.internal.planning.CypherPlanner
 import org.neo4j.cypher.internal.runtime.compiled.codegen.spi.CodeStructure
-import org.neo4j.cypher.internal.runtime.interpreted.LastCommittedTxIdProvider
-import org.neo4j.cypher.internal.runtime.parallel._
-import org.neo4j.cypher.internal.runtime.vectorized.Dispatcher
+import org.neo4j.cypher.internal.runtime.parallel.tracing.SchedulerTracer
 import org.neo4j.cypher.internal.spi.codegen.GeneratedQueryStructure
-import org.neo4j.cypher.{CypherPlannerOption, CypherRuntimeOption, CypherUpdateStrategy, CypherVersion}
+import org.neo4j.internal.kernel.api.CursorFactory
+import org.neo4j.internal.kernel.api.SchemaRead
 import org.neo4j.kernel.GraphDatabaseQueryService
-import org.neo4j.kernel.monitoring.{Monitors => KernelMonitors}
-import org.neo4j.logging.{Log, LogProvider}
-import org.neo4j.scheduler.{Group, JobScheduler}
-import org.neo4j.cypher.internal.v3_6.frontend.phases.InternalNotificationLogger
+import org.neo4j.kernel.impl.query.QueryEngineProvider.SPI
+import org.neo4j.kernel.lifecycle.LifeSupport
+import org.neo4j.logging.Log
+import org.neo4j.scheduler.JobScheduler
 
-class EnterpriseCompilerFactory(community: CommunityCompilerFactory,
-                                graph: GraphDatabaseQueryService,
-                                kernelMonitors: KernelMonitors,
-                                logProvider: LogProvider,
-                                plannerConfig: CypherPlannerConfiguration,
-                                runtimeConfig: CypherRuntimeConfiguration
+class EnterpriseCompilerFactory(
+                                 graph: GraphDatabaseQueryService,
+                                 spi: SPI,
+                                 plannerConfig: CypherPlannerConfiguration,
+                                 runtimeConfig: CypherRuntimeConfiguration
                                ) extends CompilerFactory {
+
+  val resolver: DependencyResolver = graph.getDependencyResolver();
+
+  private val log: Log = spi.logProvider().getLog(getClass)
+
   /*
   One compiler is created for every Planner:Runtime:Version combination, e.g., Cost-Morsel-3.4 & Cost-Morsel-3.6.
-  Each compiler contains a runtime instance, and each morsel runtime instance requires a dispatcher instance.
-  This ensures only one (shared) dispatcher/tracer instance is created, even when there are multiple morsel runtime instances.
+  Each compiler contains a runtime instance, and each morsel (now pipelined replaced it) runtime instance requires a dispatcher instance.
+  This ensures only one (shared) dispatcher/tracer instance is created, even when there are multiple runtime instances.
    */
-  private val runtimeEnvironment = RuntimeEnvironment(runtimeConfig, graph.getDependencyResolver.resolveDependency(classOf[JobScheduler]))
+  private val runtimeEnvironment = getRuntimeEnvironment(runtimeConfig, spi.jobScheduler(), spi.kernel().cursors(), spi.lifeSupport())
+
+  def getRuntimeEnvironment(config: CypherRuntimeConfiguration,
+                            jobScheduler: JobScheduler,
+                            cursors: CursorFactory,
+                            lifeSupport: LifeSupport) = new RuntimeEnvironment(config, createTracer(config, jobScheduler, lifeSupport), cursors)
 
   override def createCompiler(cypherVersion: CypherVersion,
                               cypherPlanner: CypherPlannerOption,
                               cypherRuntime: CypherRuntimeOption,
-                              cypherUpdateStrategy: CypherUpdateStrategy): Compiler = {
+                              cypherUpdateStrategy: CypherUpdateStrategy,
+                              executionEngineProvider: () => ExecutionEngine): Compiler = {
 
-    val log = logProvider.getLog(getClass)
-    val createPlanner: PartialFunction[CypherVersion, CypherPlanner] = {
-      case CypherVersion.v3_4 =>
-        Cypher34Planner(
-          plannerConfig,
-          MasterCompiler.CLOCK,
-          kernelMonitors,
-          log,
-          cypherPlanner,
-          cypherUpdateStrategy,
-          LastCommittedTxIdProvider(graph))
+    val compatibilityMode = cypherVersion match {
+      case CypherVersion.`v3_5` => true // TODO: Add v3_6
+      case CypherVersion.v4_0 => false // TODO: Review
+    }
 
-      case CypherVersion.v3_6 =>
-        Cypher35Planner(
-          plannerConfig,
-          MasterCompiler.CLOCK,
-          kernelMonitors,
-          log,
-          cypherPlanner,
-          cypherUpdateStrategy,
-          LastCommittedTxIdProvider(graph))
-      }
+    val planner =
+      CypherPlanner(
+        plannerConfig,
+        MasterCompiler.CLOCK,
+        spi.monitors(),
+        log,
+        cypherPlanner,
+        cypherUpdateStrategy,
+        LastCommittedTxIdProvider(graph),
+        compatibilityMode)
 
-    if (cypherPlanner != CypherPlannerOption.rule && createPlanner.isDefinedAt(cypherVersion)) {
-      val planner = createPlanner(cypherVersion)
-
-      CypherCurrentCompiler(
-        planner,
-        EnterpriseRuntimeFactory.getRuntime(cypherRuntime, plannerConfig.useErrorsOverWarnings),
-        EnterpriseRuntimeContextCreator(GeneratedQueryStructure, log, plannerConfig, runtimeEnvironment),
-        kernelMonitors)
-
-    } else
-      community.createCompiler(cypherVersion, cypherPlanner, cypherRuntime, cypherUpdateStrategy)
+    val runtime = if (plannerConfig.planSystemCommands) {
+      EnterpriseAdministrationCommandRuntime(executionEngineProvider(), graph.getDependencyResolver)
+    } else {
+      EnterpriseRuntimeFactory.getRuntime(cypherRuntime, plannerConfig.useErrorsOverWarnings)
+    }
+    CypherCurrentCompiler(
+      planner,
+      runtime,
+      EnterpriseRuntimeContextManager(GeneratedQueryStructure, log, runtimeConfig, this.runtimeEnvironment),
+      spi.monitors())
   }
+
+  private def createTracer(config: CypherRuntimeConfiguration, jobScheduler: JobScheduler, lifeSupport: LifeSupport): SchedulerTracer = {
+    SchedulerTracer.NoSchedulerTracer // TODO: We want to allow for multiple tracers.
+  }
+
 }
 
-case class RuntimeEnvironment(config:CypherRuntimeConfiguration, jobScheduler: JobScheduler) {
-  private val dispatcher: Dispatcher = createDispatcher()
-  val tracer: SchedulerTracer = createTracer()
+case class RuntimeEnvironment(config: CypherRuntimeConfiguration, tracer: SchedulerTracer, cursors: CursorFactory) {
 
-  def getDispatcher(debugOptions: Set[String]): Dispatcher =
-    if (singleThreadedRequested(debugOptions) && !isAlreadySingleThreaded)
-      new Dispatcher(config.morselSize, new SingleThreadScheduler())
-    else
-      dispatcher
+  def of(config: CypherRuntimeConfiguration,
+         jobScheduler: JobScheduler,
+         cursors: CursorFactory,
+         lifeSupport: LifeSupport
+        ) = new RuntimeEnvironment(config, createTracer(config, jobScheduler, lifeSupport), cursors)
 
-  private def singleThreadedRequested(debugOptions: Set[String]) = debugOptions.contains("singlethreaded")
-
-  private def isAlreadySingleThreaded = config.workers == 1
-
-  private def createDispatcher(): Dispatcher = {
-    val scheduler =
-      if (config.workers == 1) new SingleThreadScheduler()
-      else {
-        val numberOfThreads = if (config.workers == 0) java.lang.Runtime.getRuntime.availableProcessors() else config.workers
-        val executorService = jobScheduler.workStealingExecutor(Group.CYPHER_WORKER, numberOfThreads)
-        new SimpleScheduler(executorService, config.waitTimeout)
-      }
-    new Dispatcher(config.morselSize, scheduler)
-  }
-
-  private def createTracer(): SchedulerTracer = {
-    if (config.doSchedulerTracing)
-      new DataPointSchedulerTracer(new ThreadSafeDataWriter(new CsvStdOutDataWriter))
-    else
-      SchedulerTracer.NoSchedulerTracer
+  private def createTracer(config: CypherRuntimeConfiguration, jobScheduler: JobScheduler, lifeSupport: LifeSupport): SchedulerTracer = {
+    SchedulerTracer.NoSchedulerTracer // TODO: We want to allow for multiple tracers.
   }
 }
 
 /**
-  * Enterprise runtime context. Enriches the community runtime context with infrastructure needed for
-  * query compilation and parallel execution.
-  */
+ * Enterprise runtime context. Enriches the community runtime context with infrastructure needed for
+ * query compilation and parallel execution.
+ */
 case class EnterpriseRuntimeContext(tokenContext: TokenContext,
-                                    readOnly: Boolean,
+                                    //readOnly: Boolean,
+                                    schemaRead: SchemaRead,
                                     codeStructure: CodeStructure[GeneratedQuery],
                                     log: Log,
                                     clock: Clock,
                                     debugOptions: Set[String],
-                                    config: CypherPlannerConfiguration,
+                                    config: CypherRuntimeConfiguration,
                                     runtimeEnvironment: RuntimeEnvironment,
-                                    compileExpressions: Boolean) extends RuntimeContext
+                                    compileExpressions: Boolean,
+                                    materializedEntitiesMode: Boolean, // Added
+                                    operatorEngine: CypherOperatorEngineOption, // Added
+                                    interpretedPipesFallback: CypherInterpretedPipesFallbackOption // Added
+                                   ) extends RuntimeContext
 
-/**
-  * Creator of EnterpriseRuntimeContext
-  */
-case class EnterpriseRuntimeContextCreator(codeStructure: CodeStructure[GeneratedQuery],
-                                           log: Log,
-                                           config: CypherPlannerConfiguration,
-                                           morselRuntimeState: RuntimeEnvironment)
-  extends RuntimeContextCreator[EnterpriseRuntimeContext] {
-
-  override def create(tokenContext: TokenContext,
-                      clock: Clock,
-                      debugOptions: Set[String],
-                      readOnly: Boolean,
-                      compileExpressions: Boolean): EnterpriseRuntimeContext =
-    EnterpriseRuntimeContext(tokenContext,
-                             readOnly,
-                             codeStructure,
-                             log,
-                             clock,
-                             debugOptions,
-                             config,
-                             morselRuntimeState,
-                             compileExpressions)
-}

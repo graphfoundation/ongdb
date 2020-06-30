@@ -53,29 +53,28 @@ public class MorselRuntimeStressIT
     private static final String SYNTAX_ERROR_QUERY = "CYPHER runtime=morsel MATHC (n) RETURN n";
     private static final String RUNTIME_ERROR_QUERY = "CYPHER runtime=morsel MATCH (n) RETURN size($a)";
     private static final Map<String,Object> PARAMS = new HashMap<>();
+    private static final RelationshipType R = RelationshipType.withName( "R" );
+    private static final Result.ResultVisitor<RuntimeException> CHECKING_VISITOR = row ->
+    {
+        assertThat( row.get( "n" ), notNullValue() );
+        return true;
+    };
+    private static final Result.ResultVisitor<RuntimeException> THROWING_VISITOR = row ->
+    {
+        throw new Error( "WHERE IS YOUR GOD NOW" );
+    };
 
     static
     {
         PARAMS.put( "a", 42 );
     }
 
-    private static final RelationshipType R = RelationshipType.withName( "R" );
-
-    private static final Result.ResultVisitor<RuntimeException> CHECKING_VISITOR = row -> {
-        assertThat( row.get( "n" ), notNullValue() );
-        return true;
-    };
-    private static final Result.ResultVisitor<RuntimeException> THROWING_VISITOR = row -> {
-        throw new Error( "WHERE IS YOUR GOD NOW" );
-    };
-
-    private AtomicInteger counter = new AtomicInteger( 0 );
-
     @Rule
     public final EnterpriseDatabaseRule db = new EnterpriseDatabaseRule();
-
+    private AtomicInteger counter = new AtomicInteger( 0 );
     private ExecutorService service = Executors.newFixedThreadPool( N_THREADS );
-    private Runnable task = () -> {
+    private Runnable task = () ->
+    {
 
         for ( int i = 0; i < ITERATIONS; i++ )
         {

@@ -18,18 +18,7 @@
  */
 package org.neo4j.cypher.internal.queryReduction.ast
 
-import org.neo4j.cypher.internal.v3_6.ast._
-import org.neo4j.cypher.internal.v3_6.expressions._
-import org.neo4j.cypher.internal.v3_6.util._
-
 object copyNodeWith {
-
-  trait NodeConverter {
-    def ofOption[B <: ASTNode](o: Option[B]): Option[B]
-    def ofSingle[B <: ASTNode](b: B): B
-    def ofSeq[B <: ASTNode](bs: Seq[B]): Seq[B]
-    def ofTupledSeq[B <: ASTNode, C <: ASTNode](bs: Seq[(B,C)]) : Seq[(B,C)]
-  }
 
   def apply[A <: ASTNode, B <: ASTNode](node: A, nc: NodeConverter): A = {
     val newNode = node match {
@@ -73,7 +62,7 @@ object copyNodeWith {
       case Where(exp) =>
         Where(nc.ofSingle(exp))(node.position)
 
-      case _:Literal => node
+      case _: Literal => node
 
       case Parameter(_, _) => node
 
@@ -86,7 +75,7 @@ object copyNodeWith {
       case HasLabels(expression, labels) =>
         HasLabels(nc.ofSingle(expression), nc.ofSeq(labels))(node.position)
 
-      case _:SymbolicName => node
+      case _: SymbolicName => node
 
       case RelationshipChain(element, relationship, rightNode) =>
         RelationshipChain(nc.ofSingle(element), nc.ofSingle(relationship), nc.ofSingle(rightNode))(node.position)
@@ -111,7 +100,7 @@ object copyNodeWith {
       case FilterScope(variable, innerPredicate) =>
         FilterScope(nc.ofSingle(variable), nc.ofOption(innerPredicate))(node.position)
 
-      case i:IterablePredicateExpression =>
+      case i: IterablePredicateExpression =>
         i.dup(Seq(nc.ofSingle(i.scope), nc.ofSingle(i.expression)))
 
       case ListLiteral(expressions) =>
@@ -120,19 +109,19 @@ object copyNodeWith {
       case OrderBy(sortItems) =>
         OrderBy(nc.ofSeq(sortItems))(node.position)
 
-      case b:BinaryOperatorExpression => b.dup(Seq(nc.ofSingle(b.lhs), nc.ofSingle(b.rhs)))
+      case b: BinaryOperatorExpression => b.dup(Seq(nc.ofSingle(b.lhs), nc.ofSingle(b.rhs)))
 
-      case l:LeftUnaryOperatorExpression => l.dup(Seq(nc.ofSingle(l.rhs)))
+      case l: LeftUnaryOperatorExpression => l.dup(Seq(nc.ofSingle(l.rhs)))
 
-      case r:RightUnaryOperatorExpression => r.dup(Seq(nc.ofSingle(r.lhs)))
+      case r: RightUnaryOperatorExpression => r.dup(Seq(nc.ofSingle(r.lhs)))
 
-      case s:SortItem =>
+      case s: SortItem =>
         s.dup(Seq(nc.ofSingle(s.expression)))
 
-      case a:ASTSlicingPhrase =>
+      case a: ASTSlicingPhrase =>
         a.dup(Seq(nc.ofSingle(a.expression)))
 
-      case u:Union =>
+      case u: Union =>
         u.dup(Seq(nc.ofSingle(u.part), nc.ofSingle(u.query)))
 
       case CaseExpression(expression, alternatives, default) =>
@@ -169,5 +158,15 @@ object copyNodeWith {
     }
 
     newNode.asInstanceOf[A]
+  }
+
+  trait NodeConverter {
+    def ofOption[B <: ASTNode](o: Option[B]): Option[B]
+
+    def ofSingle[B <: ASTNode](b: B): B
+
+    def ofSeq[B <: ASTNode](bs: Seq[B]): Seq[B]
+
+    def ofTupledSeq[B <: ASTNode, C <: ASTNode](bs: Seq[(B, C)]): Seq[(B, C)]
   }
 }

@@ -35,23 +35,25 @@ case class AcceptVisitor(produceResultOpName: String, columns: Map[String, CodeG
     }
   }
 
-  private def anyValue[E](generator: MethodStructure[E], v: CodeGenExpression)(implicit context: CodeGenContext) = {
-    if (v.needsJavaNullCheck) {
-      val variable = context.namer.newVarName()
-      generator.localVariable(variable, v.generateExpression(generator), v.codeGenType)
-      generator.ternaryOperator(generator.isNull(generator.loadVariable(variable), v.codeGenType),
-                                generator.noValue(),
-                                generator.toMaterializedAnyValue(generator.loadVariable(variable), v.codeGenType))
-    }
-    else generator.toMaterializedAnyValue(v.generateExpression(generator), v.codeGenType)
+  override def init[E](generator: MethodStructure[E])(implicit context: CodeGenContext) {
+    columns.values.foreach(_.init(generator))
+    super.init(generator)
   }
 
   override protected def operatorId = Set(produceResultOpName)
 
   override protected def children = Seq.empty
 
-  override def init[E](generator: MethodStructure[E])(implicit context: CodeGenContext) {
-    columns.values.foreach(_.init(generator))
-    super.init(generator)
+  private def anyValue[E](generator: MethodStructure[E], v: CodeGenExpression)(implicit context: CodeGenContext) = {
+    if (v.needsJavaNullCheck) {
+      val variable = context.namer.newVarName()
+      generator.localVariable(variable, v.generateExpression(generator), v.codeGenType)
+      generator.ternaryOperator(generator.isNull(generator.loadVariable(variable), v.codeGenType),
+        generator.noValue(),
+        generator.toMaterializedAnyValue(generator.loadVariable(variable), v.codeGenType))
+    }
+    else {
+      generator.toMaterializedAnyValue(v.generateExpression(generator), v.codeGenType)
+    }
   }
 }

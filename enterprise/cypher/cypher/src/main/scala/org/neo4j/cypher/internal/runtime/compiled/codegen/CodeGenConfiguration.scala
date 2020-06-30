@@ -18,32 +18,35 @@
  */
 package org.neo4j.cypher.internal.runtime.compiled.codegen
 
-import java.nio.file.{Path, Paths}
+import java.nio.file.Path
+import java.nio.file.Paths
 
-import org.neo4j.cypher.internal.v3_6.util.InternalException
+import org.neo4j.exceptions.InternalException
+
+//import org.neo4j.exceptions.InternalException
 
 /**
-  * Configuration modes for code generation
-  */
+ * Configuration modes for code generation
+ */
 sealed trait CodeGenMode
 
 /**
-  * Produces source code
-  */
+ * Produces source code
+ */
 case object SourceCodeMode extends CodeGenMode
 
 /**
-  * Produce byte code directly
-  */
+ * Produce byte code directly
+ */
 case object ByteCodeMode extends CodeGenMode
 
 /**
-  * Configuration class for code generation
+ * Configuration class for code generation
  *
-  * @param mode The mode of code generation
-  * @param showSource if `true` source code is stored and returned
-  * @param packageName The name of the v3_6 the produced code should belong to
-  */
+ * @param mode        The mode of code generation
+ * @param showSource  if `true` source code is stored and returned
+ * @param packageName The name of the v3_6 the produced code should belong to
+ */
 case class CodeGenConfiguration(mode: CodeGenMode = CodeGenMode.default,
                                 showSource: Boolean = false,
                                 showByteCode: Boolean = false,
@@ -53,7 +56,7 @@ case class CodeGenConfiguration(mode: CodeGenMode = CodeGenMode.default,
 
 object CodeGenConfiguration {
   def apply(debugOptions: Set[String]): CodeGenConfiguration = {
-    val mode = if(debugOptions.contains("generate_java_source")) SourceCodeMode else ByteCodeMode
+    val mode = if (debugOptions.contains("generate_java_source")) SourceCodeMode else ByteCodeMode
     val show_java_source = debugOptions.contains("show_java_source")
     if (show_java_source && mode != SourceCodeMode) {
       throw new InternalException("Can only 'debug=show_java_source' if 'debug=generate_java_source'.")

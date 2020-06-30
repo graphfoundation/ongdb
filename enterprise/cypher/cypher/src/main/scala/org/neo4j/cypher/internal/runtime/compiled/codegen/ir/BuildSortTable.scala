@@ -25,8 +25,7 @@ import org.neo4j.cypher.internal.runtime.compiled.codegen.spi._
 case class BuildSortTable(opName: String, tableName: String, columnVariables: Map[String, Variable],
                           sortItems: Iterable[SortItem], estimateCardinality: Double)
                          (implicit context: CodeGenContext)
-  extends BuildSortTableBase(opName, tableName, columnVariables, sortItems)
-{
+  extends BuildSortTableBase(opName, tableName, columnVariables, sortItems) {
 
   override def init[E](generator: MethodStructure[E])(implicit context: CodeGenContext) = {
     // Use estimated cardinality to decide initial capacity
@@ -42,8 +41,7 @@ case class BuildSortTable(opName: String, tableName: String, columnVariables: Ma
 case class BuildTopTable(opName: String, tableName: String, countExpression: CodeGenExpression,
                          columnVariables: Map[String, Variable], sortItems: Iterable[SortItem])
                         (implicit context: CodeGenContext)
-  extends BuildSortTableBase(opName, tableName, columnVariables, sortItems)
-{
+  extends BuildSortTableBase(opName, tableName, columnVariables, sortItems) {
   override def init[E](generator: MethodStructure[E])(implicit context: CodeGenContext) = {
     countExpression.init(generator)
 
@@ -62,8 +60,32 @@ case class BuildTopTable(opName: String, tableName: String, countExpression: Cod
 abstract class BuildSortTableBase(opName: String, tableName: String, columnVariables: Map[String, Variable],
                                   sortItems: Iterable[SortItem])
                                  (implicit context: CodeGenContext)
-  extends Instruction
-{
+  extends Instruction {
+  val sortTableInfo: SortTableInfo = SortTableInfo(
+    tableName,
+    fieldToVariableInfo,
+    outgoingVariableNameToVariableInfo,
+    tableDescriptor
+  )
+  protected val tupleDescriptor = OrderableTupleDescriptor(
+    structure = fieldToVariableInfo.mapValues(c => c.outgoingVariable.codeGenType),
+    sortItems
+  )
+  private val fieldToVariableInfo: Map[String, FieldAndVariableInfo] = columnVariables.map {
+    case (queryVariableName: String, incoming: Variable) =>
+      val fieldName = incoming.name
+      (fieldName,
+        FieldAndVariableInfo(
+          fieldName = fieldName,
+          queryVariableName = queryVariableName,
+          incomingVariable = incoming,
+          outgoingVariable = incoming.copy(name = context.namer.newVarName())))
+  }
+  private val outgoingVariableNameToVariableInfo: Map[String, FieldAndVariableInfo] =
+    fieldToVariableInfo.map {
+      case (fieldName, info) => info.outgoingVariable.name -> info
+    }
+
   override def body[E](generator: MethodStructure[E])(implicit ignored: CodeGenContext): Unit = {
     generator.trace(opName, Some(this.getClass.getSimpleName)) { body =>
       val tuple = body.newTableValue(context.namer.newVarName(), tupleDescriptor)
@@ -80,34 +102,6 @@ abstract class BuildSortTableBase(opName: String, tableName: String, columnVaria
   override protected def operatorId = Set(opName)
 
   protected def tableDescriptor: SortTableDescriptor
-
-  private val fieldToVariableInfo: Map[String, FieldAndVariableInfo] = columnVariables.map {
-    case (queryVariableName: String, incoming: Variable) =>
-      val fieldName = incoming.name
-      (fieldName,
-        FieldAndVariableInfo(
-          fieldName = fieldName,
-          queryVariableName = queryVariableName,
-          incomingVariable = incoming,
-          outgoingVariable = incoming.copy(name = context.namer.newVarName())))
-  }
-
-  private val outgoingVariableNameToVariableInfo: Map[String, FieldAndVariableInfo] =
-    fieldToVariableInfo.map {
-      case (fieldName, info) => info.outgoingVariable.name -> info
-    }
-
-  protected val tupleDescriptor = OrderableTupleDescriptor(
-    structure = fieldToVariableInfo.mapValues(c => c.outgoingVariable.codeGenType),
-    sortItems
-  )
-
-  val sortTableInfo: SortTableInfo = SortTableInfo(
-    tableName,
-    fieldToVariableInfo,
-    outgoingVariableNameToVariableInfo,
-    tableDescriptor
-  )
 }
 
 case class SortTableInfo(tableName: String,

@@ -23,18 +23,19 @@ import org.neo4j.cypher.internal.runtime.compiled.codegen.spi.MethodStructure
 
 trait Instruction {
   def init[E](generator: MethodStructure[E])(implicit context: CodeGenContext): Unit = children.foreach(_.init(generator))
+
   def body[E](generator: MethodStructure[E])(implicit context: CodeGenContext): Unit
-
-  protected def children: Seq[Instruction]
-
-  private def treeView: Seq[Instruction] = {
-    children.foldLeft(Seq(this)) { (acc, child) => acc ++ child.treeView }
-  }
 
   // Aggregating methods -- final to prevent overriding
   final def allOperatorIds: Set[String] = treeView.flatMap(_.operatorId).toSet
 
+  protected def children: Seq[Instruction]
+
   protected def operatorId: Set[String] = Set.empty
+
+  private def treeView: Seq[Instruction] = {
+    children.foldLeft(Seq(this)) { (acc, child) => acc ++ child.treeView }
+  }
 }
 
 object Instruction {

@@ -18,18 +18,7 @@
  */
 package org.neo4j.cypher.internal.queryReduction.ast
 
-import org.neo4j.cypher.internal.v3_6.ast._
-import org.neo4j.cypher.internal.v3_6.expressions.{BinaryOperatorExpression, _}
-import org.neo4j.cypher.internal.v3_6.util._
-
 object getChildren {
-
-  private def ofOption[I](maybe: Option[I]): Seq[I] = {
-    maybe match {
-      case None => Seq()
-      case Some(thing) => Seq(thing)
-    }
-  }
 
   def apply(node: ASTNode): Seq[ASTNode] = {
     node match {
@@ -70,7 +59,7 @@ object getChildren {
       case Where(exp) =>
         Seq(exp)
 
-      case _:Literal =>
+      case _: Literal =>
         Seq()
 
       case Parameter(_, _) =>
@@ -85,14 +74,14 @@ object getChildren {
       case HasLabels(expression, labels) =>
         Seq(expression) ++ labels
 
-      case _:SymbolicName =>
+      case _: SymbolicName =>
         Seq()
 
       case RelationshipChain(element, relationship, rightNode) =>
         Seq(element, relationship, rightNode)
 
       case RelationshipPattern(variable, types, length, properties, _, _, maybeBaseRel) =>
-        ofOption(variable) ++  types ++ ofOption(length.flatten) ++ ofOption(properties) ++ ofOption(maybeBaseRel)
+        ofOption(variable) ++ types ++ ofOption(length.flatten) ++ ofOption(properties) ++ ofOption(maybeBaseRel)
 
       case FunctionInvocation(namespace, functionName, _, args, procedureCallContext) =>
         Seq(namespace, functionName) ++ args
@@ -102,7 +91,7 @@ object getChildren {
 
       case With(distinct, returnItems, orderBy, skip, limit, where) =>
         Seq(returnItems) ++
-        ofOption(orderBy) ++ ofOption(skip) ++ ofOption(limit) ++ ofOption(where)
+          ofOption(orderBy) ++ ofOption(skip) ++ ofOption(limit) ++ ofOption(where)
 
       case MapExpression(items) =>
         items.flatMap { case (pkn, exp) => Seq(pkn, exp) }
@@ -110,7 +99,7 @@ object getChildren {
       case FilterExpression(scope, expression) =>
         Seq(scope, expression)
 
-      case i:IterablePredicateExpression =>
+      case i: IterablePredicateExpression =>
         Seq(i.scope, i.expression)
 
       case FilterScope(variable, innerPredicate) =>
@@ -122,25 +111,25 @@ object getChildren {
       case OrderBy(sortItems) =>
         sortItems
 
-      case b:BinaryOperatorExpression =>
+      case b: BinaryOperatorExpression =>
         Seq(b.lhs, b.rhs)
 
-      case l:LeftUnaryOperatorExpression =>
+      case l: LeftUnaryOperatorExpression =>
         Seq(l.rhs)
 
-      case r:RightUnaryOperatorExpression =>
+      case r: RightUnaryOperatorExpression =>
         Seq(r.lhs)
 
-      case m:MultiOperatorExpression =>
+      case m: MultiOperatorExpression =>
         m.exprs.toSeq
 
-      case s:SortItem =>
+      case s: SortItem =>
         Seq(s.expression)
 
-      case a:ASTSlicingPhrase =>
+      case a: ASTSlicingPhrase =>
         Seq(a.expression)
 
-      case u:Union =>
+      case u: Union =>
         Seq(u.part, u.query)
 
       case CaseExpression(expression, alternatives, default) =>
@@ -169,6 +158,13 @@ object getChildren {
 
       case RelationshipsPattern(element) =>
         Seq(element)
+    }
+  }
+
+  private def ofOption[I](maybe: Option[I]): Seq[I] = {
+    maybe match {
+      case None => Seq()
+      case Some(thing) => Seq(thing)
     }
   }
 

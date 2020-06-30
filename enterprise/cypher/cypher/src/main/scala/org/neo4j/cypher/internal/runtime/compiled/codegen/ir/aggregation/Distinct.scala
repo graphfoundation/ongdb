@@ -21,7 +21,8 @@ package org.neo4j.cypher.internal.runtime.compiled.codegen.ir.aggregation
 import org.neo4j.cypher.internal.runtime.compiled.codegen.CodeGenContext
 import org.neo4j.cypher.internal.runtime.compiled.codegen.ir.Instruction
 import org.neo4j.cypher.internal.runtime.compiled.codegen.ir.expressions.CodeGenExpression
-import org.neo4j.cypher.internal.runtime.compiled.codegen.spi.{HashableTupleDescriptor, MethodStructure}
+import org.neo4j.cypher.internal.runtime.compiled.codegen.spi.HashableTupleDescriptor
+import org.neo4j.cypher.internal.runtime.compiled.codegen.spi.MethodStructure
 
 case class Distinct(opName: String, setName: String, vars: Iterable[(String, CodeGenExpression)])
   extends AggregateExpression {
@@ -32,7 +33,6 @@ case class Distinct(opName: String, setName: String, vars: Iterable[(String, Cod
     }
     generator.newDistinctSet(setName, vars.map(_._2.codeGenType))
   }
-
 
   def update[E](generator: MethodStructure[E])(implicit context: CodeGenContext) = {
     vars.foreach {
@@ -49,8 +49,8 @@ case class Distinct(opName: String, setName: String, vars: Iterable[(String, Cod
         generator.assign(variable, expr.codeGenType, generatedExpression)
     }
     generator.distinctSetIfNotContains(setName,
-                                       vars.map(v => v._1 -> (v._2.codeGenType ->
-                                         generator.loadVariable(v._1))).toMap)((_) => {})
+      vars.map(v => v._1 -> (v._2.codeGenType ->
+        generator.loadVariable(v._1))).toMap)((_) => {})
   }
 
   override def continuation(instruction: Instruction): Instruction = new Instruction {

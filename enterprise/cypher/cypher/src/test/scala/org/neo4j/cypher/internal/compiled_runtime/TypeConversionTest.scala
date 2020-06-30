@@ -18,8 +18,8 @@
  */
 package org.neo4j.cypher.internal.compiled_runtime
 
+import org.neo4j.cypher.ExecutionEngineFunSuite
 import org.neo4j.cypher.internal.RewindableExecutionResult
-import org.neo4j.cypher.{CypherTypeException, ExecutionEngineFunSuite}
 
 class TypeConversionTest extends ExecutionEngineFunSuite {
   test("should not allow adding node and number") {
@@ -42,5 +42,5 @@ class TypeConversionTest extends ExecutionEngineFunSuite {
   }
 
   override def execute(q: String, params: (String, Any)*): RewindableExecutionResult =
-    super.execute(s"cypher runtime=compiled $q", params:_*)
+    super.execute(s"cypher runtime=compiled $q", params: _*)
 }

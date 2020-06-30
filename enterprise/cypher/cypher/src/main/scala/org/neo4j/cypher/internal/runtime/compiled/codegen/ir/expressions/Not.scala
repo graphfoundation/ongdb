@@ -20,7 +20,7 @@ package org.neo4j.cypher.internal.runtime.compiled.codegen.ir.expressions
 
 import org.neo4j.cypher.internal.runtime.compiled.codegen.CodeGenContext
 import org.neo4j.cypher.internal.runtime.compiled.codegen.spi.MethodStructure
-import org.neo4j.cypher.internal.v3_6.util.symbols.CTBoolean
+import org.neo4j.cypher.internal.v4_0.util.symbols.CTBoolean
 
 case class Not(inner: CodeGenExpression) extends CodeGenExpression {
 
@@ -29,16 +29,22 @@ case class Not(inner: CodeGenExpression) extends CodeGenExpression {
   }
 
   override def generateExpression[E](structure: MethodStructure[E])(implicit context: CodeGenContext) =
-    if (!nullable) inner.codeGenType match {
-      case t if t.isPrimitive => structure.notExpression (inner.generateExpression (structure) )
-      case t => structure.unbox(structure.threeValuedNotExpression(structure.box(inner.generateExpression(structure), inner.codeGenType)),
-                                CodeGenType.primitiveBool)
+    if (!nullable) {
+      inner.codeGenType match {
+        case t if t.isPrimitive => structure.notExpression(inner.generateExpression(structure))
+        case t => structure.unbox(structure.threeValuedNotExpression(structure.box(inner.generateExpression(structure), inner.codeGenType)),
+          CodeGenType.primitiveBool)
+      }
+    } else {
+      structure.threeValuedNotExpression(structure.box(inner.generateExpression(structure), inner.codeGenType))
     }
-    else structure.threeValuedNotExpression(structure.box(inner.generateExpression(structure), inner.codeGenType))
 
   override def nullable(implicit context: CodeGenContext) = inner.nullable
 
   override def codeGenType(implicit context: CodeGenContext) =
-    if (!nullable) CodeGenType.primitiveBool
-    else CypherCodeGenType(CTBoolean, ReferenceType)
+    if (!nullable) {
+      CodeGenType.primitiveBool
+    } else {
+      CypherCodeGenType(CTBoolean, ReferenceType)
+    }
 }

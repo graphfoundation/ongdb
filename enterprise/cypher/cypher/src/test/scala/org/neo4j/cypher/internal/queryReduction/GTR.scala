@@ -19,12 +19,13 @@
 package org.neo4j.cypher.internal.queryReduction
 
 import org.neo4j.cypher.internal.queryReduction.DDmin.Oracle
+
 import scala.collection.mutable
 
 object GTR {
 
   def apply[I](input: GTRInput[I])(test: Oracle[I]): I = {
-    for(i <- 1 to input.depth) {
+    for (i <- 1 to input.depth) {
       // ddmin
       val ddLevelInput = input.getDDInput(i)
       val newDDTree = DDmin(ddLevelInput)(test)
@@ -65,12 +66,11 @@ object GTRStar {
       nbNodesBefore = nbNodesAfter
       GTR(input)(runWithCache)
       nbNodesAfter = input.size
-    } while(nbNodesAfter < nbNodesBefore)
+    } while (nbNodesAfter < nbNodesBefore)
 
     input.currentTree
   }
 }
-
 
 abstract class GTRInput[I](initialTree: I) {
   var currentTree: I = initialTree
@@ -79,8 +79,11 @@ abstract class GTRInput[I](initialTree: I) {
     currentTree = tree
   }
 
-  def depth : Int
-  def size : Int
+  def depth: Int
+
+  def size: Int
+
   def getDDInput(level: Int): DDInput[I]
+
   def getBTInput(level: Int): BTInput[I, _]
 }

@@ -18,13 +18,6 @@
  */
 package org.neo4j.cypher.internal.runtime.compiled
 
-import org.neo4j.cypher.internal.compiler.v3_6.planner.LogicalPlanningTestSupport2
-import org.neo4j.cypher.internal.v3_6.logical.plans._
-import org.neo4j.cypher.internal.v3_6.ast.semantics.SemanticTable
-import org.neo4j.cypher.internal.v3_6.expressions._
-import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
-import org.neo4j.cypher.internal.v3_6.util.{LabelId, PropertyKeyId}
-
 class projectIndexPropertiesTest extends CypherFunSuite with LogicalPlanningTestSupport2 {
 
   type IndexOperator = GetValueFromIndexBehavior => IndexLeafPlan
@@ -45,7 +38,7 @@ class projectIndexPropertiesTest extends CypherFunSuite with LogicalPlanningTest
 
   val indexOperators = Seq(indexSeek, uniqueIndexSeek, indexContainsScan, indexEndsWithScan, indexScan)
 
-  for(indexOperator <- indexOperators) {
+  for (indexOperator <- indexOperators) {
 
     val doNotGetValues = indexOperator(DoNotGetValue)
     val getValues = indexOperator(GetValue)

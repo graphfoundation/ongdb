@@ -18,10 +18,15 @@
  */
 package org.neo4j.cypher.internal.runtime.compiled.codegen.ir
 
-import org.neo4j.cypher.internal.runtime.compiled.codegen.ir.expressions.{CodeGenExpression, CodeGenType, CypherCodeGenType, ListReferenceType}
+import org.neo4j.cypher.internal.runtime.compiled.codegen.CodeGenContext
+import org.neo4j.cypher.internal.runtime.compiled.codegen.Variable
+import org.neo4j.cypher.internal.runtime.compiled.codegen.ir.expressions.CodeGenExpression
+import org.neo4j.cypher.internal.runtime.compiled.codegen.ir.expressions.CodeGenType
+import org.neo4j.cypher.internal.runtime.compiled.codegen.ir.expressions.CypherCodeGenType
+import org.neo4j.cypher.internal.runtime.compiled.codegen.ir.expressions.ListReferenceType
 import org.neo4j.cypher.internal.runtime.compiled.codegen.spi.MethodStructure
-import org.neo4j.cypher.internal.runtime.compiled.codegen.{CodeGenContext, Variable}
-import org.neo4j.cypher.internal.v3_6.util.symbols
+//import org.neo4j.cypher.internal.v4_0.util.symbols
+import org.neo4j.cypher.internal.v4_0.util.symbols
 
 case class UnwindPrimitiveCollection(opName: String, collection: CodeGenExpression) extends LoopDataGenerator {
   override def init[E](generator: MethodStructure[E])(implicit context: CodeGenContext): Unit =
@@ -48,5 +53,7 @@ case class UnwindPrimitiveCollection(opName: String, collection: CodeGenExpressi
     generator.iteratorHasNext(generator.loadVariable(iterVar))
 
   override def close[E](iterVarName: String,
-                        generator: MethodStructure[E]): Unit = {/*nothing to close*/}
+                        generator: MethodStructure[E]): Unit = {
+    /*nothing to close*/
+  }
 }

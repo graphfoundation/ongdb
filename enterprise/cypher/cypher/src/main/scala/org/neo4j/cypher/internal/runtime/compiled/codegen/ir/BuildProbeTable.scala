@@ -23,12 +23,13 @@ import org.neo4j.cypher.internal.runtime.compiled.codegen.spi._
 
 sealed trait BuildProbeTable extends Instruction {
 
+  protected val name: String
+
   override def init[E](generator: MethodStructure[E])(implicit context: CodeGenContext) =
     generator.allocateProbeTable(name, tableType)
 
-  protected val name: String
-
   def joinData: JoinData
+
   def tableType: JoinTableType
 
   override protected def children = Seq.empty
@@ -37,8 +38,11 @@ sealed trait BuildProbeTable extends Instruction {
 object BuildProbeTable {
 
   def apply(id: String, name: String, nodes: Set[Variable], valueSymbols: Map[String, Variable])(implicit context: CodeGenContext): BuildProbeTable = {
-    if (valueSymbols.isEmpty) BuildCountingProbeTable(id, name, nodes)
-    else BuildRecordingProbeTable(id, name, nodes, valueSymbols)
+    if (valueSymbols.isEmpty) {
+      BuildCountingProbeTable(id, name, nodes)
+    } else {
+      BuildRecordingProbeTable(id, name, nodes, valueSymbols)
+    }
   }
 }
 
@@ -46,20 +50,14 @@ case class BuildRecordingProbeTable(id: String, name: String, nodes: Set[Variabl
                                    (implicit context: CodeGenContext)
   extends BuildProbeTable {
 
-  override def body[E](generator: MethodStructure[E])(implicit ignored: CodeGenContext): Unit = {
-    generator.trace(id, Some(this.getClass.getSimpleName)) { body =>
-      val tuple = body.newTableValue(context.namer.newVarName(), tupleDescriptor)
-      fieldToVarName.foreach {
-        case (fieldName, localName) => body.putField(tupleDescriptor, tuple, fieldName, localName.incoming.name)
-      }
-      body.updateProbeTable(tupleDescriptor, name, tableType, keyVars = nodes.toIndexedSeq.map(_.name), tuple)
-    }
+  override val tableType = if (nodes.size == 1) {
+    LongToListTable(tupleDescriptor, varNameToField)
+  } else {
+    LongsToListTable(tupleDescriptor, varNameToField)
   }
-
-  override protected def operatorId = Set(id)
-
+  val joinData: JoinData = JoinData(fieldToVarName, name, tableType, id)
   private val fieldToVarName = valueSymbols.map {
-    case (variable, incoming) => (context.namer.newVarName(), VariableData(variable, incoming,  incoming.copy(name = context.namer.newVarName())))
+    case (variable, incoming) => (context.namer.newVarName(), VariableData(variable, incoming, incoming.copy(name = context.namer.newVarName())))
   }
 
   private val varNameToField = fieldToVarName.map {
@@ -68,26 +66,35 @@ case class BuildRecordingProbeTable(id: String, name: String, nodes: Set[Variabl
 
   private val tupleDescriptor = SimpleTupleDescriptor(fieldToVarName.mapValues(c => c.outgoing.codeGenType))
 
-  override val tableType = if (nodes.size == 1) LongToListTable(tupleDescriptor, varNameToField)
-                           else LongsToListTable(tupleDescriptor, varNameToField)
+  override def body[E](generator: MethodStructure[E])(implicit ignored: CodeGenContext): Unit = {
+    generator.trace(id, Some(this.getClass.getSimpleName)) { body =>
+      val tuple = body.newTableValue(context.namer.newVarName(), tupleDescriptor)
+      fieldToVarName.foreach {
+        case (fieldName, localName) => body.putField(tupleDescriptor, tuple, fieldName, localName.incoming.name)
+      }
+      body.updateProbeTable(tupleDescriptor, name, tableType.asInstanceOf[RecordingJoinTableType], keyVars = nodes.toIndexedSeq.map(_.name), tuple)
+    }
+  }
 
-  val joinData: JoinData = JoinData(fieldToVarName, name, tableType, id)
+  override protected def operatorId = Set(id)
 }
 
 case class BuildCountingProbeTable(id: String, name: String, nodes: Set[Variable]) extends BuildProbeTable {
 
+  override val tableType = if (nodes.size == 1) LongToCountTable else LongsToCountTable
+
   override def body[E](generator: MethodStructure[E])(implicit context: CodeGenContext) =
     generator.trace(id, Some(this.getClass.getSimpleName)) { body =>
-      body.updateProbeTableCount(name, tableType, nodes.toIndexedSeq.map(_.name))
+      body.updateProbeTableCount(name, tableType.asInstanceOf[CountingJoinTableType], nodes.toIndexedSeq.map(_.name))
     }
-
-  override protected def operatorId = Set(id)
-
-  override val tableType = if (nodes.size == 1) LongToCountTable else LongsToCountTable
 
   override def joinData = {
     JoinData(Map.empty, name, tableType, id)
   }
+
+  override protected def operatorId = Set(id)
 }
+
 case class VariableData(variable: String, incoming: Variable, outgoing: Variable)
+
 case class JoinData(vars: Map[String, VariableData], tableVar: String, tableType: JoinTableType, id: String)

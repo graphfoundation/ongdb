@@ -18,8 +18,10 @@
  */
 package org.neo4j.cypher.internal.runtime.compiled.codegen.ir.functions
 
-import org.neo4j.cypher.internal.v3_6.util.InternalException
+//import org.neo4j.cypher.internal.v3_6.util.InternalException
+
 import org.neo4j.cypher.internal.runtime.compiled.codegen.ir.expressions._
+import org.neo4j.exceptions.InternalException
 
 sealed trait CodeGenFunction1 {
   def apply(arg: CodeGenExpression): CodeGenExpression

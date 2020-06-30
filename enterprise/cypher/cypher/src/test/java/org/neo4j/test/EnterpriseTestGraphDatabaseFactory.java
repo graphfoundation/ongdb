@@ -35,7 +35,6 @@ import org.neo4j.graphdb.factory.GraphDatabaseFactory;
 import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.graphdb.factory.module.PlatformModule;
 import org.neo4j.graphdb.factory.module.edition.AbstractEditionModule;
-import org.neo4j.graphdb.factory.module.edition.CommunityEditionModule;
 import org.neo4j.graphdb.mockfs.EphemeralFileSystemAbstraction;
 import org.neo4j.graphdb.mockfs.UncloseableDelegatingFileSystemAbstraction;
 import org.neo4j.graphdb.security.URLAccessRule;
@@ -59,11 +58,9 @@ import static org.neo4j.graphdb.factory.GraphDatabaseSettings.ephemeral;
 import static org.neo4j.kernel.configuration.Connector.ConnectorType.BOLT;
 import static org.neo4j.kernel.configuration.Settings.TRUE;
 
-
 /**
- * Test factory for graph databases.
- * Please be aware that since it's a database it will close filesystem as part of its lifecycle.
- * If you expect your file system to be open after database is closed, use {@link UncloseableDelegatingFileSystemAbstraction}
+ * Test factory for graph databases. Please be aware that since it's a db it will close filesystem as part of its lifecycle. If you expect your file system to
+ * be open after db is closed, use {@link UncloseableDelegatingFileSystemAbstraction}
  */
 public class EnterpriseTestGraphDatabaseFactory extends GraphDatabaseFactory
 {
@@ -101,9 +98,9 @@ public class EnterpriseTestGraphDatabaseFactory extends GraphDatabaseFactory
         return builder.newGraphDatabase();
     }
 
-    public GraphDatabaseService newImpermanentDatabase( File storeDir , Map<Setting<?>,String> config )
+    public GraphDatabaseService newImpermanentDatabase( File storeDir, Map<Setting<?>,String> config )
     {
-        GraphDatabaseBuilder builder = newImpermanentDatabaseBuilder(storeDir);
+        GraphDatabaseBuilder builder = newImpermanentDatabaseBuilder( storeDir );
         setConfig( config, builder );
         return builder.newGraphDatabase();
     }
@@ -236,7 +233,7 @@ public class EnterpriseTestGraphDatabaseFactory extends GraphDatabaseFactory
                                                         GraphDatabaseFacadeFactory.Dependencies dependencies )
     {
         return new TestGraphDatabaseFacadeFactory( getCurrentState() ).newFacade( storeDir, config,
-                GraphDatabaseDependencies.newDependencies( dependencies ) );
+                                                                                  GraphDatabaseDependencies.newDependencies( dependencies ) );
     }
 
     protected GraphDatabaseBuilder.DatabaseCreator createImpermanentDatabaseCreator( final File storeDir,
@@ -248,7 +245,7 @@ public class EnterpriseTestGraphDatabaseFactory extends GraphDatabaseFactory
             public GraphDatabaseService newDatabase( @Nonnull Config config )
             {
                 return new TestGraphDatabaseFacadeFactory( state, true ).newFacade( storeDir, config,
-                        GraphDatabaseDependencies.newDependencies( state.databaseDependencies() ) );
+                                                                                    GraphDatabaseDependencies.newDependencies( state.databaseDependencies() ) );
             }
         };
     }

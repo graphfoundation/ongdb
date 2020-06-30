@@ -18,11 +18,15 @@
  */
 package org.neo4j.cypher.internal.runtime.compiled.codegen.ir.expressions
 
-import org.neo4j.cypher.internal.v3_6.util.IncomparableValuesException
+//import org.neo4j.cypher.internal.v4_0.util.IncomparableValuesException
+
 import org.neo4j.cypher.internal.runtime.compiled.codegen.CodeGenContext
 import org.neo4j.cypher.internal.runtime.compiled.codegen.spi.MethodStructure
-import org.neo4j.cypher.internal.v3_6.util.symbols.{CTBoolean, CTMap, ListType}
-import org.neo4j.cypher.internal.v3_6.util.symbols
+import org.neo4j.cypher.internal.v4_0.util.symbols
+import org.neo4j.cypher.internal.v4_0.util.symbols.CTBoolean
+import org.neo4j.cypher.internal.v4_0.util.symbols.CTMap
+import org.neo4j.cypher.internal.v4_0.util.symbols.ListType
+import org.neo4j.exceptions.IncomparableValuesException
 
 case class Equals(lhs: CodeGenExpression, rhs: CodeGenExpression) extends CodeGenExpression {
 
@@ -30,8 +34,11 @@ case class Equals(lhs: CodeGenExpression, rhs: CodeGenExpression) extends CodeGe
     isCollectionOfNonPrimitives(lhs) || isCollectionOfNonPrimitives(rhs)
 
   override def codeGenType(implicit context: CodeGenContext) =
-    if (nullable) CypherCodeGenType(CTBoolean, ReferenceType)
-    else CodeGenType.primitiveBool
+    if (nullable) {
+      CypherCodeGenType(CTBoolean, ReferenceType)
+    } else {
+      CodeGenType.primitiveBool
+    }
 
   override def init[E](generator: MethodStructure[E])(implicit context: CodeGenContext) = {
     lhs.init(generator)
@@ -54,13 +61,13 @@ case class Equals(lhs: CodeGenExpression, rhs: CodeGenExpression) extends CodeGe
         structure.equalityExpression(structure.loadVariable(v1.name), structure.loadVariable(v2.name), CodeGenType.primitiveNode)
       case (NodeExpression(v1), NodeExpression(v2), true) =>
         structure.threeValuedPrimitiveEqualsExpression(structure.loadVariable(v1.name), structure.loadVariable(v2.name),
-                                                       CodeGenType.primitiveNode)
+          CodeGenType.primitiveNode)
       case (RelationshipExpression(v1), RelationshipExpression(v2), false) =>
         structure.equalityExpression(structure.loadVariable(v1.name), structure.loadVariable(v2.name),
-                                     CodeGenType.primitiveRel)
+          CodeGenType.primitiveRel)
       case (RelationshipExpression(v1), RelationshipExpression(v2), true) =>
         structure.threeValuedPrimitiveEqualsExpression(structure.loadVariable(v1.name), structure.loadVariable(v2.name),
-                                                       CodeGenType.primitiveRel)
+          CodeGenType.primitiveRel)
       case (NodeExpression(_), RelationshipExpression(_), _) => throw new
           IncomparableValuesException(symbols.CTNode.toString, symbols.CTRelationship.toString)
       case (RelationshipExpression(_), NodeExpression(_), _) => throw new
@@ -69,7 +76,7 @@ case class Equals(lhs: CodeGenExpression, rhs: CodeGenExpression) extends CodeGe
       // nullable case
       case (_, _, true) =>
         structure.threeValuedEqualsExpression(structure.box(lhs.generateExpression(structure), lhs.codeGenType),
-                                              structure.box(rhs.generateExpression(structure), rhs.codeGenType))
+          structure.box(rhs.generateExpression(structure), rhs.codeGenType))
       // not nullable cases below
 
       //both are primitive
@@ -92,9 +99,9 @@ case class Equals(lhs: CodeGenExpression, rhs: CodeGenExpression) extends CodeGe
       case _ =>
         structure.unbox(
           structure.threeValuedEqualsExpression(structure.box(lhs.generateExpression(structure), lhs.codeGenType),
-                                                structure.box(rhs.generateExpression(structure), rhs.codeGenType)),
+            structure.box(rhs.generateExpression(structure), rhs.codeGenType)),
           CypherCodeGenType(CTBoolean, ReferenceType))
-      }
+    }
   }
 
   private def isCollectionOfNonPrimitives(e: CodeGenExpression)(implicit context: CodeGenContext) =

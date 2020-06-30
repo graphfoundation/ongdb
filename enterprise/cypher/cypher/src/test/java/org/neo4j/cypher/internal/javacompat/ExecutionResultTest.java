@@ -30,7 +30,6 @@ import org.neo4j.graphdb.ExecutionPlanDescription;
 import org.neo4j.graphdb.Result;
 import org.neo4j.graphdb.Transaction;
 import org.neo4j.helpers.collection.Iterators;
-import org.neo4j.test.TestEnterpriseGraphDatabaseFactory;
 import org.neo4j.test.rule.EnterpriseDatabaseRule;
 
 import static org.hamcrest.CoreMatchers.equalTo;
@@ -97,10 +96,10 @@ public class ExecutionResultTest
         try ( Result result = db.execute( "CYPHER runtime=compiled MATCH (n) RETURN n" ) )
         {
             result.accept( row ->
-            {
-                listResult.add( row );
-                return true;
-            } );
+                           {
+                               listResult.add( row );
+                               return true;
+                           } );
         }
 
         // Then
@@ -119,11 +118,11 @@ public class ExecutionResultTest
         try ( Result result = db.execute( "CYPHER runtime=compiled MATCH (n) RETURN n" ) )
         {
             result.accept( row ->
-            {
-                listResult.add( row );
-                // return false so that no more result rows would be visited
-                return false;
-            } );
+                           {
+                               listResult.add( row );
+                               // return false so that no more result rows would be visited
+                               return false;
+                           } );
         }
 
         // Then
@@ -322,8 +321,8 @@ public class ExecutionResultTest
             result.resultAsString();
             ExecutionPlanDescription.ProfilerStatistics stats =
                     result.getExecutionPlanDescription()//ProduceResult
-                            .getChildren().get( 0 ) //AllNodesScan
-                            .getProfilerStatistics();
+                          .getChildren().get( 0 ) //AllNodesScan
+                          .getProfilerStatistics();
 
             // Then
             assertThat( "Mismatching db-hits for version " + version, stats.getDbHits(), equalTo( 2L ) );

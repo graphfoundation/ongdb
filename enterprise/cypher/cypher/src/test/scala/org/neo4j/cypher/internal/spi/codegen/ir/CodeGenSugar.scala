@@ -22,37 +22,28 @@ import java.util.concurrent.atomic.AtomicInteger
 
 import org.mockito.Mockito._
 import org.neo4j.cypher.internal.RewindableExecutionResult
-import org.neo4j.cypher.internal.codegen.QueryExecutionTracer
-import org.neo4j.cypher.internal.codegen.profiling.ProfilingTracer
-import org.neo4j.cypher.internal.compatibility.v3_6.runtime.executionplan.Provider
-import org.neo4j.cypher.internal.compiler.v3_6.planner.LogicalPlanConstructionTestSupport
-import org.neo4j.cypher.internal.executionplan.{GeneratedQuery, GeneratedQueryExecution}
-import org.neo4j.cypher.internal.planner.v3_6.spi.{CostBasedPlannerName, GraphStatistics, PlanContext, InstrumentedGraphStatistics}
-
+import org.neo4j.cypher.internal.executionplan.GeneratedQuery
+import org.neo4j.cypher.internal.executionplan.GeneratedQueryExecution
 import org.neo4j.cypher.internal.runtime._
 import org.neo4j.cypher.internal.runtime.compiled.codegen._
 import org.neo4j.cypher.internal.runtime.compiled.codegen.ir.Instruction
-import org.neo4j.cypher.internal.runtime.compiled.{CompiledExecutionResult, CompiledPlan}
+import org.neo4j.cypher.internal.runtime.compiled.CompiledExecutionResult
+import org.neo4j.cypher.internal.runtime.compiled.CompiledPlan
 import org.neo4j.cypher.internal.runtime.interpreted.TransactionBoundQueryContext.IndexSearchMonitor
-import org.neo4j.cypher.internal.runtime.interpreted.{TransactionBoundQueryContext, TransactionalContextWrapper}
+import org.neo4j.cypher.internal.runtime.interpreted.TransactionBoundQueryContext
+import org.neo4j.cypher.internal.runtime.interpreted.TransactionalContextWrapper
 import org.neo4j.cypher.internal.spi.codegen.GeneratedQueryStructure
-import org.neo4j.cypher.internal.v3_6.logical.plans.LogicalPlan
 import org.neo4j.cypher.result.QueryResult.QueryResultVisitor
-import org.neo4j.cypher.result.{QueryProfile, QueryResult, RuntimeResult}
+import org.neo4j.cypher.result.QueryProfile
+import org.neo4j.cypher.result.QueryResult
+import org.neo4j.cypher.result.RuntimeResult
 import org.neo4j.graphdb.GraphDatabaseService
-import org.neo4j.internal.kernel.api.Transaction.Type
 import org.neo4j.kernel.GraphDatabaseQueryService
 import org.neo4j.kernel.api.security.AnonymousContext
-import org.neo4j.kernel.impl.coreapi.PropertyContainerLocker
 import org.neo4j.kernel.impl.query.Neo4jTransactionalContextFactory
-import org.neo4j.kernel.impl.query.clientconnection.ClientConnectionInfo
 import org.neo4j.time.Clocks
 import org.neo4j.values.virtual.MapValue
 import org.neo4j.values.virtual.VirtualValues.EMPTY_MAP
-import org.neo4j.cypher.internal.v3_6.ast.AstConstructionTestSupport
-import org.neo4j.cypher.internal.v3_6.ast.semantics.SemanticTable
-import org.neo4j.cypher.internal.v3_6.util.TaskCloser
-import org.neo4j.cypher.internal.v3_6.util.attribution.Id
 import org.scalatest.mock.MockitoSugar
 
 trait CodeGenSugar extends MockitoSugar with LogicalPlanConstructionTestSupport with AstConstructionTestSupport {
@@ -120,10 +111,10 @@ trait CodeGenSugar extends MockitoSugar with LogicalPlanConstructionTestSupport 
                   params: MapValue = EMPTY_MAP): RewindableExecutionResult = {
 
     val generated = clazz.execute(queryContext,
-                                  executionMode,
-                                  Provider.NULL(),
-                                  tracer.getOrElse(QueryExecutionTracer.NONE),
-                                  params)
+      executionMode,
+      Provider.NULL(),
+      tracer.getOrElse(QueryExecutionTracer.NONE),
+      params)
 
     val runtimeResult = new CompiledExecutionResult(queryContext, generated, tracer.getOrElse(QueryProfile.NONE))
     RewindableExecutionResult(runtimeResult, queryContext)

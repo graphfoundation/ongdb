@@ -18,12 +18,11 @@
  */
 package org.neo4j.cypher.internal.codegen.profiling
 
-import org.neo4j.cypher.internal.planner.v3_6.spi.{EmptyKernelStatisticProvider, KernelStatisticProvider}
-import org.neo4j.cypher.internal.v3_6.util.attribution.Id
-import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
 import org.neo4j.io.pagecache.tracing.cursor.DefaultPageCursorTracer
 
 class ProfilingTracerTest extends CypherFunSuite {
+
+  val id = Id.INVALID_ID
 
   class Clock extends ProfilingTracer.Clock {
     var nanoTime: Long = 0L
@@ -33,8 +32,6 @@ class ProfilingTracerTest extends CypherFunSuite {
       nanoTime += nanos
     }
   }
-
-  val id = Id.INVALID_ID
 
   test("shouldReportExecutionTimeOfQueryExecution") {
     // given
@@ -112,10 +109,10 @@ class ProfilingTracerTest extends CypherFunSuite {
     val event = tracer.executeOperator(operatorId)
 
     1 to 100 foreach { _ => {
-        val pin = cursorTracer.beginPin(false, 1, null)
-        pin.hit()
-        pin.done()
-      }
+      val pin = cursorTracer.beginPin(false, 1, null)
+      pin.hit()
+      pin.done()
+    }
     }
 
     event.close()
@@ -150,4 +147,5 @@ class ProfilingTracerTest extends CypherFunSuite {
 
     override def getPageCacheMisses: Long = tracer.faults()
   }
+
 }

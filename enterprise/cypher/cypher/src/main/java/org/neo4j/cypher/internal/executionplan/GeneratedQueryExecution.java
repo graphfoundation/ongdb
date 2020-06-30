@@ -18,8 +18,8 @@
  */
 package org.neo4j.cypher.internal.executionplan;
 
+import org.neo4j.cypher.internal.plandescription.InternalPlanDescription;
 import org.neo4j.cypher.internal.runtime.ExecutionMode;
-import org.neo4j.cypher.internal.runtime.planDescription.InternalPlanDescription;
 import org.neo4j.cypher.result.QueryResult;
 
 public interface GeneratedQueryExecution

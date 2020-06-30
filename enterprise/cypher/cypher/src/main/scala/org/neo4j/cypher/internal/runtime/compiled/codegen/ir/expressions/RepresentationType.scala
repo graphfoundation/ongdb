@@ -19,8 +19,8 @@
 package org.neo4j.cypher.internal.runtime.compiled.codegen.ir.expressions
 
 /**
-  * Type representation of a CodeGenExpression - these are the JVM types that will be used!
-  */
+ * Type representation of a CodeGenExpression - these are the JVM types that will be used!
+ */
 sealed trait RepresentationType
 
 case object IntType extends RepresentationType // Primitive int

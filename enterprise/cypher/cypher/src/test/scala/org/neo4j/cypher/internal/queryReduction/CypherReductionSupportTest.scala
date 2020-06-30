@@ -19,10 +19,10 @@
 package org.neo4j.cypher.internal.queryReduction
 
 import org.neo4j.cypher.internal.RewindableExecutionResult
-import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
-import org.neo4j.cypher.internal.v3_6.util.ArithmeticException
 
-import scala.util.{Failure, Success, Try}
+import scala.util.Failure
+import scala.util.Success
+import scala.util.Try
 
 class CypherReductionSupportTest extends CypherFunSuite with CypherReductionSupport {
 
@@ -40,10 +40,11 @@ class CypherReductionSupportTest extends CypherFunSuite with CypherReductionSupp
       tryResults match {
         case Success(result) =>
           val list = result.toList
-          if(list.nonEmpty && list.head == Map("n.name" -> "x"))
+          if (list.nonEmpty && list.head == Map("n.name" -> "x")) {
             Reproduced
-          else
+          } else {
             NotReproduced
+          }
         case Failure(_) => NotReproduced
       }
     }
@@ -67,11 +68,12 @@ class CypherReductionSupportTest extends CypherFunSuite with CypherReductionSupp
     val query = s"MATCH (n:Label)-[:X]->(m:Label),(p) WHERE 100/n.name > 34 AND m.name = n.name WITH n.name AS name RETURN name, $$a ORDER BY name SKIP 1 LIMIT 5"
     val reduced = reduceQuery(query, Some(setup)) { (tryResults: Try[RewindableExecutionResult]) =>
       tryResults match {
-        case Failure(e:ArithmeticException) =>
-          if(e.getMessage == "/ by zero" || e.getMessage == "divide by zero")
+        case Failure(e: ArithmeticException) =>
+          if (e.getMessage == "/ by zero" || e.getMessage == "divide by zero") {
             Reproduced
-          else
+          } else {
             NotReproduced
+          }
         case _ => NotReproduced
       }
     }
@@ -83,11 +85,12 @@ class CypherReductionSupportTest extends CypherFunSuite with CypherReductionSupp
     val query = s"MATCH (n:Label)-[:X]->(m:Label),(p) WHERE 100/n.name > 34 AND m.name = n.name WITH n.name AS name RETURN name, $$a ORDER BY name SKIP 1 LIMIT 5"
     val reduced = reduceQuery(query, Some(setup), enterprise = true) { (tryResults: Try[RewindableExecutionResult]) =>
       tryResults match {
-        case Failure(e:ArithmeticException) =>
-          if(e.getMessage == "/ by zero" || e.getMessage == "divide by zero")
+        case Failure(e: ArithmeticException) =>
+          if (e.getMessage == "/ by zero" || e.getMessage == "divide by zero") {
             Reproduced
-          else
+          } else {
             NotReproduced
+          }
         case _ => NotReproduced
       }
     }

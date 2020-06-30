@@ -16,15 +16,13 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Affero General Public License for more details.
  */
-package org.neo4j.cypher.internal.codegen;
+package org.neo4j.cypher.internal.util
 
-//import org.neo4j.cypher.internal.compiler.v3_1.codegen.QueryExecutionEvent;
-import org.neo4j.cypher.internal.runtime.compiled.codegen.QueryExecutionEvent;
-import org.neo4j.cypher.internal.v3_6.util.attribution.Id;
+import org.neo4j.codegen.api.CodeGeneration.CodeSaver
+import org.neo4j.cypher.internal.plandescription.Argument
 
-public interface QueryExecutionTracer
-{
-    QueryExecutionEvent executeOperator( Id queryId );
-
-    QueryExecutionTracer NONE = queryId -> QueryExecutionEvent.NONE;
+object CodeGenUtils {
+  def metadata(saver: CodeSaver): Seq[Argument] = {
+    ???
+  }
 }

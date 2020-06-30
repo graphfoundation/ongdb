@@ -18,9 +18,10 @@
  */
 package org.neo4j.cypher.internal.runtime.compiled.codegen.ir.expressions
 
+import org.neo4j.cypher.internal.runtime.compiled.codegen.CodeGenContext
+import org.neo4j.cypher.internal.runtime.compiled.codegen.Variable
 import org.neo4j.cypher.internal.runtime.compiled.codegen.spi.MethodStructure
-import org.neo4j.cypher.internal.runtime.compiled.codegen.{CodeGenContext, Variable}
-import org.neo4j.cypher.internal.v3_6.util.symbols._
+import org.neo4j.cypher.internal.v4_0.util.symbols._
 
 case class HasLabel(nodeVariable: Variable, labelVariable: String, labelName: String)
   extends CodeGenExpression {
@@ -33,12 +34,13 @@ case class HasLabel(nodeVariable: Variable, labelVariable: String, labelName: St
     structure.declarePredicate(localName)
 
     structure.incrementDbHits()
-    if (nodeVariable.nullable)
+    if (nodeVariable.nullable) {
       structure.nullableReference(nodeVariable.name, CodeGenType.primitiveNode,
-                                  structure.box(
-                                    structure.hasLabel(nodeVariable.name, labelVariable, localName), CodeGenType.primitiveBool))
-    else
+        structure.box(
+          structure.hasLabel(nodeVariable.name, labelVariable, localName), CodeGenType.primitiveBool))
+    } else {
       structure.hasLabel(nodeVariable.name, labelVariable, localName)
+    }
   }
 
   override def nullable(implicit context: CodeGenContext) = nodeVariable.nullable

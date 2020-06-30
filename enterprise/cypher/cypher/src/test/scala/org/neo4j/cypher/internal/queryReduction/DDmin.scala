@@ -19,7 +19,9 @@
 package org.neo4j.cypher.internal.queryReduction
 
 import scala.collection.mutable
-import scala.util.{Failure, Success, Try}
+import scala.util.Failure
+import scala.util.Success
+import scala.util.Try
 
 sealed trait OracleResult
 
@@ -106,19 +108,19 @@ object DDmin {
   }
 }
 
-abstract class DDInput[I](originalLength : Int) {
-  val allTokens : Array[Int] = (0 until originalLength).toArray
+abstract class DDInput[I](originalLength: Int) {
+  val allTokens: Array[Int] = (0 until originalLength).toArray
   // Initially all tokens are active
-  var activeTokens : Array[Int] = allTokens
-  var chunks : mutable.Buffer[Array[Int]] = _
+  var activeTokens: Array[Int] = allTokens
+  var chunks: mutable.Buffer[Array[Int]] = _
 
-  def setGranularity(n : Int): Unit = {
+  def setGranularity(n: Int): Unit = {
     // The maximum size a chunk can have
     val maxChunkSize = Math.ceil(length.toDouble / n).toInt
     // Number of chunks with the maximum length
     var maxLengthChunks = n
     // Some chunks must be shorter if there is no clean division
-    if(length % n != 0) {
+    if (length % n != 0) {
       maxLengthChunks = length % n
     }
 
@@ -126,26 +128,11 @@ abstract class DDInput[I](originalLength : Int) {
     var index = 0
     chunks = mutable.Buffer()
     for (i <- 0 until n) {
-      var chunkSize = if (i < maxLengthChunks)  maxChunkSize else maxChunkSize - 1
+      var chunkSize = if (i < maxLengthChunks) maxChunkSize else maxChunkSize - 1
       val chunk = activeTokens.slice(index, index + chunkSize)
       chunks.append(chunk)
       index += chunkSize
     }
-  }
-
-  private def getComplementChunks(num: Int) = {
-    val complement : Array[Int] = new Array(length - chunks(num).length)
-    var index = 0
-    for (i <- chunks.indices) {
-      // Skip the num-th entry
-      if(i != num) {
-        for (j <- chunks(i).indices) {
-          complement(index) = chunks(i)(j)
-          index = index + 1
-        }
-      }
-    }
-    complement
   }
 
   def setSubset(num: Int): Unit = {
@@ -163,7 +150,22 @@ abstract class DDInput[I](originalLength : Int) {
   def length: Int = activeTokens.length
 
   @throws(classOf[IllegalSyntaxException])
-  def getCurrentCode : I
+  def getCurrentCode: I
+
+  private def getComplementChunks(num: Int) = {
+    val complement: Array[Int] = new Array(length - chunks(num).length)
+    var index = 0
+    for (i <- chunks.indices) {
+      // Skip the num-th entry
+      if (i != num) {
+        for (j <- chunks(i).indices) {
+          complement(index) = chunks(i)(j)
+          index = index + 1
+        }
+      }
+    }
+    complement
+  }
 }
 
 class IllegalSyntaxException(message: String = "") extends Exception(message)

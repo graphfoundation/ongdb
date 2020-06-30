@@ -18,23 +18,31 @@
  */
 package org.neo4j.cypher.internal.runtime.compiled.helpers
 
+import org.neo4j.cypher.internal.compiler.helpers.IsList
 import org.neo4j.cypher.internal.runtime.compiled.codegen.ir.expressions
-import org.neo4j.cypher.internal.runtime.compiled.codegen.ir.expressions.{AnyValueType, BoolType, CypherCodeGenType, ListReferenceType, LongType, ReferenceType, RepresentationType, ValueType}
-import org.neo4j.cypher.internal.compiler.v3_6.helpers.IsList
+import org.neo4j.cypher.internal.runtime.compiled.codegen.ir.expressions.AnyValueType
+import org.neo4j.cypher.internal.runtime.compiled.codegen.ir.expressions.BoolType
+import org.neo4j.cypher.internal.runtime.compiled.codegen.ir.expressions.CypherCodeGenType
+import org.neo4j.cypher.internal.runtime.compiled.codegen.ir.expressions.ListReferenceType
+import org.neo4j.cypher.internal.runtime.compiled.codegen.ir.expressions.LongType
+import org.neo4j.cypher.internal.runtime.compiled.codegen.ir.expressions.ReferenceType
+import org.neo4j.cypher.internal.runtime.compiled.codegen.ir.expressions.RepresentationType
+import org.neo4j.cypher.internal.runtime.compiled.codegen.ir.expressions.ValueType
+//import org.neo4j.cypher.internal.compiler.v3_6.helpers.IsList
 import org.neo4j.cypher.internal.runtime.interpreted.IsMap
-import org.neo4j.cypher.internal.v3_6.util.symbols._
+import org.neo4j.cypher.internal.v4_0.util.symbols._
 
 object LiteralTypeSupport {
   def deriveCypherType(obj: Any): CypherType = obj match {
-    case _: String                          => CTString
-    case _: Char                            => CTString
-    case _: Integer|_:java.lang.Long|_:Int|_:Long|_:Short|_:Byte => CTInteger
-    case _: Number                          => CTFloat
-    case _: Boolean                         => CTBoolean
-    case IsMap(_)                           => CTMap
-    case IsList(coll) if coll.isEmpty       => CTList(CTAny)
-    case IsList(coll)                       => CTList(coll.map(deriveCypherType).reduce(_ leastUpperBound _))
-    case _                                  => CTAny
+    case _: String => CTString
+    case _: Char => CTString
+    case _: Integer | _: java.lang.Long | _: Int | _: Long | _: Short | _: Byte => CTInteger
+    case _: Number => CTFloat
+    case _: Boolean => CTBoolean
+    case IsMap(_) => CTMap
+    case IsList(coll) if coll.isEmpty => CTList(CTAny)
+    case IsList(coll) => CTList(coll.map(deriveCypherType).reduce(_ leastUpperBound _))
+    case _ => CTAny
   }
 
   def deriveCodeGenType(obj: Any): CypherCodeGenType = deriveCodeGenType(deriveCypherType(obj))
@@ -44,17 +52,8 @@ object LiteralTypeSupport {
     case _ => CypherCodeGenType(ct, toRepresentationType(ct))
   }
 
-  private def toRepresentationType(ct: CypherType): RepresentationType = ct match {
-    case CTInteger => LongType
-    case CTFloat => expressions.FloatType
-    case CTBoolean => BoolType
-    case CTNode => LongType
-    case CTRelationship => LongType
-    case _ => ValueType
-  }
-
   def selectRepresentationType(ct: CypherType, reprTypes: Seq[RepresentationType]): RepresentationType =
-    // TODO: Handle ListReferenceType(_)?
+  // TODO: Handle ListReferenceType(_)?
     reprTypes.reduce[RepresentationType]({
       case (ReferenceType, _) =>
         ReferenceType
@@ -78,9 +77,19 @@ object LiteralTypeSupport {
             ReferenceType
         }
       case (t1, t2) =>
-        if (t1 != t2)
+        if (t1 != t2) {
           toRepresentationType(ct)
-        else
+        } else {
           t1
+        }
     })
+
+  private def toRepresentationType(ct: CypherType): RepresentationType = ct match {
+    case CTInteger => LongType
+    case CTFloat => expressions.FloatType
+    case CTBoolean => BoolType
+    case CTNode => LongType
+    case CTRelationship => LongType
+    case _ => ValueType
+  }
 }

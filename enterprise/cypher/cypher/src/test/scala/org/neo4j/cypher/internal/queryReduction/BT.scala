@@ -56,7 +56,7 @@ object BT {
         var currentAssignment: Int = conf(i)
         // Check each assignment that is right of the current assignment (by starting with the last one)
         var j = input.domains(i).length - 1
-        while(j > currentAssignment) {
+        while (j > currentAssignment) {
           // Only check the assignment if its gain is better
           if (input.domains(i).assignments(j).gain > input.domains(i).assignments(currentAssignment).gain) {
             // Assign that value
@@ -95,7 +95,6 @@ object BT {
     input.toInput(conf)
   }
 
-
 }
 
 abstract class BTInput[I, O] {
@@ -105,7 +104,7 @@ abstract class BTInput[I, O] {
   def length: Int = domains.length
 
   def toObjects(config: BTConfiguration): Seq[O] = {
-    domains.zipWithIndex.map{
+    domains.zipWithIndex.map {
       case (dom, index) => dom.assignments(config(index)).obj
     }
   }
@@ -116,7 +115,7 @@ abstract class BTInput[I, O] {
 
   def convertToInput(objects: Seq[O]): I
 
-  def getNewAssignments(assignment: BTAssignment[O]) : Seq[BTAssignment[O]]
+  def getNewAssignments(assignment: BTAssignment[O]): Seq[BTAssignment[O]]
 
 }
 

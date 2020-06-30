@@ -18,8 +18,9 @@
  */
 package org.neo4j.cypher.internal.runtime.compiled.codegen.ir.expressions
 
+import org.neo4j.cypher.internal.runtime.compiled.codegen.CodeGenContext
+import org.neo4j.cypher.internal.runtime.compiled.codegen.Variable
 import org.neo4j.cypher.internal.runtime.compiled.codegen.spi.MethodStructure
-import org.neo4j.cypher.internal.runtime.compiled.codegen.{CodeGenContext, Variable}
 
 abstract class ElementProperty(token: Option[Int], propName: String, elementIdVar: String, propKeyVar: String)
   extends CodeGenExpression {
@@ -29,10 +30,11 @@ abstract class ElementProperty(token: Option[Int], propName: String, elementIdVa
   override def generateExpression[E](structure: MethodStructure[E])(implicit context: CodeGenContext): E = {
     val localName = context.namer.newVarName()
     structure.declareProperty(localName)
-    if (token.isEmpty)
+    if (token.isEmpty) {
       propertyByName(structure, localName)
-    else
+    } else {
       propertyById(structure, localName)
+    }
     structure.incrementDbHits()
     structure.loadVariable(localName)
   }
@@ -48,20 +50,22 @@ case class NodeProperty(token: Option[Int], propName: String, nodeIdVar: Variabl
   extends ElementProperty(token, propName, nodeIdVar.name, propKeyVar) {
 
   override def propertyByName[E](body: MethodStructure[E], localName: String) =
-    if (nodeIdVar.nullable)
-      body.ifNotStatement(body.isNull(nodeIdVar.name, nodeIdVar.codeGenType)) {ifBody =>
+    if (nodeIdVar.nullable) {
+      body.ifNotStatement(body.isNull(nodeIdVar.name, nodeIdVar.codeGenType)) { ifBody =>
         ifBody.nodeGetPropertyForVar(nodeIdVar.name, nodeIdVar.codeGenType, propKeyVar, localName)
       }
-    else
+    } else {
       body.nodeGetPropertyForVar(nodeIdVar.name, nodeIdVar.codeGenType, propKeyVar, localName)
+    }
 
   override def propertyById[E](body: MethodStructure[E], localName: String) =
-    if (nodeIdVar.nullable)
-      body.ifNotStatement(body.isNull(nodeIdVar.name, nodeIdVar.codeGenType)) {ifBody =>
+    if (nodeIdVar.nullable) {
+      body.ifNotStatement(body.isNull(nodeIdVar.name, nodeIdVar.codeGenType)) { ifBody =>
         ifBody.nodeGetPropertyById(nodeIdVar.name, nodeIdVar.codeGenType, token.get, localName)
       }
-    else
+    } else {
       body.nodeGetPropertyById(nodeIdVar.name, nodeIdVar.codeGenType, token.get, localName)
+    }
 
   override def codeGenType(implicit context: CodeGenContext) = CodeGenType.Value
 }
@@ -70,20 +74,22 @@ case class RelProperty(token: Option[Int], propName: String, relIdVar: Variable,
   extends ElementProperty(token, propName, relIdVar.name, propKeyVar) {
 
   override def propertyByName[E](body: MethodStructure[E], localName: String) =
-    if (relIdVar.nullable)
+    if (relIdVar.nullable) {
       body.ifNotStatement(body.isNull(relIdVar.name, CodeGenType.primitiveRel)) { ifBody =>
         ifBody.relationshipGetPropertyForVar(relIdVar.name, relIdVar.codeGenType, propKeyVar, localName)
       }
-    else
+    } else {
       body.relationshipGetPropertyForVar(relIdVar.name, relIdVar.codeGenType, propKeyVar, localName)
+    }
 
   override def propertyById[E](body: MethodStructure[E], localName: String) =
-  if (relIdVar.nullable)
-    body.ifNotStatement(body.isNull(relIdVar.name, CodeGenType.primitiveRel)) { ifBody =>
-      ifBody.relationshipGetPropertyById(relIdVar.name, relIdVar.codeGenType, token.get, localName)
-    }
-    else
+    if (relIdVar.nullable) {
+      body.ifNotStatement(body.isNull(relIdVar.name, CodeGenType.primitiveRel)) { ifBody =>
+        ifBody.relationshipGetPropertyById(relIdVar.name, relIdVar.codeGenType, token.get, localName)
+      }
+    } else {
       body.relationshipGetPropertyById(relIdVar.name, relIdVar.codeGenType, token.get, localName)
+    }
 
   override def codeGenType(implicit context: CodeGenContext) = CodeGenType.Value
 }

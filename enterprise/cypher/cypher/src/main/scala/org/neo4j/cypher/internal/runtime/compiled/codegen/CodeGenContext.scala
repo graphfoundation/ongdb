@@ -18,12 +18,14 @@
  */
 package org.neo4j.cypher.internal.runtime.compiled.codegen
 
-import org.neo4j.cypher.InternalException
+//import org.neo4j.cypher.InternalException
+
+import org.neo4j.cypher.internal.logical.plans.LogicalPlan
 import org.neo4j.cypher.internal.runtime.compiled.codegen.ir.JoinData
 import org.neo4j.cypher.internal.runtime.compiled.codegen.ir.expressions.CodeGenType
-import org.neo4j.cypher.internal.v3_6.logical.plans.LogicalPlan
-import org.neo4j.cypher.internal.v3_6.ast.semantics.SemanticTable
-import org.neo4j.cypher.internal.v3_6.util.attribution.Id
+import org.neo4j.cypher.internal.v4_0.ast.semantics.SemanticTable
+import org.neo4j.cypher.internal.v4_0.util.attribution.Id
+import org.neo4j.exceptions.InternalException
 
 import scala.collection.mutable
 
@@ -32,14 +34,14 @@ case class Variable(name: String, codeGenType: CodeGenType, nullable: Boolean = 
 class CodeGenContext(val semanticTable: SemanticTable,
                      lookup: Map[String, Int], val namer: Namer = Namer()) {
 
+  val operatorIds: mutable.Map[String, Id] = mutable.Map()
   private val variables: mutable.Map[String, Variable] = mutable.Map()
   private val projectedVariables: mutable.Map[String, Variable] = mutable.Map.empty
   private val probeTables: mutable.Map[CodeGenPlan, JoinData] = mutable.Map()
   private val parents: mutable.Stack[CodeGenPlan] = mutable.Stack()
-  val operatorIds: mutable.Map[String, Id] = mutable.Map()
 
   def addVariable(queryVariable: String, variable: Variable) {
-    //assert(!variables.isDefinedAt(queryVariable)) // TODO: Make the cases where overwriting the value is ok explicit (by using updateVariable)
+
     variables.put(queryVariable, variable)
   }
 

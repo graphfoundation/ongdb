@@ -22,12 +22,12 @@ import org.neo4j.cypher.internal.runtime.compiled.codegen.CodeGenContext
 import org.neo4j.cypher.internal.runtime.compiled.codegen.spi.MethodStructure
 
 case class Division(lhs: CodeGenExpression, rhs: CodeGenExpression)
-  extends CodeGenExpression with BinaryOperator{
-
-  override protected def generator[E](structure: MethodStructure[E])(implicit context: CodeGenContext) =
-    structure.divideExpression
+  extends CodeGenExpression with BinaryOperator {
 
   override def nullable(implicit context: CodeGenContext) = lhs.nullable || rhs.nullable
 
   override def name: String = "divide"
+
+  override protected def generator[E](structure: MethodStructure[E])(implicit context: CodeGenContext) =
+    structure.divideExpression
 }

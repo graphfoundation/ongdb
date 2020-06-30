@@ -21,18 +21,17 @@ package org.neo4j.cypher
 import java.util
 
 import org.neo4j.collection.RawIterator
-import org.neo4j.cypher.internal.ExecutionEngine
 import org.neo4j.cypher.internal.javacompat.GraphDatabaseCypherService
-import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
-import org.neo4j.graphdb.Result.{ResultRow, ResultVisitor}
-import org.neo4j.graphdb.{ExecutionPlanDescription, Result}
+import org.neo4j.graphdb.ExecutionPlanDescription
+import org.neo4j.graphdb.Result.ResultRow
+import org.neo4j.graphdb.Result.ResultVisitor
 import org.neo4j.internal.kernel.api.exceptions.ProcedureException
-import org.neo4j.internal.kernel.api.procs.{FieldSignature, Neo4jTypes, ProcedureSignature, QualifiedName}
+import org.neo4j.internal.kernel.api.procs.FieldSignature
+import org.neo4j.internal.kernel.api.procs.Neo4jTypes
+import org.neo4j.internal.kernel.api.procs.ProcedureSignature
+import org.neo4j.internal.kernel.api.procs.QualifiedName
 import org.neo4j.kernel.api.ResourceTracker
-import org.neo4j.kernel.api.proc.Context.KERNEL_TRANSACTION
-import org.neo4j.kernel.api.proc._
 import org.neo4j.procedure.Mode
-import org.neo4j.test.TestGraphDatabaseFactory
 
 import scala.collection.immutable.Map
 import scala.collection.mutable.ArrayBuffer
@@ -64,14 +63,15 @@ class ExecutionEngineIT extends CypherFunSuite with GraphIcing {
   }
 
   class AllNodesProcedure extends CallableProcedure {
+
     import scala.collection.JavaConverters._
 
-    private val results = Map[String, AnyRef]("node" -> Neo4jTypes.NTInteger)
     val procedureName = new QualifiedName(Array[String]("org", "neo4j", "bench"), "getAllNodes")
     val emptySignature: util.List[FieldSignature] = List.empty[FieldSignature].asJava
     val signature: ProcedureSignature = new ProcedureSignature(
       procedureName, paramSignature, resultSignature, Mode.READ, false, null, Array.empty,
       null, null, false, false)
+    private val results = Map[String, AnyRef]("node" -> Neo4jTypes.NTInteger)
 
     def paramSignature: util.List[FieldSignature] = List.empty[FieldSignature].asJava
 
@@ -102,4 +102,5 @@ class ExecutionEngineIT extends CypherFunSuite with GraphIcing {
       }
     }
   }
+
 }

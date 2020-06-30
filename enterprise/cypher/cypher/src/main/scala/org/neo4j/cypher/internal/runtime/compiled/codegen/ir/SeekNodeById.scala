@@ -18,9 +18,10 @@
  */
 package org.neo4j.cypher.internal.runtime.compiled.codegen.ir
 
+import org.neo4j.cypher.internal.runtime.compiled.codegen.CodeGenContext
+import org.neo4j.cypher.internal.runtime.compiled.codegen.Variable
 import org.neo4j.cypher.internal.runtime.compiled.codegen.ir.expressions.CodeGenExpression
 import org.neo4j.cypher.internal.runtime.compiled.codegen.spi.MethodStructure
-import org.neo4j.cypher.internal.runtime.compiled.codegen.{CodeGenContext, Variable}
 
 case class SeekNodeById(opName: String, nodeVar: Variable, expression: CodeGenExpression, action: Instruction) extends Instruction {
 
@@ -34,10 +35,10 @@ case class SeekNodeById(opName: String, nodeVar: Variable, expression: CodeGenEx
     }
   }
 
-  override protected def children: Seq[Instruction] = Seq(action)
-
   override def init[E](generator: MethodStructure[E])(implicit context: CodeGenContext) = {
     super.init(generator)
     expression.init(generator)
   }
+
+  override protected def children: Seq[Instruction] = Seq(action)
 }

@@ -18,18 +18,15 @@
  */
 package org.neo4j.cypher.internal.runtime.compiled.codegen.ir.expressions
 
-import org.neo4j.cypher.internal.v3_6.util.CypherTypeException
+//import org.neo4j.cypher.internal.v3_6.util.CypherTypeException
+
 import org.neo4j.cypher.internal.runtime.compiled.codegen.CodeGenContext
 import org.neo4j.cypher.internal.runtime.compiled.codegen.spi.MethodStructure
-import org.neo4j.cypher.internal.v3_6.util.symbols._
+import org.neo4j.cypher.internal.v4_0.util.symbols._
+import org.neo4j.exceptions.CypherTypeException
 
 trait BinaryOperator {
   self: CodeGenExpression =>
-
-  def lhs: CodeGenExpression
-  def rhs: CodeGenExpression
-
-  def name: String
 
   override final def init[E](generator: MethodStructure[E])(implicit context: CodeGenContext) = {
     lhs.init(generator)
@@ -38,7 +35,7 @@ trait BinaryOperator {
 
   override final def generateExpression[E](structure: MethodStructure[E])(implicit context: CodeGenContext) = {
     def isListOf(codeGenType: CodeGenType, cType: CypherType) = codeGenType match {
-      case CypherCodeGenType(ListType(inner),_) if inner == cType => true
+      case CypherCodeGenType(ListType(inner), _) if inner == cType => true
       case _ => false
     }
     (lhs.codeGenType, rhs.codeGenType) match {
@@ -50,19 +47,25 @@ trait BinaryOperator {
 
       case (t1, t2) if t1.isPrimitive && t2.isPrimitive =>
         generator(structure)(context)(structure.box(lhs.generateExpression(structure), lhs.codeGenType),
-                                      structure.box(rhs.generateExpression(structure), rhs.codeGenType))
+          structure.box(rhs.generateExpression(structure), rhs.codeGenType))
 
       case (t, _) if t.isPrimitive =>
         generator(structure)(context)(structure.box(lhs.generateExpression(structure), lhs.codeGenType),
-                                      rhs.generateExpression(structure))
+          rhs.generateExpression(structure))
       case (_, t) if t.isPrimitive =>
         generator(structure)(context)(lhs.generateExpression(structure),
-                                      structure.box(rhs.generateExpression(structure), rhs.codeGenType))
+          structure.box(rhs.generateExpression(structure), rhs.codeGenType))
 
       case _ => generator(structure)(context)(lhs.generateExpression(structure),
-                                              rhs.generateExpression(structure))
+        rhs.generateExpression(structure))
     }
   }
+
+  def lhs: CodeGenExpression
+
+  def rhs: CodeGenExpression
+
+  def name: String
 
   override def codeGenType(implicit context: CodeGenContext) =
     (lhs.codeGenType.ct, rhs.codeGenType.ct) match {

@@ -26,24 +26,39 @@ import org.neo4j.codegen.MethodReference
 import org.neo4j.cypher.internal.codegen.CompiledConversionUtils.CompositeKey
 import org.neo4j.cypher.internal.codegen._
 import org.neo4j.cypher.internal.javacompat.ResultRecord
-import org.neo4j.cypher.internal.runtime.compiled.codegen.QueryExecutionEvent
-import org.neo4j.cypher.result.QueryResult.{QueryResultVisitor, Record}
+import org.neo4j.cypher.internal.profiling.OperatorProfileEvent
+import org.neo4j.cypher.internal.profiling.QueryProfiler
+import org.neo4j.cypher.internal.runtime.RelationshipIterator
+import org.neo4j.graphdb.Node
+import org.neo4j.graphdb.Relationship
+import org.neo4j.internal.helpers.collection.MapUtil
+import org.neo4j.kernel.impl.core.TransactionalEntityFactory
+//import org.neo4j.cypher.internal.runtime.compiled.codegen.QueryExecutionEvent
+import org.neo4j.cypher.result.QueryResult.QueryResultVisitor
+import org.neo4j.cypher.result.QueryResult.Record
 import org.neo4j.graphdb.Direction
-import org.neo4j.helpers.collection.MapUtil
+//import org.neo4j.helpers.collection.MapUtil
+import org.neo4j.internal.kernel.api.Read
+import org.neo4j.internal.kernel.api.TokenRead
+import org.neo4j.internal.kernel.api._
 import org.neo4j.internal.kernel.api.helpers.RelationshipSelectionCursor
-import org.neo4j.internal.kernel.api.{Read, TokenRead, _}
 import org.neo4j.kernel.impl.api.RelationshipDataExtractor
-import org.neo4j.kernel.impl.api.store.RelationshipIterator
-import org.neo4j.kernel.impl.core.{EmbeddedProxySPI, NodeProxy, RelationshipProxy}
+//import org.neo4j.kernel.impl.api.store.RelationshipIterator
+//import org.neo4j.kernel.impl.core.{EmbeddedProxySPI, NodeProxy, RelationshipProxy}
+import org.neo4j.cypher.internal.v4_0.util.attribution.Id
 import org.neo4j.storageengine.api.RelationshipVisitor
 import org.neo4j.values.AnyValue
-import org.neo4j.values.storable.{Value, Values}
-import org.neo4j.values.virtual.{NodeValue, RelationshipValue, VirtualNodeValue, VirtualRelationshipValue}
-import org.neo4j.cypher.internal.v3_6.util.attribution.Id
+import org.neo4j.values.storable.Value
+import org.neo4j.values.storable.Values
+import org.neo4j.values.virtual.NodeValue
+import org.neo4j.values.virtual.RelationshipValue
+import org.neo4j.values.virtual.VirtualNodeValue
+import org.neo4j.values.virtual.VirtualRelationshipValue
 
 object Methods {
 
-  import GeneratedQueryStructure.{method, typeRef}
+  import org.neo4j.cypher.internal.spi.codegen.GeneratedQueryStructure.method
+  import org.neo4j.cypher.internal.spi.codegen.GeneratedQueryStructure.typeRef
 
   val countingTableIncrement: MethodReference = method[LongIntHashMap, Int]("addToValue", typeRef[Long], typeRef[Int])
   val countingTableCompositeKeyPut: MethodReference = method[util.HashMap[CompositeKey, Integer], Object]("put", typeRef[Object], typeRef[Object])
@@ -61,20 +76,20 @@ object Methods {
   val endNode: MethodReference = method[RelationshipDataExtractor, Long]("endNode")
   val typeOf: MethodReference = method[RelationshipDataExtractor, Int]("type")
   val allConnectingRelationships: MethodReference = method[CompiledExpandUtils, RelationshipSelectionCursor]("connectingRelationships",
-                                                                                                             typeRef[Read],
-                                                                                                             typeRef[CursorFactory],
-                                                                                                             typeRef[NodeCursor],
-                                                                                                             typeRef[Long],
-                                                                                                             typeRef[Direction],
-                                                                                                             typeRef[Long])
+    typeRef[Read],
+    typeRef[CursorFactory],
+    typeRef[NodeCursor],
+    typeRef[Long],
+    typeRef[Direction],
+    typeRef[Long])
   val connectingRelationships: MethodReference = method[CompiledExpandUtils, RelationshipSelectionCursor]("connectingRelationships",
-                                                                                                          typeRef[Read],
-                                                                                                          typeRef[CursorFactory],
-                                                                                                          typeRef[NodeCursor],
-                                                                                                          typeRef[Long],
-                                                                                                          typeRef[Direction],
-                                                                                                          typeRef[Long],
-                                                                                                          typeRef[Array[Int]])
+    typeRef[Read],
+    typeRef[CursorFactory],
+    typeRef[NodeCursor],
+    typeRef[Long],
+    typeRef[Direction],
+    typeRef[Long],
+    typeRef[Array[Int]])
 
   val mathAdd: MethodReference = method[CompiledMathHelper, Object]("add", typeRef[Object], typeRef[Object])
   val mathSub: MethodReference = method[CompiledMathHelper, Object]("subtract", typeRef[Object], typeRef[Object])
@@ -102,20 +117,23 @@ object Methods {
   val countsForRel: MethodReference = method[Read, Long]("countsForRelationship", typeRef[Int], typeRef[Int], typeRef[Int])
   val nextLong: MethodReference = method[LongIterator, Long]("next")
   val fetchNextRelationship: MethodReference = method[RelationshipIterator, Long]("next")
-  val newNodeProxyById: MethodReference = method[EmbeddedProxySPI, NodeProxy]("newNodeProxy", typeRef[Long])
-  val newRelationshipProxyById: MethodReference = method[EmbeddedProxySPI, RelationshipProxy]("newRelationshipProxy", typeRef[Long])
-  val materializeAnyResult: MethodReference = method[CompiledConversionUtils, AnyValue]("materializeAnyResult", typeRef[EmbeddedProxySPI], typeRef[Object])
-  val materializeAnyValueResult: MethodReference = method[CompiledConversionUtils, AnyValue]("materializeAnyValueResult", typeRef[EmbeddedProxySPI], typeRef[Object])
-  val materializeNodeValue: MethodReference = method[CompiledConversionUtils, NodeValue]("materializeNodeValue", typeRef[EmbeddedProxySPI], typeRef[Object])
+
+  val newNodeEntityById: MethodReference = method[TransactionalEntityFactory, Node]("newNodeEntity", typeRef[Long])
+  val newRelationshipEntityById: MethodReference = method[TransactionalEntityFactory, Relationship]("newRelationshipEntity", typeRef[Long])
+
+  val materializeAnyResult: MethodReference = method[CompiledConversionUtils, AnyValue]("materializeAnyResult", typeRef[TransactionalEntityFactory], typeRef[Object])
+  val materializeAnyValueResult: MethodReference = method[CompiledConversionUtils, AnyValue]("materializeAnyValueResult", typeRef[TransactionalEntityFactory], typeRef[Object])
+  val materializeNodeValue: MethodReference = method[CompiledConversionUtils, NodeValue]("materializeNodeValue", typeRef[TransactionalEntityFactory], typeRef[Object])
   val materializeRelationshipValue: MethodReference =
-    method[CompiledConversionUtils, RelationshipValue]("materializeRelationshipValue", typeRef[EmbeddedProxySPI], typeRef[Object])
+    method[CompiledConversionUtils, RelationshipValue]("materializeRelationshipValue", typeRef[TransactionalEntityFactory], typeRef[Object])
   val nodeId: MethodReference = method[VirtualNodeValue, Long]("id")
   val relId: MethodReference = method[VirtualRelationshipValue, Long]("id")
   val set: MethodReference = method[ResultRecord, Unit]("set", typeRef[Int], typeRef[AnyValue])
   val visit: MethodReference = method[QueryResultVisitor[_], Boolean]("visit", typeRef[Record])
-  val executeOperator: MethodReference = method[QueryExecutionTracer, QueryExecutionEvent]("executeOperator", typeRef[Id])
-  val dbHit: MethodReference = method[QueryExecutionEvent, Unit]("dbHit")
-  val row: MethodReference = method[QueryExecutionEvent, Unit]("row")
+
+  val executeOperator: MethodReference = method[OperatorProfileEvent, QueryProfiler]("executeOperator", typeRef[Id])
+  val dbHit: MethodReference = method[OperatorProfileEvent, Unit]("dbHit")
+  val row: MethodReference = method[OperatorProfileEvent, Unit]("row")
   val unboxInteger: MethodReference = method[java.lang.Integer, Int]("intValue")
   val unboxBoolean: MethodReference = method[java.lang.Boolean, Boolean]("booleanValue")
   val unboxLong: MethodReference = method[java.lang.Long, Long]("longValue")

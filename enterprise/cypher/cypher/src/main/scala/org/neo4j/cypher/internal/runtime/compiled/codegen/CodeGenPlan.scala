@@ -18,10 +18,10 @@
  */
 package org.neo4j.cypher.internal.runtime.compiled.codegen
 
+import org.neo4j.cypher.internal.logical.plans.LogicalPlan
+import org.neo4j.cypher.internal.planner.spi.PlanningAttributes.Cardinalities
 import org.neo4j.cypher.internal.runtime.compiled.codegen.ir.Instruction
 import org.neo4j.cypher.internal.runtime.compiled.codegen.spi.JoinTableType
-import org.neo4j.cypher.internal.planner.v3_6.spi.PlanningAttributes.Cardinalities
-import org.neo4j.cypher.internal.v3_6.logical.plans.LogicalPlan
 
 trait CodeGenPlan {
 
@@ -33,7 +33,6 @@ trait CodeGenPlan {
 }
 
 trait LeafCodeGenPlan extends CodeGenPlan {
-
   override final def consume(context: CodeGenContext, child: CodeGenPlan, cardinalities: Cardinalities): (Option[JoinTableMethod], List[Instruction]) =
     throw new UnsupportedOperationException("Leaf plan does not consume")
 }

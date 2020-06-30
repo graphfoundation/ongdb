@@ -18,17 +18,19 @@
  */
 package org.neo4j.cypher.internal.runtime.compiled.codegen.ir.aggregation
 
+import org.neo4j.cypher.internal.runtime.compiled.codegen.CodeGenContext
+import org.neo4j.cypher.internal.runtime.compiled.codegen.Variable
 import org.neo4j.cypher.internal.runtime.compiled.codegen.ir.Instruction
 import org.neo4j.cypher.internal.runtime.compiled.codegen.ir.expressions._
-import org.neo4j.cypher.internal.runtime.compiled.codegen.spi.{HashableTupleDescriptor, MethodStructure}
-import org.neo4j.cypher.internal.runtime.compiled.codegen.{CodeGenContext, Variable}
+import org.neo4j.cypher.internal.runtime.compiled.codegen.spi.HashableTupleDescriptor
+import org.neo4j.cypher.internal.runtime.compiled.codegen.spi.MethodStructure
 
 /*
  * Dynamic count is used when a grouping key is defined. such as
  * `MATCH (n) RETURN n.prop1 count(n.prop2)`
  */
 class DynamicCount(opName: String, variable: Variable, expression: CodeGenExpression,
-                   groupingKey: Iterable[(String,CodeGenExpression)], distinct: Boolean) extends BaseAggregateExpression(expression, distinct) {
+                   groupingKey: Iterable[(String, CodeGenExpression)], distinct: Boolean) extends BaseAggregateExpression(expression, distinct) {
 
   private var mapName: String = null
   private var keyVar: String = null
@@ -69,12 +71,6 @@ class DynamicCount(opName: String, variable: Variable, expression: CodeGenExpres
     }
   }
 
-  private def seenSet = mapName + "Seen"
-
-  private def createKey[E](body: MethodStructure[E])(implicit context: CodeGenContext) = {
-    groupingKey.map(e => e._1 -> (e._2.codeGenType -> body.loadVariable(e._1))).toMap
-  }
-
   override def continuation(instruction: Instruction): Instruction = new Instruction {
 
     override protected def children: Seq[Instruction] = Seq(instruction)
@@ -90,5 +86,11 @@ class DynamicCount(opName: String, variable: Variable, expression: CodeGenExpres
         }
       }
     }
+  }
+
+  private def seenSet = mapName + "Seen"
+
+  private def createKey[E](body: MethodStructure[E])(implicit context: CodeGenContext) = {
+    groupingKey.map(e => e._1 -> (e._2.codeGenType -> body.loadVariable(e._1))).toMap
   }
 }

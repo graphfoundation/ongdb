@@ -20,7 +20,8 @@ package org.neo4j.cypher.internal.runtime.compiled.codegen.ir
 
 import org.neo4j.cypher.internal.runtime.compiled.codegen.CodeGenContext
 import org.neo4j.cypher.internal.runtime.compiled.codegen.ir.expressions.CodeGenExpression
-import org.neo4j.cypher.internal.runtime.compiled.codegen.spi.{LessThan, MethodStructure}
+import org.neo4j.cypher.internal.runtime.compiled.codegen.spi.LessThan
+import org.neo4j.cypher.internal.runtime.compiled.codegen.spi.MethodStructure
 
 case class SkipInstruction(opName: String, variableName: String, action: Instruction, numberToSkip: CodeGenExpression)
   extends Instruction {

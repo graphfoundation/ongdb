@@ -18,19 +18,26 @@
  */
 package org.neo4j.cypher.internal.runtime.compiled.codegen.ir.aggregation
 
+import org.neo4j.cypher.internal.runtime.compiled.codegen.CodeGenContext
+import org.neo4j.cypher.internal.runtime.compiled.codegen.Variable
+import org.neo4j.cypher.internal.runtime.compiled.codegen.ir.expressions.CodeGenExpression
+import org.neo4j.cypher.internal.runtime.compiled.codegen.ir.expressions.CodeGenType
 import org.neo4j.cypher.internal.runtime.compiled.codegen.ir.expressions.ExpressionConverter._
-import org.neo4j.cypher.internal.runtime.compiled.codegen.ir.expressions.{CodeGenExpression, CodeGenType}
-import org.neo4j.cypher.internal.runtime.compiled.codegen.{CodeGenContext, Variable}
-import org.neo4j.cypher.internal.compiler.v3_6.planner.CantCompileQueryException
-import org.neo4j.cypher.internal.v3_6.{expressions => ast}
-import org.neo4j.cypher.internal.v3_6.expressions.{functions => astFunctions}
+import org.neo4j.exceptions.CantCompileQueryException
+//import org.neo4j.cypher.internal.compiler.v3_6.planner.CantCompileQueryException
+//import org.neo4j.cypher.internal.v3_6.{expressions => ast}
+//import org.neo4j.cypher.internal.v3_6.expressions.{functions => astFunctions}
+//import org.neo4j.cypher.internal.compiler.v4_0.planner.CantCompileQueryException
+import org.neo4j.cypher.internal.v4_0.expressions.{functions => astFunctions}
+import org.neo4j.cypher.internal.v4_0.{expressions => ast}
 
 /*
 * Conversion methods for aggregation functions
 */
 object AggregationConverter {
 
-  def aggregateExpressionConverter(opName: String, groupingVariables: Iterable[(String,CodeGenExpression)], name: String, e: ast.Expression) (implicit context: CodeGenContext): AggregateExpression = {
+  def aggregateExpressionConverter(opName: String, groupingVariables: Iterable[(String, CodeGenExpression)], name: String, e: ast.Expression)
+                                  (implicit context: CodeGenContext): AggregateExpression = {
     val variable = Variable(context.namer.newVarName(), CodeGenType.primitiveInt)
     context.addVariable(name, variable)
     context.addProjectedVariable(name, variable)
@@ -38,7 +45,7 @@ object AggregationConverter {
       case func: ast.FunctionInvocation => func.function match {
         case astFunctions.Count if groupingVariables.isEmpty =>
           SimpleCount(variable, createExpression(func.args(0)), func.distinct)
-        case astFunctions.Count  =>
+        case astFunctions.Count =>
           new DynamicCount(opName, variable, createExpression(func.args(0)), groupingVariables, func.distinct)
 
         case f => throw new CantCompileQueryException(s"$f is not supported")

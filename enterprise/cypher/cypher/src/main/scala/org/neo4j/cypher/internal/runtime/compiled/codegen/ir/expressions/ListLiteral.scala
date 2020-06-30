@@ -21,8 +21,8 @@ package org.neo4j.cypher.internal.runtime.compiled.codegen.ir.expressions
 import org.neo4j.cypher.internal.runtime.compiled.codegen.CodeGenContext
 import org.neo4j.cypher.internal.runtime.compiled.codegen.spi.MethodStructure
 import org.neo4j.cypher.internal.runtime.compiled.helpers.LiteralTypeSupport
-import org.neo4j.cypher.internal.v3_6.util.symbols
-import org.neo4j.cypher.internal.v3_6.util.symbols.ListType
+import org.neo4j.cypher.internal.v4_0.util.symbols
+import org.neo4j.cypher.internal.v4_0.util.symbols.ListType
 
 case class ListLiteral(expressions: Seq[CodeGenExpression]) extends CodeGenExpression {
 
@@ -52,18 +52,17 @@ case class ListLiteral(expressions: Seq[CodeGenExpression]) extends CodeGenExpre
 
   override def codeGenType(implicit context: CodeGenContext) = {
     val commonType =
-      if (expressions.nonEmpty)
+      if (expressions.nonEmpty) {
         expressions.map(_.codeGenType.ct).reduce[symbols.CypherType](_ leastUpperBound _)
-      else
+      } else {
         symbols.CTAny
-
-    // If elements are already represented as AnyValues we may just as well keep them as such
+      } // If elements are already represented as AnyValues we may just as well keep them as such
     val representationType =
-      if (expressions.nonEmpty)
+      if (expressions.nonEmpty) {
         LiteralTypeSupport.selectRepresentationType(commonType, expressions.map(_.codeGenType.repr))
-      else
+      } else {
         AnyValueType
-
+      }
     CypherCodeGenType(symbols.CTList(commonType), ListReferenceType(representationType))
   }
 }

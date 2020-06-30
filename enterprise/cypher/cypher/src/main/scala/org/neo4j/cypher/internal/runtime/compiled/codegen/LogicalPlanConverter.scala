@@ -18,26 +18,73 @@
  */
 package org.neo4j.cypher.internal.runtime.compiled.codegen
 
-import org.neo4j.cypher.internal.compiler.v3_6.planner.CantCompileQueryException
-import org.neo4j.cypher.internal.planner.v3_6.spi.PlanningAttributes.Cardinalities
-import org.neo4j.cypher.internal.runtime.compiled.codegen.ir._
+//import org.neo4j.cypher.internal.compiler.v3_6.planner.CantCompileQueryException
+//import org.neo4j.cypher.internal.planner.v3_6.spi.PlanningAttributes.Cardinalities
+
+import org.neo4j.cypher.internal.logical.plans
 import org.neo4j.cypher.internal.runtime.compiled.codegen.ir.aggregation.AggregationConverter.aggregateExpressionConverter
 import org.neo4j.cypher.internal.runtime.compiled.codegen.ir.aggregation.Distinct
 import org.neo4j.cypher.internal.runtime.compiled.codegen.ir.expressions.ExpressionConverter.createExpression
 import org.neo4j.cypher.internal.runtime.compiled.codegen.ir.expressions._
+import org.neo4j.cypher.internal.v4_0.expressions.functions.Count
+import org.neo4j.cypher.internal.v4_0.util.Eagerly
+import org.neo4j.cypher.internal.v4_0.util.symbols
+//import org.neo4j.cypher.internal.v3_6.logical.plans
+//import org.neo4j.cypher.internal.v3_6.logical.plans.ColumnOrder
+//import org.neo4j.cypher.internal.v3_6.expressions.Expression
+//import org.neo4j.cypher.internal.v3_6.expressions.FunctionInvocation
+//import org.neo4j.cypher.internal.v3_6.expressions.{functions => ast_functions}
+//import org.neo4j.cypher.internal.v3_6.util.Eagerly.immutableMapValues
+//import org.neo4j.cypher.internal.v3_6.util.Foldable._
+//import org.neo4j.exceptions.InternalException
+//import org.neo4j.cypher.internal.v3_6.util.One
+//import org.neo4j.cypher.internal.v3_6.util.ZeroOneOrMany
+//import org.neo4j.cypher.internal.v4_0.util.symbols
+//import org.neo4j.cypher.internal.v3_6.{expressions => ast}
+import org.neo4j.cypher.internal.logical.plans.ColumnOrder
+import org.neo4j.cypher.internal.planner.spi.PlanningAttributes.Cardinalities
+import org.neo4j.cypher.internal.runtime.compiled.codegen.ir.AcceptVisitor
+import org.neo4j.cypher.internal.runtime.compiled.codegen.ir.AggregationInstruction
+import org.neo4j.cypher.internal.runtime.compiled.codegen.ir.ApplyInstruction
+import org.neo4j.cypher.internal.runtime.compiled.codegen.ir.BuildProbeTable
+import org.neo4j.cypher.internal.runtime.compiled.codegen.ir.BuildSortTable
+import org.neo4j.cypher.internal.runtime.compiled.codegen.ir.BuildTopTable
+import org.neo4j.cypher.internal.runtime.compiled.codegen.ir.CartesianProductInstruction
+import org.neo4j.cypher.internal.runtime.compiled.codegen.ir.DecreaseAndReturnWhenZero
+import org.neo4j.cypher.internal.runtime.compiled.codegen.ir.ExpandAllLoopDataGenerator
+import org.neo4j.cypher.internal.runtime.compiled.codegen.ir.ExpandIntoLoopDataGenerator
+import org.neo4j.cypher.internal.runtime.compiled.codegen.ir.ForEachExpression
+import org.neo4j.cypher.internal.runtime.compiled.codegen.ir.GetMatchesFromProbeTable
+import org.neo4j.cypher.internal.runtime.compiled.codegen.ir.GetSortedResult
+import org.neo4j.cypher.internal.runtime.compiled.codegen.ir.If
+import org.neo4j.cypher.internal.runtime.compiled.codegen.ir.IndexSeek
+import org.neo4j.cypher.internal.runtime.compiled.codegen.ir.Instruction
+import org.neo4j.cypher.internal.runtime.compiled.codegen.ir.MethodInvocation
+import org.neo4j.cypher.internal.runtime.compiled.codegen.ir.NodeCountFromCountStoreInstruction
+import org.neo4j.cypher.internal.runtime.compiled.codegen.ir.RelationshipCountFromCountStoreInstruction
+import org.neo4j.cypher.internal.runtime.compiled.codegen.ir.ScanAllNodes
+import org.neo4j.cypher.internal.runtime.compiled.codegen.ir.ScanForLabel
+import org.neo4j.cypher.internal.runtime.compiled.codegen.ir.SeekNodeById
+import org.neo4j.cypher.internal.runtime.compiled.codegen.ir.SelectionInstruction
+import org.neo4j.cypher.internal.runtime.compiled.codegen.ir.SkipInstruction
+import org.neo4j.cypher.internal.runtime.compiled.codegen.ir.SortInstruction
+import org.neo4j.cypher.internal.runtime.compiled.codegen.ir.SortTableInfo
+import org.neo4j.cypher.internal.runtime.compiled.codegen.ir.UnwindPrimitiveCollection
+import org.neo4j.cypher.internal.runtime.compiled.codegen.ir.WhileLoop
+import org.neo4j.cypher.internal.runtime.compiled.codegen.ir.expressions.CodeGenExpression
+import org.neo4j.cypher.internal.runtime.compiled.codegen.ir.expressions.CypherCodeGenType
+import org.neo4j.cypher.internal.runtime.compiled.codegen.ir.expressions.ListReferenceType
+import org.neo4j.cypher.internal.runtime.compiled.codegen.ir.expressions.LoadVariable
+import org.neo4j.cypher.internal.runtime.compiled.codegen.ir.expressions.ToSet
 import org.neo4j.cypher.internal.runtime.compiled.codegen.spi.SortItem
-import org.neo4j.cypher.internal.v3_6.logical.plans
-import org.neo4j.cypher.internal.v3_6.logical.plans.ColumnOrder
-import org.neo4j.cypher.internal.v3_6.expressions.Expression
-import org.neo4j.cypher.internal.v3_6.expressions.FunctionInvocation
-import org.neo4j.cypher.internal.v3_6.expressions.{functions => ast_functions}
-import org.neo4j.cypher.internal.v3_6.util.Eagerly.immutableMapValues
-import org.neo4j.cypher.internal.v3_6.util.Foldable._
-import org.neo4j.cypher.internal.v3_6.util.InternalException
-import org.neo4j.cypher.internal.v3_6.util.One
-import org.neo4j.cypher.internal.v3_6.util.ZeroOneOrMany
-import org.neo4j.cypher.internal.v3_6.util.symbols
-import org.neo4j.cypher.internal.v3_6.{expressions => ast}
+import org.neo4j.cypher.internal.v4_0.expressions.Expression
+import org.neo4j.cypher.internal.v4_0.expressions.FunctionInvocation
+import org.neo4j.cypher.internal.v4_0.expressions.ListLiteral
+import org.neo4j.cypher.internal.v4_0.util.Foldable.FoldableAny
+import org.neo4j.cypher.internal.v4_0.util.One
+import org.neo4j.cypher.internal.v4_0.util.ZeroOneOrMany
+import org.neo4j.exceptions.CantCompileQueryException
+import org.neo4j.exceptions.InternalException;
 
 object LogicalPlanConverter {
 
@@ -98,7 +145,7 @@ object LogicalPlanConverter {
   }
 
   private def hasMultipleAggregations(p: plans.Aggregation) = p.aggregationExpression.values.toList.treeCount {
-    case f: FunctionInvocation if f.function == ast_functions.Count => true
+    case f: FunctionInvocation if f.function == Count => true
     case _ => false
   } > 1
 
@@ -113,8 +160,8 @@ object LogicalPlanConverter {
 
     override def consume(context: CodeGenContext, child: CodeGenPlan, cardinalities: Cardinalities) = {
       val projectionOpName = context.registerOperator(projection)
-      val columns = immutableMapValues(projection.projectExpressions,
-        (e: ast.Expression) => ExpressionConverter.createExpression(e)(context))
+      val columns = Eagerly.immutableMapValues(projection.projectExpressions,
+        (e: Expression) => ExpressionConverter.createExpression(e)(context))
       context.retainProjectedVariables(projection.projectExpressions.keySet)
       val vars = columns.collect {
         case (name, expr) if !context.hasVariable(name) =>
@@ -210,7 +257,7 @@ object LogicalPlanConverter {
                 actions))
 
           //collection used in composite index search, pass entire collection to index seek
-          case plans.CompositeQueryExpression(e: ast.ListLiteral) =>
+          case plans.CompositeQueryExpression(e: ListLiteral) =>
             throw new CantCompileQueryException(s"To be done")
 
           case e: plans.RangeQueryExpression[_] =>
@@ -235,7 +282,7 @@ object LogicalPlanConverter {
         case plans.SingleSeekableArg(e) => SeekNodeById(opName, nodeVar,
           createExpression(e)(context), actions)
         case plans.ManySeekableArgs(e) => e match {
-          case coll: ast.ListLiteral =>
+          case coll: ListLiteral =>
             ZeroOneOrMany(coll.expressions) match {
               case One(value) => SeekNodeById(opName, nodeVar,
                 createExpression(value)(context), actions)
@@ -305,7 +352,6 @@ object LogicalPlanConverter {
         val probeTableSymbol = JoinTableMethod(probeTableName, probeTable.tableType)
 
         context.addProbeTable(this, probeTable.joinData)
-
 
         (Some(probeTableSymbol), List(probeTable))
 
@@ -473,13 +519,15 @@ object LogicalPlanConverter {
       context.retainProjectedVariables(aggregation.groupingExpressions.keySet)
 
       val aggregationExpression =
-        if (aggregation.aggregationExpression.isEmpty) Seq(
-          Distinct(opName, context.namer.newVarName(), groupingVariables))
-        else aggregation.aggregationExpression.map {
-          case (name, e) =>
-            aggregateExpressionConverter(opName, groupingVariables, name, e)
+        if (aggregation.aggregationExpression.isEmpty) {
+          Seq(
+            Distinct(opName, context.namer.newVarName(), groupingVariables))
+        } else {
+          aggregation.aggregationExpression.map {
+            case (name, e) =>
+              aggregateExpressionConverter(opName, groupingVariables, name, e)
+          }
         }
-
       val instruction = AggregationInstruction(opName, aggregationExpression)
       val (methodHandle, innerBlock :: tl) = context.popParent().consume(context, this, cardinalities)
       val continuation = aggregationExpression.foldLeft(innerBlock) {
@@ -572,7 +620,7 @@ object LogicalPlanConverter {
       // TODO: Handle range
       val collectionCodeGenType = collection.codeGenType(context)
 
-      val opName = context.registerOperator(logicalPlan)
+      val opName: String = context.registerOperator(logicalPlan)
 
       val elementCodeGenType = collectionCodeGenType match {
         case CypherCodeGenType(symbols.ListType(innerType), ListReferenceType(innerReprType)) =>
@@ -586,11 +634,11 @@ object LogicalPlanConverter {
       }
 
       val loopDataGenerator =
-        if (elementCodeGenType.isPrimitive)
+        if (elementCodeGenType.isPrimitive) {
           UnwindPrimitiveCollection(opName, collection)
-        else
-          UnwindCollection(opName, collection, elementCodeGenType)
-
+        } else {
+          org.neo4j.cypher.internal.runtime.compiled.codegen.ir.UnwindCollection(opName, collection, elementCodeGenType)
+        }
       val variableName = context.namer.newVarName()
       val variable = Variable(variableName, elementCodeGenType, nullable = elementCodeGenType.canBeNullable)
       context.addVariable(unwind.variable, variable)

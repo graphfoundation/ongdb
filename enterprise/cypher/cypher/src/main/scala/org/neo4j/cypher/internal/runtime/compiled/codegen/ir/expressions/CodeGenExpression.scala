@@ -21,10 +21,13 @@ package org.neo4j.cypher.internal.runtime.compiled.codegen.ir.expressions
 import org.neo4j.cypher.internal.runtime.compiled.codegen.CodeGenContext
 import org.neo4j.cypher.internal.runtime.compiled.codegen.spi.MethodStructure
 
-trait CodeGenExpression {
+trait CodeGenExpression { // extends Expression {
   def init[E](generator: MethodStructure[E])(implicit context: CodeGenContext): Unit
+
   def generateExpression[E](structure: MethodStructure[E])(implicit context: CodeGenContext): E
+
   def nullable(implicit context: CodeGenContext): Boolean
+
   def codeGenType(implicit context: CodeGenContext): CypherCodeGenType
 
   def needsJavaNullCheck(implicit context: CodeGenContext): Boolean = {

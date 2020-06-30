@@ -18,7 +18,7 @@
  */
 package org.neo4j.cypher.internal.runtime.compiled.codegen.ir.expressions
 
-import org.neo4j.cypher.internal.runtime.compiled.codegen.{Variable, CodeGenContext}
+import org.neo4j.cypher.internal.runtime.compiled.codegen.CodeGenContext
 import org.neo4j.cypher.internal.runtime.compiled.codegen.spi.MethodStructure
 
 case class MapProperty(mapExpression: CodeGenExpression, propertyKeyName: String) extends CodeGenExpression {
@@ -32,4 +32,6 @@ case class MapProperty(mapExpression: CodeGenExpression, propertyKeyName: String
   override def nullable(implicit context: CodeGenContext) = true
 
   override def codeGenType(implicit context: CodeGenContext) = CodeGenType.Any
+
+  //override def position: InputPosition = ???
 }

@@ -20,14 +20,12 @@ package org.neo4j.cypher.internal.runtime.compiled.codegen.ir.expressions
 
 import org.neo4j.cypher.internal.runtime.compiled.codegen.CodeGenContext
 import org.neo4j.cypher.internal.runtime.compiled.codegen.spi.MethodStructure
-import org.neo4j.cypher.internal.v3_6.util.symbols.CTFloat
+import org.neo4j.cypher.internal.v4_0.util.symbols.CTFloat
 
 case class Pow(lhs: CodeGenExpression, rhs: CodeGenExpression)
   extends CodeGenExpression with BinaryOperator {
 
   override def nullable(implicit context: CodeGenContext) = lhs.nullable || rhs.nullable
-
-  override protected def generator[E](structure: MethodStructure[E])(implicit context: CodeGenContext) = structure.powExpression
 
   override def name: String = "pow"
 
@@ -36,4 +34,6 @@ case class Pow(lhs: CodeGenExpression, rhs: CodeGenExpression)
       case (Number(_), Number(_)) => CypherCodeGenType(CTFloat, ReferenceType)
       case _ => CodeGenType.Any
     }
+
+  override protected def generator[E](structure: MethodStructure[E])(implicit context: CodeGenContext) = structure.powExpression
 }

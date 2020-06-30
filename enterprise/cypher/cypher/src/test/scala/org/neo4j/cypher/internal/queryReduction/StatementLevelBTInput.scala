@@ -18,11 +18,11 @@
  */
 package org.neo4j.cypher.internal.queryReduction
 
-import org.neo4j.cypher.internal.v3_6.ast._
-import org.neo4j.cypher.internal.v3_6.util._
 import org.neo4j.cypher.internal.queryReduction.ast.ASTNodeHelper._
 import org.neo4j.cypher.internal.queryReduction.ast.copyNodeWith.NodeConverter
-import org.neo4j.cypher.internal.queryReduction.ast.{copyNodeWith, domainsOf, getChildren}
+import org.neo4j.cypher.internal.queryReduction.ast.copyNodeWith
+import org.neo4j.cypher.internal.queryReduction.ast.domainsOf
+import org.neo4j.cypher.internal.queryReduction.ast.getChildren
 
 case class Candidate(node: ASTNode, expectedType: Class[_])
 
@@ -31,34 +31,14 @@ class StatementLevelBTInput(statement: Statement,
 
   override val domains: Array[BTDomain[Candidate]] = replacementCandidates(statement, 0).toArray
 
-  private def replacementCandidates(node: ASTNode, currentLevel: Int): Seq[BTDomain[Candidate]] = {
-    // Previous level (to capture the parent information)
-    if (currentLevel == level - 1) {
-      domainsOf(node)(makeDomain)
-    } else {
-      getChildren(node).flatMap(replacementCandidates(_, currentLevel + 1))
-    }
-  }
-
-  private def makeDomain(parent: ASTNode, expectedType: Class[_]): BTDomain[Candidate] = {
-    val keepTheNode = BTAssignment(Candidate(parent, expectedType), 0)
-    val assignments =
-      keepTheNode +:
-      getChildren(parent)
-      .filter(expectedType.isInstance(_))
-      .map(child => BTAssignment(Candidate(child, expectedType), getSize(parent) - getSize(child)))
-      .sortBy(_.gain)
-    new BTDomain(assignments.toArray)
-  }
-
   override def convertToInput(objects: Seq[Candidate]): Statement = {
     val (newStatement, _) = convertToInput(objects, statement, 0, 0)
     newStatement
   }
 
   /**
-    * Returns tuple: (new node, how much the index advanced)
-    */
+   * Returns tuple: (new node, how much the index advanced)
+   */
   def convertToInput[A <: ASTNode](objects: Seq[Candidate], node: A, currentIndex: Int, currentLevel: Int): (A, Int) = {
     if (currentLevel == level) {
       //  Replace node
@@ -88,7 +68,7 @@ class StatementLevelBTInput(statement: Statement,
         }
 
         override def ofTupledSeq[B <: ASTNode, C <: ASTNode](bs: Seq[(B, C)]): Seq[(B, C)] = {
-          bs.map { case (b,c) => (newChild(b), newChild(c))}
+          bs.map { case (b, c) => (newChild(b), newChild(c)) }
         }
       }
 
@@ -112,6 +92,26 @@ class StatementLevelBTInput(statement: Statement,
         None
       }
     }
+  }
+
+  private def replacementCandidates(node: ASTNode, currentLevel: Int): Seq[BTDomain[Candidate]] = {
+    // Previous level (to capture the parent information)
+    if (currentLevel == level - 1) {
+      domainsOf(node)(makeDomain)
+    } else {
+      getChildren(node).flatMap(replacementCandidates(_, currentLevel + 1))
+    }
+  }
+
+  private def makeDomain(parent: ASTNode, expectedType: Class[_]): BTDomain[Candidate] = {
+    val keepTheNode = BTAssignment(Candidate(parent, expectedType), 0)
+    val assignments =
+      keepTheNode +:
+        getChildren(parent)
+          .filter(expectedType.isInstance(_))
+          .map(child => BTAssignment(Candidate(child, expectedType), getSize(parent) - getSize(child)))
+          .sortBy(_.gain)
+    new BTDomain(assignments.toArray)
   }
 }
 

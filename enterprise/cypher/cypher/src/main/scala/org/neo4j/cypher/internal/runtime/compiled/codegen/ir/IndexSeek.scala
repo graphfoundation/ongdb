@@ -18,9 +18,10 @@
  */
 package org.neo4j.cypher.internal.runtime.compiled.codegen.ir
 
+import org.neo4j.cypher.internal.runtime.compiled.codegen.CodeGenContext
+import org.neo4j.cypher.internal.runtime.compiled.codegen.Variable
 import org.neo4j.cypher.internal.runtime.compiled.codegen.ir.expressions.CodeGenExpression
 import org.neo4j.cypher.internal.runtime.compiled.codegen.spi.MethodStructure
-import org.neo4j.cypher.internal.runtime.compiled.codegen.{CodeGenContext, Variable}
 
 case class IndexSeek(opName: String, labelName: String, propNames: Seq[String], descriptorVar: String,
                      expression: CodeGenExpression) extends LoopDataGenerator {
@@ -36,8 +37,8 @@ case class IndexSeek(opName: String, labelName: String, propNames: Seq[String], 
   }
 
   override def produceLoopData[E](cursorName: String, generator: MethodStructure[E])(implicit context: CodeGenContext) = {
-      generator.indexSeek(cursorName, descriptorVar, expression.generateExpression(generator), expression.codeGenType)
-      generator.incrementDbHits()
+    generator.indexSeek(cursorName, descriptorVar, expression.generateExpression(generator), expression.codeGenType)
+    generator.incrementDbHits()
   }
 
   override def getNext[E](nextVar: Variable, cursorName: String, generator: MethodStructure[E])

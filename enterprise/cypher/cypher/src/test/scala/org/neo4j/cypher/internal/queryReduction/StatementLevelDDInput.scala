@@ -18,8 +18,6 @@
  */
 package org.neo4j.cypher.internal.queryReduction
 
-import org.neo4j.cypher.internal.v3_6.ast._
-import org.neo4j.cypher.internal.v3_6.util._
 import org.neo4j.cypher.internal.queryReduction.ast.ASTNodeHelper._
 import org.neo4j.cypher.internal.queryReduction.ast.copyNodeWith
 import org.neo4j.cypher.internal.queryReduction.ast.copyNodeWith.NodeConverter
@@ -35,8 +33,8 @@ class StatementLevelDDInput(statement: Statement,
   }
 
   /**
-    * Returns tuple: (Node that may be modified or None, if this subtree was modified, how much the index advanced)
-    */
+   * Returns tuple: (Node that may be modified or None, if this subtree was modified, how much the index advanced)
+   */
   private def removeChildrenInSubTree[A <: ASTNode](node: A, currentIndex: Int, currentLevel: Int): (Option[A], Boolean, Int) = {
     if (currentLevel == level) {
       // Find out if the current node should be removed
@@ -72,14 +70,14 @@ class StatementLevelDDInput(statement: Statement,
         }
 
         override def ofTupledSeq[B <: ASTNode, C <: ASTNode](bs: Seq[(B, C)]): Seq[(B, C)] = {
-          bs.flatMap { case (b,c) =>
+          bs.flatMap { case (b, c) =>
             val optionTuple = (newChild(b), newChild(c))
-              optionTuple match {
-                case (None, None) => None
-                case (Some(bb), Some(cc)) => Some((bb, cc))
-                  // You must either keep or delete both children in a tuple
-                case _ => throw new IllegalSyntaxException()
-              }
+            optionTuple match {
+              case (None, None) => None
+              case (Some(bb), Some(cc)) => Some((bb, cc))
+              // You must either keep or delete both children in a tuple
+              case _ => throw new IllegalSyntaxException()
+            }
           }
         }
       }

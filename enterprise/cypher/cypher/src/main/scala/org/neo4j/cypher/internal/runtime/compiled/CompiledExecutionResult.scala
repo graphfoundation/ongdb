@@ -18,22 +18,29 @@
  */
 package org.neo4j.cypher.internal.runtime.compiled
 
-import java.util
+import java.lang
+import java.util.Optional
 
 import org.neo4j.cypher.internal.executionplan.GeneratedQueryExecution
 import org.neo4j.cypher.internal.runtime._
+import org.neo4j.cypher.result.NaiveQuerySubscription
+import org.neo4j.cypher.result.QueryProfile
 import org.neo4j.cypher.result.QueryResult.QueryResultVisitor
+import org.neo4j.cypher.result.RuntimeResult
 import org.neo4j.cypher.result.RuntimeResult.ConsumptionState
-import org.neo4j.cypher.result.{QueryProfile, RuntimeResult}
-import org.neo4j.graphdb.ResourceIterator
+import org.neo4j.kernel.impl.query.QuerySubscriber
 
 /**
-  * Main class for compiled runtime results.
-  */
+ * Main class for compiled runtime results.
+ */
 class CompiledExecutionResult(context: QueryContext,
                               compiledCode: GeneratedQueryExecution,
-                              override val queryProfile: QueryProfile)
-  extends RuntimeResult {
+                              override val queryProfile: QueryProfile,
+                              prePopulateResults: Boolean,
+                              subscriber: QuerySubscriber,
+                              fieldNames: Array[String]
+                             )
+  extends NaiveQuerySubscription(subscriber) {
 
   private var resultRequested = false
 
@@ -41,21 +48,34 @@ class CompiledExecutionResult(context: QueryContext,
 
   override def fieldNames(): Array[String] = compiledCode.fieldNames()
 
-  override def accept[EX <: Exception](visitor: QueryResultVisitor[EX]): Unit = {
-    compiledCode.accept(visitor)
+  def accept[EX <: Exception](visitor: QueryResultVisitor[EX]): Unit = {
+    if (this.prePopulateResults) {
+      this.compiledCode.accept((row) => {
+
+        val fields = row.fields
+        for (i <- 0 until fields.length) {
+          ValuePopulation.populate(fields(i))
+        }
+        visitor.visit(row)
+
+      })
+    } else {
+      compiledCode.accept(visitor)
+    }
     resultRequested = true
   }
 
   override def queryStatistics() = QueryStatistics()
 
-  override def isIterable: Boolean = false
-
-  override def asIterator(): ResourceIterator[util.Map[String, AnyRef]] =
-    throw new UnsupportedOperationException("The compiled runtime is not iterable")
-
   override def consumptionState: RuntimeResult.ConsumptionState =
-    if (!resultRequested) ConsumptionState.NOT_STARTED
-    else ConsumptionState.EXHAUSTED
+    if (!resultRequested) {
+      ConsumptionState.NOT_STARTED
+    } else {
+      ConsumptionState.EXHAUSTED
+    }
 
   override def close(): Unit = {}
+
+  override def totalAllocatedMemory(): Optional[lang.Long] = Optional.empty[lang.Long]
+
 }

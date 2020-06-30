@@ -19,12 +19,17 @@
 package org.neo4j.cypher.internal
 
 import org.bitbucket.inkytonik.kiama.output.PrettyPrinter._
-import org.neo4j.cypher.internal.compatibility.v3_6.runtime.PhysicalPlanningAttributes.SlotConfigurations
-import org.neo4j.cypher.internal.compiler.v3_6.phases.LogicalPlanState
+import org.neo4j.cypher.internal.logical.plans.LogicalPlan
+import org.neo4j.cypher.internal.physicalplanning.PhysicalPlanningAttributes.SlotConfigurations
+import org.neo4j.exceptions.InternalException
+//import org.neo4j.cypher.internal.compatibility.v3_6.runtime.PhysicalPlanningAttributes.SlotConfigurations
+//import org.neo4j.cypher.internal.compiler.v3_6.phases.LogicalPlanState
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.Pipe
-import org.neo4j.cypher.internal.v3_6.util.attribution.Id
-import org.neo4j.cypher.internal.v3_6.util.{CypherException, InternalException}
-import org.neo4j.cypher.internal.v3_6.logical.plans.LogicalPlan
+//import org.neo4j.cypher.internal.v3_6.util.attribution.Id
+//import org.neo4j.cypher.internal.v3_6.util.{CypherException, InternalException}
+//import org.neo4j.cypher.internal.v3_6.logical.plans.LogicalPlan
+import org.neo4j.cypher.internal.v4_0.util.CypherException
+import org.neo4j.cypher.internal.v4_0.util.attribution.Id
 
 trait DebugPrettyPrinter {
   val PRINT_QUERY_TEXT = true
@@ -33,13 +38,14 @@ trait DebugPrettyPrinter {
   val PRINT_PIPELINE_INFO = true
   val PRINT_FAILURE_STACK_TRACE = true
 
-  protected def printPlanInfo(lpState: LogicalPlanState) = {
+  protected def printPlanInfo(query: LogicalQuery) = {
     println(s"\n========================================================================")
-    if (PRINT_QUERY_TEXT)
-      println(s"\u001b[32m[QUERY]\n\n${lpState.queryText}") // Green
+    if (PRINT_QUERY_TEXT) {
+      println(s"\u001b[32m[QUERY]\n\n${query.queryText}")
+    } // Green
     if (PRINT_LOGICAL_PLAN) {
       println(s"\n\u001b[35m[LOGICAL PLAN]\n") // Magenta
-      prettyPrintLogicalPlan(lpState.logicalPlan)
+      prettyPrintLogicalPlan(query.logicalPlan)
     }
     println("\u001b[30m")
   }
@@ -70,6 +76,19 @@ trait DebugPrettyPrinter {
       println("\u001b[30m>>>")
       println("------------------------------------------------")
     }
+  }
+
+  protected def prettyPrintPipelines(pipelines: SlotConfigurations): Unit = {
+    val transformedPipelines = pipelines.iterator.foldLeft(Seq.empty[Any]) {
+      case (acc, (k: Id, v)) => acc :+ (k.x -> v)
+    }.sortBy { case (k: Int, _) => k }
+    val prettyDoc = pretty(any(transformedPipelines), w = 120)
+    println(prettyDoc.layout)
+  }
+
+  protected def prettyPrintPipe(pipe: Pipe): Unit = {
+    val prettyDoc = pretty(any(pipe), w = 120)
+    println(prettyDoc.layout)
   }
 
   private def prettyPrintLogicalPlan(plan: LogicalPlan): Unit = {
@@ -119,19 +138,6 @@ trait DebugPrettyPrinter {
       )
 
     val prettyDoc = pretty(show(plan), w = 120)
-    println(prettyDoc.layout)
-  }
-
-  protected def prettyPrintPipelines(pipelines: SlotConfigurations): Unit = {
-    val transformedPipelines = pipelines.iterator.foldLeft(Seq.empty[Any]) {
-      case (acc, (k: Id, v)) => acc :+ (k.x -> v)
-    }.sortBy { case (k: Int, _) => k }
-    val prettyDoc = pretty(any(transformedPipelines), w = 120)
-    println(prettyDoc.layout)
-  }
-
-  protected def prettyPrintPipe(pipe: Pipe): Unit = {
-    val prettyDoc = pretty(any(pipe), w = 120)
     println(prettyDoc.layout)
   }
 }

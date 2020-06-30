@@ -18,9 +18,11 @@
  */
 package org.neo4j.cypher.internal.runtime.compiled.codegen.ir
 
-import org.neo4j.cypher.internal.runtime.compiled.codegen.ir.expressions.{CodeGenExpression, CodeGenType}
+import org.neo4j.cypher.internal.runtime.compiled.codegen.CodeGenContext
+import org.neo4j.cypher.internal.runtime.compiled.codegen.Variable
+import org.neo4j.cypher.internal.runtime.compiled.codegen.ir.expressions.CodeGenExpression
+import org.neo4j.cypher.internal.runtime.compiled.codegen.ir.expressions.CodeGenType
 import org.neo4j.cypher.internal.runtime.compiled.codegen.spi.MethodStructure
-import org.neo4j.cypher.internal.runtime.compiled.codegen.{CodeGenContext, Variable}
 
 case class UnwindCollection(opName: String, collection: CodeGenExpression, elementCodeGenType: CodeGenType) extends LoopDataGenerator {
   override def init[E](generator: MethodStructure[E])(implicit context: CodeGenContext): Unit =
@@ -44,5 +46,7 @@ case class UnwindCollection(opName: String, collection: CodeGenExpression, eleme
     generator.iteratorHasNext(generator.loadVariable(iterVar))
 
   override def close[E](iterVarName: String,
-                        generator: MethodStructure[E]): Unit = {/*nothing to close*/}
+                        generator: MethodStructure[E]): Unit = {
+    /*nothing to close*/
+  }
 }

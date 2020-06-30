@@ -40,12 +40,13 @@ case class Literal(value: Object) extends CodeGenExpression {
       !needsConverison
     })
     val ct = codeGenType
-    if (value == null)
+    if (value == null) {
       structure.noValue()
-    else if (ct.isPrimitive)
+    } else if (ct.isPrimitive) {
       structure.constantExpression(value)
-    else
+    } else {
       structure.constantValueExpression(value, ct)
+    }
   }
 
   override def nullable(implicit context: CodeGenContext) = value == null
