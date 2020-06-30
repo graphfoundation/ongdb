@@ -206,7 +206,7 @@ public class HandshakeServerTest
         // then
         ModifierProtocol expected = TestModifierProtocols.latest( COMPRESSION );
         verify( channel ).writeAndFlush(
-                new ModifierProtocolResponse( SUCCESS,  expected.category(), expected.implementation() ) );
+                new ModifierProtocolResponse( SUCCESS, expected.category(), expected.implementation() ) );
     }
 
     @Test
@@ -416,7 +416,7 @@ public class HandshakeServerTest
         server.handle( new SwitchOverRequest(
                 RAFT.canonicalName(),
                 applicationVersion,
-                asList( Pair.of(  GRATUITOUS_OBFUSCATION.canonicalName(), modifierVersion ) ) ) );
+                asList( Pair.of( GRATUITOUS_OBFUSCATION.canonicalName(), modifierVersion ) ) ) );
 
         // then
         assertExceptionallyCompletedProtocolStackFuture();
@@ -531,7 +531,7 @@ public class HandshakeServerTest
     {
         // given
         server.handle( InitialMagicMessage.instance() );
-        server.handle( new ApplicationProtocolRequest( RAFT.canonicalName(), asSet( RAFT_1.implementation()) ) );
+        server.handle( new ApplicationProtocolRequest( RAFT.canonicalName(), asSet( RAFT_1.implementation() ) ) );
         server.handle( new ModifierProtocolRequest( COMPRESSION.canonicalName(), asSet( SNAPPY.implementation() ) ) );
         server.handle( new ModifierProtocolRequest( GRATUITOUS_OBFUSCATION.canonicalName(), asSet( ROT13.implementation() ) ) );
 
@@ -567,7 +567,7 @@ public class HandshakeServerTest
         HandshakeServer server = new HandshakeServer( applicationProtocolRepository, modifierProtocolRepository, channel );
 
         server.handle( InitialMagicMessage.instance() );
-        server.handle( new ApplicationProtocolRequest( RAFT.canonicalName(), asSet( RAFT_1.implementation()) ) );
+        server.handle( new ApplicationProtocolRequest( RAFT.canonicalName(), asSet( RAFT_1.implementation() ) ) );
         server.handle( new ModifierProtocolRequest(
                 COMPRESSION.canonicalName(),
                 requestedVersions ) );

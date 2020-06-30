@@ -68,11 +68,12 @@ public class AppendingTest
         // when
         // the leader asks to append after the commit index an entry that mismatches on term
         Appending.handleAppendEntriesRequest( state, outcome,
-                new RaftMessages.AppendEntries.Request( aMember, localTermForAllEntries, appendIndex - 2,
-                        localTermForAllEntries,
-                        new RaftLogEntry[]{
-                                new RaftLogEntry( localTermForAllEntries + 1, ReplicatedInteger.valueOf( 2 ) )},
-                        appendIndex + 3 ), NullLog.getInstance() );
+                                              new RaftMessages.AppendEntries.Request( aMember, localTermForAllEntries, appendIndex - 2,
+                                                                                      localTermForAllEntries,
+                                                                                      new RaftLogEntry[]{
+                                                                                              new RaftLogEntry( localTermForAllEntries + 1,
+                                                                                                                ReplicatedInteger.valueOf( 2 ) )},
+                                                                                      appendIndex + 3 ), NullLog.getInstance() );
 
         // then
         // we must produce a TruncateLogCommand at the earliest mismatching index
@@ -99,11 +100,12 @@ public class AppendingTest
         try
         {
             Appending.handleAppendEntriesRequest( state, outcome,
-                    new RaftMessages.AppendEntries.Request( aMember, localTermForAllEntries, commitIndex - 1,
-                            localTermForAllEntries,
-                            new RaftLogEntry[]{
-                                    new RaftLogEntry( localTermForAllEntries + 1, ReplicatedInteger.valueOf( 2 ) )},
-                            commitIndex + 3 ), NullLog.getInstance() );
+                                                  new RaftMessages.AppendEntries.Request( aMember, localTermForAllEntries, commitIndex - 1,
+                                                                                          localTermForAllEntries,
+                                                                                          new RaftLogEntry[]{
+                                                                                                  new RaftLogEntry( localTermForAllEntries + 1,
+                                                                                                                    ReplicatedInteger.valueOf( 2 ) )},
+                                                                                          commitIndex + 3 ), NullLog.getInstance() );
             fail( "Appending should not allow truncation at or before the commit index" );
         }
         catch ( IllegalStateException expected )
@@ -132,11 +134,12 @@ public class AppendingTest
         try
         {
             Appending.handleAppendEntriesRequest( state, outcome,
-                    new RaftMessages.AppendEntries.Request( aMember, localTermForAllEntries, commitIndex - 2,
-                            localTermForAllEntries,
-                            new RaftLogEntry[]{
-                                    new RaftLogEntry( localTermForAllEntries + 1, ReplicatedInteger.valueOf( 2 ) )},
-                            commitIndex + 3 ), NullLog.getInstance() );
+                                                  new RaftMessages.AppendEntries.Request( aMember, localTermForAllEntries, commitIndex - 2,
+                                                                                          localTermForAllEntries,
+                                                                                          new RaftLogEntry[]{
+                                                                                                  new RaftLogEntry( localTermForAllEntries + 1,
+                                                                                                                    ReplicatedInteger.valueOf( 2 ) )},
+                                                                                          commitIndex + 3 ), NullLog.getInstance() );
             fail( "Appending should not allow truncation at or before the commit index" );
         }
         catch ( IllegalStateException expected )
@@ -170,11 +173,11 @@ public class AppendingTest
         // an appendEntriesRequest arrives for appending entries before the prevIndex (for whatever reason)
         Outcome outcome = mock( Outcome.class );
         Appending.handleAppendEntriesRequest( state, outcome,
-                new RaftMessages.AppendEntries.Request( aMember, prevTerm, prevIndex - 2,
-                        prevTerm,
-                        new RaftLogEntry[]{
-                                new RaftLogEntry( prevTerm, ReplicatedInteger.valueOf( 2 ) )},
-                        commitIndex + 3 ), NullLog.getInstance() );
+                                              new RaftMessages.AppendEntries.Request( aMember, prevTerm, prevIndex - 2,
+                                                                                      prevTerm,
+                                                                                      new RaftLogEntry[]{
+                                                                                              new RaftLogEntry( prevTerm, ReplicatedInteger.valueOf( 2 ) )},
+                                                                                      commitIndex + 3 ), NullLog.getInstance() );
 
         // then
         // there should be no truncate commands. Actually, the whole thing should be a no op

@@ -122,9 +122,9 @@ class TestCatchupServerHandler implements CatchupServerHandler
     private FakeFile findFile( Set<FakeFile> filesystem, String filename )
     {
         return filesystem.stream()
-                .filter( fakeFile -> filename.equals( fakeFile.getFilename() ) )
-                .findFirst()
-                .orElseThrow( () -> new RuntimeException( "FakeFile should handle all cases with regards to how server should respond" ) );
+                         .filter( fakeFile -> filename.equals( fakeFile.getFilename() ) )
+                         .findFirst()
+                         .orElseThrow( () -> new RuntimeException( "FakeFile should handle all cases with regards to how server should respond" ) );
     }
 
     private void handleFileExists( ChannelHandlerContext channelHandlerContext, File file )

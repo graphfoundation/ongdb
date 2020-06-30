@@ -25,19 +25,10 @@ import static java.lang.String.format;
 public final class StoreId
 {
     public static final StoreId DEFAULT = new StoreId(
-            org.neo4j.storageengine.api.StoreId.DEFAULT.getCreationTime(),
-            org.neo4j.storageengine.api.StoreId.DEFAULT.getRandomId(),
-            org.neo4j.storageengine.api.StoreId.DEFAULT.getUpgradeTime(),
-            org.neo4j.storageengine.api.StoreId.DEFAULT.getUpgradeId() );
-
-    public static boolean isDefault( StoreId storeId )
-    {
-        return storeId.getCreationTime() == DEFAULT.getCreationTime() &&
-                storeId.getRandomId() == DEFAULT.getRandomId() &&
-                storeId.getUpgradeTime() == DEFAULT.getUpgradeTime() &&
-                storeId.getUpgradeId() == DEFAULT.getUpgradeId();
-    }
-
+            org.neo4j.storageengine.api.StoreId.UNKNOWN.getCreationTime(),
+            org.neo4j.storageengine.api.StoreId.UNKNOWN.getRandomId(),
+            org.neo4j.storageengine.api.StoreId.UNKNOWN.getUpgradeTime(),
+            org.neo4j.storageengine.api.StoreId.UNKNOWN.getUpgradeTxId() );
     private long creationTime;
     private long randomId;
     private long upgradeTime;
@@ -49,6 +40,14 @@ public final class StoreId
         this.randomId = randomId;
         this.upgradeTime = upgradeTime;
         this.upgradeId = upgradeId;
+    }
+
+    public static boolean isDefault( StoreId storeId )
+    {
+        return storeId.getCreationTime() == DEFAULT.getCreationTime() &&
+               storeId.getRandomId() == DEFAULT.getRandomId() &&
+               storeId.getUpgradeTime() == DEFAULT.getUpgradeTime() &&
+               storeId.getUpgradeId() == DEFAULT.getUpgradeId();
     }
 
     public long getCreationTime()
@@ -76,7 +75,7 @@ public final class StoreId
         return creationTime == kernelStoreId.getCreationTime() &&
                randomId == kernelStoreId.getRandomId() &&
                upgradeTime == kernelStoreId.getUpgradeTime() &&
-               upgradeId == kernelStoreId.getUpgradeId();
+               upgradeId == kernelStoreId.getUpgradeTxId();
     }
 
     @Override
@@ -100,9 +99,9 @@ public final class StoreId
             return false;
         }
         return creationTime == storeId.creationTime &&
-                randomId == storeId.randomId &&
-                upgradeTime == storeId.upgradeTime &&
-                upgradeId == storeId.upgradeId;
+               randomId == storeId.randomId &&
+               upgradeTime == storeId.upgradeTime &&
+               upgradeId == storeId.upgradeId;
     }
 
     @Override
@@ -115,6 +114,6 @@ public final class StoreId
     public String toString()
     {
         return format( "Store{creationTime:%d, randomId:%s, upgradeTime:%d, upgradeId:%d}",
-                creationTime, randomId, upgradeTime, upgradeId );
+                       creationTime, randomId, upgradeTime, upgradeId );
     }
 }

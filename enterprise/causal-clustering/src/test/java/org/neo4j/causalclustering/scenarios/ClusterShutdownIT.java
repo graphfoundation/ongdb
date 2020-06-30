@@ -83,10 +83,10 @@ public class ClusterShutdownIT
     private void createANode( AtomicReference<Node> node ) throws Exception
     {
         cluster.coreTx( ( coreGraphDatabase, transaction ) ->
-        {
-            node.set( coreGraphDatabase.createNode() );
-            transaction.success();
-        } );
+                        {
+                            node.set( coreGraphDatabase.createNode() );
+                            transaction.success();
+                        } );
     }
 
     private void shouldShutdownEvenThoughWaitingForLock0( Cluster<?> cluster, int victimId, Collection<Integer> shutdownOrder ) throws Exception
@@ -122,19 +122,19 @@ public class ClusterShutdownIT
             for ( int i = 0; i < NUMBER_OF_LOCK_ACQUIRERS; i++ )
             {
                 txExecutor.execute( () ->
-                {
-                    try ( Transaction tx = leader.beginTx() )
-                    {
-                        acquiredLocksCountdown.countDown();
-                        tx.acquireWriteLock( node.get() );
-                        locksHolder.await();
-                        tx.success();
-                    }
-                    catch ( Exception e )
-                    {
-                        /* Since we are shutting down, a plethora of possible exceptions are expected. */
-                    }
-                } );
+                                    {
+                                        try ( Transaction tx = leader.beginTx() )
+                                        {
+                                            acquiredLocksCountdown.countDown();
+                                            tx.acquireWriteLock( node.get() );
+                                            locksHolder.await();
+                                            tx.success();
+                                        }
+                                        catch ( Exception e )
+                                        {
+                                            /* Since we are shutting down, a plethora of possible exceptions are expected. */
+                                        }
+                                    } );
             }
 
             // await locks

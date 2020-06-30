@@ -95,7 +95,7 @@ public class PrepareStoreCopyFilesTest
     {
         // given
         StoreFileMetadata[] expectedFiles = new StoreFileMetadata[]{new StoreFileMetadata( databaseLayout.file( "a" ), 1 ),
-                new StoreFileMetadata( databaseLayout.file( "b" ), 2 )};
+                                                                    new StoreFileMetadata( databaseLayout.file( "b" ), 2 )};
         setExpectedFiles( expectedFiles );
 
         //when

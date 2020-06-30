@@ -32,7 +32,7 @@ public class StoreFilesWithRealFileSystemTest extends StoreFilesTest
         testDirectory = TestDirectory.testDirectory();
         DefaultFileSystemRule defaultFileSystemRule = new DefaultFileSystemRule();
         fileSystemRule = defaultFileSystemRule;
-        pageCacheRule = new PageCacheRule( );
+        pageCacheRule = new PageCacheRule();
         rules = RuleChain.outerRule( defaultFileSystemRule )
                          .around( testDirectory )
                          .around( pageCacheRule );

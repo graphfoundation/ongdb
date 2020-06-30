@@ -91,14 +91,14 @@ public class ClusterOverviewProcedureTest
 
         assertThat( members.next(), new IsRecord( theLeader.getUuid(), 5000, RoleInfo.LEADER, asSet( "core", "core0" ) ) );
         assertThat( members.next(),
-                new IsRecord( follower1.getUuid(), 5001, RoleInfo.FOLLOWER, asSet( "core", "core1" ) ) );
+                    new IsRecord( follower1.getUuid(), 5001, RoleInfo.FOLLOWER, asSet( "core", "core1" ) ) );
         assertThat( members.next(),
-                new IsRecord( follower2.getUuid(), 5002, RoleInfo.FOLLOWER, asSet( "core", "core2" ) ) );
+                    new IsRecord( follower2.getUuid(), 5002, RoleInfo.FOLLOWER, asSet( "core", "core2" ) ) );
 
         assertThat( members.next(),
-                new IsRecord( replica4.getUuid(), 6004, RoleInfo.READ_REPLICA, asSet( "replica", "replica4" ) ) );
+                    new IsRecord( replica4.getUuid(), 6004, RoleInfo.READ_REPLICA, asSet( "replica", "replica4" ) ) );
         assertThat( members.next(),
-                new IsRecord( replica5.getUuid(), 6005, RoleInfo.READ_REPLICA, asSet( "replica", "replica5" ) ) );
+                    new IsRecord( replica5.getUuid(), 6005, RoleInfo.READ_REPLICA, asSet( "replica", "replica5" ) ) );
 
         assertFalse( members.hasNext() );
     }

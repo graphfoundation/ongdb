@@ -21,7 +21,6 @@ package org.neo4j.causalclustering.catchup.tx;
 import io.netty.channel.embedded.EmbeddedChannel;
 import org.junit.Test;
 
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotSame;
 import static org.neo4j.causalclustering.catchup.CatchupResult.SUCCESS_END_OF_STREAM;
 
@@ -45,5 +44,4 @@ public class TxStreamFinishedResponseEncodeDecodeTest
         assertNotSame( sent, received );
         assertEquals( sent, received );
     }
-
 }

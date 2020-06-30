@@ -48,11 +48,12 @@ import static org.junit.Assert.fail;
 import static org.neo4j.causalclustering.core.CausalClusteringSettings.cluster_allow_reads_on_followers;
 import static org.neo4j.causalclustering.routing.load_balancing.procedure.ProcedureNames.GET_SERVERS_V1;
 import static org.neo4j.helpers.collection.Iterators.asList;
-import static org.neo4j.internal.kernel.api.procs.ProcedureSignature.procedureName;
 
 @RunWith( Parameterized.class )
 public class ClusterDiscoveryIT
 {
+    @Rule
+    public final ClusterRule clusterRule = new ClusterRule().withNumberOfCoreMembers( 3 );
     @Parameterized.Parameter( 0 )
     public String ignored; // <- JUnit is happy only if this is here!
     @Parameterized.Parameter( 1 )
@@ -65,14 +66,11 @@ public class ClusterDiscoveryIT
     {
         return Arrays.asList(
                 new Object[]{"with followers as read end points",
-                        singletonMap( cluster_allow_reads_on_followers.name(), Settings.TRUE ), true},
+                             singletonMap( cluster_allow_reads_on_followers.name(), Settings.TRUE ), true},
                 new Object[]{"no followers as read end points",
-                        singletonMap( cluster_allow_reads_on_followers.name(), Settings.FALSE ), false}
+                             singletonMap( cluster_allow_reads_on_followers.name(), Settings.FALSE ), false}
         );
     }
-
-    @Rule
-    public final ClusterRule clusterRule = new ClusterRule().withNumberOfCoreMembers( 3 );
 
     @Test
     public void shouldFindReadWriteAndRouteServers() throws Exception
@@ -89,13 +87,13 @@ public class ClusterDiscoveryIT
             List<Map<String,Object>> members = getMembers( cluster.getCoreMemberById( i ).database() );
 
             assertEquals( 1, members.stream().filter( x -> x.get( "role" ).equals( "WRITE" ) )
-                    .flatMap( x -> Arrays.stream( (Object[]) x.get( "addresses" ) ) ).count() );
+                                    .flatMap( x -> Arrays.stream( (Object[]) x.get( "addresses" ) ) ).count() );
 
             assertEquals( readEndPoints, members.stream().filter( x -> x.get( "role" ).equals( "READ" ) )
-                    .flatMap( x -> Arrays.stream( (Object[]) x.get( "addresses" ) ) ).count() );
+                                                .flatMap( x -> Arrays.stream( (Object[]) x.get( "addresses" ) ) ).count() );
 
             assertEquals( cores, members.stream().filter( x -> x.get( "role" ).equals( "ROUTE" ) )
-                    .flatMap( x -> Arrays.stream( (Object[]) x.get( "addresses" ) ) ).count() );
+                                        .flatMap( x -> Arrays.stream( (Object[]) x.get( "addresses" ) ) ).count() );
         }
     }
 
@@ -120,7 +118,7 @@ public class ClusterDiscoveryIT
 
     @SuppressWarnings( "unchecked" )
     private List<Map<String,Object>> getMembers( GraphDatabaseFacade db ) throws TransactionFailureException,
-            ProcedureException
+                                                                                 ProcedureException
     {
         Kernel kernel = db.getDependencyResolver().resolveDependency( Kernel.class );
         try ( Transaction tx = kernel.beginTransaction( Type.implicit, AnonymousContext.read() ) )

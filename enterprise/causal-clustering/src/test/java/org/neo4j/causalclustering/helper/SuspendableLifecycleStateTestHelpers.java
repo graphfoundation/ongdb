@@ -56,7 +56,9 @@ class SuspendableLifecycleStateTestHelpers
 
     enum SuspendedState
     {
-        Untouched( suspendable -> {} ),
+        Untouched( suspendable ->
+                   {
+                   } ),
         Enabled( Suspendable::enable ),
         Disabled( Suspendable::disable );
 

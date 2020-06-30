@@ -39,13 +39,38 @@ import org.neo4j.causalclustering.core.state.machines.tx.ReplicatedTransaction;
 import org.neo4j.causalclustering.core.state.machines.tx.ReplicatedTransactionStateMachine;
 
 import static java.lang.Math.max;
-import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 public class CoreStateMachinesTest
 {
+    private final ReplicatedTransactionStateMachine txSM = mock( ReplicatedTransactionStateMachine.class );
+    private final ReplicatedTokenStateMachine labelTokenSM = mock( ReplicatedTokenStateMachine.class );
+    private final ReplicatedTokenStateMachine relationshipTypeTokenSM = mock( ReplicatedTokenStateMachine.class );
+    private final ReplicatedTokenStateMachine propertyKeyTokenSM = mock( ReplicatedTokenStateMachine.class );
+    private final ReplicatedLockTokenStateMachine lockTokenSM = mock( ReplicatedLockTokenStateMachine.class );
+    private final ReplicatedIdAllocationStateMachine idAllocationSM = mock( ReplicatedIdAllocationStateMachine.class );
+    private final DummyMachine dummySM = mock( DummyMachine.class );
+    private final RecoverConsensusLogIndex recoverConsensusLogIndex = mock( RecoverConsensusLogIndex.class );
+    private final CoreStateMachines coreStateMachines = new CoreStateMachines( txSM, labelTokenSM,
+                                                                               relationshipTypeTokenSM, propertyKeyTokenSM, lockTokenSM, idAllocationSM,
+                                                                               dummySM,
+                                                                               mock( LocalDatabase.class ), recoverConsensusLogIndex );
+    private final ReplicatedTransaction replicatedTransaction = mock( ReplicatedTransaction.class );
+    private final ReplicatedIdAllocationRequest iAllocationRequest = mock( ReplicatedIdAllocationRequest.class );
+    private final ReplicatedTokenRequest relationshipTypeTokenRequest = mock( ReplicatedTokenRequest.class );
+    @SuppressWarnings( "unchecked" )
+    private final ReplicatedLockTokenRequest lockTokenRequest = mock( ReplicatedLockTokenRequest.class );
+    @SuppressWarnings( "unchecked" )
+    private final Consumer<Result> callback = mock( Consumer.class );
+    private final InOrder verifier =
+            inOrder( txSM, labelTokenSM, relationshipTypeTokenSM, propertyKeyTokenSM, lockTokenSM, idAllocationSM );
+
+    {
+        when( relationshipTypeTokenRequest.type() ).thenReturn( TokenType.RELATIONSHIP );
+    }
+
     @Test
     public void shouldAllowForBatchingOfTransactions()
     {
@@ -71,12 +96,12 @@ public class CoreStateMachinesTest
             dispatcher.dispatch( replicatedTransaction, 0, callback );
             dispatcher.dispatch( replicatedTransaction, 1, callback );
 
-            dispatcher.dispatch( iAllocationRequest, 2, callback  );
+            dispatcher.dispatch( iAllocationRequest, 2, callback );
 
             dispatcher.dispatch( replicatedTransaction, 3, callback );
             dispatcher.dispatch( replicatedTransaction, 4, callback );
 
-            dispatcher.dispatch( relationshipTypeTokenRequest, 5, callback  );
+            dispatcher.dispatch( relationshipTypeTokenRequest, 5, callback );
 
             dispatcher.dispatch( replicatedTransaction, 6, callback );
             dispatcher.dispatch( replicatedTransaction, 7, callback );
@@ -147,33 +172,4 @@ public class CoreStateMachinesTest
             assertEquals( expected, coreStateMachines.getLastAppliedIndex() );
         }
     }
-
-    private final ReplicatedTransactionStateMachine txSM = mock( ReplicatedTransactionStateMachine.class );
-    private final ReplicatedTokenStateMachine labelTokenSM = mock( ReplicatedTokenStateMachine.class );
-    private final ReplicatedTokenStateMachine relationshipTypeTokenSM = mock( ReplicatedTokenStateMachine.class );
-    private final ReplicatedTokenStateMachine propertyKeyTokenSM = mock( ReplicatedTokenStateMachine.class );
-    private final ReplicatedLockTokenStateMachine lockTokenSM = mock( ReplicatedLockTokenStateMachine.class );
-    private final ReplicatedIdAllocationStateMachine idAllocationSM = mock( ReplicatedIdAllocationStateMachine.class );
-    private final DummyMachine dummySM = mock( DummyMachine.class );
-    private final RecoverConsensusLogIndex recoverConsensusLogIndex = mock( RecoverConsensusLogIndex.class );
-
-    private final CoreStateMachines coreStateMachines = new CoreStateMachines( txSM, labelTokenSM,
-            relationshipTypeTokenSM, propertyKeyTokenSM, lockTokenSM, idAllocationSM, dummySM,
-            mock( LocalDatabase.class ), recoverConsensusLogIndex );
-
-    private final ReplicatedTransaction replicatedTransaction = mock( ReplicatedTransaction.class );
-    private final ReplicatedIdAllocationRequest iAllocationRequest = mock( ReplicatedIdAllocationRequest.class );
-    private final ReplicatedTokenRequest relationshipTypeTokenRequest = mock( ReplicatedTokenRequest.class );
-    {
-        when( relationshipTypeTokenRequest.type() ).thenReturn( TokenType.RELATIONSHIP );
-    }
-
-    @SuppressWarnings( "unchecked" )
-    private final ReplicatedLockTokenRequest lockTokenRequest = mock( ReplicatedLockTokenRequest.class );
-
-    @SuppressWarnings( "unchecked" )
-    private final Consumer<Result> callback = mock( Consumer.class );
-
-    private final InOrder verifier =
-            inOrder( txSM, labelTokenSM, relationshipTypeTokenSM, propertyKeyTokenSM, lockTokenSM, idAllocationSM );
 }

@@ -60,8 +60,8 @@ public class SegmentedRaftLogDurabilityTest
         NullLogProvider logProvider = getInstance();
         SegmentedRaftLog log =
                 new SegmentedRaftLog( fileSystem, directory, rotateAtSizeBytes, new DummyRaftableContentSerializer(),
-                        logProvider, readerPoolSize, Clocks.fakeClock(), new OnDemandJobScheduler(),
-                        new CoreLogPruningStrategyFactory( "1 size", logProvider ).newInstance() );
+                                      logProvider, readerPoolSize, Clocks.fakeClock(), new OnDemandJobScheduler(),
+                                      new CoreLogPruningStrategyFactory( "1 size", logProvider ).newInstance() );
         log.start();
 
         return log;
@@ -91,7 +91,7 @@ public class SegmentedRaftLogDurabilityTest
         log.append( logEntry );
 
         verifyCurrentLogAndNewLogLoadedFromFileSystem( log, fsRule.get(),
-                myLog -> assertThat( myLog.appendIndex(), is( 0L ) ) );
+                                                       myLog -> assertThat( myLog.appendIndex(), is( 0L ) ) );
     }
 
     @Test
@@ -126,7 +126,7 @@ public class SegmentedRaftLogDurabilityTest
         log.truncate( 1 );
 
         verifyCurrentLogAndNewLogLoadedFromFileSystem( log, fsRule.get(),
-                myLog -> assertThat( myLog.appendIndex(), is( 0L ) ) );
+                                                       myLog -> assertThat( myLog.appendIndex(), is( 0L ) ) );
     }
 
     @Test

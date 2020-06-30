@@ -31,9 +31,6 @@ import org.neo4j.kernel.configuration.Config;
 import org.neo4j.logging.LogProvider;
 import org.neo4j.logging.NullLogProvider;
 
-import static co.unruly.matchers.OptionalMatchers.contains;
-import static org.hamcrest.Matchers.isIn;
-import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.neo4j.causalclustering.upstream.strategies.UserDefinedConfigurationStrategyTest.memberIDs;
@@ -50,7 +47,7 @@ public class ConnectRandomlyToServerGroupStrategyTest
         MemberId[] targetGroupMemberIds = memberIDs( 10 );
         TopologyService topologyService =
                 ConnectRandomlyToServerGroupStrategyImplTest.getTopologyService( Collections.singletonList( targetServerGroup ), targetGroupMemberIds,
-                        Collections.singletonList( "your_server_group" ) );
+                                                                                 Collections.singletonList( "your_server_group" ) );
 
         ConnectRandomlyToServerGroupStrategy strategy = new ConnectRandomlyToServerGroupStrategy();
         strategy.inject( topologyService, configWithTargetServerGroup, NullLogProvider.getInstance(), targetGroupMemberIds[0] );

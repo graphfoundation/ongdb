@@ -72,15 +72,17 @@ import static org.neo4j.helpers.collection.Iterators.asSet;
 @RunWith( MockitoJUnitRunner.class )
 public class LeaderTest
 {
+    private static final ReplicatedString CONTENT = ReplicatedString.valueOf( "some-content-to-raft" );
     private MemberId myself = member( 0 );
-
     /* A few members that we use at will in tests. */
     private MemberId member1 = member( 1 );
     private MemberId member2 = member( 2 );
-
     private LogProvider logProvider = NullLogProvider.getInstance();
 
-    private static final ReplicatedString CONTENT = ReplicatedString.valueOf( "some-content-to-raft" );
+    private static FollowerState createArtificialFollowerState( long matchIndex )
+    {
+        return new FollowerState().onSuccessResponse( matchIndex );
+    }
 
     @Test
     public void leaderShouldNotRespondToSuccessResponseFromFollowerThatWillSoonUpToDateViaInFlightMessages()
@@ -267,11 +269,6 @@ public class LeaderTest
         assertEquals( 100, updatedFollowerStates.get( instance2 ).getMatchIndex() );
     }
 
-    private static FollowerState createArtificialFollowerState( long matchIndex )
-    {
-        return new FollowerState().onSuccessResponse( matchIndex );
-    }
-
     // TODO: rethink this test, it does too much
     @Test
     public void leaderShouldSpawnMismatchCommandOnFailure() throws Exception
@@ -374,7 +371,7 @@ public class LeaderTest
                 .term( leaderTerm )
                 .build();
 
-                RaftMessages.AppendEntries.Response incomingResponse = appendEntriesResponse()
+        RaftMessages.AppendEntries.Response incomingResponse = appendEntriesResponse()
                 .failure()
                 .term( followerTerm )
                 .from( member1 ).build();
@@ -525,7 +522,7 @@ public class LeaderTest
         ShipCommand.NewEntries shipCommand = (ShipCommand.NewEntries) single( outcome.getShipCommands() );
 
         assertEquals( shipCommand,
-                new ShipCommand.NewEntries( -1, -1, new RaftLogEntry[]{new RaftLogEntry( 0, CONTENT )} ) );
+                      new ShipCommand.NewEntries( -1, -1, new RaftLogEntry[]{new RaftLogEntry( 0, CONTENT )} ) );
     }
 
     @Test
@@ -640,7 +637,7 @@ public class LeaderTest
         Outcome outcome = leader.handle( new RaftMessages.Vote.Request( member1, rivalTerm, member1, leaderCommitIndex, leaderTerm ), state, log() );
 
         // then
-        assertThat( outcome.getRole(), equalTo( LEADER) );
+        assertThat( outcome.getRole(), equalTo( LEADER ) );
         assertThat( outcome.getTerm(), equalTo( leaderTerm ) );
 
         RaftMessages.RaftMessage response = messageFor( outcome, member1 );
@@ -695,7 +692,7 @@ public class LeaderTest
         Outcome outcome = leader.handle( new RaftMessages.Heartbeat( member1, rivalTerm, leaderCommitIndex, leaderTerm ), state, log() );
 
         // then
-        assertThat( outcome.getRole(), equalTo( LEADER) );
+        assertThat( outcome.getRole(), equalTo( LEADER ) );
         assertThat( outcome.getTerm(), equalTo( leaderTerm ) );
     }
 
@@ -730,7 +727,7 @@ public class LeaderTest
         long leaderCommitIndex = 10;
         long rivalTerm = leaderTerm - 1;
         long logIndex = 20;
-        RaftLogEntry[] entries = { new RaftLogEntry( rivalTerm, ReplicatedInteger.valueOf( 99 ) ) };
+        RaftLogEntry[] entries = {new RaftLogEntry( rivalTerm, ReplicatedInteger.valueOf( 99 ) )};
 
         Leader leader = new Leader();
         RaftState state = raftState()
@@ -743,7 +740,7 @@ public class LeaderTest
                 leader.handle( new RaftMessages.AppendEntries.Request( member1, rivalTerm, logIndex, leaderTerm, entries, leaderCommitIndex ), state, log() );
 
         // then
-        assertThat( outcome.getRole(), equalTo( LEADER) );
+        assertThat( outcome.getRole(), equalTo( LEADER ) );
         assertThat( outcome.getTerm(), equalTo( leaderTerm ) );
 
         RaftMessages.RaftMessage response = messageFor( outcome, member1 );
@@ -761,7 +758,7 @@ public class LeaderTest
         long leaderCommitIndex = 10;
         long rivalTerm = leaderTerm + 1;
         long logIndex = 20;
-        RaftLogEntry[] entries = { new RaftLogEntry( rivalTerm, ReplicatedInteger.valueOf( 99 ) ) };
+        RaftLogEntry[] entries = {new RaftLogEntry( rivalTerm, ReplicatedInteger.valueOf( 99 ) )};
 
         Leader leader = new Leader();
         RaftState state = raftState()

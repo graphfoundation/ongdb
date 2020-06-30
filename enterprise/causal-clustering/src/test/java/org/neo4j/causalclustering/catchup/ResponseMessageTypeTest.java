@@ -43,7 +43,7 @@ public class ResponseMessageTypeTest
 
         ResponseMessageType[] exepctedStates =
                 new ResponseMessageType[]{TX, STORE_ID, FILE, STORE_COPY_FINISHED, CORE_SNAPSHOT, TX_STREAM_FINISHED, PREPARE_STORE_COPY_RESPONSE,
-                        INDEX_SNAPSHOT_RESPONSE, UNKNOWN};
+                                          INDEX_SNAPSHOT_RESPONSE, UNKNOWN};
 
         byte[] expectedValues = new byte[]{1, 2, 3, 4, 5, 6, 7, 8, (byte) 200};
 

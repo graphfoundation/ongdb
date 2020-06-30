@@ -35,9 +35,9 @@ import static org.neo4j.causalclustering.core.consensus.state.RaftStateBuilder.r
 
 public class ClusterState
 {
-    public final Map<MemberId, Role> roles;
-    public final Map<MemberId, ComparableRaftState> states;
-    public final Map<MemberId, Queue<RaftMessages.RaftMessage>> queues;
+    public final Map<MemberId,Role> roles;
+    public final Map<MemberId,ComparableRaftState> states;
+    public final Map<MemberId,Queue<RaftMessages.RaftMessage>> queues;
 
     public ClusterState( Set<MemberId> members ) throws IOException
     {
@@ -74,8 +74,8 @@ public class ClusterState
         }
         ClusterState that = (ClusterState) o;
         return Objects.equals( roles, that.roles ) &&
-                Objects.equals( states, that.states ) &&
-                Objects.equals( queues, that.queues );
+               Objects.equals( states, that.states ) &&
+               Objects.equals( queues, that.queues );
     }
 
     @Override

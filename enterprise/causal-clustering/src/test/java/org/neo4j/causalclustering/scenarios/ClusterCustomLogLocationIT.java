@@ -47,6 +47,13 @@ public class ClusterCustomLogLocationIT
             .withNumberOfCoreMembers( 3 )
             .withNumberOfReadReplicas( 2 );
 
+    private static void logFileInStoreDirectoryDoesNotExist( File storeDir, DependencyResolver dependencyResolver ) throws IOException
+    {
+        FileSystemAbstraction fileSystem = dependencyResolver.resolveDependency( FileSystemAbstraction.class );
+        LogFiles storeLogFiles = logFilesBasedOnlyBuilder( storeDir, fileSystem ).build();
+        assertFalse( storeLogFiles.versionExists( 0 ) );
+    }
+
     @Test
     public void clusterWithCustomTransactionLogLocation() throws Exception
     {
@@ -55,10 +62,10 @@ public class ClusterCustomLogLocationIT
         for ( int i = 0; i < 10; i++ )
         {
             cluster.coreTx( ( db, tx ) ->
-            {
-                db.createNode();
-                tx.success();
-            } );
+                            {
+                                db.createNode();
+                                tx.success();
+                            } );
         }
 
         Collection<CoreClusterMember> coreClusterMembers = cluster.coreMembers();
@@ -87,12 +94,5 @@ public class ClusterCustomLogLocationIT
 
             logFileInStoreDirectoryDoesNotExist( readReplica.databaseDirectory(), dependencyResolver );
         }
-    }
-
-    private static void logFileInStoreDirectoryDoesNotExist( File storeDir, DependencyResolver dependencyResolver ) throws IOException
-    {
-        FileSystemAbstraction fileSystem = dependencyResolver.resolveDependency( FileSystemAbstraction.class );
-        LogFiles storeLogFiles = logFilesBasedOnlyBuilder( storeDir, fileSystem ).build();
-        assertFalse( storeLogFiles.versionExists( 0 ) );
     }
 }

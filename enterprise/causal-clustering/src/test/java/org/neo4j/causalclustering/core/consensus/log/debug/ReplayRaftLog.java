@@ -53,9 +53,9 @@ public class ReplayRaftLog
         Args arg = Args.parse( args );
 
         String from = arg.get( "from" );
-        System.out.println("From is " + from);
+        System.out.println( "From is " + from );
         String to = arg.get( "to" );
-        System.out.println("to is " + to);
+        System.out.println( "to is " + to );
 
         File logDirectory = new File( from );
         System.out.println( "logDirectory = " + logDirectory );
@@ -67,8 +67,8 @@ public class ReplayRaftLog
             CoreLogPruningStrategy pruningStrategy =
                     new CoreLogPruningStrategyFactory( config.get( raft_log_pruning_strategy ), logProvider ).newInstance();
             SegmentedRaftLog log = new SegmentedRaftLog( fileSystem, logDirectory, config.get( raft_log_rotation_size ),
-                    CoreReplicatedContentMarshal.marshaller(), logProvider, config.get( raft_log_reader_pool_size ),
-                    Clocks.systemClock(), new ThreadPoolJobScheduler(), pruningStrategy );
+                                                         CoreReplicatedContentMarshal.marshaller(), logProvider, config.get( raft_log_reader_pool_size ),
+                                                         Clocks.systemClock(), new ThreadPoolJobScheduler(), pruningStrategy );
 
             long totalCommittedEntries = log.appendIndex(); // Not really, but we need to have a way to pass in the commit index
             for ( int i = 0; i <= totalCommittedEntries; i++ )
@@ -78,10 +78,10 @@ public class ReplayRaftLog
                 {
                     ReplicatedTransaction tx = (ReplicatedTransaction) content;
                     ReplicatedTransactionFactory.extractTransactionRepresentation( tx, new byte[0] ).accept( element ->
-                    {
-                        System.out.println( element );
-                        return false;
-                    } );
+                                                                                                             {
+                                                                                                                 System.out.println( element );
+                                                                                                                 return false;
+                                                                                                             } );
                 }
             }
         }

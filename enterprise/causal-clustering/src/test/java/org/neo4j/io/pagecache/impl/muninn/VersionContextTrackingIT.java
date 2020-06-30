@@ -51,10 +51,35 @@ import static org.neo4j.test.assertion.Assert.assertEventually;
 
 public class VersionContextTrackingIT
 {
+    private static final int NUMBER_OF_TRANSACTIONS = 3;
     @Rule
     public final ClusterRule clusterRule = new ClusterRule();
-    private static final int NUMBER_OF_TRANSACTIONS = 3;
     private Cluster<?> cluster;
+
+    private static long getLatestPageVersion( GraphDatabaseFacade databaseFacade ) throws IOException
+    {
+        DependencyResolver dependencyResolver = databaseFacade.getDependencyResolver();
+        PageCache pageCache = dependencyResolver.resolveDependency( PageCache.class );
+        NeoStores neoStores = dependencyResolver.resolveDependency( RecordStorageEngine.class ).testAccessNeoStores();
+        File storeFile = neoStores.getNodeStore().getStorageFile();
+        long maxTransactionId = Long.MIN_VALUE;
+        try ( PagedFile pageFile = pageCache.getExistingMapping( storeFile ).get() )
+        {
+            long lastPageId = pageFile.getLastPageId();
+            for ( int i = 0; i <= lastPageId; i++ )
+            {
+                try ( CursorPageAccessor pageCursor = new CursorPageAccessor(
+                        (MuninnPageCursor) pageFile.io( i, PagedFile.PF_SHARED_READ_LOCK ) ) )
+                {
+                    if ( pageCursor.next() )
+                    {
+                        maxTransactionId = Math.max( maxTransactionId, pageCursor.lastTxModifierId() );
+                    }
+                }
+            }
+        }
+        return maxTransactionId;
+    }
 
     @Before
     public void setup() throws Exception
@@ -75,7 +100,7 @@ public class VersionContextTrackingIT
             ThrowingSupplier<Long,Exception> anyCoreSupplier =
                     () -> getLatestPageVersion( getAnyCore() );
             assertEventually( "Any core page version should match to expected page version.", anyCoreSupplier,
-                    is( expectedLatestPageVersion ), 2, MINUTES );
+                              is( expectedLatestPageVersion ), 2, MINUTES );
         }
     }
 
@@ -90,7 +115,7 @@ public class VersionContextTrackingIT
             ThrowingSupplier<Long,Exception> replicateVersionSupplier =
                     () -> getLatestPageVersion( getAnyReadReplica() );
             assertEventually( "Read replica page version should match to core page version.", replicateVersionSupplier,
-                    is( expectedLatestPageVersion ), 2, MINUTES );
+                              is( expectedLatestPageVersion ), 2, MINUTES );
         }
     }
 
@@ -121,40 +146,15 @@ public class VersionContextTrackingIT
         return cluster.findAnyReadReplica().database();
     }
 
-    private static long getLatestPageVersion( GraphDatabaseFacade databaseFacade ) throws IOException
-    {
-        DependencyResolver dependencyResolver = databaseFacade.getDependencyResolver();
-        PageCache pageCache = dependencyResolver.resolveDependency( PageCache.class );
-        NeoStores neoStores = dependencyResolver.resolveDependency( RecordStorageEngine.class ).testAccessNeoStores();
-        File storeFile = neoStores.getNodeStore().getStorageFile();
-        long maxTransactionId = Long.MIN_VALUE;
-        try ( PagedFile pageFile = pageCache.getExistingMapping( storeFile ).get() )
-        {
-            long lastPageId = pageFile.getLastPageId();
-            for ( int i = 0; i <= lastPageId; i++ )
-            {
-                try ( CursorPageAccessor pageCursor = new CursorPageAccessor(
-                        (MuninnPageCursor) pageFile.io( i, PagedFile.PF_SHARED_READ_LOCK ) ) )
-                {
-                    if ( pageCursor.next() )
-                    {
-                        maxTransactionId = Math.max( maxTransactionId, pageCursor.lastTxModifierId() );
-                    }
-                }
-            }
-        }
-        return maxTransactionId;
-    }
-
     private void generateData() throws Exception
     {
         for ( int i = 0; i < NUMBER_OF_TRANSACTIONS; i++ )
         {
             cluster.coreTx( ( coreGraphDatabase, transaction ) ->
-            {
-                coreGraphDatabase.createNode();
-                transaction.success();
-            } );
+                            {
+                                coreGraphDatabase.createNode();
+                                transaction.success();
+                            } );
         }
     }
 

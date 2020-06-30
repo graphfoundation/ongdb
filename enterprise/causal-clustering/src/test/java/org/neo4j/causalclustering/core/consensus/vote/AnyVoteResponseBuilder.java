@@ -18,26 +18,19 @@
  */
 package org.neo4j.causalclustering.core.consensus.vote;
 
-import org.neo4j.causalclustering.identity.MemberId;
 import org.neo4j.causalclustering.core.consensus.RaftMessages;
+import org.neo4j.causalclustering.identity.MemberId;
 
 public abstract class AnyVoteResponseBuilder<T extends RaftMessages.AnyVote.Response>
 {
+    private final Constructor<T> constructor;
+    private boolean voteGranted;
+    private long term = -1;
+    private MemberId from;
     protected AnyVoteResponseBuilder( Constructor<T> constructor )
     {
         this.constructor = constructor;
     }
-
-    @FunctionalInterface
-    interface Constructor<T extends RaftMessages.AnyVote.Response>
-    {
-        T construct( MemberId from, long term, boolean voteGranted );
-    }
-
-    private boolean voteGranted;
-    private long term = -1;
-    private MemberId from;
-    private final Constructor<T> constructor;
 
     public T build()
     {
@@ -66,5 +59,11 @@ public abstract class AnyVoteResponseBuilder<T extends RaftMessages.AnyVote.Resp
     {
         this.voteGranted = false;
         return this;
+    }
+
+    @FunctionalInterface
+    interface Constructor<T extends RaftMessages.AnyVote.Response>
+    {
+        T construct( MemberId from, long term, boolean voteGranted );
     }
 }

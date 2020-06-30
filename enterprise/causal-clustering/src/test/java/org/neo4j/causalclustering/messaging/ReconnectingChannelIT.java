@@ -55,7 +55,9 @@ public class ReconnectingChannelIT
     private static final long DEFAULT_TIMEOUT_MS = 20_000;
     private final Log log = NullLogProvider.getInstance().getLog( getClass() );
     private final ListenSocketAddress listenAddress = new ListenSocketAddress( "localhost", PORT );
-    private final Server server = new Server( channel -> {}, listenAddress, "test-server" );
+    private final Server server = new Server( channel ->
+                                              {
+                                              }, listenAddress, "test-server" );
     private EventLoopGroup elg;
     private ReconnectingChannel channel;
     private AtomicInteger childCount = new AtomicInteger();

@@ -39,10 +39,10 @@ public class CorePruningIT
     @Rule
     public final ClusterRule clusterRule =
             new ClusterRule().withNumberOfCoreMembers( 3 ).withNumberOfReadReplicas( 0 )
-                    .withSharedCoreParam( CausalClusteringSettings.state_machine_flush_window_size, "1" )
-                    .withSharedCoreParam( raft_log_pruning_strategy, "keep_none" )
-                    .withSharedCoreParam( CausalClusteringSettings.raft_log_rotation_size, "1K" )
-                    .withSharedCoreParam( CausalClusteringSettings.raft_log_pruning_frequency, "100ms" );
+                             .withSharedCoreParam( CausalClusteringSettings.state_machine_flush_window_size, "1" )
+                             .withSharedCoreParam( raft_log_pruning_strategy, "keep_none" )
+                             .withSharedCoreParam( CausalClusteringSettings.raft_log_rotation_size, "1K" )
+                             .withSharedCoreParam( CausalClusteringSettings.raft_log_pruning_frequency, "100ms" );
 
     @Test
     public void actuallyDeletesTheFiles() throws Exception
@@ -55,17 +55,17 @@ public class CorePruningIT
         for ( int i = 0; i < txs; i++ )
         {
             coreGraphDatabase = cluster.coreTx( ( db, tx ) ->
-            {
-                createData( db, 1 );
-                tx.success();
-            } );
+                                                {
+                                                    createData( db, 1 );
+                                                    tx.success();
+                                                } );
         }
 
         // when pruning kicks in then some files are actually deleted
         File raftLogDir = coreGraphDatabase.raftLogDirectory();
         int expectedNumberOfLogFilesAfterPruning = 2;
         assertEventually( "raft logs eventually pruned", () -> numberOfFiles( raftLogDir ),
-                equalTo( expectedNumberOfLogFilesAfterPruning ), 5, TimeUnit.SECONDS );
+                          equalTo( expectedNumberOfLogFilesAfterPruning ), 5, TimeUnit.SECONDS );
     }
 
     @Test
@@ -85,7 +85,7 @@ public class CorePruningIT
         int expectedNumberOfLogFilesAfterPruning = 2;
         File raftLogDir = coreGraphDatabase.raftLogDirectory();
         assertEventually( "raft logs eventually pruned", () -> numberOfFiles( raftLogDir ),
-                equalTo( expectedNumberOfLogFilesAfterPruning ), 5, TimeUnit.SECONDS );
+                          equalTo( expectedNumberOfLogFilesAfterPruning ), 5, TimeUnit.SECONDS );
     }
 
     private int numberOfFiles( File raftLogDir ) throws RuntimeException

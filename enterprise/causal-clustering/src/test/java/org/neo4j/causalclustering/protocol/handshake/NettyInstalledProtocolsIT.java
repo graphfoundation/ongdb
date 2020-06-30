@@ -86,6 +86,8 @@ public class NettyInstalledProtocolsIT
     private static final int TIMEOUT_SECONDS = 10;
     private Parameters parameters;
     private AssertableLogProvider logProvider;
+    private Server server;
+    private Client client;
 
     public NettyInstalledProtocolsIT( Parameters parameters )
     {
@@ -109,7 +111,7 @@ public class NettyInstalledProtocolsIT
     {
         List<String> versions = Streams.ofOptional( protocol ).map( Protocol::implementation ).collect( Collectors.toList() );
         return new Parameters( "Raft 1, modifiers: " + protocol, new ApplicationSupportedProtocols( RAFT, singletonList( RAFT_1.implementation() ) ),
-                singletonList( new ModifierSupportedProtocols( COMPRESSION, versions ) ) );
+                               singletonList( new ModifierSupportedProtocols( COMPRESSION, versions ) ) );
     }
 
     @SuppressWarnings( "OptionalUsedAsFieldOrParameterType" )
@@ -117,7 +119,7 @@ public class NettyInstalledProtocolsIT
     {
         List<String> versions = Streams.ofOptional( protocol ).map( Protocol::implementation ).collect( Collectors.toList() );
         return new Parameters( "Raft 2, modifiers: " + protocol, new ApplicationSupportedProtocols( RAFT, singletonList( RAFT_2.implementation() ) ),
-                singletonList( new ModifierSupportedProtocols( COMPRESSION, versions ) ) );
+                               singletonList( new ModifierSupportedProtocols( COMPRESSION, versions ) ) );
     }
 
     @Test
@@ -137,9 +139,6 @@ public class NettyInstalledProtocolsIT
                 () -> server.received(),
                 contains( messageMatches( networkMessage ) ), TIMEOUT_SECONDS, SECONDS );
     }
-
-    private Server server;
-    private Client client;
 
     @Before
     public void setUp()
@@ -171,6 +170,11 @@ public class NettyInstalledProtocolsIT
         logProvider.clear();
     }
 
+    private Matcher<Object> messageMatches( RaftMessages.ClusterIdAwareMessage<? extends RaftMessages.RaftMessage> expected )
+    {
+        return new MessageMatcher( expected );
+    }
+
     private static class Parameters
     {
         final String name;
@@ -178,7 +182,7 @@ public class NettyInstalledProtocolsIT
         final Collection<ModifierSupportedProtocols> modifierSupportedProtocols;
 
         Parameters( String name, ApplicationSupportedProtocols applicationSupportedProtocol,
-                Collection<ModifierSupportedProtocols> modifierSupportedProtocols )
+                    Collection<ModifierSupportedProtocols> modifierSupportedProtocols )
         {
             this.name = name;
             this.applicationSupportedProtocol = applicationSupportedProtocol;
@@ -194,11 +198,7 @@ public class NettyInstalledProtocolsIT
 
     static class Server
     {
-        private Channel channel;
-        private NioEventLoopGroup eventLoopGroup;
         private final List<Object> received = new CopyOnWriteArrayList<>();
-        private NettyPipelineBuilderFactory pipelineBuilderFactory;
-
         ChannelInboundHandler nettyHandler = new SimpleChannelInboundHandler<Object>()
         {
             @Override
@@ -207,6 +207,9 @@ public class NettyInstalledProtocolsIT
                 received.add( msg );
             }
         };
+        private Channel channel;
+        private NioEventLoopGroup eventLoopGroup;
+        private NettyPipelineBuilderFactory pipelineBuilderFactory;
 
         Server( NettyPipelineBuilderFactory pipelineBuilderFactory )
         {
@@ -214,23 +217,25 @@ public class NettyInstalledProtocolsIT
         }
 
         void start( final ApplicationProtocolRepository applicationProtocolRepository, final ModifierProtocolRepository modifierProtocolRepository,
-                LogProvider logProvider )
+                    LogProvider logProvider )
         {
             RaftProtocolServerInstallerV2.Factory raftFactoryV2 =
                     new RaftProtocolServerInstallerV2.Factory( nettyHandler, pipelineBuilderFactory, logProvider );
             RaftProtocolServerInstallerV1.Factory raftFactoryV1 =
                     new RaftProtocolServerInstallerV1.Factory( nettyHandler, pipelineBuilderFactory,
-                            logProvider );
+                                                               logProvider );
             ProtocolInstallerRepository<ProtocolInstaller.Orientation.Server> protocolInstallerRepository =
                     new ProtocolInstallerRepository<>( Arrays.asList( raftFactoryV1, raftFactoryV2 ), ModifierProtocolInstaller.allServerInstallers );
 
             eventLoopGroup = new NioEventLoopGroup();
             ServerBootstrap bootstrap = new ServerBootstrap().group( eventLoopGroup )
-                    .channel( NioServerSocketChannel.class )
-                    .option( ChannelOption.SO_REUSEADDR, true )
-                    .localAddress( PortAuthority.allocatePort() )
-                    .childHandler( new HandshakeServerInitializer( applicationProtocolRepository, modifierProtocolRepository,
-                            protocolInstallerRepository, pipelineBuilderFactory, logProvider ).asChannelInitializer() );
+                                                             .channel( NioServerSocketChannel.class )
+                                                             .option( ChannelOption.SO_REUSEADDR, true )
+                                                             .localAddress( PortAuthority.allocatePort() )
+                                                             .childHandler(
+                                                                     new HandshakeServerInitializer( applicationProtocolRepository, modifierProtocolRepository,
+                                                                                                     protocolInstallerRepository, pipelineBuilderFactory,
+                                                                                                     logProvider ).asChannelInitializer() );
 
             channel = bootstrap.bind().syncUninterruptibly().channel();
         }
@@ -270,7 +275,8 @@ public class NettyInstalledProtocolsIT
             eventLoopGroup = new NioEventLoopGroup();
             Duration handshakeTimeout = config.get( CausalClusteringSettings.handshake_timeout );
             handshakeClientInitializer = new HandshakeClientInitializer( applicationProtocolRepository, modifierProtocolRepository,
-                    protocolInstallerRepository, pipelineBuilderFactory, handshakeTimeout, logProvider, logProvider );
+                                                                         protocolInstallerRepository, pipelineBuilderFactory, handshakeTimeout, logProvider,
+                                                                         logProvider );
             bootstrap = new Bootstrap().group( eventLoopGroup ).channel( NioSocketChannel.class ).handler( handshakeClientInitializer );
         }
 
@@ -294,11 +300,6 @@ public class NettyInstalledProtocolsIT
         {
             return channel.writeAndFlush( message );
         }
-    }
-
-    private Matcher<Object> messageMatches( RaftMessages.ClusterIdAwareMessage<? extends RaftMessages.RaftMessage> expected )
-    {
-        return new MessageMatcher( expected );
     }
 
     class MessageMatcher extends BaseMatcher<Object>

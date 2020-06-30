@@ -73,18 +73,18 @@ public class ClusterIndexProcedureIT
     {
         // create an index
         cluster.coreTx( ( db, tx ) ->
-        {
-            db.execute( "CALL db.createIndex( \":Person(name)\", \"lucene+native-1.0\")" ).close();
-            tx.success();
-        } );
+                        {
+                            db.execute( "CALL db.createIndex( \":Person(name)\", \"lucene+native-1.0\")" ).close();
+                            tx.success();
+                        } );
 
         // node created just to be able to use dataMatchesEventually as a barrier
         CoreClusterMember leader = cluster.coreTx( ( db, tx ) ->
-        {
-            Node person = db.createNode( Label.label( "Person" ) );
-            person.setProperty( "name", "Bo Burnham" );
-            tx.success();
-        } );
+                                                   {
+                                                       Node person = db.createNode( Label.label( "Person" ) );
+                                                       person.setProperty( "name", "Bo Burnham" );
+                                                       tx.success();
+                                                   } );
 
         // node creation is guaranteed to happen after index creation
         dataMatchesEventually( leader, cluster.coreMembers() );
@@ -104,18 +104,19 @@ public class ClusterIndexProcedureIT
     {
         // create a constraint
         CoreClusterMember leader = cluster.coreTx( ( db, tx ) ->
-        {
-            db.execute( "CALL db.createUniquePropertyConstraint( \":Person(name)\", \"lucene+native-1.0\")" ).close();
-            tx.success();
-        } );
+                                                   {
+                                                       db.execute( "CALL db.createUniquePropertyConstraint( \":Person(name)\", \"lucene+native-1.0\")" )
+                                                         .close();
+                                                       tx.success();
+                                                   } );
 
         // node created just to be able to use dataMatchesEventually as a barrier
         cluster.coreTx( ( db, tx ) ->
-        {
-            Node person = db.createNode( Label.label( "Person" ) );
-            person.setProperty( "name", "Bo Burnham" );
-            tx.success();
-        } );
+                        {
+                            Node person = db.createNode( Label.label( "Person" ) );
+                            person.setProperty( "name", "Bo Burnham" );
+                            tx.success();
+                        } );
 
         // node creation is guaranteed to happen after constraint creation
         dataMatchesEventually( leader, cluster.coreMembers() );
@@ -135,18 +136,18 @@ public class ClusterIndexProcedureIT
     {
         // create a node key
         CoreClusterMember leader = cluster.coreTx( ( db, tx ) ->
-        {
-            db.execute( "CALL db.createNodeKey( \":Person(name)\", \"lucene+native-1.0\")" ).close();
-            tx.success();
-        } );
+                                                   {
+                                                       db.execute( "CALL db.createNodeKey( \":Person(name)\", \"lucene+native-1.0\")" ).close();
+                                                       tx.success();
+                                                   } );
 
         // node created just to be able to use dataMatchesEventually as a barrier
         cluster.coreTx( ( db, tx ) ->
-        {
-            Node person = db.createNode( Label.label( "Person" ) );
-            person.setProperty( "name", "Bo Burnham" );
-            tx.success();
-        } );
+                        {
+                            Node person = db.createNode( Label.label( "Person" ) );
+                            person.setProperty( "name", "Bo Burnham" );
+                            tx.success();
+                        } );
 
         // node creation is guaranteed to happen after constraint creation
         dataMatchesEventually( leader, cluster.coreMembers() );

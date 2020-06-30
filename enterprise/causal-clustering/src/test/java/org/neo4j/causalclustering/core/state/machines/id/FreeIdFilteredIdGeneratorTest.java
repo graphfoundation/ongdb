@@ -27,7 +27,6 @@ import org.neo4j.kernel.impl.store.id.IdGenerator;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyZeroInteractions;
 
 public class FreeIdFilteredIdGeneratorTest
 {
@@ -65,7 +64,7 @@ public class FreeIdFilteredIdGeneratorTest
     }
 
     private FreeIdFilteredIdGenerator createFilteredIdGenerator( IdGenerator idGenerator,
-            BooleanSupplier booleanSupplier )
+                                                                 BooleanSupplier booleanSupplier )
     {
         return new FreeIdFilteredIdGenerator( idGenerator, booleanSupplier );
     }

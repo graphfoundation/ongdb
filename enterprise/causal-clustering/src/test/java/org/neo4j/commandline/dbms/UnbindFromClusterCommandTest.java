@@ -71,6 +71,11 @@ public class UnbindFromClusterCommandTest
     private OutsideWorld outsideWorld = mock( OutsideWorld.class );
     private FileChannel channel;
 
+    private static String[] databaseNameParameter( String databaseName )
+    {
+        return new String[]{"--database=" + databaseName};
+    }
+
     @Before
     public void setup()
     {
@@ -197,10 +202,5 @@ public class UnbindFromClusterCommandTest
         Path storeLockFile = Files.createFile( DatabaseLayout.of( databaseDir.toFile() ).getStoreLayout().storeLockFile().toPath() );
         channel = FileChannel.open( storeLockFile, READ, WRITE );
         return channel.lock( 0, Long.MAX_VALUE, true );
-    }
-
-    private static String[] databaseNameParameter( String databaseName )
-    {
-        return new String[]{"--database=" + databaseName};
     }
 }

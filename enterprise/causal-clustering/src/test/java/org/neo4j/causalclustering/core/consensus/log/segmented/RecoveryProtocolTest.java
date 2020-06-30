@@ -36,8 +36,6 @@ import org.neo4j.logging.NullLogProvider;
 import org.neo4j.test.rule.fs.EphemeralFileSystemRule;
 import org.neo4j.time.Clocks;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.fail;
 import static org.neo4j.logging.NullLogProvider.getInstance;
 
@@ -45,10 +43,9 @@ public class RecoveryProtocolTest
 {
     @Rule
     public final EphemeralFileSystemRule fileSystemRule = new EphemeralFileSystemRule();
-
+    private final File root = new File( "root" );
     private EphemeralFileSystemAbstraction fsa = fileSystemRule.get();
     private ChannelMarshal<ReplicatedContent> contentMarshal = new DummyRaftableContentSerializer();
-    private final File root = new File( "root" );
     private FileNames fileNames = new FileNames( root );
     private SegmentHeader.Marshal headerMarshal = new SegmentHeader.Marshal();
     private ReaderPool readerPool = new ReaderPool( 0, getInstance(), fileNames, fsa, Clocks.fakeClock() );
@@ -160,8 +157,8 @@ public class RecoveryProtocolTest
     {
         // given
         createLogFile( fsa, -1, 0, 0, -1, -1 );
-        createLogFile( fsa, 10, 1, 1, 10,  0 );
-        createLogFile( fsa, 20, 2, 2, 20,  1 );
+        createLogFile( fsa, 10, 1, 1, 10, 0 );
+        createLogFile( fsa, 20, 2, 2, 20, 1 );
 
         RecoveryProtocol protocol = new RecoveryProtocol( fsa, fileNames, readerPool, contentMarshal, NullLogProvider.getInstance() );
 
@@ -171,9 +168,9 @@ public class RecoveryProtocolTest
 
         // then
         assertEquals( 20, newFile.header().prevFileLastIndex() );
-        assertEquals(  3, newFile.header().version() );
+        assertEquals( 3, newFile.header().version() );
         assertEquals( 20, newFile.header().prevIndex() );
-        assertEquals(  1, newFile.header().prevTerm() );
+        assertEquals( 1, newFile.header().prevTerm() );
     }
 
     @Test
@@ -181,8 +178,8 @@ public class RecoveryProtocolTest
     {
         // given
         createLogFile( fsa, -1, 0, 0, -1, -1 );
-        createLogFile( fsa, 10, 1, 1, 10,  0 );
-        createLogFile( fsa, 20, 2, 2, 20,  1 );
+        createLogFile( fsa, 10, 1, 1, 10, 0 );
+        createLogFile( fsa, 20, 2, 2, 20, 1 );
 
         RecoveryProtocol protocol = new RecoveryProtocol( fsa, fileNames, readerPool, contentMarshal, NullLogProvider.getInstance() );
 
@@ -192,9 +189,9 @@ public class RecoveryProtocolTest
 
         // then
         assertEquals( 20, newFile.header().prevFileLastIndex() );
-        assertEquals(  3, newFile.header().version() );
+        assertEquals( 3, newFile.header().version() );
         assertEquals( 15, newFile.header().prevIndex() );
-        assertEquals(  0, newFile.header().prevTerm() );
+        assertEquals( 0, newFile.header().prevTerm() );
     }
 
     @Test
@@ -202,8 +199,8 @@ public class RecoveryProtocolTest
     {
         // given
         createLogFile( fsa, -1, 0, 0, -1, -1 );
-        createLogFile( fsa, 10, 1, 1, 10,  0 );
-        createLogFile( fsa, 20, 2, 2, 20,  1 );
+        createLogFile( fsa, 10, 1, 1, 10, 0 );
+        createLogFile( fsa, 20, 2, 2, 20, 1 );
 
         RecoveryProtocol protocol = new RecoveryProtocol( fsa, fileNames, readerPool, contentMarshal, NullLogProvider.getInstance() );
 
@@ -213,9 +210,9 @@ public class RecoveryProtocolTest
 
         // then
         assertEquals( 20, newFile.header().prevFileLastIndex() );
-        assertEquals(  3, newFile.header().version() );
+        assertEquals( 3, newFile.header().version() );
         assertEquals( 40, newFile.header().prevIndex() );
-        assertEquals(  2, newFile.header().prevTerm() );
+        assertEquals( 2, newFile.header().prevTerm() );
     }
 
     @Test
@@ -260,11 +257,11 @@ public class RecoveryProtocolTest
     {
         // given
         createLogFile( fsa, 10, 1, 1, 20, 9 );
-        createLogFile( fsa, 100, 2, 2, 200,  99 );
-        createLogFile( fsa, 1000, 3, 3, 2000,  999 );
+        createLogFile( fsa, 100, 2, 2, 200, 99 );
+        createLogFile( fsa, 1000, 3, 3, 2000, 999 );
 
         RecoveryProtocol protocol = new RecoveryProtocol( fsa, fileNames, readerPool, contentMarshal,
-                NullLogProvider.getInstance() );
+                                                          NullLogProvider.getInstance() );
 
         // when
         State state = protocol.run();
@@ -284,7 +281,7 @@ public class RecoveryProtocolTest
     }
 
     private void createLogFile( EphemeralFileSystemAbstraction fsa, long prevFileLastIndex, long fileNameVersion,
-            long headerVersion, long prevIndex, long prevTerm ) throws IOException
+                                long headerVersion, long prevIndex, long prevTerm ) throws IOException
     {
         StoreChannel channel = fsa.open( fileNames.getForVersion( fileNameVersion ), OpenMode.READ_WRITE );
         PhysicalFlushableChannel writer = new PhysicalFlushableChannel( channel );

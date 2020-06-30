@@ -73,5 +73,4 @@ public abstract class BaseCoreTopologyServiceIT
         service.stop();
         service.shutdown();
     }
-
 }

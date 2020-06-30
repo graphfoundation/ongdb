@@ -52,7 +52,7 @@ class SimpleCatchupClient implements AutoCloseable
     private final LogProvider logProvider;
 
     SimpleCatchupClient( GraphDatabaseAPI graphDb, FileSystemAbstraction fileSystemAbstraction, CatchUpClient catchUpClient,
-            TestCatchupServer catchupServer, File temporaryDirectory, LogProvider logProvider )
+                         TestCatchupServer catchupServer, File temporaryDirectory, LogProvider logProvider )
     {
         this.graphDb = graphDb;
         this.fsa = fileSystemAbstraction;
@@ -68,6 +68,11 @@ class SimpleCatchupClient implements AutoCloseable
         this.logProvider = logProvider;
     }
 
+    private static CheckPointer getCheckPointer( GraphDatabaseAPI graphDb )
+    {
+        return graphDb.getDependencyResolver().resolveDependency( CheckPointer.class );
+    }
+
     private PageCache createPageCache()
     {
         return StandalonePageCacheFactory.createPageCache( fsa, jobScheduler );
@@ -81,7 +86,8 @@ class SimpleCatchupClient implements AutoCloseable
     PrepareStoreCopyResponse requestListOfFilesFromServer( StoreId expectedStoreId ) throws CatchUpClientException
     {
         return catchUpClient.makeBlockingRequest( from, new PrepareStoreCopyRequest( expectedStoreId ),
-                StoreCopyResponseAdaptors.prepareStoreCopyAdaptor( streamToDiskProvider, logProvider.getLog( SimpleCatchupClient.class ) ) );
+                                                  StoreCopyResponseAdaptors
+                                                          .prepareStoreCopyAdaptor( streamToDiskProvider, logProvider.getLog( SimpleCatchupClient.class ) ) );
     }
 
     StoreCopyFinishedResponse requestIndividualFile( File file ) throws CatchUpClientException
@@ -119,10 +125,5 @@ class SimpleCatchupClient implements AutoCloseable
     public void close() throws Exception
     {
         IOUtils.closeAll( clientPageCache, jobScheduler );
-    }
-
-    private static CheckPointer getCheckPointer( GraphDatabaseAPI graphDb )
-    {
-        return graphDb.getDependencyResolver().resolveDependency( CheckPointer.class );
     }
 }

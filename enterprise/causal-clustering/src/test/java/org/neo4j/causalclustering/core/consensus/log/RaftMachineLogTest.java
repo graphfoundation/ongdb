@@ -32,7 +32,6 @@ import org.neo4j.causalclustering.core.replication.ReplicatedContent;
 import org.neo4j.causalclustering.identity.MemberId;
 import org.neo4j.causalclustering.identity.RaftTestMemberSetBuilder;
 
-import static org.junit.Assert.assertEquals;
 import static org.neo4j.causalclustering.core.consensus.ReplicatedInteger.valueOf;
 import static org.neo4j.causalclustering.core.consensus.TestMessageBuilders.appendEntriesRequest;
 import static org.neo4j.causalclustering.core.consensus.log.RaftLogHelper.readLogEntry;
@@ -68,7 +67,7 @@ public class RaftMachineLogTest
     {
         // when
         raft.handle( appendEntriesRequest().leaderTerm( 0 ).prevLogIndex( 0 ).prevLogTerm( 0 )
-                .logEntry( new RaftLogEntry( 0, content ) ).build() );
+                                           .logEntry( new RaftLogEntry( 0, content ) ).build() );
 
         // then
         assertEquals( 1, testEntryLog.appendIndex() );
@@ -80,9 +79,9 @@ public class RaftMachineLogTest
     {
         // when
         raft.handle( appendEntriesRequest().leaderTerm( 0 ).prevLogIndex( 0 ).prevLogTerm( 0 )
-                .logEntry( new RaftLogEntry( 0, content ) ).build() );
+                                           .logEntry( new RaftLogEntry( 0, content ) ).build() );
         raft.handle( appendEntriesRequest().leaderTerm( 0 ).prevLogIndex( 0 ).prevLogTerm( 0 )
-                .logEntry( new RaftLogEntry( 0, content ) ).build() );
+                                           .logEntry( new RaftLogEntry( 0, content ) ).build() );
 
         // then
         assertEquals( 1, testEntryLog.appendIndex() );
@@ -99,7 +98,7 @@ public class RaftMachineLogTest
         // when
         ReplicatedInteger newData = valueOf( 11 );
         raft.handle( appendEntriesRequest().leaderTerm( 2 ).prevLogIndex( 2 ).prevLogTerm( 1 )
-                .logEntry( new RaftLogEntry( 2, newData ) ).build() );
+                                           .logEntry( new RaftLogEntry( 2, newData ) ).build() );
 
         // then
         assertEquals( 3, testEntryLog.appendIndex() );
@@ -126,11 +125,11 @@ public class RaftMachineLogTest
 
         // Matches everything in the given range
         raft.handle( appendEntriesRequest().leaderTerm( 8 ).prevLogIndex( 5 ).prevLogTerm( 2 )
-                .logEntry( new RaftLogEntry( 2, newData ) )
-                .logEntry( new RaftLogEntry( 3, newData ) )
-                .logEntry( new RaftLogEntry( 3, newData ) )
-                .logEntry( new RaftLogEntry( 3, newData ) )
-                .build() );
+                                           .logEntry( new RaftLogEntry( 2, newData ) )
+                                           .logEntry( new RaftLogEntry( 3, newData ) )
+                                           .logEntry( new RaftLogEntry( 3, newData ) )
+                                           .logEntry( new RaftLogEntry( 3, newData ) )
+                                           .build() );
 
         // then
         assertEquals( 11, testEntryLog.appendIndex() );
@@ -158,12 +157,12 @@ public class RaftMachineLogTest
 
         // Will not match as the entry at index 5 has term  2
         raft.handle( appendEntriesRequest().leaderTerm( 8 ).prevLogIndex( 6 ).prevLogTerm( 5 )
-                .logEntry( new RaftLogEntry( 5, newData ) )
-                .logEntry( new RaftLogEntry( 5, newData ) )
-                .logEntry( new RaftLogEntry( 6, newData ) )
-                .logEntry( new RaftLogEntry( 6, newData ) )
-                .logEntry( new RaftLogEntry( 6, newData ) )
-                .build() );
+                                           .logEntry( new RaftLogEntry( 5, newData ) )
+                                           .logEntry( new RaftLogEntry( 5, newData ) )
+                                           .logEntry( new RaftLogEntry( 6, newData ) )
+                                           .logEntry( new RaftLogEntry( 6, newData ) )
+                                           .logEntry( new RaftLogEntry( 6, newData ) )
+                                           .build() );
 
         // then
         assertEquals( 11, testEntryLog.appendIndex() );
@@ -189,30 +188,30 @@ public class RaftMachineLogTest
         ReplicatedInteger newData = valueOf( 99 );
 
         raft.handle( appendEntriesRequest().leaderTerm( 8 ).prevLogIndex( 0 ).prevLogTerm( 0 )
-                .logEntry( new RaftLogEntry( 1, newData ) )
-                .logEntry( new RaftLogEntry( 1, newData ) )
-                .logEntry( new RaftLogEntry( 1, newData ) )
-                .logEntry( new RaftLogEntry( 4, newData ) ) // term mismatch - existing term is 2
-                .logEntry( new RaftLogEntry( 4, newData ) )
-                .logEntry( new RaftLogEntry( 5, newData ) )
-                .logEntry( new RaftLogEntry( 5, newData ) )
-                .logEntry( new RaftLogEntry( 6, newData ) )
-                .logEntry( new RaftLogEntry( 6, newData ) )
-                .logEntry( new RaftLogEntry( 6, newData ) )
-                .build() );
+                                           .logEntry( new RaftLogEntry( 1, newData ) )
+                                           .logEntry( new RaftLogEntry( 1, newData ) )
+                                           .logEntry( new RaftLogEntry( 1, newData ) )
+                                           .logEntry( new RaftLogEntry( 4, newData ) ) // term mismatch - existing term is 2
+                                           .logEntry( new RaftLogEntry( 4, newData ) )
+                                           .logEntry( new RaftLogEntry( 5, newData ) )
+                                           .logEntry( new RaftLogEntry( 5, newData ) )
+                                           .logEntry( new RaftLogEntry( 6, newData ) )
+                                           .logEntry( new RaftLogEntry( 6, newData ) )
+                                           .logEntry( new RaftLogEntry( 6, newData ) )
+                                           .build() );
 
         // then
         assertEquals( 10, testEntryLog.appendIndex() );
-        assertEquals( 1, testEntryLog.readEntryTerm(1) );
-        assertEquals( 1, testEntryLog.readEntryTerm(2) );
-        assertEquals( 1, testEntryLog.readEntryTerm(3) );
-        assertEquals( 4, testEntryLog.readEntryTerm(4) );
-        assertEquals( 4, testEntryLog.readEntryTerm(5) );
-        assertEquals( 5, testEntryLog.readEntryTerm(6) );
-        assertEquals( 5, testEntryLog.readEntryTerm(7) );
-        assertEquals( 6, testEntryLog.readEntryTerm(8) );
-        assertEquals( 6, testEntryLog.readEntryTerm(9) );
-        assertEquals( 6, testEntryLog.readEntryTerm(10) );
+        assertEquals( 1, testEntryLog.readEntryTerm( 1 ) );
+        assertEquals( 1, testEntryLog.readEntryTerm( 2 ) );
+        assertEquals( 1, testEntryLog.readEntryTerm( 3 ) );
+        assertEquals( 4, testEntryLog.readEntryTerm( 4 ) );
+        assertEquals( 4, testEntryLog.readEntryTerm( 5 ) );
+        assertEquals( 5, testEntryLog.readEntryTerm( 6 ) );
+        assertEquals( 5, testEntryLog.readEntryTerm( 7 ) );
+        assertEquals( 6, testEntryLog.readEntryTerm( 8 ) );
+        assertEquals( 6, testEntryLog.readEntryTerm( 9 ) );
+        assertEquals( 6, testEntryLog.readEntryTerm( 10 ) );
     }
 
     @Test
@@ -233,13 +232,13 @@ public class RaftMachineLogTest
         // when instance A as leader
         ReplicatedInteger newData = valueOf( 99 );
         raft.handle( appendEntriesRequest().leaderTerm( 8 ).prevLogIndex( 4 ).prevLogTerm( 4 )
-                .logEntry( new RaftLogEntry( 4, newData ) ) /* conflict */
-                .logEntry( new RaftLogEntry( 5, newData ) )
-                .logEntry( new RaftLogEntry( 5, newData ) )
-                .logEntry( new RaftLogEntry( 6, newData ) )
-                .logEntry( new RaftLogEntry( 6, newData ) )
-                .logEntry( new RaftLogEntry( 6, newData ) )
-                .build() );
+                                           .logEntry( new RaftLogEntry( 4, newData ) ) /* conflict */
+                                           .logEntry( new RaftLogEntry( 5, newData ) )
+                                           .logEntry( new RaftLogEntry( 5, newData ) )
+                                           .logEntry( new RaftLogEntry( 6, newData ) )
+                                           .logEntry( new RaftLogEntry( 6, newData ) )
+                                           .logEntry( new RaftLogEntry( 6, newData ) )
+                                           .build() );
 
         // then
         assertEquals( 11, testEntryLog.appendIndex() );
@@ -263,15 +262,15 @@ public class RaftMachineLogTest
         // when instance A as leader
         ReplicatedInteger newData = valueOf( 99 );
         raft.handle( appendEntriesRequest().leaderTerm( 8 ).prevLogIndex( 2 ).prevLogTerm( 1 )
-                .logEntry( new RaftLogEntry( 1, newData ) )
-                .logEntry( new RaftLogEntry( 4, newData ) ) /* conflict */
-                .logEntry( new RaftLogEntry( 4, newData ) )
-                .logEntry( new RaftLogEntry( 5, newData ) )
-                .logEntry( new RaftLogEntry( 5, newData ) )
-                .logEntry( new RaftLogEntry( 6, newData ) )
-                .logEntry( new RaftLogEntry( 6, newData ) )
-                .logEntry( new RaftLogEntry( 6, newData ) )
-                .build() );
+                                           .logEntry( new RaftLogEntry( 1, newData ) )
+                                           .logEntry( new RaftLogEntry( 4, newData ) ) /* conflict */
+                                           .logEntry( new RaftLogEntry( 4, newData ) )
+                                           .logEntry( new RaftLogEntry( 5, newData ) )
+                                           .logEntry( new RaftLogEntry( 5, newData ) )
+                                           .logEntry( new RaftLogEntry( 6, newData ) )
+                                           .logEntry( new RaftLogEntry( 6, newData ) )
+                                           .logEntry( new RaftLogEntry( 6, newData ) )
+                                           .build() );
 
         // then
         assertEquals( 10, testEntryLog.appendIndex() );

@@ -48,7 +48,6 @@ import org.neo4j.logging.NullLogProvider;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.fail;
@@ -61,10 +60,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoMoreInteractions;
-import static org.mockito.Mockito.verifyZeroInteractions;
 import static org.mockito.Mockito.when;
-import static org.neo4j.test.assertion.Assert.assertEventually;
 
 public class CommandApplicationProcessTest
 {
@@ -74,23 +70,21 @@ public class CommandApplicationProcessTest
             new InMemoryStateStorage<>( new GlobalSessionTrackerState() ) );
 
     private final DatabaseHealth dbHealth = new DatabaseHealth( mock( DatabasePanicEventGenerator.class ),
-            NullLogProvider.getInstance().getLog( getClass() ) );
+                                                                NullLogProvider.getInstance().getLog( getClass() ) );
 
     private final GlobalSession globalSession = new GlobalSession( UUID.randomUUID(), null );
     private final int flushEvery = 10;
     private final int batchSize = 16;
-
-    private InFlightCache inFlightCache = spy( new ConsecutiveInFlightCache() );
     private final Monitors monitors = new Monitors();
+    private final CommandDispatcher commandDispatcher = mock( CommandDispatcher.class );
+    private InFlightCache inFlightCache = spy( new ConsecutiveInFlightCache() );
     private CoreState coreState = mock( CoreState.class );
     private final CommandApplicationProcess applicationProcess = new CommandApplicationProcess(
             raftLog, batchSize, flushEvery, () -> dbHealth,
             NullLogProvider.getInstance(), new ProgressTrackerImpl( globalSession ),
             sessionTracker, coreState, inFlightCache, monitors );
-
     private ReplicatedTransaction nullTx = ReplicatedTransaction.from( new byte[0] );
-
-    private final CommandDispatcher commandDispatcher = mock( CommandDispatcher.class );
+    private int sequenceNumber;
 
     {
         when( coreState.commandDispatcher() ).thenReturn( commandDispatcher );
@@ -104,8 +98,6 @@ public class CommandApplicationProcessTest
         Arrays.fill( dataArray, dataValue );
         return ReplicatedTransaction.from( dataArray );
     }
-
-    private int sequenceNumber;
 
     private synchronized ReplicatedContent operation( CoreReplicatedContent tx )
     {
@@ -255,7 +247,7 @@ public class CommandApplicationProcessTest
     {
         // given
         doThrow( RuntimeException.class ).when( commandDispatcher )
-                .dispatch( any( ReplicatedTransaction.class ), anyLong(), anyCallback() );
+                                         .dispatch( any( ReplicatedTransaction.class ), anyLong(), anyCallback() );
         applicationProcess.start();
 
         // when

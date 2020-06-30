@@ -73,7 +73,10 @@ public class SenderServiceIT
     private final LogProvider logProvider = NullLogProvider.getInstance();
 
     private final ApplicationSupportedProtocols supportedApplicationProtocol = new ApplicationSupportedProtocols( Protocol.ApplicationProtocolCategory.RAFT,
-            Arrays.asList( ApplicationProtocols.RAFT_1.implementation(), ApplicationProtocols.RAFT_2.implementation() ) );
+                                                                                                                  Arrays.asList( ApplicationProtocols.RAFT_1
+                                                                                                                                         .implementation(),
+                                                                                                                                 ApplicationProtocols.RAFT_2
+                                                                                                                                         .implementation() ) );
     private final Collection<ModifierSupportedProtocols> supportedModifierProtocols = emptyList();
 
     private final ApplicationProtocolRepository applicationProtocolRepository =
@@ -148,7 +151,7 @@ public class SenderServiceIT
                 new ProtocolInstallerRepository<>( Arrays.asList( factoryV1, factoryV2 ), ModifierProtocolInstaller.allServerInstallers );
 
         HandshakeServerInitializer channelInitializer = new HandshakeServerInitializer( applicationProtocolRepository, modifierProtocolRepository,
-                installer, pipelineFactory, logProvider );
+                                                                                        installer, pipelineFactory, logProvider );
 
         ListenSocketAddress listenAddress = new ListenSocketAddress( "localhost", port );
         return new Server( channelInitializer, null, logProvider, logProvider, listenAddress, "raft-server" );
@@ -165,12 +168,12 @@ public class SenderServiceIT
                 new ProtocolInstallerRepository<>( Arrays.asList( factoryV1, factoryV2 ), ModifierProtocolInstaller.allClientInstallers );
 
         HandshakeClientInitializer channelInitializer = new HandshakeClientInitializer( clientRepository(),
-                modifierProtocolRepository,
-                protocolInstaller,
-                pipelineFactory,
-                Duration.ofSeconds(5),
-                logProvider,
-                logProvider );
+                                                                                        modifierProtocolRepository,
+                                                                                        protocolInstaller,
+                                                                                        pipelineFactory,
+                                                                                        Duration.ofSeconds( 5 ),
+                                                                                        logProvider,
+                                                                                        logProvider );
 
         return new SenderService( channelInitializer, logProvider );
     }
@@ -178,6 +181,6 @@ public class SenderServiceIT
     private ApplicationProtocolRepository clientRepository()
     {
         return new ApplicationProtocolRepository( new ApplicationProtocols[]{ApplicationProtocols.RAFT_2},
-                new ApplicationSupportedProtocols( Protocol.ApplicationProtocolCategory.RAFT, emptyList() ) );
+                                                  new ApplicationSupportedProtocols( Protocol.ApplicationProtocolCategory.RAFT, emptyList() ) );
     }
 }

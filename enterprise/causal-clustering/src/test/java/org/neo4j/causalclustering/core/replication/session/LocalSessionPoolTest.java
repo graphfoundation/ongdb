@@ -24,9 +24,6 @@ import java.util.UUID;
 
 import org.neo4j.causalclustering.identity.MemberId;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
-
 public class LocalSessionPoolTest
 {
     private MemberId memberId = new MemberId( UUID.randomUUID() );

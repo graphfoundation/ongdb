@@ -63,30 +63,30 @@ public class ClusterFormationIT
         cluster.addReadReplicaWithId( 0 ).start();
 
         Stream.concat(
-            cluster.readReplicas().stream().map( ReadReplica::database),
-            cluster.coreMembers().stream().map(CoreClusterMember::database)
+                cluster.readReplicas().stream().map( ReadReplica::database ),
+                cluster.coreMembers().stream().map( CoreClusterMember::database )
         ).forEach( gdb ->
-        {
-            // (1) BuiltInProcedures from community
-            {
-                Result result = gdb.execute( "CALL dbms.procedures()" );
-                assertTrue( result.hasNext() );
-                result.close();
-            }
+                   {
+                       // (1) BuiltInProcedures from community
+                       {
+                           Result result = gdb.execute( "CALL dbms.procedures()" );
+                           assertTrue( result.hasNext() );
+                           result.close();
+                       }
 
-            // (2) BuiltInProcedures from enterprise
-            try ( InternalTransaction tx = gdb.beginTransaction(
-                    KernelTransaction.Type.explicit,
-                    EnterpriseLoginContext.AUTH_DISABLED
-            ) )
-            {
-                Result result = gdb.execute( tx, "CALL dbms.listQueries()", EMPTY_MAP );
-                assertTrue( result.hasNext() );
-                result.close();
+                       // (2) BuiltInProcedures from enterprise
+                       try ( InternalTransaction tx = gdb.beginTransaction(
+                               KernelTransaction.Type.explicit,
+                               EnterpriseLoginContext.AUTH_DISABLED
+                       ) )
+                       {
+                           Result result = gdb.execute( tx, "CALL dbms.listQueries()", EMPTY_MAP );
+                           assertTrue( result.hasNext() );
+                           result.close();
 
-                tx.success();
-            }
-        } );
+                           tx.success();
+                       }
+                   } );
     }
 
     @Test
@@ -118,14 +118,14 @@ public class ClusterFormationIT
         // given
         ExecutorService executorService = Executors.newSingleThreadExecutor();
         executorService.submit( () ->
-        {
-            CoreGraphDatabase leader = cluster.getMemberWithRole( Role.LEADER ).database();
-            try ( Transaction tx = leader.beginTx() )
-            {
-                leader.createNode();
-                tx.success();
-            }
-        } );
+                                {
+                                    CoreGraphDatabase leader = cluster.getMemberWithRole( Role.LEADER ).database();
+                                    try ( Transaction tx = leader.beginTx() )
+                                    {
+                                        leader.createNode();
+                                        tx.success();
+                                    }
+                                } );
 
         // when
         cluster.getCoreMemberById( 0 ).shutdown();

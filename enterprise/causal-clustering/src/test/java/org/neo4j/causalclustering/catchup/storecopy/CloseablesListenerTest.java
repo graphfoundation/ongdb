@@ -57,6 +57,7 @@ public class CloseablesListenerTest
     class CloseTrackingCloseable implements AutoCloseable
     {
         private final Exception throwOnClose;
+        boolean wasClosed;
 
         private CloseTrackingCloseable()
         {
@@ -67,8 +68,6 @@ public class CloseablesListenerTest
         {
             this.throwOnClose = throwOnClose;
         }
-
-        boolean wasClosed;
 
         @Override
         public void close() throws Exception

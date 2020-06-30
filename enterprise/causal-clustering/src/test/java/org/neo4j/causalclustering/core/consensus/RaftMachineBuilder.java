@@ -22,10 +22,10 @@ import java.io.IOException;
 import java.time.Clock;
 import java.time.Duration;
 
-import org.neo4j.causalclustering.core.consensus.log.cache.ConsecutiveInFlightCache;
-import org.neo4j.causalclustering.core.consensus.log.cache.InFlightCache;
 import org.neo4j.causalclustering.core.consensus.log.InMemoryRaftLog;
 import org.neo4j.causalclustering.core.consensus.log.RaftLog;
+import org.neo4j.causalclustering.core.consensus.log.cache.ConsecutiveInFlightCache;
+import org.neo4j.causalclustering.core.consensus.log.cache.InFlightCache;
 import org.neo4j.causalclustering.core.consensus.membership.RaftGroup;
 import org.neo4j.causalclustering.core.consensus.membership.RaftMembershipManager;
 import org.neo4j.causalclustering.core.consensus.membership.RaftMembershipState;
@@ -58,8 +58,12 @@ public class RaftMachineBuilder
     private RaftLog raftLog = new InMemoryRaftLog();
     private TimerService timerService;
 
-    private Inbound<RaftMessages.RaftMessage> inbound = handler -> {};
-    private Outbound<MemberId, RaftMessages.RaftMessage> outbound = ( to, message, block ) -> {};
+    private Inbound<RaftMessages.RaftMessage> inbound = handler ->
+    {
+    };
+    private Outbound<MemberId,RaftMessages.RaftMessage> outbound = ( to, message, block ) ->
+    {
+    };
 
     private LogProvider logProvider = NullLogProvider.getInstance();
     private Clock clock = Clocks.systemClock();
@@ -76,7 +80,9 @@ public class RaftMachineBuilder
     private StateStorage<RaftMembershipState> raftMembership =
             new InMemoryStateStorage<>( new RaftMembershipState() );
     private Monitors monitors = new Monitors();
-    private CommitListener commitListener = commitIndex -> {};
+    private CommitListener commitListener = commitIndex ->
+    {
+    };
     private InFlightCache inFlightCache = new ConsecutiveInFlightCache();
 
     public RaftMachineBuilder( MemberId member, int expectedClusterSize, RaftGroup.Builder memberSetBuilder )
@@ -91,29 +97,30 @@ public class RaftMachineBuilder
         termState.update( term );
         LeaderAvailabilityTimers
                 leaderAvailabilityTimers = new LeaderAvailabilityTimers( Duration.ofMillis( electionTimeout ), Duration.ofMillis( heartbeatInterval ), clock,
-                timerService, logProvider );
+                                                                         timerService, logProvider );
         SendToMyself leaderOnlyReplicator = new SendToMyself( member, outbound );
         RaftMembershipManager membershipManager = new RaftMembershipManager( leaderOnlyReplicator,
-                memberSetBuilder, raftLog, logProvider, expectedClusterSize, leaderAvailabilityTimers.getElectionTimeout(), clock, catchupTimeout,
-                raftMembership );
+                                                                             memberSetBuilder, raftLog, logProvider, expectedClusterSize,
+                                                                             leaderAvailabilityTimers.getElectionTimeout(), clock, catchupTimeout,
+                                                                             raftMembership );
         membershipManager.setRecoverFromIndexSupplier( () -> 0 );
         RaftLogShippingManager logShipping =
                 new RaftLogShippingManager( outbound, logProvider, raftLog, timerService, clock, member, membershipManager,
-                        retryTimeMillis, catchupBatchSize, maxAllowedShippingLag, inFlightCache );
+                                            retryTimeMillis, catchupBatchSize, maxAllowedShippingLag, inFlightCache );
         RaftMachine raft = new RaftMachine( member, termStateStorage, voteStateStorage, raftLog, leaderAvailabilityTimers, outbound, logProvider,
-                membershipManager, logShipping, inFlightCache, false, false, monitors );
+                                            membershipManager, logShipping, inFlightCache, false, false, monitors );
         inbound.registerHandler( incomingMessage ->
-        {
-            try
-            {
-                ConsensusOutcome outcome = raft.handle( incomingMessage );
-                commitListener.notifyCommitted( outcome.getCommitIndex() );
-            }
-            catch ( IOException e )
-            {
-                throw new RuntimeException( e );
-            }
-        } );
+                                 {
+                                     try
+                                     {
+                                         ConsensusOutcome outcome = raft.handle( incomingMessage );
+                                         commitListener.notifyCommitted( outcome.getCommitIndex() );
+                                     }
+                                     catch ( IOException e )
+                                     {
+                                         throw new RuntimeException( e );
+                                     }
+                                 } );
 
         try
         {
@@ -145,7 +152,7 @@ public class RaftMachineBuilder
         return this;
     }
 
-    public RaftMachineBuilder outbound( Outbound<MemberId, RaftMessages.RaftMessage> outbound )
+    public RaftMachineBuilder outbound( Outbound<MemberId,RaftMessages.RaftMessage> outbound )
     {
         this.outbound = outbound;
         return this;

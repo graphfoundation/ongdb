@@ -45,17 +45,17 @@ public class InstalledProtocolsProcedureTest
 {
     private Pair<AdvertisedSocketAddress,ProtocolStack> outbound1 =
             Pair.of( new AdvertisedSocketAddress( "host1", 1 ),
-                    new ProtocolStack( TestApplicationProtocols.RAFT_1, asList( TestModifierProtocols.SNAPPY ) ) );
+                     new ProtocolStack( TestApplicationProtocols.RAFT_1, asList( TestModifierProtocols.SNAPPY ) ) );
     private Pair<AdvertisedSocketAddress,ProtocolStack> outbound2 =
             Pair.of( new AdvertisedSocketAddress( "host2", 2 ),
-                    new ProtocolStack( TestApplicationProtocols.RAFT_2, asList( TestModifierProtocols.SNAPPY, TestModifierProtocols.ROT13 ) ) );
+                     new ProtocolStack( TestApplicationProtocols.RAFT_2, asList( TestModifierProtocols.SNAPPY, TestModifierProtocols.ROT13 ) ) );
 
     private Pair<SocketAddress,ProtocolStack> inbound1 =
             Pair.of( new SocketAddress( "host3", 3 ),
-                    new ProtocolStack( TestApplicationProtocols.RAFT_3, asList( TestModifierProtocols.SNAPPY ) ) );
+                     new ProtocolStack( TestApplicationProtocols.RAFT_3, asList( TestModifierProtocols.SNAPPY ) ) );
     private Pair<SocketAddress,ProtocolStack> inbound2 =
             Pair.of( new SocketAddress( "host4", 4 ),
-                    new ProtocolStack( TestApplicationProtocols.RAFT_4, emptyList() ) );
+                     new ProtocolStack( TestApplicationProtocols.RAFT_4, emptyList() ) );
 
     @Test
     public void shouldHaveEmptyOutputIfNoInstalledProtocols() throws Throwable

@@ -35,14 +35,14 @@ import org.neo4j.causalclustering.upstream.UpstreamDatabaseStrategySelector;
 import org.neo4j.helpers.AdvertisedSocketAddress;
 import org.neo4j.logging.NullLogProvider;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 public class UpstreamStrategyAddressSupplierTest
 {
+    @Rule
+    public ExpectedException expectedException = ExpectedException.none();
     private MemberId defaultMember = new MemberId( UUID.randomUUID() );
     private MemberId firstMember = new MemberId( UUID.randomUUID() );
     private MemberId secondMember = new MemberId( UUID.randomUUID() );
@@ -50,9 +50,6 @@ public class UpstreamStrategyAddressSupplierTest
     private AdvertisedSocketAddress firstAddress = new AdvertisedSocketAddress( "First", 456 );
     private AdvertisedSocketAddress secondAddress = new AdvertisedSocketAddress( "Second", 789 );
     private TopologyService topologyService = mock( TopologyService.class );
-
-    @Rule
-    public ExpectedException expectedException = ExpectedException.none();
 
     @Before
     public void setup()
@@ -68,8 +65,9 @@ public class UpstreamStrategyAddressSupplierTest
         // given various strategies with different priorities
         UpstreamDatabaseStrategySelector upstreamDatabaseStrategySelector =
                 new UpstreamDatabaseStrategySelector( new CountedSelectionStrategy( defaultMember, 5 ),
-                        Arrays.asList( new CountedSelectionStrategy( firstMember, 1 ), new CountedSelectionStrategy( secondMember, 1 ) ),
-                        NullLogProvider.getInstance() );
+                                                      Arrays.asList( new CountedSelectionStrategy( firstMember, 1 ),
+                                                                     new CountedSelectionStrategy( secondMember, 1 ) ),
+                                                      NullLogProvider.getInstance() );
 
         // and
         UpstreamStrategyAddressSupplier upstreamStrategyAddressSupplier =

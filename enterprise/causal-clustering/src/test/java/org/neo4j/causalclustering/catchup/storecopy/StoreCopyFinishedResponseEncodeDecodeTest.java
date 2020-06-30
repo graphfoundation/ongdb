@@ -23,7 +23,6 @@ import org.junit.Test;
 
 import org.neo4j.causalclustering.catchup.storecopy.StoreCopyFinishedResponse.Status;
 
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotSame;
 
 public class StoreCopyFinishedResponseEncodeDecodeTest
@@ -46,5 +45,4 @@ public class StoreCopyFinishedResponseEncodeDecodeTest
         assertNotSame( sent, received );
         assertEquals( sent, received );
     }
-
 }

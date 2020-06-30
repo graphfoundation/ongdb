@@ -60,33 +60,38 @@ public abstract class BaseMultiClusteringIT
     protected static Set<String> DB_NAMES_1 = Collections.singleton( "default" );
     protected static Set<String> DB_NAMES_2 = Stream.of( "foo", "bar" ).collect( Collectors.toSet() );
     protected static Set<String> DB_NAMES_3 = Stream.of( "foo", "bar", "baz" ).collect( Collectors.toSet() );
-
+    @Rule
+    public final RuleChain ruleChain;
     private final Set<String> dbNames;
     private final ClusterRule clusterRule;
     private final DefaultFileSystemRule fileSystemRule;
     private final DiscoveryServiceType discoveryType;
-
     @Rule
-    public final RuleChain ruleChain;
+    public Timeout globalTimeout = Timeout.seconds( 300 );
     private Cluster<?> cluster;
     private FileSystemAbstraction fs;
-    @Rule
-    public Timeout globalTimeout = Timeout.seconds(300);
 
     protected BaseMultiClusteringIT( String ignoredName, int numCores, int numReplicas, Set<String> dbNames,
-            DiscoveryServiceType discoveryServiceType )
+                                     DiscoveryServiceType discoveryServiceType )
     {
         this.dbNames = dbNames;
         this.discoveryType = discoveryServiceType;
 
         this.clusterRule = new ClusterRule()
-            .withNumberOfCoreMembers( numCores )
-            .withNumberOfReadReplicas( numReplicas )
-            .withDatabaseNames( dbNames );
+                .withNumberOfCoreMembers( numCores )
+                .withNumberOfReadReplicas( numReplicas )
+                .withDatabaseNames( dbNames );
 
         this.fileSystemRule = new DefaultFileSystemRule();
 
         this.ruleChain = RuleChain.outerRule( fileSystemRule ).around( clusterRule );
+    }
+
+    private static String getFirstDbName( Set<String> dbNames ) throws Exception
+    {
+        return dbNames.stream()
+                      .findFirst()
+                      .orElseThrow( () -> new IllegalArgumentException( "The dbNames parameter must not be empty." ) );
     }
 
     @Before
@@ -101,7 +106,7 @@ public abstract class BaseMultiClusteringIT
     public void shouldRunDistinctTransactionsAndDiverge() throws Exception
     {
         int numNodes = 1;
-        Map<CoreClusterMember, List<CoreClusterMember>> leaderMap = new HashMap<>();
+        Map<CoreClusterMember,List<CoreClusterMember>> leaderMap = new HashMap<>();
         for ( String dbName : dbNames )
         {
             int i = 0;
@@ -111,8 +116,8 @@ public abstract class BaseMultiClusteringIT
             {
                 leader = cluster.coreTx( dbName, ( db, tx ) ->
                 {
-                    Node node = db.createNode( label("database") );
-                    node.setProperty( "name" , dbName );
+                    Node node = db.createNode( label( "database" ) );
+                    node.setProperty( "name", dbName );
                     tx.success();
                 } );
                 i++;
@@ -121,21 +126,20 @@ public abstract class BaseMultiClusteringIT
 
             int leaderId = leader.serverId();
             List<CoreClusterMember> notLeaders = cluster.coreMembers().stream()
-                    .filter( m -> m.dbName().equals( dbName ) && m.serverId() != leaderId )
-                    .collect( Collectors.toList() );
+                                                        .filter( m -> m.dbName().equals( dbName ) && m.serverId() != leaderId )
+                                                        .collect( Collectors.toList() );
 
             leaderMap.put( leader, notLeaders );
             numNodes++;
         }
 
         Set<Long> nodesPerDb = leaderMap.keySet().stream()
-                .map( DataCreator::countNodes ).collect( Collectors.toSet() );
-        assertEquals("Each logical database in the multicluster should have a unique number of nodes.", nodesPerDb.size(), dbNames.size() );
-        for ( Map.Entry<CoreClusterMember, List<CoreClusterMember>> subCluster : leaderMap.entrySet() )
+                                        .map( DataCreator::countNodes ).collect( Collectors.toSet() );
+        assertEquals( "Each logical database in the multicluster should have a unique number of nodes.", nodesPerDb.size(), dbNames.size() );
+        for ( Map.Entry<CoreClusterMember,List<CoreClusterMember>> subCluster : leaderMap.entrySet() )
         {
             dataMatchesEventually( subCluster.getKey(), subCluster.getValue() );
         }
-
     }
 
     @Test
@@ -145,21 +149,21 @@ public abstract class BaseMultiClusteringIT
         {
             cluster.coreTx( dbName, ( db, tx ) ->
             {
-                Node node = db.createNode( label("database") );
-                node.setProperty( "name" , dbName );
+                Node node = db.createNode( label( "database" ) );
+                node.setProperty( "name", dbName );
                 tx.success();
             } );
         }
 
         List<File> storeDirs = cluster.coreMembers().stream()
-                .map( CoreClusterMember::databaseDirectory )
-                .collect( Collectors.toList() );
+                                      .map( CoreClusterMember::databaseDirectory )
+                                      .collect( Collectors.toList() );
 
         cluster.shutdown();
 
         Set<StoreId> storeIds = getStoreIds( storeDirs, fs );
         int expectedNumStoreIds = dbNames.size();
-        assertEquals( "Expected distinct store ids for distinct sub clusters.", expectedNumStoreIds, storeIds.size());
+        assertEquals( "Expected distinct store ids for distinct sub clusters.", expectedNumStoreIds, storeIds.size() );
     }
 
     @Test
@@ -169,7 +173,7 @@ public abstract class BaseMultiClusteringIT
         int followerId = cluster.getMemberWithAnyRole( dbName, Role.FOLLOWER ).serverId();
         cluster.removeCoreMemberWithServerId( followerId );
 
-        for ( int  i = 0; i < 100; i++ )
+        for ( int i = 0; i < 100; i++ )
         {
             cluster.coreTx( dbName, ( db, tx ) ->
             {
@@ -189,18 +193,18 @@ public abstract class BaseMultiClusteringIT
         CoreClusterMember dbLeader = cluster.awaitLeader( dbName );
 
         boolean followerIsHealthy = cluster.healthyCoreMembers().stream()
-                .anyMatch( m -> m.serverId() == followerId );
+                                           .anyMatch( m -> m.serverId() == followerId );
 
         assertTrue( "Rejoining / lagging follower is expected to be healthy.", followerIsHealthy );
 
         CoreClusterMember follower = cluster.getCoreMemberById( followerId );
 
-        dataMatchesEventually( dbLeader, Collections.singleton(follower) );
+        dataMatchesEventually( dbLeader, Collections.singleton( follower ) );
 
         List<File> storeDirs = cluster.coreMembers().stream()
-                .filter( m -> dbName.equals( m.dbName() ) )
-                .map( CoreClusterMember::databaseDirectory )
-                .collect( Collectors.toList() );
+                                      .filter( m -> dbName.equals( m.dbName() ) )
+                                      .map( CoreClusterMember::databaseDirectory )
+                                      .collect( Collectors.toList() );
 
         cluster.shutdown();
 
@@ -208,6 +212,8 @@ public abstract class BaseMultiClusteringIT
         String message = "All members of a sub-cluster should have the same store Id after downloading a snapshot.";
         assertEquals( message, 1, storeIds.size() );
     }
+
+    //TODO: Test that rejoining followers wait for majority of hosts *for each database* to be available before joining
 
     @Test
     public void shouldNotBeAbleToChangeClusterMembersDatabaseName() throws Exception
@@ -229,14 +235,5 @@ public abstract class BaseMultiClusteringIT
         {
             //expected
         }
-    }
-
-    //TODO: Test that rejoining followers wait for majority of hosts *for each database* to be available before joining
-
-    private static String getFirstDbName( Set<String> dbNames ) throws Exception
-    {
-        return dbNames.stream()
-                .findFirst()
-                .orElseThrow( () -> new IllegalArgumentException( "The dbNames parameter must not be empty." ) );
     }
 }

@@ -29,7 +29,6 @@ import org.neo4j.causalclustering.core.state.Result;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
@@ -66,7 +65,7 @@ public class ProgressTrackerImplTest
         progress.awaitReplication( 10L );
 
         // then
-        time = System.currentTimeMillis() - time ;
+        time = System.currentTimeMillis() - time;
         assertThat( time, greaterThanOrEqualTo( 10L ) );
     }
 
@@ -158,10 +157,10 @@ public class ProgressTrackerImplTest
         GlobalSession sessionB = new GlobalSession( UUID.randomUUID(), null );
         DistributedOperation aliasUnderSessionB =
                 new DistributedOperation( ReplicatedInteger.valueOf( 0 ), sessionB,
-                        new LocalOperationId(
-                                /* same id/sequence number as operationA */
-                                operationA.operationId().localSessionId(),
-                                operationA.operationId().sequenceNumber() ) );
+                                          new LocalOperationId(
+                                                  /* same id/sequence number as operationA */
+                                                  operationA.operationId().localSessionId(),
+                                                  operationA.operationId().sequenceNumber() ) );
 
         Progress progressA = tracker.start( operationA );
 
@@ -177,16 +176,16 @@ public class ProgressTrackerImplTest
     private Thread replicationEventWaiter( Progress progress )
     {
         Thread waiter = new Thread( () ->
-        {
-            try
-            {
-                progress.awaitReplication( DEFAULT_TIMEOUT_MS );
-            }
-            catch ( InterruptedException e )
-            {
-                throw new RuntimeException( e );
-            }
-        } );
+                                    {
+                                        try
+                                        {
+                                            progress.awaitReplication( DEFAULT_TIMEOUT_MS );
+                                        }
+                                        catch ( InterruptedException e )
+                                        {
+                                            throw new RuntimeException( e );
+                                        }
+                                    } );
 
         waiter.start();
         return waiter;

@@ -49,7 +49,6 @@ import org.neo4j.logging.NullLog;
 import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
 import static java.util.concurrent.TimeUnit.SECONDS;
-import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
@@ -108,7 +107,7 @@ public class NettyProtocolHandshakeIT
 
         // then
         ProtocolStack clientProtocolStack = clientHandshakeFuture.get( 1, TimeUnit.MINUTES );
-        assertThat( clientProtocolStack.applicationProtocol(), equalTo( TestApplicationProtocols.latest( RAFT) ) );
+        assertThat( clientProtocolStack.applicationProtocol(), equalTo( TestApplicationProtocols.latest( RAFT ) ) );
         assertThat( clientProtocolStack.modifierProtocols(), contains( TestModifierProtocols.latest( COMPRESSION ) ) );
     }
 
@@ -135,7 +134,7 @@ public class NettyProtocolHandshakeIT
 
         // then
         ProtocolStack clientProtocolStack = clientHandshakeFuture.get( 1, TimeUnit.MINUTES );
-        assertThat( clientProtocolStack.applicationProtocol(), equalTo( TestApplicationProtocols.latest( RAFT) ) );
+        assertThat( clientProtocolStack.applicationProtocol(), equalTo( TestApplicationProtocols.latest( RAFT ) ) );
         assertThat( clientProtocolStack.modifierProtocols(), empty() );
     }
 
@@ -192,8 +191,8 @@ public class NettyProtocolHandshakeIT
     }
 
     /**
-     * Only attempt to access handshakeServer when client has completed, and do so whether client has completed normally or exceptionally
-     * This is to avoid NullPointerException if handshakeServer accessed too soon
+     * Only attempt to access handshakeServer when client has completed, and do so whether client has completed normally or exceptionally This is to avoid
+     * NullPointerException if handshakeServer accessed too soon
      */
     private CompletableFuture<ProtocolStack> getServerHandshakeFuture( CompletableFuture<ProtocolStack> clientFuture )
     {
@@ -210,24 +209,26 @@ public class NettyProtocolHandshakeIT
         {
             eventLoopGroup = new NioEventLoopGroup();
             ServerBootstrap bootstrap = new ServerBootstrap().group( eventLoopGroup )
-                    .channel( NioServerSocketChannel.class )
-                    .option( ChannelOption.SO_REUSEADDR, true )
-                    .localAddress( 0 )
-                    .childHandler( new ChannelInitializer<SocketChannel>()
-                    {
-                        @Override
-                        protected void initChannel( SocketChannel ch )
-                        {
-                            ChannelPipeline pipeline = ch.pipeline();
-                            handshakeServer = new HandshakeServer(
-                                    applicationProtocolRepository, modifierProtocolRepository, new SimpleNettyChannel( ch, NullLog.getInstance() ) );
-                            pipeline.addLast( "frameEncoder", new LengthFieldPrepender( 4 ) );
-                            pipeline.addLast( "frameDecoder", new LengthFieldBasedFrameDecoder( Integer.MAX_VALUE, 0, 4, 0, 4 ) );
-                            pipeline.addLast( "responseMessageEncoder", new ServerMessageEncoder() );
-                            pipeline.addLast( "requestMessageDecoder", new ServerMessageDecoder() );
-                            pipeline.addLast( new NettyHandshakeServer( handshakeServer ) );
-                        }
-                    } );
+                                                             .channel( NioServerSocketChannel.class )
+                                                             .option( ChannelOption.SO_REUSEADDR, true )
+                                                             .localAddress( 0 )
+                                                             .childHandler( new ChannelInitializer<SocketChannel>()
+                                                             {
+                                                                 @Override
+                                                                 protected void initChannel( SocketChannel ch )
+                                                                 {
+                                                                     ChannelPipeline pipeline = ch.pipeline();
+                                                                     handshakeServer = new HandshakeServer(
+                                                                             applicationProtocolRepository, modifierProtocolRepository,
+                                                                             new SimpleNettyChannel( ch, NullLog.getInstance() ) );
+                                                                     pipeline.addLast( "frameEncoder", new LengthFieldPrepender( 4 ) );
+                                                                     pipeline.addLast( "frameDecoder",
+                                                                                       new LengthFieldBasedFrameDecoder( Integer.MAX_VALUE, 0, 4, 0, 4 ) );
+                                                                     pipeline.addLast( "responseMessageEncoder", new ServerMessageEncoder() );
+                                                                     pipeline.addLast( "requestMessageDecoder", new ServerMessageDecoder() );
+                                                                     pipeline.addLast( new NettyHandshakeServer( handshakeServer ) );
+                                                                 }
+                                                             } );
 
             channel = bootstrap.bind().syncUninterruptibly().channel();
         }

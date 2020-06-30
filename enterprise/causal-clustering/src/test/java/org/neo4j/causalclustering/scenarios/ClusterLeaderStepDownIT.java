@@ -50,11 +50,11 @@ public class ClusterLeaderStepDownIT
 
         //Do some work to make sure the cluster is operating normally.
         CoreClusterMember leader = cluster.coreTx( ( db, tx ) ->
-        {
-            Node node = db.createNode( Label.label( "bam" ) );
-            node.setProperty( "bam", "bam" );
-            tx.success();
-        } );
+                                                   {
+                                                       Node node = db.createNode( Label.label( "bam" ) );
+                                                       node.setProperty( "bam", "bam" );
+                                                       tx.success();
+                                                   } );
 
         ThrowingSupplier<List<CoreClusterMember>,Exception> followers = () -> cluster.coreMembers().stream().filter(
                 m -> m.raft().currentRole() != Role.LEADER ).collect( toList() );
@@ -66,6 +66,6 @@ public class ClusterLeaderStepDownIT
 
         //then
         assertEventually( "Leader should have stepped down.", () -> leader.raft().isLeader(), Matchers.is( false ), 2,
-                TimeUnit.MINUTES );
+                          TimeUnit.MINUTES );
     }
 }

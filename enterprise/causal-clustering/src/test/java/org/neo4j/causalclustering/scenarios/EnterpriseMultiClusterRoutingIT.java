@@ -30,7 +30,7 @@ import static org.neo4j.causalclustering.scenarios.EnterpriseDiscoveryServiceTyp
 public class EnterpriseMultiClusterRoutingIT extends BaseMultiClusterRoutingIT
 {
     public EnterpriseMultiClusterRoutingIT( String ignoredName, int numCores, int numReplicas, Set<String> dbNames,
-            DiscoveryServiceType discoveryType )
+                                            DiscoveryServiceType discoveryType )
     {
         super( ignoredName, numCores, numReplicas, dbNames, discoveryType );
     }
@@ -39,15 +39,14 @@ public class EnterpriseMultiClusterRoutingIT extends BaseMultiClusterRoutingIT
     public static Collection<Object[]> data()
     {
         return Arrays.asList( new Object[][]
-                {
-                        { "[shared discovery, 6 core hosts, 2 databases]", 6, 0, DB_NAMES_1, SHARED },
-                        { "[hazelcast discovery, 6 core hosts, 2 databases]", 6, 0, DB_NAMES_1, HAZELCAST },
-                        { "[shared discovery, 5 core hosts, 1 database]", 5, 0, DB_NAMES_2, SHARED },
-                        { "[hazelcast discovery, 5 core hosts, 1 database]", 5, 0, DB_NAMES_2, HAZELCAST },
-                        { "[hazelcast discovery, 6 core hosts, 3 read replicas, 3 databases]", 9, 3, DB_NAMES_3, HAZELCAST },
-                        { "[shared discovery, 6 core hosts, 3 read replicas, 3 databases]", 8, 2, DB_NAMES_3, SHARED }
-                }
+                                      {
+                                              {"[shared discovery, 6 core hosts, 2 databases]", 6, 0, DB_NAMES_1, SHARED},
+                                              {"[hazelcast discovery, 6 core hosts, 2 databases]", 6, 0, DB_NAMES_1, HAZELCAST},
+                                              {"[shared discovery, 5 core hosts, 1 database]", 5, 0, DB_NAMES_2, SHARED},
+                                              {"[hazelcast discovery, 5 core hosts, 1 database]", 5, 0, DB_NAMES_2, HAZELCAST},
+                                              {"[hazelcast discovery, 6 core hosts, 3 read replicas, 3 databases]", 9, 3, DB_NAMES_3, HAZELCAST},
+                                              {"[shared discovery, 6 core hosts, 3 read replicas, 3 databases]", 8, 2, DB_NAMES_3, SHARED}
+                                      }
         );
     }
-
 }

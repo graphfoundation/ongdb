@@ -61,12 +61,12 @@ public class SegmentsTest
     private final LogProvider logProvider = NullLogProvider.getInstance();
     private final SegmentHeader header = mock( SegmentHeader.class );
     private final ReaderPool readerPool = new ReaderPool( 0, getInstance(), fileNames, fsa,
-            Clocks.fakeClock() );
+                                                          Clocks.fakeClock() );
 
     private final SegmentFile fileA = spy( new SegmentFile( fsa, fileNames.getForVersion( 0 ), readerPool, 0,
-            contentMarshal, logProvider, header ) );
+                                                            contentMarshal, logProvider, header ) );
     private final SegmentFile fileB = spy( new SegmentFile( fsa, fileNames.getForVersion( 1 ), readerPool, 1,
-            contentMarshal, logProvider, header ) );
+                                                            contentMarshal, logProvider, header ) );
 
     private final List<SegmentFile> segmentFiles = asList( fileA, fileB );
 
@@ -81,7 +81,7 @@ public class SegmentsTest
     {
         // Given
         try ( Segments segments = new Segments( fsa, fileNames, readerPool, segmentFiles, contentMarshal,
-                logProvider, -1 ) )
+                                                logProvider, -1 ) )
         {
             // When
             segments.rotate( 10, 10, 12 );
@@ -101,7 +101,7 @@ public class SegmentsTest
         verifyZeroInteractions( fsa );
         // Given
         try ( Segments segments = new Segments( fsa, fileNames, readerPool, segmentFiles, contentMarshal,
-                logProvider, -1 ) )
+                                                logProvider, -1 ) )
         {
             // this is version 0 and will be deleted on prune later
             SegmentFile toPrune = segments.rotate( -1, -1, -1 );
@@ -122,7 +122,7 @@ public class SegmentsTest
     {
         // Given
         try ( Segments segments = new Segments( fsa, fileNames, readerPool, segmentFiles, contentMarshal,
-                logProvider, -1 ) )
+                                                logProvider, -1 ) )
         {
             segments.rotate( -1, -1, -1 );
             segments.last().closeWriter(); // need to close writer otherwise dispose will not be called
@@ -142,7 +142,7 @@ public class SegmentsTest
     {
         // Given
         try ( Segments segments = new Segments( fsa, fileNames, readerPool, segmentFiles, contentMarshal,
-                logProvider, -1 ) )
+                                                logProvider, -1 ) )
         {
             SegmentFile toBePruned = segments.rotate( -1, -1, -1 );
             segments.last().closeWriter(); // need to close writer otherwise dispose will not be called

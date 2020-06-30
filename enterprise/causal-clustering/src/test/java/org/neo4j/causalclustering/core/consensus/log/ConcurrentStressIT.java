@@ -44,6 +44,7 @@ import static org.junit.Assert.assertEquals;
 public abstract class ConcurrentStressIT<T extends RaftLog & Lifecycle>
 {
     private static final int MAX_CONTENT_SIZE = 2048;
+    private static final CharSequence CHARS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
     @Rule
     public final TestDirectory dir = TestDirectory.testDirectory();
 
@@ -90,31 +91,6 @@ public abstract class ConcurrentStressIT<T extends RaftLog & Lifecycle>
         }
     }
 
-    private class TimedTask implements Callable<Long>
-    {
-        private Runnable task;
-        private final long runTimeMillis;
-
-        TimedTask( Runnable task, int time, TimeUnit unit )
-        {
-            this.task = task;
-            this.runTimeMillis = unit.toMillis( time );
-        }
-
-        @Override
-        public Long call()
-        {
-            long endTime = System.currentTimeMillis() + runTimeMillis;
-            long count = 0;
-            while ( endTime > System.currentTimeMillis() )
-            {
-                task.run();
-                count++;
-            }
-            return count;
-        }
-    }
-
     private void read( RaftLog raftLog )
     {
         try ( RaftLogCursor cursor = raftLog.getEntryCursor( 0 ) )
@@ -147,8 +123,6 @@ public abstract class ConcurrentStressIT<T extends RaftLog & Lifecycle>
         }
     }
 
-    private static final CharSequence CHARS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-
     private String stringForIndex( long index )
     {
         int len = ((int) index) % MAX_CONTENT_SIZE + 1;
@@ -160,5 +134,30 @@ public abstract class ConcurrentStressIT<T extends RaftLog & Lifecycle>
         }
 
         return str.toString();
+    }
+
+    private class TimedTask implements Callable<Long>
+    {
+        private final long runTimeMillis;
+        private Runnable task;
+
+        TimedTask( Runnable task, int time, TimeUnit unit )
+        {
+            this.task = task;
+            this.runTimeMillis = unit.toMillis( time );
+        }
+
+        @Override
+        public Long call()
+        {
+            long endTime = System.currentTimeMillis() + runTimeMillis;
+            long count = 0;
+            while ( endTime > System.currentTimeMillis() )
+            {
+                task.run();
+                count++;
+            }
+            return count;
+        }
     }
 }

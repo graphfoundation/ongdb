@@ -113,9 +113,84 @@ public class ReadReplicaReplicationIT
 
     @Rule
     public final ClusterRule clusterRule = new ClusterRule().withNumberOfCoreMembers( NR_CORE_MEMBERS )
-            .withNumberOfReadReplicas( NR_READ_REPLICAS )
-            .withSharedCoreParam( CausalClusteringSettings.cluster_topology_refresh, "5s" )
-            .withDiscoveryServiceType( EnterpriseDiscoveryServiceType.HAZELCAST );
+                                                            .withNumberOfReadReplicas( NR_READ_REPLICAS )
+                                                            .withSharedCoreParam( CausalClusteringSettings.cluster_topology_refresh, "5s" )
+                                                            .withDiscoveryServiceType( EnterpriseDiscoveryServiceType.HAZELCAST );
+    private final BiConsumer<CoreGraphDatabase,Transaction> createSomeData = ( db, tx ) ->
+    {
+        createData( db, 10 );
+        tx.success();
+    };
+
+    private static void gatherLabelScanStoreFiles( GraphDatabaseAPI db, Set<Path> labelScanStoreFiles )
+    {
+        Path databaseDirectory = db.databaseLayout().databaseDirectory().toPath();
+        LabelScanStore labelScanStore = db.getDependencyResolver().resolveDependency( LabelScanStore.class );
+        try ( ResourceIterator<File> files = labelScanStore.snapshotStoreFiles() )
+        {
+            Path relativePath = databaseDirectory.relativize( files.next().toPath().toAbsolutePath() );
+            labelScanStoreFiles.add( relativePath );
+        }
+    }
+
+    private static TransactionIdTracker transactionIdTracker( GraphDatabaseAPI database )
+    {
+        Supplier<TransactionIdStore> transactionIdStore =
+                database.getDependencyResolver().provideDependency( TransactionIdStore.class );
+        AvailabilityGuard databaseAvailabilityGuard =
+                database.getDependencyResolver().resolveDependency( DatabaseAvailabilityGuard.class );
+        return new TransactionIdTracker( transactionIdStore, databaseAvailabilityGuard );
+    }
+
+    private static LogFiles physicalLogFiles( ClusterMember clusterMember )
+    {
+        return clusterMember.database().getDependencyResolver().resolveDependency( LogFiles.class );
+    }
+
+    private static boolean readReplicasUpToDateAsTheLeader( CoreClusterMember leader, Collection<ReadReplica> readReplicas )
+    {
+        long leaderTxId = lastClosedTransactionId( true, leader.database() );
+        return readReplicas.stream().map( ReadReplica::database )
+                           .map( db -> lastClosedTransactionId( false, db ) )
+                           .reduce( true, ( acc, txId ) -> acc && txId == leaderTxId, Boolean::logicalAnd );
+    }
+
+    private static void changeStoreId( ReadReplica replica ) throws IOException
+    {
+        File neoStoreFile = DatabaseLayout.of( replica.databaseDirectory() ).metadataStore();
+        PageCache pageCache = replica.database().getDependencyResolver().resolveDependency( PageCache.class );
+        MetaDataStore.setRecord( pageCache, neoStoreFile, TIME, System.currentTimeMillis() );
+    }
+
+    private static long lastClosedTransactionId( boolean fail, GraphDatabaseFacade db )
+    {
+        try
+        {
+            return db.getDependencyResolver().resolveDependency( TransactionIdStore.class )
+                     .getLastClosedTransactionId();
+        }
+        catch ( IllegalStateException | UnsatisfiedDependencyException /* db is shutdown or not available */ ex )
+        {
+            if ( !fail )
+            {
+                // the db is down we'll try again...
+                return -1;
+            }
+            else
+            {
+                throw ex;
+            }
+        }
+    }
+
+    private static long versionBy( File raftLogDir, BinaryOperator<Long> operator ) throws IOException
+    {
+        try ( FileSystemAbstraction fileSystem = new DefaultFileSystemAbstraction() )
+        {
+            SortedMap<Long,File> logs = new FileNames( raftLogDir ).getAllFiles( fileSystem, mock( Log.class ) );
+            return logs.keySet().stream().reduce( operator ).orElseThrow( IllegalStateException::new );
+        }
+    }
 
     @Test
     public void shouldNotBeAbleToWriteToReadReplica() throws Exception
@@ -162,19 +237,19 @@ public class ReadReplicaReplicationIT
         int nodesBeforeReadReplicaStarts = 1;
 
         cluster.coreTx( ( db, tx ) ->
-        {
-            db.schema().constraintFor( Label.label( "Foo" ) ).assertPropertyIsUnique( "foobar" ).create();
-            tx.success();
-        } );
+                        {
+                            db.schema().constraintFor( Label.label( "Foo" ) ).assertPropertyIsUnique( "foobar" ).create();
+                            tx.success();
+                        } );
 
         // when
         for ( int i = 0; i < 100; i++ )
         {
             cluster.coreTx( ( db, tx ) ->
-            {
-                createData( db, nodesBeforeReadReplicaStarts );
-                tx.success();
-            } );
+                            {
+                                createData( db, nodesBeforeReadReplicaStarts );
+                                tx.success();
+                            } );
         }
 
         Set<Path> labelScanStoreFiles = new HashSet<>();
@@ -196,10 +271,10 @@ public class ReadReplicaReplicationIT
         for ( int i = 0; i < 100; i++ )
         {
             cluster.coreTx( ( db, tx ) ->
-            {
-                createData( db, nodesBeforeReadReplicaStarts );
-                tx.success();
-            } );
+                            {
+                                createData( db, nodesBeforeReadReplicaStarts );
+                                tx.success();
+                            } );
         }
 
         // then
@@ -209,7 +284,7 @@ public class ReadReplicaReplicationIT
             try ( Transaction tx = readReplica.beginTx() )
             {
                 ThrowingSupplier<Long,Exception> nodeCount = () -> count( readReplica.getAllNodes() );
-                assertEventually( "node to appear on read replica", nodeCount, is( 400L ) , 1, MINUTES );
+                assertEventually( "node to appear on read replica", nodeCount, is( 400L ), 1, MINUTES );
 
                 for ( Node node : readReplica.getAllNodes() )
                 {
@@ -221,17 +296,6 @@ public class ReadReplicaReplicationIT
         }
 
         assertTrue( labelScanStoreCorrectlyPlaced.get() );
-    }
-
-    private static void gatherLabelScanStoreFiles( GraphDatabaseAPI db, Set<Path> labelScanStoreFiles )
-    {
-        Path databaseDirectory = db.databaseLayout().databaseDirectory().toPath();
-        LabelScanStore labelScanStore = db.getDependencyResolver().resolveDependency( LabelScanStore.class );
-        try ( ResourceIterator<File> files = labelScanStore.snapshotStoreFiles() )
-        {
-            Path relativePath = databaseDirectory.relativize( files.next().toPath().toAbsolutePath() );
-            labelScanStoreFiles.add( relativePath );
-        }
     }
 
     @Test
@@ -264,8 +328,8 @@ public class ReadReplicaReplicationIT
             assertThat( required.getCause(), instanceOf( LifecycleException.class ) );
             assertThat( required.getCause().getCause(), instanceOf( Exception.class ) );
             assertThat( required.getCause().getCause().getMessage(),
-                    containsString( "This read replica cannot join the cluster. " +
-                            "The local database is not empty and has a mismatching storeId:" ) );
+                        containsString( "This read replica cannot join the cluster. " +
+                                        "The local database is not empty and has a mismatching storeId:" ) );
         }
     }
 
@@ -324,16 +388,16 @@ public class ReadReplicaReplicationIT
     {
         // given
         Map<String,String> params = stringMap( GraphDatabaseSettings.keep_logical_logs.name(), "keep_none",
-                GraphDatabaseSettings.logical_log_rotation_threshold.name(), "1M",
-                GraphDatabaseSettings.check_point_interval_time.name(), "100ms" );
+                                               GraphDatabaseSettings.logical_log_rotation_threshold.name(), "1M",
+                                               GraphDatabaseSettings.check_point_interval_time.name(), "100ms" );
 
         Cluster<?> cluster = clusterRule.withSharedCoreParams( params ).startCluster();
 
         cluster.coreTx( ( db, tx ) ->
-        {
-            createData( db, 10 );
-            tx.success();
-        } );
+                        {
+                            createData( db, 10 );
+                            tx.success();
+                        } );
 
         awaitEx( () -> readReplicasUpToDateAsTheLeader( cluster.awaitLeader(), cluster.readReplicas() ), 1, TimeUnit.MINUTES );
 
@@ -347,11 +411,10 @@ public class ReadReplicaReplicationIT
         do
         {
             core = cluster.coreTx( ( db, tx ) ->
-            {
-                createData( db, 1_000 );
-                tx.success();
-            } );
-
+                                   {
+                                       createData( db, 1_000 );
+                                       tx.success();
+                                   } );
         }
         while ( physicalLogFiles( core ).getLowestLogVersion() <= highestReadReplicaLogVersion );
 
@@ -361,8 +424,8 @@ public class ReadReplicaReplicationIT
         awaitEx( () -> readReplicasUpToDateAsTheLeader( cluster.awaitLeader(), cluster.readReplicas() ), 1, TimeUnit.MINUTES );
 
         assertEventually( "The read replica has the same data as the core members",
-                () -> DbRepresentation.of( readReplica.database() ),
-                equalTo( DbRepresentation.of( cluster.awaitLeader().database() ) ), 10, TimeUnit.SECONDS );
+                          () -> DbRepresentation.of( readReplica.database() ),
+                          equalTo( DbRepresentation.of( cluster.awaitLeader().database() ) ), 10, TimeUnit.SECONDS );
     }
 
     @Test
@@ -370,16 +433,16 @@ public class ReadReplicaReplicationIT
     {
         // given
         Map<String,String> params = stringMap( GraphDatabaseSettings.keep_logical_logs.name(), "keep_none",
-                GraphDatabaseSettings.logical_log_rotation_threshold.name(), "1M",
-                GraphDatabaseSettings.check_point_interval_time.name(), "100ms" );
+                                               GraphDatabaseSettings.logical_log_rotation_threshold.name(), "1M",
+                                               GraphDatabaseSettings.check_point_interval_time.name(), "100ms" );
 
         Cluster<?> cluster = clusterRule.withSharedCoreParams( params ).startCluster();
 
         cluster.coreTx( ( db, tx ) ->
-        {
-            createData( db, 10 );
-            tx.success();
-        } );
+                        {
+                            createData( db, 10 );
+                            tx.success();
+                        } );
 
         awaitEx( () -> readReplicasUpToDateAsTheLeader( cluster.awaitLeader(), cluster.readReplicas() ), 1, TimeUnit.MINUTES );
 
@@ -392,11 +455,10 @@ public class ReadReplicaReplicationIT
         do
         {
             core = cluster.coreTx( ( db, tx ) ->
-            {
-                createData( db, 1_000 );
-                tx.success();
-            } );
-
+                                   {
+                                       createData( db, 1_000 );
+                                       tx.success();
+                                   } );
         }
         while ( physicalLogFiles( core ).getLowestLogVersion() <= highestReadReplicaLogVersion );
 
@@ -406,15 +468,15 @@ public class ReadReplicaReplicationIT
 
         // when
         cluster.coreTx( ( db, tx ) ->
-        {
-            createData( db, 10 );
-            tx.success();
-        } );
+                        {
+                            createData( db, 10 );
+                            tx.success();
+                        } );
 
         // then
         assertEventually( "The read replica has the same data as the core members",
-                () -> DbRepresentation.of( readReplica.database() ),
-                equalTo( DbRepresentation.of( cluster.awaitLeader().database() ) ), 10, TimeUnit.SECONDS );
+                          () -> DbRepresentation.of( readReplica.database() ),
+                          equalTo( DbRepresentation.of( cluster.awaitLeader().database() ) ), 10, TimeUnit.SECONDS );
     }
 
     @Test
@@ -425,14 +487,14 @@ public class ReadReplicaReplicationIT
 
         ReadReplicaGraphDatabase readReplicaGraphDatabase = cluster.findAnyReadReplica().database();
         CatchupPollingProcess pollingClient = readReplicaGraphDatabase.getDependencyResolver()
-                .resolveDependency( CatchupPollingProcess.class );
+                                                                      .resolveDependency( CatchupPollingProcess.class );
         pollingClient.stop();
 
         cluster.coreTx( ( coreGraphDatabase, transaction ) ->
-        {
-            coreGraphDatabase.createNode();
-            transaction.success();
-        } );
+                        {
+                            coreGraphDatabase.createNode();
+                            transaction.success();
+                        } );
 
         CoreGraphDatabase leaderDatabase = cluster.awaitLeader().database();
         long transactionVisibleOnLeader = transactionIdTracker( leaderDatabase ).newestEncounteredTxId();
@@ -453,56 +515,6 @@ public class ReadReplicaReplicationIT
         transactionIdTracker( readReplicaGraphDatabase ).awaitUpToDate( transactionVisibleOnLeader, ofSeconds( 15 ) );
     }
 
-    private static TransactionIdTracker transactionIdTracker( GraphDatabaseAPI database )
-    {
-        Supplier<TransactionIdStore> transactionIdStore =
-                database.getDependencyResolver().provideDependency( TransactionIdStore.class );
-        AvailabilityGuard databaseAvailabilityGuard =
-                database.getDependencyResolver().resolveDependency( DatabaseAvailabilityGuard.class );
-        return new TransactionIdTracker( transactionIdStore, databaseAvailabilityGuard );
-    }
-
-    private static LogFiles physicalLogFiles( ClusterMember clusterMember )
-    {
-        return clusterMember.database().getDependencyResolver().resolveDependency( LogFiles.class );
-    }
-
-    private static boolean readReplicasUpToDateAsTheLeader( CoreClusterMember leader, Collection<ReadReplica> readReplicas )
-    {
-        long leaderTxId = lastClosedTransactionId( true, leader.database() );
-        return readReplicas.stream().map( ReadReplica::database )
-                .map( db -> lastClosedTransactionId( false, db ) )
-                .reduce( true, ( acc, txId ) -> acc && txId == leaderTxId, Boolean::logicalAnd );
-    }
-
-    private static void changeStoreId( ReadReplica replica ) throws IOException
-    {
-        File neoStoreFile = DatabaseLayout.of( replica.databaseDirectory() ).metadataStore();
-        PageCache pageCache = replica.database().getDependencyResolver().resolveDependency( PageCache.class );
-        MetaDataStore.setRecord( pageCache, neoStoreFile, TIME, System.currentTimeMillis() );
-    }
-
-    private static long lastClosedTransactionId( boolean fail, GraphDatabaseFacade db )
-    {
-        try
-        {
-            return db.getDependencyResolver().resolveDependency( TransactionIdStore.class )
-                    .getLastClosedTransactionId();
-        }
-        catch ( IllegalStateException  | UnsatisfiedDependencyException /* db is shutdown or not available */ ex )
-        {
-            if ( !fail )
-            {
-                // the db is down we'll try again...
-                return -1;
-            }
-            else
-            {
-                throw ex;
-            }
-        }
-    }
-
     @Test
     public void shouldThrowExceptionIfReadReplicaRecordFormatDiffersToCoreRecordFormat() throws Exception
     {
@@ -521,7 +533,7 @@ public class ReadReplicaReplicationIT
         catch ( Exception e )
         {
             assertThat( e.getCause().getCause().getMessage(),
-                    containsString( "Failed to start database with copied store" ) );
+                        containsString( "Failed to start database with copied store" ) );
         }
     }
 
@@ -530,21 +542,21 @@ public class ReadReplicaReplicationIT
     {
         // given
         Map<String,String> params = stringMap( CausalClusteringSettings.raft_log_rotation_size.name(), "1k",
-                CausalClusteringSettings.raft_log_pruning_frequency.name(), "500ms",
-                CausalClusteringSettings.state_machine_flush_window_size.name(), "1",
-                CausalClusteringSettings.raft_log_pruning_strategy.name(), "1 entries" );
+                                               CausalClusteringSettings.raft_log_pruning_frequency.name(), "500ms",
+                                               CausalClusteringSettings.state_machine_flush_window_size.name(), "1",
+                                               CausalClusteringSettings.raft_log_pruning_strategy.name(), "1 entries" );
         Cluster<?> cluster = clusterRule.withNumberOfReadReplicas( 0 ).withSharedCoreParams( params )
-                .withRecordFormat( HighLimit.NAME ).startCluster();
+                                        .withRecordFormat( HighLimit.NAME ).startCluster();
 
         cluster.coreTx( ( db, tx ) ->
-        {
-            Node node = db.createNode( Label.label( "L" ) );
-            for ( int i = 0; i < 10; i++ )
-            {
-                node.setProperty( "prop-" + i, "this is a quite long string to get to the log limit soonish" );
-            }
-            tx.success();
-        } );
+                        {
+                            Node node = db.createNode( Label.label( "L" ) );
+                            for ( int i = 0; i < 10; i++ )
+                            {
+                                node.setProperty( "prop-" + i, "this is a quite long string to get to the log limit soonish" );
+                            }
+                            tx.success();
+                        } );
 
         long baseVersion = versionBy( cluster.awaitLeader().raftLogDirectory(), Math::max );
 
@@ -552,19 +564,19 @@ public class ReadReplicaReplicationIT
         for ( int j = 0; j < 2; j++ )
         {
             coreGraphDatabase = cluster.coreTx( ( db, tx ) ->
-            {
-                Node node = db.createNode( Label.label( "L" ) );
-                for ( int i = 0; i < 10; i++ )
-                {
-                    node.setProperty( "prop-" + i, "this is a quite long string to get to the log limit soonish" );
-                }
-                tx.success();
-            } );
+                                                {
+                                                    Node node = db.createNode( Label.label( "L" ) );
+                                                    for ( int i = 0; i < 10; i++ )
+                                                    {
+                                                        node.setProperty( "prop-" + i, "this is a quite long string to get to the log limit soonish" );
+                                                    }
+                                                    tx.success();
+                                                } );
         }
 
         File raftLogDir = coreGraphDatabase.raftLogDirectory();
         assertEventually( "pruning happened", () -> versionBy( raftLogDir, Math::min ), greaterThan( baseVersion ), 5,
-                SECONDS );
+                          SECONDS );
 
         // when
         cluster.addReadReplicaWithIdAndRecordFormat( 4, HighLimit.NAME ).start();
@@ -573,16 +585,7 @@ public class ReadReplicaReplicationIT
         for ( final ReadReplica readReplica : cluster.readReplicas() )
         {
             assertEventually( "read replica available", () -> readReplica.database().isAvailable( 0 ), is( true ), 10,
-                    SECONDS );
-        }
-    }
-
-    private static long versionBy( File raftLogDir, BinaryOperator<Long> operator ) throws IOException
-    {
-        try ( FileSystemAbstraction fileSystem = new DefaultFileSystemAbstraction() )
-        {
-            SortedMap<Long,File> logs = new FileNames( raftLogDir ).getAllFiles( fileSystem, mock( Log.class ) );
-            return logs.keySet().stream().reduce( operator ).orElseThrow( IllegalStateException::new );
+                              SECONDS );
         }
     }
 
@@ -599,11 +602,11 @@ public class ReadReplicaReplicationIT
 
         // when the leader commits a write transaction,
         cluster.coreTx( ( db, tx ) ->
-        {
-            Node node = db.createNode( label( "boo" ) );
-            node.setProperty( "foobar", "baz_bat" );
-            tx.success();
-        } );
+                        {
+                            Node node = db.createNode( label( "boo" ) );
+                            node.setProperty( "foobar", "baz_bat" );
+                            tx.success();
+                        } );
 
         // then the replication should cause pins on a majority of core members to increase.
         // However, the commit returns as soon as the transaction has been replicated through the Raft log, which
@@ -626,10 +629,4 @@ public class ReadReplicaReplicationIT
             return membersWithIncreasedPinCount;
         }, Matchers.is( greaterThanOrEqualTo( minimumUpdatedMembersCount ) ), 10, SECONDS );
     }
-
-    private final BiConsumer<CoreGraphDatabase,Transaction> createSomeData = ( db, tx ) ->
-    {
-        createData( db, 10 );
-        tx.success();
-    };
 }

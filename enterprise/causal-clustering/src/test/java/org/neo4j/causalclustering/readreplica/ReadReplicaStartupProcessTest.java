@@ -62,10 +62,10 @@ import static org.mockito.Mockito.when;
 
 public class ReadReplicaStartupProcessTest
 {
+    private final PageCache pageCache = mock( PageCache.class );
     private ConstantTimeTimeoutStrategy retryStrategy = new ConstantTimeTimeoutStrategy( 1, MILLISECONDS );
     private StoreCopyProcess storeCopyProcess = mock( StoreCopyProcess.class );
     private RemoteStore remoteStore = mock( RemoteStore.class );
-    private final PageCache pageCache = mock( PageCache.class );
     private LocalDatabase localDatabase = mock( LocalDatabase.class );
     private TopologyService topologyService = mock( TopologyService.class );
     private CoreTopology clusterTopology = mock( CoreTopology.class );
@@ -97,12 +97,12 @@ public class ReadReplicaStartupProcessTest
     {
         // given
         when( localDatabase.isEmpty() ).thenReturn( true );
-        when( topologyService.findCatchupAddress( any() )).thenReturn( Optional.of( fromAddress ) );
+        when( topologyService.findCatchupAddress( any() ) ).thenReturn( Optional.of( fromAddress ) );
         when( remoteStore.getStoreId( any() ) ).thenReturn( otherStoreId );
 
         ReadReplicaStartupProcess readReplicaStartupProcess =
                 new ReadReplicaStartupProcess( remoteStore, localDatabase, txPulling, chooseFirstMember(), retryStrategy, NullLogProvider.getInstance(),
-                        NullLogProvider.getInstance(), storeCopyProcess, topologyService );
+                                               NullLogProvider.getInstance(), storeCopyProcess, topologyService );
 
         // when
         readReplicaStartupProcess.start();
@@ -118,7 +118,7 @@ public class ReadReplicaStartupProcessTest
         AlwaysChooseFirstMember firstMember = new AlwaysChooseFirstMember();
         Config config = mock( Config.class );
         when( config.get( CausalClusteringSettings.database ) ).thenReturn( "default" );
-        firstMember.inject( topologyService, config, NullLogProvider.getInstance(), null);
+        firstMember.inject( topologyService, config, NullLogProvider.getInstance(), null );
 
         return new UpstreamDatabaseStrategySelector( firstMember );
     }
@@ -132,7 +132,7 @@ public class ReadReplicaStartupProcessTest
 
         ReadReplicaStartupProcess readReplicaStartupProcess =
                 new ReadReplicaStartupProcess( remoteStore, localDatabase, txPulling, chooseFirstMember(), retryStrategy, NullLogProvider.getInstance(),
-                        NullLogProvider.getInstance(), storeCopyProcess, topologyService );
+                                               NullLogProvider.getInstance(), storeCopyProcess, topologyService );
 
         // when
         try
@@ -144,7 +144,7 @@ public class ReadReplicaStartupProcessTest
         {
             //expected.
             assertThat( ex.getMessage(),
-                    containsString( "This read replica cannot join the cluster. The local database is not empty and has a " + "mismatching storeId" ) );
+                        containsString( "This read replica cannot join the cluster. The local database is not empty and has a " + "mismatching storeId" ) );
         }
 
         // then
@@ -160,7 +160,7 @@ public class ReadReplicaStartupProcessTest
 
         ReadReplicaStartupProcess readReplicaStartupProcess =
                 new ReadReplicaStartupProcess( remoteStore, localDatabase, txPulling, chooseFirstMember(), retryStrategy, NullLogProvider.getInstance(),
-                        NullLogProvider.getInstance(), storeCopyProcess, topologyService );
+                                               NullLogProvider.getInstance(), storeCopyProcess, topologyService );
 
         // when
         readReplicaStartupProcess.start();
@@ -179,7 +179,7 @@ public class ReadReplicaStartupProcessTest
 
         ReadReplicaStartupProcess readReplicaStartupProcess =
                 new ReadReplicaStartupProcess( remoteStore, localDatabase, txPulling, chooseFirstMember(), retryStrategy, NullLogProvider.getInstance(),
-                        NullLogProvider.getInstance(), storeCopyProcess, topologyService );
+                                               NullLogProvider.getInstance(), storeCopyProcess, topologyService );
 
         readReplicaStartupProcess.start();
 

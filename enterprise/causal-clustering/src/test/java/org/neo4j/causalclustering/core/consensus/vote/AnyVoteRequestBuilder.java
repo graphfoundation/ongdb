@@ -23,24 +23,16 @@ import org.neo4j.causalclustering.identity.MemberId;
 
 public abstract class AnyVoteRequestBuilder<T extends RaftMessages.AnyVote.Request>
 {
-    protected AnyVoteRequestBuilder( Constructor<T> constructor )
-    {
-        this.constructor = constructor;
-    }
-
-    @FunctionalInterface
-    interface Constructor<T extends RaftMessages.AnyVote.Request>
-    {
-        T construct( MemberId from, long term, MemberId candidate, long lastLogIndex, long lastLogTerm );
-    }
-
+    private final Constructor<T> constructor;
     private long term = -1;
     private MemberId from;
     private MemberId candidate;
     private long lastLogIndex;
     private long lastLogTerm;
-
-    private final Constructor<T> constructor;
+    protected AnyVoteRequestBuilder( Constructor<T> constructor )
+    {
+        this.constructor = constructor;
+    }
 
     public T build()
     {
@@ -75,5 +67,11 @@ public abstract class AnyVoteRequestBuilder<T extends RaftMessages.AnyVote.Reque
     {
         this.lastLogTerm = lastLogTerm;
         return this;
+    }
+
+    @FunctionalInterface
+    interface Constructor<T extends RaftMessages.AnyVote.Request>
+    {
+        T construct( MemberId from, long term, MemberId candidate, long lastLogIndex, long lastLogTerm );
     }
 }

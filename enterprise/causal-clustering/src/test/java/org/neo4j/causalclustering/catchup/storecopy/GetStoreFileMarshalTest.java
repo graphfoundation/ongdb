@@ -27,21 +27,26 @@ import java.io.File;
 
 import org.neo4j.causalclustering.identity.StoreId;
 
-import static org.junit.Assert.assertEquals;
-
 public class GetStoreFileMarshalTest
 {
+    private static final StoreId expectedStore = new StoreId( 1, 2, 3, 4 );
+    private static final File expectedFile = new File( "abc.123" );
+    private static final Long expectedLastTransaction = 1234L;
     EmbeddedChannel embeddedChannel;
+
+    private static void sendToChannel( GetStoreFileRequest getStoreFileRequest, EmbeddedChannel embeddedChannel )
+    {
+        embeddedChannel.writeOutbound( getStoreFileRequest );
+
+        ByteBuf object = embeddedChannel.readOutbound();
+        embeddedChannel.writeInbound( object );
+    }
 
     @Before
     public void setup()
     {
         embeddedChannel = new EmbeddedChannel( new GetStoreFileRequest.Encoder(), new GetStoreFileRequest.Decoder() );
     }
-
-    private static final StoreId expectedStore = new StoreId( 1, 2, 3, 4 );
-    private static final File expectedFile = new File( "abc.123" );
-    private static final Long expectedLastTransaction = 1234L;
 
     @Test
     public void getsTransmitted()
@@ -57,13 +62,5 @@ public class GetStoreFileMarshalTest
         assertEquals( expectedStore, actualStoreRequest.expectedStoreId() );
         assertEquals( expectedFile, actualStoreRequest.file() );
         assertEquals( expectedLastTransaction.longValue(), actualStoreRequest.requiredTransactionId() );
-    }
-
-    private static void sendToChannel( GetStoreFileRequest getStoreFileRequest, EmbeddedChannel embeddedChannel )
-    {
-        embeddedChannel.writeOutbound( getStoreFileRequest );
-
-        ByteBuf object = embeddedChannel.readOutbound();
-        embeddedChannel.writeInbound( object );
     }
 }

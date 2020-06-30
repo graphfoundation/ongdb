@@ -29,19 +29,17 @@ import java.util.LinkedList;
 import java.util.List;
 
 /**
- * For tests that uses {@link ByteBuf}. All buffers that are allocated using {@link ByteBufAllocator} will be
- * released after test has executed.
+ * For tests that uses {@link ByteBuf}. All buffers that are allocated using {@link ByteBufAllocator} will be released after test has executed.
  */
 public class Buffers extends ExternalResource implements ByteBufAllocator
 {
     private final ByteBufAllocator allocator;
+    private final List<ByteBuf> buffersList = new LinkedList<>();
 
     public Buffers( ByteBufAllocator allocator )
     {
         this.allocator = allocator;
     }
-
-    private final List<ByteBuf> buffersList = new LinkedList<>();
 
     public Buffers()
     {

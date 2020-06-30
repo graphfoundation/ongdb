@@ -23,7 +23,6 @@ package org.neo4j.causalclustering.handlers;
 
 import org.junit.Before;
 import org.junit.Rule;
-import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
 import java.io.File;
@@ -32,7 +31,7 @@ import org.neo4j.causalclustering.core.CausalClusteringSettings;
 import org.neo4j.io.fs.FileUtils;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.configuration.ssl.SslPolicyConfig;
-import org.neo4j.kernel.impl.enterprise.configuration.OnlineBackupSettings;
+import org.neo4j.kernel.impl.enterprise.settings.backup.OnlineBackupSettings;
 import org.neo4j.kernel.impl.util.Dependencies;
 import org.neo4j.logging.LogProvider;
 import org.neo4j.logging.NullLogProvider;
@@ -46,13 +45,11 @@ public class SecurePipelineWrapperFactoryTest
 
     @Rule
     public TestDirectory testDirectory = TestDirectory.testDirectory();
-
+    @Rule
+    public ExpectedException expectedException = ExpectedException.none();
     private File home;
     private File publicCertificateFile;
     private File privateKeyFile;
-
-    @Rule
-    public ExpectedException expectedException = ExpectedException.none();
 
     @Before
     public void setup() throws Exception

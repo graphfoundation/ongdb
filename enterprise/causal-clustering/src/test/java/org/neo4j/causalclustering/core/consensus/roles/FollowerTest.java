@@ -37,11 +37,8 @@ import org.neo4j.causalclustering.identity.MemberId;
 import org.neo4j.logging.Log;
 import org.neo4j.logging.NullLog;
 
-import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.not;
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
@@ -198,10 +195,10 @@ public class FollowerTest
         appendSomeEntriesToLog( state, follower, followerAppendIndex - 1, term, 1 );
 
         AppendEntries.Request heartbeat = appendEntriesRequest().from( member1 )
-                .leaderTerm( term )
-                .prevLogIndex( followerAppendIndex + 2 ) // leader has appended 2 ahead from this follower
-                .prevLogTerm( term ) // in the same term
-                .build(); // no entries, this is a heartbeat
+                                                                .leaderTerm( term )
+                                                                .prevLogIndex( followerAppendIndex + 2 ) // leader has appended 2 ahead from this follower
+                                                                .prevLogTerm( term ) // in the same term
+                                                                .build(); // no entries, this is a heartbeat
 
         Outcome outcome = follower.handle( heartbeat, state, log() );
 
@@ -228,14 +225,14 @@ public class FollowerTest
         Follower follower = new Follower();
 
         state.update( follower.handle( new AppendEntries.Request( member1, 1, 0, 0,
-                new RaftLogEntry[]{
-                        new RaftLogEntry( 2, ContentGenerator.content() ),
-                },
-                0 ), state, log() ) );
+                                                                  new RaftLogEntry[]{
+                                                                          new RaftLogEntry( 2, ContentGenerator.content() ),
+                                                                          },
+                                                                  0 ), state, log() ) );
 
         RaftLogEntry[] entries = {
                 new RaftLogEntry( 1, new ReplicatedString( "commit this!" ) ),
-        };
+                };
 
         Outcome outcome = follower.handle(
                 new AppendEntries.Request( member1, 1, 0, 0, entries, 0 ), state, log() );
@@ -264,7 +261,8 @@ public class FollowerTest
 
         // when receiving AppEntries with high leader commit (4)
         Outcome outcome = follower.handle( new AppendEntries.Request( myself, 0, 3, 0,
-                new RaftLogEntry[] { new RaftLogEntry( 0, ContentGenerator.content() ) }, 4 ), state, log() );
+                                                                      new RaftLogEntry[]{new RaftLogEntry( 0, ContentGenerator.content() )}, 4 ), state,
+                                           log() );
 
         state.update( outcome );
 
@@ -288,7 +286,7 @@ public class FollowerTest
         Follower follower = new Follower();
 
         int localAppendIndex = 3;
-        int localCommitIndex =  localAppendIndex - 1;
+        int localCommitIndex = localAppendIndex - 1;
         int term = 0;
         appendSomeEntriesToLog( state, follower, localAppendIndex, term, 1 ); // append index is 0 based
 
@@ -305,9 +303,9 @@ public class FollowerTest
         // when
         // an append req comes in with leader commit index > localAppendIndex but localCommitIndex < localAppendIndex
         Outcome outcome = follower.handle( appendEntriesRequest()
-                .leaderTerm( term ).prevLogIndex( 3 )
-                .prevLogTerm( term ).leaderCommit( localCommitIndex + 4 )
-                .build(), state, log() );
+                                                   .leaderTerm( term ).prevLogIndex( 3 )
+                                                   .prevLogTerm( term ).leaderCommit( localCommitIndex + 4 )
+                                                   .build(), state, log() );
 
         state.update( outcome );
 
@@ -328,7 +326,7 @@ public class FollowerTest
         Follower follower = new Follower();
 
         Outcome outcome = follower.handle( new RaftMessages.Heartbeat( myself, 1, 1, 1 ),
-                state, log() );
+                                           state, log() );
 
         // then
         assertFalse( outcome.electionTimeoutRenewed() );
@@ -346,12 +344,12 @@ public class FollowerTest
         Follower follower = new Follower();
 
         Outcome outcome = follower.handle( new RaftMessages.Heartbeat( state.leader(), 2, 2, 2 ),
-                state, log() );
+                                           state, log() );
 
         // then
         Collection<RaftMessages.Directed> outgoingMessages = outcome.getOutgoingMessages();
         assertTrue( outgoingMessages.contains( new RaftMessages.Directed( state.leader(),
-                new RaftMessages.HeartbeatResponse( myself ) ) ) );
+                                                                          new RaftMessages.HeartbeatResponse( myself ) ) ) );
     }
 
     @Test
@@ -366,7 +364,7 @@ public class FollowerTest
         // then
         RaftMessages.RaftMessage raftMessage = messageFor( outcome, member1 );
         assertThat( raftMessage.type(), equalTo( RaftMessages.Type.PRE_VOTE_RESPONSE ) );
-        assertThat( ( (RaftMessages.PreVote.Response)raftMessage ).voteGranted() , equalTo( true )  );
+        assertThat( ((RaftMessages.PreVote.Response) raftMessage).voteGranted(), equalTo( true ) );
     }
 
     @Test
@@ -382,7 +380,7 @@ public class FollowerTest
         // then
         RaftMessages.RaftMessage raftMessage = messageFor( outcome, member2 );
         assertThat( raftMessage.type(), equalTo( RaftMessages.Type.PRE_VOTE_RESPONSE ) );
-        assertThat( ( (RaftMessages.PreVote.Response)raftMessage ).voteGranted() , equalTo( true )  );
+        assertThat( ((RaftMessages.PreVote.Response) raftMessage).voteGranted(), equalTo( true ) );
     }
 
     @Test
@@ -402,7 +400,7 @@ public class FollowerTest
         // then
         RaftMessages.RaftMessage raftMessage = messageFor( outcome, member1 );
         assertThat( raftMessage.type(), equalTo( RaftMessages.Type.PRE_VOTE_RESPONSE ) );
-        assertThat( ( (RaftMessages.PreVote.Response)raftMessage ).voteGranted() , equalTo( false )  );
+        assertThat( ((RaftMessages.PreVote.Response) raftMessage).voteGranted(), equalTo( false ) );
     }
 
     @Test
@@ -423,7 +421,7 @@ public class FollowerTest
         // then
         RaftMessages.RaftMessage raftMessage = messageFor( outcome, member1 );
         assertThat( raftMessage.type(), equalTo( RaftMessages.Type.PRE_VOTE_RESPONSE ) );
-        assertThat( ( (RaftMessages.PreVote.Response)raftMessage ).voteGranted() , equalTo( false )  );
+        assertThat( ((RaftMessages.PreVote.Response) raftMessage).voteGranted(), equalTo( false ) );
     }
 
     @Test
@@ -442,7 +440,7 @@ public class FollowerTest
         RaftMessages.RaftMessage raftMessage = messageFor( outcome2, member2 );
 
         assertThat( raftMessage.type(), equalTo( RaftMessages.Type.PRE_VOTE_RESPONSE ) );
-        assertThat( ( (RaftMessages.PreVote.Response)raftMessage ).voteGranted() , equalTo( true )  );
+        assertThat( ((RaftMessages.PreVote.Response) raftMessage).voteGranted(), equalTo( true ) );
     }
 
     @Test
@@ -459,7 +457,7 @@ public class FollowerTest
         RaftMessages.RaftMessage raftMessage = messageFor( outcome, member1 );
 
         assertThat( raftMessage.type(), equalTo( RaftMessages.Type.PRE_VOTE_RESPONSE ) );
-        assertThat( ( (RaftMessages.PreVote.Response)raftMessage ).term() , equalTo( newTerm )  );
+        assertThat( ((RaftMessages.PreVote.Response) raftMessage).term(), equalTo( newTerm ) );
     }
 
     @Test
@@ -1125,14 +1123,20 @@ public class FollowerTest
     }
 
     private void appendSomeEntriesToLog( RaftState raft, Follower follower, int numberOfEntriesToAppend, int term,
-            int firstIndex ) throws IOException
+                                         int firstIndex ) throws IOException
     {
         for ( int i = 0; i < numberOfEntriesToAppend; i++ )
         {
             int prevLogIndex = (firstIndex + i) - 1;
             raft.update( follower.handle( new AppendEntries.Request( myself, term, prevLogIndex, term,
-                    new RaftLogEntry[]{new RaftLogEntry( term, ContentGenerator.content() )}, -1 ), raft, log() ) );
+                                                                     new RaftLogEntry[]{new RaftLogEntry( term, ContentGenerator.content() )}, -1 ), raft,
+                                          log() ) );
         }
+    }
+
+    private Log log()
+    {
+        return NullLog.getInstance();
     }
 
     private static class ContentGenerator
@@ -1143,10 +1147,5 @@ public class FollowerTest
         {
             return new ReplicatedString( String.format( "content#%d", count++ ) );
         }
-    }
-
-    private Log log()
-    {
-        return NullLog.getInstance();
     }
 }

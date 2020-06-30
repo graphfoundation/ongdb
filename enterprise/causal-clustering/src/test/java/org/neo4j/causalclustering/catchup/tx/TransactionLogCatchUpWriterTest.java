@@ -83,11 +83,14 @@ public class TransactionLogCatchUpWriterTest
     public final DefaultFileSystemRule fsRule = new DefaultFileSystemRule();
     @Rule
     public final PageCacheRule pageCacheRule = new PageCacheRule();
+    private final int MANY_TRANSACTIONS = 100_000; // should be somewhere above the rotation threshold
     @Rule
     public NeoStoreDataSourceRule dsRule = new NeoStoreDataSourceRule();
-
     @Parameterized.Parameter
     public boolean partOfStoreCopy;
+    private PageCache pageCache;
+    private FileSystemAbstraction fs;
+    private DatabaseLayout databaseLayout;
 
     @Parameterized.Parameters( name = "Part of store copy: {0}" )
     public static List<Boolean> partOfStoreCopy()
@@ -95,11 +98,12 @@ public class TransactionLogCatchUpWriterTest
         return Arrays.asList( Boolean.TRUE, Boolean.FALSE );
     }
 
-    private final int MANY_TRANSACTIONS = 100_000; // should be somewhere above the rotation threshold
-
-    private PageCache pageCache;
-    private FileSystemAbstraction fs;
-    private DatabaseLayout databaseLayout;
+    private static CommittedTransactionRepresentation tx( long txId )
+    {
+        return new CommittedTransactionRepresentation(
+                new LogEntryStart( 0, 0, 0, txId - 1, new byte[]{}, LogPosition.UNSPECIFIED ),
+                Commands.transactionRepresentation( createNode( 0 ) ), new LogEntryCommit( txId, 0 ) );
+    }
 
     @Before
     public void setup()
@@ -119,7 +123,7 @@ public class TransactionLogCatchUpWriterTest
     public void createTransactionLogWithCheckpointInCustomLocation() throws IOException
     {
         createTransactionLogWithCheckpoint( Config.defaults( GraphDatabaseSettings.logical_logs_location,
-                "custom-tx-logs"), false );
+                                                             "custom-tx-logs" ), false );
     }
 
     @Test
@@ -139,9 +143,9 @@ public class TransactionLogCatchUpWriterTest
 
         // when a bunch of transactions received
         LongStream.range( fromTxId, MANY_TRANSACTIONS )
-                .mapToObj( TransactionLogCatchUpWriterTest::tx )
-                .map( tx -> new TxPullResponse( toCasualStoreId( storeId ), tx ) )
-                .forEach( subject::onTxReceived );
+                  .mapToObj( TransactionLogCatchUpWriterTest::tx )
+                  .map( tx -> new TxPullResponse( toCasualStoreId( storeId ), tx ) )
+                  .forEach( subject::onTxReceived );
         subject.close();
 
         // then there was a rotation
@@ -166,13 +170,13 @@ public class TransactionLogCatchUpWriterTest
         long fromTxId = BASE_TX_ID;
         TransactionLogCatchUpWriter subject =
                 new TransactionLogCatchUpWriter( databaseLayout, fs, pageCache, config, NullLogProvider.getInstance(), fromTxId, partOfStoreCopy, false,
-                        false );
+                                                 false );
 
         // when 1M tx received
         LongStream.range( fromTxId, MANY_TRANSACTIONS )
-                .mapToObj( TransactionLogCatchUpWriterTest::tx )
-                .map(tx -> new TxPullResponse( toCasualStoreId( storeId ), tx ))
-                .forEach( subject::onTxReceived );
+                  .mapToObj( TransactionLogCatchUpWriterTest::tx )
+                  .map( tx -> new TxPullResponse( toCasualStoreId( storeId ), tx ) )
+                  .forEach( subject::onTxReceived );
         subject.close();
 
         // then there was a rotation
@@ -189,7 +193,8 @@ public class TransactionLogCatchUpWriterTest
         int endTxId = fromTxId + 5;
 
         TransactionLogCatchUpWriter catchUpWriter = new TransactionLogCatchUpWriter( databaseLayout, fs, pageCache, config,
-                NullLogProvider.getInstance(), fromTxId, partOfStoreCopy, logsInStoreDir, true );
+                                                                                     NullLogProvider.getInstance(), fromTxId, partOfStoreCopy, logsInStoreDir,
+                                                                                     true );
 
         // when
         for ( int i = fromTxId; i <= endTxId; i++ )
@@ -232,7 +237,7 @@ public class TransactionLogCatchUpWriterTest
     }
 
     private void verifyTransactionsInLog( LogFiles logFiles, long fromTxId, long endTxId ) throws
-            IOException
+                                                                                           IOException
     {
         long expectedTxId = fromTxId;
         LogVersionedStoreChannel versionedStoreChannel = logFiles.openForVersion( 0 );
@@ -276,12 +281,5 @@ public class TransactionLogCatchUpWriterTest
     private StoreId toCasualStoreId( org.neo4j.storageengine.api.StoreId storeId )
     {
         return new StoreId( storeId.getCreationTime(), storeId.getRandomId(), storeId.getUpgradeTime(), storeId.getUpgradeId() );
-    }
-
-    private static CommittedTransactionRepresentation tx( long txId )
-    {
-        return new CommittedTransactionRepresentation(
-                new LogEntryStart( 0, 0, 0, txId - 1, new byte[]{}, LogPosition.UNSPECIFIED ),
-                Commands.transactionRepresentation( createNode( 0 ) ), new LogEntryCommit( txId, 0 ) );
     }
 }

@@ -32,7 +32,6 @@ import org.neo4j.kernel.impl.transaction.log.entry.LogEntryCommit;
 import org.neo4j.kernel.impl.transaction.log.entry.LogEntryStart;
 
 import static java.util.Collections.singletonList;
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotSame;
 
 public class TxPullResponseEncodeDecodeTest
@@ -70,5 +69,4 @@ public class TxPullResponseEncodeDecodeTest
 
         return new CommittedTransactionRepresentation( startEntry, physicalTransactionRepresentation, commitEntry );
     }
-
 }

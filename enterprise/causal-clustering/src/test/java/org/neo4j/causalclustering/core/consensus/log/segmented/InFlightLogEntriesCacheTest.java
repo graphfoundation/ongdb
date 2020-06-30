@@ -50,15 +50,15 @@ public class InFlightLogEntriesCacheTest
         InFlightMap<Object> entries = new InFlightMap<>();
         entries.enable();
 
-        Map<Long, Object> logEntryList = new HashMap<>();
-        logEntryList.put(1L, new Object() );
+        Map<Long,Object> logEntryList = new HashMap<>();
+        logEntryList.put( 1L, new Object() );
 
-        for ( Map.Entry<Long, Object> entry : logEntryList.entrySet() )
+        for ( Map.Entry<Long,Object> entry : logEntryList.entrySet() )
         {
             entries.put( entry.getKey(), entry.getValue() );
         }
 
-        for ( Map.Entry<Long, Object> entry : logEntryList.entrySet() )
+        for ( Map.Entry<Long,Object> entry : logEntryList.entrySet() )
         {
             Object retrieved = entries.get( entry.getKey() );
             assertEquals( entry.getValue(), retrieved );
@@ -68,7 +68,7 @@ public class InFlightLogEntriesCacheTest
         Object shouldBeNull = entries.get( unexpected );
         assertNull( shouldBeNull );
 
-        for ( Map.Entry<Long, Object> entry : logEntryList.entrySet() )
+        for ( Map.Entry<Long,Object> entry : logEntryList.entrySet() )
         {
             boolean wasThere = entries.remove( entry.getKey() );
             assertTrue( wasThere );
@@ -97,7 +97,7 @@ public class InFlightLogEntriesCacheTest
         {
             cache.put( 1L, first );
             cache.put( 1L, second );
-            fail("Should not allow silent replacement of values");
+            fail( "Should not allow silent replacement of values" );
         }
         catch ( IllegalArgumentException e )
         {

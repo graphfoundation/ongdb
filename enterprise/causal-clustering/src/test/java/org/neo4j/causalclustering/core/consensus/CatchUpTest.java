@@ -18,13 +18,13 @@
  */
 package org.neo4j.causalclustering.core.consensus;
 
+import org.junit.Test;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
-
-import org.junit.Test;
 
 import org.neo4j.causalclustering.core.consensus.RaftMessages.NewEntry.Request;
 import org.neo4j.causalclustering.core.consensus.log.ReadableRaftLog;
@@ -84,7 +84,7 @@ public class CatchUpTest
         RaftTestFixture fixture = new RaftTestFixture( net, 3, allMembers );
         fixture.bootstrap( allMembers );
         fixture.members().withId( leaderId ).raftInstance().installCoreState(
-                new RaftCoreState( new MembershipEntry( 0, new HashSet<>( Arrays.asList( allMembers ) ) ) ));
+                new RaftCoreState( new MembershipEntry( 0, new HashSet<>( Arrays.asList( allMembers ) ) ) ) );
 
         fixture.members().withId( leaderId ).timerService().invoke( RaftMachine.Timeouts.ELECTION );
         net.processMessages();
@@ -104,7 +104,7 @@ public class CatchUpTest
         for ( MemberId awakeMember : awakeMembers )
         {
             assertThat( integerValues( fixture.members().withId( awakeMember ).raftLog() ),
-                    hasItems( 10, 20, 30, 40 ) );
+                        hasItems( 10, 20, 30, 40 ) );
         }
 
         assertThat( integerValues( fixture.members().withId( sleepyId ).raftLog() ), empty() );

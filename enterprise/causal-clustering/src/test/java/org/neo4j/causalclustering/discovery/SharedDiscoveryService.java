@@ -64,7 +64,8 @@ public final class SharedDiscoveryService
     private boolean canBeBootstrapped( SharedDiscoveryCoreClient client )
     {
         Stream<SharedDiscoveryCoreClient> clientsWhoCanLeadForMyDb = listeningClients.stream()
-                .filter( c -> !c.refusesToBeLeader() && c.localDBName().equals( client.localDBName() ) );
+                                                                                     .filter( c -> !c.refusesToBeLeader() &&
+                                                                                                   c.localDBName().equals( client.localDBName() ) );
 
         Optional<SharedDiscoveryCoreClient> firstAppropriateClient = clientsWhoCanLeadForMyDb.findFirst();
 
@@ -79,10 +80,10 @@ public final class SharedDiscoveryService
         return getCoreTopology( dbName, canBeBootstrapped );
     }
 
-    CoreTopology getCoreTopology( String dbName, boolean canBeBootstrapped  )
+    CoreTopology getCoreTopology( String dbName, boolean canBeBootstrapped )
     {
         return new CoreTopology( clusterIdDbNames.get( dbName ),
-                canBeBootstrapped, Collections.unmodifiableMap( coreMembers )  );
+                                 canBeBootstrapped, Collections.unmodifiableMap( coreMembers ) );
     }
 
     ReadReplicaTopology getReadReplicaTopology()
@@ -141,7 +142,7 @@ public final class SharedDiscoveryService
 
             boolean sameTermButNoStepDown = termComparison == 0 && !leaderInfo.isSteppingDown();
 
-            if ( !( greaterTermExists || sameTermButNoStepDown || sameLeader ) )
+            if ( !(greaterTermExists || sameTermButNoStepDown || sameLeader) )
             {
                 leaderMap.put( dbName, leaderInfo );
             }
@@ -165,11 +166,11 @@ public final class SharedDiscoveryService
     {
         Set<String> dbNames = clusterIdDbNames.keySet();
         Set<MemberId> allLeaders = dbNames.stream()
-                .map( dbName -> Optional.ofNullable( leaderMap.get( dbName ) ) )
-                .filter( Optional::isPresent )
-                .map( Optional::get )
-                .map( LeaderInfo::memberId )
-                .collect( Collectors.toSet());
+                                          .map( dbName -> Optional.ofNullable( leaderMap.get( dbName ) ) )
+                                          .filter( Optional::isPresent )
+                                          .map( Optional::get )
+                                          .map( LeaderInfo::memberId )
+                                          .collect( Collectors.toSet() );
 
         Function<MemberId,RoleInfo> roleMapper = m -> allLeaders.contains( m ) ? RoleInfo.LEADER : RoleInfo.FOLLOWER;
         return coreMembers.keySet().stream().collect( Collectors.toMap( Function.identity(), roleMapper ) );
@@ -177,9 +178,10 @@ public final class SharedDiscoveryService
 
     private synchronized void notifyCoreClients()
     {
-        listeningClients.forEach( c -> {
-            c.onCoreTopologyChange( getCoreTopology( c ) );
-            c.onReadReplicaTopologyChange( getReadReplicaTopology() );
-        } );
+        listeningClients.forEach( c ->
+                                  {
+                                      c.onCoreTopologyChange( getCoreTopology( c ) );
+                                      c.onReadReplicaTopologyChange( getReadReplicaTopology() );
+                                  } );
     }
 }

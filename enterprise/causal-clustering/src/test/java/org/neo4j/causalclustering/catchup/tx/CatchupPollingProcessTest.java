@@ -81,17 +81,15 @@ public class CatchupPollingProcessTest
     private final LocalDatabase localDatabase = mock( LocalDatabase.class );
     private final TopologyService topologyService = mock( TopologyService.class );
     private final AdvertisedSocketAddress coreMemberAddress = new AdvertisedSocketAddress( "hostname", 1234 );
+    private final Suspendable startStopOnStoreCopy = mock( Suspendable.class );
+    private final CatchupPollingProcess txPuller =
+            new CatchupPollingProcess( NullLogProvider.getInstance(), localDatabase, startStopOnStoreCopy, catchUpClient, strategyPipeline, timerService,
+                                       txPullIntervalMillis, txApplier, new Monitors(), storeCopyProcess, () -> mock( DatabaseHealth.class ), topologyService );
 
     {
         when( localDatabase.storeId() ).thenReturn( storeId );
         when( topologyService.findCatchupAddress( coreMemberId ) ).thenReturn( Optional.of( coreMemberAddress ) );
     }
-
-    private final Suspendable startStopOnStoreCopy = mock( Suspendable.class );
-
-    private final CatchupPollingProcess txPuller =
-            new CatchupPollingProcess( NullLogProvider.getInstance(), localDatabase, startStopOnStoreCopy, catchUpClient, strategyPipeline, timerService,
-                    txPullIntervalMillis, txApplier, new Monitors(), storeCopyProcess, () -> mock( DatabaseHealth.class ), topologyService );
 
     @Before
     public void before() throws Throwable
@@ -125,13 +123,14 @@ public class CatchupPollingProcessTest
 
         // when
         when( catchUpClient.<TxStreamFinishedResponse>makeBlockingRequest( any( AdvertisedSocketAddress.class ), any( TxPullRequest.class ),
-                any( CatchUpResponseCallback.class ) ) ).thenReturn( new TxStreamFinishedResponse( CatchupResult.SUCCESS_END_OF_STREAM, 10 ) );
+                                                                           any( CatchUpResponseCallback.class ) ) )
+                .thenReturn( new TxStreamFinishedResponse( CatchupResult.SUCCESS_END_OF_STREAM, 10 ) );
 
         timerService.invoke( TX_PULLER_TIMER );
 
         // then
         verify( catchUpClient, times( 1 ) ).makeBlockingRequest( any( AdvertisedSocketAddress.class ), any( TxPullRequest.class ),
-                any( CatchUpResponseCallback.class ) );
+                                                                 any( CatchUpResponseCallback.class ) );
     }
 
     @Test
@@ -140,7 +139,8 @@ public class CatchupPollingProcessTest
         // when
         txPuller.start();
         when( catchUpClient.makeBlockingRequest( any( AdvertisedSocketAddress.class ), any( TxPullRequest.class ),
-                any( CatchUpResponseCallback.class ) ) ).thenReturn( new TxStreamFinishedResponse( CatchupResult.SUCCESS_END_OF_STREAM, 0 ) );
+                                                 any( CatchUpResponseCallback.class ) ) )
+                .thenReturn( new TxStreamFinishedResponse( CatchupResult.SUCCESS_END_OF_STREAM, 0 ) );
 
         timerService.invoke( TX_PULLER_TIMER );
 
@@ -154,7 +154,8 @@ public class CatchupPollingProcessTest
         // when
         txPuller.start();
         when( catchUpClient.makeBlockingRequest( any( AdvertisedSocketAddress.class ), any( TxPullRequest.class ),
-                any( CatchUpResponseCallback.class ) ) ).thenReturn( new TxStreamFinishedResponse( CatchupResult.E_TRANSACTION_PRUNED, 0 ) );
+                                                 any( CatchUpResponseCallback.class ) ) )
+                .thenReturn( new TxStreamFinishedResponse( CatchupResult.E_TRANSACTION_PRUNED, 0 ) );
 
         timerService.invoke( TX_PULLER_TIMER );
 
@@ -168,7 +169,8 @@ public class CatchupPollingProcessTest
         // given
         txPuller.start();
         when( catchUpClient.makeBlockingRequest( any( AdvertisedSocketAddress.class ), any( TxPullRequest.class ),
-                any( CatchUpResponseCallback.class ) ) ).thenReturn( new TxStreamFinishedResponse( CatchupResult.E_TRANSACTION_PRUNED, 0 ) );
+                                                 any( CatchUpResponseCallback.class ) ) )
+                .thenReturn( new TxStreamFinishedResponse( CatchupResult.E_TRANSACTION_PRUNED, 0 ) );
 
         // when (tx pull)
         timerService.invoke( TX_PULLER_TIMER );
@@ -196,7 +198,7 @@ public class CatchupPollingProcessTest
         CatchUpResponseCallback callback = mock( CatchUpResponseCallback.class );
 
         doThrow( new RuntimeException( "Panic all the things" ) ).when( callback ).onTxPullResponse( any( CompletableFuture.class ),
-                any( TxPullResponse.class ) );
+                                                                                                     any( TxPullResponse.class ) );
         Timer timer = Mockito.spy( single( timerService.getTimers( TX_PULLER_TIMER ) ) );
 
         // when
@@ -212,8 +214,9 @@ public class CatchupPollingProcessTest
     {
         // given
         when( catchUpClient.<TxStreamFinishedResponse>makeBlockingRequest( any( AdvertisedSocketAddress.class ), any( TxPullRequest.class ),
-                any( CatchUpResponseCallback.class ) ) ).thenReturn( new TxStreamFinishedResponse( CatchupResult.E_TRANSACTION_PRUNED, 0 ),
-                new TxStreamFinishedResponse( CatchupResult.SUCCESS_END_OF_STREAM, 15 ) );
+                                                                           any( CatchUpResponseCallback.class ) ) )
+                .thenReturn( new TxStreamFinishedResponse( CatchupResult.E_TRANSACTION_PRUNED, 0 ),
+                             new TxStreamFinishedResponse( CatchupResult.SUCCESS_END_OF_STREAM, 15 ) );
 
         // when
         txPuller.start();

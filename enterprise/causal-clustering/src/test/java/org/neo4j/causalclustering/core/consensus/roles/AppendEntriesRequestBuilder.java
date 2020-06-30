@@ -37,7 +37,7 @@ public class AppendEntriesRequestBuilder
     public RaftMessages.AppendEntries.Request build()
     {
         return new RaftMessages.AppendEntries.Request( from, leaderTerm, prevLogIndex, prevLogTerm,
-                logEntries.toArray( new RaftLogEntry[logEntries.size()] ), leaderCommit );
+                                                       logEntries.toArray( new RaftLogEntry[logEntries.size()] ), leaderCommit );
     }
 
     public AppendEntriesRequestBuilder from( MemberId from )

@@ -47,12 +47,12 @@ import static org.neo4j.kernel.impl.scheduler.JobSchedulerFactory.createInitiali
 
 public class Fixture
 {
+    final Set<RaftFixture> rafts = new HashSet<>();
+    final TestNetwork net;
     private final Set<MemberId> members = new HashSet<>();
     private final Set<BootstrapWaiter> bootstrapWaiters = new HashSet<>();
     private final List<TimerService> timerServices = new ArrayList<>();
     private final JobScheduler scheduler = createInitialisedScheduler();
-    final Set<RaftFixture> rafts = new HashSet<>();
-    final TestNetwork net;
 
     Fixture( Set<MemberId> memberIds, TestNetwork net, long electionTimeout, long heartbeatInterval )
     {
@@ -117,12 +117,26 @@ public class Fixture
         scheduler.shutdown();
     }
 
+    private void awaitBootstrapped() throws TimeoutException
+    {
+        Predicates.await( () ->
+                          {
+                              for ( BootstrapWaiter bootstrapWaiter : bootstrapWaiters )
+                              {
+                                  if ( !bootstrapWaiter.bootstrapped.get() )
+                                  {
+                                      return false;
+                                  }
+                              }
+                              return true;
+                          }, 30, SECONDS, 100, MILLISECONDS );
+    }
+
     /**
-     * This class simply waits for a single entry to have been committed,
-     * which should be the initial member set entry.
-     *
-     * If all members of the cluster have committed such an entry, it's possible for any member
-     * to perform elections. We need to meet this condition before we start disconnecting members.
+     * This class simply waits for a single entry to have been committed, which should be the initial member set entry.
+     * <p>
+     * If all members of the cluster have committed such an entry, it's possible for any member to perform elections. We need to meet this condition before we
+     * start disconnecting members.
      */
     private static class BootstrapWaiter implements RaftMachineBuilder.CommitListener
     {
@@ -136,21 +150,6 @@ public class Fixture
                 bootstrapped.set( true );
             }
         }
-    }
-
-    private void awaitBootstrapped() throws TimeoutException
-    {
-        Predicates.await( () ->
-        {
-            for ( BootstrapWaiter bootstrapWaiter : bootstrapWaiters )
-            {
-                if ( !bootstrapWaiter.bootstrapped.get() )
-                {
-                    return false;
-                }
-            }
-            return true;
-        }, 30, SECONDS, 100, MILLISECONDS );
     }
 
     class RaftFixture

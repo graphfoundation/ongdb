@@ -41,12 +41,10 @@ import static org.neo4j.test.assertion.Assert.assertEventually;
 public class RobustJobSchedulerWrapperTest
 {
     private final int DEFAULT_TIMEOUT_MS = 5000;
-
+    private final JobScheduler actualScheduler = createInitialisedScheduler();
+    private final Log log = mock( Log.class );
     @Rule
     public LifeRule schedulerLife = new LifeRule( true );
-    private final JobScheduler actualScheduler = createInitialisedScheduler();
-
-    private final Log log = mock( Log.class );
 
     @Before
     public void setup()

@@ -73,7 +73,7 @@ public class ProtocolHandshakeHappyTest
         Collection<ModifierSupportedProtocols> allModifiers = asList(
                 new ModifierSupportedProtocols( COMPRESSION, TestModifierProtocols.listVersionsOf( COMPRESSION ) ),
                 new ModifierSupportedProtocols( GRATUITOUS_OBFUSCATION, TestModifierProtocols.listVersionsOf( GRATUITOUS_OBFUSCATION ) )
-                );
+        );
         Collection<ModifierSupportedProtocols> allCompressionModifiers = singletonList(
                 new ModifierSupportedProtocols( COMPRESSION, TestModifierProtocols.listVersionsOf( COMPRESSION ) ) );
         Collection<ModifierSupportedProtocols> allObfuscationModifiers = singletonList(
@@ -90,13 +90,13 @@ public class ProtocolHandshakeHappyTest
 
         // Ordered modifier protocols
         ModifierProtocolRepository modifierProtocolRepository = new ModifierProtocolRepository( TestModifierProtocols.values(), allModifiers );
-        String[] lzoFirstVersions = { LZO.implementation(), LZ4.implementation(), SNAPPY.implementation() };
+        String[] lzoFirstVersions = {LZO.implementation(), LZ4.implementation(), SNAPPY.implementation()};
         List<ModifierSupportedProtocols> lzoFirstCompressionModifiers = singletonList(
                 new ModifierSupportedProtocols( COMPRESSION, asList( lzoFirstVersions ) ) );
         ModifierProtocol preferredLzoFirstCompressionModifier =
                 modifierProtocolRepository.select( COMPRESSION.canonicalName(), asSet( lzoFirstVersions ) ).get();
 
-        String[] snappyFirstVersions = { SNAPPY.implementation(), LZ4.implementation(), LZO.implementation() };
+        String[] snappyFirstVersions = {SNAPPY.implementation(), LZ4.implementation(), LZO.implementation()};
         List<ModifierSupportedProtocols> snappyFirstCompressionModifiers = singletonList(
                 new ModifierSupportedProtocols( COMPRESSION, asList( snappyFirstVersions ) ) );
         ModifierProtocol preferredSnappyFirstCompressionModifier =
@@ -105,61 +105,61 @@ public class ProtocolHandshakeHappyTest
         return asList(
                 // Everything
                 new Parameters( allRaft, allRaft, allModifiers, allModifiers, TestApplicationProtocols.latest( RAFT ),
-                        new ModifierProtocol[] { TestModifierProtocols.latest( COMPRESSION ), TestModifierProtocols.latest( GRATUITOUS_OBFUSCATION ) } ),
+                                new ModifierProtocol[]{TestModifierProtocols.latest( COMPRESSION ), TestModifierProtocols.latest( GRATUITOUS_OBFUSCATION )} ),
 
                 // Application protocols
                 new Parameters( allRaft, allRaftByDefault, allModifiers, allModifiers, TestApplicationProtocols.latest( RAFT ),
-                        new ModifierProtocol[] { TestModifierProtocols.latest( COMPRESSION ), TestModifierProtocols.latest( GRATUITOUS_OBFUSCATION ) } ),
+                                new ModifierProtocol[]{TestModifierProtocols.latest( COMPRESSION ), TestModifierProtocols.latest( GRATUITOUS_OBFUSCATION )} ),
                 new Parameters( allRaftByDefault, allRaft, allModifiers, allModifiers, TestApplicationProtocols.latest( RAFT ),
-                        new ModifierProtocol[] { TestModifierProtocols.latest( COMPRESSION ), TestModifierProtocols.latest( GRATUITOUS_OBFUSCATION ) } ),
+                                new ModifierProtocol[]{TestModifierProtocols.latest( COMPRESSION ), TestModifierProtocols.latest( GRATUITOUS_OBFUSCATION )} ),
 
                 new Parameters( allRaft, raft1, allModifiers, allModifiers, RAFT_1,
-                        new ModifierProtocol[] { TestModifierProtocols.latest( COMPRESSION ), TestModifierProtocols.latest( GRATUITOUS_OBFUSCATION ) } ),
+                                new ModifierProtocol[]{TestModifierProtocols.latest( COMPRESSION ), TestModifierProtocols.latest( GRATUITOUS_OBFUSCATION )} ),
                 new Parameters( raft1, allRaft, allModifiers, allModifiers, RAFT_1,
-                        new ModifierProtocol[] { TestModifierProtocols.latest( COMPRESSION ), TestModifierProtocols.latest( GRATUITOUS_OBFUSCATION ) } ),
+                                new ModifierProtocol[]{TestModifierProtocols.latest( COMPRESSION ), TestModifierProtocols.latest( GRATUITOUS_OBFUSCATION )} ),
 
                 // Modifier protocols
                 new Parameters( allRaft, allRaft, allModifiers, allCompressionModifiers, TestApplicationProtocols.latest( RAFT ),
-                        new ModifierProtocol[] { TestModifierProtocols.latest( COMPRESSION ) } ),
+                                new ModifierProtocol[]{TestModifierProtocols.latest( COMPRESSION )} ),
                 new Parameters( allRaft, allRaft, allCompressionModifiers, allModifiers, TestApplicationProtocols.latest( RAFT ),
-                        new ModifierProtocol[] { TestModifierProtocols.latest( COMPRESSION ) } ),
+                                new ModifierProtocol[]{TestModifierProtocols.latest( COMPRESSION )} ),
                 new Parameters( allRaft, allRaft, allModifiers, allCompressionModifiersByDefault, TestApplicationProtocols.latest( RAFT ),
-                        new ModifierProtocol[] { TestModifierProtocols.latest( COMPRESSION ) } ),
+                                new ModifierProtocol[]{TestModifierProtocols.latest( COMPRESSION )} ),
                 new Parameters( allRaft, allRaft, allCompressionModifiersByDefault, allModifiers, TestApplicationProtocols.latest( RAFT ),
-                        new ModifierProtocol[] { TestModifierProtocols.latest( COMPRESSION ) } ),
+                                new ModifierProtocol[]{TestModifierProtocols.latest( COMPRESSION )} ),
                 new Parameters( allRaft, allRaft, allModifiers, allObfuscationModifiers, TestApplicationProtocols.latest( RAFT ),
-                        new ModifierProtocol[] {  TestModifierProtocols.latest( GRATUITOUS_OBFUSCATION ) } ),
+                                new ModifierProtocol[]{TestModifierProtocols.latest( GRATUITOUS_OBFUSCATION )} ),
                 new Parameters( allRaft, allRaft, allObfuscationModifiers, allModifiers, TestApplicationProtocols.latest( RAFT ),
-                        new ModifierProtocol[] {  TestModifierProtocols.latest( GRATUITOUS_OBFUSCATION ) } ),
+                                new ModifierProtocol[]{TestModifierProtocols.latest( GRATUITOUS_OBFUSCATION )} ),
 
                 // prioritisation
                 new Parameters( allRaft, allRaft, allModifiers, lzoFirstCompressionModifiers, TestApplicationProtocols.latest( RAFT ),
-                        new ModifierProtocol[] { LZO } ),
+                                new ModifierProtocol[]{LZO} ),
                 new Parameters( allRaft, allRaft, lzoFirstCompressionModifiers, allCompressionModifiers, TestApplicationProtocols.latest( RAFT ),
-                        new ModifierProtocol[] { preferredLzoFirstCompressionModifier } ),
+                                new ModifierProtocol[]{preferredLzoFirstCompressionModifier} ),
                 new Parameters( allRaft, allRaft, allModifiers, snappyFirstCompressionModifiers, TestApplicationProtocols.latest( RAFT ),
-                        new ModifierProtocol[] { SNAPPY } ),
+                                new ModifierProtocol[]{SNAPPY} ),
                 new Parameters( allRaft, allRaft, snappyFirstCompressionModifiers, allCompressionModifiers, TestApplicationProtocols.latest( RAFT ),
-                        new ModifierProtocol[] { preferredSnappyFirstCompressionModifier } ),
+                                new ModifierProtocol[]{preferredSnappyFirstCompressionModifier} ),
 
                 // restriction
                 new Parameters( allRaft, allRaft, allModifiers, onlyLzoCompressionModifiers, TestApplicationProtocols.latest( RAFT ),
-                        new ModifierProtocol[] { TestModifierProtocols.LZO } ),
+                                new ModifierProtocol[]{TestModifierProtocols.LZO} ),
                 new Parameters( allRaft, allRaft, onlyLzoCompressionModifiers, allModifiers, TestApplicationProtocols.latest( RAFT ),
-                        new ModifierProtocol[] { TestModifierProtocols.LZO } ),
+                                new ModifierProtocol[]{TestModifierProtocols.LZO} ),
 
                 // incompatible
                 new Parameters( allRaft, allRaft, onlySnappyCompressionModifiers, onlyLzoCompressionModifiers, TestApplicationProtocols.latest( RAFT ),
-                        new ModifierProtocol[] {} ),
+                                new ModifierProtocol[]{} ),
                 new Parameters( allRaft, allRaft, onlyLzoCompressionModifiers, onlySnappyCompressionModifiers, TestApplicationProtocols.latest( RAFT ),
-                        new ModifierProtocol[] {} ),
+                                new ModifierProtocol[]{} ),
 
                 // no modifiers
                 new Parameters( allRaft, allRaft, allModifiers, noModifiers, TestApplicationProtocols.latest( RAFT ),
-                        new ModifierProtocol[] {} ),
+                                new ModifierProtocol[]{} ),
                 new Parameters( allRaft, allRaft, noModifiers, allModifiers, TestApplicationProtocols.latest( RAFT ),
-                        new ModifierProtocol[] {} )
-                );
+                                new ModifierProtocol[]{} )
+        );
     }
 
     @Test
@@ -284,11 +284,11 @@ public class ProtocolHandshakeHappyTest
         final ModifierProtocol[] expectedModifierProtocols;
 
         Parameters( ApplicationSupportedProtocols clientApplicationProtocol,
-                ApplicationSupportedProtocols serverApplicationProtocol,
-                Collection<ModifierSupportedProtocols> clientModifierProtocols,
-                Collection<ModifierSupportedProtocols> serverModifierProtocols,
-                ApplicationProtocol expectedApplicationProtocol,
-                ModifierProtocol[] expectedModifierProtocols )
+                    ApplicationSupportedProtocols serverApplicationProtocol,
+                    Collection<ModifierSupportedProtocols> clientModifierProtocols,
+                    Collection<ModifierSupportedProtocols> serverModifierProtocols,
+                    ApplicationProtocol expectedApplicationProtocol,
+                    ModifierProtocol[] expectedModifierProtocols )
         {
             this.clientModifierProtocols = clientModifierProtocols;
             this.clientApplicationProtocol = clientApplicationProtocol;

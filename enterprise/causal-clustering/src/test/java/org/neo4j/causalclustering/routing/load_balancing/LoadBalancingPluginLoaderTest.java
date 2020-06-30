@@ -45,13 +45,18 @@ public class LoadBalancingPluginLoaderTest
     private static final String DUMMY_PLUGIN_NAME = "dummy";
     private static final String DOES_NOT_EXIST = "does_not_exist";
 
+    private static String settingFor( String pluginName, String settingName )
+    {
+        return String.format( "%s.%s.%s", CausalClusteringSettings.load_balancing_config.name(), pluginName, settingName );
+    }
+
     @Test
     public void shouldReturnSelectedPlugin() throws Throwable
     {
         // given
         Config config = Config.builder()
-                .withSetting( CausalClusteringSettings.load_balancing_plugin, DUMMY_PLUGIN_NAME )
-                .withSetting( CausalClusteringSettings.load_balancing_shuffle, "false" ).build();
+                              .withSetting( CausalClusteringSettings.load_balancing_plugin, DUMMY_PLUGIN_NAME )
+                              .withSetting( CausalClusteringSettings.load_balancing_shuffle, "false" ).build();
 
         // when
         LoadBalancingProcessor plugin = LoadBalancingPluginLoader.load(
@@ -71,8 +76,8 @@ public class LoadBalancingPluginLoaderTest
     {
         // given
         Config config = Config.builder()
-                .withSetting( CausalClusteringSettings.load_balancing_plugin, DUMMY_PLUGIN_NAME )
-                .withSetting( CausalClusteringSettings.load_balancing_shuffle, "true" ).build();
+                              .withSetting( CausalClusteringSettings.load_balancing_plugin, DUMMY_PLUGIN_NAME )
+                              .withSetting( CausalClusteringSettings.load_balancing_shuffle, "true" ).build();
 
         // when
         LoadBalancingProcessor plugin = LoadBalancingPluginLoader.load(
@@ -91,8 +96,8 @@ public class LoadBalancingPluginLoaderTest
     {
         // given
         Config config = Config.builder()
-                .withSetting( CausalClusteringSettings.load_balancing_plugin, ServerPoliciesPlugin.PLUGIN_NAME )
-                .withSetting( CausalClusteringSettings.load_balancing_shuffle, "false" ).build();
+                              .withSetting( CausalClusteringSettings.load_balancing_plugin, ServerPoliciesPlugin.PLUGIN_NAME )
+                              .withSetting( CausalClusteringSettings.load_balancing_shuffle, "false" ).build();
 
         // when
         LoadBalancingProcessor plugin = LoadBalancingPluginLoader.load(
@@ -129,8 +134,8 @@ public class LoadBalancingPluginLoaderTest
     {
         // given
         Config config = Config.builder()
-                .withSetting( settingFor( DUMMY_PLUGIN_NAME, DummyLoadBalancingPlugin.DO_NOT_USE_THIS_CONFIG ), "true")
-                .withSetting( CausalClusteringSettings.load_balancing_plugin, DUMMY_PLUGIN_NAME ).build();
+                              .withSetting( settingFor( DUMMY_PLUGIN_NAME, DummyLoadBalancingPlugin.DO_NOT_USE_THIS_CONFIG ), "true" )
+                              .withSetting( CausalClusteringSettings.load_balancing_plugin, DUMMY_PLUGIN_NAME ).build();
 
         try
         {
@@ -142,11 +147,6 @@ public class LoadBalancingPluginLoaderTest
         {
             // then
         }
-    }
-
-    private static String settingFor( String pluginName, String settingName )
-    {
-        return String.format( "%s.%s.%s", CausalClusteringSettings.load_balancing_config.name(), pluginName, settingName );
     }
 
     @Service.Implementation( LoadBalancingPlugin.class )
@@ -164,14 +164,14 @@ public class LoadBalancingPluginLoaderTest
         {
             Optional<String> invalidSetting = config.getRaw( settingFor( DUMMY_PLUGIN_NAME, DO_NOT_USE_THIS_CONFIG ) );
             invalidSetting.ifPresent( s ->
-            {
-                throw new InvalidSettingException( "Do not use this setting" );
-            } );
+                                      {
+                                          throw new InvalidSettingException( "Do not use this setting" );
+                                      } );
         }
 
         @Override
         public void init( TopologyService topologyService, LeaderLocator leaderLocator, LogProvider logProvider,
-                Config config )
+                          Config config )
         {
             wasInitialized = true;
         }

@@ -54,10 +54,30 @@ public class ReadReplicaToReadReplicaCatchupIT
     @Rule
     public final ClusterRule clusterRule =
             new ClusterRule().withNumberOfCoreMembers( 3 ).withNumberOfReadReplicas( 0 )
-                    .withSharedCoreParam( CausalClusteringSettings.cluster_topology_refresh, "5s" )
-                    .withSharedCoreParam( CausalClusteringSettings.multi_dc_license, "true" )
-                    .withSharedReadReplicaParam( CausalClusteringSettings.multi_dc_license, "true" )
-                    .withDiscoveryServiceType( EnterpriseDiscoveryServiceType.HAZELCAST );
+                             .withSharedCoreParam( CausalClusteringSettings.cluster_topology_refresh, "5s" )
+                             .withSharedCoreParam( CausalClusteringSettings.multi_dc_license, "true" )
+                             .withSharedReadReplicaParam( CausalClusteringSettings.multi_dc_license, "true" )
+                             .withDiscoveryServiceType( EnterpriseDiscoveryServiceType.HAZELCAST );
+
+    static void checkDataHasReplicatedToReadReplicas( Cluster<?> cluster, long numberOfNodes ) throws Exception
+    {
+        for ( final ReadReplica server : cluster.readReplicas() )
+        {
+            GraphDatabaseService readReplica = server.database();
+            try ( Transaction tx = readReplica.beginTx() )
+            {
+                ThrowingSupplier<Long,Exception> nodeCount = () -> count( readReplica.getAllNodes() );
+                assertEventually( "node to appear on read replica", nodeCount, is( numberOfNodes ), 1, MINUTES );
+
+                for ( Node node : readReplica.getAllNodes() )
+                {
+                    assertThat( node.getProperty( "foobar" ).toString(), startsWith( "baz_bat" ) );
+                }
+
+                tx.success();
+            }
+        }
+    }
 
     @Test
     public void shouldEventuallyPullTransactionAcrossReadReplicas() throws Throwable
@@ -67,13 +87,13 @@ public class ReadReplicaToReadReplicaCatchupIT
         int numberOfNodesToCreate = 100;
 
         cluster.coreTx( ( db, tx ) ->
-        {
-            db.schema().constraintFor( label( "Foo" ) ).assertPropertyIsUnique( "foobar" ).create();
-            tx.success();
-        } );
+                        {
+                            db.schema().constraintFor( label( "Foo" ) ).assertPropertyIsUnique( "foobar" ).create();
+                            tx.success();
+                        } );
 
         createLabelledNodesWithProperty( cluster, numberOfNodesToCreate, label( "Foo" ),
-                () -> Pair.of( "foobar", String.format( "baz_bat%s", UUID.randomUUID() ) ) );
+                                         () -> Pair.of( "foobar", String.format( "baz_bat%s", UUID.randomUUID() ) ) );
 
         ReadReplica firstReadReplica = cluster.addReadReplicaWithIdAndMonitors( 101, new Monitors() );
 
@@ -107,13 +127,13 @@ public class ReadReplicaToReadReplicaCatchupIT
         int firstReadReplicaLocalMemberId = 101;
 
         cluster.coreTx( ( db, tx ) ->
-        {
-            db.schema().constraintFor( label( "Foo" ) ).assertPropertyIsUnique( "foobar" ).create();
-            tx.success();
-        } );
+                        {
+                            db.schema().constraintFor( label( "Foo" ) ).assertPropertyIsUnique( "foobar" ).create();
+                            tx.success();
+                        } );
 
         createLabelledNodesWithProperty( cluster, numberOfNodes, label( "Foo" ),
-                () -> Pair.of( "foobar", String.format( "baz_bat%s", UUID.randomUUID() ) ) );
+                                         () -> Pair.of( "foobar", String.format( "baz_bat%s", UUID.randomUUID() ) ) );
 
         ReadReplica firstReadReplica =
                 cluster.addReadReplicaWithIdAndMonitors( firstReadReplicaLocalMemberId, new Monitors() );
@@ -139,31 +159,11 @@ public class ReadReplicaToReadReplicaCatchupIT
         // when
         // More transactions into core
         createLabelledNodesWithProperty( cluster, numberOfNodes, label( "Foo" ),
-                () -> Pair.of( "foobar", String.format( "baz_bat%s", UUID.randomUUID() ) ) );
+                                         () -> Pair.of( "foobar", String.format( "baz_bat%s", UUID.randomUUID() ) ) );
 
         // then
         // reached second read replica from cores
         checkDataHasReplicatedToReadReplicas( cluster, numberOfNodes * 2 );
-    }
-
-    static void checkDataHasReplicatedToReadReplicas( Cluster<?> cluster, long numberOfNodes ) throws Exception
-    {
-        for ( final ReadReplica server : cluster.readReplicas() )
-        {
-            GraphDatabaseService readReplica = server.database();
-            try ( Transaction tx = readReplica.beginTx() )
-            {
-                ThrowingSupplier<Long,Exception> nodeCount = () -> count( readReplica.getAllNodes() );
-                assertEventually( "node to appear on read replica", nodeCount, is( numberOfNodes ), 1, MINUTES );
-
-                for ( Node node : readReplica.getAllNodes() )
-                {
-                    assertThat( node.getProperty( "foobar" ).toString(), startsWith( "baz_bat" ) );
-                }
-
-                tx.success();
-            }
-        }
     }
 
     @Service.Implementation( UpstreamDatabaseSelectionStrategy.class )

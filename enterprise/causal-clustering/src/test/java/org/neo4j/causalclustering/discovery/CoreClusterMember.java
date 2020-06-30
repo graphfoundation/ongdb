@@ -42,7 +42,7 @@ import org.neo4j.kernel.configuration.HttpConnector;
 import org.neo4j.kernel.configuration.HttpConnector.Encryption;
 import org.neo4j.kernel.configuration.Settings;
 import org.neo4j.kernel.impl.enterprise.configuration.EnterpriseEditionSettings;
-import org.neo4j.kernel.impl.enterprise.configuration.OnlineBackupSettings;
+import org.neo4j.kernel.impl.enterprise.settings.backup.OnlineBackupSettings;
 import org.neo4j.kernel.monitoring.Monitors;
 import org.neo4j.logging.Level;
 
@@ -55,8 +55,8 @@ import static org.neo4j.helpers.collection.MapUtil.stringMap;
 
 public class CoreClusterMember implements ClusterMember<CoreGraphDatabase>
 {
-    private final File neo4jHome;
     protected final DiscoveryServiceFactory discoveryServiceFactory;
+    private final File neo4jHome;
     private final File defaultDatabaseDirectory;
     private final File clusterStateDir;
     private final File raftLogDir;
@@ -65,12 +65,12 @@ public class CoreClusterMember implements ClusterMember<CoreGraphDatabase>
     private final String boltAdvertisedSocketAddress;
     private final int discoveryPort;
     private final String raftListenAddress;
-    protected CoreGraphDatabase database;
     private final Config memberConfig;
     private final ThreadGroup threadGroup;
     private final Monitors monitors = new Monitors();
     private final String dbName;
     private final File databasesDirectory;
+    protected CoreGraphDatabase database;
 
     public CoreClusterMember( int serverId,
                               int discoveryPort,
@@ -84,8 +84,8 @@ public class CoreClusterMember implements ClusterMember<CoreGraphDatabase>
                               DiscoveryServiceFactory discoveryServiceFactory,
                               String recordFormat,
                               File parentDir,
-                              Map<String, String> extraParams,
-                              Map<String, IntFunction<String>> instanceExtraParams,
+                              Map<String,String> extraParams,
+                              Map<String,IntFunction<String>> instanceExtraParams,
                               String listenAddress,
                               String advertisedAddress )
     {
@@ -124,7 +124,7 @@ public class CoreClusterMember implements ClusterMember<CoreGraphDatabase>
         config.put( GraphDatabaseSettings.auth_store.name(), new File( parentDir, "auth" ).getAbsolutePath() );
         config.putAll( extraParams );
 
-        for ( Map.Entry<String, IntFunction<String>> entry : instanceExtraParams.entrySet() )
+        for ( Map.Entry<String,IntFunction<String>> entry : instanceExtraParams.entrySet() )
         {
             config.put( entry.getKey(), entry.getValue().apply( serverId ) );
         }
@@ -173,7 +173,7 @@ public class CoreClusterMember implements ClusterMember<CoreGraphDatabase>
     public void start()
     {
         database = new CoreGraphDatabase( databasesDirectory, memberConfig,
-                GraphDatabaseDependencies.newDependencies().monitors( monitors ), discoveryServiceFactory );
+                                          GraphDatabaseDependencies.newDependencies().monitors( monitors ), discoveryServiceFactory );
     }
 
     @Override
@@ -230,7 +230,7 @@ public class CoreClusterMember implements ClusterMember<CoreGraphDatabase>
         return database.getDependencyResolver().resolveDependency( RaftMachine.class ).identity();
     }
 
-    public SortedMap<Long, File> getLogFileNames() throws IOException
+    public SortedMap<Long,File> getLogFileNames() throws IOException
     {
         File logFilesDir = new File( clusterStateDir, RAFT_LOG_DIRECTORY_NAME );
         try ( DefaultFileSystemAbstraction fileSystem = new DefaultFileSystemAbstraction() )
@@ -271,7 +271,7 @@ public class CoreClusterMember implements ClusterMember<CoreGraphDatabase>
     @Override
     public String settingValue( String settingName )
     {
-        return config.get(settingName);
+        return config.get( settingName );
     }
 
     @Override

@@ -25,21 +25,26 @@ import org.junit.Test;
 
 import org.neo4j.causalclustering.identity.StoreId;
 
-import static org.junit.Assert.assertEquals;
-
 public class GetIndexFilesRequestMarshalTest
 {
+    private static final StoreId expectedStore = new StoreId( 1, 2, 3, 4 );
+    private static final long exepctedIndexId = 13;
+    private static final Long expectedLastTransaction = 1234L;
     private EmbeddedChannel embeddedChannel;
+
+    private static void sendToChannel( GetIndexFilesRequest expectedIndexSnapshotRequest, EmbeddedChannel embeddedChannel )
+    {
+        embeddedChannel.writeOutbound( expectedIndexSnapshotRequest );
+
+        ByteBuf object = embeddedChannel.readOutbound();
+        embeddedChannel.writeInbound( object );
+    }
 
     @Before
     public void setup()
     {
         embeddedChannel = new EmbeddedChannel( new GetIndexFilesRequest.Encoder(), new GetIndexFilesRequest.Decoder() );
     }
-
-    private static final StoreId expectedStore = new StoreId( 1, 2, 3, 4 );
-    private static final long exepctedIndexId = 13;
-    private static final Long expectedLastTransaction = 1234L;
 
     @Test
     public void getsTransmitted()
@@ -55,13 +60,5 @@ public class GetIndexFilesRequestMarshalTest
         assertEquals( expectedStore, actualIndexRequest.expectedStoreId() );
         assertEquals( exepctedIndexId, actualIndexRequest.indexId() );
         assertEquals( expectedLastTransaction.longValue(), actualIndexRequest.requiredTransactionId() );
-    }
-
-    private static void sendToChannel( GetIndexFilesRequest expectedIndexSnapshotRequest, EmbeddedChannel embeddedChannel )
-    {
-        embeddedChannel.writeOutbound( expectedIndexSnapshotRequest );
-
-        ByteBuf object = embeddedChannel.readOutbound();
-        embeddedChannel.writeInbound( object );
     }
 }

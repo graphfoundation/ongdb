@@ -102,17 +102,18 @@ public class LimitersTest
             ExecutorService es = Executors.newCachedThreadPool();
             for ( int j = 0; j < nThreads; j++ )
             {
-                es.submit( () -> {
-                    try
-                    {
-                        latch.await();
-                    }
-                    catch ( InterruptedException e )
-                    {
-                        e.printStackTrace();
-                    }
-                    cap.accept( op );
-                } );
+                es.submit( () ->
+                           {
+                               try
+                               {
+                                   latch.await();
+                               }
+                               catch ( InterruptedException e )
+                               {
+                                   e.printStackTrace();
+                               }
+                               cap.accept( op );
+                           } );
             }
 
             // when

@@ -55,50 +55,15 @@ public class ReadReplicaStoreCopyIT
             .withNumberOfCoreMembers( 3 )
             .withNumberOfReadReplicas( 1 );
 
-    @Test( timeout = 240_000 )
-    public void shouldNotBePossibleToStartTransactionsWhenReadReplicaCopiesStore() throws Throwable
-    {
-        Cluster<?> cluster = clusterRule.startCluster();
-
-        ReadReplica readReplica = cluster.findAnyReadReplica();
-
-        readReplica.txPollingClient().stop();
-
-        writeSomeDataAndForceLogRotations( cluster );
-        Semaphore storeCopyBlockingSemaphore = addStoreCopyBlockingMonitor( readReplica );
-        try
-        {
-            readReplica.txPollingClient().start();
-            waitForStoreCopyToStartAndBlock( storeCopyBlockingSemaphore );
-
-            ReadReplicaGraphDatabase replicaGraphDatabase = readReplica.database();
-            try
-            {
-                replicaGraphDatabase.beginTx();
-                fail( "Exception expected" );
-            }
-            catch ( Exception e )
-            {
-                assertThat( e, instanceOf( TransactionFailureException.class ) );
-                assertThat( e.getMessage(), containsString( "Database is stopped to copy store" ) );
-            }
-        }
-        finally
-        {
-            // release all waiters of the semaphore
-            storeCopyBlockingSemaphore.release( Integer.MAX_VALUE );
-        }
-    }
-
     private static void writeSomeDataAndForceLogRotations( Cluster<?> cluster ) throws Exception
     {
         for ( int i = 0; i < 20; i++ )
         {
             cluster.coreTx( ( db, tx ) ->
-            {
-                db.execute( "CREATE ()" );
-                tx.success();
-            } );
+                            {
+                                db.execute( "CREATE ()" );
+                                tx.success();
+                            } );
 
             forceLogRotationOnAllCores( cluster );
         }
@@ -150,6 +115,41 @@ public class ReadReplicaStoreCopyIT
     private static void waitForStoreCopyToStartAndBlock( Semaphore storeCopyBlockingSemaphore ) throws Exception
     {
         assertEventually( "Read replica did not copy files", storeCopyBlockingSemaphore::hasQueuedThreads,
-                is( true ), 60, TimeUnit.SECONDS );
+                          is( true ), 60, TimeUnit.SECONDS );
+    }
+
+    @Test( timeout = 240_000 )
+    public void shouldNotBePossibleToStartTransactionsWhenReadReplicaCopiesStore() throws Throwable
+    {
+        Cluster<?> cluster = clusterRule.startCluster();
+
+        ReadReplica readReplica = cluster.findAnyReadReplica();
+
+        readReplica.txPollingClient().stop();
+
+        writeSomeDataAndForceLogRotations( cluster );
+        Semaphore storeCopyBlockingSemaphore = addStoreCopyBlockingMonitor( readReplica );
+        try
+        {
+            readReplica.txPollingClient().start();
+            waitForStoreCopyToStartAndBlock( storeCopyBlockingSemaphore );
+
+            ReadReplicaGraphDatabase replicaGraphDatabase = readReplica.database();
+            try
+            {
+                replicaGraphDatabase.beginTx();
+                fail( "Exception expected" );
+            }
+            catch ( Exception e )
+            {
+                assertThat( e, instanceOf( TransactionFailureException.class ) );
+                assertThat( e.getMessage(), containsString( "Database is stopped to copy store" ) );
+            }
+        }
+        finally
+        {
+            // release all waiters of the semaphore
+            storeCopyBlockingSemaphore.release( Integer.MAX_VALUE );
+        }
     }
 }

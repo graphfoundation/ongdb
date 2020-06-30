@@ -26,7 +26,6 @@ import java.util.stream.Collectors;
 
 import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
-import static org.junit.Assert.assertEquals;
 import static org.neo4j.helpers.collection.Iterators.asSet;
 
 public class FirstValidRuleTest

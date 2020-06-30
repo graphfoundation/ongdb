@@ -31,8 +31,6 @@ import org.neo4j.causalclustering.identity.MemberId;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.logging.NullLogProvider;
 
-import static co.unruly.matchers.OptionalMatchers.contains;
-import static org.hamcrest.Matchers.isIn;
 import static org.junit.Assert.assertThat;
 import static org.neo4j.causalclustering.upstream.strategies.UserDefinedConfigurationStrategyTest.memberIDs;
 
@@ -47,7 +45,7 @@ public class ConnectRandomlyWithinServerGroupStrategyTest
         MemberId[] myGroupMemberIds = memberIDs( 10 );
         TopologyService topologyService =
                 ConnectRandomlyToServerGroupStrategyImplTest.getTopologyService( Collections.singletonList( myServerGroup ), myGroupMemberIds,
-                        Collections.singletonList( "your_server_group" ) );
+                                                                                 Collections.singletonList( "your_server_group" ) );
 
         ConnectRandomlyWithinServerGroupStrategy strategy = new ConnectRandomlyWithinServerGroupStrategy();
         strategy.inject( topologyService, configWithMyServerGroup, NullLogProvider.getInstance(), myGroupMemberIds[0] );
@@ -71,7 +69,7 @@ public class ConnectRandomlyWithinServerGroupStrategyTest
         ConnectRandomlyWithinServerGroupStrategy connectRandomlyWithinServerGroupStrategy = new ConnectRandomlyWithinServerGroupStrategy();
         MemberId myself = new MemberId( new UUID( 123, 456 ) );
         connectRandomlyWithinServerGroupStrategy.inject( new TopologyServiceThatPrioritisesItself( myself, groupName ), config, NullLogProvider.getInstance(),
-                myself );
+                                                         myself );
 
         // when
         Optional<MemberId> result = connectRandomlyWithinServerGroupStrategy.upstreamDatabase();

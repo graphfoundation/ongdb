@@ -33,7 +33,7 @@ import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.configuration.Settings;
-import org.neo4j.kernel.impl.enterprise.configuration.OnlineBackupSettings;
+import org.neo4j.kernel.impl.enterprise.settings.backup.OnlineBackupSettings;
 import org.neo4j.kernel.impl.store.format.highlimit.HighLimit;
 import org.neo4j.test.DbRepresentation;
 import org.neo4j.test.rule.TestDirectory;
@@ -44,13 +44,12 @@ import static org.neo4j.causalclustering.discovery.Cluster.dataMatchesEventually
 
 public class ClusterCommunityToEnterpriseIT
 {
-    private Cluster<?> cluster;
-    private FileSystemAbstraction fsa;
-
     @Rule
     public TestDirectory testDir = TestDirectory.testDirectory();
     @Rule
     public DefaultFileSystemRule fileSystemRule = new DefaultFileSystemRule();
+    private Cluster<?> cluster;
+    private FileSystemAbstraction fsa;
 
     @Before
     public void setup()
@@ -58,8 +57,8 @@ public class ClusterCommunityToEnterpriseIT
         fsa = fileSystemRule.get();
 
         cluster = new EnterpriseCluster( testDir.directory( "cluster" ), 3, 0,
-                new SharedDiscoveryServiceFactory(), emptyMap(), emptyMap(), emptyMap(), emptyMap(), HighLimit.NAME,
-                IpFamily.IPV4, false );
+                                         new SharedDiscoveryServiceFactory(), emptyMap(), emptyMap(), emptyMap(), emptyMap(), HighLimit.NAME,
+                                         IpFamily.IPV4, false );
     }
 
     @After
@@ -76,10 +75,10 @@ public class ClusterCommunityToEnterpriseIT
     {
         // given
         GraphDatabaseService database = new GraphDatabaseFactory().newEmbeddedDatabaseBuilder( testDir.storeDir() )
-                .setConfig( GraphDatabaseSettings.allow_upgrade, Settings.TRUE )
-                .setConfig( GraphDatabaseSettings.record_format, HighLimit.NAME )
-                .setConfig( OnlineBackupSettings.online_backup_enabled, Boolean.FALSE.toString() )
-                .newGraphDatabase();
+                                                                  .setConfig( GraphDatabaseSettings.allow_upgrade, Settings.TRUE )
+                                                                  .setConfig( GraphDatabaseSettings.record_format, HighLimit.NAME )
+                                                                  .setConfig( OnlineBackupSettings.online_backup_enabled, Boolean.FALSE.toString() )
+                                                                  .newGraphDatabase();
         database.shutdown();
         Config config = Config.defaults( OnlineBackupSettings.online_backup_enabled, Settings.FALSE );
         DbRepresentation before = DbRepresentation.of( testDir.storeDir(), config );

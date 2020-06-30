@@ -26,21 +26,17 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
 
-import org.neo4j.causalclustering.core.consensus.log.cache.ConsecutiveInFlightCache;
-import org.neo4j.causalclustering.core.consensus.log.cache.InFlightCache;
 import org.neo4j.causalclustering.core.consensus.log.RaftLogCursor;
 import org.neo4j.causalclustering.core.consensus.log.RaftLogEntry;
 import org.neo4j.causalclustering.core.consensus.log.ReadableRaftLog;
-
+import org.neo4j.causalclustering.core.consensus.log.cache.ConsecutiveInFlightCache;
+import org.neo4j.causalclustering.core.consensus.log.cache.InFlightCache;
 
 import static java.util.Arrays.asList;
-import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoMoreInteractions;
-import static org.mockito.Mockito.verifyZeroInteractions;
 import static org.mockito.Mockito.when;
 
 @RunWith( Parameterized.class )
@@ -51,15 +47,14 @@ public class InFlightLogEntryReaderTest
     private final InFlightCache inFlightCache = mock( ConsecutiveInFlightCache.class );
     private final long logIndex = 42L;
     private final RaftLogEntry entry = mock( RaftLogEntry.class );
+    @Parameterized.Parameter( 0 )
+    public boolean clearCache;
 
     @Parameterized.Parameters( name = "{0}" )
     public static Collection<Boolean[]> params()
     {
         return asList( new Boolean[]{true}, new Boolean[]{false} );
     }
-
-    @Parameterized.Parameter( 0 )
-    public boolean clearCache;
 
     @Test
     public void shouldUseTheCacheWhenTheIndexIsPresent() throws Exception
@@ -136,7 +131,7 @@ public class InFlightLogEntryReaderTest
     }
 
     private void startingFromIndexReturnEntries( InFlightCache inFlightCache, long startIndex,
-            RaftLogEntry entry, RaftLogEntry... otherEntries )
+                                                 RaftLogEntry entry, RaftLogEntry... otherEntries )
     {
         when( inFlightCache.get( startIndex ) ).thenReturn( entry );
         for ( int offset = 0; offset < otherEntries.length; offset++ )
@@ -146,7 +141,7 @@ public class InFlightLogEntryReaderTest
     }
 
     private void startingFromIndexReturnEntries( ReadableRaftLog raftLog, long startIndex,
-            RaftLogEntry entry, RaftLogEntry... otherEntries ) throws IOException
+                                                 RaftLogEntry entry, RaftLogEntry... otherEntries ) throws IOException
     {
         RaftLogCursor cursor = mock( RaftLogCursor.class );
         when( raftLog.getEntryCursor( startIndex ) ).thenReturn( cursor, (RaftLogCursor) null );

@@ -48,8 +48,8 @@ import static org.neo4j.causalclustering.discovery.IpFamily.IPV4;
 import static org.neo4j.helpers.collection.MapUtil.stringMap;
 
 /**
- * Includes a {@link VerboseTimeout} rule with a long default timeout. Use {@link #withTimeout(long, TimeUnit)} to customise
- * or {@link #withNoTimeout()} to disable.
+ * Includes a {@link VerboseTimeout} rule with a long default timeout. Use {@link #withTimeout(long, TimeUnit)} to customise or {@link #withNoTimeout()} to
+ * disable.
  */
 public class ClusterRule extends ExternalResource
 {
@@ -116,8 +116,8 @@ public class ClusterRule extends ExternalResource
     }
 
     /**
-     * Starts cluster with the configuration provided at instantiation time. This method will not return until the
-     * cluster is up and all members report each other as available.
+     * Starts cluster with the configuration provided at instantiation time. This method will not return until the cluster is up and all members report each
+     * other as available.
      */
     public Cluster<?> startCluster() throws Exception
     {
@@ -135,7 +135,7 @@ public class ClusterRule extends ExternalResource
         if ( cluster == null )
         {
             cluster = new EnterpriseCluster( clusterDirectory, noCoreMembers, noReadReplicas, discoveryServiceType.createFactory(), coreParams,
-                    instanceCoreParams, readReplicaParams, instanceReadReplicaParams, recordFormat, ipFamily, useWildcard, dbNames );
+                                             instanceCoreParams, readReplicaParams, instanceReadReplicaParams, recordFormat, ipFamily, useWildcard, dbNames );
         }
 
         return cluster;
@@ -154,15 +154,15 @@ public class ClusterRule extends ExternalResource
     public ClusterRule withDatabaseNames( Set<String> dbNames )
     {
         this.dbNames = dbNames;
-        Map<Integer, String> coreDBMap = CausalClusteringTestHelpers.distributeDatabaseNamesToHostNums( noCoreMembers, dbNames );
-        Map<Integer, String> rrDBMap = CausalClusteringTestHelpers.distributeDatabaseNamesToHostNums( noReadReplicas, dbNames );
+        Map<Integer,String> coreDBMap = CausalClusteringTestHelpers.distributeDatabaseNamesToHostNums( noCoreMembers, dbNames );
+        Map<Integer,String> rrDBMap = CausalClusteringTestHelpers.distributeDatabaseNamesToHostNums( noReadReplicas, dbNames );
 
         Map<String,Long> minCoresPerDb = coreDBMap.entrySet().stream()
-                .collect( Collectors.groupingBy( Map.Entry::getValue, Collectors.counting() ) );
+                                                  .collect( Collectors.groupingBy( Map.Entry::getValue, Collectors.counting() ) );
 
         Map<Integer,String> minCoresSettingsMap = new HashMap<>();
 
-        for ( Map.Entry<Integer,String> entry: coreDBMap.entrySet() )
+        for ( Map.Entry<Integer,String> entry : coreDBMap.entrySet() )
         {
             Optional<Long> minNumCores = Optional.ofNullable( minCoresPerDb.get( entry.getValue() ) );
             minNumCores.ifPresent( n -> minCoresSettingsMap.put( entry.getKey(), n.toString() ) );

@@ -61,7 +61,6 @@ import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.greaterThan;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.atLeast;
@@ -178,7 +177,7 @@ class RaftReplicatorTest
 
         // then
         assertEventually( "making progress", () -> capturedProgress.last, not( equalTo( null ) ),
-                DEFAULT_TIMEOUT_MS, MILLISECONDS );
+                          DEFAULT_TIMEOUT_MS, MILLISECONDS );
         assertEquals( 1, sessionPool.openSessionCount() );
 
         // when
@@ -322,12 +321,43 @@ class RaftReplicatorTest
     private RaftReplicator getReplicator( CapturingOutbound<RaftMessages.RaftMessage> outbound, ProgressTracker progressTracker, Monitors monitors )
     {
         return new RaftReplicator( leaderLocator, myself, outbound, sessionPool, progressTracker, noWaitTimeoutStrategy, 10, databaseAvailabilityGuard,
-                NullLogProvider.getInstance(), localDatabase, monitors );
+                                   NullLogProvider.getInstance(), localDatabase, monitors );
     }
 
     private ReplicatingThread replicatingThread( RaftReplicator replicator, ReplicatedInteger content, boolean trackResult )
     {
         return new ReplicatingThread( replicator, content, trackResult );
+    }
+
+    private static class CapturingOutbound<MESSAGE extends Message> implements Outbound<MemberId,MESSAGE>
+    {
+        private MemberId lastTo;
+        private int count;
+
+        @Override
+        public void send( MemberId to, MESSAGE message, boolean block )
+        {
+            this.lastTo = to;
+            this.count++;
+        }
+    }
+
+    private static class StubLocalDatabase extends LocalDatabase
+    {
+        StubLocalDatabase( StoreFiles storeFiles, DataSourceManager dataSourceManager, Supplier<DatabaseHealth> databaseHealthSupplier,
+                           AvailabilityGuard availabilityGuard )
+        {
+            super( null, storeFiles, null, dataSourceManager, databaseHealthSupplier, availabilityGuard, NullLogProvider.getInstance() );
+        }
+
+        static LocalDatabase create( Supplier<DatabaseHealth> databaseHealthSupplier, AvailabilityGuard availabilityGuard ) throws IOException
+        {
+            StoreFiles storeFiles = mock( StoreFiles.class );
+            when( storeFiles.readStoreId( any() ) ).thenReturn( new StoreId( 1, 2, 3, 4 ) );
+
+            DataSourceManager dataSourceManager = mock( DataSourceManager.class );
+            return new StubLocalDatabase( storeFiles, dataSourceManager, databaseHealthSupplier, availabilityGuard );
+        }
     }
 
     private class ReplicatingThread extends Thread
@@ -432,38 +462,6 @@ class RaftReplicatorTest
         public int inProgressCount()
         {
             throw new UnsupportedOperationException();
-        }
-    }
-
-    private static class CapturingOutbound<MESSAGE extends Message> implements Outbound<MemberId, MESSAGE>
-    {
-        private MemberId lastTo;
-        private int count;
-
-        @Override
-        public void send( MemberId to, MESSAGE message, boolean block )
-        {
-            this.lastTo = to;
-            this.count++;
-        }
-
-    }
-
-    private static class StubLocalDatabase extends LocalDatabase
-    {
-        static LocalDatabase create( Supplier<DatabaseHealth> databaseHealthSupplier, AvailabilityGuard availabilityGuard ) throws IOException
-        {
-            StoreFiles storeFiles = mock( StoreFiles.class );
-            when( storeFiles.readStoreId( any() ) ).thenReturn( new StoreId( 1, 2, 3, 4 ) );
-
-            DataSourceManager dataSourceManager = mock( DataSourceManager.class );
-            return new StubLocalDatabase( storeFiles, dataSourceManager, databaseHealthSupplier, availabilityGuard );
-        }
-
-        StubLocalDatabase( StoreFiles storeFiles, DataSourceManager dataSourceManager, Supplier<DatabaseHealth> databaseHealthSupplier,
-                AvailabilityGuard availabilityGuard )
-        {
-            super( null, storeFiles, null, dataSourceManager, databaseHealthSupplier, availabilityGuard, NullLogProvider.getInstance() );
         }
     }
 }

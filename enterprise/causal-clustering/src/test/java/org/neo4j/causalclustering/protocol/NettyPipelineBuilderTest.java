@@ -91,7 +91,7 @@ public class NettyPipelineBuilderTest
 
         // then
         logProvider.assertExactly( inLog( getClass() )
-                .error( equalTo( "Unhandled inbound message: %s for channel: %s" ), equalTo( msg ), any( Channel.class ) ) );
+                                           .error( equalTo( "Unhandled inbound message: %s for channel: %s" ), equalTo( msg ), any( Channel.class ) ) );
         assertFalse( channel.isOpen() );
     }
 
@@ -107,7 +107,7 @@ public class NettyPipelineBuilderTest
 
         // then
         logProvider.assertExactly( inLog( getClass() )
-                .error( equalTo( "Unhandled outbound message: %s for channel: %s" ), equalTo( msg ), any( Channel.class )  ) );
+                                           .error( equalTo( "Unhandled outbound message: %s for channel: %s" ), equalTo( msg ), any( Channel.class ) ) );
         assertFalse( channel.isOpen() );
     }
 
@@ -209,8 +209,8 @@ public class NettyPipelineBuilderTest
 
         assertEquals( 3, getHandlers( channel.pipeline() ).size() ); // head/tail error handlers also counted
         assertThat( channel.pipeline().names(),
-                hasItems( NettyPipelineBuilder.ERROR_HANDLER_HEAD, NettyPipelineBuilder.MESSAGE_GATE_NAME,
-                        NettyPipelineBuilder.ERROR_HANDLER_TAIL ) );
+                    hasItems( NettyPipelineBuilder.ERROR_HANDLER_HEAD, NettyPipelineBuilder.MESSAGE_GATE_NAME,
+                              NettyPipelineBuilder.ERROR_HANDLER_TAIL ) );
 
         // when
         ServerNettyPipelineBuilder builderB = NettyPipelineBuilder.server( channel.pipeline(), log );
@@ -220,8 +220,8 @@ public class NettyPipelineBuilderTest
         // then
         assertEquals( 4, getHandlers( channel.pipeline() ).size() ); // head/tail error handlers also counted
         assertThat( channel.pipeline().names(),
-                hasItems( NettyPipelineBuilder.ERROR_HANDLER_HEAD, "my_handler", NettyPipelineBuilder.MESSAGE_GATE_NAME,
-                        NettyPipelineBuilder.ERROR_HANDLER_TAIL ) );
+                    hasItems( NettyPipelineBuilder.ERROR_HANDLER_HEAD, "my_handler", NettyPipelineBuilder.MESSAGE_GATE_NAME,
+                              NettyPipelineBuilder.ERROR_HANDLER_TAIL ) );
     }
 
     @Test

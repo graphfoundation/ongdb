@@ -64,8 +64,8 @@ public class ChunkedReplicatedContentTest
     private class ThreeChunks implements ChunkedInput<ByteBuf>
     {
         private final int length;
-        private int leftTowWrite;
         private final int chunkSize;
+        private int leftTowWrite;
         private int count;
 
         ThreeChunks( int length, int chunkSize )

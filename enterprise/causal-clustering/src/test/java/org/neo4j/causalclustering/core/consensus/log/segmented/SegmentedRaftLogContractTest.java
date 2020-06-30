@@ -55,6 +55,6 @@ public class SegmentedRaftLogContractTest extends RaftLogContractTest
         CoreLogPruningStrategy pruningStrategy =
                 new CoreLogPruningStrategyFactory( "1 entries", logProvider ).newInstance();
         return life.add( new SegmentedRaftLog( fileSystem, directory, 1024, new DummyRaftableContentSerializer(),
-                logProvider, 8, Clocks.fakeClock(), new OnDemandJobScheduler(), pruningStrategy ) );
+                                               logProvider, 8, Clocks.fakeClock(), new OnDemandJobScheduler(), pruningStrategy ) );
     }
 }

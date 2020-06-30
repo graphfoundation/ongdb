@@ -21,7 +21,6 @@ package org.neo4j.causalclustering.helper;
 import org.junit.Test;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
-import static org.junit.Assert.assertEquals;
 
 public class ExponentialBackoffStrategyTest
 {

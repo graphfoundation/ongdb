@@ -27,26 +27,25 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 
-import org.neo4j.causalclustering.core.consensus.log.cache.ConsecutiveInFlightCache;
-import org.neo4j.causalclustering.core.consensus.log.cache.InFlightCache;
-import org.neo4j.causalclustering.core.state.storage.InMemoryStateStorage;
 import org.neo4j.causalclustering.core.consensus.RaftMessages;
 import org.neo4j.causalclustering.core.consensus.log.InMemoryRaftLog;
 import org.neo4j.causalclustering.core.consensus.log.RaftLogEntry;
+import org.neo4j.causalclustering.core.consensus.log.cache.ConsecutiveInFlightCache;
+import org.neo4j.causalclustering.core.consensus.log.cache.InFlightCache;
 import org.neo4j.causalclustering.core.consensus.membership.RaftMembership;
 import org.neo4j.causalclustering.core.consensus.outcome.AppendLogEntry;
-import org.neo4j.causalclustering.core.consensus.outcome.RaftLogCommand;
 import org.neo4j.causalclustering.core.consensus.outcome.Outcome;
+import org.neo4j.causalclustering.core.consensus.outcome.RaftLogCommand;
 import org.neo4j.causalclustering.core.consensus.outcome.TruncateLogCommand;
 import org.neo4j.causalclustering.core.consensus.roles.follower.FollowerState;
 import org.neo4j.causalclustering.core.consensus.roles.follower.FollowerStates;
 import org.neo4j.causalclustering.core.consensus.term.TermState;
 import org.neo4j.causalclustering.core.consensus.vote.VoteState;
+import org.neo4j.causalclustering.core.state.storage.InMemoryStateStorage;
 import org.neo4j.causalclustering.identity.MemberId;
 import org.neo4j.logging.NullLogProvider;
 
 import static java.util.Collections.emptySet;
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.neo4j.causalclustering.core.consensus.ReplicatedInteger.valueOf;
@@ -64,8 +63,8 @@ public class RaftStateTest
         //given
         InFlightCache cache = new ConsecutiveInFlightCache();
         RaftState raftState = new RaftState( member( 0 ),
-                new InMemoryStateStorage<>( new TermState() ), new FakeMembership(), new InMemoryRaftLog(),
-                new InMemoryStateStorage<>( new VoteState() ), cache, NullLogProvider.getInstance(), false, false );
+                                             new InMemoryStateStorage<>( new TermState() ), new FakeMembership(), new InMemoryRaftLog(),
+                                             new InMemoryStateStorage<>( new VoteState() ), cache, NullLogProvider.getInstance(), false, false );
 
         List<RaftLogCommand> logCommands = new LinkedList<RaftLogCommand>()
         {{
@@ -79,10 +78,10 @@ public class RaftStateTest
 
         Outcome raftTestMemberOutcome =
                 new Outcome( CANDIDATE, 0, null, -1, null, emptySet(), emptySet(), -1, initialFollowerStates(), true,
-                        logCommands, emptyOutgoingMessages(), emptySet(), -1, emptySet(), false );
+                             logCommands, emptyOutgoingMessages(), emptySet(), -1, emptySet(), false );
 
         //when
-        raftState.update(raftTestMemberOutcome);
+        raftState.update( raftTestMemberOutcome );
 
         //then
         assertNotNull( cache.get( 1L ) );
@@ -97,18 +96,18 @@ public class RaftStateTest
     {
         // given
         RaftState raftState = new RaftState( member( 0 ),
-                new InMemoryStateStorage<>( new TermState() ),
-                new FakeMembership(), new InMemoryRaftLog(),
-                new InMemoryStateStorage<>( new VoteState( ) ),
-                new ConsecutiveInFlightCache(), NullLogProvider.getInstance(),
-                false, false );
+                                             new InMemoryStateStorage<>( new TermState() ),
+                                             new FakeMembership(), new InMemoryRaftLog(),
+                                             new InMemoryStateStorage<>( new VoteState() ),
+                                             new ConsecutiveInFlightCache(), NullLogProvider.getInstance(),
+                                             false, false );
 
         raftState.update( new Outcome( CANDIDATE, 1, null, -1, null, emptySet(), emptySet(), -1, initialFollowerStates(), true, emptyLogCommands(),
-                emptyOutgoingMessages(), emptySet(), -1, emptySet(), false ) );
+                                       emptyOutgoingMessages(), emptySet(), -1, emptySet(), false ) );
 
         // when
         raftState.update( new Outcome( CANDIDATE, 1, null, -1, null, emptySet(), emptySet(), -1, new FollowerStates<>(), true, emptyLogCommands(),
-                emptyOutgoingMessages(), emptySet(), -1, emptySet(), false ) );
+                                       emptyOutgoingMessages(), emptySet(), -1, emptySet(), false ) );
 
         // then
         assertEquals( 0, raftState.followerStates().size() );

@@ -32,7 +32,6 @@ import org.neo4j.causalclustering.upstream.UpstreamDatabaseSelectionException;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.logging.NullLogProvider;
 
-
 public class LeaderOnlyStrategyTest
 {
     @Test

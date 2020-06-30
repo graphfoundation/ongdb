@@ -25,7 +25,6 @@ import org.neo4j.logging.Log;
 import org.neo4j.time.Clocks;
 import org.neo4j.time.FakeClock;
 
-import static java.lang.String.format;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;

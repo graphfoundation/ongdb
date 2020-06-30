@@ -86,9 +86,9 @@ public class GetServersProcedureV1Test
     {
         return Arrays.asList(
                 new Object[]{"with followers as read end points", Config.defaults(
-                        cluster_allow_reads_on_followers, Settings.TRUE ), true },
+                        cluster_allow_reads_on_followers, Settings.TRUE ), true},
                 new Object[]{"no followers as read end points", Config.defaults(
-                        cluster_allow_reads_on_followers, Settings.FALSE ), false }
+                        cluster_allow_reads_on_followers, Settings.FALSE ), false}
         );
     }
 
@@ -372,33 +372,6 @@ public class GetServersProcedureV1Test
             this.clusterView = clusterView;
         }
 
-        @Override
-        public boolean equals( Object o )
-        {
-            if ( this == o )
-            {
-                return true;
-            }
-            if ( o == null || getClass() != o.getClass() )
-            {
-                return false;
-            }
-            ClusterView that = (ClusterView) o;
-            return Objects.equals( clusterView, that.clusterView );
-        }
-
-        @Override
-        public int hashCode()
-        {
-            return Objects.hash( clusterView );
-        }
-
-        @Override
-        public String toString()
-        {
-            return "ClusterView{" + "clusterView=" + clusterView + '}';
-        }
-
         static ClusterView parse( List<Map<String,Object>> result )
         {
             Map<Role,Set<AdvertisedSocketAddress>> view = new HashMap<>();
@@ -427,6 +400,33 @@ public class GetServersProcedureV1Test
             String[] split = address.split( ":" );
             assertEquals( 2, split.length );
             return new AdvertisedSocketAddress( split[0], Integer.valueOf( split[1] ) );
+        }
+
+        @Override
+        public boolean equals( Object o )
+        {
+            if ( this == o )
+            {
+                return true;
+            }
+            if ( o == null || getClass() != o.getClass() )
+            {
+                return false;
+            }
+            ClusterView that = (ClusterView) o;
+            return Objects.equals( clusterView, that.clusterView );
+        }
+
+        @Override
+        public int hashCode()
+        {
+            return Objects.hash( clusterView );
+        }
+
+        @Override
+        public String toString()
+        {
+            return "ClusterView{" + "clusterView=" + clusterView + '}';
         }
 
         static class Builder

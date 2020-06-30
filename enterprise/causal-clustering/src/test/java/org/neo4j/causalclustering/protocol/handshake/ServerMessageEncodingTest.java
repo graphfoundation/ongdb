@@ -44,6 +44,24 @@ public class ServerMessageEncodingTest
     private final ClientMessageEncoder encoder = new ClientMessageEncoder();
     private final ServerMessageDecoder decoder = new ServerMessageDecoder();
 
+    public ServerMessageEncodingTest( ServerMessage message )
+    {
+        this.message = message;
+    }
+
+    @Parameterized.Parameters( name = "ResponseMessage-{0}" )
+    public static Collection<ServerMessage> data()
+    {
+        return asList(
+                new ApplicationProtocolRequest( "protocol", asSet( 3, 7, 13 ) ),
+                new InitialMagicMessage( "Magic string" ),
+                new ModifierProtocolRequest( "modifierProtocol", asSet( "Foo", "Bar", "Baz" ) ),
+                new SwitchOverRequest( "protocol", 38, emptyList() ),
+                new SwitchOverRequest( "protocol", 38,
+                                       asList( Pair.of( "mod1", "Foo" ), Pair.of( "mod2", "Quux" ) ) )
+        );
+    }
+
     private List<Object> encodeDecode( ServerMessage message )
     {
         ByteBuf byteBuf = Unpooled.directBuffer();
@@ -53,24 +71,6 @@ public class ServerMessageEncodingTest
         decoder.decode( null, byteBuf, output );
 
         return output;
-    }
-
-    @Parameterized.Parameters( name = "ResponseMessage-{0}" )
-    public static Collection<ServerMessage> data()
-    {
-        return asList(
-                new ApplicationProtocolRequest( "protocol", asSet( 3,7,13 ) ),
-                new InitialMagicMessage( "Magic string" ),
-                new ModifierProtocolRequest( "modifierProtocol", asSet( "Foo", "Bar", "Baz" ) ),
-                new SwitchOverRequest( "protocol", 38, emptyList() ),
-                new SwitchOverRequest( "protocol", 38,
-                        asList( Pair.of( "mod1", "Foo" ), Pair.of( "mod2" , "Quux" ) ) )
-                );
-    }
-
-    public ServerMessageEncodingTest( ServerMessage message )
-    {
-        this.message = message;
     }
 
     @Test

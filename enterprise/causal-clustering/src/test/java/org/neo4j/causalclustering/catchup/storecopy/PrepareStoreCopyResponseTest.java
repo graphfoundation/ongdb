@@ -20,7 +20,6 @@ package org.neo4j.causalclustering.catchup.storecopy;
 
 import org.junit.Test;
 
-import static org.junit.Assert.assertArrayEquals;
 import static org.neo4j.causalclustering.catchup.storecopy.PrepareStoreCopyResponse.Status.E_LISTING_STORE;
 import static org.neo4j.causalclustering.catchup.storecopy.PrepareStoreCopyResponse.Status.E_STORE_ID_MISMATCH;
 import static org.neo4j.causalclustering.catchup.storecopy.PrepareStoreCopyResponse.Status.SUCCESS;

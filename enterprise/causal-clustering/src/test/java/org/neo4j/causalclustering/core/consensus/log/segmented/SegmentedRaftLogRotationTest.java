@@ -53,6 +53,11 @@ public class SegmentedRaftLogRotationTest
     public RuleChain ruleChain = RuleChain.outerRule( testDirectory )
                                           .around( fileSystemRule ).around( life );
 
+    private static ReplicatedString replicatedStringOfBytes( int size )
+    {
+        return new ReplicatedString( StringUtils.repeat( "i", size ) );
+    }
+
     @Test
     public void shouldRotateOnAppendWhenRotateSizeIsReached() throws Exception
     {
@@ -86,11 +91,6 @@ public class SegmentedRaftLogRotationTest
         assertEquals( term, log.readEntryTerm( indexToRestoreTo ) );
     }
 
-    private static ReplicatedString replicatedStringOfBytes( int size )
-    {
-        return new ReplicatedString( StringUtils.repeat( "i", size ) );
-    }
-
     private SegmentedRaftLog createRaftLog( long rotateAtSize )
     {
         LogProvider logProvider = getInstance();
@@ -98,7 +98,7 @@ public class SegmentedRaftLogRotationTest
                 new CoreLogPruningStrategyFactory( raft_log_pruning_strategy.getDefaultValue(), logProvider )
                         .newInstance();
         return new SegmentedRaftLog( fileSystemRule.get(), testDirectory.directory(), rotateAtSize,
-                new DummyRaftableContentSerializer(), logProvider, 0, Clocks.fakeClock(), new OnDemandJobScheduler(),
-                pruningStrategy );
+                                     new DummyRaftableContentSerializer(), logProvider, 0, Clocks.fakeClock(), new OnDemandJobScheduler(),
+                                     pruningStrategy );
     }
 }

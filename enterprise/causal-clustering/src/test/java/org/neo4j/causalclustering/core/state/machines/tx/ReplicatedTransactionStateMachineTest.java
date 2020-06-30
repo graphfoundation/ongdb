@@ -72,12 +72,14 @@ public class ReplicatedTransactionStateMachineTest
         stateMachine.installCommitProcess( localCommitProcess, -1L );
 
         // when
-        stateMachine.applyCommand( tx, 0, r -> {} );
+        stateMachine.applyCommand( tx, 0, r ->
+        {
+        } );
         stateMachine.ensuredApplied();
 
         // then
         verify( localCommitProcess, times( 1 ) ).commit( any( TransactionToApply.class ), any( CommitEvent.class ),
-                any( TransactionApplicationMode.class ) );
+                                                         any( TransactionApplicationMode.class ) );
         verify( cursorTracer, times( 1 ) ).reportEvents();
     }
 
@@ -94,8 +96,8 @@ public class ReplicatedTransactionStateMachineTest
 
         final ReplicatedTransactionStateMachine stateMachine =
                 new ReplicatedTransactionStateMachine( commandIndexTracker, lockState( currentLockSessionId ),
-                        batchSize, logProvider,
-                        PageCursorTracerSupplier.NULL, EmptyVersionContextSupplier.EMPTY );
+                                                       batchSize, logProvider,
+                                                       PageCursorTracerSupplier.NULL, EmptyVersionContextSupplier.EMPTY );
         stateMachine.installCommitProcess( localCommitProcess, -1L );
 
         AtomicBoolean called = new AtomicBoolean();
@@ -137,7 +139,7 @@ public class ReplicatedTransactionStateMachineTest
 
         ReplicatedTransactionStateMachine stateMachine =
                 new ReplicatedTransactionStateMachine( commandIndexTracker, lockState( currentLockSessionId ), batchSize, logProvider,
-                        PageCursorTracerSupplier.NULL, EmptyVersionContextSupplier.EMPTY );
+                                                       PageCursorTracerSupplier.NULL, EmptyVersionContextSupplier.EMPTY );
         stateMachine.installCommitProcess( localCommitProcess, -1L );
 
         AtomicBoolean called = new AtomicBoolean();
@@ -173,7 +175,7 @@ public class ReplicatedTransactionStateMachineTest
         // and
         ReplicatedTransactionStateMachine stateMachine =
                 new ReplicatedTransactionStateMachine( commandIndexTracker, lockState( txLockSessionId ), batchSize, logProvider, PageCursorTracerSupplier.NULL,
-                        EmptyVersionContextSupplier.EMPTY );
+                                                       EmptyVersionContextSupplier.EMPTY );
 
         ReplicatedTransaction replicatedTransaction = ReplicatedTransaction.from( physicalTx( txLockSessionId ) );
 
@@ -187,7 +189,9 @@ public class ReplicatedTransactionStateMachineTest
         assertEquals( lastCommittedIndex, commandIndexTracker.getAppliedCommandIndex() );
 
         // when
-        stateMachine.applyCommand( replicatedTransaction, updatedCommandIndex, result -> {});
+        stateMachine.applyCommand( replicatedTransaction, updatedCommandIndex, result ->
+        {
+        } );
         stateMachine.ensuredApplied();
 
         // then
@@ -198,16 +202,16 @@ public class ReplicatedTransactionStateMachineTest
     {
         TransactionCommitProcess localCommitProcess = mock( TransactionCommitProcess.class );
         when( localCommitProcess.commit(
-                any( TransactionToApply.class), any( CommitEvent.class ), any( TransactionApplicationMode.class ) )
+                any( TransactionToApply.class ), any( CommitEvent.class ), any( TransactionApplicationMode.class ) )
         ).thenAnswer( invocation ->
-        {
-            TransactionToApply txToApply = invocation.getArgument( 0 );
-            txToApply.commitment( new FakeCommitment( txId, mock( TransactionIdStore.class ) ), txId );
-            txToApply.commitment().publishAsCommitted();
-            txToApply.commitment().publishAsClosed();
-            txToApply.close();
-            return txId;
-        } );
+                      {
+                          TransactionToApply txToApply = invocation.getArgument( 0 );
+                          txToApply.commitment( new FakeCommitment( txId, mock( TransactionIdStore.class ) ), txId );
+                          txToApply.commitment().publishAsCommitted();
+                          txToApply.commitment().publishAsClosed();
+                          txToApply.close();
+                          return txId;
+                      } );
         return localCommitProcess;
     }
 
@@ -218,7 +222,7 @@ public class ReplicatedTransactionStateMachineTest
         return physicalTx;
     }
 
-    private  ReplicatedLockTokenStateMachine lockState( int lockSessionId )
+    private ReplicatedLockTokenStateMachine lockState( int lockSessionId )
     {
         @SuppressWarnings( "unchecked" )
         ReplicatedLockTokenStateMachine lockState = mock( ReplicatedLockTokenStateMachine.class );

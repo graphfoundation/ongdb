@@ -82,24 +82,25 @@ public class InstalledProtocolsProcedureIT
                 .toString();
 
         ProtocolInfo[] expectedProtocolInfos = cluster.coreMembers()
-                .stream()
-                .filter( member -> !member.equals( leader ) )
-                .map( member -> new ProtocolInfo( OUTBOUND, localhost( member.raftListenAddress() ), RAFT.canonicalName(), 2, modifiers ) )
-                .toArray( ProtocolInfo[]::new );
+                                                      .stream()
+                                                      .filter( member -> !member.equals( leader ) )
+                                                      .map( member -> new ProtocolInfo( OUTBOUND, localhost( member.raftListenAddress() ), RAFT.canonicalName(),
+                                                                                        2, modifiers ) )
+                                                      .toArray( ProtocolInfo[]::new );
 
         assertEventually( "should see outbound installed protocols on core " + leader.serverId(),
-                () -> installedProtocols( leader.database(), OUTBOUND ),
-                hasItems( expectedProtocolInfos ),
-                60, SECONDS );
+                          () -> installedProtocols( leader.database(), OUTBOUND ),
+                          hasItems( expectedProtocolInfos ),
+                          60, SECONDS );
     }
 
     @Test
     public void shouldSeeInboundInstalledProtocolsOnLeader() throws Throwable
     {
         assertEventually( "should see inbound installed protocols on core " + leader.serverId(),
-                () -> installedProtocols( leader.database(), INBOUND ),
-                hasSize( greaterThanOrEqualTo( cluster.coreMembers().size() - 1 ) ),
-                60, SECONDS );
+                          () -> installedProtocols( leader.database(), INBOUND ),
+                          hasSize( greaterThanOrEqualTo( cluster.coreMembers().size() - 1 ) ),
+                          60, SECONDS );
     }
 
     private List<ProtocolInfo> installedProtocols( GraphDatabaseFacade db, String wantedOrientation )
@@ -165,7 +166,7 @@ public class InstalledProtocolsProcedureIT
             }
             ProtocolInfo that = (ProtocolInfo) o;
             return version == that.version && Objects.equals( orientation, that.orientation ) && Objects.equals( address, that.address ) &&
-                    Objects.equals( protocol, that.protocol ) && Objects.equals( modifiers, that.modifiers );
+                   Objects.equals( protocol, that.protocol ) && Objects.equals( modifiers, that.modifiers );
         }
 
         @Override
@@ -179,7 +180,7 @@ public class InstalledProtocolsProcedureIT
         public String toString()
         {
             return "ProtocolInfo{" + "orientation='" + orientation + '\'' + ", address='" + address + '\'' + ", protocol='" + protocol + '\'' + ", version=" +
-                    version + ", modifiers='" + modifiers + '\'' + '}';
+                   version + ", modifiers='" + modifiers + '\'' + '}';
         }
     }
 }

@@ -28,7 +28,6 @@ import org.neo4j.causalclustering.messaging.marshalling.ChannelMarshal;
 import org.neo4j.causalclustering.messaging.marshalling.InputStreamReadableChannel;
 import org.neo4j.causalclustering.messaging.marshalling.OutputStreamWritableChannel;
 
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertNull;
 

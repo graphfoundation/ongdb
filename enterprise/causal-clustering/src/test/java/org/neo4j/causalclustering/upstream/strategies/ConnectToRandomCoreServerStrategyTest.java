@@ -33,7 +33,6 @@ import org.neo4j.causalclustering.discovery.TopologyService;
 import org.neo4j.causalclustering.identity.ClusterId;
 import org.neo4j.causalclustering.identity.MemberId;
 import org.neo4j.causalclustering.upstream.UpstreamDatabaseSelectionException;
-import org.neo4j.helpers.AdvertisedSocketAddress;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.logging.NullLogProvider;
 
@@ -46,6 +45,24 @@ import static org.mockito.Mockito.when;
 
 public class ConnectToRandomCoreServerStrategyTest
 {
+    static CoreTopology fakeCoreTopology( MemberId... memberIds )
+    {
+        assert memberIds.length > 0;
+
+        ClusterId clusterId = new ClusterId( UUID.randomUUID() );
+        Map<MemberId,CoreServerInfo> coreMembers = new HashMap<>();
+
+        int offset = 0;
+
+        for ( MemberId memberId : memberIds )
+        {
+            coreMembers.put( memberId, TestTopology.addressesForCore( offset, false ) );
+            offset++;
+        }
+
+        return new CoreTopology( clusterId, false, coreMembers );
+    }
+
     @Test
     public void shouldConnectToRandomCoreServer() throws Exception
     {
@@ -79,7 +96,7 @@ public class ConnectToRandomCoreServerStrategyTest
         // and
         ConnectToRandomCoreServerStrategy connectToRandomCoreServerStrategy = new ConnectToRandomCoreServerStrategy();
         connectToRandomCoreServerStrategy.inject( new TopologyServiceThatPrioritisesItself( myself, groupName ), config, NullLogProvider.getInstance(),
-                myself );
+                                                  myself );
 
         // when
         Optional<MemberId> found = connectToRandomCoreServerStrategy.upstreamDatabase();
@@ -87,23 +104,5 @@ public class ConnectToRandomCoreServerStrategyTest
         // then
         Assert.assertTrue( found.isPresent() );
         Assert.assertNotEquals( myself, found );
-    }
-
-    static CoreTopology fakeCoreTopology( MemberId... memberIds )
-    {
-        assert memberIds.length > 0;
-
-        ClusterId clusterId = new ClusterId( UUID.randomUUID() );
-        Map<MemberId,CoreServerInfo> coreMembers = new HashMap<>();
-
-        int offset = 0;
-
-        for ( MemberId memberId : memberIds )
-        {
-            coreMembers.put( memberId, TestTopology.addressesForCore( offset, false ) );
-            offset++;
-        }
-
-        return new CoreTopology( clusterId, false, coreMembers );
     }
 }

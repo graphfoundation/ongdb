@@ -1,4 +1,6 @@
 /*
+ * Copyright (c) 2002-2018 "Neo4j"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * Copyright (c) 2018-2020 "Graph Foundation"
  * Graph Foundation, Inc. [https://graphfoundation.org]
@@ -67,8 +69,9 @@ public class SecureHazelcastCoreTopologyServiceTest
     private static Config config()
     {
         return Config.defaults( stringMap( CausalClusteringSettings.raft_advertised_address.name(), "127.0.0.1:7000",
-                CausalClusteringSettings.transaction_advertised_address.name(), "127.0.0.1:7001", new BoltConnector( "bolt" ).enabled.name(), "true",
-                new BoltConnector( "bolt" ).advertised_address.name(), "127.0.0.1:7002" ) );
+                                           CausalClusteringSettings.transaction_advertised_address.name(), "127.0.0.1:7001",
+                                           new BoltConnector( "bolt" ).enabled.name(), "true",
+                                           new BoltConnector( "bolt" ).advertised_address.name(), "127.0.0.1:7002" ) );
     }
 
     @Before
@@ -119,7 +122,8 @@ public class SecureHazelcastCoreTopologyServiceTest
         Monitors monitors = new Monitors();
         SecureHazelcastCoreTopologyService service =
                 new SecureHazelcastCoreTopologyService( config, sslPolicy, new MemberId( UUID.randomUUID() ), jobScheduler, NullLogProvider.getInstance(),
-                        NullLogProvider.getInstance(), remoteMembersResolver, new TopologyServiceNoRetriesStrategy(), monitors );
+                                                        NullLogProvider.getInstance(), remoteMembersResolver, new TopologyServiceNoRetriesStrategy(),
+                                                        monitors );
         try
         {
             service.init();

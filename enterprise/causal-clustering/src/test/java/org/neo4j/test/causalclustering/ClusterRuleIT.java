@@ -31,7 +31,7 @@ import org.neo4j.causalclustering.discovery.CoreClusterMember;
 import org.neo4j.causalclustering.discovery.ReadReplica;
 import org.neo4j.kernel.configuration.BoltConnector;
 import org.neo4j.kernel.configuration.HttpConnector;
-import org.neo4j.kernel.impl.enterprise.configuration.OnlineBackupSettings;
+import org.neo4j.kernel.impl.enterprise.settings.backup.OnlineBackupSettings;
 
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
@@ -59,7 +59,7 @@ public class ClusterRuleIT
         // so many for core members, so many for read replicas, all unique
         assertThat( portsUsed.size(), is(
                 numberOfCoreMembers * NumberOfPortsUsedByCoreMember +
-                        numberOfReadReplicas * NumberOfPortsUsedByReadReplica ) );
+                numberOfReadReplicas * NumberOfPortsUsedByReadReplica ) );
     }
 
     private Set<Integer> gatherPortsUsed( Cluster<?> cluster )

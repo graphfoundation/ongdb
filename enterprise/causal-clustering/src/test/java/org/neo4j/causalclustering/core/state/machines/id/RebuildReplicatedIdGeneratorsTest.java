@@ -24,7 +24,6 @@ import org.junit.Test;
 import java.io.File;
 
 import org.neo4j.collection.PrimitiveLongCollections;
-import org.neo4j.dbms.database.DatabaseManager;
 import org.neo4j.io.fs.DefaultFileSystemAbstraction;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.fs.FileUtils;
@@ -64,8 +63,8 @@ public class RebuildReplicatedIdGeneratorsTest
         File nodeStoreIdGenerator = testDirectory.databaseLayout().idNodeStore();
 
         StoreFactory storeFactory = new StoreFactory( testDirectory.databaseLayout(), Config.defaults(),
-                getIdGenerationFactory( fileSystem ), pageCacheRule.getPageCache( fileSystem ), fileSystem,
-                NullLogProvider.getInstance(), EmptyVersionContextSupplier.EMPTY );
+                                                      getIdGenerationFactory( fileSystem ), pageCacheRule.getPageCache( fileSystem ), fileSystem,
+                                                      NullLogProvider.getInstance(), EmptyVersionContextSupplier.EMPTY );
         try ( NeoStores neoStores = storeFactory.openAllNeoStores( true ) )
         {
             NodeStore nodeStore = neoStores.getNodeStore();
@@ -95,6 +94,6 @@ public class RebuildReplicatedIdGeneratorsTest
         when( idRangeAcquirer.acquireIds( IdType.NODE ) ).thenReturn( new IdAllocation( new IdRange(
                 PrimitiveLongCollections.EMPTY_LONG_ARRAY, 0, 10000 ), 0, 0 ) );
         return new ReplicatedIdGeneratorFactory( fileSystemAbstraction, idRangeAcquirer, NullLogProvider.getInstance(),
-                new EnterpriseIdTypeConfigurationProvider( Config.defaults() ) );
+                                                 new EnterpriseIdTypeConfigurationProvider( Config.defaults() ) );
     }
 }

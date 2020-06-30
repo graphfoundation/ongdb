@@ -81,14 +81,14 @@ public abstract class Cluster<T extends DiscoveryServiceFactory>
     private static final int DEFAULT_CLUSTER_SIZE = 3;
 
     protected final File parentDir;
+    protected final T discoveryServiceFactory;
+    protected final String listenAddress;
+    protected final String advertisedAddress;
     private final Map<String,String> coreParams;
     private final Map<String,IntFunction<String>> instanceCoreParams;
     private final Map<String,String> readReplicaParams;
     private final Map<String,IntFunction<String>> instanceReadReplicaParams;
     private final String recordFormat;
-    protected final T discoveryServiceFactory;
-    protected final String listenAddress;
-    protected final String advertisedAddress;
     private final Set<String> dbNames;
 
     private Map<Integer,CoreClusterMember> coreMembers = new ConcurrentHashMap<>();
@@ -97,21 +97,21 @@ public abstract class Cluster<T extends DiscoveryServiceFactory>
     private int highestReplicaServerId;
 
     public Cluster( File parentDir, int noOfCoreMembers, int noOfReadReplicas,
-            T discoveryServiceFactory,
-            Map<String,String> coreParams, Map<String,IntFunction<String>> instanceCoreParams,
-            Map<String,String> readReplicaParams, Map<String,IntFunction<String>> instanceReadReplicaParams,
-            String recordFormat, IpFamily ipFamily, boolean useWildcard )
+                    T discoveryServiceFactory,
+                    Map<String,String> coreParams, Map<String,IntFunction<String>> instanceCoreParams,
+                    Map<String,String> readReplicaParams, Map<String,IntFunction<String>> instanceReadReplicaParams,
+                    String recordFormat, IpFamily ipFamily, boolean useWildcard )
     {
         this( parentDir, noOfCoreMembers, noOfReadReplicas, discoveryServiceFactory, coreParams,
-                instanceCoreParams, readReplicaParams, instanceReadReplicaParams, recordFormat, ipFamily,
-                useWildcard, Collections.singleton( CausalClusteringSettings.database.getDefaultValue() ) );
+              instanceCoreParams, readReplicaParams, instanceReadReplicaParams, recordFormat, ipFamily,
+              useWildcard, Collections.singleton( CausalClusteringSettings.database.getDefaultValue() ) );
     }
 
     public Cluster( File parentDir, int noOfCoreMembers, int noOfReadReplicas,
-            T discoveryServiceFactory,
-            Map<String,String> coreParams, Map<String,IntFunction<String>> instanceCoreParams,
-            Map<String,String> readReplicaParams, Map<String,IntFunction<String>> instanceReadReplicaParams,
-            String recordFormat, IpFamily ipFamily, boolean useWildcard, Set<String> dbNames )
+                    T discoveryServiceFactory,
+                    Map<String,String> coreParams, Map<String,IntFunction<String>> instanceCoreParams,
+                    Map<String,String> readReplicaParams, Map<String,IntFunction<String>> instanceReadReplicaParams,
+                    String recordFormat, IpFamily ipFamily, boolean useWildcard, Set<String> dbNames )
     {
         this.discoveryServiceFactory = discoveryServiceFactory;
         this.parentDir = parentDir;
@@ -128,12 +128,173 @@ public abstract class Cluster<T extends DiscoveryServiceFactory>
         this.dbNames = dbNames;
     }
 
+    private static void shutdownCoreMembers( Collection<CoreClusterMember> members, ErrorHandler errorHandler )
+    {
+        shutdownMembers( members, errorHandler );
+    }
+
+    public static void shutdownCoreMember( CoreClusterMember member )
+    {
+        shutdownCoreMembers( Collections.singleton( member ) );
+    }
+
+    public static void shutdownCoreMembers( Collection<CoreClusterMember> members )
+    {
+        try ( ErrorHandler errorHandler = new ErrorHandler( "Error when trying to shutdown core members" ) )
+        {
+            shutdownCoreMembers( members, errorHandler );
+        }
+    }
+
+    @SuppressWarnings( "unchecked" )
+    private static void shutdownMembers( Collection<? extends ClusterMember> clusterMembers, ErrorHandler errorHandler )
+    {
+        errorHandler.execute( () -> combine( invokeAll( "cluster-shutdown", clusterMembers, cm ->
+        {
+            cm.shutdown();
+            return null;
+        } ) ).get() );
+    }
+
+    private static <X extends GraphDatabaseAPI, T extends ClusterMember<X>, R> List<Future<R>> invokeAll( String threadName, Collection<T> members,
+                                                                                                          Function<T,R> call )
+    {
+        List<Future<R>> list = new ArrayList<>( members.size() );
+        int threadNumber = 0;
+        for ( T member : members )
+        {
+            FutureTask<R> task = new FutureTask<>( () -> call.apply( member ) );
+            ThreadGroup threadGroup = member.threadGroup();
+            Thread thread = new Thread( threadGroup, task, threadName + "-" + threadNumber );
+            thread.start();
+            threadNumber++;
+            list.add( task );
+        }
+        return list;
+    }
+
+    private static boolean isTransientFailure( Throwable e )
+    {
+        Predicate<Throwable> throwablePredicate =
+                e1 -> isLockExpired( e1 ) || isLockOnFollower( e1 ) || isWriteNotOnLeader( e1 ) || e1 instanceof TransientTransactionFailureException ||
+                      e1 instanceof IdGenerationException;
+        return Exceptions.contains( e, throwablePredicate );
+    }
+
+    private static boolean isWriteNotOnLeader( Throwable e )
+    {
+        return e instanceof WriteOperationsNotAllowedException &&
+               e.getMessage().startsWith( String.format( LeaderCanWrite.NOT_LEADER_ERROR_MSG, "" ) );
+    }
+
+    private static boolean isLockOnFollower( Throwable e )
+    {
+        return e instanceof AcquireLockTimeoutException &&
+               (e.getMessage().equals( LeaderOnlyLockManager.LOCK_NOT_ON_LEADER_ERROR_MESSAGE ) ||
+                e.getCause() instanceof NoLeaderFoundException);
+    }
+
+    private static boolean isLockExpired( Throwable e )
+    {
+        return e instanceof TransactionFailureException &&
+               e.getCause() instanceof org.neo4j.internal.kernel.api.exceptions.TransactionFailureException &&
+               ((org.neo4j.internal.kernel.api.exceptions.TransactionFailureException) e.getCause()).status() ==
+               LockSessionExpired;
+    }
+
+    public static void startCoreMember( CoreClusterMember member ) throws InterruptedException, ExecutionException
+    {
+        startCoreMembers( Collections.singleton( member ) );
+    }
+
+    public static void startCoreMembers( Collection<CoreClusterMember> members ) throws InterruptedException, ExecutionException
+    {
+        List<Future<CoreGraphDatabase>> futures = invokeAll( "cluster-starter", members, cm ->
+        {
+            cm.start();
+            return cm.database();
+        } );
+        for ( Future<CoreGraphDatabase> future : futures )
+        {
+            future.get();
+        }
+    }
+
+    /**
+     * Waits for {@link #DEFAULT_TIMEOUT_MS} for the <code>memberThatChanges</code> to match the contents of
+     * <code>memberToLookLike</code>. After calling this method, changes both in <code>memberThatChanges</code> and
+     * <code>memberToLookLike</code> are picked up.
+     */
+    public static void dataOnMemberEventuallyLooksLike( CoreClusterMember memberThatChanges,
+                                                        CoreClusterMember memberToLookLike )
+            throws TimeoutException
+    {
+        await( () ->
+               {
+                   try
+                   {
+                       // We recalculate the DbRepresentation of both source and target, so changes can be picked up
+                       DbRepresentation representationToLookLike = DbRepresentation.of( memberToLookLike.database() );
+                       DbRepresentation representationThatChanges = DbRepresentation.of( memberThatChanges.database() );
+                       return representationToLookLike.equals( representationThatChanges );
+                   }
+                   catch ( DatabaseShutdownException e )
+                   {
+                       /*
+                        * This can happen if the database is still in the process of starting. Yes, the naming
+                        * of the exception is unfortunate, since it is thrown when the database lifecycle is not
+                        * in RUNNING state and therefore signals general unavailability (e.g still starting) and not
+                        * necessarily a database that is shutting down.
+                        */
+                   }
+                   return false;
+               },
+               DEFAULT_TIMEOUT_MS, TimeUnit.MILLISECONDS );
+    }
+
+    public static <T extends ClusterMember> void dataMatchesEventually( ClusterMember source, Collection<T> targets )
+            throws TimeoutException
+    {
+        dataMatchesEventually( DbRepresentation.of( source.database() ), targets );
+    }
+
+    /**
+     * Waits for {@link #DEFAULT_TIMEOUT_MS} for the <code>targetDBs</code> to have the same content as the
+     * <code>member</code>. Changes in the <code>member</code> database contents after this method is called do not get
+     * picked up and are not part of the comparison.
+     *
+     * @param source  The database to check against
+     * @param targets The databases expected to match the contents of <code>member</code>
+     */
+    public static <T extends ClusterMember> void dataMatchesEventually( DbRepresentation source, Collection<T> targets )
+            throws TimeoutException
+    {
+        for ( ClusterMember targetDB : targets )
+        {
+            await( () ->
+                   {
+                       DbRepresentation representation = DbRepresentation.of( targetDB.database() );
+                       return source.equals( representation );
+                   }, DEFAULT_TIMEOUT_MS, TimeUnit.MILLISECONDS );
+        }
+    }
+
+    private static <T> Optional<T> random( List<T> list )
+    {
+        if ( list.size() == 0 )
+        {
+            return Optional.empty();
+        }
+        int ordinal = ThreadLocalRandom.current().nextInt( list.size() );
+        return Optional.of( list.get( ordinal ) );
+    }
+
     private List<AdvertisedSocketAddress> initialHosts( int noOfCoreMembers )
     {
         return IntStream.range( 0, noOfCoreMembers )
-                .mapToObj( ignored -> PortAuthority.allocatePort() )
-                .map( port -> new AdvertisedSocketAddress( advertisedAddress, port ) )
-                .collect( toList() );
+                        .mapToObj( ignored -> PortAuthority.allocatePort() )
+                        .map( port -> new AdvertisedSocketAddress( advertisedAddress, port ) )
+                        .collect( toList() );
     }
 
     public void start() throws InterruptedException, ExecutionException
@@ -145,8 +306,8 @@ public abstract class Cluster<T extends DiscoveryServiceFactory>
     public Set<CoreClusterMember> healthyCoreMembers()
     {
         return coreMembers.values().stream()
-                .filter( db -> db.database().getDependencyResolver().resolveDependency( DatabaseHealth.class ).isHealthy() )
-                .collect( Collectors.toSet() );
+                          .filter( db -> db.database().getDependencyResolver().resolveDependency( DatabaseHealth.class ).isHealthy() )
+                          .collect( Collectors.toSet() );
     }
 
     public CoreClusterMember getCoreMemberById( int memberId )
@@ -177,7 +338,7 @@ public abstract class Cluster<T extends DiscoveryServiceFactory>
     }
 
     private CoreClusterMember addCoreMemberWithId( int memberId, Map<String,String> extraParams,
-            Map<String,IntFunction<String>> instanceExtraParams, String recordFormat )
+                                                   Map<String,IntFunction<String>> instanceExtraParams, String recordFormat )
     {
         List<AdvertisedSocketAddress> initialHosts = extractInitialHosts( coreMembers );
         CoreClusterMember coreClusterMember = createCoreClusterMember(
@@ -234,54 +395,9 @@ public abstract class Cluster<T extends DiscoveryServiceFactory>
         }
     }
 
-    private static void shutdownCoreMembers( Collection<CoreClusterMember> members, ErrorHandler errorHandler )
-    {
-        shutdownMembers( members, errorHandler );
-    }
-
     public void shutdownCoreMembers()
     {
         shutdownCoreMembers( coreMembers() );
-    }
-
-    public static void shutdownCoreMember( CoreClusterMember member )
-    {
-        shutdownCoreMembers( Collections.singleton( member ) );
-    }
-
-    public static void shutdownCoreMembers( Collection<CoreClusterMember> members )
-    {
-        try ( ErrorHandler errorHandler = new ErrorHandler( "Error when trying to shutdown core members" ) )
-        {
-            shutdownCoreMembers( members, errorHandler );
-        }
-    }
-
-    @SuppressWarnings( "unchecked" )
-    private static void shutdownMembers( Collection<? extends ClusterMember> clusterMembers, ErrorHandler errorHandler )
-    {
-        errorHandler.execute( () -> combine( invokeAll( "cluster-shutdown", clusterMembers, cm ->
-        {
-            cm.shutdown();
-            return null;
-        } ) ).get() );
-    }
-
-    private static <X extends GraphDatabaseAPI, T extends ClusterMember<X>, R> List<Future<R>> invokeAll( String threadName, Collection<T> members,
-            Function<T,R> call )
-    {
-        List<Future<R>> list = new ArrayList<>( members.size() );
-        int threadNumber = 0;
-        for ( T member : members )
-        {
-            FutureTask<R> task = new FutureTask<>( () -> call.apply( member ) );
-            ThreadGroup threadGroup = member.threadGroup();
-            Thread thread = new Thread( threadGroup, task, threadName + "-" + threadNumber );
-            thread.start();
-            threadNumber++;
-            list.add( task );
-        }
-        return list;
     }
 
     public void removeCoreMemberWithServerId( int serverId )
@@ -444,9 +560,9 @@ public abstract class Cluster<T extends DiscoveryServiceFactory>
     {
 
         CoreClusterMember aCoreGraphDb = coreMembers.values().stream()
-                .filter( member -> member.database() != null ).findAny().orElseThrow( IllegalArgumentException::new );
+                                                    .filter( member -> member.database() != null ).findAny().orElseThrow( IllegalArgumentException::new );
         CoreTopologyService coreTopologyService = aCoreGraphDb.database().getDependencyResolver()
-                .resolveDependency( CoreTopologyService.class );
+                                                              .resolveDependency( CoreTopologyService.class );
         return coreTopologyService.localCoreServers().members().size();
     }
 
@@ -503,46 +619,17 @@ public abstract class Cluster<T extends DiscoveryServiceFactory>
         return awaitEx( supplier, notNull()::test, timeout, timeUnit );
     }
 
-    private static boolean isTransientFailure( Throwable e )
-    {
-        Predicate<Throwable> throwablePredicate =
-                e1 -> isLockExpired( e1 ) || isLockOnFollower( e1 ) || isWriteNotOnLeader( e1 ) || e1 instanceof TransientTransactionFailureException ||
-                        e1 instanceof IdGenerationException;
-        return Exceptions.contains( e, throwablePredicate );
-    }
-
-    private static boolean isWriteNotOnLeader( Throwable e )
-    {
-        return e instanceof WriteOperationsNotAllowedException &&
-               e.getMessage().startsWith( String.format( LeaderCanWrite.NOT_LEADER_ERROR_MSG, "" ) );
-    }
-
-    private static boolean isLockOnFollower( Throwable e )
-    {
-        return e instanceof AcquireLockTimeoutException &&
-               (e.getMessage().equals( LeaderOnlyLockManager.LOCK_NOT_ON_LEADER_ERROR_MESSAGE ) ||
-                e.getCause() instanceof NoLeaderFoundException);
-    }
-
-    private static boolean isLockExpired( Throwable e )
-    {
-        return e instanceof TransactionFailureException &&
-               e.getCause() instanceof org.neo4j.internal.kernel.api.exceptions.TransactionFailureException &&
-               ((org.neo4j.internal.kernel.api.exceptions.TransactionFailureException) e.getCause()).status() ==
-               LockSessionExpired;
-    }
-
     private List<AdvertisedSocketAddress> extractInitialHosts( Map<Integer,CoreClusterMember> coreMembers )
     {
         return coreMembers.values().stream()
-                .map( CoreClusterMember::discoveryPort )
-                .map( port -> new AdvertisedSocketAddress( advertisedAddress, port ) )
-                .collect( toList() );
+                          .map( CoreClusterMember::discoveryPort )
+                          .map( port -> new AdvertisedSocketAddress( advertisedAddress, port ) )
+                          .collect( toList() );
     }
 
     private void createCoreMembers( final int noOfCoreMembers,
-            List<AdvertisedSocketAddress> initialHosts, Map<String,String> extraParams,
-            Map<String,IntFunction<String>> instanceExtraParams, String recordFormat )
+                                    List<AdvertisedSocketAddress> initialHosts, Map<String,String> extraParams,
+                                    Map<String,IntFunction<String>> instanceExtraParams, String recordFormat )
     {
         for ( int i = 0; i < initialHosts.size(); i++ )
         {
@@ -562,41 +649,23 @@ public abstract class Cluster<T extends DiscoveryServiceFactory>
     }
 
     protected abstract CoreClusterMember createCoreClusterMember( int serverId,
-                                                       int discoveryPort,
-                                                       int clusterSize,
-                                                       List<AdvertisedSocketAddress> initialHosts,
-                                                       String recordFormat,
-                                                       Map<String, String> extraParams,
-                                                       Map<String, IntFunction<String>> instanceExtraParams );
+                                                                  int discoveryPort,
+                                                                  int clusterSize,
+                                                                  List<AdvertisedSocketAddress> initialHosts,
+                                                                  String recordFormat,
+                                                                  Map<String,String> extraParams,
+                                                                  Map<String,IntFunction<String>> instanceExtraParams );
 
     protected abstract ReadReplica createReadReplica( int serverId,
-                                           List<AdvertisedSocketAddress> initialHosts,
-                                           Map<String, String> extraParams,
-                                           Map<String, IntFunction<String>> instanceExtraParams,
-                                           String recordFormat,
-                                           Monitors monitors );
+                                                      List<AdvertisedSocketAddress> initialHosts,
+                                                      Map<String,String> extraParams,
+                                                      Map<String,IntFunction<String>> instanceExtraParams,
+                                                      String recordFormat,
+                                                      Monitors monitors );
 
     public void startCoreMembers() throws InterruptedException, ExecutionException
     {
         startCoreMembers( coreMembers.values() );
-    }
-
-    public static void startCoreMember( CoreClusterMember member ) throws InterruptedException, ExecutionException
-    {
-        startCoreMembers( Collections.singleton( member ) );
-    }
-
-    public static void startCoreMembers( Collection<CoreClusterMember> members ) throws InterruptedException, ExecutionException
-    {
-        List<Future<CoreGraphDatabase>> futures = invokeAll( "cluster-starter", members, cm ->
-        {
-            cm.start();
-            return cm.database();
-        } );
-        for ( Future<CoreGraphDatabase> future : futures )
-        {
-            future.get();
-        }
     }
 
     private void startReadReplicas() throws InterruptedException, ExecutionException
@@ -614,10 +683,10 @@ public abstract class Cluster<T extends DiscoveryServiceFactory>
     }
 
     private void createReadReplicas( int noOfReadReplicas,
-            final List<AdvertisedSocketAddress> initialHosts,
-            Map<String,String> extraParams,
-            Map<String,IntFunction<String>> instanceExtraParams,
-            String recordFormat )
+                                     final List<AdvertisedSocketAddress> initialHosts,
+                                     Map<String,String> extraParams,
+                                     Map<String,IntFunction<String>> instanceExtraParams,
+                                     String recordFormat )
     {
         for ( int i = 0; i < noOfReadReplicas; i++ )
         {
@@ -638,65 +707,6 @@ public abstract class Cluster<T extends DiscoveryServiceFactory>
     private void shutdownReadReplicas( ErrorHandler errorHandler )
     {
         shutdownMembers( readReplicas(), errorHandler );
-    }
-
-    /**
-     * Waits for {@link #DEFAULT_TIMEOUT_MS} for the <code>memberThatChanges</code> to match the contents of
-     * <code>memberToLookLike</code>. After calling this method, changes both in <code>memberThatChanges</code> and
-     * <code>memberToLookLike</code> are picked up.
-     */
-    public static void dataOnMemberEventuallyLooksLike( CoreClusterMember memberThatChanges,
-            CoreClusterMember memberToLookLike )
-            throws TimeoutException
-    {
-        await( () ->
-                {
-                    try
-                    {
-                        // We recalculate the DbRepresentation of both source and target, so changes can be picked up
-                        DbRepresentation representationToLookLike = DbRepresentation.of( memberToLookLike.database() );
-                        DbRepresentation representationThatChanges = DbRepresentation.of( memberThatChanges.database() );
-                        return representationToLookLike.equals( representationThatChanges );
-                    }
-                    catch ( DatabaseShutdownException e )
-                    {
-                    /*
-                     * This can happen if the database is still in the process of starting. Yes, the naming
-                     * of the exception is unfortunate, since it is thrown when the database lifecycle is not
-                     * in RUNNING state and therefore signals general unavailability (e.g still starting) and not
-                     * necessarily a database that is shutting down.
-                     */
-                    }
-                    return false;
-                },
-                DEFAULT_TIMEOUT_MS, TimeUnit.MILLISECONDS );
-    }
-
-    public static <T extends ClusterMember> void dataMatchesEventually( ClusterMember source, Collection<T> targets )
-            throws TimeoutException
-    {
-        dataMatchesEventually( DbRepresentation.of( source.database() ), targets );
-    }
-
-    /**
-     * Waits for {@link #DEFAULT_TIMEOUT_MS} for the <code>targetDBs</code> to have the same content as the
-     * <code>member</code>. Changes in the <code>member</code> database contents after this method is called do not get
-     * picked up and are not part of the comparison.
-     *
-     * @param source  The database to check against
-     * @param targets The databases expected to match the contents of <code>member</code>
-     */
-    public static <T extends ClusterMember> void dataMatchesEventually( DbRepresentation source, Collection<T> targets )
-            throws TimeoutException
-    {
-        for ( ClusterMember targetDB : targets )
-        {
-            await( () ->
-            {
-                DbRepresentation representation = DbRepresentation.of( targetDB.database() );
-                return source.equals( representation );
-            }, DEFAULT_TIMEOUT_MS, TimeUnit.MILLISECONDS );
-        }
     }
 
     public ClusterMember getMemberByBoltAddress( AdvertisedSocketAddress advertisedSocketAddress )
@@ -744,15 +754,5 @@ public abstract class Cluster<T extends DiscoveryServiceFactory>
 
         List<CoreClusterMember> eligible = members.collect( Collectors.toList() );
         return random( eligible );
-    }
-
-    private static <T> Optional<T> random( List<T> list )
-    {
-        if ( list.size() == 0 )
-        {
-            return Optional.empty();
-        }
-        int ordinal = ThreadLocalRandom.current().nextInt( list.size() );
-        return Optional.of( list.get( ordinal ) );
     }
 }

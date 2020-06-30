@@ -33,7 +33,6 @@ import org.neo4j.causalclustering.core.BoundedPriorityQueue.Config;
 import org.neo4j.causalclustering.core.BoundedPriorityQueue.Removable;
 
 import static java.util.Comparator.comparingInt;
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -219,7 +218,7 @@ public class BoundedPriorityQueueTest
 
         Config config = new Config( 0, count, 0 );
         BoundedPriorityQueue<Element> queue = new BoundedPriorityQueue<>( config, i -> 0L,
-                comparingInt( p -> p.priority ) );
+                                                                          comparingInt( p -> p.priority ) );
 
         List<Element> insertionOrder = new ArrayList<>( count );
         for ( int i = 0; i < count; i++ )

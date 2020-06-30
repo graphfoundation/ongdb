@@ -97,7 +97,7 @@ public class SharedDiscoveryServiceIT
     }
 
     private Callable<Void> createDiscoveryJob( MemberId member, DiscoveryServiceFactory discoveryServiceFactory,
-            Set<MemberId> expectedTargetSet )
+                                               Set<MemberId> expectedTargetSet )
     {
         JobScheduler jobScheduler = createInitialisedScheduler();
         Config config = config();
@@ -105,8 +105,9 @@ public class SharedDiscoveryServiceIT
                 remoteMemberResolver = new InitialDiscoveryMembersResolver( new NoOpHostnameResolver(), config );
 
         CoreTopologyService topologyService = discoveryServiceFactory.coreTopologyService( config, member,
-                jobScheduler, logProvider, userLogProvider, remoteMemberResolver, new TopologyServiceNoRetriesStrategy(),
-                new Monitors() );
+                                                                                           jobScheduler, logProvider, userLogProvider, remoteMemberResolver,
+                                                                                           new TopologyServiceNoRetriesStrategy(),
+                                                                                           new Monitors() );
         return sharedClientStarter( topologyService, expectedTargetSet );
     }
 
@@ -127,7 +128,7 @@ public class SharedDiscoveryServiceIT
             {
                 RaftMachine raftMock = mock( RaftMachine.class );
                 RaftCoreTopologyConnector tc = new RaftCoreTopologyConnector( topologyService,
-                        raftMock, CausalClusteringSettings.database.getDefaultValue() );
+                                                                              raftMock, CausalClusteringSettings.database.getDefaultValue() );
                 topologyService.init();
                 topologyService.start();
                 tc.start();

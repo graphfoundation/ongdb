@@ -64,10 +64,10 @@ public class CoreToCoreCopySnapshotIT
         Cluster<?> cluster = clusterRule.startCluster();
 
         CoreClusterMember source = cluster.coreTx( ( db, tx ) ->
-        {
-            createData( db, 1000 );
-            tx.success();
-        } );
+                                                   {
+                                                       createData( db, 1000 );
+                                                       tx.success();
+                                                   } );
 
         // when
         CoreClusterMember follower = cluster.awaitCoreMemberWithRole( Role.FOLLOWER, 5, TimeUnit.SECONDS );
@@ -92,16 +92,16 @@ public class CoreToCoreCopySnapshotIT
     {
         // given
         Map<String,String> params = stringMap( CausalClusteringSettings.state_machine_flush_window_size.name(), "1",
-                CausalClusteringSettings.raft_log_pruning_strategy.name(), "3 entries",
-                CausalClusteringSettings.raft_log_rotation_size.name(), "1K" );
+                                               CausalClusteringSettings.raft_log_pruning_strategy.name(), "3 entries",
+                                               CausalClusteringSettings.raft_log_rotation_size.name(), "1K" );
 
         Cluster<?> cluster = clusterRule.withSharedCoreParams( params ).startCluster();
 
         CoreClusterMember leader = cluster.coreTx( ( db, tx ) ->
-        {
-            createData( db, 10000 );
-            tx.success();
-        } );
+                                                   {
+                                                       createData( db, 10000 );
+                                                       tx.success();
+                                                   } );
 
         // when
         for ( CoreClusterMember coreDb : cluster.coreMembers() )
@@ -166,26 +166,6 @@ public class CoreToCoreCopySnapshotIT
         dataOnMemberEventuallyLooksLike( firstServer, secondServer );
     }
 
-    private class Timeout
-    {
-        private final Clock clock;
-        private final long absoluteTimeoutMillis;
-
-        Timeout( Clock clock, long time, TimeUnit unit )
-        {
-            this.clock = clock;
-            this.absoluteTimeoutMillis = clock.millis() + unit.toMillis( time );
-        }
-
-        void assertNotTimedOut()
-        {
-            if ( clock.millis() > absoluteTimeoutMillis )
-            {
-                throw new AssertionError( "Timed out" );
-            }
-        }
-    }
-
     private int getOldestLogIdOn( CoreClusterMember clusterMember ) throws IOException
     {
         return clusterMember.getLogFileNames().firstKey().intValue();
@@ -204,11 +184,11 @@ public class CoreToCoreCopySnapshotIT
             for ( int i = 0; i < count; i++ )
             {
                 last = cluster.coreTx( ( db, tx ) ->
-                {
-                    Node node = db.createNode();
-                    node.setProperty( "that's a bam", string( 1024 ) );
-                    tx.success();
-                } );
+                                       {
+                                           Node node = db.createNode();
+                                           node.setProperty( "that's a bam", string( 1024 ) );
+                                           tx.success();
+                                       } );
             }
             return last;
         }
@@ -228,4 +208,23 @@ public class CoreToCoreCopySnapshotIT
         return s.toString();
     }
 
+    private class Timeout
+    {
+        private final Clock clock;
+        private final long absoluteTimeoutMillis;
+
+        Timeout( Clock clock, long time, TimeUnit unit )
+        {
+            this.clock = clock;
+            this.absoluteTimeoutMillis = clock.millis() + unit.toMillis( time );
+        }
+
+        void assertNotTimedOut()
+        {
+            if ( clock.millis() > absoluteTimeoutMillis )
+            {
+                throw new AssertionError( "Timed out" );
+            }
+        }
+    }
 }

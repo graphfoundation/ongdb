@@ -59,7 +59,7 @@ public class ReplicatedTokenHolderTest
         // given
         TokenRegistry registry = new TokenRegistry( "Label" );
         ReplicatedTokenHolder tokenHolder = new ReplicatedLabelTokenHolder( registry, null,
-                null, storageEngineSupplier );
+                                                                            null, storageEngineSupplier );
 
         // when
         tokenHolder.setInitialTokens( asList( new NamedToken( "name1", 1 ), new NamedToken( "name2", 2 ) ) );
@@ -74,7 +74,7 @@ public class ReplicatedTokenHolderTest
         // given
         TokenRegistry registry = new TokenRegistry( "Label" );
         ReplicatedTokenHolder tokenHolder = new ReplicatedLabelTokenHolder( registry, null,
-                null, storageEngineSupplier );
+                                                                            null, storageEngineSupplier );
         tokenHolder.setInitialTokens( asList( new NamedToken( "name1", 1 ), new NamedToken( "name2", 2 ) ) );
 
         // when
@@ -118,23 +118,23 @@ public class ReplicatedTokenHolderTest
     {
         StorageEngine storageEngine = mock( StorageEngine.class );
         doAnswer( invocation ->
-        {
-            Collection<StorageCommand> target = invocation.getArgument( 0 );
-            ReadableTransactionState txState = invocation.getArgument( 1 );
-            txState.accept( new TxStateVisitor.Adapter()
-            {
-                @Override
-                public void visitCreatedLabelToken( long id, String name )
-                {
-                    LabelTokenRecord before = new LabelTokenRecord( id );
-                    LabelTokenRecord after = before.clone();
-                    after.setInUse( true );
-                    target.add( new Command.LabelTokenCommand( before, after ) );
-                }
-            } );
-            return null;
-        } ).when( storageEngine ).createCommands( anyCollection(), any( ReadableTransactionState.class ), any( StorageReader.class ),
-                any( ResourceLocker.class ), anyLong(), any( TxStateVisitor.Decorator.class ) );
+                  {
+                      Collection<StorageCommand> target = invocation.getArgument( 0 );
+                      ReadableTransactionState txState = invocation.getArgument( 1 );
+                      txState.accept( new TxStateVisitor.Adapter()
+                      {
+                          @Override
+                          public void visitCreatedLabelToken( long id, String name )
+                          {
+                              LabelTokenRecord before = new LabelTokenRecord( id );
+                              LabelTokenRecord after = before.clone();
+                              after.setInUse( true );
+                              target.add( new Command.LabelTokenCommand( before, after ) );
+                          }
+                      } );
+                      return null;
+                  } ).when( storageEngine ).createCommands( anyCollection(), any( ReadableTransactionState.class ), any( StorageReader.class ),
+                                                            any( ResourceLocker.class ), anyLong(), any( TxStateVisitor.Decorator.class ) );
 
         StorageReader readLayer = mock( StorageReader.class );
         when( storageEngine.newReader() ).thenReturn( readLayer );

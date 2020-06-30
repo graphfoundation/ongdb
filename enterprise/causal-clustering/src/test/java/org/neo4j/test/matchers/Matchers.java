@@ -55,7 +55,7 @@ public final class Matchers
     }
 
     public static Matcher<? super List<RaftMessages.RaftMessage>> hasRaftLogEntries( Collection<RaftLogEntry>
-            expectedEntries )
+                                                                                             expectedEntries )
     {
         return new TypeSafeMatcher<List<RaftMessages.RaftMessage>>()
         {
@@ -63,13 +63,12 @@ public final class Matchers
             protected boolean matchesSafely( List<RaftMessages.RaftMessage> messages )
             {
                 List<RaftLogEntry> entries = messages.stream()
-                        .filter( message -> message instanceof RaftMessages.AppendEntries.Request )
-                        .map( m -> (RaftMessages.AppendEntries.Request) m )
-                        .flatMap( x -> Arrays.stream( x.entries() ) )
-                        .collect( Collectors.toList() );
+                                                     .filter( message -> message instanceof RaftMessages.AppendEntries.Request )
+                                                     .map( m -> (RaftMessages.AppendEntries.Request) m )
+                                                     .flatMap( x -> Arrays.stream( x.entries() ) )
+                                                     .collect( Collectors.toList() );
 
                 return entries.containsAll( expectedEntries );
-
             }
 
             @Override

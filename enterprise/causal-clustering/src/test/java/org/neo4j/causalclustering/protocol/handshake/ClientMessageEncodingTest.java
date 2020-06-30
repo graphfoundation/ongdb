@@ -40,15 +40,9 @@ public class ClientMessageEncodingTest
     private final ServerMessageEncoder encoder = new ServerMessageEncoder();
     private final ClientMessageDecoder decoder = new ClientMessageDecoder();
 
-    private List<Object> encodeDecode( ClientMessage message ) throws ClientHandshakeException
+    public ClientMessageEncodingTest( ClientMessage message )
     {
-        ByteBuf byteBuf = Unpooled.directBuffer();
-        List<Object> output = new ArrayList<>();
-
-        encoder.encode( null, message, byteBuf );
-        decoder.decode( null, byteBuf, output );
-
-        return output;
+        this.message = message;
     }
 
     @Parameterized.Parameters( name = "ResponseMessage-{0}" )
@@ -58,12 +52,18 @@ public class ClientMessageEncodingTest
                 new ApplicationProtocolResponse( StatusCode.FAILURE, "protocol", 13 ),
                 new ModifierProtocolResponse( StatusCode.SUCCESS, "modifier", "7" ),
                 new SwitchOverResponse( StatusCode.FAILURE )
-                );
+        );
     }
 
-    public ClientMessageEncodingTest( ClientMessage message )
+    private List<Object> encodeDecode( ClientMessage message ) throws ClientHandshakeException
     {
-        this.message = message;
+        ByteBuf byteBuf = Unpooled.directBuffer();
+        List<Object> output = new ArrayList<>();
+
+        encoder.encode( null, message, byteBuf );
+        decoder.decode( null, byteBuf, output );
+
+        return output;
     }
 
     @Test

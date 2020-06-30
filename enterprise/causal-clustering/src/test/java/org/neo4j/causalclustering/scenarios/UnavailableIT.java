@@ -30,7 +30,6 @@ import org.neo4j.kernel.availability.DatabaseAvailabilityGuard;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
 import org.neo4j.test.causalclustering.ClusterRule;
 
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 import static org.neo4j.kernel.api.exceptions.Status.statusCodeOf;
 
@@ -55,7 +54,7 @@ public class UnavailableIT
 
         // when
         member.database().getDependencyResolver().resolveDependency( DatabaseAvailabilityGuard.class )
-                .require( () -> "Not doing long operation" );
+              .require( () -> "Not doing long operation" );
 
         // then
         try ( Transaction tx = member.database().beginTx() )

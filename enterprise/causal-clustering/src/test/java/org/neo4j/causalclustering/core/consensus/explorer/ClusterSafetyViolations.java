@@ -94,7 +94,7 @@ public class ClusterSafetyViolations
     public static boolean multipleLeadersInSameTerm( ClusterState state )
     {
         Set<Long> termThatHaveALeader = new HashSet<>();
-        for ( Map.Entry<MemberId, Role> entry : state.roles.entrySet() )
+        for ( Map.Entry<MemberId,Role> entry : state.roles.entrySet() )
         {
             RaftMessageHandler role = entry.getValue().handler;
             if ( role instanceof Leader )
@@ -115,7 +115,7 @@ public class ClusterSafetyViolations
 
     public enum Violation
     {
-        DIVERGED_LOG, MULTIPLE_LEADERS
+        DIVERGED_LOG,
+        MULTIPLE_LEADERS
     }
-
 }

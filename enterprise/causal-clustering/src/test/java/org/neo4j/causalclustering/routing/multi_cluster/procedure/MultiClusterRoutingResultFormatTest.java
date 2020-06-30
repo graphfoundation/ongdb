@@ -29,7 +29,6 @@ import org.neo4j.causalclustering.routing.multi_cluster.MultiClusterRoutingResul
 import org.neo4j.helpers.AdvertisedSocketAddress;
 
 import static java.util.Arrays.asList;
-import static org.junit.Assert.assertEquals;
 
 public class MultiClusterRoutingResultFormatTest
 {

@@ -93,7 +93,7 @@ public class ClusterSafetyViolationsTest
     public void shouldRecogniseSomeMembersBeingInconsistent() throws Exception
     {
         // given
-        ClusterState clusterState = new ClusterState( asSet( member( 0 ), member( 1 ), member(2) ) );
+        ClusterState clusterState = new ClusterState( asSet( member( 0 ), member( 1 ), member( 2 ) ) );
 
         clusterState.states.get( member( 0 ) ).entryLog.append( new RaftLogEntry( 1, valueOf( 1 ) ) );
         clusterState.states.get( member( 1 ) ).entryLog.append( new RaftLogEntry( 1, valueOf( 1 ) ) );
@@ -128,7 +128,7 @@ public class ClusterSafetyViolationsTest
     public void shouldRecogniseTwoLeadersInTheSameTerm() throws Exception
     {
         // given
-        ClusterState clusterState = new ClusterState( asSet( member( 0 ), member( 1 ), member(2) ) );
+        ClusterState clusterState = new ClusterState( asSet( member( 0 ), member( 1 ), member( 2 ) ) );
 
         // when
         clusterState.states.get( member( 0 ) ).term = 21;
@@ -147,7 +147,7 @@ public class ClusterSafetyViolationsTest
     public void shouldRecogniseTwoLeadersInDifferentTerms() throws Exception
     {
         // given
-        ClusterState clusterState = new ClusterState( asSet( member( 0 ), member( 1 ), member(2) ) );
+        ClusterState clusterState = new ClusterState( asSet( member( 0 ), member( 1 ), member( 2 ) ) );
 
         // when
         clusterState.states.get( member( 0 ) ).term = 21;

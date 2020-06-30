@@ -75,11 +75,11 @@ public class CoreReplicationIT
     {
         // when
         CoreClusterMember leader = cluster.coreTx( ( db, tx ) ->
-        {
-            Node node = db.createNode( label( "boo" ) );
-            node.setProperty( "foobar", "baz_bat" );
-            tx.success();
-        } );
+                                                   {
+                                                       Node node = db.createNode( label( "boo" ) );
+                                                       node.setProperty( "foobar", "baz_bat" );
+                                                       tx.success();
+                                                   } );
 
         // then
         assertEquals( 1, countNodes( leader ) );
@@ -120,11 +120,11 @@ public class CoreReplicationIT
 
         // when the leader commits a write transaction,
         cluster.coreTx( ( db, tx ) ->
-        {
-            Node node = db.createNode( label( "boo" ) );
-            node.setProperty( "foobar", "baz_bat" );
-            tx.success();
-        } );
+                        {
+                            Node node = db.createNode( label( "boo" ) );
+                            node.setProperty( "foobar", "baz_bat" );
+                            tx.success();
+                        } );
 
         // then the replication should cause pins on a majority of core members to increase.
         // However, the commit returns as soon as the transaction has been replicated through the Raft log, which
@@ -175,10 +175,10 @@ public class CoreReplicationIT
     {
         // given
         CoreClusterMember leader = cluster.coreTx( ( db, tx ) ->
-        {
-            db.createNode();
-            tx.success();
-        } );
+                                                   {
+                                                       db.createNode();
+                                                       tx.success();
+                                                   } );
 
         awaitForDataToBeApplied( leader );
         dataMatchesEventually( leader, cluster.coreMembers() );
@@ -200,7 +200,7 @@ public class CoreReplicationIT
 
     private void awaitForDataToBeApplied( CoreClusterMember leader ) throws TimeoutException
     {
-        await( () -> countNodes(leader) > 0, 10, SECONDS);
+        await( () -> countNodes( leader ) > 0, 10, SECONDS );
     }
 
     @Test
@@ -213,20 +213,20 @@ public class CoreReplicationIT
         cluster.getCoreMemberById( 0 ).start();
 
         cluster.coreTx( ( db, tx ) ->
-        {
-            Node node = db.createNode();
-            node.setProperty( "foobar", "baz_bat" );
-            tx.success();
-        } );
+                        {
+                            Node node = db.createNode();
+                            node.setProperty( "foobar", "baz_bat" );
+                            tx.success();
+                        } );
 
         // when
         cluster.addCoreMemberWithId( 4 ).start();
         CoreClusterMember last = cluster.coreTx( ( db, tx ) ->
-        {
-            Node node = db.createNode();
-            node.setProperty( "foobar", "baz_bat" );
-            tx.success();
-        } );
+                                                 {
+                                                     Node node = db.createNode();
+                                                     node.setProperty( "foobar", "baz_bat" );
+                                                     tx.success();
+                                                 } );
 
         // then
         assertEquals( 2, countNodes( last ) );
@@ -238,21 +238,21 @@ public class CoreReplicationIT
     {
         // given
         cluster.coreTx( ( db, tx ) ->
-        {
-            Node node = db.createNode();
-            node.setProperty( "foobar", "baz_bat" );
-            tx.success();
-        } );
+                        {
+                            Node node = db.createNode();
+                            node.setProperty( "foobar", "baz_bat" );
+                            tx.success();
+                        } );
 
         // when
         cluster.removeCoreMember( cluster.awaitLeader() );
         cluster.awaitLeader( 1, TimeUnit.MINUTES ); // <- let's give a bit more time for the leader to show up
         CoreClusterMember last = cluster.coreTx( ( db, tx ) ->
-        {
-            Node node = db.createNode();
-            node.setProperty( "foobar", "baz_bat" );
-            tx.success();
-        } );
+                                                 {
+                                                     Node node = db.createNode();
+                                                     node.setProperty( "foobar", "baz_bat" );
+                                                     tx.success();
+                                                 } );
 
         // then
         assertEquals( 2, countNodes( last ) );
@@ -267,11 +267,11 @@ public class CoreReplicationIT
         for ( int i = 0; i < 15; i++ )
         {
             last = cluster.coreTx( ( db, tx ) ->
-            {
-                Node node = db.createNode();
-                node.setProperty( "foobar", "baz_bat" );
-                tx.success();
-            } );
+                                   {
+                                       Node node = db.createNode();
+                                       node.setProperty( "foobar", "baz_bat" );
+                                       tx.success();
+                                   } );
         }
 
         cluster.addCoreMemberWithId( 3 ).start();
@@ -287,21 +287,21 @@ public class CoreReplicationIT
     {
         // when
         cluster.coreTx( ( db, tx ) ->
-        {
-            Node node = db.createNode( label( "boo" ) );
-            node.setProperty( "foobar", "baz_bat" );
-            tx.success();
-        } );
+                        {
+                            Node node = db.createNode( label( "boo" ) );
+                            node.setProperty( "foobar", "baz_bat" );
+                            tx.success();
+                        } );
 
         cluster.removeCoreMemberWithServerId( 0 );
         CoreClusterMember replacement = cluster.addCoreMemberWithId( 0 );
         replacement.start();
 
         CoreClusterMember leader = cluster.coreTx( ( db, tx ) ->
-        {
-            db.schema().indexFor( label( "boo" ) ).on( "foobar" ).create();
-            tx.success();
-        } );
+                                                   {
+                                                       db.schema().indexFor( label( "boo" ) ).on( "foobar" ).create();
+                                                       tx.success();
+                                                   } );
 
         // then
         assertEquals( 1, countNodes( leader ) );
@@ -313,35 +313,35 @@ public class CoreReplicationIT
     {
         // given
         cluster.coreTx( ( db, tx ) ->
-        {
-            Node node = db.createNode( label( "boo" ) );
-            node.setProperty( "foobar", "baz_bat" );
-            tx.success();
-        } );
+                        {
+                            Node node = db.createNode( label( "boo" ) );
+                            node.setProperty( "foobar", "baz_bat" );
+                            tx.success();
+                        } );
 
         CountDownLatch latch = new CountDownLatch( 1 );
 
         // when
         Thread thread = new Thread( () ->
-        {
-            try
-            {
-                cluster.coreTx( ( db, tx ) ->
-                {
-                    db.createNode();
-                    tx.success();
+                                    {
+                                        try
+                                        {
+                                            cluster.coreTx( ( db, tx ) ->
+                                                            {
+                                                                db.createNode();
+                                                                tx.success();
 
-                    cluster.removeCoreMember( cluster.getMemberWithAnyRole( Role.FOLLOWER, Role.CANDIDATE ) );
-                    cluster.removeCoreMember( cluster.getMemberWithAnyRole( Role.FOLLOWER, Role.CANDIDATE ) );
-                    latch.countDown();
-                } );
-                fail( "Should have thrown" );
-            }
-            catch ( Exception ignored )
-            {
-                // expected
-            }
-        } );
+                                                                cluster.removeCoreMember( cluster.getMemberWithAnyRole( Role.FOLLOWER, Role.CANDIDATE ) );
+                                                                cluster.removeCoreMember( cluster.getMemberWithAnyRole( Role.FOLLOWER, Role.CANDIDATE ) );
+                                                                latch.countDown();
+                                                            } );
+                                            fail( "Should have thrown" );
+                                        }
+                                        catch ( Exception ignored )
+                                        {
+                                            // expected
+                                        }
+                                    } );
 
         thread.start();
 

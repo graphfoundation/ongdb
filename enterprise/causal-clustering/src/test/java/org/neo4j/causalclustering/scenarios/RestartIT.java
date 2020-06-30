@@ -95,21 +95,21 @@ public class RestartIT
 
         final AtomicBoolean done = new AtomicBoolean( false );
         executor.execute( () ->
-        {
-            while ( !done.get() )
-            {
-                try ( Transaction tx = coreDB.beginTx() )
-                {
-                    Node node = coreDB.createNode( label( "boo" ) );
-                    node.setProperty( "foobar", "baz_bat" );
-                    tx.success();
-                }
-                catch ( AcquireLockTimeoutException | WriteOperationsNotAllowedException e )
-                {
-                    // expected sometimes
-                }
-            }
-        } );
+                          {
+                              while ( !done.get() )
+                              {
+                                  try ( Transaction tx = coreDB.beginTx() )
+                                  {
+                                      Node node = coreDB.createNode( label( "boo" ) );
+                                      node.setProperty( "foobar", "baz_bat" );
+                                      tx.success();
+                                  }
+                                  catch ( AcquireLockTimeoutException | WriteOperationsNotAllowedException e )
+                                  {
+                                      // expected sometimes
+                                  }
+                              }
+                          } );
         Thread.sleep( 500 );
 
         cluster.removeCoreMemberWithServerId( 1 );
@@ -132,11 +132,11 @@ public class RestartIT
         cluster.start();
 
         CoreClusterMember last = cluster.coreTx( ( db, tx ) ->
-        {
-            Node node = db.createNode( label( "boo" ) );
-            node.setProperty( "foobar", "baz_bat" );
-            tx.success();
-        } );
+                                                 {
+                                                     Node node = db.createNode( label( "boo" ) );
+                                                     node.setProperty( "foobar", "baz_bat" );
+                                                     tx.success();
+                                                 } );
 
         // then
         dataMatchesEventually( last, cluster.coreMembers() );
@@ -151,11 +151,11 @@ public class RestartIT
 
         // when
         CoreClusterMember last = cluster.coreTx( ( db, tx ) ->
-        {
-            Node node = db.createNode( label( "boo" ) );
-            node.setProperty( "foobar", "baz_bat" );
-            tx.success();
-        } );
+                                                 {
+                                                     Node node = db.createNode( label( "boo" ) );
+                                                     node.setProperty( "foobar", "baz_bat" );
+                                                     tx.success();
+                                                 } );
 
         cluster.addCoreMemberWithId( 2 ).start();
         dataMatchesEventually( last, cluster.coreMembers() );
@@ -169,8 +169,8 @@ public class RestartIT
             {
                 ConsistencyCheckService.Result result = new ConsistencyCheckService()
                         .runFullConsistencyCheck( DatabaseLayout.of( core.databaseDirectory() ), Config.defaults(), ProgressMonitorFactory.NONE,
-                                NullLogProvider.getInstance(), fileSystem, false,
-                                new ConsistencyFlags( true, true, true, true, false ) );
+                                                  NullLogProvider.getInstance(), fileSystem, false,
+                                                  new ConsistencyFlags( true, true, true, true, false ) );
                 assertTrue( "Inconsistent: " + core, result.isSuccessful() );
             }
 
@@ -178,8 +178,8 @@ public class RestartIT
             {
                 ConsistencyCheckService.Result result = new ConsistencyCheckService()
                         .runFullConsistencyCheck( DatabaseLayout.of( readReplica.databaseDirectory() ), Config.defaults(), ProgressMonitorFactory.NONE,
-                                NullLogProvider.getInstance(), fileSystem, false,
-                                new ConsistencyFlags( true, true, true, true, false ) );
+                                                  NullLogProvider.getInstance(), fileSystem, false,
+                                                  new ConsistencyFlags( true, true, true, true, false ) );
                 assertTrue( "Inconsistent: " + readReplica, result.isSuccessful() );
             }
         }

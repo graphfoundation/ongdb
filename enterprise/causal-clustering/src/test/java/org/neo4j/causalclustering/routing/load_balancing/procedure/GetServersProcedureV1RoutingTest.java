@@ -53,17 +53,16 @@ import static org.neo4j.logging.NullLogProvider.getInstance;
 @RunWith( Parameterized.class )
 public class GetServersProcedureV1RoutingTest
 {
+    @Parameter
+    public int serverClass;
+    private ClusterId clusterId = new ClusterId( UUID.randomUUID() );
+    private Config config = Config.defaults();
+
     @Parameters
     public static Collection<Object> data()
     {
         return Arrays.asList( 1, 2 );
     } //the write endpoints are always index 0
-
-    @Parameter
-    public int serverClass;
-
-    private ClusterId clusterId = new ClusterId( UUID.randomUUID() );
-    private Config config = Config.defaults();
 
     @Test
     public void shouldReturnEndpointsInDifferentOrders() throws Exception

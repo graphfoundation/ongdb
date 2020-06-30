@@ -60,11 +60,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 public class OpenEnterpriseCoreEditionModuleIT
 {
 
-    @Inject
-    private TestDirectory testDirectory;
-
     @Rule
     public ClusterRule clusterRule = new ClusterRule();
+    @Inject
+    private TestDirectory testDirectory;
 
     @Test
     public void createBufferedIdComponentsByDefault() throws Exception

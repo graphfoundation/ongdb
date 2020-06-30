@@ -41,11 +41,11 @@ public class SampleData
         for ( int i = 0; i < items; i++ )
         {
             cluster.coreTx( ( db, tx ) ->
-            {
-                Node node = db.createNode( LABEL );
-                node.setProperty( "foobar", "baz_bat" );
-                tx.success();
-            } );
+                            {
+                                Node node = db.createNode( LABEL );
+                                node.setProperty( "foobar", "baz_bat" );
+                                tx.success();
+                            } );
         }
     }
 

@@ -22,14 +22,13 @@ import org.neo4j.logging.NullLog;
 
 public class CountingThrowingSuspendableLifeCycle extends SuspendableLifeCycle
 {
+    int starts;
+    int stops;
+    private boolean nextShouldFail;
     public CountingThrowingSuspendableLifeCycle()
     {
         super( NullLog.getInstance() );
     }
-
-    int starts;
-    int stops;
-    private boolean nextShouldFail;
 
     void setFailMode()
     {

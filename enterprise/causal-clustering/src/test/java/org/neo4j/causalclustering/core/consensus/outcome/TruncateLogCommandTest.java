@@ -61,7 +61,7 @@ public class TruncateLogCommandTest
         assertNull( inFlightCache.get( 3L ) );
 
         logProvider.assertAtLeastOnce( inLog( getClass() )
-                .debug( "Start truncating in-flight-map from index %d. Current map:%n%s", fromIndex, inFlightCache ) );
+                                               .debug( "Start truncating in-flight-map from index %d. Current map:%n%s", fromIndex, inFlightCache ) );
     }
 
     @Test

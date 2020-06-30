@@ -34,11 +34,10 @@ import org.neo4j.test.causalclustering.ClusterRule;
 
 public class ConnectionInfoIT
 {
-    private Socket testSocket;
-
     @Rule
     public final ClusterRule clusterRule =
             new ClusterRule().withNumberOfCoreMembers( 3 ).withNumberOfReadReplicas( 0 );
+    private Socket testSocket;
 
     @After
     public void teardown() throws IOException
@@ -60,7 +59,9 @@ public class ConnectionInfoIT
         AssertableLogProvider userLogProvider = new AssertableLogProvider();
         ListenSocketAddress listenSocketAddress = new ListenSocketAddress( "localhost", testSocket.getLocalPort() );
 
-        Server catchupServer = new Server( channel -> { }, logProvider, userLogProvider, listenSocketAddress, "server-name" );
+        Server catchupServer = new Server( channel ->
+                                           {
+                                           }, logProvider, userLogProvider, listenSocketAddress, "server-name" );
 
         //then
         try

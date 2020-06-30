@@ -48,7 +48,8 @@ public class LeaderAvailabilityHandlerTest
             RaftMessages.ReceivedInstantClusterIdAwareMessage.of( Instant.now(), clusterId, new RaftMessages.Heartbeat( leader, term.getAsLong(), 0, 0 ) );
     private RaftMessages.ReceivedInstantClusterIdAwareMessage<?> appendEntries =
             RaftMessages.ReceivedInstantClusterIdAwareMessage.of( Instant.now(), clusterId,
-                    new RaftMessages.AppendEntries.Request( leader, term.getAsLong(), 0, 0, RaftLogEntry.empty, 0 )
+                                                                  new RaftMessages.AppendEntries.Request( leader, term.getAsLong(), 0, 0, RaftLogEntry.empty,
+                                                                                                          0 )
             );
     private RaftMessages.ReceivedInstantClusterIdAwareMessage<?> voteResponse =
             RaftMessages.ReceivedInstantClusterIdAwareMessage.of( Instant.now(), clusterId, new RaftMessages.Vote.Response( leader, term.getAsLong(), false ) );
@@ -96,7 +97,7 @@ public class LeaderAvailabilityHandlerTest
     public void shouldNotRenewElectionTimeoutsForHeartbeatsFromEarlierTerm() throws Throwable
     {
         // given
-        RaftMessages.ReceivedInstantClusterIdAwareMessage<?> heartbeat =  RaftMessages.ReceivedInstantClusterIdAwareMessage.of(
+        RaftMessages.ReceivedInstantClusterIdAwareMessage<?> heartbeat = RaftMessages.ReceivedInstantClusterIdAwareMessage.of(
                 Instant.now(), clusterId, new RaftMessages.Heartbeat( leader, term.getAsLong() - 1, 0, 0 ) );
 
         handler.start( clusterId );

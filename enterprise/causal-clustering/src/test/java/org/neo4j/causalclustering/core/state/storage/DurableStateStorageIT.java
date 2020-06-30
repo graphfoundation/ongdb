@@ -61,7 +61,7 @@ public class DurableStateStorageIT
         EphemeralFileSystemAbstraction delegate = fileSystemRule.get();
         AdversarialFileSystemAbstraction fsa = new AdversarialFileSystemAbstraction(
                 new MethodGuardedAdversary( new CountingAdversary( 100, true ),
-                        StoreChannel.class.getMethod( "writeAll", ByteBuffer.class ) ),
+                                            StoreChannel.class.getMethod( "writeAll", ByteBuffer.class ) ),
                 delegate );
 
         long lastValue = 0;
@@ -293,8 +293,8 @@ public class DurableStateStorageIT
             };
 
             this.stateStorage = lifeSupport.add( new DurableStateStorage<>( fileSystemAbstraction, stateDir, FILENAME,
-                    byteBufferMarshal,
-                    numberOfEntriesBeforeRotation, NullLogProvider.getInstance()
+                                                                            byteBufferMarshal,
+                                                                            numberOfEntriesBeforeRotation, NullLogProvider.getInstance()
             ) );
 
             this.theState = this.stateStorage.getInitialState();

@@ -53,7 +53,7 @@ public class UpstreamDatabaseStrategiesLoaderTest
         // then
         assertEquals( 1, upstreamDatabaseSelectionStrategies.size() );
         assertEquals( UpstreamDatabaseStrategySelectorTest.DummyUpstreamDatabaseSelectionStrategy.class,
-                upstreamDatabaseSelectionStrategies.stream().map( UpstreamDatabaseSelectionStrategy::getClass ).findFirst().get() );
+                      upstreamDatabaseSelectionStrategies.stream().map( UpstreamDatabaseSelectionStrategy::getClass ).findFirst().get() );
     }
 
     @Test

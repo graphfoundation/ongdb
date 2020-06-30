@@ -63,8 +63,8 @@ public class HandshakeClientTest
     private ApplicationSupportedProtocols supportedApplicationProtocol =
             new ApplicationSupportedProtocols( applicationProtocolIdentifier, emptyList() );
     private Collection<ModifierSupportedProtocols> supportedModifierProtocols = Stream.of( Protocol.ModifierProtocolCategory.values() )
-            .map( id -> new ModifierSupportedProtocols( id, emptyList() ) )
-            .collect( Collectors.toList() );
+                                                                                      .map( id -> new ModifierSupportedProtocols( id, emptyList() ) )
+                                                                                      .collect( Collectors.toList() );
     private ApplicationProtocolRepository applicationProtocolRepository =
             new ApplicationProtocolRepository( TestApplicationProtocols.values(), supportedApplicationProtocol );
     private ModifierProtocolRepository modifierProtocolRepository =
@@ -102,10 +102,12 @@ public class HandshakeClientTest
 
         // then
         Stream.of( Protocol.ModifierProtocolCategory.values() ).forEach( modifierProtocolIdentifier ->
-                {
-                    Set<String> versions = modifierProtocolRepository.getAll( modifierProtocolIdentifier, emptyList() ).versions();
-                    verify( channel ).write( new ModifierProtocolRequest( modifierProtocolIdentifier.canonicalName(), versions ) );
-                } );
+                                                                         {
+                                                                             Set<String> versions = modifierProtocolRepository
+                                                                                     .getAll( modifierProtocolIdentifier, emptyList() ).versions();
+                                                                             verify( channel ).write( new ModifierProtocolRequest(
+                                                                                     modifierProtocolIdentifier.canonicalName(), versions ) );
+                                                                         } );
     }
 
     @Test

@@ -79,7 +79,6 @@ public class SupportedProtocolCreatorTest
 
         // then
         assertThat( supportedRaftProtocol.versions(), contains( 1, 2 ) );
-
     }
 
     @Test

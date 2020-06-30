@@ -67,26 +67,69 @@ import static org.neo4j.io.fs.FileUtils.relativePath;
 
 public class CatchupServerIT
 {
+    public static final Label LABEL = label( "MyLabel" );
     private static final String EXISTING_FILE_NAME = "neostore.nodestore.db";
     private static final StoreId WRONG_STORE_ID = new StoreId( 123, 221, 3131, 45678 );
     private static final LogProvider LOG_PROVIDER = NullLogProvider.getInstance();
-
     private static final String PROP_NAME = "name";
     private static final String PROP = "prop";
-    public static final Label LABEL = label( "MyLabel" );
     private static final String INDEX = "index";
-    private GraphDatabaseAPI graphDb;
-    private TestCatchupServer catchupServer;
-    private File temporaryDirectory;
-
-    private PageCache pageCache;
-
     @Rule
     public DefaultFileSystemRule fileSystemRule = new DefaultFileSystemRule();
     @Rule
     public TestDirectory testDirectory = TestDirectory.testDirectory( fileSystemRule );
+    private GraphDatabaseAPI graphDb;
+    private TestCatchupServer catchupServer;
+    private File temporaryDirectory;
+    private PageCache pageCache;
     private CatchUpClient catchupClient;
     private DefaultFileSystemAbstraction fsa = fileSystemRule.get();
+
+    private static LongSet getExpectedIndexIds( NeoStoreDataSource neoStoreDataSource )
+    {
+        return neoStoreDataSource.getNeoStoreFileListing().getNeoStoreFileIndexListing().getIndexIds();
+    }
+
+    private static List<File> listServerExpectedNonReplayableFiles( NeoStoreDataSource neoStoreDataSource ) throws IOException
+    {
+        try ( Stream<StoreFileMetadata> countStoreStream = neoStoreDataSource.getNeoStoreFileListing().builder().excludeAll()
+                                                                             .includeNeoStoreFiles().build().stream();
+              Stream<StoreFileMetadata> explicitIndexStream = neoStoreDataSource.getNeoStoreFileListing().builder().excludeAll()
+                                                                                .includeExplicitIndexStoreStoreFiles().build().stream() )
+        {
+            return Stream.concat( countStoreStream.filter( isCountFile( neoStoreDataSource.getDatabaseLayout() ) ), explicitIndexStream ).map(
+                    StoreFileMetadata::file ).collect( toList() );
+        }
+    }
+
+    private static Predicate<StoreFileMetadata> isCountFile( DatabaseLayout databaseLayout )
+    {
+        return storeFileMetadata -> databaseLayout.countStoreA().equals( storeFileMetadata.file() ) ||
+                                    databaseLayout.countStoreB().equals( storeFileMetadata.file() );
+    }
+
+    private static void addData( GraphDatabaseAPI graphDb )
+    {
+        try ( Transaction tx = graphDb.beginTx() )
+        {
+            Node node = graphDb.createNode();
+            node.addLabel( LABEL );
+            node.setProperty( PROP_NAME, "Neo" );
+            node.setProperty( PROP, Math.random() * 10000 );
+            graphDb.createNode().createRelationshipTo( node, RelationshipType.withName( "KNOWS" ) );
+            tx.success();
+        }
+    }
+
+    private static CheckPointer getCheckPointer( GraphDatabaseAPI graphDb )
+    {
+        return graphDb.getDependencyResolver().resolveDependency( CheckPointer.class );
+    }
+
+    private static NeoStoreDataSource getNeoStoreDataSource( GraphDatabaseAPI graphDb )
+    {
+        return graphDb.getDependencyResolver().resolveDependency( NeoStoreDataSource.class );
+    }
 
     @Before
     public void startDb() throws Throwable
@@ -148,7 +191,7 @@ public class CatchupServerIT
 
         //and
         assertTrue( "Expected an empty set of ids. Found size " + prepareStoreCopyResponse.getIndexIds().size(),
-                prepareStoreCopyResponse.getIndexIds().isEmpty() );
+                    prepareStoreCopyResponse.getIndexIds().isEmpty() );
     }
 
     @Test
@@ -239,7 +282,7 @@ public class CatchupServerIT
     private void assertTransactionIdMatches( long lastTxId )
     {
         long expectedTransactionId = getCheckPointer( graphDb ).lastCheckPointedTransactionId();
-        assertEquals( expectedTransactionId, lastTxId);
+        assertEquals( expectedTransactionId, lastTxId );
     }
 
     private void fileContentEquals( Collection<File> countStore ) throws IOException
@@ -277,23 +320,6 @@ public class CatchupServerIT
         assertThat( givenFile, containsInAnyOrder( expectedStoreFiles.toArray( new String[givenFile.size()] ) ) );
     }
 
-    private static LongSet getExpectedIndexIds( NeoStoreDataSource neoStoreDataSource )
-    {
-        return neoStoreDataSource.getNeoStoreFileListing().getNeoStoreFileIndexListing().getIndexIds();
-    }
-
-    private static List<File> listServerExpectedNonReplayableFiles( NeoStoreDataSource neoStoreDataSource ) throws IOException
-    {
-        try ( Stream<StoreFileMetadata> countStoreStream = neoStoreDataSource.getNeoStoreFileListing().builder().excludeAll()
-                .includeNeoStoreFiles().build().stream();
-                Stream<StoreFileMetadata> explicitIndexStream = neoStoreDataSource.getNeoStoreFileListing().builder().excludeAll()
-                         .includeExplicitIndexStoreStoreFiles().build().stream() )
-        {
-            return Stream.concat( countStoreStream.filter( isCountFile( neoStoreDataSource.getDatabaseLayout() ) ), explicitIndexStream ).map(
-                    StoreFileMetadata::file ).collect( toList() );
-        }
-    }
-
     private List<String> getExpectedStoreFiles( NeoStoreDataSource neoStoreDataSource ) throws IOException
     {
         NeoStoreFileListing.StoreFileListingBuilder builder = neoStoreDataSource.getNeoStoreFileListing().builder();
@@ -301,25 +327,6 @@ public class CatchupServerIT
         try ( Stream<StoreFileMetadata> stream = builder.build().stream() )
         {
             return stream.filter( isCountFile( neoStoreDataSource.getDatabaseLayout() ).negate() ).map( sfm -> sfm.file().getName() ).collect( toList() );
-        }
-    }
-
-    private static Predicate<StoreFileMetadata> isCountFile( DatabaseLayout databaseLayout )
-    {
-        return storeFileMetadata -> databaseLayout.countStoreA().equals( storeFileMetadata.file() ) ||
-                databaseLayout.countStoreB().equals( storeFileMetadata.file() );
-    }
-
-    private static void addData( GraphDatabaseAPI graphDb )
-    {
-        try ( Transaction tx = graphDb.beginTx() )
-        {
-            Node node = graphDb.createNode();
-            node.addLabel( LABEL );
-            node.setProperty( PROP_NAME, "Neo" );
-            node.setProperty( PROP, Math.random() * 10000 );
-            graphDb.createNode().createRelationshipTo( node, RelationshipType.withName( "KNOWS" ) );
-            tx.success();
         }
     }
 
@@ -340,15 +347,5 @@ public class CatchupServerIT
             nodeIndex.add( graphDb.createNode(), "some-key", "som-value" );
             tx.success();
         }
-    }
-
-    private static CheckPointer getCheckPointer( GraphDatabaseAPI graphDb )
-    {
-        return graphDb.getDependencyResolver().resolveDependency( CheckPointer.class );
-    }
-
-    private static NeoStoreDataSource getNeoStoreDataSource( GraphDatabaseAPI graphDb )
-    {
-        return graphDb.getDependencyResolver().resolveDependency( NeoStoreDataSource.class );
     }
 }

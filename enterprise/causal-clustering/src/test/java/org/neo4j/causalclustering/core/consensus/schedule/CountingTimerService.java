@@ -37,7 +37,8 @@ public class CountingTimerService extends TimerService
     @Override
     public Timer create( TimerName name, Group group, TimeoutHandler handler )
     {
-        TimeoutHandler countingHandler = timer -> {
+        TimeoutHandler countingHandler = timer ->
+        {
             long count = counts.getOrDefault( name.name(), 0L );
             counts.put( name.name(), count + 1 );
             handler.onTimeout( timer );

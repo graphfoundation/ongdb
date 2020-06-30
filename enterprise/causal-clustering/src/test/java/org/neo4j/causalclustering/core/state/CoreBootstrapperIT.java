@@ -70,6 +70,46 @@ public class CoreBootstrapperIT
     @Rule
     public RuleChain ruleChain = RuleChain.outerRule( pageCacheRule ).around( pageCacheRule ).around( testDirectory );
 
+    private static void bootstrapAndVerify( long nodeCount, FileSystemAbstraction fileSystem, DatabaseLayout databaseLayout, PageCache pageCache, Config config,
+                                            CoreBootstrapper bootstrapper ) throws Exception
+    {
+        // when
+        Set<MemberId> membership = asSet( randomMember(), randomMember(), randomMember() );
+        CoreSnapshot snapshot = bootstrapper.bootstrap( membership );
+
+        // then
+        int recordIdBatchSize = parseInt( record_id_batch_size.getDefaultValue() );
+        assertThat( ((IdAllocationState) snapshot.get( CoreStateType.ID_ALLOCATION )).firstUnallocated( IdType.NODE ),
+                    allOf( greaterThanOrEqualTo( nodeCount ), lessThanOrEqualTo( nodeCount + recordIdBatchSize ) ) );
+
+        /* Bootstrapped state is created in RAFT land at index -1 and term -1. */
+        assertEquals( 0, snapshot.prevIndex() );
+        assertEquals( 0, snapshot.prevTerm() );
+
+        /* Lock is initially not taken. */
+        assertEquals( new ReplicatedLockTokenState(), snapshot.get( CoreStateType.LOCK_TOKEN ) );
+
+        /* Raft has the bootstrapped set of members initially. */
+        assertEquals( membership, ((RaftCoreState) snapshot.get( CoreStateType.RAFT_CORE_STATE )).committed().members() );
+
+        /* The session state is initially empty. */
+        assertEquals( new GlobalSessionTrackerState(), snapshot.get( CoreStateType.SESSION_TRACKER ) );
+
+        ReadOnlyTransactionStore transactionStore = new ReadOnlyTransactionStore( pageCache, fileSystem,
+                                                                                  databaseLayout, config, new Monitors() );
+        LastCommittedIndexFinder lastCommittedIndexFinder = new LastCommittedIndexFinder(
+                new ReadOnlyTransactionIdStore( pageCache, databaseLayout ),
+                transactionStore, NullLogProvider.getInstance() );
+
+        long lastCommittedIndex = lastCommittedIndexFinder.getLastCommittedIndex();
+        assertEquals( -1, lastCommittedIndex );
+    }
+
+    private static MemberId randomMember()
+    {
+        return new MemberId( randomUUID() );
+    }
+
     @Test
     public void shouldSetAllCoreState() throws Exception
     {
@@ -115,7 +155,7 @@ public class CoreBootstrapperIT
         FileSystemAbstraction fileSystem = fileSystemRule.get();
         File storeInNeedOfRecovery =
                 ClassicNeo4jStore.builder( testDirectory.directory(), fileSystem ).amountOfNodes( nodeCount ).needToRecover().build().getStoreDir();
-        AssertableLogProvider assertableLogProvider = new AssertableLogProvider(  );
+        AssertableLogProvider assertableLogProvider = new AssertableLogProvider();
 
         PageCache pageCache = pageCacheRule.getPageCache( fileSystem );
         DatabaseLayout databaseLayout = DatabaseLayout.of( storeInNeedOfRecovery );
@@ -132,9 +172,9 @@ public class CoreBootstrapperIT
         catch ( Exception e )
         {
             String errorMessage = "Cannot bootstrap. Recovery is required. Please ensure that the store being seeded comes from a cleanly shutdown " +
-                    "instance of Neo4j or a Neo4j backup";
+                                  "instance of Neo4j or a Neo4j backup";
             assertEquals( e.getMessage(), errorMessage );
-            assertableLogProvider.assertExactly( AssertableLogProvider.inLog( CoreBootstrapper.class ).error( errorMessage) );
+            assertableLogProvider.assertExactly( AssertableLogProvider.inLog( CoreBootstrapper.class ).error( errorMessage ) );
         }
     }
 
@@ -152,7 +192,7 @@ public class CoreBootstrapperIT
                 .needToRecover()
                 .build()
                 .getStoreDir();
-        AssertableLogProvider assertableLogProvider = new AssertableLogProvider(  );
+        AssertableLogProvider assertableLogProvider = new AssertableLogProvider();
 
         PageCache pageCache = pageCacheRule.getPageCache( fileSystem );
         DatabaseLayout databaseLayout = DatabaseLayout.of( storeInNeedOfRecovery );
@@ -169,49 +209,9 @@ public class CoreBootstrapperIT
         catch ( Exception e )
         {
             String errorMessage = "Cannot bootstrap. Recovery is required. Please ensure that the store being seeded comes from a cleanly shutdown " +
-                    "instance of Neo4j or a Neo4j backup";
+                                  "instance of Neo4j or a Neo4j backup";
             assertEquals( e.getMessage(), errorMessage );
-            assertableLogProvider.assertExactly( AssertableLogProvider.inLog( CoreBootstrapper.class ).error( errorMessage) );
+            assertableLogProvider.assertExactly( AssertableLogProvider.inLog( CoreBootstrapper.class ).error( errorMessage ) );
         }
-    }
-
-    private static void bootstrapAndVerify( long nodeCount, FileSystemAbstraction fileSystem, DatabaseLayout databaseLayout, PageCache pageCache, Config config,
-            CoreBootstrapper bootstrapper ) throws Exception
-    {
-        // when
-        Set<MemberId> membership = asSet( randomMember(), randomMember(), randomMember() );
-        CoreSnapshot snapshot = bootstrapper.bootstrap( membership );
-
-        // then
-        int recordIdBatchSize = parseInt( record_id_batch_size.getDefaultValue() );
-        assertThat( ((IdAllocationState) snapshot.get( CoreStateType.ID_ALLOCATION )).firstUnallocated( IdType.NODE ),
-                allOf( greaterThanOrEqualTo( nodeCount ), lessThanOrEqualTo( nodeCount + recordIdBatchSize ) ) );
-
-        /* Bootstrapped state is created in RAFT land at index -1 and term -1. */
-        assertEquals( 0, snapshot.prevIndex() );
-        assertEquals( 0, snapshot.prevTerm() );
-
-        /* Lock is initially not taken. */
-        assertEquals( new ReplicatedLockTokenState(), snapshot.get( CoreStateType.LOCK_TOKEN ) );
-
-        /* Raft has the bootstrapped set of members initially. */
-        assertEquals( membership, ((RaftCoreState) snapshot.get( CoreStateType.RAFT_CORE_STATE )).committed().members() );
-
-        /* The session state is initially empty. */
-        assertEquals( new GlobalSessionTrackerState(), snapshot.get( CoreStateType.SESSION_TRACKER ) );
-
-        ReadOnlyTransactionStore transactionStore = new ReadOnlyTransactionStore( pageCache, fileSystem,
-                databaseLayout, config, new Monitors() );
-        LastCommittedIndexFinder lastCommittedIndexFinder = new LastCommittedIndexFinder(
-                new ReadOnlyTransactionIdStore( pageCache, databaseLayout ),
-                transactionStore, NullLogProvider.getInstance() );
-
-        long lastCommittedIndex = lastCommittedIndexFinder.getLastCommittedIndex();
-        assertEquals( -1, lastCommittedIndex );
-    }
-
-    private static MemberId randomMember()
-    {
-        return new MemberId( randomUUID() );
     }
 }

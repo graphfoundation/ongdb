@@ -29,7 +29,7 @@ import org.neo4j.causalclustering.core.CausalClusteringSettings;
 import org.neo4j.helpers.AdvertisedSocketAddress;
 import org.neo4j.helpers.HostnamePort;
 import org.neo4j.kernel.configuration.Config;
-import org.neo4j.kernel.impl.enterprise.configuration.OnlineBackupSettings;
+import org.neo4j.kernel.impl.enterprise.settings.backup.OnlineBackupSettings;
 import org.neo4j.kernel.impl.factory.GraphDatabaseFacade;
 
 public class CausalClusteringTestHelpers
@@ -52,15 +52,15 @@ public class CausalClusteringTestHelpers
         return String.format( "%s:%s", backupAddress.getHost(), backupAddress.getPort() );
     }
 
-    public static Map<Integer, String> distributeDatabaseNamesToHostNums( int nHosts, Set<String> databaseNames )
+    public static Map<Integer,String> distributeDatabaseNamesToHostNums( int nHosts, Set<String> databaseNames )
     {
         //Max number of hosts per database is (nHosts / nDatabases) or (nHosts / nDatabases) + 1
         int nDatabases = databaseNames.size();
         int maxCapacity = (nHosts % nDatabases == 0) ? (nHosts / nDatabases) : (nHosts / nDatabases) + 1;
 
         List<String> repeated = databaseNames.stream()
-                .flatMap( db -> IntStream.range( 0, maxCapacity ).mapToObj( ignored -> db ) )
-                .collect( Collectors.toList() );
+                                             .flatMap( db -> IntStream.range( 0, maxCapacity ).mapToObj( ignored -> db ) )
+                                             .collect( Collectors.toList() );
 
         Map<Integer,String> mapping = new HashMap<>( nHosts );
 

@@ -58,22 +58,19 @@ public class CoreStateDownloaderTest
     private final RemoteStore remoteStore = mock( RemoteStore.class );
     private final CatchUpClient catchUpClient = mock( CatchUpClient.class );
     private final StoreCopyProcess storeCopyProcess = mock( StoreCopyProcess.class );
-    private CoreSnapshotService snapshotService = mock( CoreSnapshotService.class );
-    private TopologyService topologyService = mock( TopologyService.class );
-    private CommitStateHelper commitStateHelper = mock( CommitStateHelper.class );
     private final CoreStateMachines coreStateMachines = mock( CoreStateMachines.class );
-
     private final NullLogProvider logProvider = NullLogProvider.getInstance();
-
     private final MemberId remoteMember = new MemberId( UUID.randomUUID() );
     private final AdvertisedSocketAddress remoteAddress = new AdvertisedSocketAddress( "remoteAddress", 1234 );
     private final CatchupAddressProvider catchupAddressProvider = CatchupAddressProvider.fromSingleAddress( remoteAddress );
     private final StoreId storeId = new StoreId( 1, 2, 3, 4 );
     private final DatabaseLayout databaseLayout = DatabaseLayout.of( new File( "." ) );
-
+    private CoreSnapshotService snapshotService = mock( CoreSnapshotService.class );
+    private TopologyService topologyService = mock( TopologyService.class );
+    private CommitStateHelper commitStateHelper = mock( CommitStateHelper.class );
     private final CoreStateDownloader downloader =
             new CoreStateDownloader( localDatabase, startStopLife, remoteStore, catchUpClient, logProvider, storeCopyProcess, coreStateMachines,
-                    snapshotService, commitStateHelper );
+                                     snapshotService, commitStateHelper );
 
     @Before
     public void commonMocking()

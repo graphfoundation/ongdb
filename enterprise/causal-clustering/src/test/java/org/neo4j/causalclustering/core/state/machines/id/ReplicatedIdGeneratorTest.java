@@ -55,18 +55,17 @@ import static org.mockito.Mockito.when;
 
 public class ReplicatedIdGeneratorTest extends IdGeneratorContractTest
 {
-    private NullLogProvider logProvider = NullLogProvider.getInstance();
-
+    private final CommandIndexTracker commandIndexTracker = mock( CommandIndexTracker.class );
     @Rule
     public FileSystemRule fileSystemRule = new DefaultFileSystemRule();
     @Rule
     public TestDirectory testDirectory = TestDirectory.testDirectory();
+    private NullLogProvider logProvider = NullLogProvider.getInstance();
     private File file;
     private FileSystemAbstraction fs;
     private MemberId myself = new MemberId( UUID.randomUUID() );
     private RaftMachine raftMachine = Mockito.mock( RaftMachine.class );
     private ExposedRaftState state = mock( ExposedRaftState.class );
-    private final CommandIndexTracker commandIndexTracker = mock( CommandIndexTracker.class );
     private IdReusabilityCondition idReusabilityCondition;
     private ReplicatedIdGenerator idGenerator;
 
@@ -161,7 +160,7 @@ public class ReplicatedIdGeneratorTest extends IdGeneratorContractTest
 
         long burnedIds = 23L;
         try ( FreeIdFilteredIdGenerator idGenerator = new FreeIdFilteredIdGenerator( getReplicatedIdGenerator( 10, burnedIds, rangeAcquirer ),
-                idReusabilityCondition ) )
+                                                                                     idReusabilityCondition ) )
         {
 
             idGenerator.freeId( 10 );
@@ -206,7 +205,7 @@ public class ReplicatedIdGeneratorTest extends IdGeneratorContractTest
 
         long burnedIds = 23L;
         try ( FreeIdFilteredIdGenerator idGenerator = new FreeIdFilteredIdGenerator( getReplicatedIdGenerator( 10, burnedIds, rangeAcquirer ),
-                idReusabilityCondition ) )
+                                                                                     idReusabilityCondition ) )
         {
 
             idGenerator.freeId( 10 );
@@ -264,10 +263,6 @@ public class ReplicatedIdGeneratorTest extends IdGeneratorContractTest
         return rangeAcquirer;
     }
 
-    private static class NoMoreIds extends RuntimeException
-    {
-    }
-
     private IdAllocation allocation( long start, int length, int highestIdInUse )
     {
         return new IdAllocation( new IdRange( new long[0], start, length ), highestIdInUse, 0 );
@@ -294,7 +289,10 @@ public class ReplicatedIdGeneratorTest extends IdGeneratorContractTest
     private ReplicatedIdGenerator getReplicatedIdGenerator( int grabSize, long l, ReplicatedIdRangeAcquirer replicatedIdRangeAcquirer )
     {
         return new ReplicatedIdGenerator( fs, file, IdType.NODE, () -> l, replicatedIdRangeAcquirer, logProvider,
-                grabSize, true );
+                                          grabSize, true );
     }
 
+    private static class NoMoreIds extends RuntimeException
+    {
+    }
 }

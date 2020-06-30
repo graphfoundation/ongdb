@@ -37,11 +37,6 @@ public class RequestDecoderDispatcherTest
     };
     private final AssertableLogProvider logProvider = new AssertableLogProvider();
 
-    private enum State
-    {
-        one, two, three
-    }
-
     @Test
     public void shouldDispatchToRegisteredDecoder() throws Exception
     {
@@ -85,5 +80,12 @@ public class RequestDecoderDispatcherTest
 
         logProvider.assertExactly( matcher );
         verifyZeroInteractions( delegateOne, delegateThree );
+    }
+
+    private enum State
+    {
+        one,
+        two,
+        three
     }
 }

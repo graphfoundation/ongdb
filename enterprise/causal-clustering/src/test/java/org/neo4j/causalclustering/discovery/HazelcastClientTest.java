@@ -78,7 +78,6 @@ import org.neo4j.test.OnDemandJobScheduler;
 
 import static java.lang.String.format;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doThrow;
@@ -95,9 +94,9 @@ import static org.neo4j.helpers.collection.Iterators.asSet;
 
 public class HazelcastClientTest
 {
-    private MemberId myself = new MemberId( UUID.randomUUID() );
-    private static final java.util.function.Supplier<HashMap<String, String>> DEFAULT_SETTINGS = () -> {
-        HashMap<String, String> settings = new HashMap<>();
+    private static final java.util.function.Supplier<HashMap<String,String>> DEFAULT_SETTINGS = () ->
+    {
+        HashMap<String,String> settings = new HashMap<>();
 
         settings.put( new BoltConnector( "bolt" ).type.name(), "BOLT" );
         settings.put( new BoltConnector( "bolt" ).enabled.name(), "true" );
@@ -108,11 +107,12 @@ public class HazelcastClientTest
         settings.put( new BoltConnector( "http" ).advertised_address.name(), "http:3001" );
         return settings;
     };
+    private MemberId myself = new MemberId( UUID.randomUUID() );
 
     private Config config( String key, String value )
     {
-        HashMap<String, String> defaults = DEFAULT_SETTINGS.get();
-        defaults.put(key, value);
+        HashMap<String,String> defaults = DEFAULT_SETTINGS.get();
+        defaults.put( key, value );
         return Config.defaults( defaults );
     }
 
@@ -178,7 +178,7 @@ public class HazelcastClientTest
 
         // then
         String message = "Different local and global topologies reported despite single, default database name.";
-        assertEquals(message, client.allCoreServers(), client.localCoreServers() );
+        assertEquals( message, client.allCoreServers(), client.localCoreServers() );
     }
 
     @Test
@@ -190,7 +190,7 @@ public class HazelcastClientTest
 
         // then
         String message = "Identical local and global topologies reported despite multiple, distinct database names.";
-        assertNotEquals(message, client.allCoreServers(), client.localCoreServers() );
+        assertNotEquals( message, client.allCoreServers(), client.localCoreServers() );
         assertEquals( 1, client.localCoreServers().members().size() );
     }
 
@@ -203,7 +203,7 @@ public class HazelcastClientTest
 
         // then
         String message = "Global topology should contain all Hazelcast Members despite different db names.";
-        assertEquals(message, members.size(), client.allCoreServers().members().size() );
+        assertEquals( message, members.size(), client.allCoreServers().members().size() );
     }
 
     @Test
@@ -1185,14 +1185,14 @@ public class HazelcastClientTest
 
         @Override
         public <SuppliedValue, Result> Result aggregate( Supplier<Object,Object,SuppliedValue> supplier,
-                Aggregation<Object,SuppliedValue,Result> aggregation )
+                                                         Aggregation<Object,SuppliedValue,Result> aggregation )
         {
             throw new UnsupportedOperationException();
         }
 
         @Override
         public <SuppliedValue, Result> Result aggregate( Supplier<Object,Object,SuppliedValue> supplier,
-                Aggregation<Object,SuppliedValue,Result> aggregation, JobTracker jobTracker )
+                                                         Aggregation<Object,SuppliedValue,Result> aggregation, JobTracker jobTracker )
         {
             throw new UnsupportedOperationException();
         }

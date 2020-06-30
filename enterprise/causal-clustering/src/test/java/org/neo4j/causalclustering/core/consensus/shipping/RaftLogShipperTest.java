@@ -117,7 +117,7 @@ public class RaftLogShipperTest
     private void startLogShipper()
     {
         logShipper = new RaftLogShipper( outbound, logProvider, raftLog, clock, timerService, leader, follower, leaderTerm, leaderCommit,
-                        retryTimeMillis, catchupBatchSize, maxAllowedShippingLag, new ConsecutiveInFlightCache() );
+                                         retryTimeMillis, catchupBatchSize, maxAllowedShippingLag, new ConsecutiveInFlightCache() );
         logShipper.start();
     }
 
@@ -134,7 +134,7 @@ public class RaftLogShipperTest
         // then
         RaftMessages.AppendEntries.Request expected =
                 new RaftMessages.AppendEntries.Request( leader, leaderTerm, 0, entry0.term(), RaftLogEntry.empty,
-                        leaderCommit );
+                                                        leaderCommit );
         assertThat( outbound.sentTo( follower ), hasItem( expected ) );
     }
 
@@ -255,7 +255,7 @@ public class RaftLogShipperTest
         // then
         RaftMessages.AppendEntries.Request expected =
                 new RaftMessages.AppendEntries.Request( leader, leaderTerm, 1, entry1.term(), RaftLogEntry.empty,
-                        leaderCommit );
+                                                        leaderCommit );
         assertThat( outbound.sentTo( follower ), hasItem( expected ) );
     }
 
@@ -320,7 +320,7 @@ public class RaftLogShipperTest
 
         //then
         RaftMessages.AppendEntries.Request expected = new RaftMessages.AppendEntries.Request( leader, leaderTerm, 2,
-                entry2.term(), RaftLogEntry.empty, leaderCommit );
+                                                                                              entry2.term(), RaftLogEntry.empty, leaderCommit );
         assertThat( outbound.sentTo( follower ), hasItem( expected ) );
     }
 
@@ -344,7 +344,7 @@ public class RaftLogShipperTest
         //then
         assertTrue( outbound.hasAnyEntriesTo( follower ) );
         assertThat( outbound.sentTo( follower ),
-                hasMessage( new RaftMessages.LogCompactionInfo( leader, 0, 2 ) ) );
+                    hasMessage( new RaftMessages.LogCompactionInfo( leader, 0, 2 ) ) );
     }
 
     @Test

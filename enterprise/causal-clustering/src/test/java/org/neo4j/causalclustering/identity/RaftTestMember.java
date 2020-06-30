@@ -24,7 +24,7 @@ import java.util.UUID;
 
 public class RaftTestMember
 {
-    private static final Map<Integer, MemberId> testMembers = new HashMap<>();
+    private static final Map<Integer,MemberId> testMembers = new HashMap<>();
 
     private RaftTestMember()
     {

@@ -79,16 +79,16 @@ public class ServerGroupsIT
 
         Map<String,IntFunction<String>> instanceCoreParams = new HashMap<>();
         instanceCoreParams.put( CausalClusteringSettings.server_groups.name(),
-                id -> String.join( ", ", makeCoreGroups( suffix.get(), id ) ) );
+                                id -> String.join( ", ", makeCoreGroups( suffix.get(), id ) ) );
 
         Map<String,IntFunction<String>> instanceReplicaParams = new HashMap<>();
         instanceReplicaParams.put( CausalClusteringSettings.server_groups.name(),
-                id -> String.join( ", ", makeReplicaGroups( suffix.get(), id ) ) );
+                                   id -> String.join( ", ", makeReplicaGroups( suffix.get(), id ) ) );
 
         int nServers = 3;
         cluster = new EnterpriseCluster( testDir.directory( "cluster" ), nServers, nServers,
-                new HazelcastDiscoveryServiceFactory(), emptyMap(), instanceCoreParams,
-                emptyMap(), instanceReplicaParams, Standard.LATEST_NAME, IpFamily.IPV4, false );
+                                         new HazelcastDiscoveryServiceFactory(), emptyMap(), instanceCoreParams,
+                                         emptyMap(), instanceReplicaParams, Standard.LATEST_NAME, IpFamily.IPV4, false );
 
         // when
         cluster.start();
@@ -104,7 +104,7 @@ public class ServerGroupsIT
         for ( CoreClusterMember core : cluster.coreMembers() )
         {
             assertEventually( core + " should have groups", () -> getServerGroups( core.database() ),
-                    new GroupsMatcher( expected ), 30, SECONDS );
+                              new GroupsMatcher( expected ), 30, SECONDS );
         }
 
         // when
@@ -123,8 +123,36 @@ public class ServerGroupsIT
         for ( CoreClusterMember core : cluster.coreMembers() )
         {
             assertEventually( core + " should have groups", () -> getServerGroups( core.database() ),
-                    new GroupsMatcher( expected ), 30, SECONDS );
+                              new GroupsMatcher( expected ), 30, SECONDS );
         }
+    }
+
+    private List<String> makeCoreGroups( String suffix, int id )
+    {
+        return asList( format( "core-%d-%s", id, suffix ), "core" );
+    }
+
+    private List<String> makeReplicaGroups( String suffix, int id )
+    {
+        return asList( format( "replica-%d-%s", id, suffix ), "replica" );
+    }
+
+    private List<List<String>> getServerGroups( CoreGraphDatabase db )
+    {
+        List<List<String>> serverGroups = new ArrayList<>();
+        try ( InternalTransaction tx = db.beginTransaction( KernelTransaction.Type.explicit, EnterpriseLoginContext.AUTH_DISABLED ) )
+        {
+            try ( Result result = db.execute( tx, "CALL dbms.cluster.overview", EMPTY_MAP ) )
+            {
+                while ( result.hasNext() )
+                {
+                    @SuppressWarnings( "unchecked" )
+                    List<String> groups = (List<String>) result.next().get( "groups" );
+                    serverGroups.add( groups );
+                }
+            }
+        }
+        return serverGroups;
     }
 
     class GroupsMatcher extends TypeSafeMatcher<List<List<String>>>
@@ -177,33 +205,5 @@ public class ServerGroupsIT
         {
             description.appendText( expected.toString() );
         }
-    }
-
-    private List<String> makeCoreGroups( String suffix, int id )
-    {
-        return asList( format( "core-%d-%s", id, suffix ), "core" );
-    }
-
-    private List<String> makeReplicaGroups( String suffix, int id )
-    {
-        return asList( format( "replica-%d-%s", id, suffix ), "replica" );
-    }
-
-    private List<List<String>> getServerGroups( CoreGraphDatabase db )
-    {
-        List<List<String>> serverGroups = new ArrayList<>();
-        try ( InternalTransaction tx = db.beginTransaction( KernelTransaction.Type.explicit, EnterpriseLoginContext.AUTH_DISABLED ) )
-        {
-            try ( Result result = db.execute( tx, "CALL dbms.cluster.overview", EMPTY_MAP ) )
-            {
-                while ( result.hasNext() )
-                {
-                    @SuppressWarnings( "unchecked" )
-                    List<String> groups = (List<String>) result.next().get( "groups" );
-                    serverGroups.add( groups );
-                }
-            }
-        }
-        return serverGroups;
     }
 }

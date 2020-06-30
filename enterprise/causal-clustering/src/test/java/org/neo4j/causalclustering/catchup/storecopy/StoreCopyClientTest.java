@@ -70,17 +70,14 @@ public class StoreCopyClientTest
     public final SuppressOutput suppressOutput = SuppressOutput.suppressAll();
 
     private final CatchUpClient catchUpClient = mock( CatchUpClient.class );
-
-    private StoreCopyClient subject;
     private final LogProvider logProvider = FormattedLogProvider.withDefaultLogLevel( Level.DEBUG ).toOutputStream( System.out );
     private final Monitors monitors = new Monitors();
-
     // params
     private final AdvertisedSocketAddress expectedAdvertisedAddress = new AdvertisedSocketAddress( "host", 1234 );
     private final CatchupAddressProvider catchupAddressProvider = CatchupAddressProvider.fromSingleAddress( expectedAdvertisedAddress );
     private final StoreId expectedStoreId = new StoreId( 1, 2, 3, 4 );
     private final StoreFileStreamProvider expectedStoreFileStream = mock( StoreFileStreamProvider.class );
-
+    private StoreCopyClient subject;
     // helpers
     private File[] serverFiles = new File[]{new File( "fileA.txt" ), new File( "fileB.bmp" )};
     private File targetLocation = new File( "targetLocation" );
@@ -183,7 +180,7 @@ public class StoreCopyClientTest
 
         // and the initial list+count store files request is successful
         PrepareStoreCopyResponse initialListingOfFilesResponse = PrepareStoreCopyResponse.success( serverFiles,
-                indexIds, -123L );
+                                                                                                   indexIds, -123L );
         when( catchUpClient.makeBlockingRequest( any(), any( PrepareStoreCopyRequest.class ), any() ) ).thenReturn( initialListingOfFilesResponse );
 
         // when we perform catchup
@@ -210,7 +207,7 @@ public class StoreCopyClientTest
         // given store listing fails
         PrepareStoreCopyResponse prepareStoreCopyResponse = PrepareStoreCopyResponse.error( PrepareStoreCopyResponse.Status.E_LISTING_STORE );
         when( catchUpClient.makeBlockingRequest( any(), any(), any() ) ).thenReturn( prepareStoreCopyResponse )
-                .thenThrow( new RuntimeException( "Should not be accessible" ) );
+                                                                        .thenThrow( new RuntimeException( "Should not be accessible" ) );
 
         // then
         expectedException.expectMessage( "Preparing store failed due to: E_LISTING_STORE" );
@@ -226,7 +223,7 @@ public class StoreCopyClientTest
         // given store listing fails
         PrepareStoreCopyResponse prepareStoreCopyResponse = PrepareStoreCopyResponse.error( PrepareStoreCopyResponse.Status.E_STORE_ID_MISMATCH );
         when( catchUpClient.makeBlockingRequest( any(), any(), any() ) ).thenReturn( prepareStoreCopyResponse )
-                .thenThrow( new RuntimeException( "Should not be accessible" ) );
+                                                                        .thenThrow( new RuntimeException( "Should not be accessible" ) );
 
         // then
         expectedException.expectMessage( "Preparing store failed due to: E_STORE_ID_MISMATCH" );
@@ -310,11 +307,11 @@ public class StoreCopyClientTest
     private List<String> filenamesFromIndividualFileRequests( List<CatchUpRequest> fileRequests )
     {
         return fileRequests.stream()
-                .filter( GetStoreFileRequest.class::isInstance )
-                .map( obj -> (GetStoreFileRequest) obj )
-                .map( GetStoreFileRequest::file )
-                .map( File::getName )
-                .collect( Collectors.toList() );
+                           .filter( GetStoreFileRequest.class::isInstance )
+                           .map( obj -> (GetStoreFileRequest) obj )
+                           .map( GetStoreFileRequest::file )
+                           .map( File::getName )
+                           .collect( Collectors.toList() );
     }
 }
 

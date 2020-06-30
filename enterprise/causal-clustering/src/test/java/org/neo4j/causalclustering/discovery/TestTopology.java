@@ -50,31 +50,31 @@ public class TestTopology
         AdvertisedSocketAddress catchupServerAddress = new AdvertisedSocketAddress( "localhost", 4000 + id );
         AdvertisedSocketAddress boltServerAddress = new AdvertisedSocketAddress( "localhost", 5000 + id );
         return new CoreServerInfo( raftServerAddress, catchupServerAddress, wrapAsClientConnectorAddresses( boltServerAddress ),
-                asSet( "core", "core" + id ), "default", refuseToBeLeader );
+                                   asSet( "core", "core" + id ), "default", refuseToBeLeader );
     }
 
     public static Config configFor( CoreServerInfo coreServerInfo )
     {
         return Config.builder()
-                .withSetting( CausalClusteringSettings.raft_advertised_address, coreServerInfo.getRaftServer().toString() )
-                .withSetting( CausalClusteringSettings.transaction_advertised_address, coreServerInfo.getCatchupServer().toString() )
-                .withSetting( "dbms.connector.bolt.listen_address", coreServerInfo.connectors().boltAddress().toString() )
-                .withSetting( "dbms.connector.bolt.enabled", String.valueOf( true ) )
-                .withSetting( CausalClusteringSettings.database, coreServerInfo.getDatabaseName() )
-                .withSetting( CausalClusteringSettings.server_groups, String.join( ",", coreServerInfo.groups() ) )
-                .withSetting( CausalClusteringSettings.refuse_to_be_leader, String.valueOf( coreServerInfo.refusesToBeLeader() ) )
-                .build();
+                     .withSetting( CausalClusteringSettings.raft_advertised_address, coreServerInfo.getRaftServer().toString() )
+                     .withSetting( CausalClusteringSettings.transaction_advertised_address, coreServerInfo.getCatchupServer().toString() )
+                     .withSetting( "dbms.connector.bolt.listen_address", coreServerInfo.connectors().boltAddress().toString() )
+                     .withSetting( "dbms.connector.bolt.enabled", String.valueOf( true ) )
+                     .withSetting( CausalClusteringSettings.database, coreServerInfo.getDatabaseName() )
+                     .withSetting( CausalClusteringSettings.server_groups, String.join( ",", coreServerInfo.groups() ) )
+                     .withSetting( CausalClusteringSettings.refuse_to_be_leader, String.valueOf( coreServerInfo.refusesToBeLeader() ) )
+                     .build();
     }
 
     public static Config configFor( ReadReplicaInfo readReplicaInfo )
     {
         return Config.builder()
-                .withSetting( "dbms.connector.bolt.listen_address", readReplicaInfo.connectors().boltAddress().toString() )
-                .withSetting( "dbms.connector.bolt.enabled", String.valueOf( true ) )
-                .withSetting( CausalClusteringSettings.transaction_advertised_address, readReplicaInfo.getCatchupServer().toString() )
-                .withSetting( CausalClusteringSettings.server_groups, String.join( ",", readReplicaInfo.groups() ) )
-                .withSetting( CausalClusteringSettings.database, readReplicaInfo.getDatabaseName() )
-                .build();
+                     .withSetting( "dbms.connector.bolt.listen_address", readReplicaInfo.connectors().boltAddress().toString() )
+                     .withSetting( "dbms.connector.bolt.enabled", String.valueOf( true ) )
+                     .withSetting( CausalClusteringSettings.transaction_advertised_address, readReplicaInfo.getCatchupServer().toString() )
+                     .withSetting( CausalClusteringSettings.server_groups, String.join( ",", readReplicaInfo.groups() ) )
+                     .withSetting( CausalClusteringSettings.database, readReplicaInfo.getDatabaseName() )
+                     .build();
     }
 
     public static ReadReplicaInfo addressesForReadReplica( int id )
@@ -85,12 +85,13 @@ public class TestTopology
         AdvertisedSocketAddress catchupSocketAddress = new AdvertisedSocketAddress( "localhost", 4000 + id );
 
         return new ReadReplicaInfo( clientConnectorAddresses, catchupSocketAddress,
-                asSet( "replica", "replica" + id ), "default" );
+                                    asSet( "replica", "replica" + id ), "default" );
     }
 
     public static Map<MemberId,ReadReplicaInfo> readReplicaInfoMap( int... ids )
     {
         return Arrays.stream( ids ).mapToObj( TestTopology::addressesForReadReplica ).collect( Collectors
-                .toMap( p -> new MemberId( UUID.randomUUID() ), Function.identity() ) );
+                                                                                                       .toMap( p -> new MemberId( UUID.randomUUID() ),
+                                                                                                               Function.identity() ) );
     }
 }

@@ -18,8 +18,6 @@
  */
 package org.neo4j.causalclustering.core.consensus.explorer.action;
 
-import java.io.IOException;
-
 import org.neo4j.causalclustering.core.consensus.explorer.ClusterState;
 
 public interface Action

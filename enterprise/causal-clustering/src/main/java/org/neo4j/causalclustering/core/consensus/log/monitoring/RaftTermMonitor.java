@@ -21,6 +21,7 @@ package org.neo4j.causalclustering.core.consensus.log.monitoring;
 public interface RaftTermMonitor
 {
     long term();
+
     void term( long term );
 }
 

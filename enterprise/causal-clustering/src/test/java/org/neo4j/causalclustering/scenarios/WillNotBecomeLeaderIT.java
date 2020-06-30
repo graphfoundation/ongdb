@@ -39,8 +39,8 @@ public class WillNotBecomeLeaderIT
     @Rule
     public final ClusterRule clusterRule =
             new ClusterRule().withNumberOfCoreMembers( 3 ).withNumberOfReadReplicas( 0 )
-                    .withDiscoveryServiceType( EnterpriseDiscoveryServiceType.HAZELCAST )
-                    .withSharedCoreParam( CausalClusteringSettings.multi_dc_license, "true" );
+                             .withDiscoveryServiceType( EnterpriseDiscoveryServiceType.HAZELCAST )
+                             .withSharedCoreParam( CausalClusteringSettings.multi_dc_license, "true" );
 
     @Rule
     public ExpectedException exceptionMatcher = ExpectedException.none();
@@ -68,11 +68,11 @@ public class WillNotBecomeLeaderIT
         assertEquals( leaderId, cluster.awaitLeader().serverId() );
 
         cluster.coreTx( ( db, tx ) ->
-        {
-            Node node = db.createNode( label( "boo" ) );
-            node.setProperty( "foobar", "baz_bat" );
-            tx.success();
-        } );
+                        {
+                            Node node = db.createNode( label( "boo" ) );
+                            node.setProperty( "foobar", "baz_bat" );
+                            tx.success();
+                        } );
 
         // When
         cluster.removeCoreMemberWithServerId( leaderId );
@@ -80,7 +80,7 @@ public class WillNotBecomeLeaderIT
         // Then
         try
         {
-            cluster.awaitLeader(10, SECONDS);
+            cluster.awaitLeader( 10, SECONDS );
 
             fail( "Should not have elected a leader" );
         }

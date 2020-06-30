@@ -51,7 +51,6 @@ import static java.util.Collections.singletonList;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyZeroInteractions;
 import static org.neo4j.causalclustering.core.consensus.RaftMessages.AppendEntries;
 import static org.neo4j.causalclustering.core.consensus.RaftMessages.Heartbeat;
 import static org.neo4j.causalclustering.core.consensus.RaftMessages.NewEntry;
@@ -90,7 +89,7 @@ public class BatchingMessageHandlerTest
     {
         // given
         BatchingMessageHandler batchHandler = new BatchingMessageHandler( downstreamHandler, IN_QUEUE_CONFIG,
-                BATCH_CONFIG, jobSchedulerFactory, NullLogProvider.getInstance() );
+                                                                          BATCH_CONFIG, jobSchedulerFactory, NullLogProvider.getInstance() );
 
         NewEntry.Request message = new NewEntry.Request( null, content( "dummy" ) );
 
@@ -110,7 +109,7 @@ public class BatchingMessageHandlerTest
     {
         // given
         BatchingMessageHandler batchHandler = new BatchingMessageHandler( downstreamHandler, IN_QUEUE_CONFIG,
-                BATCH_CONFIG, jobSchedulerFactory, NullLogProvider.getInstance() );
+                                                                          BATCH_CONFIG, jobSchedulerFactory, NullLogProvider.getInstance() );
         ReplicatedString content = new ReplicatedString( "dummy" );
         NewEntry.Request message = new NewEntry.Request( null, content );
 
@@ -136,7 +135,7 @@ public class BatchingMessageHandlerTest
     {
         // given
         BatchingMessageHandler batchHandler = new BatchingMessageHandler( downstreamHandler, IN_QUEUE_CONFIG,
-                BATCH_CONFIG, jobSchedulerFactory, NullLogProvider.getInstance() );
+                                                                          BATCH_CONFIG, jobSchedulerFactory, NullLogProvider.getInstance() );
         ReplicatedString contentA = new ReplicatedString( "A" );
         ReplicatedString contentB = new ReplicatedString( "B" );
         NewEntry.Request messageA = new NewEntry.Request( null, contentA );
@@ -159,7 +158,7 @@ public class BatchingMessageHandlerTest
     {
         // given
         BatchingMessageHandler batchHandler = new BatchingMessageHandler( downstreamHandler, IN_QUEUE_CONFIG,
-                BATCH_CONFIG, jobSchedulerFactory, NullLogProvider.getInstance() );
+                                                                          BATCH_CONFIG, jobSchedulerFactory, NullLogProvider.getInstance() );
         ReplicatedString content = new ReplicatedString( "A" );
         NewEntry.Request messageA = new NewEntry.Request( null, content );
 
@@ -182,7 +181,7 @@ public class BatchingMessageHandlerTest
     {
         // given
         BatchingMessageHandler batchHandler = new BatchingMessageHandler( downstreamHandler, IN_QUEUE_CONFIG,
-                BATCH_CONFIG, jobSchedulerFactory, NullLogProvider.getInstance() );
+                                                                          BATCH_CONFIG, jobSchedulerFactory, NullLogProvider.getInstance() );
 
         ReplicatedString contentA = new ReplicatedString( "A" );
         ReplicatedString contentC = new ReplicatedString( "C" );
@@ -215,7 +214,7 @@ public class BatchingMessageHandlerTest
     public void shouldBatchSingleEntryAppendEntries()
     {
         BatchingMessageHandler batchHandler = new BatchingMessageHandler( downstreamHandler, IN_QUEUE_CONFIG,
-                BATCH_CONFIG, jobSchedulerFactory, NullLogProvider.getInstance() );
+                                                                          BATCH_CONFIG, jobSchedulerFactory, NullLogProvider.getInstance() );
 
         long leaderTerm = 1;
         long prevLogIndex = -1;
@@ -226,10 +225,10 @@ public class BatchingMessageHandlerTest
         RaftLogEntry entryB = new RaftLogEntry( 0, content( "B" ) );
 
         AppendEntries.Request appendA = new AppendEntries.Request( leader, leaderTerm, prevLogIndex, prevLogTerm,
-                new RaftLogEntry[]{entryA}, leaderCommit );
+                                                                   new RaftLogEntry[]{entryA}, leaderCommit );
 
         AppendEntries.Request appendB = new AppendEntries.Request( leader, leaderTerm, prevLogIndex + 1, 0,
-                new RaftLogEntry[]{entryB}, leaderCommit );
+                                                                   new RaftLogEntry[]{entryB}, leaderCommit );
 
         batchHandler.handle( wrap( appendA ) );
         batchHandler.handle( wrap( appendB ) );
@@ -240,7 +239,7 @@ public class BatchingMessageHandlerTest
 
         // then
         AppendEntries.Request expected = new AppendEntries.Request( leader, leaderTerm, prevLogIndex, prevLogTerm,
-                new RaftLogEntry[]{entryA, entryB}, leaderCommit );
+                                                                    new RaftLogEntry[]{entryA, entryB}, leaderCommit );
 
         verify( downstreamHandler ).handle( wrap( expected ) );
     }
@@ -249,7 +248,7 @@ public class BatchingMessageHandlerTest
     public void shouldBatchMultipleEntryAppendEntries()
     {
         BatchingMessageHandler batchHandler = new BatchingMessageHandler( downstreamHandler, IN_QUEUE_CONFIG,
-                BATCH_CONFIG, jobSchedulerFactory, NullLogProvider.getInstance() );
+                                                                          BATCH_CONFIG, jobSchedulerFactory, NullLogProvider.getInstance() );
 
         long leaderTerm = 1;
         long prevLogIndex = -1;
@@ -262,21 +261,21 @@ public class BatchingMessageHandlerTest
         RaftLogEntry[] entriesD = entries( 3, 9, 15 );
 
         AppendEntries.Request appendA = new AppendEntries.Request( leader, leaderTerm, prevLogIndex, prevLogTerm,
-                entriesA, leaderCommit );
+                                                                   entriesA, leaderCommit );
 
         prevLogIndex += appendA.entries().length;
         prevLogTerm = lastOf( appendA.entries() ).term();
         leaderCommit += 2; // arbitrary
 
         AppendEntries.Request appendB = new AppendEntries.Request( leader, leaderTerm, prevLogIndex, prevLogTerm,
-                entriesB, leaderCommit );
+                                                                   entriesB, leaderCommit );
 
         prevLogIndex += appendB.entries().length;
         prevLogTerm = lastOf( appendB.entries() ).term();
         leaderCommit += 5; // arbitrary
 
         AppendEntries.Request appendC = new AppendEntries.Request( leader, leaderTerm, prevLogIndex, prevLogTerm,
-                ArrayUtil.concat( entriesC, entriesD ), leaderCommit );
+                                                                   ArrayUtil.concat( entriesC, entriesD ), leaderCommit );
 
         batchHandler.handle( wrap( appendA ) );
         batchHandler.handle( wrap( appendB ) );
@@ -288,7 +287,7 @@ public class BatchingMessageHandlerTest
 
         // then
         AppendEntries.Request expected = new AppendEntries.Request( leader, leaderTerm, -1, -1,
-                ArrayUtil.concatArrays( entriesA, entriesB, entriesC, entriesD ), leaderCommit );
+                                                                    ArrayUtil.concatArrays( entriesA, entriesB, entriesC, entriesD ), leaderCommit );
 
         verify( downstreamHandler ).handle( wrap( expected ) );
     }
@@ -297,7 +296,7 @@ public class BatchingMessageHandlerTest
     public void shouldNotBatchAppendEntriesDifferentLeaderTerms()
     {
         BatchingMessageHandler batchHandler = new BatchingMessageHandler( downstreamHandler, IN_QUEUE_CONFIG,
-                BATCH_CONFIG, jobSchedulerFactory, NullLogProvider.getInstance() );
+                                                                          BATCH_CONFIG, jobSchedulerFactory, NullLogProvider.getInstance() );
 
         long leaderTerm = 1;
         long prevLogIndex = -1;
@@ -308,13 +307,13 @@ public class BatchingMessageHandlerTest
         RaftLogEntry[] entriesB = entries( 1, 3, 3 );
 
         AppendEntries.Request appendA = new AppendEntries.Request( leader, leaderTerm, prevLogIndex, prevLogTerm,
-                entriesA, leaderCommit );
+                                                                   entriesA, leaderCommit );
 
         prevLogIndex += appendA.entries().length;
         prevLogTerm = lastOf( appendA.entries() ).term();
 
         AppendEntries.Request appendB = new AppendEntries.Request( leader, leaderTerm + 1, prevLogIndex, prevLogTerm,
-                entriesB, leaderCommit );
+                                                                   entriesB, leaderCommit );
 
         batchHandler.handle( wrap( appendA ) );
         batchHandler.handle( wrap( appendB ) );
@@ -333,11 +332,11 @@ public class BatchingMessageHandlerTest
     public void shouldPrioritiseCorrectly()
     {
         BatchingMessageHandler batchHandler = new BatchingMessageHandler( downstreamHandler, IN_QUEUE_CONFIG,
-                BATCH_CONFIG, jobSchedulerFactory, NullLogProvider.getInstance() );
+                                                                          BATCH_CONFIG, jobSchedulerFactory, NullLogProvider.getInstance() );
 
         NewEntry.Request newEntry = new NewEntry.Request( null, content( "" ) );
         AppendEntries.Request append = new AppendEntries.Request( leader, 1, -1, -1,
-                entries( 0, 0, 0 ), 0 );
+                                                                  entries( 0, 0, 0 ), 0 );
         AppendEntries.Request emptyAppend = new AppendEntries.Request( leader, 1, -1, -1, RaftLogEntry.empty, 0 );
         Heartbeat heartbeat = new Heartbeat( null, 0, 0, 0 );
 
@@ -368,7 +367,7 @@ public class BatchingMessageHandlerTest
         // given
         AssertableLogProvider logProvider = new AssertableLogProvider();
         BatchingMessageHandler batchHandler = new BatchingMessageHandler( downstreamHandler, IN_QUEUE_CONFIG,
-                BATCH_CONFIG, jobSchedulerFactory, logProvider );
+                                                                          BATCH_CONFIG, jobSchedulerFactory, logProvider );
 
         NewEntry.Request message = new NewEntry.Request( null, null );
         batchHandler.stop();
@@ -381,7 +380,7 @@ public class BatchingMessageHandlerTest
         verify( downstreamHandler, never() ).handle(
                 ArgumentMatchers.any( ReceivedInstantClusterIdAwareMessage.class ) );
         logProvider.assertAtLeastOnce( AssertableLogProvider.inLog( BatchingMessageHandler.class )
-                .debug( "This handler has been stopped, dropping the message: %s", wrap( message ) ) );
+                                                            .debug( "This handler has been stopped, dropping the message: %s", wrap( message ) ) );
     }
 
     @Test( timeout = 5_000 /* 5 seconds */ )
@@ -389,18 +388,19 @@ public class BatchingMessageHandlerTest
     {
         // given
         BatchingMessageHandler batchHandler = new BatchingMessageHandler( downstreamHandler,
-                new BoundedPriorityQueue.Config( 1, 1, 1024 ), BATCH_CONFIG, jobSchedulerFactory,
-                NullLogProvider.getInstance() );
+                                                                          new BoundedPriorityQueue.Config( 1, 1, 1024 ), BATCH_CONFIG, jobSchedulerFactory,
+                                                                          NullLogProvider.getInstance() );
         NewEntry.Request message = new NewEntry.Request( null, new ReplicatedString( "dummy" ) );
         batchHandler.handle( wrap( message ) ); // fill the queue
 
         CountDownLatch latch = new CountDownLatch( 1 );
 
         // when
-        Thread thread = new Thread( () -> {
-            latch.countDown();
-            batchHandler.handle( wrap( message ) );
-        } );
+        Thread thread = new Thread( () ->
+                                    {
+                                        latch.countDown();
+                                        batchHandler.handle( wrap( message ) );
+                                    } );
 
         thread.start();
 
@@ -418,7 +418,7 @@ public class BatchingMessageHandlerTest
     {
         // given
         BatchingMessageHandler batchHandler = new BatchingMessageHandler( downstreamHandler, IN_QUEUE_CONFIG,
-                BATCH_CONFIG, jobSchedulerFactory, NullLogProvider.getInstance() );
+                                                                          BATCH_CONFIG, jobSchedulerFactory, NullLogProvider.getInstance() );
         ClusterId clusterId = new ClusterId( UUID.randomUUID() );
 
         // when
@@ -433,7 +433,7 @@ public class BatchingMessageHandlerTest
     {
         // given
         BatchingMessageHandler batchHandler = new BatchingMessageHandler( downstreamHandler, IN_QUEUE_CONFIG,
-                BATCH_CONFIG, jobSchedulerFactory, NullLogProvider.getInstance() );
+                                                                          BATCH_CONFIG, jobSchedulerFactory, NullLogProvider.getInstance() );
 
         // when
         batchHandler.stop();
@@ -447,7 +447,7 @@ public class BatchingMessageHandlerTest
     {
         // given
         BatchingMessageHandler batchHandler = new BatchingMessageHandler( downstreamHandler, IN_QUEUE_CONFIG,
-                BATCH_CONFIG, jobSchedulerFactory, NullLogProvider.getInstance() );
+                                                                          BATCH_CONFIG, jobSchedulerFactory, NullLogProvider.getInstance() );
         ClusterId clusterId = new ClusterId( UUID.randomUUID() );
 
         // when
@@ -462,7 +462,7 @@ public class BatchingMessageHandlerTest
     {
         // given
         BatchingMessageHandler batchHandler = new BatchingMessageHandler( downstreamHandler, IN_QUEUE_CONFIG,
-                BATCH_CONFIG, jobSchedulerFactory, NullLogProvider.getInstance() );
+                                                                          BATCH_CONFIG, jobSchedulerFactory, NullLogProvider.getInstance() );
 
         // when
         batchHandler.stop();

@@ -39,7 +39,6 @@ import org.neo4j.logging.NullLogProvider;
 import static org.hamcrest.CoreMatchers.hasItem;
 import static org.hamcrest.CoreMatchers.hasItems;
 import static org.hamcrest.Matchers.empty;
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.neo4j.causalclustering.core.consensus.TestMessageBuilders.preVoteRequest;
@@ -66,24 +65,24 @@ public class CandidateTest
     {
         // given
         RaftState state = RaftStateBuilder.raftState()
-                .term( 1 )
-                .myself( myself )
-                .votingMembers( member1, member2 )
-                .replicationMembers( member1, member2 )
-                .build();
+                                          .term( 1 )
+                                          .myself( myself )
+                                          .votingMembers( member1, member2 )
+                                          .replicationMembers( member1, member2 )
+                                          .build();
 
         // when
         Outcome outcome = CANDIDATE.handler.handle( voteResponse()
-                .term( state.term() )
-                .from( member1 )
-                .grant()
-                .build(), state, log() );
+                                                            .term( state.term() )
+                                                            .from( member1 )
+                                                            .grant()
+                                                            .build(), state, log() );
 
         // then
         assertEquals( LEADER, outcome.getRole() );
         assertTrue( outcome.electionTimeoutRenewed() );
         assertThat( outcome.getLogCommands(), hasItem( new AppendLogEntry( 0,
-                new RaftLogEntry( state.term(), new NewLeaderBarrier() ) ) ) );
+                                                                           new RaftLogEntry( state.term(), new NewLeaderBarrier() ) ) ) );
         assertThat( outcome.getOutgoingMessages(), hasItems(
                 new RaftMessages.Directed( member1, new RaftMessages.Heartbeat( myself, state.term(), -1, -1 ) ),
                 new RaftMessages.Directed( member2, new RaftMessages.Heartbeat( myself, state.term(), -1, -1 ) ) )
@@ -98,10 +97,10 @@ public class CandidateTest
 
         // when
         Outcome outcome = CANDIDATE.handler.handle( voteResponse()
-                .term( state.term() )
-                .from( member1 )
-                .deny()
-                .build(), state, log() );
+                                                            .term( state.term() )
+                                                            .from( member1 )
+                                                            .deny()
+                                                            .build(), state, log() );
 
         // then
         assertEquals( CANDIDATE, outcome.getRole() );
@@ -117,10 +116,10 @@ public class CandidateTest
 
         // when
         Outcome outcome = CANDIDATE.handler.handle( voteResponse()
-                .term( voterTerm )
-                .from( member1 )
-                .grant()
-                .build(), state, log() );
+                                                            .term( voterTerm )
+                                                            .from( member1 )
+                                                            .grant()
+                                                            .build(), state, log() );
 
         // then
         assertEquals( FOLLOWER, outcome.getRole() );
@@ -137,10 +136,10 @@ public class CandidateTest
 
         // when
         Outcome outcome = CANDIDATE.handler.handle( voteResponse()
-                .term( voterTerm )
-                .from( member1 )
-                .grant()
-                .build(), state, log() );
+                                                            .term( voterTerm )
+                                                            .from( member1 )
+                                                            .grant()
+                                                            .build(), state, log() );
 
         // then
         assertEquals( CANDIDATE, outcome.getRole() );
@@ -154,10 +153,10 @@ public class CandidateTest
 
         // when
         Outcome outcome = CANDIDATE.handler.handle( voteRequest()
-                .candidate( member1 )
-                .from( member1 )
-                .term( raftState.term() )
-                .build(), raftState, log() );
+                                                            .candidate( member1 )
+                                                            .from( member1 )
+                                                            .term( raftState.term() )
+                                                            .build(), raftState, log() );
 
         // then
         assertThat(
@@ -176,13 +175,13 @@ public class CandidateTest
         // when
         long newTerm = raftState.term() + 1;
         Outcome outcome = CANDIDATE.handler.handle( voteRequest()
-                .candidate( member1 )
-                .from( member1 )
-                .term( newTerm )
-                .build(), raftState, log() );
+                                                            .candidate( member1 )
+                                                            .from( member1 )
+                                                            .term( newTerm )
+                                                            .build(), raftState, log() );
 
         // then
-        assertEquals( newTerm ,outcome.getTerm() );
+        assertEquals( newTerm, outcome.getTerm() );
         assertEquals( Role.FOLLOWER, outcome.getRole() );
         assertThat( outcome.getVotesForMe(), empty() );
 
@@ -203,10 +202,10 @@ public class CandidateTest
 
         // when
         Outcome outcome = CANDIDATE.handler.handle( preVoteRequest()
-                .candidate( member1 )
-                .from( member1 )
-                .term( raftState.term() )
-                .build(), raftState, log() );
+                                                            .candidate( member1 )
+                                                            .from( member1 )
+                                                            .term( raftState.term() )
+                                                            .build(), raftState, log() );
 
         // then
         assertThat(
@@ -228,13 +227,13 @@ public class CandidateTest
 
         // when
         Outcome outcome = CANDIDATE.handler.handle( preVoteRequest()
-                .candidate( member1 )
-                .from( member1 )
-                .term( newTerm )
-                .build(), raftState, log() );
+                                                            .candidate( member1 )
+                                                            .from( member1 )
+                                                            .term( newTerm )
+                                                            .build(), raftState, log() );
 
         // then
-        assertEquals( newTerm ,outcome.getTerm() );
+        assertEquals( newTerm, outcome.getTerm() );
         assertEquals( Role.FOLLOWER, outcome.getRole() );
         assertThat( outcome.getVotesForMe(), empty() );
 
@@ -253,5 +252,4 @@ public class CandidateTest
     {
         return logProvider.getLog( getClass() );
     }
-
 }

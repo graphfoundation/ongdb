@@ -52,7 +52,51 @@ import static org.mockito.Mockito.when;
 
 public class RaftMessageEncodingDecodingTest
 {
+    /*
+     * Serializer for ReplicatedIntegers. Differs form the one in RaftMessageProcessingTest in that it does not
+     * assume that there is only a single entry in the stream, which allows for asserting no remaining bytes once the
+     * first entry is read from the buffer.
+     */
+    private static final ChannelMarshal<ReplicatedContent> marshal = new SafeChannelMarshal<ReplicatedContent>()
+    {
+        @Override
+        public void marshal( ReplicatedContent content, WritableChannel channel ) throws IOException
+        {
+            if ( content instanceof ReplicatedInteger )
+            {
+                channel.put( (byte) 1 );
+                channel.putInt( ((ReplicatedInteger) content).get() );
+            }
+            else
+            {
+                throw new IllegalArgumentException( "Unknown content type " + content.getClass() );
+            }
+        }
+
+        @Override
+        public ReplicatedContent unmarshal0( ReadableChannel channel ) throws IOException
+        {
+            byte type = channel.get();
+            final ReplicatedContent content;
+            switch ( type )
+            {
+            case 1:
+                content = ReplicatedInteger.valueOf( channel.getInt() );
+                break;
+            default:
+                throw new IllegalArgumentException( String.format( "Unknown content type 0x%x", type ) );
+            }
+            return content;
+        }
+    };
     private ClusterId clusterId = new ClusterId( UUID.randomUUID() );
+
+    private static ChannelHandlerContext setupContext()
+    {
+        ChannelHandlerContext context = mock( ChannelHandlerContext.class );
+        when( context.alloc() ).thenReturn( ByteBufAllocator.DEFAULT );
+        return context;
+    }
 
     @Test
     public void shouldSerializeAppendRequestWithMultipleEntries() throws Exception
@@ -107,7 +151,7 @@ public class RaftMessageEncodingDecodingTest
         // When
         MemberId sender = new MemberId( UUID.randomUUID() );
         RaftMessages.ClusterIdAwareMessage<?> message = RaftMessages.ReceivedInstantClusterIdAwareMessage.of( now, clusterId,
-        new RaftMessages.Heartbeat( sender, 1, 2, 3 ) );
+                                                                                                              new RaftMessages.Heartbeat( sender, 1, 2, 3 ) );
         ChannelHandlerContext ctx = setupContext();
         ByteBuf buffer = null;
         try
@@ -193,49 +237,4 @@ public class RaftMessageEncodingDecodingTest
             }
         }
     }
-
-    private static ChannelHandlerContext setupContext()
-    {
-        ChannelHandlerContext context = mock( ChannelHandlerContext.class );
-        when( context.alloc() ).thenReturn( ByteBufAllocator.DEFAULT );
-        return context;
-    }
-
-    /*
-     * Serializer for ReplicatedIntegers. Differs form the one in RaftMessageProcessingTest in that it does not
-     * assume that there is only a single entry in the stream, which allows for asserting no remaining bytes once the
-     * first entry is read from the buffer.
-     */
-    private static final ChannelMarshal<ReplicatedContent> marshal = new SafeChannelMarshal<ReplicatedContent>()
-    {
-        @Override
-        public void marshal( ReplicatedContent content, WritableChannel channel ) throws IOException
-        {
-            if ( content instanceof ReplicatedInteger )
-            {
-                channel.put( (byte) 1 );
-                channel.putInt( ((ReplicatedInteger) content).get() );
-            }
-            else
-            {
-                throw new IllegalArgumentException( "Unknown content type " + content.getClass() );
-            }
-        }
-
-        @Override
-        public ReplicatedContent unmarshal0( ReadableChannel channel ) throws IOException
-        {
-            byte type = channel.get();
-            final ReplicatedContent content;
-            switch ( type )
-            {
-                case 1:
-                    content = ReplicatedInteger.valueOf( channel.getInt() );
-                    break;
-                default:
-                    throw new IllegalArgumentException( String.format( "Unknown content type 0x%x", type ) );
-            }
-            return content;
-        }
-    };
 }

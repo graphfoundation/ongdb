@@ -40,33 +40,30 @@ import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.sameInstance;
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
 public class ProtocolInstallerRepositoryTest
 {
-    private List<ModifierProtocolInstaller<Orientation.Client>> clientModifiers =
-            asList( new SnappyClientInstaller(),
-                    new LZOClientInstaller(),
-                    new LZ4ClientInstaller(),
-                    new LZ4HighCompressionClientInstaller(),
-                    new Rot13ClientInstaller() );
-    private List<ModifierProtocolInstaller<Orientation.Server>> serverModifiers =
-            asList( new SnappyServerInstaller(),
-                    new LZOServerInstaller(),
-                    new LZ4ServerInstaller(),
-                    new LZ4ValidatingServerInstaller(),
-                    new Rot13ServerInstaller() );
-
     private final NettyPipelineBuilderFactory pipelineBuilderFactory =
             new NettyPipelineBuilderFactory( VoidPipelineWrapperFactory.VOID_WRAPPER );
     private final RaftProtocolClientInstallerV1.Factory raftProtocolClientInstaller =
             new RaftProtocolClientInstallerV1.Factory( pipelineBuilderFactory, NullLogProvider.getInstance() );
     private final RaftProtocolServerInstallerV1.Factory raftProtocolServerInstaller =
             new RaftProtocolServerInstallerV1.Factory( null, pipelineBuilderFactory, NullLogProvider.getInstance() );
-
+    private List<ModifierProtocolInstaller<Orientation.Client>> clientModifiers =
+            asList( new SnappyClientInstaller(),
+                    new LZOClientInstaller(),
+                    new LZ4ClientInstaller(),
+                    new LZ4HighCompressionClientInstaller(),
+                    new Rot13ClientInstaller() );
     private final ProtocolInstallerRepository<Orientation.Client> clientRepository =
             new ProtocolInstallerRepository<>( asList( raftProtocolClientInstaller ), clientModifiers );
+    private List<ModifierProtocolInstaller<Orientation.Server>> serverModifiers =
+            asList( new SnappyServerInstaller(),
+                    new LZOServerInstaller(),
+                    new LZ4ServerInstaller(),
+                    new LZ4ValidatingServerInstaller(),
+                    new Rot13ServerInstaller() );
     private final ProtocolInstallerRepository<Orientation.Server> serverRepository =
             new ProtocolInstallerRepository<>( asList( raftProtocolServerInstaller ), serverModifiers );
 
@@ -127,7 +124,7 @@ public class ProtocolInstallerRepositoryTest
         Collection<Collection<Protocol.ModifierProtocol>> actual = clientRepository.installerFor( protocolStack ).modifiers();
 
         // then
-        assertThat( actual, contains( containsInAnyOrder( expected, alsoSupported ) )) ;
+        assertThat( actual, contains( containsInAnyOrder( expected, alsoSupported ) ) );
     }
 
     @Test
@@ -143,7 +140,7 @@ public class ProtocolInstallerRepositoryTest
         Collection<Collection<Protocol.ModifierProtocol>> actual = serverRepository.installerFor( protocolStack ).modifiers();
 
         // then
-        assertThat( actual, contains( containsInAnyOrder( expected, alsoSupported ) )) ;
+        assertThat( actual, contains( containsInAnyOrder( expected, alsoSupported ) ) );
     }
 
     @Test
@@ -237,19 +234,12 @@ public class ProtocolInstallerRepositoryTest
             super( "lz4", null, TestModifierProtocols.LZ4, TestModifierProtocols.LZ4_VALIDATING );
         }
     }
+
     private static class LZ4HighCompressionClientInstaller extends ModifierProtocolInstaller.BaseClientModifier
     {
         private LZ4HighCompressionClientInstaller()
         {
             super( "lz4", null, TestModifierProtocols.LZ4_HIGH_COMPRESSION, TestModifierProtocols.LZ4_HIGH_COMPRESSION_VALIDATING );
-        }
-    }
-
-    private class Rot13ClientInstaller extends ModifierProtocolInstaller.BaseClientModifier
-    {
-        Rot13ClientInstaller()
-        {
-            super( "rot13", null, TestModifierProtocols.ROT13 );
         }
     }
 
@@ -282,6 +272,14 @@ public class ProtocolInstallerRepositoryTest
         private LZ4ValidatingServerInstaller()
         {
             super( "lz4", null, TestModifierProtocols.LZ4_VALIDATING, TestModifierProtocols.LZ4_HIGH_COMPRESSION_VALIDATING );
+        }
+    }
+
+    private class Rot13ClientInstaller extends ModifierProtocolInstaller.BaseClientModifier
+    {
+        Rot13ClientInstaller()
+        {
+            super( "rot13", null, TestModifierProtocols.ROT13 );
         }
     }
 

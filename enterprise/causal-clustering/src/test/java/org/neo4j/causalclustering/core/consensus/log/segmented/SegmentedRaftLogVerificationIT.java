@@ -50,9 +50,9 @@ public class SegmentedRaftLogVerificationIT extends RaftLogVerificationIT
                 new CoreLogPruningStrategyFactory( raft_log_pruning_strategy.getDefaultValue(), logProvider )
                         .newInstance();
         SegmentedRaftLog newRaftLog = new SegmentedRaftLog( fsa, directory, rotateAtSizeBytes,
-                new DummyRaftableContentSerializer(), logProvider, readerPoolSize, Clocks.systemClock(),
-                new OnDemandJobScheduler(),
-                pruningStrategy );
+                                                            new DummyRaftableContentSerializer(), logProvider, readerPoolSize, Clocks.systemClock(),
+                                                            new OnDemandJobScheduler(),
+                                                            pruningStrategy );
 
         newRaftLog.init();
         newRaftLog.start();

@@ -43,6 +43,6 @@ public class SegmentedConcurrentStressIT extends ConcurrentStressIT<SegmentedRaf
                 new CoreLogPruningStrategyFactory( raft_log_pruning_strategy.getDefaultValue(), logProvider )
                         .newInstance();
         return new SegmentedRaftLog( fsa, dir, rotateAtSize, new DummyRaftableContentSerializer(), logProvider,
-                readerPoolSize, Clocks.fakeClock(), new OnDemandJobScheduler(), pruningStrategy );
+                                     readerPoolSize, Clocks.fakeClock(), new OnDemandJobScheduler(), pruningStrategy );
     }
 }

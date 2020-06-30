@@ -52,6 +52,24 @@ class TopologyServiceThatPrioritisesItself implements TopologyService
         this.matchingGroupName = matchingGroupName;
     }
 
+    private static CoreServerInfo coreServerInfo( String... groupNames )
+    {
+        AdvertisedSocketAddress anyRaftAddress = new AdvertisedSocketAddress( "hostname", 1234 );
+        AdvertisedSocketAddress anyCatchupServer = new AdvertisedSocketAddress( "hostname", 5678 );
+        ClientConnectorAddresses clientConnectorAddress = new ClientConnectorAddresses( Collections.emptyList() );
+        Set<String> groups = new HashSet<>( Arrays.asList( groupNames ) );
+        return new CoreServerInfo( anyRaftAddress, anyCatchupServer, clientConnectorAddress, groups, "dbName", false );
+    }
+
+    private static ReadReplicaInfo readReplicaInfo( String... groupNames )
+    {
+        ClientConnectorAddresses clientConnectorAddresses = new ClientConnectorAddresses( Collections.emptyList() );
+        AdvertisedSocketAddress catchupServerAddress = new AdvertisedSocketAddress( "hostname", 2468 );
+        Set<String> groups = new HashSet<>( Arrays.asList( groupNames ) );
+        ReadReplicaInfo readReplicaInfo = new ReadReplicaInfo( clientConnectorAddresses, catchupServerAddress, groups, "dbName" );
+        return readReplicaInfo;
+    }
+
     @Override
     public String localDBName()
     {
@@ -125,23 +143,5 @@ class TopologyServiceThatPrioritisesItself implements TopologyService
     @Override
     public void shutdown() throws Throwable
     {
-    }
-
-    private static CoreServerInfo coreServerInfo( String... groupNames )
-    {
-        AdvertisedSocketAddress anyRaftAddress = new AdvertisedSocketAddress( "hostname", 1234 );
-        AdvertisedSocketAddress anyCatchupServer = new AdvertisedSocketAddress( "hostname", 5678 );
-        ClientConnectorAddresses clientConnectorAddress = new ClientConnectorAddresses( Collections.emptyList() );
-        Set<String> groups = new HashSet<>( Arrays.asList( groupNames ) );
-        return new CoreServerInfo( anyRaftAddress, anyCatchupServer, clientConnectorAddress, groups, "dbName", false );
-    }
-
-    private static ReadReplicaInfo readReplicaInfo( String... groupNames )
-    {
-        ClientConnectorAddresses clientConnectorAddresses = new ClientConnectorAddresses( Collections.emptyList() );
-        AdvertisedSocketAddress catchupServerAddress = new AdvertisedSocketAddress( "hostname", 2468 );
-        Set<String> groups = new HashSet<>( Arrays.asList( groupNames ) );
-        ReadReplicaInfo readReplicaInfo = new ReadReplicaInfo( clientConnectorAddresses, catchupServerAddress, groups, "dbName" );
-        return readReplicaInfo;
     }
 }

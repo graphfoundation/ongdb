@@ -35,7 +35,6 @@ import org.neo4j.logging.NullLog;
 import org.neo4j.time.Clocks;
 
 import static java.util.Arrays.asList;
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.neo4j.causalclustering.core.consensus.membership.RaftMembershipState.Marshal;
 import static org.neo4j.causalclustering.identity.RaftTestMemberSetBuilder.INSTANCE;

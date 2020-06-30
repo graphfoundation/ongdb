@@ -19,14 +19,14 @@
 package org.neo4j.causalclustering.catchup.storecopy;
 
 import io.netty.channel.embedded.EmbeddedChannel;
-import java.io.IOException;
-import java.util.function.BooleanSupplier;
 import org.junit.Before;
 import org.junit.Test;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 
 import org.neo4j.causalclustering.catchup.CatchupServerProtocol;
@@ -78,7 +78,7 @@ public class StoreCopyRequestHandlerTest
         catchupServerProtocol.expect( CatchupServerProtocol.State.GET_STORE_FILE );
         StoreCopyRequestHandler storeCopyRequestHandler =
                 new NiceStoreCopyRequestHandler( catchupServerProtocol, () -> neoStoreDataSource, new StoreFileStreamingProtocol(),
-                        fileSystemAbstraction, NullLogProvider.getInstance() );
+                                                 fileSystemAbstraction, NullLogProvider.getInstance() );
         Dependencies dependencies = new Dependencies();
         when( neoStoreDataSource.getStoreId() ).thenReturn( new org.neo4j.storageengine.api.StoreId( 1, 2, 5, 3, 4 ) );
         when( neoStoreDataSource.getDependencyResolver() ).thenReturn( dependencies );
@@ -136,7 +136,7 @@ public class StoreCopyRequestHandlerTest
     {
         EmbeddedChannel alternativeChannel = new EmbeddedChannel(
                 new EvilStoreCopyRequestHandler( catchupServerProtocol, () -> neoStoreDataSource, new StoreFileStreamingProtocol(),
-                        fileSystemAbstraction, NullLogProvider.getInstance() ) );
+                                                 fileSystemAbstraction, NullLogProvider.getInstance() ) );
         try
         {
             alternativeChannel.writeInbound( new GetStoreFileRequest( STORE_ID_MATCHING, new File( "some-file" ), 1 ) );
@@ -178,11 +178,21 @@ public class StoreCopyRequestHandlerTest
         assertEquals( 1, checkPointer.failCounter.get() );
     }
 
+    static class FakeSingleThreadedJobScheduler extends JobSchedulerAdapter
+    {
+        @Override
+        public JobHandle schedule( Group group, Runnable job )
+        {
+            job.run();
+            return mock( JobHandle.class );
+        }
+    }
+
     private class NiceStoreCopyRequestHandler extends StoreCopyRequestHandler<StoreCopyRequest>
     {
         private NiceStoreCopyRequestHandler( CatchupServerProtocol protocol, Supplier<NeoStoreDataSource> dataSource,
-                StoreFileStreamingProtocol storeFileStreamingProtocol,
-                FileSystemAbstraction fs, LogProvider logProvider )
+                                             StoreFileStreamingProtocol storeFileStreamingProtocol,
+                                             FileSystemAbstraction fs, LogProvider logProvider )
         {
             super( protocol, dataSource, checkPointerService, storeFileStreamingProtocol, fs, logProvider );
         }
@@ -197,7 +207,7 @@ public class StoreCopyRequestHandlerTest
     private class EvilStoreCopyRequestHandler extends StoreCopyRequestHandler<StoreCopyRequest>
     {
         private EvilStoreCopyRequestHandler( CatchupServerProtocol protocol, Supplier<NeoStoreDataSource> dataSource,
-                StoreFileStreamingProtocol storeFileStreamingProtocol, FileSystemAbstraction fs, LogProvider logProvider )
+                                             StoreFileStreamingProtocol storeFileStreamingProtocol, FileSystemAbstraction fs, LogProvider logProvider )
         {
             super( protocol, dataSource, checkPointerService, storeFileStreamingProtocol, fs, logProvider );
         }
@@ -235,7 +245,7 @@ public class StoreCopyRequestHandlerTest
 
         @Override
         public long tryCheckPoint( TriggerInfo triggerInfo, BooleanSupplier timeout )
-            throws IOException
+                throws IOException
         {
             return tryCheckPoint( triggerInfo, () -> false );
         }
@@ -262,16 +272,6 @@ public class StoreCopyRequestHandlerTest
                 return;
             }
             failCounter.getAndIncrement();
-        }
-    }
-
-    static class FakeSingleThreadedJobScheduler extends JobSchedulerAdapter
-    {
-        @Override
-        public JobHandle schedule( Group group, Runnable job )
-        {
-            job.run();
-            return mock( JobHandle.class );
         }
     }
 }

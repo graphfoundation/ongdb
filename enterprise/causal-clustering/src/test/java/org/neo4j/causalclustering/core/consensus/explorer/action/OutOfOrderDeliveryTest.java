@@ -24,7 +24,6 @@ import org.neo4j.causalclustering.core.consensus.RaftMessages.Timeout.Election;
 import org.neo4j.causalclustering.core.consensus.RaftMessages.Timeout.Heartbeat;
 import org.neo4j.causalclustering.core.consensus.explorer.ClusterState;
 
-import static org.junit.Assert.assertEquals;
 import static org.neo4j.causalclustering.identity.RaftTestMember.member;
 import static org.neo4j.helpers.collection.Iterators.asSet;
 

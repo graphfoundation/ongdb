@@ -26,8 +26,8 @@ import org.junit.runners.Parameterized;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.neo4j.causalclustering.helper.SuspendableLifecycleStateTestHelpers.SuspendedState;
 import org.neo4j.causalclustering.helper.SuspendableLifecycleStateTestHelpers.LifeCycleState;
+import org.neo4j.causalclustering.helper.SuspendableLifecycleStateTestHelpers.SuspendedState;
 import org.neo4j.logging.NullLogProvider;
 
 import static org.junit.Assert.assertEquals;
@@ -47,6 +47,7 @@ public class SuspendableLifeCycleSuspendedStateChangeTest
 
     @Parameterized.Parameter( 3 )
     public LifeCycleState shouldEndInState;
+    private StateAwareSuspendableLifeCycle lifeCycle;
 
     @Parameterized.Parameters( name = "From {0} and {1} to {2} should end in {3}" )
     public static Iterable<Object[]> data()
@@ -59,34 +60,16 @@ public class SuspendableLifeCycleSuspendedStateChangeTest
                 for ( SuspendedState toSuspendedState : toSuspendedState() )
                 {
                     params.add( new Object[]{lifeCycleState, suspendedState, toSuspendedState,
-                            expectedResult( lifeCycleState, suspendedState, toSuspendedState )} );
+                                             expectedResult( lifeCycleState, suspendedState, toSuspendedState )} );
                 }
             }
         }
         return params;
     }
 
-    private StateAwareSuspendableLifeCycle lifeCycle;
-
     private static SuspendedState[] toSuspendedState()
     {
         return new SuspendedState[]{SuspendedState.Enabled, SuspendedState.Disabled};
-    }
-
-    @Before
-    public void setUpServer() throws Throwable
-    {
-        lifeCycle = new StateAwareSuspendableLifeCycle( NullLogProvider.getInstance()
-                                                                .getLog( "log" ) );
-        setInitialState( lifeCycle, fromState );
-        fromSuspendedState.set( lifeCycle );
-    }
-
-    @Test
-    public void changeSuspendedState() throws Throwable
-    {
-        toSuspendedState.set( lifeCycle );
-        assertEquals( shouldEndInState, lifeCycle.status );
     }
 
     private static LifeCycleState expectedResult( LifeCycleState fromState, SuspendedState fromSuspendedState, SuspendedState toSuspendedState )
@@ -110,5 +93,21 @@ public class SuspendableLifeCycleSuspendedStateChangeTest
         {
             throw new IllegalStateException( "Should not transition to any other state got: " + toSuspendedState );
         }
+    }
+
+    @Before
+    public void setUpServer() throws Throwable
+    {
+        lifeCycle = new StateAwareSuspendableLifeCycle( NullLogProvider.getInstance()
+                                                                       .getLog( "log" ) );
+        setInitialState( lifeCycle, fromState );
+        fromSuspendedState.set( lifeCycle );
+    }
+
+    @Test
+    public void changeSuspendedState() throws Throwable
+    {
+        toSuspendedState.set( lifeCycle );
+        assertEquals( shouldEndInState, lifeCycle.status );
     }
 }

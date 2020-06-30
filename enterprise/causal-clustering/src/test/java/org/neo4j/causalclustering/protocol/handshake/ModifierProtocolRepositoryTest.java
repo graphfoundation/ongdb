@@ -59,7 +59,7 @@ public class ModifierProtocolRepositoryTest
         );
 
         // then
-        assertThat( modifierProtocol.map( Protocol::implementation), OptionalMatchers.contains( LZO.implementation() ) );
+        assertThat( modifierProtocol.map( Protocol::implementation ), OptionalMatchers.contains( LZO.implementation() ) );
     }
 
     @Test
@@ -75,7 +75,7 @@ public class ModifierProtocolRepositoryTest
                 modifierProtocolRepository.select( COMPRESSION.canonicalName(), asSet( TestProtocols.TestModifierProtocols.allVersionsOf( COMPRESSION ) ) );
 
         // then
-        assertThat( modifierProtocol.map( Protocol::implementation), OptionalMatchers.contains( LZO.implementation() ) );
+        assertThat( modifierProtocol.map( Protocol::implementation ), OptionalMatchers.contains( LZO.implementation() ) );
     }
 
     @Test
@@ -86,9 +86,9 @@ public class ModifierProtocolRepositoryTest
 
         Comparator<Protocol.ModifierProtocol> comparator =
                 ModifierProtocolRepository.getModifierProtocolComparator( supportedProtocols )
-                .apply( COMPRESSION.canonicalName() );
+                                          .apply( COMPRESSION.canonicalName() );
 
-        assertThat( comparator.compare( LZO, TestProtocols.TestModifierProtocols.SNAPPY ), Matchers.greaterThan( 0 )  );
-        assertThat( comparator.compare( TestProtocols.TestModifierProtocols.SNAPPY, TestProtocols.TestModifierProtocols.LZ4 ), Matchers.greaterThan( 0 )  );
+        assertThat( comparator.compare( LZO, TestProtocols.TestModifierProtocols.SNAPPY ), Matchers.greaterThan( 0 ) );
+        assertThat( comparator.compare( TestProtocols.TestModifierProtocols.SNAPPY, TestProtocols.TestModifierProtocols.LZ4 ), Matchers.greaterThan( 0 ) );
     }
 }

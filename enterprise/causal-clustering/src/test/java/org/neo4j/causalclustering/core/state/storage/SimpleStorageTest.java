@@ -28,8 +28,6 @@ import org.neo4j.causalclustering.identity.MemberId;
 import org.neo4j.logging.NullLogProvider;
 import org.neo4j.test.rule.fs.EphemeralFileSystemRule;
 
-import static org.junit.Assert.assertEquals;
-
 public class SimpleStorageTest
 {
     @Rule
@@ -40,7 +38,7 @@ public class SimpleStorageTest
     {
         // given
         SimpleStorage<MemberId> storage = new SimpleFileStorage<>( fsa.get(), new File( "state-dir" ),
-                "member-id-a", new MemberId.Marshal(), NullLogProvider.getInstance() );
+                                                                   "member-id-a", new MemberId.Marshal(), NullLogProvider.getInstance() );
 
         // when
         MemberId idA = new MemberId( UUID.randomUUID() );

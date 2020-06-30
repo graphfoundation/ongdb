@@ -26,8 +26,6 @@ import org.neo4j.causalclustering.identity.MemberId;
 import org.neo4j.helpers.collection.FilteringIterable;
 import org.neo4j.helpers.collection.Iterables;
 
-import static java.lang.String.format;
-
 public class MessageUtils
 {
     private MessageUtils()
@@ -40,12 +38,12 @@ public class MessageUtils
         try
         {
             return Iterables.single( new FilteringIterable<>( outcome.getOutgoingMessages(), selectMember ) )
-                        .message();
+                            .message();
         }
         catch ( NoSuchElementException e )
         {
             throw new AssertionError( format( "Expected message for %s, but outcome only contains %s.",
-                    member, outcome.getOutgoingMessages() ) );
+                                              member, outcome.getOutgoingMessages() ) );
         }
     }
 }

@@ -40,18 +40,6 @@ class FakeFile
         this.content = content;
     }
 
-    public void setFilename( String filename )
-    {
-        this.filename = filename;
-        this.file = getRelativePath().resolve( filename ).toFile();
-    }
-
-    public void setFile( File file )
-    {
-        this.filename = file.getName();
-        this.file = file;
-    }
-
     private Path getRelativePath()
     {
         return Optional.ofNullable( relativePath ).orElse( new File( "." ).toPath() );
@@ -62,9 +50,21 @@ class FakeFile
         return file;
     }
 
+    public void setFile( File file )
+    {
+        this.filename = file.getName();
+        this.file = file;
+    }
+
     public String getFilename()
     {
         return filename;
+    }
+
+    public void setFilename( String filename )
+    {
+        this.filename = filename;
+        this.file = getRelativePath().resolve( filename ).toFile();
     }
 
     public String getContent()

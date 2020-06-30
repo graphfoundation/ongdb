@@ -45,8 +45,6 @@ import org.neo4j.causalclustering.messaging.NetworkReadableClosableChannelNetty4
 import org.neo4j.causalclustering.messaging.marshalling.ChannelMarshal;
 import org.neo4j.causalclustering.messaging.marshalling.CoreReplicatedContentMarshal;
 
-import static org.junit.Assert.assertEquals;
-
 @RunWith( Parameterized.class )
 public class CoreReplicatedContentMarshallingTest
 {
@@ -60,13 +58,13 @@ public class CoreReplicatedContentMarshallingTest
     public static ReplicatedContent[] data()
     {
         return new ReplicatedContent[]{new DummyRequest( new byte[]{1, 2, 3} ), ReplicatedTransaction.from( new byte[16 * 1024] ),
-                new MemberIdSet( new HashSet<MemberId>()
-                {{
-                    add( new MemberId( UUID.randomUUID() ) );
-                }} ), new ReplicatedTokenRequest( TokenType.LABEL, "token", new byte[]{'c', 'o', 5} ), new NewLeaderBarrier(),
-                new ReplicatedLockTokenRequest( new MemberId( UUID.randomUUID() ), 2 ), new DistributedOperation(
+                                       new MemberIdSet( new HashSet<MemberId>()
+                                       {{
+                                           add( new MemberId( UUID.randomUUID() ) );
+                                       }} ), new ReplicatedTokenRequest( TokenType.LABEL, "token", new byte[]{'c', 'o', 5} ), new NewLeaderBarrier(),
+                                       new ReplicatedLockTokenRequest( new MemberId( UUID.randomUUID() ), 2 ), new DistributedOperation(
                 new DistributedOperation( ReplicatedTransaction.from( new byte[]{1, 2, 3, 4, 5, 6} ),
-                        new GlobalSession( UUID.randomUUID(), new MemberId( UUID.randomUUID() ) ), new LocalOperationId( 1, 2 ) ),
+                                          new GlobalSession( UUID.randomUUID(), new MemberId( UUID.randomUUID() ) ), new LocalOperationId( 1, 2 ) ),
                 new GlobalSession( UUID.randomUUID(), new MemberId( UUID.randomUUID() ) ), new LocalOperationId( 4, 5 ) )};
     }
 

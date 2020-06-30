@@ -31,29 +31,30 @@ import org.neo4j.ports.allocation.PortAuthority;
 public class EnterpriseCluster extends Cluster<DiscoveryServiceFactory>
 {
     public EnterpriseCluster( File parentDir, int noOfCoreMembers, int noOfReadReplicas, DiscoveryServiceFactory discoveryServiceFactory,
-            Map<String,String> coreParams, Map<String,IntFunction<String>> instanceCoreParams, Map<String,String> readReplicaParams,
-            Map<String,IntFunction<String>> instanceReadReplicaParams, String recordFormat, IpFamily ipFamily, boolean useWildcard )
+                              Map<String,String> coreParams, Map<String,IntFunction<String>> instanceCoreParams, Map<String,String> readReplicaParams,
+                              Map<String,IntFunction<String>> instanceReadReplicaParams, String recordFormat, IpFamily ipFamily, boolean useWildcard )
     {
         super( parentDir, noOfCoreMembers, noOfReadReplicas, discoveryServiceFactory, coreParams, instanceCoreParams, readReplicaParams,
-                instanceReadReplicaParams, recordFormat, ipFamily, useWildcard );
+               instanceReadReplicaParams, recordFormat, ipFamily, useWildcard );
     }
 
     public EnterpriseCluster( File parentDir, int noOfCoreMembers, int noOfReadReplicas, DiscoveryServiceFactory discoveryServiceFactory,
-            Map<String,String> coreParams, Map<String,IntFunction<String>> instanceCoreParams, Map<String,String> readReplicaParams,
-            Map<String,IntFunction<String>> instanceReadReplicaParams, String recordFormat, IpFamily ipFamily, boolean useWildcard, Set<String> dbNames )
+                              Map<String,String> coreParams, Map<String,IntFunction<String>> instanceCoreParams, Map<String,String> readReplicaParams,
+                              Map<String,IntFunction<String>> instanceReadReplicaParams, String recordFormat, IpFamily ipFamily, boolean useWildcard,
+                              Set<String> dbNames )
     {
         super( parentDir, noOfCoreMembers, noOfReadReplicas, discoveryServiceFactory, coreParams, instanceCoreParams, readReplicaParams,
-                instanceReadReplicaParams, recordFormat, ipFamily, useWildcard, dbNames );
+               instanceReadReplicaParams, recordFormat, ipFamily, useWildcard, dbNames );
     }
 
     @Override
     protected CoreClusterMember createCoreClusterMember( int serverId,
-            int discoveryPort,
-            int clusterSize,
-            List<AdvertisedSocketAddress> initialHosts,
-            String recordFormat,
-            Map<String, String> extraParams,
-            Map<String, IntFunction<String>> instanceExtraParams )
+                                                         int discoveryPort,
+                                                         int clusterSize,
+                                                         List<AdvertisedSocketAddress> initialHosts,
+                                                         String recordFormat,
+                                                         Map<String,String> extraParams,
+                                                         Map<String,IntFunction<String>> instanceExtraParams )
     {
         int txPort = PortAuthority.allocatePort();
         int raftPort = PortAuthority.allocatePort();
@@ -83,11 +84,11 @@ public class EnterpriseCluster extends Cluster<DiscoveryServiceFactory>
 
     @Override
     protected ReadReplica createReadReplica( int serverId,
-            List<AdvertisedSocketAddress> initialHosts,
-            Map<String, String> extraParams,
-            Map<String, IntFunction<String>> instanceExtraParams,
-            String recordFormat,
-            Monitors monitors )
+                                             List<AdvertisedSocketAddress> initialHosts,
+                                             Map<String,String> extraParams,
+                                             Map<String,IntFunction<String>> instanceExtraParams,
+                                             String recordFormat,
+                                             Monitors monitors )
     {
         int boltPort = PortAuthority.allocatePort();
         int httpPort = PortAuthority.allocatePort();

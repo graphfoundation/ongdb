@@ -42,6 +42,10 @@ import static org.neo4j.causalclustering.identity.RaftTestMember.member;
 @RunWith( Parameterized.class )
 public class PruningTest
 {
+    @Parameterized.Parameter
+    public Role role;
+    private MemberId myself = member( 0 );
+
     @Parameterized.Parameters( name = "{0}" )
     public static Collection<Object[]> data()
     {
@@ -49,11 +53,6 @@ public class PruningTest
                 {Role.FOLLOWER}, {Role.LEADER}, {Role.CANDIDATE}
         } );
     }
-
-    @Parameterized.Parameter
-    public Role role;
-
-    private MemberId myself = member( 0 );
 
     @Test
     public void shouldGeneratePruneCommandsOnRequest() throws Exception

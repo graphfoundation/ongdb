@@ -42,7 +42,7 @@ public class RobustHazelcastWrapperTest
 
         // when
         hzWrapper.perform( hz ->
-        { /* nothing*/ } );
+                           { /* nothing*/ } );
 
         // then
         verify( connector, times( 1 ) ).connectToHazelcast();
@@ -51,9 +51,9 @@ public class RobustHazelcastWrapperTest
         try
         {
             hzWrapper.perform( hz ->
-            {
-                throw new com.hazelcast.core.HazelcastInstanceNotActiveException();
-            } );
+                               {
+                                   throw new com.hazelcast.core.HazelcastInstanceNotActiveException();
+                               } );
             fail();
         }
         catch ( HazelcastInstanceNotActiveException e )
@@ -63,9 +63,9 @@ public class RobustHazelcastWrapperTest
 
         // when
         hzWrapper.perform( hz ->
-        { /* nothing*/ } );
+                           { /* nothing*/ } );
         hzWrapper.perform( hz ->
-        { /* nothing*/ } );
+                           { /* nothing*/ } );
 
         // then
         verify( connector, times( 2 ) ).connectToHazelcast();

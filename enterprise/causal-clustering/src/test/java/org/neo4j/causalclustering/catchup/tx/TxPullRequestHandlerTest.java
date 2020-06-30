@@ -67,6 +67,44 @@ public class TxPullRequestHandlerTest
 
     private TxPullRequestHandler txPullRequestHandler;
 
+    private static CommittedTransactionRepresentation tx( int id )
+    {
+        return new CommittedTransactionRepresentation(
+                new LogEntryStart( id, id, id, id - 1, new byte[]{}, LogPosition.UNSPECIFIED ),
+                Commands.transactionRepresentation( createNode( 0 ) ), new LogEntryCommit( id, id ) );
+    }
+
+    private static TransactionCursor txCursor( Cursor<CommittedTransactionRepresentation> cursor )
+    {
+        return new TransactionCursor()
+        {
+            @Override
+            public LogPosition position()
+            {
+                throw new UnsupportedOperationException(
+                        "LogPosition does not apply when moving a generic cursor over a list of transactions" );
+            }
+
+            @Override
+            public boolean next()
+            {
+                return cursor.next();
+            }
+
+            @Override
+            public void close()
+            {
+                cursor.close();
+            }
+
+            @Override
+            public CommittedTransactionRepresentation get()
+            {
+                return cursor.get();
+            }
+        };
+    }
+
     @Before
     public void setUp()
     {
@@ -76,7 +114,7 @@ public class TxPullRequestHandlerTest
         when( dependencyResolver.resolveDependency( TransactionIdStore.class ) ).thenReturn( transactionIdStore );
         when( transactionIdStore.getLastCommittedTransactionId() ).thenReturn( 15L );
         txPullRequestHandler = new TxPullRequestHandler( new CatchupServerProtocol(), () -> storeId, () -> true,
-                () -> datasource, new Monitors(), logProvider );
+                                                         () -> datasource, new Monitors(), logProvider );
     }
 
     @Test
@@ -126,7 +164,7 @@ public class TxPullRequestHandlerTest
         verify( context ).write( ResponseMessageType.TX_STREAM_FINISHED );
         verify( context ).writeAndFlush( new TxStreamFinishedResponse( E_TRANSACTION_PRUNED, 15L ) );
         logProvider.assertAtLeastOnce( inLog( TxPullRequestHandler.class )
-                .info( "Failed to serve TxPullRequest for tx %d because the transaction does not exist.", 14L ) );
+                                               .info( "Failed to serve TxPullRequest for tx %d because the transaction does not exist.", 14L ) );
     }
 
     @Test
@@ -138,7 +176,7 @@ public class TxPullRequestHandlerTest
 
         TxPullRequestHandler txPullRequestHandler =
                 new TxPullRequestHandler( new CatchupServerProtocol(), () -> serverStoreId, () -> true,
-                        () -> datasource, new Monitors(), logProvider );
+                                          () -> datasource, new Monitors(), logProvider );
 
         // when
         txPullRequestHandler.channelRead0( context, new TxPullRequest( 1, clientStoreId ) );
@@ -147,8 +185,8 @@ public class TxPullRequestHandlerTest
         verify( context ).write( ResponseMessageType.TX_STREAM_FINISHED );
         verify( context ).writeAndFlush( new TxStreamFinishedResponse( E_STORE_ID_MISMATCH, 15L ) );
         logProvider.assertAtLeastOnce( inLog( TxPullRequestHandler.class )
-                .info( "Failed to serve TxPullRequest for tx %d and storeId %s because that storeId is different " +
-                        "from this machine with %s", 2L, clientStoreId, serverStoreId ) );
+                                               .info( "Failed to serve TxPullRequest for tx %d and storeId %s because that storeId is different " +
+                                                      "from this machine with %s", 2L, clientStoreId, serverStoreId ) );
     }
 
     @Test
@@ -159,7 +197,7 @@ public class TxPullRequestHandlerTest
 
         TxPullRequestHandler txPullRequestHandler =
                 new TxPullRequestHandler( new CatchupServerProtocol(), () -> storeId, () -> false,
-                        () -> datasource, new Monitors(), logProvider );
+                                          () -> datasource, new Monitors(), logProvider );
 
         // when
         txPullRequestHandler.channelRead0( context, new TxPullRequest( 1, storeId ) );
@@ -168,44 +206,6 @@ public class TxPullRequestHandlerTest
         verify( context ).write( ResponseMessageType.TX_STREAM_FINISHED );
         verify( context ).writeAndFlush( new TxStreamFinishedResponse( E_STORE_UNAVAILABLE, 15L ) );
         logProvider.assertAtLeastOnce( inLog( TxPullRequestHandler.class )
-                .info( "Failed to serve TxPullRequest for tx %d because the local database is unavailable.", 2L ) );
-    }
-
-    private static CommittedTransactionRepresentation tx( int id )
-    {
-        return new CommittedTransactionRepresentation(
-                new LogEntryStart( id, id, id, id - 1, new byte[]{}, LogPosition.UNSPECIFIED ),
-                Commands.transactionRepresentation( createNode( 0 ) ), new LogEntryCommit( id, id ) );
-    }
-
-    private static TransactionCursor txCursor( Cursor<CommittedTransactionRepresentation> cursor )
-    {
-        return new TransactionCursor()
-        {
-            @Override
-            public LogPosition position()
-            {
-                throw new UnsupportedOperationException(
-                        "LogPosition does not apply when moving a generic cursor over a list of transactions" );
-            }
-
-            @Override
-            public boolean next()
-            {
-                return cursor.next();
-            }
-
-            @Override
-            public void close()
-            {
-                cursor.close();
-            }
-
-            @Override
-            public CommittedTransactionRepresentation get()
-            {
-                return cursor.get();
-            }
-        };
+                                               .info( "Failed to serve TxPullRequest for tx %d because the local database is unavailable.", 2L ) );
     }
 }

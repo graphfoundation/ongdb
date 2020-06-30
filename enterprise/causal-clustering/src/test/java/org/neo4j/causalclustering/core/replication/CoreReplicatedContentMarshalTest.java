@@ -37,8 +37,8 @@ import org.neo4j.causalclustering.core.state.machines.tx.ReplicatedTransactionFa
 import org.neo4j.causalclustering.core.state.machines.tx.TransactionRepresentationReplicatedTransaction;
 import org.neo4j.causalclustering.identity.MemberId;
 import org.neo4j.causalclustering.messaging.EndOfStreamException;
-import org.neo4j.causalclustering.messaging.NetworkWritableChannel;
 import org.neo4j.causalclustering.messaging.NetworkReadableClosableChannelNetty4;
+import org.neo4j.causalclustering.messaging.NetworkWritableChannel;
 import org.neo4j.causalclustering.messaging.marshalling.ChannelMarshal;
 import org.neo4j.causalclustering.messaging.marshalling.CoreReplicatedContentMarshal;
 import org.neo4j.kernel.impl.store.id.IdType;
@@ -116,7 +116,7 @@ public class CoreReplicatedContentMarshalTest
         after.setNameId( 3232 );
         commands.add( new Command.LabelTokenCommand( before, after ) );
         ReplicatedContent message = new ReplicatedTokenRequest( TokenType.LABEL, "theLabel",
-                ReplicatedTokenRequestSerializer.commandBytes( commands ) );
+                                                                ReplicatedTokenRequestSerializer.commandBytes( commands ) );
 
         assertMarshalingEquality( buffer, message );
     }
@@ -141,7 +141,7 @@ public class CoreReplicatedContentMarshalTest
         {
             // hackishly set additional header to empty array...
             ((PhysicalTransactionRepresentation) tx).setHeader( new byte[0], tx.getMasterId(), tx.getAuthorId(), tx.getTimeStarted(),
-                    tx.getLatestCommittedTxWhenStarted(), tx.getTimeCommitted(), tx.getLockSessionId() );
+                                                                tx.getLatestCommittedTxWhenStarted(), tx.getTimeCommitted(), tx.getLockSessionId() );
             extraHeader = tx.additionalHeader();
         }
         TransactionRepresentation representation =

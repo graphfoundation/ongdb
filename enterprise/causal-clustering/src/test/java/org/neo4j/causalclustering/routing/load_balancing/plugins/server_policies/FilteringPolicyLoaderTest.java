@@ -26,8 +26,6 @@ import org.neo4j.causalclustering.routing.load_balancing.filters.Filter;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.logging.Log;
 
-import static java.lang.String.format;
-import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.mock;
 import static org.neo4j.causalclustering.core.CausalClusteringSettings.load_balancing_config;
 import static org.neo4j.causalclustering.routing.load_balancing.plugins.server_policies.FilterBuilder.filter;
@@ -35,6 +33,16 @@ import static org.neo4j.helpers.collection.MapUtil.stringMap;
 
 public class FilteringPolicyLoaderTest
 {
+    private static Map<String,String> policyNameContext( String policyName )
+    {
+        return stringMap( Policies.POLICY_KEY, policyName );
+    }
+
+    private static String configNameFor( String pluginName, String policyName )
+    {
+        return format( "%s.%s.%s", load_balancing_config.name(), pluginName, policyName );
+    }
+
     @Test
     public void shouldLoadConfiguredPolicies() throws Exception
     {
@@ -72,7 +80,7 @@ public class FilteringPolicyLoaderTest
 
                         filter().groups( "asia" ).build()
                 },
-        };
+                };
 
         Config config = Config.defaults();
 
@@ -95,15 +103,5 @@ public class FilteringPolicyLoaderTest
             Policy expectedPolicy = new FilteringPolicy( (Filter<ServerInfo>) row[2] );
             assertEquals( expectedPolicy, loadedPolicy );
         }
-    }
-
-    private static Map<String,String> policyNameContext( String policyName )
-    {
-        return stringMap( Policies.POLICY_KEY, policyName );
-    }
-
-    private static String configNameFor( String pluginName, String policyName )
-    {
-        return format( "%s.%s.%s", load_balancing_config.name(), pluginName, policyName );
     }
 }

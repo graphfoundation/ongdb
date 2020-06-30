@@ -38,12 +38,6 @@ import static org.neo4j.causalclustering.helpers.DataCreator.countNodes;
 @RunWith( Parameterized.class )
 public abstract class BaseClusterIpFamilyIT
 {
-    protected BaseClusterIpFamilyIT( DiscoveryServiceType discoveryServiceType, IpFamily ipFamily, boolean useWildcard )
-    {
-        clusterRule.withDiscoveryServiceType( discoveryServiceType );
-        clusterRule.withIpFamily( ipFamily ).useWildcard( useWildcard );
-    }
-
     @Rule
     public final ClusterRule clusterRule = new ClusterRule()
             .withNumberOfCoreMembers( 3 )
@@ -51,9 +45,15 @@ public abstract class BaseClusterIpFamilyIT
             .withSharedCoreParam( CausalClusteringSettings.disable_middleware_logging, "false" )
             .withSharedReadReplicaParam( CausalClusteringSettings.disable_middleware_logging, "false" )
             .withSharedCoreParam( CausalClusteringSettings.middleware_logging_level, "0" )
-            .withSharedReadReplicaParam( CausalClusteringSettings.middleware_logging_level, "0" );;
-
+            .withSharedReadReplicaParam( CausalClusteringSettings.middleware_logging_level, "0" );
     private Cluster<?> cluster;
+    ;
+
+    protected BaseClusterIpFamilyIT( DiscoveryServiceType discoveryServiceType, IpFamily ipFamily, boolean useWildcard )
+    {
+        clusterRule.withDiscoveryServiceType( discoveryServiceType );
+        clusterRule.withIpFamily( ipFamily ).useWildcard( useWildcard );
+    }
 
     @Before
     public void setup() throws Exception

@@ -18,12 +18,12 @@
  */
 package org.neo4j.causalclustering.core.consensus.log;
 
-import static org.junit.Assert.assertEquals;
+import org.junit.Test;
+
+import org.neo4j.kernel.impl.transaction.log.LogPosition;
+
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
-
-import org.junit.Test;
-import org.neo4j.kernel.impl.transaction.log.LogPosition;
 
 public class RaftLogMetadataCacheTest
 {
@@ -166,7 +166,7 @@ public class RaftLogMetadataCacheTest
         // i here should be insertedIndex
         assertEquals( insertedTerm, cache.getMetadata( i ).getEntryTerm() );
         i++; // to continue iteration in the rest of the deleted range
-        for (; i < cacheSize; i++ )
+        for ( ; i < cacheSize; i++ )
         {
             assertNull( cache.getMetadata( i ) );
         }

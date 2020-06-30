@@ -42,7 +42,7 @@ public class BoundedNetworkWritableChannelTest
         try
         {
             channel.put( (byte) 1 );
-            fail("Should not allow more bytes than what the limit dictates");
+            fail( "Should not allow more bytes than what the limit dictates" );
         }
         catch ( MessageTooBigException e )
         {
@@ -67,7 +67,7 @@ public class BoundedNetworkWritableChannelTest
         try
         {
             channel.put( new byte[padding * 2], padding * 2 );
-            fail("Should not allow more bytes than what the limit dictates");
+            fail( "Should not allow more bytes than what the limit dictates" );
         }
         catch ( MessageTooBigException e )
         {
@@ -103,7 +103,7 @@ public class BoundedNetworkWritableChannelTest
         try
         {
             channel.put( (byte) 0 );
-            fail("Should not allow more bytes than what the limit dictates");
+            fail( "Should not allow more bytes than what the limit dictates" );
         }
         catch ( MessageTooBigException e )
         {

@@ -70,7 +70,7 @@ public class ClusterIdAwareMessageComposerTest
         catch ( IllegalStateException e )
         {
             assertThat( e.getMessage(),
-                    containsString( "was composed without using all resources in the pipeline. Pipeline still contains Replicated contents" ) );
+                        containsString( "was composed without using all resources in the pipeline. Pipeline still contains Replicated contents" ) );
             return;
         }
         fail();

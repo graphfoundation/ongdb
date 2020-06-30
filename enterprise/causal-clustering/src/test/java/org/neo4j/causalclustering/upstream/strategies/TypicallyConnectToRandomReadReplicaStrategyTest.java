@@ -18,8 +18,6 @@
  */
 package org.neo4j.causalclustering.upstream.strategies;
 
-import org.hamcrest.core.IsNot;
-import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -37,7 +35,6 @@ import org.neo4j.logging.NullLogProvider;
 
 import static org.hamcrest.CoreMatchers.hasItem;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
@@ -46,7 +43,6 @@ import static org.neo4j.causalclustering.upstream.strategies.ConnectToRandomCore
 import static org.neo4j.causalclustering.upstream.strategies.UserDefinedConfigurationStrategyTest.fakeReadReplicaTopology;
 import static org.neo4j.causalclustering.upstream.strategies.UserDefinedConfigurationStrategyTest.fakeTopologyService;
 import static org.neo4j.causalclustering.upstream.strategies.UserDefinedConfigurationStrategyTest.memberIDs;
-import static org.neo4j.cypher.internal.codegen.CompiledConversionUtils.not;
 
 public class TypicallyConnectToRandomReadReplicaStrategyTest
 {
@@ -90,7 +86,7 @@ public class TypicallyConnectToRandomReadReplicaStrategyTest
 
         TypicallyConnectToRandomReadReplicaStrategy typicallyConnectToRandomReadReplicaStrategy = new TypicallyConnectToRandomReadReplicaStrategy();
         typicallyConnectToRandomReadReplicaStrategy.inject( new TopologyServiceThatPrioritisesItself( myself, groupName ), config,
-                NullLogProvider.getInstance(), myself );
+                                                            NullLogProvider.getInstance(), myself );
 
         // when
         Optional<MemberId> found = typicallyConnectToRandomReadReplicaStrategy.upstreamDatabase();
@@ -133,10 +129,10 @@ public class TypicallyConnectToRandomReadReplicaStrategyTest
 
         // when we collect enough results to feel confident of random values
         List<MemberId> found = IntStream.range( 0, 20 )
-                .mapToObj( i -> connectionStrategy.upstreamDatabase() )
-                .filter( Optional::isPresent )
-                .map( Optional::get )
-                .collect( Collectors.toList() );
+                                        .mapToObj( i -> connectionStrategy.upstreamDatabase() )
+                                        .filter( Optional::isPresent )
+                                        .map( Optional::get )
+                                        .collect( Collectors.toList() );
 
         // then
         assertFalse( found.contains( myself ) );

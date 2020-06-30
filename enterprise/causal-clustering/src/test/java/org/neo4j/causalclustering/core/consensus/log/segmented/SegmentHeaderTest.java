@@ -18,13 +18,12 @@
  */
 package org.neo4j.causalclustering.core.consensus.log.segmented;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
-
 import org.junit.Test;
 
 import org.neo4j.causalclustering.messaging.EndOfStreamException;
 import org.neo4j.kernel.impl.transaction.log.InMemoryClosableChannel;
+
+import static org.junit.Assert.fail;
 
 public class SegmentHeaderTest
 {

@@ -77,7 +77,7 @@ public class CoreStateDownloaderServiceTest
         final Log log = mock( Log.class );
         CoreStateDownloaderService coreStateDownloaderService =
                 new CoreStateDownloaderService( centralJobScheduler, coreStateDownloader, applicationProcess,
-                        logProvider( log ), new NoTimeout(), () -> dbHealth, new Monitors() );
+                                                logProvider( log ), new NoTimeout(), () -> dbHealth, new Monitors() );
         coreStateDownloaderService.scheduleDownload( catchupAddressProvider );
         waitForApplierToResume( applicationProcess );
 
@@ -98,7 +98,7 @@ public class CoreStateDownloaderServiceTest
         final Log log = mock( Log.class );
         CoreStateDownloaderService coreStateDownloaderService =
                 new CoreStateDownloaderService( countingJobScheduler, coreStateDownloader, applicationProcess,
-                        logProvider( log ), new NoTimeout(), () -> dbHealth, new Monitors() );
+                                                logProvider( log ), new NoTimeout(), () -> dbHealth, new Monitors() );
 
         coreStateDownloaderService.scheduleDownload( catchupAddressProvider );
         Thread.sleep( 50 );
@@ -110,39 +110,20 @@ public class CoreStateDownloaderServiceTest
         blockDownloader.release();
     }
 
-    static class BlockingCoreStateDownloader extends CoreStateDownloader
-    {
-        private final Semaphore semaphore;
-
-        BlockingCoreStateDownloader( Semaphore semaphore )
-        {
-            super( null, null, null, null, NullLogProvider.getInstance(), null,
-                    null, null, null );
-            this.semaphore = semaphore;
-        }
-
-        @Override
-        boolean downloadSnapshot( CatchupAddressProvider addressProvider )
-        {
-            semaphore.acquireUninterruptibly();
-            return true;
-        }
-    }
-
     private void waitForApplierToResume( CommandApplicationProcess applicationProcess ) throws TimeoutException
     {
         Predicates.await( () ->
-        {
-            try
-            {
-                verify( applicationProcess, times( 1 ) ).resumeApplier( OPERATION_NAME );
-                return true;
-            }
-            catch ( Throwable t )
-            {
-                return false;
-            }
-        }, 20, TimeUnit.SECONDS );
+                          {
+                              try
+                              {
+                                  verify( applicationProcess, times( 1 ) ).resumeApplier( OPERATION_NAME );
+                                  return true;
+                              }
+                              catch ( Throwable t )
+                              {
+                                  return false;
+                              }
+                          }, 20, TimeUnit.SECONDS );
     }
 
     private LogProvider logProvider( Log log )
@@ -161,5 +142,24 @@ public class CoreStateDownloaderServiceTest
                 return log;
             }
         };
+    }
+
+    static class BlockingCoreStateDownloader extends CoreStateDownloader
+    {
+        private final Semaphore semaphore;
+
+        BlockingCoreStateDownloader( Semaphore semaphore )
+        {
+            super( null, null, null, null, NullLogProvider.getInstance(), null,
+                   null, null, null );
+            this.semaphore = semaphore;
+        }
+
+        @Override
+        boolean downloadSnapshot( CatchupAddressProvider addressProvider )
+        {
+            semaphore.acquireUninterruptibly();
+            return true;
+        }
     }
 }

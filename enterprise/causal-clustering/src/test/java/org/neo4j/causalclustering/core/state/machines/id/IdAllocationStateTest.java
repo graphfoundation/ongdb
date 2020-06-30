@@ -26,7 +26,6 @@ import org.neo4j.causalclustering.messaging.EndOfStreamException;
 import org.neo4j.kernel.impl.store.id.IdType;
 import org.neo4j.kernel.impl.transaction.log.InMemoryVersionableReadableClosablePositionAwareChannel;
 
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
 public class IdAllocationStateTest

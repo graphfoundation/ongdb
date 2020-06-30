@@ -41,8 +41,6 @@ import org.neo4j.storageengine.api.ReadPastEndException;
 import org.neo4j.storageengine.api.ReadableChannel;
 import org.neo4j.storageengine.api.WritableChannel;
 
-import static org.junit.Assert.assertEquals;
-
 @RunWith( MockitoJUnitRunner.class )
 public class RaftMessageProcessingTest
 {
@@ -69,11 +67,11 @@ public class RaftMessageProcessingTest
             final ReplicatedContent content;
             switch ( type )
             {
-                case 1:
-                    content = ReplicatedInteger.valueOf( channel.getInt() );
-                    break;
-                default:
-                    throw new IllegalArgumentException( String.format( "Unknown content type 0x%x", type ) );
+            case 1:
+                content = ReplicatedInteger.valueOf( channel.getInt() );
+                break;
+            default:
+                throw new IllegalArgumentException( String.format( "Unknown content type 0x%x", type ) );
             }
 
             try
@@ -137,7 +135,7 @@ public class RaftMessageProcessingTest
         RaftLogEntry logEntry = new RaftLogEntry( 1, ReplicatedInteger.valueOf( 1 ) );
         RaftMessages.AppendEntries.Request request =
                 new RaftMessages.AppendEntries.Request(
-                        member, 1, 1, 99, new RaftLogEntry[] { logEntry }, 1 );
+                        member, 1, 1, 99, new RaftLogEntry[]{logEntry}, 1 );
 
         // when
         channel.writeOutbound( request );

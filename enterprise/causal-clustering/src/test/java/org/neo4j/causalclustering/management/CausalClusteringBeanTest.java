@@ -44,7 +44,6 @@ import org.neo4j.kernel.internal.KernelData;
 import org.neo4j.management.CausalClustering;
 import org.neo4j.test.rule.TestDirectory;
 
-import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.neo4j.causalclustering.core.consensus.log.RaftLog.RAFT_LOG_DIRECTORY_NAME;
@@ -53,14 +52,13 @@ import static org.neo4j.causalclustering.core.state.machines.CoreStateMachinesMo
 
 public class CausalClusteringBeanTest
 {
+    @Rule
+    public final TestDirectory testDirectory = TestDirectory.testDirectory();
     private final FileSystemAbstraction fs = new EphemeralFileSystemAbstraction();
     private final File dataDir = new File( "dataDir" );
     private final ClusterStateDirectory clusterStateDirectory = ClusterStateDirectory.withoutInitializing( dataDir );
     private final RaftMachine raftMachine = mock( RaftMachine.class );
     private CausalClustering ccBean;
-
-    @Rule
-    public final TestDirectory testDirectory = TestDirectory.testDirectory();
 
     @Before
     public void setUp()

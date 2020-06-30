@@ -32,7 +32,6 @@ import org.neo4j.logging.LogProvider;
 import org.neo4j.test.OnDemandJobScheduler;
 import org.neo4j.time.Clocks;
 
-import static org.junit.Assert.assertEquals;
 import static org.neo4j.causalclustering.core.consensus.ReplicatedInteger.valueOf;
 import static org.neo4j.causalclustering.core.consensus.log.RaftLog.RAFT_LOG_DIRECTORY_NAME;
 import static org.neo4j.logging.NullLogProvider.getInstance;
@@ -134,8 +133,9 @@ public class SegmentedRaftLogRotationTruncationPruneTest
         CoreLogPruningStrategy pruningStrategy =
                 new CoreLogPruningStrategyFactory( "1 entries", logProvider ).newInstance();
         SegmentedRaftLog newRaftLog = new SegmentedRaftLog( fileSystem, directory, 1,
-                new DummyRaftableContentSerializer(), logProvider, 8, Clocks.fakeClock(), new OnDemandJobScheduler(),
-                pruningStrategy );
+                                                            new DummyRaftableContentSerializer(), logProvider, 8, Clocks.fakeClock(),
+                                                            new OnDemandJobScheduler(),
+                                                            pruningStrategy );
 
         newRaftLog.start();
         return newRaftLog;

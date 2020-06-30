@@ -43,21 +43,18 @@ import static org.junit.Assert.assertTrue;
 
 public class ReplicatedIdRangeAcquirerTest
 {
-    @Rule
-    public TestDirectory testDirectory = TestDirectory.testDirectory();
-    @Rule
-    public FileSystemRule defaultFileSystemRule = new DefaultFileSystemRule();
-
     private final MemberId memberA =
             new MemberId( UUID.randomUUID() );
     private final MemberId memberB =
             new MemberId( UUID.randomUUID() );
-
     private final ReplicatedIdAllocationStateMachine idAllocationStateMachine = new ReplicatedIdAllocationStateMachine(
             new InMemoryStateStorage<>( new IdAllocationState() ) );
-
     private final DirectReplicator<ReplicatedIdAllocationRequest> replicator =
             new DirectReplicator<>( idAllocationStateMachine );
+    @Rule
+    public TestDirectory testDirectory = TestDirectory.testDirectory();
+    @Rule
+    public FileSystemRule defaultFileSystemRule = new DefaultFileSystemRule();
 
     @Test
     public void consecutiveAllocationsFromSeparateIdGeneratorsForSameIdTypeShouldNotDuplicateWhenInitialIdIsZero()
@@ -103,18 +100,17 @@ public class ReplicatedIdRangeAcquirerTest
                 assertTrue( "Detected gap in id generation, missing " + (newId - 1), idAllocations.contains( newId - 1 ) );
             }
         }
-
     }
 
     private ReplicatedIdGenerator createForMemberWithInitialIdAndRangeLength( MemberId member, long initialHighId,
-            int idRangeLength, FileSystemAbstraction fs, File file )
+                                                                              int idRangeLength, FileSystemAbstraction fs, File file )
     {
         Map<IdType,Integer> allocationSizes =
                 Arrays.stream( IdType.values() ).collect( Collectors.toMap( idType -> idType, idType -> idRangeLength ) );
         ReplicatedIdRangeAcquirer acquirer = new ReplicatedIdRangeAcquirer( replicator, idAllocationStateMachine,
-                allocationSizes, member, NullLogProvider.getInstance() );
+                                                                            allocationSizes, member, NullLogProvider.getInstance() );
 
         return new ReplicatedIdGenerator( fs, file, IdType.ARRAY_BLOCK, () -> initialHighId, acquirer,
-                NullLogProvider.getInstance(), 10, true );
+                                          NullLogProvider.getInstance(), 10, true );
     }
 }

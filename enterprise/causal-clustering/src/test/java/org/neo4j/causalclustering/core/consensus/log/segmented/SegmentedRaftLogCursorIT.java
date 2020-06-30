@@ -68,9 +68,9 @@ public class SegmentedRaftLogCursorIT
                 new CoreLogPruningStrategyFactory( pruneStrategy, logProvider ).newInstance();
         SegmentedRaftLog newRaftLog =
                 new SegmentedRaftLog( fileSystem, directory, rotateAtSize, new DummyRaftableContentSerializer(),
-                        logProvider, 8, Clocks.systemClock(),
-                        new OnDemandJobScheduler(),
-                        pruningStrategy );
+                                      logProvider, 8, Clocks.systemClock(),
+                                      new OnDemandJobScheduler(),
+                                      pruningStrategy );
 
         life.add( newRaftLog );
         life.init();

@@ -45,6 +45,13 @@ import static org.neo4j.causalclustering.identity.RaftTestMember.member;
 @RunWith( Parameterized.class )
 public class HeartbeatTest
 {
+    @Parameterized.Parameter( value = 0 )
+    public Role role;
+    @Parameterized.Parameter( value = 1 )
+    public int leaderTermDifference;
+    private MemberId myself = member( 0 );
+    private MemberId leader = member( 1 );
+
     @Parameterized.Parameters( name = "{0} with leader {1} terms ahead." )
     public static Collection<Object[]> data()
     {
@@ -52,15 +59,6 @@ public class HeartbeatTest
                 {Role.FOLLOWER, 0}, {Role.FOLLOWER, 1}, {Role.LEADER, 1}, {Role.CANDIDATE, 1}
         } );
     }
-
-    @Parameterized.Parameter( value = 0 )
-    public Role role;
-
-    @Parameterized.Parameter( value = 1 )
-    public int leaderTermDifference;
-
-    private MemberId myself = member( 0 );
-    private MemberId leader = member( 1 );
 
     @Test
     public void shouldNotResultInCommitIfReferringToFutureEntries() throws Exception
@@ -76,14 +74,14 @@ public class HeartbeatTest
 
         RaftMessages.Heartbeat heartbeat = heartbeat()
                 .from( leader )
-                .commitIndex( raftLog.appendIndex() + 1) // The leader is talking about committing stuff we don't know about
+                .commitIndex( raftLog.appendIndex() + 1 ) // The leader is talking about committing stuff we don't know about
                 .commitIndexTerm( leaderTerm ) // And is in the same term
                 .leaderTerm( leaderTerm )
                 .build();
 
         Outcome outcome = role.handler.handle( heartbeat, state, log() );
 
-        assertThat( outcome.getLogCommands(), empty());
+        assertThat( outcome.getLogCommands(), empty() );
     }
 
     @Test
@@ -100,14 +98,14 @@ public class HeartbeatTest
 
         RaftMessages.Heartbeat heartbeat = heartbeat()
                 .from( leader )
-                .commitIndex( raftLog.appendIndex()) // The leader is talking about committing stuff we don't know about
+                .commitIndex( raftLog.appendIndex() ) // The leader is talking about committing stuff we don't know about
                 .commitIndexTerm( leaderTerm ) // And is in the same term
                 .leaderTerm( leaderTerm )
                 .build();
 
         Outcome outcome = role.handler.handle( heartbeat, state, log() );
 
-        assertThat( outcome.getCommitIndex(), Matchers.equalTo(0L) );
+        assertThat( outcome.getCommitIndex(), Matchers.equalTo( 0L ) );
     }
 
     @Test
@@ -124,7 +122,7 @@ public class HeartbeatTest
 
         RaftMessages.Heartbeat heartbeat = heartbeat()
                 .from( leader )
-                .commitIndex( raftLog.appendIndex()) // The leader is talking about committing stuff we don't know about
+                .commitIndex( raftLog.appendIndex() ) // The leader is talking about committing stuff we don't know about
                 .commitIndexTerm( leaderTerm ) // And is in the same term
                 .leaderTerm( leaderTerm )
                 .build();
@@ -132,12 +130,10 @@ public class HeartbeatTest
         Outcome outcome = role.handler.handle( heartbeat, state, log() );
 
         assertThat( outcome.getLogCommands(), empty() );
-
     }
 
     private Log log()
     {
         return NullLogProvider.getInstance().getLog( getClass() );
     }
-
 }

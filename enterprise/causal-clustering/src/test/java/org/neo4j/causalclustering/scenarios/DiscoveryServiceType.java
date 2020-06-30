@@ -23,5 +23,6 @@ import org.neo4j.causalclustering.discovery.DiscoveryServiceFactory;
 public interface DiscoveryServiceType
 {
     DiscoveryServiceFactory createFactory();
+
     String name();
 }

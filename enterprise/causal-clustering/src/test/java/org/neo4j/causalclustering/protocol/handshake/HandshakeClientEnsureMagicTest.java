@@ -44,7 +44,17 @@ import static org.neo4j.causalclustering.protocol.handshake.TestProtocols.TestMo
 @RunWith( Parameterized.class )
 public class HandshakeClientEnsureMagicTest
 {
+    @Parameterized.Parameter
+    public ClientMessage message;
     private CompletableFuture<ProtocolStack> protocolStackCompletableFuture;
+    private Channel channel = mock( Channel.class );
+    private ApplicationSupportedProtocols supportedApplicationProtocol =
+            new ApplicationSupportedProtocols( RAFT, TestApplicationProtocols.listVersionsOf( RAFT ) );
+    private ApplicationProtocolRepository applicationProtocolRepository =
+            new ApplicationProtocolRepository( TestApplicationProtocols.values(), supportedApplicationProtocol );
+    private ModifierProtocolRepository modifierProtocolRepository =
+            new ModifierProtocolRepository( TestModifierProtocols.values(), emptyList() );
+    private HandshakeClient client = new HandshakeClient();
 
     @Parameterized.Parameters( name = "{0}" )
     public static Collection<ClientMessage> data()
@@ -55,20 +65,6 @@ public class HandshakeClientEnsureMagicTest
                 new SwitchOverResponse( StatusCode.SUCCESS )
         );
     }
-
-    @Parameterized.Parameter
-    public ClientMessage message;
-
-    private Channel channel = mock( Channel.class );
-
-    private ApplicationSupportedProtocols supportedApplicationProtocol =
-            new ApplicationSupportedProtocols( RAFT, TestApplicationProtocols.listVersionsOf( RAFT ) );
-    private ApplicationProtocolRepository applicationProtocolRepository =
-            new ApplicationProtocolRepository( TestApplicationProtocols.values(), supportedApplicationProtocol );
-    private ModifierProtocolRepository modifierProtocolRepository =
-            new ModifierProtocolRepository( TestModifierProtocols.values(), emptyList() );
-
-    private HandshakeClient client = new HandshakeClient();
 
     @Before
     public void setUp()

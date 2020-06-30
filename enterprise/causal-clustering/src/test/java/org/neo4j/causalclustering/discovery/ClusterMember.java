@@ -42,12 +42,10 @@ public interface ClusterMember<T extends GraphDatabaseAPI>
     Config config();
 
     /**
-     * {@link Cluster} will use this {@link ThreadGroup} for the threads that start, and shut down, this cluster member.
-     * This way, the group will be transitively inherited by all the threads that are in turn started by the member
-     * during its start up and shut down processes.
+     * {@link Cluster} will use this {@link ThreadGroup} for the threads that start, and shut down, this cluster member. This way, the group will be
+     * transitively inherited by all the threads that are in turn started by the member during its start up and shut down processes.
      * <p>
-     * This helps with debugging, because it makes it immediately visible (in the debugger) which cluster member any
-     * given thread belongs to.
+     * This helps with debugging, because it makes it immediately visible (in the debugger) which cluster member any given thread belongs to.
      *
      * @return The intended parent thread group for this cluster member.
      */

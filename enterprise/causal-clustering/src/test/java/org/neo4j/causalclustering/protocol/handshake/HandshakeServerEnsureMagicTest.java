@@ -41,6 +41,19 @@ import static org.neo4j.causalclustering.protocol.Protocol.ApplicationProtocolCa
 @RunWith( Parameterized.class )
 public class HandshakeServerEnsureMagicTest
 {
+    private final ApplicationSupportedProtocols supportedApplicationProtocol =
+            new ApplicationSupportedProtocols( RAFT, TestApplicationProtocols.listVersionsOf( RAFT ) );
+    @Parameterized.Parameter
+    public ServerMessage message;
+    private Channel channel = mock( Channel.class );
+    private ApplicationProtocolRepository applicationProtocolRepository =
+            new ApplicationProtocolRepository( TestApplicationProtocols.values(), supportedApplicationProtocol );
+    private ModifierProtocolRepository modifierProtocolRepository =
+            new ModifierProtocolRepository( TestModifierProtocols.values(), emptyList() );
+    private HandshakeServer server = new HandshakeServer(
+            applicationProtocolRepository,
+            modifierProtocolRepository, channel );
+
     @Parameterized.Parameters( name = "{0}" )
     public static Collection<ServerMessage> data()
     {
@@ -50,22 +63,6 @@ public class HandshakeServerEnsureMagicTest
                 new SwitchOverRequest( RAFT.canonicalName(), 2, emptyList() )
         );
     }
-
-    @Parameterized.Parameter
-    public ServerMessage message;
-
-    private final ApplicationSupportedProtocols supportedApplicationProtocol =
-            new ApplicationSupportedProtocols( RAFT, TestApplicationProtocols.listVersionsOf( RAFT ) );
-
-    private Channel channel = mock( Channel.class );
-    private ApplicationProtocolRepository applicationProtocolRepository =
-            new ApplicationProtocolRepository( TestApplicationProtocols.values(), supportedApplicationProtocol );
-    private ModifierProtocolRepository modifierProtocolRepository =
-            new ModifierProtocolRepository( TestModifierProtocols.values(), emptyList() );
-
-    private HandshakeServer server = new HandshakeServer(
-            applicationProtocolRepository,
-            modifierProtocolRepository, channel );
 
     @Test( expected = IllegalStateException.class )
     public void shouldThrowIfMagicHasNotBeenSent()

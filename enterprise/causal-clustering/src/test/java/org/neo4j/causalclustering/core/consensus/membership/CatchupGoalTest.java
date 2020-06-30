@@ -20,8 +20,6 @@ package org.neo4j.causalclustering.core.consensus.membership;
 
 import org.junit.Test;
 
-import java.io.IOException;
-
 import org.neo4j.causalclustering.core.consensus.log.RaftLogCursor;
 import org.neo4j.causalclustering.core.consensus.log.ReadableRaftLog;
 import org.neo4j.causalclustering.core.consensus.roles.follower.FollowerState;

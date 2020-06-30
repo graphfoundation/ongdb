@@ -30,8 +30,7 @@ import org.neo4j.helpers.collection.FilteringIterable;
 import static java.util.stream.Collectors.toList;
 
 /**
- * In this scenario we disconnect the current leader and measure how long time it
- * takes until the remaining members agree on a new leader.
+ * In this scenario we disconnect the current leader and measure how long time it takes until the remaining members agree on a new leader.
  */
 public class DisconnectLeaderScenario
 {
@@ -87,23 +86,6 @@ public class DisconnectLeaderScenario
         return result > (electionTimeout * 2);
     }
 
-    public class Result
-    {
-        double nonCollidingAverage;
-        double collidingAverage;
-        double collisionRate;
-        long collisionCount;
-        long timeoutCount;
-
-        @Override
-        public String toString()
-        {
-            return String.format( "Result{nonCollidingAverage=%s, collidingAverage=%s, collisionRate=%s, " +
-                            "collisionCount=%d, timeoutCount=%d}",
-                    nonCollidingAverage, collidingAverage, collisionRate, collisionCount, timeoutCount );
-        }
-    }
-
     public Result result()
     {
         Result result = new Result();
@@ -135,5 +117,22 @@ public class DisconnectLeaderScenario
         result.timeoutCount = timeoutCount;
 
         return result;
+    }
+
+    public class Result
+    {
+        double nonCollidingAverage;
+        double collidingAverage;
+        double collisionRate;
+        long collisionCount;
+        long timeoutCount;
+
+        @Override
+        public String toString()
+        {
+            return String.format( "Result{nonCollidingAverage=%s, collidingAverage=%s, collisionRate=%s, " +
+                                  "collisionCount=%d, timeoutCount=%d}",
+                                  nonCollidingAverage, collidingAverage, collisionRate, collisionCount, timeoutCount );
+        }
     }
 }

@@ -28,11 +28,17 @@ import org.junit.Test;
 import java.io.File;
 import java.util.stream.Stream;
 
-import static org.junit.Assert.assertEquals;
-
 public class PrepareStoreCopyResponseMarshalTest
 {
     private EmbeddedChannel embeddedChannel;
+
+    private static void sendToChannel( PrepareStoreCopyResponse prepareStoreCopyResponse, EmbeddedChannel embeddedChannel )
+    {
+        embeddedChannel.writeOutbound( prepareStoreCopyResponse );
+
+        ByteBuf object = embeddedChannel.readOutbound();
+        embeddedChannel.writeInbound( object );
+    }
 
     @Before
     public void setup()
@@ -95,13 +101,5 @@ public class PrepareStoreCopyResponseMarshalTest
             assertEquals( 1, Stream.of( readPrepareStoreCopyResponse.getFiles() ).map( File::getName ).filter( f -> f.equals( file.getName() ) ).count() );
         }
         assertEquals( prepareStoreCopyResponse.getIndexIds(), readPrepareStoreCopyResponse.getIndexIds() );
-    }
-
-    private static void sendToChannel( PrepareStoreCopyResponse prepareStoreCopyResponse, EmbeddedChannel embeddedChannel )
-    {
-        embeddedChannel.writeOutbound( prepareStoreCopyResponse );
-
-        ByteBuf object = embeddedChannel.readOutbound();
-        embeddedChannel.writeInbound( object );
     }
 }

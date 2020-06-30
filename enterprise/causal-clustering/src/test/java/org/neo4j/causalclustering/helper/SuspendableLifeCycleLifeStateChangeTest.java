@@ -26,8 +26,8 @@ import org.junit.runners.Parameterized;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.neo4j.causalclustering.helper.SuspendableLifecycleStateTestHelpers.SuspendedState;
 import org.neo4j.causalclustering.helper.SuspendableLifecycleStateTestHelpers.LifeCycleState;
+import org.neo4j.causalclustering.helper.SuspendableLifecycleStateTestHelpers.SuspendedState;
 import org.neo4j.logging.AssertableLogProvider;
 
 import static org.junit.Assert.assertEquals;
@@ -47,6 +47,7 @@ public class SuspendableLifeCycleLifeStateChangeTest
 
     @Parameterized.Parameter( 3 )
     public LifeCycleState shouldBeRunning;
+    private StateAwareSuspendableLifeCycle lifeCycle;
 
     @Parameterized.Parameters( name = "From {0} and {1} to {2} should end in {3}" )
     public static Iterable<Object[]> data()
@@ -65,26 +66,9 @@ public class SuspendableLifeCycleLifeStateChangeTest
         return params;
     }
 
-    private StateAwareSuspendableLifeCycle lifeCycle;
-
     private static LifeCycleState[] lifeCycleOperation()
     {
         return new LifeCycleState[]{LifeCycleState.Start, LifeCycleState.Stop};
-    }
-
-    @Before
-    public void setUpServer() throws Throwable
-    {
-        lifeCycle = new StateAwareSuspendableLifeCycle( new AssertableLogProvider( false ).getLog( "log" ) );
-        setInitialState( lifeCycle, fromState );
-        fromSuspendedState.set( lifeCycle );
-    }
-
-    @Test
-    public void changeLifeState() throws Throwable
-    {
-        toLifeCycleState.set( lifeCycle );
-        assertEquals( shouldBeRunning, lifeCycle.status );
     }
 
     private static LifeCycleState expectedResult( SuspendedState state, LifeCycleState toLifeCycle )
@@ -108,5 +92,20 @@ public class SuspendableLifeCycleLifeStateChangeTest
         {
             throw new IllegalStateException( "Unknown state " + state );
         }
+    }
+
+    @Before
+    public void setUpServer() throws Throwable
+    {
+        lifeCycle = new StateAwareSuspendableLifeCycle( new AssertableLogProvider( false ).getLog( "log" ) );
+        setInitialState( lifeCycle, fromState );
+        fromSuspendedState.set( lifeCycle );
+    }
+
+    @Test
+    public void changeLifeState() throws Throwable
+    {
+        toLifeCycleState.set( lifeCycle );
+        assertEquals( shouldBeRunning, lifeCycle.status );
     }
 }

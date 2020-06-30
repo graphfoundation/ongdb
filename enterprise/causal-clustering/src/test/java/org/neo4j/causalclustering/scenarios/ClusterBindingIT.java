@@ -62,10 +62,10 @@ import static org.neo4j.kernel.impl.store.MetaDataStore.Position.RANDOM_NUMBER;
 public class ClusterBindingIT
 {
     private final ClusterRule clusterRule = new ClusterRule()
-                        .withNumberOfCoreMembers( 3 )
-                        .withNumberOfReadReplicas( 0 )
-                        .withSharedCoreParam( CausalClusteringSettings.raft_log_pruning_strategy, "3 entries" )
-                        .withSharedCoreParam( CausalClusteringSettings.raft_log_rotation_size, "1K" );
+            .withNumberOfCoreMembers( 3 )
+            .withNumberOfReadReplicas( 0 )
+            .withSharedCoreParam( CausalClusteringSettings.raft_log_pruning_strategy, "3 entries" )
+            .withSharedCoreParam( CausalClusteringSettings.raft_log_rotation_size, "1K" );
     private final DefaultFileSystemRule fileSystemRule = new DefaultFileSystemRule();
 
     @Rule
@@ -74,16 +74,21 @@ public class ClusterBindingIT
     private Cluster<?> cluster;
     private FileSystemAbstraction fs;
 
+    private static List<File> databaseDirs( Collection<CoreClusterMember> dbs )
+    {
+        return dbs.stream().map( CoreClusterMember::databaseDirectory ).collect( Collectors.toList() );
+    }
+
     @Before
     public void setup() throws Exception
     {
         fs = fileSystemRule.get();
         cluster = clusterRule.startCluster();
         cluster.coreTx( ( db, tx ) ->
-        {
-            SampleData.createSchema( db );
-            tx.success();
-        } );
+                        {
+                            SampleData.createSchema( db );
+                            tx.success();
+                        } );
     }
 
     @Test
@@ -91,11 +96,11 @@ public class ClusterBindingIT
     {
         // WHEN
         cluster.coreTx( ( db, tx ) ->
-        {
-            Node node = db.createNode( label( "boo" ) );
-            node.setProperty( "foobar", "baz_bat" );
-            tx.success();
-        } );
+                        {
+                            Node node = db.createNode( label( "boo" ) );
+                            node.setProperty( "foobar", "baz_bat" );
+                            tx.success();
+                        } );
 
         List<File> coreStoreDirs = databaseDirs( cluster.coreMembers() );
 
@@ -110,11 +115,11 @@ public class ClusterBindingIT
     {
         // GIVEN
         cluster.coreTx( ( db, tx ) ->
-        {
-            Node node = db.createNode( label( "boo" ) );
-            node.setProperty( "foobar", "baz_bat" );
-            tx.success();
-        } );
+                        {
+                            Node node = db.createNode( label( "boo" ) );
+                            node.setProperty( "foobar", "baz_bat" );
+                            tx.success();
+                        } );
 
         cluster.shutdown();
         // WHEN
@@ -123,11 +128,11 @@ public class ClusterBindingIT
         List<File> coreStoreDirs = databaseDirs( cluster.coreMembers() );
 
         cluster.coreTx( ( db, tx ) ->
-        {
-            Node node = db.createNode( label( "boo" ) );
-            node.setProperty( "foobar", "baz_bat" );
-            tx.success();
-        } );
+                        {
+                            Node node = db.createNode( label( "boo" ) );
+                            node.setProperty( "foobar", "baz_bat" );
+                            tx.success();
+                        } );
 
         cluster.shutdown();
 
@@ -141,11 +146,11 @@ public class ClusterBindingIT
     {
         // GIVEN
         cluster.coreTx( ( db, tx ) ->
-        {
-            Node node = db.createNode( label( "boo" ) );
-            node.setProperty( "foobar", "baz_bat" );
-            tx.success();
-        } );
+                        {
+                            Node node = db.createNode( label( "boo" ) );
+                            node.setProperty( "foobar", "baz_bat" );
+                            tx.success();
+                        } );
 
         File databaseDirectory = cluster.getCoreMemberById( 0 ).databaseDirectory();
 
@@ -169,11 +174,11 @@ public class ClusterBindingIT
     {
         // GIVEN
         cluster.coreTx( ( db, tx ) ->
-        {
-            Node node = db.createNode( label( "boo" ) );
-            node.setProperty( "foobar", "baz_bat" );
-            tx.success();
-        } );
+                        {
+                            Node node = db.createNode( label( "boo" ) );
+                            node.setProperty( "foobar", "baz_bat" );
+                            tx.success();
+                        } );
 
         //TODO: Work out if/why this won't potentially remove a leader?
         cluster.removeCoreMemberWithServerId( 0 );
@@ -203,11 +208,11 @@ public class ClusterBindingIT
     {
         // GIVEN
         cluster.coreTx( ( db, tx ) ->
-        {
-            Node node = db.createNode( label( "boo" ) );
-            node.setProperty( "foobar", "baz_bat" );
-            tx.success();
-        } );
+                        {
+                            Node node = db.createNode( label( "boo" ) );
+                            node.setProperty( "foobar", "baz_bat" );
+                            tx.success();
+                        } );
 
         CoreClusterMember coreMember = cluster.getCoreMemberById( 0 );
         cluster.removeCoreMemberWithServerId( 0 );
@@ -237,11 +242,11 @@ public class ClusterBindingIT
     {
         // GIVEN
         cluster.coreTx( ( db, tx ) ->
-        {
-            Node node = db.createNode( label( "boo" ) );
-            node.setProperty( "foobar", "baz_bat" );
-            tx.success();
-        } );
+                        {
+                            Node node = db.createNode( label( "boo" ) );
+                            node.setProperty( "foobar", "baz_bat" );
+                            tx.success();
+                        } );
 
         SampleData.createSomeData( 100, cluster );
 
@@ -263,15 +268,10 @@ public class ClusterBindingIT
         assertAllStoresHaveTheSameStoreId( coreStoreDirs, fs );
     }
 
-    private static List<File> databaseDirs( Collection<CoreClusterMember> dbs )
-    {
-        return dbs.stream().map( CoreClusterMember::databaseDirectory ).collect( Collectors.toList() );
-    }
-
     private void changeClusterId( CoreClusterMember coreMember ) throws IOException
     {
         SimpleStorage<ClusterId> clusterIdStorage = new SimpleFileStorage<>( fs, coreMember.clusterStateDirectory(),
-                CLUSTER_ID_NAME, new ClusterId.Marshal(), NullLogProvider.getInstance() );
+                                                                             CLUSTER_ID_NAME, new ClusterId.Marshal(), NullLogProvider.getInstance() );
         clusterIdStorage.writeState( new ClusterId( UUID.randomUUID() ) );
     }
 

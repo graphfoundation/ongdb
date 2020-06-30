@@ -48,6 +48,34 @@ import static org.neo4j.graphdb.factory.GraphDatabaseSettings.DEFAULT_DATABASE_N
 
 public class LocalDatabaseTest
 {
+    private static LocalDatabase newLocalDatabase( AvailabilityGuard databaseAvailabilityGuard )
+    {
+        return newLocalDatabase( databaseAvailabilityGuard, mock( DataSourceManager.class ) );
+    }
+
+    private static LocalDatabase newLocalDatabase( AvailabilityGuard databaseAvailabilityGuard, DataSourceManager dataSourceManager )
+    {
+        return new LocalDatabase( mock( DatabaseLayout.class ), mock( StoreFiles.class ), mock( LogFiles.class ), dataSourceManager,
+                                  () -> mock( DatabaseHealth.class ), databaseAvailabilityGuard, NullLogProvider.getInstance() );
+    }
+
+    private static DatabaseAvailabilityGuard newAvailabilityGuard()
+    {
+        return new DatabaseAvailabilityGuard( DEFAULT_DATABASE_NAME, Clock.systemUTC(), NullLog.getInstance() );
+    }
+
+    private static void assertDatabaseIsStoppedAndUnavailable( DatabaseAvailabilityGuard guard )
+    {
+        assertFalse( guard.isAvailable() );
+        assertThat( guard.describeWhoIsBlocking(), containsString( "Database is stopped" ) );
+    }
+
+    private static void assertDatabaseIsStoppedForStoreCopyAndUnavailable( DatabaseAvailabilityGuard guard )
+    {
+        assertFalse( guard.isAvailable() );
+        assertThat( guard.describeWhoIsBlocking(), containsString( "Database is stopped to copy store" ) );
+    }
+
     @Test
     public void availabilityGuardRaisedOnCreation()
     {
@@ -149,33 +177,5 @@ public class LocalDatabaseTest
         localDatabase.start();
 
         verify( dataSourceManager, never() ).start();
-    }
-
-    private static LocalDatabase newLocalDatabase( AvailabilityGuard databaseAvailabilityGuard )
-    {
-        return newLocalDatabase( databaseAvailabilityGuard, mock( DataSourceManager.class ) );
-    }
-
-    private static LocalDatabase newLocalDatabase( AvailabilityGuard databaseAvailabilityGuard, DataSourceManager dataSourceManager )
-    {
-        return new LocalDatabase( mock( DatabaseLayout.class ), mock( StoreFiles.class ), mock( LogFiles.class ), dataSourceManager,
-                () -> mock( DatabaseHealth.class ), databaseAvailabilityGuard, NullLogProvider.getInstance() );
-    }
-
-    private static DatabaseAvailabilityGuard newAvailabilityGuard()
-    {
-        return new DatabaseAvailabilityGuard( DEFAULT_DATABASE_NAME, Clock.systemUTC(), NullLog.getInstance() );
-    }
-
-    private static void assertDatabaseIsStoppedAndUnavailable( DatabaseAvailabilityGuard guard )
-    {
-        assertFalse( guard.isAvailable() );
-        assertThat( guard.describeWhoIsBlocking(), containsString( "Database is stopped" ) );
-    }
-
-    private static void assertDatabaseIsStoppedForStoreCopyAndUnavailable( DatabaseAvailabilityGuard guard )
-    {
-        assertFalse( guard.isAvailable() );
-        assertThat( guard.describeWhoIsBlocking(), containsString( "Database is stopped to copy store" ) );
     }
 }

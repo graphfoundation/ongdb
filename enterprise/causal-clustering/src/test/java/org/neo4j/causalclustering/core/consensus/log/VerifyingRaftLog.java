@@ -20,20 +20,16 @@ package org.neo4j.causalclustering.core.consensus.log;
 
 import java.io.IOException;
 
-import static org.junit.Assert.assertEquals;
-
 /**
- * A log that uses the in-memory RAFT log as the reference implementation
- * for verifying another RAFT log that is under test. All operations are
- * mirrored to both logs and return values are checked for equality.
- *
- * At the end of a test the content of both logs can be compared for
- * equality using {@link VerifyingRaftLog#verify()}.
+ * A log that uses the in-memory RAFT log as the reference implementation for verifying another RAFT log that is under test. All operations are mirrored to both
+ * logs and return values are checked for equality.
+ * <p>
+ * At the end of a test the content of both logs can be compared for equality using {@link VerifyingRaftLog#verify()}.
  */
 class VerifyingRaftLog implements RaftLog
 {
-    private InMemoryRaftLog expected = new InMemoryRaftLog();
     private final RaftLog other;
+    private InMemoryRaftLog expected = new InMemoryRaftLog();
 
     VerifyingRaftLog( RaftLog other )
     {
@@ -140,7 +136,7 @@ class VerifyingRaftLog implements RaftLog
     private void verifyTraversalUsingCursor( RaftLog expected, RaftLog other ) throws IOException
     {
         long startIndex = expected.prevIndex() + 1;
-        try ( RaftLogCursor expectedCursor = expected.getEntryCursor( startIndex) )
+        try ( RaftLogCursor expectedCursor = expected.getEntryCursor( startIndex ) )
         {
             try ( RaftLogCursor otherCursor = other.getEntryCursor( startIndex ) )
             {

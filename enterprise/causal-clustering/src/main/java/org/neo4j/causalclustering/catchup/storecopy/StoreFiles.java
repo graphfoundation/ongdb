@@ -24,22 +24,23 @@ import java.io.IOException;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.StandardCopyOption;
 import java.util.Collection;
+import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
-import org.neo4j.causalclustering.identity.StoreId;
 import org.neo4j.io.fs.FileHandle;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.io.pagecache.PageCache;
-import org.neo4j.kernel.impl.store.MetaDataStore;
 import org.neo4j.kernel.impl.transaction.log.files.LogFiles;
+import org.neo4j.storageengine.api.StorageEngineFactory;
+import org.neo4j.storageengine.api.StoreId;
 
 public class StoreFiles
 {
     private static final FilenameFilter STORE_FILE_FILTER = ( dir, name ) ->
     {
-        // Skip log files and tx files from temporary database
+        // Skip log files and tx files from temporary db
         return !name.startsWith( "metrics" ) && !name.startsWith( "temp-copy" ) &&
                !name.startsWith( "raft-messages." ) && !name.startsWith( "debug." ) &&
                !name.startsWith( "data" ) && !name.startsWith( "store_lock" );
@@ -109,7 +110,7 @@ public class StoreFiles
         fs.mkdirs( logFiles.logFilesDirectory() );
         for ( File candidate : fs.listFiles( source, fileFilter ) )
         {
-            File destination = logFiles.isLogFile( candidate) ? logFiles.logFilesDirectory() : target;
+            File destination = logFiles.isLogFile( candidate ) ? logFiles.logFilesDirectory() : target;
             fs.moveToDirectory( candidate, destination );
         }
 
@@ -118,6 +119,30 @@ public class StoreFiles
         {
             fh.rename( new File( target, fh.getRelativeFile().getPath() ), StandardCopyOption.REPLACE_EXISTING );
         }
+    }
+
+    /**
+     * @param databaseLayout
+     * @return
+     */
+    public boolean isEmpty( DatabaseLayout databaseLayout )
+    {
+        Set<File> storeFiles = databaseLayout.storeFiles();
+        File[] files = this.fs.listFiles( databaseLayout.databaseDirectory() );
+        if ( files != null )
+        {
+
+            for ( File file : files )
+            {
+
+                if ( storeFiles.contains( file ) )
+                {
+                    return false;
+                }
+            }
+        }
+
+        return true;
     }
 
     public boolean isEmpty( File storeDir, Collection<File> filesToLookFor ) throws IOException
@@ -149,9 +174,6 @@ public class StoreFiles
 
     public StoreId readStoreId( DatabaseLayout databaseLayout ) throws IOException
     {
-        File neoStoreFile = databaseLayout.metadataStore();
-        org.neo4j.storageengine.api.StoreId kernelStoreId = MetaDataStore.getStoreId( pageCache, neoStoreFile );
-        return new StoreId( kernelStoreId.getCreationTime(), kernelStoreId.getRandomId(),
-                kernelStoreId.getUpgradeTime(), kernelStoreId.getUpgradeId() );
+        return StorageEngineFactory.selectStorageEngine().storeId( databaseLayout, this.pageCache );
     }
 }

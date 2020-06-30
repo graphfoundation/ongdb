@@ -64,7 +64,7 @@ class TestCatchupServer extends Server
     TestCatchupServer( FileSystemAbstraction fileSystem, GraphDatabaseAPI graphDb )
     {
         super( childInitializer( fileSystem, graphDb ), LOG_PROVIDER, LOG_PROVIDER, new ListenSocketAddress( "localhost", PortAuthority.allocatePort() ),
-                "fake-catchup-server" );
+               "fake-catchup-server" );
     }
 
     private static ChildInitializer childInitializer( FileSystemAbstraction fileSystem, GraphDatabaseAPI graphDb )
@@ -82,15 +82,16 @@ class TestCatchupServer extends Server
 
         org.neo4j.storageengine.api.StoreId kernelStoreId = dataSource.get().getStoreId();
         StoreId storeId = new StoreId( kernelStoreId.getCreationTime(), kernelStoreId.getRandomId(), kernelStoreId.getUpgradeTime(),
-                kernelStoreId.getUpgradeId() );
+                                       kernelStoreId.getUpgradeId() );
 
         CheckPointerService checkPointerService = new CheckPointerService( checkPointer, createInitialisedScheduler(), Group.CHECKPOINT );
         RegularCatchupServerHandler catchupServerHandler = new RegularCatchupServerHandler( new Monitors(), logProvider,
-                () -> storeId, dataSource, availability, fileSystem, null, checkPointerService );
+                                                                                            () -> storeId, dataSource, availability, fileSystem, null,
+                                                                                            checkPointerService );
 
         NettyPipelineBuilderFactory pipelineBuilder = new NettyPipelineBuilderFactory( VoidPipelineWrapperFactory.VOID_WRAPPER );
         CatchupProtocolServerInstaller.Factory catchupProtocolServerInstaller = new CatchupProtocolServerInstaller.Factory( pipelineBuilder, logProvider,
-                catchupServerHandler );
+                                                                                                                            catchupServerHandler );
 
         ProtocolInstallerRepository<ProtocolInstaller.Orientation.Server> protocolInstallerRepository = new ProtocolInstallerRepository<>(
                 singletonList( catchupProtocolServerInstaller ), ModifierProtocolInstaller.allServerInstallers );

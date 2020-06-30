@@ -33,13 +33,13 @@ import java.util.function.BiFunction;
 
 public class TestNetwork<T>
 {
-    private final Map<T, Inbound> inboundChannels = new HashMap<>();
-    private final Map<T, Outbound> outboundChannels = new HashMap<>();
+    private final Map<T,Inbound> inboundChannels = new HashMap<>();
+    private final Map<T,Outbound> outboundChannels = new HashMap<>();
 
     private final AtomicLong seqGen = new AtomicLong();
-    private final BiFunction<T/*from*/, T/*to*/, Long> latencySpecMillis;
+    private final BiFunction<T/*from*/,T/*to*/,Long> latencySpecMillis;
 
-    public TestNetwork( BiFunction<T, T, Long> latencySpecMillis )
+    public TestNetwork( BiFunction<T,T,Long> latencySpecMillis )
     {
         this.latencySpecMillis = latencySpecMillis;
     }
@@ -122,7 +122,7 @@ public class TestNetwork<T>
         }
     }
 
-    public class Outbound implements org.neo4j.causalclustering.messaging.Outbound<T, Message>
+    public class Outbound implements org.neo4j.causalclustering.messaging.Outbound<T,Message>
     {
         private NetworkThread networkThread;
         private volatile boolean disconnected;
@@ -173,8 +173,6 @@ public class TestNetwork<T>
 
         class NetworkThread extends Thread
         {
-            private volatile boolean done;
-
             private final TreeSet<MessageContext> msgQueue = new TreeSet<>( (Comparator<MessageContext>) ( o1, o2 ) ->
             {
                 int res = Long.compare( o1.atMillis, o2.atMillis );
@@ -185,49 +183,13 @@ public class TestNetwork<T>
                 }
                 return res;
             } );
+            private volatile boolean done;
 
             public void kill() throws InterruptedException
             {
                 done = true;
                 this.interrupt();
                 this.join();
-            }
-
-            private class MessageContext
-            {
-                private final T destination;
-                private final Message message;
-                private long atMillis;
-                private long seqNum;
-
-                private MessageContext( T destination, Message message, long atMillis )
-                {
-                    this.destination = destination;
-                    this.message = message;
-                    this.atMillis = atMillis;
-                    this.seqNum = seqGen.getAndIncrement();
-                }
-
-                @Override
-                public boolean equals( Object o )
-                {
-                    if ( this == o )
-                    {
-                        return true;
-                    }
-                    if ( o == null || getClass() != o.getClass() )
-                    {
-                        return false;
-                    }
-                    MessageContext that = (MessageContext) o;
-                    return seqNum == that.seqNum;
-                }
-
-                @Override
-                public int hashCode()
-                {
-                    return Objects.hash( seqNum );
-                }
             }
 
             public synchronized void scheduleDelivery( T destination, Message message, long atMillis )
@@ -282,14 +244,52 @@ public class TestNetwork<T>
                     }
                 }
             }
+
+            private class MessageContext
+            {
+                private final T destination;
+                private final Message message;
+                private long atMillis;
+                private long seqNum;
+
+                private MessageContext( T destination, Message message, long atMillis )
+                {
+                    this.destination = destination;
+                    this.message = message;
+                    this.atMillis = atMillis;
+                    this.seqNum = seqGen.getAndIncrement();
+                }
+
+                @Override
+                public boolean equals( Object o )
+                {
+                    if ( this == o )
+                    {
+                        return true;
+                    }
+                    if ( o == null || getClass() != o.getClass() )
+                    {
+                        return false;
+                    }
+                    MessageContext that = (MessageContext) o;
+                    return seqNum == that.seqNum;
+                }
+
+                @Override
+                public int hashCode()
+                {
+                    return Objects.hash( seqNum );
+                }
+            }
         }
     }
 
     public class Inbound implements org.neo4j.causalclustering.messaging.Inbound<Message>
     {
-        private MessageHandler<Message> handler;
         private final BlockingQueue<Message> Q = new ArrayBlockingQueue<>( 64, true );
+        private MessageHandler<Message> handler;
         private NetworkThread networkThread;
+        private volatile boolean disconnected;
 
         public Inbound( T endpoint )
         {
@@ -306,8 +306,6 @@ public class TestNetwork<T>
         {
             networkThread.kill();
         }
-
-        private volatile boolean disconnected;
 
         public synchronized void deliver( Message message )
         {

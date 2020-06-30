@@ -71,7 +71,6 @@ public class RaftTestGroup implements RaftGroup<MemberId>
         RaftTestGroup that = (RaftTestGroup) o;
 
         return members.equals( that.members );
-
     }
 
     @Override

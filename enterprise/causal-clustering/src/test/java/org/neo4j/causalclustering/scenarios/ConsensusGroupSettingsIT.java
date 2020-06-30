@@ -28,7 +28,6 @@ import org.neo4j.causalclustering.discovery.Cluster;
 import org.neo4j.test.causalclustering.ClusterRule;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
-import static org.junit.Assert.assertEquals;
 
 public class ConsensusGroupSettingsIT
 {
@@ -37,7 +36,7 @@ public class ConsensusGroupSettingsIT
             .withNumberOfCoreMembers( 5 )
             .withNumberOfReadReplicas( 0 )
             .withInstanceCoreParam( CausalClusteringSettings.minimum_core_cluster_size_at_formation, value -> "5" )
-            .withInstanceCoreParam( CausalClusteringSettings.minimum_core_cluster_size_at_runtime,value -> "3" )
+            .withInstanceCoreParam( CausalClusteringSettings.minimum_core_cluster_size_at_runtime, value -> "3" )
             .withInstanceCoreParam( CausalClusteringSettings.leader_election_timeout, value -> "1s" )
             .withTimeout( 1000, SECONDS );
 
@@ -66,6 +65,6 @@ public class ConsensusGroupSettingsIT
 
         // then
 
-        assertEquals(3, cluster.coreMembers().iterator().next().raft().replicationMembers().size());
+        assertEquals( 3, cluster.coreMembers().iterator().next().raft().replicationMembers().size() );
     }
 }

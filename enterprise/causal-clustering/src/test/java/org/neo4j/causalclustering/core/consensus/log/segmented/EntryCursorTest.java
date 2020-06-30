@@ -40,7 +40,7 @@ public class EntryCursorTest
     private final File bam = new File( "bam" );
     private final FileNames fileNames = new FileNames( bam );
     private ReaderPool readerPool = new ReaderPool( 0, getInstance(), fileNames, fsa,
-            Clocks.fakeClock() );
+                                                    Clocks.fakeClock() );
     private final Segments segments =
             new Segments( fsa, fileNames, readerPool, emptyList(), mock( ChannelMarshal.class ), NullLogProvider.getInstance(), -1 );
 

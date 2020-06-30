@@ -23,7 +23,6 @@ import org.junit.Test;
 import org.neo4j.causalclustering.routing.load_balancing.filters.Filter;
 
 import static java.lang.String.format;
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 import static org.neo4j.causalclustering.routing.load_balancing.plugins.server_policies.FilterBuilder.filter;
 
@@ -71,7 +70,7 @@ public class FilterConfigParserTest
                 "groups(group)->all()",
                 "all()->all()",
                 "groups(A)->all()->groups(B)",
-        };
+                };
 
         // when
         for ( String invalidConfig : invalidConfigs )
@@ -176,7 +175,7 @@ public class FilterConfigParserTest
             {
                 Filter<ServerInfo> parsedFilter = FilterConfigParser.parse( config );
                 assertEquals( format( "Config '%s' should generate expected filter", config ),
-                        expectedFilter, parsedFilter );
+                              expectedFilter, parsedFilter );
             }
             catch ( InvalidFilterSpecification e )
             {

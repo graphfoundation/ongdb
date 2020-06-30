@@ -51,8 +51,8 @@ public class InitialDiscoveryMembersResolverTest
     {
         // given
         Config config = Config.builder()
-                .withSetting( initial_discovery_members, "" )
-                .build();
+                              .withSetting( initial_discovery_members, "" )
+                              .build();
 
         InitialDiscoveryMembersResolver
                 hostnameResolvingInitialDiscoveryMembersResolver = new InitialDiscoveryMembersResolver( hostnameResolver, config );
@@ -79,8 +79,8 @@ public class InitialDiscoveryMembersResolverTest
         String configString = Stream.of( input1, input2, input3 ).map( AdvertisedSocketAddress::toString ).collect( Collectors.joining( "," ) );
 
         Config config = Config.builder()
-                .withSetting( initial_discovery_members, configString )
-                .build();
+                              .withSetting( initial_discovery_members, configString )
+                              .build();
 
         when( hostnameResolver.resolve( input1 ) ).thenReturn( asList( output1, output2 ) );
         when( hostnameResolver.resolve( input2 ) ).thenReturn( emptyList() );
@@ -105,8 +105,8 @@ public class InitialDiscoveryMembersResolverTest
         AdvertisedSocketAddress output1 = new AdvertisedSocketAddress( "a.b", 3 );
 
         Config config = Config.builder()
-                .withSetting( initial_discovery_members, input1.toString() )
-                .build();
+                              .withSetting( initial_discovery_members, input1.toString() )
+                              .build();
 
         when( hostnameResolver.resolve( input1 ) ).thenReturn( singletonList( output1 ) );
 

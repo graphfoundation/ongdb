@@ -20,7 +20,6 @@ package org.neo4j.causalclustering.core.consensus.membership;
 
 import org.junit.Test;
 
-import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
 import org.neo4j.causalclustering.core.consensus.log.RaftLogCursor;

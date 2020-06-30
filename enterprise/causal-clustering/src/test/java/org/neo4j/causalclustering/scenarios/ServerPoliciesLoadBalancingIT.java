@@ -72,6 +72,12 @@ public class ServerPoliciesLoadBalancingIT
 
     private Cluster<?> cluster;
 
+    private static <T, E extends Exception> void assertEventually( Matcher<? super T> matcher,
+                                                                   ThrowingSupplier<T,E> actual ) throws InterruptedException, E
+    {
+        org.neo4j.test.assertion.Assert.assertEventually( "", actual, matcher, 120, SECONDS );
+    }
+
     @After
     public void after()
     {
@@ -85,7 +91,7 @@ public class ServerPoliciesLoadBalancingIT
     public void defaultBehaviour() throws Exception
     {
         cluster = new EnterpriseCluster( testDir.directory( "cluster" ), 3, 3, new HazelcastDiscoveryServiceFactory(), emptyMap(),
-                emptyMap(), emptyMap(), emptyMap(), Standard.LATEST_NAME, IpFamily.IPV4, false );
+                                         emptyMap(), emptyMap(), emptyMap(), Standard.LATEST_NAME, IpFamily.IPV4, false );
 
         cluster.start();
 
@@ -96,9 +102,9 @@ public class ServerPoliciesLoadBalancingIT
     public void defaultBehaviourWithAllowReadsOnFollowers() throws Exception
     {
         cluster = new EnterpriseCluster( testDir.directory( "cluster" ), 3, 3,
-                new HazelcastDiscoveryServiceFactory(),
-                stringMap( CausalClusteringSettings.cluster_allow_reads_on_followers.name(), "true" ),
-                emptyMap(), emptyMap(), emptyMap(), Standard.LATEST_NAME, IpFamily.IPV4, false );
+                                         new HazelcastDiscoveryServiceFactory(),
+                                         stringMap( CausalClusteringSettings.cluster_allow_reads_on_followers.name(), "true" ),
+                                         emptyMap(), emptyMap(), emptyMap(), Standard.LATEST_NAME, IpFamily.IPV4, false );
 
         cluster.start();
 
@@ -118,11 +124,11 @@ public class ServerPoliciesLoadBalancingIT
         Map<String,String> coreParams = stringMap(
                 CausalClusteringSettings.cluster_allow_reads_on_followers.name(), "true",
                 CausalClusteringSettings.load_balancing_config.name() + ".server_policies.default", defaultPolicy,
-                CausalClusteringSettings.multi_dc_license.name(), "true");
+                CausalClusteringSettings.multi_dc_license.name(), "true" );
 
         cluster = new EnterpriseCluster( testDir.directory( "cluster" ), 5, 5,
-                new HazelcastDiscoveryServiceFactory(), coreParams, instanceCoreParams,
-                emptyMap(), instanceReplicaParams, Standard.LATEST_NAME, IpFamily.IPV4, false );
+                                         new HazelcastDiscoveryServiceFactory(), coreParams, instanceCoreParams,
+                                         emptyMap(), instanceReplicaParams, Standard.LATEST_NAME, IpFamily.IPV4, false );
 
         cluster.start();
         // should use the first rule: only cores for reading
@@ -174,8 +180,8 @@ public class ServerPoliciesLoadBalancingIT
         );
 
         cluster = new EnterpriseCluster( testDir.directory( "cluster" ), 3, 3,
-                new HazelcastDiscoveryServiceFactory(), coreParams, instanceCoreParams,
-                emptyMap(), instanceReplicaParams, Standard.LATEST_NAME, IpFamily.IPV4, false );
+                                         new HazelcastDiscoveryServiceFactory(), coreParams, instanceCoreParams,
+                                         emptyMap(), instanceReplicaParams, Standard.LATEST_NAME, IpFamily.IPV4, false );
 
         cluster.start();
         assertGetServersEventuallyMatchesOnAllCores( new CountsMatcher( 3, 1, 2, 3 ), policyContext( "all" ) );
@@ -203,7 +209,7 @@ public class ServerPoliciesLoadBalancingIT
     }
 
     private void assertGetServersEventuallyMatchesOnAllCores( Matcher<LoadBalancingResult> matcher,
-            Map<String,String> context ) throws InterruptedException
+                                                              Map<String,String> context ) throws InterruptedException
     {
         for ( CoreClusterMember core : cluster.coreMembers() )
         {
@@ -223,7 +229,7 @@ public class ServerPoliciesLoadBalancingIT
         try ( InternalTransaction tx = db.beginTransaction( KernelTransaction.Type.explicit, EnterpriseLoginContext.AUTH_DISABLED ) )
         {
             Map<String,Object> parameters = MapUtil.map( ParameterNames.CONTEXT.parameterName(), context );
-            try ( Result result = db.execute( tx, "CALL " + GET_SERVERS_V2.callName(), ValueUtils.asMapValue( parameters )) )
+            try ( Result result = db.execute( tx, "CALL " + GET_SERVERS_V2.callName(), ValueUtils.asMapValue( parameters ) ) )
             {
                 while ( result.hasNext() )
                 {
@@ -232,12 +238,6 @@ public class ServerPoliciesLoadBalancingIT
             }
         }
         return lbResult;
-    }
-
-    private static <T, E extends Exception> void assertEventually( Matcher<? super T> matcher,
-            ThrowingSupplier<T,E> actual ) throws InterruptedException, E
-    {
-        org.neo4j.test.assertion.Assert.assertEventually( "", actual, matcher, 120, SECONDS );
     }
 
     class CountsMatcher extends BaseMatcher<LoadBalancingResult>
@@ -267,13 +267,13 @@ public class ServerPoliciesLoadBalancingIT
             }
 
             Set<AdvertisedSocketAddress> allCoreBolts = cluster.coreMembers().stream()
-                    .map( c -> c.clientConnectorAddresses().boltAddress() )
-                    .collect( Collectors.toSet() );
+                                                               .map( c -> c.clientConnectorAddresses().boltAddress() )
+                                                               .collect( Collectors.toSet() );
 
             Set<AdvertisedSocketAddress> returnedCoreReaders = result.readEndpoints().stream()
-                    .map( Endpoint::address )
-                    .filter( allCoreBolts::contains )
-                    .collect( Collectors.toSet() );
+                                                                     .map( Endpoint::address )
+                                                                     .filter( allCoreBolts::contains )
+                                                                     .collect( Collectors.toSet() );
 
             if ( returnedCoreReaders.size() != nCoreReaders )
             {
@@ -281,13 +281,13 @@ public class ServerPoliciesLoadBalancingIT
             }
 
             Set<AdvertisedSocketAddress> allReplicaBolts = cluster.readReplicas().stream()
-                    .map( c -> c.clientConnectorAddresses().boltAddress() )
-                    .collect( Collectors.toSet() );
+                                                                  .map( c -> c.clientConnectorAddresses().boltAddress() )
+                                                                  .collect( Collectors.toSet() );
 
             Set<AdvertisedSocketAddress> returnedReplicaReaders = result.readEndpoints().stream()
-                    .map( Endpoint::address )
-                    .filter( allReplicaBolts::contains )
-                    .collect( Collectors.toSet() );
+                                                                        .map( Endpoint::address )
+                                                                        .filter( allReplicaBolts::contains )
+                                                                        .collect( Collectors.toSet() );
 
             if ( returnedReplicaReaders.size() != nReplicaReaders )
             {
@@ -303,8 +303,8 @@ public class ServerPoliciesLoadBalancingIT
             }
 
             Set<AdvertisedSocketAddress> returnedWriters = result.writeEndpoints().stream()
-                    .map( Endpoint::address )
-                    .collect( Collectors.toSet() );
+                                                                 .map( Endpoint::address )
+                                                                 .collect( Collectors.toSet() );
 
             if ( !allCoreBolts.containsAll( returnedWriters ) )
             {
@@ -312,8 +312,8 @@ public class ServerPoliciesLoadBalancingIT
             }
 
             Set<AdvertisedSocketAddress> returnedRouters = result.routeEndpoints().stream()
-                    .map( Endpoint::address )
-                    .collect( Collectors.toSet() );
+                                                                 .map( Endpoint::address )
+                                                                 .collect( Collectors.toSet() );
 
             //noinspection RedundantIfStatement
             if ( !allCoreBolts.containsAll( returnedRouters ) )
@@ -349,13 +349,13 @@ public class ServerPoliciesLoadBalancingIT
             LoadBalancingResult result = (LoadBalancingResult) item;
 
             Set<AdvertisedSocketAddress> returnedReaders = result.readEndpoints().stream()
-                    .map( Endpoint::address )
-                    .collect( Collectors.toSet() );
+                                                                 .map( Endpoint::address )
+                                                                 .collect( Collectors.toSet() );
 
             Set<AdvertisedSocketAddress> expectedBolts = cluster.readReplicas().stream()
-                    .filter( r -> replicaIds.contains( r.serverId() ) )
-                    .map( r -> r.clientConnectorAddresses().boltAddress() )
-                    .collect( Collectors.toSet() );
+                                                                .filter( r -> replicaIds.contains( r.serverId() ) )
+                                                                .map( r -> r.clientConnectorAddresses().boltAddress() )
+                                                                .collect( Collectors.toSet() );
 
             return expectedBolts.equals( returnedReaders );
         }

@@ -28,7 +28,7 @@ import org.neo4j.graphdb.RelationshipType;
 import org.neo4j.graphdb.Transaction;
 import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.io.fs.FileSystemAbstraction;
-import org.neo4j.kernel.impl.enterprise.configuration.OnlineBackupSettings;
+import org.neo4j.kernel.impl.enterprise.settings.backup.OnlineBackupSettings;
 import org.neo4j.kernel.impl.store.format.standard.Standard;
 import org.neo4j.kernel.impl.transaction.log.files.TransactionLogFiles;
 import org.neo4j.test.TestGraphDatabaseFactory;
@@ -44,6 +44,11 @@ public class ClassicNeo4jStore
         this.logicalLogsDir = logicalLogsDir;
     }
 
+    public static Neo4jStoreBuilder builder( File baseDir, FileSystemAbstraction fsa )
+    {
+        return new Neo4jStoreBuilder( baseDir, fsa );
+    }
+
     public File getStoreDir()
     {
         return storeDir;
@@ -54,19 +59,14 @@ public class ClassicNeo4jStore
         return logicalLogsDir;
     }
 
-    public static Neo4jStoreBuilder builder( File baseDir, FileSystemAbstraction fsa )
-    {
-        return new Neo4jStoreBuilder( baseDir, fsa );
-    }
-
     public static class Neo4jStoreBuilder
     {
+        private final File baseDir;
+        private final FileSystemAbstraction fsa;
         private String dbName = "graph.db";
         private boolean needRecover;
         private int nrOfNodes = 10;
         private String recordsFormat = Standard.LATEST_NAME;
-        private final File baseDir;
-        private final FileSystemAbstraction fsa;
         private String logicalLogsLocation = "";
 
         Neo4jStoreBuilder( File baseDir, FileSystemAbstraction fsa )
@@ -76,45 +76,8 @@ public class ClassicNeo4jStore
             this.fsa = fsa;
         }
 
-        public Neo4jStoreBuilder dbName( String string )
-        {
-            dbName = string;
-            return this;
-        }
-
-        public Neo4jStoreBuilder needToRecover()
-        {
-            needRecover = true;
-            return this;
-        }
-
-        public Neo4jStoreBuilder amountOfNodes( int nodes )
-        {
-            nrOfNodes = nodes;
-            return this;
-        }
-
-        public Neo4jStoreBuilder recordFormats( String format )
-        {
-            recordsFormat = format;
-            return this;
-        }
-
-        public Neo4jStoreBuilder logicalLogsLocation( String logicalLogsLocation )
-        {
-            this.logicalLogsLocation = logicalLogsLocation;
-            return this;
-        }
-
-        public ClassicNeo4jStore build() throws IOException
-        {
-            createStore( baseDir, fsa, dbName, nrOfNodes, recordsFormat, needRecover, logicalLogsLocation );
-            File storeDir = new File( baseDir, dbName );
-            return new ClassicNeo4jStore( storeDir, new File( storeDir, logicalLogsLocation ) );
-        }
-
         private static void createStore( File base, FileSystemAbstraction fileSystem, String dbName, int nodesToCreate, String recordFormat,
-                boolean recoveryNeeded, String logicalLogsLocation ) throws IOException
+                                         boolean recoveryNeeded, String logicalLogsLocation ) throws IOException
         {
             File storeDir = new File( base, dbName );
             GraphDatabaseService db = new TestGraphDatabaseFactory()
@@ -162,6 +125,43 @@ public class ClassicNeo4jStore
             {
                 db.shutdown();
             }
+        }
+
+        public Neo4jStoreBuilder dbName( String string )
+        {
+            dbName = string;
+            return this;
+        }
+
+        public Neo4jStoreBuilder needToRecover()
+        {
+            needRecover = true;
+            return this;
+        }
+
+        public Neo4jStoreBuilder amountOfNodes( int nodes )
+        {
+            nrOfNodes = nodes;
+            return this;
+        }
+
+        public Neo4jStoreBuilder recordFormats( String format )
+        {
+            recordsFormat = format;
+            return this;
+        }
+
+        public Neo4jStoreBuilder logicalLogsLocation( String logicalLogsLocation )
+        {
+            this.logicalLogsLocation = logicalLogsLocation;
+            return this;
+        }
+
+        public ClassicNeo4jStore build() throws IOException
+        {
+            createStore( baseDir, fsa, dbName, nrOfNodes, recordsFormat, needRecover, logicalLogsLocation );
+            File storeDir = new File( baseDir, dbName );
+            return new ClassicNeo4jStore( storeDir, new File( storeDir, logicalLogsLocation ) );
         }
     }
 }

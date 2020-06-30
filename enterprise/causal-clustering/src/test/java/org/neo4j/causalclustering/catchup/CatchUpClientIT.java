@@ -115,7 +115,9 @@ class CatchUpClientIT
 
         // then
         CatchUpClientException catchUpClientException = assertThrows( CatchUpClientException.class,
-                () -> emptyClient.makeBlockingRequest( new AdvertisedSocketAddress( hostname, port ), new GetStoreIdRequest(), neverCompletingAdaptor() ) );
+                                                                      () -> emptyClient.makeBlockingRequest( new AdvertisedSocketAddress( hostname, port ),
+                                                                                                             new GetStoreIdRequest(),
+                                                                                                             neverCompletingAdaptor() ) );
         assertEquals( ClosedChannelException.class, Exceptions.rootCause( catchUpClientException ).getClass() );
         assertTrue( wasClosedByServer.get() );
     }
@@ -141,7 +143,9 @@ class CatchUpClientIT
 
         // then
         CatchUpClientException catchUpClientException = assertThrows( CatchUpClientException.class,
-                () -> emptyClient.makeBlockingRequest( new AdvertisedSocketAddress( hostname, port ), new GetStoreIdRequest(), neverCompletingAdaptor() ) );
+                                                                      () -> emptyClient.makeBlockingRequest( new AdvertisedSocketAddress( hostname, port ),
+                                                                                                             new GetStoreIdRequest(),
+                                                                                                             neverCompletingAdaptor() ) );
         assertEquals( TimeoutException.class, Exceptions.rootCause( catchUpClientException ).getClass() );
     }
 
@@ -207,14 +211,14 @@ class CatchUpClientIT
     private CatchUpClient catchupClient( ChannelHandler... channelHandlers )
     {
         return new CatchUpClient( NullLogProvider.getInstance(), Clock.systemUTC(), inactivityTimeoutMillis,
-                catchUpResponseHandler -> new ChannelInitializer<SocketChannel>()
-        {
-            @Override
-            protected void initChannel( SocketChannel ch )
-            {
-                ch.pipeline().addLast( channelHandlers );
-            }
-        } );
+                                  catchUpResponseHandler -> new ChannelInitializer<SocketChannel>()
+                                  {
+                                      @Override
+                                      protected void initChannel( SocketChannel ch )
+                                      {
+                                          ch.pipeline().addLast( channelHandlers );
+                                      }
+                                  } );
     }
 
     private Server catchupServer( ListenSocketAddress listenSocketAddress, ChannelHandler... channelHandlers )

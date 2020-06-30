@@ -22,7 +22,6 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
-
 import static org.neo4j.causalclustering.core.consensus.MajorityIncludingSelfQuorum.isQuorum;
 
 public class QuorumStrategyTest

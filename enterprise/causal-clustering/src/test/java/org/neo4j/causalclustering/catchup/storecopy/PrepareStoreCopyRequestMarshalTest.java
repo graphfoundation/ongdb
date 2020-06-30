@@ -25,11 +25,17 @@ import org.junit.Test;
 
 import org.neo4j.causalclustering.identity.StoreId;
 
-import static org.junit.Assert.assertEquals;
-
 public class PrepareStoreCopyRequestMarshalTest
 {
     EmbeddedChannel embeddedChannel;
+
+    public static <E> void sendToChannel( E e, EmbeddedChannel embeddedChannel )
+    {
+        embeddedChannel.writeOutbound( e );
+
+        ByteBuf object = embeddedChannel.readOutbound();
+        embeddedChannel.writeInbound( object );
+    }
 
     @Before
     public void setup()
@@ -50,13 +56,5 @@ public class PrepareStoreCopyRequestMarshalTest
         // then it can be received/deserialised
         PrepareStoreCopyRequest prepareStoreCopyRequestRead = embeddedChannel.readInbound();
         assertEquals( prepareStoreCopyRequest.getStoreId(), prepareStoreCopyRequestRead.getStoreId() );
-    }
-
-    public static <E> void sendToChannel( E e, EmbeddedChannel embeddedChannel )
-    {
-        embeddedChannel.writeOutbound( e );
-
-        ByteBuf object = embeddedChannel.readOutbound();
-        embeddedChannel.writeInbound( object );
     }
 }

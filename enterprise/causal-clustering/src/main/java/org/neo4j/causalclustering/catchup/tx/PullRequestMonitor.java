@@ -21,8 +21,12 @@ package org.neo4j.causalclustering.catchup.tx;
 public interface PullRequestMonitor
 {
     void txPullRequest( long txId );
+
     void txPullResponse( long txId );
+
     long lastRequestedTxId();
+
     long lastReceivedTxId();
+
     long numberOfRequests();
 }

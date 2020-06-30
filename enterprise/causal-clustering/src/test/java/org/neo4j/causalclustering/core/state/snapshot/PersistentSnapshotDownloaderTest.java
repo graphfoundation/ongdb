@@ -109,7 +109,8 @@ public class PersistentSnapshotDownloaderTest
         final Log log = mock( Log.class );
         NoTimeout timeout = new NoTimeout();
         PersistentSnapshotDownloader persistentSnapshotDownloader = new PersistentSnapshotDownloader( null,
-                applicationProcess, coreStateDownloader, log, timeout, () -> dbHealth, new Monitors() );
+                                                                                                      applicationProcess, coreStateDownloader, log, timeout,
+                                                                                                      () -> dbHealth, new Monitors() );
 
         // when
         Thread thread = new Thread( persistentSnapshotDownloader );

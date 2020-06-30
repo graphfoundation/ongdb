@@ -109,16 +109,6 @@ public class HazelcastClusterTopologyTest
     private final HazelcastInstance hzInstance = mock( HazelcastInstance.class );
     private Map<String,IMap<String,String>> rrAttributeMaps;
 
-    @Before
-    public void setup()
-    {
-        @SuppressWarnings( "unchecked" )
-        MultiMap<String,String> serverGroupsMMap = mock( MultiMap.class );
-        when( serverGroupsMMap.get( any() ) ).thenReturn( GROUPS );
-        when( hzInstance.getMultiMap( anyString() ) ).thenReturn( (MultiMap) serverGroupsMMap );
-        rrAttributeMaps = RR_ATTR_KEYS.stream().map( k -> Pair.of( k, (IMap<String,String>) mock( IMap.class ) ) ).collect( CollectorsUtil.pairsToMap() );
-    }
-
     private static List<Config> generateConfigs( int numConfigs )
     {
         return generateConfigs( numConfigs, DEFAULT_SETTINGS_GENERATOR );
@@ -127,6 +117,16 @@ public class HazelcastClusterTopologyTest
     private static List<Config> generateConfigs( int numConfigs, IntFunction<HashMap<String,String>> generator )
     {
         return IntStream.range( 0, numConfigs ).mapToObj( generator ).map( Config::defaults ).collect( Collectors.toList() );
+    }
+
+    @Before
+    public void setup()
+    {
+        @SuppressWarnings( "unchecked" )
+        MultiMap<String,String> serverGroupsMMap = mock( MultiMap.class );
+        when( serverGroupsMMap.get( any() ) ).thenReturn( GROUPS );
+        when( hzInstance.getMultiMap( anyString() ) ).thenReturn( (MultiMap) serverGroupsMMap );
+        rrAttributeMaps = RR_ATTR_KEYS.stream().map( k -> Pair.of( k, (IMap<String,String>) mock( IMap.class ) ) ).collect( CollectorsUtil.pairsToMap() );
     }
 
     @Test

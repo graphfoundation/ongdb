@@ -53,16 +53,16 @@ abstract class PruningStrategyTest
     public void mockSegmentVisitor()
     {
         doAnswer( invocation ->
-        {
-            Visitor<SegmentFile,RuntimeException> visitor = invocation.getArgument( 0 );
-            ListIterator<SegmentFile> itr = files.listIterator( files.size() );
-            boolean terminate = false;
-            while ( itr.hasPrevious() && !terminate )
-            {
-                terminate = visitor.visit( itr.previous() );
-            }
-            return null;
-        } ).when( segments ).visitBackwards( any() );
+                  {
+                      Visitor<SegmentFile,RuntimeException> visitor = invocation.getArgument( 0 );
+                      ListIterator<SegmentFile> itr = files.listIterator( files.size() );
+                      boolean terminate = false;
+                      while ( itr.hasPrevious() && !terminate )
+                      {
+                          terminate = visitor.visit( itr.previous() );
+                      }
+                      return null;
+                  } ).when( segments ).visitBackwards( any() );
     }
 
     private SegmentHeader testSegmentHeader( long value )

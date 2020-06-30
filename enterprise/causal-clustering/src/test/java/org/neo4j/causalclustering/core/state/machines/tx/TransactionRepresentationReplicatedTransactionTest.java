@@ -29,15 +29,11 @@ import java.util.Arrays;
 import java.util.Collections;
 
 import org.neo4j.causalclustering.helpers.Buffers;
-import org.neo4j.causalclustering.messaging.BoundedNetworkWritableChannel;
-import org.neo4j.causalclustering.messaging.NetworkReadableClosableChannelNetty4;
 import org.neo4j.causalclustering.messaging.NetworkWritableChannel;
 import org.neo4j.causalclustering.messaging.marshalling.OutputStreamWritableChannel;
 import org.neo4j.kernel.impl.store.record.NodeRecord;
 import org.neo4j.kernel.impl.transaction.command.Command;
 import org.neo4j.kernel.impl.transaction.log.PhysicalTransactionRepresentation;
-
-import static org.junit.Assert.assertEquals;
 
 public class TransactionRepresentationReplicatedTransactionTest
 {

@@ -26,20 +26,20 @@ import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
-import org.neo4j.causalclustering.messaging.Message;
 import org.neo4j.causalclustering.identity.MemberId;
+import org.neo4j.causalclustering.messaging.Message;
 
 public class DirectNetworking
 {
-    private final Map<MemberId, org.neo4j.causalclustering.messaging.Inbound.MessageHandler> handlers = new HashMap<>();
-    private final Map<MemberId, Queue<Message>> messageQueues = new HashMap<>();
+    private final Map<MemberId,org.neo4j.causalclustering.messaging.Inbound.MessageHandler> handlers = new HashMap<>();
+    private final Map<MemberId,Queue<Message>> messageQueues = new HashMap<>();
     private final Set<MemberId> disconnectedMembers = Collections.newSetFromMap( new ConcurrentHashMap<>() );
 
     public void processMessages()
     {
         while ( messagesToBeProcessed() )
         {
-            for ( Map.Entry<MemberId, Queue<Message>> entry : messageQueues.entrySet() )
+            for ( Map.Entry<MemberId,Queue<Message>> entry : messageQueues.entrySet() )
             {
                 MemberId id = entry.getKey();
                 Queue<Message> queue = entry.getValue();
@@ -75,7 +75,7 @@ public class DirectNetworking
     }
 
     public class Outbound implements
-            org.neo4j.causalclustering.messaging.Outbound<MemberId, RaftMessages.RaftMessage>
+                          org.neo4j.causalclustering.messaging.Outbound<MemberId,RaftMessages.RaftMessage>
     {
         private final MemberId me;
 
@@ -96,8 +96,8 @@ public class DirectNetworking
         private boolean canDeliver( MemberId to )
         {
             return messageQueues.containsKey( to ) &&
-                    !disconnectedMembers.contains( to ) &&
-                    !disconnectedMembers.contains( me );
+                   !disconnectedMembers.contains( to ) &&
+                   !disconnectedMembers.contains( me );
         }
     }
 

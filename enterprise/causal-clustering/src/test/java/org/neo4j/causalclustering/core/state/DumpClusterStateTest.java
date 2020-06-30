@@ -85,7 +85,7 @@ public class DumpClusterStateTest
     private void createStates() throws IOException
     {
         SimpleStorage<MemberId> memberIdStorage = new SimpleFileStorage<>( fsa.get(), clusterStateDirectory.get(),
-                CORE_MEMBER_ID_NAME, new MemberId.Marshal(), NullLogProvider.getInstance() );
+                                                                           CORE_MEMBER_ID_NAME, new MemberId.Marshal(), NullLogProvider.getInstance() );
         memberIdStorage.writeState( new MemberId( UUID.randomUUID() ) );
 
         createDurableState( LAST_FLUSHED_NAME, new LongIndexMarshal() );

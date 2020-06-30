@@ -39,7 +39,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoMoreInteractions;
 
 public class PruningSchedulerTest
 {
@@ -60,7 +59,7 @@ public class PruningSchedulerTest
         // then
         assertNotNull( jobScheduler.getJob() );
         verify( jobScheduler, times( 1 ) ).schedule( eq( Group.RAFT_LOG_PRUNING ), any( Runnable.class ),
-                eq( 20L ), eq( TimeUnit.MILLISECONDS ) );
+                                                     eq( 20L ), eq( TimeUnit.MILLISECONDS ) );
     }
 
     @Test
@@ -81,7 +80,7 @@ public class PruningSchedulerTest
 
         // then
         verify( jobScheduler, times( 2 ) ).schedule( eq( Group.RAFT_LOG_PRUNING ), any( Runnable.class ),
-                eq( 20L ), eq( TimeUnit.MILLISECONDS ) );
+                                                     eq( 20L ), eq( TimeUnit.MILLISECONDS ) );
         verify( logPruner, times( 1 ) ).prune();
         assertEquals( scheduledJob, jobScheduler.getJob() );
     }
@@ -150,16 +149,17 @@ public class PruningSchedulerTest
 
         checkPointerLatch.waitForAllToStart();
 
-        Thread stopper = new Thread( () -> {
-            try
-            {
-                scheduler.stop();
-            }
-            catch ( Throwable throwable )
-            {
-                ex.set( throwable );
-            }
-        } );
+        Thread stopper = new Thread( () ->
+                                     {
+                                         try
+                                         {
+                                             scheduler.stop();
+                                         }
+                                         catch ( Throwable throwable )
+                                         {
+                                             ex.set( throwable );
+                                         }
+                                     } );
 
         stopper.start();
 

@@ -32,6 +32,11 @@ import static org.neo4j.causalclustering.scenarios.EnterpriseDiscoveryServiceTyp
 
 public class EnterpriseClusterIpFamilyIT extends BaseClusterIpFamilyIT
 {
+    public EnterpriseClusterIpFamilyIT( DiscoveryServiceType discoveryServiceFactory, IpFamily ipFamily, boolean useWildcard )
+    {
+        super( discoveryServiceFactory, ipFamily, useWildcard );
+    }
+
     @Parameterized.Parameters( name = "{0} {1} useWildcard={2}" )
     public static Collection<Object[]> data()
     {
@@ -44,11 +49,6 @@ public class EnterpriseClusterIpFamilyIT extends BaseClusterIpFamilyIT
 
                 {HAZELCAST, IPV4, true},
                 {HAZELCAST, IPV6, true},
-        } );
-    }
-
-    public EnterpriseClusterIpFamilyIT( DiscoveryServiceType discoveryServiceFactory, IpFamily ipFamily, boolean useWildcard )
-    {
-        super( discoveryServiceFactory, ipFamily, useWildcard );
+                } );
     }
 }

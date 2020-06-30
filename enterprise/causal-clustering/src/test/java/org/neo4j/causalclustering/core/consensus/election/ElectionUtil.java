@@ -39,11 +39,11 @@ public class ElectionUtil
     }
 
     public static MemberId waitForLeaderAgreement( Iterable<RaftMachine> validRafts, long maxTimeMillis ) throws
-            InterruptedException, TimeoutException
+                                                                                                          InterruptedException, TimeoutException
     {
         long viewCount = Iterables.count( validRafts );
 
-        Map<MemberId, MemberId> leaderViews = new HashMap<>();
+        Map<MemberId,MemberId> leaderViews = new HashMap<>();
         CompletableFuture<MemberId> futureAgreedLeader = new CompletableFuture<>();
 
         Collection<Runnable> destructors = new ArrayList<>();
@@ -71,7 +71,7 @@ public class ElectionUtil
 
     private static Runnable leaderViewUpdatingListener( RaftMachine raft, Iterable<RaftMachine>
             validRafts, Map<MemberId,MemberId> leaderViews, long viewCount, CompletableFuture<MemberId>
-            futureAgreedLeader )
+                                                                futureAgreedLeader )
     {
         LeaderListener listener = newLeader ->
         {

@@ -57,7 +57,7 @@ public class ReplayableCommitProcessTest
 
         // then
         verify( localDatabase.commitProcess, times( 3 ) ).commit( any( TransactionToApply.class ),
-                any( CommitEvent.class ), any( TransactionApplicationMode.class ) );
+                                                                  any( CommitEvent.class ), any( TransactionApplicationMode.class ) );
     }
 
     @Test
@@ -79,7 +79,7 @@ public class ReplayableCommitProcessTest
 
         // then
         verify( localDatabase.commitProcess, times( 1 ) ).commit( eq( newTx ),
-                any( CommitEvent.class ), any( TransactionApplicationMode.class ) );
+                                                                  any( CommitEvent.class ), any( TransactionApplicationMode.class ) );
         verifyNoMoreInteractions( localDatabase.commitProcess );
     }
 

@@ -34,12 +34,6 @@ public class RaftTestMemberSetBuilder implements RaftGroup.Builder
     {
     }
 
-    @Override
-    public RaftGroup build( Set members )
-    {
-        return new RaftTestGroup( members );
-    }
-
     public static RaftGroup memberSet( int... ids )
     {
         HashSet members = new HashSet<>();
@@ -47,6 +41,12 @@ public class RaftTestMemberSetBuilder implements RaftGroup.Builder
         {
             members.add( member( id ) );
         }
+        return new RaftTestGroup( members );
+    }
+
+    @Override
+    public RaftGroup build( Set members )
+    {
         return new RaftTestGroup( members );
     }
 }

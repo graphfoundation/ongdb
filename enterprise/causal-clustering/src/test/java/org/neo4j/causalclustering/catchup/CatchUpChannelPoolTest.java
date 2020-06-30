@@ -34,6 +34,11 @@ import static org.junit.Assert.fail;
 
 public class CatchUpChannelPoolTest
 {
+    private static AdvertisedSocketAddress localAddress( int port )
+    {
+        return new AdvertisedSocketAddress( "localhost", port );
+    }
+
     @Test
     public void shouldReUseAChannelThatWasReleased() throws Exception
     {
@@ -212,10 +217,5 @@ public class CatchUpChannelPoolTest
         {
             closed = true;
         }
-    }
-
-    private static AdvertisedSocketAddress localAddress( int port )
-    {
-        return new AdvertisedSocketAddress( "localhost", port );
     }
 }

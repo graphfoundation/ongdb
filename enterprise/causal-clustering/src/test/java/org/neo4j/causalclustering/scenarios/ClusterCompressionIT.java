@@ -46,6 +46,12 @@ import static org.neo4j.graphdb.Label.label;
 @RunWith( Parameterized.class )
 public class ClusterCompressionIT
 {
+    @Rule
+    public final ClusterRule clusterRule =
+            new ClusterRule()
+                    .withNumberOfCoreMembers( 3 )
+                    .withNumberOfReadReplicas( 3 )
+                    .withTimeout( 1000, SECONDS );
     @Parameterized.Parameter
     public Protocol.ModifierProtocol modifierProtocol;
 
@@ -54,13 +60,6 @@ public class ClusterCompressionIT
     {
         return Arrays.asList( ModifierProtocols.values() );
     }
-
-    @Rule
-    public final ClusterRule clusterRule =
-            new ClusterRule()
-                    .withNumberOfCoreMembers( 3 )
-                    .withNumberOfReadReplicas( 3 )
-                    .withTimeout( 1000, SECONDS );
 
     @Test
     public void shouldReplicateWithCompression() throws Exception
@@ -72,10 +71,10 @@ public class ClusterCompressionIT
 
         Cluster<?> cluster = clusterRule.startCluster();
 
-         // when
+        // when
         int numberOfNodes = 10;
         CoreClusterMember leader = createLabelledNodesWithProperty( cluster, numberOfNodes, label( "Foo" ),
-                () -> Pair.of( "foobar", format( "baz_bat%s", UUID.randomUUID() ) ) );
+                                                                    () -> Pair.of( "foobar", format( "baz_bat%s", UUID.randomUUID() ) ) );
 
         // then
         assertEquals( numberOfNodes, countNodes( leader ) );

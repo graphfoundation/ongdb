@@ -72,10 +72,10 @@ public class RaftTestFixture
             Inbound<RaftMessages.RaftMessage> inbound =
                     new LoggingInbound<>( net.new Inbound<>( fixtureMember.member ), messageLogger, fixtureMember.member );
             Outbound<MemberId,RaftMessages.RaftMessage> outbound = new LoggingOutbound<>( net.new Outbound( id ), fixtureMember.member,
-                    messageLogger );
+                                                                                          messageLogger );
 
             fixtureMember.raftMachine = new RaftMachineBuilder( fixtureMember.member, expectedClusterSize,
-                    RaftTestMemberSetBuilder.INSTANCE )
+                                                                RaftTestMemberSetBuilder.INSTANCE )
                     .inbound( inbound )
                     .outbound( outbound )
                     .raftLog( fixtureMember.raftLog )
@@ -109,7 +109,7 @@ public class RaftTestFixture
 
     public static class Members implements Iterable<MemberFixture>
     {
-        private Map<MemberId, MemberFixture> memberMap = new HashMap<>();
+        private Map<MemberId,MemberFixture> memberMap = new HashMap<>();
 
         private MemberFixture put( MemberFixture value )
         {
@@ -213,10 +213,10 @@ public class RaftTestFixture
         public String toString()
         {
             return "FixtureMember{" +
-                    "raftInstance=" + raftMachine +
-                    ", timeoutService=" + timerService +
-                    ", raftLog=" + raftLog +
-                    '}';
+                   "raftInstance=" + raftMachine +
+                   ", timeoutService=" + timerService +
+                   ", raftLog=" + raftLog +
+                   '}';
         }
     }
 }

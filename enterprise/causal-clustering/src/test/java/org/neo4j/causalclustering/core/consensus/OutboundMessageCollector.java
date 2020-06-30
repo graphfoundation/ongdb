@@ -30,9 +30,9 @@ import org.neo4j.causalclustering.identity.MemberId;
 import org.neo4j.causalclustering.messaging.Message;
 import org.neo4j.causalclustering.messaging.Outbound;
 
-public class OutboundMessageCollector implements Outbound<MemberId, RaftMessages.RaftMessage>
+public class OutboundMessageCollector implements Outbound<MemberId,RaftMessages.RaftMessage>
 {
-    private Map<MemberId, List<RaftMessages.RaftMessage>> sentMessages = new HashMap<>();
+    private Map<MemberId,List<RaftMessages.RaftMessage>> sentMessages = new HashMap<>();
 
     public void clear()
     {

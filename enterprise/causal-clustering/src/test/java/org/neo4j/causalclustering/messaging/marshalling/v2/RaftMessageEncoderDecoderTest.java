@@ -65,37 +65,54 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 
 /**
- * Warning! This test ensures that all raft protocol work as expected in their current implementation. However, it does not know about changes to the
- * protocols that breaks backward compatibility.
+ * Warning! This test ensures that all raft protocol work as expected in their current implementation. However, it does not know about changes to the protocols
+ * that breaks backward compatibility.
  */
 @RunWith( Parameterized.class )
 public class RaftMessageEncoderDecoderTest
 {
     private static final MemberId MEMBER_ID = new MemberId( UUID.randomUUID() );
     private static final int[] PROTOCOLS = {1, 2};
+    private final RaftMessageHandler handler = new RaftMessageHandler();
     @Parameterized.Parameter()
     public RaftMessages.RaftMessage raftMessage;
     @Parameterized.Parameter( 1 )
     public int raftProtocol;
-    private final RaftMessageHandler handler = new RaftMessageHandler();
+    private EmbeddedChannel outbound;
+    private EmbeddedChannel inbound;
 
     @Parameterized.Parameters( name = "Raft v{1} with message {0}" )
     public static Object[] data()
     {
         return setUpParams( new RaftMessages.RaftMessage[]{new RaftMessages.Heartbeat( MEMBER_ID, 1, 2, 3 ), new RaftMessages.HeartbeatResponse( MEMBER_ID ),
-                new RaftMessages.NewEntry.Request( MEMBER_ID, new DummyRequest( new byte[]{1, 2, 3, 4, 5, 6, 7, 8} ) ),
-                new RaftMessages.NewEntry.Request( MEMBER_ID, ReplicatedTransaction.from( new byte[]{1, 2, 3, 4, 5, 6, 7, 8} ) ),
-                new RaftMessages.NewEntry.Request( MEMBER_ID, ReplicatedTransaction.from( new PhysicalTransactionRepresentation( Collections.emptyList() ) ) ),
-                new RaftMessages.NewEntry.Request( MEMBER_ID, new DistributedOperation(
-                        new DistributedOperation( ReplicatedTransaction.from( new byte[]{1, 2, 3, 4, 5} ), new GlobalSession( UUID.randomUUID(), MEMBER_ID ),
-                                new LocalOperationId( 1, 2 ) ), new GlobalSession( UUID.randomUUID(), MEMBER_ID ), new LocalOperationId( 3, 4 ) ) ),
-                new RaftMessages.AppendEntries.Request( MEMBER_ID, 1, 2, 3,
-                        new RaftLogEntry[]{new RaftLogEntry( 0, new ReplicatedTokenRequest( TokenType.LABEL, "name", new byte[]{2, 3, 4} ) ),
-                                new RaftLogEntry( 1, new ReplicatedLockTokenRequest( MEMBER_ID, 2 ) )}, 5 ),
-                new RaftMessages.AppendEntries.Response( MEMBER_ID, 1, true, 2, 3 ),
-                new RaftMessages.Vote.Request( MEMBER_ID, Long.MAX_VALUE, MEMBER_ID, Long.MIN_VALUE, 1 ), new RaftMessages.Vote.Response( MEMBER_ID, 1, true ),
-                new RaftMessages.PreVote.Request( MEMBER_ID, Long.MAX_VALUE, MEMBER_ID, Long.MIN_VALUE, 1 ),
-                new RaftMessages.PreVote.Response( MEMBER_ID, 1, true ), new RaftMessages.LogCompactionInfo( MEMBER_ID, Long.MAX_VALUE, Long.MIN_VALUE )} );
+                                                           new RaftMessages.NewEntry.Request( MEMBER_ID,
+                                                                                              new DummyRequest( new byte[]{1, 2, 3, 4, 5, 6, 7, 8} ) ),
+                                                           new RaftMessages.NewEntry.Request( MEMBER_ID, ReplicatedTransaction
+                                                                   .from( new byte[]{1, 2, 3, 4, 5, 6, 7, 8} ) ),
+                                                           new RaftMessages.NewEntry.Request( MEMBER_ID, ReplicatedTransaction
+                                                                   .from( new PhysicalTransactionRepresentation( Collections.emptyList() ) ) ),
+                                                           new RaftMessages.NewEntry.Request( MEMBER_ID, new DistributedOperation(
+                                                                   new DistributedOperation( ReplicatedTransaction.from( new byte[]{1, 2, 3, 4, 5} ),
+                                                                                             new GlobalSession( UUID.randomUUID(), MEMBER_ID ),
+                                                                                             new LocalOperationId( 1, 2 ) ),
+                                                                   new GlobalSession( UUID.randomUUID(), MEMBER_ID ), new LocalOperationId( 3, 4 ) ) ),
+                                                           new RaftMessages.AppendEntries.Request( MEMBER_ID, 1, 2, 3,
+                                                                                                   new RaftLogEntry[]{new RaftLogEntry( 0,
+                                                                                                                                        new ReplicatedTokenRequest(
+                                                                                                                                                TokenType.LABEL,
+                                                                                                                                                "name",
+                                                                                                                                                new byte[]{2, 3,
+                                                                                                                                                           4} ) ),
+                                                                                                                      new RaftLogEntry( 1,
+                                                                                                                                        new ReplicatedLockTokenRequest(
+                                                                                                                                                MEMBER_ID,
+                                                                                                                                                2 ) )}, 5 ),
+                                                           new RaftMessages.AppendEntries.Response( MEMBER_ID, 1, true, 2, 3 ),
+                                                           new RaftMessages.Vote.Request( MEMBER_ID, Long.MAX_VALUE, MEMBER_ID, Long.MIN_VALUE, 1 ),
+                                                           new RaftMessages.Vote.Response( MEMBER_ID, 1, true ),
+                                                           new RaftMessages.PreVote.Request( MEMBER_ID, Long.MAX_VALUE, MEMBER_ID, Long.MIN_VALUE, 1 ),
+                                                           new RaftMessages.PreVote.Response( MEMBER_ID, 1, true ),
+                                                           new RaftMessages.LogCompactionInfo( MEMBER_ID, Long.MAX_VALUE, Long.MIN_VALUE )} );
     }
 
     private static Object[] setUpParams( RaftMessages.RaftMessage[] messages )
@@ -108,8 +125,18 @@ public class RaftMessageEncoderDecoderTest
         return Arrays.stream( PROTOCOLS ).mapToObj( p -> new Object[]{raftMessage, p} );
     }
 
-    private EmbeddedChannel outbound;
-    private EmbeddedChannel inbound;
+    private static void encode( ByteBuf buffer, ChunkedInput<ByteBuf> marshal ) throws Exception
+    {
+        while ( !marshal.isEndOfInput() )
+        {
+            ByteBuf tmp = marshal.readChunk( UnpooledByteBufAllocator.DEFAULT );
+            if ( tmp != null )
+            {
+                buffer.writeBytes( tmp );
+                tmp.release();
+            }
+        }
+    }
 
     @Before
     public void setupChannels() throws Exception
@@ -120,16 +147,16 @@ public class RaftMessageEncoderDecoderTest
         if ( raftProtocol == 2 )
         {
             new RaftProtocolClientInstallerV2( new NettyPipelineBuilderFactory( VoidPipelineWrapperFactory.VOID_WRAPPER ), Collections.emptyList(),
-                    FormattedLogProvider.toOutputStream( System.out ) ).install( outbound );
+                                               FormattedLogProvider.toOutputStream( System.out ) ).install( outbound );
             new RaftProtocolServerInstallerV2( handler, new NettyPipelineBuilderFactory( VoidPipelineWrapperFactory.VOID_WRAPPER ), Collections.emptyList(),
-                    FormattedLogProvider.toOutputStream( System.out ) ).install( inbound );
+                                               FormattedLogProvider.toOutputStream( System.out ) ).install( inbound );
         }
         else if ( raftProtocol == 1 )
         {
             new RaftProtocolClientInstallerV1( new NettyPipelineBuilderFactory( VoidPipelineWrapperFactory.VOID_WRAPPER ), Collections.emptyList(),
-                    FormattedLogProvider.toOutputStream( System.out ) ).install( outbound );
+                                               FormattedLogProvider.toOutputStream( System.out ) ).install( outbound );
             new RaftProtocolServerInstallerV1( handler, new NettyPipelineBuilderFactory( VoidPipelineWrapperFactory.VOID_WRAPPER ), Collections.emptyList(),
-                    FormattedLogProvider.toOutputStream( System.out ) ).install( inbound );
+                                               FormattedLogProvider.toOutputStream( System.out ) ).install( inbound );
         }
         else
         {
@@ -215,19 +242,6 @@ public class RaftMessageEncoderDecoderTest
         else
         {
             assertEquals( one, two );
-        }
-    }
-
-    private static void encode( ByteBuf buffer, ChunkedInput<ByteBuf> marshal ) throws Exception
-    {
-        while ( !marshal.isEndOfInput() )
-        {
-            ByteBuf tmp = marshal.readChunk( UnpooledByteBufAllocator.DEFAULT );
-            if ( tmp != null )
-            {
-                buffer.writeBytes( tmp );
-                tmp.release();
-            }
         }
     }
 

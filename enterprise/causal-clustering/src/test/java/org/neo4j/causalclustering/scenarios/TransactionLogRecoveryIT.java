@@ -148,7 +148,7 @@ public class TransactionLogRecoveryIT
             {
                 LogEntryWriter writer = new LogEntryWriter( logFiles.getLogFile().getWriter() );
                 writer.writeStartEntry( 0, 0, 0x123456789ABCDEFL, logFiles.getLogFileInformation().getLastEntryId() + 1,
-                        new byte[]{0} );
+                                        new byte[]{0} );
             }
         }
     }

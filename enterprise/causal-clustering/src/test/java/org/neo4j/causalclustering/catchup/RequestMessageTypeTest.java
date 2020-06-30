@@ -20,7 +20,6 @@ package org.neo4j.causalclustering.catchup;
 
 import org.junit.Test;
 
-import static java.lang.String.format;
 import static org.junit.Assert.assertEquals;
 import static org.neo4j.causalclustering.catchup.RequestMessageType.CORE_SNAPSHOT;
 import static org.neo4j.causalclustering.catchup.RequestMessageType.INDEX_SNAPSHOT;

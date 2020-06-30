@@ -22,8 +22,6 @@ import org.junit.Test;
 
 import org.neo4j.causalclustering.core.consensus.log.LogPosition;
 
-import static org.junit.Assert.assertEquals;
-
 public class PositionCacheTest
 {
     private final PositionCache cache = new PositionCache();

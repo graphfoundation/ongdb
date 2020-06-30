@@ -22,7 +22,6 @@ import org.hamcrest.Description;
 import org.hamcrest.FeatureMatcher;
 import org.hamcrest.Matcher;
 import org.hamcrest.TypeSafeMatcher;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -242,7 +241,7 @@ public abstract class BaseClusterOverviewIT
 
         // then
         assertAllEventualOverviews( cluster, allOf( containsRole( LEADER, 1 ), containsRole( FOLLOWER, coreMembers - 1 - 2 ) ),
-                asSet( 0, 1 ), Collections.emptySet() );
+                                    asSet( 0, 1 ), Collections.emptySet() );
     }
 
     @Test
@@ -282,7 +281,7 @@ public abstract class BaseClusterOverviewIT
 
     private void assertAllEventualOverviews( Cluster<?> cluster, Matcher<List<MemberInfo>> expected ) throws KernelException, InterruptedException
     {
-        assertAllEventualOverviews( cluster, expected, Collections.emptySet(), Collections.emptySet()  );
+        assertAllEventualOverviews( cluster, expected, Collections.emptySet(), Collections.emptySet() );
     }
 
     private void assertAllEventualOverviews( Cluster<?> cluster, Matcher<List<MemberInfo>> expected, Set<Integer> excludedCores, Set<Integer> excludedRRs )
@@ -294,7 +293,6 @@ public abstract class BaseClusterOverviewIT
             {
                 assertEventualOverview( expected, core, "core" );
             }
-
         }
 
         for ( ReadReplica rr : cluster.readReplicas() )
@@ -309,47 +307,47 @@ public abstract class BaseClusterOverviewIT
     private void assertEventualOverview( Matcher<List<MemberInfo>> expected, ClusterMember<? extends GraphDatabaseFacade> member, String role )
             throws KernelException, InterruptedException
     {
-        Function<List<MemberInfo>, String> printableMemberInfos =
+        Function<List<MemberInfo>,String> printableMemberInfos =
                 memberInfos -> memberInfos.stream().map( MemberInfo::toString ).collect( Collectors.joining( ", " ) );
 
         String message = String.format( "should have overview from %s %s, but view was ", role, member.serverId() );
         assertEventually( memberInfos -> message + printableMemberInfos.apply( memberInfos ),
-                () -> clusterOverview( member.database() ), expected, 180, SECONDS );
+                          () -> clusterOverview( member.database() ), expected, 180, SECONDS );
     }
 
     @SafeVarargs
     private final Matcher<Iterable<? extends MemberInfo>> containsAllMemberAddresses(
             Collection<? extends ClusterMember>... members )
     {
-        return containsMemberAddresses( Stream.of( members).flatMap( Collection::stream ).collect( toList() ) );
+        return containsMemberAddresses( Stream.of( members ).flatMap( Collection::stream ).collect( toList() ) );
     }
 
     private Matcher<Iterable<? extends MemberInfo>> containsMemberAddresses( Collection<? extends ClusterMember> members )
     {
         return containsInAnyOrder( members.stream().map( coreClusterMember ->
-                new TypeSafeMatcher<MemberInfo>()
-                {
-                    @Override
-                    protected boolean matchesSafely( MemberInfo item )
-                    {
-                        Set<String> addresses = asSet(item.addresses);
-                        for ( URI uri : coreClusterMember.clientConnectorAddresses().uriList() )
-                        {
-                            if ( !addresses.contains( uri.toString() ) )
-                            {
-                                return false;
-                            }
-                        }
-                        return true;
-                    }
+                                                                 new TypeSafeMatcher<MemberInfo>()
+                                                                 {
+                                                                     @Override
+                                                                     protected boolean matchesSafely( MemberInfo item )
+                                                                     {
+                                                                         Set<String> addresses = asSet( item.addresses );
+                                                                         for ( URI uri : coreClusterMember.clientConnectorAddresses().uriList() )
+                                                                         {
+                                                                             if ( !addresses.contains( uri.toString() ) )
+                                                                             {
+                                                                                 return false;
+                                                                             }
+                                                                         }
+                                                                         return true;
+                                                                     }
 
-                    @Override
-                    public void describeTo( Description description )
-                    {
-                        description.appendText( "MemberInfo with addresses: " )
-                                .appendValue( coreClusterMember.clientConnectorAddresses().boltAddress() );
-                    }
-                }
+                                                                     @Override
+                                                                     public void describeTo( Description description )
+                                                                     {
+                                                                         description.appendText( "MemberInfo with addresses: " )
+                                                                                    .appendValue( coreClusterMember.clientConnectorAddresses().boltAddress() );
+                                                                     }
+                                                                 }
         ).collect( toList() ) );
     }
 
@@ -367,7 +365,7 @@ public abstract class BaseClusterOverviewIT
 
     private Matcher<List<MemberInfo>> doesNotContainRole( RoleInfo unexpectedRole )
     {
-       return containsRole( unexpectedRole, 0 );
+        return containsRole( unexpectedRole, 0 );
     }
 
     @SuppressWarnings( "unchecked" )

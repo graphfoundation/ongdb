@@ -40,13 +40,13 @@ class SharedDiscoveryReadReplicaClient extends SafeLifecycle implements Topology
     private final String dbName;
 
     SharedDiscoveryReadReplicaClient( SharedDiscoveryService sharedDiscoveryService, Config config, MemberId memberId,
-            LogProvider logProvider )
+                                      LogProvider logProvider )
     {
         this.sharedDiscoveryService = sharedDiscoveryService;
         this.dbName = config.get( CausalClusteringSettings.database );
         this.addresses = new ReadReplicaInfo( ClientConnectorAddresses.extractFromConfig( config ),
-                socketAddress( config.get( CausalClusteringSettings.transaction_advertised_address ).toString(),
-                        AdvertisedSocketAddress::new ), dbName );
+                                              socketAddress( config.get( CausalClusteringSettings.transaction_advertised_address ).toString(),
+                                                             AdvertisedSocketAddress::new ), dbName );
         this.memberId = memberId;
         this.log = logProvider.getLog( getClass() );
     }
@@ -104,11 +104,11 @@ class SharedDiscoveryReadReplicaClient extends SafeLifecycle implements Topology
     public Optional<AdvertisedSocketAddress> findCatchupAddress( MemberId upstream )
     {
         return sharedDiscoveryService.getCoreTopology( dbName, false )
-                .find( upstream )
-                .map( info -> Optional.of( info.getCatchupServer() ) )
-                .orElseGet( () -> sharedDiscoveryService.getReadReplicaTopology()
-                        .find( upstream )
-                        .map( ReadReplicaInfo::getCatchupServer ) );
+                                     .find( upstream )
+                                     .map( info -> Optional.of( info.getCatchupServer() ) )
+                                     .orElseGet( () -> sharedDiscoveryService.getReadReplicaTopology()
+                                                                             .find( upstream )
+                                                                             .map( ReadReplicaInfo::getCatchupServer ) );
     }
 
     @Override

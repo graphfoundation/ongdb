@@ -47,7 +47,7 @@ import static org.neo4j.causalclustering.identity.RaftTestMember.member;
 public class RaftGroupMembershipTest
 {
     @Mock
-    private Outbound<MemberId, Message> outbound;
+    private Outbound<MemberId,Message> outbound;
 
     @Mock
     private Inbound inbound;
@@ -96,7 +96,7 @@ public class RaftGroupMembershipTest
 
         // when
         fixture.members().withId( leader ).raftInstance()
-                .setTargetMembershipSet( new RaftTestGroup( finalMembers ).getMembers() );
+               .setTargetMembershipSet( new RaftTestGroup( finalMembers ).getMembers() );
         net.processMessages();
 
         fixture.members().withId( leader ).timerService().invoke( HEARTBEAT );
@@ -104,8 +104,8 @@ public class RaftGroupMembershipTest
 
         // then
         assertThat( fixture.members().withIds( finalMembers ), hasCurrentMembers( new RaftTestGroup( finalMembers ) ) );
-        assertEquals( fixture.messageLog(),1, fixture.members().withRole( LEADER ).size() );
-        assertEquals( fixture.messageLog(),3, fixture.members().withRole( FOLLOWER ).size() );
+        assertEquals( fixture.messageLog(), 1, fixture.members().withRole( LEADER ).size() );
+        assertEquals( fixture.messageLog(), 3, fixture.members().withRole( FOLLOWER ).size() );
     }
 
     @Test
@@ -278,7 +278,7 @@ public class RaftGroupMembershipTest
         // then
         assertThat( fixture.messageLog(), fixture.members().withIds( finalMembers ), hasCurrentMembers( new RaftTestGroup( finalMembers ) ) );
         assertTrue( fixture.messageLog(), fixture.members().withId( stable1 ).raftInstance().isLeader() ||
-                fixture.members().withId( stable2 ).raftInstance().isLeader() );
+                                          fixture.members().withId( stable2 ).raftInstance().isLeader() );
     }
 
     @Test
@@ -303,14 +303,14 @@ public class RaftGroupMembershipTest
         net.processMessages();
 
         fixture.members().withId( leader1 ).raftInstance().setTargetMembershipSet( new RaftTestGroup( fewerMembers )
-                .getMembers() );
+                                                                                           .getMembers() );
         net.processMessages();
 
         fixture.members().withId( leader2 ).timerService().invoke( ELECTION );
         net.processMessages();
 
         fixture.members().withId( leader2 ).raftInstance().setTargetMembershipSet( new RaftTestGroup( allMembers )
-                .getMembers() );
+                                                                                           .getMembers() );
         net.processMessages();
 
         fixture.members().withId( leader2 ).timerService().invoke( HEARTBEAT );

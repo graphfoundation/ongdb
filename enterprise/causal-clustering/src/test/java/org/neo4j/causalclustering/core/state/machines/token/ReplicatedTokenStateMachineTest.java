@@ -51,18 +51,28 @@ public class ReplicatedTokenStateMachineTest
     private final int EXPECTED_TOKEN_ID = 1;
     private final int UNEXPECTED_TOKEN_ID = 1024;
 
+    private static List<StorageCommand> tokenCommands( int expectedTokenId )
+    {
+        return singletonList( new Command.LabelTokenCommand(
+                new LabelTokenRecord( expectedTokenId ),
+                new LabelTokenRecord( expectedTokenId )
+        ) );
+    }
+
     @Test
     public void shouldCreateTokenId()
     {
         // given
         TokenRegistry registry = new TokenRegistry( "Label" );
         ReplicatedTokenStateMachine stateMachine = new ReplicatedTokenStateMachine( registry,
-                NullLogProvider.getInstance(), EmptyVersionContextSupplier.EMPTY );
+                                                                                    NullLogProvider.getInstance(), EmptyVersionContextSupplier.EMPTY );
         stateMachine.installCommitProcess( mock( TransactionCommitProcess.class ), -1 );
 
         // when
         byte[] commandBytes = commandBytes( tokenCommands( EXPECTED_TOKEN_ID ) );
-        stateMachine.applyCommand( new ReplicatedTokenRequest( LABEL, "Person", commandBytes ), 1, r -> {} );
+        stateMachine.applyCommand( new ReplicatedTokenRequest( LABEL, "Person", commandBytes ), 1, r ->
+        {
+        } );
 
         // then
         assertEquals( EXPECTED_TOKEN_ID, (int) registry.getId( "Person" ) );
@@ -74,7 +84,7 @@ public class ReplicatedTokenStateMachineTest
         // given
         TokenRegistry registry = new TokenRegistry( "Label" );
         ReplicatedTokenStateMachine stateMachine = new ReplicatedTokenStateMachine( registry,
-                NullLogProvider.getInstance(), EmptyVersionContextSupplier.EMPTY );
+                                                                                    NullLogProvider.getInstance(), EmptyVersionContextSupplier.EMPTY );
 
         stateMachine.installCommitProcess( mock( TransactionCommitProcess.class ), -1 );
 
@@ -84,8 +94,12 @@ public class ReplicatedTokenStateMachineTest
                 new ReplicatedTokenRequest( LABEL, "Person", commandBytes( tokenCommands( UNEXPECTED_TOKEN_ID ) ) );
 
         // when
-        stateMachine.applyCommand( winningRequest, 1, r -> {} );
-        stateMachine.applyCommand( losingRequest, 2, r -> {} );
+        stateMachine.applyCommand( winningRequest, 1, r ->
+        {
+        } );
+        stateMachine.applyCommand( losingRequest, 2, r ->
+        {
+        } );
 
         // then
         assertEquals( EXPECTED_TOKEN_ID, (int) registry.getId( "Person" ) );
@@ -105,20 +119,14 @@ public class ReplicatedTokenStateMachineTest
 
         // when
         byte[] commandBytes = commandBytes( tokenCommands( EXPECTED_TOKEN_ID ) );
-        stateMachine.applyCommand( new ReplicatedTokenRequest( LABEL, "Person", commandBytes ), logIndex, r -> {} );
+        stateMachine.applyCommand( new ReplicatedTokenRequest( LABEL, "Person", commandBytes ), logIndex, r ->
+        {
+        } );
 
         // then
         List<TransactionRepresentation> transactions = commitProcess.transactionsToApply;
         assertEquals( 1, transactions.size() );
         assertEquals( logIndex, decodeLogIndexFromTxHeader( transactions.get( 0 ).additionalHeader() ) );
-    }
-
-    private static List<StorageCommand> tokenCommands( int expectedTokenId )
-    {
-        return singletonList( new Command.LabelTokenCommand(
-                new LabelTokenRecord( expectedTokenId ),
-                new LabelTokenRecord( expectedTokenId )
-        ) );
     }
 
     private static class StubTransactionCommitProcess extends TransactionRepresentationCommitProcess

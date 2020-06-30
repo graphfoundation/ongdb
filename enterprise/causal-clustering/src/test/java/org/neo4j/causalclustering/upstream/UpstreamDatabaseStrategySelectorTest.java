@@ -35,9 +35,7 @@ import org.neo4j.helpers.Service;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.logging.NullLogProvider;
 
-import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verifyZeroInteractions;
 import static org.mockito.Mockito.when;
 import static org.neo4j.helpers.collection.Iterables.iterable;
 
@@ -114,6 +112,15 @@ public class UpstreamDatabaseStrategySelectorTest
         verifyZeroInteractions( shouldNotUse );
     }
 
+    private Map<MemberId,CoreServerInfo> mapOf( MemberId memberId, CoreServerInfo coreServerInfo )
+    {
+        HashMap<MemberId,CoreServerInfo> map = new HashMap<>();
+
+        map.put( memberId, coreServerInfo );
+
+        return map;
+    }
+
     @Service.Implementation( UpstreamDatabaseSelectionStrategy.class )
     public static class DummyUpstreamDatabaseSelectionStrategy extends UpstreamDatabaseSelectionStrategy
     {
@@ -164,14 +171,5 @@ public class UpstreamDatabaseStrategySelectorTest
         {
             return Optional.of( new MemberId( UUID.randomUUID() ) );
         }
-    }
-
-    private Map<MemberId,CoreServerInfo> mapOf( MemberId memberId, CoreServerInfo coreServerInfo )
-    {
-        HashMap<MemberId,CoreServerInfo> map = new HashMap<>();
-
-        map.put( memberId, coreServerInfo );
-
-        return map;
     }
 }

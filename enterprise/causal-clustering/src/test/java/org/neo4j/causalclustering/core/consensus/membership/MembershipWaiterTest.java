@@ -58,16 +58,16 @@ public class MembershipWaiterTest
     {
         OnDemandJobScheduler jobScheduler = new OnDemandJobScheduler();
         MembershipWaiter waiter = new MembershipWaiter( member( 0 ), jobScheduler, () -> dbHealth, 500,
-                NullLogProvider.getInstance(), new Monitors() );
+                                                        NullLogProvider.getInstance(), new Monitors() );
 
         InMemoryRaftLog raftLog = new InMemoryRaftLog();
         raftLog.append( new RaftLogEntry( 0, valueOf( 0 ) ) );
         ExposedRaftState raftState = RaftStateBuilder.raftState()
-                .votingMembers( member( 0 ) )
-                .leaderCommit( 0 )
-                .entryLog( raftLog )
-                .commitIndex( 0L )
-                .build().copy();
+                                                     .votingMembers( member( 0 ) )
+                                                     .leaderCommit( 0 )
+                                                     .entryLog( raftLog )
+                                                     .commitIndex( 0L )
+                                                     .build().copy();
 
         RaftMachine raft = mock( RaftMachine.class );
         when( raft.state() ).thenReturn( raftState );
@@ -84,16 +84,16 @@ public class MembershipWaiterTest
     {
         OnDemandJobScheduler jobScheduler = new OnDemandJobScheduler();
         MembershipWaiter waiter = new MembershipWaiter( member( 0 ), jobScheduler, () -> dbHealth, 500,
-                NullLogProvider.getInstance(), new Monitors() );
+                                                        NullLogProvider.getInstance(), new Monitors() );
 
         InMemoryRaftLog raftLog = new InMemoryRaftLog();
         raftLog.append( new RaftLogEntry( 0, valueOf( 0 ) ) );
         ExposedRaftState raftState = RaftStateBuilder.raftState()
-                .votingMembers( member( 0 ) )
-                .leaderCommit( 0 )
-                .entryLog( raftLog )
-                .commitIndex( 0L )
-                .build().copy();
+                                                     .votingMembers( member( 0 ) )
+                                                     .leaderCommit( 0 )
+                                                     .entryLog( raftLog )
+                                                     .commitIndex( 0L )
+                                                     .build().copy();
 
         RaftMachine raft = mock( RaftMachine.class );
         when( raft.state() ).thenReturn( raftState );
@@ -109,12 +109,12 @@ public class MembershipWaiterTest
     {
         OnDemandJobScheduler jobScheduler = new OnDemandJobScheduler();
         MembershipWaiter waiter = new MembershipWaiter( member( 0 ), jobScheduler, () -> dbHealth, 1,
-                NullLogProvider.getInstance(), new Monitors() );
+                                                        NullLogProvider.getInstance(), new Monitors() );
 
         ExposedRaftState raftState = RaftStateBuilder.raftState()
-                .votingMembers( member( 1 ) )
-                .leaderCommit( 0 )
-                .build().copy();
+                                                     .votingMembers( member( 1 ) )
+                                                     .leaderCommit( 0 )
+                                                     .build().copy();
 
         RaftMachine raft = mock( RaftMachine.class );
         when( raft.state() ).thenReturn( raftState );
@@ -139,12 +139,12 @@ public class MembershipWaiterTest
     {
         OnDemandJobScheduler jobScheduler = new OnDemandJobScheduler();
         MembershipWaiter waiter = new MembershipWaiter( member( 0 ), jobScheduler, () -> dbHealth, 1,
-                NullLogProvider.getInstance(), new Monitors() );
+                                                        NullLogProvider.getInstance(), new Monitors() );
 
         ExposedRaftState raftState = RaftStateBuilder.raftState()
-                .votingMembers( member( 0 ), member( 1 ) )
-                .leaderCommit( 0 )
-                .build().copy();
+                                                     .votingMembers( member( 0 ), member( 1 ) )
+                                                     .leaderCommit( 0 )
+                                                     .build().copy();
 
         RaftMachine raft = mock( RaftMachine.class );
         when( raft.state() ).thenReturn( raftState );
@@ -169,14 +169,14 @@ public class MembershipWaiterTest
     {
         OnDemandJobScheduler jobScheduler = new OnDemandJobScheduler();
         MembershipWaiter waiter = new MembershipWaiter( member( 0 ), jobScheduler, () -> dbHealth, 1,
-                NullLogProvider.getInstance(), new Monitors() );
+                                                        NullLogProvider.getInstance(), new Monitors() );
 
         ExposedRaftState raftState = RaftStateBuilder.raftState()
-                .leaderCommit( -1 )
-                .build().copy();
+                                                     .leaderCommit( -1 )
+                                                     .build().copy();
 
         RaftMachine raft = mock( RaftMachine.class );
-        when(raft.state()).thenReturn( raftState );
+        when( raft.state() ).thenReturn( raftState );
 
         CompletableFuture<Boolean> future = waiter.waitUntilCaughtUpMember( raft );
         jobScheduler.runJob();

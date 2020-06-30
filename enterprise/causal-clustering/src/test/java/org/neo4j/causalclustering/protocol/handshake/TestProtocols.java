@@ -28,20 +28,20 @@ import org.neo4j.causalclustering.protocol.Protocol;
 
 public interface TestProtocols
 {
-    static <U extends Comparable<U>,T extends Protocol<U>> T latest( Protocol.Category<T> category, T[] values )
+    static <U extends Comparable<U>, T extends Protocol<U>> T latest( Protocol.Category<T> category, T[] values )
     {
         return Stream.of( values )
-                .filter( protocol -> protocol.category().equals( category.canonicalName() ) )
-                .max( Comparator.comparing( T::implementation ) )
-                .get();
+                     .filter( protocol -> protocol.category().equals( category.canonicalName() ) )
+                     .max( Comparator.comparing( T::implementation ) )
+                     .get();
     }
 
-    static <U extends Comparable<U>,T extends Protocol> U[] allVersionsOf( Protocol.Category<T> category, T[] values, IntFunction<U[]> constructor )
+    static <U extends Comparable<U>, T extends Protocol> U[] allVersionsOf( Protocol.Category<T> category, T[] values, IntFunction<U[]> constructor )
     {
         return Stream.of( values )
-                .filter( protocol -> protocol.category().equals( category.canonicalName() ) )
-                .map( Protocol::implementation )
-                .toArray( constructor );
+                     .filter( protocol -> protocol.category().equals( category.canonicalName() ) )
+                     .map( Protocol::implementation )
+                     .toArray( constructor );
     }
 
     enum TestApplicationProtocols implements Protocol.ApplicationProtocol
@@ -58,22 +58,11 @@ public interface TestProtocols
         private final Integer version;
 
         private final ApplicationProtocolCategory identifier;
+
         TestApplicationProtocols( ApplicationProtocolCategory identifier, int version )
         {
             this.identifier = identifier;
             this.version = version;
-        }
-
-        @Override
-        public String category()
-        {
-            return this.identifier.canonicalName();
-        }
-
-        @Override
-        public Integer implementation()
-        {
-            return version;
         }
 
         public static ApplicationProtocol latest( ApplicationProtocolCategory identifier )
@@ -89,6 +78,18 @@ public interface TestProtocols
         public static List<Integer> listVersionsOf( ApplicationProtocolCategory identifier )
         {
             return Arrays.asList( allVersionsOf( identifier ) );
+        }
+
+        @Override
+        public String category()
+        {
+            return this.identifier.canonicalName();
+        }
+
+        @Override
+        public Integer implementation()
+        {
+            return version;
         }
     }
 
@@ -112,18 +113,6 @@ public interface TestProtocols
             this.friendlyName = friendlyName;
         }
 
-        @Override
-        public String category()
-        {
-            return identifier.canonicalName();
-        }
-
-        @Override
-        public String implementation()
-        {
-            return friendlyName;
-        }
-
         public static ModifierProtocol latest( ModifierProtocolCategory identifier )
         {
             return TestProtocols.latest( identifier, values() );
@@ -139,6 +128,18 @@ public interface TestProtocols
             List<String> versions = Arrays.asList( allVersionsOf( identifier ) );
             versions.sort( Comparator.reverseOrder() );
             return versions;
+        }
+
+        @Override
+        public String category()
+        {
+            return identifier.canonicalName();
+        }
+
+        @Override
+        public String implementation()
+        {
+            return friendlyName;
         }
     }
 }

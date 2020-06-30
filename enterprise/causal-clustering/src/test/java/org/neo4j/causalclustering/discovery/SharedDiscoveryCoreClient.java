@@ -43,7 +43,7 @@ class SharedDiscoveryCoreClient extends AbstractCoreTopologyService implements C
     private volatile CoreTopology localCoreTopology = CoreTopology.EMPTY;
 
     SharedDiscoveryCoreClient( SharedDiscoveryService sharedDiscoveryService,
-            MemberId member, LogProvider logProvider, Config config )
+                               MemberId member, LogProvider logProvider, Config config )
     {
         super( config, member, logProvider, logProvider );
         this.localDBName = config.get( CausalClusteringSettings.database );
@@ -73,7 +73,7 @@ class SharedDiscoveryCoreClient extends AbstractCoreTopologyService implements C
     @Override
     public void setLeader0( LeaderInfo newLeader )
     {
-        leaderInfo =  newLeader;
+        leaderInfo = newLeader;
         sharedDiscoveryService.casLeaders( newLeader, localDBName );
     }
 
@@ -151,9 +151,9 @@ class SharedDiscoveryCoreClient extends AbstractCoreTopologyService implements C
     public Optional<AdvertisedSocketAddress> findCatchupAddress( MemberId upstream )
     {
         return localCoreServers().find( upstream )
-                .map( info -> Optional.of( info.getCatchupServer() ) )
-                .orElseGet( () -> readReplicaTopology.find( upstream )
-                        .map( ReadReplicaInfo::getCatchupServer ) );
+                                 .map( info -> Optional.of( info.getCatchupServer() ) )
+                                 .orElseGet( () -> readReplicaTopology.find( upstream )
+                                                                      .map( ReadReplicaInfo::getCatchupServer ) );
     }
 
     @Override
@@ -196,6 +196,6 @@ class SharedDiscoveryCoreClient extends AbstractCoreTopologyService implements C
     public String toString()
     {
         return "SharedDiscoveryCoreClient{" + "myself=" + myself + ", coreServerInfo=" + coreServerInfo + ", refusesToBeLeader=" + refusesToBeLeader +
-                ", localDBName='" + localDBName + '\'' + ", leaderInfo=" + leaderInfo + ", coreTopology=" + coreTopology + '}';
+               ", localDBName='" + localDBName + '\'' + ", leaderInfo=" + leaderInfo + ", coreTopology=" + coreTopology + '}';
     }
 }

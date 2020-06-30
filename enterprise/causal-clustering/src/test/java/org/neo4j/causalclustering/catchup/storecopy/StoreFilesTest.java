@@ -53,13 +53,11 @@ import static org.junit.Assert.assertTrue;
 
 public class StoreFilesTest
 {
+    @Rule
+    public RuleChain rules;
     protected TestDirectory testDirectory;
     protected Supplier<FileSystemAbstraction> fileSystemRule;
     protected PageCacheRule pageCacheRule;
-
-    @Rule
-    public RuleChain rules;
-
     private FileSystemAbstraction fs;
     private PageCache pageCache;
     private StoreFiles storeFiles;

@@ -43,7 +43,6 @@ import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
-import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -51,6 +50,14 @@ import static org.neo4j.causalclustering.catchup.CatchupResult.SUCCESS_END_OF_ST
 
 public class RemoteStoreTest
 {
+    private static TransactionLogCatchUpFactory factory( TransactionLogCatchUpWriter writer ) throws IOException
+    {
+        TransactionLogCatchUpFactory factory = mock( TransactionLogCatchUpFactory.class );
+        when( factory.create( any(), any( FileSystemAbstraction.class ), isNull(), any( Config.class ),
+                              any( LogProvider.class ), anyLong(), anyBoolean(), anyBoolean(), anyBoolean() ) ).thenReturn( writer );
+        return factory;
+    }
+
     @Test
     public void shouldCopyStoreFilesAndPullTransactions() throws Exception
     {
@@ -63,7 +70,7 @@ public class RemoteStoreTest
         TransactionLogCatchUpWriter writer = mock( TransactionLogCatchUpWriter.class );
 
         RemoteStore remoteStore = new RemoteStore( NullLogProvider.getInstance(), mock( FileSystemAbstraction.class ),
-                null, storeCopyClient, txPullClient, factory( writer ), Config.defaults(), new Monitors() );
+                                                   null, storeCopyClient, txPullClient, factory( writer ), Config.defaults(), new Monitors() );
 
         // when
         AdvertisedSocketAddress localhost = new AdvertisedSocketAddress( "127.0.0.1", 1234 );
@@ -95,7 +102,7 @@ public class RemoteStoreTest
         TransactionLogCatchUpWriter writer = mock( TransactionLogCatchUpWriter.class );
 
         RemoteStore remoteStore = new RemoteStore( NullLogProvider.getInstance(), mock( FileSystemAbstraction.class ),
-                null, storeCopyClient, txPullClient, factory( writer ), Config.defaults(), new Monitors() );
+                                                   null, storeCopyClient, txPullClient, factory( writer ), Config.defaults(), new Monitors() );
 
         // when
         remoteStore.copy( catchupAddressProvider, wantedStoreId, DatabaseLayout.of( new File( "destination" ) ), true );
@@ -103,7 +110,7 @@ public class RemoteStoreTest
         // then
         long previousTxId = lastFlushedTxId - 1; // the interface is defined as asking for the one preceding
         verify( txPullClient ).pullTransactions( eq( localhost ), eq( wantedStoreId ), eq( previousTxId ),
-                any() );
+                                                 any() );
     }
 
     @Test
@@ -117,11 +124,11 @@ public class RemoteStoreTest
         CatchupAddressProvider catchupAddressProvider = CatchupAddressProvider.fromSingleAddress( null );
 
         RemoteStore remoteStore = new RemoteStore( NullLogProvider.getInstance(), mock( FileSystemAbstraction.class ),
-                null,
-                storeCopyClient, txPullClient, factory( writer ), Config.defaults(), new Monitors() );
+                                                   null,
+                                                   storeCopyClient, txPullClient, factory( writer ), Config.defaults(), new Monitors() );
 
         doThrow( CatchUpClientException.class ).when( txPullClient )
-                .pullTransactions( isNull(), eq( storeId ), anyLong(), any() );
+                                               .pullTransactions( isNull(), eq( storeId ), anyLong(), any() );
 
         // when
         try
@@ -135,13 +142,5 @@ public class RemoteStoreTest
 
         // then
         verify( writer ).close();
-    }
-
-    private static TransactionLogCatchUpFactory factory( TransactionLogCatchUpWriter writer ) throws IOException
-    {
-        TransactionLogCatchUpFactory factory = mock( TransactionLogCatchUpFactory.class );
-        when( factory.create( any(), any( FileSystemAbstraction.class ), isNull(), any( Config.class ),
-                any( LogProvider.class ), anyLong(), anyBoolean(), anyBoolean(), anyBoolean() ) ).thenReturn( writer );
-        return factory;
     }
 }

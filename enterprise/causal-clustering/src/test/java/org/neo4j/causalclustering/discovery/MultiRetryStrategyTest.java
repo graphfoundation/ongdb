@@ -37,6 +37,7 @@ public class MultiRetryStrategyTest
     private static final Predicate<Integer> VALID_ON_SECOND_TIME = new Predicate<Integer>()
     {
         private boolean nextSuccessful;
+
         @Override
         public boolean test( Integer integer )
         {
@@ -48,6 +49,11 @@ public class MultiRetryStrategyTest
             return true;
         }
     };
+
+    public static MultiRetryStrategy<AdvertisedSocketAddress,Collection<AdvertisedSocketAddress>> testRetryStrategy( int numRetries )
+    {
+        return new MultiRetryStrategy<>( 0, numRetries, NullLogProvider.getInstance(), new CountingSleeper() );
+    }
 
     @Test
     public void successOnRetryCausesNoDelay()
@@ -108,11 +114,5 @@ public class MultiRetryStrategyTest
         {
             return counter;
         }
-
-    }
-
-    public static MultiRetryStrategy<AdvertisedSocketAddress,Collection<AdvertisedSocketAddress>> testRetryStrategy( int numRetries )
-    {
-        return new MultiRetryStrategy<>( 0, numRetries, NullLogProvider.getInstance(), new CountingSleeper() );
     }
 }

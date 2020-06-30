@@ -18,6 +18,8 @@
  */
 package org.neo4j.causalclustering.discovery;
 
+import org.junit.Test;
+
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -25,11 +27,8 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
-import org.junit.Test;
-
 import org.neo4j.causalclustering.identity.MemberId;
 
-import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasSize;
 import static org.mockito.Mockito.mock;
 
@@ -44,7 +43,7 @@ public class TopologyTest
         TestTopology topology = new TestTopology( readReplicaMembers );
 
         // when
-        TopologyDifference diff =  topology.difference(topology);
+        TopologyDifference diff = topology.difference( topology );
 
         // then
         assertThat( diff.added(), hasSize( 0 ) );
@@ -60,12 +59,12 @@ public class TopologyTest
         Map<MemberId,ReadReplicaInfo> newMembers = new HashMap<>( initialMembers );
         int newMemberQuantity = 2;
         IntStream.range( 0, newMemberQuantity )
-                .forEach( ignored -> putRandomMember( newMembers ) );
+                 .forEach( ignored -> putRandomMember( newMembers ) );
 
         TestTopology topology = new TestTopology( initialMembers );
 
         // when
-        TopologyDifference diff =  topology.difference(new TestTopology( newMembers ));
+        TopologyDifference diff = topology.difference( new TestTopology( newMembers ) );
 
         // then
         assertThat( diff.added(), hasSize( newMemberQuantity ) );
@@ -80,12 +79,12 @@ public class TopologyTest
         Map<MemberId,ReadReplicaInfo> newMembers = new HashMap<>( initialMembers );
         int removedMemberQuantity = 2;
         IntStream.range( 0, removedMemberQuantity )
-                .forEach( ignored -> removeArbitraryMember( newMembers ) );
+                 .forEach( ignored -> removeArbitraryMember( newMembers ) );
 
         TestTopology topology = new TestTopology( initialMembers );
 
         // when
-        TopologyDifference diff =  topology.difference(new TestTopology( newMembers ));
+        TopologyDifference diff = topology.difference( new TestTopology( newMembers ) );
 
         // then
         assertThat( diff.added(), hasSize( 0 ) );
@@ -104,11 +103,31 @@ public class TopologyTest
         TestTopology topology = new TestTopology( initialMembers );
 
         // when
-        TopologyDifference diff =  topology.difference(new TestTopology( newMembers ));
+        TopologyDifference diff = topology.difference( new TestTopology( newMembers ) );
 
         // then
         assertThat( diff.added(), hasSize( newQuantity ) );
         assertThat( diff.removed(), hasSize( initialQuantity ) );
+    }
+
+    private Map<MemberId,ReadReplicaInfo> randomMembers( int quantity )
+    {
+        return Stream.generate( UUID::randomUUID )
+                     .limit( quantity )
+                     .collect( Collectors.toMap( MemberId::new, ignored -> mock( ReadReplicaInfo.class ) ) );
+    }
+
+    private void putRandomMember( Map<MemberId,ReadReplicaInfo> newmembers )
+    {
+        newmembers.put( new MemberId( UUID.randomUUID() ), mock( ReadReplicaInfo.class ) );
+    }
+
+    private void removeArbitraryMember( Map<MemberId,ReadReplicaInfo> members )
+    {
+        members.remove(
+                members.keySet().stream().findAny()
+                       .orElseThrow( () -> new AssertionError( "Removing members of an empty map" ) )
+        );
     }
 
     private static class TestTopology implements Topology<ReadReplicaInfo>
@@ -129,31 +148,10 @@ public class TopologyTest
         @Override
         public Topology<ReadReplicaInfo> filterTopologyByDb( String dbName )
         {
-            Map<MemberId, ReadReplicaInfo> newMembers = this.members.entrySet().stream()
-                    .filter( e -> e.getValue().getDatabaseName().equals( dbName ) )
-                    .collect( Collectors.toMap( Map.Entry::getKey, Map.Entry::getValue ) );
+            Map<MemberId,ReadReplicaInfo> newMembers = this.members.entrySet().stream()
+                                                                   .filter( e -> e.getValue().getDatabaseName().equals( dbName ) )
+                                                                   .collect( Collectors.toMap( Map.Entry::getKey, Map.Entry::getValue ) );
             return new TestTopology( newMembers );
         }
-    }
-
-    private Map<MemberId,ReadReplicaInfo> randomMembers( int quantity )
-    {
-        return Stream.generate( UUID::randomUUID )
-                .limit( quantity )
-                .collect( Collectors.toMap( MemberId::new, ignored -> mock(ReadReplicaInfo.class) ) );
-
-    }
-
-    private void putRandomMember( Map<MemberId,ReadReplicaInfo> newmembers )
-    {
-        newmembers.put( new MemberId( UUID.randomUUID() ), mock(ReadReplicaInfo.class) );
-    }
-
-    private void removeArbitraryMember( Map<MemberId,ReadReplicaInfo> members )
-    {
-        members.remove(
-                members.keySet().stream().findAny()
-                        .orElseThrow( () -> new AssertionError( "Removing members of an empty map" ) )
-        );
     }
 }

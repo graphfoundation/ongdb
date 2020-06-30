@@ -20,14 +20,13 @@ package org.neo4j.causalclustering.core.consensus.outcome;
 
 import org.junit.Test;
 
-import org.neo4j.causalclustering.core.consensus.log.cache.ConsecutiveInFlightCache;
-import org.neo4j.causalclustering.core.consensus.log.cache.InFlightCache;
 import org.neo4j.causalclustering.core.consensus.log.InMemoryRaftLog;
 import org.neo4j.causalclustering.core.consensus.log.RaftLogEntry;
+import org.neo4j.causalclustering.core.consensus.log.cache.ConsecutiveInFlightCache;
+import org.neo4j.causalclustering.core.consensus.log.cache.InFlightCache;
 import org.neo4j.logging.Log;
 import org.neo4j.logging.NullLog;
 
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.neo4j.causalclustering.core.consensus.ReplicatedInteger.valueOf;
@@ -86,7 +85,7 @@ public class BatchAppendLogEntriesTest
         int offset = 1;
         RaftLogEntry[] entries =
                 new RaftLogEntry[]{new RaftLogEntry( 0L, valueOf( 0 ) ), new RaftLogEntry( 1L, valueOf( 1 ) ),
-                        new RaftLogEntry( 2L, valueOf( 2 ) ),};
+                                   new RaftLogEntry( 2L, valueOf( 2 ) ),};
 
         BatchAppendLogEntries batchAppend = new BatchAppendLogEntries( baseIndex, offset, entries );
 

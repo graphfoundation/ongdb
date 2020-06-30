@@ -70,21 +70,17 @@ public abstract class BaseMultiClusterRoutingIT
     protected static Set<String> DB_NAMES_1 = Stream.of( "foo", "bar" ).collect( Collectors.toSet() );
     protected static Set<String> DB_NAMES_2 = Collections.singleton( "default" );
     protected static Set<String> DB_NAMES_3 = Stream.of( "foo", "bar", "baz" ).collect( Collectors.toSet() );
-
+    @Rule
+    public final RuleChain ruleChain;
     private final Set<String> dbNames;
     private final ClusterRule clusterRule;
     private final DefaultFileSystemRule fileSystemRule;
     private final DiscoveryServiceType discoveryType;
     private final int numCores;
-
+    @Rule
+    public Timeout globalTimeout = Timeout.seconds( 300 );
     private Cluster<?> cluster;
     private FileSystemAbstraction fs;
-
-    @Rule
-    public final RuleChain ruleChain;
-
-    @Rule
-    public Timeout globalTimeout = Timeout.seconds(300);
 
     protected BaseMultiClusterRoutingIT( String ignoredName, int numCores, int numReplicas, Set<String> dbNames, DiscoveryServiceType discoveryType )
     {
@@ -101,6 +97,29 @@ public abstract class BaseMultiClusterRoutingIT
         this.ruleChain = RuleChain.outerRule( fileSystemRule ).around( clusterRule );
     }
 
+    private static String getFirstDbName( Set<String> dbNames )
+    {
+        return dbNames.stream()
+                      .findFirst()
+                      .orElseThrow( () -> new IllegalArgumentException( "The dbNames parameter must not be empty." ) );
+    }
+
+    private static Optional<MultiClusterRoutingResult> callProcedure( CoreGraphDatabase db, ProcedureNames procedure, Map<String,Object> params )
+    {
+
+        Optional<MultiClusterRoutingResult> routingResult = Optional.empty();
+        try (
+                InternalTransaction tx = db.beginTransaction( KernelTransaction.Type.explicit, EnterpriseLoginContext.AUTH_DISABLED );
+                Result result = db.execute( tx, "CALL " + procedure.callName(), ValueUtils.asMapValue( params ) ) )
+        {
+            if ( result.hasNext() )
+            {
+                routingResult = Optional.of( MultiClusterRoutingResultFormat.parse( result.next() ) );
+            }
+        }
+        return routingResult;
+    }
+
     @Before
     public void setup() throws Exception
     {
@@ -113,19 +132,20 @@ public abstract class BaseMultiClusterRoutingIT
     public void superCallShouldReturnAllRouters()
     {
         List<CoreGraphDatabase> dbs = dbNames.stream()
-                .map( n -> cluster.getMemberWithAnyRole( n, Role.FOLLOWER, Role.LEADER ).database() ).collect( Collectors.toList() );
+                                             .map( n -> cluster.getMemberWithAnyRole( n, Role.FOLLOWER, Role.LEADER ).database() )
+                                             .collect( Collectors.toList() );
 
         Stream<Optional<MultiClusterRoutingResult>> optResults = dbs.stream()
-                .map( db -> callProcedure( db, GET_ROUTERS_FOR_ALL_DATABASES, Collections.emptyMap() ) );
+                                                                    .map( db -> callProcedure( db, GET_ROUTERS_FOR_ALL_DATABASES, Collections.emptyMap() ) );
 
         List<MultiClusterRoutingResult> results = optResults.filter( Optional::isPresent ).map( Optional::get ).collect( Collectors.toList() );
-        assertEquals("There should be a result for each database against which the procedure is executed.",  dbNames.size(), results.size() );
+        assertEquals( "There should be a result for each database against which the procedure is executed.", dbNames.size(), results.size() );
 
         boolean consistentResults = results.stream().distinct().count() == 1;
         assertThat( "The results should be the same, regardless of which database the procedure is executed against.", consistentResults );
 
-        Function<Map<String,List<Endpoint>>, Integer> countHosts = m -> m.values().stream().mapToInt( List::size ).sum();
-        int resultsAllCores = results.stream().findFirst().map(r -> countHosts.apply( r.routers() ) ).orElse( 0 );
+        Function<Map<String,List<Endpoint>>,Integer> countHosts = m -> m.values().stream().mapToInt( List::size ).sum();
+        int resultsAllCores = results.stream().findFirst().map( r -> countHosts.apply( r.routers() ) ).orElse( 0 );
         assertEquals( "The results of the procedure should return all core hosts in the topology.", numCores, resultsAllCores );
     }
 
@@ -163,57 +183,32 @@ public abstract class BaseMultiClusterRoutingIT
 
         CoreGraphDatabase db = cluster.getMemberWithAnyRole( dbName, Role.FOLLOWER, Role.LEADER ).database();
 
-        Function<CoreGraphDatabase, Set<Endpoint>> getResult = database ->
+        Function<CoreGraphDatabase,Set<Endpoint>> getResult = database ->
         {
             Optional<MultiClusterRoutingResult> optResult = callProcedure( database, GET_ROUTERS_FOR_ALL_DATABASES, Collections.emptyMap() );
 
             return optResult.map( r ->
-                    r.routers().values().stream()
-                            .flatMap( List::stream )
-                            .collect( Collectors.toSet() )
+                                          r.routers().values().stream()
+                                           .flatMap( List::stream )
+                                           .collect( Collectors.toSet() )
             ).orElse( Collections.emptySet() );
         };
 
         assertEventually( "The procedure should return one fewer routers when a core member has been removed.",
-                () -> getResult.apply( db ).size(), is(numCores - 1 ), 15, TimeUnit.SECONDS );
+                          () -> getResult.apply( db ).size(), is( numCores - 1 ), 15, TimeUnit.SECONDS );
 
-        BiPredicate<Set<Endpoint>, CoreClusterMember> containsFollower = ( rs, f ) ->
+        BiPredicate<Set<Endpoint>,CoreClusterMember> containsFollower = ( rs, f ) ->
                 rs.stream().anyMatch( r -> r.address().toString().equals( f.boltAdvertisedAddress() ) );
 
         assertEventually( "The procedure should not return a host as a router after it has been removed from the cluster",
-                () -> containsFollower.test( getResult.apply( db ), follower ), is( false ), 15, TimeUnit.SECONDS );
+                          () -> containsFollower.test( getResult.apply( db ), follower ), is( false ), 15, TimeUnit.SECONDS );
 
         CoreClusterMember newFollower = cluster.addCoreMemberWithId( followerId );
         newFollower.start();
 
         assertEventually( "The procedure should return one more router when a core member has been added.",
-                () -> getResult.apply( db ).size(), is( numCores ), 15, TimeUnit.SECONDS );
+                          () -> getResult.apply( db ).size(), is( numCores ), 15, TimeUnit.SECONDS );
         assertEventually( "The procedure should return a core member as a router after it has been added to the cluster",
-                () -> containsFollower.test( getResult.apply( db ), newFollower ), is( true ), 15, TimeUnit.SECONDS );
-
+                          () -> containsFollower.test( getResult.apply( db ), newFollower ), is( true ), 15, TimeUnit.SECONDS );
     }
-
-    private static String getFirstDbName( Set<String> dbNames )
-    {
-        return dbNames.stream()
-                .findFirst()
-                .orElseThrow( () -> new IllegalArgumentException( "The dbNames parameter must not be empty." ) );
-    }
-
-    private static Optional<MultiClusterRoutingResult> callProcedure( CoreGraphDatabase db, ProcedureNames procedure, Map<String,Object> params )
-    {
-
-        Optional<MultiClusterRoutingResult> routingResult = Optional.empty();
-        try (
-                InternalTransaction tx = db.beginTransaction( KernelTransaction.Type.explicit, EnterpriseLoginContext.AUTH_DISABLED );
-                Result result = db.execute( tx, "CALL " + procedure.callName(), ValueUtils.asMapValue( params )) )
-        {
-            if ( result.hasNext() )
-            {
-                routingResult = Optional.of( MultiClusterRoutingResultFormat.parse( result.next() ) );
-            }
-        }
-        return routingResult;
-    }
-
 }

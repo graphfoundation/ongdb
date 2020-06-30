@@ -46,7 +46,7 @@ public class IdReusabilityConditionTest
     @Before
     public void setUp()
     {
-        when( raftMachine.state() ) .thenReturn( state );
+        when( raftMachine.state() ).thenReturn( state );
         myself = new MemberId( UUID.randomUUID() );
         idReusabilityCondition = new IdReusabilityCondition( commandIndexTracker, raftMachine, myself );
     }
@@ -62,7 +62,7 @@ public class IdReusabilityConditionTest
     {
         MemberId someoneElse = new MemberId( UUID.randomUUID() );
 
-        idReusabilityCondition.onLeaderSwitch( new LeaderInfo( someoneElse, 1 ));
+        idReusabilityCondition.onLeaderSwitch( new LeaderInfo( someoneElse, 1 ) );
         assertFalse( idReusabilityCondition.getAsBoolean() );
     }
 

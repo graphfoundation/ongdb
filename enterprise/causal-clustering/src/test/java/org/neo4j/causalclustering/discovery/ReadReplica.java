@@ -35,7 +35,7 @@ import org.neo4j.kernel.configuration.BoltConnector;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.configuration.HttpConnector;
 import org.neo4j.kernel.configuration.HttpConnector.Encryption;
-import org.neo4j.kernel.impl.enterprise.configuration.OnlineBackupSettings;
+import org.neo4j.kernel.impl.enterprise.settings.backup.OnlineBackupSettings;
 import org.neo4j.kernel.monitoring.Monitors;
 import org.neo4j.logging.Level;
 
@@ -49,26 +49,26 @@ import static org.neo4j.helpers.collection.MapUtil.stringMap;
 public class ReadReplica implements ClusterMember<ReadReplicaGraphDatabase>
 {
     protected final DiscoveryServiceFactory discoveryServiceFactory;
-    private final File neo4jHome;
     protected final File defaultDatabaseDirectory;
+    protected final File databasesDirectory;
+    private final File neo4jHome;
     private final int serverId;
     private final String boltAdvertisedSocketAddress;
     private final Config memberConfig;
+    private final ThreadGroup threadGroup;
     protected ReadReplicaGraphDatabase database;
     protected Monitors monitors;
-    private final ThreadGroup threadGroup;
-    protected final File databasesDirectory;
 
     public ReadReplica( File parentDir, int serverId, int boltPort, int httpPort, int txPort, int backupPort,
-            int discoveryPort, DiscoveryServiceFactory discoveryServiceFactory,
-            List<AdvertisedSocketAddress> coreMemberDiscoveryAddresses, Map<String,String> extraParams,
-            Map<String,IntFunction<String>> instanceExtraParams, String recordFormat, Monitors monitors,
-            String advertisedAddress, String listenAddress )
+                        int discoveryPort, DiscoveryServiceFactory discoveryServiceFactory,
+                        List<AdvertisedSocketAddress> coreMemberDiscoveryAddresses, Map<String,String> extraParams,
+                        Map<String,IntFunction<String>> instanceExtraParams, String recordFormat, Monitors monitors,
+                        String advertisedAddress, String listenAddress )
     {
         this.serverId = serverId;
 
         String initialHosts = coreMemberDiscoveryAddresses.stream().map( AdvertisedSocketAddress::toString )
-                .collect( joining( "," ) );
+                                                          .collect( joining( "," ) );
         boltAdvertisedSocketAddress = advertisedAddress( advertisedAddress, boltPort );
 
         Map<String,String> config = stringMap();
@@ -131,7 +131,7 @@ public class ReadReplica implements ClusterMember<ReadReplicaGraphDatabase>
     public void start()
     {
         database = new ReadReplicaGraphDatabase( databasesDirectory, memberConfig, GraphDatabaseDependencies.newDependencies().monitors( monitors ),
-                discoveryServiceFactory, memberId() );
+                                                 discoveryServiceFactory, memberId() );
     }
 
     @Override

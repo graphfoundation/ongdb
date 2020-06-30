@@ -23,7 +23,6 @@ import java.io.IOException;
 import org.neo4j.causalclustering.core.consensus.ReplicatedInteger;
 import org.neo4j.causalclustering.core.consensus.ReplicatedString;
 import org.neo4j.causalclustering.core.replication.ReplicatedContent;
-import org.neo4j.causalclustering.messaging.EndOfStreamException;
 import org.neo4j.causalclustering.core.state.storage.SafeChannelMarshal;
 import org.neo4j.storageengine.api.ReadableChannel;
 import org.neo4j.storageengine.api.WritableChannel;

@@ -73,17 +73,17 @@ public class ClusterIdReuseIT
         final MutableLong node3id = new MutableLong();
 
         CoreClusterMember clusterMember = cluster.coreTx( ( db, tx ) ->
-        {
-            Node node1 = db.createNode();
-            Node node2 = db.createNode();
-            Node node3 = db.createNode();
+                                                          {
+                                                              Node node1 = db.createNode();
+                                                              Node node2 = db.createNode();
+                                                              Node node3 = db.createNode();
 
-            node1id.setValue( node1.getId() );
-            node2id.setValue( node2.getId() );
-            node3id.setValue( node3.getId() );
+                                                              node1id.setValue( node1.getId() );
+                                                              node2id.setValue( node2.getId() );
+                                                              node3id.setValue( node3.getId() );
 
-            tx.success();
-        } );
+                                                              tx.success();
+                                                          } );
 
         assumeTrue( leader1.equals( clusterMember ) );
 
@@ -124,12 +124,12 @@ public class ClusterIdReuseIT
         assertEquals( 0, idGenerator.getDefragCount() );
 
         CoreClusterMember newCreationLeader = cluster.coreTx( ( db, tx ) ->
-        {
-            Node node = db.createNode();
-            assertEquals( idGenerator.getHighestPossibleIdInUse(), node.getId() );
+                                                              {
+                                                                  Node node = db.createNode();
+                                                                  assertEquals( idGenerator.getHighestPossibleIdInUse(), node.getId() );
 
-            tx.success();
-        } );
+                                                                  tx.success();
+                                                              } );
         assumeTrue( newLeader.equals( newCreationLeader ) );
     }
 
@@ -170,15 +170,15 @@ public class ClusterIdReuseIT
         final MutableLong node1id = new MutableLong();
         final MutableLong node2id = new MutableLong();
         CoreClusterMember reuseLeader = cluster.coreTx( ( db, tx ) ->
-        {
-            Node node1 = db.createNode();
-            Node node2 = db.createNode();
+                                                        {
+                                                            Node node1 = db.createNode();
+                                                            Node node2 = db.createNode();
 
-            node1id.setValue( node1.getId() );
-            node2id.setValue( node2.getId() );
+                                                            node1id.setValue( node1.getId() );
+                                                            node2id.setValue( node2.getId() );
 
-            tx.success();
-        } );
+                                                            tx.success();
+                                                        } );
         assumeTrue( leader.equals( reuseLeader ) );
 
         assertEquals( first.longValue(), node1id.longValue() );
@@ -199,29 +199,29 @@ public class ClusterIdReuseIT
     private CoreClusterMember removeTwoNodes( Cluster<?> cluster, MutableLong first, MutableLong second ) throws Exception
     {
         return cluster.coreTx( ( db, tx ) ->
-        {
-            Node node1 = db.getNodeById( first.longValue() );
-            node1.delete();
+                               {
+                                   Node node1 = db.getNodeById( first.longValue() );
+                                   node1.delete();
 
-            db.getNodeById( second.longValue() ).delete();
+                                   db.getNodeById( second.longValue() ).delete();
 
-            tx.success();
-        } );
+                                   tx.success();
+                               } );
     }
 
     private CoreClusterMember createThreeNodes( Cluster<?> cluster, MutableLong first, MutableLong second ) throws Exception
     {
         return cluster.coreTx( ( db, tx ) ->
-        {
-            Node node1 = db.createNode();
-            first.setValue( node1.getId() );
+                               {
+                                   Node node1 = db.createNode();
+                                   first.setValue( node1.getId() );
 
-            Node node2 = db.createNode();
-            second.setValue( node2.getId() );
+                                   Node node2 = db.createNode();
+                                   second.setValue( node2.getId() );
 
-            db.createNode();
+                                   db.createNode();
 
-            tx.success();
-        } );
+                                   tx.success();
+                               } );
     }
 }

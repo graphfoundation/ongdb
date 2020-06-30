@@ -39,7 +39,7 @@ public class IdleChannelReaperHandlerTest
         // given
         AdvertisedSocketAddress address = new AdvertisedSocketAddress( "localhost", 1984 );
         ReconnectingChannels channels = new ReconnectingChannels();
-        channels.putIfAbsent( address, mock( ReconnectingChannel.class) );
+        channels.putIfAbsent( address, mock( ReconnectingChannel.class ) );
 
         IdleChannelReaperHandler reaper = new IdleChannelReaperHandler( channels );
 

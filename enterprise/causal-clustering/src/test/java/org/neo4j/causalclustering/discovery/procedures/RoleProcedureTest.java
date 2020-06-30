@@ -20,13 +20,12 @@ package org.neo4j.causalclustering.discovery.procedures;
 
 import org.junit.Test;
 
-import org.neo4j.causalclustering.discovery.RoleInfo;
 import org.neo4j.causalclustering.core.consensus.RaftMachine;
+import org.neo4j.causalclustering.discovery.RoleInfo;
 import org.neo4j.collection.RawIterator;
 import org.neo4j.helpers.collection.Iterators;
 import org.neo4j.internal.kernel.api.exceptions.ProcedureException;
 
-import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.neo4j.helpers.collection.Iterators.asList;
@@ -42,10 +41,10 @@ public class RoleProcedureTest
         RoleProcedure proc = new CoreRoleProcedure( raft );
 
         // when
-        RawIterator<Object[], ProcedureException> result = proc.apply( null, null, null );
+        RawIterator<Object[],ProcedureException> result = proc.apply( null, null, null );
 
         // then
-        assertEquals( RoleInfo.LEADER.name(), single( result )[0]);
+        assertEquals( RoleInfo.LEADER.name(), single( result )[0] );
     }
 
     @Test
@@ -57,10 +56,10 @@ public class RoleProcedureTest
         RoleProcedure proc = new CoreRoleProcedure( raft );
 
         // when
-        RawIterator<Object[], ProcedureException> result = proc.apply( null, null, null );
+        RawIterator<Object[],ProcedureException> result = proc.apply( null, null, null );
 
         // then
-        assertEquals( RoleInfo.FOLLOWER.name(), single( result )[0]);
+        assertEquals( RoleInfo.FOLLOWER.name(), single( result )[0] );
     }
 
     @Test
@@ -70,13 +69,13 @@ public class RoleProcedureTest
         RoleProcedure proc = new ReadReplicaRoleProcedure();
 
         // when
-        RawIterator<Object[], ProcedureException> result = proc.apply( null, null, null );
+        RawIterator<Object[],ProcedureException> result = proc.apply( null, null, null );
 
         // then
-        assertEquals( RoleInfo.READ_REPLICA.name(), single( result )[0]);
+        assertEquals( RoleInfo.READ_REPLICA.name(), single( result )[0] );
     }
 
-    private Object[] single( RawIterator<Object[], ProcedureException> result ) throws ProcedureException
+    private Object[] single( RawIterator<Object[],ProcedureException> result ) throws ProcedureException
     {
         return Iterators.single( asList( result ).iterator() );
     }

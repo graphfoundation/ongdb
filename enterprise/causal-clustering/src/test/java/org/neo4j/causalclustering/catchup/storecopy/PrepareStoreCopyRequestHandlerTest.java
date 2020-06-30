@@ -49,13 +49,12 @@ public class PrepareStoreCopyRequestHandlerTest
 {
     private static final StoreId STORE_ID_MATCHING = new StoreId( 1, 2, 3, 4 );
     private static final StoreId STORE_ID_MISMATCHING = new StoreId( 5000, 6000, 7000, 8000 );
-    private final ChannelHandlerContext channelHandlerContext = mock( ChannelHandlerContext.class );
-    private EmbeddedChannel embeddedChannel;
-
     private static final CheckPointer checkPointer = mock( CheckPointer.class );
     private static final NeoStoreDataSource neoStoreDataSource = mock( NeoStoreDataSource.class );
-    private CatchupServerProtocol catchupServerProtocol;
+    private final ChannelHandlerContext channelHandlerContext = mock( ChannelHandlerContext.class );
     private final PrepareStoreCopyFiles prepareStoreCopyFiles = mock( PrepareStoreCopyFiles.class );
+    private EmbeddedChannel embeddedChannel;
+    private CatchupServerProtocol catchupServerProtocol;
 
     @Before
     public void setup()
@@ -150,7 +149,7 @@ public class PrepareStoreCopyRequestHandlerTest
         when( prepareStoreCopyFilesProvider.prepareStoreCopyFiles( any() ) ).thenReturn( prepareStoreCopyFiles );
 
         return new PrepareStoreCopyRequestHandler( catchupServerProtocol, dataSourceSupplier,
-                prepareStoreCopyFilesProvider );
+                                                   prepareStoreCopyFilesProvider );
     }
 
     private void configureProvidedStoreCopyFiles( StoreResource[] atomicFiles, File[] files, LongSet indexIds, long lastCommitedTx )

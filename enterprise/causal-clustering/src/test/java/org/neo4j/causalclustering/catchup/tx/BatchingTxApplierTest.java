@@ -26,11 +26,10 @@ import org.mockito.ArgumentCaptor;
 import java.util.concurrent.CountDownLatch;
 
 import org.neo4j.causalclustering.core.state.machines.id.CommandIndexTracker;
-import org.neo4j.causalclustering.core.state.machines.tx.LogIndexTxHeaderEncoding;
 import org.neo4j.helpers.collection.Iterables;
+import org.neo4j.internal.kernel.api.exceptions.TransactionFailureException;
 import org.neo4j.io.pagecache.tracing.cursor.PageCursorTracerSupplier;
 import org.neo4j.io.pagecache.tracing.cursor.context.EmptyVersionContextSupplier;
-import org.neo4j.internal.kernel.api.exceptions.TransactionFailureException;
 import org.neo4j.kernel.impl.api.TransactionCommitProcess;
 import org.neo4j.kernel.impl.api.TransactionToApply;
 import org.neo4j.kernel.impl.transaction.CommittedTransactionRepresentation;
@@ -148,17 +147,18 @@ public class BatchingTxApplierTest
 
         // when
         CountDownLatch latch = new CountDownLatch( 1 );
-        Thread thread = new Thread( () -> {
-            latch.countDown();
-            try
-            {
-                txApplier.queue( createTxWithId( startTxId + maxBatchSize + 1 ) );
-            }
-            catch ( Exception e )
-            {
-                throw new RuntimeException( e );
-            }
-        } );
+        Thread thread = new Thread( () ->
+                                    {
+                                        latch.countDown();
+                                        try
+                                        {
+                                            txApplier.queue( createTxWithId( startTxId + maxBatchSize + 1 ) );
+                                        }
+                                        catch ( Exception e )
+                                        {
+                                            throw new RuntimeException( e );
+                                        }
+                                    } );
 
         thread.start();
 

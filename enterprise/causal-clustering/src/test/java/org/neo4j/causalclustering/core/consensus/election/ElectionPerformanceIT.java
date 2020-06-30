@@ -34,16 +34,12 @@ import static org.neo4j.causalclustering.identity.RaftTestMember.member;
 import static org.neo4j.helpers.collection.Iterators.asSet;
 
 /**
- * A test suite that is used for measuring the election performance and
- * guarding against regressions in this area. The outcome assertions are very
- * relaxed so that false positives are avoided in CI and adjustments of the
- * limits should be made by looking at statistics and reasoning about what
- * type of performance should be expected, taking all parameters into account.
- *
- * Major regressions that severely affect the election performance and the
- * ability to perform an election at all should be caught by this test. Very
- * rare false positives should not be used as an indication for increasing the
- * limits.
+ * A test suite that is used for measuring the election performance and guarding against regressions in this area. The outcome assertions are very relaxed so
+ * that false positives are avoided in CI and adjustments of the limits should be made by looking at statistics and reasoning about what type of performance
+ * should be expected, taking all parameters into account.
+ * <p>
+ * Major regressions that severely affect the election performance and the ability to perform an election at all should be caught by this test. Very rare false
+ * positives should not be used as an indication for increasing the limits.
  */
 public class ElectionPerformanceIT
 {

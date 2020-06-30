@@ -27,7 +27,7 @@ public class NoPruningPruningStrategyTest
     @Test
     public void shouldNotExcludeAnySegmentPages()
     {
-         NoPruningPruningStrategy strategy = new NoPruningPruningStrategy();
+        NoPruningPruningStrategy strategy = new NoPruningPruningStrategy();
 
         //when
         long indexToKeep = strategy.getIndexToKeep( null );

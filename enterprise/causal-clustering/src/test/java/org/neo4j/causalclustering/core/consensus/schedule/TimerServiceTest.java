@@ -278,7 +278,9 @@ public class TimerServiceTest
 
         TimerService timerService = new TimerService( scheduler, FormattedLogProvider.toOutputStream( System.out ) );
 
-        TimeoutHandler handlerA = timer -> {};
+        TimeoutHandler handlerA = timer ->
+        {
+        };
 
         Timer timer = timerService.create( Timers.TIMER_A, group, handlerA );
         timer.set( fixedTimeout( 2, SECONDS ) );

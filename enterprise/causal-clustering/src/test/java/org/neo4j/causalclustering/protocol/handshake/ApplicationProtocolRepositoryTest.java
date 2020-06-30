@@ -124,7 +124,7 @@ public class ApplicationProtocolRepositoryTest
     public void shouldIncludeProtocolsInSelectionWithVersionsLimitedByThoseConfigured()
     {
         // given
-        Integer[] expectedRaftVersions = { 1 };
+        Integer[] expectedRaftVersions = {1};
 
         // when
         ProtocolSelection<Integer,Protocol.ApplicationProtocol> protocolSelection =

@@ -42,8 +42,8 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 /**
- * More generalized state tests of SuspendableLifeCycle can be found {@link SuspendableLifeCycleLifeStateChangeTest} and
- * {@link SuspendableLifeCycleSuspendedStateChangeTest}
+ * More generalized state tests of SuspendableLifeCycle can be found {@link SuspendableLifeCycleLifeStateChangeTest} and {@link
+ * SuspendableLifeCycleSuspendedStateChangeTest}
  */
 public class ServerStateTest
 {
@@ -69,6 +69,21 @@ public class ServerStateTest
                 } );
     }
 
+    @AfterClass
+    public static void finalTearDown()
+    {
+        clientGroup.shutdownGracefully();
+    }
+
+    private static Server createServer()
+    {
+        return new Server( channel ->
+                           {
+                           }, FormattedLogProvider.withDefaultLogLevel( Level.DEBUG ).toOutputStream( System.out ),
+                           FormattedLogProvider.withDefaultLogLevel( Level.DEBUG ).toOutputStream( System.out ),
+                           new ListenSocketAddress( "localhost", PortAuthority.allocatePort() ), "serverName" );
+    }
+
     @Before
     public void setUp() throws Throwable
     {
@@ -89,12 +104,6 @@ public class ServerStateTest
         {
             channel.close();
         }
-    }
-
-    @AfterClass
-    public static void finalTearDown()
-    {
-        clientGroup.shutdownGracefully();
     }
 
     @Test
@@ -137,13 +146,6 @@ public class ServerStateTest
 
         server.enable();
         assertTrue( canConnect() );
-    }
-
-    private static Server createServer()
-    {
-        return new Server( channel -> {}, FormattedLogProvider.withDefaultLogLevel( Level.DEBUG ).toOutputStream( System.out ),
-                           FormattedLogProvider.withDefaultLogLevel( Level.DEBUG ).toOutputStream( System.out ),
-                           new ListenSocketAddress( "localhost", PortAuthority.allocatePort() ), "serverName" );
     }
 
     private boolean canConnect() throws InterruptedException

@@ -73,12 +73,11 @@ import static org.junit.Assert.fail;
 
 public class StoreCopyClientIT
 {
+    @Rule
+    public final SuppressOutput suppressOutput = SuppressOutput.suppressAll();
     private final FileSystemAbstraction fsa = new DefaultFileSystemAbstraction();
     @Rule
     public final TestDirectory testDirectory = TestDirectory.testDirectory( fsa );
-    @Rule
-    public final SuppressOutput suppressOutput = SuppressOutput.suppressAll();
-
     private final AssertableLogProvider assertableLogProvider = new AssertableLogProvider( true );
     private final TerminationCondition defaultTerminationCondition = TerminationCondition.CONTINUE_INDEFINITELY;
     private final FakeFile fileA = new FakeFile( "fileA", "This is file a content" );
@@ -101,6 +100,33 @@ public class StoreCopyClientIT
         {
             throw new RuntimeException( e );
         }
+    }
+
+    private static AdvertisedSocketAddress from( int port )
+    {
+        return new AdvertisedSocketAddress( "localhost", port );
+    }
+
+    static String fileContent( File file, FileSystemAbstraction fsa ) throws IOException
+    {
+        int chunkSize = 128;
+        StringBuilder stringBuilder = new StringBuilder();
+        try ( Reader reader = fsa.openAsReader( file, Charsets.UTF_8 ) )
+        {
+            CharBuffer charBuffer = CharBuffer.wrap( new char[chunkSize] );
+            while ( reader.read( charBuffer ) != -1 )
+            {
+                charBuffer.flip();
+                stringBuilder.append( charBuffer );
+                charBuffer.clear();
+            }
+        }
+        return stringBuilder.toString();
+    }
+
+    private static String clientFileContents( InMemoryStoreStreamProvider storeFileStreamsProvider, String filename )
+    {
+        return storeFileStreamsProvider.fileStreams().get( filename ).toString();
     }
 
     @Before
@@ -365,11 +391,6 @@ public class StoreCopyClientIT
         }
     }
 
-    private static AdvertisedSocketAddress from( int port )
-    {
-        return new AdvertisedSocketAddress( "localhost", port );
-    }
-
     private File relative( String filename )
     {
         return testDirectory.file( filename );
@@ -378,28 +399,6 @@ public class StoreCopyClientIT
     private String fileContent( File file ) throws IOException
     {
         return fileContent( file, fsa );
-    }
-
-    static String fileContent( File file, FileSystemAbstraction fsa ) throws IOException
-    {
-        int chunkSize = 128;
-        StringBuilder stringBuilder = new StringBuilder();
-        try ( Reader reader = fsa.openAsReader( file, Charsets.UTF_8 ) )
-        {
-            CharBuffer charBuffer = CharBuffer.wrap( new char[chunkSize] );
-            while ( reader.read( charBuffer ) != -1 )
-            {
-                charBuffer.flip();
-                stringBuilder.append( charBuffer );
-                charBuffer.clear();
-            }
-        }
-        return stringBuilder.toString();
-    }
-
-    private static String clientFileContents( InMemoryStoreStreamProvider storeFileStreamsProvider, String filename )
-    {
-        return storeFileStreamsProvider.fileStreams().get( filename ).toString();
     }
 
     private static class Once implements TerminationCondition

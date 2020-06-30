@@ -29,7 +29,6 @@ import org.neo4j.helpers.AdvertisedSocketAddress;
 import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
-import static org.junit.Assert.assertEquals;
 
 public class ResultFormatV1Test
 {

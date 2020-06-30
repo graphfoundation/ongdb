@@ -37,7 +37,6 @@ import org.neo4j.causalclustering.messaging.Outbound;
 import org.neo4j.time.Clocks;
 import org.neo4j.time.FakeClock;
 
-import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isA;
 import static org.mockito.Mockito.atLeast;
@@ -51,7 +50,6 @@ import static org.neo4j.causalclustering.core.consensus.roles.Role.LEADER;
 import static org.neo4j.causalclustering.identity.RaftTestMember.member;
 import static org.neo4j.helpers.collection.Iterators.asSet;
 
-
 @RunWith( MockitoJUnitRunner.class )
 public class ElectionTest
 {
@@ -64,7 +62,7 @@ public class ElectionTest
     @Mock
     private Inbound inbound;
     @Mock
-    private Outbound<MemberId, RaftMessages.RaftMessage> outbound;
+    private Outbound<MemberId,RaftMessages.RaftMessage> outbound;
 
     @Test
     public void candidateShouldWinElectionAndBecomeLeader() throws Exception
@@ -78,7 +76,7 @@ public class ElectionTest
                 .clock( fakeClock )
                 .build();
 
-        raft.installCoreState( new RaftCoreState( new MembershipEntry( 0, asSet( myself, member1, member2 )  ) ) );
+        raft.installCoreState( new RaftCoreState( new MembershipEntry( 0, asSet( myself, member1, member2 ) ) ) );
         raft.postRecoveryActions();
 
         timeouts.invoke( RaftMachine.Timeouts.ELECTION );
@@ -116,7 +114,7 @@ public class ElectionTest
                 .build();
 
         raft.installCoreState(
-                new RaftCoreState( new MembershipEntry( 0, asSet( myself, member1, member2 ) ) ));
+                new RaftCoreState( new MembershipEntry( 0, asSet( myself, member1, member2 ) ) ) );
         raft.postRecoveryActions();
 
         timeouts.invoke( RaftMachine.Timeouts.ELECTION );
@@ -145,7 +143,7 @@ public class ElectionTest
                 .clock( fakeClock )
                 .build();
 
-        raft.installCoreState( new RaftCoreState( new MembershipEntry( 0, asSet( myself, member1, member2 )  ) ) );
+        raft.installCoreState( new RaftCoreState( new MembershipEntry( 0, asSet( myself, member1, member2 ) ) ) );
 
         // when
         raft.handle( voteRequest().from( member1 ).candidate( member1 ).term( 1 ).build() );

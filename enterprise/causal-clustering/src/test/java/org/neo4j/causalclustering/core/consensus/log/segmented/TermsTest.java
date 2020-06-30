@@ -385,7 +385,7 @@ public class TermsTest
         terms.prune( pruneIndex );
 
         // then
-        assertTermInRange( prevIndex - 10, pruneIndex , -1 );
+        assertTermInRange( prevIndex - 10, pruneIndex, -1 );
         assertTermInRange( prevIndex + 10, prevIndex + 20, term + 1 );
 
         assertEquals( 1, getIndexesSize() );
@@ -411,7 +411,7 @@ public class TermsTest
         terms.prune( pruneIndex );
 
         // then
-        assertTermInRange( prevIndex - 10, pruneIndex , -1 );
+        assertTermInRange( prevIndex - 10, pruneIndex, -1 );
         assertTermInRange( prevIndex + 11, prevIndex + 20, term + 1 );
 
         assertEquals( 1, getIndexesSize() );
@@ -440,7 +440,7 @@ public class TermsTest
         terms.prune( pruneIndex );
 
         // then
-        assertTermInRange( prevIndex - 10, pruneIndex , -1 );
+        assertTermInRange( prevIndex - 10, pruneIndex, -1 );
         assertTermInRange( pruneIndex, prevIndex + 30, term + 2 );
         assertTermInRange( prevIndex + 30, prevIndex + 40, term + 3 );
         assertTermInRange( prevIndex + 40, prevIndex + 50, term + 4 );

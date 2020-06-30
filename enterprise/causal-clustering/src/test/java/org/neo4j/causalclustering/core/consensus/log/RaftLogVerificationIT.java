@@ -27,7 +27,6 @@ import java.util.concurrent.ThreadLocalRandom;
 
 import org.neo4j.test.rule.fs.EphemeralFileSystemRule;
 
-import static org.junit.Assert.assertEquals;
 import static org.neo4j.causalclustering.core.consensus.ReplicatedInteger.valueOf;
 
 public abstract class RaftLogVerificationIT

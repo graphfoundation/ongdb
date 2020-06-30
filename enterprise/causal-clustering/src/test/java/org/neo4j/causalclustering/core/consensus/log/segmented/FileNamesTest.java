@@ -76,13 +76,13 @@ public class FileNamesTest
 
         // When
         // asked for the contents of the directory
-        SortedMap<Long, File> allFiles = fileNames.getAllFiles( fsa, log );
+        SortedMap<Long,File> allFiles = fileNames.getAllFiles( fsa, log );
 
         // Then
         // all the things we added above should be returned
         assertEquals( upper - lower + 1, allFiles.size() );
         long currentVersion = lower;
-        for ( Map.Entry<Long, File> longFileEntry : allFiles.entrySet() )
+        for ( Map.Entry<Long,File> longFileEntry : allFiles.entrySet() )
         {
             assertEquals( currentVersion, longFileEntry.getKey().longValue() );
             assertEquals( fileNames.getForVersion( currentVersion ), longFileEntry.getValue() );

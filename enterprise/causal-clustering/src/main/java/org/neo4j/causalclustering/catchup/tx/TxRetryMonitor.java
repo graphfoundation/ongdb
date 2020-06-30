@@ -21,5 +21,6 @@ package org.neo4j.causalclustering.catchup.tx;
 public interface TxRetryMonitor
 {
     long transactionsRetries();
+
     void retry();
 }

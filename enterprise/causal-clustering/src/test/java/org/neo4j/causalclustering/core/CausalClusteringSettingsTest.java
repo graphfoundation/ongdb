@@ -36,11 +36,11 @@ public class CausalClusteringSettingsTest
         // given
         BaseSetting<String> setting = Settings.prefixSetting( "foo", Settings.STRING, "" );
 
-        Map<String, String> rawConfig = new HashMap<>();
+        Map<String,String> rawConfig = new HashMap<>();
         rawConfig.put( "foo.us_east_1c", "abcdef" );
 
         // when
-        Map<String, String> validConfig = setting.validate( rawConfig, s ->
+        Map<String,String> validConfig = setting.validate( rawConfig, s ->
         {
         } );
 
@@ -55,12 +55,12 @@ public class CausalClusteringSettingsTest
         // given
         BaseSetting<String> setting = Settings.prefixSetting( "foo", Settings.STRING, "" );
 
-        Map<String, String> rawConfig = new HashMap<>();
+        Map<String,String> rawConfig = new HashMap<>();
         rawConfig.put( "foo.us_east_1c", "abcdef" );
         rawConfig.put( "foo.us_east_1d", "ghijkl" );
 
         // when
-        Map<String, String> validConfig = setting.validate( rawConfig, s ->
+        Map<String,String> validConfig = setting.validate( rawConfig, s ->
         {
         } );
 
@@ -73,11 +73,11 @@ public class CausalClusteringSettingsTest
     public void shouldValidateLoadBalancingServerPolicies()
     {
         // given
-        Map<String, String> rawConfig = new HashMap<>();
+        Map<String,String> rawConfig = new HashMap<>();
         rawConfig.put( "causal_clustering.load_balancing.config.server_policies.us_east_1c", "all()" );
 
         // when
-        Map<String, String> validConfig = CausalClusteringSettings.load_balancing_config.validate( rawConfig, s ->
+        Map<String,String> validConfig = CausalClusteringSettings.load_balancing_config.validate( rawConfig, s ->
         {
         } );
 
@@ -91,11 +91,11 @@ public class CausalClusteringSettingsTest
     {
         // given
         BaseSetting<String> setting = Settings.prefixSetting( "bar", Settings.STRING, "" );
-        Map<String, String> rawConfig = new HashMap<>();
+        Map<String,String> rawConfig = new HashMap<>();
         rawConfig.put( "foo.us_east_1c", "abcdef" );
 
         // when
-        Map<String, String> validConfig = setting.validate( rawConfig, s ->
+        Map<String,String> validConfig = setting.validate( rawConfig, s ->
         {
         } );
 

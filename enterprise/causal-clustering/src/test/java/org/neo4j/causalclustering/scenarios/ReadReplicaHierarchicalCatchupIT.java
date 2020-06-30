@@ -39,6 +39,13 @@ import static org.neo4j.graphdb.Label.label;
 
 public class ReadReplicaHierarchicalCatchupIT
 {
+    @Rule
+    public ClusterRule clusterRule =
+            new ClusterRule().withNumberOfCoreMembers( 3 ).withNumberOfReadReplicas( 0 )
+                             .withSharedCoreParam( CausalClusteringSettings.cluster_topology_refresh, "5s" )
+                             .withSharedCoreParam( CausalClusteringSettings.multi_dc_license, "true" )
+                             .withSharedReadReplicaParam( CausalClusteringSettings.multi_dc_license, "true" )
+                             .withDiscoveryServiceType( EnterpriseDiscoveryServiceType.HAZELCAST );
     private Map<Integer,String> serverGroups = new HashMap<>();
 
     @Before
@@ -55,14 +62,6 @@ public class ReadReplicaHierarchicalCatchupIT
         serverGroups.put( 6, "WEST" );
     }
 
-    @Rule
-    public ClusterRule clusterRule =
-            new ClusterRule().withNumberOfCoreMembers( 3 ).withNumberOfReadReplicas( 0 )
-                    .withSharedCoreParam( CausalClusteringSettings.cluster_topology_refresh, "5s" )
-                    .withSharedCoreParam( CausalClusteringSettings.multi_dc_license, "true" )
-                    .withSharedReadReplicaParam( CausalClusteringSettings.multi_dc_license, "true" )
-                    .withDiscoveryServiceType( EnterpriseDiscoveryServiceType.HAZELCAST );
-
     @Test
     public void shouldCatchupThroughHierarchy() throws Throwable
     {
@@ -75,14 +74,14 @@ public class ReadReplicaHierarchicalCatchupIT
         int numberOfNodesToCreate = 100;
 
         cluster.coreTx( ( db, tx ) ->
-        {
-            db.schema().constraintFor( label( "Foo" ) ).assertPropertyIsUnique( "foobar" ).create();
-            tx.success();
-        } );
+                        {
+                            db.schema().constraintFor( label( "Foo" ) ).assertPropertyIsUnique( "foobar" ).create();
+                            tx.success();
+                        } );
 
         // 0, 1, 2 are core instances
         createLabelledNodesWithProperty( cluster, numberOfNodesToCreate, label( "Foo" ),
-                () -> Pair.of( "foobar", String.format( "baz_bat%s", UUID.randomUUID() ) ) );
+                                         () -> Pair.of( "foobar", String.format( "baz_bat%s", UUID.randomUUID() ) ) );
 
         // 3, 4 are other DCs
         ReadReplica east3 = cluster.addReadReplicaWithId( 3 );
@@ -106,6 +105,5 @@ public class ReadReplicaHierarchicalCatchupIT
         west6.start();
 
         checkDataHasReplicatedToReadReplicas( cluster, numberOfNodesToCreate );
-
     }
 }

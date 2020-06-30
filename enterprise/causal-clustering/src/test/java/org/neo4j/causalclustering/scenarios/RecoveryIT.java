@@ -49,6 +49,41 @@ public class RecoveryIT
             .withNumberOfCoreMembers( 3 )
             .withNumberOfReadReplicas( 0 );
 
+    private static DbRepresentation dbRepresentation( CoreClusterMember member )
+    {
+        return DbRepresentation.of( member.database() );
+    }
+
+    private static void assertConsistent( File storeDir )
+    {
+        ConsistencyCheckService.Result result;
+        try
+        {
+            result = new ConsistencyCheckService().runFullConsistencyCheck( DatabaseLayout.of( storeDir ), Config.defaults(),
+                                                                            ProgressMonitorFactory.NONE, NullLogProvider.getInstance(), true );
+        }
+        catch ( Exception e )
+        {
+            throw new RuntimeException( e );
+        }
+
+        assertTrue( result.isSuccessful() );
+    }
+
+    private static void fireSomeLoadAtTheCluster( Cluster<?> cluster ) throws Exception
+    {
+        for ( int i = 0; i < cluster.numberOfCoreMembersReportedByTopology(); i++ )
+        {
+            final String prop = "val" + i;
+            cluster.coreTx( ( db, tx ) ->
+                            {
+                                Node node = db.createNode( label( "demo" ) );
+                                node.setProperty( "server", prop );
+                                tx.success();
+                            } );
+        }
+    }
+
     @Test
     public void shouldBeConsistentAfterShutdown() throws Exception
     {
@@ -60,8 +95,8 @@ public class RecoveryIT
         Set<File> storeDirs = cluster.coreMembers().stream().map( CoreClusterMember::databaseDirectory ).collect( toSet() );
 
         assertEventually( "All cores have the same data",
-                () -> cluster.coreMembers().stream().map( RecoveryIT::dbRepresentation ).collect( toSet() ).size(),
-                equalTo( 1 ), 10, TimeUnit.SECONDS );
+                          () -> cluster.coreMembers().stream().map( RecoveryIT::dbRepresentation ).collect( toSet() ).size(),
+                          equalTo( 1 ), 10, TimeUnit.SECONDS );
 
         // when
         cluster.shutdown();
@@ -91,46 +126,11 @@ public class RecoveryIT
 
         // then
         assertEventually( "All cores have the same data",
-                () -> cluster.coreMembers().stream().map( RecoveryIT::dbRepresentation ).collect( toSet() ).size(),
-                equalTo( 1 ), 10, TimeUnit.SECONDS );
+                          () -> cluster.coreMembers().stream().map( RecoveryIT::dbRepresentation ).collect( toSet() ).size(),
+                          equalTo( 1 ), 10, TimeUnit.SECONDS );
 
         cluster.shutdown();
 
         storeDirs.forEach( RecoveryIT::assertConsistent );
-    }
-
-    private static DbRepresentation dbRepresentation( CoreClusterMember member )
-    {
-        return  DbRepresentation.of( member.database() );
-    }
-
-    private static void assertConsistent( File storeDir )
-    {
-        ConsistencyCheckService.Result result;
-        try
-        {
-            result = new ConsistencyCheckService().runFullConsistencyCheck( DatabaseLayout.of( storeDir ), Config.defaults(),
-                    ProgressMonitorFactory.NONE, NullLogProvider.getInstance(), true );
-        }
-        catch ( Exception e )
-        {
-            throw new RuntimeException( e );
-        }
-
-        assertTrue( result.isSuccessful() );
-    }
-
-    private static void fireSomeLoadAtTheCluster( Cluster<?> cluster ) throws Exception
-    {
-        for ( int i = 0; i < cluster.numberOfCoreMembersReportedByTopology(); i++ )
-        {
-            final String prop = "val" + i;
-            cluster.coreTx( ( db, tx ) ->
-            {
-                Node node = db.createNode( label( "demo" ) );
-                node.setProperty( "server", prop );
-                tx.success();
-            } );
-        }
     }
 }
