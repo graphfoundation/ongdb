@@ -41,17 +41,17 @@ public class EnterpriseDiscoverableURIsTest
         // Given
         BoltConnector bolt = new BoltConnector( "honestJakesBoltConnector" );
         Config config = Config.builder()
-                .withSetting( EnterpriseEditionSettings.mode, EnterpriseEditionSettings.Mode.CORE.name() )
-                .withSetting( bolt.enabled, "true" )
-                .withSetting( bolt.type, BoltConnector.ConnectorType.BOLT.name() )
-                .build();
+                              .withSetting( EnterpriseEditionSettings.mode, EnterpriseEditionSettings.Mode.CORE.name() )
+                              .withSetting( bolt.enabled, "true" )
+                              .withSetting( bolt.type, BoltConnector.ConnectorType.BOLT.name() )
+                              .build();
 
         // When
         Map<String,Object> asd = toMap(
                 EnterpriseDiscoverableURIs.enterpriseDiscoverableURIs( config, new ConnectorPortRegister() ) );
 
         // Then
-        assertThat(asd.get("bolt_routing"), equalTo( "bolt+routing://localhost:7687" ));
+        assertThat( asd.get( "bolt_routing" ), equalTo( "bolt+routing://localhost:7687" ) );
     }
 
     @Test
@@ -60,11 +60,11 @@ public class EnterpriseDiscoverableURIsTest
         // Given
         BoltConnector bolt = new BoltConnector( "honestJakesBoltConnector" );
         Config config = Config.builder()
-                .withSetting( EnterpriseEditionSettings.mode, EnterpriseEditionSettings.Mode.CORE.name() )
-                .withSetting( bolt.enabled, "true" )
-                .withSetting( bolt.type, BoltConnector.ConnectorType.BOLT.name() )
-                .withSetting( bolt.listen_address, ":0" )
-                .build();
+                              .withSetting( EnterpriseEditionSettings.mode, EnterpriseEditionSettings.Mode.CORE.name() )
+                              .withSetting( bolt.enabled, "true" )
+                              .withSetting( bolt.type, BoltConnector.ConnectorType.BOLT.name() )
+                              .withSetting( bolt.listen_address, ":0" )
+                              .build();
         ConnectorPortRegister ports = new ConnectorPortRegister();
         ports.register( bolt.key(), new InetSocketAddress( 1337 ) );
 
@@ -73,7 +73,7 @@ public class EnterpriseDiscoverableURIsTest
                 EnterpriseDiscoverableURIs.enterpriseDiscoverableURIs( config, ports ) );
 
         // Then
-        assertThat(asd.get("bolt_routing"), equalTo( "bolt+routing://localhost:1337" ));
+        assertThat( asd.get( "bolt_routing" ), equalTo( "bolt+routing://localhost:1337" ) );
     }
 
     private Map<String,Object> toMap( DiscoverableURIs uris )

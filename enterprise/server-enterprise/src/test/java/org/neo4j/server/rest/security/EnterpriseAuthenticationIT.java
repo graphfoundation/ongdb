@@ -39,8 +39,8 @@ public class EnterpriseAuthenticationIT extends AuthenticationIT
     public void startServer( boolean authEnabled ) throws IOException
     {
         server = EnterpriseServerBuilder.serverOnRandomPorts()
-                .withProperty( GraphDatabaseSettings.auth_enabled.name(), Boolean.toString( authEnabled ) )
-                .build();
+                                        .withProperty( GraphDatabaseSettings.auth_enabled.name(), Boolean.toString( authEnabled ) )
+                                        .build();
         server.start();
     }
 
@@ -56,19 +56,18 @@ public class EnterpriseAuthenticationIT extends AuthenticationIT
         HTTP.RawPayload payload = HTTP.RawPayload.quotedJson(
                 "{'statements':[{'statement':'CALL dbms.security.listRoles()'}]}" );
         HTTP.Response response = HTTP.withBasicAuth( "neo4j", "secret" )
-                .request( method, server.baseUri().resolve( path ).toString(), payload );
+                                     .request( method, server.baseUri().resolve( path ).toString(), payload );
 
         // Then
-        assertThat(response.status(), equalTo(200));
-        ArrayNode errors = (ArrayNode) response.get("errors");
+        assertThat( response.status(), equalTo( 200 ) );
+        ArrayNode errors = (ArrayNode) response.get( "errors" );
         assertThat( "Should have no errors", errors.size(), equalTo( 0 ) );
-        ArrayNode results = (ArrayNode) response.get("results");
-        ArrayNode data = (ArrayNode) results.get(0).get("data");
+        ArrayNode results = (ArrayNode) response.get( "results" );
+        ArrayNode data = (ArrayNode) results.get( 0 ).get( "data" );
         assertThat( "Should have 5 predefined roles", data.size(), equalTo( 5 ) );
-        Stream<String> values = data.findValues( "row" ).stream().map( row -> row.get(0).asText() );
-        assertThat( "Expected specific roles", values.collect( Collectors.toList()),
-                hasItems( "admin", "architect", "publisher", "editor", "reader") );
-
+        Stream<String> values = data.findValues( "row" ).stream().map( row -> row.get( 0 ).asText() );
+        assertThat( "Expected specific roles", values.collect( Collectors.toList() ),
+                    hasItems( "admin", "architect", "publisher", "editor", "reader" ) );
     }
 
     @Test
@@ -85,19 +84,19 @@ public class EnterpriseAuthenticationIT extends AuthenticationIT
         HTTP.Response response = HTTP.request( method, server.baseUri().resolve( path ).toString(), payload );
 
         // Then
-        assertThat(response.status(), equalTo(200));
-        ArrayNode errors = (ArrayNode) response.get("errors");
+        assertThat( response.status(), equalTo( 200 ) );
+        ArrayNode errors = (ArrayNode) response.get( "errors" );
         assertThat( "Should have no errors", errors.size(), equalTo( 0 ) );
-        ArrayNode results = (ArrayNode) response.get("results");
-        ArrayNode data = (ArrayNode) results.get(0).get("data");
+        ArrayNode results = (ArrayNode) response.get( "results" );
+        ArrayNode data = (ArrayNode) results.get( 0 ).get( "data" );
         assertThat( "Should see our own query", data.size(), equalTo( 1 ) );
     }
 
     private void startServerWithAuthDisabled() throws IOException
     {
         server = EnterpriseServerBuilder.serverOnRandomPorts()
-                .withProperty( GraphDatabaseSettings.auth_enabled.name(), Boolean.toString( false ) )
-                .build();
+                                        .withProperty( GraphDatabaseSettings.auth_enabled.name(), Boolean.toString( false ) )
+                                        .build();
         server.start();
     }
 }

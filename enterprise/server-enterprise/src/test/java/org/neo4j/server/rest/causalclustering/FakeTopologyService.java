@@ -177,7 +177,7 @@ class FakeTopologyService implements TopologyService
 
     public void replaceWithRole( MemberId memberId, RoleInfo role )
     {
-        List<MemberId> membersWithRole = roles.keySet().stream().filter( member -> roles.get( member ).equals( role ) ).collect( Collectors.toList());
+        List<MemberId> membersWithRole = roles.keySet().stream().filter( member -> roles.get( member ).equals( role ) ).collect( Collectors.toList() );
         if ( membersWithRole.size() == 1 )
         {
             roles.put( membersWithRole.get( 0 ), RoleInfo.FOLLOWER );

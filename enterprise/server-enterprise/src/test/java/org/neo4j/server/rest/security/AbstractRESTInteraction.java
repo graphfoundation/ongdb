@@ -66,18 +66,8 @@ import static org.neo4j.kernel.configuration.BoltConnector.EncryptionLevel.OPTIO
 abstract class AbstractRESTInteraction extends CommunityServerTestBase implements NeoInteractionLevel<RESTSubject>
 {
 
-    private ConnectorPortRegister connectorPortRegister;
-
-    abstract String commitPath();
-
-    abstract void consume( Consumer<ResourceIterator<Map<String,Object>>> resultConsumer, JsonNode data );
-
-    abstract HTTP.RawPayload constructQuery( String query );
-
-    protected abstract HTTP.Response authenticate( String principalCredentials );
-
     static final String POST = "POST";
-
+    private ConnectorPortRegister connectorPortRegister;
     private EnterpriseAuthManager authManager;
 
     AbstractRESTInteraction( Map<String,String> config ) throws IOException
@@ -88,9 +78,9 @@ abstract class AbstractRESTInteraction extends CommunityServerTestBase implement
                 .withProperty( new BoltConnector( "bolt" ).enabled.name(), "true" )
                 .withProperty( new BoltConnector( "bolt" ).encryption_level.name(), OPTIONAL.name() )
                 .withProperty( LegacySslPolicyConfig.tls_key_file.name(),
-                        NeoInteractionLevel.tempPath( "key", ".key" ) )
+                               NeoInteractionLevel.tempPath( "key", ".key" ) )
                 .withProperty( LegacySslPolicyConfig.tls_certificate_file.name(),
-                        NeoInteractionLevel.tempPath( "cert", ".cert" ) )
+                               NeoInteractionLevel.tempPath( "cert", ".cert" ) )
                 .withProperty( GraphDatabaseSettings.auth_enabled.name(), Boolean.toString( true ) );
 
         for ( Map.Entry<String,String> entry : config.entrySet() )
@@ -102,6 +92,14 @@ abstract class AbstractRESTInteraction extends CommunityServerTestBase implement
         authManager = this.server.getDependencyResolver().resolveDependency( EnterpriseAuthManager.class );
         connectorPortRegister = server.getDependencyResolver().resolveDependency( ConnectorPortRegister.class );
     }
+
+    abstract String commitPath();
+
+    abstract void consume( Consumer<ResourceIterator<Map<String,Object>>> resultConsumer, JsonNode data );
+
+    abstract HTTP.RawPayload constructQuery( String query );
+
+    protected abstract HTTP.Response authenticate( String principalCredentials );
 
     @Override
     public EnterpriseUserManager getLocalUserManager() throws Exception
@@ -135,11 +133,11 @@ abstract class AbstractRESTInteraction extends CommunityServerTestBase implement
 
     @Override
     public String executeQuery( RESTSubject subject, String call, Map<String,Object> params,
-            Consumer<ResourceIterator<Map<String, Object>>> resultConsumer )
+                                Consumer<ResourceIterator<Map<String,Object>>> resultConsumer )
     {
         HTTP.RawPayload payload = constructQuery( call );
         HTTP.Response response = HTTP.withHeaders( HttpHeaders.AUTHORIZATION, subject.principalCredentials )
-                .request( POST, commitURL(), payload );
+                                     .request( POST, commitURL(), payload );
 
         try
         {
@@ -256,6 +254,63 @@ abstract class AbstractRESTInteraction extends CommunityServerTestBase implement
         return server.baseUri().resolve( commitPath() ).toString();
     }
 
+    private Object getValue( JsonNode valueNode )
+    {
+        Object value;
+
+        if ( valueNode instanceof TextNode )
+        {
+            value = valueNode.asText();
+        }
+        else if ( valueNode instanceof ObjectNode )
+        {
+            value = mapValue( valueNode.fieldNames(), valueNode );
+        }
+        else if ( valueNode instanceof ArrayNode )
+        {
+            ArrayNode aNode = (ArrayNode) valueNode;
+            ArrayList<String> listValue = new ArrayList<>( aNode.size() );
+            for ( int j = 0; j < aNode.size(); j++ )
+            {
+                listValue.add( aNode.get( j ).asText() );
+            }
+            value = listValue;
+        }
+        else if ( valueNode instanceof IntNode )
+        {
+            value = valueNode.intValue();
+        }
+        else if ( valueNode instanceof LongNode )
+        {
+            value = valueNode.longValue();
+        }
+        else if ( valueNode.isNull() )
+        {
+            return null;
+        }
+        else
+        {
+            throw new RuntimeException( String.format(
+                    "Unhandled REST value type '%s'. Need String (TextNode), List (ArrayNode), Object (ObjectNode), " +
+                    "long (LongNode), or int (IntNode).", valueNode.getClass()
+            ) );
+        }
+        return value;
+    }
+
+    private Map<String,Object> mapValue( Iterator<String> columns, JsonNode node )
+    {
+        TreeMap<String,Object> map = new TreeMap<>();
+        while ( columns.hasNext() )
+        {
+            String key = columns.next();
+            Object value = getValue( node.get( key ) );
+            map.put( key, value );
+        }
+
+        return map;
+    }
+
     abstract class AbstractRESTResult implements ResourceIterator<Map<String,Object>>
     {
         private JsonNode data;
@@ -295,62 +350,5 @@ abstract class AbstractRESTInteraction extends CommunityServerTestBase implement
         }
 
         protected abstract JsonNode getRow( JsonNode data, int i );
-    }
-
-    private Object getValue( JsonNode valueNode )
-    {
-        Object value;
-
-        if ( valueNode instanceof TextNode )
-        {
-            value = valueNode.asText();
-        }
-        else if ( valueNode instanceof ObjectNode )
-        {
-            value = mapValue( valueNode.fieldNames(), valueNode );
-        }
-        else if ( valueNode instanceof ArrayNode )
-        {
-            ArrayNode aNode = (ArrayNode) valueNode;
-            ArrayList<String> listValue = new ArrayList<>( aNode.size() );
-            for ( int j = 0; j < aNode.size(); j++ )
-            {
-                listValue.add( aNode.get( j ).asText() );
-            }
-            value = listValue;
-        }
-        else if ( valueNode instanceof IntNode )
-        {
-            value = valueNode.intValue();
-        }
-        else if ( valueNode instanceof LongNode )
-        {
-            value = valueNode.longValue();
-        }
-        else if ( valueNode.isNull() )
-        {
-            return null;
-        }
-        else
-        {
-            throw new RuntimeException( String.format(
-                "Unhandled REST value type '%s'. Need String (TextNode), List (ArrayNode), Object (ObjectNode), " +
-                        "long (LongNode), or int (IntNode).", valueNode.getClass()
-            ) );
-        }
-        return value;
-    }
-
-    private Map<String,Object> mapValue( Iterator<String> columns, JsonNode node )
-    {
-        TreeMap<String,Object> map = new TreeMap<>();
-        while ( columns.hasNext() )
-        {
-            String key = columns.next();
-            Object value = getValue( node.get( key ) );
-            map.put( key, value );
-        }
-
-        return map;
     }
 }

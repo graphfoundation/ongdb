@@ -18,30 +18,24 @@
  */
 package org.neo4j.server.rest;
 
-import org.neo4j.kernel.configuration.Config;
-import org.neo4j.kernel.configuration.ConnectorPortRegister;
+import org.neo4j.configuration.Config;
+import org.neo4j.configuration.connectors.ConnectorPortRegister;
 import org.neo4j.kernel.impl.enterprise.configuration.EnterpriseEditionSettings;
-import org.neo4j.server.enterprise.EnterpriseServerSettings;
-import org.neo4j.server.rest.discovery.DiscoverableURIs;
 import org.neo4j.server.rest.discovery.CommunityDiscoverableURIs;
+import org.neo4j.server.rest.discovery.DiscoverableURIs;
 import org.neo4j.server.rest.discovery.DiscoverableURIs.Builder;
-
-import static org.neo4j.server.rest.discovery.CommunityDiscoverableURIs.communityDiscoverableURIs;
 
 public class EnterpriseDiscoverableURIs
 {
-    public static DiscoverableURIs enterpriseDiscoverableURIs( Config config, ConnectorPortRegister ports )
+    public static DiscoverableURIs enterpriseDiscoverableURIs( Config config, ConnectorPortRegister portRegister )
     {
-        DiscoverableURIs uris = communityDiscoverableURIs( config, ports );
-        if ( config.get( EnterpriseEditionSettings.mode ) == EnterpriseEditionSettings.Mode.CORE )
+        Builder discoverableURIsBuilder = CommunityDiscoverableURIs.communityDiscoverableURIsBuilder( config, portRegister );
+        EnterpriseEditionSettings.Mode mode = (EnterpriseEditionSettings.Mode) config.get( EnterpriseEditionSettings.mode );
+        if ( mode == EnterpriseEditionSettings.Mode.CORE || mode == EnterpriseEditionSettings.Mode.READ_REPLICA )
         {
-            // DiscoverableURIs
-            //       .discoverableBoltUri( "bolt+routing", config,
-            //              EnterpriseServerSettings.bolt_routing_discoverable_address, ports )
-            //     .ifPresent( uri -> uris.addAbsolute( "bolt_routing", uri ) );
-            return (new Builder( CommunityDiscoverableURIs.communityDiscoverableURIs( config, ports ) )).addBoltConnectorFromConfig( "bolt_routing",
-                    "bolt+routing", config, EnterpriseServerSettings.bolt_routing_discoverable_address, ports ).build();
+            // discoverableURIsBuilder.addEndpoint( "cluster", CausalClusteringService.absoluteDatabaseClusterPath( config ) );
         }
-        return uris;
+
+        return discoverableURIsBuilder.build();
     }
 }

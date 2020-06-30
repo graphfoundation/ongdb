@@ -56,22 +56,14 @@ import static org.neo4j.test.rule.SuppressOutput.suppressAll;
 
 public class PropertyExistenceConstraintsIT implements GraphHolder
 {
+    private static NeoServer server;
     private final Factory<String> labels = UniqueStrings.withPrefix( "label" );
     private final Factory<String> properties = UniqueStrings.withPrefix( "property" );
     private final Factory<String> relationshipTypes = UniqueStrings.withPrefix( "relationshipType" );
-
     @Rule
     public TestData<Map<String,Node>> data = TestData.producedThrough( GraphDescription.createGraphFor( this, true ) );
     @Rule
     public TestData<RESTRequestGenerator> gen = TestData.producedThrough( RESTRequestGenerator.PRODUCER );
-
-    private static NeoServer server;
-
-    @Override
-    public GraphDatabaseService graphdb()
-    {
-        return server.getDatabase().getGraph();
-    }
 
     @BeforeClass
     public static void initServer() throws Exception
@@ -96,6 +88,12 @@ public class PropertyExistenceConstraintsIT implements GraphHolder
                 return null;
             } );
         }
+    }
+
+    @Override
+    public GraphDatabaseService graphdb()
+    {
+        return server.getDatabase().getGraph();
     }
 
     @Documented( "Get a specific node property existence constraint.\n" +
@@ -164,7 +162,7 @@ public class PropertyExistenceConstraintsIT implements GraphHolder
 
         String result =
                 gen.get().expectedStatus( 200 ).get( getSchemaConstraintLabelExistenceUri( labelName ) )
-                        .entity();
+                   .entity();
 
         List<Map<String,Object>> serializedList = jsonToList( result );
 
@@ -196,7 +194,7 @@ public class PropertyExistenceConstraintsIT implements GraphHolder
         createRelationshipTypePropertyExistenceConstraint( typeName, propertyKey2 );
 
         String result = gen.get().expectedStatus( 200 )
-                .get( getSchemaRelationshipConstraintTypeExistenceUri( typeName ) ).entity();
+                           .get( getSchemaRelationshipConstraintTypeExistenceUri( typeName ) ).entity();
 
         List<Map<String,Object>> serializedList = jsonToList( result );
 
@@ -282,7 +280,7 @@ public class PropertyExistenceConstraintsIT implements GraphHolder
         try ( Transaction tx = graphdb().beginTx() )
         {
             ConstraintDefinition constraintDefinition = graphdb().schema().constraintFor( label( labelName ) )
-                    .assertPropertyIsUnique( propertyKey ).create();
+                                                                 .assertPropertyIsUnique( propertyKey ).create();
             tx.success();
             return constraintDefinition;
         }

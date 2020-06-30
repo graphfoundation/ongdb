@@ -82,16 +82,19 @@ public class EnterpriseBootstrapperTestIT extends BaseBootstrapperIT
     {
         // When
         int resultCode = ServerBootstrapper.start( bootstrapper, "--home-dir", tempDir.newFolder( "home-dir" ).getAbsolutePath(), "-c",
-                configOption( EnterpriseEditionSettings.mode, "SINGLE" ), "-c",
-                configOption( GraphDatabaseSettings.data_directory, getRelativePath( folder.getRoot(), GraphDatabaseSettings.data_directory ) ), "-c",
-                configOption( logs_directory, tempDir.getRoot().getAbsolutePath() ), "-c",
-                configOption( certificates_directory, getRelativePath( folder.getRoot(), certificates_directory ) ),
-                // The `script_enabled=true` setting is needed because the global javascript context must be
-                // initialised in sandboxed mode to allow testing traversal endpoint scripting:
-                //"-c", configOption( ServerSettings., Settings.TRUE ), "-c", configOption( OnlineBackupSettings.online_backup_server, "127.0.0.1:0" ),
-                "-c", new BoltConnector( "BOLT" ).listen_address.name() + "=localhost:0", "-c", "dbms.connector.https.listen_address=localhost:0",
-                "-c", "dbms.connector.1.type=HTTP", "-c", "dbms.connector.1.listen_address=localhost:0", "-c", "dbms.connector.1.encryption=NONE", "-c",
-                "dbms.connector.1.enabled=true" );
+                                                   configOption( EnterpriseEditionSettings.mode, "SINGLE" ), "-c",
+                                                   configOption( GraphDatabaseSettings.data_directory,
+                                                                 getRelativePath( folder.getRoot(), GraphDatabaseSettings.data_directory ) ), "-c",
+                                                   configOption( logs_directory, tempDir.getRoot().getAbsolutePath() ), "-c",
+                                                   configOption( certificates_directory, getRelativePath( folder.getRoot(), certificates_directory ) ),
+                                                   // The `script_enabled=true` setting is needed because the global javascript context must be
+                                                   // initialised in sandboxed mode to allow testing traversal endpoint scripting:
+                                                   //"-c", configOption( ServerSettings., Settings.TRUE ), "-c", configOption( OnlineBackupSettings.online_backup_server, "127.0.0.1:0" ),
+                                                   "-c", new BoltConnector( "BOLT" ).listen_address.name() + "=localhost:0", "-c",
+                                                   "dbms.connector.https.listen_address=localhost:0",
+                                                   "-c", "dbms.connector.1.type=HTTP", "-c", "dbms.connector.1.listen_address=localhost:0", "-c",
+                                                   "dbms.connector.1.encryption=NONE", "-c",
+                                                   "dbms.connector.1.enabled=true" );
 
         // Then
         assertEquals( ServerBootstrapper.OK, resultCode );
@@ -105,18 +108,22 @@ public class EnterpriseBootstrapperTestIT extends BaseBootstrapperIT
         // When
         int clusterPort = PortAuthority.allocatePort();
         int resultCode = ServerBootstrapper.start( bootstrapper, "--home-dir", tempDir.newFolder( "home-dir" ).getAbsolutePath(), "-c",
-                configOption( EnterpriseEditionSettings.mode, "CORE" ), "-c", configOption( ClusterSettings.server_id, "1" ), "-c",
-                configOption( ClusterSettings.initial_hosts, "127.0.0.1:" + clusterPort ), "-c",
-                configOption( ClusterSettings.cluster_server, "127.0.0.1:" + clusterPort ), "-c",
-                configOption( GraphDatabaseSettings.data_directory, getRelativePath( folder.getRoot(), GraphDatabaseSettings.data_directory ) ), "-c",
-                configOption( logs_directory, tempDir.getRoot().getAbsolutePath() ), "-c",
-                configOption( certificates_directory, getRelativePath( folder.getRoot(), certificates_directory ) ),
-                // The `script_enabled=true` setting is needed because the global javascript context must be
-                // initialised in sandboxed mode to allow testing traversal endpoint scripting:
-                //"-c", configOption( script_enabled, Settings.TRUE ), "-c", configOption( OnlineBackupSettings.online_backup_server, "127.0.0.1:0" ),
-                "-c", new BoltConnector( "BOLT" ).listen_address.name() + "=localhost:0", "-c", "dbms.connector.https.listen_address=localhost:0",
-                "-c", "dbms.connector.1.type=HTTP", "-c", "dbms.connector.1.encryption=NONE", "-c", "dbms.connector.1.listen_address=localhost:0", "-c",
-                "dbms.connector.1.enabled=true", "-c", "causal_clustering.initial_discovery_members=localhost:5000"
+                                                   configOption( EnterpriseEditionSettings.mode, "CORE" ), "-c", configOption( ClusterSettings.server_id, "1" ),
+                                                   "-c",
+                                                   configOption( ClusterSettings.initial_hosts, "127.0.0.1:" + clusterPort ), "-c",
+                                                   configOption( ClusterSettings.cluster_server, "127.0.0.1:" + clusterPort ), "-c",
+                                                   configOption( GraphDatabaseSettings.data_directory,
+                                                                 getRelativePath( folder.getRoot(), GraphDatabaseSettings.data_directory ) ), "-c",
+                                                   configOption( logs_directory, tempDir.getRoot().getAbsolutePath() ), "-c",
+                                                   configOption( certificates_directory, getRelativePath( folder.getRoot(), certificates_directory ) ),
+                                                   // The `script_enabled=true` setting is needed because the global javascript context must be
+                                                   // initialised in sandboxed mode to allow testing traversal endpoint scripting:
+                                                   //"-c", configOption( script_enabled, Settings.TRUE ), "-c", configOption( OnlineBackupSettings.online_backup_server, "127.0.0.1:0" ),
+                                                   "-c", new BoltConnector( "BOLT" ).listen_address.name() + "=localhost:0", "-c",
+                                                   "dbms.connector.https.listen_address=localhost:0",
+                                                   "-c", "dbms.connector.1.type=HTTP", "-c", "dbms.connector.1.encryption=NONE", "-c",
+                                                   "dbms.connector.1.listen_address=localhost:0", "-c",
+                                                   "dbms.connector.1.enabled=true", "-c", "causal_clustering.initial_discovery_members=localhost:5000"
 
         );
 
@@ -146,7 +153,7 @@ public class EnterpriseBootstrapperTestIT extends BaseBootstrapperIT
         UncoveredEnterpriseBootstrapper uncoveredEnterpriseBootstrapper = new UncoveredEnterpriseBootstrapper();
         cleanupRule.add( uncoveredEnterpriseBootstrapper );
         ServerBootstrapper.start( uncoveredEnterpriseBootstrapper, "--home-dir", tempDir.newFolder( "home-dir" ).getAbsolutePath(), "--config-dir",
-                configFile.getParentFile().getAbsolutePath() );
+                                  configFile.getParentFile().getAbsolutePath() );
 
         // Then
         assertEventually( "Server was started", uncoveredEnterpriseBootstrapper::isRunning, is( true ), 1, TimeUnit.MINUTES );
@@ -175,7 +182,7 @@ public class EnterpriseBootstrapperTestIT extends BaseBootstrapperIT
         UncoveredEnterpriseBootstrapper uncoveredEnterpriseBootstrapper = new UncoveredEnterpriseBootstrapper();
         cleanupRule.add( uncoveredEnterpriseBootstrapper );
         ServerBootstrapper.start( uncoveredEnterpriseBootstrapper, "--home-dir", tempDir.newFolder( "home-dir" ).getAbsolutePath(), "--config-dir",
-                configFile.getParentFile().getAbsolutePath() );
+                                  configFile.getParentFile().getAbsolutePath() );
 
         // Then
         assertEventually( "Server was started", uncoveredEnterpriseBootstrapper::isRunning, is( true ), 1, TimeUnit.MINUTES );

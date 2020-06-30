@@ -18,11 +18,12 @@
  */
 package org.neo4j.server.enterprise.modules;
 
+import java.util.List;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
 
+import org.neo4j.configuration.Config;
 import org.neo4j.kernel.api.security.AuthManager;
-import org.neo4j.kernel.configuration.Config;
 import org.neo4j.logging.LogProvider;
 import org.neo4j.server.modules.AuthorizationModule;
 import org.neo4j.server.rest.dbms.AuthorizationDisabledFilter;
@@ -31,10 +32,8 @@ import org.neo4j.server.web.WebServer;
 
 public class EnterpriseAuthorizationModule extends AuthorizationModule
 {
-    public EnterpriseAuthorizationModule( WebServer webServer,
-            Supplier<AuthManager> authManager,
-            LogProvider logProvider, Config config,
-            Pattern[] uriWhitelist )
+    public EnterpriseAuthorizationModule( WebServer webServer, Supplier<AuthManager> authManager, LogProvider logProvider, Config config,
+                                          List<Pattern> uriWhitelist )
     {
         super( webServer, authManager, logProvider, config, uriWhitelist );
     }

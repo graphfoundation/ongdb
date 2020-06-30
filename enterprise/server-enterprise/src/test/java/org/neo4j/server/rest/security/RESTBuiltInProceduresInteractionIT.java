@@ -42,7 +42,7 @@ public class RESTBuiltInProceduresInteractionIT extends BuiltInProceduresInterac
     }
 
     @Override
-    public NeoInteractionLevel<RESTSubject> setUpNeoServer( Map<String, String> config ) throws Throwable
+    public NeoInteractionLevel<RESTSubject> setUpNeoServer( Map<String,String> config ) throws Throwable
     {
         return new RESTInteraction( config );
     }

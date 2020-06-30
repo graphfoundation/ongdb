@@ -65,12 +65,14 @@ import static org.neo4j.server.rest.causalclustering.ReadReplicaStatusTest.respo
 
 public class CoreStatusTest
 {
+    private final LogProvider logProvider = NullLogProvider.getInstance();
+    private final MemberId myself = new MemberId( new UUID( 0x1234, 0x5678 ) );
+    private final MemberId core2 = new MemberId( UUID.randomUUID() );
+    private final MemberId core3 = new MemberId( UUID.randomUUID() );
+    private final MemberId replica = new MemberId( UUID.randomUUID() );
     private CausalClusteringStatus status;
-
     private CoreGraphDatabase db;
     private Dependencies dependencyResolver = new Dependencies();
-    private final LogProvider logProvider = NullLogProvider.getInstance();
-
     // Dependency resolved
     private RaftMembershipManager raftMembershipManager;
     private DatabaseHealth databaseHealth;
@@ -79,10 +81,55 @@ public class CoreStatusTest
     private RaftMachine raftMachine;
     private CommandIndexTracker commandIndexTracker;
 
-    private final MemberId myself = new MemberId( new UUID( 0x1234, 0x5678 ) );
-    private final MemberId core2 = new MemberId( UUID.randomUUID() );
-    private final MemberId core3 = new MemberId( UUID.randomUUID() );
-    private final MemberId replica = new MemberId( UUID.randomUUID() );
+    static RaftMembershipManager fakeRaftMembershipManager( Set<MemberId> votingMembers )
+    {
+        RaftMembershipManager raftMembershipManager = mock( RaftMembershipManager.class );
+        when( raftMembershipManager.votingMembers() ).thenReturn( votingMembers );
+        return raftMembershipManager;
+    }
+
+    private static Matcher<Map<String,Object>> containsAndEquals( String key, Object target )
+    {
+        return new BaseMatcher<Map<String,Object>>()
+        {
+            private boolean containsKey;
+            private boolean areEqual;
+
+            @Override
+            public boolean matches( Object item )
+            {
+                Map<String,Object> map = (Map<String,Object>) item;
+                if ( !map.containsKey( key ) )
+                {
+                    return false;
+                }
+                containsKey = true;
+                if ( !map.get( key ).equals( target ) )
+                {
+                    return false;
+                }
+                areEqual = true;
+                return true;
+            }
+
+            @Override
+            public void describeTo( Description description )
+            {
+                if ( !containsKey )
+                {
+                    description.appendText( "did not include key " ).appendValue( key );
+                }
+                else if ( !areEqual )
+                {
+                    description.appendText( "key " ).appendValue( key ).appendText( " did not match value" ).appendValue( target );
+                }
+                else
+                {
+                    throw new IllegalStateException( "Matcher failed, conditions should have passed" );
+                }
+            }
+        };
+    }
 
     @Before
     public void setup() throws Exception
@@ -232,7 +279,7 @@ public class CoreStatusTest
     @Test
     public void databaseHealthIsReflected() throws IOException
     {
-        // given database is not healthy
+        // given db is not healthy
         databaseHealth.panic( new RuntimeException() );
 
         // when
@@ -255,55 +302,5 @@ public class CoreStatusTest
         // then
         Map<String,Object> response = responseAsMap( description );
         assertFalse( description.getEntity().toString(), response.containsKey( "leader" ) );
-    }
-
-    static RaftMembershipManager fakeRaftMembershipManager( Set<MemberId> votingMembers )
-    {
-        RaftMembershipManager raftMembershipManager = mock( RaftMembershipManager.class );
-        when( raftMembershipManager.votingMembers() ).thenReturn( votingMembers );
-        return raftMembershipManager;
-    }
-
-    private static Matcher<Map<String,Object>> containsAndEquals( String key, Object target )
-    {
-        return new BaseMatcher<Map<String,Object>>()
-        {
-            private boolean containsKey;
-            private boolean areEqual;
-
-            @Override
-            public boolean matches( Object item )
-            {
-                Map<String,Object> map = (Map<String,Object>) item;
-                if ( !map.containsKey( key ) )
-                {
-                    return false;
-                }
-                containsKey = true;
-                if ( !map.get( key ).equals( target ) )
-                {
-                    return false;
-                }
-                areEqual = true;
-                return true;
-            }
-
-            @Override
-            public void describeTo( Description description )
-            {
-                if ( !containsKey )
-                {
-                    description.appendText( "did not include key " ).appendValue( key );
-                }
-                else if ( !areEqual )
-                {
-                    description.appendText( "key " ).appendValue( key ).appendText( " did not match value" ).appendValue( target );
-                }
-                else
-                {
-                    throw new IllegalStateException( "Matcher failed, conditions should have passed" );
-                }
-            }
-        };
     }
 }

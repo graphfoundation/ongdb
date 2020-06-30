@@ -37,7 +37,6 @@ import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.instanceOf;
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.neo4j.cluster.ClusterSettings.cluster_server;
 import static org.neo4j.cluster.ClusterSettings.initial_hosts;
@@ -57,13 +56,13 @@ public class EnterpriseServerIT
         // Given
         int clusterPort = PortAuthority.allocatePort();
         NeoServer server = EnterpriseServerBuilder.serverOnRandomPorts()
-                .usingDataDir( folder.getRoot().getAbsolutePath() )
-                .withProperty( mode.name(), "HA" )
-                .withProperty( server_id.name(), "1" )
-                .withProperty( cluster_server.name(), ":" + clusterPort )
-                .withProperty( initial_hosts.name(), ":" + clusterPort )
-                .persistent()
-                .build();
+                                                  .usingDataDir( folder.getRoot().getAbsolutePath() )
+                                                  .withProperty( mode.name(), "HA" )
+                                                  .withProperty( server_id.name(), "1" )
+                                                  .withProperty( cluster_server.name(), ":" + clusterPort )
+                                                  .withProperty( initial_hosts.name(), ":" + clusterPort )
+                                                  .persistent()
+                                                  .build();
 
         try
         {
@@ -91,25 +90,25 @@ public class EnterpriseServerIT
         // Given
         int clusterPort = PortAuthority.allocatePort();
         NeoServer server = EnterpriseServerBuilder.serverOnRandomPorts()
-                .withProperty( GraphDatabaseSettings.auth_enabled.name(), "true" )
-                .usingDataDir( folder.getRoot().getAbsolutePath() )
-                .withProperty( mode.name(), "HA" )
-                .withProperty( server_id.name(), "1" )
-                .withProperty( cluster_server.name(), ":" + clusterPort )
-                .withProperty( initial_hosts.name(), ":" + clusterPort )
-                .persistent()
-                .build();
+                                                  .withProperty( GraphDatabaseSettings.auth_enabled.name(), "true" )
+                                                  .usingDataDir( folder.getRoot().getAbsolutePath() )
+                                                  .withProperty( mode.name(), "HA" )
+                                                  .withProperty( server_id.name(), "1" )
+                                                  .withProperty( cluster_server.name(), ":" + clusterPort )
+                                                  .withProperty( initial_hosts.name(), ":" + clusterPort )
+                                                  .persistent()
+                                                  .build();
 
         try
         {
             server.start();
             server.getDatabase();
 
-            assertThat( server.getDatabase().getGraph(), is( instanceOf(HighlyAvailableGraphDatabase.class) ) );
+            assertThat( server.getDatabase().getGraph(), is( instanceOf( HighlyAvailableGraphDatabase.class ) ) );
 
             Client client = Client.create();
             ClientResponse r = client.resource( getHaEndpoint( server ) )
-                    .accept( APPLICATION_JSON ).get( ClientResponse.class );
+                                     .accept( APPLICATION_JSON ).get( ClientResponse.class );
             assertEquals( 401, r.getStatus() );
         }
         finally
@@ -124,26 +123,26 @@ public class EnterpriseServerIT
         // Given
         int clusterPort = PortAuthority.allocatePort();
         NeoServer server = EnterpriseServerBuilder.serverOnRandomPorts()
-                .withProperty( GraphDatabaseSettings.auth_enabled.name(), "true" )
-                .withProperty( HaSettings.ha_status_auth_enabled.name(), "false" )
-                .usingDataDir( folder.getRoot().getAbsolutePath() )
-                .withProperty( mode.name(), "HA" )
-                .withProperty( server_id.name(), "1" )
-                .withProperty( cluster_server.name(), ":" + clusterPort )
-                .withProperty( initial_hosts.name(), ":" + clusterPort )
-                .persistent()
-                .build();
+                                                  .withProperty( GraphDatabaseSettings.auth_enabled.name(), "true" )
+                                                  .withProperty( HaSettings.ha_status_auth_enabled.name(), "false" )
+                                                  .usingDataDir( folder.getRoot().getAbsolutePath() )
+                                                  .withProperty( mode.name(), "HA" )
+                                                  .withProperty( server_id.name(), "1" )
+                                                  .withProperty( cluster_server.name(), ":" + clusterPort )
+                                                  .withProperty( initial_hosts.name(), ":" + clusterPort )
+                                                  .persistent()
+                                                  .build();
 
         try
         {
             server.start();
             server.getDatabase();
 
-            assertThat( server.getDatabase().getGraph(), is( instanceOf(HighlyAvailableGraphDatabase.class) ) );
+            assertThat( server.getDatabase().getGraph(), is( instanceOf( HighlyAvailableGraphDatabase.class ) ) );
 
             Client client = Client.create();
             ClientResponse r = client.resource( getHaEndpoint( server ) )
-                    .accept( APPLICATION_JSON ).get( ClientResponse.class );
+                                     .accept( APPLICATION_JSON ).get( ClientResponse.class );
             assertEquals( 200, r.getStatus() );
             assertThat( r.getEntity( String.class ), containsString( "master" ) );
         }

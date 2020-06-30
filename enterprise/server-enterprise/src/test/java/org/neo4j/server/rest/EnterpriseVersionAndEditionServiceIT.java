@@ -25,7 +25,6 @@ import org.neo4j.server.rest.management.VersionAndEditionService;
 import org.neo4j.test.server.HTTP;
 
 import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
 /*
@@ -41,7 +40,7 @@ public class EnterpriseVersionAndEditionServiceIT extends EnterpriseVersionIT
     {
         // Given
         String releaseVersion = server.getDatabase().getGraph().getDependencyResolver().resolveDependency( KernelData
-                .class ).version().getReleaseVersion();
+                                                                                                                   .class ).version().getReleaseVersion();
 
         // When
         HTTP.Response res =

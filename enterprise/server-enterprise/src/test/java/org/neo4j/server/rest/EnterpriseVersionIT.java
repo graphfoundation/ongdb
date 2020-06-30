@@ -44,30 +44,30 @@ public abstract class EnterpriseVersionIT extends ExclusiveServerTestBase
     public static void setupServer() throws Exception
     {
         server = EnterpriseServerBuilder.serverOnRandomPorts()
-                .usingDataDir( staticFolder.getRoot().getAbsolutePath() )
-                .build();
+                                        .usingDataDir( staticFolder.getRoot().getAbsolutePath() )
+                                        .build();
 
-        suppressAll().call((Callable<Void>) () ->
+        suppressAll().call( (Callable<Void>) () ->
         {
             server.start();
             return null;
-        });
+        } );
         functionalTestHelper = new FunctionalTestHelper( server );
     }
 
     @AfterClass
     public static void stopServer() throws Exception
     {
-        suppressAll().call((Callable<Void>) () ->
+        suppressAll().call( (Callable<Void>) () ->
         {
             server.stop();
             return null;
-        });
+        } );
     }
 
     @Before
     public void setupTheDatabase()
     {
-        // do nothing, we don't care about the database contents here
+        // do nothing, we don't care about the db contents here
     }
 }

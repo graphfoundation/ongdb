@@ -26,7 +26,7 @@ import org.neo4j.graphdb.facade.GraphDatabaseDependencies;
 import org.neo4j.graphdb.facade.GraphDatabaseFacadeFactory;
 import org.neo4j.kernel.configuration.BoltConnector;
 import org.neo4j.kernel.configuration.Config;
-import org.neo4j.kernel.impl.enterprise.configuration.OnlineBackupSettings;
+import org.neo4j.kernel.impl.enterprise.settings.backup.OnlineBackupSettings;
 import org.neo4j.logging.LogProvider;
 import org.neo4j.logging.NullLogProvider;
 import org.neo4j.metrics.MetricsSettings;
@@ -76,10 +76,21 @@ public class EnterpriseServerBuilder extends CommunityServerBuilder
 
     @Override
     protected CommunityNeoServer build( File configFile, Config config,
-            GraphDatabaseFacadeFactory.Dependencies dependencies )
+                                        GraphDatabaseFacadeFactory.Dependencies dependencies )
     {
         return new TestEnterpriseNeoServer( config, configFile,
-                GraphDatabaseDependencies.newDependencies(dependencies).userLogProvider(logProvider) );
+                                            GraphDatabaseDependencies.newDependencies( dependencies ).userLogProvider( logProvider ) );
+    }
+
+    @Override
+    public Map<String,String> createConfiguration( File temporaryFolder )
+    {
+        Map<String,String> configuration = super.createConfiguration( temporaryFolder );
+
+        configuration.put( OnlineBackupSettings.online_backup_server.name(), "127.0.0.1:0" );
+        configuration.putIfAbsent( MetricsSettings.csvPath.name(), new File( temporaryFolder, "metrics" ).getAbsolutePath() );
+
+        return configuration;
     }
 
     private class TestEnterpriseNeoServer extends OpenEnterpriseNeoServer
@@ -107,16 +118,5 @@ public class EnterpriseServerBuilder extends CommunityServerBuilder
                 configFile.delete();
             }
         }
-    }
-
-    @Override
-    public Map<String, String> createConfiguration( File temporaryFolder )
-    {
-        Map<String, String> configuration = super.createConfiguration( temporaryFolder );
-
-        configuration.put( OnlineBackupSettings.online_backup_server.name(), "127.0.0.1:0" );
-        configuration.putIfAbsent( MetricsSettings.csvPath.name(), new File( temporaryFolder, "metrics" ).getAbsolutePath() );
-
-        return configuration;
     }
 }

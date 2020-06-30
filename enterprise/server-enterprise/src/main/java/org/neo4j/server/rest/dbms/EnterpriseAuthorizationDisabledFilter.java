@@ -22,7 +22,6 @@ import org.neo4j.kernel.enterprise.api.security.EnterpriseLoginContext;
 
 public class EnterpriseAuthorizationDisabledFilter extends AuthorizationDisabledFilter
 {
-    @Override
     protected EnterpriseLoginContext getAuthDisabledLoginContext()
     {
         return EnterpriseLoginContext.AUTH_DISABLED;

@@ -22,8 +22,6 @@ import org.junit.Test;
 
 import org.neo4j.test.server.HTTP;
 
-import static org.junit.Assert.assertEquals;
-
 public class CypherQueriesIT extends EnterpriseVersionIT
 {
 
@@ -35,7 +33,7 @@ public class CypherQueriesIT extends EnterpriseVersionIT
         String payload = "{ 'statements': [ { 'statement': 'CYPHER runtime=compiled MATCH (n) RETURN n' } ] }";
 
         // When
-        HTTP.Response res = HTTP.POST(uri, payload.replaceAll("'", "\""));
+        HTTP.Response res = HTTP.POST( uri, payload.replaceAll( "'", "\"" ) );
 
         // Then
         assertEquals( 200, res.status() );

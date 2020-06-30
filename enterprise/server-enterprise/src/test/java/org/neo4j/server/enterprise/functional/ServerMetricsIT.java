@@ -38,7 +38,6 @@ import org.neo4j.test.rule.TestDirectory;
 
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 import static org.hamcrest.Matchers.greaterThan;
-import static org.junit.Assert.assertEquals;
 import static org.neo4j.metrics.MetricsTestHelper.metricsCsv;
 import static org.neo4j.metrics.MetricsTestHelper.readLongValue;
 import static org.neo4j.test.assertion.Assert.assertEventually;
@@ -49,44 +48,6 @@ public class ServerMetricsIT
     public final TestDirectory folder = TestDirectory.testDirectory();
     @Rule
     public final SuppressOutput suppressOutput = SuppressOutput.suppressAll();
-
-    @Test
-    public void shouldShowServerMetrics() throws Throwable
-    {
-        // Given
-        File metrics = folder.file( "metrics" );
-        NeoServer server = EnterpriseServerBuilder.serverOnRandomPorts()
-                .usingDataDir( folder.databaseDir().getAbsolutePath() )
-                .withProperty( MetricsSettings.metricsEnabled.name(), "true" )
-                .withProperty( MetricsSettings.csvEnabled.name(), "true" )
-                .withProperty( MetricsSettings.csvPath.name(), metrics.getPath() )
-                .withProperty( MetricsSettings.csvInterval.name(), "100ms" )
-                .persistent()
-                .build();
-        try
-        {
-            // when
-            server.start();
-
-            String host = "http://localhost:" + server.baseUri().getPort() +
-                          ServerSettings.rest_api_path.getDefaultValue() + "/transaction/commit";
-
-            for ( int i = 0; i < 5; i++ )
-            {
-                ClientResponse r = Client.create().resource( host ).accept( APPLICATION_JSON ).type( APPLICATION_JSON )
-                        .post( ClientResponse.class, "{ 'statements': [ { 'statement': 'CREATE ()' } ] }" );
-                assertEquals( 200, r.getStatus() );
-            }
-
-            // then
-            assertMetricsExists( metrics, ServerMetrics.THREAD_JETTY_ALL );
-            assertMetricsExists( metrics, ServerMetrics.THREAD_JETTY_IDLE );
-        }
-        finally
-        {
-            server.stop();
-        }
-    }
 
     private static void assertMetricsExists( File metricsPath, String metricsName ) throws InterruptedException
     {
@@ -103,6 +64,44 @@ public class ServerMetricsIT
         catch ( IOException io )
         {
             throw new UncheckedIOException( io );
+        }
+    }
+
+    @Test
+    public void shouldShowServerMetrics() throws Throwable
+    {
+        // Given
+        File metrics = folder.file( "metrics" );
+        NeoServer server = EnterpriseServerBuilder.serverOnRandomPorts()
+                                                  .usingDataDir( folder.databaseDir().getAbsolutePath() )
+                                                  .withProperty( MetricsSettings.metricsEnabled.name(), "true" )
+                                                  .withProperty( MetricsSettings.csvEnabled.name(), "true" )
+                                                  .withProperty( MetricsSettings.csvPath.name(), metrics.getPath() )
+                                                  .withProperty( MetricsSettings.csvInterval.name(), "100ms" )
+                                                  .persistent()
+                                                  .build();
+        try
+        {
+            // when
+            server.start();
+
+            String host = "http://localhost:" + server.baseUri().getPort() +
+                          ServerSettings.rest_api_path.getDefaultValue() + "/transaction/commit";
+
+            for ( int i = 0; i < 5; i++ )
+            {
+                ClientResponse r = Client.create().resource( host ).accept( APPLICATION_JSON ).type( APPLICATION_JSON )
+                                         .post( ClientResponse.class, "{ 'statements': [ { 'statement': 'CREATE ()' } ] }" );
+                assertEquals( 200, r.getStatus() );
+            }
+
+            // then
+            assertMetricsExists( metrics, ServerMetrics.THREAD_JETTY_ALL );
+            assertMetricsExists( metrics, ServerMetrics.THREAD_JETTY_IDLE );
+        }
+        finally
+        {
+            server.stop();
         }
     }
 }

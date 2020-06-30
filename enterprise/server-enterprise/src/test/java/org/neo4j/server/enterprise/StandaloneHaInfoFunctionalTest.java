@@ -52,7 +52,7 @@ public class StandaloneHaInfoFunctionalTest
     @Before
     public void before() throws IOException
     {
-        server = createNonPersistentServer(target.directory());
+        server = createNonPersistentServer( target.directory() );
     }
 
     @After
@@ -103,8 +103,8 @@ public class StandaloneHaInfoFunctionalTest
 
         JaxRsResponse response = RestRequest.req().get( helper.managementUri() );
 
-        Map<String, Object> map = JsonHelper.jsonToMap( response.getEntity() );
+        Map<String,Object> map = JsonHelper.jsonToMap( response.getEntity() );
 
-       assertEquals( 2, ((Map) map.get( "services" )).size() );
+        assertEquals( 2, ((Map) map.get( "services" )).size() );
     }
 }

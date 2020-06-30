@@ -18,8 +18,8 @@
  */
 package org.neo4j.server.rest.causalclustering;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -57,15 +57,30 @@ import static org.mockito.Mockito.when;
 
 public class ReadReplicaStatusTest
 {
+    private final MemberId myself = new MemberId( UUID.randomUUID() );
+    private final LogProvider logProvider = NullLogProvider.getInstance();
     private CausalClusteringStatus status;
-
     private FakeTopologyService topologyService;
     private Dependencies dependencyResolver = new Dependencies();
     private DatabaseHealth databaseHealth;
     private CommandIndexTracker commandIndexTracker;
 
-    private final MemberId myself = new MemberId( UUID.randomUUID() );
-    private final LogProvider logProvider = NullLogProvider.getInstance();
+    static Collection<MemberId> randomMembers( int size )
+    {
+        return IntStream.range( 0, size )
+                        .mapToObj( i -> UUID.randomUUID() )
+                        .map( MemberId::new )
+                        .collect( Collectors.toList() );
+    }
+
+    static Map<String,Object> responseAsMap( Response response ) throws IOException
+    {
+        ObjectMapper objectMapper = new ObjectMapper();
+        Map<String,Object> responseJson = objectMapper.readValue( response.getEntity().toString(), new TypeReference<Map<String,Object>>()
+        {
+        } );
+        return responseJson;
+    }
 
     @Before
     public void setup() throws Exception
@@ -123,11 +138,11 @@ public class ReadReplicaStatusTest
 
         assertEquals( Response.Status.OK.getStatusCode(), description.getStatus() );
         ArrayList<String> expectedVotingMembers = topologyService.allCoreServers()
-                .members()
-                .keySet()
-                .stream()
-                .map( memberId -> memberId.getUuid().toString() )
-                .collect( Collectors.toCollection( ArrayList::new ) );
+                                                                 .members()
+                                                                 .keySet()
+                                                                 .stream()
+                                                                 .map( memberId -> memberId.getUuid().toString() )
+                                                                 .collect( Collectors.toCollection( ArrayList::new ) );
         Map<String,Object> responseJson = responseAsMap( description );
         List<String> actualVotingMembers = (List<String>) responseJson.get( "votingMembers" );
         Collections.sort( expectedVotingMembers );
@@ -160,11 +175,11 @@ public class ReadReplicaStatusTest
         assertFalse( responseAsMap( description ).containsKey( "leader" ) );
 
         MemberId selectedLead = topologyService.allCoreServers()
-                .members()
-                .keySet()
-                .stream()
-                .findFirst()
-                .orElseThrow( () -> new IllegalStateException( "No cores in topology" ) );
+                                               .members()
+                                               .keySet()
+                                               .stream()
+                                               .findFirst()
+                                               .orElseThrow( () -> new IllegalStateException( "No cores in topology" ) );
         topologyService.replaceWithRole( selectedLead, RoleInfo.LEADER );
         description = status.description();
         assertEquals( selectedLead.getUuid().toString(), responseAsMap( description ).get( "leader" ) );
@@ -176,22 +191,5 @@ public class ReadReplicaStatusTest
         Response description = status.description();
         assertTrue( responseAsMap( description ).containsKey( "core" ) );
         assertEquals( false, responseAsMap( status.description() ).get( "core" ) );
-    }
-
-    static Collection<MemberId> randomMembers( int size )
-    {
-        return IntStream.range( 0, size )
-                .mapToObj( i -> UUID.randomUUID() )
-                .map( MemberId::new )
-                .collect( Collectors.toList());
-    }
-
-    static Map<String,Object> responseAsMap( Response response ) throws IOException
-    {
-        ObjectMapper objectMapper = new ObjectMapper();
-        Map<String,Object> responseJson = objectMapper.readValue( response.getEntity().toString(), new TypeReference<Map<String,Object>>()
-        {
-        } );
-        return responseJson;
     }
 }

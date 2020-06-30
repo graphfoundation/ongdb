@@ -1,9 +1,10 @@
 /*
+ * Copyright (c) 2002-2018 "Neo4j"
+ * Neo4j Sweden AB [http://neo4j.com]
+ *
  * Copyright (c) 2018-2020 "Graph Foundation"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
- * Copyright (c) 2002-2018 "Neo4j"
- * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of ONgDB Enterprise Edition. The included source
  * code can be redistributed and/or modified under the terms of the
@@ -18,43 +19,32 @@
  */
 package org.neo4j.server.database;
 
-import java.io.File;
-
-import org.neo4j.causalclustering.core.CoreGraphDatabase;
-import org.neo4j.causalclustering.discovery.DiscoveryServiceFactory;
-import org.neo4j.causalclustering.discovery.EnterpriseDiscoveryServiceFactorySelector;
-import org.neo4j.causalclustering.readreplica.ReadReplicaGraphDatabase;
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
-import org.neo4j.kernel.configuration.Config;
-import org.neo4j.kernel.enterprise.EnterpriseGraphDatabase;
-import org.neo4j.kernel.ha.HighlyAvailableGraphDatabase;
+import org.neo4j.configuration.Config;
+import org.neo4j.dbms.api.DatabaseManagementService;
+import org.neo4j.enterprise.graphdb.factory.module.edition.EnterpriseEditionModule;
+import org.neo4j.graphdb.facade.DatabaseManagementServiceFactory;
+import org.neo4j.graphdb.facade.ExternalDependencies;
 import org.neo4j.kernel.impl.enterprise.configuration.EnterpriseEditionSettings;
-import org.neo4j.kernel.impl.factory.GraphDatabaseFacade;
-
-import static org.neo4j.graphdb.facade.GraphDatabaseFacadeFactory.Dependencies;
+import org.neo4j.kernel.impl.factory.DatabaseInfo;
 
 public class EnterpriseGraphFactory implements GraphFactory
 {
+
     @Override
-    public GraphDatabaseFacade newGraphDatabase( Config config, Dependencies dependencies )
+    public DatabaseManagementService newDatabaseManagementService( Config config, ExternalDependencies dependencies )
     {
         EnterpriseEditionSettings.Mode mode = config.get( EnterpriseEditionSettings.mode );
-        File storeDir = config.get( GraphDatabaseSettings.databases_root_path );
-        DiscoveryServiceFactory discoveryServiceFactory = new EnterpriseDiscoveryServiceFactorySelector().select( config );
-
-        switch ( mode )
+        return (new DatabaseManagementServiceFactory( DatabaseInfo.ENTERPRISE, EnterpriseEditionModule::new )).build( config, dependencies );
+        /*switch ( mode )
         {
-        case HA:
-            return new HighlyAvailableGraphDatabase( storeDir, config, dependencies );
-        case ARBITER:
-            // Should never reach here because this mode is handled separately by the scripts.
-            throw new IllegalArgumentException( "The server cannot be started in ARBITER mode." );
         case CORE:
-            return new CoreGraphDatabase( storeDir, config, dependencies, discoveryServiceFactory );
+            return (new CoreGraphDatabase( config, dependencies, newDiscoveryServiceFactory(), CoreEditionModule::new )).getManagementService();
         case READ_REPLICA:
-            return new ReadReplicaGraphDatabase( storeDir, config, dependencies, discoveryServiceFactory );
+            return (new ReadReplicaGraphDatabase( config, dependencies, newDiscoveryServiceFactory(), ReadReplicaEditionModule::new )).getManagementService();
         default:
-            return new EnterpriseGraphDatabase( storeDir, config, dependencies );
+            return (new DatabaseManagementServiceFactory( DatabaseInfo.ENTERPRISE, EnterpriseEditionModule::new )).build( config, dependencies );
         }
+
+         */
     }
 }
