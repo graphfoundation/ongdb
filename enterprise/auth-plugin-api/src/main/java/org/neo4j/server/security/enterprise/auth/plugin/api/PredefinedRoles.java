@@ -28,6 +28,7 @@ public class PredefinedRoles
     public static final String PUBLISHER = "publisher";
     public static final String EDITOR = "editor";
     public static final String READER = "reader";
+    public static final String PUBLIC = "PUBLIC";
 
     private PredefinedRoles()
     {

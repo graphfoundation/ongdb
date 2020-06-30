@@ -28,15 +28,15 @@ import java.util.Collection;
  */
 public interface AuthorizationInfo extends Serializable
 {
+    static AuthorizationInfo of( Collection<String> roles )
+    {
+        return () -> roles;
+    }
+
     /**
      * Should return a collection of roles assigned to the principals recognized by an {@link AuthorizationPlugin}.
      *
      * @return the roles assigned to the principals recognized by an {@link AuthorizationPlugin}.
      */
     Collection<String> roles();
-
-    static AuthorizationInfo of( Collection<String> roles )
-    {
-        return () -> roles;
-    }
 }

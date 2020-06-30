@@ -29,18 +29,17 @@ import org.neo4j.server.security.enterprise.auth.plugin.api.AuthToken;
  */
 public interface AuthenticationInfo extends Serializable
 {
+    static AuthenticationInfo of( Object principal )
+    {
+        return (AuthenticationInfo) () -> principal;
+    }
+
     /**
-     * Should return a principal that uniquely identifies the authenticated subject within this authentication
-     * provider.
+     * Should return a principal that uniquely identifies the authenticated subject within this authentication provider.
      *
      * <p>Typically this is the same as the principal within the auth token map.
      *
      * @return a principal that uniquely identifies the authenticated subject within this authentication provider.
      */
     Object principal();
-
-    static AuthenticationInfo of( Object principal )
-    {
-        return (AuthenticationInfo) () -> principal;
-    }
 }

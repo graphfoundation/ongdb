@@ -38,10 +38,8 @@ public interface AuthProviderOperations
      * Returns the path to the Neo4j configuration file if one exists.
      *
      * @return the path to the Neo4j configuration file if one exists
-     *
-     * @deprecated
-     * Settings are recommended to be stored in a separate file. You can use {@link AuthProviderOperations#neo4jHome()}
-     * to resolve your configuration file, e.g. {@code neo4jHome().resolve("conf/myPlugin.conf" );}
+     * @deprecated Settings are recommended to be stored in a separate file. You can use {@link AuthProviderOperations#neo4jHome()} to resolve your
+     * configuration file, e.g. {@code neo4jHome().resolve("conf/myPlugin.conf" );}
      */
     @Deprecated
     Optional<Path> neo4jConfigFile();
@@ -61,12 +59,34 @@ public interface AuthProviderOperations
     Clock clock();
 
     /**
-     * Returns the security log that is used by the Neo4j security module within which this auth provider plugin is
-     * running.
+     * Returns the security log that is used by the Neo4j security module within which this auth provider plugin is running.
      *
      * @return the security log that is used by the Neo4j security module
      */
     Log log();
+
+    /**
+     * If set to {@code true} the authentication information returned by the plugin will be cached. The expiration time of the cached information is configured
+     * by the {@code dbms.security.auth_cache_ttl} configuration setting.
+     *
+     * <p>Since a principal can be authenticated against cached authentication information this requires
+     * the capability of matching the credentials of an authentication token against the credentials of the authentication information returned by the plugin.
+     *
+     * <p>The default value is {@code false}.
+     *
+     * @param authenticationCachingEnabled if caching of authentication information should be enabled or not
+     */
+    void setAuthenticationCachingEnabled( boolean authenticationCachingEnabled );
+
+    /**
+     * If set to {@code true} the authorization information (i.e. the list of roles for a given principal) returned by the plugin will be cached. The expiration
+     * time of the cached information is configured by the {@code dbms.security.auth_cache_ttl} configuration setting.
+     * <p>
+     * The default value is {@code true}.
+     *
+     * @param authorizationCachingEnabled if caching of authorization information should be enabled or not
+     */
+    void setAuthorizationCachingEnabled( boolean authorizationCachingEnabled );
 
     /**
      * An interface to the security log that is used by the Neo4j security module.
@@ -108,31 +128,4 @@ public interface AuthProviderOperations
          */
         boolean isDebugEnabled();
     }
-
-    /**
-     * If set to {@code true} the authentication information returned by the plugin will be cached.
-     * The expiration time of the cached information is configured by the
-     * {@code dbms.security.auth_cache_ttl} configuration setting.
-     *
-     * <p>Since a principal can be authenticated against cached authentication information this requires
-     * the capability of matching the credentials of an authentication token against the credentials of the
-     * authentication information returned by the plugin.
-     *
-     * <p>The default value is {@code false}.
-     *
-     * @param authenticationCachingEnabled if caching of authentication information should be enabled or not
-     */
-    void setAuthenticationCachingEnabled( boolean authenticationCachingEnabled );
-
-    /**
-     * If set to {@code true} the authorization information (i.e. the list of roles for a given principal)
-     * returned by the plugin will be cached.
-     * The expiration time of the cached information is configured by the
-     * {@code dbms.security.auth_cache_ttl} configuration setting.
-     *
-     * The default value is {@code true}.
-     *
-     * @param authorizationCachingEnabled if caching of authorization information should be enabled or not
-     */
-    void setAuthorizationCachingEnabled( boolean authorizationCachingEnabled );
 }

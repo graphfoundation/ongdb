@@ -34,22 +34,6 @@ import org.neo4j.server.security.enterprise.auth.plugin.api.AuthToken;
  */
 public interface AuthInfo extends Serializable
 {
-    /**
-     * Should return a principal that uniquely identifies the authenticated subject within this auth provider.
-     *
-     * <p>Typically this is the same as the principal within the auth token map.
-     *
-     * @return a principal that uniquely identifies the authenticated subject within this auth provider.
-     */
-    Object principal();
-
-    /**
-     * Should return the roles assigned to this principal.
-     *
-     * @return the roles assigned to this principal
-     */
-    Collection<String> roles();
-
     static AuthInfo of( Object principal, Collection<String> roles )
     {
         return new AuthInfo()
@@ -67,4 +51,20 @@ public interface AuthInfo extends Serializable
             }
         };
     }
+
+    /**
+     * Should return a principal that uniquely identifies the authenticated subject within this auth provider.
+     *
+     * <p>Typically this is the same as the principal within the auth token map.
+     *
+     * @return a principal that uniquely identifies the authenticated subject within this auth provider.
+     */
+    Object principal();
+
+    /**
+     * Should return the roles assigned to this principal.
+     *
+     * @return the roles assigned to this principal
+     */
+    Collection<String> roles();
 }

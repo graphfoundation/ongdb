@@ -26,9 +26,8 @@ import org.neo4j.server.security.enterprise.auth.plugin.api.AuthenticationExcept
  * A simplified combined authentication and authorization provider plugin for the Neo4j enterprise security module.
  *
  * <p>If either the configuration setting {@code dbms.security.plugin.authentication_enabled} or
- * {@code dbms.security.plugin.authorization_enabled} is set to {@code true},
- * all objects that implements this interface that exists in the class path at Neo4j startup, will be
- * loaded as services.
+ * {@code dbms.security.plugin.authorization_enabled} is set to {@code true}, all objects that implements this interface that exists in the class path at Neo4j
+ * startup, will be loaded as services.
  *
  * @see AuthenticationPlugin
  * @see AuthorizationPlugin
@@ -46,17 +45,14 @@ public interface AuthPlugin extends AuthProviderLifecycle
     String name();
 
     /**
-     * Should perform both authentication and authorization of the identity in the given auth token and return an
-     * {@link AuthInfo} result if successful. The {@link AuthInfo} result can also contain a collection of roles
-     * that are assigned to the given identity, which constitutes the authorization part.
-     *
-     * If authentication failed, either {@code null} should be returned,
-     * or an {@link AuthenticationException} should be thrown.
+     * Should perform both authentication and authorization of the identity in the given auth token and return an {@link AuthInfo} result if successful. The
+     * {@link AuthInfo} result can also contain a collection of roles that are assigned to the given identity, which constitutes the authorization part.
+     * <p>
+     * If authentication failed, either {@code null} should be returned, or an {@link AuthenticationException} should be thrown.
      *
      * <p>If authentication caching is enabled, then a {@link CacheableAuthInfo} should be returned.
      *
      * @return an {@link AuthInfo} object if authentication was successful, otherwise {@code null}
-     *
      * @see org.neo4j.server.security.enterprise.auth.plugin.api.AuthToken
      * @see AuthenticationInfo
      * @see CacheableAuthenticationInfo

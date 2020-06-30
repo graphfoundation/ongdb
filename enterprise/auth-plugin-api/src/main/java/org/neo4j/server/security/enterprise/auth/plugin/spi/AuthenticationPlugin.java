@@ -26,8 +26,7 @@ import org.neo4j.server.security.enterprise.auth.plugin.api.AuthenticationExcept
  * An authentication provider plugin for the Neo4j enterprise security module.
  *
  * <p>If the configuration setting {@code dbms.security.plugin.authentication_enabled} is set to {@code true},
- * all objects that implements this interface that exists in the class path at Neo4j startup, will be
- * loaded as services.
+ * all objects that implements this interface that exists in the class path at Neo4j startup, will be loaded as services.
  *
  * @see AuthPlugin
  * @see AuthorizationPlugin
@@ -45,17 +44,13 @@ public interface AuthenticationPlugin extends AuthProviderLifecycle
     String name();
 
     /**
-     * Should perform authentication of the identity in the given auth token and return an
-     * {@link AuthenticationInfo} result if successful.
-     * If authentication failed, either {@code null} should be returned,
-     * or an {@link AuthenticationException} should be thrown.
+     * Should perform authentication of the identity in the given auth token and return an {@link AuthenticationInfo} result if successful. If authentication
+     * failed, either {@code null} should be returned, or an {@link AuthenticationException} should be thrown.
      * <p>
-     * If authentication caching is enabled, either a {@link CacheableAuthenticationInfo} or a
-     * {@link CustomCacheableAuthenticationInfo} should be returned.
+     * If authentication caching is enabled, either a {@link CacheableAuthenticationInfo} or a {@link CustomCacheableAuthenticationInfo} should be returned.
      *
      * @return an {@link AuthenticationInfo} object if authentication was successful, otherwise {@code null}
      * @throws AuthenticationException if authentication failed
-     *
      * @see org.neo4j.server.security.enterprise.auth.plugin.api.AuthToken
      * @see AuthProviderOperations#setAuthenticationCachingEnabled(boolean)
      */
