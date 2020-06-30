@@ -43,38 +43,38 @@ import org.neo4j.server.security.enterprise.configuration.SecuritySettings;
 @CreateDS(
         name = "Test",
         partitions =
-        {
-                @CreatePartition(
-                    name = "example",
-                    suffix = "dc=example,dc=com",
-                    contextEntry = @ContextEntry( entryLdif =
-                            "dn: dc=example,dc=com\n" +
-                            "dc: example\n" +
-                            "o: example\n" +
-                            "objectClass: top\n" +
-                            "objectClass: dcObject\n" +
-                            "objectClass: organization\n\n" ) ),
-        },
+                {
+                        @CreatePartition(
+                                name = "example",
+                                suffix = "dc=example,dc=com",
+                                contextEntry = @ContextEntry( entryLdif =
+                                        "dn: dc=example,dc=com\n" +
+                                        "dc: example\n" +
+                                        "o: example\n" +
+                                        "objectClass: top\n" +
+                                        "objectClass: dcObject\n" +
+                                        "objectClass: organization\n\n" ) ),
+                },
         loadedSchemas =
-        {
-                @LoadSchema( name = "nis" ),
-        } )
+                {
+                        @LoadSchema( name = "nis" ),
+                } )
 @CreateLdapServer(
         transports =
-        {
-                @CreateTransport( protocol = "LDAP", port = 10389, address = "0.0.0.0" ),
-                @CreateTransport( protocol = "LDAPS", port = 10636, address = "0.0.0.0", ssl = true )
-        },
+                {
+                        @CreateTransport( protocol = "LDAP", port = 10389, address = "0.0.0.0" ),
+                        @CreateTransport( protocol = "LDAPS", port = 10636, address = "0.0.0.0", ssl = true )
+                },
 
         saslMechanisms =
-        {
-                @SaslMechanism( name = "DIGEST-MD5", implClass =
-                        org.apache.directory.server.ldap.handlers.sasl.digestMD5.DigestMd5MechanismHandler.class ),
-                @SaslMechanism( name  = "CRAM-MD5", implClass =
-                        org.apache.directory.server.ldap.handlers.sasl.cramMD5.CramMd5MechanismHandler.class )
-        },
+                {
+                        @SaslMechanism( name = "DIGEST-MD5", implClass =
+                                org.apache.directory.server.ldap.handlers.sasl.digestMD5.DigestMd5MechanismHandler.class ),
+                        @SaslMechanism( name = "CRAM-MD5", implClass =
+                                org.apache.directory.server.ldap.handlers.sasl.cramMD5.CramMd5MechanismHandler.class )
+                },
         saslHost = "0.0.0.0",
-        extendedOpHandlers = { StartTlsHandler.class },
+        extendedOpHandlers = {StartTlsHandler.class},
         keyStore = "target/test-classes/neo4j_ldap_test_keystore.jks",
         certificatePassword = "secret"
 )
@@ -91,7 +91,7 @@ public class ADAuthIT extends EnterpriseAuthenticationTestBase
 
     @SuppressWarnings( "deprecation" )
     @Override
-    protected Map<Setting<?>, String> getSettings()
+    protected Map<Setting<?>,String> getSettings()
     {
         Map<Setting<?>,String> settings = new HashMap<>();
         settings.put( SecuritySettings.auth_provider, SecuritySettings.LDAP_REALM_NAME );
@@ -109,10 +109,10 @@ public class ADAuthIT extends EnterpriseAuthenticationTestBase
         settings.put( SecuritySettings.ldap_authorization_user_search_filter, "(&(objectClass=*)(samaccountname={0}))" );
         settings.put( SecuritySettings.ldap_authorization_group_membership_attribute_names, "memberOf" );
         settings.put( SecuritySettings.ldap_authorization_group_to_role_mapping,
-                "cn=reader,ou=groups,dc=example,dc=com=reader;" +
-                "cn=publisher,ou=groups,dc=example,dc=com=publisher;" +
-                "cn=architect,ou=groups,dc=example,dc=com=architect;" +
-                "cn=admin,ou=groups,dc=example,dc=com=admin" );
+                      "cn=reader,ou=groups,dc=example,dc=com=reader;" +
+                      "cn=publisher,ou=groups,dc=example,dc=com=publisher;" +
+                      "cn=architect,ou=groups,dc=example,dc=com=architect;" +
+                      "cn=admin,ou=groups,dc=example,dc=com=admin" );
         settings.put( SecuritySettings.procedure_roles, "test.allowedReadProcedure:role1" );
         settings.put( SecuritySettings.ldap_read_timeout, "1s" );
         settings.put( SecuritySettings.ldap_authentication_use_samaccountname, "true" );

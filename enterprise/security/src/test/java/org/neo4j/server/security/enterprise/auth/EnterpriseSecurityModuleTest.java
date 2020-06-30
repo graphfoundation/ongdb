@@ -34,7 +34,6 @@ import org.neo4j.logging.LogProvider;
 import org.neo4j.server.security.enterprise.configuration.SecuritySettings;
 import org.neo4j.server.security.enterprise.log.SecurityLog;
 
-import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
@@ -61,7 +60,7 @@ public class EnterpriseSecurityModuleTest
         thrown.expectMessage( "Illegal configuration: No valid auth provider is active." );
 
         // When
-        new EnterpriseSecurityModule().newAuthManager( config, mockLogProvider, mock( SecurityLog.class), null, null, null );
+        new EnterpriseSecurityModule().newAuthManager( config, mockLogProvider, mock( SecurityLog.class ), null, null, null );
     }
 
     @Test
@@ -78,7 +77,7 @@ public class EnterpriseSecurityModuleTest
         thrown.expectMessage( "Illegal configuration: All authentication providers are disabled." );
 
         // When
-        new EnterpriseSecurityModule().newAuthManager( config, mockLogProvider, mock( SecurityLog.class), null, null, null );
+        new EnterpriseSecurityModule().newAuthManager( config, mockLogProvider, mock( SecurityLog.class ), null, null, null );
     }
 
     @Test
@@ -95,7 +94,7 @@ public class EnterpriseSecurityModuleTest
         thrown.expectMessage( "Illegal configuration: All authorization providers are disabled." );
 
         // When
-        new EnterpriseSecurityModule().newAuthManager( config, mockLogProvider, mock( SecurityLog.class), null, null, null );
+        new EnterpriseSecurityModule().newAuthManager( config, mockLogProvider, mock( SecurityLog.class ), null, null, null );
     }
 
     @Test
@@ -110,10 +109,10 @@ public class EnterpriseSecurityModuleTest
         // Then
         thrown.expect( IllegalArgumentException.class );
         thrown.expectMessage( "Illegal configuration: Native auth provider configured, " +
-                                "but both authentication and authorization are disabled." );
+                              "but both authentication and authorization are disabled." );
 
         // When
-        new EnterpriseSecurityModule().newAuthManager( config, mockLogProvider, mock( SecurityLog.class), null, null, null );
+        new EnterpriseSecurityModule().newAuthManager( config, mockLogProvider, mock( SecurityLog.class ), null, null, null );
     }
 
     @Test
@@ -134,7 +133,7 @@ public class EnterpriseSecurityModuleTest
                 "Illegal configuration: Failed to load auth plugin 'plugin-IllConfiguredAuthorizationPlugin'." );
 
         // When
-        new EnterpriseSecurityModule().newAuthManager( config, mockLogProvider, mock( SecurityLog.class), null, null, null );
+        new EnterpriseSecurityModule().newAuthManager( config, mockLogProvider, mock( SecurityLog.class ), null, null, null );
     }
 
     @Test
@@ -150,7 +149,7 @@ public class EnterpriseSecurityModuleTest
         );
 
         // When
-        new EnterpriseSecurityModule().newAuthManager( config, mockLogProvider, mock( SecurityLog.class), null, null, null );
+        new EnterpriseSecurityModule().newAuthManager( config, mockLogProvider, mock( SecurityLog.class ), null, null, null );
     }
 
     @Test

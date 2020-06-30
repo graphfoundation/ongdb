@@ -28,6 +28,8 @@ import org.neo4j.server.security.enterprise.auth.plugin.spi.CacheableAuthenticat
 
 public class TestCacheableAuthenticationPlugin extends AuthenticationPlugin.CachingEnabledAdapter
 {
+    public static AtomicInteger getAuthenticationInfoCallCount = new AtomicInteger( 0 );
+
     @Override
     public String name()
     {
@@ -48,6 +50,4 @@ public class TestCacheableAuthenticationPlugin extends AuthenticationPlugin.Cach
         }
         return null;
     }
-
-    public static AtomicInteger getAuthenticationInfoCallCount = new AtomicInteger( 0 );
 }

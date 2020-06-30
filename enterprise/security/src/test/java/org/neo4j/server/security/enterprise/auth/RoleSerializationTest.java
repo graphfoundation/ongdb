@@ -66,8 +66,8 @@ public class RoleSerializationTest
     }
 
     /**
-     * This is a future-proofing test. If you come here because you've made changes to the serialization format,
-     * this is your reminder to make sure to build this is in a backwards compatible way.
+     * This is a future-proofing test. If you come here because you've made changes to the serialization format, this is your reminder to make sure to build
+     * this is in a backwards compatible way.
      */
     @Test
     public void shouldReadV1SerializationFormat() throws Exception

@@ -59,7 +59,7 @@ public abstract class ConfiguredProceduresTestBase<S> extends ProcedureInteracti
     @Override
     public void setUp()
     {
-        // tests are required to setup database with specific configs
+        // tests are required to setup db with specific configs
     }
 
     @Test
@@ -146,7 +146,7 @@ public abstract class ConfiguredProceduresTestBase<S> extends ProcedureInteracti
 
         userManager.newRole( "role1", "noneSubject" );
         assertSuccess( neo.login( "noneSubject", "abc" ), "RETURN test.allowedFunc() AS c",
-                itr -> assertKeyIs( itr, "c", "success for role1" ) );
+                       itr -> assertKeyIs( itr, "c", "success for role1" ) );
     }
 
     @SuppressWarnings( "OptionalGetWithoutIsPresent" )
@@ -189,7 +189,7 @@ public abstract class ConfiguredProceduresTestBase<S> extends ProcedureInteracti
     public void shouldSetAllMatchingWildcardRoleConfigsWithDefaultForUDFs() throws Throwable
     {
         configuredSetup( stringMap( SecuritySettings.procedure_roles.name(), "test.*:tester;test.create*:other",
-                SecuritySettings.default_allowed.name(), "default" ) );
+                                    SecuritySettings.default_allowed.name(), "default" ) );
 
         userManager.newRole( "tester", "noneSubject" );
         userManager.newRole( "default", "noneSubject" );
@@ -206,7 +206,7 @@ public abstract class ConfiguredProceduresTestBase<S> extends ProcedureInteracti
         neo = setUpNeoServer( stringMap( GraphDatabaseSettings.auth_enabled.name(), "false" ) );
 
         neo.getLocalGraph().getDependencyResolver().resolveDependency( Procedures.class )
-                .registerProcedure( ClassWithProcedures.class );
+           .registerProcedure( ClassWithProcedures.class );
 
         S subject = neo.login( "no_auth", "" );
         assertEmpty( subject, "CALL test.allowedReadProcedure() YIELD value CREATE (:NewNode {name: value})" );
@@ -365,15 +365,16 @@ public abstract class ConfiguredProceduresTestBase<S> extends ProcedureInteracti
         assertSuccess( subject, call, itr ->
         {
             List<String> failures = itr.stream().filter( record ->
-            {
-                String name = toRawValue( record.get( "name" ) ).toString();
-                List<?> roles = (List<?>) toRawValue( record.get( "roles" ) );
-                return expected.containsKey( name ) && !expected.get( name ).equals( new HashSet<>( roles ) );
-            } ).map( record ->
-            {
-                String name = toRawValue( record.get( "name" ) ).toString();
-                return name + ": expected '" + expected.get( name ) + "' but was '" + record.get( "roles" ) + "'";
-            } ).collect( toList() );
+                                                         {
+                                                             String name = toRawValue( record.get( "name" ) ).toString();
+                                                             List<?> roles = (List<?>) toRawValue( record.get( "roles" ) );
+                                                             return expected.containsKey( name ) && !expected.get( name ).equals( new HashSet<>( roles ) );
+                                                         } ).map( record ->
+                                                                  {
+                                                                      String name = toRawValue( record.get( "name" ) ).toString();
+                                                                      return name + ": expected '" + expected.get( name ) + "' but was '" +
+                                                                             record.get( "roles" ) + "'";
+                                                                  } ).collect( toList() );
 
             assertThat( "Expectations violated: " + failures.toString(), failures.isEmpty() );
         } );

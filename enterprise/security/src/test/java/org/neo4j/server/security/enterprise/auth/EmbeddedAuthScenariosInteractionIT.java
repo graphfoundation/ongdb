@@ -33,7 +33,7 @@ public class EmbeddedAuthScenariosInteractionIT extends AuthScenariosInteraction
     public EphemeralFileSystemRule fileSystemRule = new EphemeralFileSystemRule();
 
     @Override
-    protected NeoInteractionLevel<EnterpriseLoginContext> setUpNeoServer( Map<String, String> config ) throws Throwable
+    protected NeoInteractionLevel<EnterpriseLoginContext> setUpNeoServer( Map<String,String> config ) throws Throwable
     {
         return new EmbeddedInteraction( config, () -> new UncloseableDelegatingFileSystemAbstraction( fileSystemRule.get() ) );
     }

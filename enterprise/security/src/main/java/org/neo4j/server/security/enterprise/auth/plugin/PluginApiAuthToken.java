@@ -26,9 +26,9 @@ import java.util.Map;
 import org.neo4j.kernel.api.security.exception.InvalidAuthTokenException;
 import org.neo4j.server.security.enterprise.auth.plugin.api.AuthToken;
 
-import static org.neo4j.kernel.api.security.AuthToken.PRINCIPAL;
 import static org.neo4j.kernel.api.security.AuthToken.CREDENTIALS;
 import static org.neo4j.kernel.api.security.AuthToken.PARAMETERS;
+import static org.neo4j.kernel.api.security.AuthToken.PRINCIPAL;
 
 public class PluginApiAuthToken implements AuthToken
 {
@@ -41,32 +41,6 @@ public class PluginApiAuthToken implements AuthToken
         this.principal = principal;
         this.credentials = credentials;
         this.parameters = parameters;
-    }
-
-    @Override
-    public String principal()
-    {
-        return principal;
-    }
-
-    @Override
-    public char[] credentials()
-    {
-        return credentials;
-    }
-
-    @Override
-    public Map<String,Object> parameters()
-    {
-        return parameters;
-    }
-
-    void clearCredentials()
-    {
-        if ( credentials != null )
-        {
-            Arrays.fill( credentials, (char) 0 );
-        }
     }
 
     public static PluginApiAuthToken of( String principal, char[] credentials, Map<String,Object> parameters )
@@ -104,5 +78,31 @@ public class PluginApiAuthToken implements AuthToken
                 // Convert UTF8 byte[] to char[] (this should not create any intermediate copies)
                 credentials != null ? StandardCharsets.UTF_8.decode( ByteBuffer.wrap( credentials ) ).array() : null,
                 parameters );
+    }
+
+    @Override
+    public String principal()
+    {
+        return principal;
+    }
+
+    @Override
+    public char[] credentials()
+    {
+        return credentials;
+    }
+
+    @Override
+    public Map<String,Object> parameters()
+    {
+        return parameters;
+    }
+
+    void clearCredentials()
+    {
+        if ( credentials != null )
+        {
+            Arrays.fill( credentials, (char) 0 );
+        }
     }
 }

@@ -50,7 +50,7 @@ public class ShiroCaffeineCacheTest
         try
         {
             new ShiroCaffeineCache<>( fakeTicker::read, Runnable::run, 0, 5, true );
-            fail("Expected IllegalArgumentException for a TTL of 0");
+            fail( "Expected IllegalArgumentException for a TTL of 0" );
         }
         catch ( IllegalArgumentException e )
         {
@@ -58,7 +58,7 @@ public class ShiroCaffeineCacheTest
         }
         catch ( Throwable t )
         {
-            fail("Expected IllegalArgumentException for a TTL of 0");
+            fail( "Expected IllegalArgumentException for a TTL of 0" );
         }
     }
 
@@ -78,7 +78,7 @@ public class ShiroCaffeineCacheTest
     @Test
     public void shouldNotReturnExpiredValueThroughPut()
     {
-        assertNull( cache.put( 1, "first" ));
+        assertNull( cache.put( 1, "first" ) );
         assertThat( cache.put( 1, "second" ), equalTo( "first" ) );
         fakeTicker.advance( TTL + 1, MILLISECONDS );
         assertNull( cache.put( 1, "third" ) );

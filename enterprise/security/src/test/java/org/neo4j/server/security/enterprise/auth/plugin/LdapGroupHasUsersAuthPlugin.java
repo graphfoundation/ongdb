@@ -39,9 +39,9 @@ import org.neo4j.server.security.enterprise.auth.plugin.spi.AuthPlugin;
 
 public class LdapGroupHasUsersAuthPlugin extends AuthPlugin.Adapter
 {
+    public static final String GROUP_ID = "gidNumber";
     private static final String GROUP_SEARCH_BASE = "ou=groups,dc=example,dc=com";
     private static final String GROUP_SEARCH_FILTER = "(&(objectClass=posixGroup)(memberUid={0}))";
-    public static final String GROUP_ID = "gidNumber";
 
     @Override
     public String name()

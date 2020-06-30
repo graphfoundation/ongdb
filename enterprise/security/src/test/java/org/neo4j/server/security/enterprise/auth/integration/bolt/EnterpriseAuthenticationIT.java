@@ -38,7 +38,7 @@ public class EnterpriseAuthenticationIT extends AuthenticationIT
     }
 
     @Override
-    protected Consumer<Map<String, String>> getSettingsFunction()
+    protected Consumer<Map<String,String>> getSettingsFunction()
     {
         final Path homeDir;
         try

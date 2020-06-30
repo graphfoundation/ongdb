@@ -36,49 +36,42 @@ import org.neo4j.kernel.lifecycle.LifecycleAdapter;
 import org.neo4j.server.security.auth.ListSnapshot;
 import org.neo4j.server.security.auth.exception.ConcurrentModificationException;
 
-import static org.neo4j.helpers.collection.MapUtil.trimToFlattenedList;
-import static org.neo4j.helpers.collection.MapUtil.trimToList;
+import static org.neo4j.internal.helpers.collection.MapUtil.trimToFlattenedList;
+import static org.neo4j.internal.helpers.collection.MapUtil.trimToList;
 
 public abstract class AbstractRoleRepository extends LifecycleAdapter implements RoleRepository
 {
-    // TODO: We could improve concurrency by using a ReadWriteLock
-
-    /** Quick lookup of roles by name */
-    private final Map<String,RoleRecord> rolesByName = new ConcurrentHashMap<>();
-    private final Map<String,SortedSet<String>> rolesByUsername = new ConcurrentHashMap<>();
-
-    /** Master list of roles */
-    protected volatile List<RoleRecord> roles = new ArrayList<>();
-    protected AtomicLong lastLoaded = new AtomicLong( 0L );
-
+    private final Map<String,RoleRecord> rolesByName = new ConcurrentHashMap();
+    private final Map<String,SortedSet<String>> rolesByUsername = new ConcurrentHashMap();
     private final Pattern roleNamePattern = Pattern.compile( "^[a-zA-Z0-9_]+$" );
+    protected volatile List<RoleRecord> roles = new ArrayList();
+    protected AtomicLong lastLoaded = new AtomicLong( 0L );
 
     @Override
     public void clear()
     {
-        roles.clear();
-        rolesByName.clear();
-        rolesByUsername.clear();
+        this.roles.clear();
+        this.rolesByName.clear();
+        this.rolesByUsername.clear();
     }
 
     @Override
     public RoleRecord getRoleByName( String roleName )
     {
-        return roleName == null ? null : rolesByName.get( roleName );
+        return roleName == null ? null : this.rolesByName.get( roleName );
     }
 
     @Override
     public Set<String> getRoleNamesByUsername( String username )
     {
-        Set<String> roleNames = rolesByUsername.get( username );
+        Set<String> roleNames = this.rolesByUsername.get( username );
         return roleNames != null ? roleNames : Collections.emptySet();
     }
 
     @Override
     public void create( RoleRecord role ) throws InvalidArgumentsException, IOException
     {
-        assertValidRoleName( role.name() );
-
+        this.assertValidRoleName( role.name() );
         synchronized ( this )
         {
             // Check for existing role
@@ -134,7 +127,7 @@ public abstract class AbstractRoleRepository extends LifecycleAdapter implements
         if ( !existingRole.name().equals( updatedRole.name() ) )
         {
             throw new IllegalArgumentException( "The attempt to update the role from '" + existingRole.name() +
-                    "' to '" + updatedRole.name() + "' failed. Changing a roles name is not allowed." );
+                                                "' to '" + updatedRole.name() + "' failed. Changing a roles name is not allowed." );
         }
 
         synchronized ( this )
@@ -205,20 +198,22 @@ public abstract class AbstractRoleRepository extends LifecycleAdapter implements
     @Override
     public synchronized int numberOfRoles()
     {
-        return roles.size();
+        return this.roles.size();
     }
 
     @Override
     public void assertValidRoleName( String name ) throws InvalidArgumentsException
     {
-        if ( name == null || name.isEmpty() )
+        if ( name != null && !name.isEmpty() )
+        {
+            if ( !this.roleNamePattern.matcher( name ).matches() )
+            {
+                throw new InvalidArgumentsException( "Role name '" + name + "' contains illegal characters. Use simple ascii characters and numbers." );
+            }
+        }
+        else
         {
             throw new InvalidArgumentsException( "The provided role name is empty." );
-        }
-        if ( !roleNamePattern.matcher( name ).matches() )
-        {
-            throw new InvalidArgumentsException(
-                    "Role name '" + name + "' contains illegal characters. Use simple ascii characters and numbers." );
         }
     }
 
@@ -243,19 +238,19 @@ public abstract class AbstractRoleRepository extends LifecycleAdapter implements
     @Override
     public synchronized Set<String> getAllRoleNames()
     {
-        return roles.stream().map( RoleRecord::name ).collect( Collectors.toSet() );
+        return this.roles.stream().map( RoleRecord::name ).collect( Collectors.toSet() );
     }
 
     @Override
     public void purge() throws IOException
     {
-        clear(); // Clear all cached data
+        this.clear();// Clear all cached data
     }
 
     @Override
     public void markAsMigrated() throws IOException
     {
-        clear(); // Clear all cached data
+        this.clear();// Clear all cached data
     }
 
     /**

@@ -32,7 +32,7 @@ public class BoltUserManagementProceduresInteractionIT extends AuthProceduresInt
     }
 
     @Override
-    public NeoInteractionLevel<BoltInteraction.BoltSubject> setUpNeoServer( Map<String, String> config )
+    public NeoInteractionLevel<BoltInteraction.BoltSubject> setUpNeoServer( Map<String,String> config )
     {
         return new BoltInteraction( config );
     }

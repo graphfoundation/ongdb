@@ -28,9 +28,9 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 
+import org.neo4j.cypher.internal.security.SecureHasher;
 import org.neo4j.internal.kernel.api.security.AuthenticationResult;
-import org.neo4j.server.security.enterprise.auth.SecureHasher;
-import org.neo4j.server.security.enterprise.auth.ShiroAuthenticationInfo;
+import org.neo4j.server.security.auth.ShiroAuthenticationInfo;
 import org.neo4j.server.security.enterprise.auth.plugin.spi.AuthInfo;
 import org.neo4j.server.security.enterprise.auth.plugin.spi.CacheableAuthInfo;
 
@@ -45,7 +45,7 @@ public class PluginAuthInfo extends ShiroAuthenticationInfo implements Authoriza
     }
 
     private PluginAuthInfo( Object principal, Object hashedCredentials, ByteSource credentialsSalt,
-            String realmName, Set<String> roles )
+                            String realmName, Set<String> roles )
     {
         super( principal, hashedCredentials, credentialsSalt, realmName, AuthenticationResult.SUCCESS );
         this.roles = roles;
@@ -54,7 +54,7 @@ public class PluginAuthInfo extends ShiroAuthenticationInfo implements Authoriza
     private PluginAuthInfo( AuthInfo authInfo, SimpleHash hashedCredentials, String realmName )
     {
         this( authInfo.principal(), hashedCredentials.getBytes(), hashedCredentials.getSalt(), realmName,
-                new HashSet<>( authInfo.roles() ) );
+              new HashSet<>( authInfo.roles() ) );
     }
 
     public static PluginAuthInfo create( AuthInfo authInfo, String realmName )

@@ -77,10 +77,10 @@ public class MultiRealmAuthManagerRule implements TestRule
                         mock( JobScheduler.class ),
                         new InMemoryUserRepository(),
                         new InMemoryUserRepository()
-                    );
+                );
 
         manager = new MultiRealmAuthManager( internalFlatFileRealm, Collections.singleton( internalFlatFileRealm ),
-                new MemoryConstrainedCacheManager(), securityLog, true, false, Collections.emptyMap() );
+                                             new MemoryConstrainedCacheManager(), securityLog, true, false, Collections.emptyMap() );
         manager.init();
     }
 

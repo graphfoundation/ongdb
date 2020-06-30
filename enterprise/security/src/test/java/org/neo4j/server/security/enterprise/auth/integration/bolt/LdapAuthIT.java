@@ -35,7 +35,6 @@ import org.apache.directory.server.core.api.interceptor.context.SearchOperationC
 import org.apache.directory.server.core.integ.FrameworkRunner;
 import org.apache.directory.server.ldap.handlers.extended.StartTlsHandler;
 import org.apache.shiro.realm.ldap.JndiLdapContextFactory;
-import org.hamcrest.Matcher;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -46,7 +45,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Consumer;
-import java.util.function.Function;
 import javax.naming.directory.BasicAttribute;
 import javax.naming.directory.DirContext;
 import javax.naming.directory.ModificationItem;
@@ -68,7 +66,6 @@ import org.neo4j.server.security.enterprise.configuration.SecuritySettings;
 import org.neo4j.test.DoubleLatch;
 
 import static org.hamcrest.CoreMatchers.equalTo;
-import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.junit.Assert.fail;
 
@@ -95,7 +92,7 @@ interface TimeoutTests
         } )
 @CreateLdapServer(
         transports = {@CreateTransport( protocol = "LDAP", port = 10389, address = "0.0.0.0" ),
-                @CreateTransport( protocol = "LDAPS", port = 10636, address = "0.0.0.0", ssl = true )
+                      @CreateTransport( protocol = "LDAPS", port = 10636, address = "0.0.0.0", ssl = true )
         },
 
         saslMechanisms = {
@@ -218,7 +215,8 @@ public class LdapAuthIT extends EnterpriseAuthenticationTestBase
     public void shouldKeepAuthorizationForLifetimeOfTransaction() throws Throwable
     {
         assertKeepAuthorizationForLifetimeOfTransaction( "neo",
-                tx -> assertThat( tx.run( "MATCH (n) RETURN count(n)" ).single().get( 0 ).asInt(), greaterThanOrEqualTo( 0 ) ) );
+                                                         tx -> assertThat( tx.run( "MATCH (n) RETURN count(n)" ).single().get( 0 ).asInt(),
+                                                                           greaterThanOrEqualTo( 0 ) ) );
     }
 
     @Test
@@ -227,7 +225,8 @@ public class LdapAuthIT extends EnterpriseAuthenticationTestBase
         restartServerWithOverriddenSettings( SecuritySettings.ldap_authorization_group_to_role_mapping.name(), "503=admin;504=role1" );
         dbRule.resolveDependency( Procedures.class ).registerProcedure( ProcedureInteractionTestBase.ClassWithProcedures.class );
         assertKeepAuthorizationForLifetimeOfTransaction( "smith",
-                tx -> assertThat( tx.run( "CALL test.staticReadProcedure()" ).single().get( 0 ).asString(), equalTo( "static" ) ) );
+                                                         tx -> assertThat( tx.run( "CALL test.staticReadProcedure()" ).single().get( 0 ).asString(),
+                                                                           equalTo( "static" ) ) );
     }
 
     private void assertKeepAuthorizationForLifetimeOfTransaction( String username, Consumer<Transaction> assertion ) throws Throwable
@@ -236,28 +235,28 @@ public class LdapAuthIT extends EnterpriseAuthenticationTestBase
         final Throwable[] threadFail = {null};
 
         Thread readerThread = new Thread( () ->
-        {
-            try
-            {
-                try ( Driver driver = connectDriver( username, "abc123" );
-                        Session session = driver.session();
-                        Transaction tx = session.beginTransaction() )
-                {
-                    assertion.accept( tx );
-                    latch.startAndWaitForAllToStart();
-                    latch.finishAndWaitForAllToFinish();
-                    assertion.accept( tx );
-                    tx.success();
-                }
-            }
-            catch ( Throwable t )
-            {
-                threadFail[0] = t;
-                // Always release the latch so we get the failure in the main thread
-                latch.start();
-                latch.finish();
-            }
-        } );
+                                          {
+                                              try
+                                              {
+                                                  try ( Driver driver = connectDriver( username, "abc123" );
+                                                        Session session = driver.session();
+                                                        Transaction tx = session.beginTransaction() )
+                                                  {
+                                                      assertion.accept( tx );
+                                                      latch.startAndWaitForAllToStart();
+                                                      latch.finishAndWaitForAllToFinish();
+                                                      assertion.accept( tx );
+                                                      tx.success();
+                                                  }
+                                              }
+                                              catch ( Throwable t )
+                                              {
+                                                  threadFail[0] = t;
+                                                  // Always release the latch so we get the failure in the main thread
+                                                  latch.start();
+                                                  latch.finish();
+                                              }
+                                          } );
 
         readerThread.start();
         latch.startAndWaitForAllToStart();
@@ -497,13 +496,13 @@ public class LdapAuthIT extends EnterpriseAuthenticationTestBase
     public void shouldLogConnectionRefusedFromLdapRealmWithMultipleRealms() throws Throwable
     {
         restartServerWithOverriddenSettings(
-            SecuritySettings.auth_providers.name(), SecuritySettings.NATIVE_REALM_NAME + ", " + SecuritySettings.LDAP_REALM_NAME,
-            SecuritySettings.native_authentication_enabled.name(), "true",
-            SecuritySettings.native_authorization_enabled.name(), "true",
-            SecuritySettings.ldap_authentication_enabled.name(), "true",
-            SecuritySettings.ldap_authorization_enabled.name(), "true",
-            SecuritySettings.ldap_authorization_use_system_account.name(), "true",
-            SecuritySettings.ldap_server.name(), "ldap://" + REFUSED_IP
+                SecuritySettings.auth_providers.name(), SecuritySettings.NATIVE_REALM_NAME + ", " + SecuritySettings.LDAP_REALM_NAME,
+                SecuritySettings.native_authentication_enabled.name(), "true",
+                SecuritySettings.native_authorization_enabled.name(), "true",
+                SecuritySettings.ldap_authentication_enabled.name(), "true",
+                SecuritySettings.ldap_authorization_enabled.name(), "true",
+                SecuritySettings.ldap_authorization_use_system_account.name(), "true",
+                SecuritySettings.ldap_server.name(), "ldap://" + REFUSED_IP
         );
 
         assertAuthFail( "neo", "abc123" );

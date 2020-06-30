@@ -43,12 +43,12 @@ import static org.neo4j.server.security.enterprise.auth.plugin.api.PredefinedRol
 
 public class EnterpriseSecurityContextDescriptionTest
 {
+    private final ToIntFunction<String> token = s -> -1;
     @Rule
     public MultiRealmAuthManagerRule authManagerRule = new MultiRealmAuthManagerRule( new InMemoryUserRepository(),
-            new RateLimitedAuthenticationStrategy( Clock.systemUTC(), Config.defaults() ) );
-
+                                                                                      new RateLimitedAuthenticationStrategy( Clock.systemUTC(),
+                                                                                                                             Config.defaults() ) );
     private EnterpriseUserManager manager;
-    private final ToIntFunction<String> token = s -> -1;
 
     @Before
     public void setUp() throws Throwable
@@ -126,6 +126,6 @@ public class EnterpriseSecurityContextDescriptionTest
     private EnterpriseSecurityContext context() throws InvalidAuthTokenException
     {
         return authManagerRule.getManager().login( authToken( "mats", "foo" ) )
-                .authorize( token, GraphDatabaseSettings.DEFAULT_DATABASE_NAME );
+                              .authorize( token, GraphDatabaseSettings.DEFAULT_DATABASE_NAME );
     }
 }

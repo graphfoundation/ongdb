@@ -60,7 +60,7 @@ public class SecurityProceduresTest
     public void shouldReturnSecurityContextRoles()
     {
         List<UserResult> infoList = procedures.showCurrentUser().collect( Collectors.toList() );
-        assertThat( infoList.size(), equalTo(1) );
+        assertThat( infoList.size(), equalTo( 1 ) );
 
         UserResult row = infoList.get( 0 );
         assertThat( row.username, equalTo( "pearl" ) );

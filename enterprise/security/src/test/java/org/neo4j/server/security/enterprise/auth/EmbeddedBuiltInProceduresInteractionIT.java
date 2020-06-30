@@ -61,7 +61,7 @@ public class EmbeddedBuiltInProceduresInteractionIT extends BuiltInProceduresInt
     }
 
     @Override
-    protected NeoInteractionLevel<EnterpriseLoginContext> setUpNeoServer( Map<String, String> config ) throws Throwable
+    protected NeoInteractionLevel<EnterpriseLoginContext> setUpNeoServer( Map<String,String> config ) throws Throwable
     {
         return new EmbeddedInteraction( config );
     }
@@ -113,6 +113,8 @@ public class EmbeddedBuiltInProceduresInteractionIT extends BuiltInProceduresInt
     {
         return new EnterpriseLoginContext()
         {
+            SecurityContext inner = AnonymousContext.none().authorize( s -> -1, GraphDatabaseSettings.DEFAULT_DATABASE_NAME );
+
             @Override
             public EnterpriseSecurityContext authorize( ToIntFunction<String> propertyIdLookup, String dbName )
             {
@@ -124,8 +126,6 @@ public class EmbeddedBuiltInProceduresInteractionIT extends BuiltInProceduresInt
             {
                 return Collections.emptySet();
             }
-
-            SecurityContext inner = AnonymousContext.none().authorize( s -> -1, GraphDatabaseSettings.DEFAULT_DATABASE_NAME );
 
             @Override
             public AuthSubject subject()

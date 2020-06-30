@@ -30,6 +30,9 @@ import org.neo4j.server.security.enterprise.auth.plugin.spi.CacheableAuthInfo;
 
 public class TestCacheableAuthPlugin extends AuthPlugin.CachingEnabledAdapter
 {
+    // For testing purposes
+    public static AtomicInteger getAuthInfoCallCount = new AtomicInteger( 0 );
+
     @Override
     public String name()
     {
@@ -47,11 +50,8 @@ public class TestCacheableAuthPlugin extends AuthPlugin.CachingEnabledAdapter
         if ( principal.equals( "neo4j" ) && Arrays.equals( credentials, "neo4j".toCharArray() ) )
         {
             return CacheableAuthInfo.of( "neo4j", "neo4j".getBytes(),
-                    Collections.singleton( PredefinedRoles.READER ) );
+                                         Collections.singleton( PredefinedRoles.READER ) );
         }
         return null;
     }
-
-    // For testing purposes
-    public static AtomicInteger getAuthInfoCallCount = new AtomicInteger( 0 );
 }

@@ -41,7 +41,7 @@ public class BoltAuthScenariosInteractionIT extends AuthScenariosInteractionTest
     public NeoInteractionLevel<BoltInteraction.BoltSubject> setUpNeoServer( Map<String,String> config )
     {
         return new BoltInteraction( config,
-                () -> new UncloseableDelegatingFileSystemAbstraction( fileSystemRule.get() ) );
+                                    () -> new UncloseableDelegatingFileSystemAbstraction( fileSystemRule.get() ) );
     }
 
     @Override

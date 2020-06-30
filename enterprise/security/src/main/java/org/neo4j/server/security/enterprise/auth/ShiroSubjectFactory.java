@@ -25,9 +25,10 @@ import org.apache.shiro.subject.PrincipalCollection;
 import org.apache.shiro.subject.Subject;
 import org.apache.shiro.subject.SubjectContext;
 
+import org.neo4j.server.security.auth.ShiroAuthenticationInfo;
+
 public class ShiroSubjectFactory implements SubjectFactory
 {
-    @Override
     public Subject createSubject( SubjectContext context )
     {
         SecurityManager securityManager = context.resolveSecurityManager();
@@ -37,8 +38,8 @@ public class ShiroSubjectFactory implements SubjectFactory
         boolean authenticated = context.resolveAuthenticated();
         String host = context.resolveHost();
         ShiroAuthenticationInfo authcInfo = (ShiroAuthenticationInfo) context.getAuthenticationInfo();
-
-        return new ShiroSubject( principals, authenticated, host, session, sessionCreationEnabled, securityManager,
-                authcInfo.getAuthenticationResult(), authcInfo );
+        return new ShiroSubject( principals, authenticated, host, session, sessionCreationEnabled, securityManager, authcInfo.getAuthenticationResult(),
+                                 authcInfo );
     }
 }
+

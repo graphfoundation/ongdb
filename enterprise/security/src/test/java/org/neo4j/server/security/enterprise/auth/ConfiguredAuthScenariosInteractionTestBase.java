@@ -44,10 +44,21 @@ import static org.neo4j.values.virtual.VirtualValues.EMPTY_MAP;
 
 public abstract class ConfiguredAuthScenariosInteractionTestBase<S> extends ProcedureInteractionTestBase<S>
 {
+    private Map<String,Object> userList = map(
+            "adminSubject", listOf( ADMIN ),
+            "readSubject", listOf( READER ),
+            "schemaSubject", listOf( ARCHITECT ),
+            "writeSubject", listOf( PUBLISHER ),
+            "editorSubject", listOf( EDITOR ),
+            "pwdSubject", listOf(),
+            "noneSubject", listOf(),
+            "neo4j", listOf( ADMIN )
+    );
+
     @Override
     public void setUp()
     {
-        // tests are required to setup database with specific configs
+        // tests are required to setup db with specific configs
     }
 
     @Test
@@ -65,14 +76,14 @@ public abstract class ConfiguredAuthScenariosInteractionTestBase<S> extends Proc
     {
         configuredSetup( stringMap( SecuritySettings.auth_providers.name(), internalSecurityName() + " ,LDAP" ) );
         assertSuccess( adminSubject, "CALL dbms.security.listUsers",
-                r -> assertKeyIsMap( r, "username", "roles", valueOf( userList ) ) );
+                       r -> assertKeyIsMap( r, "username", "roles", valueOf( userList ) ) );
         GraphDatabaseFacade localGraph = neo.getLocalGraph();
         InternalTransaction transaction = localGraph
                 .beginTransaction( KernelTransaction.Type.explicit, StandardEnterpriseLoginContext.AUTH_DISABLED );
         Result result =
                 localGraph.execute( transaction, "EXPLAIN CALL dbms.security.listUsers", EMPTY_MAP );
         String description = String.format( "%s (%s)", Status.Procedure.ProcedureWarning.code().description(),
-                "dbms.security.listUsers only applies to native users." );
+                                            "dbms.security.listUsers only applies to native users." );
         assertThat( containsNotification( result, description ), equalTo( true ) );
         transaction.success();
         transaction.close();
@@ -83,14 +94,14 @@ public abstract class ConfiguredAuthScenariosInteractionTestBase<S> extends Proc
     {
         configuredSetup( stringMap( SecuritySettings.auth_provider.name(), internalSecurityName() ) );
         assertSuccess( adminSubject, "CALL dbms.security.listUsers",
-                r -> assertKeyIsMap( r, "username", "roles", valueOf( userList ) ) );
+                       r -> assertKeyIsMap( r, "username", "roles", valueOf( userList ) ) );
         GraphDatabaseFacade localGraph = neo.getLocalGraph();
         InternalTransaction transaction = localGraph
                 .beginTransaction( KernelTransaction.Type.explicit, StandardEnterpriseLoginContext.AUTH_DISABLED );
         Result result =
                 localGraph.execute( transaction, "EXPLAIN CALL dbms.security.listUsers", EMPTY_MAP );
         String description = String.format( "%s (%s)", Status.Procedure.ProcedureWarning.code().description(),
-                "dbms.security.listUsers only applies to native users." );
+                                            "dbms.security.listUsers only applies to native users." );
         assertThat( containsNotification( result, description ), equalTo( false ) );
         transaction.success();
         transaction.close();
@@ -101,17 +112,6 @@ public abstract class ConfiguredAuthScenariosInteractionTestBase<S> extends Proc
     {
         return obj;
     }
-
-    private Map<String,Object> userList = map(
-            "adminSubject", listOf( ADMIN ),
-            "readSubject", listOf( READER ),
-            "schemaSubject", listOf( ARCHITECT ),
-            "writeSubject", listOf( PUBLISHER ),
-            "editorSubject", listOf( EDITOR ),
-            "pwdSubject", listOf(),
-            "noneSubject", listOf(),
-            "neo4j", listOf( ADMIN )
-    );
 
     private boolean containsNotification( Result result, String description )
     {

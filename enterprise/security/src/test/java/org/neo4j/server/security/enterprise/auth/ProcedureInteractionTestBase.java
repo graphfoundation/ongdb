@@ -111,61 +111,129 @@ import static org.neo4j.server.security.enterprise.auth.plugin.api.PredefinedRol
 public abstract class ProcedureInteractionTestBase<S>
 {
     static final String PROCEDURE_TIMEOUT_ERROR = "Procedure got: Transaction guard check failed";
-    protected boolean PWD_CHANGE_CHECK_FIRST;
-    protected String CHANGE_PWD_ERR_MSG = AuthorizationViolationException.PERMISSION_DENIED;
     private static final String BOLT_PWD_ERR_MSG =
             "The credentials you provided were valid, but must be changed before you can use this instance.";
+    @Rule
+    public final TestDirectory testDirectory = TestDirectory.testDirectory();
+    @Rule
+    public final ThreadingRule threading = new ThreadingRule();
+    private final String EMPTY_ROLE = "empty";
+    protected boolean PWD_CHANGE_CHECK_FIRST;
+    protected String CHANGE_PWD_ERR_MSG = AuthorizationViolationException.PERMISSION_DENIED;
+    protected boolean IS_EMBEDDED = true;
+    protected S adminSubject;
+    protected EnterpriseUserManager userManager;
+    protected NeoInteractionLevel<S> neo;
+    protected TransportTestUtil util;
     String READ_OPS_NOT_ALLOWED = "Read operations are not allowed";
     String WRITE_OPS_NOT_ALLOWED = "Write operations are not allowed";
     String TOKEN_CREATE_OPS_NOT_ALLOWED = "Token create operations are not allowed";
     String SCHEMA_OPS_NOT_ALLOWED = "Schema operations are not allowed";
-
-    protected boolean IS_EMBEDDED = true;
-
-    String pwdReqErrMsg( String errMsg )
-    {
-        return PWD_CHANGE_CHECK_FIRST ? CHANGE_PWD_ERR_MSG : IS_EMBEDDED ? errMsg : BOLT_PWD_ERR_MSG;
-    }
-
-    private final String EMPTY_ROLE = "empty";
-
-    protected S adminSubject;
     S schemaSubject;
     S writeSubject;
     S editorSubject;
     S readSubject;
     S pwdSubject;
     S noneSubject;
-
     String[] initialUsers = {"adminSubject", "readSubject", "schemaSubject",
-            "writeSubject", "editorSubject", "pwdSubject", "noneSubject", "neo4j"};
+                             "writeSubject", "editorSubject", "pwdSubject", "noneSubject", "neo4j"};
     String[] initialRoles = {ADMIN, ARCHITECT, PUBLISHER, EDITOR, READER, EMPTY_ROLE};
+    File securityLog;
 
-    @Rule
-    public final TestDirectory testDirectory = TestDirectory.testDirectory();
+    static void assertKeyIsMap( ResourceIterator<Map<String,Object>> r, String keyKey, String valueKey,
+                                Object expected )
+    {
+        if ( expected instanceof MapValue )
+        {
+            assertKeyIsMap( r, keyKey, valueKey, (MapValue) expected );
+        }
+        else
+        {
+            assertKeyIsMap( r, keyKey, valueKey, (Map<String,Object>) expected );
+        }
+    }
 
-    @Rule
-    public final ThreadingRule threading = new ThreadingRule();
+    @SuppressWarnings( "unchecked" )
+    static void assertKeyIsMap( ResourceIterator<Map<String,Object>> r, String keyKey, String valueKey,
+                                Map<String,Object> expected )
+    {
+        List<Map<String,Object>> result = r.stream().collect( toList() );
+
+        assertEquals( "Results for should have size " + expected.size() + " but was " + result.size(),
+                      expected.size(), result.size() );
+
+        for ( Map<String,Object> row : result )
+        {
+            String key = (String) row.get( keyKey );
+            assertThat( expected, hasKey( key ) );
+            assertThat( row, hasKey( valueKey ) );
+
+            Object objectValue = row.get( valueKey );
+            if ( objectValue instanceof List )
+            {
+                List<String> value = (List<String>) objectValue;
+                List<String> expectedValues = (List<String>) expected.get( key );
+                assertEquals( "sizes", value.size(), expectedValues.size() );
+                assertThat( value, containsInAnyOrder( expectedValues.toArray() ) );
+            }
+            else
+            {
+                String value = objectValue.toString();
+                String expectedValue = expected.get( key ).toString();
+                assertThat( value, equalTo( expectedValue ) );
+            }
+        }
+    }
+
+    static void assertKeyIsMap( ResourceIterator<Map<String,Object>> r, String keyKey, String valueKey,
+                                MapValue expected )
+    {
+        List<Map<String,Object>> result = r.stream().collect( toList() );
+
+        assertEquals( "Results for should have size " + expected.size() + " but was " + result.size(),
+                      expected.size(), result.size() );
+
+        for ( Map<String,Object> row : result )
+        {
+            TextValue key = (TextValue) row.get( keyKey );
+            assertTrue( expected.containsKey( key.stringValue() ) );
+            assertThat( row, hasKey( valueKey ) );
+
+            Object objectValue = row.get( valueKey );
+            if ( objectValue instanceof ListValue )
+            {
+                ListValue value = (ListValue) objectValue;
+                ListValue expectedValues = (ListValue) expected.get( key.stringValue() );
+                assertEquals( "sizes", value.size(), expectedValues.size() );
+                assertThat( Arrays.asList( value.asArray() ), containsInAnyOrder( expectedValues.asArray() ) );
+            }
+            else
+            {
+                String value = ((TextValue) objectValue).stringValue();
+                String expectedValue = ((TextValue) expected.get( key.stringValue() )).stringValue();
+                assertThat( value, equalTo( expectedValue ) );
+            }
+        }
+    }
+
+    String pwdReqErrMsg( String errMsg )
+    {
+        return PWD_CHANGE_CHECK_FIRST ? CHANGE_PWD_ERR_MSG : IS_EMBEDDED ? errMsg : BOLT_PWD_ERR_MSG;
+    }
 
     private ThreadingRule threading()
     {
         return threading;
     }
 
-    protected EnterpriseUserManager userManager;
-
-    protected NeoInteractionLevel<S> neo;
-    protected TransportTestUtil util;
-    File securityLog;
-
     Map<String,String> defaultConfiguration() throws IOException
     {
         Path homeDir = Files.createTempDirectory( "logs" );
         securityLog = new File( homeDir.toFile(), "security.log" );
         return stringMap( GraphDatabaseSettings.logs_directory.name(), homeDir.toAbsolutePath().toString(),
-                SecuritySettings.procedure_roles.name(),
-                "test.allowed*Procedure:role1;test.nestedAllowedFunction:role1;" +
-                "test.allowedFunc*:role1;test.*estedAllowedProcedure:role1" );
+                          SecuritySettings.procedure_roles.name(),
+                          "test.allowed*Procedure:role1;test.nestedAllowedFunction:role1;" +
+                          "test.allowedFunc*:role1;test.*estedAllowedProcedure:role1" );
     }
 
     @Before
@@ -215,6 +283,8 @@ public abstract class ProcedureInteractionTestBase<S>
 
     protected abstract NeoInteractionLevel<S> setUpNeoServer( Map<String,String> config ) throws Throwable;
 
+    //------------- Helper functions---------------
+
     @After
     public void tearDown() throws Throwable
     {
@@ -233,8 +303,6 @@ public abstract class ProcedureInteractionTestBase<S>
     {
         return Stream.of( values ).collect( toList() );
     }
-
-    //------------- Helper functions---------------
 
     void testSuccessfulRead( S subject, Object count )
     {
@@ -338,7 +406,7 @@ public abstract class ProcedureInteractionTestBase<S>
     void testSuccessfulListUsers( S subject, Object[] users )
     {
         assertSuccess( subject, "CALL dbms.security.listUsers() YIELD username",
-                r -> assertKeyIsArray( r, "username", users ) );
+                       r -> assertKeyIsArray( r, "username", users ) );
     }
 
     void testFailListUsers( S subject, int count, String errMsg )
@@ -349,7 +417,7 @@ public abstract class ProcedureInteractionTestBase<S>
     void testSuccessfulListRoles( S subject, Object[] roles )
     {
         assertSuccess( subject, "CALL dbms.security.listRoles() YIELD role",
-                r -> assertKeyIsArray( r, "role", roles ) );
+                       r -> assertKeyIsArray( r, "role", roles ) );
     }
 
     void testFailListRoles( S subject, String errMsg )
@@ -360,15 +428,15 @@ public abstract class ProcedureInteractionTestBase<S>
     void testFailListUserRoles( S subject, String username, String errMsg )
     {
         assertFail( subject,
-                "CALL dbms.security.listRolesForUser('" + username + "') YIELD value AS roles RETURN count(roles)",
-                errMsg );
+                    "CALL dbms.security.listRolesForUser('" + username + "') YIELD value AS roles RETURN count(roles)",
+                    errMsg );
     }
 
     void testFailListRoleUsers( S subject, String roleName, String errMsg )
     {
         assertFail( subject,
-                "CALL dbms.security.listUsersForRole('" + roleName + "') YIELD value AS users RETURN count(users)",
-                errMsg );
+                    "CALL dbms.security.listUsersForRole('" + roleName + "') YIELD value AS users RETURN count(users)",
+                    errMsg );
     }
 
     void testFailTestProcs( S subject )
@@ -381,11 +449,11 @@ public abstract class ProcedureInteractionTestBase<S>
     void testSuccessfulTestProcs( S subject )
     {
         assertSuccess( subject, "CALL test.allowedReadProcedure()",
-                r -> assertKeyIs( r, "value", "foo" ) );
+                       r -> assertKeyIs( r, "value", "foo" ) );
         assertSuccess( subject, "CALL test.allowedWriteProcedure()",
-                r -> assertKeyIs( r, "value", "a", "a" ) );
+                       r -> assertKeyIs( r, "value", "a", "a" ) );
         assertSuccess( subject, "CALL test.allowedSchemaProcedure()",
-                r -> assertKeyIs( r, "value", "OK" ) );
+                       r -> assertKeyIs( r, "value", "OK" ) );
     }
 
     void assertPasswordChangeWhenPasswordChangeRequired( S subject, String newPassword )
@@ -449,11 +517,11 @@ public abstract class ProcedureInteractionTestBase<S>
     private String assertCallEmpty( S subject, String call )
     {
         return neo.executeQuery( subject, call, null,
-                result ->
-                {
-                    List<Map<String,Object>> collect = result.stream().collect( toList() );
-                    assertTrue( "Expected no results but got: " + collect, collect.isEmpty() );
-                } );
+                                 result ->
+                                 {
+                                     List<Map<String,Object>> collect = result.stream().collect( toList() );
+                                     assertTrue( "Expected no results but got: " + collect, collect.isEmpty() );
+                                 } );
     }
 
     private void executeQuery( S subject, String call )
@@ -486,82 +554,6 @@ public abstract class ProcedureInteractionTestBase<S>
         ) );
     }
 
-    static void assertKeyIsMap( ResourceIterator<Map<String,Object>> r, String keyKey, String valueKey,
-            Object expected )
-    {
-        if ( expected instanceof MapValue )
-        {
-            assertKeyIsMap( r, keyKey, valueKey, (MapValue) expected );
-        }
-        else
-        {
-            assertKeyIsMap( r, keyKey, valueKey, (Map<String,Object>) expected );
-        }
-    }
-
-    @SuppressWarnings( "unchecked" )
-    static void assertKeyIsMap( ResourceIterator<Map<String,Object>> r, String keyKey, String valueKey,
-            Map<String,Object> expected )
-    {
-        List<Map<String,Object>> result = r.stream().collect( toList() );
-
-        assertEquals( "Results for should have size " + expected.size() + " but was " + result.size(),
-                expected.size(), result.size() );
-
-        for ( Map<String,Object> row : result )
-        {
-            String key = (String) row.get( keyKey );
-            assertThat( expected, hasKey( key ) );
-            assertThat( row, hasKey( valueKey ) );
-
-            Object objectValue = row.get( valueKey );
-            if ( objectValue instanceof List )
-            {
-                List<String> value = (List<String>) objectValue;
-                List<String> expectedValues = (List<String>) expected.get( key );
-                assertEquals( "sizes", value.size(), expectedValues.size() );
-                assertThat( value, containsInAnyOrder( expectedValues.toArray() ) );
-            }
-            else
-            {
-                String value = objectValue.toString();
-                String expectedValue = expected.get( key ).toString();
-                assertThat( value, equalTo( expectedValue ) );
-            }
-        }
-    }
-
-    static void assertKeyIsMap( ResourceIterator<Map<String,Object>> r, String keyKey, String valueKey,
-            MapValue expected )
-    {
-        List<Map<String,Object>> result = r.stream().collect( toList() );
-
-        assertEquals( "Results for should have size " + expected.size() + " but was " + result.size(),
-                expected.size(), result.size() );
-
-        for ( Map<String,Object> row : result )
-        {
-            TextValue key = (TextValue) row.get( keyKey );
-            assertTrue( expected.containsKey( key.stringValue() ) );
-            assertThat( row, hasKey( valueKey ) );
-
-            Object objectValue = row.get( valueKey );
-            if ( objectValue instanceof ListValue )
-            {
-                ListValue value = (ListValue) objectValue;
-                ListValue expectedValues = (ListValue) expected.get( key.stringValue() );
-                assertEquals( "sizes", value.size(), expectedValues.size() );
-                assertThat( Arrays.asList( value.asArray() ), containsInAnyOrder( expectedValues.asArray() ) );
-            }
-            else
-            {
-                String value = ((TextValue) objectValue).stringValue();
-                String expectedValue = ((TextValue) expected.get( key.stringValue() )).stringValue();
-                assertThat( value, equalTo( expectedValue ) );
-            }
-        }
-    }
-
     // --------------------- helpers -----------------------
     void shouldTerminateTransactionsForUser( S subject, String procedure ) throws Throwable
     {
@@ -589,8 +581,8 @@ public abstract class ProcedureInteractionTestBase<S>
                 EnterpriseBuiltInDbmsProcedures.getActiveTransactions(
                         neo.getLocalGraph().getDependencyResolver()
                 ).stream()
-                        .filter( tx -> !tx.terminationReason().isPresent() )
-                        .map( tx -> tx.subject().username() )
+                                               .filter( tx -> !tx.terminationReason().isPresent() )
+                                               .map( tx -> tx.subject().username() )
         ).collect( Collectors.toMap( r -> r.username, r -> r.activeTransactions ) );
     }
 
@@ -612,9 +604,9 @@ public abstract class ProcedureInteractionTestBase<S>
     {
         NetworkConnectionTracker connectionTracker = neo.getLocalGraph().getDependencyResolver().resolveDependency( NetworkConnectionTracker.class );
         return connectionTracker.activeConnections()
-                .stream()
-                .map( TrackedNetworkConnection::username )
-                .collect( groupingBy( identity(), counting() ) );
+                                .stream()
+                                .map( TrackedNetworkConnection::username )
+                                .collect( groupingBy( identity(), counting() ) );
     }
 
     @SuppressWarnings( "unchecked" )
@@ -625,11 +617,37 @@ public abstract class ProcedureInteractionTestBase<S>
         Map<String,Object> authToken = map( "principal", username, "credentials", password, "scheme", "basic" );
 
         connection.connect( address ).send( util.acceptedVersions( 1, 0, 0, 0 ) )
-                .send( util.chunk( new InitMessage( "TestClient/1.1", authToken ) ) );
+                  .send( util.chunk( new InitMessage( "TestClient/1.1", authToken ) ) );
 
         assertThat( connection, eventuallyReceives( new byte[]{0, 0, 0, 1} ) );
         assertThat( connection, util.eventuallyReceives( msgSuccess() ) );
         return connection;
+    }
+
+    protected abstract Object valueOf( Object obj );
+
+    private BaseToObjectValueWriter<RuntimeException> writer()
+    {
+        return new BaseToObjectValueWriter<RuntimeException>()
+        {
+            @Override
+            protected Node newNodeProxyById( long id )
+            {
+                return null;
+            }
+
+            @Override
+            protected Relationship newRelationshipProxyById( long id )
+            {
+                return null;
+            }
+
+            @Override
+            protected Point newPoint( CoordinateReferenceSystem crs, double[] coordinate )
+            {
+                return null;
+            }
+        };
     }
 
     @SuppressWarnings( "WeakerAccess" )
@@ -646,22 +664,21 @@ public abstract class ProcedureInteractionTestBase<S>
     @SuppressWarnings( {"unused", "WeakerAccess"} )
     public static class ClassWithProcedures
     {
+        private static final AtomicReference<LatchedRunnables> testLatch = new AtomicReference<>();
+        public static volatile DoubleLatch volatileLatch;
+        public static List<Exception> exceptionsInProcedure = Collections.synchronizedList( new ArrayList<>() );
+        static DoubleLatch doubleLatch;
         @Context
         public GraphDatabaseService db;
-
         @Context
         public Log log;
-
-        private static final AtomicReference<LatchedRunnables> testLatch = new AtomicReference<>();
-
-        static DoubleLatch doubleLatch;
-
-        public static volatile DoubleLatch volatileLatch;
-
-        public static List<Exception> exceptionsInProcedure = Collections.synchronizedList( new ArrayList<>() );
-
         @Context
         public TerminationGuard guard;
+
+        static void setTestLatch( LatchedRunnables testLatch )
+        {
+            ClassWithProcedures.testLatch.set( testLatch );
+        }
 
         @Procedure( name = "test.loop" )
         public void loop()
@@ -843,22 +860,22 @@ public abstract class ProcedureInteractionTestBase<S>
         private void startWriteThread()
         {
             new Thread( () ->
-            {
-                doubleLatch.start();
-                try ( Transaction tx = db.beginTx() )
-                {
-                    db.createNode( Label.label( "VeryUniqueLabel" ) );
-                    tx.success();
-                }
-                catch ( Exception e )
-                {
-                    exceptionsInProcedure.add( e );
-                }
-                finally
-                {
-                    doubleLatch.finish();
-                }
-            } ).start();
+                        {
+                            doubleLatch.start();
+                            try ( Transaction tx = db.beginTx() )
+                            {
+                                db.createNode( Label.label( "VeryUniqueLabel" ) );
+                                tx.success();
+                            }
+                            catch ( Exception e )
+                            {
+                                exceptionsInProcedure.add( e );
+                            }
+                            finally
+                            {
+                                doubleLatch.finish();
+                            }
+                        } ).start();
         }
 
         protected static class LatchedRunnables implements AutoCloseable
@@ -879,11 +896,6 @@ public abstract class ProcedureInteractionTestBase<S>
             {
                 ClassWithProcedures.testLatch.set( null );
             }
-        }
-
-        static void setTestLatch( LatchedRunnables testLatch )
-        {
-            ClassWithProcedures.testLatch.set( testLatch );
         }
     }
 
@@ -927,31 +939,5 @@ public abstract class ProcedureInteractionTestBase<S>
             Result result = db.execute( "RETURN " + nestedFunction + " AS value" );
             return result.next().get( "value" ).toString();
         }
-    }
-
-    protected abstract Object valueOf( Object obj );
-
-    private BaseToObjectValueWriter<RuntimeException> writer()
-    {
-        return new BaseToObjectValueWriter<RuntimeException>()
-        {
-            @Override
-            protected Node newNodeProxyById( long id )
-            {
-                return null;
-            }
-
-            @Override
-            protected Relationship newRelationshipProxyById( long id )
-            {
-                return null;
-            }
-
-            @Override
-            protected Point newPoint( CoordinateReferenceSystem crs, double[] coordinate )
-            {
-                return null;
-            }
-        };
     }
 }

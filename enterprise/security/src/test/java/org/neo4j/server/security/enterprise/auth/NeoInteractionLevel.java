@@ -33,6 +33,13 @@ import org.neo4j.kernel.impl.factory.GraphDatabaseFacade;
 
 public interface NeoInteractionLevel<S>
 {
+    static String tempPath( String prefix, String suffix ) throws IOException
+    {
+        Path path = Files.createTempFile( prefix, suffix );
+        Files.delete( path );
+        return path.toString();
+    }
+
     EnterpriseUserManager getLocalUserManager() throws Exception;
 
     GraphDatabaseFacade getLocalGraph();
@@ -45,7 +52,7 @@ public interface NeoInteractionLevel<S>
      * The returned String is empty if the query executed as expected, and contains an error msg otherwise
      */
     String executeQuery( S subject, String call, Map<String,Object> params,
-            Consumer<ResourceIterator<Map<String, Object>>> resultConsumer );
+                         Consumer<ResourceIterator<Map<String,Object>>> resultConsumer );
 
     S login( String username, String password ) throws Exception;
 
@@ -56,13 +63,6 @@ public interface NeoInteractionLevel<S>
     String nameOf( S subject );
 
     void tearDown() throws Throwable;
-
-    static String tempPath( String prefix, String suffix ) throws IOException
-    {
-        Path path = Files.createTempFile( prefix, suffix );
-        Files.delete( path );
-        return path.toString();
-    }
 
     void assertAuthenticated( S subject );
 

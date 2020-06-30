@@ -28,6 +28,9 @@ import org.neo4j.server.security.enterprise.auth.plugin.spi.CustomCacheableAuthe
 
 public class TestCustomCacheableAuthenticationPlugin extends AuthenticationPlugin.CachingEnabledAdapter
 {
+    // For testing purposes
+    public static AtomicInteger getAuthenticationInfoCallCount = new AtomicInteger( 0 );
+
     @Override
     public String name()
     {
@@ -45,15 +48,12 @@ public class TestCustomCacheableAuthenticationPlugin extends AuthenticationPlugi
         if ( principal.equals( "neo4j" ) && Arrays.equals( credentials, "neo4j".toCharArray() ) )
         {
             return CustomCacheableAuthenticationInfo.of( "neo4j",
-                    token ->
-                    {
-                        char[] tokenCredentials = token.credentials();
-                        return Arrays.equals( tokenCredentials, "neo4j".toCharArray() );
-                    } );
+                                                         token ->
+                                                         {
+                                                             char[] tokenCredentials = token.credentials();
+                                                             return Arrays.equals( tokenCredentials, "neo4j".toCharArray() );
+                                                         } );
         }
         return null;
     }
-
-    // For testing purposes
-    public static AtomicInteger getAuthenticationInfoCallCount = new AtomicInteger( 0 );
 }

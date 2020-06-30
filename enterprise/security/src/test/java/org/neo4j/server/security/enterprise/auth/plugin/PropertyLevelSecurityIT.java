@@ -76,11 +76,11 @@ public class PropertyLevelSecurityIT
     {
         TestGraphDatabaseFactory s = new TestEnterpriseGraphDatabaseFactory();
         db = (GraphDatabaseFacade) s.newImpermanentDatabaseBuilder( testDirectory.storeDir() )
-                .setConfig( SecuritySettings.property_level_authorization_enabled, "true" )
-                .setConfig( SecuritySettings.property_level_authorization_permissions, "Agent=alias,secret" )
-                .setConfig( SecuritySettings.procedure_roles, "test.*:procRole" )
-                .setConfig( GraphDatabaseSettings.auth_enabled, "true" )
-                .newGraphDatabase();
+                                    .setConfig( SecuritySettings.property_level_authorization_enabled, "true" )
+                                    .setConfig( SecuritySettings.property_level_authorization_permissions, "Agent=alias,secret" )
+                                    .setConfig( SecuritySettings.procedure_roles, "test.*:procRole" )
+                                    .setConfig( GraphDatabaseSettings.auth_enabled, "true" )
+                                    .newGraphDatabase();
         EnterpriseAuthAndUserManager authManager = (EnterpriseAuthAndUserManager) db.getDependencyResolver().resolveDependency( EnterpriseAuthManager.class );
         Procedures procedures = db.getDependencyResolver().resolveDependency( Procedures.class );
         procedures.registerProcedure( TestProcedure.class );
@@ -223,7 +223,7 @@ public class PropertyLevelSecurityIT
             assertThat( r.next().get( "props" ), equalTo( Collections.singletonMap( "name", "Andersson" ) ) );
         } );
 
-        Map<String, String> expected = new HashMap<>(  );
+        Map<String,String> expected = new HashMap<>();
         expected.put( "name", "Andersson" );
         expected.put( "alias", "neo" );
         execute( neo, query, Collections.emptyMap(), r ->

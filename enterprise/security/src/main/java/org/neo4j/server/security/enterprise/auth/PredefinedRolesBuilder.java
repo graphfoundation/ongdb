@@ -19,79 +19,64 @@
 package org.neo4j.server.security.enterprise.auth;
 
 import org.apache.shiro.authz.SimpleRole;
-import org.apache.shiro.authz.permission.RolePermissionResolver;
 import org.apache.shiro.authz.permission.WildcardPermission;
 
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-import static org.neo4j.server.security.enterprise.auth.plugin.api.PredefinedRoles.ADMIN;
-import static org.neo4j.server.security.enterprise.auth.plugin.api.PredefinedRoles.ARCHITECT;
-import static org.neo4j.server.security.enterprise.auth.plugin.api.PredefinedRoles.EDITOR;
-import static org.neo4j.server.security.enterprise.auth.plugin.api.PredefinedRoles.PUBLISHER;
-import static org.neo4j.server.security.enterprise.auth.plugin.api.PredefinedRoles.READER;
-
-
 public class PredefinedRolesBuilder implements RolesBuilder
 {
-    private static final WildcardPermission SCHEMA = new WildcardPermission( "schema:*" );
-    private static final WildcardPermission FULL = new WildcardPermission( "*" );
-    private static final WildcardPermission TOKEN = new WildcardPermission( "token:*" );
-    private static final WildcardPermission READ_WRITE = new WildcardPermission( "data:*" );
-    private static final WildcardPermission READ = new WildcardPermission( "data:read" );
-
+    public static final WildcardPermission SYSTEM = new WildcardPermission( "system:*" );
+    public static final WildcardPermission SCHEMA = new WildcardPermission( "db:*:*:schema" );
+    public static final WildcardPermission TOKEN = new WildcardPermission( "db:*:*:token" );
+    public static final WildcardPermission WRITE = new WildcardPermission( "db:*:write:graph" );
+    public static final WildcardPermission READ = new WildcardPermission( "db:*:read:graph" );
+    public static final WildcardPermission ACCESS = new WildcardPermission( "db:*:access:graph" );
+    public static final Map<String,SimpleRole> roles;
     private static final Map<String,SimpleRole> innerRoles = staticBuildRoles();
-    public static final Map<String,SimpleRole> roles = Collections.unmodifiableMap( innerRoles );
+
+    static
+    {
+        roles = Collections.unmodifiableMap( innerRoles );
+    }
 
     private static Map<String,SimpleRole> staticBuildRoles()
     {
-        Map<String,SimpleRole> roles = new ConcurrentHashMap<>( 4 );
-
-        SimpleRole admin = new SimpleRole( ADMIN );
-        admin.add( FULL );
-        roles.put( ADMIN, admin );
-
-        SimpleRole architect = new SimpleRole( ARCHITECT );
+        Map<String,SimpleRole> roles = new ConcurrentHashMap( 4 );
+        SimpleRole admin = new SimpleRole( "admin" );
+        admin.add( SYSTEM );
+        admin.add( SCHEMA );
+        admin.add( TOKEN );
+        admin.add( WRITE );
+        admin.add( READ );
+        admin.add( ACCESS );
+        roles.put( "admin", admin );
+        SimpleRole architect = new SimpleRole( "architect" );
         architect.add( SCHEMA );
-        architect.add( READ_WRITE );
         architect.add( TOKEN );
-        roles.put( ARCHITECT, architect );
-
-        SimpleRole publisher = new SimpleRole( PUBLISHER );
-        publisher.add( READ_WRITE );
+        architect.add( WRITE );
+        architect.add( READ );
+        architect.add( ACCESS );
+        roles.put( "architect", architect );
+        SimpleRole publisher = new SimpleRole( "publisher" );
         publisher.add( TOKEN );
-        roles.put( PUBLISHER, publisher );
-
-        SimpleRole editor = new SimpleRole( EDITOR );
-        editor.add( READ_WRITE );
-        roles.put( EDITOR, editor );
-
-        SimpleRole reader = new SimpleRole( READER );
+        publisher.add( WRITE );
+        publisher.add( READ );
+        publisher.add( ACCESS );
+        roles.put( "publisher", publisher );
+        SimpleRole editor = new SimpleRole( "editor" );
+        editor.add( WRITE );
+        editor.add( READ );
+        editor.add( ACCESS );
+        roles.put( "editor", editor );
+        SimpleRole reader = new SimpleRole( "reader" );
         reader.add( READ );
-        roles.put( READER, reader );
-
+        reader.add( ACCESS );
+        roles.put( "reader", reader );
         return roles;
     }
 
-    public static final RolePermissionResolver rolePermissionResolver = roleString ->
-    {
-        if ( roleString == null )
-        {
-            return Collections.emptyList();
-        }
-        SimpleRole role = roles.get( roleString );
-        if ( role != null )
-        {
-            return role.getPermissions();
-        }
-        else
-        {
-            return Collections.emptyList();
-        }
-    };
-
-    @Override
     public Map<String,SimpleRole> buildRoles()
     {
         return roles;

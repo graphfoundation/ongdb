@@ -52,12 +52,12 @@ public class EmbeddedInteraction implements NeoInteractionLevel<EnterpriseLoginC
     private FileSystemAbstraction fileSystem;
     private ConnectorPortRegister connectorRegister;
 
-    EmbeddedInteraction( Map<String, String> config ) throws Throwable
+    EmbeddedInteraction( Map<String,String> config ) throws Throwable
     {
         this( config, EphemeralFileSystemAbstraction::new );
     }
 
-    EmbeddedInteraction( Map<String, String> config, Supplier<FileSystemAbstraction> fileSystemSupplier ) throws Throwable
+    EmbeddedInteraction( Map<String,String> config, Supplier<FileSystemAbstraction> fileSystemSupplier ) throws Throwable
     {
         TestEnterpriseGraphDatabaseFactory factory = new TestEnterpriseGraphDatabaseFactory();
         factory.setFileSystem( fileSystemSupplier.get() );
@@ -66,7 +66,7 @@ public class EmbeddedInteraction implements NeoInteractionLevel<EnterpriseLoginC
         init( builder, config );
     }
 
-    public EmbeddedInteraction( GraphDatabaseBuilder builder, Map<String, String> config ) throws Throwable
+    public EmbeddedInteraction( GraphDatabaseBuilder builder, Map<String,String> config ) throws Throwable
     {
         init( builder, config );
     }
@@ -75,7 +75,7 @@ public class EmbeddedInteraction implements NeoInteractionLevel<EnterpriseLoginC
     {
     }
 
-    protected void init( GraphDatabaseBuilder builder, Map<String, String> config ) throws Throwable
+    protected void init( GraphDatabaseBuilder builder, Map<String,String> config ) throws Throwable
     {
         builder.setConfig( new BoltConnector( "bolt" ).type, "BOLT" );
         builder.setConfig( new BoltConnector( "bolt" ).enabled, "true" );
@@ -83,7 +83,7 @@ public class EmbeddedInteraction implements NeoInteractionLevel<EnterpriseLoginC
         builder.setConfig( new BoltConnector( "bolt" ).listen_address, "localhost:0" );
         builder.setConfig( LegacySslPolicyConfig.tls_key_file, NeoInteractionLevel.tempPath( "key", ".key" ) );
         builder.setConfig( LegacySslPolicyConfig.tls_certificate_file,
-                NeoInteractionLevel.tempPath( "cert", ".cert" ) );
+                           NeoInteractionLevel.tempPath( "cert", ".cert" ) );
         builder.setConfig( GraphDatabaseSettings.auth_enabled, "true" );
 
         builder.setConfig( config );
@@ -123,7 +123,7 @@ public class EmbeddedInteraction implements NeoInteractionLevel<EnterpriseLoginC
 
     @Override
     public String executeQuery( EnterpriseLoginContext loginContext, String call, Map<String,Object> params,
-            Consumer<ResourceIterator<Map<String, Object>>> resultConsumer )
+                                Consumer<ResourceIterator<Map<String,Object>>> resultConsumer )
     {
         try ( InternalTransaction tx = db.beginTransaction( KernelTransaction.Type.implicit, loginContext ) )
         {

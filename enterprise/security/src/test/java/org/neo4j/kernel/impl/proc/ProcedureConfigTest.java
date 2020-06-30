@@ -23,7 +23,6 @@ import org.junit.Test;
 import org.neo4j.kernel.configuration.Config;
 
 import static org.hamcrest.CoreMatchers.equalTo;
-import static org.hamcrest.MatcherAssert.assertThat;
 import static org.neo4j.graphdb.factory.GraphDatabaseSettings.procedure_unrestricted;
 import static org.neo4j.graphdb.factory.GraphDatabaseSettings.procedure_whitelist;
 import static org.neo4j.helpers.collection.MapUtil.stringMap;
@@ -61,7 +60,7 @@ public class ProcedureConfigTest
     public void shouldHaveConfigsWithExactMatchProcedureAllowed()
     {
         Config config = Config.defaults( stringMap( PROC_ALLOWED_SETTING_DEFAULT_NAME, "role1",
-                PROC_ALLOWED_SETTING_ROLES, "xyz:anotherRole" ) );
+                                                    PROC_ALLOWED_SETTING_ROLES, "xyz:anotherRole" ) );
         ProcedureConfig procConfig = new ProcedureConfig( config );
         assertThat( procConfig.rolesFor( "xyz" ), equalTo( arrayOf( "anotherRole" ) ) );
         assertThat( procConfig.rolesFor( "abc" ), equalTo( arrayOf( "role1" ) ) );
@@ -92,7 +91,7 @@ public class ProcedureConfigTest
     public void shouldNotFailOnEmptyStringBoth()
     {
         Config config = Config.defaults( stringMap( PROC_ALLOWED_SETTING_DEFAULT_NAME, "",
-                        PROC_ALLOWED_SETTING_ROLES, "" ) );
+                                                    PROC_ALLOWED_SETTING_ROLES, "" ) );
         new ProcedureConfig( config );
     }
 
@@ -100,7 +99,7 @@ public class ProcedureConfigTest
     public void shouldHaveConfigsWithWildcardProcedureAllowed()
     {
         Config config = Config.defaults( stringMap( PROC_ALLOWED_SETTING_DEFAULT_NAME, "role1", PROC_ALLOWED_SETTING_ROLES,
-                        "xyz*:anotherRole" ) );
+                                                    "xyz*:anotherRole" ) );
         ProcedureConfig procConfig = new ProcedureConfig( config );
         assertThat( procConfig.rolesFor( "xyzabc" ), equalTo( arrayOf( "anotherRole" ) ) );
         assertThat( procConfig.rolesFor( "abcxyz" ), equalTo( arrayOf( "role1" ) ) );
@@ -119,7 +118,7 @@ public class ProcedureConfigTest
     public void shouldHaveConfigsWithMultipleWildcardProcedureAllowedAndNoDefault()
     {
         Config config = Config.defaults( procedure_roles,
-                "apoc.convert.*:apoc_reader;apoc.load.json:apoc_writer;apoc.trigger.add:TriggerHappy" );
+                                         "apoc.convert.*:apoc_reader;apoc.load.json:apoc_writer;apoc.trigger.add:TriggerHappy" );
         ProcedureConfig procConfig = new ProcedureConfig( config );
         assertThat( procConfig.rolesFor( "xyz" ), equalTo( EMPTY ) );
         assertThat( procConfig.rolesFor( "apoc.convert.xml" ), equalTo( arrayOf( "apoc_reader" ) ) );
@@ -137,7 +136,7 @@ public class ProcedureConfigTest
     public void shouldHaveConfigsWithOverlappingMatchingWildcards()
     {
         Config config = Config.defaults( stringMap( PROC_ALLOWED_SETTING_DEFAULT_NAME, "default", PROC_ALLOWED_SETTING_ROLES,
-                        "apoc.*:apoc;apoc.load.*:loader;apoc.trigger.*:trigger;apoc.trigger.add:TriggerHappy" ) );
+                                                    "apoc.*:apoc;apoc.load.*:loader;apoc.trigger.*:trigger;apoc.trigger.add:TriggerHappy" ) );
         ProcedureConfig procConfig = new ProcedureConfig( config );
         assertThat( procConfig.rolesFor( "xyz" ), equalTo( arrayOf( "default" ) ) );
         assertThat( procConfig.rolesFor( "apoc.convert.xml" ), equalTo( arrayOf( "apoc" ) ) );
@@ -151,7 +150,7 @@ public class ProcedureConfigTest
     public void shouldSupportSeveralRolesPerPattern()
     {
         Config config = Config.defaults( procedure_roles,
-                "xyz*:role1,role2,  role3  ,    role4   ;    abc:  role3   ,role1" );
+                                         "xyz*:role1,role2,  role3  ,    role4   ;    abc:  role3   ,role1" );
         ProcedureConfig procConfig = new ProcedureConfig( config );
         assertThat( procConfig.rolesFor( "xyzabc" ), equalTo( arrayOf( "role1", "role2", "role3", "role4" ) ) );
         assertThat( procConfig.rolesFor( "abc" ), equalTo( arrayOf( "role3", "role1" ) ) );
@@ -169,7 +168,7 @@ public class ProcedureConfigTest
     @Test
     public void shouldAllowFullAccessForProcedures()
     {
-        Config config = Config.defaults(procedure_unrestricted, "test.procedure.name" );
+        Config config = Config.defaults( procedure_unrestricted, "test.procedure.name" );
         ProcedureConfig procConfig = new ProcedureConfig( config );
 
         assertThat( procConfig.fullAccessFor( "xyzabc" ), equalTo( false ) );
@@ -216,8 +215,8 @@ public class ProcedureConfigTest
     public void shouldBlockWithWhiteListingForProcedures()
     {
         Config config = Config.defaults( stringMap( procedure_unrestricted.name(),
-                "test.procedure.name, test.procedure.name2",  procedure_whitelist.name(),
-                "test.procedure.name") );
+                                                    "test.procedure.name, test.procedure.name2", procedure_whitelist.name(),
+                                                    "test.procedure.name" ) );
         ProcedureConfig procConfig = new ProcedureConfig( config );
 
         assertThat( procConfig.isWhitelisted( "xyzabc" ), equalTo( false ) );

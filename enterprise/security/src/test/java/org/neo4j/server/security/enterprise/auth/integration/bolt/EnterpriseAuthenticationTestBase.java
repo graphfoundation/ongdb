@@ -111,7 +111,7 @@ public abstract class EnterpriseAuthenticationTestBase extends AbstractLdapTestU
     void assertAuth( String username, String password, String realm )
     {
         try ( Driver driver = connectDriver( username, password, realm );
-                Session session = driver.session() )
+              Session session = driver.session() )
         {
             Value single = session.run( "RETURN 1" ).single().get( 0 );
             assertThat( single.asLong(), CoreMatchers.equalTo( 1L ) );
@@ -121,7 +121,7 @@ public abstract class EnterpriseAuthenticationTestBase extends AbstractLdapTestU
     void assertAuth( AuthToken authToken )
     {
         try ( Driver driver = connectDriver( authToken );
-                Session session = driver.session() )
+              Session session = driver.session() )
         {
             Value single = session.run( "RETURN 1" ).single().get( 0 );
             assertThat( single.asLong(), CoreMatchers.equalTo( 1L ) );
@@ -229,7 +229,7 @@ public abstract class EnterpriseAuthenticationTestBase extends AbstractLdapTestU
     void clearAuthCacheFromDifferentConnection( String username, String password, String realm )
     {
         try ( Driver driver = connectDriver( username, password, realm );
-                Session session = driver.session() )
+              Session session = driver.session() )
         {
             session.run( "CALL dbms.security.clearAuthCache()" );
         }
@@ -305,7 +305,7 @@ public abstract class EnterpriseAuthenticationTestBase extends AbstractLdapTestU
         while ( (line = bufferedReader.readLine()) != null )
         {
             assertThat( "Security log should not contain message '" + message + "'",
-                    !line.contains( message ) );
+                        !line.contains( message ) );
         }
         bufferedReader.close();
         reader.close();
@@ -317,12 +317,12 @@ public abstract class EnterpriseAuthenticationTestBase extends AbstractLdapTestU
                 dbRule.resolveDependency( EnterpriseAuthAndUserManager.class );
 
         authManager.getUserManager( AuthSubject.AUTH_DISABLED, true )
-                .newUser( username, password( password ), false );
+                   .newUser( username, password( password ), false );
 
         for ( String role : roles )
         {
             authManager.getUserManager( AuthSubject.AUTH_DISABLED, true )
-                    .addRoleToUser( role, username );
+                       .addRoleToUser( role, username );
         }
     }
 

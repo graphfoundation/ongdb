@@ -59,40 +59,10 @@ import static org.neo4j.server.security.enterprise.auth.AuthTestUtil.listOf;
 
 public class LdapCachingTest
 {
+    private final ToIntFunction<String> token = s -> -1;
     private MultiRealmAuthManager authManager;
     private TestRealm testRealm;
     private FakeTicker fakeTicker;
-
-    private final ToIntFunction<String> token = s -> -1;
-
-    @Before
-    public void setup() throws Throwable
-    {
-        SecurityLog securityLog = mock( SecurityLog.class );
-        InternalFlatFileRealm internalFlatFileRealm =
-            new InternalFlatFileRealm(
-                new InMemoryUserRepository(),
-                new InMemoryRoleRepository(),
-                new BasicPasswordPolicy(),
-                new RateLimitedAuthenticationStrategy( Clock.systemUTC(), Config.defaults() ),
-                mock( JobScheduler.class ),
-                new InMemoryUserRepository(),
-                new InMemoryUserRepository()
-            );
-
-        testRealm = new TestRealm( getLdapConfig(), securityLog, new SecureHasher() );
-
-        List<Realm> realms = listOf( internalFlatFileRealm, testRealm );
-
-        fakeTicker = new FakeTicker();
-        authManager = new MultiRealmAuthManager( internalFlatFileRealm, realms,
-                new ShiroCaffeineCache.Manager( fakeTicker::read, 100, 10, true ), securityLog, false, false, Collections.emptyMap() );
-        authManager.init();
-        authManager.start();
-
-        authManager.getUserManager().newUser( "mike", password( "123" ), false );
-        authManager.getUserManager().newUser( "mats", password( "456" ), false );
-    }
 
     private static Config getLdapConfig()
     {
@@ -103,7 +73,37 @@ public class LdapCachingTest
                 SecuritySettings.ldap_authorization_enabled.name(), "true",
                 SecuritySettings.ldap_authorization_user_search_base.name(), "dc=example,dc=com",
                 SecuritySettings.ldap_authorization_group_membership_attribute_names.name(), "gidnumber"
-            ) );
+        ) );
+    }
+
+    @Before
+    public void setup() throws Throwable
+    {
+        SecurityLog securityLog = mock( SecurityLog.class );
+        InternalFlatFileRealm internalFlatFileRealm =
+                new InternalFlatFileRealm(
+                        new InMemoryUserRepository(),
+                        new InMemoryRoleRepository(),
+                        new BasicPasswordPolicy(),
+                        new RateLimitedAuthenticationStrategy( Clock.systemUTC(), Config.defaults() ),
+                        mock( JobScheduler.class ),
+                        new InMemoryUserRepository(),
+                        new InMemoryUserRepository()
+                );
+
+        testRealm = new TestRealm( getLdapConfig(), securityLog, new SecureHasher() );
+
+        List<Realm> realms = listOf( internalFlatFileRealm, testRealm );
+
+        fakeTicker = new FakeTicker();
+        authManager = new MultiRealmAuthManager( internalFlatFileRealm, realms,
+                                                 new ShiroCaffeineCache.Manager( fakeTicker::read, 100, 10, true ), securityLog, false, false,
+                                                 Collections.emptyMap() );
+        authManager.init();
+        authManager.start();
+
+        authManager.getUserManager().newUser( "mike", password( "123" ), false );
+        authManager.getUserManager().newUser( "mats", password( "456" ), false );
     }
 
     @Test
@@ -209,6 +209,13 @@ public class LdapCachingTest
         private boolean authenticationFlag;
         private boolean authorizationFlag;
 
+        TestRealm( Config config, SecurityLog securityLog, SecureHasher secureHasher )
+        {
+            super( config, securityLog, secureHasher );
+            setAuthenticationCachingEnabled( true );
+            setAuthorizationCachingEnabled( true );
+        }
+
         boolean takeAuthenticationFlag()
         {
             boolean t = authenticationFlag;
@@ -221,13 +228,6 @@ public class LdapCachingTest
             boolean t = authorizationFlag;
             authorizationFlag = false;
             return t;
-        }
-
-        TestRealm( Config config, SecurityLog securityLog, SecureHasher secureHasher )
-        {
-            super( config, securityLog, secureHasher );
-            setAuthenticationCachingEnabled( true );
-            setAuthorizationCachingEnabled( true );
         }
 
         @Override
@@ -288,5 +288,4 @@ public class LdapCachingTest
             };
         }
     }
-
 }

@@ -64,7 +64,7 @@ public class PersonalUserManagerTest
         // When
         userManager.newUser( "hewhoshallnotbenamed", password( "avada kedavra" ), false );
         verify( log ).error( withSubject( SecurityContext.AUTH_DISABLED.subject(), "tried to create user `%s`: %s" ),
-                "hewhoshallnotbenamed", "newUserException" );
+                             "hewhoshallnotbenamed", "newUserException" );
     }
 
     @Before
@@ -72,9 +72,9 @@ public class PersonalUserManagerTest
     {
         evilUserManager = new EvilUserManager(
                 new InternalFlatFileRealm( new InMemoryUserRepository(), new InMemoryRoleRepository(),
-                        new BasicPasswordPolicy(), new RateLimitedAuthenticationStrategy( Clock.systemUTC(), Config.defaults() ),
-                        new InternalFlatFileRealmIT.TestJobScheduler(), new InMemoryUserRepository(),
-                        new InMemoryUserRepository() ) );
+                                           new BasicPasswordPolicy(), new RateLimitedAuthenticationStrategy( Clock.systemUTC(), Config.defaults() ),
+                                           new InternalFlatFileRealmIT.TestJobScheduler(), new InMemoryUserRepository(),
+                                           new InMemoryUserRepository() ) );
         log = spy( Log.class );
         userManager = new PersonalUserManager( evilUserManager, AuthSubject.AUTH_DISABLED, new SecurityLog( log ), true );
     }

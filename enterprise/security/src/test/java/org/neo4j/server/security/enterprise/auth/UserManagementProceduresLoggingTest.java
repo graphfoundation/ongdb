@@ -78,20 +78,20 @@ public class UserManagementProceduresLoggingTest
     {
         authProcedures.securityContext = securityContext;
         authProcedures.userManager = new PersonalUserManager( generalUserManager, securityContext.subject(),
-                authProcedures.securityLog, securityContext.isAdmin() );
+                                                              authProcedures.securityLog, securityContext.isAdmin() );
     }
 
     protected EnterpriseUserManager getUserManager() throws Throwable
     {
         InternalFlatFileRealm realm = new InternalFlatFileRealm(
-                                            new InMemoryUserRepository(),
-                                            new InMemoryRoleRepository(),
-                                            new BasicPasswordPolicy(),
-                                            mock( AuthenticationStrategy.class ),
-                                            mock( JobScheduler.class ),
-                                            new InMemoryUserRepository(),
-                                            new InMemoryUserRepository()
-                                        );
+                new InMemoryUserRepository(),
+                new InMemoryRoleRepository(),
+                new BasicPasswordPolicy(),
+                mock( AuthenticationStrategy.class ),
+                mock( JobScheduler.class ),
+                new InMemoryUserRepository(),
+                new InMemoryUserRepository()
+        );
         realm.start(); // creates default user and roles
         return realm;
     }
@@ -105,7 +105,7 @@ public class UserManagementProceduresLoggingTest
         log.assertExactly(
                 info( "[admin]: created user `%s`%s", "andres", ", with password change required" ),
                 info( "[admin]: created user `%s`%s", "mats", "" )
-            );
+        );
     }
 
     @Test
@@ -279,11 +279,11 @@ public class UserManagementProceduresLoggingTest
         // Then
         log.assertExactly(
                 error( "[admin]: tried to change password for user `%s`: %s",
-                        "andres", "Old password and new password cannot be the same." ),
+                       "andres", "Old password and new password cannot be the same." ),
                 error( "[admin]: tried to change password for user `%s`: %s",
-                        "andres", "A password cannot be empty." ),
+                       "andres", "A password cannot be empty." ),
                 error( "[admin]: tried to change password for user `%s`: %s",
-                        "notAndres", "User 'notAndres' does not exist." )
+                       "notAndres", "User 'notAndres' does not exist." )
         );
     }
 
@@ -458,7 +458,7 @@ public class UserManagementProceduresLoggingTest
                 error( "[admin]: tried to create role `%s`: %s", "", "The provided role name is empty." ),
                 error( "[admin]: tried to create role `%s`: %s", "role", "The specified role 'role' already exists." ),
                 error( "[admin]: tried to create role `%s`: %s", "!@#$",
-                        "Role name '!@#$' contains illegal characters. Use simple ascii characters and numbers." )
+                       "Role name '!@#$' contains illegal characters. Use simple ascii characters and numbers." )
         );
     }
 
@@ -472,7 +472,7 @@ public class UserManagementProceduresLoggingTest
         catchAuthorizationViolation( () -> authProcedures.createRole( "role" ) );
 
         // Then
-        log.assertExactly( error("[mats]: tried to create role `%s`: %s", "role", PERMISSION_DENIED) );
+        log.assertExactly( error( "[mats]: tried to create role `%s`: %s", "role", PERMISSION_DENIED ) );
     }
 
     @Test
@@ -535,7 +535,7 @@ public class UserManagementProceduresLoggingTest
         log.assertExactly(
                 info( "[admin]: deleted user `%s`", "johan" ),
                 error( "[admin]: failed to terminate running transaction and bolt connections for user `%s` following %s: %s",
-                        "johan", "deletion", "Unexpected error" )
+                       "johan", "deletion", "Unexpected error" )
         );
     }
 
@@ -679,9 +679,9 @@ public class UserManagementProceduresLoggingTest
 
         @Override
         public String username()
-            {
-                return name;
-            }
+        {
+            return name;
+        }
     }
 
     protected static class TestUserManagementProcedures extends UserManagementProcedures

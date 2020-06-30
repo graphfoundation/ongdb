@@ -33,9 +33,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
-import java.util.function.Consumer;
 
 import org.neo4j.driver.v1.Driver;
 import org.neo4j.graphdb.config.Setting;
@@ -46,7 +44,7 @@ import org.neo4j.server.security.enterprise.configuration.SecuritySettings;
 @RunWith( FrameworkRunner.class )
 @CreateDS(
         name = "Test",
-        partitions = { @CreatePartition(
+        partitions = {@CreatePartition(
                 name = "example",
                 suffix = "dc=example,dc=com",
                 contextEntry = @ContextEntry( entryLdif = "dn: dc=example,dc=com\n" +
@@ -60,18 +58,18 @@ import org.neo4j.server.security.enterprise.configuration.SecuritySettings;
                 @LoadSchema( name = "nis", enabled = true ),
         } )
 @CreateLdapServer(
-        transports = { @CreateTransport( protocol = "LDAP", port = 10389, address = "0.0.0.0" ),
-                @CreateTransport( protocol = "LDAPS", port = 10636, address = "0.0.0.0", ssl = true )
+        transports = {@CreateTransport( protocol = "LDAP", port = 10389, address = "0.0.0.0" ),
+                      @CreateTransport( protocol = "LDAPS", port = 10636, address = "0.0.0.0", ssl = true )
         },
 
         saslMechanisms = {
                 @SaslMechanism( name = "DIGEST-MD5", implClass = org.apache.directory.server.ldap.handlers.sasl
                         .digestMD5.DigestMd5MechanismHandler.class ),
-                @SaslMechanism( name  = "CRAM-MD5", implClass = org.apache.directory.server.ldap.handlers.sasl
+                @SaslMechanism( name = "CRAM-MD5", implClass = org.apache.directory.server.ldap.handlers.sasl
                         .cramMD5.CramMd5MechanismHandler.class )
         },
         saslHost = "0.0.0.0",
-        extendedOpHandlers = { StartTlsHandler.class },
+        extendedOpHandlers = {StartTlsHandler.class},
         keyStore = "target/test-classes/neo4j_ldap_test_keystore.jks",
         certificatePassword = "secret"
 )
@@ -87,7 +85,7 @@ public class LdapExamplePluginAuthenticationIT extends EnterpriseAuthenticationT
     }
 
     @Override
-    protected Map<Setting<?>, String> getSettings()
+    protected Map<Setting<?>,String> getSettings()
     {
         return Collections.singletonMap( SecuritySettings.auth_provider, SecuritySettings.PLUGIN_REALM_NAME_PREFIX + new LdapGroupHasUsersAuthPlugin().name() );
     }

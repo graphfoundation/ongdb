@@ -26,8 +26,8 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
 import java.util.Collections;
-import java.util.function.ToIntFunction;
 import java.util.Map;
+import java.util.function.ToIntFunction;
 
 import org.neo4j.commandline.admin.security.SetDefaultAdminCommand;
 import org.neo4j.graphdb.factory.GraphDatabaseSettings;
@@ -76,15 +76,13 @@ import static org.neo4j.test.assertion.Assert.assertException;
 
 public class MultiRealmAuthManagerTest extends InitialUserTest
 {
+    private final ToIntFunction<String> token = s -> -1;
+    @Rule
+    public ExpectedException expect = ExpectedException.none();
     private AuthenticationStrategy authStrategy;
     private MultiRealmAuthManager manager;
     private EnterpriseUserManager userManager;
     private AssertableLogProvider logProvider;
-
-    @Rule
-    public ExpectedException expect = ExpectedException.none();
-
-    private final ToIntFunction<String> token = s -> -1;
 
     @Before
     public void setUp() throws Throwable
@@ -113,11 +111,11 @@ public class MultiRealmAuthManagerTest extends InitialUserTest
                                 config, NullLogProvider.getInstance(), fsRule.get() ),
                         EnterpriseSecurityModule.getDefaultAdminRepository(
                                 config, NullLogProvider.getInstance(), fsRule.get() )
-                    );
+                );
 
         manager = new MultiRealmAuthManager( internalFlatFileRealm, Collections.singleton( internalFlatFileRealm ),
-                new MemoryConstrainedCacheManager(), new SecurityLog( log ), logSuccessfulAuthentications,
-                false, Collections.emptyMap() );
+                                             new MemoryConstrainedCacheManager(), new SecurityLog( log ), logSuccessfulAuthentications,
+                                             false, Collections.emptyMap() );
 
         manager.init();
         return manager;
@@ -134,7 +132,7 @@ public class MultiRealmAuthManagerTest extends InitialUserTest
     public void shouldMakeOnlyUserAdminIfNoRolesFile() throws Throwable
     {
         // Given
-        users.create( newUser( "jake", "abc123" , false ) );
+        users.create( newUser( "jake", "abc123", false ) );
 
         // When
         manager.start();
@@ -147,8 +145,8 @@ public class MultiRealmAuthManagerTest extends InitialUserTest
     public void shouldMakeNeo4jUserAdminIfNoRolesFileButManyUsers() throws Throwable
     {
         // Given
-        users.create( newUser( "jake", "abc123" , false ) );
-        users.create( newUser( "neo4j", "neo4j" , false ) );
+        users.create( newUser( "jake", "abc123", false ) );
+        users.create( newUser( "neo4j", "neo4j", false ) );
 
         // When
         manager.start();
@@ -162,8 +160,8 @@ public class MultiRealmAuthManagerTest extends InitialUserTest
     public void shouldFailIfNoRolesFileButManyUsersAndNoDefaultAdminOrNeo4j() throws Throwable
     {
         // Given
-        users.create( newUser( "jake", "abc123" , false ) );
-        users.create( newUser( "jane", "123abc" , false ) );
+        users.create( newUser( "jake", "abc123", false ) );
+        users.create( newUser( "jane", "123abc", false ) );
 
         expect.expect( InvalidArgumentsException.class );
         expect.expectMessage( "No roles defined, and cannot determine which user should be admin. " +
@@ -183,8 +181,8 @@ public class MultiRealmAuthManagerTest extends InitialUserTest
                 new User.Builder( "foo", LegacyCredential.INACCESSIBLE ).withRequiredPasswordChange( false ).build() );
         defaultAdminRepository.shutdown();
 
-        users.create( newUser( "jake", "abc123" , false ) );
-        users.create( newUser( "jane", "123abc" , false ) );
+        users.create( newUser( "jake", "abc123", false ) );
+        users.create( newUser( "jane", "123abc", false ) );
 
         expect.expect( InvalidArgumentsException.class );
         expect.expectMessage( "No roles defined, and default admin user 'foo' does not exist. " +
@@ -197,13 +195,13 @@ public class MultiRealmAuthManagerTest extends InitialUserTest
     public void shouldFindAndAuthenticateUserSuccessfully() throws Throwable
     {
         // Given
-        users.create( newUser( "jake", "abc123" , false ) );
+        users.create( newUser( "jake", "abc123", false ) );
         manager.start();
         setMockAuthenticationStrategyResult( "jake", "abc123", AuthenticationResult.SUCCESS );
 
         // When
         AuthenticationResult result = manager.login( authToken( "jake", "abc123" ) ).subject()
-                .getAuthenticationResult();
+                                             .getAuthenticationResult();
 
         // Then
         assertThat( result, equalTo( AuthenticationResult.SUCCESS ) );
@@ -217,7 +215,7 @@ public class MultiRealmAuthManagerTest extends InitialUserTest
         manager.shutdown();
         manager = createAuthManager( false );
 
-        users.create( newUser( "jake", "abc123" , false ) );
+        users.create( newUser( "jake", "abc123", false ) );
         manager.start();
         setMockAuthenticationStrategyResult( "jake", "abc123", AuthenticationResult.SUCCESS );
 
@@ -233,7 +231,7 @@ public class MultiRealmAuthManagerTest extends InitialUserTest
     public void shouldReturnTooManyAttemptsWhenThatIsAppropriate() throws Throwable
     {
         // Given
-        users.create( newUser( "jake", "abc123" , true ) );
+        users.create( newUser( "jake", "abc123", true ) );
         manager.start();
         setMockAuthenticationStrategyResult( "jake", "wrong password", AuthenticationResult.TOO_MANY_ATTEMPTS );
 
@@ -251,7 +249,7 @@ public class MultiRealmAuthManagerTest extends InitialUserTest
     public void shouldFindAndAuthenticateUserAndReturnPasswordChangeIfRequired() throws Throwable
     {
         // Given
-        users.create( newUser( "jake", "abc123" , true ) );
+        users.create( newUser( "jake", "abc123", true ) );
         manager.start();
         setMockAuthenticationStrategyResult( "jake", "abc123", AuthenticationResult.SUCCESS );
 
@@ -322,7 +320,7 @@ public class MultiRealmAuthManagerTest extends InitialUserTest
         // Then
         assertThat( result, equalTo( AuthenticationResult.FAILURE ) );
         logProvider.assertExactly( error( "[%s]: failed to log in: %s",
-                escape( "unknown\n\t\r\"haxx0r\"" ), "invalid principal or credentials" ) );
+                                          escape( "unknown\n\t\r\"haxx0r\"" ), "invalid principal or credentials" ) );
     }
 
     @Test
@@ -345,8 +343,8 @@ public class MultiRealmAuthManagerTest extends InitialUserTest
     public void shouldDeleteUser() throws Throwable
     {
         // Given
-        final User user = newUser( "jake", "abc123" , true );
-        final User user2 = newUser( "neo4j", "321cba" , true );
+        final User user = newUser( "jake", "abc123", true );
+        final User user2 = newUser( "neo4j", "321cba", true );
         users.create( user );
         users.create( user2 );
         manager.start();
@@ -363,13 +361,13 @@ public class MultiRealmAuthManagerTest extends InitialUserTest
     public void shouldFailDeletingUnknownUser() throws Throwable
     {
         // Given
-        final User user = newUser( "jake", "abc123" , true );
+        final User user = newUser( "jake", "abc123", true );
         users.create( user );
         manager.start();
 
         // When
         assertException( () -> userManager.deleteUser( "unknown" ),
-                InvalidArgumentsException.class, "User 'unknown' does not exist" );
+                         InvalidArgumentsException.class, "User 'unknown' does not exist" );
 
         // Then
         assertNotNull( users.getUserByName( "jake" ) );
@@ -379,7 +377,7 @@ public class MultiRealmAuthManagerTest extends InitialUserTest
     public void shouldSuspendExistingUser() throws Throwable
     {
         // Given
-        final User user = newUser( "jake", "abc123" , true );
+        final User user = newUser( "jake", "abc123", true );
         users.create( user );
         manager.start();
 
@@ -435,7 +433,7 @@ public class MultiRealmAuthManagerTest extends InitialUserTest
         final User user = newUser( "jake", "abc123", false );
         users.create( user );
         manager.start();
-        when( authStrategy.authenticate( user,  password( "abc123" ) ) ).thenReturn( AuthenticationResult.SUCCESS );
+        when( authStrategy.authenticate( user, password( "abc123" ) ) ).thenReturn( AuthenticationResult.SUCCESS );
 
         // When
         userManager.activateUser( "jake", false );
@@ -461,7 +459,7 @@ public class MultiRealmAuthManagerTest extends InitialUserTest
         catch ( InvalidArgumentsException e )
         {
             // Then
-            assertThat(e.getMessage(), containsString("User 'jake' does not exist"));
+            assertThat( e.getMessage(), containsString( "User 'jake' does not exist" ) );
         }
     }
 
@@ -480,7 +478,7 @@ public class MultiRealmAuthManagerTest extends InitialUserTest
         catch ( InvalidArgumentsException e )
         {
             // Then
-            assertThat(e.getMessage(), containsString("User 'jake' does not exist"));
+            assertThat( e.getMessage(), containsString( "User 'jake' does not exist" ) );
         }
     }
 
@@ -566,13 +564,13 @@ public class MultiRealmAuthManagerTest extends InitialUserTest
 
         // When
         SecurityContext securityContext = manager.login( authToken( "neo4j", "neo4j" ) )
-                .authorize( token, GraphDatabaseSettings.DEFAULT_DATABASE_NAME );
+                                                 .authorize( token, GraphDatabaseSettings.DEFAULT_DATABASE_NAME );
         userManager.setUserPassword( "neo4j", password( "1234" ), false );
         securityContext.subject().logout();
 
         setMockAuthenticationStrategyResult( "neo4j", "1234", AuthenticationResult.SUCCESS );
         securityContext = manager.login( authToken( "neo4j", "1234" ) )
-                .authorize( token, GraphDatabaseSettings.DEFAULT_DATABASE_NAME );
+                                 .authorize( token, GraphDatabaseSettings.DEFAULT_DATABASE_NAME );
 
         // Then
         assertTrue( securityContext.mode().allowsReads() );
@@ -589,7 +587,7 @@ public class MultiRealmAuthManagerTest extends InitialUserTest
 
         // When
         SecurityContext securityContext = manager.login( authToken( "morpheus", "abc123" ) )
-                .authorize( token, GraphDatabaseSettings.DEFAULT_DATABASE_NAME );
+                                                 .authorize( token, GraphDatabaseSettings.DEFAULT_DATABASE_NAME );
 
         // Then
         assertTrue( securityContext.mode().allowsReads() );
@@ -606,7 +604,7 @@ public class MultiRealmAuthManagerTest extends InitialUserTest
 
         // When
         SecurityContext securityContext = manager.login( authToken( "trinity", "abc123" ) )
-                .authorize( token, GraphDatabaseSettings.DEFAULT_DATABASE_NAME );
+                                                 .authorize( token, GraphDatabaseSettings.DEFAULT_DATABASE_NAME );
 
         // Then
         assertTrue( securityContext.mode().allowsReads() );
@@ -623,7 +621,7 @@ public class MultiRealmAuthManagerTest extends InitialUserTest
 
         // When
         SecurityContext securityContext = manager.login( authToken( "tank", "abc123" ) )
-                .authorize( token, GraphDatabaseSettings.DEFAULT_DATABASE_NAME );
+                                                 .authorize( token, GraphDatabaseSettings.DEFAULT_DATABASE_NAME );
 
         // Then
         assertTrue( "should allow reads", securityContext.mode().allowsReads() );
@@ -640,7 +638,7 @@ public class MultiRealmAuthManagerTest extends InitialUserTest
 
         // When
         SecurityContext securityContext = manager.login( authToken( "neo", "abc123" ) )
-                .authorize( token, GraphDatabaseSettings.DEFAULT_DATABASE_NAME );
+                                                 .authorize( token, GraphDatabaseSettings.DEFAULT_DATABASE_NAME );
 
         // Then
         assertTrue( securityContext.mode().allowsReads() );
@@ -657,7 +655,7 @@ public class MultiRealmAuthManagerTest extends InitialUserTest
 
         // When
         SecurityContext securityContext = manager.login( authToken( "smith", "abc123" ) )
-                .authorize( token, GraphDatabaseSettings.DEFAULT_DATABASE_NAME );
+                                                 .authorize( token, GraphDatabaseSettings.DEFAULT_DATABASE_NAME );
 
         // Then
         assertFalse( securityContext.mode().allowsReads() );

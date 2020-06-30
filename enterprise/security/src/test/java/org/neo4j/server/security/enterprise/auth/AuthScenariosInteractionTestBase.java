@@ -86,7 +86,9 @@ public abstract class AuthScenariosInteractionTestBase<S> extends ProcedureInter
     {
         S mats = neo.login( "mats", "neo4j" );
         // for REST, login doesn't happen until the subject does something
-        neo.executeQuery( mats, "UNWIND [] AS i RETURN 1", Collections.emptyMap(), r -> {} );
+        neo.executeQuery( mats, "UNWIND [] AS i RETURN 1", Collections.emptyMap(), r ->
+        {
+        } );
         assertEmpty( adminSubject, "CALL dbms.security.createUser('mats', 'neo4j', false)" );
         assertEmpty( adminSubject, "CALL dbms.security.createRole('role1')" );
         assertEmpty( adminSubject, "CALL dbms.security.deleteRole('role1')" );
@@ -112,11 +114,11 @@ public abstract class AuthScenariosInteractionTestBase<S> extends ProcedureInter
         log.assertHasLine( "adminSubject", "deleted role `role1`" );
         log.assertHasLine( "mats", "logged in" );
         log.assertHasLine( "adminSubject", "added role `reader` to user `mats`" );
-        log.assertHasLine( "mats", "tried to change password for user `neo4j`: " + PERMISSION_DENIED);
-        log.assertHasLine( "mats", "tried to change password: A password cannot be empty.");
-        log.assertHasLine( "mats", "changed password");
-        log.assertHasLine( "adminSubject", "removed role `reader` from user `mats`");
-        log.assertHasLine( "adminSubject", "deleted user `mats`");
+        log.assertHasLine( "mats", "tried to change password for user `neo4j`: " + PERMISSION_DENIED );
+        log.assertHasLine( "mats", "tried to change password: A password cannot be empty." );
+        log.assertHasLine( "mats", "changed password" );
+        log.assertHasLine( "adminSubject", "removed role `reader` from user `mats`" );
+        log.assertHasLine( "adminSubject", "deleted user `mats`" );
     }
 
     /*
@@ -240,7 +242,7 @@ public abstract class AuthScenariosInteractionTestBase<S> extends ProcedureInter
         assertEmpty( adminSubject, "CALL dbms.security.createUser('Henrik', 'bar', false)" );
         assertEmpty( adminSubject, "CALL dbms.security.deleteUser('Henrik')" );
         assertFail( adminSubject, "CALL dbms.security.addRoleToUser('" + PUBLISHER + "', 'Henrik')",
-                "User 'Henrik' does not exist" );
+                    "User 'Henrik' does not exist" );
     }
 
     /*
@@ -256,7 +258,7 @@ public abstract class AuthScenariosInteractionTestBase<S> extends ProcedureInter
         assertEmpty( adminSubject, "CALL dbms.security.addRoleToUser('" + PUBLISHER + "', 'Henrik')" );
         assertEmpty( adminSubject, "CALL dbms.security.deleteUser('Henrik')" );
         assertFail( adminSubject, "CALL dbms.security.removeRoleFromUser('" + PUBLISHER + "', 'Henrik')",
-                "User 'Henrik' does not exist" );
+                    "User 'Henrik' does not exist" );
     }
 
     /*
@@ -556,7 +558,7 @@ public abstract class AuthScenariosInteractionTestBase<S> extends ProcedureInter
         assertEmpty( adminSubject, "CALL dbms.security.createUser('Henrik', 'bar', false)" );
         S subject = neo.login( "Henrik", "bar" );
         neo.assertAuthenticated( subject );
-        testFailListRoles( subject, PERMISSION_DENIED);
+        testFailListRoles( subject, PERMISSION_DENIED );
         testSuccessfulListRoles( adminSubject, initialRoles );
         assertEmpty( adminSubject, "CALL dbms.security.addRoleToUser('" + ADMIN + "', 'Henrik')" );
         testSuccessfulListRoles( subject, initialRoles );
@@ -584,11 +586,11 @@ public abstract class AuthScenariosInteractionTestBase<S> extends ProcedureInter
 
         testFailListUserRoles( subject, "Craig", PERMISSION_DENIED );
         assertSuccess( adminSubject, "CALL dbms.security.listRolesForUser('Craig') YIELD value as roles RETURN roles",
-                r -> assertKeyIs( r, "roles", PUBLISHER ) );
+                       r -> assertKeyIs( r, "roles", PUBLISHER ) );
 
         S craigSubject = neo.login( "Craig", "foo" );
         assertSuccess( craigSubject, "CALL dbms.security.listRolesForUser('Craig') YIELD value as roles RETURN roles",
-                r -> assertKeyIs( r, "roles", PUBLISHER ) );
+                       r -> assertKeyIs( r, "roles", PUBLISHER ) );
     }
 
     /*
@@ -611,8 +613,8 @@ public abstract class AuthScenariosInteractionTestBase<S> extends ProcedureInter
         neo.assertAuthenticated( subject );
         testFailListRoleUsers( subject, PUBLISHER, PERMISSION_DENIED );
         assertSuccess( adminSubject,
-                "CALL dbms.security.listUsersForRole('" + PUBLISHER + "') YIELD value as users RETURN users",
-                r -> assertKeyIs( r, "users", "Henrik", "Craig", "writeSubject" ) );
+                       "CALL dbms.security.listUsersForRole('" + PUBLISHER + "') YIELD value as users RETURN users",
+                       r -> assertKeyIs( r, "users", "Henrik", "Craig", "writeSubject" ) );
     }
 
     //---------- calling procedures -----------
@@ -640,18 +642,18 @@ public abstract class AuthScenariosInteractionTestBase<S> extends ProcedureInter
 
         assertEmpty( henrik, "CALL test.createNode()" );
         assertSuccess( henrik, "CALL test.numNodes() YIELD count as count RETURN count",
-                 r -> assertKeyIs( r, "count", "4" ) );
+                       r -> assertKeyIs( r, "count", "4" ) );
 
         assertEmpty( adminSubject, "CALL dbms.security.addRoleToUser('" + READER + "', 'Henrik')" );
 
         assertEmpty( henrik, "CALL test.createNode()" );
         assertSuccess( henrik, "CALL test.numNodes() YIELD count as count RETURN count",
-                r -> assertKeyIs( r, "count", "5" ) );
+                       r -> assertKeyIs( r, "count", "5" ) );
 
         assertEmpty( adminSubject, "CALL dbms.security.removeRoleFromUser('" + PUBLISHER + "', 'Henrik')" );
 
         assertFail( henrik, "CALL test.createNode()",
-                "Write operations are not allowed for user 'Henrik' with roles [reader]." );
+                    "Write operations are not allowed for user 'Henrik' with roles [reader]." );
     }
 
     //---------- change password -----------
@@ -745,15 +747,15 @@ public abstract class AuthScenariosInteractionTestBase<S> extends ProcedureInter
         assertEmpty( adminSubject, "CREATE (:MyNode)" );
 
         assertSuccess( readSubject, "MATCH (n:MyNode) WHERE n.nonExistent = 'foo' RETURN toString(count(*)) AS c",
-                r -> assertKeyIs( r, "c", "0" ) );
+                       r -> assertKeyIs( r, "c", "0" ) );
         assertFail( readSubject, "MATCH (n:MyNode) SET n.nonExistent = 'foo' RETURN toString(count(*)) AS c",
-                TOKEN_CREATE_OPS_NOT_ALLOWED );
+                    TOKEN_CREATE_OPS_NOT_ALLOWED );
         assertFail( readSubject, "MATCH (n:MyNode) SET n:Foo RETURN toString(count(*)) AS c",
-                TOKEN_CREATE_OPS_NOT_ALLOWED );
+                    TOKEN_CREATE_OPS_NOT_ALLOWED );
         assertSuccess( schemaSubject, "MATCH (n:MyNode) SET n.nonExistent = 'foo' RETURN toString(count(*)) AS c",
-                r -> assertKeyIs( r, "c", "1" ) );
+                       r -> assertKeyIs( r, "c", "1" ) );
         assertSuccess( readSubject, "MATCH (n:MyNode) WHERE n.nonExistent = 'foo' RETURN toString(count(*)) AS c",
-                r -> assertKeyIs( r, "c", "1" ) );
+                       r -> assertKeyIs( r, "c", "1" ) );
     }
 
     private class SecurityLog
@@ -765,7 +767,7 @@ public abstract class AuthScenariosInteractionTestBase<S> extends ProcedureInter
             File securityLog = new File( AuthScenariosInteractionTestBase.this.securityLog.getAbsolutePath() );
             try ( FileSystemAbstraction fileSystem = neo.fileSystem();
                   BufferedReader bufferedReader = new BufferedReader(
-                            fileSystem.openAsReader( securityLog, StandardCharsets.UTF_8 ) ) )
+                          fileSystem.openAsReader( securityLog, StandardCharsets.UTF_8 ) ) )
             {
                 lines = bufferedReader.lines().collect( java.util.stream.Collectors.toList() );
             }

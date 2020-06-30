@@ -49,7 +49,7 @@ public class SecurityLogTest
 
     private Config config = Config.defaults(
             stringMap( SecuritySettings.store_security_log_rotation_threshold.name(), "5",
-                    SecuritySettings.store_security_log_rotation_delay.name(), "1ms" ) );
+                       SecuritySettings.store_security_log_rotation_delay.name(), "1ms" ) );
 
     @Test
     public void shouldRotateLog() throws IOException
@@ -126,7 +126,7 @@ public class SecurityLogTest
                 containsString( "warn: error line" ),
 
                 containsString( "error: error line" )
-            ) );
+        ) );
     }
 
     private void writeAllLevelsAndShutdown( SecurityLog securityLog, String tag ) throws Throwable
@@ -144,7 +144,7 @@ public class SecurityLogTest
                 Config.defaults( SecuritySettings.security_log_level, debug.name() ),
                 fileSystemRule.get(),
                 Runnable::run
-            );
+        );
     }
 
     private String[] readLogFile( FileSystemAbstraction fs, File activeLogFile ) throws IOException

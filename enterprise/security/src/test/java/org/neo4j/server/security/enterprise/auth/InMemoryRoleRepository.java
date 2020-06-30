@@ -24,7 +24,9 @@ import org.neo4j.server.security.auth.ListSnapshot;
 
 import static org.neo4j.server.security.auth.ListSnapshot.FROM_MEMORY;
 
-/** A role repository implementation that just stores roles in memory */
+/**
+ * A role repository implementation that just stores roles in memory
+ */
 public class InMemoryRoleRepository extends AbstractRoleRepository
 {
     @Override

@@ -24,6 +24,7 @@ import org.apache.shiro.subject.PrincipalCollection;
 import org.apache.shiro.subject.support.DelegatingSubject;
 
 import org.neo4j.internal.kernel.api.security.AuthenticationResult;
+import org.neo4j.server.security.auth.ShiroAuthenticationInfo;
 
 public class ShiroSubject extends DelegatingSubject
 {
@@ -36,9 +37,8 @@ public class ShiroSubject extends DelegatingSubject
         this.authenticationResult = authenticationResult;
     }
 
-    public ShiroSubject( PrincipalCollection principals, boolean authenticated, String host, Session session,
-            boolean sessionCreationEnabled, SecurityManager securityManager, AuthenticationResult authenticationResult,
-            ShiroAuthenticationInfo authenticationInfo )
+    public ShiroSubject( PrincipalCollection principals, boolean authenticated, String host, Session session, boolean sessionCreationEnabled,
+                         SecurityManager securityManager, AuthenticationResult authenticationResult, ShiroAuthenticationInfo authenticationInfo )
     {
         super( principals, authenticated, host, session, sessionCreationEnabled, securityManager );
         this.authenticationResult = authenticationResult;
@@ -47,7 +47,7 @@ public class ShiroSubject extends DelegatingSubject
 
     public AuthenticationResult getAuthenticationResult()
     {
-        return authenticationResult;
+        return this.authenticationResult;
     }
 
     void setAuthenticationResult( AuthenticationResult authenticationResult )
@@ -57,7 +57,7 @@ public class ShiroSubject extends DelegatingSubject
 
     public ShiroAuthenticationInfo getAuthenticationInfo()
     {
-        return authenticationInfo;
+        return this.authenticationInfo;
     }
 
     public void clearAuthenticationInfo()

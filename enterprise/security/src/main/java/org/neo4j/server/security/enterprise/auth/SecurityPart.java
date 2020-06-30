@@ -1,7 +1,4 @@
 /*
- * Copyright (c) 2002-2018 "Neo4j"
- * Neo4j Sweden AB [http://neo4j.com]
- *
  * Copyright (c) 2018-2020 "Graph Foundation"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
@@ -18,15 +15,14 @@
  */
 package org.neo4j.server.security.enterprise.auth;
 
-import org.neo4j.internal.kernel.api.security.AuthSubject;
-import org.neo4j.kernel.enterprise.api.security.EnterpriseAuthManager;
-import org.neo4j.kernel.api.security.UserManagerSupplier;
-
-public interface EnterpriseAuthAndUserManager extends EnterpriseAuthManager, UserManagerSupplier
+/**
+ * TODO: Define required interface methods. All Security modules will use this interface instead of the direct implementation.
+ */
+public interface SecurityPart
 {
-    @Override
-    EnterpriseUserManager getUserManager( AuthSubject authSubject, boolean isUserManager );
+    int hashCode();
 
-    @Override
-    EnterpriseUserManager getUserManager();
+    boolean equals( Object obj );
+
+    String toString();
 }

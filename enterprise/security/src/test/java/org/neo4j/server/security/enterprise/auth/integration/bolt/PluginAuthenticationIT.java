@@ -56,9 +56,10 @@ public class PluginAuthenticationIT extends EnterpriseAuthenticationTestBase
     );
 
     private static final String DEFAULT_TEST_PLUGIN_REALMS = String.join( ", ",
-            defaultTestPluginRealmList.stream()
-                    .map( s -> StringUtils.prependIfMissing( s, SecuritySettings.PLUGIN_REALM_NAME_PREFIX ) )
-                    .collect( Collectors.toList() )
+                                                                          defaultTestPluginRealmList.stream()
+                                                                                                    .map( s -> StringUtils.prependIfMissing( s,
+                                                                                                                                             SecuritySettings.PLUGIN_REALM_NAME_PREFIX ) )
+                                                                                                    .collect( Collectors.toList() )
     );
 
     @Override
@@ -212,7 +213,7 @@ public class PluginAuthenticationIT extends EnterpriseAuthenticationTestBase
 
         // Then
         try ( Driver driver = connectDriver( "neo4j", "neo4j", "plugin-TestCacheableAdminAuthPlugin" );
-                Session session = driver.session() )
+              Session session = driver.session() )
         {
             try ( Transaction tx = session.beginTransaction() )
             {
@@ -227,7 +228,7 @@ public class PluginAuthenticationIT extends EnterpriseAuthenticationTestBase
     public void shouldAuthenticateWithTestCustomParametersAuthenticationPlugin() throws Throwable
     {
         AuthToken token = AuthTokens.custom( "neo4j", "", "plugin-TestCustomParametersAuthenticationPlugin", "custom",
-                map( "my_credentials", Arrays.asList( 1L, 2L, 3L, 4L ) ) );
+                                             map( "my_credentials", Arrays.asList( 1L, 2L, 3L, 4L ) ) );
         assertAuth( token );
     }
 

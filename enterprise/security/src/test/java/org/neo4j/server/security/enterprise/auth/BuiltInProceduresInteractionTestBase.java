@@ -90,11 +90,53 @@ public abstract class BuiltInProceduresInteractionTestBase<S> extends ProcedureI
 
     //---------- list running transactions -----------
 
+    public static Server createHttpServer(
+            DoubleLatch latch, Barrier.Control innerBarrier, int firstBatchSize, int otherBatchSize )
+    {
+        Server server = new Server( 0 );
+        server.setHandler( new AbstractHandler()
+        {
+            @Override
+            public void handle(
+                    String target, Request baseRequest, HttpServletRequest request, HttpServletResponse response )
+                    throws IOException
+            {
+                response.setContentType( "text/plain; charset=utf-8" );
+                response.setStatus( HttpServletResponse.SC_OK );
+                PrintWriter out = response.getWriter();
+
+                writeBatch( out, firstBatchSize );
+                out.flush();
+                latch.start();
+                innerBarrier.reached();
+
+                latch.finish();
+                writeBatch( out, otherBatchSize );
+                baseRequest.setHandled( true );
+            }
+
+            private void writeBatch( PrintWriter out, int batchSize )
+            {
+                for ( int i = 0; i < batchSize; i++ )
+                {
+                    out.write( format( "%d %d\n", i, i * i ) );
+                    i++;
+                }
+            }
+        } );
+        return server;
+    }
+
+    private static OffsetDateTime getStartTime()
+    {
+        return ofInstant( Instant.ofEpochMilli( now().toEpochSecond() ), ZoneOffset.UTC );
+    }
+
     @Test
     public void shouldListSelfTransaction()
     {
         assertSuccess( adminSubject, "CALL dbms.listTransactions()",
-                r -> assertKeyIs( r, "username", "adminSubject" ) );
+                       r -> assertKeyIs( r, "username", "adminSubject" ) );
     }
 
     @Test
@@ -124,10 +166,10 @@ public abstract class BuiltInProceduresInteractionTestBase<S> extends ProcedureI
             List<Map<String,Object>> maps = collectResults( r );
 
             Matcher<Map<String,Object>> listTransaction = listedTransactionOfInteractionLevel( startTime,
-                    "adminSubject", query );
+                                                                                               "adminSubject", query );
             Matcher<Map<String,Object>> blockedQueryMatcher = allOf( anyOf( hasCurrentQuery( secondModifier ),
-                    hasCurrentQuery( firstModifier ) ), hasStatus( "Blocked by:" ) );
-            Matcher<Map<String,Object>> executedModifier = allOf( hasCurrentQuery(""), hasStatus( "Running" ) );
+                                                                            hasCurrentQuery( firstModifier ) ), hasStatus( "Blocked by:" ) );
+            Matcher<Map<String,Object>> executedModifier = allOf( hasCurrentQuery( "" ), hasStatus( "Running" ) );
 
             assertThat( maps, matchesOneToOneInAnyOrder( listTransaction, blockedQueryMatcher, executedModifier ) );
         } );
@@ -167,7 +209,7 @@ public abstract class BuiltInProceduresInteractionTestBase<S> extends ProcedureI
             Matcher<Map<String,Object>> thisTransaction =
                     listedTransactionOfInteractionLevel( startTime, "adminSubject", listTransactionsQuery );
             Matcher<Map<String,Object>> matchQueryTransactionMatcher =
-                    listedTransactionWithMetaData( startTime, "writeSubject", matchQuery,  map( "realUser", "MyMan" ) );
+                    listedTransactionWithMetaData( startTime, "writeSubject", matchQuery, map( "realUser", "MyMan" ) );
 
             assertThat( maps, matchesOneToOneInAnyOrder( thisTransaction, matchQueryTransactionMatcher ) );
         } );
@@ -206,6 +248,8 @@ public abstract class BuiltInProceduresInteractionTestBase<S> extends ProcedureI
         read1.closeAndAssertSuccess();
         read2.closeAndAssertSuccess();
     }
+
+    //---------- list running queries -----------
 
     @Test
     public void shouldOnlyListOwnTransactionsWhenNotRunningAsAdmin() throws Throwable
@@ -268,8 +312,6 @@ public abstract class BuiltInProceduresInteractionTestBase<S> extends ProcedureI
         }
         read.closeAndAssertSuccess();
     }
-
-    //---------- list running queries -----------
 
     @Test
     public void shouldListAllQueryIncludingMetaData() throws Throwable
@@ -362,6 +404,8 @@ public abstract class BuiltInProceduresInteractionTestBase<S> extends ProcedureI
         read2.closeAndAssertSuccess();
     }
 
+    //---------- Create Tokens query -------
+
     @SuppressWarnings( "unchecked" )
     @Test
     public void shouldListQueriesEvenIfUsingPeriodicCommit() throws Throwable
@@ -388,8 +432,8 @@ public abstract class BuiltInProceduresInteractionTestBase<S> extends ProcedureI
             try
             {
                 String writeQuery = write.executeEarly( threading, writeSubject, KernelTransaction.Type.implicit,
-                        format( "USING PERIODIC COMMIT 10 LOAD CSV FROM 'http://localhost:%d' AS line ", localPort ) +
-                        "CREATE (n:A {id: line[0], square: line[1]}) " + "RETURN count(*)" );
+                                                        format( "USING PERIODIC COMMIT 10 LOAD CSV FROM 'http://localhost:%d' AS line ", localPort ) +
+                                                        "CREATE (n:A {id: line[0], square: line[1]}) " + "RETURN count(*)" );
                 latch.startAndWaitForAllToStart();
 
                 // Then
@@ -451,8 +495,6 @@ public abstract class BuiltInProceduresInteractionTestBase<S> extends ProcedureI
         read.closeAndAssertSuccess();
     }
 
-    //---------- Create Tokens query -------
-
     @Test
     public void shouldCreateLabel()
     {
@@ -460,24 +502,26 @@ public abstract class BuiltInProceduresInteractionTestBase<S> extends ProcedureI
         assertFail( editorSubject, "CALL db.createLabel('MySpecialLabel')", TOKEN_CREATE_OPS_NOT_ALLOWED );
         assertEmpty( writeSubject, "CALL db.createLabel('MySpecialLabel')" );
         assertSuccess( writeSubject, "MATCH (n:MySpecialLabel) RETURN count(n) AS count",
-                r -> r.next().get( "count" ).equals( 0 ) );
+                       r -> r.next().get( "count" ).equals( 0 ) );
         assertEmpty( editorSubject, "CREATE (:MySpecialLabel)" );
     }
+
+    //---------- terminate query -----------
 
     @Test
     public void shouldCreateRelationshipType()
     {
         assertEmpty( writeSubject, "CREATE (a:Node {id:0}) CREATE ( b:Node {id:1} )" );
         assertFail( editorSubject,
-                "MATCH (a:Node), (b:Node) WHERE a.id = 0 AND b.id = 1 CREATE (a)-[:MySpecialRelationship]->(b)",
-                TOKEN_CREATE_OPS_NOT_ALLOWED );
+                    "MATCH (a:Node), (b:Node) WHERE a.id = 0 AND b.id = 1 CREATE (a)-[:MySpecialRelationship]->(b)",
+                    TOKEN_CREATE_OPS_NOT_ALLOWED );
         assertFail( editorSubject, "CALL db.createRelationshipType('MySpecialRelationship')",
-                TOKEN_CREATE_OPS_NOT_ALLOWED );
+                    TOKEN_CREATE_OPS_NOT_ALLOWED );
         assertEmpty( writeSubject, "CALL db.createRelationshipType('MySpecialRelationship')" );
         assertSuccess( editorSubject, "MATCH (n)-[c:MySpecialRelationship]-(m) RETURN count(c) AS count",
-                r -> r.next().get( "count" ).equals( 0 ) );
+                       r -> r.next().get( "count" ).equals( 0 ) );
         assertEmpty( editorSubject,
-                "MATCH (a:Node), (b:Node) WHERE a.id = 0 AND b.id = 1 CREATE (a)-[:MySpecialRelationship]->(b)" );
+                     "MATCH (a:Node), (b:Node) WHERE a.id = 0 AND b.id = 1 CREATE (a)-[:MySpecialRelationship]->(b)" );
     }
 
     @Test
@@ -487,11 +531,9 @@ public abstract class BuiltInProceduresInteractionTestBase<S> extends ProcedureI
         assertFail( editorSubject, "CALL db.createProperty('MySpecialProperty')", TOKEN_CREATE_OPS_NOT_ALLOWED );
         assertEmpty( writeSubject, "CALL db.createProperty('MySpecialProperty')" );
         assertSuccess( editorSubject, "MATCH (n) WHERE n.MySpecialProperty IS NULL RETURN count(n) AS count",
-                r -> r.next().get( "count" ).equals( 0 ) );
+                       r -> r.next().get( "count" ).equals( 0 ) );
         assertEmpty( editorSubject, "CREATE (a) SET a.MySpecialProperty = 'a'" );
     }
-
-    //---------- terminate query -----------
 
     /*
      * User starts query1 that takes a lock and runs for a long time.
@@ -525,11 +567,11 @@ public abstract class BuiltInProceduresInteractionTestBase<S> extends ProcedureI
 
         // get the query id of query2 and kill it
         assertSuccess( adminSubject,
-                "CALL dbms.listQueries() YIELD query, queryId " +
-                "WITH query, queryId WHERE query = '" + query2 + "'" +
-                "CALL dbms.killQuery(queryId) YIELD queryId AS killedId " +
-                        "RETURN 1",
-                itr -> assertThat( Iterators.count( itr ), equalTo( 1L ) ) ); // consume iterator so resources are closed
+                       "CALL dbms.listQueries() YIELD query, queryId " +
+                       "WITH query, queryId WHERE query = '" + query2 + "'" +
+                       "CALL dbms.killQuery(queryId) YIELD queryId AS killedId " +
+                       "RETURN 1",
+                       itr -> assertThat( Iterators.count( itr ), equalTo( 1L ) ) ); // consume iterator so resources are closed
 
         tx2.closeAndAssertSomeTermination();
 
@@ -581,7 +623,7 @@ public abstract class BuiltInProceduresInteractionTestBase<S> extends ProcedureI
         tx2.closeAndAssertSuccess();
 
         assertEmpty( adminSubject,
-                "CALL dbms.listQueries() YIELD query WITH * WHERE NOT query CONTAINS 'listQueries' RETURN *" );
+                     "CALL dbms.listQueries() YIELD query WITH * WHERE NOT query CONTAINS 'listQueries' RETURN *" );
     }
 
     @Test
@@ -660,8 +702,8 @@ public abstract class BuiltInProceduresInteractionTestBase<S> extends ProcedureI
             try
             {
                 String writeQuery = write.executeEarly( threading, writeSubject, KernelTransaction.Type.implicit,
-                        format( "USING PERIODIC COMMIT 10 LOAD CSV FROM 'http://localhost:%d' AS line ", localPort ) +
-                        "CREATE (n:A {id: line[0], square: line[1]}) RETURN count(*)" );
+                                                        format( "USING PERIODIC COMMIT 10 LOAD CSV FROM 'http://localhost:%d' AS line ", localPort ) +
+                                                        "CREATE (n:A {id: line[0], square: line[1]}) RETURN count(*)" );
                 latch.startAndWaitForAllToStart();
 
                 // Then
@@ -699,6 +741,8 @@ public abstract class BuiltInProceduresInteractionTestBase<S> extends ProcedureI
             }
         }
     }
+
+    //---------- set tx meta data -----------
 
     @Test
     public void shouldKillMultipleUserQueries() throws Throwable
@@ -747,20 +791,20 @@ public abstract class BuiltInProceduresInteractionTestBase<S> extends ProcedureI
     String extractQueryId( String writeQuery )
     {
         return toRawValue( single( collectSuccessResult( adminSubject, "CALL dbms.listQueries()" )
-                .stream()
-                .filter( m -> m.get( "query" ).equals( valueOf( writeQuery ) ) )
-                .collect( toList() ) )
-                .get( "queryId" ) )
+                                           .stream()
+                                           .filter( m -> m.get( "query" ).equals( valueOf( writeQuery ) ) )
+                                           .collect( toList() ) )
+                                   .get( "queryId" ) )
                 .toString();
     }
-
-    //---------- set tx meta data -----------
 
     @Test
     public void shouldHaveSetTXMetaDataProcedure()
     {
         assertEmpty( writeSubject, "CALL dbms.setTXMetaData( { aKey: 'aValue' } )" );
     }
+
+    //---------- config manipulation -----------
 
     @Test
     public void readUpdatedMetadataValue() throws Throwable
@@ -778,6 +822,8 @@ public abstract class BuiltInProceduresInteractionTestBase<S> extends ProcedureI
         }
     }
 
+    //---------- procedure guard -----------
+
     @Test
     public void readEmptyMetadataInOtherTransaction()
     {
@@ -793,8 +839,6 @@ public abstract class BuiltInProceduresInteractionTestBase<S> extends ProcedureI
         } );
     }
 
-    //---------- config manipulation -----------
-
     @Test
     public void setConfigValueShouldBeAccessibleOnlyToAdmins()
     {
@@ -805,8 +849,6 @@ public abstract class BuiltInProceduresInteractionTestBase<S> extends ProcedureI
 
         assertEmpty( adminSubject, call );
     }
-
-    //---------- procedure guard -----------
 
     @Test
     public void shouldTerminateLongRunningProcedureThatChecksTheGuardRegularlyIfKilled() throws Throwable
@@ -861,7 +903,7 @@ public abstract class BuiltInProceduresInteractionTestBase<S> extends ProcedureI
         userManager.addRoleToUser( "role1", "role1Subject" );
         userManager.addRoleToUser( PUBLISHER, "role1Subject" );
         assertEmpty( neo.login( "role1Subject", "abc" ),
-                "CALL test.allowedReadProcedure() YIELD value CREATE (:NEWNODE {name:value})" );
+                     "CALL test.allowedReadProcedure() YIELD value CREATE (:NEWNODE {name:value})" );
     }
 
     @Test
@@ -873,10 +915,10 @@ public abstract class BuiltInProceduresInteractionTestBase<S> extends ProcedureI
         userManager.addRoleToUser( "role1", "nopermission" );
         // should be able to invoke allowed procedure
         assertSuccess( neo.login( "nopermission", "abc" ), "CALL test.allowedWriteProcedure()",
-                itr -> assertEquals( itr.stream().collect( toList() ).size(), 2 ) );
+                       itr -> assertEquals( itr.stream().collect( toList() ).size(), 2 ) );
         // should not be able to do writes
         assertFail( neo.login( "nopermission", "abc" ),
-                "CALL test.allowedWriteProcedure() YIELD value CREATE (:NEWNODE {name:value})", WRITE_OPS_NOT_ALLOWED );
+                    "CALL test.allowedWriteProcedure() YIELD value CREATE (:NEWNODE {name:value})", WRITE_OPS_NOT_ALLOWED );
     }
 
     @Test
@@ -899,9 +941,9 @@ public abstract class BuiltInProceduresInteractionTestBase<S> extends ProcedureI
         userManager.addRoleToUser( "role1", "nopermission" );
         // should not be able to invoke any procedure
         assertSuccess( neo.login( "nopermission", "abc" ), "CALL test.allowedReadProcedure()",
-                itr -> assertEquals( itr.stream().collect( toList() ).size(), 1 ) );
+                       itr -> assertEquals( itr.stream().collect( toList() ).size(), 1 ) );
         assertFail( neo.login( "nopermission", "abc" ),
-                "CALL test.allowedReadProcedure() YIELD value MATCH (n:Secret) RETURN n.pass", READ_OPS_NOT_ALLOWED );
+                    "CALL test.allowedReadProcedure() YIELD value MATCH (n:Secret) RETURN n.pass", READ_OPS_NOT_ALLOWED );
     }
 
     @Test
@@ -912,8 +954,8 @@ public abstract class BuiltInProceduresInteractionTestBase<S> extends ProcedureI
         userManager.newRole( "role1" );
         userManager.addRoleToUser( "role1", "role1Subject" );
         assertSuccess( neo.login( "role1Subject", "abc" ),
-                "CALL test.nestedAllowedProcedure('test.allowedReadProcedure') YIELD value",
-                r -> assertKeyIs( r, "value", "foo" ) );
+                       "CALL test.nestedAllowedProcedure('test.allowedReadProcedure') YIELD value",
+                       r -> assertKeyIs( r, "value", "foo" ) );
     }
 
     @Test
@@ -924,8 +966,8 @@ public abstract class BuiltInProceduresInteractionTestBase<S> extends ProcedureI
         userManager.newRole( "role1" );
         userManager.addRoleToUser( "role1", "role1Subject" );
         assertSuccess( neo.login( "role1Subject", "abc" ),
-                "CALL test.doubleNestedAllowedProcedure YIELD value",
-                r -> assertKeyIs( r, "value", "foo" ) );
+                       "CALL test.doubleNestedAllowedProcedure YIELD value",
+                       r -> assertKeyIs( r, "value", "foo" ) );
     }
 
     @Test
@@ -936,8 +978,8 @@ public abstract class BuiltInProceduresInteractionTestBase<S> extends ProcedureI
         userManager.newRole( "role1" );
         userManager.addRoleToUser( "role1", "role1Subject" );
         assertFail( neo.login( "role1Subject", "abc" ),
-                "CALL test.nestedAllowedProcedure('test.allowedWriteProcedure') YIELD value",
-                WRITE_OPS_NOT_ALLOWED );
+                    "CALL test.nestedAllowedProcedure('test.allowedWriteProcedure') YIELD value",
+                    WRITE_OPS_NOT_ALLOWED );
     }
 
     @Test
@@ -949,8 +991,8 @@ public abstract class BuiltInProceduresInteractionTestBase<S> extends ProcedureI
         userManager.addRoleToUser( "role1", "role1Subject" );
         userManager.addRoleToUser( PredefinedRoles.ADMIN, "role1Subject" );
         assertFail( neo.login( "role1Subject", "abc" ),
-                "CALL test.nestedAllowedProcedure('test.allowedWriteProcedure') YIELD value",
-                WRITE_OPS_NOT_ALLOWED );
+                    "CALL test.nestedAllowedProcedure('test.allowedWriteProcedure') YIELD value",
+                    WRITE_OPS_NOT_ALLOWED );
     }
 
     @Test
@@ -961,8 +1003,8 @@ public abstract class BuiltInProceduresInteractionTestBase<S> extends ProcedureI
         userManager.newRole( "role1" );
         userManager.addRoleToUser( "role1", "role1Subject" );
         assertFail( neo.login( "role1Subject", "abc" ),
-                "CALL test.failingNestedAllowedWriteProcedure YIELD value",
-                WRITE_OPS_NOT_ALLOWED );
+                    "CALL test.failingNestedAllowedWriteProcedure YIELD value",
+                    WRITE_OPS_NOT_ALLOWED );
     }
 
     @Test
@@ -973,8 +1015,8 @@ public abstract class BuiltInProceduresInteractionTestBase<S> extends ProcedureI
         userManager.newRole( "role1" );
         userManager.addRoleToUser( "role1", "role1Subject" );
         assertSuccess( neo.login( "role1Subject", "abc" ),
-                "CALL test.nestedAllowedProcedure('test.otherAllowedReadProcedure') YIELD value",
-                r -> assertKeyIs( r, "value", "foo" )
+                       "CALL test.nestedAllowedProcedure('test.otherAllowedReadProcedure') YIELD value",
+                       r -> assertKeyIs( r, "value", "foo" )
         );
     }
 
@@ -988,8 +1030,8 @@ public abstract class BuiltInProceduresInteractionTestBase<S> extends ProcedureI
         userManager.addRoleToUser( PredefinedRoles.PUBLISHER, "role1Subject" ); // Even if subject has WRITE permission
         // the procedure should restrict to READ
         assertFail( neo.login( "role1Subject", "abc" ),
-                "CALL test.nestedReadProcedure('test.allowedWriteProcedure') YIELD value",
-                WRITE_OPS_NOT_ALLOWED );
+                    "CALL test.nestedReadProcedure('test.allowedWriteProcedure') YIELD value",
+                    WRITE_OPS_NOT_ALLOWED );
     }
 
     @Test
@@ -1001,9 +1043,11 @@ public abstract class BuiltInProceduresInteractionTestBase<S> extends ProcedureI
         userManager.newRole( "role1" );
         userManager.addRoleToUser( "role1", "role1Subject" );
         assertSuccess( neo.login( "role1Subject", "abc" ),
-                "RETURN test.allowedFunction1() AS value",
-                r -> assertKeyIs( r, "value", "foo" ) );
+                       "RETURN test.allowedFunction1() AS value",
+                       r -> assertKeyIs( r, "value", "foo" ) );
     }
+
+    //---------- clearing query cache -----------
 
     @Test
     public void shouldHandleNestedFunctionsWithAllowed() throws Throwable
@@ -1014,8 +1058,8 @@ public abstract class BuiltInProceduresInteractionTestBase<S> extends ProcedureI
         userManager.newRole( "role1" );
         userManager.addRoleToUser( "role1", "role1Subject" );
         assertSuccess( neo.login( "role1Subject", "abc" ),
-                "RETURN test.nestedAllowedFunction('test.allowedFunction1()') AS value",
-                r -> assertKeyIs( r, "value", "foo" ) );
+                       "RETURN test.nestedAllowedFunction('test.allowedFunction1()') AS value",
+                       r -> assertKeyIs( r, "value", "foo" ) );
     }
 
     @Test
@@ -1027,12 +1071,17 @@ public abstract class BuiltInProceduresInteractionTestBase<S> extends ProcedureI
         userManager.newRole( "role1" );
         userManager.addRoleToUser( "role1", "role1Subject" );
         assertSuccess( neo.login( "role1Subject", "abc" ),
-                "RETURN test.nestedAllowedFunction('test.allowedFunction2()') AS value",
-                r -> assertKeyIs( r, "value", "foo" )
+                       "RETURN test.nestedAllowedFunction('test.allowedFunction2()') AS value",
+                       r -> assertKeyIs( r, "value", "foo" )
         );
     }
 
-    //---------- clearing query cache -----------
+    /*
+    This surface is hidden in 3.1, to possibly be completely removed or reworked later
+    ==================================================================================
+     */
+
+    //---------- terminate transactions for user -----------
 
     @Test
     public void shouldNotClearQueryCachesIfNotAdmin()
@@ -1046,16 +1095,9 @@ public abstract class BuiltInProceduresInteractionTestBase<S> extends ProcedureI
     @Test
     public void shouldClearQueryCachesIfAdmin()
     {
-        assertSuccess( adminSubject,"CALL dbms.clearQueryCaches()", ResourceIterator::close );
+        assertSuccess( adminSubject, "CALL dbms.clearQueryCaches()", ResourceIterator::close );
         // any answer is okay, as long as it isn't denied. That is why we don't care about the actual result here
     }
-
-    /*
-    This surface is hidden in 3.1, to possibly be completely removed or reworked later
-    ==================================================================================
-     */
-
-    //---------- terminate transactions for user -----------
 
     //@Test
     public void shouldTerminateTransactionForUser() throws Throwable
@@ -1066,10 +1108,10 @@ public abstract class BuiltInProceduresInteractionTestBase<S> extends ProcedureI
         latch.startAndWaitForAllToStart();
 
         assertSuccess( adminSubject, "CALL dbms.terminateTransactionsForUser( 'writeSubject' )",
-                r -> assertKeyIsMap( r, "username", "transactionsTerminated", map( "writeSubject", "1" ) ) );
+                       r -> assertKeyIsMap( r, "username", "transactionsTerminated", map( "writeSubject", "1" ) ) );
 
         assertSuccess( adminSubject, "CALL dbms.listTransactions()",
-                r -> assertKeyIsMap( r, "username", "activeTransactions", map( "adminSubject", "1" ) ) );
+                       r -> assertKeyIsMap( r, "username", "activeTransactions", map( "adminSubject", "1" ) ) );
 
         latch.finishAndWaitForAllToFinish();
 
@@ -1090,11 +1132,11 @@ public abstract class BuiltInProceduresInteractionTestBase<S> extends ProcedureI
         latch.startAndWaitForAllToStart();
 
         assertSuccess( adminSubject, "CALL dbms.terminateTransactionsForUser( 'schemaSubject' )",
-                r -> assertKeyIsMap( r, "username", "transactionsTerminated", map( "schemaSubject", "1" ) ) );
+                       r -> assertKeyIsMap( r, "username", "transactionsTerminated", map( "schemaSubject", "1" ) ) );
 
         assertSuccess( adminSubject, "CALL dbms.listTransactions()",
-                r -> assertKeyIsMap( r, "username", "activeTransactions",
-                        map( "adminSubject", "1", "writeSubject", "1" ) ) );
+                       r -> assertKeyIsMap( r, "username", "activeTransactions",
+                                            map( "adminSubject", "1", "writeSubject", "1" ) ) );
 
         latch.finishAndWaitForAllToFinish();
 
@@ -1102,7 +1144,7 @@ public abstract class BuiltInProceduresInteractionTestBase<S> extends ProcedureI
         write.closeAndAssertSuccess();
 
         assertSuccess( adminSubject, "MATCH (n:Test) RETURN n.name AS name",
-                r -> assertKeyIs( r, "name", "writeSubject-node" ) );
+                       r -> assertKeyIs( r, "name", "writeSubject-node" ) );
     }
 
     //@Test
@@ -1117,10 +1159,10 @@ public abstract class BuiltInProceduresInteractionTestBase<S> extends ProcedureI
         latch.startAndWaitForAllToStart();
 
         assertSuccess( adminSubject, "CALL dbms.terminateTransactionsForUser( 'schemaSubject' )",
-                r -> assertKeyIsMap( r, "username", "transactionsTerminated", map( "schemaSubject", "2" ) ) );
+                       r -> assertKeyIsMap( r, "username", "transactionsTerminated", map( "schemaSubject", "2" ) ) );
 
         assertSuccess( adminSubject, "CALL dbms.listTransactions()",
-                r -> assertKeyIsMap( r, "username", "activeTransactions", map( "adminSubject", "1" ) ) );
+                       r -> assertKeyIsMap( r, "username", "activeTransactions", map( "adminSubject", "1" ) ) );
 
         latch.finishAndWaitForAllToFinish();
 
@@ -1134,9 +1176,9 @@ public abstract class BuiltInProceduresInteractionTestBase<S> extends ProcedureI
     public void shouldNotTerminateTerminationTransaction()
     {
         assertSuccess( adminSubject, "CALL dbms.terminateTransactionsForUser( 'adminSubject' )",
-                r -> assertKeyIsMap( r, "username", "transactionsTerminated", map( "adminSubject", "0" ) ) );
+                       r -> assertKeyIsMap( r, "username", "transactionsTerminated", map( "adminSubject", "0" ) ) );
         assertSuccess( readSubject, "CALL dbms.terminateTransactionsForUser( 'readSubject' )",
-                r -> assertKeyIsMap( r, "username", "transactionsTerminated", map( "readSubject", "0" ) ) );
+                       r -> assertKeyIsMap( r, "username", "transactionsTerminated", map( "readSubject", "0" ) ) );
     }
 
     //@Test
@@ -1161,7 +1203,7 @@ public abstract class BuiltInProceduresInteractionTestBase<S> extends ProcedureI
 
         String subjectName = neo.nameOf( subject );
         assertSuccess( subject, "CALL dbms.terminateTransactionsForUser( '" + subjectName + "' )",
-                r -> assertKeyIsMap( r, "username", "transactionsTerminated", map( subjectName, "1" ) ) );
+                       r -> assertKeyIsMap( r, "username", "transactionsTerminated", map( subjectName, "1" ) ) );
 
         latch.finishAndWaitForAllToFinish();
 
@@ -1191,14 +1233,14 @@ public abstract class BuiltInProceduresInteractionTestBase<S> extends ProcedureI
         assertFail( schemaSubject, "CALL dbms.terminateTransactionsForUser( 'writeSubject' )", PERMISSION_DENIED );
 
         assertSuccess( adminSubject, "CALL dbms.listTransactions()",
-                r -> assertKeyIs( r, "username", "adminSubject", "writeSubject" ) );
+                       r -> assertKeyIs( r, "username", "adminSubject", "writeSubject" ) );
 
         latch.finishAndWaitForAllToFinish();
 
         write.closeAndAssertSuccess();
 
         assertSuccess( adminSubject, "MATCH (n:Test) RETURN n.name AS name",
-                r -> assertKeyIs( r, "name", "writeSubject-node" ) );
+                       r -> assertKeyIs( r, "name", "writeSubject-node" ) );
     }
 
     //@Test
@@ -1216,7 +1258,7 @@ public abstract class BuiltInProceduresInteractionTestBase<S> extends ProcedureI
         try
         {
             assertSuccess( adminSubject, "CALL dbms.terminateTransactionsForUser( 'writeSubject' )",
-                    r -> assertKeyIsMap( r, "username", "transactionsTerminated", map( "writeSubject", "1" ) ) );
+                           r -> assertKeyIsMap( r, "username", "transactionsTerminated", map( "writeSubject", "1" ) ) );
         }
         finally
         {
@@ -1224,13 +1266,21 @@ public abstract class BuiltInProceduresInteractionTestBase<S> extends ProcedureI
         }
     }
 
+    /*
+    ==================================================================================
+     */
+
+    //---------- jetty helpers for serving CSV files -----------
+
     private void assertQueryIsRunning( String query ) throws InterruptedException
     {
         assertEventually( "Query did not appear in dbms.listQueries output",
-                () -> queryIsRunning( query ),
-                equalTo( true ),
-                1, TimeUnit.MINUTES );
+                          () -> queryIsRunning( query ),
+                          equalTo( true ),
+                          1, TimeUnit.MINUTES );
     }
+
+    //---------- matchers-----------
 
     private boolean queryIsRunning( String targetQuery )
     {
@@ -1240,19 +1290,10 @@ public abstract class BuiltInProceduresInteractionTestBase<S> extends ProcedureI
         return resultIsNotEmpty.booleanValue();
     }
 
-    /*
-    ==================================================================================
-     */
-
-    //---------- jetty helpers for serving CSV files -----------
-
     private int getLocalPort( Server server )
     {
         return ((ServerConnector) (server.getConnectors()[0])).getLocalPort();
-
     }
-
-    //---------- matchers-----------
 
     private Matcher<Map<String,Object>> listedTransactionOfInteractionLevel( OffsetDateTime startTime, String
             username, String currentQuery )
@@ -1291,7 +1332,7 @@ public abstract class BuiltInProceduresInteractionTestBase<S> extends ProcedureI
      * Executes a query through the NeoInteractionLevel required
      */
     private Matcher<Map<String,Object>> listedQueryOfInteractionLevel( OffsetDateTime startTime, String username,
-            String query )
+                                                                       String query )
     {
         return allOf(
                 hasQuery( query ),
@@ -1304,7 +1345,7 @@ public abstract class BuiltInProceduresInteractionTestBase<S> extends ProcedureI
     }
 
     private Matcher<Map<String,Object>> listedQueryWithMetaData( OffsetDateTime startTime, String username,
-            String query, Map<String,Object> metaData )
+                                                                 String query, Map<String,Object> metaData )
     {
         return allOf(
                 hasQuery( query ),
@@ -1317,7 +1358,7 @@ public abstract class BuiltInProceduresInteractionTestBase<S> extends ProcedureI
     }
 
     private Matcher<Map<String,Object>> listedTransactionWithMetaData( OffsetDateTime startTime, String username,
-            String currentQuery, Map<String,Object> metaData )
+                                                                       String currentQuery, Map<String,Object> metaData )
     {
         return allOf(
                 hasCurrentQuery( currentQuery ),
@@ -1434,47 +1475,5 @@ public abstract class BuiltInProceduresInteractionTestBase<S> extends ProcedureI
             transformed.add( transformedMap );
         }
         return transformed;
-    }
-
-    public static Server createHttpServer(
-            DoubleLatch latch, Barrier.Control innerBarrier, int firstBatchSize, int otherBatchSize )
-    {
-        Server server = new Server( 0 );
-        server.setHandler( new AbstractHandler()
-        {
-            @Override
-            public void handle(
-                    String target, Request baseRequest, HttpServletRequest request, HttpServletResponse response )
-                    throws IOException
-            {
-                response.setContentType( "text/plain; charset=utf-8" );
-                response.setStatus( HttpServletResponse.SC_OK );
-                PrintWriter out = response.getWriter();
-
-                writeBatch( out, firstBatchSize );
-                out.flush();
-                latch.start();
-                innerBarrier.reached();
-
-                latch.finish();
-                writeBatch( out, otherBatchSize );
-                baseRequest.setHandled(true);
-            }
-
-            private void writeBatch( PrintWriter out, int batchSize )
-            {
-                for ( int i = 0; i < batchSize; i++ )
-                {
-                    out.write( format( "%d %d\n", i, i * i ) );
-                    i++;
-                }
-            }
-        } );
-        return server;
-    }
-
-    private static OffsetDateTime getStartTime()
-    {
-        return ofInstant( Instant.ofEpochMilli( now().toEpochSecond() ), ZoneOffset.UTC );
     }
 }

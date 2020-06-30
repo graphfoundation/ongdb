@@ -25,12 +25,6 @@ import org.neo4j.kernel.impl.util.ValueUtils;
 public class BoltConfiguredProceduresIT extends ConfiguredProceduresTestBase<BoltInteraction.BoltSubject>
 {
 
-    @Override
-    protected Object valueOf( Object obj )
-    {
-        return ValueUtils.of( obj );
-    }
-
     public BoltConfiguredProceduresIT()
     {
         super();
@@ -38,7 +32,13 @@ public class BoltConfiguredProceduresIT extends ConfiguredProceduresTestBase<Bol
     }
 
     @Override
-    public NeoInteractionLevel<BoltInteraction.BoltSubject> setUpNeoServer( Map<String, String> config )
+    protected Object valueOf( Object obj )
+    {
+        return ValueUtils.of( obj );
+    }
+
+    @Override
+    public NeoInteractionLevel<BoltInteraction.BoltSubject> setUpNeoServer( Map<String,String> config )
     {
         return new BoltInteraction( config );
     }

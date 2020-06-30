@@ -32,7 +32,7 @@ public class BoltBuiltInProceduresInteractionIT extends BuiltInProceduresInterac
     }
 
     @Override
-    public NeoInteractionLevel<BoltInteraction.BoltSubject> setUpNeoServer( Map<String, String> config )
+    public NeoInteractionLevel<BoltInteraction.BoltSubject> setUpNeoServer( Map<String,String> config )
     {
         return new BoltInteraction( config );
     }
@@ -40,6 +40,6 @@ public class BoltBuiltInProceduresInteractionIT extends BuiltInProceduresInterac
     @Override
     protected Object valueOf( Object obj )
     {
-       return ValueUtils.of( obj );
+        return ValueUtils.of( obj );
     }
 }

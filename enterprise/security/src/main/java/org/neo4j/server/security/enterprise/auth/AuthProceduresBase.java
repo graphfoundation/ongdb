@@ -19,86 +19,70 @@
 package org.neo4j.server.security.enterprise.auth;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
-import java.util.Objects;
 import java.util.Set;
 
-import org.neo4j.kernel.api.KernelTransaction;
-import org.neo4j.kernel.api.KernelTransactionHandle;
-import org.neo4j.kernel.api.exceptions.Status;
-import org.neo4j.kernel.api.net.NetworkConnectionTracker;
-import org.neo4j.kernel.api.net.TrackedNetworkConnection;
+import org.neo4j.graphdb.Transaction;
+import org.neo4j.internal.kernel.api.security.AuthenticationResult;
 import org.neo4j.kernel.enterprise.api.security.EnterpriseSecurityContext;
-import org.neo4j.kernel.impl.api.KernelTransactions;
-import org.neo4j.kernel.impl.core.ThreadToStatementContextBridge;
-import org.neo4j.kernel.impl.security.User;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
 import org.neo4j.procedure.Context;
 import org.neo4j.server.security.enterprise.log.SecurityLog;
 
-import static java.util.Collections.emptyList;
-
-@SuppressWarnings( "WeakerAccess" )
 public class AuthProceduresBase
 {
     @Context
     public EnterpriseSecurityContext securityContext;
-
     @Context
     public GraphDatabaseAPI graph;
-
+    @Context
+    public Transaction transaction;
     @Context
     public SecurityLog securityLog;
 
-    @Context
-    public EnterpriseUserManager userManager;
-
-    // ----------------- helpers ---------------------
-
-    protected void kickoutUser( String username, String reason )
+    protected AuthProceduresBase.UserResult userResultForSubject()
     {
-        try
+        String username = this.securityContext.subject().username();
+        boolean changeReq = this.securityContext.subject().getAuthenticationResult().equals( AuthenticationResult.PASSWORD_CHANGE_REQUIRED );
+        return new AuthProceduresBase.UserResult( username, this.securityContext.roles(), changeReq, false );
+    }
+
+    public static class RoleResult
+    {
+        public final String role;
+        public final List<String> users;
+
+        RoleResult( String role, Set<String> users )
         {
-            terminateTransactionsForValidUser( username );
-            terminateConnectionsForValidUser( username );
+            this.role = role;
+            this.users = new ArrayList();
+            this.users.addAll( users );
         }
-        catch ( Exception e )
+    }
+
+    public static class UserResult
+    {
+        public final String username;
+        public final List<String> roles;
+        public final List<String> flags;
+
+        UserResult( String username, Collection<String> roles, boolean changeRequired, boolean suspended )
         {
-            securityLog.error( securityContext.subject(), "failed to terminate running transaction and bolt connections for " +
-                    "user `%s` following %s: %s", username, reason, e.getMessage() );
-            throw e;
+            this.username = username;
+            this.roles = new ArrayList();
+            this.roles.addAll( roles );
+            this.flags = new ArrayList();
+            if ( changeRequired )
+            {
+                this.flags.add( "password_change_required" );
+            }
+
+            if ( suspended )
+            {
+                this.flags.add( "is_suspended" );
+            }
         }
-    }
-
-    protected void terminateTransactionsForValidUser( String username )
-    {
-        KernelTransaction currentTx = getCurrentTx();
-        getActiveTransactions()
-                .stream()
-                .filter( tx ->
-                     tx.subject().hasUsername( username ) &&
-                    !tx.isUnderlyingTransaction( currentTx )
-                ).forEach( tx -> tx.markForTermination( Status.Transaction.Terminated ) );
-    }
-
-    protected void terminateConnectionsForValidUser( String username )
-    {
-        NetworkConnectionTracker connectionTracker = graph.getDependencyResolver().resolveDependency( NetworkConnectionTracker.class );
-        connectionTracker.activeConnections()
-                .stream()
-                .filter( connection -> Objects.equals( username, connection.username() ) )
-                .forEach( TrackedNetworkConnection::close );
-    }
-
-    private Set<KernelTransactionHandle> getActiveTransactions()
-    {
-        return graph.getDependencyResolver().resolveDependency( KernelTransactions.class ).activeTransactions();
-    }
-
-    private KernelTransaction getCurrentTx()
-    {
-        return graph.getDependencyResolver().resolveDependency( ThreadToStatementContextBridge.class )
-                .getKernelTransactionBoundToThisThread( true );
     }
 
     public static class StringResult
@@ -110,64 +94,5 @@ public class AuthProceduresBase
             this.value = value;
         }
     }
-
-    protected UserResult userResultForSubject()
-    {
-        String username = securityContext.subject().username();
-        User user = userManager.silentlyGetUser( username );
-        Iterable<String> flags = user == null ? emptyList() : user.getFlags();
-        return new UserResult( username, securityContext.roles(), flags );
-    }
-
-    protected UserResult userResultForName( String username )
-    {
-        if ( username.equals( securityContext.subject().username() ) )
-        {
-            return userResultForSubject();
-        }
-        else
-        {
-            User user = userManager.silentlyGetUser( username );
-            Iterable<String> flags = user == null ? emptyList() : user.getFlags();
-            Set<String> roles = userManager.silentlyGetRoleNamesForUser( username );
-            return new UserResult( username, roles, flags );
-        }
-    }
-
-    public static class UserResult
-    {
-        public final String username;
-        public final List<String> roles;
-        public final List<String> flags;
-
-        UserResult( String username, Set<String> roles, Iterable<String> flags )
-        {
-            this.username = username;
-            this.roles = new ArrayList<>();
-            this.roles.addAll( roles );
-            this.flags = new ArrayList<>();
-            for ( String f : flags )
-            {
-                this.flags.add( f );
-            }
-        }
-    }
-
-    protected RoleResult roleResultForName( String roleName )
-    {
-        return new RoleResult( roleName, userManager.silentlyGetUsernamesForRole( roleName ) );
-    }
-
-    public static class RoleResult
-    {
-        public final String role;
-        public final List<String> users;
-
-        RoleResult( String role, Set<String> users )
-        {
-            this.role = role;
-            this.users = new ArrayList<>();
-            this.users.addAll( users );
-        }
-    }
 }
+

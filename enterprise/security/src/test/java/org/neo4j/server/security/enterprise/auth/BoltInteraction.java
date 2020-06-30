@@ -61,7 +61,6 @@ import org.neo4j.values.storable.Values;
 import org.neo4j.values.virtual.ListValue;
 import org.neo4j.values.virtual.MapValue;
 
-import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.neo4j.bolt.v1.transport.integration.TransportTestUtil.eventuallyReceives;
@@ -93,16 +92,16 @@ class BoltInteraction implements NeoInteractionLevel<BoltInteraction.BoltSubject
         TestEnterpriseGraphDatabaseFactory factory = new TestEnterpriseGraphDatabaseFactory();
         fileSystem = fileSystemSupplier.get();
         server = new Neo4jWithSocket( getClass(),
-                factory,
-                () -> fileSystem,
-                settings ->
-                {
-                    settings.put( GraphDatabaseSettings.auth_enabled.name(), "true" );
-                    settings.putAll( config );
-                } );
+                                      factory,
+                                      () -> fileSystem,
+                                      settings ->
+                                      {
+                                          settings.put( GraphDatabaseSettings.auth_enabled.name(), "true" );
+                                          settings.putAll( config );
+                                      } );
         server.ensureDatabase( r ->
-        {
-        } );
+                               {
+                               } );
         GraphDatabaseFacade db = (GraphDatabaseFacade) server.graphDatabaseService();
         authManager = db.getDependencyResolver().resolveDependency( EnterpriseAuthManager.class );
     }
@@ -139,7 +138,7 @@ class BoltInteraction implements NeoInteractionLevel<BoltInteraction.BoltSubject
 
     @Override
     public String executeQuery( BoltSubject subject, String call, Map<String,Object> params,
-            Consumer<ResourceIterator<Map<String,Object>>> resultConsumer )
+                                Consumer<ResourceIterator<Map<String,Object>>> resultConsumer )
     {
         if ( params == null )
         {
@@ -172,10 +171,10 @@ class BoltInteraction implements NeoInteractionLevel<BoltInteraction.BoltSubject
             subject.client = connectionFactory.newInstance();
         }
         subject.client.connect( server.lookupDefaultConnector() )
-                .send( util.acceptedVersions( 1, 0, 0, 0 ) )
-                .send( util.chunk( new InitMessage( "TestClient/1.1",
-                        map( REALM_KEY, NATIVE_REALM, PRINCIPAL, username, CREDENTIALS, password,
-                                SCHEME_KEY, BASIC_SCHEME ) ) ) );
+                      .send( util.acceptedVersions( 1, 0, 0, 0 ) )
+                      .send( util.chunk( new InitMessage( "TestClient/1.1",
+                                                          map( REALM_KEY, NATIVE_REALM, PRINCIPAL, username, CREDENTIALS, password,
+                                                               SCHEME_KEY, BASIC_SCHEME ) ) ) );
         assertThat( subject.client, eventuallyReceives( new byte[]{0, 0, 0, 1} ) );
         subject.setLoginResult( util.receiveOneResponseMessage( subject.client ) );
         return subject;

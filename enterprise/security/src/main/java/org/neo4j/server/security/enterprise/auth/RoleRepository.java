@@ -24,9 +24,9 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.neo4j.kernel.api.exceptions.InvalidArgumentsException;
+import org.neo4j.kernel.impl.security.User;
 import org.neo4j.kernel.lifecycle.Lifecycle;
 import org.neo4j.server.security.auth.ListSnapshot;
-import org.neo4j.kernel.impl.security.User;
 import org.neo4j.server.security.auth.exception.ConcurrentModificationException;
 
 /**
@@ -34,6 +34,15 @@ import org.neo4j.server.security.auth.exception.ConcurrentModificationException;
  */
 public interface RoleRepository extends Lifecycle
 {
+    static boolean validate( List<User> users, List<RoleRecord> roles )
+    {
+        Set<String> usernamesInRoles = roles.stream()
+                                            .flatMap( rr -> rr.users().stream() )
+                                            .collect( Collectors.toSet() );
+        Set<String> usernameInUsers = users.stream().map( User::name ).collect( Collectors.toSet() );
+        return usernameInUsers.containsAll( usernamesInRoles );
+    }
+
     RoleRecord getRoleByName( String roleName );
 
     Set<String> getRoleNamesByUsername( String username );
@@ -53,9 +62,10 @@ public interface RoleRepository extends Lifecycle
 
     /**
      * Replaces the roles in the repository with the given roles.
+     *
      * @param roles the new roles
      * @throws InvalidArgumentsException if any role name is not valid
-     * @throws IOException if the underlying storage for roles fails
+     * @throws IOException               if the underlying storage for roles fails
      */
     void setRoles( ListSnapshot<RoleRecord> roles ) throws InvalidArgumentsException;
 
@@ -63,7 +73,7 @@ public interface RoleRepository extends Lifecycle
      * Update a role, given that the role token is unique.
      *
      * @param existingRole the existing role object, which must match the current state in this repository
-     * @param updatedRole the updated role object
+     * @param updatedRole  the updated role object
      * @throws ConcurrentModificationException if the existingRole does not match the current state in the repository
      */
     void update( RoleRecord existingRole, RoleRecord updatedRole )
@@ -80,8 +90,8 @@ public interface RoleRepository extends Lifecycle
     int numberOfRoles();
 
     /**
-     * Asserts whether the given role name is valid or not. A valid role name is non-null, non-empty, and contains
-     * only simple ascii characters.
+     * Asserts whether the given role name is valid or not. A valid role name is non-null, non-empty, and contains only simple ascii characters.
+     *
      * @param roleName the role name to be tested.
      * @throws InvalidArgumentsException if the role name was invalid.
      */
@@ -94,6 +104,7 @@ public interface RoleRepository extends Lifecycle
 
     /**
      * Returns a snapshot of the current persisted role repository
+     *
      * @return a snapshot of the current persisted role repository
      * @throws IOException
      */
@@ -101,22 +112,15 @@ public interface RoleRepository extends Lifecycle
 
     /**
      * Permanently deletes all data in this repository
+     *
      * @throws IOException
      */
     void purge() throws IOException;
 
     /**
      * Mark this repository as migrated to prevent accidental use.
+     *
      * @throws IOException
      */
     void markAsMigrated() throws IOException;
-
-    static boolean validate( List<User> users, List<RoleRecord> roles )
-    {
-        Set<String> usernamesInRoles = roles.stream()
-                .flatMap( rr -> rr.users().stream() )
-                .collect( Collectors.toSet() );
-        Set<String> usernameInUsers = users.stream().map( User::name ).collect( Collectors.toSet() );
-        return usernameInUsers.containsAll( usernamesInRoles );
-    }
 }

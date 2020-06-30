@@ -19,7 +19,6 @@
 package org.neo4j.server.security.enterprise.auth;
 
 import org.apache.shiro.authc.AuthenticationException;
-import org.apache.shiro.authc.AuthenticationInfo;
 import org.apache.shiro.authc.ExcessiveAttemptsException;
 import org.apache.shiro.authc.pam.ModularRealmAuthenticator;
 import org.apache.shiro.authc.pam.UnsupportedTokenException;
@@ -36,57 +35,47 @@ import org.apache.shiro.realm.CachingRealm;
 import org.apache.shiro.realm.Realm;
 import org.apache.shiro.subject.PrincipalCollection;
 import org.apache.shiro.util.Initializable;
-import org.eclipse.collections.api.set.primitive.MutableIntSet;
-import org.eclipse.collections.impl.set.mutable.primitive.IntHashSet;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.IntPredicate;
-import java.util.function.ToIntFunction;
 
 import org.neo4j.graphdb.security.AuthProviderFailedException;
 import org.neo4j.graphdb.security.AuthProviderTimeoutException;
-import org.neo4j.internal.kernel.api.security.AuthSubject;
+import org.neo4j.internal.helpers.Strings;
 import org.neo4j.internal.kernel.api.security.AuthenticationResult;
+import org.neo4j.internal.kernel.api.security.SecurityContext;
 import org.neo4j.kernel.api.security.AuthToken;
 import org.neo4j.kernel.api.security.exception.InvalidAuthTokenException;
+import org.neo4j.kernel.enterprise.api.security.EnterpriseAuthManager;
 import org.neo4j.kernel.enterprise.api.security.EnterpriseLoginContext;
+import org.neo4j.server.security.auth.ShiroAuthToken;
 import org.neo4j.server.security.enterprise.log.SecurityLog;
 
-import static org.neo4j.helpers.Strings.escape;
-import static org.neo4j.kernel.api.security.AuthToken.invalidToken;
-
-class MultiRealmAuthManager implements EnterpriseAuthAndUserManager
+public class MultiRealmAuthManager implements EnterpriseAuthManager
 {
-    private final EnterpriseUserManager userManager;
+    private final EnterpriseSystemGraphRealm enterpriseSystemGraphRealm;
     private final Collection<Realm> realms;
     private final DefaultSecurityManager securityManager;
     private final CacheManager cacheManager;
     private final SecurityLog securityLog;
     private final boolean logSuccessfulLogin;
-    private final boolean propertyAuthorization;
-    private final Map<String,List<String>> roleToPropertyBlacklist;
 
-    MultiRealmAuthManager( EnterpriseUserManager userManager, Collection<Realm> realms, CacheManager cacheManager,
-            SecurityLog securityLog, boolean logSuccessfulLogin, boolean propertyAuthorization, Map<String,List<String>> roleToPropertyBlacklist )
+    public MultiRealmAuthManager( EnterpriseSystemGraphRealm enterpriseSystemGraphRealm, Collection<Realm> realms, CacheManager cacheManager,
+                                  SecurityLog securityLog,
+                                  boolean logSuccessfulLogin )
     {
-        this.userManager = userManager;
+        this.enterpriseSystemGraphRealm = enterpriseSystemGraphRealm;
         this.realms = realms;
         this.cacheManager = cacheManager;
-
-        securityManager = new DefaultSecurityManager( realms );
+        this.securityManager = new DefaultSecurityManager( realms );
         this.securityLog = securityLog;
         this.logSuccessfulLogin = logSuccessfulLogin;
-        this.propertyAuthorization = propertyAuthorization;
-        this.roleToPropertyBlacklist = roleToPropertyBlacklist;
-        securityManager.setSubjectFactory( new ShiroSubjectFactory() );
-        ((ModularRealmAuthenticator) securityManager.getAuthenticator())
-                .setAuthenticationStrategy( new ShiroAuthenticationStrategy() );
-
-        securityManager.setSubjectDAO( createSubjectDAO() );
+        this.securityManager.setSubjectFactory( new ShiroSubjectFactory() );
+        ((ModularRealmAuthenticator) this.securityManager.getAuthenticator()).setAuthenticationStrategy( new ShiroAuthenticationStrategy() );
+        this.securityManager.setSubjectDAO( this.createSubjectDAO() );
     }
 
     private SubjectDAO createSubjectDAO()
@@ -98,85 +87,81 @@ class MultiRealmAuthManager implements EnterpriseAuthAndUserManager
         return subjectDAO;
     }
 
-    @Override
     public EnterpriseLoginContext login( Map<String,Object> authToken ) throws InvalidAuthTokenException
     {
+        StandardEnterpriseLoginContext standardEnterpriseLoginContext;
         try
         {
-            EnterpriseLoginContext securityContext;
-
             ShiroAuthToken token = new ShiroAuthToken( authToken );
-            assertValidScheme( token );
+            this.assertValidScheme( token );
 
+            StandardEnterpriseLoginContext securityContext;
+            Throwable cause;
             try
             {
-                securityContext = new StandardEnterpriseLoginContext(
-                        this, (ShiroSubject) securityManager.login( null, token ) );
+                securityContext = new StandardEnterpriseLoginContext( this, (ShiroSubject) this.securityManager.login( null, token ) );
                 AuthenticationResult authenticationResult = securityContext.subject().getAuthenticationResult();
                 if ( authenticationResult == AuthenticationResult.SUCCESS )
                 {
-                    if ( logSuccessfulLogin )
+                    if ( this.logSuccessfulLogin )
                     {
-                        securityLog.info( securityContext.subject(), "logged in" );
+                        this.securityLog.info( securityContext.subject(), "logged in" );
                     }
                 }
                 else if ( authenticationResult == AuthenticationResult.PASSWORD_CHANGE_REQUIRED )
                 {
-                    securityLog.info( securityContext.subject(), "logged in (password change required)" );
+                    this.securityLog.info( securityContext.subject(), "logged in (password change required)" );
                 }
                 else
                 {
-                    String errorMessage = ((StandardEnterpriseLoginContext.NeoShiroSubject) securityContext.subject())
-                            .getAuthenticationFailureMessage();
-                    securityLog.error( "[%s]: failed to log in: %s", escape( token.getPrincipal().toString() ), errorMessage );
+                    String errorMessage = ((StandardEnterpriseLoginContext.NeoShiroSubject) securityContext.subject()).getAuthenticationFailureMessage();
+                    this.securityLog.error( "[%s]: failed to log in: %s", Strings.escape( token.getPrincipal().toString() ), errorMessage );
                 }
-                // No need to keep full Shiro authentication info around on the subject
+
                 ((StandardEnterpriseLoginContext.NeoShiroSubject) securityContext.subject()).clearAuthenticationInfo();
             }
             catch ( UnsupportedTokenException e )
             {
-                securityLog.error( "Unknown user failed to log in: %s", e.getMessage() );
-                Throwable cause = e.getCause();
+                this.securityLog.error( "Unknown user failed to log in: %s", e.getMessage() );
+                cause = e.getCause();
                 if ( cause instanceof InvalidAuthTokenException )
                 {
+
                     throw new InvalidAuthTokenException( cause.getMessage() + ": " + token );
                 }
-                throw invalidToken( ": " + token );
+
+                throw AuthToken.invalidToken( ": " + token );
             }
             catch ( ExcessiveAttemptsException e )
             {
-                // NOTE: We only get this with single (internal) realm authentication
-                securityContext = new StandardEnterpriseLoginContext( this,
-                        new ShiroSubject( securityManager, AuthenticationResult.TOO_MANY_ATTEMPTS ) );
-                securityLog.error( "[%s]: failed to log in: too many failed attempts",
-                        escape( token.getPrincipal().toString() ) );
+                securityContext = new StandardEnterpriseLoginContext( this, new ShiroSubject( this.securityManager, AuthenticationResult.TOO_MANY_ATTEMPTS ) );
+                this.securityLog.error( "[%s]: failed to log in: too many failed attempts", Strings.escape( token.getPrincipal().toString() ) );
             }
             catch ( AuthenticationException e )
             {
                 if ( e.getCause() != null && e.getCause() instanceof AuthProviderTimeoutException )
                 {
-                    Throwable cause = e.getCause().getCause();
-                    securityLog.error( "[%s]: failed to log in: auth server timeout%s",
-                            escape( token.getPrincipal().toString() ),
-                            cause != null && cause.getMessage() != null ? " (" + cause.getMessage() + ")" : "" );
+                    cause = e.getCause().getCause();
+                    this.securityLog.error( "[%s]: failed to log in: auth server timeout%s", Strings.escape( token.getPrincipal().toString() ),
+                                            cause != null && cause.getMessage() != null ? " (" + cause.getMessage() + ")" : "" );
                     throw new AuthProviderTimeoutException( e.getCause().getMessage(), e.getCause() );
                 }
-                else if ( e.getCause() != null && e.getCause() instanceof AuthProviderFailedException )
+
+                if ( e.getCause() != null && e.getCause() instanceof AuthProviderFailedException )
                 {
-                    Throwable cause = e.getCause().getCause();
-                    securityLog.error( "[%s]: failed to log in: auth server connection refused%s",
-                            escape( token.getPrincipal().toString() ),
-                            cause != null && cause.getMessage() != null ? " (" + cause.getMessage() + ")" : "" );
+                    cause = e.getCause().getCause();
+                    this.securityLog.error( "[%s]: failed to log in: auth server connection refused%s", Strings.escape( token.getPrincipal().toString() ),
+                                            cause != null && cause.getMessage() != null ? " (" + cause.getMessage() + ")" : "" );
                     throw new AuthProviderFailedException( e.getCause().getMessage(), e.getCause() );
                 }
-                securityContext = new StandardEnterpriseLoginContext( this,
-                        new ShiroSubject( securityManager, AuthenticationResult.FAILURE ) );
-                Throwable cause = e.getCause();
+
+                securityContext = new StandardEnterpriseLoginContext( this, new ShiroSubject( this.securityManager, AuthenticationResult.FAILURE ) );
+                cause = e.getCause();
                 Throwable causeCause = e.getCause() != null ? e.getCause().getCause() : null;
                 String errorMessage = String.format( "invalid principal or credentials%s%s",
-                        cause != null && cause.getMessage() != null ? " (" + cause.getMessage() + ")" : "",
-                        causeCause != null && causeCause.getMessage() != null ? " (" + causeCause.getMessage() + ")" : "" );
-                securityLog.error( "[%s]: failed to log in: %s", escape( token.getPrincipal().toString() ), errorMessage );
+                                                     cause != null && cause.getMessage() != null ? " (" + cause.getMessage() + ")" : "",
+                                                     causeCause != null && causeCause.getMessage() != null ? " (" + causeCause.getMessage() + ")" : "" );
+                this.securityLog.error( "[%s]: failed to log in: %s", Strings.escape( token.getPrincipal().toString() ), errorMessage );
             }
 
             return securityContext;
@@ -187,53 +172,84 @@ class MultiRealmAuthManager implements EnterpriseAuthAndUserManager
         }
     }
 
+    public void log( String message, SecurityContext securityContext )
+    {
+        this.securityLog.info( securityContext.subject(), message );
+    }
+
     private void assertValidScheme( ShiroAuthToken token ) throws InvalidAuthTokenException
     {
         String scheme = token.getSchemeSilently();
         if ( scheme == null )
         {
-            throw invalidToken( "missing key `scheme`: " + token );
+            throw AuthToken.invalidToken( "missing key `scheme`: " + token );
         }
         else if ( scheme.equals( "none" ) )
         {
-            throw invalidToken( "scheme='none' only allowed when auth is disabled: " + token );
+            throw AuthToken.invalidToken( "scheme='none' only allowed when auth is disabled: " + token );
         }
     }
 
-    @Override
-    public void init() throws Throwable
+    public void init() throws Exception
     {
+        boolean initUserManager = true;
+
         for ( Realm realm : realms )
         {
+
+            if ( this.enterpriseSystemGraphRealm == realm )
+            {
+                initUserManager = false;
+            }
+
             if ( realm instanceof Initializable )
             {
                 ((Initializable) realm).init();
             }
+
             if ( realm instanceof CachingRealm )
             {
-                ((CachingRealm) realm).setCacheManager( cacheManager );
+                ((CachingRealm) realm).setCacheManager( this.cacheManager );
             }
+
             if ( realm instanceof RealmLifecycle )
             {
                 ((RealmLifecycle) realm).initialize();
             }
         }
+
+        if ( initUserManager )
+        {
+            this.enterpriseSystemGraphRealm.init();
+            this.enterpriseSystemGraphRealm.setCacheManager( this.cacheManager );
+            this.enterpriseSystemGraphRealm.initialize();
+        }
     }
 
-    @Override
-    public void start() throws Throwable
+    public void start() throws Exception
     {
+        boolean startUserManager = true;
+
         for ( Realm realm : realms )
         {
+            if ( this.enterpriseSystemGraphRealm == realm )
+            {
+                startUserManager = false;
+            }
+
             if ( realm instanceof RealmLifecycle )
             {
                 ((RealmLifecycle) realm).start();
             }
         }
+
+        if ( startUserManager )
+        {
+            this.enterpriseSystemGraphRealm.start();
+        }
     }
 
-    @Override
-    public void stop() throws Throwable
+    public void stop() throws Exception
     {
         for ( Realm realm : realms )
         {
@@ -244,8 +260,7 @@ class MultiRealmAuthManager implements EnterpriseAuthAndUserManager
         }
     }
 
-    @Override
-    public void shutdown() throws Throwable
+    public void shutdown() throws Exception
     {
         for ( Realm realm : realms )
         {
@@ -253,6 +268,7 @@ class MultiRealmAuthManager implements EnterpriseAuthAndUserManager
             {
                 ((CachingRealm) realm).setCacheManager( null );
             }
+
             if ( realm instanceof RealmLifecycle )
             {
                 ((RealmLifecycle) realm).shutdown();
@@ -260,89 +276,53 @@ class MultiRealmAuthManager implements EnterpriseAuthAndUserManager
         }
     }
 
-    @Override
-    public EnterpriseUserManager getUserManager( AuthSubject authSubject, boolean isUserManager )
-    {
-        return new PersonalUserManager( userManager, authSubject, securityLog, isUserManager );
-    }
-
-    @Override
-    public EnterpriseUserManager getUserManager()
-    {
-        return userManager;
-    }
-
-    @Override
     public void clearAuthCache()
     {
+        Cache cache;
         for ( Realm realm : realms )
         {
             if ( realm instanceof AuthenticatingRealm )
             {
-                Cache<Object,AuthenticationInfo> cache = ((AuthenticatingRealm) realm).getAuthenticationCache();
+                cache = ((AuthenticatingRealm) realm).getAuthenticationCache();
                 if ( cache != null )
                 {
                     cache.clear();
                 }
             }
+
             if ( realm instanceof AuthorizingRealm )
             {
-                Cache<Object,AuthorizationInfo> cache = ((AuthorizingRealm) realm).getAuthorizationCache();
+                cache = ((AuthorizingRealm) realm).getAuthorizationCache();
                 if ( cache != null )
                 {
                     cache.clear();
                 }
             }
         }
+
+        this.enterpriseSystemGraphRealm.invalidatePrivilegeCache();
     }
 
-    public Collection<AuthorizationInfo> getAuthorizationInfo( PrincipalCollection principalCollection )
+    Collection<AuthorizationInfo> getAuthorizationInfo( PrincipalCollection principalCollection )
     {
-        List<AuthorizationInfo> infoList = new ArrayList<>( 1 );
+        List<AuthorizationInfo> infoList = new ArrayList( 1 );
         for ( Realm realm : realms )
         {
             if ( realm instanceof ShiroAuthorizationInfoProvider )
             {
-                AuthorizationInfo info = ((ShiroAuthorizationInfoProvider) realm)
-                        .getAuthorizationInfoSnapshot( principalCollection );
+                AuthorizationInfo info = ((ShiroAuthorizationInfoProvider) realm).getAuthorizationInfoSnapshot( principalCollection );
                 if ( info != null )
                 {
                     infoList.add( info );
                 }
             }
         }
+
         return infoList;
     }
 
-    IntPredicate getPropertyPermissions( Set<String> roles, ToIntFunction<String> tokenLookup )
+    Set<SecurityResourcePrivilege> getPermissions( Set<String> roles )
     {
-        if ( propertyAuthorization )
-        {
-            final MutableIntSet blackListed = new IntHashSet();
-            for ( String role : roles )
-            {
-                if ( roleToPropertyBlacklist.containsKey( role ) )
-                {
-                    assert roleToPropertyBlacklist.get( role ) != null : "Blacklist has to contain properties";
-                    for ( String propName : roleToPropertyBlacklist.get( role ) )
-                    {
-
-                        try
-                        {
-                            blackListed.add( tokenLookup.applyAsInt( propName ) );
-                        }
-                        catch ( Exception e )
-                        {
-                            securityLog.error( "Error in setting up property permissions, '" + propName + "' is not a valid property name." );
-                        }
-                    }
-                }
-            }
-            return property -> !blackListed.contains( property );
-        }
-        else
-        {
-            return property -> true;
-        }
+        return this.enterpriseSystemGraphRealm.getPrivilegesForRoles( roles );
     }
 }

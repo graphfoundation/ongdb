@@ -56,15 +56,13 @@ import static org.junit.Assert.fail;
 
 public class InternalFlatFileRealmIT
 {
+    private static int LARGE_NUMBER = 123;
     File userStoreFile;
     File roleStoreFile;
-
     TestJobScheduler jobScheduler = new TestJobScheduler();
     LogProvider logProvider = NullLogProvider.getInstance();
     InternalFlatFileRealm realm;
     EvilFileSystem fs;
-
-    private static int LARGE_NUMBER = 123;
 
     @Before
     public void setup() throws Throwable
@@ -75,14 +73,14 @@ public class InternalFlatFileRealmIT
         final UserRepository userRepository = new FileUserRepository( fs, userStoreFile, logProvider );
         final RoleRepository roleRepository = new FileRoleRepository( fs, roleStoreFile, logProvider );
         final UserRepository initialUserRepository = CommunitySecurityModule.getInitialUserRepository( Config
-                .defaults(), logProvider, fs );
+                                                                                                               .defaults(), logProvider, fs );
         final UserRepository defaultAdminRepository = EnterpriseSecurityModule.getDefaultAdminRepository( Config
-                .defaults(), logProvider, fs );
+                                                                                                                  .defaults(), logProvider, fs );
         final PasswordPolicy passwordPolicy = new BasicPasswordPolicy();
         AuthenticationStrategy authenticationStrategy = new RateLimitedAuthenticationStrategy( Clocks.systemClock(), Config.defaults() );
 
         realm = new InternalFlatFileRealm( userRepository, roleRepository, passwordPolicy, authenticationStrategy,
-                        true, true, jobScheduler, initialUserRepository, defaultAdminRepository );
+                                           true, true, jobScheduler, initialUserRepository, defaultAdminRepository );
         realm.init();
         realm.start();
     }
@@ -118,28 +116,28 @@ public class InternalFlatFileRealmIT
         // we start with invalid auth file
         fs.addUserRoleFilePair(
                 "Hanna:SHA-256,FE0056C37E,A543:\n" +
-                        "Carol:SHA-256,FE0056C37E,A543:\n" +
-                        "Mia:SHA-256,0E1FFFC23E,34"
+                "Carol:SHA-256,FE0056C37E,A543:\n" +
+                "Mia:SHA-256,0E1FFFC23E,34"
                 ,
                 "THIS_WILL_NOT_BE_READ" );
 
         // now the roles file has non-existent users
         fs.addUserRoleFilePair(
                 "Hanna:SHA-256,FE0056C37E,A543:\n" +
-                        "Carol:SHA-256,FE0056C37E,A543:\n" +
-                        "Mia:SHA-256,0E1FFFC23E,34A4:password_change_required\n"
+                "Carol:SHA-256,FE0056C37E,A543:\n" +
+                "Mia:SHA-256,0E1FFFC23E,34A4:password_change_required\n"
                 ,
                 "admin:neo4j,Mao\n" +
-                        "publisher:Hanna\n" );
+                "publisher:Hanna\n" );
 
         // finally valid files
         fs.addUserRoleFilePair(
                 "Hanna:SHA-256,FE0056C37E,A543:\n" +
-                        "Carol:SHA-256,FE0056C37E,A543:\n" +
-                        "Mia:SHA-256,0E1FFFC23E,34A4:password_change_required\n"
+                "Carol:SHA-256,FE0056C37E,A543:\n" +
+                "Mia:SHA-256,0E1FFFC23E,34A4:password_change_required\n"
                 ,
                 "admin:Mia\n" +
-                        "publisher:Hanna,Carol\n" );
+                "publisher:Hanna,Carol\n" );
 
         jobScheduler.scheduledRunnable.run();
 

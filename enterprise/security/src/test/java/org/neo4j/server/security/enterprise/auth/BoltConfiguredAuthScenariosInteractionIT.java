@@ -31,7 +31,7 @@ public class BoltConfiguredAuthScenariosInteractionIT extends ConfiguredAuthScen
     }
 
     @Override
-    public NeoInteractionLevel<BoltInteraction.BoltSubject> setUpNeoServer( Map<String, String> config )
+    public NeoInteractionLevel<BoltInteraction.BoltSubject> setUpNeoServer( Map<String,String> config )
     {
         return new BoltInteraction( config );
     }
@@ -41,5 +41,4 @@ public class BoltConfiguredAuthScenariosInteractionIT extends ConfiguredAuthScen
     {
         return ValueUtils.of( obj );
     }
-
 }

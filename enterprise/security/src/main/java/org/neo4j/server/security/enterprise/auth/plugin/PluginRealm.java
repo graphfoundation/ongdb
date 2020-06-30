@@ -34,15 +34,14 @@ import java.util.Collection;
 import java.util.Map;
 import java.util.Optional;
 
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
+import org.neo4j.configuration.Config;
+import org.neo4j.configuration.GraphDatabaseSettings;
+import org.neo4j.cypher.internal.security.SecureHasher;
 import org.neo4j.kernel.api.security.exception.InvalidAuthTokenException;
-import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.internal.Version;
 import org.neo4j.logging.Log;
-import org.neo4j.server.security.enterprise.auth.PredefinedRolesBuilder;
+import org.neo4j.server.security.auth.ShiroAuthToken;
 import org.neo4j.server.security.enterprise.auth.RealmLifecycle;
-import org.neo4j.server.security.enterprise.auth.SecureHasher;
-import org.neo4j.server.security.enterprise.auth.ShiroAuthToken;
 import org.neo4j.server.security.enterprise.auth.ShiroAuthorizationInfoProvider;
 import org.neo4j.server.security.enterprise.auth.plugin.api.AuthProviderOperations;
 import org.neo4j.server.security.enterprise.auth.plugin.api.AuthToken;
@@ -54,76 +53,72 @@ import org.neo4j.server.security.enterprise.auth.plugin.spi.AuthorizationPlugin;
 import org.neo4j.server.security.enterprise.auth.plugin.spi.CustomCacheableAuthenticationInfo;
 import org.neo4j.server.security.enterprise.log.SecurityLog;
 
-import static org.neo4j.server.security.enterprise.configuration.SecuritySettings.PLUGIN_REALM_NAME_PREFIX;
-
 public class PluginRealm extends AuthorizingRealm implements RealmLifecycle, ShiroAuthorizationInfoProvider
 {
-    private AuthenticationPlugin authenticationPlugin;
-    private AuthorizationPlugin authorizationPlugin;
     private final Config config;
-    private AuthPlugin authPlugin;
     private final Log log;
     private final Clock clock;
     private final SecureHasher secureHasher;
-
-    private AuthProviderOperations authProviderOperations = new PluginRealmOperations();
+    private final AuthProviderOperations authProviderOperations;
+    private AuthenticationPlugin authenticationPlugin;
+    private AuthorizationPlugin authorizationPlugin;
+    private AuthPlugin authPlugin;
 
     public PluginRealm( Config config, SecurityLog securityLog, Clock clock, SecureHasher secureHasher )
     {
+        this.authProviderOperations = new PluginRealm.PluginRealmOperations();
         this.config = config;
         this.clock = clock;
         this.secureHasher = secureHasher;
         this.log = securityLog;
-
-        setCredentialsMatcher( new CredentialsMatcher() );
-
+        this.setCredentialsMatcher( new PluginRealm.CredentialsMatcher() );
         // Synchronize this default value with the javadoc for AuthProviderOperations.setAuthenticationCachingEnabled
-        setAuthenticationCachingEnabled( false );
-
+        this.setAuthenticationCachingEnabled( false );
         // Synchronize this default value with the javadoc for AuthProviderOperations.setAuthorizationCachingEnabled
-        setAuthorizationCachingEnabled( true );
-
-        setRolePermissionResolver( PredefinedRolesBuilder.rolePermissionResolver );
+        this.setAuthorizationCachingEnabled( true );
     }
 
-    public PluginRealm( AuthenticationPlugin authenticationPlugin, AuthorizationPlugin authorizationPlugin,
-            Config config, SecurityLog securityLog, Clock clock, SecureHasher secureHasher )
+    public PluginRealm( AuthenticationPlugin authenticationPlugin, AuthorizationPlugin authorizationPlugin, Config config, SecurityLog securityLog, Clock clock,
+                        SecureHasher secureHasher )
     {
         this( config, securityLog, clock, secureHasher );
         this.authenticationPlugin = authenticationPlugin;
         this.authorizationPlugin = authorizationPlugin;
-        resolvePluginName();
+        this.resolvePluginName();
     }
 
-    public PluginRealm( AuthPlugin authPlugin, Config config, SecurityLog securityLog, Clock clock,
-            SecureHasher secureHasher )
+    public PluginRealm( AuthPlugin authPlugin, Config config, SecurityLog securityLog, Clock clock, SecureHasher secureHasher )
     {
         this( config, securityLog, clock, secureHasher );
         this.authPlugin = authPlugin;
-        resolvePluginName();
+        this.resolvePluginName();
+    }
+
+    private static CustomCacheableAuthenticationInfo.CredentialsMatcher getCustomCredentialsMatcherIfPresent( AuthenticationInfo info )
+    {
+        return info instanceof CustomCredentialsMatcherSupplier ? ((CustomCredentialsMatcherSupplier) info).getCredentialsMatcher() : null;
     }
 
     private void resolvePluginName()
     {
         String pluginName = null;
-        if ( authPlugin != null )
+        if ( this.authPlugin != null )
         {
-            pluginName = authPlugin.name();
+            pluginName = this.authPlugin.name();
         }
-        else if ( authenticationPlugin != null )
+        else if ( this.authenticationPlugin != null )
         {
-            pluginName = authenticationPlugin.name();
+            pluginName = this.authenticationPlugin.name();
         }
-        else if ( authorizationPlugin != null )
+        else if ( this.authorizationPlugin != null )
         {
-            pluginName = authorizationPlugin.name();
+            pluginName = this.authorizationPlugin.name();
         }
 
         if ( pluginName != null && !pluginName.isEmpty() )
         {
-            setName( PLUGIN_REALM_NAME_PREFIX + pluginName );
+            this.setName( "plugin-" + pluginName );
         }
-        // Otherwise we rely on the Shiro default generated name
     }
 
     private Collection<AuthorizationPlugin.PrincipalAndProvider> getPrincipalAndProviderCollection(
@@ -143,35 +138,35 @@ public class PluginRealm extends AuthorizingRealm implements RealmLifecycle, Shi
         return principalAndProviderCollection;
     }
 
-    @Override
     protected AuthorizationInfo doGetAuthorizationInfo( PrincipalCollection principals )
     {
-        if ( authorizationPlugin != null )
+        if ( this.authorizationPlugin != null )
         {
             org.neo4j.server.security.enterprise.auth.plugin.spi.AuthorizationInfo authorizationInfo;
             try
             {
-                 authorizationInfo = authorizationPlugin.authorize( getPrincipalAndProviderCollection( principals ) );
+                authorizationInfo = this.authorizationPlugin.authorize( this.getPrincipalAndProviderCollection( principals ) );
             }
             catch ( AuthorizationExpiredException e )
             {
                 throw new org.neo4j.graphdb.security.AuthorizationExpiredException(
-                        "Plugin '" + getName() + "' authorization info expired: " + e.getMessage(), e );
+                        "Plugin '" + this.getName() + "' authorization info expired: " + e.getMessage(), e );
             }
+
             if ( authorizationInfo != null )
             {
                 return PluginAuthorizationInfo.create( authorizationInfo );
             }
         }
-        else if ( authPlugin != null && !principals.fromRealm( getName() ).isEmpty() )
+        else if ( this.authPlugin != null && !principals.fromRealm( this.getName() ).isEmpty() )
         {
             // The cached authorization info has expired.
             // Since we do not have the subject's credentials we cannot perform a new
             // authenticateAndAuthorize() to renew authorization info.
             // Instead we need to fail with a special status, so that the client can react by re-authenticating.
-            throw new org.neo4j.graphdb.security.AuthorizationExpiredException(
-                    "Plugin '" + getName() + "' authorization info expired." );
+            throw new org.neo4j.graphdb.security.AuthorizationExpiredException( "Plugin '" + this.getName() + "' authorization info expired." );
         }
+
         return null;
     }
 
@@ -226,133 +221,215 @@ public class PluginRealm extends AuthorizingRealm implements RealmLifecycle, Shi
 
     private void cacheAuthorizationInfo( PluginAuthInfo authInfo )
     {
-        // Use the existing authorizationCache in our base class
-        Cache<Object, AuthorizationInfo> authorizationCache = getAuthorizationCache();
-        Object key = getAuthorizationCacheKey( authInfo.getPrincipals() );
+        Cache<Object,AuthorizationInfo> authorizationCache = this.getAuthorizationCache();
+        Object key = this.getAuthorizationCacheKey( authInfo.getPrincipals() );
         authorizationCache.put( key, authInfo );
     }
 
     public boolean canAuthenticate()
     {
-        return authPlugin != null || authenticationPlugin != null;
+        return this.authPlugin != null || this.authenticationPlugin != null;
     }
 
     public boolean canAuthorize()
     {
-        return authPlugin != null || authorizationPlugin != null;
+        return this.authPlugin != null || this.authorizationPlugin != null;
     }
 
-    @Override
     public AuthorizationInfo getAuthorizationInfoSnapshot( PrincipalCollection principalCollection )
     {
-        return getAuthorizationInfo( principalCollection );
+        return this.getAuthorizationInfo( principalCollection );
     }
 
-    @Override
     protected Object getAuthorizationCacheKey( PrincipalCollection principals )
     {
-        return getAvailablePrincipal( principals );
+        return this.getAvailablePrincipal( principals );
     }
 
-    @Override
     protected Object getAuthenticationCacheKey( AuthenticationToken token )
     {
         return token != null ? token.getPrincipal() : null;
     }
 
-    @Override
     public boolean supports( AuthenticationToken token )
     {
-        return supportsSchemeAndRealm( token );
+        return this.supportsSchemeAndRealm( token );
     }
 
+    /**
+     * @param token
+     * @return
+     */
     private boolean supportsSchemeAndRealm( AuthenticationToken token )
     {
         if ( token instanceof ShiroAuthToken )
         {
             ShiroAuthToken shiroAuthToken = (ShiroAuthToken) token;
-            return shiroAuthToken.supportsRealm( getName() );
+            return shiroAuthToken.supportsRealm( this.getName() );
         }
-        return false;
-    }
-
-    @Override
-    public void initialize() throws Throwable
-    {
-        if ( authenticationPlugin != null )
+        else
         {
-            authenticationPlugin.initialize( authProviderOperations );
-        }
-        if ( authorizationPlugin != null && authorizationPlugin != authenticationPlugin )
-        {
-            authorizationPlugin.initialize( authProviderOperations );
-        }
-        if ( authPlugin != null )
-        {
-            authPlugin.initialize( authProviderOperations );
+            return false;
         }
     }
 
     @Override
-    public void start()
+    public void initialize() throws Exception
     {
-        if ( authenticationPlugin != null )
+        if ( this.authenticationPlugin != null )
         {
-            authenticationPlugin.start();
+            this.authenticationPlugin.initialize( this.authProviderOperations );
         }
-        if ( authorizationPlugin != null && authorizationPlugin != authenticationPlugin )
+
+        if ( this.authorizationPlugin != null && this.authorizationPlugin != this.authenticationPlugin )
         {
-            authorizationPlugin.start();
+            this.authorizationPlugin.initialize( this.authProviderOperations );
         }
-        if ( authPlugin != null )
+
+        if ( this.authPlugin != null )
         {
-            authPlugin.start();
+            this.authPlugin.initialize( this.authProviderOperations );
         }
     }
 
     @Override
-    public void stop()
+    public void start() throws Exception
     {
-        if ( authenticationPlugin != null )
+        if ( this.authenticationPlugin != null )
         {
-            authenticationPlugin.stop();
+            this.authenticationPlugin.start();
         }
-        if ( authorizationPlugin != null && authorizationPlugin != authenticationPlugin )
+
+        if ( this.authorizationPlugin != null && this.authorizationPlugin != this.authenticationPlugin )
         {
-            authorizationPlugin.stop();
+            this.authorizationPlugin.start();
         }
-        if ( authPlugin != null )
+
+        if ( this.authPlugin != null )
         {
-            authPlugin.stop();
+            this.authPlugin.start();
+        }
+    }
+
+    @Override
+    public void stop() throws Exception
+    {
+        if ( this.authenticationPlugin != null )
+        {
+            this.authenticationPlugin.stop();
+        }
+
+        if ( this.authorizationPlugin != null && this.authorizationPlugin != this.authenticationPlugin )
+        {
+            this.authorizationPlugin.stop();
+        }
+
+        if ( this.authPlugin != null )
+        {
+            this.authPlugin.stop();
         }
     }
 
     @Override
     public void shutdown()
     {
-        if ( authenticationPlugin != null )
+        if ( this.authenticationPlugin != null )
         {
-            authenticationPlugin.shutdown();
+            this.authenticationPlugin.shutdown();
         }
-        if ( authorizationPlugin != null && authorizationPlugin != authenticationPlugin )
+
+        if ( this.authorizationPlugin != null && this.authorizationPlugin != this.authenticationPlugin )
         {
-            authorizationPlugin.shutdown();
+            this.authorizationPlugin.shutdown();
         }
-        if ( authPlugin != null )
+
+        if ( this.authPlugin != null )
         {
-            authPlugin.shutdown();
+            this.authPlugin.shutdown();
         }
     }
 
-    private static CustomCacheableAuthenticationInfo.CredentialsMatcher getCustomCredentialsMatcherIfPresent(
-            AuthenticationInfo info
-    )
+    private class PluginRealmOperations implements AuthProviderOperations
     {
-        if ( info instanceof CustomCredentialsMatcherSupplier )
+        private final AuthProviderOperations.Log innerLog = new AuthProviderOperations.Log()
         {
-            return ((CustomCredentialsMatcherSupplier) info).getCredentialsMatcher();
+            private String withPluginName( String msg )
+            {
+                return "{" + getName() + "} " + msg;
+            }
+
+            @Override
+            public void debug( String message )
+            {
+                log.debug( withPluginName( message ) );
+            }
+
+            @Override
+            public void info( String message )
+            {
+                log.info( withPluginName( message ) );
+            }
+
+            @Override
+            public void warn( String message )
+            {
+                log.warn( withPluginName( message ) );
+            }
+
+            @Override
+            public void error( String message )
+            {
+                log.error( withPluginName( message ) );
+            }
+
+            @Override
+            public boolean isDebugEnabled()
+            {
+                return log.isDebugEnabled();
+            }
+        };
+
+        @Override
+        public Path neo4jHome()
+        {
+            return (config.get( GraphDatabaseSettings.neo4j_home )).toFile().getAbsoluteFile().toPath();
         }
-        return null;
+
+        @Override
+        public Optional<Path> neo4jConfigFile()
+        {
+            return Optional.empty();
+        }
+
+        @Override
+        public String neo4jVersion()
+        {
+            return Version.getNeo4jVersion();
+        }
+
+        @Override
+        public Clock clock()
+        {
+            return clock;
+        }
+
+        @Override
+        public AuthProviderOperations.Log log()
+        {
+            return this.innerLog;
+        }
+
+        @Override
+        public void setAuthenticationCachingEnabled( boolean authenticationCachingEnabled )
+        {
+            setAuthenticationCachingEnabled( authenticationCachingEnabled );
+        }
+
+        @Override
+        public void setAuthorizationCachingEnabled( boolean authorizationCachingEnabled )
+        {
+            setAuthorizationCachingEnabled( authorizationCachingEnabled );
+        }
     }
 
     private class CredentialsMatcher implements org.apache.shiro.authc.credential.CredentialsMatcher
@@ -413,89 +490,6 @@ public class PluginRealm extends AuthorizingRealm implements RealmLifecycle, Shi
                 }
                 return true; // Always match if we do not cache credentials
             }
-        }
-    }
-
-    private class PluginRealmOperations implements AuthProviderOperations
-    {
-        private Log innerLog = new Log()
-        {
-            private String withPluginName( String msg )
-            {
-                return "{" + getName() + "} " + msg;
-            }
-
-            @Override
-            public void debug( String message )
-            {
-                log.debug( withPluginName( message ) );
-            }
-
-            @Override
-            public void info( String message )
-            {
-                log.info( withPluginName( message ) );
-            }
-
-            @Override
-            public void warn( String message )
-            {
-                log.warn( withPluginName( message ) );
-            }
-
-            @Override
-            public void error( String message )
-            {
-                log.error( withPluginName( message ) );
-            }
-
-            @Override
-            public boolean isDebugEnabled()
-            {
-                return log.isDebugEnabled();
-            }
-        };
-
-        @Override
-        public Path neo4jHome()
-        {
-            return config.get( GraphDatabaseSettings.neo4j_home ).getAbsoluteFile().toPath();
-        }
-
-        @Override
-        public Optional<Path> neo4jConfigFile()
-        {
-            return Optional.empty();
-        }
-
-        @Override
-        public String neo4jVersion()
-        {
-            return Version.getNeo4jVersion();
-        }
-
-        @Override
-        public Clock clock()
-        {
-            return clock;
-        }
-
-        @Override
-        public Log log()
-        {
-            return innerLog;
-        }
-
-        @Override
-        public void setAuthenticationCachingEnabled( boolean authenticationCachingEnabled )
-        {
-            PluginRealm.this.setAuthenticationCachingEnabled( authenticationCachingEnabled );
-        }
-
-        @Override
-        public void setAuthorizationCachingEnabled( boolean authorizationCachingEnabled )
-        {
-            PluginRealm.this.setAuthorizationCachingEnabled( authorizationCachingEnabled );
         }
     }
 }

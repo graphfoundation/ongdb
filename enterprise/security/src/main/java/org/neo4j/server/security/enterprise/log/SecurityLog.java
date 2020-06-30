@@ -24,12 +24,14 @@ import java.time.ZoneId;
 import java.util.concurrent.Executor;
 import java.util.function.Consumer;
 
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
+import org.neo4j.configuration.Config;
+import org.neo4j.configuration.GraphDatabaseSettings;
+import org.neo4j.internal.helpers.Strings;
 import org.neo4j.internal.kernel.api.security.AuthSubject;
 import org.neo4j.io.fs.FileSystemAbstraction;
-import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.lifecycle.LifecycleAdapter;
 import org.neo4j.logging.FormattedLog;
+import org.neo4j.logging.FormattedLog.Builder;
 import org.neo4j.logging.Log;
 import org.neo4j.logging.Logger;
 import org.neo4j.logging.RotatingFileOutputStreamSupplier;
@@ -37,192 +39,162 @@ import org.neo4j.scheduler.Group;
 import org.neo4j.scheduler.JobScheduler;
 import org.neo4j.server.security.enterprise.configuration.SecuritySettings;
 
-import static org.neo4j.helpers.Strings.escape;
-
 public class SecurityLog extends LifecycleAdapter implements Log
 {
-    private RotatingFileOutputStreamSupplier rotatingSupplier;
     private final Log inner;
+    private RotatingFileOutputStreamSupplier rotatingSupplier;
 
     public SecurityLog( Config config, FileSystemAbstraction fileSystem, Executor executor ) throws IOException
     {
         ZoneId logTimeZoneId = config.get( GraphDatabaseSettings.db_timezone ).getZoneId();
-        File logFile = config.get( SecuritySettings.security_log_filename );
-
-        FormattedLog.Builder builder = FormattedLog.withZoneId( logTimeZoneId );
-
-        rotatingSupplier = new RotatingFileOutputStreamSupplier( fileSystem, logFile,
-                config.get( SecuritySettings.store_security_log_rotation_threshold ),
-                config.get( SecuritySettings.store_security_log_rotation_delay ).toMillis(),
-                config.get( SecuritySettings.store_security_log_max_archives ), executor );
-
-        FormattedLog formattedLog = builder.toOutputStream( rotatingSupplier );
+        File logFile = config.get( SecuritySettings.security_log_filename ).toFile();
+        Builder builder = FormattedLog.withZoneId( logTimeZoneId );
+        this.rotatingSupplier =
+                new RotatingFileOutputStreamSupplier( fileSystem, logFile, config.get( SecuritySettings.store_security_log_rotation_threshold ),
+                                                      config.get( SecuritySettings.store_security_log_rotation_delay ).toMillis(),
+                                                      config.get( SecuritySettings.store_security_log_max_archives ), executor );
+        FormattedLog formattedLog = builder.toOutputStream( this.rotatingSupplier );
         formattedLog.setLevel( config.get( SecuritySettings.security_log_level ) );
-
         this.inner = formattedLog;
     }
 
     /* Only used for tests */
     public SecurityLog( Log log )
     {
-        inner = log;
+        this.inner = log;
     }
 
     private static String withSubject( AuthSubject subject, String msg )
     {
-        return "[" + escape( subject.username() ) + "]: " + msg;
+        return "[" + Strings.escape( subject.username() ) + "]: " + msg;
+    }
+
+    public static SecurityLog create( Config config, FileSystemAbstraction fileSystem, JobScheduler jobScheduler ) throws IOException
+    {
+        return new SecurityLog( config, fileSystem, jobScheduler.executor( Group.LOG_ROTATION ) );
     }
 
     @Override
     public boolean isDebugEnabled()
     {
-        return inner.isDebugEnabled();
+        return this.inner.isDebugEnabled();
     }
 
     @Override
     public Logger debugLogger()
     {
-        return inner.debugLogger();
+        return this.inner.debugLogger();
     }
 
     @Override
     public void debug( String message )
     {
-        inner.debug( message );
+        this.inner.debug( message );
     }
 
     @Override
     public void debug( String message, Throwable throwable )
     {
-        inner.debug( message, throwable );
+        this.inner.debug( message, throwable );
     }
 
     @Override
     public void debug( String format, Object... arguments )
     {
-        inner.debug( format, arguments );
+        this.inner.debug( format, arguments );
     }
 
     public void debug( AuthSubject subject, String format, Object... arguments )
     {
-        inner.debug( withSubject( subject, format ), arguments );
+        this.inner.debug( withSubject( subject, format ), arguments );
     }
 
-    @Override
     public Logger infoLogger()
     {
-        return inner.infoLogger();
+        return this.inner.infoLogger();
     }
 
-    @Override
     public void info( String message )
     {
-        inner.info( message );
+        this.inner.info( message );
     }
 
-    @Override
     public void info( String message, Throwable throwable )
     {
-        inner.info( message, throwable );
+        this.inner.info( message, throwable );
     }
 
-    @Override
     public void info( String format, Object... arguments )
     {
-        inner.info( format, arguments );
+        this.inner.info( format, arguments );
     }
 
     public void info( AuthSubject subject, String format, Object... arguments )
     {
-        inner.info( withSubject( subject, format ), arguments );
+        this.inner.info( withSubject( subject, format ), arguments );
     }
 
     public void info( AuthSubject subject, String format )
     {
-        inner.info( withSubject( subject, format ) );
+        this.inner.info( withSubject( subject, format ) );
     }
 
-    @Override
     public Logger warnLogger()
     {
-        return inner.warnLogger();
+        return this.inner.warnLogger();
     }
 
-    @Override
     public void warn( String message )
     {
-        inner.warn( message );
+        this.inner.warn( message );
     }
 
-    @Override
     public void warn( String message, Throwable throwable )
     {
-        inner.warn( message, throwable );
+        this.inner.warn( message, throwable );
     }
 
-    @Override
     public void warn( String format, Object... arguments )
     {
-        inner.warn( format, arguments );
+        this.inner.warn( format, arguments );
     }
 
     public void warn( AuthSubject subject, String format, Object... arguments )
     {
-        inner.warn( withSubject( subject, format ), arguments );
+        this.inner.warn( withSubject( subject, format ), arguments );
     }
 
-    @Override
     public Logger errorLogger()
     {
-        return inner.errorLogger();
+        return this.inner.errorLogger();
     }
 
-    @Override
     public void error( String message )
     {
-        inner.error( message );
+        this.inner.error( message );
     }
 
-    @Override
     public void error( String message, Throwable throwable )
     {
-        inner.error( message, throwable );
+        this.inner.error( message, throwable );
     }
 
-    @Override
     public void error( String format, Object... arguments )
     {
-        inner.error( format, arguments );
+        this.inner.error( format, arguments );
     }
 
     public void error( AuthSubject subject, String format, Object... arguments )
     {
-        inner.error( withSubject( subject, format ), arguments );
+        this.inner.error( withSubject( subject, format ), arguments );
     }
 
-    @Override
     public void bulk( Consumer<Log> consumer )
     {
-        inner.bulk( consumer );
+        this.inner.bulk( consumer );
     }
 
-    public static SecurityLog create( Config config, Log log, FileSystemAbstraction fileSystem,
-            JobScheduler jobScheduler )
-    {
-        try
-        {
-            return new SecurityLog( config, fileSystem,
-                    jobScheduler.executor( Group.LOG_ROTATION ) );
-        }
-        catch ( IOException ioe )
-        {
-            log.warn( "Unable to create log for auth-manager. Auth logging turned off." );
-            return null;
-        }
-    }
-
-    @Override
-    public void shutdown() throws Throwable
+    public void shutdown() throws Exception
     {
         if ( this.rotatingSupplier != null )
         {

@@ -32,10 +32,14 @@ public class RoleRecord
       locks. Correctness depends on write-time assertions and this class remaining immutable. Please do not introduce
       mutable fields here.
      */
-    /** Role name */
+    /**
+     * Role name
+     */
     private final String name;
 
-    /** Member users */
+    /**
+     * Member users
+     */
     private final SortedSet<String> users;
 
     public RoleRecord( String name, SortedSet<String> users )
@@ -62,7 +66,9 @@ public class RoleRecord
         return users;
     }
 
-    /** Use this role as a base for a new role object */
+    /**
+     * Use this role as a base for a new role object
+     */
     public Builder augment()
     {
         return new Builder( this );

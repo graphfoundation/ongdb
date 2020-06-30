@@ -45,7 +45,6 @@ import org.neo4j.server.security.enterprise.configuration.SecuritySettings;
 import org.neo4j.test.TestEnterpriseGraphDatabaseFactory;
 import org.neo4j.test.TestGraphDatabaseFactory;
 
-import static org.hamcrest.MatcherAssert.assertThat;
 import static org.neo4j.bolt.v1.messaging.util.MessageMatchers.msgFailure;
 import static org.neo4j.bolt.v1.messaging.util.MessageMatchers.msgSuccess;
 import static org.neo4j.bolt.v1.transport.integration.TransportTestUtil.eventuallyReceives;
@@ -69,6 +68,16 @@ public class ActiveDirectoryAuthenticationIT
     @Rule
     public Neo4jWithSocket server =
             new Neo4jWithSocket( getClass(), getTestGraphDatabaseFactory(), asSettings( getSettingsFunction() ) );
+    public Factory<TransportConnection> cf = (Factory<TransportConnection>) SecureSocketConnection::new;
+    private Consumer<Map<Setting<?>,String>> useSystemAccountSettings = settings ->
+    {
+        settings.put( SecuritySettings.ldap_authorization_use_system_account, "true" );
+        settings.put( SecuritySettings.ldap_authorization_system_username, "Neo4j System" );
+        settings.put( SecuritySettings.ldap_authorization_system_password, "ProudListingsMedia1" );
+    };
+    private HostnamePort address;
+    private TransportConnection client;
+    private TransportTestUtil util;
 
     private void restartNeo4jServerWithOverriddenSettings( Consumer<Map<Setting<?>,String>> overrideSettingsFunction )
     {
@@ -107,25 +116,12 @@ public class ActiveDirectoryAuthenticationIT
             settings.put( SecuritySettings.ldap_authorization_user_search_filter, "(&(objectClass=*)(CN={0}))" );
             settings.put( SecuritySettings.ldap_authorization_group_membership_attribute_names, "memberOf" );
             settings.put( SecuritySettings.ldap_authorization_group_to_role_mapping,
-                    "'CN=Neo4j Read Only,CN=Users,DC=neo4j,DC=com'=reader;" +
-                    "CN=Neo4j Read-Write,CN=Users,DC=neo4j,DC=com=publisher;" +
-                    "CN=Neo4j Schema Manager,CN=Users,DC=neo4j,DC=com=architect;" +
-                    "CN=Neo4j Administrator,CN=Users,DC=neo4j,DC=com=admin" );
+                          "'CN=Neo4j Read Only,CN=Users,DC=neo4j,DC=com'=reader;" +
+                          "CN=Neo4j Read-Write,CN=Users,DC=neo4j,DC=com=publisher;" +
+                          "CN=Neo4j Schema Manager,CN=Users,DC=neo4j,DC=com=architect;" +
+                          "CN=Neo4j Administrator,CN=Users,DC=neo4j,DC=com=admin" );
         };
     }
-
-    private Consumer<Map<Setting<?>,String>> useSystemAccountSettings = settings ->
-    {
-        settings.put( SecuritySettings.ldap_authorization_use_system_account, "true" );
-        settings.put( SecuritySettings.ldap_authorization_system_username, "Neo4j System" );
-        settings.put( SecuritySettings.ldap_authorization_system_password, "ProudListingsMedia1" );
-    };
-
-    public Factory<TransportConnection> cf = (Factory<TransportConnection>) SecureSocketConnection::new;
-
-    private HostnamePort address;
-    private TransportConnection client;
-    private TransportTestUtil util;
 
     @Before
     public void setup()
@@ -216,7 +212,8 @@ public class ActiveDirectoryAuthenticationIT
     public void shouldBeAbleToLoginAndAuthorizeReaderUsingLdapsOnEC2() throws Throwable
     {
         restartNeo4jServerWithOverriddenSettings( useSystemAccountSettings
-                .andThen( settings -> settings.put( SecuritySettings.ldap_server, "ldaps://activedirectory.neohq.net:636" ) ) );
+                                                          .andThen( settings -> settings
+                                                                  .put( SecuritySettings.ldap_server, "ldaps://activedirectory.neohq.net:636" ) ) );
 
         assertAuth( "neo", "ProudListingsMedia1" );
         assertReadSucceeds();
@@ -238,7 +235,7 @@ public class ActiveDirectoryAuthenticationIT
     public void shouldBeAbleToLoginAndAuthorizeReaderUsingStartTlsOnEC2() throws Throwable
     {
         restartNeo4jServerWithOverriddenSettings( useSystemAccountSettings
-                .andThen( settings -> settings.put( SecuritySettings.ldap_use_starttls, "true" ) ) );
+                                                          .andThen( settings -> settings.put( SecuritySettings.ldap_use_starttls, "true" ) ) );
 
         assertAuth( "neo", "ProudListingsMedia1" );
         assertReadSucceeds();
@@ -259,8 +256,8 @@ public class ActiveDirectoryAuthenticationIT
     public void shouldBeAbleToAccessEC2ActiveDirectoryInstance() throws Throwable
     {
         restartNeo4jServerWithOverriddenSettings( settings ->
-        {
-        } );
+                                                  {
+                                                  } );
 
         // When
         assertAuth( "tank", "ProudListingsMedia1" );
@@ -278,8 +275,8 @@ public class ActiveDirectoryAuthenticationIT
     private void assertAuth( String username, String password, String realm ) throws Exception
     {
         client.connect( address )
-                .send( util.acceptedVersions( 1, 0, 0, 0 ) )
-                .send( util.chunk( new InitMessage( "TestClient/1.1", authToken( username, password, realm ) ) ) );
+              .send( util.acceptedVersions( 1, 0, 0, 0 ) )
+              .send( util.chunk( new InitMessage( "TestClient/1.1", authToken( username, password, realm ) ) ) );
 
         assertThat( client, eventuallyReceives( new byte[]{0, 0, 0, 1} ) );
         assertThat( client, util.eventuallyReceives( msgSuccess() ) );
@@ -300,14 +297,14 @@ public class ActiveDirectoryAuthenticationIT
     private void assertAuthFail( String username, String password ) throws Exception
     {
         client.connect( address )
-                .send( util.acceptedVersions( 1, 0, 0, 0 ) )
-                .send( util.chunk(
-                        new InitMessage( "TestClient/1.1", map( "principal", username,
-                                "credentials", password, "scheme", "basic" ) ) ) );
+              .send( util.acceptedVersions( 1, 0, 0, 0 ) )
+              .send( util.chunk(
+                      new InitMessage( "TestClient/1.1", map( "principal", username,
+                                                              "credentials", password, "scheme", "basic" ) ) ) );
 
         assertThat( client, eventuallyReceives( new byte[]{0, 0, 0, 1} ) );
         assertThat( client, util.eventuallyReceives( msgFailure( Status.Security.Unauthorized,
-                "The client is unauthorized due to authentication failure." ) ) );
+                                                                 "The client is unauthorized due to authentication failure." ) ) );
     }
 
     protected void assertReadSucceeds() throws Exception
@@ -331,7 +328,7 @@ public class ActiveDirectoryAuthenticationIT
         // Then
         assertThat( client, util.eventuallyReceives(
                 msgFailure( Status.Security.Forbidden,
-                        String.format( "Read operations are not allowed for user %s.", username ) ) ) );
+                            String.format( "Read operations are not allowed for user %s.", username ) ) ) );
     }
 
     protected void assertWriteSucceeds() throws Exception
@@ -355,7 +352,6 @@ public class ActiveDirectoryAuthenticationIT
         // Then
         assertThat( client, util.eventuallyReceives(
                 msgFailure( Status.Security.Forbidden,
-                        String.format( "Write operations are not allowed for user %s.", username ) ) ) );
+                            String.format( "Write operations are not allowed for user %s.", username ) ) ) );
     }
-
 }

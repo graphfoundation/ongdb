@@ -67,12 +67,11 @@ import static org.neo4j.test.assertion.Assert.assertException;
 
 public class LdapRealmTest
 {
+    @Rule
+    public ExpectedException expectedException = ExpectedException.none();
     Config config = mock( Config.class );
     private SecurityLog securityLog = mock( SecurityLog.class );
     private SecureHasher secureHasher = new SecureHasher();
-
-    @Rule
-    public ExpectedException expectedException = ExpectedException.none();
 
     @Before
     public void setUp()
@@ -117,7 +116,7 @@ public class LdapRealmTest
         LdapRealm realm = new LdapRealm( config, securityLog, secureHasher );
 
         assertThat( realm.getGroupToRoleMapping().get( "group" ),
-                equalTo( asList( "role1", "role2", "role3" ) ) );
+                    equalTo( asList( "role1", "role2", "role3" ) ) );
         assertThat( realm.getGroupToRoleMapping().size(), equalTo( 1 ) );
     }
 
@@ -130,7 +129,7 @@ public class LdapRealmTest
         LdapRealm realm = new LdapRealm( config, securityLog, secureHasher );
 
         assertThat( realm.getGroupToRoleMapping().keySet(),
-                equalTo( new TreeSet<>( asList( "group1", "group2", "group3" ) ) ) );
+                    equalTo( new TreeSet<>( asList( "group1", "group2", "group3" ) ) ) );
         assertThat( realm.getGroupToRoleMapping().get( "group1" ), equalTo( singletonList( "role1" ) ) );
         assertThat( realm.getGroupToRoleMapping().get( "group2" ), equalTo( asList( "role2", "role3" ) ) );
         assertThat( realm.getGroupToRoleMapping().get( "group3" ), equalTo( singletonList( "role4" ) ) );
@@ -146,7 +145,7 @@ public class LdapRealmTest
         LdapRealm realm = new LdapRealm( config, securityLog, secureHasher );
 
         assertThat( realm.getGroupToRoleMapping().keySet(),
-                equalTo( new TreeSet<>( asList( "group1", "group2", "gr oup3", "group4 ", "g" ) ) ) );
+                    equalTo( new TreeSet<>( asList( "group1", "group2", "gr oup3", "group4 ", "g" ) ) ) );
         assertThat( realm.getGroupToRoleMapping().get( "group1" ), equalTo( singletonList( "role1" ) ) );
         assertThat( realm.getGroupToRoleMapping().get( "group2" ), equalTo( asList( "role2", "role3" ) ) );
         assertThat( realm.getGroupToRoleMapping().get( "gr oup3" ), equalTo( singletonList( "role4" ) ) );
@@ -175,9 +174,9 @@ public class LdapRealmTest
         LdapRealm realm = new LdapRealm( config, securityLog, secureHasher );
 
         assertThat( realm.getGroupToRoleMapping().keySet(),
-                equalTo( Stream.of( "group" ).collect( Collectors.toSet() ) ) );
+                    equalTo( Stream.of( "group" ).collect( Collectors.toSet() ) ) );
         assertThat( realm.getGroupToRoleMapping().get( "group" ),
-                equalTo( asList( "role1", "role2", "role3" ) ) );
+                    equalTo( asList( "role1", "role2", "role3" ) ) );
         assertThat( realm.getGroupToRoleMapping().size(), equalTo( 1 ) );
     }
 
@@ -223,7 +222,7 @@ public class LdapRealmTest
         LdapRealm realm = new LdapRealm( config, securityLog, secureHasher );
 
         assertThat( realm.getGroupToRoleMapping().get( "group" ),
-                equalTo( asList( "role1", "role2", "role3" ) ) );
+                    equalTo( asList( "role1", "role2", "role3" ) ) );
         assertThat( realm.getGroupToRoleMapping().size(), equalTo( 1 ) );
     }
 
@@ -253,7 +252,7 @@ public class LdapRealmTest
         when( result.hasMoreElements() ).thenReturn( false );
 
         assertException( this::makeAndInit, IllegalArgumentException.class,
-                "Illegal LDAP user search settings, see security log for details." );
+                         "Illegal LDAP user search settings, see security log for details." );
 
         verify( securityLog ).error( contains( "LDAP user search base is empty." ) );
     }
@@ -270,10 +269,10 @@ public class LdapRealmTest
         when( result.hasMoreElements() ).thenReturn( false );
 
         assertException( this::makeAndInit, IllegalArgumentException.class,
-                "Illegal LDAP user search settings, see security log for details." );
+                         "Illegal LDAP user search settings, see security log for details." );
 
         verify( securityLog ).error( contains( "LDAP group membership attribute names are empty. " +
-                "Authorization will not be possible." ) );
+                                               "Authorization will not be possible." ) );
     }
 
     @Test
@@ -363,7 +362,7 @@ public class LdapRealmTest
 
         // When
         realm.queryForAuthenticationInfo( new ShiroAuthToken( map( "principal", "olivia", "credentials", "123" ) ),
-                jndiLdapContectFactory );
+                                          jndiLdapContectFactory );
 
         // Then
         verify( securityLog ).debug( contains( "{LdapRealm}: Authenticated user 'olivia' against 'ldap://myserver.org:12345'" ) );
@@ -381,7 +380,7 @@ public class LdapRealmTest
 
         // When
         realm.queryForAuthenticationInfo( new ShiroAuthToken( map( "principal", "olivia", "credentials", "123" ) ),
-                jndiLdapContectFactory );
+                                          jndiLdapContectFactory );
 
         // Then
         verify( securityLog ).debug( contains(
@@ -401,7 +400,7 @@ public class LdapRealmTest
         // When
         assertException( () -> realm.queryForAuthenticationInfo(
                 new ShiroAuthToken( map( "principal", "olivia", "credentials", "123" ) ), jndiLdapContectFactory ),
-                NamingException.class );
+                         NamingException.class );
 
         // Then
         // Authentication failures are logged from MultiRealmAuthManager
@@ -443,43 +442,9 @@ public class LdapRealmTest
         // Then
         assertNull( info );
         verify( securityLog ).warn( contains( "{LdapRealm}: Failed to get authorization info: " +
-                "'LDAP naming error while attempting to retrieve authorization for user [olivia].'" +
-                " caused by 'Simulated failure'"
+                                              "'LDAP naming error while attempting to retrieve authorization for user [olivia].'" +
+                                              " caused by 'Simulated failure'"
         ) );
-    }
-
-    private class TestLdapRealm extends LdapRealm
-    {
-
-        private boolean failAuth;
-
-        TestLdapRealm( Config config, SecurityLog securityLog, boolean failAuth )
-        {
-            super( config, securityLog, secureHasher );
-            this.failAuth = failAuth;
-        }
-
-        @Override
-        protected AuthenticationInfo queryForAuthenticationInfoUsingStartTls( AuthenticationToken token,
-                LdapContextFactory ldapContextFactory ) throws NamingException
-        {
-            if ( failAuth )
-            {
-                throw new NamingException( "Simulated failure" );
-            }
-            return new SimpleAuthenticationInfo( "olivia", "123", "basic" );
-        }
-
-        @Override
-        protected AuthorizationInfo queryForAuthorizationInfo( PrincipalCollection principals,
-                LdapContextFactory ldapContextFactory ) throws NamingException
-        {
-            if ( failAuth )
-            {
-                throw new NamingException( "Simulated failure" );
-            }
-            return new SimpleAuthorizationInfo();
-        }
     }
 
     private void makeAndInit()
@@ -496,6 +461,40 @@ public class LdapRealmTest
         catch ( Throwable t )
         {
             throw new RuntimeException( t );
+        }
+    }
+
+    private class TestLdapRealm extends LdapRealm
+    {
+
+        private boolean failAuth;
+
+        TestLdapRealm( Config config, SecurityLog securityLog, boolean failAuth )
+        {
+            super( config, securityLog, secureHasher );
+            this.failAuth = failAuth;
+        }
+
+        @Override
+        protected AuthenticationInfo queryForAuthenticationInfoUsingStartTls( AuthenticationToken token,
+                                                                              LdapContextFactory ldapContextFactory ) throws NamingException
+        {
+            if ( failAuth )
+            {
+                throw new NamingException( "Simulated failure" );
+            }
+            return new SimpleAuthenticationInfo( "olivia", "123", "basic" );
+        }
+
+        @Override
+        protected AuthorizationInfo queryForAuthorizationInfo( PrincipalCollection principals,
+                                                               LdapContextFactory ldapContextFactory ) throws NamingException
+        {
+            if ( failAuth )
+            {
+                throw new NamingException( "Simulated failure" );
+            }
+            return new SimpleAuthorizationInfo();
         }
     }
 }

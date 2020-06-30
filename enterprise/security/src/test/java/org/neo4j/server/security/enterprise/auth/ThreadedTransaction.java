@@ -38,11 +38,11 @@ import static org.junit.Assert.fail;
 
 class ThreadedTransaction<S>
 {
-    private volatile Future<Throwable> done;
     private final NeoInteractionLevel<S> neo;
     private final DoubleLatch latch;
+    private volatile Future<Throwable> done;
 
-    ThreadedTransaction( NeoInteractionLevel<S> neo, DoubleLatch latch  )
+    ThreadedTransaction( NeoInteractionLevel<S> neo, DoubleLatch latch )
     {
         this.neo = neo;
         this.latch = latch;
@@ -75,10 +75,10 @@ class ThreadedTransaction<S>
     }
 
     private String[] doExecute(
-        ThreadingRule threading, S subject, KernelTransaction.Type txType, boolean startEarly, String... queries )
+            ThreadingRule threading, S subject, KernelTransaction.Type txType, boolean startEarly, String... queries )
     {
-        NamedFunction<S, Throwable> startTransaction =
-                new NamedFunction<S, Throwable>( "threaded-transaction-" + Arrays.hashCode( queries ) )
+        NamedFunction<S,Throwable> startTransaction =
+                new NamedFunction<S,Throwable>( "threaded-transaction-" + Arrays.hashCode( queries ) )
                 {
                     @Override
                     public Throwable apply( S subject )
@@ -143,10 +143,10 @@ class ThreadedTransaction<S>
         if ( exceptionInOtherThread == null )
         {
             fail( "Expected explicit TransactionTerminatedException in the threaded transaction, " +
-                    "but no exception was raised" );
+                  "but no exception was raised" );
         }
         assertThat( Exceptions.stringify( exceptionInOtherThread ),
-                exceptionInOtherThread.getMessage(), containsString( "Explicitly terminated by the user.") );
+                    exceptionInOtherThread.getMessage(), containsString( "Explicitly terminated by the user." ) );
     }
 
     void closeAndAssertSomeTermination() throws Throwable
@@ -157,7 +157,7 @@ class ThreadedTransaction<S>
             fail( "Expected a TransactionTerminatedException in the threaded transaction, but no exception was raised" );
         }
         assertThat( Exceptions.stringify( exceptionInOtherThread ),
-                exceptionInOtherThread, instanceOf( TransactionTerminatedException.class ) );
+                    exceptionInOtherThread, instanceOf( TransactionTerminatedException.class ) );
     }
 
     private Throwable join() throws ExecutionException, InterruptedException

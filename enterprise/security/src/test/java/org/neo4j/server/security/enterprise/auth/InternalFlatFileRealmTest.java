@@ -73,30 +73,34 @@ import static org.neo4j.server.security.enterprise.auth.AuthTestUtil.listOf;
 
 public class InternalFlatFileRealmTest
 {
+    private final ToIntFunction<String> token = s -> -1;
     @Rule
     public ExpectedException exception = ExpectedException.none();
-
     private MultiRealmAuthManager authManager;
     private TestRealm testRealm;
-    private final ToIntFunction<String> token = s -> -1;
+
+    private static AuthenticationStrategy newRateLimitedAuthStrategy()
+    {
+        return new RateLimitedAuthenticationStrategy( Clock.systemUTC(), Config.defaults() );
+    }
 
     @Before
     public void setup() throws Throwable
     {
         testRealm = new TestRealm(
-                        new InMemoryUserRepository(),
-                        new InMemoryRoleRepository(),
-                        new BasicPasswordPolicy(),
-                        newRateLimitedAuthStrategy(),
-                        mock( JobScheduler.class ),
-                        new InMemoryUserRepository(),
-                        new InMemoryUserRepository()
-                    );
+                new InMemoryUserRepository(),
+                new InMemoryRoleRepository(),
+                new BasicPasswordPolicy(),
+                newRateLimitedAuthStrategy(),
+                mock( JobScheduler.class ),
+                new InMemoryUserRepository(),
+                new InMemoryUserRepository()
+        );
 
         List<Realm> realms = listOf( testRealm );
 
         authManager = new MultiRealmAuthManager( testRealm, realms, new MemoryConstrainedCacheManager(),
-                mock( SecurityLog.class ), true, false, Collections.emptyMap() );
+                                                 mock( SecurityLog.class ), true, false, Collections.emptyMap() );
 
         authManager.init();
         authManager.start();
@@ -158,7 +162,7 @@ public class InternalFlatFileRealmTest
 
         // Then
         assertThat( realm.getUsernamesForRole( PredefinedRoles.ADMIN ),
-                contains( InternalFlatFileRealm.INITIAL_USER_NAME ) );
+                    contains( InternalFlatFileRealm.INITIAL_USER_NAME ) );
     }
 
     @Test
@@ -166,7 +170,7 @@ public class InternalFlatFileRealmTest
     {
         // Given
         InternalFlatFileRealm realm = internalTestRealmWithUsers( Arrays.asList( "neo4j", "morpheus", "trinity" ),
-                Collections.singletonList( "morpheus" ) );
+                                                                  Collections.singletonList( "morpheus" ) );
 
         // When
         realm.initialize();
@@ -198,13 +202,13 @@ public class InternalFlatFileRealmTest
     {
         // Given
         InternalFlatFileRealm realm = internalTestRealmWithUsers( Collections.singletonList( "neo4j" ),
-                Collections.singletonList( "morpheus" ) );
+                                                                  Collections.singletonList( "morpheus" ) );
 
         // Expect
         exception.expect( InvalidArgumentsException.class );
         exception.expectMessage(
                 "No roles defined, and default admin user 'morpheus' does not exist. Please use `neo4j-admin " +
-                        SetDefaultAdminCommand.COMMAND_NAME + "` to select a valid admin." );
+                SetDefaultAdminCommand.COMMAND_NAME + "` to select a valid admin." );
 
         // When
         realm.initialize();
@@ -222,7 +226,7 @@ public class InternalFlatFileRealmTest
         exception.expect( InvalidArgumentsException.class );
         exception.expectMessage(
                 "No roles defined, and cannot determine which user should be admin. Please use `neo4j-admin " +
-                        SetDefaultAdminCommand.COMMAND_NAME + "` to select an admin." );
+                SetDefaultAdminCommand.COMMAND_NAME + "` to select an admin." );
 
         // When
         realm.initialize();
@@ -234,13 +238,13 @@ public class InternalFlatFileRealmTest
     {
         // Given
         InternalFlatFileRealm realm = internalTestRealmWithUsers( Arrays.asList( "morpheus", "trinity", "tank" ),
-                Arrays.asList( "morpheus", "trinity" ) );
+                                                                  Arrays.asList( "morpheus", "trinity" ) );
 
         // Expect
         exception.expect( InvalidArgumentsException.class );
         exception.expectMessage(
                 "No roles defined, and multiple users defined as default admin user. Please use `neo4j-admin " +
-                        SetDefaultAdminCommand.COMMAND_NAME + "` to select a valid admin." );
+                SetDefaultAdminCommand.COMMAND_NAME + "` to select a valid admin." );
 
         // When
         realm.initialize();
@@ -314,11 +318,11 @@ public class InternalFlatFileRealmTest
     private User newUser( String userName, String password, boolean pwdChange )
     {
         return new User.Builder( userName, LegacyCredential.forPassword( password ) ).withRequiredPasswordChange( pwdChange )
-            .build();
+                                                                                     .build();
     }
 
     private void assertSetUsersAndRolesNTimes( boolean usersChanged, boolean rolesChanged,
-            int nSetUsers, int nSetRoles ) throws Throwable
+                                               int nSetUsers, int nSetRoles ) throws Throwable
     {
         final UserRepository userRepository = mock( UserRepository.class );
         final RoleRepository roleRepository = mock( RoleRepository.class );
@@ -336,11 +340,11 @@ public class InternalFlatFileRealmTest
                         jobScheduler,
                         initialUserRepository,
                         defaultAdminRepository
-                    );
+                );
 
         when( userRepository.getPersistedSnapshot() ).thenReturn(
                 new ListSnapshot<>( 10L, Collections.emptyList(), usersChanged ) );
-        when( userRepository.getUserByName( any() ) ).thenReturn( new User.Builder(  ).build() );
+        when( userRepository.getUserByName( any() ) ).thenReturn( new User.Builder().build() );
         when( roleRepository.getPersistedSnapshot() ).thenReturn(
                 new ListSnapshot<>( 10L, Collections.emptyList(), rolesChanged ) );
         when( roleRepository.getRoleByName( anyString() ) ).thenReturn( new RoleRecord( "" ) );
@@ -354,22 +358,17 @@ public class InternalFlatFileRealmTest
         verify( roleRepository, times( nSetRoles ) ).setRoles( any() );
     }
 
-    private static AuthenticationStrategy newRateLimitedAuthStrategy()
-    {
-        return new RateLimitedAuthenticationStrategy( Clock.systemUTC(), Config.defaults() );
-    }
-
     private class TestRealm extends InternalFlatFileRealm
     {
         private boolean authenticationFlag;
         private boolean authorizationFlag;
 
         TestRealm( UserRepository userRepository, RoleRepository roleRepository, PasswordPolicy passwordPolicy,
-                AuthenticationStrategy authenticationStrategy, JobScheduler jobScheduler,
-                UserRepository initialUserRepository, UserRepository defaultAdminRepository )
+                   AuthenticationStrategy authenticationStrategy, JobScheduler jobScheduler,
+                   UserRepository initialUserRepository, UserRepository defaultAdminRepository )
         {
             super( userRepository, roleRepository, passwordPolicy, authenticationStrategy, jobScheduler,
-                    initialUserRepository, defaultAdminRepository );
+                   initialUserRepository, defaultAdminRepository );
         }
 
         boolean takeAuthenticationFlag()

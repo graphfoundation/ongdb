@@ -42,7 +42,7 @@ public class PluginAuthenticationInfoTest
         PluginAuthenticationInfo internalAuthInfo =
                 PluginAuthenticationInfo.createCacheable( AuthenticationInfo.of( "thePrincipal" ), "theRealm", null );
 
-        assertThat( (List<String>)internalAuthInfo.getPrincipals().asList(), containsInAnyOrder( "thePrincipal" ) );
+        assertThat( (List<String>) internalAuthInfo.getPrincipals().asList(), containsInAnyOrder( "thePrincipal" ) );
     }
 
     @Test
@@ -58,7 +58,7 @@ public class PluginAuthenticationInfoTest
                         hasher
                 );
 
-        assertThat( (List<String>)internalAuthInfo.getPrincipals().asList(), containsInAnyOrder( "thePrincipal" ) );
+        assertThat( (List<String>) internalAuthInfo.getPrincipals().asList(), containsInAnyOrder( "thePrincipal" ) );
     }
 
     @Test
@@ -74,6 +74,6 @@ public class PluginAuthenticationInfoTest
                         hasher
                 );
 
-        assertThat( (List<String>)internalAuthInfo.getPrincipals().asList(), containsInAnyOrder( "thePrincipal" ) );
+        assertThat( (List<String>) internalAuthInfo.getPrincipals().asList(), containsInAnyOrder( "thePrincipal" ) );
     }
 }

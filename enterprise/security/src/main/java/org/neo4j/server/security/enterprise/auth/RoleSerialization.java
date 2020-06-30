@@ -21,8 +21,8 @@ package org.neo4j.server.security.enterprise.auth;
 import java.util.SortedSet;
 import java.util.TreeSet;
 
+import org.neo4j.cypher.internal.security.FormatException;
 import org.neo4j.server.security.auth.FileRepositorySerializer;
-import org.neo4j.server.security.auth.exception.FormatException;
 
 import static java.lang.String.format;
 

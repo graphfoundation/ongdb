@@ -26,7 +26,7 @@ public class EmbeddedConfiguredProceduresIT extends ConfiguredProceduresTestBase
 {
 
     @Override
-    protected NeoInteractionLevel<EnterpriseLoginContext> setUpNeoServer( Map<String, String> config ) throws Throwable
+    protected NeoInteractionLevel<EnterpriseLoginContext> setUpNeoServer( Map<String,String> config ) throws Throwable
     {
         return new EmbeddedInteraction( config );
     }

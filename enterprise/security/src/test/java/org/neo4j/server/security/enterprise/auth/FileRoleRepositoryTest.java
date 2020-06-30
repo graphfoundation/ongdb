@@ -60,11 +60,6 @@ import static org.neo4j.test.assertion.Assert.assertException;
 
 public class FileRoleRepositoryTest
 {
-    private File roleFile;
-    private final LogProvider logProvider = NullLogProvider.getInstance();
-    private FileSystemAbstraction fs;
-    private RoleRepository roleRepository;
-
     @Rule
     public final TestDirectory testDirectory = TestDirectory.testDirectory();
     @Rule
@@ -73,6 +68,10 @@ public class FileRoleRepositoryTest
     public final ThreadingRule threading = new ThreadingRule();
     @Rule
     public final DefaultFileSystemRule fileSystemRule = new DefaultFileSystemRule();
+    private final LogProvider logProvider = NullLogProvider.getInstance();
+    private File roleFile;
+    private FileSystemAbstraction fs;
+    private RoleRepository roleRepository;
 
     @Before
     public void setup()
@@ -144,15 +143,15 @@ public class FileRoleRepositoryTest
         roleRepository.assertValidRoleName( "john_osbourne" );
 
         assertException( () -> roleRepository.assertValidRoleName( null ), InvalidArgumentsException.class,
-                "The provided role name is empty." );
+                         "The provided role name is empty." );
         assertException( () -> roleRepository.assertValidRoleName( "" ), InvalidArgumentsException.class,
-                "The provided role name is empty." );
+                         "The provided role name is empty." );
         assertException( () -> roleRepository.assertValidRoleName( ":" ), InvalidArgumentsException.class,
-                "Role name ':' contains illegal characters. Use simple ascii characters and numbers." );
+                         "Role name ':' contains illegal characters. Use simple ascii characters and numbers." );
         assertException( () -> roleRepository.assertValidRoleName( "john osbourne" ), InvalidArgumentsException.class,
-                "Role name 'john osbourne' contains illegal characters. Use simple ascii characters and numbers." );
+                         "Role name 'john osbourne' contains illegal characters. Use simple ascii characters and numbers." );
         assertException( () -> roleRepository.assertValidRoleName( "john:osbourne" ), InvalidArgumentsException.class,
-                "Role name 'john:osbourne' contains illegal characters. Use simple ascii characters and numbers." );
+                         "Role name 'john:osbourne' contains illegal characters. Use simple ascii characters and numbers." );
     }
 
     @Test
@@ -165,7 +164,7 @@ public class FileRoleRepositoryTest
                 {
                     @Override
                     public void renameFile( File oldLocation, File newLocation, CopyOption... copyOptions ) throws
-                            IOException
+                                                                                                            IOException
                     {
                         if ( roleFile.getName().equals( newLocation.getName() ) )
                         {
@@ -303,10 +302,10 @@ public class FileRoleRepositoryTest
 
         // When
         Future<Object> setUsers = threading.execute( o ->
-        {
-            roleRepository.setRoles( new HangingListSnapshot( latch, 10L, Collections.emptyList() ) );
-            return null;
-        }, null );
+                                                     {
+                                                         roleRepository.setRoles( new HangingListSnapshot( latch, 10L, Collections.emptyList() ) );
+                                                         return null;
+                                                     }, null );
 
         latch.startAndWaitForAllToStart();
 

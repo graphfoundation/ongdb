@@ -29,7 +29,7 @@ import org.neo4j.server.security.enterprise.configuration.SecuritySettings;
 public class NativeAndCredentialsOnlyIT extends EnterpriseAuthenticationTestBase
 {
     @Override
-    protected Map<Setting<?>, String> getSettings()
+    protected Map<Setting<?>,String> getSettings()
     {
         return Collections.singletonMap( SecuritySettings.auth_providers, "native,plugin-TestCredentialsOnlyPlugin" );
     }

@@ -38,11 +38,23 @@ public class PluginRealmTest
     private AssertableLogProvider log = new AssertableLogProvider();
     private SecurityLog securityLog = new SecurityLog( log.getLog( this.getClass() ) );
 
+    private static void logLines( AuthProviderOperations api )
+    {
+        AuthProviderOperations.Log log = api.log();
+        if ( log.isDebugEnabled() )
+        {
+            log.debug( "debug line" );
+        }
+        log.info( "info line" );
+        log.warn( "warn line" );
+        log.error( "error line" );
+    }
+
     @Test
     public void shouldLogToSecurityLogFromAuthPlugin() throws Throwable
     {
         PluginRealm pluginRealm = new PluginRealm( new LoggingAuthPlugin(), config, securityLog, Clock.systemUTC(),
-                mock( SecureHasher.class ) );
+                                                   mock( SecureHasher.class ) );
         pluginRealm.initialize();
         assertLogged( "LoggingAuthPlugin" );
     }
@@ -54,7 +66,7 @@ public class PluginRealmTest
                 new LoggingAuthenticationPlugin(),
                 null,
                 config, securityLog, Clock.systemUTC(), mock( SecureHasher.class ) );
-        pluginRealm.initialize( );
+        pluginRealm.initialize();
         assertLogged( "LoggingAuthenticationPlugin" );
     }
 
@@ -75,7 +87,7 @@ public class PluginRealmTest
                 inLog( this.getClass() ).info( format( "{plugin-%s} info line", name ) ),
                 inLog( this.getClass() ).warn( format( "{plugin-%s} warn line", name ) ),
                 inLog( this.getClass() ).error( format( "{plugin-%s} error line", name ) )
-            );
+        );
     }
 
     private class LoggingAuthPlugin extends TestAuthPlugin
@@ -103,17 +115,5 @@ public class PluginRealmTest
         {
             logLines( api );
         }
-    }
-
-    private static void logLines( AuthProviderOperations api )
-    {
-        AuthProviderOperations.Log log = api.log();
-        if ( log.isDebugEnabled() )
-        {
-            log.debug( "debug line" );
-        }
-        log.info( "info line" );
-        log.warn( "warn line" );
-        log.error( "error line" );
     }
 }
