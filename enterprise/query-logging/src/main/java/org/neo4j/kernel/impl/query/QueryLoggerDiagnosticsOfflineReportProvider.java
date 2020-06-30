@@ -19,17 +19,17 @@
 package org.neo4j.kernel.impl.query;
 
 import java.io.File;
+import java.nio.file.Path;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
-import org.neo4j.diagnostics.DiagnosticsOfflineReportProvider;
-import org.neo4j.diagnostics.DiagnosticsReportSource;
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
+import org.neo4j.configuration.Config;
+import org.neo4j.configuration.GraphDatabaseSettings;
 import org.neo4j.io.fs.FileSystemAbstraction;
-import org.neo4j.kernel.configuration.Config;
-
-import static org.neo4j.diagnostics.DiagnosticsReportSources.newDiagnosticsRotatingFile;
+import org.neo4j.kernel.diagnostics.DiagnosticsOfflineReportProvider;
+import org.neo4j.kernel.diagnostics.DiagnosticsReportSource;
+import org.neo4j.kernel.diagnostics.DiagnosticsReportSources;
 
 public class QueryLoggerDiagnosticsOfflineReportProvider extends DiagnosticsOfflineReportProvider
 {
@@ -38,27 +38,26 @@ public class QueryLoggerDiagnosticsOfflineReportProvider extends DiagnosticsOffl
 
     public QueryLoggerDiagnosticsOfflineReportProvider()
     {
-        super( "query-logger", "logs" );
+        super( "logs", new String[0] );
     }
 
-    @Override
-    public void init( FileSystemAbstraction fs, Config config, File storeDirectory )
+    public void init( FileSystemAbstraction fs, String defaultDatabaseName, Config config, File storeDirectory )
     {
         this.fs = fs;
         this.config = config;
     }
 
-    @Override
     protected List<DiagnosticsReportSource> provideSources( Set<String> classifiers )
     {
         if ( classifiers.contains( "logs" ) )
         {
-            File queryLog = config.get( GraphDatabaseSettings.log_queries_filename );
-            if ( fs.fileExists( queryLog ) )
+            File queryLog = ((Path) this.config.get( GraphDatabaseSettings.log_queries_filename )).toFile();
+            if ( this.fs.fileExists( queryLog ) )
             {
-                return newDiagnosticsRotatingFile( "logs/query.log", fs, queryLog );
+                return DiagnosticsReportSources.newDiagnosticsRotatingFile( "logs/query.log", this.fs, queryLog );
             }
         }
+
         return Collections.emptyList();
     }
 }

@@ -24,20 +24,20 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.time.ZoneId;
 
+import org.neo4j.configuration.Config;
+import org.neo4j.configuration.GraphDatabaseSettings;
+import org.neo4j.configuration.GraphDatabaseSettings.LogQueryLevel;
 import org.neo4j.graphdb.config.Setting;
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.io.fs.FileSystemAbstraction;
+import org.neo4j.io.fs.FileSystemUtils;
 import org.neo4j.kernel.api.query.ExecutingQuery;
-import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.lifecycle.LifecycleAdapter;
 import org.neo4j.logging.FormattedLog;
+import org.neo4j.logging.FormattedLog.Builder;
 import org.neo4j.logging.Log;
 import org.neo4j.logging.RotatingFileOutputStreamSupplier;
 import org.neo4j.scheduler.Group;
 import org.neo4j.scheduler.JobScheduler;
-
-import static org.neo4j.io.file.Files.createOrOpenAsOutputStream;
-import static org.neo4j.kernel.impl.query.QueryLogger.NO_LOG;
 
 class DynamicLoggingQueryExecutionMonitor extends LifecycleAdapter implements QueryExecutionMonitor
 {
@@ -45,182 +45,166 @@ class DynamicLoggingQueryExecutionMonitor extends LifecycleAdapter implements Qu
     private final FileSystemAbstraction fileSystem;
     private final JobScheduler scheduler;
     private final Log debugLog;
-
-    /**
-     * The currently configured QueryLogger. This may be accessed concurrently by any thread, even while the logger is being reconfigured.
-     */
-    private volatile QueryLogger currentLog = NO_LOG;
-
-    // These fields are only accessed during (re-) configuration, and are protected from concurrent access
-    // by the monitor lock on DynamicQueryLogger.
-    private ZoneId currentLogTimeZone;
-    private FormattedLog.Builder logBuilder;
+    private volatile QueryLogger currentLog;
+    private Builder logBuilder;
     private File currentQueryLogFile;
     private long currentRotationThreshold;
     private int currentMaxArchives;
     private Log log;
     private Closeable closable;
 
-    DynamicLoggingQueryExecutionMonitor( Config config, FileSystemAbstraction fileSystem, JobScheduler scheduler,
-                                         Log debugLog )
+    DynamicLoggingQueryExecutionMonitor( Config config, FileSystemAbstraction fileSystem, JobScheduler scheduler, Log debugLog )
     {
+        this.currentLog = QueryLogger.NO_LOG;
         this.config = config;
         this.fileSystem = fileSystem;
         this.scheduler = scheduler;
         this.debugLog = debugLog;
     }
 
-    @Override
     public synchronized void init()
     {
-        // This set of settings are currently not dynamic:
-        currentLogTimeZone = config.get( GraphDatabaseSettings.db_timezone ).getZoneId();
-        logBuilder = FormattedLog.withZoneId( currentLogTimeZone );
-        currentQueryLogFile = config.get( GraphDatabaseSettings.log_queries_filename );
-
-        updateSettings();
-
-        registerDynamicSettingUpdater( GraphDatabaseSettings.log_queries );
-        registerDynamicSettingUpdater( GraphDatabaseSettings.log_queries_threshold );
-        registerDynamicSettingUpdater( GraphDatabaseSettings.log_queries_rotation_threshold );
-        registerDynamicSettingUpdater( GraphDatabaseSettings.log_queries_max_archives );
-        registerDynamicSettingUpdater( GraphDatabaseSettings.log_queries_runtime_logging_enabled );
-        registerDynamicSettingUpdater( GraphDatabaseSettings.log_queries_parameter_logging_enabled );
-        registerDynamicSettingUpdater( GraphDatabaseSettings.log_queries_page_detail_logging_enabled );
-        registerDynamicSettingUpdater( GraphDatabaseSettings.log_queries_allocation_logging_enabled );
-        registerDynamicSettingUpdater( GraphDatabaseSettings.log_queries_detailed_time_logging_enabled );
+        ZoneId currentLogTimeZone = (this.config.get( GraphDatabaseSettings.db_timezone )).getZoneId();
+        this.logBuilder = FormattedLog.withZoneId( currentLogTimeZone );
+        this.currentQueryLogFile = (this.config.get( GraphDatabaseSettings.log_queries_filename )).toFile();
+        this.updateSettings();
+        this.registerDynamicSettingUpdater( GraphDatabaseSettings.log_queries );
+        this.registerDynamicSettingUpdater( GraphDatabaseSettings.log_queries_threshold );
+        this.registerDynamicSettingUpdater( GraphDatabaseSettings.log_queries_rotation_threshold );
+        this.registerDynamicSettingUpdater( GraphDatabaseSettings.log_queries_max_archives );
+        this.registerDynamicSettingUpdater( GraphDatabaseSettings.log_queries_runtime_logging_enabled );
+        this.registerDynamicSettingUpdater( GraphDatabaseSettings.log_queries_parameter_logging_enabled );
+        this.registerDynamicSettingUpdater( GraphDatabaseSettings.log_queries_page_detail_logging_enabled );
+        this.registerDynamicSettingUpdater( GraphDatabaseSettings.log_queries_allocation_logging_enabled );
+        this.registerDynamicSettingUpdater( GraphDatabaseSettings.log_queries_detailed_time_logging_enabled );
     }
 
     private <T> void registerDynamicSettingUpdater( Setting<T> setting )
     {
-        config.registerDynamicUpdateListener( setting, ( a, b ) -> updateSettings() );
+        this.config.addListener( setting, ( a, b ) ->
+        {
+            this.updateSettings();
+        } );
     }
 
     private synchronized void updateSettings()
     {
-        updateLogSettings();
-        updateQueryLoggerSettings();
+        this.updateLogSettings();
+        this.updateQueryLoggerSettings();
     }
 
     private void updateQueryLoggerSettings()
     {
-        // This method depends on any log settings having been updated before hand, via updateLogSettings.
-        // The only dynamic settings here are log_queries, and log_queries_threshold which is read by the
-        // ConfiguredQueryLogger constructor. We can add more in the future, though. The various content settings
-        // are prime candidates.
-        if ( config.get( GraphDatabaseSettings.log_queries ) )
+        if ( this.config.get( GraphDatabaseSettings.log_queries ) != LogQueryLevel.OFF )
         {
-            currentLog = new ConfiguredQueryLogger( log, config );
+            this.currentLog = new ConfiguredQueryLogger( this.log, this.config );
         }
         else
         {
-            currentLog = NO_LOG;
+            this.currentLog = QueryLogger.NO_LOG;
         }
     }
 
     private void updateLogSettings()
     {
-        // The dynamic setting here is log_queries, log_queries_rotation_threshold, and log_queries_max_archives.
-        // NOTE: We can't register this method as a settings update callback, because we don't update the `currentLog`
-        // field in this method. Settings updates must always go via the `updateQueryLoggerSettings` method.
-        if ( config.get( GraphDatabaseSettings.log_queries ) )
+        if ( this.config.get( GraphDatabaseSettings.log_queries ) != LogQueryLevel.OFF )
         {
-            long rotationThreshold = config.get( GraphDatabaseSettings.log_queries_rotation_threshold );
-            int maxArchives = config.get( GraphDatabaseSettings.log_queries_max_archives );
+            long rotationThreshold = this.config.get( GraphDatabaseSettings.log_queries_rotation_threshold );
+            int maxArchives = this.config.get( GraphDatabaseSettings.log_queries_max_archives );
 
             try
             {
-                if ( logRotationIsEnabled( rotationThreshold ) )
+                if ( this.logRotationIsEnabled( rotationThreshold ) )
                 {
-                    boolean needsRebuild = closable == null; // We need to rebuild the log if we currently don't have any,
-                    needsRebuild |= currentRotationThreshold != rotationThreshold; // or if rotation threshold has changed,
-                    needsRebuild |= currentMaxArchives != maxArchives; // or if the max archives setting has changed.
+                    boolean needsRebuild = this.closable == null;
+                    needsRebuild |= this.currentRotationThreshold != rotationThreshold;
+                    needsRebuild |= this.currentMaxArchives != maxArchives;
                     if ( needsRebuild )
                     {
-                        closeCurrentLogIfAny();
-                        buildRotatingLog( rotationThreshold, maxArchives );
+                        this.closeCurrentLogIfAny();
+                        this.buildRotatingLog( rotationThreshold, maxArchives );
                     }
                 }
-                else if ( currentRotationThreshold != rotationThreshold || closable == null )
+                else if ( this.currentRotationThreshold != rotationThreshold || this.closable == null )
                 {
-                    // We go from rotating (or uninitialised) log to non-rotating. Always rebuild.
-                    closeCurrentLogIfAny();
-                    buildNonRotatingLog();
+                    this.closeCurrentLogIfAny();
+                    this.buildNonRotatingLog();
                 }
 
-                currentRotationThreshold = rotationThreshold;
-                currentMaxArchives = maxArchives;
+                this.currentRotationThreshold = rotationThreshold;
+                this.currentMaxArchives = maxArchives;
             }
-            catch ( IOException exception )
+            catch ( IOException e )
             {
-                debugLog.warn( "Failed to build query log", exception );
+                this.debugLog.warn( "Failed to build query log", e );
             }
         }
         else
         {
-            closeCurrentLogIfAny();
+            this.closeCurrentLogIfAny();
         }
     }
 
     private boolean logRotationIsEnabled( long threshold )
     {
-        return threshold > 0;
+        return threshold > 0L;
     }
 
     private void closeCurrentLogIfAny()
     {
-        if ( closable != null )
+        if ( this.closable != null )
         {
             try
             {
-                closable.close();
+                this.closable.close();
             }
-            catch ( IOException exception )
+            catch ( IOException e )
             {
-                debugLog.warn( "Failed to close current log: " + closable, exception );
+                this.debugLog.warn( "Failed to close current log: " + this.closable, e );
             }
-            closable = null;
+
+            this.closable = null;
         }
     }
 
     private void buildRotatingLog( long rotationThreshold, int maxArchives ) throws IOException
     {
-        RotatingFileOutputStreamSupplier rotatingSupplier = new RotatingFileOutputStreamSupplier(
-                fileSystem, currentQueryLogFile,
-                rotationThreshold, 0, maxArchives,
-                scheduler.executor( Group.LOG_ROTATION ) );
-        log = logBuilder.toOutputStream( rotatingSupplier );
-        closable = rotatingSupplier;
+        RotatingFileOutputStreamSupplier rotatingSupplier =
+                new RotatingFileOutputStreamSupplier( this.fileSystem, this.currentQueryLogFile, rotationThreshold, 0L, maxArchives,
+                                                      this.scheduler.executor( Group.LOG_ROTATION ) );
+        this.log = this.logBuilder.toOutputStream( rotatingSupplier );
+        this.closable = rotatingSupplier;
     }
 
     private void buildNonRotatingLog() throws IOException
     {
-        OutputStream logOutputStream = createOrOpenAsOutputStream( fileSystem, currentQueryLogFile, true );
-        log = logBuilder.toOutputStream( logOutputStream );
-        closable = logOutputStream;
+        OutputStream logOutputStream = FileSystemUtils.createOrOpenAsOutputStream( this.fileSystem, this.currentQueryLogFile, true );
+        this.log = this.logBuilder.toOutputStream( logOutputStream );
+        this.closable = logOutputStream;
     }
 
-    @Override
     public synchronized void shutdown()
     {
-        closeCurrentLogIfAny();
+        this.closeCurrentLogIfAny();
     }
 
-    @Override
+    public void start( ExecutingQuery query )
+    {
+        this.currentLog.start( query );
+    }
+
     public void endFailure( ExecutingQuery query, Throwable failure )
     {
-        currentLog.failure( query, failure );
+        this.currentLog.failure( query, failure );
     }
 
-    @Override
     public void endFailure( ExecutingQuery query, String reason )
     {
-        currentLog.failure( query, reason );
+        this.currentLog.failure( query, reason );
     }
 
-    @Override
     public void endSuccess( ExecutingQuery query )
     {
-        currentLog.success( query );
+        this.currentLog.success( query );
     }
 }

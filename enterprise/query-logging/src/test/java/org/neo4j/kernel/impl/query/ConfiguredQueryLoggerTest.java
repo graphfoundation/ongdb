@@ -20,7 +20,7 @@ package org.neo4j.kernel.impl.query;
 
 import org.junit.Rule;
 import org.junit.Test;
-import java.util.function.Supplier;
+
 import java.net.SocketAddress;
 import java.util.Arrays;
 import java.util.Collections;
@@ -64,14 +64,15 @@ public class ConfiguredQueryLoggerTest
     private static final String QUERY_2 = "MATCH (a)--(b) RETURN b.name";
     private static final String QUERY_3 = "MATCH (c)-[:FOO]->(d) RETURN d.size";
     private static final String QUERY_4 = "MATCH (n) WHERE n.age IN {ages} RETURN n";
-    private final FakeClock clock = Clocks.fakeClock();
     @Rule
     public final FakeCpuClock cpuClock = new FakeCpuClock();
     @Rule
     public final FakeHeapAllocation heapAllocation = new FakeHeapAllocation();
+    private final FakeClock clock = Clocks.fakeClock();
     private long pageHits;
     private long pageFaults;
     private long thresholdInMillis = 10;
+    private int queryId;
 
     @Test
     public void shouldLogQuerySlowerThanThreshold()
@@ -88,7 +89,7 @@ public class ConfiguredQueryLoggerTest
         // then
         String expectedSessionString = sessionConnectionDetails( SESSION_1, "TestUser" );
         logProvider.assertExactly(
-            inLog( getClass() ).info( format( "%d ms: %s - %s - {}", 11L, expectedSessionString, QUERY_1 ) )
+                inLog( getClass() ).info( format( "%d ms: %s - %s - {}", 11L, expectedSessionString, QUERY_1 ) )
         );
     }
 
@@ -171,7 +172,7 @@ public class ConfiguredQueryLoggerTest
         logProvider.assertExactly(
                 inLog( getClass() )
                         .error( is( "1 ms: " + sessionConnectionDetails( SESSION_1, "TestUser" )
-                                + " - MATCH (n) RETURN n - {}" ), sameInstance( failure ) )
+                                    + " - MATCH (n) RETURN n - {}" ), sameInstance( failure ) )
         );
     }
 
@@ -184,7 +185,7 @@ public class ConfiguredQueryLoggerTest
         params.put( "ages", Arrays.asList( 41, 42, 43 ) );
         ExecutingQuery query = query( SESSION_1, "TestUser", QUERY_4, params, emptyMap() );
         ConfiguredQueryLogger queryLogger = queryLogger( logProvider,
-                Config.defaults( GraphDatabaseSettings.log_queries_parameter_logging_enabled, "true" ) );
+                                                         Config.defaults( GraphDatabaseSettings.log_queries_parameter_logging_enabled, "true" ) );
 
         // when
         clock.forward( 11, TimeUnit.MILLISECONDS );
@@ -193,9 +194,9 @@ public class ConfiguredQueryLoggerTest
         // then
         String expectedSessionString = sessionConnectionDetails( SESSION_1, "TestUser" );
         logProvider.assertExactly(
-            inLog( getClass() ).info( format( "%d ms: %s - %s - %s - {}", 11L, expectedSessionString, QUERY_4,
-                    "{ages: " +
-                    "[41, 42, 43]}" ) )
+                inLog( getClass() ).info( format( "%d ms: %s - %s - %s - {}", 11L, expectedSessionString, QUERY_4,
+                                                  "{ages: " +
+                                                  "[41, 42, 43]}" ) )
         );
     }
 
@@ -208,7 +209,7 @@ public class ConfiguredQueryLoggerTest
         params.put( "ages", Arrays.asList( 41, 42, 43 ) );
         ExecutingQuery query = query( SESSION_1, "TestUser", QUERY_4, params, emptyMap() );
         ConfiguredQueryLogger queryLogger = queryLogger( logProvider,
-                Config.defaults( GraphDatabaseSettings.log_queries_parameter_logging_enabled, "true" ) );
+                                                         Config.defaults( GraphDatabaseSettings.log_queries_parameter_logging_enabled, "true" ) );
         RuntimeException failure = new RuntimeException();
 
         // when
@@ -217,10 +218,10 @@ public class ConfiguredQueryLoggerTest
 
         // then
         logProvider.assertExactly(
-            inLog( getClass() ).error(
-                    is( "1 ms: " + sessionConnectionDetails( SESSION_1, "TestUser" )
+                inLog( getClass() ).error(
+                        is( "1 ms: " + sessionConnectionDetails( SESSION_1, "TestUser" )
                             + " - MATCH (n) WHERE n.age IN {ages} RETURN n - {ages: [41, 42, 43]} - {}" ),
-                sameInstance( failure ) )
+                        sameInstance( failure ) )
         );
     }
 
@@ -243,9 +244,9 @@ public class ConfiguredQueryLoggerTest
         // then
         logProvider.assertExactly(
                 inLog( getClass() ).info( format( "%d ms: %s - %s - {}", 10L,
-                        sessionConnectionDetails( SESSION_1, "TestUser" ), QUERY_1 ) ),
+                                                  sessionConnectionDetails( SESSION_1, "TestUser" ), QUERY_1 ) ),
                 inLog( getClass() ).info( format( "%d ms: %s - %s - {}", 10L,
-                        sessionConnectionDetails( SESSION_1, "AnotherUser" ), QUERY_1 ) )
+                                                  sessionConnectionDetails( SESSION_1, "AnotherUser" ), QUERY_1 ) )
         );
     }
 
@@ -270,11 +271,11 @@ public class ConfiguredQueryLoggerTest
         // then
         logProvider.assertExactly(
                 inLog( getClass() ).info( format( "%d ms: %s - %s - {User: 'UltiMate'}", 10L,
-                        sessionConnectionDetails( SESSION_1, "TestUser" ), QUERY_1
+                                                  sessionConnectionDetails( SESSION_1, "TestUser" ), QUERY_1
                 ) ),
                 inLog( getClass() ).error(
                         equalTo( format( "%d ms: %s - %s - {Place: 'Town'}", 10L,
-                            sessionConnectionDetails( SESSION_1, "AnotherUser" ), QUERY_1 ) ),
+                                         sessionConnectionDetails( SESSION_1, "AnotherUser" ), QUERY_1 ) ),
                         sameInstance( error ) )
         );
     }
@@ -337,9 +338,9 @@ public class ConfiguredQueryLoggerTest
     public void shouldNotLogPasswordEvenIfYouDoTwoThingsAtTheSameTime()
     {
         String inputQuery = "CALL dbms.security.changeUserPassword('neo4j','.changePassword(silly)') " +
-                "CALL dbms.security.changeUserPassword('smith','other$silly') RETURN 1";
+                            "CALL dbms.security.changeUserPassword('smith','other$silly') RETURN 1";
         String outputQuery = "CALL dbms.security.changeUserPassword('neo4j',******) " +
-                "CALL dbms.security.changeUserPassword('smith',******) RETURN 1";
+                             "CALL dbms.security.changeUserPassword('smith',******) RETURN 1";
 
         runAndCheck( inputQuery, outputQuery, emptyMap(), "" );
     }
@@ -348,9 +349,9 @@ public class ConfiguredQueryLoggerTest
     public void shouldNotLogPasswordEvenIfYouDoTwoThingsAtTheSameTimeWithSeveralParms()
     {
         String inputQuery = "CALL dbms.security.changeUserPassword('neo4j',$first) " +
-                "CALL dbms.security.changeUserPassword('smith',$second) RETURN 1";
+                            "CALL dbms.security.changeUserPassword('smith',$second) RETURN 1";
         String outputQuery = "CALL dbms.security.changeUserPassword('neo4j',$first) " +
-                "CALL dbms.security.changeUserPassword('smith',$second) RETURN 1";
+                             "CALL dbms.security.changeUserPassword('smith',$second) RETURN 1";
 
         Map<String,Object> params = new HashMap<>();
         params.put( "first", ".changePassword(silly)" );
@@ -366,7 +367,7 @@ public class ConfiguredQueryLoggerTest
         String outputQuery = "CALL dbms.changePassword($password)";
 
         runAndCheck( inputQuery, outputQuery, Collections.singletonMap( "password", ".changePassword(silly)" ),
-                "password: ******" );
+                     "password: ******" );
     }
 
     @Test
@@ -402,7 +403,7 @@ public class ConfiguredQueryLoggerTest
     {
         final AssertableLogProvider logProvider = new AssertableLogProvider();
         ConfiguredQueryLogger queryLogger = queryLogger( logProvider,
-                Config.defaults( GraphDatabaseSettings.log_queries_parameter_logging_enabled, "true" ) );
+                                                         Config.defaults( GraphDatabaseSettings.log_queries_parameter_logging_enabled, "true" ) );
 
         // when
         ExecutingQuery query = query( SESSION_1, "neo", inputQuery, params, emptyMap() );
@@ -411,9 +412,9 @@ public class ConfiguredQueryLoggerTest
 
         // then
         logProvider.assertExactly( inLog( getClass() )
-                .info( format( "%d ms: %s - %s - {%s} - {}", 10L, sessionConnectionDetails( SESSION_1, "neo" ),
-                        outputQuery,
-                        paramsString ) ) );
+                                           .info( format( "%d ms: %s - %s - {%s} - {}", 10L, sessionConnectionDetails( SESSION_1, "neo" ),
+                                                          outputQuery,
+                                                          paramsString ) ) );
     }
 
     @Test
@@ -422,7 +423,7 @@ public class ConfiguredQueryLoggerTest
         // given
         final AssertableLogProvider logProvider = new AssertableLogProvider();
         ConfiguredQueryLogger queryLogger = queryLogger( logProvider,
-                Config.defaults( GraphDatabaseSettings.log_queries_detailed_time_logging_enabled, "true" ) );
+                                                         Config.defaults( GraphDatabaseSettings.log_queries_detailed_time_logging_enabled, "true" ) );
         ExecutingQuery query = query( SESSION_1, "TestUser", QUERY_1 );
 
         // when
@@ -441,7 +442,7 @@ public class ConfiguredQueryLoggerTest
         // given
         final AssertableLogProvider logProvider = new AssertableLogProvider();
         ConfiguredQueryLogger queryLogger = queryLogger( logProvider,
-                Config.defaults( GraphDatabaseSettings.log_queries_allocation_logging_enabled, "true" ) );
+                                                         Config.defaults( GraphDatabaseSettings.log_queries_allocation_logging_enabled, "true" ) );
         ExecutingQuery query = query( SESSION_1, "TestUser", QUERY_1 );
 
         // when
@@ -460,7 +461,7 @@ public class ConfiguredQueryLoggerTest
         // given
         final AssertableLogProvider logProvider = new AssertableLogProvider();
         ConfiguredQueryLogger queryLogger = queryLogger( logProvider,
-                Config.defaults( GraphDatabaseSettings.log_queries_page_detail_logging_enabled, "true" ) );
+                                                         Config.defaults( GraphDatabaseSettings.log_queries_page_detail_logging_enabled, "true" ) );
         ExecutingQuery query = query( SESSION_1, "TestUser", QUERY_1 );
 
         // when
@@ -496,14 +497,14 @@ public class ConfiguredQueryLoggerTest
         String expectedSessionString = sessionConnectionDetails( SESSION_1, "TestUser" );
         logProvider.assertExactly(
                 inLog( getClass() ).info( format( "%d ms: %s - %s - %s - {}", 11L, expectedSessionString, QUERY_4,
-                        "{ages: [41, 42, 43]} - runtime=quantum" ) )
+                                                  "{ages: [41, 42, 43]} - runtime=quantum" ) )
         );
     }
 
     private ConfiguredQueryLogger queryLogger( LogProvider logProvider )
     {
         return queryLogger( logProvider,
-                Config.defaults( GraphDatabaseSettings.log_queries_parameter_logging_enabled, "false" ) );
+                            Config.defaults( GraphDatabaseSettings.log_queries_parameter_logging_enabled, "false" ) );
     }
 
     private ConfiguredQueryLogger queryLogger( LogProvider logProvider, Config config )
@@ -525,8 +526,6 @@ public class ConfiguredQueryLoggerTest
         return sessionInfo.withUsername( username ).asConnectionDetails();
     }
 
-    private int queryId;
-
     private ExecutingQuery query(
             ClientConnectionInfo sessionInfo,
             String username,
@@ -536,78 +535,78 @@ public class ConfiguredQueryLoggerTest
     {
         Thread thread = Thread.currentThread();
         return new ExecutingQuery( queryId++,
-                sessionInfo.withUsername( username ),
-                username,
-                queryText,
-                ValueUtils.asMapValue( params ),
-                metaData,
-                () -> 0,
-                new PageCursorCounters()
-                {
-                    @Override
-                    public long faults()
-                    {
-                        return pageFaults;
-                    }
+                                   sessionInfo.withUsername( username ),
+                                   username,
+                                   queryText,
+                                   ValueUtils.asMapValue( params ),
+                                   metaData,
+                                   () -> 0,
+                                   new PageCursorCounters()
+                                   {
+                                       @Override
+                                       public long faults()
+                                       {
+                                           return pageFaults;
+                                       }
 
-                    @Override
-                    public long hits()
-                    {
-                        return pageHits;
-                    }
+                                       @Override
+                                       public long hits()
+                                       {
+                                           return pageHits;
+                                       }
 
-                    @Override
-                    public long pins()
-                    {
-                        return 0;
-                    }
+                                       @Override
+                                       public long pins()
+                                       {
+                                           return 0;
+                                       }
 
-                    @Override
-                    public long unpins()
-                    {
-                        return 0;
-                    }
+                                       @Override
+                                       public long unpins()
+                                       {
+                                           return 0;
+                                       }
 
-                    @Override
-                    public long bytesRead()
-                    {
-                        return 0;
-                    }
+                                       @Override
+                                       public long bytesRead()
+                                       {
+                                           return 0;
+                                       }
 
-                    @Override
-                    public long evictions()
-                    {
-                        return 0;
-                    }
+                                       @Override
+                                       public long evictions()
+                                       {
+                                           return 0;
+                                       }
 
-                    @Override
-                    public long evictionExceptions()
-                    {
-                        return 0;
-                    }
+                                       @Override
+                                       public long evictionExceptions()
+                                       {
+                                           return 0;
+                                       }
 
-                    @Override
-                    public long bytesWritten()
-                    {
-                        return 0;
-                    }
+                                       @Override
+                                       public long bytesWritten()
+                                       {
+                                           return 0;
+                                       }
 
-                    @Override
-                    public long flushes()
-                    {
-                        return 0;
-                    }
+                                       @Override
+                                       public long flushes()
+                                       {
+                                           return 0;
+                                       }
 
-                    @Override
-                    public double hitRatio()
-                    {
-                        return 0d;
-                    }
-                },
-                thread.getId(),
-                thread.getName(),
-                clock,
-                cpuClock,
-                heapAllocation );
+                                       @Override
+                                       public double hitRatio()
+                                       {
+                                           return 0d;
+                                       }
+                                   },
+                                   thread.getId(),
+                                   thread.getName(),
+                                   clock,
+                                   cpuClock,
+                                   heapAllocation );
     }
 }

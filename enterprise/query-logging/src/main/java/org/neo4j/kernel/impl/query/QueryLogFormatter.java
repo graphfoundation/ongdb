@@ -20,10 +20,13 @@ package org.neo4j.kernel.impl.query;
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
-import org.neo4j.helpers.Strings;
+import org.neo4j.internal.helpers.Strings;
 import org.neo4j.kernel.api.query.QuerySnapshot;
 import org.neo4j.values.AnyValue;
 import org.neo4j.values.utils.PrettyPrinter;
@@ -43,50 +46,44 @@ class QueryLogFormatter
 
     static void formatAllocatedBytes( StringBuilder result, QuerySnapshot query )
     {
-        Long bytes = query.allocatedBytes();
-        if ( bytes != null )
-        {
-            result.append( bytes ).append( " B - " );
-        }
+        Optional<Long> bytes = query.allocatedBytes();
+        bytes.ifPresent( ( x ) ->
+                         {
+                             result.append( x ).append( " B - " );
+                         } );
     }
 
     static void formatDetailedTime( StringBuilder result, QuerySnapshot query )
     {
         result.append( "(planning: " ).append( TimeUnit.MICROSECONDS.toMillis( query.compilationTimeMicros() ) );
-        Long cpuTime = TimeUnit.MICROSECONDS.toMillis( query.cpuTimeMicros() );
+        Long cpuTime = query.cpuTimeMicros();
         if ( cpuTime != null )
         {
-            result.append( ", cpu: " ).append( cpuTime );
+            result.append( ", cpu: " ).append( TimeUnit.MICROSECONDS.toMillis( cpuTime ) );
         }
+
         result.append( ", waiting: " ).append( TimeUnit.MICROSECONDS.toMillis( query.waitTimeMicros() ) );
         result.append( ") - " );
     }
 
-    static void formatMapValue( StringBuilder result, MapValue params, Collection<String> obfuscate )
+    static void formatMapValue( StringBuilder result, MapValue params )
     {
         result.append( '{' );
         if ( params != null )
         {
-            final String[] sep = new String[]{""};
+            String[] sep = new String[]{""};
             params.foreach( ( key, value ) ->
-            {
-                result.append( sep[0] ).append( key ).append( ": " );
-
-                if ( obfuscate.contains( key ) )
-                {
-                    result.append( "******" );
-                }
-                else
-                {
-                    result.append( formatAnyValue( value ) );
-                }
-                sep[0] = ", ";
-            } );
+                            {
+                                result.append( sep[0] ).append( key ).append( ": " );
+                                result.append( formatAnyValue( value ) );
+                                sep[0] = ", ";
+                            } );
         }
+
         result.append( "}" );
     }
 
-    static String formatAnyValue( AnyValue value )
+    private static String formatAnyValue( AnyValue value )
     {
         PrettyPrinter printer = new PrettyPrinter( "'" );
         value.writeTo( printer );
@@ -98,16 +95,17 @@ class QueryLogFormatter
         formatMap( result, params, Collections.emptySet() );
     }
 
-    static void formatMap( StringBuilder result, Map<String,Object> params, Collection<String> obfuscate )
+    private static void formatMap( StringBuilder result, Map<String,Object> params, Collection<String> obfuscate )
     {
         result.append( '{' );
         if ( params != null )
         {
             String sep = "";
-            for ( Map.Entry<String,Object> entry : params.entrySet() )
-            {
-                result.append( sep ).append( entry.getKey() ).append( ": " );
 
+            for ( Iterator iterator = params.entrySet().iterator(); iterator.hasNext(); sep = ", " )
+            {
+                Entry<String,Object> entry = (Entry) iterator.next();
+                result.append( sep ).append( (String) entry.getKey() ).append( ": " );
                 if ( obfuscate.contains( entry.getKey() ) )
                 {
                     result.append( "******" );
@@ -116,17 +114,17 @@ class QueryLogFormatter
                 {
                     formatValue( result, entry.getValue() );
                 }
-                sep = ", ";
             }
         }
+
         result.append( "}" );
     }
 
     private static void formatValue( StringBuilder result, Object value )
     {
-        if ( value instanceof Map<?,?> )
+        if ( value instanceof Map )
         {
-            formatMap( result, (Map<String,Object>) value, Collections.emptySet() );
+            formatMap( result, (Map) value, Collections.emptySet() );
         }
         else if ( value instanceof String )
         {
