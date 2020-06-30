@@ -22,11 +22,8 @@ import org.junit.ClassRule;
 import org.junit.Test;
 
 import java.nio.file.Path;
-import java.util.HashMap;
-import java.util.Map;
 
 import org.neo4j.logging.NullLogProvider;
-import org.neo4j.ports.allocation.PortAuthority;
 import org.neo4j.test.rule.TestDirectory;
 
 public class CausalClusterInProcessRunnerIT
@@ -42,12 +39,12 @@ public class CausalClusterInProcessRunnerIT
 
         CausalClusterInProcessBuilder.CausalCluster cluster =
                 CausalClusterInProcessBuilder.init()
-                        .withCores( 3 )
-                        .withReplicas( 3 )
-                        .withLogger( NullLogProvider.getInstance() )
-                        .atPath( clusterPath )
-                        .withOptionalPortsStrategy( portPickingStrategy )
-                        .build();
+                                             .withCores( 3 )
+                                             .withReplicas( 3 )
+                                             .withLogger( NullLogProvider.getInstance() )
+                                             .atPath( clusterPath )
+                                             .withOptionalPortsStrategy( portPickingStrategy )
+                                             .build();
 
         cluster.boot();
         cluster.shutdown();

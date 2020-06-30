@@ -20,18 +20,18 @@ package org.neo4j.harness;
 
 import java.util.HashMap;
 import java.util.Map;
-import org.neo4j.ports.allocation.PortAuthority;
 
+import org.neo4j.ports.allocation.PortAuthority;
 
 public class PortAuthorityPortPickingStrategy implements CausalClusterInProcessBuilder.PortPickingStrategy
 {
-    Map<Integer, Integer> cache = new HashMap<>();
+    Map<Integer,Integer> cache = new HashMap<>();
 
     @Override
     public int port( int offset, int id )
     {
         int key = offset + id;
-        if ( ! cache.containsKey( key ) )
+        if ( !cache.containsKey( key ) )
         {
             cache.put( key, PortAuthority.allocatePort() );
         }

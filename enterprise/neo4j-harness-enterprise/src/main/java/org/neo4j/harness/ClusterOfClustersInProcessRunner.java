@@ -36,12 +36,12 @@ public class ClusterOfClustersInProcessRunner
 
             CausalClusterInProcessBuilder.CausalCluster cluster =
                     CausalClusterInProcessBuilder.init()
-                            .withCores( 9 )
-                            .withReplicas( 6 )
-                            .withLogger( toOutputStream( System.out ) )
-                            .atPath( clusterPath )
-                            .withOptionalDatabases( Arrays.asList("foo", "bar", "baz") )
-                            .build();
+                                                 .withCores( 9 )
+                                                 .withReplicas( 6 )
+                                                 .withLogger( toOutputStream( System.out ) )
+                                                 .atPath( clusterPath )
+                                                 .withOptionalDatabases( Arrays.asList( "foo", "bar", "baz" ) )
+                                                 .build();
 
             System.out.println( "Waiting for cluster to boot up..." );
             cluster.boot();
@@ -60,5 +60,4 @@ public class ClusterOfClustersInProcessRunner
         }
         System.exit( 0 );
     }
-
 }

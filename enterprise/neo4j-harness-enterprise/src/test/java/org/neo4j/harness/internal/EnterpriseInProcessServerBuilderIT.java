@@ -74,7 +74,7 @@ public class EnterpriseInProcessServerBuilderIT
         );
 
         return EnterpriseTestServerBuilders.newInProcessBuilder( workDir )
-                .withConfig( certificatesDirectoryKey, certificatesDirectoryValue )
-                .withConfig( OnlineBackupSettings.online_backup_enabled, Settings.FALSE );
+                                           .withConfig( certificatesDirectoryKey, certificatesDirectoryValue )
+                                           .withConfig( OnlineBackupSettings.online_backup_enabled, Settings.FALSE );
     }
 }

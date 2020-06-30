@@ -4,18 +4,18 @@
     <parent>
         <groupId>org.graphfoundation.ongdb</groupId>
         <artifactId>parent</artifactId>
-        <version>4.0.4-SNAPSHOT</version>
+        <version>4.0.7-SNAPSHOT</version>
         <relativePath>..</relativePath>
     </parent>
 
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.graphfoundation.ongdb.build</groupId>
     <artifactId>enterprise-build</artifactId>
-    <version>4.0.4-SNAPSHOT</version>
+    <version>4.0.7-SNAPSHOT</version>
 
     <name>ONgDB - Enterprise Build</name>
     <packaging>pom</packaging>
-    <description>Project that builds the Neo4j Enterprise distribution.</description>
+    <description>Project that builds the ONgDB Enterprise distribution.</description>
     <url>https://ongdb.graphfoundation.org/${project.artifactId}/${project.version}</url>
 
     <scm>
@@ -26,25 +26,33 @@
 
     <properties>
         <license-text.header>headers/AGPL-3-header.txt</license-text.header>
+
+        <!-- Added to skip test compilation and running temporarily in enterprise as we upgrade 4.x -->
+        <maven.test.skip>true</maven.test.skip>
     </properties>
 
     <modules>
+
+        <module>backup</module>
+        <module>auth-plugin-api</module>
+		<module>security</module>
         <module>query-logging</module>
+		<module>server-enterprise</module>
+		<module>ongdb-enterprise</module>
+		<module>management</module>
+		<module>kernel</module>
+		<module>causal-clustering</module>
+		<module>metrics</module>
+        <module>fabric</module>
+        <!--
+
         <module>com</module>
         <module>cluster</module>
-        <module>backup</module>
-        <module>kernel</module>
-        <module>causal-clustering</module>
-        <module>metrics</module>
-        <module>neo4j-enterprise</module>
-        <module>server-enterprise</module>
         <module>neo4j-harness-enterprise</module>
-        <module>management</module>
-        <module>security</module>
-        <module>auth-plugin-api</module>
         <module>deferred-locks</module>
         <module>ha</module>
         <module>procedure-compiler-enterprise-tests</module>
+        -->
     </modules>
 
     <profiles>
@@ -55,7 +63,8 @@
                     <name>!skipCypher</name>
                 </property>
             </activation>
-            <modules>
+
+           <modules>
                 <module>cypher</module>
             </modules>
         </profile>
@@ -67,4 +76,5 @@
             <url>http://www.gnu.org/licenses/agpl-3.0-standalone.html</url>
         </license>
     </licenses>
+
 </project>

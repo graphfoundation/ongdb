@@ -18,16 +18,15 @@
  */
 package org.neo4j.tooling.procedure;
 
-import java.net.URL;
-
-import javax.annotation.processing.Processor;
-import javax.tools.JavaFileObject;
-
 import com.google.testing.compile.CompilationRule;
 import com.google.testing.compile.CompileTester;
 import com.google.testing.compile.JavaFileObjects;
 import org.junit.Rule;
 import org.junit.Test;
+
+import java.net.URL;
+import javax.annotation.processing.Processor;
+import javax.tools.JavaFileObject;
 
 import static com.google.common.truth.Truth.assert_;
 import static com.google.testing.compile.JavaSourceSubjectFactory.javaSource;
@@ -49,19 +48,19 @@ public class EnterpriseTest
 
         CompileTester.SuccessfulCompilationClause warningCompilationClause =
                 assert_().about( javaSource() ).that( sproc ).processedWith( processor ).compilesWithoutError()
-                        .withWarningCount( 3 );
+                         .withWarningCount( 3 );
         warningCompilationClause.withWarningContaining(
                 "@org.neo4j.procedure.Context usage warning: found unsupported restricted type " +
                 "<org.neo4j.kernel.enterprise.api.security.EnterpriseAuthManager> on EnterpriseProcedure#enterpriseAuthManager.\n" +
                 "  The procedure will not load unless declared via the configuration option 'dbms.security.procedures.unrestricted'.\n" +
                 "  You can ignore this warning by passing the option -AIgnoreContextWarnings to the Java compiler" )
-                .in( sproc ).onLine( 39 );
+                                .in( sproc ).onLine( 39 );
         warningCompilationClause.withWarningContaining(
                 "@org.neo4j.procedure.Context usage warning: found unsupported restricted type " +
                 "<org.neo4j.server.security.enterprise.log.SecurityLog> on EnterpriseProcedure#securityLog.\n" +
                 "  The procedure will not load unless declared via the configuration option 'dbms.security.procedures.unrestricted'.\n" +
                 "  You can ignore this warning by passing the option -AIgnoreContextWarnings to the Java compiler" )
-                .in( sproc ).onLine( 42 );
+                                .in( sproc ).onLine( 42 );
     }
 
     @Test
@@ -72,7 +71,7 @@ public class EnterpriseTest
                 JavaFileObjects.forResource( resolveUrl( "context/restricted_types/EnterpriseProcedure.java" ) );
 
         assert_().about( javaSource() ).that( sproc ).withCompilerOptions( "-AIgnoreContextWarnings" )
-                .processedWith( processor ).compilesWithoutError().withWarningCount( 1 );
+                 .processedWith( processor ).compilesWithoutError().withWarningCount( 1 );
     }
 
     private URL resolveUrl( String relativePath )

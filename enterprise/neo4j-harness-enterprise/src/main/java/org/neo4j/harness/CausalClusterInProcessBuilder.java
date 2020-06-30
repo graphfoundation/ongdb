@@ -53,18 +53,58 @@ public class CausalClusterInProcessBuilder
     }
 
     /**
-     * Step Builder to ensure that Cluster has all the required pieces
-     * TODO: Add mapping methods to allow for core hosts and replicas to be unevenly distributed  between databases
+     * Builder step interfaces
+     */
+    public interface WithCores
+    {
+        WithReplicas withCores( int n );
+    }
+
+    public interface WithReplicas
+    {
+        WithLogger withReplicas( int n );
+    }
+
+    public interface WithLogger
+    {
+        WithPath withLogger( LogProvider l );
+    }
+
+    public interface WithPath
+    {
+        Builder atPath( Path p );
+    }
+
+    interface WithOptionalDatabasesAndPorts
+    {
+        Builder withOptionalPortsStrategy( PortPickingStrategy s );
+
+        Builder withOptionalDatabases( List<String> databaseNames );
+
+        Builder withDiscoveryServiceFactory( DiscoveryServiceFactorySelector.DiscoveryImplementation discoveryServiceFactory );
+    }
+
+    /**
+     * Port picker functional interface
+     */
+    public interface PortPickingStrategy
+    {
+        int port( int offset, int id );
+    }
+
+    /**
+     * Step Builder to ensure that Cluster has all the required pieces TODO: Add mapping methods to allow for core hosts and replicas to be unevenly distributed
+     * between databases
      */
     public static class Builder implements WithCores, WithReplicas, WithLogger, WithPath, WithOptionalDatabasesAndPorts
     {
 
+        private final Map<String,String> config = new HashMap<>();
         private int numCoreHosts;
         private int numReadReplicas;
         private Log log;
         private Path path;
         private PortPickingFactory portFactory = PortPickingFactory.DEFAULT;
-        private final Map<String, String> config = new HashMap<>();
         private List<String> databases = new ArrayList<>( Collections.singletonList( "default" ) );
         private DiscoveryServiceFactorySelector.DiscoveryImplementation discoveryServiceFactory = DiscoveryServiceFactorySelector.DEFAULT;
 
@@ -132,51 +172,11 @@ public class CausalClusterInProcessBuilder
             if ( nDatabases > numCoreHosts )
             {
                 throw new IllegalArgumentException(
-                        "You cannot have more databases than core hosts. Each database in the cluster must have at least 1 core " + "host. You have provided " +
-                                nDatabases + " databases and " + numCoreHosts + " core hosts." );
+                        "You cannot have more databases than core hosts. Each db in the cluster must have at least 1 core " + "host. You have provided " +
+                        nDatabases + " databases and " + numCoreHosts + " core hosts." );
             }
             return new CausalCluster( this );
         }
-    }
-
-    /**
-     * Builder step interfaces
-     */
-    public interface WithCores
-    {
-        WithReplicas withCores( int n );
-    }
-
-    public interface WithReplicas
-    {
-        WithLogger withReplicas( int n );
-    }
-
-    public interface WithLogger
-    {
-        WithPath withLogger( LogProvider l );
-    }
-
-    public interface WithPath
-    {
-        Builder atPath( Path p );
-    }
-
-    interface WithOptionalDatabasesAndPorts
-    {
-        Builder withOptionalPortsStrategy( PortPickingStrategy s );
-
-        Builder withOptionalDatabases( List<String> databaseNames );
-
-        Builder withDiscoveryServiceFactory( DiscoveryServiceFactorySelector.DiscoveryImplementation discoveryServiceFactory );
-    }
-
-    /**
-     * Port picker functional interface
-     */
-    public interface PortPickingStrategy
-    {
-        int port( int offset, int id );
     }
 
     /**
@@ -273,11 +273,34 @@ public class CausalClusterInProcessBuilder
             this.discoveryServiceFactory = builder.discoveryServiceFactory;
         }
 
+        private static String specifyPortOnly( int port )
+        {
+            return ":" + port;
+        }
+
+        private static void configureConnectors( int boltPort, int httpPort, int httpsPort, TestServerBuilder builder )
+        {
+            builder.withConfig( new BoltConnector( "bolt" ).type.name(), "BOLT" );
+            builder.withConfig( new BoltConnector( "bolt" ).enabled.name(), "true" );
+            builder.withConfig( new BoltConnector( "bolt" ).listen_address.name(), specifyPortOnly( boltPort ) );
+            builder.withConfig( new BoltConnector( "bolt" ).advertised_address.name(), specifyPortOnly( boltPort ) );
+
+            builder.withConfig( new HttpConnector( "http", HttpConnector.Encryption.NONE ).type.name(), "HTTP" );
+            builder.withConfig( new HttpConnector( "http", HttpConnector.Encryption.NONE ).enabled.name(), "true" );
+            builder.withConfig( new HttpConnector( "http", HttpConnector.Encryption.NONE ).listen_address.name(), specifyPortOnly( httpPort ) );
+            builder.withConfig( new HttpConnector( "http", HttpConnector.Encryption.NONE ).advertised_address.name(), specifyPortOnly( httpPort ) );
+
+            builder.withConfig( new HttpConnector( "https", HttpConnector.Encryption.TLS ).type.name(), "HTTP" );
+            builder.withConfig( new HttpConnector( "https", HttpConnector.Encryption.TLS ).enabled.name(), "true" );
+            builder.withConfig( new HttpConnector( "https", HttpConnector.Encryption.TLS ).listen_address.name(), specifyPortOnly( httpsPort ) );
+            builder.withConfig( new HttpConnector( "https", HttpConnector.Encryption.TLS ).advertised_address.name(), specifyPortOnly( httpsPort ) );
+        }
+
         private Map<Integer,String> distributeHostsBetweenDatabases( int nHosts, List<String> databases )
         {
-            //Max number of hosts per database is (nHosts / nDatabases) or (nHosts / nDatabases) + 1
+            //Max number of hosts per db is (nHosts / nDatabases) or (nHosts / nDatabases) + 1
             int nDatabases = databases.size();
-            int maxCapacity = ( nHosts % nDatabases == 0 ) ? (nHosts / nDatabases) : (nHosts / nDatabases) + 1;
+            int maxCapacity = (nHosts % nDatabases == 0) ? (nHosts / nDatabases) : (nHosts / nDatabases) + 1;
 
             List<String> repeated =
                     databases.stream().flatMap( db -> IntStream.range( 0, maxCapacity ).mapToObj( ignored -> db ) ).collect( Collectors.toList() );
@@ -347,10 +370,10 @@ public class CausalClusterInProcessBuilder
 
                 int finalCoreId = coreId;
                 Thread coreThread = new Thread( () ->
-                {
-                    coreControls.add( builder.newServer() );
-                    log.info( "Core " + finalCoreId + " started." );
-                } );
+                                                {
+                                                    coreControls.add( builder.newServer() );
+                                                    log.info( "Core " + finalCoreId + " started." );
+                                                } );
                 coreThreads.add( coreThread );
                 coreThread.start();
             }
@@ -395,10 +418,10 @@ public class CausalClusterInProcessBuilder
 
                 int finalReplicaId = replicaId;
                 Thread replicaThread = new Thread( () ->
-                {
-                    replicaControls.add( builder.newServer() );
-                    log.info( "Read replica " + finalReplicaId + " started." );
-                } );
+                                                   {
+                                                       replicaControls.add( builder.newServer() );
+                                                       log.info( "Read replica " + finalReplicaId + " started." );
+                                                   } );
                 replicaThreads.add( replicaThread );
                 replicaThread.start();
             }
@@ -407,29 +430,6 @@ public class CausalClusterInProcessBuilder
             {
                 replicaThread.join();
             }
-        }
-
-        private static String specifyPortOnly( int port )
-        {
-            return ":" + port;
-        }
-
-        private static void configureConnectors( int boltPort, int httpPort, int httpsPort, TestServerBuilder builder )
-        {
-            builder.withConfig( new BoltConnector( "bolt" ).type.name(), "BOLT" );
-            builder.withConfig( new BoltConnector( "bolt" ).enabled.name(), "true" );
-            builder.withConfig( new BoltConnector( "bolt" ).listen_address.name(), specifyPortOnly( boltPort ) );
-            builder.withConfig( new BoltConnector( "bolt" ).advertised_address.name(), specifyPortOnly( boltPort ) );
-
-            builder.withConfig( new HttpConnector( "http", HttpConnector.Encryption.NONE ).type.name(), "HTTP" );
-            builder.withConfig( new HttpConnector( "http", HttpConnector.Encryption.NONE ).enabled.name(), "true" );
-            builder.withConfig( new HttpConnector( "http", HttpConnector.Encryption.NONE ).listen_address.name(), specifyPortOnly( httpPort ) );
-            builder.withConfig( new HttpConnector( "http", HttpConnector.Encryption.NONE ).advertised_address.name(), specifyPortOnly( httpPort ) );
-
-            builder.withConfig( new HttpConnector( "https", HttpConnector.Encryption.TLS ).type.name(), "HTTP" );
-            builder.withConfig( new HttpConnector( "https", HttpConnector.Encryption.TLS ).enabled.name(), "true" );
-            builder.withConfig( new HttpConnector( "https", HttpConnector.Encryption.TLS ).listen_address.name(), specifyPortOnly( httpsPort ) );
-            builder.withConfig( new HttpConnector( "https", HttpConnector.Encryption.TLS ).advertised_address.name(), specifyPortOnly( httpsPort ) );
         }
 
         public List<ServerControls> getCoreControls()

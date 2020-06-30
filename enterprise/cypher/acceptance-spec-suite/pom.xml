@@ -4,14 +4,14 @@
     <parent>
         <groupId>org.graphfoundation.ongdb</groupId>
         <artifactId>cypher-enterprise-parent</artifactId>
-        <version>4.0.4-SNAPSHOT</version>
+        <version>4.0.7-SNAPSHOT</version>
         <relativePath>../</relativePath>
     </parent>
 
     <modelVersion>4.0.0</modelVersion>
     <artifactId>ongdb-enterprise-cypher-acceptance-spec-suite</artifactId>
     <packaging>jar</packaging>
-    <version>4.0.4-SNAPSHOT</version>
+    <version>4.0.7-SNAPSHOT</version>
     <name>ONgDB - Cypher Acceptance, enterprise edition</name>
     <description>ONgDB - Cypher Acceptance Specification Suite, enterprise edition</description>
     <url>https://ongdb.graphfoundation.org/${project.artifactId}/${project.version}</url>
@@ -25,6 +25,7 @@
     <properties>
         <license-text.header>headers/AGPL-3-header.txt</license-text.header>
         <moduleName>org.neo4j.internal.enterprise.cypher.acceptance.spec.suite</moduleName>
+
         <!-- The setting below is just a temporary setting as we upgrade the test infrastructure -->
         <maven.test.skip>true</maven.test.skip>
     </properties>
