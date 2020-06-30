@@ -37,7 +37,7 @@ import org.neo4j.cypher.internal.v4_0.util.attribution.Id
 case class FilteringOptionalExpandIntoSlottedPipe(
                                                    source: Pipe, fromSlot: Slot, relOffset: Int,
                                                    toOffset: Int, dir: SemanticDirection,
-                                                   types: RelationshipTypes, slots: SlotConfiguration, predicate: Expression)(override id: Id)
+                                                   types: RelationshipTypes, slots: SlotConfiguration, predicate: Expression)(override val id: Id)
   extends OptionalExpandAllSlottedPipe(source, fromSlot, relOffset, toOffset, dir, types, slots)(id) {
   predicate.registerOwningPipe(this);
 
