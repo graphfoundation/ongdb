@@ -1,0 +1,103 @@
+/*
+ * Copyright (c) 2002-2018 "Neo4j"
+ * Neo4j Sweden AB [http://neo4j.com]
+ *
+ * Copyright (c) 2018-2020 "Graph Foundation"
+ * Graph Foundation, Inc. [https://graphfoundation.org]
+ *
+ * This file is part of ONgDB Enterprise Edition. The included source
+ * code can be redistributed and/or modified under the terms of the
+ * GNU AFFERO GENERAL PUBLIC LICENSE Version 3
+ * (http://www.fsf.org/licensing/licenses/agpl-3.0.html) as found
+ * in the associated LICENSE.txt file.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ */
+package org.neo4j;
+
+import org.junit.Rule;
+import org.junit.Test;
+
+import java.io.File;
+import java.util.concurrent.TimeUnit;
+
+import org.neo4j.consistency.ConsistencyCheckService;
+import org.neo4j.consistency.ConsistencyCheckTool;
+import org.neo4j.graphdb.GraphDatabaseService;
+import org.neo4j.graphdb.Label;
+import org.neo4j.graphdb.Node;
+import org.neo4j.graphdb.Transaction;
+import org.neo4j.graphdb.factory.EnterpriseGraphDatabaseFactory;
+import org.neo4j.kernel.configuration.Settings;
+import org.neo4j.kernel.impl.enterprise.settings.backup.OnlineBackupSettings;
+import org.neo4j.test.rule.SuppressOutput;
+import org.neo4j.test.rule.TestDirectory;
+
+import static java.lang.String.format;
+import static org.junit.Assert.assertTrue;
+
+public class CompositeConstraintIT
+{
+    @Rule
+    public final TestDirectory testDirectory = TestDirectory.testDirectory();
+    @Rule
+    public final SuppressOutput suppressOutput = SuppressOutput.suppressAll();
+
+    private static ConsistencyCheckService.Result checkDbConsistency( File databaseDirectory )
+            throws ConsistencyCheckTool.ToolFailureException
+    {
+        return ConsistencyCheckTool.runConsistencyCheckTool( new String[]{databaseDirectory.getAbsolutePath()}, System.out, System.err );
+    }
+
+    private static void awaitIndex( GraphDatabaseService database )
+    {
+        try ( Transaction tx = database.beginTx() )
+        {
+            database.schema().awaitIndexesOnline( 2, TimeUnit.MINUTES );
+            tx.success();
+        }
+    }
+
+    @Test
+    public void compositeNodeKeyConstraintUpdate() throws Exception
+    {
+        GraphDatabaseService database = new EnterpriseGraphDatabaseFactory()
+                .newEmbeddedDatabaseBuilder( testDirectory.storeDir() )
+                .setConfig( OnlineBackupSettings.online_backup_enabled, Settings.FALSE )
+                .newGraphDatabase();
+
+        Label label = Label.label( "label" );
+
+        try ( Transaction transaction = database.beginTx() )
+        {
+            Node node = database.createNode( label );
+            node.setProperty( "b", (short) 3 );
+            node.setProperty( "a", new double[]{0.6, 0.4, 0.2} );
+            transaction.success();
+        }
+
+        try ( Transaction transaction = database.beginTx() )
+        {
+            String query = format( "CREATE CONSTRAINT ON (n:%s) ASSERT (n.%s,n.%s) IS NODE KEY", label.name(), "a", "b" );
+            database.execute( query );
+            transaction.success();
+        }
+
+        awaitIndex( database );
+
+        try ( Transaction transaction = database.beginTx() )
+        {
+            Node node = database.createNode( label );
+            node.setProperty( "a", (short) 7 );
+            node.setProperty( "b", new double[]{0.7, 0.5, 0.3} );
+            transaction.success();
+        }
+        database.shutdown();
+
+        ConsistencyCheckService.Result consistencyCheckResult = checkDbConsistency( testDirectory.storeDir() );
+        assertTrue( "Database is consistent", consistencyCheckResult.isSuccessful() );
+    }
+}

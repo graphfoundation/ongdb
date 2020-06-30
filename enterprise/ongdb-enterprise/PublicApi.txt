@@ -1,0 +1,6 @@
+org.neo4j.dbms.api.EnterpriseDatabaseManagementServiceBuilder public class extends org.neo4j.dbms.api.DatabaseManagementServiceBuilder
+org.neo4j.dbms.api.EnterpriseDatabaseManagementServiceBuilder::EnterpriseDatabaseManagementServiceBuilder(java.io.File) void public
+org.neo4j.dbms.api.EnterpriseDatabaseManagementServiceBuilder::databaseDependencies() org.neo4j.graphdb.facade.ExternalDependencies protected
+org.neo4j.dbms.api.EnterpriseDatabaseManagementServiceBuilder::getDatabaseInfo() org.neo4j.kernel.impl.factory.DatabaseInfo protected
+org.neo4j.dbms.api.EnterpriseDatabaseManagementServiceBuilder::getEdition() java.lang.String public
+org.neo4j.dbms.api.EnterpriseDatabaseManagementServiceBuilder::getEditionFactory() java.util.function.Function<org.neo4j.graphdb.factory.module.GlobalModule,org.neo4j.graphdb.factory.module.edition.AbstractEditionModule> protected

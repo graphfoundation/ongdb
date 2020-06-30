@@ -1,0 +1,133 @@
+/*
+ * Copyright (c) 2002-2018 "Neo4j"
+ * Neo4j Sweden AB [http://neo4j.com]
+ *
+ * Copyright (c) 2018-2020 "Graph Foundation"
+ * Graph Foundation, Inc. [https://graphfoundation.org]
+ *
+ * This file is part of ONgDB Enterprise Edition. The included source
+ * code can be redistributed and/or modified under the terms of the
+ * GNU AFFERO GENERAL PUBLIC LICENSE Version 3
+ * (http://www.fsf.org/licensing/licenses/agpl-3.0.html) as found
+ * in the associated LICENSE.txt file.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ */
+package org.neo4j.consistency;
+
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.RuleChain;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
+import org.junit.runners.Parameterized.Parameter;
+import org.junit.runners.Parameterized.Parameters;
+
+import java.util.Arrays;
+import java.util.List;
+import java.util.concurrent.ThreadLocalRandom;
+
+import org.neo4j.graphdb.GraphDatabaseService;
+import org.neo4j.graphdb.Label;
+import org.neo4j.graphdb.Node;
+import org.neo4j.graphdb.RelationshipType;
+import org.neo4j.graphdb.Transaction;
+import org.neo4j.graphdb.factory.GraphDatabaseSettings;
+import org.neo4j.helpers.progress.ProgressMonitorFactory;
+import org.neo4j.kernel.configuration.Config;
+import org.neo4j.kernel.configuration.Settings;
+import org.neo4j.kernel.impl.enterprise.settings.backup.OnlineBackupSettings;
+import org.neo4j.kernel.impl.store.format.highlimit.HighLimit;
+import org.neo4j.kernel.impl.store.format.standard.Standard;
+import org.neo4j.kernel.internal.GraphDatabaseAPI;
+import org.neo4j.logging.FormattedLogProvider;
+import org.neo4j.test.rule.DatabaseRule;
+import org.neo4j.test.rule.EmbeddedDatabaseRule;
+import org.neo4j.test.rule.SuppressOutput;
+
+import static org.junit.Assert.assertTrue;
+
+@RunWith( Parameterized.class )
+public class ConsistencyCheckServiceRecordFormatIT
+{
+    private final DatabaseRule db = new EmbeddedDatabaseRule()
+            .withSetting( OnlineBackupSettings.online_backup_enabled, Settings.FALSE )
+            .startLazily();
+
+    @Rule
+    public final RuleChain ruleChain = RuleChain.outerRule( SuppressOutput.suppressAll() ).around( db );
+
+    @Parameter
+    public String recordFormat;
+
+    @Parameters( name = "{0}" )
+    public static List<String> recordFormats()
+    {
+        return Arrays.asList( Standard.LATEST_NAME, HighLimit.NAME );
+    }
+
+    private static void createLinkedList( GraphDatabaseService db, int size )
+    {
+        Node previous = null;
+        try ( Transaction tx = db.beginTx() )
+        {
+            for ( int i = 0; i < size; i++ )
+            {
+                Label label = (i % 2 == 0) ? TestLabel.FOO : TestLabel.BAR;
+                Node current = db.createNode( label );
+                current.setProperty( "value", ThreadLocalRandom.current().nextLong() );
+
+                if ( previous != null )
+                {
+                    previous.createRelationshipTo( current, TestRelType.FORWARD );
+                    current.createRelationshipTo( previous, TestRelType.BACKWARD );
+                }
+                previous = current;
+            }
+            tx.success();
+        }
+    }
+
+    private static void assertConsistentStore( GraphDatabaseAPI db ) throws Exception
+    {
+        ConsistencyCheckService service = new ConsistencyCheckService();
+
+        ConsistencyCheckService.Result result = service.runFullConsistencyCheck( db.databaseLayout(), Config.defaults(),
+                                                                                 ProgressMonitorFactory.textual( System.out ),
+                                                                                 FormattedLogProvider.toOutputStream( System.out ), true );
+
+        assertTrue( "Store is inconsistent", result.isSuccessful() );
+    }
+
+    @Before
+    public void configureRecordFormat()
+    {
+        db.withSetting( GraphDatabaseSettings.record_format, recordFormat );
+    }
+
+    @Test
+    public void checkTinyConsistentStore() throws Exception
+    {
+        db.ensureStarted();
+        createLinkedList( db, 1_000 );
+        db.shutdownAndKeepStore();
+
+        assertConsistentStore( db );
+    }
+
+    private enum TestLabel implements Label
+    {
+        FOO,
+        BAR
+    }
+
+    private enum TestRelType implements RelationshipType
+    {
+        FORWARD,
+        BACKWARD
+    }
+}
