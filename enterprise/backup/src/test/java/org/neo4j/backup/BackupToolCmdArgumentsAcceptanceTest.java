@@ -48,10 +48,9 @@ import static org.mockito.Mockito.verify;
 import static org.neo4j.helpers.collection.MapUtil.stringMap;
 
 /**
- * This test builds all valid combinations/permutations of args for {@link org.neo4j.backup.BackupTool} and asserts
- * that it can handle those.
- * It tests legacy and modern sets of args in all possible forms: (-option, --option, -option value, -option=value).
- * Legacy is (-from, -to, -verify) and modern is (-host, -port, -to, -verify).
+ * This test builds all valid combinations/permutations of args for {@link org.neo4j.backup.BackupTool} and asserts that it can handle those. It tests legacy
+ * and modern sets of args in all possible forms: (-option, --option, -option value, -option=value). Legacy is (-from, -to, -verify) and modern is (-host,
+ * -port, -to, -verify).
  */
 @RunWith( Parameterized.class )
 public class BackupToolCmdArgumentsAcceptanceTest
@@ -82,30 +81,6 @@ public class BackupToolCmdArgumentsAcceptanceTest
                                 "to", PATH.toString()
                         )
                 )
-        );
-    }
-
-    @Test
-    public void shouldInvokeBackupServiceWhenArgsAreValid() throws Exception
-    {
-        // Given
-        String[] args = argsAsString.split( " " );
-
-        BackupProtocolService backupProtocolService = mock( BackupProtocolService.class );
-        PrintStream printStream = mock( PrintStream.class );
-        BackupTool backupTool = new BackupTool( backupProtocolService, printStream );
-
-        // When
-        backupTool.run( args );
-
-        // Then
-        verify( backupProtocolService ).doIncrementalBackupOrFallbackToFull(
-                eq( HOST ),
-                eq( PORT ), eq( DatabaseLayout.of( PATH.toFile() ) ),
-                expectedVerifyStoreValue ? eq( ConsistencyCheck.FULL ) : eq( ConsistencyCheck.NONE ),
-                any( Config.class ),
-                eq( BackupClient.BIG_READ_TIMEOUT ),
-                eq( false )
         );
     }
 
@@ -172,7 +147,7 @@ public class BackupToolCmdArgumentsAcceptanceTest
     }
 
     private static void gatherAllOptionCombinations( Map.Entry<String,String>[] entries, int current,
-            Deque<String> stack, List<List<String>> result )
+                                                     Deque<String> stack, List<List<String>> result )
     {
         if ( current == entries.length )
         {
@@ -207,5 +182,29 @@ public class BackupToolCmdArgumentsAcceptanceTest
         List<String> result = new ArrayList<>( list );
         result.add( element );
         return result;
+    }
+
+    @Test
+    public void shouldInvokeBackupServiceWhenArgsAreValid() throws Exception
+    {
+        // Given
+        String[] args = argsAsString.split( " " );
+
+        BackupProtocolService backupProtocolService = mock( BackupProtocolService.class );
+        PrintStream printStream = mock( PrintStream.class );
+        BackupTool backupTool = new BackupTool( backupProtocolService, printStream );
+
+        // When
+        backupTool.run( args );
+
+        // Then
+        verify( backupProtocolService ).doIncrementalBackupOrFallbackToFull(
+                eq( HOST ),
+                eq( PORT ), eq( DatabaseLayout.of( PATH.toFile() ) ),
+                expectedVerifyStoreValue ? eq( ConsistencyCheck.FULL ) : eq( ConsistencyCheck.NONE ),
+                any( Config.class ),
+                eq( BackupClient.BIG_READ_TIMEOUT ),
+                eq( false )
+        );
     }
 }

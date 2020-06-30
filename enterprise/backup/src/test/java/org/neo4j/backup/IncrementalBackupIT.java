@@ -36,7 +36,7 @@ import org.neo4j.graphdb.Transaction;
 import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.configuration.Settings;
-import org.neo4j.kernel.impl.enterprise.configuration.OnlineBackupSettings;
+import org.neo4j.kernel.impl.enterprise.settings.backup.OnlineBackupSettings;
 import org.neo4j.ports.allocation.PortAuthority;
 import org.neo4j.test.DbRepresentation;
 import org.neo4j.test.TestGraphDatabaseFactory;
@@ -58,6 +58,28 @@ public class IncrementalBackupIT
     private ServerInterface server;
     private GraphDatabaseService db;
     private File backupStore;
+
+    private static GraphDatabaseService startGraphDatabase( File storeDir )
+    {
+        return new TestGraphDatabaseFactory().
+                                                     newEmbeddedDatabaseBuilder( storeDir ).
+                                                     setConfig( OnlineBackupSettings.online_backup_enabled, Settings.FALSE ).
+                                                     setConfig( GraphDatabaseSettings.keep_logical_logs, Settings.TRUE ).
+                                                     newGraphDatabase();
+    }
+
+    private static ServerInterface startServer( File storeDir, String serverAddress )
+    {
+        ServerInterface server = new EmbeddedServer( storeDir, serverAddress );
+        server.awaitStarted();
+        return server;
+    }
+
+    private static void shutdownServer( ServerInterface server ) throws Exception
+    {
+        server.shutdown();
+        Thread.sleep( 1000 );
+    }
 
     @Before
     public void before()
@@ -129,7 +151,7 @@ public class IncrementalBackupIT
         int port = PortAuthority.allocatePort();
         server = startServer( serverPath, "127.0.0.1:" + port );
 
-        OnlineBackup backup = OnlineBackup.from( "127.0.0.1", port);
+        OnlineBackup backup = OnlineBackup.from( "127.0.0.1", port );
 
         backup.full( backupDatabase.getPath() );
 
@@ -154,7 +176,7 @@ public class IncrementalBackupIT
             Node daisy = db.createNode();
             daisy.setProperty( "name", "Daisy" );
             Relationship knows = donald.createRelationshipTo( daisy,
-                    RelationshipType.withName( "LOVES" ) );
+                                                              RelationshipType.withName( "LOVES" ) );
             knows.setProperty( "since", 1940 );
             tx.success();
         }
@@ -172,7 +194,7 @@ public class IncrementalBackupIT
             Node gladstone = db.createNode();
             gladstone.setProperty( "name", "Gladstone" );
             Relationship hates = donald.createRelationshipTo( gladstone,
-                    RelationshipType.withName( "HATES" ) );
+                                                              RelationshipType.withName( "HATES" ) );
             hates.setProperty( "since", 1948 );
             tx.success();
         }
@@ -213,28 +235,6 @@ public class IncrementalBackupIT
         DbRepresentation result = DbRepresentation.of( db );
         db.shutdown();
         return result;
-    }
-
-    private static GraphDatabaseService startGraphDatabase( File storeDir )
-    {
-        return new TestGraphDatabaseFactory().
-                newEmbeddedDatabaseBuilder( storeDir ).
-                setConfig( OnlineBackupSettings.online_backup_enabled, Settings.FALSE ).
-                setConfig( GraphDatabaseSettings.keep_logical_logs, Settings.TRUE ).
-                newGraphDatabase();
-    }
-
-    private static ServerInterface startServer( File storeDir, String serverAddress )
-    {
-        ServerInterface server = new EmbeddedServer( storeDir, serverAddress );
-        server.awaitStarted();
-        return server;
-    }
-
-    private static void shutdownServer( ServerInterface server ) throws Exception
-    {
-        server.shutdown();
-        Thread.sleep( 1000 );
     }
 
     private DbRepresentation getBackupDbRepresentation()

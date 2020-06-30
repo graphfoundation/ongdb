@@ -27,7 +27,7 @@ import java.io.File;
 
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.kernel.configuration.Settings;
-import org.neo4j.kernel.impl.enterprise.configuration.OnlineBackupSettings;
+import org.neo4j.kernel.impl.enterprise.settings.backup.OnlineBackupSettings;
 import org.neo4j.ports.allocation.PortAuthority;
 import org.neo4j.test.TestGraphDatabaseFactory;
 import org.neo4j.test.rule.SuppressOutput;
@@ -37,13 +37,11 @@ import static org.junit.Assert.fail;
 
 public class TestConfiguration
 {
+    private static final String HOST_ADDRESS = "127.0.0.1";
     public SuppressOutput suppressOutput = SuppressOutput.suppressAll();
     public TestDirectory dir = TestDirectory.testDirectory();
     @Rule
     public RuleChain rules = RuleChain.outerRule( dir ).around( suppressOutput );
-
-    private static final String HOST_ADDRESS = "127.0.0.1";
-
     private File storeDir;
     private String backupDir;
 
@@ -60,7 +58,7 @@ public class TestConfiguration
         int port = PortAuthority.allocatePort();
 
         GraphDatabaseService db = new TestGraphDatabaseFactory().newEmbeddedDatabaseBuilder( storeDir )
-                .setConfig( OnlineBackupSettings.online_backup_server, "localhost:" + port ).newGraphDatabase();
+                                                                .setConfig( OnlineBackupSettings.online_backup_server, "localhost:" + port ).newGraphDatabase();
         OnlineBackup.from( HOST_ADDRESS, port ).full( backupDir );
         db.shutdown();
     }
@@ -71,9 +69,9 @@ public class TestConfiguration
         int port = PortAuthority.allocatePort();
 
         GraphDatabaseService db = new TestGraphDatabaseFactory().newEmbeddedDatabaseBuilder( storeDir )
-                .setConfig( OnlineBackupSettings.online_backup_enabled, Settings.FALSE )
-                .setConfig( OnlineBackupSettings.online_backup_server, "localhost:" + port )
-                .newGraphDatabase();
+                                                                .setConfig( OnlineBackupSettings.online_backup_enabled, Settings.FALSE )
+                                                                .setConfig( OnlineBackupSettings.online_backup_server, "localhost:" + port )
+                                                                .newGraphDatabase();
         try
         {
             OnlineBackup.from( HOST_ADDRESS, port ).full( backupDir );
@@ -91,9 +89,9 @@ public class TestConfiguration
         int port = PortAuthority.allocatePort();
 
         GraphDatabaseService db = new TestGraphDatabaseFactory().newEmbeddedDatabaseBuilder( storeDir )
-                .setConfig( OnlineBackupSettings.online_backup_enabled, Settings.TRUE )
-                .setConfig( OnlineBackupSettings.online_backup_server, "localhost:" + port )
-                .newGraphDatabase();
+                                                                .setConfig( OnlineBackupSettings.online_backup_enabled, Settings.TRUE )
+                                                                .setConfig( OnlineBackupSettings.online_backup_server, "localhost:" + port )
+                                                                .newGraphDatabase();
 
         OnlineBackup.from( HOST_ADDRESS, port ).full( backupDir );
         db.shutdown();
@@ -104,9 +102,9 @@ public class TestConfiguration
     {
         int customPort = PortAuthority.allocatePort();
         GraphDatabaseService db = new TestGraphDatabaseFactory().newEmbeddedDatabaseBuilder( storeDir )
-                .setConfig( OnlineBackupSettings.online_backup_enabled, Settings.TRUE )
-                .setConfig( OnlineBackupSettings.online_backup_server, ":" + customPort )
-                .newGraphDatabase();
+                                                                .setConfig( OnlineBackupSettings.online_backup_enabled, Settings.TRUE )
+                                                                .setConfig( OnlineBackupSettings.online_backup_server, ":" + customPort )
+                                                                .newGraphDatabase();
         try
         {
             OnlineBackup.from( HOST_ADDRESS, PortAuthority.allocatePort() ).full( backupDir );

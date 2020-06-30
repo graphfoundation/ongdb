@@ -25,7 +25,6 @@ import org.mockito.ArgumentCaptor;
 
 import java.io.File;
 import java.io.FileWriter;
-import java.io.IOException;
 import java.io.PrintStream;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -48,7 +47,6 @@ import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.CoreMatchers.not;
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
@@ -98,8 +96,9 @@ public class BackupToolTest
 
         // then
         verify( service ).doIncrementalBackupOrFallbackToFull( eq( "localhost" ),
-                eq( BackupServer.DEFAULT_PORT ), eq( DatabaseLayout.of( Paths.get( "my_backup" ).toFile() ) ), eq( ConsistencyCheck.FULL ),
-                any( Config.class ), eq( BackupClient.BIG_READ_TIMEOUT ), eq( false ) );
+                                                               eq( BackupServer.DEFAULT_PORT ), eq( DatabaseLayout.of( Paths.get( "my_backup" ).toFile() ) ),
+                                                               eq( ConsistencyCheck.FULL ),
+                                                               any( Config.class ), eq( BackupClient.BIG_READ_TIMEOUT ), eq( false ) );
         verify( systemOut ).println(
                 "Performing backup from '" + new HostnamePort( "localhost", BackupServer.DEFAULT_PORT ) + "'" );
         verify( systemOut ).println( "Done" );
@@ -119,8 +118,9 @@ public class BackupToolTest
 
         // then
         verify( service ).doIncrementalBackupOrFallbackToFull( eq( "localhost" ), eq( BackupServer.DEFAULT_PORT ),
-                eq( DatabaseLayout.of( Paths.get( "my_backup" ).toFile() ) ), eq( ConsistencyCheck.FULL ), any( Config.class ), eq( expectedTimeout ),
-                eq( false ) );
+                                                               eq( DatabaseLayout.of( Paths.get( "my_backup" ).toFile() ) ), eq( ConsistencyCheck.FULL ),
+                                                               any( Config.class ), eq( expectedTimeout ),
+                                                               eq( false ) );
         verify( systemOut ).println(
                 "Performing backup from '" + new HostnamePort( "localhost", BackupServer.DEFAULT_PORT ) + "'" );
         verify( systemOut ).println( "Done" );
@@ -138,8 +138,9 @@ public class BackupToolTest
 
         // then
         verify( service ).doIncrementalBackupOrFallbackToFull( eq( "localhost" ), eq( BackupServer.DEFAULT_PORT ),
-                eq( DatabaseLayout.of( Paths.get( "my_backup" ).toFile() ) ), eq( ConsistencyCheck.FULL ), any( Config.class ),
-                eq( BackupClient.BIG_READ_TIMEOUT ), eq( false ) );
+                                                               eq( DatabaseLayout.of( Paths.get( "my_backup" ).toFile() ) ), eq( ConsistencyCheck.FULL ),
+                                                               any( Config.class ),
+                                                               eq( BackupClient.BIG_READ_TIMEOUT ), eq( false ) );
         verify( systemOut ).println(
                 "Performing backup from '" + new HostnamePort( "localhost", BackupServer.DEFAULT_PORT ) + "'" );
         verify( systemOut ).println( "Done" );
@@ -157,8 +158,9 @@ public class BackupToolTest
 
         // then
         verify( service ).doIncrementalBackupOrFallbackToFull( eq( "localhost" ), eq( BackupServer.DEFAULT_PORT ),
-                eq( DatabaseLayout.of( Paths.get( "my_backup" ).toFile() ) ), eq( ConsistencyCheck.FULL ), any( Config.class ),
-                eq( BackupClient.BIG_READ_TIMEOUT ), eq( false ) );
+                                                               eq( DatabaseLayout.of( Paths.get( "my_backup" ).toFile() ) ), eq( ConsistencyCheck.FULL ),
+                                                               any( Config.class ),
+                                                               eq( BackupClient.BIG_READ_TIMEOUT ), eq( false ) );
         verify( systemOut ).println(
                 "Performing backup from '" + new HostnamePort( "localhost", BackupServer.DEFAULT_PORT ) + "'" );
         verify( systemOut ).println( "Done" );
@@ -178,7 +180,8 @@ public class BackupToolTest
         // then
         ArgumentCaptor<Config> config = ArgumentCaptor.forClass( Config.class );
         verify( service ).doIncrementalBackupOrFallbackToFull( anyString(), anyInt(), eq( DatabaseLayout.of( Paths.get( "my_backup" ).toFile() ) ),
-                any( ConsistencyCheck.class ), config.capture(), eq( BackupClient.BIG_READ_TIMEOUT ), eq( false ) );
+                                                               any( ConsistencyCheck.class ), config.capture(), eq( BackupClient.BIG_READ_TIMEOUT ),
+                                                               eq( false ) );
         assertFalse( config.getValue().get( ConsistencyCheckSettings.consistency_check_property_owners ) );
     }
 
@@ -201,7 +204,7 @@ public class BackupToolTest
         // then
         ArgumentCaptor<Config> config = ArgumentCaptor.forClass( Config.class );
         verify( service ).doIncrementalBackupOrFallbackToFull( anyString(), anyInt(), eq( DatabaseLayout.of( Paths.get( "my_backup" ).toFile() ) ),
-                any( ConsistencyCheck.class ), config.capture(), anyLong(), eq( false ) );
+                                                               any( ConsistencyCheck.class ), config.capture(), anyLong(), eq( false ) );
         assertTrue( config.getValue().get( ConsistencyCheckSettings.consistency_check_property_owners ) );
     }
 
@@ -342,8 +345,9 @@ public class BackupToolTest
 
         // Then
         verify( service ).doIncrementalBackupOrFallbackToFull( eq( host ), eq( BackupServer.DEFAULT_PORT ),
-                eq( DatabaseLayout.of( targetDir.toFile() ) ), eq( ConsistencyCheck.NONE ), any( Config.class ), eq( BackupClient.BIG_READ_TIMEOUT ),
-                eq( false ) );
+                                                               eq( DatabaseLayout.of( targetDir.toFile() ) ), eq( ConsistencyCheck.NONE ), any( Config.class ),
+                                                               eq( BackupClient.BIG_READ_TIMEOUT ),
+                                                               eq( false ) );
         verify( systemOut ).println(
                 "Performing backup from '" + new HostnamePort( host, BackupServer.DEFAULT_PORT ) + "'" );
         verify( systemOut ).println( "Done" );
@@ -362,7 +366,7 @@ public class BackupToolTest
 
         // then
         verify( service ).doIncrementalBackupOrFallbackToFull( anyString(), anyInt(), eq( DatabaseLayout.of( Paths.get( "my_backup" ).toFile() ) ),
-                any( ConsistencyCheck.class ), any( Config.class ), anyLong(), eq( true ) );
+                                                               any( ConsistencyCheck.class ), any( Config.class ), anyLong(), eq( true ) );
     }
 
     @Test
@@ -378,7 +382,7 @@ public class BackupToolTest
 
         // Then
         verify( service ).doIncrementalBackupOrFallbackToFull( anyString(), anyInt(), any( DatabaseLayout.class ),
-                eq( ConsistencyCheck.NONE ), any( Config.class ), anyLong(), anyBoolean() );
+                                                               eq( ConsistencyCheck.NONE ), any( Config.class ), anyLong(), anyBoolean() );
     }
 
     @Test
@@ -386,7 +390,7 @@ public class BackupToolTest
     {
         // Given
         String[] args = new String[]{"-host", "localhost", "-to", "my_backup", "-verify", "false",
-                "-consistency-checker", "legacy"};
+                                     "-consistency-checker", "legacy"};
         BackupProtocolService service = mock( BackupProtocolService.class );
         PrintStream systemOut = mock( PrintStream.class );
 
@@ -395,7 +399,7 @@ public class BackupToolTest
 
         // Then
         verify( service ).doIncrementalBackupOrFallbackToFull( anyString(), anyInt(), any( DatabaseLayout.class ),
-                eq( ConsistencyCheck.NONE ), any( Config.class ), anyLong(), anyBoolean() );
+                                                               eq( ConsistencyCheck.NONE ), any( Config.class ), anyLong(), anyBoolean() );
     }
 
     @Test
@@ -411,7 +415,7 @@ public class BackupToolTest
 
         // Then
         verify( service ).doIncrementalBackupOrFallbackToFull( anyString(), anyInt(), any( DatabaseLayout.class ),
-                eq( ConsistencyCheck.FULL ), any( Config.class ), anyLong(), anyBoolean() );
+                                                               eq( ConsistencyCheck.FULL ), any( Config.class ), anyLong(), anyBoolean() );
     }
 
     @Test
@@ -419,7 +423,7 @@ public class BackupToolTest
     {
         // Given
         String[] args = new String[]{"-host", "localhost", "-to", "my_backup",
-                "-consistency-checker", "full"};
+                                     "-consistency-checker", "full"};
         BackupProtocolService service = mock( BackupProtocolService.class );
         PrintStream systemOut = mock( PrintStream.class );
 
@@ -428,7 +432,7 @@ public class BackupToolTest
 
         // Then
         verify( service ).doIncrementalBackupOrFallbackToFull( anyString(), anyInt(), any( DatabaseLayout.class ),
-                eq( ConsistencyCheck.FULL ), any( Config.class ), anyLong(), anyBoolean() );
+                                                               eq( ConsistencyCheck.FULL ), any( Config.class ), anyLong(), anyBoolean() );
     }
 
     @Test
@@ -436,7 +440,7 @@ public class BackupToolTest
     {
         // Given
         String[] args = new String[]{"-host", "localhost", "-to", "my_backup", "-verify", "true",
-                "-consistency-checker", "notarealname"};
+                                     "-consistency-checker", "notarealname"};
         BackupProtocolService service = mock( BackupProtocolService.class );
         PrintStream systemOut = mock( PrintStream.class );
 

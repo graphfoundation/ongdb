@@ -65,7 +65,7 @@ public class BackupProtocolIT
         TheBackupInterface backup = mock( TheBackupInterface.class );
         RequestContext ctx = new RequestContext( 0, 1, 0, -1, 12 );
         @SuppressWarnings( "unchecked" )
-        TargetCaller<TheBackupInterface, Void> targetCaller =
+        TargetCaller<TheBackupInterface,Void> targetCaller =
                 (TargetCaller<TheBackupInterface,Void>) BackupRequestType.FULL_BACKUP.getTargetCaller();
         targetCaller.call( backup, ctx, EMPTY_BUFFER, null );
         verify( backup ).fullBackup( any( StoreWriter.class ), eq( false ) );
@@ -86,7 +86,7 @@ public class BackupProtocolIT
         ByteCounterMonitor byteCounterMonitor = mock( ByteCounterMonitor.class );
         RequestMonitor requestMonitor = mock( RequestMonitor.class );
         BackupClient client = new BackupClient( host, port, null, logProvider, storeId, 10_000,
-                responseUnpacker, byteCounterMonitor, requestMonitor, reader );
+                                                responseUnpacker, byteCounterMonitor, requestMonitor, reader );
         life.add( client );
         ControlledBackupInterface backup = new ControlledBackupInterface();
         HostnamePort hostnamePort = new HostnamePort( host, port );

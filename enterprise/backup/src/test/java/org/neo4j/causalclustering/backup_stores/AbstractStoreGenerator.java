@@ -29,6 +29,11 @@ import static org.neo4j.causalclustering.BackupUtil.createBackupFromCore;
 
 public abstract class AbstractStoreGenerator implements BackupStore
 {
+    private static String backupName()
+    {
+        return "backup-" + UUID.randomUUID().toString().substring( 5 );
+    }
+
     abstract CoreClusterMember createData( Cluster<?> cluster ) throws Exception;
 
     abstract void modify( File backup );
@@ -46,10 +51,5 @@ public abstract class AbstractStoreGenerator implements BackupStore
     public String toString()
     {
         return getClass().getSimpleName();
-    }
-
-    private static String backupName()
-    {
-        return "backup-" + UUID.randomUUID().toString().substring( 5 );
     }
 }

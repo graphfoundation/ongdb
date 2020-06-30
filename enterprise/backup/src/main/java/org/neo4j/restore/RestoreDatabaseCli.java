@@ -18,81 +18,48 @@
  */
 package org.neo4j.restore;
 
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
+
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 
-import org.neo4j.commandline.admin.AdminCommand;
-import org.neo4j.commandline.admin.CommandFailed;
-import org.neo4j.commandline.admin.IncorrectUsage;
-import org.neo4j.commandline.arguments.Arguments;
-import org.neo4j.commandline.arguments.MandatoryNamedArg;
-import org.neo4j.commandline.arguments.OptionalBooleanArg;
-import org.neo4j.commandline.arguments.common.Database;
-import org.neo4j.graphdb.factory.GraphDatabaseSettings;
-import org.neo4j.io.fs.DefaultFileSystemAbstraction;
-import org.neo4j.io.fs.FileSystemAbstraction;
-import org.neo4j.kernel.configuration.Config;
+import org.neo4j.cli.AbstractCommand;
+import org.neo4j.cli.Converters.DatabaseNameConverter;
+import org.neo4j.cli.ExecutionContext;
+import org.neo4j.configuration.Config;
+import org.neo4j.configuration.ConfigUtils;
+import org.neo4j.configuration.GraphDatabaseSettings;
+import org.neo4j.configuration.helpers.NormalizedDatabaseName;
 
-import static org.neo4j.commandline.arguments.common.Database.ARG_DATABASE;
-
-public class RestoreDatabaseCli implements AdminCommand
+@Command( name = "restore", description = {"Restore a backed up db."} )
+public class RestoreDatabaseCli extends AbstractCommand
 {
-    private static final Arguments arguments = new Arguments()
-            .withArgument( new MandatoryNamedArg( "from", "backup-directory", "Path to backup to restore from." ) )
-            .withDatabase()
-            .withArgument( new OptionalBooleanArg( "force", false, "If an existing database should be replaced." ) );
-    private final Path homeDir;
-    private final Path configDir;
+    @Option( names = {"--from"}, paramLabel = "<path>", required = true, description = {"Path to backup to restore from."} )
+    private File from;
+    @Option( names = {"--db"}, description = {"Name of the db to restore."}, defaultValue = "neo4j", converter = {DatabaseNameConverter.class} )
+    private NormalizedDatabaseName database;
+    @Option( names = {"--force"}, arity = "0", description = {"If an existing db should be replaced."} )
+    private boolean force;
 
-    public RestoreDatabaseCli( Path homeDir, Path configDir )
+    public RestoreDatabaseCli( ExecutionContext ctx )
     {
-        this.homeDir = homeDir;
-        this.configDir = configDir;
+        super( ctx );
     }
 
-    private static Config loadNeo4jConfig( Path homeDir, Path configDir, String databaseName )
+    private static Config loadNeo4jConfig( Path homeDir, Path configDir )
     {
-        return Config.fromFile( configDir.resolve( Config.DEFAULT_CONFIG_FILE_NAME ) )
-                .withHome( homeDir )
-                .withSetting( GraphDatabaseSettings.active_database, databaseName )
-                .withConnectorsDisabled().build();
+        Config cfg = Config.newBuilder().fromFile( configDir.resolve( "neo4j.conf" ).toFile() ).set( GraphDatabaseSettings.neo4j_home, homeDir ).build();
+        ConfigUtils.disableAllConnectors( cfg );
+        return cfg;
     }
 
     @Override
-    public void execute( String[] incomingArguments ) throws IncorrectUsage, CommandFailed
+    public void execute() throws IOException
     {
-        String databaseName;
-        String fromPath;
-        boolean forceOverwrite;
-
-        try
-        {
-            databaseName = arguments.parse( incomingArguments ).get( ARG_DATABASE );
-            fromPath = arguments.get( "from" );
-            forceOverwrite = arguments.getBoolean( "force" );
-        }
-        catch ( IllegalArgumentException e )
-        {
-            throw new IncorrectUsage( e.getMessage() );
-        }
-
-        Config config = loadNeo4jConfig( homeDir, configDir, databaseName );
-
-        try ( FileSystemAbstraction fileSystem = new DefaultFileSystemAbstraction() )
-        {
-            RestoreDatabaseCommand restoreDatabaseCommand = new RestoreDatabaseCommand( fileSystem,
-                    new File( fromPath ), config, databaseName, forceOverwrite );
-            restoreDatabaseCommand.execute();
-        }
-        catch ( IOException e )
-        {
-            throw new CommandFailed( "Failed to restore database", e );
-        }
-    }
-
-    public static Arguments arguments()
-    {
-        return arguments;
+        Config config = loadNeo4jConfig( this.ctx.homeDir(), this.ctx.confDir() );
+        RestoreDatabaseCommand restoreDatabaseCommand = new RestoreDatabaseCommand( this.ctx.fs(), this.from, config, this.database.name(), this.force );
+        restoreDatabaseCommand.execute();
     }
 }

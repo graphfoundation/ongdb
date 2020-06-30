@@ -77,7 +77,7 @@ public class ClusterSeedingIT
     public static Object[][] data()
     {
         return new Object[][]{{new NoStore(), true}, {new EmptyBackupStore(), false}, {new BackupStoreWithSomeData(), false},
-                {new BackupStoreWithSomeDataButNoTransactionLogs(), false}};
+                              {new BackupStoreWithSomeDataButNoTransactionLogs(), false}};
     }
 
     @Before
@@ -85,12 +85,12 @@ public class ClusterSeedingIT
     {
         this.fileCopyDetector = new FileCopyDetector();
         backupCluster = new EnterpriseCluster( testDir.directory( "cluster-for-backup" ), 3, 0,
-                new SharedDiscoveryServiceFactory(), emptyMap(), emptyMap(), emptyMap(), emptyMap(), Standard
-                .LATEST_NAME, IpFamily.IPV4, false );
+                                               new SharedDiscoveryServiceFactory(), emptyMap(), emptyMap(), emptyMap(), emptyMap(), Standard
+                                                       .LATEST_NAME, IpFamily.IPV4, false );
 
         cluster = new EnterpriseCluster( testDir.directory( "cluster-b" ), 3, 0,
-                new SharedDiscoveryServiceFactory(), emptyMap(), emptyMap(), emptyMap(), emptyMap(), Standard.LATEST_NAME,
-                IpFamily.IPV4, false );
+                                         new SharedDiscoveryServiceFactory(), emptyMap(), emptyMap(), emptyMap(), emptyMap(), Standard.LATEST_NAME,
+                                         IpFamily.IPV4, false );
 
         baseBackupDir = testDir.directory( "backups" );
     }

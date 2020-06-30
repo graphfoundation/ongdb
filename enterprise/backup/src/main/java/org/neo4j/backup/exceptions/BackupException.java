@@ -1,7 +1,4 @@
 /*
- * Copyright (c) 2002-2018 "Neo4j"
- * Neo4j Sweden AB [http://neo4j.com]
- *
  * Copyright (c) 2018-2020 "Graph Foundation"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
@@ -16,15 +13,20 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Affero General Public License for more details.
  */
-package org.neo4j.backup.impl;
+package org.neo4j.backup.exceptions;
 
 /**
- * Possible states that can describe the outcome of any single backup strategy (BackupProtocol, TransactionProtocol etc.)
+ * BackupException
  */
-enum BackupStrategyOutcome
+public class BackupException extends Exception
 {
-    SUCCESS,
-    INCORRECT_STRATEGY,
-    CORRECT_STRATEGY_FAILED,
-    ABSOLUTE_FAILURE
+    public BackupException( String message )
+    {
+        super( message );
+    }
+
+    public BackupException( Throwable cause )
+    {
+        super( cause );
+    }
 }

@@ -41,6 +41,11 @@ import static org.mockito.Mockito.when;
 
 public class BackupImplTest
 {
+    private static Supplier<StoreId> defaultStoreIdSupplier()
+    {
+        return () -> StoreId.DEFAULT;
+    }
+
     @Test
     public void flushStoreFilesWithCorrectCheckpointTriggerName()
     {
@@ -49,17 +54,12 @@ public class BackupImplTest
                 .thenReturn( RequestContext.EMPTY );
 
         BackupImpl backup = new BackupImpl( storeCopyServer, mock( LogicalTransactionStore.class ),
-                mock( TransactionIdStore.class ), mock( LogFileInformation.class ), defaultStoreIdSupplier(),
-                NullLogProvider.getInstance() );
+                                            mock( TransactionIdStore.class ), mock( LogFileInformation.class ), defaultStoreIdSupplier(),
+                                            NullLogProvider.getInstance() );
 
         backup.fullBackup( mock( StoreWriter.class ), false ).close();
 
         verify( storeCopyServer ).flushStoresAndStreamStoreFiles(
                 eq( BackupImpl.FULL_BACKUP_CHECKPOINT_TRIGGER ), any( StoreWriter.class ), eq( false ) );
-    }
-
-    private static Supplier<StoreId> defaultStoreIdSupplier()
-    {
-        return () -> StoreId.DEFAULT;
     }
 }

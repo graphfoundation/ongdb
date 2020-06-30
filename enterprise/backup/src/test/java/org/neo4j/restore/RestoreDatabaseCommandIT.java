@@ -46,7 +46,7 @@ import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.configuration.Settings;
-import org.neo4j.kernel.impl.enterprise.configuration.OnlineBackupSettings;
+import org.neo4j.kernel.impl.enterprise.settings.backup.OnlineBackupSettings;
 import org.neo4j.kernel.impl.transaction.log.files.LogFiles;
 import org.neo4j.kernel.impl.transaction.log.files.LogFilesBuilder;
 import org.neo4j.kernel.internal.locker.StoreLocker;
@@ -73,6 +73,40 @@ public class RestoreDatabaseCommandIT
     @Rule
     public final DefaultFileSystemRule fileSystemRule = new DefaultFileSystemRule();
 
+    private static void countRelationshipByKeyValue( IndexManager indexManager, String indexName, String key, String value )
+    {
+        try ( IndexHits<Relationship> nodes = indexManager.forRelationships( indexName ).get( key, value ) )
+        {
+            assertEquals( 50, nodes.size() );
+        }
+    }
+
+    private static void countNodesByKeyValue( IndexManager indexManager, String indexName, String key, String value )
+    {
+        try ( IndexHits<Node> nodes = indexManager.forNodes( indexName ).get( key, value ) )
+        {
+            assertEquals( 50, nodes.size() );
+        }
+    }
+
+    private static Config configWith( String databaseName, String dataDirectory )
+    {
+        return Config.defaults( stringMap( GraphDatabaseSettings.active_database.name(), databaseName,
+                                           GraphDatabaseSettings.data_directory.name(), dataDirectory ) );
+    }
+
+    private static void createTestData( int nodesToCreate, GraphDatabaseService db )
+    {
+        try ( Transaction tx = db.beginTx() )
+        {
+            for ( int i = 0; i < nodesToCreate; i++ )
+            {
+                db.createNode();
+            }
+            tx.success();
+        }
+    }
+
     @Test
     public void forceShouldRespectStoreLock()
     {
@@ -97,7 +131,7 @@ public class RestoreDatabaseCommandIT
         }
         catch ( Exception e )
         {
-            assertThat( e.getMessage(), equalTo( "the database is in use -- stop Neo4j and try again" ) );
+            assertThat( e.getMessage(), equalTo( "the db is in use -- stop Neo4j and try again" ) );
         }
     }
 
@@ -125,7 +159,7 @@ public class RestoreDatabaseCommandIT
         {
             // then
             assertTrue( exception.getMessage(),
-                    exception.getMessage().contains( "Database with name [to] already exists" ) );
+                        exception.getMessage().contains( "Database with name [to] already exists" ) );
         }
     }
 
@@ -175,7 +209,7 @@ public class RestoreDatabaseCommandIT
         {
             // then
             assertTrue( exception.getMessage(), exception.getMessage()
-                    .contains( "Source directory is not a database backup" ) );
+                                                         .contains( "Source directory is not a db backup" ) );
         }
     }
 
@@ -199,8 +233,8 @@ public class RestoreDatabaseCommandIT
 
         // then
         GraphDatabaseService copiedDb = new GraphDatabaseFactory().newEmbeddedDatabaseBuilder( toPath )
-                .setConfig( OnlineBackupSettings.online_backup_enabled, Settings.FALSE )
-                .newGraphDatabase();
+                                                                  .setConfig( OnlineBackupSettings.online_backup_enabled, Settings.FALSE )
+                                                                  .newGraphDatabase();
 
         try ( Transaction ignored = copiedDb.beginTx() )
         {
@@ -273,7 +307,7 @@ public class RestoreDatabaseCommandIT
         assertThat( toStoreLogFiles.logFiles(), emptyArray() );
         assertThat( customLogLocationLogFiles.logFiles(), arrayWithSize( 1 ) );
         assertEquals( fromStoreLogFiles.getLogFileForVersion( 0 ).length(),
-                customLogLocationLogFiles.getLogFileForVersion( 0 ).length() );
+                      customLogLocationLogFiles.getLogFileForVersion( 0 ).length() );
     }
 
     @Test
@@ -305,47 +339,25 @@ public class RestoreDatabaseCommandIT
             Usage usage = new Usage( "neo4j-admin", mock( CommandLocator.class ) );
             usage.printUsageForCommand( new RestoreDatabaseCliProvider(), ps::println );
 
-            assertEquals( String.format( "usage: neo4j-admin restore --from=<backup-directory> [--database=<name>]%n" +
-                            "                           [--force[=<true|false>]]%n" +
-                            "%n" +
-                            "environment variables:%n" +
-                            "    NEO4J_CONF    Path to directory which contains neo4j.conf.%n" +
-                            "    NEO4J_DEBUG   Set to anything to enable debug output.%n" +
-                            "    NEO4J_HOME    Neo4j home directory.%n" +
-                            "    HEAP_SIZE     Set JVM maximum heap size during command execution.%n" +
-                            "                  Takes a number and a unit, for example 512m.%n" +
-                            "%n" +
-                            "Restore a backed up database.%n" +
-                            "%n" +
-                            "options:%n" +
-                            "  --from=<backup-directory>   Path to backup to restore from.%n" +
-                            "  --database=<name>           Name of database. [default:graph.db]%n" +
-                            "  --force=<true|false>        If an existing database should be replaced.%n" +
-                            "                              [default:false]%n" ),
-                    baos.toString() );
+            assertEquals( String.format( "usage: neo4j-admin restore --from=<backup-directory> [--db=<name>]%n" +
+                                         "                           [--force[=<true|false>]]%n" +
+                                         "%n" +
+                                         "environment variables:%n" +
+                                         "    NEO4J_CONF    Path to directory which contains neo4j.conf.%n" +
+                                         "    NEO4J_DEBUG   Set to anything to enable debug output.%n" +
+                                         "    NEO4J_HOME    Neo4j home directory.%n" +
+                                         "    HEAP_SIZE     Set JVM maximum heap size during command execution.%n" +
+                                         "                  Takes a number and a unit, for example 512m.%n" +
+                                         "%n" +
+                                         "Restore a backed up db.%n" +
+                                         "%n" +
+                                         "options:%n" +
+                                         "  --from=<backup-directory>   Path to backup to restore from.%n" +
+                                         "  --db=<name>           Name of db. [default:graph.db]%n" +
+                                         "  --force=<true|false>        If an existing db should be replaced.%n" +
+                                         "                              [default:false]%n" ),
+                          baos.toString() );
         }
-    }
-
-    private static void countRelationshipByKeyValue( IndexManager indexManager, String indexName, String key, String value )
-    {
-        try ( IndexHits<Relationship> nodes = indexManager.forRelationships( indexName ).get( key, value ) )
-        {
-            assertEquals( 50, nodes.size() );
-        }
-    }
-
-    private static void countNodesByKeyValue( IndexManager indexManager, String indexName, String key, String value )
-    {
-        try ( IndexHits<Node> nodes = indexManager.forNodes( indexName ).get( key, value ) )
-        {
-            assertEquals( 50, nodes.size() );
-        }
-    }
-
-    private static Config configWith( String databaseName, String dataDirectory )
-    {
-        return Config.defaults( stringMap( GraphDatabaseSettings.active_database.name(), databaseName,
-                GraphDatabaseSettings.data_directory.name(), dataDirectory ) );
     }
 
     private void createDbAt( File fromPath, int nodesToCreate )
@@ -360,9 +372,9 @@ public class RestoreDatabaseCommandIT
     private GraphDatabaseService createDatabase( File fromPath, String absolutePath )
     {
         return new GraphDatabaseFactory().newEmbeddedDatabaseBuilder( fromPath )
-                .setConfig( OnlineBackupSettings.online_backup_enabled, Settings.FALSE )
-                .setConfig( GraphDatabaseSettings.logical_logs_location, absolutePath )
-                .newGraphDatabase();
+                                         .setConfig( OnlineBackupSettings.online_backup_enabled, Settings.FALSE )
+                                         .setConfig( GraphDatabaseSettings.logical_logs_location, absolutePath )
+                                         .newGraphDatabase();
     }
 
     private void createDbWithExplicitIndexAt( File fromPath, int pairNumberOfNodesToCreate )
@@ -393,17 +405,5 @@ public class RestoreDatabaseCommandIT
             tx.success();
         }
         db.shutdown();
-    }
-
-    private static void createTestData( int nodesToCreate, GraphDatabaseService db )
-    {
-        try ( Transaction tx = db.beginTx() )
-        {
-            for ( int i = 0; i < nodesToCreate; i++ )
-            {
-                db.createNode();
-            }
-            tx.success();
-        }
     }
 }

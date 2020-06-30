@@ -18,16 +18,31 @@
  */
 package org.neo4j.backup.impl;
 
+import org.neo4j.backup.exceptions.BackupException;
+import org.neo4j.configuration.helpers.SocketAddress;
 import org.neo4j.io.layout.DatabaseLayout;
-import org.neo4j.kernel.configuration.Config;
-import org.neo4j.kernel.impl.util.OptionalHostnamePort;
 import org.neo4j.kernel.lifecycle.Lifecycle;
 
 interface BackupStrategy extends Lifecycle
 {
-    Fallible<BackupStageOutcome> performIncrementalBackup(
-            DatabaseLayout targetDatabaseLayout, Config config, OptionalHostnamePort userProvidedAddress );
+    /**
+     * @param targetDatabaseLayout
+     * @param socketAddress
+     * @param databaseName
+     * @throws BackupException
+     */
+    void performIncrementalBackup( DatabaseLayout targetDatabaseLayout,
+                                   SocketAddress socketAddress,
+                                   String databaseName ) throws BackupException;
 
-    Fallible<BackupStageOutcome> performFullBackup(
-            DatabaseLayout targetDatabaseLayout, Config config, OptionalHostnamePort userProvidedAddress );
+    /**
+     * @param targetDatabaseLayout
+     * @param socketAddress
+     * @param databaseName
+     * @throws BackupException
+     */
+    void performFullBackup( DatabaseLayout targetDatabaseLayout,
+                            SocketAddress socketAddress,
+                            String databaseName ) throws BackupException;
 }
+

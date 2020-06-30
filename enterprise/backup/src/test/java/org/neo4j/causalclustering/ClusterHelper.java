@@ -34,6 +34,7 @@ public class ClusterHelper
 
     /**
      * Used by non-cc
+     *
      * @param db
      * @return
      */
@@ -41,13 +42,14 @@ public class ClusterHelper
     {
         try ( Transaction tx = db.beginTx() )
         {
-            createSomeData(db, tx);
+            createSomeData( db, tx );
         }
         return DbRepresentation.of( db );
     }
 
     /**
      * Used by cc
+     *
      * @param db
      * @param tx
      */
@@ -68,5 +70,4 @@ public class ClusterHelper
             tx.success();
         }
     }
-
 }

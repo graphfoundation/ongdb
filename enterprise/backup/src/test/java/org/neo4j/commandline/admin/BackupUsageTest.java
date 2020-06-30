@@ -38,11 +38,9 @@ import static org.junit.Assert.assertThat;
 public class BackupUsageTest
 {
     private static final Path HERE = Paths.get( "." );
-
+    private final CommandLocator commandLocator = CommandLocator.fromServiceLocator();
     @Rule
     public SuppressOutput suppressOutput = SuppressOutput.suppressAll();
-
-    private final CommandLocator commandLocator = CommandLocator.fromServiceLocator();
 
     @Test
     public void outputMatchesExpectedForMissingBackupDir()

@@ -18,35 +18,61 @@
  */
 package org.neo4j.backup.impl;
 
-import org.neo4j.com.storecopy.StoreCopyClientMonitor;
-import org.neo4j.commandline.admin.OutsideWorld;
-import org.neo4j.logging.FormattedLogProvider;
+import java.util.concurrent.TimeUnit;
+
+import org.neo4j.causalclustering.monitor.StoreMonitor;
+import org.neo4j.internal.helpers.Format;
 import org.neo4j.logging.Log;
 import org.neo4j.logging.LogProvider;
+import org.neo4j.time.Clocks;
+import org.neo4j.time.Stopwatch;
+import org.neo4j.time.SystemNanoClock;
 
 /**
  * Monitor for events that should be displayed to neo4j-admin backup stdout
  */
-class BackupOutputMonitor implements StoreCopyClientMonitor
+class BackupOutputMonitor implements StoreMonitor
 {
     private final Log log;
+    private final SystemNanoClock clock;
+    private Stopwatch startTime;
+    private Stopwatch segmentStart;
 
-    BackupOutputMonitor( OutsideWorld outsideWorld )
+    /**
+     * @param logProvider
+     */
+    BackupOutputMonitor( LogProvider logProvider )
     {
-        LogProvider stdOutLogProvider = FormattedLogProvider.toOutputStream( outsideWorld.outStream() );
-        log = stdOutLogProvider.getLog( BackupOutputMonitor.class );
+        this( logProvider, Clocks.nanoClock() );
+    }
+
+    /**
+     * @param logProvider
+     * @param clock
+     */
+    BackupOutputMonitor( LogProvider logProvider, SystemNanoClock clock )
+    {
+        this.log = logProvider.getLog( this.getClass() );
+        this.clock = clock;
+    }
+
+    @Override
+    public void start()
+    {
+        this.startTime = this.clock.startStopWatch();
     }
 
     @Override
     public void startReceivingStoreFiles()
     {
         log.info( "Start receiving store files" );
+        this.initSegmentStart();
     }
 
     @Override
     public void finishReceivingStoreFiles()
     {
-        log.info( "Finish receiving store files" );
+        log.info( "Finish receiving store files, took %s", segmentCurrentDuration() );
     }
 
     @Override
@@ -65,30 +91,33 @@ class BackupOutputMonitor implements StoreCopyClientMonitor
     public void startReceivingTransactions( long startTxId )
     {
         log.info( "Start receiving transactions from %d", startTxId );
+        this.initSegmentStart();
     }
 
     @Override
     public void finishReceivingTransactions( long endTxId )
     {
-        log.info( "Finish receiving transactions at %d", endTxId );
+        log.info( "Finish receiving transactions at %d, took %s", new Object[]{endTxId, segmentCurrentDuration()} );
     }
 
     @Override
     public void startRecoveringStore()
     {
         log.info( "Start recovering store" );
+        this.initSegmentStart();
     }
 
     @Override
     public void finishRecoveringStore()
     {
-        log.info( "Finish recovering store" );
+        log.info( "Finish recovering store, took %s", new Object[]{this.segmentCurrentDuration()} );
     }
 
     @Override
     public void startReceivingIndexSnapshots()
     {
         log.info( "Start receiving index snapshots" );
+        this.initSegmentStart();
     }
 
     @Override
@@ -106,6 +135,22 @@ class BackupOutputMonitor implements StoreCopyClientMonitor
     @Override
     public void finishReceivingIndexSnapshots()
     {
-        log.info( "Finished receiving index snapshots" );
+        log.info( "Finished receiving index snapshots, took %s", segmentCurrentDuration() );
+    }
+
+    @Override
+    public void finish()
+    {
+        this.log.info( "Finished, took %s", new Object[]{Format.duration( this.startTime.elapsed( TimeUnit.MILLISECONDS ) )} );
+    }
+
+    private void initSegmentStart()
+    {
+        this.segmentStart = this.clock.startStopWatch();
+    }
+
+    private String segmentCurrentDuration()
+    {
+        return Format.duration( this.segmentStart.elapsed( TimeUnit.MILLISECONDS ) );
     }
 }

@@ -61,17 +61,14 @@ public class BackupStrategyCoordinatorTest
     private final LogProvider logProvider = mock( LogProvider.class );
     private final BackupStrategyWrapper firstStrategy = mock( BackupStrategyWrapper.class );
     private final BackupStrategyWrapper secondStrategy = mock( BackupStrategyWrapper.class );
-
-    private BackupStrategyCoordinator subject;
-
     // test method parameter mocks
     private final OnlineBackupContext onlineBackupContext = mock( OnlineBackupContext.class );
     private final OnlineBackupRequiredArguments requiredArguments = mock( OnlineBackupRequiredArguments.class );
-
     // mock returns
     private final ProgressMonitorFactory progressMonitorFactory = mock( ProgressMonitorFactory.class );
     private final Path reportDir = mock( Path.class );
     private final ConsistencyCheckService.Result consistencyCheckResult = mock( ConsistencyCheckService.Result.class );
+    private BackupStrategyCoordinator subject;
 
     @Before
     public void setup()
@@ -82,7 +79,7 @@ public class BackupStrategyCoordinatorTest
         when( onlineBackupContext.getResolvedLocationFromName() ).thenReturn( reportDir );
         when( requiredArguments.getReportDir() ).thenReturn( reportDir );
         subject = new BackupStrategyCoordinator( consistencyCheckService, outsideWorld, logProvider, progressMonitorFactory,
-                Arrays.asList( firstStrategy, secondStrategy ) );
+                                                 Arrays.asList( firstStrategy, secondStrategy ) );
     }
 
     @Test
@@ -161,7 +158,7 @@ public class BackupStrategyCoordinatorTest
         anyStrategyPasses();
         when( requiredArguments.isDoConsistencyCheck() ).thenReturn( true );
         when( consistencyCheckService.runFullConsistencyCheck( any(), any(), eq( progressMonitorFactory ), any( LogProvider.class ), any(), eq( false ), any(),
-                any() ) ).thenReturn( consistencyCheckResult );
+                                                               any() ) ).thenReturn( consistencyCheckResult );
         when( consistencyCheckResult.isSuccessful() ).thenReturn( true );
 
         // when
@@ -183,7 +180,7 @@ public class BackupStrategyCoordinatorTest
 
         // then
         verify( consistencyCheckService, never() ).runFullConsistencyCheck( any(), any(), any(), any(), any(), eq( false ), any(),
-                any( ConsistencyFlags.class ) );
+                                                                            any( ConsistencyFlags.class ) );
     }
 
     @Test
@@ -217,7 +214,7 @@ public class BackupStrategyCoordinatorTest
         when( requiredArguments.isDoConsistencyCheck() ).thenReturn( true );
         when( consistencyCheckResult.isSuccessful() ).thenReturn( false );
         when( consistencyCheckService.runFullConsistencyCheck( any(), any(), eq( progressMonitorFactory ), any( LogProvider.class ), any(), eq( false ), any(),
-                any() ) ).thenReturn( consistencyCheckResult );
+                                                               any() ) ).thenReturn( consistencyCheckResult );
 
         // then
         expectedException.expect( CommandFailed.class );
@@ -232,7 +229,7 @@ public class BackupStrategyCoordinatorTest
     {
         // given there are no strategies in the solution
         subject = new BackupStrategyCoordinator( consistencyCheckService, outsideWorld, logProvider, progressMonitorFactory,
-                Collections.emptyList() );
+                                                 Collections.emptyList() );
 
         // then we want a predictable exception (instead of NullPointer)
         expectedException.expect( CommandFailed.class );

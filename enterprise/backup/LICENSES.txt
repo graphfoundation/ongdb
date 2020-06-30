@@ -172,7 +172,7 @@ Apache Software License, Version 2.0
       reproduction, and distribution of the Work otherwise complies with
       the conditions stated in this License.
 
-   5. Submission of Contributions. Unless You explicitly state otherwise,
+   5. Submission of Contributions. Unless You explicitly batchImportState otherwise,
       any Contribution intentionally submitted for inclusion in the Work
       by You to the Licensor shall be under the terms and conditions of
       this License, without any additional terms or conditions.
@@ -453,8 +453,8 @@ a) it complies with the terms and conditions of this Agreement; and
 b) its license agreement:
 i) effectively disclaims on behalf of all Contributors all warranties and conditions, express and implied, including warranties or conditions of title and non-infringement, and implied warranties or conditions of merchantability and fitness for a particular purpose;
 ii) effectively excludes on behalf of all Contributors all liability for damages, including direct, indirect, special, incidental and consequential damages, such as lost profits;
-iii) states that any provisions which differ from this Agreement are offered by that Contributor alone and not by any other party; and
-iv) states that source code for the Program is available from such Contributor, and informs licensees how to obtain it in a reasonable manner on or through a medium customarily used for software exchange.
+iii) batchImportStates that any provisions which differ from this Agreement are offered by that Contributor alone and not by any other party; and
+iv) batchImportStates that source code for the Program is available from such Contributor, and informs licensees how to obtain it in a reasonable manner on or through a medium customarily used for software exchange.
 When the Program is made available in source code form:
 
 a) it must be made available under this Agreement; and

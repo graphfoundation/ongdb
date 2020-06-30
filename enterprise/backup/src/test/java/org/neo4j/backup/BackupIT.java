@@ -60,7 +60,7 @@ import org.neo4j.kernel.StoreLockException;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.configuration.Settings;
 import org.neo4j.kernel.impl.api.TransactionHeaderInformation;
-import org.neo4j.kernel.impl.enterprise.configuration.OnlineBackupSettings;
+import org.neo4j.kernel.impl.enterprise.settings.backup.OnlineBackupSettings;
 import org.neo4j.kernel.impl.factory.DatabaseInfo;
 import org.neo4j.kernel.impl.store.MetaDataStore;
 import org.neo4j.kernel.impl.store.MetaDataStore.Position;
@@ -103,10 +103,10 @@ public class BackupIT
 
     @Rule
     public final RuleChain ruleChain = RuleChain.outerRule( fileSystemRule )
-            .around( testDir )
-            .around( pageCacheRule )
-            .around( SuppressOutput.suppressAll() )
-            .around( random );
+                                                .around( testDir )
+                                                .around( pageCacheRule )
+                                                .around( SuppressOutput.suppressAll() )
+                                                .around( random );
 
     @Parameter
     public String recordFormatName;
@@ -122,6 +122,86 @@ public class BackupIT
     public static List<String> recordFormatNames()
     {
         return Arrays.asList( Standard.LATEST_NAME, HighLimit.NAME );
+    }
+
+    private static long getLastCommittedTx( DatabaseLayout databaseLayout, PageCache pageCache ) throws IOException
+    {
+        File neoStore = databaseLayout.metadataStore();
+        return MetaDataStore.getRecord( pageCache, neoStore, Position.LAST_TRANSACTION_ID );
+    }
+
+    private static List<Label> createIndexes( GraphDatabaseService db, int indexCount )
+    {
+        ArrayList<Label> indexedLabels = new ArrayList<>( indexCount );
+        for ( int i = 0; i < indexCount; i++ )
+        {
+            try ( Transaction tx = db.beginTx() )
+            {
+                Label label = Label.label( "label" + i );
+                indexedLabels.add( label );
+                db.schema().indexFor( label ).on( "prop" ).create();
+                tx.success();
+            }
+        }
+        try ( Transaction tx = db.beginTx() )
+        {
+            db.schema().awaitIndexesOnline( 1, TimeUnit.MINUTES );
+            tx.success();
+        }
+        return indexedLabels;
+    }
+
+    private static DbRepresentation addLotsOfData( GraphDatabaseService db )
+    {
+        try ( Transaction tx = db.beginTx() )
+        {
+            Node node = db.createNode();
+            int threshold = parseInt( dense_node_threshold.getDefaultValue() );
+            for ( int i = 0; i < threshold * 2; i++ )
+            {
+                node.createRelationshipTo( db.createNode(), TEST );
+            }
+            tx.success();
+        }
+        return DbRepresentation.of( db );
+    }
+
+    private static void assertStoreIsLocked( File path )
+    {
+        try
+        {
+            new TestGraphDatabaseFactory().newEmbeddedDatabase( path ).shutdown();
+            fail( "Could start up db in same process, store not locked" );
+        }
+        catch ( RuntimeException ex )
+        {
+            assertThat( ex.getCause().getCause(), instanceOf( StoreLockException.class ) );
+        }
+    }
+
+    private static boolean checkLogFileExistence( String directory )
+    {
+        return Config.defaults( logs_directory, directory ).get( store_internal_log_path ).exists();
+    }
+
+    private static long lastTxChecksumOf( DatabaseLayout databaseLayout, PageCache pageCache ) throws IOException
+    {
+        File neoStore = databaseLayout.metadataStore();
+        return MetaDataStore.getRecord( pageCache, neoStore, Position.LAST_TRANSACTION_CHECKSUM );
+    }
+
+    private static void createInitialDataSet( GraphDatabaseService db )
+    {
+        // 4 transactions: THE transaction, "mykey" property key, "db-index" index, "KNOWS" rel type.
+        try ( Transaction tx = db.beginTx() )
+        {
+            Node node = db.createNode( Label.label( "Me" ) );
+            node.setProperty( "myKey", "myValue" );
+            Index<Node> nodeIndex = db.index().forNodes( "db-index" );
+            nodeIndex.add( node, "myKey", "myValue" );
+            db.createNode().createRelationshipTo( node, RelationshipType.withName( "KNOWS" ) );
+            tx.success();
+        }
     }
 
     @Before
@@ -387,12 +467,6 @@ public class BackupIT
         }
     }
 
-    private static long getLastCommittedTx( DatabaseLayout databaseLayout, PageCache pageCache ) throws IOException
-    {
-        File neoStore = databaseLayout.metadataStore();
-        return MetaDataStore.getRecord( pageCache, neoStore, Position.LAST_TRANSACTION_ID );
-    }
-
     @Test
     public void backupEmptyIndex() throws Exception
     {
@@ -451,16 +525,17 @@ public class BackupIT
 
             // start thread that continuously writes to indexes
             executorService.submit( () ->
-            {
-                while ( !end.get() )
-                {
-                    try ( Transaction tx = db.beginTx() )
-                    {
-                        db.createNode( indexedLabels.get( random.nextInt( numberOfIndexedLabels ) ) ).setProperty( "prop", random.nextValue() );
-                        tx.success();
-                    }
-                }
-            } );
+                                    {
+                                        while ( !end.get() )
+                                        {
+                                            try ( Transaction tx = db.beginTx() )
+                                            {
+                                                db.createNode( indexedLabels.get( random.nextInt( numberOfIndexedLabels ) ) )
+                                                  .setProperty( "prop", random.nextValue() );
+                                                tx.success();
+                                            }
+                                        }
+                                    } );
             executorService.shutdown();
 
             // create backup
@@ -475,27 +550,6 @@ public class BackupIT
         }
     }
 
-    private static List<Label> createIndexes( GraphDatabaseService db, int indexCount )
-    {
-        ArrayList<Label> indexedLabels = new ArrayList<>( indexCount );
-        for ( int i = 0; i < indexCount; i++ )
-        {
-            try ( Transaction tx = db.beginTx() )
-            {
-                Label label = Label.label( "label" + i );
-                indexedLabels.add( label );
-                db.schema().indexFor( label ).on( "prop" ).create();
-                tx.success();
-            }
-        }
-        try ( Transaction tx = db.beginTx() )
-        {
-            db.schema().awaitIndexesOnline( 1, TimeUnit.MINUTES );
-            tx.success();
-        }
-        return indexedLabels;
-    }
-
     @Test
     public void shouldRetainFileLocksAfterFullBackupOnLiveDatabase()
     {
@@ -503,10 +557,10 @@ public class BackupIT
         File sourcePath = testDir.directory( "serverdb-lock" );
 
         GraphDatabaseService db = new TestGraphDatabaseFactory().newEmbeddedDatabaseBuilder( sourcePath )
-                .setConfig( OnlineBackupSettings.online_backup_enabled, Settings.TRUE )
-                .setConfig( OnlineBackupSettings.online_backup_server, "127.0.0.1:" + backupPort )
-                .setConfig( GraphDatabaseSettings.record_format, recordFormatName )
-                .newGraphDatabase();
+                                                                .setConfig( OnlineBackupSettings.online_backup_enabled, Settings.TRUE )
+                                                                .setConfig( OnlineBackupSettings.online_backup_server, "127.0.0.1:" + backupPort )
+                                                                .setConfig( GraphDatabaseSettings.record_format, recordFormatName )
+                                                                .newGraphDatabase();
         try
         {
             assertStoreIsLocked( sourcePath );
@@ -599,47 +653,8 @@ public class BackupIT
         {
             assertTrue( "Missing id file " + idFile, idFile.exists() );
             assertTrue( "Id file " + idFile + " had 0 highId",
-                    IdGeneratorImpl.readHighId( fileSystemRule.get(), idFile ) > 0 );
+                        IdGeneratorImpl.readHighId( fileSystemRule.get(), idFile ) > 0 );
         }
-    }
-
-    private static DbRepresentation addLotsOfData( GraphDatabaseService db )
-    {
-        try ( Transaction tx = db.beginTx() )
-        {
-            Node node = db.createNode();
-            int threshold = parseInt( dense_node_threshold.getDefaultValue() );
-            for ( int i = 0; i < threshold * 2; i++ )
-            {
-                node.createRelationshipTo( db.createNode(), TEST );
-            }
-            tx.success();
-        }
-        return DbRepresentation.of( db );
-    }
-
-    private static void assertStoreIsLocked( File path )
-    {
-        try
-        {
-            new TestGraphDatabaseFactory().newEmbeddedDatabase( path ).shutdown();
-            fail( "Could start up database in same process, store not locked" );
-        }
-        catch ( RuntimeException ex )
-        {
-            assertThat( ex.getCause().getCause(), instanceOf( StoreLockException.class ) );
-        }
-    }
-
-    private static boolean checkLogFileExistence( String directory )
-    {
-        return Config.defaults( logs_directory, directory ).get( store_internal_log_path ).exists();
-    }
-
-    private static long lastTxChecksumOf( DatabaseLayout databaseLayout, PageCache pageCache ) throws IOException
-    {
-        File neoStore = databaseLayout.metadataStore();
-        return MetaDataStore.getRecord( pageCache, neoStore, Position.LAST_TRANSACTION_CHECKSUM );
     }
 
     private ServerInterface startServer( File path, int backupPort )
@@ -665,7 +680,7 @@ public class BackupIT
             Node node = db.createNode();
             node.setProperty( "backup", "Is great" );
             db.createNode().createRelationshipTo( node,
-                    RelationshipType.withName( "LOVES" ) );
+                                                  RelationshipType.withName( "LOVES" ) );
             tx.success();
         }
         finally
@@ -682,13 +697,13 @@ public class BackupIT
     }
 
     private GraphDatabaseService startGraphDatabase( File storeDir, boolean withOnlineBackup, Integer backupPort,
-            String logLocation )
+                                                     String logLocation )
     {
         GraphDatabaseFactory dbFactory = new TestGraphDatabaseFactory()
         {
             @Override
             protected GraphDatabaseService newDatabase( File storeDir, Config config,
-                    GraphDatabaseFacadeFactory.Dependencies dependencies )
+                                                        GraphDatabaseFacadeFactory.Dependencies dependencies )
             {
                 Function<PlatformModule,AbstractEditionModule> factory =
                         platformModule -> new CommunityEditionModule( platformModule )
@@ -712,10 +727,10 @@ public class BackupIT
             }
         };
         GraphDatabaseBuilder graphDatabaseBuilder = dbFactory.newEmbeddedDatabaseBuilder( storeDir )
-                .setConfig( OnlineBackupSettings.online_backup_enabled, String.valueOf( withOnlineBackup ) )
-                .setConfig( GraphDatabaseSettings.keep_logical_logs, Settings.TRUE )
-                .setConfig( GraphDatabaseSettings.record_format, recordFormatName )
-                .setConfig( GraphDatabaseSettings.logical_logs_location, logLocation );
+                                                             .setConfig( OnlineBackupSettings.online_backup_enabled, String.valueOf( withOnlineBackup ) )
+                                                             .setConfig( GraphDatabaseSettings.keep_logical_logs, Settings.TRUE )
+                                                             .setConfig( GraphDatabaseSettings.record_format, recordFormatName )
+                                                             .setConfig( GraphDatabaseSettings.logical_logs_location, logLocation );
 
         if ( backupPort != null )
         {
@@ -739,34 +754,20 @@ public class BackupIT
         }
     }
 
-    private static void createInitialDataSet( GraphDatabaseService db )
-    {
-        // 4 transactions: THE transaction, "mykey" property key, "db-index" index, "KNOWS" rel type.
-        try ( Transaction tx = db.beginTx() )
-        {
-            Node node = db.createNode( Label.label( "Me" ) );
-            node.setProperty( "myKey", "myValue" );
-            Index<Node> nodeIndex = db.index().forNodes( "db-index" );
-            nodeIndex.add( node, "myKey", "myValue" );
-            db.createNode().createRelationshipTo( node, RelationshipType.withName( "KNOWS" ) );
-            tx.success();
-        }
-    }
-
     private GraphDatabaseService getEmbeddedTestDataBaseService( int backupPort )
     {
         return new TestGraphDatabaseFactory().newEmbeddedDatabaseBuilder( serverStorePath )
-                .setConfig( OnlineBackupSettings.online_backup_enabled, Settings.TRUE )
-                .setConfig( OnlineBackupSettings.online_backup_server, "127.0.0.1:" + backupPort )
-                .setConfig( GraphDatabaseSettings.record_format, recordFormatName )
-                .newGraphDatabase();
+                                             .setConfig( OnlineBackupSettings.online_backup_enabled, Settings.TRUE )
+                                             .setConfig( OnlineBackupSettings.online_backup_server, "127.0.0.1:" + backupPort )
+                                             .setConfig( GraphDatabaseSettings.record_format, recordFormatName )
+                                             .newGraphDatabase();
     }
 
     private DbRepresentation getDbRepresentation()
     {
         Config config = Config.builder()
-                .withSetting( OnlineBackupSettings.online_backup_enabled, Settings.FALSE )
-                .withSetting( GraphDatabaseSettings.active_database, backupDatabasePath.getName() ).build();
-        return DbRepresentation.of( backupDatabasePath , config );
+                              .withSetting( OnlineBackupSettings.online_backup_enabled, Settings.FALSE )
+                              .withSetting( GraphDatabaseSettings.active_database, backupDatabasePath.getName() ).build();
+        return DbRepresentation.of( backupDatabasePath, config );
     }
 }

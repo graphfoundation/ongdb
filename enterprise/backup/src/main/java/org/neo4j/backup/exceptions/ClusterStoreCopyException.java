@@ -1,7 +1,4 @@
 /*
- * Copyright (c) 2002-2018 "Neo4j"
- * Neo4j Sweden AB [http://neo4j.com]
- *
  * Copyright (c) 2018-2020 "Graph Foundation"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
@@ -16,26 +13,15 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Affero General Public License for more details.
  */
-package org.neo4j.backup.impl;
+package org.neo4j.backup.exceptions;
 
-public class BackupOutcome
+public class ClusterStoreCopyException extends Exception
 {
-    private final boolean consistent;
-    private final long lastCommittedTx;
-
-    BackupOutcome( long lastCommittedTx, boolean consistent )
+    /**
+     * @param message
+     */
+    public ClusterStoreCopyException( String message )
     {
-        this.lastCommittedTx = lastCommittedTx;
-        this.consistent = consistent;
-    }
-
-    public long getLastCommittedTx()
-    {
-        return lastCommittedTx;
-    }
-
-    public boolean isConsistent()
-    {
-        return consistent;
+        super( message );
     }
 }

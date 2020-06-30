@@ -1,7 +1,4 @@
 /*
- * Copyright (c) 2002-2018 "Neo4j"
- * Neo4j Sweden AB [http://neo4j.com]
- *
  * Copyright (c) 2018-2020 "Graph Foundation"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
@@ -16,16 +13,15 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Affero General Public License for more details.
  */
-package org.neo4j.backup;
+package org.neo4j.backup.exceptions;
 
-import org.neo4j.com.Response;
-import org.neo4j.com.RequestContext;
-import org.neo4j.com.storecopy.StoreWriter;
-
-@Deprecated
-public interface TheBackupInterface
+public class ClusterStoreIdLoadException extends Exception
 {
-    Response<Void> fullBackup( StoreWriter writer, boolean forensics );
-
-    Response<Void> incrementalBackup( RequestContext context );
+    /**
+     * @param format
+     */
+    public ClusterStoreIdLoadException( String format )
+    {
+        super( format );
+    }
 }

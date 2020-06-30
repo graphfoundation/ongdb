@@ -40,12 +40,10 @@ import static org.mockito.Mockito.when;
 
 public class BackupCopyServiceTest
 {
-    private FileMoveProvider fileMoveProvider;
-
     @Rule
     public TestDirectory testDirectory = TestDirectory.testDirectory();
-
     BackupCopyService subject;
+    private FileMoveProvider fileMoveProvider;
 
     @Before
     public void setup()

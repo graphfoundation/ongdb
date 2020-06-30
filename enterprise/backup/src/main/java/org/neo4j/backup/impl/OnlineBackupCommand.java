@@ -18,88 +18,132 @@
  */
 package org.neo4j.backup.impl;
 
+import org.apache.commons.lang3.exception.ExceptionUtils;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Help.Visibility;
+import picocli.CommandLine.Mixin;
+import picocli.CommandLine.Option;
+
+import java.io.IOException;
 import java.nio.file.Path;
-import java.util.Arrays;
 
-import org.neo4j.commandline.admin.AdminCommand;
-import org.neo4j.commandline.admin.CommandFailed;
-import org.neo4j.commandline.admin.IncorrectUsage;
-import org.neo4j.commandline.admin.OutsideWorld;
+import org.neo4j.backup.exceptions.ConsistencyException;
+import org.neo4j.cli.AbstractCommand;
+import org.neo4j.cli.CommandFailedException;
+import org.neo4j.cli.Converters.DatabaseNameConverter;
+import org.neo4j.cli.ExecutionContext;
+import org.neo4j.commandline.Util;
+import org.neo4j.configuration.Config;
+import org.neo4j.configuration.ConfigUtils;
+import org.neo4j.configuration.GraphDatabaseSettings;
+import org.neo4j.configuration.SettingValueParsers;
+import org.neo4j.configuration.helpers.NormalizedDatabaseName;
+import org.neo4j.configuration.helpers.SocketAddress;
+import org.neo4j.consistency.ConsistencyCheckOptions;
+import org.neo4j.internal.helpers.progress.ProgressMonitorFactory;
+import org.neo4j.kernel.impl.enterprise.settings.backup.OnlineBackupSettings;
+import org.neo4j.logging.Level;
+import org.neo4j.logging.LogProvider;
+import org.neo4j.logging.NullLogProvider;
 
-import static java.lang.String.format;
-
-class OnlineBackupCommand implements AdminCommand
+@Command( name = "backup", header = {"Perform an online backup from a running Neo4j enterprise server."}, description = {
+        "Perform an online backup from a running Neo4j enterprise server. Neo4j's backup service must have been configured on the server beforehand.%n%nAll consistency checks except 'cc-graph' can be quite expensive so it may be useful to turn them off for very large databases. Increasing the heap size can also be a good idea. See 'neo4j-admin help' for details.%n%nFor more information see: https://neo4j.com/docs/operations-manual/4.0/backup/"} )
+public class OnlineBackupCommand extends AbstractCommand
 {
-    private final OutsideWorld outsideWorld;
-    private final OnlineBackupContextFactory contextBuilder;
-    private final BackupStrategyCoordinatorFactory backupStrategyCoordinatorFactory;
-    private final BackupSupportingClassesFactory backupSupportingClassesFactory;
+    private static final int STATUS_CONSISTENCY_CHECK_ERROR = 2;
+    private static final int STATUS_CONSISTENCY_CHECK_INCONSISTENT = 3;
+    @Option( names = {"--backup-dir"}, paramLabel = "<path>", required = true, description = {"Directory to place backup in."} )
+    private Path backupDir;
+    @Option( names = {"--from"}, paramLabel = "<host:port>", defaultValue = "localhost:6362", description = {"Host and port of Neo4j."} )
+    private String from;
+    @Option( names = {"--db"}, defaultValue = "neo4j", description = {"Name of the remote db to backup."}, converter = {
+            DatabaseNameConverter.class} )
+    private NormalizedDatabaseName database;
+    @Option( names = {"--fallback-to-full"}, paramLabel = "<true/false>", defaultValue = "true", showDefaultValue = Visibility.ALWAYS, description = {
+            "If an incremental backup fails backup will move the old backup to <name>.err.<N> and fallback to a full."} )
+    private boolean fallbackToFull;
+    @Option( names = {"--pagecache"}, paramLabel = "<size>", defaultValue = "8m", description = {"The size of the page cache to use for the backup process."} )
+    private String pagecacheMemory;
+    @Option( names = {"--check-consistency"}, paramLabel = "<true/false>", defaultValue = "true", showDefaultValue = Visibility.ALWAYS, description = {
+            "If a consistency check should be made."} )
+    private boolean checkConsistency;
+    @Mixin
+    private ConsistencyCheckOptions consistencyCheckOptions;
+    @Option( names = {"--additional-config"}, paramLabel = "<path>", description = {"Configuration file to supply additional configuration in."} )
+    private Path additionalConfig;
 
     /**
      * The entry point for neo4j admin tool's online backup functionality.
      *
-     * @param outsideWorld provides a way to interact with the filesystem and output streams
-     * @param contextBuilder helper class to validate, process and return a grouped result of processing the command line arguments
-     * @param backupSupportingClassesFactory necessary for constructing the strategy for backing up over the causal clustering transaction protocol
-     * @param backupStrategyCoordinatorFactory class that actually handles the logic of performing a backup
+     * @param ctx
      */
-    OnlineBackupCommand( OutsideWorld outsideWorld, OnlineBackupContextFactory contextBuilder,
-                         BackupSupportingClassesFactory backupSupportingClassesFactory,
-                         BackupStrategyCoordinatorFactory backupStrategyCoordinatorFactory )
+    public OnlineBackupCommand( ExecutionContext ctx )
     {
-        this.outsideWorld = outsideWorld;
-        this.contextBuilder = contextBuilder;
-        this.backupSupportingClassesFactory = backupSupportingClassesFactory;
-        this.backupStrategyCoordinatorFactory = backupStrategyCoordinatorFactory;
+        super( ctx );
     }
 
-    @Override
-    public void execute( String[] args ) throws IncorrectUsage, CommandFailed
+    private static Path requireExisting( Path p )
     {
-        OnlineBackupContext onlineBackupContext = contextBuilder.createContext( args );
-        protocolWarn( onlineBackupContext );
-        try ( BackupSupportingClasses backupSupportingClasses = backupSupportingClassesFactory.createSupportingClasses( onlineBackupContext.getConfig() ) )
+        try
         {
-            // Make sure destination exists
-            checkDestination( onlineBackupContext.getRequiredArguments().getDirectory() );
-            checkDestination( onlineBackupContext.getRequiredArguments().getReportDir() );
-
-            BackupStrategyCoordinator backupStrategyCoordinator =
-                    backupStrategyCoordinatorFactory.backupStrategyCoordinator( onlineBackupContext, backupSupportingClasses.getBackupProtocolService(),
-                            backupSupportingClasses.getBackupDelegator(), backupSupportingClasses.getPageCache() );
-
-            backupStrategyCoordinator.performBackup( onlineBackupContext );
-            outsideWorld.stdOutLine( "Backup complete." );
+            return p.toRealPath();
+        }
+        catch ( IOException e )
+        {
+            throw new CommandFailedException( String.format( "Path '%s' does not exist.", p ), e );
         }
     }
 
-    private void checkDestination( Path path ) throws CommandFailed
+    protected void execute()
     {
-        if ( !outsideWorld.fileSystem().isDirectory( path.toFile() ) )
+        backupDir = requireExisting( backupDir );
+        SocketAddress address = SettingValueParsers.SOCKET_ADDRESS.parse( from );
+        Path configFile = ctx.confDir().resolve( Config.DEFAULT_CONFIG_FILE_NAME );
+        Config config = buildConfig( configFile, additionalConfig, backupDir );
+        OnlineBackupContext onlineBackupContext = OnlineBackupContext.builder().withBackupDirectory( requireExisting( backupDir ) ).withReportsDirectory(
+                consistencyCheckOptions.getReportDir() ).withAddress( address ).withDatabaseName( database.name() ).withConfig(
+                config ).withFallbackToFullBackup( fallbackToFull ).withConsistencyCheck( checkConsistency ).withConsistencyCheckGraph(
+                consistencyCheckOptions.isCheckGraph() ).withConsistencyCheckIndexes(
+                consistencyCheckOptions.isCheckIndexes() ).withConsistencyCheckIndexStructure(
+                consistencyCheckOptions.isCheckIndexStructure() ).withConsistencyCheckPropertyOwners(
+                consistencyCheckOptions.isCheckPropertyOwners() ).withConsistencyCheckLabelScanStore(
+                consistencyCheckOptions.isCheckLabelScanStore() ).build();
+        LogProvider userLogProvider = Util.configuredLogProvider( config, ctx.out() );
+        LogProvider internalLogProvider = verbose ? userLogProvider : NullLogProvider.getInstance();
+        BackupExecutor backupExecutor =
+                BackupExecutor.builder().withFileSystem( ctx.fs() ).withInternalLogProvider( (LogProvider) internalLogProvider ).withUserLogProvider(
+                        userLogProvider ).withProgressMonitorFactory( ProgressMonitorFactory.textual( ctx.err() ) ).build();
+
+        try
         {
-            throw new CommandFailed( format( "Directory '%s' does not exist.", path ) );
+            backupExecutor.backup( onlineBackupContext );
         }
+        catch ( ConsistencyException e )
+        {
+            int exitCode = e.consistencyCheckFailure() ? 2 : 3;
+            throw new CommandFailedException( e.getMessage(), e, exitCode );
+        }
+        catch ( Exception e )
+        {
+            throw new CommandFailedException( "Execution of backup failed. " + ExceptionUtils.getRootCause( e ).getMessage(), e );
+        }
+
+        ctx.out().println( "BackupExecutor complete." );
     }
 
-    private void protocolWarn( OnlineBackupContext onlineBackupContext )
+    private Config buildConfig( Path configFile, Path additionalConfigFile, Path backupDirectory )
     {
-        SelectedBackupProtocol selectedBackupProtocol = onlineBackupContext.getRequiredArguments().getSelectedBackupProtocol();
-        if ( !SelectedBackupProtocol.ANY.equals( selectedBackupProtocol ) )
+        Config cfg = Config.newBuilder().fromFileNoThrow( configFile.toFile() ).fromFileNoThrow( additionalConfigFile ).set( GraphDatabaseSettings.neo4j_home,
+                                                                                                                             backupDirectory )
+                           .set( GraphDatabaseSettings.pagecache_memory, pagecacheMemory ).set( GraphDatabaseSettings.pagecache_warmup_enabled,
+                                                                                                false )
+                           .set( OnlineBackupSettings.online_backup_enabled, false ).build();
+        ConfigUtils.disableAllConnectors( cfg );
+        if ( verbose )
         {
-            final String compatibleProducts;
-            switch ( selectedBackupProtocol )
-            {
-            case CATCHUP:
-                compatibleProducts = "causal clustering";
-                break;
-            case COMMON:
-                compatibleProducts = "HA and single";
-                break;
-            default:
-                throw new IllegalArgumentException( "Unhandled protocol " + selectedBackupProtocol );
-            }
-            outsideWorld.stdOutLine( format( "The selected protocol `%s` means that it is only compatible with %s instances", selectedBackupProtocol.getName(),
-                    compatibleProducts ) );
+            cfg.set( GraphDatabaseSettings.store_internal_log_level, Level.DEBUG );
         }
+
+        return cfg;
     }
 }

@@ -22,24 +22,24 @@ import java.util.Collection;
 
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.kernel.impl.api.CloseableResourceManager;
+import org.neo4j.storageengine.api.StorageEngineFactory;
 
 class BackupSupportingClasses implements AutoCloseable
 {
     // Strategies
     private final BackupDelegator backupDelegator;
-    private final BackupProtocolService backupProtocolService;
     private final CloseableResourceManager closeableResourceManager;
+    private final StorageEngineFactory storageEngineFactory;
 
     // Dependency Helpers
     private final PageCache pageCache;
 
-    BackupSupportingClasses( BackupDelegator backupDelegator, BackupProtocolService backupProtocolService, PageCache pageCache,
-            Collection<AutoCloseable> closeables )
+    BackupSupportingClasses( BackupDelegator backupDelegator, PageCache pageCache, Collection<AutoCloseable> closeables )
     {
         this.backupDelegator = backupDelegator;
-        this.backupProtocolService = backupProtocolService;
         this.pageCache = pageCache;
         this.closeableResourceManager = new CloseableResourceManager();
+        this.storageEngineFactory = StorageEngineFactory.selectStorageEngine();
         closeables.forEach( closeableResourceManager::registerCloseableResource );
     }
 
@@ -48,14 +48,14 @@ class BackupSupportingClasses implements AutoCloseable
         return backupDelegator;
     }
 
-    public BackupProtocolService getBackupProtocolService()
-    {
-        return backupProtocolService;
-    }
-
     public PageCache getPageCache()
     {
         return pageCache;
+    }
+
+    public StorageEngineFactory getStorageEngineFactory()
+    {
+        return this.storageEngineFactory;
     }
 
     @Override

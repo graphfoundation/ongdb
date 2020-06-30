@@ -29,7 +29,6 @@ import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.restore.RestoreDatabaseCommand;
 
-import static org.junit.Assert.assertEquals;
 import static org.neo4j.causalclustering.BackupCoreIT.backupArguments;
 import static org.neo4j.util.TestHelpers.runBackupToolFromOtherJvmToGetExitCode;
 

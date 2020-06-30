@@ -29,26 +29,6 @@ import static org.neo4j.backup.impl.BackupSupportingClassesFactoryProvider.getPr
 
 public class BackupSupportingClassesFactoryProviderTest
 {
-    @Test
-    public void canLoadDefaultSupportingClassesFactory()
-    {
-
-        assertEquals( 1, findInstancesOf( BackupSupportingClassesFactoryProvider.class,
-                allAvailableSupportingClassesFactories() ).size() );
-
-        assertEquals( 1, findInstancesOf( OpenEnterpriseBackupSupportingClassesFactoryProvider.class, allAvailableSupportingClassesFactories() ).size() );
-
-        // Note that the allAvailableSupportingClassesFactories() also loads the org.neo4j.helpers.Service[].
-        assertEquals( 3, allAvailableSupportingClassesFactories().size() );
-    }
-
-    @Test
-    public void testDefaultModuleIsPrioritisedOverDummyModule()
-    {
-        assertEquals( OpenEnterpriseBackupSupportingClassesFactoryProvider.class,
-                getProvidersByPriority().findFirst().get().getClass() );
-    }
-
     public static Collection<BackupSupportingClassesFactoryProvider> allAvailableSupportingClassesFactories()
     {
         return getProvidersByPriority().collect( toList() );
@@ -63,7 +43,7 @@ public class BackupSupportingClassesFactoryProviderTest
      * @return
      */
     public static <DESIRED extends BackupSupportingClassesFactoryProvider> Collection<DESIRED> findInstancesOf( Class<DESIRED> desiredClass,
-            Collection<? extends BackupSupportingClassesFactoryProvider> collection )
+                                                                                                                Collection<? extends BackupSupportingClassesFactoryProvider> collection )
     {
         return collection.stream().filter( isOfClass( desiredClass ) ).map( i -> (DESIRED) i ).collect( toList() );
     }
@@ -77,5 +57,25 @@ public class BackupSupportingClassesFactoryProviderTest
     private static Predicate<BackupSupportingClassesFactoryProvider> isOfClass( Class<? extends BackupSupportingClassesFactoryProvider> desiredClass )
     {
         return factory -> desiredClass.equals( factory.getClass() );
+    }
+
+    @Test
+    public void canLoadDefaultSupportingClassesFactory()
+    {
+
+        assertEquals( 1, findInstancesOf( BackupSupportingClassesFactoryProvider.class,
+                                          allAvailableSupportingClassesFactories() ).size() );
+
+        assertEquals( 1, findInstancesOf( OpenEnterpriseBackupSupportingClassesFactoryProvider.class, allAvailableSupportingClassesFactories() ).size() );
+
+        // Note that the allAvailableSupportingClassesFactories() also loads the org.neo4j.helpers.Service[].
+        assertEquals( 3, allAvailableSupportingClassesFactories().size() );
+    }
+
+    @Test
+    public void testDefaultModuleIsPrioritisedOverDummyModule()
+    {
+        assertEquals( OpenEnterpriseBackupSupportingClassesFactoryProvider.class,
+                      getProvidersByPriority().findFirst().get().getClass() );
     }
 }

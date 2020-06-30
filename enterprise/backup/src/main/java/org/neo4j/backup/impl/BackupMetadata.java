@@ -1,7 +1,4 @@
 /*
- * Copyright (c) 2002-2018 "Neo4j"
- * Neo4j Sweden AB [http://neo4j.com]
- *
  * Copyright (c) 2018-2020 "Graph Foundation"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
@@ -18,10 +15,22 @@
  */
 package org.neo4j.backup.impl;
 
-enum BackupStageOutcome
+import org.neo4j.configuration.helpers.SocketAddress;
+import org.neo4j.kernel.database.NamedDatabaseId;
+import org.neo4j.storageengine.api.StoreId;
+
+public class BackupMetadata
 {
-    SUCCESS,
-    WRONG_PROTOCOL,
-    FAILURE,
-    UNRECOVERABLE_FAILURE
+    final SocketAddress remoteAddress;
+    final StoreId remoteStoreId;
+    final StoreId localStoreId;
+    final NamedDatabaseId namedDatabaseId;
+
+    public BackupMetadata( SocketAddress remoteAddress, StoreId remoteStoreId, StoreId localStoreId, NamedDatabaseId namedDatabaseId )
+    {
+        this.remoteAddress = remoteAddress;
+        this.remoteStoreId = remoteStoreId;
+        this.localStoreId = localStoreId;
+        this.namedDatabaseId = namedDatabaseId;
+    }
 }

@@ -37,7 +37,7 @@ import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.helpers.collection.MapUtil;
 import org.neo4j.io.layout.DatabaseLayout;
 import org.neo4j.kernel.configuration.Config;
-import org.neo4j.kernel.impl.enterprise.configuration.OnlineBackupSettings;
+import org.neo4j.kernel.impl.enterprise.settings.backup.OnlineBackupSettings;
 import org.neo4j.kernel.impl.store.format.standard.Standard;
 import org.neo4j.ports.allocation.PortAuthority;
 import org.neo4j.test.DbRepresentation;
@@ -62,6 +62,42 @@ public class BackupCoreIT
 
     private Cluster<?> cluster;
     private File backupsDir;
+
+    static CoreGraphDatabase createSomeData( Cluster<?> cluster ) throws Exception
+    {
+        return cluster.coreTx( ( db, tx ) ->
+                               {
+                                   Node node = db.createNode( label( "boo" ) );
+                                   node.setProperty( "foobar", "baz_bat" );
+                                   tx.success();
+                               } ).database();
+    }
+
+    private static String backupAddress( Cluster<?> cluster )
+    {
+        return cluster.getMemberWithRole( Role.LEADER ).settingValue( "causal_clustering.transaction_listen_address" );
+    }
+
+    static String[] backupArguments( String from, File backupsDir, String name )
+    {
+        List<String> args = new ArrayList<>();
+        args.add( "--from=" + from );
+        args.add( "--cc-report-dir=" + backupsDir );
+        args.add( "--backup-dir=" + backupsDir );
+        args.add( "--protocol=catchup" );
+        args.add( "--name=" + name );
+        return args.toArray( new String[0] );
+    }
+
+    static Config getConfig()
+    {
+        Map<String,String> config = MapUtil.stringMap(
+                GraphDatabaseSettings.record_format.name(), Standard.LATEST_NAME,
+                OnlineBackupSettings.online_backup_server.name(), "127.0.0.1:" + PortAuthority.allocatePort()
+        );
+
+        return Config.defaults( config );
+    }
 
     @Before
     public void setup() throws Exception
@@ -88,41 +124,5 @@ public class BackupCoreIT
             assertEquals( beforeChange, backupRepresentation );
             assertNotEquals( backupRepresentation, afterChange );
         }
-    }
-
-    static CoreGraphDatabase createSomeData( Cluster<?> cluster ) throws Exception
-    {
-        return cluster.coreTx( ( db, tx ) ->
-        {
-            Node node = db.createNode( label( "boo" ) );
-            node.setProperty( "foobar", "baz_bat" );
-            tx.success();
-        } ).database();
-    }
-
-    private static String backupAddress( Cluster<?> cluster )
-    {
-        return cluster.getMemberWithRole( Role.LEADER ).settingValue( "causal_clustering.transaction_listen_address" );
-    }
-
-    static String[] backupArguments( String from, File backupsDir, String name )
-    {
-        List<String> args = new ArrayList<>();
-        args.add( "--from=" + from );
-        args.add( "--cc-report-dir=" + backupsDir );
-        args.add( "--backup-dir=" + backupsDir );
-        args.add( "--protocol=catchup" );
-        args.add( "--name=" + name );
-        return args.toArray( new String[0] );
-    }
-
-    static Config getConfig()
-    {
-        Map<String, String> config = MapUtil.stringMap(
-                GraphDatabaseSettings.record_format.name(), Standard.LATEST_NAME,
-                OnlineBackupSettings.online_backup_server.name(), "127.0.0.1:" + PortAuthority.allocatePort()
-        );
-
-        return Config.defaults( config );
     }
 }

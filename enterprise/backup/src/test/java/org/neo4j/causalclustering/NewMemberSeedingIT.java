@@ -107,7 +107,7 @@ public class NewMemberSeedingIT
     {
         this.fileCopyDetector = new FileCopyDetector();
         cluster = new EnterpriseCluster( testDir.directory( "cluster-b" ), 3, 0, new SharedDiscoveryServiceFactory(), emptyMap(), emptyMap(),
-                emptyMap(), emptyMap(), Standard.LATEST_NAME, IpFamily.IPV4, false );
+                                         emptyMap(), emptyMap(), Standard.LATEST_NAME, IpFamily.IPV4, false );
         baseBackupDir = testDir.directory( "backups" );
     }
 

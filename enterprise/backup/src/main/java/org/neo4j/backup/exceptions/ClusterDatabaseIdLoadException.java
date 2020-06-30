@@ -1,7 +1,4 @@
 /*
- * Copyright (c) 2002-2018 "Neo4j"
- * Neo4j Sweden AB [http://neo4j.com]
- *
  * Copyright (c) 2018-2020 "Graph Foundation"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
@@ -16,26 +13,15 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Affero General Public License for more details.
  */
-package org.neo4j;
+package org.neo4j.backup.exceptions;
 
-import javax.annotation.Nonnull;
-
-import org.neo4j.commandline.admin.AdminCommandSection;
-
-public class OnlineBackupCommandSection extends AdminCommandSection
+public class ClusterDatabaseIdLoadException extends Exception
 {
-    private static final OnlineBackupCommandSection ONLINE_BACKUP_COMMAND_SECTION = new OnlineBackupCommandSection();
-
-    public static AdminCommandSection instance()
+    /**
+     * @param message
+     */
+    public ClusterDatabaseIdLoadException( String message )
     {
-        return ONLINE_BACKUP_COMMAND_SECTION;
+        super( message );
     }
-
-    @Override
-    @Nonnull
-    public String printable()
-    {
-        return "Online backup";
-    }
-
 }

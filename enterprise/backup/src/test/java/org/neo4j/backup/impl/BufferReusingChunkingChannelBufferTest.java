@@ -29,12 +29,39 @@ import org.neo4j.function.Factory;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 public class BufferReusingChunkingChannelBufferTest
 {
+    private static BufferReusingChunkingChannelBuffer newBufferReusingChunkingChannelBuffer( int capacity,
+                                                                                             CountingChannelBufferFactory bufferFactory )
+    {
+        ChannelBuffer buffer = ChannelBuffers.dynamicBuffer();
+
+        Channel channel = mock( Channel.class );
+        ChannelFuture channelFuture = mock( ChannelFuture.class );
+        when( channel.isOpen() ).thenReturn( true );
+        when( channel.isConnected() ).thenReturn( true );
+        when( channel.isBound() ).thenReturn( true );
+        when( channel.write( any() ) ).thenReturn( channelFuture );
+
+        return new BufferReusingChunkingChannelBuffer( buffer, bufferFactory, channel, capacity, (byte) 1, (byte) 1 );
+    }
+
+    private static ChannelBuffer triggerOperationCompleteCallback( BufferReusingChunkingChannelBuffer buffer )
+            throws Exception
+    {
+        ChannelBuffer reusedBuffer = spy( ChannelBuffers.dynamicBuffer() );
+
+        ChannelFuture channelFuture = mock( ChannelFuture.class );
+        when( channelFuture.isDone() ).thenReturn( true );
+        when( channelFuture.isSuccess() ).thenReturn( true );
+
+        buffer.newChannelFutureListener( reusedBuffer ).operationComplete( channelFuture );
+        return reusedBuffer;
+    }
+
     @Test
     @SuppressWarnings( "unchecked" )
     public void newBuffersAreCreatedIfNoFreeBuffersAreAvailable()
@@ -72,34 +99,6 @@ public class BufferReusingChunkingChannelBufferTest
         // and 2 buffers were reused
         verify( reusedBuffer1 ).writeLong( 3 );
         verify( reusedBuffer2 ).writeLong( 4 );
-    }
-
-    private static BufferReusingChunkingChannelBuffer newBufferReusingChunkingChannelBuffer( int capacity,
-            CountingChannelBufferFactory bufferFactory )
-    {
-        ChannelBuffer buffer = ChannelBuffers.dynamicBuffer();
-
-        Channel channel = mock( Channel.class );
-        ChannelFuture channelFuture = mock( ChannelFuture.class );
-        when( channel.isOpen() ).thenReturn( true );
-        when( channel.isConnected() ).thenReturn( true );
-        when( channel.isBound() ).thenReturn( true );
-        when( channel.write( any() ) ).thenReturn( channelFuture );
-
-        return new BufferReusingChunkingChannelBuffer( buffer, bufferFactory, channel, capacity, (byte) 1, (byte) 1 );
-    }
-
-    private static ChannelBuffer triggerOperationCompleteCallback( BufferReusingChunkingChannelBuffer buffer )
-            throws Exception
-    {
-        ChannelBuffer reusedBuffer = spy( ChannelBuffers.dynamicBuffer() );
-
-        ChannelFuture channelFuture = mock( ChannelFuture.class );
-        when( channelFuture.isDone() ).thenReturn( true );
-        when( channelFuture.isSuccess() ).thenReturn( true );
-
-        buffer.newChannelFutureListener( reusedBuffer ).operationComplete( channelFuture );
-        return reusedBuffer;
     }
 
     private static class CountingChannelBufferFactory implements Factory<ChannelBuffer>

@@ -29,7 +29,6 @@ import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.impl.util.OptionalHostnamePort;
 import org.neo4j.logging.NullLogProvider;
 
-import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -42,10 +41,7 @@ import static org.neo4j.backup.impl.BackupStageOutcome.SUCCESS;
 
 public class BackupProtocolServiceStrategyTest
 {
-    private BackupProtocolService backupProtocolService = mock( BackupProtocolService.class );
-
     HaBackupStrategy subject;
-
     Config config = mock( Config.class );
     OnlineBackupRequiredArguments requiredArgs = mock( OnlineBackupRequiredArguments.class );
     OnlineBackupContext onlineBackupContext = mock( OnlineBackupContext.class );
@@ -53,6 +49,7 @@ public class BackupProtocolServiceStrategyTest
     HostnamePort hostnamePort = new HostnamePort( "hostname:1234" );
     DatabaseLayout backuplayout = mock( DatabaseLayout.class );
     OptionalHostnamePort userSpecifiedHostname = new OptionalHostnamePort( (String) null, null, null );
+    private BackupProtocolService backupProtocolService = mock( BackupProtocolService.class );
 
     @Before
     public void setup()
@@ -70,7 +67,7 @@ public class BackupProtocolServiceStrategyTest
 
         // then
         verify( backupProtocolService ).doIncrementalBackup( eq( hostnamePort.getHost() ),
-                eq( hostnamePort.getPort() ), any(), eq( ConsistencyCheck.NONE ), anyLong(), any() );
+                                                             eq( hostnamePort.getPort() ), any(), eq( ConsistencyCheck.NONE ), anyLong(), any() );
         assertEquals( SUCCESS, state.getState() );
     }
 
@@ -81,7 +78,7 @@ public class BackupProtocolServiceStrategyTest
         IncrementalBackupNotPossibleException expectedException = new IncrementalBackupNotPossibleException(
                 "Expected test message", new RuntimeException( "Expected cause" ) );
         when( backupProtocolService.doIncrementalBackup( any(), anyInt(), any(), eq( ConsistencyCheck.NONE ), anyLong(), any() ) )
-            .thenThrow( expectedException );
+                .thenThrow( expectedException );
 
         // when
         Fallible state = subject.performIncrementalBackup( backuplayout, config, userSpecifiedHostname );

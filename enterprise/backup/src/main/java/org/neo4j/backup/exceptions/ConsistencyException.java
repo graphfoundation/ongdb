@@ -1,7 +1,4 @@
 /*
- * Copyright (c) 2002-2018 "Neo4j"
- * Neo4j Sweden AB [http://neo4j.com]
- *
  * Copyright (c) 2018-2020 "Graph Foundation"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
@@ -16,34 +13,28 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Affero General Public License for more details.
  */
-package org.neo4j.backup.impl;
-
-import java.util.Optional;
-import javax.annotation.Nullable;
+package org.neo4j.backup.exceptions;
 
 /**
- * Contains a reference to a class (designed for enums) and can optionally also contain a throwable if the provided state has an exception attached
  *
- * @param <T> generic of an enum (not enforced)
  */
-class Fallible<T>
+public class ConsistencyException extends Exception
 {
-    private final T state;
-    private final Throwable cause;
+    private final boolean consistencyCheckFailure;
 
-    public Optional<Throwable> getCause()
+    public ConsistencyException( String message, boolean consistencyCheckFailure )
     {
-        return Optional.ofNullable( cause );
+        this( message, (Throwable) null, consistencyCheckFailure );
     }
 
-    public T getState()
+    public ConsistencyException( String message, Throwable cause, boolean consistencyCheckFailure )
     {
-        return state;
+        super( message, cause );
+        this.consistencyCheckFailure = consistencyCheckFailure;
     }
 
-    Fallible( T state, @Nullable Throwable cause )
+    public boolean consistencyCheckFailure()
     {
-        this.state = state;
-        this.cause = cause;
+        return this.consistencyCheckFailure;
     }
 }

@@ -39,7 +39,6 @@ import org.neo4j.logging.Log;
 import org.neo4j.logging.LogProvider;
 import org.neo4j.test.rule.TestDirectory;
 
-import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
@@ -56,17 +55,7 @@ public class BackupStrategyWrapperTest
     private final BackupStrategy backupStrategyImplementation = mock( BackupStrategy.class );
     private final OutsideWorld outsideWorld = mock( OutsideWorld.class );
     private final BackupCopyService backupCopyService = mock( BackupCopyService.class );
-
-    private BackupStrategyWrapper subject;
-
-    private OnlineBackupContext onlineBackupContext;
-
     private final FileSystemAbstraction fileSystemAbstraction = mock( FileSystemAbstraction.class );
-    private DatabaseLayout desiredBackupLayout;
-    private Path reportDir;
-    private Path availableFreshBackupLocation;
-    private OnlineBackupRequiredArguments requiredArguments;
-    private Config config = mock( Config.class );
     private final OptionalHostnamePort userProvidedAddress = new OptionalHostnamePort( (String) null, null, null );
     private final Fallible<BackupStageOutcome> SUCCESS = new Fallible<>( BackupStageOutcome.SUCCESS, null );
     private final Fallible<BackupStageOutcome> FAILURE = new Fallible<>( BackupStageOutcome.FAILURE, null );
@@ -74,6 +63,18 @@ public class BackupStrategyWrapperTest
     private final BackupRecoveryService backupRecoveryService = mock( BackupRecoveryService.class );
     private final LogProvider logProvider = mock( LogProvider.class );
     private final Log log = mock( Log.class );
+    private BackupStrategyWrapper subject;
+    private OnlineBackupContext onlineBackupContext;
+    private DatabaseLayout desiredBackupLayout;
+    private Path reportDir;
+    private Path availableFreshBackupLocation;
+    private OnlineBackupRequiredArguments requiredArguments;
+    private Config config = mock( Config.class );
+
+    private static ConsistencyFlags consistencyFlags()
+    {
+        return new ConsistencyFlags( true, true, true, true, true );
+    }
 
     @Before
     public void setup()
@@ -394,7 +395,7 @@ public class BackupStrategyWrapperTest
         InOrder recoveryBeforeRenameOrder = Mockito.inOrder( backupRecoveryService, backupCopyService );
         recoveryBeforeRenameOrder.verify( backupRecoveryService ).recoverWithDatabase( eq( availableFreshBackupLocation ), any(), any() );
         recoveryBeforeRenameOrder.verify( backupCopyService ).moveBackupLocation( eq( availableFreshBackupLocation ),
-                eq( desiredBackupLayout.databaseDirectory().toPath() ) );
+                                                                                  eq( desiredBackupLayout.databaseDirectory().toPath() ) );
     }
 
     @Test
@@ -407,7 +408,7 @@ public class BackupStrategyWrapperTest
         incrementalBackupIsSuccessful( true );
 
         // and
-        requiredArguments = requiredArguments(false);
+        requiredArguments = requiredArguments( false );
         onlineBackupContext = new OnlineBackupContext( requiredArguments, config, consistencyFlags() );
 
         // when
@@ -427,7 +428,7 @@ public class BackupStrategyWrapperTest
         incrementalBackupIsSuccessful( false );
 
         // and
-        requiredArguments = requiredArguments(false);
+        requiredArguments = requiredArguments( false );
         onlineBackupContext = new OnlineBackupContext( requiredArguments, config, consistencyFlags() );
 
         // when backups are performed
@@ -471,6 +472,8 @@ public class BackupStrategyWrapperTest
         verify( backupCopyService, never() ).clearIdFiles( any() );
     }
 
+    // ====================================================================================================
+
     @Test
     public void logsWhenIncrementalFailsAndFallbackToFull()
     {
@@ -487,8 +490,6 @@ public class BackupStrategyWrapperTest
         // then
         verify( log ).info( "Previous backup not found, a new full backup will be performed." );
     }
-
-    // ====================================================================================================
 
     private void incrementalBackupIsSuccessful( boolean isSuccessful )
     {
@@ -520,11 +521,6 @@ public class BackupStrategyWrapperTest
     {
         File databaseDirectory = desiredBackupLayout.databaseDirectory();
         return new OnlineBackupRequiredArguments( userProvidedAddress, desiredBackupLayout.getStoreLayout().storeDirectory().toPath(),
-                databaseDirectory.getName(), SelectedBackupProtocol.ANY, fallbackToFull, true, 1000, reportDir );
-    }
-
-    private static ConsistencyFlags consistencyFlags()
-    {
-        return new ConsistencyFlags( true, true, true, true, true );
+                                                  databaseDirectory.getName(), SelectedBackupProtocol.ANY, fallbackToFull, true, 1000, reportDir );
     }
 }

@@ -39,7 +39,7 @@ import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.io.pagecache.impl.muninn.StandalonePageCacheFactory;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.configuration.Settings;
-import org.neo4j.kernel.impl.enterprise.configuration.OnlineBackupSettings;
+import org.neo4j.kernel.impl.enterprise.settings.backup.OnlineBackupSettings;
 import org.neo4j.kernel.impl.store.MetaDataStore;
 import org.neo4j.kernel.impl.store.format.standard.StandardV2_3;
 import org.neo4j.kernel.impl.store.format.standard.StandardV3_4;
@@ -98,7 +98,7 @@ public class BackupToolIT
         // Prepare an "old" backup
         prepareNeoStoreFile( StandardV2_3.STORE_VERSION );
 
-        // Start database to backup
+        // Start db to backup
         int backupPort = PortAuthority.allocatePort();
         GraphDatabaseService db = startGraphDatabase( backupPort );
         try
@@ -108,8 +108,8 @@ public class BackupToolIT
 
             // Perform backup
             backupTool.executeBackup( new HostnamePort( "localhost", backupPort ), backupDir,
-                    ConsistencyCheck.NONE, Config.defaults( GraphDatabaseSettings.record_format, StandardV3_4.NAME ),
-                    20L * 60L * 1000L, false );
+                                      ConsistencyCheck.NONE, Config.defaults( GraphDatabaseSettings.record_format, StandardV3_4.NAME ),
+                                      20L * 60L * 1000L, false );
         }
         finally
         {
@@ -120,11 +120,11 @@ public class BackupToolIT
     private GraphDatabaseService startGraphDatabase( int backupPort )
     {
         return new TestGraphDatabaseFactory().newEmbeddedDatabaseBuilder( testDirectory.directory() )
-                .setConfig( OnlineBackupSettings.online_backup_enabled, Settings.TRUE )
-                .setConfig( OnlineBackupSettings.online_backup_server, "127.0.0.1:" + backupPort )
-                .setConfig( GraphDatabaseSettings.keep_logical_logs, Settings.TRUE )
-                .setConfig( GraphDatabaseSettings.record_format, StandardV2_3.NAME )
-                .newGraphDatabase();
+                                             .setConfig( OnlineBackupSettings.online_backup_enabled, Settings.TRUE )
+                                             .setConfig( OnlineBackupSettings.online_backup_server, "127.0.0.1:" + backupPort )
+                                             .setConfig( GraphDatabaseSettings.keep_logical_logs, Settings.TRUE )
+                                             .setConfig( GraphDatabaseSettings.record_format, StandardV2_3.NAME )
+                                             .newGraphDatabase();
     }
 
     private void prepareNeoStoreFile( String storeVersion ) throws Exception

@@ -56,39 +56,49 @@ import static org.mockito.Mockito.when;
 
 public class OnlineBackupCommandTest
 {
-    @Rule
-    public ExpectedException expected = ExpectedException.none();
-
-    private FileSystemAbstraction fileSystemAbstraction = new DefaultFileSystemAbstraction();
-    @Rule
-    public TestDirectory testDirectory = TestDirectory.testDirectory( fileSystemAbstraction );
-
-    private BackupStrategyCoordinatorFactory backupStrategyCoordinatorFactory = mock( BackupStrategyCoordinatorFactory.class );
-    private BackupStrategyCoordinator backupStrategyCoordinator = mock( BackupStrategyCoordinator.class );
-
-    private ByteArrayOutputStream baosOut = new ByteArrayOutputStream();
-    private ByteArrayOutputStream baosErr = new ByteArrayOutputStream();
-    private PrintStream stdout = new PrintStream( baosOut );
-    private PrintStream stderr = new PrintStream( baosErr );
-    private OutsideWorld outsideWorld = new ParameterisedOutsideWorld( System.console(), stdout, stderr, System.in, fileSystemAbstraction );
-
     // Parameters and helpers
     private final Config config = Config.defaults();
-    private OnlineBackupRequiredArguments requiredArguments;
     private final ConsistencyFlags consistencyFlags = new ConsistencyFlags( true, true, true, true, true );
-
-    private Path backupDirectory;
-    private Path reportDirectory;
-    private BackupSupportingClassesFactory backupSupportingClassesFactory =
-            mock( BackupSupportingClassesFactory.class );
-
     private final OptionalHostnamePort address = new OptionalHostnamePort( "hostname", 12, 34 );
     private final String backupName = "backup name";
     private final boolean fallbackToFull = true;
     private final boolean doConsistencyCheck = true;
     private final long timeout = 1000;
-
+    @Rule
+    public ExpectedException expected = ExpectedException.none();
+    private FileSystemAbstraction fileSystemAbstraction = new DefaultFileSystemAbstraction();
+    @Rule
+    public TestDirectory testDirectory = TestDirectory.testDirectory( fileSystemAbstraction );
+    private BackupStrategyCoordinatorFactory backupStrategyCoordinatorFactory = mock( BackupStrategyCoordinatorFactory.class );
+    private BackupStrategyCoordinator backupStrategyCoordinator = mock( BackupStrategyCoordinator.class );
+    private ByteArrayOutputStream baosOut = new ByteArrayOutputStream();
+    private ByteArrayOutputStream baosErr = new ByteArrayOutputStream();
+    private PrintStream stdout = new PrintStream( baosOut );
+    private PrintStream stderr = new PrintStream( baosErr );
+    private OutsideWorld outsideWorld = new ParameterisedOutsideWorld( System.console(), stdout, stderr, System.in, fileSystemAbstraction );
+    private OnlineBackupRequiredArguments requiredArguments;
+    private Path backupDirectory;
+    private Path reportDirectory;
+    private BackupSupportingClassesFactory backupSupportingClassesFactory =
+            mock( BackupSupportingClassesFactory.class );
     private OnlineBackupCommand subject;
+
+    private static OnlineBackupCommand newOnlineBackupCommand( OutsideWorld outsideWorld, OnlineBackupContext onlineBackupContext,
+                                                               BackupSupportingClassesFactory backupSupportingClassesFactory,
+                                                               BackupStrategyCoordinatorFactory backupStrategyCoordinatorFactory )
+    {
+        OnlineBackupContextFactory contextBuilder = mock( OnlineBackupContextFactory.class );
+        try
+        {
+            when( contextBuilder.createContext( any() ) ).thenReturn( onlineBackupContext );
+        }
+        catch ( IncorrectUsage | CommandFailed e )
+        {
+            throw new RuntimeException( "Shouldn't happen", e );
+        }
+
+        return new OnlineBackupCommand( outsideWorld, contextBuilder, backupSupportingClassesFactory, backupStrategyCoordinatorFactory );
+    }
 
     @Before
     public void setup()
@@ -238,23 +248,6 @@ public class OnlineBackupCommandTest
             assertThat( baosOut.toString(), containsString( (String) thisCase[1] ) );
             baosOut.reset();
         }
-    }
-
-    private static OnlineBackupCommand newOnlineBackupCommand( OutsideWorld outsideWorld, OnlineBackupContext onlineBackupContext,
-                                                               BackupSupportingClassesFactory backupSupportingClassesFactory,
-                                                               BackupStrategyCoordinatorFactory backupStrategyCoordinatorFactory )
-    {
-        OnlineBackupContextFactory contextBuilder = mock( OnlineBackupContextFactory.class );
-        try
-        {
-            when( contextBuilder.createContext( any() ) ).thenReturn( onlineBackupContext );
-        }
-        catch ( IncorrectUsage | CommandFailed e )
-        {
-            throw new RuntimeException( "Shouldn't happen", e );
-        }
-
-        return new OnlineBackupCommand( outsideWorld, contextBuilder, backupSupportingClassesFactory, backupStrategyCoordinatorFactory );
     }
 
     private void execute() throws IncorrectUsage, CommandFailed

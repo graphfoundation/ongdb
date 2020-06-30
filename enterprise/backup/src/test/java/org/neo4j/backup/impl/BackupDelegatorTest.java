@@ -44,13 +44,11 @@ import static org.mockito.Mockito.when;
 
 public class BackupDelegatorTest
 {
+    private final AdvertisedSocketAddress anyAddress = new AdvertisedSocketAddress( "any.address", 1234 );
+    BackupDelegator subject;
     private RemoteStore remoteStore;
     private CatchUpClient catchUpClient;
     private StoreCopyClient storeCopyClient;
-
-    BackupDelegator subject;
-
-    private final AdvertisedSocketAddress anyAddress = new AdvertisedSocketAddress( "any.address", 1234 );
 
     @Before
     public void setup()

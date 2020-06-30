@@ -18,54 +18,14 @@
  */
 package org.neo4j.restore;
 
-import java.nio.file.Path;
-import javax.annotation.Nonnull;
+import org.neo4j.cli.CommandProvider;
+import org.neo4j.cli.ExecutionContext;
 
-import org.neo4j.OnlineBackupCommandSection;
-import org.neo4j.commandline.admin.AdminCommand;
-import org.neo4j.commandline.admin.AdminCommandSection;
-import org.neo4j.commandline.admin.OutsideWorld;
-import org.neo4j.commandline.arguments.Arguments;
-
-public class RestoreDatabaseCliProvider extends AdminCommand.Provider
+public class RestoreDatabaseCliProvider implements CommandProvider<RestoreDatabaseCli>
 {
-    public RestoreDatabaseCliProvider()
-    {
-        super( "restore" );
-    }
-
     @Override
-    @Nonnull
-    public Arguments allArguments()
+    public RestoreDatabaseCli createCommand( ExecutionContext ctx )
     {
-        return RestoreDatabaseCli.arguments();
-    }
-
-    @Override
-    @Nonnull
-    public String description()
-    {
-        return "Restore a backed up database.";
-    }
-
-    @Override
-    @Nonnull
-    public String summary()
-    {
-        return description();
-    }
-
-    @Override
-    @Nonnull
-    public AdminCommandSection commandSection()
-    {
-        return OnlineBackupCommandSection.instance();
-    }
-
-    @Override
-    @Nonnull
-    public AdminCommand create( Path homeDir, Path configDir, OutsideWorld outsideWorld )
-    {
-        return new RestoreDatabaseCli( homeDir, configDir );
+        return new RestoreDatabaseCli( ctx );
     }
 }

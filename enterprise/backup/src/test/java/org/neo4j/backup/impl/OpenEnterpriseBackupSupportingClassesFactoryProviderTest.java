@@ -17,7 +17,6 @@
 
 package org.neo4j.backup.impl;
 
-
 import org.junit.Test;
 
 import java.util.Collection;
@@ -36,7 +35,7 @@ public class OpenEnterpriseBackupSupportingClassesFactoryProviderTest
     }
 
     public static <DESIRED extends BackupSupportingClassesFactoryProvider> Collection<DESIRED> findInstancesOf( Class<DESIRED> desiredClass,
-            Collection<? extends BackupSupportingClassesFactoryProvider> collection )
+                                                                                                                Collection<? extends BackupSupportingClassesFactoryProvider> collection )
     {
         return collection.stream().filter( isOfClass( desiredClass ) ).map( i -> (DESIRED) i ).collect( toList() );
     }
