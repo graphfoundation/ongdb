@@ -22,15 +22,17 @@
  */
 package org.neo4j.cypher.internal.runtime.slotted.pipes
 
-import org.neo4j.cypher.internal.compatibility.v3_6.runtime.SlotConfiguration
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
-import org.neo4j.cypher.internal.runtime.interpreted.pipes.{IndexIteratorBase, Pipe, QueryState}
+import org.neo4j.cypher.internal.physicalplanning.SlotConfiguration
+import org.neo4j.cypher.internal.runtime.ExecutionContext
+import org.neo4j.cypher.internal.runtime.interpreted.pipes.IndexIteratorBase
+import org.neo4j.cypher.internal.runtime.interpreted.pipes.Pipe
+import org.neo4j.cypher.internal.runtime.interpreted.pipes.QueryState
 import org.neo4j.cypher.internal.runtime.slotted.SlottedExecutionContext
 import org.neo4j.internal.kernel.api.NodeValueIndexCursor
 
 /**
-  * Provides helper methods for slotted index pipes that get nodes together with actual property values.
-  */
+ * Provides helper methods for slotted index pipes that get nodes together with actual property values.
+ */
 trait IndexSlottedPipeWithValues extends Pipe {
 
   // Offset of the long slot of node variable
@@ -59,7 +61,10 @@ trait IndexSlottedPipeWithValues extends Pipe {
           i += 1
         }
         slottedContext
-      } else null
+      } else {
+        null
+      }
     }
   }
+
 }

@@ -22,9 +22,11 @@
  */
 package org.neo4j.cypher.internal.runtime.slotted.pipes
 
-import org.neo4j.cypher.internal.compatibility.v3_6.runtime.SlotConfiguration
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
-import org.neo4j.cypher.internal.runtime.interpreted.pipes.{Pipe, PipeWithSource, QueryState}
+import org.neo4j.cypher.internal.physicalplanning.SlotConfiguration
+import org.neo4j.cypher.internal.runtime.ExecutionContext
+import org.neo4j.cypher.internal.runtime.interpreted.pipes.Pipe
+import org.neo4j.cypher.internal.runtime.interpreted.pipes.PipeWithSource
+import org.neo4j.cypher.internal.runtime.interpreted.pipes.QueryState
 import org.neo4j.cypher.internal.runtime.slotted.SlottedExecutionContext
 
 import scala.collection.mutable
@@ -35,23 +37,27 @@ abstract class AbstractHashJoinPipe[Key, T](left: Pipe,
   protected val leftSide: T
   protected val rightSide: T
 
+  def computeKey(context: ExecutionContext, keyColumns: T, queryState: QueryState): Option[Key]
+
+  def copyDataFromRhs(newRow: SlottedExecutionContext, rhs: ExecutionContext): Unit
+
   override protected def internalCreateResults(input: Iterator[ExecutionContext], state: QueryState): Iterator[ExecutionContext] = {
 
-    if (input.isEmpty)
+    if (input.isEmpty) {
       return Iterator.empty
-
+    }
     val rhsIterator = right.createResults(state)
 
-    if (rhsIterator.isEmpty)
+    if (rhsIterator.isEmpty) {
       return Iterator.empty
-
+    }
     val table = buildProbeTable(input, state)
 
     // This will only happen if all the lhs-values evaluate to null, which is probably rare.
     // But, it's cheap to check and will save us from exhausting the rhs, so it's probably worth it
-    if (table.isEmpty)
+    if (table.isEmpty) {
       return Iterator.empty
-
+    }
     val result = for {rhs: ExecutionContext <- rhsIterator
                       joinKey <- computeKey(rhs, rightSide, state)}
       yield {
@@ -79,8 +85,4 @@ abstract class AbstractHashJoinPipe[Key, T](left: Pipe,
 
     table
   }
-
-  def computeKey(context: ExecutionContext, keyColumns: T, queryState: QueryState): Option[Key]
-
-  def copyDataFromRhs(newRow: SlottedExecutionContext, rhs: ExecutionContext): Unit
 }

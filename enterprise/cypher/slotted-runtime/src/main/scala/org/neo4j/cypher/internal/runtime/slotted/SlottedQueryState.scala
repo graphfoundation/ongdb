@@ -1,13 +1,10 @@
 /*
- * Copyright (c) 2002-2018 "Neo4j"
+ * Copyright (c) 2002-2018 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
- * Copyright (c) 2018-2020 "Graph Foundation"
- * Graph Foundation, Inc. [https://graphfoundation.org]
+ * This file is part of Neo4j.
  *
- * This file is part of ONgDB.
- *
- * ONgDB is free software: you can redistribute it and/or modify
+ * Neo4j is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
@@ -22,45 +19,51 @@
  */
 package org.neo4j.cypher.internal.runtime.slotted
 
-import org.eclipse.collections.api.set.primitive.LongSet
-import org.neo4j.cypher.internal.compatibility.v3_6.runtime.SlotConfiguration
+import org.neo4j.cypher.internal.physicalplanning.SlotConfiguration
+import org.neo4j.cypher.internal.runtime.ExecutionContext
+import org.neo4j.cypher.internal.runtime.ExpressionCursors
+import org.neo4j.cypher.internal.runtime.InputDataStream
+import org.neo4j.cypher.internal.runtime.QueryMemoryTracker
+import org.neo4j.internal.kernel.api.IndexReadSession
+import org.neo4j.kernel.impl.query.QuerySubscriber
+//import org.neo4j.cypher.internal.compatibility.v3_5.runtime.SlotConfiguration
 import org.neo4j.cypher.internal.runtime.QueryContext
-import org.neo4j.cypher.internal.runtime.interpreted.commands.predicates.{InCheckContainer, SingleThreadedLRUCache}
+import org.neo4j.cypher.internal.runtime.interpreted.commands.predicates.InCheckContainer
+import org.neo4j.cypher.internal.runtime.interpreted.commands.predicates.SingleThreadedLRUCache
 import org.neo4j.cypher.internal.runtime.interpreted.pipes._
-import org.neo4j.cypher.internal.runtime.interpreted.{ExecutionContext, MutableMaps}
+//import org.neo4j.cypher.internal.runtime.interpreted.{ExecutionContext, MutableMaps}
 import org.neo4j.values.AnyValue
-import org.neo4j.values.virtual.MapValue
-
-import scala.collection.mutable
 
 class SlottedQueryState(query: QueryContext,
                         resources: ExternalCSVResource,
-                        params: MapValue,
-                        decorator: PipeDecorator = NullPipeDecorator,
+                        params: Array[AnyValue],
+                        cursors: ExpressionCursors,
+                        queryIndexes: Array[IndexReadSession],
+                        expressionVariables: Array[AnyValue],
+                        subscriber: QuerySubscriber,
+                        memoryTracker: QueryMemoryTracker,
+                        decorator: PipeDecorator = NullPipeDecorator, // TODO: Review
                         initialContext: Option[ExecutionContext] = None,
-                        triadicState: mutable.Map[String, LongSet] = mutable.Map.empty,
-                        repeatableReads: mutable.Map[Pipe, Seq[ExecutionContext]] = mutable.Map.empty,
                         cachedIn: SingleThreadedLRUCache[Any, InCheckContainer] = new SingleThreadedLRUCache(maxSize = 16),
-                        lenientCreateRelationship: Boolean = false)
-  extends QueryState(query, resources, params, decorator, initialContext, triadicState,
-    repeatableReads, cachedIn, lenientCreateRelationship) {
+                        lenientCreateRelationship: Boolean = false,
+                        prePopulateResults: Boolean,
+                        input: InputDataStream
+
+                       )
+  extends QueryState(query, resources, params, cursors, queryIndexes, expressionVariables, subscriber, memoryTracker, decorator, initialContext, cachedIn, lenientCreateRelationship, prePopulateResults, input) {
 
   override def withDecorator(decorator: PipeDecorator) =
-    new SlottedQueryState(query, resources, params, decorator, initialContext, triadicState, repeatableReads, cachedIn, lenientCreateRelationship)
+    new SlottedQueryState(query, resources, params, cursors, queryIndexes, expressionVariables, subscriber, memoryTracker, decorator, initialContext, cachedIn, lenientCreateRelationship, prePopulateResults, input)
 
   override def withInitialContext(initialContext: ExecutionContext) =
-    new SlottedQueryState(query, resources, params, decorator, Some(initialContext), triadicState, repeatableReads, cachedIn, lenientCreateRelationship)
+    new SlottedQueryState(query, resources, params, cursors, queryIndexes, expressionVariables, subscriber, memoryTracker, decorator, Option(initialContext), cachedIn, lenientCreateRelationship, prePopulateResults, input)
 
   override def withQueryContext(query: QueryContext) =
-    new SlottedQueryState(query, resources, params, decorator, initialContext, triadicState, repeatableReads, cachedIn, lenientCreateRelationship)
+    new SlottedQueryState(query, resources, params, cursors, queryIndexes, expressionVariables, subscriber, memoryTracker, decorator, initialContext, cachedIn, lenientCreateRelationship, prePopulateResults, input)
 }
 
 case class SlottedExecutionContextFactory(slots: SlotConfiguration) extends ExecutionContextFactory {
-  override def newExecutionContext(m: mutable.Map[String, AnyValue] = MutableMaps.empty): ExecutionContext =
-    throw new UnsupportedOperationException("Please implement")
-
-  override def newExecutionContext(): ExecutionContext =
-    SlottedExecutionContext(slots)
+  override def newExecutionContext(): ExecutionContext = SlottedExecutionContext(slots)
 
   override def copyWith(row: ExecutionContext): ExecutionContext = {
     val newCtx = SlottedExecutionContext(slots)
@@ -71,7 +74,7 @@ case class SlottedExecutionContextFactory(slots: SlotConfiguration) extends Exec
   override def copyWith(row: ExecutionContext, newEntries: Seq[(String, AnyValue)]): ExecutionContext = {
     val newCopy = SlottedExecutionContext(slots)
     row.copyTo(newCopy)
-    for ((key,value) <- newEntries) {
+    for ((key, value) <- newEntries) {
       newCopy.set(key, value)
     }
     newCopy

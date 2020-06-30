@@ -1,13 +1,10 @@
 /*
- * Copyright (c) 2002-2018 "Neo4j"
+ * Copyright (c) 2002-2018 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
- * Copyright (c) 2018-2020 "Graph Foundation"
- * Graph Foundation, Inc. [https://graphfoundation.org]
+ * This file is part of Neo4j.
  *
- * This file is part of ONgDB.
- *
- * ONgDB is free software: you can redistribute it and/or modify
+ * Neo4j is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
@@ -22,41 +19,68 @@
  */
 package org.neo4j.cypher.internal.runtime.slotted
 
-import org.neo4j.cypher.internal.compatibility.v3_6.runtime.PhysicalPlanningAttributes.SlotConfigurations
-import org.neo4j.cypher.internal.compatibility.v3_6.runtime.IteratorBasedResult
-import org.neo4j.cypher.internal.compatibility.v3_6.runtime.executionplan.{BaseExecutionResultBuilderFactory, ExecutionResultBuilder, PipeInfo}
-import org.neo4j.cypher.internal.runtime.QueryContext
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
+import org.neo4j.cypher.internal.logical.plans.LogicalPlan
+import org.neo4j.cypher.internal.physicalplanning.PhysicalPlanningAttributes.SlotConfigurations
+import org.neo4j.cypher.internal.runtime._
+import org.neo4j.cypher.internal.runtime.interpreted.BaseExecutionResultBuilderFactory
+import org.neo4j.cypher.internal.runtime.interpreted.ExecutionResultBuilder
+import org.neo4j.cypher.internal.runtime.interpreted.commands.predicates.InCheckContainer
+import org.neo4j.cypher.internal.runtime.interpreted.commands.predicates.SingleThreadedLRUCache
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.Pipe
-import org.neo4j.cypher.internal.v3_6.logical.plans.LogicalPlan
-import org.neo4j.cypher.result.QueryResult
+import org.neo4j.kernel.impl.query.QuerySubscriber
+import org.neo4j.values.AnyValue
+//import org.neo4j.cypher.internal.v3_5.logical.plans.LogicalPlan
 import org.neo4j.values.virtual.MapValue
 
-import scala.collection.mutable
-
 class SlottedExecutionResultBuilderFactory(pipe: Pipe,
+                                           queryIndexes: QueryIndexes,
+                                           nExpressionSlots: Int,
                                            readOnly: Boolean,
-                                           columns: List[String],
+                                           columns: Array[String],
                                            logicalPlan: LogicalPlan,
                                            pipelines: SlotConfigurations,
-                                           lenientCreateRelationship: Boolean)
-  extends BaseExecutionResultBuilderFactory(pipe, readOnly, columns, logicalPlan) {
+                                           parameterMapping: ParameterMapping,
+                                           lenientCreateRelationship: Boolean,
+                                           memoryTrackingController: MemoryTrackingController,
+                                           hasLoadCSV: Boolean
 
-  override def create(queryContext: QueryContext): ExecutionResultBuilder = SlottedExecutionWorkflowBuilder(queryContext)
+                                          )
+  extends BaseExecutionResultBuilderFactory(pipe, readOnly, columns, logicalPlan, hasLoadCSV) {
+  override def create(queryContext: QueryContext): ExecutionResultBuilder = SlottedExecutionResultBuilder(queryContext)
 
-  case class SlottedExecutionWorkflowBuilder(queryContext: QueryContext) extends BaseExecutionWorkflowBuilder {
-    override protected def createQueryState(params: MapValue): SlottedQueryState = {
-      new SlottedQueryState(queryContext,
-                            externalResource,
-                            params,
-                            pipeDecorator,
-                            triadicState = mutable.Map.empty,
-                            repeatableReads = mutable.Map.empty,
-                            lenientCreateRelationship = lenientCreateRelationship)
-    }
-
-    override def buildResultIterator(results: Iterator[ExecutionContext], readOnly: Boolean): IteratorBasedResult = {
-      IteratorBasedResult(results, Some(results.asInstanceOf[Iterator[QueryResult.Record]]))
-    }
+  def cursors(): ExpressionCursors = {
+    this.cursors()
   }
+
+  case class SlottedExecutionResultBuilder(queryContext: QueryContext) extends BaseExecutionResultBuilder {
+
+    override protected def createQueryState(params: MapValue,
+                                            prePopulateResults: Boolean,
+                                            input: InputDataStream,
+                                            subscriber: QuerySubscriber): SlottedQueryState = {
+
+      var memoryTracker: QueryMemoryTracker = QueryMemoryTracker(memoryTrackingController.memoryTracking);
+      var initialContext: Option[ExecutionContext] = None; // TODO: Fix
+      var cachedIn: SingleThreadedLRUCache[Any, InCheckContainer] = new SingleThreadedLRUCache(maxSize = 16) // TODO: Fix
+
+      new SlottedQueryState(queryContext,
+        externalResource,
+        createParameterArray(params, parameterMapping),
+        cursors(),
+        queryIndexes.initiateLabelAndSchemaIndexes(queryContext),
+        new Array[AnyValue](nExpressionSlots),
+        subscriber,
+        memoryTracker,
+        pipeDecorator,
+        initialContext,
+        cachedIn,
+        lenientCreateRelationship,
+        prePopulateResults,
+        input
+
+      )
+    }
+
+  }
+
 }

@@ -22,14 +22,22 @@
  */
 package org.neo4j.cypher.internal.runtime.slotted.helpers
 
-import NullChecker.entityIsNull
-import org.neo4j.cypher.internal.compatibility.v3_6.runtime.{LongSlot, RefSlot, Slot}
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
-import org.neo4j.cypher.internal.v3_6.util.{AssertionUtils, InternalException, ParameterWrongTypeException}
-import org.neo4j.cypher.internal.v3_6.util.symbols.{CTNode, CTRelationship, CypherType}
+import org.neo4j.cypher.internal.physicalplanning.LongSlot
+import org.neo4j.cypher.internal.physicalplanning.RefSlot
+import org.neo4j.cypher.internal.physicalplanning.Slot
+import org.neo4j.cypher.internal.runtime.ExecutionContext
+import org.neo4j.cypher.internal.runtime.slotted.helpers.NullChecker.entityIsNull
+import org.neo4j.cypher.internal.v4_0.util.AssertionUtils
+import org.neo4j.cypher.internal.v4_0.util.symbols.CTNode
+import org.neo4j.cypher.internal.v4_0.util.symbols.CTRelationship
+import org.neo4j.cypher.internal.v4_0.util.symbols.CypherType
+import org.neo4j.exceptions.InternalException
+import org.neo4j.exceptions.ParameterWrongTypeException
 import org.neo4j.values.AnyValue
 import org.neo4j.values.storable.Values
-import org.neo4j.values.virtual.{VirtualNodeValue, VirtualRelationshipValue, VirtualValues}
+import org.neo4j.values.virtual.VirtualNodeValue
+import org.neo4j.values.virtual.VirtualRelationshipValue
+import org.neo4j.values.virtual.VirtualValues
 
 object SlottedPipeBuilderUtils {
   // TODO: Check if having try/catch blocks inside some of these generated functions prevents inlining or other JIT optimizations
@@ -39,9 +47,9 @@ object SlottedPipeBuilderUtils {
   val UNDEFINED_REL: Long = -1L
 
   /**
-    * Use this to make a specialized getter function for a slot,
-    * that given an ExecutionContext returns an AnyValue.
-    */
+   * Use this to make a specialized getter function for a slot,
+   * that given an ExecutionContext returns an AnyValue.
+   */
   def makeGetValueFromSlotFunctionFor(slot: Slot): ExecutionContext => AnyValue =
     slot match {
       case LongSlot(offset, false, CTNode) =>
@@ -55,18 +63,20 @@ object SlottedPipeBuilderUtils {
       case LongSlot(offset, true, CTNode) =>
         (context: ExecutionContext) => {
           val nodeId = context.getLongAt(offset)
-          if (entityIsNull(nodeId))
+          if (entityIsNull(nodeId)) {
             Values.NO_VALUE
-          else
+          } else {
             VirtualValues.node(nodeId)
+          }
         }
       case LongSlot(offset, true, CTRelationship) =>
         (context: ExecutionContext) => {
           val relId = context.getLongAt(offset)
-          if (entityIsNull(relId))
+          if (entityIsNull(relId)) {
             Values.NO_VALUE
-          else
+          } else {
             VirtualValues.relationship(relId)
+          }
         }
       case RefSlot(offset, _, _) =>
         (context: ExecutionContext) =>
@@ -77,9 +87,9 @@ object SlottedPipeBuilderUtils {
     }
 
   /**
-    * Use this to make a specialized getter function for a slot and a primitive return type (i.e. CTNode or CTRelationship),
-    * that given an ExecutionContext returns a long.
-    */
+   * Use this to make a specialized getter function for a slot and a primitive return type (i.e. CTNode or CTRelationship),
+   * that given an ExecutionContext returns a long.
+   */
   def makeGetPrimitiveFromSlotFunctionFor(slot: Slot, returnType: CypherType): ExecutionContext => Long =
     (slot, returnType) match {
       case (LongSlot(offset, _, _), CTNode | CTRelationship) =>
@@ -110,10 +120,11 @@ object SlottedPipeBuilderUtils {
         (context: ExecutionContext) =>
           val value = context.getRefAt(offset)
           try {
-            if (value == Values.NO_VALUE)
+            if (value == Values.NO_VALUE) {
               UNDEFINED_NODE
-            else
+            } else {
               value.asInstanceOf[VirtualNodeValue].id()
+            }
           } catch {
             case _: java.lang.ClassCastException =>
               throw new ParameterWrongTypeException(s"Expected to find a node at ref slot $offset but found $value instead")
@@ -123,10 +134,11 @@ object SlottedPipeBuilderUtils {
         (context: ExecutionContext) =>
           val value = context.getRefAt(offset)
           try {
-            if (value == Values.NO_VALUE)
+            if (value == Values.NO_VALUE) {
               UNDEFINED_REL
-            else
+            } else {
               value.asInstanceOf[VirtualRelationshipValue].id()
+            }
           } catch {
             case _: java.lang.ClassCastException =>
               throw new ParameterWrongTypeException(s"Expected to find a relationship at ref slot $offset but found $value instead")
@@ -137,23 +149,23 @@ object SlottedPipeBuilderUtils {
     }
 
   /**
-    * Use this to make a specialized getter function for a slot that is expected to contain a node
-    * that given an ExecutionContext returns a long with the node id.
-    */
+   * Use this to make a specialized getter function for a slot that is expected to contain a node
+   * that given an ExecutionContext returns a long with the node id.
+   */
   def makeGetPrimitiveNodeFromSlotFunctionFor(slot: Slot): ExecutionContext => Long =
     makeGetPrimitiveFromSlotFunctionFor(slot, CTNode)
 
   /**
-    * Use this to make a specialized getter function for a slot that is expected to contain a node
-    * that given an ExecutionContext returns a long with the relationship id.
-    */
+   * Use this to make a specialized getter function for a slot that is expected to contain a node
+   * that given an ExecutionContext returns a long with the relationship id.
+   */
   def makeGetPrimitiveRelationshipFromSlotFunctionFor(slot: Slot): ExecutionContext => Long =
     makeGetPrimitiveFromSlotFunctionFor(slot, CTRelationship)
 
   /**
-    * Use this to make a specialized setter function for a slot,
-    * that takes as input an ExecutionContext and an AnyValue.
-    */
+   * Use this to make a specialized setter function for a slot,
+   * that takes as input an ExecutionContext and an AnyValue.
+   */
   def makeSetValueInSlotFunctionFor(slot: Slot): (ExecutionContext, AnyValue) => Unit =
     slot match {
       case LongSlot(offset, false, CTNode) =>
@@ -176,9 +188,9 @@ object SlottedPipeBuilderUtils {
 
       case LongSlot(offset, true, CTNode) =>
         (context: ExecutionContext, value: AnyValue) =>
-          if (value == Values.NO_VALUE)
+          if (value == Values.NO_VALUE) {
             context.setLongAt(offset, -1L)
-          else {
+          } else {
             try {
               context.setLongAt(offset, value.asInstanceOf[VirtualNodeValue].id())
             } catch {
@@ -189,9 +201,9 @@ object SlottedPipeBuilderUtils {
 
       case LongSlot(offset, true, CTRelationship) =>
         (context: ExecutionContext, value: AnyValue) =>
-          if (value == Values.NO_VALUE)
+          if (value == Values.NO_VALUE) {
             context.setLongAt(offset, -1L)
-          else {
+          } else {
             try {
               context.setLongAt(offset, value.asInstanceOf[VirtualRelationshipValue].id())
             } catch {
@@ -209,16 +221,17 @@ object SlottedPipeBuilderUtils {
     }
 
   /**
-    * Use this to make a specialized setter function for a slot,
-    * that takes as input an ExecutionContext and a primitive long value.
-    */
+   * Use this to make a specialized setter function for a slot,
+   * that takes as input an ExecutionContext and a primitive long value.
+   */
   def makeSetPrimitiveInSlotFunctionFor(slot: Slot, valueType: CypherType): (ExecutionContext, Long) => Unit =
     (slot, valueType) match {
       case (LongSlot(offset, nullable, CTNode), CTNode) =>
         if (AssertionUtils.assertionsEnabled && !nullable) {
           (context: ExecutionContext, value: Long) =>
-            if (value == -1L)
+            if (value == -1L) {
               throw new ParameterWrongTypeException(s"Cannot assign null to a non-nullable slot")
+            }
             context.setLongAt(offset, value)
         }
         else {
@@ -229,8 +242,9 @@ object SlottedPipeBuilderUtils {
       case (LongSlot(offset, nullable, CTRelationship), CTRelationship) =>
         if (AssertionUtils.assertionsEnabled && !nullable) {
           (context: ExecutionContext, value: Long) =>
-            if (value == -1L)
+            if (value == -1L) {
               throw new ParameterWrongTypeException(s"Cannot assign null to a non-nullable slot")
+            }
             context.setLongAt(offset, value)
         }
         else {
@@ -241,8 +255,9 @@ object SlottedPipeBuilderUtils {
       case (RefSlot(offset, false, typ), CTNode) if typ.isAssignableFrom(CTNode) =>
         if (AssertionUtils.assertionsEnabled) {
           (context: ExecutionContext, value: Long) =>
-            if (value == -1L)
+            if (value == -1L) {
               throw new ParameterWrongTypeException(s"Cannot assign null to a non-nullable slot")
+            }
             context.setRefAt(offset, VirtualValues.node(value))
         }
         else {
@@ -254,8 +269,9 @@ object SlottedPipeBuilderUtils {
       case (RefSlot(offset, false, typ), CTRelationship) if typ.isAssignableFrom(CTRelationship) =>
         if (AssertionUtils.assertionsEnabled) {
           (context: ExecutionContext, value: Long) =>
-            if (value == -1L)
+            if (value == -1L) {
               throw new ParameterWrongTypeException(s"Cannot assign null to a non-nullable slot")
+            }
             context.setRefAt(offset, VirtualValues.relationship(value))
         }
         else {
@@ -266,35 +282,34 @@ object SlottedPipeBuilderUtils {
 
       case (RefSlot(offset, true, typ), CTNode) if typ.isAssignableFrom(CTNode) =>
         (context: ExecutionContext, value: Long) =>
-          if (value == -1L)
+          if (value == -1L) {
             context.setRefAt(offset, Values.NO_VALUE)
-          else
+          } else {
             context.setRefAt(offset, VirtualValues.node(value))
-
+          }
       case (RefSlot(offset, true, typ), CTRelationship) if typ.isAssignableFrom(CTRelationship) =>
         (context: ExecutionContext, value: Long) =>
-          if (value == -1L)
+          if (value == -1L) {
             context.setRefAt(offset, Values.NO_VALUE)
-          else
+          } else {
             context.setRefAt(offset, VirtualValues.relationship(value))
-
+          }
       case _ =>
         throw new InternalException(s"Do not know how to make a primitive $valueType setter for slot $slot")
     }
 
   /**
-    * Use this to make a specialized getter function for a slot that is expected to contain a node
-    * that given an ExecutionContext returns a long with the node id.
-    */
+   * Use this to make a specialized getter function for a slot that is expected to contain a node
+   * that given an ExecutionContext returns a long with the node id.
+   */
   def makeSetPrimitiveNodeInSlotFunctionFor(slot: Slot): (ExecutionContext, Long) => Unit =
     makeSetPrimitiveInSlotFunctionFor(slot, CTNode)
 
   /**
-    * Use this to make a specialized getter function for a slot that is expected to contain a node
-    * that given an ExecutionContext returns a long with the relationship id.
-    */
+   * Use this to make a specialized getter function for a slot that is expected to contain a node
+   * that given an ExecutionContext returns a long with the relationship id.
+   */
   def makeSetPrimitiveRelationshipInSlotFunctionFor(slot: Slot): (ExecutionContext, Long) => Unit =
     makeSetPrimitiveInSlotFunctionFor(slot, CTRelationship)
-
 
 }

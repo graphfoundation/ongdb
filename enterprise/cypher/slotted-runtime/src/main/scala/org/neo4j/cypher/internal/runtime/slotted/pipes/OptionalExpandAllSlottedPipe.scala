@@ -22,36 +22,35 @@
  */
 package org.neo4j.cypher.internal.runtime.slotted.pipes
 
-import org.neo4j.cypher.internal.compatibility.v3_6.runtime.helpers.PrimitiveLongHelper
-import org.neo4j.cypher.internal.compatibility.v3_6.runtime.{Slot, SlotConfiguration}
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
-import org.neo4j.cypher.internal.runtime.interpreted.commands.predicates.Predicate
+import org.neo4j.cypher.internal.physicalplanning.Slot
+import org.neo4j.cypher.internal.physicalplanning.SlotConfiguration
+import org.neo4j.cypher.internal.runtime.ExecutionContext
+import org.neo4j.cypher.internal.runtime.PrimitiveLongHelper
+import org.neo4j.cypher.internal.runtime.RelationshipIterator
 import org.neo4j.cypher.internal.runtime.interpreted.pipes._
 import org.neo4j.cypher.internal.runtime.slotted.SlottedExecutionContext
 import org.neo4j.cypher.internal.runtime.slotted.helpers.NullChecker
 import org.neo4j.cypher.internal.runtime.slotted.helpers.SlottedPipeBuilderUtils.makeGetPrimitiveNodeFromSlotFunctionFor
-import org.neo4j.kernel.impl.api.store.RelationshipIterator
+import org.neo4j.cypher.internal.v4_0.expressions.SemanticDirection
+import org.neo4j.cypher.internal.v4_0.util.attribution.Id
+import org.neo4j.exceptions.InternalException
 import org.neo4j.storageengine.api.RelationshipVisitor
-import org.neo4j.cypher.internal.v3_6.expressions.SemanticDirection
-import org.neo4j.cypher.internal.v3_6.util.InternalException
-import org.neo4j.cypher.internal.v3_6.util.attribution.Id
 
-case class OptionalExpandAllSlottedPipe(source: Pipe,
-                                        fromSlot: Slot,
-                                        relOffset: Int,
-                                        toOffset: Int,
-                                        dir: SemanticDirection,
-                                        types: LazyTypes,
-                                        predicate: Predicate,
-                                        slots: SlotConfiguration)
-                                       (val id: Id = Id.INVALID_ID) extends PipeWithSource(source) with Pipe {
+abstract class OptionalExpandAllSlottedPipe(source: Pipe,
+                                            fromSlot: Slot,
+                                            relOffset: Int,
+                                            toOffset: Int,
+                                            dir: SemanticDirection,
+                                            types: RelationshipTypes,
+                                            slots: SlotConfiguration)
+                                           (val id: Id = Id.INVALID_ID) extends PipeWithSource(source) with Pipe {
 
-
-  predicate.registerOwningPipe(this) // Register owning pipe
   //===========================================================================
   // Compile-time initializations
   //===========================================================================
   private val getFromNodeFunction = makeGetPrimitiveNodeFromSlotFunctionFor(fromSlot)
+
+  def filter(iterator: Iterator[SlottedExecutionContext], state: QueryState): Iterator[SlottedExecutionContext]
 
   //===========================================================================
   // Runtime code
@@ -69,10 +68,11 @@ case class OptionalExpandAllSlottedPipe(source: Pipe,
 
           val relVisitor = new RelationshipVisitor[InternalException] {
             override def visit(relationshipId: Long, typeId: Int, startNodeId: Long, endNodeId: Long): Unit =
-              if (fromNode == startNodeId)
+              if (fromNode == startNodeId) {
                 otherSide = endNodeId
-              else
+              } else {
                 otherSide = startNodeId
+              }
           }
 
           val matchIterator = PrimitiveLongHelper.map(relationships, relId => {
@@ -82,12 +82,13 @@ case class OptionalExpandAllSlottedPipe(source: Pipe,
             outputRow.setLongAt(relOffset, relId)
             outputRow.setLongAt(toOffset, otherSide)
             outputRow
-          }).filter(ctx => predicate.isTrue(ctx, state))
+          });
 
-          if (matchIterator.isEmpty)
+          if (matchIterator.isEmpty) {
             Iterator(withNulls(inputRow))
-          else
+          } else {
             matchIterator
+          }
         }
     }
   }
@@ -100,4 +101,21 @@ case class OptionalExpandAllSlottedPipe(source: Pipe,
     outputRow
   }
 
+}
+
+// TODO : Implement.
+object OptionalExpandAllSlottedPipe {
+  def apply(source: org.neo4j.cypher.internal.runtime.interpreted.pipes.Pipe,
+            fromSlot: org.neo4j.cypher.internal.physicalplanning.Slot,
+            relOffset: Int,
+            toOffset: Int,
+            dir: org.neo4j.cypher.internal.v4_0.expressions.SemanticDirection,
+            types: org.neo4j.cypher.internal.runtime.interpreted.pipes.RelationshipTypes,
+            slots: org.neo4j.cypher.internal.physicalplanning.SlotConfiguration,
+            maybePredicate: Option[org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.Expression])
+           (id: org.neo4j.cypher.internal.v4_0.util.attribution.Id = {
+             org.neo4j.cypher.internal.v4_0.util.attribution.Id(0)
+           }): org.neo4j.cypher.internal.runtime.slotted.pipes.OptionalExpandAllSlottedPipe = {
+    null
+  }
 }

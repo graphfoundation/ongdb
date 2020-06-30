@@ -22,18 +22,19 @@
  */
 package org.neo4j.cypher.internal.runtime.slotted.pipes
 
-import org.neo4j.cypher.internal.compatibility.v3_6.runtime.helpers.PrimitiveLongHelper
-import org.neo4j.cypher.internal.compatibility.v3_6.runtime.{Slot, SlotConfiguration}
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
+import org.neo4j.cypher.internal.physicalplanning.Slot
+import org.neo4j.cypher.internal.physicalplanning.SlotConfiguration
+import org.neo4j.cypher.internal.runtime.ExecutionContext
+import org.neo4j.cypher.internal.runtime.PrimitiveLongHelper
+import org.neo4j.cypher.internal.runtime.RelationshipIterator
 import org.neo4j.cypher.internal.runtime.interpreted.pipes._
 import org.neo4j.cypher.internal.runtime.slotted.SlottedExecutionContext
 import org.neo4j.cypher.internal.runtime.slotted.helpers.NullChecker
 import org.neo4j.cypher.internal.runtime.slotted.helpers.SlottedPipeBuilderUtils.makeGetPrimitiveNodeFromSlotFunctionFor
-import org.neo4j.kernel.impl.api.store.RelationshipIterator
+import org.neo4j.cypher.internal.v4_0.expressions.SemanticDirection
+import org.neo4j.cypher.internal.v4_0.util.attribution.Id
+import org.neo4j.exceptions.InternalException
 import org.neo4j.storageengine.api.RelationshipVisitor
-import org.neo4j.cypher.internal.v3_6.expressions.SemanticDirection
-import org.neo4j.cypher.internal.v3_6.util.InternalException
-import org.neo4j.cypher.internal.v3_6.util.attribution.Id
 
 case class ExpandAllSlottedPipe(source: Pipe,
                                 fromSlot: Slot,
@@ -57,18 +58,19 @@ case class ExpandAllSlottedPipe(source: Pipe,
       (inputRow: ExecutionContext) =>
         val fromNode = getFromNodeFunction(inputRow)
 
-        if (NullChecker.entityIsNull(fromNode))
+        if (NullChecker.entityIsNull(fromNode)) {
           Iterator.empty
-        else {
+        } else {
           val relationships: RelationshipIterator = state.query.getRelationshipsForIdsPrimitive(fromNode, dir, types.types(state.query))
           var otherSide: Long = 0
 
           val relVisitor = new RelationshipVisitor[InternalException] {
             override def visit(relationshipId: Long, typeId: Int, startNodeId: Long, endNodeId: Long): Unit =
-              if (fromNode == startNodeId)
+              if (fromNode == startNodeId) {
                 otherSide = endNodeId
-              else
+              } else {
                 otherSide = startNodeId
+              }
           }
 
           PrimitiveLongHelper.map(relationships, relId => {

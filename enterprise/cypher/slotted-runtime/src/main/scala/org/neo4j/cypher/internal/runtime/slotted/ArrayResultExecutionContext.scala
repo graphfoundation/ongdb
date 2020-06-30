@@ -23,69 +23,17 @@
 package org.neo4j.cypher.internal.runtime.slotted
 
 import org.neo4j.cypher.internal.runtime.EntityById
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
+import org.neo4j.cypher.internal.runtime.ExecutionContext
+import org.neo4j.cypher.internal.runtime.ResourceLinenumber
 import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.Expression
 import org.neo4j.cypher.internal.runtime.interpreted.pipes.QueryState
-import org.neo4j.cypher.internal.v3_6.logical.plans.CachedNodeProperty
-import org.neo4j.cypher.internal.v3_6.util.InternalException
+import org.neo4j.cypher.internal.v4_0.expressions.ASTCachedProperty
 import org.neo4j.cypher.result.QueryResult
+import org.neo4j.exceptions.InternalException
 import org.neo4j.values.AnyValue
 import org.neo4j.values.storable.Value
 
 import scala.collection.mutable
-
-case class ArrayResultExecutionContextFactory(columns: Seq[(String, Expression)]) {
-  private val columnExpressionArray = columns.map(_._2).toArray
-  private val columnArraySize = columnExpressionArray.size
-  private val columnIndexMap = {
-    val m = new mutable.OpenHashMap[String, Int](columns.length)
-    var index = 0
-    columns.foreach {
-      case (name, exp) => m.put(name, index)
-        index += 1
-    }
-    m
-  }
-
-  def newResult(context: ExecutionContext, state: QueryState): ArrayResultExecutionContext = {
-    val result = allocateExecutionContext
-
-    // Apply the expressions that materializes the result values and fill in the result array
-    val resultArray = result.resultArray
-    var index = 0
-    while (index < columnArraySize) {
-      resultArray(index) = columnExpressionArray(index).apply(context, state)
-      index += 1
-    }
-    result
-  }
-
-  //---------------------------------------------------------------------------
-  // Instance cache of size 1. Reuses the last created ArrayResultExecutionContext
-  private var freeExecutionContextInstance: ArrayResultExecutionContext = null
-
-  private def allocateExecutionContext: ArrayResultExecutionContext = {
-    if (freeExecutionContextInstance != null) {
-      val context = freeExecutionContextInstance
-      freeExecutionContextInstance = null
-      context
-    }
-    else {
-      createNewExecutionContext
-    }
-  }
-
-  def releaseExecutionContext(executionContext: ArrayResultExecutionContext) = {
-    freeExecutionContextInstance = executionContext
-  }
-
-  private def createNewExecutionContext: ArrayResultExecutionContext = {
-    val resultArray = new Array[AnyValue](columnArraySize)
-    ArrayResultExecutionContext(resultArray, columnIndexMap, this)
-  }
-
-  //---------------------------------------------------------------------------
-}
 
 case class ArrayResultExecutionContext(resultArray: Array[AnyValue],
                                        columnIndexMap: scala.collection.Map[String, Int],
@@ -94,34 +42,16 @@ case class ArrayResultExecutionContext(resultArray: Array[AnyValue],
 
   override def release(): Unit = factory.releaseExecutionContext(this)
 
-  override def get(key: String): Option[AnyValue] = {
+  override def getByName(key: String): AnyValue = {
     columnIndexMap.get(key) match {
-      case Some(index) => Some(resultArray(index))
-      case _ => None
-    }
-  }
-
-  override def iterator: Iterator[(String, AnyValue)] = {
-    columnIndexMap.iterator.map {
-      case (name, index) =>
-        (name, resultArray(index))
+      case Some(index) => resultArray(index)
+      case _ => None.asInstanceOf[AnyValue]
     }
   }
 
   override def fields(): Array[AnyValue] = {
     resultArray
   }
-
-  // See: https://github.com/graphfoundation/ongdb/blob/3.5.1/community/cypher/interpreted-runtime/src/main/scala/org/neo4j/cypher/internal/runtime/interpreted/ExecutionContext.scala
-  // We are just overriding it right now.
-  override def copyCachedFrom(input: ExecutionContext): Unit = fail()
-
-  override def size: Int = resultArray.size
-
-  //---------------------------------------------------------------------------
-  // This is an ExecutionContext by name only and does not support the full API
-  // The methods below should never be called on a produced result
-  private def fail(): Nothing = throw new InternalException("Tried using a result context as an execution context")
 
   override def copyTo(target: ExecutionContext, fromLongOffset: Int, fromRefOffset: Int, toLongOffset: Int, toRefOffset: Int): Unit = fail()
 
@@ -159,17 +89,89 @@ case class ArrayResultExecutionContext(resultArray: Array[AnyValue],
 
   override def isNull(key: String): Boolean = fail()
 
-  override def +=(kv: (String, AnyValue)): ArrayResultExecutionContext.this.type = fail()
-
-  override def -=(key: String): ArrayResultExecutionContext.this.type = fail()
-
-  override def setCachedProperty(key: CachedNodeProperty, value: Value): Unit = fail()
+  override def setCachedProperty(key: ASTCachedProperty, value: Value): Unit = fail()
 
   override def setCachedPropertyAt(offset: Int, value: Value): Unit = fail()
 
-  override def getCachedProperty(key: CachedNodeProperty): Value = fail()
+  override def getCachedProperty(key: ASTCachedProperty): Value = fail()
 
   override def getCachedPropertyAt(offset: Int): Value = fail()
 
-  override def invalidateCachedProperties(node: Long): Unit = fail()
+  override def containsName(name: String): Boolean = ???
+
+  override def numberOfColumns: Int = ???
+
+  override def getLinenumber: Option[ResourceLinenumber] = {
+    null
+  }
+
+  override def setLinenumber(line: Option[ResourceLinenumber]): Unit = {
+    null
+  }
+
+  override def estimatedHeapUsage: Long = {
+    0
+  }
+
+  override def invalidateCachedNodeProperties(node: Long): Unit = ???
+
+  override def invalidateCachedRelationshipProperties(rel: Long): Unit = ???
+
+  //---------------------------------------------------------------------------
+  // This is an ExecutionContext by name only and does not support the full API
+  // The methods below should never be called on a produced result
+  private def fail(): Nothing = throw new InternalException("Tried using a result context as an execution context")
 }
+
+case class ArrayResultExecutionContextFactory(columns: Seq[(String, Expression)]) {
+  private val columnExpressionArray = columns.map(_._2).toArray
+  private val columnArraySize = columnExpressionArray.size
+  private val columnIndexMap = {
+    val m = new mutable.OpenHashMap[String, Int](columns.length)
+    var index = 0
+    columns.foreach {
+      case (name, exp) => m.put(name, index)
+        index += 1
+    }
+    m
+  }
+  //---------------------------------------------------------------------------
+  // Instance cache of size 1. Reuses the last created ArrayResultExecutionContext
+  private var freeExecutionContextInstance: ArrayResultExecutionContext = null
+
+  def newResult(context: ExecutionContext, state: QueryState): ArrayResultExecutionContext = {
+    val result = allocateExecutionContext
+
+    // Apply the expressions that materializes the result values and fill in the result array
+    val resultArray = result.resultArray
+    var index = 0
+    while (index < columnArraySize) {
+      resultArray(index) = columnExpressionArray(index).apply(context, state)
+      index += 1
+    }
+    result
+  }
+
+  def releaseExecutionContext(executionContext: ArrayResultExecutionContext) = {
+    freeExecutionContextInstance = executionContext
+  }
+
+  private def allocateExecutionContext: ArrayResultExecutionContext = {
+    if (freeExecutionContextInstance != null) {
+      val context = freeExecutionContextInstance
+      freeExecutionContextInstance = null
+      context
+    }
+    else {
+      createNewExecutionContext
+    }
+  }
+
+  private def createNewExecutionContext: ArrayResultExecutionContext = {
+    val resultArray = new Array[AnyValue](columnArraySize)
+    ArrayResultExecutionContext(resultArray, columnIndexMap, this)
+  }
+
+  //---------------------------------------------------------------------------
+}
+

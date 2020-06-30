@@ -26,12 +26,16 @@ import java.util
 
 import org.eclipse.collections.api.multimap.list.MutableListMultimap
 import org.eclipse.collections.impl.factory.Multimaps
-import org.neo4j.cypher.internal.compatibility.v3_6.runtime.SlotConfiguration
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
-import org.neo4j.cypher.internal.runtime.interpreted.pipes.{Pipe, PipeWithSource, QueryState}
-import org.neo4j.cypher.internal.runtime.slotted.SlottedExecutionContext
+import org.neo4j.cypher.internal.physicalplanning.SlotConfiguration
+import org.neo4j.cypher.internal.runtime.ExecutionContext
+//import org.neo4j.cypher.internal.compatibility.v3_6.runtime.SlotConfiguration
+//import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
 import org.neo4j.cypher.internal.runtime.PrefetchingIterator
-import org.neo4j.cypher.internal.v3_6.util.attribution.Id
+import org.neo4j.cypher.internal.runtime.interpreted.pipes.Pipe
+import org.neo4j.cypher.internal.runtime.interpreted.pipes.PipeWithSource
+import org.neo4j.cypher.internal.runtime.interpreted.pipes.QueryState
+import org.neo4j.cypher.internal.runtime.slotted.SlottedExecutionContext
+import org.neo4j.cypher.internal.v4_0.util.attribution.Id
 
 case class NodeHashJoinSlottedPipe(lhsOffsets: Array[Int],
                                    rhsOffsets: Array[Int],
@@ -46,21 +50,21 @@ case class NodeHashJoinSlottedPipe(lhsOffsets: Array[Int],
 
   override protected def internalCreateResults(input: Iterator[ExecutionContext], state: QueryState): Iterator[ExecutionContext] = {
 
-    if (input.isEmpty)
+    if (input.isEmpty) {
       return Iterator.empty
-
+    }
     val rhsIterator = right.createResults(state)
 
-    if (rhsIterator.isEmpty)
+    if (rhsIterator.isEmpty) {
       return Iterator.empty
-
+    }
     val table = buildProbeTable(input, state)
 
     // This will only happen if all the lhs-values evaluate to null, which is probably rare.
     // But, it's cheap to check and will save us from exhausting the rhs, so it's probably worth it
-    if (table.isEmpty)
+    if (table.isEmpty) {
       return Iterator.empty
-
+    }
     probeInput(rhsIterator, state, table)
   }
 
@@ -71,8 +75,9 @@ case class NodeHashJoinSlottedPipe(lhsOffsets: Array[Int],
       val key = new Array[Long](width)
       fillKeyArray(current, key, lhsOffsets)
 
-      if (key(0) != -1)
+      if (key(0) != -1) {
         table.put(new Key(key), current)
+      }
     }
 
     table
@@ -125,8 +130,9 @@ case class NodeHashJoinSlottedPipe(lhsOffsets: Array[Int],
       }
       i += 1
     }
-    if (containsNull)
-      key(0) = -1 // We flag the null in this cryptic way to avoid creating objects
+    if (containsNull) {
+      key(0) = -1
+    } // We flag the null in this cryptic way to avoid creating objects
   }
 
   private def copyDataFromRhs(newRow: SlottedExecutionContext, rhs: ExecutionContext): Unit = {

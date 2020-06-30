@@ -1,13 +1,10 @@
 /*
- * Copyright (c) 2002-2018 "Neo4j"
+ * Copyright (c) 2002-2018 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
- * Copyright (c) 2018-2020 "Graph Foundation"
- * Graph Foundation, Inc. [https://graphfoundation.org]
+ * This file is part of Neo4j.
  *
- * This file is part of ONgDB.
- *
- * ONgDB is free software: you can redistribute it and/or modify
+ * Neo4j is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
@@ -22,15 +19,13 @@
  */
 package org.neo4j.cypher.internal.runtime.slotted.expressions
 
+import org.neo4j.cypher.internal.runtime.ExecutionContext
+import org.neo4j.cypher.internal.runtime.interpreted.CommandProjection
 import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.Expression
-import org.neo4j.cypher.internal.runtime.interpreted.pipes.{Pipe, QueryState}
-import org.neo4j.cypher.internal.runtime.interpreted.{CommandProjection, ExecutionContext}
+import org.neo4j.cypher.internal.runtime.interpreted.pipes.Pipe
+import org.neo4j.cypher.internal.runtime.interpreted.pipes.QueryState
 
 case class SlottedCommandProjection(introducedExpressions: Map[Int, Expression]) extends CommandProjection {
-
-  override def isEmpty: Boolean = introducedExpressions.isEmpty
-
-  override def registerOwningPipe(pipe: Pipe): Unit = introducedExpressions.values.foreach(_.registerOwningPipe(pipe))
 
   private val projectionFunctions: Iterable[(ExecutionContext, QueryState) => Unit] = introducedExpressions map {
     case (offset, expression) =>
@@ -38,6 +33,10 @@ case class SlottedCommandProjection(introducedExpressions: Map[Int, Expression])
         val result = expression(ctx, state)
         ctx.setRefAt(offset, result)
   }
+
+  override def isEmpty: Boolean = introducedExpressions.isEmpty
+
+  override def registerOwningPipe(pipe: Pipe): Unit = introducedExpressions.values.foreach(_.registerOwningPipe(pipe))
 
   override def project(ctx: ExecutionContext, state: QueryState): Unit = projectionFunctions.foreach(_ (ctx, state))
 }

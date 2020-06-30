@@ -23,25 +23,27 @@
 package org.neo4j.cypher.internal.runtime.slotted.pipes
 
 import org.eclipse.collections.api.iterator.LongIterator
-import org.neo4j.cypher.internal.compatibility.v3_6.runtime.helpers.PrimitiveLongHelper
-import org.neo4j.cypher.internal.compatibility.v3_6.runtime.{Slot, SlotConfiguration}
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
+import org.neo4j.cypher.internal.physicalplanning.Slot
+import org.neo4j.cypher.internal.physicalplanning.SlotConfiguration
+import org.neo4j.cypher.internal.runtime.ExecutionContext
+import org.neo4j.cypher.internal.runtime.PrimitiveLongHelper
 import org.neo4j.cypher.internal.runtime.interpreted.pipes._
 import org.neo4j.cypher.internal.runtime.slotted.SlottedExecutionContext
 import org.neo4j.cypher.internal.runtime.slotted.helpers.NullChecker.entityIsNull
 import org.neo4j.cypher.internal.runtime.slotted.helpers.SlottedPipeBuilderUtils.makeGetPrimitiveNodeFromSlotFunctionFor
-import org.neo4j.cypher.internal.v3_6.util.attribution.Id
-import org.neo4j.cypher.internal.v3_6.expressions.SemanticDirection
+import org.neo4j.cypher.internal.v4_0.expressions.SemanticDirection
+import org.neo4j.cypher.internal.v4_0.util.attribution.Id
 
 /**
-  * Expand when both end-points are known, find all relationships of the given
-  * type in the given direction between the two end-points.
-  *
-  * This is done by checking both nodes and starts from any non-dense node of the two.
-  * If both nodes are dense, we find the degree of each and expand from the smaller of the two
-  *
-  * This pipe also caches relationship information between nodes for the duration of the query
-  */
+ * Expand when both end-points are known, find all relationships of the given
+ * type in the given direction between the two end-points.
+ *
+ * This is done by checking both nodes and starts from any non-dense node of the two.
+ * If both nodes are dense, we find the degree of each and expand from the smaller of the two
+ *
+ * This pipe also caches relationship information between nodes for the duration of the query
+ */
+
 case class ExpandIntoSlottedPipe(source: Pipe,
                                  fromSlot: Slot,
                                  relOffset: Int,
@@ -63,20 +65,21 @@ case class ExpandIntoSlottedPipe(source: Pipe,
   //===========================================================================
   // Runtime code
   //===========================================================================
+
   protected def internalCreateResults(input: Iterator[ExecutionContext], state: QueryState): Iterator[ExecutionContext] = {
     //cache of known connected nodes
-    val relCache = new PrimitiveRelationshipsCache(CACHE_SIZE)
+    val relCache = new PrimitiveRelationshipsCache(CACHE_SIZE, state.memoryTracker)
 
     input.flatMap {
       inputRow =>
         val fromNode = getFromNodeFunction(inputRow)
         val toNode = getToNodeFunction(inputRow)
 
-        if (entityIsNull(fromNode) || entityIsNull(toNode))
+        if (entityIsNull(fromNode) || entityIsNull(toNode)) {
           Iterator.empty
-        else {
+        } else {
           val relationships: LongIterator = relCache.get(fromNode, toNode, dir)
-            .getOrElse(findRelationships(state.query, fromNode, toNode, relCache, dir, lazyTypes.types(state.query)))
+            .getOrElse(findRelationships(state, fromNode, toNode, relCache, dir, lazyTypes.types(state.query)))
 
           PrimitiveLongHelper.map(relationships, (relId: Long) => {
             val outputRow = SlottedExecutionContext(slots)

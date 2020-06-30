@@ -1,13 +1,10 @@
 /*
- * Copyright (c) 2002-2018 "Neo4j"
+ * Copyright (c) 2002-2018 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
- * Copyright (c) 2018-2020 "Graph Foundation"
- * Graph Foundation, Inc. [https://graphfoundation.org]
+ * This file is part of Neo4j.
  *
- * This file is part of ONgDB.
- *
- * ONgDB is free software: you can redistribute it and/or modify
+ * Neo4j is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
@@ -22,7 +19,7 @@
  */
 package org.neo4j.cypher.internal.runtime.slotted.expressions
 
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
+import org.neo4j.cypher.internal.runtime.ExecutionContext
 import org.neo4j.cypher.internal.runtime.interpreted.commands.AstNode
 import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.Expression
 import org.neo4j.cypher.internal.runtime.interpreted.commands.predicates.Predicate
@@ -33,7 +30,8 @@ import org.neo4j.values.storable.Values
 case class RelationshipProperty(offset: Int, token: Int) extends Expression with SlottedExpression {
 
   override def apply(ctx: ExecutionContext, state: QueryState): AnyValue =
-    state.query.relationshipOps.getProperty(ctx.getLongAt(offset), token)
+  //state.query.relationshipOps.getProperty(ctx.getLongAt(offset), token)
+    state.query.nodeOps.getProperty(ctx.getLongAt(this.offset), this.token, state.cursors.nodeCursor, state.cursors.propertyCursor, true)
 
   override def children: Seq[AstNode[_]] = Seq.empty
 }
@@ -42,10 +40,13 @@ case class RelationshipPropertyLate(offset: Int, propKey: String) extends Expres
 
   override def apply(ctx: ExecutionContext, state: QueryState): AnyValue = {
     val maybeToken = state.query.getOptPropertyKeyId(propKey)
-    if (maybeToken.isEmpty)
+    if (maybeToken.isEmpty) {
       Values.NO_VALUE
-    else
-      state.query.relationshipOps.getProperty(ctx.getLongAt(offset), maybeToken.get)
+    } else
+    //state.query.relationshipOps.getProperty(ctx.getLongAt(offset), maybeToken.get)
+    {
+      state.query.relationshipOps.getProperty(ctx.getLongAt(this.offset), maybeToken.get, state.cursors.relationshipScanCursor, state.cursors.propertyCursor, true)
+    }
   }
 
   override def children: Seq[AstNode[_]] = Seq.empty
@@ -55,7 +56,8 @@ case class RelationshipPropertyLate(offset: Int, propKey: String) extends Expres
 case class RelationshipPropertyExists(offset: Int, token: Int) extends Predicate with SlottedExpression {
 
   override def isMatch(m: ExecutionContext, state: QueryState): Option[Boolean] = {
-    Some(state.query.relationshipOps.hasProperty(m.getLongAt(offset), token))
+    //Some(state.query.relationshipOps.hasProperty(m.getLongAt(offset), token))
+    Some(state.query.relationshipOps.hasProperty(m.getLongAt(this.offset), token, state.cursors.relationshipScanCursor, state.cursors.propertyCursor))
   }
 
   override def containsIsNull = false
@@ -67,10 +69,11 @@ case class RelationshipPropertyExistsLate(offset: Int, propKey: String) extends 
 
   override def isMatch(m: ExecutionContext, state: QueryState): Option[Boolean] = {
     val maybeToken = state.query.getOptPropertyKeyId(propKey)
-    val result = if (maybeToken.isEmpty)
+    val result = if (maybeToken.isEmpty) {
       false
-    else
-      state.query.relationshipOps.hasProperty(m.getLongAt(offset), maybeToken.get)
+    } else {
+      state.query.relationshipOps.hasProperty(m.getLongAt(this.offset), maybeToken.get, state.cursors.relationshipScanCursor, state.cursors.propertyCursor)
+    }
     Some(result)
   }
 

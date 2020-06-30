@@ -22,12 +22,18 @@
  */
 package org.neo4j.cypher.internal.runtime.slotted.pipes
 
-import org.neo4j.cypher.internal.compatibility.v3_6.runtime.SlotConfiguration
+//import org.neo4j.cypher.internal.compatibility.v3_6.runtime.SlotConfiguration
+
+import org.neo4j.cypher.internal.physicalplanning.SlotConfiguration
+import org.neo4j.cypher.internal.runtime.ExecutionContext
 import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.Expression
-import org.neo4j.cypher.internal.runtime.interpreted.pipes.{Pipe, PipeWithSource, QueryState}
-import org.neo4j.cypher.internal.runtime.interpreted.{ExecutionContext, ListSupport}
+import org.neo4j.cypher.internal.runtime.interpreted.pipes.Pipe
+import org.neo4j.cypher.internal.runtime.interpreted.pipes.PipeWithSource
+import org.neo4j.cypher.internal.runtime.interpreted.pipes.QueryState
+//import org.neo4j.cypher.internal.runtime.interpreted.{ExecutionContext, ListSupport}
+import org.neo4j.cypher.internal.runtime.ListSupport
 import org.neo4j.cypher.internal.runtime.slotted.SlottedExecutionContext
-import org.neo4j.cypher.internal.v3_6.util.attribution.Id
+import org.neo4j.cypher.internal.v4_0.util.attribution.Id
 import org.neo4j.values.AnyValue
 
 import scala.annotation.tailrec
@@ -40,6 +46,7 @@ case class UnwindSlottedPipe(source: Pipe,
                             (val id: Id = Id.INVALID_ID) extends PipeWithSource(source) with ListSupport {
 
   collection.registerOwningPipe(this)
+
   override protected def internalCreateResults(input: Iterator[ExecutionContext], state: QueryState): Iterator[ExecutionContext] =
     new UnwindIterator(input, state)
 
@@ -78,4 +85,5 @@ case class UnwindSlottedPipe(source: Pipe,
       }
     }
   }
+
 }

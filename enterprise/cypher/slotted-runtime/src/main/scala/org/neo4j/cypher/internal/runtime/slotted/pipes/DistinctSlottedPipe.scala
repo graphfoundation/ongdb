@@ -22,40 +22,30 @@
  */
 package org.neo4j.cypher.internal.runtime.slotted.pipes
 
-import org.neo4j.cypher.internal.compatibility.v3_6.runtime.{Slot, SlotConfiguration}
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
-import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.Expression
-import org.neo4j.cypher.internal.runtime.interpreted.pipes.{Pipe, PipeWithSource, QueryState}
-import org.neo4j.cypher.internal.runtime.slotted.SlottedExecutionContext
-import org.neo4j.cypher.internal.runtime.slotted.helpers.SlottedPipeBuilderUtils
-import org.neo4j.cypher.internal.v3_6.util.attribution.Id
+import org.neo4j.cypher.internal.physicalplanning.SlotConfiguration
+import org.neo4j.cypher.internal.runtime.ExecutionContext
+import org.neo4j.cypher.internal.runtime.PrefetchingIterator
+import org.neo4j.cypher.internal.runtime.interpreted.GroupingExpression
+import org.neo4j.cypher.internal.runtime.interpreted.pipes.Pipe
+import org.neo4j.cypher.internal.runtime.interpreted.pipes.PipeWithSource
+import org.neo4j.cypher.internal.runtime.interpreted.pipes.QueryState
+import org.neo4j.cypher.internal.v4_0.util.attribution.Id
 import org.neo4j.values.AnyValue
-import org.neo4j.values.virtual.VirtualValues
 
 import scala.collection.mutable
 
 case class DistinctSlottedPipe(source: Pipe,
                                slots: SlotConfiguration,
-                               groupingExpressions: Map[Slot, Expression])
+                               groupingExpression: GroupingExpression)
                               (val id: Id = Id.INVALID_ID)
   extends PipeWithSource(source) {
 
   //===========================================================================
   // Compile-time initializations
   //===========================================================================
-  private val groupingSetInSlotFunctions = groupingExpressions.map {
-    case (slot, expression) =>
-      val f = SlottedPipeBuilderUtils.makeSetValueInSlotFunctionFor(slot)
-      (incomingContext: ExecutionContext, state: QueryState, outgoingContext: ExecutionContext) =>
-        f(outgoingContext, expression(incomingContext, state))
-  }
 
-  private val groupingGetFromSlotFunctions = groupingExpressions.map {
-    case (slot, _) =>
-      SlottedPipeBuilderUtils.makeGetValueFromSlotFunctionFor(slot)
-  }.toSeq
-
-  groupingExpressions.values.foreach(_.registerOwningPipe(this))
+  groupingExpression.registerOwningPipe(this)
+  //groupingExpressions.values.foreach(_.registerOwningPipe(this))
 
   //===========================================================================
   // Runtime code
@@ -63,24 +53,28 @@ case class DistinctSlottedPipe(source: Pipe,
   protected def internalCreateResults(input: Iterator[ExecutionContext],
                                       state: QueryState): Iterator[ExecutionContext] = {
     // For each incoming row, run expression and put it into the correct slot in the context
-    val result = input.map(incoming => {
-      val outgoing = SlottedExecutionContext(slots)
-      groupingSetInSlotFunctions.foreach { _(incoming, state, outgoing) }
-      outgoing
-    })
 
-    /*
-     * Filter out rows we have already seen
-     */
-    var seen = mutable.Set[AnyValue]()
-    result.filter { ctx =>
-      val values = VirtualValues.list(groupingGetFromSlotFunctions.map(f => f(ctx)): _*)
-      if (seen.contains(values)) {
-        false
-      } else {
-        seen += values
-        true
+    new PrefetchingIterator[ExecutionContext]() {
+      var seen = mutable.Set[AnyValue]()
+
+      override def produceNext(): Option[ExecutionContext] = {
+
+        while (input.nonEmpty) { // Let's pull data until we find something not already seen
+          var next: ExecutionContext = input.next;
+          var key = groupingExpression.computeGroupingKey(next, state);
+
+          if (seen.add(key)) {
+            // Found something! Set it as the next element to yield, and exit
+
+            state.memoryTracker.allocated(key);
+            groupingExpression.project(next, key);
+            return new Some(next);
+          }
+        }
+
+        None
       }
     }
+
   }
 }

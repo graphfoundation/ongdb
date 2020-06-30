@@ -22,12 +22,15 @@
  */
 package org.neo4j.cypher.internal.runtime.slotted.pipes
 
-import org.neo4j.cypher.internal.compatibility.v3_6.runtime.SlotConfiguration
-import org.neo4j.cypher.internal.compatibility.v3_6.runtime.helpers.PrimitiveLongHelper
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
-import org.neo4j.cypher.internal.runtime.interpreted.pipes.{LazyLabel, Pipe, QueryState}
+import org.neo4j.cypher.internal.physicalplanning.SlotConfiguration
+import org.neo4j.cypher.internal.runtime.ExecutionContext
+import org.neo4j.cypher.internal.runtime.PrimitiveLongHelper
+import org.neo4j.cypher.internal.runtime.interpreted.pipes.LazyLabel
+import org.neo4j.cypher.internal.runtime.interpreted.pipes.LazyLabel.UNKNOWN
+import org.neo4j.cypher.internal.runtime.interpreted.pipes.Pipe
+import org.neo4j.cypher.internal.runtime.interpreted.pipes.QueryState
 import org.neo4j.cypher.internal.runtime.slotted.SlottedExecutionContext
-import org.neo4j.cypher.internal.v3_6.util.attribution.Id
+import org.neo4j.cypher.internal.v4_0.util.attribution.Id
 
 case class NodesByLabelScanSlottedPipe(ident: String,
                                        label: LazyLabel,
@@ -38,15 +41,15 @@ case class NodesByLabelScanSlottedPipe(ident: String,
   private val offset = slots.getLongOffsetFor(ident)
 
   protected def internalCreateResults(state: QueryState): Iterator[ExecutionContext] = {
-    label.getOptId(state.query) match {
-      case Some(labelId) =>
-        PrimitiveLongHelper.map(state.query.getNodesByLabelPrimitive(labelId.id), { nodeId =>
+    label.getId(state.query) match {
+      case labelId =>
+        PrimitiveLongHelper.map(state.query.getNodesByLabelPrimitive(labelId), { nodeId =>
           val context = SlottedExecutionContext(slots)
           state.copyArgumentStateTo(context, argumentSize.nLongs, argumentSize.nReferences)
           context.setLongAt(offset, nodeId)
           context
         })
-      case None =>
+      case UNKNOWN =>
         Iterator.empty
     }
   }

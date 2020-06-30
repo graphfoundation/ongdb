@@ -22,11 +22,19 @@
  */
 package org.neo4j.cypher.internal.runtime.slotted.pipes
 
-import org.neo4j.cypher.internal.compatibility.v3_6.runtime.{LongSlot, RefSlot, Slot, SlotConfiguration}
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
-import org.neo4j.cypher.internal.runtime.interpreted.pipes.{Pipe, PipeWithSource, QueryState}
+//import org.neo4j.cypher.internal.compatibility.v3_6.runtime.{LongSlot, RefSlot, Slot, SlotConfiguration}
+//import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
+
+import org.neo4j.cypher.internal.physicalplanning.LongSlot
+import org.neo4j.cypher.internal.physicalplanning.RefSlot
+import org.neo4j.cypher.internal.physicalplanning.Slot
+import org.neo4j.cypher.internal.physicalplanning.SlotConfiguration
+import org.neo4j.cypher.internal.runtime.ExecutionContext
+import org.neo4j.cypher.internal.runtime.interpreted.pipes.Pipe
+import org.neo4j.cypher.internal.runtime.interpreted.pipes.PipeWithSource
+import org.neo4j.cypher.internal.runtime.interpreted.pipes.QueryState
 import org.neo4j.cypher.internal.runtime.slotted.SlottedExecutionContext
-import org.neo4j.cypher.internal.v3_6.util.attribution.Id
+import org.neo4j.cypher.internal.v4_0.util.attribution.Id
 import org.neo4j.values.storable.Values
 
 case class OptionalSlottedPipe(source: Pipe,
@@ -40,11 +48,18 @@ case class OptionalSlottedPipe(source: Pipe,
   // Compile-time initializations
   //===========================================================================
   private val setNullableSlotToNullFunctions =
-    nullableSlots.map {
-      case LongSlot(offset, _, _) =>
-        (context: ExecutionContext) => context.setLongAt(offset, -1L)
-      case RefSlot(offset, _, _) =>
-        (context: ExecutionContext) => context.setRefAt(offset, Values.NO_VALUE)
+  nullableSlots.map {
+    case LongSlot(offset, _, _) =>
+      (context: ExecutionContext) => context.setLongAt(offset, -1L)
+    case RefSlot(offset, _, _) =>
+      (context: ExecutionContext) => context.setRefAt(offset, Values.NO_VALUE)
+  }
+
+  protected def internalCreateResults(input: Iterator[ExecutionContext], state: QueryState): Iterator[ExecutionContext] =
+    if (input.isEmpty) {
+      Iterator(notFoundExecutionContext(state))
+    } else {
+      input
     }
 
   //===========================================================================
@@ -61,11 +76,4 @@ case class OptionalSlottedPipe(source: Pipe,
     setNullableSlotsToNull(context)
     context
   }
-
-  protected def internalCreateResults(input: Iterator[ExecutionContext], state: QueryState): Iterator[ExecutionContext] =
-    if (input.isEmpty) {
-      Iterator(notFoundExecutionContext(state))
-    } else {
-      input
-    }
 }

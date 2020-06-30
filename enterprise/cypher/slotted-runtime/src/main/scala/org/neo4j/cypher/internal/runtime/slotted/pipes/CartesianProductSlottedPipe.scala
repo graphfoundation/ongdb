@@ -22,11 +22,12 @@
  */
 package org.neo4j.cypher.internal.runtime.slotted.pipes
 
-import org.neo4j.cypher.internal.compatibility.v3_6.runtime.SlotConfiguration
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
-import org.neo4j.cypher.internal.runtime.interpreted.pipes.{Pipe, QueryState}
+import org.neo4j.cypher.internal.physicalplanning.SlotConfiguration
+import org.neo4j.cypher.internal.runtime.ExecutionContext
+import org.neo4j.cypher.internal.runtime.interpreted.pipes.Pipe
+import org.neo4j.cypher.internal.runtime.interpreted.pipes.QueryState
 import org.neo4j.cypher.internal.runtime.slotted.SlottedExecutionContext
-import org.neo4j.cypher.internal.v3_6.util.attribution.Id
+import org.neo4j.cypher.internal.v4_0.util.attribution.Id
 
 case class CartesianProductSlottedPipe(lhs: Pipe, rhs: Pipe,
                                        lhsLongCount: Int, lhsRefCount: Int,
@@ -42,8 +43,8 @@ case class CartesianProductSlottedPipe(lhs: Pipe, rhs: Pipe,
             val context = SlottedExecutionContext(slots)
             lhsCtx.copyTo(context)
             rhsCtx.copyTo(context,
-              fromLongOffset = argumentSize.nLongs, fromRefOffset = argumentSize.nReferences, // Skip over arguments since they should be identical to lhsCtx
-              toLongOffset = lhsLongCount, toRefOffset = lhsRefCount)
+              sourceLongOffset = argumentSize.nLongs, sourceRefOffset = argumentSize.nReferences, // Skip over arguments since they should be identical to lhsCtx
+              targetLongOffset = lhsLongCount, targetRefOffset = lhsRefCount)
             context
         }
     }

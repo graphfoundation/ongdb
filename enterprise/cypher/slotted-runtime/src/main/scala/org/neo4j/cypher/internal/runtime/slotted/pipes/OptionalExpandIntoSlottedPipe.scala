@@ -22,68 +22,82 @@
  */
 package org.neo4j.cypher.internal.runtime.slotted.pipes
 
-import org.eclipse.collections.api.iterator.LongIterator
-import org.neo4j.cypher.internal.compatibility.v3_6.runtime.helpers.PrimitiveLongHelper
-import org.neo4j.cypher.internal.compatibility.v3_6.runtime.{Slot, SlotConfiguration}
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
-import org.neo4j.cypher.internal.runtime.interpreted.commands.predicates.Predicate
+import org.neo4j.cypher.internal.physicalplanning.Slot
+import org.neo4j.cypher.internal.physicalplanning.SlotConfiguration
+import org.neo4j.cypher.internal.runtime.ExecutionContext
+import org.neo4j.cypher.internal.runtime.PrimitiveLongHelper
+import org.neo4j.cypher.internal.runtime.RelationshipIterator
+import org.neo4j.cypher.internal.runtime.interpreted.pipes.Pipe
+import org.neo4j.cypher.internal.runtime.interpreted.pipes.PipeWithSource
+import org.neo4j.cypher.internal.runtime.interpreted.pipes.QueryState
 import org.neo4j.cypher.internal.runtime.interpreted.pipes._
 import org.neo4j.cypher.internal.runtime.slotted.SlottedExecutionContext
 import org.neo4j.cypher.internal.runtime.slotted.helpers.NullChecker.entityIsNull
 import org.neo4j.cypher.internal.runtime.slotted.helpers.SlottedPipeBuilderUtils.makeGetPrimitiveNodeFromSlotFunctionFor
-import org.neo4j.cypher.internal.v3_6.util.attribution.Id
-import org.neo4j.cypher.internal.v3_6.expressions.SemanticDirection
+import org.neo4j.cypher.internal.v4_0.expressions.SemanticDirection
+import org.neo4j.cypher.internal.v4_0.util.attribution.Id
+import org.neo4j.exceptions.InternalException
+import org.neo4j.storageengine.api.RelationshipVisitor
 
+// TODO: Refactor
 case class OptionalExpandIntoSlottedPipe(source: Pipe,
                                          fromSlot: Slot,
                                          relOffset: Int,
-                                         toSlot: Slot,
+                                         toOffset: Int,
                                          dir: SemanticDirection,
-                                         lazyTypes: LazyTypes,
-                                         predicate: Predicate,
+                                         types: RelationshipTypes,
                                          slots: SlotConfiguration)
                                         (val id: Id = Id.INVALID_ID)
   extends PipeWithSource(source) with PrimitiveCachingExpandInto {
   self =>
 
-
-  predicate.registerOwningPipe(this) // Register owning pipe
   //===========================================================================
   // Compile-time initializations
   //===========================================================================
   private final val CACHE_SIZE = 100000
   private val getFromNodeFunction = makeGetPrimitiveNodeFromSlotFunctionFor(fromSlot)
-  private val getToNodeFunction = makeGetPrimitiveNodeFromSlotFunctionFor(toSlot)
+  //private val getToNodeFunction = makeGetPrimitiveNodeFromSlotFunctionFor(toSlot)
 
   //===========================================================================
   // Runtime code
   //===========================================================================
   protected def internalCreateResults(input: Iterator[ExecutionContext], state: QueryState): Iterator[ExecutionContext] = {
     //cache of known connected nodes
-    val relCache = new PrimitiveRelationshipsCache(CACHE_SIZE)
+    //val relCache = new PrimitiveRelationshipsCache(CACHE_SIZE)
 
     input.flatMap {
       (inputRow: ExecutionContext) =>
         val fromNode = getFromNodeFunction(inputRow)
-        val toNode = getToNodeFunction(inputRow)
+        //val toNode = getToNodeFunction(inputRow)
 
-        if (entityIsNull(fromNode) || entityIsNull(toNode)) {
+        if (entityIsNull(fromNode)) {
           Iterator(withNulls(inputRow))
         } else {
-          val relationships: LongIterator = relCache.get(fromNode, toNode, dir)
-            .getOrElse(findRelationships(state.query, fromNode, toNode, relCache, dir, lazyTypes.types(state.query)))
+
+          var relationships: RelationshipIterator = state.query.getRelationshipsForIdsPrimitive(fromNode, dir, types.types(state.query))
+          var otherSide: Long = 0L
+
+          val relVisitor = new RelationshipVisitor[InternalException] {
+            override def visit(relationshipId: Long, typeId: Int, startNodeId: Long, endNodeId: Long): Unit =
+              if (fromNode == startNodeId) {
+                otherSide = endNodeId
+              } else {
+                otherSide = startNodeId
+              }
+          }
 
           val matchIterator = PrimitiveLongHelper.map(relationships, relId => {
             val outputRow = SlottedExecutionContext(slots)
             inputRow.copyTo(outputRow)
             outputRow.setLongAt(relOffset, relId)
             outputRow
-          }).filter(ctx => predicate.isTrue(ctx, state))
+          }) // .filter(ctx => predicate.isTrue(ctx, state))
 
-          if (matchIterator.isEmpty)
+          if (matchIterator.isEmpty) {
             Iterator(withNulls(inputRow))
-          else
+          } else {
             matchIterator
+          }
         }
     }
   }

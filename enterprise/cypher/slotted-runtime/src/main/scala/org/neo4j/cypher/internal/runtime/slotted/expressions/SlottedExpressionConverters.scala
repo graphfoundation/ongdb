@@ -1,13 +1,10 @@
 /*
- * Copyright (c) 2002-2018 "Neo4j"
+ * Copyright (c) 2002-2018 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
- * Copyright (c) 2018-2020 "Graph Foundation"
- * Graph Foundation, Inc. [https://graphfoundation.org]
+ * This file is part of Neo4j.
  *
- * This file is part of ONgDB.
- *
- * ONgDB is free software: you can redistribute it and/or modify
+ * Neo4j is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
@@ -22,16 +19,21 @@
  */
 package org.neo4j.cypher.internal.runtime.slotted.expressions
 
-import org.neo4j.cypher.internal.compatibility.v3_6.runtime.SlotAllocation.PhysicalPlan
-import org.neo4j.cypher.internal.compatibility.v3_6.runtime.{ast => runtimeAst}
+//import org.neo4j.cypher.internal.compatibility.v3_5.runtime.SlotAllocation.PhysicalPlan
+//import org.neo4j.cypher.internal.compatibility.v3_5.runtime.{ast => runtimeAst}
+
+import org.neo4j.cypher.internal.physicalplanning.PhysicalPlan
 import org.neo4j.cypher.internal.runtime.interpreted.CommandProjection
-import org.neo4j.cypher.internal.runtime.interpreted.commands.convert.{ExpressionConverter, ExpressionConverters}
+import org.neo4j.cypher.internal.runtime.interpreted.GroupingExpression
+import org.neo4j.cypher.internal.runtime.interpreted.commands.convert.ExpressionConverter
+import org.neo4j.cypher.internal.runtime.interpreted.commands.convert.ExpressionConverters
 import org.neo4j.cypher.internal.runtime.interpreted.commands.{expressions => commands}
 import org.neo4j.cypher.internal.runtime.slotted.expressions.SlottedProjectedPath._
-import org.neo4j.cypher.internal.runtime.slotted.{expressions => runtimeExpression}
-import org.neo4j.cypher.internal.v3_6.expressions._
-import org.neo4j.cypher.internal.v3_6.util.attribution.Id
-import org.neo4j.cypher.internal.v3_6.{expressions => ast}
+import org.neo4j.cypher.internal.v4_0.expressions._
+import org.neo4j.cypher.internal.v4_0.util.attribution.Id
+//import org.neo4j.cypher.internal.v3_5.expressions._
+//import org.neo4j.cypher.internal.v3_5.util.attribution.Id
+//import org.neo4j.cypher.internal.v3_5.{expressions => ast}
 
 case class SlottedExpressionConverters(physicalPlan: PhysicalPlan) extends ExpressionConverter {
 
@@ -42,81 +44,33 @@ case class SlottedExpressionConverters(physicalPlan: PhysicalPlan) extends Expre
     Some(SlottedCommandProjection(projected))
   }
 
-  override def toCommandExpression(id: Id, expression: ast.Expression, self: ExpressionConverters): Option[commands.Expression] =
-    expression match {
-      case runtimeAst.NodeFromSlot(offset, _) =>
-        Some(runtimeExpression.NodeFromSlot(offset))
-      case runtimeAst.RelationshipFromSlot(offset, _) =>
-        Some(runtimeExpression.RelationshipFromSlot(offset))
-      case runtimeAst.ReferenceFromSlot(offset, _) =>
-        Some(runtimeExpression.ReferenceFromSlot(offset))
-      case runtimeAst.NodeProperty(offset, token, _) =>
-        Some(runtimeExpression.NodeProperty(offset, token))
-      case runtimeAst.CachedNodeProperty(offset, token, cachedPropertyOffset) =>
-        Some(runtimeExpression.SlottedCachedNodeProperty(offset, token, cachedPropertyOffset))
-      case runtimeAst.RelationshipProperty(offset, token, _) =>
-        Some(runtimeExpression.RelationshipProperty(offset, token))
-      case runtimeAst.IdFromSlot(offset) =>
-        Some(runtimeExpression.IdFromSlot(offset))
-      case runtimeAst.NodePropertyLate(offset, propKey, _) =>
-        Some(runtimeExpression.NodePropertyLate(offset, propKey))
-      case runtimeAst.CachedNodePropertyLate(offset, propertyKey, cachedPropertyOffset) =>
-        Some(runtimeExpression.SlottedCachedNodePropertyLate(offset, propertyKey, cachedPropertyOffset))
-      case runtimeAst.RelationshipPropertyLate(offset, propKey, _) =>
-        Some(runtimeExpression.RelationshipPropertyLate(offset, propKey))
-      case runtimeAst.PrimitiveEquals(a, b) =>
-        val lhs = self.toCommandExpression(id, a)
-        val rhs = self.toCommandExpression(id, b)
-        Some(runtimeExpression.PrimitiveEquals(lhs, rhs))
-      case runtimeAst.GetDegreePrimitive(offset, typ, direction) =>
-        Some(runtimeExpression.GetDegreePrimitive(offset, typ, direction))
-      case runtimeAst.NodePropertyExists(offset, token, _) =>
-        Some(runtimeExpression.NodePropertyExists(offset, token))
-      case runtimeAst.NodePropertyExistsLate(offset, token, _) =>
-        Some(runtimeExpression.NodePropertyExistsLate(offset, token))
-      case runtimeAst.RelationshipPropertyExists(offset, token, _) =>
-        Some(runtimeExpression.RelationshipPropertyExists(offset, token))
-      case runtimeAst.RelationshipPropertyExistsLate(offset, token, _) =>
-        Some(runtimeExpression.RelationshipPropertyExistsLate(offset, token))
-      case runtimeAst.NullCheck(offset, inner) =>
-        val a = self.toCommandExpression(id, inner)
-        Some(runtimeExpression.NullCheck(offset, a))
-      case runtimeAst.NullCheckVariable(offset, inner) =>
-        val a = self.toCommandExpression(id, inner)
-        Some(runtimeExpression.NullCheck(offset, a))
-      case runtimeAst.NullCheckProperty(offset, inner) =>
-        val a = self.toCommandExpression(id, inner)
-        Some(runtimeExpression.NullCheck(offset, a))
-      case e: ast.PathExpression =>
-        Some(toCommandProjectedPath(id, e, self))
-      case runtimeAst.IsPrimitiveNull(offset) =>
-        Some(runtimeExpression.IsPrimitiveNull(offset))
-      case _ =>
-        None
-    }
+  override def toCommandExpression(id: Id, expression: Expression, self: ExpressionConverters): Option[commands.Expression] = {
+    None
+  }
 
-  def toCommandProjectedPath(id:Id, e: ast.PathExpression, self: ExpressionConverters): SlottedProjectedPath = {
+  // TODO: Update null to be toNode...
+  def toCommandProjectedPath(id: Id, e: PathExpression, self: ExpressionConverters): SlottedProjectedPath = {
     def project(pathStep: PathStep): Projector = pathStep match {
 
       case NodePathStep(nodeExpression, next) =>
         singleNodeProjector(toCommandExpression(id, nodeExpression, self).get, project(next))
 
-      case SingleRelationshipPathStep(relExpression, SemanticDirection.INCOMING, next) =>
+      case SingleRelationshipPathStep(relExpression, SemanticDirection.INCOMING, null, next) =>
         singleIncomingRelationshipProjector(toCommandExpression(id, relExpression, self).get, project(next))
 
-      case SingleRelationshipPathStep(relExpression, SemanticDirection.OUTGOING, next) =>
+      case SingleRelationshipPathStep(relExpression, SemanticDirection.OUTGOING, null, next) =>
         singleOutgoingRelationshipProjector(toCommandExpression(id, relExpression, self).get, project(next))
 
-      case SingleRelationshipPathStep(relExpression, SemanticDirection.BOTH, next) =>
+      case SingleRelationshipPathStep(relExpression, SemanticDirection.BOTH, null, next) =>
         singleUndirectedRelationshipProjector(toCommandExpression(id, relExpression, self).get, project(next))
 
-      case MultiRelationshipPathStep(relExpression, SemanticDirection.INCOMING, next) =>
+      case MultiRelationshipPathStep(relExpression, SemanticDirection.INCOMING, null, next) =>
         multiIncomingRelationshipProjector(toCommandExpression(id, relExpression, self).get, project(next))
 
-      case MultiRelationshipPathStep(relExpression, SemanticDirection.OUTGOING, next) =>
+      case MultiRelationshipPathStep(relExpression, SemanticDirection.OUTGOING, null, next) =>
         multiOutgoingRelationshipProjector(toCommandExpression(id, relExpression, self).get, project(next))
 
-      case MultiRelationshipPathStep(relExpression, SemanticDirection.BOTH, next) =>
+      case MultiRelationshipPathStep(relExpression, SemanticDirection.BOTH, null, next) =>
         multiUndirectedRelationshipProjector(toCommandExpression(id, relExpression, self).get, project(next))
 
       case NilPathStep =>
@@ -131,4 +85,11 @@ case class SlottedExpressionConverters(physicalPlan: PhysicalPlan) extends Expre
     SlottedProjectedPath(dependencies, projector)
   }
 
+  // TODO: Fix
+  override def toGroupingExpression(id: Id,
+                                    groupings: Map[String, Expression],
+                                    orderToLeverage: Seq[Expression],
+                                    self: ExpressionConverters): Option[GroupingExpression] = {
+    null;
+  }
 }

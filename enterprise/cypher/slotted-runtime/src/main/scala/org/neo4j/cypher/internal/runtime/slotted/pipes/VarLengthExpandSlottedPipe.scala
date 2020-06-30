@@ -22,20 +22,31 @@
  */
 package org.neo4j.cypher.internal.runtime.slotted.pipes
 
-import org.neo4j.cypher.internal.compatibility.v3_6.runtime.{Slot, SlotConfiguration}
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
+//import org.neo4j.cypher.internal.compatibility.v3_6.runtime.{Slot, SlotConfiguration}
+//import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
+
+import org.neo4j.cypher.internal.physicalplanning.Slot
+import org.neo4j.cypher.internal.physicalplanning.SlotConfiguration
+import org.neo4j.cypher.internal.runtime.ExecutionContext
+import org.neo4j.cypher.internal.runtime.RelationshipIterator
 import org.neo4j.cypher.internal.runtime.interpreted.commands.predicates.Predicate
-import org.neo4j.cypher.internal.runtime.interpreted.pipes.{LazyTypes, Pipe, PipeWithSource, QueryState}
+import org.neo4j.cypher.internal.runtime.interpreted.pipes.LazyTypes
+import org.neo4j.cypher.internal.runtime.interpreted.pipes.Pipe
+import org.neo4j.cypher.internal.runtime.interpreted.pipes.PipeWithSource
+import org.neo4j.cypher.internal.runtime.interpreted.pipes.QueryState
 import org.neo4j.cypher.internal.runtime.slotted.SlottedExecutionContext
 import org.neo4j.cypher.internal.runtime.slotted.helpers.NullChecker.entityIsNull
 import org.neo4j.cypher.internal.runtime.slotted.helpers.SlottedPipeBuilderUtils.makeGetPrimitiveNodeFromSlotFunctionFor
-import org.neo4j.kernel.impl.api.store.RelationshipIterator
+import org.neo4j.cypher.internal.v4_0.expressions.SemanticDirection
+import org.neo4j.exceptions.InternalException
+//import org.neo4j.kernel.impl.api.store.RelationshipIterator
 import org.neo4j.storageengine.api.RelationshipVisitor
 import org.neo4j.values.storable.Values
-import org.neo4j.values.virtual.{RelationshipValue, VirtualValues}
-import org.neo4j.cypher.internal.v3_6.expressions.SemanticDirection
-import org.neo4j.cypher.internal.v3_6.util.InternalException
-import org.neo4j.cypher.internal.v3_6.util.attribution.Id
+import org.neo4j.values.virtual.RelationshipValue
+import org.neo4j.values.virtual.VirtualValues
+//import org.neo4j.cypher.internal.v3_6.expressions.SemanticDirection
+//import org.neo4j.cypher.internal.v3_6.util.InternalException
+import org.neo4j.cypher.internal.v4_0.util.attribution.Id
 
 import scala.collection.mutable
 
@@ -64,13 +75,56 @@ case class VarLengthExpandSlottedPipe(source: Pipe,
   //===========================================================================
   private val getFromNodeFunction = makeGetPrimitiveNodeFromSlotFunctionFor(fromSlot)
   private val getToNodeFunction =
-    if (shouldExpandAll) null // We only need this getter in the ExpandInto case
-    else makeGetPrimitiveNodeFromSlotFunctionFor(toSlot)
+    if (shouldExpandAll) {
+      null
+    } // We only need this getter in the ExpandInto case
+    else {
+      makeGetPrimitiveNodeFromSlotFunctionFor(toSlot)
+    }
   private val toOffset = toSlot.offset
 
   //===========================================================================
   // Runtime code
   //===========================================================================
+
+  protected def internalCreateResults(input: Iterator[ExecutionContext], state: QueryState): Iterator[ExecutionContext] = {
+    input.flatMap {
+      inputRow =>
+        val fromNode = getFromNodeFunction(inputRow)
+        if (entityIsNull(fromNode)) {
+          val resultRow = SlottedExecutionContext(slots)
+          resultRow.copyFrom(inputRow, argumentSize.nLongs, argumentSize.nReferences)
+          resultRow.setRefAt(relOffset, Values.NO_VALUE)
+          if (shouldExpandAll) {
+            resultRow.setLongAt(toOffset, -1L)
+          }
+          Iterator(resultRow)
+        }
+        else {
+          // We set the fromNode on the temp node offset as well, to be able to run our node predicate and make sure
+          // the start node is valid
+          inputRow.setLongAt(tempNodeOffset, fromNode)
+          if (nodePredicate.isTrue(inputRow, state)) {
+
+            val paths: Iterator[(LNode, Seq[RelationshipValue])] = varLengthExpand(fromNode, state, inputRow)
+            paths collect {
+              case (toNode: LNode, rels: Seq[RelationshipValue])
+                if rels.length >= min && isToNodeValid(inputRow, toNode) =>
+                val resultRow = SlottedExecutionContext(slots)
+                resultRow.copyFrom(inputRow, argumentSize.nLongs, argumentSize.nReferences)
+                if (shouldExpandAll) {
+                  resultRow.setLongAt(toOffset, toNode)
+                }
+                resultRow.setRefAt(relOffset, VirtualValues.list(rels.toArray: _*))
+                resultRow
+            }
+          }
+          else {
+            Iterator.empty
+          }
+        }
+    }
+  }
 
   private def varLengthExpand(node: LNode,
                               state: QueryState,
@@ -89,7 +143,7 @@ case class VarLengthExpandSlottedPipe(source: Pipe,
           val relVisitor = new RelationshipVisitor[InternalException] {
             override def visit(relationshipId: Long, typeId: Int, startNodeId: LNode, endNodeId: LNode): Unit = {
 
-              relationship = state.query.getRelationshipFor(relationshipId, typeId, startNodeId, endNodeId)
+              relationship = state.query.relationshipById(relationshipId, startNodeId, endNodeId, typeId);
             }
           }
 
@@ -109,59 +163,22 @@ case class VarLengthExpandSlottedPipe(source: Pipe,
             }
           }
         }
-        val needsFlipping = if (dir == SemanticDirection.BOTH)
+        val needsFlipping = if (dir == SemanticDirection.BOTH) {
           projectedDir == SemanticDirection.INCOMING
-        else
+        } else {
           dir != projectedDir
-
-        val projectedRels = if (needsFlipping)
+        }
+        val projectedRels = if (needsFlipping) {
           rels.reverse
-        else
+        } else {
           rels
-
+        }
         (fromNode, projectedRels)
       }
 
       override def hasNext: Boolean = stack.nonEmpty
     }
   }
-
-  protected def internalCreateResults(input: Iterator[ExecutionContext], state: QueryState): Iterator[ExecutionContext] = {
-    input.flatMap {
-      inputRow =>
-        val fromNode = getFromNodeFunction(inputRow)
-        if (entityIsNull(fromNode)) {
-          val resultRow = SlottedExecutionContext(slots)
-          resultRow.copyFrom(inputRow, argumentSize.nLongs, argumentSize.nReferences)
-          resultRow.setRefAt(relOffset, Values.NO_VALUE)
-          if (shouldExpandAll)
-            resultRow.setLongAt(toOffset, -1L)
-          Iterator(resultRow)
-        }
-        else {
-          // We set the fromNode on the temp node offset as well, to be able to run our node predicate and make sure
-          // the start node is valid
-          inputRow.setLongAt(tempNodeOffset, fromNode)
-          if (nodePredicate.isTrue(inputRow, state)) {
-
-            val paths: Iterator[(LNode, Seq[RelationshipValue])] = varLengthExpand(fromNode, state, inputRow)
-            paths collect {
-              case (toNode: LNode, rels: Seq[RelationshipValue])
-                if rels.length >= min && isToNodeValid(inputRow, toNode) =>
-                val resultRow = SlottedExecutionContext(slots)
-                resultRow.copyFrom(inputRow, argumentSize.nLongs, argumentSize.nReferences)
-                if (shouldExpandAll)
-                  resultRow.setLongAt(toOffset, toNode)
-                resultRow.setRefAt(relOffset, VirtualValues.list(rels.toArray: _*))
-                resultRow
-            }
-          }
-          else
-            Iterator.empty
-        }
-    }
-  }
-
 
   private def isToNodeValid(row: ExecutionContext, node: LNode): Boolean =
     shouldExpandAll || getToNodeFunction(row) == node

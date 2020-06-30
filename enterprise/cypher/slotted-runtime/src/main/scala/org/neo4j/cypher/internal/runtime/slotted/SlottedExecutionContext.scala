@@ -1,13 +1,10 @@
 /*
- * Copyright (c) 2002-2018 "Neo4j"
+ * Copyright (c) 2002-2018 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
- * Copyright (c) 2018-2020 "Graph Foundation"
- * Graph Foundation, Inc. [https://graphfoundation.org]
+ * This file is part of Neo4j.
  *
- * This file is part of ONgDB.
- *
- * ONgDB is free software: you can redistribute it and/or modify
+ * Neo4j is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
@@ -22,16 +19,26 @@
  */
 package org.neo4j.cypher.internal.runtime.slotted
 
-import org.neo4j.cypher.internal.compatibility.v3_6.runtime.{LongSlot, RefSlot, SlotConfiguration}
+//import org.neo4j.cypher.internal.compatibility.v4_0.runtime.{LongSlot, RefSlot, SlotConfiguration}
+
+import org.neo4j.cypher.internal.physicalplanning.LongSlot
+import org.neo4j.cypher.internal.physicalplanning.RefSlot
+import org.neo4j.cypher.internal.physicalplanning.SlotConfiguration
+import org.neo4j.cypher.internal.v4_0.expressions.ASTCachedProperty
+//import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.CachedNodeProperty
 import org.neo4j.cypher.internal.runtime.EntityById
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
+import org.neo4j.cypher.internal.runtime.ExecutionContext
+import org.neo4j.exceptions.InternalException
+//import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
 import org.neo4j.cypher.internal.runtime.slotted.helpers.NullChecker.entityIsNull
-import org.neo4j.cypher.internal.v3_6.logical.plans.CachedNodeProperty
-import org.neo4j.cypher.internal.v3_6.util.AssertionUtils._
-import org.neo4j.cypher.internal.v3_6.util.InternalException
-import org.neo4j.cypher.internal.v3_6.util.symbols.{CTNode, CTRelationship}
+//import org.neo4j.cypher.internal.v4_0.logical.plans.CachedNodeProperty
+import org.neo4j.cypher.internal.v4_0.util.AssertionUtils._
+//import org.neo4j.cypher.internal.v4_0.util.InternalException
+import org.neo4j.cypher.internal.v4_0.util.symbols.CTNode
+import org.neo4j.cypher.internal.v4_0.util.symbols.CTRelationship
 import org.neo4j.values.AnyValue
-import org.neo4j.values.storable.{Value, Values}
+import org.neo4j.values.storable.Value
+import org.neo4j.values.storable.Values
 import org.neo4j.values.virtual._
 
 import scala.collection.mutable
@@ -41,10 +48,10 @@ object SlottedExecutionContext {
 }
 
 /**
-  * Execution context which uses a slot configuration to store values in two arrays.
-  *
-  * @param slots the slot configuration to use.
-  */
+ * Execution context which uses a slot configuration to store values in two arrays.
+ *
+ * @param slots the slot configuration to use.
+ */
 case class SlottedExecutionContext(slots: SlotConfiguration) extends ExecutionContext {
 
   private val longs = new Array[Long](slots.numberOfLongs)
@@ -55,7 +62,7 @@ case class SlottedExecutionContext(slots: SlotConfiguration) extends ExecutionCo
     val iter = this.iterator
     val s: StringBuilder = StringBuilder.newBuilder
     s ++= s"\nSlottedExecutionContext {\n    $slots"
-    while(iter.hasNext) {
+    while (iter.hasNext) {
       val slotValue = iter.next
       s ++= f"\n    ${slotValue._1}%-40s = ${slotValue._2}"
     }
@@ -63,61 +70,64 @@ case class SlottedExecutionContext(slots: SlotConfiguration) extends ExecutionCo
     s.result
   }
 
-  override def copyTo(target: ExecutionContext, fromLongOffset: Int = 0, fromRefOffset: Int = 0, toLongOffset: Int = 0, toRefOffset: Int = 0): Unit =
+  override def copyTo(target: ExecutionContext,
+                      sourceLongOffset: Int = 0,
+                      sourceRefOffset: Int = 0,
+                      targetLongOffset: Int = 0,
+                      targetRefOffset: Int = 0): Unit =
     target match {
       case other@SlottedExecutionContext(otherPipeline) =>
         if (slots.numberOfLongs > otherPipeline.numberOfLongs ||
-          slots.numberOfReferences > otherPipeline.numberOfReferences)
+          slots.numberOfReferences > otherPipeline.numberOfReferences) {
           throw new InternalException(
             s"""Tried to copy more data into less:
                |From : ${slots}
                |To :   ${otherPipeline}""".stripMargin)
-        else {
-          System.arraycopy(longs, fromLongOffset, other.longs, toLongOffset, slots.numberOfLongs - fromLongOffset)
-          System.arraycopy(refs, fromRefOffset, other.refs, toRefOffset, slots.numberOfReferences - fromRefOffset)
+        } else {
+          System.arraycopy(longs, sourceLongOffset, other.longs, targetLongOffset, slots.numberOfLongs - sourceLongOffset)
+          System.arraycopy(refs, sourceRefOffset, other.refs, targetRefOffset, slots.numberOfReferences - sourceRefOffset)
         }
       case _ => fail()
     }
 
   override def copyFrom(input: ExecutionContext, nLongs: Int, nRefs: Int): Unit = input match {
     case other@SlottedExecutionContext(otherPipeline) =>
-      if (nLongs > slots.numberOfLongs || nRefs > slots.numberOfReferences)
+      if (nLongs > slots.numberOfLongs || nRefs > slots.numberOfReferences) {
         throw new InternalException("Tried to copy more data into less.")
-      else {
+      } else {
         System.arraycopy(other.longs, 0, longs, 0, nLongs)
         System.arraycopy(other.refs, 0, refs, 0, nRefs)
       }
     case _ => fail()
   }
 
-
-
-
   override def setLongAt(offset: Int, value: Long): Unit =
     longs(offset) = value
 
   override def getLongAt(offset: Int): Long =
     longs(offset)
-    // When debugging long slot issues you can uncomment and replace with this to check for uninitialized long slots
-    //  {
-    //    val value = longs(offset)
-    //    if (value == -2L)
-    //      throw new InternalException(s"Long value not initialised at offset $offset in $this")
-    //    value
-    //  }
+
+  // When debugging long slot issues you can uncomment and replace with this to check for uninitialized long slots
+  //  {
+  //    val value = longs(offset)
+  //    if (value == -2L)
+  //      throw new InternalException(s"Long value not initialised at offset $offset in $this")
+  //    value
+  //  }
 
   override def setRefAt(offset: Int, value: AnyValue): Unit = refs(offset) = value
 
   override def getRefAt(offset: Int): AnyValue = {
     val value = refs(offset)
-    if (value == null)
+    if (value == null) {
       throw new InternalException(s"Reference value not initialised at offset $offset in $this")
+    }
     value
   }
 
-  override def -=(key: String): Nothing = fail() // We do not expect this to be used
+  def -=(key: String): Nothing = fail() // We do not expect this to be used
 
-  override def iterator: Iterator[(String, AnyValue)] = {
+  def iterator: Iterator[(String, AnyValue)] = {
     // This method implementation is for debug usage only (the debugger will invoke it when stepping).
     // Please do not use in production code.
     val longSlots = slots.getLongSlots
@@ -137,29 +147,27 @@ case class SlottedExecutionContext(slots: SlotConfiguration) extends ExecutionCo
 
   override def setCachedPropertyAt(offset: Int, value: Value): Unit = refs(offset) = value
 
-  override def setCachedProperty(key: CachedNodeProperty, value: Value): Unit =
-    setCachedPropertyAt(slots.getCachedNodePropertyOffsetFor(key), value)
+  override def setCachedProperty(key: ASTCachedProperty, value: Value): Unit =
+    setCachedPropertyAt(slots.getCachedPropertyOffsetFor(key), value)
 
   override def getCachedPropertyAt(offset: Int): Value = refs(offset).asInstanceOf[Value]
 
-  override def getCachedProperty(key: CachedNodeProperty): Value = fail()
+  override def getCachedProperty(key: ASTCachedProperty): Value = fail()
 
-  private def fail(): Nothing = throw new InternalException("Tried using a slotted context as a map")
+  def get(key: String): Option[AnyValue] = {
+    slots.maybeGetter(key).map(g => g(this))
+  }
 
   //-----------------------------------------------------------------------------------------------------------
   // Compatibility implementations of the old ExecutionContext API used by Community interpreted runtime pipes
   //-----------------------------------------------------------------------------------------------------------
 
-  override def get(key: String): Option[AnyValue] = {
-    slots.maybeGetter(key).map(g => g(this))
-  }
-
-  override def +=(kv: (String, AnyValue)): this.type = {
+  def +=(kv: (String, AnyValue)): this.type = {
     setValue(kv._1, kv._2)
     this
   }
 
-  override def getOrElse[B1 >: AnyValue](key: String, default: => B1): B1 = get(key) match {
+  def getOrElse[B1 >: AnyValue](key: String, default: => B1): Any = this.get(key) match {
     case Some(v) => v
     case None => default
   }
@@ -214,12 +222,6 @@ case class SlottedExecutionContext(slots: SlotConfiguration) extends ExecutionCo
     )
   }
 
-  private def setValue(key1: String, value1: AnyValue): Unit = {
-    slots.maybeSetter(key1)
-      .getOrElse(throw new InternalException(s"Ouch, no suitable slot for key $key1 = $value1\nSlots: $slots"))
-      .apply(this, value1)
- }
-
   def isRefInitialized(offset: Int): Boolean = {
     refs(offset) != null
   }
@@ -231,21 +233,21 @@ case class SlottedExecutionContext(slots: SlotConfiguration) extends ExecutionCo
   override def mergeWith(other: ExecutionContext, entityById: EntityById): Unit = other match {
     case slottedOther: SlottedExecutionContext =>
       slottedOther.slots.foreachSlot({
-        case (key, otherSlot @ LongSlot(offset, _, CTNode)) =>
+        case (key, otherSlot@LongSlot(offset, _, CTNode)) =>
           val thisSlotSetter = slots.maybePrimitiveNodeSetter(key).getOrElse(
             throw new InternalException(s"Tried to merge primitive node slot $otherSlot from $other but it is missing from $this." +
               "Looks like something needs to be fixed in slot allocation.")
           )
-          thisSlotSetter.apply(this, other.getLongAt(offset))
-
-        case (key, otherSlot @ LongSlot(offset, _, CTRelationship)) =>
+          //thisSlotSetter.apply(this, other.getLongAt(offset), entityById)
+          thisSlotSetter.apply(this, other.getLongAt(offset)) // , entityById
+        case (key, otherSlot@LongSlot(offset, _, CTRelationship)) =>
           val thisSlotSetter = slots.maybePrimitiveRelationshipSetter(key).getOrElse(
             throw new InternalException(s"Tried to merge primitive relationship slot $otherSlot from $other but it is missing from $this." +
               "Looks like something needs to be fixed in slot allocation.")
           )
-          thisSlotSetter.apply(this, other.getLongAt(offset))
+          thisSlotSetter.apply(this, other.getLongAt(offset)) // , entityById
 
-        case (key, otherSlot @ RefSlot(offset, _, _)) if slottedOther.isRefInitialized(offset) || otherSlot.nullable  =>
+        case (key, otherSlot@RefSlot(offset, _, _)) if slottedOther.isRefInitialized(offset) || otherSlot.nullable =>
           val thisSlotSetter = slots.maybeSetter(key).getOrElse(
             throw new InternalException(s"Tried to merge slot $otherSlot from $other but it is missing from $this." +
               "Looks like something needs to be fixed in slot allocation.")
@@ -254,15 +256,15 @@ case class SlottedExecutionContext(slots: SlotConfiguration) extends ExecutionCo
           ifAssertionsEnabled {
             val thisSlot = slots.get(key).get
             // This should be guaranteed by slot allocation or else we could get incorrect results
-            if (!thisSlot.nullable && otherSlot.nullable)
+            if (!thisSlot.nullable && otherSlot.nullable) {
               throw new InternalException(s"Tried to merge slot $otherSlot into $thisSlot but its nullability is incompatible")
+            }
           }
 
           val otherValue = slottedOther.getRefAtWithoutCheckingInitialized(offset)
           thisSlotSetter.apply(this, otherValue)
 
-
-        case (key, otherSlot @ RefSlot(offset, _, _)) =>
+        case (key, otherSlot@RefSlot(offset, _, _)) =>
           val thisSlot = slots.get(key).get
           throw new InternalException(s"Tried to merge slot $otherSlot from $other into $thisSlot from $this, but ref is not initialized.")
       }, {
@@ -305,12 +307,14 @@ case class SlottedExecutionContext(slots: SlotConfiguration) extends ExecutionCo
         entities += key -> materializeRelationship(getLongAt(offset))
       case (key, LongSlot(offset, true, CTNode)) =>
         val entityId = getLongAt(offset)
-        if (entityId >= 0)
+        if (entityId >= 0) {
           entities += key -> materializeNode(getLongAt(offset))
+        }
       case (key, LongSlot(offset, true, CTRelationship)) =>
         val entityId = getLongAt(offset)
-        if (entityId >= 0)
+        if (entityId >= 0) {
           entities += key -> materializeRelationship(getLongAt(offset))
+        }
       case _ => // Do nothing
     }, ignoreCachedNodeProperties => null)
     entities.toMap
@@ -328,33 +332,53 @@ case class SlottedExecutionContext(slots: SlotConfiguration) extends ExecutionCo
         false
     }
 
-
-
-  // Overriding the 2 methods below.
-  // See: https://github.com/graphfoundation/ongdb/blob/3.5.1/community/cypher/interpreted-runtime/src/main/scala/org/neo4j/cypher/internal/runtime/interpreted/ExecutionContext.scala
   /**
-    *
-    * @param input
-    */
-  def copyCachedFrom(input: ExecutionContext): Unit = {
-    if (input.isInstanceOf[SlottedExecutionContext]) {
-      val slottedExecutionContext = input.asInstanceOf[SlottedExecutionContext]
-      slots.foreachSlotCached({
-        case (cachedNodeProperty, refSlot) =>
-          setCachedProperty(cachedNodeProperty, slottedExecutionContext.getCachedPropertyAt(refSlot.offset))
-      })
-    }
-    else fail()
-  }
+   *
+   * @param node
+   */
 
-  /**
-    *
-    * @param node
-    */
-  override def invalidateCachedProperties(node: Long): Unit = {
-    slots.foreachSlotCached({
+  override def invalidateCachedNodeProperties(node: Long): Unit = {
+    slots.foreachCachedSlot({
       case (cachedNodeProperty, refSlot) =>
         setCachedPropertyAt(refSlot.offset, null)
     })
+  }
+
+  override def invalidateCachedRelationshipProperties(rel: Long): Unit = {
+    slots.foreachCachedSlot({
+      case (cachedRelationshipProperty, refSlot) =>
+        setCachedPropertyAt(refSlot.offset, null)
+    })
+  }
+
+  // Overriding the 2 methods below.
+  // See: https://github.com/neo4j/neo4j/blob/3.5.1/community/cypher/interpreted-runtime/src/main/scala/org/neo4j/cypher/internal/runtime/interpreted/ExecutionContext.scala
+
+  override def getByName(name: String): AnyValue = this.slots.maybeGetter(name).get.apply(this)
+
+  override def containsName(name: String): Boolean = this.slots.maybeGetter(name).isDefined
+
+  override def numberOfColumns: Int = this.refs.length + this.longs.length
+
+  override def estimatedHeapUsage: Long = {
+    var usage = this.longs.length.asInstanceOf[Long] * 8L
+    var i = 0
+    while ( {
+      i < this.refs.length
+    }) {
+      val ref = this.refs(i)
+      if (ref != null) usage += ref.estimatedHeapUsage
+
+      i += 1
+    }
+    usage
+  }
+
+  private def fail(): Nothing = throw new InternalException("Tried using a slotted context as a map")
+
+  private def setValue(key1: String, value1: AnyValue): Unit = {
+    slots.maybeSetter(key1)
+      .getOrElse(throw new InternalException(s"Ouch, no suitable slot for key $key1 = $value1\nSlots: $slots"))
+      .apply(this, value1)
   }
 }

@@ -22,11 +22,18 @@
  */
 package org.neo4j.cypher.internal.runtime.slotted.pipes
 
-import org.neo4j.cypher.internal.compatibility.v3_6.runtime.{LongSlot, RefSlot, SlotConfiguration}
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
+//import org.neo4j.cypher.internal.compatibility.v3_6.runtime.{LongSlot, RefSlot, SlotConfiguration}
+//import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
+
+import org.neo4j.cypher.internal.physicalplanning.LongSlot
+import org.neo4j.cypher.internal.physicalplanning.RefSlot
+import org.neo4j.cypher.internal.physicalplanning.SlotConfiguration
+import org.neo4j.cypher.internal.runtime.ExecutionContext
 import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.Expression
-import org.neo4j.cypher.internal.runtime.interpreted.pipes.{Pipe, PipeWithSource, QueryState}
-import org.neo4j.cypher.internal.v3_6.util.attribution.Id
+import org.neo4j.cypher.internal.runtime.interpreted.pipes.Pipe
+import org.neo4j.cypher.internal.runtime.interpreted.pipes.PipeWithSource
+import org.neo4j.cypher.internal.runtime.interpreted.pipes.QueryState
+import org.neo4j.cypher.internal.v4_0.util.attribution.Id
 import org.neo4j.values.storable.Values.NO_VALUE
 import org.neo4j.values.virtual.VirtualValues
 
@@ -53,9 +60,6 @@ case class RollUpApplySlottedPipe(lhs: Pipe, rhs: Pipe,
       }
     }
 
-  private def hasNullValue(ctx: ExecutionContext): Boolean =
-    hasNullValuePredicates.exists(p => p(ctx))
-
   override protected def internalCreateResults(input: Iterator[ExecutionContext], state: QueryState) = {
     input.map {
       ctx =>
@@ -71,4 +75,7 @@ case class RollUpApplySlottedPipe(lhs: Pipe, rhs: Pipe,
         ctx
     }
   }
+
+  private def hasNullValue(ctx: ExecutionContext): Boolean =
+    hasNullValuePredicates.exists(p => p(ctx))
 }

@@ -22,20 +22,22 @@
  */
 package org.neo4j.cypher.internal.runtime.slotted.pipes
 
-import org.neo4j.cypher.internal.compatibility.v3_6.runtime.{SlotConfiguration, SlottedIndexedProperty}
-import org.neo4j.cypher.internal.runtime.QueryContext
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
+import org.neo4j.cypher.internal.logical.plans.IndexOrder
+import org.neo4j.cypher.internal.logical.plans.QueryExpression
+import org.neo4j.cypher.internal.physicalplanning.SlotConfiguration
+import org.neo4j.cypher.internal.physicalplanning.SlottedIndexedProperty
+import org.neo4j.cypher.internal.runtime.ExecutionContext
 import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.Expression
 import org.neo4j.cypher.internal.runtime.interpreted.pipes._
 import org.neo4j.cypher.internal.runtime.slotted.SlottedExecutionContext
-import org.neo4j.cypher.internal.v3_6.logical.plans.{IndexOrder, QueryExpression}
-import org.neo4j.internal.kernel.api.IndexReference
-import org.neo4j.cypher.internal.v3_6.expressions.LabelToken
-import org.neo4j.cypher.internal.v3_6.util.attribution.Id
+import org.neo4j.cypher.internal.v4_0.expressions.LabelToken
+import org.neo4j.cypher.internal.v4_0.util.attribution.Id
+import org.neo4j.internal.kernel.api.IndexReadSession
 
 case class NodeIndexSeekSlottedPipe(ident: String,
                                     label: LabelToken,
                                     properties: IndexedSeq[SlottedIndexedProperty],
+                                    queryIndexId: Int,
                                     valueExpr: QueryExpression[Expression],
                                     indexMode: IndexSeekMode = IndexSeek,
                                     indexOrder: IndexOrder,
@@ -48,27 +50,10 @@ case class NodeIndexSeekSlottedPipe(ident: String,
   override val propertyIds: Array[Int] = properties.map(_.propertyKeyId).toArray
 
   override val indexPropertyIndices: Array[Int] = properties.zipWithIndex.filter(_._1.getValueFromIndex).map(_._2).toArray
-  override val indexPropertySlotOffsets: Array[Int] = properties.map(_.maybeCachedNodePropertySlot).collect{ case Some(o) => o }.toArray
+  override val indexPropertySlotOffsets: Array[Int] = properties.map(_.maybeCachedNodePropertySlot).collect { case Some(o) => o }.toArray
   private val needsValues: Boolean = indexPropertyIndices.nonEmpty
 
-  private var reference: IndexReference = IndexReference.NO_INDEX
-
-  private def reference(context: QueryContext): IndexReference = {
-    if (reference == IndexReference.NO_INDEX) {
-      reference = context.indexReference(label.nameId.id, propertyIds: _*)
-    }
-    reference
-  }
-
   valueExpr.expressions.foreach(_.registerOwningPipe(this))
-
-  protected def internalCreateResults(state: QueryState): Iterator[ExecutionContext] = {
-    val indexReference = reference(state.query)
-    val contextForIndexExpression = state.initialContext.getOrElse(SlottedExecutionContext.empty)
-    indexSeek(state, indexReference, needsValues, indexOrder, contextForIndexExpression).flatMap(
-      cursor => new SlottedIndexIterator(state, slots, cursor)
-    )
-  }
 
   def canEqual(other: Any): Boolean = other.isInstanceOf[NodeIndexSeekSlottedPipe]
 
@@ -88,5 +73,17 @@ case class NodeIndexSeekSlottedPipe(ident: String,
   override def hashCode(): Int = {
     val state = Seq(ident, label, properties, valueExpr, indexMode, slots, argumentSize)
     state.map(_.hashCode()).foldLeft(0)((a, b) => 31 * a + b)
+  }
+
+  protected def internalCreateResults(state: QueryState): Iterator[ExecutionContext] = {
+
+    val index: IndexReadSession = state.queryIndexes(queryIndexId);
+    val context: SlottedExecutionContext = new SlottedExecutionContext(slots);
+
+    state.copyArgumentStateTo(context, this.argumentSize.nLongs, argumentSize.nReferences);
+
+
+    new SlottedIndexIterator(state, slots,
+      indexSeek(state, index, needsValues, indexOrder, context))
   }
 }

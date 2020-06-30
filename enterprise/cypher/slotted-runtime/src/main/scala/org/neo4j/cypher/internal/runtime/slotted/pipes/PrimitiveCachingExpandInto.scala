@@ -24,60 +24,63 @@ package org.neo4j.cypher.internal.runtime.slotted.pipes
 
 import org.eclipse.collections.api.iterator.LongIterator
 import org.neo4j.cypher.internal.runtime.QueryContext
-import org.neo4j.kernel.impl.api.store.RelationshipIterator
+import org.neo4j.cypher.internal.runtime.QueryMemoryTracker
+import org.neo4j.cypher.internal.runtime.RelationshipIterator
+import org.neo4j.cypher.internal.runtime.interpreted.pipes.QueryState
+import org.neo4j.cypher.internal.v4_0.expressions.SemanticDirection
+import org.neo4j.exceptions.InternalException
 import org.neo4j.storageengine.api.RelationshipVisitor
-import org.neo4j.cypher.internal.v3_6.expressions.SemanticDirection
-import org.neo4j.cypher.internal.v3_6.util.InternalException
 
 import scala.collection.mutable
 
 /**
-  * Used by pipes that needs to expand between two known nodes.
-  *
-  * Given a pattern (a)-->(b) it will do the following:
-  * - if both a and b are dense nodes, start from the one with the lesser degree
-  * - if just one of the nodes is dense, start from the non-dense node
-  * - if both are non-dense, randomly pick one or the other
-  * - cache all found connecting relationships.
-  *
-  */
+ * Used by pipes that needs to expand between two known nodes.
+ *
+ * Given a pattern (a)-->(b) it will do the following:
+ * - if both a and b are dense nodes, start from the one with the lesser degree
+ * - if just one of the nodes is dense, start from the non-dense node
+ * - if both are non-dense, randomly pick one or the other
+ * - cache all found connecting relationships.
+ *
+ */
 trait PrimitiveCachingExpandInto {
 
-  /**
-    * Finds all relationships connecting fromNode and toNode.
-    */
-  protected def findRelationships(query: QueryContext, fromNode: Long, toNode: Long,
-                                  relCache: PrimitiveRelationshipsCache, dir: SemanticDirection, relTypes: => Option[Array[Int]]): LongIterator = {
+  private var alternateState = false
 
-    val fromNodeIsDense = query.nodeIsDense(fromNode)
-    val toNodeIsDense = query.nodeIsDense(toNode)
+  /**
+   * Finds all relationships connecting fromNode and toNode.
+   */
+  protected def findRelationships(state: QueryState, fromNode: Long, toNode: Long,
+                                  relCache: PrimitiveRelationshipsCache, dir: SemanticDirection, relTypes: => Array[Int]): LongIterator = {
+
+    val fromNodeIsDense: Boolean = state.query.nodeIsDense(fromNode, state.cursors.nodeCursor)
+    val toNodeIsDense: Boolean = state.query.nodeIsDense(toNode, state.cursors.nodeCursor)
 
     //if both nodes are dense, start from the one with the lesser degree
     if (fromNodeIsDense && toNodeIsDense) {
       //check degree and iterate from the node with smaller degree
-      val fromDegree = getDegree(fromNode, relTypes, dir, query)
+      val fromDegree = getDegree(fromNode, relTypes, dir, state)
       if (fromDegree == 0) {
         return RelationshipIterator.EMPTY
       }
 
-      val toDegree = getDegree(toNode, relTypes, dir.reversed, query)
+      val toDegree = getDegree(toNode, relTypes, dir.reversed, state)
       if (toDegree == 0) {
         return RelationshipIterator.EMPTY
       }
 
-      relIterator(query, fromNode, toNode, preserveDirection = fromDegree < toDegree, relTypes, relCache, dir)
+      relIterator(state.query, fromNode, toNode, preserveDirection = fromDegree < toDegree, relTypes, relCache, dir)
     }
     // iterate from a non-dense node
-    else if (toNodeIsDense)
-      relIterator(query, fromNode, toNode, preserveDirection = true, relTypes, relCache, dir)
-    else if (fromNodeIsDense)
-      relIterator(query, fromNode, toNode, preserveDirection = false, relTypes, relCache, dir)
-    //both nodes are non-dense, choose a random starting point
-    else
-      relIterator(query, fromNode, toNode, alternate(), relTypes, relCache, dir)
+    else if (toNodeIsDense) {
+      relIterator(state.query, fromNode, toNode, preserveDirection = true, relTypes, relCache, dir)
+    } else if (fromNodeIsDense) {
+      relIterator(state.query, fromNode, toNode, preserveDirection = false, relTypes, relCache, dir)
+    } //both nodes are non-dense, choose a random starting point
+    else {
+      relIterator(state.query, fromNode, toNode, alternate(), relTypes, relCache, dir)
+    }
   }
-
-  private var alternateState = false
 
   private def alternate(): Boolean = {
     val result = !alternateState
@@ -86,7 +89,7 @@ trait PrimitiveCachingExpandInto {
   }
 
   private def relIterator(query: QueryContext, fromNode: Long, toNode: Long, preserveDirection: Boolean,
-                          relTypes: Option[Array[Int]], relCache: PrimitiveRelationshipsCache, dir: SemanticDirection): LongIterator = {
+                          relTypes: Array[Int], relCache: PrimitiveRelationshipsCache, dir: SemanticDirection): LongIterator = {
     val (start, localDirection, end) = if (preserveDirection) (fromNode, dir, toNode) else (toNode, dir.reversed, fromNode)
     val relationships: RelationshipIterator = query.getRelationshipsForIdsPrimitive(start, localDirection, relTypes)
 
@@ -94,8 +97,6 @@ trait PrimitiveCachingExpandInto {
     var connected: Boolean = false
 
     val relVisitor = new RelationshipVisitor[InternalException] {
-
-
 
       override def visit(relationshipId: Long, typeId: Int, startNodeId: Long, endNodeId: Long): Unit =
         if ((end == startNodeId && start == endNodeId) || (start == startNodeId && end == endNodeId)) {
@@ -134,18 +135,22 @@ trait PrimitiveCachingExpandInto {
     }
   }
 
-  private def getDegree(node: Long, relTypes: Option[Array[Int]], direction: SemanticDirection, query: QueryContext) = {
-    relTypes.map {
-      case rels if rels.isEmpty => query.nodeGetDegree(node, direction)
-      case rels if rels.length == 1 => query.nodeGetDegree(node, direction, rels.head)
-      case rels => rels.foldLeft(0)(
-        (acc, rel) => acc + query.nodeGetDegree(node, direction, rel)
+  private def getDegree(node: Long, relTypes: Array[Int], direction: SemanticDirection, state: QueryState) = {
+
+    if (relTypes == null) {
+      state.query.nodeGetDegree(node, direction, state.cursors.nodeCursor)
+    } else if (relTypes.length == 1) {
+      state.query.nodeGetDegree(node, direction, relTypes(0), state.cursors.nodeCursor)
+    } else {
+      relTypes.foldLeft(0)(
+        (acc, rel) => acc + state.query.nodeGetDegree(node, direction, rel, state.cursors.nodeCursor)
       )
-    }.getOrElse(query.nodeGetDegree(node, direction))
+    }
+
   }
 }
 
-protected final class PrimitiveRelationshipsCache(capacity: Int) {
+protected final class PrimitiveRelationshipsCache(capacity: Int, memoryManager: QueryMemoryTracker) {
 
   val table = new mutable.OpenHashMap[(Long, Long), Array[Long]]()
 
@@ -168,18 +173,21 @@ protected final class PrimitiveRelationshipsCache(capacity: Int) {
   def put(start: Long, end: Long, rels: Array[Long], dir: SemanticDirection): Any = {
     if (table.size < capacity) {
       table.put(key(start, end, dir), rels)
+      memoryManager.allocated(((2 + rels.length) * 8))
     }
   }
 
   @inline
   private def key(start: Long, end: Long, dir: SemanticDirection) = {
     // if direction is BOTH than we keep the key sorted, otherwise direction is important and we keep key as is
-    if (dir != SemanticDirection.BOTH) (start, end)
-    else {
-      if (start < end)
+    if (dir != SemanticDirection.BOTH) {
+      (start, end)
+    } else {
+      if (start < end) {
         (start, end)
-      else
+      } else {
         (end, start)
+      }
     }
   }
 }

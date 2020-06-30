@@ -25,35 +25,23 @@ package org.neo4j.cypher.internal.runtime.slotted.pipes
 import java.util
 
 import org.eclipse.collections.impl.factory.Sets
-import org.neo4j.cypher.internal.compatibility.v3_6.runtime.{Slot, SlotConfiguration}
+import org.neo4j.cypher.internal.physicalplanning.SlotConfiguration
+import org.neo4j.cypher.internal.runtime.ExecutionContext
 import org.neo4j.cypher.internal.runtime.PrefetchingIterator
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
-import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.Expression
-import org.neo4j.cypher.internal.runtime.interpreted.pipes.{Pipe, PipeWithSource, QueryState}
-import org.neo4j.cypher.internal.runtime.slotted.SlottedExecutionContext
-import org.neo4j.cypher.internal.runtime.slotted.helpers.SlottedPipeBuilderUtils
-import org.neo4j.cypher.internal.v3_6.util.attribution.Id
-
-import scala.collection.immutable
+import org.neo4j.cypher.internal.runtime.interpreted.GroupingExpression
+import org.neo4j.cypher.internal.runtime.interpreted.pipes.Pipe
+import org.neo4j.cypher.internal.runtime.interpreted.pipes.PipeWithSource
+import org.neo4j.cypher.internal.runtime.interpreted.pipes.QueryState
+import org.neo4j.cypher.internal.v4_0.util.attribution.Id
+import org.neo4j.values.storable.LongArray
+import org.neo4j.values.storable.Values
 
 case class DistinctSlottedPrimitivePipe(source: Pipe,
                                         slots: SlotConfiguration,
                                         primitiveSlots: Array[Int],
-                                        projections: Map[Slot, Expression])
+                                        groupingExpression: GroupingExpression)
                                        (val id: Id = Id.INVALID_ID)
   extends PipeWithSource(source) {
-
-  //===========================================================================
-  // Compile-time initializations
-  //===========================================================================
-  private val setValuesInOutput: immutable.Iterable[(ExecutionContext, QueryState, ExecutionContext) => Unit] = projections.map {
-    case (slot, expression) =>
-      val f = SlottedPipeBuilderUtils.makeSetValueInSlotFunctionFor(slot)
-      (incomingContext: ExecutionContext, state: QueryState, outgoingContext: ExecutionContext) =>
-        f(outgoingContext, expression(incomingContext, state))
-  }
-
-  projections.values.foreach(_.registerOwningPipe(this))
 
   //===========================================================================
   // Runtime code
@@ -61,29 +49,41 @@ case class DistinctSlottedPrimitivePipe(source: Pipe,
   protected def internalCreateResults(input: Iterator[ExecutionContext],
                                       state: QueryState): Iterator[ExecutionContext] = {
     new PrefetchingIterator[ExecutionContext] {
-      private val seen = Sets.mutable.empty[Key]()
+      private val seen = Sets.mutable.empty[LongArray]()
 
       override def produceNext(): Option[ExecutionContext] = {
         while (input.nonEmpty) {
           val next: ExecutionContext = input.next()
 
-          // Create key array
-          val keys = buildKey(next)
+          var groupingVal: LongArray = buildGroupingVal(next, primitiveSlots);
 
-          if (seen.add(new Key(keys))) {
+
+          if (seen.add(groupingVal)) {
             // Found something! Set it as the next element to yield, and exit
-            val outgoing = SlottedExecutionContext(slots)
-            for (setter <- setValuesInOutput) {
-              setter(next, state, outgoing)
-            }
-
-            return Some(outgoing)
+            state.memoryTracker.allocated(groupingVal);
+            var key = groupingExpression.computeGroupingKey(next, state);
+            groupingExpression.project(next, key);
+            return new Some(next);
           }
         }
 
         None
       }
     }
+  }
+
+  groupingExpression.registerOwningPipe(this)
+
+  //===========================================================================
+  // Compile-time initializations
+  //===========================================================================
+
+  private def buildGroupingVal(next: ExecutionContext, slots: Array[Int]): LongArray = {
+    val keys = new Array[Long](slots.length)
+    for (i <- 0 until slots.length) {
+      keys(i) = next.getLongAt(slots(i))
+    }
+    return Values.longArray(keys)
   }
 
   private def buildKey(next: ExecutionContext): Array[Long] = {
@@ -98,22 +98,22 @@ case class DistinctSlottedPrimitivePipe(source: Pipe,
 }
 
 /**
-  * This little class is here to make sure we have the expected behaviour of our primitive arrays.
-  * In the JVM, long[] are do not have reasonable hashcode or equal()
-  */
+ * This little class is here to make sure we have the expected behaviour of our primitive arrays.
+ * In the JVM, long[] are do not have reasonable hashcode or equal()
+ */
 class Key(val inner: Array[Long]) {
 
   override val hashCode: Int = util.Arrays.hashCode(inner)
 
   override def equals(other: Any): Boolean =
-    if (other == null || getClass() != other.getClass())
+    if (other == null || getClass() != other.getClass()) {
       false
-    else {
+    } else {
       val otherKey = other.asInstanceOf[Key]
 
-      if (otherKey eq this)
+      if (otherKey eq this) {
         return true
-
+      }
       util.Arrays.hashCode(inner) == util.Arrays.hashCode(inner) && util.Arrays.equals(inner, otherKey.inner)
     }
 

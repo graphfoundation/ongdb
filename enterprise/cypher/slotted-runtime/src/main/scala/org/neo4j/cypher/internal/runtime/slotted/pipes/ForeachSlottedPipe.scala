@@ -22,19 +22,27 @@
  */
 package org.neo4j.cypher.internal.runtime.slotted.pipes
 
-import org.neo4j.cypher.internal.compatibility.v3_6.runtime.Slot
+//import org.neo4j.cypher.internal.compatibility.v3_6.runtime.Slot
+
 import org.neo4j.cypher.internal.runtime.slotted.helpers.SlottedPipeBuilderUtils.makeSetValueInSlotFunctionFor
+//import org.neo4j.cypher.internal.runtime.interpreted.{ExecutionContext, ListSupport}
+import org.neo4j.cypher.internal.physicalplanning.Slot
+import org.neo4j.cypher.internal.runtime.ExecutionContext
+import org.neo4j.cypher.internal.runtime.ListSupport
+import org.neo4j.cypher.internal.v4_0.util.attribution.Id
+//import org.neo4j.cypher.internal.runtime.ListSupport.RichSeq
 import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.Expression
-import org.neo4j.cypher.internal.runtime.interpreted.pipes.{Pipe, PipeWithSource, QueryState}
-import org.neo4j.cypher.internal.runtime.interpreted.{ExecutionContext, ListSupport}
-import org.neo4j.cypher.internal.v3_6.util.attribution.Id
+import org.neo4j.cypher.internal.runtime.interpreted.pipes.Pipe
+import org.neo4j.cypher.internal.runtime.interpreted.pipes.PipeWithSource
+import org.neo4j.cypher.internal.runtime.interpreted.pipes.QueryState
 
 import scala.collection.JavaConverters._
 
 case class ForeachSlottedPipe(lhs: Pipe, rhs: Pipe, innerVariableSlot: Slot, expression: Expression)
                              (val id: Id = Id.INVALID_ID)
-  extends PipeWithSource(lhs) with Pipe with ListSupport {
+  extends PipeWithSource(lhs) with ListSupport {
 
+  expression.registerOwningPipe(this);
   //===========================================================================
   // Compile-time initializations
   //===========================================================================

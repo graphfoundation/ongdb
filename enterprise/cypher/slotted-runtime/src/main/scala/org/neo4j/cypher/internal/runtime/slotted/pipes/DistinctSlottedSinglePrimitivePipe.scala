@@ -23,14 +23,16 @@
 package org.neo4j.cypher.internal.runtime.slotted.pipes
 
 import org.eclipse.collections.impl.factory.primitive.LongSets
-import org.neo4j.cypher.internal.compatibility.v3_6.runtime.{Slot, SlotConfiguration}
+import org.neo4j.cypher.internal.physicalplanning.Slot
+import org.neo4j.cypher.internal.physicalplanning.SlotConfiguration
+import org.neo4j.cypher.internal.runtime.ExecutionContext
 import org.neo4j.cypher.internal.runtime.PrefetchingIterator
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
 import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.Expression
-import org.neo4j.cypher.internal.runtime.interpreted.pipes.{Pipe, PipeWithSource, QueryState}
-import org.neo4j.cypher.internal.runtime.slotted.SlottedExecutionContext
+import org.neo4j.cypher.internal.runtime.interpreted.pipes.Pipe
+import org.neo4j.cypher.internal.runtime.interpreted.pipes.PipeWithSource
+import org.neo4j.cypher.internal.runtime.interpreted.pipes.QueryState
 import org.neo4j.cypher.internal.runtime.slotted.helpers.SlottedPipeBuilderUtils.makeSetValueInSlotFunctionFor
-import org.neo4j.cypher.internal.v3_6.util.attribution.Id
+import org.neo4j.cypher.internal.v4_0.util.attribution.Id
 import org.neo4j.values.AnyValue
 
 case class DistinctSlottedSinglePrimitivePipe(source: Pipe,
@@ -62,11 +64,12 @@ case class DistinctSlottedSinglePrimitivePipe(source: Pipe,
           val next = input.next()
           val id = next.getLongAt(offset)
           if (seen.add(id)) {
-            // Found something! Set it as the next element to yield, and exit
-            val outgoing = SlottedExecutionContext(slots)
-            val outputValue = expression(next, state)
-            setInSlot(outgoing, outputValue)
-            return Some(outgoing)
+            //setInSlot(outgoing, outputValue)
+            state.memoryTracker.allocated(8L);
+            var outputValue = expression.apply(next, state);
+            setInSlot.apply(next, outputValue);
+
+            return Some(next)
           }
         }
 
