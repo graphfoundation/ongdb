@@ -18,15 +18,18 @@
  */
 package org.neo4j.cypher.internal.runtime.compiled.expressions;
 
-import org.neo4j.cypher.internal.v3_6.util.CypherTypeException;
-
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext;
-import org.neo4j.graphdb.NotFoundException;
+import org.neo4j.cypher.internal.runtime.DbAccess;
+import org.neo4j.cypher.internal.runtime.ExecutionContext;
+import org.neo4j.cypher.internal.runtime.KernelAPISupport;
+import org.neo4j.exceptions.CypherTypeException;
+import org.neo4j.exceptions.ParameterWrongTypeException;
+import org.neo4j.internal.kernel.api.IndexQuery;
 import org.neo4j.values.AnyValue;
 import org.neo4j.values.storable.BooleanValue;
 import org.neo4j.values.storable.Value;
-
-import static org.neo4j.values.storable.Values.NO_VALUE;
+import org.neo4j.values.storable.ValueGroup;
+import org.neo4j.values.storable.Values;
+import org.neo4j.values.virtual.VirtualNodeValue;
 
 /**
  * Contains helper methods used from compiled expressions
@@ -34,27 +37,102 @@ import static org.neo4j.values.storable.Values.NO_VALUE;
 @SuppressWarnings( "unused" )
 public final class CompiledHelpers
 {
+    private static final ValueGroup[] RANGE_SEEKABLE_VALUE_GROUPS = KernelAPISupport.RANGE_SEEKABLE_VALUE_GROUPS();
+
+    /**
+     *
+     */
     private CompiledHelpers()
     {
-        throw new UnsupportedOperationException( "do not instantiate" );
+        throw new UnsupportedOperationException( "Please do not initiate." );
     }
 
+    /**
+     * @param value
+     * @return
+     */
     public static Value assertBooleanOrNoValue( AnyValue value )
     {
-        if ( value != NO_VALUE && !(value instanceof BooleanValue ) )
+        if ( value != Values.NO_VALUE && !(value instanceof BooleanValue) )
         {
-            throw new CypherTypeException( String.format( "Don't know how to treat a predicate: %s", value.toString() ),
-                    null );
+            throw new CypherTypeException( String.format( "Don't know how to treat a predicate: %s", value.toString() ), null );
         }
-        return (Value) value;
+        else
+        {
+            return (Value) value;
+        }
     }
 
-    public static AnyValue loadVariable( ExecutionContext ctx, String name )
+    /**
+     * @param context
+     * @param dbAccess
+     * @param offset
+     * @return
+     */
+    public static AnyValue nodeOrNoValue( ExecutionContext context, DbAccess dbAccess, int offset )
     {
-        if ( !ctx.contains( name ) )
+        long nodeId = context.getLongAt( offset );
+        return (nodeId == -1L ? Values.NO_VALUE : dbAccess.nodeById( nodeId ));
+    }
+
+    public static AnyValue nodeOrNoValue( DbAccess dbAccess, long nodeId )
+    {
+        return (nodeId == -1L ? Values.NO_VALUE : dbAccess.nodeById( nodeId ));
+    }
+
+    /**
+     * @param context
+     * @param dbAccess
+     * @param offset
+     * @return
+     */
+    public static AnyValue relationshipOrNoValue( ExecutionContext context, DbAccess dbAccess, int offset )
+    {
+        long relationshipId = context.getLongAt( offset );
+        return (relationshipId == -1L ? Values.NO_VALUE : dbAccess.relationshipById( relationshipId ));
+    }
+
+    /**
+     * @param query
+     * @return
+     */
+    public static boolean possibleRangePredicate( IndexQuery query )
+    {
+        ValueGroup valueGroup = query.valueGroup();
+
+        for ( ValueGroup rangeSeekableValueGroup : RANGE_SEEKABLE_VALUE_GROUPS )
         {
-            throw new NotFoundException( String.format( "Unknown variable `%s`.", name ) );
+            if ( valueGroup == rangeSeekableValueGroup )
+            {
+                return true;
+            }
         }
-        return ctx.apply( name );
+
+        return false;
+    }
+
+    /**
+     * @param value
+     * @return
+     */
+    public static long nodeFromAnyValue( AnyValue value )
+    {
+        if ( value instanceof VirtualNodeValue )
+        {
+            return ((VirtualNodeValue) value).id();
+        }
+        else
+        {
+            throw new ParameterWrongTypeException( String.format( "Expected to find a node but found %s instead", value ) );
+        }
+    }
+
+    /**
+     * @param value
+     * @return
+     */
+    public static long nodeIdOrNullFromAnyValue( AnyValue value )
+    {
+        return value instanceof VirtualNodeValue ? ((VirtualNodeValue) value).id() : -1L;
     }
 }

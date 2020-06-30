@@ -19,8 +19,9 @@
 package org.neo4j.cypher.internal.runtime.compiled.expressions;
 
 import org.neo4j.cypher.internal.runtime.DbAccess;
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext;
-import org.neo4j.values.virtual.MapValue;
+import org.neo4j.cypher.internal.runtime.ExecutionContext;
+import org.neo4j.cypher.internal.runtime.ExpressionCursors;
+import org.neo4j.values.AnyValue;
 
 /**
  * Interface implemented by compiled projection.
@@ -30,9 +31,11 @@ public interface CompiledProjection
     /**
      * Performs a projection
      *
-     * @param context the current context.
-     * @param dbAccess used for accessing the database
-     * @param params the parameters of the query
+     * @param context
+     * @param dbAccess
+     * @param params
+     * @param cursors
+     * @param expressionParms
      */
-    void project( ExecutionContext context, DbAccess dbAccess, MapValue params );
+    void project( ExecutionContext context, DbAccess dbAccess, AnyValue[] params, ExpressionCursors cursors, AnyValue[] expressionParms );
 }

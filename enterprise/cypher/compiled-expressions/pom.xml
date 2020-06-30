@@ -1,54 +1,34 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <parent>
         <groupId>org.graphfoundation.ongdb</groupId>
         <artifactId>cypher-enterprise-parent</artifactId>
-        <version>4.0.4-SNAPSHOT</version>
-        <relativePath>../</relativePath>
+        <version>4.0.7-SNAPSHOT</version>
+        <relativePath>..</relativePath>
     </parent>
 
     <modelVersion>4.0.0</modelVersion>
     <artifactId>ongdb-cypher-compiled-expressions</artifactId>
     <packaging>jar</packaging>
-    <version>4.0.4-SNAPSHOT</version>
+    <version>4.0.7-SNAPSHOT</version>
     <name>ONgDB - Compiled Expressions</name>
     <description>Module for compiling expressions</description>
     <url>https://ongdb.graphfoundation.org/${project.artifactId}/${project.version}</url>
 
     <properties>
-        <licensing.prepend.text>licensing/notice-agpl-prefix.txt</licensing.prepend.text>
-        <license-text.header>headers/AGPL-3-header.txt</license-text.header>
-        <moduleName>org.neo4j.cypher.internal.runtime.compiled.expressions</moduleName>
+        <moduleName>org.graphfoundation.ongdb.cypher.internal.runtime.compiled.expressions</moduleName>
+
+
+        <!-- Added to skip test compilation and running temporarily in enterprise as we upgrade 4.x -->
+        <maven.test.skip>true</maven.test.skip>
     </properties>
 
-    <scm>
-        <connection>scm:git:git://github.com/graphfoundation/ongdb.git</connection>
-        <developerConnection>scm:git:git@github.com:graphfoundation/ongdb.git</developerConnection>
-        <url>https://github.com/graphfoundation/ongdb</url>
-    </scm>
 
-    <licenses>
-        <license>
-            <name>GNU Affero General Public License, Version 3</name>
-            <url>http://www.gnu.org/licenses/agpl-3.0-standalone.html</url>
-        </license>
-    </licenses>
-
-    <build>
-        <plugins>
-            <plugin>
-                <groupId>org.scalastyle</groupId>
-                <artifactId>scalastyle-maven-plugin</artifactId>
-            </plugin>
-        </plugins>
-    </build>
 
     <dependencies>
 
-        <!-- shared versions are defined in the parent pom -->
 
-        <!-- scala -->
 
         <dependency>
             <groupId>org.scala-lang</groupId>
@@ -64,19 +44,20 @@
 
         <dependency>
             <groupId>org.scalatest</groupId>
-            <artifactId>scalatest_2.11</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.scalautils</groupId>
-            <artifactId>scalautils_2.11</artifactId>
+            <artifactId>scalatest_${scala.binary.version}</artifactId>
         </dependency>
         <dependency>
             <groupId>org.scalacheck</groupId>
-            <artifactId>scalacheck_2.11</artifactId>
+            <artifactId>scalacheck_${scala.binary.version}</artifactId>
         </dependency>
 
-        <!-- neo4j -->
+        <!-- ongdb -->
 
+        <dependency>
+            <groupId>org.graphfoundation.ongdb</groupId>
+            <artifactId>ongdb-exceptions</artifactId>
+            <version>${project.version}</version>
+        </dependency>
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
             <artifactId>ongdb-codegen</artifactId>
@@ -84,7 +65,7 @@
         </dependency>
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-cypher-logical-plans-3.6</artifactId>
+            <artifactId>ongdb-cypher-logical-plans</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
@@ -92,22 +73,56 @@
             <artifactId>ongdb-cypher-physical-planning</artifactId>
             <version>${project.version}</version>
         </dependency>
-
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-ast-3.6</artifactId>
+            <artifactId>ongdb-ast-4.0</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.graphfoundation.ongdb</groupId>
+            <artifactId>ongdb-util-4.0</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.graphfoundation.ongdb</groupId>
+            <artifactId>ongdb-util-4.0</artifactId>
             <version>${project.version}</version>
             <type>test-jar</type>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>ongdb-util-3.6</artifactId>
+            <artifactId>kernel-api-test-utils</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.graphfoundation.ongdb</groupId>
+            <artifactId>ongdb-cypher-runtime-util</artifactId>
+            <version>${project.version}</version>
+            <type>test-jar</type>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.graphfoundation.ongdb</groupId>
+            <artifactId>ongdb-cypher-runtime-util</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <dependency>
+           <groupId>org.graphfoundation.ongdb</groupId>
+            <artifactId>ongdb-cypher-interpreted-runtime</artifactId>
             <version>${project.version}</version>
             <type>test-jar</type>
             <scope>test</scope>
         </dependency>
 
+        <dependency>
+            <groupId>org.graphfoundation.ongdb</groupId>
+            <artifactId>ongdb-cypher-interpreted-runtime</artifactId>
+            <version>${project.version}</version>
+        </dependency>
     </dependencies>
 
 </project>
