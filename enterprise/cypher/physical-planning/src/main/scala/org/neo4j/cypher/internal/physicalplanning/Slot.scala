@@ -20,16 +20,21 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compatibility.v3_6.runtime
+package org.neo4j.cypher.internal.physicalplanning
 
-import org.neo4j.cypher.internal.v3_6.util.symbols.CypherType
+import org.neo4j.cypher.internal.v4_0.util.symbols.CypherType
 
 sealed trait Slot {
   def offset: Int
+
   def nullable: Boolean
+
   def typ: CypherType
+
   def isTypeCompatibleWith(other: Slot): Boolean
+
   def isLongSlot: Boolean
+
   def asNullable: Slot
 }
 
@@ -59,6 +64,7 @@ case class RefSlot(offset: Int, nullable: Boolean, typ: CypherType) extends Slot
 
 sealed trait SlotWithAliases {
   def slot: Slot
+
   def aliases: Set[String]
 
   protected def makeString: String = {

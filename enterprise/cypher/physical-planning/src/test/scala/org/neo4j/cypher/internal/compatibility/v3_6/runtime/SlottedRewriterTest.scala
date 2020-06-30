@@ -23,25 +23,16 @@
 package org.neo4j.cypher.internal.compatibility.v3_6.runtime
 
 import org.mockito.Mockito._
-import org.neo4j.cypher.internal.compatibility.v3_6.runtime.PhysicalPlanningAttributes.SlotConfigurations
-import org.neo4j.cypher.internal.compatibility.v3_6.runtime.ast._
-import org.neo4j.cypher.internal.planner.v3_6.spi.TokenContext
-import org.neo4j.cypher.internal.v3_6.logical.plans.{AllNodesScan, ProduceResult, Selection, _}
-import org.neo4j.cypher.internal.v3_6.ast._
-import org.neo4j.cypher.internal.v3_6.expressions._
-import org.neo4j.cypher.internal.v3_6.util.NonEmptyList
-import org.neo4j.cypher.internal.v3_6.util.attribution.SequentialIdGen
-import org.neo4j.cypher.internal.v3_6.util.symbols._
-import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
 
 class SlottedRewriterTest extends CypherFunSuite with AstConstructionTestSupport {
   implicit val idGen = new SequentialIdGen()
-  private def propFor(v: String, key: String) = Property(Variable(v)(pos), PropertyKeyName(key)(pos))(pos)
   private val xProp = propFor("x", "prop")
   private val aProp = propFor("a", "prop")
   private val bProp = propFor("b", "prop")
   private val nProp = propFor("n", "prop")
   private val rProp = propFor("r", "prop")
+
+  private def propFor(v: String, key: String) = Property(Variable(v)(pos), PropertyKeyName(key)(pos))(pos)
 
   test("checking property existence using IS NULL on a nullable node") {
     // OPTIONAL MATCH (n) WHERE n.prop IS NULL
@@ -469,7 +460,6 @@ class SlottedRewriterTest extends CypherFunSuite with AstConstructionTestSupport
     val rhsPipeline = SlotConfiguration.empty.
       newReference("y", nullable = true, CTAny)
 
-
     val lookup = new SlotConfigurations
     lookup.set(sr1.id, lhsPipeline)
     lookup.set(pr1A.id, lhsPipeline)
@@ -504,7 +494,6 @@ class SlottedRewriterTest extends CypherFunSuite with AstConstructionTestSupport
     val lhsExp = prop("a", "prop")
     val rhsExp = prop("b", "prop")
     val join = ValueHashJoin(leafA, leafB, Equals(lhsExp, rhsExp)(pos))
-
 
     val lhsPipeline = SlotConfiguration.empty.
       newLong("a", nullable = false, CTNode)

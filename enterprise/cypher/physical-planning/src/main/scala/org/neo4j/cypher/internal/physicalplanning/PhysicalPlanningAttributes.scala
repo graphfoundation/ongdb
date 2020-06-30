@@ -20,6 +20,23 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compatibility.v3_6.runtime.ast
+package org.neo4j.cypher.internal.physicalplanning
 
-case class IdFromSlot(offset: Int) extends RuntimeExpression
+//import org.neo4j.cypher.internal.compatibility.v3_6.runtime.SlotConfiguration.Size
+
+import org.neo4j.cypher.internal.logical.plans.LogicalPlan
+import org.neo4j.cypher.internal.physicalplanning.SlotConfiguration.Size
+import org.neo4j.cypher.internal.v4_0.util.attribution.Attribute
+import org.neo4j.cypher.internal.v4_0.util.attribution.Id
+
+object PhysicalPlanningAttributes {
+
+  class SlotConfigurations extends Attribute[LogicalPlan, SlotConfiguration]
+
+  class ArgumentSizes extends Attribute[LogicalPlan, Size]
+
+  class ApplyPlans extends Attribute[LogicalPlan, Id]
+
+  class NestedPlanArgumentConfigurations extends Attribute[LogicalPlan, SlotConfiguration]
+
+}

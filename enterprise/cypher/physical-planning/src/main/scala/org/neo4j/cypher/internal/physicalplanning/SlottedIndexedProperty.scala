@@ -20,15 +20,24 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compatibility.v3_6.runtime.ast
+package org.neo4j.cypher.internal.physicalplanning
 
-import org.neo4j.cypher.internal.v3_6.util.InputPosition
-import org.neo4j.cypher.internal.v3_6.ast.semantics.{SemanticCheckResult, SemanticCheckableExpression}
-import org.neo4j.cypher.internal.v3_6.ast.semantics.SemanticCheck
-import org.neo4j.cypher.internal.v3_6.expressions.{Expression => ASTExpression}
+import org.neo4j.cypher.internal.logical.plans.IndexedProperty
 
-trait RuntimeExpression extends ASTExpression with SemanticCheckableExpression {
-  override def semanticCheck(ctx: ASTExpression.SemanticContext): SemanticCheck = SemanticCheckResult.success
+//import org.neo4j.cypher.internal.v3_6.logical.plans.IndexedProperty
 
-  override def position: InputPosition = InputPosition.NONE
+object SlottedIndexedProperty {
+  def apply(node: String, property: IndexedProperty, slots: SlotConfiguration): SlottedIndexedProperty = {
+    val maybeOffset =
+      if (property.shouldGetValue) {
+        Some(slots.getCachedPropertyOffsetFor(property.asCachedProperty(node)))
+      } else {
+        None
+      }
+    SlottedIndexedProperty(property.propertyKeyToken.nameId.id, maybeOffset)
+  }
+}
+
+case class SlottedIndexedProperty(propertyKeyId: Int, maybeCachedNodePropertySlot: Option[Int]) {
+  def getValueFromIndex: Boolean = maybeCachedNodePropertySlot.isDefined
 }

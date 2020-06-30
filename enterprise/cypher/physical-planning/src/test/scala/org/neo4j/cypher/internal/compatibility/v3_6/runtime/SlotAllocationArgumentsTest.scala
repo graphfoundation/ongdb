@@ -22,14 +22,6 @@
  */
 package org.neo4j.cypher.internal.compatibility.v3_6.runtime
 
-import org.neo4j.cypher.internal.compatibility.v3_6.runtime.SlotConfiguration.Size
-import org.neo4j.cypher.internal.compiler.v3_6.planner.LogicalPlanningTestSupport2
-import org.neo4j.cypher.internal.ir.v3_6.CreateNode
-import org.neo4j.cypher.internal.v3_6.ast.semantics.SemanticTable
-import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
-import org.neo4j.cypher.internal.v3_6.expressions._
-import org.neo4j.cypher.internal.v3_6.logical.plans._
-
 class SlotAllocationArgumentsTest extends CypherFunSuite with LogicalPlanningTestSupport2 {
 
   private val x = "x"
@@ -238,19 +230,23 @@ class SlotAllocationArgumentsTest extends CypherFunSuite with LogicalPlanningTes
   }
 
   private def leaf() = Argument(Set.empty)
-  private def applyRight(lhs:LogicalPlan, rhs:LogicalPlan) = Apply(lhs, rhs)
-  private def applyLeft(lhs:LogicalPlan, rhs:LogicalPlan) = SemiApply(lhs, rhs)
-  private def break(source:LogicalPlan) = Eager(source)
-  private def pipe(source:LogicalPlan, nLongs:Int, nRefs:Int) = {
+
+  private def applyRight(lhs: LogicalPlan, rhs: LogicalPlan) = Apply(lhs, rhs)
+
+  private def applyLeft(lhs: LogicalPlan, rhs: LogicalPlan) = SemiApply(lhs, rhs)
+
+  private def break(source: LogicalPlan) = Eager(source)
+
+  private def pipe(source: LogicalPlan, nLongs: Int, nRefs: Int) = {
     var curr: LogicalPlan =
       Create(
         source,
-        (0 until nLongs).map(i => CreateNode("long"+i, Nil, None)),
+        (0 until nLongs).map(i => CreateNode("long" + i, Nil, None)),
         Nil
       )
 
-    for ( i <- 0 until nRefs ) {
-      curr = UnwindCollection(curr, "ref"+i, listOf(literalInt(1)))
+    for (i <- 0 until nRefs) {
+      curr = UnwindCollection(curr, "ref" + i, listOf(literalInt(1)))
     }
     curr
   }

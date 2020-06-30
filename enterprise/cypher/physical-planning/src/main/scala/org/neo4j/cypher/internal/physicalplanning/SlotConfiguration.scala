@@ -5,6 +5,32 @@
  * Copyright (c) 2018-2020 "Graph Foundation"
  * Graph Foundation, Inc. [https://graphfoundation.org]
  *
+ *   This file is part of ONgDB.
+ *
+ *   ONgDB is free software: you can redistribute it and/or modify
+ *   it under the terms of the GNU General Public License as published by
+ *   the Free Software Foundation, either version 3 of the License, or
+ *   (at your option) any later version.
+ *
+ *   This program is distributed in the hope that it will be useful,
+ *   but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *   GNU General Public License for more details.
+ *
+ *   You should have received a copy of the GNU General Public License
+ *   along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ */
+
+package org.neo4j.cypher.internal.physicalplanning
+
+/*
+ * Copyright (c) 2002-2018 "Neo4j"
+ * Neo4j Sweden AB [http://neo4j.com]
+ *
+ * Copyright (c) 2018-2020 "Graph Foundation"
+ * Graph Foundation, Inc. [https://graphfoundation.org]
+ *
  * This file is part of ONgDB.
  *
  * ONgDB is free software: you can redistribute it and/or modify
@@ -20,22 +46,30 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.cypher.internal.compatibility.v3_6.runtime
 
-import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
-import org.neo4j.cypher.internal.v3_6.logical.plans.{CachedNodeProperty, LogicalPlan}
+//import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
+//import org.neo4j.cypher.internal.v3_6.logical.plans.{CachedNodeProperty, LogicalPlan}
+//import org.neo4j.values.AnyValue
+//import org.neo4j.cypher.internal.v3_6.util.InternalException
+
+import org.neo4j.cypher.internal.logical.plans.LogicalPlan
+import org.neo4j.cypher.internal.runtime.ExecutionContext
+import org.neo4j.cypher.internal.v4_0.expressions.ASTCachedProperty
+import org.neo4j.cypher.internal.v4_0.util.attribution.Id
+import org.neo4j.cypher.internal.v4_0.util.symbols.CTAny
+import org.neo4j.cypher.internal.v4_0.util.symbols.CypherType
+import org.neo4j.exceptions.InternalException
 import org.neo4j.values.AnyValue
-import org.neo4j.cypher.internal.v3_6.util.InternalException
-import org.neo4j.cypher.internal.v3_6.util.symbols.{CypherType, CTAny}
 
-import scala.collection.{immutable, mutable}
+import scala.collection.immutable
+import scala.collection.mutable
 
 object SlotConfiguration {
-  def empty = new SlotConfiguration(mutable.Map.empty, mutable.Map.empty, 0, 0)
+  def empty = new SlotConfiguration(mutable.Map.empty, mutable.Map.empty, mutable.Map.empty, 0, 0)
 
   def apply(slots: Map[String, Slot], numberOfLongs: Int, numberOfReferences: Int): SlotConfiguration = {
     val stringToSlot = mutable.Map(slots.toSeq: _*)
-    new SlotConfiguration(stringToSlot, mutable.Map.empty, numberOfLongs, numberOfReferences)
+    new SlotConfiguration(stringToSlot, mutable.Map.empty, mutable.Map.empty, numberOfLongs, numberOfReferences)
   }
 
   def toString(startFrom: LogicalPlan, m: Map[LogicalPlan, SlotConfiguration]): String = {
@@ -53,7 +87,7 @@ object SlotConfiguration {
       def addPlan(p: LogicalPlan): Unit = plans = plans :+ p
     }
 
-    class PipelineBuilder(var buffer: Map[SlotConfiguration, Pipeline] = Map.empty[SlotConfiguration, Pipeline] ) {
+    class PipelineBuilder(var buffer: Map[SlotConfiguration, Pipeline] = Map.empty[SlotConfiguration, Pipeline]) {
       def addPlanAndPipelineInformation(lp: LogicalPlan, pipelineInformation: SlotConfiguration): PipelineBuilder = {
         val p = getOrCreatePipeline(pipelineInformation)
         p.addPlan(lp)
@@ -141,24 +175,27 @@ object SlotConfiguration {
   }
 
   case class Size(nLongs: Int, nReferences: Int)
+
   object Size {
     val zero = Size(nLongs = 0, nReferences = 0)
   }
+
 }
 
 /**
-  * A configuration which maps variables to slots. Two types of slot exists: LongSlot and RefSlot. In LongSlots we
-  * store nodes and relationships, represented by their ids, and in RefSlots everything else, represented as AnyValues.
-  *
-  * @param slots the slots of the configuration.
-  * @param numberOfLongs the number of long slots.
-  * @param numberOfReferences the number of ref slots.
-  */
+ * A configuration which maps variables to slots. Two types of slot exists: LongSlot and RefSlot. In LongSlots we
+ * store nodes and relationships, represented by their ids, and in RefSlots everything else, represented as AnyValues.
+ *
+ * @param slots              the slots of the configuration.
+ * @param numberOfLongs      the number of long slots.
+ * @param numberOfReferences the number of ref slots.
+ */
+
 class SlotConfiguration(private val slots: mutable.Map[String, Slot],
-                        private val cachedProperties: mutable.Map[CachedNodeProperty, RefSlot],
+                        private val cachedProperties: mutable.Map[ASTCachedProperty, RefSlot],
+                        val applyPlans: mutable.Map[Id, Object],
                         var numberOfLongs: Int,
                         var numberOfReferences: Int) {
-
 
   private val aliases: mutable.Set[String] = mutable.Set()
   private val slotAliases = new mutable.HashMap[Slot, mutable.Set[String]] with mutable.MultiMap[Slot, String]
@@ -200,44 +237,13 @@ class SlotConfiguration(private val slots: mutable.Map[String, Slot],
 
   def copy(): SlotConfiguration = {
     val newPipeline = new SlotConfiguration(this.slots.clone(),
-                                            this.cachedProperties.clone(),
-                                            numberOfLongs,
-                                            numberOfReferences)
+      this.cachedProperties.clone(),
+      this.applyPlans.clone(),
+      numberOfLongs,
+      numberOfReferences)
     newPipeline.aliases ++= aliases
     newPipeline.slotAliases ++= slotAliases
     newPipeline
-  }
-
-  private def replaceExistingSlot(key: String, existingSlot: Slot, modifiedSlot: Slot): Unit = {
-    slots.put(key, modifiedSlot)
-    val existingAliases = slotAliases.get(existingSlot).get
-    assert(existingAliases.contains(key))
-    slotAliases.put(modifiedSlot, existingAliases)
-    slotAliases.remove(existingSlot)
-  }
-
-  private def unifyTypeAndNullability(key: String, existingSlot: Slot, newSlot: Slot) = {
-    val updateNullable = !existingSlot.nullable && newSlot.nullable
-    val updateTyp = existingSlot.typ != newSlot.typ && !existingSlot.typ.isAssignableFrom(newSlot.typ)
-    assert(!updateTyp || newSlot.typ.isAssignableFrom(existingSlot.typ))
-    if (updateNullable || updateTyp) {
-      val modifiedSlot = (existingSlot, updateNullable, updateTyp) match {
-        // We are conservative about nullability and increase it to true
-        case ((LongSlot(offset, _, _), true, true)) =>
-          LongSlot(offset, true, newSlot.typ)
-        case ((RefSlot(offset, _, _), true, true)) =>
-          RefSlot(offset, true, newSlot.typ)
-        case ((LongSlot(offset, _, typ), true, false)) =>
-          LongSlot(offset, true, typ)
-        case ((RefSlot(offset, _, typ), true, false)) =>
-          RefSlot(offset, true, typ)
-        case ((LongSlot(offset, nullable, _), false, true)) =>
-          LongSlot(offset, nullable, newSlot.typ)
-        case ((RefSlot(offset, nullable, _), false, true)) =>
-          RefSlot(offset, nullable, newSlot.typ)
-      }
-      replaceExistingSlot(key, existingSlot, modifiedSlot);
-    }
   }
 
   def newLong(key: String, nullable: Boolean, typ: CypherType): SlotConfiguration = {
@@ -276,7 +282,7 @@ class SlotConfiguration(private val slots: mutable.Map[String, Slot],
     this
   }
 
-  def newCachedProperty(key: CachedNodeProperty): SlotConfiguration = {
+  def newCachedProperty(key: ASTCachedProperty): SlotConfiguration = {
     cachedProperties.get(key) match {
       case Some(existingSlot) =>
         throw new InternalException(s"Tried overwriting already taken cached node property $key!")
@@ -288,7 +294,7 @@ class SlotConfiguration(private val slots: mutable.Map[String, Slot],
     this
   }
 
-  def newCachedPropertyIfUnseen(key: CachedNodeProperty): SlotConfiguration = {
+  def newCachedPropertyIfUnseen(key: ASTCachedProperty): SlotConfiguration = {
     cachedProperties.get(key) match {
       case Some(existingSlot) => // do nothing
       case None =>
@@ -310,7 +316,7 @@ class SlotConfiguration(private val slots: mutable.Map[String, Slot],
     case _ => throw new InternalException(s"Uh oh... There was no slot for `$name`")
   }
 
-  def getCachedNodePropertyOffsetFor(key: CachedNodeProperty): Int = cachedProperties(key).offset
+  def getCachedPropertyOffsetFor(key: ASTCachedProperty): Int = cachedProperties(key).offset
 
   def updateAccessorFunctions(key: String, getter: ExecutionContext => AnyValue, setter: (ExecutionContext, AnyValue) => Unit,
                               primitiveNodeSetter: Option[(ExecutionContext, Long) => Unit],
@@ -347,7 +353,7 @@ class SlotConfiguration(private val slots: mutable.Map[String, Slot],
 
   // NOTE: This will give duplicate slots when we have aliases
   def foreachSlot[U](onVariable: ((String, Slot)) => U,
-                     onCachedNodeProperty: ((CachedNodeProperty, RefSlot)) => Unit
+                     onCachedNodeProperty: ((ASTCachedProperty, RefSlot)) => Unit
                     ): Unit = {
     slots.foreach(onVariable)
     cachedProperties.foreach(onCachedNodeProperty)
@@ -355,7 +361,7 @@ class SlotConfiguration(private val slots: mutable.Map[String, Slot],
 
   // NOTE: This will give duplicate slots when we have aliases
   def foreachSlotOrdered(onVariable: (String, Slot) => Unit,
-                         onCachedNodeProperty: CachedNodeProperty => Unit
+                         onCachedNodeProperty: ASTCachedProperty => Unit
                         ): Unit = {
     val (longs, refs) = slots.toSeq.partition(_._2.isLongSlot)
     for ((variable, slot) <- longs.sortBy(_._2.offset)) onVariable(variable, slot)
@@ -374,21 +380,14 @@ class SlotConfiguration(private val slots: mutable.Map[String, Slot],
     }
   }
 
-
   // NOTE: We need to implement caching. Use naming convention of the method above (i.e. foreachSlotXXXX)
   // We need to now call this method in the SlottedExecutionContext.
-  def foreachSlotCached(onCachedNodeProperty: ((CachedNodeProperty, RefSlot)) => Unit): Unit = {
+  def foreachCachedSlot(onCachedNodeProperty: ((ASTCachedProperty, RefSlot)) => Unit): Unit = {
     cachedProperties.foreach(onCachedNodeProperty)
   }
 
-
-
-
-
-
-
   // NOTE: This will give duplicate slots when we have aliases
-  def mapSlot[U](f: ((String,Slot)) => U): Iterable[U] = slots.map(f)
+  def mapSlot[U](f: ((String, Slot)) => U): Iterable[U] = slots.map(f)
 
   def partitionSlots(p: (String, Slot) => Boolean): (Seq[(String, Slot)], Seq[(String, Slot)]) = {
     slots.toSeq.partition {
@@ -416,28 +415,60 @@ class SlotConfiguration(private val slots: mutable.Map[String, Slot],
   override def toString = s"SlotConfiguration(longs=$numberOfLongs, refs=$numberOfReferences, slots=$slots, cachedProperties=$cachedProperties)"
 
   /**
-    * NOTE: Only use for debugging
-    */
+   * NOTE: Only use for debugging
+   */
   def getLongSlots: immutable.IndexedSeq[SlotWithAliases] =
     slotAliases.toIndexedSeq.collect {
       case (slot: LongSlot, aliases) => LongSlotWithAliases(slot, aliases.toSet)
     }.sorted(SlotWithAliasesOrdering)
 
   /**
-    * NOTE: Only use for debugging
-    */
+   * NOTE: Only use for debugging
+   */
   def getRefSlots: immutable.IndexedSeq[SlotWithAliases] =
     slotAliases.toIndexedSeq.collect {
       case (slot: RefSlot, aliases) => RefSlotWithAliases(slot, aliases.toSet)
     }.sorted(SlotWithAliasesOrdering)
 
   /**
-    * NOTE: Only use for debugging
-    */
+   * NOTE: Only use for debugging
+   */
   def getCachedPropertySlots: immutable.IndexedSeq[SlotWithAliases] =
     cachedProperties.toIndexedSeq.map {
       case (cachedNodeProperty, slot) => RefSlotWithAliases(slot, Set(cachedNodeProperty.asCanonicalStringVal))
     }.sorted(SlotWithAliasesOrdering)
+
+  private def replaceExistingSlot(key: String, existingSlot: Slot, modifiedSlot: Slot): Unit = {
+    slots.put(key, modifiedSlot)
+    val existingAliases = slotAliases.get(existingSlot).get
+    assert(existingAliases.contains(key))
+    slotAliases.put(modifiedSlot, existingAliases)
+    slotAliases.remove(existingSlot)
+  }
+
+  private def unifyTypeAndNullability(key: String, existingSlot: Slot, newSlot: Slot) = {
+    val updateNullable = !existingSlot.nullable && newSlot.nullable
+    val updateTyp = existingSlot.typ != newSlot.typ && !existingSlot.typ.isAssignableFrom(newSlot.typ)
+    assert(!updateTyp || newSlot.typ.isAssignableFrom(existingSlot.typ))
+    if (updateNullable || updateTyp) {
+      val modifiedSlot = (existingSlot, updateNullable, updateTyp) match {
+        // We are conservative about nullability and increase it to true
+        case ((LongSlot(offset, _, _), true, true)) =>
+          LongSlot(offset, true, newSlot.typ)
+        case ((RefSlot(offset, _, _), true, true)) =>
+          RefSlot(offset, true, newSlot.typ)
+        case ((LongSlot(offset, _, typ), true, false)) =>
+          LongSlot(offset, true, typ)
+        case ((RefSlot(offset, _, typ), true, false)) =>
+          RefSlot(offset, true, typ)
+        case ((LongSlot(offset, nullable, _), false, true)) =>
+          LongSlot(offset, nullable, newSlot.typ)
+        case ((RefSlot(offset, nullable, _), false, true)) =>
+          RefSlot(offset, nullable, newSlot.typ)
+      }
+      replaceExistingSlot(key, existingSlot, modifiedSlot);
+    }
+  }
 
   object SlotWithAliasesOrdering extends Ordering[SlotWithAliases] {
     def compare(x: SlotWithAliases, y: SlotWithAliases): Int = (x, y) match {
@@ -460,4 +491,5 @@ class SlotConfiguration(private val slots: mutable.Map[String, Slot],
         x.offset - y.offset
     }
   }
+
 }

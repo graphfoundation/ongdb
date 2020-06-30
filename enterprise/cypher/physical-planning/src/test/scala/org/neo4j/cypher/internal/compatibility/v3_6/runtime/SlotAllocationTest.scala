@@ -22,17 +22,6 @@
  */
 package org.neo4j.cypher.internal.compatibility.v3_6.runtime
 
-import org.neo4j.cypher.internal.compiler.v3_6.planner.LogicalPlanningTestSupport2
-import org.neo4j.cypher.internal.ir.v3_6.{CreateNode, VarPatternLength}
-import org.neo4j.cypher.internal.v3_6.logical.plans.{Ascending, _}
-import org.neo4j.cypher.internal.v3_6.logical.{plans => logicalPlans}
-import org.neo4j.cypher.internal.v3_6.ast.ASTAnnotationMap
-import org.neo4j.cypher.internal.v3_6.ast.semantics.{ExpressionTypeInfo, SemanticTable}
-import org.neo4j.cypher.internal.v3_6.expressions._
-import org.neo4j.cypher.internal.v3_6.util.LabelId
-import org.neo4j.cypher.internal.v3_6.util.symbols._
-import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
-
 //noinspection NameBooleanParameters
 class SlotAllocationTest extends CypherFunSuite with LogicalPlanningTestSupport2 {
 
@@ -447,10 +436,10 @@ class SlotAllocationTest extends CypherFunSuite with LogicalPlanningTestSupport2
   }
 
   test("cartesian product should allocate lhs followed by rhs, in order") {
-    def expand(n:Int): LogicalPlan =
+    def expand(n: Int): LogicalPlan =
       n match {
         case 1 => NodeByLabelScan("n1", LabelName("label2")(pos), Set.empty)
-        case _ => Expand(expand(n-1), "n"+(n-1), SemanticDirection.INCOMING, Seq.empty, "n"+n, "r"+(n-1), ExpandAll)
+        case _ => Expand(expand(n - 1), "n" + (n - 1), SemanticDirection.INCOMING, Seq.empty, "n" + n, "r" + (n - 1), ExpandAll)
       }
     val N = 10
 
@@ -463,15 +452,15 @@ class SlotAllocationTest extends CypherFunSuite with LogicalPlanningTestSupport2
     val allocations = SlotAllocation.allocateSlots(Xproduct, semanticTable).slotConfigurations
 
     // then
-    allocations should have size N+2
+    allocations should have size N + 2
 
     val expectedPipelines =
       (1 until N).foldLeft(allocations(lhs.id))(
         (acc, i) =>
           acc
-            .newLong("n"+i, false, CTNode)
-            .newLong("r"+i, false, CTRelationship)
-      ).newLong("n"+N, false, CTNode)
+            .newLong("n" + i, false, CTNode)
+            .newLong("r" + i, false, CTRelationship)
+      ).newLong("n" + N, false, CTNode)
 
     allocations(Xproduct.id) should equal(expectedPipelines)
   }
@@ -561,11 +550,11 @@ class SlotAllocationTest extends CypherFunSuite with LogicalPlanningTestSupport2
     )))
     allocations(hashJoin.id) should equal(SlotConfiguration(numberOfLongs = 4, numberOfReferences = 0, slots =
       Map(
-      "x" -> LongSlot(0, nullable = false, CTNode),
-      "r" -> LongSlot(1, nullable = false, CTRelationship),
-      "y" -> LongSlot(2, nullable = false, CTNode),
-      "r2" -> LongSlot(3, nullable = false, CTRelationship)
-    )))
+        "x" -> LongSlot(0, nullable = false, CTNode),
+        "r" -> LongSlot(1, nullable = false, CTRelationship),
+        "y" -> LongSlot(2, nullable = false, CTNode),
+        "r2" -> LongSlot(3, nullable = false, CTRelationship)
+      )))
   }
 
   test("joins should remember cached node properties from both sides") {
@@ -669,7 +658,6 @@ class SlotAllocationTest extends CypherFunSuite with LogicalPlanningTestSupport2
     allocations should have size 3
     allocations(leaf.id) should equal(SlotConfiguration(Map.empty, 0, 0))
 
-
     allocations(unwind.id) should equal(SlotConfiguration(numberOfLongs = 0, numberOfReferences = 1, slots = Map(
       "x" -> RefSlot(0, nullable = true, CTAny)
     )))
@@ -692,7 +680,6 @@ class SlotAllocationTest extends CypherFunSuite with LogicalPlanningTestSupport2
     allocations should have size 4
     allocations(leaf.id) should equal(SlotConfiguration(Map.empty, 0, 0))
 
-
     val expectedPipeline = SlotConfiguration(numberOfLongs = 0, numberOfReferences = 1, slots = Map(
       "x" -> RefSlot(0, nullable = true, CTAny)
     ))
@@ -703,12 +690,12 @@ class SlotAllocationTest extends CypherFunSuite with LogicalPlanningTestSupport2
 
   test("semi apply") {
     // MATCH (x) WHERE (x) -[:r]-> (y) ....
-    testSemiApply(SemiApply(_,_))
+    testSemiApply(SemiApply(_, _))
   }
 
   test("anti semi apply") {
     // MATCH (x) WHERE NOT (x) -[:r]-> (y) ....
-    testSemiApply(AntiSemiApply(_,_))
+    testSemiApply(AntiSemiApply(_, _))
   }
 
   def testSemiApply(
