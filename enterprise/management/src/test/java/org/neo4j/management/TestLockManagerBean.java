@@ -36,10 +36,9 @@ import static org.junit.Assert.assertNotNull;
 
 public class TestLockManagerBean
 {
-    private LockManager lockManager;
-
     @Rule
     public ImpermanentDatabaseRule dbRule = new ImpermanentDatabaseRule();
+    private LockManager lockManager;
     private GraphDatabaseAPI graphDb;
 
     @Before
@@ -47,7 +46,7 @@ public class TestLockManagerBean
     {
         graphDb = dbRule.getGraphDatabaseAPI();
         lockManager = graphDb.getDependencyResolver().resolveDependency( JmxKernelExtension.class )
-                .getSingleManagementBean( LockManager.class );
+                             .getSingleManagementBean( LockManager.class );
     }
 
     @Test
@@ -69,7 +68,6 @@ public class TestLockManagerBean
             assertEquals( "unexpected lock count", 1, locks.size() );
             LockInfo lock = locks.get( 0 );
             assertNotNull( "null lock", lock );
-
         }
         List<LockInfo> locks = lockManager.getLocks();
         assertEquals( "unexpected lock count", 0, locks.size() );
@@ -84,5 +82,4 @@ public class TestLockManagerBean
             return node;
         }
     }
-
 }

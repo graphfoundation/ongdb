@@ -50,6 +50,14 @@ public class IndexSamplingManagerBeanTest
     private NeoStoreDataSource dataSource;
     private IndexingService indexingService;
 
+    private static TokenHolders mockedTokenHolders()
+    {
+        return new TokenHolders(
+                mock( TokenHolder.class ),
+                mock( TokenHolder.class ),
+                mock( TokenHolder.class ) );
+    }
+
     @Before
     public void setup()
     {
@@ -82,8 +90,8 @@ public class IndexSamplingManagerBeanTest
 
         // Then
         verify( indexingService, times( 1 ) ).triggerIndexSampling(
-                SchemaDescriptorFactory.forLabel( LABEL_ID, PROPERTY_ID ) ,
-                IndexSamplingMode.TRIGGER_REBUILD_UPDATED);
+                SchemaDescriptorFactory.forLabel( LABEL_ID, PROPERTY_ID ),
+                IndexSamplingMode.TRIGGER_REBUILD_UPDATED );
     }
 
     @Test
@@ -98,8 +106,8 @@ public class IndexSamplingManagerBeanTest
 
         // Then
         verify( indexingService, times( 1 ) ).triggerIndexSampling(
-                SchemaDescriptorFactory.forLabel( LABEL_ID, PROPERTY_ID ) ,
-                IndexSamplingMode.TRIGGER_REBUILD_ALL);
+                SchemaDescriptorFactory.forLabel( LABEL_ID, PROPERTY_ID ),
+                IndexSamplingMode.TRIGGER_REBUILD_ALL );
     }
 
     @Test( expected = IllegalArgumentException.class )
@@ -132,13 +140,5 @@ public class IndexSamplingManagerBeanTest
 
         // When
         storeAccess.triggerIndexSampling( EXISTING_LABEL, EXISTING_PROPERTY, false );
-    }
-
-    private static TokenHolders mockedTokenHolders()
-    {
-        return new TokenHolders(
-                mock( TokenHolder.class ),
-                mock( TokenHolder.class ),
-                mock( TokenHolder.class ) );
     }
 }

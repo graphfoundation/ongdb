@@ -49,7 +49,7 @@ public class ManagementBeansTest
     public void canAccessKernelBean()
     {
         Kernel kernel = graphDb.getDependencyResolver().resolveDependency( JmxKernelExtension.class )
-                .getSingleManagementBean( Kernel.class );
+                               .getSingleManagementBean( Kernel.class );
         assertNotNull( "kernel bean is null", kernel );
         assertNotNull( "MBeanQuery of kernel bean is null", kernel.getMBeanQuery() );
     }
@@ -58,7 +58,7 @@ public class ManagementBeansTest
     public void canAccessPrimitivesBean()
     {
         Primitives primitives = graphDb.getDependencyResolver().resolveDependency( JmxKernelExtension.class )
-                .getSingleManagementBean( Primitives.class );
+                                       .getSingleManagementBean( Primitives.class );
         assertNotNull( "primitives bean is null", primitives );
         primitives.getNumberOfNodeIdsInUse();
     }
@@ -74,14 +74,14 @@ public class ManagementBeansTest
     public void canGetConfigurationParameters()
     {
         Neo4jManager manager = getManager();
-        Map<String, Object> configuration = manager.getConfiguration();
+        Map<String,Object> configuration = manager.getConfiguration();
         assertTrue( "No configuration returned", configuration.size() > 0 );
     }
 
     private Neo4jManager getManager()
     {
         return new Neo4jManager( graphDb.getDependencyResolver().resolveDependency( JmxKernelExtension.class )
-                .getSingleManagementBean( Kernel.class ) );
+                                        .getSingleManagementBean( Kernel.class ) );
     }
 
     @Test

@@ -37,26 +37,6 @@ import static org.junit.Assert.assertEquals;
 
 public class CodeDuplicationValidationTest
 {
-    private class DefaultManagementSupport extends ManagementSupport
-    {
-        @Override
-        protected ObjectName createObjectName( String instanceId, String beanName, boolean query, String... extraNaming )
-        {
-            return super.createObjectName( instanceId, beanName, query, extraNaming );
-        }
-
-        @Override
-        protected String getBeanName( Class<?> beanInterface )
-        {
-            return super.getBeanName( beanInterface );
-        }
-    }
-
-    private class CustomManagementSupport extends AdvancedManagementSupport
-    {
-        // belongs to this package - no override needed
-    }
-
     @Test
     public void kernelBeanTypeNameMatchesExpected()
     {
@@ -87,15 +67,35 @@ public class CodeDuplicationValidationTest
     private void assertEqualBeanName( Class<?> beanClass )
     {
         assertEquals( new DefaultManagementSupport().getBeanName( beanClass ),
-                new CustomManagementSupport().getBeanName( beanClass ) );
+                      new CustomManagementSupport().getBeanName( beanClass ) );
     }
 
     @Test
     public void generatesEqualObjectNames()
     {
         assertEquals( new DefaultManagementSupport().createMBeanQuery( "test-instance" ),
-                new CustomManagementSupport().createMBeanQuery( "test-instance" ) );
+                      new CustomManagementSupport().createMBeanQuery( "test-instance" ) );
         assertEquals( new DefaultManagementSupport().createObjectName( "test-instance", Kernel.class ),
-                new CustomManagementSupport().createObjectName( "test-instance", Kernel.class ) );
+                      new CustomManagementSupport().createObjectName( "test-instance", Kernel.class ) );
+    }
+
+    private class DefaultManagementSupport extends ManagementSupport
+    {
+        @Override
+        protected ObjectName createObjectName( String instanceId, String beanName, boolean query, String... extraNaming )
+        {
+            return super.createObjectName( instanceId, beanName, query, extraNaming );
+        }
+
+        @Override
+        protected String getBeanName( Class<?> beanInterface )
+        {
+            return super.getBeanName( beanInterface );
+        }
+    }
+
+    private class CustomManagementSupport extends AdvancedManagementSupport
+    {
+        // belongs to this package - no override needed
     }
 }
