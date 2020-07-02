@@ -28,11 +28,11 @@ import java.util.concurrent.ConcurrentHashMap;
 public class PredefinedRolesBuilder implements RolesBuilder
 {
     public static final WildcardPermission SYSTEM = new WildcardPermission( "system:*" );
-    public static final WildcardPermission SCHEMA = new WildcardPermission( "db:*:*:schema" );
-    public static final WildcardPermission TOKEN = new WildcardPermission( "db:*:*:token" );
-    public static final WildcardPermission WRITE = new WildcardPermission( "db:*:write:graph" );
-    public static final WildcardPermission READ = new WildcardPermission( "db:*:read:graph" );
-    public static final WildcardPermission ACCESS = new WildcardPermission( "db:*:access:graph" );
+    public static final WildcardPermission SCHEMA = new WildcardPermission( "database:*:*:schema" );
+    public static final WildcardPermission TOKEN = new WildcardPermission( "database:*:*:token" );
+    public static final WildcardPermission WRITE = new WildcardPermission( "database:*:write:graph" );
+    public static final WildcardPermission READ = new WildcardPermission( "database:*:read:graph" );
+    public static final WildcardPermission ACCESS = new WildcardPermission( "database:*:access:graph" );
     public static final Map<String,SimpleRole> roles;
     private static final Map<String,SimpleRole> innerRoles = staticBuildRoles();
 

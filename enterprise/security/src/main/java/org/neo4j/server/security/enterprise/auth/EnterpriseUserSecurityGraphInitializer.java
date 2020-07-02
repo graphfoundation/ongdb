@@ -288,7 +288,7 @@ public class EnterpriseUserSecurityGraphInitializer extends UserSecurityGraphIni
             relQualifier.setProperty( "type", "relationship" );
             relQualifier.setProperty( "label", "*" );
             Node dbQualifier = tx.createNode( Label.label( "DatabaseQualifier" ) );
-            dbQualifier.setProperty( "type", "db" );
+            dbQualifier.setProperty( "type", "database" );
             dbQualifier.setProperty( "label", "" );
             Label segmentLabel = Label.label( "SecurityPart" );
             Node labelSegement = tx.createNode( segmentLabel );
