@@ -5,7 +5,7 @@
     <parent>
         <groupId>org.graphfoundation.ongdb.assembly</groupId>
         <artifactId>ongdb-standalone</artifactId>
-        <version>4.0.4-SNAPSHOT</version>
+        <version>4.0.7-SNAPSHOT</version>
         <relativePath>..</relativePath>
     </parent>
 
@@ -27,6 +27,10 @@
 
     <properties>
         <neo4j.mainClass>org.neo4j.server.enterprise.EnterpriseEntryPoint</neo4j.mainClass>
+		
+		
+		<ssl-config-core.version>0.3.7</ssl-config-core.version>
+		<typesafe-config.version>1.3.3</typesafe-config.version>
     </properties>
 
     <licenses>
@@ -136,11 +140,15 @@
 
         </plugins>
     </build>
-
     <dependencies>
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
             <artifactId>ongdb</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.graphfoundation.ongdb.app</groupId>
+            <artifactId>ongdb-server</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
@@ -153,6 +161,40 @@
             <artifactId>ongdb-server-enterprise</artifactId>
             <version>${project.version}</version>
         </dependency>
+		
+		<!-- Begin Enterprise Dependencies -->
+		<dependency>
+		    <groupId>com.typesafe</groupId>
+		    <artifactId>ssl-config-core_2.12</artifactId>
+		    <version>${ssl-config-core.version}</version>
+		</dependency>
+		
+		<dependency>
+		    <groupId>com.typesafe</groupId>
+		    <artifactId>config</artifactId>
+		    <version>${typesafe-config.version}</version>
+		</dependency>
+		<!-- End Enterprise Dependencies -->
+		
+        <!-- Test dependencies -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.graphfoundation.ongdb</groupId>
+            <artifactId>test-utils</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.graphfoundation.ongdb</groupId>
+            <artifactId>io-test-utils</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
+
 
 </project>

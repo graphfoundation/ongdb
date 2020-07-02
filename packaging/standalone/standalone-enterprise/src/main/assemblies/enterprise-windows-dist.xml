@@ -92,51 +92,45 @@
 
   <dependencySets>
     <dependencySet>
-      <outputDirectory>/lib</outputDirectory>
+      <outputDirectory>lib</outputDirectory>
+      <directoryMode>0755</directoryMode>
+      <fileMode>0755</fileMode>
       <unpack>false</unpack>
       <useProjectArtifact>false</useProjectArtifact>
       <useStrictFiltering>true</useStrictFiltering>
       <includes>
         <include>org.graphfoundation.ongdb:*</include>
-        <include>org.neo4j:*</include>
-        <include>jline:jline</include>
         <include>org.apache.lucene:lucene-core</include>
         <include>org.apache.lucene:lucene-analyzers-common</include>
         <include>org.apache.lucene:lucene-queryparser</include>
         <include>org.apache.lucene:lucene-codecs</include>
-        <include>io.netty:netty</include>
-        <include>com.googlecode.concurrentlinkedhashmap:concurrentlinkedhashmap-lru</include>
         <include>org.scala-lang:*</include>
         <include>org.parboiled:*</include>
-        <include>net.sf.opencsv:opencsv</include>
         <include>org.apache.commons:commons-lang3</include>
-        <include>io.dropwizard.metrics:*</include>
-        <include>org.slf4j:slf4j-api</include>
+        <!-- Enterprise includes -->
+        <include>org.ow2.asm:*</include>
+
       </includes>
       <excludes>
         <exclude>*:pom:*</exclude>
-        <exclude>org.graphfoundation.ongdb:ongdb-enterprise:jar</exclude>
-        <!--<exclude>org.neo4j:neo4j</exclude>-->
+        <!-- Disable Neo4j's data collector
+        <exclude>org.graphfoundation.ongdb:ongdb-data-collector</exclude>
+         -->
       </excludes>
     </dependencySet>
     <dependencySet>
       <outputDirectory>lib</outputDirectory>
+      <directoryMode>0755</directoryMode>
+      <fileMode>0755</fileMode>
       <unpack>false</unpack>
       <useProjectArtifact>false</useProjectArtifact>
       <useStrictFiltering>true</useStrictFiltering>
       <excludes>
         <exclude>org.graphfoundation.ongdb:*</exclude>
-        <exclude>org.neo4j:*</exclude>
-        <exclude>jline:jline</exclude>
         <exclude>org.apache.lucene:*</exclude>
-        <exclude>io.netty:netty</exclude>
         <exclude>org.scala-lang:*</exclude>
         <exclude>org.parboiled:*</exclude>
-        <exclude>com.googlecode.concurrentlinkedhashmap:concurrentlinkedhashmap-lru</exclude>
-        <exclude>net.sf.opencsv:opencsv</exclude>
         <exclude>org.apache.commons:commons-lang3</exclude>
-        <exclude>io.dropwizard.metrics:*</exclude>
-        <exclude>org.slf4j:slf4j-api</exclude>
       </excludes>
     </dependencySet>
   </dependencySets>

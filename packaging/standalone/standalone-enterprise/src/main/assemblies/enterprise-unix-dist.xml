@@ -1,23 +1,29 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
 
-    Copyright (c) 2002-2017 "Neo Technology,"
-    Network Engine for Objects in Lund AB [http://neotechnology.com]
+    Copyright (c) 2018-2020 "Graph Foundation"
+    Graph Foundation, Inc. [https://graphfoundation.org]
 
-    This file is part of ONgDB.
+    Copyright (c) 2002-2020 "Neo4j,"
+    Neo4j Sweden AB [http://neo4j.com]
 
-    ONgDB is free software: you can redistribute it and/or modify
-    it under the terms of the GNU Affero General Public License as
-    published by the Free Software Foundation, either version 3 of the
-    License, or (at your option) any later version.
+    This file is part of ONgDB Enterprise Edition. The included source
+    code can be redistributed and/or modified under the terms of the
+    GNU AFFERO GENERAL PUBLIC LICENSE Version 3
+    (http://www.fsf.org/licensing/licenses/agpl-3.0.html) as found
+    in the associated LICENSE.txt file.
 
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU Affero General Public License for more details.
 
-    You should have received a copy of the GNU Affero General Public License
-    along with this program. If not, see <http://www.gnu.org/licenses/>.
+    Neo4j object code can be licensed independently from the source
+    under separate terms from the AGPL. Inquiries can be directed to:
+    licensing@neo4j.com
+
+    More information is also available at:
+    https://neo4j.com/licensing/
 
 -->
 <assembly xmlns="http://maven.apache.org/ASSEMBLY/2.0.0"
@@ -27,6 +33,7 @@
   <formats>
     <format>tar.gz</format>
   </formats>
+
   <fileSets>
 
     <!-- filter plain text -->
@@ -35,33 +42,12 @@
       <outputDirectory/>
       <lineEnding>keep</lineEnding>
       <filtered>true</filtered>
-      <excludes>
-        <exclude>conf/jmx.*</exclude>
-        <exclude>**/.keep</exclude>
-      </excludes>
       <directoryMode>0755</directoryMode>
       <fileMode>0644</fileMode>
+      <excludes>
+        <exclude>**/.keep</exclude>
+      </excludes>
     </fileSet>
-    <!-- password files -->
-    <fileSet>
-      <directory>src/main/distribution/text/enterprise</directory>
-      <outputDirectory/>
-      <lineEnding>unix</lineEnding>
-      <filtered>true</filtered>
-      <includes>
-        <include>conf/jmx.*</include>
-      </includes>
-      <fileMode>0600</fileMode>
-    </fileSet>
-    <!-- non-maven jars -->
-    <fileSet>
-      <directory>src/main/distribution/binary</directory>
-      <outputDirectory/>
-      <includes>
-        <include>lib/*.jar</include>
-      </includes>
-    </fileSet>
-    <!-- chmod 755 for unix bins -->
     <!-- filter and chmod 755 shell scripts -->
     <!-- filter m4 scripts-->
     <fileSet>
@@ -70,24 +56,15 @@
       <lineEnding>unix</lineEnding>
       <fileMode>0755</fileMode>
       <excludes>
-        <exclude>**/*.m4</exclude>
         <exclude>**/*.bat</exclude>
+        <exclude>**/*.m4</exclude>
         <exclude>**/*.psd1</exclude>
         <exclude>**/*.psm1</exclude>
         <exclude>**/*.ps1</exclude>
         <exclude>**/Neo4j-Management</exclude>
         <exclude>**/*.exe</exclude>
-        <exclude>**/2.x-config-migrator.jar</exclude>
       </excludes>
       <filtered>true</filtered>
-    </fileSet>
-    <!-- configuration migrator -->
-    <fileSet>
-      <directory>${project.parent.basedir}/src/main/distribution/shell-scripts</directory>
-      <outputDirectory/>
-      <includes>
-        <include>**/2.x-config-migrator.jar</include>
-      </includes>
     </fileSet>
     <!-- filter and chmod 755 cypher-shell -->
     <fileSet>
@@ -107,11 +84,40 @@
         <include>**/*.jar</include>
       </includes>
     </fileSet>
+    <!-- TODO: temporary workaround for browser dependency -->
+    <fileSet>
+      <directory>${project.parent.basedir}/src/main/distribution/neo4j-browser-flat</directory>
+      <outputDirectory>lib</outputDirectory>
+      <includes>
+        <include>**/*.jar</include>
+      </includes>
+      <excludes>
+        <exclude>**/*-sources.jar</exclude>
+        <exclude>**/*-tests.jar</exclude>
+      </excludes>
+    </fileSet>
+	
+    <!-- Begin Enterprise specific filesets not in community -->
+  
+    <!-- password files -->
+    <fileSet>
+      <directory>src/main/distribution/text/enterprise</directory>
+      <outputDirectory/>
+      <lineEnding>unix</lineEnding>
+      <filtered>true</filtered>
+      <includes>
+        <include>conf/jmx.*</include>
+      </includes>
+      <fileMode>0600</fileMode>
+    </fileSet>
+     <!-- End Enterprise specific filesets not in community -->
   </fileSets>
+  
+
 
   <dependencySets>
     <dependencySet>
-      <outputDirectory>/lib</outputDirectory>
+      <outputDirectory>lib</outputDirectory>
       <directoryMode>0755</directoryMode>
       <fileMode>0755</fileMode>
       <unpack>false</unpack>
@@ -119,25 +125,22 @@
       <useStrictFiltering>true</useStrictFiltering>
       <includes>
         <include>org.graphfoundation.ongdb:*</include>
-        <include>org.neo4j:*</include>
-        <include>jline:jline</include>
         <include>org.apache.lucene:lucene-core</include>
         <include>org.apache.lucene:lucene-analyzers-common</include>
         <include>org.apache.lucene:lucene-queryparser</include>
         <include>org.apache.lucene:lucene-codecs</include>
-        <include>io.netty:netty</include>
         <include>org.scala-lang:*</include>
         <include>org.parboiled:*</include>
-        <include>com.googlecode.concurrentlinkedhashmap:concurrentlinkedhashmap-lru</include>
-        <include>net.sf.opencsv:opencsv</include>
         <include>org.apache.commons:commons-lang3</include>
-        <include>io.dropwizard.metrics:*</include>
-        <include>org.slf4j:slf4j-api</include>
+		<!-- Enterprise includes -->
+		<include>org.ow2.asm:*</include>
+
       </includes>
       <excludes>
         <exclude>*:pom:*</exclude>
-        <exclude>org.graphfoundation.ongdb:ongdb-enterprise:jar</exclude>
-        <!--<exclude>org.neo4j:neo4j</exclude>-->
+        <!-- Disable Neo4j's data collector
+        <exclude>org.graphfoundation.ongdb:ongdb-data-collector</exclude>
+-->
       </excludes>
     </dependencySet>
     <dependencySet>
@@ -149,17 +152,10 @@
       <useStrictFiltering>true</useStrictFiltering>
       <excludes>
         <exclude>org.graphfoundation.ongdb:*</exclude>
-        <exclude>org.neo4j:*</exclude>
-        <exclude>jline:jline</exclude>
         <exclude>org.apache.lucene:*</exclude>
-        <exclude>io.netty:netty</exclude>
         <exclude>org.scala-lang:*</exclude>
         <exclude>org.parboiled:*</exclude>
-        <exclude>com.googlecode.concurrentlinkedhashmap:concurrentlinkedhashmap-lru</exclude>
-        <exclude>net.sf.opencsv:opencsv</exclude>
         <exclude>org.apache.commons:commons-lang3</exclude>
-        <exclude>io.dropwizard.metrics:*</exclude>
-        <exclude>org.slf4j:slf4j-api</exclude>
       </excludes>
     </dependencySet>
  </dependencySets>
