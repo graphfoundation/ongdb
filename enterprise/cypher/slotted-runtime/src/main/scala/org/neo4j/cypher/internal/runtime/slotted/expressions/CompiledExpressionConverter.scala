@@ -92,7 +92,7 @@ class CompiledExpressionConverter(log: Log, physicalPlan: PhysicalPlan, tokenCon
   override def toGroupingExpression(id: Id,
                                     groupings: Map[String, expressions.Expression],
                                     orderToLeverage: Seq[expressions.Expression],
-                                    self: ExpressionConverters): Option[GroupingExpression] = ???
+                                    self: ExpressionConverters): Option[GroupingExpression] = null
 
   private def sizeOf(expression: org.neo4j.cypher.internal.v4_0.expressions.Expression) = expression.treeCount {
     case _: org.neo4j.cypher.internal.v4_0.expressions.Expression => true

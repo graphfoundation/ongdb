@@ -28,10 +28,10 @@ import org.neo4j.cypher.internal.runtime.ExecutionContext
 
 object SlottedExecutionContextOrdering {
   def comparator(order: ColumnOrder): Ordering[ExecutionContext] = {
-    ???
+    null
   }
 
   def asComparator(orderBy: Seq[ColumnOrder]): java.util.Comparator[ExecutionContext] = {
-    ???
+    null
   }
 }

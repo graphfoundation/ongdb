@@ -34,11 +34,11 @@ import org.neo4j.values.AnyValue
 
 case class LabelsFromSlot(val offset: Int) extends Expression with SlottedExpression {
   override def apply(ctx: ExecutionContext, state: QueryState): AnyValue = {
-    ???
+    null
   }
 
   override def children: Seq[AstNode[_]] = {
-    ???
+    null
   }
 }
 
@@ -52,7 +52,7 @@ case class HasLabelFromSlot(val offset: Int, val resolvedLabelToken: Int) extend
   }
 
   override def children: Seq[AstNode[_]] = {
-    ???
+    null
   }
 }
 
@@ -66,6 +66,6 @@ case class HasLabelFromSlotLate(val offset: Int, val labelName: String) extends 
   }
 
   override def children: Seq[AstNode[_]] = {
-    ???
+    null
   }
 }

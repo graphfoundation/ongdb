@@ -35,20 +35,20 @@ case class SlottedGroupingExpression(val sortedGroupingExpression: Array[SlotExp
   override type KeyType = ListValue
 
   override def registerOwningPipe(pipe: Pipe): Unit = {
-    ???
+    null
   }
 
   override def computeGroupingKey(context: ExecutionContext,
                                   state: QueryState): ListValue = {
-    ???
+    null
   }
 
   override def computeOrderedGroupingKey(groupingKey: ListValue): AnyValue = {
-    ???
+    null
   }
 
   override def getGroupingKey(context: ExecutionContext): ListValue = {
-    ???
+    null
   }
 
   override def isEmpty: Boolean = {
@@ -56,7 +56,7 @@ case class SlottedGroupingExpression(val sortedGroupingExpression: Array[SlotExp
   }
 
   override def project(context: ExecutionContext, groupingKey: ListValue): Unit = {
-    ???
+    null
   }
 }
 
@@ -64,20 +64,20 @@ case class SlottedGroupingExpression1(val groupingExpression: SlotExpression) ex
   override type KeyType = AnyValue
 
   override def registerOwningPipe(pipe: Pipe): Unit = {
-    ???
+    null
   }
 
   override def computeGroupingKey(context: ExecutionContext,
                                   state: QueryState): AnyValue = {
-    ???
+    null
   }
 
   override def computeOrderedGroupingKey(groupingKey: AnyValue): AnyValue = {
-    ???
+    null
   }
 
   override def getGroupingKey(context: ExecutionContext): AnyValue = {
-    ???
+    null
   }
 
   override def isEmpty: Boolean = {
@@ -85,7 +85,7 @@ case class SlottedGroupingExpression1(val groupingExpression: SlotExpression) ex
   }
 
   override def project(context: ExecutionContext, groupingKey: AnyValue): Unit = {
-    ???
+    null
   }
 }
 
@@ -94,20 +94,20 @@ case class SlottedGroupingExpression2(val groupingExpression1: SlotExpression,
   override type KeyType = ListValue
 
   override def registerOwningPipe(pipe: Pipe): Unit = {
-    ???
+    null
   }
 
   override def computeGroupingKey(context: ExecutionContext,
                                   state: QueryState): ListValue = {
-    ???
+    null
   }
 
   override def computeOrderedGroupingKey(groupingKey: ListValue): AnyValue = {
-    ???
+    null
   }
 
   override def getGroupingKey(context: org.neo4j.cypher.internal.runtime.ExecutionContext): org.neo4j.values.virtual.ListValue = {
-    ???
+    null
   }
 
   override def isEmpty: Boolean = {
@@ -115,7 +115,7 @@ case class SlottedGroupingExpression2(val groupingExpression1: SlotExpression,
   }
 
   override def project(context: ExecutionContext, groupingKey: ListValue): Unit = {
-    ???
+    null
   }
 }
 
@@ -125,20 +125,20 @@ case class SlottedGroupingExpression3(val groupingExpression1: SlotExpression,
   override type KeyType = ListValue
 
   override def registerOwningPipe(pipe: Pipe): Unit = {
-    ???
+    null
   }
 
   override def computeGroupingKey(context: ExecutionContext,
                                   state: QueryState): ListValue = {
-    ???
+    null
   }
 
   override def getGroupingKey(context: ExecutionContext): ListValue = {
-    ???
+    null
   }
 
   override def computeOrderedGroupingKey(groupingKey: ListValue): AnyValue = {
-    ???
+    null
   }
 
   override def isEmpty: Boolean = {
@@ -146,7 +146,7 @@ case class SlottedGroupingExpression3(val groupingExpression1: SlotExpression,
   }
 
   override def project(context: ExecutionContext, groupingKey: ListValue): Unit = {
-    ???
+    null
   }
 }
 

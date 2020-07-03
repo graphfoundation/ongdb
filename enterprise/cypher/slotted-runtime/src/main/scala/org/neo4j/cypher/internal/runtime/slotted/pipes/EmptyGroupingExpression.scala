@@ -34,20 +34,20 @@ case object EmptyGroupingExpression extends GroupingExpression {
   override type KeyType = AnyValue
 
   override def registerOwningPipe(pipe: Pipe): Unit = {
-    ???
+    null
   }
 
   override def computeGroupingKey(context: ExecutionContext,
                                   state: QueryState): AnyValue = {
-    ???
+    null
   }
 
   override def computeOrderedGroupingKey(groupingKey: AnyValue): AnyValue = {
-    ???
+    null
   }
 
   override def getGroupingKey(context: ExecutionContext): AnyValue = {
-    ???
+    null
   }
 
   override def isEmpty: Boolean = {
@@ -55,6 +55,6 @@ case object EmptyGroupingExpression extends GroupingExpression {
   }
 
   override def project(context: ExecutionContext, groupingKey: AnyValue): Unit = {
-    ???
+    null
   }
 }

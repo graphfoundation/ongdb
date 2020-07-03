@@ -37,19 +37,19 @@ class SlottedNonGroupingAggTable(slots: SlotConfiguration,
                                  aggregations: Map[Int, AggregationExpression],
                                  state: QueryState) extends AggregationTable {
   override def clear(): Unit = {
-    ???
+    null
   }
 
   override def processRow(row: ExecutionContext): Unit = {
-    ???
+    null
   }
 
   override def result(): Iterator[ExecutionContext] = {
-    ???
+    null
   }
 
   protected def resultRow(): ExecutionContext = {
-    ???
+    null
   }
 }
 
@@ -59,11 +59,11 @@ object SlottedNonGroupingAggTable {
                      aggregations: Map[Int, AggregationExpression]) extends AggregationTableFactory {
     override def table(state: QueryState,
                        executionContextFactory: ExecutionContextFactory): AggregationTable = {
-      ???
+      null
     }
 
     override def registerOwningPipe(pipe: Pipe): Unit = {
-      ???
+      null
     }
   }
 

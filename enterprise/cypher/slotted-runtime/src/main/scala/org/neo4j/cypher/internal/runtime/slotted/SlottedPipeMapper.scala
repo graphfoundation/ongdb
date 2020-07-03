@@ -85,29 +85,29 @@ class SlottedPipeMapper(fallback: PipeMapper,
 
   override def onOneChildPlan(plan: org.neo4j.cypher.internal.logical.plans.LogicalPlan,
                               source: Pipe): Pipe = {
-    ???
+    null
   }
 
   override def onTwoChildPlan(plan: org.neo4j.cypher.internal.logical.plans.LogicalPlan,
                               lhs: Pipe,
                               rhs: Pipe): Pipe = {
-    ???
+    null
   }
 }
 
 object SlottedPipeMapper {
   def createProjectionsForResult(columns: Seq[String],
                                  slots: SlotConfiguration): Seq[Tuple2[String, Expression]] = {
-    ???
+    null
   }
 
   def computeUnionMapping(in: SlotConfiguration,
                           out: SlotConfiguration): UnionSlottedPipe.RowMapping = {
-    ???
+    null
   }
 
   def translateColumnOrder(slots: SlotConfiguration,
                            s: ColumnOrder): ColumnOrder = {
-    ???
+    null
   }
 }

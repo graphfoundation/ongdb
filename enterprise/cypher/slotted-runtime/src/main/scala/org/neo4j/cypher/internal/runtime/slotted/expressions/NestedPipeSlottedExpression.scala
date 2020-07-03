@@ -39,22 +39,22 @@ case class NestedPipeSlottedExpression(val pipe: Pipe,
                                        val availableExpressionVariables: Array[ExpressionVariable]) extends Expression {
   override def apply(ctx: ExecutionContext,
                      state: QueryState): AnyValue = {
-    ???
+    null
   }
 
   override def rewrite(f: Function1[Expression, Expression]): Expression = {
-    ???
+    null
   }
 
   override def arguments: List[Expression] = {
-    ???
+    null
   }
 
   override def toString(): String = {
-    ???
+    null
   }
 
   override def children: Seq[AstNode[_]] = {
-    ???
+    null
   }
 }

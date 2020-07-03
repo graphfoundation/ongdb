@@ -42,6 +42,6 @@ case class OrderedDistinctSlottedPrimitivePipe(val source: Pipe,
                                               }) extends PipeWithSource(source) {
   protected def internalCreateResults(input: Iterator[ExecutionContext],
                                       state: QueryState): Iterator[ExecutionContext] = {
-    ???
+    null
   }
 }
