@@ -25,11 +25,12 @@ import org.neo4j.procedure.Admin;
 import org.neo4j.procedure.Context;
 import org.neo4j.procedure.Description;
 import org.neo4j.procedure.Procedure;
+import org.neo4j.server.security.auth.AuthProcedures;
 
 import static org.neo4j.procedure.Mode.DBMS;
 
 @SuppressWarnings( {"unused", "WeakerAccess"} )
-public class SecurityProcedures extends AuthProceduresBase
+public class SecurityProcedures extends AuthProcedures
 {
     @Context
     public EnterpriseAuthManager authManager;
@@ -37,16 +38,9 @@ public class SecurityProcedures extends AuthProceduresBase
     @Deprecated
     @Description( "Show the current user. Deprecated by dbms.showCurrentUser." )
     @Procedure( name = "dbms.security.showCurrentUser", mode = DBMS, deprecatedBy = "dbms.showCurrentUser" )
-    public Stream<UserManagementProcedures.UserResult> showCurrentUserDeprecated()
+    public Stream<UserResult> showCurrentUserDeprecated()
     {
         return showCurrentUser();
-    }
-
-    @Description( "Show the current user." )
-    @Procedure( name = "dbms.showCurrentUser", mode = DBMS )
-    public Stream<UserManagementProcedures.UserResult> showCurrentUser()
-    {
-        return Stream.of( userResultForSubject() );
     }
 
     @Admin
