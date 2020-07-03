@@ -23,6 +23,6 @@ import org.neo4j.cypher.internal.plandescription.Argument
 
 object CodeGenUtils {
   def metadata(saver: CodeSaver): Seq[Argument] = {
-    ???
+    null
   }
 }

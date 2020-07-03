@@ -427,7 +427,7 @@ StopDatabase;
       s"""
          |MATCH (d: Database)
          |$filter
-         |CALL dbms.db.state(d.name) yield status, error, address, role
+         |CALL dbms.database.state(d.name) yield status, error, address, role
          |WITH d, status as currentStatus, error, address, role
          |RETURN d.name as name, address, role, d.status as requestedStatus, currentStatus, error $defaultColumn
          |ORDER BY name
@@ -500,7 +500,7 @@ object EnterpriseAdministrationCommandRuntime {
     new PartialFunction[LogicalPlan, (RuntimeContext, ParameterMapping, SecurityContext) => ExecutionPlan] {
       override def isDefinedAt(x: LogicalPlan): Boolean = true
 
-      override def apply(v1: LogicalPlan): (RuntimeContext, ParameterMapping, SecurityContext) => ExecutionPlan = ???
+      override def apply(v1: LogicalPlan): (RuntimeContext, ParameterMapping, SecurityContext) => ExecutionPlan = null
     }
 }
 

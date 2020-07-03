@@ -29,9 +29,9 @@ class PipelinedRuntime extends CypherRuntime[EnterpriseRuntimeContext] with Debu
 
   override def compileToExecutable(query: LogicalQuery, context: EnterpriseRuntimeContext,
                                    securityContext: SecurityContext = {
-                                     ???
+                                     null
                                    }): ExecutionPlan = {
-    ???
+    null
   }
 
   override def name: String = "pipelined"
@@ -43,10 +43,10 @@ class PipelinedRuntime extends CypherRuntime[EnterpriseRuntimeContext] with Debu
 object PipelinedRuntime {
   // TODO: Placeholders - see org.neo4j.cypher.internal.RuntimeName
   val PIPELINED: org.neo4j.cypher.internal.PipelinedRuntime = {
-    ???
+    null
   }
   val PARALLEL: org.neo4j.cypher.internal.PipelinedRuntime = {
-    ???
+    null
   }
 }
 

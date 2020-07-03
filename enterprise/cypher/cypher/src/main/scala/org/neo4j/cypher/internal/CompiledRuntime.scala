@@ -100,7 +100,7 @@ case object removeCachedProperties {
    * @return
    */
   def apply(plan: LogicalPlan, semanticTable: SemanticTable): Tuple2[LogicalPlan, SemanticTable] = {
-    ???
+    null
   }
 }
 

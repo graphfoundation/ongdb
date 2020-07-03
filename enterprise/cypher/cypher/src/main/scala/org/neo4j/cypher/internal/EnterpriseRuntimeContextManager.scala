@@ -41,7 +41,7 @@ case class EnterpriseRuntimeContextManager(codeStructure: CodeStructure[Generate
   }
 
   override def assertAllReleased(): Unit = {
-    ???
+    null
   }
 }
 
