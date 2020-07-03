@@ -16,6 +16,7 @@
 package org.neo4j.server.security.enterprise.auth;
 
 import java.util.HashSet;
+import java.util.Iterator;
 
 import org.neo4j.internal.kernel.api.security.AdminActionOnResource;
 import org.neo4j.internal.kernel.api.security.AdminActionOnResource.DatabaseScope;
@@ -32,23 +33,25 @@ public class DefaultEnterpriseAdminAccessMode implements EnterpriseAdminAccessMo
         this.whitelist = whitelist;
         this.blacklist = blacklist;
     }
-
     public static boolean matches( HashSet<AdminActionOnResource> actions, AdminActionOnResource action )
     {
-        if ( actions.isEmpty() )
+        Iterator<AdminActionOnResource> actionsIterator = actions.iterator();
+
+        AdminActionOnResource rule;
+        do
         {
-            return false;
-        }
-        for ( AdminActionOnResource rule : actions )
-        {
-            while ( !rule.matches( action ) )
+            if ( !actionsIterator.hasNext() )
             {
+                return false;
             }
+
+            rule = actionsIterator.next();
         }
+        while ( !rule.matches( action ) );
 
         return true;
     }
-
+    
     public boolean allows( AdminActionOnResource action )
     {
         return matches( this.whitelist, action ) && !matches( this.blacklist, action );
