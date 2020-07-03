@@ -36,49 +36,49 @@ class PipelineTreeBuilder(breakingPolicy: PipelineBreakingPolicy,
                           slotConfigurations: SlotConfigurations,
                           argumentSizes: ArgumentSizes) extends TreeBuilder[PipelineTreeBuilder.PipelineDefinitionBuild, PipelineTreeBuilder.ApplyBufferDefinitionBuild] {
   private[physicalplanning] val pipelines: collection.mutable.ArrayBuffer[PipelineDefinitionBuild] = {
-    ???
+    null
   }
   private[physicalplanning] val applyRhsPlans: collection.mutable.HashMap[Int, Int] = {
-    ???
+    null
   }
 
   protected override def validatePlan(plan: LogicalPlan): Unit = {
-    ???
+    null
   }
 
   protected override def initialArgument(leftLeaf: LogicalPlan): PipelineTreeBuilder.ApplyBufferDefinitionBuild = {
-    ???
+    null
   }
 
   protected override def onLeaf(plan: LogicalPlan,
                                 argument: PipelineTreeBuilder.ApplyBufferDefinitionBuild): PipelineDefinitionBuild = {
-    ???
+    null
   }
 
   protected override def onOneChildPlan(plan: LogicalPlan,
                                         source: PipelineTreeBuilder.PipelineDefinitionBuild,
                                         argument: PipelineTreeBuilder.ApplyBufferDefinitionBuild): PipelineTreeBuilder.PipelineDefinitionBuild = {
-    ???
+    null
   }
 
   protected override def onTwoChildPlanComingFromLeft(plan: LogicalPlan,
                                                       lhs: PipelineTreeBuilder.PipelineDefinitionBuild,
                                                       argument: PipelineTreeBuilder.ApplyBufferDefinitionBuild): PipelineTreeBuilder.ApplyBufferDefinitionBuild = {
-    ???
+    null
   }
 
   protected override def onTwoChildPlanComingFromRight(plan: LogicalPlan,
                                                        lhs: PipelineTreeBuilder.PipelineDefinitionBuild,
                                                        rhs: PipelineTreeBuilder.PipelineDefinitionBuild,
                                                        argument: PipelineTreeBuilder.ApplyBufferDefinitionBuild): PipelineTreeBuilder.PipelineDefinitionBuild = {
-    ???
+    null
   }
 }
 
 object PipelineTreeBuilder {
 
   val NO_PIPELINE_BUILD: PipelineTreeBuilder.PipelineDefinitionBuild = {
-    ???
+    null
   }
 
   sealed trait DownstreamStateOperator {
@@ -87,29 +87,29 @@ object PipelineTreeBuilder {
   abstract class BufferDefinitionBuild(val id: BufferId,
                                        val bufferConfiguration: SlotConfiguration) {
     val downstreamStates: collection.mutable.ArrayBuffer[PipelineTreeBuilder.DownstreamStateOperator] = {
-      ???
+      null
     }
   }
 
   class PipelineDefinitionBuild(val id: PipelineId,
                                 val headPlan: LogicalPlan) {
     val fusedPlans: collection.mutable.ArrayBuffer[LogicalPlan] = {
-      ???
+      null
     }
     val middlePlans: collection.mutable.ArrayBuffer[LogicalPlan] = {
-      ???
+      null
     }
     var lhs: PipelineId = {
-      ???.asInstanceOf[PipelineId]
+      null.asInstanceOf[PipelineId]
     }
     var rhs: PipelineId = {
-      ???.asInstanceOf[PipelineId]
+      null.asInstanceOf[PipelineId]
     }
     var inputBuffer: PipelineTreeBuilder.BufferDefinitionBuild = {
-      ???
+      null
     }
     var outputDefinition: OutputDefinition = {
-      ???
+      null
     }
     var serial: Boolean = {
       false
@@ -153,10 +153,10 @@ object PipelineTreeBuilder {
                                    val argumentSlotOffset: Int,
                                    bufferSlotConfiguration: SlotConfiguration) extends PipelineTreeBuilder.MorselBufferDefinitionBuild(id, producingPipelineId, bufferSlotConfiguration) {
     val reducersOnRHS: collection.mutable.ArrayBuffer[PipelineTreeBuilder.ArgumentStateDefinitionBuild] = {
-      ???
+      null
     }
     val delegates: collection.mutable.ArrayBuffer[BufferId] = {
-      ???
+      null
     }
   }
 
@@ -166,7 +166,7 @@ object PipelineTreeBuilder {
                                     val argumentSlotOffset: Int,
                                     val argumentSize: SlotConfiguration.Size) extends PipelineTreeBuilder.BufferDefinitionBuild(id, inputSlotConfiguration) {
     var applyBuffer: PipelineTreeBuilder.ApplyBufferDefinitionBuild = {
-      ???
+      null
     }
   }
 
@@ -186,42 +186,42 @@ object PipelineTreeBuilder {
 
   class ExecutionStateDefinitionBuild(val physicalPlan: PhysicalPlan) {
     val buffers: collection.mutable.ArrayBuffer[PipelineTreeBuilder.BufferDefinitionBuild] = {
-      ???
+      null
     }
     val argumentStateMaps: collection.mutable.ArrayBuffer[PipelineTreeBuilder.ArgumentStateDefinitionBuild] = {
-      ???
+      null
     }
     var initBuffer: PipelineTreeBuilder.ApplyBufferDefinitionBuild = {
-      ???
+      null
     }
 
     def newArgumentStateMap(planId: Id,
                             argumentSlotOffset: Int,
                             counts: Boolean): PipelineTreeBuilder.ArgumentStateDefinitionBuild = {
-      ???
+      null
     }
 
     def newBuffer(producingPipelineId: PipelineId,
                   bufferSlotConfiguration: SlotConfiguration): PipelineTreeBuilder.MorselBufferDefinitionBuild = {
-      ???
+      null
     }
 
     def newOptionalBuffer(producingPipelineId: PipelineId,
                           argumentStateMapId: ArgumentStateMapId,
                           argumentSlotOffset: Int,
                           bufferSlotConfiguration: SlotConfiguration): PipelineTreeBuilder.OptionalMorselBufferDefinitionBuild = {
-      ???
+      null
     }
 
     def newDelegateBuffer(applyBufferDefinition: PipelineTreeBuilder.ApplyBufferDefinitionBuild,
                           bufferSlotConfiguration: SlotConfiguration): PipelineTreeBuilder.DelegateBufferDefinitionBuild = {
-      ???
+      null
     }
 
     def newApplyBuffer(producingPipelineId: PipelineId,
                        argumentSlotOffset: Int,
                        bufferSlotConfiguration: SlotConfiguration): PipelineTreeBuilder.ApplyBufferDefinitionBuild = {
-      ???
+      null
     }
 
     def newAttachBuffer(producingPipelineId: PipelineId,
@@ -229,13 +229,13 @@ object PipelineTreeBuilder {
                         postAttachSlotConfiguration: SlotConfiguration,
                         outerArgumentSlotOffset: Int,
                         outerArgumentSize: SlotConfiguration.Size): PipelineTreeBuilder.AttachBufferDefinitionBuild = {
-      ???
+      null
     }
 
     def newArgumentStateBuffer(producingPipelineId: PipelineId,
                                argumentStateMapId: ArgumentStateMapId,
                                bufferSlotConfiguration: SlotConfiguration): PipelineTreeBuilder.ArgumentStateBufferDefinitionBuild = {
-      ???
+      null
     }
 
     def newLhsAccumulatingRhsStreamingBuffer(lhsProducingPipelineId: PipelineId,
@@ -243,7 +243,7 @@ object PipelineTreeBuilder {
                                              lhsargumentStateMapId: ArgumentStateMapId,
                                              rhsargumentStateMapId: ArgumentStateMapId,
                                              bufferSlotConfiguration: SlotConfiguration): PipelineTreeBuilder.LHSAccumulatingRHSStreamingBufferDefinitionBuild = {
-      ???
+      null
     }
   }
 

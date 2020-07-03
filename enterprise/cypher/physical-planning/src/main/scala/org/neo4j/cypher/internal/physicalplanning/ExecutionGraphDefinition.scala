@@ -38,9 +38,9 @@ case class ExecutionGraphDefinition(physicalPlan: PhysicalPlan,
 
 object ExecutionGraphDefinition {
   val NO_ARGUMENT_STATE_MAPS: Array[ArgumentStateMapId] = {
-    ???
+    null
   }
   val NO_BUFFERS: Array[BufferId] = {
-    ???
+    null
   }
 }

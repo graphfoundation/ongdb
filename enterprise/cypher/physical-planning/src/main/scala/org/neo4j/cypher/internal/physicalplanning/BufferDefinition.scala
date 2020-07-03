@@ -31,11 +31,11 @@ case class BufferDefinition(id: BufferId,
                             variant: BufferVariant)
                            (bufferSlotConfiguration: SlotConfiguration) {
   def withReducers(reducers: IndexedSeq[ArgumentStateMapId]): BufferDefinition = {
-    ???
+    null
   }
 
   def withWorkCancellers(workCancellers: IndexedSeq[ArgumentStateMapId]): BufferDefinition = {
-    ???
+    null
   }
 
   override def canEqual(that: Any): Boolean = {
@@ -51,7 +51,7 @@ case class BufferDefinition(id: BufferId,
   }
 
   override def toString(): String = {
-    ???
+    null
   }
 }
 

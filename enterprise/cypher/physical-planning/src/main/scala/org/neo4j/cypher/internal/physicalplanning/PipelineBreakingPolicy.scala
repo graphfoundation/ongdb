@@ -35,17 +35,17 @@ trait PipelineBreakingPolicy {
   def invoke(lp: LogicalPlan,
              slots: SlotConfiguration,
              argumentSlots: SlotConfiguration): SlotConfiguration = {
-    ???
+    null
   }
 }
 
 object PipelineBreakingPolicy {
   def breakFor(logicalPlans: LogicalPlan*): PipelineBreakingPolicy = {
-    ???
+    null
   }
 
   def breakForIds(ids: Id*): PipelineBreakingPolicy = {
-    ???
+    null
   }
 }
 
@@ -55,6 +55,6 @@ object BREAK_FOR_LEAFS extends PipelineBreakingPolicy {
   }
 
   override def onNestedPlanBreak(): Unit = {
-    ???
+    null
   }
 }

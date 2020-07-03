@@ -38,7 +38,7 @@ sealed trait OperatorFusionPolicy {
 
 object OperatorFusionPolicy {
   def apply(fusionEnabled: Boolean, fusionOverPipelinesEnabled: Boolean): OperatorFusionPolicy = {
-    ???
+    null
   }
 
   case object OPERATOR_FUSION_DISABLED extends OperatorFusionPolicy {

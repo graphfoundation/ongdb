@@ -173,18 +173,7 @@ class SlottedRewriter(tokenContext: TokenContext) {
             prop.copy(map = ReferenceFromSlot(offset, key))(prop.position)
         }
 
-      /*      case prop@plans.CachedNodeProperty(nodeVariableName, PropertyKeyName(propKey)) =>
-              slotConfiguration(nodeVariableName) match {
-                case LongSlot(offset, _, CTNode) =>
-                  tokenContext.getOptPropertyKeyId(propKey) match {
-                    case Some(propId) => ast.CachedNodeProperty(offset, propId, slotConfiguration.getCachedNodePropertyOffsetFor(prop))
-                    case None => ast.CachedNodePropertyLate(offset, propKey, slotConfiguration.getCachedNodePropertyOffsetFor(prop))
-                  }
 
-                case slot: Slot =>
-                  throw new InternalException(s"We only support cached node properties on known nodes (from index seeks), got slot '$slot'")
-              }
-      */
       case e@Equals(Variable(k1), Variable(k2)) =>
         primitiveEqualityChecks(slotConfiguration, e, k1, k2, positiveCheck = true)
 

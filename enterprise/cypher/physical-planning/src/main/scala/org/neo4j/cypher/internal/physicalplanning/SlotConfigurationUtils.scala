@@ -34,11 +34,11 @@ object SlotConfigurationUtils {
     0
   }
   val NO_ENTITY_FUNCTION: java.util.function.ToLongFunction[ExecutionContext] = {
-    ???
+    null
   }
 
   def makeGetValueFromSlotFunctionFor(slot: Slot): Function1[ExecutionContext, AnyValue] = {
-    ???
+    null
   }
 
   def makeGetPrimitiveFromSlotFunctionFor(slot: Slot,
@@ -46,39 +46,39 @@ object SlotConfigurationUtils {
                                           throwOfTypeError: Boolean = {
                                             false
                                           }): java.util.function.ToLongFunction[ExecutionContext] = {
-    ???
+    null
   }
 
   def makeGetPrimitiveNodeFromSlotFunctionFor(slot: Slot, throwOnTypeError: Boolean = {
     false
   }): java.util.function.ToLongFunction[ExecutionContext] = {
-    ???
+    null
   }
 
   def makeGetPrimitiveRelationshipFromSlotFunctionFor(slot: Slot, throwOfTypeError: Boolean = {
     false
   }): java.util.function.ToLongFunction[ExecutionContext] = {
-    ???
+    null
   }
 
   def makeSetValueInSlotFunctionFor(slot: Slot): Function2[ExecutionContext, AnyValue, Unit] = {
-    ???
+    null
   }
 
   def makeSetPrimitiveInSlotFunctionFor(slot: Slot,
                                         valueType: CypherType): Function3[ExecutionContext, Long, EntityById, Unit] = {
-    ???
+    null
   }
 
   def makeSetPrimitiveNodeInSlotFunctionFor(slot: Slot): Function3[ExecutionContext, Long, EntityById, Unit] = {
-    ???
+    null
   }
 
   def makeSetPrimitiveRelationshipInSlotFunctionFor(slot: Slot): Function3[ExecutionContext, Long, EntityById, Unit] = {
-    ???
+    null
   }
 
   def generateSlotAccessorFunctions(slots: SlotConfiguration): Unit = {
-    ???
+    null
   }
 }

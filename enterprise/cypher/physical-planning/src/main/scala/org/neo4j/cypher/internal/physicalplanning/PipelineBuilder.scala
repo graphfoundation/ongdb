@@ -28,6 +28,6 @@ object PipelineBuilder {
   def build(breakingPolicy: PipelineBreakingPolicy,
             operatorFusionPolicy: OperatorFusionPolicy,
             physicalPlan: PhysicalPlan): ExecutionGraphDefinition = {
-    ???
+    null
   }
 }

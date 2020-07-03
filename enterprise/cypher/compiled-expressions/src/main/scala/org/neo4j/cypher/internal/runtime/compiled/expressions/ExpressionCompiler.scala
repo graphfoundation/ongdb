@@ -132,7 +132,7 @@ abstract class ExpressionCompiler(
   final def getLongFromExecutionContext(
                                          offset: Int,
                                          context: org.neo4j.codegen.api.IntermediateRepresentation = {
-                                           ???
+                                           null
                                          }
                                        ): org.neo4j.codegen.api.IntermediateRepresentation = {
     null
@@ -141,7 +141,7 @@ abstract class ExpressionCompiler(
   final def getRefFromExecutionContext(
                                         offset: Int,
                                         context: org.neo4j.codegen.api.IntermediateRepresentation = {
-                                          ???
+                                          null
                                         }
                                       ): org.neo4j.codegen.api.IntermediateRepresentation = {
     null
@@ -150,24 +150,24 @@ abstract class ExpressionCompiler(
   final def getCachedPropertyFromExecutionContext(
                                                    offset: Int,
                                                    context: org.neo4j.codegen.api.IntermediateRepresentation = {
-                                                     ???
+                                                     null
                                                    }
                                                  ): org.neo4j.codegen.api.IntermediateRepresentation = {
-    ???
+    null
   }
 
   final def setRefInExecutionContext(
                                       offset: Int,
                                       value: org.neo4j.codegen.api.IntermediateRepresentation
                                     ): org.neo4j.codegen.api.IntermediateRepresentation = {
-    ???
+    null
   }
 
   final def setLongInExecutionContext(
                                        offset: Int,
                                        value: org.neo4j.codegen.api.IntermediateRepresentation
                                      ): org.neo4j.codegen.api.IntermediateRepresentation = {
-    ???
+    null
   }
 
   protected def getLongAt(offset: Int): org.neo4j.codegen.api.IntermediateRepresentation
@@ -218,7 +218,7 @@ abstract class ExpressionCompiler(
                                                            offset: Int,
                                                            value: org.neo4j.codegen.api.IntermediateRepresentation
                                                          ): org.neo4j.codegen.api.IntermediateRepresentation = {
-   ???
+   null
   }
 }
 
@@ -236,69 +236,69 @@ class DefaultExpressionCompiler(
   protected override def getLongAt(
                                     offset: Int
                                   ): org.neo4j.codegen.api.IntermediateRepresentation = {
-    ???
+    null
   }
 
   protected override def getRefAt(
                                    offset: Int
                                  ): org.neo4j.codegen.api.IntermediateRepresentation = {
-    ???
+    null
   }
 
   protected override def setRefAt(
                                    offset: Int,
                                    value: org.neo4j.codegen.api.IntermediateRepresentation
                                  ): org.neo4j.codegen.api.IntermediateRepresentation = {
-    ???
+    null
   }
 
   protected override def setLongAt(
                                     offset: Int,
                                     value: org.neo4j.codegen.api.IntermediateRepresentation
                                   ): org.neo4j.codegen.api.IntermediateRepresentation = {
-    ???
+    null
   }
 
   protected override def setCachedPropertyAt(
                                               offset: Int,
                                               value: org.neo4j.codegen.api.IntermediateRepresentation
                                             ): org.neo4j.codegen.api.IntermediateRepresentation = {
-    ???
+    null
   }
 
   protected override def getCachedPropertyAt(
                                               property: org.neo4j.cypher.internal.physicalplanning.ast.SlottedCachedProperty,
                                               getFromStore: org.neo4j.codegen.api.IntermediateRepresentation
                                             ): org.neo4j.codegen.api.IntermediateRepresentation = {
-    ???
+    null
   }
 
   protected override def isLabelSetOnNode(
                                            labelToken: org.neo4j.codegen.api.IntermediateRepresentation,
                                            offset: Int
                                          ): org.neo4j.codegen.api.IntermediateRepresentation = {
-    ???
+    null
   }
 
   protected override def getNodeProperty(
                                           propertyToken: org.neo4j.codegen.api.IntermediateRepresentation,
                                           offset: Int
                                         ): org.neo4j.codegen.api.IntermediateRepresentation = {
-    ???
+    null
   }
 
   protected override def getRelationshipProperty(
                                                   propertyToken: org.neo4j.codegen.api.IntermediateRepresentation,
                                                   offset: Int
                                                 ): org.neo4j.codegen.api.IntermediateRepresentation = {
-    ???
+    null
   }
 
   protected override def getProperty(
                                       key: String,
                                       container: org.neo4j.codegen.api.IntermediateRepresentation
                                     ): org.neo4j.codegen.api.IntermediateRepresentation = {
-    ???
+    null
   }
 }
 
@@ -326,23 +326,23 @@ object ExpressionCompiler extends scala.AnyRef {
   }
   // TODO: Implement
   val vRELATIONSHIP_CURSOR: org.neo4j.codegen.api.LocalVariable = {
-    ???
+    null
   }
   // TODO: Implement
   val PROPERTY_CURSOR: org.neo4j.codegen.api.IntermediateRepresentation = {
-    ???
+    null
   }
   // TODO: Implement
   val vPROPERTY_CURSOR: org.neo4j.codegen.api.LocalVariable = {
-    ???
+    null
   }
   // TODO: Implement
   val NODE_PROPERTY: org.neo4j.codegen.api.Method = {
-    ???
+    null
   }
   // TODO: Implement
   val RELATIONSHIP_PROPERTY: org.neo4j.codegen.api.Method = {
-    ???
+    null
   }
 
 
@@ -356,7 +356,7 @@ object ExpressionCompiler extends scala.AnyRef {
    * @return
    */
   def createNodeCursorVariable(name: String, value: Manifest[Nothing]): LocalVariable = {
-    ???
+    null
     //IntermediateRepresentation.variable(name,
     //                                      IntermediateRepresentation.invoke(IntermediateRepresentation.load("cursors"),
     //                                        IntermediateRepresentation.method(....)
