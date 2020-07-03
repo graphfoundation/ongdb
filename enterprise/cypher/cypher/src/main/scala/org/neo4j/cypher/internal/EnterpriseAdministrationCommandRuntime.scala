@@ -29,7 +29,9 @@ import org.neo4j.cypher.internal.procs._
 import org.neo4j.cypher.internal.runtime._
 import org.neo4j.cypher.internal.security.SecureHasher
 import org.neo4j.cypher.internal.security.SystemGraphCredential
+import org.neo4j.dbms.api.DatabaseNotFoundException
 import org.neo4j.exceptions.CantCompileQueryException
+import org.neo4j.exceptions.DatabaseAdministrationException
 import org.neo4j.exceptions.DatabaseAdministrationOnFollowerException
 import org.neo4j.graphdb.Direction
 import org.neo4j.graphdb.Label
@@ -47,6 +49,7 @@ import org.neo4j.kernel.api.exceptions.Status.HasStatus
 import org.neo4j.kernel.api.exceptions.schema.UniquePropertyValueValidationException
 import org.neo4j.kernel.api.security.AuthManager
 import org.neo4j.kernel.impl.enterprise.configuration.EnterpriseEditionSettings
+import org.neo4j.server.security.enterprise.EnterpriseSecurityModule
 import org.neo4j.values.storable.TextValue
 import org.neo4j.values.storable.Values
 import org.neo4j.values.virtual.MapValue
@@ -72,7 +75,7 @@ case class EnterpriseAdministrationCommandRuntime(normalExecutionEngine: Executi
 
   def throwCantCompile(unknownPlan: LogicalPlan): Nothing = {
     throw new CantCompileQueryException(
-      s"Plan is not a recognized db administration command in community edition: ${unknownPlan.getClass.getSimpleName}")
+      s"Plan is not a recognized database administration command: ${unknownPlan.getClass.getSimpleName}")
   }
 
   override def compileToExecutable(state: LogicalQuery, context: RuntimeContext, securityContext: SecurityContext): ExecutionPlan = {
@@ -320,8 +323,54 @@ case class EnterpriseAdministrationCommandRuntime(normalExecutionEngine: Executi
         QueryHandler
           .handleError {
             case error: HasStatus if error.status() == Status.Cluster.NotALeader =>
-              new DatabaseAdministrationOnFollowerException(s"Failed to create db '$name': $followerError", error)
-            case error => new IllegalStateException(s"Failed to create the db '$name'.", error)
+              new DatabaseAdministrationOnFollowerException(s"Failed to create database '$name': $followerError", error)
+            case error => new IllegalStateException(s"Failed to create the database '$name'.", error)
+          },
+        source.map(fullLogicalToExecutable.applyOrElse(_, throwCantCompile).apply(context, parameterMapping, securityContext))
+      )
+
+
+
+    case EnsureValidNonSystemDatabase(source, name: NormalizedDatabaseName, action: String) => (context, parameterMapping, securityContext) =>
+
+      if (name.name().equals(GraphDatabaseSettings.SYSTEM_DATABASE_NAME))
+        throw new DatabaseAdministrationException(new StringBuilder().append("You are not allowed to ").append(action).append(" the ").append(GraphDatabaseSettings.SYSTEM_DATABASE_NAME).append( " database.").toString)
+
+      UpdatingSystemCommandExecutionPlan("EnsureValidNonSystemDatabase", normalExecutionEngine,
+        s"""
+           | MATCH (db:Database {name: $$name})
+           | RETURN db.name AS name
+        """.stripMargin,
+        VirtualValues.map(Array("name"),
+          Array(Values.stringValue(name.name()))),
+        QueryHandler
+          .handleError {
+            case error: HasStatus if error.status() == Status.Cluster.NotALeader =>
+              new DatabaseNotFoundException(
+              (new StringBuilder()).append( "Failed to " ).append( action).append( " the database '" ).append(
+                name.name() ).append( "': This database does not exist." ).toString() )
+            case error => new IllegalStateException((new StringBuilder()).append( "Failed to " ).append( action).append( " the database '" ).append(
+              name.name() ).append( "': This database does not exist." ).toString() , error)
+          },
+        source.map(fullLogicalToExecutable.applyOrElse(_, throwCantCompile).apply(context, parameterMapping, securityContext))
+      )
+
+    case DropDatabase(source, name: NormalizedDatabaseName) => (context, parameterMapping, securityContext) =>
+      UpdatingSystemCommandExecutionPlan("DropDatabase", normalExecutionEngine,
+        s"""
+           | MATCH (d:Database {name: $$name})
+           | REMOVE d:Database
+           | SET d:DeletedDatabase
+           | SET d.deleted_at = datetime()
+           | RETURN d.name as name, d.status as status
+        """.stripMargin,
+        VirtualValues.map(Array("name"),
+                          Array(Values.stringValue(name.name()))),
+        QueryHandler
+          .handleError {
+            case error: HasStatus if error.status() == Status.Cluster.NotALeader =>
+              new DatabaseAdministrationOnFollowerException(s"Failed to drop database '$name': $followerError", error)
+            case error => new IllegalStateException(s"Failed to drop the database '$name'.", error)
           },
         source.map(fullLogicalToExecutable.applyOrElse(_, throwCantCompile).apply(context, parameterMapping, securityContext))
       )
@@ -358,9 +407,9 @@ DenyDbmsAction;
 DenyRead;
 DenyTraverse;
 DenyWrite;
-DropDatabase;
+
 DropRole;
-EnsureValidNonSystemDatabase;
+
 EnsureValidNumberOfDatabases;
 GrantDatabaseAction;
 GrantDbmsAction;
