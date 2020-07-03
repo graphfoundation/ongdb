@@ -101,11 +101,13 @@ public class EnterpriseEditionModule extends CommunityEditionModule implements E
         dependencies.satisfyDependency( dbmsSettingsWhiteList );
     }
 
+    @Override
     public QueryEngineProvider getQueryEngineProvider()
     {
         return new EnterpriseCypherEngineProvider();
     }
 
+    @Override
     public void registerEditionSpecificProcedures( GlobalProcedures globalProcedures, DatabaseManager<?> databaseManager ) throws KernelException
     {
         super.registerEditionSpecificProcedures( globalProcedures, databaseManager );
