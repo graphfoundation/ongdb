@@ -65,11 +65,13 @@ public class EnterpriseGraphDbState implements DatabaseState
         return new EnterpriseGraphDbState( null, EnterpriseOperatorState.UNKNOWN, failure );
     }
 
+    @Override
     public NamedDatabaseId databaseId()
     {
         return this.namedDatabaseId;
     }
 
+    @Override
     public EnterpriseOperatorState operatorState()
     {
         return this.operationalState;
@@ -85,11 +87,13 @@ public class EnterpriseGraphDbState implements DatabaseState
         return new EnterpriseGraphDbState( this.namedDatabaseId, this.operationalState, failure );
     }
 
+    @Override
     public boolean hasFailed()
     {
         return this.failure != null;
     }
 
+    @Override
     public Optional<Throwable> failure()
     {
         return Optional.ofNullable( this.failure );

@@ -66,7 +66,7 @@ public class CypherMetrics extends LifecycleAdapter
     @Override
     public void stop()
     {
-        registry.remove( replanWaitTime );
+        registry.remove( replanEvents );
         registry.remove( replanWaitTime );
         monitors.removeMonitorListener( cacheMonitor );
     }

@@ -57,6 +57,7 @@ public class GraphDbStartAborter implements DatabaseStartupController
         this.ttl = ttl;
     }
 
+
     public void setAbortable( NamedDatabaseId databaseId, GraphDbStartAborter.PreventReason reason, boolean abortable )
     {
         if ( abortable )

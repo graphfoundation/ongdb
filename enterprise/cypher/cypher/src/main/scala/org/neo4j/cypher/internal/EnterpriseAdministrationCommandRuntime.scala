@@ -62,6 +62,7 @@ import scala.collection.JavaConverters._
  * It extends the AdministrationCommandRuntime.  We use the standard approach of adding Enterprise* infront of these to keep
  * everything standardized. Ex: CommunityAdministrationCommandRuntime...
  */
+// TODO: We want to extend the CommunityAdministrationCommandRuntime in future.
 case class EnterpriseAdministrationCommandRuntime(normalExecutionEngine: ExecutionEngine, resolver: DependencyResolver) extends AdministrationCommandRuntime {
   private lazy val authManager = {
     resolver.resolveDependency(classOf[AuthManager])
@@ -375,6 +376,45 @@ case class EnterpriseAdministrationCommandRuntime(normalExecutionEngine: Executi
         source.map(fullLogicalToExecutable.applyOrElse(_, throwCantCompile).apply(context, parameterMapping, securityContext))
       )
 
+    case StartDatabase(source, name: NormalizedDatabaseName) => (context, parameterMapping, securityContext) =>
+      UpdatingSystemCommandExecutionPlan("StartDatabase", normalExecutionEngine,
+        s"""
+          | OPTIONAL MATCH (d:Database {name: $$name})
+          | OPTIONAL MATCH (d2:Database {name: $$name, status: $$oldStatus})
+          | SET d2.status = $$newStatus
+          | SET d2.started_at = datetime()
+          | RETURN d2.name as name, d2.status as status, d.name as db
+        """.stripMargin,
+        VirtualValues.map(Array("name","oldStatus", "newStatus"),
+          Array(Values.stringValue(name.name()),Values.stringValue(DatabaseStatus.Offline.stringValue()),Values.stringValue(DatabaseStatus.Online.stringValue()))),
+        QueryHandler
+          .handleError {
+            case error: HasStatus if error.status() == Status.Cluster.NotALeader =>
+              new DatabaseAdministrationOnFollowerException(s"Failed to start database '$name': $followerError", error)
+            case error => new IllegalStateException(s"Failed to start database '$name'.", error)
+          },
+        source.map(fullLogicalToExecutable.applyOrElse(_, throwCantCompile).apply(context, parameterMapping, securityContext))
+      )
+
+
+    case StopDatabase(source, name: NormalizedDatabaseName) => (context, parameterMapping, securityContext) =>
+      UpdatingSystemCommandExecutionPlan("StopDatabase", normalExecutionEngine,
+        s"""
+           | OPTIONAL MATCH (d:Database {name: $$name, status: $$oldStatus})
+           | SET d.status = $$newStatus
+           | SET d.stopped_at = datetime()
+           | RETURN d.name as name, d.status as status
+        """.stripMargin,
+        VirtualValues.map(Array("name","oldStatus", "newStatus"),
+          Array(Values.stringValue(name.name()),Values.stringValue(DatabaseStatus.Online.stringValue()),Values.stringValue(DatabaseStatus.Offline.stringValue()))),
+        QueryHandler
+          .handleError {
+            case error: HasStatus if error.status() == Status.Cluster.NotALeader =>
+              new DatabaseAdministrationOnFollowerException(s"Failed to stop database '$name': $followerError", error)
+            case error => new IllegalStateException(s"Failed to stop database '$name'.", error)
+          },
+        source.map(fullLogicalToExecutable.applyOrElse(_, throwCantCompile).apply(context, parameterMapping, securityContext))
+      )
 
     // EnsureValidNumberOfDatabases
     case EnsureValidNumberOfDatabases(source) => (context, parameterMapping, securityContext) =>
@@ -542,6 +582,13 @@ StopDatabase;
     }
     VirtualValues.map(Array("accessibleDbs"), Array(Values.stringArray(filteredDatabases: _*)))
   }
+}
+
+object DatabaseStatus extends Enumeration {
+  type Status = TextValue
+
+  val Online: TextValue = Values.stringValue("online")
+  val Offline: TextValue = Values.stringValue("offline")
 }
 
 object EnterpriseAdministrationCommandRuntime {
