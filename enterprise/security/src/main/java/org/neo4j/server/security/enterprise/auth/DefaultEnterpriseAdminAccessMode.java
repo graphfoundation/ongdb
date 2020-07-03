@@ -51,7 +51,7 @@ public class DefaultEnterpriseAdminAccessMode implements EnterpriseAdminAccessMo
 
         return true;
     }
-    
+
     public boolean allows( AdminActionOnResource action )
     {
         return matches( this.whitelist, action ) && !matches( this.blacklist, action );

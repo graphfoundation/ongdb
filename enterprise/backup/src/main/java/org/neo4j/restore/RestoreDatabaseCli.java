@@ -38,7 +38,7 @@ public class RestoreDatabaseCli extends AbstractCommand
 {
     @Option( names = {"--from"}, paramLabel = "<path>", required = true, description = {"Path to backup to restore from."} )
     private File from;
-    @Option( names = {"--db"}, description = {"Name of the db to restore."}, defaultValue = "neo4j", converter = {DatabaseNameConverter.class} )
+    @Option( names = {"--database"}, description = {"Name of the db to restore."}, defaultValue = "neo4j", converter = {DatabaseNameConverter.class} )
     private NormalizedDatabaseName database;
     @Option( names = {"--force"}, arity = "0", description = {"If an existing db should be replaced."} )
     private boolean force;

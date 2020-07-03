@@ -63,7 +63,7 @@ public class FabricSettings implements SettingsDeclaration
             newBuilder( "fabric.routing.servers", SettingValueParsers.listOf( SettingValueParsers.SOCKET_ADDRESS ),
                         List.of( new SocketAddress( "localhost", 7687 ) ) ).dynamic().build();
     @Description( "Name of the Fabric db. Only one Fabric db is currently supported per Neo4j instance." )
-    public static Setting<String> databaseName = newBuilder( "fabric.db.name", SettingValueParsers.DATABASENAME, null ).build();
+    public static Setting<String> databaseName = newBuilder( "fabric.database.name", SettingValueParsers.DATABASENAME, null ).build();
     @Description( "The time to live (TTL) of a routing table for fabric routing group." )
     public static Setting<Duration> routingTtlSetting = newBuilder( "fabric.routing.ttl", SettingValueParsers.DURATION, Duration.ofMinutes( 1L ) ).build();
     @Description( "Time interval of inactivity after which a driver will be closed." )

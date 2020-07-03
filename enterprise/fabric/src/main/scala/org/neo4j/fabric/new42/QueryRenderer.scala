@@ -29,10 +29,10 @@ import org.neo4j.cypher.internal.v4_0.ast.Clause
 import org.neo4j.cypher.internal.v4_0.expressions.Expression
 
 object QueryRenderer {
-  def addOptions(query: String, options: QueryOptions): String = ???
+  def addOptions(query: String, options: QueryOptions): String = null
 
-  def render(clauses: Seq[Clause]): AnyRef = ???
+  def render(clauses: Seq[Clause]): AnyRef = null
 
-  def pretty(expression: Expression): String = ???
+  def pretty(expression: Expression): String = null
 
 }
