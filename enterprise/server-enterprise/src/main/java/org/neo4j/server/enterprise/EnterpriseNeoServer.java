@@ -76,6 +76,7 @@ public class EnterpriseNeoServer extends CommunityNeoServer
     /**
      * @return
      */
+    @Override
     protected WebServer createWebServer()
     {
         Jetty9WebServer webServer = (Jetty9WebServer) super.createWebServer();
@@ -114,12 +115,12 @@ public class EnterpriseNeoServer extends CommunityNeoServer
                                            } );
         return webServer;
     }
-
+    @Override
     protected AuthorizationModule createAuthorizationModule()
     {
         return new EnterpriseAuthorizationModule( this.webServer, this.authManagerSupplier, this.userLogProvider, this.getConfig(), this.getUriWhitelist() );
     }
-
+    @Override
     protected DBMSModule createDBMSModule()
     {
         Supplier<DiscoverableURIs> discoverableURIs = () ->
@@ -130,7 +131,7 @@ public class EnterpriseNeoServer extends CommunityNeoServer
         };
         return new DBMSModule( this.webServer, this.getConfig(), discoverableURIs, this.userLogProvider );
     }
-
+    @Override
     protected Iterable<ServerModule> createServerModules()
     {
         List<ServerModule> modules = new ArrayList();
@@ -142,6 +143,7 @@ public class EnterpriseNeoServer extends CommunityNeoServer
         return modules;
     }
 
+    @Override
     protected List<Pattern> getUriWhitelist()
     {
         ArrayList<Pattern> result = new ArrayList( super.getUriWhitelist() );

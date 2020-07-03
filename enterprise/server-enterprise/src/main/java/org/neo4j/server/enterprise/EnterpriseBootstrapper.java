@@ -33,16 +33,19 @@ import org.neo4j.server.database.GraphFactory;
  */
 public class EnterpriseBootstrapper extends CommunityBootstrapper
 {
+    @Override
     protected GraphFactory createGraphFactory( Config config )
     {
         return new EnterpriseGraphFactory();
     }
 
+    @Override
     protected NeoServer createNeoServer( GraphFactory graphFactory, Config config, GraphDatabaseDependencies dependencies )
     {
         return new EnterpriseNeoServer( config, graphFactory, dependencies );
     }
 
+    @Override
     protected List<Class<? extends GroupSettingValidator>> configurationValidators()
     {
         List<Class<? extends GroupSettingValidator>> validators = new ArrayList( super.configurationValidators() );

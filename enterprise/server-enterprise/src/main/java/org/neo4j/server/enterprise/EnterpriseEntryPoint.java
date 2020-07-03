@@ -29,6 +29,7 @@ public class EnterpriseEntryPoint
 
     private EnterpriseEntryPoint()
     {
+
     }
 
     /**
@@ -49,6 +50,8 @@ public class EnterpriseEntryPoint
      */
     public static void start( String[] args )
     {
+
+
         bootstrapper = new BlockingBootstrapper( new EnterpriseBootstrapper() );
         System.exit( ServerBootstrapper.start( bootstrapper, args ) );
     }
