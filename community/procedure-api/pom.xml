@@ -20,7 +20,7 @@
 
     <packaging>jar</packaging>
     <name>ONgDB - Procedure API</name>
-    <description>Procedure API for Neo4j.</description>
+    <description>Procedure API for ONgDB.</description>
     <url>https://ongdb.graphfoundation.org/${project.artifactId}/${project.version}</url>
 
     <scm>
@@ -45,6 +45,19 @@
             <plugin>
                 <groupId>org.revapi</groupId>
                 <artifactId>revapi-maven-plugin</artifactId>
+                <configuration>
+                    <analysisConfiguration>
+                        <revapi.ignore>
+                            <item>
+                                <code>java.class.added</code>
+                                <new>@interface org.neo4j.procedure.Internal</new>
+                                <justification>Adding an internal annotation to procedures to be able to add hidden procedures without breaking
+                                    dbms.procedures() output.
+                                </justification>
+                            </item>
+                        </revapi.ignore>
+                    </analysisConfiguration>
+                </configuration>
             </plugin>
         </plugins>
     </build>

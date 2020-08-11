@@ -134,6 +134,7 @@ import org.neo4j.kernel.impl.store.format.RecordFormats;
 import org.neo4j.kernel.impl.store.id.DefaultIdGeneratorFactory;
 import org.neo4j.kernel.impl.store.id.IdGeneratorFactory;
 import org.neo4j.kernel.impl.store.id.IdType;
+import org.neo4j.kernel.impl.store.id.ReadOnlyIdGeneratorFactory;
 import org.neo4j.kernel.impl.store.id.validation.IdValidator;
 import org.neo4j.kernel.impl.store.record.ConstraintRule;
 import org.neo4j.kernel.impl.store.record.DynamicRecord;
@@ -200,6 +201,7 @@ public class BatchInserterImpl implements BatchInserter, IndexConfigStoreProvide
     private final Log msgLog;
     private final SchemaCache schemaCache;
     private final Config config;
+    private final boolean readonly;
     private final BatchInserterImpl.BatchSchemaActions actions;
     private final StoreLocker storeLocker;
     private final PageCache pageCache;
@@ -254,6 +256,7 @@ public class BatchInserterImpl implements BatchInserter, IndexConfigStoreProvide
         Map<String, String> params = getDefaultParams();
         params.putAll( stringParams );
         this.config = Config.defaults( params );
+        this.readonly = config.get( GraphDatabaseSettings.read_only );
         this.fileSystem = fileSystem;
 
         life = new LifeSupport();
@@ -275,7 +278,7 @@ public class BatchInserterImpl implements BatchInserter, IndexConfigStoreProvide
         msgLog = logService.getInternalLog( getClass() );
 
         boolean dump = config.get( GraphDatabaseSettings.dump_configuration );
-        this.idGeneratorFactory = new DefaultIdGeneratorFactory( fileSystem );
+        this.idGeneratorFactory = readonly ? new ReadOnlyIdGeneratorFactory() : new DefaultIdGeneratorFactory( fileSystem );
 
         LogProvider internalLogProvider = logService.getInternalLogProvider();
         RecordFormats recordFormats = RecordFormatSelector.selectForStoreOrConfig( config, databaseLayout, fileSystem,
@@ -309,7 +312,6 @@ public class BatchInserterImpl implements BatchInserter, IndexConfigStoreProvide
         storeIndexStoreView = new NeoStoreIndexStoreView( NO_LOCK_SERVICE, neoStores );
         Dependencies deps = new Dependencies();
         Monitors monitors = new Monitors();
-//<<<<<<< HEAD
         deps.satisfyDependencies( fileSystem, config, logService, storeIndexStoreView, pageCache, monitors, RecoveryCleanupWorkCollector.immediate() );
 
         DatabaseKernelExtensions extensions = life.add( new DatabaseKernelExtensions(
@@ -346,7 +348,7 @@ public class BatchInserterImpl implements BatchInserter, IndexConfigStoreProvide
 
     private StoreLocker tryLockStore( FileSystemAbstraction fileSystem )
     {
-        StoreLocker storeLocker = new GlobalStoreLocker( fileSystem, this.databaseLayout.getStoreLayout() );
+        StoreLocker storeLocker = new GlobalStoreLocker( fileSystem, databaseLayout.getStoreLayout() );
         try
         {
             storeLocker.checkLock();
@@ -389,6 +391,7 @@ public class BatchInserterImpl implements BatchInserter, IndexConfigStoreProvide
     @Override
     public void setNodeProperty( long node, String propertyName, Object propertyValue )
     {
+        checkReadOnly();
         RecordProxy<NodeRecord,Void> nodeRecord = getNodeRecord( node );
         setPrimitiveProperty( nodeRecord, propertyName, propertyValue );
 
@@ -398,6 +401,7 @@ public class BatchInserterImpl implements BatchInserter, IndexConfigStoreProvide
     @Override
     public void setRelationshipProperty( long relationship, String propertyName, Object propertyValue )
     {
+        checkReadOnly();
         RecordProxy<RelationshipRecord,Void> relationshipRecord = getRelationshipRecord( relationship );
         setPrimitiveProperty( relationshipRecord, propertyName, propertyValue );
 
@@ -407,15 +411,16 @@ public class BatchInserterImpl implements BatchInserter, IndexConfigStoreProvide
     @Override
     public void removeNodeProperty( long node, String propertyName )
     {
+        checkReadOnly();
         int propertyKey = getOrCreatePropertyKeyId( propertyName );
         propertyDeletor.removePropertyIfExists( getNodeRecord( node ), propertyKey, recordAccess.getPropertyRecords() );
         flushStrategy.flush();
     }
 
     @Override
-    public void removeRelationshipProperty( long relationship,
-                                            String propertyName )
+    public void removeRelationshipProperty( long relationship, String propertyName )
     {
+        checkReadOnly();
         int propertyKey = getOrCreatePropertyKeyId( propertyName );
         propertyDeletor.removePropertyIfExists( getRelationshipRecord( relationship ), propertyKey,
                 recordAccess.getPropertyRecords() );
@@ -425,6 +430,7 @@ public class BatchInserterImpl implements BatchInserter, IndexConfigStoreProvide
     @Override
     public IndexCreator createDeferredSchemaIndex( Label label )
     {
+        checkReadOnly();
         return new IndexCreatorImpl( actions, label );
     }
 
@@ -522,9 +528,10 @@ public class BatchInserterImpl implements BatchInserter, IndexConfigStoreProvide
         LogProvider logProvider = logService.getInternalLogProvider();
         LogProvider userLogProvider = logService.getUserLogProvider();
         IndexStoreView indexStoreView = new DynamicIndexStoreView( storeIndexStoreView, labelIndex, NO_LOCK_SERVICE, neoStores, logProvider );
+        IndexingService.Monitor monitor = monitors.newMonitor( IndexingService.Monitor.class );
         IndexingService indexingService = IndexingServiceFactory
                 .createIndexingService( config, jobScheduler, indexProviderMap, indexStoreView, new NonTransactionalTokenNameLookup( tokenHolders ),
-                        emptyList(), logProvider, userLogProvider, NO_MONITOR, new DatabaseSchemaState( logProvider ), false );
+                        emptyList(), logProvider, userLogProvider, monitor, new DatabaseSchemaState( logProvider ), false );
         life.add( indexingService );
         try
         {
@@ -595,6 +602,7 @@ public class BatchInserterImpl implements BatchInserter, IndexConfigStoreProvide
     @Override
     public ConstraintCreator createDeferredConstraint( Label label )
     {
+        checkReadOnly();
         return new BaseNodeConstraintCreator( new BatchSchemaActions(), label );
     }
 
@@ -706,6 +714,7 @@ public class BatchInserterImpl implements BatchInserter, IndexConfigStoreProvide
     @Override
     public long createNode( Map<String, Object> properties, Label... labels )
     {
+        checkReadOnly();
         return internalCreateNode( nodeStore.nextId(), properties, labels );
     }
 
@@ -724,6 +733,14 @@ public class BatchInserterImpl implements BatchInserter, IndexConfigStoreProvide
 
         flushStrategy.flush();
         return nodeId;
+    }
+
+    private void checkReadOnly()
+    {
+        if ( readonly )
+        {
+            throw new IllegalStateException( "This BatchInserter is configured to be read-only, and cannot modify data." );
+        }
     }
 
     private Iterator<PropertyBlock> propertiesIterator( Map<String, Object> properties )
@@ -784,6 +801,7 @@ public class BatchInserterImpl implements BatchInserter, IndexConfigStoreProvide
     @Override
     public void createNode( long id, Map<String, Object> properties, Label... labels )
     {
+        checkReadOnly();
         IdValidator.assertValidId( IdType.NODE, id, maxNodeId );
         if ( nodeStore.isInUse( id ) )
         {
@@ -800,6 +818,7 @@ public class BatchInserterImpl implements BatchInserter, IndexConfigStoreProvide
     @Override
     public void setNodeLabels( long node, Label... labels )
     {
+        checkReadOnly();
         NodeRecord record = getNodeRecord( node ).forChangingData();
         setNodeLabels( record, labels );
         flushStrategy.flush();
@@ -840,6 +859,7 @@ public class BatchInserterImpl implements BatchInserter, IndexConfigStoreProvide
     public long createRelationship( long node1, long node2, RelationshipType type,
             Map<String, Object> properties )
     {
+        checkReadOnly();
         long id = relationshipStore.nextId();
         int typeId = getOrCreateRelationshipTypeId( type.name() );
         relationshipCreator.relationshipCreate( id, typeId, node1, node2, recordAccess, noopLockClient );
@@ -856,6 +876,7 @@ public class BatchInserterImpl implements BatchInserter, IndexConfigStoreProvide
     @Override
     public void setNodeProperties( long node, Map<String, Object> properties )
     {
+        checkReadOnly();
         NodeRecord record = getNodeRecord( node ).forChangingData();
         if ( record.getNextProp() != Record.NO_NEXT_PROPERTY.intValue() )
         {
@@ -869,6 +890,7 @@ public class BatchInserterImpl implements BatchInserter, IndexConfigStoreProvide
     @Override
     public void setRelationshipProperties( long rel, Map<String, Object> properties )
     {
+        checkReadOnly();
         RelationshipRecord record = recordAccess.getRelRecords().getOrLoad( rel, null ).forChangingData();
         if ( record.getNextProp() != Record.NO_NEXT_PROPERTY.intValue() )
         {
@@ -967,12 +989,14 @@ public class BatchInserterImpl implements BatchInserter, IndexConfigStoreProvide
 
         flushStrategy.forceFlush();
 
-        rebuildCounts();
-
         try
         {
-            NativeLabelScanStore labelIndex = buildLabelIndex();
-            repopulateAllIndexes( labelIndex );
+            if ( !readonly )
+            {
+                rebuildCounts();
+                NativeLabelScanStore labelIndex = buildLabelIndex();
+                repopulateAllIndexes( labelIndex );
+            }
         }
         catch ( IOException e )
         {
@@ -1124,6 +1148,12 @@ public class BatchInserterImpl implements BatchInserter, IndexConfigStoreProvide
     NeoStores getNeoStores()
     {
         return neoStores;
+    }
+
+    @VisibleForTesting
+    Monitors getMonitors()
+    {
+        return monitors;
     }
 
     void forceFlushChanges()

@@ -37,6 +37,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 
 import org.neo4j.graphdb.DependencyResolver;
@@ -90,7 +91,9 @@ import static org.hamcrest.Matchers.emptyArray;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 import static org.neo4j.kernel.impl.transaction.log.entry.LogEntryByteCodes.TX_START;
 
 public class RecoveryCorruptedTransactionLogIT
@@ -106,7 +109,7 @@ public class RecoveryCorruptedTransactionLogIT
     private final AssertableLogProvider logProvider = new AssertableLogProvider( true );
     private final RecoveryMonitor recoveryMonitor = new RecoveryMonitor();
     private File storeDir;
-    private Monitors monitors = new Monitors();
+    private final Monitors monitors = new Monitors();
     private LogFiles logFiles;
     private TestGraphDatabaseFactory databaseFactory;
 
@@ -172,15 +175,28 @@ public class RecoveryCorruptedTransactionLogIT
         database.shutdown();
 
         removeLastCheckpointRecordFromLastLogFile();
-        addRandomBytesToLastLogFile( this::randomBytes );
+
+        assertFalse( recoveryMonitor.wasRecoveryRequired() );
+
+        Supplier<Byte> randomBytesSupplier = this::randomBytes;
+        BytesCaptureSupplier capturingSupplier = new BytesCaptureSupplier( randomBytesSupplier );
+        addRandomBytesToLastLogFile( capturingSupplier );
 
         database = startDbNoRecoveryOfCorruptedLogs();
         database.shutdown();
 
-        logProvider.rawMessageMatcher().assertContains( "Fail to read transaction log version 0." );
-        logProvider.rawMessageMatcher().assertContains(
-                "Fail to read transaction log version 0. Last valid transaction start offset is: 5668." );
-        assertEquals( numberOfClosedTransactions, recoveryMonitor.getNumberOfRecoveredTransactions() );
+        try
+        {
+            assertEquals( numberOfClosedTransactions, recoveryMonitor.getNumberOfRecoveredTransactions() );
+            assertTrue( recoveryMonitor.wasRecoveryRequired() );
+            logProvider.rawMessageMatcher().assertContains( "Fail to read transaction log version 0." );
+            logProvider.rawMessageMatcher().assertContains(
+                    "Fail to read transaction log version 0. Last valid transaction start offset is: 5668." );
+        }
+        catch ( Throwable t )
+        {
+            throw new RuntimeException( "Generated random bytes: " + capturingSupplier.getCapturedBytes(), t );
+        }
     }
 
     @Test
@@ -613,12 +629,14 @@ public class RecoveryCorruptedTransactionLogIT
 
     private static class RecoveryMonitor implements org.neo4j.kernel.recovery.RecoveryMonitor
     {
-        private List<Long> recoveredTransactions = new ArrayList<>();
+        private final List<Long> recoveredTransactions = new ArrayList<>();
         private int numberOfRecoveredTransactions;
+        private final AtomicBoolean recoveryRequired = new AtomicBoolean();
 
         @Override
         public void recoveryRequired( LogPosition recoveryPosition )
         {
+            recoveryRequired.set( true );
         }
 
         @Override
@@ -636,6 +654,11 @@ public class RecoveryCorruptedTransactionLogIT
         int getNumberOfRecoveredTransactions()
         {
             return numberOfRecoveredTransactions;
+        }
+
+        boolean wasRecoveryRequired()
+        {
+            return recoveryRequired.get();
         }
     }
 
@@ -666,6 +689,30 @@ public class RecoveryCorruptedTransactionLogIT
         {
             version++;
             return version;
+        }
+    }
+
+    private static class BytesCaptureSupplier implements Supplier<Byte>
+    {
+        private final Supplier<Byte> generator;
+        private final List<Byte> capturedBytes = new ArrayList<>();
+
+        BytesCaptureSupplier( Supplier<Byte> generator )
+        {
+            this.generator = generator;
+        }
+
+        @Override
+        public Byte get()
+        {
+            Byte data = generator.get();
+            capturedBytes.add( data );
+            return data;
+        }
+
+        public List<Byte> getCapturedBytes()
+        {
+            return capturedBytes;
         }
     }
 }
