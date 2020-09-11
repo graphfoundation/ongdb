@@ -400,6 +400,14 @@ public class ProcedureResourcesIT
             proc.withParam( ftsRelsIndex );
             proc.withParam( "'value'" );
             break;
+        case "db.index.fulltext.searchNodes":
+            proc.withParam( ftsNodesIndex );
+            proc.withParam( "'value'" );
+            break;
+        case "db.index.fulltext.searchRelationships":
+            proc.withParam( ftsRelsIndex );
+            proc.withParam( "'value'" );
+            break;
         case "db.index.fulltext.countNodes":
             proc.withParam( ftsNodesIndex );
             proc.withParam( "'value'" );
