@@ -61,7 +61,7 @@ public class FulltextSortTest
 {
     private static final String DB_INDEXES = "CALL db.indexes";
     static final String QUERY_NODES_SORT = "CALL db.index.fulltext.queryNodes(\"%s\", \"%s\", \"%s\", \"%s\")";
-    static final String QUERY_RELS_SORT = "CALL db.index.fulltext.queryRelationships(\"%s\", \"%s\", \"%s\")";
+    static final String QUERY_RELS_SORT = "CALL db.index.fulltext.queryRelationships(\"%s\", \"%s\", \"%s\", \"%s\")";
     static final String NODE_CREATE_SORT = "CALL db.index.fulltext.createNodeIndex(\"%s\", %s, %s, %s, %s )";
     static final String RELATIONSHIP_CREATE_SORT = "CALL db.index.fulltext.createRelationshipIndex(\"%s\", %s, %s, %s, %s)";
 
@@ -235,6 +235,7 @@ public class FulltextSortTest
             for ( int i = 0; i < entityCount; i++ )
             {
                 Node node = db.createNode( PERSON );
+                node.setProperty( "name", "Bob" + bornValue );
                 node.setProperty( BORN, bornValue );
                 bornValue++;
             }
@@ -254,9 +255,11 @@ public class FulltextSortTest
             while ( result.hasNext() )
             {
                 row = result.next();
-                assertEquals( lastBorn, row.get( "born" ) );
+                assertEquals( lastBorn, ((Node) row.get( "node" )).getProperty( "born" ) );
                 lastBorn++;
             }
+            // Assert that rows were actually returned
+            assertTrue( lastBorn > 1900 );
             result.close();
             tx.success();
         }
@@ -268,13 +271,15 @@ public class FulltextSortTest
             result = db.execute( format( QUERY_NODES_SORT, "sort-index", "*", "born", "DESC" ) );
 
             // Loop through results, verify they are in order.
-            long lastBorn = 2000;
+            long lastBorn = 1999;
             while ( result.hasNext() )
             {
                 row = result.next();
-                assertEquals( lastBorn, row.get( "born" ) );
+                assertEquals( lastBorn, ((Node) row.get( "node" )).getProperty( "born" ) );
                 lastBorn--;
             }
+            // Assert that rows were actually returned
+            assertTrue( lastBorn < 1999 );
             result.close();
             tx.success();
         }
@@ -306,6 +311,7 @@ public class FulltextSortTest
                 Node movie = db.createNode( MOVIE );
 
                 Relationship relationshipTo = person.createRelationshipTo( movie, REVIEWED );
+                relationshipTo.setProperty( "summary", "I give this movie " + ratingValue + " out of 100." );
                 relationshipTo.setProperty( RATING, ratingValue );
 
                 ratingValue++;
@@ -326,9 +332,11 @@ public class FulltextSortTest
             while ( result.hasNext() )
             {
                 row = result.next();
-                assertEquals( lastRating, row.get( "rating" ) );
+                assertEquals( lastRating, ((Relationship) row.get( "relationship" )).getProperty( "rating" ) );
                 lastRating++;
             }
+            // Assert that rows were actually returned
+            assertTrue( lastRating > 0 );
             result.close();
             tx.success();
         }
@@ -340,13 +348,15 @@ public class FulltextSortTest
             result = db.execute( format( QUERY_RELS_SORT, "sort-index", "*", "rating", "DESC" ) );
 
             // Loop through results, verify they are in order.
-            long lastRating = 100;
+            long lastRating = 99;
             while ( result.hasNext() )
             {
                 row = result.next();
-                assertEquals( lastRating, row.get( "rating" ) );
+                assertEquals( lastRating, ((Relationship) row.get( "relationship" )).getProperty( "rating" ) );
                 lastRating--;
             }
+            // Assert that rows were actually returned
+            assertTrue( lastRating < 99 );
             result.close();
             tx.success();
         }
@@ -428,6 +438,8 @@ public class FulltextSortTest
             assertEquals( expectedOrder[i], ((NodeProxy) row.get( "node" )).getProperty( UID ) );
             i++;
         }
+        // Assert that rows were actually returned
+        assertTrue( i > 0 );
         result.close();
     }
 
