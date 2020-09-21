@@ -145,7 +145,7 @@ class SimpleFulltextIndexReader extends FulltextIndexReader
 
     private ScoreEntityIterator indexQueryWithSort( Query query, FulltextQueryConfig queryConfig )
     {
-        List<FulltextQueryConfig.SortParameter> sortParameters = queryConfig.getSorts();
+        List<FulltextQueryConfig.SortParameter> sortParameters = queryConfig.getSortBy();
         try
         {
 
@@ -179,8 +179,8 @@ class SimpleFulltextIndexReader extends FulltextIndexReader
         List<SortField> sortFields = new ArrayList<>();
         for ( FulltextQueryConfig.SortParameter sortParameter : sortParameters )
         {
-            String sortFieldString = sortParameter.getSortProperty();
-            boolean reverseSortOrder = reverseSortDirection( sortParameter.getSortDirection() );
+            String sortFieldString = sortParameter.getProperty();
+            boolean reverseSortOrder = isSortDirectionReversed( sortParameter.getDirection() );
 
             if ( !Arrays.asList( sortProperties ).contains( sortFieldString ) )
             {
@@ -283,7 +283,7 @@ class SimpleFulltextIndexReader extends FulltextIndexReader
     }
 
     // Returns boolean that is used by SortField. If true then it reverses sort direction
-    private boolean reverseSortDirection( String sortDirection ) throws IOException
+    private boolean isSortDirectionReversed( String sortDirection ) throws IOException
     {
         FulltextSortDirection fulltextSortDirection = FulltextSortDirection.valueOfIgnoreCase( sortDirection );
 

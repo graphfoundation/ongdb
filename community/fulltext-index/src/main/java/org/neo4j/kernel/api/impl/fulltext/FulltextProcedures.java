@@ -197,18 +197,7 @@ public class FulltextProcedures
             throws ParseException, IndexNotFoundKernelException, IOException
     {
 
-        return searchFulltextForNodes( name, query, new HashMap<String,Object>()
-        {{
-            put( "sorts", Collections.singletonList( new HashMap()
-            {
-                {
-                    {
-                        put( "sortProperty", sortProperty );
-                        put( "sortDirection", sortDirection );
-                    }
-                }
-            } ) );
-        }} );
+        return searchFulltextForNodes( name, query, FulltextQueryConfig.singleSortMap( sortProperty, sortDirection ) );
     }
 
     @Deprecated
@@ -221,18 +210,7 @@ public class FulltextProcedures
             throws ParseException, IndexNotFoundKernelException, IOException
     {
 
-        return searchFulltextForRelationships( name, query, new HashMap<String,Object>()
-        {{
-            put( "sorts", Collections.singletonList( new HashMap()
-            {
-                {
-                    {
-                        put( "sortProperty", sortProperty );
-                        put( "sortDirection", sortDirection );
-                    }
-                }
-            } ) );
-        }} );
+        return searchFulltextForRelationships( name, query, FulltextQueryConfig.singleSortMap( sortProperty, sortDirection ) );
     }
 
     @Description( "Query the given fulltext index. Returns the matching nodes and their lucene query score, ordered by score." )

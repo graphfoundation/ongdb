@@ -1,20 +1,21 @@
 package org.neo4j.kernel.api.impl.fulltext;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 public class FulltextQueryConfig
 {
-    private final List<SortParameter> sorts;
+    private final List<SortParameter> sortBy;
 
     private final Integer pageSize;
     private final Integer page;
 
-    public FulltextQueryConfig( List<SortParameter> sorts, Integer pageSize, Integer page )
+    public FulltextQueryConfig( List<SortParameter> sortBy, Integer pageSize, Integer page )
     {
-        this.sorts = sorts;
+        this.sortBy = sortBy;
         this.pageSize = pageSize;
         this.page = page;
     }
@@ -28,7 +29,7 @@ public class FulltextQueryConfig
     {
         try
         {
-            List<HashMap<String,Object>> sortsList = (List<HashMap<String,Object>>) config.getOrDefault( "sorts", "[]" );
+            List<HashMap<String,Object>> sortsList = (List<HashMap<String,Object>>) config.getOrDefault( "sortBy", "[]" );
             List<SortParameter> sorts = new ArrayList<>();
 
             // Determine SortParameter
@@ -52,21 +53,36 @@ public class FulltextQueryConfig
         }
     }
 
-    public static FulltextQueryConfig sortConfig( String sortProperty, String sortDirection )
+    public static FulltextQueryConfig singleSort( String sortProperty, String sortDirection )
     {
-        Map<String,Object> configMap = new HashMap<String,Object>()
-        {{
-            put( "sortProperty", sortProperty );
-            put( "sortDirection", sortDirection );
-        }};
+        Map<String,Object> configMap = new HashMap<>();
+        if ( sortProperty != null && !sortProperty.isEmpty() )
+        {
+            configMap = singleSortMap( sortProperty, sortDirection );
+        }
 
         return parseConfig( configMap );
     }
 
+    public static Map<String,Object> singleSortMap( String sortProperty, String sortDirection )
+    {
+        return new HashMap<String,Object>()
+        {{
+            put( "sortBy", Collections.singletonList( new HashMap()
+            {
+                {
+                    {
+                        put( "property", sortProperty );
+                        put( "direction", sortDirection );
+                    }
+                }
+            } ) );
+        }};
+    }
+
     public boolean isSortQuery()
     {
-        return !sorts.isEmpty();
-//        return sortProperty != null && !sortProperty.isEmpty();
+        return sortBy != null && !sortBy.isEmpty();
     }
 
     public boolean isPaged()
@@ -74,9 +90,9 @@ public class FulltextQueryConfig
         return this.pageSize != null && pageSize != Integer.MAX_VALUE;
     }
 
-    public List<SortParameter> getSorts()
+    public List<SortParameter> getSortBy()
     {
-        return sorts;
+        return sortBy;
     }
 
     public Integer getPageSize()
@@ -91,21 +107,21 @@ public class FulltextQueryConfig
 
     public static class SortParameter
     {
-        private static String SORT_PROPERTY = "sortProperty";
-        private static String SORT_DIRECTION = "sortDirection";
-        private final String sortProperty;
-        private final String sortDirection;
+        private static String SORT_PROPERTY = "property";
+        private static String SORT_DIRECTION = "direction";
+        private final String property;
+        private final String direction;
 
-        public SortParameter( String sortProperty )
+        public SortParameter( String property )
         {
-            this.sortProperty = sortProperty;
-            this.sortDirection = FulltextSortDirection.ASC.name();
+            this.property = property;
+            this.direction = FulltextSortDirection.ASC.name();
         }
 
-        public SortParameter( String sortProperty, String sortDirection )
+        public SortParameter( String property, String direction )
         {
-            this.sortProperty = sortProperty;
-            this.sortDirection = sortDirection;
+            this.property = property;
+            this.direction = direction;
         }
 
         private static SortParameter fromMap( Map<String,Object> map )
@@ -117,14 +133,14 @@ public class FulltextQueryConfig
             return new SortParameter( (String) map.get( SORT_PROPERTY ), (String) map.getOrDefault( SORT_DIRECTION, FulltextSortDirection.ASC.name() ) );
         }
 
-        public String getSortProperty()
+        public String getProperty()
         {
-            return sortProperty;
+            return property;
         }
 
-        public String getSortDirection()
+        public String getDirection()
         {
-            return sortDirection;
+            return direction;
         }
     }
 }

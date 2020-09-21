@@ -378,21 +378,20 @@ public class FulltextSortTest
         // Assertions to ensure sorting is working as expected
         try ( Transaction tx = db.beginTx() )
         {
-            // probably wanna make it more clear where "sorts" comes from.
-            String sortConfig = "{sorts: " +
+            String sortConfig = "{sortBy: " +
                                 "[" +
-                                "{sortProperty: \"born\"}," +
-                                "{sortProperty: \"name\", sortDirection: \"DESC\"}" +
+                                "{property: \"born\"}," +
+                                "{property: \"name\", direction: \"DESC\"}" +
                                 "]}";
             Integer[] expectedOrder = new Integer[]{2, 1, 4, 3};
             // Search with Sorts : BORN (1) then NAME-DESC (2)
             result = db.execute( format( SEARCH_NODES_SORT, "sort-index", "*", sortConfig ) );
             sortOrderAssertionHelper( result, expectedOrder );
 
-            sortConfig = "{sorts: " +
+            sortConfig = "{sortBy: " +
                          "[" +
-                         "{sortProperty: \"born\"}," +
-                         "{sortProperty: \"name\"}" +
+                         "{property: \"born\"}," +
+                         "{property: \"name\"}" +
                          "]}";
             expectedOrder = new Integer[]{1, 2, 4, 3};
             // Search with Sorts : BORN (1) then NAME (2)
