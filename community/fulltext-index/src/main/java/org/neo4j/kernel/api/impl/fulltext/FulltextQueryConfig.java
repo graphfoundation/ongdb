@@ -1,35 +1,41 @@
 package org.neo4j.kernel.api.impl.fulltext;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class FulltextQueryConfig
 {
-    private final String sortProperty;
-    private final String sortDirection;
+    private final List<SortParameter> sorts;
 
     private final Integer pageSize;
     private final Integer page;
 
-    private FulltextQueryConfig( String sortProperty, String sortDirection, Integer pageSize, Integer page )
+    public FulltextQueryConfig( List<SortParameter> sorts, Integer pageSize, Integer page )
     {
-        this.sortProperty = sortProperty;
-        this.sortDirection = sortDirection;
+        this.sorts = sorts;
         this.pageSize = pageSize;
         this.page = page;
     }
 
     public static FulltextQueryConfig defaultConfig()
     {
-        return new FulltextQueryConfig( "", "ASC", Integer.MAX_VALUE, 0 );
+        return new FulltextQueryConfig( new ArrayList<>(), Integer.MAX_VALUE, 0 );
     }
 
     public static FulltextQueryConfig parseConfig( Map<String,Object> config )
     {
         try
         {
-            String sortProperty = (String) config.getOrDefault( "sortProperty", "" );
-            String sortDirection = (String) config.getOrDefault( "sortDirection", "ASC" );
+            List<HashMap<String,Object>> sortsList = (List<HashMap<String,Object>>) config.getOrDefault( "sorts", "[]" );
+            List<SortParameter> sorts = new ArrayList<>();
+
+            // Determine SortParameter
+            for ( HashMap<String,Object> s : sortsList )
+            {
+                sorts.add( SortParameter.fromMap( s ) );
+            }
 
             Integer maxIntValue = Integer.MAX_VALUE;
             Long pageSizeLong = (Long) config.getOrDefault( "pageSize", maxIntValue.longValue() );
@@ -38,7 +44,7 @@ public class FulltextQueryConfig
             Integer pageSize = pageSizeLong.intValue();
             Integer page = pageLong.intValue();
 
-            return new FulltextQueryConfig( sortProperty, sortDirection, pageSize, page );
+            return new FulltextQueryConfig( sorts, pageSize, page );
         }
         catch ( Exception e )
         {
@@ -59,7 +65,8 @@ public class FulltextQueryConfig
 
     public boolean isSortQuery()
     {
-        return sortProperty != null && !sortProperty.isEmpty();
+        return !sorts.isEmpty();
+//        return sortProperty != null && !sortProperty.isEmpty();
     }
 
     public boolean isPaged()
@@ -67,14 +74,9 @@ public class FulltextQueryConfig
         return this.pageSize != null && pageSize != Integer.MAX_VALUE;
     }
 
-    public String getSortProperty()
+    public List<SortParameter> getSorts()
     {
-        return sortProperty;
-    }
-
-    public String getSortDirection()
-    {
-        return sortDirection;
+        return sorts;
     }
 
     public Integer getPageSize()
@@ -85,5 +87,44 @@ public class FulltextQueryConfig
     public Integer getPage()
     {
         return page;
+    }
+
+    public static class SortParameter
+    {
+        private static String SORT_PROPERTY = "sortProperty";
+        private static String SORT_DIRECTION = "sortDirection";
+        private final String sortProperty;
+        private final String sortDirection;
+
+        public SortParameter( String sortProperty )
+        {
+            this.sortProperty = sortProperty;
+            this.sortDirection = FulltextSortDirection.ASC.name();
+        }
+
+        public SortParameter( String sortProperty, String sortDirection )
+        {
+            this.sortProperty = sortProperty;
+            this.sortDirection = sortDirection;
+        }
+
+        private static SortParameter fromMap( Map<String,Object> map )
+        {
+            if ( !map.containsKey( SORT_PROPERTY ) )
+            {
+                throw new RuntimeException( "No '" + SORT_PROPERTY + "' property specified." );
+            }
+            return new SortParameter( (String) map.get( SORT_PROPERTY ), (String) map.getOrDefault( SORT_DIRECTION, FulltextSortDirection.ASC.name() ) );
+        }
+
+        public String getSortProperty()
+        {
+            return sortProperty;
+        }
+
+        public String getSortDirection()
+        {
+            return sortDirection;
+        }
     }
 }

@@ -27,6 +27,7 @@ import org.apache.lucene.queryparser.classic.ParseException;
 
 import java.io.IOException;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -195,10 +196,18 @@ public class FulltextProcedures
                                                      @Name( value = "sortDirection", defaultValue = "ASC" ) String sortDirection )
             throws ParseException, IndexNotFoundKernelException, IOException
     {
+
         return searchFulltextForNodes( name, query, new HashMap<String,Object>()
         {{
-            put( "sortProperty", sortProperty );
-            put( "sortDirection", sortDirection );
+            put( "sorts", Collections.singletonList( new HashMap()
+            {
+                {
+                    {
+                        put( "sortProperty", sortProperty );
+                        put( "sortDirection", sortDirection );
+                    }
+                }
+            } ) );
         }} );
     }
 
@@ -211,10 +220,18 @@ public class FulltextProcedures
                                                                      @Name( value = "sortDirection", defaultValue = "ASC" ) String sortDirection )
             throws ParseException, IndexNotFoundKernelException, IOException
     {
+
         return searchFulltextForRelationships( name, query, new HashMap<String,Object>()
         {{
-            put( "sortProperty", sortProperty );
-            put( "sortDirection", sortDirection );
+            put( "sorts", Collections.singletonList( new HashMap()
+            {
+                {
+                    {
+                        put( "sortProperty", sortProperty );
+                        put( "sortDirection", sortDirection );
+                    }
+                }
+            } ) );
         }} );
     }
 
