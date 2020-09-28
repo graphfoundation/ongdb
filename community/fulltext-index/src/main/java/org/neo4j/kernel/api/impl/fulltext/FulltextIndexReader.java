@@ -43,7 +43,7 @@ public abstract class FulltextIndexReader implements IndexReader
      */
     public abstract ScoreEntityIterator query( String query ) throws ParseException;
 
-    public abstract ScoreEntityIterator queryWithSort( String query, String sortProp, String sortDirection ) throws ParseException;
+    public abstract ScoreEntityIterator query( String query, FulltextQueryConfig fulltextQueryConfig ) throws ParseException;
 
     public abstract CountResult queryForCount( String query ) throws ParseException;
 

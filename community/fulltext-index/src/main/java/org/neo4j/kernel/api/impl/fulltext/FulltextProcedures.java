@@ -27,6 +27,7 @@ import org.apache.lucene.queryparser.classic.ParseException;
 
 import java.io.IOException;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -185,11 +186,42 @@ public class FulltextProcedures
         tx.schemaWrite().indexDrop( indexReference );
     }
 
-    @Description( "Query the given fulltext index. Returns the matching nodes and their lucene query score, ordered by score." )
+    @Deprecated
+    @Description( "Query the given fulltext index. Returns the matching nodes and their lucene query score, ordered by score. " +
+                  "Deprecated use 'db.index.fulltext.searchNodes'." )
     @Procedure( name = "db.index.fulltext.queryNodes", mode = READ )
     public Stream<NodeOutput> queryFulltextForNodes( @Name( "indexName" ) String name, @Name( "queryString" ) String query,
                                                      @Name( value = "sortProperty", defaultValue = "" ) String sortProperty,
                                                      @Name( value = "sortDirection", defaultValue = "ASC" ) String sortDirection )
+            throws ParseException, IndexNotFoundKernelException, IOException
+    {
+        return searchFulltextForNodes( name, query, new HashMap<String,Object>()
+        {{
+            put( "sortProperty", sortProperty );
+            put( "sortDirection", sortDirection );
+        }} );
+    }
+
+    @Deprecated
+    @Description( "Query the given fulltext index. Returns the matching relationships and their lucene query score, ordered by score. " +
+                  "Deprecated use 'db.index.fulltext.searchRelationships'." )
+    @Procedure( name = "db.index.fulltext.queryRelationships", mode = READ )
+    public Stream<RelationshipOutput> queryFulltextForRelationships( @Name( "indexName" ) String name, @Name( "queryString" ) String query,
+                                                                     @Name( value = "sortProperty", defaultValue = "" ) String sortProperty,
+                                                                     @Name( value = "sortDirection", defaultValue = "ASC" ) String sortDirection )
+            throws ParseException, IndexNotFoundKernelException, IOException
+    {
+        return searchFulltextForRelationships( name, query, new HashMap<String,Object>()
+        {{
+            put( "sortProperty", sortProperty );
+            put( "sortDirection", sortDirection );
+        }} );
+    }
+
+    @Description( "Query the given fulltext index. Returns the matching nodes and their lucene query score, ordered by score." )
+    @Procedure( name = "db.index.fulltext.searchNodes", mode = READ )
+    public Stream<NodeOutput> searchFulltextForNodes( @Name( "indexName" ) String name, @Name( "queryString" ) String query,
+                                                      @Name( value = "config", defaultValue = "{}" ) Map<String,Object> config )
             throws ParseException, IndexNotFoundKernelException, IOException
     {
         IndexReference indexReference = getValidIndexReference( name );
@@ -198,30 +230,21 @@ public class FulltextProcedures
         if ( entityType != EntityType.NODE )
         {
             throw new IllegalArgumentException( "The '" + name + "' index (" + indexReference + ") is an index on " + entityType +
-                    ", so it cannot be queried for nodes." );
+                                                ", so it cannot be queried for nodes." );
         }
 
-        if ( sortProperty.isEmpty() )
-        {
-            ScoreEntityIterator resultIterator = accessor.query( tx, name, query );
-            return resultIterator.stream()
-                                 .map( result -> NodeOutput.forExistingEntityOrNull( db, result ) )
-                                 .filter( Objects::nonNull );
-        }
-        else
-        {
-            ScoreEntityIterator resultIterator = accessor.queryWithSort( tx, name, query, sortProperty, sortDirection );
-            return resultIterator.stream()
-                                 .map( result -> NodeOutput.forExistingEntityOrNull( db, result ) )
-                                 .filter( Objects::nonNull );
-        }
+        FulltextQueryConfig queryConfig = FulltextQueryConfig.parseConfig( config );
+
+        ScoreEntityIterator resultIterator = accessor.query( tx, name, query, queryConfig );
+        return resultIterator.stream()
+                             .map( result -> NodeOutput.forExistingEntityOrNull( db, result ) )
+                             .filter( Objects::nonNull );
     }
 
     @Description( "Query the given fulltext index. Returns the matching relationships and their lucene query score, ordered by score." )
-    @Procedure( name = "db.index.fulltext.queryRelationships", mode = READ )
-    public Stream<RelationshipOutput> queryFulltextForRelationships( @Name( "indexName" ) String name, @Name( "queryString" ) String query,
-                                                                     @Name( value = "sortProperty", defaultValue = "" ) String sortProperty,
-                                                                     @Name( value = "sortDirection", defaultValue = "ASC" ) String sortDirection )
+    @Procedure( name = "db.index.fulltext.searchRelationships", mode = READ )
+    public Stream<RelationshipOutput> searchFulltextForRelationships( @Name( "indexName" ) String name, @Name( "queryString" ) String query,
+                                                                      @Name( value = "config", defaultValue = "{}" ) Map<String,Object> config )
             throws ParseException, IndexNotFoundKernelException, IOException
     {
         IndexReference indexReference = getValidIndexReference( name );
@@ -230,23 +253,15 @@ public class FulltextProcedures
         if ( entityType != EntityType.RELATIONSHIP )
         {
             throw new IllegalArgumentException( "The '" + name + "' index (" + indexReference + ") is an index on " + entityType +
-                    ", so it cannot be queried for relationships." );
+                                                ", so it cannot be queried for relationships." );
         }
 
-        if ( sortProperty.isEmpty() )
-        {
-            ScoreEntityIterator resultIterator = accessor.query( tx, name, query );
-            return resultIterator.stream()
-                                 .map( result -> RelationshipOutput.forExistingEntityOrNull( db, result ) )
-                                 .filter( Objects::nonNull );
-        }
-        else
-        {
-            ScoreEntityIterator resultIterator = accessor.queryWithSort( tx, name, query, sortProperty, sortDirection );
-            return resultIterator.stream()
-                                 .map( result -> RelationshipOutput.forExistingEntityOrNull( db, result ) )
-                                 .filter( Objects::nonNull );
-        }
+        FulltextQueryConfig queryConfig = FulltextQueryConfig.parseConfig( config );
+
+        ScoreEntityIterator resultIterator = accessor.query( tx, name, query, queryConfig );
+        return resultIterator.stream()
+                             .map( result -> RelationshipOutput.forExistingEntityOrNull( db, result ) )
+                             .filter( Objects::nonNull );
     }
 
     @Description( "Query the given fulltext index. Returns the count of matching nodes." )

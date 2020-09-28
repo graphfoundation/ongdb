@@ -88,16 +88,21 @@ class SimpleFulltextIndexReader extends FulltextIndexReader
         MultiFieldQueryParser multiFieldQueryParser = new MultiFieldQueryParser( properties, analyzer );
         multiFieldQueryParser.setAllowLeadingWildcard( true );
         Query query = multiFieldQueryParser.parse( queryString );
-        return indexQuery( query );
+        return indexQuery( query, FulltextQueryConfig.defaultConfig() );
     }
 
     @Override
-    public ScoreEntityIterator queryWithSort( String queryString, String sortField, String sortDirection ) throws ParseException
+    public ScoreEntityIterator query( String queryString, FulltextQueryConfig queryConfig ) throws ParseException
     {
         MultiFieldQueryParser multiFieldQueryParser = new MultiFieldQueryParser( properties, analyzer );
         multiFieldQueryParser.setAllowLeadingWildcard( true );
         Query query = multiFieldQueryParser.parse( queryString );
-        return indexQueryWithSort( query, sortField, sortDirection );
+
+        if ( queryConfig.isSortQuery() )
+        {
+            return indexQueryWithSort( query, queryConfig );
+        }
+        return indexQuery( query, queryConfig );
     }
 
     @Override
@@ -109,15 +114,26 @@ class SimpleFulltextIndexReader extends FulltextIndexReader
         return indexQueryForCount( query );
     }
 
-    private ScoreEntityIterator indexQuery( Query query )
+    private ScoreEntityIterator indexQuery( Query query, FulltextQueryConfig queryConfig )
     {
         try
         {
             DocValuesCollector docValuesCollector = new DocValuesCollector( true );
             getIndexSearcher().search( query, docValuesCollector );
-            ValuesIterator sortedValuesIterator =
-                    docValuesCollector.getSortedValuesIterator( LuceneFulltextDocumentStructure.FIELD_ENTITY_ID, Sort.RELEVANCE );
-            return new ScoreEntityIterator( sortedValuesIterator );
+            if ( queryConfig.isPaged() )
+            {
+                ValuesIterator sortedValuesIterator =
+                        docValuesCollector
+                                .getPagedSortedValuesIterator( LuceneFulltextDocumentStructure.FIELD_ENTITY_ID, Sort.RELEVANCE, queryConfig.getPageSize(),
+                                                               queryConfig.getPage() );
+                return new ScoreEntityIterator( sortedValuesIterator );
+            }
+            else
+            {
+                ValuesIterator sortedValuesIterator =
+                        docValuesCollector.getSortedValuesIterator( LuceneFulltextDocumentStructure.FIELD_ENTITY_ID, Sort.RELEVANCE );
+                return new ScoreEntityIterator( sortedValuesIterator );
+            }
         }
         catch ( IOException e )
         {
@@ -125,8 +141,10 @@ class SimpleFulltextIndexReader extends FulltextIndexReader
         }
     }
 
-    private ScoreEntityIterator indexQueryWithSort( Query query, String sortFieldString, String sortDirection )
+    private ScoreEntityIterator indexQueryWithSort( Query query, FulltextQueryConfig queryConfig )
     {
+        String sortFieldString = queryConfig.getSortProperty();
+        String sortDirection = queryConfig.getSortDirection();
         try
         {
             boolean reverseSortOrder = determineSortDirection( sortDirection );
@@ -143,9 +161,20 @@ class SimpleFulltextIndexReader extends FulltextIndexReader
 
             DocValuesCollector docValuesCollector = new DocValuesCollector( true );
             getIndexSearcher().search( query, docValuesCollector );
-            ValuesIterator sortedValuesIterator =
-                    docValuesCollector.getSortedValuesIterator( LuceneFulltextDocumentStructure.FIELD_ENTITY_ID, sort );
-            return new ScoreEntityIterator( sortedValuesIterator );
+
+            if ( queryConfig.isPaged() )
+            {
+                ValuesIterator sortedValuesIterator =
+                        docValuesCollector.getPagedSortedValuesIterator( LuceneFulltextDocumentStructure.FIELD_ENTITY_ID, sort, queryConfig.getPageSize(),
+                                                                         queryConfig.getPage() );
+                return new ScoreEntityIterator( sortedValuesIterator );
+            }
+            else
+            {
+                ValuesIterator sortedValuesIterator =
+                        docValuesCollector.getSortedValuesIterator( LuceneFulltextDocumentStructure.FIELD_ENTITY_ID, sort );
+                return new ScoreEntityIterator( sortedValuesIterator );
+            }
         }
         catch ( IOException e )
         {

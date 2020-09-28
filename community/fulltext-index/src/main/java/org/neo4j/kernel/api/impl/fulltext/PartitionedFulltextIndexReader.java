@@ -70,9 +70,9 @@ class PartitionedFulltextIndexReader extends FulltextIndexReader
     }
 
     @Override
-    public ScoreEntityIterator queryWithSort( String query, String sortField, String sortDirection ) throws ParseException
+    public ScoreEntityIterator query( String query, FulltextQueryConfig queryConfig ) throws ParseException
     {
-        return partitionedQuery( query, sortField, sortDirection );
+        return partitionedQuery( query, queryConfig );
     }
 
     @Override
@@ -98,12 +98,12 @@ class PartitionedFulltextIndexReader extends FulltextIndexReader
         return ScoreEntityIterator.mergeIterators( results );
     }
 
-    private ScoreEntityIterator partitionedQuery( String query, String sortFieldString, String sortDirection ) throws ParseException
+    private ScoreEntityIterator partitionedQuery( String query, FulltextQueryConfig queryConfig ) throws ParseException
     {
         List<ScoreEntityIterator> results = new ArrayList<>();
         for ( FulltextIndexReader indexReader : indexReaders )
         {
-            results.add( indexReader.queryWithSort( query, sortFieldString, sortDirection ) );
+            results.add( indexReader.query( query, queryConfig ) );
         }
         return ScoreEntityIterator.mergeIterators( results );
     }

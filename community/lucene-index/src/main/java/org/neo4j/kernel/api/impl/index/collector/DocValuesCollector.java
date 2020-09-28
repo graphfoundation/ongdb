@@ -135,6 +135,23 @@ public class DocValuesCollector extends SimpleCollector
         return new TopDocsValuesIterator( topDocs, contexts, field );
     }
 
+    public ValuesIterator getPagedSortedValuesIterator( String field, Sort sort, int pageSize, int page ) throws IOException
+    {
+        if ( sort == null || sort == Sort.INDEXORDER )
+        {
+            // currently can't be paged; does not affect regular fulltext queries since they use sort = Sort.RELEVANCE
+            return getValuesIterator( field );
+        }
+        int size = getTotalHits();
+        if ( size == 0 )
+        {
+            return ValuesIterator.EMPTY;
+        }
+        TopDocs topDocsPaged = getTopDocsPaged( sort, size, pageSize, page );
+        LeafReaderContext[] contexts = getLeafReaderContexts( getMatchingDocs() );
+        return new TopDocsValuesIterator( topDocsPaged, contexts, field );
+    }
+
     /**
      * Replay the search and collect every hit into TopDocs. One {@code ScoreDoc} is allocated
      * for every hit and the {@code Document} instance is loaded lazily with on every iteration step.
@@ -283,6 +300,24 @@ public class DocValuesCollector extends SimpleCollector
             TopFieldCollector collector = TopFieldCollector.create( sort, size, false, true, false );
             replayTo( collector );
             topDocs = collector.topDocs();
+        }
+        return topDocs;
+    }
+
+    private TopDocs getTopDocsPaged( Sort sort, int totalHits, int pageSize, int page ) throws IOException
+    {
+        TopDocs topDocs;
+        if ( sort == Sort.RELEVANCE )
+        {
+            TopScoreDocCollector collector = TopScoreDocCollector.create( totalHits );
+            replayTo( collector );
+            topDocs = collector.topDocs( page * pageSize, pageSize );
+        }
+        else
+        {
+            TopFieldCollector collector = TopFieldCollector.create( sort, totalHits, false, true, false );
+            replayTo( collector );
+            topDocs = collector.topDocs( page * pageSize, pageSize );
         }
         return topDocs;
     }

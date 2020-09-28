@@ -55,11 +55,11 @@ class TransactionStateFulltextIndexReader extends FulltextIndexReader
     }
 
     @Override
-    public ScoreEntityIterator queryWithSort( String query, String sortField, String sortDirection ) throws ParseException
+    public ScoreEntityIterator query( String query, FulltextQueryConfig queryConfig ) throws ParseException
     {
-        ScoreEntityIterator iterator = baseReader.queryWithSort( query, sortField, sortDirection );
+        ScoreEntityIterator iterator = baseReader.query( query, queryConfig );
         iterator = iterator.filter( entry -> !modifiedEntityIdsInThisTransaction.contains( entry.entityId() ) );
-        iterator = mergeIterators( asList( iterator, nearRealTimeReader.queryWithSort( query, sortField, sortDirection ) ) );
+        iterator = mergeIterators( asList( iterator, nearRealTimeReader.query( query, queryConfig ) ) );
         return iterator;
     }
 

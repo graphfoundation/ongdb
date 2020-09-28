@@ -310,12 +310,21 @@ public class BuiltInProceduresIT extends KernelIntegrationTest
                 proc( "db.index.fulltext.queryNodes",
                       "(indexName :: STRING?, queryString :: STRING?, sortProperty =  :: STRING?, sortDirection = ASC :: STRING?) :: " +
                       "(node :: NODE?, score :: FLOAT?)",
-                      "Query the given fulltext index. Returns the matching nodes and their lucene query score, ordered by score.", "READ" ),
+                      "Query the given fulltext index. Returns the matching nodes and their lucene query score, ordered by " +
+                      "score. Deprecated use 'db.index.fulltext.searchNodes'.", "READ" ),
                 proc( "db.index.fulltext.queryRelationships",
                       "(indexName :: STRING?, queryString :: STRING?, sortProperty =  :: STRING?, sortDirection = ASC :: STRING?) :: " +
                       "(relationship :: RELATIONSHIP?, score :: FLOAT?)",
                       "Query the given fulltext index. Returns the matching relationships and their lucene query score, ordered by " +
-                      "score.", "READ" ),
+                      "score. Deprecated use 'db.index.fulltext.searchRelationships'.", "READ" ),
+                proc( "db.index.fulltext.searchNodes",
+                      "(indexName :: STRING?, queryString :: STRING?, config = {} :: MAP?) :: " +
+                      "(node :: NODE?, score :: FLOAT?)",
+                      "Query the given fulltext index. Returns the matching nodes and their lucene query score, ordered by score.", "READ" ),
+                proc( "db.index.fulltext.searchRelationships",
+                      "(indexName :: STRING?, queryString :: STRING?, config = {} :: MAP?) :: " +
+                      "(relationship :: RELATIONSHIP?, score :: FLOAT?)",
+                      "Query the given fulltext index. Returns the matching relationships and their lucene query score, ordered by score.", "READ" ),
                 proc( "db.index.fulltext.countNodes", "(indexName :: STRING?, queryString :: STRING?) :: (count :: INTEGER?)",
                       "Query the given fulltext index. Returns the count of matching nodes.", "READ" ),
                 proc( "db.index.fulltext.countRelationships", "(indexName :: STRING?, queryString :: STRING?) :: (count :: INTEGER?)",
