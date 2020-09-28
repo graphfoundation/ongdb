@@ -66,18 +66,25 @@ public class FulltextQueryConfig
 
     public static Map<String,Object> singleSortMap( String sortProperty, String sortDirection )
     {
-        return new HashMap<String,Object>()
-        {{
-            put( "sortBy", Collections.singletonList( new HashMap()
-            {
+        if ( sortProperty == null || sortProperty.isEmpty() )
+        {
+            return new HashMap<>();
+        }
+        else
+        {
+            return new HashMap<String,Object>()
+            {{
+                put( "sortBy", Collections.singletonList( new HashMap()
                 {
                     {
-                        put( "property", sortProperty );
-                        put( "direction", sortDirection );
+                        {
+                            put( "property", sortProperty );
+                            put( "direction", sortDirection );
+                        }
                     }
-                }
-            } ) );
-        }};
+                } ) );
+            }};
+        }
     }
 
     public boolean isSortQuery()
