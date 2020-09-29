@@ -29,7 +29,7 @@ public class FulltextQueryConfig
     {
         try
         {
-            List<HashMap<String,Object>> sortsList = (List<HashMap<String,Object>>) config.getOrDefault( "sortBy", "[]" );
+            List<HashMap<String,Object>> sortsList = (List<HashMap<String,Object>>) config.getOrDefault( "sortBy", new ArrayList<>() );
             List<SortParameter> sorts = new ArrayList<>();
 
             // Determine SortParameter
