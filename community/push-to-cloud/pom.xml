@@ -26,7 +26,7 @@
         <developerConnection>scm:git:git@github.com:neo4j/neo4j.git</developerConnection>
         <url>https://github.com/neo4j/neo4j</url>
     </scm>
-    
+
     <licenses>
         <license>
             <name>Apache License, Version 2.0</name>
