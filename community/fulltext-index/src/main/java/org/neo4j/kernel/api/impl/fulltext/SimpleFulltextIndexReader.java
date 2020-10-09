@@ -33,7 +33,9 @@ import org.apache.lucene.search.SortedNumericSortField;
 import org.apache.lucene.search.TotalHitCountCollector;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 
 import org.neo4j.kernel.api.impl.index.collector.DocValuesCollector;
@@ -143,21 +145,11 @@ class SimpleFulltextIndexReader extends FulltextIndexReader
 
     private ScoreEntityIterator indexQueryWithSort( Query query, FulltextQueryConfig queryConfig )
     {
-        String sortFieldString = queryConfig.getSortProperty();
-        String sortDirection = queryConfig.getSortDirection();
+        List<FulltextQueryConfig.SortParameter> sortParameters = queryConfig.getSortBy();
         try
         {
-            boolean reverseSortOrder = determineSortDirection( sortDirection );
 
-            Sort sort;
-            if ( Arrays.asList( sortProperties ).contains( sortFieldString ) )
-            {
-                sort = buildSort( sortFieldString, reverseSortOrder );
-            }
-            else
-            {
-                throw new IOException( "Sort Field '" + sortFieldString + "' is not an indexed property." );
-            }
+            Sort sort = buildSort( sortParameters );
 
             DocValuesCollector docValuesCollector = new DocValuesCollector( true );
             getIndexSearcher().search( query, docValuesCollector );
@@ -180,6 +172,67 @@ class SimpleFulltextIndexReader extends FulltextIndexReader
         {
             throw new RuntimeException( e );
         }
+    }
+
+    private Sort buildSort( List<FulltextQueryConfig.SortParameter> sortParameters ) throws IOException
+    {
+        List<SortField> sortFields = new ArrayList<>();
+        for ( FulltextQueryConfig.SortParameter sortParameter : sortParameters )
+        {
+            String sortFieldString = sortParameter.getProperty();
+            boolean reverseSortOrder = isSortDirectionReversed( sortParameter.getDirection() );
+
+            if ( !Arrays.asList( sortProperties ).contains( sortFieldString ) )
+            {
+                throw new IOException( "Sort Field '" + sortFieldString + "' is not an indexed property." );
+            }
+
+            if ( sortTypes != null && sortTypes.containsKey( sortFieldString ) )
+            {
+                SortField sortField;
+                String sortType = sortTypes.get( sortFieldString );
+
+                FulltextSortType sortTypeEnum = FulltextSortType.valueOfIgnoreCase( sortType );
+
+                if ( sortTypeEnum == null )
+                {
+                    throw new RuntimeException( "Unable to determine sortField type '" + sortType + "'." );
+                }
+
+                switch ( sortTypeEnum )
+                {
+                case LONG:
+                    sortField = new SortedNumericSortField( sortFieldString, SortField.Type.LONG, reverseSortOrder );
+                    if ( !reverseSortOrder )
+                    {
+                        sortField.setMissingValue( Long.MAX_VALUE );
+                    }
+                    break;
+                case DOUBLE:
+                    sortField = new SortedNumericSortField( sortFieldString, SortField.Type.DOUBLE, reverseSortOrder );
+                    if ( !reverseSortOrder )
+                    {
+                        sortField.setMissingValue( Double.MAX_VALUE );
+                    }
+                    break;
+                case STRING:
+                    sortField = new SortField( sortFieldString, SortField.Type.STRING, reverseSortOrder );
+                    if ( !reverseSortOrder )
+                    {
+                        sortField.setMissingValue( SortField.STRING_LAST );
+                    }
+                    break;
+                default:
+                    throw new IOException( "Unable to determine sortField type '" + sortType + "'." );
+                }
+                sortFields.add( sortField );
+            }
+            else
+            {
+                throw new IOException( "Either sortTypes map is null or sortField '" + sortFieldString + "' is not in sortTypes." );
+            }
+        }
+        return new Sort( sortFields.toArray( new SortField[]{} ) );
     }
 
     private Sort buildSort( String sortFieldString, boolean reverseSortOrder ) throws IOException
@@ -230,7 +283,7 @@ class SimpleFulltextIndexReader extends FulltextIndexReader
     }
 
     // Returns boolean that is used by SortField. If true then it reverses sort direction
-    private boolean determineSortDirection( String sortDirection ) throws IOException
+    private boolean isSortDirectionReversed( String sortDirection ) throws IOException
     {
         FulltextSortDirection fulltextSortDirection = FulltextSortDirection.valueOfIgnoreCase( sortDirection );
 

@@ -65,6 +65,9 @@ public class FulltextSortTest
     static final String NODE_CREATE_SORT = "CALL db.index.fulltext.createNodeIndex(\"%s\", %s, %s, %s, %s )";
     static final String RELATIONSHIP_CREATE_SORT = "CALL db.index.fulltext.createRelationshipIndex(\"%s\", %s, %s, %s, %s)";
 
+    static final String SEARCH_NODES_SORT = "CALL db.index.fulltext.searchNodes(\"%s\", \"%s\", %s)";
+    static final String SEARCH_RELS_SORT = "CALL db.index.fulltext.searchRelationships(\"%s\", \"%s\", \"%s\", \"%s\")";
+
     static final String NAME = "name";
     static final String BORN = "born";
     static final String COLOR = "color";
@@ -364,6 +367,44 @@ public class FulltextSortTest
     }
 
     @Test
+    public void searchNodesMultiSort()
+    {
+        db = createDatabase();
+
+        // Create the Fulltext index and sortable nodes
+        populateGraphWithMultiSortableEntities( db );
+
+        Result result;
+        // Assertions to ensure sorting is working as expected
+        try ( Transaction tx = db.beginTx() )
+        {
+            String sortConfig = "{sortBy: " +
+                                "[" +
+                                "{property: \"born\"}," +
+                                "{property: \"name\", direction: \"DESC\"}" +
+                                "]}";
+            Integer[] expectedOrder = new Integer[]{2, 1, 4, 3};
+            // Search with Sorts : BORN (1) then NAME-DESC (2)
+            result = db.execute( format( SEARCH_NODES_SORT, "sort-index", "*", sortConfig ) );
+            sortOrderAssertionHelper( result, expectedOrder );
+
+            sortConfig = "{sortBy: " +
+                         "[" +
+                         "{property: \"born\"}," +
+                         "{property: \"name\"}" +
+                         "]}";
+            expectedOrder = new Integer[]{1, 2, 4, 3};
+            // Search with Sorts : BORN (1) then NAME (2)
+            result = db.execute( format( SEARCH_NODES_SORT, "sort-index", "*", sortConfig ) );
+            sortOrderAssertionHelper( result, expectedOrder );
+
+            result.close();
+            tx.success();
+        }
+        db.shutdown();
+    }
+
+    @Test
     public void badSortTypeResultsInError()
     {
         db = createDatabase();
@@ -479,6 +520,39 @@ public class FulltextSortTest
             p4.setProperty( UID, 4 );
             tx.success();
 
+        }
+    }
+
+    private static void populateGraphWithMultiSortableEntities( GraphDatabaseAPI db )
+    {
+        final Label PERSON = Label.label( "Person" );
+
+        String sortMap = "{" + BORN + ": \"LONG\"," + NAME + ": \"STRING\"}";
+        db.execute( format( NODE_CREATE_SORT, "sort-index", array( "Person" ), array( NAME ), "{}", sortMap ) ).close();
+
+        try ( Transaction tx = db.beginTx() )
+        {
+
+            Node p1 = db.createNode( PERSON );
+            p1.setProperty( NAME, "Alex" );
+            p1.setProperty( BORN, 1990L );
+            p1.setProperty( UID, 1 );
+
+            Node p2 = db.createNode( PERSON );
+            p2.setProperty( NAME, "Bob" );
+            p2.setProperty( BORN, 1990L );
+            p2.setProperty( UID, 2 );
+
+            Node p3 = db.createNode( PERSON );
+            p3.setProperty( NAME, "Chris" );
+            p3.setProperty( BORN, 1992L );
+            p3.setProperty( UID, 3 );
+
+            Node p4 = db.createNode( PERSON );
+            p4.setProperty( NAME, "Dave" );
+            p4.setProperty( BORN, 1991L );
+            p4.setProperty( UID, 4 );
+            tx.success();
         }
     }
 

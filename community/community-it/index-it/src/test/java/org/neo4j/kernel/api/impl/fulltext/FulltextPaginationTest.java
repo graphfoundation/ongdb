@@ -218,7 +218,7 @@ public class FulltextPaginationTest
         try ( Transaction tx = db.beginTx() )
         {
             // Search with sort and paging
-            result = db.execute( format( SEARCH_NODES, "sort-index", "*", "{pageSize: 10, page:1, sortProperty: 'born', sortDirection: 'ASC'}" ) );
+            result = db.execute( format( SEARCH_NODES, "sort-index", "*", "{pageSize: 10, page:1, sortBy: [{property: 'born'}]}" ) );
 
             // Loop through results, verify they are in order.
             long lastBorn = 1910;
@@ -238,7 +238,7 @@ public class FulltextPaginationTest
         try ( Transaction tx = db.beginTx() )
         {
             // Query with Sort
-            result = db.execute( format( SEARCH_NODES, "sort-index", "*", "{pageSize: 10, page:1, sortProperty: 'born', sortDirection: 'DESC'}" ) );
+            result = db.execute( format( SEARCH_NODES, "sort-index", "*", "{pageSize: 10, page:1, sortBy: [{property: 'born', direction: 'DESC'}]}" ) );
 
             // Loop through results, verify they are in order.
             long lastBorn = 1989;
@@ -313,7 +313,7 @@ public class FulltextPaginationTest
         try ( Transaction tx = db.beginTx() )
         {
             // Search with sort and paging
-            result = db.execute( format( SEARCH_RELATIONSHIPS, "sort-index", "*", "{pageSize: 10, page:1, sortProperty: 'rating', sortDirection: 'ASC'}" ) );
+            result = db.execute( format( SEARCH_RELATIONSHIPS, "sort-index", "*", "{pageSize: 10, page:1, sortBy: [{property: 'rating'}]}" ) );
 
             // Loop through results, verify they are in order.
             long lastRating = 10;
@@ -333,7 +333,8 @@ public class FulltextPaginationTest
         try ( Transaction tx = db.beginTx() )
         {
             // Query with Sort
-            result = db.execute( format( SEARCH_RELATIONSHIPS, "sort-index", "*", "{pageSize: 10, page:1, sortProperty: 'rating', sortDirection: 'DESC'}" ) );
+            result = db.execute(
+                    format( SEARCH_RELATIONSHIPS, "sort-index", "*", "{pageSize: 10, page:1, sortBy: [{property: 'rating', direction: 'DESC'}]}" ) );
 
             // Loop through results, verify they are in order.
             long lastRating = 89;
