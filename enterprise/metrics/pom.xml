@@ -2,26 +2,26 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-  <modelVersion>4.0.0</modelVersion>
-  <parent>
-    <groupId>org.neo4j</groupId>
-    <artifactId>parent</artifactId>
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>org.neo4j</groupId>
+        <artifactId>parent</artifactId>
+        <version>3.5.22-SNAPSHOT</version>
+        <relativePath>../..</relativePath>
+    </parent>
+
+    <groupId>org.graphfoundation.ongdb</groupId>
+    <artifactId>neo4j-metrics</artifactId>
     <version>3.5.22-SNAPSHOT</version>
-    <relativePath>../..</relativePath>
-  </parent>
 
-  <groupId>org.graphfoundation.ongdb</groupId>
-  <artifactId>neo4j-metrics</artifactId>
-  <version>3.5.22-SNAPSHOT</version>
+    <name>ONgDB - Metrics Kernel Extension</name>
+    <packaging>jar</packaging>
 
-  <name>ONgDB - Metrics Kernel Extension</name>
-  <packaging>jar</packaging>
-
-  <properties>
-    <license-text.header>headers/AGPL-3-header.txt</license-text.header>
-    <prometheus.client.version>0.5.0</prometheus.client.version>
-    <moduleName>org.neo4j.metrics</moduleName>
-  </properties>
+    <properties>
+        <license-text.header>headers/AGPL-3-header.txt</license-text.header>
+        <prometheus.client.version>0.5.0</prometheus.client.version>
+        <moduleName>org.neo4j.metrics</moduleName>
+    </properties>
 
     <dependencies>
         <dependency>
@@ -32,8 +32,8 @@
         </dependency>
 
         <dependency>
-             <groupId>org.graphfoundation.ongdb</groupId>
-             <artifactId>neo4j-causal-clustering</artifactId>
+            <groupId>org.graphfoundation.ongdb</groupId>
+            <artifactId>neo4j-causal-clustering</artifactId>
             <version>${project.version}</version>
             <scope>provided</scope>
         </dependency>
@@ -126,8 +126,8 @@
             <type>test-jar</type>
         </dependency>
         <dependency>
-             <groupId>org.graphfoundation.ongdb</groupId>
-             <artifactId>neo4j-causal-clustering</artifactId>
+            <groupId>org.graphfoundation.ongdb</groupId>
+            <artifactId>neo4j-causal-clustering</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
             <type>test-jar</type>
