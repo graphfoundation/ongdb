@@ -33,7 +33,7 @@
 
     <licenses>
         <license>
-            <name>GNU Affero General Public License, Version 3 with the Commons Clause</name>
+            <name>GNU Affero General Public License, Version 3</name>
             <url>http://www.gnu.org/licenses/agpl-3.0-standalone.html</url>
             <comments>The software ("Software") developed and owned by Neo4j Sweden AB (referred to in this notice as "Neo4j") is
                 licensed under the GNU AFFERO GENERAL PUBLIC LICENSE Version 3 to all

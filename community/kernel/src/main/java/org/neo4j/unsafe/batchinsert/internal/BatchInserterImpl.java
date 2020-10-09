@@ -75,6 +75,7 @@ import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.extension.DatabaseKernelExtensions;
 import org.neo4j.kernel.extension.KernelExtensionFactory;
 import org.neo4j.kernel.extension.KernelExtensionFailureStrategies;
+import org.neo4j.kernel.impl.api.CountsAccessor;
 import org.neo4j.kernel.impl.api.DatabaseSchemaState;
 import org.neo4j.kernel.impl.api.NonTransactionalTokenNameLookup;
 import org.neo4j.kernel.impl.api.index.IndexProviderMap;
@@ -133,6 +134,7 @@ import org.neo4j.kernel.impl.store.id.IdGeneratorFactory;
 import org.neo4j.kernel.impl.store.id.IdType;
 import org.neo4j.kernel.impl.store.id.ReadOnlyIdGeneratorFactory;
 import org.neo4j.kernel.impl.store.id.validation.IdValidator;
+import org.neo4j.kernel.impl.store.kvstore.DataInitializer;
 import org.neo4j.kernel.impl.store.record.ConstraintRule;
 import org.neo4j.kernel.impl.store.record.DynamicRecord;
 import org.neo4j.kernel.impl.store.record.LabelTokenRecord;
@@ -180,7 +182,6 @@ import static org.neo4j.graphdb.factory.GraphDatabaseSettings.logs_directory;
 import static org.neo4j.graphdb.factory.GraphDatabaseSettings.store_internal_log_path;
 import static org.neo4j.helpers.Numbers.safeCastLongToInt;
 import static org.neo4j.internal.kernel.api.TokenRead.NO_TOKEN;
-import static org.neo4j.kernel.impl.api.index.IndexingService.NO_MONITOR;
 import static org.neo4j.kernel.impl.locking.LockService.NO_LOCK_SERVICE;
 import static org.neo4j.kernel.impl.store.NodeLabelsField.parseLabelsField;
 import static org.neo4j.kernel.impl.store.PropertyStore.encodeString;
@@ -309,13 +310,6 @@ public class BatchInserterImpl implements BatchInserter, IndexConfigStoreProvide
         storeIndexStoreView = new NeoStoreIndexStoreView( NO_LOCK_SERVICE, neoStores );
         Dependencies deps = new Dependencies();
         Monitors monitors = new Monitors();
-        deps.satisfyDependencies( fileSystem, config, logService, storeIndexStoreView, pageCache, monitors, RecoveryCleanupWorkCollector.immediate() );
-
-        DatabaseKernelExtensions extensions = life.add( new DatabaseKernelExtensions(
-                new SimpleKernelContext( databaseDirectory, DatabaseInfo.TOOL, deps ),
-                kernelExtensions, deps, KernelExtensionFailureStrategies.ignore() ) );
-
-        indexProviderMap = life.add( new DefaultIndexProviderMap( extensions, config ) );
 
         TokenHolder propertyKeyTokenHolder = new DelegatingTokenHolder( this::createNewPropertyKeyId, TokenHolder.TYPE_PROPERTY_KEY );
         propertyKeyTokenHolder.setInitialTokens( propertyKeyTokenStore.getTokens() );
@@ -324,6 +318,15 @@ public class BatchInserterImpl implements BatchInserter, IndexConfigStoreProvide
         TokenHolder labelTokenHolder = new DelegatingTokenHolder( this::createNewLabelId, TokenHolder.TYPE_LABEL );
         labelTokenHolder.setInitialTokens( labelTokenStore.getTokens() );
         tokenHolders = new TokenHolders( propertyKeyTokenHolder, labelTokenHolder, relationshipTypeTokenHolder );
+
+        deps.satisfyDependencies( fileSystem, config, logService, storeIndexStoreView, pageCache, monitors, RecoveryCleanupWorkCollector.immediate(),
+                jobScheduler, tokenHolders );
+
+        DatabaseKernelExtensions extensions = life.add( new DatabaseKernelExtensions(
+                new SimpleKernelContext( databaseDirectory, DatabaseInfo.TOOL, deps ),
+                kernelExtensions, deps, KernelExtensionFailureStrategies.ignore() ) );
+
+        indexProviderMap = life.add( new DefaultIndexProviderMap( extensions, config ) );
 
         indexStore = life.add( new IndexConfigStore( this.databaseLayout, fileSystem ) );
         schemaCache = new SchemaCache( loadConstraintSemantics(), schemaStore, indexProviderMap );
@@ -570,6 +573,20 @@ public class BatchInserterImpl implements BatchInserter, IndexConfigStoreProvide
     private void rebuildCounts()
     {
         CountsTracker counts = neoStores.getCounts();
+        counts.setInitializer( new DataInitializer<CountsAccessor.Updater>()
+        {
+            @Override
+            public void initialize( CountsAccessor.Updater updater )
+            {
+                // Don't, we instead manually do it below
+            }
+
+            @Override
+            public long initialVersion()
+            {
+                return neoStores.getMetaDataStore().getLastCommittedTransactionId();
+            }
+        } );
         try
         {
             counts.start();
