@@ -4,14 +4,14 @@
     <parent>
         <groupId>org.neo4j</groupId>
         <artifactId>parent</artifactId>
-        <version>3.5.19-SNAPSHOT</version>
+        <version>3.5.22-SNAPSHOT</version>
         <relativePath>../..</relativePath>
     </parent>
 
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.neo4j.app</groupId>
     <artifactId>neo4j-server</artifactId>
-    <version>3.5.19-SNAPSHOT</version>
+    <version>3.5.22-SNAPSHOT</version>
     <name>Neo4j - Server</name>
     <description>Standalone Neo4j server application.</description>
     <url>http://components.neo4j.org/${project.artifactId}/${project.version}</url>
@@ -23,7 +23,7 @@
         <licensing.prepend.text>licensing/notice-gpl-prefix.txt</licensing.prepend.text>
 
         <neo4j.version>${project.version}</neo4j.version>
-        <neo4j-browser.version>4.0.11</neo4j-browser.version>
+        <neo4j-browser.version>4.1.2</neo4j-browser.version>
 
         <neo4j-server.mainClass>org.neo4j.server.CommunityEntryPoint</neo4j-server.mainClass>
 
@@ -134,6 +134,7 @@
             <artifactId>ongdb-browser</artifactId>
             <version>${neo4j-browser.version}</version>
         </dependency>
+
         <dependency>
             <groupId>com.google.code.findbugs</groupId>
             <artifactId>annotations</artifactId>

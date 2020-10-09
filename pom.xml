@@ -5,7 +5,7 @@
 
     <groupId>org.neo4j</groupId>
     <artifactId>parent</artifactId>
-    <version>3.5.19-SNAPSHOT</version>
+    <version>3.5.22-SNAPSHOT</version>
     <packaging>pom</packaging>
     <name>ONgDB</name>
     <description>ONgDB Graph Database</description>
@@ -114,6 +114,7 @@
         <jackson.version>2.10.2</jackson.version>
         <amazon-sdk.version>1.11.524</amazon-sdk.version>
         <guava.version>26.0-jre</guava.version>
+        <slf4j.version>1.7.30</slf4j.version>
     </properties>
 
     <modules>
@@ -1066,7 +1067,7 @@
             <dependency>
                 <groupId>org.apache.shiro</groupId>
                 <artifactId>shiro-core</artifactId>
-                <version>1.5.2</version>
+                <version>1.6.0</version>
             </dependency>
             <dependency>
                 <groupId>com.github.ben-manes.caffeine</groupId>
@@ -1076,12 +1077,12 @@
             <dependency>
                 <groupId>org.slf4j</groupId>
                 <artifactId>slf4j-nop</artifactId>
-                <version>1.7.25</version>
+                <version>${slf4j.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.slf4j</groupId>
                 <artifactId>slf4j-api</artifactId>
-                <version>1.7.25</version>
+                <version>${slf4j.version}</version>
             </dependency>
 
             <!-- testing -->
@@ -1127,7 +1128,7 @@
             <dependency>
                 <groupId>org.slf4j</groupId>
                 <artifactId>slf4j-log4j12</artifactId>
-                <version>1.7.25</version>
+                <version>${slf4j.version}</version>
                 <scope>test</scope>
             </dependency>
 
@@ -1338,7 +1339,7 @@
             <dependency>
                 <groupId>io.netty</groupId>
                 <artifactId>netty-all</artifactId>
-                <version>4.1.43.Final</version>
+                <version>4.1.48.Final</version>
             </dependency>
 
             <dependency>
@@ -1493,12 +1494,12 @@
             <!-- used by benchmark-infra module -->
             <dependency>
                 <groupId>com.amazonaws</groupId>
-                <artifactId>aws-java-sdk-cloudformation</artifactId>
+                <artifactId>aws-java-sdk-batch</artifactId>
                 <version>${amazon-sdk.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.amazonaws</groupId>
-                <artifactId>aws-java-sdk-batch</artifactId>
+                <artifactId>aws-java-sdk-cloudformation</artifactId>
                 <version>${amazon-sdk.version}</version>
             </dependency>
             <dependency>

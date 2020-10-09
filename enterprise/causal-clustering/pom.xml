@@ -4,15 +4,15 @@
     <parent>
         <groupId>org.neo4j</groupId>
         <artifactId>parent</artifactId>
-        <version>3.5.19-SNAPSHOT</version>
+        <version>3.5.22-SNAPSHOT</version>
         <relativePath>../..</relativePath>
     </parent>
-	
-	<groupId>org.graphfoundation.ongdb</groupId>
+
+    <groupId>org.graphfoundation.ongdb</groupId>
     <modelVersion>4.0.0</modelVersion>
     <artifactId>neo4j-causal-clustering</artifactId>
     <name>ONgDB - Causal Clustering</name>
-    <version>3.5.19-SNAPSHOT</version>
+    <version>3.5.22-SNAPSHOT</version>
 
     <description>This component provides the means to set up a cluster of Neo4j instances that act together
         as a cluster, providing cluster with RAFT consensus for the core machines and eventual
@@ -32,7 +32,7 @@
 
     <licenses>
         <license>
-            <name>GNU Affero General Public License, Version 3 with the Commons Clause</name>
+            <name>GNU Affero General Public License, Version 3</name>
             <url>http://www.gnu.org/licenses/agpl-3.0-standalone.html</url>
             <comments>The software ("Software") developed and owned by Neo4j Sweden AB (referred to in this notice as "Neo4j") is
                 licensed under the GNU AFFERO GENERAL PUBLIC LICENSE Version 3 to all
