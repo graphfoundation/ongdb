@@ -24,6 +24,17 @@ package org.neo4j.kernel.api;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
+
+import java.io.File;
+import java.io.IOException;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.NoSuchElementException;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Predicate;
+
 import org.neo4j.function.Predicates;
 import org.neo4j.graphdb.ConstraintViolationException;
 import org.neo4j.graphdb.GraphDatabaseService;
@@ -72,16 +83,6 @@ import org.neo4j.storageengine.api.schema.StoreIndexDescriptor;
 import org.neo4j.test.DoubleLatch;
 import org.neo4j.test.ha.ClusterRule;
 import org.neo4j.test.rule.fs.DefaultFileSystemRule;
-
-import java.io.File;
-import java.io.IOException;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.NoSuchElementException;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Predicate;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.Assert.assertEquals;
@@ -505,7 +506,7 @@ public class SchemaIndexHaIT
 
         @Override
         public IndexPopulator getPopulator( StoreIndexDescriptor descriptor, IndexSamplingConfig samplingConfig, ByteBufferFactory bufferFactory,
-                TokenNameLookup tokenNameLookup )
+                                            TokenNameLookup tokenNameLookup )
         {
             IndexPopulator populator = delegate.getPopulator( descriptor, samplingConfig, bufferFactory, tokenNameLookup );
             return new ControlledIndexPopulator( populator, latch );
