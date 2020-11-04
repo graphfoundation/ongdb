@@ -126,8 +126,8 @@ class SimpleFulltextIndexReader extends FulltextIndexReader
             {
                 ValuesIterator sortedValuesIterator =
                         docValuesCollector
-                                .getPagedSortedValuesIterator( LuceneFulltextDocumentStructure.FIELD_ENTITY_ID, Sort.RELEVANCE, queryConfig.getPageSize(),
-                                                               queryConfig.getPage() );
+                                .getPagedSortedValuesIterator( LuceneFulltextDocumentStructure.FIELD_ENTITY_ID, Sort.RELEVANCE, queryConfig.getSkip(),
+                                                               queryConfig.getLimit() );
                 return new ScoreEntityIterator( sortedValuesIterator );
             }
             else
@@ -157,8 +157,8 @@ class SimpleFulltextIndexReader extends FulltextIndexReader
             if ( queryConfig.isPaged() )
             {
                 ValuesIterator sortedValuesIterator =
-                        docValuesCollector.getPagedSortedValuesIterator( LuceneFulltextDocumentStructure.FIELD_ENTITY_ID, sort, queryConfig.getPageSize(),
-                                                                         queryConfig.getPage() );
+                        docValuesCollector.getPagedSortedValuesIterator( LuceneFulltextDocumentStructure.FIELD_ENTITY_ID, sort, queryConfig.getSkip(),
+                                                                         queryConfig.getLimit() );
                 return new ScoreEntityIterator( sortedValuesIterator );
             }
             else
