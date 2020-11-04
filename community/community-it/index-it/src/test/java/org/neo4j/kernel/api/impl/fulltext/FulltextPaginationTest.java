@@ -95,7 +95,7 @@ public class FulltextPaginationTest
         try ( Transaction tx = db.beginTx() )
         {
             // Search with Paging
-            result = db.execute( format( SEARCH_NODES, "fulltext-index", "*", "{pageSize: 10, page:0}" ) );
+            result = db.execute( format( SEARCH_NODES, "fulltext-index", "*", "{limit:10}" ) );
 
             // Loop through results
             long numResults = 0;
@@ -146,7 +146,7 @@ public class FulltextPaginationTest
         try ( Transaction tx = db.beginTx() )
         {
             // Search with paging
-            result = db.execute( format( SEARCH_RELATIONSHIPS, "fulltext-index", "*", "{pageSize: 10, page:0}" ) );
+            result = db.execute( format( SEARCH_RELATIONSHIPS, "fulltext-index", "*", "{limit: 10}" ) );
 
             // Loop through results
             long numResults = 0;
@@ -199,7 +199,7 @@ public class FulltextPaginationTest
         try ( Transaction tx = db.beginTx() )
         {
             // Search with Paging
-            result = db.execute( format( SEARCH_NODES, "sort-index", "*", "{pageSize: 10, page:0}" ) );
+            result = db.execute( format( SEARCH_NODES, "sort-index", "*", "{limit: 10}" ) );
 
             // Loop through results
             long numResults = 0;
@@ -218,7 +218,7 @@ public class FulltextPaginationTest
         try ( Transaction tx = db.beginTx() )
         {
             // Search with sort and paging
-            result = db.execute( format( SEARCH_NODES, "sort-index", "*", "{pageSize: 10, page:1, sortBy: [{property: 'born'}]}" ) );
+            result = db.execute( format( SEARCH_NODES, "sort-index", "*", "{skip: 10, limit: 10, sortBy: [{property: 'born'}]}" ) );
 
             // Loop through results, verify they are in order.
             long lastBorn = 1910;
@@ -238,7 +238,7 @@ public class FulltextPaginationTest
         try ( Transaction tx = db.beginTx() )
         {
             // Query with Sort
-            result = db.execute( format( SEARCH_NODES, "sort-index", "*", "{pageSize: 10, page:1, sortBy: [{property: 'born', direction: 'DESC'}]}" ) );
+            result = db.execute( format( SEARCH_NODES, "sort-index", "*", "{skip: 10, limit: 10, sortBy: [{property: 'born', direction: 'DESC'}]}" ) );
 
             // Loop through results, verify they are in order.
             long lastBorn = 1989;
@@ -295,7 +295,7 @@ public class FulltextPaginationTest
         try ( Transaction tx = db.beginTx() )
         {
             // Search with paging
-            result = db.execute( format( SEARCH_RELATIONSHIPS, "sort-index", "*", "{pageSize: 10, page:0}" ) );
+            result = db.execute( format( SEARCH_RELATIONSHIPS, "sort-index", "*", "{limit: 10}" ) );
 
             // Loop through results, verify they are in order.
             long numResults = 0;
@@ -313,7 +313,7 @@ public class FulltextPaginationTest
         try ( Transaction tx = db.beginTx() )
         {
             // Search with sort and paging
-            result = db.execute( format( SEARCH_RELATIONSHIPS, "sort-index", "*", "{pageSize: 10, page:1, sortBy: [{property: 'rating'}]}" ) );
+            result = db.execute( format( SEARCH_RELATIONSHIPS, "sort-index", "*", "{skip: 10, limit: 10, sortBy: [{property: 'rating'}]}" ) );
 
             // Loop through results, verify they are in order.
             long lastRating = 10;
@@ -334,7 +334,7 @@ public class FulltextPaginationTest
         {
             // Query with Sort
             result = db.execute(
-                    format( SEARCH_RELATIONSHIPS, "sort-index", "*", "{pageSize: 10, page:1, sortBy: [{property: 'rating', direction: 'DESC'}]}" ) );
+                    format( SEARCH_RELATIONSHIPS, "sort-index", "*", "{skip: 10, limit:10, sortBy: [{property: 'rating', direction: 'DESC'}]}" ) );
 
             // Loop through results, verify they are in order.
             long lastRating = 89;
