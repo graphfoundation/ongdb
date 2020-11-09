@@ -10,19 +10,19 @@ public class FulltextQueryConfig
 {
     private final List<SortParameter> sortBy;
 
-    private final Integer pageSize;
-    private final Integer page;
+    private final Integer skip;
+    private final Integer limit;
 
-    public FulltextQueryConfig( List<SortParameter> sortBy, Integer pageSize, Integer page )
+    public FulltextQueryConfig( List<SortParameter> sortBy, Integer skip, Integer limit )
     {
         this.sortBy = sortBy;
-        this.pageSize = pageSize;
-        this.page = page;
+        this.skip = skip;
+        this.limit = limit;
     }
 
     public static FulltextQueryConfig defaultConfig()
     {
-        return new FulltextQueryConfig( new ArrayList<>(), Integer.MAX_VALUE, 0 );
+        return new FulltextQueryConfig( new ArrayList<>(), 0, Integer.MAX_VALUE );
     }
 
     public static FulltextQueryConfig parseConfig( Map<String,Object> config )
@@ -39,13 +39,13 @@ public class FulltextQueryConfig
             }
 
             Integer maxIntValue = Integer.MAX_VALUE;
-            Long pageSizeLong = (Long) config.getOrDefault( "pageSize", maxIntValue.longValue() );
-            Long pageLong = (Long) config.getOrDefault( "page", 0L );
+            Long skipLong = (Long) config.getOrDefault( "skip", 0L );
+            Long limitLong = (Long) config.getOrDefault( "limit", maxIntValue.longValue() );
 
-            Integer pageSize = pageSizeLong.intValue();
-            Integer page = pageLong.intValue();
+            Integer skip = skipLong.intValue();
+            Integer limit = limitLong.intValue();
 
-            return new FulltextQueryConfig( sorts, pageSize, page );
+            return new FulltextQueryConfig( sorts, skip, limit );
         }
         catch ( Exception e )
         {
@@ -94,7 +94,7 @@ public class FulltextQueryConfig
 
     public boolean isPaged()
     {
-        return this.pageSize != null && pageSize != Integer.MAX_VALUE;
+        return (this.skip != 0) || (this.limit != Integer.MAX_VALUE);
     }
 
     public List<SortParameter> getSortBy()
@@ -102,14 +102,14 @@ public class FulltextQueryConfig
         return sortBy;
     }
 
-    public Integer getPageSize()
+    public Integer getSkip()
     {
-        return pageSize;
+        return skip;
     }
 
-    public Integer getPage()
+    public Integer getLimit()
     {
-        return page;
+        return limit;
     }
 
     public static class SortParameter

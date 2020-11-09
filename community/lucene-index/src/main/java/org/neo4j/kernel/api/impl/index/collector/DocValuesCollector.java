@@ -135,7 +135,7 @@ public class DocValuesCollector extends SimpleCollector
         return new TopDocsValuesIterator( topDocs, contexts, field );
     }
 
-    public ValuesIterator getPagedSortedValuesIterator( String field, Sort sort, int pageSize, int page ) throws IOException
+    public ValuesIterator getPagedSortedValuesIterator( String field, Sort sort, int skip, int limit ) throws IOException
     {
         if ( sort == null || sort == Sort.INDEXORDER )
         {
@@ -147,7 +147,7 @@ public class DocValuesCollector extends SimpleCollector
         {
             return ValuesIterator.EMPTY;
         }
-        TopDocs topDocsPaged = getTopDocsPaged( sort, size, pageSize, page );
+        TopDocs topDocsPaged = getTopDocsPaged( sort, size, skip, limit );
         LeafReaderContext[] contexts = getLeafReaderContexts( getMatchingDocs() );
         return new TopDocsValuesIterator( topDocsPaged, contexts, field );
     }
@@ -304,20 +304,20 @@ public class DocValuesCollector extends SimpleCollector
         return topDocs;
     }
 
-    private TopDocs getTopDocsPaged( Sort sort, int totalHits, int pageSize, int page ) throws IOException
+    private TopDocs getTopDocsPaged( Sort sort, int totalHits, int skip, int limit ) throws IOException
     {
         TopDocs topDocs;
         if ( sort == Sort.RELEVANCE )
         {
             TopScoreDocCollector collector = TopScoreDocCollector.create( totalHits );
             replayTo( collector );
-            topDocs = collector.topDocs( page * pageSize, pageSize );
+            topDocs = collector.topDocs( skip, limit );
         }
         else
         {
             TopFieldCollector collector = TopFieldCollector.create( sort, totalHits, false, true, false );
             replayTo( collector );
-            topDocs = collector.topDocs( page * pageSize, pageSize );
+            topDocs = collector.topDocs( skip, limit );
         }
         return topDocs;
     }
