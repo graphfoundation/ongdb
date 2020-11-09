@@ -5,12 +5,12 @@
     <parent>
         <groupId>org.graphfoundation.ongdb</groupId>
         <artifactId>parent</artifactId>
-        <version>3.6.1-SNAPSHOT</version>
+        <version>3.6.2-SNAPSHOT</version>
         <relativePath>../..</relativePath>
     </parent>
 
     <artifactId>ongdb-security-enterprise</artifactId>
-    <version>3.6.1-SNAPSHOT</version>
+    <version>3.6.2-SNAPSHOT</version>
 
     <name>ONgDB - Enterprise Graph Database Security Features</name>
     <description>Enterprise security features for ONgDB</description>

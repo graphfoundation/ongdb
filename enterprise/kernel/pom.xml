@@ -5,12 +5,12 @@
     <parent>
         <groupId>org.graphfoundation.ongdb</groupId>
         <artifactId>parent</artifactId>
-        <version>3.6.1-SNAPSHOT</version>
+        <version>3.6.2-SNAPSHOT</version>
         <relativePath>../..</relativePath>
     </parent>
 
     <artifactId>ongdb-enterprise-kernel</artifactId>
-    <version>3.6.1-SNAPSHOT</version>
+    <version>3.6.2-SNAPSHOT</version>
 
     <name>ONgDB - Enterprise Graph Database Kernel Features</name>
     <description>Enterprise features for Neo4j</description>

@@ -4,11 +4,11 @@
     <parent>
         <groupId>org.graphfoundation.ongdb</groupId>
         <artifactId>parent</artifactId>
-        <version>3.6.1-SNAPSHOT</version>
+        <version>3.6.2-SNAPSHOT</version>
         <relativePath>../..</relativePath>
     </parent>
     <artifactId>ongdb-lucene-index</artifactId>
-    <version>3.6.1-SNAPSHOT</version>
+    <version>3.6.2-SNAPSHOT</version>
 
     <name>ONgDB - Lucene Index</name>
     <description>

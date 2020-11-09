@@ -6,12 +6,12 @@
     <parent>
         <groupId>org.graphfoundation.ongdb</groupId>
         <artifactId>community-integration-tests</artifactId>
-        <version>3.6.1-SNAPSHOT</version>
+        <version>3.6.2-SNAPSHOT</version>
     </parent>
 
     <groupId>org.graphfoundation.ongdb.community</groupId>
     <artifactId>algo-it</artifactId>
-    <version>3.6.1-SNAPSHOT</version>
+    <version>3.6.2-SNAPSHOT</version>
 
     <name>ONgDB - Community Graph Algorithms Integration Tests</name>
     <packaging>jar</packaging>

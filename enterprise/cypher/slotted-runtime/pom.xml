@@ -4,14 +4,14 @@
     <parent>
         <groupId>org.graphfoundation.ongdb</groupId>
         <artifactId>cypher-enterprise-parent</artifactId>
-        <version>3.6.1-SNAPSHOT</version>
+        <version>3.6.2-SNAPSHOT</version>
         <relativePath>../</relativePath>
     </parent>
 
     <modelVersion>4.0.0</modelVersion>
     <artifactId>ongdb-cypher-slotted-runtime</artifactId>
     <packaging>jar</packaging>
-    <version>3.6.1-SNAPSHOT</version>
+    <version>3.6.2-SNAPSHOT</version>
     <name>ONgDB - Cypher Slotted Runtime</name>
     <description>Planner for the physical query plans</description>
     <url>https://ongdb.graphfoundation.org/${project.artifactId}/${project.version}</url>

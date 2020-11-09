@@ -5,12 +5,12 @@
     <parent>
         <groupId>org.graphfoundation.ongdb</groupId>
         <artifactId>community-integration-tests</artifactId>
-        <version>3.6.1-SNAPSHOT</version>
+        <version>3.6.2-SNAPSHOT</version>
     </parent>
 
     <groupId>org.graphfoundation.ongdb.community</groupId>
     <artifactId>it-test-support</artifactId>
-    <version>3.6.1-SNAPSHOT</version>
+    <version>3.6.2-SNAPSHOT</version>
 
     <name>ONgDB - Community Integration Test Support</name>
     <packaging>jar</packaging>
