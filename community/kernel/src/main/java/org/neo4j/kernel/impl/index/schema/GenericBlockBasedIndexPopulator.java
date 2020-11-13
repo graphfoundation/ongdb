@@ -42,7 +42,8 @@ class GenericBlockBasedIndexPopulator extends BlockBasedIndexPopulator<GenericKe
     private final SpaceFillingCurveConfiguration configuration;
 
     GenericBlockBasedIndexPopulator( PageCache pageCache, FileSystemAbstraction fs, File file, IndexLayout<GenericKey,NativeIndexValue> layout,
-                                     IndexProvider.Monitor monitor, StoreIndexDescriptor descriptor, IndexSpecificSpaceFillingCurveSettingsCache spatialSettings,
+                                     IndexProvider.Monitor monitor, StoreIndexDescriptor descriptor,
+                                     IndexSpecificSpaceFillingCurveSettingsCache spatialSettings,
                                      IndexDirectoryStructure directoryStructure, SpaceFillingCurveConfiguration configuration,
                                      IndexDropAction dropAction, boolean archiveFailedIndex, ByteBufferFactory bufferFactory,
                                      TokenNameLookup tokenNameLookup )

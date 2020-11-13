@@ -65,6 +65,7 @@ import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.helpers.collection.Iterators;
 import org.neo4j.helpers.collection.Pair;
 import org.neo4j.helpers.progress.ProgressMonitorFactory;
+import org.neo4j.internal.kernel.api.TokenNameLookup;
 import org.neo4j.internal.kernel.api.TokenRead;
 import org.neo4j.internal.kernel.api.TokenWrite;
 import org.neo4j.internal.kernel.api.exceptions.KernelException;
@@ -145,6 +146,7 @@ import static org.neo4j.kernel.api.StatementConstants.ANY_LABEL;
 import static org.neo4j.kernel.api.StatementConstants.ANY_RELATIONSHIP_TYPE;
 import static org.neo4j.kernel.api.labelscan.NodeLabelUpdate.labelChanges;
 import static org.neo4j.kernel.api.schema.SchemaDescriptorFactory.forLabel;
+import static org.neo4j.kernel.api.schema.SchemaTestUtil.simpleNameLookup;
 import static org.neo4j.kernel.impl.index.schema.ByteBufferFactory.heapBufferFactory;
 import static org.neo4j.kernel.impl.store.AbstractDynamicStore.readFullByteArrayFromHeavyRecords;
 import static org.neo4j.kernel.impl.store.DynamicArrayStore.allocateFromNumbers;
@@ -211,7 +213,7 @@ public class FullCheckIntegrationTest
         if ( !allReports.isEmpty() )
         {
             StringBuilder builder = new StringBuilder( "There are types of inconsistencies not covered by "
-                    + "this integration test, please add tests that tests for:" );
+                                                       + "this integration test, please add tests that tests for:" );
             for ( Map.Entry<Class<?>,Set<String>> reporter : allReports.entrySet() )
             {
                 builder.append( format( "%n%s:", reporter.getKey().getSimpleName() ) );
@@ -265,7 +267,7 @@ public class FullCheckIntegrationTest
                 db.createNode().createRelationshipTo( db.createNode(), withName( "T" ) );
                 indexedNodes.add( set( db.createNode( label( "label3" ) ), property( PROP1, VALUE1 ) ).getId() );
                 indexedNodes.add( set( db.createNode( label( "label3" ) ),
-                        property( PROP1, VALUE1 ), property( PROP2, VALUE2 ) ).getId() );
+                                       property( PROP1, VALUE1 ), property( PROP2, VALUE2 ) ).getId() );
 
                 set( db.createNode( label( "label4" ) ), property( PROP1, VALUE1 ) );
                 tx.success();
@@ -369,7 +371,7 @@ public class FullCheckIntegrationTest
                 DynamicRecord record = inUse( new DynamicRecord( next.nodeLabel() ) );
                 Collection<DynamicRecord> newRecords = new ArrayList<>();
                 allocateFromNumbers( newRecords, prependNodeId( nodeRecord.getId(), new long[]{42L} ),
-                        new ReusableRecordsAllocator( 60, record ) );
+                                     new ReusableRecordsAllocator( 60, record ) );
                 nodeRecord.setLabelField( dynamicPointer( newRecords ), newRecords );
 
                 tx.create( nodeRecord );
@@ -570,7 +572,7 @@ public class FullCheckIntegrationTest
         Iterator<StoreIndexDescriptor> indexDescriptorIterator =
                 new SchemaStorage( fixture.directStoreAccess().nativeStores().getSchemaStore() ).indexesGetAll();
         NeoStoreIndexStoreView storeView = new NeoStoreIndexStoreView( LockService.NO_LOCK_SERVICE,
-                fixture.directStoreAccess().nativeStores().getRawNeoStores() );
+                                                                       fixture.directStoreAccess().nativeStores().getRawNeoStores() );
         while ( indexDescriptorIterator.hasNext() )
         {
             StoreIndexDescriptor indexDescriptor = indexDescriptorIterator.next();
@@ -645,13 +647,13 @@ public class FullCheckIntegrationTest
         {
             @Override
             protected void transactionData( GraphStoreFixture.TransactionDataBuilder tx,
-                    GraphStoreFixture.IdGenerator next )
+                                            GraphStoreFixture.IdGenerator next )
             {
                 // structurally correct, but does not have the 'mandatory' property with the 'draconian' label
                 NodeRecord node = new NodeRecord( next.node(), false, -1, next.property() );
                 node.setInUse( true );
                 node.setLabelField( inlinedLabelsLongRepresentation( draconian ),
-                        Collections.emptySet() );
+                                    Collections.emptySet() );
                 PropertyRecord property = new PropertyRecord( node.getNextProp(), node );
                 property.setInUse( true );
                 PropertyBlock block = new PropertyBlock();
@@ -669,7 +671,7 @@ public class FullCheckIntegrationTest
 
         // then
         on( stats ).verify( RecordType.NODE, 1 )
-                .andThatsAllFolks();
+                   .andThatsAllFolks();
     }
 
     @Test
@@ -680,7 +682,7 @@ public class FullCheckIntegrationTest
         {
             @Override
             protected void transactionData( GraphStoreFixture.TransactionDataBuilder tx,
-                    GraphStoreFixture.IdGenerator next )
+                                            GraphStoreFixture.IdGenerator next )
             {
                 long nodeId1 = next.node();
                 long nodeId2 = next.node();
@@ -688,14 +690,14 @@ public class FullCheckIntegrationTest
                 long propId = next.property();
 
                 NodeRecord node1 = new NodeRecord( nodeId1, true, false, relId, NO_NEXT_PROPERTY.intValue(),
-                        NO_LABELS_FIELD.intValue() );
+                                                   NO_LABELS_FIELD.intValue() );
                 NodeRecord node2 = new NodeRecord( nodeId2, true, false, relId, NO_NEXT_PROPERTY.intValue(),
-                        NO_LABELS_FIELD.intValue() );
+                                                   NO_LABELS_FIELD.intValue() );
 
                 // structurally correct, but does not have the 'mandatory' property with the 'M' rel type
                 RelationshipRecord relationship = new RelationshipRecord( relId, true, nodeId1, nodeId2, M,
-                        NO_PREV_RELATIONSHIP.intValue(), NO_NEXT_RELATIONSHIP.intValue(),
-                        NO_PREV_RELATIONSHIP.intValue(), NO_NEXT_RELATIONSHIP.intValue(), true, true );
+                                                                          NO_PREV_RELATIONSHIP.intValue(), NO_NEXT_RELATIONSHIP.intValue(),
+                                                                          NO_PREV_RELATIONSHIP.intValue(), NO_NEXT_RELATIONSHIP.intValue(), true, true );
                 relationship.setNextProp( propId );
 
                 PropertyRecord property = new PropertyRecord( propId, relationship );
@@ -720,7 +722,7 @@ public class FullCheckIntegrationTest
 
         // then
         on( stats ).verify( RecordType.RELATIONSHIP, 1 )
-                .andThatsAllFolks();
+                   .andThatsAllFolks();
     }
 
     private long inlinedLabelsLongRepresentation( long... labelIds )
@@ -785,7 +787,7 @@ public class FullCheckIntegrationTest
                 { // Neo4j can create no more than one label per transaction...
                     @Override
                     protected void transactionData( GraphStoreFixture.TransactionDataBuilder tx,
-                            GraphStoreFixture.IdGenerator next )
+                                                    GraphStoreFixture.IdGenerator next )
                     {
                         Integer label = next.label();
                         tx.nodeLabel( (int) (labels[offset] = label), "label:" + offset );
@@ -799,7 +801,7 @@ public class FullCheckIntegrationTest
         {
             @Override
             protected void transactionData( GraphStoreFixture.TransactionDataBuilder tx,
-                    GraphStoreFixture.IdGenerator next )
+                                            GraphStoreFixture.IdGenerator next )
             {
                 NodeRecord nodeRecord = new NodeRecord( next.node(), false, -1, -1 );
                 DynamicRecord record1 = inUse( new DynamicRecord( next.nodeLabel() ) );
@@ -829,7 +831,7 @@ public class FullCheckIntegrationTest
         {
             @Override
             protected void transactionData( GraphStoreFixture.TransactionDataBuilder tx,
-                    GraphStoreFixture.IdGenerator next )
+                                            GraphStoreFixture.IdGenerator next )
             {
                 NodeRecord node = new NodeRecord( nodeId, false, -1, -1 );
                 node.setInUse( true );
@@ -875,7 +877,7 @@ public class FullCheckIntegrationTest
                 DynamicRecord record = inUse( new DynamicRecord( next.nodeLabel() ) );
                 Collection<DynamicRecord> newRecords = new ArrayList<>();
                 allocateFromNumbers( newRecords, prependNodeId( next.node(), new long[]{42L} ),
-                        new ReusableRecordsAllocator( 60, record ) );
+                                     new ReusableRecordsAllocator( 60, record ) );
                 nodeRecord.setLabelField( dynamicPointer( newRecords ), newRecords );
 
                 tx.create( nodeRecord );
@@ -921,7 +923,7 @@ public class FullCheckIntegrationTest
         {
             @Override
             protected void transactionData( GraphStoreFixture.TransactionDataBuilder tx,
-                    GraphStoreFixture.IdGenerator next )
+                                            GraphStoreFixture.IdGenerator next )
             {
                 long node1 = next.node();
                 long node2 = next.node();
@@ -1184,7 +1186,7 @@ public class FullCheckIntegrationTest
         } );
         StoreAccess access = fixture.directStoreAccess().nativeStores();
         DynamicRecord record = access.getRelationshipTypeNameStore().getRecord( inconsistentName.get(),
-                access.getRelationshipTypeNameStore().newRecord(), FORCE );
+                                                                                access.getRelationshipTypeNameStore().newRecord(), FORCE );
         record.setNextBlock( record.getId() );
         access.getRelationshipTypeNameStore().updateRecord( record );
 
@@ -1213,7 +1215,7 @@ public class FullCheckIntegrationTest
         } );
         StoreAccess access = fixture.directStoreAccess().nativeStores();
         DynamicRecord record = access.getPropertyKeyNameStore().getRecord( inconsistentName.get() + 1,
-                access.getPropertyKeyNameStore().newRecord(), FORCE );
+                                                                           access.getPropertyKeyNameStore().newRecord(), FORCE );
         record.setNextBlock( record.getId() );
         access.getPropertyKeyNameStore().updateRecord( record );
 
@@ -1232,7 +1234,7 @@ public class FullCheckIntegrationTest
         StoreAccess access = fixture.directStoreAccess().nativeStores();
         RecordStore<RelationshipTypeTokenRecord> relTypeStore = access.getRelationshipTypeTokenStore();
         RelationshipTypeTokenRecord record = relTypeStore.getRecord( (int) relTypeStore.nextId(),
-                relTypeStore.newRecord(), FORCE );
+                                                                     relTypeStore.newRecord(), FORCE );
         record.setNameId( 20 );
         record.setInUse( true );
         relTypeStore.updateRecord( record );
@@ -1252,7 +1254,7 @@ public class FullCheckIntegrationTest
         // given
         StoreAccess access = fixture.directStoreAccess().nativeStores();
         LabelTokenRecord record = access.getLabelTokenStore().getRecord( 1,
-                access.getLabelTokenStore().newRecord(), FORCE );
+                                                                         access.getLabelTokenStore().newRecord(), FORCE );
         record.setNameId( 20 );
         record.setInUse( true );
         access.getLabelTokenStore().updateRecord( record );
@@ -1282,7 +1284,7 @@ public class FullCheckIntegrationTest
         } );
         StoreAccess access = fixture.directStoreAccess().nativeStores();
         DynamicRecord record = access.getPropertyKeyNameStore().getRecord( inconsistentKey.get() + 1,
-                access.getPropertyKeyNameStore().newRecord(), FORCE );
+                                                                           access.getPropertyKeyNameStore().newRecord(), FORCE );
         record.setInUse( false );
         access.getPropertyKeyNameStore().updateRecord( record );
 
@@ -1328,13 +1330,13 @@ public class FullCheckIntegrationTest
         {
             @Override
             protected void transactionData( GraphStoreFixture.TransactionDataBuilder tx,
-                    GraphStoreFixture.IdGenerator next )
+                                            GraphStoreFixture.IdGenerator next )
             {
                 long node = next.node();
                 long group = next.relationshipGroup();
                 tx.create( inUse( new NodeRecord( node, true, group, NO_NEXT_PROPERTY.intValue() ) ) );
                 tx.create( withOwner( withNext( inUse( new RelationshipGroupRecord( group, C ) ),
-                        group + 1 /*non-existent group id*/ ), node ) );
+                                                group + 1 /*non-existent group id*/ ), node ) );
             }
         } );
 
@@ -1354,14 +1356,14 @@ public class FullCheckIntegrationTest
         {
             @Override
             protected void transactionData( GraphStoreFixture.TransactionDataBuilder tx,
-                    GraphStoreFixture.IdGenerator next )
+                                            GraphStoreFixture.IdGenerator next )
             {
                 long node = next.node();
                 long firstGroupId = next.relationshipGroup();
                 long otherGroupId = next.relationshipGroup();
                 tx.create( inUse( new NodeRecord( node, true, firstGroupId, NO_NEXT_PROPERTY.intValue() ) ) );
                 tx.create( withOwner( withNext( inUse( new RelationshipGroupRecord( firstGroupId, T ) ),
-                        otherGroupId ), node ) );
+                                                otherGroupId ), node ) );
                 tx.create( withOwner( inUse( new RelationshipGroupRecord( otherGroupId, C ) ), node ) );
             }
         } );
@@ -1382,14 +1384,14 @@ public class FullCheckIntegrationTest
         {
             @Override
             protected void transactionData( GraphStoreFixture.TransactionDataBuilder tx,
-                    GraphStoreFixture.IdGenerator next )
+                                            GraphStoreFixture.IdGenerator next )
             {
                 long node = next.node();
                 long groupId = next.relationshipGroup();
                 long rel = next.relationship();
                 tx.create( inUse( new NodeRecord( node, true, groupId, NO_NEXT_PROPERTY.intValue() ) ) );
                 tx.create( withOwner( withRelationships( inUse( new RelationshipGroupRecord( groupId, C ) ),
-                        rel, rel, rel ), node ) );
+                                                         rel, rel, rel ), node ) );
             }
         } );
 
@@ -1409,7 +1411,7 @@ public class FullCheckIntegrationTest
         {
             @Override
             protected void transactionData( GraphStoreFixture.TransactionDataBuilder tx,
-                    GraphStoreFixture.IdGenerator next )
+                                            GraphStoreFixture.IdGenerator next )
             {
                 /*
                  *   node ----------------> group
@@ -1448,7 +1450,7 @@ public class FullCheckIntegrationTest
         {
             @Override
             protected void transactionData( GraphStoreFixture.TransactionDataBuilder tx,
-                    GraphStoreFixture.IdGenerator next )
+                                            GraphStoreFixture.IdGenerator next )
             {
                 // node -[first]-> group -[owner]-> otherNode
                 long node = next.node();
@@ -1456,7 +1458,7 @@ public class FullCheckIntegrationTest
                 long group = next.relationshipGroup();
                 tx.create( inUse( new NodeRecord( node, true, group, NO_NEXT_PROPERTY.intValue() ) ) );
                 tx.create( inUse( new NodeRecord( otherNode, false, NO_NEXT_RELATIONSHIP.intValue(),
-                        NO_NEXT_PROPERTY.intValue() ) ) );
+                                                  NO_NEXT_PROPERTY.intValue() ) ) );
                 tx.create( withOwner( inUse( new RelationshipGroupRecord( group, C ) ), otherNode ) );
             }
         } );
@@ -1479,7 +1481,7 @@ public class FullCheckIntegrationTest
         {
             @Override
             protected void transactionData( GraphStoreFixture.TransactionDataBuilder tx,
-                    GraphStoreFixture.IdGenerator next )
+                                            GraphStoreFixture.IdGenerator next )
             {
                 /* node -[first]-> groupA -[next]-> groupB
                  *    ^               /                |
@@ -1493,9 +1495,9 @@ public class FullCheckIntegrationTest
                 long groupB = next.relationshipGroup();
                 tx.create( inUse( new NodeRecord( node, true, groupA, NO_NEXT_PROPERTY.intValue() ) ) );
                 tx.create( inUse( new NodeRecord( otherNode, false, NO_NEXT_RELATIONSHIP.intValue(),
-                        NO_NEXT_PROPERTY.intValue() ) ) );
+                                                  NO_NEXT_PROPERTY.intValue() ) ) );
                 tx.create( withNext( withOwner( inUse( new RelationshipGroupRecord( groupA, C ) ),
-                        node ), groupB ) );
+                                                node ), groupB ) );
                 tx.create( withOwner( inUse( new RelationshipGroupRecord( groupB, T ) ), otherNode ) );
             }
         } );
@@ -1516,7 +1518,7 @@ public class FullCheckIntegrationTest
         {
             @Override
             protected void transactionData( GraphStoreFixture.TransactionDataBuilder tx,
-                    GraphStoreFixture.IdGenerator next )
+                                            GraphStoreFixture.IdGenerator next )
             {
                 // group -[owner]-> <not-in-use node>
                 long node = next.node();
@@ -1541,7 +1543,7 @@ public class FullCheckIntegrationTest
         {
             @Override
             protected void transactionData( GraphStoreFixture.TransactionDataBuilder tx,
-                    GraphStoreFixture.IdGenerator next )
+                                            GraphStoreFixture.IdGenerator next )
             {
                 // node -[first]-> group -[owner]-> -1
                 long group = next.relationshipGroup();
@@ -1581,7 +1583,7 @@ public class FullCheckIntegrationTest
         {
             @Override
             protected void transactionData( GraphStoreFixture.TransactionDataBuilder tx,
-                    GraphStoreFixture.IdGenerator next )
+                                            GraphStoreFixture.IdGenerator next )
             {
                 /*
                  *   node -----> groupA
@@ -1597,7 +1599,7 @@ public class FullCheckIntegrationTest
                 tx.create( new NodeRecord( otherNode, false, rel, NO_NEXT_PROPERTY.intValue() ) );
                 tx.create( new RelationshipRecord( rel, otherNode, otherNode, T ) );
                 tx.create( withOwner( withRelationships( new RelationshipGroupRecord( group, C ),
-                        rel, rel, rel ), node ) );
+                                                         rel, rel, rel ), node ) );
                 tx.incrementRelationshipCount( ANY_LABEL, ANY_RELATIONSHIP_TYPE, ANY_LABEL, 1 );
                 tx.incrementRelationshipCount( ANY_LABEL, T, ANY_LABEL, 1 );
             }
@@ -1619,7 +1621,7 @@ public class FullCheckIntegrationTest
         {
             @Override
             protected void transactionData( GraphStoreFixture.TransactionDataBuilder tx,
-                    GraphStoreFixture.IdGenerator next )
+                                            GraphStoreFixture.IdGenerator next )
             {
                 /* Create a little mini consistent structure:
                  *
@@ -1643,7 +1645,7 @@ public class FullCheckIntegrationTest
                 tx.incrementRelationshipCount( ANY_LABEL, C, ANY_LABEL, 1 );
 
                 tx.create( withOwner( withRelationship( withNext( new RelationshipGroupRecord( groupA, C ), groupB ),
-                        Direction.OUTGOING, rel ), nodeA ) );
+                                                        Direction.OUTGOING, rel ), nodeA ) );
                 tx.create( withOwner( new RelationshipGroupRecord( groupB, T ), nodeA ) );
             }
         } );
@@ -1791,7 +1793,7 @@ public class FullCheckIntegrationTest
 
         // Then
         on( stats ).verify( RecordType.SCHEMA, 2 ) // pair of duplicated indexes & pair of duplicated constraints
-                .andThatsAllFolks();
+                   .andThatsAllFolks();
     }
 
     @Test
@@ -1809,7 +1811,7 @@ public class FullCheckIntegrationTest
 
         // Then
         on( stats ).verify( RecordType.SCHEMA, 2 ) // pair of duplicated indexes & pair of duplicated constraints
-                .andThatsAllFolks();
+                   .andThatsAllFolks();
     }
 
     @Test
@@ -1827,7 +1829,7 @@ public class FullCheckIntegrationTest
 
         // Then
         on( stats ).verify( RecordType.SCHEMA, 2 ) // pair of duplicated indexes & pair of duplicated constraints
-                .andThatsAllFolks();
+                   .andThatsAllFolks();
     }
 
     @Test
@@ -1890,7 +1892,7 @@ public class FullCheckIntegrationTest
 
         // Then
         on( stats ).verify( RecordType.SCHEMA, 2 ) // invalid label in both index & owning constraint
-                .andThatsAllFolks();
+                   .andThatsAllFolks();
     }
 
     @Test
@@ -1906,7 +1908,7 @@ public class FullCheckIntegrationTest
 
         // Then
         on( stats ).verify( RecordType.SCHEMA, 2 ) // invalid label in both index & owning constraint
-                .andThatsAllFolks();
+                   .andThatsAllFolks();
     }
 
     @Test
@@ -1968,7 +1970,7 @@ public class FullCheckIntegrationTest
 
         // Then
         on( stats ).verify( RecordType.SCHEMA, 2 ) // invalid property key in both index & owning constraint
-                .andThatsAllFolks();
+                   .andThatsAllFolks();
     }
 
     @Test
@@ -1985,7 +1987,7 @@ public class FullCheckIntegrationTest
 
         // Then
         on( stats ).verify( RecordType.SCHEMA, 2 ) // invalid property key in both index & owning constraint
-                .andThatsAllFolks();
+                   .andThatsAllFolks();
     }
 
     @Test
@@ -2002,7 +2004,7 @@ public class FullCheckIntegrationTest
 
         // Then
         on( stats ).verify( RecordType.SCHEMA, 2 ) // invalid property key in both index & owning constraint
-                .andThatsAllFolks();
+                   .andThatsAllFolks();
     }
 
     @Test
@@ -2228,14 +2230,14 @@ public class FullCheckIntegrationTest
     {
         Config config = config();
         FullCheck checker = new FullCheck( config, ProgressMonitorFactory.NONE, fixture.getAccessStatistics(),
-                defaultConsistencyCheckThreadsNumber(), true );
+                                           defaultConsistencyCheckThreadsNumber(), true );
         return checker.execute( stores, FormattedLog.toOutputStream( System.out ),
-                ( report, method, message ) ->
-                {
-                    Set<String> types = allReports.get( report );
-                    assert types != null;
-                    types.remove( method );
-                } );
+                                ( report, method, message ) ->
+                                {
+                                    Set<String> types = allReports.get( report );
+                                    assert types != null;
+                                    types.remove( method );
+                                } );
     }
 
     private Config config()
@@ -2248,7 +2250,7 @@ public class FullCheckIntegrationTest
     }
 
     protected static RelationshipGroupRecord withRelationships( RelationshipGroupRecord group, long out,
-            long in, long loop )
+                                                                long in, long loop )
     {
         group.setFirstOut( out );
         group.setFirstIn( in );
@@ -2257,7 +2259,7 @@ public class FullCheckIntegrationTest
     }
 
     protected static RelationshipGroupRecord withRelationship( RelationshipGroupRecord group, Direction direction,
-            long rel )
+                                                               long rel )
     {
         switch ( direction )
         {
@@ -2310,7 +2312,7 @@ public class FullCheckIntegrationTest
         {
             @Override
             protected void transactionData( GraphStoreFixture.TransactionDataBuilder tx,
-                    GraphStoreFixture.IdGenerator next )
+                                            GraphStoreFixture.IdGenerator next )
             {
                 int labelId = next.label();
                 tx.nodeLabel( labelId, "label" );
@@ -2334,7 +2336,7 @@ public class FullCheckIntegrationTest
         {
             @Override
             protected void transactionData( GraphStoreFixture.TransactionDataBuilder tx,
-                    GraphStoreFixture.IdGenerator next )
+                                            GraphStoreFixture.IdGenerator next )
             {
                 int propertyKeyId = next.propertyKey();
                 tx.propertyKey( propertyKeyId, propertyKey );
@@ -2353,7 +2355,7 @@ public class FullCheckIntegrationTest
         {
             @Override
             protected void transactionData( GraphStoreFixture.TransactionDataBuilder tx,
-                    GraphStoreFixture.IdGenerator next )
+                                            GraphStoreFixture.IdGenerator next )
             {
                 int relTypeId = next.relationshipType();
                 tx.relationshipType( relTypeId, "relType" );
@@ -2370,7 +2372,7 @@ public class FullCheckIntegrationTest
         {
             @Override
             protected void transactionData( GraphStoreFixture.TransactionDataBuilder tx,
-                    GraphStoreFixture.IdGenerator next )
+                                            GraphStoreFixture.IdGenerator next )
             {
                 int id = (int) next.schema();
 
@@ -2395,7 +2397,7 @@ public class FullCheckIntegrationTest
         StoreIndexDescriptor indexRule =
                 uniqueForSchema( forLabel( labelId, propertyKeyIds ), DESCRIPTOR ).withIds( ruleId1, ruleId2 );
         ConstraintRule uniqueRule = ConstraintRule.constraintRule( ruleId2,
-                ConstraintDescriptorFactory.uniqueForLabel( labelId, propertyKeyIds ), ruleId1 );
+                                                                   ConstraintDescriptorFactory.uniqueForLabel( labelId, propertyKeyIds ), ruleId1 );
 
         writeToSchemaStore( schemaStore, indexRule );
         writeToSchemaStore( schemaStore, uniqueRule );
@@ -2411,7 +2413,7 @@ public class FullCheckIntegrationTest
         StoreIndexDescriptor indexRule =
                 uniqueForSchema( forLabel( labelId, propertyKeyIds ), DESCRIPTOR ).withIds( ruleId1, ruleId2 );
         ConstraintRule nodeKeyRule = ConstraintRule.constraintRule( ruleId2,
-                ConstraintDescriptorFactory.nodeKeyForLabel( labelId, propertyKeyIds ), ruleId1 );
+                                                                    ConstraintDescriptorFactory.nodeKeyForLabel( labelId, propertyKeyIds ), ruleId1 );
 
         writeToSchemaStore( schemaStore, indexRule );
         writeToSchemaStore( schemaStore, nodeKeyRule );
@@ -2491,7 +2493,7 @@ public class FullCheckIntegrationTest
                 throw new IllegalStateException( "Tried to verify the same type twice: " + type );
             }
             assertEquals( "Inconsistencies of type: " + type, inconsistencies,
-                    stats.getInconsistencyCountForRecordType( type ) );
+                          stats.getInconsistencyCountForRecordType( type ) );
             total += inconsistencies;
             return this;
         }

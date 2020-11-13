@@ -131,7 +131,7 @@ public class BuiltInProceduresTest
         procs.registerComponent( GraphDatabaseAPI.class, ctx -> ctx.get( GRAPHDATABASEAPI ), false );
         procs.registerComponent( SecurityContext.class, ctx -> ctx.get( SECURITY_CONTEXT ), true );
 
-        procs.registerComponent( Log.class, ctx -> ctx.get( LOG), false );
+        procs.registerComponent( Log.class, ctx -> ctx.get( LOG ), false );
         procs.registerType( Node.class, NTNode );
         procs.registerType( Relationship.class, NTRelationship );
         procs.registerType( Path.class, NTPath );
@@ -151,7 +151,8 @@ public class BuiltInProceduresTest
         when( tokens.relationshipTypesGetAllTokens() ).thenAnswer( asTokens( relTypes ) );
         when( schemaReadCore.indexesGetAll() ).thenAnswer(
                 i -> Iterators.concat( indexes.iterator(), uniqueIndexes.iterator() ) );
-        when( schemaReadCore.index( any( SchemaDescriptor.class ) ) ).thenAnswer( (Answer<IndexReference>) invocationOnMock -> {
+        when( schemaReadCore.index( any( SchemaDescriptor.class ) ) ).thenAnswer( (Answer<IndexReference>) invocationOnMock ->
+        {
             SchemaDescriptor schema = invocationOnMock.getArgument( 0 );
             int label = schema.keyId();
             int prop = schema.getPropertyId();
@@ -203,7 +204,7 @@ public class BuiltInProceduresTest
     {
         // Given
         givenIndex( "User", "name" );
-        when( schemaReadCore.indexGetState( any( IndexReference.class) ) ).thenThrow( new IndexNotFoundKernelException( "Not found." ) );
+        when( schemaReadCore.indexGetState( any( IndexReference.class ) ) ).thenThrow( new IndexNotFoundKernelException( "Not found." ) );
 
         // When/Then
         assertThat( call( "db.indexes" ), contains( record(
@@ -510,22 +511,29 @@ public class BuiltInProceduresTest
     {
         // Given
         Config mockConfig = mock( Config.class );
-        HashMap<String, ConfigValue> settings = new HashMap<>();
+        HashMap<String,ConfigValue> settings = new HashMap<>();
 
-        settings.put("browser.allow_outgoing_connections", new ConfigValue( "browser.allow_outgoing_connections", Optional.of( "description" ),
-                                                                            Optional.empty(), Optional.of("value"), "value description", false, false, false, Optional.empty(), false ));
-        settings.put("browser.credential_timeout", new ConfigValue( "browser.credential_timeout", Optional.of( "description" ),
-                                                                    Optional.empty(), Optional.of("value"), "value description", false, false, false, Optional.empty(), false ));
-        settings.put("browser.retain_connection_credentials", new ConfigValue( "browser.retain_connection_credentials", Optional.of( "description" ),
-                                                                               Optional.empty(), Optional.of("value"), "value description", false, false, false, Optional.empty(), false ));
-        settings.put("dbms.security.auth_enabled", new ConfigValue( "dbms.security.auth_enabled", Optional.of( "description" ),
-                                                                    Optional.empty(), Optional.of("value"), "value description", false, false, false, Optional.empty(), false ));
-        settings.put("browser.remote_content_hostname_whitelist", new ConfigValue( "browser.remote_content_hostname_whitelist", Optional.of( "description" ),
-                                                                                   Optional.empty(), Optional.of("value"), "value description", false, false, false, Optional.empty(), false ));
-        settings.put("browser.post_connect_cmd", new ConfigValue( "browser.post_connect_cmd", Optional.of( "description" ),
-                                                                  Optional.empty(), Optional.of("value"), "value description", false, false, false, Optional.empty(), false ));
-        settings.put("something.else", new ConfigValue( "something.else", Optional.of( "description" ),
-                                                        Optional.empty(), Optional.of("value"), "value description", false, false, false, Optional.empty(), false ));
+        settings.put( "browser.allow_outgoing_connections", new ConfigValue( "browser.allow_outgoing_connections", Optional.of( "description" ),
+                                                                             Optional.empty(), Optional.of( "value" ), "value description", false, false, false,
+                                                                             Optional.empty(), false ) );
+        settings.put( "browser.credential_timeout", new ConfigValue( "browser.credential_timeout", Optional.of( "description" ),
+                                                                     Optional.empty(), Optional.of( "value" ), "value description", false, false, false,
+                                                                     Optional.empty(), false ) );
+        settings.put( "browser.retain_connection_credentials", new ConfigValue( "browser.retain_connection_credentials", Optional.of( "description" ),
+                                                                                Optional.empty(), Optional.of( "value" ), "value description", false, false,
+                                                                                false, Optional.empty(), false ) );
+        settings.put( "dbms.security.auth_enabled", new ConfigValue( "dbms.security.auth_enabled", Optional.of( "description" ),
+                                                                     Optional.empty(), Optional.of( "value" ), "value description", false, false, false,
+                                                                     Optional.empty(), false ) );
+        settings.put( "browser.remote_content_hostname_whitelist", new ConfigValue( "browser.remote_content_hostname_whitelist", Optional.of( "description" ),
+                                                                                    Optional.empty(), Optional.of( "value" ), "value description", false, false,
+                                                                                    false, Optional.empty(), false ) );
+        settings.put( "browser.post_connect_cmd", new ConfigValue( "browser.post_connect_cmd", Optional.of( "description" ),
+                                                                   Optional.empty(), Optional.of( "value" ), "value description", false, false, false,
+                                                                   Optional.empty(), false ) );
+        settings.put( "something.else", new ConfigValue( "something.else", Optional.of( "description" ),
+                                                         Optional.empty(), Optional.of( "value" ), "value description", false, false, false, Optional.empty(),
+                                                         false ) );
 
         when( mockConfig.getConfigValues() ).thenReturn( settings );
         when( resolver.resolveDependency( Config.class ) ).thenReturn( mockConfig );
@@ -577,7 +585,7 @@ public class BuiltInProceduresTest
         constraints.add( ConstraintDescriptorFactory.existsForLabel( labelId, propId ) );
     }
 
-    private void givenNodeKeys( String label, String...props )
+    private void givenNodeKeys( String label, String... props )
     {
         int labelId = token( label, labels );
         int[] propIds = new int[props.length];
@@ -643,7 +651,7 @@ public class BuiltInProceduresTest
                 return index;
             }
         }
-        throw new AssertionError(  );
+        throw new AssertionError();
     }
 
     private static Answer<Iterator<NamedToken>> asTokens( Map<Integer,String> tokens )
@@ -664,7 +672,7 @@ public class BuiltInProceduresTest
         when( graphDatabaseAPI.getDependencyResolver() ).thenReturn( resolver );
         when( resolver.resolveDependency( Procedures.class ) ).thenReturn( procs );
         when( resolver.resolveDependency( IndexingService.class ) ).thenReturn( indexingService );
-        when( schemaReadCore.indexGetPopulationProgress( any( IndexReference.class) ) ).thenReturn( PopulationProgress.DONE );
+        when( schemaReadCore.indexGetPopulationProgress( any( IndexReference.class ) ) ).thenReturn( PopulationProgress.DONE );
         return Iterators.asList( procs.callProcedure(
                 ctx, ProcedureSignature.procedureName( name.split( "\\." ) ), args, resourceTracker ) );
     }

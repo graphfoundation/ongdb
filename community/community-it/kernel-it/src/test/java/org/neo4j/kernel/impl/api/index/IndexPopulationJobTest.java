@@ -173,7 +173,7 @@ public class IndexPopulationJobTest
 
         verify( populator ).create();
         verify( populator ).includeSample( update );
-        verify( populator, times( 2 ) ).add( any( Collection.class) );
+        verify( populator, times( 2 ) ).add( any( Collection.class ) );
         verify( populator ).sampleResult();
         verify( populator ).close( true );
     }
@@ -307,7 +307,7 @@ public class IndexPopulationJobTest
         job.run();
 
         // THEN
-        Set<Pair<Long, Object>> expected = asSet(
+        Set<Pair<Long,Object>> expected = asSet(
                 Pair.of( node1, value1 ),
                 Pair.of( node2, value2 ),
                 Pair.of( node3, value3 ),
@@ -334,9 +334,9 @@ public class IndexPopulationJobTest
         job.run();
 
         // THEN
-        Map<Long, Object> expectedAdded = genericMap( node1, value1, node2, value2, node3, value3 );
+        Map<Long,Object> expectedAdded = genericMap( node1, value1, node2, value2, node3, value3 );
         assertEquals( expectedAdded, populator.added );
-        Map<Long, Object> expectedRemoved = genericMap( node2, value2 );
+        Map<Long,Object> expectedRemoved = genericMap( node2, value2 );
         assertEquals( expectedRemoved, populator.removed );
     }
 
@@ -345,7 +345,7 @@ public class IndexPopulationJobTest
     {
         // GIVEN
         IndexPopulator failingPopulator = mock( IndexPopulator.class );
-        doThrow( new RuntimeException( "BORK BORK" ) ).when( failingPopulator ).add( any(Collection.class) );
+        doThrow( new RuntimeException( "BORK BORK" ) ).when( failingPopulator ).add( any( Collection.class ) );
 
         FlippableIndexProxy index = new FlippableIndexProxy();
 
@@ -368,10 +368,10 @@ public class IndexPopulationJobTest
         FlippableIndexProxy index = mock( FlippableIndexProxy.class );
         IndexStoreView storeView = mock( IndexStoreView.class );
         ControlledStoreScan storeScan = new ControlledStoreScan();
-        when( storeView.visitNodes( any(int[].class), any( IntPredicate.class ),
+        when( storeView.visitNodes( any( int[].class ), any( IntPredicate.class ),
                                     ArgumentMatchers.any(),
                                     ArgumentMatchers.<Visitor<NodeLabelUpdate,RuntimeException>>any(), anyBoolean() ) )
-                .thenReturn(storeScan );
+                .thenReturn( storeScan );
 
         final IndexPopulationJob job =
                 newIndexPopulationJob( populator, index, storeView, NullLogProvider.getInstance(), EntityType.NODE, indexDescriptor( FIRST, name, false ) );
@@ -445,7 +445,7 @@ public class IndexPopulationJobTest
             // Then
             LogMatcherBuilder match = inLog( IndexPopulationJob.class );
             logProvider.assertExactly( match.info( "Index population started: [%s]", ":FIRST(name)" ),
-                                       match.info( containsString( "TIME/PHASE Final: SCAN[" ) ));
+                                       match.info( containsString( "TIME/PHASE Final: SCAN[" ) ) );
         }
         finally
         {
@@ -541,7 +541,8 @@ public class IndexPopulationJobTest
         {
             @Override
             public <FAILURE extends Exception> StoreScan<FAILURE> visitNodes( int[] labelIds, IntPredicate propertyKeyIdFilter,
-                                                                              Visitor<EntityUpdates,FAILURE> propertyUpdateVisitor, Visitor<NodeLabelUpdate,FAILURE> labelUpdateVisitor, boolean forceStoreScan )
+                                                                              Visitor<EntityUpdates,FAILURE> propertyUpdateVisitor,
+                                                                              Visitor<NodeLabelUpdate,FAILURE> labelUpdateVisitor, boolean forceStoreScan )
             {
                 return new StoreScan<FAILURE>()
                 {
@@ -610,7 +611,7 @@ public class IndexPopulationJobTest
 
     private class NodeChangingWriter extends IndexPopulator.Adapter
     {
-        private final Set<Pair<Long, Object>> added = new HashSet<>();
+        private final Set<Pair<Long,Object>> added = new HashSet<>();
         private IndexPopulationJob job;
         private final long nodeToChange;
         private final Value newValue;
@@ -677,8 +678,8 @@ public class IndexPopulationJobTest
 
     private class NodeDeletingWriter extends IndexPopulator.Adapter
     {
-        private final Map<Long, Object> added = new HashMap<>();
-        private final Map<Long, Object> removed = new HashMap<>();
+        private final Map<Long,Object> added = new HashMap<>();
+        private final Map<Long,Object> removed = new HashMap<>();
         private final long nodeToDelete;
         private IndexPopulationJob job;
         private final Value valueToDelete;
@@ -798,7 +799,7 @@ public class IndexPopulationJobTest
         }
     }
 
-    private long createNode( Map<String, Object> properties, Label... labels )
+    private long createNode( Map<String,Object> properties, Label... labels )
     {
         try ( org.neo4j.graphdb.Transaction tx = db.beginTx() )
         {

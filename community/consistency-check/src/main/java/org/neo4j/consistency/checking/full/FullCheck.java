@@ -177,7 +177,8 @@ public class FullCheck
             MultiPassStore.Factory multiPass = new MultiPassStore.Factory(
                     decorator, recordAccess, cacheAccess, report, reportMonitor );
             ConsistencyCheckTasks taskCreator = new ConsistencyCheckTasks( progress, processEverything,
-                                                                           nativeStores, statistics, cacheAccess, directStoreAccess.labelScanStore(), indexes, tokenNameLookup,
+                                                                           nativeStores, statistics, cacheAccess, directStoreAccess.labelScanStore(), indexes,
+                                                                           tokenNameLookup,
                                                                            multiPass, reporter, threads );
 
             if ( checkIndexStructure )

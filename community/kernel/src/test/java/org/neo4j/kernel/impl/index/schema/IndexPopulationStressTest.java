@@ -286,7 +286,8 @@ public class IndexPopulationStressTest
                          {
                              try
                              {
-                                 Generator generator = generators[slot] = new Generator( MAX_BATCH_SIZE, random.seed() + slot, slot * worstCaseEntriesPerThread );
+                                 Generator generator =
+                                         generators[slot] = new Generator( MAX_BATCH_SIZE, random.seed() + slot, slot * worstCaseEntriesPerThread );
                                  for ( int j = 0; j < BATCHES_PER_THREAD; j++ )
                                  {
                                      List<? extends IndexEntryUpdate<?>> batch = generator.batch();

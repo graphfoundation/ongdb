@@ -163,6 +163,7 @@ class NativeIndexPopulatorTestCases
     public interface PopulatorFactory<KEY extends NativeIndexKey<KEY>, VALUE extends NativeIndexValue>
     {
         NativeIndexPopulator<KEY,VALUE> create( PageCache pageCache, FileSystemAbstraction fs, File storeFile, IndexLayout<KEY,VALUE> layout,
-                                                IndexProvider.Monitor monitor, StoreIndexDescriptor descriptor, TokenNameLookup tokenNameLookup ) throws IOException;
+                                                IndexProvider.Monitor monitor, StoreIndexDescriptor descriptor, TokenNameLookup tokenNameLookup )
+                throws IOException;
     }
 }

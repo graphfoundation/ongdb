@@ -371,7 +371,8 @@ public class BlockBasedIndexPopulatorTest
         GenericLayout layout = new GenericLayout( 1, spatialSettings );
         BlockBasedIndexPopulator<GenericKey,NativeIndexValue> populator =
                 new BlockBasedIndexPopulator<GenericKey,NativeIndexValue>( storage.pageCache(), fs, indexFile, layout, EMPTY,
-                                                                           INDEX_DESCRIPTOR, spatialSettings, directoryStructure, dropAction, false, bufferFactory, 2, monitor, tokenNameLookup )
+                                                                           INDEX_DESCRIPTOR, spatialSettings, directoryStructure, dropAction, false,
+                                                                           bufferFactory, 2, monitor, tokenNameLookup )
                 {
                     @Override
                     NativeIndexReader<GenericKey,NativeIndexValue> newReader()

@@ -203,7 +203,8 @@ public class SchemaIndexHaIT
         ControlledGraphDatabaseFactory dbFactory = new ControlledGraphDatabaseFactory( IS_MASTER );
 
         ManagedCluster cluster = clusterRule.withDbFactory( dbFactory )
-                                            .withSharedSetting( GraphDatabaseSettings.default_schema_provider, NativeLuceneFusionIndexProviderFactory20.DESCRIPTOR.name() )
+                                            .withSharedSetting( GraphDatabaseSettings.default_schema_provider,
+                                                                NativeLuceneFusionIndexProviderFactory20.DESCRIPTOR.name() )
                                             .startCluster();
 
         try
@@ -544,8 +545,11 @@ public class SchemaIndexHaIT
     interface IndexProviderDependencies
     {
         GraphDatabaseService db();
+
         Config config();
+
         PageCache pageCache();
+
         RecoveryCleanupWorkCollector recoveryCleanupWorkCollector();
     }
 

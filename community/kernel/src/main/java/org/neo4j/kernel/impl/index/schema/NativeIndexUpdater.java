@@ -88,9 +88,11 @@ class NativeIndexUpdater<KEY extends NativeIndexKey<KEY>, VALUE extends NativeIn
         }
     }
 
-    static <KEY extends NativeIndexKey<KEY>, VALUE extends NativeIndexValue> void processUpdate( KEY treeKey, VALUE treeValue,
-                                                                                                 IndexEntryUpdate<?> update, Writer<KEY,VALUE> writer, ConflictDetectingValueMerger<KEY,VALUE,Value[]> conflictDetectingValueMerger,
-                                                                                                 IndexDescriptor descriptor, TokenNameLookup tokenNameLookup )
+    static <KEY extends NativeIndexKey<KEY>, VALUE extends NativeIndexValue> void processUpdate(
+            KEY treeKey, VALUE treeValue,
+            IndexEntryUpdate<?> update, Writer<KEY,VALUE> writer,
+            ConflictDetectingValueMerger<KEY,VALUE,Value[]> conflictDetectingValueMerger,
+            IndexDescriptor descriptor, TokenNameLookup tokenNameLookup )
             throws IndexEntryConflictException
     {
         switch ( update.updateMode() )
@@ -109,8 +111,9 @@ class NativeIndexUpdater<KEY extends NativeIndexKey<KEY>, VALUE extends NativeIn
         }
     }
 
-    private static <KEY extends NativeIndexKey<KEY>, VALUE extends NativeIndexValue> void processRemove( KEY treeKey,
-                                                                                                         IndexEntryUpdate<?> update, Writer<KEY,VALUE> writer )
+    private static <KEY extends NativeIndexKey<KEY>, VALUE extends NativeIndexValue> void processRemove(
+            KEY treeKey,
+            IndexEntryUpdate<?> update, Writer<KEY,VALUE> writer )
     {
         // todo Do we need to verify that we actually removed something at all?
         // todo Difference between online and recovery?
@@ -118,10 +121,12 @@ class NativeIndexUpdater<KEY extends NativeIndexKey<KEY>, VALUE extends NativeIn
         writer.remove( treeKey );
     }
 
-    private static <KEY extends NativeIndexKey<KEY>, VALUE extends NativeIndexValue> void processChange( KEY treeKey, VALUE treeValue,
-                                                                                                         IndexEntryUpdate<?> update, Writer<KEY,VALUE> writer,
-                                                                                                         ConflictDetectingValueMerger<KEY,VALUE,Value[]> conflictDetectingValueMerger, IndexDescriptor descriptor,
-                                                                                                         TokenNameLookup tokenNameLookup )
+    private static <KEY extends NativeIndexKey<KEY>, VALUE extends NativeIndexValue> void processChange(
+            KEY treeKey, VALUE treeValue,
+            IndexEntryUpdate<?> update, Writer<KEY,VALUE> writer,
+            ConflictDetectingValueMerger<KEY,VALUE,Value[]> conflictDetectingValueMerger,
+            IndexDescriptor descriptor,
+            TokenNameLookup tokenNameLookup )
             throws IndexEntryConflictException
     {
         try
@@ -146,9 +151,12 @@ class NativeIndexUpdater<KEY extends NativeIndexKey<KEY>, VALUE extends NativeIn
         }
     }
 
-    private static <KEY extends NativeIndexKey<KEY>, VALUE extends NativeIndexValue> void processAdd( KEY treeKey, VALUE treeValue, IndexEntryUpdate<?> update,
-                                                                                                      Writer<KEY,VALUE> writer, ConflictDetectingValueMerger<KEY,VALUE,Value[]> conflictDetectingValueMerger,
-                                                                                                      IndexDescriptor descriptor, TokenNameLookup tokenNameLookup )
+    private static <KEY extends NativeIndexKey<KEY>, VALUE extends NativeIndexValue> void processAdd(
+            KEY treeKey, VALUE treeValue, IndexEntryUpdate<?> update,
+            Writer<KEY,VALUE> writer,
+            ConflictDetectingValueMerger<KEY,VALUE,Value[]> conflictDetectingValueMerger,
+            IndexDescriptor descriptor,
+            TokenNameLookup tokenNameLookup )
             throws IndexEntryConflictException
     {
         try

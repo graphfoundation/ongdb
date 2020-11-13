@@ -296,7 +296,7 @@ public class GBPTreeTest
             // Good
         }
 
-        try ( GBPTree<MutableLong, MutableLong> ignored = index( pageCachePageSize / 2 )
+        try ( GBPTree<MutableLong,MutableLong> ignored = index( pageCachePageSize / 2 )
                 .withIndexPageSize( pageCachePageSize )
                 .build() )
         {
@@ -455,7 +455,7 @@ public class GBPTreeTest
         IOException no = new IOException( "No" );
         AtomicBoolean throwOnNextIO = new AtomicBoolean();
         PageCache controlledPageCache = pageCacheThatThrowExceptionWhenToldTo( no, throwOnNextIO );
-        try ( GBPTree<MutableLong, MutableLong> index = index( controlledPageCache ).build() )
+        try ( GBPTree<MutableLong,MutableLong> index = index( controlledPageCache ).build() )
         {
             // WHEN
             assertTrue( throwOnNextIO.compareAndSet( false, true ) );
@@ -804,7 +804,7 @@ public class GBPTreeTest
 
             // THEN
             assertEquals( headerBytes.length, length.get() );
-            assertArrayEquals( headerBytes, readHeader);
+            assertArrayEquals( headerBytes, readHeader );
         }
     }
 
@@ -962,7 +962,7 @@ public class GBPTreeTest
     {
         makeDirty();
 
-        try ( GBPTree<MutableLong, MutableLong> index = index().with( RecoveryCleanupWorkCollector.ignore() ).build() )
+        try ( GBPTree<MutableLong,MutableLong> index = index().with( RecoveryCleanupWorkCollector.ignore() ).build() )
         {
             assertTrue( index.wasDirtyOnStartup() );
         }
@@ -1096,7 +1096,7 @@ public class GBPTreeTest
         collector.init();
 
         Future<List<CleanupJob>> cleanJob;
-        try ( GBPTree<MutableLong, MutableLong> ignored = index( pageCache ).with( collector ).build() )
+        try ( GBPTree<MutableLong,MutableLong> ignored = index( pageCache ).with( collector ).build() )
         {
             blockOnNextIO.set( true );
             cleanJob = executor.submit( startAndReturnStartedJobs( collector ) );
@@ -1293,7 +1293,7 @@ public class GBPTreeTest
     public void mustNotSeeUpdatesThatWasNotCheckpointed() throws Exception
     {
         // GIVEN
-        try ( GBPTree<MutableLong, MutableLong> index = index().build() )
+        try ( GBPTree<MutableLong,MutableLong> index = index().build() )
         {
             insert( index, 0, 1 );
 
@@ -1302,7 +1302,7 @@ public class GBPTreeTest
         }
 
         // THEN
-        try ( GBPTree<MutableLong, MutableLong> index = index().build() )
+        try ( GBPTree<MutableLong,MutableLong> index = index().build() )
         {
             MutableLong from = new MutableLong( Long.MIN_VALUE );
             MutableLong to = new MutableLong( MAX_VALUE );
@@ -1319,7 +1319,7 @@ public class GBPTreeTest
         // GIVEN
         int key = 1;
         int value = 2;
-        try ( GBPTree<MutableLong, MutableLong> index = index().build() )
+        try ( GBPTree<MutableLong,MutableLong> index = index().build() )
         {
             insert( index, key, value );
 
@@ -1328,7 +1328,7 @@ public class GBPTreeTest
         }
 
         // THEN
-        try ( GBPTree<MutableLong, MutableLong> index = index().build() )
+        try ( GBPTree<MutableLong,MutableLong> index = index().build() )
         {
             MutableLong from = new MutableLong( Long.MIN_VALUE );
             MutableLong to = new MutableLong( MAX_VALUE );
@@ -1345,7 +1345,7 @@ public class GBPTreeTest
     public void mustBumpUnstableGenerationOnOpen() throws Exception
     {
         // GIVEN
-        try ( GBPTree<MutableLong, MutableLong> index = index().build() )
+        try ( GBPTree<MutableLong,MutableLong> index = index().build() )
         {
             insert( index, 0, 1 );
 
@@ -1354,7 +1354,7 @@ public class GBPTreeTest
 
         // WHEN
         SimpleCleanupMonitor monitor = new SimpleCleanupMonitor();
-        try ( GBPTree<MutableLong, MutableLong> ignore = index().with( monitor ).build() )
+        try ( GBPTree<MutableLong,MutableLong> ignore = index().with( monitor ).build() )
         {
         }
 
@@ -1376,7 +1376,7 @@ public class GBPTreeTest
         MonitorDirty monitorDirty = new MonitorDirty();
 
         // WHEN
-        try ( GBPTree<MutableLong, MutableLong> ignored = index().with( monitorDirty ).build() )
+        try ( GBPTree<MutableLong,MutableLong> ignored = index().with( monitorDirty ).build() )
         {
         }
 
@@ -1388,13 +1388,13 @@ public class GBPTreeTest
     public void indexMustBeCleanWhenClosedWithoutAnyChanges() throws Exception
     {
         // GIVEN
-        try ( GBPTree<MutableLong, MutableLong> ignored = index().build() )
+        try ( GBPTree<MutableLong,MutableLong> ignored = index().build() )
         {
         }
 
         // WHEN
         MonitorDirty monitorDirty = new MonitorDirty();
-        try ( GBPTree<MutableLong, MutableLong> ignored = index().with( monitorDirty ).build() )
+        try ( GBPTree<MutableLong,MutableLong> ignored = index().with( monitorDirty ).build() )
         {
         }
 
@@ -1406,7 +1406,7 @@ public class GBPTreeTest
     public void indexMustBeCleanWhenClosedAfterCheckpoint() throws Exception
     {
         // GIVEN
-        try ( GBPTree<MutableLong, MutableLong> index = index().build() )
+        try ( GBPTree<MutableLong,MutableLong> index = index().build() )
         {
             insert( index, 0, 1 );
 
@@ -1415,7 +1415,7 @@ public class GBPTreeTest
 
         // WHEN
         MonitorDirty monitorDirty = new MonitorDirty();
-        try ( GBPTree<MutableLong, MutableLong> ignored = index().with( monitorDirty ).build() )
+        try ( GBPTree<MutableLong,MutableLong> ignored = index().with( monitorDirty ).build() )
         {
         }
 
@@ -1427,7 +1427,7 @@ public class GBPTreeTest
     public void indexMustBeDirtyWhenClosedWithChangesSinceLastCheckpoint() throws Exception
     {
         // GIVEN
-        try ( GBPTree<MutableLong, MutableLong> index = index().build() )
+        try ( GBPTree<MutableLong,MutableLong> index = index().build() )
         {
             insert( index, 0, 1 );
 
@@ -1436,7 +1436,7 @@ public class GBPTreeTest
 
         // WHEN
         MonitorDirty monitorDirty = new MonitorDirty();
-        try ( GBPTree<MutableLong, MutableLong> ignored = index().with( monitorDirty ).build() )
+        try ( GBPTree<MutableLong,MutableLong> ignored = index().with( monitorDirty ).build() )
         {
         }
 
@@ -1454,7 +1454,7 @@ public class GBPTreeTest
             ephemeralFs.mkdirs( indexFile.getParentFile() );
             PageCache pageCache = pageCacheRule.getPageCache( ephemeralFs );
             EphemeralFileSystemAbstraction snapshot;
-            try ( GBPTree<MutableLong, MutableLong> index = index( pageCache ).build() )
+            try ( GBPTree<MutableLong,MutableLong> index = index( pageCache ).build() )
             {
                 insert( index, 0, 1 );
 
@@ -1467,7 +1467,7 @@ public class GBPTreeTest
             // THEN
             MonitorDirty monitorDirty = new MonitorDirty();
             pageCache = pageCacheRule.getPageCache( snapshot );
-            try ( GBPTree<MutableLong, MutableLong> ignored = index( pageCache ).with( monitorDirty ).build() )
+            try ( GBPTree<MutableLong,MutableLong> ignored = index( pageCache ).with( monitorDirty ).build() )
             {
             }
             assertFalse( "Expected to be dirty on start after crash",
@@ -1479,7 +1479,7 @@ public class GBPTreeTest
     public void cleanCrashPointersMustTriggerOnDirtyStart() throws Exception
     {
         // GIVEN
-        try ( GBPTree<MutableLong, MutableLong> index = index().build() )
+        try ( GBPTree<MutableLong,MutableLong> index = index().build() )
         {
             insert( index, 0, 1 );
 
@@ -1488,7 +1488,7 @@ public class GBPTreeTest
 
         // WHEN
         MonitorCleanup monitor = new MonitorCleanup();
-        try ( GBPTree<MutableLong, MutableLong> ignored = index().with( monitor ).build() )
+        try ( GBPTree<MutableLong,MutableLong> ignored = index().with( monitor ).build() )
         {
             // THEN
             assertTrue( "Expected cleanup to be called when starting on dirty tree", monitor.cleanupCalled() );
@@ -1499,7 +1499,7 @@ public class GBPTreeTest
     public void cleanCrashPointersMustNotTriggerOnCleanStart() throws Exception
     {
         // GIVEN
-        try ( GBPTree<MutableLong, MutableLong> index = index().build() )
+        try ( GBPTree<MutableLong,MutableLong> index = index().build() )
         {
             insert( index, 0, 1 );
 
@@ -1508,7 +1508,7 @@ public class GBPTreeTest
 
         // WHEN
         MonitorCleanup monitor = new MonitorCleanup();
-        try ( GBPTree<MutableLong, MutableLong> ignored = index().with( monitor ).build() )
+        try ( GBPTree<MutableLong,MutableLong> ignored = index().with( monitor ).build() )
         {
             // THEN
             assertFalse( "Expected cleanup not to be called when starting on clean tree", monitor.cleanupCalled() );
@@ -1545,7 +1545,7 @@ public class GBPTreeTest
             // WHEN
             try ( GBPTree<MutableLong,MutableLong> index = index( specificPageCache ).build() )
             {
-                try ( Writer<MutableLong, MutableLong> ignored = index.writer() )
+                try ( Writer<MutableLong,MutableLong> ignored = index.writer() )
                 {
                     fail( "Expected to throw because root pointed to by tree state should have a valid successor." );
                 }
@@ -1566,7 +1566,7 @@ public class GBPTreeTest
         AtomicBoolean throwOnNext = new AtomicBoolean();
         IOException exception = new IOException( "My failure" );
         PageCache pageCache = pageCacheThatThrowExceptionWhenToldTo( exception, throwOnNext );
-        try ( GBPTree<MutableLong, MutableLong> ignored = index( pageCache ).build() )
+        try ( GBPTree<MutableLong,MutableLong> ignored = index( pageCache ).build() )
         {
             // WHEN
             throwOnNext.set( true );
@@ -1658,7 +1658,7 @@ public class GBPTreeTest
             }
 
             RawCursor<Hit<MutableLong,MutableLong>,IOException> seek =
-                    tree.seek( new MutableLong( 0 ), new MutableLong( Long.MAX_VALUE ));
+                    tree.seek( new MutableLong( 0 ), new MutableLong( Long.MAX_VALUE ) );
             //noinspection StatementWithEmptyBody
             while ( seek.next() )
             {
@@ -1755,7 +1755,8 @@ public class GBPTreeTest
                                                        {
                                                            go.countDown();
                                                            go.await();
-                                                           try ( RawCursor<Hit<MutableLong,MutableLong>,IOException> seek = tree.seek( new MutableLong( 0 ), new MutableLong( 0 ) ) )
+                                                           try ( RawCursor<Hit<MutableLong,MutableLong>,IOException> seek = tree
+                                                                   .seek( new MutableLong( 0 ), new MutableLong( 0 ) ) )
                                                            {
                                                                seek.next();
                                                            }
@@ -1766,7 +1767,8 @@ public class GBPTreeTest
                                                        {
                                                            go.countDown();
                                                            go.await();
-                                                           try ( RawCursor<Hit<MutableLong,MutableLong>,IOException> seek = tree.seek( new MutableLong( MAX_VALUE ), new MutableLong( MAX_VALUE ) ) )
+                                                           try ( RawCursor<Hit<MutableLong,MutableLong>,IOException> seek = tree
+                                                                   .seek( new MutableLong( MAX_VALUE ), new MutableLong( MAX_VALUE ) ) )
                                                            {
                                                                seek.next();
                                                            }
@@ -1811,10 +1813,11 @@ public class GBPTreeTest
             }
 
             MutableBoolean ioLimitChecked = new MutableBoolean();
-            tree.checkpoint( ( previousStamp, recentlyCompletedIOs, flushable ) -> {
-                ioLimitChecked.setTrue();
-                return 0;
-            } );
+            tree.checkpoint( ( previousStamp, recentlyCompletedIOs, flushable ) ->
+                             {
+                                 ioLimitChecked.setTrue();
+                                 return 0;
+                             } );
             assertFalse( "Expected checkpoint to be a no-op in read only mode.", ioLimitChecked.getValue() );
         }
         byte[] after = fileContent( indexFile );
@@ -1898,10 +1901,7 @@ public class GBPTreeTest
     }
 
     /**
-     * When split is done, trace contain:
-     * trace.get( 0 ) - root
-     * trace.get( 1 ) - leftChild
-     * trace.get( 2 ) - rightChild
+     * When split is done, trace contain: trace.get( 0 ) - root trace.get( 1 ) - leftChild trace.get( 2 ) - rightChild
      */
     private void treeWithRootSplit( List<Long> trace, GBPTree<MutableLong,MutableLong> tree ) throws IOException
     {
@@ -1931,7 +1931,7 @@ public class GBPTreeTest
         }
     }
 
-    private PageCache pageCacheWithTrace( PageCursorTracer pageCursorTracer  )
+    private PageCache pageCacheWithTrace( PageCursorTracer pageCursorTracer )
     {
         // A page cache tracer that we can use to see when tree has seen enough updates and to figure out on which page the child sits.Trace( trace );
         PageCursorTracerSupplier pageCursorTracerSupplier = () -> pageCursorTracer;
@@ -2057,7 +2057,7 @@ public class GBPTreeTest
 
     private void insert( GBPTree<MutableLong,MutableLong> index, long key, long value ) throws IOException
     {
-        try ( Writer<MutableLong, MutableLong> writer = index.writer() )
+        try ( Writer<MutableLong,MutableLong> writer = index.writer() )
         {
             writer.put( new MutableLong( key ), new MutableLong( value ) );
         }

@@ -68,7 +68,9 @@ public class GenericNativeIndexPopulatorTest
         RecoveryCleanupWorkCollector immediate = immediate();
         IndexDropAction dropAction = new FileSystemIndexDropAction( fs, directoryStructure );
         GenericNativeIndexPopulator populator = new GenericNativeIndexPopulator( pageCache, fs, indexFile, layout,
-                                                                                 EMPTY, descriptor, spatialSettings, directoryStructure, mock( SpaceFillingCurveConfiguration.class ), dropAction, false, simpleNameLookup );
+                                                                                 EMPTY, descriptor, spatialSettings, directoryStructure,
+                                                                                 mock( SpaceFillingCurveConfiguration.class ), dropAction, false,
+                                                                                 simpleNameLookup );
         populator.create();
 
         // when

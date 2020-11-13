@@ -71,10 +71,10 @@ public abstract class IndexAccessorCompatibility extends IndexProviderCompatibil
     public void before() throws Exception
     {
         IndexSamplingConfig indexSamplingConfig = new IndexSamplingConfig( Config.defaults() );
-        IndexPopulator populator = indexProvider.getPopulator( descriptor, indexSamplingConfig, heapBufferFactory( 1024 ) );
+        IndexPopulator populator = indexProvider.getPopulator( descriptor, indexSamplingConfig, heapBufferFactory( 1024 ), tokenNameLookup );
         populator.create();
         populator.close( true );
-        accessor = indexProvider.getOnlineAccessor( descriptor, indexSamplingConfig );
+        accessor = indexProvider.getOnlineAccessor( descriptor, indexSamplingConfig, tokenNameLookup );
     }
 
     @After
@@ -109,8 +109,8 @@ public abstract class IndexAccessorCompatibility extends IndexProviderCompatibil
     private ValueType[] removeSpatialTypes( ValueType[] types )
     {
         return Arrays.stream( types )
-                .filter( t -> !t.name().contains( "POINT" ) )
-                .toArray( ValueType[]::new );
+                     .filter( t -> !t.name().contains( "POINT" ) )
+                     .toArray( ValueType[]::new );
     }
 
     protected List<Long> query( IndexQuery... predicates ) throws Exception
@@ -207,7 +207,7 @@ public abstract class IndexAccessorCompatibility extends IndexProviderCompatibil
         {
             int compare = Values.COMPARATOR.compare( o1[i], o2[i] );
             assertThat( "expected less than or equal to but was " + Arrays.toString( o1 ) + " and " + Arrays.toString( o2 ),
-                    compare, lessThanOrEqualTo( 0 ) );
+                        compare, lessThanOrEqualTo( 0 ) );
             if ( compare != 0 )
             {
                 return;
@@ -230,7 +230,7 @@ public abstract class IndexAccessorCompatibility extends IndexProviderCompatibil
         {
             IndexQuery predicate = predicates[i];
             if ( predicate.valueGroup() == ValueGroup.GEOMETRY || predicate.valueGroup() == ValueGroup.GEOMETRY_ARRAY ||
-                    (predicate.valueGroup() == ValueGroup.NUMBER && !testSuite.supportFullValuePrecisionForNumbers()) )
+                 (predicate.valueGroup() == ValueGroup.NUMBER && !testSuite.supportFullValuePrecisionForNumbers()) )
             {
                 if ( !predicates[i].acceptsValue( values[i] ) )
                 {
@@ -244,8 +244,8 @@ public abstract class IndexAccessorCompatibility extends IndexProviderCompatibil
     }
 
     /**
-     * Commit these updates to the index. Also store the values, which currently are stored for all types except geometry,
-     * so therefore it's done explicitly here so that we can filter on them later.
+     * Commit these updates to the index. Also store the values, which currently are stored for all types except geometry, so therefore it's done explicitly
+     * here so that we can filter on them later.
      */
     void updateAndCommit( Collection<IndexEntryUpdate<?>> updates ) throws IndexEntryConflictException
     {

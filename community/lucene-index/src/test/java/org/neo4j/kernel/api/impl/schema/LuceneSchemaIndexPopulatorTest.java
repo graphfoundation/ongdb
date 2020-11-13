@@ -328,5 +328,3 @@ class LuceneSchemaIndexPopulatorTest
         }
     }
 }
-LuceneIndexSamplerReleaseTaskControlUnderFusionTest.java
-        LuceneIndexSamplerReleaseTaskControlUnderFusionTest.javaLuceneIndexSamplerReleaseTaskControlUnderFusionTest.javaLuceneIndexSamplerReleaseTaskControlUnderFusionTest.java

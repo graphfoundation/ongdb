@@ -251,10 +251,10 @@ public class BatchInserterImpl implements BatchInserter, IndexConfigStoreProvide
     private final long maxNodeId;
 
     public BatchInserterImpl( final File databaseDirectory, final FileSystemAbstraction fileSystem,
-                              Map<String, String> stringParams, Iterable<KernelExtensionFactory<?>> kernelExtensions ) throws IOException
+                              Map<String,String> stringParams, Iterable<KernelExtensionFactory<?>> kernelExtensions ) throws IOException
     {
         rejectAutoUpgrade( stringParams );
-        Map<String, String> params = getDefaultParams();
+        Map<String,String> params = getDefaultParams();
         params.putAll( stringParams );
         this.config = Config.defaults( params );
         this.readonly = config.get( GraphDatabaseSettings.read_only );
@@ -275,7 +275,7 @@ public class BatchInserterImpl implements BatchInserter, IndexConfigStoreProvide
         config.augment( logs_directory, databaseDirectory.getCanonicalPath() );
         File internalLog = config.get( store_internal_log_path );
 
-        logService = life.add( StoreLogService.withInternalLog( internalLog).build( fileSystem ) );
+        logService = life.add( StoreLogService.withInternalLog( internalLog ).build( fileSystem ) );
         msgLog = logService.getInternalLog( getClass() );
 
         boolean dump = config.get( GraphDatabaseSettings.dump_configuration );
@@ -371,9 +371,9 @@ public class BatchInserterImpl implements BatchInserter, IndexConfigStoreProvide
         return storeLocker;
     }
 
-    private static Map<String, String> getDefaultParams()
+    private static Map<String,String> getDefaultParams()
     {
-        Map<String, String> params = new HashMap<>();
+        Map<String,String> params = new HashMap<>();
         params.put( GraphDatabaseSettings.pagecache_memory.name(), "32m" );
         return params;
     }
@@ -455,13 +455,15 @@ public class BatchInserterImpl implements BatchInserter, IndexConfigStoreProvide
     private void validateUniquenessConstraintCanBeCreated( int labelId, int[] propertyKeyIds )
     {
         verifyIndexOrUniquenessConstraintCanBeCreated( labelId, propertyKeyIds,
-                                                       "It is not allowed to create node keys, uniqueness constraints or indexes on the same {label;property}" );
+                                                       "It is not allowed to create node keys, " +
+                                                       "uniqueness constraints or indexes on the same {label;property}" );
     }
 
     private void validateNodeKeyConstraintCanBeCreated( int labelId, int[] propertyKeyIds )
     {
         verifyIndexOrUniquenessConstraintCanBeCreated( labelId, propertyKeyIds,
-                                                       "It is not allowed to create node keys, uniqueness constraints or indexes on the same {label;property}" );
+                                                       "It is not allowed to create node keys, " +
+                                                       "uniqueness constraints or indexes on the same {label;property}" );
     }
 
     private void verifyIndexOrUniquenessConstraintCanBeCreated( int labelId, int[] propertyKeyIds, String errorMessage )
@@ -717,7 +719,8 @@ public class BatchInserterImpl implements BatchInserter, IndexConfigStoreProvide
     {
         int propertyKeyId = tokenHolders.propertyKeyTokens().getIdByName( propertyName );
         return propertyKeyId != NO_TOKEN && propertyTraverser.findPropertyRecordContaining( record, propertyKeyId,
-                                                                                            recordAccess.getPropertyRecords(), false ) != Record.NO_NEXT_PROPERTY.intValue();
+                                                                                            recordAccess.getPropertyRecords(), false ) !=
+                                            Record.NO_NEXT_PROPERTY.intValue();
     }
 
     private static void rejectAutoUpgrade( Map<String,String> params )
@@ -729,13 +732,13 @@ public class BatchInserterImpl implements BatchInserter, IndexConfigStoreProvide
     }
 
     @Override
-    public long createNode( Map<String, Object> properties, Label... labels )
+    public long createNode( Map<String,Object> properties, Label... labels )
     {
         checkReadOnly();
         return internalCreateNode( nodeStore.nextId(), properties, labels );
     }
 
-    private long internalCreateNode( long nodeId, Map<String, Object> properties, Label... labels )
+    private long internalCreateNode( long nodeId, Map<String,Object> properties, Label... labels )
     {
         NodeRecord nodeRecord = recordAccess.getNodeRecords().create( nodeId, null ).forChangingData();
         nodeRecord.setInUse( true );
@@ -760,16 +763,16 @@ public class BatchInserterImpl implements BatchInserter, IndexConfigStoreProvide
         }
     }
 
-    private Iterator<PropertyBlock> propertiesIterator( Map<String, Object> properties )
+    private Iterator<PropertyBlock> propertiesIterator( Map<String,Object> properties )
     {
         if ( properties == null || properties.isEmpty() )
         {
             return emptyIterator();
         }
-        return new IteratorWrapper<PropertyBlock, Map.Entry<String,Object>>( properties.entrySet().iterator() )
+        return new IteratorWrapper<PropertyBlock,Map.Entry<String,Object>>( properties.entrySet().iterator() )
         {
             @Override
-            protected PropertyBlock underlyingObjectToObject( Entry<String, Object> property )
+            protected PropertyBlock underlyingObjectToObject( Entry<String,Object> property )
             {
                 return propertyCreator.encodePropertyValue(
                         getOrCreatePropertyKeyId( property.getKey() ), ValueUtils.asValue( property.getValue() ) );
@@ -816,7 +819,7 @@ public class BatchInserterImpl implements BatchInserter, IndexConfigStoreProvide
     }
 
     @Override
-    public void createNode( long id, Map<String, Object> properties, Label... labels )
+    public void createNode( long id, Map<String,Object> properties, Label... labels )
     {
         checkReadOnly();
         IdValidator.assertValidId( IdType.NODE, id, maxNodeId );
@@ -874,7 +877,7 @@ public class BatchInserterImpl implements BatchInserter, IndexConfigStoreProvide
 
     @Override
     public long createRelationship( long node1, long node2, RelationshipType type,
-                                    Map<String, Object> properties )
+                                    Map<String,Object> properties )
     {
         checkReadOnly();
         long id = relationshipStore.nextId();
@@ -891,7 +894,7 @@ public class BatchInserterImpl implements BatchInserter, IndexConfigStoreProvide
     }
 
     @Override
-    public void setNodeProperties( long node, Map<String, Object> properties )
+    public void setNodeProperties( long node, Map<String,Object> properties )
     {
         checkReadOnly();
         NodeRecord record = getNodeRecord( node ).forChangingData();
@@ -905,7 +908,7 @@ public class BatchInserterImpl implements BatchInserter, IndexConfigStoreProvide
     }
 
     @Override
-    public void setRelationshipProperties( long rel, Map<String, Object> properties )
+    public void setRelationshipProperties( long rel, Map<String,Object> properties )
     {
         checkReadOnly();
         RelationshipRecord record = recordAccess.getRelRecords().getOrLoad( rel, null ).forChangingData();
@@ -1057,9 +1060,9 @@ public class BatchInserterImpl implements BatchInserter, IndexConfigStoreProvide
         return "EmbeddedBatchInserter[" + databaseLayout + "]";
     }
 
-    private Map<String, Object> getPropertyChain( long nextProp )
+    private Map<String,Object> getPropertyChain( long nextProp )
     {
-        final Map<String, Object> map = new HashMap<>();
+        final Map<String,Object> map = new HashMap<>();
         propertyTraverser.getPropertyChain( nextProp, recordAccess.getPropertyRecords(), propBlock ->
         {
             try

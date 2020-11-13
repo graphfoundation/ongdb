@@ -84,7 +84,8 @@ public class ConsistencyCheckTasks
     ConsistencyCheckTasks( ProgressMonitorFactory.MultiPartBuilder multiPartBuilder,
                            StoreProcessor defaultProcessor, StoreAccess nativeStores, Statistics statistics,
                            CacheAccess cacheAccess, LabelScanStore labelScanStore,
-                           IndexAccessors indexes, TokenNameLookup tokenNameLookup, MultiPassStore.Factory multiPass, ConsistencyReporter reporter, int numberOfThreads )
+                           IndexAccessors indexes, TokenNameLookup tokenNameLookup, MultiPassStore.Factory multiPass, ConsistencyReporter reporter,
+                           int numberOfThreads )
     {
         this.multiPartBuilder = multiPartBuilder;
         this.defaultProcessor = defaultProcessor;
@@ -244,7 +245,8 @@ public class ConsistencyCheckTasks
     }
 
     private <RECORD extends AbstractBaseRecord> StoreProcessorTask<RECORD> create( String name,
-                                                                                   RecordStore<RECORD> input, StoreProcessor processor, QueueDistribution distribution )
+                                                                                   RecordStore<RECORD> input, StoreProcessor processor,
+                                                                                   QueueDistribution distribution )
     {
         return new StoreProcessorTask<>( name, statistics, numberOfThreads, input, nativeStores, name, multiPartBuilder,
                                          cacheAccess, processor, distribution );
@@ -262,7 +264,7 @@ public class ConsistencyCheckTasks
         {
             if ( labelScanStore instanceof NativeLabelScanStore )
             {
-                if ( ((NativeLabelScanStore)labelScanStore).isDirty() )
+                if ( ((NativeLabelScanStore) labelScanStore).isDirty() )
                 {
                     reporter.report( new LabelScanIndex( labelScanStore.getLabelScanStoreFile() ), ConsistencyReport.LabelScanConsistencyReport.class,
                                      RecordType.LABEL_SCAN_DOCUMENT ).dirtyIndex();
@@ -289,7 +291,6 @@ public class ConsistencyCheckTasks
                                      RecordType.INDEX ).dirtyIndex();
                 }
             }
-
         }
     }
 }

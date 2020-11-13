@@ -207,7 +207,6 @@ class ReflectiveProcedureCompiler
                     log.warn( String.format( "The function '%s' is not on the whitelist and won't be loaded.",
                                              funcName.toString() ) );
                 }
-
             }
             out.sort( Comparator.comparing( a -> a.signature().name().toString() ) );
             return out;
@@ -271,7 +270,7 @@ class ReflectiveProcedureCompiler
     }
 
     private CallableProcedure compileProcedure( Class<?> procDefinition, MethodHandle constructor, Method method,
-                                                String warning, boolean fullAccess, QualifiedName procName  )
+                                                String warning, boolean fullAccess, QualifiedName procName )
             throws ProcedureException
     {
         List<FieldSignature> inputSignature = inputSignatureDeterminer.signatureFor( method );
@@ -371,7 +370,8 @@ class ReflectiveProcedureCompiler
     }
 
     private CallableUserAggregationFunction compileAggregationFunction( Class<?> definition, MethodHandle constructor,
-                                                                        Method method, QualifiedName funcName ) throws ProcedureException, IllegalAccessException
+                                                                        Method method, QualifiedName funcName )
+            throws ProcedureException, IllegalAccessException
     {
         restrictions.verify( funcName );
 
@@ -390,7 +390,6 @@ class ReflectiveProcedureCompiler
                                                   UserAggregationUpdate.class.getSimpleName() );
                 }
                 update = m;
-
             }
             if ( m.isAnnotationPresent( UserAggregationResult.class ) )
             {
@@ -415,7 +414,6 @@ class ReflectiveProcedureCompiler
             throw new ProcedureException( Status.Procedure.ProcedureRegistrationFailed,
                                           "Update method '%s' in %s has type '%s' but must have return type 'void'.", update.getName(),
                                           aggregator.getSimpleName(), update.getReturnType().getSimpleName() );
-
         }
         if ( !Modifier.isPublic( method.getModifiers() ) )
         {
@@ -484,7 +482,7 @@ class ReflectiveProcedureCompiler
         String deprecated = null;
         if ( method.isAnnotationPresent( Deprecated.class ) )
         {
-            deprecated = deprecatedBy ;
+            deprecated = deprecatedBy;
         }
         else if ( !deprecatedBy.isEmpty() )
         {
@@ -829,7 +827,7 @@ class ReflectiveProcedureCompiler
                 inject( ctx, cls );
 
                 // Call the method
-                Object rs = udfMethod.invoke( cls, mapToObjects( "Function", signature.name(), signature.inputSignature(), input  ) );
+                Object rs = udfMethod.invoke( cls, mapToObjects( "Function", signature.name(), signature.inputSignature(), input ) );
 
                 return typeChecker.toValue( rs );
             }
@@ -945,7 +943,7 @@ class ReflectiveProcedureCompiler
                     {
                         try
                         {
-                            return typeChecker.typeCheck( resultMethod.invoke(aggregator) );
+                            return typeChecker.typeCheck( resultMethod.invoke( aggregator ) );
                         }
                         catch ( Throwable throwable )
                         {
@@ -962,11 +960,8 @@ class ReflectiveProcedureCompiler
                                                               "Caused by: " + (cause != null ? cause : throwable) );
                             }
                         }
-
                     }
-
                 };
-
             }
             catch ( Throwable throwable )
             {
@@ -980,7 +975,7 @@ class ReflectiveProcedureCompiler
                     Throwable cause = ExceptionUtils.getRootCause( throwable );
                     throw new ProcedureException( Status.Procedure.ProcedureCallFailed, throwable,
                                                   "Failed to invoke function `%s`: %s", signature.name(),
-                                                  "Caused by: " + (cause != null ? cause : throwable ) );
+                                                  "Caused by: " + (cause != null ? cause : throwable) );
                 }
             }
         }
