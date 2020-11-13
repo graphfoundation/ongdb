@@ -44,6 +44,7 @@ import static org.neo4j.values.storable.Values.shortArray;
 import static org.neo4j.values.storable.Values.stringArray;
 import static org.neo4j.values.utils.AnyValueTestUtil.assertEqual;
 import static org.neo4j.values.utils.AnyValueTestUtil.assertEqualValues;
+import static org.neo4j.values.utils.AnyValueTestUtil.assertEqualWithNoValues;
 import static org.neo4j.values.utils.AnyValueTestUtil.assertIncomparable;
 import static org.neo4j.values.utils.AnyValueTestUtil.assertNotEqual;
 import static org.neo4j.values.virtual.VirtualValueTestUtil.list;
@@ -55,37 +56,37 @@ class ListTest
     private ListValue[] equivalentLists =
             {VirtualValues.list( Values.longValue( 1L ), Values.longValue( 4L ), Values.longValue( 7L ) ),
 
-                    range( 1L, 8L, 3L ),
-                    VirtualValues.fromArray( Values.longArray( new long[]{1L, 4L, 7L} ) ),
-                    VirtualValues.list( NO_VALUE,
-                            longValue( 1L ),
-                            NO_VALUE,
-                            longValue( 4L ),
-                            longValue( 7L ),
-                            NO_VALUE ).dropNoValues(),
-                    list( -2L, 1L, 4L, 7L, 10L ).slice( 1, 4 ),
-                    list( -2L, 1L, 4L, 7L ).drop( 1 ),
-                    list( 1L, 4L, 7L, 10L, 13L ).take( 3 ),
-                    list( 7L, 4L, 1L ).reverse(),
-                    VirtualValues.concat( list( 1L, 4L ), list( 7L ) )
+             range( 1L, 8L, 3L ),
+             VirtualValues.fromArray( Values.longArray( new long[]{1L, 4L, 7L} ) ),
+             VirtualValues.list( NO_VALUE,
+                                 longValue( 1L ),
+                                 NO_VALUE,
+                                 longValue( 4L ),
+                                 longValue( 7L ),
+                                 NO_VALUE ).dropNoValues(),
+             list( -2L, 1L, 4L, 7L, 10L ).slice( 1, 4 ),
+             list( -2L, 1L, 4L, 7L ).drop( 1 ),
+             list( 1L, 4L, 7L, 10L, 13L ).take( 3 ),
+             list( 7L, 4L, 1L ).reverse(),
+             VirtualValues.concat( list( 1L, 4L ), list( 7L ) )
             };
 
     private ListValue[] nonEquivalentLists =
             {VirtualValues.list( Values.longValue( 1L ), Values.longValue( 4L ), Values.longValue( 7L ) ),
 
-                    range( 2L, 9L, 3L ),
-                    VirtualValues.fromArray( Values.longArray( new long[]{3L, 6L, 9L} ) ),
-                    VirtualValues.list( NO_VALUE,
-                            longValue( 1L ),
-                            NO_VALUE,
-                            longValue( 5L ),
-                            longValue( 7L ),
-                            NO_VALUE ).dropNoValues(),
-                    list( -2L, 1L, 5L, 8L, 11L ).slice( 1, 4 ),
-                    list( -2L, 6L, 9L, 12L ).drop( 1 ),
-                    list( 7L, 10L, 13L, 10L, 13L ).take( 3 ),
-                    list( 15L, 12L, 9L ).reverse(),
-                    VirtualValues.concat( list( 10L, 13L ), list( 16L ) )
+             range( 2L, 9L, 3L ),
+             VirtualValues.fromArray( Values.longArray( new long[]{3L, 6L, 9L} ) ),
+             VirtualValues.list( NO_VALUE,
+                                 longValue( 1L ),
+                                 NO_VALUE,
+                                 longValue( 5L ),
+                                 longValue( 7L ),
+                                 NO_VALUE ).dropNoValues(),
+             list( -2L, 1L, 5L, 8L, 11L ).slice( 1, 4 ),
+             list( -2L, 6L, 9L, 12L ).drop( 1 ),
+             list( 7L, 10L, 13L, 10L, 13L ).take( 3 ),
+             list( 15L, 12L, 9L ).reverse(),
+             VirtualValues.concat( list( 10L, 13L ), list( 16L ) )
             };
 
     @Test
@@ -121,6 +122,7 @@ class ListTest
                 byteArray( "This is just a test".getBytes() ) );
         assertEqualValues( list( 'h' ), charArray( new char[]{'h'} ) );
         assertEqualValues( list( 'h', 'i' ), charArray( new char[]{'h', 'i'} ) );
+        assertEqualValues( list( 'h', 'i', '!' ), charArray( new char[]{'h', 'i', '!'} ) );
         assertEqualValues( list( 1.0 ), doubleArray( new double[]{1.0} ) );
         assertEqualValues( list( 1.0, 2.0 ), doubleArray( new double[]{1.0, 2.0} ) );
         assertEqualValues( list( 1.5f ), floatArray( new float[]{1.5f} ) );
@@ -133,6 +135,7 @@ class ListTest
         assertEqualValues( list( (short) 2, (short) -3 ), shortArray( new short[]{(short) 2, (short) -3} ) );
         assertEqualValues( list( "hi" ), stringArray( "hi" ) );
         assertEqualValues( list( "hi", "ho" ), stringArray( "hi", "ho" ) );
+        assertEqualValues( list( "hi", "ho", "hu", "hm" ), stringArray( "hi", "ho", "hu", "hm" ) );
     }
 
     @Test
@@ -168,7 +171,7 @@ class ListTest
         assertNotEqual( list( true ), booleanArray( new boolean[]{true, false} ) );
         assertNotEqual( list( true, true ), booleanArray( new boolean[]{true, false} ) );
         assertNotEqual( list( 84, 104, 32, 105, 115, 32, 106, 117, 115, 116, 32, 97, 32, 116, 101, 115, 116 ),
-                byteArray( "This is just a test".getBytes() ) );
+                        byteArray( "This is just a test".getBytes() ) );
         assertNotEqual( list( 'h' ), charArray( new char[]{'h', 'i'} ) );
         assertNotEqual( list( 'h', 'o' ), charArray( new char[]{'h', 'i'} ) );
         assertNotEqual( list( 9.0, 2.0 ), doubleArray( new double[]{1.0, 2.0} ) );
@@ -182,6 +185,7 @@ class ListTest
         assertNotEqual( list( (short) 2, (short) 3 ), shortArray( new short[]{(short) 2, (short) -3} ) );
         assertNotEqual( list( (short) 2 ), shortArray( new short[]{(short) 2, (short) -3} ) );
         assertNotEqual( list( "hi", "hello" ), stringArray( "hi" ) );
+        assertNotEqual( list( "hi", "hello" ), stringArray( "hello", "hi" ) );
         assertNotEqual( list( "hello" ), stringArray( "hi" ) );
 
         assertNotEqual( list( 1, 'b' ), charArray( new char[]{'a', 'b'} ) );
@@ -191,7 +195,12 @@ class ListTest
     void shouldHandleNullInList()
     {
         assertIncomparable( list( 1, null ), list( 1, 2 ) );
+        assertEqualWithNoValues( list( NO_VALUE ), list( NO_VALUE ) );
         assertNotEqual( list( 1, null ), list( 2, 3 ) );
+
+        assertEqualWithNoValues( list( NO_VALUE ), stringArray( new String[]{null} ) );
+        assertEqualWithNoValues( list( null, null ), stringArray( null, null ) );
+        assertEqualWithNoValues( list( "hi", null ), stringArray( "hi", null ) );
     }
 
     @Test
@@ -263,7 +272,7 @@ class ListTest
             {
                 assertEqual( list1, list2 );
                 assertArrayEquals( list1.asArray(), list2.asArray(),
-                        format( "%s.asArray != %s.toArray", list1.getClass().getSimpleName(), list2.getClass().getSimpleName() ) );
+                                   format( "%s.asArray != %s.toArray", list1.getClass().getSimpleName(), list2.getClass().getSimpleName() ) );
             }
         }
     }
@@ -281,7 +290,7 @@ class ListTest
                 }
                 assertNotEqual( list1, list2 );
                 assertFalse( Arrays.equals( list1.asArray(), list2.asArray() ),
-                        format( "%s.asArray != %s.toArray", list1.getClass().getSimpleName(), list2.getClass().getSimpleName() ) );
+                             format( "%s.asArray != %s.toArray", list1.getClass().getSimpleName(), list2.getClass().getSimpleName() ) );
             }
         }
     }

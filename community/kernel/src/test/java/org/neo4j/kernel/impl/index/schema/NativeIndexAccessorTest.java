@@ -34,6 +34,7 @@ import java.util.Collections;
 import org.neo4j.gis.spatial.index.curves.StandardConfiguration;
 import org.neo4j.index.internal.gbptree.RecoveryCleanupWorkCollector;
 import org.neo4j.internal.kernel.api.IndexCapability;
+import org.neo4j.internal.kernel.api.TokenNameLookup;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.kernel.api.index.IndexDirectoryStructure;
@@ -46,6 +47,7 @@ import org.neo4j.values.storable.RandomValues;
 import org.neo4j.values.storable.ValueGroup;
 import org.neo4j.values.storable.ValueType;
 
+import static org.neo4j.kernel.api.schema.SchemaTestUtil.simpleNameLookup;
 import static org.neo4j.kernel.api.schema.index.TestIndexDescriptorFactory.forLabel;
 import static org.neo4j.kernel.impl.index.schema.ValueCreatorUtil.FRACTION_DUPLICATE_NON_UNIQUE;
 
@@ -57,64 +59,64 @@ public class NativeIndexAccessorTest<KEY extends NativeIndexKey<KEY>, VALUE exte
     {
         return Arrays.asList( new Object[][]{
                 {"Number",
-                        numberAccessorFactory(),
-                        RandomValues.typesOfGroup( ValueGroup.NUMBER ),
-                        (IndexLayoutFactory) NumberLayoutNonUnique::new,
-                        NumberIndexProvider.CAPABILITY
+                 numberAccessorFactory(),
+                 RandomValues.typesOfGroup( ValueGroup.NUMBER ),
+                 (IndexLayoutFactory) NumberLayoutNonUnique::new,
+                 NumberIndexProvider.CAPABILITY
                 },
                 {"String",
-                        stringAccessorFactory(),
-                        RandomValues.typesOfGroup( ValueGroup.TEXT ),
-                        (IndexLayoutFactory) StringLayout::new,
-                        StringIndexProvider.CAPABILITY
+                 stringAccessorFactory(),
+                 RandomValues.typesOfGroup( ValueGroup.TEXT ),
+                 (IndexLayoutFactory) StringLayout::new,
+                 StringIndexProvider.CAPABILITY
                 },
                 {"Date",
-                        temporalAccessorFactory( ValueGroup.DATE ),
-                        RandomValues.typesOfGroup( ValueGroup.DATE ),
-                        (IndexLayoutFactory) DateLayout::new,
-                        TemporalIndexProvider.CAPABILITY
+                 temporalAccessorFactory( ValueGroup.DATE ),
+                 RandomValues.typesOfGroup( ValueGroup.DATE ),
+                 (IndexLayoutFactory) DateLayout::new,
+                 TemporalIndexProvider.CAPABILITY
                 },
                 {"DateTime",
-                        temporalAccessorFactory( ValueGroup.ZONED_DATE_TIME ),
-                        RandomValues.typesOfGroup( ValueGroup.ZONED_DATE_TIME ),
-                        (IndexLayoutFactory) ZonedDateTimeLayout::new,
-                        TemporalIndexProvider.CAPABILITY
+                 temporalAccessorFactory( ValueGroup.ZONED_DATE_TIME ),
+                 RandomValues.typesOfGroup( ValueGroup.ZONED_DATE_TIME ),
+                 (IndexLayoutFactory) ZonedDateTimeLayout::new,
+                 TemporalIndexProvider.CAPABILITY
                 },
                 {"Duration",
-                        temporalAccessorFactory( ValueGroup.DURATION ),
-                        RandomValues.typesOfGroup( ValueGroup.DURATION ),
-                        (IndexLayoutFactory) DurationLayout::new,
-                        TemporalIndexProvider.CAPABILITY
+                 temporalAccessorFactory( ValueGroup.DURATION ),
+                 RandomValues.typesOfGroup( ValueGroup.DURATION ),
+                 (IndexLayoutFactory) DurationLayout::new,
+                 TemporalIndexProvider.CAPABILITY
                 },
                 {"LocalDateTime",
-                        temporalAccessorFactory( ValueGroup.LOCAL_DATE_TIME ),
-                        RandomValues.typesOfGroup( ValueGroup.LOCAL_DATE_TIME ),
-                        (IndexLayoutFactory) LocalDateTimeLayout::new,
-                        TemporalIndexProvider.CAPABILITY
+                 temporalAccessorFactory( ValueGroup.LOCAL_DATE_TIME ),
+                 RandomValues.typesOfGroup( ValueGroup.LOCAL_DATE_TIME ),
+                 (IndexLayoutFactory) LocalDateTimeLayout::new,
+                 TemporalIndexProvider.CAPABILITY
                 },
                 {"LocalTime",
-                        temporalAccessorFactory( ValueGroup.LOCAL_TIME ),
-                        RandomValues.typesOfGroup( ValueGroup.LOCAL_TIME ),
-                        (IndexLayoutFactory) LocalTimeLayout::new,
-                        TemporalIndexProvider.CAPABILITY
+                 temporalAccessorFactory( ValueGroup.LOCAL_TIME ),
+                 RandomValues.typesOfGroup( ValueGroup.LOCAL_TIME ),
+                 (IndexLayoutFactory) LocalTimeLayout::new,
+                 TemporalIndexProvider.CAPABILITY
                 },
                 {"LocalDateTime",
-                        temporalAccessorFactory( ValueGroup.LOCAL_DATE_TIME ),
-                        RandomValues.typesOfGroup( ValueGroup.LOCAL_DATE_TIME ),
-                        (IndexLayoutFactory) LocalDateTimeLayout::new,
-                        TemporalIndexProvider.CAPABILITY
+                 temporalAccessorFactory( ValueGroup.LOCAL_DATE_TIME ),
+                 RandomValues.typesOfGroup( ValueGroup.LOCAL_DATE_TIME ),
+                 (IndexLayoutFactory) LocalDateTimeLayout::new,
+                 TemporalIndexProvider.CAPABILITY
                 },
                 {"Time",
-                        temporalAccessorFactory( ValueGroup.ZONED_TIME ),
-                        RandomValues.typesOfGroup( ValueGroup.ZONED_TIME ),
-                        (IndexLayoutFactory) ZonedTimeLayout::new,
-                        TemporalIndexProvider.CAPABILITY
+                 temporalAccessorFactory( ValueGroup.ZONED_TIME ),
+                 RandomValues.typesOfGroup( ValueGroup.ZONED_TIME ),
+                 (IndexLayoutFactory) ZonedTimeLayout::new,
+                 TemporalIndexProvider.CAPABILITY
                 },
                 {"Generic",
-                        genericAccessorFactory(),
-                        ValueType.values(),
-                        (IndexLayoutFactory) () -> new GenericLayout( 1, spaceFillingCurveSettings ),
-                        GenericNativeIndexProvider.CAPABILITY
+                 genericAccessorFactory(),
+                 ValueType.values(),
+                 (IndexLayoutFactory) () -> new GenericLayout( 1, spaceFillingCurveSettings ),
+                 GenericNativeIndexProvider.CAPABILITY
                 },
                 //{ Spatial has it's own subclass because it need to override some of the test methods }
         } );
@@ -131,10 +133,10 @@ public class NativeIndexAccessorTest<KEY extends NativeIndexKey<KEY>, VALUE exte
 
     @SuppressWarnings( "unused" )
     public NativeIndexAccessorTest( String name,
-            AccessorFactory<KEY,VALUE> accessorFactory,
-            ValueType[] supportedTypes,
-            IndexLayoutFactory<KEY,VALUE> indexLayoutFactory,
-            IndexCapability indexCapability )
+                                    AccessorFactory<KEY,VALUE> accessorFactory,
+                                    ValueType[] supportedTypes,
+                                    IndexLayoutFactory<KEY,VALUE> indexLayoutFactory,
+                                    IndexCapability indexCapability )
     {
         this.accessorFactory = accessorFactory;
         this.supportedTypes = supportedTypes;
@@ -146,7 +148,7 @@ public class NativeIndexAccessorTest<KEY extends NativeIndexKey<KEY>, VALUE exte
     NativeIndexAccessor<KEY,VALUE> makeAccessor() throws IOException
     {
         return accessorFactory.create( pageCache, fs, getIndexFile(), layout, RecoveryCleanupWorkCollector.immediate(), monitor, indexDescriptor,
-                indexDirectoryStructure, false );
+                                       indexDirectoryStructure, false, simpleNameLookup );
     }
 
     @Override
@@ -170,32 +172,32 @@ public class NativeIndexAccessorTest<KEY extends NativeIndexKey<KEY>, VALUE exte
     /* Helpers */
     private static AccessorFactory<NumberIndexKey,NativeIndexValue> numberAccessorFactory()
     {
-        return ( pageCache, fs, storeFile, layout, recoveryCleanupWorkCollector, monitor, descriptor, directory, readOnly ) ->
-                new NumberIndexAccessor( pageCache, fs, storeFile, layout, recoveryCleanupWorkCollector, monitor, descriptor, readOnly );
+        return ( pageCache, fs, storeFile, layout, recoveryCleanupWorkCollector, monitor, descriptor, directory, readOnly, tokenNameLookup ) ->
+                new NumberIndexAccessor( pageCache, fs, storeFile, layout, recoveryCleanupWorkCollector, monitor, descriptor, readOnly, tokenNameLookup );
     }
 
     private static AccessorFactory<StringIndexKey,NativeIndexValue> stringAccessorFactory()
     {
-        return ( pageCache, fs, storeFile, layout, recoveryCleanupWorkCollector, monitor, descriptor, directory, readOnly ) ->
-                new StringIndexAccessor( pageCache, fs, storeFile, layout, recoveryCleanupWorkCollector, monitor, descriptor, readOnly );
+        return ( pageCache, fs, storeFile, layout, recoveryCleanupWorkCollector, monitor, descriptor, directory, readOnly, tokenNameLookup ) ->
+                new StringIndexAccessor( pageCache, fs, storeFile, layout, recoveryCleanupWorkCollector, monitor, descriptor, readOnly, tokenNameLookup );
     }
 
     private static <TK extends NativeIndexSingleValueKey<TK>> AccessorFactory<TK,NativeIndexValue> temporalAccessorFactory( ValueGroup temporalValueGroup )
     {
-        return ( pageCache, fs, storeFile, layout, cleanup, monitor, descriptor, directory, readOnly ) ->
+        return ( pageCache, fs, storeFile, layout, cleanup, monitor, descriptor, directory, readOnly, tokenNameLookup ) ->
         {
             TemporalIndexFiles.FileLayout<TK> fileLayout = new TemporalIndexFiles.FileLayout<>( storeFile, layout, temporalValueGroup );
-            return new TemporalIndexAccessor.PartAccessor<>( pageCache, fs, fileLayout, cleanup, monitor, descriptor, readOnly );
+            return new TemporalIndexAccessor.PartAccessor<>( pageCache, fs, fileLayout, cleanup, monitor, descriptor, readOnly, tokenNameLookup );
         };
     }
 
     private static AccessorFactory<GenericKey,NativeIndexValue> genericAccessorFactory()
     {
-        return ( pageCache, fs, storeFile, layout, cleanup, monitor, descriptor, directory, readOnly ) ->
+        return ( pageCache, fs, storeFile, layout, cleanup, monitor, descriptor, directory, readOnly, tokenNameLookup ) ->
         {
             IndexDropAction dropAction = new FileSystemIndexDropAction( fs, directory );
             return new GenericNativeIndexAccessor( pageCache, fs, storeFile, layout, cleanup, monitor, descriptor, spaceFillingCurveSettings,
-                    configuration, dropAction, readOnly );
+                                                   configuration, dropAction, readOnly, tokenNameLookup );
         };
     }
 
@@ -203,7 +205,7 @@ public class NativeIndexAccessorTest<KEY extends NativeIndexKey<KEY>, VALUE exte
     private interface AccessorFactory<KEY extends NativeIndexKey<KEY>, VALUE extends NativeIndexValue>
     {
         NativeIndexAccessor<KEY,VALUE> create( PageCache pageCache, FileSystemAbstraction fs, File storeFile, IndexLayout<KEY,VALUE> layout,
-                RecoveryCleanupWorkCollector recoveryCleanupWorkCollector, IndexProvider.Monitor monitor, StoreIndexDescriptor descriptor,
-                IndexDirectoryStructure directory, boolean readOnly ) throws IOException;
+                                               RecoveryCleanupWorkCollector recoveryCleanupWorkCollector, IndexProvider.Monitor monitor, StoreIndexDescriptor descriptor,
+                                               IndexDirectoryStructure directory, boolean readOnly, TokenNameLookup tokenNameLookup ) throws IOException;
     }
 }

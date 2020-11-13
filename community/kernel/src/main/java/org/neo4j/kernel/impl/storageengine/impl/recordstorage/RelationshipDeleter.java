@@ -64,6 +64,7 @@ class RelationshipDeleter
         disconnectRelationship( record, recordChanges, locks );
         updateNodesForDeletedRelationship( record, recordChanges, locks );
         record.setInUse( false );
+        record.setType( -1 );
     }
 
     private void disconnectRelationship( RelationshipRecord rel, RecordAccessSet recordChangeSet, ResourceLocker locks )
@@ -75,7 +76,7 @@ class RelationshipDeleter
     }
 
     private void disconnect( RelationshipRecord rel, RelationshipConnection pointer,
-            RecordAccess<RelationshipRecord, Void> relChanges, ResourceLocker locks )
+                             RecordAccess<RelationshipRecord, Void> relChanges, ResourceLocker locks )
     {
         long otherRelId = pointer.otherSide().get( rel );
         if ( otherRelId == Record.NO_NEXT_RELATIONSHIP.intValue() )
@@ -105,7 +106,7 @@ class RelationshipDeleter
     }
 
     private void updateNodesForDeletedRelationship( RelationshipRecord rel, RecordAccessSet recordChanges,
-            ResourceLocker locks )
+                                                    ResourceLocker locks )
     {
         RecordProxy<NodeRecord, Void> startNodeChange =
                 recordChanges.getNodeRecords().getOrLoad( rel.getFirstNode(), null );
@@ -124,13 +125,13 @@ class RelationshipDeleter
                 startNode.setNextRel( rel.getFirstNextRel() );
             }
             decrementTotalRelationshipCount( startNode.getId(), rel, startNode.getNextRel(),
-                    recordChanges.getRelRecords(), locks );
+                                             recordChanges.getRelRecords(), locks );
         }
         else
         {
             RecordProxy<RelationshipGroupRecord, Integer> groupChange =
                     relGroupGetter.getRelationshipGroup( startNode, rel.getType(),
-                            recordChanges.getRelGroupRecords() ).group();
+                                                         recordChanges.getRelGroupRecords() ).group();
             assert groupChange != null : "Relationship group " + rel.getType() + " should have existed here";
             RelationshipGroupRecord group = groupChange.forReadingData();
             DirectionWrapper dir = DirectionIdentifier.wrapDirection( rel, startNode );
@@ -144,7 +145,7 @@ class RelationshipDeleter
                 }
             }
             decrementTotalRelationshipCount( startNode.getId(), rel, dir.getNextRel( group ),
-                    recordChanges.getRelRecords(), locks );
+                                             recordChanges.getRelRecords(), locks );
         }
 
         if ( !endNode.isDense() )
@@ -157,14 +158,14 @@ class RelationshipDeleter
             if ( !loop )
             {
                 decrementTotalRelationshipCount( endNode.getId(), rel, endNode.getNextRel(),
-                        recordChanges.getRelRecords(), locks );
+                                                 recordChanges.getRelRecords(), locks );
             }
         }
         else
         {
             RecordProxy<RelationshipGroupRecord, Integer> groupChange =
                     relGroupGetter.getRelationshipGroup( endNode, rel.getType(),
-                            recordChanges.getRelGroupRecords() ).group();
+                                                         recordChanges.getRelGroupRecords() ).group();
             DirectionWrapper dir = DirectionIdentifier.wrapDirection( rel, endNode );
             assert groupChange != null || loop : "Group has been deleted";
             if ( groupChange != null )
@@ -183,13 +184,13 @@ class RelationshipDeleter
             if ( !loop )
             {
                 decrementTotalRelationshipCount( endNode.getId(), rel, dir.getNextRel( groupChange.forChangingData() ),
-                        recordChanges.getRelRecords(), locks );
+                                                 recordChanges.getRelRecords(), locks );
             }
         }
     }
 
     private void decrementTotalRelationshipCount( long nodeId, RelationshipRecord rel, long firstRelId,
-            RecordAccess<RelationshipRecord, Void> relRecords, ResourceLocker locks )
+                                                  RecordAccess<RelationshipRecord, Void> relRecords, ResourceLocker locks )
     {
         if ( firstRelId == Record.NO_PREV_RELATIONSHIP.intValue() )
         {
@@ -240,13 +241,13 @@ class RelationshipDeleter
     private boolean groupIsEmpty( RelationshipGroupRecord group )
     {
         return group.getFirstOut() == Record.NO_NEXT_RELATIONSHIP.intValue() &&
-                group.getFirstIn() == Record.NO_NEXT_RELATIONSHIP.intValue() &&
-                group.getFirstLoop() == Record.NO_NEXT_RELATIONSHIP.intValue();
+               group.getFirstIn() == Record.NO_NEXT_RELATIONSHIP.intValue() &&
+               group.getFirstLoop() == Record.NO_NEXT_RELATIONSHIP.intValue();
     }
 
     private boolean relIsFirstInChain( long nodeId, RelationshipRecord rel )
     {
         return (nodeId == rel.getFirstNode() && rel.isFirstInFirstChain()) ||
-                (nodeId == rel.getSecondNode() && rel.isFirstInSecondChain());
+               (nodeId == rel.getSecondNode() && rel.isFirstInSecondChain());
     }
 }

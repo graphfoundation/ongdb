@@ -253,25 +253,25 @@ public class ContractCheckingIndexProxyTest
 
         // WHEN
         Thread updaterThread = runInSeparateThread( () ->
-        {
-            try ( IndexUpdater updater = outer.newUpdater( IndexUpdateMode.ONLINE ) )
-            {
-                updater.process( null );
-                try
-                {
-                    actionThread.start();
-                    latch.await();
-                }
-                catch ( InterruptedException e )
-                {
-                    throw new RuntimeException( e );
-                }
-            }
-            catch ( IndexEntryConflictException e )
-            {
-                throw new RuntimeException( e );
-            }
-        } );
+                                                    {
+                                                        try ( IndexUpdater updater = outer.newUpdater( IndexUpdateMode.ONLINE ) )
+                                                        {
+                                                            updater.process( null );
+                                                            try
+                                                            {
+                                                                actionThread.start();
+                                                                latch.await();
+                                                            }
+                                                            catch ( InterruptedException e )
+                                                            {
+                                                                throw new RuntimeException( e );
+                                                            }
+                                                        }
+                                                        catch ( IndexEntryConflictException e )
+                                                        {
+                                                            throw new RuntimeException( e );
+                                                        }
+                                                    } );
 
         ThreadTestUtils.awaitThreadState( actionThread, TEST_TIMEOUT, Thread.State.TIMED_WAITING );
         latch.countDown();
@@ -297,7 +297,7 @@ public class ContractCheckingIndexProxyTest
                 }
                 catch ( Exception e )
                 {
-                  throw new RuntimeException( e );
+                    throw new RuntimeException( e );
                 }
             }
         };
@@ -330,20 +330,20 @@ public class ContractCheckingIndexProxyTest
     private Thread createActionThread( ThrowingRunnable action )
     {
         return new Thread( () ->
-        {
-            try
-            {
-                action.run();
-            }
-            catch ( IOException e )
-            {
-                throw new RuntimeException( e );
-            }
-        } );
+                           {
+                               try
+                               {
+                                   action.run();
+                               }
+                               catch ( IOException e )
+                               {
+                                   throw new RuntimeException( e );
+                               }
+                           } );
     }
 
     private ContractCheckingIndexProxy newContractCheckingIndexProxy( IndexProxy inner )
     {
-        return new ContractCheckingIndexProxy( inner, false );
+        return new ContractCheckingIndexProxy( inner );
     }
 }

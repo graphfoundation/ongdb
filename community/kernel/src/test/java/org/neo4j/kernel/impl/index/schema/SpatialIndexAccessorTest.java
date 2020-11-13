@@ -40,6 +40,7 @@ import org.neo4j.values.storable.Value;
 import org.neo4j.values.storable.Values;
 
 import static org.neo4j.index.internal.gbptree.RecoveryCleanupWorkCollector.immediate;
+import static org.neo4j.kernel.api.schema.SchemaTestUtil.simpleNameLookup;
 import static org.neo4j.values.storable.CoordinateReferenceSystem.WGS84;
 
 public class SpatialIndexAccessorTest extends NativeIndexAccessorTests<SpatialIndexKey,NativeIndexValue>
@@ -54,7 +55,7 @@ public class SpatialIndexAccessorTest extends NativeIndexAccessorTests<SpatialIn
     {
         spatialFile = new SpatialIndexFiles.SpatialFile( CoordinateReferenceSystem.WGS84, configuredSettings, super.getIndexFile() );
         return new SpatialIndexAccessor.PartAccessor( pageCache, fs, spatialFile.getLayoutForNewIndex(), immediate(), monitor, indexDescriptor,
-                new StandardConfiguration(), false );
+                                                      new StandardConfiguration(), false, simpleNameLookup );
     }
 
     @Override

@@ -38,6 +38,7 @@ import org.neo4j.graphdb.index.fulltext.AnalyzerProvider;
 import org.neo4j.internal.kernel.api.IndexCapability;
 import org.neo4j.internal.kernel.api.IndexReference;
 import org.neo4j.internal.kernel.api.InternalIndexState;
+import org.neo4j.internal.kernel.api.TokenNameLookup;
 import org.neo4j.internal.kernel.api.exceptions.schema.IndexNotFoundKernelException;
 import org.neo4j.internal.kernel.api.exceptions.schema.MisconfiguredIndexException;
 import org.neo4j.internal.kernel.api.schema.IndexProviderDescriptor;
@@ -231,7 +232,8 @@ class FulltextIndexProvider extends IndexProvider implements FulltextAdapter, Au
     }
 
     @Override
-    public IndexPopulator getPopulator( StoreIndexDescriptor descriptor, IndexSamplingConfig samplingConfig, ByteBufferFactory bufferFactory )
+    public IndexPopulator getPopulator( StoreIndexDescriptor descriptor, IndexSamplingConfig samplingConfig, ByteBufferFactory bufferFactory,
+                                        TokenNameLookup tokenNameLookup )
     {
         PartitionedIndexStorage indexStorage = getIndexStorage( descriptor.getId() );
         FulltextIndexDescriptor fulltextIndexDescriptor = readOrInitialiseDescriptor(
@@ -253,7 +255,8 @@ class FulltextIndexProvider extends IndexProvider implements FulltextAdapter, Au
     }
 
     @Override
-    public IndexAccessor getOnlineAccessor( StoreIndexDescriptor descriptor, IndexSamplingConfig samplingConfig ) throws IOException
+    public IndexAccessor getOnlineAccessor( StoreIndexDescriptor descriptor, IndexSamplingConfig samplingConfig, TokenNameLookup tokenNameLookup )
+            throws IOException
     {
         PartitionedIndexStorage indexStorage = getIndexStorage( descriptor.getId() );
 

@@ -22,6 +22,7 @@
  */
 package org.neo4j.kernel.impl.scheduler;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
@@ -53,6 +54,9 @@ final class ThreadPool
     public JobHandle submit( Runnable job )
     {
         Object registryKey = new Object();
+        CompletableFuture<Void> placeHolder = CompletableFuture.completedFuture( null );
+        registry.put( registryKey, placeHolder );
+
         Runnable registeredJob = () ->
         {
             try
@@ -64,18 +68,24 @@ final class ThreadPool
                 registry.remove( registryKey );
             }
         };
+
         Future<?> future = executor.submit( registeredJob );
-        registry.put( registryKey, future );
+        registry.replace( registryKey, placeHolder, future );
         return new PooledJobHandle( future, registryKey, registry );
+    }
+
+    int activeJobCount()
+    {
+        return registry.size();
     }
 
     void cancelAllJobs()
     {
         registry.values().removeIf( future ->
-        {
-            future.cancel( true );
-            return true;
-        } );
+                                    {
+                                        future.cancel( true );
+                                        return true;
+                                    } );
     }
 
     void shutDown()

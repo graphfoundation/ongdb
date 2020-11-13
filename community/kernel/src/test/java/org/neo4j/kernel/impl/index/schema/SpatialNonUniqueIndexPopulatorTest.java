@@ -42,7 +42,7 @@ public class SpatialNonUniqueIndexPopulatorTest extends NativeIndexPopulatorTest
     {
         spatialFile = new SpatialIndexFiles.SpatialFile( crs, configuredSettings, super.getIndexFile() );
         return new SpatialIndexPopulator.PartPopulator( pageCache, fs, spatialFile.getLayoutForNewIndex(), monitor, indexDescriptor,
-                new StandardConfiguration() );
+                                                        new StandardConfiguration(), tokenNameLookup );
     }
 
     @Override

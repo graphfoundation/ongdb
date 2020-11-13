@@ -41,6 +41,7 @@ import org.neo4j.graphdb.factory.GraphDatabaseFactory;
 import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.internal.kernel.api.IndexCapability;
 import org.neo4j.internal.kernel.api.InternalIndexState;
+import org.neo4j.internal.kernel.api.TokenNameLookup;
 import org.neo4j.internal.kernel.api.schema.IndexProviderDescriptor;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.pagecache.PageCache;
@@ -151,11 +152,11 @@ public class IndexPopulationMissConcurrentUpdateIT
             tx.success();
         }
         assertThat( "At least one node below the scan barrier threshold must have been created, otherwise test assumptions are invalid or outdated",
-                count( filter( n -> n.getId() <= SCAN_BARRIER_NODE_ID_THRESHOLD, nodes ) ), greaterThan( 0L ) );
+                    count( filter( n -> n.getId() <= SCAN_BARRIER_NODE_ID_THRESHOLD, nodes ) ), greaterThan( 0L ) );
         assertThat( "At least two nodes above the scan barrier threshold and below initial creation threshold must have been created, " +
-                        "otherwise test assumptions are invalid or outdated",
-                // There has to be at least 2 nodes: one which will trigger the barrier and one which will be added to the index afterwards
-                count( filter( n -> n.getId() > SCAN_BARRIER_NODE_ID_THRESHOLD, nodes ) ), greaterThan( 1L ) );
+                    "otherwise test assumptions are invalid or outdated",
+                    // There has to be at least 2 nodes: one which will trigger the barrier and one which will be added to the index afterwards
+                    count( filter( n -> n.getId() > SCAN_BARRIER_NODE_ID_THRESHOLD, nodes ) ), greaterThan( 1L ) );
         db.getDependencyResolver().resolveDependency( IdController.class ).maintenance();
 
         // when
@@ -221,7 +222,8 @@ public class IndexPopulationMissConcurrentUpdateIT
             return new IndexProvider( INDEX_PROVIDER, directoriesByProvider( new File( "not-even-persistent" ) ) )
             {
                 @Override
-                public IndexPopulator getPopulator( StoreIndexDescriptor descriptor, IndexSamplingConfig samplingConfig, ByteBufferFactory bufferFactory )
+                public IndexPopulator getPopulator( StoreIndexDescriptor descriptor, IndexSamplingConfig samplingConfig, ByteBufferFactory bufferFactory,
+                                                    TokenNameLookup tokenNameLookup )
                 {
                     return new IndexPopulator()
                     {
@@ -300,7 +302,8 @@ public class IndexPopulationMissConcurrentUpdateIT
                 }
 
                 @Override
-                public IndexAccessor getOnlineAccessor( StoreIndexDescriptor descriptor, IndexSamplingConfig samplingConfig )
+                public IndexAccessor getOnlineAccessor( StoreIndexDescriptor descriptor, IndexSamplingConfig samplingConfig,
+                                                        TokenNameLookup tokenNameLookup )
                 {
                     return mock( IndexAccessor.class );
                 }

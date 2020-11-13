@@ -29,6 +29,7 @@ import org.neo4j.index.internal.gbptree.RecoveryCleanupWorkCollector;
 import org.neo4j.internal.kernel.api.IndexCapability;
 import org.neo4j.internal.kernel.api.IndexOrder;
 import org.neo4j.internal.kernel.api.IndexValueCapability;
+import org.neo4j.internal.kernel.api.TokenNameLookup;
 import org.neo4j.internal.kernel.api.schema.IndexProviderDescriptor;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.pagecache.PageCache;
@@ -48,7 +49,7 @@ public class NumberIndexProvider extends NativeIndexProvider<NumberIndexKey,Nati
     static final IndexCapability CAPABILITY = new NumberIndexCapability();
 
     public NumberIndexProvider( PageCache pageCache, FileSystemAbstraction fs, IndexDirectoryStructure.Factory directoryStructure, Monitor monitor,
-            RecoveryCleanupWorkCollector recoveryCleanupWorkCollector, boolean readOnly )
+                                RecoveryCleanupWorkCollector recoveryCleanupWorkCollector, boolean readOnly )
     {
         super( NATIVE_PROVIDER_DESCRIPTOR, directoryStructure, pageCache, fs, monitor, recoveryCleanupWorkCollector, readOnly );
     }
@@ -69,15 +70,17 @@ public class NumberIndexProvider extends NativeIndexProvider<NumberIndexKey,Nati
     }
 
     @Override
-    protected IndexPopulator newIndexPopulator( File storeFile, NumberLayout layout, StoreIndexDescriptor descriptor, ByteBufferFactory bufferFactory )
+    protected IndexPopulator newIndexPopulator( File storeFile, NumberLayout layout, StoreIndexDescriptor descriptor, ByteBufferFactory bufferFactory,
+                                                TokenNameLookup tokenNameLookup )
     {
-        return new WorkSyncedNativeIndexPopulator<>( new NumberIndexPopulator( pageCache, fs, storeFile, layout, monitor, descriptor ) );
+        return new WorkSyncedNativeIndexPopulator<>( new NumberIndexPopulator( pageCache, fs, storeFile, layout, monitor, descriptor, tokenNameLookup ) );
     }
 
     @Override
-    protected IndexAccessor newIndexAccessor( File storeFile, NumberLayout layout, StoreIndexDescriptor descriptor, boolean readOnly )
+    protected IndexAccessor newIndexAccessor( File storeFile, NumberLayout layout, StoreIndexDescriptor descriptor, boolean readOnly,
+                                              TokenNameLookup tokenNameLookup )
     {
-        return new NumberIndexAccessor( pageCache, fs, storeFile, layout, recoveryCleanupWorkCollector, monitor, descriptor, readOnly );
+        return new NumberIndexAccessor( pageCache, fs, storeFile, layout, recoveryCleanupWorkCollector, monitor, descriptor, readOnly, tokenNameLookup );
     }
 
     @Override

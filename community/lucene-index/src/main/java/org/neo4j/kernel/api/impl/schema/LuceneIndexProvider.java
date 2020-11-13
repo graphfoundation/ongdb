@@ -27,6 +27,7 @@ import java.io.IOException;
 
 import org.neo4j.internal.kernel.api.IndexCapability;
 import org.neo4j.internal.kernel.api.InternalIndexState;
+import org.neo4j.internal.kernel.api.TokenNameLookup;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.kernel.api.impl.index.IndexWriterConfigs;
@@ -84,15 +85,16 @@ public class LuceneIndexProvider extends IndexProvider
     }
 
     @Override
-    public IndexPopulator getPopulator( StoreIndexDescriptor descriptor, IndexSamplingConfig samplingConfig, ByteBufferFactory bufferFactory )
+    public IndexPopulator getPopulator( StoreIndexDescriptor descriptor, IndexSamplingConfig samplingConfig, ByteBufferFactory bufferFactory,
+                                        TokenNameLookup tokenNameLookup )
     {
         SchemaIndex luceneIndex = LuceneSchemaIndexBuilder.create( descriptor, config )
-                                        .withFileSystem( fileSystem )
-                                        .withOperationalMode( operationalMode )
-                                        .withSamplingConfig( samplingConfig )
-                                        .withIndexStorage( getIndexStorage( descriptor.getId() ) )
-                                        .withWriterConfig( IndexWriterConfigs::population )
-                                        .build();
+                                                          .withFileSystem( fileSystem )
+                                                          .withOperationalMode( operationalMode )
+                                                          .withSamplingConfig( samplingConfig )
+                                                          .withIndexStorage( getIndexStorage( descriptor.getId() ) )
+                                                          .withWriterConfig( IndexWriterConfigs::population )
+                                                          .build();
         if ( luceneIndex.isReadOnly() )
         {
             throw new UnsupportedOperationException( "Can't create populator for read only index" );
@@ -108,13 +110,14 @@ public class LuceneIndexProvider extends IndexProvider
     }
 
     @Override
-    public IndexAccessor getOnlineAccessor( StoreIndexDescriptor descriptor, IndexSamplingConfig samplingConfig ) throws IOException
+    public IndexAccessor getOnlineAccessor( StoreIndexDescriptor descriptor, IndexSamplingConfig samplingConfig,
+                                            TokenNameLookup tokenNameLookup ) throws IOException
     {
         SchemaIndex luceneIndex = LuceneSchemaIndexBuilder.create( descriptor, config )
-                                            .withOperationalMode( operationalMode )
-                                            .withSamplingConfig( samplingConfig )
-                                            .withIndexStorage( getIndexStorage( descriptor.getId() ) )
-                                            .build();
+                                                          .withOperationalMode( operationalMode )
+                                                          .withSamplingConfig( samplingConfig )
+                                                          .withIndexStorage( getIndexStorage( descriptor.getId() ) )
+                                                          .build();
         luceneIndex.open();
         return new LuceneIndexAccessor( luceneIndex, descriptor );
     }

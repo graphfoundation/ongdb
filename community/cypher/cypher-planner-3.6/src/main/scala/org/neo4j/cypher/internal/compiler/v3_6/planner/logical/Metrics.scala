@@ -46,7 +46,7 @@ object Metrics {
   }
 
   case class QueryGraphSolverInput(labelInfo: LabelInfo, inboundCardinality: Cardinality,
-                                   strictness: Option[StrictnessMode]) {
+                                   strictness: Option[StrictnessMode], alwaysMultiply: Boolean = false) {
 
     def recurse(fromPlan: LogicalPlan, solveds: Solveds, cardinalities: Cardinalities): QueryGraphSolverInput = {
       val newCardinalityInput = cardinalities.get(fromPlan.id)
@@ -70,6 +70,7 @@ object Metrics {
 
   trait QueryGraphCardinalityModel {
     def apply(queryGraph: QueryGraph, input: QueryGraphSolverInput, semanticTable: SemanticTable): Cardinality
+
     def expressionSelectivityCalculator: ExpressionSelectivityCalculator
   }
 
@@ -84,11 +85,11 @@ trait ExpressionEvaluator {
   }
 
   def isDeterministic(expr: Expression): Boolean = expr.inputs.forall {
-      case (func@FunctionInvocation(_, _, _, _, _), _) if func.function == Rand => false
-      //for UDFs we don't know but the result might be non-deterministic
-      case (_:ResolvedFunctionInvocation, _) => false
-      case _ => true
-    }
+    case (func@FunctionInvocation(_, _, _, _, _), _) if func.function == Rand => false
+    //for UDFs we don't know but the result might be non-deterministic
+    case (_: ResolvedFunctionInvocation, _) => false
+    case _ => true
+  }
 
   def evaluateExpression(expr: Expression): Option[Any]
 }
@@ -99,14 +100,15 @@ case class Metrics(cost: CostModel,
 
 trait MetricsFactory {
   def newCardinalityEstimator(queryGraphCardinalityModel: QueryGraphCardinalityModel, expressionEvaluator: ExpressionEvaluator): CardinalityModel
+
   def newCostModel(config: CypherPlannerConfiguration): CostModel
+
   def newQueryGraphCardinalityModel(statistics: GraphStatistics): QueryGraphCardinalityModel
 
-  def newMetrics(statistics: GraphStatistics,expressionEvaluator: ExpressionEvaluator, config: CypherPlannerConfiguration) = {
+  def newMetrics(statistics: GraphStatistics, expressionEvaluator: ExpressionEvaluator, config: CypherPlannerConfiguration) = {
     val queryGraphCardinalityModel = newQueryGraphCardinalityModel(statistics)
     val cardinality = newCardinalityEstimator(queryGraphCardinalityModel, expressionEvaluator)
     Metrics(newCostModel(config), cardinality, queryGraphCardinalityModel)
   }
 }
-
 

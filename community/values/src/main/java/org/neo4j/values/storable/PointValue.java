@@ -39,6 +39,7 @@ import org.neo4j.values.virtual.MapValue;
 
 import static java.lang.String.format;
 import static java.util.Collections.singletonList;
+import static org.neo4j.values.utils.ValueMath.HASH_CONSTANT;
 
 public class PointValue extends ScalarValue implements Point, Comparable<PointValue>
 {
@@ -251,8 +252,8 @@ public class PointValue extends ScalarValue implements Point, Comparable<PointVa
     public int computeHash()
     {
         int result = 1;
-        result = 31 * result + NumberValues.hash( crs.getCode() );
-        result = 31 * result + NumberValues.hash( coordinate );
+        result = HASH_CONSTANT * result + NumberValues.hash( crs.getCode() );
+        result = HASH_CONSTANT * result + NumberValues.hash( coordinate );
         return result;
     }
 
@@ -345,7 +346,7 @@ public class PointValue extends ScalarValue implements Point, Comparable<PointVa
                 return null;
             }
             else if ( comparison == Comparison.SMALLER_THAN || comparison == Comparison.SMALLER_THAN_AND_EQUAL ||
-                    (comparison == Comparison.EQUAL || comparison == Comparison.GREATER_THAN_AND_EQUAL) && !includeLower )
+                      (comparison == Comparison.EQUAL || comparison == Comparison.GREATER_THAN_AND_EQUAL) && !includeLower )
             {
                 if ( upper != null && this.unsafeTernaryCompareTo( upper ) == Comparison.UNDEFINED )
                 {
@@ -367,7 +368,7 @@ public class PointValue extends ScalarValue implements Point, Comparable<PointVa
                 return null;
             }
             else if ( comparison == Comparison.GREATER_THAN || comparison == Comparison.GREATER_THAN_AND_EQUAL ||
-                    (comparison == Comparison.EQUAL || comparison == Comparison.SMALLER_THAN_AND_EQUAL) && !includeUpper )
+                      (comparison == Comparison.EQUAL || comparison == Comparison.SMALLER_THAN_AND_EQUAL) && !includeUpper )
             {
                 return false;
             }
@@ -477,7 +478,7 @@ public class PointValue extends ScalarValue implements Point, Comparable<PointVa
             if ( !crs.isGeographic() )
             {
                 throw new InvalidValuesArgumentException( "Geographic points does not support coordinate reference system: " + crs +
-                        ". This is set either in the csv header or the actual data column" );
+                                                          ". This is set either in the csv header or the actual data column" );
             }
         }
         else
@@ -505,7 +506,7 @@ public class PointValue extends ScalarValue implements Point, Comparable<PointVa
         if ( crs.getDimension() != coordinates.length )
         {
             throw new InvalidValuesArgumentException( "Cannot create point with " + crs.getDimension() + "D coordinate reference system and "
-                    + coordinates.length + " coordinates. Please consider using equivalent " + coordinates.length + "D coordinate reference system" );
+                                                      + coordinates.length + " coordinates. Please consider using equivalent " + coordinates.length + "D coordinate reference system" );
         }
         return Values.pointValue( crs, coordinates );
     }
@@ -515,7 +516,7 @@ public class PointValue extends ScalarValue implements Point, Comparable<PointVa
      */
     public Value get( String fieldName )
     {
-       return PointFields.fromName( fieldName ).get( this );
+        return PointFields.fromName( fieldName ).get( this );
     }
 
     DoubleValue getNthCoordinate( int n, String fieldName, boolean onlyGeographic )

@@ -23,6 +23,9 @@
 package org.neo4j.kernel.builtinprocs;
 
 import java.util.Comparator;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.neo4j.internal.kernel.api.procs.ProcedureSignature;
@@ -36,6 +39,7 @@ import org.neo4j.logging.Log;
 import org.neo4j.procedure.Admin;
 import org.neo4j.procedure.Context;
 import org.neo4j.procedure.Description;
+import org.neo4j.procedure.Internal;
 import org.neo4j.procedure.Name;
 import org.neo4j.procedure.Procedure;
 
@@ -61,10 +65,30 @@ public class BuiltInDbmsProcedures
         Config config = graph.getDependencyResolver().resolveDependency( Config.class );
         String lowerCasedSearchString = searchString.toLowerCase();
         return config.getConfigValues().values().stream()
-                .filter( c -> !c.internal() )
-                .filter( c -> c.name().toLowerCase().contains( lowerCasedSearchString ) )
-                .map( ConfigResult::new )
-                .sorted( Comparator.comparing( c -> c.name ) );
+                     .filter( c -> !c.internal() )
+                     .filter( c -> c.name().toLowerCase().contains( lowerCasedSearchString ) )
+                     .map( ConfigResult::new )
+                     .sorted( Comparator.comparing( c -> c.name ) );
+    }
+
+    @Internal
+    @Description( "Return config settings interesting to clients (e.g. Neo4j Browser)" )
+    @Procedure( name = "dbms.clientConfig", mode = DBMS )
+    public Stream<ConfigResult> listClientConfig()
+    {
+        Set<String> browserSettings = Stream.of( "browser.allow_outgoing_connections",
+                                                 "browser.credential_timeout",
+                                                 "browser.retain_connection_credentials",
+                                                 "dbms.security.auth_enabled",
+                                                 "browser.remote_content_hostname_whitelist",
+                                                 "browser.post_connect_cmd" ).collect( Collectors.toCollection( HashSet::new ) );
+
+        Config config = graph.getDependencyResolver().resolveDependency( Config.class );
+
+        return config.getConfigValues().values().stream()
+                     .filter( c -> browserSettings.contains( c.name().toLowerCase() ) )
+                     .map( ConfigResult::new )
+                     .sorted( Comparator.comparing( c -> c.name ) );
     }
 
     @Description( "List all procedures in the DBMS." )
@@ -73,8 +97,9 @@ public class BuiltInDbmsProcedures
     {
         securityContext.assertCredentialsNotExpired();
         return graph.getDependencyResolver().resolveDependency( Procedures.class ).getAllProcedures().stream()
-                .sorted( Comparator.comparing( a -> a.name().toString() ) )
-                .map( ProcedureResult::new );
+                    .filter( proc -> !proc.internal() )
+                    .sorted( Comparator.comparing( a -> a.name().toString() ) )
+                    .map( ProcedureResult::new );
     }
 
     @Description( "List all user functions in the DBMS." )
@@ -83,8 +108,8 @@ public class BuiltInDbmsProcedures
     {
         securityContext.assertCredentialsNotExpired();
         return graph.getDependencyResolver().resolveDependency( Procedures.class ).getAllFunctions().stream()
-                .sorted( Comparator.comparing( a -> a.name().toString() ) )
-                .map( FunctionResult::new );
+                    .sorted( Comparator.comparing( a -> a.name().toString() ) )
+                    .map( FunctionResult::new );
     }
 
     @Admin

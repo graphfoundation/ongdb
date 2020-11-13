@@ -45,6 +45,7 @@ import org.neo4j.helpers.collection.Pair;
 import org.neo4j.helpers.collection.Visitor;
 import org.neo4j.internal.kernel.api.InternalIndexState;
 import org.neo4j.internal.kernel.api.Kernel;
+import org.neo4j.internal.kernel.api.TokenNameLookup;
 import org.neo4j.internal.kernel.api.Transaction;
 import org.neo4j.internal.kernel.api.exceptions.TransactionFailureException;
 import org.neo4j.internal.kernel.api.exceptions.schema.IllegalTokenNameException;
@@ -105,6 +106,7 @@ import static org.neo4j.helpers.collection.MapUtil.map;
 import static org.neo4j.internal.kernel.api.Transaction.Type.implicit;
 import static org.neo4j.internal.kernel.api.security.LoginContext.AUTH_DISABLED;
 import static org.neo4j.kernel.api.index.IndexEntryUpdate.add;
+import static org.neo4j.kernel.api.schema.SchemaTestUtil.simpleNameLookup;
 import static org.neo4j.kernel.impl.api.index.IndexingService.NO_MONITOR;
 import static org.neo4j.kernel.impl.api.index.TestIndexProviderDescriptor.PROVIDER_DESCRIPTOR;
 import static org.neo4j.kernel.impl.index.schema.ByteBufferFactory.heapBufferFactory;
@@ -123,6 +125,7 @@ public class IndexPopulationJobTest
     private final RelationshipType knows = RelationshipType.withName( "knows" );
     private final String name = "name";
     private final String age = "age";
+    private final TokenNameLookup tokenNameLookup = simpleNameLookup;
 
     private Kernel kernel;
     private IndexStoreView indexStoreView;
@@ -133,7 +136,7 @@ public class IndexPopulationJobTest
     public void before() throws Exception
     {
         db = (GraphDatabaseAPI) new TestGraphDatabaseFactory().newImpermanentDatabaseBuilder()
-                .setConfig( GraphDatabaseSettings.record_id_batch_size, "1" ).newGraphDatabase();
+                                                              .setConfig( GraphDatabaseSettings.record_id_batch_size, "1" ).newGraphDatabase();
         kernel = db.getDependencyResolver().resolveDependency( Kernel.class );
         stateHolder = new DatabaseSchemaState( NullLogProvider.getInstance() );
         indexStoreView = indexStoreView();
@@ -296,7 +299,7 @@ public class IndexPopulationJobTest
         long changeNode = node1;
         int propertyKeyId = getPropertyKeyForName( name );
         NodeChangingWriter populator = new NodeChangingWriter( changeNode, propertyKeyId, value1, changedValue,
-                labelId );
+                                                               labelId );
         IndexPopulationJob job = newIndexPopulationJob( populator, new FlippableIndexProxy(), EntityType.NODE, indexDescriptor( FIRST, name, false ) );
         populator.setJob( job );
 
@@ -366,8 +369,8 @@ public class IndexPopulationJobTest
         IndexStoreView storeView = mock( IndexStoreView.class );
         ControlledStoreScan storeScan = new ControlledStoreScan();
         when( storeView.visitNodes( any(int[].class), any( IntPredicate.class ),
-                ArgumentMatchers.any(),
-                ArgumentMatchers.<Visitor<NodeLabelUpdate,RuntimeException>>any(), anyBoolean() ) )
+                                    ArgumentMatchers.any(),
+                                    ArgumentMatchers.<Visitor<NodeLabelUpdate,RuntimeException>>any(), anyBoolean() ) )
                 .thenReturn(storeScan );
 
         final IndexPopulationJob job =
@@ -377,10 +380,10 @@ public class IndexPopulationJobTest
                 "Population job test runner", null ) );
         Future<Void> runFuture = populationJobRunner
                 .executeDontWait( state ->
-                {
-                    job.run();
-                    return null;
-                } );
+                                  {
+                                      job.run();
+                                      return null;
+                                  } );
 
         storeScan.latch.waitForAllToStart();
         job.cancel().get();
@@ -406,7 +409,7 @@ public class IndexPopulationJobTest
         try
         {
             IndexPopulationJob job = newIndexPopulationJob( populator, index, indexStoreView, logProvider,
-                            EntityType.NODE, indexDescriptor( FIRST, name, false ) );
+                                                            EntityType.NODE, indexDescriptor( FIRST, name, false ) );
 
             // When
             job.run();
@@ -414,7 +417,7 @@ public class IndexPopulationJobTest
             // Then
             LogMatcherBuilder match = inLog( IndexPopulationJob.class );
             logProvider.assertExactly( match.info( "Index population started: [%s]", ":FIRST(name)" ),
-                    match.info( containsString( "TIME/PHASE Final: SCAN[" ) ) );
+                                       match.info( containsString( "TIME/PHASE Final: SCAN[" ) ) );
         }
         finally
         {
@@ -434,7 +437,7 @@ public class IndexPopulationJobTest
         try
         {
             IndexPopulationJob job = newIndexPopulationJob( populator, index, indexStoreView, logProvider,
-                    EntityType.NODE, indexDescriptor( FIRST, name, true ) );
+                                                            EntityType.NODE, indexDescriptor( FIRST, name, true ) );
 
             // When
             job.run();
@@ -442,7 +445,7 @@ public class IndexPopulationJobTest
             // Then
             LogMatcherBuilder match = inLog( IndexPopulationJob.class );
             logProvider.assertExactly( match.info( "Index population started: [%s]", ":FIRST(name)" ),
-                    match.info( containsString( "TIME/PHASE Final: SCAN[" ) ));
+                                       match.info( containsString( "TIME/PHASE Final: SCAN[" ) ));
         }
         finally
         {
@@ -481,7 +484,7 @@ public class IndexPopulationJobTest
         IndexPopulator populator = spy( indexPopulator( false ) );
         IndexPopulationJob job =
                 newIndexPopulationJob( failureDelegateFactory, populator, new FlippableIndexProxy(), indexStoreView, NullLogProvider.getInstance(),
-                        EntityType.NODE, indexDescriptor( FIRST, name, false ) );
+                                       EntityType.NODE, indexDescriptor( FIRST, name, false ) );
 
         IllegalStateException failure = new IllegalStateException( "not successful" );
         doThrow( failure ).when( populator ).close( true );
@@ -519,7 +522,7 @@ public class IndexPopulationJobTest
         // given
         NullLogProvider logProvider = NullLogProvider.getInstance();
         TrackingMultipleIndexPopulator populator = new TrackingMultipleIndexPopulator( IndexStoreView.EMPTY, logProvider, EntityType.NODE,
-                new DatabaseSchemaState( logProvider ) );
+                                                                                       new DatabaseSchemaState( logProvider ) );
         IndexPopulationJob populationJob = new IndexPopulationJob( populator, NO_MONITOR, false );
 
         // when
@@ -538,7 +541,7 @@ public class IndexPopulationJobTest
         {
             @Override
             public <FAILURE extends Exception> StoreScan<FAILURE> visitNodes( int[] labelIds, IntPredicate propertyKeyIdFilter,
-                    Visitor<EntityUpdates,FAILURE> propertyUpdateVisitor, Visitor<NodeLabelUpdate,FAILURE> labelUpdateVisitor, boolean forceStoreScan )
+                                                                              Visitor<EntityUpdates,FAILURE> propertyUpdateVisitor, Visitor<NodeLabelUpdate,FAILURE> labelUpdateVisitor, boolean forceStoreScan )
             {
                 return new StoreScan<FAILURE>()
                 {
@@ -567,7 +570,7 @@ public class IndexPopulationJobTest
             }
         };
         TrackingMultipleIndexPopulator populator = new TrackingMultipleIndexPopulator( failingStoreView, logProvider, EntityType.NODE,
-                new DatabaseSchemaState( logProvider ) );
+                                                                                       new DatabaseSchemaState( logProvider ) );
         IndexPopulationJob populationJob = new IndexPopulationJob( populator, NO_MONITOR, false );
 
         // when
@@ -650,12 +653,12 @@ public class IndexPopulationJobTest
                 {
                     switch ( update.updateMode() )
                     {
-                        case ADDED:
-                        case CHANGED:
-                            added.add( Pair.of( update.getEntityId(), update.values()[0].asObjectCopy() ) );
-                            break;
-                        default:
-                            throw new IllegalArgumentException( update.updateMode().name() );
+                    case ADDED:
+                    case CHANGED:
+                        added.add( Pair.of( update.getEntityId(), update.values()[0].asObjectCopy() ) );
+                        break;
+                    default:
+                        throw new IllegalArgumentException( update.updateMode().name() );
                     }
                 }
 
@@ -721,15 +724,15 @@ public class IndexPopulationJobTest
                 {
                     switch ( update.updateMode() )
                     {
-                        case ADDED:
-                        case CHANGED:
-                            added.put( update.getEntityId(), update.values()[0].asObjectCopy() );
-                            break;
-                        case REMOVED:
-                            removed.put( update.getEntityId(), update.values()[0].asObjectCopy() ); // on remove, value is the before value
-                            break;
-                        default:
-                            throw new IllegalArgumentException( update.updateMode().name() );
+                    case ADDED:
+                    case CHANGED:
+                        added.put( update.getEntityId(), update.values()[0].asObjectCopy() );
+                        break;
+                    case REMOVED:
+                        removed.put( update.getEntityId(), update.values()[0].asObjectCopy() ); // on remove, value is the before value
+                        break;
+                    default:
+                        throw new IllegalArgumentException( update.updateMode().name() );
                     }
                 }
 
@@ -752,7 +755,7 @@ public class IndexPopulationJobTest
     {
         IndexSamplingConfig samplingConfig = new IndexSamplingConfig( Config.defaults() );
         IndexProvider indexProvider = db.getDependencyResolver().resolveDependency( DefaultIndexProviderMap.class ).getDefaultProvider();
-        return indexProvider.getPopulator( descriptor.withId( 21 ), samplingConfig, heapBufferFactory( 1024 ) );
+        return indexProvider.getPopulator( descriptor.withId( 21 ), samplingConfig, heapBufferFactory( 1024 ), tokenNameLookup );
     }
 
     private IndexPopulationJob newIndexPopulationJob( IndexPopulator populator, FlippableIndexProxy flipper, EntityType type, IndexDescriptor descriptor )
@@ -761,13 +764,13 @@ public class IndexPopulationJobTest
     }
 
     private IndexPopulationJob newIndexPopulationJob( IndexPopulator populator, FlippableIndexProxy flipper, IndexStoreView storeView, LogProvider logProvider,
-            EntityType type, IndexDescriptor descriptor )
+                                                      EntityType type, IndexDescriptor descriptor )
     {
         return newIndexPopulationJob( mock( FailedIndexProxyFactory.class ), populator, flipper, storeView, logProvider, type, descriptor );
     }
 
     private IndexPopulationJob newIndexPopulationJob( FailedIndexProxyFactory failureDelegateFactory, IndexPopulator populator, FlippableIndexProxy flipper,
-            IndexStoreView storeView, LogProvider logProvider, EntityType type, IndexDescriptor descriptor )
+                                                      IndexStoreView storeView, LogProvider logProvider, EntityType type, IndexDescriptor descriptor )
     {
         long indexId = 0;
         flipper.setFlipTarget( mock( IndexProxyFactory.class ) );
@@ -775,7 +778,7 @@ public class IndexPopulationJobTest
         MultipleIndexPopulator multiPopulator = new MultipleIndexPopulator( storeView, logProvider, type, stateHolder );
         IndexPopulationJob job = new IndexPopulationJob( multiPopulator, NO_MONITOR, false );
         job.addPopulator( populator, descriptor.withId( indexId ).withoutCapabilities(),
-                format( ":%s(%s)", FIRST.name(), name ), flipper, failureDelegateFactory );
+                          format( ":%s(%s)", FIRST.name(), name ), flipper, failureDelegateFactory );
         return job;
     }
 

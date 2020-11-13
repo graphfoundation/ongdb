@@ -57,8 +57,8 @@ public class BuiltInDbmsProceduresIT extends KernelIntegrationTest
         // When
         List<Object[]> config = callListConfig( "" );
         List<String> names = config.stream()
-                .map( o -> o[0].toString() )
-                .collect( Collectors.toList() );
+                                   .map( o -> o[0].toString() )
+                                   .collect( Collectors.toList() );
 
         // The size of the config is not fixed so just make sure it's the right magnitude
         assertTrue( names.size() > 10 );
@@ -67,8 +67,26 @@ public class BuiltInDbmsProceduresIT extends KernelIntegrationTest
 
         // Should not contain "unsupported.*" configs
         assertEquals( names.stream()
-                .filter( n -> n.startsWith( "unsupported" ) )
-                .count(), 0 );
+                           .filter( n -> n.startsWith( "unsupported" ) )
+                           .count(), 0 );
+    }
+
+    @Test
+    public void listClientConfig() throws Exception
+    {
+        QualifiedName procedureName = procedureName( "dbms", "clientConfig" );
+        int procedureId = procs().procedureGet( procedureName ).id();
+        RawIterator<Object[],ProcedureException> callResult =
+                dbmsOperations()
+                        .procedureCallDbms( procedureId, new Object[]{},  dependencyResolver, AUTH_DISABLED, resourceTracker,
+                                            ProcedureCallContext.EMPTY );
+        List<Object[]> config = asList( callResult );
+        assertEquals( 3, config.size());
+
+        assertEquals( config.get( 0 )[0], "browser.post_connect_cmd" );
+        assertEquals( config.get( 1 )[0], "browser.remote_content_hostname_whitelist" );
+        assertEquals( config.get( 2 )[0], "dbms.security.auth_enabled");
+
     }
 
     @Test
@@ -79,10 +97,10 @@ public class BuiltInDbmsProceduresIT extends KernelIntegrationTest
 
         assertEquals( 1, config.size() );
         assertArrayEquals( new Object[]{ "dbms.config.strict_validation",
-                "A strict configuration validation will prevent the database from starting up if unknown " +
-                        "configuration options are specified in the neo4j settings namespace (such as dbms., ha., " +
-                        "cypher., etc). This is currently false by default but will be true by default in 4.0.",
-                "false", false }, config.get( 0 ) );
+                                         "A strict configuration validation will prevent the database from starting up if unknown " +
+                                         "configuration options are specified in the neo4j settings namespace (such as dbms., ha., " +
+                                         "cypher., etc). This is currently false by default but will be true by default in 4.0.",
+                                         "false", false }, config.get( 0 ) );
     }
 
     @Test
@@ -93,8 +111,8 @@ public class BuiltInDbmsProceduresIT extends KernelIntegrationTest
 
         assertEquals( 1, config.size() );
         assertArrayEquals( new Object[]{ "dbms.transaction.timeout",
-                "The maximum time interval of a transaction within which it should be completed.",
-                "0ms", true }, config.get( 0 ) );
+                                         "The maximum time interval of a transaction within which it should be completed.",
+                                         "0ms", true }, config.get( 0 ) );
     }
 
     @Test
@@ -115,12 +133,12 @@ public class BuiltInDbmsProceduresIT extends KernelIntegrationTest
         assertFalse( (Boolean) config.get(0)[3] );
     }
 
-    private List<Object[]> callListConfig( String seatchString ) throws ProcedureException
+    private List<Object[]> callListConfig( String searchString ) throws ProcedureException
     {
         QualifiedName procedureName = procedureName( "dbms", "listConfig" );
         RawIterator<Object[],ProcedureException> callResult =
-                dbmsOperations().procedureCallDbms( procedureName, toArray( seatchString ), dependencyResolver, AUTH_DISABLED, resourceTracker,
-                        ProcedureCallContext.EMPTY );
+                dbmsOperations().procedureCallDbms( procedureName, toArray( searchString ), dependencyResolver, AUTH_DISABLED, resourceTracker,
+                                                    ProcedureCallContext.EMPTY );
         return asList( callResult );
     }
 }

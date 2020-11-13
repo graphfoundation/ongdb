@@ -29,6 +29,7 @@ import java.util.regex.Pattern;
 import org.neo4j.hashing.HashFunction;
 
 import static org.neo4j.values.storable.Values.utf8Value;
+import static org.neo4j.values.utils.ValueMath.HASH_CONSTANT;
 
 /*
  * Just as a normal StringValue but is backed by a byte array and does string
@@ -152,7 +153,7 @@ public final class UTF8StringValue extends StringValue
 
         while ( cpc.i < len )
         {
-            hash = 31 * hash + (int) cpc.nextCodePoint();
+            hash = HASH_CONSTANT * hash + (int) cpc.nextCodePoint();
         }
         return hash;
     }
@@ -507,7 +508,7 @@ public final class UTF8StringValue extends StringValue
     }
 
     public static int byteArrayCompare( byte[] value1, int value1Offset, int value1Length,
-            byte[] value2, int value2Offset, int value2Length )
+                                        byte[] value2, int value2Offset, int value2Length )
     {
         int lim = Math.min( value1Length, value2Length );
         for ( int i = 0; i < lim; i++ )

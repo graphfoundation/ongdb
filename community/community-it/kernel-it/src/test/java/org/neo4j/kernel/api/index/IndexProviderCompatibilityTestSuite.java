@@ -41,8 +41,10 @@ import java.util.Arrays;
 import java.util.List;
 
 import org.neo4j.function.ThrowingConsumer;
+import org.neo4j.internal.kernel.api.TokenNameLookup;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.pagecache.PageCache;
+import org.neo4j.kernel.api.schema.SchemaTestUtil;
 import org.neo4j.kernel.impl.api.index.PhaseTracker;
 import org.neo4j.storageengine.api.schema.IndexDescriptor;
 import org.neo4j.storageengine.api.schema.StoreIndexDescriptor;
@@ -138,6 +140,7 @@ public abstract class IndexProviderCompatibilityTestSuite
         protected FileSystemAbstraction fs;
         protected IndexProvider indexProvider;
         protected StoreIndexDescriptor descriptor;
+        protected TokenNameLookup tokenNameLookup;
         final IndexProviderCompatibilityTestSuite testSuite;
         final List<NodeAndValue> valueSet1;
         final List<NodeAndValue> valueSet2;
@@ -223,19 +226,19 @@ public abstract class IndexProviderCompatibilityTestSuite
                             })
                     ),
                     Arrays.asList( Values.pointValue( CoordinateReferenceSystem.Cartesian, 0, 0 ),
-                            Values.pointValue( CoordinateReferenceSystem.WGS84, 12.78, 56.7 )
+                                   Values.pointValue( CoordinateReferenceSystem.WGS84, 12.78, 56.7 )
                     ) );
 
             this.valueSet2 = allValues(
                     testSuite.supportsSpatial(),
                     Arrays.asList( Values.of( "string2" ), Values.of( 1337 ), Values.of( false ),
-                            Values.of( new char[]{'b', 'c'} ),
-                            Values.of( new String[]{"someString1", "someString2"} ),
-                            Values.of( new byte[]{(byte) 9, (byte) 9} ),
-                            Values.of( new short[]{99, 999} ),
-                            Values.of( new int[]{99999, 99999} ),
-                            Values.of( new long[]{999999, 999999} ),
-                            Values.of( new boolean[]{false, false} )
+                                   Values.of( new char[]{'b', 'c'} ),
+                                   Values.of( new String[]{"someString1", "someString2"} ),
+                                   Values.of( new byte[]{(byte) 9, (byte) 9} ),
+                                   Values.of( new short[]{99, 999} ),
+                                   Values.of( new int[]{99999, 99999} ),
+                                   Values.of( new long[]{999999, 999999} ),
+                                   Values.of( new boolean[]{false, false} )
                     ),
                     Arrays.asList(
                             DateValue.epochDate( 42 ),
@@ -270,12 +273,13 @@ public abstract class IndexProviderCompatibilityTestSuite
                             })
                     ),
                     Arrays.asList( Values.pointValue( CoordinateReferenceSystem.Cartesian, 90, 90 ),
-                            Values.pointValue( CoordinateReferenceSystem.WGS84, 9.21, 9.65 )
+                                   Values.pointValue( CoordinateReferenceSystem.WGS84, 9.21, 9.65 )
                     ) );
 
             pageCacheAndDependenciesRule = new PageCacheAndDependenciesRule().with( new DefaultFileSystemRule() ).with( testSuite.getClass() );
             random = new RandomRule();
             ruleChain = RuleChain.outerRule( pageCacheAndDependenciesRule ).around( random );
+            tokenNameLookup = SchemaTestUtil.simpleNameLookup;
         }
 
         void withPopulator( IndexPopulator populator, ThrowingConsumer<IndexPopulator,Exception> runWithPopulator ) throws Exception

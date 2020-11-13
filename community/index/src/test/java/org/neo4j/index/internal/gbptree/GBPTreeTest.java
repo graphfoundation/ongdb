@@ -848,13 +848,13 @@ public class GBPTreeTest
             // WHEN
             Barrier.Control barrier = new Barrier.Control();
             Future<?> write = executor.submit( throwing( () ->
-            {
-                try ( Writer<MutableLong,MutableLong> writer = index.writer() )
-                {
-                    writer.put( new MutableLong( 1 ), new MutableLong( 1 ) );
-                    barrier.reached();
-                }
-            } ) );
+                                                         {
+                                                             try ( Writer<MutableLong,MutableLong> writer = index.writer() )
+                                                             {
+                                                                 writer.put( new MutableLong( 1 ), new MutableLong( 1 ) );
+                                                                 barrier.reached();
+                                                             }
+                                                         } ) );
             barrier.awaitUninterruptibly();
             Future<?> checkpoint = executor.submit( throwing( () -> index.checkpoint( UNLIMITED ) ) );
             shouldWait( checkpoint );
@@ -887,16 +887,16 @@ public class GBPTreeTest
         // now we're in the smack middle of a close/checkpoint
         AtomicReference<Exception> writerError = new AtomicReference<>();
         Future<?> write = executor.submit( () ->
-        {
-            try
-            {
-                index.writer().close();
-            }
-            catch ( Exception e )
-            {
-                writerError.set( e );
-            }
-        } );
+                                           {
+                                               try
+                                               {
+                                                   index.writer().close();
+                                               }
+                                               catch ( Exception e )
+                                               {
+                                                   writerError.set( e );
+                                               }
+                                           } );
 
         shouldWait( write );
         barrier.release();
@@ -905,7 +905,7 @@ public class GBPTreeTest
         write.get();
         close.get();
         assertTrue( "Writer should not be able to acquired after close",
-                writerError.get() instanceof FileIsNotMappedException );
+                    writerError.get() instanceof FileIsNotMappedException );
     }
 
     private PageCache pageCacheWithBarrierInClose( final AtomicBoolean enabled, final Barrier.Control barrier )
@@ -940,13 +940,13 @@ public class GBPTreeTest
         // WHEN
         Barrier.Control barrier = new Barrier.Control();
         Future<?> write = executor.submit( throwing( () ->
-        {
-            try ( Writer<MutableLong,MutableLong> writer = index.writer() )
-            {
-                writer.put( new MutableLong( 1 ), new MutableLong( 1 ) );
-                barrier.reached();
-            }
-        } ) );
+                                                     {
+                                                         try ( Writer<MutableLong,MutableLong> writer = index.writer() )
+                                                         {
+                                                             writer.put( new MutableLong( 1 ), new MutableLong( 1 ) );
+                                                             barrier.reached();
+                                                         }
+                                                     } ) );
         barrier.awaitUninterruptibly();
         Future<?> close = executor.submit( throwing( index::close ) );
         shouldWait( close );
@@ -1173,7 +1173,7 @@ public class GBPTreeTest
         {
             assertTrue( job.hasFailed() );
             assertThat( job.getCause().getMessage(),
-                    allOf( containsString( "File" ), containsString( "unmapped" ) ) );
+                        allOf( containsString( "File" ), containsString( "unmapped" ) ) );
         }
     }
 
@@ -1198,7 +1198,7 @@ public class GBPTreeTest
         {
             @Override
             public void cleanupFinished( long numberOfPagesVisited, long numberOfCleanedCrashPointers,
-                    long durationMillis )
+                                         long durationMillis )
             {
                 super.cleanupFinished( numberOfPagesVisited, numberOfCleanedCrashPointers, durationMillis );
                 throw cleanupException;
@@ -1361,9 +1361,9 @@ public class GBPTreeTest
         // THEN
         assertTrue( "Expected monitor to get recovery complete message", monitor.cleanupFinished );
         assertEquals( "Expected index to have exactly 1 crash pointer from root to successor of root",
-                1, monitor.numberOfCleanedCrashPointers );
+                      1, monitor.numberOfCleanedCrashPointers );
         assertEquals( "Expected index to have exactly 2 tree node pages, root and successor of root",
-                2, monitor.numberOfPagesVisited ); // Root and successor of root
+                      2, monitor.numberOfPagesVisited ); // Root and successor of root
     }
 
     /* Dirty state tests */
@@ -1442,7 +1442,7 @@ public class GBPTreeTest
 
         // THEN
         assertFalse( "Expected to be dirty on start after close without checkpoint",
-                monitorDirty.cleanOnStart() );
+                     monitorDirty.cleanOnStart() );
     }
 
     @Test
@@ -1471,7 +1471,7 @@ public class GBPTreeTest
             {
             }
             assertFalse( "Expected to be dirty on start after crash",
-                    monitorDirty.cleanOnStart() );
+                         monitorDirty.cleanOnStart() );
         }
     }
 
@@ -1574,7 +1574,7 @@ public class GBPTreeTest
     }
 
     @Test
-    public void shouldThrowIllegalStateExceptionOnCallingNextAfterClose() throws Exception
+    public void shouldReturnFalseOnCallingNextAfterClose() throws Exception
     {
         // given
         try ( GBPTree<MutableLong,MutableLong> tree = index().build() )
@@ -1597,16 +1597,84 @@ public class GBPTreeTest
 
             for ( int i = 0; i < 2; i++ )
             {
-                try
+                assertFalse( seek.next() );
+            }
+        }
+    }
+
+    @Test
+    public void shouldReturnFalseOnCallingNextAfterExhausting() throws Exception
+    {
+        int amount = 10;
+        // given
+        try ( GBPTree<MutableLong,MutableLong> tree = index().build() )
+        {
+            try ( Writer<MutableLong,MutableLong> writer = tree.writer() )
+            {
+                MutableLong value = new MutableLong();
+                for ( int i = 0; i < amount; i++ )
                 {
-                    // when
-                    seek.next();
-                    fail( "Should have failed" );
+                    value.setValue( i );
+                    writer.put( value, value );
                 }
-                catch ( IllegalStateException e )
+            }
+
+            RawCursor<Hit<MutableLong,MutableLong>,IOException> seek =
+                    tree.seek( new MutableLong( 0 ), new MutableLong( Long.MAX_VALUE ) );
+            //noinspection StatementWithEmptyBody
+            while ( seek.next() )
+            {
+            }
+
+            try ( Writer<MutableLong,MutableLong> writer = tree.writer() )
+            {
+                MutableLong value = new MutableLong();
+                value.setValue( amount + 1 );
+                writer.put( value, value );
+            }
+
+            for ( int i = 0; i < 2; i++ )
+            {
+                assertFalse( seek.next() );
+            }
+        }
+    }
+
+    @Test
+    public void shouldReturnFalseOnCallingNextAfterExhaustingAndClose() throws Exception
+    {
+        int amount = 10;
+        // given
+        try ( GBPTree<MutableLong,MutableLong> tree = index().build() )
+        {
+            try ( Writer<MutableLong,MutableLong> writer = tree.writer() )
+            {
+                MutableLong value = new MutableLong();
+                for ( int i = 0; i < amount; i++ )
                 {
-                    // then good
+                    value.setValue( i );
+                    writer.put( value, value );
                 }
+            }
+
+            RawCursor<Hit<MutableLong,MutableLong>,IOException> seek =
+                    tree.seek( new MutableLong( 0 ), new MutableLong( Long.MAX_VALUE ));
+            //noinspection StatementWithEmptyBody
+            while ( seek.next() )
+            {
+            }
+            seek.close();
+
+            try ( Writer<MutableLong,MutableLong> writer = tree.writer() )
+            {
+                MutableLong value = new MutableLong();
+                value.setValue( amount + 1 );
+                writer.put( value, value );
+            }
+
+            for ( int i = 0; i < 2; i++ )
+            {
+                assertFalse( seek.next() );
             }
         }
     }
@@ -1651,7 +1719,7 @@ public class GBPTreeTest
                 // then good
                 assertThat( e.getMessage(), CoreMatchers.containsString(
                         "Index traversal aborted due to being stuck in infinite loop. This is most likely caused by an inconsistency in the index. " +
-                                "Loop occurred when restarting search from root from page " + corruptChild + "." ) );
+                        "Loop occurred when restarting search from root from page " + corruptChild + "." ) );
             }
         }
     }
@@ -1684,26 +1752,26 @@ public class GBPTreeTest
             ExecutorService executor = Executors.newFixedThreadPool( 2 );
             CountDownLatch go = new CountDownLatch( 2 );
             Future<Object> execute1 = executor.submit( () ->
-            {
-                go.countDown();
-                go.await();
-                try ( RawCursor<Hit<MutableLong,MutableLong>,IOException> seek = tree.seek( new MutableLong( 0 ), new MutableLong( 0 ) ) )
-                {
-                    seek.next();
-                }
-                return null;
-            } );
+                                                       {
+                                                           go.countDown();
+                                                           go.await();
+                                                           try ( RawCursor<Hit<MutableLong,MutableLong>,IOException> seek = tree.seek( new MutableLong( 0 ), new MutableLong( 0 ) ) )
+                                                           {
+                                                               seek.next();
+                                                           }
+                                                           return null;
+                                                       } );
 
             Future<Object> execute2 = executor.submit( () ->
-            {
-                go.countDown();
-                go.await();
-                try ( RawCursor<Hit<MutableLong,MutableLong>,IOException> seek = tree.seek( new MutableLong( MAX_VALUE ), new MutableLong( MAX_VALUE ) ) )
-                {
-                    seek.next();
-                }
-                return null;
-            } );
+                                                       {
+                                                           go.countDown();
+                                                           go.await();
+                                                           try ( RawCursor<Hit<MutableLong,MutableLong>,IOException> seek = tree.seek( new MutableLong( MAX_VALUE ), new MutableLong( MAX_VALUE ) ) )
+                                                           {
+                                                               seek.next();
+                                                           }
+                                                           return null;
+                                                       } );
 
             assertFutureFailsWithTreeInconsistencyException( execute1 );
             assertFutureFailsWithTreeInconsistencyException( execute2 );
@@ -1879,21 +1947,21 @@ public class GBPTreeTest
         public void start()
         {
             executeWithExecutor( executor ->
-            {
-                CleanupJob job;
-                while ( (job = jobs.poll()) != null )
-                {
-                    try
-                    {
-                        job.run( executor );
-                        startedJobs.add( job );
-                    }
-                    finally
-                    {
-                        job.close();
-                    }
-                }
-            } );
+                                 {
+                                     CleanupJob job;
+                                     while ( (job = jobs.poll()) != null )
+                                     {
+                                         try
+                                         {
+                                             job.run( executor );
+                                             startedJobs.add( job );
+                                         }
+                                         finally
+                                         {
+                                             job.close();
+                                         }
+                                     }
+                                 } );
         }
 
         @Override

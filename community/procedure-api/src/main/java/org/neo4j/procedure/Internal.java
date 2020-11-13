@@ -20,22 +20,18 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.neo4j.index.internal.gbptree;
+package org.neo4j.procedure;
 
-import java.util.Arrays;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
-class RawBytes
+/**
+ * This annotation marks a {@link Procedure} as being hidden, i.e. not listed in dbms.procedures() and not documented.
+ */
+@Target( ElementType.METHOD )
+@Retention( RetentionPolicy.RUNTIME )
+public @interface Internal
 {
-    byte[] bytes;
-
-    @Override
-    public String toString()
-    {
-        return Arrays.toString( bytes );
-    }
-
-    void copyFrom( RawBytes source )
-    {
-        bytes = source.bytes.clone();
-    }
 }

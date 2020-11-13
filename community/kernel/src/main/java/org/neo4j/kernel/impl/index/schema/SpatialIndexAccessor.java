@@ -36,6 +36,7 @@ import org.neo4j.helpers.collection.BoundedIterable;
 import org.neo4j.helpers.collection.CombiningIterable;
 import org.neo4j.helpers.collection.Iterators;
 import org.neo4j.index.internal.gbptree.RecoveryCleanupWorkCollector;
+import org.neo4j.internal.kernel.api.TokenNameLookup;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.pagecache.IOLimiter;
 import org.neo4j.io.pagecache.PageCache;
@@ -70,7 +71,8 @@ class SpatialIndexAccessor extends SpatialIndexCache<SpatialIndexAccessor.PartAc
                           IndexProvider.Monitor monitor,
                           SpatialIndexFiles spatialIndexFiles,
                           SpaceFillingCurveConfiguration searchConfiguration,
-                          boolean readOnly ) throws IOException
+                          boolean readOnly,
+                          TokenNameLookup tokenNameLookup ) throws IOException
     {
         super( new PartFactory( pageCache,
                                 fs,
@@ -79,7 +81,8 @@ class SpatialIndexAccessor extends SpatialIndexCache<SpatialIndexAccessor.PartAc
                                 descriptor,
                                 spatialIndexFiles,
                                 searchConfiguration,
-                                readOnly ) );
+                                readOnly,
+                                tokenNameLookup ) );
         this.descriptor = descriptor;
         spatialIndexFiles.loadExistingIndexes( this );
     }
@@ -217,10 +220,10 @@ class SpatialIndexAccessor extends SpatialIndexCache<SpatialIndexAccessor.PartAc
         private SpaceFillingCurveSettings settings;
 
         PartAccessor( PageCache pageCache, FileSystemAbstraction fs, SpatialIndexFiles.SpatialFileLayout fileLayout,
-                RecoveryCleanupWorkCollector recoveryCleanupWorkCollector, IndexProvider.Monitor monitor, StoreIndexDescriptor descriptor,
-                SpaceFillingCurveConfiguration searchConfiguration, boolean readOnly )
+                      RecoveryCleanupWorkCollector recoveryCleanupWorkCollector, IndexProvider.Monitor monitor, StoreIndexDescriptor descriptor,
+                      SpaceFillingCurveConfiguration searchConfiguration, boolean readOnly, TokenNameLookup tokenNameLookup )
         {
-            super( pageCache, fs, fileLayout.getIndexFile(), fileLayout.layout, monitor, descriptor, NO_HEADER_WRITER, readOnly );
+            super( pageCache, fs, fileLayout.getIndexFile(), fileLayout.layout, monitor, descriptor, NO_HEADER_WRITER, readOnly, tokenNameLookup );
             this.layout = fileLayout.layout;
             this.descriptor = descriptor;
             this.searchConfiguration = searchConfiguration;
@@ -262,6 +265,7 @@ class SpatialIndexAccessor extends SpatialIndexCache<SpatialIndexAccessor.PartAc
         private final SpatialIndexFiles spatialIndexFiles;
         private final SpaceFillingCurveConfiguration searchConfiguration;
         private final boolean readOnly;
+        private final TokenNameLookup tokenNameLookup;
 
         PartFactory( PageCache pageCache,
                      FileSystemAbstraction fs,
@@ -270,7 +274,8 @@ class SpatialIndexAccessor extends SpatialIndexCache<SpatialIndexAccessor.PartAc
                      StoreIndexDescriptor descriptor,
                      SpatialIndexFiles spatialIndexFiles,
                      SpaceFillingCurveConfiguration searchConfiguration,
-                     boolean readOnly )
+                     boolean readOnly,
+                     TokenNameLookup tokenNameLookup )
         {
             this.pageCache = pageCache;
             this.fs = fs;
@@ -280,6 +285,7 @@ class SpatialIndexAccessor extends SpatialIndexCache<SpatialIndexAccessor.PartAc
             this.spatialIndexFiles = spatialIndexFiles;
             this.searchConfiguration = searchConfiguration;
             this.readOnly = readOnly;
+            this.tokenNameLookup = tokenNameLookup;
         }
 
         @Override
@@ -307,7 +313,8 @@ class SpatialIndexAccessor extends SpatialIndexCache<SpatialIndexAccessor.PartAc
                                      monitor,
                                      descriptor,
                                      searchConfiguration,
-                                     readOnly );
+                                     readOnly,
+                                     tokenNameLookup );
         }
 
         private void createEmptyIndex( SpatialIndexFiles.SpatialFileLayout fileLayout )
@@ -317,7 +324,8 @@ class SpatialIndexAccessor extends SpatialIndexCache<SpatialIndexAccessor.PartAc
                                                                                 fileLayout,
                                                                                 monitor,
                                                                                 descriptor,
-                                                                                searchConfiguration );
+                                                                                searchConfiguration,
+                                                                                tokenNameLookup );
             populator.create();
             populator.close( true );
         }
