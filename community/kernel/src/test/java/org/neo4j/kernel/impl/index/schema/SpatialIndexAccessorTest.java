@@ -52,7 +52,7 @@ public class SpatialIndexAccessorTest extends NativeIndexAccessorTests<SpatialIn
     {
         spatialFile = new SpatialIndexFiles.SpatialFile( CoordinateReferenceSystem.WGS84, configuredSettings, super.getIndexFile() );
         return new SpatialIndexAccessor.PartAccessor( pageCache, fs, spatialFile.getLayoutForNewIndex(), immediate(), monitor, indexDescriptor,
-                                                      new StandardConfiguration(), false, simpleNameLookup );
+                new StandardConfiguration(), false, simpleNameLookup );
     }
 
     @Override

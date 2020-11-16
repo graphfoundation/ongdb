@@ -182,7 +182,7 @@ public class SpatialIndexSettingsTest
     }
 
     private void addUpdates( SpatialIndexProvider provider, StoreIndexDescriptor schemaIndexDescriptor,
-                             ValueCreatorUtil<SpatialIndexKey,NativeIndexValue> layoutUtil ) throws IOException, IndexEntryConflictException
+            ValueCreatorUtil<SpatialIndexKey,NativeIndexValue> layoutUtil ) throws IOException, IndexEntryConflictException
     {
         IndexAccessor accessor = provider.getOnlineAccessor( schemaIndexDescriptor, samplingConfig(), tokenNameLookup );
         try ( IndexUpdater updater = accessor.newUpdater( ONLINE ) )
@@ -224,7 +224,7 @@ public class SpatialIndexSettingsTest
         SpatialIndexFiles.SpatialFileLayout fileLayout = makeIndexFile( schemaIndexDescriptor.getId(), configuredSettings ).getLayoutForNewIndex();
         SpatialIndexPopulator.PartPopulator populator =
                 new SpatialIndexPopulator.PartPopulator( pageCache, fs, fileLayout, monitor, schemaIndexDescriptor, new StandardConfiguration(),
-                                                         tokenNameLookup );
+                        tokenNameLookup );
         populator.create();
         populator.close( true );
     }

@@ -250,25 +250,25 @@ public class ContractCheckingIndexProxyTest
 
         // WHEN
         Thread updaterThread = runInSeparateThread( () ->
-                                                    {
-                                                        try ( IndexUpdater updater = outer.newUpdater( IndexUpdateMode.ONLINE ) )
-                                                        {
-                                                            updater.process( null );
-                                                            try
-                                                            {
-                                                                actionThread.start();
-                                                                latch.await();
-                                                            }
-                                                            catch ( InterruptedException e )
-                                                            {
-                                                                throw new RuntimeException( e );
-                                                            }
-                                                        }
-                                                        catch ( IndexEntryConflictException e )
-                                                        {
-                                                            throw new RuntimeException( e );
-                                                        }
-                                                    } );
+        {
+            try ( IndexUpdater updater = outer.newUpdater( IndexUpdateMode.ONLINE ) )
+            {
+                updater.process( null );
+                try
+                {
+                    actionThread.start();
+                    latch.await();
+                }
+                catch ( InterruptedException e )
+                {
+                    throw new RuntimeException( e );
+                }
+            }
+            catch ( IndexEntryConflictException e )
+            {
+                throw new RuntimeException( e );
+            }
+        } );
 
         ThreadTestUtils.awaitThreadState( actionThread, TEST_TIMEOUT, Thread.State.TIMED_WAITING );
         latch.countDown();

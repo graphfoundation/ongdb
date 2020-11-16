@@ -151,13 +151,13 @@ public abstract class NativeIndexTestUtil<KEY extends NativeIndexKey<KEY>,VALUE 
     }
 
     private void assertSameHits( Hit<KEY, VALUE>[] expectedHits, Hit<KEY, VALUE>[] actualHits,
-                                 Comparator<Hit<KEY, VALUE>> comparator )
+            Comparator<Hit<KEY, VALUE>> comparator )
     {
         Arrays.sort( expectedHits, comparator );
         Arrays.sort( actualHits, comparator );
         assertEquals( format( "Array length differ%nExpected:%d, Actual:%d",
-                              expectedHits.length, actualHits.length ),
-                      expectedHits.length, actualHits.length );
+                expectedHits.length, actualHits.length ),
+                expectedHits.length, actualHits.length );
 
         for ( int i = 0; i < expectedHits.length; i++ )
         {
@@ -177,7 +177,7 @@ public abstract class NativeIndexTestUtil<KEY extends NativeIndexKey<KEY>,VALUE 
     }
 
     private Hit<KEY,VALUE>[] convertToHits( IndexEntryUpdate<IndexDescriptor>[] updates,
-                                            Layout<KEY,VALUE> layout )
+            Layout<KEY,VALUE> layout )
     {
         List<Hit<KEY,VALUE>> hits = new ArrayList<>( updates.length );
         for ( IndexEntryUpdate<IndexDescriptor> u : updates )
