@@ -20,6 +20,7 @@
 package org.neo4j.index.internal.gbptree;
 
 import org.apache.commons.lang3.tuple.Pair;
+
 import org.neo4j.util.VisibleForTesting;
 
 @VisibleForTesting

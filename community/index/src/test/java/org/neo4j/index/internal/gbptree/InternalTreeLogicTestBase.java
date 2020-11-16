@@ -1676,7 +1676,7 @@ public abstract class InternalTreeLogicTestBase<KEY,VALUE>
         if ( !found )
         {
             throw new IllegalArgumentException( "Subtree on position " + subtreePosition + " in node " + parentNodeId +
-                                                " did not contain a rightmost internal key." );
+                    " did not contain a rightmost internal key." );
         }
 
         goTo( readCursor, current );
@@ -1786,7 +1786,7 @@ public abstract class InternalTreeLogicTestBase<KEY,VALUE>
     private void assertSuccessorPointerNotCrashOrBroken() throws IOException
     {
         assertNoCrashOrBrokenPointerInGSPP( null, readCursor, stableGeneration, unstableGeneration,
-                                            GBPTreePointerType.successor(), TreeNode.BYTE_POS_SUCCESSOR, new ThrowingConsistencyCheckVisitor<>(), false );
+                GBPTreePointerType.successor(), TreeNode.BYTE_POS_SUCCESSOR, new ThrowingConsistencyCheckVisitor<>(), false );
     }
 
     private void assertKeyAssociatedWithValue( KEY key, VALUE expectedValue )
@@ -1878,12 +1878,12 @@ public abstract class InternalTreeLogicTestBase<KEY,VALUE>
             long rightSibling = TreeNode.rightSibling( readCursor, stableGeneration, unstableGeneration, generationTarget );
             long rightSiblingGeneration = generationTarget.generation;
             rightmost.assertNext( readCursor,
-                                  TreeNode.generation( readCursor ),
-                                  pointer( leftSibling ),
-                                  leftSiblingGeneration,
-                                  pointer( rightSibling ),
-                                  rightSiblingGeneration,
-                                  visitor );
+                    TreeNode.generation( readCursor ),
+                    pointer( leftSibling ),
+                    leftSiblingGeneration,
+                    pointer( rightSibling ),
+                    rightSiblingGeneration,
+                    visitor );
         }
         rightmost.assertLast( visitor );
         goTo( readCursor, currentPageId );
@@ -2062,12 +2062,12 @@ public abstract class InternalTreeLogicTestBase<KEY,VALUE>
     private void assertEqualsKey( KEY expected, KEY actual )
     {
         assertEquals( String.format( "expected equal, expected=%s, actual=%s", expected.toString(), actual.toString() ), 0,
-                      layout.compare( expected, actual ) );
+                layout.compare( expected, actual ) );
     }
 
     private void assertEqualsValue( VALUE expected, VALUE actual )
     {
         assertEquals( String.format( "expected equal, expected=%s, actual=%s", expected.toString(), actual.toString() ), 0,
-                      layout.compareValue( expected, actual ) );
+                layout.compareValue( expected, actual ) );
     }
 }

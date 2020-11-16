@@ -283,7 +283,7 @@ public class HTTP
                 return response.getLocation().toString();
             }
             throw new RuntimeException( "The request did not contain a location header, " +
-                                        "unable to provide location. Status code was: " + status() );
+                    "unable to provide location. Status code was: " + status() );
         }
 
         @SuppressWarnings( "unchecked" )

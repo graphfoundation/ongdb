@@ -293,7 +293,7 @@ public class GBPTreeTest
             // Good
         }
 
-        try ( GBPTree<MutableLong,MutableLong> ignored = index( pageCachePageSize / 2 )
+        try ( GBPTree<MutableLong, MutableLong> ignored = index( pageCachePageSize / 2 )
                 .withIndexPageSize( pageCachePageSize )
                 .build() )
         {
@@ -452,7 +452,7 @@ public class GBPTreeTest
         IOException no = new IOException( "No" );
         AtomicBoolean throwOnNextIO = new AtomicBoolean();
         PageCache controlledPageCache = pageCacheThatThrowExceptionWhenToldTo( no, throwOnNextIO );
-        try ( GBPTree<MutableLong,MutableLong> index = index( controlledPageCache ).build() )
+        try ( GBPTree<MutableLong, MutableLong> index = index( controlledPageCache ).build() )
         {
             // WHEN
             assertTrue( throwOnNextIO.compareAndSet( false, true ) );
@@ -801,7 +801,7 @@ public class GBPTreeTest
 
             // THEN
             assertEquals( headerBytes.length, length.get() );
-            assertArrayEquals( headerBytes, readHeader );
+            assertArrayEquals( headerBytes, readHeader);
         }
     }
 
@@ -845,13 +845,13 @@ public class GBPTreeTest
             // WHEN
             Barrier.Control barrier = new Barrier.Control();
             Future<?> write = executor.submit( throwing( () ->
-                                                         {
-                                                             try ( Writer<MutableLong,MutableLong> writer = index.writer() )
-                                                             {
-                                                                 writer.put( new MutableLong( 1 ), new MutableLong( 1 ) );
-                                                                 barrier.reached();
-                                                             }
-                                                         } ) );
+            {
+                try ( Writer<MutableLong,MutableLong> writer = index.writer() )
+                {
+                    writer.put( new MutableLong( 1 ), new MutableLong( 1 ) );
+                    barrier.reached();
+                }
+            } ) );
             barrier.awaitUninterruptibly();
             Future<?> checkpoint = executor.submit( throwing( () -> index.checkpoint( UNLIMITED ) ) );
             shouldWait( checkpoint );
@@ -884,16 +884,16 @@ public class GBPTreeTest
         // now we're in the smack middle of a close/checkpoint
         AtomicReference<Exception> writerError = new AtomicReference<>();
         Future<?> write = executor.submit( () ->
-                                           {
-                                               try
-                                               {
-                                                   index.writer().close();
-                                               }
-                                               catch ( Exception e )
-                                               {
-                                                   writerError.set( e );
-                                               }
-                                           } );
+        {
+            try
+            {
+                index.writer().close();
+            }
+            catch ( Exception e )
+            {
+                writerError.set( e );
+            }
+        } );
 
         shouldWait( write );
         barrier.release();
@@ -902,7 +902,7 @@ public class GBPTreeTest
         write.get();
         close.get();
         assertTrue( "Writer should not be able to acquired after close",
-                    writerError.get() instanceof FileIsNotMappedException );
+                writerError.get() instanceof FileIsNotMappedException );
     }
 
     private PageCache pageCacheWithBarrierInClose( final AtomicBoolean enabled, final Barrier.Control barrier )
@@ -937,13 +937,13 @@ public class GBPTreeTest
         // WHEN
         Barrier.Control barrier = new Barrier.Control();
         Future<?> write = executor.submit( throwing( () ->
-                                                     {
-                                                         try ( Writer<MutableLong,MutableLong> writer = index.writer() )
-                                                         {
-                                                             writer.put( new MutableLong( 1 ), new MutableLong( 1 ) );
-                                                             barrier.reached();
-                                                         }
-                                                     } ) );
+        {
+            try ( Writer<MutableLong,MutableLong> writer = index.writer() )
+            {
+                writer.put( new MutableLong( 1 ), new MutableLong( 1 ) );
+                barrier.reached();
+            }
+        } ) );
         barrier.awaitUninterruptibly();
         Future<?> close = executor.submit( throwing( index::close ) );
         shouldWait( close );
@@ -959,7 +959,7 @@ public class GBPTreeTest
     {
         makeDirty();
 
-        try ( GBPTree<MutableLong,MutableLong> index = index().with( RecoveryCleanupWorkCollector.ignore() ).build() )
+        try ( GBPTree<MutableLong, MutableLong> index = index().with( RecoveryCleanupWorkCollector.ignore() ).build() )
         {
             assertTrue( index.wasDirtyOnStartup() );
         }
@@ -1093,7 +1093,7 @@ public class GBPTreeTest
         collector.init();
 
         Future<List<CleanupJob>> cleanJob;
-        try ( GBPTree<MutableLong,MutableLong> ignored = index( pageCache ).with( collector ).build() )
+        try ( GBPTree<MutableLong, MutableLong> ignored = index( pageCache ).with( collector ).build() )
         {
             blockOnNextIO.set( true );
             cleanJob = executor.submit( startAndReturnStartedJobs( collector ) );
@@ -1170,7 +1170,7 @@ public class GBPTreeTest
         {
             assertTrue( job.hasFailed() );
             assertThat( job.getCause().getMessage(),
-                        allOf( containsString( "File" ), containsString( "unmapped" ) ) );
+                    allOf( containsString( "File" ), containsString( "unmapped" ) ) );
         }
     }
 
@@ -1195,7 +1195,7 @@ public class GBPTreeTest
         {
             @Override
             public void cleanupFinished( long numberOfPagesVisited, long numberOfCleanedCrashPointers,
-                                         long durationMillis )
+                    long durationMillis )
             {
                 super.cleanupFinished( numberOfPagesVisited, numberOfCleanedCrashPointers, durationMillis );
                 throw cleanupException;
@@ -1290,7 +1290,7 @@ public class GBPTreeTest
     public void mustNotSeeUpdatesThatWasNotCheckpointed() throws Exception
     {
         // GIVEN
-        try ( GBPTree<MutableLong,MutableLong> index = index().build() )
+        try ( GBPTree<MutableLong, MutableLong> index = index().build() )
         {
             insert( index, 0, 1 );
 
@@ -1299,7 +1299,7 @@ public class GBPTreeTest
         }
 
         // THEN
-        try ( GBPTree<MutableLong,MutableLong> index = index().build() )
+        try ( GBPTree<MutableLong, MutableLong> index = index().build() )
         {
             MutableLong from = new MutableLong( Long.MIN_VALUE );
             MutableLong to = new MutableLong( MAX_VALUE );
@@ -1316,7 +1316,7 @@ public class GBPTreeTest
         // GIVEN
         int key = 1;
         int value = 2;
-        try ( GBPTree<MutableLong,MutableLong> index = index().build() )
+        try ( GBPTree<MutableLong, MutableLong> index = index().build() )
         {
             insert( index, key, value );
 
@@ -1325,7 +1325,7 @@ public class GBPTreeTest
         }
 
         // THEN
-        try ( GBPTree<MutableLong,MutableLong> index = index().build() )
+        try ( GBPTree<MutableLong, MutableLong> index = index().build() )
         {
             MutableLong from = new MutableLong( Long.MIN_VALUE );
             MutableLong to = new MutableLong( MAX_VALUE );
@@ -1342,7 +1342,7 @@ public class GBPTreeTest
     public void mustBumpUnstableGenerationOnOpen() throws Exception
     {
         // GIVEN
-        try ( GBPTree<MutableLong,MutableLong> index = index().build() )
+        try ( GBPTree<MutableLong, MutableLong> index = index().build() )
         {
             insert( index, 0, 1 );
 
@@ -1351,16 +1351,16 @@ public class GBPTreeTest
 
         // WHEN
         SimpleCleanupMonitor monitor = new SimpleCleanupMonitor();
-        try ( GBPTree<MutableLong,MutableLong> ignore = index().with( monitor ).build() )
+        try ( GBPTree<MutableLong, MutableLong> ignore = index().with( monitor ).build() )
         {
         }
 
         // THEN
         assertTrue( "Expected monitor to get recovery complete message", monitor.cleanupFinished );
         assertEquals( "Expected index to have exactly 1 crash pointer from root to successor of root",
-                      1, monitor.numberOfCleanedCrashPointers );
+                1, monitor.numberOfCleanedCrashPointers );
         assertEquals( "Expected index to have exactly 2 tree node pages, root and successor of root",
-                      2, monitor.numberOfPagesVisited ); // Root and successor of root
+                2, monitor.numberOfPagesVisited ); // Root and successor of root
     }
 
     /* Dirty state tests */
@@ -1373,7 +1373,7 @@ public class GBPTreeTest
         MonitorDirty monitorDirty = new MonitorDirty();
 
         // WHEN
-        try ( GBPTree<MutableLong,MutableLong> ignored = index().with( monitorDirty ).build() )
+        try ( GBPTree<MutableLong, MutableLong> ignored = index().with( monitorDirty ).build() )
         {
         }
 
@@ -1385,13 +1385,13 @@ public class GBPTreeTest
     public void indexMustBeCleanWhenClosedWithoutAnyChanges() throws Exception
     {
         // GIVEN
-        try ( GBPTree<MutableLong,MutableLong> ignored = index().build() )
+        try ( GBPTree<MutableLong, MutableLong> ignored = index().build() )
         {
         }
 
         // WHEN
         MonitorDirty monitorDirty = new MonitorDirty();
-        try ( GBPTree<MutableLong,MutableLong> ignored = index().with( monitorDirty ).build() )
+        try ( GBPTree<MutableLong, MutableLong> ignored = index().with( monitorDirty ).build() )
         {
         }
 
@@ -1403,7 +1403,7 @@ public class GBPTreeTest
     public void indexMustBeCleanWhenClosedAfterCheckpoint() throws Exception
     {
         // GIVEN
-        try ( GBPTree<MutableLong,MutableLong> index = index().build() )
+        try ( GBPTree<MutableLong, MutableLong> index = index().build() )
         {
             insert( index, 0, 1 );
 
@@ -1412,7 +1412,7 @@ public class GBPTreeTest
 
         // WHEN
         MonitorDirty monitorDirty = new MonitorDirty();
-        try ( GBPTree<MutableLong,MutableLong> ignored = index().with( monitorDirty ).build() )
+        try ( GBPTree<MutableLong, MutableLong> ignored = index().with( monitorDirty ).build() )
         {
         }
 
@@ -1424,7 +1424,7 @@ public class GBPTreeTest
     public void indexMustBeDirtyWhenClosedWithChangesSinceLastCheckpoint() throws Exception
     {
         // GIVEN
-        try ( GBPTree<MutableLong,MutableLong> index = index().build() )
+        try ( GBPTree<MutableLong, MutableLong> index = index().build() )
         {
             insert( index, 0, 1 );
 
@@ -1433,13 +1433,13 @@ public class GBPTreeTest
 
         // WHEN
         MonitorDirty monitorDirty = new MonitorDirty();
-        try ( GBPTree<MutableLong,MutableLong> ignored = index().with( monitorDirty ).build() )
+        try ( GBPTree<MutableLong, MutableLong> ignored = index().with( monitorDirty ).build() )
         {
         }
 
         // THEN
         assertFalse( "Expected to be dirty on start after close without checkpoint",
-                     monitorDirty.cleanOnStart() );
+                monitorDirty.cleanOnStart() );
     }
 
     @Test
@@ -1451,7 +1451,7 @@ public class GBPTreeTest
             ephemeralFs.mkdirs( indexFile.getParentFile() );
             PageCache pageCache = pageCacheRule.getPageCache( ephemeralFs );
             EphemeralFileSystemAbstraction snapshot;
-            try ( GBPTree<MutableLong,MutableLong> index = index( pageCache ).build() )
+            try ( GBPTree<MutableLong, MutableLong> index = index( pageCache ).build() )
             {
                 insert( index, 0, 1 );
 
@@ -1464,11 +1464,11 @@ public class GBPTreeTest
             // THEN
             MonitorDirty monitorDirty = new MonitorDirty();
             pageCache = pageCacheRule.getPageCache( snapshot );
-            try ( GBPTree<MutableLong,MutableLong> ignored = index( pageCache ).with( monitorDirty ).build() )
+            try ( GBPTree<MutableLong, MutableLong> ignored = index( pageCache ).with( monitorDirty ).build() )
             {
             }
             assertFalse( "Expected to be dirty on start after crash",
-                         monitorDirty.cleanOnStart() );
+                    monitorDirty.cleanOnStart() );
         }
     }
 
@@ -1476,7 +1476,7 @@ public class GBPTreeTest
     public void cleanCrashPointersMustTriggerOnDirtyStart() throws Exception
     {
         // GIVEN
-        try ( GBPTree<MutableLong,MutableLong> index = index().build() )
+        try ( GBPTree<MutableLong, MutableLong> index = index().build() )
         {
             insert( index, 0, 1 );
 
@@ -1485,7 +1485,7 @@ public class GBPTreeTest
 
         // WHEN
         MonitorCleanup monitor = new MonitorCleanup();
-        try ( GBPTree<MutableLong,MutableLong> ignored = index().with( monitor ).build() )
+        try ( GBPTree<MutableLong, MutableLong> ignored = index().with( monitor ).build() )
         {
             // THEN
             assertTrue( "Expected cleanup to be called when starting on dirty tree", monitor.cleanupCalled() );
@@ -1496,7 +1496,7 @@ public class GBPTreeTest
     public void cleanCrashPointersMustNotTriggerOnCleanStart() throws Exception
     {
         // GIVEN
-        try ( GBPTree<MutableLong,MutableLong> index = index().build() )
+        try ( GBPTree<MutableLong, MutableLong> index = index().build() )
         {
             insert( index, 0, 1 );
 
@@ -1505,7 +1505,7 @@ public class GBPTreeTest
 
         // WHEN
         MonitorCleanup monitor = new MonitorCleanup();
-        try ( GBPTree<MutableLong,MutableLong> ignored = index().with( monitor ).build() )
+        try ( GBPTree<MutableLong, MutableLong> ignored = index().with( monitor ).build() )
         {
             // THEN
             assertFalse( "Expected cleanup not to be called when starting on clean tree", monitor.cleanupCalled() );
@@ -1542,7 +1542,7 @@ public class GBPTreeTest
             // WHEN
             try ( GBPTree<MutableLong,MutableLong> index = index( specificPageCache ).build() )
             {
-                try ( Writer<MutableLong,MutableLong> ignored = index.writer() )
+                try ( Writer<MutableLong, MutableLong> ignored = index.writer() )
                 {
                     fail( "Expected to throw because root pointed to by tree state should have a valid successor." );
                 }
@@ -1563,7 +1563,7 @@ public class GBPTreeTest
         AtomicBoolean throwOnNext = new AtomicBoolean();
         IOException exception = new IOException( "My failure" );
         PageCache pageCache = pageCacheThatThrowExceptionWhenToldTo( exception, throwOnNext );
-        try ( GBPTree<MutableLong,MutableLong> ignored = index( pageCache ).build() )
+        try ( GBPTree<MutableLong, MutableLong> ignored = index( pageCache ).build() )
         {
             // WHEN
             throwOnNext.set( true );
@@ -1655,7 +1655,7 @@ public class GBPTreeTest
             }
 
             RawCursor<Hit<MutableLong,MutableLong>,IOException> seek =
-                    tree.seek( new MutableLong( 0 ), new MutableLong( Long.MAX_VALUE ) );
+                    tree.seek( new MutableLong( 0 ), new MutableLong( Long.MAX_VALUE ));
             //noinspection StatementWithEmptyBody
             while ( seek.next() )
             {
@@ -1716,7 +1716,7 @@ public class GBPTreeTest
                 // then good
                 assertThat( e.getMessage(), CoreMatchers.containsString(
                         "Index traversal aborted due to being stuck in infinite loop. This is most likely caused by an inconsistency in the index. " +
-                        "Loop occurred when restarting search from root from page " + corruptChild + "." ) );
+                                "Loop occurred when restarting search from root from page " + corruptChild + "." ) );
             }
         }
     }
@@ -1749,28 +1749,26 @@ public class GBPTreeTest
             ExecutorService executor = Executors.newFixedThreadPool( 2 );
             CountDownLatch go = new CountDownLatch( 2 );
             Future<Object> execute1 = executor.submit( () ->
-                                                       {
-                                                           go.countDown();
-                                                           go.await();
-                                                           try ( RawCursor<Hit<MutableLong,MutableLong>,IOException> seek = tree
-                                                                   .seek( new MutableLong( 0 ), new MutableLong( 0 ) ) )
-                                                           {
-                                                               seek.next();
-                                                           }
-                                                           return null;
-                                                       } );
+            {
+                go.countDown();
+                go.await();
+                try ( RawCursor<Hit<MutableLong,MutableLong>,IOException> seek = tree.seek( new MutableLong( 0 ), new MutableLong( 0 ) ) )
+                {
+                    seek.next();
+                }
+                return null;
+            } );
 
             Future<Object> execute2 = executor.submit( () ->
-                                                       {
-                                                           go.countDown();
-                                                           go.await();
-                                                           try ( RawCursor<Hit<MutableLong,MutableLong>,IOException> seek = tree
-                                                                   .seek( new MutableLong( MAX_VALUE ), new MutableLong( MAX_VALUE ) ) )
-                                                           {
-                                                               seek.next();
-                                                           }
-                                                           return null;
-                                                       } );
+            {
+                go.countDown();
+                go.await();
+                try ( RawCursor<Hit<MutableLong,MutableLong>,IOException> seek = tree.seek( new MutableLong( MAX_VALUE ), new MutableLong( MAX_VALUE ) ) )
+                {
+                    seek.next();
+                }
+                return null;
+            } );
 
             assertFutureFailsWithTreeInconsistencyException( execute1 );
             assertFutureFailsWithTreeInconsistencyException( execute2 );
@@ -1810,11 +1808,10 @@ public class GBPTreeTest
             }
 
             MutableBoolean ioLimitChecked = new MutableBoolean();
-            tree.checkpoint( ( previousStamp, recentlyCompletedIOs, flushable ) ->
-                             {
-                                 ioLimitChecked.setTrue();
-                                 return 0;
-                             } );
+            tree.checkpoint( ( previousStamp, recentlyCompletedIOs, flushable ) -> {
+                ioLimitChecked.setTrue();
+                return 0;
+            } );
             assertFalse( "Expected checkpoint to be a no-op in read only mode.", ioLimitChecked.getValue() );
         }
         byte[] after = fileContent( indexFile );
@@ -1898,7 +1895,10 @@ public class GBPTreeTest
     }
 
     /**
-     * When split is done, trace contain: trace.get( 0 ) - root trace.get( 1 ) - leftChild trace.get( 2 ) - rightChild
+     * When split is done, trace contain:
+     * trace.get( 0 ) - root
+     * trace.get( 1 ) - leftChild
+     * trace.get( 2 ) - rightChild
      */
     private void treeWithRootSplit( List<Long> trace, GBPTree<MutableLong,MutableLong> tree ) throws IOException
     {
@@ -1928,7 +1928,7 @@ public class GBPTreeTest
         }
     }
 
-    private PageCache pageCacheWithTrace( PageCursorTracer pageCursorTracer )
+    private PageCache pageCacheWithTrace( PageCursorTracer pageCursorTracer  )
     {
         // A page cache tracer that we can use to see when tree has seen enough updates and to figure out on which page the child sits.Trace( trace );
         PageCursorTracerSupplier pageCursorTracerSupplier = () -> pageCursorTracer;
@@ -1944,21 +1944,21 @@ public class GBPTreeTest
         public void start()
         {
             executeWithExecutor( executor ->
-                                 {
-                                     CleanupJob job;
-                                     while ( (job = jobs.poll()) != null )
-                                     {
-                                         try
-                                         {
-                                             job.run( executor );
-                                             startedJobs.add( job );
-                                         }
-                                         finally
-                                         {
-                                             job.close();
-                                         }
-                                     }
-                                 } );
+            {
+                CleanupJob job;
+                while ( (job = jobs.poll()) != null )
+                {
+                    try
+                    {
+                        job.run( executor );
+                        startedJobs.add( job );
+                    }
+                    finally
+                    {
+                        job.close();
+                    }
+                }
+            } );
         }
 
         @Override
@@ -2054,7 +2054,7 @@ public class GBPTreeTest
 
     private void insert( GBPTree<MutableLong,MutableLong> index, long key, long value ) throws IOException
     {
-        try ( Writer<MutableLong,MutableLong> writer = index.writer() )
+        try ( Writer<MutableLong, MutableLong> writer = index.writer() )
         {
             writer.put( new MutableLong( key ), new MutableLong( value ) );
         }

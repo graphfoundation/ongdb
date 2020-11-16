@@ -78,8 +78,7 @@ class LuceneIndexProviderTest
         LuceneIndexProvider readOnlyIndexProvider =
                 getLuceneIndexProvider( readOnlyConfig, new DirectoryFactory.InMemoryDirectoryFactory(), fileSystem, graphDbDir );
         assertThrows( UnsupportedOperationException.class,
-                      () -> readOnlyIndexProvider
-                              .getPopulator( descriptor, new IndexSamplingConfig( readOnlyConfig ), heapBufferFactory( 1024 ), tokenNameLookup ) );
+                () -> readOnlyIndexProvider.getPopulator( descriptor, new IndexSamplingConfig( readOnlyConfig ), heapBufferFactory( 1024 ), tokenNameLookup ) );
     }
 
     @Test
@@ -90,7 +89,7 @@ class LuceneIndexProviderTest
 
         Config readOnlyConfig = Config.defaults( GraphDatabaseSettings.read_only, Settings.TRUE );
         LuceneIndexProvider readOnlyIndexProvider = getLuceneIndexProvider( readOnlyConfig,
-                                                                            directoryFactory, fileSystem, graphDbDir );
+                directoryFactory, fileSystem, graphDbDir );
         IndexAccessor onlineAccessor = getIndexAccessor( readOnlyConfig, readOnlyIndexProvider );
 
         assertThrows( UnsupportedOperationException.class, onlineAccessor::drop );
@@ -101,10 +100,10 @@ class LuceneIndexProviderTest
     {
         Config readOnlyConfig = Config.defaults( GraphDatabaseSettings.read_only, Settings.TRUE );
         LuceneIndexProvider readOnlyIndexProvider = getLuceneIndexProvider( readOnlyConfig,
-                                                                            new DirectoryFactory.InMemoryDirectoryFactory(), fileSystem, graphDbDir );
+                new DirectoryFactory.InMemoryDirectoryFactory(), fileSystem, graphDbDir );
 
         assertThrows( UnsupportedOperationException.class,
-                      () -> getIndexAccessor( readOnlyConfig, readOnlyIndexProvider ).newUpdater( IndexUpdateMode.ONLINE ) );
+                () -> getIndexAccessor( readOnlyConfig, readOnlyIndexProvider ).newUpdater( IndexUpdateMode.ONLINE ) );
     }
 
     @Test
@@ -114,7 +113,7 @@ class LuceneIndexProviderTest
         // prevent backups from working.
         Config readOnlyConfig = Config.defaults( GraphDatabaseSettings.read_only, Settings.TRUE );
         LuceneIndexProvider readOnlyIndexProvider = getLuceneIndexProvider( readOnlyConfig,
-                                                                            new DirectoryFactory.InMemoryDirectoryFactory(), fileSystem, graphDbDir );
+                new DirectoryFactory.InMemoryDirectoryFactory(), fileSystem, graphDbDir );
 
         // We assert that 'force' does not throw an exception
         getIndexAccessor( readOnlyConfig, readOnlyIndexProvider ).force( IOLimiter.UNLIMITED );
@@ -124,7 +123,7 @@ class LuceneIndexProviderTest
     {
         Config config = Config.defaults();
         LuceneIndexProvider indexProvider = getLuceneIndexProvider( config, directoryFactory, fileSystem,
-                                                                    graphDbDir );
+                graphDbDir );
         IndexAccessor onlineAccessor = getIndexAccessor( config, indexProvider );
         onlineAccessor.close();
     }
@@ -139,6 +138,6 @@ class LuceneIndexProviderTest
                                                         FileSystemAbstraction fs, File graphDbDir )
     {
         return new LuceneIndexProvider( fs, directoryFactory, defaultDirectoryStructure( graphDbDir ),
-                                        IndexProvider.Monitor.EMPTY, config, OperationalMode.single );
+                IndexProvider.Monitor.EMPTY, config, OperationalMode.single );
     }
 }

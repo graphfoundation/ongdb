@@ -36,9 +36,9 @@ public class AnyValueTestUtil
         assertEquals( formatMessage( "should be equivalent to", a, b ), a, b );
         assertEquals( formatMessage( "should be equivalent to", b, a ), b, a );
         assertTrue( formatMessage( "should be equal to", a, b ),
-                    a.ternaryEquals( b ) );
+                a.ternaryEquals( b ) );
         assertTrue( formatMessage( "should be equal to", b, a ),
-                    b.ternaryEquals( a ) );
+                b.ternaryEquals( a ) );
         assertEquals( formatMessage( "should have same hashcode as", a, b ), a.hashCode(), b.hashCode() );
     }
 

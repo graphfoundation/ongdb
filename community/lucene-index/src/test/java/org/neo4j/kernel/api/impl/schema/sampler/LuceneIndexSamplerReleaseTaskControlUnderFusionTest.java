@@ -143,7 +143,7 @@ public class LuceneIndexSamplerReleaseTaskControlUnderFusionTest
     {
         SlotSelector slotSelector = SlotSelector.nullInstance;
         return new FusionIndexProvider( failingProvider, EMPTY, EMPTY, EMPTY, luceneProvider, slotSelector, providerDescriptor, directoryFactory, fs.get(),
-                                        false );
+                false );
     }
 
     private IndexSamplingJob createIndexSamplingJob( IndexAccessor fusionAccessor )
@@ -183,7 +183,7 @@ public class LuceneIndexSamplerReleaseTaskControlUnderFusionTest
         {
             @Override
             public IndexAccessor getOnlineAccessor( StoreIndexDescriptor descriptor, IndexSamplingConfig samplingConfig,
-                                                    TokenNameLookup tokenNameLookup )
+                    TokenNameLookup tokenNameLookup )
             {
                 return failingIndexAccessor();
             }

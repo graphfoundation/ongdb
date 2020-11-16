@@ -83,15 +83,15 @@ public class LuceneIndexProvider extends IndexProvider
 
     @Override
     public IndexPopulator getPopulator( StoreIndexDescriptor descriptor, IndexSamplingConfig samplingConfig, ByteBufferFactory bufferFactory,
-                                        TokenNameLookup tokenNameLookup )
+            TokenNameLookup tokenNameLookup )
     {
         SchemaIndex luceneIndex = LuceneSchemaIndexBuilder.create( descriptor, config )
-                                                          .withFileSystem( fileSystem )
-                                                          .withOperationalMode( operationalMode )
-                                                          .withSamplingConfig( samplingConfig )
-                                                          .withIndexStorage( getIndexStorage( descriptor.getId() ) )
-                                                          .withWriterConfig( IndexWriterConfigs::population )
-                                                          .build();
+                                        .withFileSystem( fileSystem )
+                                        .withOperationalMode( operationalMode )
+                                        .withSamplingConfig( samplingConfig )
+                                        .withIndexStorage( getIndexStorage( descriptor.getId() ) )
+                                        .withWriterConfig( IndexWriterConfigs::population )
+                                        .build();
         if ( luceneIndex.isReadOnly() )
         {
             throw new UnsupportedOperationException( "Can't create populator for read only index" );
@@ -108,13 +108,13 @@ public class LuceneIndexProvider extends IndexProvider
 
     @Override
     public IndexAccessor getOnlineAccessor( StoreIndexDescriptor descriptor, IndexSamplingConfig samplingConfig,
-                                            TokenNameLookup tokenNameLookup ) throws IOException
+            TokenNameLookup tokenNameLookup ) throws IOException
     {
         SchemaIndex luceneIndex = LuceneSchemaIndexBuilder.create( descriptor, config )
-                                                          .withOperationalMode( operationalMode )
-                                                          .withSamplingConfig( samplingConfig )
-                                                          .withIndexStorage( getIndexStorage( descriptor.getId() ) )
-                                                          .build();
+                                            .withOperationalMode( operationalMode )
+                                            .withSamplingConfig( samplingConfig )
+                                            .withIndexStorage( getIndexStorage( descriptor.getId() ) )
+                                            .build();
         luceneIndex.open();
         return new LuceneIndexAccessor( luceneIndex, descriptor );
     }

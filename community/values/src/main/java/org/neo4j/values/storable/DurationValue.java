@@ -162,15 +162,15 @@ public final class DurationValue extends ScalarValue implements TemporalAmount, 
             {
                 return approximate(
                         safeCastFloatingPoint( "years", years, 0 ) * 12 +
-                        safeCastFloatingPoint( "months", months, 0 ),
+                                safeCastFloatingPoint( "months", months, 0 ),
                         safeCastFloatingPoint( "weeks", weeks, 0 ) * 7 +
-                        safeCastFloatingPoint( "days", days, 0 ),
+                                safeCastFloatingPoint( "days", days, 0 ),
                         safeCastFloatingPoint( "hours", hours, 0 ) * 3600 +
-                        safeCastFloatingPoint( "minutes", minutes, 0 ) * 60 +
-                        safeCastFloatingPoint( "seconds", seconds, 0 ),
+                                safeCastFloatingPoint( "minutes", minutes, 0 ) * 60 +
+                                safeCastFloatingPoint( "seconds", seconds, 0 ),
                         safeCastFloatingPoint( "milliseconds", milliseconds, 0 ) * 1_000_000 +
-                        safeCastFloatingPoint( "microseconds", microseconds, 0 ) * 1_000 +
-                        safeCastFloatingPoint( "nanoseconds", nanoseconds, 0 )
+                                safeCastFloatingPoint( "microseconds", microseconds, 0 ) * 1_000 +
+                                safeCastFloatingPoint( "nanoseconds", nanoseconds, 0 )
                 );
             }
         };
@@ -185,12 +185,12 @@ public final class DurationValue extends ScalarValue implements TemporalAmount, 
     // This comparator is safe until 292,271,023,045 years. After that, we have an overflow.
     private static final Comparator<DurationValue> COMPARATOR =
             Comparator.comparingLong( DurationValue::getAverageLengthInSeconds )
-                      // nanos are guaranteed to be smaller than NANOS_PER_SECOND
-                      .thenComparingLong( d -> d.nanos )
-                      // At this point, the durations have the same length and we compare by the individual fields.
-                      .thenComparingLong( d -> d.months )
-                      .thenComparingLong( d -> d.days )
-                      .thenComparingLong( d -> d.seconds );
+                    // nanos are guaranteed to be smaller than NANOS_PER_SECOND
+                    .thenComparingLong( d -> d.nanos )
+                    // At this point, the durations have the same length and we compare by the individual fields.
+                    .thenComparingLong( d -> d.months )
+                    .thenComparingLong( d -> d.days )
+                    .thenComparingLong( d -> d.seconds );
     private final long months;
     private final long days;
     private final long seconds;
@@ -199,7 +199,7 @@ public final class DurationValue extends ScalarValue implements TemporalAmount, 
     private static DurationValue newDuration( long months, long days, long seconds, long nanos )
     {
         return seconds == 0 && days == 0 && months == 0 && nanos == 0 // ordered by probability of non-zero
-               ? ZERO : new DurationValue( months, days, seconds, nanos );
+                ? ZERO : new DurationValue( months, days, seconds, nanos );
     }
 
     private DurationValue( long months, long days, long seconds, long nanos )
@@ -283,22 +283,22 @@ public final class DurationValue extends ScalarValue implements TemporalAmount, 
     }
 
     private static final String UNIT_BASED_PATTERN = "(?:(?<years>[-+]?[0-9]+(?:[.,][0-9]+)?)Y)?"
-                                                     + "(?:(?<months>[-+]?[0-9]+(?:[.,][0-9]+)?)M)?"
-                                                     + "(?:(?<weeks>[-+]?[0-9]+(?:[.,][0-9]+)?)W)?"
-                                                     + "(?:(?<days>[-+]?[0-9]+(?:[.,][0-9]+)?)D)?"
-                                                     + "(?<T>T"
-                                                     + "(?:(?<hours>[-+]?[0-9]+(?:[.,][0-9]+)?)H)?"
-                                                     + "(?:(?<minutes>[-+]?[0-9]+(?:[.,][0-9]+)?)M)?"
-                                                     + "(?:(?<seconds>[-+]?[0-9]+)(?:[.,](?<subseconds>[0-9]{1,9}))?S)?)?";
+            + "(?:(?<months>[-+]?[0-9]+(?:[.,][0-9]+)?)M)?"
+            + "(?:(?<weeks>[-+]?[0-9]+(?:[.,][0-9]+)?)W)?"
+            + "(?:(?<days>[-+]?[0-9]+(?:[.,][0-9]+)?)D)?"
+            + "(?<T>T"
+            + "(?:(?<hours>[-+]?[0-9]+(?:[.,][0-9]+)?)H)?"
+            + "(?:(?<minutes>[-+]?[0-9]+(?:[.,][0-9]+)?)M)?"
+            + "(?:(?<seconds>[-+]?[0-9]+)(?:[.,](?<subseconds>[0-9]{1,9}))?S)?)?";
     private static final String DATE_BASED_PATTERN = "(?:"
-                                                     + "(?<year>[0-9]{4})(?:"
-                                                     + "-(?<longMonth>[0-9]{2})-(?<longDay>[0-9]{2})|"
-                                                     + "(?<shortMonth>[0-9]{2})(?<shortDay>[0-9]{2}))"
-                                                     + ")?(?<time>T"
-                                                     + "(?:(?<shortHour>[0-9]{2})(?:(?<shortMinute>[0-9]{2})"
-                                                     + "(?:(?<shortSecond>[0-9]{2})(?:[.,](?<shortSub>[0-9]{1,9}))?)?)?|"
-                                                     + "(?<longHour>[0-9]{2}):(?<longMinute>[0-9]{2})"
-                                                     + "(?::(?<longSecond>[0-9]{2})(?:[.,](?<longSub>[0-9]{1,9}))?)?))?";
+            + "(?<year>[0-9]{4})(?:"
+            + "-(?<longMonth>[0-9]{2})-(?<longDay>[0-9]{2})|"
+            + "(?<shortMonth>[0-9]{2})(?<shortDay>[0-9]{2}))"
+            + ")?(?<time>T"
+            + "(?:(?<shortHour>[0-9]{2})(?:(?<shortMinute>[0-9]{2})"
+            + "(?:(?<shortSecond>[0-9]{2})(?:[.,](?<shortSub>[0-9]{1,9}))?)?)?|"
+            + "(?<longHour>[0-9]{2}):(?<longMinute>[0-9]{2})"
+            + "(?::(?<longSecond>[0-9]{2})(?:[.,](?<longSub>[0-9]{1,9}))?)?))?";
     private static final Pattern PATTERN = Pattern.compile(
             "(?<sign>[-+]?)P(?:" + UNIT_BASED_PATTERN + "|" + DATE_BASED_PATTERN + ")",
             CASE_INSENSITIVE );
@@ -483,7 +483,7 @@ public final class DurationValue extends ScalarValue implements TemporalAmount, 
     private static double parseFractional( String input, int pos )
     {
         return parseDouble( input.charAt( pos ) == '.' ? input :
-                            (input.substring( 0, pos ) + "." + input.substring( pos + 1 )) );
+                (input.substring( 0, pos ) + "." + input.substring( pos + 1 )) );
     }
 
     private static int fractionPoint( String field )
@@ -553,9 +553,9 @@ public final class DurationValue extends ScalarValue implements TemporalAmount, 
         nanos = toNanos - fromNanos;
 
         boolean differenceIsLessThanOneSecond = seconds == 0
-                                                && from.isSupported( SECOND_OF_MINUTE )
-                                                && to.isSupported( SECOND_OF_MINUTE )
-                                                && from.get( SECOND_OF_MINUTE ) != to.get( SECOND_OF_MINUTE );
+                && from.isSupported( SECOND_OF_MINUTE )
+                && to.isSupported( SECOND_OF_MINUTE )
+                && from.get( SECOND_OF_MINUTE ) != to.get( SECOND_OF_MINUTE );
 
         if ( nanos < 0 && ( seconds > 0 || differenceIsLessThanOneSecond ) )
         {
@@ -580,9 +580,9 @@ public final class DurationValue extends ScalarValue implements TemporalAmount, 
         {
             DurationValue that = (DurationValue) other;
             return that.months == this.months &&
-                   that.days == this.days &&
-                   that.seconds == this.seconds &&
-                   that.nanos == this.nanos;
+                    that.days == this.days &&
+                    that.seconds == this.seconds &&
+                    that.nanos == this.nanos;
         }
         else
         {
@@ -1025,7 +1025,7 @@ public final class DurationValue extends ScalarValue implements TemporalAmount, 
     {
         return new InvalidValuesArgumentException(
                 String.format( "Invalid value for duration, will cause overflow. Value was months=%d, days=%d, seconds=%d, nanos=%d",
-                               months, days, seconds, nanos ), e );
+                        months, days, seconds, nanos ), e );
     }
 
     private InvalidValuesArgumentException invalidDurationAdd( DurationValue o1, DurationValue o2, ArithmeticException e )

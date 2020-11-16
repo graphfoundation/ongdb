@@ -27,12 +27,11 @@ import java.util.Optional;
 
 import org.neo4j.helpers.collection.Iterables;
 import org.neo4j.procedure.Mode;
-
 import static java.util.Collections.unmodifiableList;
 
 /**
- * This describes the signature of a procedure, made up of its namespace, name, and input/output description. Procedure uniqueness is currently *only* on the
- * namespace/name level - no procedure overloading allowed (yet).
+ * This describes the signature of a procedure, made up of its namespace, name, and input/output description.
+ * Procedure uniqueness is currently *only* on the namespace/name level - no procedure overloading allowed (yet).
  */
 public class ProcedureSignature
 {
@@ -158,7 +157,7 @@ public class ProcedureSignature
 
         ProcedureSignature that = (ProcedureSignature) o;
         return name.equals( that.name ) && inputSignature.equals( that.inputSignature ) &&
-               outputSignature.equals( that.outputSignature ) && isVoid() == that.isVoid();
+                outputSignature.equals( that.outputSignature ) && isVoid() == that.isVoid();
     }
 
     @Override
@@ -219,18 +218,14 @@ public class ProcedureSignature
             return this;
         }
 
-        /**
-         * Define an input field
-         */
+        /** Define an input field */
         public Builder in( String name, Neo4jTypes.AnyType type )
         {
             inputSignature.add( FieldSignature.inputField( name, type ) );
             return this;
         }
 
-        /**
-         * Define an output field
-         */
+        /** Define an output field */
         public Builder out( String name, Neo4jTypes.AnyType type )
         {
             outputSignature.add( FieldSignature.outputField( name, type ) );
@@ -257,7 +252,7 @@ public class ProcedureSignature
 
         public Builder warning( String warning )
         {
-            this.warning = warning;
+            this.warning =  warning;
             return this;
         }
 
@@ -276,7 +271,7 @@ public class ProcedureSignature
         public ProcedureSignature build()
         {
             return new ProcedureSignature( name, inputSignature, outputSignature, mode, admin, deprecated, allowed,
-                                           description, warning, eager, false, internal );
+                    description, warning, eager, false, internal );
         }
     }
 

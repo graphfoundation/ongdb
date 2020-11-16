@@ -65,7 +65,7 @@ public class PointValue extends ScalarValue implements Point, Comparable<PointVa
         {
             if ( !Double.isFinite( c ) )
             {
-                throw new InvalidValuesArgumentException( "Cannot create a point with non-finite coordinate values: " + Arrays.toString( coordinate ) );
+                throw new InvalidValuesArgumentException( "Cannot create a point with non-finite coordinate values: " + Arrays.toString(coordinate) );
             }
         }
     }
@@ -286,8 +286,8 @@ public class PointValue extends ScalarValue implements Point, Comparable<PointVa
     }
 
     /**
-     * The string representation of this object when indexed in string-only indexes, like lucene, for equality search only. This should normally only happen
-     * when points are part of composite indexes, because otherwise they are indexed in the spatial index.
+     * The string representation of this object when indexed in string-only indexes, like lucene, for equality search only. This should normally only
+     * happen when points are part of composite indexes, because otherwise they are indexed in the spatial index.
      */
     public String toIndexableString()
     {
@@ -310,9 +310,9 @@ public class PointValue extends ScalarValue implements Point, Comparable<PointVa
     /**
      * Checks if this point is greater than (or equal) to lower and smaller than (or equal) to upper.
      *
-     * @param lower        point this value should be greater than
+     * @param lower point this value should be greater than
      * @param includeLower governs if the lower comparison should be inclusive
-     * @param upper        point this value should be smaller than
+     * @param upper point this value should be smaller than
      * @param includeUpper governs if the upper comparison should be inclusive
      * @return true if this value is within the described range
      */
@@ -343,7 +343,7 @@ public class PointValue extends ScalarValue implements Point, Comparable<PointVa
                 return null;
             }
             else if ( comparison == Comparison.SMALLER_THAN || comparison == Comparison.SMALLER_THAN_AND_EQUAL ||
-                      (comparison == Comparison.EQUAL || comparison == Comparison.GREATER_THAN_AND_EQUAL) && !includeLower )
+                    (comparison == Comparison.EQUAL || comparison == Comparison.GREATER_THAN_AND_EQUAL) && !includeLower )
             {
                 if ( upper != null && this.unsafeTernaryCompareTo( upper ) == Comparison.UNDEFINED )
                 {
@@ -365,7 +365,7 @@ public class PointValue extends ScalarValue implements Point, Comparable<PointVa
                 return null;
             }
             else if ( comparison == Comparison.GREATER_THAN || comparison == Comparison.GREATER_THAN_AND_EQUAL ||
-                      (comparison == Comparison.EQUAL || comparison == Comparison.SMALLER_THAN_AND_EQUAL) && !includeUpper )
+                    (comparison == Comparison.EQUAL || comparison == Comparison.SMALLER_THAN_AND_EQUAL) && !includeUpper )
             {
                 return false;
             }
@@ -387,10 +387,10 @@ public class PointValue extends ScalarValue implements Point, Comparable<PointVa
     }
 
     /**
-     * Parses the given text into a PointValue. The information stated in the header is saved into the PointValue unless it is overridden by the information in
-     * the text
+     * Parses the given text into a PointValue. The information stated in the header is saved into the PointValue
+     * unless it is overridden by the information in the text
      *
-     * @param text             the input text to be parsed into a PointValue
+     * @param text the input text to be parsed into a PointValue
      * @param fieldsFromHeader must be a value obtained from {@link #parseHeaderInformation(CharSequence)} or null
      * @return a PointValue instance with information from the {@param fieldsFromHeader} and {@param text}
      */
@@ -475,7 +475,7 @@ public class PointValue extends ScalarValue implements Point, Comparable<PointVa
             if ( !crs.isGeographic() )
             {
                 throw new InvalidValuesArgumentException( "Geographic points does not support coordinate reference system: " + crs +
-                                                          ". This is set either in the csv header or the actual data column" );
+                        ". This is set either in the csv header or the actual data column" );
             }
         }
         else
@@ -503,8 +503,7 @@ public class PointValue extends ScalarValue implements Point, Comparable<PointVa
         if ( crs.getDimension() != coordinates.length )
         {
             throw new InvalidValuesArgumentException( "Cannot create point with " + crs.getDimension() + "D coordinate reference system and "
-                                                      + coordinates.length + " coordinates. Please consider using equivalent " + coordinates.length +
-                                                      "D coordinate reference system" );
+                    + coordinates.length + " coordinates. Please consider using equivalent " + coordinates.length + "D coordinate reference system" );
         }
         return Values.pointValue( crs, coordinates );
     }
@@ -514,7 +513,7 @@ public class PointValue extends ScalarValue implements Point, Comparable<PointVa
      */
     public Value get( String fieldName )
     {
-        return PointFields.fromName( fieldName ).get( this );
+       return PointFields.fromName( fieldName ).get( this );
     }
 
     DoubleValue getNthCoordinate( int n, String fieldName, boolean onlyGeographic )

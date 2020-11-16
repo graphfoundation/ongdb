@@ -364,7 +364,7 @@ class InternalTreeLogic<KEY,VALUE>
      * @throws IOException on cursor failure
      */
     void insert( PageCursor cursor, StructurePropagation<KEY> structurePropagation, KEY key, VALUE value, ValueMerger<KEY,VALUE> valueMerger,
-                 boolean createIfNotExists, long stableGeneration, long unstableGeneration ) throws IOException
+            boolean createIfNotExists, long stableGeneration, long unstableGeneration ) throws IOException
     {
         assert cursorIsAtExpectedLocation( cursor );
         bTreeNode.validateKeyValueSize( key, value );
@@ -517,7 +517,7 @@ class InternalTreeLogic<KEY,VALUE>
      * @throws IOException on cursor failure
      */
     private void insertInLeaf( PageCursor cursor, StructurePropagation<KEY> structurePropagation, KEY key, VALUE value, ValueMerger<KEY,VALUE> valueMerger,
-                               boolean createIfNotExists, long stableGeneration, long unstableGeneration ) throws IOException
+            boolean createIfNotExists, long stableGeneration, long unstableGeneration ) throws IOException
     {
         int keyCount = TreeNode.keyCount( cursor );
         int search = search( cursor, LEAF, key, readKey, keyCount );

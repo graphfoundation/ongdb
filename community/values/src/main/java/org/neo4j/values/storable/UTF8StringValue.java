@@ -505,7 +505,7 @@ public final class UTF8StringValue extends StringValue
     }
 
     public static int byteArrayCompare( byte[] value1, int value1Offset, int value1Length,
-                                        byte[] value2, int value2Offset, int value2Length )
+            byte[] value2, int value2Offset, int value2Length )
     {
         int lim = Math.min( value1Length, value2Length );
         for ( int i = 0; i < lim; i++ )

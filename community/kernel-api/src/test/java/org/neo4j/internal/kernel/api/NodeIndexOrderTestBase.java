@@ -216,14 +216,14 @@ public abstract class NodeIndexOrderTestBase<G extends KernelAPIWriteTestSupport
     private void concurrentInsert( Object value ) throws InterruptedException, java.util.concurrent.ExecutionException
     {
         otherThreadRule.execute( state ->
-                                 {
-                                     try ( Transaction otherTx = beginTransaction() )
-                                     {
-                                         nodeWithProp( otherTx, value );
-                                         otherTx.success();
-                                     }
-                                     return null;
-                                 } ).get();
+        {
+            try ( Transaction otherTx = beginTransaction() )
+            {
+                nodeWithProp( otherTx, value );
+                otherTx.success();
+            }
+            return null;
+        } ).get();
     }
 
     private void assertResultsInOrder( List<Pair<Long,Value>> expected, NodeValueIndexCursor cursor )
