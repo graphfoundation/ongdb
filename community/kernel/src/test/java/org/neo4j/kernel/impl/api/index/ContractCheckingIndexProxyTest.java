@@ -297,7 +297,7 @@ public class ContractCheckingIndexProxyTest
                 }
                 catch ( Exception e )
                 {
-                    throw new RuntimeException( e );
+                  throw new RuntimeException( e );
                 }
             }
         };
@@ -330,16 +330,16 @@ public class ContractCheckingIndexProxyTest
     private Thread createActionThread( ThrowingRunnable action )
     {
         return new Thread( () ->
-                           {
-                               try
-                               {
-                                   action.run();
-                               }
-                               catch ( IOException e )
-                               {
-                                   throw new RuntimeException( e );
-                               }
-                           } );
+        {
+            try
+            {
+                action.run();
+            }
+            catch ( IOException e )
+            {
+                throw new RuntimeException( e );
+            }
+        } );
     }
 
     private ContractCheckingIndexProxy newContractCheckingIndexProxy( IndexProxy inner )

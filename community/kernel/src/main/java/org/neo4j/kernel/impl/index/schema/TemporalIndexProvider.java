@@ -69,7 +69,7 @@ public class TemporalIndexProvider extends IndexProvider
 
     @Override
     public IndexPopulator getPopulator( StoreIndexDescriptor descriptor, IndexSamplingConfig samplingConfig, ByteBufferFactory bufferFactory,
-                                        TokenNameLookup tokenNameLookup )
+            TokenNameLookup tokenNameLookup )
     {
         if ( readOnly )
         {
@@ -81,7 +81,7 @@ public class TemporalIndexProvider extends IndexProvider
 
     @Override
     public IndexAccessor getOnlineAccessor( StoreIndexDescriptor descriptor, IndexSamplingConfig samplingConfig,
-                                            TokenNameLookup tokenNameLookup ) throws IOException
+            TokenNameLookup tokenNameLookup ) throws IOException
     {
         TemporalIndexFiles files = new TemporalIndexFiles( directoryStructure(), descriptor, fs );
         return new TemporalIndexAccessor( descriptor, samplingConfig, pageCache, fs, recoveryCleanupWorkCollector, monitor, files, readOnly, tokenNameLookup );

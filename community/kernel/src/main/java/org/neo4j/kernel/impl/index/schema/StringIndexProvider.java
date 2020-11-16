@@ -50,8 +50,8 @@ public class StringIndexProvider extends NativeIndexProvider<StringIndexKey,Nati
     private static final IndexProviderDescriptor STRING_PROVIDER_DESCRIPTOR = new IndexProviderDescriptor( KEY, "1.0" );
 
     public StringIndexProvider( PageCache pageCache, FileSystemAbstraction fs,
-                                IndexDirectoryStructure.Factory directoryStructure, Monitor monitor, RecoveryCleanupWorkCollector recoveryCleanupWorkCollector,
-                                boolean readOnly )
+            IndexDirectoryStructure.Factory directoryStructure, Monitor monitor, RecoveryCleanupWorkCollector recoveryCleanupWorkCollector,
+            boolean readOnly )
     {
         super( STRING_PROVIDER_DESCRIPTOR, directoryStructure, pageCache, fs, monitor, recoveryCleanupWorkCollector, readOnly );
     }
@@ -64,14 +64,14 @@ public class StringIndexProvider extends NativeIndexProvider<StringIndexKey,Nati
 
     @Override
     protected IndexPopulator newIndexPopulator( File storeFile, StringLayout layout, StoreIndexDescriptor descriptor, ByteBufferFactory bufferFactory,
-                                                TokenNameLookup tokenNameLookup )
+            TokenNameLookup tokenNameLookup )
     {
         return new WorkSyncedNativeIndexPopulator<>( new StringIndexPopulator( pageCache, fs, storeFile, layout, monitor, descriptor, tokenNameLookup ) );
     }
 
     @Override
     protected IndexAccessor newIndexAccessor( File storeFile, StringLayout layout, StoreIndexDescriptor descriptor, boolean readOnly,
-                                              TokenNameLookup tokenNameLookup )
+            TokenNameLookup tokenNameLookup )
     {
         return new StringIndexAccessor( pageCache, fs, storeFile, layout, recoveryCleanupWorkCollector, monitor, descriptor, readOnly, tokenNameLookup );
     }

@@ -73,20 +73,20 @@ import static org.neo4j.kernel.impl.index.schema.NativeIndexes.deleteIndex;
 import static org.neo4j.util.concurrent.Runnables.runAll;
 
 /**
- * {@link IndexPopulator} for native indexes that stores scan updates in parallel append-only files. When all scan updates have been collected each file is
- * sorted and then all of them merged together into the resulting index.
- * <p>
- * Note on buffers: basically each thread adding scan updates will make use of a {@link ByteBufferFactory#acquireThreadLocalBuffer() thread-local buffer}. This
- * together with {@link ByteBufferFactory#globalAllocator() a global buffer for external updates} and carefully reused {@link
- * ByteBufferFactory#newLocalAllocator() local buffers} for merging allows memory consumption to stay virtually the same regardless how many indexes are being
- * built concurrently by the same job and regardless of index sizes. Formula for peak number of buffers in use is roughly {@code 10 * numberOfPopulationWorkers}
- * where numberOfPopulationWorkers is currently capped to 8. So given a buffer size of 1 MiB then maximum memory usage for one population job (which can
- * populate multiple index) is ~80 MiB.
+ * {@link IndexPopulator} for native indexes that stores scan updates in parallel append-only files. When all scan updates have been collected
+ * each file is sorted and then all of them merged together into the resulting index.
+ *
+ * Note on buffers: basically each thread adding scan updates will make use of a {@link ByteBufferFactory#acquireThreadLocalBuffer() thread-local buffer}.
+ * This together with {@link ByteBufferFactory#globalAllocator() a global buffer for external updates} and carefully reused
+ * {@link ByteBufferFactory#newLocalAllocator() local buffers} for merging allows memory consumption to stay virtually the same regardless
+ * how many indexes are being built concurrently by the same job and regardless of index sizes. Formula for peak number of buffers in use is roughly
+ * {@code 10 * numberOfPopulationWorkers} where numberOfPopulationWorkers is currently capped to 8. So given a buffer size of 1 MiB then maximum memory
+ * usage for one population job (which can populate multiple index) is ~80 MiB.
  *
  * @param <KEY>
  * @param <VALUE>
  */
-public abstract class BlockBasedIndexPopulator<KEY extends NativeIndexKey<KEY>, VALUE extends NativeIndexValue> extends NativeIndexPopulator<KEY,VALUE>
+public abstract class BlockBasedIndexPopulator<KEY extends NativeIndexKey<KEY>,VALUE extends NativeIndexValue> extends NativeIndexPopulator<KEY,VALUE>
 {
     public static final String BLOCK_SIZE_NAME = "blockSize";
 
@@ -94,9 +94,9 @@ public abstract class BlockBasedIndexPopulator<KEY extends NativeIndexKey<KEY>, 
     private final IndexDropAction dropAction;
     private final boolean archiveFailedIndex;
     /**
-     * When merging all blocks together the algorithm does multiple passes over the block storage, until the number of blocks reaches 1. Every pass does one or
-     * more merges and every merge merges up to {@link #mergeFactor} number of blocks into one block, i.e. the number of blocks shrinks by a factor {@link
-     * #mergeFactor} every pass, until one block is left.
+     * When merging all blocks together the algorithm does multiple passes over the block storage, until the number of blocks reaches 1.
+     * Every pass does one or more merges and every merge merges up to {@link #mergeFactor} number of blocks into one block,
+     * i.e. the number of blocks shrinks by a factor {@link #mergeFactor} every pass, until one block is left.
      */
     private final int mergeFactor;
     private final BlockStorage.Monitor blockStorageMonitor;
@@ -116,20 +116,18 @@ public abstract class BlockBasedIndexPopulator<KEY extends NativeIndexKey<KEY>, 
     private volatile long numberOfAppliedExternalUpdates;
 
     BlockBasedIndexPopulator( PageCache pageCache, FileSystemAbstraction fs, File file, IndexLayout<KEY,VALUE> layout, IndexProvider.Monitor monitor,
-                              StoreIndexDescriptor descriptor, IndexSpecificSpaceFillingCurveSettingsCache spatialSettings,
-                              IndexDirectoryStructure directoryStructure, IndexDropAction dropAction, boolean archiveFailedIndex,
-                              ByteBufferFactory bufferFactory,
-                              TokenNameLookup tokenNameLookup )
+            StoreIndexDescriptor descriptor, IndexSpecificSpaceFillingCurveSettingsCache spatialSettings,
+            IndexDirectoryStructure directoryStructure, IndexDropAction dropAction, boolean archiveFailedIndex, ByteBufferFactory bufferFactory,
+            TokenNameLookup tokenNameLookup )
     {
         this( pageCache, fs, file, layout, monitor, descriptor, spatialSettings, directoryStructure, dropAction, archiveFailedIndex, bufferFactory,
-              FeatureToggles.getInteger( BlockBasedIndexPopulator.class, "mergeFactor", 8 ), NO_MONITOR, tokenNameLookup );
+                FeatureToggles.getInteger( BlockBasedIndexPopulator.class, "mergeFactor", 8 ), NO_MONITOR, tokenNameLookup );
     }
 
     BlockBasedIndexPopulator( PageCache pageCache, FileSystemAbstraction fs, File file, IndexLayout<KEY,VALUE> layout, IndexProvider.Monitor monitor,
-                              StoreIndexDescriptor descriptor, IndexSpecificSpaceFillingCurveSettingsCache spatialSettings,
-                              IndexDirectoryStructure directoryStructure, IndexDropAction dropAction, boolean archiveFailedIndex,
-                              ByteBufferFactory bufferFactory,
-                              int mergeFactor, BlockStorage.Monitor blockStorageMonitor, TokenNameLookup tokenNameLookup )
+            StoreIndexDescriptor descriptor, IndexSpecificSpaceFillingCurveSettingsCache spatialSettings,
+            IndexDirectoryStructure directoryStructure, IndexDropAction dropAction, boolean archiveFailedIndex, ByteBufferFactory bufferFactory,
+            int mergeFactor, BlockStorage.Monitor blockStorageMonitor, TokenNameLookup tokenNameLookup )
     {
         super( pageCache, fs, file, layout, monitor, descriptor, new SpaceFillingCurveSettingsWriter( spatialSettings ), tokenNameLookup );
         this.directoryStructure = directoryStructure;
@@ -159,16 +157,16 @@ public abstract class BlockBasedIndexPopulator<KEY extends NativeIndexKey<KEY>, 
     }
 
     /**
-     * Base size of blocks of entries. As entries gets written to a BlockStorage, they are buffered up to this size, then sorted and written out. As blocks gets
-     * merged into bigger blocks, this is still the size of the read buffer for each block no matter its size. Each thread has its own buffer when writing and
-     * each thread has {@link #mergeFactor} buffers when merging. The memory usage will be at its biggest during merge and a total memory usage sum can be
-     * calculated like so:
-     * <p>
+     * Base size of blocks of entries. As entries gets written to a BlockStorage, they are buffered up to this size, then sorted and written out.
+     * As blocks gets merged into bigger blocks, this is still the size of the read buffer for each block no matter its size.
+     * Each thread has its own buffer when writing and each thread has {@link #mergeFactor} buffers when merging.
+     * The memory usage will be at its biggest during merge and a total memory usage sum can be calculated like so:
+     *
      * blockSize * numberOfPopulationWorkers * {@link #mergeFactor}
-     * <p>
+     *
      * where typically {@link BatchingMultipleIndexPopulator} controls the number of population workers. The setting
-     * `unsupported.dbms.multi_threaded_schema_index_population_enabled` controls whether or not the multi-threaded {@link BatchingMultipleIndexPopulator} is
-     * used, otherwise a single-threaded populator is used instead.
+     * `unsupported.dbms.multi_threaded_schema_index_population_enabled` controls whether or not the multi-threaded {@link BatchingMultipleIndexPopulator}
+     * is used, otherwise a single-threaded populator is used instead.
      */
     public static int parseBlockSize()
     {
@@ -281,7 +279,7 @@ public abstract class BlockBasedIndexPopulator<KEY extends NativeIndexKey<KEY>, 
             File duplicatesFile = new File( storeFile.getParentFile(), storeFile.getName() + ".dup" );
             int readBufferSize = smallerBufferSize();
             try ( Allocator allocator = bufferFactory.newLocalAllocator();
-                  IndexKeyStorage<KEY> indexKeyStorage = new IndexKeyStorage<>( fileSystem, duplicatesFile, allocator, readBufferSize, layout ) )
+                    IndexKeyStorage<KEY> indexKeyStorage = new IndexKeyStorage<>( fileSystem, duplicatesFile, allocator, readBufferSize, layout ) )
             {
                 RecordingConflictDetector<KEY,VALUE> recordingConflictDetector = new RecordingConflictDetector<>( !descriptor.isUnique(), indexKeyStorage );
                 writeScanUpdatesToTree( recordingConflictDetector, allocator, readBufferSize );
@@ -335,10 +333,10 @@ public abstract class BlockBasedIndexPopulator<KEY extends NativeIndexKey<KEY>, 
             // Call doneAdding here so that the buffer it allocates if it needs to flush something will be shared with other indexes
             scanUpdates.doneAdding();
             mergeFutures.add( executorService.submit( () ->
-                                                      {
-                                                          scanUpdates.merge( mergeFactor, cancellation );
-                                                          return null;
-                                                      } ) );
+            {
+                scanUpdates.merge( mergeFactor, cancellation );
+                return null;
+            } ) );
         }
         executorService.shutdown();
         while ( !executorService.awaitTermination( 1, TimeUnit.SECONDS ) )
@@ -353,11 +351,10 @@ public abstract class BlockBasedIndexPopulator<KEY extends NativeIndexKey<KEY>, 
     }
 
     /**
-     * We will loop over all external updates once to add them to the tree. This is done without checking any uniqueness. If index is a uniqueness index we will
-     * then loop over external updates again and for each ADD or CHANGED update we will verify that those entries are unique in the tree and throw as soon as we
-     * find a duplicate.
-     *
-     * @throws IOException                 If something goes wrong while reading from index.
+     * We will loop over all external updates once to add them to the tree. This is done without checking any uniqueness.
+     * If index is a uniqueness index we will then loop over external updates again and for each ADD or CHANGED update
+     * we will verify that those entries are unique in the tree and throw as soon as we find a duplicate.
+     * @throws IOException If something goes wrong while reading from index.
      * @throws IndexEntryConflictException If a duplicate is found.
      */
     private void writeExternalUpdatesToTree( RecordingConflictDetector<KEY,VALUE> recordingConflictDetector ) throws IOException, IndexEntryConflictException
@@ -607,16 +604,16 @@ public abstract class BlockBasedIndexPopulator<KEY extends NativeIndexKey<KEY>, 
         catch ( Exception e )
         {
             Exceptions.withMessage( e,
-                                    String.format( "Failed while trying to write to index, targetIndex=%s, nodeId=%d. Cause: %s",
-                                                   descriptor.userDescription( tokenNameLookup ), key.getEntityId(), e.getMessage() ) );
+                    String.format( "Failed while trying to write to index, targetIndex=%s, nodeId=%d. Cause: %s",
+                            descriptor.userDescription( tokenNameLookup ), key.getEntityId(), e.getMessage() ) );
             throw e;
         }
     }
 
     /**
-     * Will check if recording conflict detector saw a conflict. If it did, that conflict has been recorded and we will verify uniqueness for this value later
-     * on. But for now we try and insert conflicting value again but with a relaxed uniqueness constraint. Insert is done with a throwing conflict checker which
-     * means it will throw if we see same value AND same id in one key.
+     * Will check if recording conflict detector saw a conflict. If it did, that conflict has been recorded and we will verify uniqueness for this
+     * value later on. But for now we try and insert conflicting value again but with a relaxed uniqueness constraint. Insert is done with a throwing
+     * conflict checker which means it will throw if we see same value AND same id in one key.
      */
     private void handleMergeConflict( Writer<KEY,VALUE> writer, RecordingConflictDetector<KEY,VALUE> recordingConflictDetector, KEY key, VALUE value )
             throws IndexEntryConflictException
@@ -635,8 +632,8 @@ public abstract class BlockBasedIndexPopulator<KEY extends NativeIndexKey<KEY>, 
     }
 
     /**
-     * Keeps track of a {@link BlockStorage} instance as well as monitoring some aspects of it to be able to provide a fairly accurate progress report from
-     * {@link BlockBasedIndexPopulator#progress(PopulationProgress)}.
+     * Keeps track of a {@link BlockStorage} instance as well as monitoring some aspects of it to be able to provide a fairly accurate
+     * progress report from {@link BlockBasedIndexPopulator#progress(PopulationProgress)}.
      */
     private class ThreadLocalBlockStorage extends BlockStorage.Monitor.Delegate
     {

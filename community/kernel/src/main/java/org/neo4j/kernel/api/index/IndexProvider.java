@@ -123,7 +123,7 @@ public abstract class IndexProvider extends LifecycleAdapter
 
             @Override
             public void recoveryCleanupFinished( File indexFile, IndexDescriptor indexDescriptor,
-                                                 long numberOfPagesVisited, long numberOfCleanedCrashPointers, long durationMillis )
+                    long numberOfPagesVisited, long numberOfCleanedCrashPointers, long durationMillis )
             {   // no-op
             }
 
@@ -145,7 +145,7 @@ public abstract class IndexProvider extends LifecycleAdapter
         void recoveryCleanupStarted( File indexFile, IndexDescriptor indexDescriptor );
 
         void recoveryCleanupFinished( File indexFile, IndexDescriptor indexDescriptor,
-                                      long numberOfPagesVisited, long numberOfCleanedCrashPointers, long durationMillis );
+                long numberOfPagesVisited, long numberOfCleanedCrashPointers, long durationMillis );
 
         void recoveryCleanupClosed( File indexFile, IndexDescriptor indexDescriptor );
 
@@ -160,14 +160,14 @@ public abstract class IndexProvider extends LifecycleAdapter
 
                 @Override
                 public IndexAccessor getOnlineAccessor( StoreIndexDescriptor descriptor, IndexSamplingConfig samplingConfig,
-                                                        TokenNameLookup tokenNameLookup )
+                        TokenNameLookup tokenNameLookup )
                 {
                     return singleWriter;
                 }
 
                 @Override
                 public IndexPopulator getPopulator( StoreIndexDescriptor descriptor, IndexSamplingConfig samplingConfig, ByteBufferFactory bufferFactory,
-                                                    TokenNameLookup tokenNameLookup )
+                        TokenNameLookup tokenNameLookup )
                 {
                     return singlePopulator;
                 }
@@ -186,7 +186,7 @@ public abstract class IndexProvider extends LifecycleAdapter
 
                 @Override
                 public StoreMigrationParticipant storeMigrationParticipant( FileSystemAbstraction fs,
-                                                                            PageCache pageCache )
+                        PageCache pageCache )
                 {
                     return StoreMigrationParticipant.NOT_PARTICIPATING;
                 }
@@ -235,13 +235,13 @@ public abstract class IndexProvider extends LifecycleAdapter
      * Used for initially populating a created index, using batch insertion.
      */
     public abstract IndexPopulator getPopulator( StoreIndexDescriptor descriptor, IndexSamplingConfig samplingConfig, ByteBufferFactory bufferFactory,
-                                                 TokenNameLookup tokenNameLookup );
+            TokenNameLookup tokenNameLookup );
 
     /**
      * Used for updating an index once initial population has completed.
      */
     public abstract IndexAccessor getOnlineAccessor( StoreIndexDescriptor descriptor, IndexSamplingConfig samplingConfig,
-                                                     TokenNameLookup tokenNameLookup ) throws IOException;
+            TokenNameLookup tokenNameLookup ) throws IOException;
 
     /**
      * Returns a failure previously gotten from {@link IndexPopulator#markAsFailed(String)}
@@ -319,14 +319,14 @@ public abstract class IndexProvider extends LifecycleAdapter
 
         @Override
         public IndexPopulator getPopulator( StoreIndexDescriptor descriptor, IndexSamplingConfig samplingConfig, ByteBufferFactory bufferFactory,
-                                            TokenNameLookup tokenNameLookup )
+                TokenNameLookup tokenNameLookup )
         {
             return null;
         }
 
         @Override
         public IndexAccessor getOnlineAccessor( StoreIndexDescriptor descriptor, IndexSamplingConfig samplingConfig,
-                                                TokenNameLookup tokenNameLookup )
+                TokenNameLookup tokenNameLookup )
         {
             return null;
         }

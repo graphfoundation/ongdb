@@ -290,7 +290,7 @@ public class BlockBasedIndexPopulatorTest
 
             // then
             assertTrue( "expected some memory to have been temporarily allocated in scanCompleted",
-                        memoryTracker.peakMemoryUsage() > memoryBeforeScanCompleted );
+                    memoryTracker.peakMemoryUsage() > memoryBeforeScanCompleted );
             populator.close( true );
             assertEquals( "expected all allocated memory to have been freed on close", memoryBeforeScanCompleted, memoryTracker.usedDirectMemory() );
             closed = true;
@@ -329,7 +329,7 @@ public class BlockBasedIndexPopulatorTest
 
             // then
             assertTrue( "expected some memory to have been temporarily allocated in scanCompleted",
-                        memoryTracker.peakMemoryUsage() > memoryBeforeScanCompleted );
+                    memoryTracker.peakMemoryUsage() > memoryBeforeScanCompleted );
             populator.drop();
             closed = true;
             assertEquals( "expected all allocated memory to have been freed on drop", memoryBeforeScanCompleted, memoryTracker.usedDirectMemory() );
@@ -371,8 +371,7 @@ public class BlockBasedIndexPopulatorTest
         GenericLayout layout = new GenericLayout( 1, spatialSettings );
         BlockBasedIndexPopulator<GenericKey,NativeIndexValue> populator =
                 new BlockBasedIndexPopulator<GenericKey,NativeIndexValue>( storage.pageCache(), fs, indexFile, layout, EMPTY,
-                                                                           INDEX_DESCRIPTOR, spatialSettings, directoryStructure, dropAction, false,
-                                                                           bufferFactory, 2, monitor, tokenNameLookup )
+                        INDEX_DESCRIPTOR, spatialSettings, directoryStructure, dropAction, false, bufferFactory, 2, monitor, tokenNameLookup )
                 {
                     @Override
                     NativeIndexReader<GenericKey,NativeIndexValue> newReader()

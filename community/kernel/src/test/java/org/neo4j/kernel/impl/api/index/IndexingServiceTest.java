@@ -195,7 +195,7 @@ public class IndexingServiceTest
     private final IndexUpdater updater = mock( IndexUpdater.class );
     private final IndexProvider indexProvider = mock( IndexProvider.class );
     private final IndexAccessor accessor = mock( IndexAccessor.class, RETURNS_MOCKS );
-    private final IndexStoreView storeView = mock( IndexStoreView.class );
+    private final IndexStoreView storeView  = mock( IndexStoreView.class );
     private final TokenNameLookup nameLookup = mock( TokenNameLookup.class );
     private final AssertableLogProvider internalLogProvider = new AssertableLogProvider();
     private final AssertableLogProvider userLogProvider = new AssertableLogProvider();
@@ -222,7 +222,7 @@ public class IndexingServiceTest
     public void shouldBringIndexOnlineAndFlipOverToIndexAccessor() throws Exception
     {
         // given
-        when( accessor.newUpdater( any( IndexUpdateMode.class ) ) ).thenReturn( updater );
+        when( accessor.newUpdater( any( IndexUpdateMode.class ) ) ).thenReturn(updater);
 
         IndexingService indexingService = newIndexingServiceWithMockedDependencies( populator, accessor, withData() );
 
@@ -242,7 +242,7 @@ public class IndexingServiceTest
 
         // then
         assertEquals( InternalIndexState.ONLINE, proxy.getState() );
-        InOrder order = inOrder( populator, accessor, updater );
+        InOrder order = inOrder( populator, accessor, updater);
         order.verify( populator ).create();
         order.verify( populator ).close( true );
         order.verify( accessor ).newUpdater( IndexUpdateMode.ONLINE_IDEMPOTENT );
@@ -326,7 +326,7 @@ public class IndexingServiceTest
 
         // then
         assertEquals( InternalIndexState.ONLINE, proxy.getState() );
-        InOrder order = inOrder( populator, accessor, updater );
+        InOrder order = inOrder( populator, accessor, updater);
         order.verify( populator ).create();
         order.verify( populator ).includeSample( add( 1, "value1" ) );
         order.verify( populator, times( 1 ) ).add( any( Collection.class ) );
@@ -404,13 +404,13 @@ public class IndexingServiceTest
         IndexProviderMap providerMap = life.add( new DefaultIndexProviderMap( buildIndexDependencies( provider ), config ) );
         TokenNameLookup mockLookup = mock( TokenNameLookup.class );
 
-        StoreIndexDescriptor onlineIndex = storeIndex( 1, 1, 1, PROVIDER_DESCRIPTOR );
+        StoreIndexDescriptor onlineIndex     = storeIndex( 1, 1, 1, PROVIDER_DESCRIPTOR );
         StoreIndexDescriptor populatingIndex = storeIndex( 2, 1, 2, PROVIDER_DESCRIPTOR );
-        StoreIndexDescriptor failedIndex = storeIndex( 3, 2, 2, PROVIDER_DESCRIPTOR );
+        StoreIndexDescriptor failedIndex     = storeIndex( 3, 2, 2, PROVIDER_DESCRIPTOR );
 
         life.add( IndexingServiceFactory.createIndexingService( config, mock( JobScheduler.class ), providerMap,
-                                                                mock( IndexStoreView.class ), mockLookup, asList( onlineIndex, populatingIndex, failedIndex ),
-                                                                internalLogProvider, userLogProvider, IndexingService.NO_MONITOR, schemaState, false ) );
+                mock( IndexStoreView.class ), mockLookup, asList( onlineIndex, populatingIndex, failedIndex ),
+                internalLogProvider, userLogProvider, IndexingService.NO_MONITOR, schemaState, false ) );
 
         when( provider.getInitialState( onlineIndex ) )
                 .thenReturn( ONLINE );
@@ -419,7 +419,7 @@ public class IndexingServiceTest
         when( provider.getInitialState( failedIndex ) )
                 .thenReturn( InternalIndexState.FAILED );
 
-        when( mockLookup.labelGetName( 1 ) ).thenReturn( "LabelOne" );
+        when(mockLookup.labelGetName( 1 )).thenReturn( "LabelOne" );
         when( mockLookup.labelGetName( 2 ) ).thenReturn( "LabelTwo" );
         when( mockLookup.propertyKeyGetName( 1 ) ).thenReturn( "propertyOne" );
         when( mockLookup.propertyKeyGetName( 2 ) ).thenReturn( "propertyTwo" );
@@ -445,15 +445,14 @@ public class IndexingServiceTest
         providerMap.init();
         TokenNameLookup mockLookup = mock( TokenNameLookup.class );
 
-        StoreIndexDescriptor onlineIndex = storeIndex( 1, 1, 1, PROVIDER_DESCRIPTOR );
+        StoreIndexDescriptor onlineIndex     = storeIndex( 1, 1, 1, PROVIDER_DESCRIPTOR );
         StoreIndexDescriptor populatingIndex = storeIndex( 2, 1, 2, PROVIDER_DESCRIPTOR );
-        StoreIndexDescriptor failedIndex = storeIndex( 3, 2, 2, PROVIDER_DESCRIPTOR );
+        StoreIndexDescriptor failedIndex     = storeIndex( 3, 2, 2, PROVIDER_DESCRIPTOR );
 
         IndexingService indexingService = IndexingServiceFactory.createIndexingService( config,
-                                                                                        mock( JobScheduler.class ), providerMap, storeView, mockLookup,
-                                                                                        asList( onlineIndex, populatingIndex, failedIndex ),
-                                                                                        internalLogProvider, userLogProvider, IndexingService.NO_MONITOR,
-                                                                                        schemaState, false );
+                mock( JobScheduler.class ), providerMap, storeView, mockLookup,
+                asList( onlineIndex, populatingIndex, failedIndex ), internalLogProvider, userLogProvider, IndexingService.NO_MONITOR,
+                schemaState, false );
 
         when( provider.getInitialState( onlineIndex ) )
                 .thenReturn( ONLINE );
@@ -464,10 +463,10 @@ public class IndexingServiceTest
 
         indexingService.init();
 
-        when( mockLookup.labelGetName( 1 ) ).thenReturn( "LabelOne" );
-        when( mockLookup.labelGetName( 2 ) ).thenReturn( "LabelTwo" );
-        when( mockLookup.propertyKeyGetName( 1 ) ).thenReturn( "propertyOne" );
-        when( mockLookup.propertyKeyGetName( 2 ) ).thenReturn( "propertyTwo" );
+        when(mockLookup.labelGetName( 1 )).thenReturn( "LabelOne" );
+        when(mockLookup.labelGetName( 2 )).thenReturn( "LabelTwo" );
+        when(mockLookup.propertyKeyGetName( 1 )).thenReturn( "propertyOne" );
+        when(mockLookup.propertyKeyGetName( 2 )).thenReturn( "propertyTwo" );
         when( storeView.indexSample( anyLong(), any( DoubleLongRegister.class ) ) ).thenReturn( newDoubleLongRegister( 32L, 32L ) );
 
         internalLogProvider.clear();
@@ -488,8 +487,8 @@ public class IndexingServiceTest
     public void shouldNotLogWhenNoDeprecatedIndexesOnInit() throws IOException
     {
         // given
-        StoreIndexDescriptor nativeBtree10Index = storeIndex( 5, 1, 5, nativeBtree10Descriptor );
-        StoreIndexDescriptor fulltextIndex = storeIndex( 6, 1, 6, fulltextDescriptor );
+        StoreIndexDescriptor nativeBtree10Index  = storeIndex( 5, 1, 5, nativeBtree10Descriptor );
+        StoreIndexDescriptor fulltextIndex  = storeIndex( 6, 1, 6, fulltextDescriptor );
 
         IndexProvider lucene10Provider = mockIndexProviderWithAccessor( lucene10Descriptor );
         IndexProvider native10Provider = mockIndexProviderWithAccessor( native10Descriptor );
@@ -507,10 +506,9 @@ public class IndexingServiceTest
         TokenNameLookup mockLookup = mock( TokenNameLookup.class );
 
         IndexingService indexingService = IndexingServiceFactory.createIndexingService( config,
-                                                                                        mock( JobScheduler.class ), providerMap, storeView, mockLookup,
-                                                                                        Collections.singletonList( nativeBtree10Index ), internalLogProvider,
-                                                                                        userLogProvider, IndexingService.NO_MONITOR,
-                                                                                        schemaState, false );
+                mock( JobScheduler.class ), providerMap, storeView, mockLookup,
+                Collections.singletonList( nativeBtree10Index ),internalLogProvider, userLogProvider, IndexingService.NO_MONITOR,
+                schemaState, false );
 
         // when
         indexingService.init();
@@ -526,8 +524,8 @@ public class IndexingServiceTest
     public void shouldNotLogWhenNoDeprecatedIndexesOnStart() throws IOException
     {
         // given
-        StoreIndexDescriptor nativeBtree10Index = storeIndex( 5, 1, 5, nativeBtree10Descriptor );
-        StoreIndexDescriptor fulltextIndex = storeIndex( 6, 1, 6, fulltextDescriptor );
+        StoreIndexDescriptor nativeBtree10Index  = storeIndex( 5, 1, 5, nativeBtree10Descriptor );
+        StoreIndexDescriptor fulltextIndex  = storeIndex( 6, 1, 6, fulltextDescriptor );
 
         IndexProvider lucene10Provider = mockIndexProviderWithAccessor( lucene10Descriptor );
         IndexProvider native10Provider = mockIndexProviderWithAccessor( native10Descriptor );
@@ -546,10 +544,9 @@ public class IndexingServiceTest
         TokenNameLookup mockLookup = mock( TokenNameLookup.class );
 
         IndexingService indexingService = IndexingServiceFactory.createIndexingService( config,
-                                                                                        mock( JobScheduler.class ), providerMap, storeView, mockLookup,
-                                                                                        Collections.singletonList( nativeBtree10Index ), internalLogProvider,
-                                                                                        userLogProvider, IndexingService.NO_MONITOR,
-                                                                                        schemaState, false );
+                mock( JobScheduler.class ), providerMap, storeView, mockLookup,
+                Collections.singletonList( nativeBtree10Index ), internalLogProvider, userLogProvider, IndexingService.NO_MONITOR,
+                schemaState, false );
 
         // when
         indexingService.init();
@@ -567,12 +564,12 @@ public class IndexingServiceTest
     public void shouldLogDeprecatedIndexesOnStart() throws IOException
     {
         // given
-        StoreIndexDescriptor lucene10Index = storeIndex( 1, 1, 1, lucene10Descriptor );
-        StoreIndexDescriptor native10Index = storeIndex( 2, 1, 2, native10Descriptor );
-        StoreIndexDescriptor native20Index1 = storeIndex( 3, 1, 3, native20Descriptor );
-        StoreIndexDescriptor native20Index2 = storeIndex( 4, 1, 4, native20Descriptor );
-        StoreIndexDescriptor nativeBtree10Index = storeIndex( 5, 1, 5, nativeBtree10Descriptor );
-        StoreIndexDescriptor fulltextIndex = storeIndex( 6, 1, 6, fulltextDescriptor );
+        StoreIndexDescriptor lucene10Index       = storeIndex( 1, 1, 1, lucene10Descriptor );
+        StoreIndexDescriptor native10Index       = storeIndex( 2, 1, 2, native10Descriptor );
+        StoreIndexDescriptor native20Index1      = storeIndex( 3, 1, 3, native20Descriptor );
+        StoreIndexDescriptor native20Index2      = storeIndex( 4, 1, 4, native20Descriptor );
+        StoreIndexDescriptor nativeBtree10Index  = storeIndex( 5, 1, 5, nativeBtree10Descriptor );
+        StoreIndexDescriptor fulltextIndex  = storeIndex( 6, 1, 6, fulltextDescriptor );
 
         IndexProvider lucene10Provider = mockIndexProviderWithAccessor( lucene10Descriptor );
         IndexProvider native10Provider = mockIndexProviderWithAccessor( native10Descriptor );
@@ -594,10 +591,9 @@ public class IndexingServiceTest
         TokenNameLookup mockLookup = mock( TokenNameLookup.class );
 
         IndexingService indexingService = IndexingServiceFactory.createIndexingService( config,
-                                                                                        mock( JobScheduler.class ), providerMap, storeView, mockLookup,
-                                                                                        asList( lucene10Index, native10Index, native20Index1, native20Index2,
-                                                                                                nativeBtree10Index ), internalLogProvider, userLogProvider,
-                                                                                        IndexingService.NO_MONITOR, schemaState, false );
+                mock( JobScheduler.class ), providerMap, storeView, mockLookup,
+                asList( lucene10Index, native10Index, native20Index1, native20Index2, nativeBtree10Index ), internalLogProvider, userLogProvider,
+                IndexingService.NO_MONITOR, schemaState, false );
 
         // when
         indexingService.init();
@@ -655,10 +651,10 @@ public class IndexingServiceTest
         IndexAccessor indexAccessor = mock( IndexAccessor.class );
         IndexingService indexing = newIndexingServiceWithMockedDependencies(
                 mock( IndexPopulator.class ), indexAccessor,
-                new DataUpdates(), rule1, rule2 );
+                new DataUpdates( ), rule1, rule2 );
         File theFile = new File( "Blah" );
 
-        when( indexAccessor.snapshotFiles() ).thenAnswer( newResourceIterator( theFile ) );
+        when( indexAccessor.snapshotFiles()).thenAnswer( newResourceIterator( theFile ) );
         when( indexProvider.getInitialState( rule1 ) ).thenReturn( ONLINE );
         when( indexProvider.getInitialState( rule2 ) ).thenReturn( ONLINE );
         when( storeView.indexSample( anyLong(), any( DoubleLongRegister.class ) ) )
@@ -679,7 +675,7 @@ public class IndexingServiceTest
     {
         // GIVEN
         CountDownLatch populatorLatch = new CountDownLatch( 1 );
-        IndexAccessor indexAccessor = mock( IndexAccessor.class );
+        IndexAccessor indexAccessor = mock(IndexAccessor.class);
         int indexId = 1;
         int indexId2 = 2;
         StoreIndexDescriptor rule1 = storeIndex( indexId, 2, 3, PROVIDER_DESCRIPTOR );
@@ -747,7 +743,7 @@ public class IndexingServiceTest
         life.start();
 
         // when
-        indexingService.triggerIndexSampling( descriptor.schema(), mode );
+        indexingService.triggerIndexSampling( descriptor.schema() , mode );
 
         // then
         String userDescription = descriptor.schema().userDescription( nameLookup );
@@ -858,7 +854,7 @@ public class IndexingServiceTest
     }
 
     private void waitForIndexesToGetIntoState( IndexingService indexing, InternalIndexState state,
-                                               long... indexRuleIds )
+            long... indexRuleIds )
             throws IndexNotFoundKernelException
     {
         long end = currentTimeMillis() + SECONDS.toMillis( 30 );
@@ -872,7 +868,7 @@ public class IndexingServiceTest
     }
 
     private boolean allInState( IndexingService indexing, InternalIndexState state,
-                                long[] indexRuleIds ) throws IndexNotFoundKernelException
+            long[] indexRuleIds ) throws IndexNotFoundKernelException
     {
         for ( long indexRuleId : indexRuleIds )
         {
@@ -976,14 +972,14 @@ public class IndexingServiceTest
         };
         // leaving out the IndexRule here will have the index being populated from scratch
         IndexingService indexing = newIndexingServiceWithMockedDependencies( populator, accessor,
-                                                                             withData( addNodeUpdate( 0, "value", 1 ) ), monitor );
+                withData( addNodeUpdate( 0, "value", 1 ) ), monitor );
 
         // WHEN initializing, i.e. preparing for recovery
         life.init();
         // simulating an index being created as part of applying recovered transactions
         long fakeOwningConstraintRuleId = 1;
         indexing.createIndexes( constraintIndexRule( 2, labelId, propertyKeyId, PROVIDER_DESCRIPTOR,
-                                                     fakeOwningConstraintRuleId ) );
+                fakeOwningConstraintRuleId ) );
         // and then starting, i.e. considering recovery completed
         life.start();
 
@@ -998,7 +994,7 @@ public class IndexingServiceTest
         // GIVEN
         IndexingService.Monitor monitor = IndexingService.NO_MONITOR;
         IndexingService indexing = newIndexingServiceWithMockedDependencies( populator, accessor,
-                                                                             withData( addNodeUpdate( 0, "value", 1 ) ), monitor );
+                withData( addNodeUpdate( 0, "value", 1 ) ), monitor );
         life.start();
 
         // WHEN
@@ -1009,11 +1005,11 @@ public class IndexingServiceTest
 
         // THEN
         verify( indexProvider ).getPopulator( eq( forSchema( forLabel( 0, 0 ), PROVIDER_DESCRIPTOR ).withId( 0 ) ),
-                                              any( IndexSamplingConfig.class ), any(), any( TokenNameLookup.class ) );
+                any( IndexSamplingConfig.class ), any(), any( TokenNameLookup.class ) );
         verify( indexProvider ).getPopulator( eq( forSchema( forLabel( 0, 1 ), PROVIDER_DESCRIPTOR ).withId( 1 ) ),
-                                              any( IndexSamplingConfig.class ), any(), any( TokenNameLookup.class ) );
+                any( IndexSamplingConfig.class ), any(), any( TokenNameLookup.class ) );
         verify( indexProvider ).getPopulator( eq( forSchema( forLabel( 1, 0 ), PROVIDER_DESCRIPTOR ).withId( 2 ) ),
-                                              any( IndexSamplingConfig.class ), any(), any( TokenNameLookup.class ) );
+                any( IndexSamplingConfig.class ), any(), any( TokenNameLookup.class ) );
 
         waitForIndexesToComeOnline( indexing, 0, 1, 2 );
     }
@@ -1046,7 +1042,7 @@ public class IndexingServiceTest
         assertThat( storedFailure(), containsString( format( "java.io.IOException: Expected failure%n\tat " ) ) );
         internalLogProvider.assertAtLeastOnce( inLog( IndexPopulationJob.class ).error( equalTo(
                 "Failed to populate index: [:TheLabel(propertyKey) [provider: {key=quantum-dex, version=25.0}]]" ),
-                                                                                        causedBy( exception ) ) );
+                causedBy( exception ) ) );
         internalLogProvider.assertNone( inLog( IndexPopulationJob.class ).info(
                 "Index population completed. Index is now online: [%s]",
                 ":TheLabel(propertyKey) [provider: {key=quantum-dex, version=25.0}]" ) );
@@ -1081,7 +1077,7 @@ public class IndexingServiceTest
         assertThat( storedFailure(), containsString( format( "java.io.IOException: Expected failure%n\tat " ) ) );
         internalLogProvider.assertAtLeastOnce( inLog( IndexPopulationJob.class ).error( equalTo(
                 "Failed to populate index: [:TheLabel(propertyKey) [provider: {key=quantum-dex, version=25.0}]]" ),
-                                                                                        causedBy( exception ) ) );
+                causedBy( exception ) ) );
         internalLogProvider.assertNone( inLog( IndexPopulationJob.class ).info(
                 "Index population completed. Index is now online: [%s]",
                 ":TheLabel(propertyKey) [provider: {key=quantum-dex, version=25.0}]" ) );
@@ -1111,18 +1107,17 @@ public class IndexingServiceTest
         try
         {
             AtomicReference<Throwable> startException = new AtomicReference<>();
-            executor.submit( () ->
-                             {
-                                 try
-                                 {
-                                     life.start();
-                                 }
-                                 catch ( Throwable t )
-                                 {
-                                     startException.set( t );
-                                     exceptionBarrier.countDown();
-                                 }
-                             } );
+            executor.submit( () -> {
+                try
+                {
+                    life.start();
+                }
+                catch ( Throwable t )
+                {
+                    startException.set( t );
+                    exceptionBarrier.countDown();
+                }
+            } );
 
             // Thread is just about to start checking index status. We flip to failed proxy to indicate population failure during recovery.
             barrier.await();
@@ -1138,7 +1133,7 @@ public class IndexingServiceTest
             Exception expectedCause = new Exception( "index was failed on purpose" );
             IndexPopulationFailure indexFailure = IndexPopulationFailure.failure( expectedCause );
             flippableIndexProxy.flipTo( new FailedIndexProxy( indexRule, "string", mock( IndexPopulator.class ),
-                                                              indexFailure, mock( IndexCountsRemover.class ), internalLogProvider ) );
+                    indexFailure, mock( IndexCountsRemover.class ), internalLogProvider ) );
             barrier.release();
             exceptionBarrier.await();
             Throwable actual = startException.get();
@@ -1182,9 +1177,8 @@ public class IndexingServiceTest
         }
 
         life.add( IndexingServiceFactory.createIndexingService( config, mock( JobScheduler.class ), providerMap,
-                                                                mock( IndexStoreView.class ), mockLookup, indexes, internalLogProvider, userLogProvider,
-                                                                IndexingService.NO_MONITOR,
-                                                                schemaState, false ) );
+                mock( IndexStoreView.class ), mockLookup, indexes, internalLogProvider, userLogProvider, IndexingService.NO_MONITOR,
+                schemaState, false ) );
 
         when( mockLookup.propertyKeyGetName( 1 ) ).thenReturn( "prop" );
 
@@ -1230,9 +1224,8 @@ public class IndexingServiceTest
         }
 
         IndexingService indexingService = IndexingServiceFactory.createIndexingService( config,
-                                                                                        mock( JobScheduler.class ), providerMap, storeView, mockLookup, indexes,
-                                                                                        internalLogProvider, userLogProvider, IndexingService.NO_MONITOR,
-                                                                                        schemaState, false );
+                mock( JobScheduler.class ), providerMap, storeView, mockLookup, indexes,
+                internalLogProvider, userLogProvider, IndexingService.NO_MONITOR, schemaState, false );
         when( storeView.indexSample( anyLong(), any( DoubleLongRegister.class ) ) )
                 .thenReturn( newDoubleLongRegister( 32L, 32L ) );
         when( mockLookup.propertyKeyGetName( 1 ) ).thenReturn( "prop" );
@@ -1255,30 +1248,30 @@ public class IndexingServiceTest
     public void flushAllIndexesWhileSomeOfThemDropped() throws IOException
     {
         IndexMapReference indexMapReference = new IndexMapReference();
-        IndexProxy validIndex1 = createIndexProxyMock( 1 );
-        IndexProxy validIndex2 = createIndexProxyMock( 2 );
-        IndexProxy deletedIndexProxy = createIndexProxyMock( 3 );
-        IndexProxy validIndex3 = createIndexProxyMock( 4 );
-        IndexProxy validIndex4 = createIndexProxyMock( 5 );
+        IndexProxy validIndex1 = createIndexProxyMock(1);
+        IndexProxy validIndex2 = createIndexProxyMock(2);
+        IndexProxy deletedIndexProxy = createIndexProxyMock(3);
+        IndexProxy validIndex3 = createIndexProxyMock(4);
+        IndexProxy validIndex4 = createIndexProxyMock(5);
         indexMapReference.modify( indexMap ->
-                                  {
-                                      indexMap.putIndexProxy( validIndex1 );
-                                      indexMap.putIndexProxy( validIndex2 );
-                                      indexMap.putIndexProxy( deletedIndexProxy );
-                                      indexMap.putIndexProxy( validIndex3 );
-                                      indexMap.putIndexProxy( validIndex4 );
-                                      return indexMap;
-                                  } );
+        {
+            indexMap.putIndexProxy( validIndex1 );
+            indexMap.putIndexProxy( validIndex2 );
+            indexMap.putIndexProxy( deletedIndexProxy );
+            indexMap.putIndexProxy( validIndex3 );
+            indexMap.putIndexProxy( validIndex4 );
+            return indexMap;
+        } );
 
         doAnswer( invocation ->
-                  {
-                      indexMapReference.modify( indexMap ->
-                                                {
-                                                    indexMap.removeIndexProxy( 3 );
-                                                    return indexMap;
-                                                } );
-                      throw new RuntimeException( "Index deleted." );
-                  } ).when( deletedIndexProxy ).force( any( IOLimiter.class ) );
+        {
+            indexMapReference.modify( indexMap ->
+            {
+                indexMap.removeIndexProxy( 3 );
+                return indexMap;
+            } );
+            throw new RuntimeException( "Index deleted." );
+        } ).when( deletedIndexProxy ).force( any( IOLimiter.class ) );
 
         IndexingService indexingService = createIndexServiceWithCustomIndexMap( indexMapReference );
 
@@ -1296,15 +1289,15 @@ public class IndexingServiceTest
         IndexProxy strangeIndexProxy = createIndexProxyMock( 1 );
         doThrow( new UncheckedIOException( new IOException( "Can't force" ) ) ).when( strangeIndexProxy ).force( any( IOLimiter.class ) );
         indexMapReference.modify( indexMap ->
-                                  {
-                                      IndexProxy validIndex = createIndexProxyMock( 0 );
-                                      indexMap.putIndexProxy( validIndex );
-                                      indexMap.putIndexProxy( validIndex );
-                                      indexMap.putIndexProxy( strangeIndexProxy );
-                                      indexMap.putIndexProxy( validIndex );
-                                      indexMap.putIndexProxy( validIndex );
-                                      return indexMap;
-                                  } );
+        {
+            IndexProxy validIndex = createIndexProxyMock( 0 );
+            indexMap.putIndexProxy( validIndex );
+            indexMap.putIndexProxy( validIndex );
+            indexMap.putIndexProxy( strangeIndexProxy );
+            indexMap.putIndexProxy( validIndex );
+            indexMap.putIndexProxy( validIndex );
+            return indexMap;
+        } );
 
         IndexingService indexingService = createIndexServiceWithCustomIndexMap( indexMapReference );
 
@@ -1324,7 +1317,7 @@ public class IndexingServiceTest
         IndexUpdater updater = mock( IndexUpdater.class );
         when( accessor.newUpdater( any( IndexUpdateMode.class ) ) ).thenReturn( updater );
         when( indexProvider.getOnlineAccessor( any( StoreIndexDescriptor.class ),
-                                               any( IndexSamplingConfig.class ), any( TokenNameLookup.class ) ) ).thenReturn( accessor );
+                any( IndexSamplingConfig.class ), any( TokenNameLookup.class ) ) ).thenReturn( accessor );
 
         life.init();
 
@@ -1383,7 +1376,7 @@ public class IndexingServiceTest
         IndexingService.Monitor monitor = mock( IndexingService.Monitor.class );
         IndexingService indexingService =
                 new IndexingService( indexProxyCreator, indexProviderMap, indexMapReference, null, schemaRules, samplingController, idTokenNameLookup,
-                                     scheduler, null, multiPopulatorFactory, logProvider, logProvider, monitor, false );
+                        scheduler, null, multiPopulatorFactory, logProvider, logProvider, monitor, false );
         // and where index population starts
         indexingService.init();
 
@@ -1491,7 +1484,7 @@ public class IndexingServiceTest
 
     private static Answer<ResourceIterator<File>> newResourceIterator( final File theFile )
     {
-        return invocationOnMock -> asResourceIterator( iterator( theFile ) );
+        return invocationOnMock -> asResourceIterator(iterator( theFile ));
     }
 
     private EntityUpdates addNodeUpdate( long nodeId, Object propertyValue )
@@ -1502,7 +1495,7 @@ public class IndexingServiceTest
     private EntityUpdates addNodeUpdate( long nodeId, Object propertyValue, int labelId )
     {
         return EntityUpdates.forEntity( nodeId, false ).withTokens( labelId )
-                            .added( index.schema().getPropertyId(), Values.of( propertyValue ) ).build();
+                .added( index.schema().getPropertyId(), Values.of( propertyValue ) ).build();
     }
 
     private IndexEntryUpdate<SchemaDescriptor> add( long nodeId, Object propertyValue )
@@ -1548,15 +1541,15 @@ public class IndexingServiceTest
 
         DefaultIndexProviderMap providerMap = life.add( new DefaultIndexProviderMap( buildIndexDependencies( indexProvider ), config ) );
         return life.add( IndexingServiceFactory.createIndexingService( config,
-                                                                       life.add( JobSchedulerFactory.createScheduler() ), providerMap,
-                                                                       storeView,
-                                                                       nameLookup,
-                                                                       loop( iterator( rules ) ),
-                                                                       internalLogProvider,
-                                                                       userLogProvider,
-                                                                       monitor,
-                                                                       schemaState,
-                                                                       false )
+                        life.add( JobSchedulerFactory.createScheduler() ), providerMap,
+                        storeView,
+                        nameLookup,
+                        loop( iterator( rules ) ),
+                        internalLogProvider,
+                        userLogProvider,
+                        monitor,
+                        schemaState,
+                        false )
         );
     }
 
@@ -1582,8 +1575,8 @@ public class IndexingServiceTest
         @SuppressWarnings( "unchecked" )
         void getsProcessedByStoreScanFrom( IndexStoreView mock )
         {
-            when( mock.visitNodes( any( int[].class ), any( IntPredicate.class ),
-                                   any( Visitor.class ), isNull(), anyBoolean() ) ).thenAnswer( this );
+            when( mock.visitNodes( any(int[].class), any( IntPredicate.class ),
+                    any( Visitor.class ), isNull(), anyBoolean() ) ).thenAnswer( this );
         }
 
         @Override
@@ -1616,8 +1609,8 @@ public class IndexingServiceTest
 
                 @Override
                 public void acceptUpdate( MultipleIndexPopulator.MultipleIndexUpdater updater,
-                                          IndexEntryUpdate<?> update,
-                                          long currentlyIndexedNodeId )
+                        IndexEntryUpdate<?> update,
+                        long currentlyIndexedNodeId )
                 {
                     // no-op
                 }
@@ -1631,7 +1624,7 @@ public class IndexingServiceTest
         }
 
         @SuppressWarnings( {"unchecked", "rawtypes"} )
-        private static Visitor<EntityUpdates,IndexPopulationFailedKernelException> visitor( Object v )
+        private static Visitor<EntityUpdates, IndexPopulationFailedKernelException> visitor( Object v )
         {
             return (Visitor) v;
         }
@@ -1707,7 +1700,7 @@ public class IndexingServiceTest
     }
 
     private static StoreIndexDescriptor constraintIndexRule( long ruleId, int labelId, int propertyKeyId, IndexProviderDescriptor providerDescriptor,
-                                                             long constraintId )
+            long constraintId )
     {
         return uniqueForSchema( forLabel( labelId, propertyKeyId ), providerDescriptor ).withIds( ruleId, constraintId );
     }
@@ -1715,10 +1708,10 @@ public class IndexingServiceTest
     private IndexingService createIndexServiceWithCustomIndexMap( IndexMapReference indexMapReference )
     {
         return new IndexingService( mock( IndexProxyCreator.class ), mock( IndexProviderMap.class ),
-                                    indexMapReference, mock( IndexStoreView.class ), Collections.emptyList(),
-                                    mock( IndexSamplingController.class ), mock( TokenNameLookup.class ),
-                                    mock( JobScheduler.class ), mock( SchemaState.class ), mock( MultiPopulatorFactory.class ),
-                                    internalLogProvider, userLogProvider, IndexingService.NO_MONITOR, false );
+                indexMapReference, mock( IndexStoreView.class ), Collections.emptyList(),
+                mock( IndexSamplingController.class ), mock( TokenNameLookup.class ),
+                mock( JobScheduler.class ), mock( SchemaState.class ), mock( MultiPopulatorFactory.class ),
+                internalLogProvider, userLogProvider, IndexingService.NO_MONITOR, false );
     }
 
     private static DependencyResolver buildIndexDependencies( IndexProvider provider )

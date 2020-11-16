@@ -22,9 +22,6 @@
  */
 package org.neo4j.kernel.api.schema;
 
-import java.util.HashMap;
-import java.util.Map;
-
 import org.neo4j.kernel.api.StatementConstants;
 import org.neo4j.storageengine.api.EntityType;
 

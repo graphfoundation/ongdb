@@ -88,10 +88,8 @@ class NativeIndexUpdater<KEY extends NativeIndexKey<KEY>, VALUE extends NativeIn
         }
     }
 
-    static <KEY extends NativeIndexKey<KEY>, VALUE extends NativeIndexValue> void processUpdate(
-            KEY treeKey, VALUE treeValue,
-            IndexEntryUpdate<?> update, Writer<KEY,VALUE> writer,
-            ConflictDetectingValueMerger<KEY,VALUE,Value[]> conflictDetectingValueMerger,
+    static <KEY extends NativeIndexKey<KEY>, VALUE extends NativeIndexValue> void processUpdate( KEY treeKey, VALUE treeValue,
+            IndexEntryUpdate<?> update, Writer<KEY,VALUE> writer, ConflictDetectingValueMerger<KEY,VALUE,Value[]> conflictDetectingValueMerger,
             IndexDescriptor descriptor, TokenNameLookup tokenNameLookup )
             throws IndexEntryConflictException
     {
@@ -111,8 +109,7 @@ class NativeIndexUpdater<KEY extends NativeIndexKey<KEY>, VALUE extends NativeIn
         }
     }
 
-    private static <KEY extends NativeIndexKey<KEY>, VALUE extends NativeIndexValue> void processRemove(
-            KEY treeKey,
+    private static <KEY extends NativeIndexKey<KEY>, VALUE extends NativeIndexValue> void processRemove( KEY treeKey,
             IndexEntryUpdate<?> update, Writer<KEY,VALUE> writer )
     {
         // todo Do we need to verify that we actually removed something at all?
@@ -121,11 +118,9 @@ class NativeIndexUpdater<KEY extends NativeIndexKey<KEY>, VALUE extends NativeIn
         writer.remove( treeKey );
     }
 
-    private static <KEY extends NativeIndexKey<KEY>, VALUE extends NativeIndexValue> void processChange(
-            KEY treeKey, VALUE treeValue,
+    private static <KEY extends NativeIndexKey<KEY>, VALUE extends NativeIndexValue> void processChange( KEY treeKey, VALUE treeValue,
             IndexEntryUpdate<?> update, Writer<KEY,VALUE> writer,
-            ConflictDetectingValueMerger<KEY,VALUE,Value[]> conflictDetectingValueMerger,
-            IndexDescriptor descriptor,
+            ConflictDetectingValueMerger<KEY,VALUE,Value[]> conflictDetectingValueMerger, IndexDescriptor descriptor,
             TokenNameLookup tokenNameLookup )
             throws IndexEntryConflictException
     {
@@ -144,19 +139,16 @@ class NativeIndexUpdater<KEY extends NativeIndexKey<KEY>, VALUE extends NativeIn
         catch ( Exception e )
         {
             Exceptions.withMessage( e,
-                                    String.format( "Failed while trying to write to index, targetIndex=%s, nodeId=%d. Cause: %s",
-                                                   descriptor.userDescription( tokenNameLookup ), treeKey.getEntityId(), e.getMessage() ) );
+                    String.format( "Failed while trying to write to index, targetIndex=%s, nodeId=%d. Cause: %s",
+                            descriptor.userDescription( tokenNameLookup ), treeKey.getEntityId(), e.getMessage() ) );
 
             throw e;
         }
     }
 
-    private static <KEY extends NativeIndexKey<KEY>, VALUE extends NativeIndexValue> void processAdd(
-            KEY treeKey, VALUE treeValue, IndexEntryUpdate<?> update,
-            Writer<KEY,VALUE> writer,
-            ConflictDetectingValueMerger<KEY,VALUE,Value[]> conflictDetectingValueMerger,
-            IndexDescriptor descriptor,
-            TokenNameLookup tokenNameLookup )
+    private static <KEY extends NativeIndexKey<KEY>, VALUE extends NativeIndexValue> void processAdd( KEY treeKey, VALUE treeValue, IndexEntryUpdate<?> update,
+            Writer<KEY,VALUE> writer, ConflictDetectingValueMerger<KEY,VALUE,Value[]> conflictDetectingValueMerger,
+            IndexDescriptor descriptor, TokenNameLookup tokenNameLookup )
             throws IndexEntryConflictException
     {
         try
@@ -169,15 +161,15 @@ class NativeIndexUpdater<KEY extends NativeIndexKey<KEY>, VALUE extends NativeIn
         catch ( Exception e )
         {
             Exceptions.withMessage( e,
-                                    String.format( "Failed while trying to write to index, targetIndex=%s, nodeId=%d. Cause: %s",
-                                                   descriptor.userDescription( tokenNameLookup ), treeKey.getEntityId(), e.getMessage() ) );
+                    String.format( "Failed while trying to write to index, targetIndex=%s, nodeId=%d. Cause: %s",
+                            descriptor.userDescription( tokenNameLookup ), treeKey.getEntityId(), e.getMessage() ) );
 
             throw e;
         }
     }
 
     static <KEY extends NativeIndexKey<KEY>, VALUE extends NativeIndexValue> void initializeKeyAndValueFromUpdate( KEY treeKey, VALUE treeValue,
-                                                                                                                   long entityId, Value[] values )
+            long entityId, Value[] values )
     {
         initializeKeyFromUpdate( treeKey, entityId, values );
         treeValue.from( values );

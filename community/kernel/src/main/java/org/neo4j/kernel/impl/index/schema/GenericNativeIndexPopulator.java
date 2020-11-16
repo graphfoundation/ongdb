@@ -50,10 +50,9 @@ public class GenericNativeIndexPopulator extends NativeIndexPopulator<GenericKey
     private final boolean archiveFailedIndex;
 
     GenericNativeIndexPopulator( PageCache pageCache, FileSystemAbstraction fs, File storeFile, IndexLayout<GenericKey,NativeIndexValue> layout,
-                                 IndexProvider.Monitor monitor, StoreIndexDescriptor descriptor, IndexSpecificSpaceFillingCurveSettingsCache spatialSettings,
-                                 IndexDirectoryStructure directoryStructure, SpaceFillingCurveConfiguration configuration, IndexDropAction dropAction,
-                                 boolean archiveFailedIndex,
-                                 TokenNameLookup tokenNameLookup )
+            IndexProvider.Monitor monitor, StoreIndexDescriptor descriptor, IndexSpecificSpaceFillingCurveSettingsCache spatialSettings,
+            IndexDirectoryStructure directoryStructure, SpaceFillingCurveConfiguration configuration, IndexDropAction dropAction, boolean archiveFailedIndex,
+            TokenNameLookup tokenNameLookup )
     {
         super( pageCache, fs, storeFile, layout, monitor, descriptor, new SpaceFillingCurveSettingsWriter( spatialSettings ), tokenNameLookup );
         this.spatialSettings = spatialSettings;

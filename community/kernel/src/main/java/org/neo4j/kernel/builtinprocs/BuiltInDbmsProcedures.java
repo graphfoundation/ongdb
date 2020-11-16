@@ -65,10 +65,10 @@ public class BuiltInDbmsProcedures
         Config config = graph.getDependencyResolver().resolveDependency( Config.class );
         String lowerCasedSearchString = searchString.toLowerCase();
         return config.getConfigValues().values().stream()
-                     .filter( c -> !c.internal() )
-                     .filter( c -> c.name().toLowerCase().contains( lowerCasedSearchString ) )
-                     .map( ConfigResult::new )
-                     .sorted( Comparator.comparing( c -> c.name ) );
+                .filter( c -> !c.internal() )
+                .filter( c -> c.name().toLowerCase().contains( lowerCasedSearchString ) )
+                .map( ConfigResult::new )
+                .sorted( Comparator.comparing( c -> c.name ) );
     }
 
     @Internal
@@ -86,9 +86,9 @@ public class BuiltInDbmsProcedures
         Config config = graph.getDependencyResolver().resolveDependency( Config.class );
 
         return config.getConfigValues().values().stream()
-                     .filter( c -> browserSettings.contains( c.name().toLowerCase() ) )
-                     .map( ConfigResult::new )
-                     .sorted( Comparator.comparing( c -> c.name ) );
+                .filter( c -> browserSettings.contains( c.name().toLowerCase() ) )
+                .map( ConfigResult::new )
+                .sorted( Comparator.comparing( c -> c.name ) );
     }
 
     @Description( "List all procedures in the DBMS." )
@@ -97,9 +97,9 @@ public class BuiltInDbmsProcedures
     {
         securityContext.assertCredentialsNotExpired();
         return graph.getDependencyResolver().resolveDependency( Procedures.class ).getAllProcedures().stream()
-                    .filter( proc -> !proc.internal() )
-                    .sorted( Comparator.comparing( a -> a.name().toString() ) )
-                    .map( ProcedureResult::new );
+                .filter( proc -> !proc.internal() )
+                .sorted( Comparator.comparing( a -> a.name().toString() ) )
+                .map( ProcedureResult::new );
     }
 
     @Description( "List all user functions in the DBMS." )
@@ -108,8 +108,8 @@ public class BuiltInDbmsProcedures
     {
         securityContext.assertCredentialsNotExpired();
         return graph.getDependencyResolver().resolveDependency( Procedures.class ).getAllFunctions().stream()
-                    .sorted( Comparator.comparing( a -> a.name().toString() ) )
-                    .map( FunctionResult::new );
+                .sorted( Comparator.comparing( a -> a.name().toString() ) )
+                .map( FunctionResult::new );
     }
 
     @Admin

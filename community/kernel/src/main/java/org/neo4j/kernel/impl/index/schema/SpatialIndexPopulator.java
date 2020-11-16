@@ -54,8 +54,8 @@ import static org.neo4j.kernel.impl.index.schema.fusion.FusionIndexSampler.combi
 class SpatialIndexPopulator extends SpatialIndexCache<WorkSyncedNativeIndexPopulator<SpatialIndexKey,NativeIndexValue>> implements IndexPopulator
 {
     SpatialIndexPopulator( StoreIndexDescriptor descriptor, SpatialIndexFiles spatialIndexFiles, PageCache pageCache,
-                           FileSystemAbstraction fs, IndexProvider.Monitor monitor, SpaceFillingCurveConfiguration configuration,
-                           TokenNameLookup tokenNameLookup )
+            FileSystemAbstraction fs, IndexProvider.Monitor monitor, SpaceFillingCurveConfiguration configuration,
+            TokenNameLookup tokenNameLookup )
     {
         super( new PartFactory( pageCache, fs, spatialIndexFiles, descriptor, monitor, configuration, tokenNameLookup ) );
     }
@@ -167,7 +167,7 @@ class SpatialIndexPopulator extends SpatialIndexCache<WorkSyncedNativeIndexPopul
         private final CoordinateReferenceSystem crs;
 
         PartPopulator( PageCache pageCache, FileSystemAbstraction fs, SpatialIndexFiles.SpatialFileLayout fileLayout, IndexProvider.Monitor monitor,
-                       StoreIndexDescriptor descriptor, SpaceFillingCurveConfiguration configuration, TokenNameLookup tokenNameLookup )
+                StoreIndexDescriptor descriptor, SpaceFillingCurveConfiguration configuration, TokenNameLookup tokenNameLookup )
         {
             super( pageCache, fs, fileLayout.getIndexFile(), fileLayout.layout, monitor, descriptor, NO_HEADER_WRITER, tokenNameLookup );
             this.configuration = configuration;
@@ -235,7 +235,7 @@ class SpatialIndexPopulator extends SpatialIndexCache<WorkSyncedNativeIndexPopul
         private final TokenNameLookup tokenNameLookup;
 
         PartFactory( PageCache pageCache, FileSystemAbstraction fs, SpatialIndexFiles spatialIndexFiles, StoreIndexDescriptor descriptor,
-                     IndexProvider.Monitor monitor, SpaceFillingCurveConfiguration configuration, TokenNameLookup tokenNameLookup )
+                IndexProvider.Monitor monitor, SpaceFillingCurveConfiguration configuration, TokenNameLookup tokenNameLookup )
         {
             this.pageCache = pageCache;
             this.fs = fs;

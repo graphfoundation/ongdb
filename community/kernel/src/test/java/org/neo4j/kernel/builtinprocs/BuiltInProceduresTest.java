@@ -131,7 +131,7 @@ public class BuiltInProceduresTest
         procs.registerComponent( GraphDatabaseAPI.class, ctx -> ctx.get( GRAPHDATABASEAPI ), false );
         procs.registerComponent( SecurityContext.class, ctx -> ctx.get( SECURITY_CONTEXT ), true );
 
-        procs.registerComponent( Log.class, ctx -> ctx.get( LOG ), false );
+        procs.registerComponent( Log.class, ctx -> ctx.get( LOG), false );
         procs.registerType( Node.class, NTNode );
         procs.registerType( Relationship.class, NTRelationship );
         procs.registerType( Path.class, NTPath );
@@ -151,8 +151,7 @@ public class BuiltInProceduresTest
         when( tokens.relationshipTypesGetAllTokens() ).thenAnswer( asTokens( relTypes ) );
         when( schemaReadCore.indexesGetAll() ).thenAnswer(
                 i -> Iterators.concat( indexes.iterator(), uniqueIndexes.iterator() ) );
-        when( schemaReadCore.index( any( SchemaDescriptor.class ) ) ).thenAnswer( (Answer<IndexReference>) invocationOnMock ->
-        {
+        when( schemaReadCore.index( any( SchemaDescriptor.class ) ) ).thenAnswer( (Answer<IndexReference>) invocationOnMock -> {
             SchemaDescriptor schema = invocationOnMock.getArgument( 0 );
             int label = schema.keyId();
             int prop = schema.getPropertyId();
@@ -204,7 +203,7 @@ public class BuiltInProceduresTest
     {
         // Given
         givenIndex( "User", "name" );
-        when( schemaReadCore.indexGetState( any( IndexReference.class ) ) ).thenThrow( new IndexNotFoundKernelException( "Not found." ) );
+        when( schemaReadCore.indexGetState( any( IndexReference.class) ) ).thenThrow( new IndexNotFoundKernelException( "Not found." ) );
 
         // When/Then
         assertThat( call( "db.indexes" ), contains( record(
@@ -220,9 +219,9 @@ public class BuiltInProceduresTest
 
         // When/Then
         assertThat( call( "db.propertyKeys" ),
-                    containsInAnyOrder(
-                            record( "age" ),
-                            record( "name" ) ) );
+                containsInAnyOrder(
+                        record( "age" ),
+                        record( "name" ) ) );
     }
 
     @Test
@@ -233,9 +232,9 @@ public class BuiltInProceduresTest
 
         // When/Then
         assertThat( call( "db.labels" ),
-                    containsInAnyOrder(
-                            record( "Banana" ),
-                            record( "Fruit" ) ) );
+                containsInAnyOrder(
+                        record( "Banana" ),
+                        record( "Fruit" ) ) );
     }
 
     @Test
@@ -246,9 +245,9 @@ public class BuiltInProceduresTest
 
         // When/Then
         assertThat( call( "db.relationshipTypes" ),
-                    containsInAnyOrder(
-                            record( "EATS" ),
-                            record( "SPROUTS" ) ) );
+                containsInAnyOrder(
+                        record( "EATS" ),
+                        record( "SPROUTS" ) ) );
     }
 
     @Test
@@ -260,11 +259,11 @@ public class BuiltInProceduresTest
         givenNodeKeys( "User", "name" );
         // When/Then
         assertThat( call( "db.constraints" ),
-                    containsInAnyOrder(
-                            record( "CONSTRAINT ON ( user:User ) ASSERT exists(user.name)" ),
-                            record( "CONSTRAINT ON ( user:User ) ASSERT user.name IS UNIQUE" ),
-                            record( "CONSTRAINT ON ( user:User ) ASSERT (user.name) IS NODE KEY" )
-                    ) );
+                containsInAnyOrder(
+                        record( "CONSTRAINT ON ( user:User ) ASSERT exists(user.name)" ),
+                        record( "CONSTRAINT ON ( user:User ) ASSERT user.name IS UNIQUE" ),
+                        record( "CONSTRAINT ON ( user:User ) ASSERT (user.name) IS NODE KEY" )
+                ) );
     }
 
     @Test
@@ -277,9 +276,9 @@ public class BuiltInProceduresTest
         // When/Then
         List<Object[]> call = call( "db.constraints" );
         assertThat( call,
-                    contains(
-                            record( "CONSTRAINT ON ( `foo:bar`:`FOO:BAR` ) ASSERT `foo:bar`.x.y IS UNIQUE" ),
-                            record( "CONSTRAINT ON ( `foo:bar`:`FOO:BAR` ) ASSERT exists(`foo:bar`.x.y)" ) ) );
+                contains(
+                        record( "CONSTRAINT ON ( `foo:bar`:`FOO:BAR` ) ASSERT `foo:bar`.x.y IS UNIQUE" ),
+                        record( "CONSTRAINT ON ( `foo:bar`:`FOO:BAR` ) ASSERT exists(`foo:bar`.x.y)" ) ) );
     }
 
     @Test
@@ -297,8 +296,8 @@ public class BuiltInProceduresTest
                 record( "db.constraints", "db.constraints() :: (description :: STRING?)",
                         "List all constraints in the database.", "READ" ),
                 record( "db.indexes", "db.indexes() :: (description :: STRING?, indexName :: STRING?, " +
-                                      "tokenNames :: LIST? OF STRING?, properties :: LIST? OF STRING?, state :: STRING?, " +
-                                      "type :: STRING?, progress :: FLOAT?, provider :: MAP?, id :: INTEGER?, failureMessage :: STRING?)",
+                                "tokenNames :: LIST? OF STRING?, properties :: LIST? OF STRING?, state :: STRING?, " +
+                                "type :: STRING?, progress :: FLOAT?, provider :: MAP?, id :: INTEGER?, failureMessage :: STRING?)",
                         "List all indexes in the database.", "READ" ),
                 record( "db.labels", "db.labels() :: (label :: STRING?)", "List all labels in the database.", "READ" ),
                 record( "db.propertyKeys", "db.propertyKeys() :: (propertyKey :: STRING?)",
@@ -317,11 +316,11 @@ public class BuiltInProceduresTest
                         "Visualize the schema of the data. Replaces db.schema.", "READ" ),
                 record( "db.schema.nodeTypeProperties",
                         "db.schema.nodeTypeProperties() :: (nodeType :: STRING?, nodeLabels :: LIST? OF STRING?, propertyName :: STRING?, " +
-                        "propertyTypes :: LIST? OF STRING?, mandatory :: BOOLEAN?)",
+                                "propertyTypes :: LIST? OF STRING?, mandatory :: BOOLEAN?)",
                         "Show the derived property schema of the nodes in tabular form.", "READ" ),
                 record( "db.schema.relTypeProperties",
                         "db.schema.relTypeProperties() :: (relType :: STRING?, propertyName :: STRING?, propertyTypes :: LIST? OF STRING?," +
-                        " mandatory :: BOOLEAN?)",
+                                " mandatory :: BOOLEAN?)",
                         "Show the derived property schema of the relationships in tabular form.", "READ" ),
                 record( "db.index.explicit.searchNodes",
                         "db.index.explicit.searchNodes(indexName :: STRING?, query :: ANY?) :: (node :: NODE?, weight :: FLOAT?)",
@@ -331,19 +330,19 @@ public class BuiltInProceduresTest
                         "Get node from explicit index. Replaces `START n=node:nodes(key = 'A')`", "READ" ),
                 record( "db.index.explicit.searchRelationships",
                         "db.index.explicit.searchRelationships(indexName :: STRING?, query :: ANY?) :: " +
-                        "(relationship :: RELATIONSHIP?, weight :: FLOAT?)",
+                                "(relationship :: RELATIONSHIP?, weight :: FLOAT?)",
                         "Search relationship in explicit index. Replaces `START r=relationship:relIndex('key:foo*')`", "READ" ),
                 record( "db.index.explicit.searchRelationshipsIn",
                         "db.index.explicit.searchRelationshipsIn(indexName :: STRING?, in :: NODE?, query :: ANY?) :: " +
-                        "(relationship :: RELATIONSHIP?, weight :: FLOAT?)",
+                                "(relationship :: RELATIONSHIP?, weight :: FLOAT?)",
                         "Search relationship in explicit index, starting at the node 'in'.", "READ" ),
                 record( "db.index.explicit.searchRelationshipsOut",
                         "db.index.explicit.searchRelationshipsOut(indexName :: STRING?, out :: NODE?, query :: ANY?) :: " +
-                        "(relationship :: RELATIONSHIP?, weight :: FLOAT?)",
+                                "(relationship :: RELATIONSHIP?, weight :: FLOAT?)",
                         "Search relationship in explicit index, ending at the node 'out'.", "READ" ),
                 record( "db.index.explicit.searchRelationshipsBetween",
                         "db.index.explicit.searchRelationshipsBetween(indexName :: STRING?, in :: NODE?, out :: NODE?, query :: ANY?) :: " +
-                        "(relationship :: RELATIONSHIP?, weight :: FLOAT?)",
+                                "(relationship :: RELATIONSHIP?, weight :: FLOAT?)",
                         "Search relationship in explicit index, starting at the node 'in' and ending at 'out'.", "READ" ),
                 record( "db.index.explicit.seekRelationships",
                         "db.index.explicit.seekRelationships(indexName :: STRING?, key :: STRING?, value :: ANY?) :: " +
@@ -418,13 +417,13 @@ public class BuiltInProceduresTest
                 record( "db.createIndex",
                         "db.createIndex(index :: STRING?, providerName :: STRING?) :: (index :: STRING?, providerName :: STRING?, status :: STRING?)",
                         "Create a schema index with specified index provider (for example: CALL db.createIndex(\":Person(name)\", \"lucene+native-2.0\")) - " +
-                        "YIELD index, providerName, status", "SCHEMA" ),
+                                "YIELD index, providerName, status", "SCHEMA" ),
                 record( "db.createUniquePropertyConstraint",
                         "db.createUniquePropertyConstraint(index :: STRING?, providerName :: STRING?) :: " +
-                        "(index :: STRING?, providerName :: STRING?, status :: STRING?)",
+                                "(index :: STRING?, providerName :: STRING?, status :: STRING?)",
                         "Create a unique property constraint with index backed by specified index provider " +
-                        "(for example: CALL db.createUniquePropertyConstraint(\":Person(name)\", \"lucene+native-2.0\")) - " +
-                        "YIELD index, providerName, status", "SCHEMA" )
+                                "(for example: CALL db.createUniquePropertyConstraint(\":Person(name)\", \"lucene+native-2.0\")) - " +
+                                "YIELD index, providerName, status", "SCHEMA" )
         ) );
     }
 
@@ -511,29 +510,22 @@ public class BuiltInProceduresTest
     {
         // Given
         Config mockConfig = mock( Config.class );
-        HashMap<String,ConfigValue> settings = new HashMap<>();
+        HashMap<String, ConfigValue> settings = new HashMap<>();
 
-        settings.put( "browser.allow_outgoing_connections", new ConfigValue( "browser.allow_outgoing_connections", Optional.of( "description" ),
-                                                                             Optional.empty(), Optional.of( "value" ), "value description", false, false, false,
-                                                                             Optional.empty(), false ) );
-        settings.put( "browser.credential_timeout", new ConfigValue( "browser.credential_timeout", Optional.of( "description" ),
-                                                                     Optional.empty(), Optional.of( "value" ), "value description", false, false, false,
-                                                                     Optional.empty(), false ) );
-        settings.put( "browser.retain_connection_credentials", new ConfigValue( "browser.retain_connection_credentials", Optional.of( "description" ),
-                                                                                Optional.empty(), Optional.of( "value" ), "value description", false, false,
-                                                                                false, Optional.empty(), false ) );
-        settings.put( "dbms.security.auth_enabled", new ConfigValue( "dbms.security.auth_enabled", Optional.of( "description" ),
-                                                                     Optional.empty(), Optional.of( "value" ), "value description", false, false, false,
-                                                                     Optional.empty(), false ) );
-        settings.put( "browser.remote_content_hostname_whitelist", new ConfigValue( "browser.remote_content_hostname_whitelist", Optional.of( "description" ),
-                                                                                    Optional.empty(), Optional.of( "value" ), "value description", false, false,
-                                                                                    false, Optional.empty(), false ) );
-        settings.put( "browser.post_connect_cmd", new ConfigValue( "browser.post_connect_cmd", Optional.of( "description" ),
-                                                                   Optional.empty(), Optional.of( "value" ), "value description", false, false, false,
-                                                                   Optional.empty(), false ) );
-        settings.put( "something.else", new ConfigValue( "something.else", Optional.of( "description" ),
-                                                         Optional.empty(), Optional.of( "value" ), "value description", false, false, false, Optional.empty(),
-                                                         false ) );
+        settings.put("browser.allow_outgoing_connections", new ConfigValue( "browser.allow_outgoing_connections", Optional.of( "description" ),
+                Optional.empty(), Optional.of("value"), "value description", false, false, false, Optional.empty(), false ));
+        settings.put("browser.credential_timeout", new ConfigValue( "browser.credential_timeout", Optional.of( "description" ),
+                Optional.empty(), Optional.of("value"), "value description", false, false, false, Optional.empty(), false ));
+        settings.put("browser.retain_connection_credentials", new ConfigValue( "browser.retain_connection_credentials", Optional.of( "description" ),
+                Optional.empty(), Optional.of("value"), "value description", false, false, false, Optional.empty(), false ));
+        settings.put("dbms.security.auth_enabled", new ConfigValue( "dbms.security.auth_enabled", Optional.of( "description" ),
+                Optional.empty(), Optional.of("value"), "value description", false, false, false, Optional.empty(), false ));
+        settings.put("browser.remote_content_hostname_whitelist", new ConfigValue( "browser.remote_content_hostname_whitelist", Optional.of( "description" ),
+                Optional.empty(), Optional.of("value"), "value description", false, false, false, Optional.empty(), false ));
+        settings.put("browser.post_connect_cmd", new ConfigValue( "browser.post_connect_cmd", Optional.of( "description" ),
+                Optional.empty(), Optional.of("value"), "value description", false, false, false, Optional.empty(), false ));
+        settings.put("something.else", new ConfigValue( "something.else", Optional.of( "description" ),
+                Optional.empty(), Optional.of("value"), "value description", false, false, false, Optional.empty(), false ));
 
         when( mockConfig.getConfigValues() ).thenReturn( settings );
         when( resolver.resolveDependency( Config.class ) ).thenReturn( mockConfig );
@@ -585,7 +577,7 @@ public class BuiltInProceduresTest
         constraints.add( ConstraintDescriptorFactory.existsForLabel( labelId, propId ) );
     }
 
-    private void givenNodeKeys( String label, String... props )
+    private void givenNodeKeys( String label, String...props )
     {
         int labelId = token( label, labels );
         int[] propIds = new int[props.length];
@@ -651,14 +643,14 @@ public class BuiltInProceduresTest
                 return index;
             }
         }
-        throw new AssertionError();
+        throw new AssertionError(  );
     }
 
     private static Answer<Iterator<NamedToken>> asTokens( Map<Integer,String> tokens )
     {
         return i -> tokens.entrySet().stream()
-                          .map( entry -> new NamedToken( entry.getValue(), entry.getKey() ) )
-                          .iterator();
+                              .map( entry -> new NamedToken( entry.getValue(), entry.getKey() ) )
+                              .iterator();
     }
 
     private List<Object[]> call( String name, Object... args ) throws ProcedureException, IndexNotFoundKernelException
@@ -672,7 +664,7 @@ public class BuiltInProceduresTest
         when( graphDatabaseAPI.getDependencyResolver() ).thenReturn( resolver );
         when( resolver.resolveDependency( Procedures.class ) ).thenReturn( procs );
         when( resolver.resolveDependency( IndexingService.class ) ).thenReturn( indexingService );
-        when( schemaReadCore.indexGetPopulationProgress( any( IndexReference.class ) ) ).thenReturn( PopulationProgress.DONE );
+        when( schemaReadCore.indexGetPopulationProgress( any( IndexReference.class) ) ).thenReturn( PopulationProgress.DONE );
         return Iterators.asList( procs.callProcedure(
                 ctx, ProcedureSignature.procedureName( name.split( "\\." ) ), args, resourceTracker ) );
     }

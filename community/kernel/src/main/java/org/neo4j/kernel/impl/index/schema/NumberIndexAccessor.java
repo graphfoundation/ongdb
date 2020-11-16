@@ -37,9 +37,8 @@ import static org.neo4j.index.internal.gbptree.GBPTree.NO_HEADER_WRITER;
 public class NumberIndexAccessor extends NativeIndexAccessor<NumberIndexKey,NativeIndexValue>
 {
     NumberIndexAccessor( PageCache pageCache, FileSystemAbstraction fs, File storeFile, IndexLayout<NumberIndexKey,NativeIndexValue> layout,
-                         RecoveryCleanupWorkCollector recoveryCleanupWorkCollector, IndexProvider.Monitor monitor, StoreIndexDescriptor descriptor,
-                         boolean readOnly,
-                         TokenNameLookup tokenNameLookup )
+            RecoveryCleanupWorkCollector recoveryCleanupWorkCollector, IndexProvider.Monitor monitor, StoreIndexDescriptor descriptor, boolean readOnly,
+            TokenNameLookup tokenNameLookup )
     {
         super( pageCache, fs, storeFile, layout, monitor, descriptor, NO_HEADER_WRITER, readOnly, tokenNameLookup );
         instantiateTree( recoveryCleanupWorkCollector, headerWriter );

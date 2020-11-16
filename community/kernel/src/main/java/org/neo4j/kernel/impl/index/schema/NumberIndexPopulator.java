@@ -35,7 +35,7 @@ import static org.neo4j.index.internal.gbptree.GBPTree.NO_HEADER_WRITER;
 class NumberIndexPopulator extends NativeIndexPopulator<NumberIndexKey,NativeIndexValue>
 {
     NumberIndexPopulator( PageCache pageCache, FileSystemAbstraction fs, File storeFile, IndexLayout<NumberIndexKey,NativeIndexValue> layout,
-                          IndexProvider.Monitor monitor, StoreIndexDescriptor descriptor, TokenNameLookup tokenNameLookup )
+            IndexProvider.Monitor monitor, StoreIndexDescriptor descriptor, TokenNameLookup tokenNameLookup )
     {
         super( pageCache, fs, storeFile, layout, monitor, descriptor, NO_HEADER_WRITER, tokenNameLookup );
     }

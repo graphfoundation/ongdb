@@ -130,7 +130,7 @@ public class GenericNativeIndexProvider extends NativeIndexProvider<GenericKey,N
     private final IndexDropAction dropAction;
 
     GenericNativeIndexProvider( IndexDirectoryStructure.Factory directoryStructureFactory, PageCache pageCache, FileSystemAbstraction fs, Monitor monitor,
-                                RecoveryCleanupWorkCollector recoveryCleanupWorkCollector, boolean readOnly, Config config )
+            RecoveryCleanupWorkCollector recoveryCleanupWorkCollector, boolean readOnly, Config config )
     {
         super( DESCRIPTOR, directoryStructureFactory, pageCache, fs, monitor, recoveryCleanupWorkCollector, readOnly );
 
@@ -162,24 +162,24 @@ public class GenericNativeIndexProvider extends NativeIndexProvider<GenericKey,N
 
     @Override
     protected IndexPopulator newIndexPopulator( File storeFile, GenericLayout layout, StoreIndexDescriptor descriptor, ByteBufferFactory bufferFactory,
-                                                TokenNameLookup tokenNameLookup )
+            TokenNameLookup tokenNameLookup )
     {
         if ( blockBasedPopulation )
         {
             return new GenericBlockBasedIndexPopulator( pageCache, fs, storeFile, layout, monitor, descriptor, layout.getSpaceFillingCurveSettings(),
-                                                        directoryStructure(), configuration, dropAction, archiveFailedIndex, bufferFactory, tokenNameLookup );
+                    directoryStructure(), configuration, dropAction, archiveFailedIndex, bufferFactory, tokenNameLookup );
         }
         return new WorkSyncedNativeIndexPopulator<>(
                 new GenericNativeIndexPopulator( pageCache, fs, storeFile, layout, monitor, descriptor, layout.getSpaceFillingCurveSettings(),
-                                                 directoryStructure(), configuration, dropAction, archiveFailedIndex, tokenNameLookup ) );
+                        directoryStructure(), configuration, dropAction, archiveFailedIndex, tokenNameLookup ) );
     }
 
     @Override
     protected IndexAccessor newIndexAccessor( File storeFile, GenericLayout layout, StoreIndexDescriptor descriptor, boolean readOnly,
-                                              TokenNameLookup tokenNameLookup )
+            TokenNameLookup tokenNameLookup )
     {
         return new GenericNativeIndexAccessor( pageCache, fs, storeFile, layout, recoveryCleanupWorkCollector, monitor, descriptor,
-                                               layout.getSpaceFillingCurveSettings(), configuration, dropAction, readOnly, tokenNameLookup );
+                layout.getSpaceFillingCurveSettings(), configuration, dropAction, readOnly, tokenNameLookup );
     }
 
     @Override

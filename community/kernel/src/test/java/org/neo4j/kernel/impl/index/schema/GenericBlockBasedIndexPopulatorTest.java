@@ -298,7 +298,7 @@ public class GenericBlockBasedIndexPopulatorTest
             {
                 // then
                 assertThat( e.getMessage(),
-                            Matchers.containsString( "Failed while trying to write to index, targetIndex=Index( GENERAL, :Label1(property1) ), nodeId=1" ) );
+                        Matchers.containsString( "Failed while trying to write to index, targetIndex=Index( GENERAL, :Label1(property1) ), nodeId=1" ) );
             }
         }
         finally
@@ -351,7 +351,7 @@ public class GenericBlockBasedIndexPopulatorTest
                 SpaceFillingCurveSettingsFactory.getConfiguredSpaceFillingCurveConfiguration( config );
         GenericBlockBasedIndexPopulator populator =
                 new GenericBlockBasedIndexPopulator( storage.pageCache(), fs, indexFile, layout, EMPTY, indexDescriptor, spatialSettings, directoryStructure,
-                                                     configuration, dropAction, false, heapBufferFactory( (int) kibiBytes( 40 ) ), tokenNameLookup );
+                        configuration, dropAction, false, heapBufferFactory( (int) kibiBytes( 40 ) ), tokenNameLookup );
         populator.create();
         return populator;
     }

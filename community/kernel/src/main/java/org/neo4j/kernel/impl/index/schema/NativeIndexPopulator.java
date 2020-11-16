@@ -81,7 +81,7 @@ public abstract class NativeIndexPopulator<KEY extends NativeIndexKey<KEY>, VALU
     private boolean closed;
 
     NativeIndexPopulator( PageCache pageCache, FileSystemAbstraction fs, File storeFile, IndexLayout<KEY,VALUE> layout, IndexProvider.Monitor monitor,
-                          StoreIndexDescriptor descriptor, Consumer<PageCursor> additionalHeaderWriter, TokenNameLookup tokenNameLookup )
+            StoreIndexDescriptor descriptor, Consumer<PageCursor> additionalHeaderWriter, TokenNameLookup tokenNameLookup )
     {
         super( pageCache, fs, storeFile, layout, monitor, descriptor, false );
         this.treeKey = layout.newKey();

@@ -65,24 +65,24 @@ class SpatialIndexAccessor extends SpatialIndexCache<SpatialIndexAccessor.PartAc
     private final StoreIndexDescriptor descriptor;
 
     SpatialIndexAccessor( StoreIndexDescriptor descriptor,
-                          PageCache pageCache,
-                          FileSystemAbstraction fs,
-                          RecoveryCleanupWorkCollector recoveryCleanupWorkCollector,
-                          IndexProvider.Monitor monitor,
-                          SpatialIndexFiles spatialIndexFiles,
-                          SpaceFillingCurveConfiguration searchConfiguration,
-                          boolean readOnly,
-                          TokenNameLookup tokenNameLookup ) throws IOException
+            PageCache pageCache,
+            FileSystemAbstraction fs,
+            RecoveryCleanupWorkCollector recoveryCleanupWorkCollector,
+            IndexProvider.Monitor monitor,
+            SpatialIndexFiles spatialIndexFiles,
+            SpaceFillingCurveConfiguration searchConfiguration,
+            boolean readOnly,
+            TokenNameLookup tokenNameLookup ) throws IOException
     {
         super( new PartFactory( pageCache,
-                                fs,
-                                recoveryCleanupWorkCollector,
-                                monitor,
-                                descriptor,
-                                spatialIndexFiles,
-                                searchConfiguration,
-                                readOnly,
-                                tokenNameLookup ) );
+                fs,
+                recoveryCleanupWorkCollector,
+                monitor,
+                descriptor,
+                spatialIndexFiles,
+                searchConfiguration,
+                readOnly,
+                tokenNameLookup ) );
         this.descriptor = descriptor;
         spatialIndexFiles.loadExistingIndexes( this );
     }
@@ -220,8 +220,8 @@ class SpatialIndexAccessor extends SpatialIndexCache<SpatialIndexAccessor.PartAc
         private SpaceFillingCurveSettings settings;
 
         PartAccessor( PageCache pageCache, FileSystemAbstraction fs, SpatialIndexFiles.SpatialFileLayout fileLayout,
-                      RecoveryCleanupWorkCollector recoveryCleanupWorkCollector, IndexProvider.Monitor monitor, StoreIndexDescriptor descriptor,
-                      SpaceFillingCurveConfiguration searchConfiguration, boolean readOnly, TokenNameLookup tokenNameLookup )
+                RecoveryCleanupWorkCollector recoveryCleanupWorkCollector, IndexProvider.Monitor monitor, StoreIndexDescriptor descriptor,
+                SpaceFillingCurveConfiguration searchConfiguration, boolean readOnly, TokenNameLookup tokenNameLookup )
         {
             super( pageCache, fs, fileLayout.getIndexFile(), fileLayout.layout, monitor, descriptor, NO_HEADER_WRITER, readOnly, tokenNameLookup );
             this.layout = fileLayout.layout;
@@ -268,14 +268,14 @@ class SpatialIndexAccessor extends SpatialIndexCache<SpatialIndexAccessor.PartAc
         private final TokenNameLookup tokenNameLookup;
 
         PartFactory( PageCache pageCache,
-                     FileSystemAbstraction fs,
-                     RecoveryCleanupWorkCollector recoveryCleanupWorkCollector,
-                     IndexProvider.Monitor monitor,
-                     StoreIndexDescriptor descriptor,
-                     SpatialIndexFiles spatialIndexFiles,
-                     SpaceFillingCurveConfiguration searchConfiguration,
-                     boolean readOnly,
-                     TokenNameLookup tokenNameLookup )
+                FileSystemAbstraction fs,
+                RecoveryCleanupWorkCollector recoveryCleanupWorkCollector,
+                IndexProvider.Monitor monitor,
+                StoreIndexDescriptor descriptor,
+                SpatialIndexFiles spatialIndexFiles,
+                SpaceFillingCurveConfiguration searchConfiguration,
+                boolean readOnly,
+                TokenNameLookup tokenNameLookup )
         {
             this.pageCache = pageCache;
             this.fs = fs;
@@ -307,25 +307,25 @@ class SpatialIndexAccessor extends SpatialIndexCache<SpatialIndexAccessor.PartAc
         private PartAccessor createPartAccessor( SpatialIndexFiles.SpatialFileLayout fileLayout ) throws IOException
         {
             return new PartAccessor( pageCache,
-                                     fs,
-                                     fileLayout,
-                                     recoveryCleanupWorkCollector,
-                                     monitor,
-                                     descriptor,
-                                     searchConfiguration,
-                                     readOnly,
-                                     tokenNameLookup );
+                    fs,
+                    fileLayout,
+                    recoveryCleanupWorkCollector,
+                    monitor,
+                    descriptor,
+                    searchConfiguration,
+                    readOnly,
+                    tokenNameLookup );
         }
 
         private void createEmptyIndex( SpatialIndexFiles.SpatialFileLayout fileLayout )
         {
             IndexPopulator populator = new SpatialIndexPopulator.PartPopulator( pageCache,
-                                                                                fs,
-                                                                                fileLayout,
-                                                                                monitor,
-                                                                                descriptor,
-                                                                                searchConfiguration,
-                                                                                tokenNameLookup );
+                    fs,
+                    fileLayout,
+                    monitor,
+                    descriptor,
+                    searchConfiguration,
+                    tokenNameLookup );
             populator.create();
             populator.close( true );
         }

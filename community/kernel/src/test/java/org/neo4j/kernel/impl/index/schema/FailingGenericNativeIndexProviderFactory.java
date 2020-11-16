@@ -102,7 +102,7 @@ public class FailingGenericNativeIndexProviderFactory extends KernelExtensionFac
         {
             @Override
             public IndexPopulator getPopulator( StoreIndexDescriptor descriptor, IndexSamplingConfig samplingConfig, ByteBufferFactory bufferFactory,
-                                                TokenNameLookup tokenNameLookup )
+                    TokenNameLookup tokenNameLookup )
             {
                 IndexPopulator actualPopulator = actualProvider.getPopulator( descriptor, samplingConfig, bufferFactory, tokenNameLookup );
                 if ( failureTypes.contains( FailureType.POPULATION ) )
@@ -169,7 +169,7 @@ public class FailingGenericNativeIndexProviderFactory extends KernelExtensionFac
 
             @Override
             public IndexAccessor getOnlineAccessor( StoreIndexDescriptor descriptor, IndexSamplingConfig samplingConfig,
-                                                    TokenNameLookup tokenNameLookup ) throws IOException
+                    TokenNameLookup tokenNameLookup ) throws IOException
             {
                 return actualProvider.getOnlineAccessor( descriptor, samplingConfig, tokenNameLookup );
             }

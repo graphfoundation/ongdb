@@ -59,64 +59,64 @@ public class NativeIndexAccessorTest<KEY extends NativeIndexKey<KEY>, VALUE exte
     {
         return Arrays.asList( new Object[][]{
                 {"Number",
-                 numberAccessorFactory(),
-                 RandomValues.typesOfGroup( ValueGroup.NUMBER ),
-                 (IndexLayoutFactory) NumberLayoutNonUnique::new,
-                 NumberIndexProvider.CAPABILITY
+                        numberAccessorFactory(),
+                        RandomValues.typesOfGroup( ValueGroup.NUMBER ),
+                        (IndexLayoutFactory) NumberLayoutNonUnique::new,
+                        NumberIndexProvider.CAPABILITY
                 },
                 {"String",
-                 stringAccessorFactory(),
-                 RandomValues.typesOfGroup( ValueGroup.TEXT ),
-                 (IndexLayoutFactory) StringLayout::new,
-                 StringIndexProvider.CAPABILITY
+                        stringAccessorFactory(),
+                        RandomValues.typesOfGroup( ValueGroup.TEXT ),
+                        (IndexLayoutFactory) StringLayout::new,
+                        StringIndexProvider.CAPABILITY
                 },
                 {"Date",
-                 temporalAccessorFactory( ValueGroup.DATE ),
-                 RandomValues.typesOfGroup( ValueGroup.DATE ),
-                 (IndexLayoutFactory) DateLayout::new,
-                 TemporalIndexProvider.CAPABILITY
+                        temporalAccessorFactory( ValueGroup.DATE ),
+                        RandomValues.typesOfGroup( ValueGroup.DATE ),
+                        (IndexLayoutFactory) DateLayout::new,
+                        TemporalIndexProvider.CAPABILITY
                 },
                 {"DateTime",
-                 temporalAccessorFactory( ValueGroup.ZONED_DATE_TIME ),
-                 RandomValues.typesOfGroup( ValueGroup.ZONED_DATE_TIME ),
-                 (IndexLayoutFactory) ZonedDateTimeLayout::new,
-                 TemporalIndexProvider.CAPABILITY
+                        temporalAccessorFactory( ValueGroup.ZONED_DATE_TIME ),
+                        RandomValues.typesOfGroup( ValueGroup.ZONED_DATE_TIME ),
+                        (IndexLayoutFactory) ZonedDateTimeLayout::new,
+                        TemporalIndexProvider.CAPABILITY
                 },
                 {"Duration",
-                 temporalAccessorFactory( ValueGroup.DURATION ),
-                 RandomValues.typesOfGroup( ValueGroup.DURATION ),
-                 (IndexLayoutFactory) DurationLayout::new,
-                 TemporalIndexProvider.CAPABILITY
+                        temporalAccessorFactory( ValueGroup.DURATION ),
+                        RandomValues.typesOfGroup( ValueGroup.DURATION ),
+                        (IndexLayoutFactory) DurationLayout::new,
+                        TemporalIndexProvider.CAPABILITY
                 },
                 {"LocalDateTime",
-                 temporalAccessorFactory( ValueGroup.LOCAL_DATE_TIME ),
-                 RandomValues.typesOfGroup( ValueGroup.LOCAL_DATE_TIME ),
-                 (IndexLayoutFactory) LocalDateTimeLayout::new,
-                 TemporalIndexProvider.CAPABILITY
+                        temporalAccessorFactory( ValueGroup.LOCAL_DATE_TIME ),
+                        RandomValues.typesOfGroup( ValueGroup.LOCAL_DATE_TIME ),
+                        (IndexLayoutFactory) LocalDateTimeLayout::new,
+                        TemporalIndexProvider.CAPABILITY
                 },
                 {"LocalTime",
-                 temporalAccessorFactory( ValueGroup.LOCAL_TIME ),
-                 RandomValues.typesOfGroup( ValueGroup.LOCAL_TIME ),
-                 (IndexLayoutFactory) LocalTimeLayout::new,
-                 TemporalIndexProvider.CAPABILITY
+                        temporalAccessorFactory( ValueGroup.LOCAL_TIME ),
+                        RandomValues.typesOfGroup( ValueGroup.LOCAL_TIME ),
+                        (IndexLayoutFactory) LocalTimeLayout::new,
+                        TemporalIndexProvider.CAPABILITY
                 },
                 {"LocalDateTime",
-                 temporalAccessorFactory( ValueGroup.LOCAL_DATE_TIME ),
-                 RandomValues.typesOfGroup( ValueGroup.LOCAL_DATE_TIME ),
-                 (IndexLayoutFactory) LocalDateTimeLayout::new,
-                 TemporalIndexProvider.CAPABILITY
+                        temporalAccessorFactory( ValueGroup.LOCAL_DATE_TIME ),
+                        RandomValues.typesOfGroup( ValueGroup.LOCAL_DATE_TIME ),
+                        (IndexLayoutFactory) LocalDateTimeLayout::new,
+                        TemporalIndexProvider.CAPABILITY
                 },
                 {"Time",
-                 temporalAccessorFactory( ValueGroup.ZONED_TIME ),
-                 RandomValues.typesOfGroup( ValueGroup.ZONED_TIME ),
-                 (IndexLayoutFactory) ZonedTimeLayout::new,
-                 TemporalIndexProvider.CAPABILITY
+                        temporalAccessorFactory( ValueGroup.ZONED_TIME ),
+                        RandomValues.typesOfGroup( ValueGroup.ZONED_TIME ),
+                        (IndexLayoutFactory) ZonedTimeLayout::new,
+                        TemporalIndexProvider.CAPABILITY
                 },
                 {"Generic",
-                 genericAccessorFactory(),
-                 ValueType.values(),
-                 (IndexLayoutFactory) () -> new GenericLayout( 1, spaceFillingCurveSettings ),
-                 GenericNativeIndexProvider.CAPABILITY
+                        genericAccessorFactory(),
+                        ValueType.values(),
+                        (IndexLayoutFactory) () -> new GenericLayout( 1, spaceFillingCurveSettings ),
+                        GenericNativeIndexProvider.CAPABILITY
                 },
                 //{ Spatial has it's own subclass because it need to override some of the test methods }
         } );
@@ -133,10 +133,10 @@ public class NativeIndexAccessorTest<KEY extends NativeIndexKey<KEY>, VALUE exte
 
     @SuppressWarnings( "unused" )
     public NativeIndexAccessorTest( String name,
-                                    AccessorFactory<KEY,VALUE> accessorFactory,
-                                    ValueType[] supportedTypes,
-                                    IndexLayoutFactory<KEY,VALUE> indexLayoutFactory,
-                                    IndexCapability indexCapability )
+            AccessorFactory<KEY,VALUE> accessorFactory,
+            ValueType[] supportedTypes,
+            IndexLayoutFactory<KEY,VALUE> indexLayoutFactory,
+            IndexCapability indexCapability )
     {
         this.accessorFactory = accessorFactory;
         this.supportedTypes = supportedTypes;
@@ -148,7 +148,7 @@ public class NativeIndexAccessorTest<KEY extends NativeIndexKey<KEY>, VALUE exte
     NativeIndexAccessor<KEY,VALUE> makeAccessor() throws IOException
     {
         return accessorFactory.create( pageCache, fs, getIndexFile(), layout, RecoveryCleanupWorkCollector.immediate(), monitor, indexDescriptor,
-                                       indexDirectoryStructure, false, simpleNameLookup );
+                indexDirectoryStructure, false, simpleNameLookup );
     }
 
     @Override
@@ -197,7 +197,7 @@ public class NativeIndexAccessorTest<KEY extends NativeIndexKey<KEY>, VALUE exte
         {
             IndexDropAction dropAction = new FileSystemIndexDropAction( fs, directory );
             return new GenericNativeIndexAccessor( pageCache, fs, storeFile, layout, cleanup, monitor, descriptor, spaceFillingCurveSettings,
-                                                   configuration, dropAction, readOnly, tokenNameLookup );
+                    configuration, dropAction, readOnly, tokenNameLookup );
         };
     }
 
@@ -205,8 +205,7 @@ public class NativeIndexAccessorTest<KEY extends NativeIndexKey<KEY>, VALUE exte
     private interface AccessorFactory<KEY extends NativeIndexKey<KEY>, VALUE extends NativeIndexValue>
     {
         NativeIndexAccessor<KEY,VALUE> create( PageCache pageCache, FileSystemAbstraction fs, File storeFile, IndexLayout<KEY,VALUE> layout,
-                                               RecoveryCleanupWorkCollector recoveryCleanupWorkCollector, IndexProvider.Monitor monitor,
-                                               StoreIndexDescriptor descriptor,
-                                               IndexDirectoryStructure directory, boolean readOnly, TokenNameLookup tokenNameLookup ) throws IOException;
+                RecoveryCleanupWorkCollector recoveryCleanupWorkCollector, IndexProvider.Monitor monitor, StoreIndexDescriptor descriptor,
+                IndexDirectoryStructure directory, boolean readOnly, TokenNameLookup tokenNameLookup ) throws IOException;
     }
 }

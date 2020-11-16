@@ -68,7 +68,7 @@ public class OnlineIndexUpdates implements IndexUpdates
     private RelationshipRecord relationshipRecord;
 
     public OnlineIndexUpdates( NodeStore nodeStore, RelationshipStore relationshipStore, IndexingUpdateService updateService,
-                               PropertyPhysicalToLogicalConverter converter )
+            PropertyPhysicalToLogicalConverter converter )
     {
         this.nodeStore = nodeStore;
         this.relationshipStore = relationshipStore;
@@ -116,7 +116,7 @@ public class OnlineIndexUpdates implements IndexUpdates
     }
 
     private void gatherUpdatesFor( long relationshipId, RelationshipCommand relationshipCommand,
-                                   EntityCommandGrouper<RelationshipCommand>.Cursor propertyCommands )
+            EntityCommandGrouper<RelationshipCommand>.Cursor propertyCommands )
     {
         EntityUpdates.Builder relationshipPropertyUpdate = gatherUpdatesFromCommandsForRelationship( relationshipId, relationshipCommand, propertyCommands );
 
@@ -130,8 +130,8 @@ public class OnlineIndexUpdates implements IndexUpdates
     }
 
     private EntityUpdates.Builder gatherUpdatesFromCommandsForNode( long nodeId,
-                                                                    NodeCommand nodeChanges,
-                                                                    EntityCommandGrouper<NodeCommand>.Cursor propertyCommandsForNode )
+            NodeCommand nodeChanges,
+            EntityCommandGrouper<NodeCommand>.Cursor propertyCommandsForNode )
     {
         long[] nodeLabelsBefore;
         long[] nodeLabelsAfter;
@@ -177,7 +177,7 @@ public class OnlineIndexUpdates implements IndexUpdates
     }
 
     private EntityUpdates.Builder gatherUpdatesFromCommandsForRelationship( long relationshipId, RelationshipCommand relationshipCommand,
-                                                                            EntityCommandGrouper<RelationshipCommand>.Cursor propertyCommands )
+            EntityCommandGrouper<RelationshipCommand>.Cursor propertyCommands )
     {
         long reltypeBefore;
         long reltypeAfter;

@@ -101,7 +101,7 @@ public class FusionIndexProvider extends IndexProvider
 
     @Override
     public IndexPopulator getPopulator( StoreIndexDescriptor descriptor, IndexSamplingConfig samplingConfig, ByteBufferFactory bufferFactory,
-                                        TokenNameLookup tokenNameLookup )
+            TokenNameLookup tokenNameLookup )
     {
         EnumMap<IndexSlot,IndexPopulator> populators =
                 providers.map( provider -> provider.getPopulator( descriptor, samplingConfig, bufferFactory, tokenNameLookup ) );
@@ -110,7 +110,7 @@ public class FusionIndexProvider extends IndexProvider
 
     @Override
     public IndexAccessor getOnlineAccessor( StoreIndexDescriptor descriptor, IndexSamplingConfig samplingConfig,
-                                            TokenNameLookup tokenNameLookup ) throws IOException
+            TokenNameLookup tokenNameLookup ) throws IOException
     {
         EnumMap<IndexSlot,IndexAccessor> accessors = providers.map( provider -> provider.getOnlineAccessor( descriptor, samplingConfig, tokenNameLookup ) );
         return new FusionIndexAccessor( slotSelector, new InstanceSelector<>( accessors ), descriptor, dropAction );

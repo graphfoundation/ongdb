@@ -342,7 +342,7 @@ public abstract class NativeIndexProviderTests
     protected abstract Value someValue();
 
     abstract IndexProvider newProvider( PageCache pageCache, FileSystemAbstraction fs, IndexDirectoryStructure.Factory dir,
-                                        IndexProvider.Monitor monitor, RecoveryCleanupWorkCollector collector, boolean readOnly );
+            IndexProvider.Monitor monitor, RecoveryCleanupWorkCollector collector, boolean readOnly );
 
     private IndexProvider newProvider()
     {

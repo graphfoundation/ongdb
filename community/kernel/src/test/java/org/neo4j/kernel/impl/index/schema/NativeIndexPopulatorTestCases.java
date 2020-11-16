@@ -72,49 +72,49 @@ class NativeIndexPopulatorTestCases
     {
         return Arrays.asList( new Object[][]{
                 {new TestCase<>( "Number",
-                                 numberPopulatorFactory(),
-                                 RandomValues.typesOfGroup( ValueGroup.NUMBER ),
-                                 NumberLayoutNonUnique::new )},
+                        numberPopulatorFactory(),
+                        RandomValues.typesOfGroup( ValueGroup.NUMBER ),
+                        NumberLayoutNonUnique::new )},
                 {new TestCase<>( "String",
-                                 StringIndexPopulator::new,
-                                 RandomValues.typesOfGroup( ValueGroup.TEXT ),
-                                 StringLayout::new )},
+                        StringIndexPopulator::new,
+                        RandomValues.typesOfGroup( ValueGroup.TEXT ),
+                        StringLayout::new )},
                 {new TestCase<>( "Date",
-                                 temporalPopulatorFactory( ValueGroup.DATE ),
-                                 RandomValues.typesOfGroup( ValueGroup.DATE ),
-                                 DateLayout::new )},
+                        temporalPopulatorFactory( ValueGroup.DATE ),
+                        RandomValues.typesOfGroup( ValueGroup.DATE ),
+                        DateLayout::new )},
                 {new TestCase<>( "DateTime",
-                                 temporalPopulatorFactory( ValueGroup.ZONED_DATE_TIME ),
-                                 RandomValues.typesOfGroup( ValueGroup.ZONED_DATE_TIME ),
-                                 ZonedDateTimeLayout::new )},
+                        temporalPopulatorFactory( ValueGroup.ZONED_DATE_TIME ),
+                        RandomValues.typesOfGroup( ValueGroup.ZONED_DATE_TIME ),
+                        ZonedDateTimeLayout::new )},
                 {new TestCase<>( "Duration",
-                                 temporalPopulatorFactory( ValueGroup.DURATION ),
-                                 RandomValues.typesOfGroup( ValueGroup.DURATION ),
-                                 DurationLayout::new )},
+                        temporalPopulatorFactory( ValueGroup.DURATION ),
+                        RandomValues.typesOfGroup( ValueGroup.DURATION ),
+                        DurationLayout::new )},
                 {new TestCase<>( "LocalDateTime",
-                                 temporalPopulatorFactory( ValueGroup.LOCAL_DATE_TIME ),
-                                 RandomValues.typesOfGroup( ValueGroup.LOCAL_DATE_TIME ),
-                                 LocalDateTimeLayout::new )},
+                        temporalPopulatorFactory( ValueGroup.LOCAL_DATE_TIME ),
+                        RandomValues.typesOfGroup( ValueGroup.LOCAL_DATE_TIME ),
+                        LocalDateTimeLayout::new )},
                 {new TestCase<>( "LocalTime",
-                                 temporalPopulatorFactory( ValueGroup.LOCAL_TIME ),
-                                 RandomValues.typesOfGroup( ValueGroup.LOCAL_TIME ),
-                                 LocalTimeLayout::new )},
+                        temporalPopulatorFactory( ValueGroup.LOCAL_TIME ),
+                        RandomValues.typesOfGroup( ValueGroup.LOCAL_TIME ),
+                        LocalTimeLayout::new )},
                 {new TestCase<>( "LocalDateTime",
-                                 temporalPopulatorFactory( ValueGroup.LOCAL_DATE_TIME ),
-                                 RandomValues.typesOfGroup( ValueGroup.LOCAL_DATE_TIME ),
-                                 LocalDateTimeLayout::new )},
+                        temporalPopulatorFactory( ValueGroup.LOCAL_DATE_TIME ),
+                        RandomValues.typesOfGroup( ValueGroup.LOCAL_DATE_TIME ),
+                        LocalDateTimeLayout::new )},
                 {new TestCase<>( "Time",
-                                 temporalPopulatorFactory( ValueGroup.ZONED_TIME ),
-                                 RandomValues.typesOfGroup( ValueGroup.ZONED_TIME ),
-                                 ZonedTimeLayout::new )},
+                        temporalPopulatorFactory( ValueGroup.ZONED_TIME ),
+                        RandomValues.typesOfGroup( ValueGroup.ZONED_TIME ),
+                        ZonedTimeLayout::new )},
                 {new TestCase<>( "Generic",
-                                 genericPopulatorFactory(),
-                                 ValueType.values(),
-                                 () -> new GenericLayout( 1, spaceFillingCurveSettings ) )},
+                        genericPopulatorFactory(),
+                        ValueType.values(),
+                        () -> new GenericLayout( 1, spaceFillingCurveSettings ) )},
                 {new TestCase<>( "Generic-BlockBased",
-                                 genericBlockBasedPopulatorFactory(),
-                                 ValueType.values(),
-                                 () -> new GenericLayout( 1, spaceFillingCurveSettings ) )}
+                        genericBlockBasedPopulatorFactory(),
+                        ValueType.values(),
+                        () -> new GenericLayout( 1, spaceFillingCurveSettings ) )}
         } );
         // { Spatial has it's own subclass because it need to override some of the test methods }
     }
@@ -144,7 +144,7 @@ class NativeIndexPopulatorTestCases
             IndexDirectoryStructure directoryStructure = SimpleIndexDirectoryStructures.onIndexFile( storeFile );
             IndexDropAction dropAction = new FileSystemIndexDropAction( fs, directoryStructure );
             return new GenericNativeIndexPopulator( pageCache, fs, storeFile, layout, monitor, descriptor, spaceFillingCurveSettings,
-                                                    directoryStructure, configuration, dropAction, false, tokenNameLookup );
+                    directoryStructure, configuration, dropAction, false, tokenNameLookup );
         };
     }
 
@@ -155,7 +155,7 @@ class NativeIndexPopulatorTestCases
             IndexDirectoryStructure directoryStructure = SimpleIndexDirectoryStructures.onIndexFile( storeFile );
             IndexDropAction dropAction = new FileSystemIndexDropAction( fs, directoryStructure );
             return new GenericBlockBasedIndexPopulator( pageCache, fs, storeFile, layout, monitor, descriptor, spaceFillingCurveSettings,
-                                                        directoryStructure, configuration, dropAction, false, heapBufferFactory( 10 * 1024 ), tokenNameLookup );
+                    directoryStructure, configuration, dropAction, false, heapBufferFactory( 10 * 1024 ), tokenNameLookup );
         };
     }
 
@@ -163,7 +163,6 @@ class NativeIndexPopulatorTestCases
     public interface PopulatorFactory<KEY extends NativeIndexKey<KEY>, VALUE extends NativeIndexValue>
     {
         NativeIndexPopulator<KEY,VALUE> create( PageCache pageCache, FileSystemAbstraction fs, File storeFile, IndexLayout<KEY,VALUE> layout,
-                                                IndexProvider.Monitor monitor, StoreIndexDescriptor descriptor, TokenNameLookup tokenNameLookup )
-                throws IOException;
+                IndexProvider.Monitor monitor, StoreIndexDescriptor descriptor, TokenNameLookup tokenNameLookup ) throws IOException;
     }
 }

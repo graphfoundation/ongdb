@@ -82,10 +82,10 @@ final class ThreadPool
     void cancelAllJobs()
     {
         registry.values().removeIf( future ->
-                                    {
-                                        future.cancel( true );
-                                        return true;
-                                    } );
+        {
+            future.cancel( true );
+            return true;
+        } );
     }
 
     void shutDown()

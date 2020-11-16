@@ -62,9 +62,7 @@ public class GenericNativeIndexAccessorTest
         FileSystemAbstraction fs = storage.fileSystem();
         IndexDropAction dropAction = new FileSystemIndexDropAction( fs, directoryStructure );
         GenericNativeIndexAccessor accessor = new GenericNativeIndexAccessor( storage.pageCache(), fs, indexFile, new GenericLayout( 1, spatialSettings ),
-                                                                              immediate(), EMPTY, descriptor, spatialSettings,
-                                                                              mock( SpaceFillingCurveConfiguration.class ), dropAction, false,
-                                                                              simpleNameLookup );
+                immediate(), EMPTY, descriptor, spatialSettings, mock( SpaceFillingCurveConfiguration.class ), dropAction, false, simpleNameLookup );
 
         // when
         accessor.drop();

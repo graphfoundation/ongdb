@@ -42,14 +42,13 @@ class GenericBlockBasedIndexPopulator extends BlockBasedIndexPopulator<GenericKe
     private final SpaceFillingCurveConfiguration configuration;
 
     GenericBlockBasedIndexPopulator( PageCache pageCache, FileSystemAbstraction fs, File file, IndexLayout<GenericKey,NativeIndexValue> layout,
-                                     IndexProvider.Monitor monitor, StoreIndexDescriptor descriptor,
-                                     IndexSpecificSpaceFillingCurveSettingsCache spatialSettings,
-                                     IndexDirectoryStructure directoryStructure, SpaceFillingCurveConfiguration configuration,
-                                     IndexDropAction dropAction, boolean archiveFailedIndex, ByteBufferFactory bufferFactory,
-                                     TokenNameLookup tokenNameLookup )
+            IndexProvider.Monitor monitor, StoreIndexDescriptor descriptor, IndexSpecificSpaceFillingCurveSettingsCache spatialSettings,
+            IndexDirectoryStructure directoryStructure, SpaceFillingCurveConfiguration configuration,
+            IndexDropAction dropAction, boolean archiveFailedIndex, ByteBufferFactory bufferFactory,
+            TokenNameLookup tokenNameLookup )
     {
         super( pageCache, fs, file, layout, monitor, descriptor, spatialSettings, directoryStructure, dropAction, archiveFailedIndex, bufferFactory,
-               tokenNameLookup );
+                tokenNameLookup );
         this.spatialSettings = spatialSettings;
         this.configuration = configuration;
     }

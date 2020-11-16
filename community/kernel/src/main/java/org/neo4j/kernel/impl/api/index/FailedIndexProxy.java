@@ -45,11 +45,11 @@ public class FailedIndexProxy extends AbstractSwallowingIndexProxy
     private final Log log;
 
     FailedIndexProxy( CapableIndexDescriptor capableIndexDescriptor,
-                      String indexUserDescription,
-                      IndexPopulator populator,
-                      IndexPopulationFailure populationFailure,
-                      IndexCountsRemover indexCountsRemover,
-                      LogProvider logProvider )
+            String indexUserDescription,
+            IndexPopulator populator,
+            IndexPopulationFailure populationFailure,
+            IndexCountsRemover indexCountsRemover,
+            LogProvider logProvider )
     {
         super( capableIndexDescriptor, populationFailure );
         this.populator = populator;
@@ -69,7 +69,7 @@ public class FailedIndexProxy extends AbstractSwallowingIndexProxy
     {
         indexCountsRemover.remove();
         String message = "FailedIndexProxy#drop index on " + indexUserDescription + " dropped due to:\n" +
-                         getPopulationFailure().asString();
+                     getPopulationFailure().asString();
         log.info( message );
         populator.drop();
     }

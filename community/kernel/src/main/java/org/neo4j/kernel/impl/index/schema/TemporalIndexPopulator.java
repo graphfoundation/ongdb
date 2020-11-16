@@ -50,7 +50,7 @@ import static org.neo4j.kernel.impl.index.schema.fusion.FusionIndexSampler.combi
 class TemporalIndexPopulator extends TemporalIndexCache<WorkSyncedNativeIndexPopulator<?,?>> implements IndexPopulator
 {
     TemporalIndexPopulator( StoreIndexDescriptor descriptor, IndexSamplingConfig samplingConfig, TemporalIndexFiles temporalIndexFiles, PageCache pageCache,
-                            FileSystemAbstraction fs, IndexProvider.Monitor monitor, TokenNameLookup tokenNameLookup )
+            FileSystemAbstraction fs, IndexProvider.Monitor monitor, TokenNameLookup tokenNameLookup )
     {
         super( new PartFactory( pageCache, fs, temporalIndexFiles, descriptor, samplingConfig, monitor, tokenNameLookup ) );
     }
@@ -143,7 +143,7 @@ class TemporalIndexPopulator extends TemporalIndexCache<WorkSyncedNativeIndexPop
     static class PartPopulator<KEY extends NativeIndexSingleValueKey<KEY>> extends NativeIndexPopulator<KEY,NativeIndexValue>
     {
         PartPopulator( PageCache pageCache, FileSystemAbstraction fs, TemporalIndexFiles.FileLayout<KEY> fileLayout, IndexProvider.Monitor monitor,
-                       StoreIndexDescriptor descriptor, TokenNameLookup tokenNameLookup )
+                StoreIndexDescriptor descriptor, TokenNameLookup tokenNameLookup )
         {
             super( pageCache, fs, fileLayout.indexFile, fileLayout.layout, monitor, descriptor, NO_HEADER_WRITER, tokenNameLookup );
         }
@@ -166,7 +166,7 @@ class TemporalIndexPopulator extends TemporalIndexCache<WorkSyncedNativeIndexPop
         private final TokenNameLookup tokenNameLookup;
 
         PartFactory( PageCache pageCache, FileSystemAbstraction fs, TemporalIndexFiles temporalIndexFiles, StoreIndexDescriptor descriptor,
-                     IndexSamplingConfig samplingConfig, IndexProvider.Monitor monitor, TokenNameLookup tokenNameLookup )
+                IndexSamplingConfig samplingConfig, IndexProvider.Monitor monitor, TokenNameLookup tokenNameLookup )
         {
             this.pageCache = pageCache;
             this.fs = fs;
