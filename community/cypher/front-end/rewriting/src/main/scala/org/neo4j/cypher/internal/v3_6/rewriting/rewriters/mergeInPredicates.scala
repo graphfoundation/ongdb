@@ -68,6 +68,7 @@ case object mergeInPredicates extends Rewriter {
   })
 
   private def noOrsNorInnerScopes(expression: Expression):Boolean = !expression.treeExists {
+    case _: Or => true
     case _: ScopeExpression => true
   }
 
