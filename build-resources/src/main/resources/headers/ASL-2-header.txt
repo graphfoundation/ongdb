@@ -1,4 +1,4 @@
-Copyright (c) ${project.inceptionYear}-${currentYear} "Graph Foundation,"
+Copyright (c) 2018-${currentYear} "Graph Foundation,"
 Graph Foundation, Inc. [https://graphfoundation.org]
 
 Copyright (c) ${project.inceptionYear}-${currentYear} "Neo4j,"
