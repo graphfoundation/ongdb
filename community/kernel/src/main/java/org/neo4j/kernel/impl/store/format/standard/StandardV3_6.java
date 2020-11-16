@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2002-2020 Graph Foundation, Inc.[https://graphfoundation.org]
  *
- * This file is part of ONgDB.
+ * This file is part of Neo4j.
  *
  * ONgDB is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
