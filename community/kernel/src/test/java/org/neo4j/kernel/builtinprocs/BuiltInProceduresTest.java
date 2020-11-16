@@ -24,6 +24,7 @@ import org.junit.Before;
 import org.junit.Test;
 import org.mockito.stubbing.Answer;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -72,6 +73,7 @@ import org.neo4j.storageengine.api.schema.PopulationProgress;
 
 import static java.util.Collections.emptyIterator;
 import static java.util.Collections.singletonList;
+import static java.util.Collections.singletonMap;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -179,7 +181,7 @@ public class BuiltInProceduresTest
 
         // When/Then
         assertThat( call( "db.indexes" ), contains( record(
-                "INDEX ON :User(name)", "Unnamed index", singletonList( "User" ), singletonList( "name" ), "ONLINE", "node_label_property", 100D,
+                "INDEX ON :User(name)", "Unnamed index", singletonList( "User" ), singletonList( "name" ), Collections.emptyMap(), "ONLINE", "node_label_property", 100D,
                 getIndexProviderDescriptorMap( EMPTY.getProviderDescriptor() ), 42L, "" ) ) );
     }
 
@@ -191,7 +193,7 @@ public class BuiltInProceduresTest
 
         // When/Then
         assertThat( call( "db.indexes" ), contains( record(
-                "INDEX ON :User(name)", "Unnamed index", singletonList( "User" ), singletonList( "name" ), "ONLINE", "node_unique_property", 100D,
+                "INDEX ON :User(name)", "Unnamed index", singletonList( "User" ), singletonList( "name" ), Collections.emptyMap(), "ONLINE", "node_unique_property", 100D,
                 getIndexProviderDescriptorMap( EMPTY.getProviderDescriptor() ), 42L, "" ) ) );
     }
 
@@ -204,7 +206,7 @@ public class BuiltInProceduresTest
 
         // When/Then
         assertThat( call( "db.indexes" ), contains( record(
-                "INDEX ON :User(name)", "Unnamed index", singletonList( "User" ), singletonList( "name" ), "NOT FOUND", "node_label_property", 0D,
+                "INDEX ON :User(name)", "Unnamed index", singletonList( "User" ), singletonList( "name" ), Collections.EMPTY_MAP, "NOT FOUND", "node_label_property", 0D,
                 getIndexProviderDescriptorMap( EMPTY.getProviderDescriptor() ), 42L, "Index not found. It might have been concurrently dropped." ) ) );
     }
 
@@ -293,7 +295,7 @@ public class BuiltInProceduresTest
                 record( "db.constraints", "db.constraints() :: (description :: STRING?)",
                         "List all constraints in the database.", "READ" ),
                 record( "db.indexes", "db.indexes() :: (description :: STRING?, indexName :: STRING?, " +
-                                "tokenNames :: LIST? OF STRING?, properties :: LIST? OF STRING?, state :: STRING?, " +
+                                "tokenNames :: LIST? OF STRING?, properties :: LIST? OF STRING?, sortProperties :: MAP?, state :: STRING?, " +
                                 "type :: STRING?, progress :: FLOAT?, provider :: MAP?, id :: INTEGER?, failureMessage :: STRING?)",
                         "List all indexes in the database.", "READ" ),
                 record( "db.labels", "db.labels() :: (label :: STRING?)", "List all labels in the database.", "READ" ),
