@@ -181,7 +181,8 @@ public class BuiltInProceduresTest
 
         // When/Then
         assertThat( call( "db.indexes" ), contains( record(
-                "INDEX ON :User(name)", "Unnamed index", singletonList( "User" ), singletonList( "name" ), Collections.emptyMap(), "ONLINE", "node_label_property", 100D,
+                "INDEX ON :User(name)", "Unnamed index", singletonList( "User" ), singletonList( "name" ), Collections.emptyMap(), "ONLINE",
+                "node_label_property", 100D,
                 getIndexProviderDescriptorMap( EMPTY.getProviderDescriptor() ), 42L, "" ) ) );
     }
 
@@ -193,7 +194,8 @@ public class BuiltInProceduresTest
 
         // When/Then
         assertThat( call( "db.indexes" ), contains( record(
-                "INDEX ON :User(name)", "Unnamed index", singletonList( "User" ), singletonList( "name" ), Collections.emptyMap(), "ONLINE", "node_unique_property", 100D,
+                "INDEX ON :User(name)", "Unnamed index", singletonList( "User" ), singletonList( "name" ), Collections.emptyMap(), "ONLINE",
+                "node_unique_property", 100D,
                 getIndexProviderDescriptorMap( EMPTY.getProviderDescriptor() ), 42L, "" ) ) );
     }
 
@@ -206,7 +208,8 @@ public class BuiltInProceduresTest
 
         // When/Then
         assertThat( call( "db.indexes" ), contains( record(
-                "INDEX ON :User(name)", "Unnamed index", singletonList( "User" ), singletonList( "name" ), Collections.EMPTY_MAP, "NOT FOUND", "node_label_property", 0D,
+                "INDEX ON :User(name)", "Unnamed index", singletonList( "User" ), singletonList( "name" ), Collections.EMPTY_MAP, "NOT FOUND",
+                "node_label_property", 0D,
                 getIndexProviderDescriptorMap( EMPTY.getProviderDescriptor() ), 42L, "Index not found. It might have been concurrently dropped." ) ) );
     }
 
