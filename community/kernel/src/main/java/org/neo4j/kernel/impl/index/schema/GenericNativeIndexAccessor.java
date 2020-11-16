@@ -98,4 +98,5 @@ class GenericNativeIndexAccessor extends NativeIndexAccessor<GenericKey,NativeIn
         spaceFillingCurveSettings.visitIndexSpecificSettings( new SpatialConfigExtractor( map ) );
         return map;
     }
+
 }
