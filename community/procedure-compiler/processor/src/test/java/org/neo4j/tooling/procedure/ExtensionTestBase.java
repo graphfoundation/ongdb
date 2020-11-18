@@ -53,20 +53,20 @@ public abstract class ExtensionTestBase
         unsuccessfulCompilationClause.withErrorContaining(
                 "@org.neo4j.procedure.Context usage error: field BadContextFields#shouldBeNonStatic should be public, " +
                 "non-static and non-final" )
-                .in( sproc ).onLine( 38 );
+                .in( sproc ).onLine( 35 );
 
         unsuccessfulCompilationClause.withErrorContaining(
                 "@org.neo4j.procedure.Context usage error: field BadContextFields#shouldBeNonFinal should be public, " +
                 "non-static and non-final" )
-                .in( sproc ).onLine( 41 );
+                .in( sproc ).onLine( 38 );
 
         unsuccessfulCompilationClause.withErrorContaining(
                 "@org.neo4j.procedure.Context usage error: field BadContextFields#shouldBePublic should be public, " +
                 "non-static and non-final" )
-                .in( sproc ).onLine( 45 );
+                .in( sproc ).onLine( 42 );
 
         unsuccessfulCompilationClause.withErrorContaining( "Field BadContextFields#shouldBeStatic should be static" )
-                .in( sproc ).onLine( 46 );
+                .in( sproc ).onLine( 43 );
     }
 
     @Test
@@ -81,7 +81,7 @@ public abstract class ExtensionTestBase
                 ".GraphDatabaseAPI> on BadContextRestrictedTypeField#notOfficiallySupported.\n" +
                 "  The procedure will not load unless declared via the configuration option 'dbms.security.procedures.unrestricted'.\n" +
                 "  You can ignore this warning by passing the option -AIgnoreContextWarnings to the Java compiler" )
-                .in( sproc ).onLine( 38 );
+                .in( sproc ).onLine( 35 );
     }
 
     @Test
@@ -109,6 +109,6 @@ public abstract class ExtensionTestBase
                                 TerminationGuard.class.getName() + ">, <" +
                                 SecurityContext.class.getName() + ">, <" +
                                 ProcedureTransaction.class.getName() + ">" )
-                .in( sproc ).onLine( 36 );
+                .in( sproc ).onLine( 33 );
     }
 }

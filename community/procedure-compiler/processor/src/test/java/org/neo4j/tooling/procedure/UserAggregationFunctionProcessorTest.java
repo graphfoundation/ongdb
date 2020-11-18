@@ -50,7 +50,7 @@ public class UserAggregationFunctionProcessorTest extends ExtensionTestBase
         assert_().about( javaSource() ).that( function ).processedWith( processor() ).failsToCompile()
                 .withErrorCount( 1 )
                 .withErrorContaining( "@UserAggregationFunction usage error: method should be public, non-static and without parameters." )
-                .in( function ).onLine( 34 );
+                .in( function ).onLine( 31 );
     }
 
     @Test
@@ -62,7 +62,7 @@ public class UserAggregationFunctionProcessorTest extends ExtensionTestBase
         assert_().about( javaSource() ).that( function ).processedWith( processor() ).failsToCompile()
                 .withErrorCount( 1 )
                 .withErrorContaining( "Unsupported return type <void> of aggregation function." )
-                .in( function ).onLine( 30 );
+                .in( function ).onLine( 27 );
     }
 
     @Test
