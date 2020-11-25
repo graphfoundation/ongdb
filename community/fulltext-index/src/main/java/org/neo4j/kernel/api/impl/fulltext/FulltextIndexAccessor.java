@@ -133,7 +133,7 @@ public class FulltextIndexAccessor extends AbstractLuceneIndexAccessor<FulltextI
             try
             {
                 Term term = newTermForChangeOrRemove( entityId );
-                Document document = documentRepresentingProperties( entityId, descriptor.propertyNames(), values );
+                Document document = createDocument( entityId, values );
                 writer.updateDocument( term, document );
             }
             catch ( IOException e )
