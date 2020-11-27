@@ -2566,7 +2566,7 @@ public class FulltextProceduresTest
         try ( Transaction tx = db.beginTx() )
         {
             assertQueryFindsIds( db, false, "rels", "blabla", relId );
-            db.execute( "MATCH (n) WHERE id(n) = " + nodeId + " DETACH DELETE n" ).close();
+            db.execute( "match (n) where id(n) = " + nodeId + " detach delete n" ).close();
             tx.success();
         }
         try ( Transaction tx = db.beginTx() )
@@ -2619,7 +2619,7 @@ public class FulltextProceduresTest
         try ( Transaction tx = db.beginTx() )
         {
             assertQueryFindsIds( db, false, "rels", "blabla", relId );
-            db.execute( "MATCH (n) WHERE id(n) = " + nodeId + " DETACH DELETE n" ).close();
+            db.execute( "match (n) where id(n) = " + nodeId + " detach delete n" ).close();
             tx.success();
         }
         try ( Transaction tx = db.beginTx() )
