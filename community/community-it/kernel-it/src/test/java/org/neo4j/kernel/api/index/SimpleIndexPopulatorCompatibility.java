@@ -64,10 +64,10 @@ import static org.neo4j.kernel.impl.index.schema.ByteBufferFactory.heapBufferFac
 import static org.neo4j.values.storable.Values.stringValue;
 
 @Ignore( "Not a test. This is a compatibility suite that provides test cases for verifying" +
-         " IndexProvider implementations. Each index provider that is to be tested by this suite" +
-         " must create their own test class extending IndexProviderCompatibilityTestSuite." +
-         " The @Ignore annotation doesn't prevent these tests to run, it rather removes some annoying" +
-         " errors or warnings in some IDEs about test classes needing a public zero-arg constructor." )
+        " IndexProvider implementations. Each index provider that is to be tested by this suite" +
+        " must create their own test class extending IndexProviderCompatibilityTestSuite." +
+        " The @Ignore annotation doesn't prevent these tests to run, it rather removes some annoying" +
+        " errors or warnings in some IDEs about test classes needing a public zero-arg constructor." )
 public class SimpleIndexPopulatorCompatibility extends IndexProviderCompatibilityTestSuite.Compatibility
 {
     public SimpleIndexPopulatorCompatibility( IndexProviderCompatibilityTestSuite testSuite, IndexDescriptor descriptor )
@@ -85,7 +85,7 @@ public class SimpleIndexPopulatorCompatibility extends IndexProviderCompatibilit
         IndexSamplingConfig indexSamplingConfig = new IndexSamplingConfig( Config.defaults() );
         // WHEN (this will attempt to call close)
         withPopulator( indexProvider.getPopulator( descriptor, indexSamplingConfig, heapBufferFactory( 1024 ), tokenNameLookup ),
-                       p -> p.markAsFailed( failure ), false );
+                p -> p.markAsFailed( failure ), false );
         // THEN
         assertThat( indexProvider.getPopulationFailure( descriptor ), containsString( failure ) );
     }
@@ -159,7 +159,7 @@ public class SimpleIndexPopulatorCompatibility extends IndexProviderCompatibilit
     {
         // GIVEN
         withPopulator( indexProvider.getPopulator( descriptor, indexSamplingConfig, heapBufferFactory( 1024 ), tokenNameLookup ),
-                       p -> p.add( updates( valueSet1 ) ) );
+                p -> p.add( updates( valueSet1 ) ) );
 
         // THEN
         assertHasAllValues( valueSet1 );
@@ -189,7 +189,7 @@ public class SimpleIndexPopulatorCompatibility extends IndexProviderCompatibilit
     {
         // GIVEN
         withPopulator( indexProvider.getPopulator( descriptor, indexSamplingConfig, heapBufferFactory( 1024 ), tokenNameLookup ),
-                       p -> p.add( updates( valueSet1 ) ) );
+                p -> p.add( updates( valueSet1 ) ) );
 
         try ( IndexAccessor accessor = indexProvider.getOnlineAccessor( descriptor, indexSamplingConfig, tokenNameLookup ) )
         {

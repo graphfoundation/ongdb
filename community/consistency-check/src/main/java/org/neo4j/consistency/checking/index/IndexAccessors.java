@@ -47,7 +47,7 @@ public class IndexAccessors implements Closeable
     private final List<StoreIndexDescriptor> notOnlineIndexRules = new ArrayList<>();
 
     public IndexAccessors( IndexProviderMap providers, RecordStore<DynamicRecord> schemaStore, IndexSamplingConfig samplingConfig,
-                           TokenNameLookup tokenNameLookup ) throws IOException
+            TokenNameLookup tokenNameLookup ) throws IOException
     {
         Iterator<StoreIndexDescriptor> indexes = new SchemaStorage( schemaStore ).indexesGetAll();
         for (; ; )
@@ -67,7 +67,7 @@ public class IndexAccessors implements Closeable
                     else
                     {
                         if ( InternalIndexState.ONLINE ==
-                             provider( providers, indexDescriptor ).getInitialState( indexDescriptor ) )
+                                provider( providers, indexDescriptor ).getInitialState( indexDescriptor ) )
                         {
                             onlineIndexRules.add( indexDescriptor );
                         }

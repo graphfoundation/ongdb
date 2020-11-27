@@ -97,8 +97,8 @@ public class StringLengthIndexValidationIT
         monitors.addMonitorListener( trappingMonitor );
         factory.setMonitors( monitors );
         db = factory.newEmbeddedDatabaseBuilder( testDirectory.storeDir() )
-                    .setConfig( GraphDatabaseSettings.default_schema_provider, schemaIndex.providerName() )
-                    .newGraphDatabase();
+                .setConfig( GraphDatabaseSettings.default_schema_provider, schemaIndex.providerName() )
+                .newGraphDatabase();
     }
 
     @After
@@ -260,10 +260,10 @@ public class StringLengthIndexValidationIT
             IndexDefinition next = iterator.next();
             assertEquals( "state is FAILED", Schema.IndexState.FAILED, db.schema().getIndexState( next ) );
             assertThat( db.schema().getIndexFailure( next ),
-                        Matchers.allOf(
-                                containsString( "Index key-value size it to large. Please see index documentation for limitations." ),
-                                containsString( "Failed while trying to write to index, targetIndex=Index( GENERAL, :LABEL_ONE(largeString) ), nodeId=0" )
-                        ) );
+                    Matchers.allOf(
+                            containsString( "Index key-value size it to large. Please see index documentation for limitations." ),
+                            containsString( "Failed while trying to write to index, targetIndex=Index( GENERAL, :LABEL_ONE(largeString) ), nodeId=0" )
+                    ) );
             tx.success();
         }
     }

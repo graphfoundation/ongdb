@@ -92,7 +92,7 @@ public class ControlledPopulationIndexProvider extends IndexProvider
 
     @Override
     public IndexPopulator getPopulator( StoreIndexDescriptor descriptor, IndexSamplingConfig samplingConfig, ByteBufferFactory bufferFactory,
-                                        TokenNameLookup tokenNameLookup )
+            TokenNameLookup tokenNameLookup )
     {
         populatorCallCount.incrementAndGet();
         return mockedPopulator;
@@ -100,7 +100,7 @@ public class ControlledPopulationIndexProvider extends IndexProvider
 
     @Override
     public IndexAccessor getOnlineAccessor( StoreIndexDescriptor indexConfig, IndexSamplingConfig samplingConfig,
-                                            TokenNameLookup tokenNameLookup )
+            TokenNameLookup tokenNameLookup )
     {
         writerCallCount.incrementAndGet();
         writerLatch.countDown();

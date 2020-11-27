@@ -96,7 +96,7 @@ public class IndexRecoveryIT
 
         CountDownLatch latch = new CountDownLatch( 1 );
         when( mockedIndexProvider
-                      .getPopulator( any( StoreIndexDescriptor.class ), any( IndexSamplingConfig.class ), any(), any( TokenNameLookup.class ) ) )
+                .getPopulator( any( StoreIndexDescriptor.class ), any( IndexSamplingConfig.class ), any(), any( TokenNameLookup.class ) ) )
                 .thenReturn( indexPopulatorWithControlledCompletionTiming( latch ) );
         createIndex( myLabel );
 
@@ -110,7 +110,7 @@ public class IndexRecoveryIT
                 .thenReturn( InternalIndexState.POPULATING );
         latch = new CountDownLatch( 1 );
         when( mockedIndexProvider
-                      .getPopulator( any( StoreIndexDescriptor.class ), any( IndexSamplingConfig.class ), any(), any( TokenNameLookup.class ) ) )
+                .getPopulator( any( StoreIndexDescriptor.class ), any( IndexSamplingConfig.class ), any(), any( TokenNameLookup.class ) ) )
                 .thenReturn( indexPopulatorWithControlledCompletionTiming( latch ) );
         startDb();
 
@@ -132,7 +132,7 @@ public class IndexRecoveryIT
 
         CountDownLatch latch = new CountDownLatch( 1 );
         when( mockedIndexProvider
-                      .getPopulator( any( StoreIndexDescriptor.class ), any( IndexSamplingConfig.class ), any(), any( TokenNameLookup.class ) ) )
+                .getPopulator( any( StoreIndexDescriptor.class ), any( IndexSamplingConfig.class ), any(), any( TokenNameLookup.class ) ) )
                 .thenReturn( indexPopulatorWithControlledCompletionTiming( latch ) );
         createIndex( myLabel );
         rotateLogsAndCheckPoint();
@@ -143,7 +143,7 @@ public class IndexRecoveryIT
         killFuture.get();
         latch = new CountDownLatch( 1 );
         when( mockedIndexProvider
-                      .getPopulator( any( StoreIndexDescriptor.class ), any( IndexSamplingConfig.class ), any(), any( TokenNameLookup.class ) ) )
+                .getPopulator( any( StoreIndexDescriptor.class ), any( IndexSamplingConfig.class ), any(), any( TokenNameLookup.class ) ) )
                 .thenReturn( indexPopulatorWithControlledCompletionTiming( latch ) );
         when( mockedIndexProvider.getInitialState( any( StoreIndexDescriptor.class ) ) )
                 .thenReturn( InternalIndexState.POPULATING );
@@ -169,7 +169,7 @@ public class IndexRecoveryIT
 
         IndexPopulator populator = mock( IndexPopulator.class );
         when( mockedIndexProvider
-                      .getPopulator( any( StoreIndexDescriptor.class ), any( IndexSamplingConfig.class ), any(), any( TokenNameLookup.class ) ) )
+                .getPopulator( any( StoreIndexDescriptor.class ), any( IndexSamplingConfig.class ), any(), any( TokenNameLookup.class ) ) )
                 .thenReturn( populator );
         when( populator.sampleResult() ).thenReturn( new IndexSample() );
         IndexAccessor mockedAccessor = mock( IndexAccessor.class );
@@ -239,7 +239,7 @@ public class IndexRecoveryIT
     private final IndexProvider mockedIndexProvider = mock( IndexProvider.class );
     private final KernelExtensionFactory<?> mockedIndexProviderFactory =
             singleInstanceIndexProviderFactory( PROVIDER_DESCRIPTOR.getKey(),
-                                                mockedIndexProvider );
+                    mockedIndexProvider );
     private final String key = "number_of_bananas_owned";
     private final Label myLabel = label( "MyLabel" );
 
@@ -263,7 +263,7 @@ public class IndexRecoveryIT
         factory.setFileSystem( fs.get() );
         factory.setKernelExtensions( Collections.singletonList( mockedIndexProviderFactory ) );
         db = (GraphDatabaseAPI) factory.newImpermanentDatabaseBuilder()
-                                       .setConfig( GraphDatabaseSettings.default_schema_provider, PROVIDER_DESCRIPTOR.name() ).newGraphDatabase();
+                .setConfig( GraphDatabaseSettings.default_schema_provider, PROVIDER_DESCRIPTOR.name() ).newGraphDatabase();
     }
 
     private void killDb() throws Exception
@@ -271,10 +271,10 @@ public class IndexRecoveryIT
         if ( db != null )
         {
             fs.snapshot( () ->
-                         {
-                             db.shutdown();
-                             db = null;
-                         } );
+            {
+                db.shutdown();
+                db = null;
+            } );
         }
     }
 
@@ -282,10 +282,10 @@ public class IndexRecoveryIT
     {
         ExecutorService executor = newSingleThreadExecutor();
         Future<Void> result = executor.submit( () ->
-                                               {
-                                                   killDb();
-                                                   return null;
-                                               } );
+        {
+            killDb();
+            return null;
+        } );
         executor.shutdown();
         return result;
     }
@@ -360,21 +360,21 @@ public class IndexRecoveryIT
         public IndexUpdater newUpdater( final IndexUpdateMode mode )
         {
             return new CollectingIndexUpdater( updates ->
-                                               {
-                                                   switch ( mode )
-                                                   {
-                                                   case ONLINE:
-                                                       regularUpdates.addAll( updates );
-                                                       break;
+            {
+                switch ( mode )
+                {
+                    case ONLINE:
+                        regularUpdates.addAll( updates );
+                        break;
 
-                                                   case RECOVERY:
-                                                       batchedUpdates.addAll( updates );
-                                                       break;
+                    case RECOVERY:
+                        batchedUpdates.addAll( updates );
+                        break;
 
-                                                   default:
-                                                       throw new UnsupportedOperationException(  );
-                                                   }
-                                               } );
+                    default:
+                        throw new UnsupportedOperationException(  );
+                }
+            } );
         }
     }
 

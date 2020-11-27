@@ -73,7 +73,6 @@ import org.neo4j.storageengine.api.schema.PopulationProgress;
 
 import static java.util.Collections.emptyIterator;
 import static java.util.Collections.singletonList;
-import static java.util.Collections.singletonMap;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;

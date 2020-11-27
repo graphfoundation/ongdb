@@ -101,7 +101,7 @@ public class RecoveryCorruptedTransactionLogIT
     private final RandomRule random = new RandomRule();
     @Rule
     public RuleChain ruleChain = RuleChain.outerRule( fileSystemRule ).around( directory )
-                                          .around( expectedException ).around( random );
+            .around( expectedException ).around( random );
 
     private final AssertableLogProvider logProvider = new AssertableLogProvider( true );
     private final RecoveryMonitor recoveryMonitor = new RecoveryMonitor();
@@ -130,7 +130,7 @@ public class RecoveryCorruptedTransactionLogIT
             generateTransaction( database );
         }
         long numberOfClosedTransactions = getTransactionIdStore( database ).getLastClosedTransactionId() -
-                                          lastClosedTransactionBeforeStart;
+                lastClosedTransactionBeforeStart;
         database.shutdown();
         removeLastCheckpointRecordFromLastLogFile();
         addRandomBytesToLastLogFile( this::randomBytes );
@@ -209,7 +209,7 @@ public class RecoveryCorruptedTransactionLogIT
         logProvider.rawMessageMatcher().assertContains(
                 "Recovery required from position LogPosition{logVersion=0, byteOffset=16}" );
         logProvider.rawMessageMatcher().assertContains( "Fail to recover all transactions. Any later transactions after" +
-                                                        " position LogPosition{logVersion=0, byteOffset=16} are unreadable and will be truncated." );
+                " position LogPosition{logVersion=0, byteOffset=16} are unreadable and will be truncated." );
 
         assertEquals( 0, logFiles.getHighestLogVersion() );
         ObjectLongMap<Class> logEntriesDistribution = getLogEntriesDistribution( logFiles );
@@ -368,8 +368,8 @@ public class RecoveryCorruptedTransactionLogIT
         logProvider.rawMessageMatcher().assertContains(
                 "Recovery required from position LogPosition{logVersion=5, byteOffset=593}" );
         logProvider.rawMessageMatcher().assertContains( "Fail to recover all transactions. " +
-                                                        "Any later transactions after position LogPosition{logVersion=5, byteOffset=593} " +
-                                                        "are unreadable and will be truncated." );
+                "Any later transactions after position LogPosition{logVersion=5, byteOffset=593} " +
+                "are unreadable and will be truncated." );
 
         assertEquals( 5, logFiles.getHighestLogVersion() );
         ObjectLongMap<Class> logEntriesDistribution = getLogEntriesDistribution( logFiles );
@@ -516,8 +516,8 @@ public class RecoveryCorruptedTransactionLogIT
     {
         PositiveLogFilesBasedLogVersionRepository versionRepository = new PositiveLogFilesBasedLogVersionRepository( logFiles );
         LogFiles internalLogFiles = LogFilesBuilder.builder( directory.databaseLayout(), fileSystemRule )
-                                                   .withLogVersionRepository( versionRepository )
-                                                   .withTransactionIdStore( new SimpleTransactionIdStore() ).build();
+                .withLogVersionRepository( versionRepository )
+                .withTransactionIdStore( new SimpleTransactionIdStore() ).build();
         try ( Lifespan lifespan = new Lifespan( internalLogFiles ) )
         {
             LogFile transactionLogFile = internalLogFiles.getLogFile();
@@ -556,8 +556,8 @@ public class RecoveryCorruptedTransactionLogIT
     private LogFiles buildDefaultLogFiles() throws IOException
     {
         return LogFilesBuilder.builder( directory.databaseLayout(), fileSystemRule )
-                              .withLogVersionRepository( new SimpleLogVersionRepository() )
-                              .withTransactionIdStore( new SimpleTransactionIdStore() ).build();
+                .withLogVersionRepository( new SimpleLogVersionRepository() )
+                .withTransactionIdStore( new SimpleTransactionIdStore() ).build();
     }
 
     private static void generateTransactionsAndRotateWithCheckpoint( GraphDatabaseAPI database, int logFilesToGenerate )
@@ -604,8 +604,8 @@ public class RecoveryCorruptedTransactionLogIT
     private GraphDatabaseAPI startDbNoRecoveryOfCorruptedLogs()
     {
         return (GraphDatabaseAPI) databaseFactory.newEmbeddedDatabaseBuilder( storeDir )
-                                                 .setConfig( GraphDatabaseSettings.fail_on_corrupted_log_files, Settings.FALSE )
-                                                 .newGraphDatabase();
+                .setConfig( GraphDatabaseSettings.fail_on_corrupted_log_files, Settings.FALSE )
+                .newGraphDatabase();
     }
 
     private static class CorruptedLogEntryWriter extends LogEntryWriter
@@ -618,7 +618,7 @@ public class RecoveryCorruptedTransactionLogIT
 
         @Override
         public void writeStartEntry( int masterId, int authorId, long timeWritten, long latestCommittedTxWhenStarted,
-                                     byte[] additionalHeaderData ) throws IOException
+                byte[] additionalHeaderData ) throws IOException
         {
             writeLogEntryHeader( TX_START, channel );
         }
