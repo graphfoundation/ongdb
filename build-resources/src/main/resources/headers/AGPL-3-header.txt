@@ -1,3 +1,6 @@
+Copyright (c) 2018-${currentYear} "Graph Foundation,"
+Graph Foundation, Inc. [https://graphfoundation.org]
+
 Copyright (c) ${project.inceptionYear}-${currentYear} "Neo4j,"
 Neo4j Sweden AB [http://neo4j.com]
 
@@ -11,11 +14,3 @@ This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU Affero General Public License for more details.
-
-Neo4j object code can be licensed independently from the source
-under separate terms from the AGPL. Inquiries can be directed to:
-licensing@neo4j.com
-
-More information is also available at:
-https://neo4j.com/licensing/
-

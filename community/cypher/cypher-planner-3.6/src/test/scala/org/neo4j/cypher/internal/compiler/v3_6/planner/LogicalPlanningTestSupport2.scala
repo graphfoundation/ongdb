@@ -1,13 +1,10 @@
 /*
- * Copyright (c) 2018-2020 "Graph Foundation"
- * Graph Foundation, Inc. [https://graphfoundation.org]
- *
  * Copyright (c) 2002-2020 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
- * This file is part of ONgDB.
+ * This file is part of Neo4j.
  *
- * ONgDB is free software: you can redistribute it and/or modify
+ * Neo4j is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
@@ -28,7 +25,7 @@ import org.neo4j.cypher.internal.compiler.v3_6.phases._
 import org.neo4j.cypher.internal.compiler.v3_6.planner.logical.Metrics._
 import org.neo4j.cypher.internal.compiler.v3_6.planner.logical.cardinality.QueryGraphCardinalityModel
 import org.neo4j.cypher.internal.compiler.v3_6.planner.logical.idp._
-import org.neo4j.cypher.internal.compiler.v3_6.planner.logical.plans.rewriter.unnestApply
+import org.neo4j.cypher.internal.compiler.v3_6.planner.logical.plans.rewriter.PlanRewriter
 import org.neo4j.cypher.internal.compiler.v3_6.planner.logical.steps.{LogicalPlanProducer, devNullListener, replacePropertyLookupsWithVariables}
 import org.neo4j.cypher.internal.compiler.v3_6.planner.logical.{LogicalPlanningContext, _}
 import org.neo4j.cypher.internal.compiler.v3_6.test_helpers.ContextHelper
@@ -161,28 +158,21 @@ trait LogicalPlanningTestSupport2 extends CypherTestSupport with AstConstruction
         semanticTable.resolvedRelTypeNames.get(relType).map(_.id)
     }
 
-    def pipeLine(): Transformer[PlannerContext, BaseState, LogicalPlanState] =
-      Parsing andThen
-      PreparatoryRewriting(Deprecations.V1) andThen
-      SemanticAnalysis(warn = true) andThen
-      AstRewriting(newPlain, literalExtraction = Never) andThen
-      RewriteProcedureCalls andThen
-      Namespacer andThen
-      transitiveClosure andThen
-      rewriteEqualityToInPredicate andThen
-      CNFNormalizer andThen
-      LateAstRewriting andThen
-      ResolveTokens andThen
-      CreatePlannerQuery andThen
-      OptionalMatchRemover andThen
-      QueryPlanner().adds(CompilationContains[LogicalPlan]) andThen
-      replacePropertyLookupsWithVariables andThen
-      Do[PlannerContext, LogicalPlanState, LogicalPlanState]((state, context) => removeApply(state, context, state.planningAttributes.solveds, Attributes(idGen, state.planningAttributes.cardinalities)))
-
-
-    private def removeApply(input: LogicalPlanState, context: PlannerContext, solveds: Solveds, attributes: Attributes): LogicalPlanState = {
-      val newPlan = input.logicalPlan.endoRewrite(fixedPoint(unnestApply(solveds, attributes)))
-      input.copy(maybeLogicalPlan = Some(newPlan))
+    def pipeLine(): Transformer[PlannerContext, BaseState, LogicalPlanState] = {
+      CompilationPhases.parsing(newPlain, literalExtraction = Never) andThen
+        RewriteProcedureCalls andThen
+        ProcedureDeprecationWarnings andThen
+        ProcedureWarnings andThen
+        CompilationPhases.lateAstRewriting andThen
+        ResolveTokens andThen
+        CreatePlannerQuery andThen
+        OptionalMatchRemover andThen
+        QueryPlanner().adds(CompilationContains[LogicalPlan]) andThen
+        PlanRewriter(newPlain) andThen
+        replacePropertyLookupsWithVariables andThen
+        If((s: LogicalPlanState) => s.unionQuery.readOnly)(
+          CheckForUnresolvedTokens
+        )
     }
 
     def getLogicalPlanFor(queryString: String, config:CypherPlannerConfiguration = cypherCompilerConfig, queryGraphSolver: QueryGraphSolver = queryGraphSolver): (Option[PeriodicCommit], LogicalPlan, SemanticTable, Solveds, Cardinalities) = {

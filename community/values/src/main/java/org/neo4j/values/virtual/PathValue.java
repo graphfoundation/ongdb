@@ -1,13 +1,10 @@
 /*
- * Copyright (c) 2018-2020 "Graph Foundation"
- * Graph Foundation, Inc. [https://graphfoundation.org]
- *
  * Copyright (c) 2002-2020 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
- * This file is part of ONgDB.
+ * This file is part of Neo4j.
  *
- * ONgDB is free software: you can redistribute it and/or modify
+ * Neo4j is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
@@ -29,6 +26,8 @@ import org.neo4j.values.AnyValue;
 import org.neo4j.values.AnyValueWriter;
 import org.neo4j.values.ValueMapper;
 import org.neo4j.values.VirtualValue;
+
+import static org.neo4j.values.utils.ValueMath.HASH_CONSTANT;
 
 public abstract class PathValue extends VirtualValue
 {
@@ -63,8 +62,8 @@ public abstract class PathValue extends VirtualValue
         int result = nodes[0].hashCode();
         for ( int i = 1; i < nodes.length; i++ )
         {
-            result += 31 * (result + relationships[i - 1].hashCode());
-            result += 31 * (result + nodes[i].hashCode());
+            result += HASH_CONSTANT * (result + relationships[i - 1].hashCode());
+            result += HASH_CONSTANT * (result + nodes[i].hashCode());
         }
         return result;
     }

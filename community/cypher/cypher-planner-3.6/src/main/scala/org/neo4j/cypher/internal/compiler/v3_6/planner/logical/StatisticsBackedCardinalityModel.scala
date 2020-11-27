@@ -1,13 +1,10 @@
 /*
- * Copyright (c) 2018-2020 "Graph Foundation"
- * Graph Foundation, Inc. [https://graphfoundation.org]
- *
  * Copyright (c) 2002-2020 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
- * This file is part of ONgDB.
+ * This file is part of Neo4j.
  *
- * ONgDB is free software: you can redistribute it and/or modify
+ * Neo4j is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
@@ -33,7 +30,8 @@ import org.neo4j.cypher.internal.v3_6.ast.semantics.SemanticTable
 import org.neo4j.cypher.internal.v3_6.expressions.IntegerLiteral
 import org.neo4j.cypher.internal.v3_6.util.{Cardinality, Multiplier, Selectivity}
 
-class StatisticsBackedCardinalityModel(queryGraphCardinalityModel: QueryGraphCardinalityModel, simpleExpressionEvaluator: ExpressionEvaluator) extends CardinalityModel {
+class StatisticsBackedCardinalityModel(queryGraphCardinalityModel: QueryGraphCardinalityModel,
+                                       simpleExpressionEvaluator: ExpressionEvaluator) extends CardinalityModel {
 
   private val expressionSelectivityCalculator = queryGraphCardinalityModel.expressionSelectivityCalculator
   private val combiner: SelectivityCombiner = IndependenceCombiner
@@ -41,10 +39,10 @@ class StatisticsBackedCardinalityModel(queryGraphCardinalityModel: QueryGraphCar
   def apply(query: PlannerQuery, input0: QueryGraphSolverInput, semanticTable: SemanticTable): Cardinality = {
     val output = query.fold(input0) {
       case (input, RegularPlannerQuery(graph, _, horizon, _)) =>
-        val QueryGraphSolverInput(newLabels, graphCardinality, laziness) = calculateCardinalityForQueryGraph(graph, input, semanticTable)
+        val newInput = calculateCardinalityForQueryGraph(graph, input, semanticTable)
 
-        val horizonCardinality = calculateCardinalityForQueryHorizon(graphCardinality, horizon, semanticTable)
-        QueryGraphSolverInput(newLabels, horizonCardinality, laziness)
+        val horizonCardinality = calculateCardinalityForQueryHorizon(newInput.inboundCardinality, horizon, semanticTable)
+        newInput.copy(inboundCardinality = horizonCardinality)
     }
     output.inboundCardinality
   }
@@ -62,13 +60,16 @@ class StatisticsBackedCardinalityModel(queryGraphCardinalityModel: QueryGraphCar
           !simpleExpressionEvaluator.isDeterministic(limit)
 
       val limitCardinality =
-        if (cannotEvaluateStableValue) GraphStatistics.DEFAULT_LIMIT_CARDINALITY
-        else {
+        if (cannotEvaluateStableValue) {
+          GraphStatistics.DEFAULT_LIMIT_CARDINALITY
+        } else {
           val evaluatedValue: Option[Any] = simpleExpressionEvaluator.evaluateExpression(limit)
 
-          if (evaluatedValue.isDefined && evaluatedValue.get.isInstanceOf[NumberValue])
+          if (evaluatedValue.isDefined && evaluatedValue.get.isInstanceOf[NumberValue]) {
             Cardinality(evaluatedValue.get.asInstanceOf[NumberValue].doubleValue())
-          else GraphStatistics.DEFAULT_LIMIT_CARDINALITY
+          } else {
+            GraphStatistics.DEFAULT_LIMIT_CARDINALITY
+          }
         }
 
       val cardinalityBeforeSelection = Cardinality.min(in, limitCardinality)
@@ -127,8 +128,6 @@ class StatisticsBackedCardinalityModel(queryGraphCardinalityModel: QueryGraphCar
 
   private def calculateCardinalityForQueryGraph(graph: QueryGraph, input: QueryGraphSolverInput,
                                                 semanticTable: SemanticTable) = {
-    val newLabels = input.labelInfo.fuse(graph.patternNodeLabels)(_ ++ _)
-    val newCardinality = queryGraphCardinalityModel(graph, input, semanticTable)
-    QueryGraphSolverInput(newLabels, newCardinality, input.strictness)
+    input.copy(labelInfo = input.labelInfo.fuse(graph.patternNodeLabels)(_ ++ _), inboundCardinality = queryGraphCardinalityModel(graph, input, semanticTable))
   }
 }

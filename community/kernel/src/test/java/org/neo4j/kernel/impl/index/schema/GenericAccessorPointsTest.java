@@ -1,13 +1,10 @@
 /*
- * Copyright (c) 2018-2020 "Graph Foundation"
- * Graph Foundation, Inc. [https://graphfoundation.org]
- *
  * Copyright (c) 2002-2020 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
- * This file is part of ONgDB.
+ * This file is part of Neo4j.
  *
- * ONgDB is free software: you can redistribute it and/or modify
+ * Neo4j is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
@@ -67,6 +64,7 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.rules.RuleChain.outerRule;
 import static org.neo4j.kernel.api.index.IndexProvider.Monitor.EMPTY;
+import static org.neo4j.kernel.api.schema.SchemaTestUtil.simpleNameLookup;
 import static org.neo4j.test.rule.PageCacheRule.config;
 import static org.neo4j.values.storable.CoordinateReferenceSystem.WGS84;
 
@@ -101,7 +99,7 @@ public class GenericAccessorPointsTest
         IndexDirectoryStructure structure = factory.forProvider( GenericNativeIndexProvider.DESCRIPTOR );
         IndexDropAction dropAction = new FileSystemIndexDropAction( fs, structure );
         accessor = new GenericNativeIndexAccessor(
-                pc, fs, file, layout, collector, EMPTY, descriptor, indexSettings, new StandardConfiguration(), dropAction, false );
+                pc, fs, file, layout, collector, EMPTY, descriptor, indexSettings, new StandardConfiguration(), dropAction, false, simpleNameLookup );
     }
 
     @After

@@ -1,13 +1,10 @@
 /*
- * Copyright (c) 2018-2020 "Graph Foundation"
- * Graph Foundation, Inc. [https://graphfoundation.org]
- *
  * Copyright (c) 2002-2020 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
- * This file is part of ONgDB.
+ * This file is part of Neo4j.
  *
- * ONgDB is free software: you can redistribute it and/or modify
+ * Neo4j is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
@@ -47,17 +44,28 @@ public interface Writer<KEY,VALUE> extends Closeable
 
     /**
      * If the {@code key} doesn't already exist in the index the {@code key} will be added and the {@code value}
-     * associated with it. If the {@code key} already exists then its existing {@code value} will be merged with
-     * the given {@code value}, using the {@link ValueMerger}. If the {@link ValueMerger} returns a non-null
-     * value that value will be associated with the {@code key}, otherwise (if it returns {@code null}) nothing will
-     * be written.
+     * associated with it.
+     * If the {@code key} already exists then its existing {@code value} will be merged with the given {@code value}, using the {@link ValueMerger}.
      *
      * @param key key for which to merge values.
      * @param value value to merge with currently associated value for the {@code key}.
      * @param valueMerger {@link ValueMerger} to consult if key already exists.
      * @throws UncheckedIOException on index access error.
+     * @see ValueMerger#merge(Object, Object, Object, Object)
      */
     void merge( KEY key, VALUE value, ValueMerger<KEY,VALUE> valueMerger );
+
+    /**
+     * If the {@code key} already exists then its existing {@code value} will be merged with the given {@code value}, using the {@link ValueMerger}.
+     * If the {@code key} doesn't exist then no changes will be made and {@code false} will be returned.
+     *
+     * @param key key for which to merge values.
+     * @param value value to merge with currently associated value for the {@code key}.
+     * @param valueMerger {@link ValueMerger} to consult if key already exists.
+     * @throws UncheckedIOException on index access error.
+     * @see ValueMerger#merge(Object, Object, Object, Object)
+     */
+    void mergeIfExists( KEY key, VALUE value, ValueMerger<KEY,VALUE> valueMerger );
 
     /**
      * Removes a key, returning it's associated value, if found.

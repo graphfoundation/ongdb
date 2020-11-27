@@ -1,13 +1,10 @@
 /*
- * Copyright (c) 2018-2020 "Graph Foundation"
- * Graph Foundation, Inc. [https://graphfoundation.org]
- *
  * Copyright (c) 2002-2020 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
- * This file is part of ONgDB.
+ * This file is part of Neo4j.
  *
- * ONgDB is free software: you can redistribute it and/or modify
+ * Neo4j is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
@@ -30,6 +27,7 @@ import org.neo4j.cypher.internal.planner.v3_6.spi.{GraphStatistics, IndexOrderCa
 import org.neo4j.cypher.internal.v3_6.logical.plans.{LogicalPlan, ProcedureSignature}
 import org.neo4j.cypher.internal.v3_6.ast.semantics.{ExpressionTypeInfo, SemanticTable}
 import org.neo4j.cypher.internal.v3_6.expressions.Expression
+import org.neo4j.cypher.internal.v3_6.util.RelTypeId
 import org.neo4j.cypher.internal.v3_6.util.symbols.TypeSpec
 import org.neo4j.cypher.internal.v3_6.util.{Cardinality, Cost, LabelId, PropertyKeyId}
 
@@ -45,6 +43,7 @@ trait LogicalPlanningConfiguration {
   def procedureSignatures: Set[ProcedureSignature]
   def labelCardinality: Map[String, Cardinality]
   def knownLabels: Set[String]
+  def knownRelationships: Set[String]
   def labelsById: Map[Int, String]
   def qg: QueryGraph
 
@@ -65,6 +64,7 @@ class DelegatingLogicalPlanningConfiguration(val parent: LogicalPlanningConfigur
   override def indexes: Map[IndexDef, IndexType] = parent.indexes
   override def labelCardinality: Map[String, Cardinality] = parent.labelCardinality
   override def knownLabels: Set[String] = parent.knownLabels
+  override def knownRelationships = parent.knownRelationships
   override def labelsById: Map[Int, String] = parent.labelsById
   override def qg: QueryGraph = parent.qg
   override def procedureSignatures: Set[ProcedureSignature] = parent.procedureSignatures
@@ -81,12 +81,17 @@ trait LogicalPlanningConfigurationAdHocSemanticTable {
 
   override def updateSemanticTableWithTokens(table: SemanticTable): SemanticTable = {
     def addLabelIfUnknown(labelName: String) =
-      if (!table.resolvedLabelNames.contains(labelName))
+      if (!table.resolvedLabelNames.contains(labelName)) {
         table.resolvedLabelNames.put(labelName, LabelId(table.resolvedLabelNames.size))
+      }
     def addPropertyKeyIfUnknown(property: String) =
-      if (!table.resolvedPropertyKeyNames.contains(property))
+      if (!table.resolvedPropertyKeyNames.contains(property)) {
         table.resolvedPropertyKeyNames.put(property, PropertyKeyId(table.resolvedPropertyKeyNames.size))
-
+      }
+    def addRelationshipIfUnknown(relationType: String) =
+      if (!table.resolvedRelTypeNames.contains(relationType)) {
+        table.resolvedRelTypeNames.put(relationType, RelTypeId(table.resolvedRelTypeNames.size))
+      }
     indexes.keys.foreach { case IndexDef(label, properties) =>
       addLabelIfUnknown(label)
       properties.foreach(addPropertyKeyIfUnknown)
@@ -94,6 +99,7 @@ trait LogicalPlanningConfigurationAdHocSemanticTable {
 
     labelCardinality.keys.foreach(addLabelIfUnknown)
     knownLabels.foreach(addLabelIfUnknown)
+    knownRelationships.foreach(addRelationshipIfUnknown)
 
     var theTable = table
     for((expr, typ) <- mappings) {

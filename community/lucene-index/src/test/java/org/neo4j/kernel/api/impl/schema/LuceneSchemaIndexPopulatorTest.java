@@ -1,13 +1,10 @@
 /*
- * Copyright (c) 2018-2020 "Graph Foundation"
- * Graph Foundation, Inc. [https://graphfoundation.org]
- *
  * Copyright (c) 2002-2020 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
- * This file is part of ONgDB.
+ * This file is part of Neo4j.
  *
- * ONgDB is free software: you can redistribute it and/or modify
+ * Neo4j is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
@@ -69,6 +66,7 @@ import static org.mockito.Mockito.mock;
 import static org.neo4j.helpers.collection.Iterators.asSet;
 import static org.neo4j.kernel.api.impl.schema.LuceneIndexProvider.defaultDirectoryStructure;
 import static org.neo4j.kernel.api.schema.SchemaDescriptorFactory.forLabel;
+import static org.neo4j.kernel.api.schema.SchemaTestUtil.simpleNameLookup;
 import static org.neo4j.kernel.impl.index.schema.ByteBufferFactory.heapBufferFactory;
 
 @ExtendWith( {DefaultFileSystemExtension.class, TestDirectoryExtension.class} )
@@ -99,7 +97,7 @@ class LuceneSchemaIndexPopulatorTest
         indexStoreView = mock( IndexStoreView.class );
         IndexSamplingConfig samplingConfig = new IndexSamplingConfig( Config.defaults() );
         index = IndexDescriptorFactory.forSchema( forLabel( 42, propertyKeyId ), provider.getProviderDescriptor() ).withId( 0 );
-        indexPopulator = provider.getPopulator( index, samplingConfig, heapBufferFactory( 1024 ) );
+        indexPopulator = provider.getPopulator( index, samplingConfig, heapBufferFactory( 1024 ), simpleNameLookup );
         indexPopulator.create();
     }
 

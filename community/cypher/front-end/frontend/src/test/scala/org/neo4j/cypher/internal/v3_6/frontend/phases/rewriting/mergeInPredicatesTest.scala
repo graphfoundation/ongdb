@@ -1,7 +1,4 @@
 /*
- * Copyright (c) 2018-2020 "Graph Foundation"
- * Graph Foundation, Inc. [https://graphfoundation.org]
- *
  * Copyright (c) 2002-2020 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
@@ -129,6 +126,10 @@ class mergeInPredicatesTest extends CypherFunSuite with AstRewritingTestSupport 
     shouldRewrite("MATCH (a) WHERE NOT (a.prop IN [1,2] AND a.prop IN [2,3]) AND NOT (a.prop IN [3,4] AND a.prop IN [4,5])",
       "MATCH (a) WHERE NOT a.prop IN [2,4]"
     )
+  }
+
+  test( "RETURN ANY(i IN [1,2,3]) AND ANY(i IN [4])") {
+    shouldNotRewrite("MATCH (n) WHERE ANY(i IN n.prop WHERE i IN [1,2]) AND ANY(i IN n.prop WHERE i IN [3]) RETURN n")
   }
 
   private def shouldRewrite(from: String, to: String): Unit = {

@@ -1,13 +1,10 @@
 /*
- * Copyright (c) 2018-2020 "Graph Foundation"
- * Graph Foundation, Inc. [https://graphfoundation.org]
- *
  * Copyright (c) 2002-2020 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
- * This file is part of ONgDB.
+ * This file is part of Neo4j.
  *
- * ONgDB is free software: you can redistribute it and/or modify
+ * Neo4j is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
@@ -27,6 +24,8 @@ import org.neo4j.cypher.internal.ir.v3_6._
 import org.neo4j.cypher.internal.v3_6.expressions.SemanticDirection
 import org.neo4j.cypher.internal.v3_6.logical.plans.{LogicalPlan, NodeHashJoin}
 import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
+
+import scala.collection.immutable.BitSet
 
 class JoinSolverStepTest extends CypherFunSuite with LogicalPlanningTestSupport2 {
 
@@ -157,6 +156,37 @@ class JoinSolverStepTest extends CypherFunSuite with LogicalPlanningTestSupport2
       table.put(register(pattern2), plan2)
 
       joinSolverStep(qg)(registry, register(pattern1, pattern2), table, ctx) should be(empty)
+    }
+  }
+
+  test("does join plans that overlap on arguments if all of the goal is compacted") {
+    implicit val registry: DefaultIdRegistry[PatternRelationship] = IdRegistry[PatternRelationship]
+    new given().withLogicalPlanningContext { (_, ctx) =>
+      val plan1 = fakeLogicalPlanFor(ctx.planningAttributes, "a", "r1", "b", "c") // symbols
+      ctx.planningAttributes.solveds.set(plan1.id, RegularPlannerQuery(QueryGraph.empty.addPatternNodes("b").addArgumentIds(Seq("b")))) // nodes
+      val plan2 = fakeLogicalPlanFor(ctx.planningAttributes, "b", "c")
+      ctx.planningAttributes.solveds.set(plan2.id, RegularPlannerQuery(QueryGraph.empty.addPatternNodes("b").addArgumentIds(Seq("b"))))
+
+      val qg = QueryGraph.empty.addPatternNodes("a", "b", "c").addArgumentIds(Seq("b"))
+
+      val id1: Goal = register(pattern1)
+      val id2: Goal = register(pattern2)
+
+      // Compact goals
+      val compactedId1 = BitSet(registry.compact(id1))
+      val compactedId2 = BitSet(registry.compact(id2))
+      table.removeAllTracesOf(id1)
+
+      // Table is not completely compacted
+      table.put(id2, plan2)
+      table.put(compactedId1, plan1)
+      table.put(compactedId2, plan2)
+
+      // Goal is completely compacted - should result in expandStillPossible == false
+      joinSolverStep(qg)(registry, compactedId1 ++ compactedId2, table, ctx).toSet should equal(Set(
+        NodeHashJoin(Set("b"), plan1, plan2),
+        NodeHashJoin(Set("b"), plan2, plan1)
+      ))
     }
   }
 

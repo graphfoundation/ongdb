@@ -1,13 +1,10 @@
 /*
- * Copyright (c) 2018-2020 "Graph Foundation"
- * Graph Foundation, Inc. [https://graphfoundation.org]
- *
  * Copyright (c) 2002-2020 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
- * This file is part of ONgDB.
+ * This file is part of Neo4j.
  *
- * ONgDB is free software: you can redistribute it and/or modify
+ * Neo4j is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
@@ -23,6 +20,7 @@
 package org.neo4j.kernel.api.impl.fulltext;
 
 import org.apache.lucene.document.Document;
+import org.apache.lucene.index.Term;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -48,7 +46,7 @@ public class FulltextIndexAccessor extends AbstractLuceneIndexAccessor<FulltextI
     private final Runnable onClose;
 
     public FulltextIndexAccessor( IndexUpdateSink indexUpdateSink, DatabaseFulltextIndex luceneIndex, FulltextIndexDescriptor descriptor,
-            Runnable onClose )
+                                  Runnable onClose )
     {
         super( luceneIndex, descriptor );
         this.indexUpdateSink = indexUpdateSink;
@@ -134,8 +132,9 @@ public class FulltextIndexAccessor extends AbstractLuceneIndexAccessor<FulltextI
         {
             try
             {
+                Term term = newTermForChangeOrRemove( entityId );
                 Document document = createDocument( entityId, values );
-                writer.updateDocument( newTermForChangeOrRemove( entityId ), document );
+                writer.updateDocument( term, document );
             }
             catch ( IOException e )
             {
@@ -176,7 +175,8 @@ public class FulltextIndexAccessor extends AbstractLuceneIndexAccessor<FulltextI
         {
             try
             {
-                writer.deleteDocuments( newTermForChangeOrRemove( entityId ) );
+                Term term = newTermForChangeOrRemove( entityId );
+                writer.deleteDocuments( term );
             }
             catch ( IOException e )
             {

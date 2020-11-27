@@ -1,13 +1,10 @@
 /*
- * Copyright (c) 2018-2020 "Graph Foundation"
- * Graph Foundation, Inc. [https://graphfoundation.org]
- *
  * Copyright (c) 2002-2020 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
- * This file is part of ONgDB.
+ * This file is part of Neo4j.
  *
- * ONgDB is free software: you can redistribute it and/or modify
+ * Neo4j is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
@@ -44,12 +41,14 @@ import org.neo4j.consistency.store.RecordAccess;
 import org.neo4j.helpers.collection.Iterables;
 import org.neo4j.helpers.progress.ProgressListener;
 import org.neo4j.helpers.progress.ProgressMonitorFactory;
+import org.neo4j.internal.kernel.api.TokenNameLookup;
 import org.neo4j.kernel.api.direct.DirectStoreAccess;
 import org.neo4j.kernel.api.index.IndexAccessor;
 import org.neo4j.kernel.api.labelscan.LabelScanStore;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.impl.annotations.ReporterFactory;
 import org.neo4j.kernel.impl.api.CountsAccessor;
+import org.neo4j.kernel.impl.api.NonTransactionalTokenNameLookup;
 import org.neo4j.kernel.impl.api.index.sampling.IndexSamplingConfig;
 import org.neo4j.kernel.impl.store.RecordStore;
 import org.neo4j.kernel.impl.store.StoreAccess;
@@ -80,7 +79,7 @@ public class FullCheck
     private final boolean startCountsStore;
 
     public FullCheck( Config config, ProgressMonitorFactory progressFactory,
-            Statistics statistics, int threads, boolean startCountsStore )
+                      Statistics statistics, int threads, boolean startCountsStore )
     {
         this( progressFactory, statistics, threads, new ConsistencyFlags( config ), config, startCountsStore );
     }
@@ -168,14 +167,16 @@ public class FullCheck
         ProgressMonitorFactory.MultiPartBuilder progress = progressFactory.multipleParts(
                 "Full Consistency Check" );
         final StoreAccess nativeStores = directStoreAccess.nativeStores();
+        TokenNameLookup tokenNameLookup = new NonTransactionalTokenNameLookup( directStoreAccess.tokenHolders(), true /*include token ids too*/ );
         try ( IndexAccessors indexes =
-                      new IndexAccessors( directStoreAccess.indexes(), nativeStores.getSchemaStore(), samplingConfig ) )
+                      new IndexAccessors( directStoreAccess.indexes(), nativeStores.getSchemaStore(), samplingConfig, tokenNameLookup ) )
         {
             MultiPassStore.Factory multiPass = new MultiPassStore.Factory(
                     decorator, recordAccess, cacheAccess, report, reportMonitor );
             ConsistencyCheckTasks taskCreator = new ConsistencyCheckTasks( progress, processEverything,
-                    nativeStores, statistics, cacheAccess, directStoreAccess.labelScanStore(), indexes, directStoreAccess.tokenHolders(),
-                    multiPass, reporter, threads );
+                                                                           nativeStores, statistics, cacheAccess, directStoreAccess.labelScanStore(), indexes,
+                                                                           tokenNameLookup,
+                                                                           multiPass, reporter, threads );
 
             if ( checkIndexStructure )
             {
@@ -203,7 +204,7 @@ public class FullCheck
     }
 
     private static void consistencyCheckIndexStructure( LabelScanStore labelScanStore, IndexAccessors indexes,
-            InconsistencyReport report, ProgressMonitorFactory progressMonitorFactory )
+                                                        InconsistencyReport report, ProgressMonitorFactory progressMonitorFactory )
     {
         final long schemaIndexCount = Iterables.count( indexes.onlineRules() );
         final long additionalCount = 1; // LabelScanStore

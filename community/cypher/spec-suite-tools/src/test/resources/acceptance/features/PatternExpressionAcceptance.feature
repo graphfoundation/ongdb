@@ -7,7 +7,7 @@
 #
 # This file is part of ONgDB.
 #
-# ONgDB is free software: you can redistribute it and/or modify
+# Neo4j is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
@@ -586,4 +586,26 @@ Feature: PatternExpressionAcceptance
     | elem       |
     | (:Chicken) |
     | (:Ham)     |
+    And no side effects
+
+  Scenario: Handling a null value in inner predicate
+    Given an empty graph
+    And having executed:
+    """
+    CREATE (tom: Person {name: 'Tom Hanks'}),
+           (matt: Person {name: 'Matt Damon'}),
+           (movie: Movie {title: 'Saving Private Ryan'}),
+           (tom)-[:ACTED_IN]->(movie),
+           (matt)-[:ACTED_IN]->(movie)
+    """
+    When executing query:
+    """
+    MATCH (tom:Person)-[:ACTED_IN]->(movie:Movie)
+    WHERE tom.name = 'Tom Hanks'
+    WITH tom, movie, null as customValue
+    RETURN [(movie)<-[:ACTED_IN]-(coActor:Person) WHERE coActor.name <> coalesce(tom.name, '') OR customValue IS NOT null | coActor.name ] as coActors
+    """
+    Then the result should be:
+      | coActors       |
+      | ['Matt Damon'] |
     And no side effects

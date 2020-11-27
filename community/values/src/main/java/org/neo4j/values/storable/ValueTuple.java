@@ -1,13 +1,10 @@
 /*
- * Copyright (c) 2018-2020 "Graph Foundation"
- * Graph Foundation, Inc. [https://graphfoundation.org]
- *
  * Copyright (c) 2002-2020 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
- * This file is part of ONgDB.
+ * This file is part of Neo4j.
  *
- * ONgDB is free software: you can redistribute it and/or modify
+ * Neo4j is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
@@ -23,6 +20,8 @@
 package org.neo4j.values.storable;
 
 import java.util.Comparator;
+
+import static org.neo4j.values.utils.ValueMath.HASH_CONSTANT;
 
 /**
  * A tuple of n values.
@@ -108,7 +107,7 @@ public class ValueTuple
         int result = 1;
         for ( Object value : values )
         {
-            result = 31 * result + value.hashCode();
+            result = HASH_CONSTANT * result + value.hashCode();
         }
         return result;
     }

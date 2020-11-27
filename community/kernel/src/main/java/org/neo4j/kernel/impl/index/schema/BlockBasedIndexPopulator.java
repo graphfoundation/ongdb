@@ -1,13 +1,10 @@
 /*
- * Copyright (c) 2018-2020 "Graph Foundation"
- * Graph Foundation, Inc. [https://graphfoundation.org]
- *
  * Copyright (c) 2002-2020 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
- * This file is part of ONgDB.
+ * This file is part of Neo4j.
  *
- * ONgDB is free software: you can redistribute it and/or modify
+ * Neo4j is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
@@ -40,8 +37,10 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import org.neo4j.cursor.RawCursor;
+import org.neo4j.helpers.Exceptions;
 import org.neo4j.index.internal.gbptree.Hit;
 import org.neo4j.index.internal.gbptree.Writer;
+import org.neo4j.internal.kernel.api.TokenNameLookup;
 import org.neo4j.io.ByteUnit;
 import org.neo4j.io.IOUtils;
 import org.neo4j.io.fs.FileSystemAbstraction;
@@ -115,18 +114,19 @@ public abstract class BlockBasedIndexPopulator<KEY extends NativeIndexKey<KEY>,V
 
     BlockBasedIndexPopulator( PageCache pageCache, FileSystemAbstraction fs, File file, IndexLayout<KEY,VALUE> layout, IndexProvider.Monitor monitor,
             StoreIndexDescriptor descriptor, IndexSpecificSpaceFillingCurveSettingsCache spatialSettings,
-            IndexDirectoryStructure directoryStructure, IndexDropAction dropAction, boolean archiveFailedIndex, ByteBufferFactory bufferFactory )
+            IndexDirectoryStructure directoryStructure, IndexDropAction dropAction, boolean archiveFailedIndex, ByteBufferFactory bufferFactory,
+            TokenNameLookup tokenNameLookup )
     {
         this( pageCache, fs, file, layout, monitor, descriptor, spatialSettings, directoryStructure, dropAction, archiveFailedIndex, bufferFactory,
-                FeatureToggles.getInteger( BlockBasedIndexPopulator.class, "mergeFactor", 8 ), NO_MONITOR );
+                FeatureToggles.getInteger( BlockBasedIndexPopulator.class, "mergeFactor", 8 ), NO_MONITOR, tokenNameLookup );
     }
 
     BlockBasedIndexPopulator( PageCache pageCache, FileSystemAbstraction fs, File file, IndexLayout<KEY,VALUE> layout, IndexProvider.Monitor monitor,
             StoreIndexDescriptor descriptor, IndexSpecificSpaceFillingCurveSettingsCache spatialSettings,
             IndexDirectoryStructure directoryStructure, IndexDropAction dropAction, boolean archiveFailedIndex, ByteBufferFactory bufferFactory,
-            int mergeFactor, BlockStorage.Monitor blockStorageMonitor )
+            int mergeFactor, BlockStorage.Monitor blockStorageMonitor, TokenNameLookup tokenNameLookup )
     {
-        super( pageCache, fs, file, layout, monitor, descriptor, new SpaceFillingCurveSettingsWriter( spatialSettings ) );
+        super( pageCache, fs, file, layout, monitor, descriptor, new SpaceFillingCurveSettingsWriter( spatialSettings ), tokenNameLookup );
         this.directoryStructure = directoryStructure;
         this.dropAction = dropAction;
         this.archiveFailedIndex = archiveFailedIndex;
@@ -592,9 +592,19 @@ public abstract class BlockBasedIndexPopulator<KEY extends NativeIndexKey<KEY>,V
     private void writeToTree( Writer<KEY,VALUE> writer, RecordingConflictDetector<KEY,VALUE> recordingConflictDetector, KEY key, VALUE value )
             throws IndexEntryConflictException
     {
-        recordingConflictDetector.controlConflictDetection( key );
-        writer.merge( key, value, recordingConflictDetector );
-        handleMergeConflict( writer, recordingConflictDetector, key, value );
+        try
+        {
+            recordingConflictDetector.controlConflictDetection( key );
+            writer.merge( key, value, recordingConflictDetector );
+            handleMergeConflict( writer, recordingConflictDetector, key, value );
+        }
+        catch ( Exception e )
+        {
+            Exceptions.withMessage( e,
+                    String.format( "Failed while trying to write to index, targetIndex=%s, nodeId=%d. Cause: %s",
+                            descriptor.userDescription( tokenNameLookup ), key.getEntityId(), e.getMessage() ) );
+            throw e;
+        }
     }
 
     /**

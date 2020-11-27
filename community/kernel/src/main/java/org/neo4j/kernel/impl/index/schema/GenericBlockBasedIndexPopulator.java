@@ -1,13 +1,10 @@
 /*
- * Copyright (c) 2018-2020 "Graph Foundation"
- * Graph Foundation, Inc. [https://graphfoundation.org]
- *
  * Copyright (c) 2002-2020 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
- * This file is part of ONgDB.
+ * This file is part of Neo4j.
  *
- * ONgDB is free software: you can redistribute it and/or modify
+ * Neo4j is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
@@ -27,6 +24,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.neo4j.gis.spatial.index.curves.SpaceFillingCurveConfiguration;
+import org.neo4j.internal.kernel.api.TokenNameLookup;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.kernel.api.index.IndexDirectoryStructure;
@@ -43,9 +41,11 @@ class GenericBlockBasedIndexPopulator extends BlockBasedIndexPopulator<GenericKe
     GenericBlockBasedIndexPopulator( PageCache pageCache, FileSystemAbstraction fs, File file, IndexLayout<GenericKey,NativeIndexValue> layout,
             IndexProvider.Monitor monitor, StoreIndexDescriptor descriptor, IndexSpecificSpaceFillingCurveSettingsCache spatialSettings,
             IndexDirectoryStructure directoryStructure, SpaceFillingCurveConfiguration configuration,
-            IndexDropAction dropAction, boolean archiveFailedIndex, ByteBufferFactory bufferFactory )
+            IndexDropAction dropAction, boolean archiveFailedIndex, ByteBufferFactory bufferFactory,
+            TokenNameLookup tokenNameLookup )
     {
-        super( pageCache, fs, file, layout, monitor, descriptor, spatialSettings, directoryStructure, dropAction, archiveFailedIndex, bufferFactory );
+        super( pageCache, fs, file, layout, monitor, descriptor, spatialSettings, directoryStructure, dropAction, archiveFailedIndex, bufferFactory,
+                tokenNameLookup );
         this.spatialSettings = spatialSettings;
         this.configuration = configuration;
     }

@@ -1,13 +1,10 @@
 /*
- * Copyright (c) 2018-2020 "Graph Foundation"
- * Graph Foundation, Inc. [https://graphfoundation.org]
- *
  * Copyright (c) 2002-2020 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
- * This file is part of ONgDB.
+ * This file is part of Neo4j.
  *
- * ONgDB is free software: you can redistribute it and/or modify
+ * Neo4j is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
@@ -22,9 +19,13 @@
  */
 package org.neo4j.scheduler;
 
+import java.util.Collections;
+import java.util.List;
+import java.util.concurrent.AbstractExecutorService;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.ForkJoinTask;
+import java.util.concurrent.TimeUnit;
 
 import static java.lang.Runtime.getRuntime;
 import static java.util.concurrent.Executors.newCachedThreadPool;
@@ -97,6 +98,27 @@ interface ExecutorServiceFactory
     }
 
     /**
+     * Executes all jobs on the calling thread.
+     */
+    static ExecutorServiceFactory callingThread()
+    {
+        return new ExecutorServiceFactory()
+        {
+            @Override
+            public ExecutorService build( Group group, SchedulerThreadFactory factory )
+            {
+                return new CallingThreadExecutorService();
+            }
+
+            @Override
+            public ExecutorService build( Group group, SchedulerThreadFactory factory, int threadCount )
+            {
+                return new CallingThreadExecutorService();
+            }
+        };
+    }
+
+    /**
      * Execute jobs in a dynamically growing pool of threads. The threads will be cached and kept around for a little while to cope with work load spikes
      * and troughs.
      */
@@ -138,5 +160,49 @@ interface ExecutorServiceFactory
                 return new ForkJoinPool( threadCount, factory, null, false );
             }
         };
+    }
+
+    /**
+     * An executor service which always executes the runnable on the calling thread.
+     */
+    class CallingThreadExecutorService extends AbstractExecutorService
+    {
+        private volatile boolean shutdown;
+
+        @Override
+        public void execute( Runnable runnable )
+        {
+            runnable.run();
+        }
+
+        @Override
+        public void shutdown()
+        {
+            shutdown = true;
+        }
+
+        @Override
+        public List<Runnable> shutdownNow()
+        {
+            return Collections.emptyList();
+        }
+
+        @Override
+        public boolean isShutdown()
+        {
+            return shutdown;
+        }
+
+        @Override
+        public boolean isTerminated()
+        {
+            return shutdown;
+        }
+
+        @Override
+        public boolean awaitTermination( long timeout, TimeUnit unit )
+        {
+            return true;
+        }
     }
 }

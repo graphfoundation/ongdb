@@ -1,13 +1,10 @@
 /*
- * Copyright (c) 2018-2020 "Graph Foundation"
- * Graph Foundation, Inc. [https://graphfoundation.org]
- *
  * Copyright (c) 2002-2020 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
- * This file is part of ONgDB.
+ * This file is part of Neo4j.
  *
- * ONgDB is free software: you can redistribute it and/or modify
+ * Neo4j is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
@@ -29,6 +26,7 @@ import org.junit.Test;
 import java.io.IOException;
 
 import org.neo4j.helpers.TaskCoordinator;
+import org.neo4j.internal.kernel.api.TokenNameLookup;
 import org.neo4j.internal.kernel.api.schema.IndexProviderDescriptor;
 import org.neo4j.kernel.api.exceptions.index.IndexEntryConflictException;
 import org.neo4j.kernel.api.impl.index.storage.DirectoryFactory;
@@ -82,6 +80,7 @@ public class LuceneIndexSamplerReleaseTaskControlUnderFusionTest
     private static final Config config = Config.defaults();
     private static final IndexSamplingConfig samplingConfig = new IndexSamplingConfig( config );
     private static final RuntimeException sampleException = new RuntimeException( "Killroy messed with your index sample." );
+    private final TokenNameLookup tokenNameLookup = simpleNameLookup;
     private IndexDirectoryStructure.Factory directoryFactory;
 
     @Before
@@ -111,7 +110,7 @@ public class LuceneIndexSamplerReleaseTaskControlUnderFusionTest
 
         IndexProvider failingProvider = failingProvider();
         FusionIndexProvider fusionProvider = createFusionProvider( luceneProvider, failingProvider );
-        try ( IndexAccessor fusionAccessor = fusionProvider.getOnlineAccessor( storeIndexDescriptor, samplingConfig ) )
+        try ( IndexAccessor fusionAccessor = fusionProvider.getOnlineAccessor( storeIndexDescriptor, samplingConfig, tokenNameLookup ) )
         {
             IndexSamplingJob indexSamplingJob = createIndexSamplingJob( fusionAccessor );
 
@@ -133,7 +132,7 @@ public class LuceneIndexSamplerReleaseTaskControlUnderFusionTest
 
     private void makeSureIndexHasSomeData( IndexProvider provider ) throws IOException, IndexEntryConflictException
     {
-        try ( IndexAccessor accessor = provider.getOnlineAccessor(storeIndexDescriptor, samplingConfig );
+        try ( IndexAccessor accessor = provider.getOnlineAccessor(storeIndexDescriptor, samplingConfig, tokenNameLookup );
               IndexUpdater updater = accessor.newUpdater( IndexUpdateMode.ONLINE ) )
         {
             updater.process( IndexEntryUpdate.add( 1, storeIndexDescriptor, Values.of( "some string" ) ) );
@@ -183,7 +182,8 @@ public class LuceneIndexSamplerReleaseTaskControlUnderFusionTest
         return new IndexProvider.Adaptor( providerDescriptor, directoryFactory )
         {
             @Override
-            public IndexAccessor getOnlineAccessor( StoreIndexDescriptor descriptor, IndexSamplingConfig samplingConfig )
+            public IndexAccessor getOnlineAccessor( StoreIndexDescriptor descriptor, IndexSamplingConfig samplingConfig,
+                    TokenNameLookup tokenNameLookup )
             {
                 return failingIndexAccessor();
             }

@@ -1,13 +1,10 @@
 /*
- * Copyright (c) 2018-2020 "Graph Foundation"
- * Graph Foundation, Inc. [https://graphfoundation.org]
- *
  * Copyright (c) 2002-2020 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
- * This file is part of ONgDB.
+ * This file is part of Neo4j.
  *
- * ONgDB is free software: you can redistribute it and/or modify
+ * Neo4j is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
@@ -80,13 +77,16 @@ case class AssumeIndependenceQueryGraphCardinalityModel(stats: GraphStatistics, 
     val numberOfPatternNodes = calculateNumberOfPatternNodes(qg) - numberOfZeroZeroRels
     val numberOfGraphNodes = stats.nodesAllCardinality()
 
-    val c = if (qg.argumentIds.nonEmpty) {
-        input.inboundCardinality
+    // We can't always rely on arguments being present to indicate we need to multiply the cardinality
+    // For example, when planning to solve an OPTIONAL MATCH with a join, we remove all the arguments. We
+    // could still be beneath an Apply a this point though.
+    val multiplier = if (input.alwaysMultiply || qg.argumentIds.nonEmpty) {
+      input.inboundCardinality
     } else {
       Cardinality(1.0)
     }
 
-    c * (numberOfGraphNodes ^ numberOfPatternNodes) * selectivity
+    multiplier * (numberOfGraphNodes ^ numberOfPatternNodes) * selectivity
   }
 
   private def calculateSelectivity(qg: QueryGraph, labels: Map[String, Set[LabelName]])

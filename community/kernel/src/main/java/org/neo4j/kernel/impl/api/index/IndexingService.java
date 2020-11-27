@@ -1,13 +1,10 @@
 /*
- * Copyright (c) 2018-2020 "Graph Foundation"
- * Graph Foundation, Inc. [https://graphfoundation.org]
- *
  * Copyright (c) 2002-2020 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
- * This file is part of ONgDB.
+ * This file is part of Neo4j.
  *
- * ONgDB is free software: you can redistribute it and/or modify
+ * Neo4j is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
@@ -331,14 +328,12 @@ public class IndexingService extends LifecycleAdapter implements IndexingUpdateS
                 switch ( state )
                 {
                 case ONLINE:
-                    // Don't do anything, index is ok.
+                case FAILED:
+                    proxy.start();
                     break;
                 case POPULATING:
-                    // Remember for rebuilding
+                    // Remember for rebuilding right below in this method
                     rebuildingDescriptors.put( indexId, descriptor );
-                    break;
-                case FAILED:
-                    // Don't do anything, the user needs to drop the index and re-create
                     break;
                 default:
                     throw new IllegalStateException( "Unknown state: " + state );

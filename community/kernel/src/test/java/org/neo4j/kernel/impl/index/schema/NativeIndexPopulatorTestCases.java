@@ -1,13 +1,10 @@
 /*
- * Copyright (c) 2018-2020 "Graph Foundation"
- * Graph Foundation, Inc. [https://graphfoundation.org]
- *
  * Copyright (c) 2002-2020 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
- * This file is part of ONgDB.
+ * This file is part of Neo4j.
  *
- * ONgDB is free software: you can redistribute it and/or modify
+ * Neo4j is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
@@ -29,6 +26,7 @@ import java.util.Collection;
 import java.util.HashMap;
 
 import org.neo4j.gis.spatial.index.curves.StandardConfiguration;
+import org.neo4j.internal.kernel.api.TokenNameLookup;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.kernel.api.index.IndexDirectoryStructure;
@@ -129,32 +127,32 @@ class NativeIndexPopulatorTestCases
 
     private static <TK extends NativeIndexSingleValueKey<TK>> PopulatorFactory<TK,NativeIndexValue> temporalPopulatorFactory( ValueGroup temporalValueGroup )
     {
-        return ( pageCache, fs, storeFile, layout, monitor, descriptor ) ->
+        return ( pageCache, fs, storeFile, layout, monitor, descriptor, tokenNameLookup ) ->
         {
             TemporalIndexFiles.FileLayout<TK> fileLayout = new TemporalIndexFiles.FileLayout<>( storeFile, layout, temporalValueGroup );
-            return new TemporalIndexPopulator.PartPopulator<>( pageCache, fs, fileLayout, monitor, descriptor );
+            return new TemporalIndexPopulator.PartPopulator<>( pageCache, fs, fileLayout, monitor, descriptor, tokenNameLookup );
         };
     }
 
     private static PopulatorFactory<GenericKey,NativeIndexValue> genericPopulatorFactory()
     {
-        return ( pageCache, fs, storeFile, layout, monitor, descriptor ) ->
+        return ( pageCache, fs, storeFile, layout, monitor, descriptor, tokenNameLookup ) ->
         {
             IndexDirectoryStructure directoryStructure = SimpleIndexDirectoryStructures.onIndexFile( storeFile );
             IndexDropAction dropAction = new FileSystemIndexDropAction( fs, directoryStructure );
             return new GenericNativeIndexPopulator( pageCache, fs, storeFile, layout, monitor, descriptor, spaceFillingCurveSettings,
-                    directoryStructure, configuration, dropAction, false );
+                    directoryStructure, configuration, dropAction, false, tokenNameLookup );
         };
     }
 
     private static PopulatorFactory<GenericKey,NativeIndexValue> genericBlockBasedPopulatorFactory()
     {
-        return ( pageCache, fs, storeFile, layout, monitor, descriptor ) ->
+        return ( pageCache, fs, storeFile, layout, monitor, descriptor, tokenNameLookup ) ->
         {
             IndexDirectoryStructure directoryStructure = SimpleIndexDirectoryStructures.onIndexFile( storeFile );
             IndexDropAction dropAction = new FileSystemIndexDropAction( fs, directoryStructure );
             return new GenericBlockBasedIndexPopulator( pageCache, fs, storeFile, layout, monitor, descriptor, spaceFillingCurveSettings,
-                    directoryStructure, configuration, dropAction, false, heapBufferFactory( 10 * 1024 ) );
+                    directoryStructure, configuration, dropAction, false, heapBufferFactory( 10 * 1024 ), tokenNameLookup );
         };
     }
 
@@ -162,6 +160,6 @@ class NativeIndexPopulatorTestCases
     public interface PopulatorFactory<KEY extends NativeIndexKey<KEY>, VALUE extends NativeIndexValue>
     {
         NativeIndexPopulator<KEY,VALUE> create( PageCache pageCache, FileSystemAbstraction fs, File storeFile, IndexLayout<KEY,VALUE> layout,
-                IndexProvider.Monitor monitor, StoreIndexDescriptor descriptor ) throws IOException;
+                IndexProvider.Monitor monitor, StoreIndexDescriptor descriptor, TokenNameLookup tokenNameLookup ) throws IOException;
     }
 }

@@ -1,13 +1,10 @@
 /*
- * Copyright (c) 2018-2020 "Graph Foundation"
- * Graph Foundation, Inc. [https://graphfoundation.org]
- *
  * Copyright (c) 2002-2020 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
- * This file is part of ONgDB.
+ * This file is part of Neo4j.
  *
- * ONgDB is free software: you can redistribute it and/or modify
+ * Neo4j is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
@@ -95,14 +92,14 @@ class IndexProxyCreator
             return onlineProxy;
         } );
 
-        return new ContractCheckingIndexProxy( flipper, false );
+        return new ContractCheckingIndexProxy( flipper );
     }
 
     IndexProxy createRecoveringIndexProxy( StoreIndexDescriptor descriptor )
     {
         CapableIndexDescriptor capableIndexDescriptor = providerMap.withCapabilities( descriptor );
         IndexProxy proxy = new RecoveringIndexProxy( capableIndexDescriptor );
-        return new ContractCheckingIndexProxy( proxy, true );
+        return new ContractCheckingIndexProxy( proxy );
     }
 
     IndexProxy createOnlineIndexProxy( StoreIndexDescriptor descriptor )
@@ -113,7 +110,8 @@ class IndexProxyCreator
             CapableIndexDescriptor capableIndexDescriptor = providerMap.withCapabilities( descriptor );
             IndexProxy proxy;
             proxy = new OnlineIndexProxy( capableIndexDescriptor, onlineAccessor, storeView, false );
-            proxy = new ContractCheckingIndexProxy( proxy, true );
+            proxy = new ContractCheckingIndexProxy( proxy );
+            // it will be started later, when recovery is completed
             return proxy;
         }
         catch ( IOException e )
@@ -139,7 +137,7 @@ class IndexProxyCreator
                 populationFailure,
                 new IndexCountsRemover( storeView, descriptor.getId() ),
                 logProvider );
-        proxy = new ContractCheckingIndexProxy( proxy, true );
+        proxy = new ContractCheckingIndexProxy( proxy );
         return proxy;
     }
 
@@ -152,12 +150,12 @@ class IndexProxyCreator
     private IndexPopulator populatorFromProvider( StoreIndexDescriptor descriptor, IndexSamplingConfig samplingConfig, ByteBufferFactory bufferFactory )
     {
         IndexProvider indexProvider = providerMap.lookup( descriptor.providerDescriptor() );
-        return indexProvider.getPopulator( descriptor, samplingConfig, bufferFactory );
+        return indexProvider.getPopulator( descriptor, samplingConfig, bufferFactory, tokenNameLookup );
     }
 
     private IndexAccessor onlineAccessorFromProvider( StoreIndexDescriptor descriptor, IndexSamplingConfig samplingConfig ) throws IOException
     {
         IndexProvider indexProvider = providerMap.lookup( descriptor.providerDescriptor() );
-        return indexProvider.getOnlineAccessor( descriptor, samplingConfig );
+        return indexProvider.getOnlineAccessor( descriptor, samplingConfig, tokenNameLookup );
     }
 }

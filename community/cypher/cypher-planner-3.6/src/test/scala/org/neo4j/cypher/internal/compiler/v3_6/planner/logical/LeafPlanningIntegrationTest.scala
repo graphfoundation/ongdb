@@ -1,13 +1,10 @@
 /*
- * Copyright (c) 2018-2020 "Graph Foundation"
- * Graph Foundation, Inc. [https://graphfoundation.org]
- *
  * Copyright (c) 2002-2020 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
- * This file is part of ONgDB.
+ * This file is part of Neo4j.
  *
- * ONgDB is free software: you can redistribute it and/or modify
+ * Neo4j is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
@@ -27,6 +24,7 @@ import org.neo4j.cypher.internal.compiler.v3_6.planner.LogicalPlanningTestSuppor
 import org.neo4j.cypher.internal.compiler.v3_6.planner.StubbedLogicalPlanningConfiguration
 import org.neo4j.cypher.internal.compiler.v3_6.planner.logical.Metrics.QueryGraphSolverInput
 import org.neo4j.cypher.internal.ir.v3_6.RegularPlannerQuery
+import org.neo4j.cypher.internal.planner.v3_6.spi.DelegatingGraphStatistics
 import org.neo4j.cypher.internal.planner.v3_6.spi.PlanningAttributes.Cardinalities
 import org.neo4j.cypher.internal.v3_6.logical.plans._
 import org.neo4j.cypher.internal.v3_6.ast.AstConstructionTestSupport
@@ -224,13 +222,7 @@ class LeafPlanningIntegrationTest extends CypherFunSuite with LogicalPlanningTes
         case _ => Double.MaxValue
       }
     } getLogicalPlanFor "MATCH (a:Person) WHERE a.age > 40 AND a.name >= 'Cinderella' RETURN a")._2 should equal(
-      Selection(
-        Seq(
-          AndedPropertyInequalities(
-            varFor("a"),
-            Property(varFor("a"), PropertyKeyName("age")_)_,
-            NonEmptyList(GreaterThan(Property(varFor("a"), PropertyKeyName("age")_)_, SignedDecimalIntegerLiteral("40")_)_)
-        )),
+      Selection(Ands(Set(GreaterThan(Property(varFor("a"), PropertyKeyName("age")_)_, SignedDecimalIntegerLiteral("40")_)_))_,
         IndexSeek("a:Person(name >= 'Cinderella')")
       )
     )
@@ -279,6 +271,32 @@ class LeafPlanningIntegrationTest extends CypherFunSuite with LogicalPlanningTes
     plan._2 should equal(
       NodeByLabelScan("n", lblName("Awesome"), Set.empty)
     )
+  }
+
+  test("should plan label scan for unnamed node") {
+    val query =
+      """
+        |MATCH (n)-->()-->(:Role)
+        |RETURN n
+        |""".stripMargin
+
+    val plan = (new given {
+      statistics = new DelegatingGraphStatistics(parent.graphStatistics) {
+        override def nodesWithLabelCardinality(labelId: Option[LabelId]): Cardinality = Cardinality(10.0)
+
+        override def nodesAllCardinality(): Cardinality = Cardinality(100.0)
+      }
+    } getLogicalPlanFor query)._2
+
+    plan should beLike {
+      case Selection(_,
+      Expand(
+      Expand(
+      NodeByLabelScan(_, LabelName("Role"), _),
+      _, INCOMING, List(), _, _, ExpandAll),
+      _, INCOMING, List(), _, _, ExpandAll)
+      ) => ()
+    }
   }
 
   private val nodeIndexScanCost: PartialFunction[(LogicalPlan, QueryGraphSolverInput, Cardinalities), Cost] = {
@@ -524,7 +542,7 @@ class LeafPlanningIntegrationTest extends CypherFunSuite with LogicalPlanningTes
 
     plan._2 should equal(
       Selection(
-        Ands(Set(In(Property(varFor("n"), PropertyKeyName("prop1")_)_, ListLiteral(Seq(SignedDecimalIntegerLiteral("42")_))_)_))_,
+        Ands(Set(Equals(Property(varFor("n"), PropertyKeyName("prop1")_)_, SignedDecimalIntegerLiteral("42")_)_))_,
         IndexSeek("n:Awesome(prop2 = 3)", propIds = Map("prop2" -> 1))
       )
     )
@@ -562,7 +580,7 @@ class LeafPlanningIntegrationTest extends CypherFunSuite with LogicalPlanningTes
 
     plan._2 should equal(
       Selection(
-        Ands(Set(In(Property(varFor("n"), PropertyKeyName("prop1")_)_, ListLiteral(Seq(SignedDecimalIntegerLiteral("42")_))_)_))_,
+        Ands(Set(Equals(Property(varFor("n"), PropertyKeyName("prop1")_)_, SignedDecimalIntegerLiteral("42")_)_))_,
         NodeUniqueIndexSeek("n", LabelToken("Awesome", LabelId(0)), Seq(IndexedProperty(PropertyKeyToken("prop2", PropertyKeyId(1)), DoNotGetValue)), SingleQueryExpression(SignedDecimalIntegerLiteral("3") _), Set.empty, IndexOrderNone)
       )
     )
@@ -576,7 +594,7 @@ class LeafPlanningIntegrationTest extends CypherFunSuite with LogicalPlanningTes
 
     plan._2 should equal(
       Selection(
-        Ands(Set(In(Property(varFor("n"), PropertyKeyName("prop1")_)_, ListLiteral(Seq(SignedDecimalIntegerLiteral("42")_))_)_))_,
+        Ands(Set(Equals(Property(varFor("n"), PropertyKeyName("prop1")_)_, SignedDecimalIntegerLiteral("42")_)_))_,
         NodeUniqueIndexSeek("n", LabelToken("Awesome", LabelId(0)), Seq(IndexedProperty(PropertyKeyToken("prop2", PropertyKeyId(1)), DoNotGetValue)), SingleQueryExpression(SignedDecimalIntegerLiteral("3") _), Set.empty, IndexOrderNone)
       )
     )

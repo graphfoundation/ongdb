@@ -1,13 +1,10 @@
 /*
- * Copyright (c) 2018-2020 "Graph Foundation"
- * Graph Foundation, Inc. [https://graphfoundation.org]
- *
  * Copyright (c) 2002-2020 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
- * This file is part of ONgDB.
+ * This file is part of Neo4j.
  *
- * ONgDB is free software: you can redistribute it and/or modify
+ * Neo4j is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
@@ -38,6 +35,7 @@ class StubbedLogicalPlanningConfiguration(val parent: LogicalPlanningConfigurati
   self =>
 
   var knownLabels: Set[String] = Set.empty
+  var knownRelationships: Set[String] = Set.empty
   var cardinality: PartialFunction[PlannerQuery, Cardinality] = PartialFunction.empty
   var cost: PartialFunction[(LogicalPlan, QueryGraphSolverInput, Cardinalities), Cost] = PartialFunction.empty
   var labelCardinality: Map[String, Cardinality] = Map.empty

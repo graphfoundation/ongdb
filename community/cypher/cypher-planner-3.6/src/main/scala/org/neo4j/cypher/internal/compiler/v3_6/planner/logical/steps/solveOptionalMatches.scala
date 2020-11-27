@@ -1,13 +1,10 @@
 /*
- * Copyright (c) 2018-2020 "Graph Foundation"
- * Graph Foundation, Inc. [https://graphfoundation.org]
- *
  * Copyright (c) 2002-2020 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
- * This file is part of ONgDB.
+ * This file is part of Neo4j.
  *
- * ONgDB is free software: you can redistribute it and/or modify
+ * Neo4j is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
@@ -27,6 +24,7 @@ import org.neo4j.cypher.internal.compiler.v3_6.planner.logical.plans.rewriter.un
 import org.neo4j.cypher.internal.ir.v3_6.{InterestingOrder, QueryGraph}
 import org.neo4j.cypher.internal.v3_6.logical.plans.LogicalPlan
 import org.neo4j.cypher.internal.v3_6.ast.UsingJoinHint
+import org.neo4j.cypher.internal.v3_6.logical.plans.Argument
 
 trait OptionalSolver {
   def apply(qg: QueryGraph, lp: LogicalPlan, interestingOrder: InterestingOrder, context: LogicalPlanningContext): Option[LogicalPlan]
@@ -52,7 +50,15 @@ abstract class outerHashJoin extends OptionalSolver {
       val hintVariables = hint.variables.map(_.name).toSet
       hintVariables.subsetOf(joinNodes)
     }
-    val side2 = context.strategy.plan(optionalQg.withoutArguments().withoutHints(solvedHints), interestingOrder, context)
+
+    // If side1 is just an Argument, any Apply above this will get written out so the incoming cardinality should be 1
+    // This will be the case as [AssumeIndependenceQueryGraphCardinalityModel] will always use a cardinality of 1 if there are no
+    // arguments and we delete the arguments below.
+    // If not, then we're probably under an apply that will stay, so we need to force the cardinality to be multiplied by the incoming
+    // cardinality.
+    val side2Context = if (!side1.isInstanceOf[Argument]) context.copy(input = context.input.copy(alwaysMultiply = true)) else context
+
+    val side2 = context.strategy.plan(optionalQg.withoutArguments().withoutHints(solvedHints), interestingOrder, side2Context)
 
     if (joinNodes.nonEmpty &&
       joinNodes.forall(side1.availableSymbols) &&

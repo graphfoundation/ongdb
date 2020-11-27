@@ -1,13 +1,10 @@
 /*
- * Copyright (c) 2018-2020 "Graph Foundation"
- * Graph Foundation, Inc. [https://graphfoundation.org]
- *
  * Copyright (c) 2002-2020 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
- * This file is part of ONgDB.
+ * This file is part of Neo4j.
  *
- * ONgDB is free software: you can redistribute it and/or modify
+ * Neo4j is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
@@ -23,9 +20,12 @@
 package org.neo4j.cypher.internal.compiler.v3_6.planner.logical.steps
 
 import org.neo4j.cypher.internal.compiler.v3_6.planner.LogicalPlanningTestSupport2
+import org.neo4j.cypher.internal.ir.v3_6.PlannerQuery
 import org.neo4j.cypher.internal.ir.v3_6.ProvidedOrder
+import org.neo4j.cypher.internal.v3_6.ast.UsingIndexHint
 import org.neo4j.cypher.internal.v3_6.logical.plans.CachedNodeProperty
 import org.neo4j.cypher.internal.v3_6.expressions.PropertyKeyName
+import org.neo4j.cypher.internal.v3_6.util.InputPosition
 import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
 
 class LogicalPlanProducerTest extends CypherFunSuite with LogicalPlanningTestSupport2 {
@@ -239,6 +239,36 @@ class LogicalPlanProducerTest extends CypherFunSuite with LogicalPlanningTestSup
 
       // then
       context.planningAttributes.providedOrders.get(result.id) should be(ProvidedOrder(Seq(ProvidedOrder.Asc("y.bar"))))
+    }
+  }
+
+  test("should retain solved hints when planning union for leaf plans") {
+    new given().withLogicalPlanningContext { (_, context) =>
+      // GIVEN
+      val lpp = LogicalPlanProducer(context.cardinality, context.planningAttributes, idGen)
+
+      val lhs = fakeLogicalPlanFor("x", "y")
+      val rhs = fakeLogicalPlanFor("x", "y")
+      val hint1 = UsingIndexHint(varFor("foo"), lblName("bar"), Seq())(InputPosition.NONE)
+      val hint2 = UsingIndexHint(varFor("blah"), lblName("meh"), Seq())(InputPosition.NONE)
+
+      val solveds = context.planningAttributes.solveds
+      val spqLhs = PlannerQuery.empty.amendQueryGraph(qg => qg.copy(hints = Seq(hint1)))
+      val spqRhs = PlannerQuery.empty.amendQueryGraph(qg => qg.copy(hints = Seq(hint2)))
+
+      solveds.set(lhs.id, spqLhs)
+      context.planningAttributes.cardinalities.set(lhs.id, 10.0)
+      context.planningAttributes.providedOrders.set(lhs.id, ProvidedOrder.empty)
+
+      solveds.set(rhs.id, spqRhs)
+      context.planningAttributes.cardinalities.set(rhs.id, 20.0)
+      context.planningAttributes.providedOrders.set(rhs.id, ProvidedOrder.empty)
+
+      // WHEN
+      val p1 = lpp.planUnion(lhs, rhs, context)
+
+      // THEN
+      solveds.get(p1.id).allHints shouldBe List(hint1, hint2)
     }
   }
 

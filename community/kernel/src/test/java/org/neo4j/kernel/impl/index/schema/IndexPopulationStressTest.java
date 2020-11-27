@@ -1,13 +1,10 @@
 /*
- * Copyright (c) 2018-2020 "Graph Foundation"
- * Graph Foundation, Inc. [https://graphfoundation.org]
- *
  * Copyright (c) 2002-2020 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
- * This file is part of ONgDB.
+ * This file is part of Neo4j.
  *
- * ONgDB is free software: you can redistribute it and/or modify
+ * Neo4j is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
@@ -43,6 +40,7 @@ import java.util.function.Function;
 
 import org.neo4j.internal.kernel.api.IndexOrder;
 import org.neo4j.internal.kernel.api.IndexQuery;
+import org.neo4j.internal.kernel.api.TokenNameLookup;
 import org.neo4j.internal.kernel.api.exceptions.EntityNotFoundException;
 import org.neo4j.internal.kernel.api.schema.IndexProviderDescriptor;
 import org.neo4j.kernel.api.exceptions.index.IndexEntryConflictException;
@@ -82,6 +80,7 @@ import static org.neo4j.kernel.api.index.IndexEntryUpdate.change;
 import static org.neo4j.kernel.api.index.IndexEntryUpdate.remove;
 import static org.neo4j.kernel.api.index.IndexProvider.Monitor.EMPTY;
 import static org.neo4j.kernel.api.schema.SchemaDescriptorFactory.forLabel;
+import static org.neo4j.kernel.api.schema.SchemaTestUtil.simpleNameLookup;
 import static org.neo4j.kernel.configuration.Config.defaults;
 import static org.neo4j.kernel.impl.index.schema.ByteBufferFactory.heapBufferFactory;
 import static org.neo4j.storageengine.api.schema.IndexDescriptorFactory.forSchema;
@@ -143,6 +142,7 @@ public class IndexPopulationStressTest
 
     private IndexPopulator populator;
     private IndexProvider indexProvider;
+    private TokenNameLookup tokenNameLookup;
     private boolean prevAccessCheck;
 
     private IndexDirectoryStructure.Factory directory()
@@ -156,7 +156,8 @@ public class IndexPopulationStressTest
     {
         indexProvider = providerCreator.apply( this );
         rules.fileSystem().mkdirs( indexProvider.directoryStructure().rootDirectory() );
-        populator = indexProvider.getPopulator( descriptor, samplingConfig, heapBufferFactory( 1024 ) );
+        tokenNameLookup = simpleNameLookup;
+        populator = indexProvider.getPopulator( descriptor, samplingConfig, heapBufferFactory( 1024 ), tokenNameLookup );
         when( nodePropertyAccessor.getNodePropertyValue( anyLong(), anyInt() ) ).thenThrow( UnsupportedOperationException.class );
         prevAccessCheck = UnsafeUtil.exchangeNativeAccessCheckEnabled( false );
     }
@@ -194,8 +195,8 @@ public class IndexPopulationStressTest
 
         // then assert that a tree built by a single thread ends up exactly the same
         buildReferencePopulatorSingleThreaded( generators, updates );
-        try ( IndexAccessor accessor = indexProvider.getOnlineAccessor( descriptor, samplingConfig );
-              IndexAccessor referenceAccessor = indexProvider.getOnlineAccessor( descriptor2, samplingConfig );
+        try ( IndexAccessor accessor = indexProvider.getOnlineAccessor( descriptor, samplingConfig, tokenNameLookup );
+              IndexAccessor referenceAccessor = indexProvider.getOnlineAccessor( descriptor2, samplingConfig, tokenNameLookup );
               IndexReader reader = accessor.newReader();
               IndexReader referenceReader = referenceAccessor.newReader() )
         {
@@ -309,7 +310,7 @@ public class IndexPopulationStressTest
     private void buildReferencePopulatorSingleThreaded( Generator[] generators, Collection<IndexEntryUpdate<?>> updates )
             throws IndexEntryConflictException
     {
-        IndexPopulator referencePopulator = indexProvider.getPopulator( descriptor2, samplingConfig, heapBufferFactory( 1024 ) );
+        IndexPopulator referencePopulator = indexProvider.getPopulator( descriptor2, samplingConfig, heapBufferFactory( 1024 ), tokenNameLookup );
         referencePopulator.create();
         boolean referenceSuccess = false;
         try

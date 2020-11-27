@@ -1,13 +1,10 @@
 /*
- * Copyright (c) 2018-2020 "Graph Foundation"
- * Graph Foundation, Inc. [https://graphfoundation.org]
- *
  * Copyright (c) 2002-2020 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
- * This file is part of ONgDB.
+ * This file is part of Neo4j.
  *
- * ONgDB is free software: you can redistribute it and/or modify
+ * Neo4j is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
@@ -33,8 +30,10 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.IntSupplier;
 
+import org.neo4j.configuration.ConfigValue;
 import org.neo4j.graphdb.DependencyResolver;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Path;
@@ -63,6 +62,7 @@ import org.neo4j.kernel.api.proc.BasicContext;
 import org.neo4j.kernel.api.proc.Key;
 import org.neo4j.kernel.api.schema.constraints.ConstraintDescriptor;
 import org.neo4j.kernel.api.schema.constraints.ConstraintDescriptorFactory;
+import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.impl.api.index.IndexingService;
 import org.neo4j.kernel.impl.factory.Edition;
 import org.neo4j.kernel.impl.proc.Procedures;
@@ -73,6 +73,7 @@ import org.neo4j.storageengine.api.schema.PopulationProgress;
 
 import static java.util.Collections.emptyIterator;
 import static java.util.Collections.singletonList;
+import static java.util.Collections.singletonMap;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -207,7 +208,7 @@ public class BuiltInProceduresTest
 
         // When/Then
         assertThat( call( "db.indexes" ), contains( record(
-                "INDEX ON :User(name)", "Unnamed index", singletonList( "User" ), singletonList( "name" ), Collections.emptyMap(), "NOT FOUND",
+                "INDEX ON :User(name)", "Unnamed index", singletonList( "User" ), singletonList( "name" ), Collections.EMPTY_MAP, "NOT FOUND",
                 "node_label_property", 0D,
                 getIndexProviderDescriptorMap( EMPTY.getProviderDescriptor() ), 42L, "Index not found. It might have been concurrently dropped." ) ) );
     }
@@ -504,6 +505,41 @@ public class BuiltInProceduresTest
 
         // Then
         verify( statement ).close();
+    }
+
+    @Test
+    public void listClientConfigShouldFilterConfig() throws ProcedureException, IndexNotFoundKernelException
+    {
+        // Given
+        Config mockConfig = mock( Config.class );
+        HashMap<String, ConfigValue> settings = new HashMap<>();
+
+        settings.put("browser.allow_outgoing_connections", new ConfigValue( "browser.allow_outgoing_connections", Optional.of( "description" ),
+                Optional.empty(), Optional.of("value"), "value description", false, false, false, Optional.empty(), false ));
+        settings.put("browser.credential_timeout", new ConfigValue( "browser.credential_timeout", Optional.of( "description" ),
+                Optional.empty(), Optional.of("value"), "value description", false, false, false, Optional.empty(), false ));
+        settings.put("browser.retain_connection_credentials", new ConfigValue( "browser.retain_connection_credentials", Optional.of( "description" ),
+                Optional.empty(), Optional.of("value"), "value description", false, false, false, Optional.empty(), false ));
+        settings.put("dbms.security.auth_enabled", new ConfigValue( "dbms.security.auth_enabled", Optional.of( "description" ),
+                Optional.empty(), Optional.of("value"), "value description", false, false, false, Optional.empty(), false ));
+        settings.put("browser.remote_content_hostname_whitelist", new ConfigValue( "browser.remote_content_hostname_whitelist", Optional.of( "description" ),
+                Optional.empty(), Optional.of("value"), "value description", false, false, false, Optional.empty(), false ));
+        settings.put("browser.post_connect_cmd", new ConfigValue( "browser.post_connect_cmd", Optional.of( "description" ),
+                Optional.empty(), Optional.of("value"), "value description", false, false, false, Optional.empty(), false ));
+        settings.put("something.else", new ConfigValue( "something.else", Optional.of( "description" ),
+                Optional.empty(), Optional.of("value"), "value description", false, false, false, Optional.empty(), false ));
+
+        when( mockConfig.getConfigValues() ).thenReturn( settings );
+        when( resolver.resolveDependency( Config.class ) ).thenReturn( mockConfig );
+
+        // When / Then
+        assertThat( call( "dbms.clientConfig" ), containsInAnyOrder(
+                record( "browser.allow_outgoing_connections", "description", "value", false ),
+                record( "browser.credential_timeout", "description", "value", false ),
+                record( "browser.retain_connection_credentials", "description", "value", false ),
+                record( "dbms.security.auth_enabled", "description", "value", false ),
+                record( "browser.remote_content_hostname_whitelist", "description", "value", false ),
+                record( "browser.post_connect_cmd", "description", "value", false ) ) );
     }
 
     private static Map<String,String> getIndexProviderDescriptorMap( IndexProviderDescriptor providerDescriptor )

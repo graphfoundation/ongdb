@@ -1,13 +1,10 @@
 /*
- * Copyright (c) 2018-2020 "Graph Foundation"
- * Graph Foundation, Inc. [https://graphfoundation.org]
- *
  * Copyright (c) 2002-2020 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
- * This file is part of ONgDB.
+ * This file is part of Neo4j.
  *
- * ONgDB is free software: you can redistribute it and/or modify
+ * Neo4j is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
@@ -41,6 +38,7 @@ import org.neo4j.values.storable.Values;
 
 import static org.neo4j.values.SequenceValue.IterationPreference.RANDOM_ACCESS;
 import static org.neo4j.values.storable.Values.NO_VALUE;
+import static org.neo4j.values.utils.ValueMath.HASH_CONSTANT;
 import static org.neo4j.values.virtual.ArrayHelpers.containsNull;
 import static org.neo4j.values.virtual.VirtualValues.EMPTY_LIST;
 
@@ -480,7 +478,7 @@ public abstract class ListValue extends VirtualValue implements SequenceValue, I
             int size = size();
             for ( int i = 0; i < size; i++, current += step )
             {
-                hashCode = 31 * hashCode + Long.hashCode( current );
+                hashCode = HASH_CONSTANT * hashCode + Long.hashCode( current );
             }
             return hashCode;
         }
@@ -910,7 +908,7 @@ public abstract class ListValue extends VirtualValue implements SequenceValue, I
         int size = size();
         for ( int i = 0; i < size; i++ )
         {
-            hashCode = 31 * hashCode + value( i ).hashCode();
+            hashCode = HASH_CONSTANT * hashCode + value( i ).hashCode();
         }
         return hashCode;
     }
@@ -920,7 +918,7 @@ public abstract class ListValue extends VirtualValue implements SequenceValue, I
         int hashCode = 1;
         for ( AnyValue value : this )
         {
-            hashCode = 31 * hashCode + value.hashCode();
+            hashCode = HASH_CONSTANT * hashCode + value.hashCode();
         }
         return hashCode;
     }

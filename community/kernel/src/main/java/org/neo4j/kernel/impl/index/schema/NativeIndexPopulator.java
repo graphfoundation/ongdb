@@ -1,13 +1,10 @@
 /*
- * Copyright (c) 2018-2020 "Graph Foundation"
- * Graph Foundation, Inc. [https://graphfoundation.org]
- *
  * Copyright (c) 2002-2020 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
- * This file is part of ONgDB.
+ * This file is part of Neo4j.
  *
- * ONgDB is free software: you can redistribute it and/or modify
+ * Neo4j is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
@@ -33,6 +30,7 @@ import java.util.function.Consumer;
 import org.neo4j.index.internal.gbptree.GBPTree;
 import org.neo4j.index.internal.gbptree.RecoveryCleanupWorkCollector;
 import org.neo4j.index.internal.gbptree.Writer;
+import org.neo4j.internal.kernel.api.TokenNameLookup;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.pagecache.IOLimiter;
 import org.neo4j.io.pagecache.PageCache;
@@ -70,6 +68,7 @@ public abstract class NativeIndexPopulator<KEY extends NativeIndexKey<KEY>, VALU
     private final VALUE treeValue;
     private final UniqueIndexSampler uniqueSampler;
     private final Consumer<PageCursor> additionalHeaderWriter;
+    final TokenNameLookup tokenNameLookup;
 
     private ConflictDetectingValueMerger<KEY,VALUE,Value[]> mainConflictDetector;
     private ConflictDetectingValueMerger<KEY,VALUE,Value[]> updatesConflictDetector;
@@ -79,12 +78,13 @@ public abstract class NativeIndexPopulator<KEY extends NativeIndexKey<KEY>, VALU
     private boolean closed;
 
     NativeIndexPopulator( PageCache pageCache, FileSystemAbstraction fs, File storeFile, IndexLayout<KEY,VALUE> layout, IndexProvider.Monitor monitor,
-            StoreIndexDescriptor descriptor, Consumer<PageCursor> additionalHeaderWriter )
+            StoreIndexDescriptor descriptor, Consumer<PageCursor> additionalHeaderWriter, TokenNameLookup tokenNameLookup )
     {
         super( pageCache, fs, storeFile, layout, monitor, descriptor, false );
         this.treeKey = layout.newKey();
         this.treeValue = layout.newValue();
         this.additionalHeaderWriter = additionalHeaderWriter;
+        this.tokenNameLookup = tokenNameLookup;
         switch ( descriptor.type() )
         {
         case GENERAL:
@@ -270,7 +270,7 @@ public abstract class NativeIndexPopulator<KEY extends NativeIndexKey<KEY>, VALU
         {
             for ( IndexEntryUpdate<?> indexEntryUpdate : indexEntryUpdates )
             {
-                NativeIndexUpdater.processUpdate( treeKey, treeValue, indexEntryUpdate, writer, conflictDetector );
+                NativeIndexUpdater.processUpdate( treeKey, treeValue, indexEntryUpdate, writer, conflictDetector, descriptor, tokenNameLookup );
             }
         }
         catch ( IOException e )

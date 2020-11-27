@@ -1,13 +1,10 @@
 /*
- * Copyright (c) 2018-2020 "Graph Foundation"
- * Graph Foundation, Inc. [https://graphfoundation.org]
- *
  * Copyright (c) 2002-2020 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
- * This file is part of ONgDB.
+ * This file is part of Neo4j.
  *
- * ONgDB is free software: you can redistribute it and/or modify
+ * Neo4j is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
@@ -22,6 +19,7 @@
  */
 package org.neo4j.kernel.impl.scheduler;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
@@ -53,6 +51,9 @@ final class ThreadPool
     public JobHandle submit( Runnable job )
     {
         Object registryKey = new Object();
+        CompletableFuture<Void> placeHolder = CompletableFuture.completedFuture( null );
+        registry.put( registryKey, placeHolder );
+
         Runnable registeredJob = () ->
         {
             try
@@ -64,9 +65,15 @@ final class ThreadPool
                 registry.remove( registryKey );
             }
         };
+
         Future<?> future = executor.submit( registeredJob );
-        registry.put( registryKey, future );
+        registry.replace( registryKey, placeHolder, future );
         return new PooledJobHandle( future, registryKey, registry );
+    }
+
+    int activeJobCount()
+    {
+        return registry.size();
     }
 
     void cancelAllJobs()

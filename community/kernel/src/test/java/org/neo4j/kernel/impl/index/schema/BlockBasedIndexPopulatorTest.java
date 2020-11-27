@@ -1,13 +1,10 @@
 /*
- * Copyright (c) 2018-2020 "Graph Foundation"
- * Graph Foundation, Inc. [https://graphfoundation.org]
- *
  * Copyright (c) 2002-2020 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
- * This file is part of ONgDB.
+ * This file is part of Neo4j.
  *
- * ONgDB is free software: you can redistribute it and/or modify
+ * Neo4j is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
@@ -35,6 +32,7 @@ import java.util.concurrent.Future;
 import java.util.function.LongPredicate;
 
 import org.neo4j.graphdb.mockfs.EphemeralFileSystemAbstraction;
+import org.neo4j.internal.kernel.api.TokenNameLookup;
 import org.neo4j.internal.kernel.api.schema.IndexProviderDescriptor;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.kernel.api.exceptions.index.IndexEntryConflictException;
@@ -60,6 +58,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.neo4j.kernel.api.index.IndexDirectoryStructure.directoriesByProvider;
 import static org.neo4j.kernel.api.index.IndexProvider.Monitor.EMPTY;
+import static org.neo4j.kernel.api.schema.SchemaTestUtil.simpleNameLookup;
 import static org.neo4j.kernel.impl.api.index.PhaseTracker.nullInstance;
 import static org.neo4j.kernel.impl.index.schema.BlockStorage.Monitor.NO_MONITOR;
 import static org.neo4j.kernel.impl.index.schema.ByteBufferFactory.heapBufferFactory;
@@ -80,6 +79,7 @@ public class BlockBasedIndexPopulatorTest
     @Rule
     public final OtherThreadRule<Void> t3 = new OtherThreadRule<>( "CLOSER" );
 
+    private final TokenNameLookup tokenNameLookup = simpleNameLookup;
     private IndexDirectoryStructure directoryStructure;
     private File indexDir;
     private File indexFile;
@@ -368,7 +368,7 @@ public class BlockBasedIndexPopulatorTest
         GenericLayout layout = new GenericLayout( 1, spatialSettings );
         BlockBasedIndexPopulator<GenericKey,NativeIndexValue> populator =
                 new BlockBasedIndexPopulator<GenericKey,NativeIndexValue>( storage.pageCache(), fs, indexFile, layout, EMPTY,
-                        INDEX_DESCRIPTOR, spatialSettings, directoryStructure, dropAction, false, bufferFactory, 2, monitor )
+                        INDEX_DESCRIPTOR, spatialSettings, directoryStructure, dropAction, false, bufferFactory, 2, monitor, tokenNameLookup )
                 {
                     @Override
                     NativeIndexReader<GenericKey,NativeIndexValue> newReader()

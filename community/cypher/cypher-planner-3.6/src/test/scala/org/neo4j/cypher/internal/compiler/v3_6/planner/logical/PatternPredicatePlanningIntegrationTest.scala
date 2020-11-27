@@ -1,13 +1,10 @@
 /*
- * Copyright (c) 2018-2020 "Graph Foundation"
- * Graph Foundation, Inc. [https://graphfoundation.org]
- *
  * Copyright (c) 2002-2020 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
- * This file is part of ONgDB.
+ * This file is part of Neo4j.
  *
- * ONgDB is free software: you can redistribute it and/or modify
+ * Neo4j is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
@@ -139,7 +136,7 @@ class PatternPredicatePlanningIntegrationTest extends CypherFunSuite with Logica
           GetDegree(Variable("a")_, Some(RelTypeName("X")_),OUTGOING)_,
           SignedDecimalIntegerLiteral("0")_)_,
         GreaterThan(Property(Variable("a") _, PropertyKeyName("prop") _) _, SignedDecimalIntegerLiteral("4") _) _,
-        In(Property(Variable("a") _, PropertyKeyName("prop2") _) _, ListLiteral(Seq(SignedDecimalIntegerLiteral("9") _)) _) _))_))_,
+        Equals(Property(Variable("a") _, PropertyKeyName("prop2") _) _, SignedDecimalIntegerLiteral("9") _) _))_))_,
                 AllNodesScan("a", Set.empty)))
   }
 
@@ -149,7 +146,7 @@ class PatternPredicatePlanningIntegrationTest extends CypherFunSuite with Logica
         LessThanOrEqual(
           GetDegree(Variable("a")_, Some(RelTypeName("X")_),OUTGOING)_,
           SignedDecimalIntegerLiteral("0")_)_,
-        In(Property(Variable("a") _, PropertyKeyName("prop") _) _, ListLiteral(Seq(SignedDecimalIntegerLiteral("9") _)) _) _))_))_,
+        Equals(Property(Variable("a") _, PropertyKeyName("prop") _) _, SignedDecimalIntegerLiteral("9") _) _))_))_,
                 AllNodesScan("a", Set.empty)))
   }
 
@@ -162,7 +159,7 @@ class PatternPredicatePlanningIntegrationTest extends CypherFunSuite with Logica
         LessThanOrEqual(
           GetDegree(Variable("a")_, Some(RelTypeName("X")_), OUTGOING)_,
           SignedDecimalIntegerLiteral("0")_)_,
-        In(Property(Variable("a")_, PropertyKeyName("prop")_)_, ListLiteral(Seq(SignedDecimalIntegerLiteral("9")_))_)_))_))_,
+        Equals(Property(Variable("a")_, PropertyKeyName("prop")_)_, SignedDecimalIntegerLiteral("9")_)_))_))_,
                 AllNodesScan("a", Set.empty)))
   }
 
@@ -194,7 +191,7 @@ class PatternPredicatePlanningIntegrationTest extends CypherFunSuite with Logica
       case Projection(
       VarExpand(_, _, _, _, _,_, _, _, _,_,_,_,_,
                      Seq((Variable("n"),
-                     In(Property(Variable("n"), PropertyKeyName("prop") ), ListLiteral(List(SignedDecimalIntegerLiteral("1337"))))))), _) => ()
+                     Equals(Property(Variable("n"), PropertyKeyName("prop") ), SignedDecimalIntegerLiteral("1337"))))), _) => ()
 
     }
   }
@@ -204,7 +201,7 @@ class PatternPredicatePlanningIntegrationTest extends CypherFunSuite with Logica
       case Projection(
       VarExpand(_, _, _, _, _,_, _, _, _,_,_,_,_,
                 Seq((Variable("n"),
-                Not(In(Property(Variable("n"), PropertyKeyName("prop") ), ListLiteral(List(SignedDecimalIntegerLiteral("1337")))))))), _) => ()
+                Not(Equals(Property(Variable("n"), PropertyKeyName("prop") ), SignedDecimalIntegerLiteral("1337")))))), _) => ()
 
     }
   }

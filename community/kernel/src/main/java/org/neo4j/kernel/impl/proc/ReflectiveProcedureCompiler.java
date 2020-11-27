@@ -1,13 +1,10 @@
 /*
- * Copyright (c) 2018-2020 "Graph Foundation"
- * Graph Foundation, Inc. [https://graphfoundation.org]
- *
  * Copyright (c) 2002-2020 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
- * This file is part of ONgDB.
+ * This file is part of Neo4j.
  *
- * ONgDB is free software: you can redistribute it and/or modify
+ * Neo4j is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
@@ -65,6 +62,7 @@ import org.neo4j.kernel.impl.proc.OutputMappers.OutputMapper;
 import org.neo4j.logging.Log;
 import org.neo4j.procedure.Admin;
 import org.neo4j.procedure.Description;
+import org.neo4j.procedure.Internal;
 import org.neo4j.procedure.Mode;
 import org.neo4j.procedure.PerformsWrites;
 import org.neo4j.procedure.Procedure;
@@ -280,6 +278,7 @@ class ReflectiveProcedureCompiler
         Procedure procedure = method.getAnnotation( Procedure.class );
         Mode mode = procedure.mode();
         boolean admin = method.isAnnotationPresent( Admin.class );
+        boolean internal = method.isAnnotationPresent( Internal.class );
         if ( method.isAnnotationPresent( PerformsWrites.class ) )
         {
             if ( procedure.mode() != org.neo4j.procedure.Mode.DEFAULT )
@@ -308,14 +307,14 @@ class ReflectiveProcedureCompiler
                 description = describeAndLogLoadFailure( procName );
                 ProcedureSignature signature =
                         new ProcedureSignature( procName, inputSignature, outputMapper.signature(), Mode.DEFAULT,
-                                admin, null, new String[0], description, warning, procedure.eager(), false );
+                                admin, null, new String[0], description, warning, procedure.eager(), false, internal );
                 return new FailedLoadProcedure( signature );
             }
         }
 
         ProcedureSignature signature =
                 new ProcedureSignature( procName, inputSignature, outputMapper.signature(), mode, admin, deprecated,
-                        config.rolesFor( procName.toString() ), description, warning, procedure.eager(), false );
+                        config.rolesFor( procName.toString() ), description, warning, procedure.eager(), false, internal );
         return new ReflectiveProcedure( signature, constructor, method, outputMapper, setters );
     }
 

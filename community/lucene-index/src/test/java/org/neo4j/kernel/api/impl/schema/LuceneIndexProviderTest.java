@@ -1,13 +1,10 @@
 /*
- * Copyright (c) 2018-2020 "Graph Foundation"
- * Graph Foundation, Inc. [https://graphfoundation.org]
- *
  * Copyright (c) 2002-2020 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
- * This file is part of ONgDB.
+ * This file is part of Neo4j.
  *
- * ONgDB is free software: you can redistribute it and/or modify
+ * Neo4j is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
@@ -30,6 +27,7 @@ import java.io.File;
 import java.io.IOException;
 
 import org.neo4j.graphdb.factory.GraphDatabaseSettings;
+import org.neo4j.internal.kernel.api.TokenNameLookup;
 import org.neo4j.io.fs.DefaultFileSystemAbstraction;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.pagecache.IOLimiter;
@@ -50,6 +48,7 @@ import org.neo4j.test.rule.TestDirectory;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.neo4j.kernel.api.impl.schema.LuceneIndexProvider.defaultDirectoryStructure;
 import static org.neo4j.kernel.api.schema.SchemaDescriptorFactory.forLabel;
+import static org.neo4j.kernel.api.schema.SchemaTestUtil.simpleNameLookup;
 import static org.neo4j.kernel.impl.api.index.TestIndexProviderDescriptor.PROVIDER_DESCRIPTOR;
 import static org.neo4j.kernel.impl.index.schema.ByteBufferFactory.heapBufferFactory;
 import static org.neo4j.storageengine.api.schema.IndexDescriptorFactory.forSchema;
@@ -63,6 +62,7 @@ class LuceneIndexProviderTest
     private TestDirectory testDir;
 
     private File graphDbDir;
+    private final TokenNameLookup tokenNameLookup = simpleNameLookup;
     private static final StoreIndexDescriptor descriptor = forSchema( forLabel( 1, 1 ), PROVIDER_DESCRIPTOR ).withId( 1 );
 
     @BeforeEach
@@ -78,7 +78,7 @@ class LuceneIndexProviderTest
         LuceneIndexProvider readOnlyIndexProvider =
                 getLuceneIndexProvider( readOnlyConfig, new DirectoryFactory.InMemoryDirectoryFactory(), fileSystem, graphDbDir );
         assertThrows( UnsupportedOperationException.class,
-                () -> readOnlyIndexProvider.getPopulator( descriptor, new IndexSamplingConfig( readOnlyConfig ), heapBufferFactory( 1024 ) ) );
+                () -> readOnlyIndexProvider.getPopulator( descriptor, new IndexSamplingConfig( readOnlyConfig ), heapBufferFactory( 1024 ), tokenNameLookup ) );
     }
 
     @Test
@@ -96,7 +96,7 @@ class LuceneIndexProviderTest
     }
 
     @Test
-    void indexUpdateNotAllowedInReadOnlyMode() throws Exception
+    void indexUpdateNotAllowedInReadOnlyMode()
     {
         Config readOnlyConfig = Config.defaults( GraphDatabaseSettings.read_only, Settings.TRUE );
         LuceneIndexProvider readOnlyIndexProvider = getLuceneIndexProvider( readOnlyConfig,
@@ -131,7 +131,7 @@ class LuceneIndexProviderTest
     private IndexAccessor getIndexAccessor( Config readOnlyConfig, LuceneIndexProvider indexProvider )
             throws IOException
     {
-        return indexProvider.getOnlineAccessor( descriptor, new IndexSamplingConfig( readOnlyConfig ) );
+        return indexProvider.getOnlineAccessor( descriptor, new IndexSamplingConfig( readOnlyConfig ), tokenNameLookup );
     }
 
     private LuceneIndexProvider getLuceneIndexProvider( Config config, DirectoryFactory directoryFactory,

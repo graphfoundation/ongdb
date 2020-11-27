@@ -1,13 +1,10 @@
 /*
- * Copyright (c) 2018-2020 "Graph Foundation"
- * Graph Foundation, Inc. [https://graphfoundation.org]
- *
  * Copyright (c) 2002-2020 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
- * This file is part of ONgDB.
+ * This file is part of Neo4j.
  *
- * ONgDB is free software: you can redistribute it and/or modify
+ * Neo4j is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
@@ -22,6 +19,7 @@
  */
 package org.neo4j.kernel.impl.api.index;
 
+import org.hamcrest.Matchers;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -29,6 +27,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -42,8 +41,6 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
-import org.neo4j.graphdb.DependencyResolver;
-import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.NotFoundException;
@@ -79,6 +76,7 @@ import org.neo4j.values.storable.Values;
 import static java.lang.String.format;
 import static org.apache.commons.lang3.StringUtils.join;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.junit.runners.Parameterized.Parameter;
@@ -115,14 +113,12 @@ public class IndexStatisticsTest
     public boolean multiThreadedPopulationEnabled;
 
     @Rule
-    public final DatabaseRule dbRule = new EmbeddedDatabaseRule()
+    public final DatabaseRule db = new EmbeddedDatabaseRule()
             .withSetting( GraphDatabaseSettings.index_background_sampling_enabled, "false" )
             .startLazily();
     @Rule
     public final RandomRule random = new RandomRule();
 
-    private GraphDatabaseService db;
-    private ThreadToStatementContextBridge bridge;
     private final IndexOnlineMonitor indexOnlineMonitor = new IndexOnlineMonitor();
 
     @Parameters( name = "multiThreadedIndexPopulationEnabled = {0}" )
@@ -134,20 +130,16 @@ public class IndexStatisticsTest
     @Before
     public void before()
     {
-        dbRule.withSetting( GraphDatabaseSettings.multi_threaded_schema_index_population_enabled, multiThreadedPopulationEnabled + "" );
+        db.withSetting( GraphDatabaseSettings.multi_threaded_schema_index_population_enabled, multiThreadedPopulationEnabled + "" );
 
         int batchSize = random.nextInt( 1, 5 );
         FeatureToggles.set( MultipleIndexPopulator.class, MultipleIndexPopulator.QUEUE_THRESHOLD_NAME, batchSize );
         FeatureToggles.set( BatchingMultipleIndexPopulator.class, MultipleIndexPopulator.QUEUE_THRESHOLD_NAME, batchSize );
         FeatureToggles.set( MultipleIndexPopulator.class, "print_debug", true );
 
-        GraphDatabaseAPI graphDatabaseAPI = dbRule.getGraphDatabaseAPI();
-        this.db = graphDatabaseAPI;
-        DependencyResolver dependencyResolver = graphDatabaseAPI.getDependencyResolver();
-        this.bridge = dependencyResolver.resolveDependency( ThreadToStatementContextBridge.class );
-        graphDatabaseAPI.getDependencyResolver()
-                .resolveDependency( Monitors.class )
-                .addMonitorListener( indexOnlineMonitor );
+        db.getGraphDatabaseAPI().getDependencyResolver()
+          .resolveDependency( Monitors.class )
+          .addMonitorListener( indexOnlineMonitor );
     }
 
     @After
@@ -173,6 +165,24 @@ public class IndexStatisticsTest
         assertEquals( 0.75d, indexSelectivity( index ), 0d );
         assertEquals( 4L, indexSize( index ) );
         assertEquals( 0L, indexUpdates( index ) );
+    }
+
+    @Test
+    public void shouldUpdateIndexStatisticsForDataCreatedAfterCleanRestart() throws KernelException, IOException
+    {
+        // given
+        indexOnlineMonitor.initialize( 0 );
+        createSomePersons();
+        IndexReference index = createPersonNameIndex();
+        awaitIndexesOnline();
+        long indexUpdatesBeforeRestart = indexUpdates( index );
+
+        // when
+        db.restartDatabase();
+        createSomePersons();
+
+        // then
+        assertThat( indexUpdates( index ), Matchers.greaterThan( indexUpdatesBeforeRestart ) );
     }
 
     @Test
@@ -477,7 +487,7 @@ public class IndexStatisticsTest
     {
         try ( Transaction tx = db.beginTx() )
         {
-            KernelTransaction ktx = bridge.getKernelTransactionBoundToThisThread( true );
+            KernelTransaction ktx = bridge().getKernelTransactionBoundToThisThread( true );
             for ( String name : NAMES )
             {
                 long nodeId = createPersonNode( ktx, name );
@@ -508,22 +518,22 @@ public class IndexStatisticsTest
             final int finalI = i;
 
             jobs.add( () ->
-            {
-                int offset = finalI * peoplePerThread;
-                while ( offset < (finalI + 1) * peoplePerThread )
-                {
-                    try
-                    {
-                        offset += createNamedPeople( nodes, offset );
-                    }
-                    catch ( KernelException e )
-                    {
-                        exception.compareAndSet( null, e );
-                        throw new RuntimeException( e );
-                    }
-                }
-                return null;
-            } );
+                      {
+                          int offset = finalI * peoplePerThread;
+                          while ( offset < (finalI + 1) * peoplePerThread )
+                          {
+                              try
+                              {
+                                  offset += createNamedPeople( nodes, offset );
+                              }
+                              catch ( KernelException e )
+                              {
+                                  exception.compareAndSet( null, e );
+                                  throw new RuntimeException( e );
+                              }
+                          }
+                          return null;
+                      } );
         }
 
         for ( Future<?> job : service.invokeAll( jobs ) )
@@ -548,7 +558,7 @@ public class IndexStatisticsTest
     {
         try ( Transaction tx = db.beginTx() )
         {
-            KernelTransaction ktx = bridge.getKernelTransactionBoundToThisThread( true );
+            KernelTransaction ktx = bridge().getKernelTransactionBoundToThisThread( true );
             try ( Statement ignore = ktx.acquireStatement() )
             {
                 ktx.schemaWrite().indexDrop( index );
@@ -559,16 +569,12 @@ public class IndexStatisticsTest
 
     private long indexSize( IndexReference reference ) throws KernelException
     {
-        return ((GraphDatabaseAPI) db).getDependencyResolver()
-                                      .resolveDependency( IndexingService.class )
-                                      .indexUpdatesAndSize( reference.schema() ).readSecond();
+        return db.getDependencyResolver().resolveDependency( IndexingService.class ).indexUpdatesAndSize( reference.schema() ).readSecond();
     }
 
     private long indexUpdates( IndexReference reference  ) throws KernelException
     {
-        return ((GraphDatabaseAPI) db).getDependencyResolver()
-                                      .resolveDependency( IndexingService.class )
-                                      .indexUpdatesAndSize( reference.schema() ).readFirst();
+        return db.getDependencyResolver().resolveDependency( IndexingService.class ).indexUpdatesAndSize( reference.schema() ).readFirst();
     }
 
     private double indexSelectivity( IndexReference reference ) throws KernelException
@@ -583,21 +589,20 @@ public class IndexStatisticsTest
 
     private double getSelectivity( IndexReference reference ) throws IndexNotFoundKernelException
     {
-
-        return bridge.getKernelTransactionBoundToThisThread( true ).schemaRead().indexUniqueValuesSelectivity( reference );
+        return bridge().getKernelTransactionBoundToThisThread( true ).schemaRead().indexUniqueValuesSelectivity( reference );
     }
 
     private CountsTracker getTracker()
     {
         return ((GraphDatabaseAPI) db).getDependencyResolver().resolveDependency( RecordStorageEngine.class )
-                .testAccessNeoStores().getCounts();
+                                      .testAccessNeoStores().getCounts();
     }
 
     private void createSomePersons() throws KernelException
     {
         try ( Transaction tx = db.beginTx() )
         {
-            KernelTransaction ktx = bridge.getKernelTransactionBoundToThisThread( true );
+            KernelTransaction ktx = bridge().getKernelTransactionBoundToThisThread( true );
             createPersonNode( ktx, "Davide" );
             createPersonNode( ktx, "Stefan" );
             createPersonNode( ktx, "John" );
@@ -622,7 +627,7 @@ public class IndexStatisticsTest
         try ( Transaction tx = db.beginTx() )
         {
             IndexReference index;
-            KernelTransaction ktx = bridge.getKernelTransactionBoundToThisThread( true );
+            KernelTransaction ktx = bridge().getKernelTransactionBoundToThisThread( true );
             try ( Statement ignore = ktx.acquireStatement() )
             {
                 int labelId = ktx.tokenWrite().labelGetOrCreateForName( PERSON_LABEL );
@@ -638,7 +643,7 @@ public class IndexStatisticsTest
     private NeoStores neoStores()
     {
         return ( (GraphDatabaseAPI) db ).getDependencyResolver().resolveDependency( RecordStorageEngine.class )
-                .testAccessNeoStores();
+                                        .testAccessNeoStores();
     }
 
     private void awaitIndexesOnline()
@@ -647,6 +652,11 @@ public class IndexStatisticsTest
         {
             db.schema().awaitIndexesOnline(3, TimeUnit.MINUTES );
         }
+    }
+
+    private ThreadToStatementContextBridge bridge()
+    {
+        return db.getDependencyResolver().resolveDependency( ThreadToStatementContextBridge.class );
     }
 
     private UpdatesTracker executeCreations( int numberOfCreations ) throws KernelException, InterruptedException

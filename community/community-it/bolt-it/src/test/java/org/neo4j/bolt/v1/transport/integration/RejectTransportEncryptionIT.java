@@ -1,13 +1,10 @@
 /*
- * Copyright (c) 2018-2020 "Graph Foundation"
- * Graph Foundation, Inc. [https://graphfoundation.org]
- *
  * Copyright (c) 2002-2020 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
- * This file is part of ONgDB.
+ * This file is part of Neo4j.
  *
- * ONgDB is free software: you can redistribute it and/or modify
+ * Neo4j is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
@@ -22,6 +19,7 @@
  */
 package org.neo4j.bolt.v1.transport.integration;
 
+import org.hamcrest.Matcher;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -41,8 +39,8 @@ import org.neo4j.function.Factory;
 import org.neo4j.kernel.configuration.BoltConnector;
 
 import static java.util.Arrays.asList;
-import static org.apache.commons.lang3.JavaVersion.JAVA_9;
-import static org.apache.commons.lang3.SystemUtils.isJavaVersionAtLeast;
+import static org.hamcrest.core.AnyOf.anyOf;
+import static org.hamcrest.core.StringContains.containsString;
 import static org.neo4j.bolt.v1.transport.integration.Neo4jWithSocket.DEFAULT_CONNECTOR_KEY;
 import static org.neo4j.kernel.configuration.BoltConnector.EncryptionLevel.DISABLED;
 
@@ -57,13 +55,13 @@ public class RejectTransportEncryptionIT
                 settings.put( new BoltConnector( DEFAULT_CONNECTOR_KEY ).encryption_level.name(), DISABLED.name() );
             } );
     @Rule
-    public ExpectedException exception = ExpectedException.none();
+    public ExpectedException expectedException = ExpectedException.none();
 
     @Parameterized.Parameter( 0 )
     public Factory<TransportConnection> cf;
 
     @Parameterized.Parameter( 1 )
-    public Exception expected;
+    public Matcher<String> exceptionMessageMatcher;
 
     private TransportConnection client;
     private TransportTestUtil util;
@@ -74,13 +72,12 @@ public class RejectTransportEncryptionIT
         return asList(
                 new Object[]{
                         (Factory<TransportConnection>) SecureWebSocketConnection::new,
-                        new IOException( "Failed to connect to the server within 10 seconds" )
+                        containsString( "Failed to connect to the server within 10 seconds" )
                 },
                 new Object[]{
-                        (Factory<TransportConnection>) SecureSocketConnection::new, new IOException(
-                        isJavaVersionAtLeast( JAVA_9 ) ? "Remote host terminated the handshake"
-                                                       : "Remote host closed connection during handshake" )
-
+                        (Factory<TransportConnection>) SecureSocketConnection::new,
+                        anyOf( containsString( "Remote host terminated the handshake" ),
+                               containsString( "Remote host closed connection during handshake" ) )
                 } );
     }
 
@@ -103,8 +100,8 @@ public class RejectTransportEncryptionIT
     @Test
     public void shouldRejectConnectionAfterHandshake() throws Throwable
     {
-        exception.expect( expected.getClass() );
-        exception.expectMessage( expected.getMessage() );
+        expectedException.expect( IOException.class );
+        expectedException.expectMessage( exceptionMessageMatcher );
         client.connect( server.lookupDefaultConnector() ).send( util.acceptedVersions( 1, 0, 0, 0 ) );
     }
 }

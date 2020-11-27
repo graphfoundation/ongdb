@@ -1,13 +1,10 @@
 /*
- * Copyright (c) 2018-2020 "Graph Foundation"
- * Graph Foundation, Inc. [https://graphfoundation.org]
- *
  * Copyright (c) 2002-2020 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
- * This file is part of ONgDB.
+ * This file is part of Neo4j.
  *
- * ONgDB is free software: you can redistribute it and/or modify
+ * Neo4j is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
@@ -28,6 +25,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.neo4j.internal.kernel.api.TokenNameLookup;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.kernel.api.exceptions.index.IndexEntryConflictException;
@@ -35,8 +33,8 @@ import org.neo4j.kernel.api.index.IndexEntryUpdate;
 import org.neo4j.kernel.api.index.IndexPopulator;
 import org.neo4j.kernel.api.index.IndexProvider;
 import org.neo4j.kernel.api.index.IndexUpdater;
-import org.neo4j.storageengine.api.NodePropertyAccessor;
 import org.neo4j.kernel.impl.api.index.sampling.IndexSamplingConfig;
+import org.neo4j.storageengine.api.NodePropertyAccessor;
 import org.neo4j.storageengine.api.schema.IndexSample;
 import org.neo4j.storageengine.api.schema.StoreIndexDescriptor;
 import org.neo4j.values.storable.Value;
@@ -49,9 +47,9 @@ import static org.neo4j.kernel.impl.index.schema.fusion.FusionIndexSampler.combi
 class TemporalIndexPopulator extends TemporalIndexCache<WorkSyncedNativeIndexPopulator<?,?>> implements IndexPopulator
 {
     TemporalIndexPopulator( StoreIndexDescriptor descriptor, IndexSamplingConfig samplingConfig, TemporalIndexFiles temporalIndexFiles, PageCache pageCache,
-                            FileSystemAbstraction fs, IndexProvider.Monitor monitor )
+            FileSystemAbstraction fs, IndexProvider.Monitor monitor, TokenNameLookup tokenNameLookup )
     {
-        super( new PartFactory( pageCache, fs, temporalIndexFiles, descriptor, samplingConfig, monitor ) );
+        super( new PartFactory( pageCache, fs, temporalIndexFiles, descriptor, samplingConfig, monitor, tokenNameLookup ) );
     }
 
     @Override
@@ -142,9 +140,9 @@ class TemporalIndexPopulator extends TemporalIndexCache<WorkSyncedNativeIndexPop
     static class PartPopulator<KEY extends NativeIndexSingleValueKey<KEY>> extends NativeIndexPopulator<KEY,NativeIndexValue>
     {
         PartPopulator( PageCache pageCache, FileSystemAbstraction fs, TemporalIndexFiles.FileLayout<KEY> fileLayout, IndexProvider.Monitor monitor,
-                StoreIndexDescriptor descriptor )
+                StoreIndexDescriptor descriptor, TokenNameLookup tokenNameLookup )
         {
-            super( pageCache, fs, fileLayout.indexFile, fileLayout.layout, monitor, descriptor, NO_HEADER_WRITER );
+            super( pageCache, fs, fileLayout.indexFile, fileLayout.layout, monitor, descriptor, NO_HEADER_WRITER, tokenNameLookup );
         }
 
         @Override
@@ -162,9 +160,10 @@ class TemporalIndexPopulator extends TemporalIndexCache<WorkSyncedNativeIndexPop
         private final StoreIndexDescriptor descriptor;
         private final IndexSamplingConfig samplingConfig;
         private final IndexProvider.Monitor monitor;
+        private final TokenNameLookup tokenNameLookup;
 
         PartFactory( PageCache pageCache, FileSystemAbstraction fs, TemporalIndexFiles temporalIndexFiles, StoreIndexDescriptor descriptor,
-                IndexSamplingConfig samplingConfig, IndexProvider.Monitor monitor )
+                IndexSamplingConfig samplingConfig, IndexProvider.Monitor monitor, TokenNameLookup tokenNameLookup )
         {
             this.pageCache = pageCache;
             this.fs = fs;
@@ -172,6 +171,7 @@ class TemporalIndexPopulator extends TemporalIndexCache<WorkSyncedNativeIndexPop
             this.descriptor = descriptor;
             this.samplingConfig = samplingConfig;
             this.monitor = monitor;
+            this.tokenNameLookup = tokenNameLookup;
         }
 
         @Override
@@ -212,7 +212,7 @@ class TemporalIndexPopulator extends TemporalIndexCache<WorkSyncedNativeIndexPop
 
         private <KEY extends NativeIndexSingleValueKey<KEY>> WorkSyncedNativeIndexPopulator<KEY,?> create( TemporalIndexFiles.FileLayout<KEY> fileLayout )
         {
-            PartPopulator<KEY> populator = new PartPopulator<>( pageCache, fs, fileLayout, monitor, descriptor );
+            PartPopulator<KEY> populator = new PartPopulator<>( pageCache, fs, fileLayout, monitor, descriptor, tokenNameLookup );
             populator.create();
             return new WorkSyncedNativeIndexPopulator<>( populator );
         }

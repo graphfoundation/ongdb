@@ -1,13 +1,10 @@
 /*
- * Copyright (c) 2018-2020 "Graph Foundation"
- * Graph Foundation, Inc. [https://graphfoundation.org]
- *
  * Copyright (c) 2002-2020 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
- * This file is part of ONgDB.
+ * This file is part of Neo4j.
  *
- * ONgDB is free software: you can redistribute it and/or modify
+ * Neo4j is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
@@ -66,6 +63,7 @@ import static org.neo4j.values.utils.TemporalUtil.AVG_NANOS_PER_MONTH;
 import static org.neo4j.values.utils.TemporalUtil.AVG_SECONDS_PER_MONTH;
 import static org.neo4j.values.utils.TemporalUtil.NANOS_PER_SECOND;
 import static org.neo4j.values.utils.TemporalUtil.SECONDS_PER_DAY;
+import static org.neo4j.values.utils.ValueMath.HASH_CONSTANT;
 
 /**
  * We use our own implementation because neither {@link java.time.Duration} nor {@link java.time.Period} fits our needs.
@@ -707,9 +705,9 @@ public final class DurationValue extends ScalarValue implements TemporalAmount, 
     protected int computeHash()
     {
         int result = (int) (months ^ (months >>> 32));
-        result = 31 * result + (int) (days ^ (days >>> 32));
-        result = 31 * result + (int) (seconds ^ (seconds >>> 32));
-        result = 31 * result + nanos;
+        result = HASH_CONSTANT * result + (int) (days ^ (days >>> 32));
+        result = HASH_CONSTANT * result + (int) (seconds ^ (seconds >>> 32));
+        result = HASH_CONSTANT * result + nanos;
         return result;
     }
 

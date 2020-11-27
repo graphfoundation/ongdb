@@ -1,13 +1,10 @@
 /*
- * Copyright (c) 2018-2020 "Graph Foundation"
- * Graph Foundation, Inc. [https://graphfoundation.org]
- *
  * Copyright (c) 2002-2020 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
- * This file is part of ONgDB.
+ * This file is part of Neo4j.
  *
- * ONgDB is free software: you can redistribute it and/or modify
+ * Neo4j is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
@@ -170,12 +167,16 @@ class NativeLabelScanWriter implements LabelScanWriter
         this.addMerger = ( existingKey, newKey, existingValue, newValue ) ->
         {
             monitor.mergeAdd( existingValue, newValue );
-            return existingValue.add( newValue );
+            existingValue.add( newValue );
+            return ValueMerger.MergeResult.MERGED;
         };
         this.removeMerger = ( existingKey, newKey, existingValue, newValue ) ->
         {
             monitor.mergeRemove( existingValue, newValue );
-            return existingValue.remove( newValue );
+            existingValue.remove( newValue );
+            return existingValue.isEmpty()
+                   ? ValueMerger.MergeResult.REMOVED
+                   : ValueMerger.MergeResult.MERGED;
         };
         this.monitor = monitor;
     }
@@ -215,7 +216,7 @@ class NativeLabelScanWriter implements LabelScanWriter
         }
     }
 
-    private void flushPendingChanges() throws IOException
+    private void flushPendingChanges()
     {
         Arrays.sort( pendingUpdates, 0, pendingUpdatesCursor, UPDATE_SORTER );
         monitor.flushPendingUpdates();
@@ -239,7 +240,6 @@ class NativeLabelScanWriter implements LabelScanWriter
     }
 
     private long extractChange( long[] labels, long currentLabelId, long nodeId, long nextLabelId, boolean addition, long txId )
-            throws IOException
     {
         long foundNextLabelId = nextLabelId;
         for ( int li = 0; li < labels.length; li++ )
@@ -281,7 +281,7 @@ class NativeLabelScanWriter implements LabelScanWriter
         return foundNextLabelId;
     }
 
-    private void change( long currentLabelId, long nodeId, boolean add, long txId ) throws IOException
+    private void change( long currentLabelId, long nodeId, boolean add, long txId )
     {
         int labelId = toIntExact( currentLabelId );
         long idRange = rangeOf( nodeId );
@@ -308,14 +308,19 @@ class NativeLabelScanWriter implements LabelScanWriter
         }
     }
 
-    private void flushPendingRange() throws IOException
+    private void flushPendingRange()
     {
         if ( value.bits != 0 )
         {
             // There are changes in the current range, flush them
-            writer.merge( key, value, addition ? addMerger : removeMerger );
-            // TODO: after a remove we could check if the tree value is empty and if so remove it from the index
-            // hmm, or perhaps that could be a feature of ValueAmender?
+            if ( addition )
+            {
+                writer.merge( key, value, addMerger );
+            }
+            else
+            {
+                writer.mergeIfExists( key, value, removeMerger );
+            }
             value.clear();
         }
     }

@@ -1,13 +1,10 @@
 /*
- * Copyright (c) 2018-2020 "Graph Foundation"
- * Graph Foundation, Inc. [https://graphfoundation.org]
- *
  * Copyright (c) 2002-2020 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
- * This file is part of ONgDB.
+ * This file is part of Neo4j.
  *
- * ONgDB is free software: you can redistribute it and/or modify
+ * Neo4j is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
@@ -27,6 +24,7 @@ import java.io.IOException;
 
 import org.neo4j.internal.kernel.api.IndexCapability;
 import org.neo4j.internal.kernel.api.InternalIndexState;
+import org.neo4j.internal.kernel.api.TokenNameLookup;
 import org.neo4j.internal.kernel.api.exceptions.schema.MisconfiguredIndexException;
 import org.neo4j.internal.kernel.api.schema.IndexProviderDescriptor;
 import org.neo4j.io.fs.FileSystemAbstraction;
@@ -49,7 +47,7 @@ import org.neo4j.storageengine.api.schema.StoreIndexDescriptor;
  *
  * When an index rule is added, the {@link IndexingService} is notified. It will, in turn, ask
  * your {@link IndexProvider} for a
- * {@link #getPopulator(StoreIndexDescriptor, IndexSamplingConfig, ByteBufferFactory) batch index writer}.
+ * {@link #getPopulator(StoreIndexDescriptor, IndexSamplingConfig, ByteBufferFactory, TokenNameLookup) batch index writer}.
  *
  * A background index job is triggered, and all existing data that applies to the new rule, as well as new data
  * from the "outside", will be inserted using the writer. You are guaranteed that usage of this writer,
@@ -94,7 +92,7 @@ import org.neo4j.storageengine.api.schema.StoreIndexDescriptor;
  * <h3>Online operation</h3>
  *
  * Once the index is online, the database will move to using the
- * {@link #getOnlineAccessor(StoreIndexDescriptor, IndexSamplingConfig) online accessor} to
+ * {@link #getOnlineAccessor(StoreIndexDescriptor, IndexSamplingConfig, TokenNameLookup) online accessor} to
  * write to the index.
  */
 public abstract class IndexProvider extends LifecycleAdapter
@@ -158,13 +156,15 @@ public abstract class IndexProvider extends LifecycleAdapter
                 private final IndexPopulator singlePopulator = IndexPopulator.EMPTY;
 
                 @Override
-                public IndexAccessor getOnlineAccessor( StoreIndexDescriptor descriptor, IndexSamplingConfig samplingConfig )
+                public IndexAccessor getOnlineAccessor( StoreIndexDescriptor descriptor, IndexSamplingConfig samplingConfig,
+                        TokenNameLookup tokenNameLookup )
                 {
                     return singleWriter;
                 }
 
                 @Override
-                public IndexPopulator getPopulator( StoreIndexDescriptor descriptor, IndexSamplingConfig samplingConfig, ByteBufferFactory bufferFactory )
+                public IndexPopulator getPopulator( StoreIndexDescriptor descriptor, IndexSamplingConfig samplingConfig, ByteBufferFactory bufferFactory,
+                        TokenNameLookup tokenNameLookup )
                 {
                     return singlePopulator;
                 }
@@ -231,12 +231,14 @@ public abstract class IndexProvider extends LifecycleAdapter
     /**
      * Used for initially populating a created index, using batch insertion.
      */
-    public abstract IndexPopulator getPopulator( StoreIndexDescriptor descriptor, IndexSamplingConfig samplingConfig, ByteBufferFactory bufferFactory );
+    public abstract IndexPopulator getPopulator( StoreIndexDescriptor descriptor, IndexSamplingConfig samplingConfig, ByteBufferFactory bufferFactory,
+            TokenNameLookup tokenNameLookup );
 
     /**
      * Used for updating an index once initial population has completed.
      */
-    public abstract IndexAccessor getOnlineAccessor( StoreIndexDescriptor descriptor, IndexSamplingConfig samplingConfig ) throws IOException;
+    public abstract IndexAccessor getOnlineAccessor( StoreIndexDescriptor descriptor, IndexSamplingConfig samplingConfig,
+            TokenNameLookup tokenNameLookup ) throws IOException;
 
     /**
      * Returns a failure previously gotten from {@link IndexPopulator#markAsFailed(String)}
@@ -313,13 +315,15 @@ public abstract class IndexProvider extends LifecycleAdapter
         }
 
         @Override
-        public IndexPopulator getPopulator( StoreIndexDescriptor descriptor, IndexSamplingConfig samplingConfig, ByteBufferFactory bufferFactory )
+        public IndexPopulator getPopulator( StoreIndexDescriptor descriptor, IndexSamplingConfig samplingConfig, ByteBufferFactory bufferFactory,
+                TokenNameLookup tokenNameLookup )
         {
             return null;
         }
 
         @Override
-        public IndexAccessor getOnlineAccessor( StoreIndexDescriptor descriptor, IndexSamplingConfig samplingConfig )
+        public IndexAccessor getOnlineAccessor( StoreIndexDescriptor descriptor, IndexSamplingConfig samplingConfig,
+                TokenNameLookup tokenNameLookup )
         {
             return null;
         }

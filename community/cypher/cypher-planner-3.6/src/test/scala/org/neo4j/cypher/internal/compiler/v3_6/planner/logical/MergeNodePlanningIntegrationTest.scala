@@ -1,13 +1,10 @@
 /*
- * Copyright (c) 2018-2020 "Graph Foundation"
- * Graph Foundation, Inc. [https://graphfoundation.org]
- *
  * Copyright (c) 2002-2020 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
- * This file is part of ONgDB.
+ * This file is part of Neo4j.
  *
- * ONgDB is free software: you can redistribute it and/or modify
+ * Neo4j is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
@@ -65,8 +62,7 @@ class MergeNodePlanningIntegrationTest extends CypherFunSuite with LogicalPlanni
     val allNodesScan = AllNodesScan(aId, Set.empty)
     val propertyKeyName = PropertyKeyName("prop")(pos)
     val propertyValue = SignedDecimalIntegerLiteral("42")(pos)
-    val selection = Selection(Seq(In(Property(Variable("a")(pos), propertyKeyName)(pos),
-                                     ListLiteral(Seq(propertyValue))(pos))(pos)), allNodesScan)
+    val selection = Selection(Seq(Equals(Property(Variable("a")(pos), propertyKeyName)(pos), propertyValue)(pos)), allNodesScan)
     val optional = Optional(ActiveRead(selection))
 
     val onCreate = MergeCreateNode(Argument(), aId, Seq.empty,

@@ -1,13 +1,10 @@
 /*
- * Copyright (c) 2018-2020 "Graph Foundation"
- * Graph Foundation, Inc. [https://graphfoundation.org]
- *
  * Copyright (c) 2002-2020 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
- * This file is part of ONgDB.
+ * This file is part of Neo4j.
  *
- * ONgDB is free software: you can redistribute it and/or modify
+ * Neo4j is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
@@ -231,8 +228,7 @@ class OptionalMatchPlanningIntegrationTest extends CypherFunSuite with LogicalPl
         |WHERE m.prop = 42
         |RETURN m""".stripMargin)._2.endoRewrite(unnestOptional)
     val allNodesN: LogicalPlan = NodeByLabelScan("n", LabelName("X") _, Set.empty)
-    val propEquality: Expression =
-      In(Property(varFor("m"), PropertyKeyName("prop") _) _, ListLiteral(List(SignedDecimalIntegerLiteral("42") _)) _) _
+    val propEquality: Expression = Equals(Property(varFor("m"), PropertyKeyName("prop") _) _, SignedDecimalIntegerLiteral("42") _) _
 
     val labelCheck: Expression =
       HasLabels(varFor("m"), List(LabelName("Y") _)) _
@@ -324,5 +320,53 @@ class OptionalMatchPlanningIntegrationTest extends CypherFunSuite with LogicalPl
       case Apply(_:Projection, Apply(_:AllNodesScan, Optional(Expand(Selection(_, AllNodesScan("c", arguments)), _, _, _, _, _, _), _))) =>
         arguments should equal(Set("a", "x"))
     }
+  }
+
+  test("Optional match in tail should have correct cardinality and therefore generate Argument leaf plan") {
+    val query =
+      """MATCH (a:A)
+        |WITH a
+        |LIMIT 994
+        |MATCH (:D) <- [:R1] - (a)
+        |OPTIONAL MATCH (a)-[:R1]->(:D)-[:R2]->(:B)-[:R3 {bool: false}]->(:C {some: 'prop'})
+        |RETURN count(a)""".stripMargin
+
+    val cfg = new given {
+      knownLabels = Set("A", "B", "C", "D", "E")
+      knownRelationships = Set("R1", "R2", "R3")
+      uniqueIndexOn("C", "prop")
+      statistics = new DelegatingGraphStatistics(parent.graphStatistics) {
+        override def nodesAllCardinality(): Cardinality = 1120169.0
+
+        override def nodesWithLabelCardinality(labelId: Option[LabelId]): Cardinality = labelId match {
+          case Some(LabelId(0)) => 101.0 // C
+          case Some(LabelId(2)) => 225598.0 // A
+          case Some(LabelId(3)) => 41.0 // B
+          case Some(LabelId(4)) => 141936.0 // D
+          case _ => super.nodesWithLabelCardinality(labelId)
+        }
+
+        override def cardinalityByLabelsAndRelationshipType(fromLabel: Option[LabelId],
+                                                            relTypeId: Option[RelTypeId],
+                                                            toLabel: Option[LabelId]): Cardinality = (fromLabel, relTypeId, toLabel) match {
+          case (Some(LabelId(2)), Some(RelTypeId(0)), None) => 223600.0 // A - [R1] -> *
+          case (Some(LabelId(2)), Some(RelTypeId(0)), Some(LabelId(4))) => 223600.0 // A - [R1] -> D
+          case (None, Some(RelTypeId(1)), Some(LabelId(3))) => 139911.0 // * - [R2] -> B
+          case (Some(LabelId(4)), Some(RelTypeId(1)), Some(LabelId(3))) => 139911.0 // D - [R2] -> B
+          case (Some(LabelId(4)), Some(RelTypeId(1)), None) => 139911.0 // D - [R2] -> *
+          case (Some(LabelId(3)), Some(RelTypeId(2)), Some(LabelId(0))) => 1477.0 // B - [R3] -> C
+          case (Some(LabelId(3)), Some(RelTypeId(2)), None) => 1477.0 // B - [R3] -> *
+          case (None, Some(RelTypeId(2)), Some(LabelId(0))) => 113740.0 // * - [R3] -> C
+          case _ => 0.0
+        }
+      }
+    }
+
+    val (_, plan, _, _, _) = cfg.getLogicalPlanFor(query)
+    inside(plan) {
+      case Aggregation(Apply(_, rhs), _, _) =>
+        rhs.leaves.foreach(leaf => leaf shouldBe an[Argument])
+    }
+
   }
 }

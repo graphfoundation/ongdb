@@ -1,13 +1,10 @@
 /*
- * Copyright (c) 2018-2020 "Graph Foundation"
- * Graph Foundation, Inc. [https://graphfoundation.org]
- *
  * Copyright (c) 2002-2020 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
- * This file is part of ONgDB.
+ * This file is part of Neo4j.
  *
- * ONgDB is free software: you can redistribute it and/or modify
+ * Neo4j is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
@@ -37,6 +34,7 @@ import org.junit.rules.Timeout;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.EnumSet;
@@ -55,6 +53,8 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import org.neo4j.consistency.ConsistencyCheckService;
+import org.neo4j.consistency.ConsistencyCheckTool;
 import org.neo4j.graphdb.Entity;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Label;
@@ -2535,6 +2535,210 @@ public class FulltextProceduresTest
             db.execute( format( QUERY_RELS, "rels", "*" ) ).close();
             tx.success();
         }
+    }
+
+    @Test
+    public void relationshipIndexAndDetachDelete() throws Exception
+    {
+        db = createDatabase();
+        try ( Transaction tx = db.beginTx() )
+        {
+            db.execute( format( RELATIONSHIP_CREATE, "rels", array( REL.name() ), array( PROP ) ) ).close();
+            tx.success();
+        }
+        try ( Transaction tx = db.beginTx() )
+        {
+            db.schema().awaitIndexesOnline( 1, TimeUnit.MINUTES );
+            tx.success();
+        }
+        long nodeId;
+        long relId;
+        try ( Transaction tx = db.beginTx() )
+        {
+            Node node = db.createNode();
+            nodeId = node.getId();
+            Relationship rel = node.createRelationshipTo( node, REL );
+            relId = rel.getId();
+            rel.setProperty( PROP, "blabla" );
+            tx.success();
+        }
+
+        try ( Transaction tx = db.beginTx() )
+        {
+            assertQueryFindsIds( db, false, "rels", "blabla", relId );
+            db.execute( "MATCH (n) WHERE id(n) = " + nodeId + " DETACH DELETE n" ).close();
+            tx.success();
+        }
+        try ( Transaction tx = db.beginTx() )
+        {
+            assertQueryFindsIds( db, false, "rels", "blabla" );
+            tx.success();
+        }
+
+        db.shutdown();
+        String[] args = new String[]{testDirectory.databaseDir().getAbsolutePath()};
+        ConsistencyCheckService.Result result = ConsistencyCheckTool.runConsistencyCheckTool( args, System.out, System.err );
+        System.out.flush();
+        System.err.flush();
+        if ( !result.isSuccessful() )
+        {
+            Files.lines( result.reportFile().toPath() ).forEach( System.out::println );
+        }
+        assertTrue( result.isSuccessful() );
+    }
+
+    @Test
+    public void relationshipIndexAndDetachDeleteWithRestart() throws Exception
+    {
+        db = createDatabase();
+        try ( Transaction tx = db.beginTx() )
+        {
+            db.execute( format( RELATIONSHIP_CREATE, "rels", array( REL.name() ), array( PROP ) ) ).close();
+            tx.success();
+        }
+        try ( Transaction tx = db.beginTx() )
+        {
+            db.schema().awaitIndexesOnline( 1, TimeUnit.MINUTES );
+            tx.success();
+        }
+        long nodeId;
+        long relId;
+        try ( Transaction tx = db.beginTx() )
+        {
+            Node node = db.createNode();
+            nodeId = node.getId();
+            Relationship rel = node.createRelationshipTo( node, REL );
+            relId = rel.getId();
+            rel.setProperty( PROP, "blabla" );
+            tx.success();
+        }
+
+        db.shutdown();
+        db = createDatabase();
+
+        try ( Transaction tx = db.beginTx() )
+        {
+            assertQueryFindsIds( db, false, "rels", "blabla", relId );
+            db.execute( "MATCH (n) WHERE id(n) = " + nodeId + " DETACH DELETE n" ).close();
+            tx.success();
+        }
+        try ( Transaction tx = db.beginTx() )
+        {
+            assertQueryFindsIds( db, false, "rels", "blabla" );
+            tx.success();
+        }
+
+        db.shutdown();
+        String[] args = new String[]{testDirectory.databaseDir().getAbsolutePath()};
+        ConsistencyCheckService.Result result = ConsistencyCheckTool.runConsistencyCheckTool( args, System.out, System.err );
+        System.out.flush();
+        System.err.flush();
+        if ( !result.isSuccessful() )
+        {
+            Files.lines( result.reportFile().toPath() ).forEach( System.out::println );
+        }
+        assertTrue( result.isSuccessful() );
+    }
+
+    @Test
+    public void relationshipIndexAndPropertyRemove() throws Exception
+    {
+        db = createDatabase();
+        try ( Transaction tx = db.beginTx() )
+        {
+            db.execute( format( RELATIONSHIP_CREATE, "rels", array( REL.name() ), array( PROP ) ) ).close();
+            tx.success();
+        }
+        try ( Transaction tx = db.beginTx() )
+        {
+            db.schema().awaitIndexesOnline( 1, TimeUnit.MINUTES );
+            tx.success();
+        }
+        long relId;
+        try ( Transaction tx = db.beginTx() )
+        {
+            Node node = db.createNode();
+            Relationship rel = node.createRelationshipTo( node, REL );
+            relId = rel.getId();
+            rel.setProperty( PROP, "blabla" );
+            tx.success();
+        }
+
+        try ( Transaction tx = db.beginTx() )
+        {
+            assertQueryFindsIds( db, false, "rels", "blabla", relId );
+            Relationship rel = db.getRelationshipById( relId );
+            rel.removeProperty( PROP );
+            tx.success();
+        }
+        try ( Transaction tx = db.beginTx() )
+        {
+            assertQueryFindsIds( db, false, "rels", "blabla" );
+            tx.success();
+        }
+
+        db.shutdown();
+        String[] args = new String[]{testDirectory.databaseDir().getAbsolutePath()};
+        ConsistencyCheckService.Result result = ConsistencyCheckTool.runConsistencyCheckTool( args, System.out, System.err );
+        System.out.flush();
+        System.err.flush();
+        if ( !result.isSuccessful() )
+        {
+            Files.lines( result.reportFile().toPath() ).forEach( System.out::println );
+        }
+        assertTrue( result.isSuccessful() );
+    }
+
+    @Test
+    public void relationshipIndexAndPropertyRemoveWithRestart() throws Exception
+    {
+        db = createDatabase();
+        try ( Transaction tx = db.beginTx() )
+        {
+            db.execute( format( RELATIONSHIP_CREATE, "rels", array( REL.name() ), array( PROP ) ) ).close();
+            tx.success();
+        }
+        try ( Transaction tx = db.beginTx() )
+        {
+            db.schema().awaitIndexesOnline( 1, TimeUnit.MINUTES );
+            tx.success();
+        }
+        long relId;
+        try ( Transaction tx = db.beginTx() )
+        {
+            Node node = db.createNode();
+            Relationship rel = node.createRelationshipTo( node, REL );
+            relId = rel.getId();
+            rel.setProperty( PROP, "blabla" );
+            tx.success();
+        }
+
+        db.shutdown();
+        db = createDatabase();
+
+        try ( Transaction tx = db.beginTx() )
+        {
+            assertQueryFindsIds( db, false, "rels", "blabla", relId );
+            Relationship rel = db.getRelationshipById( relId );
+            rel.removeProperty( PROP );
+            tx.success();
+        }
+        try ( Transaction tx = db.beginTx() )
+        {
+            assertQueryFindsIds( db, false, "rels", "blabla" );
+            tx.success();
+        }
+
+        db.shutdown();
+        String[] args = new String[]{testDirectory.databaseDir().getAbsolutePath()};
+        ConsistencyCheckService.Result result = ConsistencyCheckTool.runConsistencyCheckTool( args, System.out, System.err );
+        System.out.flush();
+        System.err.flush();
+        if ( !result.isSuccessful() )
+        {
+            Files.lines( result.reportFile().toPath() ).forEach( System.out::println );
+        }
+        assertTrue( result.isSuccessful() );
     }
 
     private void assertNoIndexSeeks( Result result )

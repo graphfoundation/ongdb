@@ -1,13 +1,10 @@
 /*
- * Copyright (c) 2018-2020 "Graph Foundation"
- * Graph Foundation, Inc. [https://graphfoundation.org]
- *
  * Copyright (c) 2002-2020 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
- * This file is part of ONgDB.
+ * This file is part of Neo4j.
  *
- * ONgDB is free software: you can redistribute it and/or modify
+ * Neo4j is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
@@ -51,6 +48,7 @@ public class ProcedureSignature
     private final String warning;
     private final boolean eager;
     private final boolean caseInsensitive;
+    private final boolean internal;
 
     public ProcedureSignature(
             QualifiedName name,
@@ -63,7 +61,8 @@ public class ProcedureSignature
             String description,
             String warning,
             boolean eager,
-            boolean caseInsensitive )
+            boolean caseInsensitive,
+            boolean internal )
     {
         this.name = name;
         this.inputSignature = unmodifiableList( inputSignature );
@@ -76,6 +75,7 @@ public class ProcedureSignature
         this.warning = warning;
         this.eager = eager;
         this.caseInsensitive = caseInsensitive;
+        this.internal = internal;
     }
 
     public QualifiedName name()
@@ -138,6 +138,11 @@ public class ProcedureSignature
         return eager;
     }
 
+    public boolean internal()
+    {
+        return internal;
+    }
+
     @Override
     public boolean equals( Object o )
     {
@@ -188,6 +193,7 @@ public class ProcedureSignature
         private String warning;
         private boolean eager;
         private boolean admin;
+        private boolean internal;
 
         public Builder( String[] namespace, String name )
         {
@@ -256,10 +262,16 @@ public class ProcedureSignature
             return this;
         }
 
+        public Builder internal()
+        {
+            this.internal = true;
+            return this;
+        }
+
         public ProcedureSignature build()
         {
             return new ProcedureSignature( name, inputSignature, outputSignature, mode, admin, deprecated, allowed,
-                    description, warning, eager, false );
+                    description, warning, eager, false, internal );
         }
     }
 

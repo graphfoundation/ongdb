@@ -1,13 +1,10 @@
 /*
- * Copyright (c) 2018-2020 "Graph Foundation"
- * Graph Foundation, Inc. [https://graphfoundation.org]
- *
  * Copyright (c) 2002-2020 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
- * This file is part of ONgDB.
+ * This file is part of Neo4j.
  *
- * ONgDB is free software: you can redistribute it and/or modify
+ * Neo4j is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
@@ -46,7 +43,7 @@ object Metrics {
   }
 
   case class QueryGraphSolverInput(labelInfo: LabelInfo, inboundCardinality: Cardinality,
-                                   strictness: Option[StrictnessMode]) {
+                                   strictness: Option[StrictnessMode], alwaysMultiply: Boolean = false) {
 
     def recurse(fromPlan: LogicalPlan, solveds: Solveds, cardinalities: Cardinalities): QueryGraphSolverInput = {
       val newCardinalityInput = cardinalities.get(fromPlan.id)
@@ -70,6 +67,7 @@ object Metrics {
 
   trait QueryGraphCardinalityModel {
     def apply(queryGraph: QueryGraph, input: QueryGraphSolverInput, semanticTable: SemanticTable): Cardinality
+
     def expressionSelectivityCalculator: ExpressionSelectivityCalculator
   }
 
@@ -84,11 +82,11 @@ trait ExpressionEvaluator {
   }
 
   def isDeterministic(expr: Expression): Boolean = expr.inputs.forall {
-      case (func@FunctionInvocation(_, _, _, _, _), _) if func.function == Rand => false
-      //for UDFs we don't know but the result might be non-deterministic
-      case (_:ResolvedFunctionInvocation, _) => false
-      case _ => true
-    }
+    case (func@FunctionInvocation(_, _, _, _, _), _) if func.function == Rand => false
+    //for UDFs we don't know but the result might be non-deterministic
+    case (_: ResolvedFunctionInvocation, _) => false
+    case _ => true
+  }
 
   def evaluateExpression(expr: Expression): Option[Any]
 }
@@ -99,14 +97,15 @@ case class Metrics(cost: CostModel,
 
 trait MetricsFactory {
   def newCardinalityEstimator(queryGraphCardinalityModel: QueryGraphCardinalityModel, expressionEvaluator: ExpressionEvaluator): CardinalityModel
+
   def newCostModel(config: CypherPlannerConfiguration): CostModel
+
   def newQueryGraphCardinalityModel(statistics: GraphStatistics): QueryGraphCardinalityModel
 
-  def newMetrics(statistics: GraphStatistics,expressionEvaluator: ExpressionEvaluator, config: CypherPlannerConfiguration) = {
+  def newMetrics(statistics: GraphStatistics, expressionEvaluator: ExpressionEvaluator, config: CypherPlannerConfiguration) = {
     val queryGraphCardinalityModel = newQueryGraphCardinalityModel(statistics)
     val cardinality = newCardinalityEstimator(queryGraphCardinalityModel, expressionEvaluator)
     Metrics(newCostModel(config), cardinality, queryGraphCardinalityModel)
   }
 }
-
 

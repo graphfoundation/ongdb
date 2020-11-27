@@ -1,13 +1,10 @@
 /*
- * Copyright (c) 2018-2020 "Graph Foundation"
- * Graph Foundation, Inc. [https://graphfoundation.org]
- *
  * Copyright (c) 2002-2020 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
- * This file is part of ONgDB.
+ * This file is part of Neo4j.
  *
- * ONgDB is free software: you can redistribute it and/or modify
+ * Neo4j is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
@@ -68,22 +65,7 @@ object expandSolverStep {
                             context: LogicalPlanningContext): Option[LogicalPlan] = {
     val availableSymbols = sourcePlan.availableSymbols
 
-    /*
-     * Method to find implicit leaf plan arguments, except explicit Argument
-     */
-    def leafArguments(plan:LogicalPlan): Set[String] = plan match {
-      case _: Argument => Set.empty
-      case p: LogicalLeafPlan => p.argumentIds
-      case _ =>
-        val lhs = plan.lhs.map(inner => leafArguments(inner)).toSet.flatten
-        val rhs = plan.rhs.map(inner => leafArguments(inner)).toSet.flatten
-        lhs ++ rhs
-    }
-    // Remove the leaf arguments as to not try and join disjoint plans only on arguments.
-    // This reduces the solution space for the expands generator, since the joins generator should consider these cases.
-    val symbols = availableSymbols -- leafArguments(sourcePlan)
-
-    if (symbols(nodeId)) {
+    if (availableSymbols(nodeId)) {
       Some(produceLogicalPlan(qg, patternRel, sourcePlan, nodeId, availableSymbols, context))
     } else {
       None

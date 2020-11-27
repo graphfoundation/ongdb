@@ -1,13 +1,10 @@
 /*
- * Copyright (c) 2018-2020 "Graph Foundation"
- * Graph Foundation, Inc. [https://graphfoundation.org]
- *
  * Copyright (c) 2002-2020 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
- * This file is part of ONgDB.
+ * This file is part of Neo4j.
  *
- * ONgDB is free software: you can redistribute it and/or modify
+ * Neo4j is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
@@ -31,13 +28,16 @@ import java.net.URI;
 import java.security.SecureRandom;
 import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLServerSocketFactory;
 import javax.net.ssl.SSLSocketFactory;
 import javax.net.ssl.TrustManager;
 
 import org.neo4j.graphdb.DependencyResolver;
 import org.neo4j.helpers.HostnamePort;
 import org.neo4j.kernel.configuration.ConnectorPortRegister;
+import org.neo4j.kernel.configuration.ssl.SslPolicyConfig;
 import org.neo4j.server.helpers.CommunityServerBuilder;
+import org.neo4j.ssl.ClientAuth;
 import org.neo4j.test.server.ExclusiveServerTestBase;
 import org.neo4j.test.server.HTTP;
 import org.neo4j.test.server.InsecureTrustManager;
@@ -134,7 +134,15 @@ public class HttpsAccessIT extends ExclusiveServerTestBase
             serverBuilder.withHttpsEnabled();
         }
 
-        server = serverBuilder.build();
+        SslPolicyConfig httpsPolicyConfig = new SslPolicyConfig( "default" );
+
+        server = serverBuilder
+                .withProperty( "https.ssl_policy", "default" )
+                .withProperty( httpsPolicyConfig.base_directory.name(), folder.directory( "cert" ).getAbsolutePath() )
+                .withProperty( httpsPolicyConfig.allow_key_generation.name(), "true" )
+                .withProperty( httpsPolicyConfig.client_auth.name(), ClientAuth.NONE.name() )
+                .withProperty( httpsPolicyConfig.ciphers.name(), getSupportedCipherSuites() )
+                .build();
         server.start();
 
         // Because we are generating a non-CA-signed certificate, we need to turn off verification in the client.
@@ -142,7 +150,7 @@ public class HttpsAccessIT extends ExclusiveServerTestBase
         TrustManager[] trustAllCerts = {new InsecureTrustManager()};
 
         // Install the all-trusting trust manager
-        SSLContext sc = SSLContext.getInstance( "TLS" );
+        SSLContext sc = SSLContext.getInstance( "TLSv1.2" );
         sc.init( null, trustAllCerts, new SecureRandom() );
         HttpsURLConnection.setDefaultSSLSocketFactory( sc.getSocketFactory() );
     }
@@ -165,5 +173,12 @@ public class HttpsAccessIT extends ExclusiveServerTestBase
         DependencyResolver resolver = server.database.getGraph().getDependencyResolver();
         ConnectorPortRegister portRegister = resolver.resolveDependency( ConnectorPortRegister.class );
         return portRegister.getLocalAddress( name );
+    }
+
+    private static String getSupportedCipherSuites()
+    {
+        SSLServerSocketFactory ssf = (SSLServerSocketFactory) SSLServerSocketFactory.getDefault();
+        String[] defaultCiphers = ssf.getDefaultCipherSuites();
+        return String.join( ",", defaultCiphers );
     }
 }

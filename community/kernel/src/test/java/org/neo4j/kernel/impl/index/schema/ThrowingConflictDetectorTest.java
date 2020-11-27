@@ -1,13 +1,10 @@
 /*
- * Copyright (c) 2018-2020 "Graph Foundation"
- * Graph Foundation, Inc. [https://graphfoundation.org]
- *
  * Copyright (c) 2002-2020 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
- * This file is part of ONgDB.
+ * This file is part of Neo4j.
  *
- * ONgDB is free software: you can redistribute it and/or modify
+ * Neo4j is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
@@ -24,13 +21,14 @@ package org.neo4j.kernel.impl.index.schema;
 
 import org.junit.Test;
 
+import org.neo4j.index.internal.gbptree.ValueMerger.MergeResult;
 import org.neo4j.kernel.api.exceptions.index.IndexEntryConflictException;
 import org.neo4j.values.storable.Value;
 import org.neo4j.values.storable.Values;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.neo4j.helpers.ArrayUtil.array;
 
 public class ThrowingConflictDetectorTest
@@ -46,14 +44,14 @@ public class ThrowingConflictDetectorTest
         long entityId2 = 20;
 
         // when
-        NativeIndexValue merged = detector.merge(
+        MergeResult mergeResult = detector.merge(
                 key( entityId1, value ),
                 key( entityId2, value ),
                 NativeIndexValue.INSTANCE,
                 NativeIndexValue.INSTANCE );
 
         // then
-        assertNull( merged );
+        assertSame( MergeResult.UNCHANGED, mergeResult );
         try
         {
             detector.checkConflict( array( value ) );
@@ -75,14 +73,14 @@ public class ThrowingConflictDetectorTest
         long entityId = 10;
 
         // when
-        NativeIndexValue merged = detector.merge(
+        MergeResult mergeResult = detector.merge(
                 key( entityId, value ),
                 key( entityId, value ),
                 NativeIndexValue.INSTANCE,
                 NativeIndexValue.INSTANCE );
 
         // then
-        assertNull( merged );
+        assertSame( MergeResult.UNCHANGED, mergeResult );
         detector.checkConflict( array() ); // <-- should not throw conflict exception
     }
 

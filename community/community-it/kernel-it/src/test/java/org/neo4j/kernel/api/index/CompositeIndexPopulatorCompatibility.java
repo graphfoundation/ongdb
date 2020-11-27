@@ -1,13 +1,10 @@
 /*
- * Copyright (c) 2018-2020 "Graph Foundation"
- * Graph Foundation, Inc. [https://graphfoundation.org]
- *
  * Copyright (c) 2002-2020 "Neo4j,"
  * Neo4j Sweden AB [http://neo4j.com]
  *
- * This file is part of ONgDB.
+ * This file is part of Neo4j.
  *
- * ONgDB is free software: you can redistribute it and/or modify
+ * Neo4j is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
@@ -49,10 +46,10 @@ import static org.neo4j.kernel.api.index.IndexQueryHelper.add;
 import static org.neo4j.kernel.impl.index.schema.ByteBufferFactory.heapBufferFactory;
 
 @Ignore( "Not a test. This is a compatibility suite that provides test cases for verifying" +
-        " IndexProvider implementations. Each index provider that is to be tested by this suite" +
-        " must create their own test class extending IndexProviderCompatibilityTestSuite." +
-        " The @Ignore annotation doesn't prevent these tests to run, it rather removes some annoying" +
-        " errors or warnings in some IDEs about test classes needing a public zero-arg constructor." )
+         " IndexProvider implementations. Each index provider that is to be tested by this suite" +
+         " must create their own test class extending IndexProviderCompatibilityTestSuite." +
+         " The @Ignore annotation doesn't prevent these tests to run, it rather removes some annoying" +
+         " errors or warnings in some IDEs about test classes needing a public zero-arg constructor." )
 public class CompositeIndexPopulatorCompatibility extends IndexProviderCompatibilityTestSuite.Compatibility
 {
     public CompositeIndexPopulatorCompatibility( IndexProviderCompatibilityTestSuite testSuite, IndexDescriptor descriptor )
@@ -73,12 +70,12 @@ public class CompositeIndexPopulatorCompatibility extends IndexProviderCompatibi
         {
             // when
             IndexSamplingConfig indexSamplingConfig = new IndexSamplingConfig( Config.defaults() );
-            withPopulator( indexProvider.getPopulator( descriptor, indexSamplingConfig, heapBufferFactory( 1024 ) ), p -> p.add( Arrays.asList(
+            withPopulator( indexProvider.getPopulator( descriptor, indexSamplingConfig, heapBufferFactory( 1024 ), tokenNameLookup ), p -> p.add( Arrays.asList(
                     add( 1, descriptor.schema(), "v1", "v2" ),
                     add( 2, descriptor.schema(), "v1", "v2" ) ) ) );
 
             // then
-            try ( IndexAccessor accessor = indexProvider.getOnlineAccessor( descriptor, indexSamplingConfig ) )
+            try ( IndexAccessor accessor = indexProvider.getOnlineAccessor( descriptor, indexSamplingConfig, tokenNameLookup ) )
             {
                 try ( IndexReader reader = new QueryResultComparingIndexReader( accessor.newReader() ) )
                 {
@@ -108,7 +105,7 @@ public class CompositeIndexPopulatorCompatibility extends IndexProviderCompatibi
         {
             // when
             IndexSamplingConfig indexSamplingConfig = new IndexSamplingConfig( Config.defaults() );
-            withPopulator( indexProvider.getPopulator( descriptor, indexSamplingConfig, heapBufferFactory( 1024 ) ), p ->
+            withPopulator( indexProvider.getPopulator( descriptor, indexSamplingConfig, heapBufferFactory( 1024 ), tokenNameLookup ), p ->
             {
                 try
                 {
@@ -138,7 +135,7 @@ public class CompositeIndexPopulatorCompatibility extends IndexProviderCompatibi
         {
             // given
             IndexSamplingConfig indexSamplingConfig = new IndexSamplingConfig( Config.defaults() );
-            withPopulator( indexProvider.getPopulator( descriptor, indexSamplingConfig, heapBufferFactory( 1024 ) ), p ->
+            withPopulator( indexProvider.getPopulator( descriptor, indexSamplingConfig, heapBufferFactory( 1024 ), tokenNameLookup ), p ->
             {
                 // when
                 p.add( Arrays.asList(
