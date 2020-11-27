@@ -2576,7 +2576,7 @@ public class FulltextProceduresTest
         }
 
         db.shutdown();
-        String[] args = new String[] {testDirectory.databaseDir().getAbsolutePath()};
+        String[] args = new String[]{testDirectory.databaseDir().getAbsolutePath()};
         ConsistencyCheckService.Result result = ConsistencyCheckTool.runConsistencyCheckTool( args, System.out, System.err );
         System.out.flush();
         System.err.flush();
@@ -2629,7 +2629,7 @@ public class FulltextProceduresTest
         }
 
         db.shutdown();
-        String[] args = new String[] {testDirectory.databaseDir().getAbsolutePath()};
+        String[] args = new String[]{testDirectory.databaseDir().getAbsolutePath()};
         ConsistencyCheckService.Result result = ConsistencyCheckTool.runConsistencyCheckTool( args, System.out, System.err );
         System.out.flush();
         System.err.flush();
@@ -2678,7 +2678,7 @@ public class FulltextProceduresTest
         }
 
         db.shutdown();
-        String[] args = new String[] {testDirectory.databaseDir().getAbsolutePath()};
+        String[] args = new String[]{testDirectory.databaseDir().getAbsolutePath()};
         ConsistencyCheckService.Result result = ConsistencyCheckTool.runConsistencyCheckTool( args, System.out, System.err );
         System.out.flush();
         System.err.flush();
@@ -2730,7 +2730,7 @@ public class FulltextProceduresTest
         }
 
         db.shutdown();
-        String[] args = new String[] {testDirectory.databaseDir().getAbsolutePath()};
+        String[] args = new String[]{testDirectory.databaseDir().getAbsolutePath()};
         ConsistencyCheckService.Result result = ConsistencyCheckTool.runConsistencyCheckTool( args, System.out, System.err );
         System.out.flush();
         System.err.flush();
