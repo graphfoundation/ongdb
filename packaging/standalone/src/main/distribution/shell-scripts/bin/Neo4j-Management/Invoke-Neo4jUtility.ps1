@@ -122,9 +122,9 @@ function Invoke-Neo4jUtility
     # https://github.com/PowerShell/PowerShell/issues/5576
     foreach ($CmdArg in $CommandArgs) {
       if ($CmdArg -match '^".*"$' -or $CmdArg -match "^'.*'$") {
-        $ShellArgs = $CmdArg
+        $ShellArgs += $CmdArg
       } else {
-        $ShellArgs = "`"$CmdArg`""
+        $ShellArgs += "`"$CmdArg`""
       }
     }
 

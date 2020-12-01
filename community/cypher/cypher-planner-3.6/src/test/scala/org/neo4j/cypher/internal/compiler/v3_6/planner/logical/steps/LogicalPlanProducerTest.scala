@@ -253,8 +253,8 @@ class LogicalPlanProducerTest extends CypherFunSuite with LogicalPlanningTestSup
       val hint2 = UsingIndexHint(varFor("blah"), lblName("meh"), Seq())(InputPosition.NONE)
 
       val solveds = context.planningAttributes.solveds
-      val spqLhs = PlannerQuery.empty.amendQueryGraph(qg => qg.copy(hints = Seq(hint1)))
-      val spqRhs = PlannerQuery.empty.amendQueryGraph(qg => qg.copy(hints = Seq(hint2)))
+      val spqLhs = PlannerQuery.empty.amendQueryGraph(qg => qg.copy(hints = Seq(hint1) ))
+      val spqRhs = PlannerQuery.empty.amendQueryGraph(qg => qg.copy(hints = Seq(hint2) ))
 
       solveds.set(lhs.id, spqLhs)
       context.planningAttributes.cardinalities.set(lhs.id, 10.0)

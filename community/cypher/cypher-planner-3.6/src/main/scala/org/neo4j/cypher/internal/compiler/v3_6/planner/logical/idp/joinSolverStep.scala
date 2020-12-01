@@ -46,9 +46,9 @@ case class joinSolverStep(qg: QueryGraph, IGNORE_EXPAND_SOLUTIONS_FOR_TEST: Bool
     }
 
     /**
-     * Normally, it is not desirable to join on the argument(s).
-     * However, Expand is not going to look at goals which are entirely compacted (not in the registry reverseMap) so
-     * we may as well consider them here. Also, if everything in the plan table is compacted the same is true.
+     *  Normally, it is not desirable to join on the argument(s).
+     *  However, Expand is not going to look at goals which are entirely compacted (not in the registry reverseMap) so
+     *  we may as well consider them here. Also, if everything in the plan table is compacted the same is true.
      */
     def registered: Int => Boolean = nbr => registry.lookup(nbr).isDefined
     val goalIsEntirelyCompacted = !goal.exists(registered)

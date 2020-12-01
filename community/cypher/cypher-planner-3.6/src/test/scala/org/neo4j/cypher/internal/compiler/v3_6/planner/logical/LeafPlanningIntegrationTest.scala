@@ -290,11 +290,11 @@ class LeafPlanningIntegrationTest extends CypherFunSuite with LogicalPlanningTes
 
     plan should beLike {
       case Selection(_,
-      Expand(
-      Expand(
-      NodeByLabelScan(_, LabelName("Role"), _),
-      _, INCOMING, List(), _, _, ExpandAll),
-      _, INCOMING, List(), _, _, ExpandAll)
+        Expand(
+          Expand(
+            NodeByLabelScan(_, LabelName("Role"), _),
+          _, INCOMING, List(), _, _, ExpandAll),
+        _, INCOMING, List(), _, _, ExpandAll)
       ) => ()
     }
   }
