@@ -5,12 +5,12 @@
     <parent>
         <groupId>org.graphfoundation.ongdb</groupId>
         <artifactId>parent</artifactId>
-        <version>3.6.2-SNAPSHOT</version>
+        <version>3.6.3-SNAPSHOT</version>
         <relativePath>../..</relativePath>
     </parent>
 
     <artifactId>ongdb-management</artifactId>
-    <version>3.6.2-SNAPSHOT</version>
+    <version>3.6.3-SNAPSHOT</version>
 
     <name>ONgDB - Graph DB Monitoring and Management tools</name>
     <description>Management support using JMX.</description>

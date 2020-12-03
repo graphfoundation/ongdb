@@ -4,14 +4,14 @@
     <parent>
         <groupId>org.graphfoundation.ongdb</groupId>
         <artifactId>parent</artifactId>
-        <version>3.6.2-SNAPSHOT</version>
+        <version>3.6.3-SNAPSHOT</version>
         <relativePath>../..</relativePath>
     </parent>
 
     <modelVersion>4.0.0</modelVersion>
     <artifactId>ongdb-udc</artifactId>
     <name>ONgDB - Usage Data Collection</name>
-    <version>3.6.2-SNAPSHOT</version>
+    <version>3.6.3-SNAPSHOT</version>
 
     <description>Collects simple statistics about server deployment.</description>
     <url>https://ongdb.graphfoundation.org/${project.artifactId}/${project.version}</url>
