@@ -138,8 +138,8 @@ public class IndexStatisticsTest
         FeatureToggles.set( MultipleIndexPopulator.class, "print_debug", true );
 
         db.getGraphDatabaseAPI().getDependencyResolver()
-          .resolveDependency( Monitors.class )
-          .addMonitorListener( indexOnlineMonitor );
+                .resolveDependency( Monitors.class )
+                .addMonitorListener( indexOnlineMonitor );
     }
 
     @After
@@ -518,22 +518,22 @@ public class IndexStatisticsTest
             final int finalI = i;
 
             jobs.add( () ->
-                      {
-                          int offset = finalI * peoplePerThread;
-                          while ( offset < (finalI + 1) * peoplePerThread )
-                          {
-                              try
-                              {
-                                  offset += createNamedPeople( nodes, offset );
-                              }
-                              catch ( KernelException e )
-                              {
-                                  exception.compareAndSet( null, e );
-                                  throw new RuntimeException( e );
-                              }
-                          }
-                          return null;
-                      } );
+            {
+                int offset = finalI * peoplePerThread;
+                while ( offset < (finalI + 1) * peoplePerThread )
+                {
+                    try
+                    {
+                        offset += createNamedPeople( nodes, offset );
+                    }
+                    catch ( KernelException e )
+                    {
+                        exception.compareAndSet( null, e );
+                        throw new RuntimeException( e );
+                    }
+                }
+                return null;
+            } );
         }
 
         for ( Future<?> job : service.invokeAll( jobs ) )
@@ -595,7 +595,7 @@ public class IndexStatisticsTest
     private CountsTracker getTracker()
     {
         return ((GraphDatabaseAPI) db).getDependencyResolver().resolveDependency( RecordStorageEngine.class )
-                                      .testAccessNeoStores().getCounts();
+                .testAccessNeoStores().getCounts();
     }
 
     private void createSomePersons() throws KernelException
@@ -643,7 +643,7 @@ public class IndexStatisticsTest
     private NeoStores neoStores()
     {
         return ( (GraphDatabaseAPI) db ).getDependencyResolver().resolveDependency( RecordStorageEngine.class )
-                                        .testAccessNeoStores();
+                .testAccessNeoStores();
     }
 
     private void awaitIndexesOnline()

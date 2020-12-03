@@ -89,9 +89,9 @@ trait LogicalPlanningConfigurationAdHocSemanticTable {
         table.resolvedPropertyKeyNames.put(property, PropertyKeyId(table.resolvedPropertyKeyNames.size))
       }
     def addRelationshipIfUnknown(relationType: String) =
-      if (!table.resolvedRelTypeNames.contains(relationType)) {
+      if (!table.resolvedRelTypeNames.contains(relationType))
         table.resolvedRelTypeNames.put(relationType, RelTypeId(table.resolvedRelTypeNames.size))
-      }
+
     indexes.keys.foreach { case IndexDef(label, properties) =>
       addLabelIfUnknown(label)
       properties.foreach(addPropertyKeyIfUnknown)

@@ -79,7 +79,7 @@ public class FullCheck
     private final boolean startCountsStore;
 
     public FullCheck( Config config, ProgressMonitorFactory progressFactory,
-                      Statistics statistics, int threads, boolean startCountsStore )
+            Statistics statistics, int threads, boolean startCountsStore )
     {
         this( progressFactory, statistics, threads, new ConsistencyFlags( config ), config, startCountsStore );
     }
@@ -174,9 +174,8 @@ public class FullCheck
             MultiPassStore.Factory multiPass = new MultiPassStore.Factory(
                     decorator, recordAccess, cacheAccess, report, reportMonitor );
             ConsistencyCheckTasks taskCreator = new ConsistencyCheckTasks( progress, processEverything,
-                                                                           nativeStores, statistics, cacheAccess, directStoreAccess.labelScanStore(), indexes,
-                                                                           tokenNameLookup,
-                                                                           multiPass, reporter, threads );
+                    nativeStores, statistics, cacheAccess, directStoreAccess.labelScanStore(), indexes, tokenNameLookup,
+                    multiPass, reporter, threads );
 
             if ( checkIndexStructure )
             {
@@ -204,7 +203,7 @@ public class FullCheck
     }
 
     private static void consistencyCheckIndexStructure( LabelScanStore labelScanStore, IndexAccessors indexes,
-                                                        InconsistencyReport report, ProgressMonitorFactory progressMonitorFactory )
+            InconsistencyReport report, ProgressMonitorFactory progressMonitorFactory )
     {
         final long schemaIndexCount = Iterables.count( indexes.onlineRules() );
         final long additionalCount = 1; // LabelScanStore

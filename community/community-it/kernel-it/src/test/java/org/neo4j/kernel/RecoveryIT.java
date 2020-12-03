@@ -258,13 +258,13 @@ public class RecoveryIT
 
         // cause failure during 'relationship.delete()' command application
         ClassGuardedAdversary adversary = new ClassGuardedAdversary( new CountingAdversary( 1, true ),
-                                                                     Command.RelationshipCommand.class );
+                Command.RelationshipCommand.class );
         adversary.disable();
 
         File databaseDir = directory.databaseDir();
         GraphDatabaseService db = AdversarialPageCacheGraphDatabaseFactory.create( fileSystemRule.get(), adversary )
-                                                                          .newEmbeddedDatabaseBuilder( databaseDir )
-                                                                          .newGraphDatabase();
+                .newEmbeddedDatabaseBuilder( databaseDir )
+                .newGraphDatabase();
         try
         {
             try ( Transaction tx = db.beginTx() )
@@ -424,35 +424,35 @@ public class RecoveryIT
             }
         } );
         new TestGraphDatabaseFactory()
-        {
-            // This nested constructing is done purely to be able to fish out PlatformModule
-            // (and its PageCache inside it). It would be great if this could be done in a prettier way.
-
-            @Override
-            protected DatabaseCreator createImpermanentDatabaseCreator( File storeDir, TestGraphDatabaseFactoryState state )
-            {
-                return new GraphDatabaseBuilder.DatabaseCreator()
                 {
+                    // This nested constructing is done purely to be able to fish out PlatformModule
+                    // (and its PageCache inside it). It would be great if this could be done in a prettier way.
 
                     @Override
-                    public GraphDatabaseService newDatabase( @Nonnull Config config )
+                    protected DatabaseCreator createImpermanentDatabaseCreator( File storeDir, TestGraphDatabaseFactoryState state )
                     {
-                        TestGraphDatabaseFacadeFactory factory = new TestGraphDatabaseFacadeFactory( state, true )
+                        return new GraphDatabaseBuilder.DatabaseCreator()
                         {
+
                             @Override
-                            protected PlatformModule createPlatform( File storeDir, Config config, Dependencies dependencies )
+                            public GraphDatabaseService newDatabase( @Nonnull Config config )
                             {
-                                PlatformModule platform = super.createPlatform( storeDir, config, dependencies );
-                                // nice way of getting the page cache dependency before db is created, huh?
-                                pageCache.set( platform.pageCache );
-                                return platform;
+                                TestGraphDatabaseFacadeFactory factory = new TestGraphDatabaseFacadeFactory( state, true )
+                                {
+                                    @Override
+                                    protected PlatformModule createPlatform( File storeDir, Config config, Dependencies dependencies )
+                                    {
+                                        PlatformModule platform = super.createPlatform( storeDir, config, dependencies );
+                                        // nice way of getting the page cache dependency before db is created, huh?
+                                        pageCache.set( platform.pageCache );
+                                        return platform;
+                                    }
+                                };
+                                return factory.newFacade( storeDir, config, newDependencies( state.databaseDependencies() ) );
                             }
                         };
-                        return factory.newFacade( storeDir, config, newDependencies( state.databaseDependencies() ) );
                     }
-                };
-            }
-        }
+                }
                 .setFileSystem( crashedFs )
                 .setMonitors( monitors )
                 .newImpermanentDatabase( directory.databaseDir() )
@@ -486,16 +486,16 @@ public class RecoveryIT
         try (
                 ThreadPoolJobScheduler jobScheduler = new ThreadPoolJobScheduler();
                 PageCache pageCache1 = new ConfiguringPageCacheFactory( fs1, defaults(), PageCacheTracer.NULL,
-                                                                        PageCursorTracerSupplier.NULL, NullLog.getInstance(), contextSupplier, jobScheduler )
+                        PageCursorTracerSupplier.NULL, NullLog.getInstance(), contextSupplier, jobScheduler )
                         .getOrCreatePageCache();
                 PageCache pageCache2 = new ConfiguringPageCacheFactory( fs2, defaults(), PageCacheTracer.NULL,
-                                                                        PageCursorTracerSupplier.NULL, NullLog.getInstance(), contextSupplier, jobScheduler )
+                        PageCursorTracerSupplier.NULL, NullLog.getInstance(), contextSupplier, jobScheduler )
                         .getOrCreatePageCache();
                 NeoStores store1 = new StoreFactory( databaseLayout, defaults(), new DefaultIdGeneratorFactory( fs1 ),
-                                                     pageCache1, fs1, logProvider, contextSupplier ).openAllNeoStores();
+                        pageCache1, fs1, logProvider, contextSupplier ).openAllNeoStores();
                 NeoStores store2 = new StoreFactory( databaseLayout, defaults(), new DefaultIdGeneratorFactory( fs2 ),
-                                                     pageCache2, fs2, logProvider, contextSupplier ).openAllNeoStores()
-        )
+                        pageCache2, fs2, logProvider, contextSupplier ).openAllNeoStores()
+                )
         {
             for ( StoreType storeType : StoreType.values() )
             {
@@ -530,7 +530,7 @@ public class RecoveryIT
     private static void checkPoint( GraphDatabaseService db ) throws IOException
     {
         ((GraphDatabaseAPI)db).getDependencyResolver().resolveDependency( CheckPointer.class )
-                              .forceCheckPoint( new SimpleTriggerInfo( "Manual trigger" ) );
+                .forceCheckPoint( new SimpleTriggerInfo( "Manual trigger" ) );
     }
 
     private void produceRandomGraphUpdates( GraphDatabaseService db, int numberOfTransactions )
@@ -573,7 +573,7 @@ public class RecoveryIT
                             if ( !nodes.isEmpty() )
                             {
                                 Relationship relationship = random.among( nodes )
-                                                                  .createRelationshipTo( random.among( nodes ), randomRelationshipType() );
+                                        .createRelationshipTo( random.among( nodes ), randomRelationshipType() );
                                 if ( random.nextBoolean() )
                                 {
                                     relationship.setProperty( randomKey(), random.nextValueAsObject() );
@@ -598,7 +598,7 @@ public class RecoveryIT
                         else
                         {   // set relationship property
                             onRandomRelationship( nodes,
-                                                  relationship -> relationship.setProperty( randomKey(), random.nextValueAsObject() ) );
+                                    relationship -> relationship.setProperty( randomKey(), random.nextValueAsObject() ) );
                         }
                     }
                     else
@@ -656,7 +656,7 @@ public class RecoveryIT
     }
 
     private void assertSameUpdates( Map<Long,Collection<IndexEntryUpdate<?>>> updatesAtCrash,
-                                    Map<Long,Collection<IndexEntryUpdate<?>>> recoveredUpdatesSnapshot )
+            Map<Long,Collection<IndexEntryUpdate<?>>> recoveredUpdatesSnapshot )
     {
         // The UpdateCapturingIndexProvider just captures updates made to indexes. The order in this test
         // should be the same during online transaction application and during recovery since everything
@@ -822,7 +822,7 @@ public class RecoveryIT
         for ( File logFile : logFiles )
         {
             FileOperation.MOVE.perform( fs, logFile.getName(), fromDirectory, false, toDirectory,
-                                        ExistingTargetStrategy.FAIL );
+                    ExistingTargetStrategy.FAIL );
         }
     }
 
@@ -856,14 +856,14 @@ public class RecoveryIT
 
         @Override
         public IndexPopulator getPopulator( StoreIndexDescriptor descriptor, IndexSamplingConfig samplingConfig, ByteBufferFactory bufferFactory,
-                                            TokenNameLookup tokenNameLookup )
+                TokenNameLookup tokenNameLookup )
         {
             return actual.getPopulator( descriptor, samplingConfig, bufferFactory, tokenNameLookup );
         }
 
         @Override
         public IndexAccessor getOnlineAccessor( StoreIndexDescriptor descriptor, IndexSamplingConfig samplingConfig,
-                                                TokenNameLookup tokenNameLookup ) throws IOException
+                TokenNameLookup tokenNameLookup ) throws IOException
         {
             IndexAccessor actualAccessor = actual.getOnlineAccessor( descriptor, samplingConfig, tokenNameLookup );
             return indexes.computeIfAbsent( descriptor.getId(), id -> new UpdateCapturingIndexAccessor( actualAccessor, initialUpdates.get( id ) ) );

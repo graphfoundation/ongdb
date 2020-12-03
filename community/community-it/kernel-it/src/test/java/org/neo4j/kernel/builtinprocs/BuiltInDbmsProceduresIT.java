@@ -54,8 +54,8 @@ public class BuiltInDbmsProceduresIT extends KernelIntegrationTest
         // When
         List<Object[]> config = callListConfig( "" );
         List<String> names = config.stream()
-                                   .map( o -> o[0].toString() )
-                                   .collect( Collectors.toList() );
+                .map( o -> o[0].toString() )
+                .collect( Collectors.toList() );
 
         // The size of the config is not fixed so just make sure it's the right magnitude
         assertTrue( names.size() > 10 );
@@ -64,8 +64,8 @@ public class BuiltInDbmsProceduresIT extends KernelIntegrationTest
 
         // Should not contain "unsupported.*" configs
         assertEquals( names.stream()
-                           .filter( n -> n.startsWith( "unsupported" ) )
-                           .count(), 0 );
+                .filter( n -> n.startsWith( "unsupported" ) )
+                .count(), 0 );
     }
 
     @Test
@@ -76,7 +76,7 @@ public class BuiltInDbmsProceduresIT extends KernelIntegrationTest
         RawIterator<Object[],ProcedureException> callResult =
                 dbmsOperations()
                         .procedureCallDbms( procedureId, new Object[]{},  dependencyResolver, AUTH_DISABLED, resourceTracker,
-                                            ProcedureCallContext.EMPTY );
+                        ProcedureCallContext.EMPTY );
         List<Object[]> config = asList( callResult );
         assertEquals( 3, config.size());
 
@@ -94,10 +94,10 @@ public class BuiltInDbmsProceduresIT extends KernelIntegrationTest
 
         assertEquals( 1, config.size() );
         assertArrayEquals( new Object[]{ "dbms.config.strict_validation",
-                                         "A strict configuration validation will prevent the database from starting up if unknown " +
-                                         "configuration options are specified in the neo4j settings namespace (such as dbms., ha., " +
-                                         "cypher., etc). This is currently false by default but will be true by default in 4.0.",
-                                         "false", false }, config.get( 0 ) );
+                "A strict configuration validation will prevent the database from starting up if unknown " +
+                        "configuration options are specified in the neo4j settings namespace (such as dbms., ha., " +
+                        "cypher., etc). This is currently false by default but will be true by default in 4.0.",
+                "false", false }, config.get( 0 ) );
     }
 
     @Test
@@ -108,8 +108,8 @@ public class BuiltInDbmsProceduresIT extends KernelIntegrationTest
 
         assertEquals( 1, config.size() );
         assertArrayEquals( new Object[]{ "dbms.transaction.timeout",
-                                         "The maximum time interval of a transaction within which it should be completed.",
-                                         "0ms", true }, config.get( 0 ) );
+                "The maximum time interval of a transaction within which it should be completed.",
+                "0ms", true }, config.get( 0 ) );
     }
 
     @Test
@@ -135,7 +135,7 @@ public class BuiltInDbmsProceduresIT extends KernelIntegrationTest
         QualifiedName procedureName = procedureName( "dbms", "listConfig" );
         RawIterator<Object[],ProcedureException> callResult =
                 dbmsOperations().procedureCallDbms( procedureName, toArray( searchString ), dependencyResolver, AUTH_DISABLED, resourceTracker,
-                                                    ProcedureCallContext.EMPTY );
+                        ProcedureCallContext.EMPTY );
         return asList( callResult );
     }
 }

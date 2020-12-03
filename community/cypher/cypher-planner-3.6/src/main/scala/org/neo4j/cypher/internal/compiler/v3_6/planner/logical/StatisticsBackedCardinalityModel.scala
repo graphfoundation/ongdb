@@ -30,8 +30,7 @@ import org.neo4j.cypher.internal.v3_6.ast.semantics.SemanticTable
 import org.neo4j.cypher.internal.v3_6.expressions.IntegerLiteral
 import org.neo4j.cypher.internal.v3_6.util.{Cardinality, Multiplier, Selectivity}
 
-class StatisticsBackedCardinalityModel(queryGraphCardinalityModel: QueryGraphCardinalityModel,
-                                       simpleExpressionEvaluator: ExpressionEvaluator) extends CardinalityModel {
+class StatisticsBackedCardinalityModel(queryGraphCardinalityModel: QueryGraphCardinalityModel, simpleExpressionEvaluator: ExpressionEvaluator) extends CardinalityModel {
 
   private val expressionSelectivityCalculator = queryGraphCardinalityModel.expressionSelectivityCalculator
   private val combiner: SelectivityCombiner = IndependenceCombiner
@@ -42,7 +41,7 @@ class StatisticsBackedCardinalityModel(queryGraphCardinalityModel: QueryGraphCar
         val newInput = calculateCardinalityForQueryGraph(graph, input, semanticTable)
 
         val horizonCardinality = calculateCardinalityForQueryHorizon(newInput.inboundCardinality, horizon, semanticTable)
-        newInput.copy(inboundCardinality = horizonCardinality)
+        newInput.copy( inboundCardinality = horizonCardinality)
     }
     output.inboundCardinality
   }
@@ -60,16 +59,13 @@ class StatisticsBackedCardinalityModel(queryGraphCardinalityModel: QueryGraphCar
           !simpleExpressionEvaluator.isDeterministic(limit)
 
       val limitCardinality =
-        if (cannotEvaluateStableValue) {
-          GraphStatistics.DEFAULT_LIMIT_CARDINALITY
-        } else {
+        if (cannotEvaluateStableValue) GraphStatistics.DEFAULT_LIMIT_CARDINALITY
+        else {
           val evaluatedValue: Option[Any] = simpleExpressionEvaluator.evaluateExpression(limit)
 
-          if (evaluatedValue.isDefined && evaluatedValue.get.isInstanceOf[NumberValue]) {
+          if (evaluatedValue.isDefined && evaluatedValue.get.isInstanceOf[NumberValue])
             Cardinality(evaluatedValue.get.asInstanceOf[NumberValue].doubleValue())
-          } else {
-            GraphStatistics.DEFAULT_LIMIT_CARDINALITY
-          }
+          else GraphStatistics.DEFAULT_LIMIT_CARDINALITY
         }
 
       val cardinalityBeforeSelection = Cardinality.min(in, limitCardinality)

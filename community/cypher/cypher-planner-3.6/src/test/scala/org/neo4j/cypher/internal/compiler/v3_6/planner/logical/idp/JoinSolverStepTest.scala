@@ -164,7 +164,7 @@ class JoinSolverStepTest extends CypherFunSuite with LogicalPlanningTestSupport2
     new given().withLogicalPlanningContext { (_, ctx) =>
       val plan1 = fakeLogicalPlanFor(ctx.planningAttributes, "a", "r1", "b", "c") // symbols
       ctx.planningAttributes.solveds.set(plan1.id, RegularPlannerQuery(QueryGraph.empty.addPatternNodes("b").addArgumentIds(Seq("b")))) // nodes
-      val plan2 = fakeLogicalPlanFor(ctx.planningAttributes, "b", "c")
+      val plan2 = fakeLogicalPlanFor(ctx.planningAttributes,"b", "c")
       ctx.planningAttributes.solveds.set(plan2.id, RegularPlannerQuery(QueryGraph.empty.addPatternNodes("b").addArgumentIds(Seq("b"))))
 
       val qg = QueryGraph.empty.addPatternNodes("a", "b", "c").addArgumentIds(Seq("b"))

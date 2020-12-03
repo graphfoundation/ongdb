@@ -28,6 +28,7 @@ import org.neo4j.cypher.internal.v3_6.util.test_helpers.CypherFunSuite
 
 import scala.collection.immutable.BitSet
 
+
 class ExpandSolverStepTest extends CypherFunSuite with LogicalPlanningTestSupport2 with AstConstructionTestSupport {
 
   self =>

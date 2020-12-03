@@ -78,13 +78,13 @@ public class BatchInserterImplTest
     public void testHonorsPassedInParams() throws Exception
     {
         BatchInserter inserter = BatchInserters.inserter( testDirectory.databaseDir(), fileSystemRule.get(),
-                                                          inserterConfig() );
+                inserterConfig() );
         NeoStores neoStores = ReflectionUtil.getPrivateField( inserter, "neoStores", NeoStores.class );
         PageCache pageCache = ReflectionUtil.getPrivateField( neoStores, "pageCache", PageCache.class );
         inserter.shutdown();
         long mappedMemoryTotalSize = MuninnPageCache.memoryRequiredForPages( pageCache.maxCachedPages() );
         assertThat( "memory mapped config is active", mappedMemoryTotalSize,
-                    is( allOf( greaterThan( kibiBytes( 270 ) ), lessThan( kibiBytes( 290 ) ) ) ) );
+                is( allOf( greaterThan( kibiBytes( 270 ) ), lessThan( kibiBytes( 290 ) ) ) ) );
     }
 
     @Test
