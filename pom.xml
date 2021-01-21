@@ -104,6 +104,7 @@
   </properties>
 
   <modules>
+    <module>build-resources</module>
     <module>community</module>
     <module>enterprise</module>
     <module>integrationtests</module>
@@ -520,7 +521,7 @@
           <dependencies>
             <dependency>
               <groupId>org.neo4j.build</groupId>
-              <artifactId>licensecheck-config</artifactId>
+              <artifactId>build-resources</artifactId>
               <version>${project.version}</version>
             </dependency>
           </dependencies>
