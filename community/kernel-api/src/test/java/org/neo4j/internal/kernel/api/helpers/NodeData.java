@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -32,6 +32,7 @@ class NodeData
 
     NodeData( long id, long[] labels, Map<Integer,Value> properties )
     {
+
         this.id = id;
         this.labels = labels;
         this.properties = properties;
@@ -50,7 +51,7 @@ class NodeData
             @Override
             public int label( int offset )
             {
-                return labels.length;
+                return (int) labels[offset];
             }
 
             @Override

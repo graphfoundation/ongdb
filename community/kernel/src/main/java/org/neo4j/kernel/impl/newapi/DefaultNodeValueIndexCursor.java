@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -24,7 +24,6 @@ import java.util.Arrays;
 import org.neo4j.collection.primitive.PrimitiveLongCollections;
 import org.neo4j.collection.primitive.PrimitiveLongIterator;
 import org.neo4j.collection.primitive.PrimitiveLongSet;
-import org.neo4j.graphdb.Resource;
 import org.neo4j.internal.kernel.api.IndexQuery;
 import org.neo4j.internal.kernel.api.NodeCursor;
 import org.neo4j.internal.kernel.api.NodeValueIndexCursor;
@@ -47,7 +46,6 @@ final class DefaultNodeValueIndexCursor extends IndexCursor<IndexProgressor>
         implements NodeValueIndexCursor, NodeValueClient
 {
     private Read read;
-    private Resource resource;
     private long node;
     private IndexQuery[] query;
     private Value[] values;
@@ -66,39 +64,47 @@ final class DefaultNodeValueIndexCursor extends IndexCursor<IndexProgressor>
     public void initialize( SchemaIndexDescriptor descriptor, IndexProgressor progressor,
                             IndexQuery[] query )
     {
-        assert query != null && query.length > 0;
+        assert query != null;
         super.initialize( progressor );
         this.query = query;
 
-        IndexQuery firstPredicate = query[0];
-        switch ( firstPredicate.type() )
+        if ( query.length > 0 )
         {
-        case exact:
-            seekQuery( descriptor, query );
-            break;
+            IndexQuery firstPredicate = query[0];
+            switch ( firstPredicate.type() )
+            {
+            case exact:
+                seekQuery( descriptor, query );
+                break;
 
-        case exists:
-            scanQuery( descriptor );
-            break;
+            case exists:
+                scanQuery( descriptor );
+                break;
 
-        case range:
-            assert query.length == 1;
-            rangeQuery( descriptor, (IndexQuery.RangePredicate) firstPredicate );
-            break;
+            case range:
+                assert query.length == 1;
+                rangeQuery( descriptor, (IndexQuery.RangePredicate) firstPredicate );
+                break;
 
-        case stringPrefix:
-            assert query.length == 1;
-            prefixQuery( descriptor, (IndexQuery.StringPrefixPredicate) firstPredicate );
-            break;
+            case stringPrefix:
+                assert query.length == 1;
+                prefixQuery( descriptor, (IndexQuery.StringPrefixPredicate) firstPredicate );
+                break;
 
-        case stringSuffix:
-        case stringContains:
-            assert query.length == 1;
-            suffixOrContainsQuery( descriptor, firstPredicate );
-            break;
+            case stringSuffix:
+            case stringContains:
+                assert query.length == 1;
+                suffixOrContainsQuery( descriptor, firstPredicate );
+                break;
 
-        default:
-            throw new UnsupportedOperationException( "Query not supported: " + Arrays.toString( query ) );
+            default:
+                throw new UnsupportedOperationException( "Query not supported: " + Arrays.toString( query ) );
+            }
+        }
+        else
+        {
+            // this is used for distinct values query
+            needsValues = true;
         }
     }
 
@@ -143,10 +149,9 @@ final class DefaultNodeValueIndexCursor extends IndexCursor<IndexProgressor>
         }
     }
 
-    public void setRead( Read read, Resource resource )
+    public void setRead( Read read )
     {
         this.read = read;
-        this.resource = resource;
     }
 
     @Override
@@ -198,18 +203,7 @@ final class DefaultNodeValueIndexCursor extends IndexCursor<IndexProgressor>
             this.added = emptyIterator();
             this.removed = PrimitiveLongCollections.emptySet();
 
-            try
-            {
-                if ( resource != null )
-                {
-                    resource.close();
-                    resource = null;
-                }
-            }
-            finally
-            {
-                pool.accept( this );
-            }
+            pool.accept( this );
         }
     }
 
@@ -256,10 +250,7 @@ final class DefaultNodeValueIndexCursor extends IndexCursor<IndexProgressor>
         if ( read.hasTxStateWithChanges() )
         {
             TransactionState txState = read.txState();
-            PrimitiveLongReadableDiffSets changes = txState.indexUpdatesForRangeSeek(
-                    descriptor, valueGroup,
-                    predicate.fromValue(), predicate.fromInclusive(),
-                    predicate.toValue(), predicate.toInclusive() );
+            PrimitiveLongReadableDiffSets changes = txState.indexUpdatesForRangeSeek( descriptor, predicate );
             added = changes.augment( emptyIterator() );
             removed = removed( txState, changes );
         }

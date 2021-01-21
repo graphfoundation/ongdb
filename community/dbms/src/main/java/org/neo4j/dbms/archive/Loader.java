@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -99,6 +99,11 @@ public class Loader
     private void loadEntry( Path destination, ArchiveInputStream stream, ArchiveEntry entry ) throws IOException
     {
         Path file = destination.resolve( entry.getName() );
+        if ( !file.normalize().startsWith( destination ) )
+        {
+            throw new InvalidDumpEntryException( entry.getName() );
+        }
+
         if ( entry.isDirectory() )
         {
             Files.createDirectories( file );

@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -346,8 +346,28 @@ public class IndexPopulationJobTest
         // Then
         LogMatcherBuilder match = inLog( IndexPopulationJob.class );
         logProvider.assertExactly(
-                match.info( "Index population started: [%s]", ":FIRST(name)" ),
-                match.info( "Index population completed. Index [%s] is %s.", ":FIRST(name)", "ONLINE" )
+                match.info( "Index population started: [%s]", ":FIRST(name)" )
+        );
+    }
+
+    @Test
+    public void logConstraintJobProgress() throws Exception
+    {
+        // Given
+        createNode( map( name, "irrelephant" ), FIRST );
+        AssertableLogProvider logProvider = new AssertableLogProvider();
+        FlippableIndexProxy index = mock( FlippableIndexProxy.class );
+        when( index.getState() ).thenReturn( InternalIndexState.POPULATING );
+        IndexPopulator populator = spy( inMemoryPopulator( false ) );
+        IndexPopulationJob job = newIndexPopulationJob( populator, index, indexStoreView, logProvider, false );
+
+        // When
+        job.run();
+
+        // Then
+        LogMatcherBuilder match = inLog( IndexPopulationJob.class );
+        logProvider.assertExactly(
+                match.info( "Index population started: [%s]", ":FIRST(name)" )
         );
     }
 
@@ -616,8 +636,8 @@ public class IndexPopulationJobTest
         long indexId = 0;
         flipper.setFlipTarget( mock( IndexProxyFactory.class ) );
 
-        MultipleIndexPopulator multiPopulator = new MultipleIndexPopulator( storeView, logProvider );
-        IndexPopulationJob job = new IndexPopulationJob( multiPopulator, NO_MONITOR, stateHolder );
+        MultipleIndexPopulator multiPopulator = new MultipleIndexPopulator( storeView, logProvider, stateHolder );
+        IndexPopulationJob job = new IndexPopulationJob( multiPopulator, NO_MONITOR );
         job.addPopulator( populator, indexId, new IndexMeta( indexId, descriptor, PROVIDER_DESCRIPTOR, NO_CAPABILITY ),
                 format( ":%s(%s)", FIRST.name(), name ), flipper, failureDelegateFactory );
         return job;

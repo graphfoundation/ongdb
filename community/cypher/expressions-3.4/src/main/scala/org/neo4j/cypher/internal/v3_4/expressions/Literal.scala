@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -43,17 +43,13 @@ case class SignedDecimalIntegerLiteral(stringVal: String)(val position: InputPos
 case class UnsignedDecimalIntegerLiteral(stringVal: String)(val position: InputPosition) extends DecimalIntegerLiteral(stringVal) with UnsignedIntegerLiteral
 
 sealed abstract class OctalIntegerLiteral(stringVal: String) extends IntegerLiteral {
-  lazy val value: java.lang.Long = java.lang.Long.parseLong(stringVal, 8)
+  lazy val value: java.lang.Long = java.lang.Long.decode(stringVal)
 }
 
 case class SignedOctalIntegerLiteral(stringVal: String)(val position: InputPosition) extends OctalIntegerLiteral(stringVal) with SignedIntegerLiteral
 
 sealed abstract class HexIntegerLiteral(stringVal: String) extends IntegerLiteral {
-  lazy val value: java.lang.Long =
-    if (stringVal.charAt(0) == '-')
-      -java.lang.Long.parseLong(stringVal.substring(3), 16)
-    else
-      java.lang.Long.parseLong(stringVal.substring(2), 16)
+  lazy val value: java.lang.Long = java.lang.Long.decode(stringVal)
 }
 
 case class SignedHexIntegerLiteral(stringVal: String)(val position: InputPosition) extends HexIntegerLiteral(stringVal) with SignedIntegerLiteral

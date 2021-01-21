@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -41,7 +41,9 @@ public class ExternalSettings implements LoadableConfig
     @Description( "Name of the Windows Service." )
     public static final Setting<String> windowsServiceName = dummySetting( "dbms.windows_service_name",
             "neo4j" );
-    @Description( "Additional JVM arguments." )
+    @Description( "Additional JVM arguments. Argument order can be significant. To use a Java commercial feature, the argument to unlock " +
+            "commercial features must precede the argument to enable the specific feature in the config value string. For example, " +
+            "to use Flight Recorder, `-XX:+UnlockCommercialFeatures` must come before `-XX:+FlightRecorder`." )
     public static final Setting<String> additionalJvm = dummySetting( "dbms.jvm.additional" );
 
     @Description( "Initial heap size. By default it is calculated based on available system resources." )

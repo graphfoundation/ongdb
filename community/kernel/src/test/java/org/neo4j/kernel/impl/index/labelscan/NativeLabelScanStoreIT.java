@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -40,6 +40,7 @@ import org.neo4j.storageengine.api.schema.LabelScanReader;
 import org.neo4j.test.rule.PageCacheRule;
 import org.neo4j.test.rule.RandomRule;
 import org.neo4j.test.rule.TestDirectory;
+import org.neo4j.test.rule.fs.DefaultFileSystemRule;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.rules.RuleChain.outerRule;
@@ -48,12 +49,13 @@ import static org.neo4j.kernel.api.labelscan.NodeLabelUpdate.labelChanges;
 
 public class NativeLabelScanStoreIT
 {
+    private final DefaultFileSystemRule fs = new DefaultFileSystemRule();
     private final TestDirectory directory = TestDirectory.testDirectory( getClass() );
     private final PageCacheRule pageCacheRule = new PageCacheRule();
     private final LifeRule life = new LifeRule( true );
     private final RandomRule random = new RandomRule();
     @Rule
-    public final RuleChain rules = outerRule( directory ).around( pageCacheRule ).around( life ).around( random );
+    public final RuleChain rules = outerRule( fs ).around( directory ).around( pageCacheRule ).around( life ).around( random );
     private NativeLabelScanStore store;
 
     private static final int NODE_COUNT = 10_000;
@@ -63,8 +65,8 @@ public class NativeLabelScanStoreIT
     public void before()
     {
         PageCache pageCache = pageCacheRule.getPageCache( new DefaultFileSystemAbstraction() );
-        store = life.add( new NativeLabelScanStore( pageCache, directory.absolutePath(), FullStoreChangeStream.EMPTY,
-                false, new Monitors(), RecoveryCleanupWorkCollector.IMMEDIATE,
+        store = life.add( new NativeLabelScanStore( pageCache, fs, directory.absolutePath(), FullStoreChangeStream.EMPTY,
+                false, new Monitors(), RecoveryCleanupWorkCollector.immediate(),
                 // a bit of random pageSize
                 Math.min( pageCache.pageSize(), 256 << random.nextInt( 5 ) ) ) );
     }

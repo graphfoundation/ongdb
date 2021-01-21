@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -24,7 +24,6 @@ import org.neo4j.cypher.internal.ir.v3_4.QueryGraph
 import org.neo4j.cypher.internal.planner.v3_4.spi.PlanningAttributes.{Cardinalities, Solveds}
 import org.neo4j.cypher.internal.v3_4.logical.plans.LogicalPlan
 
-// TODO: Return Iterator
 trait CandidateGenerator[T] extends ((T, QueryGraph, LogicalPlanningContext, Solveds, Cardinalities) => Seq[LogicalPlan])
 
 trait PlanTransformer[-T] extends ((LogicalPlan, T, LogicalPlanningContext, Solveds, Cardinalities) => LogicalPlan)

@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -20,6 +20,8 @@
 package org.neo4j.values.storable;
 
 import java.util.Arrays;
+
+import org.neo4j.hashing.HashFunction;
 
 public abstract class NonPrimitiveArray<T extends Comparable<? super T>> extends ArrayValue
 {
@@ -107,6 +109,17 @@ public abstract class NonPrimitiveArray<T extends Comparable<? super T>> extends
     public final int computeHash()
     {
         return Arrays.hashCode( value() );
+    }
+
+    @Override
+    public long updateHash( HashFunction hashFunction, long hash )
+    {
+        hash = hashFunction.update( hash, length() );
+        for ( T obj : value() )
+        {
+            hash = hashFunction.update( hash, obj.hashCode() );
+        }
+        return hash;
     }
 
     @Override

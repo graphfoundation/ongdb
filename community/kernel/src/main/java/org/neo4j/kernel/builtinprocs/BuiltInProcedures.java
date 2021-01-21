@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -44,6 +44,7 @@ import org.neo4j.helpers.collection.MapUtil;
 import org.neo4j.helpers.collection.PrefetchingResourceIterator;
 import org.neo4j.internal.kernel.api.CapableIndexReference;
 import org.neo4j.internal.kernel.api.IndexReference;
+import org.neo4j.internal.kernel.api.InternalIndexState;
 import org.neo4j.internal.kernel.api.NodeExplicitIndexCursor;
 import org.neo4j.internal.kernel.api.RelationshipExplicitIndexCursor;
 import org.neo4j.internal.kernel.api.SchemaRead;
@@ -68,6 +69,7 @@ import org.neo4j.procedure.Procedure;
 
 import static org.neo4j.helpers.collection.Iterators.asList;
 import static org.neo4j.procedure.Mode.READ;
+import static org.neo4j.procedure.Mode.SCHEMA;
 import static org.neo4j.procedure.Mode.WRITE;
 
 @SuppressWarnings( {"unused", "WeakerAccess"} )
@@ -138,12 +140,15 @@ public class BuiltInProcedures
 
                     String label = tokenRead.nodeLabelName( index.label() );
                     List<String> propertyNames = propertyNames( tokens, index );
-                    result.add( new IndexResult( "INDEX ON " +
-                                                 SchemaDescriptorFactory.forLabel( index.label(), index.properties() )
-                                                         .userDescription( tokens ), label,
-                            propertyNames,
-                            schemaRead.indexGetState( index ).toString(), type,
-                            indexProviderDescriptorMap( schemaRead.index( index.label(), index.properties() ) ) ) );
+                    InternalIndexState internalIndexState = schemaRead.indexGetState( index );
+                    String failureMessage = "";
+                    if ( internalIndexState == InternalIndexState.FAILED )
+                    {
+                        failureMessage = schemaRead.indexGetFailure( index );
+                    }
+                    String description = "INDEX ON " + SchemaDescriptorFactory.forLabel( index.label(), index.properties() ).userDescription( tokens );
+                    Map<String,String> provider = indexProviderDescriptorMap( schemaRead.index( index.label(), index.properties() ) );
+                    result.add( new IndexResult( description, label, propertyNames, internalIndexState.toString(), type, provider, failureMessage ) );
                 }
                 catch ( IndexNotFoundKernelException e )
                 {
@@ -199,6 +204,20 @@ public class BuiltInProcedures
         }
     }
 
+    @Procedure( name = "db.schema.nodeTypeProperties", mode = READ )
+    @Description( "Show the derived property schema of the nodes in tabular form." )
+    public Stream<NodePropertySchemaInfoResult> nodePropertySchema()
+    {
+        return new SchemaCalculator( tx ).calculateTabularResultStreamForNodes();
+    }
+
+    @Procedure( name = "db.schema.relTypeProperties", mode = READ )
+    @Description( "Show the derived property schema of the relationships in tabular form." )
+    public Stream<RelationshipPropertySchemaInfoResult> relationshipPropertySchema()
+    {
+        return new SchemaCalculator( tx ).calculateTabularResultStreamForRels();
+    }
+
     @Description( "Show the schema of the data." )
     @Procedure( name = "db.schema", mode = READ )
     public Stream<SchemaProcedure.GraphResult> metaGraph()
@@ -219,6 +238,35 @@ public class BuiltInProcedures
                 .map( constraint -> constraint.prettyPrint( tokens ) )
                 .sorted()
                 .map( ConstraintResult::new );
+    }
+
+    @Description( "Create a schema index with specified index provider (for example: CALL db.createIndex(\":Person(name)\", \"lucene+native-2.0\")) - " +
+            "YIELD index, providerName, status" )
+    @Procedure( name = "db.createIndex", mode = SCHEMA )
+    public Stream<SchemaIndexInfo> createIndex(
+            @Name( "index" ) String index,
+            @Name( "providerName" ) String providerName )
+            throws ProcedureException
+    {
+        try ( IndexProcedures indexProcedures = indexProcedures() )
+        {
+            return indexProcedures.createIndex( index, providerName );
+        }
+    }
+
+    @Description( "Create a unique property constraint with index backed by specified index provider " +
+            "(for example: CALL db.createUniquePropertyConstraint(\":Person(name)\", \"lucene+native-2.0\")) - " +
+            "YIELD index, providerName, status" )
+    @Procedure( name = "db.createUniquePropertyConstraint", mode = SCHEMA )
+    public Stream<BuiltInProcedures.SchemaIndexInfo> createUniquePropertyConstraint(
+            @Name( "index" ) String index,
+            @Name( "providerName" ) String providerName )
+            throws ProcedureException
+    {
+        try ( IndexProcedures indexProcedures = indexProcedures() )
+        {
+            return indexProcedures.createUniquePropertyConstraint( index, providerName );
+        }
     }
 
     @Description( "Get node from explicit index. Replaces `START n=node:nodes(key = 'A')`" )
@@ -814,9 +862,10 @@ public class BuiltInProcedures
         public final String state;
         public final String type;
         public final Map<String,String> provider;
+        public final String failureMessage;
 
-        private IndexResult( String description, String label, List<String> properties, String state, String type,
-                Map<String,String> provider )
+        public IndexResult( String description, String label, List<String> properties, String state, String type,
+                Map<String,String> provider, String failureMessage )
         {
             this.description = description;
             this.label = label;
@@ -824,6 +873,21 @@ public class BuiltInProcedures
             this.state = state;
             this.type = type;
             this.provider = provider;
+            this.failureMessage = failureMessage;
+        }
+    }
+
+    public static class SchemaIndexInfo
+    {
+        public final String index;
+        public final String providerName;
+        public final String status;
+
+        public SchemaIndexInfo( String index, String providerName, String status )
+        {
+            this.index = index;
+            this.providerName = providerName;
+            this.status = status;
         }
     }
 

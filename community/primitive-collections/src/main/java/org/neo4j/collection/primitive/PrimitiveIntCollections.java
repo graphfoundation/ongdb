@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -27,6 +27,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.function.IntConsumer;
 import java.util.function.IntFunction;
 import java.util.function.IntPredicate;
@@ -329,12 +330,12 @@ public class PrimitiveIntCollections
         return set;
     }
 
-    public static <T> PrimitiveIntObjectMap<T> copy( PrimitiveIntObjectMap<T> original )
+    public static <T> PrimitiveIntObjectMap<T> copyTransform( PrimitiveIntObjectMap<T> original, Function<T,T> transform )
     {
         PrimitiveIntObjectMap<T> copy = Primitive.intObjectMap( original.size() );
         original.visitEntries( ( key, value ) ->
         {
-            copy.put( key, value );
+            copy.put( key, transform.apply( value ) );
             return false;
         } );
         return copy;

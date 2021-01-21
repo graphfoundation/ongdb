@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -28,6 +28,8 @@ import java.util.regex.Pattern;
 import org.neo4j.logging.Log;
 import org.neo4j.logging.LogProvider;
 import org.neo4j.logging.NullLogProvider;
+
+import static org.neo4j.logging.internal.LogMessageUtil.slf4jToStringFormatPlaceholders;
 
 public class JettyLogBridge extends AbstractLogger
 {
@@ -67,7 +69,7 @@ public class JettyLogBridge extends AbstractLogger
     @Override
     public void warn( String msg, Object... args )
     {
-        log.warn( msg, args );
+        log.warn( slf4jToStringFormatPlaceholders( msg ), args );
     }
 
     @Override
@@ -85,19 +87,16 @@ public class JettyLogBridge extends AbstractLogger
     @Override
     public void info( String msg, Object... args )
     {
-//        log.info( msg, args );
     }
 
     @Override
     public void info( Throwable thrown )
     {
-//        log.info( "", thrown );
     }
 
     @Override
     public void info( String msg, Throwable thrown )
     {
-//        log.info( msg, thrown );
     }
 
     @Override
@@ -115,19 +114,16 @@ public class JettyLogBridge extends AbstractLogger
     @Override
     public void debug( String msg, Object... args )
     {
-//        log.debug( msg, args );
     }
 
     @Override
     public void debug( Throwable thrown )
     {
-//        log.debug( "", thrown );
     }
 
     @Override
     public void debug( String msg, Throwable thrown )
     {
-//        log.debug( msg, thrown );
     }
 
     @Override

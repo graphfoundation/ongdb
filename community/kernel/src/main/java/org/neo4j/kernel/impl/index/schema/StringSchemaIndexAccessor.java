@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -22,15 +22,14 @@ package org.neo4j.kernel.impl.index.schema;
 import java.io.File;
 import java.io.IOException;
 
+import org.neo4j.index.internal.gbptree.GBPTree;
 import org.neo4j.index.internal.gbptree.Layout;
 import org.neo4j.index.internal.gbptree.RecoveryCleanupWorkCollector;
-import org.neo4j.index.internal.gbptree.TreeNodeDynamicSize;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.kernel.api.index.IndexAccessor;
 import org.neo4j.kernel.api.index.IndexProvider;
 import org.neo4j.kernel.api.schema.index.SchemaIndexDescriptor;
-import org.neo4j.kernel.impl.api.IndexTextValueLengthValidator;
 import org.neo4j.kernel.impl.api.index.sampling.IndexSamplingConfig;
 import org.neo4j.kernel.impl.util.Validator;
 import org.neo4j.storageengine.api.schema.IndexReader;
@@ -41,7 +40,7 @@ import org.neo4j.values.storable.Value;
  */
 public class StringSchemaIndexAccessor extends NativeSchemaIndexAccessor<StringSchemaKey,NativeSchemaValue>
 {
-    private static final Validator<Value> VALIDATOR = new IndexTextValueLengthValidator( TreeNodeDynamicSize.MAX_KEY_SIZE );
+    private Validator<Value> validator;
 
     StringSchemaIndexAccessor(
             PageCache pageCache,
@@ -58,6 +57,12 @@ public class StringSchemaIndexAccessor extends NativeSchemaIndexAccessor<StringS
     }
 
     @Override
+    protected void afterTreeInstantiation( GBPTree<StringSchemaKey,NativeSchemaValue> tree )
+    {
+        validator = new NativeIndexKeyLengthValidator<>( tree.keyValueSizeCap(), layout );
+    }
+
+    @Override
     public IndexReader newReader()
     {
         assertOpen();
@@ -67,6 +72,6 @@ public class StringSchemaIndexAccessor extends NativeSchemaIndexAccessor<StringS
     @Override
     public void validateBeforeCommit( Value[] tuple )
     {
-        VALIDATOR.validate( tuple[0] );
+        validator.validate( tuple[0] );
     }
 }

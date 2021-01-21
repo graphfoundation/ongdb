@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -21,39 +21,49 @@ package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
 import java.util.function.BiConsumer
 
-import org.neo4j.cypher.internal.runtime.QueryContext
+import org.neo4j.cypher.internal.runtime.{LenientCreateRelationship, QueryContext}
 import org.neo4j.cypher.internal.runtime.interpreted._
 import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.Expression
 import org.neo4j.cypher.internal.util.v3_4.attribution.Id
 import org.neo4j.cypher.internal.util.v3_4.{CypherTypeException, InternalException, InvalidSemanticsException}
 import org.neo4j.values.AnyValue
 import org.neo4j.values.storable.Values
-import org.neo4j.values.virtual.{RelationshipValue, NodeValue}
+import org.neo4j.values.virtual.{NodeValue, RelationshipValue}
 
-abstract class BaseRelationshipPipe(src: Pipe, key: String, startNode: String, typ: LazyType, endNode: String,
-                                    properties: Option[Expression])
+abstract class BaseCreateRelationshipPipe(src: Pipe, key: String, startNode: String, typ: LazyType, endNode: String,
+                                          properties: Option[Expression])
   extends PipeWithSource(src) with GraphElementPropertyFunctions {
 
   protected def internalCreateResults(input: Iterator[ExecutionContext], state: QueryState): Iterator[ExecutionContext] =
     input.map(createRelationship(_, state))
 
   private def createRelationship(context: ExecutionContext, state: QueryState): ExecutionContext = {
-    val start = getNode(context, startNode)
-    val end = getNode(context, endNode)
-    val typeId = typ.typ(state.query)
-    val relationship = state.query.createRelationship(start.id(), end.id(), typeId)
-    relationship.`type`() // we do this to make sure the relationship is loaded from the store into this object
-    setProperties(context, state, relationship.id())
+    val start = getNode(context, startNode, state.lenientCreateRelationship)
+    val end = getNode(context, endNode, state.lenientCreateRelationship)
+    val relationship =
+      if (start == null || end == null)
+        Values.NO_VALUE // lenient create relationship NOOPs on missing node
+      else {
+        val typeId = typ.typ(state.query)
+        val relationship = state.query.createRelationship(start.id(), end.id(), typeId)
+        relationship.`type`() // we do this to make sure the relationship is loaded from the store into this object
+        setProperties(context, state, relationship.id())
+        relationship
+      }
     context += key -> relationship
   }
 
-  private def getNode(row: ExecutionContext, name: String): NodeValue =
+  private def getNode(row: ExecutionContext, name: String, lenient: Boolean): NodeValue =
     row.get(name) match {
       case Some(n: NodeValue) => n
-      case x => throw new InternalException(s"Expected to find a node at $name but found nothing $x")
+      case Some(Values.NO_VALUE) =>
+        if (lenient) null
+        else throw new InternalException(LenientCreateRelationship.errorMsg(key, name))
+      case Some(x) => throw new InternalException(s"Expected to find a node at '$name' but found instead: $x")
+      case None => throw new InternalException(s"Expected to find a node at '$name' but found instead: null")
     }
 
-  private def setProperties(context: ExecutionContext, state: QueryState, relId: Long) = {
+  private def setProperties(context: ExecutionContext, state: QueryState, relId: Long): Unit = {
     properties.foreach { expr =>
       expr(context, state) match {
         case _: NodeValue | _: RelationshipValue =>
@@ -68,7 +78,7 @@ abstract class BaseRelationshipPipe(src: Pipe, key: String, startNode: String, t
     }
   }
 
-  private def setProperty(relId: Long, key: String, value: AnyValue, qtx: QueryContext) {
+  private def setProperty(relId: Long, key: String, value: AnyValue, qtx: QueryContext): Unit = {
     //do not set properties for null values
     if (value == Values.NO_VALUE) {
       handleNull(key: String)
@@ -85,7 +95,7 @@ case class CreateRelationshipPipe(src: Pipe,
                                   key: String, startNode: String, typ: LazyType, endNode: String,
                                   properties: Option[Expression])
                                  (val id: Id = Id.INVALID_ID)
-  extends BaseRelationshipPipe(src, key, startNode, typ, endNode, properties) {
+  extends BaseCreateRelationshipPipe(src, key, startNode, typ, endNode, properties) {
   override protected def handleNull(key: String) {
     //do nothing
   }
@@ -94,7 +104,7 @@ case class CreateRelationshipPipe(src: Pipe,
 case class MergeCreateRelationshipPipe(src: Pipe, key: String, startNode: String, typ: LazyType, endNode: String,
                                        properties: Option[Expression])
                                       (val id: Id = Id.INVALID_ID)
-  extends BaseRelationshipPipe(src, key, startNode, typ, endNode, properties) {
+  extends BaseCreateRelationshipPipe(src, key, startNode, typ, endNode, properties) {
 
   override protected def handleNull(key: String) {
     //merge cannot use null properties, since in that case the match part will not find the result of the create

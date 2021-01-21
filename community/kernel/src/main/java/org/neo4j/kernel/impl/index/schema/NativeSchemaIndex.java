@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -34,8 +34,6 @@ import org.neo4j.kernel.api.index.IndexProvider;
 import org.neo4j.kernel.api.schema.index.SchemaIndexDescriptor;
 import org.neo4j.kernel.impl.index.GBPTreeFileUtil;
 
-import static org.neo4j.helpers.Format.duration;
-import static org.neo4j.helpers.collection.MapUtil.map;
 import static org.neo4j.index.internal.gbptree.GBPTree.NO_HEADER_READER;
 
 abstract class NativeSchemaIndex<KEY extends NativeSchemaKey<KEY>, VALUE extends NativeSchemaValue>
@@ -68,21 +66,16 @@ abstract class NativeSchemaIndex<KEY extends NativeSchemaKey<KEY>, VALUE extends
         ensureDirectoryExist();
         GBPTree.Monitor monitor = treeMonitor();
         tree = new GBPTree<>( pageCache, storeFile, layout, 0, monitor, NO_HEADER_READER, headerWriter, recoveryCleanupWorkCollector );
+        afterTreeInstantiation( tree );
+    }
+
+    protected void afterTreeInstantiation( GBPTree<KEY,VALUE> tree )
+    {   // no-op per default
     }
 
     private GBPTree.Monitor treeMonitor( )
     {
-        return new GBPTree.Monitor.Adaptor()
-        {
-            @Override
-            public void cleanupFinished( long numberOfPagesVisited, long numberOfCleanedCrashPointers, long durationMillis )
-            {
-                monitor.recoveryCompleted( descriptor, storeFile.getAbsolutePath(), map(
-                        "Number of pages visited", numberOfPagesVisited,
-                        "Number of cleaned crashed pointers", numberOfCleanedCrashPointers,
-                        "Time spent", duration( durationMillis ) ) );
-            }
-        };
+        return new NativeIndexTreeMonitor();
     }
 
     private void ensureDirectoryExist() throws IOException
@@ -111,6 +104,39 @@ abstract class NativeSchemaIndex<KEY extends NativeSchemaKey<KEY>, VALUE extends
         if ( tree == null )
         {
             throw new IllegalStateException( "Index has been closed" );
+        }
+    }
+
+    private class NativeIndexTreeMonitor extends GBPTree.Monitor.Adaptor
+    {
+        @Override
+        public void cleanupRegistered()
+        {
+            monitor.recoveryCleanupRegistered( storeFile, descriptor );
+        }
+
+        @Override
+        public void cleanupStarted()
+        {
+            monitor.recoveryCleanupStarted( storeFile, descriptor );
+        }
+
+        @Override
+        public void cleanupFinished( long numberOfPagesVisited, long numberOfCleanedCrashPointers, long durationMillis )
+        {
+            monitor.recoveryCleanupFinished( storeFile, descriptor, numberOfPagesVisited, numberOfCleanedCrashPointers, durationMillis );
+        }
+
+        @Override
+        public void cleanupClosed()
+        {
+            monitor.recoveryCleanupClosed( storeFile, descriptor );
+        }
+
+        @Override
+        public void cleanupFailed( Throwable throwable )
+        {
+            monitor.recoveryCleanupFailed( storeFile, descriptor, throwable );
         }
     }
 }

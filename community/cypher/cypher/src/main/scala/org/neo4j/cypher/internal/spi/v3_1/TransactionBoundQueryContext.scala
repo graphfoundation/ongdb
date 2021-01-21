@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -36,7 +36,7 @@ import org.neo4j.cypher.internal.compiler.v3_1.spi._
 import org.neo4j.cypher.internal.frontend.v3_1.SemanticDirection.{BOTH, INCOMING, OUTGOING}
 import org.neo4j.cypher.internal.frontend.v3_1.{Bound, EntityNotFoundException, FailedIndexException, SemanticDirection}
 import org.neo4j.cypher.internal.javacompat.GraphDatabaseCypherService
-import org.neo4j.cypher.internal.runtime.interpreted.{JavaConversionSupport, ResourceManager}
+import org.neo4j.cypher.internal.runtime.interpreted.ResourceManager
 import org.neo4j.cypher.internal.spi.v3_1.TransactionBoundQueryContext.IndexSearchMonitor
 import org.neo4j.cypher.internal.spi.{CursorIterator, PrimitiveCursorIterator}
 import org.neo4j.graphalgo.impl.path.ShortestPath
@@ -108,8 +108,10 @@ final class TransactionBoundQueryContext(txContext: TransactionalContextWrapper,
   override def createNode(): Node =
     entityAccessor.newNodeProxy(writes.nodeCreate())
 
-  override def createRelationship(start: Node, end: Node, relType: String) =
-    start.createRelationshipTo(end, withName(relType))
+  override def createRelationship(start: Node, end: Node, relType: String): Relationship = start match {
+    case null => throw new IllegalArgumentException("Expected to find a node, but found instead: null")
+    case _ => start.createRelationshipTo(end, withName(relType))
+  }
 
   override def createRelationship(start: Long, end: Long, relType: Int): Relationship = {
     val relId = writes.relationshipCreate(start, relType, end)

@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -18,8 +18,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 package org.neo4j.kernel.impl.transaction.command;
-
-import java.io.IOException;
 
 import org.neo4j.kernel.impl.api.TransactionApplier;
 import org.neo4j.kernel.impl.core.CacheAccessBackDoor;
@@ -60,12 +58,6 @@ public class NeoStoreTransactionApplier extends TransactionApplier.Adapter
         this.lockService = lockService;
         this.neoStores = neoStores;
         this.cacheAccess = cacheAccess;
-    }
-
-    @Override
-    public void close()
-    {
-        lockGroup.close();
     }
 
     @Override

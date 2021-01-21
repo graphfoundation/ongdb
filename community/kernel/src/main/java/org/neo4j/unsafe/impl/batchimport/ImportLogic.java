@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -51,6 +51,7 @@ import org.neo4j.unsafe.impl.batchimport.cache.NodeLabelsCache;
 import org.neo4j.unsafe.impl.batchimport.cache.NodeRelationshipCache;
 import org.neo4j.unsafe.impl.batchimport.cache.NodeType;
 import org.neo4j.unsafe.impl.batchimport.cache.NumberArrayFactory;
+import org.neo4j.unsafe.impl.batchimport.cache.PageCacheArrayFactoryMonitor;
 import org.neo4j.unsafe.impl.batchimport.cache.idmapping.IdMapper;
 import org.neo4j.unsafe.impl.batchimport.input.CachedInput;
 import org.neo4j.unsafe.impl.batchimport.input.Collector;
@@ -146,6 +147,7 @@ public class ImportLogic implements Closeable
     private final Dependencies dependencies = new Dependencies();
     private final Monitor monitor;
     private Input input;
+    private boolean successful;
 
     // This map contains additional state that gets populated, created and used throughout the stages.
     // The reason that this is a map is to allow for a uniform way of accessing and loading this stage
@@ -195,7 +197,8 @@ public class ImportLogic implements Closeable
         startTime = currentTimeMillis();
         inputCache = new InputCache( fileSystem, storeDir, recordFormats, toIntExact( mebiBytes( 1 ) ) );
         this.input = CachedInput.cacheAsNecessary( input, inputCache );
-        numberArrayFactory = auto( neoStore.getPageCache(), storeDir, config.allowCacheAllocationOnHeap() );
+        PageCacheArrayFactoryMonitor numberArrayFactoryMonitor = new PageCacheArrayFactoryMonitor();
+        numberArrayFactory = auto( neoStore.getPageCache(), storeDir, config.allowCacheAllocationOnHeap(), numberArrayFactoryMonitor );
         badCollector = input.badCollector();
         // Some temporary caches and indexes in the import
         idMapper = input.idMapper( numberArrayFactory );
@@ -208,7 +211,7 @@ public class ImportLogic implements Closeable
                 nodeRelationshipCache.memoryEstimation( inputEstimates.numberOfNodes() ),
                 idMapper.memoryEstimation( inputEstimates.numberOfNodes() ) );
 
-        dependencies.satisfyDependencies( inputEstimates, idMapper, neoStore, nodeRelationshipCache );
+        dependencies.satisfyDependencies( inputEstimates, idMapper, neoStore, nodeRelationshipCache, numberArrayFactoryMonitor );
 
         if ( neoStore.determineDoubleRelationshipRecordUnits( inputEstimates ) )
         {
@@ -505,6 +508,12 @@ public class ImportLogic implements Closeable
         }
     }
 
+    public void success()
+    {
+        neoStore.success();
+        successful = true;
+    }
+
     @Override
     public void close() throws IOException
     {
@@ -512,7 +521,7 @@ public class ImportLogic implements Closeable
         long totalTimeMillis = currentTimeMillis() - startTime;
         DataStatistics state = getState( DataStatistics.class );
         String additionalInformation = Objects.toString( state, "Data statistics is not available." );
-        executionMonitor.done( totalTimeMillis, format( "%n%s%nPeak memory usage: %s", additionalInformation, bytes( peakMemoryUsage ) ) );
+        executionMonitor.done( successful, totalTimeMillis, format( "%n%s%nPeak memory usage: %s", additionalInformation, bytes( peakMemoryUsage ) ) );
         log.info( "Import completed successfully, took " + duration( totalTimeMillis ) + ". " + additionalInformation );
         closeAll( nodeRelationshipCache, nodeLabelsCache, idMapper, inputCache );
     }

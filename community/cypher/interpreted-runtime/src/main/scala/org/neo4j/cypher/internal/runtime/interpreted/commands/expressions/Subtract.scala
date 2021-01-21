@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -45,4 +45,8 @@ case class Subtract(a: Expression, b: Expression) extends Arithmetics(a, b) {
   def rewrite(f: (Expression) => Expression) = f(Subtract(a.rewrite(f), b.rewrite(f)))
 
   def symbolTableDependencies = a.symbolTableDependencies ++ b.symbolTableDependencies
+
+  def throwTypeError(aType: String, bType: String): Nothing = {
+    throw new CypherTypeException("Cannot subtract `" + bType + "` from `" + aType + "`")
+  }
 }

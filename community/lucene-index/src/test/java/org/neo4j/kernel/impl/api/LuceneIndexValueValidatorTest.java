@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -42,7 +42,7 @@ public class LuceneIndexValueValidatorTest
     {
         int length = MAX_TERM_LENGTH + 1;
         expectedException.expect( IllegalArgumentException.class );
-        expectedException.expectMessage( containsString( "is longer than " + MAX_TERM_LENGTH ) );
+        expectedException.expectMessage( containsString( "Property value size is too large for index. Please see index documentation for limitations." ) );
         getValidator().validate( RandomUtils.nextBytes( length ) );
     }
 
@@ -51,7 +51,7 @@ public class LuceneIndexValueValidatorTest
     {
         int length = MAX_TERM_LENGTH * 2;
         expectedException.expect( IllegalArgumentException.class );
-        expectedException.expectMessage( containsString( length + " is longer than " + MAX_TERM_LENGTH ) );
+        expectedException.expectMessage( containsString( "Property value size is too large for index. Please see index documentation for limitations." ) );
         getValidator().validate( RandomStringUtils.randomAlphabetic( length ) );
     }
 

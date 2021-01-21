@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -27,43 +27,17 @@ import org.neo4j.unsafe.impl.batchimport.input.csv.Configuration;
  * Buffer size is set to 4MB
  */
 
-public class WrappedCsvInputConfigurationForNeo4jAdmin implements Configuration
+public class WrappedCsvInputConfigurationForNeo4jAdmin extends Configuration.Overridden
 {
-    private Configuration defaults;
-
     public WrappedCsvInputConfigurationForNeo4jAdmin( Configuration defaults )
     {
-        this.defaults = defaults;
-    }
-
-    @Override
-    public char delimiter()
-    {
-        return defaults.delimiter();
-    }
-
-    @Override
-    public char arrayDelimiter()
-    {
-        return defaults.arrayDelimiter();
-    }
-
-    @Override
-    public char quotationCharacter()
-    {
-        return defaults.quotationCharacter();
+        super( defaults );
     }
 
     @Override
     public int bufferSize()
     {
         return DEFAULT_BUFFER_SIZE_4MB;
-    }
-
-    @Override
-    public boolean multilineFields()
-    {
-        return defaults.multilineFields();
     }
 
     @Override

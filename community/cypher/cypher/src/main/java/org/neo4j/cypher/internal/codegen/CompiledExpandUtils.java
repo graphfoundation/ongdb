@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -132,17 +132,17 @@ public abstract class CompiledExpandUtils
             }
 
             return connectingRelationshipsIterator( CompiledCursorUtils
-                    .nodeGetRelationships( read, cursors, nodeCursor, startNode, relDirection ), endNode );
+                    .nodeGetRelationships( read, cursors, nodeCursor, startNode, relDirection, relTypes ), endNode );
         }
         else if ( fromNodeIsDense )
         {
             return connectingRelationshipsIterator( CompiledCursorUtils
-                    .nodeGetRelationships( read, cursors, nodeCursor, toNode, direction.reverse() ), fromNode );
+                    .nodeGetRelationships( read, cursors, nodeCursor, toNode, direction.reverse(), relTypes ), fromNode );
         }
         else
         {   //either only toNode is dense or none of them, just go with what we got
             return connectingRelationshipsIterator( CompiledCursorUtils
-                    .nodeGetRelationships( read, cursors, nodeCursor, fromNode, direction ), toNode );
+                    .nodeGetRelationships( read, cursors, nodeCursor, fromNode, direction, relTypes ), toNode );
         }
     }
 
@@ -276,6 +276,12 @@ public abstract class CompiledExpandUtils
             public long targetNodeReference()
             {
                 return allRelationships.targetNodeReference();
+            }
+
+            @Override
+            public long propertiesReference()
+            {
+                return allRelationships.propertiesReference();
             }
 
             @Override

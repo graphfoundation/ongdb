@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -119,5 +119,21 @@ public class ChunkDecoderTest
         assertEquals( 1, channel.inboundMessages().size() );
         // it should have no size header and empty body
         assertByteBufEquals( wrappedBuffer( new byte[0] ), channel.readInbound() );
+    }
+
+    @Test
+    public void shouldDecodeMaxSizeChunk()
+    {
+        byte[] message = new byte[0xFFFF];
+
+        ByteBuf input = buffer();
+        input.writeShort( message.length );
+        input.writeBytes( message );
+
+        assertTrue( channel.writeInbound( input ) );
+        assertTrue( channel.finish() );
+
+        assertEquals( 1, channel.inboundMessages().size() );
+        assertByteBufEquals( wrappedBuffer( message ), channel.readInbound() );
     }
 }

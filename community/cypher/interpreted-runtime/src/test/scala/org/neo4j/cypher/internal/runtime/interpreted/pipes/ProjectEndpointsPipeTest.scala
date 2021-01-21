@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -381,8 +381,8 @@ class ProjectEndpointsPipeTest extends CypherFunSuite {
 
     // then
     result should beEquivalentTo(List(
-      Map("r" -> rels, "a" -> node1, "b" -> node4),
-      Map("r" -> reversedRels, "a" -> node4, "b" -> node1)
+      Map("r" -> reversedRels, "a" -> node4, "b" -> node1),
+      Map("r" -> rels, "a" -> node1, "b" -> node4)
     ))
   }
 
@@ -425,12 +425,14 @@ class ProjectEndpointsPipeTest extends CypherFunSuite {
   private def newMockedNode(id: Int) = {
     val node = mock[Node]
     when(node.getId).thenReturn(id)
+    when(node.toString).thenReturn(s"MockNode($id)")
     node
   }
 
   private def newMockedRelationship(id: Int, startNode: Node, endNode: Node, relType: Option[String] = None): Relationship = {
     val relationship = mock[Relationship]
     when(relationship.getId).thenReturn(id)
+    when(relationship.toString).thenReturn(s"MockRelationship($id)")
     when(relationship.getStartNode).thenReturn(startNode)
     when(relationship.getEndNode).thenReturn(endNode)
     when(relationship.getOtherNode(startNode)).thenReturn(endNode)

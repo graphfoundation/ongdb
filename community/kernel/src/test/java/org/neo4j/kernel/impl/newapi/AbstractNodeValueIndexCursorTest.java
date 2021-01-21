@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -19,14 +19,22 @@
  */
 package org.neo4j.kernel.impl.newapi;
 
+import org.neo4j.gis.spatial.index.curves.SpaceFillingCurve;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.internal.kernel.api.NodeValueIndexCursorTestBase;
 import org.neo4j.internal.kernel.api.SchemaWrite;
 import org.neo4j.internal.kernel.api.TokenWrite;
 import org.neo4j.kernel.api.KernelTransaction;
 import org.neo4j.kernel.api.schema.SchemaDescriptorFactory;
+import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.impl.core.ThreadToStatementContextBridge;
+import org.neo4j.kernel.impl.index.schema.config.SpaceFillingCurveSettings;
+import org.neo4j.kernel.impl.index.schema.config.SpaceFillingCurveSettingsFactory;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
+import org.neo4j.values.storable.CoordinateReferenceSystem;
+import org.neo4j.values.storable.PointValue;
+
+import static org.junit.Assert.assertEquals;
 
 abstract class AbstractNodeValueIndexCursorTest extends NodeValueIndexCursorTestBase<ReadTestSupport>
 {
@@ -43,6 +51,15 @@ abstract class AbstractNodeValueIndexCursorTest extends NodeValueIndexCursorTest
         schemaWrite.indexCreate(
                 SchemaDescriptorFactory.forLabel( token.labelGetOrCreateForName( "Person" ),
                         token.propertyKeyGetOrCreateForName( "firstname" ),
-                        token.propertyKeyGetOrCreateForName( "surname" ) ) );
+                        token.propertyKeyGetOrCreateForName( "surname" ) ), null );
+    }
+
+    @Override
+    protected void assertSameDerivedValue( PointValue p1, PointValue p2 )
+    {
+        SpaceFillingCurveSettingsFactory settingsFactory = new SpaceFillingCurveSettingsFactory( Config.defaults() );
+        SpaceFillingCurveSettings spaceFillingCurveSettings = settingsFactory.settingsFor( CoordinateReferenceSystem.WGS84 );
+        SpaceFillingCurve curve = spaceFillingCurveSettings.curve();
+        assertEquals( curve.derivedValueFor( p1.coordinate() ), curve.derivedValueFor( p2.coordinate() ) );
     }
 }

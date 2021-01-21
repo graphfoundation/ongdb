@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -31,11 +31,14 @@ import static org.neo4j.helpers.Numbers.unsignedShortToInt;
 /**
  * Cache for keeping nodeId --> groupId mapping.
  */
-public interface GroupCache
+public interface GroupCache extends AutoCloseable
 {
     void set( long nodeId, int groupId );
 
     int get( long nodeId );
+
+    @Override
+    void close();
 
     GroupCache GLOBAL = new GroupCache()
     {
@@ -49,6 +52,11 @@ public interface GroupCache
         public int get( long nodeId )
         {
             return Group.GLOBAL.id();
+        }
+
+        @Override
+        public void close()
+        {
         }
     };
 
@@ -72,6 +80,12 @@ public interface GroupCache
         {
             return unsignedByteToInt( array.getByte( nodeId, 0 ) );
         }
+
+        @Override
+        public void close()
+        {
+            array.close();
+        }
     }
 
     class ShortGroupCache implements GroupCache
@@ -93,6 +107,12 @@ public interface GroupCache
         public int get( long nodeId )
         {
             return unsignedShortToInt( array.getShort( nodeId, 0 ) );
+        }
+
+        @Override
+        public void close()
+        {
+            array.close();
         }
     }
 

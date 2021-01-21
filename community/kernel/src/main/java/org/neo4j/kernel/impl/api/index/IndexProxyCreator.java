@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -164,7 +164,7 @@ class IndexProxyCreator
     private IndexPopulator populatorFromProvider( IndexProvider.Descriptor providerDescriptor, long ruleId,
                                                   SchemaIndexDescriptor descriptor, IndexSamplingConfig samplingConfig )
     {
-        IndexProvider indexProvider = providerMap.apply( providerDescriptor );
+        IndexProvider indexProvider = providerMap.lookup( providerDescriptor );
         return indexProvider.getPopulator( ruleId, descriptor, samplingConfig );
     }
 
@@ -172,13 +172,13 @@ class IndexProxyCreator
                                                       long ruleId, SchemaIndexDescriptor descriptor,
                                                       IndexSamplingConfig samplingConfig ) throws IOException
     {
-        IndexProvider indexProvider = providerMap.apply( providerDescriptor );
+        IndexProvider indexProvider = providerMap.lookup( providerDescriptor );
         return indexProvider.getOnlineAccessor( ruleId, descriptor, samplingConfig );
     }
 
     private IndexMeta indexMetaFromProvider( long ruleId, IndexProvider.Descriptor providerDescriptor, SchemaIndexDescriptor schemaIndexDescriptor )
     {
-        IndexCapability indexCapability = providerMap.apply( providerDescriptor ).getCapability( schemaIndexDescriptor );
+        IndexCapability indexCapability = providerMap.lookup( providerDescriptor ).getCapability( schemaIndexDescriptor );
         return new IndexMeta( ruleId, schemaIndexDescriptor, providerDescriptor, indexCapability );
     }
 }

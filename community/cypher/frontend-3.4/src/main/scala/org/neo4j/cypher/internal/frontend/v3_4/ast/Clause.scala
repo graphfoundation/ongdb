@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -247,6 +247,7 @@ case class Match(
             | Index hints are only supported for the following predicates in WHERE
             | (either directly or as part of a top-level AND or OR):
             | equality comparison, inequality (range) comparison, STARTS WITH,
+            | point distance,
             | IN condition or checking property existence.
             | The comparison cannot be performed between two property values.
             | Note that the label and property comparison must be specified on a
@@ -288,8 +289,12 @@ case class Match(
           acc =>
             val newAcc: Seq[String] = Seq(expr.lhs, expr.rhs).foldLeft(acc) { (acc, expr) =>
               expr match {
-                case Property(Variable(id), PropertyKeyName(name)) if id == variable => acc :+ name
-                case _ => acc
+                case Property(Variable(id), PropertyKeyName(name)) if id == variable =>
+                  acc :+ name
+                case FunctionInvocation(Namespace(List()), FunctionName("distance"), _, Seq(Property(Variable(id), PropertyKeyName(name)), _)) if id == variable =>
+                  acc :+ name
+                case _ =>
+                  acc
               }
             }
             (newAcc, None)

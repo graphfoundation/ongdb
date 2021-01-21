@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -44,6 +44,7 @@ import org.neo4j.kernel.impl.factory.OperationalMode;
 import org.neo4j.kernel.impl.index.IndexConfigStore;
 import org.neo4j.kernel.impl.locking.LockService;
 import org.neo4j.kernel.impl.locking.ReentrantLockService;
+import org.neo4j.kernel.impl.scheduler.CentralJobScheduler;
 import org.neo4j.kernel.impl.storageengine.impl.recordstorage.RecordStorageEngine;
 import org.neo4j.kernel.impl.storageengine.impl.recordstorage.id.BufferedIdController;
 import org.neo4j.kernel.impl.storageengine.impl.recordstorage.id.IdController;
@@ -51,9 +52,9 @@ import org.neo4j.kernel.impl.store.id.BufferingIdGeneratorFactory;
 import org.neo4j.kernel.impl.store.id.IdGeneratorFactory;
 import org.neo4j.kernel.impl.store.id.IdReuseEligibility;
 import org.neo4j.kernel.impl.store.id.configuration.CommunityIdTypeConfigurationProvider;
+import org.neo4j.kernel.impl.transaction.command.IndexActivator;
 import org.neo4j.kernel.impl.transaction.state.DefaultIndexProviderMap;
 import org.neo4j.kernel.impl.util.IdOrderingQueue;
-import org.neo4j.kernel.impl.scheduler.CentralJobScheduler;
 import org.neo4j.kernel.impl.util.SynchronizedArrayIdOrderingQueue;
 import org.neo4j.kernel.internal.DatabaseHealth;
 import org.neo4j.kernel.internal.KernelEventHandlers;
@@ -97,7 +98,7 @@ public class RecordStorageEngineRule extends ExternalResource
     private RecordStorageEngine get( FileSystemAbstraction fs, PageCache pageCache,
                                      IndexProvider indexProvider, DatabaseHealth databaseHealth, File storeDirectory,
                                      Function<BatchTransactionApplierFacade,BatchTransactionApplierFacade> transactionApplierTransformer,
-                                     Monitors monitors )
+                                     Monitors monitors, LockService lockService )
     {
         if ( !fs.fileExists( storeDirectory ) && !fs.mkdir( storeDirectory ) )
         {
@@ -116,11 +117,11 @@ public class RecordStorageEngineRule extends ExternalResource
         return life.add( new ExtendedRecordStorageEngine( storeDirectory, config, pageCache, fs,
                 NullLogProvider.getInstance(), mock( PropertyKeyTokenHolder.class ), mock( LabelTokenHolder.class ),
                 mock( RelationshipTypeTokenHolder.class ), mock( SchemaState.class ), new StandardConstraintSemantics(),
-                scheduler, mock( TokenNameLookup.class ), new ReentrantLockService(),
+                scheduler, mock( TokenNameLookup.class ), lockService,
                 indexProvider, IndexingService.NO_MONITOR, databaseHealth, explicitIndexProviderLookup, indexConfigStore,
                 new SynchronizedArrayIdOrderingQueue( 20 ), idGeneratorFactory,
                 new BufferedIdController( bufferingIdGeneratorFactory, scheduler ), transactionApplierTransformer, monitors,
-                RecoveryCleanupWorkCollector.IMMEDIATE, OperationalMode.single ) );
+                RecoveryCleanupWorkCollector.immediate(), OperationalMode.single ) );
     }
 
     @Override
@@ -142,6 +143,7 @@ public class RecordStorageEngineRule extends ExternalResource
                 applierFacade -> applierFacade;
         private IndexProvider indexProvider = IndexProvider.EMPTY;
         private Monitors monitors = new Monitors();
+        private LockService lockService = new ReentrantLockService();
 
         public Builder( FileSystemAbstraction fs, PageCache pageCache )
         {
@@ -180,12 +182,18 @@ public class RecordStorageEngineRule extends ExternalResource
             return this;
         }
 
+        public Builder lockService( LockService lockService )
+        {
+            this.lockService = lockService;
+            return this;
+        }
+
         // Add more here
 
         public RecordStorageEngine build()
         {
             return get( fs, pageCache, indexProvider, databaseHealth, storeDirectory,
-                    transactionApplierTransformer, monitors );
+                    transactionApplierTransformer, monitors, lockService );
         }
     }
 
@@ -215,9 +223,9 @@ public class RecordStorageEngineRule extends ExternalResource
         }
 
         @Override
-        protected BatchTransactionApplierFacade applier( TransactionApplicationMode mode )
+        protected BatchTransactionApplierFacade applier( TransactionApplicationMode mode, IndexActivator indexActivator )
         {
-            BatchTransactionApplierFacade recordEngineApplier = super.applier( mode );
+            BatchTransactionApplierFacade recordEngineApplier = super.applier( mode, indexActivator );
             return transactionApplierTransformer.apply( recordEngineApplier );
         }
     }

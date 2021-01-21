@@ -2,7 +2,7 @@
     <parent>
         <groupId>org.neo4j</groupId>
         <artifactId>procedure-compiler-parent</artifactId>
-        <version>3.4.0-SNAPSHOT</version>
+        <version>3.4.18-SNAPSHOT</version>
         <relativePath>..</relativePath>
     </parent>
 
@@ -11,6 +11,11 @@
     <packaging>jar</packaging>
 
     <name>Neo4j - Procedure Compiler Integration Tests</name>
+
+    <properties>
+        <license-text.header>headers/GPL-3-header.txt</license-text.header>
+    </properties>
+
 
     <dependencies>
         <dependency>

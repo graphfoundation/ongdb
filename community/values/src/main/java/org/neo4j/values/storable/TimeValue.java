@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -76,6 +76,12 @@ public final class TimeValue extends TemporalValue<OffsetTime,TimeValue>
     public static TimeValue time( long nanosOfDayUTC, ZoneOffset offset )
     {
         return new TimeValue( OffsetTime.ofInstant( assertValidArgument( () -> Instant.ofEpochSecond( 0, nanosOfDayUTC ) ), offset ) );
+    }
+
+    @Override
+    public String getTypeName()
+    {
+        return "Time";
     }
 
     public static TimeValue parse( CharSequence text, Supplier<ZoneId> defaultZone, CSVHeaderInformation fieldsFromHeader )
@@ -176,7 +182,8 @@ public final class TimeValue extends TemporalValue<OffsetTime,TimeValue>
 
     static OffsetTime defaultTime( ZoneId zoneId )
     {
-        return OffsetTime.of( Field.hour.defaultValue, Field.minute.defaultValue, Field.second.defaultValue, Field.nanosecond.defaultValue,
+        return OffsetTime.of( TemporalFields.hour.defaultValue, TemporalFields.minute.defaultValue,
+                TemporalFields.second.defaultValue, TemporalFields.nanosecond.defaultValue,
                 assertValidZone( () -> ZoneOffset.of( zoneId.toString() ) ) );
     }
 
@@ -193,12 +200,12 @@ public final class TimeValue extends TemporalValue<OffsetTime,TimeValue>
             @Override
             public TimeValue buildInternal()
             {
-                boolean selectingTime = fields.containsKey( Field.time );
+                boolean selectingTime = fields.containsKey( TemporalFields.time );
                 boolean selectingTimeZone;
                 OffsetTime result;
                 if ( selectingTime )
                 {
-                    AnyValue time = fields.get( Field.time );
+                    AnyValue time = fields.get( TemporalFields.time );
                     if ( !(time instanceof TemporalValue) )
                     {
                         throw new InvalidValuesArgumentException( String.format( "Cannot construct time from: %s", time ) );

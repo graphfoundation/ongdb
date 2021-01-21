@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -102,6 +102,7 @@ import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.startsWith;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
@@ -468,7 +469,7 @@ public class IndexingServiceTest
         }
         catch ( LifecycleException e )
         {   // THEN starting up should fail
-            assertThat( e.getCause().getMessage(), containsString( "existing index" ) );
+            assertThat( e.getCause().getMessage(), containsString( PROVIDER_DESCRIPTOR.name() ) );
             assertThat( e.getCause().getMessage(), containsString( otherProviderKey ) );
         }
     }
@@ -1097,6 +1098,25 @@ public class IndexingServiceTest
 
         // Then
         verify( accessor, times( 1 ) ).refresh();
+    }
+
+    @Test
+    public void shouldForgetDeferredIndexDropDuringRecoveryIfCreatedIndexWithSameRuleId() throws Exception
+    {
+        // given
+        IndexRule rule = IndexRule.indexRule( 0, index, PROVIDER_DESCRIPTOR );
+        IndexingService indexing = newIndexingServiceWithMockedDependencies( populator, accessor, withData(), rule );
+        life.init();
+
+        // when
+        indexing.dropIndex( rule );
+        indexing.createIndexes( rule );
+        life.start();
+
+        // then
+        IndexProxy proxy = indexing.getIndexProxy( rule.getId() );
+        assertNotNull( proxy );
+        verify( accessor, never() ).drop();
     }
 
     private IndexProxy createIndexProxyMock()

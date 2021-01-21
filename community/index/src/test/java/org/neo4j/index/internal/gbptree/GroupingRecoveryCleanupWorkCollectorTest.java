@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -25,160 +25,170 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
-import org.neo4j.helpers.Exceptions;
 import org.neo4j.scheduler.JobSchedulerAdapter;
 
+import static java.lang.String.format;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 public class GroupingRecoveryCleanupWorkCollectorTest
 {
-    private final ImmediateJobScheduler jobScheduler = new ImmediateJobScheduler();
-    private final GroupingRecoveryCleanupWorkCollector collector =
-            new GroupingRecoveryCleanupWorkCollector( jobScheduler );
+    private final SingleBackgroundThreadJobScheduler jobScheduler = new SingleBackgroundThreadJobScheduler();
+    private final GroupingRecoveryCleanupWorkCollector collector = new GroupingRecoveryCleanupWorkCollector( jobScheduler );
 
     @Test
-    public void mustNotScheduleAnyJobsBeforeStart()
+    public void shouldNotAcceptJobsBeforeInit()
     {
-        // given
-        List<CleanupJob> allRuns = new ArrayList<>();
-        List<CleanupJob> expectedJobs = someJobs( allRuns );
-
         // when
-        collector.init();
-        addAll( expectedJobs );
-
-        // then
-        assertTrue( allRuns.isEmpty() );
+        collector.add( new DummyJob( "A", new ArrayList<>() ) );
+        try
+        {
+            collector.init();
+            fail( "Should have failed" );
+        }
+        catch ( IllegalStateException e )
+        {
+            // then OK
+        }
     }
 
     @Test
-    public void mustScheduleAllJobs()
+    public void shouldNotAcceptJobsAfterStart()
     {
         // given
-        List<CleanupJob> allRuns = new ArrayList<>();
-        List<CleanupJob> expectedJobs = someJobs( allRuns );
-
-        // when
         collector.init();
-        addAll( expectedJobs );
         collector.start();
 
-        // then
-        assertSame( expectedJobs, allRuns );
+        // when
+        try
+        {
+            collector.add( new DummyJob( "A", new ArrayList<>() ) );
+            fail( "Should have failed" );
+        }
+        catch ( IllegalStateException e )
+        {
+            // then OK
+        }
     }
 
     @Test
-    public void mustNotScheduleOldJobsAfterRestart()
+    public void shouldRunAllJobsBeforeOrDuringShutdown() throws Exception
     {
         // given
-        List<CleanupJob> allRuns = new ArrayList<>();
-        List<CleanupJob> someJobs = someJobs( allRuns );
+        List<DummyJob> allRuns = new ArrayList<>();
+        List<DummyJob> expectedJobs = someJobs( allRuns );
+        collector.init();
+
+        // when
+        addAll( expectedJobs );
+        collector.start();
+        collector.shutdown();
+
+        // then
+        assertEquals( allRuns, expectedJobs );
+    }
+
+    @Test
+    public void mustThrowIfOldJobsDuringInit()
+    {
+        // given
+        List<DummyJob> allRuns = new ArrayList<>();
+        List<DummyJob> someJobs = someJobs( allRuns );
+
+        // when
+        addAll( someJobs );
+        try
+        {
+            collector.init();
+            fail( "Should have failed" );
+        }
+        catch ( IllegalStateException e )
+        {
+            // then
+            assertEquals( format( "Did not expect there to be any cleanup jobs still here. Jobs[A%n  B%n  C]" ), e.getMessage() );
+        }
+    }
+
+    @Test
+    public void mustCloseOldJobsOnShutdown() throws ExecutionException, InterruptedException
+    {
+        // given
+        List<DummyJob> allRuns = new ArrayList<>();
+        List<DummyJob> someJobs = someJobs( allRuns );
 
         // when
         collector.init();
         addAll( someJobs );
-        collector.init();
-        collector.start();
+        collector.shutdown();
 
         // then
-        assertTrue( allRuns.isEmpty() );
+        for ( DummyJob job : someJobs )
+        {
+            assertTrue( "Expected all jobs to be closed", job.isClosed() );
+        }
     }
 
     @Test
-    public void mustNotScheduleOldJobsOnMultipleStart()
+    public void mustNotScheduleOldJobsOnInitShutdownInit() throws Throwable
     {
         // given
-        List<CleanupJob> allRuns = new ArrayList<>();
-        List<CleanupJob> expectedJobs = someJobs( allRuns );
+        List<DummyJob> allRuns = new ArrayList<>();
+        List<DummyJob> expectedJobs = someJobs( allRuns );
 
         // when
         collector.init();
         addAll( expectedJobs );
         collector.start();
+        collector.shutdown();
+        collector.init();
         collector.start();
+        collector.shutdown();
 
         // then
         assertSame( expectedJobs, allRuns );
     }
 
     @Test
-    public void mustNotScheduleOldJobsOnStartStopStart() throws Throwable
+    public void shouldExecuteAllTheJobsWhenSeparateJobFails() throws Exception
     {
-        // given
-        List<CleanupJob> allRuns = new ArrayList<>();
-        List<CleanupJob> expectedJobs = someJobs( allRuns );
-
-        // when
-        collector.init();
-        addAll( expectedJobs );
-        collector.start();
-        collector.stop();
-        collector.start();
-
-        // then
-        assertSame( expectedJobs, allRuns );
-    }
-
-    @Test
-    public void executeAllTheJobsWhenSeparateJobFails()
-    {
-        List<CleanupJob> allRuns = new ArrayList<>();
-        collector.init();
+        List<DummyJob> allRuns = new ArrayList<>();
 
         DummyJob firstJob = new DummyJob( "first", allRuns );
         DummyJob thirdJob = new DummyJob( "third", allRuns );
         DummyJob fourthJob = new DummyJob( "fourth", allRuns );
-        List<CleanupJob> expectedJobs = Arrays.asList( firstJob, thirdJob, fourthJob );
+        List<DummyJob> expectedJobs = Arrays.asList( firstJob, thirdJob, fourthJob );
+        collector.init();
 
         collector.add( firstJob );
         collector.add( new EvilJob() );
         collector.add( thirdJob );
         collector.add( fourthJob );
 
-        try
-        {
-            collector.start();
-            fail( "One of the jobs throws exception." );
-        }
-        catch ( RuntimeException e )
-        {
-            assertTrue( Exceptions.contains( e, "Resilient to run attempts", RuntimeException.class ) );
-        }
+        collector.start();
+        collector.shutdown();
 
         assertSame( expectedJobs, allRuns );
     }
 
-    @Test
-    public void throwOnAddingJobsAfterStart()
-    {
-        collector.init();
-        collector.start();
-
-        try
-        {
-            collector.add( new DummyJob( "first", new ArrayList<>() ) );
-            fail( "Collector should not acccept new jobs after start." );
-        }
-        catch ( IllegalStateException ise )
-        {
-            // expected
-        }
-    }
-
-    private void addAll( Collection<CleanupJob> jobs )
+    private void addAll( Collection<DummyJob> jobs )
     {
         jobs.forEach( collector::add );
     }
 
-    private void assertSame( List<CleanupJob> someJobs, List<CleanupJob> actual )
+    private void assertSame( List<DummyJob> someJobs, List<DummyJob> actual )
     {
         assertTrue( actual.containsAll( someJobs ) );
         assertTrue( someJobs.containsAll( actual ) );
     }
 
-    private List<CleanupJob> someJobs( List<CleanupJob> allRuns )
+    private List<DummyJob> someJobs( List<DummyJob> allRuns )
     {
         return new ArrayList<>( Arrays.asList(
                 new DummyJob( "A", allRuns ),
@@ -187,19 +197,39 @@ public class GroupingRecoveryCleanupWorkCollectorTest
         ) );
     }
 
-    private class ImmediateJobScheduler extends JobSchedulerAdapter
+    private class SingleBackgroundThreadJobScheduler extends JobSchedulerAdapter
     {
+        private final ExecutorService executorService = Executors.newSingleThreadExecutor();
+
         @Override
         public JobHandle schedule( Group group, Runnable job )
         {
-            job.run();
-            return super.schedule( group, job );
+            Future<?> future = executorService.submit( job );
+            return new JobHandle()
+            {
+                @Override
+                public void cancel( boolean mayInterruptIfRunning )
+                {
+                    future.cancel( mayInterruptIfRunning );
+                }
+
+                @Override
+                public void waitTermination() throws InterruptedException, ExecutionException, CancellationException
+                {
+                    future.get();
+                }
+            };
+        }
+
+        @Override
+        public void shutdown()
+        {
+            executorService.shutdown();
         }
     }
 
     private class EvilJob implements CleanupJob
     {
-
         @Override
         public boolean needed()
         {
@@ -213,7 +243,7 @@ public class GroupingRecoveryCleanupWorkCollectorTest
         }
 
         @Override
-        public Exception getCause()
+        public Throwable getCause()
         {
             return null;
         }
@@ -225,7 +255,7 @@ public class GroupingRecoveryCleanupWorkCollectorTest
         }
 
         @Override
-        public void run()
+        public void run( ExecutorService executor )
         {
             throw new RuntimeException( "Resilient to run attempts" );
         }
@@ -234,9 +264,10 @@ public class GroupingRecoveryCleanupWorkCollectorTest
     private class DummyJob implements CleanupJob
     {
         private final String name;
-        private final List<CleanupJob> allRuns;
+        private final List<DummyJob> allRuns;
+        private boolean closed;
 
-        DummyJob( String name, List<CleanupJob> allRuns )
+        DummyJob( String name, List<DummyJob> allRuns )
         {
             this.name = name;
             this.allRuns = allRuns;
@@ -261,20 +292,26 @@ public class GroupingRecoveryCleanupWorkCollectorTest
         }
 
         @Override
-        public Exception getCause()
+        public Throwable getCause()
         {
             return null;
         }
 
         @Override
         public void close()
-        {   // no-op
+        {
+            closed = true;
         }
 
         @Override
-        public void run()
+        public void run( ExecutorService executor )
         {
             allRuns.add( this );
+        }
+
+        public boolean isClosed()
+        {
+            return closed;
         }
     }
 }

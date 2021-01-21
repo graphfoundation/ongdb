@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -19,13 +19,36 @@
  */
 package org.neo4j.bolt.v1.runtime;
 
+import org.neo4j.bolt.security.auth.AuthenticationException;
+
+import static java.util.Objects.requireNonNull;
+
 /**
  * Indicates that bolt connection has been fatally misused and therefore the server should close the connection.
  */
 public class BoltConnectionAuthFatality extends BoltConnectionFatality
 {
-    public BoltConnectionAuthFatality( String message )
+    private final boolean isLoggable;
+
+    public BoltConnectionAuthFatality( String message, Throwable cause )
     {
-        super( message );
+        this( message, cause, false );
+    }
+
+    public BoltConnectionAuthFatality( AuthenticationException cause )
+    {
+        this( cause.getMessage(), cause, true );
+    }
+
+    private BoltConnectionAuthFatality( String message, Throwable cause, boolean isLoggable )
+    {
+        super( message, cause );
+        requireNonNull( message );
+        this.isLoggable = isLoggable;
+    }
+
+    public boolean isLoggable()
+    {
+        return this.isLoggable;
     }
 }

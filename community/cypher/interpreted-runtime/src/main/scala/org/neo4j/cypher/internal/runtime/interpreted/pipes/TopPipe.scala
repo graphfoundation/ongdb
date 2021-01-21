@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -21,99 +21,49 @@ package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
 import java.util.Comparator
 
+import org.neo4j.cypher.internal.DefaultComparatorTopTable
 import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
 import org.neo4j.cypher.internal.runtime.interpreted.commands.expressions.Expression
+import org.neo4j.cypher.internal.util.v3_4.CypherExecutionException
 import org.neo4j.cypher.internal.util.v3_4.attribution.Id
-import org.neo4j.values.AnyValue
 import org.neo4j.values.storable.NumberValue
 
-import scala.math._
+import scala.collection.JavaConverters._
 
 /*
  * TopPipe is used when a query does a ORDER BY ... LIMIT query. Instead of ordering the whole result set and then
  * returning the matching top results, we only keep the top results in heap, which allows us to release memory earlier
  */
-abstract class TopPipe(source: Pipe, sortDescription: List[ColumnOrder])
-  extends PipeWithSource(source)  {
+abstract class TopPipe(source: Pipe, comparator: Comparator[ExecutionContext]) extends PipeWithSource(source)
 
-  val sortItems: Array[ColumnOrder] = sortDescription.toArray
-  private val sortItemsCount: Int = sortItems.length
-
-  type SortDataWithContext = (Array[AnyValue], ExecutionContext)
-
-  class LessThanComparator() extends Ordering[SortDataWithContext] {
-    override def compare(a: SortDataWithContext, b: SortDataWithContext): Int = {
-      val v1 = a._1
-      val v2 = b._1
-      var i = 0
-      while (i < sortItemsCount) {
-        val res = sortItems(i).compareValues(v1(i), v2(i))
-
-        if (res != 0)
-          return res
-        i += 1
-      }
-      0
-    }
-  }
-
-  def binarySearch(array: Array[SortDataWithContext], comparator: Comparator[SortDataWithContext])(key: SortDataWithContext) = {
-    java.util.Arrays.binarySearch(array.asInstanceOf[Array[SortDataWithContext]], key, comparator)
-  }
-
-  def arrayEntry(ctx: ExecutionContext, state: QueryState): SortDataWithContext =
-    (sortItems.map(column => ctx(column.id)), ctx)
-}
-
-case class TopNPipe(source: Pipe, sortDescription: List[ColumnOrder], countExpression: Expression)
-                   (val id: Id = Id.INVALID_ID) extends TopPipe(source, sortDescription) {
+case class TopNPipe(source: Pipe, countExpression: Expression, comparator: Comparator[ExecutionContext])
+                   (val id: Id = Id.INVALID_ID) extends TopPipe(source, comparator: Comparator[ExecutionContext]) {
 
   countExpression.registerOwningPipe(this)
 
   protected override def internalCreateResults(input:Iterator[ExecutionContext], state: QueryState): Iterator[ExecutionContext] = {
-    if (input.isEmpty)
-      Iterator.empty
-    else if (sortDescription.isEmpty)
-      input
+    if (input.isEmpty) Iterator.empty
     else {
-
       val first = input.next()
-      val count = countExpression(first, state).asInstanceOf[NumberValue].longValue().toInt
+      val longCount: Long = countExpression(first, state).asInstanceOf[NumberValue].longValue()
 
-      if (count <= 0) {
+      if (longCount <= 0) {
         Iterator.empty
+      } else if(longCount > Int.MaxValue) {
+        throw new CypherExecutionException(s"Top operator does not support limit $longCount > ${Int.MaxValue}", null)
       } else {
+        val count = longCount.toInt
+        val topTable = new DefaultComparatorTopTable(comparator, count)
+        topTable.add(first)
 
-        var result = new Array[SortDataWithContext](count)
-        result(0) = arrayEntry(first, state)
-        var last : Int = 0
-
-        while ( last < count - 1 && input.hasNext ) {
-          last += 1
-          result(last) = arrayEntry(input.next(), state)
+        input.foreach {
+          ctx =>
+            topTable.add(ctx)
         }
 
-        val lessThan = new LessThanComparator()
-        if (input.isEmpty) {
-          result.slice(0,last + 1).sorted(lessThan).iterator.map(_._2)
-        } else {
-          result = result.sorted(lessThan)
+        topTable.sort()
 
-          val search = binarySearch(result, lessThan) _
-          input.foreach {
-            ctx =>
-              val next = arrayEntry(ctx, state)
-              if (lessThan.compare(next, result(last)) < 0) {
-                val idx = search(next)
-                val insertPosition = if (idx < 0 )  - idx - 1 else idx + 1
-                if (insertPosition >= 0 && insertPosition < count) {
-                  Array.copy(result, insertPosition, result, insertPosition + 1, count - insertPosition - 1)
-                  result(insertPosition) = next
-                }
-              }
-          }
-          result.toIterator.map(_._2)
-        }
+        topTable.iterator.asScala
       }
     }
   }
@@ -123,31 +73,25 @@ case class TopNPipe(source: Pipe, sortDescription: List[ColumnOrder], countExpre
  * Special case for when we only have one element, in this case it is no idea to store
  * an array, instead just store a single value.
  */
-case class Top1Pipe(source: Pipe, sortDescription: List[ColumnOrder])
+case class Top1Pipe(source: Pipe, comparator: Comparator[ExecutionContext])
                    (val id: Id = Id.INVALID_ID)
-  extends TopPipe(source, sortDescription) {
+  extends TopPipe(source, comparator: Comparator[ExecutionContext]) {
 
   protected override def internalCreateResults(input: Iterator[ExecutionContext],
-                                      state: QueryState): Iterator[ExecutionContext] = {
-    if (input.isEmpty)
-      Iterator.empty
-    else if (sortDescription.isEmpty)
-      input
+                                               state: QueryState): Iterator[ExecutionContext] = {
+    if (input.isEmpty) Iterator.empty
     else {
 
-      val lessThan = new LessThanComparator()
-
       val first = input.next()
-      var result = arrayEntry(first, state)
+      var result = first
 
       input.foreach {
         ctx =>
-          val next = arrayEntry(ctx, state)
-          if (lessThan.compare(next, result) < 0) {
-            result = next
+          if (comparator.compare(ctx, result) < 0) {
+            result = ctx
           }
       }
-      Iterator.single(result._2)
+      Iterator.single(result)
     }
   }
 }
@@ -155,33 +99,30 @@ case class Top1Pipe(source: Pipe, sortDescription: List[ColumnOrder])
 /*
  * Special case for when we only want one element, and all others that have the same value (tied for first place)
  */
-case class Top1WithTiesPipe(source: Pipe, sortDescription: List[ColumnOrder])
+case class Top1WithTiesPipe(source: Pipe, comparator: Comparator[ExecutionContext])
                            (val id: Id = Id.INVALID_ID)
-  extends TopPipe(source, sortDescription) {
+  extends TopPipe(source, comparator: Comparator[ExecutionContext]) {
 
   protected override def internalCreateResults(input: Iterator[ExecutionContext],
                                                state: QueryState): Iterator[ExecutionContext] = {
     if (input.isEmpty)
       Iterator.empty
     else {
-      val lessThan = new LessThanComparator()
-
       val first = input.next()
-      var best = arrayEntry(first, state)
+      var best = first
       var matchingRows = init(best)
 
       input.foreach {
         ctx =>
-          val next = arrayEntry(ctx, state)
-          val comparison = lessThan.compare(next, best)
+          val comparison = comparator.compare(ctx, best)
           if (comparison < 0) { // Found a new best
-            best = next
+            best = ctx
             matchingRows.clear()
-            matchingRows += next._2
+            matchingRows += ctx
           }
 
-          if (comparison == 0) {  // Found a tie
-            matchingRows += next._2
+          if (comparison == 0) { // Found a tie
+            matchingRows += ctx
           }
       }
       matchingRows.result().iterator
@@ -189,9 +130,9 @@ case class Top1WithTiesPipe(source: Pipe, sortDescription: List[ColumnOrder])
   }
 
   @inline
-  private def init(first: SortDataWithContext) = {
+  private def init(first: ExecutionContext) = {
     val builder = Vector.newBuilder[ExecutionContext]
-    builder += first._2
+    builder += first
     builder
   }
 }

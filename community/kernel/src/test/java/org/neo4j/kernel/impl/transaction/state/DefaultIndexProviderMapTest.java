@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -22,13 +22,11 @@ package org.neo4j.kernel.impl.transaction.state;
 import org.junit.Test;
 
 import org.neo4j.kernel.api.index.IndexProvider;
-import org.neo4j.kernel.impl.api.index.IndexProviderMap;
 
+import static java.util.Collections.singletonList;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-
-import static java.util.Arrays.asList;
 
 public class DefaultIndexProviderMapTest
 {
@@ -45,7 +43,7 @@ public class DefaultIndexProviderMapTest
         // when
         try
         {
-            new DefaultIndexProviderMap( provider1, asList( provider2 ) );
+            new DefaultIndexProviderMap( provider1, singletonList( provider2 ) );
             fail( "Should have failed" );
         }
         catch ( IllegalArgumentException e )
@@ -62,10 +60,9 @@ public class DefaultIndexProviderMapTest
         when( provider.getProviderDescriptor() ).thenReturn( new IndexProvider.Descriptor( "provider", "1.2" ) );
 
         // when
-        IndexProviderMap map = new DefaultIndexProviderMap( provider );
         try
         {
-            new DefaultIndexProviderMap( provider ).apply( new IndexProvider.Descriptor( "provider2", "1.2" ) );
+            new DefaultIndexProviderMap( provider ).lookup( new IndexProvider.Descriptor( "provider2", "1.2" ) );
             fail( "Should have failed" );
         }
         catch ( IllegalArgumentException e )

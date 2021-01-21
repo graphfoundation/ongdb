@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -50,6 +50,7 @@ import org.neo4j.kernel.api.schema.index.SchemaIndexDescriptor;
 import org.neo4j.kernel.impl.api.integrationtest.KernelIntegrationTest;
 import org.neo4j.kernel.impl.api.state.ConstraintIndexCreator;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
+import org.neo4j.logging.AssertableLogProvider;
 
 import static java.util.Collections.emptySet;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -103,7 +104,7 @@ public class IndexIT extends KernelIntegrationTest
         long nodeId = write.nodeCreate();
         write.nodeAddLabel( nodeId, label2 );
 
-        schemaWriteInNewTransaction().indexCreate( descriptor );
+        schemaWriteInNewTransaction().indexCreate( descriptor, null );
         commit();
     }
 
@@ -114,7 +115,7 @@ public class IndexIT extends KernelIntegrationTest
         int label2 = tokenWrite.labelGetOrCreateForName( "Label2" );
 
         LabelSchemaDescriptor anotherLabelDescriptor = SchemaDescriptorFactory.forLabel( label2, propertyKeyId );
-        schemaWriteInNewTransaction().indexCreate( anotherLabelDescriptor );
+        schemaWriteInNewTransaction().indexCreate( anotherLabelDescriptor, null );
 
         Future<?> indexFuture = executorService.submit( createIndex( db, Label.label( LABEL ), PROPERTY_KEY ) );
         indexFuture.get();
@@ -128,7 +129,7 @@ public class IndexIT extends KernelIntegrationTest
         SchemaWrite schemaWriteOperations = schemaWriteInNewTransaction();
 
         // WHEN
-        IndexReference expectedRule = schemaWriteOperations.indexCreate( descriptor );
+        IndexReference expectedRule = schemaWriteOperations.indexCreate( descriptor, null );
         commit();
 
         // THEN
@@ -143,13 +144,13 @@ public class IndexIT extends KernelIntegrationTest
     {
         // GIVEN
         SchemaWrite schemaWriteOperations = schemaWriteInNewTransaction();
-        IndexReference existingRule = schemaWriteOperations.indexCreate( descriptor );
+        IndexReference existingRule = schemaWriteOperations.indexCreate( descriptor, null );
         commit();
 
         // WHEN
         Transaction transaction = newTransaction( AUTH_DISABLED );
         IndexReference addedRule = transaction.schemaWrite()
-                                                   .indexCreate( SchemaDescriptorFactory.forLabel( labelId, 10 ) );
+                                                   .indexCreate( SchemaDescriptorFactory.forLabel( labelId, 10 ), null );
         Set<IndexReference> indexRulesInTx = asSet( transaction.schemaRead().indexesGetForLabel( labelId ) );
         commit();
 
@@ -164,7 +165,7 @@ public class IndexIT extends KernelIntegrationTest
         SchemaWrite schemaWrite = schemaWriteInNewTransaction();
 
         // WHEN
-        schemaWrite.indexCreate( descriptor );
+        schemaWrite.indexCreate( descriptor, null );
         // don't mark as success
         rollback();
 
@@ -179,9 +180,10 @@ public class IndexIT extends KernelIntegrationTest
     {
         // given
         PropertyAccessor propertyAccessor = mock( PropertyAccessor.class );
-        ConstraintIndexCreator creator = new ConstraintIndexCreator( () -> kernel, indexingService, propertyAccessor );
+        AssertableLogProvider logProvider = new AssertableLogProvider();
+        ConstraintIndexCreator creator = new ConstraintIndexCreator( () -> kernel, indexingService, propertyAccessor, logProvider );
 
-        SchemaIndexDescriptor constraintIndex = creator.createConstraintIndex( descriptor );
+        SchemaIndexDescriptor constraintIndex = creator.createConstraintIndex( descriptor, null );
         // then
         Transaction transaction = newTransaction();
         assertEquals( emptySet(), asSet( transaction.schemaRead().constraintsGetForLabel( labelId ) ) );
@@ -205,7 +207,7 @@ public class IndexIT extends KernelIntegrationTest
         IndexReference index;
         {
             SchemaWrite statement = schemaWriteInNewTransaction();
-            index = statement.indexCreate( descriptor );
+            index = statement.indexCreate( descriptor, null );
             commit();
         }
         {
@@ -244,7 +246,7 @@ public class IndexIT extends KernelIntegrationTest
         try
         {
             SchemaWrite statement = schemaWriteInNewTransaction();
-            statement.indexCreate( descriptor );
+            statement.indexCreate( descriptor, null );
             commit();
 
             fail( "expected exception" );
@@ -305,7 +307,7 @@ public class IndexIT extends KernelIntegrationTest
     {
         // given
         SchemaWrite schemaWrite = schemaWriteInNewTransaction();
-        IndexReference index1 = schemaWrite.indexCreate( descriptor );
+        IndexReference index1 = schemaWrite.indexCreate( descriptor, null );
         IndexReference index2 = fromDescriptor(
                 ((IndexBackedConstraintDescriptor) schemaWrite.uniquePropertyConstraintCreate( descriptor2 )).ownedIndexDescriptor()) ;
         commit();

@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -66,6 +66,15 @@ public class RelationshipCountsProcessor implements RecordProcessor<Relationship
         this.wildcardCounts = cacheFactory.newLongArray( anyRelationshipType + 1, 0 );
     }
 
+    static long calculateMemoryUsage( int highLabelId, int highRelationshipTypeId )
+    {
+        int labels = highLabelId + 1;
+        int types = highRelationshipTypeId + 1;
+        long labelsCountsUsage = labels * types * SIDES * Long.BYTES;
+        long wildcardCountsUsage = types * Long.BYTES;
+        return labelsCountsUsage + wildcardCountsUsage;
+    }
+
     @Override
     public boolean process( RelationshipRecord record )
     {
@@ -122,6 +131,13 @@ public class RelationshipCountsProcessor implements RecordProcessor<Relationship
                 countsUpdater.incrementRelationshipCount( StatementConstants.ANY_LABEL, type, labelId, endCount );
             }
         }
+    }
+
+    @Override
+    public void close()
+    {
+        labelsCounts.close();
+        wildcardCounts.close();
     }
 
     public void addCountsFrom( RelationshipCountsProcessor from )

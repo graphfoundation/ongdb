@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -23,6 +23,7 @@ import java.util.Arrays;
 
 import org.neo4j.internal.kernel.api.CapableIndexReference;
 import org.neo4j.internal.kernel.api.IndexCapability;
+import org.neo4j.internal.kernel.api.IndexLimitation;
 import org.neo4j.internal.kernel.api.IndexOrder;
 import org.neo4j.internal.kernel.api.IndexReference;
 import org.neo4j.internal.kernel.api.IndexValueCapability;
@@ -77,6 +78,12 @@ public class DefaultCapableIndexReference implements CapableIndexReference
     public String providerVersion()
     {
         return providerDescriptor.getVersion();
+    }
+
+    @Override
+    public IndexLimitation[] limitations()
+    {
+        return capability.limitations();
     }
 
     @Override

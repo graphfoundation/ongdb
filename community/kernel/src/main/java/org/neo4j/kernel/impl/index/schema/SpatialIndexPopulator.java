@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -100,10 +100,12 @@ class SpatialIndexPopulator extends SpatialIndexCache<SpatialIndexPopulator.Part
     }
 
     @Override
-    public void verifyDeferredConstraints( PropertyAccessor propertyAccessor )
-            throws IndexEntryConflictException, IOException
+    public void verifyDeferredConstraints( PropertyAccessor propertyAccessor ) throws IndexEntryConflictException, IOException
     {
-        // No-op, uniqueness is checked for each update in add(IndexEntryUpdate)
+        for ( IndexPopulator part : this )
+        {
+            part.verifyDeferredConstraints( propertyAccessor );
+        }
     }
 
     @Override
@@ -157,9 +159,31 @@ class SpatialIndexPopulator extends SpatialIndexCache<SpatialIndexPopulator.Part
                 IndexProvider.Monitor monitor, SchemaIndexDescriptor descriptor, long indexId, IndexSamplingConfig samplingConfig,
                 SpaceFillingCurveConfiguration configuration )
         {
-            super( pageCache, fs, fileLayout.indexFile, fileLayout.layout, monitor, descriptor, indexId, samplingConfig );
+            super( pageCache, fs, fileLayout.getIndexFile(), fileLayout.layout, monitor, descriptor, indexId, samplingConfig );
             this.configuration = configuration;
             this.settings = fileLayout.settings;
+        }
+
+        @Override
+        public void verifyDeferredConstraints( PropertyAccessor nodePropertyAccessor ) throws IndexEntryConflictException
+        {
+            SpatialVerifyDeferredConstraint.verify( nodePropertyAccessor, layout, tree, descriptor );
+            super.verifyDeferredConstraints( nodePropertyAccessor );
+        }
+
+        @Override
+        boolean canCheckConflictsWithoutStoreAccess()
+        {
+            return false;
+        }
+
+        @Override
+        ConflictDetectingValueMerger<SpatialSchemaKey,NativeSchemaValue> getMainConflictDetector()
+        {
+            // Because of lossy point representation in index we need to always compare on node id,
+            // even for unique indexes. If we don't we risk throwing constraint violation exception
+            // for points that are in fact unique.
+            return new ConflictDetectingValueMerger<>( true );
         }
 
         @Override
@@ -209,7 +233,7 @@ class SpatialIndexPopulator extends SpatialIndexCache<SpatialIndexPopulator.Part
         @Override
         public PartPopulator newSpatial( CoordinateReferenceSystem crs ) throws IOException
         {
-            return create( spatialIndexFiles.forCrs(crs) );
+            return create( spatialIndexFiles.forCrs( crs ).getLayoutForNewIndex() );
         }
 
         private PartPopulator create( SpatialIndexFiles.SpatialFileLayout fileLayout ) throws IOException

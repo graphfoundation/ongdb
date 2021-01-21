@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -34,9 +34,9 @@ import org.neo4j.bolt.v1.runtime.spi.BoltResult;
 import org.neo4j.function.ThrowingConsumer;
 import org.neo4j.graphdb.security.AuthorizationExpiredException;
 import org.neo4j.internal.kernel.api.exceptions.KernelException;
+import org.neo4j.internal.kernel.api.exceptions.TransactionFailureException;
 import org.neo4j.kernel.api.bolt.ManagedBoltStateMachine;
 import org.neo4j.kernel.api.exceptions.Status;
-import org.neo4j.internal.kernel.api.exceptions.TransactionFailureException;
 import org.neo4j.kernel.impl.logging.LogService;
 import org.neo4j.logging.Log;
 import org.neo4j.values.AnyValue;
@@ -110,13 +110,18 @@ public class BoltStateMachine implements AutoCloseable, ManagedBoltStateMachine
         {
             try
             {
-                if ( hasPendingError() )
+                Neo4jError pendingError = ctx.pendingError;
+                if ( pendingError != null )
                 {
-                    Neo4jError pendingError = ctx.pendingError;
-                    ctx.pendingError = null;
                     ctx.markFailed( pendingError );
                 }
 
+                if ( ctx.pendingIgnore )
+                {
+                    ctx.markIgnored();
+                }
+
+                ctx.resetPendingFailedAndIgnored();
                 ctx.responseHandler.onFinish();
             }
             finally
@@ -135,7 +140,7 @@ public class BoltStateMachine implements AutoCloseable, ManagedBoltStateMachine
         before( handler );
         try
         {
-            if ( !hasPendingError() )
+            if ( ctx.canProcessMessage() )
             {
                 state = state.init( this, userAgent, authToken );
             }
@@ -162,10 +167,8 @@ public class BoltStateMachine implements AutoCloseable, ManagedBoltStateMachine
         before( handler );
         try
         {
-            if ( !hasPendingError() )
-            {
-                state = state.ackFailure( this );
-            }
+            // it should always be fine to ACK_FAILURE thus no canProcessMessage check
+            state = state.ackFailure( this );
         }
         finally
         {
@@ -192,10 +195,8 @@ public class BoltStateMachine implements AutoCloseable, ManagedBoltStateMachine
         before( handler );
         try
         {
-            if ( !hasPendingError() )
-            {
-                state = state.reset( this );
-            }
+            // it should always be fine to RESET thus no canProcessMessage check
+            state = state.reset( this );
         }
         finally
         {
@@ -217,7 +218,7 @@ public class BoltStateMachine implements AutoCloseable, ManagedBoltStateMachine
         before( handler );
         try
         {
-            if ( !hasPendingError() )
+            if ( ctx.canProcessMessage() )
             {
                 state = state.run( this, statement, params );
                 handler.onMetadata( "result_available_after", Values.longValue( clock.millis() - start ) );
@@ -239,7 +240,7 @@ public class BoltStateMachine implements AutoCloseable, ManagedBoltStateMachine
         before( handler );
         try
         {
-            if ( !hasPendingError() )
+            if ( ctx.canProcessMessage() )
             {
                 state = state.discardAll( this );
             }
@@ -259,7 +260,7 @@ public class BoltStateMachine implements AutoCloseable, ManagedBoltStateMachine
         before( handler );
         try
         {
-            if ( !hasPendingError() )
+            if ( ctx.canProcessMessage() )
             {
                 state = state.pullAll( this );
             }
@@ -274,11 +275,6 @@ public class BoltStateMachine implements AutoCloseable, ManagedBoltStateMachine
     {
         fail( this, error );
         state = State.FAILED;
-    }
-
-    private boolean hasPendingError()
-    {
-        return ctx.pendingError != null;
     }
 
     /** A session id that is unique for this database instance */
@@ -321,8 +317,11 @@ public class BoltStateMachine implements AutoCloseable, ManagedBoltStateMachine
         before( handler );
         try
         {
-            fail( this, error );
-            this.state = State.FAILED;
+            if ( ctx.canProcessMessage() )
+            {
+                fail( this, error );
+                this.state = State.FAILED;
+            }
         }
         finally
         {
@@ -564,6 +563,7 @@ public class BoltStateMachine implements AutoCloseable, ManagedBoltStateMachine
                     @Override
                     public State ackFailure( BoltStateMachine machine )
                     {
+                        machine.ctx.resetPendingFailedAndIgnored();
                         return READY;
                     }
 
@@ -701,6 +701,7 @@ public class BoltStateMachine implements AutoCloseable, ManagedBoltStateMachine
         {
             try
             {
+                machine.ctx.resetPendingFailedAndIgnored();
                 machine.ctx.statementProcessor.reset();
                 return READY;
             }
@@ -734,10 +735,14 @@ public class BoltStateMachine implements AutoCloseable, ManagedBoltStateMachine
         {
             if ( ExceptionUtils.indexOfType( t, AuthorizationExpiredException.class ) != -1 )
             {
-                throw new BoltConnectionAuthFatality( t.getMessage() );
+                throw new BoltConnectionAuthFatality( "Failed to process a bolt message", t );
+            }
+            if ( t instanceof AuthenticationException )
+            {
+                throw new BoltConnectionAuthFatality( (AuthenticationException) t );
             }
 
-            throw new BoltConnectionFatality( t.getMessage() );
+            throw new BoltConnectionFatality( "Failed to process a bolt message", t );
         }
 
         return State.FAILED;
@@ -746,7 +751,14 @@ public class BoltStateMachine implements AutoCloseable, ManagedBoltStateMachine
     private static void fail( BoltStateMachine machine, Neo4jError neo4jError )
     {
         machine.spi.reportError( neo4jError );
-        machine.ctx.markFailed( neo4jError );
+        if ( machine.state == State.FAILED )
+        {
+            machine.ctx.markIgnored();
+        }
+        else
+        {
+            machine.ctx.markFailed( neo4jError );
+        }
     }
 
     private void reset()
@@ -773,6 +785,8 @@ public class BoltStateMachine implements AutoCloseable, ManagedBoltStateMachine
         BoltResponseHandler responseHandler;
 
         Neo4jError pendingError;
+
+        boolean pendingIgnore;
 
         /**
          * This is incremented each time {@link #interrupt()} is called,
@@ -843,6 +857,10 @@ public class BoltStateMachine implements AutoCloseable, ManagedBoltStateMachine
             {
                 responseHandler.markIgnored();
             }
+            else
+            {
+                pendingIgnore = true;
+            }
         }
 
         @Override
@@ -865,6 +883,17 @@ public class BoltStateMachine implements AutoCloseable, ManagedBoltStateMachine
             {
                 responseHandler.onFinish();
             }
+        }
+
+        private boolean canProcessMessage()
+        {
+            return !closed && pendingError == null && !pendingIgnore;
+        }
+
+        private void resetPendingFailedAndIgnored()
+        {
+            pendingError = null;
+            pendingIgnore = false;
         }
 
     }

@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -119,10 +119,14 @@ object simplifyPredicates extends Rewriter {
 
   private val step: Rewriter = Rewriter.lift {
     case Not(Not(exp))                    => exp
-    case p@Ands(exps) if exps.size == 1   => exps.head
-    case p@Ors(exps) if exps.size == 1    => exps.head
-    case p@Ands(exps) if exps.contains(T) => Ands(exps.filterNot(T == _))(p.position)
-    case p@Ors(exps) if exps.contains(F)  => Ors(exps.filterNot(F == _))(p.position)
+    case p@Ands(exps) if exps.isEmpty     => True()(p.position)
+    case p@Ors(exps) if exps.isEmpty      => True()(p.position)
+    case p@Ands(exps) if exps.contains(T) =>
+      val expressions = exps.filterNot(T == _)
+      if (expressions.isEmpty) True()(p.position) else Ands(expressions)(p.position)
+    case p@Ors(exps) if exps.contains(F)  =>
+      val expressions = exps.filterNot(F == _)
+      if (expressions.isEmpty) False()(p.position) else Ors(expressions)(p.position)
     case p@Ors(exps) if exps.contains(T)  => True()(p.position)
     case p@Ands(exps) if exps.contains(F) => False()(p.position)
   }

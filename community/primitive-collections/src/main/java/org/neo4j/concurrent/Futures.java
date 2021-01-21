@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -22,6 +22,7 @@ package org.neo4j.concurrent;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -117,5 +118,12 @@ public class Futures
                 return result;
             }
         };
+    }
+
+    public static <T> CompletableFuture<T> failedFuture( Throwable ex )
+    {
+        CompletableFuture<T> future = new CompletableFuture<>();
+        future.completeExceptionally( ex );
+        return future;
     }
 }

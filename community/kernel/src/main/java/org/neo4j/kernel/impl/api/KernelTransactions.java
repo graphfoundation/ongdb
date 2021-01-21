@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -40,6 +40,7 @@ import org.neo4j.kernel.api.KernelTransactionHandle;
 import org.neo4j.kernel.api.exceptions.Status;
 import org.neo4j.kernel.api.explicitindex.AutoIndexing;
 import org.neo4j.kernel.api.txstate.ExplicitIndexTransactionState;
+import org.neo4j.kernel.impl.api.index.IndexProviderMap;
 import org.neo4j.kernel.impl.api.index.IndexingService;
 import org.neo4j.kernel.impl.api.state.ConstraintIndexCreator;
 import org.neo4j.kernel.impl.api.state.ExplicitIndexTransactionStateImpl;
@@ -102,6 +103,7 @@ public class KernelTransactions extends LifecycleAdapter implements Supplier<Ker
     private final AutoIndexing autoIndexing;
     private final ExplicitIndexStore explicitIndexStore;
     private final IndexingService indexingService;
+    private final IndexProviderMap indexProviderMap;
     private final CollectionsFactorySupplier collectionsFactorySupplier;
     private final SchemaState schemaState;
 
@@ -150,7 +152,8 @@ public class KernelTransactions extends LifecycleAdapter implements Supplier<Ker
             CollectionsFactorySupplier collectionsFactorySupplier,
             ConstraintSemantics constraintSemantics,
             SchemaState schemaState,
-            IndexingService indexingService )
+            IndexingService indexingService,
+            IndexProviderMap indexProviderMap )
     {
         this.statementLocksFactory = statementLocksFactory;
         this.constraintIndexCreator = constraintIndexCreator;
@@ -171,6 +174,7 @@ public class KernelTransactions extends LifecycleAdapter implements Supplier<Ker
         this.autoIndexing = autoIndexing;
         this.explicitIndexStore = explicitIndexStore;
         this.indexingService = indexingService;
+        this.indexProviderMap = indexProviderMap;
         this.explicitIndexTxStateSupplier = () ->
                 new CachingExplicitIndexTransactionState(
                         new ExplicitIndexTransactionStateImpl( indexConfigStore, explicitIndexProviderLookup ) );
@@ -374,7 +378,8 @@ public class KernelTransactions extends LifecycleAdapter implements Supplier<Ker
                             tracers.pageCursorTracerSupplier, storageEngine, accessCapability,
                             cursorsSupplier.get(), autoIndexing,
                             explicitIndexStore, versionContextSupplier, collectionsFactorySupplier, constraintSemantics,
-                            schemaState, indexingService );
+                            schemaState, indexingService,
+                            indexProviderMap );
             this.transactions.add( tx );
             return tx;
         }

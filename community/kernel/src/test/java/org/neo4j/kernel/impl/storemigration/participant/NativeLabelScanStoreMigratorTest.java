@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -201,8 +201,8 @@ public class NativeLabelScanStoreMigratorTest
 
     private NativeLabelScanStore getNativeLabelScanStore( File dir, boolean readOnly )
     {
-        return new NativeLabelScanStore( pageCache, dir, FullStoreChangeStream.EMPTY, readOnly, new Monitors(),
-                RecoveryCleanupWorkCollector.IGNORE );
+        return new NativeLabelScanStore( pageCache, fileSystem, dir, FullStoreChangeStream.EMPTY, readOnly, new Monitors(),
+                RecoveryCleanupWorkCollector.ignore() );
     }
 
     private void initializeNativeLabelScanStoreWithContent( File dir ) throws IOException

@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -43,15 +43,13 @@ public class IndexPopulationJob implements Runnable
     private final IndexingService.Monitor monitor;
     private final MultipleIndexPopulator multiPopulator;
     private final CountDownLatch doneSignal = new CountDownLatch( 1 );
-    private final SchemaState schemaState;
 
     private volatile StoreScan<IndexPopulationFailedKernelException> storeScan;
     private volatile boolean cancelled;
 
-    public IndexPopulationJob( MultipleIndexPopulator multiPopulator, IndexingService.Monitor monitor, SchemaState schemaState )
+    public IndexPopulationJob( MultipleIndexPopulator multiPopulator, IndexingService.Monitor monitor )
     {
         this.multiPopulator = multiPopulator;
-        this.schemaState = schemaState;
         this.monitor = monitor;
     }
 
@@ -113,8 +111,6 @@ public class IndexPopulationJob implements Runnable
                     return;
                 }
                 multiPopulator.flipAfterPopulation();
-
-                schemaState.clear();
             }
             catch ( Throwable t )
             {

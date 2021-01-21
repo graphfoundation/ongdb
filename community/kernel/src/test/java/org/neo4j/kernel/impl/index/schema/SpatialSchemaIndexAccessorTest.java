@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -25,33 +25,30 @@ import java.io.IOException;
 import org.neo4j.gis.spatial.index.curves.StandardConfiguration;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.impl.api.index.sampling.IndexSamplingConfig;
-import org.neo4j.kernel.impl.index.schema.config.SpaceFillingCurveSettings;
 import org.neo4j.kernel.impl.index.schema.config.SpaceFillingCurveSettingsFactory;
 import org.neo4j.values.storable.CoordinateReferenceSystem;
 
-import static org.neo4j.index.internal.gbptree.RecoveryCleanupWorkCollector.IMMEDIATE;
+import static org.neo4j.index.internal.gbptree.RecoveryCleanupWorkCollector.immediate;
 
 abstract class SpatialSchemaIndexAccessorTest extends NativeSchemaIndexAccessorTest<SpatialSchemaKey,NativeSchemaValue>
 {
     static final CoordinateReferenceSystem crs = CoordinateReferenceSystem.WGS84;
-    static final SpaceFillingCurveSettings settings = new SpaceFillingCurveSettingsFactory( Config.defaults() ).settingsFor( crs );
+    static final SpaceFillingCurveSettingsFactory settings = new SpaceFillingCurveSettingsFactory( Config.defaults() );
 
-    SpatialIndexFiles.SpatialFileLayout fileLayout;
+    SpatialIndexFiles.SpatialFile spatialFile;
 
     @Override
     NativeSchemaIndexAccessor<SpatialSchemaKey,NativeSchemaValue> makeAccessorWithSamplingConfig( IndexSamplingConfig samplingConfig ) throws IOException
     {
-        fileLayout = new SpatialIndexFiles.SpatialFileLayout( CoordinateReferenceSystem.WGS84, settings, super.getIndexFile() );
-        SpatialIndexFiles.SpatialFileLayout fileLayout =
-                new SpatialIndexFiles.SpatialFileLayout( CoordinateReferenceSystem.WGS84, settings, super.getIndexFile() );
-        return new SpatialIndexAccessor.PartAccessor( pageCache, fs, fileLayout, IMMEDIATE, monitor, schemaIndexDescriptor, indexId, samplingConfig,
-                new StandardConfiguration() );
+        spatialFile = new SpatialIndexFiles.SpatialFile( CoordinateReferenceSystem.WGS84, settings, super.getIndexFile() );
+        return new SpatialIndexAccessor.PartAccessor( pageCache, fs, spatialFile.getLayoutForNewIndex(), immediate(), monitor, schemaIndexDescriptor, indexId,
+                samplingConfig, new StandardConfiguration() );
     }
 
     @Override
     public File getIndexFile()
     {
-        return fileLayout.indexFile;
+        return spatialFile.indexFile;
     }
 
     @Override

@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -61,7 +61,7 @@ public class CountsComputer implements DataInitializer<CountsAccessor.Updater>
                 stores.getNodeStore(), stores.getRelationshipStore(),
                 (int) stores.getLabelTokenStore().getHighId(),
                 (int) stores.getRelationshipTypeTokenStore().getHighId(),
-                NumberArrayFactory.auto( pageCache, stores.getStoreDir(), true ) );
+                NumberArrayFactory.auto( pageCache, stores.getStoreDir(), true, NumberArrayFactory.NO_MONITOR ) );
     }
 
     public CountsComputer( long lastCommittedTransactionId, NodeStore nodes, RelationshipStore relationships,

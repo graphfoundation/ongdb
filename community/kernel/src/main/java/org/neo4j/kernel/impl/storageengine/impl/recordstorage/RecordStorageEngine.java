@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -86,6 +86,7 @@ import org.neo4j.kernel.impl.store.id.IdGeneratorFactory;
 import org.neo4j.kernel.impl.store.record.AbstractBaseRecord;
 import org.neo4j.kernel.impl.transaction.command.CacheInvalidationBatchTransactionApplier;
 import org.neo4j.kernel.impl.transaction.command.HighIdBatchTransactionApplier;
+import org.neo4j.kernel.impl.transaction.command.IndexActivator;
 import org.neo4j.kernel.impl.transaction.command.IndexBatchTransactionApplier;
 import org.neo4j.kernel.impl.transaction.command.IndexUpdatesWork;
 import org.neo4j.kernel.impl.transaction.command.LabelUpdateWork;
@@ -208,7 +209,7 @@ public class RecordStorageEngine implements StorageEngine, Lifecycle
             NeoStoreIndexStoreView neoStoreIndexStoreView = new NeoStoreIndexStoreView( lockService, neoStores );
             Boolean readOnly = config.get( GraphDatabaseSettings.read_only ) && operationalMode == OperationalMode.single;
             monitors.addMonitorListener( new LoggingMonitor( logProvider.getLog( NativeLabelScanStore.class ) ) );
-            labelScanStore = new NativeLabelScanStore( pageCache, storeDir, new FullLabelStream( neoStoreIndexStoreView ),
+            labelScanStore = new NativeLabelScanStore( pageCache, fs, storeDir, new FullLabelStream( neoStoreIndexStoreView ),
                     readOnly, monitors, recoveryCleanupWorkCollector );
 
             indexStoreView = new DynamicIndexStoreView( neoStoreIndexStoreView, labelScanStore, lockService, neoStores, logProvider );
@@ -318,18 +319,17 @@ public class RecordStorageEngine implements StorageEngine, Lifecycle
     {
         // Have these command appliers as separate try-with-resource to have better control over
         // point between closing this and the locks above
-        try ( BatchTransactionApplier batchApplier = applier( mode ) )
+        try ( IndexActivator indexActivator = new IndexActivator( indexingService );
+              LockGroup locks = new LockGroup();
+              BatchTransactionApplier batchApplier = applier( mode, indexActivator ) )
         {
             while ( batch != null )
             {
-                try ( LockGroup locks = new LockGroup() )
+                try ( TransactionApplier txApplier = batchApplier.startTx( batch, locks ) )
                 {
-                    try ( TransactionApplier txApplier = batchApplier.startTx( batch, locks ) )
-                    {
-                        batch.accept( txApplier );
-                    }
-                    batch = batch.next();
+                    batch.accept( txApplier );
                 }
+                batch = batch.next();
             }
         }
         catch ( Throwable cause )
@@ -348,7 +348,7 @@ public class RecordStorageEngine implements StorageEngine, Lifecycle
      *
      * After all transactions have been applied the appliers are closed.
      */
-    protected BatchTransactionApplierFacade applier( TransactionApplicationMode mode )
+    protected BatchTransactionApplierFacade applier( TransactionApplicationMode mode, IndexActivator indexActivator )
     {
         ArrayList<BatchTransactionApplier> appliers = new ArrayList<>();
         // Graph store application. The order of the decorated store appliers is irrelevant
@@ -369,7 +369,7 @@ public class RecordStorageEngine implements StorageEngine, Lifecycle
             // Schema index application
             appliers.add( new IndexBatchTransactionApplier( indexingService, labelScanStoreSync, indexUpdatesSync,
                     neoStores.getNodeStore(),
-                    indexUpdatesConverter ) );
+                    indexUpdatesConverter, indexActivator ) );
 
             // Explicit index application
             appliers.add(

@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -25,6 +25,7 @@ import org.neo4j.graphdb.Resource;
 import org.neo4j.internal.kernel.api.IndexOrder;
 import org.neo4j.internal.kernel.api.IndexQuery;
 import org.neo4j.kernel.api.exceptions.index.IndexNotApplicableKernelException;
+import org.neo4j.kernel.api.index.PropertyAccessor;
 import org.neo4j.values.storable.Value;
 
 /**
@@ -69,6 +70,20 @@ public interface IndexReader extends Resource
      */
     boolean hasFullValuePrecision( IndexQuery... predicates );
 
+    /**
+     * Initializes {@code client} to be able to progress through all distinct values in this index. {@link IndexProgressor.NodeValueClient}
+     * is used because it has a perfect method signature, even if the {@code reference} argument will instead be used
+     * as number of index entries for the specific indexed value.
+     *
+     * {@link IndexProgressor.NodeValueClient#needsValues()} decides whether or not values will be materialized and given to the client.
+     * The use-case for setting this to {@code false} is to have a more efficient counting of distinct values in an index,
+     * regardless of the actual values.
+     *
+     * @param client {@link IndexProgressor.NodeValueClient} to get initialized with this progression.
+     * @param propertyAccessor used for distinguishing between lossy indexed values.
+     */
+    void distinctValues( IndexProgressor.NodeValueClient client, PropertyAccessor propertyAccessor );
+
     IndexReader EMPTY = new IndexReader()
     {
         // Used for checking index correctness
@@ -93,7 +108,7 @@ public interface IndexReader extends Resource
         @Override
         public void query( IndexProgressor.NodeValueClient client, IndexOrder indexOrder, IndexQuery... query )
         {
-            //do nothing
+            // do nothing
         }
 
         @Override
@@ -106,5 +121,53 @@ public interface IndexReader extends Resource
         {
             return true;
         }
+
+        @Override
+        public void distinctValues( IndexProgressor.NodeValueClient client, PropertyAccessor propertyAccessor )
+        {
+            // do nothing
+        }
     };
+
+    class Adaptor implements IndexReader
+    {
+        @Override
+        public long countIndexedNodes( long nodeId, Value... propertyValues )
+        {
+            return 0;
+        }
+
+        @Override
+        public IndexSampler createSampler()
+        {
+            return null;
+        }
+
+        @Override
+        public PrimitiveLongResourceIterator query( IndexQuery... predicates ) throws IndexNotApplicableKernelException
+        {
+            return null;
+        }
+
+        @Override
+        public void query( IndexProgressor.NodeValueClient client, IndexOrder indexOrder, IndexQuery... query ) throws IndexNotApplicableKernelException
+        {
+        }
+
+        @Override
+        public boolean hasFullValuePrecision( IndexQuery... predicates )
+        {
+            return false;
+        }
+
+        @Override
+        public void distinctValues( IndexProgressor.NodeValueClient client, PropertyAccessor propertyAccessor )
+        {
+        }
+
+        @Override
+        public void close()
+        {
+        }
+    }
 }

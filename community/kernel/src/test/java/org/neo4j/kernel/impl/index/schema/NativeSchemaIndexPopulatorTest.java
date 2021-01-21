@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -23,7 +23,6 @@ import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -36,12 +35,9 @@ import java.util.Optional;
 import java.util.Random;
 
 import org.neo4j.index.internal.gbptree.GBPTree;
-import org.neo4j.index.internal.gbptree.Layout;
 import org.neo4j.index.internal.gbptree.RecoveryCleanupWorkCollector;
-import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.fs.OpenMode;
 import org.neo4j.io.fs.StoreChannel;
-import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.io.pagecache.PagedFile;
 import org.neo4j.kernel.api.exceptions.index.IndexEntryConflictException;
 import org.neo4j.kernel.api.index.IndexEntryUpdate;
@@ -514,7 +510,7 @@ public abstract class NativeSchemaIndexPopulatorTest<KEY extends NativeSchemaKey
     {
         NativeSchemaIndexHeaderReader headerReader = new NativeSchemaIndexHeaderReader();
         try ( GBPTree<KEY,VALUE> ignored = new GBPTree<>( pageCache, getIndexFile(), layout, 0, GBPTree.NO_MONITOR,
-                headerReader, NO_HEADER_WRITER, RecoveryCleanupWorkCollector.IMMEDIATE ) )
+                headerReader, NO_HEADER_WRITER, RecoveryCleanupWorkCollector.immediate() ) )
         {
             if ( online )
             {

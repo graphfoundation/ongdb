@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -27,9 +27,8 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.OffsetTime;
 import java.time.Period;
+import java.time.ZoneId;
 import java.time.ZonedDateTime;
-import java.time.temporal.ChronoUnit;
-import java.time.temporal.TemporalAmount;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.ThreadLocalRandom;
@@ -38,7 +37,6 @@ import java.util.function.Consumer;
 import static java.lang.Integer.bitCount;
 import static java.lang.Math.abs;
 import static java.time.ZoneOffset.UTC;
-import static java.time.temporal.ChronoUnit.DAYS;
 
 /**
  * Set of useful randomizing utilities, for example randomizing a string or property value of random type and value.
@@ -349,19 +347,24 @@ public class Randoms
 
     public ZonedDateTime randomDateTime()
     {
-        return ZonedDateTime.ofInstant( randomInstant(), UTC );
+        return randomDateTime( UTC );
     }
 
-    public TemporalAmount randomPeriod()
+    public ZonedDateTime randomDateTime( ZoneId zoneId )
+    {
+        return ZonedDateTime.ofInstant( randomInstant(), zoneId );
+    }
+
+    public Period randomPeriod()
     {
         // Based on Java period (years, months and days)
         return Period.of( random.nextInt(), random.nextInt( 12 ), random.nextInt( 28 ) );
     }
 
-    public TemporalAmount randomDuration()
+    public Duration randomDuration()
     {
         // Based on java duration (seconds)
-        return Duration.of( nextLong( DAYS.getDuration().getSeconds() ), ChronoUnit.SECONDS );
+        return Duration.ofSeconds( nextLong(), nextLong( -999_999_999, 999_999_999 ) );
     }
 
     private char symbol()

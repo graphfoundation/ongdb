@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -19,7 +19,6 @@
  */
 package org.neo4j.kernel.impl.api;
 
-import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -52,6 +51,7 @@ import org.neo4j.internal.kernel.api.TokenRead;
 import org.neo4j.internal.kernel.api.TokenWrite;
 import org.neo4j.internal.kernel.api.Write;
 import org.neo4j.internal.kernel.api.exceptions.InvalidTransactionTypeKernelException;
+import org.neo4j.internal.kernel.api.exceptions.TransactionFailureException;
 import org.neo4j.internal.kernel.api.exceptions.schema.ConstraintValidationException;
 import org.neo4j.internal.kernel.api.security.AccessMode;
 import org.neo4j.internal.kernel.api.security.AuthSubject;
@@ -63,13 +63,13 @@ import org.neo4j.kernel.api.KernelTransaction;
 import org.neo4j.kernel.api.SilentTokenNameLookup;
 import org.neo4j.kernel.api.exceptions.ConstraintViolationTransactionFailureException;
 import org.neo4j.kernel.api.exceptions.Status;
-import org.neo4j.internal.kernel.api.exceptions.TransactionFailureException;
 import org.neo4j.kernel.api.exceptions.schema.CreateConstraintFailureException;
 import org.neo4j.kernel.api.explicitindex.AutoIndexing;
 import org.neo4j.kernel.api.schema.index.SchemaIndexDescriptor;
 import org.neo4j.kernel.api.txstate.ExplicitIndexTransactionState;
 import org.neo4j.kernel.api.txstate.TransactionState;
 import org.neo4j.kernel.api.txstate.TxStateHolder;
+import org.neo4j.kernel.impl.api.index.IndexProviderMap;
 import org.neo4j.kernel.impl.api.index.IndexingService;
 import org.neo4j.kernel.impl.api.state.ConstraintIndexCreator;
 import org.neo4j.kernel.impl.api.state.TxState;
@@ -101,6 +101,7 @@ import org.neo4j.storageengine.api.StorageEngine;
 import org.neo4j.storageengine.api.StorageStatement;
 import org.neo4j.storageengine.api.StoreReadLayer;
 import org.neo4j.storageengine.api.txstate.TxStateVisitor;
+import org.neo4j.time.SystemNanoClock;
 
 import static java.lang.String.format;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
@@ -164,6 +165,7 @@ public class KernelTransactionImplementation implements KernelTransaction, TxSta
     private boolean success;
     private volatile Status terminationReason;
     private long startTimeMillis;
+    private long startTimeNanos;
     private long timeoutMillis;
     private long lastTransactionIdWhenStarted;
     private volatile long lastTransactionTimestampWhenStarted;
@@ -185,17 +187,15 @@ public class KernelTransactionImplementation implements KernelTransaction, TxSta
      */
     private final Lock terminationReleaseLock = new ReentrantLock();
 
-    public KernelTransactionImplementation( StatementOperationParts statementOperations,
-            SchemaWriteGuard schemaWriteGuard,
-            TransactionHooks hooks, ConstraintIndexCreator constraintIndexCreator, Procedures procedures,
-            TransactionHeaderInformationFactory headerInformationFactory, TransactionCommitProcess commitProcess,
-            TransactionMonitor transactionMonitor, Supplier<ExplicitIndexTransactionState> explicitIndexTxStateSupplier,
-            Pool<KernelTransactionImplementation> pool, Clock clock, AtomicReference<CpuClock> cpuClockRef, AtomicReference<HeapAllocation> heapAllocationRef,
-            TransactionTracer transactionTracer, LockTracer lockTracer, PageCursorTracerSupplier cursorTracerSupplier,
-            StorageEngine storageEngine, AccessCapability accessCapability, DefaultCursors cursors, AutoIndexing autoIndexing,
-            ExplicitIndexStore explicitIndexStore, VersionContextSupplier versionContextSupplier,
-            CollectionsFactorySupplier collectionsFactorySupplier, ConstraintSemantics constraintSemantics,
-            SchemaState schemaState, IndexingService indexingService )
+    public KernelTransactionImplementation( StatementOperationParts statementOperations, SchemaWriteGuard schemaWriteGuard, TransactionHooks hooks,
+            ConstraintIndexCreator constraintIndexCreator, Procedures procedures, TransactionHeaderInformationFactory headerInformationFactory,
+            TransactionCommitProcess commitProcess, TransactionMonitor transactionMonitor, Supplier<ExplicitIndexTransactionState> explicitIndexTxStateSupplier,
+            Pool<KernelTransactionImplementation> pool, SystemNanoClock clock, AtomicReference<CpuClock> cpuClockRef,
+            AtomicReference<HeapAllocation> heapAllocationRef, TransactionTracer transactionTracer, LockTracer lockTracer,
+            PageCursorTracerSupplier cursorTracerSupplier, StorageEngine storageEngine, AccessCapability accessCapability, DefaultCursors cursors,
+            AutoIndexing autoIndexing, ExplicitIndexStore explicitIndexStore, VersionContextSupplier versionContextSupplier,
+            CollectionsFactorySupplier collectionsFactorySupplier, ConstraintSemantics constraintSemantics, SchemaState schemaState,
+            IndexingService indexingService, IndexProviderMap indexProviderMap )
     {
         this.schemaWriteGuard = schemaWriteGuard;
         this.hooks = hooks;
@@ -227,7 +227,8 @@ public class KernelTransactionImplementation implements KernelTransaction, TxSta
                         new IndexTxStateUpdater( storageEngine.storeReadLayer(), allStoreHolder, indexingService ),
                         storageStatement,
                         this, new KernelToken( storeLayer, this ), cursors, autoIndexing, constraintIndexCreator,
-                        constraintSemantics );
+                        constraintSemantics,
+                        indexProviderMap );
         this.collectionsFactory = collectionsFactorySupplier.create();
     }
 
@@ -248,6 +249,7 @@ public class KernelTransactionImplementation implements KernelTransaction, TxSta
         this.success = false;
         this.writeState = TransactionWriteState.NONE;
         this.startTimeMillis = clocks.systemClock().millis();
+        this.startTimeNanos = clocks.systemClock().nanos();
         this.timeoutMillis = transactionTimeout;
         this.lastTransactionIdWhenStarted = lastCommittedTx;
         this.lastTransactionTimestampWhenStarted = lastTimeStamp;
@@ -272,6 +274,12 @@ public class KernelTransactionImplementation implements KernelTransaction, TxSta
     public long startTime()
     {
         return startTimeMillis;
+    }
+
+    @Override
+    public long startTimeNanos()
+    {
+        return startTimeNanos;
     }
 
     @Override
@@ -376,7 +384,8 @@ public class KernelTransactionImplementation implements KernelTransaction, TxSta
 
     public AuthSubject subjectOrAnonymous()
     {
-        return securityContext == null ? AuthSubject.ANONYMOUS : securityContext.subject();
+        SecurityContext context = this.securityContext;
+        return context == null ? AuthSubject.ANONYMOUS : context.subject();
     }
 
     public void setMetaData( Map<String, Object> data )

@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -137,5 +137,11 @@ public class IntArray extends IntegralArray
     public String toString()
     {
         return format( "IntArray%s", Arrays.toString( value ) );
+    }
+
+    @Override
+    public String getTypeName()
+    {
+        return "IntegerArray";
     }
 }

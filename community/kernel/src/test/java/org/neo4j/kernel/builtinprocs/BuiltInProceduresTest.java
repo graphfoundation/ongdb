@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -113,7 +113,7 @@ public class BuiltInProceduresTest
         // When/Then
         assertThat( call( "db.indexes" ),
                 contains( record( "INDEX ON :User(name)", "User", singletonList( "name" ), "ONLINE", "node_label_property",
-                        getIndexProviderDescriptorMap( InMemoryIndexProviderFactory.PROVIDER_DESCRIPTOR ) ) ) );
+                        getIndexProviderDescriptorMap( InMemoryIndexProviderFactory.PROVIDER_DESCRIPTOR ), "" ) ) );
     }
 
     private Map<String,String> getIndexProviderDescriptorMap( IndexProvider.Descriptor providerDescriptor )
@@ -130,7 +130,7 @@ public class BuiltInProceduresTest
         // When/Then
         assertThat( call( "db.indexes" ),
                 contains( record( "INDEX ON :User(name)", "User", singletonList( "name" ), "ONLINE", "node_unique_property",
-                        getIndexProviderDescriptorMap( InMemoryIndexProviderFactory.PROVIDER_DESCRIPTOR ) ) ) );
+                        getIndexProviderDescriptorMap( InMemoryIndexProviderFactory.PROVIDER_DESCRIPTOR ), "" ) ) );
     }
 
     @Test
@@ -218,7 +218,7 @@ public class BuiltInProceduresTest
                 record( "db.constraints", "db.constraints() :: (description :: STRING?)",
                         "List all constraints in the database.", "READ" ),
                 record( "db.indexes", "db.indexes() :: (description :: STRING?, label :: STRING?, properties :: LIST? OF STRING?, " +
-                                "state :: STRING?, type :: STRING?, provider :: MAP?)",
+                                "state :: STRING?, type :: STRING?, provider :: MAP?, failureMessage :: STRING?)",
                         "List all indexes in the database.", "READ" ),
                 record( "db.labels", "db.labels() :: (label :: STRING?)", "List all labels in the database.", "READ" ),
                 record( "db.propertyKeys", "db.propertyKeys() :: (propertyKey :: STRING?)",
@@ -229,6 +229,14 @@ public class BuiltInProceduresTest
                         "Schedule resampling of an index (for example: CALL db.resampleIndex(\":Person(name)\")).", "READ" ),
                 record( "db.resampleOutdatedIndexes", "db.resampleOutdatedIndexes() :: VOID",
                         "Schedule resampling of all outdated indexes.", "READ" ),
+                record( "db.schema.nodeTypeProperties",
+                        "db.schema.nodeTypeProperties() :: (nodeType :: STRING?, nodeLabels :: LIST? OF STRING?, propertyName :: STRING?, " +
+                                "propertyTypes :: LIST? OF STRING?, mandatory :: BOOLEAN?)",
+                        "Show the derived property schema of the nodes in tabular form.", "READ" ),
+                record( "db.schema.relTypeProperties",
+                        "db.schema.relTypeProperties() :: (relType :: STRING?, propertyName :: STRING?, propertyTypes :: LIST? OF STRING?," +
+                                " mandatory :: BOOLEAN?)",
+                        "Show the derived property schema of the relationships in tabular form.", "READ" ),
                 record( "db.schema",
                         "db.schema() :: (nodes :: LIST? OF NODE?, relationships :: LIST? OF RELATIONSHIP?)",
                         "Show the schema of the data.", "READ" ),
@@ -323,7 +331,17 @@ public class BuiltInProceduresTest
                         "Query JMX management data by domain and name. For instance, \"org.neo4j:*\"", "READ" ),
                 record( "dbms.clearQueryCaches",
                         "dbms.clearQueryCaches() :: (value :: STRING?)",
-                        "Clears all query caches.", "DBMS" )
+                        "Clears all query caches.", "DBMS" ),
+                record( "db.createIndex",
+                        "db.createIndex(index :: STRING?, providerName :: STRING?) :: (index :: STRING?, providerName :: STRING?, status :: STRING?)",
+                        "Create a schema index with specified index provider (for example: CALL db.createIndex(\":Person(name)\", \"lucene+native-2.0\")) - " +
+                                "YIELD index, providerName, status", "SCHEMA" ),
+                record( "db.createUniquePropertyConstraint",
+                        "db.createUniquePropertyConstraint(index :: STRING?, providerName :: STRING?) :: " +
+                                "(index :: STRING?, providerName :: STRING?, status :: STRING?)",
+                        "Create a unique property constraint with index backed by specified index provider " +
+                                "(for example: CALL db.createUniquePropertyConstraint(\":Person(name)\", \"lucene+native-2.0\")) - " +
+                                "YIELD index, providerName, status", "SCHEMA" )
         ) );
     }
 
@@ -383,7 +401,7 @@ public class BuiltInProceduresTest
     }
 
     @Test
-    public void shouldCloseStatementIfExceptionIsThrownDRelationshipTypes()
+    public void shouldCloseStatementIfExceptionIsThrownDbRelationshipTypes()
     {
         // Given
         RuntimeException runtimeException = new RuntimeException();

@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -47,7 +47,6 @@ import org.neo4j.kernel.configuration.Title;
 import org.neo4j.kernel.configuration.ssl.SslPolicyConfigValidator;
 import org.neo4j.logging.Level;
 import org.neo4j.logging.LogTimeZone;
-import org.neo4j.values.storable.DateTimeValue;
 
 import static org.neo4j.kernel.configuration.Settings.BOOLEAN;
 import static org.neo4j.kernel.configuration.Settings.BYTES;
@@ -61,6 +60,7 @@ import static org.neo4j.kernel.configuration.Settings.NO_DEFAULT;
 import static org.neo4j.kernel.configuration.Settings.PATH;
 import static org.neo4j.kernel.configuration.Settings.STRING;
 import static org.neo4j.kernel.configuration.Settings.STRING_LIST;
+import static org.neo4j.kernel.configuration.Settings.TIMEZONE;
 import static org.neo4j.kernel.configuration.Settings.TRUE;
 import static org.neo4j.kernel.configuration.Settings.advertisedAddress;
 import static org.neo4j.kernel.configuration.Settings.buildSetting;
@@ -200,6 +200,11 @@ public class GraphDatabaseSettings implements LoadableConfig
     public static final Setting<Boolean> forbid_shortestpath_common_nodes = setting(
             "cypher.forbid_shortestpath_common_nodes", BOOLEAN, TRUE );
 
+    @Description( "Set this to change the behavior for Cypher create relationship when the start or end node is missing. " +
+            "By default this fails the query and stops execution, but by setting this flag the create operation is " +
+            "simply not performed and execution continues." )
+    public static final Setting<Boolean> cypher_lenient_create_relationship = setting( "cypher.lenient_create_relationship", BOOLEAN, FALSE );
+
     @Description( "Set this to specify the default runtime for the default language version." )
     @Internal
     public static final Setting<String> cypher_runtime = setting(
@@ -317,13 +322,23 @@ public class GraphDatabaseSettings implements LoadableConfig
             setting( "dbms.import.csv.legacy_quote_escaping", BOOLEAN,
                     Boolean.toString( Configuration.DEFAULT_LEGACY_STYLE_QUOTING ) );
 
-    @Description( "Enables or disables tracking of how much time a query spends actively executing on the CPU." )
-    @Dynamic
-    public static final Setting<Boolean> track_query_cpu_time = setting( "dbms.track_query_cpu_time", BOOLEAN, TRUE );
+    @Description( "The size of the internal buffer in bytes used by `LOAD CSV`. If the csv file contains huge fields " +
+                  "this value may have to be increased." )
+    public static Setting<Integer> csv_buffer_size =
+            buildSetting( "dbms.import.csv.buffer_size", INTEGER, Integer.toString( 2 * Configuration.MB ) )
+                    .constraint( min( 1 ) ).build();
 
-    @Description( "Enables or disables tracking of how many bytes are allocated by the execution of a query." )
+    @Description( "Enables or disables tracking of how much time a query spends actively executing on the CPU. " +
+                  "Calling `dbms.listQueries` will display the time. " +
+                  "This can also be logged in the query log by using `log_queries_detailed_time_logging_enabled`." )
     @Dynamic
-    public static final Setting<Boolean> track_query_allocation = setting( "dbms.track_query_allocation", BOOLEAN, TRUE );
+    public static final Setting<Boolean> track_query_cpu_time = setting( "dbms.track_query_cpu_time", BOOLEAN, FALSE );
+
+    @Description( "Enables or disables tracking of how many bytes are allocated by the execution of a query. " +
+                  "Calling `dbms.listQueries` will display the time. " +
+                  "This can also be logged in the query log by using `log_queries_allocation_logging_enabled`." )
+    @Dynamic
+    public static final Setting<Boolean> track_query_allocation = setting( "dbms.track_query_allocation", BOOLEAN, FALSE );
 
     @Description( "The size of the morsels" )
     @Internal
@@ -398,7 +413,7 @@ public class GraphDatabaseSettings implements LoadableConfig
     @Description( "Database timezone for temporal functions. All Time and DateTime values that are created without " +
             "an explicit timezone will use this configured default timezone." )
     public static final Setting<ZoneId> db_temporal_timezone =
-            setting( "db.temporal.timezone", DateTimeValue::parseZoneOffsetOrZoneName, ZoneOffset.UTC.toString() );
+            setting( "db.temporal.timezone", TIMEZONE, ZoneOffset.UTC.toString() );
 
     @Description( "Maximum time to wait for active transaction completion when rotating counts store" )
     @Internal
@@ -456,9 +471,9 @@ public class GraphDatabaseSettings implements LoadableConfig
                   "entirely in memory. The only drawback of this setting is that longer checkpoint times " +
                   "may lead to slightly longer recovery times in case of a database or system crash. " +
                   "A lower number means lower IO pressure, and consequently longer checkpoint times. " +
-                  "The configuration can also be commented out to remove the limitation entirely, and " +
-                  "let the checkpointer flush data as fast as the hardware will go. " +
-                  "Set this to -1 to disable the IOPS limit." )
+                  "Set this to -1 to disable the IOPS limit and remove the limitation entirely; " +
+                  "this will let the checkpointer flush data as fast as the hardware will go. " +
+                  "Removing the setting, or commenting it out, will set the default value of 300." )
     public static final Setting<Integer> check_point_iops_limit = setting( "dbms.checkpoint.iops.limit", INTEGER, "300" );
 
     // Auto Indexing
@@ -532,6 +547,7 @@ public class GraphDatabaseSettings implements LoadableConfig
 
     public enum SchemaIndex
     {
+        // These strings are supposed to match provider names, i.e. key-version, see IndexProvider.Descriptor#name()
         NATIVE20( "lucene+native-2.0" ),
         NATIVE10( "lucene+native-1.0" ),
         LUCENE10( "lucene-1.0" );
@@ -556,7 +572,7 @@ public class GraphDatabaseSettings implements LoadableConfig
             "This improves read and write performance for non-composite indexed numbers. " +
             "lucene+native-2.0: Store strings in a native index and remaining value types like lucene+native-1.0. " +
             "This improves write performance for non-composite indexed strings. " +
-            "This version of the native string index has a value limit of 4047B, such that byte-representation " +
+            "This version of the native string index has a value limit of 4039 bytes, such that byte-representation " +
             "of a string to index cannot be larger than that limit, or the transaction trying to index such a value will fail. " +
             "This version of the native string index also has reduced performance for CONTAINS and ENDS WITH queries, " +
             "due to resorting to index scan+filter internally. " +
@@ -594,6 +610,12 @@ public class GraphDatabaseSettings implements LoadableConfig
     @Dynamic
     public static final Setting<Long> logical_log_rotation_threshold =
             buildSetting( "dbms.tx_log.rotation.size", BYTES, "250M" ).constraint( min( ByteUnit.mebiBytes( 1 ) ) ).build();
+
+    @Description( "If `true`, Neo4j will abort recovery if any errors are encountered in the logical log. Setting " +
+            "this to `false` will allow Neo4j to restore as much as possible from the corrupted log files and ignore " +
+            "the rest, but, the integrity of the database might be compromised." )
+    @Internal
+    public static final Setting<Boolean> fail_on_corrupted_log_files = setting("unsupported.dbms.tx_log.fail_on_corrupted_log_files", BOOLEAN, TRUE );
 
     @Description( "Use a quick approach for rebuilding the ID generators. This give quicker recovery time, " +
             "but will limit the ability to reuse the space of deleted entities." )
@@ -648,6 +670,10 @@ public class GraphDatabaseSettings implements LoadableConfig
             "This setting allows disabling that behavior. " +
             "This feature available in Neo4j Enterprise Edition." )
     public static final Setting<Boolean> pagecache_warmup_enabled = setting( "unsupported.dbms.memory.pagecache.warmup.enable", BOOLEAN, TRUE );
+
+    @Description( "Allows the enabling or disabling of the file watcher service." +
+            " This is an auxiliary service but should be left enabled in almost all cases." )
+    public static final Setting<Boolean> filewatcher_enabled = setting( "dbms.filewatcher.enabled", BOOLEAN, TRUE );
 
     /**
      * Block size properties values depends from selected record format.
@@ -819,9 +845,19 @@ public class GraphDatabaseSettings implements LoadableConfig
     public static final Setting<File> auth_store =
             pathSetting( "unsupported.dbms.security.auth_store.location", NO_DEFAULT );
 
-    @Internal
+    @Description( "The maximum number of unsuccessful authentication attempts before imposing a user lock for the configured amount of time." +
+                  "The locked out user will not be able to log in until the lock period expires, even if correct credentials are provided. " +
+                  "Setting this configuration option to values less than 3 is not recommended because it might make it easier for an attacker " +
+                  "to brute force the password." )
     public static final Setting<Integer> auth_max_failed_attempts =
-            buildSetting( "unsupported.dbms.security.auth_max_failed_attempts", INTEGER, "3" ).constraint( min( 0 ) ).build();
+            buildSetting( "dbms.security.auth_max_failed_attempts", INTEGER, "3" ).constraint( min( 0 ) ).build();
+
+    @Description( "The amount of time user account should be locked after a configured number of unsuccessful authentication attempts. " +
+                  "The locked out user will not be able to log in until the lock period expires, even if correct credentials are provided. " +
+                  "Setting this configuration option to a low value is not recommended because it might make it easier for an attacker to " +
+                  "brute force the password." )
+    public static final Setting<Duration> auth_lock_time =
+            buildSetting( "dbms.security.auth_lock_time", DURATION, "5s" ).constraint( min( Duration.ofSeconds( 0 ) ) ).build();
 
     @Description( "A list of procedures and user defined functions (comma separated) that are allowed full access to " +
             "the database. The list may contain both fully-qualified procedure names, and partial names with the " +

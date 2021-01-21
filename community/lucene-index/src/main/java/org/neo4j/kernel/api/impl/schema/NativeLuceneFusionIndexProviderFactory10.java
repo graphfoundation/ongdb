@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -36,7 +36,7 @@ import org.neo4j.kernel.impl.index.schema.NumberIndexProvider;
 import org.neo4j.kernel.impl.index.schema.SpatialIndexProvider;
 import org.neo4j.kernel.impl.index.schema.TemporalIndexProvider;
 import org.neo4j.kernel.impl.index.schema.fusion.FusionIndexProvider;
-import org.neo4j.kernel.impl.index.schema.fusion.FusionSelector10;
+import org.neo4j.kernel.impl.index.schema.fusion.FusionSlotSelector10;
 import org.neo4j.kernel.impl.spi.KernelContext;
 import org.neo4j.kernel.monitoring.Monitors;
 import org.neo4j.logging.Log;
@@ -93,7 +93,7 @@ public class NativeLuceneFusionIndexProviderFactory10 extends
         {
             priority = 100;
         }
-        return new FusionIndexProvider( EMPTY, number, spatial, temporal, lucene, new FusionSelector10(),
+        return new FusionIndexProvider( EMPTY, number, spatial, temporal, lucene, new FusionSlotSelector10(),
                 DESCRIPTOR, priority, directoriesByProvider( storeDir ), fs, archiveFailedIndex );
     }
 

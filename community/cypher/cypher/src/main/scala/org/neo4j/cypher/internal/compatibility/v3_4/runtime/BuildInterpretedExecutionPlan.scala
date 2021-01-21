@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -30,7 +30,7 @@ import org.neo4j.cypher.internal.planner.v3_4.spi.GraphStatistics
 import org.neo4j.cypher.internal.planner.v3_4.spi.PlanningAttributes.{Cardinalities, ReadOnlies}
 import org.neo4j.cypher.internal.runtime.interpreted.UpdateCountingQueryContext
 import org.neo4j.cypher.internal.runtime.interpreted.commands.convert.{CommunityExpressionConverter, ExpressionConverters}
-import org.neo4j.cypher.internal.runtime.{ExecutionMode, InternalExecutionResult, ProfileMode, QueryContext}
+import org.neo4j.cypher.internal.runtime.{ExecutionMode, ExplainMode, InternalExecutionResult, ProfileMode, QueryContext}
 import org.neo4j.cypher.internal.util.v3_4.PeriodicCommitInOpenTransactionException
 import org.neo4j.cypher.internal.v3_4.logical.plans.{IndexUsage, LogicalPlan}
 import org.neo4j.values.virtual.MapValue
@@ -56,7 +56,7 @@ object BuildInterpretedExecutionPlan extends Phase[CommunityRuntimeContext, Logi
     val pipeInfo = executionPlanBuilder.build(from.periodicCommit, logicalPlan)(pipeBuildContext, context.planContext)
     val PipeInfo(pipe, updating, periodicCommitInfo, fp, planner) = pipeInfo
     val columns = from.statement().returnColumns
-    val resultBuilderFactory = new InterpretedExecutionResultBuilderFactory(pipeInfo, columns, logicalPlan)
+    val resultBuilderFactory = InterpretedExecutionResultBuilderFactory(pipeInfo, columns, logicalPlan, context.config.lenientCreateRelationship)
     val func = getExecutionPlanFunction(periodicCommitInfo, updating, resultBuilderFactory,
                                         context.notificationLogger, InterpretedRuntimeName, readOnlies, cardinalities)
 
@@ -85,7 +85,7 @@ object BuildInterpretedExecutionPlan extends Phase[CommunityRuntimeContext, Logi
 
       builder.setQueryContext(builderContext)
 
-      if (periodicCommit.isDefined) {
+      if (periodicCommit.isDefined && planType != ExplainMode) {
         if (!builderContext.transactionalContext.isTopLevelTx)
           throw new PeriodicCommitInOpenTransactionException()
         builder.setLoadCsvPeriodicCommitObserver(periodicCommit.get.batchRowCount)

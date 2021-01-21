@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -36,7 +36,6 @@ import org.eclipse.jetty.util.thread.QueuedThreadPool;
 import org.eclipse.jetty.webapp.WebAppContext;
 
 import java.io.IOException;
-import java.net.BindException;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -78,6 +77,8 @@ import static java.lang.String.format;
  */
 public class Jetty9WebServer implements WebServer
 {
+    private static final int JETTY_THREAD_POOL_IDLE_TIMEOUT = 60000;
+
     public static final ListenSocketAddress DEFAULT_ADDRESS = new ListenSocketAddress( "0.0.0.0", 80 );
 
     private boolean wadlEnabled;
@@ -152,10 +153,12 @@ public class Jetty9WebServer implements WebServer
         startJetty();
     }
 
-    private QueuedThreadPool createQueuedThreadPool( JettyThreadCalculator jtc )
+    private static QueuedThreadPool createQueuedThreadPool( JettyThreadCalculator jtc )
     {
         BlockingQueue<Runnable> queue = new BlockingArrayQueue<>( jtc.getMinThreads(), jtc.getMinThreads(), jtc.getMaxCapacity() );
-        return new QueuedThreadPool( jtc.getMaxThreads(), jtc.getMinThreads(), 60000, queue );
+        QueuedThreadPool threadPool = new QueuedThreadPool( jtc.getMaxThreads(), jtc.getMinThreads(), JETTY_THREAD_POOL_IDLE_TIMEOUT, queue );
+        threadPool.setThreadPoolBudget( null ); // mute warnings about Jetty thread pool size
+        return threadPool;
     }
 
     @Override
@@ -319,7 +322,7 @@ public class Jetty9WebServer implements WebServer
         {
             jetty.start();
         }
-        catch ( BindException e )
+        catch ( IOException e )
         {
             if ( jettyHttpsAddress.isPresent() )
             {

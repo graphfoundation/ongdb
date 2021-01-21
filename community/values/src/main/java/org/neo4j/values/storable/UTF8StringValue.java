@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -22,6 +22,10 @@ package org.neo4j.values.storable;
 import java.nio.charset.StandardCharsets;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import org.neo4j.hashing.HashFunction;
+
+import static org.neo4j.values.storable.Values.utf8Value;
 
 /*
  * Just as a normal StringValue but is backed by a byte array and does string
@@ -134,24 +138,70 @@ public final class UTF8StringValue extends StringValue
     @Override
     public int computeHash()
     {
-        byte[] values = bytes;
-
-        if ( values.length == 0 || byteLength == 0 )
+        if ( bytes.length == 0 || byteLength == 0 )
         {
             return 0;
         }
 
-        int hash = 1, i = offset, len = offset + byteLength;
-        while ( i < len )
+        CodePointCursor cpc = new CodePointCursor();
+        cpc.values = bytes;
+        cpc.i = offset;
+        int hash = 1;
+        int len = offset + byteLength;
+
+        while ( cpc.i < len )
         {
+            hash = 31 * hash + (int) cpc.nextCodePoint();
+        }
+        return hash;
+    }
+
+    @Override
+    public long updateHash( HashFunction hashFunction, long hash )
+    {
+        CodePointCursor cpc = new CodePointCursor();
+        cpc.values = bytes;
+        cpc.i = offset;
+        int len = offset + byteLength;
+
+        while ( cpc.i < len )
+        {
+            long codePointA = cpc.nextCodePoint() << 32;
+            long codePointB = 0L;
+            if ( cpc.i < len )
+            {
+                codePointB = cpc.nextCodePoint();
+            }
+            hash = hashFunction.update( hash, codePointA + codePointB );
+        }
+
+        return hashFunction.update( hash, cpc.codePointCount );
+    }
+
+    public TextValue plus( UTF8StringValue other )
+    {
+        byte[] newBytes = new byte[byteLength + other.byteLength];
+        System.arraycopy( bytes, offset, newBytes, 0, byteLength );
+        System.arraycopy( other.bytes, other.offset, newBytes, byteLength, other.byteLength );
+        return utf8Value( newBytes );
+    }
+
+    private static class CodePointCursor
+    {
+        byte[] values;
+        int i;
+        int codePointCount;
+
+        long nextCodePoint()
+        {
+            codePointCount++;
             byte b = values[i];
             //If high bit is zero (equivalent to the byte being positive in two's complement)
             //we are dealing with an ascii value and use a single byte for storing the value.
             if ( b >= 0 )
             {
-                hash = 31 * hash + b;
                 i++;
-                continue;
+                return b;
             }
 
             //We can now have one of three situations.
@@ -166,13 +216,10 @@ public final class UTF8StringValue extends StringValue
                 bytesNeeded++;
                 b = (byte) (b << 1);
             }
-            int codePoint = codePoint( bytes, b, i, bytesNeeded );
+            int codePoint = codePoint( values, b, i, bytesNeeded );
             i += bytesNeeded;
-
-            hash = 31 * hash + codePoint;
+            return codePoint;
         }
-
-        return hash;
     }
 
     @Override
@@ -492,7 +539,7 @@ public final class UTF8StringValue extends StringValue
         return bytes;
     }
 
-    private static int codePoint( byte[] bytes, byte currentByte, int i, int bytesNeeded )
+    static int codePoint( byte[] bytes, byte currentByte, int i, int bytesNeeded )
     {
         int codePoint;
         byte[] values = bytes;

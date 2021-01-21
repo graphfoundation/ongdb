@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -128,7 +128,7 @@ public final class ValueUtils
                 AnyValue[] anyValues = new AnyValue[array.length];
                 for ( int i = 0; i < array.length; i++ )
                 {
-                    anyValues[i] = of( array[i] );
+                    anyValues[i] = ValueUtils.of( array[i] );
                 }
                 return VirtualValues.list( anyValues );
             }
@@ -183,7 +183,7 @@ public final class ValueUtils
         ArrayList<AnyValue> values = new ArrayList<>( collection.size() );
         for ( Object o : collection )
         {
-            values.add( of( o ) );
+            values.add( ValueUtils.of( o ) );
         }
         return VirtualValues.fromList( values );
     }
@@ -193,7 +193,7 @@ public final class ValueUtils
         ArrayList<AnyValue> values = new ArrayList<>();
         for ( Object o : collection )
         {
-            values.add( of( o ) );
+            values.add( ValueUtils.of( o ) );
         }
         return VirtualValues.fromList( values );
     }
@@ -233,18 +233,31 @@ public final class ValueUtils
 
     public static MapValue asMapValue( Map<String,Object> map )
     {
-        return map( mapValues( map ) );
+        HashMap<String,AnyValue> newMap = new HashMap<>( map.size() );
+        for ( Map.Entry<String,Object> entry : map.entrySet() )
+        {
+            newMap.put( entry.getKey(), ValueUtils.of( entry.getValue() ) );
+        }
+
+        return map( newMap );
     }
 
-    private static Map<String,AnyValue> mapValues( Map<String,Object> map )
+    public static MapValue asParameterMapValue( Map<String,Object> map )
     {
         HashMap<String,AnyValue> newMap = new HashMap<>( map.size() );
         for ( Map.Entry<String,Object> entry : map.entrySet() )
         {
-            newMap.put( entry.getKey(), of( entry.getValue() ) );
+            try
+            {
+                newMap.put( entry.getKey(), ValueUtils.of( entry.getValue() ) );
+            }
+            catch ( IllegalArgumentException e )
+            {
+                newMap.put( entry.getKey(), VirtualValues.error( e ) );
+            }
         }
 
-        return newMap;
+        return map( newMap );
     }
 
     public static NodeValue fromNodeProxy( Node node )
@@ -289,7 +302,7 @@ public final class ValueUtils
         {
             return (AnyValue) value;
         }
-        return of( value );
+        return ValueUtils.of( value );
     }
 
     public static NodeValue asNodeValue( Object object )

@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -46,7 +46,7 @@ class ExecutionWorkflowBuilderTest extends CypherFunSuite with LogicalPlanConstr
     when(context.resources).thenReturn(mock[CloseableResource])
 
     val pipeInfo = PipeInfo(pipe, updating = true, None, None, PlannerName)
-    val builderFactory = new InterpretedExecutionResultBuilderFactory(pipeInfo, List.empty, logicalPlan)
+    val builderFactory = new InterpretedExecutionResultBuilderFactory(pipeInfo, List.empty, logicalPlan, false)
 
     // WHEN
     val builder = builderFactory.create()
@@ -63,7 +63,7 @@ class ExecutionWorkflowBuilderTest extends CypherFunSuite with LogicalPlanConstr
     when(pipe.createResults(any())).thenReturn(Iterator.empty)
     val context = mock[QueryContext]
     val pipeInfo = PipeInfo(pipe, updating = false, None, None, PlannerName)
-    val builderFactory = new InterpretedExecutionResultBuilderFactory(pipeInfo, List.empty, logicalPlan)
+    val builderFactory = new InterpretedExecutionResultBuilderFactory(pipeInfo, List.empty, logicalPlan, false)
 
     // WHEN
     val builder = builderFactory.create()
@@ -83,7 +83,7 @@ class ExecutionWorkflowBuilderTest extends CypherFunSuite with LogicalPlanConstr
     when(context.transactionalContext).thenReturn(mock[QueryTransactionalContext])
     when(context.resources).thenReturn(mock[CloseableResource])
     val pipeInfo = PipeInfo(pipe, updating = false, None, None, PlannerName)
-    val builderFactory = new InterpretedExecutionResultBuilderFactory(pipeInfo, List.empty, logicalPlan)
+    val builderFactory = new InterpretedExecutionResultBuilderFactory(pipeInfo, List.empty, logicalPlan, false)
 
     // WHEN
     val builder = builderFactory.create()

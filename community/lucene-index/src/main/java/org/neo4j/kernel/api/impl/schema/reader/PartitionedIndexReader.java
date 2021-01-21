@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -33,6 +33,7 @@ import org.neo4j.io.IOUtils;
 import org.neo4j.kernel.api.exceptions.index.IndexNotApplicableKernelException;
 import org.neo4j.kernel.api.impl.index.partition.PartitionSearcher;
 import org.neo4j.kernel.api.impl.index.sampler.AggregatingIndexSampler;
+import org.neo4j.kernel.api.index.PropertyAccessor;
 import org.neo4j.kernel.api.schema.index.SchemaIndexDescriptor;
 import org.neo4j.kernel.impl.api.index.sampling.IndexSamplingConfig;
 import org.neo4j.kernel.impl.api.schema.BridgingIndexProgressor;
@@ -50,7 +51,6 @@ import org.neo4j.values.storable.Value;
  */
 public class PartitionedIndexReader extends AbstractIndexReader
 {
-
     private final List<SimpleIndexReader> indexReaders;
 
     public PartitionedIndexReader( List<PartitionSearcher> partitionSearchers,
@@ -112,6 +112,14 @@ public class PartitionedIndexReader extends AbstractIndexReader
     public boolean hasFullValuePrecision( IndexQuery... predicates )
     {
         return false;
+    }
+
+    @Override
+    public void distinctValues( IndexProgressor.NodeValueClient client, PropertyAccessor propertyAccessor )
+    {
+        BridgingIndexProgressor bridgingIndexProgressor = new BridgingIndexProgressor( client, descriptor.schema().getPropertyIds() );
+        indexReaders.parallelStream().forEach( reader -> reader.distinctValues( bridgingIndexProgressor, propertyAccessor ) );
+        client.initialize( descriptor, bridgingIndexProgressor, new IndexQuery[0] );
     }
 
     private PrimitiveLongResourceIterator innerQuery( IndexReader reader, IndexQuery[] predicates )

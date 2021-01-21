@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -28,6 +28,8 @@ import org.neo4j.kernel.impl.transaction.log.ReadableLogChannel;
 import org.neo4j.kernel.impl.transaction.log.entry.LogEntry;
 import org.neo4j.kernel.impl.transaction.log.entry.LogEntryReader;
 import org.neo4j.kernel.impl.transaction.log.entry.LogEntryStart;
+
+import static org.neo4j.kernel.impl.transaction.log.TransactionIdStore.BASE_TX_ID;
 
 public class TransactionLogFileInformation implements LogFileInformation
 {
@@ -90,6 +92,15 @@ public class TransactionLogFileInformation implements LogFileInformation
     public long getFirstStartRecordTimestamp( long version ) throws IOException
     {
         return logFileTimestampMapper.getTimestampForVersion( version );
+    }
+
+    @Override
+    public boolean transactionExistsOnDisk( long transactionId ) throws IOException
+    {
+        long lowestOnDisk = getFirstExistingEntryId();
+        long highestOnDisk = getLastEntryId();
+        return ( transactionId >= BASE_TX_ID ) // It's a real transaction id
+                && ( transactionId >= lowestOnDisk && transactionId <= highestOnDisk ); // and it's in the on-disk range
     }
 
     private static class TransactionLogFileTimestampMapper

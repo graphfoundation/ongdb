@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -98,7 +98,7 @@ public class MarshlandPoolTest
 
     private void assertPoolEventuallyReturns( Pool<Object> pool, int expected )
     {
-        long maxTime = System.currentTimeMillis() + TimeUnit.SECONDS.toMillis( 10 );
+        long maxTime = System.currentTimeMillis() + TimeUnit.SECONDS.toMillis( 100 );
         while ( System.currentTimeMillis() < maxTime )
         {
             if ( pool.acquire().equals( expected ) )
@@ -107,7 +107,7 @@ public class MarshlandPoolTest
             }
         }
 
-        fail( "Waited 10 seconds for pool to return object from dead thread, but it was never returned." );
+        fail( "Waited 100 seconds for pool to return object from dead thread, but it was never returned." );
     }
 
     private void claimAndReleaseInSeparateThread( final MarshlandPool<Object> pool ) throws InterruptedException
@@ -120,5 +120,4 @@ public class MarshlandPoolTest
         thread.start();
         thread.join();
     }
-
 }

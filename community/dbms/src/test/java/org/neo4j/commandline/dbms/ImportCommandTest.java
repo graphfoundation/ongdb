@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -25,11 +25,13 @@ import org.junit.Test;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
+import org.neo4j.commandline.admin.CommandFailed;
 import org.neo4j.commandline.admin.CommandLocator;
 import org.neo4j.commandline.admin.IncorrectUsage;
 import org.neo4j.commandline.admin.NullOutsideWorld;
@@ -40,22 +42,27 @@ import org.neo4j.helpers.Args;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.impl.store.MetaDataStore;
 import org.neo4j.kernel.impl.storemigration.StoreFileType;
+import org.neo4j.test.rule.SuppressOutput;
 import org.neo4j.test.rule.TestDirectory;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.neo4j.io.NullOutputStream.NULL_OUTPUT_STREAM;
 
 public class ImportCommandTest
 {
     @Rule
     public final TestDirectory testDir = TestDirectory.testDirectory();
+    @Rule
+    public final SuppressOutput suppressOutput = SuppressOutput.suppressAll();
 
     @Test
     public void defaultsToCsvWhenModeNotSpecified() throws Exception
@@ -171,25 +178,71 @@ public class ImportCommandTest
     }
 
     @Test
+    public void letImporterDecideAboutDatabaseExistence() throws Exception
+    {
+        Path homeDir = testDir.directory( "home" ).toPath();
+        PrintStream nullOutput = new PrintStream( NULL_OUTPUT_STREAM );
+        OutsideWorld outsideWorld = new RealOutsideWorld( nullOutput, nullOutput, new ByteArrayInputStream( new byte[0] ) );
+        Path confPath = testDir.directory( "conf" ).toPath();
+        ImportCommand importCommand = new ImportCommand( homeDir, confPath, outsideWorld );
+        File nodesFile = createTextFile( "nodes.csv", ":ID", "1", "2" );
+        String[] arguments = {"--mode=csv", "--database=existing.db", "--nodes=" + nodesFile.getAbsolutePath()};
+
+        // First run an import so that a database gets created
+        importCommand.execute( arguments );
+
+        // When
+        ImporterFactory importerFactory = mock( ImporterFactory.class );
+        Importer importer = mock( Importer.class );
+        when( importerFactory.getImporterForMode( any(), any(), any(), any() ) ).thenReturn( importer );
+        new ImportCommand( homeDir, confPath, outsideWorld, importerFactory ).execute( arguments );
+
+        // Then no exception about database existence should be thrown
+    }
+
+    @Test
     public void failIfDestinationDatabaseAlreadyExists() throws Exception
     {
-        try ( NullOutsideWorld outsideWorld = new NullOutsideWorld() )
-        {
-            Path homeDir = testDir.directory( "home" ).toPath();
-            ImportCommand importCommand = new ImportCommand( homeDir, testDir.directory( "conf" ).toPath(), outsideWorld );
+        Path homeDir = testDir.directory( "home" ).toPath();
+        PrintStream nullOutput = new PrintStream( NULL_OUTPUT_STREAM );
+        OutsideWorld outsideWorld = new RealOutsideWorld( nullOutput, nullOutput, new ByteArrayInputStream( new byte[0] ) );
+        ImportCommand importCommand = new ImportCommand( homeDir, testDir.directory( "conf" ).toPath(), outsideWorld );
+        File nodesFile = createTextFile( "nodes.csv", ":ID", "1", "2" );
+        String[] arguments = {"--mode=csv", "--database=existing.db", "--nodes=" + nodesFile.getAbsolutePath()};
 
-            putStoreInDirectory( homeDir.resolve( "data" ).resolve( "databases" ).resolve( "existing.db" ) );
-            String[] arguments = {"--mode=csv", "--database=existing.db"};
-            try
-            {
-                importCommand.execute( arguments );
-                fail( "Should have thrown an exception." );
-            }
-            catch ( Exception e )
-            {
-                assertThat( e.getMessage(), containsString( "already contains a database" ) );
-            }
+        // First run an import so that a database gets created
+        importCommand.execute( arguments );
+
+        // Then try to run yet another import on that database
+        try
+        {
+            importCommand.execute( arguments );
+            fail( "Should have thrown an exception." );
         }
+        catch ( Exception e )
+        {
+            assertThat( e.getMessage(), containsString( "already contains data" ) );
+        }
+    }
+
+    @Test
+    public void shouldUseArgumentsFoundInside_f_Argument() throws FileNotFoundException, CommandFailed, IncorrectUsage
+    {
+        // given
+        ImportCommand importCommand =
+                new ImportCommand( testDir.directory( "home" ).toPath(), testDir.directory( "conf" ).toPath(),
+                        new RealOutsideWorld( System.out, System.err, new ByteArrayInputStream( new byte[0] ) ) );
+        File nodesFile = createTextFile( "nodes.csv", ":ID", "1", "2" );
+        File argFile = createTextFile( "args.txt", "--database=foo", "--nodes=" + nodesFile.getAbsolutePath() );
+        String[] arguments = {"-f", argFile.getAbsolutePath()};
+
+        // when
+        importCommand.execute( arguments );
+
+        // then
+        assertTrue( suppressOutput.getOutputVoice().containsMessage( "IMPORT DONE" ) );
+        assertTrue( suppressOutput.getErrorVoice().containsMessage( nodesFile.getAbsolutePath() ) );
+        assertTrue( suppressOutput.getOutputVoice().containsMessage( "2 nodes" ) );
     }
 
     @Test
@@ -311,5 +364,18 @@ public class ImportCommandTest
         Files.createDirectories( storeDir );
         Path storeFile = storeDir.resolve( StoreFileType.STORE.augment( MetaDataStore.DEFAULT_NAME ) );
         Files.createFile( storeFile );
+    }
+
+    private File createTextFile( String name, String... lines ) throws FileNotFoundException
+    {
+        File file = testDir.file( name );
+        try ( PrintStream out = new PrintStream( file ) )
+        {
+            for ( String line : lines )
+            {
+                out.println( line );
+            }
+        }
+        return file;
     }
 }

@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -288,16 +288,24 @@ case class LogicalPlanProducer(cardinalityModel: CardinalityModel, solveds: Solv
                               propertyKeys: Seq[PropertyKeyToken],
                               valueExpr: QueryExpression[Expression],
                               solvedPredicates: Seq[Expression] = Seq.empty,
+                              solvedPredicatesForCardinalityEstimation: Seq[Expression] = Seq.empty,
                               solvedHint: Option[UsingIndexHint] = None,
                               argumentIds: Set[String],
                               context: LogicalPlanningContext): LogicalPlan = {
-    val solved = RegularPlannerQuery(queryGraph = QueryGraph.empty
+    val queryGraph = QueryGraph.empty
       .addPatternNodes(idName)
       .addPredicates(solvedPredicates: _*)
       .addHints(solvedHint)
       .addArgumentIds(argumentIds.toIndexedSeq)
-    )
-    annotate(NodeUniqueIndexSeek(idName, label, propertyKeys, valueExpr, argumentIds), solved, context)
+    // We know solvedPredicates is a subset of solvedPredicatesForCardinalityEstimation
+    val solved = RegularPlannerQuery(queryGraph = queryGraph)
+    val solvedForCardinalityEstimation = RegularPlannerQuery(queryGraph.addPredicates(solvedPredicatesForCardinalityEstimation: _*))
+
+    val plan = NodeUniqueIndexSeek(idName, label, propertyKeys, valueExpr, argumentIds)
+    val cardinality = cardinalityModel(solvedForCardinalityEstimation, context.input, context.semanticTable)
+    solveds.set(plan.id, solved)
+    cardinalities.set(plan.id, cardinality)
+    plan
   }
 
   def planAssertSameNode(node: String, left: LogicalPlan, right: LogicalPlan, context: LogicalPlanningContext): LogicalPlan = {
@@ -447,7 +455,8 @@ case class LogicalPlanProducer(cardinalityModel: CardinalityModel, solveds: Solv
 
   def planLoadCSV(inner: LogicalPlan, variableName: String, url: Expression, format: CSVFormat, fieldTerminator: Option[StringLiteral], context: LogicalPlanningContext): LogicalPlan = {
     val solved = solveds.get(inner.id).updateTailOrSelf(_.withHorizon(LoadCSVProjection(variableName, url, format, fieldTerminator)))
-    annotate(LoadCSVPlan(inner, url, variableName, format, fieldTerminator.map(_.value), context.legacyCsvQuoteEscaping), solved, context)
+    annotate(LoadCSVPlan(inner, url, variableName, format, fieldTerminator.map(_.value), context.legacyCsvQuoteEscaping,
+                         context.csvBufferSize), solved, context)
   }
 
   def planUnwind(inner: LogicalPlan, name: String, expression: Expression, reported: Expression, context: LogicalPlanningContext): LogicalPlan = {

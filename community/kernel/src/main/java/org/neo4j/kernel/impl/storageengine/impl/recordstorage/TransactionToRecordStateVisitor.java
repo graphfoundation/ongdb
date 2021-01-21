@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -177,10 +177,19 @@ public class TransactionToRecordStateVisitor extends TxStateVisitor.Adapter
     }
 
     @Override
-    public void visitAddedIndex( SchemaIndexDescriptor index )
+    public void visitAddedIndex( SchemaIndexDescriptor index, IndexProvider.Descriptor providerDescriptor )
     {
-        IndexProvider.Descriptor providerDescriptor =
-                indexProviderMap.getDefaultProvider().getProviderDescriptor();
+        if ( providerDescriptor == null )
+        {
+            // No specific provider descriptor, use the default
+            providerDescriptor = indexProviderMap.getDefaultProvider().getProviderDescriptor();
+        }
+        else if ( indexProviderMap.lookup( providerDescriptor ) == null )
+        {
+            // A specific provider descriptor, verify that it exists
+            throw new IllegalArgumentException( "Specified non-existent provider '" + providerDescriptor + "' for created index " + index );
+        }
+
         IndexRule rule = IndexRule.indexRule( schemaStorage.newRuleId(), index, providerDescriptor );
         recordState.createSchemaRule( rule );
     }

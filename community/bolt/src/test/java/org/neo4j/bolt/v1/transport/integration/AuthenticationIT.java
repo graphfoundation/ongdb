@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -39,6 +39,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
 
 import org.neo4j.bolt.AbstractBoltTransportsTest;
+import org.neo4j.bolt.BoltKernelExtension;
 import org.neo4j.bolt.v1.messaging.message.AckFailureMessage;
 import org.neo4j.bolt.v1.messaging.message.FailureMessage;
 import org.neo4j.bolt.v1.messaging.message.InitMessage;
@@ -52,6 +53,7 @@ import org.neo4j.helpers.HostnamePort;
 import org.neo4j.kernel.api.exceptions.Status;
 import org.neo4j.kernel.impl.util.ValueUtils;
 import org.neo4j.kernel.internal.Version;
+import org.neo4j.logging.AssertableLogProvider;
 import org.neo4j.test.TestGraphDatabaseFactory;
 import org.neo4j.test.rule.fs.EphemeralFileSystemRule;
 import org.neo4j.values.virtual.MapValue;
@@ -62,6 +64,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.instanceOf;
+import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.fail;
 import static org.neo4j.bolt.v1.messaging.util.MessageMatchers.msgFailure;
@@ -69,10 +72,13 @@ import static org.neo4j.bolt.v1.messaging.util.MessageMatchers.msgIgnored;
 import static org.neo4j.bolt.v1.messaging.util.MessageMatchers.msgSuccess;
 import static org.neo4j.bolt.v1.transport.integration.TransportTestUtil.eventuallyDisconnects;
 import static org.neo4j.helpers.collection.MapUtil.map;
+import static org.neo4j.logging.AssertableLogProvider.inLog;
+import static org.neo4j.test.assertion.Assert.assertEventually;
 
 public class AuthenticationIT extends AbstractBoltTransportsTest
 {
     protected EphemeralFileSystemRule fsRule = new EphemeralFileSystemRule();
+    protected final AssertableLogProvider logProvider = new AssertableLogProvider();
     protected Neo4jWithSocket server =
             new Neo4jWithSocket( getClass(), getTestGraphDatabaseFactory(), fsRule, getSettingsFunction() );
 
@@ -81,7 +87,7 @@ public class AuthenticationIT extends AbstractBoltTransportsTest
 
     protected TestGraphDatabaseFactory getTestGraphDatabaseFactory()
     {
-        return new TestGraphDatabaseFactory();
+        return new TestGraphDatabaseFactory( logProvider );
     }
 
     protected Consumer<Map<String,String>> getSettingsFunction()
@@ -137,6 +143,16 @@ public class AuthenticationIT extends AbstractBoltTransportsTest
                 "The client is unauthorized due to authentication failure." ) ) );
 
         assertThat( connection, eventuallyDisconnects() );
+
+        assertEventually( ignore -> "Matching log call not found in\n" + logProvider.serialize(),
+                this::authFailureLoggedToUserLog, is( true ), 30, SECONDS );
+    }
+
+    private boolean authFailureLoggedToUserLog()
+    {
+        String boltPackageName = BoltKernelExtension.class.getPackage().getName();
+        return logProvider.containsMatchingLogCall( inLog( containsString( boltPackageName ) )
+                .warn( containsString( "The client is unauthorized due to authentication failure." ) ) );
     }
 
     @Test

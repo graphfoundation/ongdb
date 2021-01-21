@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -38,13 +38,13 @@ import org.neo4j.collection.primitive.PrimitiveLongCollections;
 import org.neo4j.collection.primitive.PrimitiveLongIterator;
 import org.neo4j.function.IOFunction;
 import org.neo4j.helpers.TaskCoordinator;
+import org.neo4j.internal.kernel.api.IndexQuery;
 import org.neo4j.kernel.api.exceptions.index.IndexEntryConflictException;
 import org.neo4j.kernel.api.exceptions.index.IndexNotFoundKernelException;
 import org.neo4j.kernel.api.impl.index.storage.DirectoryFactory;
 import org.neo4j.kernel.api.index.IndexEntryUpdate;
 import org.neo4j.kernel.api.index.IndexQueryHelper;
 import org.neo4j.kernel.api.index.IndexUpdater;
-import org.neo4j.internal.kernel.api.IndexQuery;
 import org.neo4j.kernel.api.schema.index.SchemaIndexDescriptor;
 import org.neo4j.kernel.api.schema.index.SchemaIndexDescriptorFactory;
 import org.neo4j.kernel.configuration.Config;
@@ -246,9 +246,10 @@ public class DatabaseCompositeIndexAccessorTest
             return nothing;
         }, null, waitingWhileIn( TaskCoordinator.class, "awaitCompletion" ), 3, SECONDS );
 
-        try ( IndexReader reader = indexReader /* do not inline! */ )
+        try ( IndexReader reader = indexReader /* do not inline! */;
+              IndexSampler sampler = indexSampler /* do not inline! */ )
         {
-            indexSampler.sampleIndex();
+            sampler.sampleIndex();
             fail( "expected exception" );
         }
         catch ( IndexNotFoundKernelException e )

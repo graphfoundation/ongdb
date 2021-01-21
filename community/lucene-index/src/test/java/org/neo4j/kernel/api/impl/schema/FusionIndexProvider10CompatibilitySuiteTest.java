@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -41,7 +41,7 @@ public class FusionIndexProvider10CompatibilitySuiteTest extends IndexProviderCo
         IndexProvider.Monitor monitor = IndexProvider.Monitor.EMPTY;
         Config config = Config.defaults( stringMap( default_schema_provider.name(), NATIVE10.providerName() ) );
         OperationalMode mode = OperationalMode.single;
-        RecoveryCleanupWorkCollector recoveryCleanupWorkCollector = RecoveryCleanupWorkCollector.IMMEDIATE;
+        RecoveryCleanupWorkCollector recoveryCleanupWorkCollector = RecoveryCleanupWorkCollector.immediate();
         return NativeLuceneFusionIndexProviderFactory10.create( pageCache, graphDbDir, fs, monitor, config, mode, recoveryCleanupWorkCollector );
     }
 

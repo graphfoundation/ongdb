@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -19,9 +19,9 @@
  */
 package org.neo4j.server.security.ssl;
 
-import org.eclipse.jetty.http.HttpScheme;
 import org.eclipse.jetty.http.HttpVersion;
 import org.eclipse.jetty.server.HttpConfiguration;
+import org.eclipse.jetty.server.HttpConfiguration.Customizer;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
 import org.eclipse.jetty.server.SslConnectionFactory;
@@ -39,17 +39,19 @@ import org.neo4j.ssl.SslPolicy;
 
 public class SslSocketConnectorFactory extends HttpConnectorFactory
 {
-    public SslSocketConnectorFactory( Config configuration )
+    private final Customizer requestCustomizer;
+
+    public SslSocketConnectorFactory( Config config )
     {
-        super( configuration );
+        super( config );
+        requestCustomizer = new HttpsRequestCustomizer( config );
     }
 
     @Override
     protected HttpConfiguration createHttpConfig()
     {
         HttpConfiguration httpConfig = super.createHttpConfig();
-        httpConfig.addCustomizer(
-                ( connector, channelConfig, request ) -> request.setScheme( HttpScheme.HTTPS.asString() ) );
+        httpConfig.addCustomizer( requestCustomizer );
         return httpConfig;
     }
 

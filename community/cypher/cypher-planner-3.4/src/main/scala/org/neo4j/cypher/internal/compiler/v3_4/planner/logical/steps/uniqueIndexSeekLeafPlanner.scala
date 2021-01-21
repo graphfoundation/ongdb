@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -34,7 +34,8 @@ object uniqueIndexSeekLeafPlanner extends AbstractIndexSeekLeafPlanner {
                               argumentIds: Set[String],
                               context: LogicalPlanningContext)
                              (solvedPredicates: Seq[Expression], predicatesForCardinalityEstimation: Seq[Expression]): LogicalPlan =
-      context.logicalPlanProducer.planNodeUniqueIndexSeek(idName, label, propertyKeys, valueExpr, solvedPredicates, hint, argumentIds, context)
+      context.logicalPlanProducer.planNodeUniqueIndexSeek(idName, label, propertyKeys, valueExpr, solvedPredicates, predicatesForCardinalityEstimation,
+        hint, argumentIds, context)
 
   protected def findIndexesForLabel(labelId: Int, context: LogicalPlanningContext): Iterator[IndexDescriptor] =
     context.planContext.uniqueIndexesGetForLabel(labelId)

@@ -3,14 +3,14 @@
   <parent>
     <groupId>org.neo4j</groupId>
     <artifactId>cypher-parent</artifactId>
-    <version>3.4.0-SNAPSHOT</version>
+    <version>3.4.18-SNAPSHOT</version>
     <relativePath>../</relativePath>
   </parent>
 
   <modelVersion>4.0.0</modelVersion>
   <artifactId>neo4j-cypher-expression-3.4</artifactId>
   <packaging>jar</packaging>
-  <version>3.4.0-SNAPSHOT</version>
+  <version>3.4.18-SNAPSHOT</version>
   <name>Neo4j - Cypher Expressions 3.4</name>
 
   <description>Cypher expressions</description>
@@ -23,8 +23,8 @@
   </scm>
 
   <properties>
-    <licensing.prepend.text>notice-asl-prefix.txt</licensing.prepend.text>
-    <license-text.header>${project.baseUri}/ASL-2-header.txt</license-text.header>
+    <licensing.prepend.text>licensing/notice-asl-prefix.txt</licensing.prepend.text>
+    <license-text.header>headers/ASL-2-header.txt</license-text.header>
     <moduleName>org.neo4j.cypher.internal.v3_4.expressions</moduleName>
   </properties>
 

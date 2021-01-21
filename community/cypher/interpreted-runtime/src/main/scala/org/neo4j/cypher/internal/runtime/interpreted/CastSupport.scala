@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -54,11 +54,14 @@ object CastSupport {
       s"Expected $value to be a ${ev.runtimeClass.getName}, but it was a ${value.getClass.getName}")
   }
 
-  def castOrFail[A >: AnyValue](value: AnyValue)(implicit ev: ClassTag[A]): A = value match {
+  def castOrFail[A <: AnyValue](value: AnyValue)(implicit ev: ClassTag[A]): A = value match {
     case v: A => v
-    case _ => throw new CypherTypeException(
-      s"Expected $value to be a Number, but it was a String")
+    case _ => throw typeError[A](value)
   }
+
+  def typeError[A <: AnyValue](value: AnyValue)(implicit ev: ClassTag[A]): CypherTypeException =
+    throw new CypherTypeException(
+      s"Expected $value to be a ${ev.runtimeClass.getName}, but it was a ${value.getClass.getName}")
 
   /*
   This method takes two values and finds the type both values could be represented in.

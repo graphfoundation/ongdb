@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -120,16 +120,20 @@ public abstract class NativeSchemaIndexPopulator<KEY extends NativeSchemaKey<KEY
         assertNotClosed();
 
         gbpTreeFileUtil.deleteFileIfPresent( storeFile );
-        instantiateTree( RecoveryCleanupWorkCollector.IMMEDIATE, headerWriter );
+        instantiateTree( RecoveryCleanupWorkCollector.immediate(), headerWriter );
 
         // true:  tree uniqueness is (value,entityId)
         // false: tree uniqueness is (value) <-- i.e. more strict
-        boolean compareIds = descriptor.type() == GENERAL;
-        additionsWorkSync = new WorkSync<>( new IndexUpdateApply<>( tree, treeKey, treeValue, new ConflictDetectingValueMerger<>( compareIds ) ) );
+        additionsWorkSync = new WorkSync<>( new IndexUpdateApply<>( tree, treeKey, treeValue, getMainConflictDetector() ) );
 
         // for updates we have to have uniqueness on (value,entityId) to allow for intermediary violating updates.
         // there are added conflict checks after updates have been applied.
         updatesWorkSync = new WorkSync<>( new IndexUpdateApply<>( tree, treeKey, treeValue, new ConflictDetectingValueMerger<>( true ) ) );
+    }
+
+    ConflictDetectingValueMerger<KEY,VALUE> getMainConflictDetector()
+    {
+        return new ConflictDetectingValueMerger<>( descriptor.type() == GENERAL );
     }
 
     @Override
@@ -154,7 +158,7 @@ public abstract class NativeSchemaIndexPopulator<KEY extends NativeSchemaKey<KEY
     }
 
     @Override
-    public void verifyDeferredConstraints( PropertyAccessor propertyAccessor )
+    public void verifyDeferredConstraints( PropertyAccessor propertyAccessor ) throws IndexEntryConflictException
     {
         // No-op, uniqueness is checked for each update in add(IndexEntryUpdate)
     }
@@ -190,13 +194,18 @@ public abstract class NativeSchemaIndexPopulator<KEY extends NativeSchemaKey<KEY
             }
         };
 
-        if ( descriptor.type() == UNIQUE )
+        if ( descriptor.type() == UNIQUE && canCheckConflictsWithoutStoreAccess() )
         {
             // The index population detects conflicts on the fly, however for updates coming in we're in a position
             // where we cannot detect conflicts while applying, but instead afterwards.
             updater = new DeferredConflictCheckingIndexUpdater( updater, this::newReader, descriptor );
         }
         return updater;
+    }
+
+    boolean canCheckConflictsWithoutStoreAccess()
+    {
+        return true;
     }
 
     abstract IndexReader newReader();
@@ -278,7 +287,7 @@ public abstract class NativeSchemaIndexPopulator<KEY extends NativeSchemaKey<KEY
     {
         if ( tree == null )
         {
-            instantiateTree( RecoveryCleanupWorkCollector.IGNORE, NO_HEADER_WRITER );
+            instantiateTree( RecoveryCleanupWorkCollector.ignore(), NO_HEADER_WRITER );
         }
     }
 

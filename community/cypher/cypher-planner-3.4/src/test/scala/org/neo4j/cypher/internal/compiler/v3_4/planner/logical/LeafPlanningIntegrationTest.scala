@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -46,6 +46,32 @@ class LeafPlanningIntegrationTest extends CypherFunSuite with LogicalPlanningTes
         RangeQueryExpression(PrefixSeekRangeWrapper(PrefixRange(StringLiteral("prefix")_)) _),
         Set.empty)
     )
+  }
+
+  test("should prefer cheaper optional expand over joins, even if not cheaper before rewriting") {
+    (new given {
+      cost = {
+        case (_: RightOuterHashJoin, _, _) => 6.610321376825E9
+        case (_: LeftOuterHashJoin, _, _) => 8.1523761738E9
+        case (_: Apply, _, _) => 7.444573003149691E9
+        case (_: OptionalExpand, _, _) => 4.76310362E8
+        case (_: Optional, _, _) => 7.206417822149691E9
+        case (_: Selection, _, _) => 1.02731056E8
+        case (_: Expand, _, _) => 7.89155379E7
+        case (_: AllNodesScan, _, _) => 3.50735724E7
+        case (_: Argument, _, _) => 2.38155181E8
+        case (_: ProjectEndpoints, _, _) => 11.0
+      }
+    } getLogicalPlanFor
+      """UNWIND {createdRelationships} as r
+        |MATCH (source)-[r]->(target)
+        |WITH source AS p
+        |OPTIONAL MATCH (p)<-[follow]-() WHERE type(follow) STARTS WITH 'ProfileFavorites'
+        |WITH p, count(follow) as fc
+        |RETURN 1
+      """.stripMargin)._2 should beLike {
+      case Projection(Aggregation(_: OptionalExpand, _, _), _) => ()
+    }
   }
 
   test("should plan index seek by prefix for simple prefix search based on CONTAINS substring") {
@@ -729,6 +755,59 @@ class LeafPlanningIntegrationTest extends CypherFunSuite with LogicalPlanningTes
     plan should equal(distinct)
   }
 
+  test("should be able to OR together two index seeks with different labels")
+  {
+    val plan = (new given {
+      indexOn("Label1", "prop1")
+      indexOn("Label2", "prop2")
+    } getLogicalPlanFor "MATCH (n:Label1:Label2) WHERE n.prop1 = 'val' OR n.prop2 = 'val' RETURN n")._2
+
+    val propPredicate = SingleQueryExpression(StringLiteral("val")(pos))
+    val prop1 = PropertyKeyToken("prop1", PropertyKeyId(0))
+    val prop2 = PropertyKeyToken("prop2", PropertyKeyId(1))
+    val labelPredicate1 = HasLabels(Variable("n")(pos), Seq(LabelName("Label1")(pos)))(pos)
+    val labelPredicate2 = HasLabels(Variable("n")(pos), Seq(LabelName("Label2")(pos)))(pos)
+    val labelToken1 = LabelToken("Label1", LabelId(0))
+    val labelToken2 = LabelToken("Label2", LabelId(1))
+
+    val seek1: NodeIndexSeek = NodeIndexSeek("n", labelToken1, Seq(prop1), propPredicate, Set.empty)
+    val seek2: NodeIndexSeek = NodeIndexSeek("n", labelToken2, Seq(prop2), propPredicate, Set.empty)
+    val union: Union = Union(seek2, seek1)
+    val distinct = Distinct(union, Map("n" -> varFor("n")))
+    val filter = Selection(Seq(labelPredicate1, labelPredicate2), distinct)
+
+    plan should equal(filter)
+  }
+
+  test("should be able to OR together four index seeks")
+  {
+    val plan = (new given {
+      indexOn("Label1", "prop1")
+      indexOn("Label1", "prop2")
+      indexOn("Label2", "prop1")
+      indexOn("Label2", "prop2")
+    } getLogicalPlanFor "MATCH (n:Label1:Label2) WHERE n.prop1 = 'val' OR n.prop2 = 'val' RETURN n")._2
+
+    val propPredicate = SingleQueryExpression(StringLiteral("val")(pos))
+    val prop1 = PropertyKeyToken("prop1", PropertyKeyId(0))
+    val prop2 = PropertyKeyToken("prop2", PropertyKeyId(1))
+    val labelPredicate1 = HasLabels(Variable("n")(pos), Seq(LabelName("Label1")(pos)))(pos)
+    val labelPredicate2 = HasLabels(Variable("n")(pos), Seq(LabelName("Label2")(pos)))(pos)
+    val labelToken1 = LabelToken("Label1", LabelId(0))
+    val labelToken2 = LabelToken("Label2", LabelId(1))
+
+    val seek1: NodeIndexSeek = NodeIndexSeek("n", labelToken1, Seq(prop1), propPredicate, Set.empty)
+    val seek2: NodeIndexSeek = NodeIndexSeek("n", labelToken1, Seq(prop2), propPredicate, Set.empty)
+    val seek3: NodeIndexSeek = NodeIndexSeek("n", labelToken2, Seq(prop1), propPredicate, Set.empty)
+    val seek4: NodeIndexSeek = NodeIndexSeek("n", labelToken2, Seq(prop2), propPredicate, Set.empty)
+
+    val union: Union = Union( Union( Union(seek2, seek4), seek1), seek3)
+    val distinct = Distinct(union, Map("n" -> varFor("n")))
+    val filter = Selection(Seq(labelPredicate1, labelPredicate2), distinct)
+
+    plan should equal(filter)
+  }
+
   test("should use transitive closure to figure out we can use index") {
     (new given {
       indexOn("Person", "name")
@@ -837,5 +916,25 @@ class LeafPlanningIntegrationTest extends CypherFunSuite with LogicalPlanningTes
       knownLabels = Set("A", "B", "C")
     }
     testAndAssertExpandOrder(config)
+  }
+
+  test("should not plan index scan if predicate variable is an argument") {
+    val plan =
+      new given {
+        indexOn("Label", "prop")
+      } getLogicalPlanFor
+        """
+          |MATCH (a: Label {prop: $param})
+          |MATCH (b)
+          |WHERE (a:Label {prop: $param})-[]-(b)
+          |RETURN a
+          |""".stripMargin
+
+    plan._2 should beLike {
+      case SemiApply(
+             CartesianProduct(_: NodeIndexSeek, _: AllNodesScan),
+             Expand(
+               Selection(_, _: Argument), _, _, _, _, _, _)) => ()
+    }
   }
 }

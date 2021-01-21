@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -57,7 +57,7 @@ case class OptionalExpandAllPipe(source: Pipe, fromName: String, relName: String
             Iterator(withNulls(row))
 
           case value =>
-            throw new InternalException(s"Expected to find a node at $fromName but found $value instead")
+            throw new InternalException(s"Expected to find a node at '$fromName' but found $value instead")
         }
     }
   }
@@ -66,5 +66,5 @@ case class OptionalExpandAllPipe(source: Pipe, fromName: String, relName: String
     row.set(relName, Values.NO_VALUE, toName, Values.NO_VALUE)
 
   def getFromNode(row: ExecutionContext): AnyValue =
-    row.getOrElse(fromName, throw new InternalException(s"Expected to find a node at $fromName but found nothing"))
+    row.getOrElse(fromName, throw new InternalException(s"Expected to find a node at '$fromName' but found nothing"))
 }

@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -50,6 +50,7 @@ public class HttpConnectorFactory
         HttpConfiguration httpConfig = new HttpConfiguration();
         httpConfig.setRequestHeaderSize( configuration.get( ServerSettings.maximum_request_header_size) );
         httpConfig.setResponseHeaderSize( configuration.get( ServerSettings.maximum_response_header_size) );
+        httpConfig.setSendServerVersion( false );
         return httpConfig;
     }
 

@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -26,7 +26,7 @@ import org.neo4j.cypher.internal.compatibility._
 import org.neo4j.cypher.internal.compiler.v3_4.prettifier.Prettifier
 import org.neo4j.cypher.internal.frontend.v3_4.phases.CompilationPhaseTracer
 import org.neo4j.cypher.internal.runtime.interpreted.{LastCommittedTxIdProvider, TransactionalContextWrapper, ValueConversion}
-import org.neo4j.cypher.internal.runtime.{RuntimeJavaValueConverter, RuntimeScalaValueConverter, isGraphKernelResultValue}
+import org.neo4j.cypher.internal.runtime.{ExplainMode, RuntimeJavaValueConverter, RuntimeScalaValueConverter, isGraphKernelResultValue}
 import org.neo4j.cypher.internal.tracing.{CompilationTracer, TimingCompilationTracer}
 import org.neo4j.graphdb.Result
 import org.neo4j.graphdb.config.Setting
@@ -118,9 +118,6 @@ class ExecutionEngine(val queryService: GraphDatabaseQueryService,
     }
     preparedPlanExecution.execute(wrappedContext, mapParams)
   }
-
-  protected def parseQuery(queryText: String): ParsedQuery =
-    parsePreParsedQuery(preParseQuery(queryText), CompilationPhaseTracer.NO_TRACING)
 
   @throws(classOf[SyntaxException])
   private def parsePreParsedQuery(preParsedQuery: PreParsedQuery, tracer: CompilationPhaseTracer): ParsedQuery = {
@@ -279,7 +276,13 @@ class ExecutionEngine(val queryService: GraphDatabaseQueryService,
 
   def prettify(query: String): String = Prettifier(query)
 
-  def isPeriodicCommit(query: String) = parseQuery(query).isPeriodicCommit
+  /**
+    * @return { @code true} if the query is a PERIODIC COMMIT query and not an EXPLAIN query
+    */
+  def isPeriodicCommit(query: String): Boolean = {
+    val preParsedQuery = preParseQuery(query)
+    preParsedQuery.executionMode != CypherExecutionMode.explain && parsePreParsedQuery(preParsedQuery, CompilationPhaseTracer.NO_TRACING).isPeriodicCommit
+  }
 
   private def createCompilerDelegator(): CompilerEngineDelegator = {
     val version: CypherVersion = CypherVersion(optGraphSetting[String](
@@ -310,9 +313,17 @@ class ExecutionEngine(val queryService: GraphDatabaseQueryService,
       queryService, GraphDatabaseSettings.csv_legacy_quote_escaping,
       GraphDatabaseSettings.csv_legacy_quote_escaping.getDefaultValue.toBoolean
     )
+    val csvBufferSize = optGraphSetting[java.lang.Integer](
+      queryService, GraphDatabaseSettings.csv_buffer_size,
+      GraphDatabaseSettings.csv_buffer_size.getDefaultValue.toInt
+    )
     val planWithMinimumCardinalityEstimates = optGraphSetting[java.lang.Boolean](
       queryService, GraphDatabaseSettings.cypher_plan_with_minimum_cardinality_estimates,
       GraphDatabaseSettings.cypher_plan_with_minimum_cardinality_estimates.getDefaultValue.toBoolean
+    )
+    val lenientCreateRelationship = optGraphSetting[java.lang.Boolean](
+      queryService, GraphDatabaseSettings.cypher_lenient_create_relationship,
+      GraphDatabaseSettings.cypher_lenient_create_relationship.getDefaultValue.toBoolean
     )
 
     if (((version != CypherVersion.v2_3) || (version != CypherVersion.v3_1) || (version != CypherVersion.v3_4) || (version != CypherVersion.v3_3)) &&
@@ -326,8 +337,8 @@ class ExecutionEngine(val queryService: GraphDatabaseQueryService,
     val compatibilityCache = new CompatibilityCache(compatibilityFactory)
     new CompilerEngineDelegator(queryService, kernelMonitors, version, planner, runtime,
       useErrorsOverWarnings, idpMaxTableSize, idpIterationDuration, errorIfShortestPathFallbackUsedAtRuntime,
-      errorIfShortestPathHasCommonNodesAtRuntime, legacyCsvQuoteEscaping, planWithMinimumCardinalityEstimates,
-      logProvider, compatibilityCache)
+      errorIfShortestPathHasCommonNodesAtRuntime, legacyCsvQuoteEscaping, csvBufferSize, planWithMinimumCardinalityEstimates,
+      lenientCreateRelationship, logProvider, compatibilityCache)
   }
 
   private def getPlanCacheSize: Int =

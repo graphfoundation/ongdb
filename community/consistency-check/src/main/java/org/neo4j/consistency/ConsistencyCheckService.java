@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -232,7 +232,7 @@ public class ConsistencyCheckService
         LifeSupport life = new LifeSupport();
         KernelExtensions extensions = life.add( instantiateKernelExtensions( storeDir,
                 fileSystem, config, new SimpleLogService( logProvider, logProvider ), pageCache,
-                RecoveryCleanupWorkCollector.IGNORE,
+                RecoveryCleanupWorkCollector.ignore(),
                 // May be enterprise edition, but in consistency checker we only care about the operational mode
                 COMMUNITY,
                 monitors ) );
@@ -244,8 +244,8 @@ public class ConsistencyCheckService
             IndexProviderMap indexes = loadIndexProviders( extensions );
 
             LabelScanStore labelScanStore =
-                    new NativeLabelScanStore( pageCache, storeDir, FullStoreChangeStream.EMPTY, true, monitors,
-                            RecoveryCleanupWorkCollector.IGNORE );
+                    new NativeLabelScanStore( pageCache, fileSystem, storeDir, FullStoreChangeStream.EMPTY, true, monitors,
+                            RecoveryCleanupWorkCollector.ignore() );
             life.add( labelScanStore );
 
             int numberOfThreads = defaultConsistencyCheckThreadsNumber();

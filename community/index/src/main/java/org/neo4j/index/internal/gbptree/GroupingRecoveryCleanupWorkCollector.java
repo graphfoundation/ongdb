@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -19,24 +19,26 @@
  */
 package org.neo4j.index.internal.gbptree;
 
-import java.util.Queue;
+import java.util.StringJoiner;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 
-import org.neo4j.kernel.lifecycle.LifecycleAdapter;
 import org.neo4j.scheduler.JobScheduler;
 
 import static org.neo4j.scheduler.JobScheduler.Groups.recoveryCleanup;
 
 /**
- * Collects recovery cleanup work to be performed and schedule them one by one in {@link #start()}}.
- * <p>
- * Also see {@link RecoveryCleanupWorkCollector}
+ * Runs cleanup work as they're added in {@link #add(CleanupJob)}, but the thread that calls {@link #add(CleanupJob)} will not execute them itself.
  */
-public class GroupingRecoveryCleanupWorkCollector extends LifecycleAdapter implements RecoveryCleanupWorkCollector
+public class GroupingRecoveryCleanupWorkCollector extends RecoveryCleanupWorkCollector
 {
-    private final Queue<CleanupJob> jobs;
+    private final BlockingQueue<CleanupJob> jobs = new LinkedBlockingQueue<>();
     private final JobScheduler jobScheduler;
     private volatile boolean started;
+    private JobScheduler.JobHandle handle;
 
     /**
      * @param jobScheduler {@link JobScheduler} to queue {@link CleanupJob} into.
@@ -44,14 +46,19 @@ public class GroupingRecoveryCleanupWorkCollector extends LifecycleAdapter imple
     public GroupingRecoveryCleanupWorkCollector( JobScheduler jobScheduler )
     {
         this.jobScheduler = jobScheduler;
-        this.jobs = new LinkedBlockingQueue<>();
     }
 
     @Override
     public void init()
     {
         started = false;
-        jobs.clear();
+        if ( !jobs.isEmpty() )
+        {
+            StringJoiner joiner = new StringJoiner( String.format( "%n  " ), "Did not expect there to be any cleanup jobs still here. Jobs[", "]" );
+            consumeAndCloseJobs( cj -> joiner.add( cj.toString() ) );
+            throw new IllegalStateException( joiner.toString() );
+        }
+        scheduleJobs();
     }
 
     @Override
@@ -67,47 +74,69 @@ public class GroupingRecoveryCleanupWorkCollector extends LifecycleAdapter imple
     @Override
     public void start()
     {
-        scheduleJobs();
         started = true;
+    }
+
+    @Override
+    public void shutdown() throws ExecutionException, InterruptedException
+    {
+        started = true;
+        if ( handle != null )
+        {
+            // Also set the started flag which acts as a signal to exit the scheduled job on empty queue,
+            // this is of course a special case where perhaps not start() gets called, i.e. if something fails
+            // before reaching that phase in the lifecycle.
+            handle.waitTermination();
+        }
+        consumeAndCloseJobs( cj -> {} );
     }
 
     private void scheduleJobs()
     {
-        jobScheduler.schedule( recoveryCleanup, allJobs() );
+        handle = jobScheduler.schedule( recoveryCleanup, allJobs() );
     }
 
     private Runnable allJobs()
     {
         return () ->
+                executeWithExecutor( executor ->
+                {
+                    CleanupJob job = null;
+                    do
+                    {
+                        try
+                        {
+                            job = jobs.poll( 100, TimeUnit.MILLISECONDS );
+                            if ( job != null )
+                            {
+                                job.run( executor );
+                            }
+                        }
+                        catch ( Exception e )
+                        {
+                            // There's no audience for these exceptions. The jobs themselves know if they've failed and communicates
+                            // that to its tree. The scheduled job is just a vessel for running these cleanup jobs.
+                        }
+                        finally
+                        {
+                            if ( job != null )
+                            {
+                                job.close();
+                            }
+                        }
+                    }
+                    // Even if there are no jobs in the queue then continue looping until we go to started state
+                    while ( !jobs.isEmpty() || !started );
+                } );
+    }
+
+    private void consumeAndCloseJobs( Consumer<CleanupJob> consumer )
+    {
+        CleanupJob job;
+        while ( (job = jobs.poll()) != null )
         {
-            CleanupJob job;
-            Exception jobsException = null;
-            while ( (job = jobs.poll()) != null )
-            {
-                try
-                {
-                    job.run();
-                }
-                catch ( Exception e )
-                {
-                    if ( jobsException == null )
-                    {
-                        jobsException = e;
-                    }
-                    else
-                    {
-                        jobsException.addSuppressed( e );
-                    }
-                }
-                finally
-                {
-                    job.close();
-                }
-            }
-            if ( jobsException != null )
-            {
-                throw new RuntimeException( jobsException );
-            }
-        };
+            consumer.accept( job );
+            job.close();
+        }
     }
 }

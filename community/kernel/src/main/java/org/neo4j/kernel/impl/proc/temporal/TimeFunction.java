@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -63,21 +63,6 @@ class TimeFunction extends TemporalFunction<TimeValue>
     protected TimeValue select( AnyValue from, Supplier<ZoneId> defaultZone )
     {
         return TimeValue.select( from, defaultZone );
-    }
-
-    @Override
-    protected TimeValue positionalCreate( AnyValue[] input )
-    {
-        if ( input.length != 5 )
-        {
-            throw new IllegalArgumentException( "expected 5 arguments" );
-        }
-        return TimeValue.time(
-                anInt( "hour", input[0] ),
-                anInt( "minute", input[1] ),
-                anInt( "second", input[2] ),
-                anInt( "nanos", input[3] ),
-                aString( "offset", input[4] ) );
     }
 
     @Override

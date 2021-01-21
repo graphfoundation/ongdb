@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -141,7 +141,8 @@ abstract class BaseExecutionResultBuilderFactory(pipeInfo: PipeInfo,
 
 case class InterpretedExecutionResultBuilderFactory(pipeInfo: PipeInfo,
                                                     columns: List[String],
-                                                    logicalPlan: LogicalPlan)
+                                                    logicalPlan: LogicalPlan,
+                                                    lenientCreateRelationship: Boolean)
   extends BaseExecutionResultBuilderFactory(pipeInfo, columns, logicalPlan) {
 
   override def create(): ExecutionResultBuilder =
@@ -149,8 +150,13 @@ case class InterpretedExecutionResultBuilderFactory(pipeInfo: PipeInfo,
 
   case class InterpretedExecutionWorkflowBuilder() extends BaseExecutionWorkflowBuilder {
     override def createQueryState(params: MapValue) = {
-      new QueryState(queryContext, externalResource, params, pipeDecorator,
-        triadicState = mutable.Map.empty, repeatableReads = mutable.Map.empty)
+      new QueryState(queryContext,
+                     externalResource,
+                     params,
+                     pipeDecorator,
+                     triadicState = mutable.Map.empty,
+                     repeatableReads = mutable.Map.empty,
+                     lenientCreateRelationship = lenientCreateRelationship)
     }
 
     override def buildResultIterator(results: Iterator[ExecutionContext], isUpdating: Boolean): ResultIterator = {

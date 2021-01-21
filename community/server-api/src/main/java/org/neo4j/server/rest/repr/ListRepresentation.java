@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -20,10 +20,13 @@
 package org.neo4j.server.rest.repr;
 
 import java.net.URI;
+import java.time.temporal.Temporal;
+import java.time.temporal.TemporalAmount;
 import java.util.Arrays;
 import java.util.Iterator;
 
 import org.neo4j.graphdb.RelationshipType;
+import org.neo4j.graphdb.spatial.Point;
 import org.neo4j.helpers.collection.IterableWrapper;
 import org.neo4j.helpers.collection.PrefetchingIterator;
 
@@ -101,6 +104,60 @@ public class ListRepresentation extends Representation
             protected Representation underlyingObjectToObject( String value )
             {
                 return ValueRepresentation.string( value );
+            }
+        } );
+    }
+
+    public static ListRepresentation points( Point... values )
+    {
+        return point( Arrays.asList( values ) );
+    }
+
+    public static ListRepresentation point( Iterable<Point> values )
+    {
+        return new ListRepresentation( RepresentationType.POINT, new IterableWrapper<Representation, Point>(
+                values )
+        {
+            @Override
+            protected Representation underlyingObjectToObject( Point value )
+            {
+                return ValueRepresentation.point( value );
+            }
+        } );
+    }
+
+    public static ListRepresentation temporals( Temporal... values )
+    {
+        return temporal( Arrays.asList( values ) );
+    }
+
+    public static ListRepresentation temporal( Iterable<Temporal> values )
+    {
+        return new ListRepresentation( RepresentationType.TEMPORAL, new IterableWrapper<Representation, Temporal>(
+                values )
+        {
+            @Override
+            protected Representation underlyingObjectToObject( Temporal value )
+            {
+                return ValueRepresentation.temporal( value );
+            }
+        } );
+    }
+
+    public static ListRepresentation temporalAmounts( TemporalAmount... values )
+    {
+        return temporalAmount( Arrays.asList( values ) );
+    }
+
+    public static ListRepresentation temporalAmount( Iterable<TemporalAmount> values )
+    {
+        return new ListRepresentation( RepresentationType.TEMPORAL_AMOUNT, new IterableWrapper<Representation, TemporalAmount>(
+                values )
+        {
+            @Override
+            protected Representation underlyingObjectToObject( TemporalAmount value )
+            {
+                return ValueRepresentation.temporalAmount( value );
             }
         } );
     }

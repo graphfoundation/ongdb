@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -102,7 +102,8 @@ public interface TestServerBuilder
     TestServerBuilder withFixture( Function<GraphDatabaseService, Void> fixtureFunction );
 
     /**
-     * Pre-populate the server with a database copied from the specified directory
+     * Pre-populate the server with databases copied from the specified source directory.
+     * The source directory needs to have sub-folders `databases/graph.db` in which the source store files are located.
      * @param sourceDirectory the directory to copy from
      * @return this builder instance
      */

@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -36,6 +36,7 @@ import java.util.stream.IntStream;
 import org.neo4j.function.ThrowingConsumer;
 import org.neo4j.helpers.collection.Pair;
 import org.neo4j.helpers.collection.Visitor;
+import org.neo4j.internal.kernel.api.InternalIndexState;
 import org.neo4j.internal.kernel.api.schema.SchemaDescriptor;
 import org.neo4j.internal.kernel.api.schema.SchemaDescriptorSupplier;
 import org.neo4j.kernel.api.exceptions.index.FlipFailedKernelException;
@@ -45,6 +46,7 @@ import org.neo4j.kernel.api.index.IndexEntryUpdate;
 import org.neo4j.kernel.api.index.IndexPopulator;
 import org.neo4j.kernel.api.index.IndexUpdater;
 import org.neo4j.kernel.api.index.PropertyAccessor;
+import org.neo4j.kernel.impl.api.SchemaState;
 import org.neo4j.logging.Log;
 import org.neo4j.logging.LogProvider;
 import org.neo4j.storageengine.api.schema.IndexSample;
@@ -101,13 +103,15 @@ public class MultipleIndexPopulator implements IndexPopulator
     private final IndexStoreView storeView;
     private final LogProvider logProvider;
     protected final Log log;
+    private final SchemaState schemaState;
     private StoreScan<IndexPopulationFailedKernelException> storeScan;
 
-    public MultipleIndexPopulator( IndexStoreView storeView, LogProvider logProvider )
+    public MultipleIndexPopulator( IndexStoreView storeView, LogProvider logProvider, SchemaState schemaState )
     {
         this.storeView = storeView;
         this.logProvider = logProvider;
         this.log = logProvider.getLog( IndexPopulationJob.class );
+        this.schemaState = schemaState;
     }
 
     IndexPopulation addPopulator(
@@ -216,11 +220,7 @@ public class MultipleIndexPopulator implements IndexPopulator
             }
         }
 
-        // Index conflicts are expected (for unique indexes) so we don't need to log them.
-        if ( !(failure instanceof IndexEntryConflictException) )
-        {
-            log.error( format( "Failed to populate index: [%s]", population.indexUserDescription ), failure );
-        }
+        log.error( format( "Failed to populate index: [%s]", population.indexUserDescription ), failure );
 
         // The flipper will have already flipped to a failed index context here, but
         // it will not include the cause of failure, so we do another flip to a failed
@@ -575,6 +575,7 @@ public class MultipleIndexPopulator implements IndexPopulator
                             IndexSample sample = populator.sampleResult();
                             storeView.replaceIndexCounts( indexId, sample.uniqueValues(), sample.sampleSize(), sample.indexSize() );
                             populator.close( true );
+                            schemaState.clear();
                             return true;
                         }
                     }
@@ -582,12 +583,22 @@ public class MultipleIndexPopulator implements IndexPopulator
                 }
                 finally
                 {
+                    logCompletionMessage();
                     populationOngoing = false;
                     populatorLock.unlock();
                 }
             }, failedIndexProxyFactory );
             removeFromOngoingPopulations( this );
-            log.info( "Index population completed. Index [%s] is %s.", indexUserDescription, flipper.getState().name() );
+        }
+
+        private void logCompletionMessage()
+        {
+            log.info( "Index creation finished for index [%s].", indexUserDescription );
+        }
+
+        private boolean isIndexPopulationOngoing( InternalIndexState postPopulationState )
+        {
+            return InternalIndexState.POPULATING == postPopulationState;
         }
 
         @Override

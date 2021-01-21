@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -42,6 +42,7 @@ import org.neo4j.kernel.api.exceptions.index.IndexNotFoundKernelException;
 import org.neo4j.kernel.api.schema.LabelSchemaDescriptor;
 import org.neo4j.kernel.api.schema.SchemaDescriptorFactory;
 import org.neo4j.kernel.api.schema.constaints.NodeExistenceConstraintDescriptor;
+import org.neo4j.kernel.api.schema.constaints.NodeKeyConstraintDescriptor;
 import org.neo4j.kernel.api.schema.constaints.RelExistenceConstraintDescriptor;
 import org.neo4j.kernel.api.schema.constaints.UniquenessConstraintDescriptor;
 import org.neo4j.kernel.impl.api.store.DefaultIndexReference;
@@ -171,6 +172,11 @@ public class GraphDbStructureGuide implements Visitable<DbStructureVisitor>
             {
                 RelExistenceConstraintDescriptor existenceConstraint = (RelExistenceConstraintDescriptor) constraint;
                 visitor.visitRelationshipPropertyExistenceConstraint( existenceConstraint, userDescription );
+            }
+            else if ( constraint instanceof NodeKeyConstraintDescriptor )
+            {
+                NodeKeyConstraintDescriptor nodeKeyConstraint = (NodeKeyConstraintDescriptor) constraint;
+                visitor.visitNodeKeyConstraint( nodeKeyConstraint, userDescription );
             }
             else
             {

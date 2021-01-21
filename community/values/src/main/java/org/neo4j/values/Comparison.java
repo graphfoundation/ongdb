@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -34,7 +34,6 @@ public enum Comparison
                 {
                     return 1;
                 }
-
             },
     EQUAL
             {
@@ -43,7 +42,6 @@ public enum Comparison
                 {
                     return 0;
                 }
-
             },
     SMALLER_THAN
             {
@@ -52,18 +50,10 @@ public enum Comparison
                 {
                     return -1;
                 }
-
             },
-    UNDEFINED
-            {
-                @Override
-                public int value()
-                {
-                    throw new IllegalStateException(
-                            "This value is undefined and can't handle primitive comparisons" );
-                }
-
-            };
+    GREATER_THAN_AND_EQUAL,
+    SMALLER_THAN_AND_EQUAL,
+    UNDEFINED;
 
     /**
      * Integer representation of comparison
@@ -76,7 +66,10 @@ public enum Comparison
      * if equal.
      * @throws IllegalStateException if the result is undefined.
      */
-    public abstract int value();
+    public int value()
+    {
+        throw new IllegalStateException( "This value is undefined and can't handle primitive comparisons" );
+    }
 
     /**
      * Maps an integer value to comparison result.

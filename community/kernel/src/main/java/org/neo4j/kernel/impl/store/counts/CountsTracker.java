@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -94,7 +94,7 @@ public class CountsTracker extends AbstractKeyValueStore<CountsKey>
     public CountsTracker( final LogProvider logProvider, FileSystemAbstraction fs, PageCache pages, Config config,
                           File baseFile, SystemNanoClock clock, VersionContextSupplier versionContextSupplier )
     {
-        super( fs, pages, baseFile, new CountsTrackerRotationMonitor( logProvider ),
+        super( fs, pages, baseFile, new CountsTrackerRotationMonitor( logProvider ), logProvider.getLog( CountsTracker.class ).infoLogger(),
                 new RotationTimerFactory( clock, config.get( counts_store_rotation_timeout ).toMillis() ),
                 versionContextSupplier, 16, 16, HEADER_FIELDS );
     }

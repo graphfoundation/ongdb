@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -35,6 +35,7 @@ import org.neo4j.function.Predicates;
 import org.neo4j.helpers.Exceptions;
 import org.neo4j.kernel.api.exceptions.index.IndexPopulationFailedKernelException;
 import org.neo4j.kernel.api.index.IndexEntryUpdate;
+import org.neo4j.kernel.impl.api.SchemaState;
 import org.neo4j.logging.LogProvider;
 import org.neo4j.util.FeatureToggles;
 
@@ -76,10 +77,11 @@ public class BatchingMultipleIndexPopulator extends MultipleIndexPopulator
      *
      * @param storeView the view of the store as a visitable of nodes
      * @param logProvider the log provider
+     * @param schemaState the schema state
      */
-    BatchingMultipleIndexPopulator( IndexStoreView storeView, LogProvider logProvider )
+    BatchingMultipleIndexPopulator( IndexStoreView storeView, LogProvider logProvider, SchemaState schemaState )
     {
-        super( storeView, logProvider );
+        super( storeView, logProvider, schemaState );
         this.executor = createThreadPool();
     }
 
@@ -91,10 +93,12 @@ public class BatchingMultipleIndexPopulator extends MultipleIndexPopulator
      * @param storeView the view of the store as a visitable of nodes
      * @param executor the thread pool to use for batched index insertions
      * @param logProvider the log provider
+     * @param schemaState the schema state
      */
-    BatchingMultipleIndexPopulator( IndexStoreView storeView, ExecutorService executor, LogProvider logProvider )
+    BatchingMultipleIndexPopulator( IndexStoreView storeView, ExecutorService executor, LogProvider logProvider,
+                                    SchemaState schemaState )
     {
-        super( storeView, logProvider );
+        super( storeView, logProvider, schemaState );
         this.executor = executor;
     }
 

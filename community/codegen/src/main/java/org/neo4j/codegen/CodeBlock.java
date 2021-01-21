@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -33,10 +33,16 @@ public class CodeBlock implements AutoCloseable
     private MethodEmitter emitter;
     private final CodeBlock parent;
     private boolean done;
+    private boolean continuableBlock;
 
     protected LocalVariables localVariables = new LocalVariables();
 
     CodeBlock( CodeBlock parent )
+    {
+        this( parent, parent.continuableBlock );
+    }
+
+    CodeBlock( CodeBlock parent, boolean continuableBlock )
     {
         this.clazz = parent.clazz;
         this.emitter = parent.emitter;
@@ -44,6 +50,7 @@ public class CodeBlock implements AutoCloseable
         this.parent = parent;
         //copy over local variables from parent
         this.localVariables = copy( parent.localVariables );
+        this.continuableBlock = continuableBlock;
     }
 
     CodeBlock( ClassGenerator clazz, MethodEmitter emitter, Parameter... parameters )
@@ -51,6 +58,7 @@ public class CodeBlock implements AutoCloseable
         this.clazz = clazz;
         this.emitter = emitter;
         this.parent = null;
+        this.continuableBlock = false;
         localVariables.createNew( clazz.handle(), "this" );
         for ( Parameter parameter : parameters )
         {
@@ -162,7 +170,7 @@ public class CodeBlock implements AutoCloseable
     public CodeBlock whileLoop( Expression test )
     {
         emitter.beginWhile( test );
-        return new CodeBlock( this );
+        return new CodeBlock( this, true );
     }
 
     public CodeBlock ifStatement( Expression test )
@@ -190,6 +198,14 @@ public class CodeBlock implements AutoCloseable
     public void returns( Expression value )
     {
         emitter.returns( value );
+    }
+
+    public void continueIfPossible()
+    {
+        if ( continuableBlock )
+        {
+            emitter.continues();
+        }
     }
 
     public void throwException( Expression exception )

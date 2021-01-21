@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -56,7 +56,8 @@ class IndexOpAcceptanceTest extends ExecutionEngineFunSuite with QueryStatistics
     val graph = createDbWithFailedIndex
     try {
       // WHEN THEN
-      intercept[FailedIndexException](execute("CREATE INDEX ON :Person(name)"))
+      val e = intercept[FailedIndexException](execute("CREATE INDEX ON :Person(name)"))
+      e.getMessage should include ("LuceneIndexProvider: A")
     } finally {
       graph.shutdown()
       new File("target/test-data/test-impermanent-db").deleteAll()

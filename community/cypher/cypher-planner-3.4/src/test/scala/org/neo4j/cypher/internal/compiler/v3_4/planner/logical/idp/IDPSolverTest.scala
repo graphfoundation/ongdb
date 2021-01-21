@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -97,12 +97,9 @@ class IDPSolverTest extends CypherFunSuite {
     verify(monitor).endIteration(5, 2, 8)
     verify(table).removeAllTracesOf(BitSet(5, 11))
     verify(monitor).startIteration(6)
-    verify(monitor).endIteration(6, 2, 6)
-    verify(table).removeAllTracesOf(BitSet(6, 12))
-    verify(monitor).startIteration(7)
-    verify(monitor).endIteration(7, 2, 3)
-    verify(table).removeAllTracesOf(BitSet(7, 13))
-    verify(monitor).foundPlanAfter(7)
+    verify(monitor).endIteration(6, 3, 6)
+    verify(table).removeAllTracesOf(BitSet(6, 7, 12))
+    verify(monitor).foundPlanAfter(6)
     verifyNoMoreInteractions(monitor)
   }
 

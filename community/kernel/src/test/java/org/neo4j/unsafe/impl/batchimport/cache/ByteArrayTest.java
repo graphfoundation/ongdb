@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -41,6 +41,7 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.neo4j.unsafe.impl.batchimport.cache.NumberArrayFactory.AUTO_WITHOUT_PAGECACHE;
 import static org.neo4j.unsafe.impl.batchimport.cache.NumberArrayFactory.HEAP;
+import static org.neo4j.unsafe.impl.batchimport.cache.NumberArrayFactory.NO_MONITOR;
 import static org.neo4j.unsafe.impl.batchimport.cache.NumberArrayFactory.OFF_HEAP;
 import static org.neo4j.unsafe.impl.batchimport.cache.NumberArrayFactory.auto;
 
@@ -57,7 +58,7 @@ public class ByteArrayTest extends NumberArrayPageCacheTestSupport
         fixture = prepareDirectoryAndPageCache( ByteArrayTest.class );
         PageCache pageCache = fixture.pageCache;
         File dir = fixture.directory;
-        NumberArrayFactory autoWithPageCacheFallback = auto( pageCache, dir, true );
+        NumberArrayFactory autoWithPageCacheFallback = auto( pageCache, dir, true, NO_MONITOR );
         NumberArrayFactory pageCacheArrayFactory = new PageCachedNumberArrayFactory( pageCache, dir );
         int chunkSize = LENGTH / ChunkedNumberArrayFactory.MAGIC_CHUNK_COUNT;
         return Arrays.asList(

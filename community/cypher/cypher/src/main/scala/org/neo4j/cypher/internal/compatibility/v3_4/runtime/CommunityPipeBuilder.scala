@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -18,6 +18,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 package org.neo4j.cypher.internal.compatibility.v3_4.runtime
+
+import java.util.Comparator
 
 import org.neo4j.cypher.internal.compatibility.v3_4.runtime.executionplan.builders.prepare.KeyTokenResolver
 import org.neo4j.cypher.internal.compatibility.v3_4.runtime.pipes.DropResultPipe
@@ -164,11 +166,11 @@ case class CommunityPipeBuilder(monitors: Monitors, recurse: LogicalPlan => Pipe
         ActiveReadPipe(source)(id = id)
 
       case Optional(inner, protectedSymbols) =>
-        OptionalPipe((inner.availableSymbols -- protectedSymbols), source)(id = id)
+        OptionalPipe(inner.availableSymbols -- protectedSymbols, source)(id = id)
 
       case PruningVarExpand(_, from, dir, types, toName, minLength, maxLength, predicates) =>
         val predicate = varLengthPredicate(predicates)
-        PruningVarLengthExpandPipe(source, from, toName, LazyTypes(types.toArray), dir, minLength, maxLength, predicate)()
+        PruningVarLengthExpandPipe(source, from, toName, LazyTypes(types.toArray), dir, minLength, maxLength, predicate)(id = id)
 
       case Sort(_, sortItems) =>
         SortPipe(source, sortItems.map(translateColumnOrder))(id = id)
@@ -176,11 +178,14 @@ case class CommunityPipeBuilder(monitors: Monitors, recurse: LogicalPlan => Pipe
       case SkipPlan(_, count) =>
         SkipPipe(source, buildExpression(count))(id = id)
 
+      case Top(_, sortItems, _) if sortItems.isEmpty => source
+
       case Top(_, sortItems, SignedDecimalIntegerLiteral("1")) =>
-        Top1Pipe(source, sortItems.map(translateColumnOrder).toList)(id = id)
+        Top1Pipe(source, ExecutionContextOrdering.asComparator(sortItems.map(translateColumnOrder).toList))(id = id)
 
       case Top(_, sortItems, limit) =>
-        TopNPipe(source, sortItems.map(translateColumnOrder).toList, buildExpression(limit))(id = id)
+        TopNPipe(source, buildExpression(limit),
+                 ExecutionContextOrdering.asComparator(sortItems.map(translateColumnOrder).toList))(id = id)
 
       case LimitPlan(_, count, DoNotIncludeTies) =>
         LimitPipe(source, buildExpression(count))(id = id)
@@ -188,7 +193,7 @@ case class CommunityPipeBuilder(monitors: Monitors, recurse: LogicalPlan => Pipe
       case LimitPlan(_, count, IncludeTies) =>
         (source, count) match {
           case (SortPipe(inner, sortDescription), SignedDecimalIntegerLiteral("1")) =>
-            Top1WithTiesPipe(inner, sortDescription.toList)(id = id)
+            Top1WithTiesPipe(inner, ExecutionContextOrdering.asComparator(sortDescription))(id = id)
 
           case _ => throw new InternalException("Including ties is only supported for very specific plans")
         }
@@ -220,16 +225,22 @@ case class CommunityPipeBuilder(monitors: Monitors, recurse: LogicalPlan => Pipe
 
       case FindShortestPaths(_, shortestPathPattern, predicates, withFallBack, disallowSameNode) =>
         val legacyShortestPath = shortestPathPattern.expr.asLegacyPatterns(shortestPathPattern.name, expressionConverters).head
-
         val pathVariables = Set(legacyShortestPath.pathName, legacyShortestPath.relIterator.getOrElse(""))
+
+        def noDependency(expression: ASTExpression) =
+          (expression.dependencies.map(_.name) intersect pathVariables).isEmpty
+
         val (perStepPredicates, fullPathPredicates) = predicates.partition {
-          case p =>
-            (p.dependencies.map(_.name) intersect pathVariables).isEmpty
+          case p: IterablePredicateExpression =>
+            noDependency(
+              p.innerPredicate.getOrElse(throw new InternalException("This should have been handled in planning")))
+          case e => noDependency(e)
         }
         val commandPerStepPredicates = perStepPredicates.map(p => buildPredicate(p))
         val commandFullPathPredicates = fullPathPredicates.map(p => buildPredicate(p))
 
-        val commandExpression = ShortestPathExpression(legacyShortestPath, commandPerStepPredicates, commandFullPathPredicates, withFallBack, disallowSameNode)
+        val commandExpression = ShortestPathExpression(legacyShortestPath, commandPerStepPredicates,
+                                                       commandFullPathPredicates, withFallBack, disallowSameNode)
         ShortestPathPipe(source, commandExpression, withFallBack, disallowSameNode)(id = id)
 
       case UnwindCollection(_, variable, collection) =>
@@ -243,8 +254,8 @@ case class CommunityPipeBuilder(monitors: Monitors, recurse: LogicalPlan => Pipe
         val rowProcessing = ProcedureCallRowProcessing(signature)
         ProcedureCallPipe(source, signature, callMode, callArgumentCommands, rowProcessing, call.callResultTypes, call.callResultIndices)(id = id)
 
-      case LoadCSVPlan(_, url, variableName, format, fieldTerminator, legacyCsvQuoteEscaping) =>
-        LoadCSVPipe(source, format, buildExpression(url), variableName, fieldTerminator, legacyCsvQuoteEscaping)(id = id)
+      case LoadCSVPlan(_, url, variableName, format, fieldTerminator, legacyCsvQuoteEscaping, bufferSize) =>
+        LoadCSVPipe(source, format, buildExpression(url), variableName, fieldTerminator, legacyCsvQuoteEscaping, bufferSize)(id = id)
 
       case ProduceResult(_, columns) =>
         ProduceResultsPipe(source, columns)(id = id)
@@ -325,29 +336,34 @@ case class CommunityPipeBuilder(monitors: Monitors, recurse: LogicalPlan => Pipe
 
   private def varLengthPredicate(predicates: Seq[(LogicalVariable, ASTExpression)]): VarLengthPredicate  = {
     //Creates commands out of the predicates
-    def asCommand(predicates: Seq[(LogicalVariable, ASTExpression)]) = {
+    def asCommand(predicates: Seq[(LogicalVariable, ASTExpression)]): ((ExecutionContext, QueryState, AnyValue) => Boolean, Seq[Predicate]) = {
       val (keys: Seq[LogicalVariable], exprs) = predicates.unzip
 
       val commands = exprs.map(buildPredicate)
-      (context: ExecutionContext, state: QueryState, entity: AnyValue) => {
-        keys.zip(commands).forall { case (variable: LogicalVariable, expr: Predicate) =>
+      val keysAndCommands = keys.zip(commands)
+
+      // Return both the command lambda and the underlying list of command predicates
+      ((context: ExecutionContext, state: QueryState, entity: AnyValue) => {
+        keysAndCommands.forall { case (variable: LogicalVariable, expr: Predicate) =>
           context(variable.name) = entity
           val result = expr.isTrue(context, state)
           context.remove(variable.name)
           result
         }
-      }
+      }, commands)
     }
 
     //partition predicates on whether they deal with nodes or rels
     val (nodePreds, relPreds) = predicates.partition(e => table.seen(e._1) && table.isNode(e._1))
-    val nodeCommand = asCommand(nodePreds)
-    val relCommand = asCommand(relPreds)
+    val (nodeCommand, nodeCommandPreds) = asCommand(nodePreds)
+    val (relCommand, relCommandPreds) = asCommand(relPreds)
 
     new VarLengthPredicate {
       override def filterNode(row: ExecutionContext, state: QueryState)(node: NodeValue): Boolean = nodeCommand(row, state, node)
 
       override def filterRelationship(row: ExecutionContext, state: QueryState)(rel: RelationshipValue): Boolean = relCommand(row, state, rel)
+
+      override def predicateExpressions: Seq[Predicate] = nodeCommandPreds ++ relCommandPreds
     }
   }
 

@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -32,9 +32,10 @@ class ErrorMessagesTest extends ExecutionEngineFunSuite {
   }
 
   test("noReturnColumns") {
-    expectError(
+    expectSyntaxError(
       "match (s) where id(s) = 0 return",
-      "Unexpected end of input: expected whitespace, DISTINCT, GRAPHS, SOURCE GRAPH [AS <name>], TARGET GRAPH [AS <name>], GRAPH AT <graph-url> [AS <name>], GRAPH OF <pattern> [AS <name>], GRAPH, GRAPH <graph-ref> [AS <name>], >>, '*' or an expression (line 1, column 33 (offset: 32))"
+      "Unexpected end of input: expected",
+      32
     )
   }
 
@@ -125,10 +126,7 @@ class ErrorMessagesTest extends ExecutionEngineFunSuite {
   test("badMatch5") {
     expectSyntaxError(
       "match (p) where id(p) = 2 match p[:likes]->dude return dude.name",
-      "Invalid input '[': expected an identifier character, whitespace, '=', node labels, a property map, " +
-      "a relationship pattern, ',', USING, WHERE, LOAD CSV, FROM, INTO, START, MATCH, UNWIND, MERGE, " +
-      "CREATE GRAPH >>, CREATE >> GRAPH, CREATE GRAPH, CREATE, SET, DELETE GRAPHS, DELETE, REMOVE, FOREACH, WITH, " +
-      "CALL, PERSIST, RELOCATE, RETURN, SNAPSHOT, UNION, ';' or end of input (line 1, column 34 (offset: 33))",
+      "Invalid input '[': expected",
       33
     )
   }
@@ -219,7 +217,7 @@ class ErrorMessagesTest extends ExecutionEngineFunSuite {
     graph.createConstraint("Person", "id")
     expectError(
       "MATCH (n:Person) USING INDEX n:Person(id) WHERE n.name = 'Andres' RETURN n",
-      "Cannot use index hint in this context. Index hints are only supported for the following predicates in WHERE (either directly or as part of a top-level AND or OR): equality comparison, inequality (range) comparison, STARTS WITH, IN condition or checking property existence. The comparison cannot be performed between two property values. Note that the label and property comparison must be specified on a non-optional node (line 1, column 18 (offset: 17))"
+      "Cannot use index hint in this context. Index hints are only supported for the following predicates in WHERE (either directly or as part of a top-level AND or OR): equality comparison, inequality (range) comparison, STARTS WITH, point distance, IN condition or checking property existence. The comparison cannot be performed between two property values. Note that the label and property comparison must be specified on a non-optional node (line 1, column 18 (offset: 17))"
     )
   }
 
@@ -255,6 +253,17 @@ class ErrorMessagesTest extends ExecutionEngineFunSuite {
     )
   }
 
+  test("invalid query does not suggest multiple graph keywords because they dont exist") {
+    expectSyntaxErrorWithout(
+      "RETURN 1 AS toUpper('name')",
+      Set("RELOCATE", "GRAPH", "FROM", "PERSIST"),
+      19)
+    expectSyntaxError(
+      "RETURN 1 AS toUpper('name')",
+      "Invalid input '(': expected",
+      19)
+  }
+
   private def expectError(query: String, expectedError: String) {
     val error = intercept[CypherException](executeQuery(query))
     assertThat(error.getMessage, containsString(expectedError))
@@ -263,6 +272,14 @@ class ErrorMessagesTest extends ExecutionEngineFunSuite {
   private def expectSyntaxError(query: String, expectedError: String, expectedOffset: Int) {
     val error = intercept[SyntaxException](executeQuery(query))
     assertThat(error.getMessage(), containsString(expectedError))
+    assertThat(error.offset, equalTo(Some(expectedOffset): Option[Int]))
+  }
+
+  private def expectSyntaxErrorWithout(query: String, doesNotContain: Set[String], expectedOffset: Int) {
+    val error = intercept[SyntaxException](executeQuery(query))
+    doesNotContain.foreach { part =>
+      assertThat(error.getMessage(), org.hamcrest.CoreMatchers.not(containsString(part)))
+    }
     assertThat(error.offset, equalTo(Some(expectedOffset): Option[Int]))
   }
 

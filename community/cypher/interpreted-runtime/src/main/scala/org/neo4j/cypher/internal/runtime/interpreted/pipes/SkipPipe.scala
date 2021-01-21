@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -33,8 +33,8 @@ case class SkipPipe(source: Pipe, exp: Expression)
     if(input.isEmpty)
       return Iterator.empty
 
-    val skip = asInt(exp(state.createOrGetInitialContext(executionContextFactory), state))
+    val skip = asPrimitiveInt(exp(state.createOrGetInitialContext(executionContextFactory), state))
 
-    input.drop(skip.value())
+    input.drop(skip)
   }
 }

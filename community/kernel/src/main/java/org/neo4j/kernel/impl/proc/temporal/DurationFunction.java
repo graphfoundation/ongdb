@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -43,6 +43,7 @@ import org.neo4j.values.storable.TextValue;
 import org.neo4j.values.virtual.MapValue;
 
 import static org.neo4j.internal.kernel.api.procs.FieldSignature.inputField;
+import static org.neo4j.values.storable.Values.NO_VALUE;
 
 @Description( "Construct a Duration value." )
 class DurationFunction implements CallableUserFunction
@@ -71,21 +72,30 @@ class DurationFunction implements CallableUserFunction
     }
 
     @Override
-    public DurationValue apply( Context ctx, AnyValue[] input ) throws ProcedureException
+    public AnyValue apply( Context ctx, AnyValue[] input ) throws ProcedureException
     {
-        if ( input != null && input.length == 1 )
+        if ( input == null )
         {
-            if ( input[0] instanceof TextValue )
+            return NO_VALUE;
+        }
+        else if ( input.length == 1 )
+        {
+            if ( input[0] == NO_VALUE || input[0] == null )
+            {
+                return NO_VALUE;
+            }
+            else if ( input[0] instanceof TextValue )
             {
                 return DurationValue.parse( (TextValue) input[0] );
             }
-            if ( input[0] instanceof MapValue )
+            else if ( input[0] instanceof MapValue )
             {
                 MapValue map = (MapValue) input[0];
                 return DurationValue.build( map );
             }
         }
-        throw new ProcedureException( Status.Procedure.ProcedureCallFailed, "Invalid call signature" );
+        throw new ProcedureException( Status.Procedure.ProcedureCallFailed, "Invalid call signature for " + getClass().getSimpleName() +
+                ": Provided input was " + Arrays.toString( input ) );
     }
 
     private static class Between implements CallableUserFunction
@@ -138,7 +148,11 @@ class DurationFunction implements CallableUserFunction
         @Override
         public AnyValue apply( Context ctx, AnyValue[] input ) throws ProcedureException
         {
-            if ( input != null && input.length == 2 )
+            if ( input == null || (input.length == 2 && (input[0] == NO_VALUE || input[0] == null) || input[1] == NO_VALUE || input[1] == null) )
+            {
+                return NO_VALUE;
+            }
+            else if ( input.length == 2 )
             {
                 if ( input[0] instanceof TemporalValue && input[1] instanceof TemporalValue )
                 {
@@ -147,7 +161,8 @@ class DurationFunction implements CallableUserFunction
                     return DurationValue.between( unit, from, to );
                 }
             }
-            throw new ProcedureException( Status.Procedure.ProcedureCallFailed, "Invalid call signature" );
+            throw new ProcedureException( Status.Procedure.ProcedureCallFailed, "Invalid call signature for " + getClass().getSimpleName() +
+                ": Provided input was " + Arrays.toString( input ) );
         }
     }
 }

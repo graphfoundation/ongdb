@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -21,7 +21,7 @@ package org.neo4j.cypher.internal.compiler.v3_4.planner.logical
 
 import org.neo4j.cypher.internal.util.v3_4.test_helpers.CypherFunSuite
 import org.neo4j.cypher.internal.compiler.v3_4.planner.LogicalPlanningTestSupport2
-import org.neo4j.cypher.internal.compiler.v3_4.planner.logical.steps.{LogicalPlanProducer, pickBestPlanUsingHintsAndCost}
+import org.neo4j.cypher.internal.compiler.v3_4.planner.logical.steps.{LogicalPlanProducer, devNullListener, pickBestPlanUsingHintsAndCost}
 import org.neo4j.cypher.internal.frontend.v3_4.ast.UsingIndexHint
 import org.neo4j.cypher.internal.frontend.v3_4.phases.devNullLogger
 import org.neo4j.cypher.internal.ir.v3_4.PlannerQuery
@@ -112,7 +112,8 @@ class PickBestPlanUsingHintsAndCostTest extends CypherFunSuite with LogicalPlann
   private def assertTopPlan(winner: LogicalPlan, solveds: Solveds, cardinalities: Cardinalities, candidates: LogicalPlan*)(GIVEN: given)= {
     val environment = LogicalPlanningEnvironment(GIVEN)
     val metrics: Metrics = environment.metricsFactory.newMetrics(GIVEN.statistics, GIVEN.expressionEvaluator, cypherCompilerConfig)
-    val context = LogicalPlanningContext(null, LogicalPlanProducer(metrics.cardinality, solveds, cardinalities, idGen), metrics, null, null, notificationLogger = devNullLogger)
+    val producer = LogicalPlanProducer(metrics.cardinality, solveds, cardinalities, idGen)
+    val context = LogicalPlanningContext(null, producer, metrics, null, null, notificationLogger = devNullLogger, costComparisonListener = devNullListener)
     pickBestPlanUsingHintsAndCost(context, solveds, cardinalities)(candidates).get shouldBe theSameInstanceAs(winner)
     pickBestPlanUsingHintsAndCost(context, solveds, cardinalities)(candidates.reverse).get shouldBe theSameInstanceAs(winner)
   }

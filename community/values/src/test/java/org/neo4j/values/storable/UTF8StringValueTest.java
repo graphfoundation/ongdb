@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -23,11 +23,11 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
+
 import static java.lang.String.format;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.MatcherAssert.assertThat;
-
 import static org.neo4j.values.storable.StringsLibrary.STRINGS;
 import static org.neo4j.values.storable.Values.stringValue;
 import static org.neo4j.values.storable.Values.utf8Value;
@@ -151,6 +151,40 @@ public class UTF8StringValueTest
         assertSame( textValue.reverse(), stringValue( "ed" ) );
     }
 
+    @Test
+    public void shouldHandleAdditionWithOffset()
+    {
+        // Given
+        byte[] bytes = "abcdefg".getBytes( UTF_8 );
+
+        // When
+        UTF8StringValue a = (UTF8StringValue) utf8Value( bytes, 1, 2 );
+        UTF8StringValue b = (UTF8StringValue) utf8Value( bytes, 3, 3 );
+
+        // Then
+        assertSame( a.plus( a ), stringValue( "bcbc" ) );
+        assertSame( a.plus( b ), stringValue( "bcdef" ) );
+        assertSame( b.plus( a ), stringValue( "defbc" ) );
+        assertSame( b.plus( b ), stringValue( "defdef" ) );
+    }
+
+    @Test
+    public void shouldHandleAdditionWithOffsetAndNonAscii()
+    {
+        // Given, two characters that require three bytes each
+        byte[] bytes = "ⲹ楡".getBytes( UTF_8 );
+
+        // When
+        UTF8StringValue a = (UTF8StringValue) utf8Value( bytes, 0, 3 );
+        UTF8StringValue b = (UTF8StringValue) utf8Value( bytes, 3, 3 );
+
+        // Then
+        assertSame( a.plus( a ), stringValue(  "ⲹⲹ" ) );
+        assertSame( a.plus( b ), stringValue(  "ⲹ楡" ) );
+        assertSame( b.plus( a ), stringValue(  "楡ⲹ") );
+        assertSame( b.plus( b ), stringValue( "楡楡" ) );
+    }
+
     private void assertSame( TextValue lhs, TextValue rhs )
     {
         assertThat( format( "%s.length != %s.length", lhs, rhs ), lhs.length(),
@@ -158,6 +192,8 @@ public class UTF8StringValueTest
         assertThat( format( "%s != %s", lhs, rhs ), lhs, equalTo( rhs ) );
         assertThat( format( "%s != %s", rhs, lhs ), rhs, equalTo( lhs ) );
         assertThat( format( "%s.hashCode != %s.hashCode", rhs, lhs ), lhs.hashCode(), equalTo( rhs.hashCode() ) );
+        assertThat( format( "%s.hashCode64 != %s.hashCode64", rhs, lhs ),
+                lhs.hashCode64(), equalTo( rhs.hashCode64() ) );
         assertThat( lhs, equalTo( rhs ) );
     }
 

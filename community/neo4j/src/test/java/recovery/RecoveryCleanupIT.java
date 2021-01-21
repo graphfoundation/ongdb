@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -95,7 +95,7 @@ public class RecoveryCleanupIT
     }
 
     @Test
-    public void recoveryCleanupShouldBlockCheckpoint() throws Throwable
+    public void recoveryCleanupShouldBlockRecoveryWritingToCleanedIndexes() throws Throwable
     {
         // GIVEN
         AtomicReference<Throwable> error = new AtomicReference<>();
@@ -107,14 +107,16 @@ public class RecoveryCleanupIT
             Barrier.Control recoveryCompleteBarrier = new Barrier.Control();
             LabelScanStore.Monitor recoveryBarrierMonitor = new RecoveryBarrierMonitor( recoveryCompleteBarrier );
             setMonitor( recoveryBarrierMonitor );
-            db = startDatabase();
+            Future<?> recovery = executor.submit( () ->
+            {
+                db = startDatabase();
+            } );
             recoveryCompleteBarrier.awaitUninterruptibly(); // Ensure we are mid recovery cleanup
 
             // THEN
-            Future<?> checkpointFuture = executor.submit( () -> reportError( () -> checkpoint( db ), error ) );
-            shouldWait( checkpointFuture );
+            shouldWait( recovery );
             recoveryCompleteBarrier.release();
-            checkpointFuture.get();
+            recovery.get();
 
             db.shutdown();
         }
@@ -141,7 +143,14 @@ public class RecoveryCleanupIT
         startDatabase().shutdown();
 
         // then
-        logProvider.assertContainsLogCallContaining( "Scan store recovery completed" );
+        logProvider.assertContainsLogCallContaining( "Label index cleanup job registered" );
+        logProvider.assertContainsLogCallContaining( "Label index cleanup job started" );
+        logProvider.assertContainsMessageMatching( Matchers.stringContainsInOrder( Iterables.asIterable(
+                "Label index cleanup job finished",
+                "Number of pages visited",
+                "Number of cleaned crashed pointers",
+                "Time spent" ) ) );
+        logProvider.assertContainsLogCallContaining( "Label index cleanup job closed" );
     }
 
     @Test
@@ -158,24 +167,39 @@ public class RecoveryCleanupIT
 
         // then
         List<Matcher<String>> matchers = new ArrayList<>();
-        matchers.add( indexRecoveryLogMatcher( "string" ) );
-        matchers.add( indexRecoveryLogMatcher( "native" ) );
-        matchers.add( indexRecoveryLogMatcher( "spatial" ) );
-        matchers.add( indexRecoveryLogMatcher( "temporal" ) );
+        String[] subTypes = new String[]{"string", "native", "spatial", "temporal"};
+        for ( String subType : subTypes )
+        {
+            matchers.add( indexRecoveryLogMatcher( "Schema index cleanup job registered", subType ) );
+            matchers.add( indexRecoveryLogMatcher( "Schema index cleanup job started", subType ) );
+            matchers.add( indexRecoveryFinishedLogMatcher( subType ) );
+            matchers.add( indexRecoveryLogMatcher( "Schema index cleanup job closed", subType ) );
+        }
         matchers.forEach( logProvider::assertContainsExactlyOneMessageMatching );
     }
 
-    private Matcher<String> indexRecoveryLogMatcher( String subIndexProviderKey )
+    private Matcher<String> indexRecoveryLogMatcher( String logMessage, String subIndexProviderKey )
     {
 
         return Matchers.stringContainsInOrder( Iterables.asIterable(
-                "Schema index recovery completed",
+                logMessage,
                 "descriptor",
-                "file=",
+                "indexFile=",
+                File.separator + subIndexProviderKey ) );
+    }
+
+    private Matcher<String> indexRecoveryFinishedLogMatcher( String subIndexProviderKey )
+    {
+
+        return Matchers.stringContainsInOrder( Iterables.asIterable(
+                "Schema index cleanup job finished",
+                "descriptor",
+                "indexFile=",
                 File.separator + subIndexProviderKey,
-                "cleaned crashed pointers",
-                "pages visited",
-                "Time spent" ) );
+                "Number of pages visited",
+                "Number of cleaned crashed pointers",
+                "Time spent" )
+        );
     }
 
     private void dirtyDatabase() throws IOException
@@ -295,7 +319,7 @@ public class RecoveryCleanupIT
         }
 
         @Override
-        public void recoveryCompleted( Map<String,Object> data )
+        public void recoveryCleanupFinished( long numberOfPagesVisited, long numberOfCleanedCrashPointers, long durationMillis )
         {
             barrier.reached();
         }

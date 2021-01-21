@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -26,21 +26,12 @@ import org.neo4j.values.AnyValue
 
 class DistinctFunction(value: Expression, inner: AggregationFunction) extends AggregationFunction {
   private val seen = scala.collection.mutable.Set[AnyValue]()
-  private var seenNull = false
 
   override def apply(ctx: ExecutionContext, state: QueryState) {
     val data = value(ctx, state)
-
-    if (data == null) {
-      if (!seenNull) {
-        seenNull = true
-        inner(ctx, state)
-      }
-    } else {
-      if (!seen.contains(data)) {
-        seen += data
-        inner(ctx, state)
-      }
+    if (!seen.contains(data)) {
+      seen += data
+      inner(ctx, state)
     }
   }
 

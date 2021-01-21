@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -19,6 +19,7 @@
  */
 package org.neo4j.kernel.impl.newapi;
 
+import java.util.Iterator;
 import java.util.Set;
 
 import org.neo4j.collection.primitive.Primitive;
@@ -34,6 +35,8 @@ import org.neo4j.kernel.impl.store.NodeLabelsField;
 import org.neo4j.kernel.impl.store.RecordCursor;
 import org.neo4j.kernel.impl.store.record.DynamicRecord;
 import org.neo4j.kernel.impl.store.record.NodeRecord;
+import org.neo4j.storageengine.api.StorageProperty;
+import org.neo4j.storageengine.api.txstate.NodeState;
 
 import static java.util.Collections.emptySet;
 
@@ -46,6 +49,7 @@ class DefaultNodeCursor extends NodeRecord implements NodeCursor
     private long highMark;
     private HasChanges hasChanges = HasChanges.MAYBE;
     private Set<Long> addedNodes;
+    private PropertyCursor propertyCursor;
 
     private final DefaultCursors pool;
 
@@ -82,7 +86,7 @@ class DefaultNodeCursor extends NodeRecord implements NodeCursor
         {
             pageCursor = read.nodePage( reference );
         }
-        this.next = reference;
+        this.next = reference >= 0 ? reference : NO_ID;
         //This marks the cursor as a "single cursor"
         this.highMark = NO_ID;
         this.read = read;
@@ -131,7 +135,16 @@ class DefaultNodeCursor extends NodeRecord implements NodeCursor
     @Override
     public boolean hasProperties()
     {
-        return nextProp != NO_ID;
+        if ( read.hasTxStateWithChanges() )
+        {
+            PropertyCursor cursor = propertyCursor();
+            properties( cursor );
+            return cursor.next();
+        }
+        else
+        {
+            return nextProp != NO_ID;
+        }
     }
 
     @Override
@@ -245,6 +258,11 @@ class DefaultNodeCursor extends NodeRecord implements NodeCursor
             hasChanges = HasChanges.MAYBE;
             addedNodes = emptySet();
             reset();
+            if ( propertyCursor != null )
+            {
+                propertyCursor.close();
+                propertyCursor = null;
+            }
 
             pool.accept( this );
         }
@@ -302,6 +320,15 @@ class DefaultNodeCursor extends NodeRecord implements NodeCursor
             labelCursor = read.labelCursor();
         }
         return labelCursor;
+    }
+
+    private PropertyCursor propertyCursor()
+    {
+        if ( propertyCursor == null )
+        {
+            propertyCursor = pool.allocatePropertyCursor();
+        }
+        return propertyCursor;
     }
 
     private boolean isSingle()

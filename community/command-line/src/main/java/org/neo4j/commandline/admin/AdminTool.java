@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -37,7 +37,7 @@ public class AdminTool
     public static final int STATUS_ERROR = 1;
     public static final String NEO4J_HOME = System.getenv().getOrDefault( "NEO4J_HOME", "" );
     public static final String NEO4J_CONF = System.getenv().getOrDefault( "NEO4J_CONF", "" );
-    public static final String NEO4J_DEBUG = System.getenv().getOrDefault( "NEO4J_DEBUG", "" );
+    public static final String NEO4J_DEBUG = System.getenv().getOrDefault( "NEO4J_DEBUG", null );
 
     public static void main( String[] args ) throws IOException
     {

@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -54,8 +54,7 @@ public class LabelSchemaDescriptor implements org.neo4j.internal.kernel.api.sche
     @Override
     public String userDescription( TokenNameLookup tokenNameLookup )
     {
-        return String.format( ":%s(%s)", tokenNameLookup.labelGetName( labelId ),
-                SchemaUtil.niceProperties( tokenNameLookup, propertyIds ) );
+        return SchemaUtil.niceLabelAndProperties( tokenNameLookup, labelId, propertyIds );
     }
 
     @Override

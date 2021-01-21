@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -32,6 +32,22 @@ class TransitiveClosureTest extends CypherFunSuite with AstRewritingTestSupport 
     shouldRewrite(
       "MATCH (a)-->(b) WHERE a.prop = b.prop AND b.prop = 42",
       "MATCH (a)-->(b) WHERE a.prop = 42 AND b.prop = 42")
+  }
+
+  test("MATCH (a)-->(b) WHERE NOT a.prop = b.prop AND b.prop = 42") {
+    shouldNotRewrite(
+      "MATCH (a)-->(b) WHERE NOT a.prop = b.prop AND b.prop = 42")
+  }
+
+  test("MATCH (a)-->(b) WHERE a.prop = b.prop AND NOT b.prop = 42") {
+    shouldNotRewrite(
+      "MATCH (a)-->(b) WHERE a.prop = b.prop AND NOT b.prop = 42")
+  }
+
+  test("MATCH (a)-->(b) WHERE NOT (a.prop = b.prop AND b.prop = 42)") {
+    shouldRewrite(
+      "MATCH (a)-->(b) WHERE NOT (a.prop = b.prop AND b.prop = 42)",
+      "MATCH (a)-->(b) WHERE NOT (a.prop = 42 AND b.prop = 42)")
   }
 
   test("MATCH (a)-->(b) WHERE b.prop = a.prop AND b.prop = 42") {

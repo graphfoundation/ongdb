@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -54,21 +54,10 @@ public class OptionalHostnamePort
         return port;
     }
 
-    public HostnamePort resolve()
+    public Optional<Integer> getUpperRangePort()
     {
-        if ( !hostname.isPresent() )
-        {
-            throw new IllegalStateException( "Hostname must be established before resolving" );
-        }
-        if ( !port.isPresent() )
-        {
-            throw new IllegalStateException( "Port must be established before resolving" );
-        }
-        return upperRangePort
-                .map( upperRange -> new HostnamePort( hostname.get(), port.get(), upperRange ) )
-                .orElseGet( () -> new HostnamePort( hostname.get(), port.get() ) );
+        return upperRangePort;
     }
-
     @Override
     public String toString()
     {

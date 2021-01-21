@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -26,6 +26,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -44,10 +45,12 @@ import javax.annotation.Nullable;
 import org.neo4j.configuration.ConfigOptions;
 import org.neo4j.configuration.ConfigValue;
 import org.neo4j.configuration.LoadableConfig;
+import org.neo4j.configuration.Secret;
 import org.neo4j.graphdb.config.BaseSetting;
 import org.neo4j.graphdb.config.Configuration;
 import org.neo4j.graphdb.config.InvalidSettingException;
 import org.neo4j.graphdb.config.Setting;
+import org.neo4j.graphdb.config.SettingGroup;
 import org.neo4j.graphdb.config.SettingValidator;
 import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.helpers.collection.MapUtil;
@@ -367,7 +370,7 @@ public class Config implements DiagnosticsProvider, Configuration
      * @param value The initial value to give the setting.
      */
     @Nonnull
-    public static Config defaults( @Nonnull final Setting<?> setting, @Nonnull final String value )
+    public static Config defaults( @Nonnull final Setting<?> setting, final String value )
     {
         return builder().withSetting( setting, value ).build();
     }
@@ -634,9 +637,12 @@ public class Config implements DiagnosticsProvider, Configuration
                 }
                 newValue = update;
             }
+
+            String oldValueForLog = obsfucateIfSecret( setting, oldValue );
+            String newValueForLog = obsfucateIfSecret( setting, newValue );
             log.info( "Setting changed: '%s' changed from '%s' to '%s' via '%s'",
-                    setting, oldValueIsDefault ? "default (" + oldValue + ")" : oldValue,
-                    newValueIsDefault ? "default (" + newValue + ")" : newValue, origin );
+                    setting, oldValueIsDefault ? "default (" + oldValueForLog + ")" : oldValueForLog,
+                    newValueIsDefault ? "default (" + newValueForLog + ")" : newValueForLog, origin );
             updateListeners.getOrDefault( setting, emptyList() ).forEach( l -> l.accept( oldValue, newValue ) );
         }
     }
@@ -742,8 +748,25 @@ public class Config implements DiagnosticsProvider, Configuration
             logger.log( "Neo4j Kernel properties:" );
             for ( Map.Entry<String,String> param : params.entrySet() )
             {
-                logger.log( "%s=%s", param.getKey(), param.getValue() );
+                logger.log( "%s=%s", param.getKey(), obsfucateIfSecret( param ) );
             }
+        }
+    }
+
+    private String obsfucateIfSecret( Map.Entry<String,String> param )
+    {
+        return obsfucateIfSecret( param.getKey(), param.getValue() );
+    }
+
+    private String obsfucateIfSecret( String key, String value )
+    {
+        if ( settingsMap.containsKey( key ) && settingsMap.get( key ).secret() )
+        {
+            return Secret.OBSFUCATED;
+        }
+        else
+        {
+            return value;
         }
     }
 
@@ -943,7 +966,7 @@ public class Config implements DiagnosticsProvider, Configuration
     {
         return params.entrySet().stream()
                 .sorted( Comparator.comparing( Map.Entry::getKey ) )
-                .map( entry -> entry.getKey() + "=" + entry.getValue() )
+                .map( entry -> entry.getKey() + "=" + obsfucateIfSecret( entry ) )
                 .collect( Collectors.joining( ", ") );
     }
 }

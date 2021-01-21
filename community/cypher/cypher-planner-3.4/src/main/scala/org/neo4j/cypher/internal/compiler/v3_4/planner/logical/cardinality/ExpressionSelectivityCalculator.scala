@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -202,7 +202,8 @@ case class ExpressionSelectivityCalculator(stats: GraphStatistics, combiner: Sel
     val negatedEquality = BigDecimalCombiner.negate(equality)
 
     val base = if (seekable.hasEquality) equality else math.BigDecimal.ZERO
-    val rangeAmountFactor = math.BigDecimal.ONE.divide(math.BigDecimal.valueOf(seekable.expr.inequalities.size))
+    val rangeAmountFactor = math.BigDecimal.ONE.divide(math.BigDecimal.valueOf(seekable.expr.inequalities.size), 17,
+                                                       RoundingMode.HALF_UP)
     val selectivity = base.add(BigDecimalCombiner.andTogetherBigDecimals(
       Seq(rangeAmountFactor, factor, negatedEquality)
     ).get)

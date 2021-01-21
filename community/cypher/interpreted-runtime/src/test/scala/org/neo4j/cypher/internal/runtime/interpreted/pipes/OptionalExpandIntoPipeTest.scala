@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -240,6 +240,19 @@ class OptionalExpandIntoPipeTest extends CypherFunSuite {
     // then
     result should equal(List(
       Map("a" -> fromNodeProxy(startNode), "b" -> fromNodeProxy(endNode1), "r" -> fromRelationshipProxy(rel1))))
+  }
+
+  test("should register owning pipe") {
+    // given
+    mockRelationships(relationship1)
+    val left = newMockedPipe("a",
+      row("a" -> startNode, "b" -> endNode1))
+
+    // when
+    val pipe = OptionalExpandIntoPipe(left, "a", "r", "b", SemanticDirection.OUTGOING, LazyTypes.empty, True())()
+
+    // then
+    pipe.predicate.owningPipe should equal(pipe)
   }
 
   private def mockRelationships(rels: Relationship*) {

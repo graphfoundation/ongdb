@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -58,7 +58,7 @@ class DefaultRelationshipTraversalCursor extends RelationshipCursor
                     @Override
                     boolean check( long source, long target, long origin )
                     {
-                        return origin == target;
+                        return origin == target && source != target;
                     }
                 },
         // allow only outgoing relationships
@@ -67,7 +67,7 @@ class DefaultRelationshipTraversalCursor extends RelationshipCursor
                     @Override
                     boolean check( long source, long target, long origin )
                     {
-                        return origin == source;
+                        return origin == source && source != target;
                     }
                 },
         // allow only loop relationships
@@ -122,7 +122,6 @@ class DefaultRelationshipTraversalCursor extends RelationshipCursor
     private Record buffer;
     private PageCursor pageCursor;
     private final DefaultRelationshipGroupCursor group;
-    private final DefaultCursors pool;
     private GroupState groupState;
     private FilterState filterState;
     private boolean filterStore;
@@ -132,8 +131,8 @@ class DefaultRelationshipTraversalCursor extends RelationshipCursor
 
     DefaultRelationshipTraversalCursor( DefaultRelationshipGroupCursor group, DefaultCursors pool )
     {
+        super( pool );
         this.group = group;
-        this.pool = pool;
     }
 
     /*
@@ -482,6 +481,7 @@ class DefaultRelationshipTraversalCursor extends RelationshipCursor
     @Override
     public void close()
     {
+        super.close();
         if ( !isClosed() )
         {
             read = null;

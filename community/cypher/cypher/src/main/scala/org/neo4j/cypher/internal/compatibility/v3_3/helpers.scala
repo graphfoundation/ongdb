@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -60,7 +60,9 @@ object helpers {
       config.errorIfShortestPathFallbackUsedAtRuntime,
       config.errorIfShortestPathHasCommonNodesAtRuntime,
       config.legacyCsvQuoteEscaping,
-      config.nonIndexedLabelWarningThreshold)
+      config.csvBufferSize,
+      config.nonIndexedLabelWarningThreshold,
+      config.planWithMinimumCardinalityEstimates)
 
   /** This is awful but needed until 3_0 is updated no to send in the tracer here */
   def as3_3(tracer: CompilationPhaseTracer): CompilationPhaseTracer3_3 = {

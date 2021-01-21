@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -22,7 +22,6 @@ package org.neo4j.index.internal.gbptree;
 import java.io.IOException;
 import java.util.function.Consumer;
 import java.util.function.LongSupplier;
-import java.util.function.Supplier;
 
 import org.neo4j.cursor.RawCursor;
 import org.neo4j.io.pagecache.PageCursor;
@@ -218,7 +217,7 @@ class SeekCursor<KEY,VALUE> implements RawCursor<Hit<KEY,VALUE>,IOException>, Hi
      * the root generation. This is used when a query is re-traversing from the root, due to e.g. ending up
      * on a reused tree node and not knowing how to proceed from there.
      */
-    private final Supplier<Root> rootCatchup;
+    private final RootCatchup rootCatchup;
 
     /**
      * Whether or not some result has been found, i.e. if {@code true} if there have been no call to
@@ -385,7 +384,7 @@ class SeekCursor<KEY,VALUE> implements RawCursor<Hit<KEY,VALUE>,IOException>, Hi
     @SuppressWarnings( "unchecked" )
     SeekCursor( PageCursor cursor, TreeNode<KEY,VALUE> bTreeNode, KEY fromInclusive, KEY toExclusive,
             Layout<KEY,VALUE> layout, long stableGeneration, long unstableGeneration, LongSupplier generationSupplier,
-            Supplier<Root> rootCatchup, long lastFollowedPointerGeneration, Consumer<Throwable> exceptionDecorator, int maxReadAhead )
+            RootCatchup rootCatchup, long lastFollowedPointerGeneration, Consumer<Throwable> exceptionDecorator, int maxReadAhead )
                     throws IOException
     {
         this.cursor = cursor;
@@ -1088,7 +1087,8 @@ class SeekCursor<KEY,VALUE> implements RawCursor<Hit<KEY,VALUE>,IOException>, Hi
     private void prepareToStartFromRoot() throws IOException
     {
         generationCatchup();
-        lastFollowedPointerGeneration = rootCatchup.get().goTo( cursor );
+        Root root = rootCatchup.catchupFrom( cursor.getCurrentPageId() );
+        lastFollowedPointerGeneration = root.goTo( cursor );
         if ( !first )
         {
             layout.copyKey( prevKey, fromInclusive );

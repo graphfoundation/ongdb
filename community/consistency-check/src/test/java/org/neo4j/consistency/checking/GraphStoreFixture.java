@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -39,13 +39,13 @@ import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.factory.GraphDatabaseBuilder;
 import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.index.internal.gbptree.RecoveryCleanupWorkCollector;
+import org.neo4j.internal.kernel.api.exceptions.TransactionFailureException;
 import org.neo4j.io.fs.DefaultFileSystemAbstraction;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.io.pagecache.tracing.cursor.context.EmptyVersionContextSupplier;
 import org.neo4j.kernel.api.StatementConstants;
 import org.neo4j.kernel.api.direct.DirectStoreAccess;
-import org.neo4j.internal.kernel.api.exceptions.TransactionFailureException;
 import org.neo4j.kernel.api.labelscan.LabelScanStore;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.extension.KernelExtensions;
@@ -197,8 +197,8 @@ public abstract class GraphStoreFixture extends ConfigurablePageCacheRule implem
     private LabelScanStore startLabelScanStore( PageCache pageCache, IndexStoreView indexStoreView, Monitors monitors )
     {
         NativeLabelScanStore labelScanStore =
-                new NativeLabelScanStore( pageCache, directory, new FullLabelStream( indexStoreView ), false, monitors,
-                        RecoveryCleanupWorkCollector.IMMEDIATE );
+                new NativeLabelScanStore( pageCache, fileSystem, directory, new FullLabelStream( indexStoreView ), false, monitors,
+                        RecoveryCleanupWorkCollector.immediate() );
         try
         {
             labelScanStore.init();
@@ -216,7 +216,7 @@ public abstract class GraphStoreFixture extends ConfigurablePageCacheRule implem
     {
         LogService logService = new SimpleLogService( logProvider, logProvider );
         KernelExtensions extensions = life.add( instantiateKernelExtensions( storeDir, fileSystem, config, logService,
-                pageCache, RecoveryCleanupWorkCollector.IGNORE, DatabaseInfo.COMMUNITY, monitors ) );
+                pageCache, RecoveryCleanupWorkCollector.ignore(), DatabaseInfo.COMMUNITY, monitors ) );
         return loadIndexProviders( extensions );
     }
 

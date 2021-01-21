@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -35,65 +35,81 @@ public class ConfigValueTest
     public void handlesEmptyValue()
     {
         ConfigValue value = new ConfigValue( "name", Optional.empty(), Optional.empty(), Optional.empty(),
-                "description", false, false, false, Optional.empty() );
+                "description", false, false, false, Optional.empty(), false );
 
         assertEquals( Optional.empty(), value.value() );
         assertEquals( "null", value.toString() );
         assertFalse( value.deprecated() );
         assertEquals( Optional.empty(), value.replacement() );
         assertFalse( value.internal() );
+        assertFalse( value.secret() );
     }
 
     @Test
     public void handlesInternal()
     {
         ConfigValue value = new ConfigValue( "name", Optional.empty(), Optional.empty(), Optional.empty(),
-                "description", true, false, false,
-                Optional.empty() );
+                "description", true, false, false, Optional.empty(), false );
 
         assertTrue( value.internal() );
+        assertFalse( value.secret() );
     }
 
     @Test
     public void handlesNonEmptyValue()
     {
         ConfigValue value = new ConfigValue( "name", Optional.empty(), Optional.empty(), Optional.of( 1 ),
-                "description", false, false, false, Optional.empty() );
+                "description", false, false, false, Optional.empty(), false );
 
         assertEquals( Optional.of( 1 ), value.value() );
         assertEquals( "1", value.toString() );
         assertFalse( value.deprecated() );
         assertEquals( Optional.empty(), value.replacement() );
         assertFalse( value.internal() );
+        assertFalse( value.secret() );
     }
 
     @Test
     public void handlesDeprecationAndReplacement()
     {
         ConfigValue value = new ConfigValue( "old_name", Optional.empty(), Optional.empty(), Optional.of( 1 ),
-                "description", false, false, true,
-                Optional.of( "new_name" ) );
+                "description", false, false, true, Optional.of( "new_name" ), false );
 
         assertEquals( Optional.of( 1 ), value.value() );
         assertEquals( "1", value.toString() );
         assertTrue( value.deprecated() );
         assertEquals( "new_name", value.replacement().get() );
         assertFalse( value.internal() );
+        assertFalse( value.secret() );
     }
 
     @Test
     public void handlesValueDescription()
     {
         ConfigValue value = new ConfigValue( "old_name", Optional.empty(), Optional.empty(), Optional.of( 1 ),
-                "a simple integer", false, false, true,
-                Optional.of( "new_name" ) );
+                "a simple integer", false, false, true, Optional.of( "new_name" ), false );
 
         assertEquals( Optional.of( 1 ), value.value() );
         assertEquals( "1", value.toString() );
         assertTrue( value.deprecated() );
         assertEquals( "new_name", value.replacement().get() );
         assertFalse( value.internal() );
+        assertFalse( value.secret() );
         assertEquals( "a simple integer", value.valueDescription() );
+    }
+
+    @Test
+    public void handlesSecretValue() throws Exception
+    {
+        ConfigValue value = new ConfigValue( "name", Optional.empty(), Optional.empty(), Optional.of( "secret" ),
+                "description", false, false, false, Optional.empty(), true );
+
+        assertEquals( Optional.of( "secret" ), value.value() );
+        assertEquals( Secret.OBSFUCATED, value.toString() );
+        assertFalse( value.deprecated() );
+        assertEquals( Optional.empty(), value.replacement() );
+        assertFalse( value.internal() );
+        assertTrue( value.secret() );
     }
 
     @Test

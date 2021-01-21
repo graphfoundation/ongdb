@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -43,9 +43,7 @@ public class ExecutionMonitors
     public static ExecutionMonitor defaultVisible( InputStream in, JobScheduler jobScheduler )
     {
         ProgressRestoringMonitor monitor = new ProgressRestoringMonitor();
-        return new MultiExecutionMonitor(
-                new HumanUnderstandableExecutionMonitor( System.out, NO_MONITOR, monitor ),
-                new OnDemandDetailsExecutionMonitor( System.out, in, monitor, jobScheduler ) );
+        return new HumanUnderstandableExecutionMonitor( NO_MONITOR, monitor );
     }
 
     private static final ExecutionMonitor INVISIBLE = new ExecutionMonitor()
@@ -72,7 +70,7 @@ public class ExecutionMonitors
         }
 
         @Override
-        public void done( long totalTimeMillis, String additionalInformation )
+        public void done( boolean successful, long totalTimeMillis, String additionalInformation )
         {   // Do nothing
         }
     };

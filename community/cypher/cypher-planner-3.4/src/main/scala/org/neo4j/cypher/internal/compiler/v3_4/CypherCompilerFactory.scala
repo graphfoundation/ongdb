@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -38,10 +38,9 @@ class CypherCompilerFactory[C <: CompilerContext, T <: Transformer[C, LogicalPla
                         plannerName: Option[CostBasedPlannerName],
                         updateStrategy: Option[UpdateStrategy],
                         contextCreator: ContextCreator[C]): CypherCompiler[C] = {
-    val rewriter = new ASTRewriter(rewriterSequencer, IfNoParameter, getDegreeRewriting = true)
     val metricsFactory = CachedMetricsFactory(SimpleMetricsFactory)
     val actualUpdateStrategy: UpdateStrategy = updateStrategy.getOrElse(defaultUpdateStrategy)
-    CypherCompiler( rewriter, monitors, rewriterSequencer,
+    CypherCompiler(monitors, rewriterSequencer,
       metricsFactory, config, actualUpdateStrategy, clock, contextCreator)
   }
 }

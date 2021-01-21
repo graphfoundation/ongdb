@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -136,7 +136,7 @@ public class NeoStoreDataSourceRule extends ExternalResource
                 IOLimiter.unlimited(),
                 availabilityGuard, clock,
                 new CanWrite(), new StoreCopyCheckPointMutex(),
-                RecoveryCleanupWorkCollector.IMMEDIATE,
+                RecoveryCleanupWorkCollector.immediate(),
                 new BufferedIdController(
                         new BufferingIdGeneratorFactory( idGeneratorFactory, IdReuseEligibility.ALWAYS, idConfigurationProvider ), jobScheduler ),
                 OperationalMode.single, new TransactionVersionContextSupplier(), ON_HEAP );

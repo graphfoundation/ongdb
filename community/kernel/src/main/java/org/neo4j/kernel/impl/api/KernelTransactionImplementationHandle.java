@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -45,6 +45,7 @@ class KernelTransactionImplementationHandle implements KernelTransactionHandle
     private final long lastTransactionIdWhenStarted;
     private final long lastTransactionTimestampWhenStarted;
     private final long startTime;
+    private final long startTimeNanos;
     private final long timeoutMillis;
     private final KernelTransactionImplementation tx;
     private final SystemNanoClock clock;
@@ -60,6 +61,7 @@ class KernelTransactionImplementationHandle implements KernelTransactionHandle
         this.lastTransactionIdWhenStarted = tx.lastTransactionIdWhenStarted();
         this.lastTransactionTimestampWhenStarted = tx.lastTransactionTimestampWhenStarted();
         this.startTime = tx.startTime();
+        this.startTimeNanos = tx.startTimeNanos();
         this.timeoutMillis = tx.timeout();
         this.subject = tx.subjectOrAnonymous();
         this.terminationReason = tx.getReasonIfTerminated();
@@ -86,6 +88,12 @@ class KernelTransactionImplementationHandle implements KernelTransactionHandle
     public long startTime()
     {
         return startTime;
+    }
+
+    @Override
+    public long startTimeNanos()
+    {
+        return startTimeNanos;
     }
 
     @Override

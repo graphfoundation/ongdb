@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -35,6 +35,7 @@ import org.neo4j.index.internal.gbptree.RecoveryCleanupWorkCollector;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.pagecache.IOLimiter;
 import org.neo4j.io.pagecache.PageCache;
+import org.neo4j.kernel.api.exceptions.index.IndexEntryConflictException;
 import org.neo4j.kernel.api.index.IndexAccessor;
 import org.neo4j.kernel.api.index.IndexPopulator;
 import org.neo4j.kernel.api.index.IndexProvider;
@@ -169,9 +170,12 @@ class SpatialIndexAccessor extends SpatialIndexCache<SpatialIndexAccessor.PartAc
     }
 
     @Override
-    public void verifyDeferredConstraints( PropertyAccessor propertyAccessor )
+    public void verifyDeferredConstraints( PropertyAccessor propertyAccessor ) throws IndexEntryConflictException
     {
-        // Not needed since uniqueness is verified automatically w/o cost for every update.
+        for ( NativeSchemaIndexAccessor<?,?> part : this )
+        {
+            part.verifyDeferredConstraints( propertyAccessor );
+        }
     }
 
     @Override
@@ -197,7 +201,7 @@ class SpatialIndexAccessor extends SpatialIndexCache<SpatialIndexAccessor.PartAc
                       IndexSamplingConfig samplingConfig,
                       SpaceFillingCurveConfiguration searchConfiguration ) throws IOException
         {
-            super( pageCache, fs, fileLayout.indexFile, fileLayout.layout, recoveryCleanupWorkCollector, monitor, descriptor, indexId, samplingConfig );
+            super( pageCache, fs, fileLayout.getIndexFile(), fileLayout.layout, recoveryCleanupWorkCollector, monitor, descriptor, indexId, samplingConfig );
             this.layout = fileLayout.layout;
             this.descriptor = descriptor;
             this.samplingConfig = samplingConfig;
@@ -209,6 +213,13 @@ class SpatialIndexAccessor extends SpatialIndexCache<SpatialIndexAccessor.PartAc
         {
             assertOpen();
             return new SpatialIndexPartReader<>( tree, layout, samplingConfig, descriptor, searchConfiguration );
+        }
+
+        @Override
+        public void verifyDeferredConstraints( PropertyAccessor nodePropertyAccessor ) throws IndexEntryConflictException
+        {
+            SpatialVerifyDeferredConstraint.verify( nodePropertyAccessor, layout, tree, descriptor );
+            super.verifyDeferredConstraints( nodePropertyAccessor );
         }
     }
 
@@ -248,19 +259,21 @@ class SpatialIndexAccessor extends SpatialIndexCache<SpatialIndexAccessor.PartAc
         @Override
         public PartAccessor newSpatial( CoordinateReferenceSystem crs ) throws IOException
         {
-            return createPartAccessor( spatialIndexFiles.forCrs( crs ) );
+            SpatialIndexFiles.SpatialFile spatialFile = spatialIndexFiles.forCrs( crs );
+            if ( !fs.fileExists( spatialFile.indexFile ) )
+            {
+                SpatialIndexFiles.SpatialFileLayout fileLayout = spatialFile.getLayoutForNewIndex();
+                createEmptyIndex( fileLayout );
+                return createPartAccessor( fileLayout );
+            }
+            else
+            {
+                return createPartAccessor( spatialFile.getLayoutForExistingIndex( pageCache ) );
+            }
         }
 
         private PartAccessor createPartAccessor( SpatialIndexFiles.SpatialFileLayout fileLayout ) throws IOException
         {
-            if ( !fs.fileExists( fileLayout.indexFile ) )
-            {
-                createEmptyIndex( fileLayout );
-            }
-            else
-            {
-                fileLayout.readHeader( pageCache );
-            }
             return new PartAccessor( pageCache,
                                      fs,
                                      fileLayout,

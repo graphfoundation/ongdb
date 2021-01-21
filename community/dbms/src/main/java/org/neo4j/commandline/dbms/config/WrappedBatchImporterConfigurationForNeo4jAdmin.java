@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -20,58 +20,21 @@
 package org.neo4j.commandline.dbms.config;
 
 import org.neo4j.unsafe.impl.batchimport.Configuration;
+
 /**
  * Provides a wrapper around {@link Configuration} with overridden defaults for neo4j-admin import
  * Use all available processors
  */
-public class WrappedBatchImporterConfigurationForNeo4jAdmin implements Configuration
+public class WrappedBatchImporterConfigurationForNeo4jAdmin extends Configuration.Overridden
 {
-    private Configuration defaults;
-
     public WrappedBatchImporterConfigurationForNeo4jAdmin( Configuration defaults )
     {
-        this.defaults = defaults;
-    }
-
-    @Override
-    public int batchSize()
-    {
-        return defaults.batchSize();
-    }
-
-    @Override
-    public int movingAverageSize()
-    {
-        return defaults.movingAverageSize();
+        super( defaults );
     }
 
     @Override
     public int maxNumberOfProcessors()
     {
         return Configuration.allAvailableProcessors();
-    }
-
-    @Override
-    public int denseNodeThreshold()
-    {
-        return defaults.denseNodeThreshold();
-    }
-
-    @Override
-    public long pageCacheMemory()
-    {
-        return defaults.pageCacheMemory();
-    }
-
-    @Override
-    public long maxMemoryUsage()
-    {
-        return defaults.maxMemoryUsage();
-    }
-
-    @Override
-    public boolean sequentialBackgroundFlushing()
-    {
-        return defaults.sequentialBackgroundFlushing();
     }
 }

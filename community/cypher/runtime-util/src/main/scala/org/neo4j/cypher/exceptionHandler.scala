@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -81,7 +81,7 @@ object exceptionHandler extends MapToPublicExceptions[CypherException] {
 
   override def periodicCommitInOpenTransactionException(cause: Throwable) = throw new PeriodicCommitInOpenTransactionException(cause)
 
-  override def failedIndexException(indexName: String, cause: Throwable): CypherException = throw new FailedIndexException(indexName, cause)
+  override def failedIndexException(indexName: String, failureMessage: String, cause: Throwable): CypherException = throw new FailedIndexException(indexName, failureMessage, cause)
 
   object runSafely extends RunSafely {
     override def apply[T](body: => T)(implicit f: ExceptionHandler = ExceptionHandler.default) = {

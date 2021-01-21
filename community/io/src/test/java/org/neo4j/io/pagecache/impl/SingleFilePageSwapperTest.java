@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -59,6 +59,7 @@ import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
+import static org.junit.Assume.assumeThat;
 import static org.neo4j.test.matchers.ByteArrayMatcher.byteArray;
 
 public class SingleFilePageSwapperTest extends PageSwapperTest
@@ -309,8 +310,25 @@ public class SingleFilePageSwapperTest extends PageSwapperTest
         File wd = new File( "target/test-classes" ).getAbsoluteFile();
         pb.directory( wd );
         Process process = pb.start();
-        BufferedReader reader = new BufferedReader( new InputStreamReader( process.getInputStream() ) );
-        assertThat( reader.readLine(), is( LockThisFileProgram.LOCKED_OUTPUT ) );
+        BufferedReader stdout = new BufferedReader( new InputStreamReader( process.getInputStream() ) );
+        InputStream stderr = process.getErrorStream();
+        try
+        {
+            assumeThat( stdout.readLine(), is( LockThisFileProgram.LOCKED_OUTPUT ) );
+        }
+        catch ( Throwable e )
+        {
+            int b = stderr.read();
+            while ( b != -1 )
+            {
+                System.err.write( b );
+                b = stderr.read();
+            }
+            System.err.flush();
+            int exitCode = process.waitFor();
+            System.out.println( "exitCode = " + exitCode );
+            throw e;
+        }
 
         try
         {

@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -22,7 +22,6 @@ package org.neo4j.values.storable;
 import java.lang.invoke.MethodHandle;
 import java.time.DateTimeException;
 import java.time.Duration;
-import java.time.LocalDate;
 import java.time.Period;
 import java.time.temporal.ChronoUnit;
 import java.time.temporal.Temporal;
@@ -35,6 +34,7 @@ import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.neo4j.hashing.HashFunction;
 import org.neo4j.values.AnyValue;
 import org.neo4j.values.StructureBuilder;
 import org.neo4j.values.ValueMapper;
@@ -59,7 +59,7 @@ import static java.util.Objects.requireNonNull;
 import static java.util.regex.Pattern.CASE_INSENSITIVE;
 import static org.neo4j.values.storable.NumberType.NO_NUMBER;
 import static org.neo4j.values.storable.NumberValue.safeCastFloatingPoint;
-import static org.neo4j.values.utils.TemporalUtil.AVG_DAYS_PER_MONTH;
+import static org.neo4j.values.utils.TemporalUtil.AVG_NANOS_PER_MONTH;
 import static org.neo4j.values.utils.TemporalUtil.AVG_SECONDS_PER_MONTH;
 import static org.neo4j.values.utils.TemporalUtil.NANOS_PER_SECOND;
 import static org.neo4j.values.utils.TemporalUtil.SECONDS_PER_DAY;
@@ -85,7 +85,7 @@ public final class DurationValue extends ScalarValue implements TemporalAmount, 
 
     public static DurationValue duration( long months, long days, long seconds, long nanos )
     {
-        return newDuration( months, days, seconds, (int) nanos );
+        return newDuration( months, days, seconds, nanos );
     }
 
     public static DurationValue parse( CharSequence text )
@@ -180,7 +180,7 @@ public final class DurationValue extends ScalarValue implements TemporalAmount, 
     private static final List<TemporalUnit> UNITS = unmodifiableList( asList( MONTHS, DAYS, SECONDS, NANOS ) );
     // This comparator is safe until 292,271,023,045 years. After that, we have an overflow.
     private static final Comparator<DurationValue> COMPARATOR =
-            Comparator.comparingLong( DurationValue::averageLengthInSeconds )
+            Comparator.comparingLong( DurationValue::getAverageLengthInSeconds )
                     // nanos are guaranteed to be smaller than NANOS_PER_SECOND
                     .thenComparingLong( d -> d.nanos )
                     // At this point, the durations have the same length and we compare by the individual fields.
@@ -192,7 +192,7 @@ public final class DurationValue extends ScalarValue implements TemporalAmount, 
     private final long seconds;
     private final int nanos;
 
-    private static DurationValue newDuration( long months, long days, long seconds, int nanos )
+    private static DurationValue newDuration( long months, long days, long seconds, long nanos )
     {
         return seconds == 0 && days == 0 && months == 0 && nanos == 0 // ordered by probability of non-zero
                 ? ZERO : new DurationValue( months, days, seconds, nanos );
@@ -200,7 +200,8 @@ public final class DurationValue extends ScalarValue implements TemporalAmount, 
 
     private DurationValue( long months, long days, long seconds, long nanos )
     {
-        seconds += nanos / NANOS_PER_SECOND;
+        assertNoOverflow( months, days, seconds, nanos );
+        seconds = secondsWithNanos( seconds, nanos );
         nanos %= NANOS_PER_SECOND;
         // normalize nanos to be between 0 and NANOS_PER_SECOND-1
         if ( nanos < 0 )
@@ -226,9 +227,36 @@ public final class DurationValue extends ScalarValue implements TemporalAmount, 
         return compareTo( (DurationValue) otherValue );
     }
 
-    private long averageLengthInSeconds()
+    private long getAverageLengthInSeconds()
     {
-        return this.seconds + this.days * SECONDS_PER_DAY + this.months * AVG_SECONDS_PER_MONTH;
+        return calcAverageLengthInSeconds( this.months, this.days, this.seconds );
+    }
+
+    private long calcAverageLengthInSeconds( long months, long days, long seconds )
+    {
+        long daysInSeconds = Math.multiplyExact( days, SECONDS_PER_DAY );
+        long monthsInSeconds = Math.multiplyExact( months, AVG_SECONDS_PER_MONTH );
+        return Math.addExact( seconds, Math.addExact( daysInSeconds, monthsInSeconds ) );
+    }
+
+    private long secondsWithNanos( long seconds, long nanos )
+    {
+        return Math.addExact( seconds, nanos / NANOS_PER_SECOND );
+    }
+
+    private void assertNoOverflow( long months, long days, long seconds, long nanos )
+    {
+        try
+        {
+            calcAverageLengthInSeconds( months, days, seconds );
+            secondsWithNanos( seconds, nanos );
+        }
+        catch ( ArithmeticException e )
+        {
+            throw new InvalidValuesArgumentException(
+                    String.format( "Invalid value for duration, will cause overflow. Value was months=%d, days=%d, seconds=%d, nanos=%d",
+                            months, days, seconds, nanos ), e );
+        }
     }
 
     long nanosOfDay()
@@ -481,38 +509,28 @@ public final class DurationValue extends ScalarValue implements TemporalAmount, 
         long days = 0;
         if ( from.isSupported( EPOCH_DAY ) && to.isSupported( EPOCH_DAY ) )
         {
-            LocalDate fromDate;
-            LocalDate toDate;
+            months = assertValidUntil( from, to, ChronoUnit.MONTHS );
             try
             {
-                fromDate = LocalDate.from( from );
-                toDate = LocalDate.from( to );
+                from = from.plus( months, ChronoUnit.MONTHS );
             }
-            catch ( DateTimeException e )
+            catch ( DateTimeException | ArithmeticException e )
             {
-                throw new InvalidValuesArgumentException( e.getMessage(), e );
+                throw new TemporalArithmeticException( e.getMessage(), e );
             }
-            Period period = Period.between( fromDate, toDate );
-            months = period.getYears() * 12L + period.getMonths();
-            days = period.getDays();
-            if ( months != 0 || days != 0 )
+
+            days = assertValidUntil( from, to, ChronoUnit.DAYS );
+            try
             {
-                // Adjust in order to get to a point where we can compute the time difference,
-                // without having to bother with the length of days (which might differ due to timezone)
-                try
-                {
-                    from = from.plus( period );
-                }
-                catch ( DateTimeException | ArithmeticException e )
-                {
-                    throw new TemporalArithmeticException( e.getMessage(), e );
-                }
+                from = from.plus( days, ChronoUnit.DAYS );
+            }
+            catch ( DateTimeException | ArithmeticException e )
+            {
+                throw new TemporalArithmeticException( e.getMessage(), e );
             }
         }
-        // Compute the time difference - which is simple at this point
-        // NANOS of a day will never overflow a long
         long nanos = assertValidUntil( from, to, NANOS );
-        return newDuration( months, days, nanos / NANOS_PER_SECOND, (int) (nanos % NANOS_PER_SECOND) );
+        return newDuration( months, days, nanos / NANOS_PER_SECOND, nanos % NANOS_PER_SECOND );
     }
 
     private static DurationValue durationInSecondsAndNanos( Temporal from, Temporal to )
@@ -586,6 +604,12 @@ public final class DurationValue extends ScalarValue implements TemporalAmount, 
     public String toString()
     {
         return prettyPrint();
+    }
+
+    @Override
+    public String getTypeName()
+    {
+        return "Duration";
     }
 
     @Override
@@ -686,6 +710,16 @@ public final class DurationValue extends ScalarValue implements TemporalAmount, 
     }
 
     @Override
+    public long updateHash( HashFunction hashFunction, long hash )
+    {
+        hash = hashFunction.update( hash, months );
+        hash = hashFunction.update( hash, days );
+        hash = hashFunction.update( hash, seconds );
+        hash = hashFunction.update( hash, nanos );
+        return hash;
+    }
+
+    @Override
     public <T> T map( ValueMapper<T> mapper )
     {
         return mapper.mapDuration( this );
@@ -721,58 +755,7 @@ public final class DurationValue extends ScalarValue implements TemporalAmount, 
      */
     public LongValue get( String fieldName )
     {
-        long val;
-        switch ( fieldName.toLowerCase() )
-        {
-        case "years":
-            val = months / 12;
-            break;
-        case "months":
-            val = months;
-            break;
-        case "monthsofyear":
-            val = months % 12;
-            break;
-        case "days":
-            val = days;
-            break;
-        case "hours":
-            val = seconds / 3600;
-            break;
-        case "minutesofhour":
-            val = (seconds / 60) % 60;
-            break;
-        case "minutes":
-            val = seconds / 60;
-            break;
-        case "secondsofminute":
-            val = seconds % 60;
-            break;
-        case "seconds":
-            val = seconds;
-            break;
-        case "millisecondsofsecond":
-            val = nanos / 1000_000;
-            break;
-        case "milliseconds":
-            val = seconds * 1000 + nanos / 1000_000;
-            break;
-        case "microsecondsofsecond":
-            val = nanos / 1000;
-            break;
-        case "microseconds":
-            val = seconds * 1000_000 + nanos / 1000;
-            break;
-        case "nanosecondsofsecond":
-            val = nanos;
-            break;
-        case "nanoseconds":
-            val = seconds * NANOS_PER_SECOND + nanos;
-            break;
-        default:
-            throw new UnsupportedTemporalUnitException( "No such field: " + fieldName );
-        }
-
+        long val = DurationFields.fromName( fieldName ).asTimeStamp( months, days, seconds, nanos );
         return Values.longValue( val );
     }
 
@@ -928,16 +911,37 @@ public final class DurationValue extends ScalarValue implements TemporalAmount, 
         return approximate( months / divisor, days / divisor, seconds / divisor, nanos / divisor );
     }
 
-    private static DurationValue approximate( double months, double days, double seconds, double nanos )
+    static DurationValue approximate( double months, double days, double seconds, double nanos )
     {
-        long m = (long) months;
-        days += AVG_DAYS_PER_MONTH * (months - m);
-        long d = (long) days;
-        seconds += SECONDS_PER_DAY * (days - d);
-        long s = (long) seconds;
-        nanos += NANOS_PER_SECOND * (seconds - s);
-        long n = (long) nanos;
-        return duration( m, d, s, n );
+
+        long monthsAsLong = safeDoubleToLong(months);
+
+        double monthDiffInNanos = AVG_NANOS_PER_MONTH * months - AVG_NANOS_PER_MONTH * monthsAsLong;
+        days += monthDiffInNanos / (NANOS_PER_SECOND * SECONDS_PER_DAY);
+        long daysAsLong = safeDoubleToLong(days);
+
+        double daysDiffInNanos = NANOS_PER_SECOND * SECONDS_PER_DAY * days - NANOS_PER_SECOND * SECONDS_PER_DAY * daysAsLong;
+        seconds += daysDiffInNanos / NANOS_PER_SECOND;
+        long secondsAsLong = safeDoubleToLong(seconds);
+
+        double secondsDiffInNanos = NANOS_PER_SECOND * seconds - NANOS_PER_SECOND * secondsAsLong;
+        nanos += secondsDiffInNanos;
+        long nanosAsLong = safeDoubleToLong(nanos);
+
+        return duration( monthsAsLong, daysAsLong, secondsAsLong, nanosAsLong );
+    }
+
+    /**
+     * Will cast a double to a long, but only if it is inside the limits of [Long.MIN_VALUE, LONG.MAX_VALUE]
+     * We need this to detect overflow errors, whereas normal truncation is OK while approximating.
+     */
+    private static long safeDoubleToLong( double d )
+    {
+        if ( d > Long.MAX_VALUE || d < Long.MIN_VALUE )
+        {
+            throw new ArithmeticException( "long overflow" );
+        }
+        return (long) d;
     }
 
     private static Temporal assertValidPlus( Temporal temporal, long amountToAdd, TemporalUnit unit )

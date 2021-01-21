@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -1369,7 +1369,7 @@ public class PageListTest
     public void pageMustBeLoadedAndBoundAfterFault() throws Exception
     {
         // exclusive lock implied by constructor
-        short swapperId = 1;
+        int swapperId = 1;
         long filePageId = 42;
         pageList.initBuffer( pageRef );
         pageList.fault( pageRef, DUMMY_SWAPPER, swapperId, filePageId, PageFaultEvent.NULL );
@@ -1383,7 +1383,7 @@ public class PageListTest
     public void pageWith5BytesFilePageIdMustBeLoadedAndBoundAfterFault() throws Exception
     {
         // exclusive lock implied by constructor
-        short swapperId = 12;
+        int swapperId = 12;
         long filePageId = Integer.MAX_VALUE + 1L;
         pageList.initBuffer( pageRef );
         pageList.fault( pageRef, DUMMY_SWAPPER, swapperId, filePageId, PageFaultEvent.NULL );
@@ -1405,7 +1405,7 @@ public class PageListTest
                 throw new IOException( "boo" );
             }
         };
-        short swapperId = 1;
+        int swapperId = 1;
         long filePageId = 42;
         pageList.initBuffer( pageRef );
         try
@@ -1418,7 +1418,7 @@ public class PageListTest
             assertThat( e.getMessage(), is( "boo" ) );
         }
         assertThat( pageList.getFilePageId( pageRef ), is( filePageId ) );
-        assertThat( pageList.getSwapperId( pageRef ), is( (short) 0 ) ); // 0 means not bound
+        assertThat( pageList.getSwapperId( pageRef ), is( 0 ) ); // 0 means not bound
         assertTrue( pageList.isLoaded( pageRef ) );
         assertFalse( pageList.isBoundTo( pageRef, swapperId, filePageId ) );
     }
@@ -1573,7 +1573,7 @@ public class PageListTest
     public void tryEvictMustFailIfPageIsAlreadyExclusivelyLocked() throws Exception
     {
         pageList.unlockExclusive( pageRef );
-        short swapperId = swappers.allocate( DUMMY_SWAPPER );
+        int swapperId = swappers.allocate( DUMMY_SWAPPER );
         doFault( swapperId, 42 ); // page is now loaded
         // pages are delivered from the fault routine with the exclusive lock already held!
         assertFalse( pageList.tryEvict( pageRef, EvictionRunEvent.NULL ) );
@@ -1583,7 +1583,7 @@ public class PageListTest
     public void tryEvictThatFailsOnExclusiveLockMustNotUndoSaidLock() throws Exception
     {
         pageList.unlockExclusive( pageRef );
-        short swapperId = swappers.allocate( DUMMY_SWAPPER );
+        int swapperId = swappers.allocate( DUMMY_SWAPPER );
         doFault( swapperId, 42 ); // page is now loaded
         // pages are delivered from the fault routine with the exclusive lock already held!
         pageList.tryEvict( pageRef, EvictionRunEvent.NULL ); // This attempt will fail
@@ -1608,7 +1608,7 @@ public class PageListTest
     public void tryEvictMustLeavePageExclusivelyLockedOnSuccess() throws Exception
     {
         pageList.unlockExclusive( pageRef );
-        short swapperId = swappers.allocate( DUMMY_SWAPPER );
+        int swapperId = swappers.allocate( DUMMY_SWAPPER );
         doFault( swapperId, 42 ); // page now bound & exclusively locked
         pageList.unlockExclusive( pageRef ); // no longer exclusively locked; can now be evicted
         assertTrue( pageList.tryEvict( pageRef, EvictionRunEvent.NULL ) );
@@ -1619,7 +1619,7 @@ public class PageListTest
     public void pageMustNotBeLoadedAfterSuccessfulEviction() throws Exception
     {
         pageList.unlockExclusive( pageRef );
-        short swapperId = swappers.allocate( DUMMY_SWAPPER );
+        int swapperId = swappers.allocate( DUMMY_SWAPPER );
         doFault( swapperId, 42 ); // page now bound & exclusively locked
         pageList.unlockExclusive( pageRef ); // no longer exclusively locked; can now be evicted
         assertTrue( pageList.isLoaded( pageRef ) );
@@ -1631,23 +1631,23 @@ public class PageListTest
     public void pageMustNotBeBoundAfterSuccessfulEviction() throws Exception
     {
         pageList.unlockExclusive( pageRef );
-        short swapperId = swappers.allocate( DUMMY_SWAPPER );
+        int swapperId = swappers.allocate( DUMMY_SWAPPER );
         doFault( swapperId, 42 ); // page now bound & exclusively locked
         pageList.unlockExclusive( pageRef ); // no longer exclusively locked; can now be evicted
         assertTrue( pageList.isBoundTo( pageRef, (short) 1, 42 ) );
         assertTrue( pageList.isLoaded( pageRef ) );
-        assertThat( pageList.getSwapperId( pageRef ), is( (short) 1 ) );
+        assertThat( pageList.getSwapperId( pageRef ), is( 1 ) );
         pageList.tryEvict( pageRef, EvictionRunEvent.NULL );
         assertFalse( pageList.isBoundTo( pageRef, (short) 1, 42 ) );
         assertFalse( pageList.isLoaded( pageRef ) );
-        assertThat( pageList.getSwapperId( pageRef ), is( (short) 0 ) );
+        assertThat( pageList.getSwapperId( pageRef ), is( 0 ) );
     }
 
     @Test
     public void pageMustNotBeModifiedAfterSuccessfulEviction() throws Exception
     {
         pageList.unlockExclusive( pageRef );
-        short swapperId = swappers.allocate( DUMMY_SWAPPER );
+        int swapperId = swappers.allocate( DUMMY_SWAPPER );
         doFault( swapperId, 42 );
         pageList.unlockExclusiveAndTakeWriteLock( pageRef );
         pageList.unlockWrite( pageRef ); // page is now modified
@@ -1672,7 +1672,7 @@ public class PageListTest
                 return super.write( filePageId, bufferAddress );
             }
         };
-        short swapperId = swappers.allocate( swapper );
+        int swapperId = swappers.allocate( swapper );
         doFault( swapperId, 42 );
         pageList.unlockExclusiveAndTakeWriteLock( pageRef );
         pageList.unlockWrite( pageRef ); // page is now modified
@@ -1696,7 +1696,7 @@ public class PageListTest
                 return super.write( filePageId, bufferAddress );
             }
         };
-        short swapperId = swappers.allocate( swapper );
+        int swapperId = swappers.allocate( swapper );
         doFault( swapperId, 42 );
         pageList.unlockExclusive( pageRef ); // we take no write lock, so page is not modified
         assertFalse( pageList.isModified( pageRef ) );
@@ -1718,7 +1718,7 @@ public class PageListTest
                 assertThat( filePageId, is( 42L ) );
             }
         };
-        short swapperId = swappers.allocate( swapper );
+        int swapperId = swappers.allocate( swapper );
         doFault( swapperId, 42 );
         pageList.unlockExclusive( pageRef );
         assertTrue( pageList.tryEvict( pageRef, EvictionRunEvent.NULL ) );
@@ -1739,7 +1739,7 @@ public class PageListTest
                 assertThat( filePageId, is( 42L ) );
             }
         };
-        short swapperId = swappers.allocate( swapper );
+        int swapperId = swappers.allocate( swapper );
         doFault( swapperId, 42 );
         pageList.unlockExclusiveAndTakeWriteLock( pageRef );
         pageList.unlockWrite( pageRef ); // page is now modified
@@ -1761,7 +1761,7 @@ public class PageListTest
                 throw new IOException();
             }
         };
-        short swapperId = swappers.allocate( swapper );
+        int swapperId = swappers.allocate( swapper );
         doFault( swapperId, 42 );
         pageList.unlockExclusiveAndTakeWriteLock( pageRef );
         pageList.unlockWrite( pageRef ); // page is now modified
@@ -1804,7 +1804,7 @@ public class PageListTest
                 evictionNotified.set( true );
             }
         };
-        short swapperId = swappers.allocate( swapper );
+        int swapperId = swappers.allocate( swapper );
         doFault( swapperId, 42 );
         pageList.unlockExclusiveAndTakeWriteLock( pageRef );
         pageList.unlockWrite( pageRef ); // page is now modified
@@ -1914,7 +1914,7 @@ public class PageListTest
     {
         pageList.unlockExclusive( pageRef );
         PageSwapper swapper = new DummyPageSwapper( "a", 313 );
-        short swapperId = swappers.allocate( swapper );
+        int swapperId = swappers.allocate( swapper );
         doFault( swapperId, 42 );
         pageList.unlockExclusive( pageRef );
         EvictionAndFlushRecorder recorder = new EvictionAndFlushRecorder();
@@ -1936,7 +1936,7 @@ public class PageListTest
         pageList.unlockExclusive( pageRef );
         int filePageSize = 313;
         PageSwapper swapper = new DummyPageSwapper( "a", filePageSize );
-        short swapperId = swappers.allocate( swapper );
+        int swapperId = swappers.allocate( swapper );
         doFault( swapperId, 42 );
         pageList.unlockExclusiveAndTakeWriteLock( pageRef );
         pageList.unlockWrite( pageRef ); // page is now modified
@@ -1967,7 +1967,7 @@ public class PageListTest
                 throw ioException;
             }
         };
-        short swapperId = swappers.allocate( swapper );
+        int swapperId = swappers.allocate( swapper );
         doFault( swapperId, 42 );
         pageList.unlockExclusiveAndTakeWriteLock( pageRef );
         pageList.unlockWrite( pageRef ); // page is now modified
@@ -2000,7 +2000,7 @@ public class PageListTest
         pageList.unlockExclusive( pageRef );
         pageList.unlockExclusive( nextPageRef );
         PageSwapper swapper = new DummyPageSwapper( "a", 313 );
-        short swapperId = swappers.allocate( swapper );
+        int swapperId = swappers.allocate( swapper );
         long prevStamp = pageList.tryOptimisticReadLock( prevPageRef );
         long nextStamp = pageList.tryOptimisticReadLock( nextPageRef );
         doFault( swapperId, 42 );
@@ -2017,7 +2017,7 @@ public class PageListTest
         pageList.unlockExclusive( pageRef );
         pageList.unlockExclusive( nextPageRef );
         PageSwapper swapper = new DummyPageSwapper( "a", 313 );
-        short swapperId = swappers.allocate( swapper );
+        int swapperId = swappers.allocate( swapper );
         long prevStamp = pageList.tryOptimisticReadLock( prevPageRef );
         long nextStamp = pageList.tryOptimisticReadLock( nextPageRef );
         doFault( swapperId, 42 );
@@ -2043,7 +2043,7 @@ public class PageListTest
                 throw new IOException();
             }
         };
-        short swapperId = swappers.allocate( swapper );
+        int swapperId = swappers.allocate( swapper );
         long prevStamp = pageList.tryOptimisticReadLock( prevPageRef );
         long nextStamp = pageList.tryOptimisticReadLock( nextPageRef );
         doFault( swapperId, 42 );
@@ -2071,7 +2071,7 @@ public class PageListTest
         doFault( swapperId, Long.MAX_VALUE );
     }
 
-    private void doFault( short swapperId, long filePageId ) throws IOException
+    private void doFault( int swapperId, long filePageId ) throws IOException
     {
         assertTrue( pageList.tryExclusiveLock( pageRef ) );
         pageList.initBuffer( pageRef );

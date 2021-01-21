@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -70,3 +70,7 @@ case class DeprecatedRelTypeSeparatorNotification(position: InputPosition) exten
 case object DeprecatedPlannerNotification extends InternalNotification
 
 case class ExperimentalFeatureNotification(msg: String) extends InternalNotification
+
+case class SuboptimalIndexForContainsQueryNotification(label: String, propertyKeys: Seq[String]) extends InternalNotification
+
+case class SuboptimalIndexForEndsWithQueryNotification(label: String, propertyKeys: Seq[String]) extends InternalNotification

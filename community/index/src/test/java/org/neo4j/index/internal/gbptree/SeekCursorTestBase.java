@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -32,7 +32,6 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.function.LongSupplier;
-import java.util.function.Supplier;
 
 import org.neo4j.io.pagecache.PageCursor;
 import org.neo4j.io.pagecache.impl.DelegatingPageCursor;
@@ -63,7 +62,7 @@ public abstract class SeekCursorTestBase<KEY, VALUE>
             return Generation.generation( stableGeneration, unstableGeneration );
         }
     };
-    private static final Supplier<Root> failingRootCatchup = () ->
+    private static final RootCatchup failingRootCatchup = id ->
     {
         throw new AssertionError( "Should not happen" );
     };
@@ -87,6 +86,7 @@ public abstract class SeekCursorTestBase<KEY, VALUE>
     private static long unstableGeneration = stableGeneration + 1;
 
     private long rootId;
+    private long rootGeneration;
     private int numberOfRootSplits;
 
     @Before
@@ -121,6 +121,7 @@ public abstract class SeekCursorTestBase<KEY, VALUE>
     private void updateRoot()
     {
         rootId = cursor.getCurrentPageId();
+        rootGeneration = unstableGeneration;
         treeLogic.initialize( cursor );
     }
 
@@ -954,6 +955,32 @@ public abstract class SeekCursorTestBase<KEY, VALUE>
                 readKeys++;
             }
             assertEquals( maxKeyCount - 1, readKeys );
+        }
+    }
+
+    /* INCONSISTENCY */
+
+    @Test( timeout = 10_000L )
+    public void mustThrowIfStuckInInfiniteRootCatchup() throws IOException
+    {
+        // given
+        rootWithTwoLeaves();
+
+        // Find left child and corrupt it by overwriting type to make it look like freelist node instead of tree node.
+        goTo( utilCursor, rootId );
+        long leftChild = node.childAt( utilCursor, 0, stableGeneration, unstableGeneration );
+        goTo( utilCursor, leftChild );
+        utilCursor.putByte( TreeNode.BYTE_POS_NODE_TYPE, TreeNode.NODE_TYPE_FREE_LIST_NODE );
+
+        // when
+        RootCatchup tripCountingRootCatchup = new TripCountingRootCatchup( () -> new Root( rootId, rootGeneration ) );
+        try ( SeekCursor<KEY,VALUE> ignore = seekCursor( 0, 0, cursor, stableGeneration, unstableGeneration, tripCountingRootCatchup ) )
+        {
+            fail( "Expected to throw." );
+        }
+        catch ( TreeInconsistencyException e )
+        {
+            // then
         }
     }
 
@@ -1865,7 +1892,7 @@ public abstract class SeekCursorTestBase<KEY, VALUE>
         long id = cursor.getCurrentPageId();
         long generation = TreeNode.generation( cursor );
         MutableBoolean triggered = new MutableBoolean( false );
-        Supplier<Root> rootCatchup = () ->
+        RootCatchup rootCatchup = fromId ->
         {
             triggered.setTrue();
             return new Root( id, generation );
@@ -1907,7 +1934,7 @@ public abstract class SeekCursorTestBase<KEY, VALUE>
         node.setChildAt( cursor, leftChild, 0, stableGeneration, unstableGeneration );
 
         // a root catchup that records usage
-        Supplier<Root> rootCatchup = () ->
+        RootCatchup rootCatchup = fromId ->
         {
             triggered.setTrue();
 
@@ -1947,7 +1974,7 @@ public abstract class SeekCursorTestBase<KEY, VALUE>
         node.initializeLeaf( cursor, stableGeneration, unstableGeneration );
         cursor.next();
 
-        Supplier<Root> rootCatchup = () ->
+        RootCatchup rootCatchup = fromId ->
         {
             // Use right child as new start over root to terminate test
             cursor.next( rightChild );
@@ -2196,8 +2223,14 @@ public abstract class SeekCursorTestBase<KEY, VALUE>
     private SeekCursor<KEY,VALUE> seekCursor( long fromInclusive, long toExclusive,
             PageCursor pageCursor, long stableGeneration, long unstableGeneration ) throws IOException
     {
+        return seekCursor( fromInclusive, toExclusive, pageCursor, stableGeneration, unstableGeneration, failingRootCatchup );
+    }
+
+    private SeekCursor<KEY,VALUE> seekCursor( long fromInclusive, long toExclusive,
+            PageCursor pageCursor, long stableGeneration, long unstableGeneration, RootCatchup rootCatchup ) throws IOException
+    {
         return new SeekCursor<>( pageCursor, node, key( fromInclusive ), key( toExclusive ), layout, stableGeneration, unstableGeneration,
-                generationSupplier, failingRootCatchup, unstableGeneration , exceptionDecorator, random.nextInt( 1, DEFAULT_MAX_READ_AHEAD ) );
+                generationSupplier, rootCatchup, unstableGeneration , exceptionDecorator, random.nextInt( 1, DEFAULT_MAX_READ_AHEAD ) );
     }
 
     /**

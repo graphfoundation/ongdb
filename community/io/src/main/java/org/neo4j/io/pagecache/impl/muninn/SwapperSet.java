@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -45,7 +45,7 @@ final class SwapperSet
     // The tombstone is used as a marker to reserve allocation entries that have been freed, but not yet vacuumed.
     // An allocation cannot be reused until it has been vacuumed.
     private static final SwapperMapping TOMBSTONE = new SwapperMapping( 0, null );
-    private static final int MAX_SWAPPER_ID = Short.MAX_VALUE;
+    private static final int MAX_SWAPPER_ID = (1 << 21) - 1;
     private volatile SwapperMapping[] swapperMappings = new SwapperMapping[] { SENTINEL };
     private final PrimitiveIntSet free = Primitive.intSet();
     private final Object vacuumLock = new Object();
@@ -69,7 +69,7 @@ final class SwapperSet
     /**
      * Get the {@link SwapperMapping} for the given swapper id.
      */
-    SwapperMapping getAllocation( short id )
+    SwapperMapping getAllocation( int id )
     {
         checkId( id );
         SwapperMapping swapperMapping = swapperMappings[id];
@@ -91,7 +91,7 @@ final class SwapperSet
     /**
      * Allocate a new swapper id for the given {@link PageSwapper}.
      */
-    synchronized short allocate( PageSwapper swapper )
+    synchronized int allocate( PageSwapper swapper )
     {
         SwapperMapping[] swapperMappings = this.swapperMappings;
 
@@ -100,7 +100,7 @@ final class SwapperSet
         {
             if ( !free.isEmpty() )
             {
-                short id = safeCastIntToShort( free.iterator().next() );
+                int id = free.iterator().next();
                 free.remove( id );
                 swapperMappings[id] = new SwapperMapping( id, swapper );
                 this.swapperMappings = swapperMappings; // Volatile store synchronizes-with loads in getters.
@@ -109,7 +109,7 @@ final class SwapperSet
         }
 
         // No free slot was found above, so we extend the array to make room for a new slot.
-        short id = safeCastIntToShort( swapperMappings.length );
+        int id = swapperMappings.length;
         if ( id + 1 > MAX_SWAPPER_ID )
         {
             throw new IllegalStateException( "All swapper ids are allocated: " + MAX_SWAPPER_ID );
@@ -197,10 +197,10 @@ final class SwapperSet
         }
     }
 
-    synchronized short countAvailableIds()
+    synchronized int countAvailableIds()
     {
         // the max id is one less than the allowed count, but we subtract one for the reserved id 0
-        short available = MAX_SWAPPER_ID;
+        int available = MAX_SWAPPER_ID;
         available -= swapperMappings.length; // ids that are allocated are not available
         available += free.size(); // add back the ids that are free to be reused
         return available;

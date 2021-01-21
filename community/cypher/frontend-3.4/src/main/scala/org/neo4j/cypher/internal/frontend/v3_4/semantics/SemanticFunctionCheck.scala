@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -53,8 +53,7 @@ object SemanticFunctionCheck extends SemanticAnalysisTooling {
           specifyType(leastUpperBoundsOfTypes(invocation.arguments), invocation)
 
       case Collect =>
-        checkArgs(invocation, 1) ifOkChain {
-          expectType(CTAny.covariant, invocation.arguments(0)) chain
+        checkTypeSignatures(ctx, Collect, invocation) ifOkChain {
             specifyType(types(invocation.arguments(0))(_).wrapInList, invocation)
         }
 
@@ -99,12 +98,18 @@ object SemanticFunctionCheck extends SemanticAnalysisTooling {
         checkTypeSignatures(ctx, Length, invocation) chain checkForInvalidUsage(ctx, invocation)
 
       case Max =>
-        expectType(CTAny.covariant, invocation.arguments) chain
-          specifyType(leastUpperBoundsOfTypes(invocation.arguments), invocation)
+        // Not actually checking the type signature to not break backwards compatibility
+        //checkTypeSignatures(ctx, Max, invocation)
+         checkMinArgs(invocation, 1) ifOkChain {
+          specifyType(types(invocation.arguments(0))(_), invocation)
+        }
 
       case Min =>
-        expectType(CTAny.covariant, invocation.arguments) chain
-          specifyType(leastUpperBoundsOfTypes(invocation.arguments), invocation)
+        // Not actually checking the type signature to not break backwards compatibility
+        //checkTypeSignatures(ctx, Min, invocation)
+        checkMinArgs(invocation, 1) ifOkChain {
+          specifyType(types(invocation.arguments(0))(_), invocation)
+        }
 
       case PercentileCont =>
         checkTypeSignatures(ctx, PercentileCont, invocation) ifOkChain

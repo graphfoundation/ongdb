@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -249,6 +249,8 @@ public interface Status
                 "The database was unable to plan a hinted join." ),
         NoApplicableIndexWarning( ClientNotification,
                 "Adding a schema index may speed up this query." ),
+        SuboptimalIndexForWildcardQuery( ClientNotification,
+                "Index cannot execute wildcard query efficiently" ),
         UnboundedVariableLengthPatternWarning( ClientNotification,
                 "The provided pattern is unbounded, consider adding an upper limit to the number of node hops." ),
         ExhaustiveShortestPathWarning( ClientNotification,
@@ -500,6 +502,9 @@ public interface Status
         // transient errors
         NoLeaderAvailable( TransientError,
                 "No leader available at the moment. Retrying your request at a later time may succeed." ),
+
+        ReplicationFailure( TransientError,
+                "Replication failure." ),
 
         NotALeader( ClientError,
                 "The request cannot be processed by this server. Write requests can only be processed by the leader." ),

@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -19,7 +19,6 @@
  */
 package org.neo4j.bolt.v1.transport.integration;
 
-import org.apache.commons.lang3.SystemUtils;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -39,6 +38,8 @@ import org.neo4j.function.Factory;
 import org.neo4j.kernel.configuration.BoltConnector;
 
 import static java.util.Arrays.asList;
+import static org.apache.commons.lang3.JavaVersion.JAVA_9;
+import static org.apache.commons.lang3.SystemUtils.isJavaVersionAtLeast;
 import static org.neo4j.bolt.v1.transport.integration.Neo4jWithSocket.DEFAULT_CONNECTOR_KEY;
 import static org.neo4j.kernel.configuration.BoltConnector.EncryptionLevel.DISABLED;
 
@@ -74,8 +75,8 @@ public class RejectTransportEncryptionIT
                 },
                 new Object[]{
                         (Factory<TransportConnection>) SecureSocketConnection::new, new IOException(
-                        SystemUtils.IS_JAVA_9 ? "Remote host terminated the handshake"
-                                              : "Remote host closed connection during handshake" )
+                        isJavaVersionAtLeast( JAVA_9 ) ? "Remote host terminated the handshake"
+                                                       : "Remote host closed connection during handshake" )
 
                 } );
     }

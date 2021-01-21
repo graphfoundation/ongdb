@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -20,6 +20,7 @@
 package org.neo4j.internal.kernel.api;
 
 import org.neo4j.internal.kernel.api.exceptions.KernelException;
+import org.neo4j.kernel.api.exceptions.index.IndexNotFoundKernelException;
 
 /**
  * Defines the graph read operations of the Kernel.
@@ -40,6 +41,24 @@ public interface Read
      */
     void nodeIndexSeek( IndexReference index, NodeValueIndexCursor cursor, IndexOrder indexOrder, IndexQuery... query )
             throws KernelException;
+
+    /**
+     * Access all distinct counts in an index. Entries fed to the {@code cursor} will be (count,Value[]),
+     * where the count (number of nodes having the particular value) will be accessed using {@link NodeValueIndexCursor#nodeReference()}
+     * and the value (if the index can provide it) using {@link NodeValueIndexCursor#propertyValue(int)}.
+     * Before accessing a property value the caller should check {@link NodeValueIndexCursor#hasValue()} to see
+     * whether or not the index could yield values.
+     *
+     * For merely counting distinct values in an index, loop over and sum iterations.
+     * For counting number of indexed nodes in an index, loop over and sum all counts.
+     *
+     * NOTE distinct values may not be 100% accurate for point values that are very close to each other. In those cases they can be
+     * reported as a single distinct values with a higher count instead of several separate values.
+     *
+     * @param index {@link IndexReference} referencing index.
+     * @param cursor {@link NodeValueIndexCursor} receiving distinct count data.
+     */
+    void nodeIndexDistinctValues( IndexReference index, NodeValueIndexCursor cursor ) throws IndexNotFoundKernelException;
 
     /**
      * Returns node id of node found in unique index or -1 if no node was found.

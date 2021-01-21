@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -19,39 +19,23 @@
  */
 package org.neo4j.kernel.impl.api;
 
-import org.neo4j.kernel.impl.util.Validator;
 import org.neo4j.values.storable.TextValue;
 import org.neo4j.values.storable.Value;
-import org.neo4j.values.storable.Values;
 
 /**
  * Validates {@link TextValue text values} so that they are within a certain length, byte-wise.
  */
-public class IndexTextValueLengthValidator implements Validator<Value>
+public class IndexTextValueLengthValidator extends AbstractIndexKeyLengthValidator
 {
-    private final int maxByteLength;
-    private final int checkThreshold;
-
-    public IndexTextValueLengthValidator( int maxByteLength )
+    IndexTextValueLengthValidator( int maxByteLength )
     {
-        this.maxByteLength = maxByteLength;
-
-        // This check threshold is for not having to check every value that comes in, only those that may have a chance to exceed the max length.
-        // The value 5 comes from a safer 4, which is the number of bytes that a max size UTF-8 code point needs.
-        this.checkThreshold = maxByteLength / 5;
+        super( maxByteLength );
     }
 
     @Override
-    public void validate( Value value )
+    protected int indexKeyLength( Value value )
     {
-        if ( value == null || value == Values.NO_VALUE )
-        {
-            throw new IllegalArgumentException( "Null value" );
-        }
-        if ( Values.isTextValue( value ) && ((TextValue)value).length() >= checkThreshold )
-        {
-            validate( ((TextValue)value).stringValue().getBytes() );
-        }
+        return ((TextValue)value).stringValue().getBytes().length;
     }
 
     public void validate( byte[] encodedValue )
@@ -60,13 +44,6 @@ public class IndexTextValueLengthValidator implements Validator<Value>
         {
             throw new IllegalArgumentException( "Null value" );
         }
-
-        int byteLength = encodedValue.length;
-        if ( byteLength > maxByteLength )
-        {
-            throw new IllegalArgumentException( "Property value bytes length: " + byteLength +
-                    " is longer than " + maxByteLength + ", which is maximum supported length" +
-                    " of indexed property value." );
-        }
+        validateLength( encodedValue.length );
     }
 }

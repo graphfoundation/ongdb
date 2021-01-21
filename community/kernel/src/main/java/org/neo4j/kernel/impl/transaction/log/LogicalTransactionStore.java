@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -86,4 +86,13 @@ public interface LogicalTransactionStore
      */
     TransactionMetadataCache.TransactionMetadata getMetadataFor( long transactionId )
             throws IOException;
+
+    /**
+     * Checks if a transaction with a given transaction id exists on disk. This is to ensure that a transaction's
+     * metadata is not found because it is cached, even if the tx has itself been pruned.
+     * @param transactionId The id of the transaction to check.
+     * @return true if there is currently a transaction log file containing this transaction, false otherwise.
+     * @throws IOException If there was an I/O error during the lookup.
+     */
+    boolean existsOnDisk( long transactionId ) throws IOException;
 }

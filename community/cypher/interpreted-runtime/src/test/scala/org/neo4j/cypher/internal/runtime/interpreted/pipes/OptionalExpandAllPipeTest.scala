@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -131,6 +131,19 @@ class OptionalExpandAllPipeTest extends CypherFunSuite {
 
     // then
     result shouldBe 'empty
+  }
+
+  test("should register owning pipe") {
+    // given
+    mockRelationships(relationship1)
+    val left = newMockedPipe("a",
+      row("a" -> startNode))
+
+    // when
+    val pipe = OptionalExpandAllPipe(left, "a", "r", "b", SemanticDirection.OUTGOING, LazyTypes.empty, True())()
+
+    // then
+    pipe.predicate.owningPipe should equal(pipe)
   }
 
   private def mockRelationships(rels: Relationship*) {

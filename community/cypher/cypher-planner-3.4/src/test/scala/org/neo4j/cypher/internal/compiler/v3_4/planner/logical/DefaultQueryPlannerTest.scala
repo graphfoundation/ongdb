@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -24,7 +24,7 @@ import org.mockito.Mockito.{times, verify, when}
 import org.neo4j.cypher.internal.planner.v3_4.spi.PlanningAttributes.{Cardinalities, Solveds}
 import org.neo4j.cypher.internal.compiler.v3_4.planner._
 import org.neo4j.cypher.internal.compiler.v3_4.planner.logical.Metrics.QueryGraphSolverInput
-import org.neo4j.cypher.internal.compiler.v3_4.planner.logical.steps.LogicalPlanProducer
+import org.neo4j.cypher.internal.compiler.v3_4.planner.logical.steps.{LogicalPlanProducer, devNullListener}
 import org.neo4j.cypher.internal.frontend.v3_4.ast.{ASTAnnotationMap, Hint}
 import org.neo4j.cypher.internal.frontend.v3_4.phases.devNullLogger
 import org.neo4j.cypher.internal.frontend.v3_4.semantics.{ExpressionTypeInfo, SemanticTable}
@@ -105,6 +105,7 @@ class DefaultQueryPlannerTest extends CypherFunSuite with LogicalPlanningTestSup
         lp
       }
     })
+    when(context.costComparisonListener).thenReturn(devNullListener)
     when(context.withStrictness(any())).thenReturn(context)
     val producer = mock[LogicalPlanProducer]
     when(producer.planStarProjection(any(), any(), any(), any())).thenReturn(lp)
@@ -131,5 +132,6 @@ class DefaultQueryPlannerTest extends CypherFunSuite with LogicalPlanningTestSup
     semanticTable = semanticTable,
     strategy = mock[QueryGraphSolver],
     config = QueryPlannerConfiguration.default,
-    notificationLogger = devNullLogger)
+    notificationLogger = devNullLogger,
+    costComparisonListener = devNullListener)
 }

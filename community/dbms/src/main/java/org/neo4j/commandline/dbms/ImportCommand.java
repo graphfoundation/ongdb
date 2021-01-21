@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -35,12 +35,10 @@ import org.neo4j.commandline.arguments.MandatoryNamedArg;
 import org.neo4j.commandline.arguments.OptionalBooleanArg;
 import org.neo4j.commandline.arguments.OptionalNamedArg;
 import org.neo4j.commandline.arguments.OptionalNamedArgWithMetadata;
-import org.neo4j.commandline.arguments.common.Database;
 import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.helpers.Args;
 import org.neo4j.helpers.collection.MapUtil;
 import org.neo4j.kernel.configuration.Config;
-import org.neo4j.kernel.impl.util.Validators;
 
 import static org.neo4j.commandline.arguments.common.Database.ARG_DATABASE;
 import static org.neo4j.csv.reader.Configuration.DEFAULT;
@@ -220,7 +218,10 @@ public class ImportCommand implements AdminCommand
             Optional<Path> fileArgument = allArguments.getOptionalPath( "f" );
             if ( fileArgument.isPresent() )
             {
-                allArguments.parse( parseFileArgumentList( fileArgument.get().toFile() ) );
+                // Parsing the arguments inside the -f file and reassigning the "args" parameter, because it's the one
+                // carrying the arguments to the actual importer.
+                args = parseFileArgumentList( fileArgument.get().toFile() );
+                allArguments.parse( args );
             }
             database = allArguments.get( ARG_DATABASE );
             additionalConfigFile = allArguments.getOptionalPath( "additional-config" );
@@ -238,9 +239,9 @@ public class ImportCommand implements AdminCommand
         {
             Config config =
                     loadNeo4jConfig( homeDir, configDir, database, loadAdditionalConfig( additionalConfigFile ) );
-            Validators.CONTAINS_NO_EXISTING_DATABASE
-                    .validate( config.get( GraphDatabaseSettings.database_path ) );
 
+            // The "args" parameter may have been reassigned from what came into this method.
+            // This can happen if there was a -f argument in it, where arguments inside that file gets loaded into it.
             Importer importer = importerFactory.getImporterForMode( mode, Args.parse( args ), config, outsideWorld );
             importer.doImport();
         }

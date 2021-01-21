@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -45,6 +45,7 @@ public class ProcedureSignature
     private final String[] allowed;
     private final String description;
     private final String warning;
+    private final boolean eager;
     private final boolean caseInsensitive;
 
     public ProcedureSignature(
@@ -56,6 +57,7 @@ public class ProcedureSignature
             String[] allowed,
             String description,
             String warning,
+            boolean eager,
             boolean caseInsensitive )
     {
         this.name = name;
@@ -66,6 +68,7 @@ public class ProcedureSignature
         this.allowed = allowed;
         this.description = description;
         this.warning = warning;
+        this.eager = eager;
         this.caseInsensitive = caseInsensitive;
     }
 
@@ -119,6 +122,11 @@ public class ProcedureSignature
         return Optional.ofNullable( warning );
     }
 
+    public boolean eager()
+    {
+        return eager;
+    }
+
     @Override
     public boolean equals( Object o )
     {
@@ -167,6 +175,7 @@ public class ProcedureSignature
         private String[] allowed = new String[0];
         private String description;
         private String warning;
+        private boolean eager;
 
         public Builder( String[] namespace, String name )
         {
@@ -223,10 +232,15 @@ public class ProcedureSignature
             return this;
         }
 
+        public Builder eager( boolean eager )
+        {
+            this.eager = eager;
+            return this;
+        }
+
         public ProcedureSignature build()
         {
-            return new ProcedureSignature( name, inputSignature, outputSignature, mode, deprecated, allowed,
-                    description, warning, false );
+            return new ProcedureSignature( name, inputSignature, outputSignature, mode, deprecated, allowed, description, warning, eager, false );
         }
     }
 

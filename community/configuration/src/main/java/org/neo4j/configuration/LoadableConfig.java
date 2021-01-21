@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -31,7 +31,8 @@ import org.neo4j.graphdb.config.SettingGroup;
 
 /**
  * Every class which contains settings should implement this interface to allow the configuration to find the
- * settings via service loading.
+ * settings via service loading. Note that service loading requires you to additionally list the service class
+ * under META-INF/services/org.neo4j.configuration.LoadableConfig
  */
 public interface LoadableConfig
 {
@@ -75,6 +76,9 @@ public interface LoadableConfig
 
                     final Internal internalAnnotation = f.getAnnotation( Internal.class );
                     setting.setInternal( internalAnnotation != null );
+
+                    final Secret secretAnnotation = f.getAnnotation( Secret.class );
+                    setting.setSecret( secretAnnotation != null );
 
                     final Dynamic dynamicAnnotation = f.getAnnotation( Dynamic.class );
                     setting.setDynamic( dynamicAnnotation != null );

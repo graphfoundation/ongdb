@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -111,9 +111,22 @@ abstract class Read implements TxStateHolder,
 
         DefaultNodeValueIndexCursor cursorImpl = (DefaultNodeValueIndexCursor) cursor;
         IndexReader reader = indexReader( index, false );
-        cursorImpl.setRead( this, null );
+        cursorImpl.setRead( this );
         IndexProgressor.NodeValueClient target = withFullValuePrecision( cursorImpl, query, reader );
         reader.query( target, indexOrder, query );
+    }
+
+    @Override
+    public void nodeIndexDistinctValues( IndexReference index, NodeValueIndexCursor cursor ) throws IndexNotFoundKernelException
+    {
+        ktx.assertOpen();
+        DefaultNodeValueIndexCursor cursorImpl = (DefaultNodeValueIndexCursor) cursor;
+        IndexReader reader = indexReader( index, true );
+        cursorImpl.setRead( this );
+        try ( CursorPropertyAccessor accessor = new CursorPropertyAccessor( cursors.allocateNodeCursor(), cursors.allocatePropertyCursor(), this ) )
+        {
+            reader.distinctValues( cursorImpl, accessor );
+        }
     }
 
     private IndexProgressor.NodeValueClient withFullValuePrecision( DefaultNodeValueIndexCursor cursor,
@@ -176,14 +189,15 @@ abstract class Read implements TxStateHolder,
         //First try to find node under a shared lock
         //if not found upgrade to exclusive and try again
         locks.acquireShared( lockTracer, INDEX_ENTRY, indexEntryId );
-        try ( DefaultNodeValueIndexCursor cursor = cursors.allocateNodeValueIndexCursor() )
+        try ( DefaultNodeValueIndexCursor cursor = cursors.allocateNodeValueIndexCursor();
+              IndexReaders readers = new IndexReaders( index, this ) )
         {
-            nodeIndexSeekWithFreshIndexReader( index, cursor, predicates );
+            nodeIndexSeekWithFreshIndexReader( cursor, readers.createReader(), predicates );
             if ( !cursor.next() )
             {
                 locks.releaseShared( INDEX_ENTRY, indexEntryId );
                 locks.acquireExclusive( lockTracer, INDEX_ENTRY, indexEntryId );
-                nodeIndexSeekWithFreshIndexReader( index, cursor, predicates );
+                nodeIndexSeekWithFreshIndexReader( cursor, readers.createReader(), predicates );
                 if ( cursor.next() ) // we found it under the exclusive lock
                 {
                     // downgrade to a shared lock
@@ -197,14 +211,13 @@ abstract class Read implements TxStateHolder,
     }
 
     void nodeIndexSeekWithFreshIndexReader(
-            IndexReference index,
             DefaultNodeValueIndexCursor cursor,
-            IndexQuery.ExactPredicate... query ) throws IndexNotFoundKernelException, IndexNotApplicableKernelException
+            IndexReader indexReader,
+            IndexQuery.ExactPredicate... query ) throws IndexNotApplicableKernelException
     {
-        IndexReader reader = indexReader( index, true );
-        cursor.setRead( this, reader );
-        IndexProgressor.NodeValueClient target = withFullValuePrecision( cursor, query, reader );
-        reader.query( target, IndexOrder.NONE, query );
+        cursor.setRead( this );
+        IndexProgressor.NodeValueClient target = withFullValuePrecision( cursor, query, indexReader );
+        indexReader.query( target, IndexOrder.NONE, query );
     }
 
     @Override
@@ -222,7 +235,7 @@ abstract class Read implements TxStateHolder,
 
         // for a scan, we simply query for existence of the first property, which covers all entries in an index
         int firstProperty = index.properties()[0];
-        ((DefaultNodeValueIndexCursor) cursor).setRead( this, null );
+        ((DefaultNodeValueIndexCursor) cursor).setRead( this );
         indexReader( index, false ).query( (DefaultNodeValueIndexCursor) cursor, indexOrder, IndexQuery.exists( firstProperty ) );
     }
 
@@ -791,5 +804,4 @@ abstract class Read implements TxStateHolder,
             }
         }
     }
-
 }

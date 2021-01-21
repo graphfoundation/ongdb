@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -193,7 +193,17 @@ public enum NotificationCode
     EXPERIMENTAL_FEATURE(
             SeverityLevel.WARNING,
             Status.Statement.ExperimentalFeature,
-            "You are using an experimental feature" );
+            "You are using an experimental feature" ),
+    SUBOPTIMAL_INDEX_FOR_CONTAINS_QUERY(
+            SeverityLevel.INFORMATION,
+            Status.Statement.SuboptimalIndexForWildcardQuery,
+            "If the performance of this statement using `CONTAINS` doesn't meet your expectations check out the alternative index-providers, see " +
+                    "documentation on index configuration." ),
+    SUBOPTIMAL_INDEX_FOR_ENDS_WITH_QUERY(
+            SeverityLevel.INFORMATION,
+            Status.Statement.SuboptimalIndexForWildcardQuery,
+            "If the performance of this statement using `ENDS WITH` doesn't meet your expectations check out the alternative index-providers, see " +
+                    "documentation on index configuration." );
 
     private final Status status;
     private final String description;

@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -57,6 +57,12 @@ object coerce {
         case CTNumber => value.asInstanceOf[NumberValue]
         case CTPoint => value.asInstanceOf[PointValue]
         case CTGeometry => value.asInstanceOf[PointValue]
+        case CTDate => value.asInstanceOf[DateValue]
+        case CTLocalTime => value.asInstanceOf[LocalTimeValue]
+        case CTTime => value.asInstanceOf[TimeValue]
+        case CTLocalDateTime => value.asInstanceOf[LocalDateTimeValue]
+        case CTDateTime => value.asInstanceOf[DateTimeValue]
+        case CTDuration => value.asInstanceOf[DurationValue]
         case _ => throw cantCoerce(value, typ)
       }
     }

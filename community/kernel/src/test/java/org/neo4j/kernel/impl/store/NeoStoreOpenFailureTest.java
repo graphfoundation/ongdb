@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -22,7 +22,9 @@ package org.neo4j.kernel.impl.store;
 import org.junit.Rule;
 import org.junit.Test;
 
+import java.io.Closeable;
 import java.io.File;
+import java.io.IOException;
 import java.nio.file.OpenOption;
 
 import org.neo4j.io.fs.FileSystemAbstraction;
@@ -41,7 +43,8 @@ import org.neo4j.test.rule.PageCacheAndDependenciesRule;
 import org.neo4j.test.rule.fs.DefaultFileSystemRule;
 
 import static org.junit.Assert.fail;
-import static org.junit.Assume.assumeTrue;
+import static org.neo4j.test.AssumptionHelper.withoutReadPermissions;
+import static org.neo4j.test.AssumptionHelper.withoutWritePermissions;
 
 public class NeoStoreOpenFailureTest
 {
@@ -49,7 +52,7 @@ public class NeoStoreOpenFailureTest
     public PageCacheAndDependenciesRule rules = new PageCacheAndDependenciesRule( DefaultFileSystemRule::new, null );
 
     @Test
-    public void mustCloseAllStoresIfNeoStoresFailToOpen()
+    public void mustCloseAllStoresIfNeoStoresFailToOpen() throws IOException
     {
         PageCache pageCache = rules.pageCache();
         File dir = rules.directory().directory( "dir" );
@@ -71,23 +74,24 @@ public class NeoStoreOpenFailureTest
         neoStores.close();
 
         // Make the schema store inaccessible, to sabotage the next initialisation we'll do.
-        assumeTrue( schemaStore.setReadable( false ) );
-        assumeTrue( schemaStore.setWritable( false ) );
-
-        try
+        try ( Closeable ignored = withoutReadPermissions( schemaStore );
+                Closeable ignored2 = withoutWritePermissions( schemaStore ) )
         {
-            // This should fail due to the permissions we changed above.
-            // And when it fails, the already-opened stores should be closed.
-            new NeoStores( neoStoreFile, config, idGenFactory, pageCache, logProvider, fs, versions, formats, create,
-                    storeTypes, openOptions );
-            fail( "Opening NeoStores should have thrown." );
-        }
-        catch ( RuntimeException ignore )
-        {
-        }
+            try
+            {
+                // This should fail due to the permissions we changed above.
+                // And when it fails, the already-opened stores should be closed.
+                new NeoStores( neoStoreFile, config, idGenFactory, pageCache, logProvider, fs, versions, formats, create,
+                        storeTypes, openOptions );
+                fail( "Opening NeoStores should have thrown." );
+            }
+            catch ( RuntimeException ignore )
+            {
+            }
 
-        // We verify that the successfully opened stores were closed again by the failed NeoStores open,
-        // by closing the page cache, which will throw if not all files have been unmapped.
-        pageCache.close();
+            // We verify that the successfully opened stores were closed again by the failed NeoStores open,
+            // by closing the page cache, which will throw if not all files have been unmapped.
+            pageCache.close();
+        }
     }
 }

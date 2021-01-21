@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -19,6 +19,7 @@
  */
 package org.neo4j.values.storable;
 
+import org.neo4j.hashing.HashFunction;
 import org.neo4j.values.ValueMapper;
 
 import static java.lang.String.format;
@@ -57,6 +58,18 @@ public abstract class BooleanValue extends ScalarValue
     public NumberType numberType()
     {
         return NumberType.NO_NUMBER;
+    }
+
+    @Override
+    public long updateHash( HashFunction hashFunction, long hash )
+    {
+        return hashFunction.update( hash, hashCode() );
+    }
+
+    @Override
+    public String getTypeName()
+    {
+        return "Boolean";
     }
 
     public static final BooleanValue TRUE = new BooleanValue()
@@ -113,7 +126,7 @@ public abstract class BooleanValue extends ScalarValue
         @Override
         public String toString()
         {
-            return format( "Boolean('%s')", Boolean.toString( true ) );
+            return format( "%s('%s')", getTypeName(), Boolean.toString( true ) );
         }
     };
 
@@ -171,7 +184,7 @@ public abstract class BooleanValue extends ScalarValue
         @Override
         public String toString()
         {
-            return format( "Boolean('%s')", Boolean.toString( false ) );
+            return format( "%s('%s')", getTypeName(), Boolean.toString( false ) );
         }
     };
 }

@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -46,6 +46,7 @@ import org.neo4j.kernel.api.KernelTransactionHandle;
 import org.neo4j.kernel.api.exceptions.Status;
 import org.neo4j.kernel.api.explicitindex.AutoIndexing;
 import org.neo4j.kernel.api.security.AnonymousContext;
+import org.neo4j.kernel.impl.api.index.IndexProviderMap;
 import org.neo4j.kernel.impl.api.index.IndexingService;
 import org.neo4j.kernel.impl.api.state.ConstraintIndexCreator;
 import org.neo4j.kernel.impl.constraints.ConstraintSemantics;
@@ -615,7 +616,7 @@ public class KernelTransactionsTest
                 DefaultCursors::new, AutoIndexing.UNSUPPORTED,
                 mock( ExplicitIndexStore.class ), EmptyVersionContextSupplier.EMPTY, ON_HEAP,
                 mock( ConstraintSemantics.class ), mock( SchemaState.class ),
-                mock( IndexingService.class) );
+                mock( IndexingService.class ), mock( IndexProviderMap.class ) );
     }
 
     private static TestKernelTransactions createTestTransactions( StorageEngine storageEngine,
@@ -685,7 +686,7 @@ public class KernelTransactionsTest
                     transactionIdStore, clock, new AtomicReference<>( CpuClock.NOT_AVAILABLE ), new AtomicReference<>( HeapAllocation.NOT_AVAILABLE ),
                     accessCapability, cursors, autoIndexing, mock( ExplicitIndexStore.class ), versionContextSupplier,
                     ON_HEAP, new StandardConstraintSemantics(), mock( SchemaState.class ),
-                    mock( IndexingService.class ) );
+                    mock( IndexingService.class ), mock( IndexProviderMap.class ) );
         }
 
         @Override

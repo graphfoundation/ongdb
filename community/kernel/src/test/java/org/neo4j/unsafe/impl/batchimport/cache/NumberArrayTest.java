@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -39,14 +39,14 @@ import java.util.function.Function;
 
 import org.neo4j.io.pagecache.PageCache;
 import org.neo4j.test.rule.RandomRule;
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
 
 import static java.lang.Integer.max;
-
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
 import static org.neo4j.unsafe.impl.batchimport.cache.NumberArrayFactory.AUTO_WITHOUT_PAGECACHE;
 import static org.neo4j.unsafe.impl.batchimport.cache.NumberArrayFactory.CHUNKED_FIXED_SIZE;
 import static org.neo4j.unsafe.impl.batchimport.cache.NumberArrayFactory.HEAP;
+import static org.neo4j.unsafe.impl.batchimport.cache.NumberArrayFactory.NO_MONITOR;
 import static org.neo4j.unsafe.impl.batchimport.cache.NumberArrayFactory.OFF_HEAP;
 import static org.neo4j.unsafe.impl.batchimport.cache.NumberArrayFactory.auto;
 
@@ -82,7 +82,7 @@ public class NumberArrayTest extends NumberArrayPageCacheTestSupport
         factories.put( "OFF_HEAP", OFF_HEAP );
         factories.put( "AUTO_WITHOUT_PAGECACHE", AUTO_WITHOUT_PAGECACHE );
         factories.put( "CHUNKED_FIXED_SIZE", CHUNKED_FIXED_SIZE );
-        factories.put( "autoWithPageCacheFallback", auto( pageCache, dir, true ) );
+        factories.put( "autoWithPageCacheFallback", auto( pageCache, dir, true, NO_MONITOR ) );
         factories.put( "PageCachedNumberArrayFactory", new PageCachedNumberArrayFactory( pageCache, dir ) );
         for ( Map.Entry<String,NumberArrayFactory> entry : factories.entrySet() )
         {

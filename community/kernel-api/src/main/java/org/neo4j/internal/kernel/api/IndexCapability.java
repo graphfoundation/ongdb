@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -32,6 +32,7 @@ public interface IndexCapability
 {
     IndexOrder[] ORDER_ASC = {IndexOrder.ASCENDING};
     IndexOrder[] ORDER_NONE = new IndexOrder[0];
+    IndexLimitation[] LIMITIATION_NONE = new IndexLimitation[0];
 
     /**
      * What possible orderings is this index capable to provide for a query on given combination of {@link ValueCategory}.
@@ -58,6 +59,15 @@ public interface IndexCapability
      * {@code valueCategories} and {@link IndexReference#properties()} differ {@link IndexValueCapability#NO} is returned.
      */
     IndexValueCapability valueCapability( ValueCategory... valueCategories );
+
+    /**
+     * @return an array of limitations that this index has. It could be anything that planning could look at and
+     * either try to avoid or issue warning for.
+     */
+    default IndexLimitation[] limitations()
+    {
+        return LIMITIATION_NONE;
+    }
 
     default boolean singleWildcard( ValueCategory[] valueCategories )
     {

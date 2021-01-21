@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -55,6 +55,16 @@ public interface KernelTransactionHandle
      * @return the transaction start time.
      */
     long startTime();
+
+    /**
+     * The start time of the underlying transaction. I.e. basically {@link System#nanoTime()} ()} when user
+     * called {@link org.neo4j.internal.kernel.api.Session#beginTransaction(KernelTransaction.Type)}.
+     *
+     * This can be used to measure elapsed time in a safe way that is not affected by system time changes.
+     *
+     * @return nanoTime at the start of the transaction.
+     */
+    long startTimeNanos();
 
     /**
      * Underlying transaction specific timeout. In case if timeout is 0 - transaction does not have a timeout.

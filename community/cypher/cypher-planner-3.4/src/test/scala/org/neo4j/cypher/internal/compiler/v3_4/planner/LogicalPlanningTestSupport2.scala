@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -19,6 +19,7 @@
  */
 package org.neo4j.cypher.internal.compiler.v3_4.planner
 
+import org.neo4j.csv.reader.Configuration
 import org.neo4j.cypher.internal.planner.v3_4.spi.PlanningAttributes.{Cardinalities, Solveds}
 import org.neo4j.cypher.internal.compiler.v3_4._
 import org.neo4j.cypher.internal.compiler.v3_4.ast.rewriters._
@@ -27,7 +28,7 @@ import org.neo4j.cypher.internal.compiler.v3_4.planner.logical.Metrics._
 import org.neo4j.cypher.internal.compiler.v3_4.planner.logical.cardinality.QueryGraphCardinalityModel
 import org.neo4j.cypher.internal.compiler.v3_4.planner.logical.idp._
 import org.neo4j.cypher.internal.compiler.v3_4.planner.logical.plans.rewriter.unnestApply
-import org.neo4j.cypher.internal.compiler.v3_4.planner.logical.steps.LogicalPlanProducer
+import org.neo4j.cypher.internal.compiler.v3_4.planner.logical.steps.{LogicalPlanProducer, devNullListener}
 import org.neo4j.cypher.internal.compiler.v3_4.planner.logical.{LogicalPlanningContext, _}
 import org.neo4j.cypher.internal.compiler.v3_4.test_helpers.ContextHelper
 import org.neo4j.cypher.internal.frontend.v3_4.ast._
@@ -70,8 +71,10 @@ trait LogicalPlanningTestSupport2 extends CypherTestSupport with AstConstruction
     errorIfShortestPathFallbackUsedAtRuntime = false,
     errorIfShortestPathHasCommonNodesAtRuntime = true,
     legacyCsvQuoteEscaping = false,
+    csvBufferSize = Configuration.DEFAULT_BUFFER_SIZE_4MB,
     nonIndexedLabelWarningThreshold = 10000,
-    planWithMinimumCardinalityEstimates = true
+    planWithMinimumCardinalityEstimates = true,
+    lenientCreateRelationship = false
   )
   val realConfig = new RealLogicalPlanningConfiguration(cypherCompilerConfig)
 
@@ -201,7 +204,8 @@ trait LogicalPlanningTestSupport2 extends CypherTestSupport with AstConstruction
         semanticTable = semanticTable,
         strategy = queryGraphSolver,
         input = QueryGraphSolverInput.empty,
-        notificationLogger = devNullLogger
+        notificationLogger = devNullLogger,
+        costComparisonListener = devNullListener
       )
       f(config, ctx, solveds, cardinalities)
     }
@@ -217,7 +221,8 @@ trait LogicalPlanningTestSupport2 extends CypherTestSupport with AstConstruction
         semanticTable = semanticTable,
         strategy = queryGraphSolver,
         input = QueryGraphSolverInput.empty,
-        notificationLogger = devNullLogger
+        notificationLogger = devNullLogger,
+        costComparisonListener = devNullListener
       )
       f(config, ctx)
     }

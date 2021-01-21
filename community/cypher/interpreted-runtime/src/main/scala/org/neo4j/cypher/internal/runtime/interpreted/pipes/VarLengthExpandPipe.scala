@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -20,6 +20,7 @@
 package org.neo4j.cypher.internal.runtime.interpreted.pipes
 
 import org.neo4j.cypher.internal.runtime.interpreted.ExecutionContext
+import org.neo4j.cypher.internal.runtime.interpreted.commands.predicates.Predicate
 import org.neo4j.cypher.internal.util.v3_4.InternalException
 import org.neo4j.cypher.internal.util.v3_4.attribution.Id
 import org.neo4j.cypher.internal.v3_4.expressions.SemanticDirection
@@ -31,6 +32,7 @@ import scala.collection.mutable
 trait VarLengthPredicate {
   def filterNode(row: ExecutionContext, state:QueryState)(node: NodeValue): Boolean
   def filterRelationship(row: ExecutionContext, state:QueryState)(rel: RelationshipValue): Boolean
+  def predicateExpressions: Seq[Predicate]
 }
 
 object VarLengthPredicate {
@@ -40,6 +42,8 @@ object VarLengthPredicate {
     override def filterNode(row: ExecutionContext, state:QueryState)(node: NodeValue): Boolean = true
 
     override def filterRelationship(row: ExecutionContext, state:QueryState)(rel: RelationshipValue): Boolean = true
+
+    override def predicateExpressions: Seq[Predicate] = Seq.empty
   }
 }
 case class VarLengthExpandPipe(source: Pipe,
@@ -54,6 +58,9 @@ case class VarLengthExpandPipe(source: Pipe,
                                nodeInScope: Boolean,
                                filteringStep: VarLengthPredicate= VarLengthPredicate.NONE)
                               (val id: Id = Id.INVALID_ID) extends PipeWithSource(source) {
+
+  filteringStep.predicateExpressions.foreach(_.registerOwningPipe(this))
+
   private def varLengthExpand(node: NodeValue, state: QueryState, maxDepth: Option[Int],
                               row: ExecutionContext): Iterator[(NodeValue, Seq[RelationshipValue])] = {
     val stack = new mutable.Stack[(NodeValue, Seq[RelationshipValue])]
@@ -111,7 +118,7 @@ case class VarLengthExpandPipe(source: Pipe,
             else
               Iterator(row.set(relName, Values.NO_VALUE, toName, Values.NO_VALUE))
 
-          case value => throw new InternalException(s"Expected to find a node at $fromName but found $value instead")
+          case value => throw new InternalException(s"Expected to find a node at '$fromName' but found $value instead")
         }
       }
     }
@@ -128,5 +135,5 @@ case class VarLengthExpandPipe(source: Pipe,
     }
 
   def fetchFromContext(row: ExecutionContext, state: QueryState, name: String): Any =
-    row.getOrElse(name, throw new InternalException(s"Expected to find a node at $name but found nothing"))
+    row.getOrElse(name, throw new InternalException(s"Expected to find a node at '$name' but found nothing"))
 }

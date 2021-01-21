@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -26,8 +26,10 @@ import org.neo4j.cypher.internal.compiler.{v3_3 => compilerV3_3}
 import org.neo4j.cypher.internal.frontend.v3_3.ast.{Expression => ExpressionV3_3}
 import org.neo4j.cypher.internal.frontend.v3_3.{InputPosition => InputPositionV3_3, SemanticDirection => SemanticDirectionV3_3, ast => astV3_3, symbols => symbolsV3_3}
 import org.neo4j.cypher.internal.frontend.{v3_3 => frontendV3_3}
+import org.neo4j.cypher.internal.ir.v3_4.CSVFormat
 import org.neo4j.cypher.internal.ir.{v3_3 => irV3_3, v3_4 => irV3_4}
 import org.neo4j.cypher.internal.planner.v3_4.spi.PlanningAttributes.{Cardinalities, Solveds}
+import org.neo4j.cypher.internal.runtime.interpreted.CSVResources
 import org.neo4j.cypher.internal.util.v3_4.Rewritable.RewritableAny
 import org.neo4j.cypher.internal.util.v3_4.attribution.{IdGen, SequentialIdGen}
 import org.neo4j.cypher.internal.util.v3_4.symbols.CypherType
@@ -62,6 +64,14 @@ object LogicalPlanConverter {
 
     private val rewriter: RewriterWithArgs = bottomUpWithArgs { before =>
       val rewritten = RewriterWithArgs.lift {
+        case ( plan:plansV3_3.LoadCSV, children: Seq[AnyRef]) =>
+          plansV3_4.LoadCSV(children(0).asInstanceOf[LogicalPlanV3_4],
+                            children(1).asInstanceOf[ExpressionV3_4],
+                            children(2).asInstanceOf[String],
+                            children(3).asInstanceOf[CSVFormat],
+                            children(4).asInstanceOf[Option[String]],
+                            children(5).asInstanceOf[Boolean],
+                            CSVResources.DEFAULT_BUFFER_SIZE)(ids.convertId(plan))
         case (plan: plansV3_3.Argument, children: Seq[AnyRef]) =>
           plansV3_4.Argument(children.head.asInstanceOf[Set[String]])(ids.convertId(plan))
         case (plan: plansV3_3.SingleRow, _) =>
@@ -89,9 +99,20 @@ object LogicalPlanConverter {
 
         case (inp: astV3_3.InvalidNodePattern, children: Seq[AnyRef]) =>
           new expressionsV3_4.InvalidNodePattern(children.head.asInstanceOf[Option[expressionsV3_4.Variable]].get)(helpers.as3_4(inp.position))
+
         case (mp: astV3_3.MapProjection, children: Seq[AnyRef]) =>
-          expressionsV3_4.MapProjection(children(0).asInstanceOf[expressionsV3_4.Variable],
-            children(1).asInstanceOf[Seq[expressionsV3_4.MapProjectionElement]])(helpers.as3_4(mp.position))
+          expressionsV3_4.MapProjection(
+            children(0).asInstanceOf[expressionsV3_4.Variable],
+            children(1).asInstanceOf[Seq[expressionsV3_4.MapProjectionElement]]
+          )(helpers.as3_4(mp.position), children(2).asInstanceOf[Option[InputPosition]])
+
+        case (pc: astV3_3.PatternComprehension, children: Seq[AnyRef]) =>
+          expressionsV3_4.PatternComprehension(
+            children(0).asInstanceOf[Option[expressionsV3_4.LogicalVariable]],
+            children(1).asInstanceOf[expressionsV3_4.RelationshipsPattern],
+            children(2).asInstanceOf[Option[expressionsV3_4.Expression]],
+            children(3).asInstanceOf[expressionsV3_4.Expression]
+          )(helpers.as3_4(pc.position), children(4).asInstanceOf[Set[expressionsV3_4.LogicalVariable]])
 
         case (item@(_: compilerV3_3.ast.PrefixSeekRangeWrapper |
                     _: compilerV3_3.ast.InequalitySeekRangeWrapper |
@@ -146,6 +167,7 @@ object LogicalPlanConverter {
         case (frontendV3_3.helpers.Last(head), children: Seq[AnyRef]) => utilV3_4.Last(children(0))
 
         case ( _:plansV3_3.ProcedureSignature, children: Seq[AnyRef]) =>
+          // TODO: Add the additional `eager` parameter when upgrading to next 3.3 release
          plansV3_4.ProcedureSignature(children(0).asInstanceOf[QualifiedName],
                                       children(1).asInstanceOf[IndexedSeq[FieldSignature]],
                                       children(2).asInstanceOf[Option[IndexedSeq[FieldSignature]]],
@@ -153,6 +175,7 @@ object LogicalPlanConverter {
                                       children(4).asInstanceOf[ProcedureAccessMode],
                                       children(5).asInstanceOf[Option[String]],
                                       children(6).asInstanceOf[Option[String]],
+                                      false,  // replace with correct value after next 3.3 release
                                       None)
 
         case ( _:plansV3_3.UserFunctionSignature, children: Seq[AnyRef]) =>

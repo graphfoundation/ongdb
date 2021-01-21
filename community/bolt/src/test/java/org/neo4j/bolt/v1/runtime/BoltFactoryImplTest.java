@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -93,9 +93,9 @@ public class BoltFactoryImplTest
         GraphDatabaseAPI db = newDbMock();
         DependencyResolver dependencyResolver = db.getDependencyResolver();
         TransactionIdStore txIdStoreBeforeRestart = mock( TransactionIdStore.class );
-        when( txIdStoreBeforeRestart.getLastClosedTransactionId() ).thenReturn( 42L );
+        when( txIdStoreBeforeRestart.getLastCommittedTransactionId() ).thenReturn( 42L );
         TransactionIdStore txIdStoreAfterRestart = mock( TransactionIdStore.class );
-        when( txIdStoreAfterRestart.getLastClosedTransactionId() ).thenReturn( 4242L );
+        when( txIdStoreAfterRestart.getLastCommittedTransactionId() ).thenReturn( 4242L );
         when( dependencyResolver.provideDependency( TransactionIdStore.class ) )
                 .thenReturn( () -> txIdStoreBeforeRestart ).thenReturn( () -> txIdStoreAfterRestart );
 

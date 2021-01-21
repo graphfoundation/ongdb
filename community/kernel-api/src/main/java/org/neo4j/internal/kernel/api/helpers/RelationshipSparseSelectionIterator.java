@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -44,8 +44,7 @@ public final class RelationshipSparseSelectionIterator<R> extends RelationshipSp
     {
         if ( next == RelationshipSelections.UNINITIALIZED )
         {
-            fetchNext();
-            next = cursor.relationshipReference();
+            next = fetchNext() ? cursor.relationshipReference() : RelationshipSelections.NO_ID;
         }
 
         if ( next == RelationshipSelections.NO_ID )

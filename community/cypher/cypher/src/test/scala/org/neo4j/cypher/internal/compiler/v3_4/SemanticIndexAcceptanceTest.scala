@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -20,11 +20,12 @@
 package org.neo4j.cypher.internal.compiler.v3_4
 
 import java.time.{ZoneId, ZoneOffset}
+import java.util.concurrent.TimeUnit
 
 import org.neo4j.cypher.ExecutionEngineFunSuite
 import org.neo4j.values.storable._
 import org.neo4j.values.utils.TemporalUtil
-import org.scalacheck.Gen
+import org.scalacheck.{Gen, Shrink}
 import org.scalacheck.Arbitrary.arbitrary
 import org.scalatest.matchers.{MatchResult, Matcher}
 import org.scalatest.prop.PropertyChecks
@@ -44,6 +45,9 @@ import scala.collection.JavaConversions._
   *
   */
 class SemanticIndexAcceptanceTest extends ExecutionEngineFunSuite with PropertyChecks {
+
+  //we don't want scala check to shrink strings since it hides the actual error
+  implicit val dontShrink: Shrink[String] = Shrink(s => Stream.empty)
 
   private val allCRS: Map[Int, Array[CoordinateReferenceSystem]] = CoordinateReferenceSystem.all().toArray.groupBy(_.getDimension)
   private val allCRSDimensions = allCRS.keys.toArray
@@ -75,6 +79,10 @@ class SemanticIndexAcceptanceTest extends ExecutionEngineFunSuite with PropertyC
 
   override protected def initTest(): Unit = {
     super.initTest()
+    graph.createIndex("Label", "indexed")
+    graph.inTx {
+      graph.schema().awaitIndexesOnline(10, TimeUnit.SECONDS)
+    }
     for(_ <- 1 to 1000) createLabeledNode("Label")
   }
 
@@ -170,7 +178,6 @@ class SemanticIndexAcceptanceTest extends ExecutionEngineFunSuite with PropertyC
     }
 
     test(s"testing ${setup.name} with n.prop $operator $$argument") {
-      graph.createIndex("Label", "indexed")
       forAll(setup.generator) { propertyValue: T =>
         graph.inTx {
           createLabeledNode(Map("nonIndexed" -> propertyValue.asObject(), "indexed" -> propertyValue.asObject()), "Label")

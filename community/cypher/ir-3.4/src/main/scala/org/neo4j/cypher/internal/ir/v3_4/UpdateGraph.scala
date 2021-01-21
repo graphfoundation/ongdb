@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -337,7 +337,7 @@ trait UpdateGraph {
         val actualType = expressionTypeInfo.actual
         actualType == typeSpec || actualType == CTAny.invariant
 
-      case None => throw new InternalException(s"Expression ${p.map} has to type from semantic analysis")
+      case None => throw new InternalException(s"Expression ${p.map} has no type from semantic analysis")
     }
 
   /*
@@ -373,7 +373,7 @@ trait UpdateGraph {
 
   /*
    * Checks for overlap between what relationship props are read in query graph
-   * and what is updated with SET her
+   * and what is updated with SET here
    */
   private def setRelPropertyOverlap(propertiesToRead: Set[PropertyKeyName]): Boolean = {
     @tailrec

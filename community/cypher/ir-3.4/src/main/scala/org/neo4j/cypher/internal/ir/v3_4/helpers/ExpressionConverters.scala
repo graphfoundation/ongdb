@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -64,12 +64,14 @@ object ExpressionConverters {
 
       val rewrittenChain = relChain.endoRewrite(topDown(Rewriter.lift(normalizer.replace)))
 
+      val deps = predicates.flatMap(_.dependencies).map(_.name)
       val patternContent = rewrittenChain.destructed
       val qg = QueryGraph(
         patternRelationships = patternContent.rels.toSet,
         patternNodes = patternContent.nodeIds.toSet
       ).addPredicates(predicates: _*)
-      qg.addArgumentIds(qg.idsWithoutOptionalMatchesOrUpdates.filter(_.isNamed).toIndexedSeq)
+      qg.addArgumentIds((qg.idsWithoutOptionalMatchesOrUpdates.filter(_.isNamed) ++ deps).toIndexedSeq)
+      // TODO Next Step: Be clever and find out if deps are necessary here and only then add dependencies
     }
   }
 

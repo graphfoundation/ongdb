@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -78,14 +78,16 @@ public class SetInitialPasswordCommand implements AdminCommand
     private void setPassword( String password ) throws Throwable
     {
         Config config = loadNeo4jConfig();
-        if ( realUsersExist( config ) )
+        FileSystemAbstraction fileSystem = outsideWorld.fileSystem();
+        File authFile = CommunitySecurityModule.getUserRepositoryFile( config );
+
+        if ( realUsersExist( authFile ) )
         {
-            throw new CommandFailed( "initial password was not set because live Neo4j-users were detected." );
+            throw new CommandFailed( realUsersExistErrorMsg( fileSystem, authFile ) );
         }
         else
         {
             File file = CommunitySecurityModule.getInitialUserRepositoryFile( config );
-            FileSystemAbstraction fileSystem = outsideWorld.fileSystem();
             if ( fileSystem.fileExists( file ) )
             {
                 fileSystem.deleteFile( file );
@@ -104,10 +106,29 @@ public class SetInitialPasswordCommand implements AdminCommand
         }
     }
 
-    private boolean realUsersExist( Config config )
+    private boolean realUsersExist( File authFile )
     {
-        File authFile = CommunitySecurityModule.getUserRepositoryFile( config );
         return outsideWorld.fileSystem().fileExists( authFile );
+    }
+
+    private String realUsersExistErrorMsg( FileSystemAbstraction fileSystem, File authFile )
+    {
+        String files;
+        File parentFile = authFile.getParentFile();
+        File roles = new File( parentFile, "roles" );
+
+        if ( fileSystem.fileExists( roles ) )
+        {
+            files = "`auth` and `roles` files";
+        }
+        else
+        {
+            files = "`auth` file";
+        }
+
+        return  "the provided initial password was not set because existing Neo4j users were detected at `" +
+               authFile.getAbsolutePath() + "`. Please remove the existing " + files + " if you want to reset your database " +
+                "to only have a default user with the provided password.";
     }
 
     Config loadNeo4jConfig()

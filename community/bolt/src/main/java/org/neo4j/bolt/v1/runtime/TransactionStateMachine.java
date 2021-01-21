@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -271,9 +271,7 @@ public class TransactionStateMachine implements StatementProcessor
                             }
                             else
                             {
-                                // Periodic commit will change the current transaction, so
-                                // we can't trust this to point to the actual current transaction;
-                                ctx.currentTransaction = null;
+                                ctx.currentTransaction = spi.beginTransaction( ctx.loginContext );
                             }
                         }
                     }
@@ -523,6 +521,9 @@ public class TransactionStateMachine implements StatementProcessor
 
         void unbindTransactionFromCurrentThread();
 
+        /**
+         * @return {@code true} if the query is a PERIODIC COMMIT query and not an EXPLAIN query
+         */
         boolean isPeriodicCommit( String query );
 
         BoltResultHandle executeQuery( BoltQuerySource querySource,

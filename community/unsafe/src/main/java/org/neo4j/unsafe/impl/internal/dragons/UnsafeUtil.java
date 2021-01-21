@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -374,7 +374,7 @@ public final class UnsafeUtil
         }
     }
 
-    public static long allocateMemory( long sizeInBytes )
+    public static long allocateMemory( long sizeInBytes ) throws NativeMemoryAllocationRefusedError
     {
         return allocateMemory( sizeInBytes, GlobalMemoryTracker.INSTANCE );
     }
@@ -385,9 +385,17 @@ public final class UnsafeUtil
      * The memory is aligned such that it can be used for any data type.
      * The memory is uninitialised, so it may contain random garbage, or it may not.
      */
-    public static long allocateMemory( long sizeInBytes, MemoryAllocationTracker allocationTracker )
+    public static long allocateMemory( long sizeInBytes, MemoryAllocationTracker allocationTracker ) throws NativeMemoryAllocationRefusedError
     {
-        final long pointer = unsafe.allocateMemory( sizeInBytes );
+        final long pointer;
+        try
+        {
+            pointer = unsafe.allocateMemory( sizeInBytes );
+        }
+        catch ( Throwable e )
+        {
+            throw new NativeMemoryAllocationRefusedError( sizeInBytes, allocationTracker.usedDirectMemory(), e );
+        }
         if ( DIRTY_MEMORY )
         {
             setMemory( pointer, sizeInBytes, (byte) 0xA5 );

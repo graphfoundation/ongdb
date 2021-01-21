@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -126,7 +126,7 @@ public abstract class NativeSchemaIndexTestUtil<KEY extends NativeSchemaKey<KEY>
     GBPTree<KEY,VALUE> getTree() throws IOException
     {
         return new GBPTree<>( pageCache, getIndexFile(), layout, 0, GBPTree.NO_MONITOR,
-                NO_HEADER_READER, NO_HEADER_WRITER, RecoveryCleanupWorkCollector.IMMEDIATE );
+                NO_HEADER_READER, NO_HEADER_WRITER, RecoveryCleanupWorkCollector.immediate() );
     }
 
     private RawCursor<Hit<KEY,VALUE>, IOException> scan( GBPTree<KEY,VALUE> tree ) throws IOException

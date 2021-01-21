@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -30,7 +30,7 @@ import org.neo4j.cypher.internal.v3_4.logical.plans._
 import org.neo4j.internal.kernel.api.exceptions.KernelException
 import org.neo4j.internal.kernel.api.procs.Neo4jTypes.AnyType
 import org.neo4j.internal.kernel.api.procs.{DefaultParameterValue, Neo4jTypes}
-import org.neo4j.internal.kernel.api.{IndexReference, InternalIndexState, procs}
+import org.neo4j.internal.kernel.api.{CapableIndexReference, IndexReference, InternalIndexState, procs}
 import org.neo4j.kernel.api.schema.SchemaDescriptorFactory
 import org.neo4j.procedure.Mode
 
@@ -90,7 +90,11 @@ class TransactionBoundPlanContext(tc: TransactionalContextWrapper, logger: Inter
 
   private def getOnlineIndex(reference: IndexReference): Option[IndexDescriptor] =
     tc.schemaRead.indexGetState(reference) match {
-      case InternalIndexState.ONLINE => Some(IndexDescriptor(reference.label(), reference.properties()))
+      case InternalIndexState.ONLINE =>
+        reference match {
+          case cir: CapableIndexReference => Some(IndexDescriptor(cir.label(), cir.properties(), cir.limitations().map(kernelToCypher).toSet))
+          case _ => Some(IndexDescriptor(reference.label(), reference.properties()))
+        }
       case _ => None
     }
 
@@ -143,7 +147,7 @@ class TransactionBoundPlanContext(tc: TransactionalContextWrapper, logger: Inter
     val description = asOption(signature.description())
     val warning = asOption(signature.warning())
 
-    ProcedureSignature(name, input, output, deprecationInfo, mode, description, warning, Some(handle.id()))
+    ProcedureSignature(name, input, output, deprecationInfo, mode, description, warning, signature.eager(), Some(handle.id()))
   }
 
   override def functionSignature(name: QualifiedName): Option[UserFunctionSignature] = {

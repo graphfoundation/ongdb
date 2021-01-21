@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -51,8 +51,7 @@ class SemanticTable(
       throw new InternalException(s"Did not find any type information for variable $s", e)
   }
 
-  def getActualTypeFor(expr: Expression): TypeSpec =
-    types.getOrElse(expr, throw new InternalException(s"Did not find any type information for expression $expr")).actual
+  def getActualTypeFor(expr: Expression): Option[TypeSpec] = types.get(expr).map(_.actual)
 
   def containsNode(expr: String): Boolean = types.exists {
     case (v@Variable(name), _) => name == expr && isNode(v) // NOTE: Profiling showed that checking node type last is better

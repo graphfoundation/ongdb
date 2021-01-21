@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -86,6 +86,58 @@ class mergeInPredicatesTest extends CypherFunSuite with AstRewritingTestSupport 
                   "MATCH (n) RETURN n.prop IN [3] AS FOO")
   }
 
+  test("MATCH (n) RETURN (n.prop IN [1,2,3] OR TRUE) AND n.prop IN [3,4,5] AS FOO") {
+    shouldNotRewrite("MATCH (n) RETURN (n.prop IN [1,2,3] OR TRUE) AND n.prop IN [3,4,5] AS FOO")
+  }
+
+  test("MATCH (n) RETURN (n.prop IN [1,2,3] AND FALSE) OR n.prop IN [3,4,5] AS FOO") {
+    shouldNotRewrite("MATCH (n) RETURN (n.prop IN [1,2,3] AND FALSE) OR n.prop IN [3,4,5] AS FOO")
+  }
+
+  // Tests for IN combined with NOT
+
+  test( "MATCH (a) WHERE NOT a.prop IN [1, 2, 3] AND NOT a.prop IN [3, 4, 5] RETURN *") {
+    shouldRewrite("MATCH (a) WHERE NOT a.prop IN [1, 2, 3] AND NOT a.prop IN [3, 4, 5] RETURN *",
+      "MATCH (a) WHERE NOT a.prop IN [1, 2, 3, 4, 5] RETURN *")
+  }
+
+  test( "MATCH (a) WHERE NOT a.prop IN [1, 2, 3] OR NOT a.prop IN [3, 4, 5] RETURN *") {
+    shouldRewrite("MATCH (a) WHERE NOT a.prop IN [1, 2, 3] OR NOT a.prop IN [3, 4, 5] RETURN *",
+      "MATCH (a) WHERE NOT a.prop IN [3] RETURN *")
+  }
+
+  test( "MATCH (a) WHERE a.prop IN [1, 2, 3] AND NOT a.prop IN [3, 4, 5]") {
+    shouldNotRewrite("MATCH (a) WHERE a.prop IN [1, 2, 3] AND NOT a.prop IN [3, 4, 5]")
+  }
+
+  test( "MATCH (a) WHERE NOT a.prop IN [1, 2, 3] OR a.prop IN [3, 4, 5]") {
+    shouldNotRewrite("MATCH (a) WHERE a.prop IN [1, 2, 3] OR NOT a.prop IN [3, 4, 5]")
+  }
+
+  test("MATCH (a) WHERE a.prop IN [1,2,3] AND a.prop IN [2,3,4] AND NOT a.prop IN [3,4,5] RETURN *") {
+    shouldRewrite("MATCH (a) WHERE a.prop IN [1,2,3] AND a.prop IN [2,3,4] AND NOT a.prop IN [3,4,5] RETURN *",
+      "MATCH (a) WHERE a.prop IN [2,3] AND NOT a.prop IN [3,4,5] RETURN *"
+    )
+  }
+
+  // would have been nice to rewrite the order of predicates to allow merging in predicates
+  test("MATCH (a) WHERE a.prop IN [1,2,3] AND NOT a.prop IN [3,4,5] AND a.prop IN [2,3,4] RETURN *") {
+    shouldNotRewrite("MATCH (a) WHERE a.prop IN [1,2,3] AND NOT a.prop IN [3,4,5] AND a.prop IN [2,3,4] RETURN *")
+  }
+
+  test("MATCH (a) WHERE NOT (a.prop IN [1,2] AND a.prop IN [2,3])") {
+    shouldRewrite("MATCH (a) WHERE NOT (a.prop IN [1,2] AND a.prop IN [2,3])",
+      "MATCH (a) WHERE NOT a.prop IN [2]"
+    )
+  }
+
+  test("MATCH (a) WHERE NOT (a.prop IN [1,2] AND a.prop IN [2,3]) AND NOT (a.prop IN [3,4] AND a.prop IN [4,5])") {
+    shouldRewrite("MATCH (a) WHERE NOT (a.prop IN [1,2] AND a.prop IN [2,3]) AND NOT (a.prop IN [3,4] AND a.prop IN [4,5])",
+      "MATCH (a) WHERE NOT a.prop IN [2,4]"
+    )
+  }
+
+
   private def shouldRewrite(from: String, to: String) {
     val original = parser.parse(from).asInstanceOf[Query]
     val expected = parser.parse(to).asInstanceOf[Query]
@@ -94,4 +146,6 @@ class mergeInPredicatesTest extends CypherFunSuite with AstRewritingTestSupport 
 
     common(result) should equal(common(expected))
   }
+
+  private def shouldNotRewrite(query: String) = shouldRewrite(query, query)
 }

@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -34,9 +34,9 @@ class UniquePathNotUniqueException(message: String) extends CypherException(mess
     mapper.uniquePathNotUniqueException(message, this)
 }
 
-class FailedIndexException(indexName: String) extends CypherException {
+class FailedIndexException(indexName: String, failureMessage: String) extends CypherException {
   override def mapToPublic[T <: Throwable](mapper: MapToPublicExceptions[T]) =
-    mapper.failedIndexException(indexName, this)
+    mapper.failedIndexException(indexName, failureMessage, this)
 }
 
 class EntityNotFoundException(message: String, cause: Throwable = null)
@@ -198,7 +198,7 @@ object ShortestPathCommonEndNodesForbiddenException {
        |perform a shortestPath search after a cartesian product that might have the same start and end nodes for some
        |of the rows passed to shortestPath. If you would rather not experience this exception, and can accept the
        |possibility of missing results for those rows, disable this in the Neo4j configuration by setting
-       |`cypher.forbid_shortestpath_common_node` to false. If you cannot accept missing results, and really want the
+       |`cypher.forbid_shortestpath_common_nodes` to false. If you cannot accept missing results, and really want the
        |shortestPath between two common nodes, then re-write the query using a standard Cypher variable length pattern
        |expression followed by ordering by path length and limiting to one result.""".stripMargin
 }

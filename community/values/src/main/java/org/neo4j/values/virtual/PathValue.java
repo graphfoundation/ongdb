@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -124,7 +124,7 @@ public abstract class PathValue extends VirtualValue
     {
         NodeValue[] nodes = nodes();
         RelationshipValue[] relationships = relationships();
-        StringBuilder sb = new StringBuilder( "Path{" );
+        StringBuilder sb = new StringBuilder( getTypeName() + "{" );
         int i = 0;
         for ( ; i < relationships.length; i++ )
         {
@@ -134,6 +134,12 @@ public abstract class PathValue extends VirtualValue
         sb.append( nodes[i] );
         sb.append( '}' );
         return sb.toString();
+    }
+
+    @Override
+    public String getTypeName()
+    {
+        return "Path";
     }
 
     public ListValue asList()

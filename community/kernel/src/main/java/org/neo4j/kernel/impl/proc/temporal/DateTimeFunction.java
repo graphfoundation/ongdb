@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -23,6 +23,7 @@ import java.time.Clock;
 import java.time.ZoneId;
 import java.time.temporal.TemporalUnit;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.function.Supplier;
 
@@ -79,24 +80,6 @@ class DateTimeFunction extends TemporalFunction<DateTimeValue>
     }
 
     @Override
-    protected DateTimeValue positionalCreate( AnyValue[] input )
-    {
-        if ( input.length != 8 )
-        {
-            throw new IllegalArgumentException( "expected 8 arguments" );
-        }
-        return DateTimeValue.datetime(
-                anInt( "year", input[0] ),
-                anInt( "month", input[1] ),
-                anInt( "day", input[2] ),
-                anInt( "hour", input[3] ),
-                anInt( "minute", input[4] ),
-                anInt( "second", input[5] ),
-                anInt( "nanos", input[6] ),
-                aString( "timezone", input[7] ) );
-    }
-
-    @Override
     protected DateTimeValue truncate( TemporalUnit unit, TemporalValue input, MapValue fields, Supplier<ZoneId> defaultZone )
     {
         return DateTimeValue.truncate( unit, input, fields, defaultZone );
@@ -114,8 +97,8 @@ class DateTimeFunction extends TemporalFunction<DateTimeValue>
         private static final String DESCRIPTION =
                 "Create a DateTime given the seconds and nanoseconds since the start of the epoch.";
         private static final List<FieldSignature> SIGNATURE = Arrays.asList(
-                inputField( "seconds", Neo4jTypes.NTInteger ),
-                inputField( "nanoseconds", Neo4jTypes.NTInteger ) );
+                inputField( "seconds", Neo4jTypes.NTNumber ),
+                inputField( "nanoseconds", Neo4jTypes.NTNumber ) );
         private final UserFunctionSignature signature;
 
         private FromEpoch()
@@ -144,7 +127,8 @@ class DateTimeFunction extends TemporalFunction<DateTimeValue>
                     return DateTimeValue.ofEpoch(seconds, nanoseconds);
                 }
             }
-            throw new ProcedureException( Status.Procedure.ProcedureCallFailed, "Invalid call signature" );
+            throw new ProcedureException( Status.Procedure.ProcedureCallFailed, "Invalid call signature for " + getClass().getSimpleName() +
+                ": Provided input was " + Arrays.toString( input ) );
         }
     }
 
@@ -152,8 +136,7 @@ class DateTimeFunction extends TemporalFunction<DateTimeValue>
     {
         private static final String DESCRIPTION =
                 "Create a DateTime given the milliseconds since the start of the epoch.";
-        private static final List<FieldSignature> SIGNATURE = Arrays.asList(
-                inputField( "milliseconds", Neo4jTypes.NTInteger ) );
+        private static final List<FieldSignature> SIGNATURE = Collections.singletonList( inputField( "milliseconds", Neo4jTypes.NTNumber ) );
         private final UserFunctionSignature signature;
 
         private FromEpochMillis()
@@ -181,7 +164,8 @@ class DateTimeFunction extends TemporalFunction<DateTimeValue>
                     return DateTimeValue.ofEpochMillis( milliseconds );
                 }
             }
-            throw new ProcedureException( Status.Procedure.ProcedureCallFailed, "Invalid call signature" );
+            throw new ProcedureException( Status.Procedure.ProcedureCallFailed, "Invalid call signature for " + getClass().getSimpleName() +
+                    ": Provided input was " + Arrays.toString( input ) );
         }
     }
 }

@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -34,14 +34,14 @@ public class ChunkedNumberArrayFactory extends NumberArrayFactory.Adapter
     private static final int MAX_ARRAY_SIZE = Integer.MAX_VALUE - Short.MAX_VALUE;
     private final NumberArrayFactory delegate;
 
-    ChunkedNumberArrayFactory()
+    ChunkedNumberArrayFactory( Monitor monitor )
     {
-        this( OFF_HEAP, HEAP );
+        this( monitor, OFF_HEAP, HEAP );
     }
 
-    ChunkedNumberArrayFactory( NumberArrayFactory... delegateList )
+    ChunkedNumberArrayFactory( Monitor monitor, NumberArrayFactory... delegateList )
     {
-        delegate = new Auto( delegateList );
+        delegate = new Auto( monitor, delegateList );
     }
 
     @Override

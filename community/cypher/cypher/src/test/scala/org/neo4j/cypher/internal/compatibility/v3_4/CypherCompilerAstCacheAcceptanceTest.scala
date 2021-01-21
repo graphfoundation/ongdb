@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -33,7 +33,7 @@ import org.neo4j.cypher.internal.frontend.v3_4.phases.{CompilationPhaseTracer, T
 import org.neo4j.cypher.internal.util.v3_4.test_helpers.CypherFunSuite
 import org.neo4j.cypher.internal.PreParsedQuery
 import org.neo4j.cypher.internal.compatibility.{AstCacheMonitor, CacheAccessor}
-import org.neo4j.cypher.internal.runtime.interpreted.TransactionalContextWrapper
+import org.neo4j.cypher.internal.runtime.interpreted.{CSVResources, TransactionalContextWrapper}
 import org.neo4j.graphdb.config.Setting
 import org.neo4j.graphdb.factory.GraphDatabaseSettings
 import org.neo4j.logging.AssertableLogProvider.inLog
@@ -56,8 +56,10 @@ class CypherCompilerAstCacheAcceptanceTest extends CypherFunSuite with GraphData
       errorIfShortestPathFallbackUsedAtRuntime = false,
       errorIfShortestPathHasCommonNodesAtRuntime = true,
       legacyCsvQuoteEscaping = false,
+      csvBufferSize = CSVResources.DEFAULT_BUFFER_SIZE,
       nonIndexedLabelWarningThreshold = 10000L,
-      planWithMinimumCardinalityEstimates = true
+      planWithMinimumCardinalityEstimates = true,
+      lenientCreateRelationship = false
     )
     Compatibility(config, clock, kernelMonitors,
                       log, CypherPlanner.default, CypherRuntime.default,
@@ -203,13 +205,18 @@ class CypherCompilerAstCacheAcceptanceTest extends CypherFunSuite with GraphData
     counter.counts should equal(CacheCounts(hits = 1, misses = 1, flushes = 1, evicted = 1))
   }
 
-  test("should not evict query because of unrelated statistics change") {
+  // This test is only added to communicate that we're aware of this behaviour and consider it
+  // acceptable, because divergence in NodesAllCardinality will be very rare in a production system
+  // except for the initial population. It would be preferable to not evict here, but that would
+  // required changes that are too risky for a patch release.
+  test("it's ok to evict query because of total nodes change") {
     // given
     val clock: Clock = Clock.fixed(Instant.ofEpochMilli(1000L), ZoneOffset.UTC)
     counter = new CacheCounter()
     compiler = createCompiler(queryPlanTTL = 0, clock = clock)
     compiler.monitors.addMonitorListener(counter)
     val query: String = "match (n:Person) return n"
+    createLabeledNode("Person")
 
     // when
     runQuery(query)
@@ -218,6 +225,32 @@ class CypherCompilerAstCacheAcceptanceTest extends CypherFunSuite with GraphData
     counter.counts should equal(CacheCounts(hits = 0, misses = 1, flushes = 1, evicted = 0))
 
     // when
+    // we create enough nodes for NodesAllCardinality to trigger a replan
+    (0 until 5).foreach { _ => createNode() }
+    runQuery(query)
+
+    // then
+    counter.counts should equal(CacheCounts(hits = 1, misses = 1, flushes = 1, evicted = 1))
+  }
+
+  test("should not evict query because of unrelated statistics change") {
+    // given
+    val clock: Clock = Clock.fixed(Instant.ofEpochMilli(1000L), ZoneOffset.UTC)
+    counter = new CacheCounter()
+    compiler = createCompiler(queryPlanTTL = 0, clock = clock)
+    compiler.monitors.addMonitorListener(counter)
+    val query: String = "match (n:Person) return n"
+    (0 until 5).foreach { _ => createLabeledNode("Person") }
+
+    // when
+    runQuery(query)
+
+    // then
+    counter.counts should equal(CacheCounts(hits = 0, misses = 1, flushes = 1, evicted = 0))
+
+    // when
+    // we create enough nodes for NodesLabelCardinality("Dog") to trigger a replan
+    // but not NodesAllCardinality or NodesLabelCardinality("Person")
     (0 until 5).foreach { _ => createLabeledNode("Dog") }
     runQuery(query)
 

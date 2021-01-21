@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -104,8 +104,8 @@ case class PatternExpressionSolver(pathStepBuilder: EveryPath => PathStep = proj
       // Any other expression, that might contain an inner PatternExpression
       case (planAcc, (key, inExpression)) =>
         val expression = solveUsingGetDegree(inExpression)
-        val (firstStepPlan, firstStepExpression) = patternExpressionSolver.rewriteInnerExpressions(planAcc, expression, context)
-        val (newPlan, newExpression) = patternComprehensionSolver.rewriteInnerExpressions(firstStepPlan, firstStepExpression, context)
+        val (firstStepPlan, firstStepExpression) = patternComprehensionSolver.rewriteInnerExpressions(planAcc, expression, context)
+        val (newPlan, newExpression) = patternExpressionSolver.rewriteInnerExpressions(firstStepPlan, firstStepExpression, context)
 
         newProjections += (key -> newExpression)
         newPlan

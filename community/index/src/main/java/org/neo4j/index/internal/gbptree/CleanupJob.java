@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -19,12 +19,14 @@
  */
 package org.neo4j.index.internal.gbptree;
 
+import java.util.concurrent.ExecutorService;
+
 /**
  * A job cleaning something up after recovery. Usually added to {@link RecoveryCleanupWorkCollector}.
  * <p>
  * Report state of cleaning progress.
  */
-public interface CleanupJob extends Runnable
+public interface CleanupJob
 {
     /**
      * @return {@code true} if gbptree still needs cleaning, meaning job is not yet finished or has not started at all.
@@ -40,7 +42,7 @@ public interface CleanupJob extends Runnable
     /**
      * @return Cause of failure if {@link #hasFailed()} or {@code null} if job has not failed.
      */
-    Exception getCause();
+    Throwable getCause();
 
     /**
      * Mark this job as closed and cleanup all it's resources.
@@ -48,12 +50,18 @@ public interface CleanupJob extends Runnable
     void close();
 
     /**
+     * Run cleanup job and use provided executor for parallel tasks.
+     * This method will wait for all jobs passed to executor to finish before returning.
+     */
+    void run( ExecutorService executor );
+
+    /**
      * A {@link CleanupJob} that doesn't need cleaning, i.e. it's already clean.
      */
     CleanupJob CLEAN = new CleanupJob()
     {
         @Override
-        public void run()
+        public void run( ExecutorService executor )
         {   // no-op
         }
 
@@ -70,7 +78,7 @@ public interface CleanupJob extends Runnable
         }
 
         @Override
-        public Exception getCause()
+        public Throwable getCause()
         {
             return null;
         }

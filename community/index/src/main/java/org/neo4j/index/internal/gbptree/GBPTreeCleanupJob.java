@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -19,21 +19,31 @@
  */
 package org.neo4j.index.internal.gbptree;
 
+import java.io.File;
+import java.util.StringJoiner;
+import java.util.concurrent.ExecutorService;
+
 class GBPTreeCleanupJob implements CleanupJob
 {
     private final CrashGenerationCleaner crashGenerationCleaner;
     private final GBPTreeLock gbpTreeLock;
+    private final GBPTree.Monitor monitor;
+    private final File indexFile;
     private volatile boolean needed;
-    private volatile Exception failure;
+    private volatile Throwable failure;
 
     /**
      * @param crashGenerationCleaner {@link CrashGenerationCleaner} to use for cleaning.
      * @param gbpTreeLock {@link GBPTreeLock} to be released when job has either successfully finished or failed.
+     * @param monitor {@link GBPTree.Monitor} to report to
+     * @param indexFile Target file
      */
-    GBPTreeCleanupJob( CrashGenerationCleaner crashGenerationCleaner, GBPTreeLock gbpTreeLock )
+    GBPTreeCleanupJob( CrashGenerationCleaner crashGenerationCleaner, GBPTreeLock gbpTreeLock, GBPTree.Monitor monitor, File indexFile )
     {
         this.crashGenerationCleaner = crashGenerationCleaner;
         this.gbpTreeLock = gbpTreeLock;
+        this.monitor = monitor;
+        this.indexFile = indexFile;
         this.needed = true;
 
     }
@@ -51,7 +61,7 @@ class GBPTreeCleanupJob implements CleanupJob
     }
 
     @Override
-    public Exception getCause()
+    public Throwable getCause()
     {
         return failure;
     }
@@ -60,19 +70,31 @@ class GBPTreeCleanupJob implements CleanupJob
     public void close()
     {
         gbpTreeLock.cleanerUnlock();
+        monitor.cleanupClosed();
     }
 
     @Override
-    public void run()
+    public void run( ExecutorService executor )
     {
         try
         {
-            crashGenerationCleaner.clean();
+            crashGenerationCleaner.clean( executor );
             needed = false;
         }
-        catch ( Exception e )
+        catch ( Throwable e )
         {
+            monitor.cleanupFailed( e );
             failure = e;
         }
+    }
+
+    @Override
+    public String toString()
+    {
+        StringJoiner joiner = new StringJoiner( ", ", "CleanupJob(", ")" );
+        joiner.add( "file=" + indexFile.getAbsolutePath() );
+        joiner.add( "needed=" + needed );
+        joiner.add( "failure=" + (failure == null ? null : failure.toString()) );
+        return joiner.toString();
     }
 }

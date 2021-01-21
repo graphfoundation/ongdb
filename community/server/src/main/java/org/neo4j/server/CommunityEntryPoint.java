@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -36,12 +36,20 @@ public class CommunityEntryPoint
         }
     }
 
+    /**
+     * Used by the windows service wrapper
+     */
+    @SuppressWarnings( "unused" )
     public static void start( String[] args )
     {
         bootstrapper = new BlockingBootstrapper( new CommunityBootstrapper() );
         System.exit( ServerBootstrapper.start( bootstrapper, args ) );
     }
 
+    /**
+     * Used by the windows service wrapper
+     */
+    @SuppressWarnings( "unused" )
     public static void stop( @SuppressWarnings( "UnusedParameters" ) String[] args )
     {
         if ( bootstrapper != null )

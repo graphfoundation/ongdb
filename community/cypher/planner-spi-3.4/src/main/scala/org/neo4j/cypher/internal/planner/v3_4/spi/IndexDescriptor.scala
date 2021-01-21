@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -21,19 +21,23 @@ package org.neo4j.cypher.internal.planner.v3_4.spi
 
 import org.neo4j.cypher.internal.util.v3_4.{LabelId, PropertyKeyId}
 
+sealed trait IndexLimitation
+case object SlowContains extends IndexLimitation
+
 object IndexDescriptor {
   def apply(label: Int, property: Int): IndexDescriptor = IndexDescriptor(LabelId(label), Seq(PropertyKeyId(property)))
+  def apply(label: Int, property: Int, limitations: Set[IndexLimitation]): IndexDescriptor = IndexDescriptor(LabelId(label), Seq(PropertyKeyId(property)), limitations)
 
   def apply(label: Int, properties: Seq[Int]): IndexDescriptor = IndexDescriptor(LabelId(label), properties.map(PropertyKeyId))
+  def apply(label: Int, properties: Seq[Int], limitations: Set[IndexLimitation]): IndexDescriptor = IndexDescriptor(LabelId(label), properties.map(PropertyKeyId), limitations)
 
   def apply(label: LabelId, property: PropertyKeyId): IndexDescriptor = IndexDescriptor(label, Seq(property))
+  def apply(label: LabelId, property: PropertyKeyId, limitations: Set[IndexLimitation]): IndexDescriptor = IndexDescriptor(label, Seq(property), limitations)
 
   implicit def toKernelEncode(properties: Seq[PropertyKeyId]): Array[Int] = properties.map(_.id).toArray
 }
 
-case class IndexDescriptor(label: LabelId, properties: Seq[PropertyKeyId]) {
-  def this(label: Int, property: Int) = this( LabelId(label), Array(PropertyKeyId(property)) )
-
+case class IndexDescriptor(label: LabelId, properties: Seq[PropertyKeyId], limitations: Set[IndexLimitation] = Set.empty[IndexLimitation]) {
   def isComposite: Boolean = properties.length > 1
 
   def property: PropertyKeyId = if (isComposite) throw new IllegalArgumentException("Cannot get single property of multi-property index") else properties(0)

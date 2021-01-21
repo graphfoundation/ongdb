@@ -12,9 +12,6 @@ Neo4j is available both as a standalone server, or an embeddable component. You 
 
 We encourage experimentation with Neo4j. You can build extensions to Neo4j, develop library or drivers atop the product, or make contributions directly to the product core. You'll need to sign a Contributor License Agreement in order for us to accept your patches.
 
-For a quick overview of the components in this repository,
-you can read the link:RepositoryOverview.asciidoc[RepositoryOverview.asciidoc].
-
 NOTE: This GitHub repository contains mixed GPL and AGPL code. Our Community edition (in the link:community/[community/] directory) is GPLv3. Our Enterprise edition (link:enterprise/[enterprise/]) is differently licensed under the AGPLv3.
 
 == Dependencies ==
@@ -47,7 +44,7 @@ Before you start running the unit and integration tests in the Neo4j Maven proje
 * A plain `mvn clean install` will only build the individual jar files.
 * Test execution is, of course, part of the build.
 * In case you just want the jars, without running tests, this is for you: `mvn clean install -DskipTests`.
-* To build product packages, do `export PATH="bin:$PATH" && make clean all` in the packaging directory after building artifacts with Maven
+* To build product packages, do `export PATH="bin:$PATH" && make clean all` in the packaging directory after building artifacts with Maven.
 * To build the documentation see the https://github.com/neo4j/neo4j-documentation/[Neo4j documentation].
 * If you are running into problems building on Windows you can try building Neo4j in a Ubuntu virtual machine.
 * You may need to increase the memory available to Maven: `export MAVEN_OPTS="-Xmx512m"`.
@@ -72,4 +69,10 @@ to start Neo4j.
 
 == Licensing ==
 
-Neo4j is an open source product. We support a Community edition under the GPLv3 license. The Enterprise edition is available under the AGPLv3 license for open source projects otherwise under a commercial license from https://info.neotechnology.com/contactus.html[Neo Technology].
+Neo4j Community Edition is an open source product licensed under GPLv3.
+
+Neo4j Enterprise Edition expands the functionality of Community Edition with Enterprise-grade features.
+
+Neo4j Enterprise consists of modules from Neo4j Community Edition and modules licensed under AGPLv3 in this repository, and other closed source components not present in this repository.
+
+When packaged as a binary, Enterprise Edition includes additional closed-source components _not available in this repository_ and requires a commercial license from Neo4j Sweden AB or one of its affiliates.

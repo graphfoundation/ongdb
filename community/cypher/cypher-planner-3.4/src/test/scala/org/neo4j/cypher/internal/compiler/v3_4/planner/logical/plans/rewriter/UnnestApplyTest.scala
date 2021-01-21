@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -26,6 +26,7 @@ import org.neo4j.cypher.internal.planner.v3_4.spi.PlanningAttributes.Solveds
 import org.neo4j.cypher.internal.util.v3_4.attribution.Attributes
 import org.neo4j.cypher.internal.util.v3_4.test_helpers.CypherFunSuite
 import org.neo4j.cypher.internal.v3_4.expressions.SemanticDirection
+import org.neo4j.cypher.internal.v3_4.logical.plans
 import org.neo4j.cypher.internal.v3_4.logical.plans._
 
 class UnnestApplyTest extends CypherFunSuite with LogicalPlanningTestSupport {
@@ -74,6 +75,25 @@ class UnnestApplyTest extends CypherFunSuite with LogicalPlanningTestSupport {
 
     rewrite(input) should equal(
       LeftOuterHashJoin(Set("a"), lhs, rhs)
+    )
+  }
+
+  test("should unnest optional expand") {
+    /*
+           Apply
+         LHS  OptionalExpand
+                  Arg
+     */
+    val argPlan = Argument(Set("a"))
+    val lhs = newMockedLogicalPlan("a")
+
+    val input =
+      Apply(lhs,
+        OptionalExpand(argPlan, "a", SemanticDirection.OUTGOING, Seq.empty, "b", "r")
+      )
+
+    rewrite(input) should equal(
+      OptionalExpand(lhs, "a", SemanticDirection.OUTGOING, Seq.empty, "b", "r")
     )
   }
 

@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -56,28 +56,34 @@ object QueryPlannerConfiguration {
     OrLeafPlanner(leafPlanFromExpressions))
 
 
-  val default: QueryPlannerConfiguration = QueryPlannerConfiguration(
-    pickBestCandidate = pickBestPlanUsingHintsAndCost,
-    applySelections = Selector(pickBestPlanUsingHintsAndCost,
+  val default: QueryPlannerConfiguration = {
+    val predicateSelector = Selector(pickBestPlanUsingHintsAndCost,
       selectPatternPredicates,
       triadicSelectionFinder,
       selectCovered,
       selectHasLabelWithJoin
-    ),
-    optionalSolvers = Seq(
-      applyOptional,
-      leftOuterHashJoin,
-      rightOuterHashJoin
-    ),
-    leafPlanners = LeafPlannerList(allLeafPlanners),
-  updateStrategy = defaultUpdateStrategy
-  )
+    )
+
+
+    QueryPlannerConfiguration(
+      pickBestCandidate = pickBestPlanUsingHintsAndCost,
+      applySelections = predicateSelector,
+      optionalSolvers = Seq(
+        applyOptional,
+        leftOuterHashJoin,
+        rightOuterHashJoin
+      ),
+      leafPlanners = LeafPlannerList(allLeafPlanners),
+      updateStrategy = defaultUpdateStrategy
+    )
+
+  }
 }
 
 case class QueryPlannerConfiguration(leafPlanners: LeafPlannerIterable,
                                      applySelections: PlanTransformer[QueryGraph],
                                      optionalSolvers: Seq[OptionalSolver],
-                                     pickBestCandidate: (LogicalPlanningContext, Solveds, Cardinalities) => CandidateSelector,
+                                     pickBestCandidate: CandidateSelectorFactory,
                                      updateStrategy: UpdateStrategy) {
 
   def toKit(context: LogicalPlanningContext, solveds: Solveds, cardinalities: Cardinalities): QueryPlannerKit =
@@ -86,9 +92,9 @@ case class QueryPlannerConfiguration(leafPlanners: LeafPlannerIterable,
       pickBest = pickBestCandidate(context, solveds, cardinalities)
     )
 
-  def withLeafPlanners(leafPlanners: LeafPlannerIterable) = copy(leafPlanners = leafPlanners)
+  def withLeafPlanners(leafPlanners: LeafPlannerIterable): QueryPlannerConfiguration = copy(leafPlanners = leafPlanners)
 
-  def withUpdateStrategy(updateStrategy: UpdateStrategy) = copy(updateStrategy = updateStrategy)
+  def withUpdateStrategy(updateStrategy: UpdateStrategy): QueryPlannerConfiguration = copy(updateStrategy = updateStrategy)
 }
 
 case class QueryPlannerKit(select: (LogicalPlan, QueryGraph) => LogicalPlan, pickBest: CandidateSelector) {

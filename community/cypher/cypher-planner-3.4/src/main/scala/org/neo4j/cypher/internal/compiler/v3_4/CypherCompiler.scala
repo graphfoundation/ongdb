@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -21,21 +21,19 @@ package org.neo4j.cypher.internal.compiler.v3_4
 
 import java.time.Clock
 
-import org.neo4j.cypher.internal.util.v3_4.InputPosition
 import org.neo4j.cypher.internal.compiler.v3_4.phases.{CompilerContext, _}
 import org.neo4j.cypher.internal.compiler.v3_4.planner.logical._
 import org.neo4j.cypher.internal.compiler.v3_4.planner.logical.debug.DebugPrinter
 import org.neo4j.cypher.internal.compiler.v3_4.planner.logical.plans.rewriter.PlanRewriter
 import org.neo4j.cypher.internal.compiler.v3_4.planner.{CheckForUnresolvedTokens, ResolveTokens}
-import org.neo4j.cypher.internal.frontend.v3_4.ast.rewriters.ASTRewriter
 import org.neo4j.cypher.internal.frontend.v3_4.helpers.rewriting.RewriterStepSequencer
 import org.neo4j.cypher.internal.frontend.v3_4.phases._
 import org.neo4j.cypher.internal.ir.v3_4.UnionQuery
 import org.neo4j.cypher.internal.planner.v3_4.spi.{IDPPlannerName, PlannerNameFor}
+import org.neo4j.cypher.internal.util.v3_4.InputPosition
 import org.neo4j.cypher.internal.v3_4.logical.plans.LogicalPlan
 
-case class CypherCompiler[Context <: CompilerContext](astRewriter: ASTRewriter,
-                                                      monitors: Monitors,
+case class CypherCompiler[Context <: CompilerContext](monitors: Monitors,
                                                       sequencer: String => RewriterStepSequencer,
                                                       metricsFactory: MetricsFactory,
                                                       config: CypherCompilerConfiguration,
@@ -105,5 +103,7 @@ case class CypherCompilerConfiguration(queryCacheSize: Int,
                                        errorIfShortestPathFallbackUsedAtRuntime: Boolean,
                                        errorIfShortestPathHasCommonNodesAtRuntime: Boolean,
                                        legacyCsvQuoteEscaping: Boolean,
+                                       csvBufferSize: Int,
                                        nonIndexedLabelWarningThreshold: Long,
-                                       planWithMinimumCardinalityEstimates: Boolean)
+                                       planWithMinimumCardinalityEstimates: Boolean,
+                                       lenientCreateRelationship: Boolean)

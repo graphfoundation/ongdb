@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -26,7 +26,6 @@ import org.neo4j.cypher.internal.util.v3_4.InputPosition
 import org.neo4j.cypher.internal.v3_4.expressions.Expression.SemanticContext
 import org.neo4j.cypher.internal.v3_4.expressions.{CoerceTo, Expression, FunctionInvocation}
 import org.neo4j.cypher.internal.v3_4.functions.UserDefinedFunctionInvocation
-import org.neo4j.cypher.internal.util.v3_4.symbols._
 
 object ResolvedFunctionInvocation {
 
@@ -89,12 +88,7 @@ case class ResolvedFunctionInvocation(qualifiedName: QualifiedName,
               SemanticExpressionCheck.check(SemanticContext.Results, arg) chain
                 SemanticExpressionCheck.expectType(field.typ.covariant, arg)
           }.foldLeft(success)(_ chain _) chain
-            // If we get a List<Any> as the output type, that can be an artifact of
-            // Lost type information if the UDF function was using annotations and was compiled
-            // we cannot specify the type wrongly in this case.
-            SemanticExpressionCheck.when(signature.outputType != CTList(CTAny)) {
-              SemanticExpressionCheck.specifyType(signature.outputType, this)
-            }
+            SemanticExpressionCheck.specifyType(signature.outputType.covariant, this)
         } else {
           val msg = (if (signature.inputSignature.isEmpty) "arguments"
           else if (signature.inputSignature.size == 1) s"argument of type ${signature.inputSignature.head.typ.toNeoTypeString}"

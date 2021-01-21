@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -107,7 +107,7 @@ public class AuthProcedures
         return showCurrentUser();
     }
 
-    @Description( "List all local users." )
+    @Description( "List all native users." )
     @Procedure( name = "dbms.security.listUsers", mode = DBMS )
     public Stream<UserResult> listUsers()
     {

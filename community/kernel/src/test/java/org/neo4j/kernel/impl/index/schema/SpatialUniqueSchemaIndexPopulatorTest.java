@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -25,34 +25,48 @@ import org.neo4j.gis.spatial.index.curves.StandardConfiguration;
 import org.neo4j.kernel.api.schema.index.SchemaIndexDescriptorFactory;
 import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.impl.api.index.sampling.IndexSamplingConfig;
-import org.neo4j.kernel.impl.index.schema.config.SpaceFillingCurveSettings;
 import org.neo4j.kernel.impl.index.schema.config.SpaceFillingCurveSettingsFactory;
 import org.neo4j.values.storable.CoordinateReferenceSystem;
 
 public class SpatialUniqueSchemaIndexPopulatorTest extends NativeUniqueSchemaIndexPopulatorTest<SpatialSchemaKey,NativeSchemaValue>
 {
     private static final CoordinateReferenceSystem crs = CoordinateReferenceSystem.WGS84;
-    private static final SpaceFillingCurveSettings settings = new SpaceFillingCurveSettingsFactory( Config.defaults() ).settingsFor( crs );
+    private static final SpaceFillingCurveSettingsFactory settings = new SpaceFillingCurveSettingsFactory( Config.defaults() );
 
-    private SpatialIndexFiles.SpatialFileLayout fileLayout;
+    private SpatialIndexFiles.SpatialFile spatialFile;
 
     @Override
     NativeSchemaIndexPopulator<SpatialSchemaKey,NativeSchemaValue> createPopulator( IndexSamplingConfig samplingConfig )
     {
-        fileLayout = new SpatialIndexFiles.SpatialFileLayout( crs, settings, super.getIndexFile() );
-        return new SpatialIndexPopulator.PartPopulator( pageCache, fs, fileLayout, monitor, schemaIndexDescriptor, indexId, samplingConfig,
-                new StandardConfiguration() );
+        spatialFile = new SpatialIndexFiles.SpatialFile( crs, settings, super.getIndexFile() );
+        return new SpatialIndexPopulator.PartPopulator( pageCache, fs, spatialFile.getLayoutForNewIndex(), monitor, schemaIndexDescriptor, indexId,
+                samplingConfig, new StandardConfiguration() );
     }
 
     @Override
     public File getIndexFile()
     {
-        return fileLayout.indexFile;
+        return spatialFile.indexFile;
     }
 
     @Override
     protected LayoutTestUtil<SpatialSchemaKey,NativeSchemaValue> createLayoutTestUtil()
     {
-        return new UniqueLayoutTestUtil<>( new SpatialLayoutTestUtil( SchemaIndexDescriptorFactory.uniqueForLabel( 42, 666 ), settings, crs ) );
+        return new UniqueLayoutTestUtil<>(
+                new SpatialLayoutTestUtil( SchemaIndexDescriptorFactory.uniqueForLabel( 42, 666 ), settings.settingsFor( crs ), crs ) );
+    }
+
+    @Override
+    public void addShouldThrowOnDuplicateValues()
+    {   // Spatial can not throw on duplicate values during population because it
+        // might throw for points that are in fact unique. Instead, uniqueness will
+        // be verified by ConstraintIndexCreator when population is finished.
+    }
+
+    @Override
+    public void updaterShouldThrowOnDuplicateValues()
+    {   // Spatial can not throw on duplicate values during population because it
+        // might throw for points that are in fact unique. Instead, uniqueness will
+        // be verified by ConstraintIndexCreator when population is finished.
     }
 }

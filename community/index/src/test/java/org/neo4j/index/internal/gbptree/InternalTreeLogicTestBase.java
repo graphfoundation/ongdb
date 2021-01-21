@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -56,13 +56,14 @@ import static org.neo4j.index.internal.gbptree.ValueMergers.overwrite;
 @RunWith( Parameterized.class )
 public abstract class InternalTreeLogicTestBase<KEY,VALUE>
 {
+    protected TestLayout<KEY,VALUE> layout;
+    protected TreeNode<KEY,VALUE> node;
+
     private final int pageSize = 256;
     private PageAwareByteArrayCursor cursor;
     private PageAwareByteArrayCursor readCursor;
     private SimpleIdProvider id;
 
-    private TestLayout<KEY,VALUE> layout;
-    private TreeNode<KEY,VALUE> node;
     private ValueMerger<KEY,VALUE> adder;
     private InternalTreeLogic<KEY,VALUE> treeLogic;
     private VALUE dontCare;
@@ -1588,7 +1589,7 @@ public abstract class InternalTreeLogicTestBase<KEY,VALUE>
         return TreeNode.keyCount( readCursor );
     }
 
-    private void initialize()
+    protected void initialize()
     {
         node.initializeLeaf( cursor, stableGeneration, unstableGeneration );
         updateRoot();
@@ -1727,7 +1728,7 @@ public abstract class InternalTreeLogicTestBase<KEY,VALUE>
         return node.valueAt( readCursor, layout.newValue(), pos );
     }
 
-    private void insert( KEY key, VALUE value ) throws IOException
+    protected void insert( KEY key, VALUE value ) throws IOException
     {
         insert( key, value, overwrite() );
     }

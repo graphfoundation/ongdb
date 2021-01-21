@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -350,6 +350,7 @@ class InternalTreeLogic<KEY,VALUE>
             ValueMerger<KEY,VALUE> valueMerger, long stableGeneration, long unstableGeneration ) throws IOException
     {
         assert cursorIsAtExpectedLocation( cursor );
+        bTreeNode.validateKeyValueSize( key, value );
         moveToCorrectLeaf( cursor, key, stableGeneration, unstableGeneration );
 
         insertInLeaf( cursor, structurePropagation, key, value, valueMerger, stableGeneration, unstableGeneration );

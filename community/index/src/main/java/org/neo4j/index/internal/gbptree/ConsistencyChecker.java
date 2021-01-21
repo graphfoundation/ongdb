@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -285,6 +285,7 @@ class ConsistencyChecker<KEY>
             assertKeyOrder( cursor, range, keyCount, isLeaf ? LEAF : INTERNAL );
         }
         while ( cursor.shouldRetry() );
+        checkAfterShouldRetry( cursor );
 
         assertPointerGenerationMatchesGeneration( cursor, currentNodeGeneration, expectedGeneration );
         assertSiblings( cursor, currentNodeGeneration, leftSiblingPointer, leftSiblingPointerGeneration, rightSiblingPointer,
@@ -301,8 +302,11 @@ class ConsistencyChecker<KEY>
     private static void assertPointerGenerationMatchesGeneration( PageCursor cursor, long nodeGeneration,
             long expectedGeneration )
     {
-        assert nodeGeneration <= expectedGeneration : "Expected node:" + cursor.getCurrentPageId() + " generation:" + nodeGeneration +
-                " to be ≤ pointer generation:" + expectedGeneration;
+        if ( nodeGeneration > expectedGeneration )
+        {
+            throw new TreeInconsistencyException( "Expected node:%d generation:%d to be ≤ pointer generation:%d", cursor.getCurrentPageId(), nodeGeneration,
+                    expectedGeneration );
+        }
     }
 
     private void checkSuccessorPointerGeneration( PageCursor cursor, long successor, long successorGeneration )
@@ -322,6 +326,7 @@ class ConsistencyChecker<KEY>
                     nodeGeneration = TreeNode.generation( cursor );
                 }
                 while ( cursor.shouldRetry() );
+                checkAfterShouldRetry( cursor );
 
                 assertPointerGenerationMatchesGeneration( cursor, nodeGeneration, successorGeneration );
             }

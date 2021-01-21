@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -103,8 +103,10 @@ final class TransactionBoundQueryContext(tc: TransactionalContextWrapper, val re
   override def createNode(): Node =
     proxySpi.newNodeProxy(writes().nodeCreate())
 
-  override def createRelationship(start: Node, end: Node, relType: String): Relationship =
-    start.createRelationshipTo(end, withName(relType))
+  override def createRelationship(start: Node, end: Node, relType: String): Relationship = start match {
+    case null => throw new IllegalArgumentException("Expected to find a node, but found instead: null")
+    case _ => start.createRelationshipTo(end, withName(relType))
+  }
 
   def createRelationship(start: Long, end: Long, relType: Int): Relationship = {
     val relId = writes().relationshipCreate(start, relType, end)

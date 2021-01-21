@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -63,6 +63,8 @@ abstract class TreeNode<KEY,VALUE>
     static final byte LEAF_FLAG = 1;
     static final byte INTERNAL_FLAG = 0;
     static final long NO_NODE_FLAG = 0;
+
+    static final int NO_KEY_VALUE_SIZE_CAP = -1;
 
     final Layout<KEY,VALUE> layout;
     final int pageSize;
@@ -211,7 +213,6 @@ abstract class TreeNode<KEY,VALUE>
      * @param baseOffset Offset to slot in logical position 0.
      * @param slotSize Size of one single slot.
      */
-
     static void insertSlotsAt( PageCursor cursor, int pos, int numberOfSlots, int totalSlotCount, int baseOffset,
             int slotSize )
     {
@@ -273,6 +274,14 @@ abstract class TreeNode<KEY,VALUE>
     }
 
     // HELPERS
+
+    abstract int keyValueSizeCap();
+
+    /**
+     * This method can throw and should not be used on read path.
+     * Throws {@link IllegalArgumentException} if key and value combined violate key-value size limit.
+     */
+    abstract void validateKeyValueSize( KEY key, VALUE value );
 
     abstract boolean reasonableKeyCount( int keyCount );
 

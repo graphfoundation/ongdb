@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -47,6 +47,7 @@ import org.neo4j.helpers.collection.MapUtil;
 import org.neo4j.kernel.api.impl.index.storage.FailureStorage;
 import org.neo4j.kernel.api.index.IndexDirectoryStructure;
 import org.neo4j.kernel.configuration.Config;
+import org.neo4j.kernel.impl.index.labelscan.NativeLabelScanStore;
 import org.neo4j.kernel.impl.store.StoreType;
 import org.neo4j.test.TestGraphDatabaseFactory;
 import org.neo4j.test.rule.TestDirectory;
@@ -179,6 +180,25 @@ public class MemoryRecommendationsCommandTest
     }
 
     @Test
+    public void shouldPrintKilobytesEvenForByteSizeBelowAKiloByte()
+    {
+        // given
+        long bytesBelowK = 176;
+        long bytesBelow10K = 1762;
+        long bytesBelow100K = 17625;
+
+        // when
+        String stringBelowK = MemoryRecommendationsCommand.bytesToString( bytesBelowK );
+        String stringBelow10K = MemoryRecommendationsCommand.bytesToString( bytesBelow10K );
+        String stringBelow100K = MemoryRecommendationsCommand.bytesToString( bytesBelow100K );
+
+        // then
+        assertThat( stringBelowK, is( "1k" ) );
+        assertThat( stringBelow10K, is( "2k" ) );
+        assertThat( stringBelow100K, is( "18k" ) );
+    }
+
+    @Test
     public void mustPrintMinimalPageCacheMemorySettingForConfiguredDb() throws Exception
     {
         // given
@@ -233,6 +253,7 @@ public class MemoryRecommendationsCommandTest
                 pageCacheTotal.add( length );
             }
         }
+        pageCacheTotal.add( new File( storeDir, NativeLabelScanStore.FILE_NAME ).length() );
 
         Files.walkFileTree( IndexDirectoryStructure.baseSchemaIndexFolder( storeDir ).toPath(), new SimpleFileVisitor<Path>()
         {

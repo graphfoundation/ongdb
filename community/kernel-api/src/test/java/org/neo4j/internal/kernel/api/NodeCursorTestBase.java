@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -108,6 +108,21 @@ public abstract class NodeCursorTestBase<G extends KernelAPIReadTestSupport> ext
                 assertEquals( "should access the correct node", id, nodes.nodeReference() );
                 assertFalse( "should only access a single node", nodes.next() );
             }
+        }
+    }
+
+    // This is functionality which is only required for the hacky db.schema not to leak real data
+    @Test
+    public void shouldNotAccessNegativeReferences()
+    {
+        // given
+        try ( NodeCursor node = cursors.allocateNodeCursor() )
+        {
+            // when
+            read.singleNode( -2L, node  );
+
+            // then
+            assertFalse( "should not access negative reference node", node.next() );
         }
     }
 

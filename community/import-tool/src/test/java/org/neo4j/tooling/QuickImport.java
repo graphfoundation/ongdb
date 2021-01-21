@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -35,6 +35,7 @@ import org.neo4j.kernel.configuration.Settings;
 import org.neo4j.kernel.impl.logging.SimpleLogService;
 import org.neo4j.kernel.impl.store.format.RecordFormatSelector;
 import org.neo4j.kernel.impl.scheduler.CentralJobScheduler;
+import org.neo4j.kernel.lifecycle.Lifespan;
 import org.neo4j.logging.LogProvider;
 import org.neo4j.logging.NullLogProvider;
 import org.neo4j.scheduler.JobScheduler;
@@ -154,7 +155,8 @@ public class QuickImport
                 0, nodeHeader, relationshipHeader, labelCount, relationshipTypeCount,
                 factorBadNodeData, factorBadRelationshipData );
 
-        try ( FileSystemAbstraction fileSystem = new DefaultFileSystemAbstraction() )
+        try ( FileSystemAbstraction fileSystem = new DefaultFileSystemAbstraction();
+              Lifespan life = new Lifespan() )
         {
             BatchImporter consumer;
             if ( args.getBoolean( "to-csv" ) )
@@ -164,7 +166,7 @@ public class QuickImport
             else
             {
                 System.out.println( "Seed " + randomSeed );
-                final JobScheduler jobScheduler = new CentralJobScheduler();
+                final JobScheduler jobScheduler = life.add( new CentralJobScheduler() );
                 consumer = BatchImporterFactory.withHighestPriority().instantiate( dir, fileSystem, null, importConfig,
                         new SimpleLogService( logging, logging ), defaultVisible( jobScheduler ), EMPTY, dbConfig,
                         RecordFormatSelector.selectForConfig( dbConfig, logging ), NO_MONITOR );

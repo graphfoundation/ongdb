@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -19,12 +19,15 @@
  */
 package org.neo4j.dbms.archive;
 
+import org.apache.commons.compress.archivers.ArchiveEntry;
+import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream;
 import org.apache.commons.compress.compressors.gzip.GzipCompressorOutputStream;
 import org.apache.commons.lang3.SystemUtils;
 import org.junit.Rule;
 import org.junit.Test;
 
 import java.io.Closeable;
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.AccessDeniedException;
 import java.nio.file.FileAlreadyExistsException;
@@ -32,13 +35,16 @@ import java.nio.file.FileSystemException;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.util.Random;
 
 import org.neo4j.test.rule.TestDirectory;
 
 import static java.util.Arrays.asList;
 import static java.util.Collections.emptySet;
+import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 import static org.junit.Assume.assumeFalse;
 import static org.neo4j.dbms.archive.TestUtils.withPermissions;
@@ -78,6 +84,30 @@ public class LoaderTest
         catch ( IncorrectFormat e )
         {
             assertEquals( archive.toString(), e.getMessage() );
+        }
+    }
+
+    @Test
+    public void shouldGiveAClearErrorMessageIfTheArchiveEntryPointsToRandomPlace() throws IOException, IncorrectFormat
+    {
+        Path archive = testDirectory.file( "the-archive.dump" ).toPath();
+        final File testFile = testDirectory.file( "testFile" );
+        try ( TarArchiveOutputStream tar = new TarArchiveOutputStream(
+                new GzipCompressorOutputStream( Files.newOutputStream( archive, StandardOpenOption.CREATE_NEW ) ) ) )
+        {
+            ArchiveEntry archiveEntry = tar.createArchiveEntry( testFile, "../../../../etc/shadow" );
+            tar.putArchiveEntry( archiveEntry );
+            tar.closeArchiveEntry();
+        }
+        Path destination = testDirectory.file( "the-destination" ).toPath();
+        try
+        {
+            new Loader().load( archive, destination, destination );
+            fail( "Expected an exception" );
+        }
+        catch ( InvalidDumpEntryException e )
+        {
+            assertThat( e.getMessage(), containsString( "points to a location outside of the destination database." ) );
         }
     }
 
@@ -202,6 +232,7 @@ public class LoaderTest
         Files.createDirectories( destination.getParent() );
         try ( Closeable ignored = withPermissions( destination.getParent(), emptySet() ) )
         {
+            assumeFalse( destination.getParent().toFile().canWrite() );
             new Loader().load( archive, destination, destination );
             fail( "Expected an exception" );
         }
@@ -223,6 +254,7 @@ public class LoaderTest
         Files.createDirectories( txLogsDrectory.getParent() );
         try ( Closeable ignored = withPermissions( txLogsDrectory.getParent(), emptySet() ) )
         {
+            assumeFalse( txLogsDrectory.getParent().toFile().canWrite() );
             new Loader().load( archive, destination, txLogsDrectory );
             fail( "Expected an exception" );
         }

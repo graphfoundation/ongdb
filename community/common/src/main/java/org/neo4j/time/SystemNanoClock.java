@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -61,6 +61,11 @@ public class SystemNanoClock extends Clock
         return System.currentTimeMillis();
     }
 
+    /**
+     * It is <em>only</em> useful for comparing values returned from the same clock, as the wall clock time of this method is arbitrary.
+     *
+     * @return current nano time of the system.
+     */
     public long nanos()
     {
         return System.nanoTime();

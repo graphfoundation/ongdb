@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -29,7 +29,7 @@ import org.neo4j.cypher.internal.compiler.v3_4.phases._
 import org.neo4j.cypher.internal.compiler.v3_4.planner.logical.Metrics._
 import org.neo4j.cypher.internal.compiler.v3_4.planner.logical._
 import org.neo4j.cypher.internal.compiler.v3_4.planner.logical.idp._
-import org.neo4j.cypher.internal.compiler.v3_4.planner.logical.steps.LogicalPlanProducer
+import org.neo4j.cypher.internal.compiler.v3_4.planner.logical.steps.{devNullListener, LogicalPlanProducer}
 import org.neo4j.cypher.internal.compiler.v3_4.test_helpers.ContextHelper
 import org.neo4j.cypher.internal.frontend.v3_4.ast._
 import org.neo4j.cypher.internal.frontend.v3_4.ast.rewriters._
@@ -47,6 +47,7 @@ import org.neo4j.cypher.internal.util.v3_4.test_helpers.{CypherFunSuite, CypherT
 import org.neo4j.cypher.internal.util.v3_4.{Cardinality, LabelId, PropertyKeyId, RelTypeId}
 import org.neo4j.cypher.internal.v3_4.expressions._
 import org.neo4j.cypher.internal.v3_4.logical.plans._
+import org.neo4j.csv.reader.Configuration
 
 import scala.collection.mutable
 
@@ -145,7 +146,7 @@ trait LogicalPlanningTestSupport extends CypherTestSupport with AstConstructionT
     (LogicalPlanningContext(planContext, LogicalPlanProducer(metrics.cardinality, solveds, cardinalities, idGen), metrics, semanticTable,
       strategy, QueryGraphSolverInput(Map.empty, cardinality, strictness),
       notificationLogger = notificationLogger, useErrorsOverWarnings = useErrorsOverWarnings,
-      legacyCsvQuoteEscaping = config.legacyCsvQuoteEscaping, config = QueryPlannerConfiguration.default),
+      legacyCsvQuoteEscaping = config.legacyCsvQuoteEscaping, config = QueryPlannerConfiguration.default, costComparisonListener = devNullListener),
       solveds, cardinalities)
   }
 
@@ -162,7 +163,8 @@ trait LogicalPlanningTestSupport extends CypherTestSupport with AstConstructionT
     LogicalPlanningContext(planContext, LogicalPlanProducer(metrics.cardinality, new StubSolveds, new StubCardinalities, idGen), metrics, semanticTable,
       strategy, QueryGraphSolverInput(Map.empty, cardinality, strictness),
       notificationLogger = notificationLogger, useErrorsOverWarnings = useErrorsOverWarnings,
-      legacyCsvQuoteEscaping = config.legacyCsvQuoteEscaping, config = QueryPlannerConfiguration.default)
+      legacyCsvQuoteEscaping = config.legacyCsvQuoteEscaping, csvBufferSize = config.csvBufferSize,
+                           config = QueryPlannerConfiguration.default, costComparisonListener = devNullListener)
   }
 
   def newMockedStatistics = mock[GraphStatistics]
@@ -228,8 +230,10 @@ trait LogicalPlanningTestSupport extends CypherTestSupport with AstConstructionT
     errorIfShortestPathFallbackUsedAtRuntime = false,
     errorIfShortestPathHasCommonNodesAtRuntime = true,
     legacyCsvQuoteEscaping = false,
+    csvBufferSize = Configuration.DEFAULT_BUFFER_SIZE_4MB,
     nonIndexedLabelWarningThreshold = 10000,
-    planWithMinimumCardinalityEstimates = true
+    planWithMinimumCardinalityEstimates = true,
+    lenientCreateRelationship = false
   )
 
   def buildPlannerQuery(query: String, lookup: Option[QualifiedName => ProcedureSignature] = None) = {

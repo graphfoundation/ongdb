@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -225,8 +225,8 @@ public class BatchingNeoStores implements AutoCloseable, MemoryStatsVisitor.Visi
     {
         life = new LifeSupport();
         life.start();
-        labelScanStore = new NativeLabelScanStore( pageCache, storeDir, FullStoreChangeStream.EMPTY, false, new Monitors(),
-                RecoveryCleanupWorkCollector.IMMEDIATE );
+        labelScanStore = new NativeLabelScanStore( pageCache, fileSystem, storeDir, FullStoreChangeStream.EMPTY, false, new Monitors(),
+                RecoveryCleanupWorkCollector.immediate() );
         life.add( labelScanStore );
     }
 
@@ -241,6 +241,14 @@ public class BatchingNeoStores implements AutoCloseable, MemoryStatsVisitor.Visi
                 neoStores.getRelationshipTypeTokenStore() );
         temporaryNeoStores = instantiateTempStores();
         instantiateKernelExtensions();
+
+        // Delete the id generators because makeStoreOk isn't atomic in the sense that there's a possibility of an unlucky timing such
+        // that if the process is killed at the right time some store may end up with a .id file that looks to be CLEAN and has highId=0,
+        // i.e. effectively making the store look empty on the next start. Normal recovery of a db is sort of protected by this recovery
+        // recognizing that the db needs recovery when it looks at the tx log and also calling deleteIdGenerators. In the import case
+        // there are no tx logs at all, and therefore we do this manually right here.
+        neoStores.deleteIdGenerators();
+        temporaryNeoStores.deleteIdGenerators();
 
         neoStores.makeStoreOk();
         temporaryNeoStores.makeStoreOk();

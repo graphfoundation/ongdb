@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -80,7 +80,7 @@ public class ReflectiveUserFunctionTest
         // Given
         Log log = spy( Log.class );
         components.register( Log.class, ctx -> log );
-        CallableUserFunction function = procedureCompiler.compileFunction( LoggingFunction.class ).get( 0 );
+        CallableUserFunction function = procedureCompiler.compileFunction( LoggingFunction.class, false ).get( 0 );
 
         // When
         function.apply( new BasicContext(), new AnyValue[0] );
@@ -302,7 +302,7 @@ public class ReflectiveUserFunctionTest
                 new ComponentRegistry(), log, ProcedureConfig.DEFAULT );
 
         // When
-        List<CallableUserFunction> funcs = procedureCompiler.compileFunction( FunctionWithDeprecation.class );
+        List<CallableUserFunction> funcs = procedureCompiler.compileFunction( FunctionWithDeprecation.class, false );
 
         // Then
         verify( log ).warn( "Use of @UserFunction(deprecatedBy) without @Deprecated in org.neo4j.kernel.impl.proc.badFunc" );
@@ -491,6 +491,6 @@ public class ReflectiveUserFunctionTest
 
     private List<CallableUserFunction> compile( Class<?> clazz ) throws KernelException
     {
-        return procedureCompiler.compileFunction( clazz );
+        return procedureCompiler.compileFunction( clazz, false );
     }
 }

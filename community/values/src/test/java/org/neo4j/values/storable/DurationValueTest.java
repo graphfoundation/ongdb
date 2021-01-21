@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -19,16 +19,19 @@
  */
 package org.neo4j.values.storable;
 
+import org.hamcrest.Matchers;
+import org.junit.Test;
+
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.temporal.Temporal;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.junit.Test;
-
 import org.neo4j.helpers.collection.Pair;
+import org.neo4j.values.utils.InvalidValuesArgumentException;
 import org.neo4j.values.utils.TemporalParseException;
+import org.neo4j.values.utils.TemporalUtil;
 
 import static java.time.ZoneOffset.UTC;
 import static java.time.ZoneOffset.ofHours;
@@ -39,6 +42,7 @@ import static java.time.temporal.ChronoUnit.SECONDS;
 import static java.util.Collections.singletonList;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 import static org.neo4j.helpers.collection.Pair.pair;
 import static org.neo4j.values.storable.DateTimeValue.datetime;
@@ -167,6 +171,13 @@ public class DurationValueTest
     }
 
     @Test
+    public void shouldHandleLargeNanos()
+    {
+        DurationValue duration = DurationValue.duration( 0L, 0L, 0L, Long.MAX_VALUE );
+        assertEquals( Long.MAX_VALUE, duration.get( "nanoseconds" ).value() );
+    }
+
+    @Test
     public void shouldParseDuration()
     {
         assertEquals(
@@ -246,12 +257,12 @@ public class DurationValueTest
         assertNotParsable( "PT0,S" );
         assertNotParsable( "PT1,-1S" );
         assertNotParsable( "PT1.-1S" );
-        for ( String s : new String[] {"Y", "M", "W", "D"} )
+        for ( String s : new String[]{"Y", "M", "W", "D"} )
         {
             assertNotParsable( "P-" + s );
             assertNotParsable( "P1" + s + "T" );
         }
-        for ( String s : new String[] {"H", "M", "S"} )
+        for ( String s : new String[]{"H", "M", "S"} )
         {
             assertNotParsable( "PT-" + s );
             assertNotParsable( "T1" + s );
@@ -275,7 +286,7 @@ public class DurationValueTest
     public void shouldWriteDuration()
     {
         // given
-        for ( DurationValue duration : new DurationValue[] {
+        for ( DurationValue duration : new DurationValue[]{
                 duration( 0, 0, 0, 0 ),
                 duration( 1, 0, 0, 0 ),
                 duration( 0, 1, 0, 0 ),
@@ -414,8 +425,8 @@ public class DurationValueTest
     public void shouldComputeDurationBetweenDates()
     {
         assertEquals( duration( 22, 23, 0, 0 ), durationBetween( date( 2016, 1, 27 ), date( 2017, 12, 20 ) ) );
-        assertEquals( duration( 0, 693, 0, 0 ), between(DAYS, date( 2016, 1, 27 ), date( 2017, 12, 20 ) ) );
-        assertEquals( duration( 22, 0, 0, 0 ), between(MONTHS, date( 2016, 1, 27 ), date( 2017, 12, 20 ) ) );
+        assertEquals( duration( 0, 693, 0, 0 ), between( DAYS, date( 2016, 1, 27 ), date( 2017, 12, 20 ) ) );
+        assertEquals( duration( 22, 0, 0, 0 ), between( MONTHS, date( 2016, 1, 27 ), date( 2017, 12, 20 ) ) );
     }
 
     @Test
@@ -494,7 +505,7 @@ public class DurationValueTest
     {
         // given
         @SuppressWarnings( "unchecked" )
-        Pair<Temporal,Temporal>[] input = new Pair[] {
+        Pair<Temporal, Temporal>[] input = new Pair[]{
                 pair( // change from CET to CEST - second time of day after first
                         datetime( date( 2017, 3, 20 ), localTime( 13, 37, 0, 0 ), ZoneId.of( "Europe/Stockholm" ) ),
                         datetime( date( 2017, 3, 26 ), localTime( 19, 40, 0, 0 ), ZoneId.of( "Europe/Stockholm" ) ) ),
@@ -508,7 +519,7 @@ public class DurationValueTest
                         datetime( date( 2017, 10, 20 ), localTime( 13, 37, 0, 0 ), ZoneId.of( "Europe/Stockholm" ) ),
                         datetime( date( 2017, 10, 29 ), localTime( 11, 40, 0, 0 ), ZoneId.of( "Europe/Stockholm" ) ) ),
         };
-        for ( Pair<Temporal,Temporal> pair : input )
+        for ( Pair<Temporal, Temporal> pair : input )
         {
             Temporal a = pair.first(), b = pair.other();
 
@@ -546,5 +557,112 @@ public class DurationValueTest
 
         // average nbr of days in 400 years doesn't imply equality
         assertNotEqual( duration( 400 * 12, 0, 0, 0 ), duration( 0, 146_097, 0, 0 ) );
+    }
+
+    @Test
+    public void shouldApproximateWithoutAccumulatedRoundingErrors()
+    {
+        DurationValue result = DurationValue.approximate( 10.8, 0, 0, 0 );
+        assertEqual( result, DurationValue.duration( 10, 24, 30196, 800000000 ) );
+    }
+
+    @Test
+    public void shouldApproximateWithoutAccumulatedRoundingErrors2()
+    {
+        double months = 1.9013243104086859E-16; // 0.5 ns
+        double nanos = 0.6; // with 1.1 ns we should be on the safe side to get rounded to 1 ns, even with rounding errors
+        DurationValue result = DurationValue.approximate( months, 0, 0, nanos );
+        assertEqual( result, DurationValue.duration( 0, 0, 0, 1 ) );
+    }
+
+    @Test
+    public void shouldNotThrowWhenInsideOverflowLimit()
+    {
+        // when
+        duration( 0, 0, Long.MAX_VALUE, 999_999_999 );
+
+        // then should not throw
+    }
+
+    @Test
+    public void shouldNotThrowWhenInsideNegativeOverflowLimit()
+    {
+        // when
+        duration( 0, 0, Long.MIN_VALUE, -999_999_999 );
+
+        // then should not throw
+    }
+
+    @Test
+    public void shouldThrowOnOverflowOnNanos()
+    {
+        // when
+        int nanos = 1_000_000_000;
+        long seconds = Long.MAX_VALUE;
+        assertConstructorThrows( 0, 0, seconds, nanos );
+    }
+
+    @Test
+    public void shouldThrowOnNegativeOverflowOnNanos()
+    {
+        // when
+        int nanos = -1_000_000_000;
+        long seconds = Long.MIN_VALUE;
+        assertConstructorThrows( 0, 0, seconds, nanos );
+    }
+
+    @Test
+    public void shouldThrowOnOverflowOnDays()
+    {
+        // when
+        long days = Long.MAX_VALUE / TemporalUtil.SECONDS_PER_DAY;
+        long seconds = Long.MAX_VALUE - days * TemporalUtil.SECONDS_PER_DAY;
+        assertConstructorThrows( 0, days, seconds + 1, 0 );
+    }
+
+    @Test
+    public void shouldThrowOnNegativeOverflowOnDays()
+    {
+        // when
+        long days = Long.MIN_VALUE / TemporalUtil.SECONDS_PER_DAY;
+        long seconds = Long.MIN_VALUE - days * TemporalUtil.SECONDS_PER_DAY;
+        assertConstructorThrows( 0, days, seconds - 1, 0 );
+    }
+
+    @Test
+    public void shouldThrowOnOverflowOnMonths()
+    {
+        // when
+        long months = Long.MAX_VALUE / TemporalUtil.AVG_SECONDS_PER_MONTH;
+        long seconds = Long.MAX_VALUE - months * TemporalUtil.AVG_SECONDS_PER_MONTH;
+        assertConstructorThrows( months, 0, seconds + 1, 0 );
+    }
+
+    @Test
+    public void shouldThrowOnNegativeOverflowOnMonths()
+    {
+        // when
+        long months = Long.MIN_VALUE / TemporalUtil.AVG_SECONDS_PER_MONTH;
+        long seconds = Long.MIN_VALUE - months * TemporalUtil.AVG_SECONDS_PER_MONTH;
+        assertConstructorThrows( months, 0, seconds - 1, 0 );
+    }
+
+    private void assertConstructorThrows( long months, long days, long seconds, int nanos )
+    {
+        try
+        {
+            DurationValue duration = duration( months, days, seconds, nanos );
+            fail( "Should have failed" );
+        }
+        catch ( InvalidValuesArgumentException e )
+        {
+            assertThat( e.getMessage(), Matchers.allOf(
+                    Matchers.containsString( "Invalid value for duration" ),
+                    Matchers.containsString( "months=" + months ),
+                    Matchers.containsString( "days=" + days ),
+                    Matchers.containsString( "seconds=" + seconds ),
+                    Matchers.containsString( "nanos=" + nanos )
+            ) );
+        }
     }
 }

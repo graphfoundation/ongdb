@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -135,6 +135,21 @@ public abstract class RelationshipScanCursorTestBase<G extends KernelAPIReadTest
 
             // then
             assertFalse( "should not access deleted relationship", relationships.next() );
+        }
+    }
+
+    // This is functionality which is only required for the hacky db.schema not to leak real data
+    @Test
+    public void shouldNotAccessNegativeReferences()
+    {
+        // given
+        try ( RelationshipScanCursor relationship = cursors.allocateRelationshipScanCursor() )
+        {
+            // when
+            read.singleRelationship( -2L, relationship );
+
+            // then
+            assertFalse( "should not access negative reference relationship", relationship.next() );
         }
     }
 

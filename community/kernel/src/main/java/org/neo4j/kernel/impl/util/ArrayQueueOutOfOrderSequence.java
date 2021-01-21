@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -30,9 +30,8 @@ public class ArrayQueueOutOfOrderSequence implements OutOfOrderSequence
 {
     // odd means updating, even means no one is updating
     private volatile int version;
-    // These don't need to be volatile, reading them is "guarded" by version access
     private volatile long highestGapFreeNumber;
-    private long[] highestGapFreeMeta;
+    private volatile long[] highestGapFreeMeta;
     private final SequenceArray outOfOrderQueue;
     private long[] metaArray;
     private volatile long highestEverSeen;
@@ -41,7 +40,8 @@ public class ArrayQueueOutOfOrderSequence implements OutOfOrderSequence
     {
         this.highestGapFreeNumber = startingNumber;
         this.highestEverSeen = startingNumber;
-        this.highestGapFreeMeta = this.metaArray = initialMeta;
+        this.highestGapFreeMeta = initialMeta.clone();
+        this.metaArray = initialMeta.clone();
         this.outOfOrderQueue = new SequenceArray( initialMeta.length + 1, initialArraySize );
     }
 
@@ -53,7 +53,7 @@ public class ArrayQueueOutOfOrderSequence implements OutOfOrderSequence
         {
             version++;
             highestGapFreeNumber = outOfOrderQueue.pollHighestGapFree( number, metaArray );
-            highestGapFreeMeta = highestGapFreeNumber == number ? meta : metaArray;
+            highestGapFreeMeta = highestGapFreeNumber == number ? meta : metaArray.clone();
             version++;
             notifyAll();
             return true;
@@ -129,24 +129,6 @@ public class ArrayQueueOutOfOrderSequence implements OutOfOrderSequence
     public long getHighestGapFreeNumber()
     {
         return highestGapFreeNumber;
-    }
-
-    @Override
-    public synchronized boolean seen( long number, long[] meta )
-    {
-        if ( number < highestGapFreeNumber )
-        {
-            //assume meta data correct since they are gone
-            return true;
-        }
-
-        if ( number == highestGapFreeNumber )
-        {
-            return highestGapFreeMeta == meta;
-        }
-
-        return outOfOrderQueue.seen( highestGapFreeNumber, number, meta );
-
     }
 
     @Override

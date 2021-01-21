@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -21,6 +21,7 @@ package org.neo4j.kernel.api.impl.index.sampler;
 
 import java.util.List;
 
+import org.neo4j.io.IOUtils;
 import org.neo4j.kernel.api.exceptions.index.IndexNotFoundKernelException;
 import org.neo4j.storageengine.api.schema.IndexSample;
 import org.neo4j.storageengine.api.schema.IndexSampler;
@@ -65,5 +66,11 @@ public class AggregatingIndexSampler implements IndexSampler
         long uniqueValues = Math.addExact( sample1.uniqueValues(), sample2.uniqueValues() );
         long sampleSize = Math.addExact( sample1.sampleSize(), sample2.sampleSize() );
         return new IndexSample( indexSize, uniqueValues, sampleSize );
+    }
+
+    @Override
+    public void close()
+    {
+        IOUtils.closeAllSilently( indexSamplers );
     }
 }

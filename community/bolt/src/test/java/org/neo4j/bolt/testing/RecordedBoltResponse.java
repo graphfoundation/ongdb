@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -85,5 +85,11 @@ public class RecordedBoltResponse
     {
         QueryResult.Record[] recordArray = new QueryResult.Record[records.size()];
         return records.toArray( recordArray );
+    }
+
+    @Override
+    public String toString()
+    {
+        return "RecordedBoltResponse{" + "records=" + records + ", response=" + response + ", metadata=" + metadata + '}';
     }
 }

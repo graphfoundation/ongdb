@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -24,15 +24,18 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.mockito.ArgumentMatchers;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Future;
+import java.util.concurrent.RejectedExecutionException;
 
 import org.neo4j.bolt.BoltChannel;
 import org.neo4j.bolt.BoltKernelExtension;
 import org.neo4j.bolt.logging.BoltMessageLogger;
 import org.neo4j.bolt.logging.BoltMessageLogging;
+import org.neo4j.bolt.security.auth.AuthenticationException;
 import org.neo4j.bolt.testing.Jobs;
 import org.neo4j.bolt.v1.packstream.PackOutput;
 import org.neo4j.bolt.v1.runtime.BoltConnectionAuthFatality;
@@ -40,12 +43,13 @@ import org.neo4j.bolt.v1.runtime.BoltConnectionFatality;
 import org.neo4j.bolt.v1.runtime.BoltProtocolBreachFatality;
 import org.neo4j.bolt.v1.runtime.BoltStateMachine;
 import org.neo4j.bolt.v1.runtime.Job;
+import org.neo4j.kernel.api.exceptions.Status;
 import org.neo4j.kernel.impl.logging.LogService;
 import org.neo4j.kernel.impl.logging.SimpleLogService;
 import org.neo4j.logging.AssertableLogProvider;
 import org.neo4j.test.rule.concurrent.OtherThreadRule;
 
-import static org.hamcrest.Matchers.any;
+import static org.hamcrest.CoreMatchers.any;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.isA;
@@ -250,10 +254,11 @@ public class DefaultBoltConnectionTest
         connection.stop();
 
         verify( stateMachine ).terminate();
+        verify( queueMonitor ).enqueued( ArgumentMatchers.eq( connection ), ArgumentMatchers.any( Job.class ) );
     }
 
     @Test
-    public void stopShouldCloseStateMachine()
+    public void stopShouldCloseStateMachineOnProcessNextBatch()
     {
         BoltConnection connection = newConnection();
 
@@ -261,8 +266,40 @@ public class DefaultBoltConnectionTest
 
         connection.processNextBatch();
 
+        verify( queueMonitor ).enqueued( ArgumentMatchers.eq( connection ), ArgumentMatchers.any( Job.class ) );
         verify( stateMachine ).terminate();
         verify( stateMachine ).close();
+    }
+
+    @Test
+    public void stopShouldCloseStateMachineIfEnqueueEndsWithRejectedExecutionException()
+    {
+        BoltConnection connection = newConnection();
+
+        doAnswer( i ->
+        {
+            connection.handleSchedulingError( new RejectedExecutionException() );
+            return null;
+        } ).when( queueMonitor ).enqueued( ArgumentMatchers.eq( connection ), ArgumentMatchers.any( Job.class ) );
+
+        connection.stop();
+
+        verify( stateMachine ).terminate();
+        verify( stateMachine ).close();
+    }
+
+    @Test
+    public void shouldLogBoltConnectionAuthFatalityError()
+    {
+        BoltConnection connection = newConnection();
+        connection.enqueue( machine ->
+        {
+            throw new BoltConnectionAuthFatality( new AuthenticationException( Status.Security.Unauthorized, "inner error" ) );
+        } );
+        connection.processNextBatch();
+        verify( stateMachine ).close();
+        logProvider.assertExactly( AssertableLogProvider.inLog( containsString( BoltKernelExtension.class.getPackage().getName() ) ).warn(
+                containsString( "inner error" ) ) );
     }
 
     @Test
@@ -272,14 +309,13 @@ public class DefaultBoltConnectionTest
 
         connection.enqueue( machine ->
         {
-            throw new BoltConnectionAuthFatality( "auth failure" );
+            throw new BoltConnectionAuthFatality( "auth failure", new RuntimeException( "inner error" ) );
         } );
 
         connection.processNextBatch();
 
         verify( stateMachine ).close();
-        logProvider.assertNone( AssertableLogProvider.inLog( containsString( BoltKernelExtension.class.getPackage().getName() ) ).error( any( String.class ),
-                any( Throwable.class ) ) );
+        logProvider.assertNone( AssertableLogProvider.inLog( containsString( BoltKernelExtension.class.getPackage().getName() ) ).warn( any( String.class ) ) );
     }
 
     @Test

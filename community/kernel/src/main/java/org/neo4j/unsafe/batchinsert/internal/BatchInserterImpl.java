@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -54,6 +54,7 @@ import org.neo4j.internal.kernel.api.exceptions.KernelException;
 import org.neo4j.internal.kernel.api.schema.LabelSchemaDescriptor;
 import org.neo4j.internal.kernel.api.schema.SchemaDescriptor;
 import org.neo4j.internal.kernel.api.schema.SchemaDescriptorSupplier;
+import org.neo4j.io.IOUtils;
 import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.io.pagecache.IOLimiter;
 import org.neo4j.io.pagecache.PageCache;
@@ -279,8 +280,7 @@ public class BatchInserterImpl implements BatchInserter, IndexConfigStoreProvide
         schemaStore = neoStores.getSchemaStore();
         labelTokenStore = neoStores.getLabelTokenStore();
 
-        List<Token> indexes = propertyKeyTokenStore.getTokens( 10000 );
-        propertyKeyTokens = new BatchTokenHolder( indexes );
+        propertyKeyTokens = new BatchTokenHolder( propertyKeyTokenStore.getTokens( Integer.MAX_VALUE ) );
         labelTokens = new BatchTokenHolder( labelTokenStore.getTokens( Integer.MAX_VALUE ) );
         List<RelationshipTypeToken> types = relationshipTypeTokenStore.getTokens( Integer.MAX_VALUE );
         relationshipTypeTokens = new BatchTokenHolder( types );
@@ -292,7 +292,7 @@ public class BatchInserterImpl implements BatchInserter, IndexConfigStoreProvide
         Dependencies deps = new Dependencies();
         Monitors monitors = new Monitors();
         deps.satisfyDependencies( fileSystem, config, logService, indexStoreView, pageCache, monitors,
-                RecoveryCleanupWorkCollector.IMMEDIATE );
+                RecoveryCleanupWorkCollector.immediate() );
 
         KernelExtensions extensions = life.add( new KernelExtensions(
                 new SimpleKernelContext( storeDir, DatabaseInfo.UNKNOWN, deps ),
@@ -301,8 +301,8 @@ public class BatchInserterImpl implements BatchInserter, IndexConfigStoreProvide
         IndexProvider provider = extensions.resolveDependency( IndexProvider.class,
                 HighestSelectionStrategy.INSTANCE );
         schemaIndexProviders = new DefaultIndexProviderMap( provider );
-        labelScanStore = new NativeLabelScanStore( pageCache, storeDir, FullStoreChangeStream.EMPTY, false, new Monitors(),
-                RecoveryCleanupWorkCollector.IMMEDIATE );
+        labelScanStore = new NativeLabelScanStore( pageCache, fileSystem, storeDir, FullStoreChangeStream.EMPTY, false, new Monitors(),
+                deps.resolveDependency( RecoveryCleanupWorkCollector.class ) );
         life.add( labelScanStore );
         actions = new BatchSchemaActions();
 
@@ -490,60 +490,66 @@ public class BatchInserterImpl implements BatchInserter, IndexConfigStoreProvide
 
         final IndexRule[] rules = getIndexesNeedingPopulation();
         final List<IndexPopulatorWithSchema> populators = new ArrayList<>( rules.length );
-
-        final SchemaDescriptor[] descriptors = new LabelSchemaDescriptor[rules.length];
-
-        for ( int i = 0; i < rules.length; i++ )
+        try
         {
-            IndexRule rule = rules[i];
-            SchemaIndexDescriptor index = rule.getIndexDescriptor();
-            descriptors[i] = index.schema();
-            IndexPopulator populator = schemaIndexProviders.apply( rule.getProviderDescriptor() )
-                                                .getPopulator( rule.getId(), index, new IndexSamplingConfig( config ) );
-            populator.create();
-            populators.add( new IndexPopulatorWithSchema( populator, index ) );
+            final SchemaDescriptor[] descriptors = new LabelSchemaDescriptor[rules.length];
+
+            for ( int i = 0; i < rules.length; i++ )
+            {
+                IndexRule rule = rules[i];
+                SchemaIndexDescriptor index = rule.getIndexDescriptor();
+                descriptors[i] = index.schema();
+                IndexPopulator populator = schemaIndexProviders.lookup( rule.getProviderDescriptor() )
+                        .getPopulator( rule.getId(), index, new IndexSamplingConfig( config ) );
+                populator.create();
+                populators.add( new IndexPopulatorWithSchema( populator, index ) );
+            }
+
+            Visitor<NodeUpdates,IOException> propertyUpdateVisitor = updates ->
+            {
+                // Do a lookup from which property has changed to a list of indexes worried about that property.
+                // We do not need to load additional properties as the NodeUpdates for a full node store scan already
+                // include all properties for the node.
+                for ( IndexEntryUpdate<IndexPopulatorWithSchema> indexUpdate : updates.forIndexKeys( populators ) )
+                {
+                    try
+                    {
+                        indexUpdate.indexKey().add( indexUpdate );
+                    }
+                    catch ( IndexEntryConflictException conflict )
+                    {
+                        throw conflict.notAllowed( indexUpdate.indexKey().index() );
+                    }
+                }
+                return true;
+            };
+
+            List<SchemaDescriptor> descriptorList = Arrays.asList( descriptors );
+            int[] labelIds = descriptorList.stream()
+                    .mapToInt( SchemaDescriptor::keyId )
+                    .toArray();
+
+            int[] propertyKeyIds = descriptorList.stream()
+                    .flatMapToInt( d -> Arrays.stream( d.getPropertyIds() ) )
+                    .toArray();
+
+            try ( InitialNodeLabelCreationVisitor labelUpdateVisitor = new InitialNodeLabelCreationVisitor() )
+            {
+                StoreScan<IOException> storeScan = indexStoreView.visitNodes( labelIds,
+                        propertyKeyId -> PrimitiveIntCollections.contains( propertyKeyIds, propertyKeyId ),
+                        propertyUpdateVisitor, labelUpdateVisitor, true );
+                storeScan.run();
+
+                for ( IndexPopulatorWithSchema populator : populators )
+                {
+                    populator.verifyDeferredConstraints( indexStoreView );
+                    populator.setPopulationCompletedSuccessfully( true );
+                }
+            }
         }
-
-        Visitor<NodeUpdates, IOException> propertyUpdateVisitor = updates ->
+        finally
         {
-            // Do a lookup from which property has changed to a list of indexes worried about that property.
-            // We do not need to load additional properties as the NodeUpdates for a full node store scan already
-            // include all properties for the node.
-            for ( IndexEntryUpdate<IndexPopulatorWithSchema> indexUpdate : updates.forIndexKeys( populators ) )
-            {
-                try
-                {
-                    indexUpdate.indexKey().add( indexUpdate );
-                }
-                catch ( IndexEntryConflictException conflict )
-                {
-                    throw conflict.notAllowed( indexUpdate.indexKey().index() );
-                }
-            }
-            return true;
-        };
-
-        List<SchemaDescriptor> descriptorList = Arrays.asList( descriptors );
-        int[] labelIds = descriptorList.stream()
-                .mapToInt( SchemaDescriptor::keyId )
-                .toArray();
-
-        int[] propertyKeyIds = descriptorList.stream()
-                .flatMapToInt( d -> Arrays.stream( d.getPropertyIds() ) )
-                .toArray();
-
-        try ( InitialNodeLabelCreationVisitor labelUpdateVisitor = new InitialNodeLabelCreationVisitor() )
-        {
-            StoreScan<IOException> storeScan = indexStoreView.visitNodes( labelIds,
-                    propertyKeyId -> PrimitiveIntCollections.contains( propertyKeyIds, propertyKeyId ),
-                    propertyUpdateVisitor, labelUpdateVisitor, true );
-            storeScan.run();
-
-            for ( IndexPopulatorWithSchema populator : populators )
-            {
-                populator.verifyDeferredConstraints( indexStoreView );
-                populator.close( true );
-            }
+            IOUtils.closeAll( populators );
         }
     }
 
@@ -585,7 +591,7 @@ public class BatchInserterImpl implements BatchInserter, IndexConfigStoreProvide
         List<IndexRule> indexesNeedingPopulation = new ArrayList<>();
         for ( IndexRule rule : schemaCache.indexRules() )
         {
-            IndexProvider provider = schemaIndexProviders.apply( rule.getProviderDescriptor() );
+            IndexProvider provider = schemaIndexProviders.lookup( rule.getProviderDescriptor() );
             if ( provider.getInitialState( rule.getId(), rule.getIndexDescriptor() ) != InternalIndexState.FAILED )
             {
                 indexesNeedingPopulation.add( rule );
@@ -1302,12 +1308,13 @@ public class BatchInserterImpl implements BatchInserter, IndexConfigStoreProvide
         }
     }
 
-    private static class IndexPopulatorWithSchema extends IndexPopulator.Adapter implements SchemaDescriptorSupplier
+    private static class IndexPopulatorWithSchema extends IndexPopulator.Adapter implements SchemaDescriptorSupplier, AutoCloseable
     {
         private static final int batchSize = 1_000;
         private final IndexPopulator populator;
         private final SchemaIndexDescriptor index;
         private Collection<IndexEntryUpdate<?>> batchedUpdates = new ArrayList<>( batchSize );
+        private boolean populationCompletedSuccessfully;
 
         IndexPopulatorWithSchema( IndexPopulator populator, SchemaIndexDescriptor index )
         {
@@ -1342,6 +1349,17 @@ public class BatchInserterImpl implements BatchInserter, IndexConfigStoreProvide
         {
             populator.add( batchedUpdates );
             populator.verifyDeferredConstraints( propertyAccessor );
+        }
+
+        void setPopulationCompletedSuccessfully( boolean value )
+        {
+            this.populationCompletedSuccessfully = value;
+        }
+
+        @Override
+        public void close() throws IOException
+        {
+            close( populationCompletedSuccessfully );
         }
 
         @Override

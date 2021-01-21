@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -123,10 +123,14 @@ object Eagerness {
 
   def horizonReadWriteEagerize(inputPlan: LogicalPlan, query: PlannerQuery, context: LogicalPlanningContext): LogicalPlan = {
     val alwaysEager = context.config.updateStrategy.alwaysEager
-    if (alwaysEager || (query.tail.nonEmpty && horizonReadWriteConflict(query, query.tail.get, context)))
-      context.logicalPlanProducer.planEager(inputPlan, context)
-    else
-      inputPlan
+    inputPlan match {
+      case ProcedureCall(left, call) if call.signature.eager =>
+        context.logicalPlanProducer.planCallProcedure(context.logicalPlanProducer.planEager(left, context), call, context)
+      case _ if alwaysEager || (query.tail.nonEmpty && horizonReadWriteConflict(query, query.tail.get, context)) =>
+        context.logicalPlanProducer.planEager(inputPlan, context)
+      case _ =>
+        inputPlan
+    }
   }
 
   /**

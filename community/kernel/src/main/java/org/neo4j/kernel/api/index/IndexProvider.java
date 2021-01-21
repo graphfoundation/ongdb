@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -19,8 +19,8 @@
  */
 package org.neo4j.kernel.api.index;
 
+import java.io.File;
 import java.io.IOException;
-import java.util.Map;
 
 import org.neo4j.internal.kernel.api.IndexCapability;
 import org.neo4j.internal.kernel.api.InternalIndexState;
@@ -104,14 +104,44 @@ public abstract class IndexProvider extends LifecycleAdapter implements Comparab
             }
 
             @Override
-            public void recoveryCompleted( SchemaIndexDescriptor schemaIndexDescriptor, String indexFile, Map<String,Object> data )
+            public void recoveryCleanupRegistered( File indexFile, SchemaIndexDescriptor schemaIndexDescriptor )
+            {   // no-op
+            }
+
+            @Override
+            public void recoveryCleanupStarted( File indexFile, SchemaIndexDescriptor schemaIndexDescriptor )
+            {   // no-op
+            }
+
+            @Override
+            public void recoveryCleanupFinished( File indexFile, SchemaIndexDescriptor schemaIndexDescriptor,
+                    long numberOfPagesVisited, long numberOfCleanedCrashPointers, long durationMillis )
+            {   // no-op
+            }
+
+            @Override
+            public void recoveryCleanupClosed( File indexFile, SchemaIndexDescriptor schemaIndexDescriptor )
+            {   // no-op
+            }
+
+            @Override
+            public void recoveryCleanupFailed( File indexFile, SchemaIndexDescriptor schemaIndexDescriptor, Throwable throwable )
             {   // no-op
             }
         }
 
         void failedToOpenIndex( long indexId, SchemaIndexDescriptor schemaIndexDescriptor, String action, Exception cause );
 
-        void recoveryCompleted( SchemaIndexDescriptor schemaIndexDescriptor, String indexFile, Map<String,Object> data );
+        void recoveryCleanupRegistered( File indexFile, SchemaIndexDescriptor schemaIndexDescriptor );
+
+        void recoveryCleanupStarted( File indexFile, SchemaIndexDescriptor schemaIndexDescriptor );
+
+        void recoveryCleanupFinished( File indexFile, SchemaIndexDescriptor schemaIndexDescriptor,
+                long numberOfPagesVisited, long numberOfCleanedCrashPointers, long durationMillis );
+
+        void recoveryCleanupClosed( File indexFile, SchemaIndexDescriptor schemaIndexDescriptor );
+
+        void recoveryCleanupFailed( File indexFile, SchemaIndexDescriptor schemaIndexDescriptor, Throwable throwable );
     }
 
     public static final IndexProvider EMPTY =
@@ -309,6 +339,14 @@ public abstract class IndexProvider extends LifecycleAdapter implements Comparab
             return version;
         }
 
+        /**
+         * @return a combination of {@link #getKey()} and {@link #getVersion()} with a '-' in between.
+         */
+        public String name()
+        {
+            return key + "-" + version;
+        }
+
         @Override
         public int hashCode()
         {
@@ -330,6 +368,50 @@ public abstract class IndexProvider extends LifecycleAdapter implements Comparab
         public String toString()
         {
             return "{key=" + key + ", version=" + version + "}";
+        }
+    }
+
+    public static class Adaptor extends IndexProvider
+    {
+        protected Adaptor( Descriptor descriptor, int priority, IndexDirectoryStructure.Factory directoryStructureFactory )
+        {
+            super( descriptor, priority, directoryStructureFactory );
+        }
+
+        @Override
+        public IndexPopulator getPopulator( long indexId, SchemaIndexDescriptor descriptor, IndexSamplingConfig samplingConfig )
+        {
+            return null;
+        }
+
+        @Override
+        public IndexAccessor getOnlineAccessor( long indexId, SchemaIndexDescriptor descriptor, IndexSamplingConfig samplingConfig ) throws IOException
+        {
+            return null;
+        }
+
+        @Override
+        public String getPopulationFailure( long indexId, SchemaIndexDescriptor descriptor ) throws IllegalStateException
+        {
+            return null;
+        }
+
+        @Override
+        public InternalIndexState getInitialState( long indexId, SchemaIndexDescriptor descriptor )
+        {
+            return null;
+        }
+
+        @Override
+        public IndexCapability getCapability( SchemaIndexDescriptor schemaIndexDescriptor )
+        {
+            return null;
+        }
+
+        @Override
+        public StoreMigrationParticipant storeMigrationParticipant( FileSystemAbstraction fs, PageCache pageCache )
+        {
+            return null;
         }
     }
 }

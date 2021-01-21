@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -19,11 +19,11 @@
  */
 package org.neo4j.kernel.impl.api.state;
 
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.NavigableMap;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.function.Consumer;
@@ -42,6 +42,7 @@ import org.neo4j.internal.kernel.api.schema.SchemaDescriptor;
 import org.neo4j.internal.kernel.api.schema.SchemaDescriptorPredicates;
 import org.neo4j.internal.kernel.api.schema.constraints.ConstraintDescriptor;
 import org.neo4j.kernel.api.exceptions.schema.CreateConstraintFailureException;
+import org.neo4j.kernel.api.index.IndexProvider;
 import org.neo4j.kernel.api.schema.constaints.IndexBackedConstraintDescriptor;
 import org.neo4j.kernel.api.schema.index.SchemaIndexDescriptor;
 import org.neo4j.kernel.api.txstate.RelationshipChangeVisitorAdapter;
@@ -75,7 +76,6 @@ import org.neo4j.storageengine.api.txstate.RelationshipState;
 import org.neo4j.storageengine.api.txstate.TxStateVisitor;
 import org.neo4j.values.storable.TextValue;
 import org.neo4j.values.storable.Value;
-import org.neo4j.values.storable.ValueGroup;
 import org.neo4j.values.storable.ValueTuple;
 import org.neo4j.values.storable.Values;
 
@@ -105,12 +105,21 @@ public class TxState implements TransactionState, RelationshipVisitor.Home
     private PrimitiveLongObjectMap<NodeStateImpl> nodeStatesMap;
     private PrimitiveLongObjectMap<RelationshipStateImpl> relationshipStatesMap;
 
+    private static final ValueTuple MAX_STRING_TUPLE = ValueTuple.of( Values.MAX_STRING );
+
     private PrimitiveIntObjectMap<String> createdLabelTokens;
     private PrimitiveIntObjectMap<String> createdPropertyKeyTokens;
     private PrimitiveIntObjectMap<String> createdRelationshipTypeTokens;
 
     private GraphState graphState;
+
+    /**
+     * The {@link SchemaIndexDescriptor} keys in {@link #indexChanges} have a corresponding entry in {@link #specificIndexProviders},
+     * but may have been set there in cases where the default is to be used (which is the typical case). Keep these two in sync.
+     */
     private DiffSets<SchemaIndexDescriptor> indexChanges;
+    private Map<SchemaIndexDescriptor,IndexProvider.Descriptor> specificIndexProviders;
+
     private DiffSets<ConstraintDescriptor> constraintsChanges;
 
     private RemovalsCountingDiffSets nodes;
@@ -300,14 +309,14 @@ public class TxState implements TransactionState, RelationshipVisitor.Home
         return new ConstraintDiffSetsVisitor( visitor );
     }
 
-    private static DiffSetsVisitor<SchemaIndexDescriptor> indexVisitor( final TxStateVisitor visitor )
+    private DiffSetsVisitor<SchemaIndexDescriptor> indexVisitor( final TxStateVisitor visitor )
     {
         return new DiffSetsVisitor<SchemaIndexDescriptor>()
         {
             @Override
             public void visitAdded( SchemaIndexDescriptor index )
             {
-                visitor.visitAddedIndex( index );
+                visitor.visitAddedIndex( index, specificIndexProviders.get( index ) );
             }
 
             @Override
@@ -780,12 +789,20 @@ public class TxState implements TransactionState, RelationshipVisitor.Home
     }
 
     @Override
-    public void indexRuleDoAdd( SchemaIndexDescriptor descriptor )
+    public void indexRuleDoAdd( SchemaIndexDescriptor descriptor, IndexProvider.Descriptor providerDescriptor )
     {
         DiffSets<SchemaIndexDescriptor> diff = indexChangesDiffSets();
         if ( !diff.unRemove( descriptor ) )
         {
             diff.add( descriptor );
+        }
+        if ( specificIndexProviders == null )
+        {
+            specificIndexProviders = new HashMap<>();
+        }
+        if ( providerDescriptor != null )
+        {
+            specificIndexProviders.put( descriptor, providerDescriptor );
         }
         changed();
     }
@@ -794,6 +811,10 @@ public class TxState implements TransactionState, RelationshipVisitor.Home
     public void indexDoDrop( SchemaIndexDescriptor descriptor )
     {
         indexChangesDiffSets().remove( descriptor );
+        if ( specificIndexProviders != null )
+        {
+            specificIndexProviders.remove( descriptor );
+        }
         changed();
     }
 
@@ -1044,10 +1065,10 @@ public class TxState implements TransactionState, RelationshipVisitor.Home
     }
 
     @Override
-    public PrimitiveLongReadableDiffSets indexUpdatesForRangeSeek( SchemaIndexDescriptor descriptor, ValueGroup valueGroup,
-                                                                   Value lower, boolean includeLower,
-                                                                   Value upper, boolean includeUpper )
+    public PrimitiveLongReadableDiffSets indexUpdatesForRangeSeek( SchemaIndexDescriptor descriptor, IndexQuery.RangePredicate<?> predicate )
     {
+        Value lower = predicate.fromValue();
+        Value upper = predicate.toValue();
         assert lower != null && upper != null : "Use Values.NO_VALUE to encode the lack of a bound";
 
         TreeMap<ValueTuple, PrimitiveLongDiffSets> sortedUpdates = getSortedIndexUpdates( descriptor.schema() );
@@ -1064,39 +1085,41 @@ public class TxState implements TransactionState, RelationshipVisitor.Home
 
         if ( lower == NO_VALUE )
         {
-            selectedLower = ValueTuple.of( Values.minValue( valueGroup, upper ) );
+            selectedLower = ValueTuple.of( Values.minValue( predicate.valueGroup(), upper ) );
             selectedIncludeLower = true;
         }
         else
         {
             selectedLower = ValueTuple.of( lower );
-            selectedIncludeLower = includeLower;
+            selectedIncludeLower = predicate.fromInclusive();
         }
 
         if ( upper == NO_VALUE )
         {
-            selectedUpper = ValueTuple.of( Values.maxValue( valueGroup, lower ) );
+            selectedUpper = ValueTuple.of( Values.maxValue( predicate.valueGroup(), lower ) );
             selectedIncludeUpper = false;
         }
         else
         {
             selectedUpper = ValueTuple.of( upper );
-            selectedIncludeUpper = includeUpper;
+            selectedIncludeUpper = predicate.toInclusive();
         }
 
-        return indexUpdatesForRangeSeek( sortedUpdates, selectedLower, selectedIncludeLower, selectedUpper, selectedIncludeUpper );
-    }
-
-    private PrimitiveLongReadableDiffSets indexUpdatesForRangeSeek( TreeMap<ValueTuple,PrimitiveLongDiffSets> sortedUpdates, ValueTuple lower,
-            boolean includeLower, ValueTuple upper, boolean includeUpper )
-    {
         PrimitiveLongDiffSets diffs = new PrimitiveLongDiffSets();
 
-        Collection<PrimitiveLongDiffSets> inRange = sortedUpdates.subMap( lower, includeLower, upper, includeUpper ).values();
-        for ( PrimitiveLongDiffSets diffForSpecificValue : inRange )
+        NavigableMap<ValueTuple,PrimitiveLongDiffSets> inRangeX =
+                sortedUpdates.subMap( selectedLower, selectedIncludeLower, selectedUpper, selectedIncludeUpper );
+        for ( Map.Entry<ValueTuple,PrimitiveLongDiffSets> entry : inRangeX.entrySet() )
         {
-            diffs.addAll( diffForSpecificValue.getAdded().iterator() );
-            diffs.removeAll( diffForSpecificValue.getRemoved().iterator() );
+            ValueTuple values = entry.getKey();
+            PrimitiveLongDiffSets diffForSpecificValue = entry.getValue();
+            // The TreeMap cannot perfectly order multi-dimensional types (spatial) and need additional filtering out false positives
+            // TODO: If the composite index starts to be able to handle spatial types the line below needs enhancement
+            if ( predicate.isRegularOrder() || predicate.acceptsValue( values.getOnlyValue() ) )
+            {
+                diffs.addAll( diffForSpecificValue.getAdded().iterator() );
+                diffs.removeAll( diffForSpecificValue.getRemoved().iterator() );
+            }
         }
         return diffs;
     }
@@ -1111,7 +1134,7 @@ public class TxState implements TransactionState, RelationshipVisitor.Home
         }
         ValueTuple floor = ValueTuple.of( Values.stringValue( prefix ) );
         PrimitiveLongDiffSets diffs = new PrimitiveLongDiffSets();
-        for ( Map.Entry<ValueTuple,PrimitiveLongDiffSets> entry : sortedUpdates.tailMap( floor ).entrySet() )
+        for ( Map.Entry<ValueTuple,PrimitiveLongDiffSets> entry : sortedUpdates.subMap( floor, MAX_STRING_TUPLE ).entrySet() )
         {
             ValueTuple key = entry.getKey();
             if ( ((TextValue) key.getOnlyValue()).stringValue().startsWith( prefix ) )

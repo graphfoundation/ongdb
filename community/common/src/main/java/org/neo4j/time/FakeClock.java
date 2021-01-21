@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -20,17 +20,20 @@
 package org.neo4j.time;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * A {@link java.time.Clock} that is manually controlled.
+ * The implementation is thread safe.
  */
 public class FakeClock extends SystemNanoClock
 {
-    private volatile long nanoTime;
+    private AtomicLong nanoTime = new AtomicLong();
 
     public FakeClock()
     {
@@ -56,24 +59,29 @@ public class FakeClock extends SystemNanoClock
     @Override
     public Instant instant()
     {
-        return Instant.ofEpochMilli( TimeUnit.NANOSECONDS.toMillis( nanoTime ) );
+        return Instant.ofEpochMilli( TimeUnit.NANOSECONDS.toMillis( nanoTime.get() ) );
     }
 
     @Override
     public long nanos()
     {
-        return nanoTime;
+        return nanoTime.get();
     }
 
     @Override
     public long millis()
     {
-        return TimeUnit.NANOSECONDS.toMillis( nanoTime );
+        return TimeUnit.NANOSECONDS.toMillis( nanoTime.get() );
+    }
+
+    public FakeClock forward( Duration delta )
+    {
+        return forward( delta.toNanos(), TimeUnit.NANOSECONDS );
     }
 
     public FakeClock forward( long delta, TimeUnit unit )
     {
-        nanoTime += unit.toNanos( delta );
+        nanoTime.addAndGet( unit.toNanos( delta ) );
         return this;
     }
 

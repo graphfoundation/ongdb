@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -393,6 +393,14 @@ public abstract class IndexQuery
         {
             return toInclusive;
         }
+
+        /**
+         * @return true if the order defined for this type can also be relied on for bounds comparisons.
+         */
+        public boolean isRegularOrder()
+        {
+            return true;
+        }
     }
 
     public static final class GeometryRangePredicate extends RangePredicate<PointValue>
@@ -417,7 +425,8 @@ public abstract class IndexQuery
                 PointValue point = (PointValue) value;
                 if ( point.getCoordinateReferenceSystem().equals( crs ) )
                 {
-                    return point.withinRange( from, fromInclusive, to, toInclusive );
+                    Boolean within = point.withinRange( from, fromInclusive, to, toInclusive );
+                    return within == null ? false : within;
                 }
             }
             return false;
@@ -436,6 +445,16 @@ public abstract class IndexQuery
         public PointValue to()
         {
             return to;
+        }
+
+        /**
+         * The order defined for spatial types cannot be used for bounds comparisons.
+         * @return false
+         */
+        @Override
+        public boolean isRegularOrder()
+        {
+            return false;
         }
     }
 

@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -178,7 +178,7 @@ public class CountsMigrator extends AbstractStoreMigrationParticipant
                 int highLabelId = (int) neoStores.getLabelTokenStore().getHighId();
                 int highRelationshipTypeId = (int) neoStores.getRelationshipTypeTokenStore().getHighId();
                 CountsComputer initializer = new CountsComputer( lastTxId, nodeStore, relationshipStore, highLabelId,
-                        highRelationshipTypeId, NumberArrayFactory.auto( pageCache, migrationDir, true ),
+                        highRelationshipTypeId, NumberArrayFactory.auto( pageCache, migrationDir, true, NumberArrayFactory.NO_MONITOR ),
                         progressMonitor );
                 life.add( new CountsTracker( logProvider, fileSystem, pageCache, config,
                         storeFileBase, EmptyVersionContextSupplier.EMPTY ).setInitializer( initializer ) );

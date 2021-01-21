@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,13 +22,13 @@ import org.neo4j.cypher.internal.v3_4.expressions._
 case object inlineNamedPathsInPatternComprehensions extends Rewriter {
 
   private val instance = bottomUp(Rewriter.lift {
-    case expr @ PatternComprehension(Some(path), pattern, predicate, projection, _) =>
+    case expr @ PatternComprehension(Some(path), pattern, predicate, projection) =>
       val patternElement = pattern.element
       expr.copy(
         namedPath = None,
         predicate = predicate.map(_.inline(path, patternElement)),
         projection = projection.inline(path, patternElement)
-      )(expr.position)
+      )(expr.position, expr.outerScope)
   })
 
   private implicit final class InliningExpression(val expr: Expression) extends AnyVal {

@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -52,7 +52,7 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
-import static org.neo4j.index.internal.gbptree.RecoveryCleanupWorkCollector.IMMEDIATE;
+import static org.neo4j.index.internal.gbptree.RecoveryCleanupWorkCollector.immediate;
 import static org.neo4j.kernel.api.index.IndexDirectoryStructure.directoriesByProvider;
 
 public abstract class NativeIndexProviderTest
@@ -339,12 +339,12 @@ public abstract class NativeIndexProviderTest
 
     private IndexProvider newProvider()
     {
-        return newProvider( pageCache(), fs(), directoriesByProvider( baseDir() ), monitor, IMMEDIATE );
+        return newProvider( pageCache(), fs(), directoriesByProvider( baseDir() ), monitor, immediate() );
     }
 
     private IndexProvider newReadOnlyProvider()
     {
-        return newReadOnlyProvider( pageCache(), fs(), directoriesByProvider( baseDir() ), monitor, IMMEDIATE );
+        return newReadOnlyProvider( pageCache(), fs(), directoriesByProvider( baseDir() ), monitor, immediate() );
     }
 
     private IndexSamplingConfig samplingConfig()

@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -30,8 +30,9 @@ import org.neo4j.values.storable.CoordinateReferenceSystem;
 
 /**
  * These settings affect the creation of the 2D (or 3D) to 1D mapper.
- * Changing these will change the values of the 1D mapping, and require re-indexing, so
- * once data has been indexed, do not change these without recreating the index.
+ * Changing these will change the values of the 1D mapping, but this will not invalidate existing indexes. They store the settings used to create
+ * them, and will not use these settings at all. Changes will only affect future indexes made. In order to change existing indexes, you will need
+ * to drop and recreate any indexes you wish to affect.
  */
 public class SpaceFillingCurveSettingsFactory
 {
@@ -112,7 +113,7 @@ public class SpaceFillingCurveSettingsFactory
         for ( Map.Entry<CoordinateReferenceSystem,EnvelopeSettings> entry : env.entrySet() )
         {
             CoordinateReferenceSystem crs = entry.getKey();
-            settings.put( crs, new SpaceFillingCurveSettings( crs.getDimension(), this.maxBits, entry.getValue().asEnvelope() ) );
+            settings.put( crs, SpaceFillingCurveSettings.fromConfig( crs.getDimension(), this.maxBits, entry.getValue().asEnvelope() ) );
         }
     }
 
@@ -132,7 +133,7 @@ public class SpaceFillingCurveSettingsFactory
         }
         else
         {
-            return new SpaceFillingCurveSettings( crs.getDimension(), maxBits,
+            return SpaceFillingCurveSettings.fromConfig( crs.getDimension(), maxBits,
                     envelopeFromCRS( crs.getDimension(), crs.isGeographic(), new EnvelopeSettings( crs ) ) );
         }
     }

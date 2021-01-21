@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -351,7 +351,7 @@ public class TransportSessionIT extends AbstractBoltTransportsTest
         assertThat( connection, util.eventuallyReceives(
                 msgSuccess(),
                 msgSuccess( CoreMatchers.allOf( fieldsMatcher, hasKey( "result_available_after" ) ) ),
-                msgFailure( Status.Request.Invalid, "Point is not yet supported as a return type in Bolt" ) ) );
+                msgFailure( Status.Request.Invalid, "Point is not supported as a return type in Bolt" ) ) );
     }
 
     private byte[] bytes( int... ints )

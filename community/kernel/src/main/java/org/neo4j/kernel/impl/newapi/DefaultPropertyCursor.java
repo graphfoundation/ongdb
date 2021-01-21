@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -67,7 +67,7 @@ public class DefaultPropertyCursor extends PropertyRecord implements PropertyCur
     private AssertOpen assertOpen;
     private final DefaultCursors pool;
 
-    public DefaultPropertyCursor( DefaultCursors pool )
+    DefaultPropertyCursor( DefaultCursors pool )
     {
         super( NO_ID );
         this.pool = pool;
@@ -254,6 +254,11 @@ public class DefaultPropertyCursor extends PropertyRecord implements PropertyCur
     @Override
     public ValueGroup propertyType()
     {
+        if ( txStateValue != null )
+        {
+            return txStateValue.value().valueGroup();
+        }
+
         PropertyType type = type();
         if ( type == null )
         {
@@ -274,10 +279,14 @@ public class DefaultPropertyCursor extends PropertyRecord implements PropertyCur
         case CHAR:
         case SHORT_STRING:
             return ValueGroup.TEXT;
+        case TEMPORAL:
+        case GEOMETRY:
         case SHORT_ARRAY:
         case ARRAY:
+            // value read is needed to get correct value group since type is not fine grained enough to match all ValueGroups
+            return propertyValue().valueGroup();
         default:
-            throw new UnsupportedOperationException( "not implemented" );
+            throw new UnsupportedOperationException( type.name() + " not implemented" );
         }
     }
 

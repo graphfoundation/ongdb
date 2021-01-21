@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -71,13 +71,20 @@ public class PropertyAndNodeIndexedCheck implements RecordCheck<NodeRecord, Cons
                        CheckerEngine<NodeRecord, ConsistencyReport.NodeConsistencyReport> engine,
                        RecordAccess records )
     {
-        Collection<PropertyRecord> properties = propertyReader.getPropertyRecordChain( record );
-        cacheAccess.client().putPropertiesToCache(properties);
-        if ( indexes != null )
+        try
         {
-            matchIndexesToNode( record, engine, records, properties );
+            Collection<PropertyRecord> properties = propertyReader.getPropertyRecordChain( record.getNextProp() );
+            cacheAccess.client().putPropertiesToCache(properties);
+            if ( indexes != null )
+            {
+                matchIndexesToNode( record, engine, records, properties );
+            }
+            checkProperty( record, engine, properties );
         }
-        checkProperty( record, engine, properties );
+        catch ( PropertyReader.CircularPropertyRecordChainException e )
+        {
+            engine.report().propertyChainContainsCircularReference( e.propertyRecordClosingTheCircle() );
+        }
     }
 
     /**

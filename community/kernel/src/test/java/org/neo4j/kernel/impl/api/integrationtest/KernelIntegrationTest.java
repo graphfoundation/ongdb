@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -43,10 +43,10 @@ import org.neo4j.internal.kernel.api.TokenWrite;
 import org.neo4j.internal.kernel.api.Transaction;
 import org.neo4j.internal.kernel.api.Write;
 import org.neo4j.internal.kernel.api.exceptions.KernelException;
+import org.neo4j.internal.kernel.api.exceptions.TransactionFailureException;
 import org.neo4j.internal.kernel.api.security.LoginContext;
 import org.neo4j.kernel.api.KernelTransaction;
 import org.neo4j.kernel.api.dbms.DbmsOperations;
-import org.neo4j.internal.kernel.api.exceptions.TransactionFailureException;
 import org.neo4j.kernel.api.security.AnonymousContext;
 import org.neo4j.kernel.impl.api.KernelImpl;
 import org.neo4j.kernel.impl.api.index.IndexingService;
@@ -105,6 +105,13 @@ public abstract class KernelIntegrationTest
     protected Procedures procs() throws TransactionFailureException
     {
         session = kernel.beginSession( AnonymousContext.read() );
+        transaction = session.beginTransaction( KernelTransaction.Type.implicit );
+        return transaction.procedures();
+    }
+
+    protected Procedures procsSchema() throws TransactionFailureException
+    {
+        session = kernel.beginSession( AnonymousContext.full() );
         transaction = session.beginTransaction( KernelTransaction.Type.implicit );
         return transaction.procedures();
     }
@@ -177,14 +184,25 @@ public abstract class KernelIntegrationTest
 
     protected GraphDatabaseService createGraphDatabase()
     {
-        GraphDatabaseBuilder graphDatabaseBuilder = new TestGraphDatabaseFactory().setFileSystem( fileSystemRule.get() )
+        GraphDatabaseBuilder graphDatabaseBuilder = configure( createGraphDatabaseFactory() )
+                .setFileSystem( fileSystemRule.get() )
                 .newEmbeddedDatabaseBuilder( testDir.graphDbDir() );
         return configure( graphDatabaseBuilder ).newGraphDatabase();
+    }
+
+    protected TestGraphDatabaseFactory createGraphDatabaseFactory()
+    {
+        return new TestGraphDatabaseFactory();
     }
 
     protected GraphDatabaseBuilder configure( GraphDatabaseBuilder graphDatabaseBuilder )
     {
         return graphDatabaseBuilder;
+    }
+
+    protected TestGraphDatabaseFactory configure( TestGraphDatabaseFactory factory )
+    {
+        return factory;
     }
 
     void dbWithNoCache() throws TransactionFailureException

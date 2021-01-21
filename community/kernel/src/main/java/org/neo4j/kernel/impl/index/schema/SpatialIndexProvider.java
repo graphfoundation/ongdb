@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -118,7 +118,7 @@ public class SpatialIndexProvider extends IndexProvider
 
         try
         {
-            for ( SpatialIndexFiles.SpatialFileLayout subIndex : spatialIndexFiles.existing() )
+            for ( SpatialIndexFiles.SpatialFile subIndex : spatialIndexFiles.existing() )
             {
                 String indexFailure = NativeSchemaIndexes.readFailureMessage( pageCache, subIndex.indexFile );
                 if ( indexFailure != null )
@@ -139,9 +139,9 @@ public class SpatialIndexProvider extends IndexProvider
     {
         SpatialIndexFiles spatialIndexFiles = new SpatialIndexFiles( directoryStructure(), indexId, fs, settingsFactory );
 
-        final Iterable<SpatialIndexFiles.SpatialFileLayout> existing = spatialIndexFiles.existing();
+        final Iterable<SpatialIndexFiles.SpatialFile> existing = spatialIndexFiles.existing();
         InternalIndexState state = InternalIndexState.ONLINE;
-        for ( SpatialIndexFiles.SpatialFileLayout subIndex : existing )
+        for ( SpatialIndexFiles.SpatialFile subIndex : existing )
         {
             try
             {

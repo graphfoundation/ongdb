@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -41,6 +41,7 @@ import org.neo4j.kernel.api.labelscan.NodeLabelUpdate;
 import org.neo4j.kernel.api.schema.SchemaDescriptorFactory;
 import org.neo4j.kernel.api.schema.index.SchemaIndexDescriptor;
 import org.neo4j.kernel.api.schema.index.SchemaIndexDescriptorFactory;
+import org.neo4j.kernel.impl.api.SchemaState;
 import org.neo4j.kernel.impl.locking.LockService;
 import org.neo4j.kernel.impl.store.InlineNodeLabels;
 import org.neo4j.kernel.impl.store.NeoStores;
@@ -85,7 +86,7 @@ public class MultipleIndexPopulatorUpdatesTest
 
         ProcessListenableNeoStoreIndexView
                 storeView = new ProcessListenableNeoStoreIndexView( LockService.NO_LOCK_SERVICE, neoStores );
-        MultipleIndexPopulator indexPopulator = new MultipleIndexPopulator( storeView, logProvider );
+        MultipleIndexPopulator indexPopulator = new MultipleIndexPopulator( storeView, logProvider, mock( SchemaState.class ) );
 
         storeView.setProcessListener( new NodeUpdateProcessListener( indexPopulator ) );
 

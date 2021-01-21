@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -183,6 +183,26 @@ public class OtherThreadExecutor<T> implements ThreadFactory, Closeable
     public interface WorkerCommand<T, R>
     {
         R doWork( T state ) throws Exception;
+    }
+
+    public static <T,R> WorkerCommand<T,R> command( Race.ThrowingRunnable runnable )
+    {
+        return state ->
+        {
+            try
+            {
+                runnable.run();
+                return null;
+            }
+            catch ( Exception e )
+            {
+                throw e;
+            }
+            catch ( Throwable throwable )
+            {
+                throw new RuntimeException( throwable );
+            }
+        };
     }
 
     @Override

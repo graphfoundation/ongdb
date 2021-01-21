@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -38,8 +38,8 @@ class QueryState(val query: QueryContext,
                  val initialContext: Option[ExecutionContext] = None,
                  val triadicState: mutable.Map[String, PrimitiveLongSet] = mutable.Map.empty,
                  val repeatableReads: mutable.Map[Pipe, Seq[ExecutionContext]] = mutable.Map.empty,
-                 val cachedIn: SingleThreadedLRUCache[Any, InCheckContainer] =
-                 new SingleThreadedLRUCache(maxSize = 16)) {
+                 val cachedIn: SingleThreadedLRUCache[Any, InCheckContainer] = new SingleThreadedLRUCache(maxSize = 16),
+                 val lenientCreateRelationship: Boolean = false) {
 
   private var _pathValueBuilder: PathValueBuilder = _
   private var _exFactory: ExecutionContextFactory = _
@@ -72,11 +72,11 @@ class QueryState(val query: QueryContext,
 
   def withDecorator(decorator: PipeDecorator) =
     new QueryState(query, resources, params, decorator, timeReader, initialContext, triadicState,
-                   repeatableReads, cachedIn)
+                   repeatableReads, cachedIn, lenientCreateRelationship)
 
   def withInitialContext(initialContext: ExecutionContext) =
     new QueryState(query, resources, params, decorator, timeReader, Some(initialContext), triadicState,
-                   repeatableReads, cachedIn)
+                   repeatableReads, cachedIn, lenientCreateRelationship)
 
   /**
     * When running on the RHS of an Apply, this method will fill an execution context with argument data
@@ -90,7 +90,7 @@ class QueryState(val query: QueryContext,
 
   def withQueryContext(query: QueryContext) =
     new QueryState(query, resources, params, decorator, timeReader, initialContext, triadicState,
-                   repeatableReads, cachedIn)
+                   repeatableReads, cachedIn, lenientCreateRelationship)
 
   def setExecutionContextFactory(exFactory: ExecutionContextFactory) = {
     _exFactory = exFactory

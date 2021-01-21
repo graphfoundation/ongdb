@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -22,12 +22,10 @@ package org.neo4j.csv.reader;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.Reader;
-import java.util.Arrays;
 
 import org.neo4j.csv.reader.Source.Chunk;
 import org.neo4j.values.storable.CSVHeaderInformation;
 
-import static java.lang.Character.isWhitespace;
 import static java.lang.String.format;
 
 import static org.neo4j.csv.reader.Mark.END_OF_LINE_CHARACTER;
@@ -345,7 +343,7 @@ public class BufferedCharSeeker implements CharSeeker
         {
             if ( bufferPos - seekStartPos >= dataCapacity )
             {
-                throw new IllegalStateException( "Tried to read a field larger than buffer size " +
+                throw new BufferOverflowException(  "Tried to read a field larger than buffer size " +
                         dataLength + ". A common cause of this is that a field has an unterminated " +
                         "quote and so will try to seek until the next quote, which ever line it may be on." +
                         " This should not happen if multi-line fields are disabled, given that the fields contains " +

@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -32,6 +32,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import org.neo4j.collection.primitive.PrimitiveLongCollections;
+import org.neo4j.internal.kernel.api.IndexQuery;
 import org.neo4j.io.pagecache.IOLimiter;
 import org.neo4j.kernel.api.exceptions.index.IndexEntryConflictException;
 import org.neo4j.kernel.api.impl.schema.LuceneIndexAccessor;
@@ -39,7 +40,6 @@ import org.neo4j.kernel.api.impl.schema.LuceneSchemaIndexBuilder;
 import org.neo4j.kernel.api.impl.schema.SchemaIndex;
 import org.neo4j.kernel.api.index.IndexEntryUpdate;
 import org.neo4j.kernel.api.index.IndexUpdater;
-import org.neo4j.internal.kernel.api.IndexQuery;
 import org.neo4j.kernel.api.schema.index.SchemaIndexDescriptor;
 import org.neo4j.kernel.api.schema.index.SchemaIndexDescriptorFactory;
 import org.neo4j.kernel.configuration.Config;
@@ -111,12 +111,12 @@ public class LuceneSchemaIndexPopulationIT
                 // now index is online and should contain updates data
                 assertTrue( uniqueIndex.isOnline() );
 
-                try ( IndexReader indexReader = indexAccessor.newReader() )
+                try ( IndexReader indexReader = indexAccessor.newReader();
+                      IndexSampler indexSampler = indexReader.createSampler() )
                 {
                     long[] nodes = PrimitiveLongCollections.asArray( indexReader.query( IndexQuery.exists( 1 )) );
                     assertEquals( affectedNodes, nodes.length );
 
-                    IndexSampler indexSampler = indexReader.createSampler();
                     IndexSample sample = indexSampler.sampleIndex();
                     assertEquals( affectedNodes, sample.indexSize() );
                     assertEquals( affectedNodes, sample.uniqueValues() );

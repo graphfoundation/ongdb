@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -130,5 +130,15 @@ class SelectOrSemiApplyPipeTest extends CypherFunSuite with PipeTestSupport {
 
     val result = SelectOrSemiApplyPipe(lhs, rhs, Equals(Variable("a"), Literal(2)), negated = false)().createResults(QueryStateHelper.empty).toList
     result should equal(List.empty)
+  }
+
+  test("should register owning pipe") {
+    val lhs = new FakePipe(Iterator.empty)
+    val rhs = new FakePipe(Iterator.empty)
+    val predicate = Not(True())
+    val pipe = SelectOrSemiApplyPipe(lhs, rhs, predicate, negated = false)()
+
+    pipe.predicate.owningPipe should equal(pipe)
+    predicate.owningPipe should equal(pipe)
   }
 }

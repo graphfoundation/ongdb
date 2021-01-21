@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -24,6 +24,7 @@ import java.util.StringJoiner;
 
 import org.neo4j.collection.primitive.PrimitiveIntStack;
 import org.neo4j.io.pagecache.PageCursor;
+import org.neo4j.util.VisibleForTesting;
 
 import static java.lang.String.format;
 import static org.neo4j.index.internal.gbptree.DynamicSizeUtil.SIZE_KEY_SIZE;
@@ -63,8 +64,6 @@ import static org.neo4j.index.internal.gbptree.TreeNode.Type.LEAF;
  */
 public class TreeNodeDynamicSize<KEY, VALUE> extends TreeNode<KEY,VALUE>
 {
-    public static final int MAX_KEY_SIZE = DynamicSizeUtil.MAX_TWO_BYTE_KEY_SIZE;
-
     static final byte FORMAT_IDENTIFIER = 3;
     static final byte FORMAT_VERSION = 0;
 
@@ -103,7 +102,7 @@ public class TreeNodeDynamicSize<KEY, VALUE> extends TreeNode<KEY,VALUE>
         super( pageSize, layout );
         totalSpace = pageSize - HEADER_LENGTH_DYNAMIC;
         halfSpace = totalSpace / 2;
-        keyValueSizeCap = totalSpace / LEAST_NUMBER_OF_ENTRIES_PER_PAGE - SIZE_TOTAL_OVERHEAD;
+        keyValueSizeCap = keyValueSizeCapFromPageSize( pageSize );
 
         if ( keyValueSizeCap < MINIMUM_ENTRY_SIZE_CAP )
         {
@@ -112,6 +111,12 @@ public class TreeNodeDynamicSize<KEY, VALUE> extends TreeNode<KEY,VALUE>
                             "with current page size of %dB. We require this cap to be at least %dB.",
                     LEAST_NUMBER_OF_ENTRIES_PER_PAGE, keyValueSizeCap, pageSize, Long.SIZE );
         }
+    }
+
+    @VisibleForTesting
+    public static int keyValueSizeCapFromPageSize( int pageSize )
+    {
+        return (pageSize - HEADER_LENGTH_DYNAMIC) / LEAST_NUMBER_OF_ENTRIES_PER_PAGE - SIZE_TOTAL_OVERHEAD;
     }
 
     @Override
@@ -125,15 +130,14 @@ public class TreeNodeDynamicSize<KEY, VALUE> extends TreeNode<KEY,VALUE>
     KEY keyAt( PageCursor cursor, KEY into, int pos, Type type )
     {
         placeCursorAtActualKey( cursor, pos, type );
-        int offset = cursor.getOffset();
 
         // Read key
         long keyValueSize = readKeyValueSize( cursor );
         int keySize = extractKeySize( keyValueSize );
-        if ( keySize > keyValueSizeCap || keySize < 0 )
+        int valueSize = extractValueSize( keyValueSize );
+        if ( keyValueSizeTooLarge( keySize, valueSize ) || keySize < 0 )
         {
-            cursor.setCursorException( format( "Read unreliable key, keySize=%d, keyValueSizeCap=%d, keyHasTombstone=%b, offset=%d, pos=%d",
-                    keySize, keyValueSizeCap, extractTombstone( keyValueSize ), offset, pos ) );
+            readUnreliableKeyValueSize( cursor, keySize, valueSize, keyValueSize, pos );
             return into;
         }
         layout.readKey( cursor, into, keySize );
@@ -144,15 +148,13 @@ public class TreeNodeDynamicSize<KEY, VALUE> extends TreeNode<KEY,VALUE>
     void keyValueAt( PageCursor cursor, KEY intoKey, VALUE intoValue, int pos )
     {
         placeCursorAtActualKey( cursor, pos, LEAF );
-        int offset = cursor.getOffset();
 
         long keyValueSize = readKeyValueSize( cursor );
         int keySize = extractKeySize( keyValueSize );
         int valueSize = extractValueSize( keyValueSize );
-        if ( keySize + valueSize > keyValueSizeCap || keySize < 0 || valueSize < 0 )
+        if ( keyValueSizeTooLarge( keySize, valueSize ) || keySize < 0 || valueSize < 0 )
         {
-            cursor.setCursorException( format( "Read unreliable key, keySize=%d, valueSize=%d, keyValueSizeCap=%d, keyHasTombstone=%b, offset=%d, pos=%d",
-                    keySize, valueSize, keyValueSizeCap, extractTombstone( keyValueSize ), offset, pos ) );
+            readUnreliableKeyValueSize( cursor, keySize, valueSize, keyValueSize, pos );
             return;
         }
         layout.readKey( cursor, intoKey, keySize );
@@ -277,11 +279,12 @@ public class TreeNodeDynamicSize<KEY, VALUE> extends TreeNode<KEY,VALUE>
     {
         placeCursorAtActualKey( cursor, pos, INTERNAL );
 
-        int oldKeySize = extractKeySize( readKeyValueSize( cursor ) );
-        if ( oldKeySize > keyValueSizeCap )
+        long keyValueSize = readKeyValueSize( cursor );
+        int oldKeySize = extractKeySize( keyValueSize );
+        int oldValueSize = extractValueSize( keyValueSize );
+        if ( keyValueSizeTooLarge( oldKeySize, oldValueSize ) )
         {
-            cursor.setCursorException( format( "Read unreliable key size greater than cap: keySize=%d, keyValueSizeCap=%d",
-                    oldKeySize, keyValueSizeCap ) );
+            readUnreliableKeyValueSize( cursor, oldKeySize, oldValueSize, keyValueSize, pos );
         }
         int newKeySize = layout.keySize( key );
         if ( newKeySize == oldKeySize )
@@ -302,11 +305,9 @@ public class TreeNodeDynamicSize<KEY, VALUE> extends TreeNode<KEY,VALUE>
         long keyValueSize = readKeyValueSize( cursor );
         int keySize = extractKeySize( keyValueSize );
         int valueSize = extractValueSize( keyValueSize );
-        if ( keySize + valueSize > keyValueSizeCap || keySize < 0 || valueSize < 0 )
+        if ( keyValueSizeTooLarge( keySize, valueSize ) || keySize < 0 || valueSize < 0 )
         {
-            cursor.setCursorException(
-                    format( "Read unreliable key, value size greater than cap: keySize=%d, valueSize=%d, keyValueSizeCap=%d",
-                            keySize, valueSize, keyValueSizeCap ) );
+            readUnreliableKeyValueSize( cursor, keySize, valueSize, keyValueSize, pos );
             return into;
         }
         progressCursor( cursor, keySize );
@@ -350,6 +351,23 @@ public class TreeNodeDynamicSize<KEY, VALUE> extends TreeNode<KEY,VALUE>
     {
         cursor.setOffset( childOffset( pos ) );
         writeChild( cursor, child, stableGeneration, unstableGeneration );
+    }
+
+    @Override
+    public int keyValueSizeCap()
+    {
+        return keyValueSizeCap;
+    }
+
+    @Override
+    void validateKeyValueSize( KEY key, VALUE value )
+    {
+        int keySize = layout.keySize( key );
+        int valueSize = layout.valueSize( value );
+        if ( keyValueSizeTooLarge( keySize, valueSize ) )
+        {
+            throw new IllegalArgumentException( "Index key-value size it to large. Please see index documentation for limitations." );
+        }
     }
 
     @Override
@@ -618,7 +636,7 @@ public class TreeNodeDynamicSize<KEY, VALUE> extends TreeNode<KEY,VALUE>
     {
         // Find middle
         int keyCountAfterInsert = leftKeyCount + 1;
-        int middlePos = middleLeaf( leftCursor, insertPos, newKey, newValue, keyCountAfterInsert );
+        int middlePos = middlePosInLeaf( leftCursor, insertPos, newKey, newValue, keyCountAfterInsert );
 
         if ( middlePos == insertPos )
         {
@@ -904,6 +922,12 @@ public class TreeNodeDynamicSize<KEY, VALUE> extends TreeNode<KEY,VALUE>
     private void moveKeysAndChildren( PageCursor fromCursor, int fromPos, PageCursor toCursor, int toPos, int count,
             boolean includeLeftMostChild )
     {
+        if ( count == 0 && !includeLeftMostChild )
+        {
+            // Nothing to move
+            return;
+        }
+
         // All children
         // This will also copy key offsets but those will be overwritten below.
         int childFromOffset = includeLeftMostChild ? childOffset( fromPos ) : childOffset( fromPos + 1 );
@@ -992,38 +1016,69 @@ public class TreeNodeDynamicSize<KEY, VALUE> extends TreeNode<KEY,VALUE>
         return middle;
     }
 
-    private int middleLeaf( PageCursor cursor, int insertPos, KEY newKey, VALUE newValue, int keyCountAfterInsert )
+    /**
+     * Calculates a valid and as optimal as possible position where to split a leaf if inserting a key overflows.
+     * There are a couple of goals/conditions which drives the search for it:
+     * <ul>
+     *     <li>The returned position will be one where the keys ending up in the left and right leaves respectively are guaranteed to fit.</li>
+     *     <li>Out of those possible positions the one which is closest to the "halfSpace" of a leaf will be selected</li>
+     * </ul>
+     *
+     * @param cursor {@link PageCursor} to use for reading sizes of existing entries.
+     * @param insertPos the pos which the new key will be inserted at.
+     * @param newKey key to be inserted.
+     * @param newValue value to be inserted.
+     * @param keyCountAfterInsert key count including the new key.
+     * @return the pos where to split.
+     */
+    private int middlePosInLeaf( PageCursor cursor, int insertPos, KEY newKey, VALUE newValue, int keyCountAfterInsert )
     {
         int halfSpace = this.halfSpace;
         int middle = 0;
         int currentPos = 0;
-        int middleSpace = 0;
+        int accumulatedSpace = 0;
         int currentDelta = halfSpace;
         int prevDelta;
+        int spaceOfNewKey = totalSpaceOfKeyValue( newKey, newValue );
+        int totalSpaceIncludingNewKey = totalActiveSpace( cursor, keyCountAfterInsert - 1 ) + spaceOfNewKey;
         boolean includedNew = false;
+        boolean prevPosPossible;
+
+        if ( totalSpaceIncludingNewKey > totalSpace * 2 )
+        {
+            throw new IllegalStateException(
+                    format( "There's not enough space to insert new key, even when splitting the leaf. Space needed:%d, max space allowed:%d",
+                            totalSpaceIncludingNewKey, totalSpace * 2 ) );
+        }
 
         do
         {
+            prevPosPossible = totalSpaceIncludingNewKey - accumulatedSpace <= totalSpace;
+
             // We may come closer to split by keeping one more in left
-            int space;
+            int currentSpace;
             if ( currentPos == insertPos & !includedNew )
             {
-                space = totalSpaceOfKeyValue( newKey, newValue );
+                currentSpace = spaceOfNewKey;
                 includedNew = true;
                 currentPos--;
             }
             else
             {
-                space = totalSpaceOfKeyValue( cursor, currentPos );
+                currentSpace = totalSpaceOfKeyValue( cursor, currentPos );
             }
-            middleSpace += space;
+            accumulatedSpace += currentSpace;
             prevDelta = currentDelta;
-            currentDelta = Math.abs( middleSpace - halfSpace );
+            currentDelta = Math.abs( accumulatedSpace - halfSpace );
             currentPos++;
             middle++;
         }
         while ( currentDelta < prevDelta && currentPos < keyCountAfterInsert );
-        middle--; // Step back to the pos that most equally divide the available space in two
+        // If previous position is possible then step back one pos since it divides the space most equally
+        if ( prevPosPossible )
+        {
+            middle--;
+        }
         return middle;
     }
 
@@ -1104,6 +1159,17 @@ public class TreeNodeDynamicSize<KEY, VALUE> extends TreeNode<KEY,VALUE>
         cursor.setOffset( keyOffset );
     }
 
+    private void readUnreliableKeyValueSize( PageCursor cursor, int keySize, int valueSize, long keyValueSize, int pos )
+    {
+        cursor.setCursorException( format( "Read unreliable key, keySize=%d, valueSize=%d, keyValueSizeCap=%d, keyHasTombstone=%b, pos=%d",
+                keySize, valueSize, keyValueSizeCap(), extractTombstone( keyValueSize ), pos ) );
+    }
+
+    private boolean keyValueSizeTooLarge( int keySize, int valueSize )
+    {
+        return keySize + valueSize > keyValueSizeCap();
+    }
+
     private int keyPosOffset( int pos, Type type )
     {
         if ( type == LEAF )
@@ -1150,7 +1216,7 @@ public class TreeNodeDynamicSize<KEY, VALUE> extends TreeNode<KEY,VALUE>
     @Override
     public String toString()
     {
-        return "TreeNodeDynamicSize[pageSize:" + pageSize + ", keyValueSizeCap:" + keyValueSizeCap + "]";
+        return "TreeNodeDynamicSize[pageSize:" + pageSize + ", keyValueSizeCap:" + keyValueSizeCap() + "]";
     }
 
     private String asString( PageCursor cursor, boolean includeValue, boolean includeAllocSpace,

@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -33,6 +33,8 @@ import org.neo4j.bolt.v1.runtime.Job;
 import org.neo4j.kernel.impl.logging.LogService;
 import org.neo4j.logging.Log;
 import org.neo4j.scheduler.JobScheduler;
+
+import static org.neo4j.concurrent.Futures.failedFuture;
 
 public class ExecutorBoltScheduler implements BoltScheduler, BoltConnectionLifetimeListener, BoltConnectionQueueMonitor
 {
@@ -116,7 +118,7 @@ public class ExecutorBoltScheduler implements BoltScheduler, BoltConnectionLifet
             CompletableFuture<Boolean> currentFuture = activeWorkItems.remove( id );
             if ( currentFuture != null )
             {
-                currentFuture.cancel( true );
+                currentFuture.cancel( false );
             }
         }
         finally
@@ -139,15 +141,20 @@ public class ExecutorBoltScheduler implements BoltScheduler, BoltConnectionLifet
 
     private void handleSubmission( BoltConnection connection )
     {
+        activeWorkItems.computeIfAbsent( connection.id(),
+                key -> scheduleBatchOrHandleError( connection ).whenCompleteAsync( ( result, error ) -> handleCompletion( connection, result, error ),
+                        forkJoinPool ) );
+    }
+
+    private CompletableFuture<Boolean> scheduleBatchOrHandleError( BoltConnection connection )
+    {
         try
         {
-            activeWorkItems.computeIfAbsent( connection.id(),
-                    key -> CompletableFuture.supplyAsync( () -> executeBatch( connection ), threadPool ).whenCompleteAsync(
-                            ( result, error ) -> handleCompletion( connection, result, error ), forkJoinPool ) );
+            return CompletableFuture.supplyAsync( () -> executeBatch( connection ), threadPool );
         }
         catch ( RejectedExecutionException ex )
         {
-            connection.handleSchedulingError( ex );
+            return failedFuture( ex );
         }
     }
 
@@ -170,19 +177,26 @@ public class ExecutorBoltScheduler implements BoltScheduler, BoltConnectionLifet
 
     private void handleCompletion( BoltConnection connection, Boolean shouldContinueScheduling, Throwable error )
     {
-        CompletableFuture<Boolean> previousFuture = activeWorkItems.remove( connection.id() );
+        try
+        {
+            if ( error != null && ExceptionUtils.hasCause( error, RejectedExecutionException.class ) )
+            {
+                connection.handleSchedulingError( error );
+                return;
+            }
+        }
+        finally
+        {
+            // we need to ensure that the entry is removed only after any possible handleSchedulingError
+            // call is completed. Otherwise, we can end up having different threads executing against
+            // bolt state machine.
+            activeWorkItems.remove( connection.id() );
+        }
 
         if ( error != null )
         {
-            if ( ExceptionUtils.hasCause( error, RejectedExecutionException.class ) )
-            {
-                connection.handleSchedulingError( error );
-            }
-            else
-            {
-                log.error( String.format( "Unexpected error during job scheduling for session '%s'.", connection.id() ), error );
-                stopConnection( connection );
-            }
+            log.error( String.format( "Unexpected error during job scheduling for session '%s'.", connection.id() ), error );
+            stopConnection( connection );
         }
         else
         {

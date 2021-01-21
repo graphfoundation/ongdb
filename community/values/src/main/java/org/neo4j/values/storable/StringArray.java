@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002-2018 "Neo Technology,"
- * Network Engine for Objects in Lund AB [http://neotechnology.com]
+ * Copyright (c) 2002-2020 "Neo4j,"
+ * Neo4j Sweden AB [http://neo4j.com]
  *
  * This file is part of Neo4j.
  *
@@ -21,6 +21,7 @@ package org.neo4j.values.storable;
 
 import java.util.Arrays;
 
+import org.neo4j.hashing.HashFunction;
 import org.neo4j.values.AnyValue;
 import org.neo4j.values.ValueMapper;
 
@@ -73,6 +74,17 @@ public class StringArray extends TextArray
     }
 
     @Override
+    public long updateHash( HashFunction hashFunction, long hash )
+    {
+        hash = hashFunction.update( hash, value.length );
+        for ( String s : value )
+        {
+            hash = StringWrappingStringValue.updateHash( hashFunction, hash, s );
+        }
+        return hash;
+    }
+
+    @Override
     public <E extends Exception> void writeTo( ValueWriter<E> writer ) throws E
     {
         PrimitiveArrayWriting.writeTo( writer, value );
@@ -100,7 +112,7 @@ public class StringArray extends TextArray
     @Override
     public AnyValue value( int offset )
     {
-        return Values.stringValue( stringValue( offset ) );
+        return Values.stringOrNoValue( stringValue( offset ) );
     }
 
     @Override
@@ -112,6 +124,12 @@ public class StringArray extends TextArray
     @Override
     public String toString()
     {
-        return format( "StringArray%s", Arrays.toString( value ) );
+        return format( "%s%s", getTypeName(), Arrays.toString( value ) );
+    }
+
+    @Override
+    public String getTypeName()
+    {
+        return "StringArray";
     }
 }
