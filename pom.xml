@@ -97,6 +97,10 @@
     <scala.java9.arg/>
     <jersey.version>1.19.3</jersey.version>
     <checkstyle.strict>true</checkstyle.strict>
+
+    <cypher.compatibility.23>2.3.12</cypher.compatibility.23>
+    <cypher.compatibility.31>3.1.9</cypher.compatibility.31>
+    <cypher.compatibility.33>3.3.9</cypher.compatibility.33>
   </properties>
 
   <modules>
