@@ -507,12 +507,12 @@
               </goals>
               <configuration>
                 <licensingRequirementFiles>
-                  <licensingRequirementFile>licensing-requirements-base.xml</licensingRequirementFile>
+                  <licensingRequirementFile>licensing/licensing-requirements-base.xml</licensingRequirementFile>
                 </licensingRequirementFiles>
                 <thirdPartyLicensingFilename>${project.artifactId}-${project.version}-NOTICE.txt
                 </thirdPartyLicensingFilename>
                 <checkExistingNoticeFile>${project.build.directory}/../NOTICE.txt</checkExistingNoticeFile>
-                <listPrependText>list-prefix.txt</listPrependText>
+                <listPrependText>licensing/list-prefix.txt</listPrependText>
                 <listReport>${project.artifactId}-${project.version}-LICENSES.txt</listReport>
                 <checkExistingLicensesFile>${project.build.directory}/../LICENSES.txt</checkExistingLicensesFile>
               </configuration>
