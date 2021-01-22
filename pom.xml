@@ -574,12 +574,12 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-enforcer-plugin</artifactId>
-          <version>3.0.0-M1</version>
+          <version>3.0.0-M2</version>
           <configuration>
             <rules>
               <evaluateBeanshell>
-                <message>Maven module has to be in a "groupId" beginning with "org.neo4j"</message>
-                <condition>String s = "${project.groupId}"; s.startsWith("org.neo4j")</condition>
+                <message>Maven module has to be in a "groupId" beginning with "org.graphfoundation.ongdb"</message>
+                <condition>{String s = "${project.groupId}"; s.startsWith("org.graphfoundation.ongdb");}</condition>
               </evaluateBeanshell>
               <requireFilesDontExist>
                 <message>You are not allowed to have classes in "com" package</message>
