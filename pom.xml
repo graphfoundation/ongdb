@@ -772,9 +772,7 @@
             <include>src/**/*.g4</include>
           </includes>
           <excludes>
-            <exclude>**/lib/*.js</exclude>
-            <exclude>**/lib/**/*.js</exclude>
-            <exclude>**/javascript/vend/**</exclude>
+            <exclude>**/cypher-shell/*</exclude>
           </excludes>
           <mapping>
             <java>SLASHSTAR_STYLE</java>
@@ -820,6 +818,10 @@
           <plugin>
             <groupId>org.neo4j.build.plugins</groupId>
             <artifactId>licensing-maven-plugin</artifactId>
+          </plugin>
+          <plugin>
+            <groupId>com.mycila</groupId>
+            <artifactId>license-maven-plugin</artifactId>
           </plugin>
         </plugins>
       </build>
