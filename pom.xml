@@ -86,7 +86,7 @@
     <maven.build.timestamp.format>yyMMddHHmmssSSS</maven.build.timestamp.format>
 
     <licensesVersion>7</licensesVersion>
-    <license-text.header>AGPL-3-header.txt</license-text.header>
+    <license-text.header>headers/AGPL-3-header.txt</license-text.header>
 
     <scala-maven-plugin.version>3.3.2</scala-maven-plugin.version>
     <scala.version>2.11.12</scala.version>
@@ -747,6 +747,11 @@
         <groupId>org.neo4j.build.plugins</groupId>
         <artifactId>license-maven-plugin</artifactId>
         <dependencies>
+          <dependency>
+            <groupId>org.neo4j.build</groupId>
+            <artifactId>build-resources</artifactId>
+            <version>${project.version}</version>
+          </dependency>
           <dependency>
             <groupId>org.neo4j.maven</groupId>
             <artifactId>licenses</artifactId>
