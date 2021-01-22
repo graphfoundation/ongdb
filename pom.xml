@@ -87,6 +87,7 @@
 
     <licensesVersion>7</licensesVersion>
     <license-text.header>headers/AGPL-3-header.txt</license-text.header>
+    <currentYear>2020</currentYear>
 
     <scala-maven-plugin.version>3.3.2</scala-maven-plugin.version>
     <scala.version>2.11.12</scala.version>
@@ -657,11 +658,6 @@
           <version>1.4.0</version>
         </plugin>
         <plugin>
-          <groupId>org.neo4j.build.plugins</groupId>
-          <artifactId>license-maven-plugin</artifactId>
-          <version>3</version>
-        </plugin>
-        <plugin>
           <groupId>org.owasp</groupId>
           <artifactId>dependency-check-maven</artifactId>
           <version>3.1.2</version>
@@ -744,18 +740,14 @@
 
       <!-- Always validate licenses -->
       <plugin>
-        <groupId>org.neo4j.build.plugins</groupId>
+        <groupId>com.mycila</groupId>
         <artifactId>license-maven-plugin</artifactId>
+        <version>3.0</version>
         <dependencies>
           <dependency>
             <groupId>org.neo4j.build</groupId>
             <artifactId>build-resources</artifactId>
             <version>${project.version}</version>
-          </dependency>
-          <dependency>
-            <groupId>org.neo4j.maven</groupId>
-            <artifactId>licenses</artifactId>
-            <version>${licensesVersion}</version>
           </dependency>
         </dependencies>
         <executions>
@@ -790,9 +782,8 @@
             <feature>SCRIPT_STYLE</feature>
             <g4>SLASHSTAR_STYLE</g4>
           </mapping>
-          <timestampPropertyName>currentYear</timestampPropertyName>
           <properties>
-            <inceptionYear>${project.inceptionYear}</inceptionYear>
+            <currentYear>${currentYear}</currentYear>
           </properties>
         </configuration>
       </plugin>
