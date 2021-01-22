@@ -20,7 +20,7 @@
     <url>http://components.neo4j.org/${project.artifactId}/${project.version}</url>
 
     <properties>
-        <licensing.prepend.text>notice-agpl-prefix.txt</licensing.prepend.text>
+        <licensing.prepend.text>licensing/notice-agpl-prefix.txt</licensing.prepend.text>
         <moduleName>org.neo4j.harness.enterprise</moduleName>
     </properties>
 
