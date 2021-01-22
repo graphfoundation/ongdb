@@ -85,9 +85,9 @@
     <forkCounts>0</forkCounts>
     <maven.build.timestamp.format>yyMMddHHmmssSSS</maven.build.timestamp.format>
 
-    <licensesVersion>7</licensesVersion>
     <license-text.header>headers/AGPL-3-header.txt</license-text.header>
-    <currentYear>2020</currentYear>
+    <communityForkYear>2020</communityForkYear>
+    <enterpriseForkYear>2018</enterpriseForkYear>
 
     <scala-maven-plugin.version>3.3.2</scala-maven-plugin.version>
     <scala.version>2.11.12</scala.version>
@@ -783,7 +783,8 @@
             <g4>SLASHSTAR_STYLE</g4>
           </mapping>
           <properties>
-            <currentYear>${currentYear}</currentYear>
+            <communityForkYear>${communityForkYear}</communityForkYear>
+            <enterpriseForkYear>${enterpriseForkYear}</enterpriseForkYear>
           </properties>
         </configuration>
       </plugin>
