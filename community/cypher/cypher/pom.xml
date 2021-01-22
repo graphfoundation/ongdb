@@ -3,7 +3,7 @@
 
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <parent>
-    <groupId>org.neo4j</groupId>
+    <groupId>org.graphfoundation.ongdb</groupId>
     <artifactId>cypher-parent</artifactId>
     <version>3.4.18-SNAPSHOT</version>
     <relativePath>../</relativePath>
@@ -91,11 +91,11 @@
 
     <!-- neo4j -->
     <dependency>
-      <groupId>org.neo4j</groupId>
+      <groupId>org.graphfoundation.ongdb</groupId>
       <artifactId>neo4j-kernel</artifactId>
     </dependency>
     <dependency>
-      <groupId>org.neo4j</groupId>
+      <groupId>org.graphfoundation.ongdb</groupId>
       <artifactId>neo4j-lucene-index</artifactId>
     </dependency>
     <dependency>
@@ -103,37 +103,37 @@
       <artifactId>neo4j-graph-matching</artifactId>
     </dependency>
     <dependency>
-      <groupId>org.neo4j</groupId>
+      <groupId>org.graphfoundation.ongdb</groupId>
       <artifactId>neo4j-graph-algo</artifactId>
     </dependency>
     <dependency>
-      <groupId>org.neo4j</groupId>
+      <groupId>org.graphfoundation.ongdb</groupId>
       <artifactId>neo4j-codegen</artifactId>
       <version>${project.version}</version>
     </dependency>
 
     <!-- neo4j testing -->
     <dependency>
-      <groupId>org.neo4j</groupId>
+      <groupId>org.graphfoundation.ongdb</groupId>
       <artifactId>neo4j-common</artifactId>
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>org.neo4j</groupId>
+      <groupId>org.graphfoundation.ongdb</groupId>
       <artifactId>neo4j-io</artifactId>
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>org.neo4j</groupId>
+      <groupId>org.graphfoundation.ongdb</groupId>
       <artifactId>neo4j-logging</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>org.neo4j</groupId>
+      <groupId>org.graphfoundation.ongdb</groupId>
       <artifactId>neo4j-kernel</artifactId>
       <type>test-jar</type>
       <scope>test</scope>
@@ -224,15 +224,15 @@
       <version>${cypher.compatibility.33}</version>
       <exclusions>
         <exclusion>
-          <groupId>org.neo4j</groupId>
+          <groupId>org.graphfoundation.ongdb</groupId>
           <artifactId>neo4j-kernel</artifactId>
         </exclusion>
         <exclusion>
-          <groupId>org.neo4j</groupId>
+          <groupId>org.graphfoundation.ongdb</groupId>
           <artifactId>neo4j-lucene-index</artifactId>
         </exclusion>
         <exclusion>
-          <groupId>org.neo4j</groupId>
+          <groupId>org.graphfoundation.ongdb</groupId>
           <artifactId>neo4j-graph-algo</artifactId>
         </exclusion>
         <exclusion>
@@ -259,31 +259,31 @@
     </dependency>
 
     <dependency>
-      <groupId>org.neo4j</groupId>
+      <groupId>org.graphfoundation.ongdb</groupId>
       <artifactId>neo4j-cypher-util-3.4</artifactId>
       <version>${project.version}</version>
     </dependency>
 
     <dependency>
-      <groupId>org.neo4j</groupId>
+      <groupId>org.graphfoundation.ongdb</groupId>
       <artifactId>neo4j-cypher-planner-3.4</artifactId>
       <version>${project.version}</version>
     </dependency>
 
     <dependency>
-      <groupId>org.neo4j</groupId>
+      <groupId>org.graphfoundation.ongdb</groupId>
       <artifactId>neo4j-cypher-planner-spi-3.4</artifactId>
       <version>${project.version}</version>
     </dependency>
 
     <dependency>
-      <groupId>org.neo4j</groupId>
+      <groupId>org.graphfoundation.ongdb</groupId>
       <artifactId>neo4j-cypher-runtime-util</artifactId>
       <version>${project.version}</version>
     </dependency>
 
     <dependency>
-      <groupId>org.neo4j</groupId>
+      <groupId>org.graphfoundation.ongdb</groupId>
       <artifactId>neo4j-cypher-interpreted-runtime</artifactId>
       <version>${project.version}</version>
     </dependency>
@@ -291,7 +291,7 @@
     <!-- neo4j-cypher test -->
 
     <dependency>
-      <groupId>org.neo4j</groupId>
+      <groupId>org.graphfoundation.ongdb</groupId>
       <artifactId>neo4j-cypher-planner-3.4</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
@@ -299,7 +299,7 @@
     </dependency>
 
     <dependency>
-      <groupId>org.neo4j</groupId>
+      <groupId>org.graphfoundation.ongdb</groupId>
       <artifactId>openCypher-frontend-1</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
@@ -307,7 +307,7 @@
     </dependency>
 
     <dependency>
-      <groupId>org.neo4j</groupId>
+      <groupId>org.graphfoundation.ongdb</groupId>
       <artifactId>neo4j-cypher-util-3.4</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
@@ -315,7 +315,7 @@
     </dependency>
 
     <dependency>
-      <groupId>org.neo4j</groupId>
+      <groupId>org.graphfoundation.ongdb</groupId>
       <artifactId>neo4j-cypher-runtime-util</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
@@ -323,7 +323,7 @@
     </dependency>
 
     <dependency>
-      <groupId>org.neo4j</groupId>
+      <groupId>org.graphfoundation.ongdb</groupId>
       <artifactId>neo4j-cypher-interpreted-runtime</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>

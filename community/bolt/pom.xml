@@ -5,7 +5,7 @@
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
-    <groupId>org.neo4j</groupId>
+    <groupId>org.graphfoundation.ongdb</groupId>
     <artifactId>parent</artifactId>
     <version>3.4.18-SNAPSHOT</version>
     <relativePath>../..</relativePath>
@@ -44,25 +44,25 @@
 
   <dependencies>
     <dependency>
-      <groupId>org.neo4j</groupId>
+      <groupId>org.graphfoundation.ongdb</groupId>
       <artifactId>neo4j</artifactId>
       <version>${project.version}</version>
     </dependency>
 
     <dependency>
-      <groupId>org.neo4j</groupId>
+      <groupId>org.graphfoundation.ongdb</groupId>
       <artifactId>neo4j-values</artifactId>
       <version>${project.version}</version>
     </dependency>
 
     <dependency>
-      <groupId>org.neo4j</groupId>
+      <groupId>org.graphfoundation.ongdb</groupId>
       <artifactId>neo4j-kernel</artifactId>
       <version>${project.version}</version>
     </dependency>
 
     <dependency>
-      <groupId>org.neo4j</groupId>
+      <groupId>org.graphfoundation.ongdb</groupId>
       <artifactId>neo4j-ssl</artifactId>
       <version>${project.version}</version>
     </dependency>
@@ -116,41 +116,41 @@
 
 
     <dependency>
-      <groupId>org.neo4j</groupId>
+      <groupId>org.graphfoundation.ongdb</groupId>
       <artifactId>neo4j-kernel</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>org.neo4j</groupId>
+      <groupId>org.graphfoundation.ongdb</groupId>
       <artifactId>neo4j-security</artifactId>
       <version>${project.version}</version>
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>org.neo4j</groupId>
+      <groupId>org.graphfoundation.ongdb</groupId>
       <artifactId>neo4j-security</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>org.neo4j</groupId>
+      <groupId>org.graphfoundation.ongdb</groupId>
       <artifactId>neo4j-io</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>org.neo4j</groupId>
+      <groupId>org.graphfoundation.ongdb</groupId>
       <artifactId>neo4j-logging</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>org.neo4j</groupId>
+      <groupId>org.graphfoundation.ongdb</groupId>
       <artifactId>neo4j-common</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>

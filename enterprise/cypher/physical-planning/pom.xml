@@ -3,7 +3,7 @@
 
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <parent>
-    <groupId>org.neo4j</groupId>
+    <groupId>org.graphfoundation.ongdb</groupId>
     <artifactId>cypher-enterprise-parent</artifactId>
     <version>3.4.18-SNAPSHOT</version>
     <relativePath>../</relativePath>
@@ -90,12 +90,12 @@
     <!-- neo4j -->
 
     <dependency>
-      <groupId>org.neo4j</groupId>
+      <groupId>org.graphfoundation.ongdb</groupId>
       <artifactId>neo4j-cypher</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
-      <groupId>org.neo4j</groupId>
+      <groupId>org.graphfoundation.ongdb</groupId>
       <artifactId>neo4j-codegen</artifactId>
       <version>${project.version}</version>
     </dependency>
@@ -104,25 +104,25 @@
     <!-- neo4j testing -->
 
     <dependency>
-      <groupId>org.neo4j</groupId>
+      <groupId>org.graphfoundation.ongdb</groupId>
       <artifactId>neo4j-kernel</artifactId>
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>org.neo4j</groupId>
+      <groupId>org.graphfoundation.ongdb</groupId>
       <artifactId>neo4j-io</artifactId>
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>org.neo4j</groupId>
+      <groupId>org.graphfoundation.ongdb</groupId>
       <artifactId>neo4j-common</artifactId>
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>org.neo4j</groupId>
+      <groupId>org.graphfoundation.ongdb</groupId>
       <artifactId>neo4j-enterprise-kernel</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
@@ -130,7 +130,7 @@
     </dependency>
 
     <dependency>
-      <groupId>org.neo4j</groupId>
+      <groupId>org.graphfoundation.ongdb</groupId>
       <artifactId>neo4j-cypher-planner-3.4</artifactId>
       <version>${project.version}</version>
     </dependency>
@@ -138,7 +138,7 @@
     <!-- neo4j-cypher test -->
 
     <dependency>
-      <groupId>org.neo4j</groupId>
+      <groupId>org.graphfoundation.ongdb</groupId>
       <artifactId>neo4j-cypher-planner-3.4</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
@@ -146,7 +146,7 @@
     </dependency>
 
     <dependency>
-      <groupId>org.neo4j</groupId>
+      <groupId>org.graphfoundation.ongdb</groupId>
       <artifactId>openCypher-frontend-1</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
@@ -154,7 +154,7 @@
     </dependency>
 
     <dependency>
-      <groupId>org.neo4j</groupId>
+      <groupId>org.graphfoundation.ongdb</groupId>
       <artifactId>neo4j-cypher-util-3.4</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
@@ -162,7 +162,7 @@
     </dependency>
 
     <dependency>
-      <groupId>org.neo4j</groupId>
+      <groupId>org.graphfoundation.ongdb</groupId>
       <artifactId>neo4j-cypher</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>

@@ -1,6 +1,6 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <parent>
-        <groupId>org.neo4j</groupId>
+        <groupId>org.graphfoundation.ongdb</groupId>
         <artifactId>procedure-compiler-parent</artifactId>
         <version>3.4.18-SNAPSHOT</version>
         <relativePath>..</relativePath>
@@ -19,14 +19,14 @@
 
     <dependencies>
         <dependency>
-            <groupId>org.neo4j</groupId>
+            <groupId>org.graphfoundation.ongdb</groupId>
             <artifactId>procedure-compiler</artifactId>
             <version>${project.version}</version>
             <scope>compile</scope>
             <optional>true</optional>
         </dependency>
         <dependency>
-            <groupId>org.neo4j</groupId>
+            <groupId>org.graphfoundation.ongdb</groupId>
             <artifactId>procedure-compiler</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
@@ -34,13 +34,13 @@
             <classifier>tests</classifier>
         </dependency>
         <dependency>
-            <groupId>org.neo4j</groupId>
+            <groupId>org.graphfoundation.ongdb</groupId>
             <artifactId>neo4j</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.neo4j.test</groupId>
+            <groupId>org.graphfoundation.ongdb.test</groupId>
             <artifactId>neo4j-harness</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>

@@ -4,13 +4,13 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <parent>
-        <groupId>org.neo4j</groupId>
+        <groupId>org.graphfoundation.ongdb</groupId>
         <artifactId>parent</artifactId>
         <version>3.4.18-SNAPSHOT</version>
         <relativePath>../..</relativePath>
     </parent>
 
-    <groupId>org.neo4j.test</groupId>
+    <groupId>org.graphfoundation.ongdb.test</groupId>
     <artifactId>neo4j-harness-enterprise</artifactId>
 
     <packaging>jar</packaging>
@@ -50,13 +50,13 @@
 
     <dependencies>
         <dependency>
-            <groupId>org.neo4j.test</groupId>
+            <groupId>org.graphfoundation.ongdb.test</groupId>
             <artifactId>neo4j-harness</artifactId>
             <version>${project.version}</version>
         </dependency>
 
         <dependency>
-            <groupId>org.neo4j.app</groupId>
+            <groupId>org.graphfoundation.ongdb.app</groupId>
             <artifactId>neo4j-server-enterprise</artifactId>
             <version>${project.version}</version>
         </dependency>
@@ -82,7 +82,7 @@
         </dependency>
 
         <dependency>
-            <groupId>org.neo4j</groupId>
+            <groupId>org.graphfoundation.ongdb</groupId>
             <artifactId>neo4j-kernel</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
@@ -90,7 +90,7 @@
         </dependency>
 
         <dependency>
-            <groupId>org.neo4j</groupId>
+            <groupId>org.graphfoundation.ongdb</groupId>
             <artifactId>neo4j-io</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
@@ -98,7 +98,7 @@
         </dependency>
 
         <dependency>
-            <groupId>org.neo4j.app</groupId>
+            <groupId>org.graphfoundation.ongdb.app</groupId>
             <artifactId>neo4j-server</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
@@ -106,7 +106,7 @@
         </dependency>
 
         <dependency>
-            <groupId>org.neo4j</groupId>
+            <groupId>org.graphfoundation.ongdb</groupId>
             <artifactId>neo4j-common</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
@@ -114,7 +114,7 @@
         </dependency>
 
         <dependency>
-            <groupId>org.neo4j</groupId>
+            <groupId>org.graphfoundation.ongdb</groupId>
             <artifactId>neo4j-com</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
