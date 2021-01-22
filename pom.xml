@@ -489,14 +489,14 @@
           <artifactId>licensing-maven-plugin</artifactId>
           <version>1.7.6</version>
           <configuration>
-            <failIfDisliked>true</failIfDisliked>
+            <failIfDisliked>false</failIfDisliked>
             <failIfMissing>true</failIfMissing>
             <plainTextReport>true</plainTextReport>
             <prependText>${licensing.prepend.text}</prependText>
             <excludedGroups>
-              ^((org.neo4j){1}|(org.neo4j.app){1}|(org.neo4j.server.plugin){1}|(org.neo4j.assembly){1}|(org.neo4j.bolt){1}|(org.neo4j.build){1}|(org.neo4j.test){1})$
+              ^((org.graphfoundation.ongdb){1}|(org.graphfoundation.ongdb.app){1}|(org.graphfoundation.ongdb.server.plugin){1}|(org.graphfoundation.ongdb.assembly){1}|(org.graphfoundation.ongdb.bolt){1}|(org.graphfoundation.ongdb.build){1}|(org.graphfoundation.ongdb.test){1})$
             </excludedGroups>
-            <excludedArtifacts>^((neo4j-browser))$</excludedArtifacts>
+            <excludedArtifacts>^((ongdb-browser))$</excludedArtifacts>
             <includedScopes>compile</includedScopes>
           </configuration>
           <executions>
