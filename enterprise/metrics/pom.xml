@@ -10,7 +10,7 @@
     <relativePath>../..</relativePath>
   </parent>
 
-  <artifactId>neo4j-metrics</artifactId>
+  <artifactId>ongdb-metrics</artifactId>
   <version>3.4.18-SNAPSHOT</version>
 
   <name>Neo4j - Metrics Kernel Extension</name>
@@ -24,109 +24,109 @@
   <dependencies>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-ha</artifactId>
+      <artifactId>ongdb-ha</artifactId>
       <version>${project.version}</version>
       <scope>provided</scope>
     </dependency>
 
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-causal-clustering</artifactId>
+      <artifactId>ongdb-causal-clustering</artifactId>
       <version>${project.version}</version>
       <scope>provided</scope>
     </dependency>
 
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-bolt</artifactId>
+      <artifactId>ongdb-bolt</artifactId>
       <version>${project.version}</version>
       <scope>provided</scope>
     </dependency>
 
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-io</artifactId>
+      <artifactId>ongdb-io</artifactId>
       <version>${project.version}</version>
       <scope>provided</scope>
     </dependency>
 
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-com</artifactId>
+      <artifactId>ongdb-com</artifactId>
       <version>${project.version}</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-cluster</artifactId>
+      <artifactId>ongdb-cluster</artifactId>
       <version>${project.version}</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-cypher</artifactId>
+      <artifactId>ongdb-cypher</artifactId>
       <version>${project.version}</version>
       <scope>provided</scope>
     </dependency>
 
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-lucene-index</artifactId>
+      <artifactId>ongdb-lucene-index</artifactId>
       <version>${project.version}</version>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-management</artifactId>
+      <artifactId>ongdb-management</artifactId>
       <version>${project.version}</version>
       <scope>test</scope>
     </dependency>
 
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-kernel</artifactId>
+      <artifactId>ongdb-kernel</artifactId>
       <version>${project.version}</version>
       <scope>test</scope>
       <type>test-jar</type>
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-common</artifactId>
+      <artifactId>ongdb-common</artifactId>
       <version>${project.version}</version>
       <scope>test</scope>
       <type>test-jar</type>
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-ha</artifactId>
+      <artifactId>ongdb-ha</artifactId>
       <version>${project.version}</version>
       <scope>test</scope>
       <type>test-jar</type>
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-cluster</artifactId>
+      <artifactId>ongdb-cluster</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-io</artifactId>
+      <artifactId>ongdb-io</artifactId>
       <version>${project.version}</version>
       <scope>test</scope>
       <type>test-jar</type>
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-causal-clustering</artifactId>
+      <artifactId>ongdb-causal-clustering</artifactId>
       <version>${project.version}</version>
       <scope>test</scope>
       <type>test-jar</type>
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-bolt</artifactId>
+      <artifactId>ongdb-bolt</artifactId>
       <version>${project.version}</version>
       <scope>test</scope>
       <type>test-jar</type>
@@ -182,7 +182,7 @@
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-com</artifactId>
+      <artifactId>ongdb-com</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>

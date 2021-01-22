@@ -8,7 +8,7 @@
     <relativePath>..</relativePath>
   </parent>
 
-  <artifactId>neo4j-stresstests</artifactId>
+  <artifactId>ongdb-stresstests</artifactId>
   <version>3.4.18-SNAPSHOT</version>
 
   <name>Neo4j - Stress Tests</name>
@@ -67,71 +67,71 @@
 
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-common</artifactId>
+      <artifactId>ongdb-common</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-io</artifactId>
+      <artifactId>ongdb-io</artifactId>
       <version>${project.version}</version>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-io</artifactId>
-      <version>${project.version}</version>
-      <scope>test</scope>
-      <type>test-jar</type>
-    </dependency>
-    <dependency>
-      <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-kernel</artifactId>
-      <version>${project.version}</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-kernel</artifactId>
+      <artifactId>ongdb-io</artifactId>
       <version>${project.version}</version>
       <scope>test</scope>
       <type>test-jar</type>
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-backup</artifactId>
+      <artifactId>ongdb-kernel</artifactId>
       <version>${project.version}</version>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-backup</artifactId>
+      <artifactId>ongdb-kernel</artifactId>
       <version>${project.version}</version>
       <scope>test</scope>
       <type>test-jar</type>
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-lucene-index</artifactId>
+      <artifactId>ongdb-backup</artifactId>
       <version>${project.version}</version>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-consistency-check</artifactId>
+      <artifactId>ongdb-backup</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+      <type>test-jar</type>
+    </dependency>
+    <dependency>
+      <groupId>org.graphfoundation.ongdb</groupId>
+      <artifactId>ongdb-lucene-index</artifactId>
       <version>${project.version}</version>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-causal-clustering</artifactId>
+      <artifactId>ongdb-consistency-check</artifactId>
       <version>${project.version}</version>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-causal-clustering</artifactId>
+      <artifactId>ongdb-causal-clustering</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.graphfoundation.ongdb</groupId>
+      <artifactId>ongdb-causal-clustering</artifactId>
       <version>${project.version}</version>
       <scope>test</scope>
       <type>test-jar</type>
@@ -142,7 +142,7 @@
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-com</artifactId>
+      <artifactId>ongdb-com</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>

@@ -8,7 +8,7 @@
     <relativePath>..</relativePath>
   </parent>
 
-  <artifactId>neo4j-integrationtests</artifactId>
+  <artifactId>ongdb-integrationtests</artifactId>
   <version>3.4.18-SNAPSHOT</version>
 
   <name>Neo4j - Integration Tests</name>
@@ -62,152 +62,152 @@
   <dependencies>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j</artifactId>
+      <artifactId>ongdb</artifactId>
       <version>${project.version}</version>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-enterprise</artifactId>
+      <artifactId>ongdb-enterprise</artifactId>
       <version>${project.version}</version>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-ha</artifactId>
+      <artifactId>ongdb-ha</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb.app</groupId>
-      <artifactId>neo4j-server-enterprise</artifactId>
+      <artifactId>ongdb-server-enterprise</artifactId>
       <version>${project.version}</version>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-kernel</artifactId>
-      <version>${project.version}</version>
-      <type>test-jar</type>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-enterprise-kernel</artifactId>
+      <artifactId>ongdb-kernel</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-consistency-check</artifactId>
+      <artifactId>ongdb-enterprise-kernel</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-common</artifactId>
+      <artifactId>ongdb-consistency-check</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-io</artifactId>
+      <artifactId>ongdb-common</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j</artifactId>
+      <artifactId>ongdb-io</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-logging</artifactId>
+      <artifactId>ongdb</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-udc</artifactId>
+      <artifactId>ongdb-logging</artifactId>
+      <version>${project.version}</version>
+      <type>test-jar</type>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.graphfoundation.ongdb</groupId>
+      <artifactId>ongdb-udc</artifactId>
       <version>${project.version}</version>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-udc</artifactId>
+      <artifactId>ongdb-udc</artifactId>
       <version>${project.version}</version>
       <scope>test</scope>
       <type>test-jar</type>
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb.app</groupId>
-      <artifactId>neo4j-server</artifactId>
+      <artifactId>ongdb-server</artifactId>
       <version>${project.version}</version>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb.app</groupId>
-      <artifactId>neo4j-server</artifactId>
+      <artifactId>ongdb-server</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-causal-clustering</artifactId>
+      <artifactId>ongdb-causal-clustering</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-ha</artifactId>
+      <artifactId>ongdb-ha</artifactId>
       <version>${project.version}</version>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-cluster</artifactId>
+      <artifactId>ongdb-cluster</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-metrics</artifactId>
+      <artifactId>ongdb-metrics</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb.test</groupId>
-      <artifactId>neo4j-harness</artifactId>
+      <artifactId>ongdb-harness</artifactId>
       <version>${project.version}</version>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb.test</groupId>
-      <artifactId>neo4j-harness-enterprise</artifactId>
+      <artifactId>ongdb-harness-enterprise</artifactId>
       <version>${project.version}</version>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-consistency-check</artifactId>
+      <artifactId>ongdb-consistency-check</artifactId>
       <version>${project.version}</version>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-ssl</artifactId>
+      <artifactId>ongdb-ssl</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
@@ -258,14 +258,14 @@
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-com</artifactId>
+      <artifactId>ongdb-com</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>
       <dependency>
           <groupId>org.graphfoundation.ongdb.app</groupId>
-          <artifactId>neo4j-server-enterprise</artifactId>
+          <artifactId>ongdb-server-enterprise</artifactId>
           <version>${project.version}</version>
           <type>test-jar</type>
           <scope>test</scope>

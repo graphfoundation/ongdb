@@ -10,7 +10,7 @@
     <relativePath>../..</relativePath>
   </parent>
 
-  <artifactId>neo4j-deferred-locks</artifactId>
+  <artifactId>ongdb-deferred-locks</artifactId>
   <version>3.4.18-SNAPSHOT</version>
 
   <name>Neo4j - Deferred Locks</name>
@@ -49,40 +49,40 @@
 
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-kernel</artifactId>
+      <artifactId>ongdb-kernel</artifactId>
       <version>${project.version}</version>
     </dependency>
 
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-kernel</artifactId>
+      <artifactId>ongdb-kernel</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-enterprise-kernel</artifactId>
+      <artifactId>ongdb-enterprise-kernel</artifactId>
       <version>${project.version}</version>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-enterprise-kernel</artifactId>
-      <version>${project.version}</version>
-      <type>test-jar</type>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-io</artifactId>
+      <artifactId>ongdb-enterprise-kernel</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-common</artifactId>
+      <artifactId>ongdb-io</artifactId>
+      <version>${project.version}</version>
+      <type>test-jar</type>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.graphfoundation.ongdb</groupId>
+      <artifactId>ongdb-common</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>

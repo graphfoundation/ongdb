@@ -8,7 +8,7 @@
   </parent>
 
   <modelVersion>4.0.0</modelVersion>
-  <artifactId>neo4j-shell</artifactId>
+  <artifactId>ongdb-shell</artifactId>
   <version>3.4.18-SNAPSHOT</version>
 
   <name>Neo4j - Generic shell</name>
@@ -82,46 +82,46 @@ the relevant Commercial Agreement.
   <dependencies>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-kernel</artifactId>
+      <artifactId>ongdb-kernel</artifactId>
       <version>${project.version}</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-kernel</artifactId>
+      <artifactId>ongdb-kernel</artifactId>
       <version>${project.version}</version>
       <scope>test</scope>
       <type>test-jar</type>
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-common</artifactId>
+      <artifactId>ongdb-common</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-io</artifactId>
+      <artifactId>ongdb-io</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-jmx</artifactId>
+      <artifactId>ongdb-jmx</artifactId>
       <version>${project.version}</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-graph-algo</artifactId>
+      <artifactId>ongdb-graph-algo</artifactId>
       <version>${project.version}</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-cypher</artifactId>
+      <artifactId>ongdb-cypher</artifactId>
       <version>${project.version}</version>
       <scope>provided</scope>
     </dependency>
@@ -160,13 +160,13 @@ the relevant Commercial Agreement.
 
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-bolt</artifactId>
+      <artifactId>ongdb-bolt</artifactId>
       <version>${project.version}</version>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-logging</artifactId>
+      <artifactId>ongdb-logging</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>

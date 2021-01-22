@@ -35,13 +35,13 @@
         </dependency>
         <dependency>
             <groupId>org.graphfoundation.ongdb</groupId>
-            <artifactId>neo4j</artifactId>
+            <artifactId>ongdb</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.graphfoundation.ongdb.test</groupId>
-            <artifactId>neo4j-harness</artifactId>
+            <artifactId>ongdb-harness</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
         </dependency>

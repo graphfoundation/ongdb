@@ -11,7 +11,7 @@
   </parent>
 
   <modelVersion>4.0.0</modelVersion>
-  <artifactId>neo4j-cypher-compatibility-spec-suite</artifactId>
+  <artifactId>ongdb-cypher-compatibility-spec-suite</artifactId>
   <packaging>jar</packaging>
   <version>3.4.18-SNAPSHOT</version>
   <name>Neo4j - Cypher Compatibility Specification Suite</name>
@@ -118,21 +118,21 @@
 
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-cypher</artifactId>
+      <artifactId>ongdb-cypher</artifactId>
       <version>${project.version}</version>
       <scope>test</scope>
     </dependency>
 
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-cypher-spec-suite-tools</artifactId>
+      <artifactId>ongdb-cypher-spec-suite-tools</artifactId>
       <version>${project.version}</version>
       <scope>test</scope>
     </dependency>
 
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-enterprise-cypher</artifactId>
+      <artifactId>ongdb-enterprise-cypher</artifactId>
       <version>${project.version}</version>
     </dependency>
 
@@ -140,7 +140,7 @@
 
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-kernel</artifactId>
+      <artifactId>ongdb-kernel</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
@@ -148,7 +148,7 @@
 
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-enterprise-kernel</artifactId>
+      <artifactId>ongdb-enterprise-kernel</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
@@ -156,7 +156,7 @@
 
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-io</artifactId>
+      <artifactId>ongdb-io</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
@@ -164,21 +164,21 @@
 
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-cypher</artifactId>
+      <artifactId>ongdb-cypher</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
     </dependency>
 
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-enterprise-cypher</artifactId>
+      <artifactId>ongdb-enterprise-cypher</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
     </dependency>
 
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-cypher-spec-suite-tools</artifactId>
+      <artifactId>ongdb-cypher-spec-suite-tools</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>

@@ -14,7 +14,7 @@
   </properties>
 
   <modelVersion>4.0.0</modelVersion>
-  <artifactId>neo4j-csv</artifactId>
+  <artifactId>ongdb-csv</artifactId>
   <version>3.4.18-SNAPSHOT</version>
 
   <packaging>jar</packaging>
@@ -55,24 +55,24 @@ the relevant Commercial Agreement.
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-primitive-collections</artifactId>
+      <artifactId>ongdb-primitive-collections</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-collections</artifactId>
+      <artifactId>ongdb-collections</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-values</artifactId>
+      <artifactId>ongdb-values</artifactId>
       <version>${project.version}</version>
     </dependency>
 
     <!-- test dependencies -->
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-io</artifactId>
+      <artifactId>ongdb-io</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
@@ -83,7 +83,7 @@ the relevant Commercial Agreement.
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-io</artifactId>
+      <artifactId>ongdb-io</artifactId>
       <version>${project.version}</version>
       <scope>test</scope>
     </dependency>

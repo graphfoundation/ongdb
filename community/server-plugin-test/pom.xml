@@ -50,7 +50,7 @@ the relevant Commercial Agreement.
   <dependencies>
     <dependency>
       <groupId>org.graphfoundation.ongdb.app</groupId>
-      <artifactId>neo4j-server</artifactId>
+      <artifactId>ongdb-server</artifactId>
       <version>${project.version}</version>
     </dependency>
 
@@ -78,28 +78,28 @@ the relevant Commercial Agreement.
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-common</artifactId>
+      <artifactId>ongdb-common</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-kernel</artifactId>
+      <artifactId>ongdb-kernel</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-io</artifactId>
+      <artifactId>ongdb-io</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb.app</groupId>
-      <artifactId>neo4j-server</artifactId>
+      <artifactId>ongdb-server</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>

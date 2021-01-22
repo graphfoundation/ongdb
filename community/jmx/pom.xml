@@ -8,7 +8,7 @@
     <relativePath>../..</relativePath>
   </parent>
 
-  <artifactId>neo4j-jmx</artifactId>
+  <artifactId>ongdb-jmx</artifactId>
   <version>3.4.18-SNAPSHOT</version>
 
   <name>Neo4j - JMX support</name>
@@ -64,7 +64,7 @@ the relevant Commercial Agreement.
   <dependencies>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-kernel</artifactId>
+      <artifactId>ongdb-kernel</artifactId>
       <version>${project.version}</version>
       <scope>provided</scope>
     </dependency>
@@ -82,14 +82,14 @@ the relevant Commercial Agreement.
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-kernel</artifactId>
+      <artifactId>ongdb-kernel</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-io</artifactId>
+      <artifactId>ongdb-io</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>

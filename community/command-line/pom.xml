@@ -9,7 +9,7 @@
     <relativePath>../..</relativePath>
   </parent>
   <modelVersion>4.0.0</modelVersion>
-  <artifactId>neo4j-command-line</artifactId>
+  <artifactId>ongdb-command-line</artifactId>
   <name>Neo4j - Command Line</name>
   <version>3.4.18-SNAPSHOT</version>
   <packaging>jar</packaging>
@@ -42,12 +42,12 @@
   <dependencies>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-kernel</artifactId>
+      <artifactId>ongdb-kernel</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-collections</artifactId>
+      <artifactId>ongdb-collections</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
@@ -72,7 +72,7 @@
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-kernel</artifactId>
+      <artifactId>ongdb-kernel</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>

@@ -9,7 +9,7 @@
 
   <modelVersion>4.0.0</modelVersion>
   <groupId>org.graphfoundation.ongdb.app</groupId>
-  <artifactId>neo4j-server-enterprise</artifactId>
+  <artifactId>ongdb-server-enterprise</artifactId>
   <version>3.4.18-SNAPSHOT</version>
 
   <name>Neo4j - Enterprise Server</name>
@@ -51,22 +51,22 @@
   <dependencies>
     <dependency>
       <groupId>org.graphfoundation.ongdb.app</groupId>
-      <artifactId>neo4j-server</artifactId>
+      <artifactId>ongdb-server</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-enterprise-cypher</artifactId>
+      <artifactId>ongdb-enterprise-cypher</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-enterprise</artifactId>
+      <artifactId>ongdb-enterprise</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-security-enterprise</artifactId>
+      <artifactId>ongdb-security-enterprise</artifactId>
       <version>${project.version}</version>
     </dependency>
 
@@ -104,50 +104,21 @@
 
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-common</artifactId>
+      <artifactId>ongdb-common</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-kernel</artifactId>
+      <artifactId>ongdb-kernel</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-security-enterprise</artifactId>
-      <version>${project.version}</version>
-      <type>test-jar</type>
-      <scope>test</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-io</artifactId>
-      <version>${project.version}</version>
-      <type>test-jar</type>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-ha</artifactId>
-      <version>${project.version}</version>
-      <type>test-jar</type>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-metrics</artifactId>
-      <version>${project.version}</version>
-      <type>test-jar</type>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-bolt</artifactId>
+      <artifactId>ongdb-security-enterprise</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
@@ -155,7 +126,28 @@
 
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-security</artifactId>
+      <artifactId>ongdb-io</artifactId>
+      <version>${project.version}</version>
+      <type>test-jar</type>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.graphfoundation.ongdb</groupId>
+      <artifactId>ongdb-ha</artifactId>
+      <version>${project.version}</version>
+      <type>test-jar</type>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.graphfoundation.ongdb</groupId>
+      <artifactId>ongdb-metrics</artifactId>
+      <version>${project.version}</version>
+      <type>test-jar</type>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.graphfoundation.ongdb</groupId>
+      <artifactId>ongdb-bolt</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
@@ -163,7 +155,15 @@
 
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-logging</artifactId>
+      <artifactId>ongdb-security</artifactId>
+      <version>${project.version}</version>
+      <type>test-jar</type>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.graphfoundation.ongdb</groupId>
+      <artifactId>ongdb-logging</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
@@ -171,7 +171,7 @@
 
     <dependency>
       <groupId>org.graphfoundation.ongdb.app</groupId>
-      <artifactId>neo4j-server</artifactId>
+      <artifactId>ongdb-server</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
@@ -185,14 +185,14 @@
 
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-shell</artifactId>
+      <artifactId>ongdb-shell</artifactId>
       <version>${project.version}</version>
       <scope>runtime</scope>
     </dependency>
 
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-com</artifactId>
+      <artifactId>ongdb-com</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>

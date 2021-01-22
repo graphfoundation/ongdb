@@ -10,7 +10,7 @@
   </parent>
 
   <modelVersion>4.0.0</modelVersion>
-  <artifactId>neo4j-cypher-physical-planning</artifactId>
+  <artifactId>ongdb-cypher-physical-planning</artifactId>
   <packaging>jar</packaging>
   <version>3.4.18-SNAPSHOT</version>
   <name>Neo4j Cypher Physical Planning</name>
@@ -91,12 +91,12 @@
 
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-cypher</artifactId>
+      <artifactId>ongdb-cypher</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-codegen</artifactId>
+      <artifactId>ongdb-codegen</artifactId>
       <version>${project.version}</version>
     </dependency>
 
@@ -105,25 +105,25 @@
 
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-kernel</artifactId>
+      <artifactId>ongdb-kernel</artifactId>
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-io</artifactId>
+      <artifactId>ongdb-io</artifactId>
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-common</artifactId>
+      <artifactId>ongdb-common</artifactId>
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-enterprise-kernel</artifactId>
+      <artifactId>ongdb-enterprise-kernel</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
@@ -131,7 +131,7 @@
 
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-cypher-planner-3.4</artifactId>
+      <artifactId>ongdb-cypher-planner-3.4</artifactId>
       <version>${project.version}</version>
     </dependency>
 
@@ -139,7 +139,7 @@
 
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-cypher-planner-3.4</artifactId>
+      <artifactId>ongdb-cypher-planner-3.4</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
@@ -155,7 +155,7 @@
 
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-cypher-util-3.4</artifactId>
+      <artifactId>ongdb-cypher-util-3.4</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
@@ -163,7 +163,7 @@
 
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-cypher</artifactId>
+      <artifactId>ongdb-cypher</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>

@@ -8,7 +8,7 @@
     <relativePath>../..</relativePath>
   </parent>
 
-  <artifactId>neo4j</artifactId>
+  <artifactId>ongdb</artifactId>
   <version>3.4.18-SNAPSHOT</version>
 
   <name>Neo4j - Community</name>
@@ -50,37 +50,37 @@ the relevant Commercial Agreement.
   <dependencies>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-kernel</artifactId>
+      <artifactId>ongdb-kernel</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-lucene-index</artifactId>
+      <artifactId>ongdb-lucene-index</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-graph-algo</artifactId>
+      <artifactId>ongdb-graph-algo</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-udc</artifactId>
+      <artifactId>ongdb-udc</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-cypher</artifactId>
+      <artifactId>ongdb-cypher</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-jmx</artifactId>
+      <artifactId>ongdb-jmx</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-consistency-check</artifactId>
+      <artifactId>ongdb-consistency-check</artifactId>
       <version>${project.version}</version>
     </dependency>
 
@@ -112,35 +112,35 @@ the relevant Commercial Agreement.
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-common</artifactId>
+      <artifactId>ongdb-common</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-kernel</artifactId>
+      <artifactId>ongdb-kernel</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-io</artifactId>
+      <artifactId>ongdb-io</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-logging</artifactId>
+      <artifactId>ongdb-logging</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-consistency-check</artifactId>
+      <artifactId>ongdb-consistency-check</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>

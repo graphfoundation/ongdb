@@ -8,7 +8,7 @@
     <relativePath>../..</relativePath>
   </parent>
 
-  <artifactId>neo4j-management</artifactId>
+  <artifactId>ongdb-management</artifactId>
   <version>3.4.18-SNAPSHOT</version>
 
   <name>Neo4j - Graph DB Monitoring and Management tools</name>
@@ -63,7 +63,7 @@
   <dependencies>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-jmx</artifactId>
+      <artifactId>ongdb-jmx</artifactId>
       <version>${project.version}</version>
       <scope>provided</scope>
       <!-- because it is not available when used from JConsole -->
@@ -78,14 +78,14 @@
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-kernel</artifactId>
+      <artifactId>ongdb-kernel</artifactId>
       <version>${project.version}</version>
       <scope>provided</scope>
       <!-- because the jmx dependency is provided transitive dependencies doesn't come through -->
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-kernel</artifactId>
+      <artifactId>ongdb-kernel</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
@@ -93,14 +93,14 @@
 
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-common</artifactId>
+      <artifactId>ongdb-common</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-io</artifactId>
+      <artifactId>ongdb-io</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>

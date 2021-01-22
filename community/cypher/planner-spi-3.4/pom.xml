@@ -8,7 +8,7 @@
   </parent>
 
   <modelVersion>4.0.0</modelVersion>
-  <artifactId>neo4j-cypher-planner-spi-3.4</artifactId>
+  <artifactId>ongdb-cypher-planner-spi-3.4</artifactId>
   <packaging>jar</packaging>
   <version>3.4.18-SNAPSHOT</version>
   <name>Neo4j - Cypher Planner SPI 3.4</name>
@@ -63,13 +63,13 @@
 
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-cypher-util-3.4</artifactId>
+      <artifactId>ongdb-cypher-util-3.4</artifactId>
       <version>${project.version}</version>
     </dependency>
 
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-cypher-logical-plans-3.4</artifactId>
+      <artifactId>ongdb-cypher-logical-plans-3.4</artifactId>
       <version>${project.version}</version>
     </dependency>
 

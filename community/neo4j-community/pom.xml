@@ -8,7 +8,7 @@
     <relativePath>../..</relativePath>
   </parent>
 
-  <artifactId>neo4j-community</artifactId>
+  <artifactId>ongdb-community</artifactId>
   <version>3.4.18-SNAPSHOT</version>
 
   <name>Neo4j - Community</name>
@@ -30,12 +30,12 @@
   <dependencies>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j</artifactId>
+      <artifactId>ongdb</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-bolt</artifactId>
+      <artifactId>ongdb-bolt</artifactId>
       <version>${project.version}</version>
     </dependency>
   </dependencies>

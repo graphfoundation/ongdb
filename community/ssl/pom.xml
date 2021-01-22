@@ -14,7 +14,7 @@
   </properties>
 
   <modelVersion>4.0.0</modelVersion>
-  <artifactId>neo4j-ssl</artifactId>
+  <artifactId>ongdb-ssl</artifactId>
   <version>3.4.18-SNAPSHOT</version>
 
   <packaging>jar</packaging>
@@ -50,12 +50,12 @@ the relevant Commercial Agreement.
   <dependencies>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-logging</artifactId>
+      <artifactId>ongdb-logging</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-common</artifactId>
+      <artifactId>ongdb-common</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
@@ -66,14 +66,14 @@ the relevant Commercial Agreement.
     <!-- Test dependencies -->
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-logging</artifactId>
+      <artifactId>ongdb-logging</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>neo4j-common</artifactId>
+      <artifactId>ongdb-common</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
