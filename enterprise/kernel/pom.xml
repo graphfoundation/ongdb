@@ -9,7 +9,7 @@
   <artifactId>ongdb-enterprise-kernel</artifactId>
   <version>3.4.18-SNAPSHOT</version>
 
-  <name>Neo4j - Enterprise Graph Database Kernel Features</name>
+  <name>ONgDB - Enterprise Graph Database Kernel Features</name>
   <description>Enterprise features for Neo4j</description>
   <packaging>jar</packaging>
 

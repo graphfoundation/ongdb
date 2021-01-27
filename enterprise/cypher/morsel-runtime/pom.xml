@@ -13,7 +13,7 @@
   <artifactId>ongdb-cypher-morsel-runtime</artifactId>
   <packaging>jar</packaging>
   <version>3.4.18-SNAPSHOT</version>
-  <name>Neo4j Cypher Morsel Runtime</name>
+  <name>ONgDB - Cypher Morsel Runtime</name>
   <description>Parallel runtime for Cypher</description>
   <url>http://components.neo4j.org/${project.artifactId}/${project.version}</url>
 

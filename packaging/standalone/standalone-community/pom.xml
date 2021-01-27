@@ -11,7 +11,7 @@
   <artifactId>ongdb-community-standalone</artifactId>
   <packaging>pom</packaging>
 
-  <name>Neo4j Community - Server Assembler</name>
+  <name>ONgDB Community - Server Assembler</name>
 
   <version>3.4.18-SNAPSHOT</version>
 

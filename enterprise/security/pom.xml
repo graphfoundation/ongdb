@@ -10,7 +10,7 @@
   <artifactId>ongdb-security-enterprise</artifactId>
   <version>3.4.18-SNAPSHOT</version>
 
-  <name>Neo4j - Enterprise Graph Database Security Features</name>
+  <name>ONgDB - Enterprise Graph Database Security Features</name>
   <description>Enterprise security features for Neo4j</description>
   <packaging>jar</packaging>
 

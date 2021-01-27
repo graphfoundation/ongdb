@@ -11,7 +11,7 @@
   <artifactId>ongdb-integrationtests</artifactId>
   <version>3.4.18-SNAPSHOT</version>
 
-  <name>Neo4j - Integration Tests</name>
+  <name>ONgDB - Integration Tests</name>
   <packaging>jar</packaging>
   <description>A package for cross-module integration tests.</description>
 

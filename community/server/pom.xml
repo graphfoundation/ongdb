@@ -11,7 +11,7 @@
   <groupId>org.graphfoundation.ongdb.app</groupId>
   <artifactId>ongdb-server</artifactId>
   <version>3.4.18-SNAPSHOT</version>
-  <name>Neo4j - Server</name>
+  <name>ONgDB - Server</name>
   <description>Standalone Neo4j server application.</description>
   <url>http://components.neo4j.org/${project.artifactId}/${project.version}</url>
 

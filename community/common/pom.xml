@@ -18,7 +18,7 @@
   <version>3.4.18-SNAPSHOT</version>
 
   <packaging>jar</packaging>
-  <name>Neo4j - Common</name>
+  <name>ONgDB - Common</name>
   <description>Non-domain infrastructure code that is common to many Neo4j components.</description>
   <url>http://components.neo4j.org/${project.artifactId}/${project.version}</url>
 

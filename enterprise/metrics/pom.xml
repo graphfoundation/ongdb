@@ -13,7 +13,7 @@
   <artifactId>ongdb-metrics</artifactId>
   <version>3.4.18-SNAPSHOT</version>
 
-  <name>Neo4j - Metrics Kernel Extension</name>
+  <name>ONgDB - Metrics Kernel Extension</name>
   <packaging>jar</packaging>
 
   <properties>

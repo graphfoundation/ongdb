@@ -7,8 +7,8 @@
   <artifactId>parent</artifactId>
   <version>3.4.18-SNAPSHOT</version>
   <packaging>pom</packaging>
-  <name>Neo4j</name>
-  <description>Neo4j Graph Database</description>
+  <name>ONgDB</name>
+  <description>ONgDB Graph Database</description>
   <inceptionYear>2002</inceptionYear>
   <url>http://neo4j.com/</url>
 
@@ -42,7 +42,7 @@
 
   <mailingLists>
     <mailingList>
-      <name>Neo4j Community Discussions</name>
+      <name>ONgDB Community Discussions</name>
       <subscribe>https://groups.google.com/forum/#!forum/neo4j</subscribe>
     </mailingList>
   </mailingLists>

@@ -11,7 +11,7 @@
   <artifactId>ongdb-stresstests</artifactId>
   <version>3.4.18-SNAPSHOT</version>
 
-  <name>Neo4j - Stress Tests</name>
+  <name>ONgDB - Stress Tests</name>
   <packaging>jar</packaging>
   <description>A package for stress tests.</description>
 

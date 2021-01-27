@@ -11,7 +11,7 @@
   <artifactId>ongdb-cypher-interpreted-runtime</artifactId>
   <packaging>jar</packaging>
   <version>3.4.18-SNAPSHOT</version>
-  <name>Neo4j - Cypher Interpreted Runtime</name>
+  <name>ONgDB - Cypher Interpreted Runtime</name>
 
   <description>The traditional cypher interpreted runtime</description>
   <url>http://components.neo4j.org/${project.artifactId}/${project.version}</url>

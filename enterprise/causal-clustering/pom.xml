@@ -9,7 +9,7 @@
     </parent>
     <modelVersion>4.0.0</modelVersion>
     <artifactId>ongdb-causal-clustering</artifactId>
-    <name>Neo4j - Causal Clustering</name>
+    <name>ONgDB - Causal Clustering</name>
     <version>3.4.18-SNAPSHOT</version>
 
     <description>This component provides the means to set up a cluster of Neo4j instances that act together

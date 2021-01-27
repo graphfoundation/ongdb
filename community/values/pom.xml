@@ -19,8 +19,8 @@
   <version>3.4.18-SNAPSHOT</version>
 
   <packaging>jar</packaging>
-  <name>Neo4j - Value</name>
-  <description>Neo4j property value system.</description>
+  <name>ONgDB - Value</name>
+  <description>ONgDB property value system.</description>
   <url>http://components.neo4j.org/${project.artifactId}/${project.version}</url>
 
   <scm>

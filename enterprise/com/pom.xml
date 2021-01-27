@@ -9,7 +9,7 @@
   <artifactId>ongdb-com</artifactId>
   <version>3.4.18-SNAPSHOT</version>
 
-  <name>Neo4j - Communication Package</name>
+  <name>ONgDB - Communication Package</name>
   <packaging>jar</packaging>
 
   <properties>

@@ -18,7 +18,7 @@
   <version>3.4.18-SNAPSHOT</version>
 
   <packaging>jar</packaging>
-  <name>Neo4j - Configuration</name>
+  <name>ONgDB - Configuration</name>
   <description>Code responsible for parsing the Neo4j configuration.</description>
   <url>http://components.neo4j.org/${project.artifactId}/${project.version}</url>
 

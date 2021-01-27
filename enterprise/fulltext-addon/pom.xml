@@ -13,7 +13,7 @@
   <artifactId>ongdb-fulltext-addon</artifactId>
   <version>3.4.18-SNAPSHOT</version>
 
-  <name>Neo4j - Fulltext add-on</name>
+  <name>ONgDB - Fulltext add-on</name>
   <description>Fulltext index addon for neo4j</description>
   <packaging>jar</packaging>
 

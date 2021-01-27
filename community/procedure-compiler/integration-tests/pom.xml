@@ -10,7 +10,7 @@
     <artifactId>procedure-compiler-integration-tests</artifactId>
     <packaging>jar</packaging>
 
-    <name>Neo4j - Procedure Compiler Integration Tests</name>
+    <name>ONgDB - Procedure Compiler Integration Tests</name>
 
     <properties>
         <license-text.header>headers/GPL-3-header.txt</license-text.header>

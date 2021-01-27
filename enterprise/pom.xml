@@ -12,7 +12,7 @@
   <artifactId>enterprise-build</artifactId>
   <version>3.4.18-SNAPSHOT</version>
 
-  <name>Neo4j - Enterprise Build</name>
+  <name>ONgDB - Enterprise Build</name>
   <packaging>pom</packaging>
   <description>Project that builds the Neo4j Enterprise distribution.</description>
   <url>http://components.neo4j.org/${project.artifactId}/${project.version}</url>

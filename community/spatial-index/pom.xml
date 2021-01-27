@@ -18,7 +18,7 @@
   <version>3.4.18-SNAPSHOT</version>
 
   <packaging>jar</packaging>
-  <name>Neo4j - Native Spatial Index</name>
+  <name>ONgDB - Native Spatial Index</name>
   <description>Native spatial index for Neo4j.</description>
   <url>http://components.neo4j.org/${project.artifactId}/${project.version}</url>
 

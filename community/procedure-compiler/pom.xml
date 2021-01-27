@@ -16,8 +16,8 @@
     <version>3.4.18-SNAPSHOT</version>
     <packaging>pom</packaging>
 
-    <name>Neo4j - Procedure Compiler Parent POM</name>
-    <description>Neo4j Stored Procedure compile-time annotation processor</description>
+    <name>ONgDB - Procedure Compiler Parent POM</name>
+    <description>ONgDB Stored Procedure compile-time annotation processor</description>
     <url>http://components.neo4j.org/${project.artifactId}/${project.version}</url>
 
     <scm>

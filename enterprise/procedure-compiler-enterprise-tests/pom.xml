@@ -11,8 +11,8 @@
     <artifactId>ongdb-procedure-compiler-enterprise-tests</artifactId>
     <packaging>jar</packaging>
 
-    <name>Neo4j - Procedure Compiler Enterprise tests</name>
-    <description>Neo4j Stored Procedure compile-time annotation processor</description>
+    <name>ONgDB - Procedure Compiler Enterprise tests</name>
+    <description>ONgDB Stored Procedure compile-time annotation processor</description>
     <url>http://components.neo4j.org/${project.artifactId}/${project.version}</url>
 
     <properties>

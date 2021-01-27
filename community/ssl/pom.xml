@@ -18,7 +18,7 @@
   <version>3.4.18-SNAPSHOT</version>
 
   <packaging>jar</packaging>
-  <name>Neo4j - SSL</name>
+  <name>ONgDB - SSL</name>
   <description>Common SSL functionality</description>
   <url>http://components.neo4j.org/${project.artifactId}/${project.version}</url>
 

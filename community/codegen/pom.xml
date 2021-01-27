@@ -18,7 +18,7 @@
   <version>3.4.18-SNAPSHOT</version>
 
   <packaging>jar</packaging>
-  <name>Neo4j - Code Generator</name>
+  <name>ONgDB - Code Generator</name>
   <description>Simple library for generating code.</description>
   <url>http://components.neo4j.org/${project.artifactId}/${project.version}</url>
 

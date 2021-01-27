@@ -18,7 +18,7 @@
   <version>3.4.18-SNAPSHOT</version>
 
   <packaging>jar</packaging>
-  <name>Neo4j - Primitive Collections</name>
+  <name>ONgDB - Primitive Collections</name>
   <description>Efficient collections for sets and maps that has primitive types as keys.</description>
   <url>http://components.neo4j.org/${project.artifactId}/${project.version}</url>
 

@@ -11,7 +11,7 @@
   <artifactId>ongdb-cypher-runtime-util</artifactId>
   <packaging>jar</packaging>
   <version>3.4.18-SNAPSHOT</version>
-  <name>Neo4j - Cypher Runtime Utilities</name>
+  <name>ONgDB - Cypher Runtime Utilities</name>
 
   <description>Cypher runtime utilities</description>
   <url>http://components.neo4j.org/${project.artifactId}/${project.version}</url>

@@ -18,7 +18,7 @@
   <version>3.4.18-SNAPSHOT</version>
 
   <packaging>jar</packaging>
-  <name>Neo4j - Import Command Line Tool</name>
+  <name>ONgDB - Import Command Line Tool</name>
   <description>Command line tool for importing data into Neo4j.</description>
   <url>http://components.neo4j.org/${project.artifactId}/${project.version}</url>
 

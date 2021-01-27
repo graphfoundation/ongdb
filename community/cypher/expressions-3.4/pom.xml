@@ -11,7 +11,7 @@
   <artifactId>ongdb-cypher-expression-3.4</artifactId>
   <packaging>jar</packaging>
   <version>3.4.18-SNAPSHOT</version>
-  <name>Neo4j - Cypher Expressions 3.4</name>
+  <name>ONgDB - Cypher Expressions 3.4</name>
 
   <description>Cypher expressions</description>
   <url>http://components.neo4j.org/${project.artifactId}/${project.version}</url>

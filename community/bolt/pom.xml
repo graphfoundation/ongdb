@@ -20,7 +20,7 @@
   <artifactId>ongdb-bolt</artifactId>
 
   <packaging>jar</packaging>
-  <name>Neo4j - Bolt Protocol Version 1</name>
+  <name>ONgDB - Bolt Protocol Version 1</name>
   <description>The core of Neo4j Bolt Protocol, this contains the state machine for Bolt sessions.</description>
 
   <licenses>

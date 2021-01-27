@@ -11,7 +11,7 @@
   <artifactId>ongdb-jmx</artifactId>
   <version>3.4.18-SNAPSHOT</version>
 
-  <name>Neo4j - JMX support</name>
+  <name>ONgDB - JMX support</name>
   <description>Management support using JMX.</description>
   <url>http://components.neo4j.org/${project.artifactId}/${project.version}</url>
 

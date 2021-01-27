@@ -11,7 +11,7 @@
   <artifactId>ongdb-shell</artifactId>
   <version>3.4.18-SNAPSHOT</version>
 
-  <name>Neo4j - Generic shell</name>
+  <name>ONgDB - Generic shell</name>
   <description>A generic command shell with a client and server part.</description>
   <url>http://components.neo4j.org/${project.artifactId}/${project.version}</url>
 

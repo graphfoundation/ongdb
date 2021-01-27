@@ -21,7 +21,7 @@
   <version>3.4.18-SNAPSHOT</version>
 
   <packaging>jar</packaging>
-  <name>Neo4j - Graph Algorithms</name>
+  <name>ONgDB - Graph Algorithms</name>
   <description>Graph algorithms for Neo4j.</description>
   <url>http://components.neo4j.org/${project.artifactId}/${project.version}</url>
 
