@@ -13,8 +13,8 @@
   <artifactId>ongdb-cypher-physical-planning</artifactId>
   <packaging>jar</packaging>
   <version>3.4.18-SNAPSHOT</version>
-  <name>ONgDB Cypher Physical Planning</name>
-  <description>A runtime for Neo4j's query language</description>
+  <name>ONgDB - Cypher Physical Planning</name>
+  <description>A runtime for the Cypher query language</description>
   <url>http://components.neo4j.org/${project.artifactId}/${project.version}</url>
 
   <properties>
