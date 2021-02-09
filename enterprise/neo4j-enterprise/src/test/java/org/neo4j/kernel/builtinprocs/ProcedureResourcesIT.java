@@ -38,6 +38,7 @@ import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.RelationshipType;
 import org.neo4j.graphdb.Result;
 import org.neo4j.graphdb.Transaction;
+import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.internal.kernel.api.procs.ProcedureSignature;
 import org.neo4j.kernel.configuration.Settings;
 import org.neo4j.kernel.impl.enterprise.configuration.OnlineBackupSettings;
@@ -47,6 +48,7 @@ import org.neo4j.test.rule.EnterpriseDatabaseRule;
 
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
+import static org.neo4j.graphdb.factory.GraphDatabaseSettings.SchemaIndex.NATIVE20;
 
 public class ProcedureResourcesIT
 {
@@ -240,6 +242,10 @@ public class ProcedureResourcesIT
         case "db.awaitIndex":
             proc.withParam( "'" + indexDefinition + "'" );
             proc.withParam( 100 );
+            break;
+        case "db.createIndex":
+            proc.withParam( "':Person(name)'" );
+            proc.withParam( "'" + NATIVE20.providerName() + "'" );
             break;
         case "db.createLabel":
             proc.withParam( "'OtherLabel'" );
