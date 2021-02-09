@@ -166,7 +166,7 @@ public class EnterpriseReadReplicaEditionModule extends EditionModule
 
         this.accessCapability = new ReadOnly();
 
-        watcherService = createFileSystemWatcherService( fileSystem, storeDir, logging, platformModule.jobScheduler, fileWatcherFileNameFilter() );
+        watcherService = createFileSystemWatcherService( fileSystem, storeDir, logging, platformModule.jobScheduler, config, fileWatcherFileNameFilter() );
         dependencies.satisfyDependencies( watcherService );
 
         GraphDatabaseFacade graphDatabaseFacade = platformModule.graphDatabaseFacade;
