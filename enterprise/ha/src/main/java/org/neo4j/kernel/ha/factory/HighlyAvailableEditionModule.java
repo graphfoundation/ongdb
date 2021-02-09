@@ -215,7 +215,7 @@ public class HighlyAvailableEditionModule
         idTypeConfigurationProvider = new EnterpriseIdTypeConfigurationProvider( config );
 
         watcherService = createFileSystemWatcherService( platformModule.fileSystem, storeDir, logging,
-                platformModule.jobScheduler, fileWatcherFileNameFilter() );
+                platformModule.jobScheduler, config, fileWatcherFileNameFilter() );
         dependencies.satisfyDependencies( watcherService );
         life.add( watcherService );
 
