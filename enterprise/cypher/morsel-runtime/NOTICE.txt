@@ -33,6 +33,7 @@ Apache Software License, Version 2.0
   Lucene Common Analyzers
   Lucene Core
   Lucene QueryParsers
+  Neo4j - Cypher Frontend 3.3
   Netty/All-in-One
   opencsv
   parboiled-core
@@ -42,10 +43,10 @@ BSD - Scala License
   Scala Library
 
 BSD License
-  ASM Analysis
-  ASM Core
-  ASM Tree
-  ASM Util
+  asm
+  asm-analysis
+  asm-tree
+  asm-util
   Scala Compiler
 
 Bouncy Castle License
