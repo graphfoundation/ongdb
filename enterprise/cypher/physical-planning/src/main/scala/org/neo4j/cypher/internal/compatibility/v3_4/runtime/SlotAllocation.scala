@@ -653,8 +653,8 @@ object SlotAllocation {
         // The slot for the iteration variable of foreach needs to be available as an argument on the rhs of the apply
         // so we allocate it on the lhs (even though its value will not be needed after the foreach is done)
         val typeSpec = semanticTable.getActualTypeFor(listExpression)
-        val listOfNodes = typeSpec.contains(ListType(CTNode))
-        val listOfRels = typeSpec.contains(ListType(CTRelationship))
+        val listOfNodes = typeSpec.exists(_.contains(ListType(CTNode)))
+        val listOfRels = typeSpec.exists(_.contains(ListType(CTRelationship)))
 
         (listOfNodes, listOfRels) match {
           case (true, false) => lhs.newLong(variableName, true, CTNode)
