@@ -207,12 +207,6 @@ public class VersionContextTrackingIT
         }
 
         @Override
-        protected void releaseCursor()
-        {
-            delegate.releaseCursor();
-        }
-
-        @Override
         public boolean next() throws IOException
         {
             return delegate.next();
