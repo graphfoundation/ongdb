@@ -31,6 +31,7 @@ import java.util.Set;
 import org.neo4j.kernel.api.exceptions.InvalidArgumentsException;
 import org.neo4j.internal.kernel.api.security.AuthSubject;
 import org.neo4j.internal.kernel.api.security.SecurityContext;
+import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.impl.security.User;
 import org.neo4j.logging.Log;
 import org.neo4j.server.security.auth.BasicPasswordPolicy;
@@ -71,7 +72,7 @@ public class PersonalUserManagerTest
     {
         evilUserManager = new EvilUserManager(
                 new InternalFlatFileRealm( new InMemoryUserRepository(), new InMemoryRoleRepository(),
-                        new BasicPasswordPolicy(), new RateLimitedAuthenticationStrategy( Clock.systemUTC(), 3 ),
+                        new BasicPasswordPolicy(), new RateLimitedAuthenticationStrategy( Clock.systemUTC(), Config.defaults() ),
                         new InternalFlatFileRealmIT.TestJobScheduler(), new InMemoryUserRepository(),
                         new InMemoryUserRepository() ) );
         log = spy( Log.class );
