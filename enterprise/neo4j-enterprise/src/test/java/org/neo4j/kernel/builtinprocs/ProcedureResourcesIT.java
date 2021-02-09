@@ -108,6 +108,11 @@ public class ProcedureResourcesIT
 
     private void verifyProcedureCloseAllAcquiredKernelStatements( ProcedureData proc ) throws ExecutionException, InterruptedException
     {
+        if ( proc.ignored )
+        {
+            return;
+        }
+
         String failureMessage = "Failed on procedure " + proc.name;
         try ( Transaction outer = db.beginTx() )
         {
@@ -173,6 +178,7 @@ public class ProcedureResourcesIT
         private final List<Object> params = new ArrayList<>();
         private String setupQuery;
         private String postQuery;
+        private boolean ignored;
 
         private ProcedureData( ProcedureSignature procedure )
         {
@@ -237,6 +243,9 @@ public class ProcedureResourcesIT
             break;
         case "db.createLabel":
             proc.withParam( "'OtherLabel'" );
+            break;
+        case "db.createUniquePropertyConstraint":
+            proc.ignored = true;
             break;
         case "dbms.killQuery":
             proc.withParam( "'query-1234'" );
