@@ -2047,8 +2047,7 @@ class EagerizationAcceptanceTest
 
     val query = "MATCH ()-[r]-() WHERE exists(r.prop) SET r.prop = 'foo' RETURN count(*)"
 
-    val result = executeWith(Configs.UpdateConf, query,
-      planComparisonStrategy = testEagerPlanComparisonStrategy(0, Configs.Rule2_3))
+    val result = executeWith(Configs.UpdateConf, query)
 
     result.columnAs[Long]("count(*)").next shouldBe 2
     assertStats(result, propertiesWritten = 2)
