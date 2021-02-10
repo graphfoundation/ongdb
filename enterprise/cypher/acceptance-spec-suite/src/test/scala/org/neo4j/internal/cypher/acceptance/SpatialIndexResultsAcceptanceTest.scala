@@ -505,27 +505,34 @@ class SpatialIndexResultsAcceptanceTest extends IndexingTestSupport {
   test("indexed points 3D WGS84 space - range queries") {
     // Given
     createIndex()
-    val maxPoint = Values.pointValue(CoordinateReferenceSystem.WGS84_3D, 56.6, 13.1, 100)
-    val midPoint = Values.pointValue(CoordinateReferenceSystem.WGS84_3D, 56.5, 13.0, 50)
     val minPoint = Values.pointValue(CoordinateReferenceSystem.WGS84_3D, 56.4, 12.9, 0)
+    val midPoint = Values.pointValue(CoordinateReferenceSystem.WGS84_3D, 56.5, 13.0, 50)
+    val maxPoint = Values.pointValue(CoordinateReferenceSystem.WGS84_3D, 56.6, 13.1, 100)
 
-    val n0 = createIndexedNode(midPoint)
-    val n1 = createIndexedNode(maxPoint)
-    val n2 = createIndexedNode(Values.pointValue(CoordinateReferenceSystem.WGS84_3D, 56.4, 13.1, 100))
-    val n3 = createIndexedNode(Values.pointValue(CoordinateReferenceSystem.WGS84_3D, 56.4, 12.9, 100))
-    val n4 = createIndexedNode(Values.pointValue(CoordinateReferenceSystem.WGS84_3D, 56.6, 12.9, 0))
-    val n5 = createIndexedNode(Values.pointValue(CoordinateReferenceSystem.WGS84_3D, 56.6, 13.1, 0))
-    val n6 = createIndexedNode(Values.pointValue(CoordinateReferenceSystem.WGS84_3D, 56.4, 13.1, 0))
-    val n8 = createIndexedNode(minPoint)
-    val n7 = createIndexedNode(Values.pointValue(CoordinateReferenceSystem.WGS84_3D, 56.6, 12.9, 0))
+    val n0 = createIndexedNode(minPoint)
+    val n1 = createIndexedNode(midPoint)
+    val n2 = createIndexedNode(maxPoint)
+    val n3 = createIndexedNode(Values.pointValue(CoordinateReferenceSystem.WGS84_3D, 56.4, 13.1, 100))
+    val n4 = createIndexedNode(Values.pointValue(CoordinateReferenceSystem.WGS84_3D, 56.4, 12.9, 100))
+    val n5 = createIndexedNode(Values.pointValue(CoordinateReferenceSystem.WGS84_3D, 56.6, 12.9, 0))
+    val n6 = createIndexedNode(Values.pointValue(CoordinateReferenceSystem.WGS84_3D, 56.6, 13.1, 0))
+    val n7 = createIndexedNode(Values.pointValue(CoordinateReferenceSystem.WGS84_3D, 56.4, 13.1, 0))
+    val n8 = createIndexedNode(Values.pointValue(CoordinateReferenceSystem.WGS84_3D, 56.6, 12.9, 0))
+
     // 2D points should never be returned
     createIndexedNode(Values.pointValue(CoordinateReferenceSystem.WGS84, 56.6, 13.1))
     createIndexedNode(Values.pointValue(CoordinateReferenceSystem.WGS84, 56.4, 12.9))
 
-    assertRangeScanFor(">", midPoint, n1)
-    assertRangeScanFor(">=", midPoint, n0, n1)
-    assertRangeScanFor("<", midPoint, n8)
-    assertRangeScanFor("<=", midPoint, n0, n8)
-    assertRangeScanFor(">", minPoint, "<", maxPoint, n0, n2, n3, n4, n5, n6, n7)
+    assertRangeScanFor("<", midPoint, n0)
+    assertRangeScanFor(">", minPoint, "<", maxPoint, n1)
+    assertRangeScanFor(">", midPoint, n2)
+
+    assertRangeScanFor("<=", midPoint, n0, n1)
+    assertRangeScanFor(">=", midPoint, n1, n2)
+
+    assertRangeScanFor(">=", minPoint, "<", maxPoint, n0, n1)
+    assertRangeScanFor(">", minPoint, "<=", maxPoint, n1, n2)
+
+    assertRangeScanFor(">=", minPoint, "<=", maxPoint, n0, n1, n2, n3, n4, n5, n6, n7, n8)
   }
 }
