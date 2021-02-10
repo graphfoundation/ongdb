@@ -42,11 +42,14 @@ class SpatialIndexResultsAcceptanceTest extends IndexingTestSupport {
     assertRangeScanFor("<", point)
     assertLabelRangeScanFor("<", point)
 
+    assertRangeScanFor("<", Values.pointValue(CoordinateReferenceSystem.Cartesian, 1, 1), node)
+    assertLabelRangeScanFor("<", Values.pointValue(CoordinateReferenceSystem.Cartesian, 1, 1), node)
+
     assertRangeScanFor("<=", point, node)
     assertLabelRangeScanFor("<=", point, node)
 
-    assertRangeScanFor("<", Values.pointValue(CoordinateReferenceSystem.Cartesian, 1, 0), node)
-    assertLabelRangeScanFor("<", Values.pointValue(CoordinateReferenceSystem.Cartesian, 1, 0), node)
+    assertRangeScanFor("<=", Values.pointValue(CoordinateReferenceSystem.Cartesian, 1, 0), node)
+    assertLabelRangeScanFor("<=", Values.pointValue(CoordinateReferenceSystem.Cartesian, 1, 0), node)
   }
 
   test("indexed point should be readable from node property") {
