@@ -411,14 +411,29 @@ class SpatialFunctionsAcceptanceTest extends ExecutionEngineFunSuite with Cypher
             val same = x == 0 && y == 0 && z == 0
             val smaller = x <= 0 && y <= 0 && z <= 0
             val larger = x >= 0 && y >= 0 && z >= 0
+            val axis = x == 0 || y == 0 || z == 0
+            val a = s"point({x: $x, y: $y, z: $z, crs: '$crsName'})"
+            val b = s"point({x: 0, y: 0, z: 0, crs: '$crsName'})"
             if (same) {
-              shouldCompareLike(s"point({x: $x, y: $y, z: $z, crs: '$crsName'})", s"point({x: 0, y: 0, z: 0, crs: '$crsName'})", aBiggerB = false, aSmallerB = false)
-            } else if (smaller) {
-              shouldCompareLike(s"point({x: $x, y: $y, z: $z, crs: '$crsName'})", s"point({x: 0, y: 0, z: 0, crs: '$crsName'})", aBiggerB = false, aSmallerB = true)
-            } else if (larger) {
-              shouldCompareLike(s"point({x: $x, y: $y, z: $z, crs: '$crsName'})", s"point({x: 0, y: 0, z: 0, crs: '$crsName'})", aBiggerB = true, aSmallerB = false)
+              shouldCompareLike(a, b, aBiggerB = false, aSmallerB = false)
             } else {
-              shouldCompareLike(s"point({x: $x, y: $y, z: $z, crs: '$crsName'})", s"point({x: 0, y: 0, z: 0, crs: '$crsName'})", aBiggerB = null, aSmallerB = null)
+              if (axis) {
+                if (smaller) {
+                  shouldCompareLike(a, b, aBiggerB = false, aSmallerB = false)
+                } else if (larger) {
+                  shouldCompareLike(a, b, aBiggerB = false, aSmallerB = false)
+                } else {
+                  shouldCompareLike(a, b, aBiggerB = null, aSmallerB = null)
+                }
+              } else {
+                if (smaller) {
+                  shouldCompareLike(a, b, aBiggerB = false, aSmallerB = true)
+                } else if (larger) {
+                  shouldCompareLike(a, b, aBiggerB = true, aSmallerB = false)
+                } else {
+                  shouldCompareLike(a, b, aBiggerB = null, aSmallerB = null)
+                }
+              }
             }
           }
         }
