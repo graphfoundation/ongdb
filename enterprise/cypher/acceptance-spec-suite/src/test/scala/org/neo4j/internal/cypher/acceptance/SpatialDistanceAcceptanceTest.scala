@@ -107,7 +107,7 @@ class SpatialDistanceAcceptanceTest extends ExecutionEngineFunSuite with CypherC
   }
 
   test("distance function should work on 3D cartesian points") {
-    val result = executeWith(pointConfig,
+    val result = executeWith(distanceConfig,
       """
         |WITH point({x: 1.2, y: 3.4, z: 5.6}) as p1, point({x: 1.2, y: 3.4, z: 6.6}) as p2
         |RETURN distance(p1,p2) as dist
