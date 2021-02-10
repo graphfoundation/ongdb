@@ -269,7 +269,6 @@ class BuiltInProcedureAcceptanceTest extends ProcedureCallAcceptanceTest with Cy
     //When
     val result = executeWith(Configs.Procs, "CALL db.indexes")
 
-
     // Then
     result.toList should equal(
       List(Map("description" -> "INDEX ON :A(prop)",
@@ -279,7 +278,8 @@ class BuiltInProcedureAcceptanceTest extends ProcedureCallAcceptanceTest with Cy
         "type" -> "node_label_property",
         "provider" -> Map(
           "version" -> NativeLuceneFusionIndexProviderFactory20.DESCRIPTOR.getVersion,
-          "key" -> NativeLuceneFusionIndexProviderFactory20.DESCRIPTOR.getKey))))
+          "key" -> NativeLuceneFusionIndexProviderFactory20.DESCRIPTOR.getKey),
+        "failureMessage" -> "")))
   }
 
   test("yield from void procedure should return correct error msg") {
