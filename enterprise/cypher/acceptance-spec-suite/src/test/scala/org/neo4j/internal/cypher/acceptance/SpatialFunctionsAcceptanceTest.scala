@@ -62,7 +62,7 @@ class SpatialFunctionsAcceptanceTest extends ExecutionEngineFunSuite with Cypher
   }
 
   test("point function should work with literal map and srid") {
-    val result = executeWith(pointConfig, "RETURN point({x: 2.3, y: 4.5, srid: 4326}) as point",
+    val result = executeWith(equalityConfig, "RETURN point({x: 2.3, y: 4.5, srid: 4326}) as point",
       expectedDifferentResults = Configs.Version3_1 + Configs.AllRulePlanners,
       planComparisonStrategy = ComparePlansWithAssertion(_ should useOperatorWithText("Projection", "point"),
         expectPlansToFail = Configs.AllRulePlanners))
