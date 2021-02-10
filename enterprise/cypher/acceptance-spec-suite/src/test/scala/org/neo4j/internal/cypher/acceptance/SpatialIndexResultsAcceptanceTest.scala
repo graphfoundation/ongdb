@@ -475,15 +475,17 @@ class SpatialIndexResultsAcceptanceTest extends IndexingTestSupport {
     val minPoint = Values.pointValue(CoordinateReferenceSystem.Cartesian_3D, -100000, -100000, -100000)
 
     val origin = createIndexedNode(originPoint)
-    val upRightTop = createIndexedNode(maxPoint)
-    val downLeftBottom = createIndexedNode(minPoint)
 
-    val downrightTop = createIndexedNode(Values.pointValue(CoordinateReferenceSystem.Cartesian_3D, -100000, 100000, 100000))
+    val upRightTop = createIndexedNode(maxPoint)
+    val downRightTop = createIndexedNode(Values.pointValue(CoordinateReferenceSystem.Cartesian_3D, -100000, 100000, 100000))
     val downLeftTop = createIndexedNode(Values.pointValue(CoordinateReferenceSystem.Cartesian_3D, -100000, -100000, 100000))
     val upLeftTop = createIndexedNode(Values.pointValue(CoordinateReferenceSystem.Cartesian_3D, 100000, -100000, 100000))
+
+    val downLeftBottom = createIndexedNode(minPoint)
+    val upLeftBottom = createIndexedNode(Values.pointValue(CoordinateReferenceSystem.Cartesian_3D, 100000, -100000, -100000))
     val upRightBottom = createIndexedNode(Values.pointValue(CoordinateReferenceSystem.Cartesian_3D, 100000, 100000, -100000))
     val downRightBottom = createIndexedNode(Values.pointValue(CoordinateReferenceSystem.Cartesian_3D, -100000, 100000, -100000))
-    val upLeftBottom = createIndexedNode(Values.pointValue(CoordinateReferenceSystem.Cartesian_3D, 100000, -100000, -100000))
+
     // 2D points should never be returned
     createIndexedNode(Values.pointValue(CoordinateReferenceSystem.Cartesian, -100000, -100000))
     createIndexedNode(Values.pointValue(CoordinateReferenceSystem.Cartesian, 100000, 100000))
@@ -492,7 +494,12 @@ class SpatialIndexResultsAcceptanceTest extends IndexingTestSupport {
     assertRangeScanFor(">=", originPoint, origin, upRightTop)
     assertRangeScanFor("<", originPoint, downLeftBottom)
     assertRangeScanFor("<=", originPoint, origin, downLeftBottom)
-    assertRangeScanFor(">", minPoint, "<", maxPoint, origin, downLeftTop, downRightBottom, downrightTop, upLeftBottom, upLeftTop, upRightBottom)
+    assertRangeScanFor(">", minPoint, "<", maxPoint, origin)
+    assertRangeScanFor(">", minPoint, "<=", maxPoint, origin, upRightTop)
+    assertRangeScanFor(">=", minPoint, "<", maxPoint, origin, downLeftBottom)
+    assertRangeScanFor(">=", minPoint, "<=", maxPoint, origin,
+      upRightTop, downRightTop, downLeftTop, upLeftTop,
+      downLeftBottom, upLeftBottom, upRightBottom, downRightBottom)
   }
 
   test("indexed points 3D WGS84 space - range queries") {
