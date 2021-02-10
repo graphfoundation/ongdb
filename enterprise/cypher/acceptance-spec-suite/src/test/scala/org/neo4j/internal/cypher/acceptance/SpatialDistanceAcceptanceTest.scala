@@ -128,7 +128,7 @@ class SpatialDistanceAcceptanceTest extends ExecutionEngineFunSuite with CypherC
   }
 
   test("distance function should return null if provided with points with different dimensions") {
-    val result = executeWith(pointConfig,
+    val result = executeWith(distanceConfig,
       """WITH point({x: 2.3, y: 4.5}) as p1, point({x: 1.2, y: 3.4, z: 5.6}) as p2
         |RETURN distance(p1,p2) as dist""".stripMargin,
       expectedDifferentResults = Configs.Version3_1 + Configs.AllRulePlanners // TODO should rather throw error
