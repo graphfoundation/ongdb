@@ -25,8 +25,8 @@ import org.neo4j.values.storable.{CoordinateReferenceSystem, Values}
 
 class SpatialDistanceAcceptanceTest extends ExecutionEngineFunSuite with CypherComparisonSupport {
 
-  val pointConfig = Configs.Interpreted - Configs.Version2_3
-  val distanceConfig = Configs.Interpreted - Configs.OldAndRule
+  private val pointConfig = Configs.Interpreted - Configs.Version2_3
+  private val distanceConfig = Configs.Interpreted - Configs.OldAndRule
 
   test("distance function should work on co-located points") {
     val result = executeWith(pointConfig, "WITH point({latitude: 12.78, longitude: 56.7}) as point RETURN distance(point,point) as dist",
@@ -37,7 +37,7 @@ class SpatialDistanceAcceptanceTest extends ExecutionEngineFunSuite with CypherC
   }
 
   test("distance function should work on co-located points in 3D") {
-    val result = executeWith(pointConfig, "WITH point({latitude: 12.78, longitude: 56.7, height: 198.2}) as point RETURN distance(point,point) as dist",
+    val result = executeWith(distanceConfig, "WITH point({latitude: 12.78, longitude: 56.7, height: 198.2}) as point RETURN distance(point,point) as dist",
       planComparisonStrategy = ComparePlansWithAssertion(_ should useOperatorWithText("Projection", "point", "dist"),
         expectPlansToFail = Configs.AllRulePlanners))
 
