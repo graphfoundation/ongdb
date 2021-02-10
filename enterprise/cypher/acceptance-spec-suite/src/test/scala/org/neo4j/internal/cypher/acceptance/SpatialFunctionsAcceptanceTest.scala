@@ -365,13 +365,13 @@ class SpatialFunctionsAcceptanceTest extends ExecutionEngineFunSuite with Cypher
     shouldCompareLike("point({x: 1, y: -1})", "point({x: 0, y: 0})", aBiggerB = null, aSmallerB = null)
 
     // case straight top
-    shouldCompareLike("point({x: 0, y: 1})", "point({x: 0, y: 0})", aBiggerB = true, aSmallerB = false)
+    shouldCompareLike("point({x: 0, y: 1})", "point({x: 0, y: 0})", aBiggerB = false, aSmallerB = false)
     // case straight right
-    shouldCompareLike("point({x: 1, y: 0})", "point({x: 0, y: 0})", aBiggerB = true, aSmallerB = false)
+    shouldCompareLike("point({x: 1, y: 0})", "point({x: 0, y: 0})", aBiggerB = false, aSmallerB = false)
     // case straight bottom
-    shouldCompareLike("point({x: 0, y: -1})", "point({x: 0, y: 0})", aBiggerB = false, aSmallerB = true)
+    shouldCompareLike("point({x: 0, y: -1})", "point({x: 0, y: 0})", aBiggerB = false, aSmallerB = false)
     // case straight left
-    shouldCompareLike("point({x: -1, y: 0})", "point({x: 0, y: 0})", aBiggerB = false, aSmallerB = true)
+    shouldCompareLike("point({x: -1, y: 0})", "point({x: 0, y: 0})", aBiggerB = false, aSmallerB = false)
   }
 
   test("inequality on geographic points") {
