@@ -27,13 +27,6 @@ import org.neo4j.graphdb.QueryExecutionException
 
 class SemanticErrorAcceptanceTest extends ExecutionEngineFunSuite {
 
-  test("projecting graphs should generate error") {
-    executeAndEnsureError(
-      "WITH GRAPH AT 'url' AS foo MATCH (a) RETURN a.name",
-      "Projecting and returning graphs is not available in this implementation of Cypher due to lack of support for multiple graphs. (line 1, column 6 (offset: 5))"
-    )
-  }
-
   test("return node that's not there") {
     executeAndEnsureError(
       "match (n) where id(n) = 0 return bar",
