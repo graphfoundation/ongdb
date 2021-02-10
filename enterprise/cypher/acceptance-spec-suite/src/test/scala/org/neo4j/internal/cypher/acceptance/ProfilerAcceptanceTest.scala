@@ -316,8 +316,11 @@ class ProfilerAcceptanceTest extends ExecutionEngineFunSuite with CreateTempFile
 
       test("LIMIT should influence cardinality estimation by default value when expression contains timestamp()") {
         (0 until 100).map(i => createLabeledNode("Person"))
-        val result = executeWith(Configs.Interpreted, s"PROFILE MATCH (p:Person) with 10 as x, p RETURN p LIMIT timestamp()")
-        assertEstimatedRows(GraphStatistics.DEFAULT_LIMIT_CARDINALITY.amount.toInt)(result)("Limit")
+        val runtimes = Set("", "CYPHER runtime=slotted", "CYPHER runtime=interpreted")
+        runtimes.foreach( runtime => {
+          val result = innerExecuteDeprecated(s"PROFILE $runtime MATCH (p:Person) with 10 as x, p RETURN p LIMIT timestamp()", Map.empty)
+          assertEstimatedRows(GraphStatistics.DEFAULT_LIMIT_CARDINALITY.amount.toInt)(result)("Limit")
+        })
       }
 
       test ("should support profiling union queries") {
