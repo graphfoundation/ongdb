@@ -69,7 +69,7 @@ class SpatialDistanceAcceptanceTest extends ExecutionEngineFunSuite with CypherC
   }
 
   test("distance function should work on nearby points in 3D") {
-    val result = executeWith(pointConfig,
+    val result = executeWith(distanceConfig,
       """
         |WITH point({longitude: 12.78, latitude: 56.7, height: 100}) as p1, point({latitude: 56.71, longitude: 12.79, height: 100}) as p2
         |RETURN distance(p1,p2) as dist
