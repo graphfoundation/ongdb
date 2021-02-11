@@ -1,1 +1,2 @@
+Feature "PatternExpressionAcceptance": Scenario "Nested pattern comprehensions 2"
 Feature "ProcedureCallAcceptance": Scenario "Standalone call to procedure should fail if implicit argument is missing"
