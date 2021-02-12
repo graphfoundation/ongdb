@@ -139,7 +139,7 @@
     <!-- Defined to allow maven to calculate build order, it's used in the plugin above -->
     <dependency>
       <groupId>org.graphfoundation.ongdb.build</groupId>
-      <artifactId>licensecheck-config</artifactId>
+      <artifactId>build-resources</artifactId>
       <version>${project.version}</version>
       <scope>provided</scope>
     </dependency>
