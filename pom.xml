@@ -111,7 +111,7 @@
     <module>integrationtests</module>
     <module>stresstests</module>
     <module>tools</module>
-    <!--module>packaging</module-->
+    <module>packaging</module>
   </modules>
 
   <build>
