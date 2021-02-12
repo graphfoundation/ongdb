@@ -110,7 +110,7 @@
     <module>enterprise</module>
     <module>integrationtests</module>
     <module>stresstests</module>
-    <!--module>tools</module-->
+    <module>tools</module>
     <!--module>packaging</module-->
   </modules>
 
