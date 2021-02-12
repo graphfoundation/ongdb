@@ -104,7 +104,7 @@ terms of the relevant Commercial Agreement.
         <groupId>org.neo4j.build.plugins</groupId>
         <artifactId>licensing-maven-plugin</artifactId>
         <configuration>
-          <prependText>notice-gpl-prefix.txt</prependText>
+          <prependText>licensing/notice-gpl-prefix.txt</prependText>
         </configuration>
         <executions>
           <execution>
