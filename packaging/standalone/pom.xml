@@ -97,7 +97,7 @@
             <id>list-all-licenses</id>
             <configuration>
               <licensingRequirementFiles combine.children="append">
-                <licensingRequirementFile>licensing-requirements-browser.xml</licensingRequirementFile>
+                <licensingRequirementFile>licensing/licensing-requirements-browser.xml</licensingRequirementFile>
               </licensingRequirementFiles>
             </configuration>
           </execution>
