@@ -33,17 +33,7 @@ class TCKTests extends BaseFeatureTest {
   override val featureToRun = ""
   override val scenarioToRun = ""
 
-  override val scenarios: Seq[Scenario] = {
-    val allScenarios: Seq[Scenario] = CypherTCK.allTckScenarios.filterNot(testsWithEncodingProblems)
-    filterScenarios(allScenarios)
-  }
-
-  // those tests run into some utf-8 encoding problems on some of our machines at the moment - fix for that is on the way on TCK side
-  // TODO: Remove this filter when new version of TCK (1.0.0-M10) is released
-  def testsWithEncodingProblems(scenario: Scenario): Boolean = {
-    (scenario.name.equals("Fail for invalid Unicode hyphen in subtraction") && scenario.featureName.equals("SemanticErrorAcceptance"))  ||
-      (scenario.name.equals("Accept valid Unicode literal") && scenario.featureName.equals("ReturnAcceptance2"))
-  }
+  override val scenarios: Seq[Scenario] = filterScenarios(CypherTCK.allTckScenarios)
 
   @AfterEach
   def tearDown(): Unit = {
