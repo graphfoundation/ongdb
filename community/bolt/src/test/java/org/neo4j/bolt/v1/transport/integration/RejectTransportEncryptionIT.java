@@ -74,10 +74,8 @@ public class RejectTransportEncryptionIT
                         new IOException( "Failed to connect to the server within 10 seconds" )
                 },
                 new Object[]{
-                        (Factory<TransportConnection>) SecureSocketConnection::new, new IOException(
-                        isJavaVersionAtLeast( JAVA_9 ) ? "Remote host terminated the handshake"
-                                                       : "Remote host closed connection during handshake" )
-
+                        (Factory<TransportConnection>) SecureSocketConnection::new,
+                        new IOException( "Remote host terminated the handshake" )
                 } );
     }
 
