@@ -157,3 +157,4 @@ Feature "PatternComprehension": Scenario "Get node degree via size of pattern co
 Feature "PatternComprehension": Scenario "Get node degree via size of pattern comprehension that specifies multiple relationship types"
 Feature "PatternComprehension": Scenario "Introducing new node variable in pattern comprehension"
 Feature "PatternComprehension": Scenario "Introducing new relationship variable in pattern comprehension"
+Feature "TemporalSelectAcceptance": Scenario "Should select time into local date time"
