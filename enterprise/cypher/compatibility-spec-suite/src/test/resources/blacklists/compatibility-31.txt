@@ -15,3 +15,4 @@ Feature "ProcedureCallAcceptance": Scenario "Standalone call to procedure with a
 Feature "ProcedureCallAcceptance": Scenario "In-query call to procedure with argument of type INTEGER accepts value of type FLOAT"
 Feature "ProcedureCallAcceptance": Scenario "Standalone call to unknown procedure should fail"
 Feature "ProcedureCallAcceptance": Scenario "In-query call to unknown procedure should fail"
+Feature "TemporalArithmeticAcceptance": Scenario "Should add or subtract durations"
