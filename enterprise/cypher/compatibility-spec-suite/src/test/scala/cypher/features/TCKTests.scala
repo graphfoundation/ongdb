@@ -19,11 +19,8 @@
  */
 package cypher.features
 
-import java.nio.file.FileSystems
-
 import org.junit.platform.runner.JUnitPlatform
 import org.junit.runner.RunWith
-import org.junit.jupiter.api.AfterEach
 import org.opencypher.tools.tck.api.{CypherTCK, Scenario}
 
 @RunWith(classOf[JUnitPlatform])
@@ -35,9 +32,4 @@ class TCKTests extends BaseFeatureTest {
 
   override val scenarios: Seq[Scenario] = filterScenarios(CypherTCK.allTckScenarios)
 
-  @AfterEach
-  def tearDown(): Unit = {
-    //TODO: This method can be removed with new release of TCK (1.0.0-M10)
-    FileSystems.getFileSystem(CypherTCK.getClass.getResource(CypherTCK.featuresPath).toURI).close()
-  }
 }
