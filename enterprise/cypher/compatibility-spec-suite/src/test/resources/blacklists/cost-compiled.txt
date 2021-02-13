@@ -572,4 +572,5 @@ Feature "VarLengthAcceptance": Scenario "Handling mixed relationship patterns an
 Feature "VarLengthAcceptance": Scenario "Handling mixed relationship patterns and directions 2"
 Feature "VarLengthAcceptance": Scenario "Handling mixed relationship patterns 1"
 Feature "VarLengthAcceptance": Scenario "Handling mixed relationship patterns 2"
+Feature "DurationBetweenAcceptance": Scenario "Should compute duration between two temporals in seconds"
 Feature "NullOperator": Scenario "Property null check on optional non-null node"
