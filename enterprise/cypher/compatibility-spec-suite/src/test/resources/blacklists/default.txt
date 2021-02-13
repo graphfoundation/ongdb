@@ -16,3 +16,6 @@ Feature "DeleteAcceptance": Scenario "Deleting connected nodes"
 Feature "ProcedureCallAcceptance": Scenario "Standalone call to unknown procedure should fail"
 Feature "ProcedureCallAcceptance": Scenario "In-query call to unknown procedure should fail"
 Feature "ProcedureCallAcceptance": Scenario "Standalone call to procedure should fail if implicit argument is missing"
+
+// Not currently supported
+Feature "NullOperator": Scenario "Property not null check on null node"
