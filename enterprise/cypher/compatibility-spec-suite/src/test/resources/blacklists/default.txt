@@ -14,7 +14,6 @@ Feature "MiscellaneousErrorAcceptance": Scenario "Failing when setting a list of
 // Different error type in Neo4j
 Feature "DeleteAcceptance": Scenario "Deleting connected nodes"
 Feature "ProcedureCallAcceptance": Scenario "Standalone call to unknown procedure should fail"
-Feature "ProcedureCallAcceptance": Scenario "In-query call to unknown procedure should fail"
 Feature "ProcedureCallAcceptance": Scenario "Standalone call to procedure should fail if implicit argument is missing"
 
 // Not currently supported
