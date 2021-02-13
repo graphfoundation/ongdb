@@ -7,5 +7,4 @@ Feature "ProcedureCallAcceptance": Scenario "In-query call to procedure with exp
 Feature "ProcedureCallAcceptance": Scenario "Standalone call to procedure with argument of type INTEGER accepts value of type FLOAT"
 Feature "ProcedureCallAcceptance": Scenario "In-query call to procedure with argument of type INTEGER accepts value of type FLOAT"
 Feature "ProcedureCallAcceptance": Scenario "Standalone call to procedure should fail if implicit argument is missing"
-Feature "ProcedureCallAcceptance": Scenario "Standalone call to unknown procedure should fail"
 Feature "ProcedureCallAcceptance": Scenario "In-query call to unknown procedure should fail"
