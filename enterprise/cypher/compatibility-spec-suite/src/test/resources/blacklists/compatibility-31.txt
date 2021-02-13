@@ -16,3 +16,4 @@ Feature "ProcedureCallAcceptance": Scenario "In-query call to procedure with arg
 Feature "ProcedureCallAcceptance": Scenario "Standalone call to unknown procedure should fail"
 Feature "ProcedureCallAcceptance": Scenario "In-query call to unknown procedure should fail"
 Feature "TemporalArithmeticAcceptance": Scenario "Should add or subtract durations"
+Feature "TemporalToStringAcceptance": Scenario "Should serialize local date time"
