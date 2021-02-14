@@ -71,7 +71,6 @@ Feature "TypeConversionFunctions": Scenario "`toString()` failing on invalid arg
 Feature "StartsWithAcceptance": Scenario "Handling non-string operands for STARTS WITH"
 Feature "StartsWithAcceptance": Scenario "Handling non-string operands for CONTAINS"
 Feature "StartsWithAcceptance": Scenario "Handling non-string operands for ENDS WITH"
-Feature "DeleteAcceptance": Scenario "Deleting connected nodes"
 Feature "DeleteAcceptance": Scenario "Delete node from a list"
 Feature "DeleteAcceptance": Scenario "Delete relationship from a list"
 Feature "SkipLimitAcceptanceTest": Scenario "SKIP with an expression that does not depend on variables"
