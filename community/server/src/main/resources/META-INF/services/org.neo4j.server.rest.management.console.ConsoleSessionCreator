@@ -1,0 +1,2 @@
+org.neo4j.server.rest.management.console.ShellSessionCreator
+org.neo4j.server.rest.management.console.CypherSessionCreator

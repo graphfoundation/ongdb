@@ -1,0 +1,2 @@
+org.neo4j.harness.MyExtensionThatAddsInjectable
+org.neo4j.harness.MyExtensionThatAddsAlternativeCoreAPI

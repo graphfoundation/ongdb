@@ -1,0 +1,20 @@
+// Unsupported YIELD -
+Feature "ProcedureCallAcceptance": Scenario "In-query call to procedure that takes no arguments and yields no results"
+Feature "ProcedureCallAcceptance": Scenario "In-query call to procedure with explicit arguments that drops all result fields"
+
+// Type hierarchy bugs/coercion rules
+Feature "ProcedureCallAcceptance": Scenario "Standalone call to procedure with argument of type INTEGER accepts value of type FLOAT"
+Feature "ProcedureCallAcceptance": Scenario "In-query call to procedure with argument of type INTEGER accepts value of type FLOAT"
+
+// Neo4j fails at runtime, should fail at compile time
+Feature "MiscellaneousErrorAcceptance": Scenario "Failing on merging relationship with null property"
+Feature "MiscellaneousErrorAcceptance": Scenario "Failing on merging node with null property"
+Feature "MiscellaneousErrorAcceptance": Scenario "Failing when setting a list of maps as a property"
+
+// Different error type in Neo4j
+Feature "DeleteAcceptance": Scenario "Deleting connected nodes"
+Feature "ProcedureCallAcceptance": Scenario "Standalone call to unknown procedure should fail"
+Feature "ProcedureCallAcceptance": Scenario "In-query call to unknown procedure should fail"
+
+// To classify
+Feature "ProcedureCallAcceptance": Scenario "Standalone call to procedure should fail if implicit argument is missing"
