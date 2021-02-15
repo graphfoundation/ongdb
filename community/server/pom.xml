@@ -3,14 +3,14 @@
   <parent>
     <groupId>org.graphfoundation.ongdb</groupId>
     <artifactId>parent</artifactId>
-    <version>3.4.18-SNAPSHOT</version>
+    <version>1.0.0-SNAPSHOT</version>
     <relativePath>../..</relativePath>
   </parent>
 
   <modelVersion>4.0.0</modelVersion>
   <groupId>org.graphfoundation.ongdb.app</groupId>
   <artifactId>ongdb-server</artifactId>
-  <version>3.4.18-SNAPSHOT</version>
+  <version>1.0.0-SNAPSHOT</version>
   <name>ONgDB - Server</name>
   <description>Standalone Neo4j server application.</description>
   <url>http://components.neo4j.org/${project.artifactId}/${project.version}</url>

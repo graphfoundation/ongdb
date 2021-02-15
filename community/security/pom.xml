@@ -3,7 +3,7 @@
   <parent>
     <groupId>org.graphfoundation.ongdb</groupId>
     <artifactId>parent</artifactId>
-    <version>3.4.18-SNAPSHOT</version>
+    <version>1.0.0-SNAPSHOT</version>
     <relativePath>../..</relativePath>
   </parent>
 
@@ -15,7 +15,7 @@
 
   <modelVersion>4.0.0</modelVersion>
   <artifactId>ongdb-security</artifactId>
-  <version>3.4.18-SNAPSHOT</version>
+  <version>1.0.0-SNAPSHOT</version>
 
   <packaging>jar</packaging>
   <name>ONgDB - Security</name>

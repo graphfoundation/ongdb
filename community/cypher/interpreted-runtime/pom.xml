@@ -3,14 +3,14 @@
   <parent>
     <groupId>org.graphfoundation.ongdb</groupId>
     <artifactId>cypher-parent</artifactId>
-    <version>3.4.18-SNAPSHOT</version>
+    <version>1.0.0-SNAPSHOT</version>
     <relativePath>../</relativePath>
   </parent>
 
   <modelVersion>4.0.0</modelVersion>
   <artifactId>ongdb-cypher-interpreted-runtime</artifactId>
   <packaging>jar</packaging>
-  <version>3.4.18-SNAPSHOT</version>
+  <version>1.0.0-SNAPSHOT</version>
   <name>ONgDB - Cypher Interpreted Runtime</name>
 
   <description>The traditional cypher interpreted runtime</description>
