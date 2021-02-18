@@ -19,32 +19,29 @@
  */
 package cypher.features
 
+import java.util.Collection
+
+import cypher.features.ScenarioTestHelper.createTests
+import cypher.features.ScenarioTestHelper.printComputedBlacklist
+import org.junit.Ignore
 import org.junit.jupiter.api.Assertions.fail
-import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.DynamicTest
+import org.junit.jupiter.api.TestFactory
 import org.junit.platform.runner.JUnitPlatform
 import org.junit.runner.RunWith
-import org.opencypher.tools.tck.api.CypherTCK
-import org.opencypher.tools.tck.api.Scenario
 
 @RunWith(classOf[JUnitPlatform])
-class TCKTests extends BaseFeatureTest {
+class DefaultTCKTests extends TCKTests {
 
-  // these two should be empty on commit!
-  val featureToRun = ""
-  val scenarioToRun = ""
+  @TestFactory
+  def runDefault(): Collection[DynamicTest] = {
+    createTests(scenarios, DefaultTestConfig)
+  }
 
-  val scenarios: Seq[Scenario] = filterScenarios(CypherTCK.allTckScenarios, featureToRun, scenarioToRun)
-
-  @Test
-  def debugTokensNeedToBeEmpty(): Unit = {
-    // besides the obvious reason this test is also here (and not using assert)
-    // to ensure that any import optimizer doesn't remove the correct import for fail (used by the commented out methods further down)
-    if (!scenarioToRun.equals("")) {
-      fail("scenarioToRun is only for debugging and should not be committed")
-    }
-    if (!featureToRun.equals("")) {
-      fail("featureToRun is only for debugging and should not be committed")
-    }
+  @Ignore
+  def generateBlacklistDefault(): Unit = {
+    printComputedBlacklist(scenarios, DefaultTestConfig)
+    fail("Do not forget to add @ignore to this method")
   }
 
 }

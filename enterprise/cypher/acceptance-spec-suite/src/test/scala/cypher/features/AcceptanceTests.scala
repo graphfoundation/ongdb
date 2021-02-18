@@ -21,26 +21,39 @@ package cypher.features
 
 import java.io.File
 import java.net.URI
-import java.util
 
-import cypher.features.ScenarioTestHelper._
-import org.junit.jupiter.api.{DynamicTest, TestFactory}
+import org.junit.jupiter.api.Assertions.fail
+import org.junit.jupiter.api.Test
 import org.junit.platform.runner.JUnitPlatform
 import org.junit.runner.RunWith
-import org.opencypher.tools.tck.api.{CypherTCK, Scenario}
+import org.opencypher.tools.tck.api.CypherTCK
+import org.opencypher.tools.tck.api.Scenario
 
 @RunWith(classOf[JUnitPlatform])
 class AcceptanceTests extends BaseFeatureTest {
 
   // these two should be empty on commit!
   // Use a substring match, for example "UnwindAcceptance"
-  override val featureToRun = ""
-  override val scenarioToRun = ""
+  val featureToRun = ""
+  val scenarioToRun = ""
 
   val featuresURI: URI = getClass.getResource("/cypher/features").toURI
 
-  override val scenarios: Seq[Scenario] = {
+  val scenarios: Seq[Scenario] = {
     val all = CypherTCK.parseFilesystemFeatures(new File(featuresURI)).flatMap(_.scenarios)
-    filterScenarios(all)
+    filterScenarios(all, featureToRun, scenarioToRun)
   }
+
+  @Test
+  def debugTokensNeedToBeEmpty(): Unit = {
+    // besides the obvious reason this test is also here (and not using assert)
+    // to ensure that any import optimizer doesn't remove the correct import for fail (used by the commented out methods further down)
+    if (!scenarioToRun.equals("")) {
+      fail("scenarioToRun is only for debugging and should not be committed")
+    }
+    if (!featureToRun.equals("")) {
+      fail("featureToRun is only for debugging and should not be committed")
+    }
+  }
+
 }
