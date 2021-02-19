@@ -32,6 +32,15 @@
     <license>
       <name>GNU Affero General Public License, Version 3</name>
       <url>http://www.gnu.org/licenses/agpl-3.0-standalone.html</url>
+      <comments>The software ("Software") developed and owned by Graph Foundation, Inc.
+        (referred to in this notice as "Graph Foundation") is
+        licensed under the GNU AFFERO GENERAL PUBLIC LICENSE Version 3 to all
+        third parties and that license is included below.
+      </comments>
+    </license>
+    <license>
+      <name>GNU Affero General Public License, Version 3</name>
+      <url>http://www.gnu.org/licenses/agpl-3.0-standalone.html</url>
       <comments>The software ("Software") developed and owned by Network Engine for
         Objects in Lund AB (referred to in this notice as "Neo Technology") is
         licensed under the GNU AFFERO GENERAL PUBLIC LICENSE Version 3 to all

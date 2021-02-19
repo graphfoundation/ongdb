@@ -2,50 +2,59 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
 
-    <modelVersion>4.0.0</modelVersion>
+  <modelVersion>4.0.0</modelVersion>
 
-    <parent>
-        <groupId>org.graphfoundation.ongdb</groupId>
-        <artifactId>parent</artifactId>
-        <version>1.0.0-SNAPSHOT</version>
-        <relativePath>..</relativePath>
-    </parent>
-
-    <artifactId>ongdb-tools</artifactId>
+  <parent>
+    <groupId>org.graphfoundation.ongdb</groupId>
+    <artifactId>parent</artifactId>
     <version>1.0.0-SNAPSHOT</version>
+    <relativePath>..</relativePath>
+  </parent>
 
-    <name>ONgDB - Low Level Tools</name>
-    <packaging>jar</packaging>
-    <description>A package for low level tools.</description>
-    <properties>
-        <moduleName>org.neo4j.tools</moduleName>
-    </properties>
+  <artifactId>ongdb-tools</artifactId>
+  <version>1.0.0-SNAPSHOT</version>
 
-    <scm>
-        <connection>scm:git:git://github.com/neo4j/neo4j.git</connection>
-        <developerConnection>scm:git:git@github.com:neo4j/neo4j.git</developerConnection>
-        <url>https://github.com/neo4j/neo4j</url>
-    </scm>
+  <name>ONgDB - Low Level Tools</name>
+  <packaging>jar</packaging>
+  <description>A package for low level tools.</description>
+  <properties>
+    <moduleName>org.neo4j.tools</moduleName>
+  </properties>
 
-    <licenses>
-        <license>
-            <name>GNU Affero General Public License, Version 3</name>
-            <url>http://www.gnu.org/licenses/agpl-3.0-standalone.html</url>
-            <comments>The software ("Software") developed and owned by Network Engine for
-                Objects in Lund AB (referred to in this notice as "Neo Technology") is
-                licensed under the GNU AFFERO GENERAL PUBLIC LICENSE Version 3 to all
-                third parties and that license is included below.
+  <scm>
+    <connection>scm:git:git://github.com/neo4j/neo4j.git</connection>
+    <developerConnection>scm:git:git@github.com:neo4j/neo4j.git</developerConnection>
+    <url>https://github.com/neo4j/neo4j</url>
+  </scm>
 
-                However, if you have executed an End User Software License and Services
-                Agreement or an OEM Software License and Support Services Agreement, or
-                another commercial license agreement with Neo Technology or one of its
-                affiliates (each, a "Commercial Agreement"), the terms of the license in
-                such Commercial Agreement will supersede the GNU AFFERO GENERAL PUBLIC
-                LICENSE Version 3 and you may use the Software solely pursuant to the
-                terms of the relevant Commercial Agreement.
-            </comments>
-        </license>
-    </licenses>
+  <licenses>
+    <license>
+      <name>GNU Affero General Public License, Version 3</name>
+      <url>http://www.gnu.org/licenses/agpl-3.0-standalone.html</url>
+      <comments>The software ("Software") developed and owned by Graph Foundation, Inc.
+        (referred to in this notice as "Graph Foundation") is
+        licensed under the GNU AFFERO GENERAL PUBLIC LICENSE Version 3 to all
+        third parties and that license is included below.
+      </comments>
+    </license>
+    <license>
+      <name>GNU Affero General Public License, Version 3</name>
+      <url>http://www.gnu.org/licenses/agpl-3.0-standalone.html</url>
+      <comments>The software ("Software") developed and owned by Network Engine for
+        Objects in Lund AB (referred to in this notice as "Neo Technology") is
+        licensed under the GNU AFFERO GENERAL PUBLIC LICENSE Version 3 to all
+        third parties and that license is included below.
+
+        However, if you have executed an End User Software License and Services
+        Agreement or an OEM Software License and Support Services Agreement, or
+        another commercial license agreement with Neo Technology or one of its
+        affiliates (each, a "Commercial Agreement"), the terms of the license in
+        such Commercial Agreement will supersede the GNU AFFERO GENERAL PUBLIC
+        LICENSE Version 3 and you may use the Software solely pursuant to the
+        terms of the relevant Commercial Agreement.
+      </comments>
+    </license>
+  </licenses>
 
   <dependencies>
     <!-- Community dependencies -->
