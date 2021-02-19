@@ -35,13 +35,14 @@ public class BackupSupportingClassesFactoryProviderTest
     {
         assertEquals( 1, findInstancesOf( BackupSupportingClassesFactoryProvider.class,
                 allAvailableSupportingClassesFactories() ).size() );
-        assertEquals( 2, allAvailableSupportingClassesFactories().size() );
+        assertEquals( 1, findInstancesOf( OpenEnterpriseBackupSupportingClassesFactoryProvider.class, allAvailableSupportingClassesFactories() ).size() );
+        assertEquals( 3, allAvailableSupportingClassesFactories().size() );
     }
 
     @Test
     public void testDefaultModuleIsPrioritisedOverDummyModule()
     {
-        assertEquals( BackupSupportingClassesFactoryProvider.class,
+        assertEquals( OpenEnterpriseBackupSupportingClassesFactoryProvider.class,
                 getProvidersByPriority().findFirst().get().getClass() );
     }
 

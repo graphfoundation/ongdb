@@ -22,9 +22,14 @@ package org.neo4j.backup.impl;
 import org.junit.Test;
 
 import org.neo4j.causalclustering.handlers.PipelineWrapper;
+import org.neo4j.causalclustering.handlers.SecureClientPipelineWrapper;
 import org.neo4j.causalclustering.handlers.VoidPipelineWrapperFactory;
 import org.neo4j.commandline.admin.OutsideWorld;
+import org.neo4j.commandline.admin.RealOutsideWorld;
+import org.neo4j.io.fs.FileSystemAbstraction;
 import org.neo4j.kernel.configuration.Config;
+import org.neo4j.kernel.monitoring.Monitors;
+import org.neo4j.logging.NullLogProvider;
 
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.mock;
@@ -36,14 +41,15 @@ public class OnlineBackupCommandProviderTest
     @Test
     public void communityBackupSupportingFactory()
     {
-        BackupModule backupModule = mock( BackupModule.class );
-        OutsideWorld outsideWorld = mock( OutsideWorld.class );
-        when( backupModule.getOutsideWorld() ).thenReturn( outsideWorld );
+        NullLogProvider logProvider = NullLogProvider.getInstance();
+        RealOutsideWorld outsideWorld = new RealOutsideWorld();
+        Monitors monitors = new Monitors();
+
+        BackupModule backupModule = new BackupModule( outsideWorld, logProvider, monitors );
 
         BackupSupportingClassesFactoryProvider provider = getProvidersByPriority().findFirst().get();
         BackupSupportingClassesFactory factory = provider.getFactory( backupModule );
-        assertEquals( VoidPipelineWrapperFactory.VOID_WRAPPER,
-                factory.createPipelineWrapper( Config.defaults() ) );
+        assertEquals( SecureClientPipelineWrapper.class, factory.createPipelineWrapper( Config.defaults() ).getClass() );
     }
 
     /**

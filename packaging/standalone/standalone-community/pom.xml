@@ -9,12 +9,10 @@
   </parent>
 
   <artifactId>ongdb-community-standalone</artifactId>
+  <version>1.0.0-SNAPSHOT</version>
   <packaging>pom</packaging>
 
-  <name>ONgDB Community - Server Assembler</name>
-
-  <version>1.0.0-SNAPSHOT</version>
-
+  <name>ONgDB - Community Server Assembler</name>
   <description>This project assembles the Neo4j Community stand-alone distribution,
     pulling together all the deliverable artifacts and packaging them
       into a downloadable installer.</description>
@@ -57,7 +55,7 @@ terms of the relevant Commercial Agreement.
         <artifactId>maven-assembly-plugin</artifactId>
         <configuration>
           <attach>false</attach>
-          <finalName>neo4j-community-${project.version}</finalName>
+          <finalName>ongdb-community-${project.version}</finalName>
           <appendAssemblyId>true</appendAssemblyId>
           <outputDirectory>${project.parent.build.directory}</outputDirectory>
           <delimiters>

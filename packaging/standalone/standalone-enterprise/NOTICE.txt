@@ -1,0 +1,368 @@
+Neo4j
+Copyright © 2002-2018 Network Engine for Objects in Lund AB (referred to
+in this notice as "Neo Technology")
+   [http://neotechnology.com]
+
+This product includes software ("Software") developed by Neo Technology.
+
+The software ("Software") is developed and owned by Network Engine
+for Objects in Lund AB (referred to in this notice as "Neo Technology").
+If you have executed an End User Software License and Services Agreement,
+an OEM Software License and Support Services Agreement, or another
+commercial license agreement (including an Evaluation Agreement) with
+Neo Technology or one of its affiliates (each, a "Commercial Agreement"),
+you may use the Software solely pursuant to the terms of the relevant
+Commercial Agreement.
+
+If you have not executed a Commercial Agreement with Neo Technology, the
+Software is subject to the terms of the GNU AFFERO GENERAL PUBLIC LICENSE
+Version 3 (http://www.fsf.org/licensing/licenses/agpl-3.0.html), included
+in the LICENSE.txt file.
+
+Full license texts are found in LICENSES.txt.
+
+
+Third-party licenses
+--------------------
+
+Apache Software License, Version 2.0
+  @firebase/app
+  @firebase/app-types
+  @firebase/auth
+  @firebase/auth-types
+  @firebase/database
+  @firebase/database-types
+  @firebase/firestore
+  @firebase/firestore-types
+  @firebase/functions
+  @firebase/functions-types
+  @firebase/logger
+  @firebase/messaging
+  @firebase/messaging-types
+  @firebase/polyfill
+  @firebase/storage
+  @firebase/storage-types
+  @firebase/util
+  @firebase/webchannel-wrapper
+  Apache Commons BeanUtils
+  Apache Commons Collections
+  Apache Commons Compress
+  Apache Commons Configuration
+  Apache Commons IO
+  Apache Commons Lang
+  Apache Commons Text
+  Apache Shiro :: Cache
+  Apache Shiro :: Configuration :: Core
+  Apache Shiro :: Configuration :: OGDL
+  Apache Shiro :: Core
+  Apache Shiro :: Cryptography :: Ciphers
+  Apache Shiro :: Cryptography :: Core
+  Apache Shiro :: Cryptography :: Hashing
+  Apache Shiro :: Event
+  Apache Shiro :: Lang
+  ascli
+  aws-sign2
+  bytebuffer
+  Caffeine cache
+  caseless
+  Commons Lang
+  Commons Logging
+  ConcurrentLinkedHashMap
+  Data Mapper for Jackson
+  detect-libc
+  disposables
+  FindBugs-jsr305
+  firebase
+  forever-agent
+  Graphite Integration for Metrics
+  grpc
+  hazelcast-all
+  Jackson
+  JAX-RS provider for JSON content type
+  Jetty :: Http Utility
+  Jetty :: IO Utility
+  Jetty :: Security
+  Jetty :: Server Core
+  Jetty :: Servlet Handling
+  Jetty :: Utilities
+  Jetty :: Webapp Application Support
+  Jetty :: XML utilities
+  jPowerShell
+  jProcesses
+  long
+  Lucene codecs
+  Lucene Common Analyzers
+  Lucene Core
+  Lucene QueryParsers
+  LZ4 and xxHash
+  Metrics Core
+  Neo4j - Cypher Frontend 3.3
+  neo4j-driver
+  Netty
+  Netty/All-in-One
+  oauth-sign
+  opencsv
+  parboiled-core
+  parboiled-scala
+  Prometheus Java Simpleclient
+  Prometheus Java Simpleclient Common
+  Prometheus Java Simpleclient Dropwizard
+  Prometheus Java Simpleclient Httpserver
+  protobufjs
+  request
+  rxjs
+  tslib
+  tunnel-agent
+  WMI4Java
+
+BSD - Scala License
+  Scala Library
+
+BSD License
+  antlr4
+  asm
+  asm-analysis
+  asm-tree
+  asm-util
+  bcrypt-pbkdf
+  boom
+  cryptiles
+  D3.js
+  dnd-core
+  hawk
+  hoek
+  hoist-non-react-statics
+  ieee754
+  JLine
+  json-schema
+  node-pre-gyp
+  qs
+  react-dnd
+  react-dnd-html5-backend
+  Scala Compiler
+  sntp
+  tough-cookie
+
+BSD License 2-clause
+  tar-pack
+  uri-js
+
+Bouncy Castle License
+  Bouncy Castle PKIX, CMS, EAC, TSP, PKCS, OCSP, CMP, and CRMF APIs
+  Bouncy Castle Provider
+
+Common Development and Distribution License Version 1.1
+  Java Servlet API
+  jersey-core
+  jersey-server
+  jersey-servlet
+  jsr311-api
+
+GNU General Public License, version 2 with the Classpath Exception
+  Java Servlet API
+
+ISC
+  abbrev
+  aproba
+  are-we-there-yet
+  block-stream
+  cliui
+  console-control-strings
+  css-color-keywords
+  fs.realpath
+  fstream
+  fstream-ignore
+  gauge
+  glob
+  graceful-fs
+  har-schema
+  har-validator
+  has-unicode
+  inflight
+  inherits
+  ini
+  json-stringify-safe
+  minimatch
+  nopt
+  npmlog
+  once
+  osenv
+  rimraf
+  semver
+  set-blocking
+  signal-exit
+  tar
+  uid-number
+  wide-align
+  wrappy
+  y18n
+
+MIT License
+  ajv
+  ansi-regex
+  asap
+  ascii-data-table
+  asn1
+  assert-plus
+  assertion-error
+  asynckit
+  attr-accept
+  aws4
+  babel-runtime
+  balanced-match
+  base64-js
+  bootstrap
+  brace-expansion
+  buffer
+  camelcase
+  canvg
+  chai
+  check-error
+  classnames
+  co
+  code-point-at
+  codemirror
+  colour
+  combined-stream
+  concat-map
+  core-js
+  core-util-is
+  css-to-react-native
+  dashdash
+  debug
+  decamelize
+  deep-eql
+  deep-extend
+  delayed-stream
+  delegates
+  dom-storage
+  ecc-jsbn
+  encoding
+  extend
+  extsprintf
+  fast-deep-equal
+  fast-json-stable-stringify
+  faye-websocket
+  fbjs
+  file-saver
+  Font Awesome CSS
+  form-data
+  fuzzaldrin
+  get-func-name
+  getpass
+  has-flag
+  http-parser-js
+  http-signature
+  iconv-lite
+  invariant
+  invert-kv
+  is-fullwidth-code-point
+  is-plain-object
+  is-stream
+  is-typedarray
+  isarray
+  isobject
+  isomorphic-fetch
+  isstream
+  js-tokens
+  jsbn
+  json-schema-traverse
+  jsonic
+  jsprim
+  lcid
+  lodash
+  lodash-es
+  lodash.debounce
+  loose-envify
+  mime-db
+  mime-types
+  minimist
+  mkdirp
+  ms
+  nan
+  node-fetch
+  number-is-nan
+  object-assign
+  optjs
+  os-homedir
+  os-locale
+  os-tmpdir
+  path-is-absolute
+  pathval
+  performance-now
+  postcss-value-parser
+  process-nextick-args
+  promise
+  promise-polyfill
+  prop-types
+  punycode
+  querystringify
+  rc
+  react
+  react-addons-pure-render-mixin
+  react-dom
+  react-dropzone
+  react-icon-base
+  react-icons
+  react-is
+  react-redux
+  react-suber
+  react-timeago
+  readable-stream
+  redux
+  redux-observable
+  regenerator-runtime
+  requires-port
+  safe-buffer
+  safer-buffer
+  save-as
+  scallop
+  setimmediate
+  SLF4J API Module
+  SLF4J NOP Binding
+  sshpk
+  string-width
+  string_decoder
+  stringstream
+  strip-ansi
+  strip-json-comments
+  styled-components
+  stylis
+  stylis-rule-sheet
+  suber
+  supports-color
+  swipe-js-iso
+  symbol-observable
+  type-detect
+  ua-parser-js
+  url-parse
+  util-deprecate
+  uuid
+  verror
+  websocket-driver
+  websocket-extensions
+  whatwg-fetch
+  window-size
+  wrap-ansi
+  xmlhttprequest
+  yargs
+
+Mozilla Public License, Version 2.0
+  kiama
+  Mozilla Rhino
+
+SIL OFL 1.1
+  Font Awesome
+  Inconsolata Font
+  Open Sans Font
+
+Unlicense
+  tweetnacl
+
+Dependencies with multiple licenses
+-----------------------------------
+
+Java Servlet API
+  Common Development and Distribution License Version 1.1
+  GNU General Public License, version 2 with the Classpath Exception
+

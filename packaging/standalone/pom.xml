@@ -30,6 +30,7 @@
 
   <modules>
     <module>standalone-community</module>
+    <module>standalone-enterprise</module>
   </modules>
 
   <properties>
@@ -41,6 +42,12 @@
     <default.https.port>7473</default.https.port>
 
     <skip.shell.tests>false</skip.shell.tests>
+
+	<org.neo4j.webservice.packages>org.neo4j.rest.web</org.neo4j.webservice.packages>
+	<neo4j.home>${project.build.directory}/neo4j</neo4j.home>
+	<neo4j.confdir>${neo4j.home}/conf</neo4j.confdir>
+	<neo4j.datadir>${neo4j.home}/data</neo4j.datadir>
+	<neo4j.logdir>${neo4j.datadir}/log</neo4j.logdir>
   </properties>
 
   <licenses>
