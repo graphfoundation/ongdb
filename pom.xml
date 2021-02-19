@@ -9,7 +9,7 @@
   <packaging>pom</packaging>
   <name>ONgDB</name>
   <description>ONgDB Graph Database</description>
-  <inceptionYear>2002</inceptionYear>
+  <inceptionYear>2018</inceptionYear>
   <url>http://neo4j.com/</url>
 
   <organization>
@@ -86,8 +86,7 @@
     <maven.build.timestamp.format>yyMMddHHmmssSSS</maven.build.timestamp.format>
 
     <license-text.header>headers/AGPL-3-header.txt</license-text.header>
-    <communityForkYear>2020</communityForkYear>
-    <enterpriseForkYear>2018</enterpriseForkYear>
+    <currentYear>2020</currentYear>
 
     <scala-maven-plugin.version>3.3.2</scala-maven-plugin.version>
     <scala.version>2.11.12</scala.version>
@@ -781,8 +780,7 @@
             <g4>SLASHSTAR_STYLE</g4>
           </mapping>
           <properties>
-            <communityForkYear>${communityForkYear}</communityForkYear>
-            <enterpriseForkYear>${enterpriseForkYear}</enterpriseForkYear>
+            <currentYear>${currentYear}</currentYear>
           </properties>
         </configuration>
       </plugin>
