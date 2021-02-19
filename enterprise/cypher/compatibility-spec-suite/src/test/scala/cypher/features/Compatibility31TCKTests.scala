@@ -29,13 +29,24 @@ import org.junit.jupiter.api.DynamicTest
 import org.junit.jupiter.api.TestFactory
 import org.junit.platform.runner.JUnitPlatform
 import org.junit.runner.RunWith
+import org.opencypher.tools.tck.api.CypherTCK
+import org.opencypher.tools.tck.api.Scenario
 
 @RunWith(classOf[JUnitPlatform])
 class Compatibility31TCKTests extends TCKTests {
 
+  val blocklist: Set[ScenarioIdentity] = Set(
+    ScenarioIdentity("TemporalCreateAcceptance", "Should store date time"),
+    ScenarioIdentity("TemporalCreateAcceptance", "Should store date"),
+    ScenarioIdentity("TemporalCreateAcceptance", "Should store duration"),
+    ScenarioIdentity("TemporalCreateAcceptance", "Should store local date time"),
+    ScenarioIdentity("TemporalCreateAcceptance", "Should store local time"),
+    ScenarioIdentity("TemporalCreateAcceptance", "Should store time")
+  )
+
   @TestFactory
   def runCompatibility31(): Collection[DynamicTest] = {
-    createTests(scenarios, Compatibility31TestConfig)
+    createTests(filterBlockedScenarios(scenarios, blocklist), Compatibility31TestConfig)
   }
 
   @Ignore

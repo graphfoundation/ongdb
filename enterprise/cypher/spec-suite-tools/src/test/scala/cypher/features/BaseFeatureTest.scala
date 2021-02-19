@@ -38,4 +38,23 @@ abstract class BaseFeatureTest {
     }
   }
 
+  /**
+   * Filters out blocked Scenarios.
+   *
+   * @param scenarios Scenarios to be allowed or skipped.
+   * @param blocklist Scenario that should be blocked.
+   * @return True if Scenario should be blocked.
+   */
+  def filterBlockedScenarios(scenarios: Seq[Scenario], blocklist: Set[ScenarioIdentity]): Seq[Scenario] = {
+    scenarios.filterNot(s => blocklist.contains(ScenarioIdentity(s.featureName, s.name)))
+  }
+
+  /**
+   * Scenario component parts used to create identity.
+   *
+   * @param featureName Scenario feature
+   * @param name        Scenario name
+   */
+  case class ScenarioIdentity(featureName: String, name: String)
+
 }
