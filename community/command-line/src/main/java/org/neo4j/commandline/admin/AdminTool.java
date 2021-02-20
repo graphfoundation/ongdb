@@ -54,15 +54,15 @@ public class AdminTool
 {
     public static final int STATUS_SUCCESS = 0;
     public static final int STATUS_ERROR = 1;
-    public static final String NEO4J_HOME = System.getenv().getOrDefault( "NEO4J_HOME", "" );
-    public static final String NEO4J_CONF = System.getenv().getOrDefault( "NEO4J_CONF", "" );
-    public static final String NEO4J_DEBUG = System.getenv().getOrDefault( "NEO4J_DEBUG", null );
+    public static final String ONGDB_HOME = System.getenv().getOrDefault( "ONGDB_HOME", "" );
+    public static final String ONGDB_CONF = System.getenv().getOrDefault( "ONGDB_CONF", "" );
+    public static final String ONGDB_DEBUG = System.getenv().getOrDefault( "ONGDB_DEBUG", null );
 
     public static void main( String[] args ) throws IOException
     {
-        Path homeDir = Paths.get( NEO4J_HOME );
-        Path configDir = Paths.get( NEO4J_CONF );
-        boolean debug = NEO4J_DEBUG != null;
+        Path homeDir = Paths.get( ONGDB_HOME );
+        Path configDir = Paths.get( ONGDB_CONF );
+        boolean debug = ONGDB_DEBUG != null;
 
         try ( RealOutsideWorld outsideWorld = new RealOutsideWorld() )
         {

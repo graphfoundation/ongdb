@@ -397,9 +397,9 @@ public class DumpCommandTest
             assertEquals( String.format( "usage: neo4j-admin dump [--database=<name>] --to=<destination-path>%n" +
                             "%n" +
                             "environment variables:%n" +
-                            "    NEO4J_CONF    Path to directory which contains neo4j.conf.%n" +
-                            "    NEO4J_DEBUG   Set to anything to enable debug output.%n" +
-                            "    NEO4J_HOME    Neo4j home directory.%n" +
+                            "    ONGDB_CONF    Path to directory which contains neo4j.conf.%n" +
+                            "    ONGDB_DEBUG   Set to anything to enable debug output.%n" +
+                            "    ONGDB_HOME    Neo4j home directory.%n" +
                             "    HEAP_SIZE     Set JVM maximum heap size during command execution.%n" +
                             "                  Takes a number and a unit, for example 512m.%n" +
                             "%n" +

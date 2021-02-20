@@ -65,8 +65,8 @@ public class PushToCloudCommand implements AdminCommand
     static final String ARG_OVERWRITE = "overwrite";
     static final String ARG_USERNAME = "username";
     static final String ARG_PASSWORD = "password";
-    static final String ENV_USERNAME = "NEO4J_USERNAME";
-    static final String ENV_PASSWORD = "NEO4J_PASSWORD";
+    static final String ENV_USERNAME = "ONGDB_USERNAME";
+    static final String ENV_PASSWORD = "ONGDB_PASSWORD";
 
     static final Arguments arguments = new Arguments()
             // Provide a (potentially running?) database
@@ -82,10 +82,10 @@ public class PushToCloudCommand implements AdminCommand
                     "Enable verbose output." ) )
             .withArgument( new OptionalNamedArg( ARG_USERNAME, "neo4j", null,
                     "Optional: Username of the target database to push this database to. Prompt will ask for username if not provided. " +
-                            "Alternatively NEO4J_USERNAME environment variable can be used." ) )
+                            "Alternatively ONGDB_USERNAME environment variable can be used." ) )
             .withArgument( new OptionalNamedArg( ARG_PASSWORD, "mYs3cr3tPa$$w0rd", null,
                     "Optional: Password of the target database to push this database to. Prompt will ask for password if not provided. " +
-                            "Alternatively NEO4J_PASSWORD environment variable can be used." ) )
+                            "Alternatively ONGDB_PASSWORD environment variable can be used." ) )
             .withArgument( new OptionalNamedArg( ARG_OVERWRITE, "true/false", "false",
                     "Optional: Overwrite the data in the target database." ) );
 

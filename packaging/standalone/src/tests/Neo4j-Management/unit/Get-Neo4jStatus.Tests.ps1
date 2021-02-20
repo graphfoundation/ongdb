@@ -10,7 +10,7 @@ InModuleScope ONgDB-Management {
 
     $mockServerObject = global:New-MockNeo4jInstall
     Mock Set-Neo4jEnv { }
-    Mock Get-Neo4jEnv { $mockServerObject.Home } -ParameterFilter { $Name -eq 'NEO4J_HOME' }
+    Mock Get-Neo4jEnv { $mockServerObject.Home } -ParameterFilter { $Name -eq 'ONGDB_HOME' }
 
     Context "Missing service name in configuration files" {
       Mock -Verifiable Get-Neo4jWindowsServiceName { throw "Missing service name" }

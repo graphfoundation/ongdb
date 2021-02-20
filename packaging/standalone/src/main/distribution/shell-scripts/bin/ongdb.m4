@@ -20,15 +20,15 @@
 # Callers may provide the following environment variables to customize this script:
 #  * JAVA_HOME
 #  * JAVA_CMD
-#  * NEO4J_HOME
-#  * NEO4J_CONF
-#  * NEO4J_START_WAIT
+#  * ONGDB_HOME
+#  * ONGDB_CONF
+#  * ONGDB_START_WAIT
 
 include(src/main/distribution/shell-scripts/bin/neo4j-shared.m4)
 
 setup_arbiter_options() {
   is_arbiter() {
-    compgen -G "${NEO4J_LIB}/neo4j-server-enterprise-*.jar" >/dev/null && \
+    compgen -G "${ONGDB_LIB}/neo4j-server-enterprise-*.jar" >/dev/null && \
       [[ "$(echo "${dbms_mode:-}" | tr [:lower:] [:upper:])" == "ARBITER" ]]
   }
 
@@ -42,39 +42,39 @@ setup_arbiter_options() {
       echo "This instance is now joining the cluster."
     }
   else
-    SHUTDOWN_TIMEOUT="${NEO4J_SHUTDOWN_TIMEOUT:-120}"
+    SHUTDOWN_TIMEOUT="${ONGDB_SHUTDOWN_TIMEOUT:-120}"
     MIN_ALLOWED_OPEN_FILES=40000
     MAIN_CLASS="#{neo4j.mainClass}"
 
     print_start_message() {
       # Global default
-      NEO4J_DEFAULT_ADDRESS="${dbms_connectors_default_listen_address:-localhost}"
+      ONGDB_DEFAULT_ADDRESS="${dbms_connectors_default_listen_address:-localhost}"
 
       if [[ "${dbms_connector_http_enabled:-true}" == "false" ]]; then
         # Only HTTPS connector enabled
         # First read deprecated 'address' setting
-        NEO4J_SERVER_ADDRESS="${dbms_connector_https_address:-:7473}"
+        ONGDB_SERVER_ADDRESS="${dbms_connector_https_address:-:7473}"
         # Overridden by newer 'listen_address' if specified
-        NEO4J_SERVER_ADDRESS="${dbms_connector_https_listen_address:-${NEO4J_SERVER_ADDRESS}}"
+        ONGDB_SERVER_ADDRESS="${dbms_connector_https_listen_address:-${ONGDB_SERVER_ADDRESS}}"
         # If it's only a port we need to add the address (it starts with a colon in that case)
-        case ${NEO4J_SERVER_ADDRESS} in
+        case ${ONGDB_SERVER_ADDRESS} in
           :*)
-            NEO4J_SERVER_ADDRESS="${NEO4J_DEFAULT_ADDRESS}${NEO4J_SERVER_ADDRESS}";;
+            ONGDB_SERVER_ADDRESS="${ONGDB_DEFAULT_ADDRESS}${ONGDB_SERVER_ADDRESS}";;
         esac
         # Add protocol
-        NEO4J_SERVER_ADDRESS="https://${NEO4J_SERVER_ADDRESS}"
+        ONGDB_SERVER_ADDRESS="https://${ONGDB_SERVER_ADDRESS}"
       else
         # HTTP connector enabled - same as https but different settings
-        NEO4J_SERVER_ADDRESS="${dbms_connector_http_address:-:7474}"
-        NEO4J_SERVER_ADDRESS="${dbms_connector_http_listen_address:-${NEO4J_SERVER_ADDRESS}}"
-        case ${NEO4J_SERVER_ADDRESS} in
+        ONGDB_SERVER_ADDRESS="${dbms_connector_http_address:-:7474}"
+        ONGDB_SERVER_ADDRESS="${dbms_connector_http_listen_address:-${ONGDB_SERVER_ADDRESS}}"
+        case ${ONGDB_SERVER_ADDRESS} in
           :*)
-            NEO4J_SERVER_ADDRESS="${NEO4J_DEFAULT_ADDRESS}${NEO4J_SERVER_ADDRESS}";;
+            ONGDB_SERVER_ADDRESS="${ONGDB_DEFAULT_ADDRESS}${ONGDB_SERVER_ADDRESS}";;
         esac
-        NEO4J_SERVER_ADDRESS="http://${NEO4J_SERVER_ADDRESS}"
+        ONGDB_SERVER_ADDRESS="http://${ONGDB_SERVER_ADDRESS}"
       fi
 
-      echo "Started neo4j (pid ${NEO4J_PID}). It is available at ${NEO4J_SERVER_ADDRESS}/"
+      echo "Started neo4j (pid ${ONGDB_PID}). It is available at ${ONGDB_SERVER_ADDRESS}/"
 
       if [[ "$(echo "${dbms_mode:-}" | tr [:lower:] [:upper:])" == "HA" ]]; then
         echo "This HA instance will be operational once it has joined the cluster."
@@ -86,9 +86,9 @@ setup_arbiter_options() {
 }
 
 check_status() {
-  if [ -e "${NEO4J_PIDFILE}" ] ; then
-    NEO4J_PID=$(cat "${NEO4J_PIDFILE}")
-    kill -0 "${NEO4J_PID}" 2>/dev/null || unset NEO4J_PID
+  if [ -e "${ONGDB_PIDFILE}" ] ; then
+    ONGDB_PID=$(cat "${ONGDB_PIDFILE}")
+    kill -0 "${ONGDB_PID}" 2>/dev/null || unset ONGDB_PID
   fi
 }
 
@@ -139,7 +139,7 @@ EOF
   [[ -n "${JAVA_MEMORY_OPTS:-}" ]] && JAVA_OPTS+=("${JAVA_MEMORY_OPTS[@]}")
 
   if [[ "${dbms_logs_gc_enabled:-}" = "true" ]]; then
-    JAVA_OPTS+=("-Xloggc:${NEO4J_LOGS}/gc.log" \
+    JAVA_OPTS+=("-Xloggc:${ONGDB_LOGS}/gc.log" \
                 "-XX:+UseGCLogFileRotation" \
                 "-XX:NumberOfGCLogFiles=${dbms_logs_gc_rotation_keep_number:-5}" \
                 "-XX:GCLogFileSize=${dbms_logs_gc_rotation_size:-20m}")
@@ -158,13 +158,13 @@ EOF
 
 assemble_command_line() {
   retval=("${JAVA_CMD}" "-cp" "${CLASSPATH}" "${JAVA_OPTS[@]}" "-Dfile.encoding=UTF-8" "${MAIN_CLASS}" \
-          "--home-dir=${NEO4J_HOME}" "--config-dir=${NEO4J_CONF}")
+          "--home-dir=${ONGDB_HOME}" "--config-dir=${ONGDB_CONF}")
 }
 
 do_console() {
   check_status
-  if [[ "${NEO4J_PID:-}" ]] ; then
-    echo "Neo4j is already running (pid ${NEO4J_PID})."
+  if [[ "${ONGDB_PID:-}" ]] ; then
+    echo "Neo4j is already running (pid ${ONGDB_PID})."
     exit 1
   fi
 
@@ -180,8 +180,8 @@ do_console() {
 
 do_start() {
   check_status
-  if [[ "${NEO4J_PID:-}" ]] ; then
-    echo "Neo4j is already running (pid ${NEO4J_PID})."
+  if [[ "${ONGDB_PID:-}" ]] ; then
+    echo "Neo4j is already running (pid ${ONGDB_PID})."
     exit 0
   fi
 
@@ -193,20 +193,20 @@ do_start() {
   assemble_command_line
   command_line=("${retval[@]}")
   nohup "${command_line[@]}" >>"${CONSOLE_LOG}" 2>&1 &
-  echo "$!" >"${NEO4J_PIDFILE}"
+  echo "$!" >"${ONGDB_PIDFILE}"
 
-  : "${NEO4J_START_WAIT:=5}"
-  end="$((SECONDS+NEO4J_START_WAIT))"
+  : "${ONGDB_START_WAIT:=5}"
+  end="$((SECONDS+ONGDB_START_WAIT))"
   while true; do
     check_status
 
-    if [[ "${NEO4J_PID:-}" ]]; then
+    if [[ "${ONGDB_PID:-}" ]]; then
       break
     fi
 
     if [[ "${SECONDS}" -ge "${end}" ]]; then
       echo "Unable to start. See ${CONSOLE_LOG} for details."
-      rm "${NEO4J_PIDFILE}"
+      rm "${ONGDB_PIDFILE}"
       return 1
     fi
 
@@ -220,9 +220,9 @@ do_start() {
 do_stop() {
   check_status
 
-  if [[ ! "${NEO4J_PID:-}" ]] ; then
+  if [[ ! "${ONGDB_PID:-}" ]] ; then
     echo "Neo4j not running"
-    [ -e "${NEO4J_PIDFILE}" ] && rm "${NEO4J_PIDFILE}"
+    [ -e "${ONGDB_PIDFILE}" ] && rm "${ONGDB_PIDFILE}"
     return 0
   else
     echo -n "Stopping Neo4j."
@@ -230,17 +230,17 @@ do_stop() {
     while true; do
       check_status
 
-      if [[ ! "${NEO4J_PID:-}" ]]; then
+      if [[ ! "${ONGDB_PID:-}" ]]; then
         echo " stopped"
-        [ -e "${NEO4J_PIDFILE}" ] && rm "${NEO4J_PIDFILE}"
+        [ -e "${ONGDB_PIDFILE}" ] && rm "${ONGDB_PIDFILE}"
         return 0
       fi
 
-      kill "${NEO4J_PID}" 2>/dev/null || true
+      kill "${ONGDB_PID}" 2>/dev/null || true
 
       if [[ "${SECONDS}" -ge "${end}" ]]; then
         echo " failed to stop"
-        echo "Neo4j (pid ${NEO4J_PID}) took more than ${SHUTDOWN_TIMEOUT} seconds to stop."
+        echo "Neo4j (pid ${ONGDB_PID}) took more than ${SHUTDOWN_TIMEOUT} seconds to stop."
         echo "Please see ${CONSOLE_LOG} for details."
         return 1
       fi
@@ -253,11 +253,11 @@ do_stop() {
 
 do_status() {
   check_status
-  if [[ ! "${NEO4J_PID:-}" ]] ; then
+  if [[ ! "${ONGDB_PID:-}" ]] ; then
     echo "Neo4j is not running"
     exit 3
   else
-    echo "Neo4j is running at pid ${NEO4J_PID}"
+    echo "Neo4j is running at pid ${ONGDB_PID}"
   fi
 }
 
@@ -271,9 +271,9 @@ do_version() {
 
 main() {
   setup_environment
-  CONSOLE_LOG="${NEO4J_LOGS}/neo4j.log"
-  NEO4J_PIDFILE="${NEO4J_RUN}/neo4j.pid"
-  readonly CONSOLE_LOG NEO4J_PIDFILE
+  CONSOLE_LOG="${ONGDB_LOGS}/neo4j.log"
+  ONGDB_PIDFILE="${ONGDB_RUN}/neo4j.pid"
+  readonly CONSOLE_LOG ONGDB_PIDFILE
 
   setup_java_opts
   check_java

@@ -131,7 +131,7 @@ for run_command in run_console run_daemon; do
   "
 
   test_expect_success "should be able to override config dir location" "
-    NEO4J_CONF=/some/other/conf/dir ${run_command} &&
+    ONGDB_CONF=/some/other/conf/dir ${run_command} &&
     test_expect_java_arg '--config-dir=/some/other/conf/dir'
   "
 

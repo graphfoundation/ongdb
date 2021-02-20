@@ -97,7 +97,7 @@ public class OnlineBackupCommandProvider extends AdminCommand.Provider
     @Nonnull
     public AdminCommand create( Path homeDir, Path configDir, OutsideWorld outsideWorld )
     {
-        boolean debug = System.getenv().get( "NEO4J_DEBUG") != null;
+        boolean debug = System.getenv().get( "ONGDB_DEBUG") != null;
         LogProvider logProvider = FormattedLogProvider.withDefaultLogLevel( debug ? Level.DEBUG : Level.NONE ).toOutputStream( outsideWorld.outStream() );
         Monitors monitors = new Monitors();
 

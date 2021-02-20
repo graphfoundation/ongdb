@@ -36,6 +36,8 @@ package org.neo4j.causalclustering.protocol.handshake;
 
 import org.junit.Test;
 
+import java.nio.charset.StandardCharsets;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -49,16 +51,16 @@ public class InitialMagicMessageTest
 
         // then
         assertTrue( magicMessage.isCorrectMagic() );
-        assertEquals( "NEO4J_CLUSTER", magicMessage.magic() );
+        assertEquals( "ONGDB_CLUSTER", magicMessage.magic() );
     }
 
     @Test
-    public void shouldHaveCorrectMessageCode() throws Exception
+    public void shouldHaveCorrectMessageCode()
     {
-        byte[] bytes = InitialMagicMessage.CORRECT_MAGIC_VALUE.substring( 0, 4 ).getBytes( "UTF-8" );
+        byte[] bytes = InitialMagicMessage.CORRECT_MAGIC_VALUE.substring( 0, 4 ).getBytes( StandardCharsets.UTF_8 );
         int messageCode = bytes[0] | (bytes[1] << 8) | (bytes[2] << 16) | (bytes[3] << 24);
 
-        assertEquals( 0x344F454E, messageCode );
-        assertEquals( 0x344F454E, InitialMagicMessage.MESSAGE_CODE );
+        assertEquals( 0x44474E4F, messageCode );
+        assertEquals( 0x44474E4F, InitialMagicMessage.MESSAGE_CODE );
     }
 }

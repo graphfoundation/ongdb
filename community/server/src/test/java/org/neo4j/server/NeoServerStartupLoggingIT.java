@@ -57,7 +57,7 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
-import static org.neo4j.server.AbstractNeoServer.NEO4J_IS_STARTING_MESSAGE;
+import static org.neo4j.server.AbstractNeoServer.ONGDB_IS_STARTING_MESSAGE;
 
 public class NeoServerStartupLoggingIT extends ExclusiveServerTestBase
 {
@@ -89,7 +89,7 @@ public class NeoServerStartupLoggingIT extends ExclusiveServerTestBase
         // Check the logs
         String logContent = out.toString();
         assertThat( logContent.length(), is( greaterThan( 0 ) ) );
-        assertThat( logContent, containsString( NEO4J_IS_STARTING_MESSAGE ) );
+        assertThat( logContent, containsString( ONGDB_IS_STARTING_MESSAGE ) );
         // Check the server is alive
         Client nonRedirectingClient = Client.create();
         nonRedirectingClient.setFollowRedirects( false );

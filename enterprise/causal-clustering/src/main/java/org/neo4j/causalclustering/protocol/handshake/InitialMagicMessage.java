@@ -39,8 +39,8 @@ import java.util.Objects;
 public class InitialMagicMessage implements ServerMessage, ClientMessage
 {
     // these can never, ever change
-    static final String CORRECT_MAGIC_VALUE = "NEO4J_CLUSTER";
-    static final int MESSAGE_CODE = 0x344F454E; // ASCII/UTF-8 "NEO4"
+    static final String CORRECT_MAGIC_VALUE = "ONGDB_CLUSTER";
+    static final int MESSAGE_CODE = 0x44474E4F; // ASCII/UTF-8 "ONGDB"
 
     private final String magic;
     // TODO: clusterId (String?)

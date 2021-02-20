@@ -76,7 +76,7 @@ import static org.mockito.Mockito.when;
 
 public class UserServiceTest
 {
-    protected static final User NEO4J_USER = new User.Builder( "neo4j", Credential.forPassword( "neo4j" ) )
+    protected static final User ONGDB_USER = new User.Builder( "neo4j", Credential.forPassword( "neo4j" ) )
             .withRequiredPasswordChange( true ).build();
 
     protected final PasswordPolicy passwordPolicy = new BasicPasswordPolicy();
@@ -92,14 +92,14 @@ public class UserServiceTest
 
         userManagerSupplier = new BasicAuthManager( userRepository, passwordPolicy,
                 mock( AuthenticationStrategy.class), new InMemoryUserRepository() );
-        neo4jContext = new BasicLoginContext( NEO4J_USER, AuthenticationResult.SUCCESS );
+        neo4jContext = new BasicLoginContext( ONGDB_USER, AuthenticationResult.SUCCESS );
     }
 
     @Before
     public void setUp() throws InvalidArgumentsException, IOException
     {
         request = mock( HttpServletRequest.class );
-        userRepository.create( NEO4J_USER );
+        userRepository.create( ONGDB_USER );
         setupAuthManagerAndSubject();
         neo4jPrinciple = new DelegatingPrincipal( "neo4j", neo4jContext );
     }
@@ -107,7 +107,7 @@ public class UserServiceTest
     @After
     public void tearDown() throws IOException
     {
-        userRepository.delete( NEO4J_USER );
+        userRepository.delete( ONGDB_USER );
     }
 
     @Test
@@ -242,7 +242,7 @@ public class UserServiceTest
         OutputFormat outputFormat = new EntityOutputFormat( new JsonFormat(), new URI( "http://www.example.com" ), null );
         UserService userService = new UserService( userManagerSupplier, new JsonFormat(), outputFormat );
 
-        userRepository.delete( NEO4J_USER );
+        userRepository.delete( ONGDB_USER );
 
         // When
         Response response = userService.setPassword( "neo4j", request, "{ \"password\" : \"test\" }" );

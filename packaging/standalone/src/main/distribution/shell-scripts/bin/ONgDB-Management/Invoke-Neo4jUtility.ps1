@@ -59,12 +59,12 @@ Function Invoke-Neo4jUtility
 
   Process
   {
-    # Determine the Neo4j Home Directory.  Uses the NEO4J_HOME enironment variable or a parent directory of this script
-    $Neo4jHome = Get-Neo4jEnv 'NEO4J_HOME'
+    # Determine the Neo4j Home Directory.  Uses the ONGDB_HOME enironment variable or a parent directory of this script
+    $Neo4jHome = Get-Neo4jEnv 'ONGDB_HOME'
     if ( ($Neo4jHome -eq $null) -or (-not (Test-Path -Path $Neo4jHome)) ) {
       $Neo4jHome = Split-Path -Path (Split-Path -Path $PSScriptRoot -Parent) -Parent
     }
-    if ($Neo4jHome -eq $null) { throw "Could not determine the Neo4j home Directory.  Set the NEO4J_HOME environment variable and retry" }
+    if ($Neo4jHome -eq $null) { throw "Could not determine the Neo4j home Directory.  Set the ONGDB_HOME environment variable and retry" }
     Write-Verbose "Neo4j Root is '$Neo4jHome'"
 
     $thisServer = Get-Neo4jServer -Neo4jHome $Neo4jHome -ErrorAction Stop

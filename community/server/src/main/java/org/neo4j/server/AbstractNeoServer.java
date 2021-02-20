@@ -132,7 +132,7 @@ public abstract class AbstractNeoServer implements NeoServer
             Pattern.compile( "/browser.*" ),
             Pattern.compile( "/" )
     };
-    public static final String NEO4J_IS_STARTING_MESSAGE = "======== Neo4j " + Version.getNeo4jVersion() + " ========";
+    public static final String ONGDB_IS_STARTING_MESSAGE = "======== Neo4j " + Version.getNeo4jVersion() + " ========";
 
     private final Database.Factory dbFactory;
     private final GraphDatabaseFacadeFactory.Dependencies dependencies;
@@ -176,7 +176,7 @@ public abstract class AbstractNeoServer implements NeoServer
         this.dependencies = dependencies;
         this.logProvider = logProvider;
         this.log = logProvider.getLog( getClass() );
-        log.info( NEO4J_IS_STARTING_MESSAGE );
+        log.info( ONGDB_IS_STARTING_MESSAGE );
 
         List<HttpConnector> httpConnectors = config.enabledHttpConnectors();
 

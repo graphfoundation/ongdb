@@ -297,8 +297,8 @@ public class PushToCloudCommandTest
                 arg( ARG_PASSWORD, "pass" ),
                 arg( ARG_BOLT_URI, SOME_EXAMPLE_BOLT_URI ) ) );
 
-        environmentVariables.set("NEO4J_USERNAME", null);
-        environmentVariables.set("NEO4J_PASSWORD", "pass");
+        environmentVariables.set("ONGDB_USERNAME", null);
+        environmentVariables.set("ONGDB_PASSWORD", "pass");
         command.execute( array(
                 arg( ARG_DUMP, createSimpleDatabaseDump().toString() ),
                 arg( ARG_BOLT_URI, SOME_EXAMPLE_BOLT_URI ) ) );
@@ -328,8 +328,8 @@ public class PushToCloudCommandTest
 
         assertTrue( dump.toFile().exists() );
 
-        environmentVariables.set("NEO4J_USERNAME", "neo4j");
-        environmentVariables.set("NEO4J_PASSWORD", null);
+        environmentVariables.set("ONGDB_USERNAME", "neo4j");
+        environmentVariables.set("ONGDB_PASSWORD", null);
         command.execute( array(
                 arg( ARG_DUMP, dump.toString() ),
                 arg( ARG_BOLT_URI, SOME_EXAMPLE_BOLT_URI ) ) );
@@ -354,8 +354,8 @@ public class PushToCloudCommandTest
                 .build();
 
         // when
-        environmentVariables.set("NEO4J_USERNAME", "neo4jenv");
-        environmentVariables.set("NEO4J_PASSWORD", "passenv");
+        environmentVariables.set("ONGDB_USERNAME", "neo4jenv");
+        environmentVariables.set("ONGDB_PASSWORD", "passenv");
         command.execute( array(
                 arg( ARG_DUMP, createSimpleDatabaseDump().toString() ),
                 arg( ARG_USERNAME, "neo4jcli" ),

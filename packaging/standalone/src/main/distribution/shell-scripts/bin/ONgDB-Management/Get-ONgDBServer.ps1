@@ -86,7 +86,7 @@ Function Get-Neo4jServer
     $Neo4jDir = Get-Item $Neo4jHome
     $Neo4jHome = $Neo4jDir.FullName.TrimEnd('\')
 
-    $ConfDir = Get-Neo4jEnv 'NEO4J_CONF'
+    $ConfDir = Get-Neo4jEnv 'ONGDB_CONF'
     if ($ConfDir -eq $null)
     {
       $ConfDir = (Join-Path -Path $Neo4jHome -ChildPath 'conf')
@@ -134,11 +134,11 @@ Function Get-Neo4jServer
 
     # Set process level environment variables
     #  These should mirror the same paths in neo4j-shared.sh
-    (@{'NEO4J_DATA'    = @{'config_var' = 'dbms.directories.data';    'default' = (Join-Path $Neo4jHome 'data')}
-       'NEO4J_LIB'     = @{'config_var' = 'dbms.directories.lib';     'default' = (Join-Path $Neo4jHome 'lib')}
-       'NEO4J_LOGS'    = @{'config_var' = 'dbms.directories.logs';    'default' = (Join-Path $Neo4jHome 'logs')}
-       'NEO4J_PLUGINS' = @{'config_var' = 'dbms.directories.plugins'; 'default' = (Join-Path $Neo4jHome 'plugins')}
-       'NEO4J_RUN'     = @{'config_var' = 'dbms.directories.run';     'default' = (Join-Path $Neo4jHome 'run')}
+    (@{'ONGDB_DATA'    = @{'config_var' = 'dbms.directories.data';    'default' = (Join-Path $Neo4jHome 'data')}
+       'ONGDB_LIB'     = @{'config_var' = 'dbms.directories.lib';     'default' = (Join-Path $Neo4jHome 'lib')}
+       'ONGDB_LOGS'    = @{'config_var' = 'dbms.directories.logs';    'default' = (Join-Path $Neo4jHome 'logs')}
+       'ONGDB_PLUGINS' = @{'config_var' = 'dbms.directories.plugins'; 'default' = (Join-Path $Neo4jHome 'plugins')}
+       'ONGDB_RUN'     = @{'config_var' = 'dbms.directories.run';     'default' = (Join-Path $Neo4jHome 'run')}
     }).GetEnumerator() | % {
       $setting = (Get-Neo4jSetting -ConfigurationFile 'neo4j.conf' -Name $_.Value.config_var -Neo4jServer $serverObject)
       $value = $_.Value.default
@@ -152,11 +152,11 @@ Function Get-Neo4jServer
     }
 
     # Set log dir on server object
-    $serverObject.LogDir = (Get-Neo4jEnv 'NEO4J_LOGS')
+    $serverObject.LogDir = (Get-Neo4jEnv 'ONGDB_LOGS')
 
-    #  NEO4J_CONF and NEO4J_HOME are used by the Neo4j Admin Tool
-    if ( (Get-Neo4jEnv 'NEO4J_CONF') -eq $null) { Set-Neo4jEnv "NEO4J_CONF" $ConfDir }
-    if ( (Get-Neo4jEnv 'NEO4J_HOME') -eq $null) { Set-Neo4jEnv "NEO4J_HOME" $Neo4jHome }
+    #  ONGDB_CONF and ONGDB_HOME are used by the Neo4j Admin Tool
+    if ( (Get-Neo4jEnv 'ONGDB_CONF') -eq $null) { Set-Neo4jEnv "ONGDB_CONF" $ConfDir }
+    if ( (Get-Neo4jEnv 'ONGDB_HOME') -eq $null) { Set-Neo4jEnv "ONGDB_HOME" $Neo4jHome }
 
     # Any deprecation warnings
     $WrapperPath = Join-Path -Path $ConfDir -ChildPath 'neo4j-wrapper.conf'

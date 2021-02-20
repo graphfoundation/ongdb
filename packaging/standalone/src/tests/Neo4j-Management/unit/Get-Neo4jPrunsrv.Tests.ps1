@@ -20,7 +20,7 @@ InModuleScope ONgDB-Management {
     }
     Mock Confirm-JavaVersion { $true }
     # Mock Neo4j environment
-    Mock Get-Neo4jEnv { $global:mockNeo4jHome } -ParameterFilter { $Name -eq 'NEO4J_HOME' }
+    Mock Get-Neo4jEnv { $global:mockNeo4jHome } -ParameterFilter { $Name -eq 'ONGDB_HOME' }
     Mock Set-Neo4jEnv { }
 
     Context "Invalid or missing specified neo4j installation" {

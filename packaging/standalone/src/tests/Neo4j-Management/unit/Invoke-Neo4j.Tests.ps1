@@ -21,7 +21,7 @@ InModuleScope ONgDB-Management {
     }
     # Mock Neo4j environment
     $mockNeo4jHome = global:New-MockNeo4jInstall
-    Mock Get-Neo4jEnv { $global:mockNeo4jHome } -ParameterFilter { $Name -eq 'NEO4J_HOME' }
+    Mock Get-Neo4jEnv { $global:mockNeo4jHome } -ParameterFilter { $Name -eq 'ONGDB_HOME' }
     Mock Start-Process { throw "Should not call Start-Process mock" }
     # Mock helper functions
     Mock Start-Neo4jServer { 2 } -ParameterFilter { $Console -eq $true }

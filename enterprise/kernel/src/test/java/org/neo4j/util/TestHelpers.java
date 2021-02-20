@@ -91,10 +91,10 @@ public class TestHelpers
         allArgs.addAll( Arrays.asList( args ) );
 
         ProcessBuilder processBuilder = new ProcessBuilder().command( allArgs.toArray( new String[allArgs.size()]));
-        processBuilder.environment().put( "NEO4J_HOME", neo4jHome.getAbsolutePath() );
+        processBuilder.environment().put( "ONGDB_HOME", neo4jHome.getAbsolutePath() );
         if ( debug )
         {
-            processBuilder.environment().put( "NEO4J_DEBUG", "anything_works" );
+            processBuilder.environment().put( "ONGDB_DEBUG", "anything_works" );
         }
         Process process = processBuilder.start();
         ProcessStreamHandler processStreamHandler =

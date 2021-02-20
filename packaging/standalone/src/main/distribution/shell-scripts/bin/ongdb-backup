@@ -9,13 +9,13 @@ declare -r PROGRAM="$(basename "$0")"
 # Sets up the standard environment for running Neo4j shell scripts.
 #
 # Provides these environment variables:
-#   NEO4J_HOME
-#   NEO4J_CONF
-#   NEO4J_DATA
-#   NEO4J_LIB
-#   NEO4J_LOGS
-#   NEO4J_PIDFILE
-#   NEO4J_PLUGINS
+#   ONGDB_HOME
+#   ONGDB_CONF
+#   ONGDB_DATA
+#   ONGDB_LIB
+#   ONGDB_LOGS
+#   ONGDB_PIDFILE
+#   ONGDB_PLUGINS
 #   one per config setting, with dots converted to underscores
 #
 setup_environment() {
@@ -32,7 +32,7 @@ setup_heap() {
 }
 
 build_classpath() {
-  CLASSPATH="${NEO4J_PLUGINS}:${NEO4J_CONF}:${NEO4J_LIB}/*:${NEO4J_PLUGINS}/*"
+  CLASSPATH="${ONGDB_PLUGINS}:${ONGDB_CONF}:${ONGDB_LIB}/*:${ONGDB_PLUGINS}/*"
 
   # augment with tools.jar, will need JDK
   if [ "${JAVA_HOME:-}" ]; then
@@ -72,14 +72,14 @@ check_java() {
   fi
 }
 
-# Resolve a path relative to $NEO4J_HOME.  Don't resolve if
+# Resolve a path relative to $ONGDB_HOME.  Don't resolve if
 # the path is absolute.
 resolve_path() {
     orig_filename=$1
     if [[ ${orig_filename} == /* ]]; then
         filename="${orig_filename}"
     else
-        filename="${NEO4J_HOME}/${orig_filename}"
+        filename="${ONGDB_HOME}/${orig_filename}"
     fi
     echo "${filename}"
 }
@@ -92,7 +92,7 @@ call_main_class() {
   class_name=$1
   shift
 
-  export NEO4J_HOME NEO4J_CONF
+  export ONGDB_HOME ONGDB_CONF
 
   exec "${JAVA_CMD}" ${JAVA_OPTS:-} ${JAVA_MEMORY_OPTS[@]:-} \
     -classpath "${CLASSPATH}" \
@@ -144,11 +144,11 @@ _show_java_help() {
 }
 
 _setup_calculated_paths() {
-  if [[ -z "${NEO4J_HOME:-}" ]]; then
-    NEO4J_HOME="$(cd "$(dirname "$0")"/.. && pwd)"
+  if [[ -z "${ONGDB_HOME:-}" ]]; then
+    ONGDB_HOME="$(cd "$(dirname "$0")"/.. && pwd)"
   fi
-  : "${NEO4J_CONF:="${NEO4J_HOME}/conf"}"
-  readonly NEO4J_HOME NEO4J_CONF
+  : "${ONGDB_CONF:="${ONGDB_HOME}/conf"}"
+  readonly ONGDB_HOME ONGDB_CONF
 }
 
 _read_config() {
@@ -171,7 +171,7 @@ _read_config() {
     fi
   }
 
-  if [[ -f "${NEO4J_CONF}/neo4j-wrapper.conf" ]]; then
+  if [[ -f "${ONGDB_CONF}/neo4j-wrapper.conf" ]]; then
     cat >&2 <<EOF
 WARNING: neo4j-wrapper.conf is deprecated and support for it will be removed in a future
          version of Neo4j; please move all your settings to neo4j.conf
@@ -179,7 +179,7 @@ EOF
   fi
 
   for file in "neo4j-wrapper.conf" "neo4j.conf"; do
-    path="${NEO4J_CONF}/${file}"
+    path="${ONGDB_CONF}/${file}"
     if [ -e "${path}" ]; then
       while read line; do
         parse_line "${line}"
@@ -189,33 +189,33 @@ EOF
 }
 
 _setup_configurable_paths() {
-  NEO4J_DATA=$(resolve_path "${dbms_directories_data:-data}")
-  NEO4J_LIB=$(resolve_path "${dbms_directories_lib:-lib}")
-  NEO4J_LOGS=$(resolve_path "${dbms_directories_logs:-logs}")
-  NEO4J_PLUGINS=$(resolve_path "${dbms_directories_plugins:-plugins}")
-  NEO4J_RUN=$(resolve_path "${dbms_directories_run:-run}")
-  NEO4J_CERTS=$(resolve_path "${dbms_directories_certificates:-certificates}")
+  ONGDB_DATA=$(resolve_path "${dbms_directories_data:-data}")
+  ONGDB_LIB=$(resolve_path "${dbms_directories_lib:-lib}")
+  ONGDB_LOGS=$(resolve_path "${dbms_directories_logs:-logs}")
+  ONGDB_PLUGINS=$(resolve_path "${dbms_directories_plugins:-plugins}")
+  ONGDB_RUN=$(resolve_path "${dbms_directories_run:-run}")
+  ONGDB_CERTS=$(resolve_path "${dbms_directories_certificates:-certificates}")
 
   if [ -z "${dbms_directories_import:-}" ]; then
-    NEO4J_IMPORT="NOT SET"
+    ONGDB_IMPORT="NOT SET"
   else
-    NEO4J_IMPORT=$(resolve_path "${dbms_directories_import:-}")
+    ONGDB_IMPORT=$(resolve_path "${dbms_directories_import:-}")
   fi
 
-  readonly NEO4J_DATA NEO4J_LIB NEO4J_LOGS NEO4J_PLUGINS NEO4J_RUN NEO4J_IMPORT NEO4J_CERTS
+  readonly ONGDB_DATA ONGDB_LIB ONGDB_LOGS ONGDB_PLUGINS ONGDB_RUN ONGDB_IMPORT ONGDB_CERTS
 }
 
 print_configurable_paths() {
   cat <<EOF
 Directories in use:
-  home:         ${NEO4J_HOME}
-  config:       ${NEO4J_CONF}
-  logs:         ${NEO4J_LOGS}
-  plugins:      ${NEO4J_PLUGINS}
-  import:       ${NEO4J_IMPORT}
-  data:         ${NEO4J_DATA}
-  certificates: ${NEO4J_CERTS}
-  run:          ${NEO4J_RUN}
+  home:         ${ONGDB_HOME}
+  config:       ${ONGDB_CONF}
+  logs:         ${ONGDB_LOGS}
+  plugins:      ${ONGDB_PLUGINS}
+  import:       ${ONGDB_IMPORT}
+  data:         ${ONGDB_DATA}
+  certificates: ${ONGDB_CERTS}
+  run:          ${ONGDB_RUN}
 EOF
 }
 

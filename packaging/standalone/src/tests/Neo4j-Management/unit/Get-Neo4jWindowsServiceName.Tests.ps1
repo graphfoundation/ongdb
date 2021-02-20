@@ -8,7 +8,7 @@ Import-Module "$src\ONgDB-Management.psm1"
 InModuleScope ONgDB-Management {
   Describe "Get-Neo4jWindowsServiceName" {
 
-    Mock Get-Neo4jEnv { $global:mockNeo4jHome } -ParameterFilter { $Name -eq 'NEO4J_HOME' }
+    Mock Get-Neo4jEnv { $global:mockNeo4jHome } -ParameterFilter { $Name -eq 'ONGDB_HOME' }
     Mock Set-Neo4jEnv { }
 
     Context "Missing service name in configuration files" {

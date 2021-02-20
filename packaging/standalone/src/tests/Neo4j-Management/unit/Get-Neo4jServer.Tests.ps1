@@ -10,7 +10,7 @@ InModuleScope ONgDB-Management {
     Mock Set-Neo4jEnv { }
 
     Context "Missing Neo4j installation" {
-      Mock Get-Neo4jEnv { $javaHome } -ParameterFilter { $Name -eq 'NEO4J_HOME' }
+      Mock Get-Neo4jEnv { $javaHome } -ParameterFilter { $Name -eq 'ONGDB_HOME' }
 
       It "throws an error if no default home" {
          { Get-Neo4jServer -ErrorAction Stop } | Should Throw
@@ -101,9 +101,9 @@ InModuleScope ONgDB-Management {
       }
     }
 
-    Context "NEO4J_CONF environment variable is set" {
+    Context "ONGDB_CONF environment variable is set" {
       global:New-MockNeo4jInstall -RootDir 'TestDrive:\neo4j'
-      Mock Get-Neo4jEnv { 'TestDrive:\neo4j-conf' } -ParameterFilter { $Name -eq 'NEO4J_CONF' }
+      Mock Get-Neo4jEnv { 'TestDrive:\neo4j-conf' } -ParameterFilter { $Name -eq 'ONGDB_CONF' }
 
       It "Gets conf directory from environment variable" {
          $neoServer = Get-Neo4jServer -Neo4jHome 'TestDrive:\neo4j\' -ErrorAction Stop
@@ -111,23 +111,23 @@ InModuleScope ONgDB-Management {
       }
     }
 
-    Context "NEO4J_HOME environment variable is not set" {
+    Context "ONGDB_HOME environment variable is not set" {
       global:New-MockNeo4jInstall -RootDir 'TestDrive:\neo4j'
-      Mock Get-Neo4jEnv { } -ParameterFilter { $Name -eq 'NEO4J_HOME' }
+      Mock Get-Neo4jEnv { } -ParameterFilter { $Name -eq 'ONGDB_HOME' }
  
-      It "Creates NEO4J_HOME if not set" {
+      It "Creates ONGDB_HOME if not set" {
          $neoServer = Get-Neo4jServer -Neo4jHome 'TestDrive:\neo4j\' -ErrorAction Stop
-         Assert-MockCalled Set-Neo4jEnv -Times 1 -ParameterFilter { $Name -eq 'NEO4J_HOME' }
+         Assert-MockCalled Set-Neo4jEnv -Times 1 -ParameterFilter { $Name -eq 'ONGDB_HOME' }
       }
     }
 
-    Context "NEO4J_HOME environment variable is already set" {
+    Context "ONGDB_HOME environment variable is already set" {
       global:New-MockNeo4jInstall -RootDir 'TestDrive:\neo4j'
-      Mock Get-Neo4jEnv { 'TestDrive:\bad-location' } -ParameterFilter { $Name -eq 'NEO4J_HOME' }
+      Mock Get-Neo4jEnv { 'TestDrive:\bad-location' } -ParameterFilter { $Name -eq 'ONGDB_HOME' }
  
-      It "Does not modify NEO4J_HOME if already set" {
+      It "Does not modify ONGDB_HOME if already set" {
          $neoServer = Get-Neo4jServer -Neo4jHome 'TestDrive:\neo4j\' -ErrorAction Stop
-         Assert-MockCalled Set-Neo4jEnv -Times 0 -ParameterFilter { $Name -eq 'NEO4J_HOME' }
+         Assert-MockCalled Set-Neo4jEnv -Times 0 -ParameterFilter { $Name -eq 'ONGDB_HOME' }
       }
     }
 

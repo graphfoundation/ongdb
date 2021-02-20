@@ -52,15 +52,15 @@ import static org.neo4j.test.mockito.matcher.IterableMatcher.matchesIterable;
 
 public class ClusterConfigurationTest
 {
-    public static URI NEO4J_SERVER1_URI;
-    public static InstanceId NEO4J_SERVER_ID;
+    public static URI ONGDB_SERVER1_URI;
+    public static InstanceId ONGDB_SERVER_ID;
 
     static
     {
         try
         {
-            NEO4J_SERVER1_URI = new URI( "neo4j://server1" );
-            NEO4J_SERVER_ID = new InstanceId( 1 );
+            ONGDB_SERVER1_URI = new URI( "neo4j://server1" );
+            ONGDB_SERVER_ID = new InstanceId( 1 );
         }
         catch ( URISyntaxException e )
         {
@@ -74,32 +74,32 @@ public class ClusterConfigurationTest
     @Test
     public void givenEmptyClusterWhenNodeAddedThenNodeWasAdded()
     {
-        configuration.joined( NEO4J_SERVER_ID, NEO4J_SERVER1_URI );
+        configuration.joined( ONGDB_SERVER_ID, ONGDB_SERVER1_URI );
 
-        assertThat( configuration.getMemberIds(), matchesIterable( Iterables.iterable( NEO4J_SERVER_ID ) ) );
-        assertThat( configuration.getUriForId( NEO4J_SERVER_ID ), equalTo( NEO4J_SERVER1_URI ) );
-        assertThat( configuration.getMemberURIs(), equalTo( Arrays.asList( NEO4J_SERVER1_URI ) ) );
+        assertThat( configuration.getMemberIds(), matchesIterable( Iterables.iterable( ONGDB_SERVER_ID ) ) );
+        assertThat( configuration.getUriForId( ONGDB_SERVER_ID ), equalTo( ONGDB_SERVER1_URI ) );
+        assertThat( configuration.getMemberURIs(), equalTo( Arrays.asList( ONGDB_SERVER1_URI ) ) );
     }
 
     @Test
     public void givenEmptyClusterWhenNodeIsAddedTwiceThenNodeWasAddedOnce()
     {
-        configuration.joined( NEO4J_SERVER_ID, NEO4J_SERVER1_URI );
-        configuration.joined( NEO4J_SERVER_ID, NEO4J_SERVER1_URI );
+        configuration.joined( ONGDB_SERVER_ID, ONGDB_SERVER1_URI );
+        configuration.joined( ONGDB_SERVER_ID, ONGDB_SERVER1_URI );
 
-        assertThat( configuration.getMemberIds(), matchesIterable( Iterables.iterable( NEO4J_SERVER_ID ) ) );
-        assertThat( configuration.getUriForId( NEO4J_SERVER_ID ), equalTo( NEO4J_SERVER1_URI ) );
-        assertThat( configuration.getMemberURIs(), equalTo( Arrays.asList( NEO4J_SERVER1_URI ) ) );
+        assertThat( configuration.getMemberIds(), matchesIterable( Iterables.iterable( ONGDB_SERVER_ID ) ) );
+        assertThat( configuration.getUriForId( ONGDB_SERVER_ID ), equalTo( ONGDB_SERVER1_URI ) );
+        assertThat( configuration.getMemberURIs(), equalTo( Arrays.asList( ONGDB_SERVER1_URI ) ) );
     }
 
     @Test
     public void givenClusterWithOneNodeWhenNodeIsRemovedThenClusterIsEmpty()
     {
-        configuration.joined( NEO4J_SERVER_ID, NEO4J_SERVER1_URI );
-        configuration.left( NEO4J_SERVER_ID );
+        configuration.joined( ONGDB_SERVER_ID, ONGDB_SERVER1_URI );
+        configuration.left( ONGDB_SERVER_ID );
 
         assertThat( configuration.getMemberIds(), matchesIterable( Iterables.empty() ) );
-        assertThat( configuration.getUriForId( NEO4J_SERVER_ID ), equalTo( null ) );
+        assertThat( configuration.getUriForId( ONGDB_SERVER_ID ), equalTo( null ) );
         assertThat( configuration.getMemberURIs(), equalTo( Collections.<URI>emptyList() ) );
 
     }
@@ -107,12 +107,12 @@ public class ClusterConfigurationTest
     @Test
     public void givenClusterWithOneNodeWhenNodeIsRemovedTwiceThenClusterIsEmpty()
     {
-        configuration.joined( NEO4J_SERVER_ID, NEO4J_SERVER1_URI );
-        configuration.left( NEO4J_SERVER_ID );
-        configuration.left( NEO4J_SERVER_ID );
+        configuration.joined( ONGDB_SERVER_ID, ONGDB_SERVER1_URI );
+        configuration.left( ONGDB_SERVER_ID );
+        configuration.left( ONGDB_SERVER_ID );
 
         assertThat( configuration.getMemberIds(), matchesIterable( Iterables.empty() ) );
-        assertThat( configuration.getUriForId( NEO4J_SERVER_ID ), equalTo( null ) );
+        assertThat( configuration.getUriForId( ONGDB_SERVER_ID ), equalTo( null ) );
         assertThat( configuration.getMemberURIs(), equalTo( Collections.<URI>emptyList() ) );
 
     }
