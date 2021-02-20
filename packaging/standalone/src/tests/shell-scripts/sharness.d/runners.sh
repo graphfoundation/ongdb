@@ -1,14 +1,14 @@
 run_console() {
-  neo4j-home/bin/neo4j console
+  ongdb-home/bin/ongdb console
 }
 
 start_daemon() {
   export JAVA_SENTINEL=$(mktemp /tmp/java-sentinel.XXXXX)
   trap "rm -rf ${JAVA_SENTINEL}" EXIT
-  neo4j-home/bin/neo4j start
+  ongdb-home/bin/ongdb start
 }
 
 run_daemon() {
   start_daemon && \
-    FAKE_JAVA_DISABLE_RECORD_ARGS="t" neo4j-home/bin/neo4j stop
+    FAKE_JAVA_DISABLE_RECORD_ARGS="t" ongdb-home/bin/ongdb stop
 }

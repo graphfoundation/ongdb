@@ -73,7 +73,7 @@
         <exclude>**/*.psd1</exclude>
         <exclude>**/*.psm1</exclude>
         <exclude>**/*.ps1</exclude>
-        <exclude>**/Neo4j-Management</exclude>
+        <exclude>**/ONgDB-Management</exclude>
         <exclude>**/*.exe</exclude>
         <exclude>**/2.x-config-migrator.jar</exclude>
       </excludes>

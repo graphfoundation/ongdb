@@ -16,7 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-# Module manifest for module 'Neo4j-Management'
+# Module manifest for module 'ONgDB-Management'
 #
 
 
@@ -35,7 +35,7 @@ Description = 'Powershell module to manage a Neo4j instance on Windows'
 
 PowerShellVersion = '2.0'
 
-NestedModules = @('Neo4j-Management\Neo4j-Management.psm1')
+NestedModules = @('ONgDB-Management\ONgDB-Management.psm1')
 
 FunctionsToExport = @(
 'Invoke-Neo4j',

@@ -6,7 +6,7 @@ test_description="Test running neo4j-backup"
 fake_install
 
 test_expect_success "should invoke backup main class" "
-  neo4j-home/bin/neo4j-backup || true &&
+  ongdb-home/bin/ongdb-backup || true &&
   test_expect_java_arg 'org.neo4j.backup.BackupTool'
 "
 

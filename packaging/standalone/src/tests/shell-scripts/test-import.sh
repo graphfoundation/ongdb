@@ -6,7 +6,7 @@ test_description="Test running neo4j-import"
 fake_install
 
 test_expect_success "should invoke import main class" "
-  neo4j-home/bin/neo4j-import || true &&
+  ongdb-home/bin/ongdb-import || true &&
   test_expect_java_arg 'org.neo4j.tooling.ImportTool'
 "
 

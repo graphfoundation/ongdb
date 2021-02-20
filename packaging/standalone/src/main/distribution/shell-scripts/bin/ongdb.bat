@@ -19,5 +19,5 @@ rem along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 SETLOCAL
 
-Powershell -NoProfile -NonInteractive -NoLogo -ExecutionPolicy Bypass -Command "Import-Module '%~dp0Neo4j-Management.psd1'; Exit (Invoke-Neo4jShell %*)"
+Powershell -NoProfile -NonInteractive -NoLogo -ExecutionPolicy Bypass -Command "try { Unblock-File -Path '%~dp0ONgDB-Management\*.*' -ErrorAction 'SilentlyContinue' } catch {};Import-Module '%~dp0ONgDB-Management.psd1'; Exit (Invoke-Neo4j %*)"
 EXIT /B %ERRORLEVEL%

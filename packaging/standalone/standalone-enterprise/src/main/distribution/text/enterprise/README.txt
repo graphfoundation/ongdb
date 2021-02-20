@@ -43,7 +43,7 @@ look at the web interface ...
 Learn more
 ----------
 
-* #{neo4j-home.url.title}: #{neo4j-home.url}
+* #{ongdb-home.url.title}: #{ongdb-home.url}
 * #{getting-started.url.title}: #{getting-started.url}
 * #{neo4j-manual.title}: #{neo4j-manual.url}
 

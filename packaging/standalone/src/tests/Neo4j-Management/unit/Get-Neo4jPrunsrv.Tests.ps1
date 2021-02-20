@@ -3,9 +3,9 @@ $sut = (Split-Path -Leaf $MyInvocation.MyCommand.Path).Replace(".Tests.", ".")
 $common = Join-Path (Split-Path -Parent $here) 'Common.ps1'
 . $common
 
-Import-Module "$src\Neo4j-Management.psm1"
+Import-Module "$src\ONgDB-Management.psm1"
 
-InModuleScope Neo4j-Management {
+InModuleScope ONgDB-Management {
   Describe "Get-Neo4jPrunsrv" {
 
     # Setup mocking environment

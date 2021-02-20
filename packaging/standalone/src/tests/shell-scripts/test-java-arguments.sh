@@ -148,7 +148,7 @@ test_expect_success "should set heap size constraints when checking version from
   clear_config &&
   set_config 'dbms.memory.heap.initial_size' '512m' neo4j-wrapper.conf &&
   set_config 'dbms.memory.heap.max_size' '1024m' neo4j-wrapper.conf &&
-  neo4j-home/bin/neo4j status || true &&
+  ongdb-home/bin/ongdb status || true &&
   test_expect_java_arg '-Xms512m' &&
   test_expect_java_arg '-Xmx1024m'
 "
@@ -157,7 +157,7 @@ test_expect_success "should set heap size constraints when checking version" "
   clear_config &&
   set_config 'dbms.memory.heap.initial_size' '512m' neo4j.conf &&
   set_config 'dbms.memory.heap.max_size' '1024m' neo4j.conf &&
-  neo4j-home/bin/neo4j status || true &&
+  ongdb-home/bin/ongdb status || true &&
   test_expect_java_arg '-Xms512m' &&
   test_expect_java_arg '-Xmx1024m'
 "

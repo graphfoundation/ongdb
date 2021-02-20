@@ -6,22 +6,22 @@ test_description="Test neo4j-admin argument handling"
 fake_install
 
 test_expect_success "should delegate help to the Java tool" "
-  neo4j-home/bin/neo4j-admin help &&
+  ongdb-home/bin/ongdb-admin help &&
   test_expect_java_arg 'org.neo4j.commandline.admin.AdminTool'
 "
 
 test_expect_success "should delegate missing commands to the Java tool" "
-  neo4j-home/bin/neo4j-admin &&
+  ongdb-home/bin/ongdb-admin &&
   test_expect_java_arg 'org.neo4j.commandline.admin.AdminTool'
 "
 
 test_expect_success "should delegate unknown commands to the Java tool" "
-  neo4j-home/bin/neo4j-admin unknown &&
+  ongdb-home/bin/ongdb-admin unknown &&
   test_expect_java_arg 'org.neo4j.commandline.admin.AdminTool'
 "
 
 test_expect_success "should specify heap size when given" "
-  HEAP_SIZE=666m neo4j-home/bin/neo4j-admin backup &&
+  HEAP_SIZE=666m ongdb-home/bin/ongdb-admin backup &&
   test_expect_java_arg '-Xmx666m'
 "
 
