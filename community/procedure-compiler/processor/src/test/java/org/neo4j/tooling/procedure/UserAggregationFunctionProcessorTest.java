@@ -69,7 +69,7 @@ public class UserAggregationFunctionProcessorTest extends ExtensionTestBase
         assert_().about( javaSource() ).that( function ).processedWith( processor() ).failsToCompile()
                 .withErrorCount( 1 )
                 .withErrorContaining( "@UserAggregationFunction usage error: method should be public, non-static and without parameters." )
-                .in( function ).onLine( 31 );
+                .in( function ).onLine( 50 );
     }
 
     @Test
@@ -81,7 +81,7 @@ public class UserAggregationFunctionProcessorTest extends ExtensionTestBase
         assert_().about( javaSource() ).that( function ).processedWith( processor() ).failsToCompile()
                 .withErrorCount( 1 )
                 .withErrorContaining( "Unsupported return type <void> of aggregation function." )
-                .in( function ).onLine( 27 );
+                .in( function ).onLine( 46 );
     }
 
     @Test
@@ -99,12 +99,12 @@ public class UserAggregationFunctionProcessorTest extends ExtensionTestBase
                 .withErrorContaining( "@UserAggregationUpdate usage error: expected aggregation type " +
                 "<org.neo4j.tooling.procedure.procedures.invalid.aggregation.FunctionWithoutAggregationMethods.MyAggregation> " +
                 "to define exactly 1 method with this annotation. Found none." )
-                .in( function ).onLine( 31 );
+                .in( function ).onLine( 50 );
         unsuccessfulCompilationClause
                 .withErrorContaining( "@UserAggregationResult usage error: expected aggregation type " +
                 "<org.neo4j.tooling.procedure.procedures.invalid.aggregation.FunctionWithoutAggregationMethods.MyAggregation> " +
                 "to define exactly 1 method with this annotation. Found none." )
-                .in( function ).onLine( 31 );
+                .in( function ).onLine( 50 );
     }
 
     @Override

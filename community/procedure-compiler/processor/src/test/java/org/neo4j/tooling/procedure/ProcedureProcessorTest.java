@@ -72,10 +72,10 @@ public class ProcedureProcessorTest extends ExtensionTestBase
                         .withErrorCount( 2 );
 
         compilation.withErrorContaining( "@org.neo4j.procedure.Name usage error: missing on parameter <parameter>" )
-                .in( sproc ).onLine( 35 );
+                .in( sproc ).onLine( 54 );
 
         compilation.withErrorContaining( "@org.neo4j.procedure.Name usage error: missing on parameter <otherParam>" )
-                .in( sproc ).onLine( 35 );
+                .in( sproc ).onLine( 54 );
     }
 
     @Test
@@ -86,7 +86,7 @@ public class ProcedureProcessorTest extends ExtensionTestBase
 
         assert_().about( javaSource() ).that( sproc ).processedWith( processor() ).failsToCompile().withErrorCount( 1 )
                 .withErrorContaining( "Return type of BadReturnTypeSproc#niceSproc must be java.util.stream.Stream" )
-                .in( sproc ).onLine( 34 );
+                .in( sproc ).onLine( 53 );
     }
 
     @Test
@@ -100,10 +100,10 @@ public class ProcedureProcessorTest extends ExtensionTestBase
                 record ) ).processedWith( processor() ).failsToCompile().withErrorCount( 2 );
 
         compilation.withErrorContaining( "Record definition error: field BadRecord#label must be public" ).in( record )
-                .onLine( 26 );
+                .onLine( 45 );
 
         compilation.withErrorContaining( "Record definition error: field BadRecord#age must be public" ).in( record )
-                .onLine( 27 );
+                .onLine( 46 );
     }
 
     @Test
@@ -115,7 +115,7 @@ public class ProcedureProcessorTest extends ExtensionTestBase
         assert_().about( javaSource() ).that( sproc ).processedWith( processor() ).failsToCompile().withErrorCount( 1 )
                 .withErrorContaining(
                         "Unsupported parameter type <short> of procedure|function BadPrimitiveInputSproc#doSomething" )
-                .in( sproc ).onLine( 32 );
+                .in( sproc ).onLine( 51 );
     }
 
     @Test
@@ -130,15 +130,15 @@ public class ProcedureProcessorTest extends ExtensionTestBase
 
         compilation.withErrorContaining( "Unsupported parameter type " +
                 "<java.util.List<java.util.List<java.util.Map<java.lang.String,java.lang.Thread>>>>" +
-                " of procedure|function BadGenericInputSproc#doSomething" ).in( sproc ).onLine( 36 );
+                " of procedure|function BadGenericInputSproc#doSomething" ).in( sproc ).onLine( 55 );
 
         compilation.withErrorContaining( "Unsupported parameter type " +
                 "<java.util.Map<java.lang.String,java.util.List<java.util.concurrent.ExecutorService>>>" +
-                " of procedure|function BadGenericInputSproc#doSomething2" ).in( sproc ).onLine( 42 );
+                " of procedure|function BadGenericInputSproc#doSomething2" ).in( sproc ).onLine( 61 );
 
         compilation.withErrorContaining(
                 "Unsupported parameter type <java.util.Map> of procedure|function BadGenericInputSproc#doSomething3" )
-                .in( sproc ).onLine( 48 );
+                .in( sproc ).onLine( 67 );
     }
 
     @Test
@@ -151,7 +151,7 @@ public class ProcedureProcessorTest extends ExtensionTestBase
                 .procedureSource( "invalid/bad_record_field_type/BadRecordSimpleFieldTypeSproc.java" ), record ) )
                 .processedWith( processor() ).failsToCompile().withErrorCount( 1 ).withErrorContaining(
                 "Record definition error: type of field BadRecordSimpleFieldType#wrongType is not supported" )
-                .in( record ).onLine( 29 );
+                .in( record ).onLine( 48 );
     }
 
     @Test
@@ -167,13 +167,13 @@ public class ProcedureProcessorTest extends ExtensionTestBase
 
         compilation.withErrorContaining(
                 "Record definition error: type of field BadRecordGenericFieldType#wrongType1 is not supported" )
-                .in( record ).onLine( 34 );
+                .in( record ).onLine( 53 );
         compilation.withErrorContaining(
                 "Record definition error: type of field BadRecordGenericFieldType#wrongType2 is not supported" )
-                .in( record ).onLine( 35 );
+                .in( record ).onLine( 54 );
         compilation.withErrorContaining(
                 "Record definition error: type of field BadRecordGenericFieldType#wrongType3 is not supported" )
-                .in( record ).onLine( 36 );
+                .in( record ).onLine( 55 );
     }
 
     @Test
@@ -200,7 +200,7 @@ public class ProcedureProcessorTest extends ExtensionTestBase
                 .withErrorCount( 1 ).withErrorContaining(
                 "Extension class org.neo4j.tooling.procedure.procedures.invalid.missing_constructor.MissingConstructorProcedure " +
                         "should contain a public no-arg constructor, none found." )
-                .in( procedure ).onLine( 24 );
+                .in( procedure ).onLine( 43 );
     }
 
     @Test
@@ -222,7 +222,7 @@ public class ProcedureProcessorTest extends ExtensionTestBase
         assert_().about( javaSource() ).that( procedure ).processedWith( processor() ).failsToCompile()
                 .withErrorCount( 1 )
                 .withErrorContaining( "@PerformsWrites usage error: cannot use mode other than Mode.DEFAULT" )
-                .in( procedure ).onLine( 30 );
+                .in( procedure ).onLine( 49 );
 
     }
 
