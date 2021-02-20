@@ -130,7 +130,7 @@ InModuleScope ONgDB-Management {
       }
 
       # dbms.logs.gc.enabled=true is specified in the mock so -Xloggc:... should be present in the Prunsrv command
-      It "should set GCLogfile in Prunsrv if specified in neo4j.conf" {
+      It "should set GCLogfile in Prunsrv if specified in ongdb.conf" {
         $jvmArgs | Should Match ([regex]::Escape('-Xloggc:'))
       }
     }

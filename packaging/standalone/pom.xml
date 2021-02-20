@@ -37,7 +37,7 @@
     <!-- other filter properties -->
     <neo4j.version>${project.version}</neo4j.version>
 
-    <!-- conf/neo4j.conf filter properties -->
+    <!-- conf/ongdb.conf filter properties -->
     <default.http.port>7474</default.http.port>
     <default.https.port>7473</default.https.port>
 
@@ -45,7 +45,7 @@
 
 	<org.neo4j.webservice.packages>org.neo4j.rest.web</org.neo4j.webservice.packages>
 	<neo4j.home>${project.build.directory}/neo4j</neo4j.home>
-	<neo4j.confdir>${neo4j.home}/conf</neo4j.confdir>
+	<ongdb.confdir>${neo4j.home}/conf</ongdb.confdir>
 	<neo4j.datadir>${neo4j.home}/data</neo4j.datadir>
 	<neo4j.logdir>${neo4j.datadir}/log</neo4j.logdir>
   </properties>

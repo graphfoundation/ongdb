@@ -21,9 +21,9 @@ InModuleScope ONgDB-Management {
     Context "Missing configuration file is ignored" {
       $serverObject = global:New-MockNeo4jInstall
 
-      "setting=value" | Out-File -FilePath "$($serverObject.Home)\conf\neo4j.conf"
+      "setting=value" | Out-File -FilePath "$($serverObject.Home)\conf\ongdb.conf"
       # Remove the neo4j-wrapper
-      $wrapperFile = "$($serverObject.Home)\conf\neo4j-wrapper.conf"
+      $wrapperFile = "$($serverObject.Home)\conf\ongdb-wrapper.conf"
       if (Test-Path -Path $wrapperFile) { Remove-Item -Path $wrapperFile | Out-Null }
 
       $result = Get-Neo4jSetting -Neo4jServer $serverObject
@@ -37,8 +37,8 @@ InModuleScope ONgDB-Management {
     Context "Simple configuration settings" {
       $serverObject = global:New-MockNeo4jInstall
 
-      "setting1=value1" | Out-File -FilePath "$($serverObject.Home)\conf\neo4j.conf"
-      "setting2=value2" | Out-File -FilePath "$($serverObject.Home)\conf\neo4j-wrapper.conf"
+      "setting1=value1" | Out-File -FilePath "$($serverObject.Home)\conf\ongdb.conf"
+      "setting2=value2" | Out-File -FilePath "$($serverObject.Home)\conf\ongdb-wrapper.conf"
 
       $result = Get-Neo4jSetting -Neo4jServer $serverObject
 
@@ -54,16 +54,16 @@ InModuleScope ONgDB-Management {
       $result | ForEach-Object -Process {
         $setting = $_
         switch ($setting.Name) {
-          'setting1' { $neo4jServerProperties = ($setting.ConfigurationFile -eq 'neo4j.conf') -and ($setting.IsDefault -eq $false) -and ($setting.Value -eq 'value1') }
-          'setting2' { $neo4jWrapper =          ($setting.ConfigurationFile -eq 'neo4j-wrapper.conf') -and ($setting.IsDefault -eq $false) -and ($setting.Value -eq 'value2') }
+          'setting1' { $neo4jServerProperties = ($setting.ConfigurationFile -eq 'ongdb.conf') -and ($setting.IsDefault -eq $false) -and ($setting.Value -eq 'value1') }
+          'setting2' { $neo4jWrapper =          ($setting.ConfigurationFile -eq 'ongdb-wrapper.conf') -and ($setting.IsDefault -eq $false) -and ($setting.Value -eq 'value2') }
           default { $unknownSetting = $true}
         }
       }
 
-      It "returns settings for file neo4j.conf" {
+      It "returns settings for file ongdb.conf" {
         $neo4jServerProperties | Should Be $true
       }
-      It "returns settings for file neo4j-wrapper.conf" {
+      It "returns settings for file ongdb-wrapper.conf" {
         $neo4jWrapper | Should Be $true
       }
 
@@ -75,8 +75,8 @@ InModuleScope ONgDB-Management {
     Context "Configuration settings with multiple values" {
       $serverObject = global:New-MockNeo4jInstall
 
-      "setting1=value1`n`rsetting2=value2`n`rsetting2=value3`n`rsetting2=value4" | Out-File -FilePath "$($serverObject.Home)\conf\neo4j.conf"
-      "" | Out-File -FilePath "$($serverObject.Home)\conf\neo4j-wrapper.conf"
+      "setting1=value1`n`rsetting2=value2`n`rsetting2=value3`n`rsetting2=value4" | Out-File -FilePath "$($serverObject.Home)\conf\ongdb.conf"
+      "" | Out-File -FilePath "$($serverObject.Home)\conf\ongdb-wrapper.conf"
 
       $result = Get-Neo4jSetting -Neo4jServer $serverObject
 

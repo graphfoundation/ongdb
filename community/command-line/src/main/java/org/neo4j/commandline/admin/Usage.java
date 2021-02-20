@@ -83,7 +83,7 @@ public class Usage
     static void printEnvironmentVariables( Consumer<String> output )
     {
         output.accept( "environment variables:" );
-        output.accept( "    ONGDB_CONF    Path to directory which contains neo4j.conf." );
+        output.accept( "    ONGDB_CONF    Path to directory which contains ongdb.conf." );
         output.accept( "    ONGDB_DEBUG   Set to anything to enable debug output." );
         output.accept( "    ONGDB_HOME    Neo4j home directory." );
         output.accept( "    HEAP_SIZE     Set JVM maximum heap size during command execution." );

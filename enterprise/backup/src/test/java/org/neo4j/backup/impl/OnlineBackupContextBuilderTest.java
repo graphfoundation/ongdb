@@ -89,7 +89,7 @@ public class OnlineBackupContextBuilderTest
     {
         homeDir = testDirectory.directory( "home" ).toPath();
         configDir = testDirectory.directory( "config" ).toPath();
-        configFile = configDir.resolve( "neo4j.conf" );
+        configFile = configDir.resolve( "ongdb.conf" );
         String neo4jConfContents = "dbms.backup.address = localhost:1234";
         Files.write( configFile, singletonList( neo4jConfContents ) );
     }
@@ -207,7 +207,7 @@ public class OnlineBackupContextBuilderTest
     public void errorHandledForNonExistingAdditionalConfigFile() throws Exception
     {
         // given
-        Path additionalConf = homeDir.resolve( "neo4j.conf" );
+        Path additionalConf = homeDir.resolve( "ongdb.conf" );
 
         // and
         expected.expect( CommandFailed.class );
@@ -225,7 +225,7 @@ public class OnlineBackupContextBuilderTest
         Files.write( configFile, singletonList( "causal_clustering.minimum_core_cluster_size_at_startup=4" ), WRITE );
 
         // and
-        Path homeDirConfigFile = homeDir.resolve( "neo4j.conf" );
+        Path homeDirConfigFile = homeDir.resolve( "ongdb.conf" );
         Files.write( homeDirConfigFile, asList( "causal_clustering.minimum_core_cluster_size_at_startup=5", "causal_clustering.raft_in_queue_max_batch=21" ) );
 
         // when
@@ -244,7 +244,7 @@ public class OnlineBackupContextBuilderTest
         Files.write( configFile, asList( "causal_clustering.minimum_core_cluster_size_at_startup=4", "causal_clustering.raft_in_queue_max_batch=21" ) );
 
         // and
-        Path additionalConf = homeDir.resolve( "additional-neo4j.conf" );
+        Path additionalConf = homeDir.resolve( "additional-ongdb.conf" );
         Files.write( additionalConf, singletonList( "causal_clustering.minimum_core_cluster_size_at_startup=5" ) );
 
         // when
@@ -275,7 +275,7 @@ public class OnlineBackupContextBuilderTest
     public void mustIgnorePageCacheConfigInAdditionalConfigFile() throws Exception
     {
         // given
-        Path additionalConf = homeDir.resolve( "additional-neo4j.conf" );
+        Path additionalConf = homeDir.resolve( "additional-ongdb.conf" );
         Files.write( additionalConf, singletonList( pagecache_memory.name() + "=42m" ) );
 
         // when

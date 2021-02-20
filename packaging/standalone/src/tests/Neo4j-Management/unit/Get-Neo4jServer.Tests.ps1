@@ -131,13 +131,13 @@ InModuleScope ONgDB-Management {
       }
     }
 
-    Context "Deprecation warning if a neo4j-wrapper.conf file is found" {
+    Context "Deprecation warning if a ongdb-wrapper.conf file is found" {
       global:New-MockNeo4jInstall -RootDir 'TestDrive:\neo4j'
       Mock Write-Warning
  
-      '# Mock File' | Out-File 'TestDrive:\neo4j\conf\neo4j-wrapper.conf'
+      '# Mock File' | Out-File 'TestDrive:\neo4j\conf\ongdb-wrapper.conf'
 
-      It "Should raise a warning if conf\neo4j-wrapper.conf exists" {
+      It "Should raise a warning if conf\ongdb-wrapper.conf exists" {
          $neoServer = Get-Neo4jServer -Neo4jHome 'TestDrive:\neo4j\' -ErrorAction Stop
          Assert-MockCalled Write-Warning -Times 1
       }

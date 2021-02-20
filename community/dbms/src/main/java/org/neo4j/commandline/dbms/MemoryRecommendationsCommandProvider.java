@@ -87,7 +87,7 @@ public class MemoryRecommendationsCommandProvider extends AdminCommand.Provider
                 "running Neo4j. If this is not the case, then use the --memory argument to specify how much memory " +
                 "can be expected to be dedicated to Neo4j.%n" +
                 "%n" +
-                "The output is formatted such that it can be copy-posted into the neo4j.conf file." );
+                "The output is formatted such that it can be copy-posted into the ongdb.conf file." );
     }
 
     @Nonnull

@@ -212,7 +212,7 @@ public class ConsistencyCheckTool
     private String usage()
     {
         return joinAsLines(
-                jarUsage( getClass(), " [-config <neo4j.conf>] [-v] <storedir>" ),
+                jarUsage( getClass(), " [-config <ongdb.conf>] [-v] <storedir>" ),
                 "WHERE:   -config <filename>  Is the location of an optional properties file",
                 "                             containing tuning parameters for the consistency check.",
                 "         -v                  Produce execution output.",

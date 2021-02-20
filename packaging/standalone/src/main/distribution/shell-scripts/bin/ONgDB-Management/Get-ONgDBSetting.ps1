@@ -46,9 +46,9 @@ Get-Neo4jSetting -Neo4jServer $ServerObject -Name 'dbms.active_database'
 Retrieves all settings with the name 'dbms.active_database' from the Neo4j installation at $ServerObject
 
 .EXAMPLE
-Get-Neo4jSetting -Neo4jServer $ServerObject -Name 'dbms.active_database' -ConfigurationFile 'neo4j.conf'
+Get-Neo4jSetting -Neo4jServer $ServerObject -Name 'dbms.active_database' -ConfigurationFile 'ongdb.conf'
 
-Retrieves all settings with the name 'dbms.active_database' from the Neo4j installation at $ServerObject in 'neo4j.conf'
+Retrieves all settings with the name 'dbms.active_database' from the Neo4j installation at $ServerObject in 'ongdb.conf'
 
 .OUTPUTS
 System.Management.Automation.PSCustomObject
@@ -93,7 +93,7 @@ Function Get-Neo4jSetting
     # Set the default list of configuration files    
     if ($ConfigurationFile -eq $null)
     {
-      $ConfigurationFile = ('neo4j.conf','neo4j-wrapper.conf')
+      $ConfigurationFile = ('ongdb.conf','ongdb-wrapper.conf')
     }
    
     $ConfigurationFile | ForEach-Object -Process `

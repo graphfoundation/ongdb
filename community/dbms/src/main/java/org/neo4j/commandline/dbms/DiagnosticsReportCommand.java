@@ -270,7 +270,7 @@ public class DiagnosticsReportCommand implements AdminCommand
 
         // Register sources provided by this tool
         reporter.registerSource( "config",
-                DiagnosticsReportSources.newDiagnosticsFile( "neo4j.conf", fs, configFile ) );
+                DiagnosticsReportSources.newDiagnosticsFile( "ongdb.conf", fs, configFile ) );
 
         reporter.registerSource( "ps", runningProcesses() );
 

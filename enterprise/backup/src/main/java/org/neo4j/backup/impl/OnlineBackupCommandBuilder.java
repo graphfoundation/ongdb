@@ -317,7 +317,7 @@ public class OnlineBackupCommandBuilder
         {
             return "";
         }
-        File configFile = backupTarget.toPath().resolve( "../additional_neo4j.conf" ).toFile();
+        File configFile = backupTarget.toPath().resolve( "../additional_ongdb.conf" ).toFile();
         writeConfigToFile( additionalConfig, configFile );
 
         return format( "--additional-config=%s", configFile );

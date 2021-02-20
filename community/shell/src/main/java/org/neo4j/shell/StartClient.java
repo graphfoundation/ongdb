@@ -541,7 +541,7 @@ public class StartClient
                 "\t...or no arguments for default values\n" +
                 "Example arguments for local:\n" +
                 "\t-" + ARG_PATH + " /path/to/db" + "\n" +
-                "\t-" + ARG_PATH + " /path/to/db -" + ARG_CONFIG + " /path/to/neo4j.config" + "\n" +
+                "\t-" + ARG_PATH + " /path/to/db -" + ARG_CONFIG + " /path/to/ongdb.conf" + "\n" +
                 "\t-" + ARG_PATH + " /path/to/db -" + ARG_READONLY
         );
     }

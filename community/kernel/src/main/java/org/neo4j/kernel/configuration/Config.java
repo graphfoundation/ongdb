@@ -99,7 +99,7 @@ import static org.neo4j.kernel.configuration.Settings.TRUE;
  */
 public class Config implements DiagnosticsProvider, Configuration
 {
-    public static final String DEFAULT_CONFIG_FILE_NAME = "neo4j.conf";
+    public static final String DEFAULT_CONFIG_FILE_NAME = "ongdb.conf";
 
     private final List<ConfigOptions> configOptions;
 

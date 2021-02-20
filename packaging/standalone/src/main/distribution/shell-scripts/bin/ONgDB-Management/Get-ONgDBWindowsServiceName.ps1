@@ -54,18 +54,18 @@ Function Get-Neo4jWindowsServiceName
   
   Process {
     $ServiceName = ''
-    # Try neo4j.conf first, but then fallback to neo4j-wrapper.conf for backwards compatibility reasons
-    $setting = (Get-Neo4jSetting -ConfigurationFile 'neo4j.conf' -Name 'dbms.windows_service_name' -Neo4jServer $Neo4jServer)
+    # Try ongdb.conf first, but then fallback to ongdb-wrapper.conf for backwards compatibility reasons
+    $setting = (Get-Neo4jSetting -ConfigurationFile 'ongdb.conf' -Name 'dbms.windows_service_name' -Neo4jServer $Neo4jServer)
     if ($setting -ne $null) {
       $ServiceName = $setting.Value
     } else {
-      $setting = (Get-Neo4jSetting -ConfigurationFile 'neo4j-wrapper.conf' -Name 'dbms.windows_service_name' -Neo4jServer $Neo4jServer)
+      $setting = (Get-Neo4jSetting -ConfigurationFile 'ongdb-wrapper.conf' -Name 'dbms.windows_service_name' -Neo4jServer $Neo4jServer)
       if ($setting -ne $null) { $ServiceName = $setting.Value }
     }
 
     if ($ServiceName -eq '')
     {
-      Throw 'Could not find the Windows Service Name for Neo4j (dbms.windows_service_name in neo4j.conf)'
+      Throw 'Could not find the Windows Service Name for Neo4j (dbms.windows_service_name in ongdb.conf)'
       return $null
     }
     else 

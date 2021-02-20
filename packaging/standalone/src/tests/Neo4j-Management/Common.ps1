@@ -62,7 +62,7 @@ Function global:New-MockNeo4jInstall(
     'TempFile' | Out-File -FilePath "$RootDir\bin\tools\prunsrv-amd64.exe"
     'TempFile' | Out-File -FilePath "$RootDir\bin\tools\prunsrv-i386.exe"
 
-    # Create fake neo4j.conf
+    # Create fake ongdb.conf
     $neoConf = $NeoConfSettings -join "`n`r"
     if ($DatabaseMode -ne '') {
       $neoConf += "`n`rdbms.mode=$DatabaseMode"
@@ -70,7 +70,7 @@ Function global:New-MockNeo4jInstall(
     if ([string]$WindowsService -ne '') {
       $neoConf += "`n`rdbms.windows_service_name=$WindowsService"
     }
-    $neoConf | Out-File -FilePath "$RootDir\conf\neo4j.conf"
+    $neoConf | Out-File -FilePath "$RootDir\conf\ongdb.conf"
   }
 
   $serverObject = (New-Object -TypeName PSCustomObject -Property @{

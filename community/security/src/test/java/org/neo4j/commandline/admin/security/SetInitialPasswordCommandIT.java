@@ -135,7 +135,7 @@ public class SetInitialPasswordCommandIT
         verify( out, times( 3 ) ).stdErrLine( "" );
         verify( out ).stdErrLine( "usage: neo4j-admin set-initial-password <password>" );
         verify( out ).stdErrLine( String.format( "environment variables:" ) );
-        verify( out ).stdErrLine( String.format( "    ONGDB_CONF    Path to directory which contains neo4j.conf." ) );
+        verify( out ).stdErrLine( String.format( "    ONGDB_CONF    Path to directory which contains ongdb.conf." ) );
         verify( out ).stdErrLine( String.format( "    ONGDB_DEBUG   Set to anything to enable debug output." ) );
         verify( out ).stdErrLine( String.format( "    ONGDB_HOME    Neo4j home directory." ) );
         verify( out ).stdErrLine( String.format( "    HEAP_SIZE     Set JVM maximum heap size during command execution." ) );
@@ -156,7 +156,7 @@ public class SetInitialPasswordCommandIT
         verify( out, times( 3 ) ).stdErrLine( "" );
         verify( out ).stdErrLine( "usage: neo4j-admin set-initial-password <password>" );
         verify( out ).stdErrLine( String.format( "environment variables:" ) );
-        verify( out ).stdErrLine( String.format( "    ONGDB_CONF    Path to directory which contains neo4j.conf." ) );
+        verify( out ).stdErrLine( String.format( "    ONGDB_CONF    Path to directory which contains ongdb.conf." ) );
         verify( out ).stdErrLine( String.format( "    ONGDB_DEBUG   Set to anything to enable debug output." ) );
         verify( out ).stdErrLine( String.format( "    ONGDB_HOME    Neo4j home directory." ) );
         verify( out ).stdErrLine( String.format( "    HEAP_SIZE     Set JVM maximum heap size during command execution." ) );

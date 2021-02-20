@@ -96,7 +96,7 @@ public class DiagnosticsReportCommandIT
         assertThat( pid, is( not( 0 ) ) );
 
         // Write config file
-        Files.createFile( testDirectory.file( "neo4j.conf" ).toPath() );
+        Files.createFile( testDirectory.file( "ongdb.conf" ).toPath() );
 
         // write neo4j.pid file
         File run = testDirectory.directory( "run" );

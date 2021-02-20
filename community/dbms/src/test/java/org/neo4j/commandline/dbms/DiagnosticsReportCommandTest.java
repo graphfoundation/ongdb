@@ -118,7 +118,7 @@ public class DiagnosticsReportCommandTest
         configDir = testDirectory.directory( "config-dir" ).toPath();
 
         // Touch config
-        configFile = configDir.resolve( "neo4j.conf" );
+        configFile = configDir.resolve( "ongdb.conf" );
         Files.createFile( configFile );
 
         // To make sure files are resolved from the working directory

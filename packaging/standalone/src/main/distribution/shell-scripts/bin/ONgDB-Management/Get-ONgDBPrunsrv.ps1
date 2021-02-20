@@ -109,12 +109,12 @@ Function Get-Neo4jPrunsrv
         $JvmOptions = @()
 
         Write-Verbose "Reading JVM settings from configuration"
-        # Try neo4j.conf first, but then fallback to neo4j-wrapper.conf for backwards compatibility reasons
-        $setting = (Get-Neo4jSetting -ConfigurationFile 'neo4j.conf' -Name 'dbms.jvm.additional' -Neo4jServer $Neo4jServer)
+        # Try ongdb.conf first, but then fallback to ongdb-wrapper.conf for backwards compatibility reasons
+        $setting = (Get-Neo4jSetting -ConfigurationFile 'ongdb.conf' -Name 'dbms.jvm.additional' -Neo4jServer $Neo4jServer)
         if ($setting -ne $null) {
           $JvmOptions = [array](Merge-Neo4jJavaSettings -Source $JvmOptions -Add $setting.Value)
         } else {
-          $setting = (Get-Neo4jSetting -ConfigurationFile 'neo4j-wrapper.conf' -Name 'dbms.jvm.additional' -Neo4jServer $Neo4jServer)
+          $setting = (Get-Neo4jSetting -ConfigurationFile 'ongdb-wrapper.conf' -Name 'dbms.jvm.additional' -Neo4jServer $Neo4jServer)
           if ($setting -ne $null) {
             $JvmOptions = [array](Merge-Neo4jJavaSettings -Source $JvmOptions -Add $setting.Value)
           }

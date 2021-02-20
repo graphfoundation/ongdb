@@ -542,7 +542,7 @@ public class PushToCloudCommandTest
         {
             StringBuilder configFileContents = new StringBuilder();
             settings.forEach( ( key, value ) -> configFileContents.append( format( "%s=%s%n", key.name(), value ) ) );
-            Path configFile = configDir.resolve( "neo4j.conf" );
+            Path configFile = configDir.resolve( "ongdb.conf" );
             Files.write( configFile, configFileContents.toString().getBytes() );
             return configFile;
         }

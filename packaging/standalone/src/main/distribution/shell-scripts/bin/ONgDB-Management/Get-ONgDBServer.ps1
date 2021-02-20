@@ -129,7 +129,7 @@ Function Get-Neo4jServer
     }
 
     # Get additional settings...
-    $setting = (Get-Neo4jSetting -ConfigurationFile 'neo4j.conf' -Name 'dbms.mode' -Neo4jServer $serverObject)
+    $setting = (Get-Neo4jSetting -ConfigurationFile 'ongdb.conf' -Name 'dbms.mode' -Neo4jServer $serverObject)
     if ($setting -ne $null) { $serverObject.DatabaseMode = $setting.Value }
 
     # Set process level environment variables
@@ -140,7 +140,7 @@ Function Get-Neo4jServer
        'ONGDB_PLUGINS' = @{'config_var' = 'dbms.directories.plugins'; 'default' = (Join-Path $Neo4jHome 'plugins')}
        'ONGDB_RUN'     = @{'config_var' = 'dbms.directories.run';     'default' = (Join-Path $Neo4jHome 'run')}
     }).GetEnumerator() | % {
-      $setting = (Get-Neo4jSetting -ConfigurationFile 'neo4j.conf' -Name $_.Value.config_var -Neo4jServer $serverObject)
+      $setting = (Get-Neo4jSetting -ConfigurationFile 'ongdb.conf' -Name $_.Value.config_var -Neo4jServer $serverObject)
       $value = $_.Value.default
       if ($setting -ne $null) { $value = $setting.Value }
       if ($value -ne $null) {
@@ -159,8 +159,8 @@ Function Get-Neo4jServer
     if ( (Get-Neo4jEnv 'ONGDB_HOME') -eq $null) { Set-Neo4jEnv "ONGDB_HOME" $Neo4jHome }
 
     # Any deprecation warnings
-    $WrapperPath = Join-Path -Path $ConfDir -ChildPath 'neo4j-wrapper.conf'
-    If (Test-Path -Path $WrapperPath) { Write-Warning "$WrapperPath is deprecated and support for it will be removed in a future version of Neo4j; please move all your settings to neo4j.conf" }
+    $WrapperPath = Join-Path -Path $ConfDir -ChildPath 'ongdb-wrapper.conf'
+    If (Test-Path -Path $WrapperPath) { Write-Warning "$WrapperPath is deprecated and support for it will be removed in a future version of Neo4j; please move all your settings to ongdb.conf" }
 
     Write-Output $serverObject
   }
