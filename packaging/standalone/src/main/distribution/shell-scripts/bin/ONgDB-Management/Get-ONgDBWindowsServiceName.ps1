@@ -24,13 +24,13 @@ Retrieves the name of the Windows Service from the configuration information
 .DESCRIPTION
 Retrieves the name of the Windows Service from the configuration information
 
-.PARAMETER Neo4jServer
+.PARAMETER ONgDBServer
 An object representing a valid Neo4j Server object
 
 .EXAMPLE
-Get-Neo4jWindowsServiceName -Neo4jServer $ServerObject
+Get-ONgDBWindowsServiceName -ONgDBServer $ServerObject
 
-Retrieves the name of the Windows Service for the Neo4j Database at $ServerObject
+Retrieves the name of the Windows Service for the ONgDB Database at $ServerObject
 
 .OUTPUTS
 System.String
@@ -40,12 +40,12 @@ The name of the Windows Service or $null if it could not be determined
 This function is private to the powershell module
 
 #>
-Function Get-Neo4jWindowsServiceName
+Function Get-ONgDBWindowsServiceName
 {
   [cmdletBinding(SupportsShouldProcess=$false,ConfirmImpact='Low')]
   param (
     [Parameter(Mandatory=$true,ValueFromPipeline=$true)]
-    [PSCustomObject]$Neo4jServer
+    [PSCustomObject]$ONgDBServer
   )
   
   Begin
@@ -55,22 +55,22 @@ Function Get-Neo4jWindowsServiceName
   Process {
     $ServiceName = ''
     # Try ongdb.conf first, but then fallback to ongdb-wrapper.conf for backwards compatibility reasons
-    $setting = (Get-Neo4jSetting -ConfigurationFile 'ongdb.conf' -Name 'dbms.windows_service_name' -Neo4jServer $Neo4jServer)
+    $setting = (Get-ONgDBSetting -ConfigurationFile 'ongdb.conf' -Name 'dbms.windows_service_name' -ONgDBServer $ONgDBServer)
     if ($setting -ne $null) {
       $ServiceName = $setting.Value
     } else {
-      $setting = (Get-Neo4jSetting -ConfigurationFile 'ongdb-wrapper.conf' -Name 'dbms.windows_service_name' -Neo4jServer $Neo4jServer)
+      $setting = (Get-ONgDBSetting -ConfigurationFile 'ongdb-wrapper.conf' -Name 'dbms.windows_service_name' -ONgDBServer $ONgDBServer)
       if ($setting -ne $null) { $ServiceName = $setting.Value }
     }
 
     if ($ServiceName -eq '')
     {
-      Throw 'Could not find the Windows Service Name for Neo4j (dbms.windows_service_name in ongdb.conf)'
+      Throw 'Could not find the Windows Service Name for ONgDB (dbms.windows_service_name in ongdb.conf)'
       return $null
     }
     else 
     {
-      Write-Verbose "Neo4j Windows Service Name is $ServiceName"
+      Write-Verbose "ONgDB Windows Service Name is $ServiceName"
       Write-Output $ServiceName.Trim()
     }  
   }

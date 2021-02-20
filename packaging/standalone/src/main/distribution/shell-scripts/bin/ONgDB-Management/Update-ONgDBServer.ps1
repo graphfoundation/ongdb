@@ -24,13 +24,13 @@ Update an installed Neo4j Server Windows Service
 .DESCRIPTION
 Update an installed Neo4j Server Windows Service
 
-.PARAMETER Neo4jServer
+.PARAMETER ONgDBServer
 An object representing a valid Neo4j Server
 
 .EXAMPLE
-Update-Neo4jServer $ServerObject
+Update-ONgDBServer $ServerObject
 
-Update the Neo4j Windows Service for the Neo4j installation at $ServerObject
+Update the Neo4j Windows Service for the ONgDB installation at $ServerObject
 
 .OUTPUTS
 System.Int32
@@ -41,12 +41,12 @@ non-zero = an error occured
 This function is private to the powershell module
 
 #>
-Function Update-Neo4jServer
+Function Update-ONgDBServer
 {
   [cmdletBinding(SupportsShouldProcess=$false,ConfirmImpact='Medium')]
   param (
     [Parameter(Mandatory=$true,ValueFromPipeline=$true)]
-    [PSCustomObject]$Neo4jServer
+    [PSCustomObject]$ONgDBServer
   )
 
   Begin
@@ -55,18 +55,18 @@ Function Update-Neo4jServer
 
   Process
   {
-    $Name = Get-Neo4jWindowsServiceName -Neo4jServer $Neo4jServer -ErrorAction Stop
+    $Name = Get-ONgDBWindowsServiceName -ONgDBServer $ONgDBServer -ErrorAction Stop
 
     $result = Get-Service -Name $Name -ComputerName '.' -ErrorAction 'SilentlyContinue'
     if ($result -ne $null)
     {
-      $prunsrv = Get-Neo4jPrunsrv -Neo4jServer $Neo4jServer -ForServerUpdate
+      $prunsrv = Get-ONgDBPrunsrv -ONgDBServer $ONgDBServer -ForServerUpdate
       if ($prunsrv -eq $null) { throw "Could not determine the command line for PRUNSRV" }
 
       Write-Verbose "Update installed Neo4j service with command line $($prunsrv.cmd) $($prunsrv.args)"
-      $stdError = New-Neo4jTempFile -Prefix 'stderr'
+      $stdError = New-ONgDBTempFile -Prefix 'stderr'
       Write-Verbose $prunsrv
-      $result = (Start-Process -FilePath $prunsrv.cmd -ArgumentList $prunsrv.args -Wait -NoNewWindow -PassThru -WorkingDirectory $Neo4jServer.Home -RedirectStandardError $stdError)
+      $result = (Start-Process -FilePath $prunsrv.cmd -ArgumentList $prunsrv.args -Wait -NoNewWindow -PassThru -WorkingDirectory $ONgDBServer.Home -RedirectStandardError $stdError)
       Write-Verbose "Returned exit code $($result.ExitCode)"
 
       # Process the output

@@ -28,9 +28,9 @@ Retrieves an environment variable value.  This is a helper function which aids t
 Name of the environment vairable
 
 .EXAMPLE
-Get-Neo4jEnv 'Neo4jHome'
+Get-ONgDBEnv 'ONgDBHome'
 
-Retrieves the Neo4jHome environment variable
+Retrieves the ONgDBHome environment variable
 
 .OUTPUTS
 System.String
@@ -43,7 +43,7 @@ Variable doesn't exist
 This function is private to the powershell module
 
 #>
-Function Get-Neo4jEnv
+Function Get-ONgDBEnv
 {
   [cmdletBinding(SupportsShouldProcess=$false,ConfirmImpact='Low')]
   param (

@@ -30,7 +30,7 @@ Invoke this function with a blank or missing command to list available commands
 Remaining command line arguments are passed to the admin tool
 
 .EXAMPLE
-Invoke-Neo4jAdmin help
+Invoke-ONgDBAdmin help
 
 Prints the help text
 
@@ -43,7 +43,7 @@ non-zero = an error occured
 Only supported on version 3.x Neo4j Community and Enterprise Edition databases
 
 #>
-Function Invoke-Neo4jAdmin
+Function Invoke-ONgDBAdmin
 {
   [cmdletBinding(SupportsShouldProcess=$false,ConfirmImpact='Low')]
   param (
@@ -67,7 +67,7 @@ Function Invoke-Neo4jAdmin
 
     try
     {
-      Return [int](Invoke-Neo4jUtility -Command 'admintool' -CommandArgs $CommandArgs -ErrorAction 'Stop')
+      Return [int](Invoke-ONgDBUtility -Command 'admintool' -CommandArgs $CommandArgs -ErrorAction 'Stop')
     }
     catch {
       Write-Error $_

@@ -84,7 +84,7 @@ public class ServerStartupErrors
             }
         }
 
-        return new ServerStartupException( format( "Starting Neo4j failed: %s", cause.getMessage() ), cause );
+        return new ServerStartupException( format( "Starting ONgDB failed: %s", cause.getMessage() ), cause );
     }
 
 }

@@ -78,7 +78,7 @@ public class Neo4jAdminUsageTest
                         "    report\n" +
                         "        Produces a zip/tar of the most common information needed for remote assessments.\n" +
                         "    store-info\n" +
-                        "        Prints information about a Neo4j database store.\n" +
+                        "        Prints information about a ONgDB database store.\n" +
                         "\n" +
                         "Authentication\n" +
                         "    set-default-admin\n" +

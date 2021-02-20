@@ -6,19 +6,19 @@ $common = Join-Path (Split-Path -Parent $here) 'Common.ps1'
 Import-Module "$src\ONgDB-Management.psm1"
 
 InModuleScope ONgDB-Management {
-  Describe "Get-Neo4jEnv" {
+  Describe "Get-ONgDBEnv" {
 
     It "should return null if env var does not exist" {
-      Get-Neo4jEnv -Name 'somevariablenamethatdoesnotexist' | Should BeNullOrEmpty
+      Get-ONgDBEnv -Name 'somevariablenamethatdoesnotexist' | Should BeNullOrEmpty
     }
 
     $envPath = $Env:Path
     It "should return env var if name is lower case" {
-      Get-Neo4jEnv -Name 'path' | Should Be $envPath
+      Get-ONgDBEnv -Name 'path' | Should Be $envPath
     }
 
     It "should return env var if name is uppercase case" {
-      Get-Neo4jEnv -Name 'PATH' | Should Be $envPath
+      Get-ONgDBEnv -Name 'PATH' | Should Be $envPath
     }
   }
 }

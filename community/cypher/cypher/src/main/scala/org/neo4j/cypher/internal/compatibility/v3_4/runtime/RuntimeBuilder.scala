@@ -55,7 +55,7 @@ object CommunityRuntimeBuilder extends RuntimeBuilder[Transformer[CommunityRunti
       BuildInterpretedExecutionPlan
 
     case Some(x) if useErrorsOverWarnings =>
-      throw new InvalidArgumentException(s"This version of Neo4j does not support requested runtime: $x")
+      throw new InvalidArgumentException(s"This version of ONgDB does not support requested runtime: $x")
 
     case _ =>
       Do((_: CompilerContext).notificationLogger.log(RuntimeUnsupportedNotification)) andThen

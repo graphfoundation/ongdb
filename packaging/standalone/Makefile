@@ -6,6 +6,6 @@ help: ## Print this help text
 
 generate-scripts: ${scripts} ## Build shell scripts using m4
 		
-%: %.m4 src/main/distribution/shell-scripts/bin/neo4j-shared.m4
+%: %.m4 src/main/distribution/shell-scripts/bin/ongdb-shared.m4
 	m4 $< > $@
 	chmod 0755 $@	

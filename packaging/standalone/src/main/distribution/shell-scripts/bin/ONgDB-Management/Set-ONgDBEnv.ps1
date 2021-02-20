@@ -31,9 +31,9 @@ Name of the environment variable
 Value of the environment variable
 
 .EXAMPLE
-Set-Neo4jEnv 'Neo4jHome' 'C:\neo4j'
+Set-ONgDBEnv 'ONgDBHome' 'C:\ongdb'
 
-Sets the Neo4jHome environment variable to C:\neo4j
+Sets the ONgDBHome environment variable to C:\ongdb
 
 .OUTPUTS
 System.String
@@ -43,7 +43,7 @@ Value of the environment variable
 This function is private to the powershell module
 
 #>
-Function Set-Neo4jEnv
+Function Set-ONgDBEnv
 {
   [cmdletBinding(SupportsShouldProcess=$false,ConfirmImpact='Low')]
   param (

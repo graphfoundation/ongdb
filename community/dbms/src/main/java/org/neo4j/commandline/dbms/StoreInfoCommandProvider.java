@@ -64,7 +64,7 @@ public class StoreInfoCommandProvider extends AdminCommand.Provider
     @Nonnull
     public String summary()
     {
-        return "Prints information about a Neo4j database store.";
+        return "Prints information about a ONgDB database store.";
     }
 
     @Override
@@ -78,7 +78,7 @@ public class StoreInfoCommandProvider extends AdminCommand.Provider
     @Nonnull
     public String description()
     {
-        return "Prints information about a Neo4j database store, such as what version of Neo4j created it. Note that " +
+        return "Prints information about a ONgDB database store, such as what version of ONgDB created it. Note that " +
                 "this command expects a path to a store directory, for example --store=data/databases/graph.db.";
     }
 

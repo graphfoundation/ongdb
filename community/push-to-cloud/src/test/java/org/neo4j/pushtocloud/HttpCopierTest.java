@@ -601,7 +601,7 @@ public class HttpCopierTest
     }
 
     @Test
-    public void shouldHandleFailedImport() throws IOException, CommandFailed
+    public void shouldHandleFailedImport() throws IOException
     {
         // given
         ObjectMapper mapper = new ObjectMapper();

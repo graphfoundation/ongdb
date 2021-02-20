@@ -55,7 +55,7 @@ public interface Kernel
     @Description( "The name of the mounted database" )
     String getDatabaseName();
 
-    @Description( "The version of Neo4j" )
+    @Description( "The version of ONgDB" )
     String getKernelVersion();
 
     @Description( "The time from which this Neo4j instance was in operational mode." )

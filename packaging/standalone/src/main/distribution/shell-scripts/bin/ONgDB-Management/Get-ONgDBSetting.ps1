@@ -21,34 +21,34 @@
 <#
 .SYNOPSIS
 TODO UPDATE HELPTEXT
-Retrieves properties about a Neo4j installation
+Retrieves properties about a ONgDB installation
 
 .DESCRIPTION
-Retrieves properties about a Neo4j installation
+Retrieves properties about a ONgDB installation
 
-.PARAMETER Neo4jServer
+.PARAMETER ONgDBServer
 An object representing a valid Neo4j Server object
 
 .PARAMETER ConfigurationFile
-The name of the configuration file or files to parse.  If not specified the default set of all configuration files are used.  Do not use the full path, just the filename, the path is relative to '[Neo4jHome]\conf'
+The name of the configuration file or files to parse.  If not specified the default set of all configuration files are used.  Do not use the full path, just the filename, the path is relative to '[ONgDBHome]\conf'
 
 .PARAMETER Name
 The name of the property to retrieve.  If not specified, all properties are returned.
 
 .EXAMPLE
-Get-Neo4jSetting -Neo4jServer $ServerObject | Format-Table
+Get-ONgDBSetting -ONgDBServer $ServerObject | Format-Table
 
-Retrieves all settings for the Neo4j installation at $ServerObject
-
-.EXAMPLE
-Get-Neo4jSetting -Neo4jServer $ServerObject -Name 'dbms.active_database'
-
-Retrieves all settings with the name 'dbms.active_database' from the Neo4j installation at $ServerObject
+Retrieves all settings for the ONgDB installation at $ServerObject
 
 .EXAMPLE
-Get-Neo4jSetting -Neo4jServer $ServerObject -Name 'dbms.active_database' -ConfigurationFile 'ongdb.conf'
+Get-ONgDBSetting -ONgDBServer $ServerObject -Name 'dbms.active_database'
 
-Retrieves all settings with the name 'dbms.active_database' from the Neo4j installation at $ServerObject in 'ongdb.conf'
+Retrieves all settings with the name 'dbms.active_database' from the ONgDB installation at $ServerObject
+
+.EXAMPLE
+Get-ONgDBSetting -ONgDBServer $ServerObject -Name 'dbms.active_database' -ConfigurationFile 'ongdb.conf'
+
+Retrieves all settings with the name 'dbms.active_database' from the ONgDB installation at $ServerObject in 'ongdb.conf'
 
 .OUTPUTS
 System.Management.Automation.PSCustomObject
@@ -58,21 +58,21 @@ Properties;
 'Value' : Value of the property.  Multivalue properties are string arrays (string[])
 'ConfigurationFile' : Name of the configuration file where the setting is defined
 'IsDefault' : Whether this setting is a default value (Reserved for future use)
-'Neo4jHome' : Path to the Neo4j installation
+'ONgDBHome' : Path to the ONgDB installation
 
 .LINK
-Get-Neo4jServer 
+Get-ONgDBServer
 
 .NOTES
 This function is private to the powershell module
 
 #>
-Function Get-Neo4jSetting
+Function Get-ONgDBSetting
 {
   [cmdletBinding(SupportsShouldProcess=$false,ConfirmImpact='Low')]
   param (
     [Parameter(Mandatory=$true,ValueFromPipeline=$true)]
-    [PSCustomObject]$Neo4jServer
+    [PSCustomObject]$ONgDBServer
 
     ,[Parameter(Mandatory=$false)]
     [string[]]$ConfigurationFile = $null
@@ -88,7 +88,7 @@ Function Get-Neo4jSetting
   Process
   {
     # Get the Neo4j Server information
-    if ($Neo4jServer -eq $null) { return }
+    if ($ONgDBServer -eq $null) { return }
 
     # Set the default list of configuration files    
     if ($ConfigurationFile -eq $null)
@@ -99,7 +99,7 @@ Function Get-Neo4jSetting
     $ConfigurationFile | ForEach-Object -Process `
     {
       $filename = $_
-      $filePath = Join-Path -Path $Neo4jServer.ConfDir -ChildPath $filename
+      $filePath = Join-Path -Path $ONgDBServer.ConfDir -ChildPath $filename
       if (Test-Path -Path $filePath)
       {
         $keyPairsFromFile = Get-KeyValuePairsFromConfFile -filename $filePath        
@@ -118,7 +118,7 @@ Function Get-Neo4jSetting
             'Value' = $_.Value;
             'ConfigurationFile' = $filename;
             'IsDefault' = $false;
-            'Neo4jHome' = $Neo4jServer.Home;
+            'ONgDBHome' = $ONgDBServer.Home;
           }
 
           Write-Output (New-Object -TypeName PSCustomObject -Property $properties)

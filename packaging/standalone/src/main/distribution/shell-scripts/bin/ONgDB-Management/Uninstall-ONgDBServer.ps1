@@ -24,13 +24,13 @@ Uninstall a Neo4j Server Windows Service
 .DESCRIPTION
 Uninstall a Neo4j Server Windows Service
 
-.PARAMETER Neo4jServer
+.PARAMETER ONgDBServer
 An object representing a valid Neo4j Server object
 
 .EXAMPLE
-Uninstall-Neo4jServer -Neo4jServer $ServerObject
+Uninstall-ONgDBServer -ONgDBServer $ServerObject
 
-Uninstall the Neo4j Windows Windows Service for the Neo4j installation at $ServerObject
+Uninstall the Neo4j Windows Windows Service for the ONgDB installation at $ServerObject
 
 .OUTPUTS
 System.Int32
@@ -41,12 +41,12 @@ non-zero = an error occured
 This function is private to the powershell module
 
 #>
-Function Uninstall-Neo4jServer
+Function Uninstall-ONgDBServer
 {
   [cmdletBinding(SupportsShouldProcess=$true,ConfirmImpact='Medium')]
   param (
     [Parameter(Mandatory=$true,ValueFromPipeline=$true)]
-    [PSCustomObject]$Neo4jServer
+    [PSCustomObject]$ONgDBServer
   )
   
   Begin
@@ -55,7 +55,7 @@ Function Uninstall-Neo4jServer
 
   Process
   {
-    $Name = Get-Neo4jWindowsServiceName -Neo4jServer $Neo4jServer -ErrorAction Stop
+    $Name = Get-ONgDBWindowsServiceName -ONgDBServer $ONgDBServer -ErrorAction Stop
 
     $service = Get-Service -Name $Name -ComputerName '.' -ErrorAction 'SilentlyContinue'
     if ($service -eq $null) 
@@ -70,12 +70,12 @@ Function Uninstall-Neo4jServer
       Stop-Service -ServiceName $Name -ErrorAction 'Stop' | Out-Null
     }
 
-    $prunsrv = Get-Neo4jPrunsrv -Neo4jServer $Neo4jServer -ForServerUninstall
+    $prunsrv = Get-ONgDBPrunsrv -ONgDBServer $ONgDBServer -ForServerUninstall
     if ($prunsrv -eq $null) { throw "Could not determine the command line for PRUNSRV" }
 
     Write-Verbose "Uninstalling Neo4j as a service with command line $($prunsrv.cmd) $($prunsrv.args)"
-    $stdError = New-Neo4jTempFile -Prefix 'stderr'
-    $result = (Start-Process -FilePath $prunsrv.cmd -ArgumentList $prunsrv.args -Wait -NoNewWindow -PassThru -WorkingDirectory $Neo4jServer.Home -RedirectStandardError $stdError)
+    $stdError = New-ONgDBTempFile -Prefix 'stderr'
+    $result = (Start-Process -FilePath $prunsrv.cmd -ArgumentList $prunsrv.args -Wait -NoNewWindow -PassThru -WorkingDirectory $ONgDBServer.Home -RedirectStandardError $stdError)
     Write-Verbose "Returned exit code $($result.ExitCode)"
 
     Write-Output $result.ExitCode

@@ -68,7 +68,7 @@ public abstract class ConnectorValidator implements SettingGroup<Object>
     static final String DEPRECATED_CONNECTOR_MSG =
             "Warning: connectors with names other than [http,https,bolt] are%n" +
                     "deprecated and support for them will be removed in a future%n" +
-                    "version of Neo4j. Offending lines in " + Config.DEFAULT_CONFIG_FILE_NAME + ":%n%n%s";
+                    "version of ONgDB. Offending lines in " + Config.DEFAULT_CONFIG_FILE_NAME + ":%n%n%s";
     protected final Connector.ConnectorType type;
 
     public ConnectorValidator( @Nonnull Connector.ConnectorType type )

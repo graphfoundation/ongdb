@@ -6,12 +6,12 @@ $common = Join-Path (Split-Path -Parent $here) 'Common.ps1'
 Import-Module "$src\ONgDB-Management.psm1"
 
 InModuleScope ONgDB-Management {
-  Describe "Uninstall-Neo4jServer" {
+  Describe "Uninstall-ONgDBServer" {
     # Setup mocking environment
     #  Mock Java environment
     $javaHome = global:New-MockJavaHome
-    Mock Get-Neo4jEnv { $javaHome } -ParameterFilter { $Name -eq 'JAVA_HOME' }
-    Mock Set-Neo4jEnv { }
+    Mock Get-ONgDBEnv { $javaHome } -ParameterFilter { $Name -eq 'JAVA_HOME' }
+    Mock Set-ONgDBEnv { }
     Mock Test-Path { $false } -ParameterFilter {
       $Path -like 'Registry::*\JavaSoft\Java Runtime Environment'
     }
@@ -24,19 +24,19 @@ InModuleScope ONgDB-Management {
     Mock Stop-Service { $true } -ParameterFilter { $Name -eq $global:mockServiceName}
 
     Context "Missing service name in configuration files" {
-      $serverObject = global:New-MockNeo4jInstall -WindowsService $null
+      $serverObject = global:New-MockONgDBInstall -WindowsService $null
 
       It "throws error for missing service name in configuration file" {
-        { Uninstall-Neo4jServer -Neo4jServer $serverObject -ErrorAction Stop } | Should Throw
+        { Uninstall-ONgDBServer -ONgDBServer $serverObject -ErrorAction Stop } | Should Throw
       }
     }
 
     Context "Windows service does not exist" {
       Mock Get-Service -Verifiable { $null }
 
-      $serverObject = global:New-MockNeo4jInstall
+      $serverObject = global:New-MockONgDBInstall
 
-      $result = Uninstall-Neo4jServer -Neo4jServer $serverObject
+      $result = Uninstall-ONgDBServer -ONgDBServer $serverObject
 
       It "result is 0" {
         $result | Should Be 0
@@ -50,9 +50,9 @@ InModuleScope ONgDB-Management {
     Context "Uninstall windows service successfully" {
       Mock Start-Process { @{ 'ExitCode' = 0 } }
 
-      $serverObject = global:New-MockNeo4jInstall
+      $serverObject = global:New-MockONgDBInstall
 
-      $result = Uninstall-Neo4jServer -Neo4jServer $serverObject
+      $result = Uninstall-ONgDBServer -ONgDBServer $serverObject
 
       It "result is 0" {
         $result | Should Be 0
@@ -63,9 +63,9 @@ InModuleScope ONgDB-Management {
       Mock Get-Service { @{ 'State' = 'Stopped' } }
       Mock Start-Process { @{ 'ExitCode' = 0 } }
 
-      $serverObject = global:New-MockNeo4jInstall
+      $serverObject = global:New-MockONgDBInstall
 
-      $result = Uninstall-Neo4jServer -Neo4jServer $serverObject
+      $result = Uninstall-ONgDBServer -ONgDBServer $serverObject
 
       It "result is 0" {
         $result | Should Be 0

@@ -24,11 +24,11 @@
 #  * ONGDB_CONF
 #  * ONGDB_START_WAIT
 
-include(src/main/distribution/shell-scripts/bin/neo4j-shared.m4)
+include(src/main/distribution/shell-scripts/bin/ongdb-shared.m4)
 
 setup_arbiter_options() {
   is_arbiter() {
-    compgen -G "${ONGDB_LIB}/neo4j-server-enterprise-*.jar" >/dev/null && \
+    compgen -G "${ONGDB_LIB}/ongdb-server-enterprise-*.jar" >/dev/null && \
       [[ "$(echo "${dbms_mode:-}" | tr [:lower:] [:upper:])" == "ARBITER" ]]
   }
 
@@ -74,7 +74,7 @@ setup_arbiter_options() {
         ONGDB_SERVER_ADDRESS="http://${ONGDB_SERVER_ADDRESS}"
       fi
 
-      echo "Started neo4j (pid ${ONGDB_PID}). It is available at ${ONGDB_SERVER_ADDRESS}/"
+      echo "Starting ongdb (pid ${ONGDB_PID}). It is available at ${ONGDB_SERVER_ADDRESS}/"
 
       if [[ "$(echo "${dbms_mode:-}" | tr [:lower:] [:upper:])" == "HA" ]]; then
         echo "This HA instance will be operational once it has joined the cluster."
@@ -112,7 +112,7 @@ setup_java_opts() {
       mem="${mem}m"
       cat >&2 <<EOF
 WARNING: dbms.memory.heap.initial_size will require a unit suffix in a
-         future version of Neo4j. Please add a unit suffix to your
+         future version of ONgDB. Please add a unit suffix to your
          configuration. Example:
 
          dbms.memory.heap.initial_size=512m
@@ -127,7 +127,7 @@ EOF
       mem="${mem}m"
       cat >&2 <<EOF
 WARNING: dbms.memory.heap.max_size will require a unit suffix in a
-         future version of Neo4j. Please add a unit suffix to your
+         future version of ONgDB. Please add a unit suffix to your
          configuration. Example:
 
          dbms.memory.heap.max_size=512m
@@ -168,7 +168,7 @@ do_console() {
     exit 1
   fi
 
-  echo "Starting Neo4j."
+  echo "Starting ONgDB."
 
   check_limits
   build_classpath
@@ -185,7 +185,7 @@ do_start() {
     exit 0
   fi
 
-  echo "Starting Neo4j."
+  echo "Starting ONgDB."
 
   check_limits
   build_classpath
@@ -225,7 +225,7 @@ do_stop() {
     [ -e "${ONGDB_PIDFILE}" ] && rm "${ONGDB_PIDFILE}"
     return 0
   else
-    echo -n "Stopping Neo4j."
+    echo -n "Stopping ONgDB."
     end="$((SECONDS+SHUTDOWN_TIMEOUT))"
     while true; do
       check_status

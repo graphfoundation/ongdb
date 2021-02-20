@@ -139,7 +139,7 @@ for run_command in run_console run_daemon; do
     set_config 'anything.at.all' 'value', ongdb-wrapper.conf &&
     test_expect_stderr_matching \
         'WARNING: ongdb-wrapper.conf is deprecated and support for it will be removed in a future
-         version of Neo4j; please move all your settings to ongdb.conf' \
+         version of ONgDB; please move all your settings to ongdb.conf' \
         ${run_command}
   "
 done

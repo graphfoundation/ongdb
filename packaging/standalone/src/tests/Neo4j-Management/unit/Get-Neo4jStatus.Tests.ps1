@@ -6,17 +6,17 @@ $common = Join-Path (Split-Path -Parent $here) 'Common.ps1'
 Import-Module "$src\ONgDB-Management.psm1"
 
 InModuleScope ONgDB-Management {
-  Describe "Get-Neo4jStatus" {
+  Describe "Get-ONgDBStatus" {
 
-    $mockServerObject = global:New-MockNeo4jInstall
-    Mock Set-Neo4jEnv { }
-    Mock Get-Neo4jEnv { $mockServerObject.Home } -ParameterFilter { $Name -eq 'ONGDB_HOME' }
+    $mockServerObject = global:New-MockONgDBInstall
+    Mock Set-ONgDBEnv { }
+    Mock Get-ONgDBEnv { $mockServerObject.Home } -ParameterFilter { $Name -eq 'ONGDB_HOME' }
 
     Context "Missing service name in configuration files" {
-      Mock -Verifiable Get-Neo4jWindowsServiceName { throw "Missing service name" }
+      Mock -Verifiable Get-ONgDBWindowsServiceName { throw "Missing service name" }
 
       It "throws error for missing service name in configuration file" {
-        { Get-Neo4jStatus -Neo4jServer $mockServerObject -ErrorAction Stop } | Should Throw
+        { Get-ONgDBStatus -ONgDBServer $mockServerObject -ErrorAction Stop } | Should Throw
       }
 
       It "calls verified mocks" {
@@ -27,7 +27,7 @@ InModuleScope ONgDB-Management {
     Context "Service not installed" {
       Mock Get-Service -Verifiable { throw "Missing Service"}
 
-      $result = Get-Neo4jStatus -Neo4jServer $mockServerObject
+      $result = Get-ONgDBStatus -ONgDBServer $mockServerObject
       It "result is 3" {
         $result | Should Be 3
       }
@@ -40,7 +40,7 @@ InModuleScope ONgDB-Management {
     Context "Service not installed but not running" {
       Mock Get-Service -Verifiable { @{ Status = 'Stopped' }}
 
-      $result = Get-Neo4jStatus -Neo4jServer $mockServerObject
+      $result = Get-ONgDBStatus -ONgDBServer $mockServerObject
       It "result is 3" {
         $result | Should Be 3
       }
@@ -53,7 +53,7 @@ InModuleScope ONgDB-Management {
     Context "Service is running" {
       Mock Get-Service -Verifiable { @{ Status = 'Running' }}
 
-      $result = Get-Neo4jStatus -Neo4jServer $mockServerObject
+      $result = Get-ONgDBStatus -ONgDBServer $mockServerObject
       It "result is 0" {
         $result | Should Be 0
       }

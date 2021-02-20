@@ -11,13 +11,13 @@ InModuleScope ONgDB-Management {
     # Setup mocking environment
     #  Mock Java environment
     $javaHome = global:New-MockJavaHome
-    Mock Get-Neo4jEnv { $javaHome } -ParameterFilter { $Name -eq 'JAVA_HOME' } 
+    Mock Get-ONgDBEnv { $javaHome } -ParameterFilter { $Name -eq 'JAVA_HOME' }
 
     Context "Java returns a non zero exit code for version query" {
       # Mock the java version output file
       Mock Start-Process -Verifiable { @{ 'exitcode' = 1} }
       $tempFilename = Join-Path -Path $TestDrive -ChildPath 'stderr.txt'
-      Mock New-Neo4jTempFile { $tempFilename }
+      Mock New-ONgDBTempFile { $tempFilename }
       Mock Write-Warning -Verifiable -ParameterFilter { $Message -eq 'Unable to determine Java Version' }
   
       $result = Confirm-JavaVersion -Path $global:mockJavaExe
@@ -35,7 +35,7 @@ InModuleScope ONgDB-Management {
       # Mock the java version output file
       Mock Start-Process -Verifiable { @{ 'exitcode' = 0} }
       $tempFilename = Join-Path -Path $TestDrive -ChildPath 'stderr.txt'
-      Mock New-Neo4jTempFile { $tempFilename }
+      Mock New-ONgDBTempFile { $tempFilename }
       Mock Write-Warning -Verifiable -ParameterFilter { $Message -eq 'Unable to determine Java Version' }
   
       $result = Confirm-JavaVersion -Path $global:mockJavaExe
@@ -54,7 +54,7 @@ InModuleScope ONgDB-Management {
       Mock Start-Process -Verifiable { @{ 'exitcode' = 0} }
       $tempFilename = Join-Path -Path $TestDrive -ChildPath 'stderr.txt'
       Set-Content -Path $tempFilename -Value 'invalid java ver info' | Out-Null
-      Mock New-Neo4jTempFile { $tempFilename }
+      Mock New-ONgDBTempFile { $tempFilename }
       Mock Write-Warning -Verifiable -ParameterFilter { $Message -eq 'Unable to determine Java Version' }
   
       $result = Confirm-JavaVersion -Path $global:mockJavaExe
@@ -74,7 +74,7 @@ InModuleScope ONgDB-Management {
       Mock Start-Process -Verifiable { @{ 'exitcode' = 0} }
       $tempFilename = Join-Path -Path $TestDrive -ChildPath 'stderr.txt'
       Set-Content -Path $tempFilename -Value 'java version "1.8.0"`n`rJava HotSpot(TM) 64-Bit Server VM (build 11.11-a11, mixed mode)' | Out-Null
-      Mock New-Neo4jTempFile { $tempFilename }
+      Mock New-ONgDBTempFile { $tempFilename }
       Mock Write-Warning { }
 
       $result = Confirm-JavaVersion -Path $global:mockJavaExe
@@ -101,7 +101,7 @@ InModuleScope ONgDB-Management {
       Mock Start-Process -Verifiable { @{ 'exitcode' = 0} }
       $tempFilename = Join-Path -Path $TestDrive -ChildPath 'stderr.txt'
       Set-Content -Path $tempFilename -Value 'java version "1.8.0"`n`rJava BadSpot(TM) 64-Bit Server VM (build 11.11-a11, mixed mode)' | Out-Null
-      Mock New-Neo4jTempFile { $tempFilename }
+      Mock New-ONgDBTempFile { $tempFilename }
       Mock Write-Warning -Verifiable -ParameterFilter { $Message -eq 'WARNING! You are using an unsupported Java runtime' }
 
       $result = Confirm-JavaVersion -Path $global:mockJavaExe
@@ -124,7 +124,7 @@ InModuleScope ONgDB-Management {
       Mock Start-Process -Verifiable { @{ 'exitcode' = 0} }
       $tempFilename = Join-Path -Path $TestDrive -ChildPath 'stderr.txt'
       Set-Content -Path $tempFilename -Value 'java version "1.7.0"`n`rJava HotSpot(TM) 64-Bit Server VM (build 11.11-a11, mixed mode)' | Out-Null
-      Mock New-Neo4jTempFile { $tempFilename }
+      Mock New-ONgDBTempFile { $tempFilename }
       Mock Write-Warning { }
 
       $result = Confirm-JavaVersion -Path $global:mockJavaExe

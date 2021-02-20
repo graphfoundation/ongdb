@@ -4,8 +4,8 @@ $here = Split-Path -Parent $MyInvocation.MyCommand.Definition
 $src = Resolve-Path -Path "$($here)\..\..\main\distribution\shell-scripts\bin\ONgDB-Management"
 
 # Helper functions must be created in the global scope due to the InModuleScope command
-$global:mockServiceName = 'neo4j'
-$global:mockNeo4jHome = 'TestDrive:\Neo4j'
+$global:mockServiceName = 'ongdb'
+$global:mockONgDBHome = 'TestDrive:\ONgDB'
 
 Function global:New-MockJavaHome() {
   $javaHome = "TestDrive:\JavaHome"
@@ -34,9 +34,9 @@ Function global:New-InvalidNeo4jInstall($ServerType = 'Enterprise', $ServerVersi
   return $serverObject
 }
 
-Function global:New-MockNeo4jInstall(
+Function global:New-MockONgDBInstall(
   $IncludeFiles = $true,
-  $RootDir = $global:mockNeo4jHome,
+  $RootDir = $global:mockONgDBHome,
   $ServerType = 'Community',
   $ServerVersion = '0.0',
   $DatabaseMode = '',
@@ -51,8 +51,8 @@ Function global:New-MockNeo4jInstall(
   New-Item "$RootDir\conf" -ItemType Directory | Out-Null
 
   if ($IncludeFiles) {
-    'TempFile' | Out-File -FilePath "$RootDir\lib\neo4j-server-$($ServerVersion).jar"
-    if ($ServerType -eq 'Enterprise') { 'TempFile' | Out-File -FilePath "$RootDir\lib\neo4j-server-enterprise-$($ServerVersion).jar" }
+    'TempFile' | Out-File -FilePath "$RootDir\lib\ongdb-server-$($ServerVersion).jar"
+    if ($ServerType -eq 'Enterprise') { 'TempFile' | Out-File -FilePath "$RootDir\lib\ongdb-server-enterprise-$($ServerVersion).jar" }
 
     # Additional Jars
     'TempFile' | Out-File -FilePath "$RootDir\lib\lib1.jar"

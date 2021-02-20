@@ -38,11 +38,11 @@ PowerShellVersion = '2.0'
 NestedModules = @('ONgDB-Management\ONgDB-Management.psm1')
 
 FunctionsToExport = @(
-'Invoke-Neo4j',
-'Invoke-Neo4jAdmin',
-'Invoke-Neo4jShell',
-'Invoke-Neo4jBackup',
-'Invoke-Neo4jImport'
+'Invoke-ONgDB',
+'Invoke-ONgDBAdmin',
+'Invoke-ONgDBShell',
+'Invoke-ONgDBBackup',
+'Invoke-ONgDBImport'
 )
 
 CmdletsToExport = ''

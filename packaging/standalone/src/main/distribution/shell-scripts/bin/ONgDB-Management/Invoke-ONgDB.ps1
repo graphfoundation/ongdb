@@ -30,12 +30,12 @@ Invoke this function with a blank or missing command to list available commands
 A string of the command to run.  Pass a blank string for the help text
 
 .EXAMPLE
-Invoke-Neo4j
+Invoke-ONgDB
 
 Outputs the available commands
 
 .EXAMPLE
-Invoke-Neo4j status -Verbose
+Invoke-ONgDB status -Verbose
 
 Gets the status of the Neo4j Windows Service and outputs verbose information to the console.
 
@@ -48,7 +48,7 @@ non-zero = an error occured
 Only supported on version 3.x Neo4j Community and Enterprise Edition databases
 
 #>
-Function Invoke-Neo4j
+Function Invoke-ONgDB
 {
   [cmdletBinding(SupportsShouldProcess=$false,ConfirmImpact='Low')]
   param (
@@ -64,21 +64,21 @@ Function Invoke-Neo4j
   {
     try
     {
-      $HelpText = "Usage: neo4j { console | start | stop | restart | status | install-service | uninstall-service | update-service } < -Verbose >"
+      $HelpText = "Usage: ongdb { console | start | stop | restart | status | install-service | uninstall-service | update-service } < -Verbose >"
 
       # Determine the Neo4j Home Directory.  Uses the ONGDB_HOME enironment variable or a parent directory of this script
-      $Neo4jHome = Get-Neo4jEnv 'ONGDB_HOME'
-      if ( ($Neo4jHome -eq $null) -or (-not (Test-Path -Path $Neo4jHome)) ) {
-        $Neo4jHome = Split-Path -Path (Split-Path -Path $PSScriptRoot -Parent) -Parent
+      $ONgDBHome = Get-ONgDBEnv 'ONGDB_HOME'
+      if ( ($ONgDBHome -eq $null) -or (-not (Test-Path -Path $ONgDBHome)) ) {
+        $ONgDBHome = Split-Path -Path (Split-Path -Path $PSScriptRoot -Parent) -Parent
       }
-      if ($Neo4jHome -eq $null) { throw "Could not determine the Neo4j home Directory.  Set the ONGDB_HOME environment variable and retry" }
-      Write-Verbose "Neo4j Root is '$Neo4jHome'"
+      if ($ONgDBHome -eq $null) { throw "Could not determine the Neo4j home Directory.  Set the ONGDB_HOME environment variable and retry" }
+      Write-Verbose "Neo4j Root is '$ONgDBHome'"
 
-      $thisServer = Get-Neo4jServer -Neo4jHome $Neo4jHome -ErrorAction Stop
+      $thisServer = Get-ONgDBServer -ONgDBHome $ONgDBHome -ErrorAction Stop
       if ($thisServer -eq $null) { throw "Unable to determine the Neo4j Server installation information" }
       Write-Verbose "Neo4j Server Type is '$($thisServer.ServerType)'"
       Write-Verbose "Neo4j Version is '$($thisServer.ServerVersion)'"
-      Write-Verbose "Neo4j Database Mode is '$($thisServer.DatabaseMode)'"
+      Write-Verbose "ONgDB Database Mode is '$($thisServer.DatabaseMode)'"
 
       # Check if we have administrative rights; If the current user's token contains the Administrators Group SID (S-1-5-32-544)
       if (-not [bool](([System.Security.Principal.WindowsIdentity]::GetCurrent()).groups -match "S-1-5-32-544")) {
@@ -93,38 +93,38 @@ Function Invoke-Neo4j
         }
         "console" {
           Write-Verbose "Console command specified"
-          Return [int](Start-Neo4jServer -Console -Neo4jServer $thisServer -ErrorAction Stop)
+          Return [int](Start-ONgDBServer -Console -ONgDBServer $thisServer -ErrorAction Stop)
         }
         "start" {
           Write-Verbose "Start command specified"
-          Return [int](Start-Neo4jServer -Service -Neo4jServer $thisServer -ErrorAction Stop)
+          Return [int](Start-ONgDBServer -Service -ONgDBServer $thisServer -ErrorAction Stop)
         }
         "stop" {
           Write-Verbose "Stop command specified"
-          Return [int](Stop-Neo4jServer -Neo4jServer $thisServer -ErrorAction Stop)
+          Return [int](Stop-ONgDBServer -ONgDBServer $thisServer -ErrorAction Stop)
         }
         "restart" {
           Write-Verbose "Restart command specified"
 
-          $result = (Stop-Neo4jServer -Neo4jServer $thisServer -ErrorAction Stop)
+          $result = (Stop-ONgDBServer -ONgDBServer $thisServer -ErrorAction Stop)
           if ($result -ne 0) { Return $result}
-          Return (Start-Neo4jServer -Service -Neo4jServer $thisServer -ErrorAction Stop)
+          Return (Start-ONgDBServer -Service -ONgDBServer $thisServer -ErrorAction Stop)
         }
         "status" {
           Write-Verbose "Status command specified"
-          Return [int](Get-Neo4jStatus -Neo4jServer $thisServer -ErrorAction Stop)
+          Return [int](Get-ONgDBStatus -ONgDBServer $thisServer -ErrorAction Stop)
         }
         "install-service" {
           Write-Verbose "Install command specified"
-          Return [int](Install-Neo4jServer -Neo4jServer $thisServer -ErrorAction Stop)
+          Return [int](Install-ONgDBServer -ONgDBServer $thisServer -ErrorAction Stop)
         }
         "uninstall-service" {
           Write-Verbose "Uninstall command specified"
-          Return [int](Uninstall-Neo4jServer -Neo4jServer $thisServer -ErrorAction Stop)
+          Return [int](Uninstall-ONgDBServer -ONgDBServer $thisServer -ErrorAction Stop)
         }
         "update-service" {
           Write-Verbose "Update command specified"
-          Return [int](Update-Neo4jServer -Neo4jServer $thisServer -ErrorAction Stop)
+          Return [int](Update-ONgDBServer -ONgDBServer $thisServer -ErrorAction Stop)
         }
         default {
           if ($Command -ne '') { Write-StdErr "Unknown command $Command" }

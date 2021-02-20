@@ -36,7 +36,7 @@ non-zero = an error occured
 Only supported on version 3.x Neo4j Enterprise Edition databases
 
 #>
-Function Invoke-Neo4jBackup
+Function Invoke-ONgDBBackup
 {
   [cmdletBinding(SupportsShouldProcess=$false,ConfirmImpact='Low')]
   param (
@@ -51,7 +51,7 @@ Function Invoke-Neo4jBackup
   Process
   {
     try {
-      Return [int](Invoke-Neo4jUtility -Command 'Backup' -CommandArgs $CommandArgs -ErrorAction 'Stop')      
+      Return [int](Invoke-ONgDBUtility -Command 'Backup' -CommandArgs $CommandArgs -ErrorAction 'Stop')
     }
     catch {
       Write-Error $_

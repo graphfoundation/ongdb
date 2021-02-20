@@ -163,8 +163,8 @@ _find_java_home() {
 }
 
 _show_java_help() {
-  echo "* Please use Oracle(R) Java(TM) 8, OpenJDK(TM) or IBM J9 to run Neo4j."
-  echo "* Please see https://neo4j.com/docs/ for Neo4j installation instructions."
+  echo "* Please use Oracle(R) Java(TM) 8, OpenJDK(TM) or IBM J9 to run ONgDB."
+  echo "* Please see https://neo4j.com/docs/ for ONgDB installation instructions."
 }
 
 _setup_calculated_paths() {
@@ -198,7 +198,7 @@ _read_config() {
   if [[ -f "${ONGDB_CONF}/ongdb-wrapper.conf" ]]; then
     cat >&2 <<EOF
 WARNING: ongdb-wrapper.conf is deprecated and support for it will be removed in a future
-         version of Neo4j; please move all your settings to ongdb.conf
+         version of ONgDB; please move all your settings to ongdb.conf
 EOF
   fi
 
@@ -250,7 +250,7 @@ print_active_database() {
 
 setup_arbiter_options() {
   is_arbiter() {
-    compgen -G "${ONGDB_LIB}/neo4j-server-enterprise-*.jar" >/dev/null && \
+    compgen -G "${ONGDB_LIB}/ongdb-server-enterprise-*.jar" >/dev/null && \
       [[ "$(echo "${dbms_mode:-}" | tr [:lower:] [:upper:])" == "ARBITER" ]]
   }
 
@@ -296,7 +296,7 @@ setup_arbiter_options() {
         ONGDB_SERVER_ADDRESS="http://${ONGDB_SERVER_ADDRESS}"
       fi
 
-      echo "Started neo4j (pid ${ONGDB_PID}). It is available at ${ONGDB_SERVER_ADDRESS}/"
+      echo "Starting ongdb (pid ${ONGDB_PID}). It is available at ${ONGDB_SERVER_ADDRESS}/"
 
       if [[ "$(echo "${dbms_mode:-}" | tr [:lower:] [:upper:])" == "HA" ]]; then
         echo "This HA instance will be operational once it has joined the cluster."
@@ -334,7 +334,7 @@ setup_java_opts() {
       mem="${mem}m"
       cat >&2 <<EOF
 WARNING: dbms.memory.heap.initial_size will require a unit suffix in a
-         future version of Neo4j. Please add a unit suffix to your
+         future version of ONgDB. Please add a unit suffix to your
          configuration. Example:
 
          dbms.memory.heap.initial_size=512m
@@ -349,7 +349,7 @@ EOF
       mem="${mem}m"
       cat >&2 <<EOF
 WARNING: dbms.memory.heap.max_size will require a unit suffix in a
-         future version of Neo4j. Please add a unit suffix to your
+         future version of ONgDB. Please add a unit suffix to your
          configuration. Example:
 
          dbms.memory.heap.max_size=512m
@@ -390,7 +390,7 @@ do_console() {
     exit 1
   fi
 
-  echo "Starting Neo4j."
+  echo "Starting ONgDB."
 
   check_limits
   build_classpath
@@ -407,7 +407,7 @@ do_start() {
     exit 0
   fi
 
-  echo "Starting Neo4j."
+  echo "Starting ONgDB."
 
   check_limits
   build_classpath
@@ -447,7 +447,7 @@ do_stop() {
     [ -e "${ONGDB_PIDFILE}" ] && rm "${ONGDB_PIDFILE}"
     return 0
   else
-    echo -n "Stopping Neo4j."
+    echo -n "Stopping ONgDB."
     end="$((SECONDS+SHUTDOWN_TIMEOUT))"
     while true; do
       check_status

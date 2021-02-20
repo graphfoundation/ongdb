@@ -6,13 +6,13 @@ $common = Join-Path (Split-Path -Parent $here) 'Common.ps1'
 Import-Module "$src\ONgDB-Management.psm1"
 
 InModuleScope ONgDB-Management {
-  Describe "Invoke-Neo4j" {
+  Describe "Invoke-ONgDB" {
 
     # Setup mocking environment
     #  Mock Java environment
     $javaHome = global:New-MockJavaHome
-    Mock Get-Neo4jEnv { $javaHome } -ParameterFilter { $Name -eq 'JAVA_HOME' }
-    Mock Set-Neo4jEnv { }
+    Mock Get-ONgDBEnv { $javaHome } -ParameterFilter { $Name -eq 'JAVA_HOME' }
+    Mock Set-ONgDBEnv { }
     Mock Test-Path { $false } -ParameterFilter {
       $Path -like 'Registry::*\JavaSoft\Java Runtime Environment'
     }
@@ -20,19 +20,19 @@ InModuleScope ONgDB-Management {
       $Path -like 'Registry::*\JavaSoft\Java Runtime Environment*'
     }
     # Mock Neo4j environment
-    $mockNeo4jHome = global:New-MockNeo4jInstall
-    Mock Get-Neo4jEnv { $global:mockNeo4jHome } -ParameterFilter { $Name -eq 'ONGDB_HOME' }
+    $mockONgDBHome = global:New-MockONgDBInstall
+    Mock Get-ONgDBEnv { $global:mockONgDBHome } -ParameterFilter { $Name -eq 'ONGDB_HOME' }
     Mock Start-Process { throw "Should not call Start-Process mock" }
     # Mock helper functions
-    Mock Start-Neo4jServer { 2 } -ParameterFilter { $Console -eq $true }
-    Mock Start-Neo4jServer { 3 } -ParameterFilter { $Service -eq $true }
-    Mock Stop-Neo4jServer { 4 }
-    Mock Get-Neo4jStatus { 6 }
-    Mock Install-Neo4jServer { 7 }
-    Mock Uninstall-Neo4jServer { 8 }
+    Mock Start-ONgDBServer { 2 } -ParameterFilter { $Console -eq $true }
+    Mock Start-ONgDBServer { 3 } -ParameterFilter { $Service -eq $true }
+    Mock Stop-ONgDBServer { 4 }
+    Mock Get-ONgDBStatus { 6 }
+    Mock Install-ONgDBServer { 7 }
+    Mock Uninstall-ONgDBServer { 8 }
 
     Context "No arguments" {
-      $result = Invoke-Neo4j
+      $result = Invoke-ONgDB
 
       It "returns 1 if no arguments" {
         $result | Should Be 1
@@ -41,14 +41,14 @@ InModuleScope ONgDB-Management {
 
     # Helper functions - error
     Context "Helper function throws an error" {
-      Mock Get-Neo4jStatus { throw "error" }
+      Mock Get-ONgDBStatus { throw "error" }
 
       It "returns non zero exit code on error" {
-        Invoke-Neo4j 'status' -ErrorAction SilentlyContinue | Should Be 1
+        Invoke-ONgDB 'status' -ErrorAction SilentlyContinue | Should Be 1
       }
 
       It "throws error when terminating error" {
-        { Invoke-Neo4j 'status' -ErrorAction Stop } | Should Throw
+        { Invoke-ONgDB 'status' -ErrorAction Stop } | Should Throw
       }
     }
 
@@ -56,34 +56,34 @@ InModuleScope ONgDB-Management {
     # Helper functions
     Context "Helper functions" {
       It "returns exitcode from console command" {
-        Invoke-Neo4j 'console' | Should Be 2
+        Invoke-ONgDB 'console' | Should Be 2
       }
 
       It "returns exitcode from start command" {
-        Invoke-Neo4j 'start' | Should Be 3
+        Invoke-ONgDB 'start' | Should Be 3
       }
 
       It "returns exitcode from stop command" {
-        Invoke-Neo4j 'stop' | Should Be 4
+        Invoke-ONgDB 'stop' | Should Be 4
       }
 
       It "returns exitcode from restart command" {
-        Mock Start-Neo4jServer { 5 } -ParameterFilter { $Service -eq $true }
-        Mock Stop-Neo4jServer { 0 }
+        Mock Start-ONgDBServer { 5 } -ParameterFilter { $Service -eq $true }
+        Mock Stop-ONgDBServer { 0 }
 
-        Invoke-Neo4j 'restart' | Should Be 5
+        Invoke-ONgDB 'restart' | Should Be 5
       }
 
       It "returns exitcode from status command" {
-        Invoke-Neo4j 'status' | Should Be 6
+        Invoke-ONgDB 'status' | Should Be 6
       }
 
       It "returns exitcode from install-service command" {
-        Invoke-Neo4j 'install-service' | Should Be 7
+        Invoke-ONgDB 'install-service' | Should Be 7
       }
 
       It "returns exitcode from uninstall-service command" {
-        Invoke-Neo4j 'uninstall-service' | Should Be 8
+        Invoke-ONgDB 'uninstall-service' | Should Be 8
       }
     }
 

@@ -6,24 +6,24 @@ $common = Join-Path (Split-Path -Parent $here) 'Common.ps1'
 Import-Module "$src\ONgDB-Management.psm1"
 
 InModuleScope ONgDB-Management {
-  Describe "Get-Neo4jWindowsServiceName" {
+  Describe "Get-ONgDBWindowsServiceName" {
 
-    Mock Get-Neo4jEnv { $global:mockNeo4jHome } -ParameterFilter { $Name -eq 'ONGDB_HOME' }
-    Mock Set-Neo4jEnv { }
+    Mock Get-ONgDBEnv { $global:mockONgDBHome } -ParameterFilter { $Name -eq 'ONGDB_HOME' }
+    Mock Set-ONgDBEnv { }
 
     Context "Missing service name in configuration files" {
-      $serverObject = global:New-MockNeo4jInstall -WindowsService ''
+      $serverObject = global:New-MockONgDBInstall -WindowsService ''
 
       It "throws error for missing service name in configuration file" {
-        { Get-Neo4jWindowsServiceName -Neo4jServer $serverObject -ErrorAction Stop } | Should Throw
+        { Get-ONgDBWindowsServiceName -ONgDBServer $serverObject -ErrorAction Stop } | Should Throw
       }
     }
 
     Context "Service name in configuration files" {
-      $serverObject = global:New-MockNeo4jInstall
+      $serverObject = global:New-MockONgDBInstall
 
       It "returns Service name in configuration file" {
-        Get-Neo4jWindowsServiceName -Neo4jServer $serverObject | Should be $global:mockServiceName
+        Get-ONgDBWindowsServiceName -ONgDBServer $serverObject | Should be $global:mockServiceName
       }
     }
   }

@@ -28,7 +28,7 @@ Returns a temporary filename with optional prefix
 Optional prefix to for the temporary filename
 
 .EXAMPLE
-New-Neo4jTempFile
+New-ONgDBTempFile
 
 Returns a temporary filename
 
@@ -39,7 +39,7 @@ String Filename of a temporary file which does not yet exist
 This function is private to the powershell module
 
 #>
-Function New-Neo4jTempFile
+Function New-ONgDBTempFile
 {
   [cmdletBinding(SupportsShouldProcess=$false,ConfirmImpact='Low')]
   param (

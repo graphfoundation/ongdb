@@ -6,13 +6,13 @@ $common = Join-Path (Split-Path -Parent $here) 'Common.ps1'
 Import-Module "$src\ONgDB-Management.psm1"
 
 InModuleScope ONgDB-Management {
-  Describe "Start-Neo4jServer" {
+  Describe "Start-ONgDBServer" {
 
     # Setup mocking environment
     #  Mock Java environment
     $javaHome = global:New-MockJavaHome
-    Mock Get-Neo4jEnv { $javaHome } -ParameterFilter { $Name -eq 'JAVA_HOME' }
-    Mock Set-Neo4jEnv { }
+    Mock Get-ONgDBEnv { $javaHome } -ParameterFilter { $Name -eq 'JAVA_HOME' }
+    Mock Set-ONgDBEnv { }
     Mock Test-Path { $false } -ParameterFilter {
       $Path -like 'Registry::*\JavaSoft\Java Runtime Environment'
     }
@@ -20,18 +20,18 @@ InModuleScope ONgDB-Management {
       $Path -like 'Registry::*\JavaSoft\Java Runtime Environment*'
     }
     # Mock Neo4j environment
-    Mock Get-Neo4jEnv { $global:mockNeo4jHome } -ParameterFilter { $Name -eq 'ONGDB_HOME' }
+    Mock Get-ONgDBEnv { $global:mockONgDBHome } -ParameterFilter { $Name -eq 'ONGDB_HOME' }
     Mock Start-Process { throw "Should not call Start-Process mock" }
 
     Context "Invalid or missing specified neo4j installation" {
       $serverObject = global:New-InvalidNeo4jInstall
 
       It "throws error for an invalid server object - Server" {
-        { Start-Neo4jServer -Server -Neo4jServer $serverObject -ErrorAction Stop } | Should Throw
+        { Start-ONgDBServer -Server -ONgDBServer $serverObject -ErrorAction Stop } | Should Throw
       }
 
       It "throws error for an invalid server object - Console" {
-        { Start-Neo4jServer -Console -Neo4jServer $serverObject -ErrorAction Stop } | Should Throw
+        { Start-ONgDBServer -Console -ONgDBServer $serverObject -ErrorAction Stop } | Should Throw
       }
     }
 
@@ -39,10 +39,10 @@ InModuleScope ONgDB-Management {
     Context "Missing service name in configuration files" {
       Mock Start-Service { }
 
-      $serverObject = global:New-MockNeo4jInstall -WindowsService ''
+      $serverObject = global:New-MockONgDBInstall -WindowsService ''
 
       It "throws error for missing service name in configuration file" {
-        { Start-Neo4jServer -Service -Neo4jServer $serverObject -ErrorAction Stop } | Should Throw
+        { Start-ONgDBServer -Service -ONgDBServer $serverObject -ErrorAction Stop } | Should Throw
       }
     }
 
@@ -50,9 +50,9 @@ InModuleScope ONgDB-Management {
       Mock Start-Service { throw "Wrong Service name" }
       Mock Start-Service -Verifiable { @{ Status = 'Start Pending'} } -ParameterFilter { $Name -eq $global:mockServiceName }
 
-      $serverObject = global:New-MockNeo4jInstall
+      $serverObject = global:New-MockONgDBInstall
 
-      $result = Start-Neo4jServer -Service -Neo4jServer $serverObject
+      $result = Start-ONgDBServer -Service -ONgDBServer $serverObject
 
       It "result is 2" {
         $result | Should Be 2
@@ -67,9 +67,9 @@ InModuleScope ONgDB-Management {
       Mock Start-Service { throw "Wrong Service name" }
       Mock Start-Service -Verifiable { @{ Status = 'Running'} } -ParameterFilter { $Name -eq $global:mockServiceName }
 
-      $serverObject = global:New-MockNeo4jInstall
+      $serverObject = global:New-MockONgDBInstall
 
-      $result = Start-Neo4jServer -Service -Neo4jServer $serverObject
+      $result = Start-ONgDBServer -Service -ONgDBServer $serverObject
 
       It "result is 0" {
         $result | Should Be 0
@@ -92,7 +92,7 @@ InModuleScope ONgDB-Management {
         'DatabaseMode' = '';
       })
       It "throws error if missing Java" {
-        { Start-Neo4jServer -Console -Neo4jServer $serverObject -ErrorAction Stop } | Should Throw
+        { Start-ONgDBServer -Console -ONgDBServer $serverObject -ErrorAction Stop } | Should Throw
       }
     }
   }

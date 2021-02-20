@@ -124,7 +124,7 @@ public class GraphDatabaseSettings implements LoadableConfig
     @Description( "Name of the database to load" )
     public static final Setting<String> active_database = setting( "dbms.active_database", STRING, "graph.db" );
 
-    @Description( "Path of the data directory. You must not configure more than one Neo4j installation to use the " +
+    @Description( "Path of the data directory. You must not configure more than one ONgDB installation to use the " +
             "same data directory." )
     public static final Setting<File> data_directory = pathSetting( "dbms.directories.data", "data" );
 

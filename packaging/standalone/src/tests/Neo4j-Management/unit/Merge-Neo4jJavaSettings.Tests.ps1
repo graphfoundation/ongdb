@@ -6,10 +6,10 @@ $common = Join-Path (Split-Path -Parent $here) 'Common.ps1'
 Import-Module "$src\ONgDB-Management.psm1"
 
 InModuleScope ONgDB-Management {
-  Describe "Merge-Neo4jJavaSettings" {
+  Describe "Merge-ONgDBJavaSettings" {
 
     Context "Empty Source and Additional inputs" {
-      $result = [array](Merge-Neo4jJavaSettings -Source @() -Additional @())
+      $result = [array](Merge-ONgDBJavaSettings -Source @() -Additional @())
       
       It "returns empty array" {
         $result.Count | Should Be 0
@@ -17,7 +17,7 @@ InModuleScope ONgDB-Management {
     }
 
     Context "Empty Source input" {
-      $result = [array](Merge-Neo4jJavaSettings -Source @() -Additional @('-Dkey1=value1'))
+      $result = [array](Merge-ONgDBJavaSettings -Source @() -Additional @('-Dkey1=value1'))
       
       It "returns Additional input array" {
         $result[0] | Should Be '-Dkey1=value1'
@@ -25,7 +25,7 @@ InModuleScope ONgDB-Management {
     }
 
     Context "Empty Additional input" {
-      $result = [array](Merge-Neo4jJavaSettings -Source @('-Dkey1=value1') -Additional @())
+      $result = [array](Merge-ONgDBJavaSettings -Source @('-Dkey1=value1') -Additional @())
 
       It "returns Source input array" {
         $result[0] | Should Be '-Dkey1=value1'
@@ -33,7 +33,7 @@ InModuleScope ONgDB-Management {
     }
 
     Context "Ignores duplicates" {
-      $result = [array](Merge-Neo4jJavaSettings -Source @('-Dkey1=value1','-Dkey2=value2') -Additional @('-Dkey1=value1'))
+      $result = [array](Merge-ONgDBJavaSettings -Source @('-Dkey1=value1','-Dkey2=value2') -Additional @('-Dkey1=value1'))
       
       $sorted = $result | Sort-Object -Descending:$false
       It "should ignore duplicates" {
@@ -44,7 +44,7 @@ InModuleScope ONgDB-Management {
     }
 
     Context "Adds new settings" {
-      $result = [array](Merge-Neo4jJavaSettings -Source @('-Dkey1=value1','-Dkey2=value2') -Additional @('-Dkey3=value3'))
+      $result = [array](Merge-ONgDBJavaSettings -Source @('-Dkey1=value1','-Dkey2=value2') -Additional @('-Dkey3=value3'))
       
       $sorted = $result | Sort-Object -Descending:$false
       It "should add new settings" {
@@ -57,7 +57,7 @@ InModuleScope ONgDB-Management {
     }
 
     Context "Merges settings" {
-      $result = [array](Merge-Neo4jJavaSettings `
+      $result = [array](Merge-ONgDBJavaSettings `
         -Source @('-Dkey9=value9','-Dkey1=value1','-XX:key2=value2') `
         -Additional @('-Dkey1=valuez','-XX:key2=valuez'))
       
@@ -75,7 +75,7 @@ InModuleScope ONgDB-Management {
 
     Context "Appends non-standard JVM settings" {
       # Settings that are in non-standard format (i.e. not -D or -XX) are just appended
-      $result = [array](Merge-Neo4jJavaSettings `
+      $result = [array](Merge-ONgDBJavaSettings `
         -Source @('badsetting=1') `
         -Additional @('badsetting=2'))
       

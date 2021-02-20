@@ -6,13 +6,13 @@ $common = Join-Path (Split-Path -Parent $here) 'Common.ps1'
 Import-Module "$src\ONgDB-Management.psm1"
 
 InModuleScope ONgDB-Management {
-  Describe "Install-Neo4jServer" {
+  Describe "Install-ONgDBServer" {
 
     # Setup mocking environment
     #  Mock Java environment
     $javaHome = global:New-MockJavaHome
-    Mock Get-Neo4jEnv { $javaHome } -ParameterFilter { $Name -eq 'JAVA_HOME' }
-    Mock Set-Neo4jEnv { }
+    Mock Get-ONgDBEnv { $javaHome } -ParameterFilter { $Name -eq 'JAVA_HOME' }
+    Mock Set-ONgDBEnv { }
     Mock Test-Path { $false } -ParameterFilter {
       $Path -like 'Registry::*\JavaSoft\Java Runtime Environment'
     }
@@ -20,31 +20,31 @@ InModuleScope ONgDB-Management {
       $Path -like 'Registry::*\JavaSoft\Java Runtime Environment*'
     }
     # Mock Neo4j environment
-    Mock Get-Neo4jEnv { $global:mockNeo4jHome } -ParameterFilter { $Name -eq 'ONGDB_HOME' }
+    Mock Get-ONgDBEnv { $global:mockONgDBHome } -ParameterFilter { $Name -eq 'ONGDB_HOME' }
     Mock Start-Process { throw "Should not call Start-Process mock" }
 
     Context "Invalid or missing specified neo4j installation" {
       $serverObject = global:New-InvalidNeo4jInstall
 
       It "return throw if invalid or missing neo4j directory" {
-        { Install-Neo4jServer -Neo4jServer $serverObject  -ErrorAction Stop }  | Should Throw
+        { Install-ONgDBServer -ONgDBServer $serverObject  -ErrorAction Stop }  | Should Throw
       }
     }
 
     Context "Invalid or missing servicename in specified neo4j installation" {
-      $serverObject = global:New-MockNeo4jInstall -WindowsService ''
+      $serverObject = global:New-MockONgDBInstall -WindowsService ''
 
       It "return throw if invalid or missing service name" {
-        { Install-Neo4jServer -Neo4jServer $serverObject  -ErrorAction Stop }  | Should Throw
+        { Install-ONgDBServer -ONgDBServer $serverObject  -ErrorAction Stop }  | Should Throw
       }
     }
 
     Context "Windows service already exists" {
       Mock Get-Service -Verifiable { return 'Service Exists' }
 
-      $serverObject = global:New-MockNeo4jInstall
+      $serverObject = global:New-MockONgDBInstall
 
-      $result = Install-Neo4jServer -Neo4jServer $serverObject
+      $result = Install-ONgDBServer -ONgDBServer $serverObject
 
       It "returns 0 for service that already exists" {
         $result | Should Be 0
@@ -59,10 +59,10 @@ InModuleScope ONgDB-Management {
       Mock Get-Service { return $null }
       Mock Start-Process -Verifiable { throw "Error installing" }
 
-      $serverObject = global:New-MockNeo4jInstall
+      $serverObject = global:New-MockONgDBInstall
 
       It "throws when error during installation" {
-        { Install-Neo4jServer -Neo4jServer $serverObject } | Should Throw
+        { Install-ONgDBServer -ONgDBServer $serverObject } | Should Throw
       }
 
       It "calls verified mocks" {
@@ -74,9 +74,9 @@ InModuleScope ONgDB-Management {
       Mock Get-Service { return $null }
       Mock Start-Process -Verifiable { @{ 'ExitCode' = 0} }
 
-      $serverObject = global:New-MockNeo4jInstall
+      $serverObject = global:New-MockONgDBInstall
 
-      $result = Install-Neo4jServer -Neo4jServer $serverObject
+      $result = Install-ONgDBServer -ONgDBServer $serverObject
 
       It "returns 0 when succesfully installed" {
         $result | Should Be 0

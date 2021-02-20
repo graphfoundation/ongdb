@@ -28,9 +28,9 @@ Parses a ONgDB configuration file into a hashtable.  Multivalue keys are output 
 The full path to the file to read
 
 .EXAMPLE
-Get-KeyValuePairsFromConfFile -Filename 'C:\Neo4j\conf\ongdb.conf'
+Get-KeyValuePairsFromConfFile -Filename 'C:\ONgDB\conf\ongdb.conf'
 
-Reads the file 'C:\Neo4j\conf\ongdb.conf' and outputs a hashtable of key/value pairs
+Reads the file 'C:\ONgDB\conf\ongdb.conf' and outputs a hashtable of key/value pairs
 
 .OUTPUTS
 System.Collections.Hashtable

@@ -32,7 +32,7 @@ look at the web interface ...
 1. Open a console and navigate to the install directory.
 2. Start the server:
    * Windows, use: bin\neo4j console
-   * Linux/Mac, use: ./bin/neo4j console
+   * Linux/Mac, use: ./bin/ongdb console
 3. In a browser, open http://localhost:#{default.http.port}/
 4. From any REST client or browser, open http://localhost:#{default.http.port}/db/data
    in order to get a REST starting point, e.g.

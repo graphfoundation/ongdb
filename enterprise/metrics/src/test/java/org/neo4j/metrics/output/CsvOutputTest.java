@@ -82,7 +82,7 @@ public class CsvOutputTest
     }
 
     @Test
-    public void shouldHaveRelativeMetricsCsvPathBeRelativeToNeo4jHome() throws Exception
+    public void shouldHaveRelativeMetricsCsvPathBeRelativeToONgDBHome() throws Exception
     {
         // GIVEN
         File home = directory.absolutePath();

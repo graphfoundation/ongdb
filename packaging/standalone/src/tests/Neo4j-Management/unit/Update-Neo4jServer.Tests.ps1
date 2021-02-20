@@ -25,13 +25,13 @@ $common = Join-Path (Split-Path -Parent $here) 'Common.ps1'
 Import-Module "$src\ONgDB-Management.psm1"
 
 InModuleScope ONgDB-Management {
-  Describe "Update-Neo4jServer" {
+  Describe "Update-ONgDBServer" {
 
     # Setup mocking environment
     # Mock Java environment
     $javaHome = global:New-MockJavaHome
-    Mock Get-Neo4jEnv { $javaHome } -ParameterFilter { $Name -eq 'JAVA_HOME' }
-    Mock Set-Neo4jEnv { }
+    Mock Get-ONgDBEnv { $javaHome } -ParameterFilter { $Name -eq 'JAVA_HOME' }
+    Mock Set-ONgDBEnv { }
     Mock Test-Path { $false } -ParameterFilter {
       $Path -like 'Registry::*\JavaSoft\Java Runtime Environment'
     }
@@ -39,21 +39,21 @@ InModuleScope ONgDB-Management {
       $Path -like 'Registry::*\JavaSoft\Java Runtime Environment*'
     }
     # Mock Neo4j environment
-    Mock Get-Neo4jEnv { $global:mockNeo4jHome } -ParameterFilter { $Name -eq 'ONGDB_HOME' }
+    Mock Get-ONgDBEnv { $global:mockONgDBHome } -ParameterFilter { $Name -eq 'ONGDB_HOME' }
     Mock Start-Process { throw "Should not call Start-Process mock" }
 
     Context "Invalid or missing specified neo4j installation" {
       $serverObject = global:New-InvalidNeo4jInstall
 
       It "throws if invalid or missing neo4j directory" {
-        { Update-Neo4jServer -Neo4jServer $serverObject -ErrorAction Stop } | Should Throw
+        { Update-ONgDBServer -ONgDBServer $serverObject -ErrorAction Stop } | Should Throw
       }
     }
 
     Context "Non-existing service" {
       Mock Get-Service -Verifiable { return $null }
-      $serverObject = global:New-MockNeo4jInstall
-      $result = Update-Neo4jServer -Neo4jServer $serverObject
+      $serverObject = global:New-MockONgDBInstall
+      $result = Update-ONgDBServer -ONgDBServer $serverObject
 
       It "returns 1 for service that does not exist" {
         $result | Should Be 1
@@ -64,10 +64,10 @@ InModuleScope ONgDB-Management {
     Context "Update service failure" {
       Mock Get-Service -Verifiable { return "Fake service" }
       Mock Start-Process -Verifiable { throw "Error reconfiguring" }
-      $serverObject = global:New-MockNeo4jInstall
+      $serverObject = global:New-MockONgDBInstall
 
       It "throws when update encounters an error" {
-        { Update-Neo4jServer -Neo4jServer $serverObject } | Should Throw
+        { Update-ONgDBServer -ONgDBServer $serverObject } | Should Throw
         Assert-VerifiableMocks
       }
     }
@@ -75,8 +75,8 @@ InModuleScope ONgDB-Management {
     Context "Update service success" {
       Mock Get-Service -Verifiable { return "Fake service" }
       Mock Start-Process -Verifiable { @{'ExitCode' = 0} }
-      $serverObject = global:New-MockNeo4jInstall
-      $result = Update-Neo4jServer -Neo4jServer $serverObject
+      $serverObject = global:New-MockONgDBInstall
+      $result = Update-ONgDBServer -ONgDBServer $serverObject
 
       It "returns 0 when successfully updated" {
         $result | Should Be 0

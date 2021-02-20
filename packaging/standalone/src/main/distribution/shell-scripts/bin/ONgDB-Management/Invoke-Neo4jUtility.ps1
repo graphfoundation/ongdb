@@ -42,7 +42,7 @@ Only supported on version 3.x Neo4j Community and Enterprise Edition databases
 This function is private to the powershell module
 
 #>
-Function Invoke-Neo4jUtility
+Function Invoke-ONgDBUtility
 {
   [cmdletBinding(SupportsShouldProcess=$false,ConfirmImpact='Low')]
   param (
@@ -60,18 +60,18 @@ Function Invoke-Neo4jUtility
   Process
   {
     # Determine the Neo4j Home Directory.  Uses the ONGDB_HOME enironment variable or a parent directory of this script
-    $Neo4jHome = Get-Neo4jEnv 'ONGDB_HOME'
-    if ( ($Neo4jHome -eq $null) -or (-not (Test-Path -Path $Neo4jHome)) ) {
-      $Neo4jHome = Split-Path -Path (Split-Path -Path $PSScriptRoot -Parent) -Parent
+    $ONgDBHome = Get-ONgDBEnv 'ONGDB_HOME'
+    if ( ($ONgDBHome -eq $null) -or (-not (Test-Path -Path $ONgDBHome)) ) {
+      $ONgDBHome = Split-Path -Path (Split-Path -Path $PSScriptRoot -Parent) -Parent
     }
-    if ($Neo4jHome -eq $null) { throw "Could not determine the Neo4j home Directory.  Set the ONGDB_HOME environment variable and retry" }
-    Write-Verbose "Neo4j Root is '$Neo4jHome'"
+    if ($ONgDBHome -eq $null) { throw "Could not determine the Neo4j home Directory.  Set the ONGDB_HOME environment variable and retry" }
+    Write-Verbose "Neo4j Root is '$ONgDBHome'"
 
-    $thisServer = Get-Neo4jServer -Neo4jHome $Neo4jHome -ErrorAction Stop
+    $thisServer = Get-ONgDBServer -ONgDBHome $ONgDBHome -ErrorAction Stop
     if ($thisServer -eq $null) { throw "Unable to determine the Neo4j Server installation information" }
     Write-Verbose "Neo4j Server Type is '$($thisServer.ServerType)'"
     Write-Verbose "Neo4j Version is '$($thisServer.ServerVersion)'"
-    Write-Verbose "Neo4j Database Mode is '$($thisServer.DatabaseMode)'"
+    Write-Verbose "ONgDB Database Mode is '$($thisServer.DatabaseMode)'"
 
     # Check if we have administrative rights; If the current user's token contains the Administrators Group SID (S-1-5-32-544)
     if (-not [bool](([System.Security.Principal.WindowsIdentity]::GetCurrent()).groups -match "S-1-5-32-544")) {
@@ -120,7 +120,7 @@ Function Invoke-Neo4jUtility
     }
 
     # Generate the required Java invocation
-    $JavaCMD = Get-Java -Neo4jServer $thisServer -ForUtility @GetJavaParams
+    $JavaCMD = Get-Java -ONgDBServer $thisServer -ForUtility @GetJavaParams
     if ($JavaCMD -eq $null) { throw 'Unable to locate Java' }
 
     $ShellArgs = $JavaCMD.args

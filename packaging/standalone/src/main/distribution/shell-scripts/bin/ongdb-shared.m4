@@ -137,8 +137,8 @@ _find_java_home() {
 }
 
 _show_java_help() {
-  echo "* Please use Oracle(R) Java(TM) 8, OpenJDK(TM) or IBM J9 to run Neo4j."
-  echo "* Please see https://neo4j.com/docs/ for Neo4j installation instructions."
+  echo "* Please use Oracle(R) Java(TM) 8, OpenJDK(TM) or IBM J9 to run ONgDB."
+  echo "* Please see https://neo4j.com/docs/ for ONgDB installation instructions."
 }
 
 _setup_calculated_paths() {
@@ -172,7 +172,7 @@ _read_config() {
   if [[ -f "${ONGDB_CONF}/ongdb-wrapper.conf" ]]; then
     cat >&2 <<EOF
 WARNING: ongdb-wrapper.conf is deprecated and support for it will be removed in a future
-         version of Neo4j; please move all your settings to ongdb.conf
+         version of ONgDB; please move all your settings to ongdb.conf
 EOF
   fi
 

@@ -51,7 +51,7 @@ Function Confirm-JavaVersion
   }
   
   Process {
-    $stdError = New-Neo4jTempFile -Prefix 'stderr'
+    $stdError = New-ONgDBTempFile -Prefix 'stderr'
     
     # Run Java with redirection
     $args = @('-version')
@@ -70,8 +70,8 @@ Function Confirm-JavaVersion
       return $true
     }
     
-    $javaHelpText = "* Please use Oracle(R) Java(TM) 8, OpenJDK(TM) or IBM J9 to run Neo4j Server.`n" +
-                    "* Please see https://neo4j.com/docs/ for Neo4j installation instructions."
+    $javaHelpText = "* Please use Oracle(R) Java(TM) 8, OpenJDK(TM) or IBM J9 to run ONgDB Server.`n" +
+                    "* Please see https://neo4j.com/docs/ for ONgDB installation instructions."
 
     # Read the contents of the redirected output
     $content = (Get-Content -Path $stdError) -join "`n`r"

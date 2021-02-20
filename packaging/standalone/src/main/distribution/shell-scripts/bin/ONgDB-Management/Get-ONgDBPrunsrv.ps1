@@ -24,7 +24,7 @@ Retrieves information about PRunSrv on the local machine to start Neo4j programs
 .DESCRIPTION
 Retrieves information about PRunSrv (Apache Commons Daemon) on the local machine to start Neo4j services and utilites, tailored to the type of Neo4j edition
 
-.PARAMETER Neo4jServer
+.PARAMETER ONgDBServer
 An object representing a valid Neo4j Server object
 
 .PARAMETER ForServerInstall
@@ -46,12 +46,12 @@ System.Collections.Hashtable
 This function is private to the powershell module
 
 #>
-Function Get-Neo4jPrunsrv
+Function Get-ONgDBPrunsrv
 {
   [cmdletBinding(SupportsShouldProcess=$false,ConfirmImpact='Low',DefaultParameterSetName='ConsoleInvoke')]
   param (
     [Parameter(Mandatory=$true,ValueFromPipeline=$false)]
-    [PSCustomObject]$Neo4jServer
+    [PSCustomObject]$ONgDBServer
 
     ,[Parameter(Mandatory=$true,ValueFromPipeline=$false,ParameterSetName='ServerInstallInvoke')]
     [switch]$ForServerInstall
@@ -72,7 +72,7 @@ Function Get-Neo4jPrunsrv
 
   Process
   {
-    $JavaCMD = Get-Java -Neo4jServer $Neo4jServer -ForServer -ErrorAction Stop
+    $JavaCMD = Get-Java -ONgDBServer $ONgDBServer -ForServer -ErrorAction Stop
     if ($JavaCMD -eq $null)
     {
       Write-Error 'Unable to locate Java'
@@ -84,7 +84,7 @@ Function Get-Neo4jPrunsrv
     if (-Not (Test-Path -Path $JvmDLL)) { Throw "Could not locate JVM.DLL at $JvmDLL" }
 
     # Get the Service Name
-    $Name = Get-Neo4jWindowsServiceName -Neo4jServer $Neo4jServer -ErrorAction Stop
+    $Name = Get-ONgDBWindowsServiceName -ONgDBServer $ONgDBServer -ErrorAction Stop
 
     # Find PRUNSRV for this architecture
     # This check will return the OS architecture even when running a 32bit app on 64bit OS
@@ -93,7 +93,7 @@ Function Get-Neo4jPrunsrv
       64 { $PrunSrvName = 'prunsrv-amd64.exe' } # 8 Bytes = 64bit
       default { throw "Unable to determine the architecture of this operating system (Integer is $([IntPtr]::Size))"}
     }
-    $PrunsrvCMD = Join-Path (Join-Path -Path(Join-Path -Path $Neo4jServer.Home -ChildPath 'bin') -ChildPath 'tools') -ChildPath $PrunSrvName
+    $PrunsrvCMD = Join-Path (Join-Path -Path(Join-Path -Path $ONgDBServer.Home -ChildPath 'bin') -ChildPath 'tools') -ChildPath $PrunSrvName
     if (-not (Test-Path -Path $PrunsrvCMD)) { throw "Could not find PRUNSRV at $PrunsrvCMD"}
 
     # Build the PRUNSRV command line
@@ -110,35 +110,35 @@ Function Get-Neo4jPrunsrv
 
         Write-Verbose "Reading JVM settings from configuration"
         # Try ongdb.conf first, but then fallback to ongdb-wrapper.conf for backwards compatibility reasons
-        $setting = (Get-Neo4jSetting -ConfigurationFile 'ongdb.conf' -Name 'dbms.jvm.additional' -Neo4jServer $Neo4jServer)
+        $setting = (Get-ONgDBSetting -ConfigurationFile 'ongdb.conf' -Name 'dbms.jvm.additional' -ONgDBServer $ONgDBServer)
         if ($setting -ne $null) {
-          $JvmOptions = [array](Merge-Neo4jJavaSettings -Source $JvmOptions -Add $setting.Value)
+          $JvmOptions = [array](Merge-ONgDBJavaSettings -Source $JvmOptions -Add $setting.Value)
         } else {
-          $setting = (Get-Neo4jSetting -ConfigurationFile 'ongdb-wrapper.conf' -Name 'dbms.jvm.additional' -Neo4jServer $Neo4jServer)
+          $setting = (Get-ONgDBSetting -ConfigurationFile 'ongdb-wrapper.conf' -Name 'dbms.jvm.additional' -ONgDBServer $ONgDBServer)
           if ($setting -ne $null) {
-            $JvmOptions = [array](Merge-Neo4jJavaSettings -Source $JvmOptions -Add $setting.Value)
+            $JvmOptions = [array](Merge-ONgDBJavaSettings -Source $JvmOptions -Add $setting.Value)
           }
         }
 
         # Pass through appropriate args from Java invocation to Prunsrv
         # These options take priority over settings in the wrapper
         Write-Verbose "Reading JVM settings from console java invocation"
-        $JvmOptions = [array](Merge-Neo4jJavaSettings -Source $JvmOptions -Add ($JavaCMD.args | Where-Object { $_ -match '(^-D|^-X)' }))
+        $JvmOptions = [array](Merge-ONgDBJavaSettings -Source $JvmOptions -Add ($JavaCMD.args | Where-Object { $_ -match '(^-D|^-X)' }))
 
         $PrunArgs += @("`"--StartMode=jvm`"",
           "`"--StartMethod=start`"",
-          "`"--StartPath=$($Neo4jServer.Home)`"",
-          "`"--StartParams=--config-dir=$($Neo4jServer.ConfDir)`"",
-          "`"++StartParams=--home-dir=$($Neo4jServer.Home)`"",
+          "`"--StartPath=$($ONgDBServer.Home)`"",
+          "`"--StartParams=--config-dir=$($ONgDBServer.ConfDir)`"",
+          "`"++StartParams=--home-dir=$($ONgDBServer.Home)`"",
           "`"--StopMode=jvm`"",
           "`"--StopMethod=stop`"",
-          "`"--StopPath=$($Neo4jServer.Home)`"",
-          "`"--Description=Neo4j Graph Database - $($Neo4jServer.Home)`"",
+          "`"--StopPath=$($ONgDBServer.Home)`"",
+          "`"--Description=Neo4j Graph Database - $($ONgDBServer.Home)`"",
           "`"--DisplayName=Neo4j Graph Database - $Name`"",
           "`"--Jvm=$($JvmDLL)`"",
-          "`"--LogPath=$($Neo4jServer.LogDir)`"",
-          "`"--StdOutput=$(Join-Path -Path $Neo4jServer.LogDir -ChildPath 'neo4j.log')`"",
-          "`"--StdError=$(Join-Path -Path $Neo4jServer.LogDir -ChildPath 'service-error.log')`"",
+          "`"--LogPath=$($ONgDBServer.LogDir)`"",
+          "`"--StdOutput=$(Join-Path -Path $ONgDBServer.LogDir -ChildPath 'neo4j.log')`"",
+          "`"--StdError=$(Join-Path -Path $ONgDBServer.LogDir -ChildPath 'service-error.log')`"",
           "`"--LogPrefix=neo4j-service`"",
           "`"--Classpath=lib/*;plugins/*`"",
           "`"--JvmOptions=$($JvmOptions -join ';')`"",
@@ -162,8 +162,8 @@ Function Get-Neo4jPrunsrv
           }
         }
 
-        if ($Neo4jServer.ServerType -eq 'Community') { $serverMainClass = 'org.neo4j.server.CommunityEntryPoint' }
-        if ($Neo4jServer.DatabaseMode.ToUpper() -eq 'ARBITER') { $serverMainClass = 'org.neo4j.server.enterprise.ArbiterEntryPoint' }
+        if ($ONgDBServer.ServerType -eq 'Community') { $serverMainClass = 'org.neo4j.server.CommunityEntryPoint' }
+        if ($ONgDBServer.DatabaseMode.ToUpper() -eq 'ARBITER') { $serverMainClass = 'org.neo4j.server.enterprise.ArbiterEntryPoint' }
         if ($serverMainClass -eq '') { Write-Error "Unable to determine the Server Main Class from the server information"; return $null }
         $PrunArgs += @("`"--StopClass=$($serverMainClass)`"",
                        "`"--StartClass=$($serverMainClass)`"")

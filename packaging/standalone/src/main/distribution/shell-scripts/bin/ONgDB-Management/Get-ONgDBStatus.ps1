@@ -24,11 +24,11 @@ Retrieves the status for the Neo4j Windows Service
 .DESCRIPTION
 Retrieves the status for the Neo4j Windows Service
 
-.PARAMETER Neo4jServer
+.PARAMETER ONgDBServer
 An object representing a valid Neo4j Server object
 
 .EXAMPLE
-Get-Neo4jStatus -Neo4jServer $ServerObject
+Get-ONgDBStatus -ONgDBServer $ServerObject
 
 Retrieves the status of the Windows Service for the Neo4j database at $ServerObject
 
@@ -41,12 +41,12 @@ System.Int32
 This function is private to the powershell module
 
 #>
-Function Get-Neo4jStatus
+Function Get-ONgDBStatus
 {
   [cmdletBinding(SupportsShouldProcess=$false,ConfirmImpact='Low')]
   param (
     [Parameter(Mandatory=$true,ValueFromPipeline=$true)]
-    [PSCustomObject]$Neo4jServer
+    [PSCustomObject]$ONgDBServer
   )
   
   Begin
@@ -54,7 +54,7 @@ Function Get-Neo4jStatus
   }
   
   Process {
-    $ServiceName = Get-Neo4jWindowsServiceName -Neo4jServer $Neo4jServer -ErrorAction Stop
+    $ServiceName = Get-ONgDBWindowsServiceName -ONgDBServer $ONgDBServer -ErrorAction Stop
     $neoService = $null
     try {
       $neoService = Get-Service -Name $ServiceName -ErrorAction Stop

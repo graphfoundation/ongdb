@@ -121,7 +121,7 @@ public class Util
     }
 
     /**
-     * @return the version of Neo4j as defined during the build
+     * @return the version of ONgDB as defined during the build
      */
     @Nonnull
     public static String neo4jVersion()

@@ -24,13 +24,13 @@ Stop a Neo4j Server Windows Service
 .DESCRIPTION
 Stop a Neo4j Server Windows Service
 
-.PARAMETER Neo4jServer
+.PARAMETER ONgDBServer
 An object representing a valid Neo4j Server object
 
 .EXAMPLE
-Stop-Neo4jServer -Neo4jServer $ServerObject
+Stop-ONgDBServer -ONgDBServer $ServerObject
 
-Stop the Neo4j Windows Windows Service for the Neo4j installation at $ServerObject
+Stop the Neo4j Windows Windows Service for the ONgDB installation at $ServerObject
 
 .OUTPUTS
 System.Int32
@@ -41,12 +41,12 @@ non-zero = an error occured
 This function is private to the powershell module
 
 #>
-Function Stop-Neo4jServer
+Function Stop-ONgDBServer
 {
   [cmdletBinding(SupportsShouldProcess=$true,ConfirmImpact='Medium')]
   param (
     [Parameter(Mandatory=$true,ValueFromPipeline=$true)]
-    [PSCustomObject]$Neo4jServer
+    [PSCustomObject]$ONgDBServer
 
   )
   
@@ -56,7 +56,7 @@ Function Stop-Neo4jServer
 
   Process
   {
-    $ServiceName = Get-Neo4jWindowsServiceName -Neo4jServer $Neo4jServer -ErrorAction Stop
+    $ServiceName = Get-ONgDBWindowsServiceName -ONgDBServer $ONgDBServer -ErrorAction Stop
 
     Write-Verbose "Stopping the service.  This can take some time..."
     $result = Stop-Service -Name $ServiceName -PassThru -ErrorAction Stop

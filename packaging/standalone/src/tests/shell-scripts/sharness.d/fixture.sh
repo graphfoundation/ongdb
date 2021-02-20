@@ -3,7 +3,7 @@ fake_install() {
 
   mkdir -p "${path}/bin"
   cp ../../../main/distribution/shell-scripts/bin/* "${path}/bin" 2>/dev/null
-  chmod +x "${path}/bin/neo4j"
+  chmod +x "${path}/bin/ongdb"
   mkdir -p "${path}/conf"
   mkdir -p "${path}/data/databases"
   mkdir -p "${path}/lib"

@@ -37,7 +37,7 @@ System.String[]
 This function is private to the powershell module
 
 #>
-Function Merge-Neo4jJavaSettings
+Function Merge-ONgDBJavaSettings
 {
   [cmdletBinding(SupportsShouldProcess=$false,ConfirmImpact='Low',DefaultParameterSetName='Default')]
   param (

@@ -117,7 +117,7 @@ public class StoreInfoCommandTest
                             "    HEAP_SIZE     Set JVM maximum heap size during command execution.%n" +
                             "                  Takes a number and a unit, for example 512m.%n" +
                             "%n" +
-                            "Prints information about a Neo4j database store, such as what version of Neo4j%n" +
+                            "Prints information about a ONgDB database store, such as what version of ONgDB%n" +
                             "created it. Note that this command expects a path to a store directory, for%n" +
                             "example --store=data/databases/graph.db.%n" +
                             "%n" +

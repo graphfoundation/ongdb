@@ -102,7 +102,7 @@ object EnterpriseRuntimeBuilder extends RuntimeBuilder[Transformer[EnterpriseRun
         BuildCompiledExecutionPlan andThen FallbackWithNotification(pickInterpretedExecutionPlan())
 
       case Some(x) =>
-        throw new InvalidArgumentException(s"This version of Neo4j does not support requested runtime: $x")
+        throw new InvalidArgumentException(s"This version of ONgDB does not support requested runtime: $x")
     }
   }
 }

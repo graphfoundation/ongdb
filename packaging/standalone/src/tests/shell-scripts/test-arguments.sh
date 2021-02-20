@@ -15,7 +15,7 @@ test_expect_success "should print usage stdout and exit zero when help requested
 "
 
 test_expect_success "should include script name in usage" "
-  test_expect_stdout_matching ' neo4j ' ongdb-home/bin/ongdb help
+  test_expect_stdout_matching ' ongdb ' ongdb-home/bin/ongdb help
 "
 
 test_expect_success "should include --version in java args when --version given" "

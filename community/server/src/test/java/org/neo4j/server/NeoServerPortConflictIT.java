@@ -76,7 +76,7 @@ public class NeoServerPortConflictIT extends ExclusiveServerTestBase
             }
             catch ( ServerStartupException e )
             {
-                assertThat( e.getMessage(), containsString( "Starting Neo4j failed" ) );
+                assertThat( e.getMessage(), containsString( "Starting ONgDB failed" ) );
             }
 
             logProvider.assertAtLeastOnce(
@@ -112,7 +112,7 @@ public class NeoServerPortConflictIT extends ExclusiveServerTestBase
             }
             catch ( ServerStartupException e )
             {
-                assertThat( e.getMessage(), containsString( "Starting Neo4j failed" ) );
+                assertThat( e.getMessage(), containsString( "Starting ONgDB failed" ) );
             }
 
             logProvider.assertAtLeastOnce(

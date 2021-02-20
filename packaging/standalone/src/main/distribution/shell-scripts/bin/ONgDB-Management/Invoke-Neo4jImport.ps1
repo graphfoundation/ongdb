@@ -36,7 +36,7 @@ non-zero = an error occured
 Only supported on version 3.x Neo4j Community and Enterprise Edition databases
 
 #>
-Function Invoke-Neo4jImport
+Function Invoke-ONgDBImport
 {
   [cmdletBinding(SupportsShouldProcess=$false,ConfirmImpact='Low')]
   param (
@@ -59,7 +59,7 @@ Function Invoke-Neo4jImport
     }
 
     try {
-      Return [int](Invoke-Neo4jUtility -Command 'Import' -CommandArgs $CommandArgs -ErrorAction 'Stop')      
+      Return [int](Invoke-ONgDBUtility -Command 'Import' -CommandArgs $CommandArgs -ErrorAction 'Stop')
     }
     catch {
       Write-Error $_

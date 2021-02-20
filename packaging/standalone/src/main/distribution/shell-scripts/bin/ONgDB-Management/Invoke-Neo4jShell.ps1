@@ -36,7 +36,7 @@ non-zero = an error occured
 Only supported on version 3.x Neo4j Community and Enterprise Edition databases
 
 #>
-Function Invoke-Neo4jShell
+Function Invoke-ONgDBShell
 {
   [cmdletBinding(SupportsShouldProcess=$false,ConfirmImpact='Low')]
   param (
@@ -51,7 +51,7 @@ Function Invoke-Neo4jShell
   Process
   {
     try {
-      Return [int](Invoke-Neo4jUtility -Command 'Shell' -CommandArgs $CommandArgs -ErrorAction 'Stop')      
+      Return [int](Invoke-ONgDBUtility -Command 'Shell' -CommandArgs $CommandArgs -ErrorAction 'Stop')
     }
     catch {
       Write-Error $_

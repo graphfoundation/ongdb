@@ -130,7 +130,7 @@ public interface AdminCommand
     interface Blocker
     {
         /**
-         * @param homeDir   the home of the Neo4j installation.
+         * @param homeDir   the home of the ONgDB installation.
          * @param configDir the directory where configuration files can be found.
          * @return A boolean representing whether or not this command should be blocked from running.
          */

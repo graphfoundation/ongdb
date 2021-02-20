@@ -11,7 +11,7 @@ InModuleScope ONgDB-Management {
     # Setup mocking environment
     #  Mock Java environment
     $javaHome = global:New-MockJavaHome
-    Mock Get-Neo4jEnv { $javaHome } -ParameterFilter { $Name -eq 'JAVA_HOME' }
+    Mock Get-ONgDBEnv { $javaHome } -ParameterFilter { $Name -eq 'JAVA_HOME' }
     Mock Test-Path { $false } -ParameterFilter {
       $Path -like 'Registry::*\JavaSoft\Java Runtime Environment'
     }
@@ -54,7 +54,7 @@ InModuleScope ONgDB-Management {
     }
 
     Context "Valid Java install in Registry (32bit Java on 64bit OS)" {
-      Mock Get-Neo4jEnv { $null } -ParameterFilter { $Name -eq 'JAVA_HOME' }
+      Mock Get-ONgDBEnv { $null } -ParameterFilter { $Name -eq 'JAVA_HOME' }
       Mock Test-Path -Verifiable { return $true } -ParameterFilter {
         ($Path -eq 'Registry::HKLM\SOFTWARE\Wow6432Node\JavaSoft\Java Runtime Environment')
       }
@@ -77,7 +77,7 @@ InModuleScope ONgDB-Management {
     }
 
     Context "Valid Java install in Registry" {
-      Mock Get-Neo4jEnv { $null } -ParameterFilter { $Name -eq 'JAVA_HOME' }
+      Mock Get-ONgDBEnv { $null } -ParameterFilter { $Name -eq 'JAVA_HOME' }
       Mock Test-Path -Verifiable { return $true } -ParameterFilter {
         ($Path -eq 'Registry::HKLM\SOFTWARE\JavaSoft\Java Runtime Environment')
       }
@@ -101,7 +101,7 @@ InModuleScope ONgDB-Management {
 
     Context "Invalid Java install in Registry" {
       Mock Test-Path { $false } -ParameterFile { $Path -like "$javaHome\bin\java.exe" }
-      Mock Get-Neo4jEnv { $null } -ParameterFilter { $Name -eq 'JAVA_HOME' }
+      Mock Get-ONgDBEnv { $null } -ParameterFilter { $Name -eq 'JAVA_HOME' }
       Mock Test-Path -Verifiable { return $true } -ParameterFilter {
         ($Path -eq 'Registry::HKLM\SOFTWARE\JavaSoft\Java Runtime Environment')
       }
@@ -122,7 +122,7 @@ InModuleScope ONgDB-Management {
     }
 
     Context "Valid Java install in search path" {
-      Mock Get-Neo4jEnv { $null } -ParameterFilter { $Name -eq 'JAVA_HOME' }
+      Mock Get-ONgDBEnv { $null } -ParameterFilter { $Name -eq 'JAVA_HOME' }
 
       Mock Get-Command -Verifiable { return @{ 'Path' = "$javaHome\bin\java.exe" } }
 
@@ -138,7 +138,7 @@ InModuleScope ONgDB-Management {
     }
 
     Context "No Java install at all" {
-      Mock Get-Neo4jEnv { $null } -ParameterFilter { $Name -eq 'JAVA_HOME' }
+      Mock Get-ONgDBEnv { $null } -ParameterFilter { $Name -eq 'JAVA_HOME' }
       Mock Get-Command { $null }
 
       It "should throw if java not detected" {
@@ -148,9 +148,9 @@ InModuleScope ONgDB-Management {
 
     # ForServer tests
     Context "Server Invoke - Community v3.0" {
-      $serverObject = global:New-MockNeo4jInstall -ServerVersion '3.0' -ServerType 'Community'
+      $serverObject = global:New-MockONgDBInstall -ServerVersion '3.0' -ServerType 'Community'
 
-      $result = Get-Java -ForServer -Neo4jServer $serverObject
+      $result = Get-Java -ForServer -ONgDBServer $serverObject
       $resultArgs = ($result.args -join ' ')
 
       It "should have main class of org.neo4j.server.CommunityEntryPoint" {
@@ -159,10 +159,10 @@ InModuleScope ONgDB-Management {
     }
 
     Context "Server Invoke - Should set heap size" {
-      $serverObject = global:New-MockNeo4jInstall -ServerVersion '3.0' -ServerType 'Community' `
+      $serverObject = global:New-MockONgDBInstall -ServerVersion '3.0' -ServerType 'Community' `
         -NeoConfSettings 'dbms.memory.heap.initial_size=123k','dbms.memory.heap.max_size=234g'
 
-      $result = Get-Java -ForServer -Neo4jServer $serverObject
+      $result = Get-Java -ForServer -ONgDBServer $serverObject
       $resultArgs = ($result.args -join ' ')
 
       It "should set initial heap size" {
@@ -175,10 +175,10 @@ InModuleScope ONgDB-Management {
     }
 
     Context "Server Invoke - Should default heap size unit to megabytes" {
-      $serverObject = global:New-MockNeo4jInstall -ServerVersion '3.0' -ServerType 'Community' `
+      $serverObject = global:New-MockONgDBInstall -ServerVersion '3.0' -ServerType 'Community' `
         -NeoConfSettings 'dbms.memory.heap.initial_size=123','dbms.memory.heap.max_size=234'
 
-      $result = Get-Java -ForServer -Neo4jServer $serverObject
+      $result = Get-Java -ForServer -ONgDBServer $serverObject
       $resultArgs = ($result.args -join ' ')
 
       It "should set initial heap size" {
@@ -191,10 +191,10 @@ InModuleScope ONgDB-Management {
     }
 
     Context "Server Invoke - Enable Default GC Logs" {
-      $serverObject = global:New-MockNeo4jInstall -ServerVersion '3.0' -ServerType 'Community' `
+      $serverObject = global:New-MockONgDBInstall -ServerVersion '3.0' -ServerType 'Community' `
         -NeoConfSettings 'dbms.logs.gc.enabled=true'
 
-      $result = Get-Java -ForServer -Neo4jServer $serverObject
+      $result = Get-Java -ForServer -ONgDBServer $serverObject
       $resultArgs = ($result.args -join ' ')
 
       It "should set GCLogfile" {
@@ -231,10 +231,10 @@ InModuleScope ONgDB-Management {
     }
 
     Context "Server Invoke - Enable Specific GC Logs" {
-      $serverObject = global:New-MockNeo4jInstall -ServerVersion '3.0' -ServerType 'Community' `
+      $serverObject = global:New-MockONgDBInstall -ServerVersion '3.0' -ServerType 'Community' `
         -NeoConfSettings 'dbms.logs.gc.enabled=true','dbms.logs.gc.options=key1=value1 key2=value2'
 
-      $result = Get-Java -ForServer -Neo4jServer $serverObject
+      $result = Get-Java -ForServer -ONgDBServer $serverObject
       $resultArgs = ($result.args -join ' ')
 
       It "should set GCLogfile" {
@@ -257,9 +257,9 @@ InModuleScope ONgDB-Management {
 
     # Utility Invoke
     Context "Utility Invoke" {
-      $serverObject = global:New-MockNeo4jInstall -ServerVersion '99.99' -ServerType 'Community'
+      $serverObject = global:New-MockONgDBInstall -ServerVersion '99.99' -ServerType 'Community'
 
-      $result = Get-Java -ForUtility -StartingClass 'someclass' -Neo4jServer $serverObject -ErrorAction Stop
+      $result = Get-Java -ForUtility -StartingClass 'someclass' -ONgDBServer $serverObject -ErrorAction Stop
       $resultArgs = ($result.args -join ' ')
 
       It "should have jars from bin" {
@@ -274,10 +274,10 @@ InModuleScope ONgDB-Management {
     }
 
     Context "Utility Invoke - Should set heap size from environment variable" {
-      $serverObject = global:New-MockNeo4jInstall -ServerVersion '99.99' -ServerType 'Community'
-      Mock Get-Neo4jEnv { '666m' } -ParameterFilter { $Name -eq 'HEAP_SIZE' }
+      $serverObject = global:New-MockONgDBInstall -ServerVersion '99.99' -ServerType 'Community'
+      Mock Get-ONgDBEnv { '666m' } -ParameterFilter { $Name -eq 'HEAP_SIZE' }
 
-      $result = Get-Java -ForUtility -StartingClass 'someclass' -Neo4jServer $serverObject -ErrorAction Stop
+      $result = Get-Java -ForUtility -StartingClass 'someclass' -ONgDBServer $serverObject -ErrorAction Stop
       $resultArgs = ($result.args -join ' ')
 
       It "should have jars from bin" {
@@ -298,21 +298,21 @@ InModuleScope ONgDB-Management {
     }
 
 	Context "Server Invoke - Should handle paths with spaces" {
-      $serverObject = global:New-MockNeo4jInstall -ServerVersion '3.0' -ServerType 'Community' `
-	    -RootDir 'TestDrive:\Neo4j Home' `
+      $serverObject = global:New-MockONgDBInstall -ServerVersion '3.0' -ServerType 'Community' `
+	    -RootDir 'TestDrive:\ONgDB Home' `
         -NeoConfSettings 'dbms.logs.gc.enabled=true'
 
-      $result = Get-Java -ForServer -Neo4jServer $serverObject
+      $result = Get-Java -ForServer -ONgDBServer $serverObject
 	  $argList = $result.args
 
 	  It "should have literal quotes around config path" {
-		$argList -contains "--config-dir=`"TestDrive:\Neo4j Home\conf`"" | Should Be True
+		$argList -contains "--config-dir=`"TestDrive:\ONgDB Home\conf`"" | Should Be True
 	  }
 	  It "should have literal quotes around home path" {
-		$argList -contains "--home-dir=`"TestDrive:\Neo4j Home`"" | Should Be True
+		$argList -contains "--home-dir=`"TestDrive:\ONgDB Home`"" | Should Be True
 	  }
 	  It "should have literal quotes around gclog path" {
-		$argList -contains "-Xloggc:`"TestDrive:\Neo4j Home/gc.log`"" | Should Be True
+		$argList -contains "-Xloggc:`"TestDrive:\ONgDB Home/gc.log`"" | Should Be True
 	  }
     }
   }
