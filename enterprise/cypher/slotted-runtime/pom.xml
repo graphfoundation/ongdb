@@ -15,16 +15,16 @@
   <version>1.0.0-SNAPSHOT</version>
   <name>ONgDB - Cypher Slotted Runtime</name>
   <description>Planner for the physical query plans</description>
-  <url>http://components.neo4j.org/${project.artifactId}/${project.version}</url>
+  <url>https://graphfoundation.org/projects/ongdb/${project.version}/${project.artifactId}</url>
 
   <properties>
     <moduleName>org.neo4j.cypher.internal.compatibility.v3_4.runtime.slotted</moduleName>
   </properties>
 
   <scm>
-    <connection>scm:git:git://github.com/neo4j/neo4j.git</connection>
-    <developerConnection>scm:git:git@github.com:neo4j/neo4j.git</developerConnection>
-    <url>https://github.com/neo4j/neo4j</url>
+    <connection>scm:git:git://github.com/graphfoundation/ongdb.git</connection>
+    <developerConnection>scm:git:git@github.com:graphfoundation/ongdb.git</developerConnection>
+    <url>https://github.com/graphfoundation/ongdb</url>
   </scm>
 
   <licenses>

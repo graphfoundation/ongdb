@@ -16,12 +16,12 @@
   <version>1.0.0-SNAPSHOT</version>
   <name>ONgDB - Cypher Specification Suite Tools</name>
   <description>ONgDB query language test suite tools</description>
-  <url>http://components.neo4j.org/${project.artifactId}/${project.version}</url>
+  <url>https://graphfoundation.org/projects/ongdb/${project.version}/${project.artifactId}</url>
 
   <scm>
-    <connection>scm:git:git://github.com/neo4j/neo4j.git</connection>
-    <developerConnection>scm:git:git@github.com:neo4j/neo4j.git</developerConnection>
-    <url>https://github.com/neo4j/neo4j</url>
+    <connection>scm:git:git://github.com/graphfoundation/ongdb.git</connection>
+    <developerConnection>scm:git:git@github.com:graphfoundation/ongdb.git</developerConnection>
+    <url>https://github.com/graphfoundation/ongdb</url>
   </scm>
 
   <licenses>

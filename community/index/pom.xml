@@ -19,12 +19,12 @@
   <packaging>jar</packaging>
   <name>ONgDB - Native index</name>
   <description>Native index for Neo4j.</description>
-  <url>http://components.neo4j.org/${project.artifactId}/${project.version}</url>
+  <url>https://graphfoundation.org/projects/ongdb/${project.version}/${project.artifactId}</url>
 
   <scm>
-    <connection>scm:git:git://github.com/neo4j/neo4j.git</connection>
-    <developerConnection>scm:git:git@github.com:neo4j/neo4j.git</developerConnection>
-    <url>https://github.com/neo4j/neo4j</url>
+    <connection>scm:git:git://github.com/graphfoundation/ongdb.git</connection>
+    <developerConnection>scm:git:git@github.com:graphfoundation/ongdb.git</developerConnection>
+    <url>https://github.com/graphfoundation/ongdb</url>
   </scm>
 
   <licenses>

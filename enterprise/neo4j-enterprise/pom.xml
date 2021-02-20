@@ -13,7 +13,7 @@
 
   <name>ONgDB - Enterprise</name>
   <packaging>jar</packaging>
-  <url>http://components.neo4j.org/${project.artifactId}/${project.version}</url>
+  <url>https://graphfoundation.org/projects/ongdb/${project.version}/${project.artifactId}</url>
   <description>A meta package containing the most used Neo4j Enterprise libraries. Intended use: as a Maven dependency.
   </description>
 
@@ -22,9 +22,9 @@
   </properties>
 
   <scm>
-    <connection>scm:git:git://github.com/neo4j/neo4j.git</connection>
-    <developerConnection>scm:git:git@github.com:neo4j/neo4j.git</developerConnection>
-    <url>https://github.com/neo4j/neo4j</url>
+    <connection>scm:git:git://github.com/graphfoundation/ongdb.git</connection>
+    <developerConnection>scm:git:git@github.com:graphfoundation/ongdb.git</developerConnection>
+    <url>https://github.com/graphfoundation/ongdb</url>
   </scm>
 
   <licenses>

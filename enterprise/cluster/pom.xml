@@ -12,16 +12,16 @@
   <name>ONgDB - Clustering Infrastructure</name>
   <description>Library implementing Paxos and Heartbeat components required for High Availability Neo4j</description>
   <packaging>jar</packaging>
-  <url>http://components.neo4j.org/${project.artifactId}/${project.version}</url>
+  <url>https://graphfoundation.org/projects/ongdb/${project.version}/${project.artifactId}</url>
 
   <properties>
     <moduleName>org.neo4j.cluster</moduleName>
   </properties>
 
   <scm>
-    <connection>scm:git:git://github.com/neo4j/neo4j.git</connection>
-    <developerConnection>scm:git:git@github.com:neo4j/neo4j.git</developerConnection>
-    <url>https://github.com/neo4j/neo4j</url>
+    <connection>scm:git:git://github.com/graphfoundation/ongdb.git</connection>
+    <developerConnection>scm:git:git@github.com:graphfoundation/ongdb.git</developerConnection>
+    <url>https://github.com/graphfoundation/ongdb</url>
   </scm>
 
   <licenses>

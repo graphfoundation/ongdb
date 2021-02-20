@@ -13,7 +13,7 @@
     <name>ONgDB - Push To Cloud - Admin command</name>
     <description>ONgDB Admin command for pushing a database to the Neo4j cloud service</description>
     <packaging>jar</packaging>
-    <url>http://components.neo4j.org/${project.artifactId}/${project.version}</url>
+    <url>https://graphfoundation.org/projects/ongdb/${project.version}/${project.artifactId}</url>
 
     <properties>
         <licensing.prepend.text>licensing/notice-asl-prefix.txt</licensing.prepend.text>
@@ -22,9 +22,9 @@
     </properties>
 
     <scm>
-        <connection>scm:git:git://github.com/neo4j/neo4j.git</connection>
-        <developerConnection>scm:git:git@github.com:neo4j/neo4j.git</developerConnection>
-        <url>https://github.com/neo4j/neo4j</url>
+        <connection>scm:git:git://github.com/graphfoundation/ongdb.git</connection>
+        <developerConnection>scm:git:git@github.com:graphfoundation/ongdb.git</developerConnection>
+        <url>https://github.com/graphfoundation/ongdb</url>
     </scm>
     
     <licenses>

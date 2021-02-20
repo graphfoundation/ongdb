@@ -21,7 +21,7 @@
   <name>ONgDB - Unsafe Access</name>
   <description>Internal component that provides access to unsafe memory
     intrinsics</description>
-  <url>http://components.neo4j.org/${project.artifactId}/${project.version}</url>
+  <url>https://graphfoundation.org/projects/ongdb/${project.version}/${project.artifactId}</url>
 
   <licenses>
     <license>

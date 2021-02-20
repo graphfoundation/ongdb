@@ -8,19 +8,19 @@
   <version>1.0.0-SNAPSHOT</version>
   <packaging>pom</packaging>
   <name>ONgDB</name>
-  <description>ONgDB Graph Database</description>
+  <description>Open Native Graph Database</description>
   <inceptionYear>2018</inceptionYear>
-  <url>http://neo4j.com/</url>
+  <url>https://graphfoundation.org/</url>
 
   <organization>
-    <name>The Neo4j Graph Database Project</name>
-    <url>https://neo4j.com/</url>
+    <name>Graph Foundation, Inc.</name>
+    <url>https://graphfoundation.org/</url>
   </organization>
 
   <scm>
-    <connection>scm:git:git://github.com/neo4j/neo4j.git</connection>
-    <developerConnection>scm:git:git@github.com:neo4j/neo4j.git</developerConnection>
-    <url>https://github.com/neo4j/neo4j</url>
+    <connection>scm:git:git://github.com/graphfoundation/ongdb.git</connection>
+    <developerConnection>scm:git:git@github.com:graphfoundation/ongdb.git</developerConnection>
+    <url>https://github.com/graphfoundation/ongdb</url>
   </scm>
 
   <licenses>
@@ -32,11 +32,11 @@
 
   <developers>
     <developer>
-      <id>neo4j</id>
-      <name>The Neo4j Team</name>
-      <url>https://neo4j.com/</url>
-      <organization>Neo4j Inc.</organization>
-      <organizationUrl>https://neo4j.com/</organizationUrl>
+      <id>ongdb</id>
+      <name>The ONgDB Team</name>
+      <url>https://graphfoundation.org/projects/ongdb</url>
+      <organization>Graph Foundation, Inc.</organization>
+      <organizationUrl>https://graphfoundation.org/</organizationUrl>
     </developer>
   </developers>
 

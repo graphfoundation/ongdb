@@ -17,7 +17,7 @@
 
     <name>ONgDB - Enterprise Test Harness</name>
     <description>Components for writing integration tests with Neo4j.</description>
-    <url>http://components.neo4j.org/${project.artifactId}/${project.version}</url>
+    <url>https://graphfoundation.org/projects/ongdb/${project.version}/${project.artifactId}</url>
 
     <properties>
         <licensing.prepend.text>licensing/notice-agpl-prefix.txt</licensing.prepend.text>

@@ -15,7 +15,7 @@
   <name>ONgDB - Community Build</name>
   <packaging>pom</packaging>
   <description>Project that builds the Neo4j Community distribution.</description>
-  <url>http://components.neo4j.org/${project.artifactId}/${project.version}</url>
+  <url>https://graphfoundation.org/projects/ongdb/${project.version}/${project.artifactId}</url>
 
   <properties>
     <license-text.header>headers/GPL-3-header.txt</license-text.header>
