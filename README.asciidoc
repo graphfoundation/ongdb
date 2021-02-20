@@ -1,78 +1,59 @@
-= Neo4j: Graphs for Everyone =
+= ONgDB: Graphs for the People! =
 
-https://neo4j.com[Neo4j] is the world's leading Graph Database. It is a high performance graph store with all the features expected of a mature and robust database, like a friendly query language and ACID transactions. The programmer works with a flexible network structure of nodes and relationships rather than static tables -- yet enjoys all the benefits of enterprise-quality database. For many applications, Neo4j offers orders of magnitude performance benefits compared to relational DBs.
+https://graphfoundation.org[ONgDB] is an open source, high performance, native graph store with everything you would expect from an enterprise-ready database, including high availability clustering, ACID transactions, and an intuitive, pattern-centric graph query language.
+Developers use graph theory-based structures that we call nodes and relationships instead of rows and columns.
+For many use cases, ONgDB will provide orders of magnitude performance benefits compared to non-native graph, relational and NoSQL databases.
 
-Learn more on the https://neo4j.com[Neo4j website].
+Learn more on the https://graphfoundation.org/projects/ongdb[Graph Foundation ONgDB site].
 
-== Using Neo4j ==
+== Using ONgDB ==
 
-Neo4j is available both as a standalone server, or an embeddable component. You can https://neo4j.com/download/[download] or http://console.neo4j.org[try online].
+ONgDB is available both as a standalone server or an embeddable component.
 
-== Extending Neo4j ==
+== Extending ONgDB ==
 
-We encourage experimentation with Neo4j. You can build extensions to Neo4j, develop library or drivers atop the product, or make contributions directly to the product core. You'll need to sign a Contributor License Agreement in order for us to accept your patches.
+We encourage experimentation with ONgDB.
+You can build plugins to ONgDB, develop library or drivers atop the product, or make contributions directly to the product core.
+You'll need to sign the Graph Foundation Contributor License Agreement to become a contributor.
 
-NOTE: This GitHub repository contains mixed GPL and AGPL code. Our Community edition (in the link:community/[community/] directory) is GPLv3. Our Enterprise edition (link:enterprise/[enterprise/]) is differently licensed under the AGPLv3.
+NOTE: This GitHub repository contains mixed GPLv3 and AGPLv3 code.
+Our Community edition (in the link:community/[community/] directory) is GPLv3. Our Enterprise edition (link:enterprise/[enterprise/]) is differently licensed under the AGPLv3.
 
 == Dependencies ==
 
-Neo4j is built using http://maven.apache.org/[Apache Maven] version 3.3 and a recent version of supported VM. Bash and Make are also required. Note that maven needs more memory than the standard configuration, this can be achieved with `export MAVEN_OPTS="-Xmx512m"`.
+ONgDB is built using http://maven.apache.org/[Apache Maven] version 3.6. Maven requires more memory than the standard configuration which can be achieved with `export MAVEN_OPTS="-Xmx512m"`.
 
-OS X users need to have http://brew.sh/[Homebrew] installed.
+== Building ONgDB ==
 
-=== With brew on OS X ===
+Before you start running the unit and integration tests in the ONgDB Maven project on a Linux-like system, you should ensure the limit on open files is set to a reasonable value.
+You can test it with `ulimit -n`.
+We recommend you have a limit of at least 40K.
 
-  brew install maven
-
-Please note that we do not support building Debian packages on OS X.
-
-=== With apt-get on Ubuntu ===
-
-  apt install maven openjdk-8-jdk
-
-On top of that, to build Debian packages and Neo4j Desktop:
-
-  apt install debhelper devscripts dos2unix dpkg make xmlstarlet
-  # You will need a license for install4j, which is only needed for Neo4j Desktop
-  curl -O http://download-keycdn.ej-technologies.com/install4j/install4j_linux_6_1_4.deb
-  dpkg -i install4j_linux_6_1_4.deb
-
-== Building Neo4j ==
-
-Before you start running the unit and integration tests in the Neo4j Maven project on a Linux-like system, you should ensure your limit on open files is set to a reasonable value. You can test it with `ulimit -n`. We recommend you have a limit of at least 40K.
-
-* A plain `mvn clean install` will only build the individual jar files.
-* Test execution is, of course, part of the build.
-* In case you just want the jars, without running tests, this is for you: `mvn clean install -DskipTests`.
-* To build product packages, do `export PATH="bin:$PATH" && make clean all` in the packaging directory after building artifacts with Maven.
-* To build the documentation see the https://github.com/neo4j/neo4j-documentation/[Neo4j documentation].
-* If you are running into problems building on Windows you can try building Neo4j in a Ubuntu virtual machine.
+* Run `mvn clean install -DfullBuild -Drevapi.skip=true -DcreateChecksum=true` to build end-to-end with all tests.
+* In case you want to skip tests add the `-DskipTests` flag to the previous command.
 * You may need to increase the memory available to Maven: `export MAVEN_OPTS="-Xmx512m"`.
 
-== Running Neo4j ==
+== Running ONgDB ==
 
-After running a `mvn clean install` cd into `packaging/standalone/target` and extract the version you want, then
+After building, cd into `packaging/standalone/target` and extract the edition you want, then
 
-  bin/neo4j start
+  bin/ongdb start
 
-in the extracted folder to start Neo4j on `localhost:7474`. On Windows you want to run
+in the extracted folder to start ONgDB on `localhost:7474`.
 
-  bin\neo4j start
+On Windows you want to run
+
+  bin\ongdb start
 
 instead.
 
-Or, if you are not interested in the tarballs and just want to run Neo4j you can instead run a `mvn clean install -DminimalBuild` and then cd into `community/server` and run
-
-  mvn clean compile exec:java
-
-to start Neo4j.
-
 == Licensing ==
 
-Neo4j Community Edition is an open source product licensed under GPLv3.
+ONgDB Community Edition is an open source product licensed under GPLv3.
 
-Neo4j Enterprise Edition expands the functionality of Community Edition with Enterprise-grade features.
+ONgDB Enterprise Edition expands the functionality of Community Edition with Enterprise-grade features.
 
-Neo4j Enterprise consists of modules from Neo4j Community Edition and modules licensed under AGPLv3 in this repository, and other closed source components not present in this repository.
+ONgDB Enterprise consists of modules from ONgDB Community Edition and modules licensed under AGPLv3 in this repository.
 
-When packaged as a binary, Enterprise Edition includes additional closed-source components _not available in this repository_ and requires a commercial license from Neo4j Sweden AB or one of its affiliates.
+== Unaffiliated with Neo4j, Inc. ==
+ONgDB is an independent fork of Neo4j® Enterprise Edition version 3.4.0.rc02 licensed under the AGPLv3 and/or Community Edition licensed under GPLv3. ONgDB and Graph Foundation, Inc. are not affiliated in any way with Neo4j, Inc. or Neo4j Sweden AB. Neo4j, Inc. and Neo4j Sweden AB do not sponsor or endorse ONgDB and Graph Foundation, Inc. Neo4j Sweden AB is the owner of the copyrights for Neo4j® software and commercial use of any source code from Neo4j® Enterprise Edition beyond Neo4j® Enterprise Edition version 3.2.14, Neo4j® Enterprise Edition version 3.3.10, and/or Neo4j® Enterprise Edition version 3.4.0.rc02 is prohibited and could subject the user to claims of copyright infringement.
