@@ -119,7 +119,7 @@ public final class ConfigurationBean extends Neo4jMBean
     public MBeanInfo getMBeanInfo()
     {
         Description description = getClass().getAnnotation( Description.class );
-        return new MBeanInfo( getClass().getName(), description != null ? description.value() : "Neo4j configuration",
+        return new MBeanInfo( getClass().getName(), description != null ? description.value() : "ONgDB configuration",
                 keys(), null, null, null );
     }
 

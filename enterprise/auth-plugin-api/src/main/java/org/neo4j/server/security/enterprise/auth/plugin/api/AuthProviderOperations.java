@@ -51,9 +51,9 @@ public interface AuthProviderOperations
     Path neo4jHome();
 
     /**
-     * Returns the path to the Neo4j configuration file if one exists.
+     * Returns the path to the ONgDB configuration file if one exists.
      *
-     * @return the path to the Neo4j configuration file if one exists
+     * @return the path to the ONgDB configuration file if one exists
      *
      * @deprecated
      * Settings are recommended to be stored in a separate file. You can use {@link AuthProviderOperations#neo4jHome()}

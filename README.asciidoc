@@ -50,7 +50,7 @@ instead.
 == Licensing ==
 
 ONgDB Community Edition is an open source product licensed under GPLv3.
-
+git@github.com:graphfoundation/ongdb.git
 ONgDB Enterprise Edition expands the functionality of Community Edition with Enterprise-grade features.
 
 ONgDB Enterprise consists of modules from ONgDB Community Edition and modules licensed under AGPLv3 in this repository.

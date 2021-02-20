@@ -144,7 +144,7 @@ public class GraphDatabaseSettings implements LoadableConfig
     @Description( "Disable all protocol connectors." )
     public static final Setting<Boolean> disconnected = setting( "unsupported.dbms.disconnected", BOOLEAN, FALSE );
 
-    @Description( "Print out the effective Neo4j configuration after startup." )
+    @Description( "Print out the effective ONgDB configuration after startup." )
     @Internal
     public static final Setting<Boolean> dump_configuration = setting( "unsupported.dbms.report_configuration",
             BOOLEAN, FALSE );

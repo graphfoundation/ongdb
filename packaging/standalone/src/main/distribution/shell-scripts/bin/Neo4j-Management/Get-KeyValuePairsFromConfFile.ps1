@@ -19,10 +19,10 @@
 
 <#
 .SYNOPSIS
-Parses a Neo4j configuration file into a hashtable
+Parses a ONgDB configuration file into a hashtable
 
 .DESCRIPTION
-Parses a Neo4j configuration file into a hashtable.  Multivalue keys are output as string[] types.
+Parses a ONgDB configuration file into a hashtable.  Multivalue keys are output as string[] types.
 
 .PARAMETER Filename
 The full path to the file to read
