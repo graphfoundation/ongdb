@@ -771,7 +771,7 @@
             <include>src/**/*.g4</include>
           </includes>
           <excludes>
-            <exclude>**/cypher-shell/*</exclude>
+            <exclude>**/geequel-shell/*</exclude>
           </excludes>
           <mapping>
             <java>SLASHSTAR_STYLE</java>

@@ -59,7 +59,7 @@ public class TestShellServerExtension extends
         if ( shouldLoad )
         {
             configuration.put( ShellSettings.remote_shell_enabled.name(), Settings.TRUE );
-            configuration.put( ShellSettings.remote_shell_name.name(), "neo4j-shell-" + instance );
+            configuration.put( ShellSettings.remote_shell_name.name(), "ongdb-shell-" + instance );
         }
         return configuration;
     }

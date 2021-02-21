@@ -87,9 +87,9 @@
       </excludes>
       <filtered>true</filtered>
     </fileSet>
-    <!-- cypher-shell -->
+    <!-- geequel-shell -->
     <fileSet>
-      <directory>${project.parent.basedir}/src/main/distribution/cypher-shell</directory>
+      <directory>${project.parent.basedir}/src/main/distribution/geequel-shell</directory>
       <outputDirectory>bin</outputDirectory>
       <lineEnding>dos</lineEnding>
       <includes>
@@ -97,7 +97,7 @@
       </includes>
     </fileSet>
     <fileSet>
-      <directory>${project.parent.basedir}/src/main/distribution/cypher-shell</directory>
+      <directory>${project.parent.basedir}/src/main/distribution/geequel-shell</directory>
       <outputDirectory>bin/tools</outputDirectory>
       <includes>
         <include>**/*.jar</include>

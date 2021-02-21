@@ -9,7 +9,7 @@ Quick start:
 
 Issue the following command:
 
-    java -jar neo4j-shell-{version}.jar
+    java -jar ongdb-shell-{version}.jar
 
 Make sure to replace {version} with the actual version.
 The neo4j-kernel jar file need to be in the

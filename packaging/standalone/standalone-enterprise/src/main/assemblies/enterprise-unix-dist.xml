@@ -104,9 +104,9 @@
         <include>**/2.x-config-migrator.jar</include>
       </includes>
     </fileSet>
-    <!-- filter and chmod 755 cypher-shell -->
+    <!-- filter and chmod 755 geequel-shell -->
     <fileSet>
-      <directory>${project.parent.basedir}/src/main/distribution/cypher-shell</directory>
+      <directory>${project.parent.basedir}/src/main/distribution/geequel-shell</directory>
       <outputDirectory>bin</outputDirectory>
       <lineEnding>keep</lineEnding>
       <fileMode>0755</fileMode>
@@ -116,7 +116,7 @@
       </excludes>
     </fileSet>
     <fileSet>
-      <directory>${project.parent.basedir}/src/main/distribution/cypher-shell</directory>
+      <directory>${project.parent.basedir}/src/main/distribution/geequel-shell</directory>
       <outputDirectory>bin/tools</outputDirectory>
       <includes>
         <include>**/*.jar</include>

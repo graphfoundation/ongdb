@@ -26,7 +26,7 @@ out
 Thumbs.db
 .cache-main
 .cache-tests
-/cypher-shell.zip
-packaging/standalone/src/main/distribution/cypher-shell
+/geequel-shell.zip
+packaging/standalone/src/main/distribution/geequel-shell
 /.profiler/
 dependency-reduced-pom.xml

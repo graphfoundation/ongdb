@@ -73,7 +73,7 @@ public class JLineConsole implements Console
             Class<?> historyClass = Class.forName( "jline.console.history.History" );
             Object history = Class.forName( "jline.console.history.FileHistory" ).getConstructor(
                     File.class ).newInstance( new File( System.getProperty(
-                            "user.home" ), ".neo4j_shell_history" ) );
+                            "user.home" ), ".ongdb_shell_history" ) );
             consoleReader.getClass().getMethod( "setHistory", historyClass ).invoke( consoleReader, history );
 
             return new JLineConsole( consoleReader, client );
