@@ -2,7 +2,7 @@ To get started and for more information about Neo4j and Shell go to http://neo4j
 
 Use this component to connect to a
 * local Neo4j graph database
-* remote already running Neo4j instance (NOTE: 
+* remote already running ONgDB instance (NOTE:
   GraphDatabaseService.enableRemoteShell() must have been invoked)
 
 Quick start: 

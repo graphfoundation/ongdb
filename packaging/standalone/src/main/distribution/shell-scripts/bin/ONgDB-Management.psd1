@@ -31,7 +31,7 @@ CompanyName = 'Network Engine for Objects'
 
 Copyright = 'https://neo4j.com/licensing/'
 
-Description = 'Powershell module to manage a Neo4j instance on Windows'
+Description = 'Powershell module to manage a ONgDB instance on Windows'
 
 PowerShellVersion = '2.0'
 

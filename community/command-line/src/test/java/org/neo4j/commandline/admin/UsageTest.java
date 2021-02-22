@@ -101,7 +101,7 @@ public class UsageTest
         InOrder ordered = inOrder( out );
         ordered.verify( out ).accept( "usage: neo4j-admin <command>" );
         ordered.verify( out ).accept( "" );
-        ordered.verify( out ).accept( "Manage your Neo4j instance." );
+        ordered.verify( out ).accept( "Manage your ONgDB instance." );
         ordered.verify( out ).accept( "" );
 
         ordered.verify( out ).accept( "environment variables:" );
@@ -133,7 +133,7 @@ public class UsageTest
         InOrder ordered = inOrder( out );
         ordered.verify( out ).accept( "usage: neo4j-admin <command>" );
         ordered.verify( out ).accept( "" );
-        ordered.verify( out ).accept( "Manage your Neo4j instance." );
+        ordered.verify( out ).accept( "Manage your ONgDB instance." );
         ordered.verify( out ).accept( "" );
 
         ordered.verify( out ).accept( "environment variables:" );

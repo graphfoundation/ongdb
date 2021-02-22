@@ -19,7 +19,7 @@
   </properties>
 
   <description>
-    This component provides management functionality and product surface for Neo4j instances.
+    This component provides management functionality and product surface for ONgDB instances.
   </description>
   <url>http://components.neo4j.org/${project.artifactId}/${project.version}/</url>
   <packaging>jar</packaging>

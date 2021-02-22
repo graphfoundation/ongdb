@@ -68,7 +68,7 @@ import static org.neo4j.tooling.procedure.CompilerOptions.IGNORE_CONTEXT_WARNING
 /**
  * Base processor that processes {@link Element} annotated with {@code T}.
  * It also detects and reports duplicated elements (duplication can obviously be detected within a compilation unit and
- * not globally per Neo4j instance, as explained in {@link DuplicatedExtensionValidator}.
+ * not globally per ONgDB instance, as explained in {@link DuplicatedExtensionValidator}.
  *
  * @param <T> processed annotation type
  */

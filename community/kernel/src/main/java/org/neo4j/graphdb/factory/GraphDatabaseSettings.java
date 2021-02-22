@@ -135,7 +135,7 @@ public class GraphDatabaseSettings implements LoadableConfig
             PATH );
 
     @Title( "Read only database" )
-    @Description( "Only allow read operations from this Neo4j instance. " +
+    @Description( "Only allow read operations from this ONgDB instance. " +
             "This mode still requires write access to the directory for lock purposes." )
     public static final Setting<Boolean> read_only = setting( "dbms.read_only", BOOLEAN, FALSE );
 

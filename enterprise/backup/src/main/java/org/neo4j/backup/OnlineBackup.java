@@ -48,7 +48,7 @@ import org.neo4j.kernel.configuration.Config;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
 
 /**
- * This class encapsulates the information needed to perform an online backup against a running Neo4j instance
+ * This class encapsulates the information needed to perform an online backup against a running ONgDB instance
  * configured to act as a backup server. This class is not instantiable, instead factory methods are used to get
  * instances configured to contact a specific backup server against which all possible backup operations can be
  * performed.

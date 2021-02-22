@@ -57,7 +57,7 @@ public class Neo4jAdminUsageTest
 
         assertEquals("usage: neo4j-admin <command>\n" +
                         "\n" +
-                        "Manage your Neo4j instance.\n" +
+                        "Manage your ONgDB instance.\n" +
                         "\n" +
                         "environment variables:\n" +
                         "    ONGDB_CONF    Path to directory which contains ongdb.conf.\n" +

@@ -55,7 +55,7 @@ import static org.neo4j.kernel.impl.transaction.log.entry.LogEntryVersion.byVers
 
 /**
  * Version aware implementation of LogEntryReader
- * Starting with Neo4j version 2.1, log entries are prefixed with a version. This allows for Neo4j instances of
+ * Starting with Neo4j version 2.1, log entries are prefixed with a version. This allows for ONgDB instances of
  * different versions to exchange transaction data, either directly or via logical logs.
  *
  * Read all about it at {@link LogEntryVersion}.

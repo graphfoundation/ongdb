@@ -44,15 +44,15 @@ public interface Primitives
 {
     String NAME = "Primitive count";
 
-    @Description( "An estimation of the number of nodes used in this Neo4j instance" )
+    @Description( "An estimation of the number of nodes used in this ONgDB instance" )
     long getNumberOfNodeIdsInUse();
 
-    @Description( "An estimation of the number of relationships used in this Neo4j instance" )
+    @Description( "An estimation of the number of relationships used in this ONgDB instance" )
     long getNumberOfRelationshipIdsInUse();
 
-    @Description( "The number of relationship types used in this Neo4j instance" )
+    @Description( "The number of relationship types used in this ONgDB instance" )
     long getNumberOfRelationshipTypeIdsInUse();
 
-    @Description( "An estimation of the number of properties used in this Neo4j instance" )
+    @Description( "An estimation of the number of properties used in this ONgDB instance" )
     long getNumberOfPropertyIdsInUse();
 }

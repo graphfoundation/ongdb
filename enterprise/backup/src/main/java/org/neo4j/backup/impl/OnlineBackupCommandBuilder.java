@@ -58,7 +58,7 @@ import org.neo4j.kernel.configuration.Config;
 import static java.lang.String.format;
 
 /**
- * This class encapsulates the information needed to perform an online backup against a running Neo4j instance
+ * This class encapsulates the information needed to perform an online backup against a running ONgDB instance
  * configured to act as a backup server.
  * <p>
  * All backup methods return the same instance, allowing for chaining calls.

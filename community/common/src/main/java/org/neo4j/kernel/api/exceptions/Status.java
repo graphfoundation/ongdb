@@ -186,7 +186,7 @@ public interface Status
                 "indefinitely, and the database has aborted it. Retrying this transaction will most likely be " +
                 "successful." ),
         InstanceStateChanged( TransientError,
-                "Transactions rely on assumptions around the state of the Neo4j instance they " +
+                "Transactions rely on assumptions around the state of the ONgDB instance they " +
                 "execute on. For instance, transactions in a cluster may expect that " +
                 "they are executing on an instance that can perform writes. However, " +
                 "instances may change state while the transaction is running. This causes " +

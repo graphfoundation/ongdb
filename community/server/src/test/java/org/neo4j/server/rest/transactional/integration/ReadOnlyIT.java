@@ -90,7 +90,7 @@ public class ReadOnlyIT extends ExclusiveServerTestBase
         String message = error.get( "message" ).asText();
 
         assertEquals( "Neo.ClientError.General.ForbiddenOnReadOnlyDatabase", code );
-        assertThat( message, containsString( "This is a read only Neo4j instance" ) );
+        assertThat( message, containsString( "This is a read only ONgDB instance" ) );
     }
 
     @Test
@@ -107,7 +107,7 @@ public class ReadOnlyIT extends ExclusiveServerTestBase
         String message = error.get( "message" ).asText();
 
         assertEquals( "Neo.ClientError.General.ForbiddenOnReadOnlyDatabase", code );
-        assertThat( message, containsString( "This is a read only Neo4j instance" ) );
+        assertThat( message, containsString( "This is a read only ONgDB instance" ) );
     }
 
 }

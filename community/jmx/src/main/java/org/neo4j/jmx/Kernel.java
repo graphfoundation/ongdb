@@ -49,7 +49,7 @@ public interface Kernel
     String NAME = "Kernel";
 
     @Description( "An ObjectName that can be used as a query for getting all management "
-                  + "beans for this Neo4j instance." )
+                  + "beans for this ONgDB instance." )
     ObjectName getMBeanQuery();
 
     @Description( "The name of the mounted database" )
@@ -58,7 +58,7 @@ public interface Kernel
     @Description( "The version of ONgDB" )
     String getKernelVersion();
 
-    @Description( "The time from which this Neo4j instance was in operational mode." )
+    @Description( "The time from which this ONgDB instance was in operational mode." )
     Date getKernelStartTime();
 
     @Description( "The time when this Neo4j graph store was created." )

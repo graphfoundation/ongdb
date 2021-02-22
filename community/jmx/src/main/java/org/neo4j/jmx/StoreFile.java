@@ -49,7 +49,7 @@ public interface StoreFile
     @Description( "The amount of disk space used by the current Neo4j logical log, in bytes." )
     long getLogicalLogSize();
 
-    @Description( "The total disk space used by this Neo4j instance, in bytes." )
+    @Description( "The total disk space used by this ONgDB instance, in bytes." )
     long getTotalStoreSize();
 
     @Description( "The amount of disk space used to store nodes, in bytes." )

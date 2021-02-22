@@ -64,7 +64,7 @@ public interface TestServerBuilder
     ServerControls newServer();
 
     /**
-     * Configure the Neo4j instance. Configuration here can be both configuration aimed at the server as well as the
+     * Configure the ONgDB instance. Configuration here can be both configuration aimed at the server as well as the
      * database tuning options. Please refer to the Neo4j Manual for details on available configuration options.
      *
      * @param key the config key

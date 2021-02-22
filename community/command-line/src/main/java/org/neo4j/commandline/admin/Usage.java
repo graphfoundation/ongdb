@@ -68,7 +68,7 @@ public class Usage
     {
         output.accept( format( "usage: %s <command>", scriptName ) );
         output.accept( "" );
-        output.accept( "Manage your Neo4j instance." );
+        output.accept( "Manage your ONgDB instance." );
         output.accept( "" );
 
         printEnvironmentVariables( output );
