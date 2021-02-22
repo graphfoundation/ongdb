@@ -162,7 +162,7 @@ public class Version extends Service
         System.out.println( "Version: " + kernelVersion.getVersion() );
     }
 
-    static final String KERNEL_ARTIFACT_ID = "neo4j-kernel";
+    static final String KERNEL_ARTIFACT_ID = "ongdb-kernel";
     private static final Version KERNEL_VERSION = new Version( KERNEL_ARTIFACT_ID,
             Version.class.getPackage().getImplementationVersion() );
 }

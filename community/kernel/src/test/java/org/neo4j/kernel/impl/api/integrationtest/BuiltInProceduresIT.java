@@ -357,7 +357,7 @@ public class BuiltInProceduresIT extends KernelIntegrationTest
                         new Object[0] );
 
         // Then
-        assertThat( asList( stream ), contains( equalTo( new Object[]{"Neo4j Kernel",
+        assertThat( asList( stream ), contains( equalTo( new Object[]{"ONgDB Kernel",
                 singletonList( Version.getNeo4jVersion() ), "community"} ) ) );
 
         commit();

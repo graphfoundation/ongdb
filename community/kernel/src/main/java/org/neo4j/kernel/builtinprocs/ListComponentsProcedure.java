@@ -89,6 +89,6 @@ public class ListComponentsProcedure extends CallableProcedure.BasicProcedure
             throws ProcedureException
     {
         return asRawIterator( singletonList(
-                new Object[]{"Neo4j Kernel", singletonList( ongdbVersion ), ongdbEdition}).iterator() );
+                new Object[]{"ONgDB Kernel", singletonList( ongdbVersion ), ongdbEdition}).iterator() );
     }
 }

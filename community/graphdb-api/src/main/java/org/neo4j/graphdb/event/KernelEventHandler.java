@@ -41,7 +41,7 @@ package org.neo4j.graphdb.event;
 import org.neo4j.graphdb.GraphDatabaseService;
 
 /**
- * Event handler interface for Neo4j Kernel life cycle events.
+ * Event handler interface for ONgDB Kernel life cycle events.
  *
  */
 public interface KernelEventHandler

@@ -74,7 +74,7 @@ public abstract class KernelProxy
         if ( !KERNEL_BEAN_TYPE.equals( className ) )
         {
             throw new IllegalArgumentException(
-                    "The specified ObjectName does not represent a Neo4j Kernel bean in the specified MBean server." );
+                    "The specified ObjectName does not represent a ONgDB Kernel bean in the specified MBean server." );
         }
         this.server = server;
         this.kernel = kernel;

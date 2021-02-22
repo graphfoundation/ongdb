@@ -19,7 +19,7 @@
 
   <packaging>jar</packaging>
   <name>ONgDB - Kernel API</name>
-  <description>Internal API of the Neo4j Kernel</description>
+  <description>Internal API of the ONgDB Kernel</description>
   <url>https://graphfoundation.org/projects/ongdb/${project.version}/${project.artifactId}</url>
 
   <scm>

@@ -62,7 +62,7 @@ import org.neo4j.storageengine.api.StorageEngine;
 import static org.neo4j.graphdb.factory.GraphDatabaseSettings.transaction_timeout;
 
 /**
- * This is the Neo4j Kernel, an implementation of the Kernel API which is an internal component used by Cypher and the
+ * This is the ONgDB Kernel, an implementation of the Kernel API which is an internal component used by Cypher and the
  * Core API (the API under org.neo4j.graphdb).
  *
  * WARNING: This class is under transition.

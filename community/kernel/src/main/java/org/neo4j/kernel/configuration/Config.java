@@ -764,7 +764,7 @@ public class Config implements DiagnosticsProvider, Configuration
     {
         if ( phase.isInitialization() || phase.isExplicitlyRequested() )
         {
-            logger.log( "Neo4j Kernel properties:" );
+            logger.log( "ONgDB Kernel properties:" );
             for ( Map.Entry<String,String> param : params.entrySet() )
             {
                 logger.log( "%s=%s", param.getKey(), obsfucateIfSecret( param ) );

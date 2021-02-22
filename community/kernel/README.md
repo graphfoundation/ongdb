@@ -1,4 +1,4 @@
-# Neo4j Kernel
+# ONgDB Kernel
 
 This module, for historical reasons, contains multiple important components of Neo4j:
 
