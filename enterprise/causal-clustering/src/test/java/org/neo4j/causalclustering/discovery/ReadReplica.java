@@ -110,7 +110,7 @@ public class ReadReplica implements ClusterMember<ReadReplicaGraphDatabase>
         config.put( new HttpConnector( "http", Encryption.NONE ).advertised_address.name(), advertisedAddress( advertisedAddress, httpPort ) );
 
         this.neo4jHome = new File( parentDir, "read-replica-" + serverId );
-        config.put( GraphDatabaseSettings.neo4j_home.name(), neo4jHome.getAbsolutePath() );
+        config.put( GraphDatabaseSettings.ongdb_home.name(), neo4jHome.getAbsolutePath() );
 
         config.put( CausalClusteringSettings.transaction_listen_address.name(), listenAddress( listenAddress, txPort ) );
         config.put( OnlineBackupSettings.online_backup_server.name(), listenAddress( listenAddress, backupPort ) );

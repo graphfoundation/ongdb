@@ -145,7 +145,7 @@ public class DatabaseImporterTest
     private Config getConfigWith( File homeDir, String databaseName )
     {
         HashMap<String,String> additionalConfig = new HashMap<>();
-        additionalConfig.put( GraphDatabaseSettings.neo4j_home.name(), homeDir.toString() );
+        additionalConfig.put( GraphDatabaseSettings.ongdb_home.name(), homeDir.toString() );
         additionalConfig.put( GraphDatabaseSettings.active_database.name(), databaseName );
         return Config.defaults( additionalConfig );
     }

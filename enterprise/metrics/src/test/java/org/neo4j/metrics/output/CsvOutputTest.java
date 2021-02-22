@@ -90,7 +90,7 @@ public class CsvOutputTest
                 MetricsSettings.csvEnabled.name(), "true",
                 MetricsSettings.csvInterval.name(), "10ms",
                 MetricsSettings.csvPath.name(), "the-metrics-dir",
-                GraphDatabaseSettings.neo4j_home.name(), home.getAbsolutePath() );
+                GraphDatabaseSettings.ongdb_home.name(), home.getAbsolutePath() );
         life.add( createCsvOutput( config ) );
 
         // WHEN

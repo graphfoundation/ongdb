@@ -113,7 +113,7 @@ public class StoreMigration
     private static Config getMigrationConfig( File storeDir )
     {
         Config config = Config.defaults( GraphDatabaseSettings.allow_upgrade, Settings.TRUE );
-        config.augment( GraphDatabaseSettings.neo4j_home, storeDir.getAbsolutePath() );
+        config.augment( GraphDatabaseSettings.ongdb_home, storeDir.getAbsolutePath() );
         return config;
     }
 

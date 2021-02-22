@@ -270,7 +270,7 @@ public class Config implements DiagnosticsProvider, Configuration
 
         /**
          * Specifies the neo4j home directory to be set for this particular config. This will modify {@link
-         * GraphDatabaseSettings#neo4j_home} to the same value as provided. If this is not called, the home directory
+         * GraphDatabaseSettings#ongdb_home} to the same value as provided. If this is not called, the home directory
          * will be set to a system specific default home directory.
          *
          * @param homeDir The home directory this config belongs to.
@@ -278,7 +278,7 @@ public class Config implements DiagnosticsProvider, Configuration
         @Nonnull
         public Builder withHome( final File homeDir )
         {
-            initialSettings.put( GraphDatabaseSettings.neo4j_home.name(), homeDir.getAbsolutePath() );
+            initialSettings.put( GraphDatabaseSettings.ongdb_home.name(), homeDir.getAbsolutePath() );
             return this;
         }
 
@@ -313,10 +313,10 @@ public class Config implements DiagnosticsProvider, Configuration
             List<LoadableConfig> loadableConfigs =
                     Optional.ofNullable( settingsClasses ).orElseGet( LoadableConfig::allConfigClasses );
 
-            // If reading from a file, make sure we always have a neo4j_home
-            if ( configFile != null && !initialSettings.containsKey( GraphDatabaseSettings.neo4j_home.name() ) )
+            // If reading from a file, make sure we always have a ongdb_home
+            if ( configFile != null && !initialSettings.containsKey( GraphDatabaseSettings.ongdb_home.name() ) )
             {
-                initialSettings.put( GraphDatabaseSettings.neo4j_home.name(), System.getProperty( "user.dir" ) );
+                initialSettings.put( GraphDatabaseSettings.ongdb_home.name(), System.getProperty( "user.dir" ) );
             }
 
             Config config = new Config( configFile, initialSettings, overriddenDefaults, validators, loadableConfigs );

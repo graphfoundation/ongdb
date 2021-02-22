@@ -86,10 +86,10 @@ test_expect_success "should write a specific message in HA mode" "
 
 test_expect_success "should respect log directory configuration" "
   clear_config &&
-  mkdir -p '$(neo4j_home)/other-log-dir' &&
+  mkdir -p '$(ongdb_home)/other-log-dir' &&
   set_config 'dbms.directories.logs' 'other-log-dir' ongdb.conf &&
   run_daemon &&
-  test_expect_file_matching 'stdout from java' '$(neo4j_home)/other-log-dir/neo4j.log'
+  test_expect_file_matching 'stdout from java' '$(ongdb_home)/other-log-dir/neo4j.log'
 "
 
 test_expect_success "can configure log directory outside neo4j-root" "
@@ -102,22 +102,22 @@ test_expect_success "can configure log directory outside neo4j-root" "
 
 test_expect_success "should write paths in use" "
   clear_config &&
-  mkdir '$(neo4j_home)/loogs' &&
-  mkdir '$(neo4j_home)/ruun' &&
+  mkdir '$(ongdb_home)/loogs' &&
+  mkdir '$(ongdb_home)/ruun' &&
   set_config 'dbms.directories.data' '/data/bob' ongdb.conf &&
   set_config 'dbms.directories.import' '/import/bob' ongdb.conf &&
   set_config 'dbms.directories.plugins' '/plugins/bob' ongdb.conf &&
   set_config 'dbms.directories.certificates' '/certs/bob' ongdb.conf &&
   set_config 'dbms.directories.run' 'ruun' ongdb.conf &&
   set_config 'dbms.directories.logs' 'loogs' ongdb.conf &&
-  test_expect_stdout_matching '  home:         $(neo4j_home)' run_daemon &&
-  test_expect_stdout_matching '  config:       $(neo4j_home)/conf' run_daemon &&
+  test_expect_stdout_matching '  home:         $(ongdb_home)' run_daemon &&
+  test_expect_stdout_matching '  config:       $(ongdb_home)/conf' run_daemon &&
   test_expect_stdout_matching '  data:         /data/bob' run_daemon &&
   test_expect_stdout_matching '  import:       /import/bob' run_daemon &&
   test_expect_stdout_matching '  plugins:      /plugins/bob' run_daemon &&
   test_expect_stdout_matching '  certificates: /certs/bob' run_daemon &&
-  test_expect_stdout_matching '  logs:         $(neo4j_home)/loogs' run_daemon &&
-  test_expect_stdout_matching '  run:          $(neo4j_home)/ruun' run_daemon
+  test_expect_stdout_matching '  logs:         $(ongdb_home)/loogs' run_daemon &&
+  test_expect_stdout_matching '  run:          $(ongdb_home)/ruun' run_daemon
 "
 
 test_expect_success "should write active database" "

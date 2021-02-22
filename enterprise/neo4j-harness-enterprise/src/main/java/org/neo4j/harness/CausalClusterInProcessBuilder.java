@@ -314,7 +314,7 @@ public class CausalClusterInProcessBuilder
                 TestServerBuilder builder = new EnterpriseInProcessServerBuilder( clusterPath.toFile(), homeDir );
 
                 String homePath = Paths.get( clusterPath.toString(), homeDir ).toAbsolutePath().toString();
-                builder.withConfig( GraphDatabaseSettings.neo4j_home.name(), homePath );
+                builder.withConfig( GraphDatabaseSettings.ongdb_home.name(), homePath );
                 builder.withConfig( GraphDatabaseSettings.pagecache_memory.name(), "8m" );
 
                 builder.withConfig( EnterpriseEditionSettings.mode.name(), EnterpriseEditionSettings.Mode.CORE.name() );
@@ -364,7 +364,7 @@ public class CausalClusterInProcessBuilder
                 TestServerBuilder builder = new EnterpriseInProcessServerBuilder( clusterPath.toFile(), homeDir );
 
                 String homePath = Paths.get( clusterPath.toString(), homeDir ).toAbsolutePath().toString();
-                builder.withConfig( GraphDatabaseSettings.neo4j_home.name(), homePath );
+                builder.withConfig( GraphDatabaseSettings.ongdb_home.name(), homePath );
                 builder.withConfig( GraphDatabaseSettings.pagecache_memory.name(), "8m" );
 
                 builder.withConfig( EnterpriseEditionSettings.mode.name(), EnterpriseEditionSettings.Mode.READ_REPLICA.name() );

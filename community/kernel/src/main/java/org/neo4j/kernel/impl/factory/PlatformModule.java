@@ -154,7 +154,7 @@ public class PlatformModule
         this.graphDatabaseFacade = dependencies.satisfyDependency( graphDatabaseFacade );
 
         // SPI - provided services
-        config.augmentDefaults( GraphDatabaseSettings.neo4j_home, providedStoreDir.getAbsolutePath() );
+        config.augmentDefaults( GraphDatabaseSettings.ongdb_home, providedStoreDir.getAbsolutePath() );
         this.config = dependencies.satisfyDependency( config );
 
         this.storeDir = providedStoreDir.getAbsoluteFile();

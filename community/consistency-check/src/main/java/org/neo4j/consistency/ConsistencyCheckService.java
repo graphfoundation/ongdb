@@ -307,9 +307,9 @@ public class ConsistencyCheckService
 
     private File defaultReportDir( Config tuningConfiguration, File storeDir )
     {
-        if ( tuningConfiguration.get( GraphDatabaseSettings.neo4j_home ) == null )
+        if ( tuningConfiguration.get( GraphDatabaseSettings.ongdb_home ) == null )
         {
-            tuningConfiguration.augment( GraphDatabaseSettings.neo4j_home, storeDir.getAbsolutePath() );
+            tuningConfiguration.augment( GraphDatabaseSettings.ongdb_home, storeDir.getAbsolutePath() );
         }
 
         return tuningConfiguration.get( GraphDatabaseSettings.logs_directory );

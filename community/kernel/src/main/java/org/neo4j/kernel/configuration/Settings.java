@@ -1361,7 +1361,7 @@ public class Settings
 
         FileSetting( String name, String defaultValue )
         {
-            this( name, defaultValue, GraphDatabaseSettings.neo4j_home );
+            this( name, defaultValue, GraphDatabaseSettings.ongdb_home );
         }
 
         FileSetting( String name, String defaultValue, Setting<File> relativeRoot )

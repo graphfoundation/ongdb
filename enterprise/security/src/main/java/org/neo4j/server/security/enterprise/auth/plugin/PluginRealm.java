@@ -447,7 +447,7 @@ public class PluginRealm extends AuthorizingRealm implements RealmLifecycle, Shi
         @Override
         public Path neo4jHome()
         {
-            return config.get( GraphDatabaseSettings.neo4j_home ).getAbsoluteFile().toPath();
+            return config.get( GraphDatabaseSettings.ongdb_home ).getAbsoluteFile().toPath();
         }
 
         @Override

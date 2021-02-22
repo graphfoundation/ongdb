@@ -118,8 +118,8 @@ public class GraphDatabaseSettings implements LoadableConfig
     @Internal
     @Description( "Root relative to which directory settings are resolved. This is set in code and should never be " +
             "configured explicitly." )
-    public static final Setting<File> neo4j_home =
-            setting( "unsupported.dbms.directories.neo4j_home", PATH, NO_DEFAULT );
+    public static final Setting<File> ongdb_home =
+            setting( "unsupported.dbms.directories.ongdb_home", PATH, NO_DEFAULT );
 
     @Description( "Name of the database to load" )
     public static final Setting<String> active_database = setting( "dbms.active_database", STRING, "graph.db" );

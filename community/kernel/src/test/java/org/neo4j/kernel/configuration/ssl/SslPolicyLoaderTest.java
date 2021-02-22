@@ -57,7 +57,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.neo4j.graphdb.factory.GraphDatabaseSettings.neo4j_home;
+import static org.neo4j.graphdb.factory.GraphDatabaseSettings.ongdb_home;
 import static org.neo4j.helpers.collection.MapUtil.stringMap;
 
 public class SslPolicyLoaderTest
@@ -94,7 +94,7 @@ public class SslPolicyLoaderTest
 
         SslPolicyConfig policyConfig = new SslPolicyConfig( "default" );
 
-        params.put( neo4j_home.name(), home.getAbsolutePath() );
+        params.put( ongdb_home.name(), home.getAbsolutePath() );
         params.put( policyConfig.base_directory.name(), "certificates/default" );
         Config config = Config.defaults( params );
 
@@ -131,7 +131,7 @@ public class SslPolicyLoaderTest
 
         SslPolicyConfig policyConfig = new SslPolicyConfig( "default" );
 
-        params.put( neo4j_home.name(), home.getAbsolutePath() );
+        params.put( ongdb_home.name(), home.getAbsolutePath() );
         params.put( policyConfig.base_directory.name(), "certificates/default" );
 
         Config config = Config.defaults( params );
@@ -156,7 +156,7 @@ public class SslPolicyLoaderTest
 
         SslPolicyConfig policyConfig = new SslPolicyConfig( "default" );
 
-        params.put( neo4j_home.name(), home.getAbsolutePath() );
+        params.put( ongdb_home.name(), home.getAbsolutePath() );
         params.put( policyConfig.base_directory.name(), "certificates/default" );
         Config config = Config.defaults( params );
 
@@ -195,7 +195,7 @@ public class SslPolicyLoaderTest
 
         SslPolicyConfig policyConfig = new SslPolicyConfig( LegacySslPolicyConfig.LEGACY_POLICY_NAME );
 
-        params.put( neo4j_home.name(), home.getAbsolutePath() );
+        params.put( ongdb_home.name(), home.getAbsolutePath() );
         params.put( policyConfig.base_directory.name(), "certificates/default" );
         Config config = Config.defaults( params );
 

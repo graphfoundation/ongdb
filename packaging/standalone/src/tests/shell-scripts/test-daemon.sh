@@ -27,7 +27,7 @@ test_expect_success "should redirect output to neo4j.log" "
 "
 
 test_expect_success "should display log path" "
-  test_expect_file_matching 'See $(neo4j_home)/logs/neo4j.log for current status.' neo4j.stdout
+  test_expect_file_matching 'See $(ongdb_home)/logs/neo4j.log for current status.' neo4j.stdout
 "
 
 test_expect_success "should exit 0 if already running" "

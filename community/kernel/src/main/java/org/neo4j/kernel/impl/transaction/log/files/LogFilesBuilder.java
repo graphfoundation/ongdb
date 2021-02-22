@@ -207,7 +207,7 @@ public class LogFilesBuilder
         }
         if ( config != null )
         {
-            File neo4jHome = config.get( GraphDatabaseSettings.neo4j_home );
+            File neo4jHome = config.get( GraphDatabaseSettings.ongdb_home );
             File databasePath = config.get( database_path );
             File logicalLogsLocation = config.get( GraphDatabaseSettings.logical_logs_location );
             if ( storeDirectory.equals( neo4jHome ) && databasePath.equals( logicalLogsLocation ) )

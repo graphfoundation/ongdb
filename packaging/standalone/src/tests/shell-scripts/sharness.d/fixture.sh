@@ -27,7 +27,7 @@ set_main_class() {
   sed -i.bak -e "s/#{neo4j\.mainClass}/${class}/" ongdb-home/bin/ongdb
 }
 
-neo4j_home() {
+ongdb_home() {
   echo "${SHARNESS_TRASH_DIRECTORY}/ongdb-home"
 }
 

@@ -108,7 +108,7 @@ public class ConfigLoaderTest
         Config testConf = Config.fromFile( configFile ).withHome( folder.getRoot() ).build();
 
         // then
-        assertEquals( folder.getRoot(), testConf.get( GraphDatabaseSettings.neo4j_home ) );
+        assertEquals( folder.getRoot(), testConf.get( GraphDatabaseSettings.ongdb_home ) );
     }
 
     @Test
@@ -122,7 +122,7 @@ public class ConfigLoaderTest
 
         // then
         assertEquals( new File( System.getProperty("user.dir") ),
-                testConf.get( GraphDatabaseSettings.neo4j_home ) );
+                testConf.get( GraphDatabaseSettings.ongdb_home ) );
     }
 
     @Test
