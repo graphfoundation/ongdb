@@ -55,7 +55,7 @@ public class Version extends Service
         return getKernel().getVersion();
     }
 
-    public static String getNeo4jVersion()
+    public static String getONgDBVersion()
     {
         return getKernel().getReleaseVersion();
     }

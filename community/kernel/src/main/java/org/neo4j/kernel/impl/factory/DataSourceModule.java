@@ -283,7 +283,7 @@ public class DataSourceModule
 
         ProcedureConfig procedureConfig = new ProcedureConfig( platform.config );
         Procedures procedures = new Procedures( proxySPI,
-                new SpecialBuiltInProcedures( Version.getNeo4jVersion(),
+                new SpecialBuiltInProcedures( Version.getONgDBVersion(),
                         platform.databaseInfo.edition.toString() ),
                 pluginDir, internalLog, procedureConfig );
         platform.life.add( procedures );

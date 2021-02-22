@@ -262,7 +262,7 @@ public class PlatformModule
 
     private void publishPlatformInfo( UsageData sysInfo )
     {
-        sysInfo.set( UsageDataKeys.version, Version.getNeo4jVersion() );
+        sysInfo.set( UsageDataKeys.version, Version.getONgDBVersion() );
         sysInfo.set( UsageDataKeys.revision, Version.getKernelVersion() );
     }
 

@@ -1260,7 +1260,7 @@ public class ImportToolTest
     @Test
     public void shouldPrintReferenceLinkOnDataImportErrors()
     {
-        String[] versionParts = Version.getNeo4jVersion().split("-");
+        String[] versionParts = Version.getONgDBVersion().split( "-");
         versionParts[0] = versionParts[0].substring(0, 3);
         String docsVersion = String.join("-", versionParts);
 

@@ -77,8 +77,8 @@ public class BoltConnectionAuthIT
         // When
         machine.init( USER_AGENT, map(
                 "scheme", "basic",
-                "principal", "neo4j",
-                "credentials", "neo4j" ), recorder );
+                "principal", "ongdb",
+                "credentials", "ongdb" ), recorder );
         machine.run( "CREATE ()", EMPTY_MAP, recorder );
 
         // Then
@@ -93,12 +93,12 @@ public class BoltConnectionAuthIT
         // identify expired credentials as the cause of not being authenticated
         BoltStateMachine machine = env.newMachine( boltChannel );
         BoltResponseRecorder recorder = new BoltResponseRecorder();
-        String version = "Neo4j/" + Version.getNeo4jVersion();
+        String version = "Neo4j/" + Version.getONgDBVersion();
         // When
         machine.init( USER_AGENT, map(
                 "scheme", "basic",
-                "principal", "neo4j",
-                "credentials", "neo4j" ), recorder );
+                "principal", "ongdb",
+                "credentials", "ongdb" ), recorder );
         machine.run( "CREATE ()", EMPTY_MAP, recorder );
 
         // Then
@@ -115,8 +115,8 @@ public class BoltConnectionAuthIT
         BoltResponseRecorder recorder = new BoltResponseRecorder();
         verifyKillsConnection( () -> machine.init( USER_AGENT, map(
                 "scheme", "basic",
-                "principal", "neo4j",
-                "credentials", "j4oen"
+                "principal", "ongdb",
+                "credentials", "invalid_password"
         ), recorder ) );
 
         // ...and
@@ -132,8 +132,8 @@ public class BoltConnectionAuthIT
         // when
         machine.init( USER_AGENT, map(
                 "scheme", "basic",
-                "principal", "neo4j",
-                "credentials", "neo4j",
+                "principal", "ongdb",
+                "credentials", "ongdb",
                 "new_credentials", "secret"
         ), recorder );
         machine.run( "CREATE ()", EMPTY_MAP, recorder );

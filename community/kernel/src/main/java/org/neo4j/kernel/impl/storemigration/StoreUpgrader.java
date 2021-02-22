@@ -332,7 +332,7 @@ public class StoreUpgrader
 
         UnexpectedUpgradingStoreVersionException( String fileVersion, String currentVersion )
         {
-            super( String.format( MESSAGE, fileVersion, currentVersion, Version.getNeo4jVersion() ) );
+            super( String.format( MESSAGE, fileVersion, currentVersion, Version.getONgDBVersion() ) );
         }
     }
 

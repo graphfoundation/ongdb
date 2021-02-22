@@ -68,7 +68,7 @@ public class BashVariableInterpreter
         STATIC_REPLACERS.put( "@", new DateReplacer( "KK:mm aa" ) );
         STATIC_REPLACERS.put( "A", new DateReplacer( "HH:mm" ) );
         STATIC_REPLACERS.put( "u", new StaticReplacer( "user" ) );
-        STATIC_REPLACERS.put( "v", new StaticReplacer( Version.getNeo4jVersion() ) );
+        STATIC_REPLACERS.put( "v", new StaticReplacer( Version.getONgDBVersion() ) );
         STATIC_REPLACERS.put( "V", new StaticReplacer( Version.getKernelVersion() ) );
     }
 

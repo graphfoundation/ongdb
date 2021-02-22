@@ -253,7 +253,7 @@ public class UpgradableDatabaseTest
             {
                 // then
                 assertEquals( String.format( MESSAGE, version, upgradableDatabase.currentVersion(),
-                        Version.getNeo4jVersion() ), e.getMessage() );
+                        Version.getONgDBVersion() ), e.getMessage() );
             }
             catch ( StoreUpgrader.UnexpectedUpgradingStoreFormatException e )
             {
