@@ -1036,7 +1036,7 @@ public class RestfulGraphDatabaseTest
         assertNotNull( map.get( "node" ) );
         //this can be null
 //        assertNotNull( map.get( "reference_node" ) );
-        assertNotNull( map.get( "neo4j_version" ) );
+        assertNotNull( map.get( "ongdb_version" ) );
         assertNotNull( map.get( "node_index" ) );
         assertNotNull( map.get( "extensions_info" ) );
         assertNotNull( map.get( "relationship_index" ) );

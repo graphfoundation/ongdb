@@ -75,7 +75,7 @@ public class GetOnRootIT extends AbstractRestFunctionalTestBase
         assertNotNull( map.get( "indexes" ) );
         assertNotNull( map.get( "constraints" ) );
         assertNotNull( map.get( "node_labels" ) );
-        assertEquals( Version.getNeo4jVersion(), map.get( "neo4j_version" ) );
+        assertEquals( Version.getNeo4jVersion(), map.get( "ongdb_version" ) );
 
         // Make sure advertised urls work
         JaxRsResponse response;

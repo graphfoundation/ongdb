@@ -77,6 +77,6 @@ public class DatabaseRepresentationTest
         assertThat( output, hasEntry( "relationship_types", "http://steveformayor.org/relationship/types" ) );
         assertThat( output, hasEntry( "relationship", "http://steveformayor.org/relationship" ) );
         assertThat( output, hasEntry( "transaction", "http://steveformayor.org/transaction" ) );
-        assertThat( output, hasEntry( equalTo("neo4j_version"), notNullValue() ) );
+        assertThat( output, hasEntry( equalTo("ongdb_version"), notNullValue() ) );
     }
 }
