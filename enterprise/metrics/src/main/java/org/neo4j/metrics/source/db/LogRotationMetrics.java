@@ -54,7 +54,7 @@ import static java.util.Collections.emptySortedMap;
 @Documented( ".Database LogRotation Metrics" )
 public class LogRotationMetrics extends LifecycleAdapter
 {
-    private static final String LOG_ROTATION_PREFIX = "neo4j.log_rotation";
+    private static final String LOG_ROTATION_PREFIX = "ongdb.log_rotation";
 
     @Documented( "The total number of transaction log rotations executed so far" )
     public static final String LOG_ROTATION_EVENTS = name( LOG_ROTATION_PREFIX, "events" );

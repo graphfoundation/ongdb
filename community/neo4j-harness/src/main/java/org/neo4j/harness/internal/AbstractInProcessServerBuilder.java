@@ -147,7 +147,7 @@ public abstract class AbstractInProcessServerBuilder implements TestServerBuilde
     {
         try ( FileSystemAbstraction fileSystem = new DefaultFileSystemAbstraction() )
         {
-            File userLogFile = new File( serverFolder, "neo4j.log" );
+            File userLogFile = new File( serverFolder, "ongdb.log" );
             File internalLogFile = new File( serverFolder, "debug.log" );
 
             final OutputStream logOutputStream;

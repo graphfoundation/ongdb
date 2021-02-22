@@ -89,7 +89,7 @@ test_expect_success "should respect log directory configuration" "
   mkdir -p '$(ongdb_home)/other-log-dir' &&
   set_config 'dbms.directories.logs' 'other-log-dir' ongdb.conf &&
   run_daemon &&
-  test_expect_file_matching 'stdout from java' '$(ongdb_home)/other-log-dir/neo4j.log'
+  test_expect_file_matching 'stdout from java' '$(ongdb_home)/other-log-dir/ongdb.log'
 "
 
 test_expect_success "can configure log directory outside ongdb-root" "
@@ -97,7 +97,7 @@ test_expect_success "can configure log directory outside ongdb-root" "
   mkdir -p other-log-dir &&
   set_config 'dbms.directories.logs' '$(pwd)/other-log-dir' ongdb.conf &&
   run_daemon &&
-  test_expect_file_matching 'stdout from java' '$(pwd)/other-log-dir/neo4j.log'
+  test_expect_file_matching 'stdout from java' '$(pwd)/other-log-dir/ongdb.log'
 "
 
 test_expect_success "should write paths in use" "

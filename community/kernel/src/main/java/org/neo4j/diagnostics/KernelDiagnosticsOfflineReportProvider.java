@@ -155,7 +155,7 @@ public class KernelDiagnosticsOfflineReportProvider extends DiagnosticsOfflineRe
     }
 
     /**
-     * Add {@code debug.log}, {@code neo4j.log} and {@code gc.log}. All with all available rotated files.
+     * Add {@code debug.log}, {@code ongdb.log} and {@code gc.log}. All with all available rotated files.
      *
      * @param sources destination of the sources.
      */
@@ -168,12 +168,12 @@ public class KernelDiagnosticsOfflineReportProvider extends DiagnosticsOfflineRe
             sources.addAll( newDiagnosticsRotatingFile( "logs/debug.log", fs, debugLogFile ) );
         }
 
-        // neo4j.log
+        // ongdb.log
         File logDirectory = config.get( GraphDatabaseSettings.logs_directory );
-        File neo4jLog = new File( logDirectory, "neo4j.log" );
-        if ( fs.fileExists( neo4jLog ) )
+        File ongdbLog = new File( logDirectory, "ongdb.log" );
+        if ( fs.fileExists( ongdbLog ) )
         {
-            sources.add( newDiagnosticsFile( "logs/neo4j.log", fs, neo4jLog ) );
+            sources.add( newDiagnosticsFile( "logs/ongdb.log", fs, ongdbLog ) );
         }
 
         // gc.log

@@ -78,8 +78,8 @@ assert_equals() {
 assert_failure_with_stderr() {
   expected_pattern="$1"
   shift
-  test_expect_code 1 "$@" 2>neo4j.stderr
+  test_expect_code 1 "$@" 2>ongdb.stderr
   err="$?"
   [[ "${err}" -ne 0 ]] && return "${err}"
-  test_expect_file_matching "${expected_pattern}" neo4j.stderr
+  test_expect_file_matching "${expected_pattern}" ongdb.stderr
 }
