@@ -117,7 +117,7 @@ public class Version extends Service
         super( artifactId );
         this.artifactId = artifactId;
         this.title = artifactId;
-        this.vendor = "Neo Technology";
+        this.vendor = "Graph Foundation";
         this.version = version == null ? "dev" : version;
         this.releaseVersion = parseReleaseVersion( this.version );
     }
