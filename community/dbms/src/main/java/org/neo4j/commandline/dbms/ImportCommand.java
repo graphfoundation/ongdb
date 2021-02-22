@@ -103,7 +103,7 @@ public class ImportCommand implements AdminCommand
     {
         arguments
             .withArgument( new OptionalNamedArg( "from", "source-directory", "",
-                    "The location of the pre-3.0 database (e.g. <neo4j-root>/data/graph.db)." ) );
+                    "The location of the pre-3.0 database (e.g. <ongdb-root>/data/graph.db)." ) );
     }
 
     private static void includeCsvArguments( Arguments arguments )

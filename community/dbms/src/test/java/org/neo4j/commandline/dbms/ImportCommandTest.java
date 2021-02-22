@@ -313,7 +313,7 @@ public class ImportCommandTest
                             "  --mode=<database|csv>%n" +
                             "      Import a collection of CSV files or a pre-3.0 installation. [default:csv]%n" +
                             "  --from=<source-directory>%n" +
-                            "      The location of the pre-3.0 database (e.g. <neo4j-root>/data/graph.db).%n" +
+                            "      The location of the pre-3.0 database (e.g. <ongdb-root>/data/graph.db).%n" +
                             "      [default:]%n" +
                             "  --report-file=<filename>%n" +
                             "      File in which to store the report of the csv-import.%n" +
