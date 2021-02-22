@@ -132,7 +132,7 @@ public abstract class AbstractNeoServer implements NeoServer
             Pattern.compile( "/browser.*" ),
             Pattern.compile( "/" )
     };
-    public static final String ONGDB_IS_STARTING_MESSAGE = "======== Neo4j " + Version.getNeo4jVersion() + " ========";
+    public static final String ONGDB_IS_STARTING_MESSAGE = "======== ONgDB " + Version.getONgDBVersion() + " ========";
 
     private final Database.Factory dbFactory;
     private final GraphDatabaseFacadeFactory.Dependencies dependencies;

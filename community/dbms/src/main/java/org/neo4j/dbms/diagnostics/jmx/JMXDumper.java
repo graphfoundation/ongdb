@@ -136,7 +136,7 @@ public class JMXDumper
 
     private Optional<Long> getPid()
     {
-        Path pidFile = this.homeDir.resolve( "run/neo4j.pid" );
+        Path pidFile = this.homeDir.resolve( "run/ongdb.pid" );
         if ( this.fs.fileExists( pidFile.toFile() ) )
         {
             // The file cannot be opened with write permissions on Windows

@@ -272,7 +272,7 @@ do_version() {
 main() {
   setup_environment
   CONSOLE_LOG="${ONGDB_LOGS}/ongdb.log"
-  ONGDB_PIDFILE="${ONGDB_RUN}/neo4j.pid"
+  ONGDB_PIDFILE="${ONGDB_RUN}/ongdb.pid"
   readonly CONSOLE_LOG ONGDB_PIDFILE
 
   setup_java_opts

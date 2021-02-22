@@ -98,9 +98,9 @@ public class DiagnosticsReportCommandIT
         // Write config file
         Files.createFile( testDirectory.file( "ongdb.conf" ).toPath() );
 
-        // write neo4j.pid file
+        // write ongdb.pid file
         File run = testDirectory.directory( "run" );
-        Files.write( Paths.get( run.getAbsolutePath(), "neo4j.pid" ), String.valueOf( pid ).getBytes() );
+        Files.write( Paths.get( run.getAbsolutePath(), "ongdb.pid" ), String.valueOf( pid ).getBytes() );
 
         // Run command, should detect running instance
         try ( RealOutsideWorld outsideWorld = new RealOutsideWorld() )
