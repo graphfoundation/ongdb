@@ -165,7 +165,7 @@ public class ImportCommand implements AdminCommand
             .withArgument( new OptionalNamedArg( "max-memory",
                     "max-memory-that-importer-can-use",
                     String.valueOf( DEFAULT_MAX_MEMORY_PERCENT ) + "%",
-                    "Maximum memory that neo4j-admin can use for various data structures and caching " +
+                    "Maximum memory that ongdb-admin can use for various data structures and caching " +
                             "to improve performance. " +
                             "Values can be plain numbers, like 10000000 or e.g. 20G for 20 gigabyte, or even e.g. 70%" +
                             "." ) )

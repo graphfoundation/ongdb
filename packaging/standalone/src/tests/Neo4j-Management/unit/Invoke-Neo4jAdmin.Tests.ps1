@@ -12,7 +12,7 @@ InModuleScope ONgDB-Management {
       # Commands from the command line come through as System.Object[]
       # These commands can be simulated through crafting an appropriate array
 
-      # neo4j-admin import --mode=database --fake "file1,file2"
+      # ongdb-admin import --mode=database --fake "file1,file2"
       $testCommand = @('import','--setting=value','--fake', @('file1','file2'))
 
       Mock Invoke-ONgDBUtility { Write-Host $CommandArgs -ForegroundColor Magenta   ;return 2 }

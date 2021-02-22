@@ -271,10 +271,10 @@ public class ImportCommandTest
         {
             PrintStream ps = new PrintStream( baos );
 
-            Usage usage = new Usage( "neo4j-admin", mock( CommandLocator.class ) );
+            Usage usage = new Usage( "ongdb-admin", mock( CommandLocator.class ) );
             usage.printUsageForCommand( new ImportCommandProvider(), ps::println );
 
-            assertEquals( String.format( "usage: neo4j-admin import [--mode=csv] [--database=<name>]%n" +
+            assertEquals( String.format( "usage: ongdb-admin import [--mode=csv] [--database=<name>]%n" +
                             "                          [--additional-config=<config-file-path>]%n" +
                             "                          [--report-file=<filename>]%n" +
                             "                          [--nodes[:Label1:Label2]=<\"file1,file2,...\">]%n" +
@@ -291,7 +291,7 @@ public class ImportCommandTest
                             "                          [--max-memory=<max-memory-that-importer-can-use>]%n" +
                             "                          [--f=<File containing all arguments to this import>]%n" +
                             "                          [--high-io=<true/false>]%n" +
-                            "usage: neo4j-admin import --mode=database [--database=<name>]%n" +
+                            "usage: ongdb-admin import --mode=database [--database=<name>]%n" +
                             "                          [--additional-config=<config-file-path>]%n" +
                             "                          [--from=<source-directory>]%n" +
                             "%n" +
@@ -362,7 +362,7 @@ public class ImportCommandTest
                             "      can be escaped as per RFC 4180 by doubling them, for example \"\" would be%n" +
                             "      interpreted as a literal \". You cannot escape using \\. [default:\"]%n" +
                             "  --max-memory=<max-memory-that-importer-can-use>%n" +
-                            "      Maximum memory that neo4j-admin can use for various data structures and%n" +
+                            "      Maximum memory that ongdb-admin can use for various data structures and%n" +
                             "      caching to improve performance. Values can be plain numbers, like 10000000%n" +
                             "      or e.g. 20G for 20 gigabyte, or even e.g. 70%%. [default:90%%]%n" +
                             "  --f=<File containing all arguments to this import>%n" +

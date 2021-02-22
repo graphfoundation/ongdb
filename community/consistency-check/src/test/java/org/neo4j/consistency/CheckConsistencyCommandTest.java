@@ -335,10 +335,10 @@ public class CheckConsistencyCommandTest
         {
             PrintStream ps = new PrintStream( baos );
 
-            Usage usage = new Usage( "neo4j-admin", mock( CommandLocator.class ) );
+            Usage usage = new Usage( "ongdb-admin", mock( CommandLocator.class ) );
             usage.printUsageForCommand( new CheckConsistencyCommandProvider(), ps::println );
 
-            assertEquals( String.format( "usage: neo4j-admin check-consistency [--database=<name>]%n" +
+            assertEquals( String.format( "usage: ongdb-admin check-consistency [--database=<name>]%n" +
                             "                                     [--backup=</path/to/backup>]%n" +
                             "                                     [--verbose[=<true|false>]]%n" +
                             "                                     [--report-dir=<directory>]%n" +
@@ -360,7 +360,7 @@ public class CheckConsistencyCommandTest
                             "%n" +
                             "All checks except 'check-graph' can be quite expensive so it may be useful to%n" +
                             "turn them off for very large databases. Increasing the heap size can also be a%n" +
-                            "good idea. See 'neo4j-admin help' for details.%n" +
+                            "good idea. See 'ongdb-admin help' for details.%n" +
                             "%n" +
                             "options:%n" +
                             "  --database=<name>                        Name of database. [default:graph.db]%n" +

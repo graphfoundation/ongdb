@@ -46,7 +46,7 @@ public class BackupHelpOutput
     {
         List<String> lines = new ArrayList<>();
 
-        lines.add( "usage: neo4j-admin backup --backup-dir=<backup-path> --name=<graph.db-backup>" );
+        lines.add( "usage: ongdb-admin backup --backup-dir=<backup-path> --name=<graph.db-backup>" );
         lines.add( "                          [--from=<address>] [--protocol=<any|catchup|common>]" );
         lines.add( "                          [--fallback-to-full[=<true|false>]]" );
         lines.add( "                          [--timeout=<timeout>] [--pagecache=<8m>]" );
@@ -70,7 +70,7 @@ public class BackupHelpOutput
         lines.add( "" );
         lines.add( "All consistency checks except 'cc-graph' can be quite expensive so it may be" );
         lines.add( "useful to turn them off for very large databases. Increasing the heap size can" );
-        lines.add( "also be a good idea. See 'neo4j-admin help' for details." );
+        lines.add( "also be a good idea. See 'ongdb-admin help' for details." );
         lines.add( "" );
         lines.add( "For more information see:" );
         lines.add( "https://neo4j.com/docs/operations-manual/current/backup/" );

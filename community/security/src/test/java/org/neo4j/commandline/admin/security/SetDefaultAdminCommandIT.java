@@ -154,7 +154,7 @@ public class SetDefaultAdminCommandIT
 
         verify( out ).stdErrLine( "not enough arguments" );
         verify( out, times( 3 ) ).stdErrLine( "" );
-        verify( out ).stdErrLine( "usage: neo4j-admin set-default-admin <username>" );
+        verify( out ).stdErrLine( "usage: ongdb-admin set-default-admin <username>" );
         verify( out, times( 3 ) ).stdErrLine( "" );
         verify( out ).stdErrLine( String.format( "environment variables:" ) );
         verify( out ).stdErrLine( String.format( "    ONGDB_CONF    Path to directory which contains ongdb.conf." ) );
@@ -178,7 +178,7 @@ public class SetDefaultAdminCommandIT
 
         verify( out ).stdErrLine( "unrecognized arguments: 'bar'" );
         verify( out, times( 3 ) ).stdErrLine( "" );
-        verify( out ).stdErrLine( "usage: neo4j-admin set-default-admin <username>" );
+        verify( out ).stdErrLine( "usage: ongdb-admin set-default-admin <username>" );
         verify( out, times( 3 ) ).stdErrLine( "" );
         verify( out ).stdErrLine( String.format( "environment variables:" ) );
         verify( out ).stdErrLine( String.format( "    ONGDB_CONF    Path to directory which contains ongdb.conf." ) );

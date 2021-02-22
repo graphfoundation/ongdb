@@ -141,11 +141,11 @@ public class OnlineBackupCommandTest
         {
             PrintStream ps = new PrintStream( baos );
 
-            Usage usage = new Usage( "neo4j-admin", mock( CommandLocator.class ) );
+            Usage usage = new Usage( "ongdb-admin", mock( CommandLocator.class ) );
             usage.printUsageForCommand( new OnlineBackupCommandProvider(), ps::println );
 
             assertEquals(
-                    format( "usage: neo4j-admin backup --backup-dir=<backup-path> --name=<graph.db-backup>%n" +
+                    format( "usage: ongdb-admin backup --backup-dir=<backup-path> --name=<graph.db-backup>%n" +
                             "                          [--from=<address>] [--protocol=<any|catchup|common>]%n" +
                             "                          [--fallback-to-full[=<true|false>]]%n" +
                             "                          [--timeout=<timeout>] [--pagecache=<8m>]%n" +
@@ -169,7 +169,7 @@ public class OnlineBackupCommandTest
                             "%n" +
                             "All consistency checks except 'cc-graph' can be quite expensive so it may be%n" +
                             "useful to turn them off for very large databases. Increasing the heap size can%n" +
-                            "also be a good idea. See 'neo4j-admin help' for details.%n" +
+                            "also be a good idea. See 'ongdb-admin help' for details.%n" +
                             "%n" +
                             "For more information see:%n" +
                             "https://neo4j.com/docs/operations-manual/current/backup/%n" +

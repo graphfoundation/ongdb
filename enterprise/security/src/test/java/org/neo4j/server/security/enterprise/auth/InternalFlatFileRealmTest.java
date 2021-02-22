@@ -218,7 +218,7 @@ public class InternalFlatFileRealmTest
         // Expect
         exception.expect( InvalidArgumentsException.class );
         exception.expectMessage(
-                "No roles defined, and default admin user 'morpheus' does not exist. Please use `neo4j-admin " +
+                "No roles defined, and default admin user 'morpheus' does not exist. Please use `ongdb-admin " +
                         SetDefaultAdminCommand.COMMAND_NAME + "` to select a valid admin." );
 
         // When
@@ -236,7 +236,7 @@ public class InternalFlatFileRealmTest
         // Expect
         exception.expect( InvalidArgumentsException.class );
         exception.expectMessage(
-                "No roles defined, and cannot determine which user should be admin. Please use `neo4j-admin " +
+                "No roles defined, and cannot determine which user should be admin. Please use `ongdb-admin " +
                         SetDefaultAdminCommand.COMMAND_NAME + "` to select an admin." );
 
         // When
@@ -254,7 +254,7 @@ public class InternalFlatFileRealmTest
         // Expect
         exception.expect( InvalidArgumentsException.class );
         exception.expectMessage(
-                "No roles defined, and multiple users defined as default admin user. Please use `neo4j-admin " +
+                "No roles defined, and multiple users defined as default admin user. Please use `ongdb-admin " +
                         SetDefaultAdminCommand.COMMAND_NAME + "` to select a valid admin." );
 
         // When

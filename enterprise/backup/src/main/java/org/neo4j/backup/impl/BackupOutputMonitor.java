@@ -41,7 +41,7 @@ import org.neo4j.logging.Log;
 import org.neo4j.logging.LogProvider;
 
 /**
- * Monitor for events that should be displayed to neo4j-admin backup stdout
+ * Monitor for events that should be displayed to ongdb-admin backup stdout
  */
 class BackupOutputMonitor implements StoreCopyClientMonitor
 {

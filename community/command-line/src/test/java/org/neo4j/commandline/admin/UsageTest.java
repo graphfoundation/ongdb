@@ -71,14 +71,14 @@ public class UsageTest
         // given
         AdminCommand.Provider commandProvider = mockCommand( "bam", "A summary", AdminCommandSection.general() );
         AdminCommand.Provider[] commands = new AdminCommand.Provider[]{commandProvider};
-        final Usage usage = new Usage( "neo4j-admin", new CannedLocator( commands ) );
+        final Usage usage = new Usage( "ongdb-admin", new CannedLocator( commands ) );
 
         // when
         usage.printUsageForCommand( commandProvider, out );
 
         // then
         InOrder ordered = inOrder( out );
-        ordered.verify( out ).accept( "usage: neo4j-admin bam " );
+        ordered.verify( out ).accept( "usage: ongdb-admin bam " );
         ordered.verify( out ).accept( "" );
         ordered.verify( out ).accept( "environment variables:" );
         ordered.verify( out ).accept( "    ONGDB_CONF    Path to directory which contains ongdb.conf." );
@@ -95,11 +95,11 @@ public class UsageTest
     {
         AdminCommand.Provider[] commands =
                 new AdminCommand.Provider[]{mockCommand( "bam", "A summary", AdminCommandSection.general() )};
-        final Usage usage = new Usage( "neo4j-admin", new CannedLocator( commands ) );
+        final Usage usage = new Usage( "ongdb-admin", new CannedLocator( commands ) );
         usage.print( out );
 
         InOrder ordered = inOrder( out );
-        ordered.verify( out ).accept( "usage: neo4j-admin <command>" );
+        ordered.verify( out ).accept( "usage: ongdb-admin <command>" );
         ordered.verify( out ).accept( "" );
         ordered.verify( out ).accept( "Manage your ONgDB instance." );
         ordered.verify( out ).accept( "" );
@@ -117,7 +117,7 @@ public class UsageTest
         ordered.verify( out ).accept( "    bam" );
         ordered.verify( out ).accept( "        A summary" );
         ordered.verify( out ).accept( "" );
-        ordered.verify( out ).accept( "Use neo4j-admin help <command> for more details." );
+        ordered.verify( out ).accept( "Use ongdb-admin help <command> for more details." );
         ordered.verifyNoMoreInteractions();
     }
 
@@ -127,11 +127,11 @@ public class UsageTest
         AdminCommand.Provider[] commands = new AdminCommand.Provider[]{
                 mockCommand( "first-command", "first-command", AdminCommandSection.general() ),
                 mockCommand( "second-command", "second-command", new TestGeneralSection() )};
-        final Usage usage = new Usage( "neo4j-admin", new CannedLocator( commands ) );
+        final Usage usage = new Usage( "ongdb-admin", new CannedLocator( commands ) );
         usage.print( out );
 
         InOrder ordered = inOrder( out );
-        ordered.verify( out ).accept( "usage: neo4j-admin <command>" );
+        ordered.verify( out ).accept( "usage: ongdb-admin <command>" );
         ordered.verify( out ).accept( "" );
         ordered.verify( out ).accept( "Manage your ONgDB instance." );
         ordered.verify( out ).accept( "" );
@@ -151,7 +151,7 @@ public class UsageTest
         ordered.verify( out ).accept( "    second-command" );
         ordered.verify( out ).accept( "        second-command" );
         ordered.verify( out ).accept( "" );
-        ordered.verify( out ).accept( "Use neo4j-admin help <command> for more details." );
+        ordered.verify( out ).accept( "Use ongdb-admin help <command> for more details." );
         ordered.verifyNoMoreInteractions();
     }
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-test_description="Test neo4j-admin argument handling"
+test_description="Test ongdb-admin argument handling"
 
 . ./lib/sharness.sh
 fake_install

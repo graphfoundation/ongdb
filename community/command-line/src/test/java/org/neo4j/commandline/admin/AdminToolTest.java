@@ -96,7 +96,7 @@ public class AdminToolTest
         OutsideWorld outsideWorld = mock( OutsideWorld.class );
         new AdminTool( new NullCommandLocator(), new NullBlockerLocator(), outsideWorld, false ).execute( null, null );
         verify( outsideWorld ).stdErrLine( "you must provide a command" );
-        verify( outsideWorld ).stdErrLine( "usage: neo4j-admin <command>" );
+        verify( outsideWorld ).stdErrLine( "usage: ongdb-admin <command>" );
         verify( outsideWorld ).exit( STATUS_ERROR );
     }
 
@@ -274,7 +274,7 @@ public class AdminToolTest
 
         verifyNoMoreInteractions( command );
         verify( outsideWorld ).stdErrLine( "unrecognized command: --help" );
-        verify( outsideWorld ).stdErrLine( "usage: neo4j-admin <command>" );
+        verify( outsideWorld ).stdErrLine( "usage: ongdb-admin <command>" );
         verify( outsideWorld ).exit( STATUS_ERROR );
     }
 
@@ -289,7 +289,7 @@ public class AdminToolTest
 
         verifyNoMoreInteractions( command );
         verify( outsideWorld ).stdErrLine( "unknown argument: --help" );
-        verify( outsideWorld ).stdErrLine( "usage: neo4j-admin command " );
+        verify( outsideWorld ).stdErrLine( "usage: ongdb-admin command " );
         verify( outsideWorld ).exit( STATUS_ERROR );
     }
 
@@ -303,7 +303,7 @@ public class AdminToolTest
                 .execute( null, null, "--version" );
 
         verifyNoMoreInteractions( command );
-        verify( outsideWorld ).stdOutLine( "neo4j-admin " + neo4jVersion() );
+        verify( outsideWorld ).stdOutLine( "ongdb-admin " + neo4jVersion() );
         verify( outsideWorld ).exit( STATUS_SUCCESS );
     }
 
@@ -317,7 +317,7 @@ public class AdminToolTest
                 .execute( null, null, "command", "--version" );
 
         verifyNoMoreInteractions( command );
-        verify( outsideWorld ).stdOutLine( "neo4j-admin " + neo4jVersion() );
+        verify( outsideWorld ).stdOutLine( "ongdb-admin " + neo4jVersion() );
         verify( outsideWorld ).exit( STATUS_SUCCESS );
     }
 

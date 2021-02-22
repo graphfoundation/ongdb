@@ -133,7 +133,7 @@ public class SetInitialPasswordCommandIT
 
         verify( out ).stdErrLine( "not enough arguments" );
         verify( out, times( 3 ) ).stdErrLine( "" );
-        verify( out ).stdErrLine( "usage: neo4j-admin set-initial-password <password>" );
+        verify( out ).stdErrLine( "usage: ongdb-admin set-initial-password <password>" );
         verify( out ).stdErrLine( String.format( "environment variables:" ) );
         verify( out ).stdErrLine( String.format( "    ONGDB_CONF    Path to directory which contains ongdb.conf." ) );
         verify( out ).stdErrLine( String.format( "    ONGDB_DEBUG   Set to anything to enable debug output." ) );
@@ -154,7 +154,7 @@ public class SetInitialPasswordCommandIT
 
         verify( out ).stdErrLine( "unrecognized arguments: 'bar'" );
         verify( out, times( 3 ) ).stdErrLine( "" );
-        verify( out ).stdErrLine( "usage: neo4j-admin set-initial-password <password>" );
+        verify( out ).stdErrLine( "usage: ongdb-admin set-initial-password <password>" );
         verify( out ).stdErrLine( String.format( "environment variables:" ) );
         verify( out ).stdErrLine( String.format( "    ONGDB_CONF    Path to directory which contains ongdb.conf." ) );
         verify( out ).stdErrLine( String.format( "    ONGDB_DEBUG   Set to anything to enable debug output." ) );

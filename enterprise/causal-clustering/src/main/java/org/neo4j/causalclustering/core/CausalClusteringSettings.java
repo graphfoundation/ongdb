@@ -107,7 +107,7 @@ public class CausalClusteringSettings implements LoadableConfig
             "names using this setting. For instance if you had 6 instances you could form 2 sub-clusters by assigning half " +
             "the database name \"foo\", half the name \"bar\". The setting value must match exactly between members of the same sub-cluster. " +
             "This setting is a one-off: once an instance is configured with a database name it may not be changed in future without using " +
-            "neo4j-admin unbind." )
+            "ongdb-admin unbind." )
     public static final Setting<String> database =
             setting( "causal_clustering.database", STRING, "default" );
 

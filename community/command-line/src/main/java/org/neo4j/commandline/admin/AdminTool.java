@@ -71,7 +71,7 @@ public class AdminTool
         }
     }
 
-    public static final String scriptName = "neo4j-admin";
+    public static final String scriptName = "ongdb-admin";
     private final CommandLocator commandLocator;
     private final BlockerLocator blockerLocator;
     private final OutsideWorld outsideWorld;
@@ -100,7 +100,7 @@ public class AdminTool
 
             if ( Args.parse( args ).has( "version") )
             {
-                outsideWorld.stdOutLine( "neo4j-admin " + neo4jVersion() );
+                outsideWorld.stdOutLine( "ongdb-admin " + neo4jVersion() );
                 success();
                 return;
             }

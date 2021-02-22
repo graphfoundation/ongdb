@@ -119,7 +119,7 @@ public class ConfiguringPageCacheFactory
             log.warn( "The " + pagecache_memory.name() + " setting has not been configured. It is recommended that this " +
                       "setting is always explicitly configured, to ensure the system has a balanced configuration. " +
                       "Until then, a computed heuristic value of " + heuristic + " bytes will be used instead. " +
-                      "Run `neo4j-admin memrec` for memory configuration suggestions." );
+                      "Run `ongdb-admin memrec` for memory configuration suggestions." );
             pageCacheMemorySetting = "" + heuristic;
         }
 

@@ -74,7 +74,7 @@ public class OnlineBackupCommandProvider extends AdminCommand.Provider
                 "%n" +
                 "All consistency checks except 'cc-graph' can be quite expensive so it may be useful to turn them off" +
                 " for very large databases. Increasing the heap size can also be a good idea." +
-                " See 'neo4j-admin help' for details.%n" +
+                " See 'ongdb-admin help' for details.%n" +
                 "%n" +
                 "For more information see: https://neo4j.com/docs/operations-manual/current/backup/" );
     }

@@ -264,7 +264,7 @@ public class InternalFlatFileRealm extends AuthorizingRealm implements RealmLife
                     {
                         throw new InvalidArgumentsException(
                                 "No roles defined, and multiple users defined as default admin user." +
-                                        " Please use `neo4j-admin " + SetDefaultAdminCommand.COMMAND_NAME +
+                                        " Please use `ongdb-admin " + SetDefaultAdminCommand.COMMAND_NAME +
                                         "` to select a valid admin." );
                     }
                     else if ( defaultAdminRepository.numberOfUsers() == 1 )
@@ -275,7 +275,7 @@ public class InternalFlatFileRealm extends AuthorizingRealm implements RealmLife
                         {
                             throw new InvalidArgumentsException(
                                     "No roles defined, and default admin user '" + newAdminUsername +
-                                            "' does not exist. Please use `neo4j-admin " +
+                                            "' does not exist. Please use `ongdb-admin " +
                                             SetDefaultAdminCommand.COMMAND_NAME + "` to select a valid admin." );
                         }
                         newAdmins.add( newAdminUsername );
@@ -292,7 +292,7 @@ public class InternalFlatFileRealm extends AuthorizingRealm implements RealmLife
                     {
                         throw new InvalidArgumentsException(
                                 "No roles defined, and cannot determine which user should be admin. " +
-                                        "Please use `neo4j-admin " + SetDefaultAdminCommand.COMMAND_NAME +
+                                        "Please use `ongdb-admin " + SetDefaultAdminCommand.COMMAND_NAME +
                                         "` to select an " + "admin." );
                     }
                 }

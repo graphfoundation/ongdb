@@ -49,7 +49,7 @@ class OnlineBackupCommand implements AdminCommand
     private final BackupSupportingClassesFactory backupSupportingClassesFactory;
 
     /**
-     * The entry point for neo4j admin tool's online backup functionality.
+     * The entry point for ongdb admin tool's online backup functionality.
      *
      * @param outsideWorld provides a way to interact with the filesystem and output streams
      * @param contextBuilder helper class to validate, process and return a grouped result of processing the command line arguments

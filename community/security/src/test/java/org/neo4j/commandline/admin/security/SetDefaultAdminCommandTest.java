@@ -151,10 +151,10 @@ public class SetDefaultAdminCommandTest
         {
             PrintStream ps = new PrintStream( baos );
 
-            Usage usage = new Usage( "neo4j-admin", mock( CommandLocator.class ) );
+            Usage usage = new Usage( "ongdb-admin", mock( CommandLocator.class ) );
             usage.printUsageForCommand( new SetDefaultAdminCommandProvider(), ps::println );
 
-            assertEquals( String.format( "usage: neo4j-admin set-default-admin <username>%n" +
+            assertEquals( String.format( "usage: ongdb-admin set-default-admin <username>%n" +
                             "%n" +
                             "environment variables:%n" +
                             "    ONGDB_CONF    Path to directory which contains ongdb.conf.%n" +

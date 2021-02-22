@@ -280,10 +280,10 @@ public class RestoreDatabaseCommandIT
         {
             PrintStream ps = new PrintStream( baos );
 
-            Usage usage = new Usage( "neo4j-admin", mock( CommandLocator.class ) );
+            Usage usage = new Usage( "ongdb-admin", mock( CommandLocator.class ) );
             usage.printUsageForCommand( new RestoreDatabaseCliProvider(), ps::println );
 
-            assertEquals( String.format( "usage: neo4j-admin restore --from=<backup-directory> [--database=<name>]%n" +
+            assertEquals( String.format( "usage: ongdb-admin restore --from=<backup-directory> [--database=<name>]%n" +
                             "                           [--force[=<true|false>]]%n" +
                             "%n" +
                             "environment variables:%n" +

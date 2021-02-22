@@ -105,10 +105,10 @@ public class StoreInfoCommandTest
         try ( ByteArrayOutputStream baos = new ByteArrayOutputStream() )
         {
             PrintStream ps = new PrintStream( baos );
-            Usage usage = new Usage( "neo4j-admin", mock( CommandLocator.class ) );
+            Usage usage = new Usage( "ongdb-admin", mock( CommandLocator.class ) );
             usage.printUsageForCommand( new StoreInfoCommandProvider(), ps::println );
 
-            assertEquals( String.format( "usage: neo4j-admin store-info --store=<path-to-dir>%n" +
+            assertEquals( String.format( "usage: ongdb-admin store-info --store=<path-to-dir>%n" +
                             "%n" +
                             "environment variables:%n" +
                             "    ONGDB_CONF    Path to directory which contains ongdb.conf.%n" +

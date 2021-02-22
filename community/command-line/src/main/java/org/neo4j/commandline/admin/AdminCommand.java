@@ -50,7 +50,7 @@ import org.neo4j.helpers.Service;
 import org.neo4j.helpers.collection.Iterables;
 
 /**
- * To create a command for {@code neo4j-admin}:
+ * To create a command for {@code ongdb-admin}:
  * <ol>
  *   <li>implement {@code AdminCommand}</li>
  *   <li>create a concrete subclass of {@code AdminCommand.Provider} which instantiates the command</li>

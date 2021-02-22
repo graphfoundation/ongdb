@@ -698,7 +698,7 @@ public class HttpCopier implements PushToCloudCommand.Copier
         debugErrorResponse( true, connection );
         return new CommandFailed( "We encountered a problem while communicating to the Neo4j Aura system. \n" +
                 "You can re-try using the existing dump by running this command: \n" +
-                String.format( "neo4j-admin push-to-cloud --%s=%s --%s=%s", ARG_DUMP, dump.toFile().getAbsolutePath(), ARG_BOLT_URI, boltUri ) );
+                String.format( "ongdb-admin push-to-cloud --%s=%s --%s=%s", ARG_DUMP, dump.toFile().getAbsolutePath(), ARG_BOLT_URI, boltUri ) );
     }
 
     private CommandFailed updatePluginErrorResponse( HttpURLConnection connection ) throws IOException

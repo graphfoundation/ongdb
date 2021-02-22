@@ -55,7 +55,7 @@ public class Neo4jAdminUsageTest
         final StringBuilder sb = new StringBuilder();
         usageCmd.print( s -> sb.append( s ).append( "\n" ) );
 
-        assertEquals("usage: neo4j-admin <command>\n" +
+        assertEquals("usage: ongdb-admin <command>\n" +
                         "\n" +
                         "Manage your ONgDB instance.\n" +
                         "\n" +
@@ -102,7 +102,7 @@ public class Neo4jAdminUsageTest
                         "    restore\n" +
                         "        Restore a backed up database.\n" +
                         "\n" +
-                        "Use neo4j-admin help <command> for more details.\n",
+                        "Use ongdb-admin help <command> for more details.\n",
                 sb.toString() );
     }
 }
