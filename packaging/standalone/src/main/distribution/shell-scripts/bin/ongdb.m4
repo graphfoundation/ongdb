@@ -164,7 +164,7 @@ assemble_command_line() {
 do_console() {
   check_status
   if [[ "${ONGDB_PID:-}" ]] ; then
-    echo "Neo4j is already running (pid ${ONGDB_PID})."
+    echo "ONgDB is already running (pid ${ONGDB_PID})."
     exit 1
   fi
 
@@ -181,7 +181,7 @@ do_console() {
 do_start() {
   check_status
   if [[ "${ONGDB_PID:-}" ]] ; then
-    echo "Neo4j is already running (pid ${ONGDB_PID})."
+    echo "ONgDB is already running (pid ${ONGDB_PID})."
     exit 0
   fi
 
