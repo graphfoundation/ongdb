@@ -53,7 +53,7 @@ public class EnterpriseCypherEngineProvider extends QueryEngineProvider
 {
     public EnterpriseCypherEngineProvider()
     {
-        super( "enterprise-cypher" );
+        super( "enterprise-geequel" );
     }
 
     @Override

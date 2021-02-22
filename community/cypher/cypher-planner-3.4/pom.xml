@@ -8,10 +8,10 @@
   </parent>
 
   <modelVersion>4.0.0</modelVersion>
-  <artifactId>ongdb-cypher-planner-3.4</artifactId>
+  <artifactId>ongdb-geequel-planner-3.4</artifactId>
   <packaging>jar</packaging>
   <version>1.0.0-SNAPSHOT</version>
-  <name>ONgDB - Cypher Planner 3.4</name>
+  <name>ONgDB - Geequel Planner 3.4</name>
   <description>Planner for Cypher 3.4</description>
   <url>https://graphfoundation.org/projects/ongdb/${project.version}/${project.artifactId}</url>
 
@@ -106,19 +106,19 @@
 
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>ongdb-cypher-ir-3.4</artifactId>
+      <artifactId>ongdb-geequel-ir-3.4</artifactId>
       <version>${project.version}</version>
     </dependency>
 
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>ongdb-cypher-logical-plans-3.4</artifactId>
+      <artifactId>ongdb-geequel-logical-plans-3.4</artifactId>
       <version>${project.version}</version>
     </dependency>
 
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>ongdb-cypher-planner-spi-3.4</artifactId>
+      <artifactId>ongdb-geequel-planner-spi-3.4</artifactId>
       <version>${project.version}</version>
     </dependency>
 
@@ -133,7 +133,7 @@
 
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>ongdb-cypher-util-3.4</artifactId>
+      <artifactId>ongdb-geequel-util-3.4</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
@@ -141,7 +141,7 @@
 
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>ongdb-cypher-expression-3.4</artifactId>
+      <artifactId>ongdb-geequel-expression-3.4</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
@@ -157,7 +157,7 @@
 
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>ongdb-cypher-planner-spi-3.4</artifactId>
+      <artifactId>ongdb-geequel-planner-spi-3.4</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>

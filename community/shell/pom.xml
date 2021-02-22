@@ -129,7 +129,7 @@
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>ongdb-cypher</artifactId>
+      <artifactId>ongdb-geequel</artifactId>
       <version>${project.version}</version>
       <scope>provided</scope>
     </dependency>

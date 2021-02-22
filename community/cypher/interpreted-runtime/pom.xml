@@ -8,10 +8,10 @@
   </parent>
 
   <modelVersion>4.0.0</modelVersion>
-  <artifactId>ongdb-cypher-interpreted-runtime</artifactId>
+  <artifactId>ongdb-geequel-interpreted-runtime</artifactId>
   <packaging>jar</packaging>
   <version>1.0.0-SNAPSHOT</version>
-  <name>ONgDB - Cypher Interpreted Runtime</name>
+  <name>ONgDB - Geequel Interpreted Runtime</name>
 
   <description>The traditional cypher interpreted runtime</description>
   <url>https://graphfoundation.org/projects/ongdb/${project.version}/${project.artifactId}</url>
@@ -71,19 +71,19 @@
 
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>ongdb-cypher-logical-plans-3.4</artifactId>
+      <artifactId>ongdb-geequel-logical-plans-3.4</artifactId>
       <version>${project.version}</version>
     </dependency>
 
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>ongdb-cypher-planner-spi-3.4</artifactId>
+      <artifactId>ongdb-geequel-planner-spi-3.4</artifactId>
       <version>${project.version}</version>
     </dependency>
 
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>ongdb-cypher-runtime-util</artifactId>
+      <artifactId>ongdb-geequel-runtime-util</artifactId>
       <version>${project.version}</version>
     </dependency>
 
@@ -150,7 +150,7 @@
 
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>ongdb-cypher-util-3.4</artifactId>
+      <artifactId>ongdb-geequel-util-3.4</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
@@ -158,7 +158,7 @@
 
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>ongdb-cypher-runtime-util</artifactId>
+      <artifactId>ongdb-geequel-runtime-util</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>

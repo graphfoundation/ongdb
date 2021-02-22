@@ -13,8 +13,8 @@
   <artifactId>cypher-parent</artifactId>
   <version>1.0.0-SNAPSHOT</version>
   <packaging>pom</packaging>
-  <name>ONgDB - Community Cypher Build</name>
-  <description>Project that builds the Neo4j Cypher modules as part of the Community distribution.</description>
+  <name>ONgDB - Community Geequel Build</name>
+  <description>Project that builds the ONgDB Geequel modules as part of the Community distribution.</description>
   <url>https://graphfoundation.org/projects/ongdb/${project.version}/${project.artifactId}</url>
 
   <properties>

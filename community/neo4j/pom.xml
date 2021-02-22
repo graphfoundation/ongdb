@@ -78,7 +78,7 @@
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>ongdb-cypher</artifactId>
+      <artifactId>ongdb-geequel</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>

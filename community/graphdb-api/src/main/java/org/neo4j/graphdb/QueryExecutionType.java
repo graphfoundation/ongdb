@@ -43,7 +43,7 @@ import static java.util.Objects.requireNonNull;
 /**
  * Signifies how a query is executed, as well as what side effects and results could be expected from the query.
  * <p>
- * In Cypher there are three different modes of execution:
+ * In Geequel there are three different modes of execution:
  * <ul>
  * <li>Normal execution,</li>
  * <li>execution with the <a href="https://neo4j.com/docs/developer-manual/current/cypher/execution-plans/">{@code PROFILE}</a> directive,

@@ -43,7 +43,7 @@ import java.net.URL;
 import org.neo4j.graphdb.config.Configuration;
 
 /**
- * A rule to evaluate if Neo4j is permitted to reach out to the specified URL (e.g. when using {@code LOAD CSV} in Cypher).
+ * A rule to evaluate if ONgDB is permitted to reach out to the specified URL (e.g. when using {@code LOAD CSV} in Geequel).
  */
 public interface URLAccessRule
 {

@@ -10,10 +10,10 @@
   </parent>
 
   <modelVersion>4.0.0</modelVersion>
-  <artifactId>ongdb-enterprise-cypher</artifactId>
+  <artifactId>ongdb-enterprise-geequel</artifactId>
   <packaging>jar</packaging>
   <version>1.0.0-SNAPSHOT</version>
-  <name>ONgDB - Enterprise Cypher</name>
+  <name>ONgDB - Enterprise Geequel</name>
   <description>ONgDB query language</description>
   <url>https://graphfoundation.org/projects/ongdb/${project.version}/${project.artifactId}</url>
 
@@ -110,7 +110,7 @@
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>ongdb-cypher</artifactId>
+      <artifactId>ongdb-geequel</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
@@ -120,17 +120,17 @@
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>ongdb-cypher-slotted-runtime</artifactId>
+      <artifactId>ongdb-geequel-slotted-runtime</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>ongdb-cypher-morsel-runtime</artifactId>
+      <artifactId>ongdb-geequel-morsel-runtime</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>ongdb-cypher-physical-planning</artifactId>
+      <artifactId>ongdb-geequel-physical-planning</artifactId>
       <version>${project.version}</version>
     </dependency>
 
@@ -172,15 +172,15 @@
 
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>ongdb-cypher-planner-3.4</artifactId>
+      <artifactId>ongdb-geequel-planner-3.4</artifactId>
       <version>${project.version}</version>
     </dependency>
 
-    <!-- neo4j-cypher test -->
+    <!-- ongdb-geequel test -->
 
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>ongdb-cypher-planner-3.4</artifactId>
+      <artifactId>ongdb-geequel-planner-3.4</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
@@ -196,7 +196,7 @@
 
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>ongdb-cypher-util-3.4</artifactId>
+      <artifactId>ongdb-geequel-util-3.4</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
@@ -204,7 +204,7 @@
 
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>ongdb-cypher</artifactId>
+      <artifactId>ongdb-geequel</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
@@ -212,7 +212,7 @@
 
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>ongdb-cypher-runtime-util</artifactId>
+      <artifactId>ongdb-geequel-runtime-util</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>

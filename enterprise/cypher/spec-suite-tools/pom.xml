@@ -11,10 +11,10 @@
   </parent>
 
   <modelVersion>4.0.0</modelVersion>
-  <artifactId>ongdb-cypher-spec-suite-tools</artifactId>
+  <artifactId>ongdb-geequel-spec-suite-tools</artifactId>
   <packaging>jar</packaging>
   <version>1.0.0-SNAPSHOT</version>
-  <name>ONgDB - Cypher Specification Suite Tools</name>
+  <name>ONgDB - Geequel Specification Suite Tools</name>
   <description>ONgDB query language test suite tools</description>
   <url>https://graphfoundation.org/projects/ongdb/${project.version}/${project.artifactId}</url>
 
@@ -119,7 +119,7 @@
 
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>ongdb-cypher-planner-3.4</artifactId>
+      <artifactId>ongdb-geequel-planner-3.4</artifactId>
       <version>${project.version}</version>
     </dependency>
 
@@ -143,7 +143,7 @@
 
     <dependency>
       <groupId>org.graphfoundation.ongdb</groupId>
-      <artifactId>ongdb-cypher</artifactId>
+      <artifactId>ongdb-geequel</artifactId>
       <version>${project.version}</version>
       <scope>test</scope>
     </dependency>
