@@ -124,13 +124,13 @@ public class Util
      * @return the version of ONgDB as defined during the build
      */
     @Nonnull
-    public static String neo4jVersion()
+    public static String ongdbVersion()
     {
         Properties props = new Properties();
         try
         {
             loadProperties( props );
-            return props.getProperty( "neo4jVersion" );
+            return props.getProperty( "ongdbVersion" );
         }
         catch ( IOException e )
         {

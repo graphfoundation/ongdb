@@ -43,7 +43,7 @@ import java.io.PrintStream;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
-import static org.neo4j.commandline.Util.neo4jVersion;
+import static org.neo4j.commandline.Util.ongdbVersion;
 
 public class ArbiterEntryPointTest
 {
@@ -71,7 +71,7 @@ public class ArbiterEntryPointTest
         ArbiterEntryPoint.main( new String[]{ "--version" } );
 
         // then
-        verify( fakeSystemOut ).println( "neo4j " + neo4jVersion() );
+        verify( fakeSystemOut ).println( "neo4j " + ongdbVersion() );
         verifyNoMoreInteractions( fakeSystemOut );
     }
 }

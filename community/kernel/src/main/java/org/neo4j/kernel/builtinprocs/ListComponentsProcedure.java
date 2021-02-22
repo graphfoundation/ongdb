@@ -67,10 +67,10 @@ import static org.neo4j.internal.kernel.api.procs.ProcedureSignature.procedureSi
  */
 public class ListComponentsProcedure extends CallableProcedure.BasicProcedure
 {
-    private final String neo4jVersion;
-    private final String neo4jEdition;
+    private final String ongdbVersion;
+    private final String ongdbEdition;
 
-    public ListComponentsProcedure( QualifiedName name, String neo4jVersion, String neo4jEdition )
+    public ListComponentsProcedure( QualifiedName name, String ongdbVersion, String ongdbEdition )
     {
         super( procedureSignature( name )
                 .out( "name", NTString )
@@ -80,8 +80,8 @@ public class ListComponentsProcedure extends CallableProcedure.BasicProcedure
                 .out( "edition", NTString )
                 .description( "List DBMS components and their versions." )
                 .build() );
-        this.neo4jVersion = neo4jVersion;
-        this.neo4jEdition = neo4jEdition;
+        this.ongdbVersion = ongdbVersion;
+        this.ongdbEdition = ongdbEdition;
     }
 
     @Override
@@ -89,6 +89,6 @@ public class ListComponentsProcedure extends CallableProcedure.BasicProcedure
             throws ProcedureException
     {
         return asRawIterator( singletonList(
-                new Object[]{"Neo4j Kernel", singletonList( neo4jVersion ), neo4jEdition}).iterator() );
+                new Object[]{"Neo4j Kernel", singletonList( ongdbVersion ), ongdbEdition}).iterator() );
     }
 }

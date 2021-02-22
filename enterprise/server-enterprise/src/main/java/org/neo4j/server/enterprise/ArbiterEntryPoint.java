@@ -34,7 +34,6 @@
  */
 package org.neo4j.server.enterprise;
 
-import java.io.IOException;
 import java.util.Collections;
 
 import org.neo4j.server.BlockingBootstrapper;
@@ -42,7 +41,7 @@ import org.neo4j.server.Bootstrapper;
 import org.neo4j.server.ServerBootstrapper;
 import org.neo4j.server.ServerCommandLineArgs;
 
-import static org.neo4j.commandline.Util.neo4jVersion;
+import static org.neo4j.commandline.Util.ongdbVersion;
 
 public class ArbiterEntryPoint
 {
@@ -57,7 +56,7 @@ public class ArbiterEntryPoint
         ServerCommandLineArgs args = ServerCommandLineArgs.parse( argv );
         if ( args.version() )
         {
-            System.out.println( "neo4j " + neo4jVersion() );
+            System.out.println( "neo4j " + ongdbVersion() );
         }
         else
         {

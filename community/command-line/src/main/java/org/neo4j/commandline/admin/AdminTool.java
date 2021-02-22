@@ -48,7 +48,7 @@ import java.util.function.Supplier;
 import org.neo4j.helpers.Args;
 
 import static java.lang.String.format;
-import static org.neo4j.commandline.Util.neo4jVersion;
+import static org.neo4j.commandline.Util.ongdbVersion;
 
 public class AdminTool
 {
@@ -100,7 +100,7 @@ public class AdminTool
 
             if ( Args.parse( args ).has( "version") )
             {
-                outsideWorld.stdOutLine( "ongdb-admin " + neo4jVersion() );
+                outsideWorld.stdOutLine( "ongdb-admin " + ongdbVersion() );
                 success();
                 return;
             }

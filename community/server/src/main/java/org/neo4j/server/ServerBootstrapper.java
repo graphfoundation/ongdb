@@ -63,7 +63,7 @@ import org.neo4j.server.logging.JULBridge;
 import org.neo4j.server.logging.JettyLogBridge;
 
 import static java.lang.String.format;
-import static org.neo4j.commandline.Util.neo4jVersion;
+import static org.neo4j.commandline.Util.ongdbVersion;
 
 public abstract class ServerBootstrapper implements Bootstrapper
 {
@@ -86,7 +86,7 @@ public abstract class ServerBootstrapper implements Bootstrapper
 
         if ( args.version() )
         {
-            System.out.println( "neo4j " + neo4jVersion() );
+            System.out.println( "neo4j " + ongdbVersion() );
             return 0;
         }
 

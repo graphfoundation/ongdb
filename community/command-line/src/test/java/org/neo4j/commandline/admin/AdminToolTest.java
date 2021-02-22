@@ -57,7 +57,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
-import static org.neo4j.commandline.Util.neo4jVersion;
+import static org.neo4j.commandline.Util.ongdbVersion;
 import static org.neo4j.commandline.admin.AdminTool.STATUS_ERROR;
 import static org.neo4j.commandline.admin.AdminTool.STATUS_SUCCESS;
 
@@ -303,7 +303,7 @@ public class AdminToolTest
                 .execute( null, null, "--version" );
 
         verifyNoMoreInteractions( command );
-        verify( outsideWorld ).stdOutLine( "ongdb-admin " + neo4jVersion() );
+        verify( outsideWorld ).stdOutLine( "ongdb-admin " + ongdbVersion() );
         verify( outsideWorld ).exit( STATUS_SUCCESS );
     }
 
@@ -317,7 +317,7 @@ public class AdminToolTest
                 .execute( null, null, "command", "--version" );
 
         verifyNoMoreInteractions( command );
-        verify( outsideWorld ).stdOutLine( "ongdb-admin " + neo4jVersion() );
+        verify( outsideWorld ).stdOutLine( "ongdb-admin " + ongdbVersion() );
         verify( outsideWorld ).exit( STATUS_SUCCESS );
     }
 

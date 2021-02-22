@@ -49,7 +49,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.neo4j.commandline.Util.isSameOrChildFile;
 import static org.neo4j.commandline.Util.isSameOrChildPath;
-import static org.neo4j.commandline.Util.neo4jVersion;
+import static org.neo4j.commandline.Util.ongdbVersion;
 
 public class UtilTest
 {
@@ -65,7 +65,7 @@ public class UtilTest
     @Test
     public void returnsAVersion()
     {
-        assertNotNull( "A version should be returned", neo4jVersion() );
+        assertNotNull( "A version should be returned", ongdbVersion() );
     }
 
     @Test
