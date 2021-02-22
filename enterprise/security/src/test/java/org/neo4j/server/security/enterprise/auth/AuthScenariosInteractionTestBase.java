@@ -103,13 +103,13 @@ public abstract class AuthScenariosInteractionTestBase<S> extends ProcedureInter
         S mats = neo.login( "mats", "neo4j" );
         // for REST, login doesn't happen until the subject does something
         neo.executeQuery( mats, "UNWIND [] AS i RETURN 1", Collections.emptyMap(), r -> {} );
-        assertEmpty( adminSubject, "CALL dbms.security.createUser('mats', 'neo4j', false)" );
+        assertEmpty( adminSubject, "CALL dbms.security.createUser('mats', 'ongdb', false)" );
         assertEmpty( adminSubject, "CALL dbms.security.createRole('role1')" );
         assertEmpty( adminSubject, "CALL dbms.security.deleteRole('role1')" );
         assertEmpty( adminSubject, "CALL dbms.security.addRoleToUser('reader', 'mats')" );
         mats = neo.login( "mats", "neo4j" );
         assertEmpty( mats, "MATCH (n) WHERE id(n) < 0 RETURN 1" );
-        assertFail( mats, "CALL dbms.security.changeUserPassword('neo4j', 'hackerPassword')", PERMISSION_DENIED );
+        assertFail( mats, "CALL dbms.security.changeUserPassword('ongdb', 'hackerPassword')", PERMISSION_DENIED );
         assertFail( mats, "CALL dbms.security.changeUserPassword('mats', '')", "A password cannot be empty." );
         assertEmpty( mats, "CALL dbms.security.changeUserPassword('mats', 'hackerPassword')" );
         assertEmpty( adminSubject, "CALL dbms.security.removeRoleFromUser('reader', 'mats')" );
@@ -450,7 +450,7 @@ public abstract class AuthScenariosInteractionTestBase<S> extends ProcedureInter
     @Test
     public void customRoleWithProcedureAccess() throws Exception
     {
-        assertEmpty( adminSubject, "CALL dbms.security.createUser('mats', 'neo4j', false)" );
+        assertEmpty( adminSubject, "CALL dbms.security.createUser('mats', 'ongdb', false)" );
         S mats = neo.login( "mats", "neo4j" );
         testFailTestProcs( mats );
         assertEmpty( adminSubject, "CALL dbms.security.createRole('role1')" );

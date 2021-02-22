@@ -150,7 +150,7 @@ public class UsersIT extends ExclusiveServerTestBase
         // When
         HTTP.Response res = HTTP.withHeaders( HttpHeaders.AUTHORIZATION, challengeResponse( "neo4j", "neo4j" ) ).POST(
                 server.baseUri().resolve( "/user/neo4j/password" ).toString(),
-                HTTP.RawPayload.quotedJson( "{'password':'neo4j'}" ) );
+                HTTP.RawPayload.quotedJson( "{'password':'ongdb'}" ) );
 
         // Then
         assertThat( res.status(), equalTo( 422 ) );

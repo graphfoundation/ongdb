@@ -249,7 +249,7 @@ public class BasicAuthManagerTest extends InitialUserTest
         manager.start();
 
         assertException(
-                () -> manager.login( map( AuthToken.SCHEME_KEY, "supercool", AuthToken.PRINCIPAL, "neo4j" ) ),
+                () -> manager.login( map( AuthToken.SCHEME_KEY, "supercool", AuthToken.PRINCIPAL, "ongdb" ) ),
                 InvalidAuthTokenException.class,
                 "Unsupported authentication token, scheme 'supercool' is not supported." );
 
@@ -264,7 +264,7 @@ public class BasicAuthManagerTest extends InitialUserTest
                 "Unsupported authentication token, missing key `scheme`" );
 
         assertException(
-                () -> manager.login( map( AuthToken.SCHEME_KEY, "basic", AuthToken.PRINCIPAL, "neo4j" ) ),
+                () -> manager.login( map( AuthToken.SCHEME_KEY, "basic", AuthToken.PRINCIPAL, "ongdb" ) ),
                 InvalidAuthTokenException.class,
                 "Unsupported authentication token, missing key `credentials`" );
 

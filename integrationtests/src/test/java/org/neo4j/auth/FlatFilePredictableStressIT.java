@@ -324,7 +324,7 @@ public class FlatFilePredictableStressIT extends FlatFileStressBase
         {
             try
             {
-                flatFileRealm.addRoleToUser( roleName, "neo4j" );
+                flatFileRealm.addRoleToUser( roleName, "ongdb" );
             }
             catch ( IOException e )
             {
@@ -343,7 +343,7 @@ public class FlatFilePredictableStressIT extends FlatFileStressBase
         {
             try
             {
-                flatFileRealm.removeRoleFromUser( roleName, "neo4j" );
+                flatFileRealm.removeRoleFromUser( roleName, "ongdb" );
             }
             catch ( IOException e )
             {

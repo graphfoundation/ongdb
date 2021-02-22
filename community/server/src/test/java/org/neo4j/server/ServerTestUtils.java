@@ -83,7 +83,7 @@ public class ServerTestUtils
 
     public static File createTempConfigFile() throws IOException
     {
-        File file = File.createTempFile( "neo4j", "conf" );
+        File file = File.createTempFile( "ongdb", "conf" );
         file.delete();
         return file;
     }

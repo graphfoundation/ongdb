@@ -79,7 +79,7 @@ public class BoltHAIT
         HighlyAvailableGraphDatabase slave1 = cluster.getAnySlave();
 
         Driver driver = GraphDatabase.driver( cluster.getBoltAddress( slave1 ),
-                AuthTokens.basic( "neo4j", "neo4j" ) );
+                AuthTokens.basic( "ongdb", "ongdb" ) );
 
         /*
          * We'll use a bookmark to enforce use of kernel internals by the bolt server, to make sure that parts that are

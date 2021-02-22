@@ -131,7 +131,7 @@ public class AuthenticationIT extends AbstractBoltTransportsTest
                 .send( util.defaultAcceptedVersions() )
                 .send( util.chunk(
                         InitMessage.init( "TestClient/1.1",
-                                map( "principal", "neo4j", "credentials", "neo4j", "scheme", "basic" ) ) ) );
+                                map( "principal", "ongdb", "credentials", "ongdb", "scheme", "basic" ) ) ) );
 
         // Then
         assertThat( connection, util.eventuallyReceivesSelectedProtocolVersion() );
@@ -154,7 +154,7 @@ public class AuthenticationIT extends AbstractBoltTransportsTest
                 .send( util.defaultAcceptedVersions() )
                 .send( util.chunk(
                         InitMessage.init( "TestClient/1.1",
-                                map( "principal", "neo4j", "credentials", "wrong", "scheme", "basic" ) ) ) );
+                                map( "principal", "ongdb", "credentials", "wrong", "scheme", "basic" ) ) ) );
 
         // Then
         assertThat( connection, util.eventuallyReceivesSelectedProtocolVersion() );
@@ -181,8 +181,8 @@ public class AuthenticationIT extends AbstractBoltTransportsTest
         connection.connect( address )
                 .send( util.defaultAcceptedVersions() )
                 .send( util.chunk(
-                        InitMessage.init( "TestClient/1.1", map( "principal", "neo4j",
-                                "credentials", "neo4j", "new_credentials", "secret", "scheme", "basic" ) ) ) );
+                        InitMessage.init( "TestClient/1.1", map( "principal", "ongdb",
+                                "credentials", "ongdb", "new_credentials", "secret", "scheme", "basic" ) ) ) );
         // Then
         assertThat( connection, util.eventuallyReceivesSelectedProtocolVersion() );
         assertThat( connection, util.eventuallyReceives( msgSuccess() ) );
@@ -193,7 +193,7 @@ public class AuthenticationIT extends AbstractBoltTransportsTest
                 .send( util.defaultAcceptedVersions() )
                 .send( util.chunk(
                         InitMessage.init( "TestClient/1.1",
-                                map( "principal", "neo4j", "credentials", "secret", "scheme", "basic" ) ) ) );
+                                map( "principal", "ongdb", "credentials", "secret", "scheme", "basic" ) ) ) );
 
         // Then
         assertThat( connection, util.eventuallyReceivesSelectedProtocolVersion() );
@@ -205,7 +205,7 @@ public class AuthenticationIT extends AbstractBoltTransportsTest
                 .send( util.defaultAcceptedVersions() )
                 .send( util.chunk(
                         InitMessage.init( "TestClient/1.1",
-                                map( "principal", "neo4j", "credentials", "wrong", "scheme", "basic" ) ) ) );
+                                map( "principal", "ongdb", "credentials", "wrong", "scheme", "basic" ) ) ) );
 
         // Then
         assertThat( connection, util.eventuallyReceivesSelectedProtocolVersion() );
@@ -223,7 +223,7 @@ public class AuthenticationIT extends AbstractBoltTransportsTest
                 .send( util.defaultAcceptedVersions() )
                 .send( util.chunk(
                         InitMessage.init( "TestClient/1.1",
-                                map( "principal", singletonList( "neo4j" ), "credentials", "neo4j", "scheme",
+                                map( "principal", singletonList( "ongdb" ), "credentials", "ongdb", "scheme",
                                         "basic" ) ) ) );
 
         // Then
@@ -243,7 +243,7 @@ public class AuthenticationIT extends AbstractBoltTransportsTest
                 .send( util.defaultAcceptedVersions() )
                 .send( util.chunk(
                         InitMessage.init( "TestClient/1.1",
-                                map( "principal", "neo4j", "this-should-have-been-credentials", "neo4j", "scheme",
+                                map( "principal", "ongdb", "this-should-have-been-credentials", "ongdb", "scheme",
                                         "basic" ) ) ) );
 
         // Then
@@ -262,7 +262,7 @@ public class AuthenticationIT extends AbstractBoltTransportsTest
                 .send( util.defaultAcceptedVersions() )
                 .send( util.chunk(
                         InitMessage.init( "TestClient/1.1",
-                                map( "principal", "neo4j", "credentials", "neo4j" ) ) ) );
+                                map( "principal", "ongdb", "credentials", "ongdb" ) ) ) );
 
         // Then
         assertThat( connection, util.eventuallyReceivesSelectedProtocolVersion() );
@@ -280,7 +280,7 @@ public class AuthenticationIT extends AbstractBoltTransportsTest
                 .send( util.defaultAcceptedVersions() )
                 .send( util.chunk(
                         InitMessage.init( "TestClient/1.1",
-                                map( "principal", "neo4j", "credentials", "neo4j",
+                                map( "principal", "ongdb", "credentials", "ongdb",
                                         "scheme", "unknown" ) ) ) );
 
         // Then
@@ -356,8 +356,8 @@ public class AuthenticationIT extends AbstractBoltTransportsTest
         connection.connect( address )
                 .send( util.defaultAcceptedVersions() )
                 .send( util.chunk(
-                        InitMessage.init( "TestClient/1.1", map( "principal", "neo4j",
-                                "credentials", "neo4j", "new_credentials", "secret", "scheme", "basic" ) ) ) );
+                        InitMessage.init( "TestClient/1.1", map( "principal", "ongdb",
+                                "credentials", "ongdb", "new_credentials", "secret", "scheme", "basic" ) ) ) );
 
         // Then
         assertThat( connection, util.eventuallyReceivesSelectedProtocolVersion() );
@@ -369,7 +369,7 @@ public class AuthenticationIT extends AbstractBoltTransportsTest
                 .send( util.defaultAcceptedVersions() )
                 .send( util.chunk(
                         InitMessage.init( "TestClient/1.1",
-                                map( "principal", "neo4j", "credentials", "neo4j", "scheme", "basic" ) ) ) );
+                                map( "principal", "ongdb", "credentials", "neo4j", "scheme", "basic" ) ) ) );
         assertThat( connection, util.eventuallyReceivesSelectedProtocolVersion() );
         assertThat( connection, util.eventuallyReceives( msgFailure( Status.Security.Unauthorized,
                 "The client is unauthorized due to authentication failure." ) ) );

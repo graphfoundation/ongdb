@@ -625,7 +625,7 @@ public class TestLuceneIndex extends AbstractLuceneIndexTest
     {
         Index<Node> index = nodeIndex( LuceneIndexImplementation.EXACT_CONFIG );
         String key = "name";
-        String value1 = "neo4j";
+        String value1 = "ongdb";
         String value2 = "nescafe";
         Node node1 = graphDb.createNode();
         Node node2 = graphDb.createNode();

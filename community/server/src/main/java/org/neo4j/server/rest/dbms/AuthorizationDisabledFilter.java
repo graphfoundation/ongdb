@@ -66,7 +66,7 @@ public class AuthorizationDisabledFilter extends AuthorizationFilter
         try
         {
             filterChain.doFilter(
-                    new AuthorizedRequestWrapper( BASIC_AUTH, "neo4j", request, getAuthDisabledLoginContext() ),
+                    new AuthorizedRequestWrapper( BASIC_AUTH, "ongdb", request, getAuthDisabledLoginContext() ),
                     servletResponse );
         }
         catch ( AuthorizationViolationException e )

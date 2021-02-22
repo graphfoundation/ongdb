@@ -136,7 +136,7 @@ public class BoltCausalClusteringIT
 
     private int executeWriteAndReadThroughBolt( CoreClusterMember core ) throws TimeoutException
     {
-        try ( Driver driver = GraphDatabase.driver( core.routingURI(), AuthTokens.basic( "neo4j", "neo4j" ) ) )
+        try ( Driver driver = GraphDatabase.driver( core.routingURI(), AuthTokens.basic( "ongdb", "ongdb" ) ) )
         {
 
             return inExpirableSession( driver, d -> d.session( AccessMode.WRITE ), session ->
@@ -159,7 +159,7 @@ public class BoltCausalClusteringIT
         {
             switchLeader( cluster.awaitLeader() );
             CoreClusterMember leader = cluster.awaitLeader();
-            Driver driver = GraphDatabase.driver( leader.routingURI(), AuthTokens.basic( "neo4j", "neo4j" ) );
+            Driver driver = GraphDatabase.driver( leader.routingURI(), AuthTokens.basic( "ongdb", "ongdb" ) );
 
             try ( Session session = driver.session( AccessMode.READ ) )
             {
@@ -187,7 +187,7 @@ public class BoltCausalClusteringIT
 
         CoreClusterMember leader = cluster.awaitLeader();
 
-        Driver driver = GraphDatabase.driver( leader.routingURI(), AuthTokens.basic( "neo4j", "neo4j" ) );
+        Driver driver = GraphDatabase.driver( leader.routingURI(), AuthTokens.basic( "ongdb", "ongdb" ) );
         try ( Session session = driver.session() )
         {
             session.run( "CREATE (n:Person {name: 'Jim'})" ).consume();
@@ -219,7 +219,7 @@ public class BoltCausalClusteringIT
 
         CoreClusterMember leader = cluster.awaitLeader();
 
-        Driver driver = GraphDatabase.driver( leader.routingURI(), AuthTokens.basic( "neo4j", "neo4j" ) );
+        Driver driver = GraphDatabase.driver( leader.routingURI(), AuthTokens.basic( "ongdb", "ongdb" ) );
         try ( Session session = driver.session() )
         {
             StatementResult overview = session.run( "CALL dbms.cluster.overview" );
@@ -329,7 +329,7 @@ public class BoltCausalClusteringIT
         Config config = Config.build().withLogging( new JULogging( Level.OFF ) ).toConfig();
         Set<String> seenAddresses = new HashSet<>();
         try ( Driver driver = GraphDatabase
-                .driver( leader.routingURI(), AuthTokens.basic( "neo4j", "neo4j" ), config ) )
+                .driver( leader.routingURI(), AuthTokens.basic( "ongdb", "ongdb" ), config ) )
         {
             boolean success = false;
 
@@ -382,7 +382,7 @@ public class BoltCausalClusteringIT
         ReadReplica readReplica = cluster.getReadReplicaById( 0 );
         try
         {
-            GraphDatabase.driver( readReplica.routingURI(), AuthTokens.basic( "neo4j", "neo4j" ) );
+            GraphDatabase.driver( readReplica.routingURI(), AuthTokens.basic( "ongdb", "ongdb" ) );
             fail( "Should have thrown an exception using a read replica address for routing" );
         }
         catch ( ServiceUnavailableException ex )
@@ -406,7 +406,7 @@ public class BoltCausalClusteringIT
         cluster = clusterRule.withNumberOfReadReplicas( 1 ).startCluster();
         CoreClusterMember leader = cluster.awaitLeader();
 
-        try ( Driver driver = GraphDatabase.driver( leader.routingURI(), AuthTokens.basic( "neo4j", "neo4j" ) ) )
+        try ( Driver driver = GraphDatabase.driver( leader.routingURI(), AuthTokens.basic( "ongdb", "ongdb" ) ) )
         {
             inExpirableSession( driver, Driver::session, session ->
             {
@@ -456,7 +456,7 @@ public class BoltCausalClusteringIT
         cluster = clusterRule.withNumberOfReadReplicas( 1 ).startCluster();
         CoreClusterMember leader = cluster.awaitLeader();
 
-        try ( Driver driver = GraphDatabase.driver( leader.directURI(), AuthTokens.basic( "neo4j", "neo4j" ) ) )
+        try ( Driver driver = GraphDatabase.driver( leader.directURI(), AuthTokens.basic( "ongdb", "ongdb" ) ) )
         {
             String bookmark = inExpirableSession( driver, Driver::session, session ->
             {
@@ -487,7 +487,7 @@ public class BoltCausalClusteringIT
         cluster = clusterRule.withNumberOfReadReplicas( 1 ).startCluster();
         CoreClusterMember leader = cluster.awaitLeader();
 
-        try ( Driver driver = GraphDatabase.driver( leader.directURI(), AuthTokens.basic( "neo4j", "neo4j" ) ) )
+        try ( Driver driver = GraphDatabase.driver( leader.directURI(), AuthTokens.basic( "ongdb", "ongdb" ) ) )
         {
             inExpirableSession( driver, d -> d.session( AccessMode.WRITE ), session ->
             {
@@ -539,7 +539,7 @@ public class BoltCausalClusteringIT
 
         readReplica.txPollingClient().stop();
 
-        Driver driver = GraphDatabase.driver( leader.directURI(), AuthTokens.basic( "neo4j", "neo4j" ) );
+        Driver driver = GraphDatabase.driver( leader.directURI(), AuthTokens.basic( "ongdb", "ongdb" ) );
 
         String bookmark = inExpirableSession( driver, d -> d.session( AccessMode.WRITE ), session ->
         {
@@ -558,7 +558,7 @@ public class BoltCausalClusteringIT
         assertNotNull( bookmark );
         readReplica.txPollingClient().start();
 
-        driver = GraphDatabase.driver( readReplica.directURI(), AuthTokens.basic( "neo4j", "neo4j" ) );
+        driver = GraphDatabase.driver( readReplica.directURI(), AuthTokens.basic( "ongdb", "ongdb" ) );
 
         try ( Session session = driver.session( AccessMode.READ, bookmark ) )
         {
@@ -580,7 +580,7 @@ public class BoltCausalClusteringIT
                 .startCluster();
 
         CoreClusterMember leader = cluster.awaitLeader();
-        Driver driver = GraphDatabase.driver( leader.routingURI(), AuthTokens.basic( "neo4j", "neo4j" ) );
+        Driver driver = GraphDatabase.driver( leader.routingURI(), AuthTokens.basic( "ongdb", "ongdb" ) );
 
         String bookmark = inExpirableSession( driver, d -> d.session( AccessMode.WRITE ), session ->
         {
@@ -646,7 +646,7 @@ public class BoltCausalClusteringIT
 
         CoreClusterMember leader = cluster.awaitLeader();
 
-        try ( Driver driver = GraphDatabase.driver( leader.routingURI(), AuthTokens.basic( "neo4j", "neo4j" ) ) )
+        try ( Driver driver = GraphDatabase.driver( leader.routingURI(), AuthTokens.basic( "ongdb", "ongdb" ) ) )
         {
             // when
             try ( Session session = driver.session() )
@@ -700,7 +700,7 @@ public class BoltCausalClusteringIT
 
         Cluster cluster = clusterRule.withSharedCoreParams( params ).withNumberOfReadReplicas( 1 ).startCluster();
 
-        Driver driver = GraphDatabase.driver( cluster.awaitLeader().routingURI(), AuthTokens.basic( "neo4j", "neo4j" ) );
+        Driver driver = GraphDatabase.driver( cluster.awaitLeader().routingURI(), AuthTokens.basic( "ongdb", "ongdb" ) );
 
         try ( Session session = driver.session() )
         {

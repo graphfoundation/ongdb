@@ -70,9 +70,9 @@ public abstract class InitialUserTest
         authManager().start();
 
         // Then
-        final User user = users.getUserByName( "neo4j" );
+        final User user = users.getUserByName( "ongdb" );
         assertNotNull( user );
-        assertTrue( user.credentials().matchesPassword( "neo4j" ) );
+        assertTrue( user.credentials().matchesPassword( "ongdb" ) );
         assertTrue( user.passwordChangeRequired() );
     }
 
@@ -84,7 +84,7 @@ public abstract class InitialUserTest
                 CommunitySecurityModule.getInitialUserRepository( config, NullLogProvider.getInstance(), fsRule.get() );
         initialUserRepository.start();
         initialUserRepository.create(
-                new User.Builder( "neo4j", Credential.forPassword( "123" ) )
+                new User.Builder( "ongdb", Credential.forPassword( "123" ) )
                         .withRequiredPasswordChange( false )
                         .build()
         );
@@ -94,7 +94,7 @@ public abstract class InitialUserTest
         authManager().start();
 
         // Then
-        final User user = users.getUserByName( "neo4j" );
+        final User user = users.getUserByName( "ongdb" );
         assertNotNull( user );
         assertTrue( user.credentials().matchesPassword( "123" ) );
         assertFalse( user.passwordChangeRequired() );
@@ -108,7 +108,7 @@ public abstract class InitialUserTest
                 CommunitySecurityModule.getInitialUserRepository( config, NullLogProvider.getInstance(), fsRule.get() );
         initialUserRepository.start();
         initialUserRepository.create(
-                new User.Builder( "neo4j", Credential.forPassword( "neo4j" ) )
+                new User.Builder( "ongdb", Credential.forPassword( "ongdb" ) )
                         .withRequiredPasswordChange( false )
                         .build()
         );
@@ -118,9 +118,9 @@ public abstract class InitialUserTest
         authManager().start();
 
         // Then
-        final User user = users.getUserByName( "neo4j" );
+        final User user = users.getUserByName( "ongdb" );
         assertNotNull( user );
-        assertTrue( user.credentials().matchesPassword( "neo4j" ) );
+        assertTrue( user.credentials().matchesPassword( "ongdb" ) );
         assertFalse( user.passwordChangeRequired() );
     }
 

@@ -100,7 +100,7 @@ public class SetInitialPasswordCommandIT
         tool.execute( homeDir.toPath(), confDir.toPath(), SET_PASSWORD, "abc" );
         assertAuthIniFile( "abc" );
 
-        verify( out ).stdOutLine( "Changed password for user 'neo4j'." );
+        verify( out ).stdOutLine( "Changed password for user 'ongdb'." );
     }
 
     @Test
@@ -111,18 +111,18 @@ public class SetInitialPasswordCommandIT
         tool.execute( homeDir.toPath(), confDir.toPath(), SET_PASSWORD, "muchBetter" );
         assertAuthIniFile( "muchBetter" );
 
-        verify( out, times( 2 ) ).stdOutLine( "Changed password for user 'neo4j'." );
+        verify( out, times( 2 ) ).stdOutLine( "Changed password for user 'ongdb'." );
     }
 
     @Test
     public void shouldWorkWithSamePassword() throws Throwable
     {
-        tool.execute( homeDir.toPath(), confDir.toPath(), SET_PASSWORD, "neo4j" );
-        assertAuthIniFile( "neo4j" );
-        tool.execute( homeDir.toPath(), confDir.toPath(), SET_PASSWORD, "neo4j" );
-        assertAuthIniFile( "neo4j" );
+        tool.execute( homeDir.toPath(), confDir.toPath(), SET_PASSWORD, "ongdb" );
+        assertAuthIniFile( "ongdb" );
+        tool.execute( homeDir.toPath(), confDir.toPath(), SET_PASSWORD, "ongdb" );
+        assertAuthIniFile( "ongdb" );
 
-        verify( out, times( 2 ) ).stdOutLine( "Changed password for user 'neo4j'." );
+        verify( out, times( 2 ) ).stdOutLine( "Changed password for user 'ongdb'." );
     }
 
     @Test
@@ -140,7 +140,7 @@ public class SetInitialPasswordCommandIT
         verify( out ).stdErrLine( String.format( "    ONGDB_HOME    Neo4j home directory." ) );
         verify( out ).stdErrLine( String.format( "    HEAP_SIZE     Set JVM maximum heap size during command execution." ) );
         verify( out ).stdErrLine( String.format( "                  Takes a number and a unit, for example 512m." ) );
-        verify( out ).stdErrLine( "Sets the initial password of the initial admin user ('neo4j')." );
+        verify( out ).stdErrLine( "Sets the initial password of the initial admin user ('ongdb')." );
         verify( out ).exit( 1 );
         verifyNoMoreInteractions( out );
         verify( out, never() ).stdOutLine( anyString() );
@@ -162,7 +162,7 @@ public class SetInitialPasswordCommandIT
         verify( out ).stdErrLine( String.format( "    HEAP_SIZE     Set JVM maximum heap size during command execution." ) );
         verify( out ).stdErrLine( String.format( "                  Takes a number and a unit, for example 512m." ) );
 
-        verify( out ).stdErrLine( "Sets the initial password of the initial admin user ('neo4j')." );
+        verify( out ).stdErrLine( "Sets the initial password of the initial admin user ('ongdb')." );
         verify( out ).exit( 1 );
         verifyNoMoreInteractions( out );
         verify( out, never() ).stdOutLine( anyString() );

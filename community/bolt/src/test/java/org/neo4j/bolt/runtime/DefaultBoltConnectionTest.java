@@ -105,8 +105,8 @@ public class DefaultBoltConnectionTest
     public void setup()
     {
         boltChannel = BoltChannel.open( connector, channel, messageLogger );
-        stateMachine = mock( BoltStateMachine.class ); // MachineRoom.newMachineWithOwner( BoltStateMachine.State.READY, "neo4j" );
-        when( stateMachine.owner() ).thenReturn( "neo4j" );
+        stateMachine = mock( BoltStateMachine.class ); // MachineRoom.newMachineWithOwner( BoltStateMachine.State.READY, "ongdb" );
+        when( stateMachine.owner() ).thenReturn( "ongdb" );
         when( stateMachine.shouldStickOnThread() ).thenReturn( false );
         when( stateMachine.hasOpenStatement() ).thenReturn( false );
     }

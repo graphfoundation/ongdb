@@ -139,9 +139,9 @@ public class ADAuthIT extends EnterpriseAuthenticationTestBase
     public void shouldLoginWithSamAccountName() throws Throwable
     {
         // dn: cn=n.neo4j,ou=local,ou=users,dc=example,dc=com
-        assertAuth( "neo4j", "abc123" );
+        assertAuth( "ongdb", "abc123" );
         reconnect();
-        assertAuth( "neo4j", "abc123" );
+        assertAuth( "ongdb", "abc123" );
         reconnect();
         // dn: cn=n.neo,ou=remote,ou=users,dc=example,dc=com
         assertAuth( "neo", "abc123" );
@@ -152,7 +152,7 @@ public class ADAuthIT extends EnterpriseAuthenticationTestBase
     @Test
     public void shouldFailLoginSamAccountNameWrongPassword() throws Throwable
     {
-        assertAuthFail( "neo4j", "wrong" );
+        assertAuthFail( "ongdb", "wrong" );
     }
 
     @Test
@@ -164,7 +164,7 @@ public class ADAuthIT extends EnterpriseAuthenticationTestBase
     @Test
     public void shouldReadWithSamAccountName() throws Throwable
     {
-        assertAuth( "neo4j", "abc123" );
+        assertAuth( "ongdb", "abc123" );
         assertReadSucceeds();
     }
 }

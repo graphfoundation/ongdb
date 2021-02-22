@@ -137,7 +137,7 @@ public class UserManagementProceduresLoggingTest
                 error( "[admin]: tried to create user `%s`: %s", "", "The provided username is empty." ),
                 error( "[admin]: tried to create user `%s`: %s", "andres", "A password cannot be empty." ),
                 error( "[admin]: tried to create user `%s`: %s", "mats", "A password cannot be empty." ),
-                error( "[admin]: tried to create user `%s`: %s", "neo4j", "The specified user 'neo4j' already exists." )
+                error( "[admin]: tried to create user `%s`: %s", "neo4j", "The specified user 'ongdb' already exists." )
         );
     }
 

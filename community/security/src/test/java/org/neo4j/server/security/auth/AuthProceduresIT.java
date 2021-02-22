@@ -94,7 +94,7 @@ public class AuthProceduresIT
         fs = new EphemeralFileSystemAbstraction();
         db = (GraphDatabaseAPI) createGraphDatabase( fs );
         authManager = db.getDependencyResolver().resolveDependency( BasicAuthManager.class );
-        admin = login( "neo4j", "neo4j" );
+        admin = login( "ongdb", "ongdb" );
         admin.subject().setPasswordChangeNoLongerRequired();
     }
 
@@ -114,14 +114,14 @@ public class AuthProceduresIT
         // Given
         assertEmpty( admin, "CALL dbms.changePassword('abc')" );
 
-        assert authManager.getUser( "neo4j" ).credentials().matchesPassword( "abc" );
+        assert authManager.getUser( "ongdb" ).credentials().matchesPassword( "abc" );
     }
 
     @Test
     public void shouldNotChangeOwnPasswordIfNewPasswordInvalid()
     {
         assertFail( admin, "CALL dbms.changePassword( '' )", "A password cannot be empty." );
-        assertFail( admin, "CALL dbms.changePassword( 'neo4j' )", "Old password and new password cannot be the same." );
+        assertFail( admin, "CALL dbms.changePassword( 'ongdb' )", "Old password and new password cannot be the same." );
     }
 
     @Test
@@ -209,9 +209,9 @@ public class AuthProceduresIT
     @Test
     public void shouldNotCreateExistingUser()
     {
-        assertFail( admin, "CALL dbms.security.createUser('neo4j', '1234', true)",
-                "The specified user 'neo4j' already exists" );
-        assertFail( admin, "CALL dbms.security.createUser('neo4j', '', true)", "A password cannot be empty." );
+        assertFail( admin, "CALL dbms.security.createUser('ongdb', '1234', true)",
+                "The specified user 'ongdb' already exists" );
+        assertFail( admin, "CALL dbms.security.createUser('ongdb', '', true)", "A password cannot be empty." );
     }
 
     //---------- delete user -----------
@@ -249,7 +249,7 @@ public class AuthProceduresIT
     {
         authManager.newUser( "andres", "123", false );
         assertSuccess( admin, "CALL dbms.security.listUsers() YIELD username",
-                r -> assertKeyIs( r, "username", "neo4j", "andres" ) );
+                r -> assertKeyIs( r, "username", "ongdb", "andres" ) );
     }
 
     @Test
@@ -257,7 +257,7 @@ public class AuthProceduresIT
     {
         authManager.newUser( "andres", "123", false );
         Map<String,Object> expected = map(
-                "neo4j", listOf( PWD_CHANGE ),
+                "ongdb", listOf( PWD_CHANGE ),
                 "andres", listOf()
         );
         assertSuccess( admin, "CALL dbms.security.listUsers()",
@@ -268,7 +268,7 @@ public class AuthProceduresIT
     public void shouldShowCurrentUser() throws Exception
     {
         assertSuccess( admin, "CALL dbms.showCurrentUser()",
-                r -> assertKeyIsMap( r, "username", "flags", map( "neo4j", listOf( PWD_CHANGE ) ) ) );
+                r -> assertKeyIsMap( r, "username", "flags", map( "ongdb", listOf( PWD_CHANGE ) ) ) );
 
         authManager.newUser( "andres", "123", false );
         LoginContext andres = login( "andres", "123" );

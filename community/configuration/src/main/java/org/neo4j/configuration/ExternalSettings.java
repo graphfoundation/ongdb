@@ -59,7 +59,7 @@ public class ExternalSettings implements LoadableConfig
 {
     @Description( "Name of the Windows Service." )
     public static final Setting<String> windowsServiceName = dummySetting( "dbms.windows_service_name",
-            "neo4j" );
+            "ongdb" );
     @Description( "Additional JVM arguments. Argument order can be significant. To use a Java commercial feature, the argument to unlock " +
             "commercial features must precede the argument to enable the specific feature in the config value string. For example, " +
             "to use Flight Recorder, `-XX:+UnlockCommercialFeatures` must come before `-XX:+FlightRecorder`." )

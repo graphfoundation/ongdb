@@ -171,8 +171,8 @@ public abstract class EnterpriseAuthenticationTestBase extends AbstractLdapTestU
 
     protected void testCreateReaderUser( String username ) throws Exception
     {
-        // NOTE: The default user 'neo4j' has password change required, so we have to first change it
-        assertAuthAndChangePassword( "neo4j", "abc123", "123" );
+        // NOTE: The default user 'ongdb' has password change required, so we have to first change it
+        assertAuthAndChangePassword( "ongdb", "abc123", "123" );
 
         client.send( util.chunk(
                 run( "CALL dbms.security.createUser( '" + username + "', '" + createdUserPassword + "', false ) " +

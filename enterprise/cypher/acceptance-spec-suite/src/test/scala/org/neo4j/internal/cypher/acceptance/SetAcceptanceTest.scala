@@ -120,11 +120,11 @@ class SetAcceptanceTest extends ExecutionEngineFunSuite with QueryStatisticsTest
     val a = createNode()
 
     // when
-    val result = executeWith(Configs.UpdateConf, "MATCH (n) SET (CASE WHEN true THEN n END).name = 'neo4j' RETURN count(*)")
+    val result = executeWith(Configs.UpdateConf, "MATCH (n) SET (CASE WHEN true THEN n END).name = 'ongdb' RETURN count(*)")
 
     // then
     assertStats(result, propertiesWritten = 1)
-    a should haveProperty("name").withValue("neo4j")
+    a should haveProperty("name").withValue("ongdb")
   }
 
   //Not suitable for the TCK
@@ -133,11 +133,11 @@ class SetAcceptanceTest extends ExecutionEngineFunSuite with QueryStatisticsTest
     val r = relate(createNode(), createNode())
 
     // when
-    val result = executeWith(Configs.UpdateConf, "MATCH ()-[r]->() SET (CASE WHEN true THEN r END).name = 'neo4j' RETURN count(*)")
+    val result = executeWith(Configs.UpdateConf, "MATCH ()-[r]->() SET (CASE WHEN true THEN r END).name = 'ongdb' RETURN count(*)")
 
     // then
     assertStats(result, propertiesWritten = 1)
-    r should haveProperty("name").withValue("neo4j")
+    r should haveProperty("name").withValue("ongdb")
   }
 
   //Not suitable for the TCK
@@ -172,7 +172,7 @@ class SetAcceptanceTest extends ExecutionEngineFunSuite with QueryStatisticsTest
 
   //Not suitable for the TCK
   test("should fail at runtime when the expression is not a node or a relationship") {
-    failWithError(expectedToFail2, "SET (CASE WHEN true THEN {node} END).name = 'neo4j' RETURN count(*)",
+    failWithError(expectedToFail2, "SET (CASE WHEN true THEN {node} END).name = 'ongdb' RETURN count(*)",
       List("The expression GenericCase(Vector((true,{node})),None) should have been a node or a relationship"), params = Map("node" -> 42))
   }
 

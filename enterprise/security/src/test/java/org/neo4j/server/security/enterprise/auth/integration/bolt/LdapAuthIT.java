@@ -204,9 +204,9 @@ public class LdapAuthIT extends EnterpriseAuthenticationTestBase
     @Test
     public void shouldLoginWithLdap() throws Throwable
     {
-        assertAuth( "neo4j", "abc123" );
+        assertAuth( "ongdb", "abc123" );
         reconnect();
-        assertAuth( "neo4j", "abc123" );
+        assertAuth( "ongdb", "abc123" );
     }
 
     @Test
@@ -215,23 +215,23 @@ public class LdapAuthIT extends EnterpriseAuthenticationTestBase
         restartNeo4jServerWithOverriddenSettings( ldapOnlyAuthSettings
                 .andThen( settings -> settings.put( SecuritySettings.ldap_authentication_cache_enabled, "false" ) ) );
 
-        assertAuth( "neo4j", "abc123" );
+        assertAuth( "ongdb", "abc123" );
         reconnect();
-        assertAuth( "neo4j", "abc123" );
+        assertAuth( "ongdb", "abc123" );
     }
 
     @Test
     public void shouldFailToLoginWithLdapIfInvalidCredentials() throws Throwable
     {
-        assertAuthFail( "neo4j", "CANT_REMEMBER_MY_PASSWORDS_ANYMORE!" );
+        assertAuthFail( "ongdb", "CANT_REMEMBER_MY_PASSWORDS_ANYMORE!" );
     }
 
     @Test
     public void shoulFailToLoginWithLdapIfInvalidCredentialsFollowingSuccessfulLogin() throws Throwable
     {
-        assertAuth( "neo4j", "abc123" );
+        assertAuth( "ongdb", "abc123" );
         reconnect();
-        assertAuthFail( "neo4j", "" );
+        assertAuthFail( "ongdb", "" );
     }
 
     @Test
@@ -241,7 +241,7 @@ public class LdapAuthIT extends EnterpriseAuthenticationTestBase
         restartNeo4jServerWithSaslDigestMd5();
 
         // Then
-        assertAuth( "neo4j", MD5_HASHED_abc123 );
+        assertAuth( "ongdb", MD5_HASHED_abc123 );
     }
 
     @Test
@@ -251,7 +251,7 @@ public class LdapAuthIT extends EnterpriseAuthenticationTestBase
         restartNeo4jServerWithSaslDigestMd5();
 
         // Then
-        assertAuthFail( "neo4j", MD5_HASHED_abc123.toUpperCase() );
+        assertAuthFail( "ongdb", MD5_HASHED_abc123.toUpperCase() );
     }
 
     @Test
@@ -261,7 +261,7 @@ public class LdapAuthIT extends EnterpriseAuthenticationTestBase
         restartNeo4jServerWithSaslCramMd5();
 
         // Then
-        assertAuth( "neo4j", MD5_HASHED_abc123 );
+        assertAuth( "ongdb", MD5_HASHED_abc123 );
     }
 
     @Test
@@ -271,7 +271,7 @@ public class LdapAuthIT extends EnterpriseAuthenticationTestBase
         restartNeo4jServerWithSaslCramMd5();
 
         // Then
-        assertAuthFail( "neo4j", MD5_HASHED_abc123.toUpperCase() );
+        assertAuthFail( "ongdb", MD5_HASHED_abc123.toUpperCase() );
     }
 
     @Test
@@ -364,7 +364,7 @@ public class LdapAuthIT extends EnterpriseAuthenticationTestBase
         restartServerWithoutSystemAccount();
 
         // Given
-        assertAuth( "neo4j", "abc123" );
+        assertAuth( "ongdb", "abc123" );
         assertReadSucceeds();
 
         // When
@@ -387,7 +387,7 @@ public class LdapAuthIT extends EnterpriseAuthenticationTestBase
         restartServerWithoutSystemAccount();
 
         // Then
-        assertAuth( "neo4j", "abc123" );
+        assertAuth( "ongdb", "abc123" );
 
         client.send( util.chunk(
                 run( "CALL dbms.security.clearAuthCache() MATCH (n) RETURN n" ), pullAll() ) );
@@ -436,7 +436,7 @@ public class LdapAuthIT extends EnterpriseAuthenticationTestBase
         } );
 
         // Then
-        // First login as the admin user 'neo4j' and create the internal user 'neo' with role 'reader'
+        // First login as the admin user 'ongdb' and create the internal user 'neo' with role 'reader'
         testCreateReaderUser();
 
         // Then login user 'neo' with LDAP and test that internal authorization gives correct permission
@@ -1209,7 +1209,7 @@ public class LdapAuthIT extends EnterpriseAuthenticationTestBase
         TransportConnection adminClient = cf.newInstance();
 
         // Login as admin
-        Map<String,Object> authToken = authToken( "neo4j", "abc123", null );
+        Map<String,Object> authToken = authToken( "ongdb", "abc123", null );
         adminClient.connect( address )
                 .send( util.acceptedVersions( 1, 0, 0, 0 ) )
                 .send( util.chunk(
@@ -1274,7 +1274,7 @@ public class LdapAuthIT extends EnterpriseAuthenticationTestBase
 
     private void testClearAuthCache() throws Exception
     {
-        assertAuth( "neo4j", "abc123" );
+        assertAuth( "ongdb", "abc123" );
 
         client.send( util.chunk( run( "CALL dbms.security.clearAuthCache()" ), pullAll() ) );
 

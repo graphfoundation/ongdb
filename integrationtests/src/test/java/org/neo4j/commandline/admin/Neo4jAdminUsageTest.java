@@ -84,7 +84,7 @@ public class Neo4jAdminUsageTest
                         "    set-default-admin\n" +
                         "        Sets the default admin user when no roles are present.\n" +
                         "    set-initial-password\n" +
-                        "        Sets the initial password of the initial admin user ('neo4j').\n" +
+                        "        Sets the initial password of the initial admin user ('ongdb').\n" +
                         "\n" +
                         "Clustering\n" +
                         "    unbind\n" +

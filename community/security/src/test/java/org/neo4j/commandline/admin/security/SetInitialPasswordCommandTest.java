@@ -139,11 +139,11 @@ public class SetInitialPasswordCommandTest
     @Test
     public void shouldWorkAlsoWithSamePassword() throws Throwable
     {
-        String[] arguments = {"neo4j"};
+        String[] arguments = {"ongdb"};
         setPasswordCommand.execute( arguments );
 
         // Then
-        assertAuthIniFile( "neo4j" );
+        assertAuthIniFile( "ongdb" );
     }
 
     @Test
@@ -165,7 +165,7 @@ public class SetInitialPasswordCommandTest
                             "    HEAP_SIZE     Set JVM maximum heap size during command execution.%n" +
                             "                  Takes a number and a unit, for example 512m.%n" +
                             "%n" +
-                            "Sets the initial password of the initial admin user ('neo4j').%n" ),
+                            "Sets the initial password of the initial admin user ('ongdb').%n" ),
                     baos.toString() );
         }
     }

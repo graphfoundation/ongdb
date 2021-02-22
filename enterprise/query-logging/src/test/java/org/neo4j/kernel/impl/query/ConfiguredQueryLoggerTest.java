@@ -348,9 +348,9 @@ public class ConfiguredQueryLoggerTest
     @Test
     public void shouldNotLogPasswordEvenIfYouDoTwoThingsAtTheSameTime()
     {
-        String inputQuery = "CALL dbms.security.changeUserPassword('neo4j','.changePassword(silly)') " +
+        String inputQuery = "CALL dbms.security.changeUserPassword('ongdb','.changePassword(silly)') " +
                 "CALL dbms.security.changeUserPassword('smith','other$silly') RETURN 1";
-        String outputQuery = "CALL dbms.security.changeUserPassword('neo4j',******) " +
+        String outputQuery = "CALL dbms.security.changeUserPassword('ongdb',******) " +
                 "CALL dbms.security.changeUserPassword('smith',******) RETURN 1";
 
         runAndCheck( inputQuery, outputQuery, emptyMap(), "" );
@@ -359,9 +359,9 @@ public class ConfiguredQueryLoggerTest
     @Test
     public void shouldNotLogPasswordEvenIfYouDoTwoThingsAtTheSameTimeWithSeveralParms()
     {
-        String inputQuery = "CALL dbms.security.changeUserPassword('neo4j',$first) " +
+        String inputQuery = "CALL dbms.security.changeUserPassword('ongdb',$first) " +
                 "CALL dbms.security.changeUserPassword('smith',$second) RETURN 1";
-        String outputQuery = "CALL dbms.security.changeUserPassword('neo4j',$first) " +
+        String outputQuery = "CALL dbms.security.changeUserPassword('ongdb',$first) " +
                 "CALL dbms.security.changeUserPassword('smith',$second) RETURN 1";
 
         Map<String,Object> params = new HashMap<>();

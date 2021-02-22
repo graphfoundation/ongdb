@@ -135,7 +135,7 @@ public class ConfigTest
         @Override
         public Map<String,String> validate( @Nonnull Config config, @Nonnull Log log ) throws InvalidSettingException
         {
-            if ( !config.get( MySettingsWithDefaults.hello ).equals( "neo4j" ) )
+            if ( !config.get( MySettingsWithDefaults.hello ).equals( "ongdb" ) )
             {
                 throw new InvalidSettingException( "Setting hello has to set to neo4j" );
             }
@@ -327,7 +327,7 @@ public class ConfigTest
     {
         // Should not throw
         Config.builder()
-              .withSetting( MySettingsWithDefaults.hello, "neo4j" )
+              .withSetting( MySettingsWithDefaults.hello, "ongdb" )
               .withValidator( new HelloHasToBeNeo4jConfigurationValidator() )
               .withConfigClasses( Arrays.asList( mySettingsWithDefaults, myMigratingSettings ) ).build();
 

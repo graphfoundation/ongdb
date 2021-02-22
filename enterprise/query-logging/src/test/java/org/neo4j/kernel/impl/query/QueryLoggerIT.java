@@ -138,19 +138,19 @@ public class QueryLoggerIT
         EmbeddedInteraction db = new EmbeddedInteraction( databaseBuilder, config );
 
         // create users
-        db.getLocalUserManager().newUser( "mats", "neo4j", false );
-        db.getLocalUserManager().newUser( "andres", "neo4j", false );
+        db.getLocalUserManager().newUser( "mats", "ongdb", false );
+        db.getLocalUserManager().newUser( "andres", "ongdb", false );
         db.getLocalUserManager().addRoleToUser( "architect", "mats" );
         db.getLocalUserManager().addRoleToUser( "reader", "andres" );
 
-        EnterpriseLoginContext mats = db.login( "mats", "neo4j" );
+        EnterpriseLoginContext mats = db.login( "mats", "ongdb" );
 
         // run query
         db.executeQuery( mats, "UNWIND range(0, 10) AS i CREATE (:Foo {p: i})", Collections.emptyMap(), ResourceIterator::close );
         db.executeQuery( mats, "CREATE (:Label)", Collections.emptyMap(), ResourceIterator::close );
 
         // switch user, run query
-        EnterpriseLoginContext andres = db.login( "andres", "neo4j" );
+        EnterpriseLoginContext andres = db.login( "andres", "ongdb" );
         db.executeQuery( andres, "MATCH (n:Label) RETURN n", Collections.emptyMap(), ResourceIterator::close );
 
         db.tearDown();
@@ -173,9 +173,9 @@ public class QueryLoggerIT
         EmbeddedInteraction db = new EmbeddedInteraction( databaseBuilder, Collections.emptyMap() );
         GraphDatabaseFacade graph = db.getLocalGraph();
 
-        db.getLocalUserManager().setUserPassword( "neo4j", "123", false );
+        db.getLocalUserManager().setUserPassword( "ongdb", "123", false );
 
-        EnterpriseLoginContext subject = db.login( "neo4j", "123" );
+        EnterpriseLoginContext subject = db.login( "ongdb", "123" );
         db.executeQuery( subject, "UNWIND range(0, 10) AS i CREATE (:Foo {p: i})", Collections.emptyMap(),
                 ResourceIterator::close );
 
@@ -401,7 +401,7 @@ public class QueryLoggerIT
                 .newGraphDatabase();
 
         EnterpriseAuthManager authManager = database.getDependencyResolver().resolveDependency( EnterpriseAuthManager.class );
-        EnterpriseLoginContext neo = authManager.login( AuthToken.newBasicAuthToken( "neo4j", "neo4j" ) );
+        EnterpriseLoginContext neo = authManager.login( AuthToken.newBasicAuthToken( "ongdb", "ongdb" ) );
 
         String query = "CALL dbms.security.changePassword('abc123')";
         try ( InternalTransaction tx = database

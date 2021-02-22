@@ -63,28 +63,28 @@ public class BoltInitChangePasswordTest
     public void setup() throws Throwable
     {
         authentication = new BasicAuthentication( authManagerRule.getManager(), authManagerRule.getManager() );
-        authManagerRule.getManager().getUserManager().newUser( "neo4j", "123", true );
+        authManagerRule.getManager().getUserManager().newUser( "ongdb", "123", true );
     }
 
     @Test
     public void shouldLogInitPasswordChange() throws Throwable
     {
-        authentication.authenticate( authToken( "neo4j", "123", "secret" ) );
+        authentication.authenticate( authToken( "ongdb", "123", "secret" ) );
 
         FullSecurityLog fullLog = authManagerRule.getFullSecurityLog();
-        fullLog.assertHasLine( "neo4j", "logged in (password change required)" );
-        fullLog.assertHasLine( "neo4j", "changed password" );
+        fullLog.assertHasLine( "ongdb", "logged in (password change required)" );
+        fullLog.assertHasLine( "ongdb", "changed password" );
     }
 
     @Test
     public void shouldLogFailedInitPasswordChange()
     {
-        assertException( () -> authentication.authenticate( authToken( "neo4j", "123", "123" ) ),
+        assertException( () -> authentication.authenticate( authToken( "ongdb", "123", "123" ) ),
                 AuthenticationException.class, "Old password and new password cannot be the same." );
 
         FullSecurityLog fullLog = authManagerRule.getFullSecurityLog();
-        fullLog.assertHasLine( "neo4j", "logged in (password change required)" );
-        fullLog.assertHasLine( "neo4j", "tried to change password: Old password and new password cannot be the same." );
+        fullLog.assertHasLine( "ongdb", "logged in (password change required)" );
+        fullLog.assertHasLine( "ongdb", "tried to change password: Old password and new password cannot be the same." );
     }
 
     private Map<String,Object> authToken( String username, String password, String newPassword )

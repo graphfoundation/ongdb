@@ -252,7 +252,7 @@ public class ExecutingQueryTest
         // given
         ExecutingQuery query = new ExecutingQuery( 17,
                 ClientConnectionInfo.EMBEDDED_CONNECTION,
-                "neo4j",
+                "ongdb",
                 "hello world",
                 EMPTY_MAP,
                 Collections.emptyMap(),
@@ -297,7 +297,7 @@ public class ExecutingQueryTest
         // given
         ExecutingQuery query = new ExecutingQuery( 17,
                 ClientConnectionInfo.EMBEDDED_CONNECTION,
-                "neo4j",
+                "ongdb",
                 "hello world",
                 EMPTY_MAP,
                 Collections.emptyMap(),
@@ -425,7 +425,7 @@ public class ExecutingQueryTest
     private ExecutingQuery createExecutingquery( int queryId, String hello_world, PageCursorCountersStub page,
             FakeClock clock, FakeCpuClock cpuClock, FakeHeapAllocation heapAllocation )
     {
-        return new ExecutingQuery( queryId, ClientConnectionInfo.EMBEDDED_CONNECTION, "neo4j", hello_world,
+        return new ExecutingQuery( queryId, ClientConnectionInfo.EMBEDDED_CONNECTION, "ongdb", hello_world,
                 EMPTY_MAP, Collections.emptyMap(), () -> lockCount, page, Thread.currentThread().getId(),
                 Thread.currentThread().getName(), clock, cpuClock, heapAllocation );
     }

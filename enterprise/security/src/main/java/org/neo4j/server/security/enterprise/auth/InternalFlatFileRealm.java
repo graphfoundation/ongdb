@@ -248,7 +248,7 @@ public class InternalFlatFileRealm extends AuthorizingRealm implements RealmLife
         return Collections.emptySet();
     }
 
-    /* Builds all predefined roles if no roles exist. Adds 'neo4j' to admin role if no admin is assigned */
+    /* Builds all predefined roles if no roles exist. Adds 'ongdb' to admin role if no admin is assigned */
     private void ensureDefaultRoles( Set<String> addedDefaultUsers ) throws IOException, InvalidArgumentsException
     {
         if ( authenticationEnabled || authorizationEnabled )

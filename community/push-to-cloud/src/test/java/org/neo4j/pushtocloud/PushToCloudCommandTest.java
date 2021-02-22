@@ -90,7 +90,7 @@ public class PushToCloudCommandTest
     {
         // given
         Copier targetCommunicator = mockedTargetCommunicator();
-        String username = "neo4j";
+        String username = "ongdb";
         char[] password = {'a', 'b', 'c'};
         OutsideWorld outsideWorld = new ControlledOutsideWorld( new DefaultFileSystemAbstraction() )
                 .withPromptResponse( username )
@@ -115,7 +115,7 @@ public class PushToCloudCommandTest
     {
         // given
         Copier targetCommunicator = mockedTargetCommunicator();
-        String username = "neo4j";
+        String username = "ongdb";
         char[] password = {'a', 'b', 'c'};
         OutsideWorld outsideWorld = new ControlledOutsideWorld( new DefaultFileSystemAbstraction() )
                 .withPromptResponse( username )
@@ -141,7 +141,7 @@ public class PushToCloudCommandTest
     {
         // given
         Copier targetCommunicator = mockedTargetCommunicator();
-        String username = "neo4j";
+        String username = "ongdb";
         char[] password = {'a', 'b', 'c'};
         OutsideWorld outsideWorld = new ControlledOutsideWorld( new DefaultFileSystemAbstraction() )
                 .withPromptResponse( username )
@@ -191,7 +191,7 @@ public class PushToCloudCommandTest
                 .build();
 
         // when
-        String databaseName = "neo4j";
+        String databaseName = "ongdb";
         command.execute( array(
                 arg( ARG_DATABASE, databaseName ),
                 arg( ARG_BOLT_URI, SOME_EXAMPLE_BOLT_URI ) ) );

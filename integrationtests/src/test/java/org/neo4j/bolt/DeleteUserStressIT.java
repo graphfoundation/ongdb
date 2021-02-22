@@ -75,7 +75,7 @@ public class DeleteUserStressIT
     @Before
     public void setup()
     {
-        adminDriver = GraphDatabase.driver( db.boltURI(), basic( "neo4j", "neo4j" ) );
+        adminDriver = GraphDatabase.driver( db.boltURI(), basic( "ongdb", "ongdb" ) );
         try ( Session session = adminDriver.session();
               Transaction tx = session.beginTransaction() )
         {
@@ -83,7 +83,7 @@ public class DeleteUserStressIT
             tx.success();
         }
         adminDriver.close();
-        adminDriver = GraphDatabase.driver( db.boltURI(), basic( "neo4j", "abc" ) );
+        adminDriver = GraphDatabase.driver( db.boltURI(), basic( "ongdb", "abc" ) );
     }
 
     @Test

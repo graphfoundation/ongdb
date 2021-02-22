@@ -97,7 +97,7 @@ public class BoltQueryLoggingIT
 
         // This has been taken from: http://alpha.neohq.net/docs/server-manual/bolt-examples.html
 
-        // Send INIT "MyClient/1.0" { "scheme": "basic", "principal": "neo4j", "credentials": "secret"}
+        // Send INIT "MyClient/1.0" { "scheme": "basic", "principal": "ongdb", "credentials": "secret"}
         send( dataOut,
                 "00 40 B1 01  8C 4D 79 43  6C 69 65 6E  74 2F 31 2E\n" +
                 "30 A3 86 73  63 68 65 6D  65 85 62 61  73 69 63 89\n" +

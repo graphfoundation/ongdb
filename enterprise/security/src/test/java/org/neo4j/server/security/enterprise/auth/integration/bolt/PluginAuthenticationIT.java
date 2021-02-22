@@ -86,13 +86,13 @@ public class PluginAuthenticationIT extends EnterpriseAuthenticationTestBase
     @Test
     public void shouldAuthenticateWithTestAuthenticationPlugin() throws Throwable
     {
-        assertConnectionSucceeds( authToken( "neo4j", "neo4j", "plugin-TestAuthenticationPlugin" ) );
+        assertConnectionSucceeds( authToken( "ongdb", "ongdb", "plugin-TestAuthenticationPlugin" ) );
     }
 
     @Test
     public void shouldAuthenticateWithTestCacheableAuthenticationPlugin() throws Throwable
     {
-        Map<String,Object> authToken = authToken( "neo4j", "neo4j",
+        Map<String,Object> authToken = authToken( "ongdb", "ongdb",
                 "plugin-TestCacheableAuthenticationPlugin" );
 
         TestCacheableAuthenticationPlugin.getAuthenticationInfoCallCount.set( 0 );
@@ -119,7 +119,7 @@ public class PluginAuthenticationIT extends EnterpriseAuthenticationTestBase
     @Test
     public void shouldAuthenticateWithTestCustomCacheableAuthenticationPlugin() throws Throwable
     {
-        Map<String,Object> authToken = authToken( "neo4j", "neo4j",
+        Map<String,Object> authToken = authToken( "ongdb", "ongdb",
                 "plugin-TestCustomCacheableAuthenticationPlugin" );
 
         TestCustomCacheableAuthenticationPlugin.getAuthenticationInfoCallCount.set( 0 );
@@ -146,23 +146,23 @@ public class PluginAuthenticationIT extends EnterpriseAuthenticationTestBase
     @Test
     public void shouldAuthenticateAndAuthorizeWithTestAuthPlugin() throws Throwable
     {
-        assertConnectionSucceeds( authToken( "neo4j", "neo4j", "plugin-TestAuthPlugin" ) );
+        assertConnectionSucceeds( authToken( "ongdb", "ongdb", "plugin-TestAuthPlugin" ) );
         assertReadSucceeds();
-        assertWriteFails( "neo4j", "reader" );
+        assertWriteFails( "ongdb", "reader" );
     }
 
     @Test
     public void shouldAuthenticateAndAuthorizeWithCacheableTestAuthPlugin() throws Throwable
     {
-        assertConnectionSucceeds( authToken( "neo4j", "neo4j", "plugin-TestCacheableAuthPlugin" ) );
+        assertConnectionSucceeds( authToken( "ongdb", "ongdb", "plugin-TestCacheableAuthPlugin" ) );
         assertReadSucceeds();
-        assertWriteFails( "neo4j", "reader" );
+        assertWriteFails( "ongdb", "reader" );
     }
 
     @Test
     public void shouldAuthenticateWithTestCacheableAuthPlugin() throws Throwable
     {
-        Map<String,Object> authToken = authToken( "neo4j", "neo4j",
+        Map<String,Object> authToken = authToken( "ongdb", "ongdb",
                 "plugin-TestCacheableAuthPlugin" );
 
         TestCacheableAuthPlugin.getAuthInfoCallCount.set( 0 );
@@ -173,14 +173,14 @@ public class PluginAuthenticationIT extends EnterpriseAuthenticationTestBase
         assertConnectionSucceeds( authToken );
         assertThat( TestCacheableAuthPlugin.getAuthInfoCallCount.get(), equalTo( 1 ) );
         assertReadSucceeds();
-        assertWriteFails( "neo4j", "reader" );
+        assertWriteFails( "ongdb", "reader" );
 
         // When we log in the second time our plugin should _not_ get a call since auth info should be cached
         reconnect();
         assertConnectionSucceeds( authToken );
         assertThat( TestCacheableAuthPlugin.getAuthInfoCallCount.get(), equalTo( 1 ) );
         assertReadSucceeds();
-        assertWriteFails( "neo4j", "reader" );
+        assertWriteFails( "ongdb", "reader" );
 
         // When we log in the with the wrong credentials it should fail and
         // our plugin should _not_ get a call since auth info should be cached
@@ -196,9 +196,9 @@ public class PluginAuthenticationIT extends EnterpriseAuthenticationTestBase
         restartNeo4jServerWithOverriddenSettings(
                 settings -> settings.put( SecuritySettings.auth_providers, "plugin-TestCombinedAuthPlugin" ) );
 
-        assertConnectionSucceeds( authToken( "neo4j", "neo4j", "plugin-TestCombinedAuthPlugin" ) );
+        assertConnectionSucceeds( authToken( "ongdb", "ongdb", "plugin-TestCombinedAuthPlugin" ) );
         assertReadSucceeds();
-        assertWriteFails( "neo4j", "reader" );
+        assertWriteFails( "ongdb", "reader" );
     }
 
     @Test
@@ -207,9 +207,9 @@ public class PluginAuthenticationIT extends EnterpriseAuthenticationTestBase
         restartNeo4jServerWithOverriddenSettings( settings -> settings.put( SecuritySettings.auth_providers,
                 "plugin-TestAuthenticationPlugin,plugin-TestAuthorizationPlugin" ) );
 
-        assertConnectionSucceeds( authToken( "neo4j", "neo4j", null ) );
+        assertConnectionSucceeds( authToken( "ongdb", "ongdb", null ) );
         assertReadSucceeds();
-        assertWriteFails( "neo4j", "reader" );
+        assertWriteFails( "ongdb", "reader" );
     }
 
     @Test
@@ -218,7 +218,7 @@ public class PluginAuthenticationIT extends EnterpriseAuthenticationTestBase
         restartNeo4jServerWithOverriddenSettings(
                 settings -> settings.put( SecuritySettings.auth_providers, "plugin-TestCacheableAdminAuthPlugin" ) );
 
-        assertConnectionSucceeds( authToken( "neo4j", "neo4j", "plugin-TestCacheableAdminAuthPlugin" ) );
+        assertConnectionSucceeds( authToken( "ongdb", "ongdb", "plugin-TestCacheableAdminAuthPlugin" ) );
         assertReadSucceeds();
 
         // When
@@ -241,7 +241,7 @@ public class PluginAuthenticationIT extends EnterpriseAuthenticationTestBase
                 settings -> settings.put( SecuritySettings.auth_providers, "plugin-TestCacheableAdminAuthPlugin" ) );
 
         // Then
-        assertConnectionSucceeds( authToken( "neo4j", "neo4j", "plugin-TestCacheableAdminAuthPlugin" ) );
+        assertConnectionSucceeds( authToken( "ongdb", "ongdb", "plugin-TestCacheableAdminAuthPlugin" ) );
 
         client.send( util.chunk(
                 run( "CALL dbms.security.clearAuthCache() MATCH (n) RETURN n" ), pullAll() ) );
@@ -255,7 +255,7 @@ public class PluginAuthenticationIT extends EnterpriseAuthenticationTestBase
     {
         assertConnectionSucceeds( map(
                 "scheme", "custom",
-                "principal", "neo4j",
+                "principal", "ongdb",
                 "realm", "plugin-TestCustomParametersAuthenticationPlugin",
                 "parameters", map( "my_credentials", Arrays.asList( 1L, 2L, 3L, 4L ) ) ) );
     }
@@ -266,7 +266,7 @@ public class PluginAuthenticationIT extends EnterpriseAuthenticationTestBase
         restartNeo4jServerWithOverriddenSettings( settings -> settings.put( SecuritySettings.auth_providers,
                 "plugin-TestCombinedAuthPlugin" ) );
 
-        assertConnectionSucceeds( authToken( "authorization_expired_user", "neo4j", null ) );
+        assertConnectionSucceeds( authToken( "authorization_expired_user", "ongdb", null ) );
 
         // Then
         client.send( util.chunk(

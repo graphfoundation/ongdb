@@ -152,7 +152,7 @@ public class FileUserRepositoryTest
         FileUserRepository users = new FileUserRepository( fs, authFile, logProvider );
 
         // When
-        users.assertValidUsername( "neo4j" );
+        users.assertValidUsername( "ongdb" );
         users.assertValidUsername( "johnosbourne" );
         users.assertValidUsername( "john_osbourne" );
 

@@ -282,7 +282,7 @@ public class MultiRealmAuthManagerTest extends InitialUserTest
         assertException(
                 () -> manager.login( map( AuthToken.SCHEME_KEY, "supercool", AuthToken.PRINCIPAL, "neo4j" ) ),
                 InvalidAuthTokenException.class,
-                "Unsupported authentication token: { scheme='supercool', principal='neo4j' }" );
+                "Unsupported authentication token: { scheme='supercool', principal='ongdb' }" );
 
         assertException(
                 () -> manager.login( map( AuthToken.SCHEME_KEY, "none" ) ),
@@ -297,7 +297,7 @@ public class MultiRealmAuthManagerTest extends InitialUserTest
         assertException(
                 () -> manager.login( map( AuthToken.SCHEME_KEY, "basic", AuthToken.PRINCIPAL, "neo4j" ) ),
                 InvalidAuthTokenException.class,
-                "Unsupported authentication token, missing key `credentials`: { scheme='basic', principal='neo4j' }" );
+                "Unsupported authentication token, missing key `credentials`: { scheme='basic', principal='ongdb' }" );
 
         assertException(
                 () -> manager.login( map( AuthToken.SCHEME_KEY, "basic", AuthToken.CREDENTIALS, "very-secret" ) ),

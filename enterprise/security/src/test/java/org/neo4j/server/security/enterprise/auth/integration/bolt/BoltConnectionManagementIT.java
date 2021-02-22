@@ -119,7 +119,7 @@ public class BoltConnectionManagementIT
         this.address = server.lookupDefaultConnector();
         this.util = new TransportTestUtil( new Neo4jPackV1() );
 
-        authenticate( admin, "neo4j", "neo4j", "123" );
+        authenticate( admin, "ongdb", "ongdb", "123" );
         createNewUser( admin, "Igor", "123" );
     }
 
@@ -164,8 +164,8 @@ public class BoltConnectionManagementIT
         // Then
         Map<String, Long> result = collectConnectionResult( admin, 1 );
 
-        assertTrue( result.containsKey( "neo4j" ) );
-        assertTrue( result.get( "neo4j" ) == 1L );
+        assertTrue( result.containsKey( "ongdb" ) );
+        assertTrue( result.get( "ongdb" ) == 1L );
     }
 
     //@Test
@@ -180,8 +180,8 @@ public class BoltConnectionManagementIT
         // Then
         Map<String, Long> result = collectConnectionResult( admin, 2 );
 
-        assertTrue( result.containsKey( "neo4j" ) );
-        assertTrue( result.get( "neo4j" ) == 1L );
+        assertTrue( result.containsKey( "ongdb" ) );
+        assertTrue( result.get( "ongdb" ) == 1L );
         assertTrue( result.containsKey( "Igor" ) );
         assertTrue( result.get( "Igor" ) == 1L );
     }
@@ -220,8 +220,8 @@ public class BoltConnectionManagementIT
                 run( "CALL dbms.listConnections() YIELD username, connectionCount" ),
                 pullAll() ) );
         Map<String, Long> listResult = collectConnectionResult( admin, 1 );
-        assertTrue( listResult.containsKey( "neo4j" ) );
-        assertTrue( listResult.get( "neo4j" ) == 1L );
+        assertTrue( listResult.containsKey( "ongdb" ) );
+        assertTrue( listResult.get( "ongdb" ) == 1L );
 
         verifyConnectionHasTerminated( user );
     }
@@ -260,7 +260,7 @@ public class BoltConnectionManagementIT
         authenticate( user, "Igor", "123", null );
 
         // Then
-        assertFailTerminateConnectionForUser( user, "neo4j" );
+        assertFailTerminateConnectionForUser( user, "ongdb" );
         assertFailTerminateConnectionForUser( user, "NonExistentUser" );
         assertFailTerminateConnectionForUser( user, "" );
     }
@@ -268,14 +268,14 @@ public class BoltConnectionManagementIT
     //@Test
     public void shouldTerminateOwnConnectionIfAdmin() throws Throwable
     {
-        assertTerminateOwnConnection( admin, "neo4j" );
+        assertTerminateOwnConnection( admin, "ongdb" );
     }
 
     //@Test
     public void shouldTerminateOwnConnectionsIfAdmin() throws Throwable
     {
-        authenticate( user, "neo4j", "123", null );
-        assertTerminateOwnConnections( admin, user, "neo4j" );
+        authenticate( user, "ongdb", "123", null );
+        assertTerminateOwnConnections( admin, user, "ongdb" );
     }
 
     //@Test

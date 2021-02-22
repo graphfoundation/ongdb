@@ -72,7 +72,7 @@ public class EnterpriseAuthenticationIT extends AuthenticationIT
         String path = "db/data/transaction/commit";
         HTTP.RawPayload payload = HTTP.RawPayload.quotedJson(
                 "{'statements':[{'statement':'CALL dbms.security.listRoles()'}]}" );
-        HTTP.Response response = HTTP.withHeaders( HttpHeaders.AUTHORIZATION, basicAuthHeader( "neo4j", "secret" ) )
+        HTTP.Response response = HTTP.withHeaders( HttpHeaders.AUTHORIZATION, basicAuthHeader( "ongdb", "secret" ) )
                 .request( method, server.baseUri().resolve( path ).toString(), payload );
 
         // Then
