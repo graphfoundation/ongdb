@@ -253,7 +253,7 @@ public class AuthorizationEnabledFilter extends AuthorizationFilter
             return res ->
             {
                 responseGen.accept( res );
-                res.addHeader( HttpHeaders.WWW_AUTHENTICATE, "Basic realm=\"Neo4j\"" );
+                res.addHeader( HttpHeaders.WWW_AUTHENTICATE, "Basic realm=\"ONgDB\"" );
             };
         }
     }

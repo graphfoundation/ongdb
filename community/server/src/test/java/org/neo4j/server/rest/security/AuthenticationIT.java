@@ -74,7 +74,7 @@ public class AuthenticationIT extends CommunityServerTestBase
         // Document
         RESTRequestGenerator.ResponseEntity response = gen.get()
                 .expectedStatus( 401 )
-                .expectedHeader( "WWW-Authenticate", "Basic realm=\"Neo4j\"" )
+                .expectedHeader( "WWW-Authenticate", "Basic realm=\"ONgDB\"" )
                 .get( dataURL() );
 
         // Then
@@ -121,7 +121,7 @@ public class AuthenticationIT extends CommunityServerTestBase
         RESTRequestGenerator.ResponseEntity response = gen.get()
                 .expectedStatus( 401 )
                 .withHeader( HttpHeaders.AUTHORIZATION, basicAuthHeader( "ongdb", "incorrect" ) )
-                .expectedHeader( "WWW-Authenticate", "Basic realm=\"Neo4j\"" )
+                .expectedHeader( "WWW-Authenticate", "Basic realm=\"ONgDB\"" )
                 .post( dataURL() );
 
         // Then
@@ -284,7 +284,7 @@ public class AuthenticationIT extends CommunityServerTestBase
         assertThat(response.status(), equalTo(401));
         assertThat(response.get("errors").get(0).get("code").asText(), equalTo("Neo.ClientError.Security.Unauthorized"));
         assertThat(response.get("errors").get(0).get("message").asText(), equalTo("No authentication header supplied."));
-        assertThat(response.header( HttpHeaders.WWW_AUTHENTICATE ), equalTo("Basic realm=\"Neo4j\""));
+        assertThat(response.header( HttpHeaders.WWW_AUTHENTICATE ), equalTo("Basic realm=\"ONgDB\""));
 
         // When malformed header
         response = HTTP.withHeaders( HttpHeaders.AUTHORIZATION, "This makes no sense" )
@@ -299,7 +299,7 @@ public class AuthenticationIT extends CommunityServerTestBase
         assertThat(response.status(), equalTo(401));
         assertThat(response.get("errors").get(0).get("code").asText(), equalTo("Neo.ClientError.Security.Unauthorized"));
         assertThat(response.get("errors").get(0).get("message").asText(), equalTo("Invalid username or password."));
-        assertThat(response.header(HttpHeaders.WWW_AUTHENTICATE ), equalTo("Basic realm=\"Neo4j\""));
+        assertThat(response.header(HttpHeaders.WWW_AUTHENTICATE ), equalTo("Basic realm=\"ONgDB\""));
 
         // When authorized
         response = HTTP.withHeaders( HttpHeaders.AUTHORIZATION, basicAuthHeader( "ongdb", "secret" ) )
