@@ -134,7 +134,7 @@ interface TimeoutTests
         },
         saslHost = "0.0.0.0",
         extendedOpHandlers = {StartTlsHandler.class},
-        keyStore = "target/test-classes/neo4j_ldap_test_keystore.jks",
+        keyStore = "target/test-classes/ongdb_ldap_test_keystore.jks",
         certificatePassword = "secret"
 )
 @ApplyLdifFiles( "ldap_test_data.ldif" )
@@ -1517,7 +1517,7 @@ public class LdapAuthIT extends EnterpriseAuthenticationTestBase
 
         EmbeddedTestCertificates()
         {
-            File keyStoreFile = fileFromResources( "/neo4j_ldap_test_keystore.jks" );
+            File keyStoreFile = fileFromResources( "/ongdb_ldap_test_keystore.jks" );
             String keyStorePath = keyStoreFile.getAbsolutePath();
 
             System.setProperty( KEY_STORE, keyStorePath );

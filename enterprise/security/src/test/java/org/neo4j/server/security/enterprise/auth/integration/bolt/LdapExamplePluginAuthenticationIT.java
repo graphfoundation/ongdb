@@ -84,7 +84,7 @@ import org.neo4j.server.security.enterprise.configuration.SecuritySettings;
         },
         saslHost = "0.0.0.0",
         extendedOpHandlers = { StartTlsHandler.class },
-        keyStore = "target/test-classes/neo4j_ldap_test_keystore.jks",
+        keyStore = "target/test-classes/ongdb_ldap_test_keystore.jks",
         certificatePassword = "secret"
 )
 @ApplyLdifFiles( "ldap_group_has_users_test_data.ldif" )
