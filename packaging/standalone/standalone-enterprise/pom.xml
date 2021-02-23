@@ -13,7 +13,7 @@
   <packaging>pom</packaging>
 
   <name>ONgDB - Enterprise Server Assembler</name>
-  <description>This project assembles the Neo4j Enterprise stand-alone distribution,
+  <description>This project assembles the ONgDB Enterprise stand-alone distribution,
     pulling together all the deliverable artifacts and packaging them
       into a downloadable installer.</description>
   <url>https://graphfoundation.org/projects/ongdb/${project.version}/${project.artifactId}</url>

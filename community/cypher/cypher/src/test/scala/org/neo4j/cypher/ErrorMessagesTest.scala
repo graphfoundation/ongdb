@@ -262,7 +262,7 @@ class ErrorMessagesTest extends ExecutionEngineFunSuite {
   test("should give proper error message when trying to use Node Key constraint on community") {
     expectError("CREATE CONSTRAINT ON (n:Person) ASSERT (n.firstname) IS NODE KEY",
                 String.format("Unable to create CONSTRAINT ON ( person:Person ) ASSERT exists(person.firstname):%n" +
-                  "Node Key constraint requires Neo4j Enterprise Edition"))
+                  "Node Key constraint requires ONgDB Enterprise Edition"))
   }
 
   test("trying to store mixed type array") {

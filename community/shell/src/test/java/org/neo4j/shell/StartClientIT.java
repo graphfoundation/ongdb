@@ -211,7 +211,7 @@ public class StartClientIT extends AbstractShellIT
         // then
         assertEquals( 0, err.size() );
         String version = out.toString();
-        assertThat( version, startsWith( "Neo4j Community, version " ) );
+        assertThat( version, startsWith( "ONgDB Community, version " ) );
     }
 
     @Test

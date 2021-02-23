@@ -450,7 +450,7 @@ public class GraphDatabaseSettings implements LoadableConfig
     @Description( "Configures the general policy for when check-points should occur. The default policy is the " +
                   "'periodic' check-point policy, as specified by the 'dbms.checkpoint.interval.tx' and " +
                   "'dbms.checkpoint.interval.time' settings. " +
-                  "The Neo4j Enterprise Edition provides two alternative policies: " +
+                  "The ONgDB Enterprise Edition provides two alternative policies: " +
                   "The first is the 'continuous' check-point policy, which will ignore those settings and run the " +
                   "check-point process all the time. " +
                   "The second is the 'volumetric' check-point policy, which makes a best-effort at check-pointing " +
@@ -482,7 +482,7 @@ public class GraphDatabaseSettings implements LoadableConfig
 
     @Dynamic
     @Description( "Limit the number of IOs the background checkpoint process will consume per second. " +
-                  "This setting is advisory, is ignored in Neo4j Community Edition, and is followed to " +
+                  "This setting is advisory, is ignored in ONgDB Community Edition, and is followed to " +
                   "best effort in Enterprise Edition. " +
                   "An IO is in this case a 8 KiB (mostly sequential) write. Limiting the write IO in " +
                   "this way will leave more bandwidth in the IO subsystem to service random-read IOs, " +
@@ -679,7 +679,7 @@ public class GraphDatabaseSettings implements LoadableConfig
     @Internal
     @Description( "The profiling frequency for the page cache. Accurate profiles allow the page cache to do active " +
                   "warmup after a restart, reducing the mean time to performance. " +
-                  "This feature available in Neo4j Enterprise Edition." )
+                  "This feature available in ONgDB Enterprise Edition." )
     public static final Setting<Duration> pagecache_warmup_profiling_interval =
             setting( "unsupported.dbms.memory.pagecache.warmup.profile.interval", DURATION, "1m" );
 
@@ -687,7 +687,7 @@ public class GraphDatabaseSettings implements LoadableConfig
     @Description( "Page cache can be configured to perform usage sampling of loaded pages that can be used to construct active load profile. " +
             "According to that profile pages can be reloaded on the restart, replication, etc. " +
             "This setting allows disabling that behavior. " +
-            "This feature available in Neo4j Enterprise Edition." )
+            "This feature available in ONgDB Enterprise Edition." )
     public static final Setting<Boolean> pagecache_warmup_enabled = setting( "unsupported.dbms.memory.pagecache.warmup.enable", BOOLEAN, TRUE );
 
     @Description( "Allows the enabling or disabling of the file watcher service." +
@@ -758,7 +758,7 @@ public class GraphDatabaseSettings implements LoadableConfig
     @Description( "Log executed queries that take longer than the configured threshold, dbms.logs.query.threshold. " +
             "Log entries are by default written to the file _query.log_ located in the Logs directory. " +
             "For location of the Logs directory, see <<file-locations>>. " +
-            "This feature is available in the Neo4j Enterprise Edition." )
+            "This feature is available in the ONgDB Enterprise Edition." )
     @Dynamic
     public static final Setting<Boolean> log_queries =
             setting( "dbms.logs.query.enabled", BOOLEAN, FALSE );

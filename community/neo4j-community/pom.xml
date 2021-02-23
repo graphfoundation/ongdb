@@ -14,7 +14,7 @@
   <name>ONgDB - Community</name>
   <packaging>pom</packaging>
   <url>https://graphfoundation.org/projects/ongdb/${project.version}/${project.artifactId}</url>
-  <description>A meta package containing the most used Neo4j Community libraries. Intended use: as a Maven dependency.</description>
+  <description>A meta package containing the most used ONgDB Community libraries. Intended use: as a Maven dependency.</description>
 
   <properties>
     <license-text.header>headers/GPL-3-header.txt</license-text.header>

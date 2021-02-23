@@ -57,7 +57,7 @@ import static org.neo4j.kernel.configuration.Settings.range;
 import static org.neo4j.kernel.configuration.Settings.setting;
 
 /**
- * Settings for the Neo4j Enterprise metrics reporting.
+ * Settings for the ONgDB Enterprise metrics reporting.
  */
 @Description( "Metrics settings" )
 public class MetricsSettings implements LoadableConfig

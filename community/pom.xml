@@ -14,7 +14,7 @@
 
   <name>ONgDB - Community Build</name>
   <packaging>pom</packaging>
-  <description>Project that builds the Neo4j Community distribution.</description>
+  <description>Project that builds the ONgDB Community distribution.</description>
   <url>https://graphfoundation.org/projects/ongdb/${project.version}/${project.artifactId}</url>
 
   <properties>

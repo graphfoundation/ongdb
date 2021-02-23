@@ -68,7 +68,7 @@ public class EnterpriseVersionTest
         // then
         assertEquals( 0, err.size() );
         String version = out.toString();
-        assertThat( version, startsWith( "Neo4j Enterprise, version " ) );
+        assertThat( version, startsWith( "ONgDB Enterprise, version " ) );
     }
 
     @Test
